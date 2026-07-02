@@ -29,19 +29,33 @@ export default function AdminDashboardPage() {
             </p>
           </div>
         </Link>
-        
-        {/* Placeholder for future admin modules */}
-        <div className="bg-white/50 p-6 rounded-xl border border-gray-200 border-dashed opacity-60">
+        <Link href="/admin/cursos" className="block">
+          <div className="bg-white p-6 rounded-xl border border-gray-200 shadow-sm hover:shadow-md transition-shadow cursor-pointer h-full">
             <div className="flex items-center gap-4 mb-4">
-              <div className="p-3 bg-gray-100 text-gray-400 rounded-lg">
+              <div className="p-3 bg-orange-50 text-orange-600 rounded-lg">
+                <Settings size={24} /> {/* Assuming we'll use a generic icon, or BookOpen if imported */}
+              </div>
+              <h2 className="text-lg font-semibold text-gray-900">Cursos</h2>
+            </div>
+            <p className="text-sm text-gray-600">
+              Administra los cursos, módulos y clases disponibles en la plataforma.
+            </p>
+          </div>
+        </Link>
+        
+        <Link href="/admin/cursos/configuracion" className="block">
+          <div className="bg-white p-6 rounded-xl border border-gray-200 shadow-sm hover:shadow-md transition-shadow cursor-pointer h-full">
+            <div className="flex items-center gap-4 mb-4">
+              <div className="p-3 bg-purple-50 text-purple-600 rounded-lg">
                 <Settings size={24} />
               </div>
-              <h2 className="text-lg font-semibold text-gray-500">Configuración (Próximamente)</h2>
+              <h2 className="text-lg font-semibold text-gray-900">Categorías e Instructores</h2>
             </div>
-            <p className="text-sm text-gray-400">
-              Módulos futuros de administración.
+            <p className="text-sm text-gray-600">
+              Configura los metadatos necesarios para los cursos.
             </p>
-        </div>
+          </div>
+        </Link>
       </div>
     </div>
   )
