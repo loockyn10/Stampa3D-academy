@@ -71,6 +71,11 @@ export async function updateSession(request: NextRequest) {
     const role = profile?.role
     const hasAccess = role === 'admin' || membershipStatus === 'active'
 
+    // Admin routes protection
+    if (pathname.startsWith('/admin') && role !== 'admin') {
+      return redirectWithCookies('/')
+    }
+
     if (!hasAccess && !isPublicRoute && !pathname.startsWith('/sin-acceso') && !pathname.startsWith('/auth') && !pathname.startsWith('/login') && !pathname.startsWith('/salir')) {
       return redirectWithCookies('/sin-acceso')
     }
