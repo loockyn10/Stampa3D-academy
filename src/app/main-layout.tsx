@@ -3,9 +3,17 @@
 import React, { useState } from "react";
 import { Sidebar } from "@/components/layout/sidebar";
 import { Header } from "@/components/layout/header";
+import { usePathname } from "next/navigation";
 
 export function MainLayout({ children }: { children: React.ReactNode }) {
   const [mobileOpen, setMobileOpen] = useState(false);
+  const pathname = usePathname();
+
+  const isAuthRoute = pathname?.startsWith('/login') || pathname?.startsWith('/registro') || pathname?.startsWith('/sin-acceso') || pathname?.startsWith('/salir');
+
+  if (isAuthRoute) {
+    return <main className="min-h-screen bg-[#F7F7F9]">{children}</main>;
+  }
 
   return (
     <div className="flex min-h-screen bg-[#F7F7F9] font-sans">
