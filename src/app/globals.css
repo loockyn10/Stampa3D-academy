@@ -24,3 +24,31 @@ body {
   color: var(--foreground);
   font-family: Arial, Helvetica, sans-serif;
 }
+
+/* Global Form Control Styles */
+input:not([type="checkbox"]):not([type="radio"]),
+textarea,
+select {
+  color: #111827 !important;
+  background-color: #ffffff !important;
+  border-color: #D1D5DB !important;
+}
+
+input:not([type="checkbox"]):not([type="radio"])::placeholder,
+textarea::placeholder {
+  color: #6B7280 !important;
+  opacity: 1 !important;
+}
+
+input:not([type="checkbox"]):not([type="radio"]):focus,
+textarea:focus,
+select:focus {
+  outline: none !important;
+  border-color: #f97316 !important;
+  box-shadow: 0 0 0 2px rgba(249, 115, 22, 0.2) !important;
+}
+
+option {
+  color: #111827 !important;
+  background-color: #ffffff !important;
+}

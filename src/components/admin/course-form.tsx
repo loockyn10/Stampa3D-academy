@@ -155,7 +155,7 @@ export function CourseForm({ courseId }: { courseId?: string }) {
             value={formData.title}
             onChange={handleChange}
             required
-            className="w-full text-sm border-gray-300 rounded-md focus:ring-blue-500 focus:border-blue-500 shadow-sm"
+            className="w-full text-sm bg-white text-gray-900 placeholder-gray-500 border-gray-300 rounded-md focus:ring-orange-500 focus:border-orange-500 shadow-sm"
           />
         </div>
         
@@ -167,7 +167,7 @@ export function CourseForm({ courseId }: { courseId?: string }) {
             value={formData.slug}
             onChange={handleChange}
             required
-            className="w-full text-sm border-gray-300 rounded-md focus:ring-blue-500 focus:border-blue-500 shadow-sm"
+            className="w-full text-sm bg-white text-gray-900 placeholder-gray-500 border-gray-300 rounded-md focus:ring-orange-500 focus:border-orange-500 shadow-sm"
           />
         </div>
 
@@ -178,7 +178,7 @@ export function CourseForm({ courseId }: { courseId?: string }) {
             value={formData.description}
             onChange={handleChange}
             rows={3}
-            className="w-full text-sm border-gray-300 rounded-md focus:ring-blue-500 focus:border-blue-500 shadow-sm"
+            className="w-full text-sm bg-white text-gray-900 placeholder-gray-500 border-gray-300 rounded-md focus:ring-orange-500 focus:border-orange-500 shadow-sm"
           />
         </div>
 
@@ -190,7 +190,7 @@ export function CourseForm({ courseId }: { courseId?: string }) {
             value={formData.thumbnail_url}
             onChange={handleChange}
             placeholder="https://..."
-            className="w-full text-sm border-gray-300 rounded-md focus:ring-blue-500 focus:border-blue-500 shadow-sm"
+            className="w-full text-sm bg-white text-gray-900 placeholder-gray-500 border-gray-300 rounded-md focus:ring-orange-500 focus:border-orange-500 shadow-sm"
           />
         </div>
 
@@ -200,11 +200,11 @@ export function CourseForm({ courseId }: { courseId?: string }) {
             name="category_id"
             value={formData.category_id}
             onChange={handleChange}
-            className="w-full text-sm border-gray-300 rounded-md focus:ring-blue-500 focus:border-blue-500 shadow-sm"
+            className="w-full text-sm bg-white text-gray-900 placeholder-gray-500 border-gray-300 rounded-md focus:ring-orange-500 focus:border-orange-500 shadow-sm"
           >
-            <option value="">Selecciona una categoría</option>
+            <option value="" className="text-gray-900 bg-white">Selecciona una categoría</option>
             {categories.map((c) => (
-              <option key={c.id} value={c.id}>{c.name}</option>
+              <option key={c.id} value={c.id} className="text-gray-900 bg-white">{c.name}</option>
             ))}
           </select>
         </div>
@@ -215,11 +215,11 @@ export function CourseForm({ courseId }: { courseId?: string }) {
             name="instructor_id"
             value={formData.instructor_id}
             onChange={handleChange}
-            className="w-full text-sm border-gray-300 rounded-md focus:ring-blue-500 focus:border-blue-500 shadow-sm"
+            className="w-full text-sm bg-white text-gray-900 placeholder-gray-500 border-gray-300 rounded-md focus:ring-orange-500 focus:border-orange-500 shadow-sm"
           >
-            <option value="">Selecciona un instructor</option>
+            <option value="" className="text-gray-900 bg-white">Selecciona un instructor</option>
             {instructors.map((i) => (
-              <option key={i.id} value={i.id}>{i.name}</option>
+              <option key={i.id} value={i.id} className="text-gray-900 bg-white">{i.name}</option>
             ))}
           </select>
         </div>
@@ -230,11 +230,11 @@ export function CourseForm({ courseId }: { courseId?: string }) {
             name="level"
             value={formData.level}
             onChange={handleChange}
-            className="w-full text-sm border-gray-300 rounded-md focus:ring-blue-500 focus:border-blue-500 shadow-sm"
+            className="w-full text-sm bg-white text-gray-900 placeholder-gray-500 border-gray-300 rounded-md focus:ring-orange-500 focus:border-orange-500 shadow-sm"
           >
-            <option value="beginner">Principiante</option>
-            <option value="intermediate">Intermedio</option>
-            <option value="advanced">Avanzado</option>
+            <option value="beginner" className="text-gray-900 bg-white">Principiante</option>
+            <option value="intermediate" className="text-gray-900 bg-white">Intermedio</option>
+            <option value="advanced" className="text-gray-900 bg-white">Avanzado</option>
           </select>
         </div>
 
@@ -245,7 +245,7 @@ export function CourseForm({ courseId }: { courseId?: string }) {
             name="sort_order"
             value={formData.sort_order}
             onChange={handleChange}
-            className="w-full text-sm border-gray-300 rounded-md focus:ring-blue-500 focus:border-blue-500 shadow-sm"
+            className="w-full text-sm bg-white text-gray-900 placeholder-gray-500 border-gray-300 rounded-md focus:ring-orange-500 focus:border-orange-500 shadow-sm"
           />
         </div>
 
@@ -255,11 +255,11 @@ export function CourseForm({ courseId }: { courseId?: string }) {
             name="status"
             value={formData.status}
             onChange={handleChange}
-            className="w-full text-sm border-gray-300 rounded-md focus:ring-blue-500 focus:border-blue-500 shadow-sm"
+            className="w-full text-sm bg-white text-gray-900 placeholder-gray-500 border-gray-300 rounded-md focus:ring-orange-500 focus:border-orange-500 shadow-sm"
           >
-            <option value="draft">Borrador</option>
-            <option value="published">Publicado</option>
-            <option value="archived">Archivado</option>
+            <option value="draft" className="text-gray-900 bg-white">Borrador</option>
+            <option value="published" className="text-gray-900 bg-white">Publicado</option>
+            <option value="archived" className="text-gray-900 bg-white">Archivado</option>
           </select>
         </div>
       </div>
