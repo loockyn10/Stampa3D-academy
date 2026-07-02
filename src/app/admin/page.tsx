@@ -56,6 +56,20 @@ export default function AdminDashboardPage() {
             </p>
           </div>
         </Link>
+
+        <Link href="/admin/stl" className="block">
+          <div className="bg-white p-6 rounded-xl border border-gray-200 shadow-sm hover:shadow-md transition-shadow cursor-pointer h-full">
+            <div className="flex items-center gap-4 mb-4">
+              <div className="p-3 bg-emerald-50 text-emerald-600 rounded-lg">
+                <Settings size={24} /> {/* Placeholder icon */}
+              </div>
+              <h2 className="text-lg font-semibold text-gray-900">Librería STL</h2>
+            </div>
+            <p className="text-sm text-gray-600">
+              Administra las categorías, modelos y variantes de la librería 3D.
+            </p>
+          </div>
+        </Link>
       </div>
     </div>
   )
