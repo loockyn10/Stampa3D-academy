@@ -35,7 +35,7 @@ export async function updateSession(request: NextRequest) {
   const { pathname } = request.nextUrl
 
   // Define public routes
-  const isPublicRoute = pathname.startsWith('/login') || pathname.startsWith('/registro') || pathname.startsWith('/sin-acceso') || pathname.startsWith('/auth')
+  const isPublicRoute = pathname.startsWith('/login') || pathname.startsWith('/registro') || pathname.startsWith('/sin-acceso') || pathname.startsWith('/auth') || pathname.startsWith('/api/mercadopago/webhook')
 
   // Helper to redirect while preserving refreshed cookies
   const redirectWithCookies = (toPath: string) => {
@@ -56,7 +56,7 @@ export async function updateSession(request: NextRequest) {
     return response
   }
 
-  if (!user && !isPublicRoute) {
+  if (!user && !isPublicRoute && !pathname.startsWith('/api/mercadopago')) {
     return redirectWithCookies('/login')
   }
 
@@ -76,7 +76,9 @@ export async function updateSession(request: NextRequest) {
       return redirectWithCookies('/')
     }
 
-    if (!hasAccess && !isPublicRoute && !pathname.startsWith('/sin-acceso') && !pathname.startsWith('/auth') && !pathname.startsWith('/login') && !pathname.startsWith('/salir')) {
+    const isMpApiRoute = pathname.startsWith('/api/mercadopago')
+
+    if (!hasAccess && !isPublicRoute && !isMpApiRoute && !pathname.startsWith('/salir')) {
       return redirectWithCookies('/sin-acceso')
     }
 

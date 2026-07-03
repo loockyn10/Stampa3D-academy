@@ -18,37 +18,43 @@ export function SinAccesoClient({ price }: SinAccesoClientProps) {
     window.location.href = "/login";
   };
 
-  const handleActivate = async () => {
-    setLoading(true);
-    setError(null);
+  const handleActivateMembership = async () => {
     try {
-      const res = await fetch("/api/mercadopago/create-subscription", {
+      setLoading(true);
+      setError(null);
+      console.log("Creando suscripción Mercado Pago");
+
+      const response = await fetch("/api/mercadopago/create-subscription", {
         method: "POST",
         headers: {
-          "Content-Type": "application/json"
-        }
+          "Content-Type": "application/json",
+        },
       });
 
-      const text = await res.text();
+      const text = await response.text();
       let data = null;
 
       try {
         data = text ? JSON.parse(text) : null;
       } catch (error) {
-        console.error("Respuesta no JSON de create-subscription:", text);
+        console.error("Respuesta no JSON:", text);
       }
-      
-      if (!res.ok) {
-        throw new Error(data?.error || data?.message || text || "Error al crear la suscripción");
+
+      if (!response.ok) {
+        throw new Error(
+          data?.error || data?.message || text || "Error al crear la suscripción"
+        );
       }
-      
-      if (data?.init_point) {
-        window.location.href = data.init_point;
-      } else {
+
+      if (!data?.init_point) {
         throw new Error("Mercado Pago no devolvió init_point");
       }
-    } catch (err: any) {
-      setError(err.message);
+
+      window.location.href = data.init_point;
+    } catch (error) {
+      console.error(error);
+      setError(error instanceof Error ? error.message : "Error inesperado");
+    } finally {
       setLoading(false);
     }
   };
@@ -92,7 +98,7 @@ export function SinAccesoClient({ price }: SinAccesoClientProps) {
         <div className="mt-8 flex flex-col gap-3">
           <button
             type="button"
-            onClick={handleActivate}
+            onClick={handleActivateMembership}
             disabled={loading}
             className="w-full rounded-lg bg-orange-500 px-3 py-3 text-sm font-semibold text-white hover:bg-orange-600 transition-colors flex items-center justify-center gap-2 disabled:opacity-70 disabled:cursor-not-allowed"
           >
