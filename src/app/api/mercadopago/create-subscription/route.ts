@@ -45,8 +45,10 @@ export async function POST(request: Request) {
     const mpData = await mpResponse.json();
 
     if (!mpResponse.ok) {
-      console.error("Error from Mercado Pago:", mpData);
-      return NextResponse.json({ error: 'Failed to create subscription in Mercado Pago' }, { status: 500 });
+      console.error("Error from Mercado Pago - Status:", mpResponse.status);
+      console.error("Error from Mercado Pago - Body:", JSON.stringify(mpData));
+      const errorMessage = mpData.message || mpData.error || 'Error al crear suscripción en Mercado Pago';
+      return NextResponse.json({ error: errorMessage }, { status: mpResponse.status });
     }
 
     const initPoint = mpData.init_point;
