@@ -63,19 +63,26 @@ export async function POST(request: Request) {
     try {
       mpData = mpText ? JSON.parse(mpText) : null;
     } catch (error) {
-      console.error("Mercado Pago respondió algo que no es JSON:", mpText);
+      console.error("Mercado Pago respondió texto no JSON:", mpText);
     }
 
+    console.error("Mercado Pago preapproval response", {
+      ok: mpResponse.ok,
+      status: mpResponse.status,
+      statusText: mpResponse.statusText,
+      body: mpData || mpText || null,
+    });
+
     if (!mpResponse.ok) {
-      console.error("Error from Mercado Pago - Status:", mpResponse.status);
-      console.error("Error from Mercado Pago - mpText:", mpText);
-      console.error("Error from Mercado Pago - mpData:", JSON.stringify(mpData));
-      
-      return NextResponse.json({ 
-        error: "Mercado Pago rejected subscription creation",
-        status: mpResponse.status,
-        details: mpData || mpText || null
-      }, { status: mpResponse.status });
+      return NextResponse.json(
+        {
+          error: "Mercado Pago rejected subscription creation",
+          status: mpResponse.status,
+          statusText: mpResponse.statusText,
+          details: mpData || mpText || null,
+        },
+        { status: mpResponse.status }
+      );
     }
 
     if (!mpData?.id || !mpData?.init_point) {

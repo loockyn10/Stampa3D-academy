@@ -41,9 +41,18 @@ export function SinAccesoClient({ price }: SinAccesoClientProps) {
       }
 
       if (!response.ok) {
-        throw new Error(
-          data?.error || data?.message || text || "Error al crear la suscripción"
-        );
+        console.error("Create subscription error response:", data);
+        let errorMessage = data?.error || "Error al crear la suscripción";
+
+        if (data?.details) {
+          errorMessage += "\n\nDetalle Mercado Pago:\n";
+          errorMessage +=
+            typeof data.details === "string"
+              ? data.details
+              : JSON.stringify(data.details, null, 2);
+        }
+
+        throw new Error(errorMessage);
       }
 
       if (!data?.init_point) {
@@ -89,7 +98,7 @@ export function SinAccesoClient({ price }: SinAccesoClientProps) {
         </div>
 
         {error && (
-          <div className="flex items-center gap-2 p-3 text-sm text-red-600 bg-red-50 rounded-lg border border-red-100 text-left">
+          <div className="flex items-center gap-2 p-3 text-sm text-red-600 bg-red-50 rounded-lg border border-red-100 text-left whitespace-pre-wrap">
             <AlertCircle size={16} className="shrink-0" />
             <p>{error}</p>
           </div>
