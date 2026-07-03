@@ -23,7 +23,10 @@ export function SinAccesoClient({ price }: SinAccesoClientProps) {
     setError(null);
     try {
       const res = await fetch("/api/mercadopago/create-subscription", {
-        method: "POST"
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json"
+        }
       });
 
       const text = await res.text();
@@ -88,6 +91,7 @@ export function SinAccesoClient({ price }: SinAccesoClientProps) {
 
         <div className="mt-8 flex flex-col gap-3">
           <button
+            type="button"
             onClick={handleActivate}
             disabled={loading}
             className="w-full rounded-lg bg-orange-500 px-3 py-3 text-sm font-semibold text-white hover:bg-orange-600 transition-colors flex items-center justify-center gap-2 disabled:opacity-70 disabled:cursor-not-allowed"
@@ -97,6 +101,7 @@ export function SinAccesoClient({ price }: SinAccesoClientProps) {
           </button>
           
           <button
+            type="button"
             onClick={() => window.location.reload()}
             disabled={loading}
             className="w-full rounded-lg bg-white px-3 py-3 text-sm font-semibold text-gray-700 border border-gray-300 hover:bg-gray-50 transition-colors disabled:opacity-50"
@@ -105,6 +110,7 @@ export function SinAccesoClient({ price }: SinAccesoClientProps) {
           </button>
           
           <button
+            type="button"
             onClick={handleLogout}
             disabled={loading}
             className="w-full rounded-lg bg-white px-3 py-3 text-sm font-semibold text-gray-500 hover:text-gray-700 transition-colors disabled:opacity-50"
