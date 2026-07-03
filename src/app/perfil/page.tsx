@@ -19,6 +19,7 @@ function PerfilContent() {
   // Profile data
   const [profile, setProfile] = useState<any>(null);
   const [badges, setBadges] = useState<any[]>([]);
+  const [subscription, setSubscription] = useState<any>(null);
 
   // Form State
   const [name, setName] = useState("");
@@ -54,6 +55,12 @@ function PerfilContent() {
     const { data: bData } = await supabase.from("user_badges").select("*, badges(*)").eq("user_id", user.id).order("awarded_at", { ascending: false });
     if (bData) {
       setBadges(bData.map(ub => ub.badges).filter(b => b && b.is_active));
+    }
+
+    // Fetch subscription
+    const { data: subData } = await supabase.from("subscriptions").select("*").eq("user_id", user.id).order("created_at", { ascending: false }).limit(1).single();
+    if (subData) {
+      setSubscription(subData);
     }
 
     setLoading(false);
@@ -126,11 +133,35 @@ function PerfilContent() {
                 <p className="text-base font-bold text-gray-900">{name || "Usuario"}</p>
                 <p className="text-sm text-gray-400 mb-1.5">{profile.email}</p>
                 <div className="flex flex-wrap gap-2">
+                  <Badge tone={profile.membership_status === "active" ? "green" : "gray"} className="capitalize">
+                    {profile.membership_status === "active" ? "Activo" : "Inactivo"}
+                  </Badge>
                   <Badge tone="dark" className="capitalize">Nivel {profile.member_level || "member"}</Badge>
-                  <Badge tone="orange">{calculateMonths(profile.created_at)} meses activo</Badge>
+                  <Badge tone="orange">{profile.active_months || calculateMonths(profile.membership_started_at || profile.created_at)} meses activo</Badge>
                 </div>
               </div>
             </div>
+
+            {subscription && (
+              <div className="mb-6 p-4 rounded-xl border border-gray-100 bg-gray-50 flex flex-col gap-1 text-sm">
+                <div className="flex justify-between">
+                  <span className="text-gray-500 font-semibold">Suscripción MP</span>
+                  <span className="font-bold text-gray-900 capitalize">{subscription.status}</span>
+                </div>
+                {subscription.amount && (
+                  <div className="flex justify-between mt-1">
+                    <span className="text-gray-500 font-semibold">Monto mensual</span>
+                    <span className="font-bold text-gray-900">${subscription.amount}</span>
+                  </div>
+                )}
+                {subscription.next_payment_at && (
+                  <div className="flex justify-between mt-1">
+                    <span className="text-gray-500 font-semibold">Próximo cobro</span>
+                    <span className="font-bold text-gray-900">{new Date(subscription.next_payment_at).toLocaleDateString()}</span>
+                  </div>
+                )}
+              </div>
+            )}
 
             <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
               <label className="block">

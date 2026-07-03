@@ -12,6 +12,7 @@ type Profile = {
   member_level: "bronze" | "silver" | "gold" | "elite";
   active_months: number;
   created_at: string;
+  subscriptions?: any[];
 };
 
 export function UsersTable() {
@@ -28,7 +29,7 @@ export function UsersTable() {
     setError(null);
     const { data, error: fetchError } = await supabase
       .from("profiles")
-      .select("*")
+      .select("*, subscriptions(status, amount)")
       .order("created_at", { ascending: false });
 
     if (fetchError) {
@@ -98,6 +99,7 @@ export function UsersTable() {
                 <th className="px-4 py-3">Rol</th>
                 <th className="px-4 py-3">Estado Membresía</th>
                 <th className="px-4 py-3">Nivel</th>
+                <th className="px-4 py-3">Suscripción MP</th>
                 <th className="px-4 py-3">Meses Activos</th>
                 <th className="px-4 py-3">Fecha de Registro</th>
               </tr>
@@ -146,6 +148,19 @@ export function UsersTable() {
                       <option value="gold">Gold</option>
                       <option value="elite">Elite</option>
                     </select>
+                  </td>
+                  <td className="px-4 py-3 text-xs">
+                    {user.subscriptions && user.subscriptions.length > 0 ? (
+                      <span className={`px-2 py-1 rounded-full font-semibold ${
+                        user.subscriptions[0].status === "authorized" || user.subscriptions[0].status === "active" ? "bg-green-100 text-green-700" :
+                        user.subscriptions[0].status === "cancelled" ? "bg-red-100 text-red-700" :
+                        "bg-gray-100 text-gray-700"
+                      }`}>
+                        {user.subscriptions[0].status}
+                      </span>
+                    ) : (
+                      <span className="text-gray-400 italic">No</span>
+                    )}
                   </td>
                   <td className="px-4 py-3">
                     <input
