@@ -25,16 +25,24 @@ export function SinAccesoClient({ price }: SinAccesoClientProps) {
       const res = await fetch("/api/mercadopago/create-subscription", {
         method: "POST"
       });
-      const data = await res.json();
-      
-      if (!res.ok) {
-        throw new Error(data.error || "Error al crear suscripción");
+
+      const text = await res.text();
+      let data = null;
+
+      try {
+        data = text ? JSON.parse(text) : null;
+      } catch (error) {
+        console.error("Respuesta no JSON de create-subscription:", text);
       }
       
-      if (data.init_point) {
+      if (!res.ok) {
+        throw new Error(data?.error || data?.message || text || "Error al crear la suscripción");
+      }
+      
+      if (data?.init_point) {
         window.location.href = data.init_point;
       } else {
-        throw new Error("No se recibió la URL de pago");
+        throw new Error("Mercado Pago no devolvió init_point");
       }
     } catch (err: any) {
       setError(err.message);

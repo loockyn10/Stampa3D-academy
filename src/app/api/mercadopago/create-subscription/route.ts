@@ -11,26 +11,41 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
-    const price = process.env.MEMBERSHIP_MONTHLY_PRICE || "15000";
-    const appUrl = process.env.NEXT_PUBLIC_APP_URL || "http://localhost:3000";
+    if (!user.email) {
+      return NextResponse.json({ error: 'Usuario sin email configurado' }, { status: 400 });
+    }
+
+    const price = process.env.MEMBERSHIP_MONTHLY_PRICE;
+    const appUrl = process.env.NEXT_PUBLIC_APP_URL;
     const accessToken = process.env.MERCADO_PAGO_ACCESS_TOKEN;
+    const serviceRoleKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
 
     if (!accessToken) {
-      return NextResponse.json({ error: 'Mercado Pago token not configured' }, { status: 500 });
+      return NextResponse.json({ error: 'MERCADO_PAGO_ACCESS_TOKEN no configurado' }, { status: 500 });
+    }
+    if (!price || isNaN(Number(price)) || Number(price) <= 0) {
+      return NextResponse.json({ error: 'MEMBERSHIP_MONTHLY_PRICE inválido o no configurado' }, { status: 500 });
+    }
+    if (!appUrl) {
+      return NextResponse.json({ error: 'NEXT_PUBLIC_APP_URL no configurado' }, { status: 500 });
+    }
+    if (!serviceRoleKey) {
+      return NextResponse.json({ error: 'SUPABASE_SERVICE_ROLE_KEY no configurado' }, { status: 500 });
     }
 
     // Call Mercado Pago API to create preapproval (subscription)
     const payload = {
-      reason: "Membresía Stampa3D Academy",
+      reason: "Membresía mensual Stampa3D",
       external_reference: user.id,
       payer_email: user.email,
+      back_url: `${appUrl}/perfil`,
+      status: "pending",
       auto_recurring: {
         frequency: 1,
         frequency_type: "months",
-        transaction_amount: parseInt(price, 10),
+        transaction_amount: Number(price),
         currency_id: "ARS"
-      },
-      back_url: `${appUrl}/perfil`
+      }
     };
 
     const mpResponse = await fetch("https://api.mercadopago.com/preapproval", {
@@ -42,13 +57,33 @@ export async function POST(request: Request) {
       body: JSON.stringify(payload)
     });
 
-    const mpData = await mpResponse.json();
+    const mpText = await mpResponse.text();
+    let mpData = null;
+
+    try {
+      mpData = mpText ? JSON.parse(mpText) : null;
+    } catch (error) {
+      console.error("Mercado Pago respondió algo que no es JSON:", mpText);
+    }
 
     if (!mpResponse.ok) {
       console.error("Error from Mercado Pago - Status:", mpResponse.status);
-      console.error("Error from Mercado Pago - Body:", JSON.stringify(mpData));
-      const errorMessage = mpData.message || mpData.error || 'Error al crear suscripción en Mercado Pago';
-      return NextResponse.json({ error: errorMessage }, { status: mpResponse.status });
+      console.error("Error from Mercado Pago - mpText:", mpText);
+      console.error("Error from Mercado Pago - mpData:", JSON.stringify(mpData));
+      
+      return NextResponse.json({ 
+        error: "Mercado Pago rejected subscription creation",
+        status: mpResponse.status,
+        details: mpData || mpText || null
+      }, { status: mpResponse.status });
+    }
+
+    if (!mpData?.id || !mpData?.init_point) {
+      console.error("Mercado Pago no devolvió init_point o id:", mpData);
+      return NextResponse.json({
+        error: "Mercado Pago no devolvió init_point",
+        details: mpData
+      }, { status: 500 });
     }
 
     const initPoint = mpData.init_point;
@@ -56,11 +91,6 @@ export async function POST(request: Request) {
 
     // We must save the subscription locally as pending/created.
     // Use service_role to bypass RLS since the user is modifying subscriptions.
-    const serviceRoleKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
-    if (!serviceRoleKey) {
-      return NextResponse.json({ error: 'Supabase Service Role Key not configured' }, { status: 500 });
-    }
-
     const supabaseAdmin = createSupabaseClient(
       process.env.NEXT_PUBLIC_SUPABASE_URL!,
       serviceRoleKey
