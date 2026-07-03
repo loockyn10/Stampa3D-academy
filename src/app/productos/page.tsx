@@ -1,15 +1,166 @@
 "use client";
 
-import React from "react";
-import { Plus, Pencil, Copy, Trash2 } from "lucide-react";
-import { useAppState } from "@/context/state-context";
+import React, { useState, useEffect } from "react";
+import { Plus, Pencil, Copy, Trash2, Loader2, Save, X, AlertCircle } from "lucide-react";
 import { Card } from "@/components/ui/card";
 import { PrimaryButton, GhostButton } from "@/components/ui/button";
 import { SectionTitle } from "@/components/ui/section-title";
 import { SpoolDot } from "@/components/common/spool-dot";
+import { createClient } from "@/utils/supabase/client";
 
 export default function ProductosPage() {
-  const { products } = useAppState();
+  const supabase = createClient();
+  const [products, setProducts] = useState<any[]>([]);
+  const [filaments, setFilaments] = useState<any[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+
+  const [editingId, setEditingId] = useState<string | null>(null);
+  const [formData, setFormData] = useState({
+    name: "",
+    description: "",
+    image_url: "",
+    filament_id: "",
+    grams: 0,
+    print_time_hours: 0,
+    print_time_remaining_minutes: 0,
+    base_cost: 0,
+    sale_price: 0,
+    stock_quantity: 0,
+    is_active: true,
+  });
+
+  useEffect(() => {
+    fetchData();
+  }, []);
+
+  const fetchData = async () => {
+    setLoading(true);
+    const { data: { user } } = await supabase.auth.getUser();
+    if (!user) return;
+
+    const [prodRes, filRes] = await Promise.all([
+      supabase.from("products").select("*, filaments(name, color)").eq("user_id", user.id).order("created_at", { ascending: false }),
+      supabase.from("filaments").select("*").eq("user_id", user.id).eq("is_active", true)
+    ]);
+
+    if (prodRes.error) setError(prodRes.error.message);
+    else setProducts(prodRes.data || []);
+    
+    if (filRes.error) console.error(filRes.error);
+    else setFilaments(filRes.data || []);
+
+    setLoading(false);
+  };
+
+  const handleCreateNew = () => {
+    setFormData({
+      name: "", description: "", image_url: "", filament_id: filaments.length > 0 ? filaments[0].id : "",
+      grams: 0, print_time_hours: 0, print_time_remaining_minutes: 0, base_cost: 0, sale_price: 0, stock_quantity: 0, is_active: true
+    });
+    setEditingId("new");
+  };
+
+  const handleEdit = (p: any) => {
+    const hours = Math.floor((p.print_time_minutes || 0) / 60);
+    const mins = (p.print_time_minutes || 0) % 60;
+    setFormData({
+      name: p.name, description: p.description || "", image_url: p.image_url || "", filament_id: p.filament_id || "",
+      grams: p.grams || 0, print_time_hours: hours, print_time_remaining_minutes: mins, base_cost: p.base_cost || 0, 
+      sale_price: p.sale_price || 0, stock_quantity: p.stock_quantity || 0, is_active: p.is_active
+    });
+    setEditingId(p.id);
+  };
+
+  const handleDelete = async (id: string) => {
+    if (!confirm("¿Seguro que deseas eliminar este producto?")) return;
+    const { error } = await supabase.from("products").delete().eq("id", id);
+    if (error) alert("Error: " + error.message);
+    else setProducts(products.filter(p => p.id !== id));
+  };
+
+  const handleDuplicate = async (p: any) => {
+    const { data: { user } } = await supabase.auth.getUser();
+    if (!user) return;
+    
+    const payload = {
+      user_id: user.id, name: p.name + " (Copia)", description: p.description, image_url: p.image_url, 
+      filament_id: p.filament_id, grams: p.grams, print_time_minutes: p.print_time_minutes, 
+      base_cost: p.base_cost, sale_price: p.sale_price, stock_quantity: 0, is_active: p.is_active
+    };
+
+    const { data, error } = await supabase.from("products").insert([payload]).select("*, filaments(name, color)").single();
+    if (error) alert("Error: " + error.message);
+    else if (data) setProducts([data, ...products]);
+  };
+
+  const handleSave = async () => {
+    setError(null);
+    const { data: { user } } = await supabase.auth.getUser();
+    if (!user) return;
+
+    const hours = Math.max(0, parseInt(String(formData.print_time_hours)) || 0);
+    const mins = Math.max(0, Math.min(59, parseInt(String(formData.print_time_remaining_minutes)) || 0));
+    const totalMinutes = (hours * 60) + mins;
+
+    const payload = {
+      name: formData.name,
+      description: formData.description,
+      image_url: formData.image_url,
+      filament_id: formData.filament_id || null,
+      grams: parseFloat(String(formData.grams)) || 0,
+      print_time_minutes: totalMinutes,
+      base_cost: parseFloat(String(formData.base_cost)) || 0,
+      sale_price: parseFloat(String(formData.sale_price)) || 0,
+      stock_quantity: parseInt(String(formData.stock_quantity)) || 0,
+      is_active: formData.is_active,
+      user_id: user.id
+    };
+
+    if (editingId === "new") {
+      const { data, error } = await supabase.from("products").insert([payload]).select("*, filaments(name, color)").single();
+      if (error) setError(error.message);
+      else {
+        setProducts([data, ...products]);
+        setEditingId(null);
+      }
+    } else {
+      const { data, error } = await supabase.from("products").update(payload).eq("id", editingId).select("*, filaments(name, color)").single();
+      if (error) setError(error.message);
+      else {
+        setProducts(products.map(p => p.id === editingId ? data : p));
+        setEditingId(null);
+      }
+    }
+  };
+
+  const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement>) => {
+    const { name, value, type } = e.target;
+    let newValue: any = value;
+    
+    if (type === "checkbox") {
+      newValue = (e.target as HTMLInputElement).checked;
+    }
+    
+    setFormData(prev => {
+      const nextData = { ...prev, [name]: newValue };
+      
+      // Auto-calc base cost if grams or filament changes
+      if (name === "grams" || name === "filament_id") {
+        const selectedFilament = filaments.find(f => f.id === nextData.filament_id);
+        if (selectedFilament && selectedFilament.total_grams > 0) {
+          const g = parseFloat(String(nextData.grams)) || 0;
+          const estimatedCost = g * (selectedFilament.purchase_price / selectedFilament.total_grams);
+          if (nextData.base_cost === 0 || name === "grams") { // Auto suggest if cost is 0 or updating grams directly
+             nextData.base_cost = parseFloat(estimatedCost.toFixed(2));
+          }
+        }
+      }
+      return nextData;
+    });
+  };
+
+  if (loading) return <div className="py-24 flex justify-center"><Loader2 className="animate-spin h-8 w-8 text-orange-500" /></div>;
 
   return (
     <div>
@@ -17,54 +168,160 @@ export default function ProductosPage() {
         eyebrow="Mi taller"
         title="Productos"
         action={
-          <PrimaryButton>
+          <PrimaryButton onClick={handleCreateNew} disabled={editingId !== null}>
             <Plus size={15} /> Nuevo producto
           </PrimaryButton>
         }
       />
-      <div className="grid grid-cols-1 gap-5 sm:grid-cols-2 lg:grid-cols-3">
-        {products.map((p) => (
-          <Card key={p.id} className="p-4">
-            <div className="flex items-start gap-3">
-              <div className="flex h-14 w-14 shrink-0 items-center justify-center rounded-xl bg-gray-50 text-2xl select-none">
-                {p.img}
+      
+      {error && (
+        <div className="mb-6 bg-red-50 border border-red-100 p-4 rounded-lg flex items-center gap-2 text-sm text-red-600">
+          <AlertCircle size={16} /> {error}
+        </div>
+      )}
+
+      {editingId && (
+        <Card className="mb-8 p-5 border-orange-300 shadow-md ring-1 ring-orange-100">
+          <div className="flex justify-between items-center mb-4">
+            <h3 className="text-lg font-bold text-gray-900">{editingId === "new" ? "Nuevo Producto" : "Editar Producto"}</h3>
+            <button onClick={() => setEditingId(null)} className="text-gray-400 hover:text-gray-700"><X size={20} /></button>
+          </div>
+          
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
+            <div>
+              <label className="block text-xs font-semibold text-gray-700 mb-1">Nombre</label>
+              <input type="text" name="name" value={formData.name} onChange={handleChange} className="w-full text-sm border-gray-300 rounded-md focus:border-orange-500 focus:ring-orange-500 text-gray-900 bg-white" placeholder="Ej. Llavero personalizado" />
+            </div>
+            <div>
+              <label className="block text-xs font-semibold text-gray-700 mb-1">Filamento</label>
+              <select name="filament_id" value={formData.filament_id} onChange={handleChange} className="w-full text-sm border-gray-300 rounded-md focus:border-orange-500 focus:ring-orange-500 text-gray-900 bg-white">
+                <option value="">Selecciona un filamento...</option>
+                {filaments.map(f => <option key={f.id} value={f.id}>{f.name} ({f.color})</option>)}
+              </select>
+            </div>
+            <div className="grid grid-cols-2 gap-2">
+              <div>
+                <label className="block text-xs font-semibold text-gray-700 mb-1">Gramos (Peso)</label>
+                <input type="number" name="grams" value={formData.grams} onChange={handleChange} className="w-full text-sm border-gray-300 rounded-md focus:border-orange-500 focus:ring-orange-500 text-gray-900 bg-white" />
               </div>
-              <div className="min-w-0 flex-1">
-                <p className="truncate text-sm font-bold text-gray-900">{p.name}</p>
-                <p className="text-xs text-gray-400">{p.cat}</p>
-                <div className="mt-1 flex items-center gap-1.5 text-xs text-gray-500">
-                  <SpoolDot i={0} /> {p.material} · {p.time}
+              <div className="grid grid-cols-2 gap-1.5">
+                <div>
+                  <label className="block text-[11px] font-semibold text-gray-700 mb-1">Horas</label>
+                  <input type="number" name="print_time_hours" min="0" value={formData.print_time_hours} onChange={handleChange} className="w-full text-sm border-gray-300 rounded-md focus:border-orange-500 focus:ring-orange-500 text-gray-900 bg-white" />
+                </div>
+                <div>
+                  <label className="block text-[11px] font-semibold text-gray-700 mb-1">Minutos</label>
+                  <input type="number" name="print_time_remaining_minutes" min="0" max="59" value={formData.print_time_remaining_minutes} onChange={handleChange} className="w-full text-sm border-gray-300 rounded-md focus:border-orange-500 focus:ring-orange-500 text-gray-900 bg-white" />
                 </div>
               </div>
             </div>
-            <div className="mt-3 grid grid-cols-3 gap-2 rounded-xl bg-gray-50 p-2.5 text-center">
+            <div className="grid grid-cols-3 gap-2">
               <div>
-                <p className="text-xs font-bold text-gray-900">${p.cost}</p>
-                <p className="text-[10px] text-gray-400">Costo</p>
+                <label className="block text-xs font-semibold text-gray-700 mb-1">Costo Base ($)</label>
+                <input type="number" name="base_cost" value={formData.base_cost} onChange={handleChange} className="w-full text-sm border-gray-300 rounded-md focus:border-orange-500 focus:ring-orange-500 text-gray-900 bg-white" />
               </div>
               <div>
-                <p className="text-xs font-bold text-orange-600">${p.price}</p>
-                <p className="text-[10px] text-gray-400">Venta</p>
+                <label className="block text-xs font-semibold text-gray-700 mb-1">Precio Venta ($)</label>
+                <input type="number" name="sale_price" value={formData.sale_price} onChange={handleChange} className="w-full text-sm border-gray-300 rounded-md focus:border-orange-500 focus:ring-orange-500 text-gray-900 bg-white" />
               </div>
               <div>
-                <p className="text-xs font-bold text-gray-900">{p.stock}</p>
-                <p className="text-[10px] text-gray-400">Stock</p>
+                <label className="block text-xs font-semibold text-gray-700 mb-1">Stock Actual</label>
+                <input type="number" name="stock_quantity" value={formData.stock_quantity} onChange={handleChange} className="w-full text-sm border-gray-300 rounded-md focus:border-orange-500 focus:ring-orange-500 text-gray-900 bg-white" />
               </div>
             </div>
-            <div className="mt-3 flex gap-2">
-              <GhostButton className="flex-1 py-2 text-xs">
-                <Pencil size={13} /> Editar
-              </GhostButton>
-              <GhostButton className="px-2.5 py-2">
-                <Copy size={13} />
-              </GhostButton>
-              <GhostButton className="px-2.5 py-2 text-red-500 hover:bg-red-50 hover:text-red-600">
-                <Trash2 size={13} />
-              </GhostButton>
+            <div className="col-span-1 md:col-span-2">
+              <label className="block text-xs font-semibold text-gray-700 mb-1">URL de Imagen (Opcional)</label>
+              <input type="text" name="image_url" value={formData.image_url} onChange={handleChange} className="w-full text-sm border-gray-300 rounded-md focus:border-orange-500 focus:ring-orange-500 text-gray-900 bg-white" placeholder="https://..." />
             </div>
-          </Card>
-        ))}
+          </div>
+          
+          <div className="flex items-center justify-between border-t border-gray-100 pt-4">
+            <div className="flex items-center gap-2">
+              <input type="checkbox" name="is_active" checked={formData.is_active} onChange={handleChange} className="rounded text-orange-600 focus:ring-orange-500" />
+              <label className="text-sm font-medium text-gray-700">Producto Activo</label>
+            </div>
+            <div className="flex gap-2">
+              <button onClick={() => setEditingId(null)} className="px-4 py-2 text-sm font-bold text-gray-600 hover:bg-gray-100 rounded-lg transition-colors">Cancelar</button>
+              <button onClick={handleSave} className="flex items-center gap-2 px-4 py-2 text-sm font-bold bg-orange-500 hover:bg-orange-600 text-white rounded-lg transition-colors">
+                <Save size={16} /> Guardar
+              </button>
+            </div>
+          </div>
+        </Card>
+      )}
+
+      <div className="grid grid-cols-1 gap-5 sm:grid-cols-2 lg:grid-cols-3">
+        {products.map((p) => {
+          const filament = p.filaments;
+          const formatTime = (mins: number) => {
+            if (!mins) return "0m";
+            const h = Math.floor(mins / 60);
+            const m = mins % 60;
+            if (h === 0) return `${m}m`;
+            if (m === 0) return `${h}h`;
+            return `${h}h ${m}m`;
+          };
+
+          return (
+            <Card key={p.id} className={`p-4 transition-all ${!p.is_active ? 'opacity-60 grayscale' : ''}`}>
+              <div className="flex items-start gap-3">
+                {p.image_url ? (
+                  <img src={p.image_url} alt={p.name} className="h-14 w-14 shrink-0 rounded-xl object-cover bg-gray-50 border border-gray-100" />
+                ) : (
+                  <div className="flex h-14 w-14 shrink-0 items-center justify-center rounded-xl bg-gray-50 text-2xl select-none border border-gray-100 text-gray-400">
+                    📦
+                  </div>
+                )}
+                <div className="min-w-0 flex-1">
+                  <p className="truncate text-sm font-bold text-gray-900">{p.name}</p>
+                  <p className="text-xs text-gray-400 truncate">{p.description || "Sin descripción"}</p>
+                  <div className="mt-1 flex items-center gap-1.5 text-xs text-gray-500">
+                    {filament && (
+                      <>
+                        <div className="w-2.5 h-2.5 rounded-full border border-gray-300" style={{ backgroundColor: filament.color || '#ccc' }}></div>
+                        <span className="truncate max-w-[80px]">{filament.name}</span> ·
+                      </>
+                    )}
+                    <span>{p.grams || 0}g</span> · <span>{formatTime(p.print_time_minutes)}</span>
+                  </div>
+                </div>
+              </div>
+              <div className="mt-3 grid grid-cols-3 gap-2 rounded-xl bg-gray-50 p-2.5 text-center">
+                <div>
+                  <p className="text-xs font-bold text-gray-900">${p.base_cost?.toFixed(2) || "0.00"}</p>
+                  <p className="text-[10px] text-gray-400">Costo</p>
+                </div>
+                <div>
+                  <p className="text-xs font-bold text-orange-600">${p.sale_price?.toFixed(2) || "0.00"}</p>
+                  <p className="text-[10px] text-gray-400">Venta</p>
+                </div>
+                <div>
+                  <p className={`text-xs font-bold ${p.stock_quantity > 0 ? 'text-gray-900' : 'text-red-500'}`}>{p.stock_quantity || 0}</p>
+                  <p className="text-[10px] text-gray-400">Stock</p>
+                </div>
+              </div>
+              <div className="mt-3 flex gap-2">
+                <GhostButton onClick={() => handleEdit(p)} className="flex-1 py-2 text-xs text-gray-700 bg-white border border-gray-200">
+                  <Pencil size={13} /> Editar
+                </GhostButton>
+                <GhostButton onClick={() => handleDuplicate(p)} className="px-2.5 py-2 text-gray-500 hover:text-gray-900 bg-white border border-gray-200">
+                  <Copy size={13} />
+                </GhostButton>
+                <GhostButton onClick={() => handleDelete(p.id)} className="px-2.5 py-2 text-red-500 hover:bg-red-50 border border-gray-200 bg-white">
+                  <Trash2 size={13} />
+                </GhostButton>
+              </div>
+            </Card>
+          );
+        })}
       </div>
+      
+      {products.length === 0 && !editingId && (
+        <div className="py-20 text-center bg-gray-50 rounded-xl border border-dashed border-gray-300">
+          <p className="text-sm text-gray-500 font-medium">No tienes productos en tu catálogo.</p>
+          <PrimaryButton onClick={handleCreateNew} className="mt-4">Crear mi primer producto</PrimaryButton>
+        </div>
+      )}
     </div>
   );
 }
