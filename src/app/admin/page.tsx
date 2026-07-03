@@ -61,12 +61,40 @@ export default function AdminDashboardPage() {
           <div className="bg-white p-6 rounded-xl border border-gray-200 shadow-sm hover:shadow-md transition-shadow cursor-pointer h-full">
             <div className="flex items-center gap-4 mb-4">
               <div className="p-3 bg-emerald-50 text-emerald-600 rounded-lg">
-                <Settings size={24} /> {/* Placeholder icon */}
+                <Settings size={24} />
               </div>
               <h2 className="text-lg font-semibold text-gray-900">Librería STL</h2>
             </div>
             <p className="text-sm text-gray-600">
               Administra las categorías, modelos y variantes de la librería 3D.
+            </p>
+          </div>
+        </Link>
+
+        <Link href="/admin/sorteos" className="block">
+          <div className="bg-white p-6 rounded-xl border border-gray-200 shadow-sm hover:shadow-md transition-shadow cursor-pointer h-full">
+            <div className="flex items-center gap-4 mb-4">
+              <div className="p-3 bg-indigo-50 text-indigo-600 rounded-lg">
+                <Settings size={24} />
+              </div>
+              <h2 className="text-lg font-semibold text-gray-900">Sorteos</h2>
+            </div>
+            <p className="text-sm text-gray-600">
+              Administra los sorteos mensuales, carga premios y asigna ganadores.
+            </p>
+          </div>
+        </Link>
+
+        <Link href="/admin/insignias" className="block">
+          <div className="bg-white p-6 rounded-xl border border-gray-200 shadow-sm hover:shadow-md transition-shadow cursor-pointer h-full">
+            <div className="flex items-center gap-4 mb-4">
+              <div className="p-3 bg-amber-50 text-amber-600 rounded-lg">
+                <Settings size={24} />
+              </div>
+              <h2 className="text-lg font-semibold text-gray-900">Insignias</h2>
+            </div>
+            <p className="text-sm text-gray-600">
+              Crea insignias y asígnalas a los perfiles de los usuarios.
             </p>
           </div>
         </Link>
