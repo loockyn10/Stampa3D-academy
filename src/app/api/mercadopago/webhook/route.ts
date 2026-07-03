@@ -95,7 +95,7 @@ export async function POST(request: Request) {
             status: status,
             next_payment_at: nextPayment || null,
             updated_at: new Date().toISOString()
-          }).eq("mercado_pago_subscription_id", dataId);
+          }).eq("mercado_pago_preapproval_id", dataId);
 
           // Update profile membership status
           let membershipStatus = "inactive";

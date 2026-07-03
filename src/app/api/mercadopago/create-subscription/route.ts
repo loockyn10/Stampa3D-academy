@@ -105,16 +105,22 @@ export async function POST(request: Request) {
 
     const { error: insertError } = await supabaseAdmin.from("subscriptions").upsert({
       user_id: user.id,
-      mercado_pago_subscription_id: preapprovalId,
-      status: "pending", // we wait for webhook to set it to authorized
-      amount: parseInt(price, 10),
+      mercado_pago_preapproval_id: preapprovalId,
+      status: mpData.status || "pending",
+      payer_email: user.email,
+      amount: Number(price),
+      currency: "ARS",
+      next_payment_at: mpData.next_payment_date || null,
       created_at: new Date().toISOString(),
       updated_at: new Date().toISOString()
-    }, { onConflict: "user_id" });
+    }, { onConflict: "mercado_pago_preapproval_id" });
 
     if (insertError) {
-      console.error("Error saving subscription to DB:", insertError);
-      return NextResponse.json({ error: 'Failed to save subscription' }, { status: 500 });
+      console.error("Supabase subscription save error", insertError);
+      return NextResponse.json({
+        error: "Failed to save subscription",
+        details: insertError
+      }, { status: 500 });
     }
 
     return NextResponse.json({ init_point: initPoint });
