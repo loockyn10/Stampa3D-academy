@@ -242,8 +242,14 @@ export function ModulesManager({ courseId }: { courseId: string }) {
                         <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
                           <input type="text" placeholder="Título" value={lessonFormData.title} onChange={e => setLessonFormData({ ...lessonFormData, title: e.target.value })} className="text-sm bg-white text-gray-900 placeholder-gray-500 border-gray-300 rounded-md w-full focus:ring-orange-500 focus:border-orange-500" />
                           <input type="number" placeholder="Duración (min)" value={lessonFormData.duration_minutes} onChange={e => setLessonFormData({ ...lessonFormData, duration_minutes: parseInt(e.target.value) || 0 })} className="text-sm bg-white text-gray-900 placeholder-gray-500 border-gray-300 rounded-md w-full focus:ring-orange-500 focus:border-orange-500" />
-                          <div className="md:col-span-2">
-                            <input type="text" placeholder="URL del video" value={lessonFormData.video_url} onChange={e => setLessonFormData({ ...lessonFormData, video_url: e.target.value })} className="text-sm bg-white text-gray-900 placeholder-gray-500 border-gray-300 rounded-md w-full focus:ring-orange-500 focus:border-orange-500" />
+                          <div className="md:col-span-2 space-y-1">
+                            <label className="block text-xs font-semibold text-gray-700">
+                              URL embed del video
+                            </label>
+                            <input type="text" placeholder="https://player.mediadelivery.net/embed/..." value={lessonFormData.video_url} onChange={e => setLessonFormData({ ...lessonFormData, video_url: e.target.value })} className="text-sm bg-white text-gray-900 placeholder-gray-500 border-gray-300 rounded-md w-full focus:ring-orange-500 focus:border-orange-500" />
+                            <p className="text-[11px] text-gray-500">
+                              Pegá la URL src del iframe de Bunny Stream, no el iframe completo.
+                            </p>
                           </div>
                           <div className="md:col-span-2">
                             <textarea placeholder="Descripción (opcional)" value={lessonFormData.description} onChange={e => setLessonFormData({ ...lessonFormData, description: e.target.value })} className="text-sm bg-white text-gray-900 placeholder-gray-500 border-gray-300 rounded-md w-full focus:ring-orange-500 focus:border-orange-500" rows={2} />
@@ -298,8 +304,14 @@ export function ModulesManager({ courseId }: { courseId: string }) {
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
                       <input type="text" placeholder="Título" value={lessonFormData.title} onChange={e => setLessonFormData({ ...lessonFormData, title: e.target.value })} className="text-sm bg-white text-gray-900 placeholder-gray-500 border-gray-300 rounded-md w-full focus:ring-orange-500 focus:border-orange-500" />
                       <input type="number" placeholder="Duración (min)" value={lessonFormData.duration_minutes} onChange={e => setLessonFormData({ ...lessonFormData, duration_minutes: parseInt(e.target.value) || 0 })} className="text-sm bg-white text-gray-900 placeholder-gray-500 border-gray-300 rounded-md w-full focus:ring-orange-500 focus:border-orange-500" />
-                      <div className="md:col-span-2">
-                        <input type="text" placeholder="URL del video" value={lessonFormData.video_url} onChange={e => setLessonFormData({ ...lessonFormData, video_url: e.target.value })} className="text-sm bg-white text-gray-900 placeholder-gray-500 border-gray-300 rounded-md w-full focus:ring-orange-500 focus:border-orange-500" />
+                      <div className="md:col-span-2 space-y-1">
+                        <label className="block text-xs font-semibold text-gray-700">
+                          URL embed del video
+                        </label>
+                        <input type="text" placeholder="https://player.mediadelivery.net/embed/..." value={lessonFormData.video_url} onChange={e => setLessonFormData({ ...lessonFormData, video_url: e.target.value })} className="text-sm bg-white text-gray-900 placeholder-gray-500 border-gray-300 rounded-md w-full focus:ring-orange-500 focus:border-orange-500" />
+                        <p className="text-[11px] text-gray-500">
+                          Pegá la URL src del iframe de Bunny Stream, no el iframe completo.
+                        </p>
                       </div>
                       <div className="md:col-span-2">
                         <textarea placeholder="Descripción (opcional)" value={lessonFormData.description} onChange={e => setLessonFormData({ ...lessonFormData, description: e.target.value })} className="text-sm bg-white text-gray-900 placeholder-gray-500 border-gray-300 rounded-md w-full focus:ring-orange-500 focus:border-orange-500" rows={2} />

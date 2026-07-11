@@ -185,16 +185,40 @@ export default function CursoDetailPage({ params }: PageProps) {
 
   // Function to render video embed based on URL
   const renderVideo = () => {
-    if (!activeLesson || !activeLesson.video_url) {
+    if (!activeLesson || !activeLesson.video_url || !activeLesson.video_url.trim()) {
       return (
         <div className="flex aspect-video items-center justify-center rounded-2xl bg-gray-900 text-6xl text-white">
           <Play size={44} className="opacity-50" />
-          <span className="absolute text-sm mt-20 text-gray-400">Sin video disponible</span>
+          <span className="absolute text-sm mt-20 text-gray-400">Esta clase todavía no tiene video cargado.</span>
         </div>
       );
     }
 
-    const url = activeLesson.video_url;
+    let url = activeLesson.video_url.trim();
+    if (url.includes('<iframe') && url.includes('src=')) {
+      const match = url.match(/src=["']([^"']+)["']/);
+      if (match && match[1]) {
+        url = match[1];
+      }
+    }
+
+    if (
+      url.includes('player.mediadelivery.net') ||
+      url.includes('iframe.mediadelivery.net') ||
+      url.includes('mediadelivery.net/embed')
+    ) {
+      return (
+        <div className="relative w-full overflow-hidden rounded-2xl bg-black shadow-lg" style={{ paddingTop: "56.25%" }}>
+          <iframe
+            src={url}
+            loading="lazy"
+            className="absolute left-0 top-0 h-full w-full border-0"
+            allow="accelerometer; gyroscope; autoplay; encrypted-media; picture-in-picture; fullscreen;"
+            allowFullScreen
+          />
+        </div>
+      );
+    }
 
     if (url.includes('vimeo.com')) {
       let vimeoId = url.split('/').pop()?.split('?')[0];
