@@ -13,16 +13,14 @@ export function StlVariantsManager({ modelId }: { modelId: string }) {
 
   const [editingVarId, setEditingVarId] = useState<string | null>(null);
   const [varForm, setVarForm] = useState({
-    name: "",
+    title: "",
     description: "",
     thumbnail_url: "",
     file_url: "",
-    material_recommended: "",
-    estimated_print_time_minutes: 0,
-    estimated_weight_grams: 0,
-    difficulty: "easy",
+    material_type: "",
+    color: "",
+    print_settings: "",
     is_active: true,
-    sort_order: 0,
   });
 
   useEffect(() => {
@@ -43,7 +41,7 @@ export function StlVariantsManager({ modelId }: { modelId: string }) {
       .from("stl_variants")
       .select("*")
       .eq("model_id", modelId)
-      .order("sort_order", { ascending: true });
+      .order("created_at", { ascending: true });
 
     if (error) setError(error.message);
     else setVariants(data || []);
@@ -57,16 +55,14 @@ export function StlVariantsManager({ modelId }: { modelId: string }) {
     }
     setError(null);
     const payload = {
-      name: varForm.name,
-      description: varForm.description,
-      thumbnail_url: varForm.thumbnail_url,
+      title: varForm.title,
+      description: varForm.description || null,
+      thumbnail_url: varForm.thumbnail_url || null,
       file_url: varForm.file_url,
-      material_recommended: varForm.material_recommended,
-      estimated_print_time_minutes: parseInt(String(varForm.estimated_print_time_minutes)) || 0,
-      estimated_weight_grams: parseInt(String(varForm.estimated_weight_grams)) || 0,
-      difficulty: varForm.difficulty || "easy",
+      material_type: varForm.material_type || null,
+      color: varForm.color || null,
+      print_settings: varForm.print_settings || null,
       is_active: varForm.is_active,
-      sort_order: parseInt(String(varForm.sort_order)) || 0,
       model_id: modelId,
     };
 
@@ -97,9 +93,9 @@ export function StlVariantsManager({ modelId }: { modelId: string }) {
         <button
           onClick={() => {
             setVarForm({
-              name: "", description: "", thumbnail_url: "", file_url: "", material_recommended: "",
-              estimated_print_time_minutes: 0, estimated_weight_grams: 0, difficulty: "easy",
-              is_active: true, sort_order: variants.length + 1
+              title: "", description: "", thumbnail_url: "", file_url: "", material_type: "",
+              color: "", print_settings: "",
+              is_active: true
             });
             setEditingVarId("new");
           }}
@@ -125,9 +121,9 @@ export function StlVariantsManager({ modelId }: { modelId: string }) {
                     <Save size={20} />
                   </div>
                   <div>
-                    <h4 className="text-sm font-bold text-gray-900">{v.name}</h4>
+                    <h4 className="text-sm font-bold text-gray-900">{v.title}</h4>
                     <p className="text-xs text-gray-500 mt-0.5">
-                      Dificultad: {v.difficulty} • Material: {v.material_recommended || "N/A"} • Peso: {v.estimated_weight_grams}g • Tiempo: {v.estimated_print_time_minutes}m
+                      Material: {v.material_type || "N/A"} • Color: {v.color || "N/A"}
                     </p>
                   </div>
                 </div>
@@ -170,7 +166,7 @@ function VariantFormEditor({ varForm, setVarForm, onSave, onCancel, modelId }: a
       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
         <div className="space-y-1">
           <label className="text-xs font-semibold text-gray-700">Nombre Variante</label>
-          <input type="text" name="name" value={varForm.name} onChange={handleChange} className="w-full text-sm border-gray-300 rounded-md focus:border-orange-500 focus:ring-orange-500 text-gray-900 bg-white" placeholder="Ej. Archivo Original" />
+          <input type="text" name="title" value={varForm.title} onChange={handleChange} className="w-full text-sm border-gray-300 rounded-md focus:border-orange-500 focus:ring-orange-500 text-gray-900 bg-white" placeholder="Ej. Archivo Original" />
         </div>
         <div className="space-y-1">
           <label className="text-xs font-semibold text-gray-700">Enlace de Descarga (file_url) - Privado</label>
@@ -216,28 +212,16 @@ function VariantFormEditor({ varForm, setVarForm, onSave, onCancel, modelId }: a
           <textarea name="description" value={varForm.description} onChange={handleChange} rows={2} className="w-full text-sm border-gray-300 rounded-md focus:border-orange-500 focus:ring-orange-500 text-gray-900 bg-white" />
         </div>
         <div className="space-y-1">
-          <label className="text-xs font-semibold text-gray-700">Dificultad</label>
-          <select name="difficulty" value={varForm.difficulty} onChange={handleChange} className="w-full text-sm border-gray-300 rounded-md focus:border-orange-500 focus:ring-orange-500 text-gray-900 bg-white">
-            <option value="easy">Fácil</option>
-            <option value="medium">Medio</option>
-            <option value="hard">Difícil</option>
-          </select>
+          <label className="text-xs font-semibold text-gray-700">Material Sugerido</label>
+          <input type="text" name="material_type" value={varForm.material_type} onChange={handleChange} className="w-full text-sm border-gray-300 rounded-md focus:border-orange-500 focus:ring-orange-500 text-gray-900 bg-white" placeholder="Ej. PLA" />
         </div>
         <div className="space-y-1">
-          <label className="text-xs font-semibold text-gray-700">Material Recomendado</label>
-          <input type="text" name="material_recommended" value={varForm.material_recommended} onChange={handleChange} className="w-full text-sm border-gray-300 rounded-md focus:border-orange-500 focus:ring-orange-500 text-gray-900 bg-white" placeholder="Ej. PLA, PETG" />
+          <label className="text-xs font-semibold text-gray-700">Color Sugerido</label>
+          <input type="text" name="color" value={varForm.color} onChange={handleChange} className="w-full text-sm border-gray-300 rounded-md focus:border-orange-500 focus:ring-orange-500 text-gray-900 bg-white" placeholder="Ej. Blanco" />
         </div>
-        <div className="space-y-1">
-          <label className="text-xs font-semibold text-gray-700">Tiempo Impresión (mins)</label>
-          <input type="number" name="estimated_print_time_minutes" value={varForm.estimated_print_time_minutes} onChange={handleChange} className="w-full text-sm border-gray-300 rounded-md focus:border-orange-500 focus:ring-orange-500 text-gray-900 bg-white" />
-        </div>
-        <div className="space-y-1">
-          <label className="text-xs font-semibold text-gray-700">Peso Estimado (g)</label>
-          <input type="number" name="estimated_weight_grams" value={varForm.estimated_weight_grams} onChange={handleChange} className="w-full text-sm border-gray-300 rounded-md focus:border-orange-500 focus:ring-orange-500 text-gray-900 bg-white" />
-        </div>
-        <div className="space-y-1">
-          <label className="text-xs font-semibold text-gray-700">Orden</label>
-          <input type="number" name="sort_order" value={varForm.sort_order} onChange={handleChange} className="w-full text-sm border-gray-300 rounded-md focus:border-orange-500 focus:ring-orange-500 text-gray-900 bg-white" />
+        <div className="space-y-1 md:col-span-2">
+          <label className="text-xs font-semibold text-gray-700">Configuración de Impresión</label>
+          <textarea name="print_settings" value={varForm.print_settings} onChange={handleChange} rows={2} className="w-full text-sm border-gray-300 rounded-md focus:border-orange-500 focus:ring-orange-500 text-gray-900 bg-white" placeholder="Ej. Relleno 20%, Sin soportes" />
         </div>
         <div className="space-y-1 flex items-end pb-2">
           <label className="flex items-center gap-2 cursor-pointer text-sm text-gray-700">

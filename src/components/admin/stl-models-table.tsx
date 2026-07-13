@@ -27,7 +27,7 @@ export function StlModelsTable() {
         *,
         stl_categories ( name )
       `)
-      .order("sort_order", { ascending: true });
+      .order("created_at", { ascending: false });
 
     if (fetchError) {
       setError(fetchError.message);
@@ -60,10 +60,10 @@ export function StlModelsTable() {
             <thead>
               <tr className="bg-gray-50 border-b border-gray-200 text-sm font-medium text-gray-500">
                 <th className="px-4 py-3">Miniatura</th>
-                <th className="px-4 py-3">Nombre</th>
+                <th className="px-4 py-3">Título</th>
                 <th className="px-4 py-3">Categoría</th>
                 <th className="px-4 py-3">Estado</th>
-                <th className="px-4 py-3">Orden</th>
+                <th className="px-4 py-3">Fecha</th>
                 <th className="px-4 py-3 text-right">Acciones</th>
               </tr>
             </thead>
@@ -72,13 +72,13 @@ export function StlModelsTable() {
                 <tr key={model.id} className="text-sm hover:bg-gray-50 transition-colors">
                   <td className="px-4 py-3">
                     {model.thumbnail_url ? (
-                      <img src={model.thumbnail_url} alt={model.name} className="w-10 h-10 rounded object-cover" />
+                      <img src={model.thumbnail_url} alt={model.title} className="w-10 h-10 rounded object-cover" />
                     ) : (
                       <div className="w-10 h-10 bg-gray-100 rounded flex items-center justify-center text-gray-400 text-xs">Sin img</div>
                     )}
                   </td>
                   <td className="px-4 py-3 font-medium text-gray-900">
-                    {model.name}
+                    {model.title}
                   </td>
                   <td className="px-4 py-3 text-gray-600">
                     {model.stl_categories?.name || "Sin categoría"}
@@ -89,7 +89,7 @@ export function StlModelsTable() {
                     </Badge>
                   </td>
                   <td className="px-4 py-3 text-gray-600">
-                    {model.sort_order}
+                    {new Intl.DateTimeFormat("es-AR", { dateStyle: "short" }).format(new Date(model.created_at))}
                   </td>
                   <td className="px-4 py-3 text-right">
                     <Link

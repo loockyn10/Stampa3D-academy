@@ -27,8 +27,8 @@ export default function LibreriaStlPage() {
     setLoading(true);
     const [catsRes, modelsRes, varsRes] = await Promise.all([
       supabase.from("stl_categories").select("*").eq("is_active", true).order("sort_order"),
-      supabase.from("stl_models").select("*").eq("is_active", true).order("sort_order"),
-      supabase.from("stl_variants").select("*").eq("is_active", true).order("sort_order")
+      supabase.from("stl_models").select("*").eq("is_active", true).order("created_at"),
+      supabase.from("stl_variants").select("*").eq("is_active", true).order("created_at")
     ]);
     
     if (catsRes.data) setCategories(catsRes.data);
@@ -44,8 +44,10 @@ export default function LibreriaStlPage() {
       const model = models.find(m => m.id === variant.model_id);
       return {
         ...variant,
-        model_name: model?.name || "Modelo Desconocido",
-        category_id: model?.category_id
+        model_title: model?.title || "Modelo Desconocido",
+        category_id: model?.category_id,
+        difficulty: model?.difficulty || "beginner",
+        estimated_print_time: model?.estimated_print_time || ""
       };
     });
   }, [models, variants]);
@@ -53,7 +55,7 @@ export default function LibreriaStlPage() {
   const filteredItems = useMemo(() => {
     let f = allStlItems;
     if (selectedCatId) f = f.filter((s) => s.category_id === selectedCatId);
-    if (query) f = f.filter((s) => s.name.toLowerCase().includes(query.toLowerCase()) || s.model_name.toLowerCase().includes(query.toLowerCase()));
+    if (query) f = f.filter((s) => s.title.toLowerCase().includes(query.toLowerCase()) || s.model_title.toLowerCase().includes(query.toLowerCase()));
     return f;
   }, [allStlItems, selectedCatId, query]);
 
@@ -147,12 +149,12 @@ export default function LibreriaStlPage() {
                 </div>
               </div>
               <div className="p-4 flex flex-col flex-1">
-                <p className="text-[10px] font-semibold text-orange-500 uppercase tracking-wider mb-1 truncate">{f.model_name}</p>
-                <p className="font-bold text-gray-900 text-sm leading-tight mb-2 line-clamp-2">{f.name}</p>
+                <p className="text-[10px] font-semibold text-orange-500 uppercase tracking-wider mb-1 truncate">{f.model_title}</p>
+                <p className="font-bold text-gray-900 text-sm leading-tight mb-2 line-clamp-2">{f.title}</p>
                 <div className="mt-auto space-y-1 mb-3">
-                  <p className="text-xs text-gray-500 flex justify-between"><span>Material:</span> <span className="font-medium text-gray-700">{f.material_recommended || "N/A"}</span></p>
-                  <p className="text-xs text-gray-500 flex justify-between"><span>Tiempo:</span> <span className="font-medium text-gray-700">{f.estimated_print_time_minutes} min</span></p>
-                  <p className="text-xs text-gray-500 flex justify-between"><span>Peso:</span> <span className="font-medium text-gray-700">{f.estimated_weight_grams} g</span></p>
+                  <p className="text-xs text-gray-500 flex justify-between"><span>Material:</span> <span className="font-medium text-gray-700">{f.material_type || "N/A"}</span></p>
+                  <p className="text-xs text-gray-500 flex justify-between"><span>Color:</span> <span className="font-medium text-gray-700">{f.color || "N/A"}</span></p>
+                  <p className="text-xs text-gray-500 flex justify-between"><span>Tiempo (mod):</span> <span className="font-medium text-gray-700">{f.estimated_print_time || "N/A"}</span></p>
                 </div>
                 <button 
                   onClick={async (e) => {
