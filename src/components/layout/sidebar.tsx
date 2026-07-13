@@ -117,7 +117,7 @@ export function Sidebar({ mobileOpen, setMobileOpen }: SidebarProps) {
               <Layers size={18} />
             </div>
             <div>
-              <p className="text-sm font-bold leading-none text-gray-900">Extruye</p>
+              <p className="text-sm font-bold leading-none text-gray-900">Stampa</p>
               <p className="mt-0.5 text-[11px] leading-none text-gray-400">Academia 3D</p>
             </div>
           </Link>

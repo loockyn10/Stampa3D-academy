@@ -15,8 +15,11 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "Extruye - Academia 3D",
-  description: "Plataforma educativa y de herramientas para impresión 3D",
+  title: "Academia Stampa",
+  description: "Plataforma de cursos y herramientas para emprendedores de impresión 3D.",
+  icons: {
+    icon: "/favicon.svg",
+  },
 };
 
 export default function RootLayout({

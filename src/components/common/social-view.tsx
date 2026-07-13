@@ -61,7 +61,7 @@ export function SocialView({ id }: SocialViewProps) {
         <div className={`mx-auto mb-4 flex h-16 w-16 items-center justify-center rounded-2xl ${s.color}`}>
           <Icon size={28} />
         </div>
-        <p className="text-lg font-bold text-gray-900">{s.name} de Extruye</p>
+        <p className="text-lg font-bold text-gray-900">{s.name} de Academia Stampa</p>
         <p className="mx-auto mt-2 max-w-sm text-sm text-gray-500">{s.desc}</p>
         <PrimaryButton href={s.url} target="_blank" rel="noopener noreferrer" className="mx-auto mt-5">
           Abrir {s.name} <ExternalLink size={14} />
