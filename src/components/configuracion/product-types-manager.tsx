@@ -15,6 +15,7 @@ export function ProductTypesManager() {
   const [formData, setFormData] = useState({
     name: "",
     multiplier: 2.0,
+    fixed_cost: 0,
     sort_order: 0,
     is_active: true,
   });
@@ -48,6 +49,7 @@ export function ProductTypesManager() {
       ...formData,
       user_id: user.id,
       multiplier: parseFloat(String(formData.multiplier)) || 1.0,
+      fixed_cost: Math.max(0, parseFloat(String(formData.fixed_cost)) || 0),
       sort_order: parseInt(String(formData.sort_order)) || 0,
     };
 
@@ -75,11 +77,11 @@ export function ProductTypesManager() {
       )}
 
       <div className="flex justify-between items-center mb-4">
-        <h3 className="text-lg font-semibold text-gray-900">Multiplicadores (Tipos de Producto)</h3>
+        <h3 className="text-lg font-semibold text-gray-900">Tipos de producto / multiplicadores</h3>
         <button
           onClick={() => {
             setFormData({
-              name: "", multiplier: 2.0, sort_order: types.length + 1, is_active: true
+              name: "", multiplier: 2.0, fixed_cost: 0, sort_order: types.length + 1, is_active: true
             });
             setEditingId("new");
           }}
@@ -107,7 +109,7 @@ export function ProductTypesManager() {
               </div>
               <div className="text-sm text-gray-500 space-y-1 mb-4 flex-1">
                 <p>Multiplicador: <span className="font-medium text-gray-700">x{t.multiplier}</span></p>
-                <p>Orden: <span className="font-medium text-gray-700">{t.sort_order}</span></p>
+                <p>Costo fijo: <span className="font-medium text-gray-700">${t.fixed_cost ?? 0}</span></p>
               </div>
               <div className="flex items-center justify-between pt-3 border-t border-gray-100">
                 <span className={`text-xs px-2 py-0.5 rounded-md font-medium ${t.is_active ? 'bg-green-100 text-green-700' : 'bg-gray-100 text-gray-600'}`}>
@@ -150,8 +152,8 @@ function TypeEditor({ formData, setFormData, onSave, onCancel }: any) {
             <input type="number" step="0.1" name="multiplier" value={formData.multiplier} onChange={handleChange} className="w-full text-sm border-gray-300 rounded-md focus:border-orange-500 focus:ring-orange-500 text-gray-900" />
           </div>
           <div>
-            <label className="block text-xs font-semibold text-gray-700 mb-1">Orden de lista</label>
-            <input type="number" name="sort_order" value={formData.sort_order} onChange={handleChange} className="w-full text-sm border-gray-300 rounded-md focus:border-orange-500 focus:ring-orange-500 text-gray-900" />
+            <label className="block text-xs font-semibold text-gray-700 mb-1">Costo fijo</label>
+            <input type="number" min="0" step="any" name="fixed_cost" value={formData.fixed_cost} onChange={handleChange} className="w-full text-sm border-gray-300 rounded-md focus:border-orange-500 focus:ring-orange-500 text-gray-900" placeholder="Ej: costo del jarro, packaging, tira LED..." />
           </div>
         </div>
         <div className="flex items-center gap-2 pt-1">

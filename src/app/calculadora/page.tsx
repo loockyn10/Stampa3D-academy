@@ -64,6 +64,7 @@ export default function CalculadoraPage() {
   const [manualPrinterMaintenance, setManualPrinterMaintenance] = useState(0);
   const [laborCost, setLaborCost] = useState(0);
   const [otherCost, setOtherCost] = useState(0);
+  const [fixedCost, setFixedCost] = useState(0);
   
   const [manualMultiplier, setManualMultiplier] = useState(0);
   const [manualPlatformCommission, setManualPlatformCommission] = useState(0);
@@ -132,7 +133,10 @@ export default function CalculadoraPage() {
     }
 
     const mul = multipliers.find(m => m.id === selectedMultiplierId);
-    if (mul) setManualMultiplier(mul.multiplier || 1);
+    if (mul) {
+      setManualMultiplier(mul.multiplier || 1);
+      setFixedCost(mul.fixed_cost || 0);
+    }
 
   }, [selectedFilamentId, selectedPrinterId, selectedMultiplierId, filaments, printers, multipliers]);
 
@@ -154,7 +158,7 @@ export default function CalculadoraPage() {
     const printerCost = totalHours * manualPrinterMaintenance;
 
     // Costo Base
-    const baseCost = materialCost + energyCost + printerCost + laborCost + otherCost;
+    const baseCost = materialCost + energyCost + printerCost + laborCost + otherCost + fixedCost;
 
     // Precio Normal
     const normalPrice = baseCost * manualMultiplier;
@@ -166,12 +170,12 @@ export default function CalculadoraPage() {
     const profit = normalPrice - baseCost;
 
     return {
-      materialCost, energyCost, printerCost, baseCost, normalPrice, mlPrice, profit
+      materialCost, energyCost, printerCost, fixedCost, baseCost, normalPrice, mlPrice, profit
     };
   }, [
     weight, manualErrorPercent, manualPricePerKg,
     hours, minutes, manualPrinterConsumption, manualKwhPrice, manualPrinterMaintenance,
-    laborCost, otherCost, manualMultiplier, manualPlatformExtra, manualPlatformCommission, shippingCost
+    laborCost, otherCost, fixedCost, manualMultiplier, manualPlatformExtra, manualPlatformCommission, shippingCost
   ]);
 
   if (loading) {
@@ -310,23 +314,24 @@ export default function CalculadoraPage() {
               <p className="text-sm font-semibold text-gray-900">${calc.materialCost.toFixed(2)}</p>
             </div>
             
-            {advanced && (
-              <>
-                <div className="flex items-center justify-between">
-                  <p className="text-xs text-gray-500">Costo Eléctrico</p>
-                  <p className="text-sm font-semibold text-gray-900">${calc.energyCost.toFixed(2)}</p>
-                </div>
-                <div className="flex items-center justify-between">
-                  <p className="text-xs text-gray-500">Costo Mantenimiento</p>
-                  <p className="text-sm font-semibold text-gray-900">${calc.printerCost.toFixed(2)}</p>
-                </div>
-                {(laborCost > 0 || otherCost > 0) && (
-                  <div className="flex items-center justify-between">
-                    <p className="text-xs text-gray-500">Mano obra y otros</p>
-                    <p className="text-sm font-semibold text-gray-900">${(laborCost + otherCost).toFixed(2)}</p>
-                  </div>
-                )}
-              </>
+            <div className="flex items-center justify-between">
+              <p className="text-xs text-gray-500">Costo Eléctrico</p>
+              <p className="text-sm font-semibold text-gray-900">${calc.energyCost.toFixed(2)}</p>
+            </div>
+            <div className="flex items-center justify-between">
+              <p className="text-xs text-gray-500">Costo Mantenimiento</p>
+              <p className="text-sm font-semibold text-gray-900">${calc.printerCost.toFixed(2)}</p>
+            </div>
+            <div className="flex items-center justify-between">
+              <p className="text-xs text-gray-500">Costo Fijo</p>
+              <p className="text-sm font-semibold text-gray-900">${calc.fixedCost.toFixed(2)}</p>
+            </div>
+            
+            {advanced && (laborCost > 0 || otherCost > 0) && (
+              <div className="flex items-center justify-between">
+                <p className="text-xs text-gray-500">Mano obra y otros</p>
+                <p className="text-sm font-semibold text-gray-900">${(laborCost + otherCost).toFixed(2)}</p>
+              </div>
             )}
 
             <div className="my-2 h-px bg-gray-100" />
