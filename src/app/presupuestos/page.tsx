@@ -2,13 +2,15 @@
 
 import React, { useState, useEffect } from "react";
 import Link from "next/link";
-import { Plus, Pencil, FileText, Trash2, Loader2, AlertCircle, Save, X, UserPlus, ShoppingCart } from "lucide-react";
+import { Plus, Pencil, FileText, Trash2, Loader2, AlertCircle, Save, X, UserPlus, ShoppingCart, Download } from "lucide-react";
 import { Card } from "@/components/ui/card";
 import { PrimaryButton, GhostButton } from "@/components/ui/button";
 import { Combobox } from "@/components/ui/combobox";
 import { SectionTitle } from "@/components/ui/section-title";
 import { Badge } from "@/components/ui/badge";
 import { createClient } from "@/utils/supabase/client";
+import { pdf } from "@react-pdf/renderer";
+import BudgetPDFDocument from "@/components/presupuestos/budget-pdf-document";
 
 const STATUS_MAP: Record<string, { label: string, color: "gray" | "dark" | "green" | "orange" }> = {
   draft: { label: "Borrador", color: "gray" },
@@ -25,6 +27,10 @@ export default function PresupuestosPage() {
   const [filaments, setFilaments] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+
+  // Profile
+  const [profile, setProfile] = useState<any>(null);
+  const [isGeneratingPdf, setIsGeneratingPdf] = useState(false);
 
   // Form State
   const [editingId, setEditingId] = useState<string | null>(null);
@@ -66,11 +72,12 @@ export default function PresupuestosPage() {
     const { data: { user } } = await supabase.auth.getUser();
     if (!user) return;
 
-    const [bRes, cRes, pRes, filRes] = await Promise.all([
+    const [bRes, cRes, pRes, filRes, profRes] = await Promise.all([
       supabase.from("budgets").select("*, clients(name)").eq("user_id", user.id).order("created_at", { ascending: false }),
       supabase.from("clients").select("*").eq("user_id", user.id).order("name", { ascending: true }),
       supabase.from("products").select("*").eq("user_id", user.id).eq("is_active", true).order("name", { ascending: true }),
-      supabase.from("filaments").select("*").eq("user_id", user.id).eq("is_active", true).order("name", { ascending: true })
+      supabase.from("filaments").select("*").eq("user_id", user.id).eq("is_active", true).order("name", { ascending: true }),
+      supabase.from("profiles").select("*").eq("id", user.id).single()
     ]);
 
     if (bRes.error) setError(bRes.error.message);
@@ -84,6 +91,8 @@ export default function PresupuestosPage() {
 
     if (filRes.error) console.error(filRes.error);
     else setFilaments(filRes.data || []);
+
+    if (profRes.data) setProfile(profRes.data);
 
     setLoading(false);
   };
@@ -227,6 +236,54 @@ export default function PresupuestosPage() {
     // Refresh data
     await fetchData();
     setEditingId(null);
+  };
+
+  const handleDownloadPdf = async () => {
+    if (editingId === "new") {
+      alert("Debes guardar el presupuesto antes de descargarlo.");
+      return;
+    }
+    
+    // Find client
+    const currentClient = clients.find(c => c.id === formData.client_id);
+    
+    // Prepare budget object with full details
+    const budgetData = {
+      id: editingId,
+      ...formData,
+      subtotal,
+      total_amount: total
+    };
+
+    setIsGeneratingPdf(true);
+    try {
+      const blob = await pdf(
+        <BudgetPDFDocument 
+          budget={budgetData} 
+          items={budgetItems} 
+          client={currentClient} 
+          profile={profile} 
+        />
+      ).toBlob();
+      
+      const url = URL.createObjectURL(blob);
+      const link = document.createElement("a");
+      link.href = url;
+      
+      // Sanitized filename
+      const titleClean = formData.title ? formData.title.replace(/[^a-z0-9]/gi, '-').toLowerCase() : "sin-titulo";
+      link.download = `presupuesto-${titleClean}.pdf`;
+      
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+      URL.revokeObjectURL(url);
+    } catch (err: any) {
+      console.error(err);
+      alert("Hubo un error al generar el PDF: " + err.message);
+    } finally {
+      setIsGeneratingPdf(false);
+    }
   };
 
   const handleSaveClient = async () => {
@@ -375,7 +432,19 @@ export default function PresupuestosPage() {
               <FileText size={18} className="text-orange-500" />
               {editingId === "new" ? "Nuevo Presupuesto" : "Editar Presupuesto"}
             </h3>
-            <button onClick={() => setEditingId(null)} className="text-gray-400 hover:text-gray-700"><X size={20} /></button>
+            <div className="flex items-center gap-4">
+              {editingId !== "new" && (
+                <button 
+                  onClick={handleDownloadPdf} 
+                  disabled={isGeneratingPdf}
+                  className="flex items-center gap-1.5 text-sm font-bold text-gray-700 hover:text-orange-600 bg-white border border-gray-200 px-3 py-1.5 rounded-lg shadow-sm transition-colors"
+                >
+                  {isGeneratingPdf ? <Loader2 size={16} className="animate-spin" /> : <Download size={16} />}
+                  Descargar PDF
+                </button>
+              )}
+              <button onClick={() => setEditingId(null)} className="text-gray-400 hover:text-gray-700"><X size={20} /></button>
+            </div>
           </div>
 
           <div className="p-5 space-y-6">

@@ -23,6 +23,12 @@ function PerfilContent() {
 
   // Form State
   const [name, setName] = useState("");
+  const [displayName, setDisplayName] = useState("");
+  const [companyName, setCompanyName] = useState("");
+  const [companyLogoUrl, setCompanyLogoUrl] = useState("");
+  const [companyCity, setCompanyCity] = useState("");
+  const [companyAddress, setCompanyAddress] = useState("");
+  const [companyPhone, setCompanyPhone] = useState("");
 
   useEffect(() => {
     const t = searchParams.get("tab");
@@ -49,6 +55,12 @@ function PerfilContent() {
     } else if (pData) {
       setProfile({ ...pData, email: user.email });
       setName(pData.name || "");
+      setDisplayName(pData.display_name || "");
+      setCompanyName(pData.company_name || "");
+      setCompanyLogoUrl(pData.company_logo_url || "");
+      setCompanyCity(pData.company_city || "");
+      setCompanyAddress(pData.company_address || "");
+      setCompanyPhone(pData.company_phone || "");
     }
 
     // Fetch badges
@@ -69,9 +81,17 @@ function PerfilContent() {
   const handleSave = async () => {
     if (!profile) return;
     setLoading(true);
-    const { error } = await supabase.from("profiles").update({ name }).eq("id", profile.id);
+    const { error } = await supabase.from("profiles").update({ 
+      name,
+      display_name: displayName,
+      company_name: companyName,
+      company_logo_url: companyLogoUrl,
+      company_city: companyCity,
+      company_address: companyAddress,
+      company_phone: companyPhone
+    }).eq("id", profile.id);
     if (error) alert("Error: " + error.message);
-    else alert("Perfil actualizado.");
+    else alert("Perfil actualizado correctamente.");
     setLoading(false);
   };
 
@@ -181,6 +201,67 @@ function PerfilContent() {
                 />
               </label>
             </div>
+
+            <div className="border-t border-gray-100 mt-6 pt-6">
+              <h4 className="text-sm font-bold text-gray-900 mb-4">Datos de empresa para presupuestos</h4>
+              <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+                <label className="block sm:col-span-2">
+                  <span className="mb-1 block text-xs font-semibold text-gray-500">Nombre de empresa</span>
+                  <input
+                    placeholder="Ej. Stampa3D Academy"
+                    value={companyName}
+                    onChange={(e) => setCompanyName(e.target.value)}
+                    className="w-full rounded-xl border border-gray-300 bg-white text-gray-900 px-3 py-2.5 text-sm outline-none focus:border-orange-500 focus:ring-2 focus:ring-orange-100 placeholder-gray-400"
+                  />
+                </label>
+                <label className="block sm:col-span-2">
+                  <span className="mb-1 block text-xs font-semibold text-gray-500">Logo de empresa URL</span>
+                  <input
+                    placeholder="https://..."
+                    value={companyLogoUrl}
+                    onChange={(e) => setCompanyLogoUrl(e.target.value)}
+                    className="w-full rounded-xl border border-gray-300 bg-white text-gray-900 px-3 py-2.5 text-sm outline-none focus:border-orange-500 focus:ring-2 focus:ring-orange-100 placeholder-gray-400"
+                  />
+                </label>
+                <label className="block">
+                  <span className="mb-1 block text-xs font-semibold text-gray-500">Nombre a mostrar (vendedor)</span>
+                  <input
+                    placeholder="Tu nombre en el PDF"
+                    value={displayName}
+                    onChange={(e) => setDisplayName(e.target.value)}
+                    className="w-full rounded-xl border border-gray-300 bg-white text-gray-900 px-3 py-2.5 text-sm outline-none focus:border-orange-500 focus:ring-2 focus:ring-orange-100 placeholder-gray-400"
+                  />
+                </label>
+                <label className="block">
+                  <span className="mb-1 block text-xs font-semibold text-gray-500">Teléfono (empresa)</span>
+                  <input
+                    placeholder="Ej. +54 9 11 1234-5678"
+                    value={companyPhone}
+                    onChange={(e) => setCompanyPhone(e.target.value)}
+                    className="w-full rounded-xl border border-gray-300 bg-white text-gray-900 px-3 py-2.5 text-sm outline-none focus:border-orange-500 focus:ring-2 focus:ring-orange-100 placeholder-gray-400"
+                  />
+                </label>
+                <label className="block">
+                  <span className="mb-1 block text-xs font-semibold text-gray-500">Ciudad</span>
+                  <input
+                    placeholder="Ej. Buenos Aires, Argentina"
+                    value={companyCity}
+                    onChange={(e) => setCompanyCity(e.target.value)}
+                    className="w-full rounded-xl border border-gray-300 bg-white text-gray-900 px-3 py-2.5 text-sm outline-none focus:border-orange-500 focus:ring-2 focus:ring-orange-100 placeholder-gray-400"
+                  />
+                </label>
+                <label className="block">
+                  <span className="mb-1 block text-xs font-semibold text-gray-500">Dirección</span>
+                  <input
+                    placeholder="Ej. Calle Falsa 123"
+                    value={companyAddress}
+                    onChange={(e) => setCompanyAddress(e.target.value)}
+                    className="w-full rounded-xl border border-gray-300 bg-white text-gray-900 px-3 py-2.5 text-sm outline-none focus:border-orange-500 focus:ring-2 focus:ring-orange-100 placeholder-gray-400"
+                  />
+                </label>
+              </div>
+            </div>
+
             <PrimaryButton className="mt-5" onClick={handleSave} disabled={loading}>
               {loading ? <Loader2 size={16} className="animate-spin mr-2" /> : null} Guardar cambios
             </PrimaryButton>
