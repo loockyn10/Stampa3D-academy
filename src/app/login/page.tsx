@@ -46,7 +46,7 @@ export default function LoginPage() {
             Iniciar sesión
           </h2>
           <p className="mt-2 text-center text-sm text-gray-600">
-            Accede a la plataforma de Stampa3D
+            Ingresa a la Academia Stampa
           </p>
         </div>
 

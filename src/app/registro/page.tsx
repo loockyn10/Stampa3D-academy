@@ -58,7 +58,7 @@ export default function RegistroPage() {
             Crear cuenta
           </h2>
           <p className="mt-2 text-center text-sm text-gray-600">
-            Unite a la academia Stampa3D
+            Unite a la Academia Stampa
           </p>
         </div>
 
