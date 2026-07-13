@@ -6,8 +6,10 @@ import { Loader2, CheckCircle2, AlertCircle } from "lucide-react";
 
 type Profile = {
   id: string;
+  email: string;
   full_name: string;
-  role: "member" | "admin";
+  display_name: string;
+  role: "member" | "admin" | "instructor";
   membership_status: "active" | "inactive" | "cancelled" | "expired";
   member_level: "bronze" | "silver" | "gold" | "elite";
   active_months: number;
@@ -27,16 +29,50 @@ export function UsersTable() {
   const fetchUsers = async () => {
     setLoading(true);
     setError(null);
-    const { data, error: fetchError } = await supabase
-      .from("profiles")
-      .select("*, subscriptions(status, amount)")
-      .order("created_at", { ascending: false });
+    
+    try {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) {
+        setError("No has iniciado sesión.");
+        setLoading(false);
+        return;
+      }
 
-    if (fetchError) {
-      setError(fetchError.message);
-    } else {
-      setUsers(data as Profile[]);
+      const { data: currentUserProfile, error: profileError } = await supabase
+        .from("profiles")
+        .select("role")
+        .eq("id", user.id)
+        .single();
+
+      if (profileError) {
+        console.error("Error verificando permisos:", profileError);
+        setError(`Error de permisos: ${profileError.message}`);
+        setLoading(false);
+        return;
+      }
+
+      if (currentUserProfile?.role !== "admin") {
+        setError("Acceso denegado: Se requiere rol de administrador.");
+        setLoading(false);
+        return;
+      }
+
+      const { data, error: fetchError } = await supabase
+        .from("profiles")
+        .select("*, subscriptions(status, amount)")
+        .order("created_at", { ascending: false });
+
+      if (fetchError) {
+        console.error("Error cargando perfiles:", fetchError);
+        setError(fetchError.message);
+      } else {
+        setUsers(data as Profile[]);
+      }
+    } catch (err: any) {
+      console.error("Excepción inesperada:", err);
+      setError(err.message || "Error inesperado al cargar usuarios");
     }
+    
     setLoading(false);
   };
 
@@ -108,7 +144,7 @@ export function UsersTable() {
               {users.map((user) => (
                 <tr key={user.id} className="text-sm hover:bg-gray-50 transition-colors">
                   <td className="px-4 py-3 font-medium text-gray-900">
-                    {user.full_name || "Sin nombre"}
+                    {user.display_name || user.full_name || user.email || "Usuario sin nombre"}
                   </td>
                   <td className="px-4 py-3">
                     <select
