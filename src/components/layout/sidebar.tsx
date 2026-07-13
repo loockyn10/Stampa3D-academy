@@ -18,8 +18,10 @@ import {
   LogOut,
   Layers,
   X,
+  Shield,
 } from "lucide-react";
 import { Youtube, Instagram } from "@/components/ui/icons";
+import { createClient } from "@/utils/supabase/client";
 
 interface SidebarProps {
   mobileOpen: boolean;
@@ -65,6 +67,24 @@ const NAV_GROUPS = [
 
 export function Sidebar({ mobileOpen, setMobileOpen }: SidebarProps) {
   const pathname = usePathname();
+  const supabase = createClient();
+  const [isAdmin, setIsAdmin] = React.useState(false);
+
+  React.useEffect(() => {
+    async function checkRole() {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) return;
+      const { data: profile } = await supabase
+        .from("profiles")
+        .select("role")
+        .eq("id", user.id)
+        .single();
+      if (profile?.role === "admin") {
+        setIsAdmin(true);
+      }
+    }
+    checkRole();
+  }, []);
 
   // Helper to check if a route is active
   const isActive = (path: string) => {
@@ -120,46 +140,63 @@ export function Sidebar({ mobileOpen, setMobileOpen }: SidebarProps) {
 
         {/* Navigation Groups */}
         <nav className="flex-1 overflow-y-auto px-3 pb-4">
-          {NAV_GROUPS.map((group) => (
-            <div key={group.group} className="mb-5">
-              <p className="mb-1.5 px-3 text-[11px] font-bold uppercase tracking-wider text-gray-400">
-                {group.group}
-              </p>
-              <div className="space-y-0.5">
-                {group.items.map((item) => {
-                  const Icon = item.icon;
-                  const active = isActive(item.path);
-                  return (
-                    <Link
-                      key={item.path}
-                      href={item.path}
-                      onClick={() => setMobileOpen(false)}
-                      className={`group flex w-full items-center gap-3 rounded-xl px-3 py-2.5 text-sm font-medium transition-colors duration-150 ${
-                        active
-                          ? "bg-orange-50 text-orange-600"
-                          : item.path === "/salir"
-                          ? "text-gray-500 hover:bg-red-50 hover:text-red-600"
-                          : "text-gray-600 hover:bg-gray-50"
-                      }`}
-                    >
-                      <Icon
-                        size={17}
-                        className={
+          {(() => {
+            const groupsToRender = [...NAV_GROUPS];
+            if (isAdmin) {
+              const userGroupIndex = groupsToRender.findIndex(g => g.group === "Usuario");
+              const adminGroup = {
+                group: "Administración",
+                items: [
+                  { path: "/admin", label: "Admin", icon: Shield }
+                ]
+              };
+              if (userGroupIndex !== -1) {
+                groupsToRender.splice(userGroupIndex, 0, adminGroup);
+              } else {
+                groupsToRender.push(adminGroup);
+              }
+            }
+            return groupsToRender.map((group) => (
+              <div key={group.group} className="mb-5">
+                <p className="mb-1.5 px-3 text-[11px] font-bold uppercase tracking-wider text-gray-400">
+                  {group.group}
+                </p>
+                <div className="space-y-0.5">
+                  {group.items.map((item) => {
+                    const Icon = item.icon;
+                    const active = isActive(item.path);
+                    return (
+                      <Link
+                        key={item.path}
+                        href={item.path}
+                        onClick={() => setMobileOpen(false)}
+                        className={`group flex w-full items-center gap-3 rounded-xl px-3 py-2.5 text-sm font-medium transition-colors duration-150 ${
                           active
-                            ? "text-orange-500"
+                            ? "bg-orange-50 text-orange-600"
                             : item.path === "/salir"
-                            ? "text-gray-400 group-hover:text-red-500"
-                            : "text-gray-400 group-hover:text-gray-600"
-                        }
-                      />
-                      <span className="flex-1 text-left">{item.label}</span>
-                      {active && <span className="h-1.5 w-1.5 rounded-full bg-orange-500" />}
-                    </Link>
-                  );
-                })}
+                            ? "text-gray-500 hover:bg-red-50 hover:text-red-600"
+                            : "text-gray-600 hover:bg-gray-50"
+                        }`}
+                      >
+                        <Icon
+                          size={17}
+                          className={
+                            active
+                              ? "text-orange-500"
+                              : item.path === "/salir"
+                              ? "text-gray-400 group-hover:text-red-500"
+                              : "text-gray-400 group-hover:text-gray-600"
+                          }
+                        />
+                        <span className="flex-1 text-left">{item.label}</span>
+                        {active && <span className="h-1.5 w-1.5 rounded-full bg-orange-500" />}
+                      </Link>
+                    );
+                  })}
+                </div>
               </div>
-            </div>
-          ))}
+            ));
+          })()}
         </nav>
 
         {/* Premium CTA banner */}
