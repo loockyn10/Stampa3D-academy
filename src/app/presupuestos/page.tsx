@@ -5,6 +5,7 @@ import Link from "next/link";
 import { Plus, Pencil, FileText, Trash2, Loader2, AlertCircle, Save, X, UserPlus, ShoppingCart } from "lucide-react";
 import { Card } from "@/components/ui/card";
 import { PrimaryButton, GhostButton } from "@/components/ui/button";
+import { Combobox } from "@/components/ui/combobox";
 import { SectionTitle } from "@/components/ui/section-title";
 import { Badge } from "@/components/ui/badge";
 import { createClient } from "@/utils/supabase/client";
@@ -38,7 +39,7 @@ export default function PresupuestosPage() {
   
   // Client Form State
   const [showClientForm, setShowClientForm] = useState(false);
-  const [clientData, setClientData] = useState({ name: "", phone: "", email: "", notes: "" });
+  const [clientData, setClientData] = useState({ id: "", name: "", phone: "", email: "", notes: "", fiscal_condition: "", cuit: "", is_active: true });
 
   useEffect(() => {
     fetchData();
@@ -69,7 +70,7 @@ export default function PresupuestosPage() {
 
   const handleCreateNew = () => {
     setFormData({
-      title: "Presupuesto", client_id: "", status: "draft", notes: "", valid_until: "", discount_amount: 0
+      title: "", client_id: "", status: "draft", notes: "", valid_until: "", discount_amount: 0
     });
     setBudgetItems([]);
     setEditingId("new");
@@ -78,7 +79,7 @@ export default function PresupuestosPage() {
 
   const handleEdit = async (b: any) => {
     setFormData({
-      title: b.title || "Presupuesto", client_id: b.client_id || "", status: b.status || "draft", 
+      title: b.title || "", client_id: b.client_id || "", status: b.status || "draft", 
       notes: b.notes || "", valid_until: b.valid_until || "", discount_amount: b.discount_amount || 0
     });
     
@@ -152,6 +153,7 @@ export default function PresupuestosPage() {
   const total = Math.max(0, subtotal - (parseFloat(String(formData.discount_amount)) || 0));
 
   const handleSaveBudget = async () => {
+    if (!formData.title.trim()) return alert("Agregá un título para el presupuesto.");
     if (!formData.client_id) return alert("Por favor selecciona un cliente.");
     if (budgetItems.length === 0) return alert("Agrega al menos un producto al presupuesto.");
 
@@ -210,24 +212,60 @@ export default function PresupuestosPage() {
     const { data: { user } } = await supabase.auth.getUser();
     if (!user) return;
 
-    const payload = {
+    const payload: any = {
       user_id: user.id,
       name: clientData.name,
       phone: clientData.phone,
       email: clientData.email,
       notes: clientData.notes,
-      is_active: true
+      fiscal_condition: clientData.fiscal_condition,
+      cuit: clientData.cuit,
+      is_active: clientData.is_active
     };
 
-    const { data, error } = await supabase.from("clients").insert([payload]).select().single();
-    if (error) {
-      alert("Error creando cliente: " + error.message);
+    if (clientData.id) {
+      // Editar
+      const { data, error } = await supabase.from("clients").update(payload).eq("id", clientData.id).select().single();
+      if (error) {
+        alert("Error actualizando cliente: " + error.message);
+      } else {
+        setClients(clients.map(c => c.id === data.id ? data : c));
+        setFormData(prev => ({ ...prev, client_id: data.id }));
+        setShowClientForm(false);
+      }
     } else {
-      setClients([...clients, data]);
-      setFormData(prev => ({ ...prev, client_id: data.id }));
-      setShowClientForm(false);
-      setClientData({ name: "", phone: "", email: "", notes: "" });
+      // Crear
+      const { data, error } = await supabase.from("clients").insert([payload]).select().single();
+      if (error) {
+        alert("Error creando cliente: " + error.message);
+      } else {
+        setClients([...clients, data].sort((a, b) => a.name.localeCompare(b.name)));
+        setFormData(prev => ({ ...prev, client_id: data.id }));
+        setShowClientForm(false);
+      }
     }
+  };
+
+  const handleEditClient = (clientId: string) => {
+    const c = clients.find(cl => cl.id === clientId);
+    if (c) {
+      setClientData({
+        id: c.id,
+        name: c.name || "",
+        phone: c.phone || "",
+        email: c.email || "",
+        notes: c.notes || "",
+        fiscal_condition: c.fiscal_condition || "",
+        cuit: c.cuit || "",
+        is_active: c.is_active !== false
+      });
+      setShowClientForm(true);
+    }
+  };
+
+  const handleCancelClientForm = () => {
+    setShowClientForm(false);
+    setClientData({ id: "", name: "", phone: "", email: "", notes: "", fiscal_condition: "", cuit: "", is_active: true });
   };
 
   if (loading) return <div className="py-24 flex justify-center"><Loader2 className="animate-spin h-8 w-8 text-orange-500" /></div>;
@@ -268,12 +306,12 @@ export default function PresupuestosPage() {
               </div>
               <div>
                 <label className="block text-xs font-semibold text-gray-700 mb-1">Estado</label>
-                <select value={formData.status} onChange={e => setFormData({...formData, status: e.target.value})} className="w-full text-sm border-gray-300 rounded-md focus:border-orange-500 focus:ring-orange-500 text-gray-900 bg-white">
-                  <option value="draft">Borrador</option>
-                  <option value="sent">Enviado</option>
-                  <option value="approved">Aprobado</option>
-                  <option value="rejected">Rechazado</option>
-                </select>
+                <div className="flex bg-gray-100 p-1 rounded-lg">
+                  <button type="button" onClick={() => setFormData({...formData, status: "draft"})} className={`flex-1 text-xs py-1.5 px-2 rounded-md font-medium transition-colors ${formData.status === "draft" ? "bg-white shadow text-gray-900" : "text-gray-500 hover:text-gray-700"}`}>Borrador</button>
+                  <button type="button" onClick={() => setFormData({...formData, status: "sent"})} className={`flex-1 text-xs py-1.5 px-2 rounded-md font-medium transition-colors ${formData.status === "sent" ? "bg-white shadow text-gray-900" : "text-gray-500 hover:text-gray-700"}`}>Enviado</button>
+                  <button type="button" onClick={() => setFormData({...formData, status: "approved"})} className={`flex-1 text-xs py-1.5 px-2 rounded-md font-medium transition-colors ${formData.status === "approved" ? "bg-white shadow text-gray-900" : "text-gray-500 hover:text-gray-700"}`}>Aprobado</button>
+                  <button type="button" onClick={() => setFormData({...formData, status: "rejected"})} className={`flex-1 text-xs py-1.5 px-2 rounded-md font-medium transition-colors ${formData.status === "rejected" ? "bg-white shadow text-gray-900" : "text-gray-500 hover:text-gray-700"}`}>Rechazado</button>
+                </div>
               </div>
             </div>
 
@@ -281,26 +319,67 @@ export default function PresupuestosPage() {
               <div className="flex justify-between items-center">
                 <label className="block text-sm font-semibold text-gray-800">Cliente asociado</label>
                 {!showClientForm && (
-                  <button onClick={() => setShowClientForm(true)} className="text-xs font-bold text-orange-600 hover:text-orange-700 flex items-center gap-1">
-                    <UserPlus size={14} /> Crear cliente rápido
-                  </button>
+                  <div className="flex items-center gap-3">
+                    {formData.client_id && (
+                      <button onClick={() => handleEditClient(formData.client_id)} className="text-xs font-bold text-gray-600 hover:text-gray-900 flex items-center gap-1">
+                        <Pencil size={12} /> Editar cliente
+                      </button>
+                    )}
+                    <button onClick={() => { setClientData({ id: "", name: "", phone: "", email: "", notes: "", fiscal_condition: "", cuit: "", is_active: true }); setShowClientForm(true); }} className="text-xs font-bold text-orange-600 hover:text-orange-700 flex items-center gap-1">
+                      <UserPlus size={14} /> Crear rápido
+                    </button>
+                  </div>
                 )}
               </div>
               
               {!showClientForm ? (
-                <select value={formData.client_id} onChange={e => setFormData({...formData, client_id: e.target.value})} className="w-full text-sm border-gray-300 rounded-md focus:border-orange-500 focus:ring-orange-500 text-gray-900 bg-white">
-                  <option value="">Selecciona un cliente...</option>
-                  {clients.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
-                </select>
+                <Combobox 
+                  options={clients.map(c => ({ id: c.id, label: c.name }))}
+                  value={formData.client_id}
+                  onChange={(val) => setFormData({...formData, client_id: val.toString()})}
+                  placeholder="Selecciona o busca un cliente..."
+                  emptyText="No se encontraron clientes."
+                />
               ) : (
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-3 bg-white p-3 rounded-lg border border-orange-200">
-                  <input type="text" placeholder="Nombre completo *" value={clientData.name} onChange={e => setClientData({...clientData, name: e.target.value})} className="text-sm border-gray-300 rounded-md" />
-                  <input type="text" placeholder="Teléfono" value={clientData.phone} onChange={e => setClientData({...clientData, phone: e.target.value})} className="text-sm border-gray-300 rounded-md" />
-                  <input type="email" placeholder="Email" value={clientData.email} onChange={e => setClientData({...clientData, email: e.target.value})} className="text-sm border-gray-300 rounded-md" />
-                  <input type="text" placeholder="Notas del cliente" value={clientData.notes} onChange={e => setClientData({...clientData, notes: e.target.value})} className="text-sm border-gray-300 rounded-md" />
-                  <div className="md:col-span-2 flex justify-end gap-2 mt-1">
-                    <button onClick={() => setShowClientForm(false)} className="text-xs font-bold text-gray-500 hover:text-gray-700">Cancelar</button>
-                    <button onClick={handleSaveClient} className="text-xs font-bold bg-orange-100 text-orange-700 px-3 py-1.5 rounded hover:bg-orange-200">Guardar Cliente</button>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-3 bg-white p-4 rounded-lg border border-orange-200 shadow-sm">
+                  <div>
+                    <label className="block text-[10px] font-bold text-gray-500 uppercase mb-1">Nombre completo *</label>
+                    <input type="text" placeholder="Ej. Juan Pérez" value={clientData.name} onChange={e => setClientData({...clientData, name: e.target.value})} className="w-full text-sm border-gray-300 rounded-md" />
+                  </div>
+                  <div>
+                    <label className="block text-[10px] font-bold text-gray-500 uppercase mb-1">Teléfono</label>
+                    <input type="text" placeholder="Ej. +54 9 11..." value={clientData.phone} onChange={e => setClientData({...clientData, phone: e.target.value})} className="w-full text-sm border-gray-300 rounded-md" />
+                  </div>
+                  <div>
+                    <label className="block text-[10px] font-bold text-gray-500 uppercase mb-1">Email</label>
+                    <input type="email" placeholder="Ej. juan@mail.com" value={clientData.email} onChange={e => setClientData({...clientData, email: e.target.value})} className="w-full text-sm border-gray-300 rounded-md" />
+                  </div>
+                  <div>
+                    <label className="block text-[10px] font-bold text-gray-500 uppercase mb-1">CUIT</label>
+                    <input type="text" placeholder="Ej. 20-12345678-9" value={clientData.cuit} onChange={e => setClientData({...clientData, cuit: e.target.value})} className="w-full text-sm border-gray-300 rounded-md" />
+                  </div>
+                  <div>
+                    <label className="block text-[10px] font-bold text-gray-500 uppercase mb-1">Condición Fiscal</label>
+                    <select value={clientData.fiscal_condition} onChange={e => setClientData({...clientData, fiscal_condition: e.target.value})} className="w-full text-sm border-gray-300 rounded-md text-gray-900 bg-white">
+                      <option value="">Consumidor Final</option>
+                      <option value="Responsable Inscripto">Responsable Inscripto</option>
+                      <option value="Monotributo">Monotributo</option>
+                      <option value="Exento">Exento</option>
+                    </select>
+                  </div>
+                  <div className="flex items-center mt-6">
+                    <label className="flex items-center gap-2 cursor-pointer">
+                      <input type="checkbox" checked={clientData.is_active} onChange={e => setClientData({...clientData, is_active: e.target.checked})} className="rounded text-orange-500 focus:ring-orange-500" />
+                      <span className="text-sm text-gray-700 font-medium">Cliente Activo</span>
+                    </label>
+                  </div>
+                  <div className="md:col-span-2">
+                    <label className="block text-[10px] font-bold text-gray-500 uppercase mb-1">Notas del cliente</label>
+                    <input type="text" placeholder="Ej. Entregar de 10 a 14hs" value={clientData.notes} onChange={e => setClientData({...clientData, notes: e.target.value})} className="w-full text-sm border-gray-300 rounded-md" />
+                  </div>
+                  <div className="md:col-span-2 flex justify-end gap-2 mt-2">
+                    <button onClick={handleCancelClientForm} className="text-sm font-bold text-gray-500 hover:text-gray-700 px-3 py-1.5">Cancelar</button>
+                    <button onClick={handleSaveClient} className="text-sm font-bold bg-orange-100 text-orange-700 px-4 py-1.5 rounded-md hover:bg-orange-200">Guardar Cliente</button>
                   </div>
                 </div>
               )}
@@ -322,10 +401,13 @@ export default function PresupuestosPage() {
                   
                   {budgetItems.map((item, idx) => (
                     <div key={item.id} className="flex flex-col sm:flex-row items-start sm:items-center gap-2 bg-gray-50 p-2 rounded-lg border border-gray-100">
-                      <select value={item.product_id} onChange={(e) => handleItemChange(idx, "product_id", e.target.value)} className="flex-1 text-sm border-gray-300 rounded-md focus:border-orange-500 focus:ring-orange-500 text-gray-900 bg-white">
-                        {products.map(p => <option key={p.id} value={p.id}>{p.name} (${p.sale_price})</option>)}
-                      </select>
-                      <div className="flex items-center gap-2 w-full sm:w-auto">
+                      <Combobox
+                        options={products.map(p => ({ id: p.id, label: `${p.name} ($${p.sale_price})` }))}
+                        value={item.product_id}
+                        onChange={(val) => handleItemChange(idx, "product_id", val)}
+                        className="flex-1 w-full sm:w-auto"
+                      />
+                      <div className="flex items-center gap-2 w-full sm:w-auto mt-2 sm:mt-0">
                         <span className="text-xs text-gray-500 font-semibold">Cant:</span>
                         <input type="number" min="1" value={item.quantity} onChange={(e) => handleItemChange(idx, "quantity", e.target.value)} className="w-16 text-sm border-gray-300 rounded-md focus:border-orange-500 focus:ring-orange-500 text-gray-900 bg-white" />
                         <span className="text-xs text-gray-500 font-semibold ml-2">Sub:</span>
