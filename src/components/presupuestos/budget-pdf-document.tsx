@@ -174,7 +174,7 @@ interface BudgetPDFDocumentProps {
 
 export const BudgetPDFDocument: React.FC<BudgetPDFDocumentProps> = ({ budget, items, client, profile }) => {
   const companyName = profile?.company_name || "Stampa3D Academy";
-  const sellerName = profile?.display_name || profile?.name || "Vendedor";
+  const sellerName = profile?.display_name || profile?.full_name || "Vendedor";
   
   const formatDate = (dateStr: string) => {
     if (!dateStr) return "-";

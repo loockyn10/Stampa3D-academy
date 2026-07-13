@@ -22,7 +22,6 @@ function PerfilContent() {
   const [subscription, setSubscription] = useState<any>(null);
 
   // Form State
-  const [name, setName] = useState("");
   const [displayName, setDisplayName] = useState("");
   const [companyName, setCompanyName] = useState("");
   const [companyLogoUrl, setCompanyLogoUrl] = useState("");
@@ -54,8 +53,7 @@ function PerfilContent() {
       setError(pError.message);
     } else if (pData) {
       setProfile({ ...pData, email: user.email });
-      setName(pData.name || "");
-      setDisplayName(pData.display_name || "");
+      setDisplayName(pData.display_name || pData.full_name || "");
       setCompanyName(pData.company_name || "");
       setCompanyLogoUrl(pData.company_logo_url || "");
       setCompanyCity(pData.company_city || "");
@@ -82,7 +80,6 @@ function PerfilContent() {
     if (!profile) return;
     setLoading(true);
     const { error } = await supabase.from("profiles").update({ 
-      name,
       display_name: displayName,
       company_name: companyName,
       company_logo_url: companyLogoUrl,
@@ -147,10 +144,10 @@ function PerfilContent() {
           <Card className="max-w-xl p-6">
             <div className="flex items-center gap-4 border-b border-gray-100 pb-5 mb-5">
               <div className="flex h-16 w-16 items-center justify-center rounded-full bg-orange-100 text-xl font-bold text-orange-600 select-none uppercase">
-                {name.substring(0, 2) || "US"}
+                {displayName.substring(0, 2) || "US"}
               </div>
               <div className="flex-1">
-                <p className="text-base font-bold text-gray-900">{name || "Usuario"}</p>
+                <p className="text-base font-bold text-gray-900">{displayName || "Usuario"}</p>
                 <p className="text-sm text-gray-400 mb-1.5">{profile.email}</p>
                 <div className="flex flex-wrap gap-2">
                   <Badge tone={profile.membership_status === "active" ? "green" : "gray"} className="capitalize">
@@ -187,8 +184,8 @@ function PerfilContent() {
               <label className="block">
                 <span className="mb-1 block text-xs font-semibold text-gray-500">Nombre</span>
                 <input
-                  value={name}
-                  onChange={(e) => setName(e.target.value)}
+                  value={displayName}
+                  onChange={(e) => setDisplayName(e.target.value)}
                   className="w-full rounded-xl border border-gray-300 bg-white text-gray-900 px-3 py-2.5 text-sm outline-none focus:border-orange-500 focus:ring-2 focus:ring-orange-100 placeholder-gray-500"
                 />
               </label>
