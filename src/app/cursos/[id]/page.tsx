@@ -109,7 +109,7 @@ export default function CursoDetailPage({ params }: PageProps) {
                 if (progressData) {
                   const progGrouped: Record<string, boolean> = {};
                   progressData.forEach(p => {
-                    progGrouped[p.lesson_id] = p.completed;
+                    progGrouped[p.lesson_id] = true;
                   });
                   setProgress(progGrouped);
                 }
@@ -130,17 +130,34 @@ export default function CursoDetailPage({ params }: PageProps) {
     const isCompleted = progress[activeLesson.id];
 
     if (isCompleted) {
-      await supabase
+      const { error } = await supabase
         .from("lesson_progress")
         .delete()
         .eq("user_id", user.id)
         .eq("lesson_id", activeLesson.id);
-      setProgress(prev => ({ ...prev, [activeLesson.id]: false }));
+        
+      if (error) {
+        console.error("Error al borrar progreso:", error);
+      } else {
+        setProgress(prev => ({ ...prev, [activeLesson.id]: false }));
+      }
     } else {
-      await supabase
+      const { error } = await supabase
         .from("lesson_progress")
-        .upsert([{ user_id: user.id, lesson_id: activeLesson.id, completed: true, completed_at: new Date().toISOString() }]);
-      setProgress(prev => ({ ...prev, [activeLesson.id]: true }));
+        .upsert(
+          { 
+            user_id: user.id, 
+            lesson_id: activeLesson.id, 
+            completed_at: new Date().toISOString() 
+          },
+          { onConflict: "user_id,lesson_id" }
+        );
+        
+      if (error) {
+        console.error("Error al guardar progreso:", error);
+      } else {
+        setProgress(prev => ({ ...prev, [activeLesson.id]: true }));
+      }
     }
     setMarkingProgress(false);
   };

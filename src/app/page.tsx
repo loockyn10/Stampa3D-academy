@@ -51,7 +51,6 @@ export default function InicioPage() {
         const { data: progressData } = await supabase
           .from("lesson_progress")
           .select(`
-            completed,
             lessons (
               id,
               module_id,
@@ -90,7 +89,7 @@ export default function InicioPage() {
             .eq("course_modules.course_id", firstCourseId)
             .eq("is_published", true);
 
-          const completedCount = progressData?.filter((p: any) => p.completed && p.lessons?.course_modules?.courses?.id === firstCourseId).length || 0;
+          const completedCount = progressData?.filter((p: any) => p.lessons?.course_modules?.courses?.id === firstCourseId).length || 0;
           
           setContinuingCourse({
             id: c.slug || c.id,

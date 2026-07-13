@@ -42,8 +42,13 @@ export function LessonResourcesManager({ lessonId }: LessonResourcesManagerProps
 
   const handleSave = async () => {
     setError(null);
-    if (!formData.title || !formData.url) {
-      setError("Título y URL son obligatorios");
+    if (!formData.title || !formData.resource_type || !formData.url) {
+      setError("Título, tipo y URL son obligatorios");
+      return;
+    }
+    
+    if (!formData.url.startsWith("http://") && !formData.url.startsWith("https://")) {
+      setError("La URL debe empezar con http:// o https://");
       return;
     }
 
@@ -103,28 +108,41 @@ export function LessonResourcesManager({ lessonId }: LessonResourcesManagerProps
         {resources.map((res) => (
           <div key={res.id} className="flex items-center justify-between bg-white border border-gray-100 p-2 rounded text-sm shadow-sm">
             {editingId === res.id ? (
-              <div className="w-full space-y-2">
-                <div className="grid grid-cols-2 gap-2">
-                  <input type="text" placeholder="Título" value={formData.title} onChange={e => setFormData({ ...formData, title: e.target.value })} className="text-xs bg-white text-gray-900 placeholder-gray-500 border-gray-300 rounded focus:ring-orange-500 focus:border-orange-500" />
-                  <select value={formData.resource_type} onChange={e => setFormData({ ...formData, resource_type: e.target.value })} className="text-xs bg-white text-gray-900 placeholder-gray-500 border-gray-300 rounded focus:ring-orange-500 focus:border-orange-500">
-                    <option value="pdf" className="text-gray-900 bg-white">PDF</option>
-                    <option value="stl" className="text-gray-900 bg-white">STL</option>
-                    <option value="zip" className="text-gray-900 bg-white">ZIP</option>
-                    <option value="link" className="text-gray-900 bg-white">Link</option>
-                    <option value="other" className="text-gray-900 bg-white">Otro</option>
-                  </select>
-                  <input type="text" placeholder="URL" value={formData.url} onChange={e => setFormData({ ...formData, url: e.target.value })} className="col-span-2 text-xs bg-white text-gray-900 placeholder-gray-500 border-gray-300 rounded focus:ring-orange-500 focus:border-orange-500" />
-                  <div className="flex items-center gap-2">
-                    <input type="number" placeholder="Orden" value={formData.sort_order} onChange={e => setFormData({ ...formData, sort_order: parseInt(e.target.value) || 0 })} className="w-16 text-xs bg-white text-gray-900 placeholder-gray-500 border-gray-300 rounded focus:ring-orange-500 focus:border-orange-500" />
-                    <label className="text-xs flex items-center gap-1 text-gray-700">
-                      <input type="checkbox" checked={formData.is_active} onChange={e => setFormData({ ...formData, is_active: e.target.checked })} className="rounded border-gray-300 text-blue-600 w-3 h-3 focus:ring-orange-500" />
+              <div className="w-full space-y-3 bg-blue-50/30 p-3 rounded-lg border border-blue-100">
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                  <div>
+                    <label className="block text-[10px] font-semibold text-gray-600 uppercase mb-1">Título</label>
+                    <input type="text" placeholder="Ej. Guía PDF" value={formData.title} onChange={e => setFormData({ ...formData, title: e.target.value })} className="w-full text-xs bg-white text-gray-900 placeholder-gray-400 border-gray-300 rounded focus:ring-orange-500 focus:border-orange-500" />
+                  </div>
+                  <div>
+                    <label className="block text-[10px] font-semibold text-gray-600 uppercase mb-1">Tipo de recurso</label>
+                    <select value={formData.resource_type} onChange={e => setFormData({ ...formData, resource_type: e.target.value })} className="w-full text-xs bg-white text-gray-900 placeholder-gray-500 border-gray-300 rounded focus:ring-orange-500 focus:border-orange-500">
+                      <option value="pdf" className="text-gray-900 bg-white">PDF</option>
+                      <option value="stl" className="text-gray-900 bg-white">STL</option>
+                      <option value="zip" className="text-gray-900 bg-white">ZIP</option>
+                      <option value="link" className="text-gray-900 bg-white">Link</option>
+                      <option value="other" className="text-gray-900 bg-white">Otro</option>
+                    </select>
+                  </div>
+                  <div className="sm:col-span-2">
+                    <label className="block text-[10px] font-semibold text-gray-600 uppercase mb-1">URL del recurso</label>
+                    <input type="text" placeholder="https://..." value={formData.url} onChange={e => setFormData({ ...formData, url: e.target.value })} className="w-full text-xs bg-white text-gray-900 placeholder-gray-400 border-gray-300 rounded focus:ring-orange-500 focus:border-orange-500" />
+                    <p className="mt-1 text-[10px] text-gray-500">Pegá acá el link al PDF, STL, ZIP o recurso externo. Más adelante se podrá subir archivos directamente.</p>
+                  </div>
+                  <div className="sm:col-span-2 flex items-center gap-4 border-t border-blue-100 pt-3 mt-1">
+                    <div className="flex items-center gap-2">
+                      <label className="text-[10px] font-semibold text-gray-600 uppercase">Orden:</label>
+                      <input type="number" placeholder="1" value={formData.sort_order} onChange={e => setFormData({ ...formData, sort_order: parseInt(e.target.value) || 0 })} className="w-16 text-xs bg-white text-gray-900 placeholder-gray-500 border-gray-300 rounded focus:ring-orange-500 focus:border-orange-500 py-1" />
+                    </div>
+                    <label className="text-xs flex items-center gap-1.5 text-gray-700 font-medium bg-white px-2 py-1 rounded border border-gray-200">
+                      <input type="checkbox" checked={formData.is_active} onChange={e => setFormData({ ...formData, is_active: e.target.checked })} className="rounded border-gray-300 text-blue-600 w-3.5 h-3.5 focus:ring-orange-500" />
                       Activo
                     </label>
                   </div>
                 </div>
-                <div className="flex justify-end gap-2 mt-2">
-                  <button onClick={() => setEditingId(null)} className="text-[10px] px-2 py-1 text-gray-600 hover:bg-gray-100 rounded">Cancelar</button>
-                  <button onClick={handleSave} className="text-[10px] px-2 py-1 bg-blue-600 text-white rounded hover:bg-blue-700">Guardar</button>
+                <div className="flex justify-end gap-2 pt-1">
+                  <button onClick={() => setEditingId(null)} className="text-[10px] font-semibold px-3 py-1.5 text-gray-600 hover:bg-gray-200 bg-gray-100 rounded transition-colors">Cancelar</button>
+                  <button onClick={handleSave} className="text-[10px] font-semibold px-3 py-1.5 bg-blue-600 text-white rounded hover:bg-blue-700 transition-colors">Guardar</button>
                 </div>
               </div>
             ) : (
@@ -144,29 +162,42 @@ export function LessonResourcesManager({ lessonId }: LessonResourcesManagerProps
         ))}
 
         {editingId === "new" && (
-          <div className="w-full space-y-2 bg-blue-50/50 p-2 rounded border border-blue-100">
-            <h6 className="text-[10px] font-semibold text-gray-600 uppercase">Nuevo Recurso</h6>
-            <div className="grid grid-cols-2 gap-2">
-              <input type="text" placeholder="Título" value={formData.title} onChange={e => setFormData({ ...formData, title: e.target.value })} className="text-xs bg-white text-gray-900 placeholder-gray-500 border-gray-300 rounded focus:ring-orange-500 focus:border-orange-500" />
-              <select value={formData.resource_type} onChange={e => setFormData({ ...formData, resource_type: e.target.value })} className="text-xs bg-white text-gray-900 placeholder-gray-500 border-gray-300 rounded focus:ring-orange-500 focus:border-orange-500">
-                <option value="pdf" className="text-gray-900 bg-white">PDF</option>
-                <option value="stl" className="text-gray-900 bg-white">STL</option>
-                <option value="zip" className="text-gray-900 bg-white">ZIP</option>
-                <option value="link" className="text-gray-900 bg-white">Link</option>
-                <option value="other" className="text-gray-900 bg-white">Otro</option>
-              </select>
-              <input type="text" placeholder="URL" value={formData.url} onChange={e => setFormData({ ...formData, url: e.target.value })} className="col-span-2 text-xs bg-white text-gray-900 placeholder-gray-500 border-gray-300 rounded focus:ring-orange-500 focus:border-orange-500" />
-              <div className="flex items-center gap-2">
-                <input type="number" placeholder="Orden" value={formData.sort_order} onChange={e => setFormData({ ...formData, sort_order: parseInt(e.target.value) || 0 })} className="w-16 text-xs bg-white text-gray-900 placeholder-gray-500 border-gray-300 rounded focus:ring-orange-500 focus:border-orange-500" />
-                <label className="text-xs flex items-center gap-1 text-gray-700">
-                  <input type="checkbox" checked={formData.is_active} onChange={e => setFormData({ ...formData, is_active: e.target.checked })} className="rounded border-gray-300 text-blue-600 w-3 h-3 focus:ring-orange-500" />
+          <div className="w-full space-y-3 bg-blue-50/50 p-3 rounded-lg border border-blue-200 mt-3 shadow-sm">
+            <h6 className="text-[10px] font-bold text-blue-800 uppercase flex items-center gap-1.5"><Plus size={12}/> Nuevo Recurso</h6>
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+              <div>
+                <label className="block text-[10px] font-semibold text-gray-600 uppercase mb-1">Título</label>
+                <input type="text" placeholder="Ej. Guía PDF" value={formData.title} onChange={e => setFormData({ ...formData, title: e.target.value })} className="w-full text-xs bg-white text-gray-900 placeholder-gray-400 border-gray-300 rounded focus:ring-orange-500 focus:border-orange-500" />
+              </div>
+              <div>
+                <label className="block text-[10px] font-semibold text-gray-600 uppercase mb-1">Tipo de recurso</label>
+                <select value={formData.resource_type} onChange={e => setFormData({ ...formData, resource_type: e.target.value })} className="w-full text-xs bg-white text-gray-900 placeholder-gray-500 border-gray-300 rounded focus:ring-orange-500 focus:border-orange-500">
+                  <option value="pdf" className="text-gray-900 bg-white">PDF</option>
+                  <option value="stl" className="text-gray-900 bg-white">STL</option>
+                  <option value="zip" className="text-gray-900 bg-white">ZIP</option>
+                  <option value="link" className="text-gray-900 bg-white">Link</option>
+                  <option value="other" className="text-gray-900 bg-white">Otro</option>
+                </select>
+              </div>
+              <div className="sm:col-span-2">
+                <label className="block text-[10px] font-semibold text-gray-600 uppercase mb-1">URL del recurso</label>
+                <input type="text" placeholder="https://..." value={formData.url} onChange={e => setFormData({ ...formData, url: e.target.value })} className="w-full text-xs bg-white text-gray-900 placeholder-gray-400 border-gray-300 rounded focus:ring-orange-500 focus:border-orange-500" />
+                <p className="mt-1 text-[10px] text-gray-500">Pegá acá el link al PDF, STL, ZIP o recurso externo. Más adelante se podrá subir archivos directamente.</p>
+              </div>
+              <div className="sm:col-span-2 flex items-center gap-4 border-t border-blue-100 pt-3 mt-1">
+                <div className="flex items-center gap-2">
+                  <label className="text-[10px] font-semibold text-gray-600 uppercase">Orden:</label>
+                  <input type="number" placeholder="1" value={formData.sort_order} onChange={e => setFormData({ ...formData, sort_order: parseInt(e.target.value) || 0 })} className="w-16 text-xs bg-white text-gray-900 placeholder-gray-500 border-gray-300 rounded focus:ring-orange-500 focus:border-orange-500 py-1" />
+                </div>
+                <label className="text-xs flex items-center gap-1.5 text-gray-700 font-medium bg-white px-2 py-1 rounded border border-gray-200">
+                  <input type="checkbox" checked={formData.is_active} onChange={e => setFormData({ ...formData, is_active: e.target.checked })} className="rounded border-gray-300 text-blue-600 w-3.5 h-3.5 focus:ring-orange-500" />
                   Activo
                 </label>
               </div>
             </div>
-            <div className="flex justify-end gap-2 mt-2">
-              <button onClick={() => setEditingId(null)} className="text-[10px] px-2 py-1 text-gray-600 hover:bg-gray-100 rounded">Cancelar</button>
-              <button onClick={handleSave} className="text-[10px] px-2 py-1 bg-blue-600 text-white rounded hover:bg-blue-700">Guardar</button>
+            <div className="flex justify-end gap-2 pt-1">
+              <button onClick={() => setEditingId(null)} className="text-[10px] font-semibold px-3 py-1.5 text-gray-600 hover:bg-gray-200 bg-gray-100 rounded transition-colors">Cancelar</button>
+              <button onClick={handleSave} className="text-[10px] font-semibold px-3 py-1.5 bg-blue-600 text-white rounded hover:bg-blue-700 transition-colors">Guardar</button>
             </div>
           </div>
         )}
