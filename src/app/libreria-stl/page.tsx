@@ -7,6 +7,7 @@ import { Badge } from "@/components/ui/badge";
 import { SectionTitle } from "@/components/ui/section-title";
 import { EmptyState } from "@/components/ui/empty-state";
 import { createClient } from "@/utils/supabase/client";
+import { getFileAccessUrl } from "@/lib/storage";
 
 export default function LibreriaStlPage() {
   const supabase = createClient();
@@ -165,7 +166,15 @@ export default function LibreriaStlPage() {
                         variant_id: f.id
                       }, { onConflict: 'user_id, variant_id' });
                     }
-                    window.open(f.file_url, "_blank");
+                    
+                    try {
+                      const accessUrl = await getFileAccessUrl(supabase, f.file_url);
+                      if (accessUrl) {
+                        window.open(accessUrl, "_blank");
+                      }
+                    } catch (e) {
+                      console.error("Error al abrir archivo STL:", e);
+                    }
                   }}
                   className="mt-auto flex w-full items-center justify-center gap-1.5 rounded-lg bg-gray-900 py-2.5 text-xs font-semibold text-white hover:bg-gray-800 transition-colors"
                 >

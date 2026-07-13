@@ -2,7 +2,8 @@
 
 import React, { useState, useEffect } from "react";
 import { createClient } from "@/utils/supabase/client";
-import { Loader2, Plus, Edit2, Trash2, File, Link as LinkIcon, Settings } from "lucide-react";
+import { Loader2, Plus, Edit2, Trash2, File, Link as LinkIcon, Settings, Upload } from "lucide-react";
+import { FileUploadDropzone } from "@/components/ui/file-upload-dropzone";
 
 interface LessonResourcesManagerProps {
   lessonId: string;
@@ -47,8 +48,8 @@ export function LessonResourcesManager({ lessonId }: LessonResourcesManagerProps
       return;
     }
     
-    if (!formData.url.startsWith("http://") && !formData.url.startsWith("https://")) {
-      setError("La URL debe empezar con http:// o https://");
+    if (!formData.url.startsWith("http://") && !formData.url.startsWith("https://") && !formData.url.startsWith("storage://")) {
+      setError("La URL debe ser válida o haber subido un archivo");
       return;
     }
 
@@ -125,9 +126,21 @@ export function LessonResourcesManager({ lessonId }: LessonResourcesManagerProps
                     </select>
                   </div>
                   <div className="sm:col-span-2">
-                    <label className="block text-[10px] font-semibold text-gray-600 uppercase mb-1">URL del recurso</label>
-                    <input type="text" placeholder="https://..." value={formData.url} onChange={e => setFormData({ ...formData, url: e.target.value })} className="w-full text-xs bg-white text-gray-900 placeholder-gray-400 border-gray-300 rounded focus:ring-orange-500 focus:border-orange-500" />
-                    <p className="mt-1 text-[10px] text-gray-500">Pegá acá el link al PDF, STL, ZIP o recurso externo. Más adelante se podrá subir archivos directamente.</p>
+                    <label className="block text-[10px] font-semibold text-gray-600 uppercase mb-1">Archivo o URL externa</label>
+                    <div className="space-y-3">
+                      <FileUploadDropzone
+                        bucket="lesson-resources"
+                        pathPrefix={`lessons/${lessonId}`}
+                        accept=".pdf,.zip,.stl,.3mf,.obj,.step,.txt,.doc,.docx,.xls,.xlsx"
+                        onUploaded={(url) => setFormData({ ...formData, url })}
+                      />
+                      <div className="flex items-center gap-2">
+                        <hr className="flex-1 border-blue-100" />
+                        <span className="text-[10px] text-gray-400 font-semibold uppercase">O URL</span>
+                        <hr className="flex-1 border-blue-100" />
+                      </div>
+                      <input type="text" placeholder="https://..." value={formData.url} onChange={e => setFormData({ ...formData, url: e.target.value })} className="w-full text-xs bg-white text-gray-900 placeholder-gray-400 border-gray-300 rounded focus:ring-orange-500 focus:border-orange-500" />
+                    </div>
                   </div>
                   <div className="sm:col-span-2 flex items-center gap-4 border-t border-blue-100 pt-3 mt-1">
                     <div className="flex items-center gap-2">
@@ -180,9 +193,21 @@ export function LessonResourcesManager({ lessonId }: LessonResourcesManagerProps
                 </select>
               </div>
               <div className="sm:col-span-2">
-                <label className="block text-[10px] font-semibold text-gray-600 uppercase mb-1">URL del recurso</label>
-                <input type="text" placeholder="https://..." value={formData.url} onChange={e => setFormData({ ...formData, url: e.target.value })} className="w-full text-xs bg-white text-gray-900 placeholder-gray-400 border-gray-300 rounded focus:ring-orange-500 focus:border-orange-500" />
-                <p className="mt-1 text-[10px] text-gray-500">Pegá acá el link al PDF, STL, ZIP o recurso externo. Más adelante se podrá subir archivos directamente.</p>
+                <label className="block text-[10px] font-semibold text-gray-600 uppercase mb-1">Archivo o URL externa</label>
+                <div className="space-y-3">
+                  <FileUploadDropzone
+                    bucket="lesson-resources"
+                    pathPrefix={`lessons/${lessonId}`}
+                    accept=".pdf,.zip,.stl,.3mf,.obj,.step,.txt,.doc,.docx,.xls,.xlsx"
+                    onUploaded={(url) => setFormData({ ...formData, url })}
+                  />
+                  <div className="flex items-center gap-2">
+                    <hr className="flex-1 border-blue-100" />
+                    <span className="text-[10px] text-gray-400 font-semibold uppercase">O URL</span>
+                    <hr className="flex-1 border-blue-100" />
+                  </div>
+                  <input type="text" placeholder="https://..." value={formData.url} onChange={e => setFormData({ ...formData, url: e.target.value })} className="w-full text-xs bg-white text-gray-900 placeholder-gray-400 border-gray-300 rounded focus:ring-orange-500 focus:border-orange-500" />
+                </div>
               </div>
               <div className="sm:col-span-2 flex items-center gap-4 border-t border-blue-100 pt-3 mt-1">
                 <div className="flex items-center gap-2">

@@ -7,6 +7,7 @@ import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { ProgressBar } from "@/components/ui/progress-bar";
 import { createClient } from "@/utils/supabase/client";
+import { getFileAccessUrl } from "@/lib/storage";
 
 interface PageProps {
   params: Promise<{ id: string }>;
@@ -160,6 +161,18 @@ export default function CursoDetailPage({ params }: PageProps) {
       }
     }
     setMarkingProgress(false);
+  };
+
+  const handleOpenResource = async (url: string) => {
+    if (!url) return;
+    try {
+      const accessUrl = await getFileAccessUrl(supabase, url);
+      if (accessUrl) {
+        window.open(accessUrl, "_blank");
+      }
+    } catch (e) {
+      console.error("Error opening resource:", e);
+    }
   };
 
   if (loading) {
@@ -334,9 +347,9 @@ export default function CursoDetailPage({ params }: PageProps) {
                         <p className="text-xs text-gray-500 uppercase">{res.resource_type}</p>
                       </div>
                     </div>
-                    <a href={res.url} target="_blank" rel="noopener noreferrer" className="px-3 py-1.5 text-xs font-medium text-blue-600 bg-blue-50 hover:bg-blue-100 rounded-lg transition-colors">
+                    <button onClick={() => handleOpenResource(res.url)} className="px-3 py-1.5 text-xs font-medium text-blue-600 bg-blue-50 hover:bg-blue-100 rounded-lg transition-colors">
                       Abrir
-                    </a>
+                    </button>
                   </div>
                 ))}
               </div>

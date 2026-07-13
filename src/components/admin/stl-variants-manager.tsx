@@ -3,6 +3,7 @@
 import React, { useState, useEffect } from "react";
 import { createClient } from "@/utils/supabase/client";
 import { Loader2, AlertCircle, Plus, Edit2, Save, X } from "lucide-react";
+import { FileUploadDropzone } from "@/components/ui/file-upload-dropzone";
 
 export function StlVariantsManager({ modelId }: { modelId: string }) {
   const supabase = createClient();
@@ -110,13 +111,13 @@ export function StlVariantsManager({ modelId }: { modelId: string }) {
 
       <div className="space-y-3">
         {editingVarId === "new" && (
-          <VariantFormEditor varForm={varForm} setVarForm={setVarForm} onSave={handleSaveVariant} onCancel={() => setEditingVarId(null)} />
+          <VariantFormEditor varForm={varForm} setVarForm={setVarForm} onSave={handleSaveVariant} onCancel={() => setEditingVarId(null)} modelId={modelId} />
         )}
 
         {variants.map((v) => (
           <div key={v.id} className="border border-gray-200 rounded-lg bg-white overflow-hidden shadow-sm">
             {editingVarId === v.id ? (
-              <VariantFormEditor varForm={varForm} setVarForm={setVarForm} onSave={handleSaveVariant} onCancel={() => setEditingVarId(null)} />
+              <VariantFormEditor varForm={varForm} setVarForm={setVarForm} onSave={handleSaveVariant} onCancel={() => setEditingVarId(null)} modelId={modelId} />
             ) : (
               <div className="p-4 flex items-center justify-between hover:bg-gray-50 transition-colors">
                 <div className="flex items-center gap-4">
@@ -154,7 +155,7 @@ export function StlVariantsManager({ modelId }: { modelId: string }) {
   );
 }
 
-function VariantFormEditor({ varForm, setVarForm, onSave, onCancel }: any) {
+function VariantFormEditor({ varForm, setVarForm, onSave, onCancel, modelId }: any) {
   const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>) => {
     const { name, value, type } = e.target;
     if (type === "checkbox") {
@@ -172,8 +173,43 @@ function VariantFormEditor({ varForm, setVarForm, onSave, onCancel }: any) {
           <input type="text" name="name" value={varForm.name} onChange={handleChange} className="w-full text-sm border-gray-300 rounded-md focus:border-orange-500 focus:ring-orange-500 text-gray-900 bg-white" placeholder="Ej. Archivo Original" />
         </div>
         <div className="space-y-1">
-          <label className="text-xs font-semibold text-gray-700">Enlace de Descarga (file_url)</label>
-          <input type="text" name="file_url" value={varForm.file_url} onChange={handleChange} className="w-full text-sm border-gray-300 rounded-md focus:border-orange-500 focus:ring-orange-500 text-gray-900 bg-white" placeholder="URL Drive o Supabase" />
+          <label className="text-xs font-semibold text-gray-700">Enlace de Descarga (file_url) - Privado</label>
+          <div className="space-y-3">
+            <FileUploadDropzone
+              bucket="stl-files"
+              pathPrefix={`stl/${modelId}`}
+              accept=".stl,.3mf,.zip,.obj,.step"
+              onUploaded={(url) => setVarForm((prev: any) => ({ ...prev, file_url: url }))}
+              label="Archivo descargable"
+            />
+            <div className="flex items-center gap-2">
+              <hr className="flex-1 border-gray-200" />
+              <span className="text-[10px] text-gray-400 font-semibold uppercase">O URL</span>
+              <hr className="flex-1 border-gray-200" />
+            </div>
+            <input type="text" name="file_url" value={varForm.file_url} onChange={handleChange} className="w-full text-sm border-gray-300 rounded-md focus:border-orange-500 focus:ring-orange-500 text-gray-900 bg-white" placeholder="URL Externa o storage://..." />
+          </div>
+        </div>
+        <div className="space-y-1 md:col-span-2">
+          <label className="text-xs font-semibold text-gray-700">Miniatura (thumbnail_url) - Público</label>
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <FileUploadDropzone
+              bucket="stl-thumbnails"
+              pathPrefix={`stl-thumbnails/${modelId}`}
+              accept=".jpg,.jpeg,.png,.webp,.svg"
+              publicBucket={true}
+              onUploaded={(url) => setVarForm((prev: any) => ({ ...prev, thumbnail_url: url }))}
+              label="Subir Imagen"
+            />
+            <div className="flex flex-col justify-end space-y-2">
+              <input type="text" name="thumbnail_url" value={varForm.thumbnail_url} onChange={handleChange} className="w-full text-sm border-gray-300 rounded-md focus:border-orange-500 focus:ring-orange-500 text-gray-900 bg-white" placeholder="URL Pública (https://...)" />
+              {varForm.thumbnail_url && (
+                <div className="h-24 w-24 rounded-lg bg-gray-100 overflow-hidden border border-gray-200">
+                  <img src={varForm.thumbnail_url} alt="Miniatura" className="w-full h-full object-cover" />
+                </div>
+              )}
+            </div>
+          </div>
         </div>
         <div className="space-y-1 md:col-span-2">
           <label className="text-xs font-semibold text-gray-700">Descripción Corta</label>

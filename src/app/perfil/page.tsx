@@ -8,6 +8,7 @@ import { Badge } from "@/components/ui/badge";
 import { PrimaryButton } from "@/components/ui/button";
 import { SectionTitle } from "@/components/ui/section-title";
 import { createClient } from "@/utils/supabase/client";
+import { FileUploadDropzone } from "@/components/ui/file-upload-dropzone";
 
 function PerfilContent() {
   const searchParams = useSearchParams();
@@ -211,15 +212,37 @@ function PerfilContent() {
                     className="w-full rounded-xl border border-gray-300 bg-white text-gray-900 px-3 py-2.5 text-sm outline-none focus:border-orange-500 focus:ring-2 focus:ring-orange-100 placeholder-gray-400"
                   />
                 </label>
-                <label className="block sm:col-span-2">
+                <div className="block sm:col-span-2">
                   <span className="mb-1 block text-xs font-semibold text-gray-500">Logo de empresa URL</span>
-                  <input
-                    placeholder="https://..."
-                    value={companyLogoUrl}
-                    onChange={(e) => setCompanyLogoUrl(e.target.value)}
-                    className="w-full rounded-xl border border-gray-300 bg-white text-gray-900 px-3 py-2.5 text-sm outline-none focus:border-orange-500 focus:ring-2 focus:ring-orange-100 placeholder-gray-400"
-                  />
-                </label>
+                  <div className="space-y-3">
+                    <FileUploadDropzone
+                      bucket="company-logos"
+                      pathPrefix={profile?.id || "default"}
+                      accept=".jpg,.jpeg,.png,.webp,.svg"
+                      publicBucket={true}
+                      onUploaded={(url) => setCompanyLogoUrl(url)}
+                      label="Subir logo"
+                    />
+                    <div className="flex items-center gap-2">
+                      <hr className="flex-1 border-gray-200" />
+                      <span className="text-[10px] text-gray-400 font-semibold uppercase">O URL Externa</span>
+                      <hr className="flex-1 border-gray-200" />
+                    </div>
+                    <div className="flex gap-4 items-center">
+                      <input
+                        placeholder="https://..."
+                        value={companyLogoUrl}
+                        onChange={(e) => setCompanyLogoUrl(e.target.value)}
+                        className="flex-1 rounded-xl border border-gray-300 bg-white text-gray-900 px-3 py-2.5 text-sm outline-none focus:border-orange-500 focus:ring-2 focus:ring-orange-100 placeholder-gray-400"
+                      />
+                      {companyLogoUrl && (
+                        <div className="h-12 w-12 shrink-0 rounded-lg bg-gray-100 overflow-hidden border border-gray-200">
+                          <img src={companyLogoUrl} alt="Logo" className="w-full h-full object-cover" />
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                </div>
                 <label className="block">
                   <span className="mb-1 block text-xs font-semibold text-gray-500">Nombre a mostrar (vendedor)</span>
                   <input

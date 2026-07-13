@@ -7,6 +7,7 @@ import { PrimaryButton, GhostButton } from "@/components/ui/button";
 import { SectionTitle } from "@/components/ui/section-title";
 import { SpoolDot } from "@/components/common/spool-dot";
 import { createClient } from "@/utils/supabase/client";
+import { FileUploadDropzone } from "@/components/ui/file-upload-dropzone";
 
 export default function ProductosPage() {
   const supabase = createClient();
@@ -229,10 +230,32 @@ export default function ProductosPage() {
                 <input type="number" name="stock_quantity" value={formData.stock_quantity} onChange={handleChange} className="w-full text-sm border-gray-300 rounded-md focus:border-orange-500 focus:ring-orange-500 text-gray-900 bg-white" />
               </div>
             </div>
-            <div className="col-span-1 md:col-span-2">
-              <label className="block text-xs font-semibold text-gray-700 mb-1">URL de Imagen (Opcional)</label>
-              <input type="text" name="image_url" value={formData.image_url} onChange={handleChange} className="w-full text-sm border-gray-300 rounded-md focus:border-orange-500 focus:ring-orange-500 text-gray-900 bg-white" placeholder="https://..." />
-            </div>
+                <div className="md:col-span-2">
+                  <label className="text-xs font-semibold text-gray-700">Imagen del Producto URL</label>
+                  <div className="space-y-3 mt-1">
+                    <FileUploadDropzone
+                      bucket="product-images"
+                      pathPrefix={`${products[0]?.user_id || "default"}/products`}
+                      accept=".jpg,.jpeg,.png,.webp,.svg"
+                      publicBucket={true}
+                      onUploaded={(url) => setFormData(prev => ({ ...prev, image_url: url }))}
+                      label="Subir Imagen"
+                    />
+                    <div className="flex items-center gap-2">
+                      <hr className="flex-1 border-gray-200" />
+                      <span className="text-[10px] text-gray-400 font-semibold uppercase">O URL Externa</span>
+                      <hr className="flex-1 border-gray-200" />
+                    </div>
+                    <div className="flex gap-4 items-center">
+                      <input type="text" name="image_url" value={formData.image_url} onChange={handleChange} className="flex-1 text-sm border-gray-300 rounded-lg px-3 py-2 focus:border-orange-500 focus:ring-1 focus:ring-orange-500 text-gray-900 bg-white" placeholder="https://..." />
+                      {formData.image_url && (
+                        <div className="h-12 w-12 shrink-0 rounded-lg bg-gray-100 overflow-hidden border border-gray-200">
+                          <img src={formData.image_url} alt="Producto" className="w-full h-full object-cover" />
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                </div>
           </div>
           
           <div className="flex items-center justify-between border-t border-gray-100 pt-4">
