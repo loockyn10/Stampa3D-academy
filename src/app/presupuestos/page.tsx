@@ -22,6 +22,7 @@ export default function PresupuestosPage() {
   const [budgets, setBudgets] = useState<any[]>([]);
   const [clients, setClients] = useState<any[]>([]);
   const [products, setProducts] = useState<any[]>([]);
+  const [filaments, setFilaments] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
@@ -33,13 +34,28 @@ export default function PresupuestosPage() {
     status: "draft",
     notes: "",
     valid_until: "",
-    discount_amount: 0,
+    discount_percent: 0,
   });
   const [budgetItems, setBudgetItems] = useState<any[]>([]);
   
   // Client Form State
   const [showClientForm, setShowClientForm] = useState(false);
   const [clientData, setClientData] = useState({ id: "", name: "", phone: "", email: "", notes: "", fiscal_condition: "", cuit: "", is_active: true });
+
+  // Product Modal State
+  const [showProductModal, setShowProductModal] = useState(false);
+  const [productData, setProductData] = useState({
+    name: "",
+    description: "",
+    image_url: "",
+    filament_id: "",
+    grams: 0,
+    print_time_hours: 0,
+    print_time_minutes: 0,
+    base_cost: 0,
+    sale_price: 0,
+    stock_quantity: 0
+  });
 
   useEffect(() => {
     fetchData();
@@ -50,10 +66,11 @@ export default function PresupuestosPage() {
     const { data: { user } } = await supabase.auth.getUser();
     if (!user) return;
 
-    const [bRes, cRes, pRes] = await Promise.all([
+    const [bRes, cRes, pRes, filRes] = await Promise.all([
       supabase.from("budgets").select("*, clients(name)").eq("user_id", user.id).order("created_at", { ascending: false }),
       supabase.from("clients").select("*").eq("user_id", user.id).order("name", { ascending: true }),
-      supabase.from("products").select("*").eq("user_id", user.id).eq("is_active", true).order("name", { ascending: true })
+      supabase.from("products").select("*").eq("user_id", user.id).eq("is_active", true).order("name", { ascending: true }),
+      supabase.from("filaments").select("*").eq("user_id", user.id).eq("is_active", true).order("name", { ascending: true })
     ]);
 
     if (bRes.error) setError(bRes.error.message);
@@ -65,12 +82,15 @@ export default function PresupuestosPage() {
     if (pRes.error) console.error(pRes.error);
     else setProducts(pRes.data || []);
 
+    if (filRes.error) console.error(filRes.error);
+    else setFilaments(filRes.data || []);
+
     setLoading(false);
   };
 
   const handleCreateNew = () => {
     setFormData({
-      title: "", client_id: "", status: "draft", notes: "", valid_until: "", discount_amount: 0
+      title: "", client_id: "", status: "draft", notes: "", valid_until: "", discount_percent: 0
     });
     setBudgetItems([]);
     setEditingId("new");
@@ -80,7 +100,7 @@ export default function PresupuestosPage() {
   const handleEdit = async (b: any) => {
     setFormData({
       title: b.title || "", client_id: b.client_id || "", status: b.status || "draft", 
-      notes: b.notes || "", valid_until: b.valid_until || "", discount_amount: b.discount_amount || 0
+      notes: b.notes || "", valid_until: b.valid_until || "", discount_percent: b.discount_percent || 0
     });
     
     // Fetch items for this budget
@@ -150,7 +170,9 @@ export default function PresupuestosPage() {
   };
 
   const subtotal = budgetItems.reduce((acc, item) => acc + (item.subtotal || 0), 0);
-  const total = Math.max(0, subtotal - (parseFloat(String(formData.discount_amount)) || 0));
+  const discountPercent = parseFloat(String(formData.discount_percent)) || 0;
+  const discountAmount = subtotal * (discountPercent / 100);
+  const total = Math.max(0, subtotal - discountAmount);
 
   const handleSaveBudget = async () => {
     if (!formData.title.trim()) return alert("Agregá un título para el presupuesto.");
@@ -168,7 +190,8 @@ export default function PresupuestosPage() {
       status: formData.status,
       notes: formData.notes,
       valid_until: formData.valid_until || null,
-      discount_amount: parseFloat(String(formData.discount_amount)) || 0,
+      discount_percent: discountPercent,
+      discount_amount: discountAmount,
       subtotal: subtotal,
       total_amount: total
     };
@@ -266,6 +289,63 @@ export default function PresupuestosPage() {
   const handleCancelClientForm = () => {
     setShowClientForm(false);
     setClientData({ id: "", name: "", phone: "", email: "", notes: "", fiscal_condition: "", cuit: "", is_active: true });
+  };
+
+  const handleSaveProduct = async () => {
+    if (!productData.name.trim()) return alert("El nombre del producto es obligatorio.");
+    if (parseFloat(String(productData.sale_price)) < 0) return alert("El precio de venta debe ser mayor o igual a 0.");
+
+    const { data: { user } } = await supabase.auth.getUser();
+    if (!user) return;
+
+    const hours = Math.max(0, parseInt(String(productData.print_time_hours)) || 0);
+    const mins = Math.max(0, Math.min(59, parseInt(String(productData.print_time_minutes)) || 0));
+    const totalMinutes = (hours * 60) + mins;
+
+    const payload = {
+      user_id: user.id,
+      name: productData.name,
+      description: productData.description || "",
+      image_url: productData.image_url || "",
+      filament_id: productData.filament_id || null,
+      grams: parseFloat(String(productData.grams)) || 0,
+      print_time_minutes: totalMinutes,
+      base_cost: parseFloat(String(productData.base_cost)) || 0,
+      sale_price: parseFloat(String(productData.sale_price)) || 0,
+      stock_quantity: parseInt(String(productData.stock_quantity)) || 0,
+      is_active: true
+    };
+
+    const { data, error } = await supabase.from("products").insert([payload]).select().single();
+    if (error) {
+      alert("Error creando producto: " + error.message);
+    } else if (data) {
+      const updatedProducts = [...products, data].sort((a, b) => a.name.localeCompare(b.name));
+      setProducts(updatedProducts);
+      
+      setBudgetItems([...budgetItems, {
+        id: "temp-" + Date.now(),
+        product_id: data.id,
+        item_name: data.name,
+        quantity: 1,
+        unit_price: data.sale_price || 0,
+        subtotal: data.sale_price || 0
+      }]);
+
+      setProductData({
+        name: "",
+        description: "",
+        image_url: "",
+        filament_id: filaments.length > 0 ? filaments[0].id : "",
+        grams: 0,
+        print_time_hours: 0,
+        print_time_minutes: 0,
+        base_cost: 0,
+        sale_price: 0,
+        stock_quantity: 0
+      });
+      setShowProductModal(false);
+    }
   };
 
   if (loading) return <div className="py-24 flex justify-center"><Loader2 className="animate-spin h-8 w-8 text-orange-500" /></div>;
@@ -388,12 +468,44 @@ export default function PresupuestosPage() {
             <div className="space-y-3">
               <div className="flex justify-between items-end border-b border-gray-200 pb-2">
                 <h4 className="text-sm font-bold text-gray-800 flex items-center gap-2"><ShoppingCart size={16} /> Productos a Cotizar</h4>
-                <button onClick={handleAddItem} className="text-xs font-bold text-orange-600 bg-orange-50 hover:bg-orange-100 px-2 py-1 rounded border border-orange-200">+ Agregar Producto</button>
+                <div className="flex gap-2">
+                  <button type="button" onClick={() => {
+                    setProductData({
+                      name: "",
+                      description: "",
+                      image_url: "",
+                      filament_id: filaments.length > 0 ? filaments[0].id : "",
+                      grams: 0,
+                      print_time_hours: 0,
+                      print_time_minutes: 0,
+                      base_cost: 0,
+                      sale_price: 0,
+                      stock_quantity: 0
+                    });
+                    setShowProductModal(true);
+                  }} className="text-xs font-bold text-orange-600 bg-orange-50 hover:bg-orange-100 px-2 py-1 rounded border border-orange-200">Nuevo Producto</button>
+                  <button type="button" onClick={handleAddItem} className="text-xs font-bold text-orange-600 bg-orange-50 hover:bg-orange-100 px-2 py-1 rounded border border-orange-200">+ Agregar Producto</button>
+                </div>
               </div>
 
               {products.length === 0 ? (
-                <div className="text-center py-4 bg-gray-50 rounded-lg text-sm text-gray-500">
-                  No tienes productos creados. <Link href="/productos" className="text-orange-500 font-bold hover:underline">Ve a crear uno</Link>.
+                <div className="text-center py-4 bg-gray-50 rounded-lg text-sm text-gray-500 flex flex-col items-center gap-2">
+                  <span>No tenés productos cargados.</span>
+                  <button type="button" onClick={() => {
+                    setProductData({
+                      name: "",
+                      description: "",
+                      image_url: "",
+                      filament_id: filaments.length > 0 ? filaments[0].id : "",
+                      grams: 0,
+                      print_time_hours: 0,
+                      print_time_minutes: 0,
+                      base_cost: 0,
+                      sale_price: 0,
+                      stock_quantity: 0
+                    });
+                    setShowProductModal(true);
+                  }} className="text-xs font-bold bg-orange-100 text-orange-700 px-3 py-1.5 rounded hover:bg-orange-200">Crear nuevo producto</button>
                 </div>
               ) : (
                 <div className="space-y-2">
@@ -438,8 +550,29 @@ export default function PresupuestosPage() {
                   <span className="text-gray-900 font-bold">${subtotal.toFixed(2)}</span>
                 </div>
                 <div className="flex justify-between items-center text-sm">
-                  <span className="text-gray-500 font-medium">Descuento ($ Fijo)</span>
-                  <input type="number" min="0" value={formData.discount_amount} onChange={e => setFormData({...formData, discount_amount: parseFloat(e.target.value)||0})} className="w-24 text-right text-sm border-gray-300 rounded-md focus:border-orange-500 focus:ring-orange-500 text-gray-900 bg-white" />
+                  <span className="text-gray-500 font-medium">Descuento (%)</span>
+                  <input 
+                    type="number" 
+                    min="0" 
+                    max="100" 
+                    step="any"
+                    placeholder="Ej: 15"
+                    value={formData.discount_percent || ""} 
+                    onChange={e => {
+                      let val = parseFloat(e.target.value);
+                      if (isNaN(val)) val = 0;
+                      if (val < 0) val = 0;
+                      if (val > 100) val = 100;
+                      setFormData({...formData, discount_percent: val});
+                    }}
+                    className="w-24 text-right text-sm border-gray-300 rounded-md focus:border-orange-500 focus:ring-orange-500 text-gray-900 bg-white" 
+                  />
+                </div>
+                <div className="flex justify-between items-center text-sm">
+                  <span className="text-gray-500 font-medium">Descuento</span>
+                  <span className="text-gray-900 font-semibold">
+                    {discountPercent}% {discountPercent > 0 ? `(-$${discountAmount.toFixed(2)})` : ""}
+                  </span>
                 </div>
                 <div className="border-t border-gray-200 pt-2 flex justify-between items-center">
                   <span className="text-lg font-bold text-gray-900">TOTAL</span>
@@ -497,6 +630,163 @@ export default function PresupuestosPage() {
         <div className="py-20 text-center bg-gray-50 rounded-xl border border-dashed border-gray-300 mt-6">
           <p className="text-sm text-gray-500 font-medium">No tienes presupuestos creados.</p>
           <PrimaryButton onClick={handleCreateNew} className="mt-4">Crear mi primer presupuesto</PrimaryButton>
+        </div>
+      )}
+
+      {/* Product Creation Modal */}
+      {showProductModal && (
+        <div className="fixed inset-0 bg-black/60 flex items-center justify-center p-4 z-50 overflow-y-auto">
+          <div className="bg-white rounded-xl shadow-xl w-full max-w-lg overflow-hidden border border-gray-200 my-8">
+            <div className="bg-gray-50 px-5 py-4 flex justify-between items-center border-b border-gray-200">
+              <h3 className="text-base font-bold text-gray-900">Nuevo Producto Rápido</h3>
+              <button type="button" onClick={() => setShowProductModal(false)} className="text-gray-400 hover:text-gray-700">
+                <X size={20} />
+              </button>
+            </div>
+            
+            <div className="p-5 space-y-4 max-h-[70vh] overflow-y-auto">
+              <div>
+                <label className="block text-xs font-bold text-gray-500 uppercase mb-1">Nombre *</label>
+                <input 
+                  type="text" 
+                  placeholder="Ej. Maceta Hexagonal" 
+                  value={productData.name} 
+                  onChange={e => setProductData({...productData, name: e.target.value})} 
+                  className="w-full text-sm border-gray-300 rounded-md focus:border-orange-500 focus:ring-orange-500 text-gray-900 bg-white" 
+                />
+              </div>
+
+              <div>
+                <label className="block text-xs font-bold text-gray-500 uppercase mb-1">Descripción</label>
+                <textarea 
+                  rows={2}
+                  placeholder="Descripción opcional" 
+                  value={productData.description} 
+                  onChange={e => setProductData({...productData, description: e.target.value})} 
+                  className="w-full text-sm border-gray-300 rounded-md focus:border-orange-500 focus:ring-orange-500 text-gray-900 bg-white" 
+                />
+              </div>
+
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <label className="block text-xs font-bold text-gray-500 uppercase mb-1">Precio de venta *</label>
+                  <input 
+                    type="number" 
+                    min="0"
+                    step="any"
+                    placeholder="Ej. 1500" 
+                    value={productData.sale_price || ""} 
+                    onChange={e => setProductData({...productData, sale_price: parseFloat(e.target.value) || 0})} 
+                    className="w-full text-sm border-gray-300 rounded-md focus:border-orange-500 focus:ring-orange-500 text-gray-900 bg-white" 
+                  />
+                </div>
+                <div>
+                  <label className="block text-xs font-bold text-gray-500 uppercase mb-1">Costo base</label>
+                  <input 
+                    type="number" 
+                    min="0"
+                    step="any"
+                    placeholder="Opcional" 
+                    value={productData.base_cost || ""} 
+                    onChange={e => setProductData({...productData, base_cost: parseFloat(e.target.value) || 0})} 
+                    className="w-full text-sm border-gray-300 rounded-md focus:border-orange-500 focus:ring-orange-500 text-gray-900 bg-white" 
+                  />
+                </div>
+              </div>
+
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <label className="block text-xs font-bold text-gray-500 uppercase mb-1">Gramos</label>
+                  <input 
+                    type="number" 
+                    min="0"
+                    step="any"
+                    placeholder="Opcional" 
+                    value={productData.grams || ""} 
+                    onChange={e => setProductData({...productData, grams: parseFloat(e.target.value) || 0})} 
+                    className="w-full text-sm border-gray-300 rounded-md focus:border-orange-500 focus:ring-orange-500 text-gray-900 bg-white" 
+                  />
+                </div>
+                <div>
+                  <label className="block text-xs font-bold text-gray-500 uppercase mb-1">Stock Inicial</label>
+                  <input 
+                    type="number" 
+                    min="0"
+                    placeholder="Opcional" 
+                    value={productData.stock_quantity || ""} 
+                    onChange={e => setProductData({...productData, stock_quantity: parseInt(e.target.value) || 0})} 
+                    className="w-full text-sm border-gray-300 rounded-md focus:border-orange-500 focus:ring-orange-500 text-gray-900 bg-white" 
+                  />
+                </div>
+              </div>
+
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <label className="block text-xs font-bold text-gray-500 uppercase mb-1">Tiempo (Horas)</label>
+                  <input 
+                    type="number" 
+                    min="0"
+                    placeholder="Horas" 
+                    value={productData.print_time_hours || ""} 
+                    onChange={e => setProductData({...productData, print_time_hours: parseInt(e.target.value) || 0})} 
+                    className="w-full text-sm border-gray-300 rounded-md focus:border-orange-500 focus:ring-orange-500 text-gray-900 bg-white" 
+                  />
+                </div>
+                <div>
+                  <label className="block text-xs font-bold text-gray-500 uppercase mb-1">Tiempo (Minutos)</label>
+                  <input 
+                    type="number" 
+                    min="0"
+                    max="59"
+                    placeholder="Minutos" 
+                    value={productData.print_time_minutes || ""} 
+                    onChange={e => setProductData({...productData, print_time_minutes: parseInt(e.target.value) || 0})} 
+                    className="w-full text-sm border-gray-300 rounded-md focus:border-orange-500 focus:ring-orange-500 text-gray-900 bg-white" 
+                  />
+                </div>
+              </div>
+
+              <div>
+                <label className="block text-xs font-bold text-gray-500 uppercase mb-1">Filamento</label>
+                <select 
+                  value={productData.filament_id} 
+                  onChange={e => setProductData({...productData, filament_id: e.target.value})} 
+                  className="w-full text-sm border-gray-300 rounded-md focus:border-orange-500 focus:ring-orange-500 text-gray-900 bg-white"
+                >
+                  <option value="">Ninguno</option>
+                  {filaments.map(f => <option key={f.id} value={f.id}>{f.name}</option>)}
+                </select>
+              </div>
+
+              <div>
+                <label className="block text-xs font-bold text-gray-500 uppercase mb-1">URL de Imagen</label>
+                <input 
+                  type="text" 
+                  placeholder="Ej. https://..." 
+                  value={productData.image_url} 
+                  onChange={e => setProductData({...productData, image_url: e.target.value})} 
+                  className="w-full text-sm border-gray-300 rounded-md focus:border-orange-500 focus:ring-orange-500 text-gray-900 bg-white" 
+                />
+              </div>
+            </div>
+
+            <div className="bg-gray-50 px-5 py-4 flex justify-end gap-2 border-t border-gray-200">
+              <button 
+                type="button" 
+                onClick={() => setShowProductModal(false)} 
+                className="px-4 py-2 text-sm font-bold text-gray-600 hover:bg-gray-200 rounded-lg transition-colors"
+              >
+                Cancelar
+              </button>
+              <button 
+                type="button" 
+                onClick={handleSaveProduct} 
+                className="px-6 py-2 text-sm font-bold bg-orange-500 hover:bg-orange-600 text-white rounded-lg transition-colors"
+              >
+                Guardar Producto
+              </button>
+            </div>
+          </div>
         </div>
       )}
     </div>
