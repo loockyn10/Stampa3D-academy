@@ -57,17 +57,46 @@ export function UsersTable() {
         return;
       }
 
-      const { data, error: fetchError } = await supabase
+      const { data: profilesData, error: fetchError } = await supabase
         .from("profiles")
-        .select("*, subscriptions(status, amount)")
+        .select("*")
         .order("created_at", { ascending: false });
 
       if (fetchError) {
         console.error("Error cargando perfiles:", fetchError);
         setError(fetchError.message);
-      } else {
-        setUsers(data as Profile[]);
+        setLoading(false);
+        return;
       }
+
+      // 2. Query subscriptions separately
+      const userIds = (profilesData || []).map((p) => p.id);
+      let subscriptionsData: any[] = [];
+      if (userIds.length > 0) {
+        const { data: subs, error: subsError } = await supabase
+          .from("subscriptions")
+          .select("*")
+          .in("user_id", userIds)
+          .order("created_at", { ascending: false });
+
+        if (subsError) {
+          console.error("Error loading subscriptions:", subsError);
+          // Do not fail the whole page load if subscriptions fail
+        } else {
+          subscriptionsData = subs || [];
+        }
+      }
+
+      // 3. Map subscriptions back to profiles
+      const usersWithSubs = (profilesData || []).map((profile) => {
+        const userSubs = subscriptionsData.filter((sub) => sub.user_id === profile.id);
+        return {
+          ...profile,
+          subscriptions: userSubs,
+        };
+      });
+
+      setUsers(usersWithSubs as Profile[]);
     } catch (err: any) {
       console.error("Excepción inesperada:", err);
       setError(err.message || "Error inesperado al cargar usuarios");
