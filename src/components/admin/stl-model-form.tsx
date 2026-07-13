@@ -20,9 +20,6 @@ export function StlModelForm({ modelId }: { modelId?: string }) {
   const [formData, setFormData] = useState({
     title: "",
     description: "",
-    difficulty: "beginner",
-    estimated_print_time: "",
-    material_type: "",
     thumbnail_url: "",
     is_active: true,
     category_id: "",
@@ -46,9 +43,6 @@ export function StlModelForm({ modelId }: { modelId?: string }) {
           setFormData({
             title: modelData.title || "",
             description: modelData.description || "",
-            difficulty: modelData.difficulty || "beginner",
-            estimated_print_time: modelData.estimated_print_time || "",
-            material_type: modelData.material_type || "",
             thumbnail_url: modelData.thumbnail_url || "",
             is_active: modelData.is_active ?? true,
             category_id: modelData.category_id || "",
@@ -79,9 +73,6 @@ export function StlModelForm({ modelId }: { modelId?: string }) {
     const payload = {
       title: formData.title,
       description: formData.description || null,
-      difficulty: formData.difficulty || null,
-      estimated_print_time: formData.estimated_print_time || null,
-      material_type: formData.material_type || null,
       thumbnail_url: formData.thumbnail_url || null,
       is_active: formData.is_active,
       category_id: formData.category_id && formData.category_id !== "undefined" && formData.category_id !== "" ? formData.category_id : null,
@@ -180,44 +171,6 @@ export function StlModelForm({ modelId }: { modelId?: string }) {
             onChange={handleChange}
             rows={4}
             className="w-full text-sm border-gray-300 rounded-md focus:border-orange-500 focus:ring-orange-500 text-gray-900 bg-white"
-          />
-        </div>
-
-        <div className="space-y-2">
-          <label className="text-sm font-semibold text-gray-700">Dificultad (Opcional)</label>
-          <select
-            name="difficulty"
-            value={formData.difficulty}
-            onChange={handleChange}
-            className="w-full text-sm border-gray-300 rounded-md focus:border-orange-500 focus:ring-orange-500 text-gray-900 bg-white"
-          >
-            <option value="beginner">Principiante</option>
-            <option value="intermediate">Intermedio</option>
-            <option value="advanced">Avanzado</option>
-          </select>
-        </div>
-
-        <div className="space-y-2">
-          <label className="text-sm font-semibold text-gray-700">Material Sugerido (Opcional)</label>
-          <input
-            type="text"
-            name="material_type"
-            value={formData.material_type}
-            onChange={handleChange}
-            className="w-full text-sm border-gray-300 rounded-md focus:border-orange-500 focus:ring-orange-500 text-gray-900 bg-white"
-            placeholder="Ej. PLA, PETG"
-          />
-        </div>
-
-        <div className="space-y-2">
-          <label className="text-sm font-semibold text-gray-700">Tiempo Estimado (Opcional)</label>
-          <input
-            type="text"
-            name="estimated_print_time"
-            value={formData.estimated_print_time}
-            onChange={handleChange}
-            className="w-full text-sm border-gray-300 rounded-md focus:border-orange-500 focus:ring-orange-500 text-gray-900 bg-white"
-            placeholder="Ej. 2h 30m"
           />
         </div>
 
