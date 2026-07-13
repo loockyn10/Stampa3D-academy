@@ -51,7 +51,7 @@ export function Header({ setMobileOpen }: HeaderProps) {
 
       <h1 className="mr-2 hidden text-base font-bold text-gray-900 sm:block">{title}</h1>
 
-      <div className="ml-auto flex flex-1 items-center gap-3 sm:ml-0">
+      <div className="ml-auto flex flex-1 items-center gap-3 sm:ml-0 hidden">
         <div className="relative flex-1 max-w-md">
           <Search size={16} className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" />
           <input

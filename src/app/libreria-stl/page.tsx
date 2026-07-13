@@ -153,14 +153,24 @@ export default function LibreriaStlPage() {
                   <p className="text-xs text-gray-500 flex justify-between"><span>Tiempo:</span> <span className="font-medium text-gray-700">{f.estimated_print_time_minutes} min</span></p>
                   <p className="text-xs text-gray-500 flex justify-between"><span>Peso:</span> <span className="font-medium text-gray-700">{f.estimated_weight_grams} g</span></p>
                 </div>
-                <a 
-                  href={f.file_url || "#"} 
-                  target={f.file_url ? "_blank" : "_self"} 
-                  rel="noopener noreferrer"
+                <button 
+                  onClick={async (e) => {
+                    e.preventDefault();
+                    if (!f.file_url) return;
+                    
+                    const { data: { user } } = await supabase.auth.getUser();
+                    if (user) {
+                      await supabase.from("stl_downloads").upsert({
+                        user_id: user.id,
+                        variant_id: f.id
+                      }, { onConflict: 'user_id, variant_id' });
+                    }
+                    window.open(f.file_url, "_blank");
+                  }}
                   className="mt-auto flex w-full items-center justify-center gap-1.5 rounded-lg bg-gray-900 py-2.5 text-xs font-semibold text-white hover:bg-gray-800 transition-colors"
                 >
                   <Download size={14} /> Descargar
-                </a>
+                </button>
               </div>
             </Card>
           ))}

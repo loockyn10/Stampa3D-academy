@@ -1,36 +1,163 @@
 "use client";
 
-import React from "react";
+import React, { useEffect, useState } from "react";
 import Link from "next/link";
-import { BookOpen, Download, FileText, Play, Calculator, ChevronRight, CalendarDays, Gift } from "lucide-react";
-import { useAppState } from "@/context/state-context";
+import { BookOpen, Download, FileText, Play, Calculator, ChevronRight, CalendarDays, Gift, Boxes, Loader2 } from "lucide-react";
 import { Card } from "@/components/ui/card";
 import { PrimaryButton, GhostButton } from "@/components/ui/button";
 import { ProgressBar } from "@/components/ui/progress-bar";
 import { SectionTitle } from "@/components/ui/section-title";
 import { Badge } from "@/components/ui/badge";
 import { EmptyState } from "@/components/ui/empty-state";
-import { STL_FILES } from "@/data/mock-data";
+import { createClient } from "@/utils/supabase/client";
 
 export default function InicioPage() {
-  const { courses, budgets } = useAppState();
+  const supabase = createClient();
+  const [loading, setLoading] = useState(true);
+  const [userFirstName, setUserFirstName] = useState("Usuario");
+  const [coursesCount, setCoursesCount] = useState(0);
+  const [downloadsCount, setDownloadsCount] = useState(0);
+  const [budgetsCount, setBudgetsCount] = useState(0);
+  
+  const [continuingCourse, setContinuingCourse] = useState<any>(null);
+  const [upcomingRaffle, setUpcomingRaffle] = useState<any>(null);
+  const [latestStls, setLatestStls] = useState<any[]>([]);
 
-  const continuing = courses.find((c) => c.progress > 0 && c.progress < 100);
+  useEffect(() => {
+    async function loadDashboard() {
+      setLoading(true);
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) {
+        setLoading(false);
+        return;
+      }
+
+      try {
+        // 1. User Name
+        const { data: profile } = await supabase.from("profiles").select("display_name, full_name").eq("id", user.id).single();
+        const name = profile?.display_name || profile?.full_name || "Usuario";
+        setUserFirstName(name.split(" ")[0]);
+
+        // 2. Counts
+        // Budgets
+        const { count: bCount } = await supabase.from("budgets").select("*", { count: "exact", head: true }).eq("user_id", user.id);
+        setBudgetsCount(bCount || 0);
+
+        // Downloads
+        const { count: dCount } = await supabase.from("stl_downloads").select("*", { count: "exact", head: true }).eq("user_id", user.id);
+        setDownloadsCount(dCount || 0);
+
+        // Courses Progress
+        const { data: progressData } = await supabase
+          .from("lesson_progress")
+          .select(`
+            completed,
+            lessons (
+              id,
+              module_id,
+              course_modules (
+                id,
+                course_id,
+                courses (
+                  id,
+                  title,
+                  thumbnail_url,
+                  slug
+                )
+              )
+            )
+          `)
+          .eq("user_id", user.id);
+
+        let uniqueCourses = new Map<string, any>();
+        if (progressData) {
+          progressData.forEach((p: any) => {
+            const course = p.lessons?.course_modules?.courses;
+            if (course) {
+              uniqueCourses.set(course.id, course);
+            }
+          });
+        }
+        setCoursesCount(uniqueCourses.size);
+
+        if (uniqueCourses.size > 0) {
+          const firstCourseId = Array.from(uniqueCourses.keys())[0];
+          const c = uniqueCourses.get(firstCourseId);
+          
+          const { count: totalLessons } = await supabase
+            .from("lessons")
+            .select("*, course_modules!inner(course_id)", { count: "exact", head: true })
+            .eq("course_modules.course_id", firstCourseId)
+            .eq("is_published", true);
+
+          const completedCount = progressData?.filter((p: any) => p.completed && p.lessons?.course_modules?.courses?.id === firstCourseId).length || 0;
+          
+          setContinuingCourse({
+            id: c.slug || c.id,
+            title: c.title,
+            thumbnail_url: c.thumbnail_url,
+            progress: totalLessons ? Math.round((completedCount / totalLessons) * 100) : 0,
+            completedLessons: completedCount,
+            totalLessons: totalLessons || 0
+          });
+        }
+
+        // 3. Upcoming Raffle
+        const { data: raffles } = await supabase
+          .from("raffles")
+          .select(`*, raffle_prizes(*)`)
+          .eq("status", "active")
+          .eq("is_active", true)
+          .order("draw_date", { ascending: true })
+          .limit(1);
+
+        if (raffles && raffles.length > 0) {
+          setUpcomingRaffle(raffles[0]);
+        }
+
+        // 4. Latest STLs
+        const { data: stls } = await supabase
+          .from("stl_variants")
+          .select(`*, stl_models!inner(name, thumbnail_url)`)
+          .eq("is_active", true)
+          .eq("stl_models.is_active", true)
+          .order("created_at", { ascending: false })
+          .limit(4);
+        
+        if (stls) {
+          setLatestStls(stls);
+        }
+      } catch (e) {
+        console.error("Error loading dashboard data:", e);
+      } finally {
+        setLoading(false);
+      }
+    }
+    loadDashboard();
+  }, []);
+
+  if (loading) {
+    return (
+      <div className="flex items-center justify-center py-24">
+        <Loader2 className="h-8 w-8 animate-spin text-orange-500" />
+      </div>
+    );
+  }
 
   const stats = [
     {
       label: "Cursos iniciados",
-      value: courses.filter((c) => c.progress > 0).length,
+      value: coursesCount,
       icon: BookOpen,
     },
     {
       label: "STL descargados",
-      value: 27,
+      value: downloadsCount,
       icon: Download,
     },
     {
       label: "Presupuestos creados",
-      value: budgets.length,
+      value: budgetsCount,
       icon: FileText,
     },
   ];
@@ -39,14 +166,14 @@ export default function InicioPage() {
     <div className="space-y-8">
       {/* Welcome Card */}
       <Card className="overflow-hidden bg-gradient-to-br from-gray-900 to-gray-800 p-6 text-white sm:p-8">
-        <p className="text-sm font-medium text-orange-400">Hola, Marcos 👋</p>
+        <p className="text-sm font-medium text-orange-400">Hola, {userFirstName} 👋</p>
         <h2 className="mt-1 text-2xl font-bold sm:text-3xl">Sigamos imprimiendo ideas.</h2>
         <p className="mt-2 max-w-lg text-sm text-gray-300">
           Retomá tu curso, revisá el sorteo del mes o calculá el costo de tu próxima pieza.
         </p>
         <div className="mt-5 flex flex-wrap gap-3">
-          {continuing ? (
-            <PrimaryButton href={`/cursos/${continuing.id}`}>
+          {continuingCourse ? (
+            <PrimaryButton href={`/cursos/${continuingCourse.id}`}>
               <Play size={15} /> Continuar curso
             </PrimaryButton>
           ) : (
@@ -88,18 +215,22 @@ export default function InicioPage() {
               </Link>
             }
           />
-          {continuing ? (
-            <Link href={`/cursos/${continuing.id}`}>
+          {continuingCourse ? (
+            <Link href={`/cursos/${continuingCourse.id}`}>
               <Card className="flex items-center gap-4 p-4 hover:-translate-y-0.5 hover:shadow-md cursor-pointer">
-                <div className="flex h-16 w-16 shrink-0 items-center justify-center rounded-xl bg-gray-50 text-3xl">
-                  {continuing.img}
+                <div className="flex h-16 w-16 shrink-0 items-center justify-center rounded-xl bg-gray-50 text-3xl overflow-hidden">
+                  {continuingCourse.thumbnail_url ? (
+                    <img src={continuingCourse.thumbnail_url} alt={continuingCourse.title} className="w-full h-full object-cover" />
+                  ) : (
+                    <BookOpen className="text-gray-300" size={24} />
+                  )}
                 </div>
                 <div className="flex-1 min-w-0">
-                  <p className="text-sm font-bold text-gray-900 truncate">{continuing.title}</p>
+                  <p className="text-sm font-bold text-gray-900 truncate">{continuingCourse.title}</p>
                   <p className="text-xs text-gray-500">
-                    {continuing.lessons} lecciones · {continuing.duration}
+                    {continuingCourse.completedLessons} de {continuingCourse.totalLessons} lecciones completadas
                   </p>
-                  <ProgressBar value={continuing.progress} className="mt-2" />
+                  <ProgressBar value={continuingCourse.progress} className="mt-2" />
                 </div>
                 <ChevronRight size={18} className="text-gray-300 shrink-0" />
               </Card>
@@ -107,8 +238,8 @@ export default function InicioPage() {
           ) : (
             <EmptyState
               icon={BookOpen}
-              title="No tenés cursos en progreso"
-              hint="Explorá el catálogo para empezar."
+              title="Todavía no empezaste ningún curso"
+              hint="Explorá los cursos disponibles y empezá por el que más te sirva."
             />
           )}
 
@@ -123,37 +254,67 @@ export default function InicioPage() {
                 </Link>
               }
             />
-            <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
-              {STL_FILES.slice(0, 4).map((f) => (
-                <Card key={f.id} className="p-3">
-                  <div className="flex h-16 items-center justify-center rounded-lg bg-gray-50 text-2xl">
-                    {f.img}
-                  </div>
-                  <p className="mt-2 truncate text-xs font-semibold text-gray-900">{f.name}</p>
-                  <div className="mt-1">
-                    <Badge tone={f.badge === "Premium" ? "dark" : "green"}>{f.badge}</Badge>
-                  </div>
-                </Card>
-              ))}
-            </div>
+            {latestStls.length > 0 ? (
+              <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
+                {latestStls.map((f) => (
+                  <Card key={f.id} className="p-3">
+                    <div className="flex h-16 items-center justify-center rounded-lg bg-gray-50 text-2xl overflow-hidden">
+                      {f.thumbnail_url || f.stl_models?.thumbnail_url ? (
+                        <img src={f.thumbnail_url || f.stl_models?.thumbnail_url} alt={f.name} className="w-full h-full object-cover" />
+                      ) : (
+                        <Boxes className="text-gray-300" size={24} />
+                      )}
+                    </div>
+                    <p className="mt-2 truncate text-xs font-semibold text-gray-900">{f.name}</p>
+                    <div className="mt-1">
+                      <Badge tone="green">Disponible</Badge>
+                    </div>
+                  </Card>
+                ))}
+              </div>
+            ) : (
+              <EmptyState
+                icon={Boxes}
+                title="Todavía no hay archivos STL cargados"
+                hint="Vuelve más tarde para descubrir nuevos modelos."
+              />
+            )}
           </div>
         </div>
 
         {/* Sidebar Sorteo Card */}
         <div>
           <SectionTitle eyebrow="Este mes" title="Próximo sorteo" />
-          <Card className="p-5">
-            <div className="mb-3 flex h-28 items-center justify-center rounded-xl bg-orange-50 text-5xl">
-              🎁
-            </div>
-            <p className="text-sm font-bold text-gray-900">Impresora Creality K2 Plus</p>
-            <p className="mt-1 flex items-center gap-1.5 text-xs text-gray-500">
-              <CalendarDays size={13} /> Sorteo: 31 de julio
-            </p>
-            <PrimaryButton href="/sorteos" className="mt-4 w-full">
-              Ver bases y participar
-            </PrimaryButton>
-          </Card>
+          {upcomingRaffle ? (
+            <Card className="p-5">
+              <div className="mb-3 flex h-28 items-center justify-center rounded-xl bg-gray-50 overflow-hidden relative">
+                {upcomingRaffle.raffle_prizes && upcomingRaffle.raffle_prizes[0]?.image_url ? (
+                  <img src={upcomingRaffle.raffle_prizes[0].image_url} alt={upcomingRaffle.title} className="w-full h-full object-cover" />
+                ) : (
+                  <div className="text-5xl">🎁</div>
+                )}
+              </div>
+              <p className="text-sm font-bold text-gray-900">{upcomingRaffle.raffle_prizes && upcomingRaffle.raffle_prizes.length > 0 ? upcomingRaffle.raffle_prizes[0].name : upcomingRaffle.title}</p>
+              <p className="mt-1 flex items-center gap-1.5 text-xs text-gray-500">
+                {upcomingRaffle.draw_date && (
+                  <><CalendarDays size={13} /> Sorteo: {new Date(upcomingRaffle.draw_date).toLocaleDateString("es-AR")}</>
+                )}
+              </p>
+              <PrimaryButton href="/sorteos" className="mt-4 w-full">
+                Ver bases y participar
+              </PrimaryButton>
+            </Card>
+          ) : (
+            <Card className="p-5 text-center">
+              <div className="mb-3 mx-auto flex h-12 w-12 items-center justify-center rounded-full bg-gray-50 text-gray-400">
+                <Gift size={24} />
+              </div>
+              <p className="text-sm font-bold text-gray-900">No hay sorteos activos por ahora</p>
+              <GhostButton href="/sorteos" className="mt-4 w-full bg-gray-50 text-gray-900 border border-gray-200 hover:bg-gray-100">
+                Ver sorteos
+              </GhostButton>
+            </Card>
+          )}
         </div>
       </div>
     </div>
