@@ -8,8 +8,16 @@ import { usePathname } from "next/navigation";
 export function MainLayout({ children }: { children: React.ReactNode }) {
   const [mobileOpen, setMobileOpen] = useState(false);
   const pathname = usePathname();
-
-  const isAuthRoute = pathname?.startsWith('/login') || pathname?.startsWith('/registro') || pathname?.startsWith('/sin-acceso') || pathname?.startsWith('/salir');
+  const isAuthRoute = 
+    pathname?.startsWith('/login') || 
+    pathname?.startsWith('/registro') || 
+    pathname?.startsWith('/recuperar-password') || 
+    pathname?.startsWith('/actualizar-password') || 
+    pathname?.startsWith('/verificar-email') || 
+    pathname?.startsWith('/auth') || 
+    pathname?.startsWith('/sin-acceso') || 
+    pathname?.startsWith('/pago/estado') || 
+    pathname?.startsWith('/salir');
 
   if (isAuthRoute) {
     return <main className="min-h-screen bg-[#F7F7F9]">{children}</main>;

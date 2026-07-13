@@ -35,7 +35,16 @@ export async function updateSession(request: NextRequest) {
   const { pathname } = request.nextUrl
 
   // Define public routes
-  const isPublicRoute = pathname.startsWith('/login') || pathname.startsWith('/registro') || pathname.startsWith('/sin-acceso') || pathname.startsWith('/auth') || pathname.startsWith('/recuperar-password') || pathname.startsWith('/actualizar-password') || pathname.startsWith('/api/mercadopago/webhook')
+  const isPublicRoute = 
+    pathname.startsWith('/login') || 
+    pathname.startsWith('/registro') || 
+    pathname.startsWith('/recuperar-password') || 
+    pathname.startsWith('/actualizar-password') || 
+    pathname.startsWith('/verificar-email') || 
+    pathname.startsWith('/auth') || 
+    pathname.startsWith('/sin-acceso') || 
+    pathname.startsWith('/pago/estado') || 
+    pathname.startsWith('/api/mercadopago/webhook')
 
   // Helper to redirect while preserving refreshed cookies
   const redirectWithCookies = (toPath: string) => {

@@ -23,14 +23,25 @@ export default function RecuperarPasswordPage() {
     setError(null);
     setSuccessMsg(null);
 
-    const redirectToUrl = `${window.location.origin}/auth/callback?next=/actualizar-password`;
+    const redirectToUrl = `${process.env.NEXT_PUBLIC_APP_URL}/auth/callback?next=/actualizar-password`;
 
     const { error: resetError } = await supabase.auth.resetPasswordForEmail(email, {
       redirectTo: redirectToUrl,
     });
 
     if (resetError) {
-      setError(resetError.message);
+      if (
+        resetError.message.includes("rate limit") ||
+        resetError.message.includes("rate_limit") ||
+        resetError.message.includes("limit exceeded") ||
+        resetError.message.includes("60 seconds")
+      ) {
+        setError(
+          "Se alcanzó el límite de envío de emails. Probá de nuevo más tarde o contactá soporte. Esto se soluciona configurando el servicio de emails de la plataforma."
+        );
+      } else {
+        setError(resetError.message);
+      }
       setIsLoading(false);
       return;
     }
