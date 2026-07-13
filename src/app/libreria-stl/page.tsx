@@ -24,41 +24,53 @@ export default function LibreriaStlPage() {
   }, []);
 
   const fetchData = async () => {
-    setLoading(true);
-    const [catsRes, modelsRes, varsRes] = await Promise.all([
-      supabase.from("stl_categories").select("*").eq("is_active", true).order("sort_order"),
-      supabase.from("stl_models").select("*").eq("is_active", true).order("created_at"),
-      supabase.from("stl_variants").select("*").eq("is_active", true).order("created_at")
-    ]);
-    
-    if (catsRes.data) setCategories(catsRes.data);
-    if (modelsRes.data) setModels(modelsRes.data);
-    if (varsRes.data) setVariants(varsRes.data);
+    try {
+      const [catsRes, modelsRes, varsRes] = await Promise.all([
+        supabase.from("stl_categories").select("*").eq("is_active", true).order("sort_order"),
+        supabase.from("stl_models").select("*").eq("is_active", true).order("created_at", { ascending: false }),
+        supabase.from("stl_variants").select("*").eq("is_active", true).order("created_at")
+      ]);
+      
+      if (catsRes.error) console.error("Error cats:", catsRes.error);
+      if (modelsRes.error) console.error("Error models:", modelsRes.error);
+      if (varsRes.error) console.error("Error variants:", varsRes.error);
+
+      if (catsRes.data) setCategories(catsRes.data);
+      if (modelsRes.data) setModels(modelsRes.data);
+      if (varsRes.data) setVariants(varsRes.data);
+    } catch (err) {
+      console.error("Error fetching STL data:", err);
+    }
     setLoading(false);
   };
 
-  // Group models and variants to display. 
-  // For each variant, we want to show it as a downloadable item, linked to its model's category.
-  const allStlItems = useMemo(() => {
-    return variants.map(variant => {
-      const model = models.find(m => m.id === variant.model_id);
+  const modelsWithData = useMemo(() => {
+    return models.map(model => {
+      const modelVariants = variants.filter(v => v.model_id === model.id);
+      const category = categories.find(c => c.id === model.category_id) || null;
       return {
-        ...variant,
-        model_title: model?.title || "Modelo Desconocido",
-        category_id: model?.category_id,
-        difficulty: model?.difficulty || "beginner",
-        estimated_print_time: model?.estimated_print_time || "",
-        model_material_type: model?.material_type || ""
+        ...model,
+        category,
+        variants: modelVariants
       };
     });
-  }, [models, variants]);
+  }, [models, variants, categories]);
 
   const filteredItems = useMemo(() => {
-    let f = allStlItems;
+    let f = modelsWithData;
     if (selectedCatId) f = f.filter((s) => s.category_id === selectedCatId);
-    if (query) f = f.filter((s) => s.title.toLowerCase().includes(query.toLowerCase()) || s.model_title.toLowerCase().includes(query.toLowerCase()));
+    if (query) {
+      f = f.filter((s) => 
+        s.title.toLowerCase().includes(query.toLowerCase()) || 
+        (s.category?.name || "").toLowerCase().includes(query.toLowerCase())
+      );
+    }
+    console.log("categories", categories);
+    console.log("models", models);
+    console.log("selectedCategoryId", selectedCatId);
+    console.log("filteredModels", f);
     return f;
-  }, [allStlItems, selectedCatId, query]);
+  }, [modelsWithData, selectedCatId, query, categories, models]);
 
   if (loading) {
     return (
@@ -77,7 +89,7 @@ export default function LibreriaStlPage() {
         ) : (
           <div className="grid grid-cols-2 gap-4 sm:grid-cols-3 lg:grid-cols-4">
             {categories.map((c) => {
-              const count = allStlItems.filter(item => item.category_id === c.id).length;
+              const count = models.filter(item => item.category_id === c.id).length;
               return (
                 <Card key={c.id} onClick={() => setSelectedCatId(c.id)} className="p-5 text-center cursor-pointer hover:-translate-y-0.5 hover:shadow-md transition-all">
                   <div className="mb-2 flex justify-center">
@@ -149,40 +161,53 @@ export default function LibreriaStlPage() {
                 </div>
               </div>
               <div className="p-4 flex flex-col flex-1">
-                <p className="text-[10px] font-semibold text-orange-500 uppercase tracking-wider mb-1 truncate">{f.model_title}</p>
+                <p className="text-[10px] font-semibold text-orange-500 uppercase tracking-wider mb-1 truncate">{f.category?.name || "Sin categoría"}</p>
                 <p className="font-bold text-gray-900 text-sm leading-tight mb-2 line-clamp-2">{f.title}</p>
                 <div className="mt-auto space-y-1 mb-3">
-                  <p className="text-xs text-gray-500 flex justify-between"><span>Material (mod):</span> <span className="font-medium text-gray-700">{f.model_material_type || "N/A"}</span></p>
-                  <p className="text-xs text-gray-500 flex justify-between"><span>Material (var):</span> <span className="font-medium text-gray-700">{f.material_type || "N/A"}</span></p>
-                  <p className="text-xs text-gray-500 flex justify-between"><span>Color:</span> <span className="font-medium text-gray-700">{f.color || "N/A"}</span></p>
+                  <p className="text-xs text-gray-500 flex justify-between"><span>Material:</span> <span className="font-medium text-gray-700">{f.material_type || "N/A"}</span></p>
                   <p className="text-xs text-gray-500 flex justify-between"><span>Tiempo Impresión:</span> <span className="font-medium text-gray-700">{f.estimated_print_time || "N/A"}</span></p>
                 </div>
-                <button 
-                  onClick={async (e) => {
-                    e.preventDefault();
-                    if (!f.file_url) return;
-                    
-                    const { data: { user } } = await supabase.auth.getUser();
-                    if (user) {
-                      await supabase.from("stl_downloads").upsert({
-                        user_id: user.id,
-                        variant_id: f.id
-                      }, { onConflict: 'user_id, variant_id' });
-                    }
-                    
-                    try {
-                      const accessUrl = await getFileAccessUrl(supabase, f.file_url);
-                      if (accessUrl) {
-                        window.open(accessUrl, "_blank");
-                      }
-                    } catch (e) {
-                      console.error("Error al abrir archivo STL:", e);
-                    }
-                  }}
-                  className="mt-auto flex w-full items-center justify-center gap-1.5 rounded-lg bg-gray-900 py-2.5 text-xs font-semibold text-white hover:bg-gray-800 transition-colors"
-                >
-                  <Download size={14} /> Descargar
-                </button>
+                
+                {(() => {
+                  const activeVariant = f.variants?.find((v: any) => v.is_active && v.file_url);
+                  if (activeVariant) {
+                    return (
+                      <button 
+                        onClick={async (e) => {
+                          e.preventDefault();
+                          const { data: { user } } = await supabase.auth.getUser();
+                          if (user) {
+                            await supabase.from("stl_downloads").upsert({
+                              user_id: user.id,
+                              variant_id: activeVariant.id
+                            }, { onConflict: 'user_id, variant_id' });
+                          }
+                          
+                          try {
+                            const accessUrl = await getFileAccessUrl(supabase, activeVariant.file_url);
+                            if (accessUrl) {
+                              window.open(accessUrl, "_blank");
+                            }
+                          } catch (e) {
+                            console.error("Error al abrir archivo STL:", e);
+                          }
+                        }}
+                        className="mt-auto flex w-full items-center justify-center gap-1.5 rounded-lg bg-gray-900 py-2.5 text-xs font-semibold text-white hover:bg-gray-800 transition-colors"
+                      >
+                        <Download size={14} /> Descargar
+                      </button>
+                    );
+                  } else {
+                    return (
+                      <button 
+                        disabled
+                        className="mt-auto flex w-full items-center justify-center gap-1.5 rounded-lg bg-gray-200 py-2.5 text-xs font-semibold text-gray-400 cursor-not-allowed"
+                      >
+                        Archivo pendiente
+                      </button>
+                    );
+                  }
+                })()}
               </div>
             </Card>
           ))}
