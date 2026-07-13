@@ -45,7 +45,10 @@ export default function LibreriaStlPage() {
       return {
         ...variant,
         model_title: model?.title || "Modelo Desconocido",
-        category_id: model?.category_id
+        category_id: model?.category_id,
+        difficulty: model?.difficulty || "beginner",
+        estimated_print_time: model?.estimated_print_time || "",
+        model_material_type: model?.material_type || ""
       };
     });
   }, [models, variants]);
@@ -100,8 +103,12 @@ export default function LibreriaStlPage() {
   const catInfo = categories.find((c) => c.id === selectedCatId);
   const title = catInfo ? catInfo.name : query ? `Búsqueda: ${query}` : "Librería STL";
 
-
-
+  const translateDifficulty = (diff: string) => {
+    if (diff === "beginner") return "Fácil";
+    if (diff === "intermediate") return "Medio";
+    if (diff === "advanced") return "Difícil";
+    return diff;
+  };
   return (
     <div>
       <button
@@ -137,13 +144,18 @@ export default function LibreriaStlPage() {
                 ) : (
                   <Boxes size={48} className="text-gray-300" />
                 )}
+                <div className="absolute right-2 top-2">
+                  <Badge tone="dark">{translateDifficulty(f.difficulty)}</Badge>
+                </div>
               </div>
               <div className="p-4 flex flex-col flex-1">
                 <p className="text-[10px] font-semibold text-orange-500 uppercase tracking-wider mb-1 truncate">{f.model_title}</p>
                 <p className="font-bold text-gray-900 text-sm leading-tight mb-2 line-clamp-2">{f.title}</p>
                 <div className="mt-auto space-y-1 mb-3">
-                  <p className="text-xs text-gray-500 flex justify-between"><span>Material:</span> <span className="font-medium text-gray-700">{f.material_type || "N/A"}</span></p>
+                  <p className="text-xs text-gray-500 flex justify-between"><span>Material (mod):</span> <span className="font-medium text-gray-700">{f.model_material_type || "N/A"}</span></p>
+                  <p className="text-xs text-gray-500 flex justify-between"><span>Material (var):</span> <span className="font-medium text-gray-700">{f.material_type || "N/A"}</span></p>
                   <p className="text-xs text-gray-500 flex justify-between"><span>Color:</span> <span className="font-medium text-gray-700">{f.color || "N/A"}</span></p>
+                  <p className="text-xs text-gray-500 flex justify-between"><span>Tiempo Impresión:</span> <span className="font-medium text-gray-700">{f.estimated_print_time || "N/A"}</span></p>
                 </div>
                 <button 
                   onClick={async (e) => {
