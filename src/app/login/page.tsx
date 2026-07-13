@@ -75,7 +75,7 @@ export default function LoginPage() {
                   required
                   value={email}
                   onChange={(e) => setEmail(e.target.value)}
-                  className="block w-full rounded-lg border-gray-300 pl-10 focus:border-blue-500 focus:ring-blue-500 sm:text-sm py-3"
+                  className="block w-full rounded-lg border-gray-300 pl-10 focus:border-orange-500 focus:ring-orange-500 sm:text-sm py-3"
                   placeholder="tu@email.com"
                 />
               </div>
@@ -99,7 +99,7 @@ export default function LoginPage() {
                   required
                   value={password}
                   onChange={(e) => setPassword(e.target.value)}
-                  className="block w-full rounded-lg border-gray-300 pl-10 focus:border-blue-500 focus:ring-blue-500 sm:text-sm py-3"
+                  className="block w-full rounded-lg border-gray-300 pl-10 focus:border-orange-500 focus:ring-orange-500 sm:text-sm py-3"
                   placeholder="••••••••"
                 />
               </div>
@@ -117,7 +117,15 @@ export default function LoginPage() {
           </div>
         </form>
 
-        <div className="text-center">
+        <div className="text-center space-y-3">
+          <p className="text-sm">
+            <Link
+              href="/recuperar-password"
+              className="font-medium text-orange-600 hover:text-orange-500"
+            >
+              ¿Olvidaste tu contraseña?
+            </Link>
+          </p>
           <p className="text-sm text-gray-600">
             ¿No tenés cuenta?{" "}
             <Link
