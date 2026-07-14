@@ -1,9 +1,11 @@
 "use client";
 
-import React from "react";
+import React, { useState, useEffect } from "react";
 import { usePathname } from "next/navigation";
 import { Menu, Search, Bell, ChevronDown } from "lucide-react";
 import { COURSES } from "@/data/mock-data";
+import { createClient } from "@/utils/supabase/client";
+import Link from "next/link";
 
 interface HeaderProps {
   setMobileOpen: (open: boolean) => void;
@@ -28,6 +30,48 @@ const PAGE_TITLES: Record<string, string> = {
 
 export function Header({ setMobileOpen }: HeaderProps) {
   const pathname = usePathname();
+  const supabase = createClient();
+  const [profile, setProfile] = useState<any>(null);
+
+  useEffect(() => {
+    async function loadProfile() {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) return;
+
+      const { data } = await supabase
+        .from("profiles")
+        .select("full_name, display_name, email, avatar_url, member_level, membership_status")
+        .eq("id", user.id)
+        .single();
+      
+      if (data) {
+        setProfile(data);
+      }
+    }
+    loadProfile();
+  }, [supabase]);
+
+  const getInitials = () => {
+    const name = profile?.full_name || profile?.display_name || profile?.email || "U";
+    const parts = name.trim().split(/\s+/);
+    if (parts.length >= 2) {
+      return (parts[0][0] + parts[1][0]).toUpperCase();
+    }
+    return name.substring(0, 2).toUpperCase();
+  };
+
+  const getMemberLevelLabel = () => {
+    if (!profile) return "Miembro";
+    if (profile.membership_status !== "active") return "Membresía inactiva";
+    
+    switch (profile.member_level) {
+      case "bronze": return "Miembro Bronce";
+      case "silver": return "Miembro Silver";
+      case "gold": return "Miembro Gold";
+      case "elite": return "Miembro Elite";
+      default: return "Miembro";
+    }
+  };
 
   // Resolve title based on pathname
   let title = PAGE_TITLES[pathname] || "";
@@ -67,16 +111,24 @@ export function Header({ setMobileOpen }: HeaderProps) {
         <span className="absolute right-2 top-2 h-1.5 w-1.5 rounded-full bg-orange-500" />
       </button>
 
-      <button className="flex items-center gap-2 rounded-xl py-1 pl-1 pr-2 hover:bg-gray-50">
-        <div className="flex h-8 w-8 items-center justify-center rounded-full bg-orange-100 text-sm font-bold text-orange-600">
-          MJ
-        </div>
+      <Link href="/perfil" className="flex items-center gap-2 rounded-xl py-1 pl-1 pr-2 hover:bg-gray-50">
+        {profile?.avatar_url ? (
+          <img src={profile.avatar_url} alt="Avatar" className="h-8 w-8 rounded-full object-cover" />
+        ) : (
+          <div className="flex h-8 w-8 items-center justify-center rounded-full bg-orange-100 text-sm font-bold text-orange-600">
+            {getInitials()}
+          </div>
+        )}
         <div className="hidden text-left sm:block">
-          <p className="text-xs font-semibold leading-none text-gray-900">Marcos Juárez</p>
-          <p className="mt-0.5 text-[11px] leading-none text-gray-400">Miembro Premium</p>
+          <p className="text-xs font-semibold leading-none text-gray-900">
+            {profile?.full_name || profile?.display_name || profile?.email || "Mi perfil"}
+          </p>
+          <p className="mt-0.5 text-[11px] leading-none text-gray-400">
+            {getMemberLevelLabel()}
+          </p>
         </div>
         <ChevronDown size={14} className="hidden text-gray-400 sm:block" />
-      </button>
+      </Link>
     </header>
   );
 }
