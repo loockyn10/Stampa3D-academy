@@ -2,11 +2,12 @@
 
 import React, { useState, useEffect, useMemo } from "react";
 import Link from "next/link";
-import { Zap, DollarSign, Loader2, AlertCircle, Settings } from "lucide-react";
+import { Zap, DollarSign, Loader2, AlertCircle, Settings, Save, X, PackagePlus, CheckCircle2 } from "lucide-react";
 import { Card } from "@/components/ui/card";
 import { GhostButton } from "@/components/ui/button";
 import { SectionTitle } from "@/components/ui/section-title";
 import { createClient } from "@/utils/supabase/client";
+import { FileUploadDropzone } from "@/components/ui/file-upload-dropzone";
 
 interface NumberFieldProps {
   label: string;
@@ -40,6 +41,7 @@ export default function CalculadoraPage() {
   const supabase = createClient();
   const [advanced, setAdvanced] = useState(false);
   const [loading, setLoading] = useState(true);
+  const [userId, setUserId] = useState<string | null>(null);
 
   // User Data
   const [filaments, setFilaments] = useState<any[]>([]);
@@ -71,6 +73,18 @@ export default function CalculadoraPage() {
   const [manualPlatformExtra, setManualPlatformExtra] = useState(0);
   const [shippingCost, setShippingCost] = useState(0);
 
+  // Save as product modal
+  const [showSaveModal, setShowSaveModal] = useState(false);
+  const [savingProduct, setSavingProduct] = useState(false);
+  const [saveSuccess, setSaveSuccess] = useState(false);
+  const [saveError, setSaveError] = useState<string | null>(null);
+  const [productForm, setProductForm] = useState({
+    name: "",
+    description: "",
+    stock_quantity: 0,
+    image_url: "",
+  });
+
   useEffect(() => {
     fetchData();
   }, []);
@@ -82,6 +96,7 @@ export default function CalculadoraPage() {
       setLoading(false);
       return;
     }
+    setUserId(user.id);
 
     const [fRes, pRes, mRes, sRes] = await Promise.all([
       supabase.from("filaments").select("*").eq("user_id", user.id).eq("is_active", true),
@@ -124,7 +139,12 @@ export default function CalculadoraPage() {
   useEffect(() => {
     // When selected items change, update manual overrides to defaults
     const fil = filaments.find(f => f.id === selectedFilamentId);
-    if (fil) setManualPricePerKg(fil.purchase_price / (fil.total_grams / 1000) || 0);
+    if (fil) {
+      const totalGrams = fil.total_grams || 0;
+      if (totalGrams > 0) {
+        setManualPricePerKg((fil.purchase_price / totalGrams) * 1000);
+      }
+    }
 
     const pri = printers.find(p => p.id === selectedPrinterId);
     if (pri) {
@@ -170,7 +190,8 @@ export default function CalculadoraPage() {
     const profit = normalPrice - baseCost;
 
     return {
-      materialCost, energyCost, printerCost, fixedCost, baseCost, normalPrice, mlPrice, profit
+      materialCost, energyCost, printerCost, fixedCost, baseCost, normalPrice, mlPrice, profit,
+      weightWithError, totalHours
     };
   }, [
     weight, manualErrorPercent, manualPricePerKg,
@@ -178,11 +199,89 @@ export default function CalculadoraPage() {
     laborCost, otherCost, fixedCost, manualMultiplier, manualPlatformExtra, manualPlatformCommission, shippingCost
   ]);
 
+  const handleSaveAsProduct = async () => {
+    if (!productForm.name.trim()) {
+      setSaveError("El nombre del producto es obligatorio.");
+      return;
+    }
+    if (!userId) {
+      setSaveError("Debes estar logueado para guardar productos.");
+      return;
+    }
+
+    setSavingProduct(true);
+    setSaveError(null);
+
+    const selectedFilament = filaments.find(f => f.id === selectedFilamentId);
+    const selectedPrinter = printers.find(p => p.id === selectedPrinterId);
+    const selectedMultiplier = multipliers.find(m => m.id === selectedMultiplierId);
+
+    const snapshot = {
+      source: "calculator",
+      mode: advanced ? "advanced" : "basic",
+      grams: weight,
+      grams_with_error: calc.weightWithError,
+      error_percent: manualErrorPercent,
+      print_time_minutes: (hours * 60) + minutes,
+      material_cost: calc.materialCost,
+      electricity_cost: calc.energyCost,
+      maintenance_cost: calc.printerCost,
+      fixed_cost: calc.fixedCost,
+      labor_cost: laborCost,
+      other_costs: otherCost,
+      base_cost: calc.baseCost,
+      multiplier: manualMultiplier,
+      sale_price: calc.normalPrice,
+      profit: calc.profit,
+      filament_id: selectedFilamentId || null,
+      filament_name: selectedFilament?.name || null,
+      printer_id: selectedPrinterId || null,
+      printer_name: selectedPrinter?.name || null,
+      product_type_id: selectedMultiplierId || null,
+      product_type_name: selectedMultiplier?.name || null,
+    };
+
+    const payload = {
+      user_id: userId,
+      name: productForm.name.trim(),
+      description: productForm.description || null,
+      image_url: productForm.image_url || null,
+      filament_id: selectedFilamentId || null,
+      product_type_id: selectedMultiplierId || null,
+      printer_id: selectedPrinterId || null,
+      grams: weight,
+      print_time_minutes: (hours * 60) + minutes,
+      base_cost: calc.baseCost,
+      sale_price: calc.normalPrice,
+      stock_quantity: productForm.stock_quantity || 0,
+      calculation_snapshot: snapshot,
+      cost_updated_at: new Date().toISOString(),
+      is_active: true,
+    };
+
+    const { error } = await supabase.from("products").insert([payload]);
+    if (error) {
+      console.error("Error guardando producto:", error);
+      setSaveError(error.message);
+    } else {
+      setSaveSuccess(true);
+    }
+    setSavingProduct(false);
+  };
+
+  const openSaveModal = () => {
+    setProductForm({ name: "", description: "", stock_quantity: 0, image_url: "" });
+    setSaveError(null);
+    setSaveSuccess(false);
+    setShowSaveModal(true);
+  };
+
   if (loading) {
     return <div className="py-24 flex justify-center"><Loader2 className="animate-spin h-8 w-8 text-orange-500" /></div>;
   }
 
   const missingData = filaments.length === 0 || printers.length === 0 || multipliers.length === 0;
+  const hasValidCalc = calc.baseCost > 0 && calc.normalPrice > 0;
 
   return (
     <div>
@@ -231,7 +330,11 @@ export default function CalculadoraPage() {
                   onChange={(e) => setSelectedFilamentId(e.target.value)} 
                   className="w-full text-sm rounded-xl border border-gray-200 bg-gray-50 py-2.5 px-3 text-gray-900 outline-none focus:border-orange-500 focus:bg-white focus:ring-2 focus:ring-orange-100"
                 >
-                  {filaments.map(f => <option key={f.id} value={f.id}>{f.name} ({f.color})</option>)}
+                  {filaments.map(f => (
+                    <option key={f.id} value={f.id}>
+                      {f.name}{f.color ? ` (${f.color})` : ""}
+                    </option>
+                  ))}
                 </select>
               </label>
               <NumberField label="Gramos de la pieza" value={weight} onChange={setWeight} suffix="g" />
@@ -301,6 +404,18 @@ export default function CalculadoraPage() {
             )}
           </div>
 
+          {/* GUARDAR COMO PRODUCTO */}
+          {hasValidCalc && (
+            <div className="border-t border-gray-100 pt-4">
+              <button
+                onClick={openSaveModal}
+                className="w-full flex items-center justify-center gap-2 px-4 py-3 rounded-xl bg-orange-500 hover:bg-orange-600 text-white text-sm font-bold transition-colors"
+              >
+                <PackagePlus size={16} /> Guardar como producto
+              </button>
+            </div>
+          )}
+
         </Card>
 
         <Card className="h-fit p-5 border-orange-200 shadow-md bg-gradient-to-b from-white to-orange-50/30">
@@ -345,22 +460,142 @@ export default function CalculadoraPage() {
               <p className="text-xl font-black text-emerald-600">${calc.normalPrice.toFixed(2)}</p>
             </div>
 
+            <div className="flex items-center justify-between bg-emerald-50 px-3 py-2 rounded-lg">
+              <p className="text-xs font-bold text-emerald-700">Ganancia Estimada</p>
+              <p className="text-sm font-bold text-emerald-700">${calc.profit.toFixed(2)}</p>
+            </div>
+
             {advanced && (
-              <div className="flex items-center justify-between bg-emerald-50 px-3 py-2 rounded-lg">
-                <p className="text-xs font-bold text-emerald-700">Ganancia Estimada</p>
-                <p className="text-sm font-bold text-emerald-700">${calc.profit.toFixed(2)}</p>
+              <div className="mt-4 rounded-xl bg-orange-100 p-4 border border-orange-200">
+                <p className="text-xs font-bold text-orange-900 opacity-80 mb-1">PRECIO MERCADO LIBRE</p>
+                <p className="text-2xl font-black text-orange-600">${calc.mlPrice.toFixed(2)}</p>
+                <p className="text-[10px] text-orange-800 mt-1">Incluye comisiones, extras y envíos.</p>
               </div>
             )}
-
-            <div className="mt-4 rounded-xl bg-orange-100 p-4 border border-orange-200">
-              <p className="text-xs font-bold text-orange-900 opacity-80 mb-1">PRECIO MERCADO LIBRE</p>
-              <p className="text-2xl font-black text-orange-600">${calc.mlPrice.toFixed(2)}</p>
-              {advanced && <p className="text-[10px] text-orange-800 mt-1">Incluye comisiones, extras y envíos.</p>}
-            </div>
 
           </div>
         </Card>
       </div>
+
+      {/* MODAL: GUARDAR COMO PRODUCTO */}
+      {showSaveModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4">
+          <div className="bg-white w-full max-w-md rounded-2xl shadow-2xl overflow-hidden">
+            <div className="flex items-center justify-between px-6 py-4 border-b border-gray-100">
+              <h3 className="font-bold text-gray-900 flex items-center gap-2">
+                <PackagePlus size={18} className="text-orange-500" /> Guardar como producto
+              </h3>
+              <button onClick={() => setShowSaveModal(false)} className="text-gray-400 hover:text-gray-700">
+                <X size={20} />
+              </button>
+            </div>
+
+            {saveSuccess ? (
+              <div className="p-8 text-center">
+                <CheckCircle2 size={48} className="text-green-500 mx-auto mb-3" />
+                <p className="font-bold text-gray-900 text-lg mb-1">¡Producto guardado!</p>
+                <p className="text-sm text-gray-500 mb-6">El producto fue agregado a tu catálogo.</p>
+                <div className="flex gap-3 justify-center">
+                  <Link href="/productos" className="px-4 py-2 bg-orange-500 text-white rounded-lg text-sm font-bold hover:bg-orange-600">
+                    Ver productos
+                  </Link>
+                  <button onClick={() => setShowSaveModal(false)} className="px-4 py-2 border border-gray-200 text-gray-600 rounded-lg text-sm font-bold hover:bg-gray-50">
+                    Seguir calculando
+                  </button>
+                </div>
+              </div>
+            ) : (
+              <div className="p-6 space-y-4">
+                {/* Resumen del cálculo */}
+                <div className="bg-gray-50 p-3 rounded-xl border border-gray-100 grid grid-cols-3 gap-2 text-center text-xs">
+                  <div>
+                    <p className="font-bold text-gray-900">${calc.baseCost.toFixed(2)}</p>
+                    <p className="text-gray-400">Costo Base</p>
+                  </div>
+                  <div>
+                    <p className="font-bold text-orange-600">${calc.normalPrice.toFixed(2)}</p>
+                    <p className="text-gray-400">Precio Venta</p>
+                  </div>
+                  <div>
+                    <p className="font-bold text-emerald-600">${calc.profit.toFixed(2)}</p>
+                    <p className="text-gray-400">Ganancia</p>
+                  </div>
+                </div>
+
+                <div>
+                  <label className="block text-xs font-semibold text-gray-700 mb-1">Nombre del producto *</label>
+                  <input
+                    type="text"
+                    value={productForm.name}
+                    onChange={(e) => setProductForm(prev => ({ ...prev, name: e.target.value }))}
+                    className="w-full text-sm border-gray-300 rounded-lg px-3 py-2 focus:border-orange-500 focus:ring-1 focus:ring-orange-500 text-gray-900 bg-white"
+                    placeholder="Ej. Maceta geométrica 15cm"
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-xs font-semibold text-gray-700 mb-1">Descripción (Opcional)</label>
+                  <textarea
+                    value={productForm.description}
+                    onChange={(e) => setProductForm(prev => ({ ...prev, description: e.target.value }))}
+                    rows={2}
+                    className="w-full text-sm border-gray-300 rounded-lg px-3 py-2 focus:border-orange-500 focus:ring-1 focus:ring-orange-500 text-gray-900 bg-white"
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-xs font-semibold text-gray-700 mb-1">Stock inicial</label>
+                  <input
+                    type="number"
+                    min="0"
+                    value={productForm.stock_quantity}
+                    onChange={(e) => setProductForm(prev => ({ ...prev, stock_quantity: parseInt(e.target.value) || 0 }))}
+                    className="w-full text-sm border-gray-300 rounded-lg px-3 py-2 focus:border-orange-500 focus:ring-1 focus:ring-orange-500 text-gray-900 bg-white"
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-xs font-semibold text-gray-700 mb-1">Imagen del producto (Opcional)</label>
+                  <FileUploadDropzone
+                    bucket="product-images"
+                    pathPrefix={`${userId}/products`}
+                    accept=".jpg,.jpeg,.png,.webp"
+                    publicBucket={true}
+                    onUploaded={(url) => setProductForm(prev => ({ ...prev, image_url: url }))}
+                    label="Subir imagen"
+                  />
+                  {productForm.image_url && (
+                    <div className="mt-2 flex items-center gap-2">
+                      <img src={productForm.image_url} alt="Preview" className="h-12 w-12 rounded-lg object-cover border border-gray-200" />
+                      <span className="text-xs text-gray-500 truncate">{productForm.image_url}</span>
+                    </div>
+                  )}
+                </div>
+
+                {saveError && (
+                  <div className="bg-red-50 text-red-600 p-3 rounded-lg text-xs border border-red-100 flex items-center gap-2">
+                    <AlertCircle size={14} /> {saveError}
+                  </div>
+                )}
+
+                <div className="flex justify-end gap-2 pt-2">
+                  <button onClick={() => setShowSaveModal(false)} className="px-4 py-2 text-sm font-bold text-gray-600 hover:bg-gray-100 rounded-lg">
+                    Cancelar
+                  </button>
+                  <button
+                    onClick={handleSaveAsProduct}
+                    disabled={savingProduct}
+                    className="flex items-center gap-2 px-4 py-2 text-sm font-bold bg-orange-500 hover:bg-orange-600 text-white rounded-lg disabled:opacity-60"
+                  >
+                    {savingProduct ? <Loader2 size={14} className="animate-spin" /> : <Save size={14} />}
+                    Guardar Producto
+                  </button>
+                </div>
+              </div>
+            )}
+          </div>
+        </div>
+      )}
     </div>
   );
 }

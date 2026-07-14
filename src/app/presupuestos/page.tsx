@@ -138,13 +138,18 @@ export default function PresupuestosPage() {
   const handleAddItem = () => {
     if (products.length === 0) return alert("No tienes productos activos para agregar.");
     const p = products[0];
+    const unitBaseCost = p.base_cost || 0;
+    const unitProfit = (p.sale_price || 0) - unitBaseCost;
     setBudgetItems([...budgetItems, {
       id: "temp-" + Date.now(),
       product_id: p.id,
       item_name: p.name,
       quantity: 1,
       unit_price: p.sale_price || 0,
-      subtotal: p.sale_price || 0
+      subtotal: p.sale_price || 0,
+      unit_base_cost: unitBaseCost,
+      unit_profit: unitProfit,
+      total_profit: unitProfit,
     }]);
   };
 
@@ -157,18 +162,26 @@ export default function PresupuestosPage() {
     if (field === "product_id") {
       const p = products.find(prod => prod.id === value);
       if (p) {
+        const unitBaseCost = p.base_cost || 0;
+        const unitProfit = (p.sale_price || 0) - unitBaseCost;
+        const qty = newItems[index].quantity || 1;
         newItems[index] = { 
           ...newItems[index], 
           product_id: p.id, 
           item_name: p.name, 
           unit_price: p.sale_price || 0,
-          subtotal: (p.sale_price || 0) * newItems[index].quantity
+          subtotal: (p.sale_price || 0) * qty,
+          unit_base_cost: unitBaseCost,
+          unit_profit: unitProfit,
+          total_profit: unitProfit * qty,
         };
       }
     } else if (field === "quantity") {
       const qty = parseInt(value) || 1;
       newItems[index].quantity = qty;
       newItems[index].subtotal = qty * newItems[index].unit_price;
+      const unitProfit = newItems[index].unit_profit || 0;
+      newItems[index].total_profit = unitProfit * qty;
     } else if (field === "unit_price") {
       const price = parseFloat(value) || 0;
       newItems[index].unit_price = price;
@@ -180,6 +193,7 @@ export default function PresupuestosPage() {
   };
 
   const subtotal = budgetItems.reduce((acc, item) => acc + (item.subtotal || 0), 0);
+  const estimatedProfit = budgetItems.reduce((acc, item) => acc + (item.total_profit || 0), 0);
   const discountPercent = parseFloat(String(formData.discount_percent)) || 0;
   const discountAmount = subtotal * (discountPercent / 100);
   const total = Math.max(0, subtotal - discountAmount);
@@ -228,7 +242,10 @@ export default function PresupuestosPage() {
       item_name: item.item_name,
       quantity: item.quantity,
       unit_price: item.unit_price,
-      subtotal: item.subtotal
+      subtotal: item.subtotal,
+      unit_base_cost: item.unit_base_cost ?? null,
+      unit_profit: item.unit_profit ?? null,
+      total_profit: item.total_profit ?? null,
     }));
 
     const { error: itemsError } = await supabase.from("budget_items").insert(itemsPayload);
@@ -695,6 +712,12 @@ export default function PresupuestosPage() {
                     {discountPercent}% {discountPercent > 0 ? `(-$${discountAmount.toFixed(2)})` : ""}
                   </span>
                 </div>
+                {estimatedProfit > 0 && (
+                  <div className="flex justify-between items-center text-sm bg-emerald-50 px-2 py-1.5 rounded-lg border border-emerald-100">
+                    <span className="text-emerald-700 font-semibold">Ganancia estimada</span>
+                    <span className="text-emerald-700 font-bold">${estimatedProfit.toFixed(2)}</span>
+                  </div>
+                )}
                 <div className="border-t border-gray-200 pt-2 flex justify-between items-center">
                   <span className="text-lg font-bold text-gray-900">TOTAL</span>
                   <span className="text-2xl font-black text-orange-600">${total.toFixed(2)}</span>

@@ -1,11 +1,10 @@
 "use client";
 
 import React, { useState, useEffect } from "react";
-import { Plus, Pencil, Copy, Trash2, Loader2, Save, X, AlertCircle } from "lucide-react";
+import { Plus, Pencil, Copy, Trash2, Loader2, Save, X, AlertCircle, RefreshCw, TrendingUp, TrendingDown, Minus, ChevronDown, ChevronUp, History } from "lucide-react";
 import { Card } from "@/components/ui/card";
 import { PrimaryButton, GhostButton } from "@/components/ui/button";
 import { SectionTitle } from "@/components/ui/section-title";
-import { SpoolDot } from "@/components/common/spool-dot";
 import { createClient } from "@/utils/supabase/client";
 import { FileUploadDropzone } from "@/components/ui/file-upload-dropzone";
 
@@ -13,8 +12,11 @@ export default function ProductosPage() {
   const supabase = createClient();
   const [products, setProducts] = useState<any[]>([]);
   const [filaments, setFilaments] = useState<any[]>([]);
+  const [printers, setPrinters] = useState<any[]>([]);
+  const [productTypes, setProductTypes] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [userId, setUserId] = useState<string | null>(null);
 
   const [editingId, setEditingId] = useState<string | null>(null);
   const [formData, setFormData] = useState({
@@ -31,6 +33,18 @@ export default function ProductosPage() {
     is_active: true,
   });
 
+  // Recalculate modal state
+  const [recalcProductId, setRecalcProductId] = useState<string | null>(null);
+  const [recalcData, setRecalcData] = useState<{ currentSalePrice: number; recommendedSalePrice: number; recommendedBaseCost: number; breakdown: any } | null>(null);
+  const [recalcLoading, setRecalcLoading] = useState(false);
+  const [recalcSaving, setRecalcSaving] = useState(false);
+  const [recalcError, setRecalcError] = useState<string | null>(null);
+
+  // Price history
+  const [historyProductId, setHistoryProductId] = useState<string | null>(null);
+  const [priceHistory, setPriceHistory] = useState<any[]>([]);
+  const [historyLoading, setHistoryLoading] = useState(false);
+
   useEffect(() => {
     fetchData();
   }, []);
@@ -39,17 +53,21 @@ export default function ProductosPage() {
     setLoading(true);
     const { data: { user } } = await supabase.auth.getUser();
     if (!user) return;
+    setUserId(user.id);
 
-    const [prodRes, filRes] = await Promise.all([
+    const [prodRes, filRes, priRes, ptRes] = await Promise.all([
       supabase.from("products").select("*, filaments(name, color)").eq("user_id", user.id).order("created_at", { ascending: false }),
-      supabase.from("filaments").select("*").eq("user_id", user.id).eq("is_active", true)
+      supabase.from("filaments").select("*").eq("user_id", user.id).eq("is_active", true),
+      supabase.from("printers").select("*").eq("user_id", user.id).eq("is_active", true),
+      supabase.from("calculator_product_types").select("*").eq("user_id", user.id).eq("is_active", true)
     ]);
 
     if (prodRes.error) setError(prodRes.error.message);
     else setProducts(prodRes.data || []);
     
-    if (filRes.error) console.error(filRes.error);
-    else setFilaments(filRes.data || []);
+    if (!filRes.error) setFilaments(filRes.data || []);
+    if (!priRes.error) setPrinters(priRes.data || []);
+    if (!ptRes.error) setProductTypes(ptRes.data || []);
 
     setLoading(false);
   };
@@ -71,6 +89,8 @@ export default function ProductosPage() {
       sale_price: p.sale_price || 0, stock_quantity: p.stock_quantity || 0, is_active: p.is_active
     });
     setEditingId(p.id);
+    // Load price history for this product
+    loadPriceHistory(p.id);
   };
 
   const handleDelete = async (id: string) => {
@@ -152,13 +172,177 @@ export default function ProductosPage() {
         if (selectedFilament && selectedFilament.total_grams > 0) {
           const g = parseFloat(String(nextData.grams)) || 0;
           const estimatedCost = g * (selectedFilament.purchase_price / selectedFilament.total_grams);
-          if (nextData.base_cost === 0 || name === "grams") { // Auto suggest if cost is 0 or updating grams directly
+          if (nextData.base_cost === 0 || name === "grams") {
              nextData.base_cost = parseFloat(estimatedCost.toFixed(2));
           }
         }
       }
       return nextData;
     });
+  };
+
+  // -------- RECALCULATE PRICE --------
+  const handleRecalculate = async (product: any) => {
+    setRecalcProductId(product.id);
+    setRecalcData(null);
+    setRecalcError(null);
+    setRecalcLoading(true);
+
+    // Try to get filament data
+    const filament = filaments.find(f => f.id === product.filament_id);
+    
+    // Check snapshot for more context
+    const snap = product.calculation_snapshot;
+    const printerId = snap?.printer_id || product.printer_id || null;
+    const productTypeId = snap?.product_type_id || product.product_type_id || null;
+    
+    const printer = printers.find(p => p.id === printerId);
+    const productType = productTypes.find(pt => pt.id === productTypeId);
+
+    // Get settings
+    const { data: settingsData } = await supabase
+      .from("calculator_settings")
+      .select("*")
+      .eq("user_id", product.user_id)
+      .single();
+
+    const errorPercent = snap?.error_percent || 5;
+    const totalHours = (product.print_time_minutes || 0) / 60;
+    const grams = product.grams || 0;
+    const errorMultiplier = 1 + (errorPercent / 100);
+    const weightWithError = grams * errorMultiplier;
+
+    // Compute costs
+    let materialCost = 0;
+    if (filament && filament.total_grams > 0) {
+      const costPerGram = filament.purchase_price / filament.total_grams;
+      materialCost = weightWithError * costPerGram;
+    }
+
+    const kwhPrice = settingsData?.electricity_price_kwh || snap?.kwhPrice || 0;
+    const powerWatts = printer?.power_watts || snap?.printer_consumption_watts || 0;
+    const maintenanceCostPerHour = printer?.maintenance_cost_per_hour || snap?.maintenance_cost_per_hour || 0;
+    const energyCost = totalHours * (powerWatts / 1000) * kwhPrice;
+    const printerCost = totalHours * maintenanceCostPerHour;
+    const fixedCost = productType?.fixed_cost || snap?.fixed_cost || 0;
+    const laborCost = snap?.labor_cost || 0;
+    const otherCosts = snap?.other_costs || 0;
+
+    const baseCost = materialCost + energyCost + printerCost + fixedCost + laborCost + otherCosts;
+    const multiplier = productType?.multiplier || snap?.multiplier || 1;
+    const recommendedSalePrice = baseCost * multiplier;
+
+    if (baseCost <= 0) {
+      setRecalcError(
+        "No hay suficiente información para recalcular. Asegurate de que el producto tenga filamento, impresora y tipo de producto configurados, o usa la calculadora."
+      );
+      setRecalcLoading(false);
+      return;
+    }
+
+    setRecalcData({
+      currentSalePrice: product.sale_price || 0,
+      recommendedSalePrice: parseFloat(recommendedSalePrice.toFixed(2)),
+      recommendedBaseCost: parseFloat(baseCost.toFixed(2)),
+      breakdown: {
+        materialCost: parseFloat(materialCost.toFixed(2)),
+        energyCost: parseFloat(energyCost.toFixed(2)),
+        printerCost: parseFloat(printerCost.toFixed(2)),
+        fixedCost: parseFloat(fixedCost.toFixed(2)),
+        laborCost: parseFloat(laborCost.toFixed(2)),
+        otherCosts: parseFloat(otherCosts.toFixed(2)),
+        multiplier,
+      }
+    });
+    setRecalcLoading(false);
+  };
+
+  const handleConfirmRecalc = async () => {
+    if (!recalcProductId || !recalcData || !userId) return;
+    setRecalcSaving(true);
+
+    const product = products.find(p => p.id === recalcProductId);
+    if (!product) { setRecalcSaving(false); return; }
+
+    // Try to save history (if table exists), fail silently if not
+    const historyPayload = {
+      product_id: recalcProductId,
+      user_id: userId,
+      old_base_cost: product.base_cost,
+      old_sale_price: product.sale_price,
+      new_base_cost: recalcData.recommendedBaseCost,
+      new_sale_price: recalcData.recommendedSalePrice,
+      source: "manual_recalculate",
+      changed_at: new Date().toISOString(),
+    };
+    await supabase.from("product_price_history").insert([historyPayload]);
+    // ^^ No error handling - fail silently if table doesn't exist
+
+    // Update the product
+    const { data, error } = await supabase
+      .from("products")
+      .update({
+        base_cost: recalcData.recommendedBaseCost,
+        sale_price: recalcData.recommendedSalePrice,
+        cost_updated_at: new Date().toISOString(),
+      })
+      .eq("id", recalcProductId)
+      .select("*, filaments(name, color)")
+      .single();
+
+    if (error) {
+      // If cost_updated_at doesn't exist, retry without it
+      const { data: data2, error: error2 } = await supabase
+        .from("products")
+        .update({
+          base_cost: recalcData.recommendedBaseCost,
+          sale_price: recalcData.recommendedSalePrice,
+        })
+        .eq("id", recalcProductId)
+        .select("*, filaments(name, color)")
+        .single();
+      
+      if (error2) {
+        alert("Error al actualizar: " + error2.message);
+      } else if (data2) {
+        setProducts(products.map(p => p.id === recalcProductId ? data2 : p));
+        setRecalcProductId(null);
+        setRecalcData(null);
+      }
+    } else if (data) {
+      setProducts(products.map(p => p.id === recalcProductId ? data : p));
+      setRecalcProductId(null);
+      setRecalcData(null);
+    }
+    setRecalcSaving(false);
+  };
+
+  // -------- PRICE HISTORY --------
+  const loadPriceHistory = async (productId: string) => {
+    setHistoryLoading(true);
+    setHistoryProductId(productId);
+    const { data } = await supabase
+      .from("product_price_history")
+      .select("*")
+      .eq("product_id", productId)
+      .order("changed_at", { ascending: false })
+      .limit(10);
+    setPriceHistory(data || []);
+    setHistoryLoading(false);
+  };
+
+  const formatTime = (mins: number) => {
+    if (!mins) return "0m";
+    const h = Math.floor(mins / 60);
+    const m = mins % 60;
+    if (h === 0) return `${m}m`;
+    if (m === 0) return `${h}h`;
+    return `${h}h ${m}m`;
+  };
+
+  const formatDate = (dateStr: string) => {
+    if (!dateStr) return "";
+    return new Date(dateStr).toLocaleDateString("es-AR", { day: "2-digit", month: "2-digit", year: "2-digit" });
   };
 
   if (loading) return <div className="py-24 flex justify-center"><Loader2 className="animate-spin h-8 w-8 text-orange-500" /></div>;
@@ -230,33 +414,58 @@ export default function ProductosPage() {
                 <input type="number" name="stock_quantity" value={formData.stock_quantity} onChange={handleChange} className="w-full text-sm border-gray-300 rounded-md focus:border-orange-500 focus:ring-orange-500 text-gray-900 bg-white" />
               </div>
             </div>
-                <div className="md:col-span-2">
-                  <label className="text-xs font-semibold text-gray-700">Imagen del Producto URL</label>
-                  <div className="space-y-3 mt-1">
-                    <FileUploadDropzone
-                      bucket="product-images"
-                      pathPrefix={`${products[0]?.user_id || "default"}/products`}
-                      accept=".jpg,.jpeg,.png,.webp,.svg"
-                      publicBucket={true}
-                      onUploaded={(url) => setFormData(prev => ({ ...prev, image_url: url }))}
-                      label="Subir Imagen"
-                    />
-                    <div className="flex items-center gap-2">
-                      <hr className="flex-1 border-gray-200" />
-                      <span className="text-[10px] text-gray-400 font-semibold uppercase">O URL Externa</span>
-                      <hr className="flex-1 border-gray-200" />
-                    </div>
-                    <div className="flex gap-4 items-center">
-                      <input type="text" name="image_url" value={formData.image_url} onChange={handleChange} className="flex-1 text-sm border-gray-300 rounded-lg px-3 py-2 focus:border-orange-500 focus:ring-1 focus:ring-orange-500 text-gray-900 bg-white" placeholder="https://..." />
-                      {formData.image_url && (
-                        <div className="h-12 w-12 shrink-0 rounded-lg bg-gray-100 overflow-hidden border border-gray-200">
-                          <img src={formData.image_url} alt="Producto" className="w-full h-full object-cover" />
-                        </div>
-                      )}
-                    </div>
-                  </div>
+            <div className="md:col-span-2">
+              <label className="text-xs font-semibold text-gray-700">Imagen del Producto</label>
+              <div className="space-y-3 mt-1">
+                <FileUploadDropzone
+                  bucket="product-images"
+                  pathPrefix={`${userId || "default"}/products`}
+                  accept=".jpg,.jpeg,.png,.webp,.svg"
+                  publicBucket={true}
+                  onUploaded={(url) => setFormData(prev => ({ ...prev, image_url: url }))}
+                  label="Subir Imagen"
+                />
+                <div className="flex items-center gap-2">
+                  <hr className="flex-1 border-gray-200" />
+                  <span className="text-[10px] text-gray-400 font-semibold uppercase">O URL Externa</span>
+                  <hr className="flex-1 border-gray-200" />
                 </div>
+                <div className="flex gap-4 items-center">
+                  <input type="text" name="image_url" value={formData.image_url} onChange={handleChange} className="flex-1 text-sm border-gray-300 rounded-lg px-3 py-2 focus:border-orange-500 focus:ring-1 focus:ring-orange-500 text-gray-900 bg-white" placeholder="https://..." />
+                  {formData.image_url && (
+                    <div className="h-12 w-12 shrink-0 rounded-lg bg-gray-100 overflow-hidden border border-gray-200">
+                      <img src={formData.image_url} alt="Producto" className="w-full h-full object-cover" />
+                    </div>
+                  )}
+                </div>
+              </div>
+            </div>
           </div>
+
+          {/* Historial de precios */}
+          {editingId !== "new" && historyProductId === editingId && (
+            <div className="mb-4 border border-gray-100 rounded-xl p-3">
+              <div className="flex items-center gap-2 mb-2 text-xs font-bold text-gray-600">
+                <History size={14} /> Historial de precios
+              </div>
+              {historyLoading ? (
+                <div className="flex justify-center py-3"><Loader2 size={16} className="animate-spin text-gray-400" /></div>
+              ) : priceHistory.length === 0 ? (
+                <p className="text-xs text-gray-400 text-center py-2">Sin historial de cambios de precio.</p>
+              ) : (
+                <div className="space-y-1">
+                  {priceHistory.map((h: any) => (
+                    <div key={h.id} className="flex items-center justify-between text-xs text-gray-600 py-1 border-b border-gray-50">
+                      <span className="text-gray-400">{formatDate(h.changed_at)}</span>
+                      <span className="text-red-400 line-through">${(h.old_sale_price || 0).toFixed(2)}</span>
+                      <span className="text-green-600 font-bold">${(h.new_sale_price || 0).toFixed(2)}</span>
+                      <span className="text-gray-400 capitalize">{h.source?.replace("_", " ") || "manual"}</span>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+          )}
           
           <div className="flex items-center justify-between border-t border-gray-100 pt-4">
             <div className="flex items-center gap-2">
@@ -276,14 +485,8 @@ export default function ProductosPage() {
       <div className="grid grid-cols-1 gap-5 sm:grid-cols-2 lg:grid-cols-3">
         {products.map((p) => {
           const filament = p.filaments;
-          const formatTime = (mins: number) => {
-            if (!mins) return "0m";
-            const h = Math.floor(mins / 60);
-            const m = mins % 60;
-            if (h === 0) return `${m}m`;
-            if (m === 0) return `${h}h`;
-            return `${h}h ${m}m`;
-          };
+          const profit = (p.sale_price || 0) - (p.base_cost || 0);
+          const marginPct = p.sale_price > 0 ? ((profit / p.sale_price) * 100) : 0;
 
           return (
             <Card key={p.id} className={`p-4 transition-all ${!p.is_active ? 'opacity-60 grayscale' : ''}`}>
@@ -309,7 +512,9 @@ export default function ProductosPage() {
                   </div>
                 </div>
               </div>
-              <div className="mt-3 grid grid-cols-3 gap-2 rounded-xl bg-gray-50 p-2.5 text-center">
+
+              {/* Prices + Profit */}
+              <div className="mt-3 grid grid-cols-4 gap-1.5 rounded-xl bg-gray-50 p-2.5 text-center">
                 <div>
                   <p className="text-xs font-bold text-gray-900">${p.base_cost?.toFixed(2) || "0.00"}</p>
                   <p className="text-[10px] text-gray-400">Costo</p>
@@ -319,13 +524,37 @@ export default function ProductosPage() {
                   <p className="text-[10px] text-gray-400">Venta</p>
                 </div>
                 <div>
+                  <p className={`text-xs font-bold flex items-center justify-center gap-0.5 ${profit > 0 ? 'text-emerald-600' : profit < 0 ? 'text-red-500' : 'text-gray-400'}`}>
+                    {profit > 0 ? <TrendingUp size={10} /> : profit < 0 ? <TrendingDown size={10} /> : <Minus size={10} />}
+                    ${Math.abs(profit).toFixed(2)}
+                  </p>
+                  <p className="text-[10px] text-gray-400">Ganancia</p>
+                </div>
+                <div>
                   <p className={`text-xs font-bold ${p.stock_quantity > 0 ? 'text-gray-900' : 'text-red-500'}`}>{p.stock_quantity || 0}</p>
                   <p className="text-[10px] text-gray-400">Stock</p>
                 </div>
               </div>
+
+              {/* Margin badge */}
+              {p.sale_price > 0 && p.base_cost > 0 && (
+                <div className="mt-2 flex items-center justify-end">
+                  <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full ${marginPct >= 30 ? 'bg-emerald-100 text-emerald-700' : marginPct >= 15 ? 'bg-yellow-100 text-yellow-700' : 'bg-red-100 text-red-600'}`}>
+                    {marginPct.toFixed(0)}% margen
+                  </span>
+                </div>
+              )}
+
               <div className="mt-3 flex gap-2">
                 <GhostButton onClick={() => handleEdit(p)} className="flex-1 py-2 text-xs text-gray-700 bg-white border border-gray-200">
                   <Pencil size={13} /> Editar
+                </GhostButton>
+                <GhostButton 
+                  onClick={() => handleRecalculate(p)} 
+                  className="flex-1 py-2 text-xs text-indigo-600 hover:bg-indigo-50 border border-indigo-200 bg-white"
+                  title="Recalcular precio con valores actuales"
+                >
+                  <RefreshCw size={13} /> Recalcular
                 </GhostButton>
                 <GhostButton onClick={() => handleDuplicate(p)} className="px-2.5 py-2 text-gray-500 hover:text-gray-900 bg-white border border-gray-200">
                   <Copy size={13} />
@@ -343,6 +572,107 @@ export default function ProductosPage() {
         <div className="py-20 text-center bg-gray-50 rounded-xl border border-dashed border-gray-300">
           <p className="text-sm text-gray-500 font-medium">No tienes productos en tu catálogo.</p>
           <PrimaryButton onClick={handleCreateNew} className="mt-4">Crear mi primer producto</PrimaryButton>
+        </div>
+      )}
+
+      {/* MODAL: RECALCULAR PRECIO */}
+      {recalcProductId && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4">
+          <div className="bg-white w-full max-w-md rounded-2xl shadow-2xl overflow-hidden">
+            <div className="flex items-center justify-between px-6 py-4 border-b border-gray-100">
+              <h3 className="font-bold text-gray-900 flex items-center gap-2">
+                <RefreshCw size={18} className="text-indigo-500" /> Recalcular precio
+              </h3>
+              <button onClick={() => { setRecalcProductId(null); setRecalcData(null); setRecalcError(null); }} className="text-gray-400 hover:text-gray-700">
+                <X size={20} />
+              </button>
+            </div>
+
+            <div className="p-6">
+              {recalcLoading ? (
+                <div className="flex flex-col items-center py-8 gap-3">
+                  <Loader2 className="animate-spin h-8 w-8 text-indigo-500" />
+                  <p className="text-sm text-gray-500">Calculando con valores actuales...</p>
+                </div>
+              ) : recalcError ? (
+                <div>
+                  <div className="bg-orange-50 border border-orange-200 p-4 rounded-xl mb-4 flex items-start gap-3">
+                    <AlertCircle size={18} className="text-orange-600 mt-0.5 shrink-0" />
+                    <p className="text-sm text-orange-800">{recalcError}</p>
+                  </div>
+                  <p className="text-xs text-gray-500">
+                    Para recalcular correctamente, asegurate de haber creado el producto desde la calculadora con todos los datos completos.
+                  </p>
+                  <div className="flex justify-end mt-4">
+                    <button onClick={() => { setRecalcProductId(null); setRecalcError(null); }} className="px-4 py-2 text-sm font-bold text-gray-600 hover:bg-gray-100 rounded-lg">Cerrar</button>
+                  </div>
+                </div>
+              ) : recalcData ? (
+                <div className="space-y-4">
+                  {/* Comparison */}
+                  <div className="grid grid-cols-2 gap-3">
+                    <div className="bg-gray-50 p-4 rounded-xl text-center border border-gray-200">
+                      <p className="text-[10px] text-gray-400 font-semibold uppercase mb-1">Precio Actual</p>
+                      <p className="text-2xl font-black text-gray-700">${recalcData.currentSalePrice.toFixed(2)}</p>
+                    </div>
+                    <div className="bg-indigo-50 p-4 rounded-xl text-center border border-indigo-200">
+                      <p className="text-[10px] text-indigo-600 font-semibold uppercase mb-1">Precio Sugerido</p>
+                      <p className="text-2xl font-black text-indigo-600">${recalcData.recommendedSalePrice.toFixed(2)}</p>
+                    </div>
+                  </div>
+
+                  {/* Difference pill */}
+                  {(() => {
+                    const diff = recalcData.recommendedSalePrice - recalcData.currentSalePrice;
+                    const isUp = diff > 0;
+                    return (
+                      <div className={`flex items-center justify-center gap-2 py-2 px-4 rounded-full text-sm font-bold ${isUp ? 'bg-yellow-50 text-yellow-700' : diff < 0 ? 'bg-green-50 text-green-700' : 'bg-gray-50 text-gray-500'}`}>
+                        {isUp ? <TrendingUp size={16} /> : diff < 0 ? <TrendingDown size={16} /> : <Minus size={16} />}
+                        {diff === 0 ? "El precio está al día" : `${isUp ? "Subida" : "Bajada"} de $${Math.abs(diff).toFixed(2)}`}
+                      </div>
+                    );
+                  })()}
+
+                  {/* Breakdown */}
+                  <div className="bg-gray-50 p-3 rounded-xl text-xs space-y-1.5">
+                    <p className="font-bold text-gray-700 mb-2">Detalle del nuevo cálculo</p>
+                    {[
+                      ["Material", recalcData.breakdown.materialCost],
+                      ["Electricidad", recalcData.breakdown.energyCost],
+                      ["Mantenimiento", recalcData.breakdown.printerCost],
+                      ["Costo Fijo", recalcData.breakdown.fixedCost],
+                      recalcData.breakdown.laborCost > 0 && ["Mano de obra", recalcData.breakdown.laborCost],
+                    ].filter(Boolean).map(([label, val]: any) => (
+                      <div key={label} className="flex justify-between text-gray-600">
+                        <span>{label}</span>
+                        <span className="font-semibold">${val.toFixed(2)}</span>
+                      </div>
+                    ))}
+                    <div className="flex justify-between font-bold text-gray-900 border-t border-gray-200 pt-1.5 mt-1.5">
+                      <span>Costo Base</span>
+                      <span>${recalcData.recommendedBaseCost.toFixed(2)}</span>
+                    </div>
+                    <div className="flex justify-between text-gray-500">
+                      <span>Multiplicador</span>
+                      <span>×{recalcData.breakdown.multiplier}</span>
+                    </div>
+                  </div>
+
+                  <div className="flex justify-end gap-2 pt-2">
+                    <button onClick={() => { setRecalcProductId(null); setRecalcData(null); }} className="px-4 py-2 text-sm font-bold text-gray-600 hover:bg-gray-100 rounded-lg">Cancelar</button>
+                    <button
+                      onClick={handleConfirmRecalc}
+                      disabled={recalcSaving}
+                      className="flex items-center gap-2 px-4 py-2 text-sm font-bold bg-indigo-600 hover:bg-indigo-700 text-white rounded-lg disabled:opacity-60"
+                    >
+                      {recalcSaving ? <Loader2 size={14} className="animate-spin" /> : <Save size={14} />}
+                      Aplicar nuevo precio
+                    </button>
+                  </div>
+                </div>
+              ) : null}
+            </div>
+          </div>
         </div>
       )}
     </div>
