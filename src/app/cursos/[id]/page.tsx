@@ -2,7 +2,7 @@
 
 import React, { use, useEffect, useState } from "react";
 import Link from "next/link";
-import { ArrowLeft, Play, CheckCircle2, Circle, Loader2, Video, File } from "lucide-react";
+import { ArrowLeft, Play, CheckCircle2, Circle, Loader2, Video, File, ChevronDown, ChevronRight } from "lucide-react";
 import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { ProgressBar } from "@/components/ui/progress-bar";
@@ -25,6 +25,8 @@ export default function CursoDetailPage({ params }: PageProps) {
   const [activeLesson, setActiveLesson] = useState<any>(null);
   const [loading, setLoading] = useState(true);
   const [markingProgress, setMarkingProgress] = useState(false);
+  const [openModules, setOpenModules] = useState<Record<string, boolean>>({});
+  const [completedBanner, setCompletedBanner] = useState(false);
   
   const supabase = createClient();
 
@@ -125,6 +127,43 @@ export default function CursoDetailPage({ params }: PageProps) {
     fetchCourseData();
   }, [id, supabase]);
 
+  useEffect(() => {
+    if (activeLesson) {
+      setOpenModules(prev => ({ ...prev, [activeLesson.module_id]: true }));
+      setCompletedBanner(false);
+    }
+  }, [activeLesson]);
+
+  const getOrderedLessons = () => {
+    const sortedModules = [...modules].sort((a, b) => (a.sort_order || 0) - (b.sort_order || 0));
+    const list: any[] = [];
+    sortedModules.forEach((m) => {
+      const moduleLessons = [...(lessons[m.id] || [])].sort((a, b) => (a.sort_order || 0) - (b.sort_order || 0));
+      list.push(...moduleLessons);
+    });
+    return list;
+  };
+
+  const getNextLesson = () => {
+    if (!activeLesson) return null;
+    const ordered = getOrderedLessons();
+    const currentIndex = ordered.findIndex((l) => l.id === activeLesson.id);
+    if (currentIndex !== -1 && currentIndex < ordered.length - 1) {
+      return ordered[currentIndex + 1];
+    }
+    return null;
+  };
+
+  const getModuleProgress = (moduleId: string) => {
+    const moduleLessons = lessons[moduleId] || [];
+    if (moduleLessons.length === 0) return null;
+    const completed = moduleLessons.filter(l => progress[l.id]).length;
+    return {
+      completed,
+      total: moduleLessons.length
+    };
+  };
+
   const handleToggleProgress = async () => {
     if (!user || !activeLesson) return;
     setMarkingProgress(true);
@@ -142,6 +181,7 @@ export default function CursoDetailPage({ params }: PageProps) {
       } else {
         setProgress(prev => ({ ...prev, [activeLesson.id]: false }));
       }
+      setMarkingProgress(false);
     } else {
       const { error } = await supabase
         .from("lesson_progress")
@@ -156,8 +196,22 @@ export default function CursoDetailPage({ params }: PageProps) {
         
       if (error) {
         console.error("Error al guardar progreso:", error);
+        setMarkingProgress(false);
       } else {
         setProgress(prev => ({ ...prev, [activeLesson.id]: true }));
+        
+        // Find next lesson
+        const next = getNextLesson();
+        if (next) {
+          // Brief loading simulation for smooth transition
+          setTimeout(() => {
+            setActiveLesson(next);
+            setMarkingProgress(false);
+          }, 400);
+          return;
+        } else {
+          setCompletedBanner(true);
+        }
       }
     }
     setMarkingProgress(false);
@@ -312,16 +366,35 @@ export default function CursoDetailPage({ params }: PageProps) {
                 {activeLesson ? activeLesson.title : "Selecciona una clase"}
               </h2>
               {user && activeLesson && (
-                <button 
-                  onClick={handleToggleProgress}
-                  disabled={markingProgress}
-                  className={`shrink-0 inline-flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium transition-colors ${progress[activeLesson.id] ? "bg-green-100 text-green-700 hover:bg-green-200" : "bg-gray-100 text-gray-700 hover:bg-gray-200"}`}
-                >
-                  {markingProgress ? <Loader2 className="animate-spin h-4 w-4" /> : <CheckCircle2 className="h-4 w-4" />}
-                  {progress[activeLesson.id] ? "Completada" : "Marcar completada"}
-                </button>
+                <div className="flex gap-2">
+                  <button 
+                    onClick={handleToggleProgress}
+                    disabled={markingProgress}
+                    className={`shrink-0 inline-flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium transition-colors ${progress[activeLesson.id] ? "bg-green-100 text-green-700 hover:bg-green-200" : "bg-gray-100 text-gray-700 hover:bg-gray-200"}`}
+                  >
+                    {markingProgress ? <Loader2 className="animate-spin h-4 w-4" /> : <CheckCircle2 className="h-4 w-4" />}
+                    {progress[activeLesson.id] ? "Clase completada" : "Marcar como completada"}
+                  </button>
+                  {(() => {
+                    const next = getNextLesson();
+                    return next ? (
+                      <button 
+                        onClick={() => setActiveLesson(next)}
+                        className="shrink-0 inline-flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium transition-colors bg-orange-50 text-orange-700 hover:bg-orange-100"
+                      >
+                        Siguiente clase
+                      </button>
+                    ) : null;
+                  })()}
+                </div>
               )}
             </div>
+
+            {completedBanner && (
+              <div className="bg-green-50 border border-green-200 text-green-800 p-4 rounded-xl text-sm font-semibold flex items-center gap-2">
+                🎉 ¡Llegaste al final del curso! Has completado todas las clases disponibles.
+              </div>
+            )}
 
             {activeLesson?.description && (
               <p className="text-sm text-gray-600 bg-gray-50 p-4 rounded-xl border border-gray-100">
@@ -385,43 +458,69 @@ export default function CursoDetailPage({ params }: PageProps) {
             </div>
             
             <div className="divide-y divide-gray-100 max-h-[600px] overflow-y-auto">
-              {modules.map((m) => (
-                <div key={m.id} className="p-4">
-                  <h3 className="font-semibold text-sm text-gray-900 mb-3">{m.sort_order}. {m.title}</h3>
-                  <div className="space-y-1 pl-2">
-                    {(lessons[m.id] || []).map((lesson) => {
-                      const isActive = activeLesson?.id === lesson.id;
-                      const isCompleted = progress[lesson.id];
-                      return (
-                        <button
-                          key={lesson.id}
-                          onClick={() => setActiveLesson(lesson)}
-                          className={`flex w-full items-center gap-3 rounded-lg px-3 py-2.5 text-left text-sm transition-colors ${
-                            isActive ? "bg-orange-50 text-orange-700 font-medium" : "hover:bg-gray-50 text-gray-600"
-                          }`}
-                        >
-                          {isCompleted ? (
-                            <CheckCircle2 size={14} className="text-green-500 shrink-0" />
-                          ) : isActive ? (
-                            <Play size={14} className="text-orange-500 shrink-0" />
-                          ) : (
-                            <Circle size={14} className="text-gray-300 shrink-0" />
-                          )}
-                          <span className="flex-1 truncate">
-                            {lesson.sort_order}. {lesson.title}
-                          </span>
-                          <span className="text-[10px] text-gray-400 shrink-0">
-                            {lesson.duration_minutes}m
-                          </span>
-                        </button>
-                      );
-                    })}
-                    {(!lessons[m.id] || lessons[m.id].length === 0) && (
-                      <p className="text-xs text-gray-400 italic px-3">No hay clases aún.</p>
+              {modules.map((m) => {
+                const isOpen = !!openModules[m.id];
+                const modProg = getModuleProgress(m.id);
+                return (
+                  <div key={m.id} className="border-b border-gray-100 last:border-0">
+                    <button
+                      onClick={() => setOpenModules(prev => ({ ...prev, [m.id]: !prev[m.id] }))}
+                      className="w-full flex items-center justify-between p-4 hover:bg-gray-50 transition-colors text-left"
+                    >
+                      <div className="flex-1 min-w-0 pr-2">
+                        <h3 className="font-bold text-sm text-gray-900 truncate">
+                          {m.sort_order}. {m.title}
+                        </h3>
+                        {modProg && (
+                          <p className="text-[11px] text-gray-400 font-medium mt-0.5">
+                            {modProg.completed} / {modProg.total} Clases completadas
+                          </p>
+                        )}
+                      </div>
+                      <div className="text-gray-400 shrink-0">
+                        {isOpen ? <ChevronDown size={18} /> : <ChevronRight size={18} />}
+                      </div>
+                    </button>
+                    
+                    {isOpen && (
+                      <div className="bg-gray-50/50 px-2 pb-3 space-y-1">
+                        {(lessons[m.id] || []).map((lesson) => {
+                          const isActive = activeLesson?.id === lesson.id;
+                          const isCompleted = progress[lesson.id];
+                          return (
+                            <button
+                              key={lesson.id}
+                              onClick={() => setActiveLesson(lesson)}
+                              className={`flex w-full items-center gap-3 rounded-lg px-3 py-2.5 text-left text-sm transition-colors ${
+                                isActive ? "bg-orange-50 text-orange-700 font-semibold" : "hover:bg-gray-50 text-gray-600"
+                              }`}
+                            >
+                              {isCompleted ? (
+                                <CheckCircle2 size={14} className="text-green-500 shrink-0" />
+                              ) : isActive ? (
+                                <Play size={14} className="text-orange-500 shrink-0" />
+                              ) : (
+                                <Circle size={14} className="text-gray-300 shrink-0" />
+                              )}
+                              <span className="flex-1 truncate">
+                                {lesson.sort_order}. {lesson.title}
+                              </span>
+                              {lesson.duration_minutes && (
+                                <span className="text-[10px] text-gray-400 shrink-0">
+                                  {lesson.duration_minutes}m
+                                </span>
+                              )}
+                            </button>
+                          );
+                        })}
+                        {(!lessons[m.id] || lessons[m.id].length === 0) && (
+                          <p className="text-xs text-gray-400 italic p-3 text-center">Sin clases</p>
+                        )}
+                      </div>
                     )}
                   </div>
-                </div>
-              ))}
+                );
+              })}
               {modules.length === 0 && (
                 <div className="p-6 text-center text-gray-500 text-sm">
                   Próximamente...
