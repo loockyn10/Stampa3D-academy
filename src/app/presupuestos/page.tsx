@@ -31,6 +31,7 @@ export default function PresupuestosPage() {
   // Profile
   const [profile, setProfile] = useState<any>(null);
   const [isGeneratingPdf, setIsGeneratingPdf] = useState(false);
+  const [generatingPdfId, setGeneratingPdfId] = useState<string | null>(null);
 
   // Form State
   const [editingId, setEditingId] = useState<string | null>(null);
@@ -283,6 +284,57 @@ export default function PresupuestosPage() {
       alert("Hubo un error al generar el PDF: " + err.message);
     } finally {
       setIsGeneratingPdf(false);
+    }
+  };
+
+  const handleDownloadPdfById = async (b: any) => {
+    setGeneratingPdfId(b.id);
+    try {
+      const currentClient = clients.find(c => c.id === b.client_id);
+      
+      const { data: itemsData, error: itemsError } = await supabase
+        .from("budget_items")
+        .select("*")
+        .eq("budget_id", b.id);
+      
+      if (itemsError) throw itemsError;
+
+      const budgetData = {
+        id: b.id,
+        title: b.title,
+        status: b.status,
+        notes: b.notes,
+        valid_until: b.valid_until,
+        discount_percent: b.discount_percent || 0,
+        subtotal: b.subtotal || 0,
+        total_amount: b.total_amount || 0
+      };
+
+      const blob = await pdf(
+        <BudgetPDFDocument 
+          budget={budgetData} 
+          items={itemsData || []} 
+          client={currentClient} 
+          profile={profile} 
+        />
+      ).toBlob();
+      
+      const url = URL.createObjectURL(blob);
+      const link = document.createElement("a");
+      link.href = url;
+      
+      const titleClean = b.title ? b.title.replace(/[^a-z0-9]/gi, '-').toLowerCase() : "sin-titulo";
+      link.download = `presupuesto-${titleClean}.pdf`;
+      
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+      URL.revokeObjectURL(url);
+    } catch (err: any) {
+      console.error(err);
+      alert("Hubo un error al generar el PDF: " + err.message);
+    } finally {
+      setGeneratingPdfId(null);
     }
   };
 
@@ -685,6 +737,19 @@ export default function PresupuestosPage() {
               <div className="flex gap-2">
                 <GhostButton onClick={() => handleEdit(b)} className="flex-1 py-2 text-xs text-gray-700 bg-white border border-gray-200">
                   <Pencil size={13} /> Editar
+                </GhostButton>
+                <GhostButton 
+                  onClick={() => handleDownloadPdfById(b)} 
+                  disabled={generatingPdfId === b.id}
+                  className="flex-1 py-2 text-xs text-orange-600 hover:text-orange-700 bg-orange-50/50 hover:bg-orange-50 border border-orange-100"
+                >
+                  {generatingPdfId === b.id ? (
+                    <Loader2 size={13} className="animate-spin" />
+                  ) : (
+                    <Download size={13} />
+                  )}
+                  <span className="hidden sm:inline ml-1">Descargar PDF</span>
+                  <span className="sm:hidden ml-1">PDF</span>
                 </GhostButton>
                 <GhostButton onClick={() => handleDelete(b.id)} className="px-2.5 py-2 text-red-500 hover:bg-red-50 border border-gray-200 bg-white">
                   <Trash2 size={13} />
