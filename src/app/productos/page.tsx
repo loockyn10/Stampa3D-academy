@@ -1,12 +1,75 @@
 "use client";
 
 import React, { useState, useEffect } from "react";
-import { Plus, Pencil, Copy, Trash2, Loader2, Save, X, AlertCircle, RefreshCw, TrendingUp, TrendingDown, Minus, ChevronDown, ChevronUp, History } from "lucide-react";
+import { Plus, Pencil, Copy, Trash2, Loader2, Save, X, AlertCircle, RefreshCw, TrendingUp, TrendingDown, Minus, ChevronDown, ChevronUp, History, AlertTriangle } from "lucide-react";
 import { Card } from "@/components/ui/card";
 import { PrimaryButton, GhostButton } from "@/components/ui/button";
 import { SectionTitle } from "@/components/ui/section-title";
 import { createClient } from "@/utils/supabase/client";
 import { FileUploadDropzone } from "@/components/ui/file-upload-dropzone";
+
+// Pricing Status Helper
+function getProductPricingStatus(product: any, allFilaments: any[], allPrinters: any[], allProductTypes: any[]) {
+  const snap = product.calculation_snapshot;
+  if (!snap || !snap.source) {
+    return { needsRecalculation: true, reasons: ["Producto sin snapshot de costos actualizado"] };
+  }
+
+  const reasons: string[] = [];
+  
+  // Filament checks
+  if (snap.filament_id || product.filament_id) {
+    const fId = snap.filament_id || product.filament_id;
+    const currentF = allFilaments.find(f => f.id === fId);
+    if (!currentF) {
+      reasons.push("Configuración vinculada no encontrada");
+    } else {
+      if (snap.filament_purchase_price && snap.filament_purchase_price !== currentF.purchase_price) {
+        reasons.push("Cambió el precio del filamento");
+      }
+      if (snap.filament_total_grams && snap.filament_total_grams !== currentF.total_grams) {
+        reasons.push("Cambió la cantidad base del filamento");
+      }
+    }
+  }
+
+  // Printer checks
+  if (snap.printer_id || product.printer_id) {
+    const pId = snap.printer_id || product.printer_id;
+    const currentP = allPrinters.find(p => p.id === pId);
+    if (!currentP) {
+      if (!reasons.includes("Configuración vinculada no encontrada")) reasons.push("Configuración vinculada no encontrada");
+    } else {
+      if (snap.printer_power_watts && snap.printer_power_watts !== currentP.power_watts) {
+        reasons.push("Cambió el consumo de la impresora");
+      }
+      if (snap.printer_maintenance_cost_per_hour !== undefined && snap.printer_maintenance_cost_per_hour !== null && snap.printer_maintenance_cost_per_hour !== currentP.maintenance_cost_per_hour) {
+        reasons.push("Cambió el costo de mantenimiento de la impresora");
+      }
+    }
+  }
+
+  // Product Type checks
+  if (snap.product_type_id || product.product_type_id) {
+    const ptId = snap.product_type_id || product.product_type_id;
+    const currentPT = allProductTypes.find(pt => pt.id === ptId);
+    if (!currentPT) {
+      if (!reasons.includes("Configuración vinculada no encontrada")) reasons.push("Configuración vinculada no encontrada");
+    } else {
+      if (snap.product_type_multiplier && snap.product_type_multiplier !== currentPT.multiplier) {
+        reasons.push("Cambió el multiplicador del tipo de producto");
+      }
+      if (snap.product_type_fixed_cost !== undefined && snap.product_type_fixed_cost !== null && snap.product_type_fixed_cost !== currentPT.fixed_cost) {
+        reasons.push("Cambió el costo fijo del tipo de producto");
+      }
+    }
+  }
+
+  return {
+    needsRecalculation: reasons.length > 0,
+    reasons
+  };
+}
 
 export default function ProductosPage() {
   const supabase = createClient();
@@ -35,7 +98,7 @@ export default function ProductosPage() {
 
   // Recalculate modal state
   const [recalcProductId, setRecalcProductId] = useState<string | null>(null);
-  const [recalcData, setRecalcData] = useState<{ currentSalePrice: number; recommendedSalePrice: number; recommendedBaseCost: number; breakdown: any } | null>(null);
+  const [recalcData, setRecalcData] = useState<{ currentSalePrice: number; recommendedSalePrice: number; recommendedBaseCost: number; breakdown: any; newSnapshot?: any } | null>(null);
   const [recalcLoading, setRecalcLoading] = useState(false);
   const [recalcSaving, setRecalcSaving] = useState(false);
   const [recalcError, setRecalcError] = useState<string | null>(null);
@@ -252,6 +315,38 @@ export default function ProductosPage() {
         laborCost: parseFloat(laborCost.toFixed(2)),
         otherCosts: parseFloat(otherCosts.toFixed(2)),
         multiplier,
+      },
+      newSnapshot: {
+        ...(product.calculation_snapshot || {}),
+        source: "calculator",
+        mode: product.calculation_snapshot?.mode || "basic",
+        grams: grams,
+        grams_with_error: weightWithError,
+        error_percent: errorPercent,
+        print_time_minutes: product.print_time_minutes,
+        material_cost: materialCost,
+        electricity_cost: energyCost,
+        maintenance_cost: printerCost,
+        fixed_cost: fixedCost,
+        labor_cost: laborCost,
+        other_costs: otherCosts,
+        base_cost: baseCost,
+        multiplier: multiplier,
+        sale_price: recommendedSalePrice,
+        profit: recommendedSalePrice - baseCost,
+        filament_id: filament?.id || null,
+        filament_name: filament?.name || null,
+        filament_purchase_price: filament?.purchase_price || null,
+        filament_total_grams: filament?.total_grams || null,
+        filament_cost_per_gram: filament && filament.total_grams > 0 ? (filament.purchase_price / filament.total_grams) : null,
+        printer_id: printer?.id || null,
+        printer_name: printer?.name || null,
+        printer_power_watts: printer?.power_watts || null,
+        printer_maintenance_cost_per_hour: printer?.maintenance_cost_per_hour || null,
+        product_type_id: productType?.id || null,
+        product_type_name: productType?.name || null,
+        product_type_multiplier: productType?.multiplier || null,
+        product_type_fixed_cost: productType?.fixed_cost || null,
       }
     });
     setRecalcLoading(false);
@@ -284,6 +379,7 @@ export default function ProductosPage() {
       .update({
         base_cost: recalcData.recommendedBaseCost,
         sale_price: recalcData.recommendedSalePrice,
+        calculation_snapshot: recalcData.newSnapshot,
         cost_updated_at: new Date().toISOString(),
       })
       .eq("id", recalcProductId)
@@ -297,6 +393,7 @@ export default function ProductosPage() {
         .update({
           base_cost: recalcData.recommendedBaseCost,
           sale_price: recalcData.recommendedSalePrice,
+          calculation_snapshot: recalcData.newSnapshot,
         })
         .eq("id", recalcProductId)
         .select("*, filaments(name, color)")
@@ -487,9 +584,28 @@ export default function ProductosPage() {
           const filament = p.filaments;
           const profit = (p.sale_price || 0) - (p.base_cost || 0);
           const marginPct = p.sale_price > 0 ? ((profit / p.sale_price) * 100) : 0;
+          const pricingStatus = getProductPricingStatus(p, filaments, printers, productTypes);
 
           return (
-            <Card key={p.id} className={`p-4 transition-all ${!p.is_active ? 'opacity-60 grayscale' : ''}`}>
+            <Card key={p.id} className={`p-4 transition-all ${!p.is_active ? 'opacity-60 grayscale' : ''} ${pricingStatus.needsRecalculation ? 'border-yellow-400 bg-yellow-50/30 ring-1 ring-yellow-400/50' : ''}`}>
+              
+              {pricingStatus.needsRecalculation && (
+                <div className="mb-3 flex items-start gap-2 bg-yellow-100/80 rounded-lg p-2.5 border border-yellow-200">
+                  <AlertTriangle size={16} className="text-yellow-700 mt-0.5 shrink-0" />
+                  <div className="min-w-0 flex-1">
+                    <p className="text-xs font-bold text-yellow-800 uppercase tracking-wide">Requiere Recalcular</p>
+                    <p className="text-xs text-yellow-700 mt-0.5">
+                      {pricingStatus.reasons.slice(0, 2).map((r, i) => (
+                        <span key={i} className="block">• {r}</span>
+                      ))}
+                      {pricingStatus.reasons.length > 2 && (
+                        <span className="block italic text-yellow-600 mt-0.5">+ {pricingStatus.reasons.length - 2} cambios más</span>
+                      )}
+                    </p>
+                  </div>
+                </div>
+              )}
+
               <div className="flex items-start gap-3">
                 {p.image_url ? (
                   <img src={p.image_url} alt={p.name} className="h-14 w-14 shrink-0 rounded-xl object-cover bg-gray-50 border border-gray-100" />
@@ -551,10 +667,10 @@ export default function ProductosPage() {
                 </GhostButton>
                 <GhostButton 
                   onClick={() => handleRecalculate(p)} 
-                  className="flex-1 py-2 text-xs text-indigo-600 hover:bg-indigo-50 border border-indigo-200 bg-white"
+                  className={`flex-1 py-2 text-xs border ${pricingStatus.needsRecalculation ? 'text-white bg-yellow-600 hover:bg-yellow-700 border-yellow-700' : 'text-indigo-600 hover:bg-indigo-50 border-indigo-200 bg-white'}`}
                   title="Recalcular precio con valores actuales"
                 >
-                  <RefreshCw size={13} /> Recalcular
+                  <RefreshCw size={13} className={pricingStatus.needsRecalculation ? "animate-pulse" : ""} /> Recalcular
                 </GhostButton>
                 <GhostButton onClick={() => handleDuplicate(p)} className="px-2.5 py-2 text-gray-500 hover:text-gray-900 bg-white border border-gray-200">
                   <Copy size={13} />

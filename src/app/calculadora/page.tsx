@@ -233,12 +233,22 @@ export default function CalculadoraPage() {
       multiplier: manualMultiplier,
       sale_price: calc.normalPrice,
       profit: calc.profit,
+      // Filament details
       filament_id: selectedFilamentId || null,
       filament_name: selectedFilament?.name || null,
+      filament_purchase_price: selectedFilament?.purchase_price || null,
+      filament_total_grams: selectedFilament?.total_grams || null,
+      filament_cost_per_gram: selectedFilament && selectedFilament.total_grams > 0 ? (selectedFilament.purchase_price / selectedFilament.total_grams) : null,
+      // Printer details
       printer_id: selectedPrinterId || null,
       printer_name: selectedPrinter?.name || null,
+      printer_power_watts: selectedPrinter?.power_watts || null,
+      printer_maintenance_cost_per_hour: selectedPrinter?.maintenance_cost_per_hour || null,
+      // Product Type details
       product_type_id: selectedMultiplierId || null,
       product_type_name: selectedMultiplier?.name || null,
+      product_type_multiplier: selectedMultiplier?.multiplier || null,
+      product_type_fixed_cost: selectedMultiplier?.fixed_cost || null,
     };
 
     const payload = {
