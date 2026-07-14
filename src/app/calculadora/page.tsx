@@ -312,17 +312,40 @@ export default function CalculadoraPage() {
       />
 
       {missingData && (
-        <div className="mb-6 bg-orange-50 border border-orange-200 p-4 rounded-xl flex items-start gap-3">
-          <AlertCircle className="text-orange-600 mt-0.5" size={20} />
-          <div>
-            <h4 className="text-sm font-bold text-orange-900">Faltan datos de configuración</h4>
-            <p className="text-xs text-orange-800 mt-1">
-              Para usar la calculadora necesitas tener al menos un filamento, una impresora y un multiplicador configurados.
-            </p>
-            <Link href="/configuracion" className="inline-block mt-3 bg-orange-600 text-white text-xs font-semibold px-3 py-1.5 rounded-lg hover:bg-orange-700 transition-colors">
-              Ir a Configuración
-            </Link>
-          </div>
+        <div className="mb-6 space-y-3">
+          {printers.length === 0 && (
+            <div className="bg-orange-50 border border-orange-200 p-4 rounded-xl flex items-start gap-3">
+              <AlertCircle className="text-orange-600 mt-0.5" size={20} />
+              <div>
+                <h4 className="text-sm font-bold text-orange-900">No tenés impresoras cargadas</h4>
+                <p className="text-xs text-orange-800 mt-1">
+                  Importá una impresora del catálogo Stampa o cargá una manualmente.
+                </p>
+                <div className="flex gap-2 mt-3">
+                  <Link href="/configuracion" className="inline-block bg-orange-600 text-white text-xs font-semibold px-3 py-1.5 rounded-lg hover:bg-orange-700 transition-colors">
+                    Importar impresora
+                  </Link>
+                  <Link href="/configuracion" className="inline-block bg-white text-orange-600 border border-orange-200 text-xs font-semibold px-3 py-1.5 rounded-lg hover:bg-orange-50 transition-colors">
+                    Agregar manualmente
+                  </Link>
+                </div>
+              </div>
+            </div>
+          )}
+          {(filaments.length === 0 || multipliers.length === 0) && (
+            <div className="bg-orange-50 border border-orange-200 p-4 rounded-xl flex items-start gap-3">
+              <AlertCircle className="text-orange-600 mt-0.5" size={20} />
+              <div>
+                <h4 className="text-sm font-bold text-orange-900">Faltan datos de configuración</h4>
+                <p className="text-xs text-orange-800 mt-1">
+                  Para usar la calculadora necesitas tener al menos un filamento y un tipo de producto configurados.
+                </p>
+                <Link href="/configuracion" className="inline-block mt-3 bg-orange-600 text-white text-xs font-semibold px-3 py-1.5 rounded-lg hover:bg-orange-700 transition-colors">
+                  Ir a Configuración
+                </Link>
+              </div>
+            </div>
+          )}
         </div>
       )}
 

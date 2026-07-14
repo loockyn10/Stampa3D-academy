@@ -19,6 +19,12 @@ export function PrintersManager() {
     is_active: true,
   });
 
+  // Catalog Modal State
+  const [showCatalog, setShowCatalog] = useState(false);
+  const [templates, setTemplates] = useState<any[]>([]);
+  const [loadingTemplates, setLoadingTemplates] = useState(false);
+  const [searchQuery, setSearchQuery] = useState("");
+
   useEffect(() => {
     fetchPrinters();
   }, []);
@@ -64,6 +70,44 @@ export function PrintersManager() {
     if (!error) setEditingId(null);
   };
 
+  const openCatalog = async () => {
+    setShowCatalog(true);
+    setLoadingTemplates(true);
+    const { data, error } = await supabase
+      .from("printer_templates")
+      .select("*")
+      .eq("is_active", true)
+      .order("sort_order", { ascending: true })
+      .order("created_at", { ascending: false });
+
+    if (!error && data) {
+      setTemplates(data);
+    }
+    setLoadingTemplates(false);
+  };
+
+  const importTemplate = async (template: any) => {
+    const { data: { user } } = await supabase.auth.getUser();
+    if (!user) return;
+
+    const payload = {
+      user_id: user.id,
+      name: template.name,
+      power_watts: template.power_watts || 0,
+      maintenance_cost_per_hour: template.maintenance_cost_per_hour || 0,
+      source_template_id: template.id,
+      is_active: true,
+    };
+
+    const { data, error: insertError } = await supabase.from("printers").insert([payload]).select().single();
+    if (insertError) {
+      setError(insertError.message);
+      console.error("Error importing printer:", insertError);
+    } else {
+      setPrinters([data, ...printers]);
+    }
+  };
+
   if (loading) return <div className="py-8 flex justify-center"><Loader2 className="animate-spin text-orange-500" /></div>;
 
   return (
@@ -76,17 +120,25 @@ export function PrintersManager() {
 
       <div className="flex justify-between items-center mb-4">
         <h3 className="text-lg font-semibold text-gray-900">Mis Impresoras</h3>
-        <button
-          onClick={() => {
-            setFormData({
-              name: "", power_watts: 300, maintenance_cost_per_hour: 0, is_active: true
-            });
-            setEditingId("new");
-          }}
-          className="flex items-center gap-1.5 bg-orange-500 hover:bg-orange-600 text-white px-3 py-1.5 rounded-lg text-sm font-medium transition-colors"
-        >
-          <Plus size={16} /> Añadir Impresora
-        </button>
+        <div className="flex gap-2">
+          <button
+            onClick={openCatalog}
+            className="flex items-center gap-1.5 bg-white border border-orange-200 text-orange-600 hover:bg-orange-50 px-3 py-1.5 rounded-lg text-sm font-medium transition-colors"
+          >
+            Importar desde catálogo Stampa
+          </button>
+          <button
+            onClick={() => {
+              setFormData({
+                name: "", power_watts: 300, maintenance_cost_per_hour: 0, is_active: true
+              });
+              setEditingId("new");
+            }}
+            className="flex items-center gap-1.5 bg-orange-500 hover:bg-orange-600 text-white px-3 py-1.5 rounded-lg text-sm font-medium transition-colors"
+          >
+            <Plus size={16} /> Añadir Impresora
+          </button>
+        </div>
       </div>
 
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
@@ -123,6 +175,84 @@ export function PrintersManager() {
           </div>
         )}
       </div>
+
+      {showCatalog && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50">
+          <div className="bg-white rounded-xl shadow-xl max-w-3xl w-full max-h-[90vh] flex flex-col overflow-hidden">
+            <div className="p-4 border-b border-gray-100 flex justify-between items-center bg-gray-50">
+              <div>
+                <h3 className="text-lg font-bold text-gray-900">Catálogo de Impresoras Stampa</h3>
+                <p className="text-xs text-gray-500">Importá modelos precargados a tus impresoras.</p>
+              </div>
+              <button onClick={() => setShowCatalog(false)} className="text-gray-400 hover:text-gray-700">
+                <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M18 6 6 18"/><path d="m6 6 12 12"/></svg>
+              </button>
+            </div>
+            
+            <div className="p-4 border-b border-gray-100">
+              <input 
+                type="text" 
+                placeholder="Buscar por marca, modelo o nombre..." 
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+                className="w-full text-sm border-gray-300 rounded-md focus:border-orange-500 focus:ring-orange-500"
+              />
+            </div>
+
+            <div className="p-4 overflow-y-auto flex-1 bg-gray-50/50">
+              {loadingTemplates ? (
+                <div className="py-8 flex justify-center"><Loader2 className="animate-spin text-orange-500" /></div>
+              ) : (
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                  {templates
+                    .filter(t => 
+                      t.name?.toLowerCase().includes(searchQuery.toLowerCase()) || 
+                      t.brand?.toLowerCase().includes(searchQuery.toLowerCase()) || 
+                      t.model?.toLowerCase().includes(searchQuery.toLowerCase())
+                    )
+                    .map((t) => {
+                      const alreadyAdded = printers.some(p => p.source_template_id === t.id);
+                      return (
+                        <Card key={t.id} className="p-4 flex flex-col hover:border-orange-200 transition-colors bg-white">
+                          <div className="flex-1">
+                            <h4 className="font-bold text-gray-900 text-sm">{t.name}</h4>
+                            <p className="text-xs text-gray-500 mb-2">{t.brand} {t.model}</p>
+                            <div className="text-[11px] text-gray-600 bg-gray-50 p-2 rounded-md mb-3">
+                              <div className="flex justify-between mb-1"><span>Consumo:</span> <strong>{t.power_watts}W</strong></div>
+                              <div className="flex justify-between"><span>Mantenimiento:</span> <strong>${t.maintenance_cost_per_hour}/h</strong></div>
+                            </div>
+                          </div>
+                          <button
+                            disabled={alreadyAdded}
+                            onClick={() => importTemplate(t)}
+                            className={`w-full py-1.5 rounded-lg text-xs font-bold transition-colors ${
+                              alreadyAdded 
+                                ? "bg-gray-100 text-gray-400 cursor-not-allowed"
+                                : "bg-orange-100 text-orange-700 hover:bg-orange-200"
+                            }`}
+                          >
+                            {alreadyAdded ? "Ya agregada" : "Agregar a mis impresoras"}
+                          </button>
+                        </Card>
+                      );
+                  })}
+                  {templates.length === 0 && (
+                    <div className="col-span-full text-center py-8 text-gray-500 text-sm">
+                      No hay plantillas disponibles en el catálogo en este momento.
+                    </div>
+                  )}
+                </div>
+              )}
+            </div>
+            
+            <div className="p-4 border-t border-gray-100 bg-white">
+              <p className="text-xs text-gray-500 text-center">
+                Valores estimados. Podés ajustarlos después en Mis impresoras.
+              </p>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
