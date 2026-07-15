@@ -16,7 +16,7 @@ function getProductPricingStatus(product: any, allFilaments: any[], allPrinters:
   }
 
   const reasons: string[] = [];
-  
+
   // Material checks
   if (snap.materials && Array.isArray(snap.materials) && snap.materials.length > 0) {
     for (const mat of snap.materials) {
@@ -63,7 +63,7 @@ function getProductPricingStatus(product: any, allFilaments: any[], allPrinters:
     }
   }
 
-  // Product Type checks
+  // Product Type checksshosalsdmnasiojdbn
   if (snap.product_type_id || product.product_type_id) {
     const ptId = snap.product_type_id || product.product_type_id;
     const currentPT = allProductTypes.find(pt => pt.id === ptId);
@@ -89,15 +89,15 @@ function getProductPricingStatus(product: any, allFilaments: any[], allPrinters:
 export function calculateProductPrice({ components, printTimeMinutes, printer, productType, calculatorSettings, oldSnapshot }: any) {
   const errorPercent = calculatorSettings?.default_error_percent || 0;
   const errorMultiplier = 1 + (errorPercent / 100);
-  
+
   let materialCost = 0;
   let totalGrams = 0;
   let totalGramsWithError = 0;
-  
+
   const processedComponents: any[] = [];
   const processedMaterials: any[] = []; // for compatibility
   let mode = "simple_multifilament";
-  
+
   if (components && Array.isArray(components)) {
     if (components.length > 1 || (components.length === 1 && components[0].name !== "Producto completo")) {
       mode = "components";
@@ -106,13 +106,13 @@ export function calculateProductPrice({ components, printTimeMinutes, printer, p
     for (const comp of components) {
       const compQty = parseFloat(comp.quantity_per_product) || 1;
       const compMats: any[] = [];
-      
+
       if (comp.materials && Array.isArray(comp.materials)) {
         for (const mat of comp.materials) {
           const gPerUnit = parseFloat(mat.grams) || 0;
           const gTotal = gPerUnit * compQty;
           const gTotalWithError = gTotal * errorMultiplier;
-          
+
           totalGrams += gTotal;
           totalGramsWithError += gTotalWithError;
 
@@ -135,12 +135,12 @@ export function calculateProductPrice({ components, printTimeMinutes, printer, p
             filament_cost_per_gram: costPerGram,
             material_cost: matCost
           };
-          
+
           compMats.push(processedMat);
           processedMaterials.push(processedMat);
         }
       }
-      
+
       processedComponents.push({
         component_id: comp.id || null,
         name: comp.name || "Producto completo",
@@ -154,7 +154,7 @@ export function calculateProductPrice({ components, printTimeMinutes, printer, p
   const kwhPrice = calculatorSettings?.electricity_price_kwh || oldSnapshot?.kwhPrice || 0;
   const powerWatts = printer?.power_watts || oldSnapshot?.printer_consumption_watts || 0;
   const maintenanceCostPerHour = printer?.maintenance_cost_per_hour || oldSnapshot?.maintenance_cost_per_hour || 0;
-  
+
   const energyCost = totalHours * (powerWatts / 1000) * kwhPrice;
   const printerCost = totalHours * maintenanceCostPerHour;
   const fixedCost = productType?.fixed_cost || oldSnapshot?.fixed_cost || 0;
@@ -188,11 +188,11 @@ export function calculateProductPrice({ components, printTimeMinutes, printer, p
     multiplier: multiplier,
     sale_price: salePrice,
     profit: profit,
-    
+
     // Fallbacks for compatibility
     filament_id: processedMaterials.length > 0 ? processedMaterials[0].filament_id : null,
     filament_name: processedMaterials.length > 0 ? processedMaterials[0].filament_name : null,
-    
+
     printer_id: printer?.id || null,
     printer_name: printer?.name || null,
     printer_power_watts: printer?.power_watts || null,
@@ -244,7 +244,7 @@ export default function ProductosPage() {
     stock_quantity: 0,
     is_active: true,
   });
-  
+
   // Editor calculation state
   const [calcPreview, setCalcPreview] = useState<any>(null);
   const [pendingSnapshot, setPendingSnapshot] = useState<any>(null);
@@ -285,15 +285,15 @@ export default function ProductosPage() {
       // Attach components to products
       const allProducts = prodRes.data || [];
       const allComps = compsRes.data || [];
-      
+
       const productsWithComps = allProducts.map(p => {
         const pComps = allComps.filter(c => c.product_id === p.id);
         return { ...p, product_components: pComps };
       });
-      
+
       setProducts(productsWithComps);
     }
-    
+
     if (!filRes.error) setFilaments(filRes.data || []);
     if (!priRes.error) setPrinters(priRes.data || []);
     if (!ptRes.error) setProductTypes(ptRes.data || []);
@@ -319,13 +319,13 @@ export default function ProductosPage() {
     const hours = Math.floor((p.print_time_minutes || 0) / 60);
     const mins = (p.print_time_minutes || 0) % 60;
     const snap = p.calculation_snapshot || {};
-    
+
     // Fetch product components and materials
     let loadedComponents: any[] = [];
     let mode: "simple" | "parts" = "simple";
 
     const { data: compData } = await supabase.from("product_components").select("*").eq("product_id", p.id).eq("is_active", true).order("sort_order");
-    
+
     if (compData && compData.length > 0) {
       if (compData.length > 1 || compData[0].name !== "Producto completo") {
         mode = "parts";
@@ -334,7 +334,7 @@ export default function ProductosPage() {
       for (const comp of compData) {
         const { data: filData } = await supabase.from("product_component_filaments").select("*").eq("component_id", comp.id).order("sort_order");
         const mats = (filData || []).map(f => ({ filament_id: f.filament_id, grams: parseFloat(f.grams) }));
-        
+
         loadedComponents.push({
           id: comp.id,
           name: comp.name,
@@ -360,14 +360,14 @@ export default function ProductosPage() {
         materials: fallbackMats
       }];
     }
-    
+
     setFormData({
-      name: p.name, description: p.description || "", image_url: p.image_url || "", 
+      name: p.name, description: p.description || "", image_url: p.image_url || "",
       printer_id: p.printer_id || snap.printer_id || "",
       product_type_id: p.product_type_id || snap.product_type_id || "",
       mode,
-      components: loadedComponents, 
-      print_time_hours: hours, print_time_remaining_minutes: mins, base_cost: p.base_cost || 0, 
+      components: loadedComponents,
+      print_time_hours: hours, print_time_remaining_minutes: mins, base_cost: p.base_cost || 0,
       sale_price: p.sale_price || 0, stock_quantity: p.stock_quantity || 0, is_active: p.is_active
     });
     setCalcPreview(null);
@@ -387,12 +387,12 @@ export default function ProductosPage() {
   const handleDuplicate = async (p: any) => {
     const { data: { user } } = await supabase.auth.getUser();
     if (!user) return;
-    
+
     const payload = {
-      user_id: user.id, name: p.name + " (Copia)", description: p.description, image_url: p.image_url, 
+      user_id: user.id, name: p.name + " (Copia)", description: p.description, image_url: p.image_url,
       filament_id: p.filament_id, printer_id: p.printer_id, product_type_id: p.product_type_id,
-      grams: p.grams, print_time_minutes: p.print_time_minutes, 
-      base_cost: p.base_cost, sale_price: p.sale_price, stock_quantity: 0, 
+      grams: p.grams, print_time_minutes: p.print_time_minutes,
+      base_cost: p.base_cost, sale_price: p.sale_price, stock_quantity: 0,
       calculation_snapshot: p.calculation_snapshot, is_active: p.is_active
     };
 
@@ -414,7 +414,7 @@ export default function ProductosPage() {
       const validMats = c.materials.filter(m => m.filament_id && m.grams > 0);
       const cGrams = validMats.reduce((acc, curr) => acc + (parseFloat(String(curr.grams)) || 0), 0);
       totalGrams += (cGrams * (parseFloat(String(c.quantity_per_product)) || 1));
-      
+
       if (!fallbackFilamentId && validMats.length > 0) {
         fallbackFilamentId = validMats[0].filament_id;
       }
@@ -427,7 +427,7 @@ export default function ProductosPage() {
 
     let snapshotToSave = pendingSnapshot;
     if (!snapshotToSave || Object.keys(snapshotToSave).length === 0) {
-       snapshotToSave = null;
+      snapshotToSave = null;
     }
 
     const payload: any = {
@@ -472,13 +472,13 @@ export default function ProductosPage() {
     if (savedProductId) {
       // First, get all existing active components for this product
       const { data: existingComps } = await supabase.from("product_components").select("id").eq("product_id", savedProductId);
-      
+
       const savedCompIds: string[] = [];
-      
+
       for (let i = 0; i < compsToSave.length; i++) {
         const c = compsToSave[i];
         let compId = c.id;
-        
+
         const compPayload = {
           user_id: user.id,
           product_id: savedProductId,
@@ -498,10 +498,10 @@ export default function ProductosPage() {
 
         if (compId) {
           savedCompIds.push(compId);
-          
+
           // Sync materials
           await supabase.from("product_component_filaments").delete().eq("component_id", compId);
-          
+
           if (c.validMats.length > 0) {
             const matsToInsert = c.validMats.map((m, index) => ({
               user_id: user.id,
@@ -514,7 +514,7 @@ export default function ProductosPage() {
           }
         }
       }
-      
+
       // Deactivate old components that were removed
       if (existingComps && existingComps.length > 0) {
         const toDeactivate = existingComps.filter(ec => !savedCompIds.includes(ec.id)).map(ec => ec.id);
@@ -536,11 +536,11 @@ export default function ProductosPage() {
   const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement>) => {
     const { name, value, type } = e.target;
     let newValue: any = value;
-    
+
     if (type === "checkbox") {
       newValue = (e.target as HTMLInputElement).checked;
     }
-    
+
     setFormData(prev => ({ ...prev, [name]: newValue }));
     if (name === "printer_id" || name === "product_type_id" || name === "print_time_hours" || name === "print_time_remaining_minutes") {
       setCalcPreview(null);
@@ -557,11 +557,11 @@ export default function ProductosPage() {
   const addComponent = () => {
     setFormData(prev => ({
       ...prev,
-      components: [...prev.components, { 
-        name: "", 
-        quantity_per_product: 1, 
-        stock_quantity: 0, 
-        materials: [{ filament_id: filaments.length > 0 ? filaments[0].id : "", grams: 0 }] 
+      components: [...prev.components, {
+        name: "",
+        quantity_per_product: 1,
+        stock_quantity: 0,
+        materials: [{ filament_id: filaments.length > 0 ? filaments[0].id : "", grams: 0 }]
       }]
     }));
   };
@@ -604,14 +604,14 @@ export default function ProductosPage() {
     const hours = Math.max(0, parseInt(String(formData.print_time_hours)) || 0);
     const mins = Math.max(0, Math.min(59, parseInt(String(formData.print_time_remaining_minutes)) || 0));
     const totalMinutes = (hours * 60) + mins;
-    
+
     let hasValidComponents = false;
     let hasInvalidMaterials = false;
-    
+
     const builtComponents = formData.components.map(c => {
       const validMats = c.materials.filter(m => m.filament_id && m.grams > 0);
       if (c.name.trim() !== "" && validMats.length > 0) hasValidComponents = true;
-      
+
       const builtMats = validMats.map(m => {
         const fil = filaments.find(f => f.id === m.filament_id);
         if (!fil || fil.total_grams <= 0) hasInvalidMaterials = true;
@@ -665,7 +665,7 @@ export default function ProductosPage() {
     // Fetch product components and materials
     let loadedMaterials: { filament_id: string, grams: number }[] = [];
     const { data: compData } = await supabase.from("product_components").select("*").eq("product_id", product.id).eq("is_active", true).order("sort_order").limit(1);
-    
+
     if (compData && compData.length > 0) {
       const compId = compData[0].id;
       const { data: filData } = await supabase.from("product_component_filaments").select("*").eq("component_id", compId).order("sort_order");
@@ -686,12 +686,12 @@ export default function ProductosPage() {
       const fil = filaments.find(f => f.id === m.filament_id);
       return { filament: fil, filament_id: m.filament_id, grams: m.grams };
     });
-    
+
     // Check snapshot for more context
     const snap = product.calculation_snapshot;
     const printerId = snap?.printer_id || product.printer_id || null;
     const productTypeId = snap?.product_type_id || product.product_type_id || null;
-    
+
     const printer = printers.find(p => p.id === printerId);
     const productType = productTypes.find(pt => pt.id === productTypeId);
 
@@ -781,7 +781,7 @@ export default function ProductosPage() {
         .eq("id", recalcProductId)
         .select("*, filaments(name, color)")
         .single();
-      
+
       if (error2) {
         alert("Error al actualizar: " + error2.message);
       } else if (data2) {
@@ -838,7 +838,7 @@ export default function ProductosPage() {
           </PrimaryButton>
         }
       />
-      
+
       {error && (
         <div className="mb-6 bg-red-50 border border-red-100 p-4 rounded-lg flex items-center gap-2 text-sm text-red-600">
           <AlertCircle size={16} /> {error}
@@ -851,263 +851,263 @@ export default function ProductosPage() {
             <h3 className="text-lg font-bold text-gray-900">{editingId === "new" ? "Nuevo Producto" : "Editar Producto"}</h3>
             <button onClick={() => setEditingId(null)} className="text-gray-400 hover:text-gray-700"><X size={20} /></button>
           </div>
-          
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
-              <div>
-                <label className="block text-xs font-semibold text-gray-700 mb-1">Nombre</label>
-                <input type="text" name="name" value={formData.name} onChange={handleChange} className="w-full text-sm border-gray-300 rounded-md focus:border-orange-500 focus:ring-orange-500 text-gray-900 bg-white" placeholder="Ej. Llavero personalizado" />
-              </div>
-              <div>
-                <label className="block text-xs font-semibold text-gray-700 mb-1">Tiempo de Impresión</label>
-                <div className="grid grid-cols-2 gap-1.5">
-                  <div>
-                    <label className="block text-[11px] font-semibold text-gray-700 mb-1">Horas</label>
-                    <input type="number" name="print_time_hours" min="0" value={formData.print_time_hours} onChange={handleChange} className="w-full text-sm border-gray-300 rounded-md focus:border-orange-500 focus:ring-orange-500 text-gray-900 bg-white" />
-                  </div>
-                  <div>
-                    <label className="block text-[11px] font-semibold text-gray-700 mb-1">Minutos</label>
-                    <input type="number" name="print_time_remaining_minutes" min="0" max="59" value={formData.print_time_remaining_minutes} onChange={handleChange} className="w-full text-sm border-gray-300 rounded-md focus:border-orange-500 focus:ring-orange-500 text-gray-900 bg-white" />
-                  </div>
-                </div>
-              </div>
+
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
+            <div>
+              <label className="block text-xs font-semibold text-gray-700 mb-1">Nombre</label>
+              <input type="text" name="name" value={formData.name} onChange={handleChange} className="w-full text-sm border-gray-300 rounded-md focus:border-orange-500 focus:ring-orange-500 text-gray-900 bg-white" placeholder="Ej. Llavero personalizado" />
             </div>
-
-            {/* Mode selector */}
-            <div className="mb-4">
-              <label className="block text-xs font-semibold text-gray-700 mb-2">Modo de composición</label>
-              <div className="flex gap-4">
-                <label className="flex items-center gap-2 cursor-pointer">
-                  <input 
-                    type="radio" 
-                    name="mode" 
-                    value="simple" 
-                    checked={formData.mode === "simple"} 
-                    onChange={handleChange}
-                    className="text-orange-500 focus:ring-orange-500"
-                  />
-                  <span className="text-sm text-gray-700">Producto simple</span>
-                </label>
-                <label className="flex items-center gap-2 cursor-pointer">
-                  <input 
-                    type="radio" 
-                    name="mode" 
-                    value="parts" 
-                    checked={formData.mode === "parts"} 
-                    onChange={handleChange}
-                    className="text-orange-500 focus:ring-orange-500"
-                  />
-                  <span className="text-sm text-gray-700">Producto por partes</span>
-                </label>
-              </div>
-            </div>
-
-            {/* Materiales y Partes del Producto */}
-            <div className="mb-4 bg-gray-50/50 p-4 rounded-xl border border-gray-200 shadow-sm">
-              <div className="flex items-center justify-between mb-3">
-                <h4 className="text-sm font-bold text-gray-900">
-                  {formData.mode === "simple" ? "Materiales del producto" : "Partes del producto"}
-                </h4>
-                {formData.mode === "parts" && (
-                  <button type="button" onClick={addComponent} className="text-xs font-bold text-orange-600 hover:text-orange-700 flex items-center gap-1">
-                    <Plus size={14} /> Agregar parte
-                  </button>
-                )}
-              </div>
-              
-              <div className="space-y-4">
-                {formData.components.map((comp, compIndex) => (
-                  <div key={compIndex} className={`p-3 rounded-lg border ${formData.mode === "parts" ? 'bg-white border-gray-200' : 'border-transparent'}`}>
-                    
-                    {formData.mode === "parts" && (
-                      <div className="flex items-start gap-2 mb-3">
-                        <div className="flex-1 space-y-2">
-                          <input 
-                            type="text" 
-                            value={comp.name} 
-                            onChange={(e) => handleComponentChange(compIndex, "name", e.target.value)}
-                            placeholder="Nombre de la parte (ej. Cuerpo)"
-                            className="w-full text-sm font-medium border-gray-300 rounded-md focus:border-orange-500 focus:ring-orange-500"
-                          />
-                          <div className="flex gap-2">
-                            <label className="flex items-center gap-2 text-xs text-gray-600">
-                              Cant. por producto:
-                              <input 
-                                type="number" min="1" 
-                                value={comp.quantity_per_product} 
-                                onChange={(e) => handleComponentChange(compIndex, "quantity_per_product", Math.max(1, parseInt(e.target.value) || 1))}
-                                className="w-16 text-xs border-gray-300 rounded-md p-1"
-                              />
-                            </label>
-                            <label className="flex items-center gap-2 text-xs text-gray-600">
-                              Stock actual:
-                              <input 
-                                type="number" min="0" 
-                                value={comp.stock_quantity} 
-                                onChange={(e) => handleComponentChange(compIndex, "stock_quantity", Math.max(0, parseInt(e.target.value) || 0))}
-                                className="w-16 text-xs border-gray-300 rounded-md p-1"
-                              />
-                            </label>
-                          </div>
-                        </div>
-                        {formData.components.length > 1 && (
-                          <button type="button" onClick={() => removeComponent(compIndex)} className="text-red-400 hover:text-red-600 p-1 mt-1">
-                            <Trash2 size={16} />
-                          </button>
-                        )}
-                      </div>
-                    )}
-
-                    <div className="space-y-2">
-                      {comp.materials.map((mat, matIndex) => (
-                        <div key={matIndex} className="flex items-center gap-2">
-                          <div className="flex-1">
-                            <select 
-                              value={mat.filament_id} 
-                              onChange={(e) => handleComponentMaterialChange(compIndex, matIndex, "filament_id", e.target.value)} 
-                              className="w-full text-xs border-gray-300 rounded-md focus:border-orange-500 focus:ring-orange-500 text-gray-900 bg-white"
-                            >
-                              <option value="">Seleccionar filamento...</option>
-                              {filaments.map(f => <option key={f.id} value={f.id}>{f.name} {f.color ? `(${f.color})` : ""}</option>)}
-                            </select>
-                          </div>
-                          <div className="w-24 flex items-center gap-1">
-                            <input 
-                              type="number" 
-                              min="0" step="0.1"
-                              value={mat.grams} 
-                              onChange={(e) => handleComponentMaterialChange(compIndex, matIndex, "grams", parseFloat(e.target.value) || 0)} 
-                              className="w-full text-xs border-gray-300 rounded-md focus:border-orange-500 focus:ring-orange-500 text-gray-900 bg-white" 
-                              placeholder="Gramos"
-                            />
-                            <span className="text-xs text-gray-500">g</span>
-                          </div>
-                          <button type="button" onClick={() => removeComponentMaterial(compIndex, matIndex)} className="text-red-400 hover:text-red-600 p-1">
-                            <X size={16} />
-                          </button>
-                        </div>
-                      ))}
-                      
-                      <button type="button" onClick={() => addComponentMaterial(compIndex)} className="text-xs font-bold text-orange-600 hover:text-orange-700 flex items-center gap-1 mt-1">
-                        <Plus size={12} /> Agregar material {formData.mode === "parts" && "a esta parte"}
-                      </button>
-                      
-                    </div>
-                  </div>
-                ))}
-              </div>
-            </div>
-
-            {/* Embedded Calculator */}
-            <div className="mb-4 bg-gray-50/50 p-4 rounded-xl border border-gray-200 shadow-sm">
-              <div className="flex items-center gap-2 mb-3">
-                <RefreshCw size={16} className="text-orange-500" />
-                <h4 className="text-sm font-bold text-gray-900">Cálculo Rápido</h4>
-                <p className="text-xs text-gray-500 ml-2 font-medium hidden sm:block">Calculá automáticamente usando tus costos.</p>
-              </div>
-              
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-3 mb-3">
+            <div>
+              <label className="block text-xs font-semibold text-gray-700 mb-1">Tiempo de Impresión</label>
+              <div className="grid grid-cols-2 gap-1.5">
                 <div>
-                  <label className="block text-[11px] font-semibold text-gray-700 mb-1">Impresora</label>
-                  <select name="printer_id" value={formData.printer_id} onChange={handleChange} className="w-full text-xs border-gray-300 rounded-md focus:border-orange-500 focus:ring-orange-500 text-gray-900 bg-white">
-                    <option value="">Seleccionar impresora...</option>
-                    {printers.map(p => <option key={p.id} value={p.id}>{p.name}</option>)}
-                  </select>
+                  <label className="block text-[11px] font-semibold text-gray-700 mb-1">Horas</label>
+                  <input type="number" name="print_time_hours" min="0" value={formData.print_time_hours} onChange={handleChange} className="w-full text-sm border-gray-300 rounded-md focus:border-orange-500 focus:ring-orange-500 text-gray-900 bg-white" />
                 </div>
                 <div>
-                  <label className="block text-[11px] font-semibold text-gray-700 mb-1">Tipo de producto</label>
-                  <select name="product_type_id" value={formData.product_type_id} onChange={handleChange} className="w-full text-xs border-gray-300 rounded-md focus:border-orange-500 focus:ring-orange-500 text-gray-900 bg-white">
-                    <option value="">Seleccionar tipo...</option>
-                    {productTypes.map(pt => <option key={pt.id} value={pt.id}>{pt.name}</option>)}
-                  </select>
+                  <label className="block text-[11px] font-semibold text-gray-700 mb-1">Minutos</label>
+                  <input type="number" name="print_time_remaining_minutes" min="0" max="59" value={formData.print_time_remaining_minutes} onChange={handleChange} className="w-full text-sm border-gray-300 rounded-md focus:border-orange-500 focus:ring-orange-500 text-gray-900 bg-white" />
                 </div>
               </div>
+            </div>
+          </div>
 
-              <div className="flex items-center gap-3">
-                <button 
-                  type="button" 
-                  onClick={handleEditorCalculate}
-                  className="bg-white border border-orange-200 text-orange-600 px-4 py-2 rounded-lg text-xs font-bold hover:bg-orange-50 transition-colors"
-                >
-                  Calcular precio
+          {/* Mode selector */}
+          <div className="mb-4">
+            <label className="block text-xs font-semibold text-gray-700 mb-2">Modo de composición</label>
+            <div className="flex gap-4">
+              <label className="flex items-center gap-2 cursor-pointer">
+                <input
+                  type="radio"
+                  name="mode"
+                  value="simple"
+                  checked={formData.mode === "simple"}
+                  onChange={handleChange}
+                  className="text-orange-500 focus:ring-orange-500"
+                />
+                <span className="text-sm text-gray-700">Producto simple</span>
+              </label>
+              <label className="flex items-center gap-2 cursor-pointer">
+                <input
+                  type="radio"
+                  name="mode"
+                  value="parts"
+                  checked={formData.mode === "parts"}
+                  onChange={handleChange}
+                  className="text-orange-500 focus:ring-orange-500"
+                />
+                <span className="text-sm text-gray-700">Producto por partes</span>
+              </label>
+            </div>
+          </div>
+
+          {/* Materiales y Partes del Producto */}
+          <div className="mb-4 bg-gray-50/50 p-4 rounded-xl border border-gray-200 shadow-sm">
+            <div className="flex items-center justify-between mb-3">
+              <h4 className="text-sm font-bold text-gray-900">
+                {formData.mode === "simple" ? "Materiales del producto" : "Partes del producto"}
+              </h4>
+              {formData.mode === "parts" && (
+                <button type="button" onClick={addComponent} className="text-xs font-bold text-orange-600 hover:text-orange-700 flex items-center gap-1">
+                  <Plus size={14} /> Agregar parte
                 </button>
-                {calcPreview && (
-                  <p className="text-[11px] text-gray-500 italic">Hay cambios sin aplicar.</p>
-                )}
-              </div>
-
-              {calcPreview && (
-                <div className="mt-4 pt-4 border-t border-gray-200">
-                  <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 mb-3">
-                    <div className="bg-white p-2 rounded border border-gray-100 text-center">
-                      <p className="text-[10px] text-gray-400">Material</p>
-                      <p className="text-xs font-bold text-gray-700">${calcPreview.materialCost.toFixed(2)}</p>
-                    </div>
-                    <div className="bg-white p-2 rounded border border-gray-100 text-center">
-                      <p className="text-[10px] text-gray-400">Electricidad</p>
-                      <p className="text-xs font-bold text-gray-700">${calcPreview.electricityCost.toFixed(2)}</p>
-                    </div>
-                    <div className="bg-white p-2 rounded border border-gray-100 text-center">
-                      <p className="text-[10px] text-gray-400">Mant+Fijo</p>
-                      <p className="text-xs font-bold text-gray-700">${(calcPreview.maintenanceCost + calcPreview.fixedCost).toFixed(2)}</p>
-                    </div>
-                    <div className="bg-orange-50 p-2 rounded border border-orange-100 text-center">
-                      <p className="text-[10px] text-orange-600 font-bold">Venta Sugerida (x{calcPreview.multiplier})</p>
-                      <p className="text-sm font-black text-orange-700">${calcPreview.salePrice.toFixed(2)}</p>
-                    </div>
-                  </div>
-                  <div className="flex justify-end">
-                    <button 
-                      type="button" 
-                      onClick={applyEditorCalculation}
-                      className="bg-orange-500 text-white px-4 py-2 rounded-lg text-xs font-bold hover:bg-orange-600 transition-colors"
-                    >
-                      Usar precio sugerido
-                    </button>
-                  </div>
-                </div>
               )}
             </div>
 
-            <div className="grid grid-cols-3 gap-2">
-              <div>
-                <label className="block text-xs font-semibold text-gray-700 mb-1">Costo Base ($)</label>
-                <input type="number" name="base_cost" value={formData.base_cost} onChange={handleChange} className="w-full text-sm border-gray-300 rounded-md focus:border-orange-500 focus:ring-orange-500 text-gray-900 bg-white" />
-              </div>
-              <div>
-                <label className="block text-xs font-semibold text-gray-700 mb-1">Precio Venta ($)</label>
-                <input type="number" name="sale_price" value={formData.sale_price} onChange={handleChange} className="w-full text-sm border-gray-300 rounded-md focus:border-orange-500 focus:ring-orange-500 text-gray-900 bg-white" />
-              </div>
-              <div>
-                <label className="block text-xs font-semibold text-gray-700 mb-1">Stock Actual</label>
-                <input type="number" name="stock_quantity" value={formData.stock_quantity} onChange={handleChange} className="w-full text-sm border-gray-300 rounded-md focus:border-orange-500 focus:ring-orange-500 text-gray-900 bg-white" />
-              </div>
-            </div>
-            <div className="md:col-span-2">
-              <label className="text-xs font-semibold text-gray-700">Imagen del Producto</label>
-              <div className="space-y-3 mt-1">
-                <FileUploadDropzone
-                  bucket="product-images"
-                  pathPrefix={`${userId || "default"}/products`}
-                  accept=".jpg,.jpeg,.png,.webp,.svg"
-                  publicBucket={true}
-                  onUploaded={(url) => setFormData(prev => ({ ...prev, image_url: url }))}
-                  label="Subir Imagen"
-                />
-                <div className="flex items-center gap-2">
-                  <hr className="flex-1 border-gray-200" />
-                  <span className="text-[10px] text-gray-400 font-semibold uppercase">O URL Externa</span>
-                  <hr className="flex-1 border-gray-200" />
-                </div>
-                <div className="flex gap-4 items-center">
-                  <input type="text" name="image_url" value={formData.image_url} onChange={handleChange} className="flex-1 text-sm border-gray-300 rounded-lg px-3 py-2 focus:border-orange-500 focus:ring-1 focus:ring-orange-500 text-gray-900 bg-white" placeholder="https://..." />
-                  {formData.image_url && (
-                    <div className="h-12 w-12 shrink-0 rounded-lg bg-gray-100 overflow-hidden border border-gray-200">
-                      <img src={formData.image_url} alt="Producto" className="w-full h-full object-cover" />
+            <div className="space-y-4">
+              {formData.components.map((comp, compIndex) => (
+                <div key={compIndex} className={`p-3 rounded-lg border ${formData.mode === "parts" ? 'bg-white border-gray-200' : 'border-transparent'}`}>
+
+                  {formData.mode === "parts" && (
+                    <div className="flex items-start gap-2 mb-3">
+                      <div className="flex-1 space-y-2">
+                        <input
+                          type="text"
+                          value={comp.name}
+                          onChange={(e) => handleComponentChange(compIndex, "name", e.target.value)}
+                          placeholder="Nombre de la parte (ej. Cuerpo)"
+                          className="w-full text-sm font-medium border-gray-300 rounded-md focus:border-orange-500 focus:ring-orange-500"
+                        />
+                        <div className="flex gap-2">
+                          <label className="flex items-center gap-2 text-xs text-gray-600">
+                            Cant. por producto:
+                            <input
+                              type="number" min="1"
+                              value={comp.quantity_per_product}
+                              onChange={(e) => handleComponentChange(compIndex, "quantity_per_product", Math.max(1, parseInt(e.target.value) || 1))}
+                              className="w-16 text-xs border-gray-300 rounded-md p-1"
+                            />
+                          </label>
+                          <label className="flex items-center gap-2 text-xs text-gray-600">
+                            Stock actual:
+                            <input
+                              type="number" min="0"
+                              value={comp.stock_quantity}
+                              onChange={(e) => handleComponentChange(compIndex, "stock_quantity", Math.max(0, parseInt(e.target.value) || 0))}
+                              className="w-16 text-xs border-gray-300 rounded-md p-1"
+                            />
+                          </label>
+                        </div>
+                      </div>
+                      {formData.components.length > 1 && (
+                        <button type="button" onClick={() => removeComponent(compIndex)} className="text-red-400 hover:text-red-600 p-1 mt-1">
+                          <Trash2 size={16} />
+                        </button>
+                      )}
                     </div>
                   )}
+
+                  <div className="space-y-2">
+                    {comp.materials.map((mat, matIndex) => (
+                      <div key={matIndex} className="flex items-center gap-2">
+                        <div className="flex-1">
+                          <select
+                            value={mat.filament_id}
+                            onChange={(e) => handleComponentMaterialChange(compIndex, matIndex, "filament_id", e.target.value)}
+                            className="w-full text-xs border-gray-300 rounded-md focus:border-orange-500 focus:ring-orange-500 text-gray-900 bg-white"
+                          >
+                            <option value="">Seleccionar filamento...</option>
+                            {filaments.map(f => <option key={f.id} value={f.id}>{f.name} {f.color ? `(${f.color})` : ""}</option>)}
+                          </select>
+                        </div>
+                        <div className="w-24 flex items-center gap-1">
+                          <input
+                            type="number"
+                            min="0" step="0.1"
+                            value={mat.grams}
+                            onChange={(e) => handleComponentMaterialChange(compIndex, matIndex, "grams", parseFloat(e.target.value) || 0)}
+                            className="w-full text-xs border-gray-300 rounded-md focus:border-orange-500 focus:ring-orange-500 text-gray-900 bg-white"
+                            placeholder="Gramos"
+                          />
+                          <span className="text-xs text-gray-500">g</span>
+                        </div>
+                        <button type="button" onClick={() => removeComponentMaterial(compIndex, matIndex)} className="text-red-400 hover:text-red-600 p-1">
+                          <X size={16} />
+                        </button>
+                      </div>
+                    ))}
+
+                    <button type="button" onClick={() => addComponentMaterial(compIndex)} className="text-xs font-bold text-orange-600 hover:text-orange-700 flex items-center gap-1 mt-1">
+                      <Plus size={12} /> Agregar material {formData.mode === "parts" && "a esta parte"}
+                    </button>
+
+                  </div>
                 </div>
+              ))}
+            </div>
+          </div>
+
+          {/* Embedded Calculator */}
+          <div className="mb-4 bg-gray-50/50 p-4 rounded-xl border border-gray-200 shadow-sm">
+            <div className="flex items-center gap-2 mb-3">
+              <RefreshCw size={16} className="text-orange-500" />
+              <h4 className="text-sm font-bold text-gray-900">Cálculo Rápido</h4>
+              <p className="text-xs text-gray-500 ml-2 font-medium hidden sm:block">Calculá automáticamente usando tus costos.</p>
+            </div>
+
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-3 mb-3">
+              <div>
+                <label className="block text-[11px] font-semibold text-gray-700 mb-1">Impresora</label>
+                <select name="printer_id" value={formData.printer_id} onChange={handleChange} className="w-full text-xs border-gray-300 rounded-md focus:border-orange-500 focus:ring-orange-500 text-gray-900 bg-white">
+                  <option value="">Seleccionar impresora...</option>
+                  {printers.map(p => <option key={p.id} value={p.id}>{p.name}</option>)}
+                </select>
+              </div>
+              <div>
+                <label className="block text-[11px] font-semibold text-gray-700 mb-1">Tipo de producto</label>
+                <select name="product_type_id" value={formData.product_type_id} onChange={handleChange} className="w-full text-xs border-gray-300 rounded-md focus:border-orange-500 focus:ring-orange-500 text-gray-900 bg-white">
+                  <option value="">Seleccionar tipo...</option>
+                  {productTypes.map(pt => <option key={pt.id} value={pt.id}>{pt.name}</option>)}
+                </select>
               </div>
             </div>
+
+            <div className="flex items-center gap-3">
+              <button
+                type="button"
+                onClick={handleEditorCalculate}
+                className="bg-white border border-orange-200 text-orange-600 px-4 py-2 rounded-lg text-xs font-bold hover:bg-orange-50 transition-colors"
+              >
+                Calcular precio
+              </button>
+              {calcPreview && (
+                <p className="text-[11px] text-gray-500 italic">Hay cambios sin aplicar.</p>
+              )}
+            </div>
+
+            {calcPreview && (
+              <div className="mt-4 pt-4 border-t border-gray-200">
+                <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 mb-3">
+                  <div className="bg-white p-2 rounded border border-gray-100 text-center">
+                    <p className="text-[10px] text-gray-400">Material</p>
+                    <p className="text-xs font-bold text-gray-700">${calcPreview.materialCost.toFixed(2)}</p>
+                  </div>
+                  <div className="bg-white p-2 rounded border border-gray-100 text-center">
+                    <p className="text-[10px] text-gray-400">Electricidad</p>
+                    <p className="text-xs font-bold text-gray-700">${calcPreview.electricityCost.toFixed(2)}</p>
+                  </div>
+                  <div className="bg-white p-2 rounded border border-gray-100 text-center">
+                    <p className="text-[10px] text-gray-400">Mant+Fijo</p>
+                    <p className="text-xs font-bold text-gray-700">${(calcPreview.maintenanceCost + calcPreview.fixedCost).toFixed(2)}</p>
+                  </div>
+                  <div className="bg-orange-50 p-2 rounded border border-orange-100 text-center">
+                    <p className="text-[10px] text-orange-600 font-bold">Venta Sugerida (x{calcPreview.multiplier})</p>
+                    <p className="text-sm font-black text-orange-700">${calcPreview.salePrice.toFixed(2)}</p>
+                  </div>
+                </div>
+                <div className="flex justify-end">
+                  <button
+                    type="button"
+                    onClick={applyEditorCalculation}
+                    className="bg-orange-500 text-white px-4 py-2 rounded-lg text-xs font-bold hover:bg-orange-600 transition-colors"
+                  >
+                    Usar precio sugerido
+                  </button>
+                </div>
+              </div>
+            )}
+          </div>
+
+          <div className="grid grid-cols-3 gap-2">
+            <div>
+              <label className="block text-xs font-semibold text-gray-700 mb-1">Costo Base ($)</label>
+              <input type="number" name="base_cost" value={formData.base_cost} onChange={handleChange} className="w-full text-sm border-gray-300 rounded-md focus:border-orange-500 focus:ring-orange-500 text-gray-900 bg-white" />
+            </div>
+            <div>
+              <label className="block text-xs font-semibold text-gray-700 mb-1">Precio Venta ($)</label>
+              <input type="number" name="sale_price" value={formData.sale_price} onChange={handleChange} className="w-full text-sm border-gray-300 rounded-md focus:border-orange-500 focus:ring-orange-500 text-gray-900 bg-white" />
+            </div>
+            <div>
+              <label className="block text-xs font-semibold text-gray-700 mb-1">Stock Actual</label>
+              <input type="number" name="stock_quantity" value={formData.stock_quantity} onChange={handleChange} className="w-full text-sm border-gray-300 rounded-md focus:border-orange-500 focus:ring-orange-500 text-gray-900 bg-white" />
+            </div>
+          </div>
+          <div className="md:col-span-2">
+            <label className="text-xs font-semibold text-gray-700">Imagen del Producto</label>
+            <div className="space-y-3 mt-1">
+              <FileUploadDropzone
+                bucket="product-images"
+                pathPrefix={`${userId || "default"}/products`}
+                accept=".jpg,.jpeg,.png,.webp,.svg"
+                publicBucket={true}
+                onUploaded={(url) => setFormData(prev => ({ ...prev, image_url: url }))}
+                label="Subir Imagen"
+              />
+              <div className="flex items-center gap-2">
+                <hr className="flex-1 border-gray-200" />
+                <span className="text-[10px] text-gray-400 font-semibold uppercase">O URL Externa</span>
+                <hr className="flex-1 border-gray-200" />
+              </div>
+              <div className="flex gap-4 items-center">
+                <input type="text" name="image_url" value={formData.image_url} onChange={handleChange} className="flex-1 text-sm border-gray-300 rounded-lg px-3 py-2 focus:border-orange-500 focus:ring-1 focus:ring-orange-500 text-gray-900 bg-white" placeholder="https://..." />
+                {formData.image_url && (
+                  <div className="h-12 w-12 shrink-0 rounded-lg bg-gray-100 overflow-hidden border border-gray-200">
+                    <img src={formData.image_url} alt="Producto" className="w-full h-full object-cover" />
+                  </div>
+                )}
+              </div>
+            </div>
+          </div>
 
           {/* Historial de precios */}
           {editingId !== "new" && historyProductId === editingId && (
@@ -1133,7 +1133,7 @@ export default function ProductosPage() {
               )}
             </div>
           )}
-          
+
           <div className="flex items-center justify-between border-t border-gray-100 pt-4">
             <div className="flex items-center gap-2">
               <input type="checkbox" name="is_active" checked={formData.is_active} onChange={handleChange} className="rounded text-orange-600 focus:ring-orange-500" />
@@ -1158,7 +1158,7 @@ export default function ProductosPage() {
 
           return (
             <Card key={p.id} className={`p-4 transition-all ${!p.is_active ? 'opacity-60 grayscale' : ''} ${pricingStatus.needsRecalculation ? 'border-yellow-400 bg-yellow-50/30 ring-1 ring-yellow-400/50' : ''}`}>
-              
+
               {pricingStatus.needsRecalculation && (
                 <div className="mb-3 flex items-start gap-2 bg-yellow-100/80 rounded-lg p-2.5 border border-yellow-200">
                   <AlertTriangle size={16} className="text-yellow-700 mt-0.5 shrink-0" />
@@ -1288,8 +1288,8 @@ export default function ProductosPage() {
                 <GhostButton onClick={() => handleEdit(p)} className="flex-1 py-2 text-xs text-gray-700 bg-white border border-gray-200">
                   <Pencil size={13} /> Editar
                 </GhostButton>
-                <GhostButton 
-                  onClick={() => handleRecalculate(p)} 
+                <GhostButton
+                  onClick={() => handleRecalculate(p)}
                   className={`flex-1 py-2 text-xs border ${pricingStatus.needsRecalculation ? 'text-white bg-yellow-600 hover:bg-yellow-700 border-yellow-700' : 'text-indigo-600 hover:bg-indigo-50 border-indigo-200 bg-white'}`}
                   title="Recalcular precio con valores actuales"
                 >
@@ -1306,7 +1306,7 @@ export default function ProductosPage() {
           );
         })}
       </div>
-      
+
       {products.length === 0 && !editingId && (
         <div className="py-20 text-center bg-gray-50 rounded-xl border border-dashed border-gray-300">
           <p className="text-sm text-gray-500 font-medium">No tienes productos en tu catálogo.</p>
