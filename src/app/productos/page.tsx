@@ -63,7 +63,7 @@ function getProductPricingStatus(product: any, allFilaments: any[], allPrinters:
     }
   }
 
-  // Product Type checksshosalsdmnasiojdbn
+  // Product Type checks
   if (snap.product_type_id || product.product_type_id) {
     const ptId = snap.product_type_id || product.product_type_id;
     const currentPT = allProductTypes.find(pt => pt.id === ptId);

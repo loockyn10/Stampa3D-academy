@@ -24,11 +24,20 @@ export default function StockPage() {
   const [filamentAdjustAmounts, setFilamentAdjustAmounts] = useState<Record<string, string>>({});
   const [adjustingFilament, setAdjustingFilament] = useState<string | null>(null);
 
+  // Stock Adjustment States for Products
+  const [productAdjustAmounts, setProductAdjustAmounts] = useState<Record<string, string>>({});
+  const [adjustingProduct, setAdjustingProduct] = useState<string | null>(null);
+
   // History Modal States
   const [historyModalOpen, setHistoryModalOpen] = useState(false);
   const [historyFilamentId, setHistoryFilamentId] = useState<string | null>(null);
   const [historyMovements, setHistoryMovements] = useState<any[]>([]);
   const [historyLoading, setHistoryLoading] = useState(false);
+
+  const [historyProductModalOpen, setHistoryProductModalOpen] = useState(false);
+  const [historyProductId, setHistoryProductId] = useState<string | null>(null);
+  const [historyProductMovements, setHistoryProductMovements] = useState<any[]>([]);
+  const [historyProductLoading, setHistoryProductLoading] = useState(false);
 
   // Consume by Product States
   const [consumeModalOpen, setConsumeModalOpen] = useState(false);
@@ -65,21 +74,45 @@ export default function StockPage() {
     setLoading(false);
   };
 
-  const handleAdjustProductStock = async (id: string, delta: number) => {
+  const handleAdjustProductStock = async (id: string, type: "add" | "subtract") => {
+    const amountStr = productAdjustAmounts[id] || "";
+    const amount = parseInt(amountStr);
+    
+    if (!amount || amount <= 0 || isNaN(amount)) {
+      alert("Por favor, ingresá una cantidad válida mayor a 0.");
+      return;
+    }
+
     const product = products.find(p => p.id === id);
     if (!product) return;
 
-    const newStock = Math.max(0, (product.stock_quantity || 0) + delta);
-    
-    // Optimistic UI update
-    setProducts(products.map(p => p.id === id ? { ...p, stock_quantity: newStock } : p));
-
-    const { error } = await supabase.from("products").update({ stock_quantity: newStock }).eq("id", id);
-    if (error) {
-      alert("Error al actualizar el stock: " + error.message);
-      // Revert on error
-      setProducts(products.map(p => p.id === id ? { ...p, stock_quantity: product.stock_quantity } : p));
+    if (type === "subtract" && (product.stock_quantity || 0) < amount) {
+      alert("No hay suficiente stock de este producto para restar.");
+      return;
     }
+
+    setAdjustingProduct(id);
+    const delta = type === "add" ? amount : -amount;
+    const movementType = type === "add" ? "manual_add" : "manual_subtract";
+    const reason = type === "add" ? "Suma manual desde stock" : "Resta manual desde stock";
+
+    const { error: rpcError } = await supabase.rpc("adjust_product_stock", {
+      p_product_id: id,
+      p_quantity_delta: delta,
+      p_movement_type: movementType,
+      p_reason: reason,
+      p_source_type: "manual",
+      p_source_id: null
+    });
+
+    if (rpcError) {
+      console.error("Error ajustando stock:", rpcError);
+      alert("Hubo un error al ajustar el stock del producto: " + rpcError.message);
+    } else {
+      setProductAdjustAmounts(prev => ({ ...prev, [id]: "" }));
+      await fetchData();
+    }
+    setAdjustingProduct(null);
   };
 
   const handleAdjustComponentStock = async (compId: string, delta: number) => {
@@ -204,6 +237,26 @@ export default function StockPage() {
       setHistoryMovements(data || []);
     }
     setHistoryLoading(false);
+  };
+
+  const loadProductHistory = async (id: string) => {
+    setHistoryProductId(id);
+    setHistoryProductModalOpen(true);
+    setHistoryProductLoading(true);
+
+    const { data, error } = await supabase
+      .from("product_stock_movements")
+      .select("*")
+      .eq("product_id", id)
+      .order("created_at", { ascending: false })
+      .limit(10);
+
+    if (error) {
+      console.error("Error loading history:", error);
+    } else {
+      setHistoryProductMovements(data || []);
+    }
+    setHistoryProductLoading(false);
   };
 
   const formatDate = (dateStr: string) => {
@@ -504,27 +557,56 @@ export default function StockPage() {
                       <td className="px-5 py-3.5">
                         <div className="flex justify-end gap-1.5 items-center">
                           {isParts && (
-                            <button
-                              onClick={() => handleAssembleProduct(p)}
-                              disabled={maxAssemble <= 0}
-                              className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-bold rounded-lg border border-indigo-200 text-indigo-700 bg-indigo-50 hover:bg-indigo-100 transition-colors disabled:opacity-50 disabled:cursor-not-allowed mr-2"
-                            >
-                              <Package size={14} /> Armar
-                              <span className="bg-white px-1.5 py-0.5 rounded text-[10px] border border-indigo-100">{maxAssemble}</span>
-                            </button>
+                            <div className="flex items-center mr-2">
+                              <button
+                                onClick={() => handleAssembleProduct(p)}
+                                disabled={maxAssemble <= 0}
+                                className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-bold rounded-lg border border-indigo-200 text-indigo-700 bg-indigo-50 hover:bg-indigo-100 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                                title="Este ajuste modifica el stock del producto terminado restando stock de las piezas."
+                              >
+                                <Package size={14} /> Armar
+                                <span className="bg-white px-1.5 py-0.5 rounded text-[10px] border border-indigo-100">{maxAssemble}</span>
+                              </button>
+                            </div>
                           )}
-                          <button
-                            onClick={() => handleAdjustProductStock(p.id, -1)}
-                            className="flex h-8 w-8 items-center justify-center rounded-lg border border-gray-200 text-gray-600 bg-white hover:bg-gray-50 hover:text-red-600 transition-colors shadow-sm"
-                            disabled={p.stock_quantity <= 0}
+
+                          <div className="flex items-center gap-1" title="Este ajuste modifica el stock del producto terminado, no el stock de piezas.">
+                            <input 
+                              type="number"
+                              min="1"
+                              step="1"
+                              placeholder="Cant."
+                              value={productAdjustAmounts[p.id] || ""}
+                              onChange={(e) => setProductAdjustAmounts(prev => ({...prev, [p.id]: e.target.value}))}
+                              className="w-16 h-8 text-xs border border-gray-200 rounded-md px-2 focus:border-orange-500 focus:ring-orange-500 outline-none"
+                              disabled={adjustingProduct === p.id}
+                            />
+                            <button
+                              onClick={() => handleAdjustProductStock(p.id, "subtract")}
+                              disabled={adjustingProduct === p.id}
+                              className="flex h-8 w-8 items-center justify-center rounded-md border border-gray-200 text-red-600 bg-white hover:bg-red-50 disabled:opacity-50 transition-colors shadow-sm"
+                              title="Restar terminado"
+                            >
+                              {adjustingProduct === p.id ? <Loader2 size={14} className="animate-spin" /> : <Minus size={14} />}
+                            </button>
+                            <button
+                              onClick={() => handleAdjustProductStock(p.id, "add")}
+                              disabled={adjustingProduct === p.id}
+                              className="flex h-8 w-8 items-center justify-center rounded-md border border-gray-200 text-green-600 bg-white hover:bg-green-50 disabled:opacity-50 transition-colors shadow-sm"
+                              title="Sumar terminado"
+                            >
+                              {adjustingProduct === p.id ? <Loader2 size={14} className="animate-spin" /> : <Plus size={14} />}
+                            </button>
+                          </div>
+
+                          <div className="h-6 w-px bg-gray-200 mx-1"></div>
+                          
+                          <button 
+                            onClick={() => loadProductHistory(p.id)}
+                            className="text-gray-400 hover:text-blue-600 p-1.5 rounded-lg hover:bg-blue-50 transition-colors"
+                            title="Historial de movimientos"
                           >
-                            <Minus size={14} />
-                          </button>
-                          <button
-                            onClick={() => handleAdjustProductStock(p.id, 1)}
-                            className="flex h-8 w-8 items-center justify-center rounded-lg border border-gray-200 text-gray-600 bg-white hover:bg-gray-50 hover:text-green-600 transition-colors shadow-sm"
-                          >
-                            <Plus size={14} />
+                            <History size={16} />
                           </button>
                         </div>
                       </td>
@@ -668,7 +750,7 @@ export default function StockPage() {
         </div>
       </Card>
 
-      {/* History Modal */}
+      {/* History Modal for Filaments */}
       {historyModalOpen && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50">
           <div className="bg-white rounded-xl shadow-xl max-w-lg w-full max-h-[90vh] flex flex-col overflow-hidden">
@@ -702,6 +784,52 @@ export default function StockPage() {
                           <span>{m.reason}</span>
                           <span className="font-medium bg-gray-100 px-1.5 py-0.5 rounded text-[10px]">
                             {m.previous_grams}g → {m.new_grams}g
+                          </span>
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+              )}
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* History Modal for Products */}
+      {historyProductModalOpen && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50">
+          <div className="bg-white rounded-xl shadow-xl max-w-lg w-full max-h-[90vh] flex flex-col overflow-hidden">
+            <div className="p-4 border-b border-gray-100 flex justify-between items-center bg-gray-50">
+              <div>
+                <h3 className="text-lg font-bold text-gray-900">Historial de Movimientos</h3>
+                <p className="text-xs text-gray-500">Últimos 10 cambios en este producto.</p>
+              </div>
+              <button onClick={() => setHistoryProductModalOpen(false)} className="text-gray-400 hover:text-gray-700">
+                <X size={20} />
+              </button>
+            </div>
+            <div className="p-4 overflow-y-auto flex-1">
+              {historyProductLoading ? (
+                <div className="py-8 flex justify-center"><Loader2 className="animate-spin text-orange-500" /></div>
+              ) : historyProductMovements.length === 0 ? (
+                <div className="text-center py-8 text-sm text-gray-500">No hay movimientos registrados.</div>
+              ) : (
+                <div className="space-y-3">
+                  {historyProductMovements.map(m => {
+                    const isPositive = m.quantity_delta > 0;
+                    return (
+                      <div key={m.id} className="flex flex-col gap-1 text-sm border-b border-gray-50 pb-3">
+                        <div className="flex justify-between items-start">
+                          <span className={`font-bold ${isPositive ? 'text-green-600' : 'text-red-600'}`}>
+                            {isPositive ? '+' : ''}{m.quantity_delta} u.
+                          </span>
+                          <span className="text-xs text-gray-400">{formatDate(m.created_at)}</span>
+                        </div>
+                        <div className="flex justify-between text-xs text-gray-600">
+                          <span>{m.reason}</span>
+                          <span className="font-medium bg-gray-100 px-1.5 py-0.5 rounded text-[10px]">
+                            {m.previous_quantity} → {m.new_quantity}
                           </span>
                         </div>
                       </div>
