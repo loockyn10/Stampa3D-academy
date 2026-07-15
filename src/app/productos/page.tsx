@@ -86,39 +86,66 @@ function getProductPricingStatus(product: any, allFilaments: any[], allPrinters:
 }
 
 // Reusable Calculator Logic
-export function calculateProductPrice({ materials, printTimeMinutes, printer, productType, calculatorSettings, oldSnapshot }: any) {
+export function calculateProductPrice({ components, printTimeMinutes, printer, productType, calculatorSettings, oldSnapshot }: any) {
   const errorPercent = calculatorSettings?.default_error_percent || 0;
   const errorMultiplier = 1 + (errorPercent / 100);
   
   let materialCost = 0;
   let totalGrams = 0;
   let totalGramsWithError = 0;
-  const processedMaterials: any[] = [];
+  
+  const processedComponents: any[] = [];
+  const processedMaterials: any[] = []; // for compatibility
+  let mode = "simple_multifilament";
+  
+  if (components && Array.isArray(components)) {
+    if (components.length > 1 || (components.length === 1 && components[0].name !== "Producto completo")) {
+      mode = "components";
+    }
 
-  if (materials && Array.isArray(materials)) {
-    for (const mat of materials) {
-      const g = parseFloat(mat.grams) || 0;
-      const gWithError = g * errorMultiplier;
-      totalGrams += g;
-      totalGramsWithError += gWithError;
+    for (const comp of components) {
+      const compQty = parseFloat(comp.quantity_per_product) || 1;
+      const compMats: any[] = [];
+      
+      if (comp.materials && Array.isArray(comp.materials)) {
+        for (const mat of comp.materials) {
+          const gPerUnit = parseFloat(mat.grams) || 0;
+          const gTotal = gPerUnit * compQty;
+          const gTotalWithError = gTotal * errorMultiplier;
+          
+          totalGrams += gTotal;
+          totalGramsWithError += gTotalWithError;
 
-      let matCost = 0;
-      let costPerGram = null;
-      if (mat.filament && mat.filament.total_grams > 0) {
-        costPerGram = mat.filament.purchase_price / mat.filament.total_grams;
-        matCost = gWithError * costPerGram;
-        materialCost += matCost;
+          let matCost = 0;
+          let costPerGram = null;
+          if (mat.filament && mat.filament.total_grams > 0) {
+            costPerGram = mat.filament.purchase_price / mat.filament.total_grams;
+            matCost = gTotalWithError * costPerGram;
+            materialCost += matCost;
+          }
+
+          const processedMat = {
+            filament_id: mat.filament?.id || mat.filament_id,
+            filament_name: mat.filament?.name || null,
+            grams: gPerUnit,
+            grams_total: gTotal,
+            grams_with_error: gTotalWithError,
+            filament_purchase_price: mat.filament?.purchase_price || null,
+            filament_total_grams: mat.filament?.total_grams || null,
+            filament_cost_per_gram: costPerGram,
+            material_cost: matCost
+          };
+          
+          compMats.push(processedMat);
+          processedMaterials.push(processedMat);
+        }
       }
-
-      processedMaterials.push({
-        filament_id: mat.filament?.id || mat.filament_id,
-        filament_name: mat.filament?.name || null,
-        grams: g,
-        grams_with_error: gWithError,
-        filament_purchase_price: mat.filament?.purchase_price || null,
-        filament_total_grams: mat.filament?.total_grams || null,
-        filament_cost_per_gram: costPerGram,
-        material_cost: matCost
+      
+      processedComponents.push({
+        component_id: comp.id || null,
+        name: comp.name || "Producto completo",
+        quantity_per_product: compQty,
+        materials: compMats
       });
     }
   }
@@ -142,8 +169,9 @@ export function calculateProductPrice({ materials, printTimeMinutes, printer, pr
   const snapshot = {
     ...(oldSnapshot || {}),
     source: "product_editor",
-    mode: "simple_multifilament",
-    materials: processedMaterials,
+    mode: mode,
+    components: processedComponents,
+    materials: processedMaterials, // Flat list for visual compatibility
     grams: totalGrams,
     grams_with_error: totalGramsWithError,
     total_grams: totalGrams,
@@ -207,7 +235,8 @@ export default function ProductosPage() {
     image_url: "",
     printer_id: "",
     product_type_id: "",
-    materials: [] as { filament_id: string, grams: number }[],
+    mode: "simple" as "simple" | "parts",
+    components: [] as { id?: string, name: string, quantity_per_product: number, stock_quantity: number, materials: { filament_id: string, grams: number }[] }[],
     print_time_hours: 0,
     print_time_remaining_minutes: 0,
     base_cost: 0,
@@ -242,16 +271,28 @@ export default function ProductosPage() {
     if (!user) return;
     setUserId(user.id);
 
-    const [prodRes, filRes, priRes, ptRes, setRes] = await Promise.all([
+    const [prodRes, filRes, priRes, ptRes, setRes, compsRes] = await Promise.all([
       supabase.from("products").select("*, filaments(name, color)").eq("user_id", user.id).order("created_at", { ascending: false }),
       supabase.from("filaments").select("*").eq("user_id", user.id).eq("is_active", true),
       supabase.from("printers").select("*").eq("user_id", user.id).eq("is_active", true),
       supabase.from("calculator_product_types").select("*").eq("user_id", user.id).eq("is_active", true),
-      supabase.from("calculator_settings").select("*").eq("user_id", user.id).single()
+      supabase.from("calculator_settings").select("*").eq("user_id", user.id).single(),
+      supabase.from("product_components").select("*").eq("user_id", user.id).eq("is_active", true)
     ]);
 
     if (prodRes.error) setError(prodRes.error.message);
-    else setProducts(prodRes.data || []);
+    else {
+      // Attach components to products
+      const allProducts = prodRes.data || [];
+      const allComps = compsRes.data || [];
+      
+      const productsWithComps = allProducts.map(p => {
+        const pComps = allComps.filter(c => c.product_id === p.id);
+        return { ...p, product_components: pComps };
+      });
+      
+      setProducts(productsWithComps);
+    }
     
     if (!filRes.error) setFilaments(filRes.data || []);
     if (!priRes.error) setPrinters(priRes.data || []);
@@ -265,7 +306,8 @@ export default function ProductosPage() {
     setFormData({
       name: "", description: "", image_url: "",
       printer_id: printers.length > 0 ? printers[0].id : "", product_type_id: productTypes.length > 0 ? productTypes[0].id : "",
-      materials: [{ filament_id: filaments.length > 0 ? filaments[0].id : "", grams: 0 }],
+      mode: "simple",
+      components: [{ name: "Producto completo", quantity_per_product: 1, stock_quantity: 0, materials: [{ filament_id: filaments.length > 0 ? filaments[0].id : "", grams: 0 }] }],
       print_time_hours: 0, print_time_remaining_minutes: 0, base_cost: 0, sale_price: 0, stock_quantity: 0, is_active: true
     });
     setCalcPreview(null);
@@ -279,31 +321,52 @@ export default function ProductosPage() {
     const snap = p.calculation_snapshot || {};
     
     // Fetch product components and materials
-    let loadedMaterials: { filament_id: string, grams: number }[] = [];
-    const { data: compData } = await supabase.from("product_components").select("*").eq("product_id", p.id).eq("is_active", true).order("sort_order").limit(1);
+    let loadedComponents: any[] = [];
+    let mode: "simple" | "parts" = "simple";
+
+    const { data: compData } = await supabase.from("product_components").select("*").eq("product_id", p.id).eq("is_active", true).order("sort_order");
     
     if (compData && compData.length > 0) {
-      const compId = compData[0].id;
-      const { data: filData } = await supabase.from("product_component_filaments").select("*").eq("component_id", compId).order("sort_order");
-      if (filData && filData.length > 0) {
-        loadedMaterials = filData.map(f => ({ filament_id: f.filament_id, grams: parseFloat(f.grams) }));
+      if (compData.length > 1 || compData[0].name !== "Producto completo") {
+        mode = "parts";
+      }
+
+      for (const comp of compData) {
+        const { data: filData } = await supabase.from("product_component_filaments").select("*").eq("component_id", comp.id).order("sort_order");
+        const mats = (filData || []).map(f => ({ filament_id: f.filament_id, grams: parseFloat(f.grams) }));
+        
+        loadedComponents.push({
+          id: comp.id,
+          name: comp.name,
+          quantity_per_product: comp.quantity_per_product || 1,
+          stock_quantity: comp.stock_quantity || 0,
+          materials: mats
+        });
       }
     }
 
     // Fallback if no components/materials found
-    if (loadedMaterials.length === 0) {
+    if (loadedComponents.length === 0) {
+      let fallbackMats = [];
       if (p.filament_id) {
-        loadedMaterials = [{ filament_id: p.filament_id, grams: p.grams || 0 }];
+        fallbackMats = [{ filament_id: p.filament_id, grams: p.grams || 0 }];
       } else {
-        loadedMaterials = [{ filament_id: filaments.length > 0 ? filaments[0].id : "", grams: 0 }];
+        fallbackMats = [{ filament_id: filaments.length > 0 ? filaments[0].id : "", grams: 0 }];
       }
+      loadedComponents = [{
+        name: "Producto completo",
+        quantity_per_product: 1,
+        stock_quantity: p.stock_quantity || 0,
+        materials: fallbackMats
+      }];
     }
     
     setFormData({
       name: p.name, description: p.description || "", image_url: p.image_url || "", 
       printer_id: p.printer_id || snap.printer_id || "",
       product_type_id: p.product_type_id || snap.product_type_id || "",
-      materials: loadedMaterials, 
+      mode,
+      components: loadedComponents, 
       print_time_hours: hours, print_time_remaining_minutes: mins, base_cost: p.base_cost || 0, 
       sale_price: p.sale_price || 0, stock_quantity: p.stock_quantity || 0, is_active: p.is_active
     });
@@ -343,9 +406,20 @@ export default function ProductosPage() {
     const { data: { user } } = await supabase.auth.getUser();
     if (!user) return;
 
-    // Validate materials
-    const validMaterials = formData.materials.filter(m => m.filament_id && m.grams > 0);
-    const totalGrams = validMaterials.reduce((acc, curr) => acc + (parseFloat(String(curr.grams)) || 0), 0);
+    // Validate components and materials
+    let totalGrams = 0;
+    let fallbackFilamentId: string | null = null;
+
+    const compsToSave = formData.components.map(c => {
+      const validMats = c.materials.filter(m => m.filament_id && m.grams > 0);
+      const cGrams = validMats.reduce((acc, curr) => acc + (parseFloat(String(curr.grams)) || 0), 0);
+      totalGrams += (cGrams * (parseFloat(String(c.quantity_per_product)) || 1));
+      
+      if (!fallbackFilamentId && validMats.length > 0) {
+        fallbackFilamentId = validMats[0].filament_id;
+      }
+      return { ...c, validMats };
+    }).filter(c => c.name.trim() !== "");
 
     const hours = Math.max(0, parseInt(String(formData.print_time_hours)) || 0);
     const mins = Math.max(0, Math.min(59, parseInt(String(formData.print_time_remaining_minutes)) || 0));
@@ -360,7 +434,7 @@ export default function ProductosPage() {
       name: formData.name,
       description: formData.description,
       image_url: formData.image_url,
-      filament_id: validMaterials.length > 0 ? validMaterials[0].filament_id : null,
+      filament_id: fallbackFilamentId,
       printer_id: formData.printer_id || null,
       product_type_id: formData.product_type_id || null,
       grams: totalGrams,
@@ -396,39 +470,56 @@ export default function ProductosPage() {
 
     // Process components and materials if we have a valid product ID
     if (savedProductId) {
-      // 1. Get or create the main component
-      let compId = null;
-      const { data: compData } = await supabase.from("product_components").select("id").eq("product_id", savedProductId).eq("is_active", true).order("sort_order").limit(1);
+      // First, get all existing active components for this product
+      const { data: existingComps } = await supabase.from("product_components").select("id").eq("product_id", savedProductId);
       
-      if (compData && compData.length > 0) {
-        compId = compData[0].id;
-      } else {
-        const { data: newComp } = await supabase.from("product_components").insert([{
+      const savedCompIds: string[] = [];
+      
+      for (let i = 0; i < compsToSave.length; i++) {
+        const c = compsToSave[i];
+        let compId = c.id;
+        
+        const compPayload = {
           user_id: user.id,
           product_id: savedProductId,
-          name: "Producto completo",
-          quantity_per_product: 1,
-          sort_order: 0,
+          name: formData.mode === "simple" ? "Producto completo" : c.name.trim(),
+          quantity_per_product: formData.mode === "simple" ? 1 : (parseFloat(String(c.quantity_per_product)) || 1),
+          stock_quantity: parseInt(String(c.stock_quantity)) || 0,
+          sort_order: i,
           is_active: true
-        }]).select("id").single();
-        if (newComp) compId = newComp.id;
-      }
+        };
 
-      // 2. Sync materials
-      if (compId) {
-        // Delete old
-        await supabase.from("product_component_filaments").delete().eq("component_id", compId);
-        
-        // Insert new
-        if (validMaterials.length > 0) {
-          const matsToInsert = validMaterials.map((m, index) => ({
-            user_id: user.id,
-            component_id: compId,
-            filament_id: m.filament_id,
-            grams: m.grams,
-            sort_order: index
-          }));
-          await supabase.from("product_component_filaments").insert(matsToInsert);
+        if (compId) {
+          await supabase.from("product_components").update(compPayload).eq("id", compId);
+        } else {
+          const { data: newComp } = await supabase.from("product_components").insert([compPayload]).select("id").single();
+          if (newComp) compId = newComp.id;
+        }
+
+        if (compId) {
+          savedCompIds.push(compId);
+          
+          // Sync materials
+          await supabase.from("product_component_filaments").delete().eq("component_id", compId);
+          
+          if (c.validMats.length > 0) {
+            const matsToInsert = c.validMats.map((m, index) => ({
+              user_id: user.id,
+              component_id: compId,
+              filament_id: m.filament_id,
+              grams: m.grams,
+              sort_order: index
+            }));
+            await supabase.from("product_component_filaments").insert(matsToInsert);
+          }
+        }
+      }
+      
+      // Deactivate old components that were removed
+      if (existingComps && existingComps.length > 0) {
+        const toDeactivate = existingComps.filter(ec => !savedCompIds.includes(ec.id)).map(ec => ec.id);
+        if (toDeactivate.length > 0) {
+          await supabase.from("product_components").update({ is_active: false }).in("id", toDeactivate);
         }
       }
     }
@@ -456,24 +547,56 @@ export default function ProductosPage() {
     }
   };
 
-  const handleMaterialChange = (index: number, field: string, value: any) => {
-    const newMaterials = [...formData.materials];
-    newMaterials[index] = { ...newMaterials[index], [field]: value };
-    setFormData(prev => ({ ...prev, materials: newMaterials }));
+  const handleComponentChange = (index: number, field: string, value: any) => {
+    const newComps = [...formData.components];
+    newComps[index] = { ...newComps[index], [field]: value };
+    setFormData(prev => ({ ...prev, components: newComps }));
     setCalcPreview(null);
   };
 
-  const addMaterial = () => {
+  const addComponent = () => {
     setFormData(prev => ({
       ...prev,
-      materials: [...prev.materials, { filament_id: filaments.length > 0 ? filaments[0].id : "", grams: 0 }]
+      components: [...prev.components, { 
+        name: "", 
+        quantity_per_product: 1, 
+        stock_quantity: 0, 
+        materials: [{ filament_id: filaments.length > 0 ? filaments[0].id : "", grams: 0 }] 
+      }]
     }));
   };
 
-  const removeMaterial = (index: number) => {
-    const newMaterials = [...formData.materials];
-    newMaterials.splice(index, 1);
-    setFormData(prev => ({ ...prev, materials: newMaterials }));
+  const removeComponent = (index: number) => {
+    const newComps = [...formData.components];
+    newComps.splice(index, 1);
+    setFormData(prev => ({ ...prev, components: newComps }));
+    setCalcPreview(null);
+  };
+
+  const handleComponentMaterialChange = (compIndex: number, matIndex: number, field: string, value: any) => {
+    const newComps = [...formData.components];
+    const newMats = [...newComps[compIndex].materials];
+    newMats[matIndex] = { ...newMats[matIndex], [field]: value };
+    newComps[compIndex] = { ...newComps[compIndex], materials: newMats };
+    setFormData(prev => ({ ...prev, components: newComps }));
+    setCalcPreview(null);
+  };
+
+  const addComponentMaterial = (compIndex: number) => {
+    const newComps = [...formData.components];
+    newComps[compIndex] = {
+      ...newComps[compIndex],
+      materials: [...newComps[compIndex].materials, { filament_id: filaments.length > 0 ? filaments[0].id : "", grams: 0 }]
+    };
+    setFormData(prev => ({ ...prev, components: newComps }));
+  };
+
+  const removeComponentMaterial = (compIndex: number, matIndex: number) => {
+    const newComps = [...formData.components];
+    const newMats = [...newComps[compIndex].materials];
+    newMats.splice(matIndex, 1);
+    newComps[compIndex] = { ...newComps[compIndex], materials: newMats };
+    setFormData(prev => ({ ...prev, components: newComps }));
     setCalcPreview(null);
   };
 
@@ -482,29 +605,36 @@ export default function ProductosPage() {
     const mins = Math.max(0, Math.min(59, parseInt(String(formData.print_time_remaining_minutes)) || 0));
     const totalMinutes = (hours * 60) + mins;
     
-    const validMaterials = formData.materials.filter(m => m.filament_id && m.grams > 0);
+    let hasValidComponents = false;
+    let hasInvalidMaterials = false;
+    
+    const builtComponents = formData.components.map(c => {
+      const validMats = c.materials.filter(m => m.filament_id && m.grams > 0);
+      if (c.name.trim() !== "" && validMats.length > 0) hasValidComponents = true;
+      
+      const builtMats = validMats.map(m => {
+        const fil = filaments.find(f => f.id === m.filament_id);
+        if (!fil || fil.total_grams <= 0) hasInvalidMaterials = true;
+        return { filament: fil, filament_id: m.filament_id, grams: m.grams };
+      });
+      return { ...c, materials: builtMats };
+    });
 
-    if (totalMinutes === 0 || validMaterials.length === 0 || !formData.printer_id || !formData.product_type_id) {
-      alert("Completá materiales (con gramos), tiempo, impresora y tipo de producto para calcular.");
+    if (totalMinutes === 0 || !hasValidComponents || !formData.printer_id || !formData.product_type_id) {
+      alert("Completá materiales, partes (con nombre y gramos), tiempo, impresora y tipo de producto para calcular.");
       return;
     }
-
-    const builtMaterials = validMaterials.map(m => {
-      const fil = filaments.find(f => f.id === m.filament_id);
-      return { filament: fil, filament_id: m.filament_id, grams: m.grams };
-    });
 
     const printer = printers.find(p => p.id === formData.printer_id);
     const productType = productTypes.find(pt => pt.id === formData.product_type_id);
 
-    const invalidMaterial = builtMaterials.find(m => !m.filament || m.filament.total_grams <= 0);
-    if (invalidMaterial) {
-      alert(`El filamento seleccionado (${invalidMaterial.filament?.name || 'Desconocido'}) no es válido o no tiene gramos totales configurados.`);
+    if (hasInvalidMaterials) {
+      alert("Un filamento seleccionado no es válido o no tiene gramos totales configurados.");
       return;
     }
 
     const result = calculateProductPrice({
-      materials: builtMaterials,
+      components: builtComponents,
       printTimeMinutes: totalMinutes,
       printer,
       productType,
@@ -742,45 +872,128 @@ export default function ProductosPage() {
               </div>
             </div>
 
-            {/* Materiales del Producto */}
+            {/* Mode selector */}
+            <div className="mb-4">
+              <label className="block text-xs font-semibold text-gray-700 mb-2">Modo de composición</label>
+              <div className="flex gap-4">
+                <label className="flex items-center gap-2 cursor-pointer">
+                  <input 
+                    type="radio" 
+                    name="mode" 
+                    value="simple" 
+                    checked={formData.mode === "simple"} 
+                    onChange={handleChange}
+                    className="text-orange-500 focus:ring-orange-500"
+                  />
+                  <span className="text-sm text-gray-700">Producto simple</span>
+                </label>
+                <label className="flex items-center gap-2 cursor-pointer">
+                  <input 
+                    type="radio" 
+                    name="mode" 
+                    value="parts" 
+                    checked={formData.mode === "parts"} 
+                    onChange={handleChange}
+                    className="text-orange-500 focus:ring-orange-500"
+                  />
+                  <span className="text-sm text-gray-700">Producto por partes</span>
+                </label>
+              </div>
+            </div>
+
+            {/* Materiales y Partes del Producto */}
             <div className="mb-4 bg-gray-50/50 p-4 rounded-xl border border-gray-200 shadow-sm">
               <div className="flex items-center justify-between mb-3">
-                <h4 className="text-sm font-bold text-gray-900">Materiales del producto</h4>
-                <button type="button" onClick={addMaterial} className="text-xs font-bold text-orange-600 hover:text-orange-700 flex items-center gap-1">
-                  <Plus size={14} /> Agregar filamento
-                </button>
+                <h4 className="text-sm font-bold text-gray-900">
+                  {formData.mode === "simple" ? "Materiales del producto" : "Partes del producto"}
+                </h4>
+                {formData.mode === "parts" && (
+                  <button type="button" onClick={addComponent} className="text-xs font-bold text-orange-600 hover:text-orange-700 flex items-center gap-1">
+                    <Plus size={14} /> Agregar parte
+                  </button>
+                )}
               </div>
-              <div className="space-y-2">
-                {formData.materials.map((mat, index) => (
-                  <div key={index} className="flex items-center gap-2">
-                    <div className="flex-1">
-                      <select 
-                        value={mat.filament_id} 
-                        onChange={(e) => handleMaterialChange(index, "filament_id", e.target.value)} 
-                        className="w-full text-xs border-gray-300 rounded-md focus:border-orange-500 focus:ring-orange-500 text-gray-900 bg-white"
-                      >
-                        <option value="">Seleccionar filamento...</option>
-                        {filaments.map(f => <option key={f.id} value={f.id}>{f.name} ({f.color})</option>)}
-                      </select>
+              
+              <div className="space-y-4">
+                {formData.components.map((comp, compIndex) => (
+                  <div key={compIndex} className={`p-3 rounded-lg border ${formData.mode === "parts" ? 'bg-white border-gray-200' : 'border-transparent'}`}>
+                    
+                    {formData.mode === "parts" && (
+                      <div className="flex items-start gap-2 mb-3">
+                        <div className="flex-1 space-y-2">
+                          <input 
+                            type="text" 
+                            value={comp.name} 
+                            onChange={(e) => handleComponentChange(compIndex, "name", e.target.value)}
+                            placeholder="Nombre de la parte (ej. Cuerpo)"
+                            className="w-full text-sm font-medium border-gray-300 rounded-md focus:border-orange-500 focus:ring-orange-500"
+                          />
+                          <div className="flex gap-2">
+                            <label className="flex items-center gap-2 text-xs text-gray-600">
+                              Cant. por producto:
+                              <input 
+                                type="number" min="1" 
+                                value={comp.quantity_per_product} 
+                                onChange={(e) => handleComponentChange(compIndex, "quantity_per_product", Math.max(1, parseInt(e.target.value) || 1))}
+                                className="w-16 text-xs border-gray-300 rounded-md p-1"
+                              />
+                            </label>
+                            <label className="flex items-center gap-2 text-xs text-gray-600">
+                              Stock actual:
+                              <input 
+                                type="number" min="0" 
+                                value={comp.stock_quantity} 
+                                onChange={(e) => handleComponentChange(compIndex, "stock_quantity", Math.max(0, parseInt(e.target.value) || 0))}
+                                className="w-16 text-xs border-gray-300 rounded-md p-1"
+                              />
+                            </label>
+                          </div>
+                        </div>
+                        {formData.components.length > 1 && (
+                          <button type="button" onClick={() => removeComponent(compIndex)} className="text-red-400 hover:text-red-600 p-1 mt-1">
+                            <Trash2 size={16} />
+                          </button>
+                        )}
+                      </div>
+                    )}
+
+                    <div className="space-y-2">
+                      {comp.materials.map((mat, matIndex) => (
+                        <div key={matIndex} className="flex items-center gap-2">
+                          <div className="flex-1">
+                            <select 
+                              value={mat.filament_id} 
+                              onChange={(e) => handleComponentMaterialChange(compIndex, matIndex, "filament_id", e.target.value)} 
+                              className="w-full text-xs border-gray-300 rounded-md focus:border-orange-500 focus:ring-orange-500 text-gray-900 bg-white"
+                            >
+                              <option value="">Seleccionar filamento...</option>
+                              {filaments.map(f => <option key={f.id} value={f.id}>{f.name} {f.color ? `(${f.color})` : ""}</option>)}
+                            </select>
+                          </div>
+                          <div className="w-24 flex items-center gap-1">
+                            <input 
+                              type="number" 
+                              min="0" step="0.1"
+                              value={mat.grams} 
+                              onChange={(e) => handleComponentMaterialChange(compIndex, matIndex, "grams", parseFloat(e.target.value) || 0)} 
+                              className="w-full text-xs border-gray-300 rounded-md focus:border-orange-500 focus:ring-orange-500 text-gray-900 bg-white" 
+                              placeholder="Gramos"
+                            />
+                            <span className="text-xs text-gray-500">g</span>
+                          </div>
+                          <button type="button" onClick={() => removeComponentMaterial(compIndex, matIndex)} className="text-red-400 hover:text-red-600 p-1">
+                            <X size={16} />
+                          </button>
+                        </div>
+                      ))}
+                      
+                      <button type="button" onClick={() => addComponentMaterial(compIndex)} className="text-xs font-bold text-orange-600 hover:text-orange-700 flex items-center gap-1 mt-1">
+                        <Plus size={12} /> Agregar material {formData.mode === "parts" && "a esta parte"}
+                      </button>
+                      
                     </div>
-                    <div className="w-24">
-                      <input 
-                        type="number" 
-                        min="0"
-                        value={mat.grams} 
-                        onChange={(e) => handleMaterialChange(index, "grams", parseFloat(e.target.value) || 0)} 
-                        className="w-full text-xs border-gray-300 rounded-md focus:border-orange-500 focus:ring-orange-500 text-gray-900 bg-white" 
-                        placeholder="Gramos"
-                      />
-                    </div>
-                    <button type="button" onClick={() => removeMaterial(index)} className="text-red-400 hover:text-red-600 p-1">
-                      <Trash2 size={16} />
-                    </button>
                   </div>
                 ))}
-                {formData.materials.length === 0 && (
-                  <p className="text-xs text-gray-400 italic py-2">No hay materiales agregados. Agregá al menos uno para calcular automáticamente.</p>
-                )}
               </div>
             </div>
 
@@ -972,7 +1185,12 @@ export default function ProductosPage() {
                   </div>
                 )}
                 <div className="min-w-0 flex-1">
-                  <p className="truncate text-sm font-bold text-gray-900">{p.name}</p>
+                  <div className="flex items-center gap-2">
+                    <p className="truncate text-sm font-bold text-gray-900">{p.name}</p>
+                    {p.product_components?.length > 1 && (
+                      <span className="px-1.5 py-0.5 bg-blue-100 text-blue-700 text-[9px] font-bold uppercase rounded-md">Por partes</span>
+                    )}
+                  </div>
                   <p className="text-xs text-gray-400 truncate">{p.description || "Sin descripción"}</p>
                   <div className="mt-1 flex flex-wrap items-center gap-1.5 text-xs text-gray-500">
                     {(() => {
@@ -1027,9 +1245,35 @@ export default function ProductosPage() {
                 </div>
                 <div>
                   <p className={`text-xs font-bold ${p.stock_quantity > 0 ? 'text-gray-900' : 'text-red-500'}`}>{p.stock_quantity || 0}</p>
-                  <p className="text-[10px] text-gray-400">Stock</p>
+                  <p className="text-[10px] text-gray-400">Terminados</p>
                 </div>
               </div>
+
+              {/* Parts Details */}
+              {p.product_components?.length > 1 && (
+                <div className="mt-2 bg-blue-50/50 rounded-xl p-3 border border-blue-100">
+                  <div className="flex items-center justify-between mb-2">
+                    <p className="text-xs font-bold text-blue-900">Piezas requeridas</p>
+                    <p className="text-[10px] font-bold text-blue-700 bg-blue-100 px-2 py-0.5 rounded-full">
+                      Armables: {Math.min(...p.product_components.map((c: any) => Math.floor((c.stock_quantity || 0) / (c.quantity_per_product || 1)))) || 0}
+                    </p>
+                  </div>
+                  <div className="space-y-1">
+                    {p.product_components.map((c: any) => {
+                      const needed = c.quantity_per_product || 1;
+                      const hasStock = c.stock_quantity >= needed;
+                      return (
+                        <div key={c.id} className="flex justify-between items-center text-xs">
+                          <span className="text-gray-600 truncate mr-2">{c.name}</span>
+                          <span className={`font-medium ${hasStock ? 'text-gray-900' : 'text-red-500'}`}>
+                            {c.stock_quantity || 0} / {needed}
+                          </span>
+                        </div>
+                      );
+                    })}
+                  </div>
+                </div>
+              )}
 
               {/* Margin badge */}
               {p.sale_price > 0 && p.base_cost > 0 && (

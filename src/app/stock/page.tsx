@@ -32,7 +32,7 @@ export default function StockPage() {
 
   // Consume by Product States
   const [consumeModalOpen, setConsumeModalOpen] = useState(false);
-  const [consumeCart, setConsumeCart] = useState<{product: any, quantity: number}[]>([]);
+  const [consumeCart, setConsumeCart] = useState<{type: "product"|"component", product: any, component?: any, quantity: number}[]>([]);
   const [consumeSelectedProductId, setConsumeSelectedProductId] = useState<string>("");
   const [consumeAddStock, setConsumeAddStock] = useState(true);
   const [consumeLoading, setConsumeLoading] = useState(false);
@@ -79,6 +79,68 @@ export default function StockPage() {
       alert("Error al actualizar el stock: " + error.message);
       // Revert on error
       setProducts(products.map(p => p.id === id ? { ...p, stock_quantity: product.stock_quantity } : p));
+    }
+  };
+
+  const handleAdjustComponentStock = async (compId: string, delta: number) => {
+    const comp = productComponents.find(c => c.id === compId);
+    if (!comp) return;
+
+    if (delta < 0 && (comp.stock_quantity || 0) < Math.abs(delta)) {
+      alert("No hay suficiente stock de esta pieza para restar.");
+      return;
+    }
+
+    const { error: rpcError } = await supabase.rpc("adjust_component_stock", {
+      p_component_id: compId,
+      p_quantity_delta: delta,
+      p_movement_type: delta > 0 ? "manual_add" : "manual_subtract",
+      p_reason: delta > 0 ? "Suma manual de pieza desde stock" : "Resta manual de pieza desde stock",
+      p_source_type: "manual",
+      p_source_id: null
+    });
+
+    if (rpcError) {
+      alert("Error ajustando stock de pieza: " + rpcError.message);
+    } else {
+      await fetchData(); // refresh to update stock
+    }
+  };
+
+  const handleAssembleProduct = async (product: any) => {
+    const pComps = productComponents.filter(c => c.product_id === product.id && c.is_active);
+    if (pComps.length <= 1 && (!pComps[0] || pComps[0].name === "Producto completo")) {
+      return; // Simple product
+    }
+
+    const maxAssemble = Math.min(...pComps.map(c => Math.floor((c.stock_quantity || 0) / (c.quantity_per_product || 1)))) || 0;
+    
+    if (maxAssemble <= 0) {
+      alert("No hay piezas suficientes para armar este producto.");
+      return;
+    }
+
+    const qtyStr = prompt(`¿Cuántos ${product.name} querés armar? (Máximo: ${maxAssemble})`, "1");
+    if (!qtyStr) return;
+    const qty = parseInt(qtyStr);
+    
+    if (isNaN(qty) || qty <= 0 || qty > maxAssemble) {
+      alert("Cantidad inválida o superior a las piezas disponibles.");
+      return;
+    }
+
+    const { error } = await supabase.rpc("assemble_product_from_components", {
+      p_product_id: product.id,
+      p_quantity: qty,
+      p_reason: "Armado de producto desde stock de piezas"
+    });
+
+    if (error) {
+      console.error(error);
+      alert("Error al armar el producto: " + error.message);
+    } else {
+      alert(`¡Producto armado! Se restaron las piezas y se sumaron ${qty} al stock final.`);
+      await fetchData();
     }
   };
 
@@ -154,23 +216,36 @@ export default function StockPage() {
   // --- Consume Cart Logic ---
   const handleAddToCart = () => {
     if (!consumeSelectedProductId) return;
-    const prod = products.find(p => p.id === consumeSelectedProductId);
-    if (!prod) return;
-
-    // Check if it has components/materials
-    const hasComponents = productComponents.some(c => c.product_id === prod.id);
-    if (!hasComponents && !prod.filament_id) {
-      alert("Este producto no tiene materiales configurados para descontar.");
-      return;
-    }
-
-    setConsumeCart(prev => {
-      const existing = prev.find(item => item.product.id === prod.id);
-      if (existing) {
-        return prev.map(item => item.product.id === prod.id ? { ...item, quantity: item.quantity + 1 } : item);
+    const [type, id] = consumeSelectedProductId.split("|");
+    
+    if (type === "product") {
+      const prod = products.find(p => p.id === id);
+      if (!prod) return;
+      const hasComponents = productComponents.some(c => c.product_id === prod.id);
+      if (!hasComponents && !prod.filament_id) {
+        alert("Este producto no tiene materiales configurados para descontar.");
+        return;
       }
-      return [...prev, { product: prod, quantity: 1 }];
-    });
+      setConsumeCart(prev => {
+        const existing = prev.find(item => item.type === "product" && item.product.id === prod.id);
+        if (existing) {
+          return prev.map(item => item === existing ? { ...item, quantity: item.quantity + 1 } : item);
+        }
+        return [...prev, { type: "product", product: prod, quantity: 1 }];
+      });
+    } else if (type === "component") {
+      const comp = productComponents.find(c => c.id === id);
+      if (!comp) return;
+      const prod = products.find(p => p.id === comp.product_id);
+      setConsumeCart(prev => {
+        const existing = prev.find(item => item.type === "component" && item.component?.id === comp.id);
+        if (existing) {
+          return prev.map(item => item === existing ? { ...item, quantity: item.quantity + 1 } : item);
+        }
+        return [...prev, { type: "component", product: prod, component: comp, quantity: 1 }];
+      });
+    }
+    
     setConsumeSelectedProductId("");
   };
 
@@ -179,21 +254,29 @@ export default function StockPage() {
     const insufficient: string[] = [];
 
     consumeCart.forEach(item => {
-      const prodId = item.product.id;
-      const comps = productComponents.filter(c => c.product_id === prodId && c.is_active);
-      
-      if (comps.length > 0) {
-        comps.forEach(c => {
-          const mats = componentFilaments.filter(f => f.component_id === c.id);
-          mats.forEach(m => {
-            const qty = item.quantity * c.quantity_per_product * parseFloat(m.grams || "0");
-            required[m.filament_id] = (required[m.filament_id] || 0) + qty;
+      if (item.type === "product") {
+        const prodId = item.product.id;
+        const comps = productComponents.filter(c => c.product_id === prodId && c.is_active);
+        
+        if (comps.length > 0) {
+          comps.forEach(c => {
+            const mats = componentFilaments.filter(f => f.component_id === c.id);
+            mats.forEach(m => {
+              const qty = item.quantity * c.quantity_per_product * parseFloat(m.grams || "0");
+              required[m.filament_id] = (required[m.filament_id] || 0) + qty;
+            });
           });
+        } else if (item.product.filament_id) {
+          // Fallback for legacy products
+          const qty = item.quantity * parseFloat(item.product.grams || "0");
+          required[item.product.filament_id] = (required[item.product.filament_id] || 0) + qty;
+        }
+      } else if (item.type === "component" && item.component) {
+        const mats = componentFilaments.filter(f => f.component_id === item.component.id);
+        mats.forEach(m => {
+          const qty = item.quantity * parseFloat(m.grams || "0");
+          required[m.filament_id] = (required[m.filament_id] || 0) + qty;
         });
-      } else if (item.product.filament_id) {
-        // Fallback for legacy products
-        const qty = item.quantity * parseFloat(item.product.grams || "0");
-        required[item.product.filament_id] = (required[item.product.filament_id] || 0) + qty;
       }
     });
 
@@ -219,25 +302,71 @@ export default function StockPage() {
     if (!isValid) return;
 
     setConsumeLoading(true);
-    const p_items = consumeCart.map(item => ({
-      product_id: item.product.id,
-      quantity: item.quantity
-    }));
+    let hasErrors = false;
+    
+    // Split into products and components
+    const productItems = consumeCart.filter(item => item.type === "product");
+    const compItems = consumeCart.filter(item => item.type === "component" && item.component);
 
-    const { error: rpcError } = await supabase.rpc("consume_filaments_for_products", {
-      p_items,
-      p_reason: "Producción registrada desde stock",
-      p_add_to_product_stock: consumeAddStock
-    });
+    // 1. Process whole products using RPC
+    if (productItems.length > 0) {
+      const p_items = productItems.map(item => ({
+        product_id: item.product.id,
+        quantity: item.quantity
+      }));
+      const { error: rpcError } = await supabase.rpc("consume_filaments_for_products", {
+        p_items,
+        p_reason: "Producción registrada desde stock",
+        p_add_to_product_stock: consumeAddStock
+      });
+      if (rpcError) {
+        console.error("Error consumiendo productos completos:", rpcError);
+        alert("Hubo un error al descontar los productos completos: " + rpcError.message);
+        hasErrors = true;
+      }
+    }
 
-    if (rpcError) {
-      console.error("Error consumiendo stock:", rpcError);
-      alert("Hubo un error al descontar el stock: " + rpcError.message);
-    } else {
+    // 2. Process individual components sequentially
+    if (compItems.length > 0) {
+      for (const item of compItems) {
+        const c = item.component;
+        if (!c) continue;
+        const mats = componentFilaments.filter(f => f.component_id === c.id);
+        
+        // Decrement filaments for this component
+        for (const m of mats) {
+          const qty = item.quantity * parseFloat(m.grams || "0");
+          if (qty <= 0) continue;
+          
+          await supabase.rpc("adjust_filament_stock", {
+            p_filament_id: m.filament_id,
+            p_grams_delta: -qty,
+            p_movement_type: "production",
+            p_reason: `Impresión de pieza individual: ${c.name}`,
+            p_source_type: "product_component",
+            p_source_id: c.id
+          });
+        }
+        
+        // Optionally add to component stock
+        if (consumeAddStock) {
+          await supabase.rpc("adjust_component_stock", {
+            p_component_id: c.id,
+            p_quantity_delta: item.quantity,
+            p_movement_type: "production",
+            p_reason: "Fabricación de pieza individual",
+            p_source_type: "manual",
+            p_source_id: null
+          });
+        }
+      }
+    }
+
+    if (!hasErrors) {
       setConsumeModalOpen(false);
       setConsumeCart([]);
-      await fetchData(); // refreshes everything
     }
+    await fetchData(); // refreshes everything
     setConsumeLoading(false);
   };
 
@@ -334,53 +463,114 @@ export default function StockPage() {
               
               {tab === "productos" && products.map((p) => {
                 const isLow = p.stock_quantity <= 1;
+                const pComps = productComponents.filter(c => c.product_id === p.id && c.is_active);
+                const isParts = pComps.length > 1 || (pComps.length === 1 && pComps[0].name !== "Producto completo");
+                const maxAssemble = isParts ? Math.min(...pComps.map(c => Math.floor((c.stock_quantity || 0) / (c.quantity_per_product || 1)))) || 0 : 0;
+
                 return (
-                <tr key={p.id} className="hover:bg-gray-50 transition-colors">
-                  <td className="px-5 py-3.5 font-semibold text-gray-900">
-                    <div className="flex items-center gap-3">
-                      {p.image_url ? (
-                        <img src={p.image_url} alt="" className="w-8 h-8 rounded bg-gray-100 object-cover border border-gray-200" />
-                      ) : (
-                        <div className="w-8 h-8 rounded bg-gray-100 flex items-center justify-center border border-gray-200 text-gray-400 text-xs">📦</div>
-                      )}
-                      <span>{p.name}</span>
-                    </div>
-                  </td>
-                  <td className="px-5 py-3.5 text-gray-600 font-medium">${p.sale_price?.toFixed(2) || "0.00"}</td>
-                  <td className="px-5 py-3.5">
-                    <div className="flex items-center gap-2">
-                      <span className={`font-bold text-lg ${isLow ? "text-red-600" : "text-gray-900"}`}>
-                        {p.stock_quantity || 0}
-                      </span>
-                      {isLow && p.is_active && (
-                        <Badge tone="gray" className="ml-1 border-red-200 bg-red-50 text-red-600">Bajo</Badge>
-                      )}
-                    </div>
-                  </td>
-                  <td className="px-5 py-3.5">
-                    <span className={`text-xs px-2 py-1 rounded-md font-medium ${p.is_active ? 'bg-green-100 text-green-700' : 'bg-gray-100 text-gray-600'}`}>
-                      {p.is_active ? 'Activo' : 'Inactivo'}
-                    </span>
-                  </td>
-                  <td className="px-5 py-3.5">
-                    <div className="flex justify-end gap-1.5">
-                      <button
-                        onClick={() => handleAdjustProductStock(p.id, -1)}
-                        className="flex h-8 w-8 items-center justify-center rounded-lg border border-gray-200 text-gray-600 bg-white hover:bg-gray-50 hover:text-red-600 transition-colors shadow-sm"
-                        disabled={p.stock_quantity <= 0}
-                      >
-                        <Minus size={14} />
-                      </button>
-                      <button
-                        onClick={() => handleAdjustProductStock(p.id, 1)}
-                        className="flex h-8 w-8 items-center justify-center rounded-lg border border-gray-200 text-gray-600 bg-white hover:bg-gray-50 hover:text-green-600 transition-colors shadow-sm"
-                      >
-                        <Plus size={14} />
-                      </button>
-                    </div>
-                  </td>
-                </tr>
-              )})}
+                  <React.Fragment key={p.id}>
+                    <tr className="hover:bg-gray-50 transition-colors">
+                      <td className="px-5 py-3.5 font-semibold text-gray-900">
+                        <div className="flex items-center gap-3">
+                          {p.image_url ? (
+                            <img src={p.image_url} alt="" className="w-8 h-8 rounded bg-gray-100 object-cover border border-gray-200" />
+                          ) : (
+                            <div className="w-8 h-8 rounded bg-gray-100 flex items-center justify-center border border-gray-200 text-gray-400 text-xs">📦</div>
+                          )}
+                          <div className="flex flex-col">
+                            <span>{p.name}</span>
+                            {isParts && (
+                              <span className="text-[10px] text-blue-600 bg-blue-50 border border-blue-100 px-1.5 py-0.5 rounded w-max mt-0.5 uppercase font-bold">Por Partes</span>
+                            )}
+                          </div>
+                        </div>
+                      </td>
+                      <td className="px-5 py-3.5 text-gray-600 font-medium">${p.sale_price?.toFixed(2) || "0.00"}</td>
+                      <td className="px-5 py-3.5">
+                        <div className="flex items-center gap-2">
+                          <span className={`font-bold text-lg ${isLow ? "text-red-600" : "text-gray-900"}`}>
+                            {p.stock_quantity || 0}
+                          </span>
+                          {isLow && p.is_active && (
+                            <Badge tone="gray" className="ml-1 border-red-200 bg-red-50 text-red-600">Bajo</Badge>
+                          )}
+                        </div>
+                      </td>
+                      <td className="px-5 py-3.5">
+                        <span className={`text-xs px-2 py-1 rounded-md font-medium ${p.is_active ? 'bg-green-100 text-green-700' : 'bg-gray-100 text-gray-600'}`}>
+                          {p.is_active ? 'Activo' : 'Inactivo'}
+                        </span>
+                      </td>
+                      <td className="px-5 py-3.5">
+                        <div className="flex justify-end gap-1.5 items-center">
+                          {isParts && (
+                            <button
+                              onClick={() => handleAssembleProduct(p)}
+                              disabled={maxAssemble <= 0}
+                              className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-bold rounded-lg border border-indigo-200 text-indigo-700 bg-indigo-50 hover:bg-indigo-100 transition-colors disabled:opacity-50 disabled:cursor-not-allowed mr-2"
+                            >
+                              <Package size={14} /> Armar
+                              <span className="bg-white px-1.5 py-0.5 rounded text-[10px] border border-indigo-100">{maxAssemble}</span>
+                            </button>
+                          )}
+                          <button
+                            onClick={() => handleAdjustProductStock(p.id, -1)}
+                            className="flex h-8 w-8 items-center justify-center rounded-lg border border-gray-200 text-gray-600 bg-white hover:bg-gray-50 hover:text-red-600 transition-colors shadow-sm"
+                            disabled={p.stock_quantity <= 0}
+                          >
+                            <Minus size={14} />
+                          </button>
+                          <button
+                            onClick={() => handleAdjustProductStock(p.id, 1)}
+                            className="flex h-8 w-8 items-center justify-center rounded-lg border border-gray-200 text-gray-600 bg-white hover:bg-gray-50 hover:text-green-600 transition-colors shadow-sm"
+                          >
+                            <Plus size={14} />
+                          </button>
+                        </div>
+                      </td>
+                    </tr>
+                    
+                    {/* Render Parts below product if any */}
+                    {isParts && pComps.map(c => (
+                      <tr key={c.id} className="bg-gray-50/50 border-t border-gray-50">
+                        <td className="px-5 py-2 pl-16">
+                          <div className="flex items-center gap-2">
+                            <div className="w-1.5 h-1.5 rounded-full bg-blue-300"></div>
+                            <span className="text-sm font-medium text-gray-600">{c.name}</span>
+                            <span className="text-[10px] text-gray-400">({c.quantity_per_product} por prod.)</span>
+                          </div>
+                        </td>
+                        <td className="px-5 py-2"></td>
+                        <td className="px-5 py-2">
+                          <div className="flex items-center gap-2">
+                            <span className={`font-semibold text-sm ${c.stock_quantity < c.quantity_per_product ? "text-red-500" : "text-gray-700"}`}>
+                              {c.stock_quantity || 0}
+                            </span>
+                          </div>
+                        </td>
+                        <td className="px-5 py-2"></td>
+                        <td className="px-5 py-2">
+                          <div className="flex justify-end gap-1">
+                            <button
+                              onClick={() => handleAdjustComponentStock(c.id, -1)}
+                              className="flex h-6 w-6 items-center justify-center rounded border border-gray-200 text-gray-500 bg-white hover:bg-gray-50 hover:text-red-600 transition-colors"
+                              disabled={c.stock_quantity <= 0}
+                            >
+                              <Minus size={12} />
+                            </button>
+                            <button
+                              onClick={() => handleAdjustComponentStock(c.id, 1)}
+                              className="flex h-6 w-6 items-center justify-center rounded border border-gray-200 text-gray-500 bg-white hover:bg-gray-50 hover:text-green-600 transition-colors"
+                            >
+                              <Plus size={12} />
+                            </button>
+                          </div>
+                        </td>
+                      </tr>
+                    ))}
+                  </React.Fragment>
+                )
+              })}
 
               {tab === "filamentos" && filaments.map((f) => {
                 const isLow = f.remaining_grams < 200;
@@ -547,10 +737,23 @@ export default function StockPage() {
                     onChange={(e) => setConsumeSelectedProductId(e.target.value)} 
                     className="flex-1 text-sm border-gray-300 rounded-lg focus:border-orange-500 focus:ring-orange-500"
                   >
-                    <option value="">Buscar producto...</option>
-                    {products.filter(p => p.is_active).map(p => (
-                      <option key={p.id} value={p.id}>{p.name}</option>
-                    ))}
+                    <option value="">Buscar producto o parte...</option>
+                    {products.filter(p => p.is_active).map(p => {
+                      const pComps = productComponents.filter(c => c.product_id === p.id && c.is_active);
+                      const isParts = pComps.length > 1 || (pComps.length === 1 && pComps[0].name !== "Producto completo");
+                      if (isParts) {
+                        return (
+                          <optgroup key={p.id} label={p.name}>
+                            <option value={`product|${p.id}`}>📦 {p.name} (Completo)</option>
+                            {pComps.map(c => (
+                              <option key={c.id} value={`component|${c.id}`}>&nbsp;&nbsp;🧩 Pieza: {c.name}</option>
+                            ))}
+                          </optgroup>
+                        );
+                      } else {
+                        return <option key={p.id} value={`product|${p.id}`}>📦 {p.name}</option>
+                      }
+                    })}
                   </select>
                   <PrimaryButton onClick={handleAddToCart} disabled={!consumeSelectedProductId}>
                     <Plus size={16} /> Agregar
@@ -566,12 +769,21 @@ export default function StockPage() {
                     {consumeCart.map((item, idx) => (
                       <div key={idx} className="flex items-center justify-between bg-gray-50 border border-gray-200 p-3 rounded-lg">
                         <div className="flex items-center gap-3 overflow-hidden">
-                          {item.product.image_url ? (
+                          {item.product?.image_url ? (
                             <img src={item.product.image_url} alt="" className="w-10 h-10 rounded-md object-cover border border-gray-200 shrink-0" />
                           ) : (
-                            <div className="w-10 h-10 rounded-md bg-gray-200 flex items-center justify-center shrink-0 text-gray-500">📦</div>
+                            <div className="w-10 h-10 rounded-md bg-gray-200 flex items-center justify-center shrink-0 text-gray-500">
+                              {item.type === "component" ? "🧩" : "📦"}
+                            </div>
                           )}
-                          <span className="font-semibold text-sm text-gray-900 truncate">{item.product.name}</span>
+                          <div className="flex flex-col">
+                            <span className="font-semibold text-sm text-gray-900 truncate">
+                              {item.type === "component" ? item.component?.name : item.product?.name}
+                            </span>
+                            {item.type === "component" && (
+                              <span className="text-[10px] text-gray-500 truncate">Parte de: {item.product?.name}</span>
+                            )}
+                          </div>
                         </div>
                         <div className="flex items-center gap-3 shrink-0">
                           <div className="flex items-center">
