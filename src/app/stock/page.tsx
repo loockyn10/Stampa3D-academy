@@ -15,6 +15,8 @@ export default function StockPage() {
   
   const [products, setProducts] = useState<any[]>([]);
   const [filaments, setFilaments] = useState<any[]>([]);
+  const [productComponents, setProductComponents] = useState<any[]>([]);
+  const [componentFilaments, setComponentFilaments] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
@@ -28,6 +30,13 @@ export default function StockPage() {
   const [historyMovements, setHistoryMovements] = useState<any[]>([]);
   const [historyLoading, setHistoryLoading] = useState(false);
 
+  // Consume by Product States
+  const [consumeModalOpen, setConsumeModalOpen] = useState(false);
+  const [consumeCart, setConsumeCart] = useState<{product: any, quantity: number}[]>([]);
+  const [consumeSelectedProductId, setConsumeSelectedProductId] = useState<string>("");
+  const [consumeAddStock, setConsumeAddStock] = useState(true);
+  const [consumeLoading, setConsumeLoading] = useState(false);
+
   useEffect(() => {
     fetchData();
   }, []);
@@ -37,9 +46,11 @@ export default function StockPage() {
     const { data: { user } } = await supabase.auth.getUser();
     if (!user) return;
 
-    const [prodRes, filRes] = await Promise.all([
+    const [prodRes, filRes, compRes, compFilRes] = await Promise.all([
       supabase.from("products").select("*").eq("user_id", user.id).order("name", { ascending: true }),
-      supabase.from("filaments").select("*").eq("user_id", user.id).eq("is_active", true).order("name", { ascending: true })
+      supabase.from("filaments").select("*").eq("user_id", user.id).eq("is_active", true).order("name", { ascending: true }),
+      supabase.from("product_components").select("*").eq("user_id", user.id).eq("is_active", true),
+      supabase.from("product_component_filaments").select("*").eq("user_id", user.id)
     ]);
 
     if (prodRes.error) setError(prodRes.error.message);
@@ -47,6 +58,9 @@ export default function StockPage() {
 
     if (filRes.error) console.error(filRes.error.message);
     else setFilaments(filRes.data || []);
+
+    if (!compRes.error && compRes.data) setProductComponents(compRes.data);
+    if (!compFilRes.error && compFilRes.data) setComponentFilaments(compFilRes.data);
 
     setLoading(false);
   };
@@ -137,6 +151,96 @@ export default function StockPage() {
     });
   };
 
+  // --- Consume Cart Logic ---
+  const handleAddToCart = () => {
+    if (!consumeSelectedProductId) return;
+    const prod = products.find(p => p.id === consumeSelectedProductId);
+    if (!prod) return;
+
+    // Check if it has components/materials
+    const hasComponents = productComponents.some(c => c.product_id === prod.id);
+    if (!hasComponents && !prod.filament_id) {
+      alert("Este producto no tiene materiales configurados para descontar.");
+      return;
+    }
+
+    setConsumeCart(prev => {
+      const existing = prev.find(item => item.product.id === prod.id);
+      if (existing) {
+        return prev.map(item => item.product.id === prod.id ? { ...item, quantity: item.quantity + 1 } : item);
+      }
+      return [...prev, { product: prod, quantity: 1 }];
+    });
+    setConsumeSelectedProductId("");
+  };
+
+  const calculateConsumePreview = () => {
+    const required: Record<string, number> = {};
+    const insufficient: string[] = [];
+
+    consumeCart.forEach(item => {
+      const prodId = item.product.id;
+      const comps = productComponents.filter(c => c.product_id === prodId && c.is_active);
+      
+      if (comps.length > 0) {
+        comps.forEach(c => {
+          const mats = componentFilaments.filter(f => f.component_id === c.id);
+          mats.forEach(m => {
+            const qty = item.quantity * c.quantity_per_product * parseFloat(m.grams || "0");
+            required[m.filament_id] = (required[m.filament_id] || 0) + qty;
+          });
+        });
+      } else if (item.product.filament_id) {
+        // Fallback for legacy products
+        const qty = item.quantity * parseFloat(item.product.grams || "0");
+        required[item.product.filament_id] = (required[item.product.filament_id] || 0) + qty;
+      }
+    });
+
+    const preview = Object.keys(required).map(filId => {
+      const fil = filaments.find(f => f.id === filId);
+      const needed = required[filId];
+      const available = fil ? fil.remaining_grams : 0;
+      if (needed > available) insufficient.push(fil?.name || filId);
+      return {
+        filament_id: filId,
+        filament: fil,
+        needed,
+        available,
+        remainingAfter: available - needed
+      };
+    });
+
+    return { preview, insufficient, isValid: insufficient.length === 0 && consumeCart.length > 0 };
+  };
+
+  const handleConfirmConsume = async () => {
+    const { isValid } = calculateConsumePreview();
+    if (!isValid) return;
+
+    setConsumeLoading(true);
+    const p_items = consumeCart.map(item => ({
+      product_id: item.product.id,
+      quantity: item.quantity
+    }));
+
+    const { error: rpcError } = await supabase.rpc("consume_filaments_for_products", {
+      p_items,
+      p_reason: "Producción registrada desde stock",
+      p_add_to_product_stock: consumeAddStock
+    });
+
+    if (rpcError) {
+      console.error("Error consumiendo stock:", rpcError);
+      alert("Hubo un error al descontar el stock: " + rpcError.message);
+    } else {
+      setConsumeModalOpen(false);
+      setConsumeCart([]);
+      await fetchData(); // refreshes everything
+    }
+    setConsumeLoading(false);
+  };
+
   const lowProductsCount = products.filter((r) => r.is_active && r.stock_quantity <= 1).length;
   const lowFilamentsCount = filaments.filter((r) => r.remaining_grams < 200).length;
   const totalLowCount = lowProductsCount + lowFilamentsCount;
@@ -173,36 +277,44 @@ export default function StockPage() {
         </div>
       )}
 
-      <div className="mb-6 flex border-b border-gray-200">
-        <button
-          onClick={() => setTab("productos")}
-          className={`flex items-center gap-2 border-b-2 px-4 py-3 text-sm font-semibold transition-colors ${
-            tab === "productos"
-              ? "border-orange-500 text-orange-600"
-              : "border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300"
-          }`}
+      <div className="mb-6 flex items-center justify-between border-b border-gray-200 flex-wrap gap-2 pb-2 sm:pb-0">
+        <div className="flex">
+          <button
+            onClick={() => setTab("productos")}
+            className={`flex items-center gap-2 border-b-2 px-4 py-3 text-sm font-semibold transition-colors ${
+              tab === "productos"
+                ? "border-orange-500 text-orange-600"
+                : "border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300"
+            }`}
+          >
+            <Package size={16} /> Productos
+            {lowProductsCount > 0 && (
+              <span className="flex h-5 w-5 items-center justify-center rounded-full bg-orange-100 text-[10px] text-orange-600">
+                {lowProductsCount}
+              </span>
+            )}
+          </button>
+          <button
+            onClick={() => setTab("filamentos")}
+            className={`flex items-center gap-2 border-b-2 px-4 py-3 text-sm font-semibold transition-colors ${
+              tab === "filamentos"
+                ? "border-orange-500 text-orange-600"
+                : "border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300"
+            }`}
+          >
+            <Box size={16} /> Filamentos
+            {lowFilamentsCount > 0 && (
+              <span className="flex h-5 w-5 items-center justify-center rounded-full bg-orange-100 text-[10px] text-orange-600">
+                {lowFilamentsCount}
+              </span>
+            )}
+          </button>
+        </div>
+        <button 
+          onClick={() => setConsumeModalOpen(true)} 
+          className="flex items-center gap-2 text-sm font-bold text-orange-700 bg-orange-50 hover:bg-orange-100 px-4 py-2 rounded-lg transition-colors border border-orange-200 mr-2"
         >
-          <Package size={16} /> Productos
-          {lowProductsCount > 0 && (
-            <span className="flex h-5 w-5 items-center justify-center rounded-full bg-orange-100 text-[10px] text-orange-600">
-              {lowProductsCount}
-            </span>
-          )}
-        </button>
-        <button
-          onClick={() => setTab("filamentos")}
-          className={`flex items-center gap-2 border-b-2 px-4 py-3 text-sm font-semibold transition-colors ${
-            tab === "filamentos"
-              ? "border-orange-500 text-orange-600"
-              : "border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300"
-          }`}
-        >
-          <Box size={16} /> Filamentos
-          {lowFilamentsCount > 0 && (
-            <span className="flex h-5 w-5 items-center justify-center rounded-full bg-orange-100 text-[10px] text-orange-600">
-              {lowFilamentsCount}
-            </span>
-          )}
+          <Package size={15} /> Descontar por producto
         </button>
       </div>
 
@@ -407,6 +519,156 @@ export default function StockPage() {
                   })}
                 </div>
               )}
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Consume by Product Modal */}
+      {consumeModalOpen && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4">
+          <div className="bg-white w-full max-w-2xl rounded-2xl shadow-2xl overflow-hidden flex flex-col max-h-[90vh]">
+            <div className="flex items-center justify-between px-6 py-4 border-b border-gray-100">
+              <h3 className="font-bold text-gray-900 flex items-center gap-2">
+                <Package size={18} className="text-orange-500" /> Descontar por producto
+              </h3>
+              <button onClick={() => setConsumeModalOpen(false)} className="text-gray-400 hover:text-gray-700">
+                <X size={20} />
+              </button>
+            </div>
+            
+            <div className="p-6 overflow-y-auto flex-1 space-y-6">
+              {/* Selector */}
+              <div>
+                <label className="block text-sm font-semibold text-gray-700 mb-2">Agregar producto</label>
+                <div className="flex gap-2">
+                  <select 
+                    value={consumeSelectedProductId} 
+                    onChange={(e) => setConsumeSelectedProductId(e.target.value)} 
+                    className="flex-1 text-sm border-gray-300 rounded-lg focus:border-orange-500 focus:ring-orange-500"
+                  >
+                    <option value="">Buscar producto...</option>
+                    {products.filter(p => p.is_active).map(p => (
+                      <option key={p.id} value={p.id}>{p.name}</option>
+                    ))}
+                  </select>
+                  <PrimaryButton onClick={handleAddToCart} disabled={!consumeSelectedProductId}>
+                    <Plus size={16} /> Agregar
+                  </PrimaryButton>
+                </div>
+              </div>
+
+              {/* Cart */}
+              {consumeCart.length > 0 && (
+                <div>
+                  <h4 className="text-sm font-semibold text-gray-900 mb-3">Productos a descontar</h4>
+                  <div className="space-y-3">
+                    {consumeCart.map((item, idx) => (
+                      <div key={idx} className="flex items-center justify-between bg-gray-50 border border-gray-200 p-3 rounded-lg">
+                        <div className="flex items-center gap-3 overflow-hidden">
+                          {item.product.image_url ? (
+                            <img src={item.product.image_url} alt="" className="w-10 h-10 rounded-md object-cover border border-gray-200 shrink-0" />
+                          ) : (
+                            <div className="w-10 h-10 rounded-md bg-gray-200 flex items-center justify-center shrink-0 text-gray-500">📦</div>
+                          )}
+                          <span className="font-semibold text-sm text-gray-900 truncate">{item.product.name}</span>
+                        </div>
+                        <div className="flex items-center gap-3 shrink-0">
+                          <div className="flex items-center">
+                            <span className="text-xs text-gray-500 mr-2">Cant:</span>
+                            <input 
+                              type="number" 
+                              min="1" 
+                              value={item.quantity} 
+                              onChange={(e) => {
+                                const q = parseInt(e.target.value) || 1;
+                                setConsumeCart(prev => prev.map((p, i) => i === idx ? { ...p, quantity: Math.max(1, q) } : p));
+                              }}
+                              className="w-16 text-sm border-gray-300 rounded focus:border-orange-500 focus:ring-orange-500 p-1"
+                            />
+                          </div>
+                          <button onClick={() => setConsumeCart(prev => prev.filter((_, i) => i !== idx))} className="text-red-400 hover:text-red-600 p-1">
+                            <X size={18} />
+                          </button>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
+
+              {/* Preview */}
+              {consumeCart.length > 0 && (
+                <div>
+                  <h4 className="text-sm font-semibold text-gray-900 mb-3">Se descontará de tu stock:</h4>
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                    {calculateConsumePreview().preview.map(p => (
+                      <div key={p.filament_id} className={`p-3 rounded-xl border ${p.needed > p.available ? 'bg-red-50 border-red-200' : 'bg-orange-50 border-orange-100'}`}>
+                        <p className="font-bold text-sm text-gray-900 truncate mb-1">
+                          {p.filament?.name || 'Material desconocido'} {p.filament?.color ? `(${p.filament.color})` : ''}
+                        </p>
+                        <div className="flex justify-between text-xs mb-1">
+                          <span className="text-gray-600">Requiere:</span>
+                          <span className="font-bold text-gray-900">{p.needed.toFixed(1)} g</span>
+                        </div>
+                        <div className="flex justify-between text-xs mb-1">
+                          <span className="text-gray-600">Disponible:</span>
+                          <span className="font-medium text-gray-900">{p.available} g</span>
+                        </div>
+                        <div className="flex justify-between text-xs pt-1 border-t border-orange-200/50 mt-1">
+                          <span className="text-gray-600">Quedarán:</span>
+                          <span className={`font-bold ${p.remainingAfter < 0 ? 'text-red-600' : 'text-orange-700'}`}>
+                            {p.remainingAfter.toFixed(1)} g
+                          </span>
+                        </div>
+                        {p.needed > p.available && (
+                          <p className="text-[10px] text-red-600 font-bold mt-2 flex items-center gap-1">
+                            <AlertTriangle size={12} /> Stock insuficiente
+                          </p>
+                        )}
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
+
+              {/* Settings */}
+              {consumeCart.length > 0 && (
+                <div className="bg-gray-50 border border-gray-200 p-4 rounded-xl flex items-start gap-3">
+                  <input 
+                    type="checkbox" 
+                    id="consumeAddStock" 
+                    checked={consumeAddStock} 
+                    onChange={(e) => setConsumeAddStock(e.target.checked)} 
+                    className="mt-1 rounded text-orange-600 focus:ring-orange-500" 
+                  />
+                  <div>
+                    <label htmlFor="consumeAddStock" className="block text-sm font-bold text-gray-900 cursor-pointer">
+                      Sumar al stock de productos terminados
+                    </label>
+                    <p className="text-xs text-gray-500 mt-1">
+                      Si está activado, además de descontar el material, se sumará la cantidad ingresada al stock disponible del producto. Usalo cuando estás registrando productos que ya imprimiste.
+                    </p>
+                  </div>
+                </div>
+              )}
+
+            </div>
+            <div className="p-4 border-t border-gray-100 flex justify-end gap-3 bg-gray-50">
+              <button 
+                onClick={() => setConsumeModalOpen(false)} 
+                className="px-4 py-2 text-sm font-bold text-gray-600 hover:bg-gray-200 rounded-lg transition-colors"
+              >
+                Cancelar
+              </button>
+              <button 
+                onClick={handleConfirmConsume} 
+                disabled={consumeCart.length === 0 || !calculateConsumePreview().isValid || consumeLoading}
+                className="flex items-center gap-2 px-5 py-2 text-sm font-bold bg-orange-500 hover:bg-orange-600 disabled:opacity-50 disabled:cursor-not-allowed text-white rounded-lg transition-colors shadow-sm"
+              >
+                {consumeLoading ? <Loader2 size={16} className="animate-spin" /> : <Package size={16} />}
+                Confirmar descuento
+              </button>
             </div>
           </div>
         </div>
