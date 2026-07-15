@@ -2,7 +2,7 @@
 
 import React, { useState, useEffect } from "react";
 import Link from "next/link";
-import { AlertTriangle, Plus, Minus, Loader2, Package, Box } from "lucide-react";
+import { AlertTriangle, Plus, Minus, Loader2, Package, Box, History, X, Edit2 } from "lucide-react";
 import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { PrimaryButton } from "@/components/ui/button";
@@ -17,6 +17,16 @@ export default function StockPage() {
   const [filaments, setFilaments] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+
+  // Stock Adjustment States for Filaments
+  const [filamentAdjustAmounts, setFilamentAdjustAmounts] = useState<Record<string, string>>({});
+  const [adjustingFilament, setAdjustingFilament] = useState<string | null>(null);
+
+  // History Modal States
+  const [historyModalOpen, setHistoryModalOpen] = useState(false);
+  const [historyFilamentId, setHistoryFilamentId] = useState<string | null>(null);
+  const [historyMovements, setHistoryMovements] = useState<any[]>([]);
+  const [historyLoading, setHistoryLoading] = useState(false);
 
   useEffect(() => {
     fetchData();
@@ -56,6 +66,75 @@ export default function StockPage() {
       // Revert on error
       setProducts(products.map(p => p.id === id ? { ...p, stock_quantity: product.stock_quantity } : p));
     }
+  };
+
+  const handleAdjustFilamentStock = async (id: string, type: "add" | "subtract") => {
+    const amountStr = filamentAdjustAmounts[id] || "";
+    const amount = parseInt(amountStr);
+    
+    if (!amount || amount <= 0 || isNaN(amount)) {
+      alert("Por favor, ingresá una cantidad válida mayor a 0.");
+      return;
+    }
+
+    const filament = filaments.find(f => f.id === id);
+    if (!filament) return;
+
+    if (type === "subtract" && filament.remaining_grams < amount) {
+      alert("No podés restar más gramos de los que hay disponibles.");
+      return;
+    }
+
+    setAdjustingFilament(id);
+    const delta = type === "add" ? amount : -amount;
+    const movementType = type === "add" ? "manual_add" : "manual_subtract";
+    const reason = type === "add" ? "Suma manual desde stock" : "Resta manual desde stock";
+
+    const { error: rpcError } = await supabase.rpc("adjust_filament_stock", {
+      p_filament_id: id,
+      p_grams_delta: delta,
+      p_movement_type: movementType,
+      p_reason: reason,
+      p_source_type: "manual",
+      p_source_id: null
+    });
+
+    if (rpcError) {
+      console.error("Error ajustando stock:", rpcError);
+      alert("Hubo un error al ajustar el stock: " + rpcError.message);
+    } else {
+      // Clear input and refresh data
+      setFilamentAdjustAmounts(prev => ({ ...prev, [id]: "" }));
+      await fetchData();
+    }
+    setAdjustingFilament(null);
+  };
+
+  const loadFilamentHistory = async (id: string) => {
+    setHistoryFilamentId(id);
+    setHistoryModalOpen(true);
+    setHistoryLoading(true);
+
+    const { data, error } = await supabase
+      .from("filament_stock_movements")
+      .select("*")
+      .eq("filament_id", id)
+      .order("created_at", { ascending: false })
+      .limit(10);
+
+    if (error) {
+      console.error("Error loading history:", error);
+    } else {
+      setHistoryMovements(data || []);
+    }
+    setHistoryLoading(false);
+  };
+
+  const formatDate = (dateStr: string) => {
+    if (!dateStr) return "";
+    return new Date(dateStr).toLocaleString("es-AR", { 
+      day: "2-digit", month: "2-digit", year: "2-digit", hour: "2-digit", minute: "2-digit"
+    });
   };
 
   const lowProductsCount = products.filter((r) => r.is_active && r.stock_quantity <= 1).length;
@@ -218,10 +297,50 @@ export default function StockPage() {
                     <span className="text-xs px-2 py-1 rounded-md font-medium bg-green-100 text-green-700">Activo</span>
                   </td>
                   <td className="px-5 py-3.5">
-                    <div className="flex justify-end gap-1.5">
+                    <div className="flex justify-end items-center gap-3">
+                      
+                      <div className="flex items-center gap-1">
+                        <input 
+                          type="number"
+                          min="1"
+                          step="1"
+                          placeholder="g"
+                          value={filamentAdjustAmounts[f.id] || ""}
+                          onChange={(e) => setFilamentAdjustAmounts(prev => ({...prev, [f.id]: e.target.value}))}
+                          className="w-16 h-8 text-xs border border-gray-200 rounded-md px-2 focus:border-orange-500 focus:ring-orange-500 outline-none"
+                          disabled={adjustingFilament === f.id}
+                        />
+                        <button
+                          onClick={() => handleAdjustFilamentStock(f.id, "subtract")}
+                          disabled={adjustingFilament === f.id}
+                          className="flex h-8 w-8 items-center justify-center rounded-md border border-gray-200 text-red-600 bg-white hover:bg-red-50 disabled:opacity-50 transition-colors shadow-sm"
+                          title="Restar"
+                        >
+                          {adjustingFilament === f.id ? <Loader2 size={14} className="animate-spin" /> : <Minus size={14} />}
+                        </button>
+                        <button
+                          onClick={() => handleAdjustFilamentStock(f.id, "add")}
+                          disabled={adjustingFilament === f.id}
+                          className="flex h-8 w-8 items-center justify-center rounded-md border border-gray-200 text-green-600 bg-white hover:bg-green-50 disabled:opacity-50 transition-colors shadow-sm"
+                          title="Sumar"
+                        >
+                          {adjustingFilament === f.id ? <Loader2 size={14} className="animate-spin" /> : <Plus size={14} />}
+                        </button>
+                      </div>
+
+                      <div className="h-6 w-px bg-gray-200 mx-1"></div>
+                      
+                      <button 
+                        onClick={() => loadFilamentHistory(f.id)}
+                        className="text-gray-400 hover:text-blue-600 p-1.5 rounded-lg hover:bg-blue-50 transition-colors"
+                        title="Historial de movimientos"
+                      >
+                        <History size={16} />
+                      </button>
+
                       <Link href="/configuracion">
-                        <button className="text-xs font-semibold text-gray-500 hover:text-orange-600 border border-gray-200 bg-white px-3 py-1.5 rounded-lg transition-colors">
-                          Gestionar
+                        <button className="text-gray-400 hover:text-orange-600 p-1.5 rounded-lg hover:bg-orange-50 transition-colors" title="Editar filamento">
+                          <Edit2 size={16} />
                         </button>
                       </Link>
                     </div>
@@ -246,6 +365,52 @@ export default function StockPage() {
 
         </div>
       </Card>
+
+      {/* History Modal */}
+      {historyModalOpen && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50">
+          <div className="bg-white rounded-xl shadow-xl max-w-lg w-full max-h-[90vh] flex flex-col overflow-hidden">
+            <div className="p-4 border-b border-gray-100 flex justify-between items-center bg-gray-50">
+              <div>
+                <h3 className="text-lg font-bold text-gray-900">Historial de Movimientos</h3>
+                <p className="text-xs text-gray-500">Últimos 10 cambios en este filamento.</p>
+              </div>
+              <button onClick={() => setHistoryModalOpen(false)} className="text-gray-400 hover:text-gray-700">
+                <X size={20} />
+              </button>
+            </div>
+            <div className="p-4 overflow-y-auto flex-1">
+              {historyLoading ? (
+                <div className="py-8 flex justify-center"><Loader2 className="animate-spin text-orange-500" /></div>
+              ) : historyMovements.length === 0 ? (
+                <div className="text-center py-8 text-sm text-gray-500">No hay movimientos registrados.</div>
+              ) : (
+                <div className="space-y-3">
+                  {historyMovements.map(m => {
+                    const isPositive = m.grams_delta > 0;
+                    return (
+                      <div key={m.id} className="flex flex-col gap-1 text-sm border-b border-gray-50 pb-3">
+                        <div className="flex justify-between items-start">
+                          <span className={`font-bold ${isPositive ? 'text-green-600' : 'text-red-600'}`}>
+                            {isPositive ? '+' : ''}{m.grams_delta}g
+                          </span>
+                          <span className="text-xs text-gray-400">{formatDate(m.created_at)}</span>
+                        </div>
+                        <div className="flex justify-between text-xs text-gray-600">
+                          <span>{m.reason}</span>
+                          <span className="font-medium bg-gray-100 px-1.5 py-0.5 rounded text-[10px]">
+                            {m.previous_grams}g → {m.new_grams}g
+                          </span>
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+              )}
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
