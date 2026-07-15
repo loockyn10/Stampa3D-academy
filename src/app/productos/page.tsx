@@ -17,12 +17,26 @@ function getProductPricingStatus(product: any, allFilaments: any[], allPrinters:
 
   const reasons: string[] = [];
   
-  // Filament checks
-  if (snap.filament_id || product.filament_id) {
+  // Material checks
+  if (snap.materials && Array.isArray(snap.materials) && snap.materials.length > 0) {
+    for (const mat of snap.materials) {
+      const currentF = allFilaments.find(f => f.id === mat.filament_id);
+      if (!currentF) {
+        if (!reasons.includes("Configuración de material no encontrada")) reasons.push("Configuración de material no encontrada");
+      } else {
+        if (mat.filament_purchase_price && mat.filament_purchase_price !== currentF.purchase_price) {
+          reasons.push(`Cambió el precio de ${currentF.name}`);
+        }
+        if (mat.filament_total_grams && mat.filament_total_grams !== currentF.total_grams) {
+          reasons.push(`Cambió la cantidad base de ${currentF.name}`);
+        }
+      }
+    }
+  } else if (snap.filament_id || product.filament_id) {
     const fId = snap.filament_id || product.filament_id;
     const currentF = allFilaments.find(f => f.id === fId);
     if (!currentF) {
-      reasons.push("Configuración vinculada no encontrada");
+      if (!reasons.includes("Configuración de material no encontrada")) reasons.push("Configuración de material no encontrada");
     } else {
       if (snap.filament_purchase_price && snap.filament_purchase_price !== currentF.purchase_price) {
         reasons.push("Cambió el precio del filamento");
@@ -72,21 +86,48 @@ function getProductPricingStatus(product: any, allFilaments: any[], allPrinters:
 }
 
 // Reusable Calculator Logic
-export function calculateProductPrice({ grams, printTimeMinutes, filament, printer, productType, calculatorSettings, oldSnapshot }: any) {
+export function calculateProductPrice({ materials, printTimeMinutes, printer, productType, calculatorSettings, oldSnapshot }: any) {
   const errorPercent = calculatorSettings?.default_error_percent || 0;
-  const totalHours = (printTimeMinutes || 0) / 60;
   const errorMultiplier = 1 + (errorPercent / 100);
-  const weightWithError = grams * errorMultiplier;
-
+  
   let materialCost = 0;
-  if (filament && filament.total_grams > 0) {
-    const costPerGram = filament.purchase_price / filament.total_grams;
-    materialCost = weightWithError * costPerGram;
+  let totalGrams = 0;
+  let totalGramsWithError = 0;
+  const processedMaterials: any[] = [];
+
+  if (materials && Array.isArray(materials)) {
+    for (const mat of materials) {
+      const g = parseFloat(mat.grams) || 0;
+      const gWithError = g * errorMultiplier;
+      totalGrams += g;
+      totalGramsWithError += gWithError;
+
+      let matCost = 0;
+      let costPerGram = null;
+      if (mat.filament && mat.filament.total_grams > 0) {
+        costPerGram = mat.filament.purchase_price / mat.filament.total_grams;
+        matCost = gWithError * costPerGram;
+        materialCost += matCost;
+      }
+
+      processedMaterials.push({
+        filament_id: mat.filament?.id || mat.filament_id,
+        filament_name: mat.filament?.name || null,
+        grams: g,
+        grams_with_error: gWithError,
+        filament_purchase_price: mat.filament?.purchase_price || null,
+        filament_total_grams: mat.filament?.total_grams || null,
+        filament_cost_per_gram: costPerGram,
+        material_cost: matCost
+      });
+    }
   }
 
+  const totalHours = (printTimeMinutes || 0) / 60;
   const kwhPrice = calculatorSettings?.electricity_price_kwh || oldSnapshot?.kwhPrice || 0;
   const powerWatts = printer?.power_watts || oldSnapshot?.printer_consumption_watts || 0;
   const maintenanceCostPerHour = printer?.maintenance_cost_per_hour || oldSnapshot?.maintenance_cost_per_hour || 0;
+  
   const energyCost = totalHours * (powerWatts / 1000) * kwhPrice;
   const printerCost = totalHours * maintenanceCostPerHour;
   const fixedCost = productType?.fixed_cost || oldSnapshot?.fixed_cost || 0;
@@ -101,9 +142,12 @@ export function calculateProductPrice({ grams, printTimeMinutes, filament, print
   const snapshot = {
     ...(oldSnapshot || {}),
     source: "product_editor",
-    mode: oldSnapshot?.mode || "basic",
-    grams: grams,
-    grams_with_error: weightWithError,
+    mode: "simple_multifilament",
+    materials: processedMaterials,
+    grams: totalGrams,
+    grams_with_error: totalGramsWithError,
+    total_grams: totalGrams,
+    total_grams_with_error: totalGramsWithError,
     error_percent: errorPercent,
     print_time_minutes: printTimeMinutes,
     material_cost: materialCost,
@@ -116,11 +160,11 @@ export function calculateProductPrice({ grams, printTimeMinutes, filament, print
     multiplier: multiplier,
     sale_price: salePrice,
     profit: profit,
-    filament_id: filament?.id || null,
-    filament_name: filament?.name || null,
-    filament_purchase_price: filament?.purchase_price || null,
-    filament_total_grams: filament?.total_grams || null,
-    filament_cost_per_gram: filament && filament.total_grams > 0 ? (filament.purchase_price / filament.total_grams) : null,
+    
+    // Fallbacks for compatibility
+    filament_id: processedMaterials.length > 0 ? processedMaterials[0].filament_id : null,
+    filament_name: processedMaterials.length > 0 ? processedMaterials[0].filament_name : null,
+    
     printer_id: printer?.id || null,
     printer_name: printer?.name || null,
     printer_power_watts: printer?.power_watts || null,
@@ -132,7 +176,7 @@ export function calculateProductPrice({ grams, printTimeMinutes, filament, print
   };
 
   return {
-    gramsWithError: weightWithError,
+    gramsWithError: totalGramsWithError,
     materialCost,
     electricityCost: energyCost,
     maintenanceCost: printerCost,
@@ -161,10 +205,9 @@ export default function ProductosPage() {
     name: "",
     description: "",
     image_url: "",
-    filament_id: "",
     printer_id: "",
     product_type_id: "",
-    grams: 0,
+    materials: [] as { filament_id: string, grams: number }[],
     print_time_hours: 0,
     print_time_remaining_minutes: 0,
     base_cost: 0,
@@ -220,26 +263,48 @@ export default function ProductosPage() {
 
   const handleCreateNew = () => {
     setFormData({
-      name: "", description: "", image_url: "", filament_id: filaments.length > 0 ? filaments[0].id : "",
+      name: "", description: "", image_url: "",
       printer_id: printers.length > 0 ? printers[0].id : "", product_type_id: productTypes.length > 0 ? productTypes[0].id : "",
-      grams: 0, print_time_hours: 0, print_time_remaining_minutes: 0, base_cost: 0, sale_price: 0, stock_quantity: 0, is_active: true
+      materials: [{ filament_id: filaments.length > 0 ? filaments[0].id : "", grams: 0 }],
+      print_time_hours: 0, print_time_remaining_minutes: 0, base_cost: 0, sale_price: 0, stock_quantity: 0, is_active: true
     });
     setCalcPreview(null);
     setPendingSnapshot(null);
     setEditingId("new");
   };
 
-  const handleEdit = (p: any) => {
+  const handleEdit = async (p: any) => {
     const hours = Math.floor((p.print_time_minutes || 0) / 60);
     const mins = (p.print_time_minutes || 0) % 60;
     const snap = p.calculation_snapshot || {};
     
+    // Fetch product components and materials
+    let loadedMaterials: { filament_id: string, grams: number }[] = [];
+    const { data: compData } = await supabase.from("product_components").select("*").eq("product_id", p.id).eq("is_active", true).order("sort_order").limit(1);
+    
+    if (compData && compData.length > 0) {
+      const compId = compData[0].id;
+      const { data: filData } = await supabase.from("product_component_filaments").select("*").eq("component_id", compId).order("sort_order");
+      if (filData && filData.length > 0) {
+        loadedMaterials = filData.map(f => ({ filament_id: f.filament_id, grams: parseFloat(f.grams) }));
+      }
+    }
+
+    // Fallback if no components/materials found
+    if (loadedMaterials.length === 0) {
+      if (p.filament_id) {
+        loadedMaterials = [{ filament_id: p.filament_id, grams: p.grams || 0 }];
+      } else {
+        loadedMaterials = [{ filament_id: filaments.length > 0 ? filaments[0].id : "", grams: 0 }];
+      }
+    }
+    
     setFormData({
       name: p.name, description: p.description || "", image_url: p.image_url || "", 
-      filament_id: p.filament_id || snap.filament_id || "",
       printer_id: p.printer_id || snap.printer_id || "",
       product_type_id: p.product_type_id || snap.product_type_id || "",
-      grams: p.grams || 0, print_time_hours: hours, print_time_remaining_minutes: mins, base_cost: p.base_cost || 0, 
+      materials: loadedMaterials, 
+      print_time_hours: hours, print_time_remaining_minutes: mins, base_cost: p.base_cost || 0, 
       sale_price: p.sale_price || 0, stock_quantity: p.stock_quantity || 0, is_active: p.is_active
     });
     setCalcPreview(null);
@@ -278,13 +343,15 @@ export default function ProductosPage() {
     const { data: { user } } = await supabase.auth.getUser();
     if (!user) return;
 
+    // Validate materials
+    const validMaterials = formData.materials.filter(m => m.filament_id && m.grams > 0);
+    const totalGrams = validMaterials.reduce((acc, curr) => acc + (parseFloat(String(curr.grams)) || 0), 0);
+
     const hours = Math.max(0, parseInt(String(formData.print_time_hours)) || 0);
     const mins = Math.max(0, Math.min(59, parseInt(String(formData.print_time_remaining_minutes)) || 0));
     const totalMinutes = (hours * 60) + mins;
 
     let snapshotToSave = pendingSnapshot;
-    
-    // Si era nuevo o no tenía snapshot y el usuario no usó la calculadora
     if (!snapshotToSave || Object.keys(snapshotToSave).length === 0) {
        snapshotToSave = null;
     }
@@ -293,10 +360,10 @@ export default function ProductosPage() {
       name: formData.name,
       description: formData.description,
       image_url: formData.image_url,
-      filament_id: formData.filament_id || null,
+      filament_id: validMaterials.length > 0 ? validMaterials[0].filament_id : null,
       printer_id: formData.printer_id || null,
       product_type_id: formData.product_type_id || null,
-      grams: parseFloat(String(formData.grams)) || 0,
+      grams: totalGrams,
       print_time_minutes: totalMinutes,
       base_cost: parseFloat(String(formData.base_cost)) || 0,
       sale_price: parseFloat(String(formData.sale_price)) || 0,
@@ -312,21 +379,67 @@ export default function ProductosPage() {
       }
     }
 
+    let savedProductId = null;
+    let savedProductData = null;
+
     if (editingId === "new") {
       const { data, error } = await supabase.from("products").insert([payload]).select("*, filaments(name, color)").single();
-      if (error) setError(error.message);
-      else {
-        setProducts([data, ...products]);
-        setEditingId(null);
-      }
+      if (error) { setError(error.message); return; }
+      savedProductId = data.id;
+      savedProductData = data;
     } else {
       const { data, error } = await supabase.from("products").update(payload).eq("id", editingId).select("*, filaments(name, color)").single();
-      if (error) setError(error.message);
-      else {
-        setProducts(products.map(p => p.id === editingId ? data : p));
-        setEditingId(null);
+      if (error) { setError(error.message); return; }
+      savedProductId = data.id;
+      savedProductData = data;
+    }
+
+    // Process components and materials if we have a valid product ID
+    if (savedProductId) {
+      // 1. Get or create the main component
+      let compId = null;
+      const { data: compData } = await supabase.from("product_components").select("id").eq("product_id", savedProductId).eq("is_active", true).order("sort_order").limit(1);
+      
+      if (compData && compData.length > 0) {
+        compId = compData[0].id;
+      } else {
+        const { data: newComp } = await supabase.from("product_components").insert([{
+          user_id: user.id,
+          product_id: savedProductId,
+          name: "Producto completo",
+          quantity_per_product: 1,
+          sort_order: 0,
+          is_active: true
+        }]).select("id").single();
+        if (newComp) compId = newComp.id;
+      }
+
+      // 2. Sync materials
+      if (compId) {
+        // Delete old
+        await supabase.from("product_component_filaments").delete().eq("component_id", compId);
+        
+        // Insert new
+        if (validMaterials.length > 0) {
+          const matsToInsert = validMaterials.map((m, index) => ({
+            user_id: user.id,
+            component_id: compId,
+            filament_id: m.filament_id,
+            grams: m.grams,
+            sort_order: index
+          }));
+          await supabase.from("product_component_filaments").insert(matsToInsert);
+        }
       }
     }
+
+    // Refresh local state
+    if (editingId === "new") {
+      setProducts([savedProductData, ...products]);
+    } else {
+      setProducts(products.map(p => p.id === editingId ? savedProductData : p));
+    }
+    setEditingId(null);
   };
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement>) => {
@@ -338,9 +451,30 @@ export default function ProductosPage() {
     }
     
     setFormData(prev => ({ ...prev, [name]: newValue }));
-    if (name === "grams" || name === "filament_id" || name === "printer_id" || name === "product_type_id" || name === "print_time_hours" || name === "print_time_remaining_minutes") {
+    if (name === "printer_id" || name === "product_type_id" || name === "print_time_hours" || name === "print_time_remaining_minutes") {
       setCalcPreview(null);
     }
+  };
+
+  const handleMaterialChange = (index: number, field: string, value: any) => {
+    const newMaterials = [...formData.materials];
+    newMaterials[index] = { ...newMaterials[index], [field]: value };
+    setFormData(prev => ({ ...prev, materials: newMaterials }));
+    setCalcPreview(null);
+  };
+
+  const addMaterial = () => {
+    setFormData(prev => ({
+      ...prev,
+      materials: [...prev.materials, { filament_id: filaments.length > 0 ? filaments[0].id : "", grams: 0 }]
+    }));
+  };
+
+  const removeMaterial = (index: number) => {
+    const newMaterials = [...formData.materials];
+    newMaterials.splice(index, 1);
+    setFormData(prev => ({ ...prev, materials: newMaterials }));
+    setCalcPreview(null);
   };
 
   const handleEditorCalculate = () => {
@@ -348,24 +482,30 @@ export default function ProductosPage() {
     const mins = Math.max(0, Math.min(59, parseInt(String(formData.print_time_remaining_minutes)) || 0));
     const totalMinutes = (hours * 60) + mins;
     
-    if (totalMinutes === 0 || !formData.grams || !formData.filament_id || !formData.printer_id || !formData.product_type_id) {
-      alert("Completá gramos, tiempo, filamento, impresora y tipo de producto para calcular.");
+    const validMaterials = formData.materials.filter(m => m.filament_id && m.grams > 0);
+
+    if (totalMinutes === 0 || validMaterials.length === 0 || !formData.printer_id || !formData.product_type_id) {
+      alert("Completá materiales (con gramos), tiempo, impresora y tipo de producto para calcular.");
       return;
     }
 
-    const filament = filaments.find(f => f.id === formData.filament_id);
+    const builtMaterials = validMaterials.map(m => {
+      const fil = filaments.find(f => f.id === m.filament_id);
+      return { filament: fil, filament_id: m.filament_id, grams: m.grams };
+    });
+
     const printer = printers.find(p => p.id === formData.printer_id);
     const productType = productTypes.find(pt => pt.id === formData.product_type_id);
 
-    if (!filament || filament.total_grams <= 0) {
-      alert("El filamento no es válido o no tiene gramos totales configurados.");
+    const invalidMaterial = builtMaterials.find(m => !m.filament || m.filament.total_grams <= 0);
+    if (invalidMaterial) {
+      alert(`El filamento seleccionado (${invalidMaterial.filament?.name || 'Desconocido'}) no es válido o no tiene gramos totales configurados.`);
       return;
     }
 
     const result = calculateProductPrice({
-      grams: parseFloat(String(formData.grams)) || 0,
+      materials: builtMaterials,
       printTimeMinutes: totalMinutes,
-      filament,
       printer,
       productType,
       calculatorSettings,
@@ -386,15 +526,36 @@ export default function ProductosPage() {
     setCalcPreview(null);
   };
 
-  // -------- RECALCULATE PRICE --------
   const handleRecalculate = async (product: any) => {
     setRecalcProductId(product.id);
     setRecalcData(null);
     setRecalcError(null);
     setRecalcLoading(true);
 
-    // Try to get filament data
-    const filament = filaments.find(f => f.id === product.filament_id);
+    // Fetch product components and materials
+    let loadedMaterials: { filament_id: string, grams: number }[] = [];
+    const { data: compData } = await supabase.from("product_components").select("*").eq("product_id", product.id).eq("is_active", true).order("sort_order").limit(1);
+    
+    if (compData && compData.length > 0) {
+      const compId = compData[0].id;
+      const { data: filData } = await supabase.from("product_component_filaments").select("*").eq("component_id", compId).order("sort_order");
+      if (filData && filData.length > 0) {
+        loadedMaterials = filData.map(f => ({ filament_id: f.filament_id, grams: parseFloat(f.grams) }));
+      }
+    }
+
+    // Fallback if no components/materials found
+    if (loadedMaterials.length === 0) {
+      if (product.filament_id) {
+        loadedMaterials = [{ filament_id: product.filament_id, grams: product.grams || 0 }];
+      }
+    }
+
+    // Resolve material instances
+    const builtMaterials = loadedMaterials.map(m => {
+      const fil = filaments.find(f => f.id === m.filament_id);
+      return { filament: fil, filament_id: m.filament_id, grams: m.grams };
+    });
     
     // Check snapshot for more context
     const snap = product.calculation_snapshot;
@@ -412,9 +573,8 @@ export default function ProductosPage() {
       .single();
 
     const result = calculateProductPrice({
-      grams: product.grams || 0,
+      materials: builtMaterials,
       printTimeMinutes: product.print_time_minutes || 0,
-      filament,
       printer,
       productType,
       calculatorSettings: currentSettings || calculatorSettings,
@@ -567,11 +727,8 @@ export default function ProductosPage() {
                 <label className="block text-xs font-semibold text-gray-700 mb-1">Nombre</label>
                 <input type="text" name="name" value={formData.name} onChange={handleChange} className="w-full text-sm border-gray-300 rounded-md focus:border-orange-500 focus:ring-orange-500 text-gray-900 bg-white" placeholder="Ej. Llavero personalizado" />
               </div>
-              <div className="grid grid-cols-2 gap-2">
-                <div>
-                  <label className="block text-xs font-semibold text-gray-700 mb-1">Gramos (Peso)</label>
-                  <input type="number" name="grams" value={formData.grams} onChange={handleChange} className="w-full text-sm border-gray-300 rounded-md focus:border-orange-500 focus:ring-orange-500 text-gray-900 bg-white" />
-                </div>
+              <div>
+                <label className="block text-xs font-semibold text-gray-700 mb-1">Tiempo de Impresión</label>
                 <div className="grid grid-cols-2 gap-1.5">
                   <div>
                     <label className="block text-[11px] font-semibold text-gray-700 mb-1">Horas</label>
@@ -585,6 +742,48 @@ export default function ProductosPage() {
               </div>
             </div>
 
+            {/* Materiales del Producto */}
+            <div className="mb-4 bg-gray-50/50 p-4 rounded-xl border border-gray-200 shadow-sm">
+              <div className="flex items-center justify-between mb-3">
+                <h4 className="text-sm font-bold text-gray-900">Materiales del producto</h4>
+                <button type="button" onClick={addMaterial} className="text-xs font-bold text-orange-600 hover:text-orange-700 flex items-center gap-1">
+                  <Plus size={14} /> Agregar filamento
+                </button>
+              </div>
+              <div className="space-y-2">
+                {formData.materials.map((mat, index) => (
+                  <div key={index} className="flex items-center gap-2">
+                    <div className="flex-1">
+                      <select 
+                        value={mat.filament_id} 
+                        onChange={(e) => handleMaterialChange(index, "filament_id", e.target.value)} 
+                        className="w-full text-xs border-gray-300 rounded-md focus:border-orange-500 focus:ring-orange-500 text-gray-900 bg-white"
+                      >
+                        <option value="">Seleccionar filamento...</option>
+                        {filaments.map(f => <option key={f.id} value={f.id}>{f.name} ({f.color})</option>)}
+                      </select>
+                    </div>
+                    <div className="w-24">
+                      <input 
+                        type="number" 
+                        min="0"
+                        value={mat.grams} 
+                        onChange={(e) => handleMaterialChange(index, "grams", parseFloat(e.target.value) || 0)} 
+                        className="w-full text-xs border-gray-300 rounded-md focus:border-orange-500 focus:ring-orange-500 text-gray-900 bg-white" 
+                        placeholder="Gramos"
+                      />
+                    </div>
+                    <button type="button" onClick={() => removeMaterial(index)} className="text-red-400 hover:text-red-600 p-1">
+                      <Trash2 size={16} />
+                    </button>
+                  </div>
+                ))}
+                {formData.materials.length === 0 && (
+                  <p className="text-xs text-gray-400 italic py-2">No hay materiales agregados. Agregá al menos uno para calcular automáticamente.</p>
+                )}
+              </div>
+            </div>
+
             {/* Embedded Calculator */}
             <div className="mb-4 bg-gray-50/50 p-4 rounded-xl border border-gray-200 shadow-sm">
               <div className="flex items-center gap-2 mb-3">
@@ -593,14 +792,7 @@ export default function ProductosPage() {
                 <p className="text-xs text-gray-500 ml-2 font-medium hidden sm:block">Calculá automáticamente usando tus costos.</p>
               </div>
               
-              <div className="grid grid-cols-1 md:grid-cols-3 gap-3 mb-3">
-                <div>
-                  <label className="block text-[11px] font-semibold text-gray-700 mb-1">Filamento</label>
-                  <select name="filament_id" value={formData.filament_id} onChange={handleChange} className="w-full text-xs border-gray-300 rounded-md focus:border-orange-500 focus:ring-orange-500 text-gray-900 bg-white">
-                    <option value="">Seleccionar filamento...</option>
-                    {filaments.map(f => <option key={f.id} value={f.id}>{f.name} ({f.color})</option>)}
-                  </select>
-                </div>
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-3 mb-3">
                 <div>
                   <label className="block text-[11px] font-semibold text-gray-700 mb-1">Impresora</label>
                   <select name="printer_id" value={formData.printer_id} onChange={handleChange} className="w-full text-xs border-gray-300 rounded-md focus:border-orange-500 focus:ring-orange-500 text-gray-900 bg-white">
@@ -782,13 +974,35 @@ export default function ProductosPage() {
                 <div className="min-w-0 flex-1">
                   <p className="truncate text-sm font-bold text-gray-900">{p.name}</p>
                   <p className="text-xs text-gray-400 truncate">{p.description || "Sin descripción"}</p>
-                  <div className="mt-1 flex items-center gap-1.5 text-xs text-gray-500">
-                    {filament && (
-                      <>
-                        <div className="w-2.5 h-2.5 rounded-full border border-gray-300" style={{ backgroundColor: filament.color || '#ccc' }}></div>
-                        <span className="truncate max-w-[80px]">{filament.name}</span> ·
-                      </>
-                    )}
+                  <div className="mt-1 flex flex-wrap items-center gap-1.5 text-xs text-gray-500">
+                    {(() => {
+                      const snapMats = p.calculation_snapshot?.materials;
+                      if (snapMats && Array.isArray(snapMats) && snapMats.length > 0) {
+                        if (snapMats.length === 1) {
+                          const f = filaments.find(f => f.id === snapMats[0].filament_id);
+                          return (
+                            <>
+                              {f && <div className="w-2.5 h-2.5 rounded-full border border-gray-300" style={{ backgroundColor: f.color || '#ccc' }}></div>}
+                              <span className="truncate max-w-[80px]">{snapMats[0].filament_name || f?.name || "Filamento"}</span> ·
+                            </>
+                          );
+                        } else {
+                          return (
+                            <>
+                              <span className="truncate max-w-[120px] font-medium">{snapMats.length} materiales</span> ·
+                            </>
+                          );
+                        }
+                      } else if (filament) {
+                        return (
+                          <>
+                            <div className="w-2.5 h-2.5 rounded-full border border-gray-300" style={{ backgroundColor: filament.color || '#ccc' }}></div>
+                            <span className="truncate max-w-[80px]">{filament.name}</span> ·
+                          </>
+                        );
+                      }
+                      return null;
+                    })()}
                     <span>{p.grams || 0}g</span> · <span>{formatTime(p.print_time_minutes)}</span>
                   </div>
                 </div>
