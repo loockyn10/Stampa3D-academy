@@ -127,18 +127,20 @@ export async function POST(request: Request) {
       }
     }
 
-    await supabaseAdmin.from('membership_price_history').insert({
+    const { error: historyError } = await supabaseAdmin.from('membership_price_history').insert({
       previous_price,
       new_price: Number(new_price),
       currency,
       changed_by: user.id,
       apply_to_existing: Boolean(apply_to_existing),
       affected_subscriptions,
-      failed_subscriptions,
-      notes: notes || null,
-      raw_results: raw_results,
       created_at: new Date().toISOString()
     });
+
+    if (historyError) {
+      console.error('Error inserting into membership_price_history:', historyError);
+      return NextResponse.json({ error: 'Error guardando en el historial: ' + historyError.message }, { status: 500 });
+    }
 
     return NextResponse.json({
       success: true,

@@ -130,11 +130,6 @@ export default function AdminMembresiaPage() {
           {success.apply_to_existing && (
             <ul className="list-disc list-inside ml-2">
               <li>Suscripciones actualizadas en Mercado Pago: {success.affected_subscriptions}</li>
-              {success.failed_subscriptions > 0 && (
-                <li className="text-red-600 font-bold">
-                  Suscripciones fallidas: {success.failed_subscriptions} (Ver historial)
-                </li>
-              )}
             </ul>
           )}
         </div>
@@ -237,7 +232,6 @@ export default function AdminMembresiaPage() {
                     <th className="px-4 py-3">Nuevo</th>
                     <th className="px-4 py-3">A existentes</th>
                     <th className="px-4 py-3">Resultado</th>
-                    <th className="px-4 py-3">Notas</th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-gray-100">
@@ -257,16 +251,10 @@ export default function AdminMembresiaPage() {
                         {h.apply_to_existing ? (
                           <div className="flex flex-col text-xs">
                             <span className="text-green-600">{h.affected_subscriptions} OK</span>
-                            {h.failed_subscriptions > 0 && (
-                              <span className="text-red-600 font-bold">{h.failed_subscriptions} Fallaron</span>
-                            )}
                           </div>
                         ) : (
                           <span className="text-gray-400">-</span>
                         )}
-                      </td>
-                      <td className="px-4 py-3 max-w-[200px] truncate" title={h.notes || ""}>
-                        {h.notes || "-"}
                       </td>
                     </tr>
                   ))}
