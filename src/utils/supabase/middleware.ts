@@ -72,13 +72,24 @@ export async function updateSession(request: NextRequest) {
   if (user) {
     const { data: profile } = await supabase
       .from('profiles')
-      .select('membership_status, role')
+      .select('membership_status, role, membership_expires_at')
       .eq('id', user.id)
       .single()
 
     const membershipStatus = profile?.membership_status
     const role = profile?.role
-    const hasAccess = role === 'admin' || membershipStatus === 'active'
+    const expiresAt = profile?.membership_expires_at
+    
+    let hasAccess = role === 'admin'
+    if (!hasAccess) {
+      if (membershipStatus === 'active') {
+        if (!expiresAt) {
+          hasAccess = true
+        } else {
+          hasAccess = new Date(expiresAt).getTime() > Date.now()
+        }
+      }
+    }
 
     // Admin routes protection
     if (pathname.startsWith('/admin') && role !== 'admin') {

@@ -105,7 +105,7 @@ export async function POST(request: Request) {
       // Buscar subscription (Fallback si external_reference falla o para tener el ID local)
       const { data: existingSub } = await supabaseAdmin
         .from('subscriptions')
-        .select('id, user_id, started_at, cancelled_at')
+        .select('id, user_id, started_at, cancelled_at, next_payment_at')
         .eq('mercado_pago_preapproval_id', String(preapproval.id))
         .single();
 
@@ -152,6 +152,15 @@ export async function POST(request: Request) {
         if (profile) {
           const profileUpdates: any = {};
           
+          let paidUntil: Date | null = null;
+          if (profile.membership_expires_at && new Date(profile.membership_expires_at).getTime() > Date.now()) {
+            paidUntil = new Date(profile.membership_expires_at);
+          } else if (existingSub?.next_payment_at && new Date(existingSub.next_payment_at).getTime() > Date.now()) {
+            paidUntil = new Date(existingSub.next_payment_at);
+          } else if (nextPaymentDate && new Date(nextPaymentDate).getTime() > Date.now()) {
+            paidUntil = new Date(nextPaymentDate);
+          }
+
           if (status === "authorized") {
             profileUpdates.membership_status = "active";
             profileUpdates.membership_started_at = profile.membership_started_at || new Date().toISOString();
@@ -162,11 +171,14 @@ export async function POST(request: Request) {
               nextMonth.setMonth(nextMonth.getMonth() + 1);
               profileUpdates.membership_expires_at = nextMonth.toISOString();
             }
-          } else if (status === "paused") {
-            profileUpdates.membership_status = "inactive";
-          } else if (status === "cancelled" || status === "canceled") {
-            profileUpdates.membership_status = "cancelled";
-            profileUpdates.membership_expires_at = new Date().toISOString();
+          } else if (status === "paused" || status === "cancelled" || status === "canceled") {
+            if (paidUntil && paidUntil.getTime() > Date.now()) {
+              profileUpdates.membership_status = "active";
+              profileUpdates.membership_expires_at = paidUntil.toISOString();
+            } else {
+              profileUpdates.membership_status = status === "paused" ? "inactive" : "expired";
+              profileUpdates.membership_expires_at = new Date().toISOString();
+            }
           }
 
           if (Object.keys(profileUpdates).length > 0) {

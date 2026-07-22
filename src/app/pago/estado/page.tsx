@@ -8,7 +8,7 @@ export default function PagoEstadoPage() {
   const router = useRouter();
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const [statusData, setStatusData] = useState<{ active?: boolean, status?: string } | null>(null);
+  const [statusData, setStatusData] = useState<{ active?: boolean, status?: string, access_until?: string } | null>(null);
 
   const checkStatus = useCallback(async () => {
     try {
@@ -87,10 +87,14 @@ export default function PagoEstadoPage() {
               <>
                 <CheckCircle2 className="h-12 w-12 text-green-500 mb-4" />
                 <h2 className="text-2xl font-bold tracking-tight text-gray-900">
-                  Membresía activada correctamente
+                  {(statusData.status === "cancelled" || statusData.status === "canceled") 
+                    ? "Suscripción cancelada"
+                    : "Membresía activada correctamente"}
                 </h2>
                 <p className="mt-2 text-sm text-gray-600 mb-6">
-                  Serás redirigido al inicio en breve...
+                  {(statusData.status === "cancelled" || statusData.status === "canceled") && statusData.access_until
+                    ? `Tu suscripción fue cancelada, pero mantenés tu acceso hasta el ${new Date(statusData.access_until).toLocaleDateString("es-AR")}. Serás redirigido al inicio en breve...`
+                    : "Serás redirigido al inicio en breve..."}
                 </p>
               </>
             ) : statusData.status === "pending" ? (

@@ -104,24 +104,45 @@ export async function POST(request: Request) {
       .eq('id', user.id)
       .single();
 
+    let isActive = false;
+    let accessUntil = null;
+
     if (profile) {
       const profileUpdates: any = {};
       
+      let paidUntil: Date | null = null;
+      if (profile.membership_expires_at && new Date(profile.membership_expires_at).getTime() > Date.now()) {
+        paidUntil = new Date(profile.membership_expires_at);
+      } else if (latestSub.next_payment_at && new Date(latestSub.next_payment_at).getTime() > Date.now()) {
+        paidUntil = new Date(latestSub.next_payment_at);
+      } else if (mpSubscription.next_payment_date && new Date(mpSubscription.next_payment_date).getTime() > Date.now()) {
+        paidUntil = new Date(mpSubscription.next_payment_date);
+      }
+
       if (mpStatus === "authorized") {
         profileUpdates.membership_status = "active";
         profileUpdates.membership_started_at = profile.membership_started_at || new Date().toISOString();
         if (mpSubscription.next_payment_date) {
           profileUpdates.membership_expires_at = mpSubscription.next_payment_date;
+          accessUntil = mpSubscription.next_payment_date;
         } else {
           const expires = new Date();
           expires.setMonth(expires.getMonth() + 1);
           profileUpdates.membership_expires_at = expires.toISOString();
+          accessUntil = expires.toISOString();
         }
-      } else if (mpStatus === "paused") {
-        profileUpdates.membership_status = "inactive";
-      } else if (mpStatus === "cancelled" || mpStatus === "canceled") {
-        profileUpdates.membership_status = "cancelled";
-        profileUpdates.membership_expires_at = new Date().toISOString();
+        isActive = true;
+      } else if (mpStatus === "paused" || mpStatus === "cancelled" || mpStatus === "canceled") {
+        if (paidUntil && paidUntil.getTime() > Date.now()) {
+          profileUpdates.membership_status = "active";
+          profileUpdates.membership_expires_at = paidUntil.toISOString();
+          isActive = true;
+          accessUntil = paidUntil.toISOString();
+        } else {
+          profileUpdates.membership_status = mpStatus === "paused" ? "inactive" : "expired";
+          profileUpdates.membership_expires_at = new Date().toISOString();
+          isActive = false;
+        }
       }
 
       if (Object.keys(profileUpdates).length > 0) {
@@ -136,11 +157,10 @@ export async function POST(request: Request) {
       }
     }
 
-    const isActive = mpStatus === "authorized";
-
     return NextResponse.json({
       active: isActive,
       status: mpStatus,
+      access_until: accessUntil,
       subscription_id: latestSub.id,
       preapproval_id: preapprovalId
     });

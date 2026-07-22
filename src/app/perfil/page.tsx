@@ -163,19 +163,34 @@ function PerfilContent() {
             {subscription && (
               <div className="mb-6 p-4 rounded-xl border border-gray-100 bg-gray-50 flex flex-col gap-1 text-sm">
                 <div className="flex justify-between">
-                  <span className="text-gray-500 font-semibold">Suscripción MP</span>
-                  <span className="font-bold text-gray-900 capitalize">{subscription.status}</span>
+                  <span className="text-gray-500 font-semibold">Estado de membresía</span>
+                  <span className="font-bold text-gray-900">
+                    {profile.membership_status === "active" && (subscription.status === "cancelled" || subscription.status === "canceled") 
+                      ? "Cancelada (Acceso temporal)"
+                      : profile.membership_status === "active" 
+                        ? "Activa" 
+                        : "Vencida / Inactiva"}
+                  </span>
                 </div>
+                
+                <p className="mt-2 text-xs text-gray-500">
+                  {profile.membership_status === "active" && (subscription.status === "cancelled" || subscription.status === "canceled") && profile.membership_expires_at
+                    ? `Tu suscripción fue cancelada. Tenés acceso hasta el ${new Date(profile.membership_expires_at).toLocaleDateString("es-AR")}.`
+                    : profile.membership_status === "active"
+                      ? "Tu membresía está activa."
+                      : "Tu membresía venció."}
+                </p>
+
                 {subscription.amount && (
-                  <div className="flex justify-between mt-1">
-                    <span className="text-gray-500 font-semibold">Monto mensual</span>
+                  <div className="flex justify-between mt-3 pt-3 border-t border-gray-200">
+                    <span className="text-gray-500 font-semibold">Monto mensual (Suscripción {subscription.status})</span>
                     <span className="font-bold text-gray-900">${subscription.amount}</span>
                   </div>
                 )}
-                {subscription.next_payment_at && (
+                {subscription.next_payment_at && profile.membership_status === "active" && subscription.status !== "cancelled" && subscription.status !== "canceled" && (
                   <div className="flex justify-between mt-1">
                     <span className="text-gray-500 font-semibold">Próximo cobro</span>
-                    <span className="font-bold text-gray-900">{new Date(subscription.next_payment_at).toLocaleDateString()}</span>
+                    <span className="font-bold text-gray-900">{new Date(subscription.next_payment_at).toLocaleDateString("es-AR")}</span>
                   </div>
                 )}
               </div>
