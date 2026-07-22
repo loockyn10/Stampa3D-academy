@@ -18,7 +18,7 @@ export default function InicioPage() {
   const [coursesCount, setCoursesCount] = useState(0);
   const [downloadsCount, setDownloadsCount] = useState(0);
   const [budgetsCount, setBudgetsCount] = useState(0);
-  
+
   const [continuingCourse, setContinuingCourse] = useState<any>(null);
   const [upcomingRaffle, setUpcomingRaffle] = useState<any>(null);
   const [latestStls, setLatestStls] = useState<any[]>([]);
@@ -82,7 +82,7 @@ export default function InicioPage() {
         if (uniqueCourses.size > 0) {
           const firstCourseId = Array.from(uniqueCourses.keys())[0];
           const c = uniqueCourses.get(firstCourseId);
-          
+
           const { count: totalLessons } = await supabase
             .from("lessons")
             .select("*, course_modules!inner(course_id)", { count: "exact", head: true })
@@ -90,7 +90,7 @@ export default function InicioPage() {
             .eq("is_published", true);
 
           const completedCount = progressData?.filter((p: any) => p.lessons?.course_modules?.courses?.id === firstCourseId).length || 0;
-          
+
           setContinuingCourse({
             id: c.slug || c.id,
             title: c.title,
@@ -122,7 +122,7 @@ export default function InicioPage() {
           .eq("stl_models.is_active", true)
           .order("created_at", { ascending: false })
           .limit(4);
-        
+
         if (stls) {
           setLatestStls(stls);
         }
@@ -166,7 +166,7 @@ export default function InicioPage() {
       {/* Welcome Card */}
       <Card className="overflow-hidden bg-gradient-to-br from-gray-900 to-gray-800 p-6 text-white sm:p-8">
         <p className="text-sm font-medium text-orange-400">Hola, {userFirstName} 👋</p>
-        <h2 className="mt-1 text-2xl font-bold sm:text-3xl">Sigamos imprimiendo ideas.</h2>
+        <h2 className="mt-1 text-2xl font-bold sm:text-3xl">Sigamos imprimiendo ideas Juntos ideando las ideas de impresion 3D para idear nuestro futuro juntos.</h2>
         <p className="mt-2 max-w-lg text-sm text-gray-300">
           Retomá tu curso, revisá el sorteo del mes o calculá el costo de tu próxima pieza.
         </p>
