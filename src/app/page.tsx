@@ -166,7 +166,7 @@ export default function InicioPage() {
       {/* Welcome Card */}
       <Card className="overflow-hidden bg-gradient-to-br from-gray-900 to-gray-800 p-6 text-white sm:p-8">
         <p className="text-sm font-medium text-orange-400">Hola, {userFirstName} 👋</p>
-        <h2 className="mt-1 text-2xl font-bold sm:text-3xl">Sigamos imprimiendo ideas Juntos ideando las ideas de impresion 3D para idear nuestro futuro juntos.</h2>
+        <h2 className="mt-1 text-2xl font-bold sm:text-3xl">Sigamos imprimiendo ideas.</h2>
         <p className="mt-2 max-w-lg text-sm text-gray-300">
           Retomá tu curso, revisá el sorteo del mes o calculá el costo de tu próxima pieza.
         </p>
