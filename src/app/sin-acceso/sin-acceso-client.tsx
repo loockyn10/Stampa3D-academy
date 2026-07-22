@@ -1,17 +1,39 @@
 "use client";
 
 import { Building2, Loader2, AlertCircle } from "lucide-react";
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { createClient } from "@/utils/supabase/client";
 
-interface SinAccesoClientProps {
-  price: string;
-}
-
-export function SinAccesoClient({ price }: SinAccesoClientProps) {
+export function SinAccesoClient() {
   const supabase = createClient();
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  
+  const [price, setPrice] = useState<string | null>(null);
+  const [loadingPrice, setLoadingPrice] = useState(true);
+
+  useEffect(() => {
+    async function fetchPrice() {
+      try {
+        const { data } = await supabase
+          .from("membership_settings")
+          .select("monthly_price")
+          .eq("id", "default")
+          .single();
+          
+        if (data?.monthly_price) {
+          setPrice(String(data.monthly_price));
+        } else {
+          setPrice(null);
+        }
+      } catch (err) {
+        setPrice(null);
+      } finally {
+        setLoadingPrice(false);
+      }
+    }
+    fetchPrice();
+  }, [supabase]);
 
   const handleLogout = async () => {
     await supabase.auth.signOut();
@@ -87,10 +109,20 @@ export function SinAccesoClient({ price }: SinAccesoClientProps) {
           <p className="mt-4 text-sm text-gray-600">
             Tu cuenta ha sido creada correctamente, pero tu membresía aún no se encuentra activa.
           </p>
-          <div className="mt-4 p-4 bg-orange-50 rounded-lg border border-orange-100">
-            <p className="text-sm font-semibold text-orange-800">
-              Valor mensual: {formatPrice(price)}
-            </p>
+          <div className="mt-4 p-4 bg-orange-50 rounded-lg border border-orange-100 min-h-[56px] flex items-center justify-center">
+            {loadingPrice ? (
+              <p className="text-sm font-semibold text-orange-800 flex items-center gap-2">
+                <Loader2 size={16} className="animate-spin" /> Cargando precio...
+              </p>
+            ) : price ? (
+              <p className="text-sm font-semibold text-orange-800">
+                Valor mensual: {formatPrice(price)} / mes
+              </p>
+            ) : (
+              <p className="text-sm font-semibold text-orange-800 opacity-70">
+                Precio no disponible
+              </p>
+            )}
           </div>
           <p className="mt-4 text-sm text-gray-600">
             Si ya realizaste el pago, aguardá unos minutos mientras procesamos la información.
