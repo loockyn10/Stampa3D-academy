@@ -35,17 +35,17 @@ export async function POST(request: Request) {
 
     // Call Mercado Pago API to create preapproval (subscription)
     const payload = {
-      reason: "Membresía mensual Stampa3D",
+      reason: "Membresía Academia Stampa",
       external_reference: user.id,
       payer_email: user.email,
-      back_url: `${appUrl}/perfil`,
-      status: "pending",
       auto_recurring: {
         frequency: 1,
         frequency_type: "months",
         transaction_amount: Number(price),
         currency_id: "ARS"
-      }
+      },
+      back_url: new URL("/pago/estado", process.env.NEXT_PUBLIC_APP_URL!).toString(),
+      status: "pending"
     };
 
     const mpResponse = await fetch("https://api.mercadopago.com/preapproval", {
@@ -110,6 +110,7 @@ export async function POST(request: Request) {
       payer_email: user.email,
       amount: Number(price),
       currency: "ARS",
+      raw_data: mpData,
       next_payment_at: mpData.next_payment_date || null,
       created_at: new Date().toISOString(),
       updated_at: new Date().toISOString()
@@ -123,7 +124,10 @@ export async function POST(request: Request) {
       }, { status: 500 });
     }
 
-    return NextResponse.json({ init_point: initPoint });
+    return NextResponse.json({ 
+      init_point: initPoint,
+      preapproval_id: preapprovalId
+    });
   } catch (error: any) {
     console.error("Error in create-subscription route:", error);
     return NextResponse.json({ error: error.message }, { status: 500 });
