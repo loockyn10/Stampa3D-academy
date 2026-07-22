@@ -180,7 +180,7 @@ export default function InicioPage() {
               <Play size={15} /> Explorar cursos
             </PrimaryButton>
           )}
-          <GhostButton href="/calculadora" className="bg-white/10 border-white/10 text-white hover:bg-white/20">
+          <GhostButton href="/calculadora" className="bg-white/10 border-white/10 text-orange hover:bg-white/20">
             <Calculator size={15} /> Ir a la calculadora
           </GhostButton>
         </div>
