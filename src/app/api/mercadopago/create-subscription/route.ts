@@ -15,16 +15,13 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: 'Usuario sin email configurado' }, { status: 400 });
     }
 
-    const price = process.env.MEMBERSHIP_MONTHLY_PRICE;
+    const fallbackPrice = process.env.MEMBERSHIP_MONTHLY_PRICE;
     const appUrl = process.env.NEXT_PUBLIC_APP_URL;
     const accessToken = process.env.MERCADO_PAGO_ACCESS_TOKEN;
     const serviceRoleKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
 
     if (!accessToken) {
       return NextResponse.json({ error: 'MERCADO_PAGO_ACCESS_TOKEN no configurado' }, { status: 500 });
-    }
-    if (!price || isNaN(Number(price)) || Number(price) <= 0) {
-      return NextResponse.json({ error: 'MEMBERSHIP_MONTHLY_PRICE inválido o no configurado' }, { status: 500 });
     }
     if (!appUrl) {
       return NextResponse.json({ error: 'NEXT_PUBLIC_APP_URL no configurado' }, { status: 500 });
@@ -33,7 +30,30 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: 'SUPABASE_SERVICE_ROLE_KEY no configurado' }, { status: 500 });
     }
 
-    // Call Mercado Pago API to create preapproval (subscription)
+    const supabaseAdmin = createSupabaseClient(
+      process.env.NEXT_PUBLIC_SUPABASE_URL!,
+      serviceRoleKey
+    );
+
+    // Get dynamic price from membership_settings
+    const { data: settings } = await supabaseAdmin
+      .from("membership_settings")
+      .select("monthly_price, currency")
+      .eq("id", "default")
+      .single();
+
+    let price = fallbackPrice;
+    let currency = "ARS";
+
+    if (settings?.monthly_price) {
+      price = settings.monthly_price;
+      if (settings.currency) currency = settings.currency;
+    }
+
+    if (!price || isNaN(Number(price)) || Number(price) <= 0) {
+      return NextResponse.json({ error: 'Precio de membresía inválido o no configurado' }, { status: 500 });
+    }
+
     const payload = {
       reason: "Membresía Academia Stampa",
       external_reference: user.id,
@@ -42,7 +62,7 @@ export async function POST(request: Request) {
         frequency: 1,
         frequency_type: "months",
         transaction_amount: Number(price),
-        currency_id: "ARS"
+        currency_id: currency
       },
       back_url: new URL("/pago/estado", process.env.NEXT_PUBLIC_APP_URL!).toString(),
       status: "pending"
@@ -96,12 +116,7 @@ export async function POST(request: Request) {
     const initPoint = mpData.init_point;
     const preapprovalId = mpData.id;
 
-    // We must save the subscription locally as pending/created.
-    // Use service_role to bypass RLS since the user is modifying subscriptions.
-    const supabaseAdmin = createSupabaseClient(
-      process.env.NEXT_PUBLIC_SUPABASE_URL!,
-      serviceRoleKey
-    );
+    // Supabase admin instance is already created above
 
     const { error: insertError } = await supabaseAdmin.from("subscriptions").upsert({
       user_id: user.id,
@@ -109,7 +124,7 @@ export async function POST(request: Request) {
       status: mpData.status || "pending",
       payer_email: user.email,
       amount: Number(price),
-      currency: "ARS",
+      currency: currency,
       raw_data: mpData,
       next_payment_at: mpData.next_payment_date || null,
       created_at: new Date().toISOString(),

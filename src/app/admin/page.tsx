@@ -112,6 +112,20 @@ export default function AdminDashboardPage() {
             </p>
           </div>
         </Link>
+
+        <Link href="/admin/membresia" className="block">
+          <div className="bg-white p-6 rounded-xl border border-gray-200 shadow-sm hover:shadow-md transition-shadow cursor-pointer h-full">
+            <div className="flex items-center gap-4 mb-4">
+              <div className="p-3 bg-red-50 text-red-600 rounded-lg">
+                <Settings size={24} />
+              </div>
+              <h2 className="text-lg font-semibold text-gray-900">Membresía</h2>
+            </div>
+            <p className="text-sm text-gray-600">
+              Configura el precio mensual y actualiza suscripciones activas.
+            </p>
+          </div>
+        </Link>
       </div>
     </div>
   )
