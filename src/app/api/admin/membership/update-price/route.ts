@@ -59,7 +59,7 @@ export async function POST(request: Request) {
     const currency = 'ARS';
 
     // Actualizar membership_settings
-    await supabaseAdmin
+    const { error: upsertError } = await supabaseAdmin
       .from('membership_settings')
       .upsert({
         id: 'default',
@@ -67,6 +67,11 @@ export async function POST(request: Request) {
         currency: currency,
         updated_at: new Date().toISOString()
       }, { onConflict: 'id' });
+
+    if (upsertError) {
+      console.error('Error updating membership_settings:', upsertError);
+      return NextResponse.json({ error: 'Error al actualizar membership_settings: ' + upsertError.message }, { status: 500 });
+    }
 
     let affected_subscriptions = 0;
     let failed_subscriptions = 0;
