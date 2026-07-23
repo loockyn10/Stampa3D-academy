@@ -50,8 +50,30 @@ export function LandingPrintScene() {
       className="relative w-full aspect-square max-w-lg mx-auto md:max-w-xl lg:max-w-2xl flex items-center justify-center pointer-events-none"
       style={{ perspective: "1000px" }}
     >
+      <style dangerouslySetInnerHTML={{__html: `
+        @keyframes print-head-move {
+          0%, 100% { transform: translateX(-40px); }
+          50% { transform: translateX(40px); }
+        }
+        @keyframes print-layer-glow {
+          0%, 100% { opacity: 0.1; box-shadow: none; }
+          50% { opacity: 0.9; box-shadow: 0 0 10px rgba(234,88,12,0.8); }
+        }
+        
+        @media (prefers-reduced-motion: reduce) {
+          .animate-print-head {
+             animation: none !important;
+             transform: translateX(0) !important;
+          }
+          .animate-print-layer {
+             animation: none !important;
+             opacity: 0.5 !important;
+          }
+        }
+      `}} />
+
       {/* Background radial glow */}
-      <div className="absolute inset-0 bg-orange-600/10 blur-[100px] rounded-full" />
+      <div className="absolute inset-0 bg-orange-600/10 blur-[100px] rounded-full hidden md:block" />
       
       {/* 3D Scene Container */}
       <div 
@@ -74,65 +96,86 @@ export function LandingPrintScene() {
           <div className="text-lg font-bold text-white">68% completado</div>
         </div>
 
-        {/* Scan line */}
-        <div className="absolute left-0 right-0 h-1 bg-white/20 shadow-[0_0_15px_rgba(255,255,255,0.5)] z-40" style={{ animation: 'stampa-layer-scan 4s linear infinite' }} />
+        {/* Printer Structure (X-Axis Rail) */}
+        <div className="absolute top-[25%] left-[15%] right-[15%] md:left-[20%] md:right-[20%] h-4 bg-gradient-to-b from-zinc-800 to-zinc-900 border-y border-zinc-700 rounded-sm z-10 shadow-lg flex items-center justify-between">
+          <div className="w-6 h-12 bg-zinc-950 border border-zinc-700 rounded-sm -ml-4 shadow-xl" />
+          <div className="w-6 h-12 bg-zinc-950 border border-zinc-700 rounded-sm -mr-4 shadow-xl" />
+        </div>
 
-        {/* Nozzle */}
-        <div className="absolute top-[10%] flex flex-col items-center z-20" style={{ animation: 'stampa-nozzle-move 4s ease-in-out infinite' }}>
-          <div className="w-16 h-20 bg-gradient-to-b from-zinc-800 to-zinc-950 border-x border-t border-zinc-700 rounded-t-lg relative">
-            <div className="absolute inset-0 bg-[linear-gradient(to_bottom,transparent_40%,rgba(234,88,12,0.1)_100%)]" />
+        {/* Print Head & Extruder */}
+        <div className="absolute top-[22%] z-20 flex flex-col items-center animate-print-head" style={{ animation: 'print-head-move 4s ease-in-out infinite' }}>
+          {/* Carriage */}
+          <div className="w-20 h-10 bg-zinc-800 border border-zinc-600 rounded-md shadow-2xl flex items-center justify-center relative">
+            <div className="w-16 h-2 bg-zinc-950 rounded-full" />
+          </div>
+          {/* Hotend / Extruder Block */}
+          <div className="w-14 h-16 bg-gradient-to-b from-zinc-700 to-zinc-900 border-x border-b border-zinc-600 rounded-b-lg relative flex flex-col items-center pt-2">
             {/* Vents */}
-            <div className="absolute top-4 left-2 right-2 h-1 bg-black rounded-full opacity-50" />
-            <div className="absolute top-8 left-2 right-2 h-1 bg-black rounded-full opacity-50" />
-            <div className="absolute top-12 left-2 right-2 h-1 bg-black rounded-full opacity-50" />
-          </div>
-          {/* Heat block */}
-          <div className="w-12 h-6 bg-zinc-900 border border-orange-500/30 flex items-center justify-center relative">
-            <div className="w-2 h-2 rounded-full bg-orange-500 shadow-[0_0_10px_rgba(234,88,12,1)]" />
-          </div>
-          {/* Tip */}
-          <div className="w-0 h-0 border-l-[6px] border-l-transparent border-r-[6px] border-r-transparent border-t-[10px] border-t-zinc-900 relative">
-            {/* Extrusion Line */}
-            <div className="absolute top-full left-1/2 -translate-x-1/2 w-1 h-32 bg-orange-500 shadow-[0_0_15px_rgba(234,88,12,1)]" />
-          </div>
-        </div>
-
-        {/* Abstract Printed Piece */}
-        <div className="absolute top-[50%] w-48 h-48 md:w-64 md:h-64 z-10 flex flex-col items-center justify-end perspective-500" style={{ transform: 'rotateX(60deg) rotateZ(45deg)' }}>
-          {/* Base / Bed Grid */}
-          <div className="absolute -inset-20 border border-white/5 bg-zinc-900/40 rounded-xl" style={{ backgroundImage: 'linear-gradient(to right, rgba(255,255,255,0.05) 1px, transparent 1px), linear-gradient(to bottom, rgba(255,255,255,0.05) 1px, transparent 1px)', backgroundSize: '20px 20px' }}>
-            {/* Glow on bed */}
-            <div className="absolute inset-0 bg-orange-500/10 blur-xl rounded-full" />
-          </div>
-
-          {/* Layers building up */}
-          <div className="relative w-32 h-32 md:w-48 md:h-48 flex flex-col justify-end items-center transform-style-3d">
-            {[...Array(12)].map((_, i) => (
-              <div 
-                key={i} 
-                className="w-full h-1 md:h-2 bg-orange-600/30 border border-orange-500/20 mb-1" 
-                style={{ 
-                  transform: `translateZ(${i * 4}px)`,
-                  width: `${100 - (i * 4)}%`,
-                  animation: 'stampa-layer-build 4.8s infinite',
-                  animationDelay: `${i * 0.4}s`
-                }} 
-              />
-            ))}
+            <div className="w-10 h-1 bg-black rounded-full mb-1 opacity-70" />
+            <div className="w-10 h-1 bg-black rounded-full mb-1 opacity-70" />
+            <div className="w-10 h-1 bg-black rounded-full opacity-70" />
+            {/* Heat block */}
+            <div className="absolute bottom-[2px] w-8 h-4 bg-zinc-900 border border-orange-500/40 rounded-sm flex items-center justify-center">
+               <div className="w-2 h-2 rounded-full bg-orange-500 shadow-[0_0_8px_rgba(234,88,12,1)]" />
+            </div>
+            {/* Tip (Nozzle) */}
+            <div className="absolute bottom-[-6px] w-0 h-0 border-l-[4px] border-l-transparent border-r-[4px] border-r-transparent border-t-[8px] border-t-zinc-800" />
+            {/* Short Extrusion Line (Filament) */}
+            <div className="absolute bottom-[-16px] w-1 h-3 bg-orange-400 rounded-full shadow-[0_0_8px_rgba(234,88,12,0.8)]" />
           </div>
         </div>
 
-        {/* Floating Particles (Sparks) */}
-        {[...Array(15)].map((_, i) => (
+        {/* Abstract Printed Piece & Bed */}
+        <div className="absolute top-[48%] w-56 h-56 md:w-64 md:h-64 z-10 flex flex-col items-center justify-end" style={{ transform: 'rotateX(60deg) rotateZ(45deg)' }}>
+          {/* Bed Base */}
+          <div className="absolute -inset-8 bg-zinc-900/80 border-2 border-zinc-700 rounded-xl shadow-[0_30px_60px_rgba(0,0,0,0.6)]">
+            {/* Grid */}
+            <div className="absolute inset-0 rounded-xl opacity-30" style={{ backgroundImage: 'linear-gradient(to right, rgba(255,255,255,0.1) 1px, transparent 1px), linear-gradient(to bottom, rgba(255,255,255,0.1) 1px, transparent 1px)', backgroundSize: '15px 15px' }} />
+            {/* Subtle bed border glow */}
+            <div className="absolute inset-0 border border-orange-500/10 rounded-xl shadow-[inset_0_0_30px_rgba(234,88,12,0.05)]" />
+            {/* Shadow under the piece */}
+            <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-24 h-24 bg-black/60 blur-xl rounded-full" />
+          </div>
+
+          {/* Piece Layers */}
+          <div className="relative w-24 h-24 md:w-32 md:h-32 flex flex-col justify-end items-center transform-style-3d mb-8">
+            {[...Array(8)].map((_, i) => {
+              // Creating a staggered shape, wider at bottom
+              const widthPerc = 100 - (i * 5); 
+              return (
+                <div 
+                  key={i} 
+                  className="h-2 md:h-3 bg-zinc-800 border-x border-t border-zinc-700 mb-[1px] relative rounded-sm"
+                  style={{ 
+                    width: `${widthPerc}%`,
+                    transform: `translateZ(${i * 6}px)`,
+                  }} 
+                >
+                  {/* Top face of the layer glowing */}
+                  <div 
+                    className="absolute inset-0 bg-orange-500/40 animate-print-layer"
+                    style={{
+                      animation: 'print-layer-glow 4s ease-in-out infinite',
+                      animationDelay: `${i * 0.5}s`
+                    }}
+                  />
+                </div>
+              );
+            })}
+          </div>
+        </div>
+
+        {/* Particles - Reduced to 5 subtle ones */}
+        {[...Array(5)].map((_, i) => (
           <div 
             key={i} 
-            className="absolute w-1 h-1 bg-orange-400 rounded-full blur-[1px]"
+            className="absolute w-1 h-1 bg-orange-400 rounded-full blur-[1px] hidden md:block"
             style={{
-              top: `${40 + Math.random() * 20}%`,
-              left: `${40 + Math.random() * 20}%`,
+              top: `${45 + Math.random() * 15}%`,
+              left: `${45 + Math.random() * 15}%`,
               animation: `stampa-float ${3 + Math.random() * 4}s ease-in-out infinite`,
               animationDelay: `${Math.random() * 2}s`,
-              opacity: 0.2 + Math.random() * 0.5
+              opacity: 0.1 + Math.random() * 0.2
             }}
           />
         ))}
