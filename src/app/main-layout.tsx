@@ -8,7 +8,8 @@ import { usePathname } from "next/navigation";
 export function MainLayout({ children }: { children: React.ReactNode }) {
   const [mobileOpen, setMobileOpen] = useState(false);
   const pathname = usePathname();
-  const isAuthRoute = 
+  const isPublicRoute = 
+    pathname?.startsWith('/landing') ||
     pathname?.startsWith('/login') || 
     pathname?.startsWith('/registro') || 
     pathname?.startsWith('/recuperar-password') || 
@@ -19,8 +20,8 @@ export function MainLayout({ children }: { children: React.ReactNode }) {
     pathname?.startsWith('/pago/estado') || 
     pathname?.startsWith('/salir');
 
-  if (isAuthRoute) {
-    return <main className="min-h-screen bg-[#F7F7F9]">{children}</main>;
+  if (isPublicRoute) {
+    return <main className="min-h-screen">{children}</main>;
   }
 
   return (
