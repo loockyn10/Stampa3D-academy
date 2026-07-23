@@ -1,28 +1,23 @@
 "use client";
 
-import { Map } from "lucide-react";
 import { useIntersection } from "./use-intersection";
 
-const routes = [
+const courses = [
   {
-    number: "01",
     title: "Impresión 3D desde cero",
-    description: "Dominá los fundamentos de las máquinas, materiales básicos y calibración."
+    description: "Nivelación, primeros pasos y mantenimiento básico para que tu máquina empiece a producir sin fallas."
   },
   {
-    number: "02",
     title: "Bambu Studio + OrcaSlicer",
-    description: "Aprendé a usar los slicers modernos para sacar el máximo rendimiento a tus impresiones."
+    description: "Dominá los slicers más modernos del mercado. Soportes, velocidad y perfiles optimizados."
   },
   {
-    number: "03",
-    title: "Fusion 360",
-    description: "Pasá de descargar archivos a diseñar tus propias soluciones mecánicas y piezas a medida."
+    title: "Diseño con Fusion 360",
+    description: "Dejá de depender de modelos gratis. Aprendé a diseñar tus propias piezas funcionales y cobralas mejor."
   },
   {
-    number: "04",
     title: "Producción, costos y venta",
-    description: "El paso final: cómo cotizar, organizar tu taller y escalar tu producción."
+    description: "Estrategias de precio, organización de taller y cómo escalar tus ventas para que deje de ser un hobby."
   }
 ];
 
@@ -30,62 +25,66 @@ export function LandingRoadmap() {
   const [ref, isIntersecting] = useIntersection<HTMLDivElement>({ threshold: 0.1 });
 
   return (
-    <section className="py-24 bg-black text-white relative">
+    <section id="cursos" className="py-24 bg-zinc-950 border-t border-white/5 relative overflow-hidden">
       <div className="container mx-auto px-6" ref={ref}>
-        <div className={`text-center max-w-3xl mx-auto mb-16 stampa-reveal-hidden ${isIntersecting ? 'stampa-reveal-visible' : ''}`}>
-          <div className="inline-flex items-center justify-center w-12 h-12 rounded-full bg-orange-500/10 text-orange-500 mb-6 relative">
-            <div className="absolute inset-0 bg-orange-500/20 rounded-full animate-ping opacity-50" />
-            <Map className="w-6 h-6 relative z-10" />
-          </div>
-          <h2 className="text-3xl md:text-5xl font-bold mb-6">Una ruta clara para avanzar</h2>
-          <p className="text-gray-400 text-lg">
-            No pierdas tiempo buscando qué aprender después. Te marcamos el camino.
+        
+        <div className={`text-center max-w-3xl mx-auto mb-20 stampa-reveal-hidden ${isIntersecting ? 'stampa-reveal-visible' : ''}`}>
+          <h2 className="text-3xl md:text-5xl font-bold text-white mb-6">El camino para dominar tu taller</h2>
+          <p className="text-gray-400 text-lg md:text-xl">
+            Un mapa de aprendizaje estructurado, paso a paso, sin relleno.
           </p>
         </div>
 
         <div className="max-w-4xl mx-auto relative">
-          {/* Vertical connecting line for desktop */}
-          <div className="hidden md:block absolute left-1/2 top-0 bottom-0 w-px bg-zinc-800 -translate-x-1/2" />
           
-          {/* Animated glow line on scroll */}
+          {/* Main vertical line (Desktop) */}
+          <div className="absolute left-6 md:left-1/2 md:-translate-x-1/2 top-0 bottom-0 w-px bg-zinc-800" />
+          
+          {/* Glowing animated line (Desktop only) */}
           <div 
-            className="hidden md:block absolute left-1/2 top-0 w-[2px] bg-gradient-to-b from-orange-400 to-orange-600 -translate-x-1/2 transition-all duration-[2000ms] ease-in-out shadow-[0_0_15px_rgba(234,88,12,0.8)]" 
-            style={{ 
-              height: isIntersecting ? '100%' : '0%',
-              opacity: isIntersecting ? 1 : 0
-            }} 
+            className={`absolute left-6 md:left-1/2 md:-translate-x-1/2 top-0 w-[2px] bg-gradient-to-b from-orange-400 via-orange-500 to-transparent transition-all duration-[2000ms] ease-out shadow-[0_0_15px_rgba(234,88,12,0.8)] hidden md:block ${
+              isIntersecting ? 'h-full opacity-100' : 'h-0 opacity-0'
+            }`} 
           />
 
-          <div className="space-y-12 md:space-y-0 relative">
-            {routes.map((route, idx) => (
-              <div 
-                key={idx} 
-                className={`flex flex-col md:flex-row items-center justify-between group stampa-reveal-hidden ${isIntersecting ? 'stampa-reveal-visible' : ''} ${idx % 2 === 0 ? 'md:flex-row-reverse' : ''}`}
-                style={{ animationDelay: `${idx * 0.3 + 0.3}s` }}
-              >
-                
-                {/* Content Side */}
-                <div className="w-full md:w-5/12 mb-6 md:mb-0">
-                  <div className={`bg-zinc-900/50 border border-white/5 p-6 rounded-2xl hover:border-orange-500/50 transition-all duration-300 hover:shadow-[0_0_30px_rgba(234,88,12,0.15)] hover:-translate-y-1 ${idx % 2 === 0 ? 'md:text-left' : 'md:text-right'}`}>
-                    <div className="text-orange-500 font-mono text-sm mb-2 font-semibold">Ruta {route.number}</div>
-                    <h3 className="text-xl font-bold mb-3">{route.title}</h3>
-                    <p className="text-gray-400">{route.description}</p>
+          <div className="space-y-12 md:space-y-0">
+            {courses.map((course, idx) => {
+              const isEven = idx % 2 === 0;
+              
+              return (
+                <div 
+                  key={idx} 
+                  className={`relative flex flex-col md:flex-row items-start md:items-center justify-between group stampa-reveal-hidden ${isIntersecting ? 'stampa-reveal-visible' : ''} ${isEven ? 'md:flex-row-reverse' : ''}`}
+                  style={{ animationDelay: `${idx * 0.3 + 0.2}s` }}
+                >
+                  
+                  {/* Content Side */}
+                  <div className={`w-full md:w-5/12 ml-16 md:ml-0 ${isEven ? 'md:pl-12' : 'md:pr-12'}`}>
+                    <div className="bg-zinc-900/50 border border-white/5 p-6 md:p-8 rounded-2xl hover:bg-zinc-900 hover:border-orange-500/30 transition-colors duration-300 relative group-hover:-translate-y-1">
+                      <div className="text-orange-500 font-mono text-sm mb-3 font-semibold tracking-wider">PASO 0{idx + 1}</div>
+                      <h3 className="text-xl md:text-2xl font-bold text-white mb-3">{course.title}</h3>
+                      <p className="text-gray-400 leading-relaxed">{course.description}</p>
+                    </div>
                   </div>
-                </div>
 
-                {/* Center Node */}
-                <div className="hidden md:flex w-2/12 justify-center relative z-10 py-8">
-                  <div className="w-10 h-10 rounded-full bg-black border-4 border-zinc-800 flex items-center justify-center group-hover:border-orange-500 transition-colors duration-500 relative">
-                    <div className={`absolute inset-0 rounded-full transition-all duration-1000 ${isIntersecting ? 'bg-orange-500/20 shadow-[0_0_20px_rgba(234,88,12,0.6)]' : 'opacity-0'}`} style={{ animationDelay: `${idx * 0.3 + 0.5}s` }} />
-                    <div className={`w-3 h-3 rounded-full bg-orange-500 transition-all duration-500 ${isIntersecting ? 'scale-100 opacity-100' : 'scale-0 opacity-0'}`} style={{ transitionDelay: `${idx * 0.3 + 0.5}s` }} />
+                  {/* Center Node (Desktop & Mobile aligned) */}
+                  <div className="absolute left-0 md:left-1/2 md:-translate-x-1/2 top-6 md:top-auto flex justify-center z-10 w-12 md:w-auto">
+                    <div className="w-10 h-10 md:w-12 md:h-12 rounded-full bg-black border-[3px] border-zinc-800 flex items-center justify-center group-hover:border-orange-500 transition-colors duration-500 relative">
+                      <div className={`absolute inset-0 rounded-full transition-all duration-1000 hidden md:block ${isIntersecting ? 'bg-orange-500/20 shadow-[0_0_20px_rgba(234,88,12,0.6)]' : 'opacity-0'}`} style={{ animationDelay: `${idx * 0.3 + 0.4}s` }} />
+                      <div className={`text-white font-bold text-sm md:text-base z-10 transition-all duration-500 ${isIntersecting ? 'opacity-100' : 'opacity-0 md:opacity-100'}`} style={{ transitionDelay: `${idx * 0.3 + 0.4}s` }}>
+                        {idx + 1}
+                      </div>
+                    </div>
                   </div>
+                  
+                  {/* Empty side for layout spacing on desktop */}
+                  <div className="hidden md:block w-5/12" />
+                  
                 </div>
-
-                {/* Empty Side for layout */}
-                <div className="hidden md:block w-5/12" />
-              </div>
-            ))}
+              );
+            })}
           </div>
+          
         </div>
       </div>
     </section>

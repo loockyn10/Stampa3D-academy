@@ -1,84 +1,85 @@
 "use client";
 
-import { X, Check } from "lucide-react";
+import { Check, X } from "lucide-react";
 import { useIntersection } from "./use-intersection";
+
+const withoutStampa = [
+  "Precios a ojo o copiando a la competencia",
+  "Presupuestos informales por WhatsApp",
+  "Stock desordenado (te quedás sin material)",
+  "Cursos sueltos de YouTube sin rumbo",
+  "Aprendizaje por prueba, error y plástico tirado"
+];
+
+const withStampa = [
+  "Costos calculados (luz, amortización y tiempo)",
+  "Presupuestos PDF listos para enviar al cliente",
+  "Stock organizado al gramo en tiempo real",
+  "Ruta de aprendizaje clara desde cero",
+  "Herramientas concretas para vender mejor"
+];
 
 export function LandingComparison() {
   const [ref, isIntersecting] = useIntersection<HTMLDivElement>({ threshold: 0.1 });
 
   return (
-    <section className="py-24 bg-black text-white relative overflow-hidden">
-      {/* Background glow */}
-      <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-full h-[500px] bg-orange-600/10 blur-[100px] rounded-full pointer-events-none" />
+    <section className="py-24 bg-black relative">
+      {/* Background glow in center desktop */}
+      <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[600px] h-[600px] bg-orange-600/10 blur-[150px] rounded-full pointer-events-none hidden md:block" />
 
       <div className="container mx-auto px-6 relative z-10" ref={ref}>
         <div className={`text-center max-w-3xl mx-auto mb-16 stampa-reveal-hidden ${isIntersecting ? 'stampa-reveal-visible' : ''}`}>
-          <h2 className="text-3xl md:text-5xl font-bold mb-6">
-            La mayoría aprende a imprimir.<br />
-            <span className="text-transparent bg-clip-text bg-gradient-to-r from-orange-400 to-orange-600">
-              Muy pocos aprenden a cobrar.
-            </span>
+          <h2 className="text-3xl md:text-5xl font-bold text-white mb-6">
+            La diferencia entre <span className="text-gray-500">un hobby</span> y <span className="text-orange-500">un negocio</span>
           </h2>
         </div>
 
-        <div className="grid md:grid-cols-2 gap-8 max-w-5xl mx-auto">
+        <div className="flex flex-col lg:flex-row gap-6 max-w-5xl mx-auto">
+          
           {/* Sin Stampa */}
-          <div 
-            className={`bg-zinc-900/50 border border-zinc-800 rounded-2xl p-8 lg:p-10 stampa-reveal-hidden ${isIntersecting ? 'stampa-reveal-visible' : ''}`}
-            style={{ animationDelay: '0.2s' }}
-          >
-            <div className="flex items-center gap-3 mb-8">
-              <div className="w-10 h-10 rounded-full bg-red-500/10 flex items-center justify-center text-red-500">
-                <X className="w-5 h-5" />
+          <div className={`w-full lg:w-1/2 bg-zinc-950/80 border border-zinc-800 rounded-3xl p-8 md:p-12 relative overflow-hidden stampa-reveal-hidden ${isIntersecting ? 'stampa-reveal-visible' : ''}`} style={{ animationDelay: '0.1s' }}>
+            <h3 className="text-2xl font-bold text-gray-400 mb-8 flex items-center gap-3">
+              <div className="w-8 h-8 rounded-full bg-zinc-900 border border-zinc-700 flex items-center justify-center">
+                <X className="w-4 h-4 text-gray-500" />
               </div>
-              <h3 className="text-2xl font-semibold text-gray-300">Sin Stampa</h3>
-            </div>
+              Sin Stampa
+            </h3>
             
             <ul className="space-y-6">
-              {[
-                "Precios calculados a ojo",
-                "Presupuestos desordenados (WhatsApp o papel)",
-                "Stock sin control, te quedás sin material",
-                "Cursos sueltos por todo YouTube",
-                "Aprendizaje frustrante por prueba y error"
-              ].map((item, i) => (
-                <li key={i} className="flex items-start gap-4 text-gray-400">
-                  <X className="w-5 h-5 text-red-500/50 shrink-0 mt-0.5" />
-                  <span>{item}</span>
+              {withoutStampa.map((item, idx) => (
+                <li key={idx} className="flex items-start gap-4">
+                  <div className="w-6 h-6 rounded-full bg-zinc-900/80 flex items-center justify-center shrink-0 mt-0.5">
+                    <X className="w-3 h-3 text-red-500/50" />
+                  </div>
+                  <span className="text-gray-400 font-medium">{item}</span>
                 </li>
               ))}
             </ul>
           </div>
 
           {/* Con Stampa */}
-          <div 
-            className={`bg-gradient-to-b from-orange-950/40 to-zinc-900/80 border border-orange-500/20 rounded-2xl p-8 lg:p-10 relative overflow-hidden shadow-[0_0_40px_rgba(234,88,12,0.1)] hover:shadow-[0_0_50px_rgba(234,88,12,0.2)] transition-shadow duration-500 stampa-reveal-hidden ${isIntersecting ? 'stampa-reveal-visible' : ''}`}
-            style={{ animationDelay: '0.4s' }}
-          >
-            <div className="absolute top-0 right-0 w-32 h-32 bg-orange-500/10 rounded-full blur-3xl -mr-10 -mt-10 pointer-events-none" />
+          <div className={`w-full lg:w-1/2 bg-zinc-900/60 border border-orange-500/40 rounded-3xl p-8 md:p-12 relative overflow-hidden group stampa-reveal-hidden ${isIntersecting ? 'stampa-reveal-visible' : ''}`} style={{ animationDelay: '0.3s' }}>
+            <div className="absolute top-0 right-0 w-64 h-64 bg-orange-500/10 blur-3xl rounded-full transition-opacity duration-700 opacity-50 group-hover:opacity-100 hidden md:block" />
             
-            <div className="flex items-center gap-3 mb-8 relative z-10">
-              <div className="w-10 h-10 rounded-full bg-orange-500 flex items-center justify-center text-white shadow-lg shadow-orange-500/30">
-                <Check className="w-5 h-5" />
+            <h3 className="text-2xl font-bold text-white mb-8 flex items-center gap-3 relative z-10">
+              <div className="w-8 h-8 rounded-full bg-orange-500/20 border border-orange-500/50 flex items-center justify-center">
+                <Check className="w-4 h-4 text-orange-400" />
               </div>
-              <h3 className="text-2xl font-semibold text-white">Con Academia Stampa</h3>
-            </div>
+              Con Stampa Academy
+            </h3>
             
             <ul className="space-y-6 relative z-10">
-              {[
-                "Precios calculados con costos reales",
-                "Presupuestos en PDF listos para enviar",
-                "Stock organizado por bobina y peso",
-                "Cursos ordenados por ruta de aprendizaje",
-                "Herramientas para vender mejor y escalar"
-              ].map((item, i) => (
-                <li key={i} className="flex items-start gap-4 text-gray-200 font-medium">
-                  <Check className="w-5 h-5 text-orange-400 shrink-0 mt-0.5" />
-                  <span>{item}</span>
+              {withStampa.map((item, idx) => (
+                <li key={idx} className="flex items-start gap-4">
+                  <div className="w-6 h-6 rounded-full bg-green-500/10 flex items-center justify-center shrink-0 mt-0.5 border border-green-500/20">
+                    <Check className="w-3 h-3 text-green-400" />
+                  </div>
+                  <span className="text-gray-200 font-medium">{item}</span>
                 </li>
               ))}
             </ul>
           </div>
+
         </div>
       </div>
     </section>

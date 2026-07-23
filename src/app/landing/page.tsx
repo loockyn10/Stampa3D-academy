@@ -1,6 +1,8 @@
 import { Metadata } from 'next';
+import { LandingNavbar } from '@/components/landing/LandingNavbar';
 import { LandingHero } from '@/components/landing/LandingHero';
-import { LandingStorytelling } from '@/components/landing/LandingStorytelling';
+import { LandingMetrics } from '@/components/landing/LandingMetrics';
+import { LandingInteractiveMockup } from '@/components/landing/LandingInteractiveMockup';
 import { LandingFeatureGrid } from '@/components/landing/LandingFeatureGrid';
 import { LandingComparison } from '@/components/landing/LandingComparison';
 import { LandingRoadmap } from '@/components/landing/LandingRoadmap';
@@ -15,6 +17,8 @@ export const metadata: Metadata = {
 export default function LandingPage() {
   return (
     <div className="min-h-screen bg-black font-sans selection:bg-orange-500/30 selection:text-orange-200">
+      <LandingNavbar />
+      
       {/* Custom styles for animations not included in standard Tailwind */}
       <style dangerouslySetInnerHTML={{__html: `
         @keyframes fadeInUp {
@@ -106,7 +110,8 @@ export default function LandingPage() {
 
       <main>
         <LandingHero />
-        <LandingStorytelling />
+        <LandingMetrics />
+        <LandingInteractiveMockup />
         <LandingFeatureGrid />
         <LandingComparison />
         <LandingRoadmap />
