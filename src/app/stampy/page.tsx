@@ -16,12 +16,12 @@ interface Message {
 
 const QUICK_SUGGESTIONS = [
   "Se me levantan las esquinas",
-  "No sé cuánto cobrar",
   "La primera capa no pega",
+  "Tengo stringing",
+  "No sé cuánto cobrar",
   "Quiero hacer un presupuesto",
-  "No sé qué filamento usar",
-  "Tengo problemas con el slicer",
-  "Quiero organizar mi stock"
+  "Quiero organizar mi stock",
+  "Tengo problemas con OrcaSlicer"
 ];
 
 const TOOL_MAP: Record<string, { label: string; href: string; icon: any }> = {
@@ -40,7 +40,7 @@ export default function StampyPage() {
     {
       id: "1",
       role: "stampy",
-      content: "Hola, soy Stampy. Contame qué estás intentando imprimir, qué problema te apareció o qué querés mejorar, y te voy a recomendar por dónde seguir dentro de la academia."
+      content: "Hola, soy Stampy. Contame qué problema tenés con tu impresión, tus costos o tu taller, y te ayudo a encontrar por dónde seguir dentro de Academia Stampa."
     }
   ]);
   const [input, setInput] = useState("");
@@ -101,7 +101,7 @@ export default function StampyPage() {
               Stampy
               <span className="inline-flex items-center gap-1 rounded-full border px-2.5 py-1 text-xs font-semibold bg-purple-50 text-purple-700 border-purple-200">Asistente de la academia</span>
             </h1>
-            <p className="text-sm text-gray-500 mt-1">Contale qué problema tenés y te va a orientar hacia la clase o herramienta correcta.</p>
+            <p className="text-sm text-gray-500 mt-1">Contale qué problema tenés y te guía hacia la clase o herramienta correcta.</p>
           </div>
         </div>
       </div>
@@ -173,6 +173,13 @@ export default function StampyPage() {
                       </div>
                     </div>
                   )}
+
+                  {/* Empty state visual info */}
+                  {msg.role === "stampy" && msg.id !== "1" && (!msg.recommendations || msg.recommendations.length === 0) && (
+                    <div className="mt-4 pt-4 border-t border-gray-100 text-[11px] text-gray-400 font-medium italic">
+                      Todavía no hay una clase exacta para esta consulta.
+                    </div>
+                  )}
                 </div>
 
                 {msg.role === "user" && (
@@ -190,7 +197,7 @@ export default function StampyPage() {
                 </div>
                 <div className="bg-white border border-gray-100 shadow-sm rounded-2xl rounded-tl-sm px-5 py-4 flex items-center gap-3">
                   <Loader2 size={16} className="animate-spin text-orange-500" />
-                  <p className="text-sm text-gray-500 italic">Stampy está buscando la mejor clase para vos...</p>
+                  <p className="text-sm text-gray-500 italic">Stampy está buscando por dónde conviene arrancar...</p>
                 </div>
               </div>
             )}
