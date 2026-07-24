@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { ChevronRight, Play } from "lucide-react";
-import { LandingPrintScene } from "./LandingPrintScene";
+import { LandingHeroMockup } from "./LandingHeroMockup";
 
 export function LandingHero() {
   return (
@@ -73,9 +73,9 @@ export function LandingHero() {
           </div>
         </div>
 
-        {/* 3D Print Scene */}
+        {/* Platform Mockup */}
         <div className="w-full animate-fade-in-up" style={{ animationDelay: "0.4s" }}>
-          <LandingPrintScene />
+          <LandingHeroMockup />
         </div>
       </div>
     </section>

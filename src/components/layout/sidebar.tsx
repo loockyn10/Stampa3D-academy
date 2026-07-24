@@ -19,6 +19,7 @@ import {
   Layers,
   X,
   Shield,
+  Sparkles,
 } from "lucide-react";
 import { Youtube, Instagram } from "@/components/ui/icons";
 import { createClient } from "@/utils/supabase/client";
@@ -32,6 +33,7 @@ const NAV_GROUPS = [
   {
     group: "Plataforma",
     items: [
+      { path: "/stampy", label: "Stampy IA", icon: Sparkles },
       { path: "/cursos", label: "Cursos", icon: BookOpen },
       { path: "/sorteos", label: "Sorteos", icon: Gift },
       { path: "/calculadora", label: "Calculadora", icon: Calculator },

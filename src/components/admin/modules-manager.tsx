@@ -19,7 +19,10 @@ export function ModulesManager({ courseId }: { courseId: string }) {
   const [lessons, setLessons] = useState<Record<string, any[]>>({}); // module_id -> lessons[]
   const [editingLessonId, setEditingLessonId] = useState<string | null>(null);
   const [activeModuleForLesson, setActiveModuleForLesson] = useState<string | null>(null);
-  const [lessonFormData, setLessonFormData] = useState({ title: "", description: "", video_url: "", duration_minutes: 0, sort_order: 0, is_active: true });
+  const [lessonFormData, setLessonFormData] = useState({ 
+    title: "", description: "", video_url: "", duration_minutes: 0, sort_order: 0, is_active: true,
+    is_ai_recommendable: true, ai_summary: "", ai_topics: "", ai_problems: "", ai_level: "beginner", ai_related_tool: ""
+  });
 
   const [expandedModules, setExpandedModules] = useState<Record<string, boolean>>({});
 
@@ -107,10 +110,40 @@ export function ModulesManager({ courseId }: { courseId: string }) {
   // --- LESSON ACTIONS ---
   const handleSaveLesson = async (moduleId: string) => {
     setError(null);
+    
+    const topicsArray = lessonFormData.ai_topics
+      ? lessonFormData.ai_topics.split(',').map(s => s.trim().toLowerCase()).filter(s => s)
+      : [];
+    const topicsUnique = Array.from(new Set(topicsArray));
+
+    const problemsArray = lessonFormData.ai_problems
+      ? lessonFormData.ai_problems.split(',').map(s => s.trim().toLowerCase()).filter(s => s)
+      : [];
+    const problemsUnique = Array.from(new Set(problemsArray));
+
+    const relatedTool = !lessonFormData.ai_related_tool || lessonFormData.ai_related_tool === "ninguna" 
+      ? null 
+      : lessonFormData.ai_related_tool;
+
+    const dataToSave = {
+      title: lessonFormData.title,
+      description: lessonFormData.description,
+      video_url: lessonFormData.video_url,
+      duration_minutes: lessonFormData.duration_minutes,
+      sort_order: lessonFormData.sort_order,
+      is_active: lessonFormData.is_active,
+      is_ai_recommendable: lessonFormData.is_ai_recommendable,
+      ai_summary: lessonFormData.ai_summary,
+      ai_topics: topicsUnique,
+      ai_problems: problemsUnique,
+      ai_level: lessonFormData.ai_level || 'beginner',
+      ai_related_tool: relatedTool
+    };
+
     if (editingLessonId === "new") {
       const { data, error: err } = await supabase
         .from("lessons")
-        .insert([{ ...lessonFormData, module_id: moduleId }])
+        .insert([{ ...dataToSave, module_id: moduleId }])
         .select()
         .single();
       if (err) setError(err.message);
@@ -121,12 +154,12 @@ export function ModulesManager({ courseId }: { courseId: string }) {
     } else {
       const { error: err } = await supabase
         .from("lessons")
-        .update(lessonFormData)
+        .update(dataToSave)
         .eq("id", editingLessonId);
       if (err) setError(err.message);
       else {
         const current = lessons[moduleId] || [];
-        setLessons({ ...lessons, [moduleId]: current.map(l => l.id === editingLessonId ? { ...l, ...lessonFormData } : l) });
+        setLessons({ ...lessons, [moduleId]: current.map(l => l.id === editingLessonId ? { ...l, ...dataToSave } : l) });
       }
     }
     setEditingLessonId(null);
@@ -262,6 +295,61 @@ export function ModulesManager({ courseId }: { courseId: string }) {
                             </div>
                           </div>
                         </div>
+
+                        {/* Configuración para Stampy */}
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-3 mt-4 bg-purple-50/50 border border-purple-100 rounded-lg p-4">
+                          <div className="md:col-span-2">
+                            <h4 className="text-sm font-semibold text-purple-900">Configuración para Stampy</h4>
+                            <p className="text-[11px] text-purple-600 mt-1">Estos datos ayudan a Stampy a recomendar esta clase cuando un alumno consulta por un problema relacionado.</p>
+                          </div>
+
+                          <div className="md:col-span-2 flex items-center gap-2 mb-1">
+                            <input type="checkbox" id={`les_ai_rec_${lesson.id}`} checked={lessonFormData.is_ai_recommendable} onChange={e => setLessonFormData({ ...lessonFormData, is_ai_recommendable: e.target.checked })} className="text-purple-600 rounded border-purple-300 focus:ring-purple-500" />
+                            <label htmlFor={`les_ai_rec_${lesson.id}`} className="text-sm text-gray-800 font-medium">Stampy puede recomendar esta clase</label>
+                          </div>
+
+                          <div className="md:col-span-2 space-y-1">
+                            <label className="block text-xs font-semibold text-gray-700">Resumen para Stampy</label>
+                            <textarea placeholder="Explicá brevemente qué aprende el alumno en esta clase y en qué casos debería verla." value={lessonFormData.ai_summary} onChange={e => setLessonFormData({ ...lessonFormData, ai_summary: e.target.value })} className="text-sm bg-white text-gray-900 placeholder-gray-400 border-purple-200 rounded-md w-full focus:ring-purple-500 focus:border-purple-500" rows={2} />
+                            <p className="text-[11px] text-gray-500">Este resumen no se muestra necesariamente al alumno. Sirve para que Stampy entienda cuándo recomendar esta clase.</p>
+                          </div>
+
+                          <div className="space-y-1">
+                            <label className="block text-xs font-semibold text-gray-700">Temas tratados</label>
+                            <input type="text" placeholder="warping, adherencia, primera capa" value={lessonFormData.ai_topics} onChange={e => setLessonFormData({ ...lessonFormData, ai_topics: e.target.value })} className="text-sm bg-white text-gray-900 placeholder-gray-400 border-purple-200 rounded-md w-full focus:ring-purple-500 focus:border-purple-500" />
+                            <p className="text-[11px] text-gray-500">Separados por coma</p>
+                          </div>
+
+                          <div className="space-y-1">
+                            <label className="block text-xs font-semibold text-gray-700">Problemas que resuelve</label>
+                            <input type="text" placeholder="se levantan las esquinas, mala adhesión" value={lessonFormData.ai_problems} onChange={e => setLessonFormData({ ...lessonFormData, ai_problems: e.target.value })} className="text-sm bg-white text-gray-900 placeholder-gray-400 border-purple-200 rounded-md w-full focus:ring-purple-500 focus:border-purple-500" />
+                            <p className="text-[11px] text-gray-500">Separados por coma</p>
+                          </div>
+
+                          <div className="space-y-1">
+                            <label className="block text-xs font-semibold text-gray-700">Nivel</label>
+                            <select value={lessonFormData.ai_level} onChange={e => setLessonFormData({ ...lessonFormData, ai_level: e.target.value })} className="text-sm bg-white text-gray-900 border-purple-200 rounded-md w-full focus:ring-purple-500 focus:border-purple-500">
+                              <option value="beginner">Principiante</option>
+                              <option value="intermediate">Intermedio</option>
+                              <option value="advanced">Avanzado</option>
+                            </select>
+                          </div>
+
+                          <div className="space-y-1">
+                            <label className="block text-xs font-semibold text-gray-700">Herramienta relacionada</label>
+                            <select value={lessonFormData.ai_related_tool} onChange={e => setLessonFormData({ ...lessonFormData, ai_related_tool: e.target.value })} className="text-sm bg-white text-gray-900 border-purple-200 rounded-md w-full focus:ring-purple-500 focus:border-purple-500">
+                              <option value="ninguna">Ninguna</option>
+                              <option value="calculadora">Calculadora</option>
+                              <option value="presupuestos">Presupuestos</option>
+                              <option value="stock">Stock</option>
+                              <option value="productos">Productos</option>
+                              <option value="libreria-stl">Librería STL</option>
+                              <option value="cursos">Cursos</option>
+                              <option value="comunidad">Comunidad</option>
+                              <option value="sorteos">Sorteos</option>
+                            </select>
+                          </div>
+                        </div>
                         <div className="flex justify-end gap-2">
                           <button onClick={() => setEditingLessonId(null)} className="px-3 py-1.5 text-xs text-gray-600 hover:bg-gray-100 rounded-lg">Cancelar</button>
                           <button onClick={() => handleSaveLesson(mod.id)} className="px-3 py-1.5 text-xs bg-blue-600 text-white rounded-lg hover:bg-blue-700">Guardar Clase</button>
@@ -284,7 +372,20 @@ export function ModulesManager({ courseId }: { courseId: string }) {
                         </div>
                         <div className="flex items-center gap-2">
                           <button onClick={() => {
-                            setLessonFormData({ title: lesson.title, description: lesson.description || "", video_url: lesson.video_url || "", duration_minutes: lesson.duration_minutes || 0, sort_order: lesson.sort_order, is_active: lesson.is_active });
+                            setLessonFormData({ 
+                              title: lesson.title, 
+                              description: lesson.description || "", 
+                              video_url: lesson.video_url || "", 
+                              duration_minutes: lesson.duration_minutes || 0, 
+                              sort_order: lesson.sort_order, 
+                              is_active: lesson.is_active,
+                              is_ai_recommendable: lesson.is_ai_recommendable ?? true,
+                              ai_summary: lesson.ai_summary || "",
+                              ai_topics: (lesson.ai_topics || []).join(", "),
+                              ai_problems: (lesson.ai_problems || []).join(", "),
+                              ai_level: lesson.ai_level || "beginner",
+                              ai_related_tool: lesson.ai_related_tool || "ninguna"
+                            });
                             setEditingLessonId(lesson.id);
                             setActiveModuleForLesson(mod.id);
                           }} className="p-1.5 text-gray-400 hover:text-blue-600 rounded-lg"><Edit2 size={14} /></button>
@@ -324,6 +425,61 @@ export function ModulesManager({ courseId }: { courseId: string }) {
                         </div>
                       </div>
                     </div>
+
+                    {/* Configuración para Stampy */}
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-3 mt-4 bg-purple-50/50 border border-purple-100 rounded-lg p-4">
+                      <div className="md:col-span-2">
+                        <h4 className="text-sm font-semibold text-purple-900">Configuración para Stampy</h4>
+                        <p className="text-[11px] text-purple-600 mt-1">Estos datos ayudan a Stampy a recomendar esta clase cuando un alumno consulta por un problema relacionado.</p>
+                      </div>
+
+                      <div className="md:col-span-2 flex items-center gap-2 mb-1">
+                        <input type="checkbox" id="les_ai_rec_new" checked={lessonFormData.is_ai_recommendable} onChange={e => setLessonFormData({ ...lessonFormData, is_ai_recommendable: e.target.checked })} className="text-purple-600 rounded border-purple-300 focus:ring-purple-500" />
+                        <label htmlFor="les_ai_rec_new" className="text-sm text-gray-800 font-medium">Stampy puede recomendar esta clase</label>
+                      </div>
+
+                      <div className="md:col-span-2 space-y-1">
+                        <label className="block text-xs font-semibold text-gray-700">Resumen para Stampy</label>
+                        <textarea placeholder="Explicá brevemente qué aprende el alumno en esta clase y en qué casos debería verla." value={lessonFormData.ai_summary} onChange={e => setLessonFormData({ ...lessonFormData, ai_summary: e.target.value })} className="text-sm bg-white text-gray-900 placeholder-gray-400 border-purple-200 rounded-md w-full focus:ring-purple-500 focus:border-purple-500" rows={2} />
+                        <p className="text-[11px] text-gray-500">Este resumen no se muestra necesariamente al alumno. Sirve para que Stampy entienda cuándo recomendar esta clase.</p>
+                      </div>
+
+                      <div className="space-y-1">
+                        <label className="block text-xs font-semibold text-gray-700">Temas tratados</label>
+                        <input type="text" placeholder="warping, adherencia, primera capa" value={lessonFormData.ai_topics} onChange={e => setLessonFormData({ ...lessonFormData, ai_topics: e.target.value })} className="text-sm bg-white text-gray-900 placeholder-gray-400 border-purple-200 rounded-md w-full focus:ring-purple-500 focus:border-purple-500" />
+                        <p className="text-[11px] text-gray-500">Separados por coma</p>
+                      </div>
+
+                      <div className="space-y-1">
+                        <label className="block text-xs font-semibold text-gray-700">Problemas que resuelve</label>
+                        <input type="text" placeholder="se levantan las esquinas, mala adhesión" value={lessonFormData.ai_problems} onChange={e => setLessonFormData({ ...lessonFormData, ai_problems: e.target.value })} className="text-sm bg-white text-gray-900 placeholder-gray-400 border-purple-200 rounded-md w-full focus:ring-purple-500 focus:border-purple-500" />
+                        <p className="text-[11px] text-gray-500">Separados por coma</p>
+                      </div>
+
+                      <div className="space-y-1">
+                        <label className="block text-xs font-semibold text-gray-700">Nivel</label>
+                        <select value={lessonFormData.ai_level} onChange={e => setLessonFormData({ ...lessonFormData, ai_level: e.target.value })} className="text-sm bg-white text-gray-900 border-purple-200 rounded-md w-full focus:ring-purple-500 focus:border-purple-500">
+                          <option value="beginner">Principiante</option>
+                          <option value="intermediate">Intermedio</option>
+                          <option value="advanced">Avanzado</option>
+                        </select>
+                      </div>
+
+                      <div className="space-y-1">
+                        <label className="block text-xs font-semibold text-gray-700">Herramienta relacionada</label>
+                        <select value={lessonFormData.ai_related_tool} onChange={e => setLessonFormData({ ...lessonFormData, ai_related_tool: e.target.value })} className="text-sm bg-white text-gray-900 border-purple-200 rounded-md w-full focus:ring-purple-500 focus:border-purple-500">
+                          <option value="ninguna">Ninguna</option>
+                          <option value="calculadora">Calculadora</option>
+                          <option value="presupuestos">Presupuestos</option>
+                          <option value="stock">Stock</option>
+                          <option value="productos">Productos</option>
+                          <option value="libreria-stl">Librería STL</option>
+                          <option value="cursos">Cursos</option>
+                          <option value="comunidad">Comunidad</option>
+                          <option value="sorteos">Sorteos</option>
+                        </select>
+                      </div>
+                    </div>
                     <div className="flex justify-end gap-2">
                       <button onClick={() => { setEditingLessonId(null); setActiveModuleForLesson(null); }} className="px-3 py-1.5 text-xs text-gray-600 hover:bg-gray-100 rounded-lg">Cancelar</button>
                       <button onClick={() => handleSaveLesson(mod.id)} className="px-3 py-1.5 text-xs bg-blue-600 text-white rounded-lg hover:bg-blue-700">Guardar Clase</button>
@@ -332,7 +488,10 @@ export function ModulesManager({ courseId }: { courseId: string }) {
                 ) : (
                   <button
                     onClick={() => {
-                      setLessonFormData({ title: "", description: "", video_url: "", duration_minutes: 0, sort_order: (lessons[mod.id] || []).length + 1, is_active: true });
+                      setLessonFormData({ 
+                        title: "", description: "", video_url: "", duration_minutes: 0, sort_order: (lessons[mod.id] || []).length + 1, is_active: true,
+                        is_ai_recommendable: true, ai_summary: "", ai_topics: "", ai_problems: "", ai_level: "beginner", ai_related_tool: "ninguna"
+                      });
                       setEditingLessonId("new");
                       setActiveModuleForLesson(mod.id);
                     }}
