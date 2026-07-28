@@ -453,8 +453,35 @@ export default function StockPage() {
         <div className="mb-5 flex items-center gap-2.5 rounded-xl border border-orange-200 bg-orange-50 px-4 py-3 text-sm text-orange-700">
           <AlertTriangle size={16} className="text-orange-600 shrink-0" />
           <p>
-            Tenés <strong>{lowProductsCount} productos</strong> y <strong>{lowFilamentsCount} filamentos</strong> con
-            stock bajo.
+            {(() => {
+              const prodText = lowProductsCount > 0 
+                ? `${lowProductsCount} ${lowProductsCount === 1 ? 'producto' : 'productos'}`
+                : '';
+              const filText = lowFilamentsCount > 0 
+                ? `${lowFilamentsCount} ${lowFilamentsCount === 1 ? 'filamento' : 'filamentos'}`
+                : '';
+              
+              if (prodText && filText) {
+                return (
+                  <>
+                    Tenés <strong>{prodText}</strong> y <strong>{filText}</strong> con stock bajo.
+                  </>
+                );
+              } else if (prodText) {
+                return (
+                  <>
+                    Tenés <strong>{prodText}</strong> con stock bajo.
+                  </>
+                );
+              } else if (filText) {
+                return (
+                  <>
+                    Tenés <strong>{filText}</strong> con stock bajo.
+                  </>
+                );
+              }
+              return null;
+            })()}
           </p>
         </div>
       )}

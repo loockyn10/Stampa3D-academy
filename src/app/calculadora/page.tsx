@@ -300,7 +300,7 @@ export default function CalculadoraPage() {
         title="Calculadora de costos"
         action={
           <div className="flex items-center gap-2">
-            <Link href="/configuracion" className="hidden sm:flex text-xs font-semibold text-gray-500 hover:text-gray-900 border border-gray-200 bg-white px-3 py-1.5 rounded-lg transition-colors gap-1.5 items-center">
+            <Link href="/configuracion?tab=calculadora" className="hidden sm:flex text-xs font-semibold text-gray-500 hover:text-gray-900 border border-gray-200 bg-white px-3 py-1.5 rounded-lg transition-colors gap-1.5 items-center">
               <Settings size={14} /> Configurar Valores
             </Link>
             <GhostButton onClick={() => setAdvanced((a) => !a)}>
@@ -322,10 +322,10 @@ export default function CalculadoraPage() {
                   Importá una impresora del catálogo Stampa o cargá una manualmente.
                 </p>
                 <div className="flex gap-2 mt-3">
-                  <Link href="/configuracion" className="inline-block bg-orange-600 text-white text-xs font-semibold px-3 py-1.5 rounded-lg hover:bg-orange-700 transition-colors">
+                  <Link href="/configuracion?tab=taller" className="inline-block bg-orange-600 text-white text-xs font-semibold px-3 py-1.5 rounded-lg hover:bg-orange-700 transition-colors">
                     Importar impresora
                   </Link>
-                  <Link href="/configuracion" className="inline-block bg-white text-orange-600 border border-orange-200 text-xs font-semibold px-3 py-1.5 rounded-lg hover:bg-orange-50 transition-colors">
+                  <Link href="/configuracion?tab=taller" className="inline-block bg-white text-orange-600 border border-orange-200 text-xs font-semibold px-3 py-1.5 rounded-lg hover:bg-orange-50 transition-colors">
                     Agregar manualmente
                   </Link>
                 </div>
@@ -340,7 +340,7 @@ export default function CalculadoraPage() {
                 <p className="text-xs text-orange-800 mt-1">
                   Para usar la calculadora necesitas tener al menos un filamento y un tipo de producto configurados.
                 </p>
-                <Link href="/configuracion" className="inline-block mt-3 bg-orange-600 text-white text-xs font-semibold px-3 py-1.5 rounded-lg hover:bg-orange-700 transition-colors">
+                <Link href="/configuracion?tab=taller" className="inline-block mt-3 bg-orange-600 text-white text-xs font-semibold px-3 py-1.5 rounded-lg hover:bg-orange-700 transition-colors">
                   Ir a Configuración
                 </Link>
               </div>
@@ -355,7 +355,7 @@ export default function CalculadoraPage() {
           {/* SECCIÓN MATERIAL */}
           <div>
             <p className="mb-4 text-sm font-bold text-gray-900 border-b border-gray-100 pb-2">Datos de Material</p>
-            <div className="grid grid-cols-1 gap-4 sm:grid-cols-3 mb-4">
+            <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 mb-4">
               <label className="block">
                 <span className="mb-1 block text-xs font-semibold text-gray-500">Filamento a usar</span>
                 <select 
@@ -371,13 +371,7 @@ export default function CalculadoraPage() {
                 </select>
               </label>
               <NumberField label="Gramos de la pieza" value={weight} onChange={setWeight} suffix="g" />
-              {advanced && <NumberField label="Margen de error" value={manualErrorPercent} onChange={setManualErrorPercent} suffix="%" />}
             </div>
-            {advanced && (
-              <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
-                <NumberField label="Costo por kg manual" value={manualPricePerKg} onChange={setManualPricePerKg} suffix="$" />
-              </div>
-            )}
           </div>
 
           {/* SECCIÓN ELECTRICIDAD Y TIEMPO */}
@@ -397,15 +391,6 @@ export default function CalculadoraPage() {
               <NumberField label="Horas" value={hours} onChange={setHours} suffix="h" step={1} />
               <NumberField label="Minutos" value={minutes} onChange={setMinutes} suffix="m" step={1} />
             </div>
-            {advanced && (
-              <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
-                <NumberField label="Consumo impresora" value={manualPrinterConsumption} onChange={setManualPrinterConsumption} suffix="W" />
-                <NumberField label="Costo kWh" value={manualKwhPrice} onChange={setManualKwhPrice} suffix="$" />
-                <NumberField label="Mantenimiento/h" value={manualPrinterMaintenance} onChange={setManualPrinterMaintenance} suffix="$" />
-                <NumberField label="Mano de obra (Total)" value={laborCost} onChange={setLaborCost} suffix="$" />
-                <NumberField label="Otros Costos (Total)" value={otherCost} onChange={setOtherCost} suffix="$" />
-              </div>
-            )}
           </div>
 
           {/* SECCIÓN MARGEN */}
@@ -422,20 +407,52 @@ export default function CalculadoraPage() {
                   {multipliers.map(m => <option key={m.id} value={m.id}>{m.name} (x{m.multiplier})</option>)}
                 </select>
               </label>
-              {advanced && (
-                <>
-                  <NumberField label="Multiplicador manual" value={manualMultiplier} onChange={setManualMultiplier} suffix="x" step={0.1} />
-                  <NumberField label="Comisión plataforma" value={manualPlatformCommission} onChange={setManualPlatformCommission} suffix="%" />
-                </>
-              )}
             </div>
-            {advanced && (
-              <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
-                <NumberField label="Fijo extra plataforma" value={manualPlatformExtra} onChange={setManualPlatformExtra} suffix="$" />
-                <NumberField label="Costo Envío" value={shippingCost} onChange={setShippingCost} suffix="$" />
-              </div>
-            )}
           </div>
+
+          {/* OPCIONES AVANZADAS AGRUPADAS */}
+          {advanced && (
+            <div className="p-5 rounded-2xl border border-orange-100 bg-orange-50/20 space-y-5 animate-in fade-in-50 duration-200">
+              <div className="flex items-center gap-2 pb-2 border-b border-orange-100">
+                <span className="text-sm font-bold text-orange-950">Opciones Avanzadas</span>
+                <span className="rounded-full bg-orange-100 text-orange-800 text-[10px] font-bold px-2.5 py-0.5 uppercase tracking-wider">Avanzado</span>
+              </div>
+              <p className="text-xs text-orange-800/80">
+                Ajustá valores de desperdicio, costos por kg personalizados, consumos específicos de tu impresora, mano de obra, comisiones de venta y envío.
+              </p>
+              
+              <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+                <div className="space-y-4">
+                  <p className="text-xs font-bold text-orange-900/60 uppercase tracking-wider">Materiales y Taller</p>
+                  <div className="grid grid-cols-1 gap-3">
+                    <NumberField label="Margen de error (desperdicio)" value={manualErrorPercent} onChange={setManualErrorPercent} suffix="%" />
+                    <NumberField label="Costo por kg manual (sobreescribe)" value={manualPricePerKg} onChange={setManualPricePerKg} suffix="$" />
+                    <NumberField label="Consumo de impresora" value={manualPrinterConsumption} onChange={setManualPrinterConsumption} suffix="W" />
+                    <NumberField label="Costo del kWh eléctrico" value={manualKwhPrice} onChange={setManualKwhPrice} suffix="$" />
+                  </div>
+                </div>
+
+                <div className="space-y-4">
+                  <p className="text-xs font-bold text-orange-900/60 uppercase tracking-wider">Costos Extras y Márgenes</p>
+                  <div className="grid grid-cols-1 gap-3">
+                    <NumberField label="Mantenimiento de máquina por hora" value={manualPrinterMaintenance} onChange={setManualPrinterMaintenance} suffix="$" />
+                    <NumberField label="Costo de mano de obra (total)" value={laborCost} onChange={setLaborCost} suffix="$" />
+                    <NumberField label="Otros costos adicionales" value={otherCost} onChange={setOtherCost} suffix="$" />
+                    <NumberField label="Multiplicador manual (sobreescribe)" value={manualMultiplier} onChange={setManualMultiplier} suffix="x" step={0.1} />
+                  </div>
+                </div>
+              </div>
+
+              <div className="pt-4 border-t border-orange-100/50">
+                <p className="text-xs font-bold text-orange-900/60 uppercase tracking-wider mb-3">Plataforma de Venta (ML, etc.)</p>
+                <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
+                  <NumberField label="Comisión plataforma" value={manualPlatformCommission} onChange={setManualPlatformCommission} suffix="%" />
+                  <NumberField label="Fijo extra plataforma" value={manualPlatformExtra} onChange={setManualPlatformExtra} suffix="$" />
+                  <NumberField label="Costo Envío" value={shippingCost} onChange={setShippingCost} suffix="$" />
+                </div>
+              </div>
+            </div>
+          )}
 
           {/* GUARDAR COMO PRODUCTO */}
           {hasValidCalc && (

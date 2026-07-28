@@ -96,8 +96,8 @@ export default function StampyPage() {
   };
 
   return (
-    <div className="flex flex-col h-[calc(100vh-theme(spacing.20))] md:h-[calc(100vh-theme(spacing.10))] max-w-6xl mx-auto p-4 md:p-6 gap-6">
-      <div className="flex flex-col mb-2 shrink-0">
+    <div className="flex flex-col h-[calc(100vh-6rem)] md:h-[calc(100vh-12rem)] max-w-6xl mx-auto p-4 md:p-6 gap-4 md:gap-6">
+      <div className="flex flex-col mb-1 shrink-0">
         <div className="flex items-center gap-3">
           <div className="p-2 bg-orange-100 text-orange-600 rounded-xl">
             <Sparkles size={24} />
@@ -107,12 +107,12 @@ export default function StampyPage() {
               Stampy
               <span className="inline-flex items-center gap-1 rounded-full border px-2.5 py-1 text-xs font-semibold bg-purple-50 text-purple-700 border-purple-200">Asistente de la academia</span>
             </h1>
-            <p className="text-sm text-gray-500 mt-1">Contale qué problema tenés y te guía hacia la clase o herramienta correcta.</p>
+            <p className="text-xs md:text-sm text-gray-500 mt-1">Contale qué problema tenés y te guía hacia la clase o herramienta correcta.</p>
           </div>
         </div>
       </div>
 
-      <div className="flex flex-col lg:flex-row gap-6 flex-1 min-h-0">
+      <div className="flex flex-col lg:flex-row gap-4 md:gap-6 flex-1 min-h-0">
         
         {/* Chat Area */}
         <div className="flex-1 flex flex-col bg-white border border-gray-200 rounded-2xl overflow-hidden shadow-sm">
