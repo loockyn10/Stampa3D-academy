@@ -1,7 +1,10 @@
 "use server";
 
 import { createClient } from "@/utils/supabase/server";
-export async function askStampyAction(message: string) {
+export async function askStampyAction(
+  message: string,
+  conversation?: { role: "user" | "assistant"; content: string }[]
+) {
   const supabase = await createClient();
 
   const { data: { user } } = await supabase.auth.getUser();
@@ -30,7 +33,20 @@ export async function askStampyAction(message: string) {
     };
   }
 
-  const q = message.toLowerCase();
+  // Limitar/sanear conversation
+  let recentConversation = conversation ? conversation.slice(-6) : [];
+  recentConversation = recentConversation.map(msg => ({
+    role: (msg.role === 'assistant' ? 'assistant' : 'user') as "user" | "assistant",
+    content: (msg.content || '').trim().substring(0, 500)
+  })).filter(msg => msg.content.length > 0);
+
+  const safeMessage = message.substring(0, 1000);
+
+  // Combined query for search
+  const conversationText = recentConversation.map(c => c.content).join(" ");
+  const combinedQuery = `${conversationText} ${safeMessage}`;
+
+  const q = combinedQuery.toLowerCase();
   
   const scoredLessons = lessons.map((l: any) => {
     let score = 0;
@@ -94,7 +110,29 @@ export async function askStampyAction(message: string) {
     relatedToolsSet.add('cursos');
   }
 
-  const relatedToolsList = Array.from(relatedToolsSet);
+const relatedToolsList = Array.from(relatedToolsSet);
+
+  // === NEW APP KNOWLEDGE BÚSQUEDA ===
+  const { findRelevantKnowledge } = await import("@/lib/stampy/knowledge-search");
+  const knowledgeItems = findRelevantKnowledge(combinedQuery);
+  
+  // Agregamos ids a relatedToolsList si no estaban, por compatibilidad con el UI viejo
+  knowledgeItems.forEach(k => {
+    if (k.route && !relatedToolsList.includes(k.id)) {
+      // Mapeamos ids de knowledge a ids de frontend viejo si coincide
+      if (k.id === 'calculator-basic' || k.id === 'calculator-advanced') relatedToolsList.push('calculadora');
+      if (k.id === 'budgets') relatedToolsList.push('presupuestos');
+      if (k.id === 'products') relatedToolsList.push('productos');
+      if (k.id === 'filament-stock' || k.id === 'finished-product-stock') relatedToolsList.push('stock');
+      if (k.id === 'courses') relatedToolsList.push('cursos');
+      if (k.id === 'stl-library') relatedToolsList.push('libreria-stl');
+      if (k.id === 'raffles') relatedToolsList.push('sorteos');
+      if (k.id === 'community') relatedToolsList.push('comunidad');
+    }
+  });
+
+  // Filtramos duplicates (ej. si calculator-basic y advanced metieron 2 'calculadora')
+  const uniqueRelatedToolsList = Array.from(new Set(relatedToolsList));
 
   if (!process.env.OPENAI_API_KEY) {
     console.warn("OPENAI_API_KEY no encontrada. Usando fallback de Stampy.");
@@ -121,6 +159,10 @@ Reglas:
 - Si el usuario expresa una intención clara (ej: "quiero hacer un presupuesto", "cuánto cobrar", "organizar stock"), NO le pidas más datos (ni dimensiones, ni material, ni plazos).
 - Si hay una herramienta para eso, respondes con una orientación corta, explicás brevemente el flujo y lo mandás a la herramienta.
 - NO intentes hacer cálculos, presupuestos ni gestión dentro del chat. Nunca digas "pasame los datos y te ayudo a calcularlo".
+- Usá las herramientas y flujos relevantes de Academia Stampa para guiar al usuario.
+- No inventes herramientas.
+- No expliques pasos que contradigan la ficha de la herramienta.
+- Si una herramienta relevante existe, priorizá llevar al usuario ahí en vez de pedir más datos.
 - Solo podés hacer 1 o 2 preguntas concretas si la consulta técnica es muy ambigua (ej: "me imprime mal"). Ahí podés pedir material o qué defecto ve.
 - No digas que sos ChatGPT.
 - No digas "según el contexto provisto".
@@ -151,14 +193,31 @@ Forma ideal:
         score: l._score
       }));
 
-      const userPromptWithContext = `Consulta del usuario:
-"${message}"
+      const conversationContext = recentConversation.map(msg => 
+        `${msg.role === 'user' ? 'Usuario' : 'Stampy'}: ${msg.content}`
+      ).join("\n");
+
+      const userPromptWithContext = `Contexto reciente de la conversación:
+${conversationContext || "Ninguno"}
+
+Usuario actual: "${safeMessage}"
+
+Reglas adicionales:
+- Usá el contexto reciente para entender respuestas cortas como "una A1", "PLA", "210 grados", "sí", "no", etc.
+- No repitas preguntas que ya fueron respondidas.
+- Si el usuario responde una pregunta previa, continuá el diagnóstico.
+- Si la intención ya está clara, guiá hacia clase o herramienta.
+- No pidas de nuevo impresora/material si ya aparece en el contexto reciente.
 
 Clases encontradas:
 ${JSON.stringify(contextObj, null, 2)}
 
 Herramientas disponibles encontradas para este caso:
-${relatedToolsList.length > 0 ? relatedToolsList.join(", ") : "Ninguna"}`;
+${uniqueRelatedToolsList.length > 0 ? uniqueRelatedToolsList.join(", ") : "Ninguna"}
+
+Base de conocimiento (herramientas/flujos recomendados):
+${JSON.stringify(knowledgeItems.map(k => ({ title: k.title, route: k.route, shortDescription: k.shortDescription, whenToRecommend: k.whenToRecommend, howToUse: k.howToUse, relatedTools: k.relatedTools })), null, 2)}
+`;
 
       const response = await openai.chat.completions.create({
         model: process.env.OPENAI_MODEL || "gpt-4o-mini",
@@ -188,6 +247,7 @@ ${relatedToolsList.length > 0 ? relatedToolsList.join(", ") : "Ninguna"}`;
   return {
     answer,
     recommendations: topRecommendations,
-    relatedTools: relatedToolsList
+    relatedTools: uniqueRelatedToolsList,
+    knowledgeTools: knowledgeItems
   };
 }

@@ -12,6 +12,7 @@ interface Message {
   content: string;
   recommendations?: any[];
   relatedTools?: string[];
+  knowledgeTools?: any[];
 }
 
 const QUICK_SUGGESTIONS = [
@@ -58,13 +59,17 @@ export default function StampyPage() {
   const handleSend = async (text: string) => {
     if (!text.trim() || loading) return;
 
+    const recentConversation = messages
+      .slice(-6)
+      .map(m => ({ role: (m.role === "stampy" ? "assistant" : "user") as "user" | "assistant", content: m.content }));
+
     const userMsg: Message = { id: Date.now().toString(), role: "user", content: text };
     setMessages(prev => [...prev, userMsg]);
     setInput("");
     setLoading(true);
 
     try {
-      const res = await askStampyAction(text);
+      const res = await askStampyAction(text, recentConversation);
       if (res.error) {
         setMessages(prev => [...prev, { id: Date.now().toString(), role: "stampy", content: res.error || "Error al comunicarse con Stampy." }]);
       } else {
@@ -73,7 +78,8 @@ export default function StampyPage() {
           role: "stampy",
           content: res.answer || "",
           recommendations: res.recommendations,
-          relatedTools: res.relatedTools
+          relatedTools: res.relatedTools,
+          knowledgeTools: res.knowledgeTools
         }]);
       }
     } catch (e) {
@@ -154,25 +160,56 @@ export default function StampyPage() {
                     </div>
                   )}
 
-                  {/* Related Tools */}
-                  {msg.relatedTools && msg.relatedTools.length > 0 && (
-                    <div className="mt-4 pt-4 border-t border-gray-100">
-                      <p className="text-[11px] font-bold text-gray-400 uppercase tracking-wider mb-3">También te puede servir:</p>
-                      <div className="flex flex-wrap gap-2">
-                        {msg.relatedTools.map((t: string) => {
-                          const tool = TOOL_MAP[t];
-                          if (!tool) return null;
-                          const Icon = tool.icon;
-                          return (
-                            <Link key={t} href={tool.href} className="flex items-center gap-2 bg-orange-50 border border-orange-100 text-orange-700 hover:bg-orange-100 px-3 py-2 rounded-lg text-xs font-bold transition-colors shadow-sm">
-                              <Icon size={14} />
-                              Ir a {tool.label}
+                  {/* Knowledge Tools */}
+                  {msg.knowledgeTools && msg.knowledgeTools.length > 0 && (
+                    <div className="mt-4 space-y-3">
+                      {msg.knowledgeTools.map((kt: any, idx: number) => (
+                        <div key={idx} className="bg-indigo-50 border border-indigo-100 rounded-xl p-3 flex flex-col sm:flex-row sm:items-center justify-between gap-3 group shadow-sm">
+                          <div>
+                            <p className="text-sm font-bold text-indigo-900 group-hover:text-indigo-700 transition-colors">{kt.title}</p>
+                            {kt.shortDescription && <p className="text-xs text-indigo-700/80 mt-1 line-clamp-2">{kt.shortDescription}</p>}
+                          </div>
+                          {kt.route && (
+                            <Link 
+                              href={kt.route} 
+                              className="shrink-0 flex items-center justify-center gap-1 bg-white border border-indigo-200 text-indigo-700 hover:text-indigo-800 hover:bg-indigo-50 px-3 py-1.5 rounded-lg text-xs font-bold transition-colors shadow-sm"
+                            >
+                              Abrir <ChevronRight size={14} />
                             </Link>
-                          );
-                        })}
-                      </div>
+                          )}
+                        </div>
+                      ))}
                     </div>
                   )}
+
+                  {/* Related Tools */}
+                  {(() => {
+                    if (!msg.relatedTools || msg.relatedTools.length === 0) return null;
+                    const filteredTools = msg.relatedTools.filter(t => {
+                      const tool = TOOL_MAP[t];
+                      if (!tool) return false;
+                      if (msg.knowledgeTools?.some(kt => kt.route === tool.href)) return false;
+                      return true;
+                    });
+                    if (filteredTools.length === 0) return null;
+                    return (
+                      <div className="mt-4 pt-4 border-t border-gray-100">
+                        <p className="text-[11px] font-bold text-gray-400 uppercase tracking-wider mb-3">También te puede servir:</p>
+                        <div className="flex flex-wrap gap-2">
+                          {filteredTools.map((t: string) => {
+                            const tool = TOOL_MAP[t];
+                            const Icon = tool.icon;
+                            return (
+                              <Link key={t} href={tool.href} className="flex items-center gap-2 bg-orange-50 border border-orange-100 text-orange-700 hover:bg-orange-100 px-3 py-2 rounded-lg text-xs font-bold transition-colors shadow-sm">
+                                <Icon size={14} />
+                                Ir a {tool.label}
+                              </Link>
+                            );
+                          })}
+                        </div>
+                      </div>
+                    );
+                  })()}
 
                   {/* Empty state visual info */}
                   {msg.role === "stampy" && msg.id !== "1" && (!msg.recommendations || msg.recommendations.length === 0) && (
