@@ -2,7 +2,7 @@
 
 import React, { use, useEffect, useState } from "react";
 import Link from "next/link";
-import { ArrowLeft, Play, CheckCircle2, Circle, Loader2, Video, File, ChevronDown, ChevronRight } from "lucide-react";
+import { ArrowLeft, Play, CheckCircle2, Circle, Loader2, Video, File, ChevronDown, ChevronRight, GraduationCap, Clock, Layers, Sparkles } from "lucide-react";
 import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { ProgressBar } from "@/components/ui/progress-bar";
@@ -231,18 +231,21 @@ export default function CursoDetailPage({ params }: PageProps) {
 
   if (loading) {
     return (
-      <div className="flex justify-center py-20">
-        <Loader2 className="animate-spin text-orange-500 h-10 w-10" />
+      <div className="flex justify-center items-center min-h-[60vh]">
+        <Loader2 className="animate-spin text-[#ff6a00] h-12 w-12" />
       </div>
     );
   }
 
   if (!course) {
     return (
-      <div className="text-center py-12">
-        <h2 className="text-xl font-bold text-white">Curso no encontrado</h2>
-        <p className="mt-2 text-sm text-gray-500">El curso que estás buscando no existe o no está disponible.</p>
-        <Link href="/cursos" className="mt-4 inline-block text-sm font-semibold text-orange-500 hover:underline">
+      <div className="flex flex-col items-center justify-center min-h-[60vh] text-center">
+        <div className="w-20 h-20 bg-white/5 rounded-full flex items-center justify-center mb-6">
+          <GraduationCap size={40} className="text-gray-500" />
+        </div>
+        <h2 className="text-2xl font-bold text-white mb-3">Curso no encontrado</h2>
+        <p className="text-gray-400">El curso que estás buscando no existe o no está disponible.</p>
+        <Link href="/cursos" className="mt-6 px-6 py-3 bg-[#ff6a00] text-white rounded-xl font-bold hover:bg-[#e65c00] transition-colors shadow-lg shadow-[#ff6a00]/20">
           Volver a cursos
         </Link>
       </div>
@@ -271,9 +274,9 @@ export default function CursoDetailPage({ params }: PageProps) {
   const renderVideo = () => {
     if (!activeLesson || !activeLesson.video_url || !activeLesson.video_url.trim()) {
       return (
-        <div className="flex aspect-video items-center justify-center rounded-2xl bg-gray-900 text-6xl text-white">
-          <Play size={44} className="opacity-50" />
-          <span className="absolute text-sm mt-20 text-gray-400">Esta clase todavía no tiene video cargado.</span>
+        <div className="flex aspect-video items-center justify-center rounded-2xl bg-[#0a0a0a] border border-white/5 text-6xl text-white">
+          <Play size={44} className="opacity-20 text-gray-500" />
+          <span className="absolute text-sm mt-20 text-gray-500 font-medium">Esta clase todavía no tiene video cargado.</span>
         </div>
       );
     }
@@ -292,7 +295,7 @@ export default function CursoDetailPage({ params }: PageProps) {
       url.includes('mediadelivery.net/embed')
     ) {
       return (
-        <div className="relative w-full overflow-hidden rounded-2xl bg-black shadow-lg" style={{ paddingTop: "56.25%" }}>
+        <div className="relative w-full overflow-hidden rounded-2xl bg-black border border-white/10 shadow-2xl" style={{ paddingTop: "56.25%" }}>
           <iframe
             src={url}
             loading="lazy"
@@ -310,7 +313,7 @@ export default function CursoDetailPage({ params }: PageProps) {
         vimeoId = url.split('player.vimeo.com/video/')[1].split('?')[0];
       }
       return (
-        <div className="aspect-video rounded-2xl overflow-hidden bg-black">
+        <div className="aspect-video rounded-2xl overflow-hidden bg-black border border-white/10 shadow-2xl">
           <iframe 
             src={`https://player.vimeo.com/video/${vimeoId}`} 
             className="w-full h-full" 
@@ -327,7 +330,7 @@ export default function CursoDetailPage({ params }: PageProps) {
       else if (url.includes('v=')) ytId = url.split('v=')[1].split('&')[0];
       
       return (
-         <div className="aspect-video rounded-2xl overflow-hidden bg-black">
+         <div className="aspect-video rounded-2xl overflow-hidden bg-black border border-white/10 shadow-2xl">
           <iframe 
             src={`https://www.youtube.com/embed/${ytId}`} 
             className="w-full h-full" 
@@ -339,48 +342,71 @@ export default function CursoDetailPage({ params }: PageProps) {
     }
 
     return (
-      <div className="aspect-video rounded-2xl overflow-hidden bg-black">
+      <div className="aspect-video rounded-2xl overflow-hidden bg-black border border-white/10 shadow-2xl">
         <video src={url} controls className="w-full h-full" />
       </div>
     );
   };
 
   return (
-    <div>
+    <div className="pb-12 space-y-6">
       <Link
         href="/cursos"
-        className="mb-4 inline-flex items-center gap-1.5 text-xs font-semibold text-gray-500 hover:text-gray-200"
+        className="inline-flex items-center gap-2 text-sm font-semibold text-gray-400 hover:text-white transition-colors"
       >
-        <ArrowLeft size={14} /> Volver a cursos
+        <ArrowLeft size={16} /> Volver a cursos
       </Link>
 
-      <div className="grid grid-cols-1 gap-6 lg:grid-cols-3">
-        <div className="lg:col-span-2">
+      {/* Header del Curso Premium */}
+      <div className="relative overflow-hidden rounded-3xl bg-[#111] border border-white/10 p-8 shadow-2xl">
+        <div className="absolute inset-0 bg-gradient-to-r from-[#ff6a00]/10 via-transparent to-transparent opacity-50" />
+        <div className="relative z-10">
+          <div className="flex flex-wrap items-center gap-3 mb-4">
+            <Badge tone={badgeTone} className="shadow-sm">{badgeText}</Badge>
+            <span className="flex items-center gap-1.5 bg-white/5 text-gray-300 text-xs font-bold px-3 py-1 rounded-full border border-white/5">
+              <Layers size={14} className="text-[#ff6a00]" /> {totalLessons} lecciones
+            </span>
+            <span className="flex items-center gap-1.5 bg-white/5 text-gray-300 text-xs font-bold px-3 py-1 rounded-full border border-white/5">
+              <Clock size={14} className="text-blue-400" /> {formatDuration(totalDuration)}
+            </span>
+          </div>
+          <h1 className="text-3xl font-bold text-white md:text-4xl">{course.title}</h1>
+          <p className="mt-3 text-base text-gray-400 leading-relaxed max-w-3xl">{course.description}</p>
+        </div>
+      </div>
+
+      <div className="grid grid-cols-1 gap-8 lg:grid-cols-3">
+        {/* Columna Principal: Video y Detalles */}
+        <div className="lg:col-span-2 space-y-6">
           
           {renderVideo()}
           
-          <div className="mt-6 flex flex-col gap-4">
-            <div className="flex items-start justify-between gap-4">
+          <div className="flex flex-col gap-4">
+            <div className="flex flex-col sm:flex-row sm:items-start justify-between gap-4">
               <h2 className="text-xl font-bold text-white flex items-center gap-2">
-                <Video className="text-orange-500" size={24} />
+                <Video className="text-[#ff6a00]" size={24} />
                 {activeLesson ? activeLesson.title : "Selecciona una clase"}
               </h2>
               {user && activeLesson && (
-                <div className="flex gap-2">
+                <div className="flex flex-wrap gap-2 sm:shrink-0">
                   <button 
                     onClick={handleToggleProgress}
                     disabled={markingProgress}
-                    className={`shrink-0 inline-flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium transition-colors ${progress[activeLesson.id] ? "bg-green-100 text-green-700 hover:bg-green-200" : "bg-white/5 text-gray-300 hover:bg-gray-200"}`}
+                    className={`inline-flex items-center justify-center gap-2 px-4 py-2 rounded-xl text-sm font-bold transition-all ${
+                      progress[activeLesson.id] 
+                        ? "bg-green-500/10 text-green-400 border border-green-500/20 hover:bg-green-500/20" 
+                        : "bg-[#111] text-gray-300 border border-white/10 hover:border-white/20 hover:bg-white/5"
+                    }`}
                   >
                     {markingProgress ? <Loader2 className="animate-spin h-4 w-4" /> : <CheckCircle2 className="h-4 w-4" />}
-                    {progress[activeLesson.id] ? "Clase completada" : "Marcar como completada"}
+                    {progress[activeLesson.id] ? "Completada" : "Marcar completada"}
                   </button>
                   {(() => {
                     const next = getNextLesson();
                     return next ? (
                       <button 
                         onClick={() => setActiveLesson(next)}
-                        className="shrink-0 inline-flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium transition-colors bg-orange-50 text-orange-700 hover:bg-orange-100"
+                        className="inline-flex items-center justify-center gap-2 px-4 py-2 rounded-xl text-sm font-bold transition-all bg-[#ff6a00] text-white hover:bg-[#e65c00] shadow-lg shadow-[#ff6a00]/20"
                       >
                         Siguiente clase
                       </button>
@@ -391,73 +417,74 @@ export default function CursoDetailPage({ params }: PageProps) {
             </div>
 
             {completedBanner && (
-              <div className="bg-green-50 border border-green-200 text-green-800 p-4 rounded-xl text-sm font-semibold flex items-center gap-2">
-                🎉 ¡Llegaste al final del curso! Has completado todas las clases disponibles.
+              <div className="bg-green-500/10 border border-green-500/20 text-green-400 p-4 rounded-xl text-sm font-semibold flex items-center gap-3">
+                <span className="text-2xl">🎉</span> ¡Felicidades! Has completado todas las clases disponibles.
               </div>
             )}
 
             {activeLesson?.description && (
-              <p className="text-sm text-gray-400 bg-[#0a0a0a] p-4 rounded-xl border border-white/5">
-                {activeLesson.description}
-              </p>
+              <div className="bg-[#111] p-6 rounded-2xl border border-white/10 shadow-sm">
+                <h3 className="text-sm font-bold text-white mb-2">Acerca de esta clase</h3>
+                <p className="text-sm text-gray-400 leading-relaxed whitespace-pre-wrap">
+                  {activeLesson.description}
+                </p>
+              </div>
             )}
           </div>
 
           {resources[activeLesson?.id] && resources[activeLesson?.id].length > 0 && (
-            <div className="mt-4 border border-white/5 rounded-xl overflow-hidden">
-              <div className="bg-[#0a0a0a] px-4 py-3 border-b border-white/5">
-                <h3 className="text-sm font-bold text-white">Recursos de la clase</h3>
+            <div className="border border-white/10 rounded-2xl overflow-hidden shadow-sm">
+              <div className="bg-[#111] px-5 py-4 border-b border-white/10">
+                <h3 className="text-sm font-bold text-white flex items-center gap-2">
+                  <File className="text-blue-400" size={18} /> Recursos de la clase
+                </h3>
               </div>
-              <div className="divide-y divide-gray-100 bg-[#111]">
+              <div className="divide-y divide-white/5 bg-[#0a0a0a]">
                 {resources[activeLesson.id].map(res => (
-                  <div key={res.id} className="flex items-center justify-between p-4 hover:bg-[#0a0a0a]">
-                    <div className="flex items-center gap-3">
-                      <div className="p-2 bg-blue-50 text-blue-600 rounded-md">
-                        <File size={16} />
+                  <div key={res.id} className="flex items-center justify-between p-5 hover:bg-white/5 transition-colors">
+                    <div className="flex items-center gap-4">
+                      <div className="p-2.5 bg-blue-500/10 text-blue-400 rounded-xl border border-blue-500/20">
+                        <File size={20} />
                       </div>
                       <div>
-                        <p className="text-sm font-medium text-white">{res.title}</p>
-                        <p className="text-xs text-gray-500 uppercase">{res.resource_type}</p>
+                        <p className="text-sm font-bold text-white mb-0.5">{res.title}</p>
+                        <p className="text-[11px] font-semibold text-gray-500 uppercase tracking-wider">{res.resource_type}</p>
                       </div>
                     </div>
-                    <button onClick={() => handleOpenResource(res.url)} className="px-3 py-1.5 text-xs font-medium text-blue-600 bg-blue-50 hover:bg-blue-100 rounded-lg transition-colors">
-                      Abrir
+                    <button onClick={() => handleOpenResource(res.url)} className="px-4 py-2 text-xs font-bold text-white bg-white/5 hover:bg-white/10 border border-white/10 rounded-xl transition-colors">
+                      Descargar
                     </button>
                   </div>
                 ))}
               </div>
             </div>
           )}
-
-          <div className="mt-8 pt-8 border-t border-white/5">
-            <div className="flex items-center gap-2">
-              <Badge tone={badgeTone}>{badgeText}</Badge>
-              <span className="text-xs text-gray-400 font-medium">
-                {totalLessons} lecciones · {formatDuration(totalDuration)}
-              </span>
-            </div>
-            <h1 className="mt-2 text-2xl font-bold text-white">{course.title}</h1>
-            <p className="mt-2 text-sm leading-relaxed text-gray-500">{course.description}</p>
-          </div>
         </div>
 
-        <div>
+        {/* Columna Secundaria: Temario, Progreso y Promociones */}
+        <div className="space-y-6">
           {user && (
-            <div className="mb-6 p-4 bg-[#0a0a0a] rounded-xl border border-white/5">
-              <div className="flex justify-between items-end mb-2">
-                <span className="text-sm font-semibold text-white">Tu progreso</span>
-                <span className="text-sm font-bold text-orange-500">{progressPercent}%</span>
+            <div className="p-6 bg-[#111] rounded-2xl border border-white/10 shadow-lg relative overflow-hidden">
+              <div className="absolute top-0 right-0 p-4 opacity-5 pointer-events-none">
+                <GraduationCap size={100} />
               </div>
-              <ProgressBar value={progressPercent} />
+              <div className="relative z-10">
+                <div className="flex justify-between items-end mb-3">
+                  <span className="text-sm font-bold text-gray-300">Tu progreso</span>
+                  <span className="text-2xl font-black text-[#ff6a00] leading-none">{progressPercent}%</span>
+                </div>
+                <ProgressBar value={progressPercent} className="h-2.5" />
+              </div>
             </div>
           )}
 
-          <Card className="p-0 overflow-hidden">
-            <div className="p-4 bg-[#0a0a0a] border-b border-white/5">
-              <p className="text-sm font-bold text-white">Contenido del curso</p>
+          <div className="bg-[#111] rounded-2xl border border-white/10 shadow-lg overflow-hidden flex flex-col max-h-[800px]">
+            <div className="p-5 bg-[#111] border-b border-white/10 flex items-center justify-between z-10 shrink-0">
+              <h3 className="text-sm font-bold text-white">Contenido del curso</h3>
+              <span className="text-xs font-semibold text-gray-500">{completedCount} de {totalLessons}</span>
             </div>
             
-            <div className="divide-y divide-gray-100 max-h-[600px] overflow-y-auto">
+            <div className="divide-y divide-white/5 overflow-y-auto overflow-x-hidden flex-1 scrollbar-thin scrollbar-thumb-white/10 scrollbar-track-transparent">
               {modules.map((m) => {
                 const isOpen = !!openModules[m.id];
                 const modProg = getModuleProgress(m.id);
@@ -465,25 +492,26 @@ export default function CursoDetailPage({ params }: PageProps) {
                   <div key={m.id} className="border-b border-white/5 last:border-0">
                     <button
                       onClick={() => setOpenModules(prev => ({ ...prev, [m.id]: !prev[m.id] }))}
-                      className="w-full flex items-center justify-between p-4 hover:bg-[#0a0a0a] transition-colors text-left"
+                      className={`w-full flex items-center justify-between p-4 transition-colors text-left ${isOpen ? 'bg-white/5' : 'hover:bg-white/5'}`}
                     >
-                      <div className="flex-1 min-w-0 pr-2">
-                        <h3 className="font-bold text-sm text-white truncate">
-                          {m.sort_order}. {m.title}
-                        </h3>
+                      <div className="flex-1 min-w-0 pr-4">
+                        <h4 className="font-bold text-sm text-white truncate group-hover:text-[#ff6a00] transition-colors">
+                          Módulo {m.sort_order}: {m.title}
+                        </h4>
                         {modProg && (
-                          <p className="text-[11px] text-gray-400 font-medium mt-0.5">
-                            {modProg.completed} / {modProg.total} Clases completadas
+                          <p className="text-[11px] text-gray-400 font-medium mt-1 flex items-center gap-1.5">
+                            <span className={`inline-block w-1.5 h-1.5 rounded-full ${modProg.completed === modProg.total && modProg.total > 0 ? 'bg-green-500' : 'bg-gray-500'}`}></span>
+                            {modProg.completed} / {modProg.total} completadas
                           </p>
                         )}
                       </div>
-                      <div className="text-gray-400 shrink-0">
-                        {isOpen ? <ChevronDown size={18} /> : <ChevronRight size={18} />}
+                      <div className="text-gray-500 shrink-0 p-1 bg-white/5 rounded-full">
+                        {isOpen ? <ChevronDown size={14} /> : <ChevronRight size={14} />}
                       </div>
                     </button>
                     
                     {isOpen && (
-                      <div className="bg-[#0a0a0a]/50 px-2 pb-3 space-y-1">
+                      <div className="bg-[#0a0a0a] px-3 py-2 space-y-1 shadow-inner">
                         {(lessons[m.id] || []).map((lesson) => {
                           const isActive = activeLesson?.id === lesson.id;
                           const isCompleted = progress[lesson.id];
@@ -491,22 +519,26 @@ export default function CursoDetailPage({ params }: PageProps) {
                             <button
                               key={lesson.id}
                               onClick={() => setActiveLesson(lesson)}
-                              className={`flex w-full items-center gap-3 rounded-lg px-3 py-2.5 text-left text-sm transition-colors ${
-                                isActive ? "bg-orange-50 text-orange-700 font-semibold" : "hover:bg-[#0a0a0a] text-gray-400"
+                              className={`group flex w-full items-center gap-3 rounded-xl px-3 py-3 text-left transition-all ${
+                                isActive 
+                                  ? "bg-[#ff6a00]/10 border border-[#ff6a00]/20 text-[#ff6a00]" 
+                                  : "border border-transparent hover:bg-white/5 hover:border-white/10 text-gray-400"
                               }`}
                             >
-                              {isCompleted ? (
-                                <CheckCircle2 size={14} className="text-green-500 shrink-0" />
-                              ) : isActive ? (
-                                <Play size={14} className="text-orange-500 shrink-0" />
-                              ) : (
-                                <Circle size={14} className="text-gray-300 shrink-0" />
-                              )}
-                              <span className="flex-1 truncate">
+                              <div className="shrink-0 flex items-center justify-center w-6 h-6">
+                                {isCompleted ? (
+                                  <CheckCircle2 size={16} className="text-green-500" />
+                                ) : isActive ? (
+                                  <Play size={16} className="text-[#ff6a00] fill-current" />
+                                ) : (
+                                  <Circle size={16} className="text-gray-600 group-hover:text-gray-400 transition-colors" />
+                                )}
+                              </div>
+                              <span className={`flex-1 text-sm truncate font-medium ${isActive ? 'text-white' : 'group-hover:text-gray-300'}`}>
                                 {lesson.sort_order}. {lesson.title}
                               </span>
                               {lesson.duration_minutes && (
-                                <span className="text-[10px] text-gray-400 shrink-0">
+                                <span className={`text-[10px] font-bold shrink-0 px-2 py-1 rounded-md ${isActive ? 'bg-[#ff6a00]/20 text-[#ff6a00]' : 'bg-white/5 text-gray-500 group-hover:bg-white/10'}`}>
                                   {lesson.duration_minutes}m
                                 </span>
                               )}
@@ -514,7 +546,10 @@ export default function CursoDetailPage({ params }: PageProps) {
                           );
                         })}
                         {(!lessons[m.id] || lessons[m.id].length === 0) && (
-                          <p className="text-xs text-gray-400 italic p-3 text-center">Sin clases</p>
+                          <div className="flex flex-col items-center justify-center p-6 text-gray-500">
+                            <Clock size={20} className="mb-2 opacity-50" />
+                            <p className="text-xs font-semibold uppercase tracking-wider">Próximamente</p>
+                          </div>
                         )}
                       </div>
                     )}
@@ -522,12 +557,34 @@ export default function CursoDetailPage({ params }: PageProps) {
                 );
               })}
               {modules.length === 0 && (
-                <div className="p-6 text-center text-gray-500 text-sm">
-                  Próximamente...
+                <div className="p-10 flex flex-col items-center justify-center text-gray-500 text-center">
+                  <Clock size={32} className="mb-3 opacity-20" />
+                  <p className="text-sm font-semibold">Este curso aún no tiene contenido.</p>
                 </div>
               )}
             </div>
-          </Card>
+          </div>
+
+          {/* Stampy Promo Card */}
+          <Link href="/stampy" className="block relative overflow-hidden bg-gradient-to-br from-[#ff6a00] to-[#cc5500] rounded-2xl p-6 shadow-xl shadow-[#ff6a00]/20 hover:-translate-y-1 transition-transform group">
+            <div className="absolute top-0 right-0 -mt-4 -mr-4 opacity-20">
+              <Sparkles size={120} />
+            </div>
+            <div className="relative z-10">
+              <div className="flex items-center gap-2 text-white/90 mb-2">
+                <Sparkles size={16} />
+                <span className="text-xs font-bold uppercase tracking-wider">Asistente IA</span>
+              </div>
+              <h3 className="text-lg font-bold text-white mb-2 leading-tight">¿Te trabaste con la clase?</h3>
+              <p className="text-white/80 text-sm mb-4 leading-relaxed">
+                Pregúntale a Stampy y te ayudará a resolver cualquier duda sobre impresión 3D al instante.
+              </p>
+              <div className="inline-flex items-center justify-center bg-white text-[#ff6a00] px-4 py-2 rounded-xl text-sm font-bold group-hover:bg-orange-50 transition-colors">
+                Preguntar a Stampy <ArrowLeft size={16} className="ml-2 rotate-180" />
+              </div>
+            </div>
+          </Link>
+
         </div>
       </div>
     </div>

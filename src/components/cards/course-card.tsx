@@ -2,7 +2,7 @@ import React from "react";
 import Link from "next/link";
 import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { Clock, Layers, User } from "lucide-react";
+import { Clock, Layers, User, PlayCircle } from "lucide-react";
 
 interface CourseCardProps {
   course: any;
@@ -29,34 +29,52 @@ export function CourseCard({ course }: CourseCardProps) {
   };
 
   return (
-    <Link href={`/cursos/${course.slug || course.id}`}>
-      <Card className="overflow-hidden p-0 hover:-translate-y-0.5 hover:shadow-md cursor-pointer h-full flex flex-col">
-        <div className="relative flex h-36 items-center justify-center bg-white/5 shrink-0 overflow-hidden">
+    <Link href={`/cursos/${course.slug || course.id}`} className="group h-full flex flex-col block">
+      <Card className="overflow-hidden p-0 h-full flex flex-col bg-[#111] border-white/10 hover:border-[#ff6a00]/30 transition-all duration-300 shadow-lg group-hover:shadow-[#ff6a00]/10 group-hover:-translate-y-1">
+        <div className="relative flex h-40 items-center justify-center bg-[#0a0a0a] shrink-0 overflow-hidden border-b border-white/5">
           {course.thumbnail_url ? (
-            <img src={course.thumbnail_url} alt={title} className="w-full h-full object-cover" />
+            <>
+              <img src={course.thumbnail_url} alt={title} className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-105 opacity-80 group-hover:opacity-100" />
+              <div className="absolute inset-0 bg-gradient-to-t from-[#111] to-transparent opacity-80" />
+            </>
           ) : (
-            <div className="text-5xl text-gray-300">🎓</div>
+            <>
+              <div className="absolute inset-0 bg-gradient-to-br from-neutral-800 to-neutral-950" />
+              <div className="text-5xl opacity-40 group-hover:opacity-60 transition-opacity">🎓</div>
+              <div className="absolute inset-0 bg-gradient-to-t from-[#111] to-transparent opacity-90" />
+            </>
           )}
           <div className="absolute right-3 top-3">
-            <Badge tone={badgeTone}>{badgeText}</Badge>
+            <Badge tone={badgeTone} className="shadow-sm">{badgeText}</Badge>
           </div>
         </div>
-        <div className="p-4 flex-1 flex flex-col justify-between">
+        
+        <div className="p-5 flex-1 flex flex-col justify-between relative">
           <div>
-            <p className="text-sm font-bold leading-snug text-white line-clamp-2">{title}</p>
-            <div className="mt-2 flex items-center gap-3 text-xs text-gray-500 flex-wrap">
-              <span className="flex items-center gap-1">
-                <User size={12} /> {instructorName}
-              </span>
-              <span className="flex items-center gap-1">
-                <Layers size={12} /> {lessonsCount} clases
+            <h3 className="text-base font-bold leading-snug text-white line-clamp-2 group-hover:text-[#ff6a00] transition-colors">{title}</h3>
+            <p className="text-xs text-gray-500 mt-1.5 flex items-center gap-1.5 font-medium">
+              <User size={13} className="text-gray-400" /> {instructorName}
+            </p>
+            
+            <div className="mt-4 flex items-center gap-3 text-xs text-gray-400 flex-wrap font-medium">
+              <span className="flex items-center gap-1.5 bg-[#0a0a0a] px-2 py-1 rounded-md border border-white/5">
+                <Layers size={13} className="text-[#ff6a00]" /> {lessonsCount} clases
               </span>
               {totalDuration > 0 && (
-                <span className="flex items-center gap-1">
-                  <Clock size={12} /> {formatDuration(totalDuration)}
+                <span className="flex items-center gap-1.5 bg-[#0a0a0a] px-2 py-1 rounded-md border border-white/5">
+                  <Clock size={13} className="text-blue-400" /> {formatDuration(totalDuration)}
                 </span>
               )}
             </div>
+          </div>
+          
+          <div className="mt-6 pt-4 border-t border-white/5 flex items-center justify-between">
+            <span className="text-xs font-bold text-[#ff6a00] flex items-center gap-1.5">
+              <PlayCircle size={16} /> Ver curso
+            </span>
+            <span className="text-[10px] text-gray-500 uppercase tracking-wider font-bold bg-white/5 px-2 py-1 rounded">
+              Disponible
+            </span>
           </div>
         </div>
       </Card>
