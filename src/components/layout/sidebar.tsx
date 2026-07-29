@@ -61,7 +61,7 @@ const NAV_GROUPS = [
     group: "Usuario",
     items: [
       { path: "/perfil", label: "Mi perfil", icon: User },
-      { path: "/perfil?tab=configuracion", label: "Configuración", icon: Settings },
+      { path: "/configuracion", label: "Configuración", icon: Settings },
       { path: "/salir", label: "Cerrar sesión", icon: LogOut },
     ],
   },

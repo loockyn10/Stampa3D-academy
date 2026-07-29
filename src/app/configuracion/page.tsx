@@ -2,10 +2,9 @@
 
 import React, { useState, useEffect, Suspense } from "react";
 import { useSearchParams, useRouter } from "next/navigation";
-import { User, Building2, Wrench, Calculator, Bot, Loader2 } from "lucide-react";
+import { Building2, Wrench, Calculator, Bot, Loader2 } from "lucide-react";
 import { SectionTitle } from "@/components/ui/section-title";
 
-import { AccountManager } from "@/components/configuracion/account-manager";
 import { BusinessManager } from "@/components/configuracion/business-manager";
 import { PrintersManager } from "@/components/configuracion/printers-manager";
 import { FilamentsManager } from "@/components/configuracion/filaments-manager";
@@ -13,16 +12,16 @@ import { SettingsManager } from "@/components/configuracion/settings-manager";
 import { ProductTypesManager } from "@/components/configuracion/product-types-manager";
 import { StampyManager } from "@/components/configuracion/stampy-manager";
 
-type Tab = "cuenta" | "negocio" | "taller" | "calculadora" | "stampy";
+type Tab = "negocio" | "taller" | "calculadora" | "stampy";
 
 function ConfiguracionContent() {
   const searchParams = useSearchParams();
   const router = useRouter();
-  const [activeTab, setActiveTab] = useState<Tab>("cuenta");
+  const [activeTab, setActiveTab] = useState<Tab>("negocio");
 
   useEffect(() => {
     const t = searchParams.get("tab") as Tab;
-    if (t && ["cuenta", "negocio", "taller", "calculadora", "stampy"].includes(t)) {
+    if (t && ["negocio", "taller", "calculadora", "stampy"].includes(t)) {
       setActiveTab(t);
     }
   }, [searchParams]);
@@ -39,18 +38,6 @@ function ConfiguracionContent() {
 
       <div className="mb-8 border-b border-gray-200">
         <nav className="-mb-px flex space-x-8 overflow-x-auto" aria-label="Tabs">
-          <button
-            onClick={() => handleTabChange("cuenta")}
-            className={`whitespace-nowrap flex items-center gap-2 border-b-2 py-4 px-1 text-sm font-medium transition-colors ${
-              activeTab === "cuenta"
-                ? "border-orange-500 text-orange-600"
-                : "border-transparent text-gray-500 hover:border-gray-300 hover:text-gray-700"
-            }`}
-          >
-            <User size={18} />
-            Cuenta
-          </button>
-
           <button
             onClick={() => handleTabChange("negocio")}
             className={`whitespace-nowrap flex items-center gap-2 border-b-2 py-4 px-1 text-sm font-medium transition-colors ${
@@ -102,7 +89,6 @@ function ConfiguracionContent() {
       </div>
 
       <div className="mt-6 space-y-8">
-        {activeTab === "cuenta" && <AccountManager />}
         
         {activeTab === "negocio" && <BusinessManager />}
         

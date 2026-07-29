@@ -7,6 +7,7 @@ import { Badge } from "@/components/ui/badge";
 import { SectionTitle } from "@/components/ui/section-title";
 import { createClient } from "@/utils/supabase/client";
 import Link from "next/link";
+import { AccountManager } from "@/components/configuracion/account-manager";
 
 function PerfilContent() {
   const supabase = createClient();
@@ -64,7 +65,8 @@ function PerfilContent() {
 
   return (
     <div>
-      <SectionTitle eyebrow="Usuario" title="Dashboard de Perfil" />
+      <SectionTitle eyebrow="Usuario" title="Mi Perfil" />
+      <p className="text-gray-500 text-sm -mt-3 mb-6">Gestioná tus datos personales y el estado de tu cuenta.</p>
 
       {error && (
         <div className="mb-6 bg-red-50 border border-red-100 p-4 rounded-lg flex items-center gap-2 text-sm text-red-600 max-w-xl">
@@ -92,21 +94,6 @@ function PerfilContent() {
                   </div>
                 </div>
               </div>
-              <Link 
-                href="/configuracion?tab=cuenta" 
-                className="hidden sm:flex text-xs font-semibold text-gray-500 hover:text-gray-900 border border-gray-200 bg-white px-3 py-1.5 rounded-lg transition-colors gap-1.5 items-center"
-              >
-                <Settings2 size={14} /> Editar Perfil
-              </Link>
-            </div>
-
-            <div className="sm:hidden mb-5 flex justify-end">
-              <Link 
-                href="/configuracion?tab=cuenta" 
-                className="flex text-xs font-semibold text-gray-500 hover:text-gray-900 border border-gray-200 bg-white px-3 py-1.5 rounded-lg transition-colors gap-1.5 items-center"
-              >
-                <Settings2 size={14} /> Editar Perfil
-              </Link>
             </div>
 
             {subscription && (
@@ -145,6 +132,8 @@ function PerfilContent() {
               </div>
             )}
           </Card>
+          
+          <AccountManager />
 
           {/* BADGES SECTION */}
           <div className="max-w-xl">
