@@ -81,158 +81,229 @@ export default function LibreriaStlPage() {
     );
   }
 
-  if (!selectedCatId && !query) {
-    return (
-      <div>
-        <SectionTitle eyebrow="Plataforma" title="Librería STL" />
-        {categories.length === 0 ? (
-          <EmptyState icon={Boxes} title="Aún no hay categorías" hint="Vuelve pronto para descubrir nuevos modelos." />
-        ) : (
-          <div className="grid grid-cols-2 gap-4 sm:grid-cols-3 lg:grid-cols-4">
-            {categories.map((c) => {
-              const count = models.filter(item => item.category_id === c.id).length;
-              return (
-                <Card key={c.id} onClick={() => setSelectedCatId(c.id)} className="p-5 text-center cursor-pointer hover:-translate-y-0.5 hover:shadow-md transition-all">
-                  <div className="mb-2 flex justify-center">
-                    {c.thumbnail_url ? (
-                      <img src={c.thumbnail_url} alt={c.name} className="h-16 w-16 object-cover rounded-xl" />
-                    ) : (
-                      <div className="h-16 w-16 bg-white/5 rounded-xl flex items-center justify-center text-gray-400">
-                        <Boxes size={32} />
-                      </div>
-                    )}
-                  </div>
-                  <p className="text-sm font-bold text-white">{c.name}</p>
-                  <p className="text-xs text-gray-400">{count} archivos</p>
-                </Card>
-              );
-            })}
-          </div>
-        )}
-      </div>
-    );
-  }
-
-  const catInfo = categories.find((c) => c.id === selectedCatId);
-  const title = catInfo ? catInfo.name : query ? `Búsqueda: ${query}` : "Librería STL";
-
+  // Remove the early return.
   const translateDifficulty = (diff: string) => {
     if (diff === "beginner") return "Fácil";
     if (diff === "intermediate") return "Medio";
     if (diff === "advanced") return "Difícil";
     return diff;
   };
-  return (
-    <div>
-      <button
-        onClick={() => {
-          setSelectedCatId(null);
-          setQuery("");
-        }}
-        className="mb-4 flex items-center gap-1.5 text-xs font-semibold text-gray-500 hover:text-gray-200 transition-colors"
-      >
-        <ArrowLeft size={14} /> Todas las categorías
-      </button>
-      <SectionTitle eyebrow="Librería STL" title={title} />
 
-      <div className="relative mb-5 max-w-sm">
-        <Search size={15} className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" />
-        <input
-          value={query}
-          onChange={(e) => setQuery(e.target.value)}
-          placeholder="Buscar modelos..."
-          className="w-full rounded-xl border border-white/10 bg-[#0a0a0a] py-2.5 pl-9 pr-3 text-sm text-white outline-none focus:border-orange-500 focus:bg-[#111] focus:ring-2 focus:ring-orange-100 transition-all"
-        />
+  return (
+    <div className="flex flex-col gap-8 pb-12">
+      {/* 1. Header Premium & Buscador Integrado */}
+      <div className="bg-[#111] border border-white/10 rounded-2xl p-6 sm:p-8 flex flex-col gap-6 relative overflow-hidden">
+        <div className="absolute top-0 right-0 w-64 h-64 bg-orange-500/5 rounded-full blur-3xl pointer-events-none -translate-y-1/2 translate-x-1/2"></div>
+        <div className="relative z-10 flex flex-col md:flex-row md:items-end justify-between gap-6">
+          <div className="max-w-xl">
+            <div className="inline-flex items-center gap-2 px-3 py-1 bg-orange-500/10 border border-orange-500/20 text-orange-400 text-[10px] font-bold uppercase tracking-wider rounded-full mb-4">
+              <span className="text-[10px]">✨</span> Recursos para miembros
+            </div>
+            <h1 className="text-3xl md:text-4xl font-black text-white tracking-tight mb-2">
+              Librería STL
+            </h1>
+            <p className="text-sm text-gray-400">
+              Encontrá modelos organizados por categorías y descargalos directo desde la plataforma listos para imprimir.
+            </p>
+          </div>
+          
+          <div className="w-full md:w-80 shrink-0">
+            <div className="relative">
+              <Search size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" />
+              <input
+                type="text"
+                value={query}
+                onChange={(e) => setQuery(e.target.value)}
+                placeholder="Buscar modelos, materiales..."
+                className="w-full bg-[#0a0a0a] border border-white/10 text-white text-sm rounded-xl py-3 pl-10 pr-4 focus:outline-none focus:border-orange-500 focus:ring-1 focus:ring-orange-500 transition-all"
+              />
+            </div>
+          </div>
+        </div>
       </div>
 
-      {filteredItems.length === 0 ? (
-        <EmptyState icon={Boxes} title="No encontramos modelos" hint="Prueba con otra búsqueda o categoría." />
-      ) : (
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
-          {filteredItems.map((f) => (
-            <Card key={f.id} className="overflow-hidden p-0 flex flex-col h-full">
-              <div className="relative flex h-36 items-center justify-center bg-[#0a0a0a]">
-                {f.thumbnail_url ? (
-                  <img src={f.thumbnail_url} alt={f.title} className="w-full h-full object-cover" />
-                ) : (
-                  <Boxes size={48} className="text-gray-300" />
-                )}
-                <div className="absolute right-2 top-2">
-                  <Badge tone="dark">{translateDifficulty(f.difficulty)}</Badge>
-                </div>
-              </div>
-              <div className="p-4 flex flex-col flex-1">
-                <p className="text-[10px] font-semibold text-orange-500 uppercase tracking-wider mb-1 truncate">{f.category?.name || "Sin categoría"}</p>
-                <p className="font-bold text-white text-sm leading-tight mb-2 line-clamp-2">{f.title}</p>
-                <div className="mt-auto space-y-1 mb-3">
-                  <p className="text-xs text-gray-500 flex justify-between"><span>Material:</span> <span className="font-medium text-gray-300">{f.material_type || "N/A"}</span></p>
-                  <p className="text-xs text-gray-500 flex justify-between"><span>Tiempo Impresión:</span> <span className="font-medium text-gray-300">{f.estimated_print_time || "N/A"}</span></p>
-                </div>
-                
-                {(() => {
-                  const activeVariant = f.variants?.find((v: any) => v.is_active && v.file_url);
-                  if (activeVariant) {
-                    const isDownloading = downloadingId === activeVariant.id;
-                    return (
-                      <button 
-                        disabled={isDownloading}
-                        onClick={async (e) => {
-                          e.preventDefault();
-                          setDownloadingId(activeVariant.id);
-                          
-                          try {
-                            const { data: { user } } = await supabase.auth.getUser();
-                            if (user) {
-                              // Registramos la descarga
-                              await supabase.from("stl_downloads").upsert({
-                                user_id: user.id,
-                                variant_id: activeVariant.id
-                              }, { onConflict: 'user_id, variant_id' });
-                            }
-                            
-                            // Llamamos a la API para obtener URL segura o externa
-                            const res = await fetch('/api/stl/download', {
-                              method: 'POST',
-                              headers: { 'Content-Type': 'application/json' },
-                              body: JSON.stringify({ variantId: activeVariant.id })
-                            });
-                            
-                            const data = await res.json();
-                            
-                            if (res.ok && data.url) {
-                              window.location.href = data.url;
-                            } else {
-                              alert(data.error || "Error al descargar el archivo");
-                            }
-                          } catch (e) {
-                            console.error("Error al descargar STL:", e);
-                            alert("Ocurrió un error inesperado al intentar descargar.");
-                          } finally {
-                            setDownloadingId(null);
-                          }
-                        }}
-                        className={`mt-auto flex w-full items-center justify-center gap-1.5 rounded-lg py-2.5 text-xs font-semibold text-white transition-colors ${isDownloading ? 'bg-gray-600 cursor-not-allowed' : 'bg-gray-900 hover:bg-gray-800'}`}
-                      >
-                        {isDownloading ? <Loader2 size={14} className="animate-spin" /> : <Download size={14} />}
-                        {isDownloading ? "Preparando..." : "Descargar"}
-                      </button>
-                    );
-                  } else {
-                    return (
-                      <button 
-                        disabled
-                        className="mt-auto flex w-full items-center justify-center gap-1.5 rounded-lg bg-gray-200 py-2.5 text-xs font-semibold text-gray-400 cursor-not-allowed"
-                      >
-                        Archivo pendiente
-                      </button>
-                    );
-                  }
-                })()}
-              </div>
-            </Card>
+      {/* 2. Selector de Categorías (Chips) */}
+      {!query && categories.length > 0 && (
+        <div className="flex flex-wrap items-center gap-2">
+          <button
+            onClick={() => setSelectedCatId(null)}
+            className={`px-4 py-2 rounded-full text-xs font-bold transition-all border ${
+              selectedCatId === null 
+                ? "bg-orange-500/10 border-orange-500/50 text-orange-400 shadow-[0_0_10px_rgba(255,106,0,0.1)]" 
+                : "bg-[#0a0a0a] border-white/5 text-gray-400 hover:text-white hover:border-white/10"
+            }`}
+          >
+            Todas
+          </button>
+          {categories.map((c) => (
+            <button
+              key={c.id}
+              onClick={() => setSelectedCatId(c.id)}
+              className={`flex items-center gap-2 px-4 py-2 rounded-full text-xs font-bold transition-all border ${
+                selectedCatId === c.id
+                  ? "bg-orange-500/10 border-orange-500/50 text-orange-400 shadow-[0_0_10px_rgba(255,106,0,0.1)]"
+                  : "bg-[#0a0a0a] border-white/5 text-gray-400 hover:text-white hover:border-white/10"
+              }`}
+            >
+              {c.name}
+              <span className={`px-1.5 py-0.5 rounded-md text-[9px] ${selectedCatId === c.id ? "bg-orange-500/20" : "bg-white/5"}`}>
+                {models.filter(m => m.category_id === c.id).length}
+              </span>
+            </button>
           ))}
         </div>
       )}
+
+      {/* 3. Cards de Archivos STL */}
+      {filteredItems.length === 0 ? (
+        <div className="py-20 flex flex-col items-center justify-center bg-[#111] rounded-2xl border border-white/5 shadow-xl">
+          <div className="w-16 h-16 bg-[#0a0a0a] rounded-2xl flex items-center justify-center mb-4 border border-white/10 shadow-inner">
+            <span className="text-3xl grayscale opacity-50">📁</span>
+          </div>
+          <h3 className="text-xl font-bold text-white mb-2">
+            {query ? "No hay resultados para tu búsqueda" : "No hay archivos en esta categoría"}
+          </h3>
+          <p className="text-sm text-gray-400 font-medium max-w-sm text-center mb-6">
+            {query 
+              ? "Intentá con otras palabras clave o revisá las categorías disponibles." 
+              : "Cuando se carguen modelos, van a aparecer acá listos para descargar."}
+          </p>
+          {(query || selectedCatId) && (
+            <button 
+              onClick={() => { setQuery(""); setSelectedCatId(null); }}
+              className="px-6 py-2.5 bg-orange-500 hover:bg-orange-600 text-white text-sm font-bold rounded-lg transition-colors"
+            >
+              Ver todos los archivos
+            </button>
+          )}
+        </div>
+      ) : (
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-5">
+          {filteredItems.map((f) => {
+            const activeVariant = f.variants?.find((v: any) => v.is_active && v.file_url);
+            const isDownloading = downloadingId === (activeVariant?.id || null);
+
+            return (
+              <Card key={f.id} className="group overflow-hidden bg-[#111] border border-white/10 hover:border-orange-500/30 hover:shadow-[0_0_20px_rgba(255,106,0,0.05)] transition-all flex flex-col h-full rounded-2xl">
+                {/* Thumbnail */}
+                <div className="relative flex h-48 items-center justify-center bg-[#0a0a0a] border-b border-white/5 overflow-hidden">
+                  {f.thumbnail_url ? (
+                    <img src={f.thumbnail_url} alt={f.title} className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500" />
+                  ) : (
+                    <Boxes size={48} className="text-gray-600" />
+                  )}
+                  {/* Badges Flotantes */}
+                  <div className="absolute top-3 right-3 flex flex-col items-end gap-1.5">
+                    {f.difficulty && (
+                      <span className="px-2 py-1 rounded-md text-[10px] font-bold uppercase tracking-wider bg-black/60 backdrop-blur-md border border-white/10 text-white">
+                        {translateDifficulty(f.difficulty)}
+                      </span>
+                    )}
+                  </div>
+                </div>
+
+                {/* Contenido */}
+                <div className="p-5 flex flex-col flex-1">
+                  <p className="text-[10px] font-bold text-orange-500 uppercase tracking-wider mb-1.5 truncate">
+                    {f.category?.name || "Categoría General"}
+                  </p>
+                  <h3 className="font-bold text-white text-base leading-snug mb-3 line-clamp-2 group-hover:text-orange-100 transition-colors">
+                    {f.title}
+                  </h3>
+                  
+                  <div className="mt-auto grid grid-cols-2 gap-2 mb-4">
+                    <div className="bg-[#0a0a0a] rounded-lg p-2 border border-white/5">
+                      <span className="block text-[10px] text-gray-500 font-medium mb-0.5">Material</span>
+                      <span className="block text-xs text-white font-bold truncate">{f.material_type || "-"}</span>
+                    </div>
+                    <div className="bg-[#0a0a0a] rounded-lg p-2 border border-white/5">
+                      <span className="block text-[10px] text-gray-500 font-medium mb-0.5">Tiempo Imp.</span>
+                      <span className="block text-xs text-white font-bold truncate">{f.estimated_print_time || "-"}</span>
+                    </div>
+                  </div>
+                  
+                  {/* Botón de Acción */}
+                  {activeVariant ? (
+                    <button 
+                      disabled={isDownloading}
+                      onClick={async (e) => {
+                        e.preventDefault();
+                        setDownloadingId(activeVariant.id);
+                        
+                        try {
+                          const { data: { user } } = await supabase.auth.getUser();
+                          if (user) {
+                            await supabase.from("stl_downloads").upsert({
+                              user_id: user.id,
+                              variant_id: activeVariant.id
+                            }, { onConflict: 'user_id, variant_id' });
+                          }
+                          
+                          const res = await fetch('/api/stl/download', {
+                            method: 'POST',
+                            headers: { 'Content-Type': 'application/json' },
+                            body: JSON.stringify({ variantId: activeVariant.id })
+                          });
+                          
+                          const data = await res.json();
+                          
+                          if (res.ok && data.url) {
+                            window.location.href = data.url;
+                          } else {
+                            alert(data.error || "No pude preparar la descarga. Probá de nuevo.");
+                          }
+                        } catch (e) {
+                          console.error("Error al descargar STL:", e);
+                          alert("Ocurrió un error inesperado al intentar descargar.");
+                        } finally {
+                          setDownloadingId(null);
+                        }
+                      }}
+                      className={`flex w-full items-center justify-center gap-2 rounded-xl py-3 text-xs font-bold transition-all shadow-lg ${
+                        isDownloading 
+                          ? 'bg-orange-500/50 text-white cursor-not-allowed shadow-none' 
+                          : 'bg-orange-500 hover:bg-orange-600 text-white shadow-orange-500/20 hover:shadow-orange-500/40'
+                      }`}
+                    >
+                      {isDownloading ? <Loader2 size={16} className="animate-spin" /> : <Download size={16} />}
+                      {isDownloading ? "Preparando..." : "Descargar Archivo"}
+                    </button>
+                  ) : (
+                    <button 
+                      disabled
+                      className="flex w-full items-center justify-center gap-2 rounded-xl py-3 text-xs font-bold bg-[#0a0a0a] text-gray-600 border border-white/5 cursor-not-allowed"
+                    >
+                      Archivo no disponible
+                    </button>
+                  )}
+                </div>
+              </Card>
+            );
+          })}
+        </div>
+      )}
+
+      {/* 4. Bloque Informativo */}
+      <div className="mt-8 bg-gradient-to-r from-[#111] to-[#151515] border border-white/10 rounded-2xl p-6 flex flex-col md:flex-row items-center justify-between gap-6 shadow-xl">
+        <div className="flex items-center gap-4">
+          <div className="w-12 h-12 bg-[#0a0a0a] rounded-xl flex items-center justify-center border border-white/5 shrink-0 shadow-inner">
+            <span className="text-2xl">💡</span>
+          </div>
+          <div>
+            <h4 className="font-bold text-white mb-1">Usá estos archivos como punto de partida</h4>
+            <p className="text-sm text-gray-400">
+              Descargá el archivo, revisá la configuración recomendada y adaptalo a tu impresora y material.
+            </p>
+          </div>
+        </div>
+        <a 
+          href="/stampy"
+          className="shrink-0 px-6 py-2.5 bg-[#0a0a0a] hover:bg-white/5 text-white text-sm font-bold rounded-xl border border-white/10 transition-colors shadow-sm"
+        >
+          Preguntarle a Stampy
+        </a>
+      </div>
+
     </div>
   );
 }
