@@ -240,7 +240,7 @@ export default function CursoDetailPage({ params }: PageProps) {
   if (!course) {
     return (
       <div className="text-center py-12">
-        <h2 className="text-xl font-bold text-gray-900">Curso no encontrado</h2>
+        <h2 className="text-xl font-bold text-white">Curso no encontrado</h2>
         <p className="mt-2 text-sm text-gray-500">El curso que estás buscando no existe o no está disponible.</p>
         <Link href="/cursos" className="mt-4 inline-block text-sm font-semibold text-orange-500 hover:underline">
           Volver a cursos
@@ -349,7 +349,7 @@ export default function CursoDetailPage({ params }: PageProps) {
     <div>
       <Link
         href="/cursos"
-        className="mb-4 inline-flex items-center gap-1.5 text-xs font-semibold text-gray-500 hover:text-gray-800"
+        className="mb-4 inline-flex items-center gap-1.5 text-xs font-semibold text-gray-500 hover:text-gray-200"
       >
         <ArrowLeft size={14} /> Volver a cursos
       </Link>
@@ -361,7 +361,7 @@ export default function CursoDetailPage({ params }: PageProps) {
           
           <div className="mt-6 flex flex-col gap-4">
             <div className="flex items-start justify-between gap-4">
-              <h2 className="text-xl font-bold text-gray-900 flex items-center gap-2">
+              <h2 className="text-xl font-bold text-white flex items-center gap-2">
                 <Video className="text-orange-500" size={24} />
                 {activeLesson ? activeLesson.title : "Selecciona una clase"}
               </h2>
@@ -370,7 +370,7 @@ export default function CursoDetailPage({ params }: PageProps) {
                   <button 
                     onClick={handleToggleProgress}
                     disabled={markingProgress}
-                    className={`shrink-0 inline-flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium transition-colors ${progress[activeLesson.id] ? "bg-green-100 text-green-700 hover:bg-green-200" : "bg-gray-100 text-gray-700 hover:bg-gray-200"}`}
+                    className={`shrink-0 inline-flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium transition-colors ${progress[activeLesson.id] ? "bg-green-100 text-green-700 hover:bg-green-200" : "bg-white/5 text-gray-300 hover:bg-gray-200"}`}
                   >
                     {markingProgress ? <Loader2 className="animate-spin h-4 w-4" /> : <CheckCircle2 className="h-4 w-4" />}
                     {progress[activeLesson.id] ? "Clase completada" : "Marcar como completada"}
@@ -397,26 +397,26 @@ export default function CursoDetailPage({ params }: PageProps) {
             )}
 
             {activeLesson?.description && (
-              <p className="text-sm text-gray-600 bg-gray-50 p-4 rounded-xl border border-gray-100">
+              <p className="text-sm text-gray-400 bg-[#0a0a0a] p-4 rounded-xl border border-white/5">
                 {activeLesson.description}
               </p>
             )}
           </div>
 
           {resources[activeLesson?.id] && resources[activeLesson?.id].length > 0 && (
-            <div className="mt-4 border border-gray-100 rounded-xl overflow-hidden">
-              <div className="bg-gray-50 px-4 py-3 border-b border-gray-100">
-                <h3 className="text-sm font-bold text-gray-900">Recursos de la clase</h3>
+            <div className="mt-4 border border-white/5 rounded-xl overflow-hidden">
+              <div className="bg-[#0a0a0a] px-4 py-3 border-b border-white/5">
+                <h3 className="text-sm font-bold text-white">Recursos de la clase</h3>
               </div>
-              <div className="divide-y divide-gray-100 bg-white">
+              <div className="divide-y divide-gray-100 bg-[#111]">
                 {resources[activeLesson.id].map(res => (
-                  <div key={res.id} className="flex items-center justify-between p-4 hover:bg-gray-50">
+                  <div key={res.id} className="flex items-center justify-between p-4 hover:bg-[#0a0a0a]">
                     <div className="flex items-center gap-3">
                       <div className="p-2 bg-blue-50 text-blue-600 rounded-md">
                         <File size={16} />
                       </div>
                       <div>
-                        <p className="text-sm font-medium text-gray-900">{res.title}</p>
+                        <p className="text-sm font-medium text-white">{res.title}</p>
                         <p className="text-xs text-gray-500 uppercase">{res.resource_type}</p>
                       </div>
                     </div>
@@ -429,23 +429,23 @@ export default function CursoDetailPage({ params }: PageProps) {
             </div>
           )}
 
-          <div className="mt-8 pt-8 border-t border-gray-100">
+          <div className="mt-8 pt-8 border-t border-white/5">
             <div className="flex items-center gap-2">
               <Badge tone={badgeTone}>{badgeText}</Badge>
               <span className="text-xs text-gray-400 font-medium">
                 {totalLessons} lecciones · {formatDuration(totalDuration)}
               </span>
             </div>
-            <h1 className="mt-2 text-2xl font-bold text-gray-900">{course.title}</h1>
+            <h1 className="mt-2 text-2xl font-bold text-white">{course.title}</h1>
             <p className="mt-2 text-sm leading-relaxed text-gray-500">{course.description}</p>
           </div>
         </div>
 
         <div>
           {user && (
-            <div className="mb-6 p-4 bg-gray-50 rounded-xl border border-gray-100">
+            <div className="mb-6 p-4 bg-[#0a0a0a] rounded-xl border border-white/5">
               <div className="flex justify-between items-end mb-2">
-                <span className="text-sm font-semibold text-gray-900">Tu progreso</span>
+                <span className="text-sm font-semibold text-white">Tu progreso</span>
                 <span className="text-sm font-bold text-orange-500">{progressPercent}%</span>
               </div>
               <ProgressBar value={progressPercent} />
@@ -453,8 +453,8 @@ export default function CursoDetailPage({ params }: PageProps) {
           )}
 
           <Card className="p-0 overflow-hidden">
-            <div className="p-4 bg-gray-50 border-b border-gray-100">
-              <p className="text-sm font-bold text-gray-900">Contenido del curso</p>
+            <div className="p-4 bg-[#0a0a0a] border-b border-white/5">
+              <p className="text-sm font-bold text-white">Contenido del curso</p>
             </div>
             
             <div className="divide-y divide-gray-100 max-h-[600px] overflow-y-auto">
@@ -462,13 +462,13 @@ export default function CursoDetailPage({ params }: PageProps) {
                 const isOpen = !!openModules[m.id];
                 const modProg = getModuleProgress(m.id);
                 return (
-                  <div key={m.id} className="border-b border-gray-100 last:border-0">
+                  <div key={m.id} className="border-b border-white/5 last:border-0">
                     <button
                       onClick={() => setOpenModules(prev => ({ ...prev, [m.id]: !prev[m.id] }))}
-                      className="w-full flex items-center justify-between p-4 hover:bg-gray-50 transition-colors text-left"
+                      className="w-full flex items-center justify-between p-4 hover:bg-[#0a0a0a] transition-colors text-left"
                     >
                       <div className="flex-1 min-w-0 pr-2">
-                        <h3 className="font-bold text-sm text-gray-900 truncate">
+                        <h3 className="font-bold text-sm text-white truncate">
                           {m.sort_order}. {m.title}
                         </h3>
                         {modProg && (
@@ -483,7 +483,7 @@ export default function CursoDetailPage({ params }: PageProps) {
                     </button>
                     
                     {isOpen && (
-                      <div className="bg-gray-50/50 px-2 pb-3 space-y-1">
+                      <div className="bg-[#0a0a0a]/50 px-2 pb-3 space-y-1">
                         {(lessons[m.id] || []).map((lesson) => {
                           const isActive = activeLesson?.id === lesson.id;
                           const isCompleted = progress[lesson.id];
@@ -492,7 +492,7 @@ export default function CursoDetailPage({ params }: PageProps) {
                               key={lesson.id}
                               onClick={() => setActiveLesson(lesson)}
                               className={`flex w-full items-center gap-3 rounded-lg px-3 py-2.5 text-left text-sm transition-colors ${
-                                isActive ? "bg-orange-50 text-orange-700 font-semibold" : "hover:bg-gray-50 text-gray-600"
+                                isActive ? "bg-orange-50 text-orange-700 font-semibold" : "hover:bg-[#0a0a0a] text-gray-400"
                               }`}
                             >
                               {isCompleted ? (

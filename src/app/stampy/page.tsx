@@ -103,7 +103,7 @@ export default function StampyPage() {
             <Sparkles size={24} />
           </div>
           <div>
-            <h1 className="text-2xl font-bold text-gray-900 flex items-center gap-3">
+            <h1 className="text-2xl font-bold text-white flex items-center gap-3">
               Stampy
               <span className="inline-flex items-center gap-1 rounded-full border px-2.5 py-1 text-xs font-semibold bg-purple-50 text-purple-700 border-purple-200">Asistente de la academia</span>
             </h1>
@@ -115,19 +115,19 @@ export default function StampyPage() {
       <div className="flex flex-col lg:flex-row gap-4 md:gap-6 flex-1 min-h-0">
         
         {/* Chat Area */}
-        <div className="flex-1 flex flex-col bg-white border border-gray-200 rounded-2xl overflow-hidden shadow-sm">
-          <div className="flex-1 overflow-y-auto p-4 md:p-6 space-y-6 bg-gray-50/50">
+        <div className="flex-1 flex flex-col bg-[#050505] border border-white/10 rounded-2xl overflow-hidden shadow-2xl">
+          <div className="flex-1 overflow-y-auto p-4 md:p-6 space-y-6">
             {messages.map((msg) => (
               <div key={msg.id} className={`flex gap-4 ${msg.role === "user" ? "justify-end" : "justify-start"}`}>
                 
                 {msg.role === "stampy" && (
-                  <div className="w-8 h-8 shrink-0 rounded-full bg-orange-100 flex items-center justify-center text-orange-600 mt-1 shadow-sm">
+                  <div className="w-8 h-8 shrink-0 rounded-full bg-[#ff6a00]/10 flex items-center justify-center text-[#ff6a00] mt-1 shadow-sm">
                     <Bot size={18} />
                   </div>
                 )}
                 
-                <div className={`max-w-[85%] ${msg.role === "user" ? "bg-orange-600 text-white rounded-2xl rounded-tr-sm px-4 py-3 shadow-md" : "bg-white border border-gray-100 shadow-sm rounded-2xl rounded-tl-sm px-5 py-4"}`}>
-                  <p className={`text-sm ${msg.role === "user" ? "text-white" : "text-gray-700"} whitespace-pre-wrap`}>
+                <div className={`max-w-[85%] ${msg.role === "user" ? "bg-[#ff6a00] text-white rounded-2xl rounded-tr-sm px-4 py-3 shadow-md" : "bg-[#111] border border-white/10 shadow-sm rounded-2xl rounded-tl-sm px-5 py-4"}`}>
+                  <p className={`text-sm ${msg.role === "user" ? "text-white" : "text-gray-300"} whitespace-pre-wrap`}>
                     {msg.content}
                   </p>
 
@@ -137,20 +137,20 @@ export default function StampyPage() {
                       {msg.recommendations.map((rec: any, idx: number) => {
                         const courseId = rec.course_modules?.courses?.slug || rec.course_modules?.courses?.id || "";
                         return (
-                          <div key={idx} className="bg-gray-50 border border-gray-200 rounded-xl p-3 flex flex-col sm:flex-row sm:items-center justify-between gap-3 group">
+                          <div key={idx} className="bg-white/5 border border-white/10 rounded-xl p-3 flex flex-col sm:flex-row sm:items-center justify-between gap-3 group">
                             <div>
                               <div className="flex items-center gap-2 mb-1">
-                                <Badge tone={rec.ai_level === "advanced" ? "dark" : rec.ai_level === "intermediate" ? "orange" : "gray"}>
+                                <Badge className="bg-white/10 border-none text-gray-300">
                                   {rec.ai_level === "advanced" ? "Avanzado" : rec.ai_level === "intermediate" ? "Intermedio" : "Principiante"}
                                 </Badge>
-                                <span className="text-[10px] text-gray-400 font-bold tracking-wider truncate uppercase">{rec.course_modules?.courses?.title}</span>
+                                <span className="text-[10px] text-gray-500 font-bold tracking-wider truncate uppercase">{rec.course_modules?.courses?.title}</span>
                               </div>
-                              <p className="text-sm font-semibold text-gray-900 group-hover:text-orange-600 transition-colors">{rec.title}</p>
+                              <p className="text-sm font-semibold text-white group-hover:text-[#ff6a00] transition-colors">{rec.title}</p>
                               {rec.ai_summary && <p className="text-xs text-gray-500 mt-1 line-clamp-2">{rec.ai_summary}</p>}
                             </div>
                             <Link 
                               href={courseId ? `/cursos/${courseId}` : "/cursos"} 
-                              className="shrink-0 flex items-center justify-center gap-1 bg-white border border-gray-200 text-gray-700 hover:text-orange-600 hover:border-orange-200 px-3 py-1.5 rounded-lg text-xs font-semibold transition-colors shadow-sm"
+                              className="shrink-0 flex items-center justify-center gap-1 bg-[#1a1a1a] border border-white/10 text-gray-300 hover:text-[#ff6a00] hover:border-[#ff6a00]/30 px-3 py-1.5 rounded-lg text-xs font-semibold transition-colors shadow-sm"
                             >
                               Ver clase <ChevronRight size={14} />
                             </Link>
@@ -164,15 +164,15 @@ export default function StampyPage() {
                   {msg.knowledgeTools && msg.knowledgeTools.length > 0 && (
                     <div className="mt-4 space-y-3">
                       {msg.knowledgeTools.map((kt: any, idx: number) => (
-                        <div key={idx} className="bg-indigo-50 border border-indigo-100 rounded-xl p-3 flex flex-col sm:flex-row sm:items-center justify-between gap-3 group shadow-sm">
+                        <div key={idx} className="bg-indigo-900/20 border border-indigo-500/20 rounded-xl p-3 flex flex-col sm:flex-row sm:items-center justify-between gap-3 group shadow-sm">
                           <div>
-                            <p className="text-sm font-bold text-indigo-900 group-hover:text-indigo-700 transition-colors">{kt.title}</p>
-                            {kt.shortDescription && <p className="text-xs text-indigo-700/80 mt-1 line-clamp-2">{kt.shortDescription}</p>}
+                            <p className="text-sm font-bold text-indigo-400 group-hover:text-indigo-300 transition-colors">{kt.title}</p>
+                            {kt.shortDescription && <p className="text-xs text-indigo-300/80 mt-1 line-clamp-2">{kt.shortDescription}</p>}
                           </div>
                           {kt.route && (
                             <Link 
                               href={kt.route} 
-                              className="shrink-0 flex items-center justify-center gap-1 bg-white border border-indigo-200 text-indigo-700 hover:text-indigo-800 hover:bg-indigo-50 px-3 py-1.5 rounded-lg text-xs font-bold transition-colors shadow-sm"
+                              className="shrink-0 flex items-center justify-center gap-1 bg-[#1a1a1a] border border-indigo-500/30 text-indigo-400 hover:text-indigo-300 hover:bg-indigo-500/10 px-3 py-1.5 rounded-lg text-xs font-bold transition-colors shadow-sm"
                             >
                               Abrir <ChevronRight size={14} />
                             </Link>
@@ -193,16 +193,16 @@ export default function StampyPage() {
                     });
                     if (filteredTools.length === 0) return null;
                     return (
-                      <div className="mt-4 pt-4 border-t border-gray-100">
-                        <p className="text-[11px] font-bold text-gray-400 uppercase tracking-wider mb-3">También te puede servir:</p>
+                      <div className="mt-4 pt-4 border-t border-white/10">
+                        <p className="text-[11px] font-bold text-gray-500 uppercase tracking-wider mb-3">También te puede servir:</p>
                         <div className="flex flex-wrap gap-2">
                           {filteredTools.map((t: string) => {
                             const tool = TOOL_MAP[t];
                             const Icon = tool.icon;
                             return (
-                              <Link key={t} href={tool.href} className="flex items-center gap-2 bg-orange-50 border border-orange-100 text-orange-700 hover:bg-orange-100 px-3 py-2 rounded-lg text-xs font-bold transition-colors shadow-sm">
+                              <Link key={t} href={tool.href} className="flex items-center gap-2 bg-[#1a1a1a] border border-white/5 text-gray-300 hover:bg-white/5 hover:text-white px-3 py-2 rounded-lg text-xs font-bold transition-colors shadow-sm">
                                 <Icon size={14} />
-                                Ir a {tool.label}
+                                {tool.label}
                               </Link>
                             );
                           })}
@@ -210,17 +210,10 @@ export default function StampyPage() {
                       </div>
                     );
                   })()}
-
-                  {/* Empty state visual info */}
-                  {msg.role === "stampy" && msg.id !== "1" && (!msg.recommendations || msg.recommendations.length === 0) && (
-                    <div className="mt-4 pt-4 border-t border-gray-100 text-[11px] text-gray-400 font-medium italic">
-                      Todavía no hay una clase exacta para esta consulta.
-                    </div>
-                  )}
                 </div>
 
                 {msg.role === "user" && (
-                  <div className="w-8 h-8 shrink-0 rounded-full bg-gray-200 flex items-center justify-center text-gray-500 mt-1 shadow-sm">
+                  <div className="w-8 h-8 shrink-0 rounded-full bg-white/10 flex items-center justify-center text-gray-400 mt-1 shadow-sm">
                     <User size={18} />
                   </div>
                 )}
@@ -229,12 +222,12 @@ export default function StampyPage() {
             
             {loading && (
               <div className="flex gap-4 justify-start">
-                <div className="w-8 h-8 shrink-0 rounded-full bg-orange-100 flex items-center justify-center text-orange-600 mt-1 shadow-sm">
+                <div className="w-8 h-8 shrink-0 rounded-full bg-[#ff6a00]/10 flex items-center justify-center text-[#ff6a00] mt-1 shadow-sm">
                   <Bot size={18} />
                 </div>
-                <div className="bg-white border border-gray-100 shadow-sm rounded-2xl rounded-tl-sm px-5 py-4 flex items-center gap-3">
-                  <Loader2 size={16} className="animate-spin text-orange-500" />
-                  <p className="text-sm text-gray-500 italic">Stampy está buscando por dónde conviene arrancar...</p>
+                <div className="bg-[#111] border border-white/10 shadow-sm rounded-2xl rounded-tl-sm px-5 py-4 flex items-center gap-3">
+                  <Loader2 size={16} className="animate-spin text-[#ff6a00]" />
+                  <p className="text-sm text-gray-400 italic">Stampy está buscando por dónde conviene arrancar...</p>
                 </div>
               </div>
             )}
@@ -242,14 +235,14 @@ export default function StampyPage() {
             <div ref={messagesEndRef} />
           </div>
           
-          <div className="p-4 bg-white border-t border-gray-200 shrink-0">
+          <div className="p-4 bg-[#0a0a0a] border-t border-white/10 shrink-0">
             <div className="relative flex items-end">
               <textarea
                 value={input}
                 onChange={(e) => setInput(e.target.value)}
                 onKeyDown={handleKeyDown}
                 placeholder="Preguntale algo a Stampy..."
-                className="w-full bg-gray-50 border border-gray-200 rounded-xl py-3 pl-4 pr-12 text-sm text-gray-900 focus:outline-none focus:ring-2 focus:ring-orange-500 focus:border-transparent resize-none overflow-y-auto"
+                className="w-full bg-[#111] border border-white/10 rounded-xl py-3 pl-4 pr-12 text-sm text-white placeholder:text-gray-400 focus:outline-none focus:ring-2 focus:ring-[#ff6a00]/30 focus:border-[#ff6a00]/50 resize-none overflow-y-auto"
                 rows={1}
                 disabled={loading}
                 style={{ minHeight: '52px', maxHeight: '120px' }}
@@ -257,19 +250,19 @@ export default function StampyPage() {
               <button
                 onClick={() => handleSend(input)}
                 disabled={!input.trim() || loading}
-                className="absolute right-2 bottom-2 p-2 bg-orange-500 text-white rounded-lg hover:bg-orange-600 disabled:opacity-50 disabled:cursor-not-allowed transition-colors shadow-sm"
+                className="absolute right-2 bottom-2 p-2 bg-[#ff6a00] text-white rounded-lg hover:bg-[#ff7a1a] disabled:opacity-50 disabled:cursor-not-allowed transition-colors shadow-sm"
               >
                 <Send size={16} />
               </button>
             </div>
-            <p className="text-[10px] text-gray-400 mt-2 text-center font-medium">Stampy es un asistente virtual. No utiliza un modelo avanzado por ahora, solo cruza palabras clave.</p>
+            <p className="text-[10px] text-gray-400 mt-2 text-center font-medium">Stampy es un asistente virtual experimental.</p>
           </div>
         </div>
 
         {/* Quick Suggestions Sidebar */}
         <div className="w-full lg:w-72 shrink-0">
-          <div className="bg-white border border-gray-200 rounded-2xl p-5 shadow-sm">
-            <h3 className="text-sm font-bold text-gray-900 mb-3 flex items-center gap-2">
+          <div className="bg-[#111] border border-white/10 rounded-2xl p-5 shadow-sm">
+            <h3 className="text-sm font-bold text-white mb-3 flex items-center gap-2">
               Sugerencias rápidas
             </h3>
             <div className="flex flex-wrap lg:flex-col gap-2">
@@ -278,7 +271,7 @@ export default function StampyPage() {
                   key={i}
                   onClick={() => setInput(sug)}
                   disabled={loading}
-                  className="text-left text-xs font-medium bg-gray-50 border border-gray-100 hover:bg-orange-50 hover:border-orange-200 hover:text-orange-700 text-gray-600 px-3 py-2.5 rounded-xl transition-colors"
+                  className="text-left text-xs font-medium bg-[#0a0a0a] border border-white/5 hover:bg-orange-50 hover:border-orange-200 hover:text-orange-700 text-gray-400 px-3 py-2.5 rounded-xl transition-colors"
                 >
                   "{sug}"
                 </button>

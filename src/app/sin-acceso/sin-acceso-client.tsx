@@ -98,15 +98,15 @@ export function SinAccesoClient() {
 
   return (
     <div className="flex min-h-screen items-center justify-center bg-[#F7F7F9] px-4 py-12 sm:px-6 lg:px-8">
-      <div className="w-full max-w-md space-y-8 bg-white p-8 rounded-2xl shadow-sm border border-gray-100 text-center">
+      <div className="w-full max-w-md space-y-8 bg-[#111] p-8 rounded-2xl shadow-sm border border-white/5 text-center">
         <div className="flex flex-col items-center justify-center">
           <div className="flex h-12 w-12 items-center justify-center rounded-xl bg-orange-100 mb-4">
             <Building2 className="h-6 w-6 text-orange-600" />
           </div>
-          <h2 className="text-3xl font-bold tracking-tight text-gray-900">
+          <h2 className="text-3xl font-bold tracking-tight text-white">
             Cuenta inactiva
           </h2>
-          <p className="mt-4 text-sm text-gray-600">
+          <p className="mt-4 text-sm text-gray-400">
             Tu cuenta ha sido creada correctamente, pero tu membresía aún no se encuentra activa.
           </p>
           <div className="mt-4 p-4 bg-orange-50 rounded-lg border border-orange-100 min-h-[56px] flex items-center justify-center">
@@ -124,7 +124,7 @@ export function SinAccesoClient() {
               </p>
             )}
           </div>
-          <p className="mt-4 text-sm text-gray-600">
+          <p className="mt-4 text-sm text-gray-400">
             Si ya realizaste el pago, aguardá unos minutos mientras procesamos la información.
           </p>
         </div>
@@ -151,7 +151,7 @@ export function SinAccesoClient() {
             type="button"
             onClick={() => window.location.reload()}
             disabled={loading}
-            className="w-full rounded-lg bg-white px-3 py-3 text-sm font-semibold text-gray-700 border border-gray-300 hover:bg-gray-50 transition-colors disabled:opacity-50"
+            className="w-full rounded-lg bg-[#111] px-3 py-3 text-sm font-semibold text-gray-300 border border-white/20 hover:bg-[#0a0a0a] transition-colors disabled:opacity-50"
           >
             Actualizar página
           </button>
@@ -160,7 +160,7 @@ export function SinAccesoClient() {
             type="button"
             onClick={handleLogout}
             disabled={loading}
-            className="w-full rounded-lg bg-white px-3 py-3 text-sm font-semibold text-gray-500 hover:text-gray-700 transition-colors disabled:opacity-50"
+            className="w-full rounded-lg bg-[#111] px-3 py-3 text-sm font-semibold text-gray-500 hover:text-gray-300 transition-colors disabled:opacity-50"
           >
             Cerrar sesión
           </button>

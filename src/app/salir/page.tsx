@@ -26,7 +26,7 @@ export default function SalirPage() {
     <div className="flex items-center justify-center py-12 min-h-[50vh]">
       <Card className="mx-auto max-w-md p-8 text-center shadow-md">
         <LogOut size={28} className="mx-auto mb-3 text-gray-300 animate-pulse" />
-        <p className="text-sm font-semibold text-gray-900">{message}</p>
+        <p className="text-sm font-semibold text-white">{message}</p>
       </Card>
     </div>
   );

@@ -43,7 +43,7 @@ export default function CanalesPage() {
                 <div className={`w-12 h-12 flex items-center justify-center rounded-2xl border ${chan.color} mb-4`}>
                   <Icon size={24} />
                 </div>
-                <h3 className="text-lg font-bold text-gray-900 mb-1">{chan.name}</h3>
+                <h3 className="text-lg font-bold text-white mb-1">{chan.name}</h3>
                 <p className="text-sm text-gray-500 mb-6">{chan.description}</p>
               </div>
               <div>

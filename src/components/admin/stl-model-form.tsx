@@ -170,7 +170,7 @@ export function StlModelForm({ modelId }: { modelId?: string }) {
   }
 
   return (
-    <form onSubmit={handleSubmit} className="space-y-6 bg-white p-6 rounded-xl border border-gray-200 shadow-sm">
+    <form onSubmit={handleSubmit} className="space-y-6 bg-[#111] p-6 rounded-xl border border-white/10 shadow-sm">
       {error && (
         <div className="bg-red-50 text-red-600 p-4 rounded-lg flex items-center gap-2 text-sm border border-red-100">
           <AlertCircle className="h-4 w-4" />
@@ -186,25 +186,25 @@ export function StlModelForm({ modelId }: { modelId?: string }) {
 
       <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
         <div className="space-y-2 md:col-span-2">
-          <label className="text-sm font-semibold text-gray-700">Título del Modelo *</label>
+          <label className="text-sm font-semibold text-gray-300">Título del Modelo *</label>
           <input
             required
             type="text"
             name="title"
             value={formData.title}
             onChange={handleChange}
-            className="w-full text-sm border-gray-300 rounded-md focus:border-orange-500 focus:ring-orange-500 text-gray-900 bg-white"
+            className="w-full text-sm border-white/10 rounded-md text-neutral-100 bg-neutral-900 border focus:border-[#ff6a00] focus:ring-[#ff6a00]/20 focus:ring-2 placeholder:text-neutral-500 disabled:bg-neutral-800 disabled:text-neutral-500"
             placeholder="Ej. Maceta Geométrica"
           />
         </div>
 
         <div className="space-y-2">
-          <label className="text-sm font-semibold text-gray-700">Categoría</label>
+          <label className="text-sm font-semibold text-gray-300">Categoría</label>
           <select
             name="category_id"
             value={formData.category_id}
             onChange={handleChange}
-            className="w-full text-sm border-gray-300 rounded-md focus:border-orange-500 focus:ring-orange-500 text-gray-900 bg-white"
+            className="w-full text-sm border-white/10 rounded-md text-neutral-100 bg-neutral-900 border focus:border-[#ff6a00] focus:ring-[#ff6a00]/20 focus:ring-2 placeholder:text-neutral-500 disabled:bg-neutral-800 disabled:text-neutral-500"
           >
             <option value="">-- Sin categoría --</option>
             {categories.map((c) => (
@@ -216,23 +216,23 @@ export function StlModelForm({ modelId }: { modelId?: string }) {
         </div>
 
         <div className="space-y-2 md:col-span-2">
-          <label className="text-sm font-semibold text-gray-700">Descripción (Opcional)</label>
+          <label className="text-sm font-semibold text-gray-300">Descripción (Opcional)</label>
           <textarea
             name="description"
             value={formData.description}
             onChange={handleChange}
             rows={4}
-            className="w-full text-sm border-gray-300 rounded-md focus:border-orange-500 focus:ring-orange-500 text-gray-900 bg-white"
+            className="w-full text-sm border-white/10 rounded-md text-neutral-100 bg-neutral-900 border focus:border-[#ff6a00] focus:ring-[#ff6a00]/20 focus:ring-2 placeholder:text-neutral-500 disabled:bg-neutral-800 disabled:text-neutral-500"
           />
         </div>
 
         <div className="space-y-2">
-          <label className="text-sm font-semibold text-gray-700">Dificultad (Opcional)</label>
+          <label className="text-sm font-semibold text-gray-300">Dificultad (Opcional)</label>
           <select
             name="difficulty"
             value={formData.difficulty}
             onChange={handleChange}
-            className="w-full text-sm border-gray-300 rounded-md focus:border-orange-500 focus:ring-orange-500 text-gray-900 bg-white"
+            className="w-full text-sm border-white/10 rounded-md text-neutral-100 bg-neutral-900 border focus:border-[#ff6a00] focus:ring-[#ff6a00]/20 focus:ring-2 placeholder:text-neutral-500 disabled:bg-neutral-800 disabled:text-neutral-500"
           >
             <option value="beginner">Principiante</option>
             <option value="intermediate">Intermedio</option>
@@ -241,43 +241,43 @@ export function StlModelForm({ modelId }: { modelId?: string }) {
         </div>
 
         <div className="space-y-2">
-          <label className="text-sm font-semibold text-gray-700">Material Sugerido (Opcional)</label>
+          <label className="text-sm font-semibold text-gray-300">Material Sugerido (Opcional)</label>
           <input
             type="text"
             name="material_type"
             value={formData.material_type}
             onChange={handleChange}
-            className="w-full text-sm border-gray-300 rounded-md focus:border-orange-500 focus:ring-orange-500 text-gray-900 bg-white"
+            className="w-full text-sm border-white/10 rounded-md text-neutral-100 bg-neutral-900 border focus:border-[#ff6a00] focus:ring-[#ff6a00]/20 focus:ring-2 placeholder:text-neutral-500 disabled:bg-neutral-800 disabled:text-neutral-500"
             placeholder="Ej. PLA, PETG"
           />
         </div>
 
         <div className="space-y-2">
-          <label className="text-sm font-semibold text-gray-700">Tiempo Estimado (Opcional)</label>
+          <label className="text-sm font-semibold text-gray-300">Tiempo Estimado (Opcional)</label>
           <input
             type="text"
             name="estimated_print_time"
             value={formData.estimated_print_time}
             onChange={handleChange}
-            className="w-full text-sm border-gray-300 rounded-md focus:border-orange-500 focus:ring-orange-500 text-gray-900 bg-white"
+            className="w-full text-sm border-white/10 rounded-md text-neutral-100 bg-neutral-900 border focus:border-[#ff6a00] focus:ring-[#ff6a00]/20 focus:ring-2 placeholder:text-neutral-500 disabled:bg-neutral-800 disabled:text-neutral-500"
             placeholder="Ej. 2h 30m"
           />
         </div>
 
         <div className="space-y-2 md:col-span-2">
-          <label className="text-sm font-semibold text-gray-700">Miniatura (Opcional)</label>
+          <label className="text-sm font-semibold text-gray-300">Miniatura (Opcional)</label>
           <input
             type="text"
             name="thumbnail_url"
             value={formData.thumbnail_url}
             onChange={handleChange}
-            className="w-full text-sm border-gray-300 rounded-md focus:border-orange-500 focus:ring-orange-500 text-gray-900 bg-white"
+            className="w-full text-sm border-white/10 rounded-md text-neutral-100 bg-neutral-900 border focus:border-[#ff6a00] focus:ring-[#ff6a00]/20 focus:ring-2 placeholder:text-neutral-500 disabled:bg-neutral-800 disabled:text-neutral-500"
             placeholder="https://ejemplo.com/imagen.jpg o usa un Dropzone en otra sección"
           />
         </div>
 
-        <div className="space-y-2 md:col-span-2 p-4 bg-gray-50 border border-gray-200 rounded-xl">
-          <label className="text-sm font-semibold text-gray-700 block mb-2">Archivo descargable</label>
+        <div className="space-y-2 md:col-span-2 p-4 bg-[#0a0a0a] border border-white/10 rounded-xl">
+          <label className="text-sm font-semibold text-gray-300 block mb-2">Archivo descargable</label>
           
           {formData.file_url ? (
             <div className="mb-4 bg-green-50 text-green-700 p-3 rounded-lg flex items-center justify-between text-sm border border-green-100">
@@ -306,20 +306,20 @@ export function StlModelForm({ modelId }: { modelId?: string }) {
         </div>
 
         <div className="space-y-2 flex items-center pt-8 md:col-span-2">
-          <label className="flex items-center gap-2 cursor-pointer text-sm font-semibold text-gray-700">
+          <label className="flex items-center gap-2 cursor-pointer text-sm font-semibold text-gray-300">
             <input
               type="checkbox"
               name="is_active"
               checked={formData.is_active}
               onChange={handleChange}
-              className="rounded text-orange-600 focus:ring-orange-500"
+              className="rounded text-[#ff6a00] focus:ring-[#ff6a00]/20"
             />
             Archivo Activo (Visible)
           </label>
         </div>
       </div>
 
-      <div className="pt-4 border-t border-gray-100 flex justify-end">
+      <div className="pt-4 border-t border-white/5 flex justify-end">
         <button
           type="submit"
           disabled={saving}

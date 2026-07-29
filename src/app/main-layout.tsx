@@ -25,7 +25,7 @@ export function MainLayout({ children }: { children: React.ReactNode }) {
   }
 
   return (
-    <div className="flex min-h-screen bg-[#F7F7F9] font-sans">
+    <div className="flex min-h-screen bg-[#050505] text-[#ededed] font-sans">
       <Sidebar mobileOpen={mobileOpen} setMobileOpen={setMobileOpen} />
       <div className="flex min-h-screen flex-1 flex-col lg:pl-0">
         <Header setMobileOpen={setMobileOpen} />

@@ -54,11 +54,11 @@ export function StlModelsTable() {
         </div>
       )}
 
-      <div className="bg-white border border-gray-200 rounded-xl overflow-hidden shadow-sm">
+      <div className="bg-[#111] border border-white/10 rounded-xl overflow-hidden shadow-sm">
         <div className="overflow-x-auto">
           <table className="w-full text-left border-collapse">
             <thead>
-              <tr className="bg-gray-50 border-b border-gray-200 text-sm font-medium text-gray-500">
+              <tr className="bg-[#0a0a0a] border-b border-white/10 text-sm font-medium text-gray-500">
                 <th className="px-4 py-3">Miniatura</th>
                 <th className="px-4 py-3">Título</th>
                 <th className="px-4 py-3">Categoría</th>
@@ -69,18 +69,18 @@ export function StlModelsTable() {
             </thead>
             <tbody className="divide-y divide-gray-100">
               {models.map((model) => (
-                <tr key={model.id} className="text-sm hover:bg-gray-50 transition-colors">
+                <tr key={model.id} className="text-sm hover:bg-[#0a0a0a] transition-colors">
                   <td className="px-4 py-3">
                     {model.thumbnail_url ? (
                       <img src={model.thumbnail_url} alt={model.title} className="w-10 h-10 rounded object-cover" />
                     ) : (
-                      <div className="w-10 h-10 bg-gray-100 rounded flex items-center justify-center text-gray-400 text-xs">Sin img</div>
+                      <div className="w-10 h-10 bg-white/5 rounded flex items-center justify-center text-gray-400 text-xs">Sin img</div>
                     )}
                   </td>
-                  <td className="px-4 py-3 font-medium text-gray-900">
+                  <td className="px-4 py-3 font-medium text-white">
                     {model.title}
                   </td>
-                  <td className="px-4 py-3 text-gray-600">
+                  <td className="px-4 py-3 text-gray-400">
                     {model.stl_categories?.name || "Sin categoría"}
                   </td>
                   <td className="px-4 py-3">
@@ -88,7 +88,7 @@ export function StlModelsTable() {
                       {model.is_active ? "Activo" : "Inactivo"}
                     </Badge>
                   </td>
-                  <td className="px-4 py-3 text-gray-600">
+                  <td className="px-4 py-3 text-gray-400">
                     {new Intl.DateTimeFormat("es-AR", { dateStyle: "short" }).format(new Date(model.created_at))}
                   </td>
                   <td className="px-4 py-3 text-right">

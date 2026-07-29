@@ -47,7 +47,7 @@ export default function AdminSorteosPage() {
     <div className="space-y-6">
       <div className="flex justify-between items-center">
         <div>
-          <h1 className="text-2xl font-black text-gray-900">Gestión de Sorteos</h1>
+          <h1 className="text-2xl font-black text-white">Gestión de Sorteos</h1>
           <p className="text-sm text-gray-500 mt-1">Administra los sorteos y premios de la comunidad.</p>
         </div>
         <Link href="/admin/sorteos/nuevo">
@@ -59,7 +59,7 @@ export default function AdminSorteosPage() {
 
       <Card className="overflow-hidden p-0">
         <table className="w-full text-left text-sm">
-          <thead className="bg-gray-50 text-xs font-semibold uppercase tracking-wide text-gray-500">
+          <thead className="bg-[#0a0a0a] text-xs font-semibold uppercase tracking-wide text-gray-500">
             <tr>
               <th className="px-5 py-3">Título</th>
               <th className="px-5 py-3">Fecha del Sorteo</th>
@@ -70,8 +70,8 @@ export default function AdminSorteosPage() {
           </thead>
           <tbody className="divide-y divide-gray-100">
             {raffles.map((r) => (
-              <tr key={r.id} className="hover:bg-gray-50 transition-colors">
-                <td className="px-5 py-3.5 font-semibold text-gray-900">
+              <tr key={r.id} className="hover:bg-[#0a0a0a] transition-colors">
+                <td className="px-5 py-3.5 font-semibold text-white">
                   <div className="flex items-center gap-3">
                     <div className="w-8 h-8 rounded bg-orange-50 flex items-center justify-center text-orange-500">
                       <Gift size={16} />
@@ -79,10 +79,10 @@ export default function AdminSorteosPage() {
                     {r.title}
                   </div>
                 </td>
-                <td className="px-5 py-3.5 text-gray-600 font-medium">
+                <td className="px-5 py-3.5 text-gray-400 font-medium">
                   {r.draw_date ? new Date(r.draw_date).toLocaleDateString() : "Sin fecha"}
                 </td>
-                <td className="px-5 py-3.5 text-gray-600 font-medium">
+                <td className="px-5 py-3.5 text-gray-400 font-medium">
                   {r.raffle_prizes?.length || 0}
                 </td>
                 <td className="px-5 py-3.5">
@@ -91,7 +91,7 @@ export default function AdminSorteosPage() {
                 <td className="px-5 py-3.5">
                   <div className="flex justify-end gap-1.5">
                     <Link href={`/admin/sorteos/${r.id}`}>
-                      <GhostButton className="px-3 py-1.5 text-xs text-gray-700 bg-white border border-gray-200">
+                      <GhostButton className="px-3 py-1.5 text-xs text-gray-300 bg-[#111] border border-white/10">
                         <Pencil size={13} className="mr-1" /> Editar / Premios
                       </GhostButton>
                     </Link>

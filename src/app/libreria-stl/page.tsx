@@ -97,12 +97,12 @@ export default function LibreriaStlPage() {
                     {c.thumbnail_url ? (
                       <img src={c.thumbnail_url} alt={c.name} className="h-16 w-16 object-cover rounded-xl" />
                     ) : (
-                      <div className="h-16 w-16 bg-gray-100 rounded-xl flex items-center justify-center text-gray-400">
+                      <div className="h-16 w-16 bg-white/5 rounded-xl flex items-center justify-center text-gray-400">
                         <Boxes size={32} />
                       </div>
                     )}
                   </div>
-                  <p className="text-sm font-bold text-gray-900">{c.name}</p>
+                  <p className="text-sm font-bold text-white">{c.name}</p>
                   <p className="text-xs text-gray-400">{count} archivos</p>
                 </Card>
               );
@@ -129,7 +129,7 @@ export default function LibreriaStlPage() {
           setSelectedCatId(null);
           setQuery("");
         }}
-        className="mb-4 flex items-center gap-1.5 text-xs font-semibold text-gray-500 hover:text-gray-800 transition-colors"
+        className="mb-4 flex items-center gap-1.5 text-xs font-semibold text-gray-500 hover:text-gray-200 transition-colors"
       >
         <ArrowLeft size={14} /> Todas las categorías
       </button>
@@ -141,7 +141,7 @@ export default function LibreriaStlPage() {
           value={query}
           onChange={(e) => setQuery(e.target.value)}
           placeholder="Buscar modelos..."
-          className="w-full rounded-xl border border-gray-200 bg-gray-50 py-2.5 pl-9 pr-3 text-sm text-gray-900 outline-none focus:border-orange-500 focus:bg-white focus:ring-2 focus:ring-orange-100 transition-all"
+          className="w-full rounded-xl border border-white/10 bg-[#0a0a0a] py-2.5 pl-9 pr-3 text-sm text-white outline-none focus:border-orange-500 focus:bg-[#111] focus:ring-2 focus:ring-orange-100 transition-all"
         />
       </div>
 
@@ -151,7 +151,7 @@ export default function LibreriaStlPage() {
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
           {filteredItems.map((f) => (
             <Card key={f.id} className="overflow-hidden p-0 flex flex-col h-full">
-              <div className="relative flex h-36 items-center justify-center bg-gray-50">
+              <div className="relative flex h-36 items-center justify-center bg-[#0a0a0a]">
                 {f.thumbnail_url ? (
                   <img src={f.thumbnail_url} alt={f.title} className="w-full h-full object-cover" />
                 ) : (
@@ -163,10 +163,10 @@ export default function LibreriaStlPage() {
               </div>
               <div className="p-4 flex flex-col flex-1">
                 <p className="text-[10px] font-semibold text-orange-500 uppercase tracking-wider mb-1 truncate">{f.category?.name || "Sin categoría"}</p>
-                <p className="font-bold text-gray-900 text-sm leading-tight mb-2 line-clamp-2">{f.title}</p>
+                <p className="font-bold text-white text-sm leading-tight mb-2 line-clamp-2">{f.title}</p>
                 <div className="mt-auto space-y-1 mb-3">
-                  <p className="text-xs text-gray-500 flex justify-between"><span>Material:</span> <span className="font-medium text-gray-700">{f.material_type || "N/A"}</span></p>
-                  <p className="text-xs text-gray-500 flex justify-between"><span>Tiempo Impresión:</span> <span className="font-medium text-gray-700">{f.estimated_print_time || "N/A"}</span></p>
+                  <p className="text-xs text-gray-500 flex justify-between"><span>Material:</span> <span className="font-medium text-gray-300">{f.material_type || "N/A"}</span></p>
+                  <p className="text-xs text-gray-500 flex justify-between"><span>Tiempo Impresión:</span> <span className="font-medium text-gray-300">{f.estimated_print_time || "N/A"}</span></p>
                 </div>
                 
                 {(() => {

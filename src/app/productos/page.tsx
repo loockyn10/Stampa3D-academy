@@ -848,25 +848,25 @@ export default function ProductosPage() {
       {editingId && (
         <Card className="mb-8 p-5 border-orange-300 shadow-md ring-1 ring-orange-100">
           <div className="flex justify-between items-center mb-4">
-            <h3 className="text-lg font-bold text-gray-900">{editingId === "new" ? "Nuevo Producto" : "Editar Producto"}</h3>
-            <button onClick={() => setEditingId(null)} className="text-gray-400 hover:text-gray-700"><X size={20} /></button>
+            <h3 className="text-lg font-bold text-white">{editingId === "new" ? "Nuevo Producto" : "Editar Producto"}</h3>
+            <button onClick={() => setEditingId(null)} className="text-gray-400 hover:text-gray-300"><X size={20} /></button>
           </div>
 
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
             <div>
-              <label className="block text-xs font-semibold text-gray-700 mb-1">Nombre</label>
-              <input type="text" name="name" value={formData.name} onChange={handleChange} className="w-full text-sm border-gray-300 rounded-md focus:border-orange-500 focus:ring-orange-500 text-gray-900 bg-white" placeholder="Ej. Llavero personalizado" />
+              <label className="block text-xs font-semibold text-gray-300 mb-1">Nombre</label>
+              <input type="text" name="name" value={formData.name} onChange={handleChange} className="w-full text-sm border-white/10 rounded-md text-neutral-100 bg-neutral-900 border focus:border-[#ff6a00] focus:ring-[#ff6a00]/20 focus:ring-2 placeholder:text-neutral-500 disabled:bg-neutral-800 disabled:text-neutral-500" placeholder="Ej. Llavero personalizado" />
             </div>
             <div>
-              <label className="block text-xs font-semibold text-gray-700 mb-1">Tiempo de Impresión</label>
+              <label className="block text-xs font-semibold text-gray-300 mb-1">Tiempo de Impresión</label>
               <div className="grid grid-cols-2 gap-1.5">
                 <div>
-                  <label className="block text-[11px] font-semibold text-gray-700 mb-1">Horas</label>
-                  <input type="number" name="print_time_hours" min="0" value={formData.print_time_hours} onChange={handleChange} className="w-full text-sm border-gray-300 rounded-md focus:border-orange-500 focus:ring-orange-500 text-gray-900 bg-white" />
+                  <label className="block text-[11px] font-semibold text-gray-300 mb-1">Horas</label>
+                  <input type="number" name="print_time_hours" min="0" value={formData.print_time_hours} onChange={handleChange} className="w-full text-sm border-white/10 rounded-md text-neutral-100 bg-neutral-900 border focus:border-[#ff6a00] focus:ring-[#ff6a00]/20 focus:ring-2 placeholder:text-neutral-500 disabled:bg-neutral-800 disabled:text-neutral-500" />
                 </div>
                 <div>
-                  <label className="block text-[11px] font-semibold text-gray-700 mb-1">Minutos</label>
-                  <input type="number" name="print_time_remaining_minutes" min="0" max="59" value={formData.print_time_remaining_minutes} onChange={handleChange} className="w-full text-sm border-gray-300 rounded-md focus:border-orange-500 focus:ring-orange-500 text-gray-900 bg-white" />
+                  <label className="block text-[11px] font-semibold text-gray-300 mb-1">Minutos</label>
+                  <input type="number" name="print_time_remaining_minutes" min="0" max="59" value={formData.print_time_remaining_minutes} onChange={handleChange} className="w-full text-sm border-white/10 rounded-md text-neutral-100 bg-neutral-900 border focus:border-[#ff6a00] focus:ring-[#ff6a00]/20 focus:ring-2 placeholder:text-neutral-500 disabled:bg-neutral-800 disabled:text-neutral-500" />
                 </div>
               </div>
             </div>
@@ -874,7 +874,7 @@ export default function ProductosPage() {
 
           {/* Mode selector */}
           <div className="mb-4">
-            <label className="block text-xs font-semibold text-gray-700 mb-2">Modo de composición</label>
+            <label className="block text-xs font-semibold text-gray-300 mb-2">Modo de composición</label>
             <div className="flex gap-4">
               <label className="flex items-center gap-2 cursor-pointer">
                 <input
@@ -883,9 +883,9 @@ export default function ProductosPage() {
                   value="simple"
                   checked={formData.mode === "simple"}
                   onChange={handleChange}
-                  className="text-orange-500 focus:ring-orange-500"
+                  className="text-[#ff6a00] focus:ring-[#ff6a00]/20"
                 />
-                <span className="text-sm text-gray-700">Producto simple</span>
+                <span className="text-sm text-gray-300">Producto simple</span>
               </label>
               <label className="flex items-center gap-2 cursor-pointer">
                 <input
@@ -894,17 +894,17 @@ export default function ProductosPage() {
                   value="parts"
                   checked={formData.mode === "parts"}
                   onChange={handleChange}
-                  className="text-orange-500 focus:ring-orange-500"
+                  className="text-[#ff6a00] focus:ring-[#ff6a00]/20"
                 />
-                <span className="text-sm text-gray-700">Producto por partes</span>
+                <span className="text-sm text-gray-300">Producto por partes</span>
               </label>
             </div>
           </div>
 
           {/* Materiales y Partes del Producto */}
-          <div className="mb-4 bg-gray-50/50 p-4 rounded-xl border border-gray-200 shadow-sm">
+          <div className="mb-4 bg-[#0a0a0a]/50 p-4 rounded-xl border border-white/10 shadow-sm">
             <div className="flex items-center justify-between mb-3">
-              <h4 className="text-sm font-bold text-gray-900">
+              <h4 className="text-sm font-bold text-white">
                 {formData.mode === "simple" ? "Materiales del producto" : "Partes del producto"}
               </h4>
               {formData.mode === "parts" && (
@@ -916,7 +916,7 @@ export default function ProductosPage() {
 
             <div className="space-y-4">
               {formData.components.map((comp, compIndex) => (
-                <div key={compIndex} className={`p-3 rounded-lg border ${formData.mode === "parts" ? 'bg-white border-gray-200' : 'border-transparent'}`}>
+                <div key={compIndex} className={`p-3 rounded-lg border ${formData.mode === "parts" ? 'bg-[#111] border-white/10' : 'border-transparent'}`}>
 
                   {formData.mode === "parts" && (
                     <div className="flex items-start gap-2 mb-3">
@@ -926,25 +926,25 @@ export default function ProductosPage() {
                           value={comp.name}
                           onChange={(e) => handleComponentChange(compIndex, "name", e.target.value)}
                           placeholder="Nombre de la parte (ej. Cuerpo)"
-                          className="w-full text-sm font-medium border-gray-300 rounded-md focus:border-orange-500 focus:ring-orange-500"
+                          className="w-full text-sm font-medium border-white/20 rounded-md focus:border-orange-500 focus:ring-orange-500"
                         />
                         <div className="flex gap-2">
-                          <label className="flex items-center gap-2 text-xs text-gray-600">
+                          <label className="flex items-center gap-2 text-xs text-gray-400">
                             Cant. por producto:
                             <input
                               type="number" min="1"
                               value={comp.quantity_per_product}
                               onChange={(e) => handleComponentChange(compIndex, "quantity_per_product", Math.max(1, parseInt(e.target.value) || 1))}
-                              className="w-16 text-xs border-gray-300 rounded-md p-1"
+                              className="w-16 text-xs border-white/20 rounded-md p-1"
                             />
                           </label>
-                          <label className="flex items-center gap-2 text-xs text-gray-600">
+                          <label className="flex items-center gap-2 text-xs text-gray-400">
                             Stock actual:
                             <input
                               type="number" min="0"
                               value={comp.stock_quantity}
                               onChange={(e) => handleComponentChange(compIndex, "stock_quantity", Math.max(0, parseInt(e.target.value) || 0))}
-                              className="w-16 text-xs border-gray-300 rounded-md p-1"
+                              className="w-16 text-xs border-white/20 rounded-md p-1"
                             />
                           </label>
                         </div>
@@ -964,7 +964,7 @@ export default function ProductosPage() {
                           <select
                             value={mat.filament_id}
                             onChange={(e) => handleComponentMaterialChange(compIndex, matIndex, "filament_id", e.target.value)}
-                            className="w-full text-xs border-gray-300 rounded-md focus:border-orange-500 focus:ring-orange-500 text-gray-900 bg-white"
+                            className="w-full text-xs border-white/20 rounded-md focus:border-orange-500 focus:ring-orange-500 text-white bg-[#111]"
                           >
                             <option value="">Seleccionar filamento...</option>
                             {filaments.map(f => <option key={f.id} value={f.id}>{f.name} {f.color ? `(${f.color})` : ""}</option>)}
@@ -976,7 +976,7 @@ export default function ProductosPage() {
                             min="0" step="0.1"
                             value={mat.grams}
                             onChange={(e) => handleComponentMaterialChange(compIndex, matIndex, "grams", parseFloat(e.target.value) || 0)}
-                            className="w-full text-xs border-gray-300 rounded-md focus:border-orange-500 focus:ring-orange-500 text-gray-900 bg-white"
+                            className="w-full text-xs border-white/20 rounded-md focus:border-orange-500 focus:ring-orange-500 text-white bg-[#111]"
                             placeholder="Gramos"
                           />
                           <span className="text-xs text-gray-500">g</span>
@@ -998,24 +998,24 @@ export default function ProductosPage() {
           </div>
 
           {/* Embedded Calculator */}
-          <div className="mb-4 bg-gray-50/50 p-4 rounded-xl border border-gray-200 shadow-sm">
+          <div className="mb-4 bg-[#0a0a0a]/50 p-4 rounded-xl border border-white/10 shadow-sm">
             <div className="flex items-center gap-2 mb-3">
               <RefreshCw size={16} className="text-orange-500" />
-              <h4 className="text-sm font-bold text-gray-900">Cálculo Rápido</h4>
+              <h4 className="text-sm font-bold text-white">Cálculo Rápido</h4>
               <p className="text-xs text-gray-500 ml-2 font-medium hidden sm:block">Calculá automáticamente usando tus costos.</p>
             </div>
 
             <div className="grid grid-cols-1 md:grid-cols-2 gap-3 mb-3">
               <div>
-                <label className="block text-[11px] font-semibold text-gray-700 mb-1">Impresora</label>
-                <select name="printer_id" value={formData.printer_id} onChange={handleChange} className="w-full text-xs border-gray-300 rounded-md focus:border-orange-500 focus:ring-orange-500 text-gray-900 bg-white">
+                <label className="block text-[11px] font-semibold text-gray-300 mb-1">Impresora</label>
+                <select name="printer_id" value={formData.printer_id} onChange={handleChange} className="w-full text-xs border-white/10 rounded-md text-neutral-100 bg-neutral-900 border focus:border-[#ff6a00] focus:ring-[#ff6a00]/20 focus:ring-2 placeholder:text-neutral-500 disabled:bg-neutral-800 disabled:text-neutral-500">
                   <option value="">Seleccionar impresora...</option>
                   {printers.map(p => <option key={p.id} value={p.id}>{p.name}</option>)}
                 </select>
               </div>
               <div>
-                <label className="block text-[11px] font-semibold text-gray-700 mb-1">Tipo de producto</label>
-                <select name="product_type_id" value={formData.product_type_id} onChange={handleChange} className="w-full text-xs border-gray-300 rounded-md focus:border-orange-500 focus:ring-orange-500 text-gray-900 bg-white">
+                <label className="block text-[11px] font-semibold text-gray-300 mb-1">Tipo de producto</label>
+                <select name="product_type_id" value={formData.product_type_id} onChange={handleChange} className="w-full text-xs border-white/10 rounded-md text-neutral-100 bg-neutral-900 border focus:border-[#ff6a00] focus:ring-[#ff6a00]/20 focus:ring-2 placeholder:text-neutral-500 disabled:bg-neutral-800 disabled:text-neutral-500">
                   <option value="">Seleccionar tipo...</option>
                   {productTypes.map(pt => <option key={pt.id} value={pt.id}>{pt.name}</option>)}
                 </select>
@@ -1026,7 +1026,7 @@ export default function ProductosPage() {
               <button
                 type="button"
                 onClick={handleEditorCalculate}
-                className="bg-white border border-orange-200 text-orange-600 px-4 py-2 rounded-lg text-xs font-bold hover:bg-orange-50 transition-colors"
+                className="bg-[#111] border border-orange-200 text-orange-600 px-4 py-2 rounded-lg text-xs font-bold hover:bg-orange-50 transition-colors"
               >
                 Calcular precio
               </button>
@@ -1036,19 +1036,19 @@ export default function ProductosPage() {
             </div>
 
             {calcPreview && (
-              <div className="mt-4 pt-4 border-t border-gray-200">
+              <div className="mt-4 pt-4 border-t border-white/10">
                 <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 mb-3">
-                  <div className="bg-white p-2 rounded border border-gray-100 text-center">
+                  <div className="bg-[#111] p-2 rounded border border-white/5 text-center">
                     <p className="text-[10px] text-gray-400">Material</p>
-                    <p className="text-xs font-bold text-gray-700">${calcPreview.materialCost.toFixed(2)}</p>
+                    <p className="text-xs font-bold text-gray-300">${calcPreview.materialCost.toFixed(2)}</p>
                   </div>
-                  <div className="bg-white p-2 rounded border border-gray-100 text-center">
+                  <div className="bg-[#111] p-2 rounded border border-white/5 text-center">
                     <p className="text-[10px] text-gray-400">Electricidad</p>
-                    <p className="text-xs font-bold text-gray-700">${calcPreview.electricityCost.toFixed(2)}</p>
+                    <p className="text-xs font-bold text-gray-300">${calcPreview.electricityCost.toFixed(2)}</p>
                   </div>
-                  <div className="bg-white p-2 rounded border border-gray-100 text-center">
+                  <div className="bg-[#111] p-2 rounded border border-white/5 text-center">
                     <p className="text-[10px] text-gray-400">Mant+Fijo</p>
-                    <p className="text-xs font-bold text-gray-700">${(calcPreview.maintenanceCost + calcPreview.fixedCost).toFixed(2)}</p>
+                    <p className="text-xs font-bold text-gray-300">${(calcPreview.maintenanceCost + calcPreview.fixedCost).toFixed(2)}</p>
                   </div>
                   <div className="bg-orange-50 p-2 rounded border border-orange-100 text-center">
                     <p className="text-[10px] text-orange-600 font-bold">Venta Sugerida (x{calcPreview.multiplier})</p>
@@ -1070,20 +1070,20 @@ export default function ProductosPage() {
 
           <div className="grid grid-cols-3 gap-2">
             <div>
-              <label className="block text-xs font-semibold text-gray-700 mb-1">Costo Base ($)</label>
-              <input type="number" name="base_cost" value={formData.base_cost} onChange={handleChange} className="w-full text-sm border-gray-300 rounded-md focus:border-orange-500 focus:ring-orange-500 text-gray-900 bg-white" />
+              <label className="block text-xs font-semibold text-gray-300 mb-1">Costo Base ($)</label>
+              <input type="number" name="base_cost" value={formData.base_cost} onChange={handleChange} className="w-full text-sm border-white/10 rounded-md text-neutral-100 bg-neutral-900 border focus:border-[#ff6a00] focus:ring-[#ff6a00]/20 focus:ring-2 placeholder:text-neutral-500 disabled:bg-neutral-800 disabled:text-neutral-500" />
             </div>
             <div>
-              <label className="block text-xs font-semibold text-gray-700 mb-1">Precio Venta ($)</label>
-              <input type="number" name="sale_price" value={formData.sale_price} onChange={handleChange} className="w-full text-sm border-gray-300 rounded-md focus:border-orange-500 focus:ring-orange-500 text-gray-900 bg-white" />
+              <label className="block text-xs font-semibold text-gray-300 mb-1">Precio Venta ($)</label>
+              <input type="number" name="sale_price" value={formData.sale_price} onChange={handleChange} className="w-full text-sm border-white/10 rounded-md text-neutral-100 bg-neutral-900 border focus:border-[#ff6a00] focus:ring-[#ff6a00]/20 focus:ring-2 placeholder:text-neutral-500 disabled:bg-neutral-800 disabled:text-neutral-500" />
             </div>
             <div>
-              <label className="block text-xs font-semibold text-gray-700 mb-1">Stock Actual</label>
-              <input type="number" name="stock_quantity" value={formData.stock_quantity} onChange={handleChange} className="w-full text-sm border-gray-300 rounded-md focus:border-orange-500 focus:ring-orange-500 text-gray-900 bg-white" />
+              <label className="block text-xs font-semibold text-gray-300 mb-1">Stock Actual</label>
+              <input type="number" name="stock_quantity" value={formData.stock_quantity} onChange={handleChange} className="w-full text-sm border-white/10 rounded-md text-neutral-100 bg-neutral-900 border focus:border-[#ff6a00] focus:ring-[#ff6a00]/20 focus:ring-2 placeholder:text-neutral-500 disabled:bg-neutral-800 disabled:text-neutral-500" />
             </div>
           </div>
           <div className="md:col-span-2">
-            <label className="text-xs font-semibold text-gray-700">Imagen del Producto</label>
+            <label className="text-xs font-semibold text-gray-300">Imagen del Producto</label>
             <div className="space-y-3 mt-1">
               <FileUploadDropzone
                 bucket="product-images"
@@ -1094,14 +1094,14 @@ export default function ProductosPage() {
                 label="Subir Imagen"
               />
               <div className="flex items-center gap-2">
-                <hr className="flex-1 border-gray-200" />
+                <hr className="flex-1 border-white/10" />
                 <span className="text-[10px] text-gray-400 font-semibold uppercase">O URL Externa</span>
-                <hr className="flex-1 border-gray-200" />
+                <hr className="flex-1 border-white/10" />
               </div>
               <div className="flex gap-4 items-center">
-                <input type="text" name="image_url" value={formData.image_url} onChange={handleChange} className="flex-1 text-sm border-gray-300 rounded-lg px-3 py-2 focus:border-orange-500 focus:ring-1 focus:ring-orange-500 text-gray-900 bg-white" placeholder="https://..." />
+                <input type="text" name="image_url" value={formData.image_url} onChange={handleChange} className="flex-1 text-sm border-white/10 rounded-lg px-3 py-2 text-neutral-100 bg-neutral-900 border focus:border-[#ff6a00] focus:ring-[#ff6a00]/20 focus:ring-2 placeholder:text-neutral-500 disabled:bg-neutral-800 disabled:text-neutral-500" placeholder="https://..." />
                 {formData.image_url && (
-                  <div className="h-12 w-12 shrink-0 rounded-lg bg-gray-100 overflow-hidden border border-gray-200">
+                  <div className="h-12 w-12 shrink-0 rounded-lg bg-white/5 overflow-hidden border border-white/10">
                     <img src={formData.image_url} alt="Producto" className="w-full h-full object-cover" />
                   </div>
                 )}
@@ -1111,8 +1111,8 @@ export default function ProductosPage() {
 
           {/* Historial de precios */}
           {editingId !== "new" && historyProductId === editingId && (
-            <div className="mb-4 border border-gray-100 rounded-xl p-3">
-              <div className="flex items-center gap-2 mb-2 text-xs font-bold text-gray-600">
+            <div className="mb-4 border border-white/5 rounded-xl p-3">
+              <div className="flex items-center gap-2 mb-2 text-xs font-bold text-gray-400">
                 <History size={14} /> Historial de precios
               </div>
               {historyLoading ? (
@@ -1122,7 +1122,7 @@ export default function ProductosPage() {
               ) : (
                 <div className="space-y-1">
                   {priceHistory.map((h: any) => (
-                    <div key={h.id} className="flex items-center justify-between text-xs text-gray-600 py-1 border-b border-gray-50">
+                    <div key={h.id} className="flex items-center justify-between text-xs text-gray-400 py-1 border-b border-gray-50">
                       <span className="text-gray-400">{formatDate(h.changed_at)}</span>
                       <span className="text-red-400 line-through">${(h.old_sale_price || 0).toFixed(2)}</span>
                       <span className="text-green-600 font-bold">${(h.new_sale_price || 0).toFixed(2)}</span>
@@ -1134,13 +1134,13 @@ export default function ProductosPage() {
             </div>
           )}
 
-          <div className="flex items-center justify-between border-t border-gray-100 pt-4">
+          <div className="flex items-center justify-between border-t border-white/5 pt-4">
             <div className="flex items-center gap-2">
-              <input type="checkbox" name="is_active" checked={formData.is_active} onChange={handleChange} className="rounded text-orange-600 focus:ring-orange-500" />
-              <label className="text-sm font-medium text-gray-700">Producto Activo</label>
+              <input type="checkbox" name="is_active" checked={formData.is_active} onChange={handleChange} className="rounded text-[#ff6a00] focus:ring-[#ff6a00]/20" />
+              <label className="text-sm font-medium text-gray-300">Producto Activo</label>
             </div>
             <div className="flex gap-2">
-              <button onClick={() => setEditingId(null)} className="px-4 py-2 text-sm font-bold text-gray-600 hover:bg-gray-100 rounded-lg transition-colors">Cancelar</button>
+              <button onClick={() => setEditingId(null)} className="px-4 py-2 text-sm font-bold text-gray-400 hover:bg-white/5 rounded-lg transition-colors">Cancelar</button>
               <button onClick={handleSave} className="flex items-center gap-2 px-4 py-2 text-sm font-bold bg-orange-500 hover:bg-orange-600 text-white rounded-lg transition-colors">
                 <Save size={16} /> Guardar
               </button>
@@ -1178,15 +1178,15 @@ export default function ProductosPage() {
 
               <div className="flex items-start gap-3">
                 {p.image_url ? (
-                  <img src={p.image_url} alt={p.name} className="h-14 w-14 shrink-0 rounded-xl object-cover bg-gray-50 border border-gray-100" />
+                  <img src={p.image_url} alt={p.name} className="h-14 w-14 shrink-0 rounded-xl object-cover bg-[#0a0a0a] border border-white/5" />
                 ) : (
-                  <div className="flex h-14 w-14 shrink-0 items-center justify-center rounded-xl bg-gray-50 text-2xl select-none border border-gray-100 text-gray-400">
+                  <div className="flex h-14 w-14 shrink-0 items-center justify-center rounded-xl bg-[#0a0a0a] text-2xl select-none border border-white/5 text-gray-400">
                     📦
                   </div>
                 )}
                 <div className="min-w-0 flex-1">
                   <div className="flex items-center gap-2">
-                    <p className="truncate text-sm font-bold text-gray-900">{p.name}</p>
+                    <p className="truncate text-sm font-bold text-white">{p.name}</p>
                     {p.product_components?.length > 1 && (
                       <span className="px-1.5 py-0.5 bg-blue-100 text-blue-700 text-[9px] font-bold uppercase rounded-md">Por partes</span>
                     )}
@@ -1200,7 +1200,7 @@ export default function ProductosPage() {
                           const f = filaments.find(f => f.id === snapMats[0].filament_id);
                           return (
                             <>
-                              {f && <div className="w-2.5 h-2.5 rounded-full border border-gray-300" style={{ backgroundColor: f.color || '#ccc' }}></div>}
+                              {f && <div className="w-2.5 h-2.5 rounded-full border border-white/20" style={{ backgroundColor: f.color || '#ccc' }}></div>}
                               <span className="truncate max-w-[80px]">{snapMats[0].filament_name || f?.name || "Filamento"}</span> ·
                             </>
                           );
@@ -1214,7 +1214,7 @@ export default function ProductosPage() {
                       } else if (filament) {
                         return (
                           <>
-                            <div className="w-2.5 h-2.5 rounded-full border border-gray-300" style={{ backgroundColor: filament.color || '#ccc' }}></div>
+                            <div className="w-2.5 h-2.5 rounded-full border border-white/20" style={{ backgroundColor: filament.color || '#ccc' }}></div>
                             <span className="truncate max-w-[80px]">{filament.name}</span> ·
                           </>
                         );
@@ -1227,9 +1227,9 @@ export default function ProductosPage() {
               </div>
 
               {/* Prices + Profit */}
-              <div className="mt-3 grid grid-cols-4 gap-1.5 rounded-xl bg-gray-50 p-2.5 text-center">
+              <div className="mt-3 grid grid-cols-4 gap-1.5 rounded-xl bg-[#0a0a0a] p-2.5 text-center">
                 <div>
-                  <p className="text-xs font-bold text-gray-900">${p.base_cost?.toFixed(2) || "0.00"}</p>
+                  <p className="text-xs font-bold text-white">${p.base_cost?.toFixed(2) || "0.00"}</p>
                   <p className="text-[10px] text-gray-400">Costo</p>
                 </div>
                 <div>
@@ -1244,7 +1244,7 @@ export default function ProductosPage() {
                   <p className="text-[10px] text-gray-400">Ganancia</p>
                 </div>
                 <div>
-                  <p className={`text-xs font-bold ${p.stock_quantity > 0 ? 'text-gray-900' : 'text-red-500'}`}>{p.stock_quantity || 0}</p>
+                  <p className={`text-xs font-bold ${p.stock_quantity > 0 ? 'text-white' : 'text-red-500'}`}>{p.stock_quantity || 0}</p>
                   <p className="text-[10px] text-gray-400">Terminados</p>
                 </div>
               </div>
@@ -1264,8 +1264,8 @@ export default function ProductosPage() {
                       const hasStock = c.stock_quantity >= needed;
                       return (
                         <div key={c.id} className="flex justify-between items-center text-xs">
-                          <span className="text-gray-600 truncate mr-2">{c.name}</span>
-                          <span className={`font-medium ${hasStock ? 'text-gray-900' : 'text-red-500'}`}>
+                          <span className="text-gray-400 truncate mr-2">{c.name}</span>
+                          <span className={`font-medium ${hasStock ? 'text-white' : 'text-red-500'}`}>
                             {c.stock_quantity || 0} / {needed}
                           </span>
                         </div>
@@ -1285,20 +1285,20 @@ export default function ProductosPage() {
               )}
 
               <div className="mt-3 flex gap-2">
-                <GhostButton onClick={() => handleEdit(p)} className="flex-1 py-2 text-xs text-gray-700 bg-white border border-gray-200">
+                <GhostButton onClick={() => handleEdit(p)} className="flex-1 py-2 text-xs text-gray-300 bg-[#111] border border-white/10">
                   <Pencil size={13} /> Editar
                 </GhostButton>
                 <GhostButton
                   onClick={() => handleRecalculate(p)}
-                  className={`flex-1 py-2 text-xs border ${pricingStatus.needsRecalculation ? 'text-white bg-yellow-600 hover:bg-yellow-700 border-yellow-700' : 'text-indigo-600 hover:bg-indigo-50 border-indigo-200 bg-white'}`}
+                  className={`flex-1 py-2 text-xs border ${pricingStatus.needsRecalculation ? 'text-white bg-yellow-600 hover:bg-yellow-700 border-yellow-700' : 'text-indigo-600 hover:bg-indigo-50 border-indigo-200 bg-[#111]'}`}
                   title="Recalcular precio con valores actuales"
                 >
                   <RefreshCw size={13} className={pricingStatus.needsRecalculation ? "animate-pulse" : ""} /> Recalcular
                 </GhostButton>
-                <GhostButton onClick={() => handleDuplicate(p)} className="px-2.5 py-2 text-gray-500 hover:text-gray-900 bg-white border border-gray-200">
+                <GhostButton onClick={() => handleDuplicate(p)} className="px-2.5 py-2 text-gray-500 hover:text-white bg-[#111] border border-white/10">
                   <Copy size={13} />
                 </GhostButton>
-                <GhostButton onClick={() => handleDelete(p.id)} className="px-2.5 py-2 text-red-500 hover:bg-red-50 border border-gray-200 bg-white">
+                <GhostButton onClick={() => handleDelete(p.id)} className="px-2.5 py-2 text-red-500 hover:bg-red-50 border border-white/10 bg-[#111]">
                   <Trash2 size={13} />
                 </GhostButton>
               </div>
@@ -1308,7 +1308,7 @@ export default function ProductosPage() {
       </div>
 
       {products.length === 0 && !editingId && (
-        <div className="py-20 text-center bg-gray-50 rounded-xl border border-dashed border-gray-300">
+        <div className="py-20 text-center bg-[#0a0a0a] rounded-xl border border-dashed border-white/20">
           <p className="text-sm text-gray-500 font-medium">No tienes productos en tu catálogo.</p>
           <PrimaryButton onClick={handleCreateNew} className="mt-4">Crear mi primer producto</PrimaryButton>
         </div>
@@ -1317,12 +1317,12 @@ export default function ProductosPage() {
       {/* MODAL: RECALCULAR PRECIO */}
       {recalcProductId && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4">
-          <div className="bg-white w-full max-w-md rounded-2xl shadow-2xl overflow-hidden">
-            <div className="flex items-center justify-between px-6 py-4 border-b border-gray-100">
-              <h3 className="font-bold text-gray-900 flex items-center gap-2">
+          <div className="bg-[#111] w-full max-w-md rounded-2xl shadow-2xl overflow-hidden">
+            <div className="flex items-center justify-between px-6 py-4 border-b border-white/5">
+              <h3 className="font-bold text-white flex items-center gap-2">
                 <RefreshCw size={18} className="text-indigo-500" /> Recalcular precio
               </h3>
-              <button onClick={() => { setRecalcProductId(null); setRecalcData(null); setRecalcError(null); }} className="text-gray-400 hover:text-gray-700">
+              <button onClick={() => { setRecalcProductId(null); setRecalcData(null); setRecalcError(null); }} className="text-gray-400 hover:text-gray-300">
                 <X size={20} />
               </button>
             </div>
@@ -1343,16 +1343,16 @@ export default function ProductosPage() {
                     Para recalcular correctamente, asegurate de haber creado el producto desde la calculadora con todos los datos completos.
                   </p>
                   <div className="flex justify-end mt-4">
-                    <button onClick={() => { setRecalcProductId(null); setRecalcError(null); }} className="px-4 py-2 text-sm font-bold text-gray-600 hover:bg-gray-100 rounded-lg">Cerrar</button>
+                    <button onClick={() => { setRecalcProductId(null); setRecalcError(null); }} className="px-4 py-2 text-sm font-bold text-gray-400 hover:bg-white/5 rounded-lg">Cerrar</button>
                   </div>
                 </div>
               ) : recalcData ? (
                 <div className="space-y-4">
                   {/* Comparison */}
                   <div className="grid grid-cols-2 gap-3">
-                    <div className="bg-gray-50 p-4 rounded-xl text-center border border-gray-200">
+                    <div className="bg-[#0a0a0a] p-4 rounded-xl text-center border border-white/10">
                       <p className="text-[10px] text-gray-400 font-semibold uppercase mb-1">Precio Actual</p>
-                      <p className="text-2xl font-black text-gray-700">${recalcData.currentSalePrice.toFixed(2)}</p>
+                      <p className="text-2xl font-black text-gray-300">${recalcData.currentSalePrice.toFixed(2)}</p>
                     </div>
                     <div className="bg-indigo-50 p-4 rounded-xl text-center border border-indigo-200">
                       <p className="text-[10px] text-indigo-600 font-semibold uppercase mb-1">Precio Sugerido</p>
@@ -1365,7 +1365,7 @@ export default function ProductosPage() {
                     const diff = recalcData.recommendedSalePrice - recalcData.currentSalePrice;
                     const isUp = diff > 0;
                     return (
-                      <div className={`flex items-center justify-center gap-2 py-2 px-4 rounded-full text-sm font-bold ${isUp ? 'bg-yellow-50 text-yellow-700' : diff < 0 ? 'bg-green-50 text-green-700' : 'bg-gray-50 text-gray-500'}`}>
+                      <div className={`flex items-center justify-center gap-2 py-2 px-4 rounded-full text-sm font-bold ${isUp ? 'bg-yellow-50 text-yellow-700' : diff < 0 ? 'bg-green-50 text-green-700' : 'bg-[#0a0a0a] text-gray-500'}`}>
                         {isUp ? <TrendingUp size={16} /> : diff < 0 ? <TrendingDown size={16} /> : <Minus size={16} />}
                         {diff === 0 ? "El precio está al día" : `${isUp ? "Subida" : "Bajada"} de $${Math.abs(diff).toFixed(2)}`}
                       </div>
@@ -1373,8 +1373,8 @@ export default function ProductosPage() {
                   })()}
 
                   {/* Breakdown */}
-                  <div className="bg-gray-50 p-3 rounded-xl text-xs space-y-1.5">
-                    <p className="font-bold text-gray-700 mb-2">Detalle del nuevo cálculo</p>
+                  <div className="bg-[#0a0a0a] p-3 rounded-xl text-xs space-y-1.5">
+                    <p className="font-bold text-gray-300 mb-2">Detalle del nuevo cálculo</p>
                     {[
                       ["Material", recalcData.breakdown.materialCost],
                       ["Electricidad", recalcData.breakdown.energyCost],
@@ -1382,12 +1382,12 @@ export default function ProductosPage() {
                       ["Costo Fijo", recalcData.breakdown.fixedCost],
                       recalcData.breakdown.laborCost > 0 && ["Mano de obra", recalcData.breakdown.laborCost],
                     ].filter(Boolean).map(([label, val]: any) => (
-                      <div key={label} className="flex justify-between text-gray-600">
+                      <div key={label} className="flex justify-between text-gray-400">
                         <span>{label}</span>
                         <span className="font-semibold">${val.toFixed(2)}</span>
                       </div>
                     ))}
-                    <div className="flex justify-between font-bold text-gray-900 border-t border-gray-200 pt-1.5 mt-1.5">
+                    <div className="flex justify-between font-bold text-white border-t border-white/10 pt-1.5 mt-1.5">
                       <span>Costo Base</span>
                       <span>${recalcData.recommendedBaseCost.toFixed(2)}</span>
                     </div>
@@ -1398,7 +1398,7 @@ export default function ProductosPage() {
                   </div>
 
                   <div className="flex justify-end gap-2 pt-2">
-                    <button onClick={() => { setRecalcProductId(null); setRecalcData(null); }} className="px-4 py-2 text-sm font-bold text-gray-600 hover:bg-gray-100 rounded-lg">Cancelar</button>
+                    <button onClick={() => { setRecalcProductId(null); setRecalcData(null); }} className="px-4 py-2 text-sm font-bold text-gray-400 hover:bg-white/5 rounded-lg">Cancelar</button>
                     <button
                       onClick={handleConfirmRecalc}
                       disabled={recalcSaving}

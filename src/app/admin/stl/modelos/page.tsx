@@ -10,11 +10,11 @@ export default function AdminStlModelsPage() {
         <div>
           <Link
             href="/admin/stl"
-            className="mb-4 inline-flex items-center gap-1.5 text-xs font-semibold text-gray-500 hover:text-gray-800 transition-colors"
+            className="mb-4 inline-flex items-center gap-1.5 text-xs font-semibold text-gray-500 hover:text-gray-200 transition-colors"
           >
             <ArrowLeft size={14} /> Volver al panel STL
           </Link>
-          <h1 className="text-2xl font-bold text-gray-900 flex items-center gap-2">
+          <h1 className="text-2xl font-bold text-white flex items-center gap-2">
             <Box className="text-emerald-600" />
             Archivos STL
           </h1>

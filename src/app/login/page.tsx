@@ -37,15 +37,15 @@ export default function LoginPage() {
 
   return (
     <div className="flex min-h-screen items-center justify-center bg-[#F7F7F9] px-4 py-12 sm:px-6 lg:px-8">
-      <div className="w-full max-w-md space-y-8 bg-white p-8 rounded-2xl shadow-sm border border-gray-100">
+      <div className="w-full max-w-md space-y-8 bg-[#111] p-8 rounded-2xl shadow-sm border border-white/5">
         <div className="flex flex-col items-center justify-center">
           <div className="flex h-12 w-12 items-center justify-center rounded-xl bg-blue-600 mb-4">
             <Building2 className="h-6 w-6 text-white" />
           </div>
-          <h2 className="text-center text-3xl font-bold tracking-tight text-gray-900">
+          <h2 className="text-center text-3xl font-bold tracking-tight text-white">
             Iniciar sesión
           </h2>
-          <p className="mt-2 text-center text-sm text-gray-600">
+          <p className="mt-2 text-center text-sm text-gray-400">
             Ingresa a la Academia Stampa
           </p>
         </div>
@@ -60,7 +60,7 @@ export default function LoginPage() {
             <div>
               <label
                 htmlFor="email-address"
-                className="block text-sm font-medium text-gray-700"
+                className="block text-sm font-medium text-gray-300"
               >
                 Email
               </label>
@@ -76,7 +76,7 @@ export default function LoginPage() {
                   required
                   value={email}
                   onChange={(e) => setEmail(e.target.value)}
-                  className="block w-full rounded-lg border-gray-300 pl-10 focus:border-orange-500 focus:ring-orange-500 sm:text-sm py-3"
+                  className="block w-full rounded-lg border-white/20 pl-10 focus:border-orange-500 focus:ring-orange-500 sm:text-sm py-3"
                   placeholder="tu@email.com"
                 />
               </div>
@@ -84,7 +84,7 @@ export default function LoginPage() {
             <div>
               <label
                 htmlFor="password"
-                className="block text-sm font-medium text-gray-700"
+                className="block text-sm font-medium text-gray-300"
               >
                 Contraseña
               </label>
@@ -100,13 +100,13 @@ export default function LoginPage() {
                   required
                   value={password}
                   onChange={(e) => setPassword(e.target.value)}
-                  className="block w-full rounded-lg border-gray-300 pl-10 pr-10 focus:border-orange-500 focus:ring-orange-500 sm:text-sm py-3 text-gray-900 placeholder-gray-500 bg-white"
+                  className="block w-full rounded-lg border-white/20 pl-10 pr-10 focus:border-orange-500 focus:ring-orange-500 sm:text-sm py-3 text-white placeholder-gray-500 bg-[#111]"
                   placeholder="••••••••"
                 />
                 <button
                   type="button"
                   onClick={() => setShowPassword(!showPassword)}
-                  className="absolute inset-y-0 right-0 flex items-center pr-3 text-gray-400 hover:text-gray-600 focus:outline-none cursor-pointer"
+                  className="absolute inset-y-0 right-0 flex items-center pr-3 text-gray-400 hover:text-gray-400 focus:outline-none cursor-pointer"
                   aria-label={showPassword ? "Ocultar contraseña" : "Mostrar contraseña"}
                 >
                   {showPassword ? (
@@ -139,7 +139,7 @@ export default function LoginPage() {
               ¿Olvidaste tu contraseña?
             </Link>
           </p>
-          <p className="text-sm text-gray-600">
+          <p className="text-sm text-gray-400">
             ¿No tenés cuenta?{" "}
             <Link
               href="/registro"

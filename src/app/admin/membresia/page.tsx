@@ -138,20 +138,20 @@ export default function AdminMembresiaPage() {
       <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
         <Card className="p-6 space-y-6">
           <div>
-            <h3 className="text-lg font-bold text-gray-900">Estado Actual</h3>
+            <h3 className="text-lg font-bold text-white">Estado Actual</h3>
             <p className="text-sm text-gray-500">Configuración vigente de la membresía.</p>
           </div>
           
           <div className="bg-orange-50 border border-orange-100 p-4 rounded-xl flex items-center justify-between">
             <div>
               <p className="text-xs font-semibold text-orange-600 uppercase mb-1">Precio Mensual</p>
-              <p className="text-3xl font-black text-gray-900">
+              <p className="text-3xl font-black text-white">
                 {currentSettings?.monthly_price ? formatPrice(currentSettings.monthly_price) : "No definido"}
               </p>
             </div>
             <div className="text-right">
               <p className="text-xs font-semibold text-gray-500 uppercase mb-1">Moneda</p>
-              <p className="text-xl font-bold text-gray-700">{currentSettings?.currency || "ARS"}</p>
+              <p className="text-xl font-bold text-gray-300">{currentSettings?.currency || "ARS"}</p>
             </div>
           </div>
           
@@ -164,35 +164,35 @@ export default function AdminMembresiaPage() {
 
         <Card className="p-6 space-y-6 border-orange-200">
           <div>
-            <h3 className="text-lg font-bold text-gray-900">Actualizar Precio</h3>
+            <h3 className="text-lg font-bold text-white">Actualizar Precio</h3>
             <p className="text-sm text-gray-500">Los nuevos usuarios pagarán este monto.</p>
           </div>
 
           <div className="space-y-4">
             <label className="block">
-              <span className="mb-1 block text-sm font-semibold text-gray-700">Nuevo precio mensual (ARS)</span>
+              <span className="mb-1 block text-sm font-semibold text-gray-300">Nuevo precio mensual (ARS)</span>
               <input
                 type="number"
                 min="0"
                 placeholder="Ej. 15000"
                 value={newPrice}
                 onChange={(e) => setNewPrice(e.target.value)}
-                className="w-full rounded-xl border border-gray-300 bg-white px-3 py-2.5 text-sm outline-none focus:border-orange-500 focus:ring-2 focus:ring-orange-100"
+                className="w-full rounded-xl border border-white/20 bg-[#111] px-3 py-2.5 text-sm outline-none focus:border-orange-500 focus:ring-2 focus:ring-orange-100"
               />
             </label>
 
             <label className="block">
-              <span className="mb-1 block text-sm font-semibold text-gray-700">Notas internas (opcional)</span>
+              <span className="mb-1 block text-sm font-semibold text-gray-300">Notas internas (opcional)</span>
               <input
                 type="text"
                 placeholder="Motivo del cambio..."
                 value={notes}
                 onChange={(e) => setNotes(e.target.value)}
-                className="w-full rounded-xl border border-gray-300 bg-white px-3 py-2.5 text-sm outline-none focus:border-orange-500 focus:ring-2 focus:ring-orange-100"
+                className="w-full rounded-xl border border-white/20 bg-[#111] px-3 py-2.5 text-sm outline-none focus:border-orange-500 focus:ring-2 focus:ring-orange-100"
               />
             </label>
 
-            <label className="flex items-start gap-3 p-3 bg-gray-50 border border-gray-200 rounded-lg cursor-pointer hover:bg-gray-100 transition-colors">
+            <label className="flex items-start gap-3 p-3 bg-[#0a0a0a] border border-white/10 rounded-lg cursor-pointer hover:bg-white/5 transition-colors">
               <input
                 type="checkbox"
                 checked={applyToExisting}
@@ -200,7 +200,7 @@ export default function AdminMembresiaPage() {
                 className="mt-0.5 rounded text-orange-500 focus:ring-orange-500"
               />
               <div className="flex-1">
-                <span className="block text-sm font-semibold text-gray-900">Aplicar también a suscripciones activas existentes</span>
+                <span className="block text-sm font-semibold text-white">Aplicar también a suscripciones activas existentes</span>
                 <span className="block text-xs text-gray-500 mt-1">Si está activado, Mercado Pago actualizará el monto del próximo cobro para todos los usuarios actuales.</span>
               </div>
             </label>
@@ -218,14 +218,14 @@ export default function AdminMembresiaPage() {
       </div>
 
       <div className="mt-8">
-        <h3 className="text-lg font-bold text-gray-900 mb-4">Historial de Cambios</h3>
+        <h3 className="text-lg font-bold text-white mb-4">Historial de Cambios</h3>
         <Card className="overflow-hidden">
           {history.length === 0 ? (
             <div className="p-6 text-center text-sm text-gray-500">No hay cambios registrados.</div>
           ) : (
             <div className="overflow-x-auto">
-              <table className="w-full text-left text-sm text-gray-600">
-                <thead className="border-b border-gray-100 bg-gray-50 text-xs font-semibold uppercase text-gray-500">
+              <table className="w-full text-left text-sm text-gray-400">
+                <thead className="border-b border-white/5 bg-[#0a0a0a] text-xs font-semibold uppercase text-gray-500">
                   <tr>
                     <th className="px-4 py-3">Fecha</th>
                     <th className="px-4 py-3">Anterior</th>
@@ -236,15 +236,15 @@ export default function AdminMembresiaPage() {
                 </thead>
                 <tbody className="divide-y divide-gray-100">
                   {history.map((h) => (
-                    <tr key={h.id} className="hover:bg-gray-50">
+                    <tr key={h.id} className="hover:bg-[#0a0a0a]">
                       <td className="px-4 py-3 whitespace-nowrap">{formatDate(h.created_at)}</td>
                       <td className="px-4 py-3">{formatPrice(h.previous_price)}</td>
-                      <td className="px-4 py-3 font-semibold text-gray-900">{formatPrice(h.new_price)}</td>
+                      <td className="px-4 py-3 font-semibold text-white">{formatPrice(h.new_price)}</td>
                       <td className="px-4 py-3">
                         {h.apply_to_existing ? (
                           <span className="inline-flex items-center rounded-full bg-blue-50 px-2 py-1 text-xs font-medium text-blue-700">Sí</span>
                         ) : (
-                          <span className="inline-flex items-center rounded-full bg-gray-100 px-2 py-1 text-xs font-medium text-gray-600">No</span>
+                          <span className="inline-flex items-center rounded-full bg-white/5 px-2 py-1 text-xs font-medium text-gray-400">No</span>
                         )}
                       </td>
                       <td className="px-4 py-3">

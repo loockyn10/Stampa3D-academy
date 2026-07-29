@@ -119,11 +119,11 @@ export function PrintersManager() {
       )}
 
       <div className="flex justify-between items-center mb-4">
-        <h3 className="text-lg font-semibold text-gray-900">Mis Impresoras</h3>
+        <h3 className="text-lg font-semibold text-white">Mis Impresoras</h3>
         <div className="flex gap-2">
           <button
             onClick={openCatalog}
-            className="flex items-center gap-1.5 bg-white border border-orange-200 text-orange-600 hover:bg-orange-50 px-3 py-1.5 rounded-lg text-sm font-medium transition-colors"
+            className="flex items-center gap-1.5 bg-[#111] border border-orange-200 text-orange-600 hover:bg-orange-50 px-3 py-1.5 rounded-lg text-sm font-medium transition-colors"
           >
             Importar desde catálogo Stampa
           </button>
@@ -152,17 +152,17 @@ export function PrintersManager() {
           ) : (
             <Card key={p.id} className="p-4 flex flex-col hover:border-orange-200 transition-colors">
               <div className="flex justify-between items-start mb-2">
-                <h4 className="font-bold text-gray-900">{p.name}</h4>
+                <h4 className="font-bold text-white">{p.name}</h4>
                 <button onClick={() => { setFormData(p); setEditingId(p.id); }} className="text-gray-400 hover:text-orange-500 transition-colors">
                   <Edit2 size={16} />
                 </button>
               </div>
               <div className="text-sm text-gray-500 space-y-1 mb-4 flex-1">
-                <p>Consumo: <span className="font-medium text-gray-700">{p.power_watts}W</span></p>
-                <p>Mantenimiento: <span className="font-medium text-gray-700">${p.maintenance_cost_per_hour}/h</span></p>
+                <p>Consumo: <span className="font-medium text-gray-300">{p.power_watts}W</span></p>
+                <p>Mantenimiento: <span className="font-medium text-gray-300">${p.maintenance_cost_per_hour}/h</span></p>
               </div>
-              <div className="flex items-center justify-between pt-3 border-t border-gray-100">
-                <span className={`text-xs px-2 py-0.5 rounded-md font-medium ${p.is_active ? 'bg-green-100 text-green-700' : 'bg-gray-100 text-gray-600'}`}>
+              <div className="flex items-center justify-between pt-3 border-t border-white/5">
+                <span className={`text-xs px-2 py-0.5 rounded-md font-medium ${p.is_active ? 'bg-green-100 text-green-700' : 'bg-white/5 text-gray-400'}`}>
                   {p.is_active ? 'Activa' : 'Inactiva'}
                 </span>
               </div>
@@ -170,7 +170,7 @@ export function PrintersManager() {
           )
         ))}
         {printers.length === 0 && editingId !== "new" && (
-          <div className="col-span-full py-12 text-center bg-gray-50 rounded-xl border border-dashed border-gray-300">
+          <div className="col-span-full py-12 text-center bg-[#0a0a0a] rounded-xl border border-dashed border-white/20">
             <p className="text-sm text-gray-500">No tienes impresoras registradas.</p>
           </div>
         )}
@@ -178,28 +178,28 @@ export function PrintersManager() {
 
       {showCatalog && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50">
-          <div className="bg-white rounded-xl shadow-xl max-w-3xl w-full max-h-[90vh] flex flex-col overflow-hidden">
-            <div className="p-4 border-b border-gray-100 flex justify-between items-center bg-gray-50">
+          <div className="bg-[#111] rounded-xl shadow-xl max-w-3xl w-full max-h-[90vh] flex flex-col overflow-hidden">
+            <div className="p-4 border-b border-white/5 flex justify-between items-center bg-[#0a0a0a]">
               <div>
-                <h3 className="text-lg font-bold text-gray-900">Catálogo de Impresoras Stampa</h3>
+                <h3 className="text-lg font-bold text-white">Catálogo de Impresoras Stampa</h3>
                 <p className="text-xs text-gray-500">Importá modelos precargados a tus impresoras.</p>
               </div>
-              <button onClick={() => setShowCatalog(false)} className="text-gray-400 hover:text-gray-700">
+              <button onClick={() => setShowCatalog(false)} className="text-gray-400 hover:text-gray-300">
                 <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M18 6 6 18"/><path d="m6 6 12 12"/></svg>
               </button>
             </div>
             
-            <div className="p-4 border-b border-gray-100">
+            <div className="p-4 border-b border-white/5">
               <input 
                 type="text" 
                 placeholder="Buscar por marca, modelo o nombre..." 
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
-                className="w-full text-sm border-gray-300 rounded-md focus:border-orange-500 focus:ring-orange-500"
+                className="w-full text-sm border-white/20 rounded-md focus:border-orange-500 focus:ring-orange-500"
               />
             </div>
 
-            <div className="p-4 overflow-y-auto flex-1 bg-gray-50/50">
+            <div className="p-4 overflow-y-auto flex-1 bg-[#0a0a0a]/50">
               {loadingTemplates ? (
                 <div className="py-8 flex justify-center"><Loader2 className="animate-spin text-orange-500" /></div>
               ) : (
@@ -213,11 +213,11 @@ export function PrintersManager() {
                     .map((t) => {
                       const alreadyAdded = printers.some(p => p.source_template_id === t.id);
                       return (
-                        <Card key={t.id} className="p-4 flex flex-col hover:border-orange-200 transition-colors bg-white">
+                        <Card key={t.id} className="p-4 flex flex-col hover:border-orange-200 transition-colors bg-[#111]">
                           <div className="flex-1">
-                            <h4 className="font-bold text-gray-900 text-sm">{t.name}</h4>
+                            <h4 className="font-bold text-white text-sm">{t.name}</h4>
                             <p className="text-xs text-gray-500 mb-2">{t.brand} {t.model}</p>
-                            <div className="text-[11px] text-gray-600 bg-gray-50 p-2 rounded-md mb-3">
+                            <div className="text-[11px] text-gray-400 bg-[#0a0a0a] p-2 rounded-md mb-3">
                               <div className="flex justify-between mb-1"><span>Consumo:</span> <strong>{t.power_watts}W</strong></div>
                               <div className="flex justify-between"><span>Mantenimiento:</span> <strong>${t.maintenance_cost_per_hour}/h</strong></div>
                             </div>
@@ -227,7 +227,7 @@ export function PrintersManager() {
                             onClick={() => importTemplate(t)}
                             className={`w-full py-1.5 rounded-lg text-xs font-bold transition-colors ${
                               alreadyAdded 
-                                ? "bg-gray-100 text-gray-400 cursor-not-allowed"
+                                ? "bg-white/5 text-gray-400 cursor-not-allowed"
                                 : "bg-orange-100 text-orange-700 hover:bg-orange-200"
                             }`}
                           >
@@ -245,7 +245,7 @@ export function PrintersManager() {
               )}
             </div>
             
-            <div className="p-4 border-t border-gray-100 bg-white">
+            <div className="p-4 border-t border-white/5 bg-[#111]">
               <p className="text-xs text-gray-500 text-center">
                 Valores estimados. Podés ajustarlos después en Mis impresoras.
               </p>
@@ -271,26 +271,26 @@ function PrinterEditor({ formData, setFormData, onSave, onCancel }: any) {
     <Card className="p-4 border-orange-200 shadow-md">
       <div className="space-y-3">
         <div>
-          <label className="block text-xs font-semibold text-gray-700 mb-1">Nombre Impresora</label>
-          <input type="text" name="name" value={formData.name} onChange={handleChange} className="w-full text-sm border-gray-300 rounded-md focus:border-orange-500 focus:ring-orange-500 text-gray-900" placeholder="Ej. Ender 3 V2" />
+          <label className="block text-xs font-semibold text-gray-300 mb-1">Nombre Impresora</label>
+          <input type="text" name="name" value={formData.name} onChange={handleChange} className="w-full text-sm border-white/10 rounded-md text-neutral-100 bg-neutral-900 border focus:border-[#ff6a00] focus:ring-[#ff6a00]/20 focus:ring-2 placeholder:text-neutral-500 disabled:bg-neutral-800 disabled:text-neutral-500" placeholder="Ej. Ender 3 V2" />
         </div>
         <div className="grid grid-cols-2 gap-2">
           <div>
-            <label className="block text-xs font-semibold text-gray-700 mb-1">Consumo (Watts)</label>
-            <input type="number" name="power_watts" value={formData.power_watts} onChange={handleChange} className="w-full text-sm border-gray-300 rounded-md focus:border-orange-500 focus:ring-orange-500 text-gray-900" />
+            <label className="block text-xs font-semibold text-gray-300 mb-1">Consumo (Watts)</label>
+            <input type="number" name="power_watts" value={formData.power_watts} onChange={handleChange} className="w-full text-sm border-white/10 rounded-md text-neutral-100 bg-neutral-900 border focus:border-[#ff6a00] focus:ring-[#ff6a00]/20 focus:ring-2 placeholder:text-neutral-500 disabled:bg-neutral-800 disabled:text-neutral-500" />
           </div>
           <div>
-            <label className="block text-xs font-semibold text-gray-700 mb-1">Mantenimiento ($/h)</label>
-            <input type="number" name="maintenance_cost_per_hour" value={formData.maintenance_cost_per_hour} onChange={handleChange} className="w-full text-sm border-gray-300 rounded-md focus:border-orange-500 focus:ring-orange-500 text-gray-900" />
+            <label className="block text-xs font-semibold text-gray-300 mb-1">Mantenimiento ($/h)</label>
+            <input type="number" name="maintenance_cost_per_hour" value={formData.maintenance_cost_per_hour} onChange={handleChange} className="w-full text-sm border-white/10 rounded-md text-neutral-100 bg-neutral-900 border focus:border-[#ff6a00] focus:ring-[#ff6a00]/20 focus:ring-2 placeholder:text-neutral-500 disabled:bg-neutral-800 disabled:text-neutral-500" />
           </div>
         </div>
         <div className="flex items-center gap-2 pt-1">
-          <input type="checkbox" name="is_active" checked={formData.is_active} onChange={handleChange} className="rounded text-orange-600 focus:ring-orange-500" />
-          <label className="text-sm font-medium text-gray-700">Impresora Activa</label>
+          <input type="checkbox" name="is_active" checked={formData.is_active} onChange={handleChange} className="rounded text-[#ff6a00] focus:ring-[#ff6a00]/20" />
+          <label className="text-sm font-medium text-gray-300">Impresora Activa</label>
         </div>
       </div>
       <div className="mt-4 flex gap-2 justify-end">
-        <button onClick={onCancel} className="px-3 py-1.5 text-xs font-bold text-gray-600 hover:bg-gray-100 rounded-md transition-colors">Cancelar</button>
+        <button onClick={onCancel} className="px-3 py-1.5 text-xs font-bold text-gray-400 hover:bg-white/5 rounded-md transition-colors">Cancelar</button>
         <button onClick={onSave} className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-bold bg-orange-500 hover:bg-orange-600 text-white rounded-md transition-colors"><Save size={14} /> Guardar</button>
       </div>
     </Card>

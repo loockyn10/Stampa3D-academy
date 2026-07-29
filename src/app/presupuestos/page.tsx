@@ -496,8 +496,8 @@ export default function PresupuestosPage() {
 
       {editingId && (
         <Card className="mb-8 border-orange-300 shadow-md ring-1 ring-orange-100 overflow-hidden">
-          <div className="bg-gray-50 p-4 flex justify-between items-center border-b border-gray-200">
-            <h3 className="text-lg font-bold text-gray-900 flex items-center gap-2">
+          <div className="bg-[#0a0a0a] p-4 flex justify-between items-center border-b border-white/10">
+            <h3 className="text-lg font-bold text-white flex items-center gap-2">
               <FileText size={18} className="text-orange-500" />
               {editingId === "new" ? "Nuevo Presupuesto" : "Editar Presupuesto"}
             </h3>
@@ -506,40 +506,40 @@ export default function PresupuestosPage() {
                 <button 
                   onClick={handleDownloadPdf} 
                   disabled={isGeneratingPdf}
-                  className="flex items-center gap-1.5 text-sm font-bold text-gray-700 hover:text-orange-600 bg-white border border-gray-200 px-3 py-1.5 rounded-lg shadow-sm transition-colors"
+                  className="flex items-center gap-1.5 text-sm font-bold text-gray-300 hover:text-orange-600 bg-[#111] border border-white/10 px-3 py-1.5 rounded-lg shadow-sm transition-colors"
                 >
                   {isGeneratingPdf ? <Loader2 size={16} className="animate-spin" /> : <Download size={16} />}
                   Descargar PDF
                 </button>
               )}
-              <button onClick={() => setEditingId(null)} className="text-gray-400 hover:text-gray-700"><X size={20} /></button>
+              <button onClick={() => setEditingId(null)} className="text-gray-400 hover:text-gray-300"><X size={20} /></button>
             </div>
           </div>
 
           <div className="p-5 space-y-6">
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <div>
-                <label className="block text-xs font-semibold text-gray-700 mb-1">Título / Referencia</label>
-                <input type="text" value={formData.title} onChange={e => setFormData({...formData, title: e.target.value})} className="w-full text-sm border-gray-300 rounded-md focus:border-orange-500 focus:ring-orange-500 text-gray-900 bg-white" placeholder="Ej. Presupuesto Macetas" />
+                <label className="block text-xs font-semibold text-gray-300 mb-1">Título / Referencia</label>
+                <input type="text" value={formData.title} onChange={e => setFormData({...formData, title: e.target.value})} className="w-full text-sm border-white/20 rounded-md focus:border-orange-500 focus:ring-orange-500 text-white bg-[#111]" placeholder="Ej. Presupuesto Macetas" />
               </div>
               <div>
-                <label className="block text-xs font-semibold text-gray-700 mb-1">Estado</label>
-                <div className="flex bg-gray-100 p-1 rounded-lg">
-                  <button type="button" onClick={() => setFormData({...formData, status: "draft"})} className={`flex-1 text-xs py-1.5 px-2 rounded-md font-medium transition-colors ${formData.status === "draft" ? "bg-white shadow text-gray-900" : "text-gray-500 hover:text-gray-700"}`}>Borrador</button>
-                  <button type="button" onClick={() => setFormData({...formData, status: "sent"})} className={`flex-1 text-xs py-1.5 px-2 rounded-md font-medium transition-colors ${formData.status === "sent" ? "bg-white shadow text-gray-900" : "text-gray-500 hover:text-gray-700"}`}>Enviado</button>
-                  <button type="button" onClick={() => setFormData({...formData, status: "approved"})} className={`flex-1 text-xs py-1.5 px-2 rounded-md font-medium transition-colors ${formData.status === "approved" ? "bg-white shadow text-gray-900" : "text-gray-500 hover:text-gray-700"}`}>Aprobado</button>
-                  <button type="button" onClick={() => setFormData({...formData, status: "rejected"})} className={`flex-1 text-xs py-1.5 px-2 rounded-md font-medium transition-colors ${formData.status === "rejected" ? "bg-white shadow text-gray-900" : "text-gray-500 hover:text-gray-700"}`}>Rechazado</button>
+                <label className="block text-xs font-semibold text-gray-300 mb-1">Estado</label>
+                <div className="flex bg-white/5 p-1 rounded-lg">
+                  <button type="button" onClick={() => setFormData({...formData, status: "draft"})} className={`flex-1 text-xs py-1.5 px-2 rounded-md font-medium transition-colors ${formData.status === "draft" ? "bg-[#111] shadow text-white" : "text-gray-500 hover:text-gray-300"}`}>Borrador</button>
+                  <button type="button" onClick={() => setFormData({...formData, status: "sent"})} className={`flex-1 text-xs py-1.5 px-2 rounded-md font-medium transition-colors ${formData.status === "sent" ? "bg-[#111] shadow text-white" : "text-gray-500 hover:text-gray-300"}`}>Enviado</button>
+                  <button type="button" onClick={() => setFormData({...formData, status: "approved"})} className={`flex-1 text-xs py-1.5 px-2 rounded-md font-medium transition-colors ${formData.status === "approved" ? "bg-[#111] shadow text-white" : "text-gray-500 hover:text-gray-300"}`}>Aprobado</button>
+                  <button type="button" onClick={() => setFormData({...formData, status: "rejected"})} className={`flex-1 text-xs py-1.5 px-2 rounded-md font-medium transition-colors ${formData.status === "rejected" ? "bg-[#111] shadow text-white" : "text-gray-500 hover:text-gray-300"}`}>Rechazado</button>
                 </div>
               </div>
             </div>
 
             <div className="bg-orange-50/50 p-4 rounded-xl border border-orange-100 space-y-4">
               <div className="flex justify-between items-center">
-                <label className="block text-sm font-semibold text-gray-800">Cliente asociado</label>
+                <label className="block text-sm font-semibold text-gray-200">Cliente asociado</label>
                 {!showClientForm && (
                   <div className="flex items-center gap-3">
                     {formData.client_id && (
-                      <button onClick={() => handleEditClient(formData.client_id)} className="text-xs font-bold text-gray-600 hover:text-gray-900 flex items-center gap-1">
+                      <button onClick={() => handleEditClient(formData.client_id)} className="text-xs font-bold text-gray-400 hover:text-white flex items-center gap-1">
                         <Pencil size={12} /> Editar cliente
                       </button>
                     )}
@@ -559,26 +559,26 @@ export default function PresupuestosPage() {
                   emptyText="No se encontraron clientes."
                 />
               ) : (
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-3 bg-white p-4 rounded-lg border border-orange-200 shadow-sm">
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-3 bg-[#111] p-4 rounded-lg border border-orange-200 shadow-sm">
                   <div>
                     <label className="block text-[10px] font-bold text-gray-500 uppercase mb-1">Nombre completo *</label>
-                    <input type="text" placeholder="Ej. Juan Pérez" value={clientData.name} onChange={e => setClientData({...clientData, name: e.target.value})} className="w-full text-sm border-gray-300 rounded-md" />
+                    <input type="text" placeholder="Ej. Juan Pérez" value={clientData.name} onChange={e => setClientData({...clientData, name: e.target.value})} className="w-full text-sm border-white/20 rounded-md" />
                   </div>
                   <div>
                     <label className="block text-[10px] font-bold text-gray-500 uppercase mb-1">Teléfono</label>
-                    <input type="text" placeholder="Ej. +54 9 11..." value={clientData.phone} onChange={e => setClientData({...clientData, phone: e.target.value})} className="w-full text-sm border-gray-300 rounded-md" />
+                    <input type="text" placeholder="Ej. +54 9 11..." value={clientData.phone} onChange={e => setClientData({...clientData, phone: e.target.value})} className="w-full text-sm border-white/20 rounded-md" />
                   </div>
                   <div>
                     <label className="block text-[10px] font-bold text-gray-500 uppercase mb-1">Email</label>
-                    <input type="email" placeholder="Ej. juan@mail.com" value={clientData.email} onChange={e => setClientData({...clientData, email: e.target.value})} className="w-full text-sm border-gray-300 rounded-md" />
+                    <input type="email" placeholder="Ej. juan@mail.com" value={clientData.email} onChange={e => setClientData({...clientData, email: e.target.value})} className="w-full text-sm border-white/20 rounded-md" />
                   </div>
                   <div>
                     <label className="block text-[10px] font-bold text-gray-500 uppercase mb-1">CUIT</label>
-                    <input type="text" placeholder="Ej. 20-12345678-9" value={clientData.cuit} onChange={e => setClientData({...clientData, cuit: e.target.value})} className="w-full text-sm border-gray-300 rounded-md" />
+                    <input type="text" placeholder="Ej. 20-12345678-9" value={clientData.cuit} onChange={e => setClientData({...clientData, cuit: e.target.value})} className="w-full text-sm border-white/20 rounded-md" />
                   </div>
                   <div>
                     <label className="block text-[10px] font-bold text-gray-500 uppercase mb-1">Condición Fiscal</label>
-                    <select value={clientData.fiscal_condition} onChange={e => setClientData({...clientData, fiscal_condition: e.target.value})} className="w-full text-sm border-gray-300 rounded-md text-gray-900 bg-white">
+                    <select value={clientData.fiscal_condition} onChange={e => setClientData({...clientData, fiscal_condition: e.target.value})} className="w-full text-sm border-white/20 rounded-md text-white bg-[#111]">
                       <option value="">Consumidor Final</option>
                       <option value="Responsable Inscripto">Responsable Inscripto</option>
                       <option value="Monotributo">Monotributo</option>
@@ -588,15 +588,15 @@ export default function PresupuestosPage() {
                   <div className="flex items-center mt-6">
                     <label className="flex items-center gap-2 cursor-pointer">
                       <input type="checkbox" checked={clientData.is_active} onChange={e => setClientData({...clientData, is_active: e.target.checked})} className="rounded text-orange-500 focus:ring-orange-500" />
-                      <span className="text-sm text-gray-700 font-medium">Cliente Activo</span>
+                      <span className="text-sm text-gray-300 font-medium">Cliente Activo</span>
                     </label>
                   </div>
                   <div className="md:col-span-2">
                     <label className="block text-[10px] font-bold text-gray-500 uppercase mb-1">Notas del cliente</label>
-                    <input type="text" placeholder="Ej. Entregar de 10 a 14hs" value={clientData.notes} onChange={e => setClientData({...clientData, notes: e.target.value})} className="w-full text-sm border-gray-300 rounded-md" />
+                    <input type="text" placeholder="Ej. Entregar de 10 a 14hs" value={clientData.notes} onChange={e => setClientData({...clientData, notes: e.target.value})} className="w-full text-sm border-white/20 rounded-md" />
                   </div>
                   <div className="md:col-span-2 flex justify-end gap-2 mt-2">
-                    <button onClick={handleCancelClientForm} className="text-sm font-bold text-gray-500 hover:text-gray-700 px-3 py-1.5">Cancelar</button>
+                    <button onClick={handleCancelClientForm} className="text-sm font-bold text-gray-500 hover:text-gray-300 px-3 py-1.5">Cancelar</button>
                     <button onClick={handleSaveClient} className="text-sm font-bold bg-orange-100 text-orange-700 px-4 py-1.5 rounded-md hover:bg-orange-200">Guardar Cliente</button>
                   </div>
                 </div>
@@ -604,8 +604,8 @@ export default function PresupuestosPage() {
             </div>
 
             <div className="space-y-3">
-              <div className="flex justify-between items-end border-b border-gray-200 pb-2">
-                <h4 className="text-sm font-bold text-gray-800 flex items-center gap-2"><ShoppingCart size={16} /> Productos a Cotizar</h4>
+              <div className="flex justify-between items-end border-b border-white/10 pb-2">
+                <h4 className="text-sm font-bold text-gray-200 flex items-center gap-2"><ShoppingCart size={16} /> Productos a Cotizar</h4>
                 <div className="flex gap-2">
                   <button type="button" onClick={() => {
                     setProductData({
@@ -627,7 +627,7 @@ export default function PresupuestosPage() {
               </div>
 
               {products.length === 0 ? (
-                <div className="text-center py-4 bg-gray-50 rounded-lg text-sm text-gray-500 flex flex-col items-center gap-2">
+                <div className="text-center py-4 bg-[#0a0a0a] rounded-lg text-sm text-gray-500 flex flex-col items-center gap-2">
                   <span>No tenés productos cargados.</span>
                   <button type="button" onClick={() => {
                     setProductData({
@@ -650,7 +650,7 @@ export default function PresupuestosPage() {
                   {budgetItems.length === 0 && <p className="text-xs text-gray-400 italic">No hay productos en esta cotización.</p>}
                   
                   {budgetItems.map((item, idx) => (
-                    <div key={item.id} className="flex flex-col sm:flex-row items-start sm:items-center gap-2 bg-gray-50 p-2 rounded-lg border border-gray-100">
+                    <div key={item.id} className="flex flex-col sm:flex-row items-start sm:items-center gap-2 bg-[#0a0a0a] p-2 rounded-lg border border-white/5">
                       <Combobox
                         options={products.map(p => ({ id: p.id, label: `${p.name} ($${p.sale_price})` }))}
                         value={item.product_id}
@@ -659,9 +659,9 @@ export default function PresupuestosPage() {
                       />
                       <div className="flex items-center gap-2 w-full sm:w-auto mt-2 sm:mt-0">
                         <span className="text-xs text-gray-500 font-semibold">Cant:</span>
-                        <input type="number" min="1" value={item.quantity} onChange={(e) => handleItemChange(idx, "quantity", e.target.value)} className="w-16 text-sm border-gray-300 rounded-md focus:border-orange-500 focus:ring-orange-500 text-gray-900 bg-white" />
+                        <input type="number" min="1" value={item.quantity} onChange={(e) => handleItemChange(idx, "quantity", e.target.value)} className="w-16 text-sm border-white/20 rounded-md focus:border-orange-500 focus:ring-orange-500 text-white bg-[#111]" />
                         <span className="text-xs text-gray-500 font-semibold ml-2">Sub:</span>
-                        <span className="w-20 font-bold text-gray-900">${item.subtotal.toFixed(2)}</span>
+                        <span className="w-20 font-bold text-white">${item.subtotal.toFixed(2)}</span>
                         <button onClick={() => handleRemoveItem(idx)} className="p-1.5 text-red-400 hover:text-red-600 hover:bg-red-50 rounded"><Trash2 size={14} /></button>
                       </div>
                     </div>
@@ -673,19 +673,19 @@ export default function PresupuestosPage() {
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
               <div className="space-y-4">
                 <div>
-                  <label className="block text-xs font-semibold text-gray-700 mb-1">Notas del presupuesto</label>
-                  <textarea rows={3} value={formData.notes} onChange={e => setFormData({...formData, notes: e.target.value})} className="w-full text-sm border-gray-300 rounded-md focus:border-orange-500 focus:ring-orange-500 text-gray-900 bg-white" placeholder="Detalles de entrega, condiciones..."></textarea>
+                  <label className="block text-xs font-semibold text-gray-300 mb-1">Notas del presupuesto</label>
+                  <textarea rows={3} value={formData.notes} onChange={e => setFormData({...formData, notes: e.target.value})} className="w-full text-sm border-white/20 rounded-md focus:border-orange-500 focus:ring-orange-500 text-white bg-[#111]" placeholder="Detalles de entrega, condiciones..."></textarea>
                 </div>
                 <div>
-                  <label className="block text-xs font-semibold text-gray-700 mb-1">Fecha de Validez (Opcional)</label>
-                  <input type="date" value={formData.valid_until ? formData.valid_until.substring(0,10) : ""} onChange={e => setFormData({...formData, valid_until: e.target.value})} className="w-full text-sm border-gray-300 rounded-md focus:border-orange-500 focus:ring-orange-500 text-gray-900 bg-white" />
+                  <label className="block text-xs font-semibold text-gray-300 mb-1">Fecha de Validez (Opcional)</label>
+                  <input type="date" value={formData.valid_until ? formData.valid_until.substring(0,10) : ""} onChange={e => setFormData({...formData, valid_until: e.target.value})} className="w-full text-sm border-white/20 rounded-md focus:border-orange-500 focus:ring-orange-500 text-white bg-[#111]" />
                 </div>
               </div>
               
-              <div className="bg-gray-50 p-4 rounded-xl border border-gray-200 flex flex-col justify-end space-y-3">
+              <div className="bg-[#0a0a0a] p-4 rounded-xl border border-white/10 flex flex-col justify-end space-y-3">
                 <div className="flex justify-between items-center text-sm">
                   <span className="text-gray-500 font-medium">Subtotal</span>
-                  <span className="text-gray-900 font-bold">${subtotal.toFixed(2)}</span>
+                  <span className="text-white font-bold">${subtotal.toFixed(2)}</span>
                 </div>
                 <div className="flex justify-between items-center text-sm">
                   <span className="text-gray-500 font-medium">Descuento (%)</span>
@@ -703,12 +703,12 @@ export default function PresupuestosPage() {
                       if (val > 100) val = 100;
                       setFormData({...formData, discount_percent: val});
                     }}
-                    className="w-24 text-right text-sm border-gray-300 rounded-md focus:border-orange-500 focus:ring-orange-500 text-gray-900 bg-white" 
+                    className="w-24 text-right text-sm border-white/20 rounded-md focus:border-orange-500 focus:ring-orange-500 text-white bg-[#111]" 
                   />
                 </div>
                 <div className="flex justify-between items-center text-sm">
                   <span className="text-gray-500 font-medium">Descuento</span>
-                  <span className="text-gray-900 font-semibold">
+                  <span className="text-white font-semibold">
                     {discountPercent}% {discountPercent > 0 ? `(-$${discountAmount.toFixed(2)})` : ""}
                   </span>
                 </div>
@@ -718,8 +718,8 @@ export default function PresupuestosPage() {
                     <span className="text-emerald-700 font-bold">${estimatedProfit.toFixed(2)}</span>
                   </div>
                 )}
-                <div className="border-t border-gray-200 pt-2 flex justify-between items-center">
-                  <span className="text-lg font-bold text-gray-900">TOTAL</span>
+                <div className="border-t border-white/10 pt-2 flex justify-between items-center">
+                  <span className="text-lg font-bold text-white">TOTAL</span>
                   <span className="text-2xl font-black text-orange-600">${total.toFixed(2)}</span>
                 </div>
               </div>
@@ -727,8 +727,8 @@ export default function PresupuestosPage() {
 
           </div>
           
-          <div className="bg-gray-50 p-4 border-t border-gray-200 flex justify-end gap-2">
-            <button onClick={() => setEditingId(null)} className="px-4 py-2 text-sm font-bold text-gray-600 hover:bg-gray-200 rounded-lg transition-colors">Cancelar</button>
+          <div className="bg-[#0a0a0a] p-4 border-t border-white/10 flex justify-end gap-2">
+            <button onClick={() => setEditingId(null)} className="px-4 py-2 text-sm font-bold text-gray-400 hover:bg-gray-200 rounded-lg transition-colors">Cancelar</button>
             <button onClick={handleSaveBudget} className="flex items-center gap-2 px-6 py-2 text-sm font-bold bg-orange-500 hover:bg-orange-600 text-white rounded-lg transition-colors">
               <Save size={16} /> Guardar Presupuesto
             </button>
@@ -742,7 +742,7 @@ export default function PresupuestosPage() {
             <div>
               <div className="flex justify-between items-start mb-3">
                 <div>
-                  <h4 className="font-bold text-gray-900 text-sm truncate">{b.title || "Sin título"}</h4>
+                  <h4 className="font-bold text-white text-sm truncate">{b.title || "Sin título"}</h4>
                   <p className="text-xs text-gray-500 mt-0.5">{b.clients?.name || "Cliente eliminado"}</p>
                 </div>
                 <Badge tone={STATUS_MAP[b.status as keyof typeof STATUS_MAP]?.color || "gray"} className="text-[10px]">
@@ -752,13 +752,13 @@ export default function PresupuestosPage() {
               <p className="text-xs text-gray-400 mb-4">{new Date(b.created_at).toLocaleDateString()}</p>
             </div>
             
-            <div className="border-t border-gray-100 pt-3">
+            <div className="border-t border-white/5 pt-3">
               <div className="flex justify-between items-center mb-4">
                 <span className="text-xs font-semibold text-gray-500">Total</span>
-                <span className="text-lg font-black text-gray-900">${parseFloat(b.total_amount || 0).toFixed(2)}</span>
+                <span className="text-lg font-black text-white">${parseFloat(b.total_amount || 0).toFixed(2)}</span>
               </div>
               <div className="flex gap-2">
-                <GhostButton onClick={() => handleEdit(b)} className="flex-1 py-2 text-xs text-gray-700 bg-white border border-gray-200">
+                <GhostButton onClick={() => handleEdit(b)} className="flex-1 py-2 text-xs text-gray-300 bg-[#111] border border-white/10">
                   <Pencil size={13} /> Editar
                 </GhostButton>
                 <GhostButton 
@@ -774,7 +774,7 @@ export default function PresupuestosPage() {
                   <span className="hidden sm:inline ml-1">Descargar PDF</span>
                   <span className="sm:hidden ml-1">PDF</span>
                 </GhostButton>
-                <GhostButton onClick={() => handleDelete(b.id)} className="px-2.5 py-2 text-red-500 hover:bg-red-50 border border-gray-200 bg-white">
+                <GhostButton onClick={() => handleDelete(b.id)} className="px-2.5 py-2 text-red-500 hover:bg-red-50 border border-white/10 bg-[#111]">
                   <Trash2 size={13} />
                 </GhostButton>
               </div>
@@ -784,7 +784,7 @@ export default function PresupuestosPage() {
       </div>
 
       {budgets.length === 0 && !editingId && (
-        <div className="py-20 text-center bg-gray-50 rounded-xl border border-dashed border-gray-300 mt-6">
+        <div className="py-20 text-center bg-[#0a0a0a] rounded-xl border border-dashed border-white/20 mt-6">
           <p className="text-sm text-gray-500 font-medium">No tienes presupuestos creados.</p>
           <PrimaryButton onClick={handleCreateNew} className="mt-4">Crear mi primer presupuesto</PrimaryButton>
         </div>
@@ -793,10 +793,10 @@ export default function PresupuestosPage() {
       {/* Product Creation Modal */}
       {showProductModal && (
         <div className="fixed inset-0 bg-black/60 flex items-center justify-center p-4 z-50 overflow-y-auto">
-          <div className="bg-white rounded-xl shadow-xl w-full max-w-lg overflow-hidden border border-gray-200 my-8">
-            <div className="bg-gray-50 px-5 py-4 flex justify-between items-center border-b border-gray-200">
-              <h3 className="text-base font-bold text-gray-900">Nuevo Producto Rápido</h3>
-              <button type="button" onClick={() => setShowProductModal(false)} className="text-gray-400 hover:text-gray-700">
+          <div className="bg-[#111] rounded-xl shadow-xl w-full max-w-lg overflow-hidden border border-white/10 my-8">
+            <div className="bg-[#0a0a0a] px-5 py-4 flex justify-between items-center border-b border-white/10">
+              <h3 className="text-base font-bold text-white">Nuevo Producto Rápido</h3>
+              <button type="button" onClick={() => setShowProductModal(false)} className="text-gray-400 hover:text-gray-300">
                 <X size={20} />
               </button>
             </div>
@@ -809,7 +809,7 @@ export default function PresupuestosPage() {
                   placeholder="Ej. Maceta Hexagonal" 
                   value={productData.name} 
                   onChange={e => setProductData({...productData, name: e.target.value})} 
-                  className="w-full text-sm border-gray-300 rounded-md focus:border-orange-500 focus:ring-orange-500 text-gray-900 bg-white" 
+                  className="w-full text-sm border-white/20 rounded-md focus:border-orange-500 focus:ring-orange-500 text-white bg-[#111]" 
                 />
               </div>
 
@@ -820,7 +820,7 @@ export default function PresupuestosPage() {
                   placeholder="Descripción opcional" 
                   value={productData.description} 
                   onChange={e => setProductData({...productData, description: e.target.value})} 
-                  className="w-full text-sm border-gray-300 rounded-md focus:border-orange-500 focus:ring-orange-500 text-gray-900 bg-white" 
+                  className="w-full text-sm border-white/20 rounded-md focus:border-orange-500 focus:ring-orange-500 text-white bg-[#111]" 
                 />
               </div>
 
@@ -834,7 +834,7 @@ export default function PresupuestosPage() {
                     placeholder="Ej. 1500" 
                     value={productData.sale_price || ""} 
                     onChange={e => setProductData({...productData, sale_price: parseFloat(e.target.value) || 0})} 
-                    className="w-full text-sm border-gray-300 rounded-md focus:border-orange-500 focus:ring-orange-500 text-gray-900 bg-white" 
+                    className="w-full text-sm border-white/20 rounded-md focus:border-orange-500 focus:ring-orange-500 text-white bg-[#111]" 
                   />
                 </div>
                 <div>
@@ -846,7 +846,7 @@ export default function PresupuestosPage() {
                     placeholder="Opcional" 
                     value={productData.base_cost || ""} 
                     onChange={e => setProductData({...productData, base_cost: parseFloat(e.target.value) || 0})} 
-                    className="w-full text-sm border-gray-300 rounded-md focus:border-orange-500 focus:ring-orange-500 text-gray-900 bg-white" 
+                    className="w-full text-sm border-white/20 rounded-md focus:border-orange-500 focus:ring-orange-500 text-white bg-[#111]" 
                   />
                 </div>
               </div>
@@ -861,7 +861,7 @@ export default function PresupuestosPage() {
                     placeholder="Opcional" 
                     value={productData.grams || ""} 
                     onChange={e => setProductData({...productData, grams: parseFloat(e.target.value) || 0})} 
-                    className="w-full text-sm border-gray-300 rounded-md focus:border-orange-500 focus:ring-orange-500 text-gray-900 bg-white" 
+                    className="w-full text-sm border-white/20 rounded-md focus:border-orange-500 focus:ring-orange-500 text-white bg-[#111]" 
                   />
                 </div>
                 <div>
@@ -872,7 +872,7 @@ export default function PresupuestosPage() {
                     placeholder="Opcional" 
                     value={productData.stock_quantity || ""} 
                     onChange={e => setProductData({...productData, stock_quantity: parseInt(e.target.value) || 0})} 
-                    className="w-full text-sm border-gray-300 rounded-md focus:border-orange-500 focus:ring-orange-500 text-gray-900 bg-white" 
+                    className="w-full text-sm border-white/20 rounded-md focus:border-orange-500 focus:ring-orange-500 text-white bg-[#111]" 
                   />
                 </div>
               </div>
@@ -886,7 +886,7 @@ export default function PresupuestosPage() {
                     placeholder="Horas" 
                     value={productData.print_time_hours || ""} 
                     onChange={e => setProductData({...productData, print_time_hours: parseInt(e.target.value) || 0})} 
-                    className="w-full text-sm border-gray-300 rounded-md focus:border-orange-500 focus:ring-orange-500 text-gray-900 bg-white" 
+                    className="w-full text-sm border-white/20 rounded-md focus:border-orange-500 focus:ring-orange-500 text-white bg-[#111]" 
                   />
                 </div>
                 <div>
@@ -898,7 +898,7 @@ export default function PresupuestosPage() {
                     placeholder="Minutos" 
                     value={productData.print_time_minutes || ""} 
                     onChange={e => setProductData({...productData, print_time_minutes: parseInt(e.target.value) || 0})} 
-                    className="w-full text-sm border-gray-300 rounded-md focus:border-orange-500 focus:ring-orange-500 text-gray-900 bg-white" 
+                    className="w-full text-sm border-white/20 rounded-md focus:border-orange-500 focus:ring-orange-500 text-white bg-[#111]" 
                   />
                 </div>
               </div>
@@ -908,7 +908,7 @@ export default function PresupuestosPage() {
                 <select 
                   value={productData.filament_id} 
                   onChange={e => setProductData({...productData, filament_id: e.target.value})} 
-                  className="w-full text-sm border-gray-300 rounded-md focus:border-orange-500 focus:ring-orange-500 text-gray-900 bg-white"
+                  className="w-full text-sm border-white/20 rounded-md focus:border-orange-500 focus:ring-orange-500 text-white bg-[#111]"
                 >
                   <option value="">Ninguno</option>
                   {filaments.map(f => <option key={f.id} value={f.id}>{f.name}</option>)}
@@ -922,16 +922,16 @@ export default function PresupuestosPage() {
                   placeholder="Ej. https://..." 
                   value={productData.image_url} 
                   onChange={e => setProductData({...productData, image_url: e.target.value})} 
-                  className="w-full text-sm border-gray-300 rounded-md focus:border-orange-500 focus:ring-orange-500 text-gray-900 bg-white" 
+                  className="w-full text-sm border-white/20 rounded-md focus:border-orange-500 focus:ring-orange-500 text-white bg-[#111]" 
                 />
               </div>
             </div>
 
-            <div className="bg-gray-50 px-5 py-4 flex justify-end gap-2 border-t border-gray-200">
+            <div className="bg-[#0a0a0a] px-5 py-4 flex justify-end gap-2 border-t border-white/10">
               <button 
                 type="button" 
                 onClick={() => setShowProductModal(false)} 
-                className="px-4 py-2 text-sm font-bold text-gray-600 hover:bg-gray-200 rounded-lg transition-colors"
+                className="px-4 py-2 text-sm font-bold text-gray-400 hover:bg-gray-200 rounded-lg transition-colors"
               >
                 Cancelar
               </button>

@@ -31,7 +31,7 @@ export function CourseCard({ course }: CourseCardProps) {
   return (
     <Link href={`/cursos/${course.slug || course.id}`}>
       <Card className="overflow-hidden p-0 hover:-translate-y-0.5 hover:shadow-md cursor-pointer h-full flex flex-col">
-        <div className="relative flex h-36 items-center justify-center bg-gray-100 shrink-0 overflow-hidden">
+        <div className="relative flex h-36 items-center justify-center bg-white/5 shrink-0 overflow-hidden">
           {course.thumbnail_url ? (
             <img src={course.thumbnail_url} alt={title} className="w-full h-full object-cover" />
           ) : (
@@ -43,7 +43,7 @@ export function CourseCard({ course }: CourseCardProps) {
         </div>
         <div className="p-4 flex-1 flex flex-col justify-between">
           <div>
-            <p className="text-sm font-bold leading-snug text-gray-900 line-clamp-2">{title}</p>
+            <p className="text-sm font-bold leading-snug text-white line-clamp-2">{title}</p>
             <div className="mt-2 flex items-center gap-3 text-xs text-gray-500 flex-wrap">
               <span className="flex items-center gap-1">
                 <User size={12} /> {instructorName}

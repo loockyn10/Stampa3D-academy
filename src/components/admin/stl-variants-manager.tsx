@@ -89,7 +89,7 @@ export function StlVariantsManager({ modelId }: { modelId: string }) {
       )}
 
       <div className="flex justify-between items-center mb-4">
-        <h3 className="text-lg font-semibold text-gray-900">Archivos y Variantes</h3>
+        <h3 className="text-lg font-semibold text-white">Archivos y Variantes</h3>
         <button
           onClick={() => {
             setVarForm({
@@ -111,24 +111,24 @@ export function StlVariantsManager({ modelId }: { modelId: string }) {
         )}
 
         {variants.map((v) => (
-          <div key={v.id} className="border border-gray-200 rounded-lg bg-white overflow-hidden shadow-sm">
+          <div key={v.id} className="border border-white/10 rounded-lg bg-[#111] overflow-hidden shadow-sm">
             {editingVarId === v.id ? (
               <VariantFormEditor varForm={varForm} setVarForm={setVarForm} onSave={handleSaveVariant} onCancel={() => setEditingVarId(null)} modelId={modelId} />
             ) : (
-              <div className="p-4 flex items-center justify-between hover:bg-gray-50 transition-colors">
+              <div className="p-4 flex items-center justify-between hover:bg-[#0a0a0a] transition-colors">
                 <div className="flex items-center gap-4">
                   <div className="text-emerald-600 bg-emerald-50 p-3 rounded-lg">
                     <Save size={20} />
                   </div>
                   <div>
-                    <h4 className="text-sm font-bold text-gray-900">{v.title}</h4>
+                    <h4 className="text-sm font-bold text-white">{v.title}</h4>
                     <p className="text-xs text-gray-500 mt-0.5">
                       Material: {v.material_type || "N/A"} • Color: {v.color || "N/A"}
                     </p>
                   </div>
                 </div>
                 <div className="flex items-center gap-3">
-                  {!v.is_active && <span className="text-xs px-2 py-0.5 bg-gray-100 text-gray-600 rounded">Inactivo</span>}
+                  {!v.is_active && <span className="text-xs px-2 py-0.5 bg-white/5 text-gray-400 rounded">Inactivo</span>}
                   <button
                     onClick={() => { setVarForm(v); setEditingVarId(v.id); }}
                     className="p-1.5 text-gray-400 hover:text-emerald-600 hover:bg-emerald-50 rounded-md transition-colors"
@@ -142,7 +142,7 @@ export function StlVariantsManager({ modelId }: { modelId: string }) {
         ))}
 
         {variants.length === 0 && editingVarId !== "new" && (
-          <div className="text-center py-8 bg-gray-50 rounded-xl border border-dashed border-gray-300">
+          <div className="text-center py-8 bg-[#0a0a0a] rounded-xl border border-dashed border-white/20">
             <p className="text-sm text-gray-500">No hay variantes cargadas para este modelo.</p>
           </div>
         )}
@@ -162,14 +162,14 @@ function VariantFormEditor({ varForm, setVarForm, onSave, onCancel, modelId }: a
   };
 
   return (
-    <div className="p-4 bg-gray-50 border-b border-gray-200">
+    <div className="p-4 bg-[#0a0a0a] border-b border-white/10">
       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
         <div className="space-y-1">
-          <label className="text-xs font-semibold text-gray-700">Nombre Variante</label>
-          <input type="text" name="title" value={varForm.title} onChange={handleChange} className="w-full text-sm border-gray-300 rounded-md focus:border-orange-500 focus:ring-orange-500 text-gray-900 bg-white" placeholder="Ej. Archivo Original" />
+          <label className="text-xs font-semibold text-gray-300">Nombre Variante</label>
+          <input type="text" name="title" value={varForm.title} onChange={handleChange} className="w-full text-sm border-white/10 rounded-md text-neutral-100 bg-neutral-900 border focus:border-[#ff6a00] focus:ring-[#ff6a00]/20 focus:ring-2 placeholder:text-neutral-500 disabled:bg-neutral-800 disabled:text-neutral-500" placeholder="Ej. Archivo Original" />
         </div>
         <div className="space-y-1">
-          <label className="text-xs font-semibold text-gray-700">Enlace de Descarga (file_url) - Privado</label>
+          <label className="text-xs font-semibold text-gray-300">Enlace de Descarga (file_url) - Privado</label>
           <div className="space-y-3">
             <FileUploadDropzone
               bucket="stl-files"
@@ -181,15 +181,15 @@ function VariantFormEditor({ varForm, setVarForm, onSave, onCancel, modelId }: a
               label="Archivo descargable"
             />
             <div className="flex items-center gap-2">
-              <hr className="flex-1 border-gray-200" />
+              <hr className="flex-1 border-white/10" />
               <span className="text-[10px] text-gray-400 font-semibold uppercase">O URL</span>
-              <hr className="flex-1 border-gray-200" />
+              <hr className="flex-1 border-white/10" />
             </div>
-            <input type="text" name="file_url" value={varForm.file_url} onChange={handleChange} className="w-full text-sm border-gray-300 rounded-md focus:border-orange-500 focus:ring-orange-500 text-gray-900 bg-white" placeholder="URL Externa o storage://..." />
+            <input type="text" name="file_url" value={varForm.file_url} onChange={handleChange} className="w-full text-sm border-white/10 rounded-md text-neutral-100 bg-neutral-900 border focus:border-[#ff6a00] focus:ring-[#ff6a00]/20 focus:ring-2 placeholder:text-neutral-500 disabled:bg-neutral-800 disabled:text-neutral-500" placeholder="URL Externa o storage://..." />
           </div>
         </div>
         <div className="space-y-1 md:col-span-2">
-          <label className="text-xs font-semibold text-gray-700">Miniatura (thumbnail_url) - Público</label>
+          <label className="text-xs font-semibold text-gray-300">Miniatura (thumbnail_url) - Público</label>
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             <FileUploadDropzone
               bucket="stl-thumbnails"
@@ -202,9 +202,9 @@ function VariantFormEditor({ varForm, setVarForm, onSave, onCancel, modelId }: a
               label="Subir Imagen"
             />
             <div className="flex flex-col justify-end space-y-2">
-              <input type="text" name="thumbnail_url" value={varForm.thumbnail_url} onChange={handleChange} className="w-full text-sm border-gray-300 rounded-md focus:border-orange-500 focus:ring-orange-500 text-gray-900 bg-white" placeholder="URL Pública (https://...)" />
+              <input type="text" name="thumbnail_url" value={varForm.thumbnail_url} onChange={handleChange} className="w-full text-sm border-white/10 rounded-md text-neutral-100 bg-neutral-900 border focus:border-[#ff6a00] focus:ring-[#ff6a00]/20 focus:ring-2 placeholder:text-neutral-500 disabled:bg-neutral-800 disabled:text-neutral-500" placeholder="URL Pública (https://...)" />
               {varForm.thumbnail_url && (
-                <div className="h-24 w-24 rounded-lg bg-gray-100 overflow-hidden border border-gray-200">
+                <div className="h-24 w-24 rounded-lg bg-white/5 overflow-hidden border border-white/10">
                   <img src={varForm.thumbnail_url} alt="Miniatura" className="w-full h-full object-cover" />
                 </div>
               )}
@@ -212,30 +212,30 @@ function VariantFormEditor({ varForm, setVarForm, onSave, onCancel, modelId }: a
           </div>
         </div>
         <div className="space-y-1 md:col-span-2">
-          <label className="text-xs font-semibold text-gray-700">Descripción Corta</label>
-          <textarea name="description" value={varForm.description} onChange={handleChange} rows={2} className="w-full text-sm border-gray-300 rounded-md focus:border-orange-500 focus:ring-orange-500 text-gray-900 bg-white" />
+          <label className="text-xs font-semibold text-gray-300">Descripción Corta</label>
+          <textarea name="description" value={varForm.description} onChange={handleChange} rows={2} className="w-full text-sm border-white/10 rounded-md text-neutral-100 bg-neutral-900 border focus:border-[#ff6a00] focus:ring-[#ff6a00]/20 focus:ring-2 placeholder:text-neutral-500 disabled:bg-neutral-800 disabled:text-neutral-500" />
         </div>
         <div className="space-y-1">
-          <label className="text-xs font-semibold text-gray-700">Material Sugerido</label>
-          <input type="text" name="material_type" value={varForm.material_type} onChange={handleChange} className="w-full text-sm border-gray-300 rounded-md focus:border-orange-500 focus:ring-orange-500 text-gray-900 bg-white" placeholder="Ej. PLA" />
+          <label className="text-xs font-semibold text-gray-300">Material Sugerido</label>
+          <input type="text" name="material_type" value={varForm.material_type} onChange={handleChange} className="w-full text-sm border-white/10 rounded-md text-neutral-100 bg-neutral-900 border focus:border-[#ff6a00] focus:ring-[#ff6a00]/20 focus:ring-2 placeholder:text-neutral-500 disabled:bg-neutral-800 disabled:text-neutral-500" placeholder="Ej. PLA" />
         </div>
         <div className="space-y-1">
-          <label className="text-xs font-semibold text-gray-700">Color Sugerido</label>
-          <input type="text" name="color" value={varForm.color} onChange={handleChange} className="w-full text-sm border-gray-300 rounded-md focus:border-orange-500 focus:ring-orange-500 text-gray-900 bg-white" placeholder="Ej. Blanco" />
+          <label className="text-xs font-semibold text-gray-300">Color Sugerido</label>
+          <input type="text" name="color" value={varForm.color} onChange={handleChange} className="w-full text-sm border-white/10 rounded-md text-neutral-100 bg-neutral-900 border focus:border-[#ff6a00] focus:ring-[#ff6a00]/20 focus:ring-2 placeholder:text-neutral-500 disabled:bg-neutral-800 disabled:text-neutral-500" placeholder="Ej. Blanco" />
         </div>
         <div className="space-y-1 md:col-span-2">
-          <label className="text-xs font-semibold text-gray-700">Configuración de Impresión</label>
-          <textarea name="print_settings" value={varForm.print_settings} onChange={handleChange} rows={2} className="w-full text-sm border-gray-300 rounded-md focus:border-orange-500 focus:ring-orange-500 text-gray-900 bg-white" placeholder="Ej. Relleno 20%, Sin soportes" />
+          <label className="text-xs font-semibold text-gray-300">Configuración de Impresión</label>
+          <textarea name="print_settings" value={varForm.print_settings} onChange={handleChange} rows={2} className="w-full text-sm border-white/10 rounded-md text-neutral-100 bg-neutral-900 border focus:border-[#ff6a00] focus:ring-[#ff6a00]/20 focus:ring-2 placeholder:text-neutral-500 disabled:bg-neutral-800 disabled:text-neutral-500" placeholder="Ej. Relleno 20%, Sin soportes" />
         </div>
         <div className="space-y-1 flex items-end pb-2">
-          <label className="flex items-center gap-2 cursor-pointer text-sm text-gray-700">
-            <input type="checkbox" name="is_active" checked={varForm.is_active} onChange={handleChange} className="rounded text-orange-600 focus:ring-orange-500" />
+          <label className="flex items-center gap-2 cursor-pointer text-sm text-gray-300">
+            <input type="checkbox" name="is_active" checked={varForm.is_active} onChange={handleChange} className="rounded text-[#ff6a00] focus:ring-[#ff6a00]/20" />
             Activa
           </label>
         </div>
       </div>
       <div className="mt-4 flex justify-end gap-2">
-        <button onClick={onCancel} className="px-3 py-1.5 text-sm font-medium text-gray-600 hover:bg-gray-200 rounded-md transition-colors">Cancelar</button>
+        <button onClick={onCancel} className="px-3 py-1.5 text-sm font-medium text-gray-400 hover:bg-gray-200 rounded-md transition-colors">Cancelar</button>
         <button onClick={onSave} className="px-3 py-1.5 text-sm font-medium bg-emerald-600 hover:bg-emerald-700 text-white rounded-md transition-colors">Guardar Variante</button>
       </div>
     </div>

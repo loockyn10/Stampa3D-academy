@@ -113,25 +113,25 @@ export function Sidebar({ mobileOpen, setMobileOpen }: SidebarProps) {
       {/* Mobile overlay */}
       {mobileOpen && (
         <div
-          className="fixed inset-0 z-30 bg-gray-900/40 lg:hidden"
+          className="fixed inset-0 z-30 bg-black/60 lg:hidden"
           onClick={() => setMobileOpen(false)}
         />
       )}
 
       <aside
-        className={`fixed inset-y-0 left-0 z-40 flex w-64 flex-col border-r border-gray-100 bg-white transition-transform duration-200 lg:static lg:translate-x-0 ${
+        className={`fixed inset-y-0 left-0 z-40 flex w-64 flex-col border-r border-white/5 bg-[#070707] transition-transform duration-200 lg:static lg:translate-x-0 ${
           mobileOpen ? "translate-x-0" : "-translate-x-full"
         }`}
       >
         {/* Brand logo header */}
         <div className="flex items-center justify-between px-5 py-5">
           <Link href="/" className="flex items-center gap-2" onClick={() => setMobileOpen(false)}>
-            <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-orange-500 text-white">
+            <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-[#ff6a00] text-white">
               <Layers size={18} />
             </div>
             <div>
-              <p className="text-sm font-bold leading-none text-gray-900">Stampa</p>
-              <p className="mt-0.5 text-[11px] leading-none text-gray-400">Academia 3D</p>
+              <p className="text-sm font-bold leading-none text-white">Stampa</p>
+              <p className="mt-0.5 text-[11px] leading-none text-gray-500">Academia 3D</p>
             </div>
           </Link>
           <button className="text-gray-400 lg:hidden" onClick={() => setMobileOpen(false)}>
@@ -144,7 +144,7 @@ export function Sidebar({ mobileOpen, setMobileOpen }: SidebarProps) {
           href="/"
           onClick={() => setMobileOpen(false)}
           className={`mx-3 mb-2 flex items-center gap-3 rounded-xl px-3 py-2.5 text-sm font-semibold transition-colors ${
-            pathname === "/" ? "bg-orange-50 text-orange-600" : "text-gray-600 hover:bg-gray-50"
+            pathname === "/" ? "bg-[#ff6a00]/10 text-[#ff6a00]" : "text-gray-400 hover:bg-white/5 hover:text-white"
           }`}
         >
           <div className="flex h-5 w-5 items-center justify-center">🏠</div>
@@ -171,7 +171,7 @@ export function Sidebar({ mobileOpen, setMobileOpen }: SidebarProps) {
             }
             return groupsToRender.map((group) => (
               <div key={group.group} className="mb-5">
-                <p className="mb-1.5 px-3 text-[11px] font-bold uppercase tracking-wider text-gray-400">
+                <p className="mb-1.5 px-3 text-[11px] font-bold uppercase tracking-wider text-gray-500">
                   {group.group}
                 </p>
                 <div className="space-y-0.5">
@@ -185,24 +185,24 @@ export function Sidebar({ mobileOpen, setMobileOpen }: SidebarProps) {
                         onClick={() => setMobileOpen(false)}
                         className={`group flex w-full items-center gap-3 rounded-xl px-3 py-2.5 text-sm font-medium transition-colors duration-150 ${
                           active
-                            ? "bg-orange-50 text-orange-600"
+                            ? "bg-[#ff6a00]/10 text-[#ff6a00]"
                             : item.path === "/salir"
-                            ? "text-gray-500 hover:bg-red-50 hover:text-red-600"
-                            : "text-gray-600 hover:bg-gray-50"
+                            ? "text-gray-500 hover:bg-red-500/10 hover:text-red-400"
+                            : "text-gray-400 hover:bg-white/5 hover:text-white"
                         }`}
                       >
                         <Icon
                           size={17}
                           className={
                             active
-                              ? "text-orange-500"
+                              ? "text-[#ff6a00]"
                               : item.path === "/salir"
-                              ? "text-gray-400 group-hover:text-red-500"
-                              : "text-gray-400 group-hover:text-gray-600"
+                              ? "text-gray-500 group-hover:text-red-400"
+                              : "text-gray-500 group-hover:text-gray-300"
                           }
                         />
                         <span className="flex-1 text-left">{item.label}</span>
-                        {active && <span className="h-1.5 w-1.5 rounded-full bg-orange-500" />}
+                        {active && <span className="h-1.5 w-1.5 rounded-full bg-[#ff6a00]" />}
                       </Link>
                     );
                   })}
@@ -214,9 +214,9 @@ export function Sidebar({ mobileOpen, setMobileOpen }: SidebarProps) {
 
         {/* Membership CTA banner */}
         {!loading && !isMembershipActive && !isAdmin && (
-          <div className="mx-3 mb-4 rounded-2xl bg-gray-900 p-4 text-white">
-            <p className="text-xs font-semibold text-orange-400">Activar membresía</p>
-            <p className="mt-1 text-xs text-gray-300">Desbloqueá todos los cursos y STL exclusivos de la academia.</p>
+          <div className="mx-3 mb-4 rounded-2xl bg-white/5 border border-white/10 p-4 text-white">
+            <p className="text-xs font-semibold text-[#ff6a00]">Activar membresía</p>
+            <p className="mt-1 text-xs text-gray-400">Desbloqueá todos los cursos y STL exclusivos de la academia.</p>
             <Link 
               href="/sin-acceso"
               onClick={() => setMobileOpen(false)}

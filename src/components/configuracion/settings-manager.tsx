@@ -105,33 +105,33 @@ export function SettingsManager() {
         </div>
       )}
 
-      <h3 className="text-lg font-semibold text-gray-900 mb-4">Ajustes Globales de Calculadora</h3>
+      <h3 className="text-lg font-semibold text-white mb-4">Ajustes Globales de Calculadora</h3>
 
-      <Card className="p-6 border-gray-200 shadow-sm space-y-4">
+      <Card className="p-6 border-white/10 shadow-sm space-y-4">
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
           <div>
-            <label className="block text-sm font-semibold text-gray-700 mb-1">Precio kWh de Electricidad ($)</label>
-            <input type="number" step="0.01" name="electricity_price_kwh" value={formData.electricity_price_kwh} onChange={handleChange} className="w-full text-sm border-gray-300 rounded-md focus:border-orange-500 focus:ring-orange-500 text-gray-900" />
+            <label className="block text-sm font-semibold text-gray-300 mb-1">Precio kWh de Electricidad ($)</label>
+            <input type="number" step="0.01" name="electricity_price_kwh" value={formData.electricity_price_kwh} onChange={handleChange} className="w-full text-sm border-white/10 rounded-md text-neutral-100 bg-neutral-900 border focus:border-[#ff6a00] focus:ring-[#ff6a00]/20 focus:ring-2 placeholder:text-neutral-500 disabled:bg-neutral-800 disabled:text-neutral-500" />
             <p className="text-xs text-gray-500 mt-1">Precio por Kilowatt hora en tu región.</p>
           </div>
           <div>
-            <label className="block text-sm font-semibold text-gray-700 mb-1">Margen de Error / Merma (%)</label>
-            <input type="number" name="default_error_percent" value={formData.default_error_percent} onChange={handleChange} className="w-full text-sm border-gray-300 rounded-md focus:border-orange-500 focus:ring-orange-500 text-gray-900" />
+            <label className="block text-sm font-semibold text-gray-300 mb-1">Margen de Error / Merma (%)</label>
+            <input type="number" name="default_error_percent" value={formData.default_error_percent} onChange={handleChange} className="w-full text-sm border-white/10 rounded-md text-neutral-100 bg-neutral-900 border focus:border-[#ff6a00] focus:ring-[#ff6a00]/20 focus:ring-2 placeholder:text-neutral-500 disabled:bg-neutral-800 disabled:text-neutral-500" />
             <p className="text-xs text-gray-500 mt-1">Porcentaje extra de material para compensar fallos.</p>
           </div>
           <div>
-            <label className="block text-sm font-semibold text-gray-700 mb-1">Extra Mercado Libre ($ Fijo)</label>
-            <input type="number" name="mercado_libre_extra_amount" value={formData.mercado_libre_extra_amount} onChange={handleChange} className="w-full text-sm border-gray-300 rounded-md focus:border-orange-500 focus:ring-orange-500 text-gray-900" />
+            <label className="block text-sm font-semibold text-gray-300 mb-1">Extra Mercado Libre ($ Fijo)</label>
+            <input type="number" name="mercado_libre_extra_amount" value={formData.mercado_libre_extra_amount} onChange={handleChange} className="w-full text-sm border-white/10 rounded-md text-neutral-100 bg-neutral-900 border focus:border-[#ff6a00] focus:ring-[#ff6a00]/20 focus:ring-2 placeholder:text-neutral-500 disabled:bg-neutral-800 disabled:text-neutral-500" />
             <p className="text-xs text-gray-500 mt-1">Monto fijo extra que se suma al precio en ML.</p>
           </div>
           <div>
-            <label className="block text-sm font-semibold text-gray-700 mb-1">Comisión ML (%)</label>
-            <input type="number" name="platform_commission_percent" value={formData.platform_commission_percent} onChange={handleChange} className="w-full text-sm border-gray-300 rounded-md focus:border-orange-500 focus:ring-orange-500 text-gray-900" />
+            <label className="block text-sm font-semibold text-gray-300 mb-1">Comisión ML (%)</label>
+            <input type="number" name="platform_commission_percent" value={formData.platform_commission_percent} onChange={handleChange} className="w-full text-sm border-white/10 rounded-md text-neutral-100 bg-neutral-900 border focus:border-[#ff6a00] focus:ring-[#ff6a00]/20 focus:ring-2 placeholder:text-neutral-500 disabled:bg-neutral-800 disabled:text-neutral-500" />
             <p className="text-xs text-gray-500 mt-1">Porcentaje de retención de la plataforma.</p>
           </div>
         </div>
 
-        <div className="mt-6 flex justify-end pt-4 border-t border-gray-100">
+        <div className="mt-6 flex justify-end pt-4 border-t border-white/5">
           <button onClick={handleSave} disabled={saving} className="flex items-center gap-1.5 px-4 py-2 text-sm font-bold bg-orange-500 hover:bg-orange-600 text-white rounded-md transition-colors disabled:opacity-50">
             {saving ? <Loader2 size={16} className="animate-spin" /> : <Save size={16} />}
             Guardar Ajustes

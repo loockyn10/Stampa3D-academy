@@ -89,11 +89,11 @@ export default function SorteosPage() {
               <div className="mb-2">
                 <Badge tone="dark">Sorteo activo</Badge>
               </div>
-              <h3 className="text-2xl font-black text-gray-900">{activeRaffle.title}</h3>
+              <h3 className="text-2xl font-black text-white">{activeRaffle.title}</h3>
               <p className="mt-2 flex items-center gap-1.5 text-sm font-semibold text-orange-600">
                 <CalendarDays size={16} /> Se sortea el {new Date(activeRaffle.draw_date).toLocaleDateString()}
               </p>
-              <p className="mt-4 text-sm text-gray-600 whitespace-pre-wrap">
+              <p className="mt-4 text-sm text-gray-400 whitespace-pre-wrap">
                 {activeRaffle.description}
               </p>
               
@@ -102,14 +102,14 @@ export default function SorteosPage() {
                   <h4 className="text-xs font-bold text-gray-500 uppercase tracking-wider mb-3">Premios</h4>
                   <ul className="space-y-3">
                     {activePrizes.map((prize, idx) => (
-                      <li key={prize.id} className="flex gap-3 bg-gray-50 p-3 rounded-xl border border-gray-100">
+                      <li key={prize.id} className="flex gap-3 bg-[#0a0a0a] p-3 rounded-xl border border-white/5">
                         {prize.image_url ? (
-                          <img src={prize.image_url} alt="" className="w-12 h-12 object-cover rounded bg-white" />
+                          <img src={prize.image_url} alt="" className="w-12 h-12 object-cover rounded bg-[#111]" />
                         ) : (
-                          <div className="w-12 h-12 bg-white rounded flex items-center justify-center text-xl shadow-sm border border-gray-100">🏆</div>
+                          <div className="w-12 h-12 bg-[#111] rounded flex items-center justify-center text-xl shadow-sm border border-white/5">🏆</div>
                         )}
                         <div>
-                          <p className="text-sm font-bold text-gray-900">{idx + 1}º Premio: {prize.name}</p>
+                          <p className="text-sm font-bold text-white">{idx + 1}º Premio: {prize.name}</p>
                           <p className="text-xs text-gray-500 line-clamp-1">{prize.description}</p>
                         </div>
                       </li>
@@ -121,9 +121,9 @@ export default function SorteosPage() {
           </div>
         </Card>
       ) : (
-        <Card className="p-10 text-center bg-gray-50 border-dashed border-gray-300">
+        <Card className="p-10 text-center bg-[#0a0a0a] border-dashed border-white/20">
           <Gift size={40} className="mx-auto text-gray-300 mb-3" />
-          <h3 className="text-lg font-bold text-gray-900">No hay sorteos activos</h3>
+          <h3 className="text-lg font-bold text-white">No hay sorteos activos</h3>
           <p className="text-sm text-gray-500 mt-1">Mantente atento a las próximas novedades en la comunidad.</p>
         </Card>
       )}
@@ -141,7 +141,7 @@ export default function SorteosPage() {
                   <div className="mb-3 flex h-10 w-10 items-center justify-center rounded-full bg-orange-50 text-orange-500">
                     <Trophy size={18} />
                   </div>
-                  <p className="text-sm font-bold text-gray-900">{w.winner_name_snapshot}</p>
+                  <p className="text-sm font-bold text-white">{w.winner_name_snapshot}</p>
                   <p className="text-xs font-semibold text-orange-600 mt-0.5">{w.prize_name_snapshot}</p>
                 </div>
                 <p className="mt-4 text-[11px] font-medium text-gray-400">

@@ -183,7 +183,7 @@ export function ModulesManager({ courseId }: { courseId: string }) {
   return (
     <div className="space-y-6 mt-8">
       <div className="flex items-center justify-between">
-        <h2 className="text-xl font-bold text-gray-900">Módulos y Clases</h2>
+        <h2 className="text-xl font-bold text-white">Módulos y Clases</h2>
         <button
           onClick={() => {
             setModuleFormData({ title: "", description: "", sort_order: modules.length + 1, is_active: true });
@@ -203,21 +203,21 @@ export function ModulesManager({ courseId }: { courseId: string }) {
 
       {/* NEW MODULE FORM */}
       {editingModuleId === "new" && (
-        <div className="bg-white p-4 rounded-xl border border-gray-200 shadow-sm space-y-4">
-          <h3 className="font-semibold text-gray-900">Nuevo Módulo</h3>
+        <div className="bg-[#111] p-4 rounded-xl border border-white/10 shadow-sm space-y-4">
+          <h3 className="font-semibold text-white">Nuevo Módulo</h3>
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            <input type="text" placeholder="Título" value={moduleFormData.title} onChange={e => setModuleFormData({ ...moduleFormData, title: e.target.value })} className="w-full text-sm bg-white text-gray-900 placeholder-gray-500 border-gray-300 rounded-md focus:ring-orange-500 focus:border-orange-500" />
-            <input type="number" placeholder="Orden" value={moduleFormData.sort_order} onChange={e => setModuleFormData({ ...moduleFormData, sort_order: parseInt(e.target.value) || 0 })} className="w-full text-sm bg-white text-gray-900 placeholder-gray-500 border-gray-300 rounded-md focus:ring-orange-500 focus:border-orange-500" />
+            <input type="text" placeholder="Título" value={moduleFormData.title} onChange={e => setModuleFormData({ ...moduleFormData, title: e.target.value })} className="w-full text-sm bg-[#111] text-white placeholder-gray-500 border-white/20 rounded-md focus:ring-orange-500 focus:border-orange-500" />
+            <input type="number" placeholder="Orden" value={moduleFormData.sort_order} onChange={e => setModuleFormData({ ...moduleFormData, sort_order: parseInt(e.target.value) || 0 })} className="w-full text-sm bg-[#111] text-white placeholder-gray-500 border-white/20 rounded-md focus:ring-orange-500 focus:border-orange-500" />
             <div className="md:col-span-2">
-              <textarea placeholder="Descripción (opcional)" value={moduleFormData.description} onChange={e => setModuleFormData({ ...moduleFormData, description: e.target.value })} className="w-full text-sm bg-white text-gray-900 placeholder-gray-500 border-gray-300 rounded-md focus:ring-orange-500 focus:border-orange-500" rows={2} />
+              <textarea placeholder="Descripción (opcional)" value={moduleFormData.description} onChange={e => setModuleFormData({ ...moduleFormData, description: e.target.value })} className="w-full text-sm bg-[#111] text-white placeholder-gray-500 border-white/20 rounded-md focus:ring-orange-500 focus:border-orange-500" rows={2} />
             </div>
             <div className="flex items-center gap-2">
-              <input type="checkbox" id="mod_act_new" checked={moduleFormData.is_active} onChange={e => setModuleFormData({ ...moduleFormData, is_active: e.target.checked })} className="text-blue-600 rounded border-gray-300 focus:ring-orange-500" />
-              <label htmlFor="mod_act_new" className="text-sm text-gray-700">Activo</label>
+              <input type="checkbox" id="mod_act_new" checked={moduleFormData.is_active} onChange={e => setModuleFormData({ ...moduleFormData, is_active: e.target.checked })} className="text-blue-600 rounded border-white/20 focus:ring-orange-500" />
+              <label htmlFor="mod_act_new" className="text-sm text-gray-300">Activo</label>
             </div>
           </div>
           <div className="flex justify-end gap-2">
-            <button onClick={() => setEditingModuleId(null)} className="px-4 py-2 text-sm text-gray-600 hover:bg-gray-100 rounded-lg">Cancelar</button>
+            <button onClick={() => setEditingModuleId(null)} className="px-4 py-2 text-sm text-gray-400 hover:bg-white/5 rounded-lg">Cancelar</button>
             <button onClick={handleSaveModule} className="px-4 py-2 text-sm bg-blue-600 text-white rounded-lg hover:bg-blue-700">Guardar</button>
           </div>
         </div>
@@ -226,33 +226,33 @@ export function ModulesManager({ courseId }: { courseId: string }) {
       {/* MODULES LIST */}
       <div className="space-y-4">
         {modules.map((mod) => (
-          <div key={mod.id} className="bg-white border border-gray-200 rounded-xl overflow-hidden shadow-sm">
+          <div key={mod.id} className="bg-[#111] border border-white/10 rounded-xl overflow-hidden shadow-sm">
             {/* MODULE HEADER */}
             {editingModuleId === mod.id ? (
-              <div className="p-4 bg-gray-50 border-b border-gray-200 space-y-4">
-                <h3 className="font-semibold text-gray-900">Editar Módulo</h3>
+              <div className="p-4 bg-[#0a0a0a] border-b border-white/10 space-y-4">
+                <h3 className="font-semibold text-white">Editar Módulo</h3>
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                  <input type="text" placeholder="Título" value={moduleFormData.title} onChange={e => setModuleFormData({ ...moduleFormData, title: e.target.value })} className="w-full text-sm bg-white text-gray-900 placeholder-gray-500 border-gray-300 rounded-md focus:ring-orange-500 focus:border-orange-500" />
-                  <input type="number" placeholder="Orden" value={moduleFormData.sort_order} onChange={e => setModuleFormData({ ...moduleFormData, sort_order: parseInt(e.target.value) || 0 })} className="w-full text-sm bg-white text-gray-900 placeholder-gray-500 border-gray-300 rounded-md focus:ring-orange-500 focus:border-orange-500" />
+                  <input type="text" placeholder="Título" value={moduleFormData.title} onChange={e => setModuleFormData({ ...moduleFormData, title: e.target.value })} className="w-full text-sm bg-[#111] text-white placeholder-gray-500 border-white/20 rounded-md focus:ring-orange-500 focus:border-orange-500" />
+                  <input type="number" placeholder="Orden" value={moduleFormData.sort_order} onChange={e => setModuleFormData({ ...moduleFormData, sort_order: parseInt(e.target.value) || 0 })} className="w-full text-sm bg-[#111] text-white placeholder-gray-500 border-white/20 rounded-md focus:ring-orange-500 focus:border-orange-500" />
                   <div className="md:col-span-2">
-                    <textarea placeholder="Descripción" value={moduleFormData.description} onChange={e => setModuleFormData({ ...moduleFormData, description: e.target.value })} className="w-full text-sm bg-white text-gray-900 placeholder-gray-500 border-gray-300 rounded-md focus:ring-orange-500 focus:border-orange-500" rows={2} />
+                    <textarea placeholder="Descripción" value={moduleFormData.description} onChange={e => setModuleFormData({ ...moduleFormData, description: e.target.value })} className="w-full text-sm bg-[#111] text-white placeholder-gray-500 border-white/20 rounded-md focus:ring-orange-500 focus:border-orange-500" rows={2} />
                   </div>
                   <div className="flex items-center gap-2">
-                    <input type="checkbox" id={`mod_act_${mod.id}`} checked={moduleFormData.is_active} onChange={e => setModuleFormData({ ...moduleFormData, is_active: e.target.checked })} className="text-blue-600 rounded border-gray-300 focus:ring-orange-500" />
-                    <label htmlFor={`mod_act_${mod.id}`} className="text-sm text-gray-700">Activo</label>
+                    <input type="checkbox" id={`mod_act_${mod.id}`} checked={moduleFormData.is_active} onChange={e => setModuleFormData({ ...moduleFormData, is_active: e.target.checked })} className="text-blue-600 rounded border-white/20 focus:ring-orange-500" />
+                    <label htmlFor={`mod_act_${mod.id}`} className="text-sm text-gray-300">Activo</label>
                   </div>
                 </div>
                 <div className="flex justify-end gap-2">
-                  <button onClick={() => setEditingModuleId(null)} className="px-4 py-2 text-sm text-gray-600 hover:bg-gray-100 rounded-lg">Cancelar</button>
+                  <button onClick={() => setEditingModuleId(null)} className="px-4 py-2 text-sm text-gray-400 hover:bg-white/5 rounded-lg">Cancelar</button>
                   <button onClick={handleSaveModule} className="px-4 py-2 text-sm bg-blue-600 text-white rounded-lg hover:bg-blue-700">Guardar</button>
                 </div>
               </div>
             ) : (
-              <div className="flex items-center justify-between p-4 bg-gray-50 border-b border-gray-200">
+              <div className="flex items-center justify-between p-4 bg-[#0a0a0a] border-b border-white/10">
                 <div className="flex items-center gap-3 cursor-pointer select-none" onClick={() => toggleModule(mod.id)}>
                   {expandedModules[mod.id] ? <ChevronUp size={20} className="text-gray-400" /> : <ChevronDown size={20} className="text-gray-400" />}
                   <div>
-                    <h3 className="font-semibold text-gray-900 flex items-center gap-2">
+                    <h3 className="font-semibold text-white flex items-center gap-2">
                       Módulo {mod.sort_order}: {mod.title}
                       {!mod.is_active && <span className="text-[10px] bg-red-50 text-red-700 px-2 py-0.5 rounded-full font-medium">Inactivo</span>}
                     </h3>
@@ -269,29 +269,29 @@ export function ModulesManager({ courseId }: { courseId: string }) {
             {expandedModules[mod.id] && (
               <div className="p-4 space-y-3">
                 {(lessons[mod.id] || []).map((lesson) => (
-                  <div key={lesson.id} className="border border-gray-100 rounded-lg p-3 flex flex-col gap-2 hover:bg-gray-50 transition-colors">
+                  <div key={lesson.id} className="border border-white/5 rounded-lg p-3 flex flex-col gap-2 hover:bg-[#0a0a0a] transition-colors">
                     {editingLessonId === lesson.id ? (
                        <div className="w-full space-y-3">
                         <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-                          <input type="text" placeholder="Título" value={lessonFormData.title} onChange={e => setLessonFormData({ ...lessonFormData, title: e.target.value })} className="text-sm bg-white text-gray-900 placeholder-gray-500 border-gray-300 rounded-md w-full focus:ring-orange-500 focus:border-orange-500" />
-                          <input type="number" placeholder="Duración (min)" value={lessonFormData.duration_minutes} onChange={e => setLessonFormData({ ...lessonFormData, duration_minutes: parseInt(e.target.value) || 0 })} className="text-sm bg-white text-gray-900 placeholder-gray-500 border-gray-300 rounded-md w-full focus:ring-orange-500 focus:border-orange-500" />
+                          <input type="text" placeholder="Título" value={lessonFormData.title} onChange={e => setLessonFormData({ ...lessonFormData, title: e.target.value })} className="text-sm bg-[#111] text-white placeholder-gray-500 border-white/20 rounded-md w-full focus:ring-orange-500 focus:border-orange-500" />
+                          <input type="number" placeholder="Duración (min)" value={lessonFormData.duration_minutes} onChange={e => setLessonFormData({ ...lessonFormData, duration_minutes: parseInt(e.target.value) || 0 })} className="text-sm bg-[#111] text-white placeholder-gray-500 border-white/20 rounded-md w-full focus:ring-orange-500 focus:border-orange-500" />
                           <div className="md:col-span-2 space-y-1">
-                            <label className="block text-xs font-semibold text-gray-700">
+                            <label className="block text-xs font-semibold text-gray-300">
                               URL embed del video
                             </label>
-                            <input type="text" placeholder="https://player.mediadelivery.net/embed/..." value={lessonFormData.video_url} onChange={e => setLessonFormData({ ...lessonFormData, video_url: e.target.value })} className="text-sm bg-white text-gray-900 placeholder-gray-500 border-gray-300 rounded-md w-full focus:ring-orange-500 focus:border-orange-500" />
+                            <input type="text" placeholder="https://player.mediadelivery.net/embed/..." value={lessonFormData.video_url} onChange={e => setLessonFormData({ ...lessonFormData, video_url: e.target.value })} className="text-sm bg-[#111] text-white placeholder-gray-500 border-white/20 rounded-md w-full focus:ring-orange-500 focus:border-orange-500" />
                             <p className="text-[11px] text-gray-500">
                               Pegá la URL src del iframe de Bunny Stream, no el iframe completo.
                             </p>
                           </div>
                           <div className="md:col-span-2">
-                            <textarea placeholder="Descripción (opcional)" value={lessonFormData.description} onChange={e => setLessonFormData({ ...lessonFormData, description: e.target.value })} className="text-sm bg-white text-gray-900 placeholder-gray-500 border-gray-300 rounded-md w-full focus:ring-orange-500 focus:border-orange-500" rows={2} />
+                            <textarea placeholder="Descripción (opcional)" value={lessonFormData.description} onChange={e => setLessonFormData({ ...lessonFormData, description: e.target.value })} className="text-sm bg-[#111] text-white placeholder-gray-500 border-white/20 rounded-md w-full focus:ring-orange-500 focus:border-orange-500" rows={2} />
                           </div>
                           <div className="flex items-center gap-4">
-                            <input type="number" placeholder="Orden" value={lessonFormData.sort_order} onChange={e => setLessonFormData({ ...lessonFormData, sort_order: parseInt(e.target.value) || 0 })} className="text-sm bg-white text-gray-900 placeholder-gray-500 border-gray-300 rounded-md w-24 focus:ring-orange-500 focus:border-orange-500" />
+                            <input type="number" placeholder="Orden" value={lessonFormData.sort_order} onChange={e => setLessonFormData({ ...lessonFormData, sort_order: parseInt(e.target.value) || 0 })} className="text-sm bg-[#111] text-white placeholder-gray-500 border-white/20 rounded-md w-24 focus:ring-orange-500 focus:border-orange-500" />
                             <div className="flex items-center gap-2">
-                              <input type="checkbox" id={`les_act_${lesson.id}`} checked={lessonFormData.is_active} onChange={e => setLessonFormData({ ...lessonFormData, is_active: e.target.checked })} className="text-blue-600 rounded border-gray-300 focus:ring-orange-500" />
-                              <label htmlFor={`les_act_${lesson.id}`} className="text-sm text-gray-700">Activo</label>
+                              <input type="checkbox" id={`les_act_${lesson.id}`} checked={lessonFormData.is_active} onChange={e => setLessonFormData({ ...lessonFormData, is_active: e.target.checked })} className="text-blue-600 rounded border-white/20 focus:ring-orange-500" />
+                              <label htmlFor={`les_act_${lesson.id}`} className="text-sm text-gray-300">Activo</label>
                             </div>
                           </div>
                         </div>
@@ -305,30 +305,30 @@ export function ModulesManager({ courseId }: { courseId: string }) {
 
                           <div className="md:col-span-2 flex items-center gap-2 mb-1">
                             <input type="checkbox" id={`les_ai_rec_${lesson.id}`} checked={lessonFormData.is_ai_recommendable} onChange={e => setLessonFormData({ ...lessonFormData, is_ai_recommendable: e.target.checked })} className="text-purple-600 rounded border-purple-300 focus:ring-purple-500" />
-                            <label htmlFor={`les_ai_rec_${lesson.id}`} className="text-sm text-gray-800 font-medium">Stampy puede recomendar esta clase</label>
+                            <label htmlFor={`les_ai_rec_${lesson.id}`} className="text-sm text-gray-200 font-medium">Stampy puede recomendar esta clase</label>
                           </div>
 
                           <div className="md:col-span-2 space-y-1">
-                            <label className="block text-xs font-semibold text-gray-700">Resumen para Stampy</label>
-                            <textarea placeholder="Explicá brevemente qué aprende el alumno en esta clase y en qué casos debería verla." value={lessonFormData.ai_summary} onChange={e => setLessonFormData({ ...lessonFormData, ai_summary: e.target.value })} className="text-sm bg-white text-gray-900 placeholder-gray-400 border-purple-200 rounded-md w-full focus:ring-purple-500 focus:border-purple-500" rows={2} />
+                            <label className="block text-xs font-semibold text-gray-300">Resumen para Stampy</label>
+                            <textarea placeholder="Explicá brevemente qué aprende el alumno en esta clase y en qué casos debería verla." value={lessonFormData.ai_summary} onChange={e => setLessonFormData({ ...lessonFormData, ai_summary: e.target.value })} className="text-sm bg-[#111] text-white placeholder-gray-400 border-purple-200 rounded-md w-full focus:ring-purple-500 focus:border-purple-500" rows={2} />
                             <p className="text-[11px] text-gray-500">Este resumen no se muestra necesariamente al alumno. Sirve para que Stampy entienda cuándo recomendar esta clase.</p>
                           </div>
 
                           <div className="space-y-1">
-                            <label className="block text-xs font-semibold text-gray-700">Temas tratados</label>
-                            <input type="text" placeholder="warping, adherencia, primera capa" value={lessonFormData.ai_topics} onChange={e => setLessonFormData({ ...lessonFormData, ai_topics: e.target.value })} className="text-sm bg-white text-gray-900 placeholder-gray-400 border-purple-200 rounded-md w-full focus:ring-purple-500 focus:border-purple-500" />
+                            <label className="block text-xs font-semibold text-gray-300">Temas tratados</label>
+                            <input type="text" placeholder="warping, adherencia, primera capa" value={lessonFormData.ai_topics} onChange={e => setLessonFormData({ ...lessonFormData, ai_topics: e.target.value })} className="text-sm bg-[#111] text-white placeholder-gray-400 border-purple-200 rounded-md w-full focus:ring-purple-500 focus:border-purple-500" />
                             <p className="text-[11px] text-gray-500">Separados por coma</p>
                           </div>
 
                           <div className="space-y-1">
-                            <label className="block text-xs font-semibold text-gray-700">Problemas que resuelve</label>
-                            <input type="text" placeholder="se levantan las esquinas, mala adhesión" value={lessonFormData.ai_problems} onChange={e => setLessonFormData({ ...lessonFormData, ai_problems: e.target.value })} className="text-sm bg-white text-gray-900 placeholder-gray-400 border-purple-200 rounded-md w-full focus:ring-purple-500 focus:border-purple-500" />
+                            <label className="block text-xs font-semibold text-gray-300">Problemas que resuelve</label>
+                            <input type="text" placeholder="se levantan las esquinas, mala adhesión" value={lessonFormData.ai_problems} onChange={e => setLessonFormData({ ...lessonFormData, ai_problems: e.target.value })} className="text-sm bg-[#111] text-white placeholder-gray-400 border-purple-200 rounded-md w-full focus:ring-purple-500 focus:border-purple-500" />
                             <p className="text-[11px] text-gray-500">Separados por coma</p>
                           </div>
 
                           <div className="space-y-1">
-                            <label className="block text-xs font-semibold text-gray-700">Nivel</label>
-                            <select value={lessonFormData.ai_level} onChange={e => setLessonFormData({ ...lessonFormData, ai_level: e.target.value })} className="text-sm bg-white text-gray-900 border-purple-200 rounded-md w-full focus:ring-purple-500 focus:border-purple-500">
+                            <label className="block text-xs font-semibold text-gray-300">Nivel</label>
+                            <select value={lessonFormData.ai_level} onChange={e => setLessonFormData({ ...lessonFormData, ai_level: e.target.value })} className="text-sm bg-[#111] text-white border-purple-200 rounded-md w-full focus:ring-purple-500 focus:border-purple-500">
                               <option value="beginner">Principiante</option>
                               <option value="intermediate">Intermedio</option>
                               <option value="advanced">Avanzado</option>
@@ -336,8 +336,8 @@ export function ModulesManager({ courseId }: { courseId: string }) {
                           </div>
 
                           <div className="space-y-1">
-                            <label className="block text-xs font-semibold text-gray-700">Herramienta relacionada</label>
-                            <select value={lessonFormData.ai_related_tool} onChange={e => setLessonFormData({ ...lessonFormData, ai_related_tool: e.target.value })} className="text-sm bg-white text-gray-900 border-purple-200 rounded-md w-full focus:ring-purple-500 focus:border-purple-500">
+                            <label className="block text-xs font-semibold text-gray-300">Herramienta relacionada</label>
+                            <select value={lessonFormData.ai_related_tool} onChange={e => setLessonFormData({ ...lessonFormData, ai_related_tool: e.target.value })} className="text-sm bg-[#111] text-white border-purple-200 rounded-md w-full focus:ring-purple-500 focus:border-purple-500">
                               <option value="ninguna">Ninguna</option>
                               <option value="calculadora">Calculadora</option>
                               <option value="presupuestos">Presupuestos</option>
@@ -351,7 +351,7 @@ export function ModulesManager({ courseId }: { courseId: string }) {
                           </div>
                         </div>
                         <div className="flex justify-end gap-2">
-                          <button onClick={() => setEditingLessonId(null)} className="px-3 py-1.5 text-xs text-gray-600 hover:bg-gray-100 rounded-lg">Cancelar</button>
+                          <button onClick={() => setEditingLessonId(null)} className="px-3 py-1.5 text-xs text-gray-400 hover:bg-white/5 rounded-lg">Cancelar</button>
                           <button onClick={() => handleSaveLesson(mod.id)} className="px-3 py-1.5 text-xs bg-blue-600 text-white rounded-lg hover:bg-blue-700">Guardar Clase</button>
                         </div>
                       </div>
@@ -363,7 +363,7 @@ export function ModulesManager({ courseId }: { courseId: string }) {
                             <Video size={16} />
                           </div>
                           <div>
-                            <p className="text-sm font-medium text-gray-900 flex items-center gap-2">
+                            <p className="text-sm font-medium text-white flex items-center gap-2">
                               {lesson.sort_order}. {lesson.title}
                               {!lesson.is_active && <span className="text-[10px] bg-red-50 text-red-700 px-2 py-0.5 rounded-full font-medium">Inactivo</span>}
                             </p>
@@ -401,27 +401,27 @@ export function ModulesManager({ courseId }: { courseId: string }) {
                 {/* NEW LESSON FORM IN THIS MODULE */}
                 {editingLessonId === "new" && activeModuleForLesson === mod.id ? (
                   <div className="border border-blue-100 bg-blue-50/30 rounded-lg p-3 space-y-3">
-                    <h4 className="text-xs font-semibold text-gray-700 uppercase">Nueva Clase</h4>
+                    <h4 className="text-xs font-semibold text-gray-300 uppercase">Nueva Clase</h4>
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-                      <input type="text" placeholder="Título" value={lessonFormData.title} onChange={e => setLessonFormData({ ...lessonFormData, title: e.target.value })} className="text-sm bg-white text-gray-900 placeholder-gray-500 border-gray-300 rounded-md w-full focus:ring-orange-500 focus:border-orange-500" />
-                      <input type="number" placeholder="Duración (min)" value={lessonFormData.duration_minutes} onChange={e => setLessonFormData({ ...lessonFormData, duration_minutes: parseInt(e.target.value) || 0 })} className="text-sm bg-white text-gray-900 placeholder-gray-500 border-gray-300 rounded-md w-full focus:ring-orange-500 focus:border-orange-500" />
+                      <input type="text" placeholder="Título" value={lessonFormData.title} onChange={e => setLessonFormData({ ...lessonFormData, title: e.target.value })} className="text-sm bg-[#111] text-white placeholder-gray-500 border-white/20 rounded-md w-full focus:ring-orange-500 focus:border-orange-500" />
+                      <input type="number" placeholder="Duración (min)" value={lessonFormData.duration_minutes} onChange={e => setLessonFormData({ ...lessonFormData, duration_minutes: parseInt(e.target.value) || 0 })} className="text-sm bg-[#111] text-white placeholder-gray-500 border-white/20 rounded-md w-full focus:ring-orange-500 focus:border-orange-500" />
                       <div className="md:col-span-2 space-y-1">
-                        <label className="block text-xs font-semibold text-gray-700">
+                        <label className="block text-xs font-semibold text-gray-300">
                           URL embed del video
                         </label>
-                        <input type="text" placeholder="https://player.mediadelivery.net/embed/..." value={lessonFormData.video_url} onChange={e => setLessonFormData({ ...lessonFormData, video_url: e.target.value })} className="text-sm bg-white text-gray-900 placeholder-gray-500 border-gray-300 rounded-md w-full focus:ring-orange-500 focus:border-orange-500" />
+                        <input type="text" placeholder="https://player.mediadelivery.net/embed/..." value={lessonFormData.video_url} onChange={e => setLessonFormData({ ...lessonFormData, video_url: e.target.value })} className="text-sm bg-[#111] text-white placeholder-gray-500 border-white/20 rounded-md w-full focus:ring-orange-500 focus:border-orange-500" />
                         <p className="text-[11px] text-gray-500">
                           Pegá la URL src del iframe de Bunny Stream, no el iframe completo.
                         </p>
                       </div>
                       <div className="md:col-span-2">
-                        <textarea placeholder="Descripción (opcional)" value={lessonFormData.description} onChange={e => setLessonFormData({ ...lessonFormData, description: e.target.value })} className="text-sm bg-white text-gray-900 placeholder-gray-500 border-gray-300 rounded-md w-full focus:ring-orange-500 focus:border-orange-500" rows={2} />
+                        <textarea placeholder="Descripción (opcional)" value={lessonFormData.description} onChange={e => setLessonFormData({ ...lessonFormData, description: e.target.value })} className="text-sm bg-[#111] text-white placeholder-gray-500 border-white/20 rounded-md w-full focus:ring-orange-500 focus:border-orange-500" rows={2} />
                       </div>
                       <div className="flex items-center gap-4">
-                        <input type="number" placeholder="Orden" value={lessonFormData.sort_order} onChange={e => setLessonFormData({ ...lessonFormData, sort_order: parseInt(e.target.value) || 0 })} className="text-sm bg-white text-gray-900 placeholder-gray-500 border-gray-300 rounded-md w-24 focus:ring-orange-500 focus:border-orange-500" />
+                        <input type="number" placeholder="Orden" value={lessonFormData.sort_order} onChange={e => setLessonFormData({ ...lessonFormData, sort_order: parseInt(e.target.value) || 0 })} className="text-sm bg-[#111] text-white placeholder-gray-500 border-white/20 rounded-md w-24 focus:ring-orange-500 focus:border-orange-500" />
                         <div className="flex items-center gap-2">
-                          <input type="checkbox" id="les_act_new" checked={lessonFormData.is_active} onChange={e => setLessonFormData({ ...lessonFormData, is_active: e.target.checked })} className="text-blue-600 rounded border-gray-300 focus:ring-orange-500" />
-                          <label htmlFor="les_act_new" className="text-sm text-gray-700">Activo</label>
+                          <input type="checkbox" id="les_act_new" checked={lessonFormData.is_active} onChange={e => setLessonFormData({ ...lessonFormData, is_active: e.target.checked })} className="text-blue-600 rounded border-white/20 focus:ring-orange-500" />
+                          <label htmlFor="les_act_new" className="text-sm text-gray-300">Activo</label>
                         </div>
                       </div>
                     </div>
@@ -435,30 +435,30 @@ export function ModulesManager({ courseId }: { courseId: string }) {
 
                       <div className="md:col-span-2 flex items-center gap-2 mb-1">
                         <input type="checkbox" id="les_ai_rec_new" checked={lessonFormData.is_ai_recommendable} onChange={e => setLessonFormData({ ...lessonFormData, is_ai_recommendable: e.target.checked })} className="text-purple-600 rounded border-purple-300 focus:ring-purple-500" />
-                        <label htmlFor="les_ai_rec_new" className="text-sm text-gray-800 font-medium">Stampy puede recomendar esta clase</label>
+                        <label htmlFor="les_ai_rec_new" className="text-sm text-gray-200 font-medium">Stampy puede recomendar esta clase</label>
                       </div>
 
                       <div className="md:col-span-2 space-y-1">
-                        <label className="block text-xs font-semibold text-gray-700">Resumen para Stampy</label>
-                        <textarea placeholder="Explicá brevemente qué aprende el alumno en esta clase y en qué casos debería verla." value={lessonFormData.ai_summary} onChange={e => setLessonFormData({ ...lessonFormData, ai_summary: e.target.value })} className="text-sm bg-white text-gray-900 placeholder-gray-400 border-purple-200 rounded-md w-full focus:ring-purple-500 focus:border-purple-500" rows={2} />
+                        <label className="block text-xs font-semibold text-gray-300">Resumen para Stampy</label>
+                        <textarea placeholder="Explicá brevemente qué aprende el alumno en esta clase y en qué casos debería verla." value={lessonFormData.ai_summary} onChange={e => setLessonFormData({ ...lessonFormData, ai_summary: e.target.value })} className="text-sm bg-[#111] text-white placeholder-gray-400 border-purple-200 rounded-md w-full focus:ring-purple-500 focus:border-purple-500" rows={2} />
                         <p className="text-[11px] text-gray-500">Este resumen no se muestra necesariamente al alumno. Sirve para que Stampy entienda cuándo recomendar esta clase.</p>
                       </div>
 
                       <div className="space-y-1">
-                        <label className="block text-xs font-semibold text-gray-700">Temas tratados</label>
-                        <input type="text" placeholder="warping, adherencia, primera capa" value={lessonFormData.ai_topics} onChange={e => setLessonFormData({ ...lessonFormData, ai_topics: e.target.value })} className="text-sm bg-white text-gray-900 placeholder-gray-400 border-purple-200 rounded-md w-full focus:ring-purple-500 focus:border-purple-500" />
+                        <label className="block text-xs font-semibold text-gray-300">Temas tratados</label>
+                        <input type="text" placeholder="warping, adherencia, primera capa" value={lessonFormData.ai_topics} onChange={e => setLessonFormData({ ...lessonFormData, ai_topics: e.target.value })} className="text-sm bg-[#111] text-white placeholder-gray-400 border-purple-200 rounded-md w-full focus:ring-purple-500 focus:border-purple-500" />
                         <p className="text-[11px] text-gray-500">Separados por coma</p>
                       </div>
 
                       <div className="space-y-1">
-                        <label className="block text-xs font-semibold text-gray-700">Problemas que resuelve</label>
-                        <input type="text" placeholder="se levantan las esquinas, mala adhesión" value={lessonFormData.ai_problems} onChange={e => setLessonFormData({ ...lessonFormData, ai_problems: e.target.value })} className="text-sm bg-white text-gray-900 placeholder-gray-400 border-purple-200 rounded-md w-full focus:ring-purple-500 focus:border-purple-500" />
+                        <label className="block text-xs font-semibold text-gray-300">Problemas que resuelve</label>
+                        <input type="text" placeholder="se levantan las esquinas, mala adhesión" value={lessonFormData.ai_problems} onChange={e => setLessonFormData({ ...lessonFormData, ai_problems: e.target.value })} className="text-sm bg-[#111] text-white placeholder-gray-400 border-purple-200 rounded-md w-full focus:ring-purple-500 focus:border-purple-500" />
                         <p className="text-[11px] text-gray-500">Separados por coma</p>
                       </div>
 
                       <div className="space-y-1">
-                        <label className="block text-xs font-semibold text-gray-700">Nivel</label>
-                        <select value={lessonFormData.ai_level} onChange={e => setLessonFormData({ ...lessonFormData, ai_level: e.target.value })} className="text-sm bg-white text-gray-900 border-purple-200 rounded-md w-full focus:ring-purple-500 focus:border-purple-500">
+                        <label className="block text-xs font-semibold text-gray-300">Nivel</label>
+                        <select value={lessonFormData.ai_level} onChange={e => setLessonFormData({ ...lessonFormData, ai_level: e.target.value })} className="text-sm bg-[#111] text-white border-purple-200 rounded-md w-full focus:ring-purple-500 focus:border-purple-500">
                           <option value="beginner">Principiante</option>
                           <option value="intermediate">Intermedio</option>
                           <option value="advanced">Avanzado</option>
@@ -466,8 +466,8 @@ export function ModulesManager({ courseId }: { courseId: string }) {
                       </div>
 
                       <div className="space-y-1">
-                        <label className="block text-xs font-semibold text-gray-700">Herramienta relacionada</label>
-                        <select value={lessonFormData.ai_related_tool} onChange={e => setLessonFormData({ ...lessonFormData, ai_related_tool: e.target.value })} className="text-sm bg-white text-gray-900 border-purple-200 rounded-md w-full focus:ring-purple-500 focus:border-purple-500">
+                        <label className="block text-xs font-semibold text-gray-300">Herramienta relacionada</label>
+                        <select value={lessonFormData.ai_related_tool} onChange={e => setLessonFormData({ ...lessonFormData, ai_related_tool: e.target.value })} className="text-sm bg-[#111] text-white border-purple-200 rounded-md w-full focus:ring-purple-500 focus:border-purple-500">
                           <option value="ninguna">Ninguna</option>
                           <option value="calculadora">Calculadora</option>
                           <option value="presupuestos">Presupuestos</option>
@@ -481,7 +481,7 @@ export function ModulesManager({ courseId }: { courseId: string }) {
                       </div>
                     </div>
                     <div className="flex justify-end gap-2">
-                      <button onClick={() => { setEditingLessonId(null); setActiveModuleForLesson(null); }} className="px-3 py-1.5 text-xs text-gray-600 hover:bg-gray-100 rounded-lg">Cancelar</button>
+                      <button onClick={() => { setEditingLessonId(null); setActiveModuleForLesson(null); }} className="px-3 py-1.5 text-xs text-gray-400 hover:bg-white/5 rounded-lg">Cancelar</button>
                       <button onClick={() => handleSaveLesson(mod.id)} className="px-3 py-1.5 text-xs bg-blue-600 text-white rounded-lg hover:bg-blue-700">Guardar Clase</button>
                     </div>
                   </div>
@@ -495,7 +495,7 @@ export function ModulesManager({ courseId }: { courseId: string }) {
                       setEditingLessonId("new");
                       setActiveModuleForLesson(mod.id);
                     }}
-                    className="w-full py-2 border-2 border-dashed border-gray-200 rounded-lg text-sm text-gray-500 font-medium hover:border-gray-300 hover:text-gray-700 transition-colors flex items-center justify-center gap-2"
+                    className="w-full py-2 border-2 border-dashed border-white/10 rounded-lg text-sm text-gray-500 font-medium hover:border-white/20 hover:text-gray-300 transition-colors flex items-center justify-center gap-2"
                   >
                     <Plus size={16} /> Agregar Clase
                   </button>

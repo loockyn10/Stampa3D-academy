@@ -77,13 +77,13 @@ function PerfilContent() {
       {profile && (
         <div className="space-y-6">
           <Card className="max-w-xl p-6">
-            <div className="flex items-start justify-between border-b border-gray-100 pb-5 mb-5">
+            <div className="flex items-start justify-between border-b border-white/5 pb-5 mb-5">
               <div className="flex items-center gap-4">
                 <div className="flex h-16 w-16 items-center justify-center rounded-full bg-orange-100 text-xl font-bold text-orange-600 select-none uppercase">
                   {displayName.substring(0, 2) || "US"}
                 </div>
                 <div className="flex-1">
-                  <p className="text-base font-bold text-gray-900">{displayName}</p>
+                  <p className="text-base font-bold text-white">{displayName}</p>
                   <p className="text-sm text-gray-400 mb-1.5">{profile.email}</p>
                   <div className="flex flex-wrap gap-2">
                     <Badge tone={profile.membership_status === "active" ? "green" : "gray"} className="capitalize">
@@ -97,10 +97,10 @@ function PerfilContent() {
             </div>
 
             {subscription && (
-              <div className="mb-6 p-4 rounded-xl border border-gray-100 bg-gray-50 flex flex-col gap-1 text-sm">
+              <div className="mb-6 p-4 rounded-xl border border-white/5 bg-[#0a0a0a] flex flex-col gap-1 text-sm">
                 <div className="flex justify-between">
                   <span className="text-gray-500 font-semibold">Estado de membresía</span>
-                  <span className="font-bold text-gray-900">
+                  <span className="font-bold text-white">
                     {profile.membership_status === "active" && (subscription.status === "cancelled" || subscription.status === "canceled") 
                       ? "Cancelada (Acceso temporal)"
                       : profile.membership_status === "active" 
@@ -118,15 +118,15 @@ function PerfilContent() {
                 </p>
 
                 {subscription.amount && (
-                  <div className="flex justify-between mt-3 pt-3 border-t border-gray-200">
+                  <div className="flex justify-between mt-3 pt-3 border-t border-white/10">
                     <span className="text-gray-500 font-semibold">Monto mensual (Suscripción {subscription.status})</span>
-                    <span className="font-bold text-gray-900">${subscription.amount}</span>
+                    <span className="font-bold text-white">${subscription.amount}</span>
                   </div>
                 )}
                 {subscription.next_payment_at && profile.membership_status === "active" && subscription.status !== "cancelled" && subscription.status !== "canceled" && (
                   <div className="flex justify-between mt-1">
                     <span className="text-gray-500 font-semibold">Próximo cobro</span>
-                    <span className="font-bold text-gray-900">{new Date(subscription.next_payment_at).toLocaleDateString("es-AR")}</span>
+                    <span className="font-bold text-white">{new Date(subscription.next_payment_at).toLocaleDateString("es-AR")}</span>
                   </div>
                 )}
               </div>
@@ -137,21 +137,21 @@ function PerfilContent() {
 
           {/* BADGES SECTION */}
           <div className="max-w-xl">
-            <h3 className="text-lg font-bold text-gray-900 mb-3">Tus Insignias</h3>
+            <h3 className="text-lg font-bold text-white mb-3">Tus Insignias</h3>
             {badges.length === 0 ? (
-              <Card className="p-6 text-center border-dashed border-gray-300">
+              <Card className="p-6 text-center border-dashed border-white/20">
                 <p className="text-sm text-gray-500">Aún no has ganado insignias. ¡Participa en la comunidad para conseguir la primera!</p>
               </Card>
             ) : (
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 {badges.map(b => (
                   <Card key={b.id} className="p-4 flex items-center gap-3 border-orange-200 bg-orange-50/30">
-                    <div className="w-12 h-12 flex items-center justify-center rounded-full bg-white shadow-sm border border-gray-100 text-2xl">
+                    <div className="w-12 h-12 flex items-center justify-center rounded-full bg-[#111] shadow-sm border border-white/5 text-2xl">
                       {b.icon}
                     </div>
                     <div>
-                      <p className="text-sm font-bold text-gray-900">{b.name}</p>
-                      <p className="text-[11px] text-gray-600 leading-tight mt-0.5">{b.description}</p>
+                      <p className="text-sm font-bold text-white">{b.name}</p>
+                      <p className="text-[11px] text-gray-400 leading-tight mt-0.5">{b.description}</p>
                     </div>
                   </Card>
                 ))}

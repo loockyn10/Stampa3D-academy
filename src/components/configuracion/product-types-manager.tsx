@@ -77,7 +77,7 @@ export function ProductTypesManager() {
       )}
 
       <div className="flex justify-between items-center mb-4">
-        <h3 className="text-lg font-semibold text-gray-900">Tipos de producto / multiplicadores</h3>
+        <h3 className="text-lg font-semibold text-white">Tipos de producto / multiplicadores</h3>
         <button
           onClick={() => {
             setFormData({
@@ -102,17 +102,17 @@ export function ProductTypesManager() {
           ) : (
             <Card key={t.id} className="p-4 flex flex-col hover:border-orange-200 transition-colors">
               <div className="flex justify-between items-start mb-2">
-                <h4 className="font-bold text-gray-900">{t.name}</h4>
+                <h4 className="font-bold text-white">{t.name}</h4>
                 <button onClick={() => { setFormData(t); setEditingId(t.id); }} className="text-gray-400 hover:text-orange-500 transition-colors">
                   <Edit2 size={16} />
                 </button>
               </div>
               <div className="text-sm text-gray-500 space-y-1 mb-4 flex-1">
-                <p>Multiplicador: <span className="font-medium text-gray-700">x{t.multiplier}</span></p>
-                <p>Costo fijo: <span className="font-medium text-gray-700">${t.fixed_cost ?? 0}</span></p>
+                <p>Multiplicador: <span className="font-medium text-gray-300">x{t.multiplier}</span></p>
+                <p>Costo fijo: <span className="font-medium text-gray-300">${t.fixed_cost ?? 0}</span></p>
               </div>
-              <div className="flex items-center justify-between pt-3 border-t border-gray-100">
-                <span className={`text-xs px-2 py-0.5 rounded-md font-medium ${t.is_active ? 'bg-green-100 text-green-700' : 'bg-gray-100 text-gray-600'}`}>
+              <div className="flex items-center justify-between pt-3 border-t border-white/5">
+                <span className={`text-xs px-2 py-0.5 rounded-md font-medium ${t.is_active ? 'bg-green-100 text-green-700' : 'bg-white/5 text-gray-400'}`}>
                   {t.is_active ? 'Activo' : 'Inactivo'}
                 </span>
               </div>
@@ -120,7 +120,7 @@ export function ProductTypesManager() {
           )
         ))}
         {types.length === 0 && editingId !== "new" && (
-          <div className="col-span-full py-12 text-center bg-gray-50 rounded-xl border border-dashed border-gray-300">
+          <div className="col-span-full py-12 text-center bg-[#0a0a0a] rounded-xl border border-dashed border-white/20">
             <p className="text-sm text-gray-500">No tienes tipos de producto registrados.</p>
           </div>
         )}
@@ -143,26 +143,26 @@ function TypeEditor({ formData, setFormData, onSave, onCancel }: any) {
     <Card className="p-4 border-orange-200 shadow-md">
       <div className="space-y-3">
         <div>
-          <label className="block text-xs font-semibold text-gray-700 mb-1">Nombre (Tipo de Pieza)</label>
-          <input type="text" name="name" value={formData.name} onChange={handleChange} className="w-full text-sm border-gray-300 rounded-md focus:border-orange-500 focus:ring-orange-500 text-gray-900" placeholder="Ej. Llavero, Adorno, etc." />
+          <label className="block text-xs font-semibold text-gray-300 mb-1">Nombre (Tipo de Pieza)</label>
+          <input type="text" name="name" value={formData.name} onChange={handleChange} className="w-full text-sm border-white/10 rounded-md text-neutral-100 bg-neutral-900 border focus:border-[#ff6a00] focus:ring-[#ff6a00]/20 focus:ring-2 placeholder:text-neutral-500 disabled:bg-neutral-800 disabled:text-neutral-500" placeholder="Ej. Llavero, Adorno, etc." />
         </div>
         <div className="grid grid-cols-2 gap-2">
           <div>
-            <label className="block text-xs font-semibold text-gray-700 mb-1">Multiplicador</label>
-            <input type="number" step="0.1" name="multiplier" value={formData.multiplier} onChange={handleChange} className="w-full text-sm border-gray-300 rounded-md focus:border-orange-500 focus:ring-orange-500 text-gray-900" />
+            <label className="block text-xs font-semibold text-gray-300 mb-1">Multiplicador</label>
+            <input type="number" step="0.1" name="multiplier" value={formData.multiplier} onChange={handleChange} className="w-full text-sm border-white/10 rounded-md text-neutral-100 bg-neutral-900 border focus:border-[#ff6a00] focus:ring-[#ff6a00]/20 focus:ring-2 placeholder:text-neutral-500 disabled:bg-neutral-800 disabled:text-neutral-500" />
           </div>
           <div>
-            <label className="block text-xs font-semibold text-gray-700 mb-1">Costo fijo</label>
-            <input type="number" min="0" step="any" name="fixed_cost" value={formData.fixed_cost} onChange={handleChange} className="w-full text-sm border-gray-300 rounded-md focus:border-orange-500 focus:ring-orange-500 text-gray-900" placeholder="Ej: costo del jarro, packaging, tira LED..." />
+            <label className="block text-xs font-semibold text-gray-300 mb-1">Costo fijo</label>
+            <input type="number" min="0" step="any" name="fixed_cost" value={formData.fixed_cost} onChange={handleChange} className="w-full text-sm border-white/10 rounded-md text-neutral-100 bg-neutral-900 border focus:border-[#ff6a00] focus:ring-[#ff6a00]/20 focus:ring-2 placeholder:text-neutral-500 disabled:bg-neutral-800 disabled:text-neutral-500" placeholder="Ej: costo del jarro, packaging, tira LED..." />
           </div>
         </div>
         <div className="flex items-center gap-2 pt-1">
-          <input type="checkbox" name="is_active" checked={formData.is_active} onChange={handleChange} className="rounded text-orange-600 focus:ring-orange-500" />
-          <label className="text-sm font-medium text-gray-700">Tipo Activo</label>
+          <input type="checkbox" name="is_active" checked={formData.is_active} onChange={handleChange} className="rounded text-[#ff6a00] focus:ring-[#ff6a00]/20" />
+          <label className="text-sm font-medium text-gray-300">Tipo Activo</label>
         </div>
       </div>
       <div className="mt-4 flex gap-2 justify-end">
-        <button onClick={onCancel} className="px-3 py-1.5 text-xs font-bold text-gray-600 hover:bg-gray-100 rounded-md transition-colors">Cancelar</button>
+        <button onClick={onCancel} className="px-3 py-1.5 text-xs font-bold text-gray-400 hover:bg-white/5 rounded-md transition-colors">Cancelar</button>
         <button onClick={onSave} className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-bold bg-orange-500 hover:bg-orange-600 text-white rounded-md transition-colors"><Save size={14} /> Guardar</button>
       </div>
     </Card>

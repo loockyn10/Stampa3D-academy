@@ -146,8 +146,8 @@ export default function EditarSorteoPage({ params }: { params: Promise<{ id: str
     <div className="space-y-8">
       <div className="flex items-center gap-4">
         <Link href="/admin/sorteos">
-          <GhostButton className="p-2 border border-gray-200 bg-white">
-            <ArrowLeft size={18} className="text-gray-600" />
+          <GhostButton className="p-2 border border-white/10 bg-[#111]">
+            <ArrowLeft size={18} className="text-gray-400" />
           </GhostButton>
         </Link>
         <SectionTitle eyebrow="Administración" title="Editar Sorteo" />
@@ -161,23 +161,23 @@ export default function EditarSorteoPage({ params }: { params: Promise<{ id: str
 
       {/* RAFFLE DETAILS */}
       <Card className="p-6 border-orange-200">
-        <h3 className="text-lg font-bold text-gray-900 mb-4 border-b border-gray-100 pb-2">Información del Sorteo</h3>
+        <h3 className="text-lg font-bold text-white mb-4 border-b border-white/5 pb-2">Información del Sorteo</h3>
         <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
           <div className="md:col-span-2">
-            <label className="block text-xs font-semibold text-gray-700 mb-1">Título</label>
-            <input type="text" name="title" value={formData.title} onChange={(e) => setFormData({...formData, title: e.target.value})} className="w-full text-sm border-gray-300 rounded-md focus:border-orange-500 focus:ring-orange-500 text-gray-900 bg-white" />
+            <label className="block text-xs font-semibold text-gray-300 mb-1">Título</label>
+            <input type="text" name="title" value={formData.title} onChange={(e) => setFormData({...formData, title: e.target.value})} className="w-full text-sm border-white/20 rounded-md focus:border-orange-500 focus:ring-orange-500 text-white bg-[#111]" />
           </div>
           <div className="md:col-span-2">
-            <label className="block text-xs font-semibold text-gray-700 mb-1">Descripción</label>
-            <textarea name="description" rows={3} value={formData.description} onChange={(e) => setFormData({...formData, description: e.target.value})} className="w-full text-sm border-gray-300 rounded-md focus:border-orange-500 focus:ring-orange-500 text-gray-900 bg-white" />
+            <label className="block text-xs font-semibold text-gray-300 mb-1">Descripción</label>
+            <textarea name="description" rows={3} value={formData.description} onChange={(e) => setFormData({...formData, description: e.target.value})} className="w-full text-sm border-white/20 rounded-md focus:border-orange-500 focus:ring-orange-500 text-white bg-[#111]" />
           </div>
           <div>
-            <label className="block text-xs font-semibold text-gray-700 mb-1">Fecha del Sorteo</label>
-            <input type="date" name="draw_date" value={formData.draw_date} onChange={(e) => setFormData({...formData, draw_date: e.target.value})} className="w-full text-sm border-gray-300 rounded-md focus:border-orange-500 focus:ring-orange-500 text-gray-900 bg-white" />
+            <label className="block text-xs font-semibold text-gray-300 mb-1">Fecha del Sorteo</label>
+            <input type="date" name="draw_date" value={formData.draw_date} onChange={(e) => setFormData({...formData, draw_date: e.target.value})} className="w-full text-sm border-white/20 rounded-md focus:border-orange-500 focus:ring-orange-500 text-white bg-[#111]" />
           </div>
           <div>
-            <label className="block text-xs font-semibold text-gray-700 mb-1">Estado</label>
-            <select name="status" value={formData.status} onChange={(e) => setFormData({...formData, status: e.target.value})} className="w-full text-sm border-gray-300 rounded-md focus:border-orange-500 focus:ring-orange-500 text-gray-900 bg-white">
+            <label className="block text-xs font-semibold text-gray-300 mb-1">Estado</label>
+            <select name="status" value={formData.status} onChange={(e) => setFormData({...formData, status: e.target.value})} className="w-full text-sm border-white/20 rounded-md focus:border-orange-500 focus:ring-orange-500 text-white bg-[#111]">
               <option value="draft">Borrador</option>
               <option value="active">Activo (Visible)</option>
               <option value="completed">Completado</option>
@@ -187,7 +187,7 @@ export default function EditarSorteoPage({ params }: { params: Promise<{ id: str
           <div className="md:col-span-2 flex justify-between items-center pt-2">
             <label className="flex items-center gap-2">
               <input type="checkbox" checked={formData.is_active} onChange={(e) => setFormData({...formData, is_active: e.target.checked})} className="rounded text-orange-500 focus:ring-orange-500" />
-              <span className="text-sm font-semibold text-gray-700">Sorteo Activo en la plataforma</span>
+              <span className="text-sm font-semibold text-gray-300">Sorteo Activo en la plataforma</span>
             </label>
             <PrimaryButton onClick={handleSaveRaffle}><Save size={15} /> Guardar Cambios</PrimaryButton>
           </div>
@@ -197,25 +197,25 @@ export default function EditarSorteoPage({ params }: { params: Promise<{ id: str
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
         {/* PRIZES MANAGEMENT */}
         <Card className="p-6">
-          <h3 className="text-lg font-bold text-gray-900 mb-4 border-b border-gray-100 pb-2">Premios</h3>
+          <h3 className="text-lg font-bold text-white mb-4 border-b border-white/5 pb-2">Premios</h3>
           
-          <div className="bg-gray-50 p-4 rounded-xl border border-gray-200 mb-5 space-y-3">
+          <div className="bg-[#0a0a0a] p-4 rounded-xl border border-white/10 mb-5 space-y-3">
             <div>
-              <label className="block text-xs font-semibold text-gray-700 mb-1">Nombre del Premio</label>
-              <input type="text" value={prizeForm.name} onChange={(e) => setPrizeForm({...prizeForm, name: e.target.value})} className="w-full text-sm border-gray-300 rounded-md focus:border-orange-500 bg-white text-gray-900" placeholder="Ej. Impresora Ender 3" />
+              <label className="block text-xs font-semibold text-gray-300 mb-1">Nombre del Premio</label>
+              <input type="text" value={prizeForm.name} onChange={(e) => setPrizeForm({...prizeForm, name: e.target.value})} className="w-full text-sm border-white/20 rounded-md focus:border-orange-500 bg-[#111] text-white" placeholder="Ej. Impresora Ender 3" />
             </div>
             <div>
-              <label className="block text-xs font-semibold text-gray-700 mb-1">Descripción corta</label>
-              <input type="text" value={prizeForm.description} onChange={(e) => setPrizeForm({...prizeForm, description: e.target.value})} className="w-full text-sm border-gray-300 rounded-md focus:border-orange-500 bg-white text-gray-900" />
+              <label className="block text-xs font-semibold text-gray-300 mb-1">Descripción corta</label>
+              <input type="text" value={prizeForm.description} onChange={(e) => setPrizeForm({...prizeForm, description: e.target.value})} className="w-full text-sm border-white/20 rounded-md focus:border-orange-500 bg-[#111] text-white" />
             </div>
             <div className="flex gap-2">
               <div className="flex-1">
-                <label className="block text-xs font-semibold text-gray-700 mb-1">URL de Imagen</label>
-                <input type="text" value={prizeForm.image_url} onChange={(e) => setPrizeForm({...prizeForm, image_url: e.target.value})} className="w-full text-sm border-gray-300 rounded-md focus:border-orange-500 bg-white text-gray-900" />
+                <label className="block text-xs font-semibold text-gray-300 mb-1">URL de Imagen</label>
+                <input type="text" value={prizeForm.image_url} onChange={(e) => setPrizeForm({...prizeForm, image_url: e.target.value})} className="w-full text-sm border-white/20 rounded-md focus:border-orange-500 bg-[#111] text-white" />
               </div>
               <div className="w-20">
-                <label className="block text-xs font-semibold text-gray-700 mb-1">Orden</label>
-                <input type="number" min="1" value={prizeForm.sort_order} onChange={(e) => setPrizeForm({...prizeForm, sort_order: parseInt(e.target.value)||1})} className="w-full text-sm border-gray-300 rounded-md focus:border-orange-500 bg-white text-gray-900" />
+                <label className="block text-xs font-semibold text-gray-300 mb-1">Orden</label>
+                <input type="number" min="1" value={prizeForm.sort_order} onChange={(e) => setPrizeForm({...prizeForm, sort_order: parseInt(e.target.value)||1})} className="w-full text-sm border-white/20 rounded-md focus:border-orange-500 bg-[#111] text-white" />
               </div>
             </div>
             <div className="flex justify-end pt-2">
@@ -226,15 +226,15 @@ export default function EditarSorteoPage({ params }: { params: Promise<{ id: str
           <ul className="space-y-2">
             {prizes.length === 0 && <p className="text-sm text-gray-500 italic">No hay premios cargados.</p>}
             {prizes.map((p) => (
-              <li key={p.id} className="flex justify-between items-center p-3 bg-white border border-gray-100 shadow-sm rounded-lg">
+              <li key={p.id} className="flex justify-between items-center p-3 bg-[#111] border border-white/5 shadow-sm rounded-lg">
                 <div className="flex items-center gap-3">
                   {p.image_url ? (
-                    <img src={p.image_url} alt="" className="w-10 h-10 object-cover rounded bg-gray-50 border border-gray-200" />
+                    <img src={p.image_url} alt="" className="w-10 h-10 object-cover rounded bg-[#0a0a0a] border border-white/10" />
                   ) : (
                     <div className="w-10 h-10 rounded bg-orange-50 text-orange-500 flex items-center justify-center border border-orange-100"><Trophy size={16} /></div>
                   )}
                   <div>
-                    <p className="text-sm font-bold text-gray-900">{p.name}</p>
+                    <p className="text-sm font-bold text-white">{p.name}</p>
                     <p className="text-xs text-gray-500">Orden: {p.sort_order}</p>
                   </div>
                 </div>
@@ -246,19 +246,19 @@ export default function EditarSorteoPage({ params }: { params: Promise<{ id: str
 
         {/* WINNERS MANAGEMENT */}
         <Card className="p-6">
-          <h3 className="text-lg font-bold text-gray-900 mb-4 border-b border-gray-100 pb-2">Ganadores</h3>
+          <h3 className="text-lg font-bold text-white mb-4 border-b border-white/5 pb-2">Ganadores</h3>
           
           <div className="bg-orange-50/50 p-4 rounded-xl border border-orange-100 mb-5 space-y-3">
             <div>
-              <label className="block text-xs font-semibold text-gray-700 mb-1">Seleccionar Ganador (Usuario)</label>
-              <select value={winnerForm.user_id} onChange={(e) => setWinnerForm({...winnerForm, user_id: e.target.value})} className="w-full text-sm border-gray-300 rounded-md focus:border-orange-500 bg-white text-gray-900">
+              <label className="block text-xs font-semibold text-gray-300 mb-1">Seleccionar Ganador (Usuario)</label>
+              <select value={winnerForm.user_id} onChange={(e) => setWinnerForm({...winnerForm, user_id: e.target.value})} className="w-full text-sm border-white/20 rounded-md focus:border-orange-500 bg-[#111] text-white">
                 <option value="">Buscar usuario...</option>
                 {profiles.map(p => <option key={p.id} value={p.id}>{p.name || p.email}</option>)}
               </select>
             </div>
             <div>
-              <label className="block text-xs font-semibold text-gray-700 mb-1">Seleccionar Premio Otorgado</label>
-              <select value={winnerForm.prize_id} onChange={(e) => setWinnerForm({...winnerForm, prize_id: e.target.value})} className="w-full text-sm border-gray-300 rounded-md focus:border-orange-500 bg-white text-gray-900">
+              <label className="block text-xs font-semibold text-gray-300 mb-1">Seleccionar Premio Otorgado</label>
+              <select value={winnerForm.prize_id} onChange={(e) => setWinnerForm({...winnerForm, prize_id: e.target.value})} className="w-full text-sm border-white/20 rounded-md focus:border-orange-500 bg-[#111] text-white">
                 <option value="">Asignar un premio...</option>
                 {prizes.map(p => <option key={p.id} value={p.id}>{p.name}</option>)}
               </select>
@@ -271,9 +271,9 @@ export default function EditarSorteoPage({ params }: { params: Promise<{ id: str
           <ul className="space-y-2">
             {winners.length === 0 && <p className="text-sm text-gray-500 italic">No hay ganadores registrados.</p>}
             {winners.map((w) => (
-              <li key={w.id} className="flex justify-between items-center p-3 bg-white border border-gray-100 shadow-sm rounded-lg">
+              <li key={w.id} className="flex justify-between items-center p-3 bg-[#111] border border-white/5 shadow-sm rounded-lg">
                 <div>
-                  <p className="text-sm font-bold text-gray-900">{w.winner_name_snapshot}</p>
+                  <p className="text-sm font-bold text-white">{w.winner_name_snapshot}</p>
                   <p className="text-xs font-semibold text-orange-600">{w.prize_name_snapshot}</p>
                   <p className="text-[10px] text-gray-400 mt-1">{new Date(w.won_at).toLocaleString()}</p>
                 </div>

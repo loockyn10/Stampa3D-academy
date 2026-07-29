@@ -8,10 +8,10 @@ interface BadgeProps {
 
 export function Badge({ children, tone = "orange", className = "" }: BadgeProps) {
   const tones = {
-    orange: "bg-orange-50 text-orange-600 border-orange-200",
-    dark: "bg-gray-900 text-white border-gray-900",
-    gray: "bg-gray-100 text-gray-600 border-gray-200",
-    green: "bg-green-50 text-green-700 border-green-200",
+    orange: "bg-[#ff6a00]/10 text-[#ff6a00] border-[#ff6a00]/20",
+    dark: "bg-white/5 text-white border-white/10",
+    gray: "bg-white/5 text-gray-400 border-white/10",
+    green: "bg-emerald-500/10 text-emerald-400 border-emerald-500/20",
   };
   return (
     <span

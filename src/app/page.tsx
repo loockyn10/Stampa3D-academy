@@ -2,7 +2,7 @@
 
 import React, { useEffect, useState } from "react";
 import Link from "next/link";
-import { BookOpen, Download, FileText, Play, Calculator, ChevronRight, CalendarDays, Gift, Boxes, Loader2 } from "lucide-react";
+import { BookOpen, Download, FileText, Play, Calculator, ChevronRight, CalendarDays, Gift, Boxes, Loader2, Bot, ArrowRight, Tag, Layers } from "lucide-react";
 import { Card } from "@/components/ui/card";
 import { PrimaryButton, GhostButton } from "@/components/ui/button";
 import { ProgressBar } from "@/components/ui/progress-bar";
@@ -138,182 +138,257 @@ export default function InicioPage() {
   if (loading) {
     return (
       <div className="flex items-center justify-center py-24">
-        <Loader2 className="h-8 w-8 animate-spin text-orange-500" />
+        <Loader2 className="h-8 w-8 animate-spin text-[#ff6a00]" />
       </div>
     );
   }
 
-  const stats = [
+  const quickAccess = [
     {
-      label: "Cursos iniciados",
-      value: coursesCount,
-      icon: BookOpen,
+      title: "Preguntarle a Stampy",
+      desc: "Contale tu problema y te guía hacia la clase o herramienta correcta.",
+      icon: Bot,
+      href: "/stampy",
+      color: "text-purple-400"
     },
     {
-      label: "STL descargados",
-      value: downloadsCount,
-      icon: Download,
+      title: "Calcular precio",
+      desc: "Calculá cuánto cobrar usando material, tiempo y margen.",
+      icon: Calculator,
+      href: "/calculadora",
+      color: "text-green-400"
     },
     {
-      label: "Presupuestos creados",
-      value: budgetsCount,
+      title: "Crear presupuesto",
+      desc: "Armá un presupuesto profesional para enviar a un cliente.",
       icon: FileText,
+      href: "/presupuestos",
+      color: "text-blue-400"
     },
+    {
+      title: "Revisar stock",
+      desc: "Controlá filamentos, productos terminados y movimientos.",
+      icon: Layers,
+      href: "/stock",
+      color: "text-yellow-400"
+    },
+    {
+      title: "Cargar producto",
+      desc: "Guardá piezas recurrentes con costos y precios.",
+      icon: Tag,
+      href: "/productos",
+      color: "text-pink-400"
+    },
+    {
+      title: "Ver cursos",
+      desc: "Seguí avanzando con las rutas de aprendizaje.",
+      icon: BookOpen,
+      href: "/cursos",
+      color: "text-orange-400"
+    }
   ];
 
   return (
-    <div className="space-y-8">
-      {/* Welcome Card */}
-      <Card className="overflow-hidden bg-gradient-to-br from-gray-900 to-gray-800 p-6 text-white sm:p-8">
-        <p className="text-sm font-medium text-orange-400">Hola, {userFirstName} 👋</p>
-        <h2 className="mt-1 text-2xl font-bold sm:text-3xl">Sigamos imprimiendo ideas.</h2>
-        <p className="mt-2 max-w-lg text-sm text-gray-300">
-          Retomá tu curso, revisá el sorteo del mes o calculá el costo de tu próxima pieza.
-        </p>
-        <div className="mt-5 flex flex-wrap gap-3">
-          {continuingCourse ? (
-            <PrimaryButton href={`/cursos/${continuingCourse.id}`}>
-              <Play size={15} /> Continuar curso
+    <div className="space-y-10 pb-10">
+      {/* 1. Hero Interno */}
+      <div className="relative overflow-hidden rounded-3xl bg-[#111] border border-white/10 p-8 sm:p-10 shadow-2xl">
+        <div className="absolute inset-0 bg-gradient-to-br from-[#ff6a00]/10 to-transparent pointer-events-none" />
+        <div className="relative z-10 max-w-2xl">
+          <p className="text-sm font-semibold text-[#ff6a00] uppercase tracking-wider mb-2">Hola, {userFirstName}</p>
+          <h1 className="text-3xl font-bold text-white sm:text-4xl">¿Qué querés resolver hoy?</h1>
+          <p className="mt-3 text-base text-gray-400">
+            Seguí aprendiendo, organizá tu taller y encontrá rápido lo que necesitás.
+          </p>
+          <div className="mt-8 flex flex-wrap gap-4">
+            <PrimaryButton href="/stampy" className="px-6 py-3 text-base">
+              <Bot size={18} className="mr-2" /> Preguntarle a Stampy
             </PrimaryButton>
-          ) : (
-            <PrimaryButton href="/cursos">
-              <Play size={15} /> Explorar cursos
-            </PrimaryButton>
-          )}
-          <GhostButton href="/calculadora" className="bg-white/10 border-white/10 text-white hover:bg-white/20">
-            <Calculator size={15} /> Ir a la calculadora
-          </GhostButton>
-        </div>
-      </Card>
-
-      {/* Stats Grid */}
-      <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
-        {stats.map((s) => (
-          <Card key={s.label} className="flex items-center gap-4 p-5">
-            <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-orange-50 text-orange-500">
-              <s.icon size={20} />
-            </div>
-            <div>
-              <p className="text-xl font-bold text-gray-900">{s.value}</p>
-              <p className="text-xs text-gray-500">{s.label}</p>
-            </div>
-          </Card>
-        ))}
-      </div>
-
-      {/* Main Content Grid */}
-      <div className="grid grid-cols-1 gap-6 lg:grid-cols-3">
-        <div className="lg:col-span-2">
-          {/* Continuing Course */}
-          <SectionTitle
-            eyebrow="Seguí aprendiendo"
-            title="Continuar curso"
-            action={
-              <Link href="/cursos" className="text-xs font-semibold text-orange-600 hover:underline">
-                Ver todos
-              </Link>
-            }
-          />
-          {continuingCourse ? (
-            <Link href={`/cursos/${continuingCourse.id}`}>
-              <Card className="flex items-center gap-4 p-4 hover:-translate-y-0.5 hover:shadow-md cursor-pointer">
-                <div className="flex h-16 w-16 shrink-0 items-center justify-center rounded-xl bg-gray-50 text-3xl overflow-hidden">
-                  {continuingCourse.thumbnail_url ? (
-                    <img src={continuingCourse.thumbnail_url} alt={continuingCourse.title} className="w-full h-full object-cover" />
-                  ) : (
-                    <BookOpen className="text-gray-300" size={24} />
-                  )}
-                </div>
-                <div className="flex-1 min-w-0">
-                  <p className="text-sm font-bold text-gray-900 truncate">{continuingCourse.title}</p>
-                  <p className="text-xs text-gray-500">
-                    {continuingCourse.completedLessons} de {continuingCourse.totalLessons} lecciones completadas
-                  </p>
-                  <ProgressBar value={continuingCourse.progress} className="mt-2" />
-                </div>
-                <ChevronRight size={18} className="text-gray-300 shrink-0" />
-              </Card>
-            </Link>
-          ) : (
-            <EmptyState
-              icon={BookOpen}
-              title="Todavía no empezaste ningún curso"
-              hint="Explorá los cursos disponibles y empezá por el que más te sirva."
-            />
-          )}
-
-          {/* Recently Added STLs */}
-          <div className="mt-8">
-            <SectionTitle
-              eyebrow="Recién agregados"
-              title="Últimos STL"
-              action={
-                <Link href="/libreria-stl" className="text-xs font-semibold text-orange-600 hover:underline">
-                  Ver librería
-                </Link>
-              }
-            />
-            {latestStls.length > 0 ? (
-              <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
-                {latestStls.map((f) => (
-                  <Card key={f.id} className="p-3">
-                    <div className="flex h-16 items-center justify-center rounded-lg bg-gray-50 text-2xl overflow-hidden">
-                      {f.thumbnail_url || f.stl_models?.thumbnail_url ? (
-                        <img src={f.thumbnail_url || f.stl_models?.thumbnail_url} alt={f.name} className="w-full h-full object-cover" />
-                      ) : (
-                        <Boxes className="text-gray-300" size={24} />
-                      )}
-                    </div>
-                    <p className="mt-2 truncate text-xs font-semibold text-gray-900">{f.name}</p>
-                    <div className="mt-1">
-                      <Badge tone="green">Disponible</Badge>
-                    </div>
-                  </Card>
-                ))}
-              </div>
+            {continuingCourse ? (
+              <GhostButton href={`/cursos/${continuingCourse.id}`} className="px-6 py-3 text-base bg-white/5 border border-white/10 text-white hover:bg-white/10">
+                <Play size={18} className="mr-2" /> Continuar curso
+              </GhostButton>
             ) : (
-              <EmptyState
-                icon={Boxes}
-                title="Todavía no hay archivos STL cargados"
-                hint="Vuelve más tarde para descubrir nuevos modelos."
-              />
+              <GhostButton href="/cursos" className="px-6 py-3 text-base bg-white/5 border border-white/10 text-white hover:bg-white/10">
+                <BookOpen size={18} className="mr-2" /> Explorar cursos
+              </GhostButton>
             )}
           </div>
         </div>
+      </div>
 
-        {/* Sidebar Sorteo Card */}
-        <div>
-          <SectionTitle eyebrow="Este mes" title="Próximo sorteo" />
-          {upcomingRaffle ? (
-            <Card className="p-5">
-              <div className="mb-3 flex h-28 items-center justify-center rounded-xl bg-gray-50 overflow-hidden relative">
-                {upcomingRaffle.raffle_prizes && upcomingRaffle.raffle_prizes[0]?.image_url ? (
-                  <img src={upcomingRaffle.raffle_prizes[0].image_url} alt={upcomingRaffle.title} className="w-full h-full object-cover" />
-                ) : (
-                  <div className="text-5xl">🎁</div>
-                )}
+      {/* 2. Accesos Rápidos */}
+      <div>
+        <SectionTitle title="Accesos rápidos" />
+        <div className="mt-4 grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
+          {quickAccess.map((item, i) => (
+            <Link key={i} href={item.href}>
+              <Card className="group h-full p-5 bg-[#111] border-white/10 hover:border-[#ff6a00]/50 hover:bg-white/5 transition-all cursor-pointer flex flex-col justify-between">
+                <div>
+                  <div className={`flex h-10 w-10 items-center justify-center rounded-xl bg-white/5 ${item.color} mb-4 group-hover:scale-110 transition-transform`}>
+                    <item.icon size={20} />
+                  </div>
+                  <h3 className="text-base font-bold text-white group-hover:text-[#ff6a00] transition-colors">{item.title}</h3>
+                  <p className="mt-2 text-sm text-gray-400">{item.desc}</p>
+                </div>
+              </Card>
+            </Link>
+          ))}
+        </div>
+      </div>
+
+      {/* 3. Grid Principal */}
+      <div className="grid grid-cols-1 gap-8 lg:grid-cols-3">
+        
+        {/* Columna Izquierda (Ocupa 2/3) */}
+        <div className="lg:col-span-2 space-y-10">
+          
+          {/* Continuar Aprendiendo */}
+          <div>
+            <SectionTitle
+              title="Continuar aprendiendo"
+              action={
+                <Link href="/cursos" className="text-xs font-semibold text-[#ff6a00] hover:underline flex items-center gap-1">
+                  Ver academia <ArrowRight size={14} />
+                </Link>
+              }
+            />
+            <div className="mt-4">
+              {continuingCourse ? (
+                <Link href={`/cursos/${continuingCourse.id}`}>
+                  <Card className="flex items-center gap-5 p-5 bg-[#111] border-white/10 hover:border-[#ff6a00]/30 hover:bg-white/5 transition-all cursor-pointer">
+                    <div className="flex h-20 w-20 shrink-0 items-center justify-center rounded-xl bg-white/5 text-3xl overflow-hidden">
+                      {continuingCourse.thumbnail_url ? (
+                        <img src={continuingCourse.thumbnail_url} alt={continuingCourse.title} className="w-full h-full object-cover" />
+                      ) : (
+                        <BookOpen className="text-gray-500" size={28} />
+                      )}
+                    </div>
+                    <div className="flex-1 min-w-0">
+                      <p className="text-base font-bold text-white truncate">{continuingCourse.title}</p>
+                      <p className="text-sm text-gray-400 mt-1">
+                        {continuingCourse.completedLessons} de {continuingCourse.totalLessons} lecciones completadas
+                      </p>
+                      <ProgressBar value={continuingCourse.progress} className="mt-3 h-2" />
+                    </div>
+                    <ChevronRight size={24} className="text-gray-500 shrink-0 group-hover:text-[#ff6a00] transition-colors" />
+                  </Card>
+                </Link>
+              ) : (
+                <Link href="/cursos">
+                  <Card className="flex items-center justify-between p-6 bg-[#111] border-white/10 hover:border-[#ff6a00]/30 hover:bg-white/5 transition-all cursor-pointer">
+                    <div>
+                      <h3 className="text-base font-bold text-white">Seguí con tus cursos</h3>
+                      <p className="mt-1 text-sm text-gray-400">Entrá a la academia y continuá tu ruta de aprendizaje.</p>
+                    </div>
+                    <ChevronRight size={24} className="text-gray-500" />
+                  </Card>
+                </Link>
+              )}
+            </div>
+          </div>
+
+          {/* Stampy Destacado */}
+          <div>
+            <Card className="relative overflow-hidden bg-[#111] border-[#ff6a00]/30 p-6 sm:p-8 flex flex-col sm:flex-row items-center gap-6">
+              <div className="absolute top-0 right-0 p-4 opacity-10 pointer-events-none">
+                <Bot size={120} />
               </div>
-              <p className="text-sm font-bold text-gray-900">{upcomingRaffle.raffle_prizes && upcomingRaffle.raffle_prizes.length > 0 ? upcomingRaffle.raffle_prizes[0].name : upcomingRaffle.title}</p>
-              <p className="mt-1 flex items-center gap-1.5 text-xs text-gray-500">
-                {upcomingRaffle.draw_date && (
-                  <><CalendarDays size={13} /> Sorteo: {new Date(upcomingRaffle.draw_date).toLocaleDateString("es-AR")}</>
-                )}
-              </p>
-              <PrimaryButton href="/sorteos" className="mt-4 w-full">
-                Ver bases y participar
-              </PrimaryButton>
-            </Card>
-          ) : (
-            <Card className="p-5 text-center">
-              <div className="mb-3 mx-auto flex h-12 w-12 items-center justify-center rounded-full bg-gray-50 text-gray-400">
-                <Gift size={24} />
+              <div className="flex h-16 w-16 shrink-0 items-center justify-center rounded-2xl bg-[#ff6a00]/10 text-[#ff6a00] border border-[#ff6a00]/20 relative z-10">
+                <Bot size={32} />
               </div>
-              <p className="text-sm font-bold text-gray-900">No hay sorteos activos por ahora</p>
-              <GhostButton href="/sorteos" className="mt-4 w-full bg-gray-50 text-gray-900 border border-gray-200 hover:bg-gray-100">
-                Ver sorteos
-              </GhostButton>
+              <div className="flex-1 text-center sm:text-left relative z-10">
+                <div className="flex items-center justify-center sm:justify-start gap-2 mb-2">
+                  <h3 className="text-xl font-bold text-white">Stampy está para ayudarte</h3>
+                  <Badge tone="orange" className="text-[10px]">IA</Badge>
+                </div>
+                <p className="text-sm text-gray-400">
+                  Preguntale por problemas de impresión, precios, stock o cursos. Te va a guiar hacia el próximo paso.
+                </p>
+              </div>
+              <div className="shrink-0 relative z-10">
+                <PrimaryButton href="/stampy" className="px-6">Preguntar ahora</PrimaryButton>
+              </div>
             </Card>
-          )}
+          </div>
+
+        </div>
+
+        {/* Columna Derecha (Ocupa 1/3) */}
+        <div className="space-y-10">
+          
+          {/* Mi Taller (Resumen) */}
+          <div>
+            <SectionTitle title="Mi Taller" />
+            <Card className="mt-4 p-5 bg-[#111] border-white/10 flex flex-col gap-4">
+              <Link href="/presupuestos" className="flex items-center justify-between group">
+                <div className="flex items-center gap-3">
+                  <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-white/5 text-gray-400 group-hover:text-blue-400 transition-colors">
+                    <FileText size={16} />
+                  </div>
+                  <span className="text-sm font-medium text-gray-300 group-hover:text-white transition-colors">Presupuestos creados</span>
+                </div>
+                <span className="text-base font-bold text-white">{budgetsCount}</span>
+              </Link>
+              
+              <Link href="/libreria-stl" className="flex items-center justify-between group">
+                <div className="flex items-center gap-3">
+                  <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-white/5 text-gray-400 group-hover:text-green-400 transition-colors">
+                    <Download size={16} />
+                  </div>
+                  <span className="text-sm font-medium text-gray-300 group-hover:text-white transition-colors">STL descargados</span>
+                </div>
+                <span className="text-base font-bold text-white">{downloadsCount}</span>
+              </Link>
+
+              <Link href="/cursos" className="flex items-center justify-between group">
+                <div className="flex items-center gap-3">
+                  <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-white/5 text-gray-400 group-hover:text-orange-400 transition-colors">
+                    <BookOpen size={16} />
+                  </div>
+                  <span className="text-sm font-medium text-gray-300 group-hover:text-white transition-colors">Cursos iniciados</span>
+                </div>
+                <span className="text-base font-bold text-white">{coursesCount}</span>
+              </Link>
+            </Card>
+          </div>
+
+          {/* Sorteo / Comunidad */}
+          <div>
+            <SectionTitle title="Sorteos para miembros" />
+            <div className="mt-4">
+              {upcomingRaffle ? (
+                <Card className="p-5 bg-[#111] border-white/10 group cursor-pointer hover:border-[#ff6a00]/30 transition-all">
+                  <Link href="/sorteos">
+                    <div className="mb-4 flex h-32 items-center justify-center rounded-xl bg-white/5 overflow-hidden relative border border-white/5">
+                      {upcomingRaffle.raffle_prizes && upcomingRaffle.raffle_prizes[0]?.image_url ? (
+                        <img src={upcomingRaffle.raffle_prizes[0].image_url} alt={upcomingRaffle.title} className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500" />
+                      ) : (
+                        <div className="text-5xl group-hover:scale-110 transition-transform">🎁</div>
+                      )}
+                    </div>
+                    <p className="text-base font-bold text-white truncate">{upcomingRaffle.raffle_prizes && upcomingRaffle.raffle_prizes.length > 0 ? upcomingRaffle.raffle_prizes[0].name : upcomingRaffle.title}</p>
+                    <p className="mt-2 flex items-center gap-1.5 text-xs text-gray-400">
+                      {upcomingRaffle.draw_date && (
+                        <><CalendarDays size={14} /> Sorteo: {new Date(upcomingRaffle.draw_date).toLocaleDateString("es-AR")}</>
+                      )}
+                    </p>
+                  </Link>
+                </Card>
+              ) : (
+                <Card className="p-5 bg-[#111] border-white/10 text-center flex flex-col items-center">
+                  <div className="mb-4 flex h-14 w-14 items-center justify-center rounded-full bg-white/5 text-gray-500 border border-white/5">
+                    <Gift size={24} />
+                  </div>
+                  <h3 className="text-base font-bold text-white">Revisá sorteos activos</h3>
+                  <p className="text-sm text-gray-400 mt-2 mb-5">Participá por premios y beneficios exclusivos para la academia.</p>
+                  <GhostButton href="/sorteos" className="w-full bg-white/5 text-white border border-white/10 hover:bg-white/10">
+                    Ver sorteos
+                  </GhostButton>
+                </Card>
+              )}
+            </div>
+          </div>
+
         </div>
       </div>
     </div>

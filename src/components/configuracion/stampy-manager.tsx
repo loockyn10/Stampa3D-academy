@@ -39,33 +39,33 @@ export function StampyManager({ setTab }: { setTab: (tab: any) => void }) {
     setLoading(false);
   };
 
-  if (loading) return <div className="py-12 flex justify-center"><Loader2 className="animate-spin h-8 w-8 text-orange-500" /></div>;
+  if (loading) return <div className="py-12 flex justify-center"><Loader2 className="animate-spin h-8 w-8 text-[#ff6a00]" /></div>;
 
   return (
     <Card className="max-w-2xl p-6 space-y-6">
-      <div className="flex items-center gap-3 border-b border-gray-100 pb-4">
-        <div className="p-2 bg-purple-100 text-purple-600 rounded-xl">
+      <div className="flex items-center gap-3 border-b border-white/5 pb-4">
+        <div className="p-2 bg-indigo-500/10 text-indigo-400 rounded-xl border border-indigo-500/20">
           <Bot size={24} />
         </div>
         <div>
-          <h3 className="text-lg font-bold text-gray-900">Configuración de Stampy</h3>
+          <h3 className="text-lg font-bold text-white">Configuración de Stampy</h3>
           <p className="text-sm text-gray-500 mt-1">
             Más adelante, Stampy va a poder usar datos de tu taller para darte respuestas más precisas.
           </p>
         </div>
       </div>
 
-      <div className="bg-purple-50/50 border border-purple-100 rounded-xl p-5">
-        <p className="text-sm text-purple-900 font-medium mb-4">
+      <div className="bg-indigo-500/10 border border-indigo-500/20 rounded-xl p-5">
+        <p className="text-sm text-indigo-200 font-medium mb-4">
           Para que Stampy te ayude mejor, te recomendamos completar estos pasos en tu cuenta:
         </p>
 
         <div className="space-y-3">
           
-          <div className="flex items-center justify-between p-3 bg-white rounded-lg border border-gray-100">
+          <div className="flex items-center justify-between p-3 bg-[#111] rounded-lg border border-white/5">
             <div className="flex items-center gap-3">
-              {hasPrinters ? <CheckCircle2 className="text-green-500" size={20} /> : <Circle className="text-gray-300" size={20} />}
-              <span className={`text-sm ${hasPrinters ? "text-gray-900 font-medium" : "text-gray-500"}`}>Cargar impresoras</span>
+              {hasPrinters ? <CheckCircle2 className="text-green-500" size={20} /> : <Circle className="text-gray-600" size={20} />}
+              <span className={`text-sm ${hasPrinters ? "text-white font-medium" : "text-gray-500"}`}>Cargar impresoras</span>
             </div>
             {!hasPrinters && (
               <GhostButton onClick={() => setTab("taller")} className="text-xs">
@@ -74,10 +74,10 @@ export function StampyManager({ setTab }: { setTab: (tab: any) => void }) {
             )}
           </div>
 
-          <div className="flex items-center justify-between p-3 bg-white rounded-lg border border-gray-100">
+          <div className="flex items-center justify-between p-3 bg-[#111] rounded-lg border border-white/5">
             <div className="flex items-center gap-3">
-              {hasFilaments ? <CheckCircle2 className="text-green-500" size={20} /> : <Circle className="text-gray-300" size={20} />}
-              <span className={`text-sm ${hasFilaments ? "text-gray-900 font-medium" : "text-gray-500"}`}>Cargar filamentos</span>
+              {hasFilaments ? <CheckCircle2 className="text-green-500" size={20} /> : <Circle className="text-gray-600" size={20} />}
+              <span className={`text-sm ${hasFilaments ? "text-white font-medium" : "text-gray-500"}`}>Cargar filamentos</span>
             </div>
             {!hasFilaments && (
               <GhostButton onClick={() => setTab("taller")} className="text-xs">
@@ -86,10 +86,10 @@ export function StampyManager({ setTab }: { setTab: (tab: any) => void }) {
             )}
           </div>
 
-          <div className="flex items-center justify-between p-3 bg-white rounded-lg border border-gray-100">
+          <div className="flex items-center justify-between p-3 bg-[#111] rounded-lg border border-white/5">
             <div className="flex items-center gap-3">
-              {hasBusinessData ? <CheckCircle2 className="text-green-500" size={20} /> : <Circle className="text-gray-300" size={20} />}
-              <span className={`text-sm ${hasBusinessData ? "text-gray-900 font-medium" : "text-gray-500"}`}>Completar datos del negocio</span>
+              {hasBusinessData ? <CheckCircle2 className="text-green-500" size={20} /> : <Circle className="text-gray-600" size={20} />}
+              <span className={`text-sm ${hasBusinessData ? "text-white font-medium" : "text-gray-500"}`}>Completar datos del negocio</span>
             </div>
             {!hasBusinessData && (
               <GhostButton onClick={() => setTab("negocio")} className="text-xs">

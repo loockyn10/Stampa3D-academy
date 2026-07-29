@@ -67,7 +67,7 @@ export function AccountManager() {
   return (
     <Card className="max-w-2xl p-6 space-y-6">
       <div>
-        <h3 className="text-lg font-bold text-gray-900">Datos Personales</h3>
+        <h3 className="text-lg font-bold text-white">Datos Personales</h3>
         <p className="text-sm text-gray-500 mt-1">
           Estos datos identifican tu cuenta dentro de Academia Stampa.
         </p>
@@ -85,7 +85,7 @@ export function AccountManager() {
           <input
             value={fullName}
             onChange={(e) => setFullName(e.target.value)}
-            className="w-full rounded-xl border border-gray-300 bg-white text-gray-900 px-3 py-2.5 text-sm outline-none focus:border-orange-500 focus:ring-2 focus:ring-orange-100"
+            className="w-full rounded-xl border border-white/20 bg-[#111] text-white px-3 py-2.5 text-sm outline-none focus:border-orange-500 focus:ring-2 focus:ring-orange-100"
             placeholder="Juan Pérez"
           />
         </label>
@@ -95,7 +95,7 @@ export function AccountManager() {
           <input
             value={displayName}
             onChange={(e) => setDisplayName(e.target.value)}
-            className="w-full rounded-xl border border-gray-300 bg-white text-gray-900 px-3 py-2.5 text-sm outline-none focus:border-orange-500 focus:ring-2 focus:ring-orange-100"
+            className="w-full rounded-xl border border-white/20 bg-[#111] text-white px-3 py-2.5 text-sm outline-none focus:border-orange-500 focus:ring-2 focus:ring-orange-100"
             placeholder="Juancito"
           />
         </label>
@@ -105,7 +105,7 @@ export function AccountManager() {
           <input
             value={phone}
             onChange={(e) => setPhone(e.target.value)}
-            className="w-full rounded-xl border border-gray-300 bg-white text-gray-900 px-3 py-2.5 text-sm outline-none focus:border-orange-500 focus:ring-2 focus:ring-orange-100"
+            className="w-full rounded-xl border border-white/20 bg-[#111] text-white px-3 py-2.5 text-sm outline-none focus:border-orange-500 focus:ring-2 focus:ring-orange-100"
             placeholder="+54 9 11 ..."
           />
         </label>
@@ -115,7 +115,7 @@ export function AccountManager() {
           <input
             disabled
             value={email}
-            className="w-full rounded-xl border border-gray-200 bg-gray-50 text-gray-500 px-3 py-2.5 text-sm cursor-not-allowed"
+            className="w-full rounded-xl border border-white/10 bg-[#0a0a0a] text-gray-500 px-3 py-2.5 text-sm cursor-not-allowed focus:border-[#ff6a00] focus:ring-[#ff6a00]/20 focus:ring-2 placeholder:text-neutral-500 disabled:bg-neutral-800 disabled:text-neutral-500"
           />
         </label>
       </div>
@@ -127,7 +127,7 @@ export function AccountManager() {
         </Badge>
       </div>
 
-      <div className="border-t border-gray-100 pt-5">
+      <div className="border-t border-white/5 pt-5">
         <PrimaryButton onClick={handleSave} disabled={saving}>
           {saving ? <Loader2 size={16} className="animate-spin mr-2" /> : null} Guardar cambios
         </PrimaryButton>

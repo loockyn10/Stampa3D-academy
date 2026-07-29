@@ -34,16 +34,16 @@ function ConfiguracionContent() {
   return (
     <div className="pb-12">
       <SectionTitle eyebrow="Sistema" title="Configuración" />
-      <p className="text-gray-500 text-sm -mt-3 mb-6">Configurá tu cuenta, tu negocio y los valores que usa tu taller.</p>
+      <p className="text-gray-400 text-sm -mt-3 mb-6">Configurá tu cuenta, tu negocio y los valores que usa tu taller.</p>
 
-      <div className="mb-8 border-b border-gray-200">
+      <div className="mb-8 border-b border-white/10">
         <nav className="-mb-px flex space-x-8 overflow-x-auto" aria-label="Tabs">
           <button
             onClick={() => handleTabChange("negocio")}
             className={`whitespace-nowrap flex items-center gap-2 border-b-2 py-4 px-1 text-sm font-medium transition-colors ${
               activeTab === "negocio"
-                ? "border-orange-500 text-orange-600"
-                : "border-transparent text-gray-500 hover:border-gray-300 hover:text-gray-700"
+                ? "border-[#ff6a00] text-[#ff6a00]"
+                : "border-transparent text-gray-500 hover:border-white/20 hover:text-gray-300"
             }`}
           >
             <Building2 size={18} />
@@ -54,8 +54,8 @@ function ConfiguracionContent() {
             onClick={() => handleTabChange("taller")}
             className={`whitespace-nowrap flex items-center gap-2 border-b-2 py-4 px-1 text-sm font-medium transition-colors ${
               activeTab === "taller"
-                ? "border-orange-500 text-orange-600"
-                : "border-transparent text-gray-500 hover:border-gray-300 hover:text-gray-700"
+                ? "border-[#ff6a00] text-[#ff6a00]"
+                : "border-transparent text-gray-500 hover:border-white/20 hover:text-gray-300"
             }`}
           >
             <Wrench size={18} />
@@ -66,8 +66,8 @@ function ConfiguracionContent() {
             onClick={() => handleTabChange("calculadora")}
             className={`whitespace-nowrap flex items-center gap-2 border-b-2 py-4 px-1 text-sm font-medium transition-colors ${
               activeTab === "calculadora"
-                ? "border-orange-500 text-orange-600"
-                : "border-transparent text-gray-500 hover:border-gray-300 hover:text-gray-700"
+                ? "border-[#ff6a00] text-[#ff6a00]"
+                : "border-transparent text-gray-500 hover:border-white/20 hover:text-gray-300"
             }`}
           >
             <Calculator size={18} />
@@ -78,8 +78,8 @@ function ConfiguracionContent() {
             onClick={() => handleTabChange("stampy")}
             className={`whitespace-nowrap flex items-center gap-2 border-b-2 py-4 px-1 text-sm font-medium transition-colors ${
               activeTab === "stampy"
-                ? "border-orange-500 text-orange-600"
-                : "border-transparent text-gray-500 hover:border-gray-300 hover:text-gray-700"
+                ? "border-[#ff6a00] text-[#ff6a00]"
+                : "border-transparent text-gray-500 hover:border-white/20 hover:text-gray-300"
             }`}
           >
             <Bot size={18} />
@@ -94,9 +94,9 @@ function ConfiguracionContent() {
         
         {activeTab === "taller" && (
           <div className="space-y-8 max-w-4xl">
-            <div className="p-4 bg-orange-50/50 border border-orange-100 rounded-xl mb-6">
-              <p className="text-sm text-orange-800">
-                <strong>Equipamiento y materiales.</strong> Las impresoras y filamentos que cargues acá se usan para calcular costos de impresión y gestionar tu stock.
+            <div className="p-4 bg-white/5 border border-white/10 rounded-xl mb-6">
+              <p className="text-sm text-gray-400">
+                <strong className="text-white">Equipamiento y materiales.</strong> Las impresoras y filamentos que cargues acá se usan para calcular costos de impresión y gestionar tu stock.
               </p>
             </div>
             <PrintersManager />
@@ -106,9 +106,9 @@ function ConfiguracionContent() {
         
         {activeTab === "calculadora" && (
           <div className="space-y-8 max-w-4xl">
-            <div className="p-4 bg-orange-50/50 border border-orange-100 rounded-xl mb-6">
-              <p className="text-sm text-orange-800">
-                <strong>Ajustes de cotización.</strong> Estos valores se usan centralmente en la calculadora para establecer precios más realistas.
+            <div className="p-4 bg-white/5 border border-white/10 rounded-xl mb-6">
+              <p className="text-sm text-gray-400">
+                <strong className="text-white">Ajustes de cotización.</strong> Estos valores se usan centralmente en la calculadora para establecer precios más realistas.
               </p>
             </div>
             <SettingsManager />
@@ -124,7 +124,7 @@ function ConfiguracionContent() {
 
 export default function ConfiguracionPage() {
   return (
-    <Suspense fallback={<div className="py-24 flex justify-center"><Loader2 className="animate-spin h-8 w-8 text-orange-500" /></div>}>
+    <Suspense fallback={<div className="py-24 flex justify-center"><Loader2 className="animate-spin h-8 w-8 text-[#ff6a00]" /></div>}>
       <ConfiguracionContent />
     </Suspense>
   );

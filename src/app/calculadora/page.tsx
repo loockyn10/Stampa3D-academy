@@ -22,16 +22,16 @@ function NumberField({ label, value, onChange, suffix, step = 1, disabled = fals
   return (
     <label className={`block ${disabled ? "opacity-60" : ""}`}>
       <span className="mb-1 block text-xs font-semibold text-gray-500">{label}</span>
-      <div className={`flex items-center rounded-xl border border-gray-200 bg-gray-50 px-3 ${!disabled && "focus-within:border-orange-500 focus-within:bg-white focus-within:ring-2 focus-within:ring-orange-100"}`}>
+      <div className={`flex items-center rounded-xl border border-white/10 bg-[#111] px-3 ${!disabled && "focus-within:border-[#ff6a00] focus-within:bg-[#1a1a1a] focus-within:ring-2 focus-within:ring-[#ff6a00]/20"}`}>
         <input
           type="number"
           step={step}
           value={value}
           onChange={(e) => onChange(parseFloat(e.target.value) || 0)}
-          className="w-full bg-transparent py-2.5 text-sm text-gray-900 outline-none"
+          className="w-full bg-transparent py-2.5 text-sm text-white outline-none"
           disabled={disabled}
         />
-        {suffix && <span className="text-xs font-medium text-gray-400">{suffix}</span>}
+        {suffix && <span className="text-xs font-medium text-gray-500">{suffix}</span>}
       </div>
     </label>
   );
@@ -287,7 +287,7 @@ export default function CalculadoraPage() {
   };
 
   if (loading) {
-    return <div className="py-24 flex justify-center"><Loader2 className="animate-spin h-8 w-8 text-orange-500" /></div>;
+    return <div className="py-24 flex justify-center"><Loader2 className="animate-spin h-8 w-8 text-[#ff6a00]" /></div>;
   }
 
   const missingData = filaments.length === 0 || printers.length === 0 || multipliers.length === 0;
@@ -300,11 +300,11 @@ export default function CalculadoraPage() {
         title="Calculadora de costos"
         action={
           <div className="flex items-center gap-2">
-            <Link href="/configuracion?tab=calculadora" className="hidden sm:flex text-xs font-semibold text-gray-500 hover:text-gray-900 border border-gray-200 bg-white px-3 py-1.5 rounded-lg transition-colors gap-1.5 items-center">
+            <Link href="/configuracion?tab=calculadora" className="hidden sm:flex text-xs font-semibold text-gray-400 hover:text-white border border-white/10 bg-[#111] px-3 py-1.5 rounded-lg transition-colors gap-1.5 items-center">
               <Settings size={14} /> Configurar Valores
             </Link>
             <GhostButton onClick={() => setAdvanced((a) => !a)}>
-              <Zap size={14} className={advanced ? "text-orange-500 fill-orange-500" : ""} />
+              <Zap size={14} className={advanced ? "text-[#ff6a00] fill-[#ff6a00]" : ""} />
               {advanced ? "Modo básico" : "Modo avanzado"}
             </GhostButton>
           </div>
@@ -314,18 +314,18 @@ export default function CalculadoraPage() {
       {missingData && (
         <div className="mb-6 space-y-3">
           {printers.length === 0 && (
-            <div className="bg-orange-50 border border-orange-200 p-4 rounded-xl flex items-start gap-3">
-              <AlertCircle className="text-orange-600 mt-0.5" size={20} />
+            <div className="bg-[#ff6a00]/10 border border-[#ff6a00]/20 p-4 rounded-xl flex items-start gap-3">
+              <AlertCircle className="text-[#ff6a00] mt-0.5" size={20} />
               <div>
-                <h4 className="text-sm font-bold text-orange-900">No tenés impresoras cargadas</h4>
-                <p className="text-xs text-orange-800 mt-1">
+                <h4 className="text-sm font-bold text-[#ff6a00]">No tenés impresoras cargadas</h4>
+                <p className="text-xs text-[#ff6a00]/80 mt-1">
                   Importá una impresora del catálogo Stampa o cargá una manualmente.
                 </p>
                 <div className="flex gap-2 mt-3">
-                  <Link href="/configuracion?tab=taller" className="inline-block bg-orange-600 text-white text-xs font-semibold px-3 py-1.5 rounded-lg hover:bg-orange-700 transition-colors">
+                  <Link href="/configuracion?tab=taller" className="inline-block bg-[#ff6a00] text-white text-xs font-semibold px-3 py-1.5 rounded-lg hover:bg-[#ff7a1a] transition-colors shadow-sm shadow-[#ff6a00]/20">
                     Importar impresora
                   </Link>
-                  <Link href="/configuracion?tab=taller" className="inline-block bg-white text-orange-600 border border-orange-200 text-xs font-semibold px-3 py-1.5 rounded-lg hover:bg-orange-50 transition-colors">
+                  <Link href="/configuracion?tab=taller" className="inline-block bg-[#111] text-[#ff6a00] border border-[#ff6a00]/30 text-xs font-semibold px-3 py-1.5 rounded-lg hover:bg-[#ff6a00]/10 transition-colors">
                     Agregar manualmente
                   </Link>
                 </div>
@@ -333,14 +333,14 @@ export default function CalculadoraPage() {
             </div>
           )}
           {(filaments.length === 0 || multipliers.length === 0) && (
-            <div className="bg-orange-50 border border-orange-200 p-4 rounded-xl flex items-start gap-3">
-              <AlertCircle className="text-orange-600 mt-0.5" size={20} />
+            <div className="bg-[#ff6a00]/10 border border-[#ff6a00]/20 p-4 rounded-xl flex items-start gap-3">
+              <AlertCircle className="text-[#ff6a00] mt-0.5" size={20} />
               <div>
-                <h4 className="text-sm font-bold text-orange-900">Faltan datos de configuración</h4>
-                <p className="text-xs text-orange-800 mt-1">
+                <h4 className="text-sm font-bold text-[#ff6a00]">Faltan datos de configuración</h4>
+                <p className="text-xs text-[#ff6a00]/80 mt-1">
                   Para usar la calculadora necesitas tener al menos un filamento y un tipo de producto configurados.
                 </p>
-                <Link href="/configuracion?tab=taller" className="inline-block mt-3 bg-orange-600 text-white text-xs font-semibold px-3 py-1.5 rounded-lg hover:bg-orange-700 transition-colors">
+                <Link href="/configuracion?tab=taller" className="inline-block mt-3 bg-[#ff6a00] text-white text-xs font-semibold px-3 py-1.5 rounded-lg hover:bg-[#ff7a1a] transition-colors shadow-sm shadow-[#ff6a00]/20">
                   Ir a Configuración
                 </Link>
               </div>
@@ -354,14 +354,14 @@ export default function CalculadoraPage() {
           
           {/* SECCIÓN MATERIAL */}
           <div>
-            <p className="mb-4 text-sm font-bold text-gray-900 border-b border-gray-100 pb-2">Datos de Material</p>
+            <p className="mb-4 text-sm font-bold text-white border-b border-white/10 pb-2">Datos de Material</p>
             <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 mb-4">
               <label className="block">
                 <span className="mb-1 block text-xs font-semibold text-gray-500">Filamento a usar</span>
                 <select 
                   value={selectedFilamentId} 
                   onChange={(e) => setSelectedFilamentId(e.target.value)} 
-                  className="w-full text-sm rounded-xl border border-gray-200 bg-gray-50 py-2.5 px-3 text-gray-900 outline-none focus:border-orange-500 focus:bg-white focus:ring-2 focus:ring-orange-100"
+                  className="w-full text-sm rounded-xl border border-white/10 bg-[#111] py-2.5 px-3 text-white outline-none focus:border-[#ff6a00] focus:bg-[#1a1a1a] focus:ring-2 focus:ring-[#ff6a00]/20"
                 >
                   {filaments.map(f => (
                     <option key={f.id} value={f.id}>
@@ -376,14 +376,14 @@ export default function CalculadoraPage() {
 
           {/* SECCIÓN ELECTRICIDAD Y TIEMPO */}
           <div>
-            <p className="mb-4 text-sm font-bold text-gray-900 border-b border-gray-100 pb-2">Tiempo e Impresión</p>
+            <p className="mb-4 text-sm font-bold text-white border-b border-white/10 pb-2">Tiempo e Impresión</p>
             <div className="grid grid-cols-1 gap-4 sm:grid-cols-3 mb-4">
               <label className="block">
                 <span className="mb-1 block text-xs font-semibold text-gray-500">Impresora</span>
                 <select 
                   value={selectedPrinterId} 
                   onChange={(e) => setSelectedPrinterId(e.target.value)} 
-                  className="w-full text-sm rounded-xl border border-gray-200 bg-gray-50 py-2.5 px-3 text-gray-900 outline-none focus:border-orange-500 focus:bg-white focus:ring-2 focus:ring-orange-100"
+                  className="w-full text-sm rounded-xl border border-white/10 bg-[#111] py-2.5 px-3 text-white outline-none focus:border-[#ff6a00] focus:bg-[#1a1a1a] focus:ring-2 focus:ring-[#ff6a00]/20"
                 >
                   {printers.map(p => <option key={p.id} value={p.id}>{p.name}</option>)}
                 </select>
@@ -395,14 +395,14 @@ export default function CalculadoraPage() {
 
           {/* SECCIÓN MARGEN */}
           <div>
-            <p className="mb-4 text-sm font-bold text-gray-900 border-b border-gray-100 pb-2">Márgenes y Plataforma</p>
+            <p className="mb-4 text-sm font-bold text-white border-b border-white/10 pb-2">Márgenes y Plataforma</p>
             <div className="grid grid-cols-1 gap-4 sm:grid-cols-3 mb-4">
               <label className="block">
                 <span className="mb-1 block text-xs font-semibold text-gray-500">Tipo de producto</span>
                 <select 
                   value={selectedMultiplierId} 
                   onChange={(e) => setSelectedMultiplierId(e.target.value)} 
-                  className="w-full text-sm rounded-xl border border-gray-200 bg-gray-50 py-2.5 px-3 text-gray-900 outline-none focus:border-orange-500 focus:bg-white focus:ring-2 focus:ring-orange-100"
+                  className="w-full text-sm rounded-xl border border-white/10 bg-[#111] py-2.5 px-3 text-white outline-none focus:border-[#ff6a00] focus:bg-[#1a1a1a] focus:ring-2 focus:ring-[#ff6a00]/20"
                 >
                   {multipliers.map(m => <option key={m.id} value={m.id}>{m.name} (x{m.multiplier})</option>)}
                 </select>
@@ -412,18 +412,18 @@ export default function CalculadoraPage() {
 
           {/* OPCIONES AVANZADAS AGRUPADAS */}
           {advanced && (
-            <div className="p-5 rounded-2xl border border-orange-100 bg-orange-50/20 space-y-5 animate-in fade-in-50 duration-200">
-              <div className="flex items-center gap-2 pb-2 border-b border-orange-100">
-                <span className="text-sm font-bold text-orange-950">Opciones Avanzadas</span>
-                <span className="rounded-full bg-orange-100 text-orange-800 text-[10px] font-bold px-2.5 py-0.5 uppercase tracking-wider">Avanzado</span>
+            <div className="p-5 rounded-2xl border border-indigo-500/30 bg-indigo-500/10 space-y-5 animate-in fade-in-50 duration-200 shadow-md">
+              <div className="flex items-center gap-2 pb-2 border-b border-indigo-500/20">
+                <span className="text-sm font-bold text-indigo-400">Opciones Avanzadas</span>
+                <span className="rounded-full bg-indigo-500/20 text-indigo-300 text-[10px] font-bold px-2.5 py-0.5 uppercase tracking-wider border border-indigo-500/30">Avanzado</span>
               </div>
-              <p className="text-xs text-orange-800/80">
+              <p className="text-xs text-indigo-300/80">
                 Ajustá valores de desperdicio, costos por kg personalizados, consumos específicos de tu impresora, mano de obra, comisiones de venta y envío.
               </p>
               
               <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
                 <div className="space-y-4">
-                  <p className="text-xs font-bold text-orange-900/60 uppercase tracking-wider">Materiales y Taller</p>
+                  <p className="text-xs font-bold text-indigo-300 uppercase tracking-wider">Materiales y Taller</p>
                   <div className="grid grid-cols-1 gap-3">
                     <NumberField label="Margen de error (desperdicio)" value={manualErrorPercent} onChange={setManualErrorPercent} suffix="%" />
                     <NumberField label="Costo por kg manual (sobreescribe)" value={manualPricePerKg} onChange={setManualPricePerKg} suffix="$" />
@@ -433,7 +433,7 @@ export default function CalculadoraPage() {
                 </div>
 
                 <div className="space-y-4">
-                  <p className="text-xs font-bold text-orange-900/60 uppercase tracking-wider">Costos Extras y Márgenes</p>
+                  <p className="text-xs font-bold text-indigo-300 uppercase tracking-wider">Costos Extras y Márgenes</p>
                   <div className="grid grid-cols-1 gap-3">
                     <NumberField label="Mantenimiento de máquina por hora" value={manualPrinterMaintenance} onChange={setManualPrinterMaintenance} suffix="$" />
                     <NumberField label="Costo de mano de obra (total)" value={laborCost} onChange={setLaborCost} suffix="$" />
@@ -443,8 +443,8 @@ export default function CalculadoraPage() {
                 </div>
               </div>
 
-              <div className="pt-4 border-t border-orange-100/50">
-                <p className="text-xs font-bold text-orange-900/60 uppercase tracking-wider mb-3">Plataforma de Venta (ML, etc.)</p>
+              <div className="pt-4 border-t border-indigo-500/20">
+                <p className="text-xs font-bold text-indigo-300 uppercase tracking-wider mb-3">Plataforma de Venta (ML, etc.)</p>
                 <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
                   <NumberField label="Comisión plataforma" value={manualPlatformCommission} onChange={setManualPlatformCommission} suffix="%" />
                   <NumberField label="Fijo extra plataforma" value={manualPlatformExtra} onChange={setManualPlatformExtra} suffix="$" />
@@ -456,10 +456,10 @@ export default function CalculadoraPage() {
 
           {/* GUARDAR COMO PRODUCTO */}
           {hasValidCalc && (
-            <div className="border-t border-gray-100 pt-4">
+            <div className="border-t border-white/10 pt-4">
               <button
                 onClick={openSaveModal}
-                className="w-full flex items-center justify-center gap-2 px-4 py-3 rounded-xl bg-orange-500 hover:bg-orange-600 text-white text-sm font-bold transition-colors"
+                className="w-full flex items-center justify-center gap-2 px-4 py-3 rounded-xl bg-[#ff6a00] hover:bg-[#ff7a1a] text-white text-sm font-bold transition-colors shadow-md shadow-[#ff6a00]/10"
               >
                 <PackagePlus size={16} /> Guardar como producto
               </button>
@@ -468,58 +468,58 @@ export default function CalculadoraPage() {
 
         </Card>
 
-        <Card className="h-fit p-5 border-orange-200 shadow-md bg-gradient-to-b from-white to-orange-50/30">
-          <p className="mb-4 flex items-center gap-2 text-sm font-bold text-gray-900 border-b border-gray-100 pb-2">
-            <DollarSign size={16} className="text-orange-500" /> Resultado Final
+        <Card className="h-fit p-5 border-[#ff6a00]/20 shadow-md bg-[#0a0a0a]">
+          <p className="mb-4 flex items-center gap-2 text-sm font-bold text-white border-b border-white/10 pb-2">
+            <DollarSign size={16} className="text-[#ff6a00]" /> Resultado Final
           </p>
           <div className="space-y-4">
             
             <div className="flex items-center justify-between">
               <p className="text-xs text-gray-500">Costo Material</p>
-              <p className="text-sm font-semibold text-gray-900">${calc.materialCost.toFixed(2)}</p>
+              <p className="text-sm font-semibold text-white">${calc.materialCost.toFixed(2)}</p>
             </div>
             
             <div className="flex items-center justify-between">
               <p className="text-xs text-gray-500">Costo Eléctrico</p>
-              <p className="text-sm font-semibold text-gray-900">${calc.energyCost.toFixed(2)}</p>
+              <p className="text-sm font-semibold text-white">${calc.energyCost.toFixed(2)}</p>
             </div>
             <div className="flex items-center justify-between">
               <p className="text-xs text-gray-500">Costo Mantenimiento</p>
-              <p className="text-sm font-semibold text-gray-900">${calc.printerCost.toFixed(2)}</p>
+              <p className="text-sm font-semibold text-white">${calc.printerCost.toFixed(2)}</p>
             </div>
             <div className="flex items-center justify-between">
               <p className="text-xs text-gray-500">Costo Fijo</p>
-              <p className="text-sm font-semibold text-gray-900">${calc.fixedCost.toFixed(2)}</p>
+              <p className="text-sm font-semibold text-white">${calc.fixedCost.toFixed(2)}</p>
             </div>
             
             {advanced && (laborCost > 0 || otherCost > 0) && (
               <div className="flex items-center justify-between">
                 <p className="text-xs text-gray-500">Mano obra y otros</p>
-                <p className="text-sm font-semibold text-gray-900">${(laborCost + otherCost).toFixed(2)}</p>
+                <p className="text-sm font-semibold text-white">${(laborCost + otherCost).toFixed(2)}</p>
               </div>
             )}
 
-            <div className="my-2 h-px bg-gray-100" />
+            <div className="my-2 h-px bg-white/10" />
 
             <div className="flex items-center justify-between">
-              <p className="text-sm font-bold text-gray-700">COSTO BASE</p>
-              <p className="text-lg font-bold text-gray-900">${calc.baseCost.toFixed(2)}</p>
+              <p className="text-sm font-bold text-gray-400">COSTO BASE</p>
+              <p className="text-lg font-bold text-white">${calc.baseCost.toFixed(2)}</p>
             </div>
             <div className="flex items-center justify-between">
-              <p className="text-sm font-bold text-emerald-700">PRECIO NORMAL</p>
-              <p className="text-xl font-black text-emerald-600">${calc.normalPrice.toFixed(2)}</p>
+              <p className="text-sm font-bold text-emerald-400">PRECIO NORMAL</p>
+              <p className="text-xl font-black text-emerald-400">${calc.normalPrice.toFixed(2)}</p>
             </div>
 
-            <div className="flex items-center justify-between bg-emerald-50 px-3 py-2 rounded-lg">
-              <p className="text-xs font-bold text-emerald-700">Ganancia Estimada</p>
-              <p className="text-sm font-bold text-emerald-700">${calc.profit.toFixed(2)}</p>
+            <div className="flex items-center justify-between bg-emerald-500/10 border border-emerald-500/20 px-3 py-2 rounded-lg">
+              <p className="text-xs font-bold text-emerald-400">Ganancia Estimada</p>
+              <p className="text-sm font-bold text-emerald-400">${calc.profit.toFixed(2)}</p>
             </div>
 
             {advanced && (
-              <div className="mt-4 rounded-xl bg-orange-100 p-4 border border-orange-200">
-                <p className="text-xs font-bold text-orange-900 opacity-80 mb-1">PRECIO MERCADO LIBRE</p>
-                <p className="text-2xl font-black text-orange-600">${calc.mlPrice.toFixed(2)}</p>
-                <p className="text-[10px] text-orange-800 mt-1">Incluye comisiones, extras y envíos.</p>
+              <div className="mt-4 rounded-xl bg-indigo-500/10 p-4 border border-indigo-500/30">
+                <p className="text-xs font-bold text-indigo-400 opacity-80 mb-1">PRECIO MERCADO LIBRE</p>
+                <p className="text-2xl font-black text-indigo-400">${calc.mlPrice.toFixed(2)}</p>
+                <p className="text-[10px] text-indigo-400/80 mt-1">Incluye comisiones, extras y envíos.</p>
               </div>
             )}
 
@@ -530,12 +530,12 @@ export default function CalculadoraPage() {
       {/* MODAL: GUARDAR COMO PRODUCTO */}
       {showSaveModal && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4">
-          <div className="bg-white w-full max-w-md rounded-2xl shadow-2xl overflow-hidden">
-            <div className="flex items-center justify-between px-6 py-4 border-b border-gray-100">
-              <h3 className="font-bold text-gray-900 flex items-center gap-2">
+          <div className="bg-[#111] w-full max-w-md rounded-2xl shadow-2xl overflow-hidden">
+            <div className="flex items-center justify-between px-6 py-4 border-b border-white/5">
+              <h3 className="font-bold text-white flex items-center gap-2">
                 <PackagePlus size={18} className="text-orange-500" /> Guardar como producto
               </h3>
-              <button onClick={() => setShowSaveModal(false)} className="text-gray-400 hover:text-gray-700">
+              <button onClick={() => setShowSaveModal(false)} className="text-gray-400 hover:text-gray-300">
                 <X size={20} />
               </button>
             </div>
@@ -543,13 +543,13 @@ export default function CalculadoraPage() {
             {saveSuccess ? (
               <div className="p-8 text-center">
                 <CheckCircle2 size={48} className="text-green-500 mx-auto mb-3" />
-                <p className="font-bold text-gray-900 text-lg mb-1">¡Producto guardado!</p>
+                <p className="font-bold text-white text-lg mb-1">¡Producto guardado!</p>
                 <p className="text-sm text-gray-500 mb-6">El producto fue agregado a tu catálogo.</p>
                 <div className="flex gap-3 justify-center">
                   <Link href="/productos" className="px-4 py-2 bg-orange-500 text-white rounded-lg text-sm font-bold hover:bg-orange-600">
                     Ver productos
                   </Link>
-                  <button onClick={() => setShowSaveModal(false)} className="px-4 py-2 border border-gray-200 text-gray-600 rounded-lg text-sm font-bold hover:bg-gray-50">
+                  <button onClick={() => setShowSaveModal(false)} className="px-4 py-2 border border-white/10 text-gray-400 rounded-lg text-sm font-bold hover:bg-[#0a0a0a]">
                     Seguir calculando
                   </button>
                 </div>
@@ -557,9 +557,9 @@ export default function CalculadoraPage() {
             ) : (
               <div className="p-6 space-y-4">
                 {/* Resumen del cálculo */}
-                <div className="bg-gray-50 p-3 rounded-xl border border-gray-100 grid grid-cols-3 gap-2 text-center text-xs">
+                <div className="bg-[#0a0a0a] p-3 rounded-xl border border-white/5 grid grid-cols-3 gap-2 text-center text-xs">
                   <div>
-                    <p className="font-bold text-gray-900">${calc.baseCost.toFixed(2)}</p>
+                    <p className="font-bold text-white">${calc.baseCost.toFixed(2)}</p>
                     <p className="text-gray-400">Costo Base</p>
                   </div>
                   <div>
@@ -573,39 +573,39 @@ export default function CalculadoraPage() {
                 </div>
 
                 <div>
-                  <label className="block text-xs font-semibold text-gray-700 mb-1">Nombre del producto *</label>
+                  <label className="block text-xs font-semibold text-gray-300 mb-1">Nombre del producto *</label>
                   <input
                     type="text"
                     value={productForm.name}
                     onChange={(e) => setProductForm(prev => ({ ...prev, name: e.target.value }))}
-                    className="w-full text-sm border-gray-300 rounded-lg px-3 py-2 focus:border-orange-500 focus:ring-1 focus:ring-orange-500 text-gray-900 bg-white"
+                    className="w-full text-sm border-white/20 rounded-lg px-3 py-2 focus:border-orange-500 focus:ring-1 focus:ring-orange-500 text-white bg-[#111]"
                     placeholder="Ej. Maceta geométrica 15cm"
                   />
                 </div>
 
                 <div>
-                  <label className="block text-xs font-semibold text-gray-700 mb-1">Descripción (Opcional)</label>
+                  <label className="block text-xs font-semibold text-gray-300 mb-1">Descripción (Opcional)</label>
                   <textarea
                     value={productForm.description}
                     onChange={(e) => setProductForm(prev => ({ ...prev, description: e.target.value }))}
                     rows={2}
-                    className="w-full text-sm border-gray-300 rounded-lg px-3 py-2 focus:border-orange-500 focus:ring-1 focus:ring-orange-500 text-gray-900 bg-white"
+                    className="w-full text-sm border-white/20 rounded-lg px-3 py-2 focus:border-orange-500 focus:ring-1 focus:ring-orange-500 text-white bg-[#111]"
                   />
                 </div>
 
                 <div>
-                  <label className="block text-xs font-semibold text-gray-700 mb-1">Stock inicial</label>
+                  <label className="block text-xs font-semibold text-gray-300 mb-1">Stock inicial</label>
                   <input
                     type="number"
                     min="0"
                     value={productForm.stock_quantity}
                     onChange={(e) => setProductForm(prev => ({ ...prev, stock_quantity: parseInt(e.target.value) || 0 }))}
-                    className="w-full text-sm border-gray-300 rounded-lg px-3 py-2 focus:border-orange-500 focus:ring-1 focus:ring-orange-500 text-gray-900 bg-white"
+                    className="w-full text-sm border-white/20 rounded-lg px-3 py-2 focus:border-orange-500 focus:ring-1 focus:ring-orange-500 text-white bg-[#111]"
                   />
                 </div>
 
                 <div>
-                  <label className="block text-xs font-semibold text-gray-700 mb-1">Imagen del producto (Opcional)</label>
+                  <label className="block text-xs font-semibold text-gray-300 mb-1">Imagen del producto (Opcional)</label>
                   <FileUploadDropzone
                     bucket="product-images"
                     pathPrefix={`${userId}/products`}
@@ -616,7 +616,7 @@ export default function CalculadoraPage() {
                   />
                   {productForm.image_url && (
                     <div className="mt-2 flex items-center gap-2">
-                      <img src={productForm.image_url} alt="Preview" className="h-12 w-12 rounded-lg object-cover border border-gray-200" />
+                      <img src={productForm.image_url} alt="Preview" className="h-12 w-12 rounded-lg object-cover border border-white/10" />
                       <span className="text-xs text-gray-500 truncate">{productForm.image_url}</span>
                     </div>
                   )}
@@ -629,7 +629,7 @@ export default function CalculadoraPage() {
                 )}
 
                 <div className="flex justify-end gap-2 pt-2">
-                  <button onClick={() => setShowSaveModal(false)} className="px-4 py-2 text-sm font-bold text-gray-600 hover:bg-gray-100 rounded-lg">
+                  <button onClick={() => setShowSaveModal(false)} className="px-4 py-2 text-sm font-bold text-gray-400 hover:bg-white/5 rounded-lg">
                     Cancelar
                   </button>
                   <button

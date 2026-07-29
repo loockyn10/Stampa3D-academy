@@ -12,11 +12,11 @@ interface ButtonProps extends React.ButtonHTMLAttributes<HTMLButtonElement> {
 
 export function Button({ children, variant = "primary", className = "", href, target, rel, ...props }: ButtonProps) {
   const styles = {
-    primary: "bg-orange-500 text-white hover:bg-orange-600 active:bg-orange-700 shadow-sm border-transparent",
-    ghost: "border-gray-200 bg-white text-gray-700 hover:bg-gray-50 active:bg-gray-100"
+    primary: "bg-[#ff6a00] text-white hover:bg-[#ff7a1a] active:bg-[#e65c00] shadow-sm shadow-[#ff6a00]/10 border-transparent",
+    ghost: "border-white/10 bg-white/5 text-gray-300 hover:bg-white/10 hover:text-white active:bg-white/20"
   };
 
-  const baseClass = `inline-flex items-center justify-center gap-2 rounded-xl border px-4 py-2.5 text-sm font-semibold transition-colors duration-150 outline-none focus:ring-2 focus:ring-orange-100 ${styles[variant]} ${className}`;
+  const baseClass = `inline-flex items-center justify-center gap-2 rounded-xl border px-4 py-2.5 text-sm font-semibold transition-colors duration-150 outline-none focus:ring-2 focus:ring-[#ff6a00]/50 ${styles[variant]} ${className}`;
 
   if (href) {
     return (

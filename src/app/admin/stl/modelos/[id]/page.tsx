@@ -13,7 +13,7 @@ export default function EditStlModelPage({ params }: EditModelPageProps) {
   if (!id || id === "undefined") {
     return (
       <div className="p-6 max-w-4xl mx-auto space-y-4">
-        <Link href="/admin/stl/modelos" className="inline-flex items-center gap-1.5 text-xs font-semibold text-gray-500 hover:text-gray-800 transition-colors">
+        <Link href="/admin/stl/modelos" className="inline-flex items-center gap-1.5 text-xs font-semibold text-gray-500 hover:text-gray-200 transition-colors">
           <ArrowLeft size={14} /> Volver a Modelos
         </Link>
         <div className="bg-red-50 text-red-600 p-4 rounded-lg border border-red-100 text-sm">
@@ -28,11 +28,11 @@ export default function EditStlModelPage({ params }: EditModelPageProps) {
       <div>
         <Link
           href="/admin/stl/modelos"
-          className="mb-4 inline-flex items-center gap-1.5 text-xs font-semibold text-gray-500 hover:text-gray-800 transition-colors"
+          className="mb-4 inline-flex items-center gap-1.5 text-xs font-semibold text-gray-500 hover:text-gray-200 transition-colors"
         >
           <ArrowLeft size={14} /> Volver a Modelos
         </Link>
-        <h1 className="text-2xl font-bold text-gray-900 flex items-center gap-2">
+        <h1 className="text-2xl font-bold text-white flex items-center gap-2">
           <Box className="text-emerald-600" />
           Editar Archivo STL
         </h1>

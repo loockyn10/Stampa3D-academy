@@ -44,27 +44,27 @@ export function Combobox({ options, value, onChange, placeholder = "Seleccionar.
     <div className={`relative ${className}`} ref={wrapperRef}>
       <button
         type="button"
-        className="w-full bg-white text-left text-sm border border-gray-300 rounded-md shadow-sm px-3 py-2 focus:outline-none focus:ring-1 focus:ring-orange-500 focus:border-orange-500 flex justify-between items-center"
+        className="w-full bg-[#111] text-left text-sm border border-white/20 rounded-md shadow-sm px-3 py-2 focus:outline-none focus:ring-1 focus:ring-orange-500 focus:border-orange-500 flex justify-between items-center"
         onClick={() => {
           setIsOpen(!isOpen);
           setQuery("");
         }}
       >
-        <span className={selectedOption ? "text-gray-900 truncate block w-full pr-2" : "text-gray-500 truncate block w-full pr-2"}>
+        <span className={selectedOption ? "text-white truncate block w-full pr-2" : "text-gray-500 truncate block w-full pr-2"}>
           {selectedOption ? selectedOption.label : placeholder}
         </span>
         <ChevronDown size={16} className="text-gray-400 ml-2 shrink-0" />
       </button>
 
       {isOpen && (
-        <div className="absolute z-10 mt-1 w-full bg-white shadow-lg rounded-md text-base ring-1 ring-black ring-opacity-5 overflow-visible focus:outline-none sm:text-sm">
-          <div className="bg-white px-2 py-2 border-b border-gray-100 rounded-t-md">
+        <div className="absolute z-10 mt-1 w-full bg-[#111] shadow-lg rounded-md text-base ring-1 ring-black ring-opacity-5 overflow-visible focus:outline-none sm:text-sm">
+          <div className="bg-[#111] px-2 py-2 border-b border-white/5 rounded-t-md">
             <div className="relative">
               <Search size={14} className="absolute left-2.5 top-2.5 text-gray-400" />
               <input
                 type="text"
                 autoFocus
-                className="w-full pl-8 pr-3 py-1.5 text-sm border border-gray-200 rounded-md focus:outline-none focus:ring-1 focus:ring-orange-500 focus:border-orange-500"
+                className="w-full pl-8 pr-3 py-1.5 text-sm border border-white/10 rounded-md focus:outline-none bg-neutral-900 focus:border-[#ff6a00] focus:ring-[#ff6a00]/20 focus:ring-2 placeholder:text-neutral-500 disabled:bg-neutral-800 disabled:text-neutral-500"
                 placeholder="Buscar..."
                 value={query}
                 onChange={(e) => setQuery(e.target.value)}
@@ -83,7 +83,7 @@ export function Combobox({ options, value, onChange, placeholder = "Seleccionar.
                 <li
                   key={option.id}
                   className={`cursor-pointer select-none relative py-2 pl-3 pr-9 text-sm hover:bg-orange-50 ${
-                    String(value) === String(option.id) ? "text-orange-900 font-medium" : "text-gray-900"
+                    String(value) === String(option.id) ? "text-orange-900 font-medium" : "text-white"
                   }`}
                   onClick={() => {
                     onChange(option.id);

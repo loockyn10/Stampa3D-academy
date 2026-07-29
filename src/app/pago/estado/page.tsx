@@ -49,15 +49,15 @@ export default function PagoEstadoPage() {
 
   return (
     <div className="flex min-h-screen items-center justify-center bg-[#F7F7F9] px-4 py-12 sm:px-6 lg:px-8">
-      <div className="w-full max-w-md space-y-8 bg-white p-8 rounded-2xl shadow-sm border border-gray-100 text-center">
+      <div className="w-full max-w-md space-y-8 bg-[#111] p-8 rounded-2xl shadow-sm border border-white/5 text-center">
         
         {loading && (
           <div className="flex flex-col items-center justify-center">
             <Loader2 className="h-12 w-12 text-orange-500 animate-spin mb-4" />
-            <h2 className="text-2xl font-bold tracking-tight text-gray-900">
+            <h2 className="text-2xl font-bold tracking-tight text-white">
               Estamos verificando tu membresía...
             </h2>
-            <p className="mt-2 text-sm text-gray-600">
+            <p className="mt-2 text-sm text-gray-400">
               Por favor aguardá un momento.
             </p>
           </div>
@@ -66,7 +66,7 @@ export default function PagoEstadoPage() {
         {!loading && error && (
           <div className="flex flex-col items-center justify-center">
             <AlertCircle className="h-12 w-12 text-red-500 mb-4" />
-            <h2 className="text-2xl font-bold tracking-tight text-gray-900">
+            <h2 className="text-2xl font-bold tracking-tight text-white">
               Error de verificación
             </h2>
             <p className="mt-2 text-sm text-red-600 mb-6">
@@ -86,12 +86,12 @@ export default function PagoEstadoPage() {
             {statusData.active ? (
               <>
                 <CheckCircle2 className="h-12 w-12 text-green-500 mb-4" />
-                <h2 className="text-2xl font-bold tracking-tight text-gray-900">
+                <h2 className="text-2xl font-bold tracking-tight text-white">
                   {(statusData.status === "cancelled" || statusData.status === "canceled") 
                     ? "Suscripción cancelada"
                     : "Membresía activada correctamente"}
                 </h2>
-                <p className="mt-2 text-sm text-gray-600 mb-6">
+                <p className="mt-2 text-sm text-gray-400 mb-6">
                   {(statusData.status === "cancelled" || statusData.status === "canceled") && statusData.access_until
                     ? `Tu suscripción fue cancelada, pero mantenés tu acceso hasta el ${new Date(statusData.access_until).toLocaleDateString("es-AR")}. Serás redirigido al inicio en breve...`
                     : "Serás redirigido al inicio en breve..."}
@@ -100,10 +100,10 @@ export default function PagoEstadoPage() {
             ) : statusData.status === "pending" ? (
               <>
                 <Clock className="h-12 w-12 text-yellow-500 mb-4" />
-                <h2 className="text-2xl font-bold tracking-tight text-gray-900">
+                <h2 className="text-2xl font-bold tracking-tight text-white">
                   Suscripción pendiente
                 </h2>
-                <p className="mt-2 text-sm text-gray-600 mb-6">
+                <p className="mt-2 text-sm text-gray-400 mb-6">
                   Tu pago/suscripción todavía está pendiente de confirmación.
                 </p>
                 <div className="flex flex-col w-full gap-3">
@@ -115,7 +115,7 @@ export default function PagoEstadoPage() {
                   </button>
                   <button
                     onClick={() => router.push("/")}
-                    className="w-full rounded-lg bg-white border border-gray-300 px-3 py-3 text-sm font-semibold text-gray-700 hover:bg-gray-50 transition-colors"
+                    className="w-full rounded-lg bg-[#111] border border-white/20 px-3 py-3 text-sm font-semibold text-gray-300 hover:bg-[#0a0a0a] transition-colors"
                   >
                     Volver al inicio
                   </button>
@@ -124,10 +124,10 @@ export default function PagoEstadoPage() {
             ) : statusData.status === "not_found" ? (
               <>
                 <XCircle className="h-12 w-12 text-gray-400 mb-4" />
-                <h2 className="text-2xl font-bold tracking-tight text-gray-900">
+                <h2 className="text-2xl font-bold tracking-tight text-white">
                   Suscripción no encontrada
                 </h2>
-                <p className="mt-2 text-sm text-gray-600 mb-6">
+                <p className="mt-2 text-sm text-gray-400 mb-6">
                   No encontramos una suscripción asociada a tu cuenta.
                 </p>
                 <button
@@ -140,10 +140,10 @@ export default function PagoEstadoPage() {
             ) : (
               <>
                 <AlertCircle className="h-12 w-12 text-red-500 mb-4" />
-                <h2 className="text-2xl font-bold tracking-tight text-gray-900">
+                <h2 className="text-2xl font-bold tracking-tight text-white">
                   Estado desconocido
                 </h2>
-                <p className="mt-2 text-sm text-gray-600 mb-6">
+                <p className="mt-2 text-sm text-gray-400 mb-6">
                   El estado de tu membresía es: {statusData.status}
                 </p>
                 <div className="flex flex-col w-full gap-3">
@@ -155,7 +155,7 @@ export default function PagoEstadoPage() {
                   </button>
                   <button
                     onClick={() => router.push("/")}
-                    className="w-full rounded-lg bg-white border border-gray-300 px-3 py-3 text-sm font-semibold text-gray-700 hover:bg-gray-50 transition-colors"
+                    className="w-full rounded-lg bg-[#111] border border-white/20 px-3 py-3 text-sm font-semibold text-gray-300 hover:bg-[#0a0a0a] transition-colors"
                   >
                     Volver al inicio
                   </button>

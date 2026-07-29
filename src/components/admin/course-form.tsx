@@ -131,7 +131,7 @@ export function CourseForm({ courseId }: { courseId?: string }) {
   }
 
   return (
-    <form onSubmit={handleSubmit} className="space-y-6 bg-white p-6 rounded-xl border border-gray-200 shadow-sm">
+    <form onSubmit={handleSubmit} className="space-y-6 bg-[#111] p-6 rounded-xl border border-white/10 shadow-sm">
       {error && (
         <div className="bg-red-50 text-red-600 p-4 rounded-lg flex items-center gap-2 text-sm border border-red-100">
           <AlertCircle className="h-4 w-4" />
@@ -148,123 +148,123 @@ export function CourseForm({ courseId }: { courseId?: string }) {
 
       <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
         <div className="space-y-2">
-          <label className="text-sm font-medium text-gray-700">Título del Curso</label>
+          <label className="text-sm font-medium text-gray-300">Título del Curso</label>
           <input
             type="text"
             name="title"
             value={formData.title}
             onChange={handleChange}
             required
-            className="w-full text-sm bg-white text-gray-900 placeholder-gray-500 border-gray-300 rounded-md focus:ring-orange-500 focus:border-orange-500 shadow-sm"
+            className="w-full text-sm bg-neutral-900 text-neutral-100 border-white/10 rounded-md shadow-sm border focus:border-[#ff6a00] focus:ring-[#ff6a00]/20 focus:ring-2 placeholder:text-neutral-500 disabled:bg-neutral-800 disabled:text-neutral-500"
           />
         </div>
         
         <div className="space-y-2">
-          <label className="text-sm font-medium text-gray-700">Slug (URL)</label>
+          <label className="text-sm font-medium text-gray-300">Slug (URL)</label>
           <input
             type="text"
             name="slug"
             value={formData.slug}
             onChange={handleChange}
             required
-            className="w-full text-sm bg-white text-gray-900 placeholder-gray-500 border-gray-300 rounded-md focus:ring-orange-500 focus:border-orange-500 shadow-sm"
+            className="w-full text-sm bg-neutral-900 text-neutral-100 border-white/10 rounded-md shadow-sm border focus:border-[#ff6a00] focus:ring-[#ff6a00]/20 focus:ring-2 placeholder:text-neutral-500 disabled:bg-neutral-800 disabled:text-neutral-500"
           />
         </div>
 
         <div className="space-y-2 md:col-span-2">
-          <label className="text-sm font-medium text-gray-700">Descripción</label>
+          <label className="text-sm font-medium text-gray-300">Descripción</label>
           <textarea
             name="description"
             value={formData.description}
             onChange={handleChange}
             rows={3}
-            className="w-full text-sm bg-white text-gray-900 placeholder-gray-500 border-gray-300 rounded-md focus:ring-orange-500 focus:border-orange-500 shadow-sm"
+            className="w-full text-sm bg-neutral-900 text-neutral-100 border-white/10 rounded-md shadow-sm border focus:border-[#ff6a00] focus:ring-[#ff6a00]/20 focus:ring-2 placeholder:text-neutral-500 disabled:bg-neutral-800 disabled:text-neutral-500"
           />
         </div>
 
         <div className="space-y-2 md:col-span-2">
-          <label className="text-sm font-medium text-gray-700">URL de la Imagen (Thumbnail)</label>
+          <label className="text-sm font-medium text-gray-300">URL de la Imagen (Thumbnail)</label>
           <input
             type="text"
             name="thumbnail_url"
             value={formData.thumbnail_url}
             onChange={handleChange}
             placeholder="https://..."
-            className="w-full text-sm bg-white text-gray-900 placeholder-gray-500 border-gray-300 rounded-md focus:ring-orange-500 focus:border-orange-500 shadow-sm"
+            className="w-full text-sm bg-neutral-900 text-neutral-100 border-white/10 rounded-md shadow-sm border focus:border-[#ff6a00] focus:ring-[#ff6a00]/20 focus:ring-2 placeholder:text-neutral-500 disabled:bg-neutral-800 disabled:text-neutral-500"
           />
         </div>
 
         <div className="space-y-2">
-          <label className="text-sm font-medium text-gray-700">Categoría</label>
+          <label className="text-sm font-medium text-gray-300">Categoría</label>
           <select
             name="category_id"
             value={formData.category_id}
             onChange={handleChange}
-            className="w-full text-sm bg-white text-gray-900 placeholder-gray-500 border-gray-300 rounded-md focus:ring-orange-500 focus:border-orange-500 shadow-sm"
+            className="w-full text-sm bg-neutral-900 text-neutral-100 border-white/10 rounded-md shadow-sm border focus:border-[#ff6a00] focus:ring-[#ff6a00]/20 focus:ring-2 placeholder:text-neutral-500 disabled:bg-neutral-800 disabled:text-neutral-500"
           >
-            <option value="" className="text-gray-900 bg-white">Selecciona una categoría</option>
+            <option value="" className="text-white bg-[#111]">Selecciona una categoría</option>
             {categories.map((c) => (
-              <option key={c.id} value={c.id} className="text-gray-900 bg-white">{c.name}</option>
+              <option key={c.id} value={c.id} className="text-white bg-[#111]">{c.name}</option>
             ))}
           </select>
         </div>
 
         <div className="space-y-2">
-          <label className="text-sm font-medium text-gray-700">Instructor</label>
+          <label className="text-sm font-medium text-gray-300">Instructor</label>
           <select
             name="instructor_id"
             value={formData.instructor_id}
             onChange={handleChange}
-            className="w-full text-sm bg-white text-gray-900 placeholder-gray-500 border-gray-300 rounded-md focus:ring-orange-500 focus:border-orange-500 shadow-sm"
+            className="w-full text-sm bg-neutral-900 text-neutral-100 border-white/10 rounded-md shadow-sm border focus:border-[#ff6a00] focus:ring-[#ff6a00]/20 focus:ring-2 placeholder:text-neutral-500 disabled:bg-neutral-800 disabled:text-neutral-500"
           >
-            <option value="" className="text-gray-900 bg-white">Selecciona un instructor</option>
+            <option value="" className="text-white bg-[#111]">Selecciona un instructor</option>
             {instructors.map((i) => (
-              <option key={i.id} value={i.id} className="text-gray-900 bg-white">{i.name}</option>
+              <option key={i.id} value={i.id} className="text-white bg-[#111]">{i.name}</option>
             ))}
           </select>
         </div>
 
         <div className="space-y-2">
-          <label className="text-sm font-medium text-gray-700">Nivel</label>
+          <label className="text-sm font-medium text-gray-300">Nivel</label>
           <select
             name="level"
             value={formData.level}
             onChange={handleChange}
-            className="w-full text-sm bg-white text-gray-900 placeholder-gray-500 border-gray-300 rounded-md focus:ring-orange-500 focus:border-orange-500 shadow-sm"
+            className="w-full text-sm bg-neutral-900 text-neutral-100 border-white/10 rounded-md shadow-sm border focus:border-[#ff6a00] focus:ring-[#ff6a00]/20 focus:ring-2 placeholder:text-neutral-500 disabled:bg-neutral-800 disabled:text-neutral-500"
           >
-            <option value="beginner" className="text-gray-900 bg-white">Principiante</option>
-            <option value="intermediate" className="text-gray-900 bg-white">Intermedio</option>
-            <option value="advanced" className="text-gray-900 bg-white">Avanzado</option>
+            <option value="beginner" className="text-white bg-[#111]">Principiante</option>
+            <option value="intermediate" className="text-white bg-[#111]">Intermedio</option>
+            <option value="advanced" className="text-white bg-[#111]">Avanzado</option>
           </select>
         </div>
 
         <div className="space-y-2">
-          <label className="text-sm font-medium text-gray-700">Orden</label>
+          <label className="text-sm font-medium text-gray-300">Orden</label>
           <input
             type="number"
             name="sort_order"
             value={formData.sort_order}
             onChange={handleChange}
-            className="w-full text-sm bg-white text-gray-900 placeholder-gray-500 border-gray-300 rounded-md focus:ring-orange-500 focus:border-orange-500 shadow-sm"
+            className="w-full text-sm bg-neutral-900 text-neutral-100 border-white/10 rounded-md shadow-sm border focus:border-[#ff6a00] focus:ring-[#ff6a00]/20 focus:ring-2 placeholder:text-neutral-500 disabled:bg-neutral-800 disabled:text-neutral-500"
           />
         </div>
 
         <div className="space-y-2">
-          <label className="text-sm font-medium text-gray-700">Estado</label>
+          <label className="text-sm font-medium text-gray-300">Estado</label>
           <select
             name="status"
             value={formData.status}
             onChange={handleChange}
-            className="w-full text-sm bg-white text-gray-900 placeholder-gray-500 border-gray-300 rounded-md focus:ring-orange-500 focus:border-orange-500 shadow-sm"
+            className="w-full text-sm bg-neutral-900 text-neutral-100 border-white/10 rounded-md shadow-sm border focus:border-[#ff6a00] focus:ring-[#ff6a00]/20 focus:ring-2 placeholder:text-neutral-500 disabled:bg-neutral-800 disabled:text-neutral-500"
           >
-            <option value="draft" className="text-gray-900 bg-white">Borrador</option>
-            <option value="published" className="text-gray-900 bg-white">Publicado</option>
-            <option value="archived" className="text-gray-900 bg-white">Archivado</option>
+            <option value="draft" className="text-white bg-[#111]">Borrador</option>
+            <option value="published" className="text-white bg-[#111]">Publicado</option>
+            <option value="archived" className="text-white bg-[#111]">Archivado</option>
           </select>
         </div>
       </div>
 
-      <div className="flex justify-end pt-4 border-t border-gray-100">
+      <div className="flex justify-end pt-4 border-t border-white/5">
         <button
           type="submit"
           disabled={saving}

@@ -155,11 +155,11 @@ export function UsersTable() {
         </div>
       )}
 
-      <div className="bg-white border border-gray-200 rounded-xl overflow-hidden shadow-sm">
+      <div className="bg-[#111] border border-white/10 rounded-xl overflow-hidden shadow-sm">
         <div className="overflow-x-auto">
           <table className="w-full text-left border-collapse">
             <thead>
-              <tr className="bg-gray-50 border-b border-gray-200 text-sm font-medium text-gray-500">
+              <tr className="bg-[#0a0a0a] border-b border-white/10 text-sm font-medium text-gray-500">
                 <th className="px-4 py-3">Nombre</th>
                 <th className="px-4 py-3">Rol</th>
                 <th className="px-4 py-3">Estado Membresía</th>
@@ -171,8 +171,8 @@ export function UsersTable() {
             </thead>
             <tbody className="divide-y divide-gray-100">
               {users.map((user) => (
-                <tr key={user.id} className="text-sm hover:bg-gray-50 transition-colors">
-                  <td className="px-4 py-3 font-medium text-gray-900">
+                <tr key={user.id} className="text-sm hover:bg-[#0a0a0a] transition-colors">
+                  <td className="px-4 py-3 font-medium text-white">
                     {user.display_name || user.full_name || user.email || "Usuario sin nombre"}
                   </td>
                   <td className="px-4 py-3">
@@ -180,7 +180,7 @@ export function UsersTable() {
                       value={user.role}
                       onChange={(e) => handleUpdate(user.id, "role", e.target.value)}
                       disabled={updatingId === user.id}
-                      className="text-sm border-gray-300 rounded-md focus:ring-blue-500 focus:border-blue-500 bg-white shadow-sm disabled:opacity-50"
+                      className="text-sm border-white/20 rounded-md focus:ring-blue-500 focus:border-blue-500 bg-[#111] shadow-sm disabled:opacity-50"
                     >
                       <option value="member">Member</option>
                       <option value="admin">Admin</option>
@@ -191,8 +191,8 @@ export function UsersTable() {
                       value={user.membership_status}
                       onChange={(e) => handleUpdate(user.id, "membership_status", e.target.value)}
                       disabled={updatingId === user.id}
-                      className={`text-sm border-gray-300 rounded-md focus:ring-blue-500 focus:border-blue-500 shadow-sm disabled:opacity-50 ${
-                        user.membership_status === "active" ? "bg-green-50 text-green-700 font-medium" : "bg-white"
+                      className={`text-sm border-white/20 rounded-md focus:ring-blue-500 focus:border-blue-500 shadow-sm disabled:opacity-50 ${
+                        user.membership_status === "active" ? "bg-green-50 text-green-700 font-medium" : "bg-[#111]"
                       }`}
                     >
                       <option value="active">Active</option>
@@ -206,7 +206,7 @@ export function UsersTable() {
                       value={user.member_level}
                       onChange={(e) => handleUpdate(user.id, "member_level", e.target.value)}
                       disabled={updatingId === user.id}
-                      className="text-sm border-gray-300 rounded-md focus:ring-blue-500 focus:border-blue-500 bg-white shadow-sm disabled:opacity-50"
+                      className="text-sm border-white/20 rounded-md focus:ring-blue-500 focus:border-blue-500 bg-[#111] shadow-sm disabled:opacity-50"
                     >
                       <option value="bronze">Bronze</option>
                       <option value="silver">Silver</option>
@@ -219,7 +219,7 @@ export function UsersTable() {
                       <span className={`px-2 py-1 rounded-full font-semibold ${
                         user.subscriptions[0].status === "authorized" || user.subscriptions[0].status === "active" ? "bg-green-100 text-green-700" :
                         user.subscriptions[0].status === "cancelled" ? "bg-red-100 text-red-700" :
-                        "bg-gray-100 text-gray-700"
+                        "bg-white/5 text-gray-300"
                       }`}>
                         {user.subscriptions[0].status}
                       </span>
@@ -234,7 +234,7 @@ export function UsersTable() {
                       value={user.active_months}
                       onChange={(e) => handleUpdate(user.id, "active_months", parseInt(e.target.value) || 0)}
                       disabled={updatingId === user.id}
-                      className="w-20 text-sm border-gray-300 rounded-md focus:ring-blue-500 focus:border-blue-500 shadow-sm disabled:opacity-50"
+                      className="w-20 text-sm border-white/20 rounded-md focus:ring-blue-500 focus:border-blue-500 shadow-sm disabled:opacity-50"
                     />
                   </td>
                   <td className="px-4 py-3 text-gray-500">
