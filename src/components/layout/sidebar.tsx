@@ -71,21 +71,32 @@ export function Sidebar({ mobileOpen, setMobileOpen }: SidebarProps) {
   const pathname = usePathname();
   const supabase = createClient();
   const [isAdmin, setIsAdmin] = React.useState(false);
+  const [isMembershipActive, setIsMembershipActive] = React.useState(false);
+  const [loading, setLoading] = React.useState(true);
 
   React.useEffect(() => {
-    async function checkRole() {
+    async function checkRoleAndMembership() {
       const { data: { user } } = await supabase.auth.getUser();
-      if (!user) return;
+      if (!user) {
+        setLoading(false);
+        return;
+      }
       const { data: profile } = await supabase
         .from("profiles")
-        .select("role")
+        .select("role, membership_status")
         .eq("id", user.id)
         .single();
-      if (profile?.role === "admin") {
-        setIsAdmin(true);
+      if (profile) {
+        if (profile.role === "admin") {
+          setIsAdmin(true);
+        }
+        if (profile.membership_status === "active") {
+          setIsMembershipActive(true);
+        }
       }
+      setLoading(false);
     }
-    checkRole();
+    checkRoleAndMembership();
   }, []);
 
   // Helper to check if a route is active
@@ -201,14 +212,20 @@ export function Sidebar({ mobileOpen, setMobileOpen }: SidebarProps) {
           })()}
         </nav>
 
-        {/* Premium CTA banner */}
-        <div className="mx-3 mb-4 rounded-2xl bg-gray-900 p-4 text-white">
-          <p className="text-xs font-semibold text-orange-400">Pasate a Premium</p>
-          <p className="mt-1 text-xs text-gray-300">Desbloqueá todos los cursos y STL exclusivos.</p>
-          <button className="mt-3 w-full rounded-lg bg-white/10 py-2 text-xs font-semibold hover:bg-white/20">
-            Ver planes
-          </button>
-        </div>
+        {/* Membership CTA banner */}
+        {!loading && !isMembershipActive && !isAdmin && (
+          <div className="mx-3 mb-4 rounded-2xl bg-gray-900 p-4 text-white">
+            <p className="text-xs font-semibold text-orange-400">Activar membresía</p>
+            <p className="mt-1 text-xs text-gray-300">Desbloqueá todos los cursos y STL exclusivos de la academia.</p>
+            <Link 
+              href="/sin-acceso"
+              onClick={() => setMobileOpen(false)}
+              className="mt-3 block w-full text-center rounded-lg bg-white/10 py-2 text-xs font-semibold hover:bg-white/20 transition-colors"
+            >
+              Ver planes
+            </Link>
+          </div>
+        )}
       </aside>
     </>
   );
