@@ -13,11 +13,11 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: "No autorizado" }, { status: 401 });
     }
 
-    // 2. Obtener payload (variantId)
+    // 2. Obtener payload (variantId o modelId)
     const body = await req.json();
-    const { variantId } = body;
-    if (!variantId) {
-      return NextResponse.json({ error: "Falta variantId" }, { status: 400 });
+    const { variantId, modelId } = body;
+    if (!variantId && !modelId) {
+      return NextResponse.json({ error: "Falta variantId o modelId" }, { status: 400 });
     }
 
     // 3. Validar acceso a la plataforma
@@ -48,15 +48,34 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: "Membresía inactiva o expirada" }, { status: 403 });
     }
 
-    // 4. Buscar la variante
-    const { data: variant, error: varError } = await supabaseServer
-      .from("stl_variants")
-      .select("file_url, is_active")
-      .eq("id", variantId)
-      .single();
+    // 4. Buscar la variante (por variantId o la primera activa por modelId)
+    let variant;
+    let varError;
+
+    if (variantId) {
+      const result = await supabaseServer
+        .from("stl_variants")
+        .select("file_url, is_active")
+        .eq("id", variantId)
+        .single();
+      variant = result.data;
+      varError = result.error;
+    } else if (modelId) {
+      const result = await supabaseServer
+        .from("stl_variants")
+        .select("file_url, is_active")
+        .eq("model_id", modelId)
+        .eq("is_active", true)
+        .not("file_url", "is", null)
+        .order("created_at")
+        .limit(1)
+        .single();
+      variant = result.data;
+      varError = result.error;
+    }
 
     if (varError || !variant) {
-      return NextResponse.json({ error: "Variante no encontrada" }, { status: 404 });
+      return NextResponse.json({ error: "Archivo o variante no encontrada" }, { status: 404 });
     }
 
     if (!variant.is_active && role !== "admin") {

@@ -3,7 +3,8 @@
 import React, { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { createClient } from "@/utils/supabase/client";
-import { Loader2, AlertCircle, Save } from "lucide-react";
+import { Loader2, AlertCircle, Save, CheckCircle2 } from "lucide-react";
+import { FileUploadDropzone } from "@/components/ui/file-upload-dropzone";
 
 export function StlModelForm({ modelId }: { modelId?: string }) {
   const router = useRouter();
@@ -26,7 +27,10 @@ export function StlModelForm({ modelId }: { modelId?: string }) {
     thumbnail_url: "",
     is_active: true,
     category_id: "",
+    file_url: "",
   });
+
+  const [variantId, setVariantId] = useState<string | null>(null);
 
   useEffect(() => {
     const fetchData = async () => {
@@ -52,7 +56,24 @@ export function StlModelForm({ modelId }: { modelId?: string }) {
             thumbnail_url: modelData.thumbnail_url || "",
             is_active: modelData.is_active ?? true,
             category_id: modelData.category_id || "",
+            file_url: "",
           });
+
+          // Buscar la primera variante activa con archivo
+          const { data: varData } = await supabase
+            .from("stl_variants")
+            .select("id, file_url")
+            .eq("model_id", modelId)
+            .eq("is_active", true)
+            .not("file_url", "is", null)
+            .order("created_at")
+            .limit(1)
+            .single();
+
+          if (varData) {
+            setVariantId(varData.id);
+            setFormData(prev => ({ ...prev, file_url: varData.file_url }));
+          }
         }
         setLoadingData(false);
       }
@@ -111,9 +132,31 @@ export function StlModelForm({ modelId }: { modelId?: string }) {
     if (opError) {
       setError(opError.message);
     } else {
-      setSuccess(isEditing ? "Modelo actualizado correctamente." : "Modelo creado correctamente.");
-      if (!isEditing && newId && newId !== "undefined") {
-        router.push(`/admin/stl/modelos/${newId}`);
+      const finalModelId = isEditing ? modelId : newId;
+
+      if (finalModelId && formData.file_url) {
+        const variantPayload = {
+          model_id: finalModelId,
+          title: formData.title,
+          description: formData.description || null,
+          file_url: formData.file_url,
+          thumbnail_url: formData.thumbnail_url || null,
+          material_type: formData.material_type || null,
+          is_active: true,
+          sort_order: 0,
+        };
+
+        if (variantId) {
+          await supabase.from("stl_variants").update(variantPayload).eq("id", variantId);
+        } else {
+          const { data: newVar } = await supabase.from("stl_variants").insert([variantPayload]).select().single();
+          if (newVar) setVariantId(newVar.id);
+        }
+      }
+
+      setSuccess(isEditing ? "Archivo STL actualizado correctamente." : "Archivo STL creado correctamente.");
+      if (!isEditing && finalModelId && finalModelId !== "undefined") {
+        router.push(`/admin/stl/modelos/${finalModelId}`);
       }
     }
   };
@@ -233,7 +276,36 @@ export function StlModelForm({ modelId }: { modelId?: string }) {
           />
         </div>
 
-        <div className="space-y-2 flex items-center pt-8">
+        <div className="space-y-2 md:col-span-2 p-4 bg-gray-50 border border-gray-200 rounded-xl">
+          <label className="text-sm font-semibold text-gray-700 block mb-2">Archivo descargable</label>
+          
+          {formData.file_url ? (
+            <div className="mb-4 bg-green-50 text-green-700 p-3 rounded-lg flex items-center justify-between text-sm border border-green-100">
+              <div className="flex items-center gap-2">
+                <CheckCircle2 className="h-5 w-5" />
+                <span className="font-medium">Archivo cargado</span>
+              </div>
+              <span className="text-xs text-green-600 truncate max-w-[200px] ml-4">{formData.file_url.split('/').pop() || formData.file_url}</span>
+            </div>
+          ) : (
+            <div className="mb-4 bg-orange-50 text-orange-700 p-3 rounded-lg flex items-center gap-2 text-sm border border-orange-100">
+              <AlertCircle className="h-5 w-5" />
+              <span className="font-medium">Todavía no hay archivo cargado</span>
+            </div>
+          )}
+
+          <FileUploadDropzone
+            bucket="stl-files"
+            pathPrefix={`stl/${modelId || 'new'}`}
+            accept=".stl,.3mf,.zip"
+            maxSizeMb={100}
+            helperText="Subí el archivo que el usuario va a descargar. Formatos permitidos: STL, 3MF o ZIP. Máximo 100 MB."
+            onUploaded={(url) => setFormData((prev) => ({ ...prev, file_url: url }))}
+            label={formData.file_url ? "Reemplazar archivo" : "Subir archivo"}
+          />
+        </div>
+
+        <div className="space-y-2 flex items-center pt-8 md:col-span-2">
           <label className="flex items-center gap-2 cursor-pointer text-sm font-semibold text-gray-700">
             <input
               type="checkbox"
@@ -242,7 +314,7 @@ export function StlModelForm({ modelId }: { modelId?: string }) {
               onChange={handleChange}
               className="rounded text-orange-600 focus:ring-orange-500"
             />
-            Modelo Activo (Visible)
+            Archivo Activo (Visible)
           </label>
         </div>
       </div>

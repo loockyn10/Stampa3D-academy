@@ -15,10 +15,10 @@ export default function NuevoStlModelPage() {
         </Link>
         <h1 className="text-2xl font-bold text-gray-900 flex items-center gap-2">
           <Box className="text-emerald-600" />
-          Nuevo Modelo STL
+          Nuevo Archivo STL
         </h1>
         <p className="text-sm text-gray-500 mt-1">
-          Crea la información base de un modelo 3D.
+          Crea un nuevo archivo descargable para la librería.
         </p>
       </div>
 

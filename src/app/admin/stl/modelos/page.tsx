@@ -16,10 +16,10 @@ export default function AdminStlModelsPage() {
           </Link>
           <h1 className="text-2xl font-bold text-gray-900 flex items-center gap-2">
             <Box className="text-emerald-600" />
-            Modelos STL
+            Archivos STL
           </h1>
           <p className="text-sm text-gray-500 mt-1">
-            Gestiona los modelos 3D y sus variantes de la librería.
+            Gestiona los archivos descargables de la librería.
           </p>
         </div>
         
@@ -28,7 +28,7 @@ export default function AdminStlModelsPage() {
           className="inline-flex items-center gap-2 bg-emerald-600 hover:bg-emerald-700 text-white px-4 py-2 rounded-lg text-sm font-medium transition-colors"
         >
           <Plus size={18} />
-          Nuevo Modelo
+          Nuevo Archivo
         </Link>
       </div>
 
