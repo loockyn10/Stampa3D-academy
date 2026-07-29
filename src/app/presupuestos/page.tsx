@@ -2,7 +2,7 @@
 
 import React, { useState, useEffect } from "react";
 import Link from "next/link";
-import { Plus, Pencil, FileText, Trash2, Loader2, AlertCircle, Save, X, UserPlus, ShoppingCart, Download } from "lucide-react";
+import { Plus, Pencil, FileText, Trash2, Loader2, AlertCircle, Save, X, UserPlus, ShoppingCart, Download, Briefcase, Settings, ArrowLeft, Package, Clock, Percent, DollarSign } from "lucide-react";
 import { Card } from "@/components/ui/card";
 import { PrimaryButton, GhostButton } from "@/components/ui/button";
 import { Combobox } from "@/components/ui/combobox";
@@ -477,108 +477,123 @@ export default function PresupuestosPage() {
   if (loading) return <div className="py-24 flex justify-center"><Loader2 className="animate-spin h-8 w-8 text-orange-500" /></div>;
 
   return (
-    <div>
-      <SectionTitle
-        eyebrow="Mi taller"
-        title="Presupuestos"
-        action={
-          <PrimaryButton onClick={handleCreateNew} disabled={editingId !== null}>
-            <Plus size={15} /> Nuevo presupuesto
-          </PrimaryButton>
-        }
-      />
-
-      {error && (
-        <div className="mb-6 bg-red-50 border border-red-100 p-4 rounded-lg flex items-center gap-2 text-sm text-red-600">
-          <AlertCircle size={16} /> {error}
+    <div className="space-y-8 pb-10">
+      {/* 1. Header Premium */}
+      {!editingId ? (
+        <div className="relative overflow-hidden rounded-3xl bg-[#111] border border-white/10 p-8 sm:p-10 shadow-2xl">
+          <div className="absolute inset-0 bg-gradient-to-br from-[#ff6a00]/10 to-transparent pointer-events-none" />
+          <div className="relative z-10 flex flex-col md:flex-row md:items-center justify-between gap-6">
+            <div className="max-w-2xl">
+              <div className="flex items-center gap-2 mb-3">
+                <span className="rounded-full bg-[#ff6a00]/10 text-[#ff6a00] text-xs font-bold px-3 py-1 uppercase tracking-wider border border-[#ff6a00]/20">
+                  Herramienta de venta
+                </span>
+              </div>
+              <h1 className="text-3xl font-bold text-white sm:text-4xl flex items-center gap-3">
+                <Briefcase size={32} className="text-[#ff6a00]" /> Presupuestos
+              </h1>
+              <p className="mt-3 text-base text-gray-400">
+                Armá presupuestos profesionales para clientes, agregá productos y descargá el PDF.
+              </p>
+            </div>
+            <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-3 shrink-0">
+              <Link href="/productos" className="inline-flex justify-center items-center gap-2 px-5 py-3 text-sm font-semibold bg-[#111] border border-white/10 text-white rounded-xl hover:bg-white/5 transition-colors">
+                <Package size={16} /> Ver productos
+              </Link>
+              <button onClick={handleCreateNew} className="inline-flex justify-center items-center gap-2 px-6 py-3 text-sm font-bold bg-[#ff6a00] text-white rounded-xl hover:bg-[#ff7a1a] transition-all shadow-lg shadow-[#ff6a00]/20">
+                <Plus size={18} /> Nuevo presupuesto
+              </button>
+            </div>
+          </div>
+        </div>
+      ) : (
+        <div className="flex items-center justify-between border-b border-white/10 pb-4">
+          <div className="flex items-center gap-4">
+            <button onClick={() => setEditingId(null)} className="p-2 bg-[#111] border border-white/10 rounded-lg text-gray-400 hover:text-white hover:bg-white/5 transition-colors">
+              <ArrowLeft size={20} />
+            </button>
+            <h2 className="text-2xl font-bold text-white flex items-center gap-2">
+              <FileText size={24} className="text-[#ff6a00]" />
+              {editingId === "new" ? "Nuevo Presupuesto" : "Editar Presupuesto"}
+            </h2>
+          </div>
+          {editingId !== "new" && (
+            <button 
+              onClick={handleDownloadPdf} 
+              disabled={isGeneratingPdf}
+              className="flex items-center gap-2 text-sm font-bold text-[#ff6a00] hover:text-[#ff7a1a] bg-[#ff6a00]/10 border border-[#ff6a00]/20 px-4 py-2 rounded-lg shadow-sm transition-colors disabled:opacity-50"
+            >
+              {isGeneratingPdf ? <Loader2 size={16} className="animate-spin" /> : <Download size={16} />}
+              Descargar PDF
+            </button>
+          )}
         </div>
       )}
 
+      {error && (
+        <div className="bg-red-500/10 border border-red-500/20 p-4 rounded-xl flex items-center gap-3 text-sm text-red-400">
+          <AlertCircle size={20} className="shrink-0" /> {error}
+        </div>
+      )}
+
+      {/* VISTA DE EDICIÓN / CREACIÓN */}
       {editingId && (
-        <Card className="mb-8 border-orange-300 shadow-md ring-1 ring-orange-100 overflow-hidden">
-          <div className="bg-[#0a0a0a] p-4 flex justify-between items-center border-b border-white/10">
-            <h3 className="text-lg font-bold text-white flex items-center gap-2">
-              <FileText size={18} className="text-orange-500" />
-              {editingId === "new" ? "Nuevo Presupuesto" : "Editar Presupuesto"}
-            </h3>
-            <div className="flex items-center gap-4">
-              {editingId !== "new" && (
-                <button 
-                  onClick={handleDownloadPdf} 
-                  disabled={isGeneratingPdf}
-                  className="flex items-center gap-1.5 text-sm font-bold text-gray-300 hover:text-orange-600 bg-[#111] border border-white/10 px-3 py-1.5 rounded-lg shadow-sm transition-colors"
-                >
-                  {isGeneratingPdf ? <Loader2 size={16} className="animate-spin" /> : <Download size={16} />}
-                  Descargar PDF
-                </button>
-              )}
-              <button onClick={() => setEditingId(null)} className="text-gray-400 hover:text-gray-300"><X size={20} /></button>
-            </div>
-          </div>
-
-          <div className="p-5 space-y-6">
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              <div>
-                <label className="block text-xs font-semibold text-gray-300 mb-1">Título / Referencia</label>
-                <input type="text" value={formData.title} onChange={e => setFormData({...formData, title: e.target.value})} className="w-full text-sm border-white/20 rounded-md focus:border-orange-500 focus:ring-orange-500 text-white bg-[#111]" placeholder="Ej. Presupuesto Macetas" />
-              </div>
-              <div>
-                <label className="block text-xs font-semibold text-gray-300 mb-1">Estado</label>
-                <div className="flex bg-white/5 p-1 rounded-lg">
-                  <button type="button" onClick={() => setFormData({...formData, status: "draft"})} className={`flex-1 text-xs py-1.5 px-2 rounded-md font-medium transition-colors ${formData.status === "draft" ? "bg-[#111] shadow text-white" : "text-gray-500 hover:text-gray-300"}`}>Borrador</button>
-                  <button type="button" onClick={() => setFormData({...formData, status: "sent"})} className={`flex-1 text-xs py-1.5 px-2 rounded-md font-medium transition-colors ${formData.status === "sent" ? "bg-[#111] shadow text-white" : "text-gray-500 hover:text-gray-300"}`}>Enviado</button>
-                  <button type="button" onClick={() => setFormData({...formData, status: "approved"})} className={`flex-1 text-xs py-1.5 px-2 rounded-md font-medium transition-colors ${formData.status === "approved" ? "bg-[#111] shadow text-white" : "text-gray-500 hover:text-gray-300"}`}>Aprobado</button>
-                  <button type="button" onClick={() => setFormData({...formData, status: "rejected"})} className={`flex-1 text-xs py-1.5 px-2 rounded-md font-medium transition-colors ${formData.status === "rejected" ? "bg-[#111] shadow text-white" : "text-gray-500 hover:text-gray-300"}`}>Rechazado</button>
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-8 items-start animate-in fade-in-50 duration-300">
+          {/* COLUMNA FORMULARIO */}
+          <div className="lg:col-span-2 space-y-6">
+            
+            {/* 1. Datos del Cliente */}
+            <Card className="p-6 sm:p-8 bg-[#111] border-white/10 shadow-lg">
+              <div className="flex justify-between items-end mb-6 border-b border-white/10 pb-3">
+                <div>
+                  <h3 className="text-lg font-bold text-white flex items-center gap-2">Cliente</h3>
+                  <p className="text-sm text-gray-400 mt-1">Elegí un cliente existente o cargá uno nuevo.</p>
                 </div>
-              </div>
-            </div>
-
-            <div className="bg-orange-50/50 p-4 rounded-xl border border-orange-100 space-y-4">
-              <div className="flex justify-between items-center">
-                <label className="block text-sm font-semibold text-gray-200">Cliente asociado</label>
                 {!showClientForm && (
-                  <div className="flex items-center gap-3">
+                  <div className="flex items-center gap-2">
                     {formData.client_id && (
-                      <button onClick={() => handleEditClient(formData.client_id)} className="text-xs font-bold text-gray-400 hover:text-white flex items-center gap-1">
-                        <Pencil size={12} /> Editar cliente
+                      <button onClick={() => handleEditClient(formData.client_id)} className="text-xs font-bold text-gray-400 hover:text-white flex items-center gap-1.5 px-2 py-1.5 rounded-lg hover:bg-white/5 transition-colors">
+                        <Pencil size={14} /> Editar
                       </button>
                     )}
-                    <button onClick={() => { setClientData({ id: "", name: "", phone: "", email: "", notes: "", fiscal_condition: "", cuit: "", is_active: true }); setShowClientForm(true); }} className="text-xs font-bold text-orange-600 hover:text-orange-700 flex items-center gap-1">
-                      <UserPlus size={14} /> Crear rápido
+                    <button onClick={() => { setClientData({ id: "", name: "", phone: "", email: "", notes: "", fiscal_condition: "", cuit: "", is_active: true }); setShowClientForm(true); }} className="text-xs font-bold text-[#ff6a00] hover:text-[#ff7a1a] flex items-center gap-1.5 px-3 py-1.5 bg-[#ff6a00]/10 border border-[#ff6a00]/20 rounded-lg transition-colors">
+                      <UserPlus size={14} /> Nuevo
                     </button>
                   </div>
                 )}
               </div>
-              
+
               {!showClientForm ? (
-                <Combobox 
-                  options={clients.map(c => ({ id: c.id, label: c.name }))}
-                  value={formData.client_id}
-                  onChange={(val) => setFormData({...formData, client_id: val.toString()})}
-                  placeholder="Selecciona o busca un cliente..."
-                  emptyText="No se encontraron clientes."
-                />
+                <div className="max-w-md">
+                  <Combobox 
+                    options={clients.map(c => ({ id: c.id, label: c.name }))}
+                    value={formData.client_id}
+                    onChange={(val) => setFormData({...formData, client_id: val.toString()})}
+                    placeholder="Seleccioná o buscá un cliente..."
+                    emptyText="No se encontraron clientes."
+                  />
+                </div>
               ) : (
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-3 bg-[#111] p-4 rounded-lg border border-orange-200 shadow-sm">
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4 bg-[#0a0a0a] p-5 rounded-xl border border-white/5 shadow-inner">
                   <div>
-                    <label className="block text-[10px] font-bold text-gray-500 uppercase mb-1">Nombre completo *</label>
-                    <input type="text" placeholder="Ej. Juan Pérez" value={clientData.name} onChange={e => setClientData({...clientData, name: e.target.value})} className="w-full text-sm border-white/20 rounded-md" />
+                    <label className="block text-xs font-semibold text-gray-500 mb-1.5">Nombre completo *</label>
+                    <input type="text" placeholder="Ej. Juan Pérez" value={clientData.name} onChange={e => setClientData({...clientData, name: e.target.value})} className="w-full text-sm rounded-xl border border-white/10 bg-[#111] px-3 py-2.5 text-white outline-none focus:border-[#ff6a00] focus:ring-1 focus:ring-[#ff6a00]" />
                   </div>
                   <div>
-                    <label className="block text-[10px] font-bold text-gray-500 uppercase mb-1">Teléfono</label>
-                    <input type="text" placeholder="Ej. +54 9 11..." value={clientData.phone} onChange={e => setClientData({...clientData, phone: e.target.value})} className="w-full text-sm border-white/20 rounded-md" />
+                    <label className="block text-xs font-semibold text-gray-500 mb-1.5">Teléfono</label>
+                    <input type="text" placeholder="Ej. +54 9 11..." value={clientData.phone} onChange={e => setClientData({...clientData, phone: e.target.value})} className="w-full text-sm rounded-xl border border-white/10 bg-[#111] px-3 py-2.5 text-white outline-none focus:border-[#ff6a00] focus:ring-1 focus:ring-[#ff6a00]" />
                   </div>
                   <div>
-                    <label className="block text-[10px] font-bold text-gray-500 uppercase mb-1">Email</label>
-                    <input type="email" placeholder="Ej. juan@mail.com" value={clientData.email} onChange={e => setClientData({...clientData, email: e.target.value})} className="w-full text-sm border-white/20 rounded-md" />
+                    <label className="block text-xs font-semibold text-gray-500 mb-1.5">Email</label>
+                    <input type="email" placeholder="Ej. juan@mail.com" value={clientData.email} onChange={e => setClientData({...clientData, email: e.target.value})} className="w-full text-sm rounded-xl border border-white/10 bg-[#111] px-3 py-2.5 text-white outline-none focus:border-[#ff6a00] focus:ring-1 focus:ring-[#ff6a00]" />
                   </div>
                   <div>
-                    <label className="block text-[10px] font-bold text-gray-500 uppercase mb-1">CUIT</label>
-                    <input type="text" placeholder="Ej. 20-12345678-9" value={clientData.cuit} onChange={e => setClientData({...clientData, cuit: e.target.value})} className="w-full text-sm border-white/20 rounded-md" />
+                    <label className="block text-xs font-semibold text-gray-500 mb-1.5">CUIT</label>
+                    <input type="text" placeholder="Ej. 20-12345678-9" value={clientData.cuit} onChange={e => setClientData({...clientData, cuit: e.target.value})} className="w-full text-sm rounded-xl border border-white/10 bg-[#111] px-3 py-2.5 text-white outline-none focus:border-[#ff6a00] focus:ring-1 focus:ring-[#ff6a00]" />
                   </div>
                   <div>
-                    <label className="block text-[10px] font-bold text-gray-500 uppercase mb-1">Condición Fiscal</label>
-                    <select value={clientData.fiscal_condition} onChange={e => setClientData({...clientData, fiscal_condition: e.target.value})} className="w-full text-sm border-white/20 rounded-md text-white bg-[#111]">
+                    <label className="block text-xs font-semibold text-gray-500 mb-1.5">Condición Fiscal</label>
+                    <select value={clientData.fiscal_condition} onChange={e => setClientData({...clientData, fiscal_condition: e.target.value})} className="w-full text-sm rounded-xl border border-white/10 bg-[#111] px-3 py-2.5 text-white outline-none focus:border-[#ff6a00] focus:ring-1 focus:ring-[#ff6a00]">
                       <option value="">Consumidor Final</option>
                       <option value="Responsable Inscripto">Responsable Inscripto</option>
                       <option value="Monotributo">Monotributo</option>
@@ -587,328 +602,392 @@ export default function PresupuestosPage() {
                   </div>
                   <div className="flex items-center mt-6">
                     <label className="flex items-center gap-2 cursor-pointer">
-                      <input type="checkbox" checked={clientData.is_active} onChange={e => setClientData({...clientData, is_active: e.target.checked})} className="rounded text-orange-500 focus:ring-orange-500" />
+                      <input type="checkbox" checked={clientData.is_active} onChange={e => setClientData({...clientData, is_active: e.target.checked})} className="rounded bg-[#111] border-white/20 text-[#ff6a00] focus:ring-[#ff6a00]" />
                       <span className="text-sm text-gray-300 font-medium">Cliente Activo</span>
                     </label>
                   </div>
                   <div className="md:col-span-2">
-                    <label className="block text-[10px] font-bold text-gray-500 uppercase mb-1">Notas del cliente</label>
-                    <input type="text" placeholder="Ej. Entregar de 10 a 14hs" value={clientData.notes} onChange={e => setClientData({...clientData, notes: e.target.value})} className="w-full text-sm border-white/20 rounded-md" />
+                    <label className="block text-xs font-semibold text-gray-500 mb-1.5">Notas del cliente</label>
+                    <input type="text" placeholder="Ej. Entregar de 10 a 14hs" value={clientData.notes} onChange={e => setClientData({...clientData, notes: e.target.value})} className="w-full text-sm rounded-xl border border-white/10 bg-[#111] px-3 py-2.5 text-white outline-none focus:border-[#ff6a00] focus:ring-1 focus:ring-[#ff6a00]" />
                   </div>
-                  <div className="md:col-span-2 flex justify-end gap-2 mt-2">
-                    <button onClick={handleCancelClientForm} className="text-sm font-bold text-gray-500 hover:text-gray-300 px-3 py-1.5">Cancelar</button>
-                    <button onClick={handleSaveClient} className="text-sm font-bold bg-orange-100 text-orange-700 px-4 py-1.5 rounded-md hover:bg-orange-200">Guardar Cliente</button>
+                  <div className="md:col-span-2 flex justify-end gap-3 mt-4 pt-4 border-t border-white/5">
+                    <button onClick={handleCancelClientForm} className="text-sm font-bold text-gray-400 hover:text-white px-4 py-2 transition-colors">Cancelar</button>
+                    <button onClick={handleSaveClient} className="text-sm font-bold bg-[#ff6a00] hover:bg-[#ff7a1a] text-white px-5 py-2 rounded-xl transition-colors shadow-lg shadow-[#ff6a00]/10">Guardar Cliente</button>
                   </div>
                 </div>
               )}
-            </div>
+            </Card>
 
-            <div className="space-y-3">
-              <div className="flex justify-between items-end border-b border-white/10 pb-2">
-                <h4 className="text-sm font-bold text-gray-200 flex items-center gap-2"><ShoppingCart size={16} /> Productos a Cotizar</h4>
-                <div className="flex gap-2">
+            {/* 2. Productos e Items */}
+            <Card className="p-6 sm:p-8 bg-[#111] border-white/10 shadow-lg">
+              <div className="flex flex-col sm:flex-row justify-between items-start sm:items-end mb-6 border-b border-white/10 pb-3 gap-3">
+                <div>
+                  <h3 className="text-lg font-bold text-white flex items-center gap-2">Productos e items</h3>
+                  <p className="text-sm text-gray-400 mt-1">Agregá los productos para este presupuesto.</p>
+                </div>
+                <div className="flex gap-2 w-full sm:w-auto">
                   <button type="button" onClick={() => {
                     setProductData({
-                      name: "",
-                      description: "",
-                      image_url: "",
-                      filament_id: filaments.length > 0 ? filaments[0].id : "",
-                      grams: 0,
-                      print_time_hours: 0,
-                      print_time_minutes: 0,
-                      base_cost: 0,
-                      sale_price: 0,
-                      stock_quantity: 0
+                      name: "", description: "", image_url: "", filament_id: filaments.length > 0 ? filaments[0].id : "",
+                      grams: 0, print_time_hours: 0, print_time_minutes: 0, base_cost: 0, sale_price: 0, stock_quantity: 0
                     });
                     setShowProductModal(true);
-                  }} className="text-xs font-bold text-orange-600 bg-orange-50 hover:bg-orange-100 px-2 py-1 rounded border border-orange-200">Nuevo Producto</button>
-                  <button type="button" onClick={handleAddItem} className="text-xs font-bold text-orange-600 bg-orange-50 hover:bg-orange-100 px-2 py-1 rounded border border-orange-200">+ Agregar Producto</button>
+                  }} className="flex-1 sm:flex-none text-xs font-bold text-gray-300 hover:text-white bg-[#0a0a0a] border border-white/10 px-3 py-2 rounded-lg transition-colors flex items-center justify-center gap-1.5">
+                    <Plus size={14} /> Nuevo en catálogo
+                  </button>
+                  <button type="button" onClick={handleAddItem} className="flex-1 sm:flex-none text-xs font-bold text-[#ff6a00] hover:text-[#ff7a1a] bg-[#ff6a00]/10 border border-[#ff6a00]/20 px-3 py-2 rounded-lg transition-colors flex items-center justify-center gap-1.5">
+                    <ShoppingCart size={14} /> Agregar Item
+                  </button>
                 </div>
               </div>
 
-              {products.length === 0 ? (
-                <div className="text-center py-4 bg-[#0a0a0a] rounded-lg text-sm text-gray-500 flex flex-col items-center gap-2">
-                  <span>No tenés productos cargados.</span>
-                  <button type="button" onClick={() => {
-                    setProductData({
-                      name: "",
-                      description: "",
-                      image_url: "",
-                      filament_id: filaments.length > 0 ? filaments[0].id : "",
-                      grams: 0,
-                      print_time_hours: 0,
-                      print_time_minutes: 0,
-                      base_cost: 0,
-                      sale_price: 0,
-                      stock_quantity: 0
-                    });
-                    setShowProductModal(true);
-                  }} className="text-xs font-bold bg-orange-100 text-orange-700 px-3 py-1.5 rounded hover:bg-orange-200">Crear nuevo producto</button>
-                </div>
-              ) : (
-                <div className="space-y-2">
-                  {budgetItems.length === 0 && <p className="text-xs text-gray-400 italic">No hay productos en esta cotización.</p>}
-                  
-                  {budgetItems.map((item, idx) => (
-                    <div key={item.id} className="flex flex-col sm:flex-row items-start sm:items-center gap-2 bg-[#0a0a0a] p-2 rounded-lg border border-white/5">
-                      <Combobox
-                        options={products.map(p => ({ id: p.id, label: `${p.name} ($${p.sale_price})` }))}
-                        value={item.product_id}
-                        onChange={(val) => handleItemChange(idx, "product_id", val)}
-                        className="flex-1 w-full sm:w-auto"
-                      />
-                      <div className="flex items-center gap-2 w-full sm:w-auto mt-2 sm:mt-0">
-                        <span className="text-xs text-gray-500 font-semibold">Cant:</span>
-                        <input type="number" min="1" value={item.quantity} onChange={(e) => handleItemChange(idx, "quantity", e.target.value)} className="w-16 text-sm border-white/20 rounded-md focus:border-orange-500 focus:ring-orange-500 text-white bg-[#111]" />
-                        <span className="text-xs text-gray-500 font-semibold ml-2">Sub:</span>
-                        <span className="w-20 font-bold text-white">${item.subtotal.toFixed(2)}</span>
-                        <button onClick={() => handleRemoveItem(idx)} className="p-1.5 text-red-400 hover:text-red-600 hover:bg-red-50 rounded"><Trash2 size={14} /></button>
+              <div className="space-y-3">
+                {budgetItems.length === 0 ? (
+                  <div className="text-center py-8 bg-[#0a0a0a] rounded-xl border border-dashed border-white/10 flex flex-col items-center gap-3">
+                    <Package size={32} className="text-gray-600" />
+                    <div>
+                      <p className="text-sm text-gray-400 font-medium">No hay productos en esta cotización.</p>
+                      <p className="text-xs text-gray-500 mt-1">Agregá un item para empezar a calcular el total.</p>
+                    </div>
+                  </div>
+                ) : (
+                  budgetItems.map((item, idx) => (
+                    <div key={item.id} className="flex flex-col lg:flex-row items-start lg:items-center gap-3 bg-[#0a0a0a] p-3 rounded-xl border border-white/5 relative group">
+                      <div className="w-full lg:flex-1">
+                        <Combobox
+                          options={products.map(p => ({ id: p.id, label: `${p.name} ($${p.sale_price})` }))}
+                          value={item.product_id}
+                          onChange={(val) => handleItemChange(idx, "product_id", val)}
+                        />
+                      </div>
+                      <div className="flex items-center justify-between lg:justify-end gap-4 w-full lg:w-auto mt-1 lg:mt-0">
+                        <div className="flex items-center gap-2 bg-[#111] px-2 py-1.5 rounded-lg border border-white/5">
+                          <span className="text-[10px] text-gray-500 font-bold uppercase">Cant</span>
+                          <input type="number" min="1" value={item.quantity} onChange={(e) => handleItemChange(idx, "quantity", e.target.value)} className="w-16 text-sm font-bold border-none bg-transparent focus:ring-0 text-white p-0 text-center" />
+                        </div>
+                        <div className="flex items-center gap-3 bg-[#111] px-3 py-1.5 rounded-lg border border-white/5 min-w-[120px] justify-between">
+                          <span className="text-[10px] text-gray-500 font-bold uppercase">Sub</span>
+                          <span className="font-bold text-white text-sm">${item.subtotal.toFixed(2)}</span>
+                        </div>
+                        <button onClick={() => handleRemoveItem(idx)} className="p-2 text-gray-500 hover:text-red-400 hover:bg-red-400/10 rounded-lg transition-colors" title="Eliminar item">
+                          <Trash2 size={16} />
+                        </button>
                       </div>
                     </div>
-                  ))}
-                </div>
-              )}
-            </div>
+                  ))
+                )}
+              </div>
+            </Card>
 
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-              <div className="space-y-4">
+            {/* 3. Notas y Validez */}
+            <Card className="p-6 sm:p-8 bg-[#111] border-white/10 shadow-lg">
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                 <div>
-                  <label className="block text-xs font-semibold text-gray-300 mb-1">Notas del presupuesto</label>
-                  <textarea rows={3} value={formData.notes} onChange={e => setFormData({...formData, notes: e.target.value})} className="w-full text-sm border-white/20 rounded-md focus:border-orange-500 focus:ring-orange-500 text-white bg-[#111]" placeholder="Detalles de entrega, condiciones..."></textarea>
+                  <h3 className="text-sm font-bold text-white mb-4 border-b border-white/10 pb-2">Información adicional</h3>
+                  <div className="space-y-4">
+                    <div>
+                      <label className="block text-xs font-semibold text-gray-500 mb-1.5">Título / Referencia *</label>
+                      <input type="text" value={formData.title} onChange={e => setFormData({...formData, title: e.target.value})} className="w-full text-sm rounded-xl border border-white/10 bg-[#0a0a0a] px-3 py-2.5 text-white outline-none focus:border-[#ff6a00] focus:ring-1 focus:ring-[#ff6a00]" placeholder="Ej. Presupuesto Macetas" />
+                    </div>
+                    <div>
+                      <label className="block text-xs font-semibold text-gray-500 mb-1.5">Notas (visibles en PDF)</label>
+                      <textarea rows={3} value={formData.notes} onChange={e => setFormData({...formData, notes: e.target.value})} className="w-full text-sm rounded-xl border border-white/10 bg-[#0a0a0a] px-3 py-2.5 text-white outline-none focus:border-[#ff6a00] focus:ring-1 focus:ring-[#ff6a00]" placeholder="Detalles de entrega, condiciones..."></textarea>
+                    </div>
+                  </div>
                 </div>
                 <div>
-                  <label className="block text-xs font-semibold text-gray-300 mb-1">Fecha de Validez (Opcional)</label>
-                  <input type="date" value={formData.valid_until ? formData.valid_until.substring(0,10) : ""} onChange={e => setFormData({...formData, valid_until: e.target.value})} className="w-full text-sm border-white/20 rounded-md focus:border-orange-500 focus:ring-orange-500 text-white bg-[#111]" />
+                  <h3 className="text-sm font-bold text-white mb-4 border-b border-white/10 pb-2">Control</h3>
+                  <div className="space-y-4">
+                    <div>
+                      <label className="block text-xs font-semibold text-gray-500 mb-1.5 flex items-center gap-1.5"><Clock size={14} /> Fecha de Validez</label>
+                      <input type="date" value={formData.valid_until ? formData.valid_until.substring(0,10) : ""} onChange={e => setFormData({...formData, valid_until: e.target.value})} className="w-full text-sm rounded-xl border border-white/10 bg-[#0a0a0a] px-3 py-2.5 text-white outline-none focus:border-[#ff6a00] focus:ring-1 focus:ring-[#ff6a00] [color-scheme:dark]" />
+                    </div>
+                    <div>
+                      <label className="block text-xs font-semibold text-gray-500 mb-1.5">Estado</label>
+                      <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 bg-[#0a0a0a] p-1.5 rounded-xl border border-white/5">
+                        <button type="button" onClick={() => setFormData({...formData, status: "draft"})} className={`text-[11px] py-2 px-1 rounded-lg font-bold transition-all uppercase tracking-wider ${formData.status === "draft" ? "bg-[#222] text-white shadow-sm border border-white/10" : "text-gray-500 hover:text-gray-300"}`}>Borrador</button>
+                        <button type="button" onClick={() => setFormData({...formData, status: "sent"})} className={`text-[11px] py-2 px-1 rounded-lg font-bold transition-all uppercase tracking-wider ${formData.status === "sent" ? "bg-indigo-500/20 text-indigo-400 border border-indigo-500/30" : "text-gray-500 hover:text-gray-300"}`}>Enviado</button>
+                        <button type="button" onClick={() => setFormData({...formData, status: "approved"})} className={`text-[11px] py-2 px-1 rounded-lg font-bold transition-all uppercase tracking-wider ${formData.status === "approved" ? "bg-emerald-500/20 text-emerald-400 border border-emerald-500/30" : "text-gray-500 hover:text-gray-300"}`}>Aprobado</button>
+                        <button type="button" onClick={() => setFormData({...formData, status: "rejected"})} className={`text-[11px] py-2 px-1 rounded-lg font-bold transition-all uppercase tracking-wider ${formData.status === "rejected" ? "bg-rose-500/20 text-rose-400 border border-rose-500/30" : "text-gray-500 hover:text-gray-300"}`}>Rechazado</button>
+                      </div>
+                    </div>
+                  </div>
                 </div>
               </div>
+            </Card>
+
+          </div>
+
+          {/* COLUMNA TOTALES Y ACCIONES (Sticky) */}
+          <div className="lg:col-span-1 lg:sticky lg:top-6 space-y-4">
+            <Card className="p-6 bg-[#0a0a0a] border-[#ff6a00]/30 shadow-xl overflow-hidden relative">
+              <div className="absolute top-0 inset-x-0 h-1 bg-gradient-to-r from-transparent via-[#ff6a00] to-transparent opacity-50" />
               
-              <div className="bg-[#0a0a0a] p-4 rounded-xl border border-white/10 flex flex-col justify-end space-y-3">
-                <div className="flex justify-between items-center text-sm">
-                  <span className="text-gray-500 font-medium">Subtotal</span>
-                  <span className="text-white font-bold">${subtotal.toFixed(2)}</span>
+              <h3 className="text-sm font-bold text-white flex items-center gap-2 border-b border-white/10 pb-3 mb-5">
+                <DollarSign size={18} className="text-[#ff6a00]" /> Resumen
+              </h3>
+
+              <div className="space-y-4 mb-6">
+                <div className="flex justify-between items-center">
+                  <span className="text-sm font-medium text-gray-400">Subtotal</span>
+                  <span className="text-sm font-bold text-white">${subtotal.toFixed(2)}</span>
                 </div>
-                <div className="flex justify-between items-center text-sm">
-                  <span className="text-gray-500 font-medium">Descuento (%)</span>
-                  <input 
-                    type="number" 
-                    min="0" 
-                    max="100" 
-                    step="any"
-                    placeholder="Ej: 15"
-                    value={formData.discount_percent || ""} 
-                    onChange={e => {
-                      let val = parseFloat(e.target.value);
-                      if (isNaN(val)) val = 0;
-                      if (val < 0) val = 0;
-                      if (val > 100) val = 100;
-                      setFormData({...formData, discount_percent: val});
-                    }}
-                    className="w-24 text-right text-sm border-white/20 rounded-md focus:border-orange-500 focus:ring-orange-500 text-white bg-[#111]" 
-                  />
+                
+                <div className="flex justify-between items-center group">
+                  <span className="text-sm font-medium text-gray-400 flex items-center gap-1.5"><Percent size={14}/> Descuento</span>
+                  <div className="flex items-center gap-2">
+                    <input 
+                      type="number" 
+                      min="0" max="100" step="any"
+                      placeholder="0"
+                      value={formData.discount_percent || ""} 
+                      onChange={e => {
+                        let val = parseFloat(e.target.value);
+                        if (isNaN(val)) val = 0;
+                        if (val < 0) val = 0;
+                        if (val > 100) val = 100;
+                        setFormData({...formData, discount_percent: val});
+                      }}
+                      className="w-16 text-right text-sm rounded-lg border border-white/10 bg-[#111] px-2 py-1.5 text-white outline-none focus:border-[#ff6a00] focus:ring-1 focus:ring-[#ff6a00] transition-colors" 
+                    />
+                    <span className="text-sm font-bold text-gray-500">%</span>
+                  </div>
                 </div>
-                <div className="flex justify-between items-center text-sm">
-                  <span className="text-gray-500 font-medium">Descuento</span>
-                  <span className="text-white font-semibold">
-                    {discountPercent}% {discountPercent > 0 ? `(-$${discountAmount.toFixed(2)})` : ""}
-                  </span>
-                </div>
-                {estimatedProfit > 0 && (
-                  <div className="flex justify-between items-center text-sm bg-emerald-50 px-2 py-1.5 rounded-lg border border-emerald-100">
-                    <span className="text-emerald-700 font-semibold">Ganancia estimada</span>
-                    <span className="text-emerald-700 font-bold">${estimatedProfit.toFixed(2)}</span>
+
+                {discountPercent > 0 && (
+                  <div className="flex justify-between items-center">
+                    <span className="text-xs font-medium text-gray-500 pl-5">Monto dto.</span>
+                    <span className="text-xs font-semibold text-rose-400">-${discountAmount.toFixed(2)}</span>
                   </div>
                 )}
-                <div className="border-t border-white/10 pt-2 flex justify-between items-center">
-                  <span className="text-lg font-bold text-white">TOTAL</span>
-                  <span className="text-2xl font-black text-orange-600">${total.toFixed(2)}</span>
-                </div>
-              </div>
-            </div>
 
+                <div className="my-2 h-px bg-white/10" />
+
+                <div className="flex justify-between items-end">
+                  <span className="text-sm font-bold text-gray-400 uppercase tracking-wider mb-1">TOTAL</span>
+                  <span className="text-3xl font-black text-[#ff6a00]">${total.toFixed(2)}</span>
+                </div>
+
+                {estimatedProfit > 0 && (
+                  <div className="mt-4 bg-emerald-500/10 border border-emerald-500/20 px-3 py-2.5 rounded-xl flex justify-between items-center">
+                    <span className="text-xs font-bold text-emerald-500/80 uppercase tracking-wider">Ganancia est.</span>
+                    <span className="text-sm font-black text-emerald-400">${estimatedProfit.toFixed(2)}</span>
+                  </div>
+                )}
+              </div>
+            </Card>
+
+            <div className="space-y-3">
+              <button onClick={handleSaveBudget} className="w-full flex justify-center items-center gap-2 px-4 py-3.5 text-sm font-bold bg-[#ff6a00] hover:bg-[#ff7a1a] text-white rounded-xl transition-all shadow-lg shadow-[#ff6a00]/10">
+                <Save size={18} /> Guardar Presupuesto
+              </button>
+              {editingId !== "new" && (
+                <button onClick={handleDownloadPdf} disabled={isGeneratingPdf} className="w-full flex justify-center items-center gap-2 px-4 py-3 text-sm font-bold text-gray-300 hover:text-white bg-[#111] hover:bg-white/5 border border-white/10 rounded-xl transition-colors disabled:opacity-50">
+                  {isGeneratingPdf ? <Loader2 size={16} className="animate-spin" /> : <Download size={16} />}
+                  Descargar PDF
+                </button>
+              )}
+              <button onClick={() => setEditingId(null)} className="w-full py-3 text-sm font-bold text-gray-500 hover:text-gray-300 transition-colors">
+                Cancelar y Volver
+              </button>
+            </div>
           </div>
-          
-          <div className="bg-[#0a0a0a] p-4 border-t border-white/10 flex justify-end gap-2">
-            <button onClick={() => setEditingId(null)} className="px-4 py-2 text-sm font-bold text-gray-400 hover:bg-gray-200 rounded-lg transition-colors">Cancelar</button>
-            <button onClick={handleSaveBudget} className="flex items-center gap-2 px-6 py-2 text-sm font-bold bg-orange-500 hover:bg-orange-600 text-white rounded-lg transition-colors">
-              <Save size={16} /> Guardar Presupuesto
-            </button>
-          </div>
-        </Card>
+        </div>
       )}
 
-      <div className="grid grid-cols-1 gap-5 sm:grid-cols-2 lg:grid-cols-3">
-        {budgets.map((b) => (
-          <Card key={b.id} className="p-5 flex flex-col justify-between hover:border-orange-200 transition-colors">
-            <div>
-              <div className="flex justify-between items-start mb-3">
-                <div>
-                  <h4 className="font-bold text-white text-sm truncate">{b.title || "Sin título"}</h4>
-                  <p className="text-xs text-gray-500 mt-0.5">{b.clients?.name || "Cliente eliminado"}</p>
-                </div>
-                <Badge tone={STATUS_MAP[b.status as keyof typeof STATUS_MAP]?.color || "gray"} className="text-[10px]">
-                  {STATUS_MAP[b.status as keyof typeof STATUS_MAP]?.label || b.status}
-                </Badge>
-              </div>
-              <p className="text-xs text-gray-400 mb-4">{new Date(b.created_at).toLocaleDateString()}</p>
-            </div>
-            
-            <div className="border-t border-white/5 pt-3">
-              <div className="flex justify-between items-center mb-4">
-                <span className="text-xs font-semibold text-gray-500">Total</span>
-                <span className="text-lg font-black text-white">${parseFloat(b.total_amount || 0).toFixed(2)}</span>
-              </div>
-              <div className="flex gap-2">
-                <GhostButton onClick={() => handleEdit(b)} className="flex-1 py-2 text-xs text-gray-300 bg-[#111] border border-white/10">
-                  <Pencil size={13} /> Editar
-                </GhostButton>
-                <GhostButton 
-                  onClick={() => handleDownloadPdfById(b)} 
-                  disabled={generatingPdfId === b.id}
-                  className="flex-1 py-2 text-xs text-orange-600 hover:text-orange-700 bg-orange-50/50 hover:bg-orange-50 border border-orange-100"
-                >
-                  {generatingPdfId === b.id ? (
-                    <Loader2 size={13} className="animate-spin" />
-                  ) : (
-                    <Download size={13} />
-                  )}
-                  <span className="hidden sm:inline ml-1">Descargar PDF</span>
-                  <span className="sm:hidden ml-1">PDF</span>
-                </GhostButton>
-                <GhostButton onClick={() => handleDelete(b.id)} className="px-2.5 py-2 text-red-500 hover:bg-red-50 border border-white/10 bg-[#111]">
-                  <Trash2 size={13} />
-                </GhostButton>
-              </div>
-            </div>
-          </Card>
-        ))}
-      </div>
+      {/* LISTADO DE PRESUPUESTOS */}
+      {!editingId && budgets.length > 0 && (
+        <div className="grid grid-cols-1 gap-5 sm:grid-cols-2 lg:grid-cols-3">
+          {budgets.map((b) => {
+            const statusConf = STATUS_MAP[b.status as keyof typeof STATUS_MAP] || { label: b.status, color: "gray" };
+            const statusClasses = {
+              "gray": "bg-[#222] text-gray-300 border-white/10",
+              "dark": "bg-indigo-500/10 text-indigo-400 border-indigo-500/20",
+              "green": "bg-emerald-500/10 text-emerald-400 border-emerald-500/20",
+              "orange": "bg-rose-500/10 text-rose-400 border-rose-500/20",
+            }[statusConf.color];
 
-      {budgets.length === 0 && !editingId && (
-        <div className="py-20 text-center bg-[#0a0a0a] rounded-xl border border-dashed border-white/20 mt-6">
-          <p className="text-sm text-gray-500 font-medium">No tienes presupuestos creados.</p>
-          <PrimaryButton onClick={handleCreateNew} className="mt-4">Crear mi primer presupuesto</PrimaryButton>
+            return (
+              <Card key={b.id} className="p-0 flex flex-col justify-between bg-[#111] border-white/10 hover:border-white/20 transition-all overflow-hidden group">
+                <div className="p-5 flex-1">
+                  <div className="flex justify-between items-start mb-4">
+                    <div className="pr-2">
+                      <h4 className="font-bold text-white text-base truncate mb-1 group-hover:text-[#ff6a00] transition-colors">{b.title || "Sin título"}</h4>
+                      <p className="text-xs font-medium text-gray-500 flex items-center gap-1.5"><UserPlus size={12}/> {b.clients?.name || "Cliente eliminado"}</p>
+                    </div>
+                    <span className={`shrink-0 text-[10px] font-bold uppercase tracking-wider px-2 py-1 rounded-md border ${statusClasses}`}>
+                      {statusConf.label}
+                    </span>
+                  </div>
+                  
+                  <div className="flex justify-between items-end mt-6">
+                    <div>
+                      <p className="text-[10px] font-bold text-gray-500 uppercase tracking-wider mb-0.5">Total</p>
+                      <p className="text-xl font-black text-white">${parseFloat(b.total_amount || 0).toFixed(2)}</p>
+                    </div>
+                    <p className="text-xs text-gray-500 font-medium bg-[#0a0a0a] px-2 py-1 rounded border border-white/5">
+                      {new Date(b.created_at).toLocaleDateString()}
+                    </p>
+                  </div>
+                </div>
+                
+                <div className="grid grid-cols-3 border-t border-white/5 bg-[#0a0a0a] divide-x divide-white/5">
+                  <button onClick={() => handleEdit(b)} className="flex items-center justify-center gap-2 py-3 text-xs font-bold text-gray-400 hover:text-white hover:bg-white/5 transition-colors">
+                    <Pencil size={14} /> Editar
+                  </button>
+                  <button 
+                    onClick={() => handleDownloadPdfById(b)} 
+                    disabled={generatingPdfId === b.id}
+                    className="flex items-center justify-center gap-2 py-3 text-xs font-bold text-[#ff6a00] hover:text-[#ff7a1a] hover:bg-[#ff6a00]/5 transition-colors disabled:opacity-50"
+                  >
+                    {generatingPdfId === b.id ? <Loader2 size={14} className="animate-spin" /> : <Download size={14} />}
+                    PDF
+                  </button>
+                  <button onClick={() => handleDelete(b.id)} className="flex items-center justify-center gap-2 py-3 text-xs font-bold text-gray-500 hover:text-rose-400 hover:bg-rose-500/5 transition-colors">
+                    <Trash2 size={14} />
+                  </button>
+                </div>
+              </Card>
+            );
+          })}
+        </div>
+      )}
+
+      {/* EMPTY STATE */}
+      {!editingId && budgets.length === 0 && (
+        <div className="max-w-2xl mx-auto mt-12">
+          <div className="bg-[#111] rounded-3xl p-10 text-center border border-white/10 shadow-xl">
+            <div className="w-20 h-20 bg-[#ff6a00]/10 rounded-full flex items-center justify-center mx-auto mb-6 border border-[#ff6a00]/20">
+              <Briefcase size={40} className="text-[#ff6a00]" />
+            </div>
+            <h2 className="text-2xl font-bold text-white mb-3">Todavía no creaste presupuestos</h2>
+            <p className="text-gray-400 mb-8 max-w-md mx-auto">
+              Cuando un cliente te pida precio, creá un presupuesto detallado y descargalo en PDF para enviarlo de forma profesional.
+            </p>
+            <div className="flex flex-col sm:flex-row items-center justify-center gap-4">
+              <button onClick={handleCreateNew} className="w-full sm:w-auto px-8 py-3.5 font-bold text-sm text-white bg-[#ff6a00] hover:bg-[#ff7a1a] rounded-xl transition-all shadow-lg shadow-[#ff6a00]/20">
+                Crear mi primer presupuesto
+              </button>
+              <Link href="/calculadora" className="w-full sm:w-auto px-8 py-3.5 font-bold text-sm text-gray-300 hover:text-white bg-[#1a1a1a] border border-white/10 hover:bg-white/5 rounded-xl transition-all">
+                Ir a la Calculadora
+              </Link>
+            </div>
+            <p className="mt-6 text-xs text-gray-500">¿No sabés cuánto cobrar? Calculalo primero en la Calculadora.</p>
+          </div>
         </div>
       )}
 
       {/* Product Creation Modal */}
       {showProductModal && (
-        <div className="fixed inset-0 bg-black/60 flex items-center justify-center p-4 z-50 overflow-y-auto">
-          <div className="bg-[#111] rounded-xl shadow-xl w-full max-w-lg overflow-hidden border border-white/10 my-8">
-            <div className="bg-[#0a0a0a] px-5 py-4 flex justify-between items-center border-b border-white/10">
-              <h3 className="text-base font-bold text-white">Nuevo Producto Rápido</h3>
-              <button type="button" onClick={() => setShowProductModal(false)} className="text-gray-400 hover:text-gray-300">
+        <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center p-4 z-50 overflow-y-auto">
+          <div className="bg-[#111] rounded-2xl shadow-2xl w-full max-w-lg overflow-hidden border border-white/10 my-8 animate-in zoom-in-95 duration-200">
+            <div className="bg-[#0a0a0a] px-6 py-4 flex justify-between items-center border-b border-white/10">
+              <h3 className="text-base font-bold text-white flex items-center gap-2">
+                <Package size={18} className="text-[#ff6a00]" /> Nuevo Producto Rápido
+              </h3>
+              <button type="button" onClick={() => setShowProductModal(false)} className="text-gray-400 hover:text-white transition-colors">
                 <X size={20} />
               </button>
             </div>
             
-            <div className="p-5 space-y-4 max-h-[70vh] overflow-y-auto">
+            <div className="p-6 space-y-5 max-h-[70vh] overflow-y-auto custom-scrollbar">
               <div>
-                <label className="block text-xs font-bold text-gray-500 uppercase mb-1">Nombre *</label>
+                <label className="block text-xs font-semibold text-gray-400 mb-1.5">Nombre *</label>
                 <input 
                   type="text" 
                   placeholder="Ej. Maceta Hexagonal" 
                   value={productData.name} 
                   onChange={e => setProductData({...productData, name: e.target.value})} 
-                  className="w-full text-sm border-white/20 rounded-md focus:border-orange-500 focus:ring-orange-500 text-white bg-[#111]" 
+                  className="w-full text-sm rounded-xl border border-white/10 bg-[#0a0a0a] px-3 py-2.5 text-white outline-none focus:border-[#ff6a00] focus:ring-1 focus:ring-[#ff6a00]" 
                 />
               </div>
 
               <div>
-                <label className="block text-xs font-bold text-gray-500 uppercase mb-1">Descripción</label>
+                <label className="block text-xs font-semibold text-gray-400 mb-1.5">Descripción</label>
                 <textarea 
                   rows={2}
                   placeholder="Descripción opcional" 
                   value={productData.description} 
                   onChange={e => setProductData({...productData, description: e.target.value})} 
-                  className="w-full text-sm border-white/20 rounded-md focus:border-orange-500 focus:ring-orange-500 text-white bg-[#111]" 
+                  className="w-full text-sm rounded-xl border border-white/10 bg-[#0a0a0a] px-3 py-2.5 text-white outline-none focus:border-[#ff6a00] focus:ring-1 focus:ring-[#ff6a00]" 
                 />
               </div>
 
-              <div className="grid grid-cols-2 gap-3">
+              <div className="grid grid-cols-2 gap-4">
                 <div>
-                  <label className="block text-xs font-bold text-gray-500 uppercase mb-1">Precio de venta *</label>
+                  <label className="block text-xs font-semibold text-gray-400 mb-1.5">Precio de venta *</label>
                   <input 
                     type="number" 
-                    min="0"
-                    step="any"
-                    placeholder="Ej. 1500" 
+                    min="0" step="any" placeholder="Ej. 1500" 
                     value={productData.sale_price || ""} 
                     onChange={e => setProductData({...productData, sale_price: parseFloat(e.target.value) || 0})} 
-                    className="w-full text-sm border-white/20 rounded-md focus:border-orange-500 focus:ring-orange-500 text-white bg-[#111]" 
+                    className="w-full text-sm rounded-xl border border-white/10 bg-[#0a0a0a] px-3 py-2.5 text-white outline-none focus:border-[#ff6a00] focus:ring-1 focus:ring-[#ff6a00]" 
                   />
                 </div>
                 <div>
-                  <label className="block text-xs font-bold text-gray-500 uppercase mb-1">Costo base</label>
+                  <label className="block text-xs font-semibold text-gray-400 mb-1.5">Costo base</label>
                   <input 
                     type="number" 
-                    min="0"
-                    step="any"
-                    placeholder="Opcional" 
+                    min="0" step="any" placeholder="Opcional" 
                     value={productData.base_cost || ""} 
                     onChange={e => setProductData({...productData, base_cost: parseFloat(e.target.value) || 0})} 
-                    className="w-full text-sm border-white/20 rounded-md focus:border-orange-500 focus:ring-orange-500 text-white bg-[#111]" 
+                    className="w-full text-sm rounded-xl border border-white/10 bg-[#0a0a0a] px-3 py-2.5 text-white outline-none focus:border-[#ff6a00] focus:ring-1 focus:ring-[#ff6a00]" 
                   />
                 </div>
               </div>
 
-              <div className="grid grid-cols-2 gap-3">
+              <div className="grid grid-cols-2 gap-4">
                 <div>
-                  <label className="block text-xs font-bold text-gray-500 uppercase mb-1">Gramos</label>
+                  <label className="block text-xs font-semibold text-gray-400 mb-1.5">Gramos</label>
                   <input 
                     type="number" 
-                    min="0"
-                    step="any"
-                    placeholder="Opcional" 
+                    min="0" step="any" placeholder="Opcional" 
                     value={productData.grams || ""} 
                     onChange={e => setProductData({...productData, grams: parseFloat(e.target.value) || 0})} 
-                    className="w-full text-sm border-white/20 rounded-md focus:border-orange-500 focus:ring-orange-500 text-white bg-[#111]" 
+                    className="w-full text-sm rounded-xl border border-white/10 bg-[#0a0a0a] px-3 py-2.5 text-white outline-none focus:border-[#ff6a00] focus:ring-1 focus:ring-[#ff6a00]" 
                   />
                 </div>
                 <div>
-                  <label className="block text-xs font-bold text-gray-500 uppercase mb-1">Stock Inicial</label>
+                  <label className="block text-xs font-semibold text-gray-400 mb-1.5">Stock Inicial</label>
                   <input 
                     type="number" 
-                    min="0"
-                    placeholder="Opcional" 
+                    min="0" placeholder="Opcional" 
                     value={productData.stock_quantity || ""} 
                     onChange={e => setProductData({...productData, stock_quantity: parseInt(e.target.value) || 0})} 
-                    className="w-full text-sm border-white/20 rounded-md focus:border-orange-500 focus:ring-orange-500 text-white bg-[#111]" 
+                    className="w-full text-sm rounded-xl border border-white/10 bg-[#0a0a0a] px-3 py-2.5 text-white outline-none focus:border-[#ff6a00] focus:ring-1 focus:ring-[#ff6a00]" 
                   />
                 </div>
               </div>
 
-              <div className="grid grid-cols-2 gap-3">
+              <div className="grid grid-cols-2 gap-4">
                 <div>
-                  <label className="block text-xs font-bold text-gray-500 uppercase mb-1">Tiempo (Horas)</label>
+                  <label className="block text-xs font-semibold text-gray-400 mb-1.5">Tiempo (Horas)</label>
                   <input 
                     type="number" 
-                    min="0"
-                    placeholder="Horas" 
+                    min="0" placeholder="Horas" 
                     value={productData.print_time_hours || ""} 
                     onChange={e => setProductData({...productData, print_time_hours: parseInt(e.target.value) || 0})} 
-                    className="w-full text-sm border-white/20 rounded-md focus:border-orange-500 focus:ring-orange-500 text-white bg-[#111]" 
+                    className="w-full text-sm rounded-xl border border-white/10 bg-[#0a0a0a] px-3 py-2.5 text-white outline-none focus:border-[#ff6a00] focus:ring-1 focus:ring-[#ff6a00]" 
                   />
                 </div>
                 <div>
-                  <label className="block text-xs font-bold text-gray-500 uppercase mb-1">Tiempo (Minutos)</label>
+                  <label className="block text-xs font-semibold text-gray-400 mb-1.5">Tiempo (Minutos)</label>
                   <input 
                     type="number" 
-                    min="0"
-                    max="59"
-                    placeholder="Minutos" 
+                    min="0" max="59" placeholder="Minutos" 
                     value={productData.print_time_minutes || ""} 
                     onChange={e => setProductData({...productData, print_time_minutes: parseInt(e.target.value) || 0})} 
-                    className="w-full text-sm border-white/20 rounded-md focus:border-orange-500 focus:ring-orange-500 text-white bg-[#111]" 
+                    className="w-full text-sm rounded-xl border border-white/10 bg-[#0a0a0a] px-3 py-2.5 text-white outline-none focus:border-[#ff6a00] focus:ring-1 focus:ring-[#ff6a00]" 
                   />
                 </div>
               </div>
 
               <div>
-                <label className="block text-xs font-bold text-gray-500 uppercase mb-1">Filamento</label>
+                <label className="block text-xs font-semibold text-gray-400 mb-1.5">Filamento</label>
                 <select 
                   value={productData.filament_id} 
                   onChange={e => setProductData({...productData, filament_id: e.target.value})} 
-                  className="w-full text-sm border-white/20 rounded-md focus:border-orange-500 focus:ring-orange-500 text-white bg-[#111]"
+                  className="w-full text-sm rounded-xl border border-white/10 bg-[#0a0a0a] px-3 py-2.5 text-white outline-none focus:border-[#ff6a00] focus:ring-1 focus:ring-[#ff6a00]"
                 >
                   <option value="">Ninguno</option>
                   {filaments.map(f => <option key={f.id} value={f.id}>{f.name}</option>)}
@@ -916,29 +995,29 @@ export default function PresupuestosPage() {
               </div>
 
               <div>
-                <label className="block text-xs font-bold text-gray-500 uppercase mb-1">URL de Imagen</label>
+                <label className="block text-xs font-semibold text-gray-400 mb-1.5">URL de Imagen</label>
                 <input 
                   type="text" 
                   placeholder="Ej. https://..." 
                   value={productData.image_url} 
                   onChange={e => setProductData({...productData, image_url: e.target.value})} 
-                  className="w-full text-sm border-white/20 rounded-md focus:border-orange-500 focus:ring-orange-500 text-white bg-[#111]" 
+                  className="w-full text-sm rounded-xl border border-white/10 bg-[#0a0a0a] px-3 py-2.5 text-white outline-none focus:border-[#ff6a00] focus:ring-1 focus:ring-[#ff6a00]" 
                 />
               </div>
             </div>
 
-            <div className="bg-[#0a0a0a] px-5 py-4 flex justify-end gap-2 border-t border-white/10">
+            <div className="bg-[#0a0a0a] px-6 py-4 flex justify-end gap-3 border-t border-white/10">
               <button 
                 type="button" 
                 onClick={() => setShowProductModal(false)} 
-                className="px-4 py-2 text-sm font-bold text-gray-400 hover:bg-gray-200 rounded-lg transition-colors"
+                className="px-5 py-2.5 text-sm font-bold text-gray-400 hover:text-white transition-colors"
               >
                 Cancelar
               </button>
               <button 
                 type="button" 
                 onClick={handleSaveProduct} 
-                className="px-6 py-2 text-sm font-bold bg-orange-500 hover:bg-orange-600 text-white rounded-lg transition-colors"
+                className="px-6 py-2.5 text-sm font-bold bg-[#ff6a00] hover:bg-[#ff7a1a] text-white rounded-xl transition-colors shadow-lg shadow-[#ff6a00]/20"
               >
                 Guardar Producto
               </button>
