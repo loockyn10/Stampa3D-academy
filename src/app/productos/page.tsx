@@ -1,6 +1,7 @@
 "use client";
 
 import React, { useState, useEffect } from "react";
+import Link from "next/link";
 import { Plus, Pencil, Copy, Trash2, Loader2, Save, X, AlertCircle, RefreshCw, TrendingUp, TrendingDown, Minus, ChevronDown, ChevronUp, History, AlertTriangle } from "lucide-react";
 import { Card } from "@/components/ui/card";
 import { PrimaryButton, GhostButton } from "@/components/ui/button";
@@ -846,7 +847,7 @@ export default function ProductosPage() {
       )}
 
       {editingId && (
-        <Card className="mb-8 p-5 border-orange-300 shadow-md ring-1 ring-orange-100">
+        <Card className="mb-8 p-5 bg-[#111] border border-orange-500/30 shadow-md ring-1 ring-orange-500/20">
           <div className="flex justify-between items-center mb-4">
             <h3 className="text-lg font-bold text-white">{editingId === "new" ? "Nuevo Producto" : "Editar Producto"}</h3>
             <button onClick={() => setEditingId(null)} className="text-gray-400 hover:text-gray-300"><X size={20} /></button>
@@ -1157,19 +1158,19 @@ export default function ProductosPage() {
           const pricingStatus = getProductPricingStatus(p, filaments, printers, productTypes);
 
           return (
-            <Card key={p.id} className={`p-4 transition-all ${!p.is_active ? 'opacity-60 grayscale' : ''} ${pricingStatus.needsRecalculation ? 'border-yellow-400 bg-yellow-50/30 ring-1 ring-yellow-400/50' : ''}`}>
+            <Card key={p.id} className={`p-4 transition-all bg-[#111] border border-white/10 hover:border-orange-500/30 hover:shadow-[0_0_15px_rgba(255,106,0,0.05)] flex flex-col h-full ${!p.is_active ? 'opacity-60 grayscale' : ''} ${pricingStatus.needsRecalculation ? 'border-yellow-500/50 bg-yellow-500/5 ring-1 ring-yellow-500/20' : ''}`}>
 
               {pricingStatus.needsRecalculation && (
-                <div className="mb-3 flex items-start gap-2 bg-yellow-100/80 rounded-lg p-2.5 border border-yellow-200">
-                  <AlertTriangle size={16} className="text-yellow-700 mt-0.5 shrink-0" />
+                <div className="mb-3 flex items-start gap-2 bg-yellow-500/10 rounded-lg p-2.5 border border-yellow-500/20">
+                  <AlertTriangle size={16} className="text-yellow-500 mt-0.5 shrink-0" />
                   <div className="min-w-0 flex-1">
-                    <p className="text-xs font-bold text-yellow-800 uppercase tracking-wide">Requiere Recalcular</p>
-                    <p className="text-xs text-yellow-700 mt-0.5">
+                    <p className="text-xs font-bold text-yellow-400 uppercase tracking-wide">Requiere Recalcular</p>
+                    <p className="text-xs text-yellow-500 mt-0.5">
                       {pricingStatus.reasons.slice(0, 2).map((r, i) => (
                         <span key={i} className="block">• {r}</span>
                       ))}
                       {pricingStatus.reasons.length > 2 && (
-                        <span className="block italic text-yellow-600 mt-0.5">+ {pricingStatus.reasons.length - 2} cambios más</span>
+                        <span className="block italic text-yellow-500/70 mt-0.5">+ {pricingStatus.reasons.length - 2} cambios más</span>
                       )}
                     </p>
                   </div>
@@ -1227,7 +1228,7 @@ export default function ProductosPage() {
               </div>
 
               {/* Prices + Profit */}
-              <div className="mt-3 grid grid-cols-4 gap-1.5 rounded-xl bg-[#0a0a0a] p-2.5 text-center">
+              <div className="mt-4 grid grid-cols-4 gap-1.5 rounded-xl bg-[#0a0a0a] p-3 text-center border border-white/5">
                 <div>
                   <p className="text-xs font-bold text-white">${p.base_cost?.toFixed(2) || "0.00"}</p>
                   <p className="text-[10px] text-gray-400">Costo</p>
@@ -1251,10 +1252,10 @@ export default function ProductosPage() {
 
               {/* Parts Details */}
               {p.product_components?.length > 1 && (
-                <div className="mt-2 bg-blue-50/50 rounded-xl p-3 border border-blue-100">
+                <div className="mt-2 bg-[#0a0a0a] rounded-xl p-3 border border-white/5 mt-3">
                   <div className="flex items-center justify-between mb-2">
-                    <p className="text-xs font-bold text-blue-900">Piezas requeridas</p>
-                    <p className="text-[10px] font-bold text-blue-700 bg-blue-100 px-2 py-0.5 rounded-full">
+                    <p className="text-xs font-bold text-gray-300">Piezas requeridas</p>
+                    <p className="text-[10px] font-bold text-white bg-white/10 px-2 py-0.5 rounded-full">
                       Armables: {Math.min(...p.product_components.map((c: any) => Math.floor((c.stock_quantity || 0) / (c.quantity_per_product || 1)))) || 0}
                     </p>
                   </div>
@@ -1278,19 +1279,19 @@ export default function ProductosPage() {
               {/* Margin badge */}
               {p.sale_price > 0 && p.base_cost > 0 && (
                 <div className="mt-2 flex items-center justify-end">
-                  <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full ${marginPct >= 30 ? 'bg-emerald-100 text-emerald-700' : marginPct >= 15 ? 'bg-yellow-100 text-yellow-700' : 'bg-red-100 text-red-600'}`}>
+                  <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full ${marginPct >= 30 ? 'bg-emerald-500/10 text-emerald-400 border border-emerald-500/20' : marginPct >= 15 ? 'bg-yellow-100 text-yellow-500/90' : 'bg-red-500/10 text-red-400 border border-red-500/20'}`}>
                     {marginPct.toFixed(0)}% margen
                   </span>
                 </div>
               )}
 
-              <div className="mt-3 flex gap-2">
-                <GhostButton onClick={() => handleEdit(p)} className="flex-1 py-2 text-xs text-gray-300 bg-[#111] border border-white/10">
+              <div className="mt-auto pt-4 flex gap-2">
+                <GhostButton onClick={() => handleEdit(p)} className="flex-1 py-2 text-xs font-bold text-white bg-orange-500 hover:bg-orange-600 border border-orange-500">
                   <Pencil size={13} /> Editar
                 </GhostButton>
                 <GhostButton
                   onClick={() => handleRecalculate(p)}
-                  className={`flex-1 py-2 text-xs border ${pricingStatus.needsRecalculation ? 'text-white bg-yellow-600 hover:bg-yellow-700 border-yellow-700' : 'text-indigo-600 hover:bg-indigo-50 border-indigo-200 bg-[#111]'}`}
+                  className={`flex-1 py-2 text-xs border ${pricingStatus.needsRecalculation ? 'text-yellow-500 bg-yellow-500/10 hover:bg-yellow-500/20 border-yellow-500/30' : 'text-gray-300 hover:text-white hover:bg-white/5 border-white/10 bg-[#111]'}`}
                   title="Recalcular precio con valores actuales"
                 >
                   <RefreshCw size={13} className={pricingStatus.needsRecalculation ? "animate-pulse" : ""} /> Recalcular
@@ -1298,7 +1299,7 @@ export default function ProductosPage() {
                 <GhostButton onClick={() => handleDuplicate(p)} className="px-2.5 py-2 text-gray-500 hover:text-white bg-[#111] border border-white/10">
                   <Copy size={13} />
                 </GhostButton>
-                <GhostButton onClick={() => handleDelete(p.id)} className="px-2.5 py-2 text-red-500 hover:bg-red-50 border border-white/10 bg-[#111]">
+                <GhostButton onClick={() => handleDelete(p.id)} className="px-2.5 py-2 text-red-500 hover:bg-red-500/10 border border-white/10 bg-[#111]">
                   <Trash2 size={13} />
                 </GhostButton>
               </div>
@@ -1308,9 +1309,22 @@ export default function ProductosPage() {
       </div>
 
       {products.length === 0 && !editingId && (
-        <div className="py-20 text-center bg-[#0a0a0a] rounded-xl border border-dashed border-white/20">
-          <p className="text-sm text-gray-500 font-medium">No tienes productos en tu catálogo.</p>
-          <PrimaryButton onClick={handleCreateNew} className="mt-4">Crear mi primer producto</PrimaryButton>
+        <div className="py-20 flex flex-col items-center justify-center bg-[#111] rounded-2xl border border-white/5 shadow-xl">
+          <div className="w-16 h-16 bg-[#0a0a0a] rounded-2xl flex items-center justify-center mb-4 border border-white/10 shadow-inner">
+            <span className="text-3xl grayscale opacity-50">📦</span>
+          </div>
+          <h3 className="text-xl font-bold text-white mb-2">Todavía no cargaste productos</h3>
+          <p className="text-sm text-gray-400 font-medium mb-6 max-w-md text-center">
+            Guardá las piezas que vendés seguido para reutilizarlas en presupuestos y controlar mejor tus costos.
+          </p>
+          <div className="flex gap-3">
+            <PrimaryButton onClick={handleCreateNew} className="bg-orange-500 hover:bg-orange-600 text-white">
+              Crear producto
+            </PrimaryButton>
+            <Link href="/calculadora" className="px-4 py-2 bg-[#0a0a0a] border border-white/10 text-white text-sm font-bold rounded-lg hover:bg-white/5 transition-colors">
+              Calcular precio primero
+            </Link>
+          </div>
         </div>
       )}
 
@@ -1365,7 +1379,7 @@ export default function ProductosPage() {
                     const diff = recalcData.recommendedSalePrice - recalcData.currentSalePrice;
                     const isUp = diff > 0;
                     return (
-                      <div className={`flex items-center justify-center gap-2 py-2 px-4 rounded-full text-sm font-bold ${isUp ? 'bg-yellow-50 text-yellow-700' : diff < 0 ? 'bg-green-50 text-green-700' : 'bg-[#0a0a0a] text-gray-500'}`}>
+                      <div className={`flex items-center justify-center gap-2 py-2 px-4 rounded-full text-sm font-bold ${isUp ? 'bg-yellow-50 text-yellow-500/90' : diff < 0 ? 'bg-green-50 text-green-700' : 'bg-[#0a0a0a] text-gray-500'}`}>
                         {isUp ? <TrendingUp size={16} /> : diff < 0 ? <TrendingDown size={16} /> : <Minus size={16} />}
                         {diff === 0 ? "El precio está al día" : `${isUp ? "Subida" : "Bajada"} de $${Math.abs(diff).toFixed(2)}`}
                       </div>

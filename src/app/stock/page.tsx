@@ -493,7 +493,7 @@ export default function StockPage() {
             className={`flex items-center gap-2 border-b-2 px-4 py-3 text-sm font-semibold transition-colors ${
               tab === "productos"
                 ? "border-orange-500 text-orange-600"
-                : "border-transparent text-gray-500 hover:text-gray-300 hover:border-white/20"
+                : "border-transparent text-gray-400 hover:text-gray-300 hover:border-white/20"
             }`}
           >
             <Package size={16} /> Productos
@@ -508,7 +508,7 @@ export default function StockPage() {
             className={`flex items-center gap-2 border-b-2 px-4 py-3 text-sm font-semibold transition-colors ${
               tab === "filamentos"
                 ? "border-orange-500 text-orange-600"
-                : "border-transparent text-gray-500 hover:text-gray-300 hover:border-white/20"
+                : "border-transparent text-gray-400 hover:text-gray-300 hover:border-white/20"
             }`}
           >
             <Box size={16} /> Filamentos
@@ -530,7 +530,7 @@ export default function StockPage() {
       <Card className="overflow-hidden p-0">
         <div className="overflow-x-auto">
           <table className="w-full text-left text-sm">
-            <thead className="bg-[#0a0a0a] text-xs font-semibold uppercase tracking-wide text-gray-500">
+            <thead className="bg-[#0a0a0a] text-xs font-semibold uppercase tracking-wide text-gray-400">
               <tr>
                 <th className="px-5 py-3">Nombre</th>
                 <th className="px-5 py-3">{tab === "productos" ? "Precio Venta" : "Tipo / Color"}</th>
@@ -572,12 +572,12 @@ export default function StockPage() {
                             {p.stock_quantity || 0}
                           </span>
                           {isLow && p.is_active && (
-                            <Badge tone="gray" className="ml-1 border-red-200 bg-red-50 text-red-600">Bajo</Badge>
+                            <Badge tone="gray" className="ml-1 border border-red-500/20 bg-red-500/10 text-red-400">Bajo</Badge>
                           )}
                         </div>
                       </td>
                       <td className="px-5 py-3.5">
-                        <span className={`text-xs px-2 py-1 rounded-md font-medium ${p.is_active ? 'bg-green-100 text-green-700' : 'bg-white/5 text-gray-400'}`}>
+                        <span className={`text-xs px-2 py-1 rounded-md font-medium ${p.is_active ? 'bg-green-500/10 text-green-400 border border-green-500/20' : 'bg-white/5 text-gray-400'}`}>
                           {p.is_active ? 'Activo' : 'Inactivo'}
                         </span>
                       </td>
@@ -605,7 +605,7 @@ export default function StockPage() {
                               placeholder="Cant."
                               value={productAdjustAmounts[p.id] || ""}
                               onChange={(e) => setProductAdjustAmounts(prev => ({...prev, [p.id]: e.target.value}))}
-                              className="w-16 h-8 text-xs border border-white/10 rounded-md px-2 focus:border-orange-500 focus:ring-orange-500 outline-none"
+                              className="w-16 h-8 text-xs border border-white/10 rounded-md px-2 bg-[#0a0a0a] text-white focus:border-orange-500 focus:ring-orange-500 outline-none"
                               disabled={adjustingProduct === p.id}
                             />
                             <button
@@ -641,7 +641,7 @@ export default function StockPage() {
                     
                     {/* Render Parts below product if any */}
                     {isParts && pComps.map(c => (
-                      <tr key={c.id} className="bg-[#0a0a0a]/50 border-t border-gray-50">
+                      <tr key={c.id} className="bg-[#0a0a0a]/50 border-t border-white/5">
                         <td className="px-5 py-2 pl-16">
                           <div className="flex items-center gap-2">
                             <div className="w-1.5 h-1.5 rounded-full bg-blue-300"></div>
@@ -662,14 +662,14 @@ export default function StockPage() {
                           <div className="flex justify-end gap-1">
                             <button
                               onClick={() => handleAdjustComponentStock(c.id, -1)}
-                              className="flex h-6 w-6 items-center justify-center rounded border border-white/10 text-gray-500 bg-[#111] hover:bg-[#0a0a0a] hover:text-red-600 transition-colors"
+                              className="flex h-6 w-6 items-center justify-center rounded border border-white/10 text-gray-400 bg-[#111] hover:bg-[#0a0a0a] hover:text-red-600 transition-colors"
                               disabled={c.stock_quantity <= 0}
                             >
                               <Minus size={12} />
                             </button>
                             <button
                               onClick={() => handleAdjustComponentStock(c.id, 1)}
-                              className="flex h-6 w-6 items-center justify-center rounded border border-white/10 text-gray-500 bg-[#111] hover:bg-[#0a0a0a] hover:text-green-600 transition-colors"
+                              className="flex h-6 w-6 items-center justify-center rounded border border-white/10 text-gray-400 bg-[#111] hover:bg-[#0a0a0a] hover:text-green-600 transition-colors"
                             >
                               <Plus size={12} />
                             </button>
@@ -700,12 +700,12 @@ export default function StockPage() {
                         {f.remaining_grams || 0}g <span className="text-gray-400 font-normal text-sm">/ {f.total_grams}g</span>
                       </span>
                       {isLow && (
-                        <Badge tone="gray" className="ml-1 border-red-200 bg-red-50 text-red-600">Bajo</Badge>
+                        <Badge tone="gray" className="ml-1 border border-red-500/20 bg-red-500/10 text-red-400">Bajo</Badge>
                       )}
                     </div>
                   </td>
                   <td className="px-5 py-3.5">
-                    <span className="text-xs px-2 py-1 rounded-md font-medium bg-green-100 text-green-700">Activo</span>
+                    <span className="text-xs px-2 py-1 rounded-md font-medium bg-green-500/10 text-green-400 border border-green-500/20">Activo</span>
                   </td>
                   <td className="px-5 py-3.5">
                     <div className="flex justify-end items-center gap-3">
@@ -718,7 +718,7 @@ export default function StockPage() {
                           placeholder="g"
                           value={filamentAdjustAmounts[f.id] || ""}
                           onChange={(e) => setFilamentAdjustAmounts(prev => ({...prev, [f.id]: e.target.value}))}
-                          className="w-16 h-8 text-xs border border-white/10 rounded-md px-2 focus:border-orange-500 focus:ring-orange-500 outline-none"
+                          className="w-16 h-8 text-xs border border-white/10 rounded-md px-2 bg-[#0a0a0a] text-white focus:border-orange-500 focus:ring-orange-500 outline-none"
                           disabled={adjustingFilament === f.id}
                         />
                         <button
@@ -764,13 +764,13 @@ export default function StockPage() {
 
           {tab === "productos" && products.length === 0 && !loading && (
             <div className="py-12 text-center">
-              <p className="text-gray-500 text-sm">No tienes productos. Ve a la sección de Productos para crearlos.</p>
+              <p className="text-gray-400 text-sm">No tienes productos. Ve a la sección de Productos para crearlos.</p>
             </div>
           )}
 
           {tab === "filamentos" && filaments.length === 0 && !loading && (
             <div className="py-12 text-center">
-              <p className="text-gray-500 text-sm">No tienes filamentos activos. Ve a la Configuración para añadirlos.</p>
+              <p className="text-gray-400 text-sm">No tienes filamentos activos. Ve a la Configuración para añadirlos.</p>
             </div>
           )}
 
@@ -780,11 +780,11 @@ export default function StockPage() {
       {/* History Modal for Filaments */}
       {historyModalOpen && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50">
-          <div className="bg-[#111] rounded-xl shadow-xl max-w-lg w-full max-h-[90vh] flex flex-col overflow-hidden">
+          <div className="bg-[#111] rounded-xl shadow-xl max-w-lg w-full max-h-[90vh] flex flex-col overflow-hidden border border-white/10">
             <div className="p-4 border-b border-white/5 flex justify-between items-center bg-[#0a0a0a]">
               <div>
                 <h3 className="text-lg font-bold text-white">Historial de Movimientos</h3>
-                <p className="text-xs text-gray-500">Últimos 10 cambios en este filamento.</p>
+                <p className="text-xs text-gray-400">Últimos 10 cambios en este filamento.</p>
               </div>
               <button onClick={() => setHistoryModalOpen(false)} className="text-gray-400 hover:text-gray-300">
                 <X size={20} />
@@ -794,13 +794,13 @@ export default function StockPage() {
               {historyLoading ? (
                 <div className="py-8 flex justify-center"><Loader2 className="animate-spin text-orange-500" /></div>
               ) : historyMovements.length === 0 ? (
-                <div className="text-center py-8 text-sm text-gray-500">No hay movimientos registrados.</div>
+                <div className="text-center py-8 text-sm text-gray-400">No hay movimientos registrados.</div>
               ) : (
                 <div className="space-y-3">
                   {historyMovements.map(m => {
                     const isPositive = m.grams_delta > 0;
                     return (
-                      <div key={m.id} className="flex flex-col gap-1 text-sm border-b border-gray-50 pb-3">
+                      <div key={m.id} className="flex flex-col gap-1 text-sm border-b border-white/5 pb-3">
                         <div className="flex justify-between items-start">
                           <span className={`font-bold ${isPositive ? 'text-green-600' : 'text-red-600'}`}>
                             {isPositive ? '+' : ''}{m.grams_delta}g
@@ -826,11 +826,11 @@ export default function StockPage() {
       {/* History Modal for Products */}
       {historyProductModalOpen && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50">
-          <div className="bg-[#111] rounded-xl shadow-xl max-w-lg w-full max-h-[90vh] flex flex-col overflow-hidden">
+          <div className="bg-[#111] rounded-xl shadow-xl max-w-lg w-full max-h-[90vh] flex flex-col overflow-hidden border border-white/10">
             <div className="p-4 border-b border-white/5 flex justify-between items-center bg-[#0a0a0a]">
               <div>
                 <h3 className="text-lg font-bold text-white">Historial de Movimientos</h3>
-                <p className="text-xs text-gray-500">Últimos 10 cambios en este producto.</p>
+                <p className="text-xs text-gray-400">Últimos 10 cambios en este producto.</p>
               </div>
               <button onClick={() => setHistoryProductModalOpen(false)} className="text-gray-400 hover:text-gray-300">
                 <X size={20} />
@@ -840,13 +840,13 @@ export default function StockPage() {
               {historyProductLoading ? (
                 <div className="py-8 flex justify-center"><Loader2 className="animate-spin text-orange-500" /></div>
               ) : historyProductMovements.length === 0 ? (
-                <div className="text-center py-8 text-sm text-gray-500">No hay movimientos registrados.</div>
+                <div className="text-center py-8 text-sm text-gray-400">No hay movimientos registrados.</div>
               ) : (
                 <div className="space-y-3">
                   {historyProductMovements.map(m => {
                     const isPositive = m.quantity_delta > 0;
                     return (
-                      <div key={m.id} className="flex flex-col gap-1 text-sm border-b border-gray-50 pb-3">
+                      <div key={m.id} className="flex flex-col gap-1 text-sm border-b border-white/5 pb-3">
                         <div className="flex justify-between items-start">
                           <span className={`font-bold ${isPositive ? 'text-green-600' : 'text-red-600'}`}>
                             {isPositive ? '+' : ''}{m.quantity_delta} u.
@@ -872,7 +872,7 @@ export default function StockPage() {
       {/* Consume by Product Modal */}
       {consumeModalOpen && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4">
-          <div className="bg-[#111] w-full max-w-2xl rounded-2xl shadow-2xl overflow-hidden flex flex-col max-h-[90vh]">
+          <div className="bg-[#111] w-full max-w-2xl rounded-2xl shadow-2xl overflow-hidden flex flex-col max-h-[90vh] border border-white/10">
             <div className="flex items-center justify-between px-6 py-4 border-b border-white/5">
               <h3 className="font-bold text-white flex items-center gap-2">
                 <Package size={18} className="text-orange-500" /> Descontar por producto
@@ -890,7 +890,7 @@ export default function StockPage() {
                   <select 
                     value={consumeSelectedProductId} 
                     onChange={(e) => setConsumeSelectedProductId(e.target.value)} 
-                    className="flex-1 text-sm border-white/20 rounded-lg focus:border-orange-500 focus:ring-orange-500"
+                    className="flex-1 text-sm border-white/20 rounded-lg focus:border-orange-500 focus:ring-orange-500 bg-[#0a0a0a] text-white"
                   >
                     <option value="">Buscar producto o parte...</option>
                     {products.filter(p => p.is_active).map(p => {
@@ -927,7 +927,7 @@ export default function StockPage() {
                           {item.product?.image_url ? (
                             <img src={item.product.image_url} alt="" className="w-10 h-10 rounded-md object-cover border border-white/10 shrink-0" />
                           ) : (
-                            <div className="w-10 h-10 rounded-md bg-gray-200 flex items-center justify-center shrink-0 text-gray-500">
+                            <div className="w-10 h-10 rounded-md bg-gray-200 flex items-center justify-center shrink-0 text-gray-400">
                               {item.type === "component" ? "🧩" : "📦"}
                             </div>
                           )}
@@ -936,13 +936,13 @@ export default function StockPage() {
                               {item.type === "component" ? item.component?.name : item.product?.name}
                             </span>
                             {item.type === "component" && (
-                              <span className="text-[10px] text-gray-500 truncate">Parte de: {item.product?.name}</span>
+                              <span className="text-[10px] text-gray-400 truncate">Parte de: {item.product?.name}</span>
                             )}
                           </div>
                         </div>
                         <div className="flex items-center gap-3 shrink-0">
                           <div className="flex items-center">
-                            <span className="text-xs text-gray-500 mr-2">Cant:</span>
+                            <span className="text-xs text-gray-400 mr-2">Cant:</span>
                             <input 
                               type="number" 
                               min="1" 
@@ -951,7 +951,7 @@ export default function StockPage() {
                                 const q = parseInt(e.target.value) || 1;
                                 setConsumeCart(prev => prev.map((p, i) => i === idx ? { ...p, quantity: Math.max(1, q) } : p));
                               }}
-                              className="w-16 text-sm border-white/20 rounded focus:border-orange-500 focus:ring-orange-500 p-1"
+                              className="w-16 text-sm border-white/20 rounded focus:border-orange-500 focus:ring-orange-500 p-1 bg-[#0a0a0a] text-white"
                             />
                           </div>
                           <button onClick={() => setConsumeCart(prev => prev.filter((_, i) => i !== idx))} className="text-red-400 hover:text-red-600 p-1">
@@ -970,7 +970,7 @@ export default function StockPage() {
                   <h4 className="text-sm font-semibold text-white mb-3">Se descontará de tu stock:</h4>
                   <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                     {calculateConsumePreview().preview.map(p => (
-                      <div key={p.filament_id} className={`p-3 rounded-xl border ${p.needed > p.available ? 'bg-red-50 border-red-200' : 'bg-orange-50 border-orange-100'}`}>
+                      <div key={p.filament_id} className={`p-3 rounded-xl border ${p.needed > p.available ? 'bg-red-50 border border-red-500/20' : 'bg-orange-50 border-orange-100'}`}>
                         <p className="font-bold text-sm text-white truncate mb-1">
                           {p.filament?.name || 'Material desconocido'} {p.filament?.color ? `(${p.filament.color})` : ''}
                         </p>
@@ -1013,7 +1013,7 @@ export default function StockPage() {
                     <label htmlFor="consumeAddStock" className="block text-sm font-bold text-white cursor-pointer">
                       Sumar al stock de productos terminados
                     </label>
-                    <p className="text-xs text-gray-500 mt-1">
+                    <p className="text-xs text-gray-400 mt-1">
                       Si está activado, además de descontar el material, se sumará la cantidad ingresada al stock disponible del producto. Usalo cuando estás registrando productos que ya imprimiste.
                     </p>
                   </div>
