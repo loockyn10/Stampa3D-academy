@@ -73,7 +73,7 @@ export function FilamentsManager() {
   return (
     <div className="space-y-4">
       {error && (
-        <div className="bg-red-50 text-red-600 p-4 rounded-lg flex items-center gap-2 text-sm border border-red-100">
+        <div className="bg-red-500/10 text-red-400 p-4 rounded-lg flex items-center gap-2 text-sm border border-red-500/20">
           <AlertCircle className="h-4 w-4" /> {error}
         </div>
       )}
@@ -87,7 +87,7 @@ export function FilamentsManager() {
             });
             setEditingId("new");
           }}
-          className="flex items-center gap-1.5 bg-orange-500 hover:bg-orange-600 text-white px-3 py-1.5 rounded-lg text-sm font-medium transition-colors"
+          className="flex items-center gap-1.5 bg-orange-500/100 hover:bg-orange-600 text-white px-3 py-1.5 rounded-lg text-sm font-medium transition-colors"
         >
           <Plus size={16} /> Añadir Filamento
         </button>
@@ -102,7 +102,7 @@ export function FilamentsManager() {
           editingId === f.id ? (
             <FilamentEditor key={f.id} formData={formData} setFormData={setFormData} onSave={handleSave} onCancel={() => setEditingId(null)} />
           ) : (
-            <Card key={f.id} className="p-4 flex flex-col hover:border-orange-200 transition-colors">
+            <Card key={f.id} className="p-4 flex flex-col hover:border-orange-500/30 transition-colors">
               <div className="flex justify-between items-start mb-2">
                 <div className="flex items-center gap-2">
                   <div className="w-4 h-4 rounded-full border border-white/10" style={{ backgroundColor: f.color }}></div>
@@ -118,7 +118,7 @@ export function FilamentsManager() {
                 <p>Restante: <span className="font-medium text-gray-300">{f.remaining_grams}g / {f.total_grams}g</span></p>
               </div>
               <div className="flex items-center justify-between pt-3 border-t border-white/5">
-                <span className={`text-xs px-2 py-0.5 rounded-md font-medium ${f.is_active ? 'bg-green-100 text-green-700' : 'bg-white/5 text-gray-400'}`}>
+                <span className={`text-xs px-2 py-0.5 rounded-md font-medium ${f.is_active ? 'bg-green-500/20 text-green-400' : 'bg-[#111]/5 text-gray-400'}`}>
                   {f.is_active ? 'Activo' : 'Inactivo'}
                 </span>
               </div>
@@ -146,7 +146,7 @@ function FilamentEditor({ formData, setFormData, onSave, onCancel }: any) {
   };
 
   return (
-    <Card className="p-4 border-orange-200 shadow-md">
+    <Card className="p-4 border-orange-500/30 shadow-md">
       <div className="space-y-3">
         <div>
           <label className="block text-xs font-semibold text-gray-300 mb-1">Nombre</label>
@@ -185,8 +185,8 @@ function FilamentEditor({ formData, setFormData, onSave, onCancel }: any) {
         </div>
       </div>
       <div className="mt-4 flex gap-2 justify-end">
-        <button onClick={onCancel} className="px-3 py-1.5 text-xs font-bold text-gray-400 hover:bg-white/5 rounded-md transition-colors">Cancelar</button>
-        <button onClick={onSave} className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-bold bg-orange-500 hover:bg-orange-600 text-white rounded-md transition-colors"><Save size={14} /> Guardar</button>
+        <button onClick={onCancel} className="px-3 py-1.5 text-xs font-bold text-gray-400 hover:bg-[#111]/5 rounded-md transition-colors">Cancelar</button>
+        <button onClick={onSave} className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-bold bg-orange-500/100 hover:bg-orange-600 text-white rounded-md transition-colors"><Save size={14} /> Guardar</button>
       </div>
     </Card>
   );

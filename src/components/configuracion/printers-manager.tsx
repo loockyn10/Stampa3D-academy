@@ -113,7 +113,7 @@ export function PrintersManager() {
   return (
     <div className="space-y-4">
       {error && (
-        <div className="bg-red-50 text-red-600 p-4 rounded-lg flex items-center gap-2 text-sm border border-red-100">
+        <div className="bg-red-500/10 text-red-400 p-4 rounded-lg flex items-center gap-2 text-sm border border-red-500/20">
           <AlertCircle className="h-4 w-4" /> {error}
         </div>
       )}
@@ -123,7 +123,7 @@ export function PrintersManager() {
         <div className="flex gap-2">
           <button
             onClick={openCatalog}
-            className="flex items-center gap-1.5 bg-[#111] border border-orange-200 text-orange-600 hover:bg-orange-50 px-3 py-1.5 rounded-lg text-sm font-medium transition-colors"
+            className="flex items-center gap-1.5 bg-[#111] border border-orange-500/30 text-orange-600 hover:bg-orange-500/10 px-3 py-1.5 rounded-lg text-sm font-medium transition-colors"
           >
             Importar desde catálogo Stampa
           </button>
@@ -134,7 +134,7 @@ export function PrintersManager() {
               });
               setEditingId("new");
             }}
-            className="flex items-center gap-1.5 bg-orange-500 hover:bg-orange-600 text-white px-3 py-1.5 rounded-lg text-sm font-medium transition-colors"
+            className="flex items-center gap-1.5 bg-orange-500/100 hover:bg-orange-600 text-white px-3 py-1.5 rounded-lg text-sm font-medium transition-colors"
           >
             <Plus size={16} /> Añadir Impresora
           </button>
@@ -150,7 +150,7 @@ export function PrintersManager() {
           editingId === p.id ? (
             <PrinterEditor key={p.id} formData={formData} setFormData={setFormData} onSave={handleSave} onCancel={() => setEditingId(null)} />
           ) : (
-            <Card key={p.id} className="p-4 flex flex-col hover:border-orange-200 transition-colors">
+            <Card key={p.id} className="p-4 flex flex-col hover:border-orange-500/30 transition-colors">
               <div className="flex justify-between items-start mb-2">
                 <h4 className="font-bold text-white">{p.name}</h4>
                 <button onClick={() => { setFormData(p); setEditingId(p.id); }} className="text-gray-400 hover:text-orange-500 transition-colors">
@@ -162,7 +162,7 @@ export function PrintersManager() {
                 <p>Mantenimiento: <span className="font-medium text-gray-300">${p.maintenance_cost_per_hour}/h</span></p>
               </div>
               <div className="flex items-center justify-between pt-3 border-t border-white/5">
-                <span className={`text-xs px-2 py-0.5 rounded-md font-medium ${p.is_active ? 'bg-green-100 text-green-700' : 'bg-white/5 text-gray-400'}`}>
+                <span className={`text-xs px-2 py-0.5 rounded-md font-medium ${p.is_active ? 'bg-green-500/20 text-green-400' : 'bg-[#111]/5 text-gray-400'}`}>
                   {p.is_active ? 'Activa' : 'Inactiva'}
                 </span>
               </div>
@@ -213,7 +213,7 @@ export function PrintersManager() {
                     .map((t) => {
                       const alreadyAdded = printers.some(p => p.source_template_id === t.id);
                       return (
-                        <Card key={t.id} className="p-4 flex flex-col hover:border-orange-200 transition-colors bg-[#111]">
+                        <Card key={t.id} className="p-4 flex flex-col hover:border-orange-500/30 transition-colors bg-[#111]">
                           <div className="flex-1">
                             <h4 className="font-bold text-white text-sm">{t.name}</h4>
                             <p className="text-xs text-gray-500 mb-2">{t.brand} {t.model}</p>
@@ -227,8 +227,8 @@ export function PrintersManager() {
                             onClick={() => importTemplate(t)}
                             className={`w-full py-1.5 rounded-lg text-xs font-bold transition-colors ${
                               alreadyAdded 
-                                ? "bg-white/5 text-gray-400 cursor-not-allowed"
-                                : "bg-orange-100 text-orange-700 hover:bg-orange-200"
+                                ? "bg-[#111]/5 text-gray-400 cursor-not-allowed"
+                                : "bg-orange-500/20 text-orange-400 hover:bg-orange-200"
                             }`}
                           >
                             {alreadyAdded ? "Ya agregada" : "Agregar a mis impresoras"}
@@ -268,7 +268,7 @@ function PrinterEditor({ formData, setFormData, onSave, onCancel }: any) {
   };
 
   return (
-    <Card className="p-4 border-orange-200 shadow-md">
+    <Card className="p-4 border-orange-500/30 shadow-md">
       <div className="space-y-3">
         <div>
           <label className="block text-xs font-semibold text-gray-300 mb-1">Nombre Impresora</label>
@@ -290,8 +290,8 @@ function PrinterEditor({ formData, setFormData, onSave, onCancel }: any) {
         </div>
       </div>
       <div className="mt-4 flex gap-2 justify-end">
-        <button onClick={onCancel} className="px-3 py-1.5 text-xs font-bold text-gray-400 hover:bg-white/5 rounded-md transition-colors">Cancelar</button>
-        <button onClick={onSave} className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-bold bg-orange-500 hover:bg-orange-600 text-white rounded-md transition-colors"><Save size={14} /> Guardar</button>
+        <button onClick={onCancel} className="px-3 py-1.5 text-xs font-bold text-gray-400 hover:bg-[#111]/5 rounded-md transition-colors">Cancelar</button>
+        <button onClick={onSave} className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-bold bg-orange-500/100 hover:bg-orange-600 text-white rounded-md transition-colors"><Save size={14} /> Guardar</button>
       </div>
     </Card>
   );

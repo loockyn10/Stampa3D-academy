@@ -94,20 +94,20 @@ export function SettingsManager() {
   return (
     <div className="space-y-4 max-w-2xl">
       {error && (
-        <div className="bg-red-50 text-red-600 p-4 rounded-lg flex items-center gap-2 text-sm border border-red-100">
+        <div className="bg-red-500/10 text-red-400 p-4 rounded-lg flex items-center gap-2 text-sm border border-red-500/20">
           <AlertCircle className="h-4 w-4" /> {error}
         </div>
       )}
       
       {success && (
-        <div className="bg-green-50 text-green-700 p-4 rounded-lg text-sm border border-green-100">
+        <div className="bg-green-50 text-green-400 p-4 rounded-lg text-sm border border-green-100">
           {success}
         </div>
       )}
 
       <h3 className="text-lg font-semibold text-white mb-4">Ajustes Globales de Calculadora</h3>
 
-      <Card className="p-6 border-white/10 shadow-sm space-y-4">
+      <Card className="p-6 border-white/10 shadow-lg shadow-black/20 space-y-4">
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
           <div>
             <label className="block text-sm font-semibold text-gray-300 mb-1">Precio kWh de Electricidad ($)</label>
@@ -132,7 +132,7 @@ export function SettingsManager() {
         </div>
 
         <div className="mt-6 flex justify-end pt-4 border-t border-white/5">
-          <button onClick={handleSave} disabled={saving} className="flex items-center gap-1.5 px-4 py-2 text-sm font-bold bg-orange-500 hover:bg-orange-600 text-white rounded-md transition-colors disabled:opacity-50">
+          <button onClick={handleSave} disabled={saving} className="flex items-center gap-1.5 px-4 py-2 text-sm font-bold bg-orange-500/100 hover:bg-orange-600 text-white rounded-md transition-colors disabled:opacity-50">
             {saving ? <Loader2 size={16} className="animate-spin" /> : <Save size={16} />}
             Guardar Ajustes
           </button>

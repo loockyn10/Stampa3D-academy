@@ -71,7 +71,7 @@ export function ProductTypesManager() {
   return (
     <div className="space-y-4">
       {error && (
-        <div className="bg-red-50 text-red-600 p-4 rounded-lg flex items-center gap-2 text-sm border border-red-100">
+        <div className="bg-red-500/10 text-red-400 p-4 rounded-lg flex items-center gap-2 text-sm border border-red-500/20">
           <AlertCircle className="h-4 w-4" /> {error}
         </div>
       )}
@@ -85,7 +85,7 @@ export function ProductTypesManager() {
             });
             setEditingId("new");
           }}
-          className="flex items-center gap-1.5 bg-orange-500 hover:bg-orange-600 text-white px-3 py-1.5 rounded-lg text-sm font-medium transition-colors"
+          className="flex items-center gap-1.5 bg-orange-500/100 hover:bg-orange-600 text-white px-3 py-1.5 rounded-lg text-sm font-medium transition-colors"
         >
           <Plus size={16} /> Añadir Tipo
         </button>
@@ -100,7 +100,7 @@ export function ProductTypesManager() {
           editingId === t.id ? (
             <TypeEditor key={t.id} formData={formData} setFormData={setFormData} onSave={handleSave} onCancel={() => setEditingId(null)} />
           ) : (
-            <Card key={t.id} className="p-4 flex flex-col hover:border-orange-200 transition-colors">
+            <Card key={t.id} className="p-4 flex flex-col hover:border-orange-500/30 transition-colors">
               <div className="flex justify-between items-start mb-2">
                 <h4 className="font-bold text-white">{t.name}</h4>
                 <button onClick={() => { setFormData(t); setEditingId(t.id); }} className="text-gray-400 hover:text-orange-500 transition-colors">
@@ -112,7 +112,7 @@ export function ProductTypesManager() {
                 <p>Costo fijo: <span className="font-medium text-gray-300">${t.fixed_cost ?? 0}</span></p>
               </div>
               <div className="flex items-center justify-between pt-3 border-t border-white/5">
-                <span className={`text-xs px-2 py-0.5 rounded-md font-medium ${t.is_active ? 'bg-green-100 text-green-700' : 'bg-white/5 text-gray-400'}`}>
+                <span className={`text-xs px-2 py-0.5 rounded-md font-medium ${t.is_active ? 'bg-green-500/20 text-green-400' : 'bg-[#111]/5 text-gray-400'}`}>
                   {t.is_active ? 'Activo' : 'Inactivo'}
                 </span>
               </div>
@@ -140,7 +140,7 @@ function TypeEditor({ formData, setFormData, onSave, onCancel }: any) {
   };
 
   return (
-    <Card className="p-4 border-orange-200 shadow-md">
+    <Card className="p-4 border-orange-500/30 shadow-md">
       <div className="space-y-3">
         <div>
           <label className="block text-xs font-semibold text-gray-300 mb-1">Nombre (Tipo de Pieza)</label>
@@ -162,8 +162,8 @@ function TypeEditor({ formData, setFormData, onSave, onCancel }: any) {
         </div>
       </div>
       <div className="mt-4 flex gap-2 justify-end">
-        <button onClick={onCancel} className="px-3 py-1.5 text-xs font-bold text-gray-400 hover:bg-white/5 rounded-md transition-colors">Cancelar</button>
-        <button onClick={onSave} className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-bold bg-orange-500 hover:bg-orange-600 text-white rounded-md transition-colors"><Save size={14} /> Guardar</button>
+        <button onClick={onCancel} className="px-3 py-1.5 text-xs font-bold text-gray-400 hover:bg-[#111]/5 rounded-md transition-colors">Cancelar</button>
+        <button onClick={onSave} className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-bold bg-orange-500/100 hover:bg-orange-600 text-white rounded-md transition-colors"><Save size={14} /> Guardar</button>
       </div>
     </Card>
   );
