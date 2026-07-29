@@ -88,7 +88,7 @@ function ConfiguracionContent() {
         </nav>
       </div>
 
-      <div className="mt-6 space-y-8">
+      <div className="mt-6 space-y-8 animate-slide-up">
         
         {activeTab === "negocio" && <BusinessManager />}
         

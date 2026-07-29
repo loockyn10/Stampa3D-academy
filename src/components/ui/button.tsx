@@ -16,7 +16,7 @@ export function Button({ children, variant = "primary", className = "", href, ta
     ghost: "border-white/10 bg-white/5 text-gray-300 hover:bg-white/10 hover:text-white active:bg-white/20"
   };
 
-  const baseClass = `inline-flex items-center justify-center gap-2 rounded-xl border px-4 py-2.5 text-sm font-semibold transition-colors duration-150 outline-none focus:ring-2 focus:ring-[#ff6a00]/50 ${styles[variant]} ${className}`;
+  const baseClass = `inline-flex items-center justify-center gap-2 rounded-xl border px-4 py-2.5 text-sm font-semibold transition-all duration-150 outline-none focus:ring-2 focus:ring-[#ff6a00]/50 active:scale-[0.98] hover:scale-[1.01] ${styles[variant]} ${className}`;
 
   if (href) {
     return (

@@ -42,9 +42,9 @@ export function StampyManager({ setTab }: { setTab: (tab: any) => void }) {
   if (loading) return <div className="py-12 flex justify-center"><Loader2 className="animate-spin h-8 w-8 text-[#ff6a00]" /></div>;
 
   return (
-    <Card className="max-w-2xl p-6 space-y-6">
-      <div className="flex items-center gap-3 border-b border-white/5 pb-4">
-        <div className="p-2 bg-indigo-500/10 text-indigo-400 rounded-xl border border-indigo-500/20">
+    <Card className="max-w-2xl p-6 bg-[#111] border-white/10 space-y-6 animate-slide-up">
+      <div className="flex items-center gap-4 border-b border-white/5 pb-5">
+        <div className="p-3 bg-orange-500/10 text-orange-500 rounded-xl border border-orange-500/20 shadow-inner animate-soft-pulse">
           <Bot size={24} />
         </div>
         <div>

@@ -45,3 +45,74 @@ option {
   color: #ededed !important;
   background-color: #111111 !important;
 }
+
+
+/* SPRINT UX/UI 1K: Animaciones Globales Premium */
+@keyframes stampa-page-in {
+  from {
+    opacity: 0;
+    transform: translateY(8px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes stampa-slide-up {
+  from {
+    opacity: 0;
+    transform: translateY(12px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes stampa-soft-pulse {
+  0% { opacity: 1; }
+  50% { opacity: 0.6; }
+  100% { opacity: 1; }
+}
+
+.animate-page-in {
+  animation: stampa-page-in 250ms ease-out forwards;
+}
+
+.animate-slide-up {
+  animation: stampa-slide-up 300ms ease-out forwards;
+}
+
+.animate-soft-pulse {
+  animation: stampa-soft-pulse 2.5s ease-in-out infinite;
+}
+
+/* Interacción de Tarjetas (Cards) Premium */
+.stampa-card-interactive {
+  transition: transform 180ms ease-out, border-color 180ms ease-out, box-shadow 180ms ease-out;
+}
+
+@media (hover: hover) {
+  .stampa-card-interactive:hover {
+    transform: translateY(-2px);
+    border-color: rgba(255, 106, 0, 0.3) !important;
+    box-shadow: 0 4px 20px -5px rgba(255, 106, 0, 0.1) !important;
+  }
+}
+
+.stampa-card-interactive:active {
+  transform: translateY(0) scale(0.995);
+}
+
+/* Preferencias de accesibilidad (Reduced Motion) */
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
+}
