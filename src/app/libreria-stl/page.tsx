@@ -18,6 +18,7 @@ export default function LibreriaStlPage() {
 
   const [selectedCatId, setSelectedCatId] = useState<string | null>(null);
   const [query, setQuery] = useState("");
+  const [downloadingId, setDownloadingId] = useState<string | null>(null);
 
   useEffect(() => {
     fetchData();
@@ -171,30 +172,49 @@ export default function LibreriaStlPage() {
                 {(() => {
                   const activeVariant = f.variants?.find((v: any) => v.is_active && v.file_url);
                   if (activeVariant) {
+                    const isDownloading = downloadingId === activeVariant.id;
                     return (
                       <button 
+                        disabled={isDownloading}
                         onClick={async (e) => {
                           e.preventDefault();
-                          const { data: { user } } = await supabase.auth.getUser();
-                          if (user) {
-                            await supabase.from("stl_downloads").upsert({
-                              user_id: user.id,
-                              variant_id: activeVariant.id
-                            }, { onConflict: 'user_id, variant_id' });
-                          }
+                          setDownloadingId(activeVariant.id);
                           
                           try {
-                            const accessUrl = await getFileAccessUrl(supabase, activeVariant.file_url);
-                            if (accessUrl) {
-                              window.open(accessUrl, "_blank");
+                            const { data: { user } } = await supabase.auth.getUser();
+                            if (user) {
+                              // Registramos la descarga
+                              await supabase.from("stl_downloads").upsert({
+                                user_id: user.id,
+                                variant_id: activeVariant.id
+                              }, { onConflict: 'user_id, variant_id' });
+                            }
+                            
+                            // Llamamos a la API para obtener URL segura o externa
+                            const res = await fetch('/api/stl/download', {
+                              method: 'POST',
+                              headers: { 'Content-Type': 'application/json' },
+                              body: JSON.stringify({ variantId: activeVariant.id })
+                            });
+                            
+                            const data = await res.json();
+                            
+                            if (res.ok && data.url) {
+                              window.location.href = data.url;
+                            } else {
+                              alert(data.error || "Error al descargar el archivo");
                             }
                           } catch (e) {
-                            console.error("Error al abrir archivo STL:", e);
+                            console.error("Error al descargar STL:", e);
+                            alert("Ocurrió un error inesperado al intentar descargar.");
+                          } finally {
+                            setDownloadingId(null);
                           }
                         }}
-                        className="mt-auto flex w-full items-center justify-center gap-1.5 rounded-lg bg-gray-900 py-2.5 text-xs font-semibold text-white hover:bg-gray-800 transition-colors"
+                        className={`mt-auto flex w-full items-center justify-center gap-1.5 rounded-lg py-2.5 text-xs font-semibold text-white transition-colors ${isDownloading ? 'bg-gray-600 cursor-not-allowed' : 'bg-gray-900 hover:bg-gray-800'}`}
                       >
-                        <Download size={14} /> Descargar
+                        {isDownloading ? <Loader2 size={14} className="animate-spin" /> : <Download size={14} />}
+                        {isDownloading ? "Preparando..." : "Descargar"}
                       </button>
                     );
                   } else {
