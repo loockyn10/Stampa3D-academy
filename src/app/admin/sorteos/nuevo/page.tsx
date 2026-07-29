@@ -73,12 +73,12 @@ export default function NuevoSorteoPage() {
       </div>
 
       {error && (
-        <div className="bg-red-50 border border-red-100 p-4 rounded-lg flex items-center gap-2 text-sm text-red-600">
+        <div className="bg-red-500/10 border border-red-500/20 p-4 rounded-lg flex items-center gap-2 text-sm text-red-400">
           <AlertCircle size={16} /> {error}
         </div>
       )}
 
-      <Card className="p-6 border-orange-200">
+      <Card className="p-6 border-orange-500/30">
         <div className="grid grid-cols-1 md:grid-cols-2 gap-5 mb-6">
           <div className="md:col-span-2">
             <label className="block text-xs font-semibold text-gray-300 mb-1">Título del Sorteo</label>

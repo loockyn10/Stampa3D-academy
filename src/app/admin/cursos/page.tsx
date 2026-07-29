@@ -9,14 +9,14 @@ export default function AdminCursosPage() {
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
         <div>
           <div className="flex items-center gap-2 mb-2">
-            <Link href="/admin" className="text-sm font-medium text-blue-600 hover:text-blue-500">
+            <Link href="/admin" className="text-sm font-medium text-blue-400 hover:text-blue-500">
               Admin
             </Link>
             <span className="text-gray-400">/</span>
             <span className="text-sm text-gray-500">Cursos</span>
           </div>
           <h1 className="text-2xl font-bold text-white flex items-center gap-2">
-            <BookOpen className="text-blue-600" />
+            <BookOpen className="text-blue-400" />
             Gestión de Cursos
           </h1>
           <p className="text-sm text-gray-500 mt-1">

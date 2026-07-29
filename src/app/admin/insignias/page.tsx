@@ -122,7 +122,7 @@ export default function AdminInsigniasPage() {
       </div>
 
       {error && (
-        <div className="bg-red-50 border border-red-100 p-4 rounded-lg flex items-center gap-2 text-sm text-red-600">
+        <div className="bg-red-500/10 border border-red-500/20 p-4 rounded-lg flex items-center gap-2 text-sm text-red-400">
           <AlertCircle size={16} /> {error}
         </div>
       )}
@@ -232,7 +232,7 @@ export default function AdminInsigniasPage() {
                     </p>
                     <p className="text-[10px] text-gray-400 mt-1">{new Date(ub.awarded_at).toLocaleDateString()}</p>
                   </div>
-                  <button onClick={() => handleRemoveUserBadge(ub.id)} className="p-2 text-red-400 hover:text-red-600 hover:bg-red-50 rounded-lg" title="Quitar insignia">
+                  <button onClick={() => handleRemoveUserBadge(ub.id)} className="p-2 text-red-400 hover:text-red-400 hover:bg-red-500/10 rounded-lg" title="Quitar insignia">
                     <Trash2 size={16} />
                   </button>
                 </li>

@@ -154,13 +154,13 @@ export default function EditarSorteoPage({ params }: { params: Promise<{ id: str
       </div>
 
       {error && (
-        <div className="bg-red-50 border border-red-100 p-4 rounded-lg flex items-center gap-2 text-sm text-red-600">
+        <div className="bg-red-500/10 border border-red-500/20 p-4 rounded-lg flex items-center gap-2 text-sm text-red-400">
           <AlertCircle size={16} /> {error}
         </div>
       )}
 
       {/* RAFFLE DETAILS */}
-      <Card className="p-6 border-orange-200">
+      <Card className="p-6 border-orange-500/30">
         <h3 className="text-lg font-bold text-white mb-4 border-b border-white/5 pb-2">Información del Sorteo</h3>
         <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
           <div className="md:col-span-2">
@@ -231,14 +231,14 @@ export default function EditarSorteoPage({ params }: { params: Promise<{ id: str
                   {p.image_url ? (
                     <img src={p.image_url} alt="" className="w-10 h-10 object-cover rounded bg-[#0a0a0a] border border-white/10" />
                   ) : (
-                    <div className="w-10 h-10 rounded bg-orange-50 text-orange-500 flex items-center justify-center border border-orange-100"><Trophy size={16} /></div>
+                    <div className="w-10 h-10 rounded bg-orange-500/10 text-orange-500 flex items-center justify-center border border-orange-100"><Trophy size={16} /></div>
                   )}
                   <div>
                     <p className="text-sm font-bold text-white">{p.name}</p>
                     <p className="text-xs text-gray-500">Orden: {p.sort_order}</p>
                   </div>
                 </div>
-                <button onClick={() => handleDeletePrize(p.id)} className="p-2 text-red-400 hover:text-red-600 hover:bg-red-50 rounded-lg"><Trash2 size={16} /></button>
+                <button onClick={() => handleDeletePrize(p.id)} className="p-2 text-red-400 hover:text-red-400 hover:bg-red-500/10 rounded-lg"><Trash2 size={16} /></button>
               </li>
             ))}
           </ul>
@@ -248,7 +248,7 @@ export default function EditarSorteoPage({ params }: { params: Promise<{ id: str
         <Card className="p-6">
           <h3 className="text-lg font-bold text-white mb-4 border-b border-white/5 pb-2">Ganadores</h3>
           
-          <div className="bg-orange-50/50 p-4 rounded-xl border border-orange-100 mb-5 space-y-3">
+          <div className="bg-orange-500/10/50 p-4 rounded-xl border border-orange-100 mb-5 space-y-3">
             <div>
               <label className="block text-xs font-semibold text-gray-300 mb-1">Seleccionar Ganador (Usuario)</label>
               <select value={winnerForm.user_id} onChange={(e) => setWinnerForm({...winnerForm, user_id: e.target.value})} className="w-full text-sm border-white/20 rounded-md focus:border-orange-500 bg-[#111] text-white">
@@ -277,7 +277,7 @@ export default function EditarSorteoPage({ params }: { params: Promise<{ id: str
                   <p className="text-xs font-semibold text-orange-600">{w.prize_name_snapshot}</p>
                   <p className="text-[10px] text-gray-400 mt-1">{new Date(w.won_at).toLocaleString()}</p>
                 </div>
-                <button onClick={() => handleDeleteWinner(w.id)} className="p-2 text-red-400 hover:text-red-600 hover:bg-red-50 rounded-lg"><Trash2 size={16} /></button>
+                <button onClick={() => handleDeleteWinner(w.id)} className="p-2 text-red-400 hover:text-red-400 hover:bg-red-500/10 rounded-lg"><Trash2 size={16} /></button>
               </li>
             ))}
           </ul>

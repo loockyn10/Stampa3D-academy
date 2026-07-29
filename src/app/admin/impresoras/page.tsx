@@ -131,20 +131,20 @@ export default function AdminPrintersPage() {
         <button
           onClick={handleCreateNew}
           disabled={editingId !== null}
-          className="flex items-center gap-2 bg-orange-500 text-white px-4 py-2 rounded-lg text-sm font-semibold hover:bg-orange-600 disabled:opacity-50 transition-colors"
+          className="flex items-center gap-2 bg-orange-500/100 text-white px-4 py-2 rounded-lg text-sm font-semibold hover:bg-orange-600 disabled:opacity-50 transition-colors"
         >
           <Plus size={16} /> Nueva Plantilla
         </button>
       </div>
 
       {error && (
-        <div className="bg-red-50 border border-red-100 p-4 rounded-lg flex items-center gap-2 text-sm text-red-600">
+        <div className="bg-red-500/10 border border-red-500/20 p-4 rounded-lg flex items-center gap-2 text-sm text-red-400">
           <AlertCircle size={16} /> {error}
         </div>
       )}
 
       {editingId && (
-        <div className="bg-[#111] p-6 rounded-xl border border-orange-200 shadow-sm ring-1 ring-orange-100 mb-6">
+        <div className="bg-[#111] p-6 rounded-xl border border-orange-500/30 shadow-sm ring-1 ring-orange-100 mb-6">
           <div className="flex justify-between items-center mb-4">
             <h3 className="text-lg font-bold text-white">{editingId === "new" ? "Nueva Plantilla" : "Editar Plantilla"}</h3>
             <button onClick={() => setEditingId(null)} className="text-gray-400 hover:text-gray-300">
@@ -214,7 +214,7 @@ export default function AdminPrintersPage() {
             </div>
           </div>
           <div className="flex justify-end pt-4 border-t border-white/5">
-            <button onClick={handleSave} className="flex items-center gap-2 bg-orange-500 hover:bg-orange-600 text-white px-5 py-2.5 rounded-lg text-sm font-semibold transition-colors">
+            <button onClick={handleSave} className="flex items-center gap-2 bg-orange-500/100 hover:bg-orange-600 text-white px-5 py-2.5 rounded-lg text-sm font-semibold transition-colors">
               <Save size={16} /> Guardar
             </button>
           </div>
@@ -232,7 +232,7 @@ export default function AdminPrintersPage() {
                 <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">Acciones</th>
               </tr>
             </thead>
-            <tbody className="divide-y divide-gray-200">
+            <tbody className="divide-y divide-white/10">
               {templates.length === 0 ? (
                 <tr>
                   <td colSpan={4} className="px-6 py-8 text-center text-sm text-gray-500">
@@ -253,14 +253,14 @@ export default function AdminPrintersPage() {
                       )}
                     </td>
                     <td className="px-6 py-4">
-                      <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${t.is_active ? 'bg-green-100 text-green-800' : 'bg-white/5 text-gray-200'}`}>
+                      <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${t.is_active ? 'bg-green-500/100/20 text-green-400' : 'bg-[#111]/5 text-gray-200'}`}>
                         {t.is_active ? 'Activa' : 'Inactiva'}
                       </span>
                     </td>
                     <td className="px-6 py-4 text-right">
                       <button
                         onClick={() => handleEdit(t)}
-                        className="p-2 text-gray-400 hover:text-orange-500 hover:bg-orange-50 rounded-lg transition-colors"
+                        className="p-2 text-gray-400 hover:text-orange-500 hover:bg-orange-500/10 rounded-lg transition-colors"
                       >
                         <Edit2 size={16} />
                       </button>

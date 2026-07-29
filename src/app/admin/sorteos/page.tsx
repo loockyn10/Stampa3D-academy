@@ -73,7 +73,7 @@ export default function AdminSorteosPage() {
               <tr key={r.id} className="hover:bg-[#0a0a0a] transition-colors">
                 <td className="px-5 py-3.5 font-semibold text-white">
                   <div className="flex items-center gap-3">
-                    <div className="w-8 h-8 rounded bg-orange-50 flex items-center justify-center text-orange-500">
+                    <div className="w-8 h-8 rounded bg-orange-500/10 flex items-center justify-center text-orange-500">
                       <Gift size={16} />
                     </div>
                     {r.title}

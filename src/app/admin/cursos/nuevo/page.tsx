@@ -14,7 +14,7 @@ export default function AdminNuevoCursoPage() {
           <ArrowLeft size={14} /> Volver a cursos
         </Link>
         <h1 className="text-2xl font-bold text-white flex items-center gap-2">
-          <BookOpen className="text-blue-600" />
+          <BookOpen className="text-blue-400" />
           Crear Nuevo Curso
         </h1>
         <p className="text-sm text-gray-500 mt-1">

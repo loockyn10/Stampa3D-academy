@@ -16,7 +16,7 @@ export default function EditStlModelPage({ params }: EditModelPageProps) {
         <Link href="/admin/stl/modelos" className="inline-flex items-center gap-1.5 text-xs font-semibold text-gray-500 hover:text-gray-200 transition-colors">
           <ArrowLeft size={14} /> Volver a Modelos
         </Link>
-        <div className="bg-red-50 text-red-600 p-4 rounded-lg border border-red-100 text-sm">
+        <div className="bg-red-500/10 text-red-400 p-4 rounded-lg border border-red-500/20 text-sm">
           ID de modelo no válido o no especificado.
         </div>
       </div>

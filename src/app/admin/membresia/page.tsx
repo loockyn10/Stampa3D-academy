@@ -114,13 +114,13 @@ export default function AdminMembresiaPage() {
       <SectionTitle eyebrow="Administración" title="Precio de Membresía" />
 
       {error && (
-        <div className="bg-red-50 border border-red-100 p-4 rounded-lg flex items-center gap-2 text-sm text-red-600">
+        <div className="bg-red-500/10 border border-red-500/20 p-4 rounded-lg flex items-center gap-2 text-sm text-red-400">
           <AlertCircle size={16} /> {error}
         </div>
       )}
 
       {success && (
-        <div className="bg-green-50 border border-green-100 p-4 rounded-lg text-sm text-green-800 space-y-2">
+        <div className="bg-green-500/10 border border-green-100 p-4 rounded-lg text-sm text-green-400 space-y-2">
           <div className="flex items-center gap-2 font-bold">
             <CheckCircle2 size={18} className="text-green-600" /> Precio actualizado correctamente
           </div>
@@ -142,7 +142,7 @@ export default function AdminMembresiaPage() {
             <p className="text-sm text-gray-500">Configuración vigente de la membresía.</p>
           </div>
           
-          <div className="bg-orange-50 border border-orange-100 p-4 rounded-xl flex items-center justify-between">
+          <div className="bg-orange-500/10 border border-orange-100 p-4 rounded-xl flex items-center justify-between">
             <div>
               <p className="text-xs font-semibold text-orange-600 uppercase mb-1">Precio Mensual</p>
               <p className="text-3xl font-black text-white">
@@ -162,7 +162,7 @@ export default function AdminMembresiaPage() {
           )}
         </Card>
 
-        <Card className="p-6 space-y-6 border-orange-200">
+        <Card className="p-6 space-y-6 border-orange-500/30">
           <div>
             <h3 className="text-lg font-bold text-white">Actualizar Precio</h3>
             <p className="text-sm text-gray-500">Los nuevos usuarios pagarán este monto.</p>
@@ -192,7 +192,7 @@ export default function AdminMembresiaPage() {
               />
             </label>
 
-            <label className="flex items-start gap-3 p-3 bg-[#0a0a0a] border border-white/10 rounded-lg cursor-pointer hover:bg-white/5 transition-colors">
+            <label className="flex items-start gap-3 p-3 bg-[#0a0a0a] border border-white/10 rounded-lg cursor-pointer hover:bg-[#111]/5 transition-colors">
               <input
                 type="checkbox"
                 checked={applyToExisting}
@@ -242,9 +242,9 @@ export default function AdminMembresiaPage() {
                       <td className="px-4 py-3 font-semibold text-white">{formatPrice(h.new_price)}</td>
                       <td className="px-4 py-3">
                         {h.apply_to_existing ? (
-                          <span className="inline-flex items-center rounded-full bg-blue-50 px-2 py-1 text-xs font-medium text-blue-700">Sí</span>
+                          <span className="inline-flex items-center rounded-full bg-blue-500/10 px-2 py-1 text-xs font-medium text-blue-700">Sí</span>
                         ) : (
-                          <span className="inline-flex items-center rounded-full bg-white/5 px-2 py-1 text-xs font-medium text-gray-400">No</span>
+                          <span className="inline-flex items-center rounded-full bg-[#111]/5 px-2 py-1 text-xs font-medium text-gray-400">No</span>
                         )}
                       </td>
                       <td className="px-4 py-3">

@@ -21,7 +21,7 @@ export default function AdminCursoEditPage({ params }: PageProps) {
           <ArrowLeft size={14} /> Volver a cursos
         </Link>
         <h1 className="text-2xl font-bold text-white flex items-center gap-2">
-          <Edit className="text-blue-600" />
+          <Edit className="text-blue-400" />
           Editar Curso
         </h1>
       </div>
