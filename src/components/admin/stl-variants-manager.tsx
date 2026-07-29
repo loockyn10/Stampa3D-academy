@@ -175,6 +175,8 @@ function VariantFormEditor({ varForm, setVarForm, onSave, onCancel, modelId }: a
               bucket="stl-files"
               pathPrefix={`stl/${modelId}`}
               accept=".stl,.3mf,.zip,.obj,.step"
+              maxSizeMb={100}
+              helperText="Máximo 100 MB. Formatos permitidos: STL, 3MF o ZIP."
               onUploaded={(url) => setVarForm((prev: any) => ({ ...prev, file_url: url }))}
               label="Archivo descargable"
             />
@@ -194,6 +196,8 @@ function VariantFormEditor({ varForm, setVarForm, onSave, onCancel, modelId }: a
               pathPrefix={`stl-thumbnails/${modelId}`}
               accept=".jpg,.jpeg,.png,.webp,.svg"
               publicBucket={true}
+              maxSizeMb={5}
+              helperText="Máximo 5 MB."
               onUploaded={(url) => setVarForm((prev: any) => ({ ...prev, thumbnail_url: url }))}
               label="Subir Imagen"
             />
