@@ -1,9 +1,25 @@
 "use server";
 
 import { createClient } from "@/utils/supabase/server";
+export interface StampyContextPayload {
+  source: "lesson";
+  courseTitle?: string;
+  moduleTitle?: string;
+  lessonId?: string;
+  lessonTitle?: string;
+  lessonDescription?: string;
+  lessonSummary?: string;
+  lessonTopics?: string[];
+  lessonProblems?: string[];
+  lessonLevel?: string;
+  relatedTool?: string;
+  transcript?: string;
+}
+
 export async function askStampyAction(
   message: string,
-  conversation?: { role: "user" | "assistant"; content: string }[]
+  conversation?: { role: "user" | "assistant"; content: string }[],
+  context?: StampyContextPayload
 ) {
   const supabase = await createClient();
 
@@ -142,7 +158,33 @@ const relatedToolsList = Array.from(relatedToolsSet);
       const { OpenAI } = await import("openai");
       const openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
       
-      const systemPrompt = `Sos Stampy, el asistente inteligente de Academia Stampa.
+      let systemPrompt = `Sos Stampy, el asistente inteligente de Academia Stampa.
+
+`;
+      
+      if (context && context.source === 'lesson') {
+        systemPrompt += `ACTUALMENTE EL USUARIO ESTÁ VIENDO UNA CLASE.
+Contexto de la clase actual:
+Curso: ${context.courseTitle || ''}
+Módulo: ${context.moduleTitle || ''}
+Clase: ${context.lessonTitle || ''}
+Descripción: ${context.lessonDescription || ''}
+Resumen IA: ${context.lessonSummary || ''}
+Temas: ${context.lessonTopics?.join(', ') || ''}
+Problemas resueltos: ${context.lessonProblems?.join(', ') || ''}
+Nivel: ${context.lessonLevel || ''}
+Transcripción parcial: ${context.transcript ? context.transcript.substring(0, 12000) : 'No disponible'}
+
+Reglas para respuestas en clase:
+- Debes responder usando PRIMERO el contexto de la clase.
+- Si hay transcripción, úsala como referencia principal.
+- No digas "según el contexto provisto".
+- No inventes cosas que no estén en la clase.
+- Si el usuario pregunta algo fuera de la clase, respóndele y oriéntalo a la herramienta o curso correspondiente.
+- Mantén un tono claro, cercano y útil. No uses estructuras robóticas.\n\n`;
+      }
+      
+      systemPrompt += `Tu trabajo es escuchar al usuario, entender qué problema o situación tiene con impresión 3D, costos, ventas o gestión de taller, y guiarlo hacia la clase o herramienta correcta dentro de la plataforma.
 
 Tu trabajo es escuchar al usuario, entender qué problema o situación tiene con impresión 3D, costos, ventas o gestión de taller, y guiarlo hacia la clase o herramienta correcta dentro de la plataforma.
 

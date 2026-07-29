@@ -349,6 +349,7 @@ export function ModulesManager({ courseId }: { courseId: string }) {
                               <option value="sorteos">Sorteos</option>
                             </select>
                           </div>
+                          {/* Pendiente: agregar campo transcript a lessons para contexto completo de Stampy. */}
                         </div>
                         <div className="flex justify-end gap-2">
                           <button onClick={() => setEditingLessonId(null)} className="px-3 py-1.5 text-xs text-gray-400 hover:bg-white/5 rounded-lg">Cancelar</button>

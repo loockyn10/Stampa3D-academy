@@ -72,7 +72,7 @@ function getProductPricingStatus(product: any, allFilaments: any[], allPrinters:
       if (!reasons.includes("Configuración vinculada no encontrada")) reasons.push("Configuración vinculada no encontrada");
     } else {
       if (snap.product_type_multiplier && snap.product_type_multiplier !== currentPT.multiplier) {
-        reasons.push("Cambió el multiplicador del tipo de producto");
+        reasons.push("Cambió el markup del tipo de producto");
       }
       if (snap.product_type_fixed_cost !== undefined && snap.product_type_fixed_cost !== null && snap.product_type_fixed_cost !== currentPT.fixed_cost) {
         reasons.push("Cambió el costo fijo del tipo de producto");
@@ -1406,7 +1406,7 @@ export default function ProductosPage() {
                       <span>${recalcData.recommendedBaseCost.toFixed(2)}</span>
                     </div>
                     <div className="flex justify-between text-gray-500">
-                      <span>Multiplicador</span>
+                      <span>Markup</span>
                       <span>×{recalcData.breakdown.multiplier}</span>
                     </div>
                   </div>

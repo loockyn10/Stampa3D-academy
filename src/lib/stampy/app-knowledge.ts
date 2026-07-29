@@ -17,7 +17,7 @@ export const STAMPY_APP_KNOWLEDGE: StampyKnowledgeItem[] = [
     title: "Calculadora básica",
     category: "tool",
     route: "/calculadora",
-    shortDescription: "Sirve para estimar precios rápidamente usando multiplicadores simples y configuraciones predefinidas.",
+    shortDescription: "Sirve para estimar precios rápidamente usando markupes simples y configuraciones predefinidas.",
     whenToRecommend: [
       "cuando el usuario quiere sacar un precio rápido",
       "cuando necesita una estimación simple",
@@ -33,7 +33,7 @@ export const STAMPY_APP_KNOWLEDGE: StampyKnowledgeItem[] = [
       "usar modo avanzado si necesita más precisión"
     ],
     keywords: [
-      "calculadora", "calcular precio", "precio rápido", "estimar", "cuanto cobrar", "cobrar", "costo", "multiplicador", "básico"
+      "calculadora", "calcular precio", "precio rápido", "estimar", "cuanto cobrar", "cobrar", "costo", "markup", "básico"
     ],
     relatedTools: ["calculator-advanced", "products", "budgets"],
     priority: 90

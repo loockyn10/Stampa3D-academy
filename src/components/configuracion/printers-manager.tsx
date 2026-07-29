@@ -2,7 +2,7 @@
 
 import React, { useState, useEffect } from "react";
 import { createClient } from "@/utils/supabase/client";
-import { Plus, Edit2, Save, Loader2, AlertCircle } from "lucide-react";
+import { Plus, Edit2, Save, Loader2, AlertCircle, Trash2 } from "lucide-react";
 import { Card } from "@/components/ui/card";
 
 export function PrintersManager() {
@@ -68,6 +68,20 @@ export function PrintersManager() {
     }
     
     if (!error) setEditingId(null);
+  };
+
+  const handleDelete = async (printer: any) => {
+    if (!window.confirm(`¿Seguro que querés eliminar esta impresora? No aparecerá más en tus cálculos, pero los registros anteriores se conservarán.`)) {
+      return;
+    }
+
+    const { error } = await supabase.from("printers").update({ is_active: false }).eq("id", printer.id);
+    if (error) {
+      setError(error.message);
+    } else {
+      setPrinters(printers.map(p => p.id === printer.id ? { ...p, is_active: false } : p));
+      // Optional: you could fetchPrinters() again, but updating state is faster.
+    }
   };
 
   const openCatalog = async () => {
@@ -153,9 +167,14 @@ export function PrintersManager() {
             <Card key={p.id} className="p-4 flex flex-col hover:border-orange-500/30 transition-colors">
               <div className="flex justify-between items-start mb-2">
                 <h4 className="font-bold text-white">{p.name}</h4>
-                <button onClick={() => { setFormData(p); setEditingId(p.id); }} className="text-gray-400 hover:text-orange-500 transition-colors">
-                  <Edit2 size={16} />
-                </button>
+                <div className="flex gap-2">
+                  <button onClick={() => { setFormData(p); setEditingId(p.id); }} className="text-gray-400 hover:text-orange-500 transition-colors">
+                    <Edit2 size={16} />
+                  </button>
+                  <button onClick={() => handleDelete(p)} className="text-red-400 hover:text-red-300 hover:bg-red-500/10 p-1 rounded transition-colors" title="Eliminar impresora">
+                    <Trash2 size={16} />
+                  </button>
+                </div>
               </div>
               <div className="text-sm text-gray-500 space-y-1 mb-4 flex-1">
                 <p>Consumo: <span className="font-medium text-gray-300">{p.power_watts}W</span></p>

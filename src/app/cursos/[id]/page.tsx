@@ -8,6 +8,7 @@ import { Badge } from "@/components/ui/badge";
 import { ProgressBar } from "@/components/ui/progress-bar";
 import { createClient } from "@/utils/supabase/client";
 import { getFileAccessUrl } from "@/lib/storage";
+import { StampyLessonChat } from "@/components/stampy/StampyLessonChat";
 
 interface PageProps {
   params: Promise<{ id: string }>;
@@ -587,6 +588,13 @@ export default function CursoDetailPage({ params }: PageProps) {
 
         </div>
       </div>
+      {activeLesson && (
+        <StampyLessonChat 
+          courseTitle={course.title}
+          moduleTitle={modules.find(m => m.id === activeLesson.module_id)?.title || ''}
+          lesson={activeLesson}
+        />
+      )}
     </div>
   );
 }

@@ -77,7 +77,7 @@ export function ProductTypesManager() {
       )}
 
       <div className="flex justify-between items-center mb-4">
-        <h3 className="text-lg font-semibold text-white">Tipos de producto / multiplicadores</h3>
+        <h3 className="text-lg font-semibold text-white">Tipos de producto / markupes</h3>
         <button
           onClick={() => {
             setFormData({
@@ -108,7 +108,7 @@ export function ProductTypesManager() {
                 </button>
               </div>
               <div className="text-sm text-gray-500 space-y-1 mb-4 flex-1">
-                <p>Multiplicador: <span className="font-medium text-gray-300">x{t.multiplier}</span></p>
+                <p>Markup: <span className="font-medium text-gray-300">x{t.multiplier}</span></p>
                 <p>Costo fijo: <span className="font-medium text-gray-300">${t.fixed_cost ?? 0}</span></p>
               </div>
               <div className="flex items-center justify-between pt-3 border-t border-white/5">
@@ -148,7 +148,7 @@ function TypeEditor({ formData, setFormData, onSave, onCancel }: any) {
         </div>
         <div className="grid grid-cols-2 gap-2">
           <div>
-            <label className="block text-xs font-semibold text-gray-300 mb-1">Multiplicador</label>
+            <label className="block text-xs font-semibold text-gray-300 mb-1">Markup</label>
             <input type="number" step="0.1" name="multiplier" value={formData.multiplier} onChange={handleChange} className="w-full text-sm border-white/10 rounded-md text-neutral-100 bg-neutral-900 border focus:border-[#ff6a00] focus:ring-[#ff6a00]/20 focus:ring-2 placeholder:text-neutral-500 disabled:bg-neutral-800 disabled:text-neutral-500" />
           </div>
           <div>

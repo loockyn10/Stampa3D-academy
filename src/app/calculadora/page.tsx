@@ -472,7 +472,7 @@ export default function CalculadoraPage() {
                     <NumberField label="Mantenimiento de máquina por hora" value={manualPrinterMaintenance} onChange={setManualPrinterMaintenance} suffix="$" />
                     <NumberField label="Costo de mano de obra (total)" value={laborCost} onChange={setLaborCost} suffix="$" />
                     <NumberField label="Otros costos adicionales" value={otherCost} onChange={setOtherCost} suffix="$" />
-                    <NumberField label="Multiplicador manual (sobreescribe)" value={manualMultiplier} onChange={setManualMultiplier} suffix="x" step={0.1} />
+                    <NumberField label="Markup manual (sobreescribe)" value={manualMultiplier} onChange={setManualMultiplier} suffix="x" step={0.1} />
                   </div>
                 </div>
               </div>

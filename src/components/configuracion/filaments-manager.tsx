@@ -68,6 +68,19 @@ export function FilamentsManager() {
     if (!error) setEditingId(null);
   };
 
+  const handleDelete = async (filament: any) => {
+    if (!window.confirm(`¿Seguro que querés eliminar este filamento? No aparecerá más para nuevos cálculos, pero los movimientos y productos anteriores se conservarán.`)) {
+      return;
+    }
+
+    const { error } = await supabase.from("filaments").update({ is_active: false }).eq("id", filament.id);
+    if (error) {
+      setError(error.message);
+    } else {
+      setFilaments(filaments.map(f => f.id === filament.id ? { ...f, is_active: false } : f));
+    }
+  };
+
   if (loading) return <div className="py-8 flex justify-center"><Loader2 className="animate-spin text-orange-500" /></div>;
 
   return (
@@ -105,12 +118,17 @@ export function FilamentsManager() {
             <Card key={f.id} className="p-4 flex flex-col hover:border-orange-500/30 transition-colors">
               <div className="flex justify-between items-start mb-2">
                 <div className="flex items-center gap-2">
-                  <div className="w-4 h-4 rounded-full border border-white/10" style={{ backgroundColor: f.color }}></div>
+                  <div className="w-3 h-3 rounded-full border border-white/20" style={{ backgroundColor: f.color }} />
                   <h4 className="font-bold text-white">{f.name}</h4>
                 </div>
-                <button onClick={() => { setFormData(f); setEditingId(f.id); }} className="text-gray-400 hover:text-orange-500 transition-colors">
-                  <Edit2 size={16} />
-                </button>
+                <div className="flex gap-2">
+                  <button onClick={() => { setFormData(f); setEditingId(f.id); }} className="text-gray-400 hover:text-orange-500 transition-colors">
+                    <Edit2 size={16} />
+                  </button>
+                  <button onClick={() => handleDelete(f)} className="text-red-400 hover:text-red-300 hover:bg-red-500/10 p-1 rounded transition-colors" title="Eliminar filamento">
+                    <Trash2 size={16} />
+                  </button>
+                </div>
               </div>
               <div className="text-sm text-gray-500 space-y-1 mb-4 flex-1">
                 <p>Tipo: <span className="font-medium text-gray-300">{f.filament_type}</span></p>
