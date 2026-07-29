@@ -20,6 +20,8 @@ import {
   X,
   Shield,
   Sparkles,
+  Globe,
+  Users,
 } from "lucide-react";
 import { Youtube, Instagram } from "@/components/ui/icons";
 import { createClient } from "@/utils/supabase/client";
@@ -51,10 +53,8 @@ const NAV_GROUPS = [
   {
     group: "Comunidad",
     items: [
-      { path: "/telegram", label: "Telegram", icon: Send },
-      { path: "/whatsapp", label: "WhatsApp", icon: MessageCircle },
-      { path: "/youtube", label: "YouTube", icon: Youtube },
-      { path: "/instagram", label: "Instagram", icon: Instagram },
+      { path: "/redes", label: "Redes", icon: Globe },
+      { path: "/canales", label: "Canales", icon: Users },
     ],
   },
   {

@@ -32,7 +32,7 @@ const TOOL_MAP: Record<string, { label: string; href: string; icon: any }> = {
   "productos": { label: "Productos", href: "/productos", icon: Package },
   "libreria-stl": { label: "Librería STL", href: "/libreria-stl", icon: Boxes },
   "cursos": { label: "Cursos", href: "/cursos", icon: BookOpen },
-  "comunidad": { label: "Comunidad", href: "/telegram", icon: MessageCircle },
+  "comunidad": { label: "Comunidad", href: "/canales", icon: MessageCircle },
   "sorteos": { label: "Sorteos", href: "/sorteos", icon: Gift }
 };
 

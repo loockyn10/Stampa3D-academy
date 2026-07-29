@@ -26,6 +26,8 @@ const PAGE_TITLES: Record<string, string> = {
   "/whatsapp": "WhatsApp",
   "/youtube": "YouTube",
   "/instagram": "Instagram",
+  "/redes": "Redes",
+  "/canales": "Canales",
 };
 
 export function Header({ setMobileOpen }: HeaderProps) {
