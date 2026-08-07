@@ -4,7 +4,7 @@ import React, { useEffect, useState } from "react";
 import { createClient } from "@/utils/supabase/client";
 import { CourseCard } from "@/components/cards/course-card";
 import { Loader2, GraduationCap } from "lucide-react";
-import { ToolTutorial } from "@/components/tutorials/ToolTutorial";
+
 
 export default function CursosPage() {
   const [courses, setCourses] = useState<any[]>([]);
@@ -50,7 +50,7 @@ export default function CursosPage() {
             <span className="rounded-full bg-[#ff6a00]/10 text-[#ff6a00] text-xs font-bold px-3 py-1 uppercase tracking-wider border border-[#ff6a00]/20">
               Academia
             </span>
-            <ToolTutorial toolKey="courses" />
+
           </div>
           <h1 className="text-3xl font-bold text-white sm:text-4xl flex items-center gap-3">
             <GraduationCap size={36} className="text-[#ff6a00]" /> Cursos

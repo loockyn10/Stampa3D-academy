@@ -8,7 +8,7 @@ import { PrimaryButton, GhostButton } from "@/components/ui/button";
 import { SectionTitle } from "@/components/ui/section-title";
 import { createClient } from "@/utils/supabase/client";
 import { FileUploadDropzone } from "@/components/ui/file-upload-dropzone";
-import { ToolTutorial } from "@/components/tutorials/ToolTutorial";
+
 
 // Pricing Status Helper
 function getProductPricingStatus(product: any, allFilaments: any[], allPrinters: any[], allProductTypes: any[]) {
@@ -836,7 +836,7 @@ export default function ProductosPage() {
         title="Productos"
         action={
           <div className="flex items-center gap-3">
-            <ToolTutorial toolKey="products" />
+
             <PrimaryButton onClick={handleCreateNew} disabled={editingId !== null}>
               <Plus size={15} /> Nuevo producto
             </PrimaryButton>

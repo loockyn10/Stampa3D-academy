@@ -7,7 +7,7 @@ import { Badge } from "@/components/ui/badge";
 import { SectionTitle } from "@/components/ui/section-title";
 import { EmptyState } from "@/components/ui/empty-state";
 import { getFileAccessUrl } from "@/lib/storage";
-import { ToolTutorial } from "@/components/tutorials/ToolTutorial";
+
 import { createClient } from "@/utils/supabase/client";
 
 export default function LibreriaStlPage() {
@@ -101,7 +101,7 @@ export default function LibreriaStlPage() {
               <div className="inline-flex items-center gap-2 px-3 py-1 bg-orange-500/10 border border-orange-500/20 text-orange-400 text-[10px] font-bold uppercase tracking-wider rounded-full">
                 <span className="text-[10px]">✨</span> Recursos para miembros
               </div>
-              <ToolTutorial toolKey="stl_library" />
+
             </div>
             <h1 className="text-3xl md:text-4xl font-black text-white tracking-tight mb-2">
               Librería STL

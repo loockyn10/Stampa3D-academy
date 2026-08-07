@@ -10,7 +10,7 @@ import { SectionTitle } from "@/components/ui/section-title";
 import { Badge } from "@/components/ui/badge";
 import { EmptyState } from "@/components/ui/empty-state";
 import { createClient } from "@/utils/supabase/client";
-import { ToolTutorial } from "@/components/tutorials/ToolTutorial";
+
 
 export default function InicioPage() {
   const supabase = createClient();
@@ -197,7 +197,7 @@ export default function InicioPage() {
         <div className="relative z-10 max-w-2xl">
           <div className="flex items-center justify-between mb-2">
             <p className="text-sm font-semibold text-[#ff6a00] uppercase tracking-wider">Hola, {userFirstName}</p>
-            <ToolTutorial toolKey="dashboard" />
+
           </div>
           <h1 className="text-3xl font-bold text-white sm:text-4xl">¿Qué querés resolver hoy?</h1>
           <p className="mt-3 text-base text-gray-400">

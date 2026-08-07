@@ -11,7 +11,7 @@ import { Badge } from "@/components/ui/badge";
 import { createClient } from "@/utils/supabase/client";
 import { pdf } from "@react-pdf/renderer";
 import BudgetPDFDocument from "@/components/presupuestos/budget-pdf-document";
-import { ToolTutorial } from "@/components/tutorials/ToolTutorial";
+
 
 const STATUS_MAP: Record<string, { label: string, color: "gray" | "dark" | "green" | "orange" }> = {
   draft: { label: "Borrador", color: "gray" },
@@ -489,7 +489,7 @@ export default function PresupuestosPage() {
                 <span className="rounded-full bg-[#ff6a00]/10 text-[#ff6a00] text-xs font-bold px-3 py-1 uppercase tracking-wider border border-[#ff6a00]/20">
                   Herramienta de venta
                 </span>
-                <ToolTutorial toolKey="budgets" />
+
               </div>
               <h1 className="text-3xl font-bold text-white sm:text-4xl flex items-center gap-3">
                 <Briefcase size={32} className="text-[#ff6a00]" /> Presupuestos

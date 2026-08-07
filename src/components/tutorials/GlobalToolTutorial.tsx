@@ -1,0 +1,278 @@
+"use client";
+
+import React, { useState, useEffect } from "react";
+import { usePathname } from "next/navigation";
+import { HelpCircle, X, AlertCircle } from "lucide-react";
+import { createClient } from "@/utils/supabase/client";
+import { ToolTutorial as ToolTutorialType, isPendingTutorialUrl, isBunnyEmbedUrl, getYoutubeEmbedUrl } from "@/types/tutorials";
+
+const routeToolMap = [
+  { match: "/", toolKey: "dashboard", exact: true },
+  { match: "/stampy", toolKey: "stampy" },
+  { match: "/cursos", toolKey: "courses" },
+  { match: "/calculadora", toolKey: "calculator" },
+  { match: "/presupuestos", toolKey: "budgets" },
+  { match: "/productos", toolKey: "products" },
+  { match: "/stock", toolKey: "stock" },
+  { match: "/libreria-stl", toolKey: "stl_library" },
+  { match: "/sorteos", toolKey: "raffles" },
+  { match: "/configuracion", toolKey: "settings" }
+];
+
+export function GlobalToolTutorial() {
+  const pathname = usePathname();
+  const supabase = createClient();
+  
+  const [toolKey, setToolKey] = useState<string | null>(null);
+  const [tutorial, setTutorial] = useState<ToolTutorialType | null>(null);
+  const [showModal, setShowModal] = useState(false);
+  const [userId, setUserId] = useState<string | null>(null);
+  const [isDismissed, setIsDismissed] = useState(false);
+  const [hasAutoOpened, setHasAutoOpened] = useState(false);
+  const [isDev] = useState(process.env.NODE_ENV === "development");
+
+  // Determine toolKey based on route
+  useEffect(() => {
+    if (!pathname) return;
+
+    if (
+      pathname.startsWith("/landing") ||
+      pathname.startsWith("/login") ||
+      pathname.startsWith("/registro") ||
+      pathname.startsWith("/sin-acceso") ||
+      pathname.startsWith("/admin")
+    ) {
+      setToolKey(null);
+      return;
+    }
+
+    let detectedKey: string | null = null;
+    for (const route of routeToolMap) {
+      if (route.exact) {
+        if (pathname === route.match) {
+          detectedKey = route.toolKey;
+          break;
+        }
+      } else {
+        if (pathname === route.match || pathname.startsWith(`${route.match}/`)) {
+          detectedKey = route.toolKey;
+          break;
+        }
+      }
+    }
+    
+    setToolKey(detectedKey);
+  }, [pathname]);
+
+  // Fetch tutorial data when toolKey changes
+  useEffect(() => {
+    let mounted = true;
+
+    async function fetchTutorial() {
+      if (!toolKey) {
+        setTutorial(null);
+        return;
+      }
+
+      try {
+        const { data: { user } } = await supabase.auth.getUser();
+        if (!user) {
+          if (isDev) console.warn(`[GlobalToolTutorial] No user found for toolKey: ${toolKey}`);
+          if (mounted) setTutorial(null);
+          return;
+        }
+        
+        if (mounted) setUserId(user.id);
+
+        const { data: tutData, error: tutError } = await supabase
+          .from("tool_tutorials")
+          .select("id, tool_key, title, description, video_url, is_active")
+          .eq("tool_key", toolKey)
+          .eq("is_active", true)
+          .maybeSingle();
+
+        if (tutError && isDev) console.warn(`[GlobalToolTutorial] Error fetching tool_tutorials:`, tutError);
+
+        if (tutData && mounted) {
+          setTutorial(tutData as ToolTutorialType);
+
+          const { data: viewData, error: viewError } = await supabase
+            .from("user_tool_tutorial_views")
+            .select("id, user_id, tool_key, viewed_at, dismissed_at")
+            .eq("user_id", user.id)
+            .eq("tool_key", toolKey)
+            .maybeSingle();
+
+          if (viewError && isDev) console.warn(`[GlobalToolTutorial] Error fetching view data:`, viewError);
+
+          if (viewData && viewData.dismissed_at) {
+            setIsDismissed(true);
+          } else {
+            if (!hasAutoOpened) {
+              setShowModal(true);
+              setHasAutoOpened(true);
+            }
+          }
+        } else if (mounted) {
+          setTutorial(null);
+        }
+      } catch (err) {
+        if (isDev) console.warn(`[GlobalToolTutorial] Unexpected error:`, err);
+      }
+    }
+
+    // Reset state for new route/toolKey
+    setHasAutoOpened(false);
+    setIsDismissed(false);
+    fetchTutorial();
+
+    return () => {
+      mounted = false;
+    };
+  }, [toolKey, supabase, isDev]);
+
+  const handleClose = async () => {
+    setShowModal(false);
+    
+    if (!isDismissed && userId && toolKey) {
+      try {
+        const payload = {
+          user_id: userId,
+          tool_key: toolKey,
+          viewed_at: new Date().toISOString(),
+          dismissed_at: new Date().toISOString(),
+        };
+        
+        const { error } = await supabase
+          .from("user_tool_tutorial_views")
+          .upsert([payload], { onConflict: "user_id,tool_key" });
+          
+        if (!error) {
+          setIsDismissed(true);
+        } else {
+          if (isDev) console.warn("[GlobalToolTutorial] Error upserting view state:", error);
+        }
+      } catch (e) {
+        if (isDev) console.warn("[GlobalToolTutorial] Unexpected error saving view state:", e);
+      }
+    }
+  };
+
+  const handleOpenManual = () => {
+    setShowModal(true);
+  };
+
+  if (!toolKey) return null;
+
+  // Debug states (only visible in dev)
+  if (!tutorial) {
+    if (isDev) {
+      return (
+        <div className="fixed bottom-6 right-6 z-50 pointer-events-none opacity-50">
+          <div className="px-3 py-1.5 bg-red-900/50 border border-red-500/50 text-red-200 text-xs rounded-full shadow-lg backdrop-blur-md">
+            Sin tutorial: {toolKey}
+          </div>
+        </div>
+      );
+    }
+    return null;
+  }
+
+  const youtubeEmbedUrl = getYoutubeEmbedUrl(tutorial.video_url);
+
+  return (
+    <>
+      {/* Floating Button */}
+      <div className="fixed bottom-4 right-4 md:bottom-6 md:right-6 z-[90]">
+        <button
+          onClick={handleOpenManual}
+          title="Ver tutorial"
+          className="flex items-center gap-2 px-4 py-2.5 bg-neutral-900/80 hover:bg-neutral-800 border border-white/10 hover:border-[#ff6a00]/50 text-white rounded-full shadow-xl backdrop-blur-md transition-all hover:scale-105 active:scale-95"
+        >
+          <HelpCircle size={18} className="text-[#ff6a00]" />
+          <span className="font-semibold text-sm">? Tutorial</span>
+        </button>
+      </div>
+
+      {/* Modal */}
+      {showModal && (
+        <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/70 backdrop-blur-sm p-4 animate-in fade-in duration-200">
+          <div className="bg-neutral-950 w-full max-w-3xl rounded-2xl border border-white/10 shadow-2xl overflow-hidden flex flex-col max-h-[90vh]">
+            
+            {/* Header */}
+            <div className="flex items-center justify-between px-6 py-4 border-b border-white/10">
+              <h3 className="font-bold text-white flex items-center gap-2">
+                <HelpCircle size={18} className="text-[#ff6a00]" /> 
+                {tutorial.title || "Tutorial de la herramienta"}
+              </h3>
+              <button 
+                onClick={handleClose} 
+                className="text-gray-400 hover:text-white transition-colors bg-white/5 hover:bg-white/10 p-2 rounded-full"
+              >
+                <X size={20} />
+              </button>
+            </div>
+
+            {/* Content body */}
+            <div className="p-6 overflow-y-auto space-y-4">
+              {tutorial.description && (
+                <p className="text-gray-300 text-sm">
+                  {tutorial.description}
+                </p>
+              )}
+
+              <div className="rounded-xl overflow-hidden bg-black/50 border border-white/5 aspect-video w-full flex items-center justify-center relative shadow-inner">
+                {isPendingTutorialUrl(tutorial.video_url) || !tutorial.video_url ? (
+                  <div className="flex flex-col items-center justify-center p-8 text-center">
+                    <AlertCircle size={40} className="text-[#ff6a00]/60 mb-3 animate-pulse" />
+                    <h4 className="text-white font-bold text-lg mb-1">Tutorial pendiente de cargar</h4>
+                    <p className="text-gray-400 text-sm max-w-sm">
+                      Cuando el video esté disponible, vas a poder verlo acá.
+                    </p>
+                  </div>
+                ) : youtubeEmbedUrl ? (
+                  <iframe 
+                    src={youtubeEmbedUrl}
+                    loading="lazy"
+                    className="absolute top-0 left-0 w-full h-full border-0"
+                    allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share"
+                    allowFullScreen
+                  />
+                ) : isBunnyEmbedUrl(tutorial.video_url) ? (
+                  <iframe 
+                    src={tutorial.video_url}
+                    loading="lazy"
+                    className="absolute top-0 left-0 w-full h-full border-0"
+                    allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share"
+                    allowFullScreen
+                  />
+                ) : (
+                  <div className="flex flex-col items-center justify-center p-8 text-center">
+                    <a 
+                      href={tutorial.video_url} 
+                      target="_blank" 
+                      rel="noopener noreferrer"
+                      className="inline-flex items-center gap-2 px-6 py-3 bg-[#ff6a00] hover:bg-[#ff7a1a] text-white font-bold rounded-xl transition-colors shadow-lg shadow-orange-500/20"
+                    >
+                      Ver video externo
+                    </a>
+                  </div>
+                )}
+              </div>
+            </div>
+
+            {/* Footer */}
+            <div className="p-4 border-t border-white/10 flex justify-end">
+              <button
+                onClick={handleClose}
+                className="px-6 py-2.5 bg-white/10 hover:bg-white/20 text-white text-sm font-bold rounded-xl transition-colors"
+              >
+                Entendido
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+    </>
+  );
+}

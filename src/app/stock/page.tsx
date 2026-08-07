@@ -8,7 +8,7 @@ import { Badge } from "@/components/ui/badge";
 import { PrimaryButton } from "@/components/ui/button";
 import { SectionTitle } from "@/components/ui/section-title";
 import { EmptyState } from "@/components/ui/empty-state";
-import { ToolTutorial } from "@/components/tutorials/ToolTutorial";
+
 import { createClient } from "@/utils/supabase/client";
 
 export default function StockPage() {
@@ -438,7 +438,7 @@ export default function StockPage() {
         title="Stock"
         action={
           <div className="flex items-center gap-3">
-            <ToolTutorial toolKey="stock" />
+
             <Link href={tab === "productos" ? "/productos" : "/configuracion"}>
               <PrimaryButton>
                 <Plus size={15} /> {tab === "productos" ? "Nuevo Producto" : "Nuevo Filamento"}
