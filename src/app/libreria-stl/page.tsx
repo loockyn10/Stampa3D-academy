@@ -6,8 +6,9 @@ import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { SectionTitle } from "@/components/ui/section-title";
 import { EmptyState } from "@/components/ui/empty-state";
-import { createClient } from "@/utils/supabase/client";
 import { getFileAccessUrl } from "@/lib/storage";
+import { ToolTutorial } from "@/components/tutorials/ToolTutorial";
+import { createClient } from "@/utils/supabase/client";
 
 export default function LibreriaStlPage() {
   const supabase = createClient();
@@ -96,8 +97,11 @@ export default function LibreriaStlPage() {
         <div className="absolute top-0 right-0 w-64 h-64 bg-orange-500/5 rounded-full blur-3xl pointer-events-none -translate-y-1/2 translate-x-1/2"></div>
         <div className="relative z-10 flex flex-col md:flex-row md:items-end justify-between gap-6">
           <div className="max-w-xl">
-            <div className="inline-flex items-center gap-2 px-3 py-1 bg-orange-500/10 border border-orange-500/20 text-orange-400 text-[10px] font-bold uppercase tracking-wider rounded-full mb-4">
-              <span className="text-[10px]">✨</span> Recursos para miembros
+            <div className="flex items-center gap-2 mb-4 justify-between">
+              <div className="inline-flex items-center gap-2 px-3 py-1 bg-orange-500/10 border border-orange-500/20 text-orange-400 text-[10px] font-bold uppercase tracking-wider rounded-full">
+                <span className="text-[10px]">✨</span> Recursos para miembros
+              </div>
+              <ToolTutorial toolKey="stl_library" />
             </div>
             <h1 className="text-3xl md:text-4xl font-black text-white tracking-tight mb-2">
               Librería STL

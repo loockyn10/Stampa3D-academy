@@ -5,6 +5,7 @@ import { Sparkles, Send, Bot, User, Calculator, Archive, Package, Boxes, BookOpe
 import { askStampyAction } from "./actions";
 import Link from "next/link";
 import { Badge } from "@/components/ui/badge";
+import { ToolTutorial } from "@/components/tutorials/ToolTutorial";
 
 interface Message {
   id: string;
@@ -102,11 +103,14 @@ export default function StampyPage() {
           <div className="p-2 bg-orange-100 text-orange-600 rounded-xl">
             <Sparkles size={24} />
           </div>
-          <div>
-            <h1 className="text-2xl font-bold text-white flex items-center gap-3">
-              Stampy
-              <span className="inline-flex items-center gap-1 rounded-full border px-2.5 py-1 text-xs font-semibold bg-purple-50 text-purple-700 border-purple-200">Asistente de la academia</span>
-            </h1>
+          <div className="flex-1">
+            <div className="flex items-center justify-between w-full">
+              <h1 className="text-2xl font-bold text-white flex items-center gap-3">
+                Stampy
+                <span className="inline-flex items-center gap-1 rounded-full border px-2.5 py-1 text-xs font-semibold bg-purple-50 text-purple-700 border-purple-200">Asistente de la academia</span>
+              </h1>
+              <ToolTutorial toolKey="stampy" />
+            </div>
             <p className="text-xs md:text-sm text-gray-500 mt-1">Contale qué problema tenés y te guía hacia la clase o herramienta correcta.</p>
           </div>
         </div>

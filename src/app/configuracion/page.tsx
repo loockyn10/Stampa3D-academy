@@ -4,6 +4,7 @@ import React, { useState, useEffect, Suspense } from "react";
 import { useSearchParams, useRouter } from "next/navigation";
 import { Building2, Wrench, Calculator, Bot, Loader2 } from "lucide-react";
 import { SectionTitle } from "@/components/ui/section-title";
+import { ToolTutorial } from "@/components/tutorials/ToolTutorial";
 
 import { BusinessManager } from "@/components/configuracion/business-manager";
 import { PrintersManager } from "@/components/configuracion/printers-manager";
@@ -33,7 +34,11 @@ function ConfiguracionContent() {
 
   return (
     <div className="pb-12">
-      <SectionTitle eyebrow="Sistema" title="Configuración" />
+      <SectionTitle 
+        eyebrow="Sistema" 
+        title="Configuración" 
+        action={<ToolTutorial toolKey="settings" />} 
+      />
       <p className="text-gray-400 text-sm -mt-3 mb-6">Configurá tu cuenta, tu negocio y los valores que usa tu taller.</p>
 
       <div className="mb-8 border-b border-white/10">

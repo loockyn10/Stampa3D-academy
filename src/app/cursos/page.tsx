@@ -4,6 +4,7 @@ import React, { useEffect, useState } from "react";
 import { createClient } from "@/utils/supabase/client";
 import { CourseCard } from "@/components/cards/course-card";
 import { Loader2, GraduationCap } from "lucide-react";
+import { ToolTutorial } from "@/components/tutorials/ToolTutorial";
 
 export default function CursosPage() {
   const [courses, setCourses] = useState<any[]>([]);
@@ -45,10 +46,11 @@ export default function CursosPage() {
       <div className="relative overflow-hidden rounded-3xl bg-[#111] border border-white/10 p-8 sm:p-10 shadow-2xl">
         <div className="absolute inset-0 bg-gradient-to-br from-[#ff6a00]/10 to-transparent pointer-events-none" />
         <div className="relative z-10 max-w-3xl">
-          <div className="flex items-center gap-2 mb-3">
+          <div className="flex items-center gap-2 mb-3 justify-between">
             <span className="rounded-full bg-[#ff6a00]/10 text-[#ff6a00] text-xs font-bold px-3 py-1 uppercase tracking-wider border border-[#ff6a00]/20">
               Academia
             </span>
+            <ToolTutorial toolKey="courses" />
           </div>
           <h1 className="text-3xl font-bold text-white sm:text-4xl flex items-center gap-3">
             <GraduationCap size={36} className="text-[#ff6a00]" /> Cursos

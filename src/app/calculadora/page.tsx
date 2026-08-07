@@ -8,6 +8,7 @@ import { GhostButton } from "@/components/ui/button";
 import { SectionTitle } from "@/components/ui/section-title";
 import { createClient } from "@/utils/supabase/client";
 import { FileUploadDropzone } from "@/components/ui/file-upload-dropzone";
+import { ToolTutorial } from "@/components/tutorials/ToolTutorial";
 
 interface NumberFieldProps {
   label: string;
@@ -298,10 +299,11 @@ export default function CalculadoraPage() {
       <div className="relative overflow-hidden rounded-3xl bg-[#111] border border-white/10 p-8 sm:p-10 shadow-2xl">
         <div className="absolute inset-0 bg-gradient-to-br from-[#ff6a00]/10 to-transparent pointer-events-none" />
         <div className="relative z-10 max-w-3xl">
-          <div className="flex items-center gap-2 mb-3">
+          <div className="flex items-center gap-2 mb-3 justify-between">
             <span className="rounded-full bg-[#ff6a00]/10 text-[#ff6a00] text-xs font-bold px-3 py-1 uppercase tracking-wider border border-[#ff6a00]/20">
               Herramienta de taller
             </span>
+            <ToolTutorial toolKey="calculator" />
           </div>
           <h1 className="text-3xl font-bold text-white sm:text-4xl flex items-center gap-3">
             <Calculator size={32} className="text-[#ff6a00]" /> Calculadora de precios

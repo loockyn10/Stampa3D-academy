@@ -6,6 +6,7 @@ import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { SectionTitle } from "@/components/ui/section-title";
 import { createClient } from "@/utils/supabase/client";
+import { ToolTutorial } from "@/components/tutorials/ToolTutorial";
 
 export default function SorteosPage() {
   const supabase = createClient();
@@ -78,8 +79,11 @@ export default function SorteosPage() {
       <div className="bg-[#111] border border-white/10 rounded-2xl p-6 sm:p-8 flex flex-col relative overflow-hidden">
         <div className="absolute top-0 right-0 w-64 h-64 bg-orange-500/10 rounded-full blur-3xl pointer-events-none -translate-y-1/2 translate-x-1/2"></div>
         <div className="relative z-10 max-w-2xl">
-          <div className="inline-flex items-center gap-2 px-3 py-1 bg-orange-500/10 border border-orange-500/20 text-orange-400 text-[10px] font-bold uppercase tracking-wider rounded-full mb-4">
-            <span className="text-[10px]">⭐</span> Beneficio para miembros
+          <div className="flex items-center gap-2 mb-4 justify-between">
+            <div className="inline-flex items-center gap-2 px-3 py-1 bg-orange-500/10 border border-orange-500/20 text-orange-400 text-[10px] font-bold uppercase tracking-wider rounded-full">
+              <span className="text-[10px]">⭐</span> Beneficio para miembros
+            </div>
+            <ToolTutorial toolKey="raffles" />
           </div>
           <h1 className="text-3xl md:text-4xl font-black text-white tracking-tight mb-2">
             Sorteos

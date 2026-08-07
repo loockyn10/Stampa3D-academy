@@ -10,6 +10,7 @@ import { SectionTitle } from "@/components/ui/section-title";
 import { Badge } from "@/components/ui/badge";
 import { EmptyState } from "@/components/ui/empty-state";
 import { createClient } from "@/utils/supabase/client";
+import { ToolTutorial } from "@/components/tutorials/ToolTutorial";
 
 export default function InicioPage() {
   const supabase = createClient();
@@ -194,7 +195,10 @@ export default function InicioPage() {
       <div className="relative overflow-hidden rounded-3xl bg-[#111] border border-white/10 p-8 sm:p-10 shadow-2xl">
         <div className="absolute inset-0 bg-gradient-to-br from-[#ff6a00]/10 to-transparent pointer-events-none" />
         <div className="relative z-10 max-w-2xl">
-          <p className="text-sm font-semibold text-[#ff6a00] uppercase tracking-wider mb-2">Hola, {userFirstName}</p>
+          <div className="flex items-center justify-between mb-2">
+            <p className="text-sm font-semibold text-[#ff6a00] uppercase tracking-wider">Hola, {userFirstName}</p>
+            <ToolTutorial toolKey="dashboard" />
+          </div>
           <h1 className="text-3xl font-bold text-white sm:text-4xl">¿Qué querés resolver hoy?</h1>
           <p className="mt-3 text-base text-gray-400">
             Seguí aprendiendo, organizá tu taller y encontrá rápido lo que necesitás.
