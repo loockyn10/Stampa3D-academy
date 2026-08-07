@@ -11,6 +11,7 @@ export default function OnboardingPage() {
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
+  const [showFallback, setShowFallback] = useState(false);
 
   // Form states
   const [fullName, setFullName] = useState("");
@@ -36,7 +37,7 @@ export default function OnboardingPage() {
         .single();
 
       if (profile?.onboarding_completed) {
-        router.push("/");
+        router.replace("/");
         return;
       }
 
@@ -85,7 +86,11 @@ export default function OnboardingPage() {
 
       if (error) throw error;
       
-      router.push("/");
+      // Start fallback timer in case navigation hangs
+      setTimeout(() => setShowFallback(true), 3000);
+
+      router.replace("/");
+      router.refresh();
     } catch (err: any) {
       setErrorMsg("No pudimos guardar tu onboarding. Probá de nuevo.");
       setSaving(false);
@@ -110,6 +115,21 @@ export default function OnboardingPage() {
       <div className="min-h-screen flex flex-col items-center justify-center bg-[#050505]">
         <Loader2 className="animate-spin text-[#ff6a00] h-12 w-12 mb-4" />
         <p className="text-white font-medium">Preparando tu experiencia...</p>
+        
+        {showFallback && (
+          <div className="mt-8 flex flex-col items-center animate-in fade-in">
+            <p className="text-gray-400 text-sm mb-3">Si no redirige automáticamente...</p>
+            <button
+              onClick={() => {
+                router.replace("/");
+                router.refresh();
+              }}
+              className="px-6 py-2 bg-white/10 hover:bg-white/20 text-white rounded-xl font-medium transition-colors"
+            >
+              Entrar al inicio
+            </button>
+          </div>
+        )}
       </div>
     );
   }
