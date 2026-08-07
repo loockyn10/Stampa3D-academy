@@ -119,10 +119,10 @@ export function getRecommendedCourseOrder(profile: UserProfile | null, courses: 
   }
 
   // Add experience chip
-  if (profile?.experience_level === "beginner") addChip("Principiante");
-  if (profile?.experience_level === "basic") addChip("Básico");
-  if (profile?.experience_level === "intermediate") addChip("Intermedio");
-  if (profile?.experience_level === "advanced") addChip("Avanzado");
+  if (profile?.experience_level === "beginner") addChip("Estoy empezando");
+  if (profile?.experience_level === "basic") addChip("Ya hice algunas impresiones");
+  if (profile?.experience_level === "intermediate") addChip("Ya imprimo seguido");
+  if (profile?.experience_level === "advanced") addChip("Ya vendo y quiero optimizar mi taller");
 
   // Scoring courses
   const scoredCourses = courses.map((course) => {
@@ -230,10 +230,10 @@ export function formatPrinterBrandLabel(value: string | null | undefined): strin
 export function formatExperienceLevelLabel(value: string | null | undefined): string {
   if (!value) return "Cualquier nivel";
   const levels: Record<string, string> = {
-    beginner: "Principiante",
-    basic: "Básico",
-    intermediate: "Intermedio",
-    advanced: "Avanzado"
+    beginner: "Estoy empezando",
+    basic: "Ya hice algunas impresiones",
+    intermediate: "Ya imprimo seguido",
+    advanced: "Ya vendo y quiero optimizar mi taller"
   };
   return levels[value] || value;
 }

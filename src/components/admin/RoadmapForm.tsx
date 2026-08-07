@@ -217,10 +217,10 @@ export function RoadmapForm({ initialData = null }: { initialData?: any }) {
               className="w-full bg-[#1a1a1a] border border-white/10 rounded-xl px-4 py-2.5 text-white focus:border-pink-500 focus:ring-1 focus:ring-pink-500 outline-none transition-all"
             >
               <option value="">Cualquier nivel</option>
-              <option value="beginner">Principiante</option>
-              <option value="basic">Básico</option>
-              <option value="intermediate">Intermedio</option>
-              <option value="advanced">Avanzado</option>
+              <option value="beginner">Estoy empezando</option>
+              <option value="basic">Ya hice algunas impresiones</option>
+              <option value="intermediate">Ya imprimo seguido</option>
+              <option value="advanced">Ya vendo y quiero optimizar mi taller</option>
             </select>
           </div>
 
