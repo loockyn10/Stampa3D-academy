@@ -29,9 +29,6 @@ export function GlobalToolTutorial() {
   const [userId, setUserId] = useState<string | null>(null);
   const [isDismissed, setIsDismissed] = useState(false);
   const [hasAutoOpened, setHasAutoOpened] = useState(false);
-  const [loading, setLoading] = useState(true);
-  const [viewExists, setViewExists] = useState(false);
-  const [debugError, setDebugError] = useState<string | null>(null);
   const [isDev] = useState(process.env.NODE_ENV === "development");
 
   // Determine toolKey based on route
@@ -72,22 +69,15 @@ export function GlobalToolTutorial() {
     let mounted = true;
 
     async function fetchTutorial() {
-      setLoading(true);
       if (!toolKey) {
-        if (mounted) {
-          setTutorial(null);
-          setLoading(false);
-        }
+        if (mounted) setTutorial(null);
         return;
       }
 
       try {
         const { data: { user } } = await supabase.auth.getUser();
         if (!user) {
-          if (mounted) {
-            setTutorial(null);
-            setLoading(false);
-          }
+          if (mounted) setTutorial(null);
           return;
         }
         
@@ -100,8 +90,8 @@ export function GlobalToolTutorial() {
           .eq("is_active", true)
           .maybeSingle();
 
-        if (tutError) {
-          setDebugError(tutError.message);
+        if (tutError && isDev) {
+          console.warn("[GlobalToolTutorial] Error fetching tool_tutorials:", tutError);
         }
 
         if (tutData && mounted) {
@@ -114,14 +104,8 @@ export function GlobalToolTutorial() {
             .eq("tool_key", toolKey)
             .maybeSingle();
 
-          if (viewError) {
-            setDebugError(viewError.message);
-          }
-
-          if (viewData) {
-            setViewExists(true);
-          } else {
-            setViewExists(false);
+          if (viewError && isDev) {
+            console.warn("[GlobalToolTutorial] Error fetching view data:", viewError);
           }
 
           if (viewData && viewData.dismissed_at) {
@@ -136,23 +120,21 @@ export function GlobalToolTutorial() {
           setTutorial(null);
         }
       } catch (err: any) {
-        if (mounted) setDebugError(err.message || String(err));
-      } finally {
-        if (mounted) setLoading(false);
+        if (isDev) {
+          console.warn("[GlobalToolTutorial] Unexpected error:", err);
+        }
       }
     }
 
     // Reset state for new route/toolKey
     setHasAutoOpened(false);
     setIsDismissed(false);
-    setDebugError(null);
-    setViewExists(false);
     fetchTutorial();
 
     return () => {
       mounted = false;
     };
-  }, [toolKey, supabase]);
+  }, [toolKey, supabase, isDev]);
 
   const handleClose = async () => {
     setShowModal(false);
@@ -173,10 +155,10 @@ export function GlobalToolTutorial() {
         if (!error) {
           setIsDismissed(true);
         } else {
-          setDebugError(error.message);
+          if (isDev) console.warn("[GlobalToolTutorial] Error upserting view state:", error);
         }
       } catch (e: any) {
-        setDebugError(e.message || String(e));
+        if (isDev) console.warn("[GlobalToolTutorial] Unexpected error saving view state:", e);
       }
     }
   };
@@ -185,55 +167,28 @@ export function GlobalToolTutorial() {
     setShowModal(true);
   };
 
-  const youtubeEmbedUrl = tutorial ? getYoutubeEmbedUrl(tutorial.video_url) : null;
+  if (!toolKey || !tutorial) {
+    return null;
+  }
+
+  const youtubeEmbedUrl = getYoutubeEmbedUrl(tutorial.video_url);
 
   return (
     <>
-      {/* 
-        DEBUG PANEL FIJO:
-        Debe renderizar siempre antes de cualquier return null para diagnosticar.
-      */}
-      <div className="fixed bottom-4 left-4 z-[999999] max-w-sm rounded-xl border border-red-500 bg-black p-3 text-xs text-white">
-        <div className="font-bold text-red-500 mb-1">DEBUG TUTORIAL</div>
-        <div>pathname: {pathname}</div>
-        <div>toolKey: {toolKey ?? "null"}</div>
-        <div>loading: {String(loading)}</div>
-        <div>user: {userId ?? "sin usuario"}</div>
-        <div>tutorial: {tutorial?.title ?? "sin tutorial"}</div>
-        <div>view: {viewExists ? "sí" : "no"}</div>
-        <div>error: {debugError ?? "sin error"}</div>
+      {/* Floating Button */}
+      <div className="fixed bottom-4 right-4 md:bottom-6 md:right-6 z-[90]">
+        <button
+          onClick={handleOpenManual}
+          title="Ver tutorial"
+          className="flex items-center gap-2 px-4 py-2.5 bg-neutral-900/80 hover:bg-neutral-800 border border-white/10 hover:border-[#ff6a00]/40 text-neutral-100 rounded-full shadow-lg backdrop-blur-md transition-all hover:scale-105 active:scale-95"
+        >
+          <HelpCircle size={18} className="text-[#ff6a00]" />
+          <span className="font-semibold text-sm">? Tutorial</span>
+        </button>
       </div>
 
-      {!toolKey && null}
-
-      {/* Button for Debug when toolKey exists but no tutorial */}
-      {toolKey && !tutorial && (
-        <div className="fixed bottom-4 right-4 md:bottom-6 md:right-6 z-[90]">
-          <button
-            disabled
-            className="flex items-center gap-2 px-4 py-2.5 bg-neutral-900/80 border border-red-500/50 text-red-200 rounded-full shadow-xl backdrop-blur-md opacity-50 cursor-not-allowed"
-          >
-            <span className="font-semibold text-sm">Sin tutorial: {toolKey}</span>
-          </button>
-        </div>
-      )}
-
-      {/* Floating Button */}
-      {toolKey && tutorial && (
-        <div className="fixed bottom-4 right-4 md:bottom-6 md:right-6 z-[90]">
-          <button
-            onClick={handleOpenManual}
-            title="Ver tutorial"
-            className="flex items-center gap-2 px-4 py-2.5 bg-neutral-900/80 hover:bg-neutral-800 border border-white/10 hover:border-[#ff6a00]/50 text-white rounded-full shadow-xl backdrop-blur-md transition-all hover:scale-105 active:scale-95"
-          >
-            <HelpCircle size={18} className="text-[#ff6a00]" />
-            <span className="font-semibold text-sm">? Tutorial</span>
-          </button>
-        </div>
-      )}
-
       {/* Modal */}
-      {toolKey && tutorial && showModal && (
+      {showModal && (
         <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/70 backdrop-blur-sm p-4 animate-in fade-in duration-200">
           <div className="bg-neutral-950 w-full max-w-3xl rounded-2xl border border-white/10 shadow-2xl overflow-hidden flex flex-col max-h-[90vh]">
             

@@ -34,21 +34,6 @@ export function MainLayout({ children }: { children: React.ReactNode }) {
           {children}
         </main>
       </div>
-      <div
-        style={{
-          position: "fixed",
-          right: 24,
-          bottom: 96,
-          zIndex: 999999,
-          background: "red",
-          color: "white",
-          padding: "12px 16px",
-          borderRadius: "999px",
-          fontWeight: 700,
-        }}
-      >
-        MAIN LAYOUT ACTIVO
-      </div>
       <GlobalToolTutorial />
     </div>
   );
