@@ -211,3 +211,111 @@ export function getRecommendedCourseOrder(profile: UserProfile | null, courses: 
     chips
   };
 }
+
+export function formatPrinterBrandLabel(value: string | null | undefined): string {
+  if (!value) return "Cualquier marca";
+  const brands: Record<string, string> = {
+    bambu_lab: "Bambu Lab",
+    creality: "Creality",
+    flashforge: "Flashforge",
+    elegoo: "Elegoo",
+    prusa: "Prusa",
+    anycubic: "Anycubic",
+    other: "Otra marca",
+    none_yet: "Sin impresora"
+  };
+  return brands[value] || value;
+}
+
+export function formatExperienceLevelLabel(value: string | null | undefined): string {
+  if (!value) return "Cualquier nivel";
+  const levels: Record<string, string> = {
+    beginner: "Principiante",
+    basic: "Básico",
+    intermediate: "Intermedio",
+    advanced: "Avanzado"
+  };
+  return levels[value] || value;
+}
+
+export function formatMainGoalLabel(value: string | null | undefined): string {
+  if (!value) return "Cualquier objetivo";
+  const goals: Record<string, string> = {
+    first_print: "Primera impresión",
+    learn_slicer: "Aprender slicer",
+    improve_quality: "Mejorar calidad",
+    sell_products: "Vender productos",
+    manage_business: "Organizar taller",
+    all: "Un poco de todo"
+  };
+  return goals[value] || value;
+}
+
+export function getLearningPathScore(profile: UserProfile | null, path: any): number {
+  if (!profile) return path.is_default ? 0 : -1;
+
+  let score = 0;
+  
+  // Printer Brand (+4)
+  if (path.printer_brand) {
+    if (path.printer_brand === profile.main_printer_brand) {
+      score += 4;
+    } else {
+      return -1; // Mismatch
+    }
+  }
+
+  // Experience Level (+3)
+  if (path.experience_level) {
+    if (path.experience_level === profile.experience_level) {
+      score += 3;
+    } else {
+      return -1; // Mismatch
+    }
+  }
+
+  // Main Goal (+3)
+  if (path.main_goal) {
+    if (path.main_goal === profile.main_goal) {
+      score += 3;
+    } else {
+      return -1; // Mismatch
+    }
+  }
+
+  return score;
+}
+
+export function findBestLearningPath(profile: UserProfile | null, learningPaths: any[]): any | null {
+  if (!learningPaths || learningPaths.length === 0) return null;
+
+  let bestPath = null;
+  let highestScore = -1;
+  let defaultPath = null;
+
+  for (const path of learningPaths) {
+    if (!path.is_active) continue;
+    
+    if (path.is_default && !defaultPath) {
+      defaultPath = path;
+    }
+
+    const score = getLearningPathScore(profile, path);
+    if (score > highestScore) {
+      highestScore = score;
+      bestPath = path;
+    }
+  }
+
+  // If no specific match, use default path if exists
+  if (highestScore === -1 && defaultPath) {
+    return defaultPath;
+  }
+
+  // If match was found (even score 0 where everything was null but it wasn't default)
+  if (highestScore > -1) {
+    return bestPath;
+  }
+
+  return null;
+}

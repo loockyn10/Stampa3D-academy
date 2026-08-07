@@ -1,6 +1,6 @@
 import React from 'react'
 import Link from 'next/link'
-import { Users, Settings, ShieldAlert, GraduationCap, Boxes, Gift, Trophy, MonitorSmartphone, DollarSign } from 'lucide-react'
+import { Users, Settings, ShieldAlert, GraduationCap, Boxes, Gift, Trophy, MonitorSmartphone, DollarSign, Map } from 'lucide-react'
 import { SectionTitle } from "@/components/ui/section-title";
 
 export default function AdminDashboardPage() {
@@ -128,6 +128,20 @@ export default function AdminDashboardPage() {
             </div>
             <p className="text-sm text-gray-400 font-medium relative z-10">
               Configurá precios y forzá actualizaciones de suscripciones.
+            </p>
+          </div>
+        </Link>
+        <Link href="/admin/roadmaps" className="block group">
+          <div className="bg-[#111] p-6 rounded-2xl border border-white/10 shadow-lg shadow-black/20 hover:border-orange-500/30 transition-all h-full relative overflow-hidden">
+            <div className="absolute top-0 right-0 w-24 h-24 bg-pink-500/5 rounded-full blur-2xl group-hover:bg-pink-500/10 transition-colors -translate-y-1/2 translate-x-1/2"></div>
+            <div className="flex items-center gap-4 mb-4 relative z-10">
+              <div className="p-3 bg-[#0a0a0a] border border-white/5 text-pink-500 rounded-xl shadow-inner">
+                <Map size={24} />
+              </div>
+              <h2 className="text-lg font-bold text-white group-hover:text-pink-400 transition-colors">Roadmaps</h2>
+            </div>
+            <p className="text-sm text-gray-400 font-medium relative z-10">
+              Configurá rutas recomendadas según impresora, nivel y objetivo.
             </p>
           </div>
         </Link>
