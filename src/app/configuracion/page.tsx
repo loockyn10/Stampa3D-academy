@@ -12,17 +12,19 @@ import { FilamentsManager } from "@/components/configuracion/filaments-manager";
 import { SettingsManager } from "@/components/configuracion/settings-manager";
 import { ProductTypesManager } from "@/components/configuracion/product-types-manager";
 import { StampyManager } from "@/components/configuracion/stampy-manager";
+import { AccountManager } from "@/components/configuracion/account-manager";
+import { User } from "lucide-react";
 
-type Tab = "negocio" | "taller" | "calculadora" | "stampy";
+type Tab = "cuenta" | "negocio" | "taller" | "calculadora" | "stampy";
 
 function ConfiguracionContent() {
   const searchParams = useSearchParams();
   const router = useRouter();
-  const [activeTab, setActiveTab] = useState<Tab>("negocio");
+  const [activeTab, setActiveTab] = useState<Tab>("cuenta");
 
   useEffect(() => {
     const t = searchParams.get("tab") as Tab;
-    if (t && ["negocio", "taller", "calculadora", "stampy"].includes(t)) {
+    if (t && ["cuenta", "negocio", "taller", "calculadora", "stampy"].includes(t)) {
       setActiveTab(t);
     }
   }, [searchParams]);
@@ -42,6 +44,18 @@ function ConfiguracionContent() {
 
       <div className="mb-8 border-b border-white/10">
         <nav className="-mb-px flex space-x-8 overflow-x-auto" aria-label="Tabs">
+          <button
+            onClick={() => handleTabChange("cuenta")}
+            className={`whitespace-nowrap flex items-center gap-2 border-b-2 py-4 px-1 text-sm font-medium transition-colors ${
+              activeTab === "cuenta"
+                ? "border-[#ff6a00] text-[#ff6a00]"
+                : "border-transparent text-gray-500 hover:border-white/20 hover:text-gray-300"
+            }`}
+          >
+            <User size={18} />
+            Cuenta
+          </button>
+
           <button
             onClick={() => handleTabChange("negocio")}
             className={`whitespace-nowrap flex items-center gap-2 border-b-2 py-4 px-1 text-sm font-medium transition-colors ${
@@ -94,6 +108,8 @@ function ConfiguracionContent() {
 
       <div className="mt-6 space-y-8 animate-slide-up">
         
+        {activeTab === "cuenta" && <AccountManager />}
+
         {activeTab === "negocio" && <BusinessManager />}
         
         {activeTab === "taller" && (

@@ -72,7 +72,7 @@ export async function updateSession(request: NextRequest) {
   if (user) {
     const { data: profile } = await supabase
       .from('profiles')
-      .select('membership_status, role, membership_expires_at')
+      .select('membership_status, role, membership_expires_at, onboarding_completed')
       .eq('id', user.id)
       .single()
 
@@ -106,6 +106,13 @@ export async function updateSession(request: NextRequest) {
     if ((pathname === '/login' || pathname === '/registro') && user) {
         const dest = hasAccess ? '/' : '/sin-acceso'
         return redirectWithCookies(dest)
+    }
+
+    // Onboarding redirection rule
+    const onboardingCompleted = profile?.onboarding_completed === true;
+    const isExceptionRoute = pathname === '/onboarding' || pathname === '/salir' || pathname === '/pago/estado' || pathname === '/sin-acceso' || isPublicRoute;
+    if (!onboardingCompleted && !isExceptionRoute) {
+      return redirectWithCookies('/onboarding')
     }
   }
 
