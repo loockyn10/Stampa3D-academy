@@ -29,6 +29,9 @@ export function GlobalToolTutorial() {
   const [userId, setUserId] = useState<string | null>(null);
   const [isDismissed, setIsDismissed] = useState(false);
   const [hasAutoOpened, setHasAutoOpened] = useState(false);
+  const [loading, setLoading] = useState(true);
+  const [viewExists, setViewExists] = useState(false);
+  const [debugError, setDebugError] = useState<string | null>(null);
   const [isDev] = useState(process.env.NODE_ENV === "development");
 
   // Determine toolKey based on route
@@ -69,16 +72,22 @@ export function GlobalToolTutorial() {
     let mounted = true;
 
     async function fetchTutorial() {
+      setLoading(true);
       if (!toolKey) {
-        setTutorial(null);
+        if (mounted) {
+          setTutorial(null);
+          setLoading(false);
+        }
         return;
       }
 
       try {
         const { data: { user } } = await supabase.auth.getUser();
         if (!user) {
-          if (isDev) console.warn(`[GlobalToolTutorial] No user found for toolKey: ${toolKey}`);
-          if (mounted) setTutorial(null);
+          if (mounted) {
+            setTutorial(null);
+            setLoading(false);
+          }
           return;
         }
         
@@ -91,7 +100,9 @@ export function GlobalToolTutorial() {
           .eq("is_active", true)
           .maybeSingle();
 
-        if (tutError && isDev) console.warn(`[GlobalToolTutorial] Error fetching tool_tutorials:`, tutError);
+        if (tutError) {
+          setDebugError(tutError.message);
+        }
 
         if (tutData && mounted) {
           setTutorial(tutData as ToolTutorialType);
@@ -103,7 +114,15 @@ export function GlobalToolTutorial() {
             .eq("tool_key", toolKey)
             .maybeSingle();
 
-          if (viewError && isDev) console.warn(`[GlobalToolTutorial] Error fetching view data:`, viewError);
+          if (viewError) {
+            setDebugError(viewError.message);
+          }
+
+          if (viewData) {
+            setViewExists(true);
+          } else {
+            setViewExists(false);
+          }
 
           if (viewData && viewData.dismissed_at) {
             setIsDismissed(true);
@@ -116,20 +135,24 @@ export function GlobalToolTutorial() {
         } else if (mounted) {
           setTutorial(null);
         }
-      } catch (err) {
-        if (isDev) console.warn(`[GlobalToolTutorial] Unexpected error:`, err);
+      } catch (err: any) {
+        if (mounted) setDebugError(err.message || String(err));
+      } finally {
+        if (mounted) setLoading(false);
       }
     }
 
     // Reset state for new route/toolKey
     setHasAutoOpened(false);
     setIsDismissed(false);
+    setDebugError(null);
+    setViewExists(false);
     fetchTutorial();
 
     return () => {
       mounted = false;
     };
-  }, [toolKey, supabase, isDev]);
+  }, [toolKey, supabase]);
 
   const handleClose = async () => {
     setShowModal(false);
@@ -150,10 +173,10 @@ export function GlobalToolTutorial() {
         if (!error) {
           setIsDismissed(true);
         } else {
-          if (isDev) console.warn("[GlobalToolTutorial] Error upserting view state:", error);
+          setDebugError(error.message);
         }
-      } catch (e) {
-        if (isDev) console.warn("[GlobalToolTutorial] Unexpected error saving view state:", e);
+      } catch (e: any) {
+        setDebugError(e.message || String(e));
       }
     }
   };
@@ -162,40 +185,55 @@ export function GlobalToolTutorial() {
     setShowModal(true);
   };
 
-  if (!toolKey) return null;
-
-  // Debug states (only visible in dev)
-  if (!tutorial) {
-    if (isDev) {
-      return (
-        <div className="fixed bottom-6 right-6 z-50 pointer-events-none opacity-50">
-          <div className="px-3 py-1.5 bg-red-900/50 border border-red-500/50 text-red-200 text-xs rounded-full shadow-lg backdrop-blur-md">
-            Sin tutorial: {toolKey}
-          </div>
-        </div>
-      );
-    }
-    return null;
-  }
-
-  const youtubeEmbedUrl = getYoutubeEmbedUrl(tutorial.video_url);
+  const youtubeEmbedUrl = tutorial ? getYoutubeEmbedUrl(tutorial.video_url) : null;
 
   return (
     <>
-      {/* Floating Button */}
-      <div className="fixed bottom-4 right-4 md:bottom-6 md:right-6 z-[90]">
-        <button
-          onClick={handleOpenManual}
-          title="Ver tutorial"
-          className="flex items-center gap-2 px-4 py-2.5 bg-neutral-900/80 hover:bg-neutral-800 border border-white/10 hover:border-[#ff6a00]/50 text-white rounded-full shadow-xl backdrop-blur-md transition-all hover:scale-105 active:scale-95"
-        >
-          <HelpCircle size={18} className="text-[#ff6a00]" />
-          <span className="font-semibold text-sm">? Tutorial</span>
-        </button>
+      {/* 
+        DEBUG PANEL FIJO:
+        Debe renderizar siempre antes de cualquier return null para diagnosticar.
+      */}
+      <div className="fixed bottom-4 left-4 z-[999999] max-w-sm rounded-xl border border-red-500 bg-black p-3 text-xs text-white">
+        <div className="font-bold text-red-500 mb-1">DEBUG TUTORIAL</div>
+        <div>pathname: {pathname}</div>
+        <div>toolKey: {toolKey ?? "null"}</div>
+        <div>loading: {String(loading)}</div>
+        <div>user: {userId ?? "sin usuario"}</div>
+        <div>tutorial: {tutorial?.title ?? "sin tutorial"}</div>
+        <div>view: {viewExists ? "sí" : "no"}</div>
+        <div>error: {debugError ?? "sin error"}</div>
       </div>
 
+      {!toolKey && null}
+
+      {/* Button for Debug when toolKey exists but no tutorial */}
+      {toolKey && !tutorial && (
+        <div className="fixed bottom-4 right-4 md:bottom-6 md:right-6 z-[90]">
+          <button
+            disabled
+            className="flex items-center gap-2 px-4 py-2.5 bg-neutral-900/80 border border-red-500/50 text-red-200 rounded-full shadow-xl backdrop-blur-md opacity-50 cursor-not-allowed"
+          >
+            <span className="font-semibold text-sm">Sin tutorial: {toolKey}</span>
+          </button>
+        </div>
+      )}
+
+      {/* Floating Button */}
+      {toolKey && tutorial && (
+        <div className="fixed bottom-4 right-4 md:bottom-6 md:right-6 z-[90]">
+          <button
+            onClick={handleOpenManual}
+            title="Ver tutorial"
+            className="flex items-center gap-2 px-4 py-2.5 bg-neutral-900/80 hover:bg-neutral-800 border border-white/10 hover:border-[#ff6a00]/50 text-white rounded-full shadow-xl backdrop-blur-md transition-all hover:scale-105 active:scale-95"
+          >
+            <HelpCircle size={18} className="text-[#ff6a00]" />
+            <span className="font-semibold text-sm">? Tutorial</span>
+          </button>
+        </div>
+      )}
+
       {/* Modal */}
-      {showModal && (
+      {toolKey && tutorial && showModal && (
         <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/70 backdrop-blur-sm p-4 animate-in fade-in duration-200">
           <div className="bg-neutral-950 w-full max-w-3xl rounded-2xl border border-white/10 shadow-2xl overflow-hidden flex flex-col max-h-[90vh]">
             
