@@ -3,7 +3,7 @@
 import React, { useState, useEffect } from "react";
 import { HelpCircle, X, AlertCircle, Loader2 } from "lucide-react";
 import { createClient } from "@/utils/supabase/client";
-import { ToolTutorial as ToolTutorialType, isPendingTutorialUrl, isBunnyEmbedUrl } from "@/types/tutorials";
+import { ToolTutorial as ToolTutorialType, isPendingTutorialUrl, isBunnyEmbedUrl, getYoutubeEmbedUrl } from "@/types/tutorials";
 
 interface ToolTutorialProps {
   toolKey: string;
@@ -18,6 +18,7 @@ export function ToolTutorial({ toolKey, buttonLabel = "? Tutorial", compact = fa
   const [loading, setLoading] = useState(true);
   const [userId, setUserId] = useState<string | null>(null);
   const [isDismissed, setIsDismissed] = useState(false);
+  const [hasAutoOpened, setHasAutoOpened] = useState(false);
 
   useEffect(() => {
     fetchTutorialData();
@@ -28,39 +29,59 @@ export function ToolTutorial({ toolKey, buttonLabel = "? Tutorial", compact = fa
     try {
       const { data: { user } } = await supabase.auth.getUser();
       if (!user) {
+        if (process.env.NODE_ENV === "development") {
+          console.warn(`[ToolTutorial] No user found for toolKey: ${toolKey}`);
+        }
         setLoading(false);
         return;
       }
       setUserId(user.id);
 
       // Fetch active tutorial for this tool
-      const { data: tutData } = await supabase
+      const { data: tutData, error: tutError } = await supabase
         .from("tool_tutorials")
         .select("*")
         .eq("tool_key", toolKey)
         .eq("is_active", true)
         .maybeSingle();
 
+      if (tutError && process.env.NODE_ENV === "development") {
+        console.warn(`[ToolTutorial] Error fetching tool_tutorials:`, tutError);
+      }
+
       if (tutData) {
         setTutorial(tutData);
         
         // Check if user has already viewed/dismissed it
-        const { data: viewData } = await supabase
+        const { data: viewData, error: viewError } = await supabase
           .from("user_tool_tutorial_views")
           .select("*")
           .eq("user_id", user.id)
           .eq("tool_key", toolKey)
           .maybeSingle();
 
+        if (viewError && process.env.NODE_ENV === "development") {
+          console.warn(`[ToolTutorial] Error fetching user_tool_tutorial_views:`, viewError);
+        }
+
         if (viewData && viewData.dismissed_at) {
           setIsDismissed(true);
         } else {
-          // If no view record exists, open automatically
-          setShowModal(true);
+          // If no view record exists, open automatically (only once per session)
+          if (!hasAutoOpened) {
+            setShowModal(true);
+            setHasAutoOpened(true);
+          }
+        }
+      } else {
+        if (process.env.NODE_ENV === "development") {
+          console.warn(`[ToolTutorial] No active tutorial found for toolKey: ${toolKey}`);
         }
       }
     } catch (error) {
-      console.error("Error fetching tool tutorial data:", error);
+      if (process.env.NODE_ENV === "development") {
+        console.warn("[ToolTutorial] Unexpected error fetching data:", error);
+      }
     }
     setLoading(false);
   };
@@ -84,9 +105,15 @@ export function ToolTutorial({ toolKey, buttonLabel = "? Tutorial", compact = fa
           
         if (!error) {
           setIsDismissed(true);
+        } else {
+          if (process.env.NODE_ENV === "development") {
+            console.warn("[ToolTutorial] Error upserting view state:", error);
+          }
         }
       } catch (e) {
-        console.error("Error saving tutorial view state", e);
+        if (process.env.NODE_ENV === "development") {
+          console.warn("[ToolTutorial] Unexpected error saving tutorial view state", e);
+        }
       }
     }
   };
@@ -107,6 +134,8 @@ export function ToolTutorial({ toolKey, buttonLabel = "? Tutorial", compact = fa
   if (!tutorial) {
     return null;
   }
+
+  const youtubeEmbedUrl = getYoutubeEmbedUrl(tutorial.video_url);
 
   return (
     <>
@@ -158,12 +187,20 @@ export function ToolTutorial({ toolKey, buttonLabel = "? Tutorial", compact = fa
                       Cuando el video esté disponible, vas a poder verlo acá.
                     </p>
                   </div>
+                ) : youtubeEmbedUrl ? (
+                  <iframe 
+                    src={youtubeEmbedUrl}
+                    loading="lazy"
+                    className="absolute top-0 left-0 w-full h-full border-0"
+                    allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share"
+                    allowFullScreen
+                  />
                 ) : isBunnyEmbedUrl(tutorial.video_url) ? (
                   <iframe 
                     src={tutorial.video_url}
                     loading="lazy"
                     className="absolute top-0 left-0 w-full h-full border-0"
-                    allow="accelerometer; gyroscope; autoplay; encrypted-media; picture-in-picture;"
+                    allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share"
                     allowFullScreen
                   />
                 ) : (
