@@ -3,19 +3,33 @@
 import React, { useEffect, useState } from "react";
 import { createClient } from "@/utils/supabase/client";
 import { CourseCard } from "@/components/cards/course-card";
-import { Loader2, GraduationCap } from "lucide-react";
+import { Loader2, GraduationCap, Compass, Settings2 } from "lucide-react";
+import { getRecommendedCourseOrder, UserProfile } from "@/lib/learning-roadmaps";
+import Link from "next/link";
 
 
 export default function CursosPage() {
   const [courses, setCourses] = useState<any[]>([]);
+  const [profile, setProfile] = useState<UserProfile | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const supabase = createClient();
 
   useEffect(() => {
-    const fetchCourses = async () => {
+    const fetchData = async () => {
       setLoading(true);
       setError(null);
+      
+      const { data: { user } } = await supabase.auth.getUser();
+      if (user) {
+        const { data: profileData } = await supabase
+          .from("profiles")
+          .select("main_printer_brand, main_printer_model, experience_level, main_goal, onboarding_completed")
+          .eq("id", user.id)
+          .single();
+        if (profileData) setProfile(profileData);
+      }
+
       const { data, error: fetchErr } = await supabase
         .from("courses")
         .select(`
@@ -37,7 +51,7 @@ export default function CursosPage() {
       setLoading(false);
     };
 
-    fetchCourses();
+    fetchData();
   }, [supabase]);
 
   return (
@@ -72,11 +86,73 @@ export default function CursosPage() {
           <Loader2 className="animate-spin text-[#ff6a00] h-10 w-10" />
         </div>
       ) : courses.length > 0 ? (
-        <div className="grid grid-cols-1 gap-6 sm:grid-cols-2 lg:grid-cols-3">
-          {courses.map((c) => (
-            <CourseCard key={c.id} course={c} />
-          ))}
-        </div>
+        <>
+          {/* RUTA RECOMENDADA */}
+          {(() => {
+            const roadmap = getRecommendedCourseOrder(profile, courses);
+            
+            if (roadmap.recommendedCourses.length === 0) return null;
+
+            return (
+              <div className="mb-12">
+                <div className="flex flex-col md:flex-row md:items-end justify-between gap-4 mb-6">
+                  <div>
+                    <h2 className="text-2xl font-bold text-white flex items-center gap-2 mb-2">
+                      <Compass className="text-[#ff6a00]" size={24} /> {roadmap.title}
+                    </h2>
+                    <p className="text-gray-400 text-sm">{roadmap.subtitle}</p>
+                    
+                    {roadmap.chips.length > 0 && (
+                      <div className="flex flex-wrap gap-2 mt-4">
+                        {roadmap.chips.map(chip => (
+                          <span key={chip} className="px-3 py-1 bg-white/5 border border-white/10 rounded-full text-xs text-gray-300 font-medium">
+                            {chip}
+                          </span>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+                  
+                  <Link 
+                    href="/configuracion?tab=cuenta" 
+                    className="inline-flex items-center gap-2 text-sm text-gray-400 hover:text-white transition-colors py-2"
+                  >
+                    <Settings2 size={16} /> Editar preferencias
+                  </Link>
+                </div>
+
+                <div className="grid grid-cols-1 gap-6 sm:grid-cols-2 lg:grid-cols-3">
+                  {roadmap.recommendedCourses.map((c, index) => (
+                    <div key={`rec-${c.id}`} className="relative group">
+                      <div className="absolute -top-3 -left-3 w-8 h-8 rounded-full bg-[#ff6a00] text-white flex items-center justify-center font-bold text-sm shadow-lg z-10 border-4 border-[#050505]">
+                        {index + 1}
+                      </div>
+                      <div className="rounded-3xl border border-[#ff6a00]/30 shadow-[0_0_15px_rgba(255,106,0,0.1)] overflow-hidden h-full">
+                        <CourseCard course={c} />
+                        {c.roadmap_reason && (
+                          <div className="bg-[#ff6a00]/10 px-4 py-3 text-xs text-[#ff6a00] font-medium border-t border-[#ff6a00]/20 flex items-center gap-2">
+                            <span className="w-1.5 h-1.5 rounded-full bg-[#ff6a00] animate-pulse" />
+                            {c.roadmap_reason}
+                          </div>
+                        )}
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            );
+          })()}
+
+          {/* TODOS LOS CURSOS */}
+          <div>
+            <h2 className="text-2xl font-bold text-white mb-6">Todos los cursos</h2>
+            <div className="grid grid-cols-1 gap-6 sm:grid-cols-2 lg:grid-cols-3">
+              {courses.map((c) => (
+                <CourseCard key={c.id} course={c} />
+              ))}
+            </div>
+          </div>
+        </>
       ) : (
         <div className="max-w-xl mx-auto mt-12 text-center">
           <div className="bg-[#111] rounded-3xl p-10 border border-white/10 shadow-xl">
