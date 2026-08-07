@@ -7,6 +7,7 @@ import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { ProgressBar } from "@/components/ui/progress-bar";
 import { createClient } from "@/utils/supabase/client";
+import { getCourseLevelLabel, getCourseLevelClasses } from "@/lib/course-style";
 import { getFileAccessUrl } from "@/lib/storage";
 import { StampyLessonChat } from "@/components/stampy/StampyLessonChat";
 
@@ -268,9 +269,6 @@ export default function CursoDetailPage({ params }: PageProps) {
     return `${h}h ${m}m`;
   };
 
-  const badgeText = course.level === "advanced" ? "Avanzado" : course.level === "intermediate" ? "Intermedio" : "Principiante";
-  const badgeTone = course.level === "advanced" ? "dark" : "green";
-
   // Function to render video embed based on URL
   const renderVideo = () => {
     if (!activeLesson || !activeLesson.video_url || !activeLesson.video_url.trim()) {
@@ -363,7 +361,9 @@ export default function CursoDetailPage({ params }: PageProps) {
         <div className="absolute inset-0 bg-gradient-to-r from-[#ff6a00]/10 via-transparent to-transparent opacity-50" />
         <div className="relative z-10">
           <div className="flex flex-wrap items-center gap-3 mb-4">
-            <Badge tone={badgeTone} className="shadow-sm">{badgeText}</Badge>
+            <span className={`${getCourseLevelClasses(course)} shadow-sm`}>
+              {getCourseLevelLabel(course)}
+            </span>
             <span className="flex items-center gap-1.5 bg-white/5 text-gray-300 text-xs font-bold px-3 py-1 rounded-full border border-white/5">
               <Layers size={14} className="text-[#ff6a00]" /> {totalLessons} lecciones
             </span>

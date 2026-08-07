@@ -3,6 +3,7 @@ import Link from "next/link";
 import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Clock, Layers, User, PlayCircle } from "lucide-react";
+import { getCourseLevelLabel, getCourseLevelClasses } from "@/lib/course-style";
 
 interface CourseCardProps {
   course: any;
@@ -11,8 +12,6 @@ interface CourseCardProps {
 export function CourseCard({ course }: CourseCardProps) {
   // Try to use real DB data
   const title = course.title || "Curso sin título";
-  const badgeText = course.level === "advanced" ? "Avanzado" : course.level === "intermediate" ? "Intermedio" : "Principiante";
-  const badgeTone = course.level === "advanced" ? "dark" : "green";
   const instructorName = course.instructors?.name || "Stampa3D";
   
   // Calculate total duration and lessons by flattening lessons within course_modules
@@ -45,7 +44,9 @@ export function CourseCard({ course }: CourseCardProps) {
             </>
           )}
           <div className="absolute right-3 top-3">
-            <Badge tone={badgeTone} className="shadow-sm">{badgeText}</Badge>
+            <span className={`${getCourseLevelClasses(course)} shadow-sm`}>
+              {getCourseLevelLabel(course)}
+            </span>
           </div>
         </div>
         
