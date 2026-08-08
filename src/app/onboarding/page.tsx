@@ -4,6 +4,13 @@ import React, { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { createClient } from "@/utils/supabase/client";
 import { Loader2, ArrowRight } from "lucide-react";
+import { 
+  PRINTER_BRAND_OPTIONS, 
+  EXPERIENCE_LEVEL_OPTIONS, 
+  MAIN_GOAL_OPTIONS,
+  SLICER_PREFERENCE_OPTIONS,
+  COMMERCIAL_STAGE_OPTIONS
+} from "@/lib/profile-options";
 
 export default function OnboardingPage() {
   const router = useRouter();
@@ -21,6 +28,8 @@ export default function OnboardingPage() {
   const [model, setModel] = useState("");
   const [experience, setExperience] = useState("");
   const [goal, setGoal] = useState("");
+  const [slicer, setSlicer] = useState("");
+  const [stage, setStage] = useState("");
 
   useEffect(() => {
     async function fetchProfile() {
@@ -72,7 +81,9 @@ export default function OnboardingPage() {
           main_printer_brand: brand,
           main_printer_model: brand === "none_yet" ? "" : model,
           experience_level: experience,
+          slicer_preference: slicer || null,
           main_goal: goal,
+          commercial_stage: stage || null,
           onboarding_completed: true,
           onboarding_completed_at: new Date().toISOString(),
           updated_at: new Date().toISOString(),
@@ -204,14 +215,9 @@ export default function OnboardingPage() {
                   required
                 >
                   <option value="" disabled>Seleccioná una marca...</option>
-                  <option value="bambu_lab">Bambu Lab</option>
-                  <option value="creality">Creality</option>
-                  <option value="flashforge">Flashforge</option>
-                  <option value="elegoo">Elegoo</option>
-                  <option value="prusa">Prusa</option>
-                  <option value="anycubic">Anycubic</option>
-                  <option value="other">Otra</option>
-                  <option value="none_yet">Todavía no tengo impresora</option>
+                  {PRINTER_BRAND_OPTIONS.map(opt => (
+                    <option key={opt.value} value={opt.value}>{opt.label}</option>
+                  ))}
                 </select>
               </div>
               
@@ -222,9 +228,9 @@ export default function OnboardingPage() {
                     type="text" 
                     value={model}
                     onChange={(e) => setModel(e.target.value)}
-                    placeholder="Ej: A1 Mini, K1, Ender 3..."
+                    placeholder="Ej: A1 Mini, K1, Ender 3, Adventurer 5M, Centauri Carbon, Saturn 4..."
                     className="w-full bg-neutral-900 border border-white/10 rounded-xl px-4 py-2.5 text-white focus:outline-none focus:border-[#ff6a00] transition-colors"
-                    required
+                    required={brand !== "none_yet"}
                   />
                 </div>
               )}
@@ -248,17 +254,35 @@ export default function OnboardingPage() {
                 required
               >
                 <option value="" disabled>¿Cómo te describirías?</option>
-                <option value="beginner">Estoy empezando</option>
-                <option value="basic">Ya hice algunas impresiones</option>
-                <option value="intermediate">Ya imprimo seguido</option>
-                <option value="advanced">Ya vendo o quiero optimizar mi taller</option>
+                {EXPERIENCE_LEVEL_OPTIONS.map(opt => (
+                  <option key={opt.value} value={opt.value}>{opt.label}</option>
+                ))}
               </select>
             </div>
           </div>
 
-          {/* SECCIÓN 4: Objetivo principal */}
+          {/* SECCIÓN 4: Slicer */}
           <div className="space-y-4">
-            <h2 className="text-xl font-bold text-white border-b border-white/5 pb-2">4. Objetivo principal</h2>
+            <h2 className="text-xl font-bold text-white border-b border-white/5 pb-2">4. Slicer</h2>
+            
+            <div>
+              <label className="block text-sm font-medium text-gray-400 mb-1">¿Qué slicer usás o querés aprender?</label>
+              <select 
+                value={slicer}
+                onChange={(e) => setSlicer(e.target.value)}
+                className="w-full bg-neutral-900 border border-white/10 rounded-xl px-4 py-3 text-white focus:outline-none focus:border-[#ff6a00] transition-colors appearance-none"
+              >
+                <option value="" disabled>Seleccioná tu slicer...</option>
+                {SLICER_PREFERENCE_OPTIONS.map(opt => (
+                  <option key={opt.value} value={opt.value}>{opt.label}</option>
+                ))}
+              </select>
+            </div>
+          </div>
+
+          {/* SECCIÓN 5: Objetivo principal */}
+          <div className="space-y-4">
+            <h2 className="text-xl font-bold text-white border-b border-white/5 pb-2">5. Objetivo principal</h2>
             
             <div>
               <select 
@@ -268,12 +292,28 @@ export default function OnboardingPage() {
                 required
               >
                 <option value="" disabled>¿Qué buscás lograr?</option>
-                <option value="first_print">Hacer mi primera impresión</option>
-                <option value="learn_slicer">Aprender a filetear (Slicer)</option>
-                <option value="improve_quality">Mejorar calidad de impresión</option>
-                <option value="sell_products">Vender productos impresos</option>
-                <option value="manage_business">Organizar mi taller y números</option>
-                <option value="all">Un poco de todo</option>
+                {MAIN_GOAL_OPTIONS.map(opt => (
+                  <option key={opt.value} value={opt.value}>{opt.label}</option>
+                ))}
+              </select>
+            </div>
+          </div>
+
+          {/* SECCIÓN 6: Estado comercial */}
+          <div className="space-y-4">
+            <h2 className="text-xl font-bold text-white border-b border-white/5 pb-2">6. Estado comercial</h2>
+            
+            <div>
+              <label className="block text-sm font-medium text-gray-400 mb-1">¿En qué etapa estás?</label>
+              <select 
+                value={stage}
+                onChange={(e) => setStage(e.target.value)}
+                className="w-full bg-neutral-900 border border-white/10 rounded-xl px-4 py-3 text-white focus:outline-none focus:border-[#ff6a00] transition-colors appearance-none"
+              >
+                <option value="" disabled>Seleccioná tu etapa...</option>
+                {COMMERCIAL_STAGE_OPTIONS.map(opt => (
+                  <option key={opt.value} value={opt.value}>{opt.label}</option>
+                ))}
               </select>
             </div>
           </div>

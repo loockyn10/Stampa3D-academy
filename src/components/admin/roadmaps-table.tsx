@@ -4,7 +4,13 @@ import React, { useEffect, useState } from "react";
 import { createClient } from "@/utils/supabase/client";
 import { Edit, Loader2, CheckCircle2, XCircle, Star } from "lucide-react";
 import Link from "next/link";
-import { formatPrinterBrandLabel, formatExperienceLevelLabel, formatMainGoalLabel } from "@/lib/learning-roadmaps";
+import { 
+  formatPrinterBrandLabel, 
+  formatExperienceLevelLabel, 
+  formatMainGoalLabel,
+  formatSlicerPreferenceLabel,
+  formatCommercialStageLabel
+} from "@/lib/learning-roadmaps";
 
 export function RoadmapsTable() {
   const [roadmaps, setRoadmaps] = useState<any[]>([]);
@@ -89,6 +95,12 @@ export function RoadmapsTable() {
                     </span>
                     <span className="text-xs px-2 py-0.5 bg-white/5 rounded text-gray-300 w-fit">
                       <span className="text-gray-500 mr-1">Objetivo:</span> {formatMainGoalLabel(r.main_goal)}
+                    </span>
+                    <span className="text-xs px-2 py-0.5 bg-white/5 rounded text-gray-300 w-fit">
+                      <span className="text-gray-500 mr-1">Slicer:</span> {formatSlicerPreferenceLabel(r.slicer_preference)}
+                    </span>
+                    <span className="text-xs px-2 py-0.5 bg-white/5 rounded text-gray-300 w-fit">
+                      <span className="text-gray-500 mr-1">Etapa:</span> {formatCommercialStageLabel(r.commercial_stage)}
                     </span>
                   </div>
                 </td>

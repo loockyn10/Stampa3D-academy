@@ -3,8 +3,18 @@ export interface UserProfile {
   main_printer_model?: string | null;
   experience_level?: string | null;
   main_goal?: string | null;
+  slicer_preference?: string | null;
+  commercial_stage?: string | null;
   onboarding_completed?: boolean | null;
 }
+
+export { 
+  formatPrinterBrandLabel, 
+  formatExperienceLevelLabel, 
+  formatMainGoalLabel,
+  formatSlicerPreferenceLabel,
+  formatCommercialStageLabel
+} from "./profile-options";
 
 export interface RoadmapResult {
   recommendedCourses: any[];
@@ -212,44 +222,7 @@ export function getRecommendedCourseOrder(profile: UserProfile | null, courses: 
   };
 }
 
-export function formatPrinterBrandLabel(value: string | null | undefined): string {
-  if (!value) return "Cualquier marca";
-  const brands: Record<string, string> = {
-    bambu_lab: "Bambu Lab",
-    creality: "Creality",
-    flashforge: "Flashforge",
-    elegoo: "Elegoo",
-    prusa: "Prusa",
-    anycubic: "Anycubic",
-    other: "Otra marca",
-    none_yet: "Sin impresora"
-  };
-  return brands[value] || value;
-}
-
-export function formatExperienceLevelLabel(value: string | null | undefined): string {
-  if (!value) return "Cualquier nivel";
-  const levels: Record<string, string> = {
-    beginner: "Estoy empezando",
-    basic: "Ya hice algunas impresiones",
-    intermediate: "Ya imprimo seguido",
-    advanced: "Ya vendo y quiero optimizar mi taller"
-  };
-  return levels[value] || value;
-}
-
-export function formatMainGoalLabel(value: string | null | undefined): string {
-  if (!value) return "Cualquier objetivo";
-  const goals: Record<string, string> = {
-    first_print: "Primera impresión",
-    learn_slicer: "Aprender slicer",
-    improve_quality: "Mejorar calidad",
-    sell_products: "Vender productos",
-    manage_business: "Organizar taller",
-    all: "Un poco de todo"
-  };
-  return goals[value] || value;
-}
+// Formatting functions removed and exported from profile-options
 
 export function getLearningPathScore(profile: UserProfile | null, path: any): number {
   if (!profile) return path.is_default ? 0 : -1;
@@ -258,7 +231,7 @@ export function getLearningPathScore(profile: UserProfile | null, path: any): nu
   
   // Printer Brand (+4)
   if (path.printer_brand) {
-    if (path.printer_brand === profile.main_printer_brand) {
+    if (path.printer_brand === profile.main_printer_brand || (path.printer_brand === "elegoo_fdm" && profile.main_printer_brand === "elegoo")) {
       score += 4;
     } else {
       return -1; // Mismatch
@@ -280,6 +253,24 @@ export function getLearningPathScore(profile: UserProfile | null, path: any): nu
       score += 3;
     } else {
       return -1; // Mismatch
+    }
+  }
+
+  // Slicer Preference (+2)
+  if (path.slicer_preference) {
+    if (path.slicer_preference === profile.slicer_preference) {
+      score += 2;
+    } else {
+      return -1;
+    }
+  }
+
+  // Commercial Stage (+2)
+  if (path.commercial_stage) {
+    if (path.commercial_stage === profile.commercial_stage) {
+      score += 2;
+    } else {
+      return -1;
     }
   }
 

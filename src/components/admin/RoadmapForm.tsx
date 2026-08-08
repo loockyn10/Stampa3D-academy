@@ -4,6 +4,13 @@ import React, { useState, useEffect } from "react";
 import { createClient } from "@/utils/supabase/client";
 import { useRouter } from "next/navigation";
 import { Loader2, Save, X, Plus, Trash2, ArrowUp, ArrowDown } from "lucide-react";
+import { 
+  PRINTER_BRAND_OPTIONS, 
+  EXPERIENCE_LEVEL_OPTIONS, 
+  MAIN_GOAL_OPTIONS,
+  SLICER_PREFERENCE_OPTIONS,
+  COMMERCIAL_STAGE_OPTIONS
+} from "@/lib/profile-options";
 
 export function RoadmapForm({ initialData = null }: { initialData?: any }) {
   const router = useRouter();
@@ -17,6 +24,8 @@ export function RoadmapForm({ initialData = null }: { initialData?: any }) {
     printer_brand: initialData?.printer_brand || "",
     experience_level: initialData?.experience_level || "",
     main_goal: initialData?.main_goal || "",
+    slicer_preference: initialData?.slicer_preference || "",
+    commercial_stage: initialData?.commercial_stage || "",
     is_default: initialData?.is_default || false,
     is_active: initialData?.is_active ?? true,
     sort_order: initialData?.sort_order || 0,
@@ -197,14 +206,9 @@ export function RoadmapForm({ initialData = null }: { initialData?: any }) {
               className="w-full bg-[#1a1a1a] border border-white/10 rounded-xl px-4 py-2.5 text-white focus:border-pink-500 focus:ring-1 focus:ring-pink-500 outline-none transition-all"
             >
               <option value="">Cualquier marca</option>
-              <option value="bambu_lab">Bambu Lab</option>
-              <option value="creality">Creality</option>
-              <option value="flashforge">Flashforge</option>
-              <option value="elegoo">Elegoo</option>
-              <option value="prusa">Prusa</option>
-              <option value="anycubic">Anycubic</option>
-              <option value="other">Otra</option>
-              <option value="none_yet">Todavía no tengo impresora</option>
+              {PRINTER_BRAND_OPTIONS.map(opt => (
+                <option key={opt.value} value={opt.value}>{opt.label}</option>
+              ))}
             </select>
           </div>
 
@@ -217,10 +221,9 @@ export function RoadmapForm({ initialData = null }: { initialData?: any }) {
               className="w-full bg-[#1a1a1a] border border-white/10 rounded-xl px-4 py-2.5 text-white focus:border-pink-500 focus:ring-1 focus:ring-pink-500 outline-none transition-all"
             >
               <option value="">Cualquier nivel</option>
-              <option value="beginner">Estoy empezando</option>
-              <option value="basic">Ya hice algunas impresiones</option>
-              <option value="intermediate">Ya imprimo seguido</option>
-              <option value="advanced">Ya vendo y quiero optimizar mi taller</option>
+              {EXPERIENCE_LEVEL_OPTIONS.map(opt => (
+                <option key={opt.value} value={opt.value}>{opt.label}</option>
+              ))}
             </select>
           </div>
 
@@ -233,12 +236,39 @@ export function RoadmapForm({ initialData = null }: { initialData?: any }) {
               className="w-full bg-[#1a1a1a] border border-white/10 rounded-xl px-4 py-2.5 text-white focus:border-pink-500 focus:ring-1 focus:ring-pink-500 outline-none transition-all"
             >
               <option value="">Cualquier objetivo</option>
-              <option value="first_print">Primera impresión</option>
-              <option value="learn_slicer">Aprender slicer</option>
-              <option value="improve_quality">Mejorar calidad</option>
-              <option value="sell_products">Vender productos</option>
-              <option value="manage_business">Organizar taller</option>
-              <option value="all">Un poco de todo</option>
+              {MAIN_GOAL_OPTIONS.map(opt => (
+                <option key={opt.value} value={opt.value}>{opt.label}</option>
+              ))}
+            </select>
+          </div>
+
+          <div className="space-y-2">
+            <label className="text-sm font-medium text-gray-300">Preferencia de Slicer</label>
+            <select
+              name="slicer_preference"
+              value={formData.slicer_preference || ""}
+              onChange={handleChange}
+              className="w-full bg-[#1a1a1a] border border-white/10 rounded-xl px-4 py-2.5 text-white focus:border-pink-500 focus:ring-1 focus:ring-pink-500 outline-none transition-all"
+            >
+              <option value="">Cualquier slicer</option>
+              {SLICER_PREFERENCE_OPTIONS.map(opt => (
+                <option key={opt.value} value={opt.value}>{opt.label}</option>
+              ))}
+            </select>
+          </div>
+
+          <div className="space-y-2">
+            <label className="text-sm font-medium text-gray-300">Etapa Comercial</label>
+            <select
+              name="commercial_stage"
+              value={formData.commercial_stage || ""}
+              onChange={handleChange}
+              className="w-full bg-[#1a1a1a] border border-white/10 rounded-xl px-4 py-2.5 text-white focus:border-pink-500 focus:ring-1 focus:ring-pink-500 outline-none transition-all"
+            >
+              <option value="">Cualquier etapa</option>
+              {COMMERCIAL_STAGE_OPTIONS.map(opt => (
+                <option key={opt.value} value={opt.value}>{opt.label}</option>
+              ))}
             </select>
           </div>
         </div>

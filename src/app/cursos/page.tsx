@@ -4,7 +4,16 @@ import React, { useEffect, useState } from "react";
 import { createClient } from "@/utils/supabase/client";
 import { CourseCard } from "@/components/cards/course-card";
 import { Loader2, GraduationCap, Compass, Settings2 } from "lucide-react";
-import { getRecommendedCourseOrder, UserProfile, findBestLearningPath, formatPrinterBrandLabel, formatExperienceLevelLabel, formatMainGoalLabel } from "@/lib/learning-roadmaps";
+import { 
+  getRecommendedCourseOrder, 
+  UserProfile, 
+  findBestLearningPath, 
+  formatPrinterBrandLabel, 
+  formatExperienceLevelLabel, 
+  formatMainGoalLabel,
+  formatSlicerPreferenceLabel,
+  formatCommercialStageLabel
+} from "@/lib/learning-roadmaps";
 import Link from "next/link";
 
 
@@ -25,7 +34,7 @@ export default function CursosPage() {
       if (user) {
         const { data: profileData } = await supabase
           .from("profiles")
-          .select("main_printer_brand, main_printer_model, experience_level, main_goal, onboarding_completed")
+          .select("main_printer_brand, main_printer_model, experience_level, main_goal, slicer_preference, commercial_stage, onboarding_completed")
           .eq("id", user.id)
           .single();
         if (profileData) setProfile(profileData);
@@ -121,6 +130,8 @@ export default function CursosPage() {
               if (bestDbPath.printer_brand) roadmapChips.push(formatPrinterBrandLabel(bestDbPath.printer_brand));
               if (bestDbPath.experience_level) roadmapChips.push(formatExperienceLevelLabel(bestDbPath.experience_level));
               if (bestDbPath.main_goal) roadmapChips.push(formatMainGoalLabel(bestDbPath.main_goal));
+              if (bestDbPath.slicer_preference) roadmapChips.push(formatSlicerPreferenceLabel(bestDbPath.slicer_preference));
+              if (bestDbPath.commercial_stage) roadmapChips.push(formatCommercialStageLabel(bestDbPath.commercial_stage));
               if (roadmapChips.length === 0) roadmapChips.push("Ruta General");
 
               // Map courses

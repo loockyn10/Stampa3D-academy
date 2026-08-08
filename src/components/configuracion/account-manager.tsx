@@ -4,6 +4,13 @@ import React, { useState, useEffect } from "react";
 import { createClient } from "@/utils/supabase/client";
 import { PrimaryButton } from "@/components/ui/button";
 import { Loader2, Save } from "lucide-react";
+import { 
+  PRINTER_BRAND_OPTIONS, 
+  EXPERIENCE_LEVEL_OPTIONS, 
+  MAIN_GOAL_OPTIONS,
+  SLICER_PREFERENCE_OPTIONS,
+  COMMERCIAL_STAGE_OPTIONS
+} from "@/lib/profile-options";
 
 export function AccountManager() {
   const supabase = createClient();
@@ -20,6 +27,8 @@ export function AccountManager() {
   const [model, setModel] = useState("");
   const [experience, setExperience] = useState("");
   const [goal, setGoal] = useState("");
+  const [slicer, setSlicer] = useState("");
+  const [stage, setStage] = useState("");
 
   useEffect(() => {
     async function fetchProfile() {
@@ -28,7 +37,7 @@ export function AccountManager() {
 
       const { data: profile } = await supabase
         .from("profiles")
-        .select("full_name, display_name, phone, main_printer_brand, main_printer_model, experience_level, main_goal")
+        .select("full_name, display_name, phone, main_printer_brand, main_printer_model, experience_level, main_goal, slicer_preference, commercial_stage")
         .eq("id", user.id)
         .single();
 
@@ -40,6 +49,8 @@ export function AccountManager() {
         setModel(profile.main_printer_model || "");
         setExperience(profile.experience_level || "");
         setGoal(profile.main_goal || "");
+        setSlicer(profile.slicer_preference || "");
+        setStage(profile.commercial_stage || "");
       }
       setLoading(false);
     }
@@ -64,6 +75,8 @@ export function AccountManager() {
         main_printer_model: brand === "none_yet" ? "" : model,
         experience_level: experience,
         main_goal: goal,
+        slicer_preference: slicer || null,
+        commercial_stage: stage || null,
         updated_at: new Date().toISOString(),
       };
 
@@ -158,14 +171,9 @@ export function AccountManager() {
                 className="w-full bg-neutral-900 border border-white/10 rounded-xl px-4 py-3 text-white focus:outline-none focus:border-[#ff6a00] transition-colors appearance-none"
               >
                 <option value="" disabled>Seleccioná una marca...</option>
-                <option value="bambu_lab">Bambu Lab</option>
-                <option value="creality">Creality</option>
-                <option value="flashforge">Flashforge</option>
-                <option value="elegoo">Elegoo</option>
-                <option value="prusa">Prusa</option>
-                <option value="anycubic">Anycubic</option>
-                <option value="other">Otra</option>
-                <option value="none_yet">Todavía no tengo impresora</option>
+                {PRINTER_BRAND_OPTIONS.map(opt => (
+                  <option key={opt.value} value={opt.value}>{opt.label}</option>
+                ))}
               </select>
             </div>
             
@@ -195,10 +203,9 @@ export function AccountManager() {
                 className="w-full bg-neutral-900 border border-white/10 rounded-xl px-4 py-3 text-white focus:outline-none focus:border-[#ff6a00] transition-colors appearance-none"
               >
                 <option value="" disabled>Seleccioná tu nivel...</option>
-                <option value="beginner">Estoy empezando</option>
-                <option value="basic">Ya hice algunas impresiones</option>
-                <option value="intermediate">Ya imprimo seguido</option>
-                <option value="advanced">Ya vendo o quiero optimizar mi taller</option>
+                {EXPERIENCE_LEVEL_OPTIONS.map(opt => (
+                  <option key={opt.value} value={opt.value}>{opt.label}</option>
+                ))}
               </select>
             </div>
             
@@ -210,12 +217,39 @@ export function AccountManager() {
                 className="w-full bg-neutral-900 border border-white/10 rounded-xl px-4 py-3 text-white focus:outline-none focus:border-[#ff6a00] transition-colors appearance-none"
               >
                 <option value="" disabled>Seleccioná un objetivo...</option>
-                <option value="first_print">Hacer mi primera impresión</option>
-                <option value="learn_slicer">Aprender a filetear (Slicer)</option>
-                <option value="improve_quality">Mejorar calidad de impresión</option>
-                <option value="sell_products">Vender productos impresos</option>
-                <option value="manage_business">Organizar mi taller y números</option>
-                <option value="all">Un poco de todo</option>
+                {MAIN_GOAL_OPTIONS.map(opt => (
+                  <option key={opt.value} value={opt.value}>{opt.label}</option>
+                ))}
+              </select>
+            </div>
+          </div>
+          
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div>
+              <label className="block text-sm font-medium text-gray-400 mb-1">¿Qué slicer usás o querés aprender?</label>
+              <select 
+                value={slicer}
+                onChange={(e) => setSlicer(e.target.value)}
+                className="w-full bg-neutral-900 border border-white/10 rounded-xl px-4 py-3 text-white focus:outline-none focus:border-[#ff6a00] transition-colors appearance-none"
+              >
+                <option value="" disabled>Seleccioná tu slicer...</option>
+                {SLICER_PREFERENCE_OPTIONS.map(opt => (
+                  <option key={opt.value} value={opt.value}>{opt.label}</option>
+                ))}
+              </select>
+            </div>
+            
+            <div>
+              <label className="block text-sm font-medium text-gray-400 mb-1">¿En qué etapa comercial estás?</label>
+              <select 
+                value={stage}
+                onChange={(e) => setStage(e.target.value)}
+                className="w-full bg-neutral-900 border border-white/10 rounded-xl px-4 py-3 text-white focus:outline-none focus:border-[#ff6a00] transition-colors appearance-none"
+              >
+                <option value="" disabled>Seleccioná tu etapa...</option>
+                {COMMERCIAL_STAGE_OPTIONS.map(opt => (
+                  <option key={opt.value} value={opt.value}>{opt.label}</option>
+                ))}
               </select>
             </div>
           </div>
