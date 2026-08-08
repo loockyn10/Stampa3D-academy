@@ -12,7 +12,6 @@ export {
   formatPrinterBrandLabel, 
   formatExperienceLevelLabel, 
   formatMainGoalLabel,
-  formatSlicerPreferenceLabel,
   formatCommercialStageLabel
 } from "./profile-options";
 
@@ -56,25 +55,13 @@ export function getRecommendedCourseOrder(profile: UserProfile | null, courses: 
       ["fundamentos", "fundamentos express", "impresion 3d desde cero"],
       ["bambu studio", "bambu slicer"]
     ];
-  } else if (brand === "creality") {
-    title = "Tu ruta recomendada";
-    subtitle = "Armamos esta ruta para avanzar con una Creality, empezando por fundamentos y slicer.";
-    addChip("Creality");
-    priorityRules = [
-      ["fundamentos"],
-      ["impresion 3d desde cero"],
-      ["orca slicer"],
-      ["calibracion"],
-      ["mantenimiento"]
-    ];
   } else if (brand === "flashforge") {
     title = "Tu ruta recomendada";
-    subtitle = "Como tenés una Flashforge, te conviene empezar con fundamentos y después seguir con Orca/Flashforge.";
+    subtitle = "Como tenés una Flashforge, te conviene empezar con fundamentos y después seguir con OrcaSlicer.";
     addChip("Flashforge");
     priorityRules = [
       ["fundamentos"],
-      ["orca flashforge"],
-      ["flashforge"],
+      ["orca flashforge", "flashforge"],
       ["orca slicer"],
       ["calibracion"]
     ];
@@ -90,9 +77,9 @@ export function getRecommendedCourseOrder(profile: UserProfile | null, courses: 
       ["ecosistema"]
     ];
   } else {
-    // elegoo, prusa, anycubic, other, or empty
+    // creality, elegoo, anycubic, other
     title = "Tu ruta recomendada";
-    subtitle = "Te armamos una ruta general para avanzar desde fundamentos hacia slicer, calibración y taller.";
+    subtitle = "Te armamos una ruta general para avanzar desde fundamentos hacia OrcaSlicer y calibración.";
     if (brand && brand !== "other") {
       addChip(brand.charAt(0).toUpperCase() + brand.slice(1));
     } else {
@@ -129,10 +116,10 @@ export function getRecommendedCourseOrder(profile: UserProfile | null, courses: 
   }
 
   // Add experience chip
-  if (profile?.experience_level === "beginner") addChip("Estoy empezando");
-  if (profile?.experience_level === "basic") addChip("Ya hice algunas impresiones");
-  if (profile?.experience_level === "intermediate") addChip("Ya imprimo seguido");
-  if (profile?.experience_level === "advanced") addChip("Ya vendo y quiero optimizar mi taller");
+  if (profile?.experience_level === "beginner") addChip("Empezando desde cero");
+  if (profile?.experience_level === "basic") addChip("Algunas impresiones");
+  if (profile?.experience_level === "intermediate") addChip("Quiero mejorar");
+  if (profile?.experience_level === "advanced") addChip("Tengo experiencia");
 
   // Scoring courses
   const scoredCourses = courses.map((course) => {
@@ -256,14 +243,7 @@ export function getLearningPathScore(profile: UserProfile | null, path: any): nu
     }
   }
 
-  // Slicer Preference (+2)
-  if (path.slicer_preference) {
-    if (path.slicer_preference === profile.slicer_preference) {
-      score += 2;
-    } else {
-      return -1;
-    }
-  }
+
 
   // Commercial Stage (+2)
   if (path.commercial_stage) {

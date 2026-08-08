@@ -8,7 +8,6 @@ import {
   PRINTER_BRAND_OPTIONS, 
   EXPERIENCE_LEVEL_OPTIONS, 
   MAIN_GOAL_OPTIONS,
-  SLICER_PREFERENCE_OPTIONS,
   COMMERCIAL_STAGE_OPTIONS
 } from "@/lib/profile-options";
 
@@ -27,7 +26,6 @@ export function AccountManager() {
   const [model, setModel] = useState("");
   const [experience, setExperience] = useState("");
   const [goal, setGoal] = useState("");
-  const [slicer, setSlicer] = useState("");
   const [stage, setStage] = useState("");
 
   useEffect(() => {
@@ -37,7 +35,7 @@ export function AccountManager() {
 
       const { data: profile } = await supabase
         .from("profiles")
-        .select("full_name, display_name, phone, main_printer_brand, main_printer_model, experience_level, main_goal, slicer_preference, commercial_stage")
+        .select("full_name, display_name, phone, main_printer_brand, main_printer_model, experience_level, main_goal, commercial_stage")
         .eq("id", user.id)
         .single();
 
@@ -49,7 +47,6 @@ export function AccountManager() {
         setModel(profile.main_printer_model || "");
         setExperience(profile.experience_level || "");
         setGoal(profile.main_goal || "");
-        setSlicer(profile.slicer_preference || "");
         setStage(profile.commercial_stage || "");
       }
       setLoading(false);
@@ -75,7 +72,6 @@ export function AccountManager() {
         main_printer_model: brand === "none_yet" ? "" : model,
         experience_level: experience,
         main_goal: goal,
-        slicer_preference: slicer || null,
         commercial_stage: stage || null,
         updated_at: new Date().toISOString(),
       };
@@ -225,20 +221,6 @@ export function AccountManager() {
           </div>
           
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            <div>
-              <label className="block text-sm font-medium text-gray-400 mb-1">¿Qué slicer usás o querés aprender?</label>
-              <select 
-                value={slicer}
-                onChange={(e) => setSlicer(e.target.value)}
-                className="w-full bg-neutral-900 border border-white/10 rounded-xl px-4 py-3 text-white focus:outline-none focus:border-[#ff6a00] transition-colors appearance-none"
-              >
-                <option value="" disabled>Seleccioná tu slicer...</option>
-                {SLICER_PREFERENCE_OPTIONS.map(opt => (
-                  <option key={opt.value} value={opt.value}>{opt.label}</option>
-                ))}
-              </select>
-            </div>
-            
             <div>
               <label className="block text-sm font-medium text-gray-400 mb-1">¿En qué etapa comercial estás?</label>
               <select 

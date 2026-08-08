@@ -8,7 +8,6 @@ import {
   PRINTER_BRAND_OPTIONS, 
   EXPERIENCE_LEVEL_OPTIONS, 
   MAIN_GOAL_OPTIONS,
-  SLICER_PREFERENCE_OPTIONS,
   COMMERCIAL_STAGE_OPTIONS
 } from "@/lib/profile-options";
 
@@ -24,7 +23,6 @@ export function RoadmapForm({ initialData = null }: { initialData?: any }) {
     printer_brand: initialData?.printer_brand || "",
     experience_level: initialData?.experience_level || "",
     main_goal: initialData?.main_goal || "",
-    slicer_preference: initialData?.slicer_preference || "",
     commercial_stage: initialData?.commercial_stage || "",
     is_default: initialData?.is_default || false,
     is_active: initialData?.is_active ?? true,
@@ -237,21 +235,6 @@ export function RoadmapForm({ initialData = null }: { initialData?: any }) {
             >
               <option value="">Cualquier objetivo</option>
               {MAIN_GOAL_OPTIONS.map(opt => (
-                <option key={opt.value} value={opt.value}>{opt.label}</option>
-              ))}
-            </select>
-          </div>
-
-          <div className="space-y-2">
-            <label className="text-sm font-medium text-gray-300">Preferencia de Slicer</label>
-            <select
-              name="slicer_preference"
-              value={formData.slicer_preference || ""}
-              onChange={handleChange}
-              className="w-full bg-[#1a1a1a] border border-white/10 rounded-xl px-4 py-2.5 text-white focus:border-pink-500 focus:ring-1 focus:ring-pink-500 outline-none transition-all"
-            >
-              <option value="">Cualquier slicer</option>
-              {SLICER_PREFERENCE_OPTIONS.map(opt => (
                 <option key={opt.value} value={opt.value}>{opt.label}</option>
               ))}
             </select>

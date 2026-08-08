@@ -8,7 +8,6 @@ import {
   PRINTER_BRAND_OPTIONS, 
   EXPERIENCE_LEVEL_OPTIONS, 
   MAIN_GOAL_OPTIONS,
-  SLICER_PREFERENCE_OPTIONS,
   COMMERCIAL_STAGE_OPTIONS
 } from "@/lib/profile-options";
 
@@ -28,7 +27,6 @@ export default function OnboardingPage() {
   const [model, setModel] = useState("");
   const [experience, setExperience] = useState("");
   const [goal, setGoal] = useState("");
-  const [slicer, setSlicer] = useState("");
   const [stage, setStage] = useState("");
 
   useEffect(() => {
@@ -81,7 +79,6 @@ export default function OnboardingPage() {
           main_printer_brand: brand,
           main_printer_model: brand === "none_yet" ? "" : model,
           experience_level: experience,
-          slicer_preference: slicer || null,
           main_goal: goal,
           commercial_stage: stage || null,
           onboarding_completed: true,
@@ -261,28 +258,9 @@ export default function OnboardingPage() {
             </div>
           </div>
 
-          {/* SECCIÓN 4: Slicer */}
+          {/* SECCIÓN 4: Objetivo principal */}
           <div className="space-y-4">
-            <h2 className="text-xl font-bold text-white border-b border-white/5 pb-2">4. Slicer</h2>
-            
-            <div>
-              <label className="block text-sm font-medium text-gray-400 mb-1">¿Qué slicer usás o querés aprender?</label>
-              <select 
-                value={slicer}
-                onChange={(e) => setSlicer(e.target.value)}
-                className="w-full bg-neutral-900 border border-white/10 rounded-xl px-4 py-3 text-white focus:outline-none focus:border-[#ff6a00] transition-colors appearance-none"
-              >
-                <option value="" disabled>Seleccioná tu slicer...</option>
-                {SLICER_PREFERENCE_OPTIONS.map(opt => (
-                  <option key={opt.value} value={opt.value}>{opt.label}</option>
-                ))}
-              </select>
-            </div>
-          </div>
-
-          {/* SECCIÓN 5: Objetivo principal */}
-          <div className="space-y-4">
-            <h2 className="text-xl font-bold text-white border-b border-white/5 pb-2">5. Objetivo principal</h2>
+            <h2 className="text-xl font-bold text-white border-b border-white/5 pb-2">4. Objetivo principal</h2>
             
             <div>
               <select 
@@ -299,9 +277,9 @@ export default function OnboardingPage() {
             </div>
           </div>
 
-          {/* SECCIÓN 6: Estado comercial */}
+          {/* SECCIÓN 5: Estado comercial */}
           <div className="space-y-4">
-            <h2 className="text-xl font-bold text-white border-b border-white/5 pb-2">6. Estado comercial</h2>
+            <h2 className="text-xl font-bold text-white border-b border-white/5 pb-2">5. Estado comercial</h2>
             
             <div>
               <label className="block text-sm font-medium text-gray-400 mb-1">¿En qué etapa estás?</label>
