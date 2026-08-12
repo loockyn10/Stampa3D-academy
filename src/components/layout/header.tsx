@@ -6,6 +6,7 @@ import { Menu, Search, Bell, ChevronDown } from "lucide-react";
 import { COURSES } from "@/data/mock-data";
 import { createClient } from "@/utils/supabase/client";
 import Link from "next/link";
+import { GlobalSearch } from "@/components/search/GlobalSearch";
 
 interface HeaderProps {
   setMobileOpen: (open: boolean) => void;
@@ -92,47 +93,51 @@ export function Header({ setMobileOpen }: HeaderProps) {
   }
 
   return (
-    <header className="sticky top-0 z-20 flex h-16 items-center gap-3 border-b border-white/5 bg-[#050505]/80 px-4 backdrop-blur lg:px-8">
-      <button className="text-gray-400 lg:hidden" onClick={() => setMobileOpen(true)}>
-        <Menu size={22} />
-      </button>
-
-      <h1 className="mr-2 hidden text-base font-bold text-white sm:block">{title}</h1>
-
-      <div className="ml-auto flex flex-1 items-center gap-3 sm:ml-0 hidden">
-        <div className="relative flex-1 max-w-md">
-          <Search size={16} className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" />
-          <input
-            type="text"
-            placeholder="Buscar cursos, STL, productos..."
-            className="w-full rounded-xl border border-white/10 bg-[#0a0a0a] py-2 pl-9 pr-3 text-sm text-gray-300 outline-none focus:bg-[#111] focus:border-[#ff6a00] focus:ring-[#ff6a00]/20 focus:ring-2 placeholder:text-neutral-500 disabled:bg-neutral-800 disabled:text-neutral-500"
-          />
-        </div>
+    <header className="sticky top-0 z-20 flex h-16 items-center border-b border-white/5 bg-[#050505]/80 px-4 backdrop-blur lg:px-8">
+      {/* 1. Izquierda: Título y menú mobile */}
+      <div className="flex flex-1 items-center gap-3 min-w-0">
+        <button className="text-gray-400 lg:hidden shrink-0" onClick={() => setMobileOpen(true)}>
+          <Menu size={22} />
+        </button>
+        <h1 className="truncate text-base font-bold text-white sm:block">{title}</h1>
       </div>
 
-      <button className="relative flex h-9 w-9 items-center justify-center rounded-xl text-gray-400 hover:bg-white/5 hover:text-white transition-colors">
-        <Bell size={18} />
-        <span className="absolute right-2 top-2 h-1.5 w-1.5 rounded-full bg-[#ff6a00]" />
-      </button>
+      {/* 2. Centro: Buscador global (oculto en mobile) */}
+      <div className="mx-6 hidden w-full max-w-xl flex-1 md:block">
+        <GlobalSearch />
+      </div>
 
-      <Link href="/perfil" className="flex items-center gap-2 rounded-xl py-1 pl-1 pr-2 hover:bg-white/5 transition-colors">
-        {profile?.avatar_url ? (
-          <img src={profile.avatar_url} alt="Avatar" className="h-8 w-8 rounded-full object-cover" />
-        ) : (
-          <div className="flex h-8 w-8 items-center justify-center rounded-full bg-orange-100 text-sm font-bold text-orange-600">
-            {getInitials()}
+      {/* 3. Derecha: Iconos y perfil */}
+      <div className="flex flex-1 items-center justify-end gap-3">
+        {/* Lupa para mobile (comportamiento futuro opcional) */}
+        <button className="md:hidden flex h-9 w-9 items-center justify-center rounded-xl text-gray-400 hover:bg-white/5 hover:text-white transition-colors">
+          <Search size={18} />
+        </button>
+
+        <button className="relative flex h-9 w-9 items-center justify-center rounded-xl text-gray-400 hover:bg-white/5 hover:text-white transition-colors">
+          <Bell size={18} />
+          <span className="absolute right-2 top-2 h-1.5 w-1.5 rounded-full bg-[#ff6a00]" />
+        </button>
+
+        <Link href="/perfil" className="flex items-center gap-2 rounded-xl py-1 pl-1 pr-2 hover:bg-white/5 transition-colors">
+          {profile?.avatar_url ? (
+            <img src={profile.avatar_url} alt="Avatar" className="h-8 w-8 rounded-full object-cover shrink-0" />
+          ) : (
+            <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-orange-100 text-sm font-bold text-orange-600">
+              {getInitials()}
+            </div>
+          )}
+          <div className="hidden text-left sm:block min-w-max">
+            <p className="text-xs font-semibold leading-none text-white truncate max-w-[120px]">
+              {profile?.full_name || profile?.display_name || profile?.email || "Mi perfil"}
+            </p>
+            <p className="mt-0.5 text-[11px] leading-none text-gray-400 truncate max-w-[120px]">
+              {getMemberLevelLabel()}
+            </p>
           </div>
-        )}
-        <div className="hidden text-left sm:block">
-          <p className="text-xs font-semibold leading-none text-white">
-            {profile?.full_name || profile?.display_name || profile?.email || "Mi perfil"}
-          </p>
-          <p className="mt-0.5 text-[11px] leading-none text-gray-400">
-            {getMemberLevelLabel()}
-          </p>
-        </div>
-        <ChevronDown size={14} className="hidden text-gray-400 sm:block" />
-      </Link>
+          <ChevronDown size={14} className="hidden text-gray-400 sm:block shrink-0" />
+        </Link>
+      </div>
     </header>
   );
 }
