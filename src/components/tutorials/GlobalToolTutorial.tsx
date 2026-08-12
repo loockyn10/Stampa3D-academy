@@ -25,10 +25,14 @@ export function GlobalToolTutorial() {
   
   const [toolKey, setToolKey] = useState<string | null>(null);
   const [tutorial, setTutorial] = useState<ToolTutorialType | null>(null);
-  const [showModal, setShowModal] = useState(false);
-  const [userId, setUserId] = useState<string | null>(null);
-  const [isDismissed, setIsDismissed] = useState(false);
+  const [view, setView] = useState<any | null>(null);
+  const [hasCheckedView, setHasCheckedView] = useState(false);
   const [hasAutoOpened, setHasAutoOpened] = useState(false);
+  const [open, setOpen] = useState(false);
+  const [openSource, setOpenSource] = useState<"auto" | "manual" | null>(null);
+  const [user, setUser] = useState<any | null>(null);
+  const [userId, setUserId] = useState<string | null>(null);
+  const [loading, setLoading] = useState(true);
   const [isDev] = useState(process.env.NODE_ENV === "development");
 
   // Determine toolKey based on route
@@ -70,18 +74,36 @@ export function GlobalToolTutorial() {
 
     async function fetchTutorial() {
       if (!toolKey) {
-        if (mounted) setTutorial(null);
+        if (mounted) {
+          setTutorial(null);
+          setView(null);
+          setLoading(false);
+          setHasCheckedView(false);
+        }
         return;
       }
 
       try {
-        const { data: { user } } = await supabase.auth.getUser();
-        if (!user) {
-          if (mounted) setTutorial(null);
+        if (mounted) {
+          setLoading(true);
+          setHasCheckedView(false);
+        }
+
+        const { data: { user: authUser } } = await supabase.auth.getUser();
+        if (!authUser) {
+          if (mounted) {
+            setTutorial(null);
+            setView(null);
+            setLoading(false);
+            setHasCheckedView(false);
+          }
           return;
         }
         
-        if (mounted) setUserId(user.id);
+        if (mounted) {
+          setUser(authUser);
+          setUserId(authUser.id);
+        }
 
         const { data: tutData, error: tutError } = await supabase
           .from("tool_tutorials")
@@ -94,41 +116,42 @@ export function GlobalToolTutorial() {
           console.warn("[GlobalToolTutorial] Error fetching tool_tutorials:", tutError);
         }
 
-        if (tutData && mounted) {
-          setTutorial(tutData as ToolTutorialType);
+        const { data: viewData, error: viewError } = await supabase
+          .from("user_tool_tutorial_views")
+          .select("id, user_id, tool_key, viewed_at, dismissed_at")
+          .eq("user_id", authUser.id)
+          .eq("tool_key", toolKey)
+          .maybeSingle();
 
-          const { data: viewData, error: viewError } = await supabase
-            .from("user_tool_tutorial_views")
-            .select("id, user_id, tool_key, viewed_at, dismissed_at")
-            .eq("user_id", user.id)
-            .eq("tool_key", toolKey)
-            .maybeSingle();
+        if (viewError && isDev) {
+          console.warn("[GlobalToolTutorial] Error fetching view data:", viewError);
+        }
 
-          if (viewError && isDev) {
-            console.warn("[GlobalToolTutorial] Error fetching view data:", viewError);
-          }
-
-          if (viewData && viewData.dismissed_at) {
-            setIsDismissed(true);
-          } else {
-            if (!hasAutoOpened) {
-              setShowModal(true);
-              setHasAutoOpened(true);
-            }
-          }
-        } else if (mounted) {
-          setTutorial(null);
+        if (mounted) {
+          setTutorial(tutData as ToolTutorialType | null);
+          setView(viewData);
+          setHasCheckedView(true);
+          setLoading(false);
         }
       } catch (err: any) {
         if (isDev) {
           console.warn("[GlobalToolTutorial] Unexpected error:", err);
         }
+        if (mounted) {
+          setLoading(false);
+        }
       }
     }
 
     // Reset state for new route/toolKey
+    setTutorial(null);
+    setView(null);
+    setLoading(true);
+    setOpen(false);
+    setOpenSource(null);
     setHasAutoOpened(false);
-    setIsDismissed(false);
+    setHasCheckedView(false);
+
     fetchTutorial();
 
     return () => {
@@ -136,24 +159,42 @@ export function GlobalToolTutorial() {
     };
   }, [toolKey, supabase, isDev]);
 
+  // Auto-open logic
+  useEffect(() => {
+    if (
+      tutorial &&
+      user &&
+      toolKey &&
+      hasCheckedView &&
+      !view &&
+      !hasAutoOpened
+    ) {
+      setOpen(true);
+      setOpenSource("auto");
+      setHasAutoOpened(true);
+    }
+  }, [tutorial, user, toolKey, view, hasCheckedView, hasAutoOpened]);
+
   const handleClose = async () => {
-    setShowModal(false);
+    setOpen(false);
     
-    if (!isDismissed && userId && toolKey) {
+    if (user && toolKey && tutorial) {
       try {
         const payload = {
-          user_id: userId,
+          user_id: user.id,
           tool_key: toolKey,
           viewed_at: new Date().toISOString(),
           dismissed_at: new Date().toISOString(),
         };
         
-        const { error } = await supabase
+        const { data: upsertData, error } = await supabase
           .from("user_tool_tutorial_views")
-          .upsert([payload], { onConflict: "user_id,tool_key" });
+          .upsert([payload], { onConflict: "user_id,tool_key" })
+          .select()
+          .maybeSingle();
           
         if (!error) {
-          setIsDismissed(true);
+          setView(upsertData || payload);
         } else {
           if (isDev) console.warn("[GlobalToolTutorial] Error upserting view state:", error);
         }
@@ -164,7 +205,8 @@ export function GlobalToolTutorial() {
   };
 
   const handleOpenManual = () => {
-    setShowModal(true);
+    setOpen(true);
+    setOpenSource("manual");
   };
 
   if (!toolKey || !tutorial) {
@@ -188,7 +230,7 @@ export function GlobalToolTutorial() {
       </div>
 
       {/* Modal */}
-      {showModal && (
+      {open && (
         <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/70 backdrop-blur-sm p-4 animate-in fade-in duration-200">
           <div className="bg-neutral-950 w-full max-w-3xl rounded-2xl border border-white/10 shadow-2xl overflow-hidden flex flex-col max-h-[90vh]">
             
