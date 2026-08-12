@@ -49,26 +49,25 @@ export function CourseCard({ course }: CourseCardProps) {
             </div>
           )}
           
-          {/* Badge Nivel */}
+          {/* Badge Nivel o Taller */}
           <div className="absolute right-3 top-3 z-10">
-            <span className={`${getCourseLevelClasses(course)} shadow-sm backdrop-blur-sm bg-opacity-90`}>
-              {getCourseLevelLabel(course)}
-            </span>
+            {course.course_kind === "workshop" ? (
+              <span className="rounded-full border text-xs font-medium px-2.5 sm:px-3 py-1 shadow-sm backdrop-blur-sm bg-sky-500/10 text-sky-300 border-sky-500/30">
+                Taller
+              </span>
+            ) : (
+              <span className={`${getCourseLevelClasses(course)} shadow-sm backdrop-blur-sm bg-opacity-90`}>
+                {getCourseLevelLabel(course)}
+              </span>
+            )}
           </div>
-
+          
           {/* Badges Top Left */}
           <div className="absolute left-3 top-3 z-10 flex flex-col gap-2 items-start">
             {/* Badge Estado Especial (solo si no es published) */}
             {course.status && course.status !== "published" && (
               <span className="inline-flex items-center rounded-full bg-black/60 backdrop-blur-md border border-white/20 px-2.5 py-1 text-[10px] font-bold text-white uppercase tracking-wider">
                 {course.status === "draft" ? "En desarrollo" : course.status}
-              </span>
-            )}
-
-            {/* Badge Taller */}
-            {course.course_kind === "workshop" && (
-              <span className="inline-flex items-center rounded-full bg-blue-600/90 backdrop-blur-md border border-blue-400/30 px-2.5 py-1 text-[10px] font-bold text-white uppercase tracking-wider shadow-sm">
-                Taller
               </span>
             )}
           </div>
