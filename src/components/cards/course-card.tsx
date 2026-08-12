@@ -56,14 +56,22 @@ export function CourseCard({ course }: CourseCardProps) {
             </span>
           </div>
 
-          {/* Badge Estado Especial (solo si no es published) */}
-          {course.status && course.status !== "published" && (
-            <div className="absolute left-3 top-3 z-10">
+          {/* Badges Top Left */}
+          <div className="absolute left-3 top-3 z-10 flex flex-col gap-2 items-start">
+            {/* Badge Estado Especial (solo si no es published) */}
+            {course.status && course.status !== "published" && (
               <span className="inline-flex items-center rounded-full bg-black/60 backdrop-blur-md border border-white/20 px-2.5 py-1 text-[10px] font-bold text-white uppercase tracking-wider">
                 {course.status === "draft" ? "En desarrollo" : course.status}
               </span>
-            </div>
-          )}
+            )}
+
+            {/* Badge Taller */}
+            {course.course_kind === "workshop" && (
+              <span className="inline-flex items-center rounded-full bg-blue-600/90 backdrop-blur-md border border-blue-400/30 px-2.5 py-1 text-[10px] font-bold text-white uppercase tracking-wider shadow-sm">
+                Taller
+              </span>
+            )}
+          </div>
         </div>
         
         {/* 30% Inferior: Info Compacta */}

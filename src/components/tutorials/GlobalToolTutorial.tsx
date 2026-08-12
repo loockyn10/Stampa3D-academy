@@ -9,7 +9,9 @@ import { ToolTutorial as ToolTutorialType, isPendingTutorialUrl, isBunnyEmbedUrl
 const routeToolMap = [
   { match: "/", toolKey: "dashboard", exact: true },
   { match: "/stampy", toolKey: "stampy" },
+  { match: "/academia", toolKey: "courses" },
   { match: "/cursos", toolKey: "courses" },
+  { match: "/talleres", toolKey: "courses" },
   { match: "/calculadora", toolKey: "calculator" },
   { match: "/presupuestos", toolKey: "budgets" },
   { match: "/productos", toolKey: "products" },

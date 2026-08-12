@@ -65,6 +65,7 @@ export function CoursesTable() {
                 <th className="px-4 py-3">Categoría</th>
                 <th className="px-4 py-3">Instructor</th>
                 <th className="px-4 py-3">Nivel</th>
+                <th className="px-4 py-3">Tipo</th>
                 <th className="px-4 py-3">Estado</th>
                 <th className="px-4 py-3">Orden</th>
                 <th className="px-4 py-3 text-right">Acciones</th>
@@ -84,6 +85,11 @@ export function CoursesTable() {
                   </td>
                   <td className="px-4 py-3">
                     <span className="capitalize text-gray-400">{course.level}</span>
+                  </td>
+                  <td className="px-4 py-3">
+                    <Badge tone={course.course_kind === "workshop" ? "dark" : "gray"}>
+                      {course.course_kind === "workshop" ? "Taller" : "Curso"}
+                    </Badge>
                   </td>
                   <td className="px-4 py-3">
                     <Badge tone={course.status === "published" ? "green" : course.status === "archived" ? "dark" : "dark"}>
@@ -106,7 +112,7 @@ export function CoursesTable() {
               ))}
               {courses.length === 0 && (
                 <tr>
-                  <td colSpan={7} className="px-4 py-8 text-center text-gray-500">
+                  <td colSpan={8} className="px-4 py-8 text-center text-gray-500">
                     No se encontraron cursos creados.
                   </td>
                 </tr>

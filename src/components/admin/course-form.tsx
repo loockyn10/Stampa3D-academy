@@ -28,6 +28,7 @@ export function CourseForm({ courseId }: { courseId?: string }) {
     sort_order: 0,
     category_id: "",
     instructor_id: "",
+    course_kind: "course",
   });
 
   useEffect(() => {
@@ -61,6 +62,7 @@ export function CourseForm({ courseId }: { courseId?: string }) {
             sort_order: courseData.sort_order || 0,
             category_id: courseData.category_id || "",
             instructor_id: courseData.instructor_id || "",
+            course_kind: courseData.course_kind || "course",
           });
         }
         setLoadingData(false);
@@ -236,6 +238,22 @@ export function CourseForm({ courseId }: { courseId?: string }) {
             <option value="intermediate" className="text-white bg-[#111]">Intermedio</option>
             <option value="advanced" className="text-white bg-[#111]">Avanzado</option>
           </select>
+        </div>
+
+        <div className="space-y-2">
+          <label className="text-sm font-medium text-gray-300 flex items-center justify-between">
+            Tipo de contenido
+          </label>
+          <select
+            name="course_kind"
+            value={formData.course_kind}
+            onChange={handleChange}
+            className="w-full text-sm bg-neutral-900 text-neutral-100 border-white/10 rounded-md shadow-sm border focus:border-[#ff6a00] focus:ring-[#ff6a00]/20 focus:ring-2 placeholder:text-neutral-500 disabled:bg-neutral-800 disabled:text-neutral-500"
+          >
+            <option value="course" className="text-white bg-[#111]">Curso</option>
+            <option value="workshop" className="text-white bg-[#111]">Taller</option>
+          </select>
+          <p className="text-xs text-gray-500">Usá Curso para rutas estructuradas y Taller para proyectos prácticos.</p>
         </div>
 
         <div className="space-y-2">

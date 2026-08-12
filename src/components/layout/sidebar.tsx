@@ -36,7 +36,7 @@ const NAV_GROUPS = [
     group: "Plataforma",
     items: [
       { path: "/stampy", label: "Stampy IA", icon: Sparkles },
-      { path: "/cursos", label: "Cursos", icon: BookOpen },
+      { path: "/academia", label: "Academia", icon: BookOpen },
       { path: "/sorteos", label: "Sorteos", icon: Gift },
       { path: "/calculadora", label: "Calculadora", icon: Calculator },
       { path: "/libreria-stl", label: "Librería STL", icon: Boxes },

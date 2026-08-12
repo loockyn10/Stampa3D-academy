@@ -13,7 +13,9 @@ interface HeaderProps {
 
 const PAGE_TITLES: Record<string, string> = {
   "/": "Inicio",
+  "/academia": "Academia",
   "/cursos": "Cursos",
+  "/talleres": "Talleres",
   "/sorteos": "Sorteos",
   "/calculadora": "Calculadora de costos",
   "/libreria-stl": "Librería STL",
