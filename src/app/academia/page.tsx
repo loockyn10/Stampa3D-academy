@@ -1,10 +1,73 @@
 "use client";
 
-import React from "react";
+import React, { useEffect, useState } from "react";
 import Link from "next/link";
-import { GraduationCap, ArrowRight, BookOpen, PenTool } from "lucide-react";
+import { GraduationCap, ArrowRight, BookOpen, PenTool, Loader2 } from "lucide-react";
+import { createClient } from "@/utils/supabase/client";
+import { RecommendedPathSection } from "@/components/academy/RecommendedPathSection";
+import { UserProfile } from "@/lib/learning-roadmaps";
 
 export default function AcademiaPage() {
+  const [courses, setCourses] = useState<any[]>([]);
+  const [learningPaths, setLearningPaths] = useState<any[]>([]);
+  const [profile, setProfile] = useState<UserProfile | null>(null);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+  const supabase = createClient();
+
+  useEffect(() => {
+    const fetchData = async () => {
+      setLoading(true);
+      setError(null);
+      
+      const { data: { user } } = await supabase.auth.getUser();
+      if (user) {
+        const { data: profileData } = await supabase
+          .from("profiles")
+          .select("main_printer_brand, main_printer_model, experience_level, main_goal, commercial_stage, onboarding_completed")
+          .eq("id", user.id)
+          .single();
+        if (profileData) setProfile(profileData);
+      }
+
+      const { data: coursesData, error: fetchErr } = await supabase
+        .from("courses")
+        .select(`
+          *,
+          instructors ( name ),
+          course_modules (
+            lessons ( id, duration_minutes )
+          )
+        `)
+        .eq("status", "published")
+        .eq("course_kind", "course")
+        .order("sort_order", { ascending: true });
+
+      const { data: lpData } = await supabase
+        .from("learning_paths")
+        .select(`
+          *,
+          learning_path_courses (
+            course_id,
+            reason,
+            sort_order
+          )
+        `);
+
+      if (fetchErr) {
+        console.error("Error fetching data:", fetchErr);
+        setError(fetchErr.message);
+      } else {
+        if (coursesData) setCourses(coursesData);
+        if (lpData) setLearningPaths(lpData);
+      }
+      
+      setLoading(false);
+    };
+
+    fetchData();
+  }, [supabase]);
+
   return (
     <div className="space-y-8 pb-10">
       {/* Header Premium */}
@@ -20,7 +83,7 @@ export default function AcademiaPage() {
             <GraduationCap size={36} className="text-[#ff6a00]" /> Academia
           </h1>
           <p className="mt-3 text-base text-gray-400 leading-relaxed">
-            Seguí tu ruta de aprendizaje o explorá cursos y talleres prácticos de Academia Stampa.
+            Seguí tu ruta recomendada o explorá cursos y talleres prácticos.
           </p>
         </div>
       </div>
@@ -69,22 +132,43 @@ export default function AcademiaPage() {
         </Link>
       </div>
 
-      {/* Card Opcional Rutas */}
-      <div className="mt-8">
-        <Link href="/cursos" className="group block">
-          <div className="bg-[#0a0a0a] border border-white/5 rounded-2xl p-6 flex flex-col sm:flex-row sm:items-center justify-between gap-4 transition-all hover:bg-[#111] hover:border-white/10">
-            <div>
-              <h3 className="text-white font-bold text-lg mb-1">¿No sabés por dónde empezar?</h3>
-              <p className="text-gray-400 text-sm">Entrá a Cursos y seguí tu ruta recomendada según tu impresora y objetivo.</p>
-            </div>
-            <div className="inline-flex items-center gap-2 bg-white/5 group-hover:bg-[#ff6a00] group-hover:text-white px-4 py-2 rounded-lg text-sm text-gray-300 font-medium transition-colors whitespace-nowrap">
-              Ver mi ruta
-              <ArrowRight className="w-4 h-4" />
-            </div>
-          </div>
-        </Link>
-      </div>
+      {error && (
+        <div className="bg-red-500/10 border border-red-500/20 p-4 rounded-xl flex items-center gap-3 text-sm text-red-400">
+          Error al cargar la ruta recomendada: {error}
+        </div>
+      )}
 
+      {loading ? (
+        <div className="flex justify-center py-10">
+          <Loader2 className="animate-spin text-[#ff6a00] h-8 w-8" />
+        </div>
+      ) : (
+        <>
+          {courses.length > 0 && (
+            <RecommendedPathSection
+              profile={profile}
+              learningPaths={learningPaths}
+              courses={courses}
+            />
+          )}
+
+          {/* CTA discreto */}
+          <div className="mt-8">
+            <Link href="/configuracion?tab=cuenta" className="group block">
+              <div className="bg-[#0a0a0a] border border-white/5 rounded-2xl p-6 flex flex-col sm:flex-row sm:items-center justify-between gap-4 transition-all hover:bg-[#111] hover:border-white/10">
+                <div>
+                  <h3 className="text-white font-bold text-lg mb-1">¿Querés ajustar tus recomendaciones?</h3>
+                  <p className="text-gray-400 text-sm">Podés cambiar tu impresora, objetivo o nivel desde Configuración para recalcular tu ruta.</p>
+                </div>
+                <div className="inline-flex items-center gap-2 bg-white/5 group-hover:bg-[#ff6a00] group-hover:text-white px-4 py-2 rounded-lg text-sm text-gray-300 font-medium transition-colors whitespace-nowrap">
+                  Ajustar perfil
+                  <ArrowRight className="w-4 h-4" />
+                </div>
+              </div>
+            </Link>
+          </div>
+        </>
+      )}
     </div>
   );
 }

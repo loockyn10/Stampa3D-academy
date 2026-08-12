@@ -3,23 +3,11 @@
 import React, { useEffect, useState } from "react";
 import { createClient } from "@/utils/supabase/client";
 import { CourseCard } from "@/components/cards/course-card";
-import { Loader2, GraduationCap, Compass, Settings2 } from "lucide-react";
-import { 
-  getRecommendedCourseOrder, 
-  UserProfile, 
-  findBestLearningPath, 
-  formatPrinterBrandLabel, 
-  formatExperienceLevelLabel, 
-  formatMainGoalLabel,
-  formatCommercialStageLabel
-} from "@/lib/learning-roadmaps";
+import { Loader2, GraduationCap } from "lucide-react";
 import Link from "next/link";
-
 
 export default function CursosPage() {
   const [courses, setCourses] = useState<any[]>([]);
-  const [learningPaths, setLearningPaths] = useState<any[]>([]);
-  const [profile, setProfile] = useState<UserProfile | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [searchTerm, setSearchTerm] = useState("");
@@ -29,16 +17,6 @@ export default function CursosPage() {
     const fetchData = async () => {
       setLoading(true);
       setError(null);
-      
-      const { data: { user } } = await supabase.auth.getUser();
-      if (user) {
-        const { data: profileData } = await supabase
-          .from("profiles")
-          .select("main_printer_brand, main_printer_model, experience_level, main_goal, commercial_stage, onboarding_completed")
-          .eq("id", user.id)
-          .single();
-        if (profileData) setProfile(profileData);
-      }
 
       const { data, error: fetchErr } = await supabase
         .from("courses")
@@ -53,17 +31,6 @@ export default function CursosPage() {
         .eq("course_kind", "course")
         .order("sort_order", { ascending: true });
 
-      const { data: lpData } = await supabase
-        .from("learning_paths")
-        .select(`
-          *,
-          learning_path_courses (
-            course_id,
-            reason,
-            sort_order
-          )
-        `);
-
       if (fetchErr) {
         console.error("Error fetching courses:", fetchErr);
         setError(fetchErr.message);
@@ -71,15 +38,22 @@ export default function CursosPage() {
         setCourses(data);
       }
       
-      if (lpData) {
-        setLearningPaths(lpData);
-      }
-      
       setLoading(false);
     };
 
     fetchData();
   }, [supabase]);
+
+  const filteredCourses = courses.filter((c) => {
+    const term = searchTerm.toLowerCase();
+    return (
+      (c.title || "").toLowerCase().includes(term) ||
+      (c.description || "").toLowerCase().includes(term) ||
+      (c.level || "").toLowerCase().includes(term) ||
+      (c.slug || "").toLowerCase().includes(term) ||
+      (c.instructors?.name || "").toLowerCase().includes(term)
+    );
+  });
 
   return (
     <div className="space-y-8 pb-10">
@@ -99,7 +73,7 @@ export default function CursosPage() {
             <GraduationCap size={36} className="text-[#ff6a00]" /> Cursos
           </h1>
           <p className="mt-3 text-base text-gray-400 leading-relaxed">
-            Aprendé paso a paso con rutas organizadas por nivel, impresora y objetivo.
+            Explorá cursos estructurados por nivel, impresora y objetivo.
           </p>
         </div>
       </div>
@@ -139,136 +113,26 @@ export default function CursosPage() {
           <Loader2 className="animate-spin text-[#ff6a00] h-10 w-10" />
         </div>
       ) : courses.length > 0 ? (
-        <>
-          {/* RUTA RECOMENDADA */}
-          {(() => {
-            const bestDbPath = findBestLearningPath(profile, learningPaths);
-            
-            let roadmapTitle = "";
-            let roadmapSubtitle = "";
-            let roadmapChips: string[] = [];
-            let roadmapCourses: any[] = [];
-            
-            if (bestDbPath && bestDbPath.learning_path_courses?.length > 0) {
-              // DB Roadmap
-              roadmapTitle = bestDbPath.name;
-              roadmapSubtitle = bestDbPath.description;
-              
-              if (bestDbPath.printer_brand) roadmapChips.push(formatPrinterBrandLabel(bestDbPath.printer_brand));
-              if (bestDbPath.experience_level) roadmapChips.push(formatExperienceLevelLabel(bestDbPath.experience_level));
-              if (bestDbPath.main_goal) roadmapChips.push(formatMainGoalLabel(bestDbPath.main_goal));
-              if (bestDbPath.commercial_stage) roadmapChips.push(formatCommercialStageLabel(bestDbPath.commercial_stage));
-              if (roadmapChips.length === 0) roadmapChips.push("Ruta General");
-
-              // Map courses
-              const sortedDbCourses = [...bestDbPath.learning_path_courses].sort((a, b) => a.sort_order - b.sort_order);
-              roadmapCourses = sortedDbCourses.map(lpc => {
-                const c = courses.find(course => course.id === lpc.course_id);
-                if (!c) return null;
-                return {
-                  ...c,
-                  roadmap_reason: lpc.reason
-                };
-              }).filter(Boolean);
-
-            } else {
-              // Fallback hardcoded logic
-              const fallbackRoadmap = getRecommendedCourseOrder(profile, courses);
-              roadmapTitle = fallbackRoadmap.title;
-              roadmapSubtitle = fallbackRoadmap.subtitle;
-              roadmapChips = fallbackRoadmap.chips;
-              roadmapCourses = fallbackRoadmap.recommendedCourses;
-            }
-            
-            if (roadmapCourses.length === 0) return null;
-
-            return (
-              <div className="mb-12">
-                <div className="flex flex-col md:flex-row md:items-end justify-between gap-4 mb-6">
-                  <div>
-                    <h2 className="text-2xl font-bold text-white flex items-center gap-2 mb-2">
-                      <Compass className="text-[#ff6a00]" size={24} /> {roadmapTitle}
-                    </h2>
-                    <p className="text-gray-400 text-sm">{roadmapSubtitle}</p>
-                    
-                    {roadmapChips.length > 0 && (
-                      <div className="flex flex-wrap gap-2 mt-4">
-                        {roadmapChips.map(chip => (
-                          <span key={chip} className="px-3 py-1 bg-white/5 border border-white/10 rounded-full text-xs text-gray-300 font-medium">
-                            {chip}
-                          </span>
-                        ))}
-                      </div>
-                    )}
-                  </div>
-                  
-                  <Link 
-                    href="/configuracion?tab=cuenta" 
-                    className="inline-flex items-center gap-2 text-sm text-gray-400 hover:text-white transition-colors py-2"
-                  >
-                    <Settings2 size={16} /> Editar preferencias
-                  </Link>
-                </div>
-
-                <div className="grid grid-cols-1 gap-6 sm:grid-cols-2 lg:grid-cols-3">
-                  {roadmapCourses.map((c, index) => (
-                    <div key={`rec-${c.id}`} className="relative group">
-                      <div className="absolute -top-3 -left-3 w-8 h-8 rounded-full bg-[#ff6a00] text-white flex items-center justify-center font-bold text-sm shadow-lg z-10 border-4 border-[#050505]">
-                        {index + 1}
-                      </div>
-                      <div className="rounded-3xl border border-[#ff6a00]/30 shadow-[0_0_15px_rgba(255,106,0,0.1)] overflow-hidden h-full">
-                        <CourseCard course={c} />
-                        {c.roadmap_reason && (
-                          <div className="bg-[#ff6a00]/10 px-4 py-3 text-xs text-[#ff6a00] font-medium border-t border-[#ff6a00]/20 flex items-center gap-2">
-                            <span className="w-1.5 h-1.5 rounded-full bg-[#ff6a00] animate-pulse" />
-                            {c.roadmap_reason}
-                          </div>
-                        )}
-                      </div>
-                    </div>
-                  ))}
-                </div>
-              </div>
-            );
-          })()}
-
-          {/* TODOS LOS CURSOS */}
-          {(() => {
-            const filteredCourses = courses.filter((c) => {
-              const term = searchTerm.toLowerCase();
-              return (
-                (c.title || "").toLowerCase().includes(term) ||
-                (c.description || "").toLowerCase().includes(term) ||
-                (c.level || "").toLowerCase().includes(term) ||
-                (c.slug || "").toLowerCase().includes(term) ||
-                (c.instructors?.name || "").toLowerCase().includes(term)
-              );
-            });
-
-            return (
-              <div>
-                <h2 className="text-2xl font-bold text-white mb-6">Todos los cursos</h2>
-                {filteredCourses.length > 0 ? (
-                  <div className="grid grid-cols-1 gap-6 sm:grid-cols-2 lg:grid-cols-3">
-                    {filteredCourses.map((c) => (
-                      <CourseCard key={c.id} course={c} />
-                    ))}
-                  </div>
-                ) : (
-                  <div className="bg-[#111] border border-white/10 p-8 rounded-xl text-center">
-                    <p className="text-gray-400 mb-4">No encontramos cursos con esa búsqueda.</p>
-                    <button
-                      onClick={() => setSearchTerm("")}
-                      className="px-4 py-2 bg-white/5 hover:bg-white/10 border border-white/10 rounded-lg text-sm text-white transition-colors"
-                    >
-                      Limpiar búsqueda
-                    </button>
-                  </div>
-                )}
-              </div>
-            );
-          })()}
-        </>
+        <div>
+          <h2 className="text-2xl font-bold text-white mb-6">Todos los cursos</h2>
+          {filteredCourses.length > 0 ? (
+            <div className="grid grid-cols-1 gap-6 sm:grid-cols-2 lg:grid-cols-3">
+              {filteredCourses.map((c) => (
+                <CourseCard key={c.id} course={c} />
+              ))}
+            </div>
+          ) : (
+            <div className="bg-[#111] border border-white/10 p-8 rounded-xl text-center">
+              <p className="text-gray-400 mb-4">No encontramos cursos con esa búsqueda.</p>
+              <button
+                onClick={() => setSearchTerm("")}
+                className="px-4 py-2 bg-white/5 hover:bg-white/10 border border-white/10 rounded-lg text-sm text-white transition-colors"
+              >
+                Limpiar búsqueda
+              </button>
+            </div>
+          )}
+        </div>
       ) : (
         <div className="max-w-xl mx-auto mt-12 text-center">
           <div className="bg-[#111] rounded-3xl p-10 border border-white/10 shadow-xl">
