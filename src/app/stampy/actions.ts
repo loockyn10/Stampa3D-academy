@@ -92,35 +92,53 @@ export async function askStampyAction(
   if (isDependent && recentUserMessages.length > 0) {
     searchQuery = cleanText(recentUserMessages.join(" ") + " " + safeMessage);
   }
-  
-  const scoredLessons = lessons.map((l: any) => {
-    let score = 0;
-    let reasons: string[] = [];
-    const ai_problems = Array.isArray(l.ai_problems) ? l.ai_problems : [];
-    const ai_topics = Array.isArray(l.ai_topics) ? l.ai_topics : [];
-    
-    ai_problems.forEach((p: string) => {
-      if (includesUsefulNeedle(searchQuery, p)) { score += 5; reasons.push(`problem: ${p} +5`); }
-    });
+  const evaluateLessons = (queryToUse: string) => {
+    return lessons.map((l: any) => {
+      let score = 0;
+      let reasons: string[] = [];
+      const ai_problems = Array.isArray(l.ai_problems) ? l.ai_problems : [];
+      const ai_topics = Array.isArray(l.ai_topics) ? l.ai_topics : [];
+      
+      ai_problems.forEach((p: string) => {
+        if (includesUsefulNeedle(queryToUse, p)) { score += 5; reasons.push(`problem: ${p} +5`); }
+      });
 
-    ai_topics.forEach((t: string) => {
-      if (includesUsefulNeedle(searchQuery, t)) { score += 3; reasons.push(`topic: ${t} +3`); }
-    });
+      ai_topics.forEach((t: string) => {
+        if (includesUsefulNeedle(queryToUse, t)) { score += 3; reasons.push(`topic: ${t} +3`); }
+      });
 
-    if (includesUsefulNeedle(searchQuery, l.title)) { score += 2; reasons.push(`title: ${l.title} +2`); }
-    if (includesUsefulNeedle(searchQuery, l.ai_summary)) { score += 1; reasons.push(`summary: match +1`); }
-    if (includesUsefulNeedle(searchQuery, l.ai_related_tool)) { score += 1; reasons.push(`tool: ${l.ai_related_tool} +1`); }
-    if (score === 0 && includesUsefulNeedle(searchQuery, l.description)) { score += 1; reasons.push(`description: match +1`); }
+      if (includesUsefulNeedle(queryToUse, l.title)) { score += 2; reasons.push(`title: ${l.title} +2`); }
+      if (includesUsefulNeedle(queryToUse, l.ai_summary)) { score += 1; reasons.push(`summary: match +1`); }
+      if (includesUsefulNeedle(queryToUse, l.ai_related_tool)) { score += 1; reasons.push(`tool: ${l.ai_related_tool} +1`); }
+      if (score === 0 && includesUsefulNeedle(queryToUse, l.description)) { score += 1; reasons.push(`description: match +1`); }
 
-    if (process.env.NODE_ENV === 'development' && score > 0) {
-      console.log("[Stampy lesson score]", l.title, score, reasons);
+      if (process.env.NODE_ENV === 'development' && score > 0) {
+        console.log("[Stampy lesson score]", l.title, score, reasons);
+      }
+
+      return { ...l, _score: score };
+    }).sort((a: any, b: any) => b._score - a._score);
+  };
+
+  let scoredLessons = evaluateLessons(currentQuery);
+  let contextRecommendations = scoredLessons.filter(l => l._score >= 3).slice(0, 5);
+
+  const { findRelevantKnowledge } = await import("@/lib/stampy/knowledge-search");
+  let knowledgeItems = findRelevantKnowledge(currentQuery);
+
+  const isLessonEmpty = contextRecommendations.length === 0;
+  const isKnowledgeEmpty = knowledgeItems.length === 0;
+
+  if ((isLessonEmpty || isKnowledgeEmpty) && isDependent && recentUserMessages.length > 0) {
+    if (isLessonEmpty) {
+      scoredLessons = evaluateLessons(searchQuery);
+      contextRecommendations = scoredLessons.filter(l => l._score >= 3).slice(0, 5);
     }
+    if (isKnowledgeEmpty) {
+      knowledgeItems = findRelevantKnowledge(searchQuery);
+    }
+  }
 
-    return { ...l, _score: score };
-  });
-
-  const sorted = scoredLessons.sort((a, b) => b._score - a._score);
-  const contextRecommendations = sorted.filter(l => l._score >= 3).slice(0, 5);
   const topRecommendations = contextRecommendations.slice(0, 3).map(l => ({
     ...l,
     courseKind: l.course_modules?.courses?.course_kind || "course"
@@ -137,10 +155,6 @@ export async function askStampyAction(
   });
 
   const relatedToolsList = Array.from(relatedToolsSet);
-
-  // === NEW APP KNOWLEDGE BÚSQUEDA ===
-  const { findRelevantKnowledge } = await import("@/lib/stampy/knowledge-search");
-  const knowledgeItems = findRelevantKnowledge(searchQuery);
   
   // Agregamos ids a relatedToolsList si no estaban, por compatibilidad con el UI viejo
   knowledgeItems.forEach(k => {
