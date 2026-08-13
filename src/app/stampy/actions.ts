@@ -35,10 +35,11 @@ export async function askStampyAction(
       id, title, description, ai_summary, ai_topics, ai_problems, ai_level, ai_related_tool,
       course_modules!inner (
         id, title,
-        courses!inner (id, title, slug)
+        courses!inner (id, title, slug, status, course_kind)
       )
     `)
-    .eq('is_ai_recommendable', true);
+    .eq('is_ai_recommendable', true)
+    .eq('course_modules.courses.status', 'published');
 
   if (error || !lessons) {
     console.error("Stampy DB error", error);
@@ -96,7 +97,10 @@ export async function askStampyAction(
 
   const sorted = scoredLessons.sort((a, b) => b._score - a._score);
   const contextRecommendations = sorted.filter(l => l._score > 0).slice(0, 5);
-  const topRecommendations = contextRecommendations.slice(0, 3); // UI gets top 3
+  const topRecommendations = contextRecommendations.slice(0, 3).map(l => ({
+    ...l,
+    courseKind: l.course_modules?.courses?.course_kind || "course"
+  })); // UI gets top 3
 
   let answer = "";
   let fallbackUsed = false;
@@ -141,6 +145,8 @@ const relatedToolsList = Array.from(relatedToolsSet);
       if (k.id === 'products') relatedToolsList.push('productos');
       if (k.id === 'filament-stock' || k.id === 'finished-product-stock') relatedToolsList.push('stock');
       if (k.id === 'courses') relatedToolsList.push('cursos');
+      if (k.id === 'workshops') relatedToolsList.push('talleres');
+      if (k.id === 'academy') relatedToolsList.push('academia');
       if (k.id === 'stl-library') relatedToolsList.push('libreria-stl');
       if (k.id === 'raffles') relatedToolsList.push('sorteos');
       if (k.id === 'community') relatedToolsList.push('comunidad');
@@ -186,8 +192,6 @@ Reglas para respuestas en clase:
       
       systemPrompt += `Tu trabajo es escuchar al usuario, entender qué problema o situación tiene con impresión 3D, costos, ventas o gestión de taller, y guiarlo hacia la clase o herramienta correcta dentro de la plataforma.
 
-Tu trabajo es escuchar al usuario, entender qué problema o situación tiene con impresión 3D, costos, ventas o gestión de taller, y guiarlo hacia la clase o herramienta correcta dentro de la plataforma.
-
 Personalidad:
 - Sos cercano, práctico y vivo.
 - Tenés onda, pero no sos payaso.
@@ -198,6 +202,9 @@ Personalidad:
 - No usás plantillas rígidas ni listas numeradas a menos que el usuario pida pasos estrictos.
 
 Reglas:
+- Si el usuario pregunta por dónde empezar, puedes mandarlo a la sección Academia para ver su ruta recomendada.
+- Si quiere formación estructurada, mándalo a Cursos.
+- Si quiere proyectos prácticos, mándalo a Talleres.
 - Si el usuario expresa una intención clara (ej: "quiero hacer un presupuesto", "cuánto cobrar", "organizar stock"), NO le pidas más datos (ni dimensiones, ni material, ni plazos).
 - Si hay una herramienta para eso, respondes con una orientación corta, explicás brevemente el flujo y lo mandás a la herramienta.
 - NO intentes hacer cálculos, presupuestos ni gestión dentro del chat. Nunca digas "pasame los datos y te ayudo a calcularlo".

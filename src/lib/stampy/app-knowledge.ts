@@ -178,29 +178,74 @@ export const STAMPY_APP_KNOWLEDGE: StampyKnowledgeItem[] = [
     priority: 80
   },
   {
+    id: "academy",
+    title: "Academia",
+    category: "section",
+    route: "/academia",
+    shortDescription: "Centro de aprendizaje con cursos, talleres y tu ruta recomendada.",
+    whenToRecommend: [
+      "cuando el usuario pregunta por dónde empezar",
+      "cuando quiere ver su ruta de aprendizaje recomendada",
+      "cuando busca el hub central de aprendizaje",
+      "cuando no sabe si elegir curso o taller"
+    ],
+    howToUse: [
+      "entrar a Academia",
+      "revisar la ruta recomendada según tu perfil",
+      "explorar cursos y talleres disponibles"
+    ],
+    keywords: [
+      "academia", "aprender", "ruta", "empezar", "por donde empezar", "hub"
+    ],
+    relatedTools: ["courses", "workshops"],
+    priority: 100
+  },
+  {
+    id: "workshops",
+    title: "Talleres",
+    category: "section",
+    route: "/talleres",
+    shortDescription: "Proyectos prácticos paso a paso para aplicar lo aprendido.",
+    whenToRecommend: [
+      "cuando el usuario quiere hacer un proyecto práctico",
+      "cuando busca aplicar conocimientos",
+      "cuando pregunta por talleres o productos específicos"
+    ],
+    howToUse: [
+      "entrar a Talleres",
+      "elegir un taller práctico",
+      "seguir el paso a paso del proyecto"
+    ],
+    keywords: [
+      "taller", "talleres", "proyecto", "proyectos", "hacer", "practico", "producto"
+    ],
+    relatedTools: ["academy", "courses"],
+    priority: 95
+  },
+  {
     id: "courses",
     title: "Cursos",
     category: "section",
     route: "/cursos",
-    shortDescription: "Sirve para aprender impresión 3D paso a paso mediante cursos, módulos y clases.",
+    shortDescription: "Sirve para aprender impresión 3D de forma estructurada paso a paso mediante cursos, módulos y clases.",
     whenToRecommend: [
-      "cuando el usuario quiere aprender",
+      "cuando el usuario quiere aprender de forma teórica y estructurada",
       "cuando tiene un problema que se explica mejor en una clase",
       "cuando pregunta por Bambu Studio, OrcaSlicer, impresión desde cero o Fusion 360",
-      "cuando necesita una explicación paso a paso"
+      "cuando necesita una explicación detallada paso a paso"
     ],
     howToUse: [
       "entrar a Cursos",
-      "elegir un curso",
+      "elegir un curso estructurado",
       "avanzar por módulos y clases",
       "marcar progreso",
       "volver a clases recomendadas cuando tenga un problema puntual"
     ],
     keywords: [
-      "curso", "cursos", "clase", "clases", "aprender", "módulo", "impresión 3d desde cero", "bambu studio", "orca slicer", "fusion 360", "slicer"
+      "curso", "cursos", "clase", "clases", "aprender", "módulo", "impresión 3d desde cero", "bambu studio", "orca slicer", "fusion 360", "slicer", "formación estructurada"
     ],
-    relatedTools: ["stampy"],
-    priority: 95
+    relatedTools: ["academy", "workshops", "stampy"],
+    priority: 90
   },
   {
     id: "stl-library",
@@ -254,7 +299,7 @@ export const STAMPY_APP_KNOWLEDGE: StampyKnowledgeItem[] = [
     id: "community",
     title: "Comunidad",
     category: "section",
-    route: "/whatsapp",
+    route: "/canales",
     shortDescription: "Sirve para conectar con la comunidad de Academia Stampa mediante canales como WhatsApp, Telegram, YouTube o Instagram.",
     whenToRecommend: [
       "cuando el usuario quiere consultar con otros miembros",

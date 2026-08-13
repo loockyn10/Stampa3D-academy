@@ -1,7 +1,7 @@
 "use client";
 
 import React, { useState, useRef, useEffect } from "react";
-import { Sparkles, Send, Bot, User, Calculator, Archive, Package, Boxes, BookOpen, MessageCircle, Gift, FileText, ChevronRight, Loader2 } from "lucide-react";
+import { Sparkles, Send, Bot, User, Calculator, Archive, Package, Boxes, BookOpen, MessageCircle, Gift, FileText, ChevronRight, Loader2, PenTool } from "lucide-react";
 import { askStampyAction } from "./actions";
 import Link from "next/link";
 import { Badge } from "@/components/ui/badge";
@@ -33,6 +33,8 @@ const TOOL_MAP: Record<string, { label: string; href: string; icon: any }> = {
   "productos": { label: "Productos", href: "/productos", icon: Package },
   "libreria-stl": { label: "Librería STL", href: "/libreria-stl", icon: Boxes },
   "cursos": { label: "Cursos", href: "/cursos", icon: BookOpen },
+  "academia": { label: "Academia", href: "/academia", icon: BookOpen },
+  "talleres": { label: "Talleres", href: "/talleres", icon: PenTool },
   "comunidad": { label: "Comunidad", href: "/canales", icon: MessageCircle },
   "sorteos": { label: "Sorteos", href: "/sorteos", icon: Gift }
 };
@@ -144,9 +146,15 @@ export default function StampyPage() {
                           <div key={idx} className="bg-white/5 border border-white/10 rounded-xl p-3 flex flex-col sm:flex-row sm:items-center justify-between gap-3 group">
                             <div>
                               <div className="flex items-center gap-2 mb-1">
-                                <Badge className="bg-white/10 border-none text-gray-300">
-                                  {rec.ai_level === "advanced" ? "Avanzado" : rec.ai_level === "intermediate" ? "Intermedio" : "Principiante"}
-                                </Badge>
+                                {rec.courseKind === "workshop" ? (
+                                  <Badge className="bg-sky-500/10 border border-sky-500/30 text-sky-300">
+                                    Taller
+                                  </Badge>
+                                ) : (
+                                  <Badge className="bg-white/10 border-none text-gray-300">
+                                    {rec.ai_level === "advanced" ? "Avanzado" : rec.ai_level === "intermediate" ? "Intermedio" : "Principiante"}
+                                  </Badge>
+                                )}
                                 <span className="text-[10px] text-gray-500 font-bold tracking-wider truncate uppercase">{rec.course_modules?.courses?.title}</span>
                               </div>
                               <p className="text-sm font-semibold text-white group-hover:text-[#ff6a00] transition-colors">{rec.title}</p>
