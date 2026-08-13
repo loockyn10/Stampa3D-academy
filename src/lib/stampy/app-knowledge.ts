@@ -33,7 +33,7 @@ export const STAMPY_APP_KNOWLEDGE: StampyKnowledgeItem[] = [
       "usar modo avanzado si necesita más precisión"
     ],
     keywords: [
-      "calculadora", "calcular precio", "precio rápido", "estimar", "cuanto cobrar", "cobrar", "costo", "markup", "básico"
+      "calculadora", "calcular precio", "precio rápido", "estimar", "cuanto cobrar", "cobrar", "costo", "markup", "básico", "precio de venta", "rentabilidad"
     ],
     relatedTools: ["calculator-advanced", "products", "budgets"],
     priority: 90
@@ -92,7 +92,7 @@ export const STAMPY_APP_KNOWLEDGE: StampyKnowledgeItem[] = [
       "descargar el PDF para enviarlo al cliente"
     ],
     keywords: [
-      "presupuesto", "presupuestador", "cotización", "cotizar", "cliente", "enviar precio", "pdf", "descuento", "presupuesto profesional", "documento"
+      "presupuesto", "presupuestador", "cotización", "cotizar", "cliente", "enviar precio", "pdf de presupuesto", "descuento", "presupuesto profesional", "documento", "enviar presupuesto"
     ],
     relatedTools: ["calculator-advanced", "products", "profile"],
     priority: 100
@@ -195,7 +195,7 @@ export const STAMPY_APP_KNOWLEDGE: StampyKnowledgeItem[] = [
       "explorar cursos y talleres disponibles"
     ],
     keywords: [
-      "academia", "aprender", "ruta", "empezar", "por donde empezar", "hub"
+      "academia", "ruta recomendada", "por donde empezar", "aprender desde cero", "hub", "ruta de aprendizaje", "cursos y talleres"
     ],
     relatedTools: ["courses", "workshops"],
     priority: 100
@@ -217,7 +217,7 @@ export const STAMPY_APP_KNOWLEDGE: StampyKnowledgeItem[] = [
       "seguir el paso a paso del proyecto"
     ],
     keywords: [
-      "taller", "talleres", "proyecto", "proyectos", "hacer", "practico", "producto"
+      "taller", "talleres", "proyecto práctico", "proyectos", "producto para hacer", "ideas de productos", "práctica"
     ],
     relatedTools: ["academy", "courses"],
     priority: 95
@@ -242,7 +242,7 @@ export const STAMPY_APP_KNOWLEDGE: StampyKnowledgeItem[] = [
       "volver a clases recomendadas cuando tenga un problema puntual"
     ],
     keywords: [
-      "curso", "cursos", "clase", "clases", "aprender", "módulo", "impresión 3d desde cero", "bambu studio", "orca slicer", "fusion 360", "slicer", "formación estructurada"
+      "curso", "cursos", "formación estructurada", "módulo", "impresión 3d desde cero", "bambu studio", "orca slicer", "fusion 360", "slicer"
     ],
     relatedTools: ["academy", "workshops", "stampy"],
     priority: 90
@@ -290,7 +290,7 @@ export const STAMPY_APP_KNOWLEDGE: StampyKnowledgeItem[] = [
       "consultar historial de ganadores"
     ],
     keywords: [
-      "sorteo", "sorteos", "premio", "premios", "impresora", "ganar", "participación", "beneficios"
+      "sorteo", "sorteos", "premio", "premios", "impresora", "ganar", "participación", "beneficios", "participar", "ganador"
     ],
     relatedTools: ["community"],
     priority: 60

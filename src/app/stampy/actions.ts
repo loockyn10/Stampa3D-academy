@@ -16,6 +16,29 @@ export interface StampyContextPayload {
   transcript?: string;
 }
 
+function cleanText(value?: string | null): string {
+  if (!value) return "";
+  return value.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "").trim();
+}
+
+function isUsefulText(value?: string | null): boolean {
+  const cleaned = cleanText(value);
+  return (
+    cleaned.length >= 4 &&
+    cleaned !== "empty" &&
+    cleaned !== "null" &&
+    cleaned !== "pendiente" &&
+    cleaned !== "sin resumen" &&
+    cleaned !== "sin descripcion"
+  );
+}
+
+function includesUsefulNeedle(haystack: string, needle?: string | null) {
+  const cleanedNeedle = cleanText(needle);
+  if (!isUsefulText(cleanedNeedle)) return false;
+  return haystack.includes(cleanedNeedle);
+}
+
 export async function askStampyAction(
   message: string,
   conversation?: { role: "user" | "assistant"; content: string }[],
@@ -58,45 +81,46 @@ export async function askStampyAction(
   })).filter(msg => msg.content.length > 0);
 
   const safeMessage = message.substring(0, 1000);
+  const currentQuery = cleanText(safeMessage);
 
-  // Combined query for search
-  const conversationText = recentConversation.map(c => c.content).join(" ");
-  const combinedQuery = `${conversationText} ${safeMessage}`;
+  const dependentPhrases = ["eso", "explicamelo", "y eso?", "que significa", "como lo arreglo", "no entendi", "lo anterior", "esa clase", "ese problema", "y los"];
+  const isDependent = currentQuery.length < 25 || dependentPhrases.some(p => currentQuery.includes(p));
 
-  const q = combinedQuery.toLowerCase();
+  const recentUserMessages = recentConversation.filter(msg => msg.role === 'user').slice(-2).map(m => m.content);
+  
+  let searchQuery = currentQuery;
+  if (isDependent && recentUserMessages.length > 0) {
+    searchQuery = cleanText(recentUserMessages.join(" ") + " " + safeMessage);
+  }
   
   const scoredLessons = lessons.map((l: any) => {
     let score = 0;
+    let reasons: string[] = [];
     const ai_problems = Array.isArray(l.ai_problems) ? l.ai_problems : [];
     const ai_topics = Array.isArray(l.ai_topics) ? l.ai_topics : [];
     
-    // si la consulta contiene una frase de ai_problems: +5
     ai_problems.forEach((p: string) => {
-      if (p && q.includes(p.toLowerCase())) score += 5;
+      if (includesUsefulNeedle(searchQuery, p)) { score += 5; reasons.push(`problem: ${p} +5`); }
     });
 
-    // si contiene un tema de ai_topics: +3
     ai_topics.forEach((t: string) => {
-      if (t && q.includes(t.toLowerCase())) score += 3;
+      if (includesUsefulNeedle(searchQuery, t)) { score += 3; reasons.push(`topic: ${t} +3`); }
     });
 
-    // si coincide con title: +2
-    if (l.title && q.includes(l.title.toLowerCase())) score += 2;
+    if (includesUsefulNeedle(searchQuery, l.title)) { score += 2; reasons.push(`title: ${l.title} +2`); }
+    if (includesUsefulNeedle(searchQuery, l.ai_summary)) { score += 1; reasons.push(`summary: match +1`); }
+    if (includesUsefulNeedle(searchQuery, l.ai_related_tool)) { score += 1; reasons.push(`tool: ${l.ai_related_tool} +1`); }
+    if (score === 0 && includesUsefulNeedle(searchQuery, l.description)) { score += 1; reasons.push(`description: match +1`); }
 
-    // si coincide con ai_summary: +1
-    if (l.ai_summary && q.includes(l.ai_summary.toLowerCase())) score += 1;
-    
-    // si hay palabras clave relacionadas con ai_related_tool: +1
-    if (l.ai_related_tool && q.includes(l.ai_related_tool.toLowerCase())) score += 1;
-
-    // fallback
-    if (score === 0 && l.description && q.includes(l.description.toLowerCase())) score += 1;
+    if (process.env.NODE_ENV === 'development' && score > 0) {
+      console.log("[Stampy lesson score]", l.title, score, reasons);
+    }
 
     return { ...l, _score: score };
   });
 
   const sorted = scoredLessons.sort((a, b) => b._score - a._score);
-  const contextRecommendations = sorted.filter(l => l._score > 0).slice(0, 5);
+  const contextRecommendations = sorted.filter(l => l._score >= 3).slice(0, 5);
   const topRecommendations = contextRecommendations.slice(0, 3).map(l => ({
     ...l,
     courseKind: l.course_modules?.courses?.course_kind || "course"
@@ -111,30 +135,12 @@ export async function askStampyAction(
       relatedToolsSet.add(l.ai_related_tool);
     }
   });
-  
-  if (q.includes('presupuesto') || q.includes('cotización') || q.includes('cotizacion') || q.includes('cliente') || q.includes('enviar precio')) {
-    relatedToolsSet.add('presupuestos');
-    relatedToolsSet.add('calculadora');
-  }
-  if (q.includes('cuánto cobrar') || q.includes('cuanto cobrar') || q.includes('precio') || q.includes('costo') || q.includes('margen') || q.includes('ganancia')) {
-    relatedToolsSet.add('calculadora');
-    relatedToolsSet.add('presupuestos');
-  }
-  if (q.includes('stock') || q.includes('filamento restante') || q.includes('inventario') || q.includes('material disponible')) {
-    relatedToolsSet.add('stock');
-  }
-  if (q.includes('producto') || q.includes('catálogo') || q.includes('catalogo') || q.includes('pieza recurrente')) {
-    relatedToolsSet.add('productos');
-  }
-  if (q.includes('curso') || q.includes('aprender') || q.includes('clase')) {
-    relatedToolsSet.add('cursos');
-  }
 
-const relatedToolsList = Array.from(relatedToolsSet);
+  const relatedToolsList = Array.from(relatedToolsSet);
 
   // === NEW APP KNOWLEDGE BÚSQUEDA ===
   const { findRelevantKnowledge } = await import("@/lib/stampy/knowledge-search");
-  const knowledgeItems = findRelevantKnowledge(combinedQuery);
+  const knowledgeItems = findRelevantKnowledge(searchQuery);
   
   // Agregamos ids a relatedToolsList si no estaban, por compatibilidad con el UI viejo
   knowledgeItems.forEach(k => {

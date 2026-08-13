@@ -1,34 +1,37 @@
 import { STAMPY_APP_KNOWLEDGE, StampyKnowledgeItem } from "./app-knowledge";
 
 export function findRelevantKnowledge(message: string): StampyKnowledgeItem[] {
-  const q = message.toLowerCase();
+  const normalize = (text: string) => text.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "").trim();
+  const q = normalize(message);
+  const stopwords = ["de", "la", "el", "que", "para", "con", "una", "uno", "como", "hacer", "usar", "ver", "los", "las", "un", "del", "al", "y", "o", "en", "por"];
   
   const scoredItems = STAMPY_APP_KNOWLEDGE.map(item => {
     let score = 0;
     
     // Keyword match
     item.keywords.forEach(kw => {
-      if (q.includes(kw.toLowerCase())) {
+      const normalizedKw = normalize(kw);
+      if (normalizedKw && q.includes(normalizedKw)) {
         score += 5;
       }
     });
     
     // Title match
-    const titleWords = item.title.toLowerCase().split(/\s+/);
+    const titleWords = normalize(item.title).split(/\s+/).filter(w => !stopwords.includes(w));
     titleWords.forEach(word => {
-      if (word.length > 3 && q.includes(word)) {
+      if (word.length >= 4 && q.includes(word)) {
         score += 3;
       }
     });
     
-    // Short Description match
-    if (q.includes(item.shortDescription.toLowerCase())) {
+    // Short Description match (exact phrase)
+    if (item.shortDescription && q.includes(normalize(item.shortDescription))) {
       score += 2;
     }
     
-    // When To Recommend match
+    // When To Recommend match (exact phrase)
     item.whenToRecommend.forEach(reason => {
-      if (q.includes(reason.toLowerCase())) {
+      if (reason && q.includes(normalize(reason))) {
         score += 2;
       }
     });
