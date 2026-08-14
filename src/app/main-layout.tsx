@@ -5,6 +5,8 @@ import { Sidebar } from "@/components/layout/sidebar";
 import { Header } from "@/components/layout/header";
 import { usePathname } from "next/navigation";
 import { GlobalToolTutorial } from "@/components/tutorials/GlobalToolTutorial";
+import { StampyContextProvider } from "@/components/stampy/StampyContextProvider";
+import { GlobalStampyWidget } from "@/components/stampy/GlobalStampyWidget";
 
 export function MainLayout({ children }: { children: React.ReactNode }) {
   const [mobileOpen, setMobileOpen] = useState(false);
@@ -26,15 +28,18 @@ export function MainLayout({ children }: { children: React.ReactNode }) {
   }
 
   return (
-    <div className="flex min-h-screen bg-[#050505] text-[#ededed] font-sans">
-      <Sidebar mobileOpen={mobileOpen} setMobileOpen={setMobileOpen} />
-      <div className="flex min-h-screen flex-1 flex-col lg:pl-0">
-        <Header setMobileOpen={setMobileOpen} />
-        <main className="flex-1 px-4 py-6 sm:px-6 lg:px-8 lg:py-8 animate-page-in relative">
-          {children}
-        </main>
+    <StampyContextProvider>
+      <div className="flex min-h-screen bg-[#050505] text-[#ededed] font-sans">
+        <Sidebar mobileOpen={mobileOpen} setMobileOpen={setMobileOpen} />
+        <div className="flex min-h-screen flex-1 flex-col lg:pl-0">
+          <Header setMobileOpen={setMobileOpen} />
+          <main className="flex-1 px-4 py-6 sm:px-6 lg:px-8 lg:py-8 animate-page-in relative">
+            {children}
+          </main>
+        </div>
+        <GlobalToolTutorial />
+        <GlobalStampyWidget />
       </div>
-      <GlobalToolTutorial />
-    </div>
+    </StampyContextProvider>
   );
 }

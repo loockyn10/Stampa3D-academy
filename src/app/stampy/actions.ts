@@ -1,20 +1,30 @@
 "use server";
 
 import { createClient } from "@/utils/supabase/server";
-export interface StampyContextPayload {
-  source: "lesson";
-  courseTitle?: string;
-  moduleTitle?: string;
-  lessonId?: string;
-  lessonTitle?: string;
-  lessonDescription?: string;
-  lessonSummary?: string;
-  lessonTopics?: string[];
-  lessonProblems?: string[];
-  lessonLevel?: string;
-  relatedTool?: string;
-  transcript?: string;
-}
+export type StampyContextPayload =
+  | {
+      source: "lesson";
+      courseTitle?: string;
+      moduleTitle?: string;
+      lessonId?: string;
+      lessonTitle?: string;
+      lessonDescription?: string;
+      lessonSummary?: string;
+      lessonTopics?: string[];
+      lessonProblems?: string[];
+      lessonLevel?: string;
+      relatedTool?: string;
+      transcript?: string;
+    }
+  | {
+      source: "page";
+      pathname?: string;
+      pageTitle?: string;
+      pageDescription?: string;
+      userIntentHints?: string[];
+      relatedRoutes?: string[];
+      toolKey?: string;
+    };
 
 function cleanText(value?: string | null): string {
   if (!value) return "";
@@ -208,6 +218,17 @@ Reglas para respuestas en clase:
 - No inventes cosas que no estén en la clase.
 - Si el usuario pregunta algo fuera de la clase, respóndele y oriéntalo a la herramienta o curso correspondiente.
 - Mantén un tono claro, cercano y útil. No uses estructuras robóticas.\n\n`;
+      } else if (context && context.source === 'page') {
+        systemPrompt += `El usuario está actualmente en esta pantalla de la plataforma:
+Pantalla: ${context.pageTitle || ''}
+Ruta: ${context.pathname || ''}
+Descripción: ${context.pageDescription || ''}
+
+Reglas adicionales para respuesta en pantalla:
+- Si el usuario pregunta "qué hago acá" o "cómo funciona", explicá brevemente para qué sirve esta sección.
+- Priorizá orientar usando esta herramienta/sección si la pregunta se relaciona con ella.
+- No digas "según el contexto provisto".
+- Si el usuario pregunta cómo navegar, indicá la ruta correcta.\n\n`;
       }
       
       systemPrompt += `Tu trabajo es escuchar al usuario, entender qué problema o situación tiene con impresión 3D, costos, ventas o gestión de taller, y guiarlo hacia la clase o herramienta correcta dentro de la plataforma.
