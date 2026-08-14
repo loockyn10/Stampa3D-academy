@@ -567,12 +567,12 @@ export default function CursoDetailPage({ params }: PageProps) {
           </div>
 
           {/* Stampy Promo Card */}
-          <Link href="/stampy" className="block relative overflow-hidden bg-gradient-to-br from-[#ff6a00] to-[#cc5500] rounded-2xl p-6 shadow-xl shadow-[#ff6a00]/20 hover:-translate-y-1 transition-transform group">
-            <div className="absolute top-0 right-0 -mt-4 -mr-4 opacity-20">
+          <Link href="/stampy" className="block relative overflow-hidden bg-gradient-to-br from-cyan-950/40 via-violet-950/40 to-neutral-900 border border-cyan-500/20 rounded-2xl p-6 shadow-xl shadow-cyan-500/5 hover:-translate-y-1 transition-transform group">
+            <div className="absolute top-0 right-0 -mt-4 -mr-4 opacity-15 text-cyan-400">
               <Sparkles size={120} />
             </div>
             <div className="relative z-10">
-              <div className="flex items-center gap-2 text-white/90 mb-2">
+              <div className="flex items-center gap-2 text-cyan-300 mb-2">
                 <Sparkles size={16} />
                 <span className="text-xs font-bold uppercase tracking-wider">Asistente IA</span>
               </div>
@@ -580,7 +580,7 @@ export default function CursoDetailPage({ params }: PageProps) {
               <p className="text-white/80 text-sm mb-4 leading-relaxed">
                 Pregúntale a Stampy y te ayudará a resolver cualquier duda sobre impresión 3D al instante.
               </p>
-              <div className="inline-flex items-center justify-center bg-white text-[#ff6a00] px-4 py-2 rounded-xl text-sm font-bold group-hover:bg-orange-50 transition-colors">
+              <div className="inline-flex items-center justify-center bg-gradient-to-r from-cyan-500 to-violet-600 text-white px-4 py-2 rounded-xl text-sm font-bold hover:brightness-110 transition-all">
                 Preguntar a Stampy <ArrowLeft size={16} className="ml-2 rotate-180" />
               </div>
             </div>

@@ -102,16 +102,15 @@ export default function StampyPage() {
     <div className="flex flex-col h-[calc(100vh-6rem)] md:h-[calc(100vh-12rem)] max-w-6xl mx-auto p-4 md:p-6 gap-4 md:gap-6">
       <div className="flex flex-col mb-1 shrink-0">
         <div className="flex items-center gap-3">
-          <div className="p-2 bg-orange-100 text-orange-600 rounded-xl">
+          <div className="p-2 bg-gradient-to-r from-cyan-500/20 to-violet-500/20 text-cyan-400 border border-cyan-400/20 rounded-xl">
             <Sparkles size={24} />
           </div>
           <div className="flex-1">
             <div className="flex items-center justify-between w-full">
-              <h1 className="text-2xl font-bold text-white flex items-center gap-3">
-                Stampy
-                <span className="inline-flex items-center gap-1 rounded-full border px-2.5 py-1 text-xs font-semibold bg-purple-50 text-purple-700 border-purple-200">Asistente de la academia</span>
+              <h1 className="text-2xl font-bold flex items-center gap-3">
+                <span className="bg-gradient-to-r from-cyan-300 via-sky-300 to-violet-400 bg-clip-text text-transparent">Stampy</span>
+                <span className="inline-flex items-center gap-1 rounded-full border px-2.5 py-1 text-xs font-semibold bg-cyan-500/10 text-cyan-300 border-cyan-500/30">Asistente de la academia</span>
               </h1>
-
             </div>
             <p className="text-xs md:text-sm text-gray-500 mt-1">Contale qué problema tenés y te guía hacia la clase o herramienta correcta.</p>
           </div>
@@ -127,12 +126,12 @@ export default function StampyPage() {
               <div key={msg.id} className={`flex gap-4 ${msg.role === "user" ? "justify-end" : "justify-start"}`}>
                 
                 {msg.role === "stampy" && (
-                  <div className="w-8 h-8 shrink-0 rounded-full bg-[#ff6a00]/10 flex items-center justify-center text-[#ff6a00] mt-1 shadow-sm">
+                  <div className="w-8 h-8 shrink-0 rounded-full bg-cyan-500/10 flex items-center justify-center text-cyan-400 mt-1 shadow-sm border border-cyan-500/20">
                     <Bot size={18} />
                   </div>
                 )}
                 
-                <div className={`max-w-[85%] ${msg.role === "user" ? "bg-[#ff6a00] text-white rounded-2xl rounded-tr-sm px-4 py-3 shadow-md" : "bg-[#111] border border-white/10 shadow-sm rounded-2xl rounded-tl-sm px-5 py-4"}`}>
+                <div className={`max-w-[85%] ${msg.role === "user" ? "bg-gradient-to-r from-cyan-500 to-violet-600 text-white rounded-2xl rounded-tr-sm px-4 py-3 shadow-md shadow-cyan-500/5" : "bg-[#111] border border-white/10 shadow-sm rounded-2xl rounded-tl-sm px-5 py-4"}`}>
                   <p className={`text-sm ${msg.role === "user" ? "text-white" : "text-gray-300"} whitespace-pre-wrap`}>
                     {msg.content}
                   </p>
@@ -234,11 +233,11 @@ export default function StampyPage() {
             
             {loading && (
               <div className="flex gap-4 justify-start">
-                <div className="w-8 h-8 shrink-0 rounded-full bg-[#ff6a00]/10 flex items-center justify-center text-[#ff6a00] mt-1 shadow-sm">
+                <div className="w-8 h-8 shrink-0 rounded-full bg-cyan-500/10 flex items-center justify-center text-cyan-400 mt-1 shadow-sm border border-cyan-500/20">
                   <Bot size={18} />
                 </div>
                 <div className="bg-[#111] border border-white/10 shadow-sm rounded-2xl rounded-tl-sm px-5 py-4 flex items-center gap-3">
-                  <Loader2 size={16} className="animate-spin text-[#ff6a00]" />
+                  <Loader2 size={16} className="animate-spin text-cyan-400" />
                   <p className="text-sm text-gray-400 italic">Stampy está buscando por dónde conviene arrancar...</p>
                 </div>
               </div>
@@ -254,7 +253,7 @@ export default function StampyPage() {
                 onChange={(e) => setInput(e.target.value)}
                 onKeyDown={handleKeyDown}
                 placeholder="Preguntale algo a Stampy..."
-                className="w-full bg-[#111] border border-white/10 rounded-xl py-3 pl-4 pr-12 text-sm text-white placeholder:text-gray-400 focus:outline-none focus:ring-2 focus:ring-[#ff6a00]/30 focus:border-[#ff6a00]/50 resize-none overflow-y-auto"
+                className="w-full bg-[#111] border border-white/10 rounded-xl py-3 pl-4 pr-12 text-sm text-white placeholder:text-gray-400 focus:outline-none focus:ring-2 focus:ring-cyan-400/20 focus:border-cyan-400/60 resize-none overflow-y-auto"
                 rows={1}
                 disabled={loading}
                 style={{ minHeight: '52px', maxHeight: '120px' }}
@@ -262,7 +261,7 @@ export default function StampyPage() {
               <button
                 onClick={() => handleSend(input)}
                 disabled={!input.trim() || loading}
-                className="absolute right-2 bottom-2 p-2 bg-[#ff6a00] text-white rounded-lg hover:bg-[#ff7a1a] disabled:opacity-50 disabled:cursor-not-allowed transition-colors shadow-sm"
+                className="absolute right-2 bottom-2 p-2 bg-gradient-to-r from-cyan-500 to-violet-600 text-white rounded-lg hover:brightness-110 disabled:opacity-50 disabled:cursor-not-allowed transition-colors shadow-sm"
               >
                 <Send size={16} />
               </button>

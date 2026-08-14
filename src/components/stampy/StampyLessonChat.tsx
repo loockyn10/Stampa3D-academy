@@ -98,7 +98,7 @@ export function StampyLessonChat({ courseTitle, moduleTitle, lesson }: StampyLes
         <button
           type="button"
           onClick={() => setIsOpen(true)}
-          className="fixed bottom-6 right-6 z-[100] flex h-14 w-14 items-center justify-center rounded-full border border-orange-500/40 bg-orange-500 text-white shadow-2xl shadow-orange-500/25 transition hover:bg-orange-400 hover:scale-105 active:scale-95"
+          className="fixed bottom-6 right-6 z-[100] flex h-14 w-14 items-center justify-center rounded-full border border-cyan-300/40 bg-gradient-to-r from-cyan-400 to-violet-500 text-white shadow-2xl shadow-cyan-500/25 transition hover:brightness-110 hover:scale-105 active:scale-95"
           title="Preguntarle a Stampy"
         >
           <Bot size={28} className="animate-soft-pulse" />
@@ -108,25 +108,25 @@ export function StampyLessonChat({ courseTitle, moduleTitle, lesson }: StampyLes
       {/* Panel Lateral */}
       {isOpen && (
         <aside 
-          className="fixed inset-x-3 bottom-3 z-[100] h-[82dvh] max-h-[82dvh] overflow-hidden rounded-2xl border border-orange-500/30 bg-neutral-950/95 shadow-2xl shadow-orange-500/15 backdrop-blur-xl md:inset-auto md:bottom-6 md:right-6 md:h-[80dvh] md:max-h-[760px] md:w-[420px] md:max-w-[calc(100vw-3rem)] animate-in fade-in zoom-in-95 slide-in-from-bottom-2"
+          className="fixed inset-x-3 bottom-3 z-[100] h-[82dvh] max-h-[82dvh] overflow-hidden rounded-2xl border border-cyan-400/30 bg-neutral-950/95 shadow-2xl shadow-cyan-500/15 backdrop-blur-xl md:inset-auto md:bottom-6 md:right-6 md:h-[80dvh] md:max-h-[760px] md:w-[420px] md:max-w-[calc(100vw-3rem)] animate-in fade-in zoom-in-95 slide-in-from-bottom-2"
         >
           <div className="flex h-full min-h-0 flex-col">
             {/* Cabecera */}
             <div className="flex items-center justify-between p-4 border-b border-white/10 bg-white/[0.03] shrink-0">
               <div className="flex items-center gap-3">
-                <div className="p-2 bg-orange-500/20 text-orange-400 rounded-xl border border-orange-500/30">
+                <div className="p-2 bg-cyan-500/10 text-cyan-400 rounded-xl border border-cyan-400/25">
                   <Bot size={20} />
                 </div>
                 <div>
                   <h3 className="text-sm font-bold text-white flex items-center gap-2">
-                    Stampy <span className="text-[10px] font-bold bg-orange-500/20 text-orange-400 px-1.5 py-0.5 rounded-md uppercase tracking-wider animate-soft-pulse">IA</span>
+                    Stampy <span className="text-[10px] font-bold bg-gradient-to-r from-cyan-500/20 to-violet-500/20 text-cyan-300 px-1.5 py-0.5 rounded-md uppercase tracking-wider border border-cyan-400/20 animate-soft-pulse">IA</span>
                   </h3>
                   <p className="text-xs text-gray-400 max-w-[200px] truncate">Contexto: {lesson.title}</p>
                 </div>
               </div>
               <button 
                 onClick={() => setIsOpen(false)} 
-                className="text-gray-400 hover:text-white transition-colors p-2 bg-white/5 border border-white/10 rounded-full hover:bg-white/10 hover:border-orange-500/40"
+                className="text-gray-400 hover:text-white transition-colors p-2 bg-white/5 border border-white/10 rounded-full hover:bg-white/10 hover:border-cyan-400/40"
               >
                 <X size={18} />
               </button>
@@ -139,7 +139,7 @@ export function StampyLessonChat({ courseTitle, moduleTitle, lesson }: StampyLes
                   <div 
                     className={`max-w-[85%] rounded-2xl p-3 text-sm ${
                       m.role === 'user' 
-                        ? 'bg-orange-500 text-white rounded-tr-sm shadow-sm' 
+                        ? 'bg-gradient-to-r from-cyan-500 to-violet-600 text-white rounded-tr-sm shadow-sm' 
                         : 'bg-[#1a1a1a] border border-white/10 text-gray-200 rounded-tl-sm'
                     }`}
                   >
@@ -150,7 +150,7 @@ export function StampyLessonChat({ courseTitle, moduleTitle, lesson }: StampyLes
               {isLoading && (
                 <div className="flex justify-start animate-slide-up">
                   <div className="bg-[#1a1a1a] border border-white/10 text-gray-400 rounded-2xl rounded-tl-sm p-3 text-sm flex items-center gap-2">
-                    <Loader2 size={14} className="animate-spin text-orange-500" />
+                    <Loader2 size={14} className="animate-spin text-cyan-400" />
                     <span>Stampy está revisando la clase...</span>
                   </div>
                 </div>
@@ -167,13 +167,13 @@ export function StampyLessonChat({ courseTitle, moduleTitle, lesson }: StampyLes
                   onChange={e => setInput(e.target.value)}
                   onKeyDown={e => e.key === 'Enter' && handleSend()}
                   placeholder="Preguntale algo sobre esta clase..."
-                  className="w-full bg-white/5 border border-white/10 text-neutral-100 text-sm rounded-xl py-3 pl-4 pr-12 focus:outline-none focus:border-orange-500/60 focus:ring-2 focus:ring-orange-500/20 transition-all duration-200 placeholder:text-gray-500"
+                  className="w-full bg-white/5 border border-white/10 text-neutral-100 text-sm rounded-xl py-3 pl-4 pr-12 focus:outline-none focus:border-cyan-400/60 focus:ring-2 focus:ring-cyan-400/20 transition-all duration-200 placeholder:text-gray-500"
                   disabled={isLoading}
                 />
                 <button
                   onClick={handleSend}
                   disabled={isLoading || !input.trim()}
-                  className="absolute right-2 p-2 bg-orange-500 text-white rounded-lg disabled:opacity-50 disabled:cursor-not-allowed hover:bg-orange-600 transition-colors"
+                  className="absolute right-2 p-2 bg-gradient-to-r from-cyan-500 to-violet-600 text-white rounded-lg disabled:opacity-50 disabled:cursor-not-allowed hover:brightness-110 transition-colors"
                 >
                   <Send size={16} />
                 </button>

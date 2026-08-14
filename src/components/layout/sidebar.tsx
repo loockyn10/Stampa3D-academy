@@ -178,6 +178,7 @@ export function Sidebar({ mobileOpen, setMobileOpen }: SidebarProps) {
                   {group.items.map((item) => {
                     const Icon = item.icon;
                     const active = isActive(item.path);
+                    const isStampy = item.path === "/stampy";
                     return (
                       <Link
                         key={item.path}
@@ -185,7 +186,9 @@ export function Sidebar({ mobileOpen, setMobileOpen }: SidebarProps) {
                         onClick={() => setMobileOpen(false)}
                         className={`group flex w-full items-center gap-3 rounded-xl px-3 py-2.5 text-sm font-medium transition-colors duration-150 ${
                           active
-                            ? "bg-[#ff6a00]/10 text-[#ff6a00]"
+                            ? isStampy
+                              ? "bg-cyan-500/10 text-cyan-400"
+                              : "bg-[#ff6a00]/10 text-[#ff6a00]"
                             : item.path === "/salir"
                             ? "text-gray-500 hover:bg-red-500/10 hover:text-red-400"
                             : "text-gray-400 hover:bg-white/5 hover:text-white"
@@ -195,14 +198,18 @@ export function Sidebar({ mobileOpen, setMobileOpen }: SidebarProps) {
                           size={17}
                           className={
                             active
-                              ? "text-[#ff6a00]"
+                              ? isStampy
+                                ? "text-cyan-400"
+                                : "text-[#ff6a00]"
                               : item.path === "/salir"
                               ? "text-gray-500 group-hover:text-red-400"
+                              : isStampy
+                              ? "text-gray-500 group-hover:text-cyan-400/80"
                               : "text-gray-500 group-hover:text-gray-300"
                           }
                         />
                         <span className="flex-1 text-left">{item.label}</span>
-                        {active && <span className="h-1.5 w-1.5 rounded-full bg-[#ff6a00]" />}
+                        {active && <span className={`h-1.5 w-1.5 rounded-full ${isStampy ? 'bg-cyan-400' : 'bg-[#ff6a00]'}`} />}
                       </Link>
                     );
                   })}

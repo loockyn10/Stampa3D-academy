@@ -235,9 +235,9 @@ export default function SorteosPage() {
       </div>
 
       {/* 5. CTA Stampy */}
-      <div className="mt-4 bg-gradient-to-r from-[#111] to-[#151515] border border-white/10 rounded-2xl p-6 flex flex-col md:flex-row items-center justify-between gap-6 shadow-xl">
+      <div className="mt-4 bg-gradient-to-r from-cyan-500/5 to-violet-500/5 border border-cyan-500/20 rounded-2xl p-6 flex flex-col md:flex-row items-center justify-between gap-6 shadow-xl">
         <div className="flex items-center gap-4">
-          <div className="w-12 h-12 bg-[#0a0a0a] rounded-xl flex items-center justify-center border border-white/5 shrink-0 shadow-inner">
+          <div className="w-12 h-12 bg-[#0a0a0a] rounded-xl flex items-center justify-center border border-cyan-500/10 shrink-0 shadow-inner">
             <span className="text-2xl">🤖</span>
           </div>
           <div>
@@ -249,7 +249,7 @@ export default function SorteosPage() {
         </div>
         <a 
           href="/stampy"
-          className="shrink-0 px-6 py-2.5 bg-orange-500 hover:bg-orange-600 text-white text-sm font-bold rounded-xl transition-colors shadow-lg shadow-orange-500/20"
+          className="shrink-0 px-6 py-2.5 bg-gradient-to-r from-cyan-500 to-violet-600 hover:brightness-110 text-white text-sm font-bold rounded-xl transition-all shadow-lg shadow-cyan-500/10"
         >
           Preguntar a Stampy
         </a>
