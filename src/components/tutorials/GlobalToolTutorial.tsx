@@ -220,16 +220,14 @@ export function GlobalToolTutorial() {
   return (
     <>
       {/* Floating Button */}
-      <div className="fixed bottom-4 right-4 md:bottom-6 md:right-6 z-[90]">
-        <button
-          onClick={handleOpenManual}
-          title="Ver tutorial"
-          className="flex items-center gap-2 px-4 py-2.5 bg-neutral-900/80 hover:bg-neutral-800 border border-white/10 hover:border-[#ff6a00]/40 text-neutral-100 rounded-full shadow-lg backdrop-blur-md transition-all hover:scale-105 active:scale-95"
-        >
-          <HelpCircle size={18} className="text-[#ff6a00]" />
-          <span className="font-semibold text-sm">? Tutorial</span>
-        </button>
-      </div>
+      <button
+        onClick={handleOpenManual}
+        title="Ver tutorial"
+        className="fixed bottom-7 right-24 z-[100] flex h-10 w-10 items-center justify-center rounded-full border border-orange-500/40 bg-orange-500 text-lg font-bold text-white shadow-2xl shadow-orange-500/25 transition hover:scale-105 hover:bg-orange-400 active:scale-95"
+      >
+        ?
+      </button>
+
 
       {/* Modal */}
       {open && (
