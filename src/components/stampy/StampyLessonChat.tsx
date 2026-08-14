@@ -89,7 +89,7 @@ export function StampyLessonChat({ courseTitle, moduleTitle, lesson }: StampyLes
       {/* Botón Flotante */}
       <button
         onClick={() => setIsOpen(true)}
-        className={`fixed bottom-6 right-6 z-40 flex items-center justify-center w-14 h-14 bg-orange-500 text-white rounded-full shadow-lg shadow-orange-500/20 hover:bg-orange-600 hover:scale-105 active:scale-95 transition-all duration-200 ${isOpen ? 'hidden' : ''}`}
+        className={`fixed bottom-6 right-6 z-40 flex items-center justify-center w-14 h-14 bg-orange-500 text-white rounded-full shadow-lg shadow-orange-500/20 hover:bg-orange-600 hover:scale-105 active:scale-95 transition-all duration-200 border border-orange-500/30 ${isOpen ? 'hidden' : ''}`}
         title="Preguntarle a Stampy"
       >
         <Bot size={28} className="animate-soft-pulse" />
@@ -97,10 +97,10 @@ export function StampyLessonChat({ courseTitle, moduleTitle, lesson }: StampyLes
 
       {/* Panel Lateral */}
       <div 
-        className={`fixed inset-y-0 right-0 z-50 w-full sm:w-[400px] bg-[#0a0a0a] border-l border-white/10 shadow-2xl flex flex-col transition-transform duration-300 ease-in-out transform ${isOpen ? 'translate-x-0' : 'translate-x-full'}`}
+        className={`fixed inset-0 md:inset-auto md:right-6 md:top-20 md:bottom-6 md:w-[420px] z-50 bg-neutral-950/95 border-l md:border border-white/10 md:border-orange-500/30 shadow-2xl md:shadow-orange-500/10 md:rounded-2xl backdrop-blur-xl flex flex-col transition-transform duration-300 ease-in-out transform ${isOpen ? 'translate-x-0' : 'translate-x-full'}`}
       >
         {/* Cabecera */}
-        <div className="flex items-center justify-between p-4 border-b border-white/10 bg-[#111]">
+        <div className="flex items-center justify-between p-4 border-b border-white/10 bg-white/[0.03] shrink-0">
           <div className="flex items-center gap-3">
             <div className="p-2 bg-orange-500/20 text-orange-400 rounded-xl border border-orange-500/30">
               <Bot size={20} />
@@ -109,7 +109,7 @@ export function StampyLessonChat({ courseTitle, moduleTitle, lesson }: StampyLes
               <h3 className="text-sm font-bold text-white flex items-center gap-2">
                 Stampy <span className="text-[10px] font-bold bg-orange-500/20 text-orange-400 px-1.5 py-0.5 rounded-md uppercase tracking-wider animate-soft-pulse">IA</span>
               </h3>
-              <p className="text-xs text-gray-400">Contexto: {lesson.title}</p>
+              <p className="text-xs text-gray-400 max-w-[200px] truncate">Contexto: {lesson.title}</p>
             </div>
           </div>
           <button onClick={() => setIsOpen(false)} className="text-gray-400 hover:text-white transition-colors p-2 bg-white/5 rounded-full hover:bg-white/10">
@@ -118,7 +118,7 @@ export function StampyLessonChat({ courseTitle, moduleTitle, lesson }: StampyLes
         </div>
 
         {/* Mensajes */}
-        <div className="flex-1 overflow-y-auto p-4 space-y-4">
+        <div className="flex-1 overflow-y-auto p-4 space-y-4 overscroll-contain">
           {messages.map((m, idx) => (
             <div key={idx} className={`flex ${m.role === 'user' ? 'justify-end' : 'justify-start'}`}>
               <div 
@@ -144,7 +144,7 @@ export function StampyLessonChat({ courseTitle, moduleTitle, lesson }: StampyLes
         </div>
 
         {/* Input */}
-        <div className="p-4 bg-[#111] border-t border-white/10">
+        <div className="p-4 bg-neutral-950/95 border-t border-white/10 shrink-0">
           <div className="relative flex items-center">
             <input
               type="text"
@@ -152,7 +152,7 @@ export function StampyLessonChat({ courseTitle, moduleTitle, lesson }: StampyLes
               onChange={e => setInput(e.target.value)}
               onKeyDown={e => e.key === 'Enter' && handleSend()}
               placeholder="Preguntale algo sobre esta clase..."
-              className="w-full bg-[#1a1a1a] border border-white/10 text-white text-sm rounded-xl py-3 pl-4 pr-12 focus:outline-none focus:border-orange-500 focus:ring-1 focus:ring-orange-500 transition-all duration-200 placeholder:text-gray-500"
+              className="w-full bg-white/5 border border-white/10 text-neutral-100 text-sm rounded-xl py-3 pl-4 pr-12 focus:outline-none focus:border-orange-500/60 focus:ring-2 focus:ring-orange-500/20 transition-all duration-200 placeholder:text-neutral-500"
               disabled={isLoading}
             />
             <button
