@@ -82,12 +82,62 @@ export default function LibreriaStlPage() {
     );
   }
 
-  // Remove the early return.
-  const translateDifficulty = (diff: string) => {
-    if (diff === "beginner") return "Fácil";
-    if (diff === "intermediate") return "Medio";
-    if (diff === "advanced") return "Difícil";
-    return diff;
+  // Helper functions and component for DifficultyStars
+  const normalizeDifficulty = (value?: string | null) => {
+    const normalized = value
+      ?.toLowerCase()
+      .normalize("NFD")
+      .replace(/[\u0300-\u036f]/g, "")
+      .trim();
+
+    if (!normalized) return null;
+
+    if (["facil", "easy", "beginner", "principiante"].includes(normalized)) {
+      return {
+        label: "Fácil",
+        stars: 1,
+        className: "border-emerald-500/30 bg-emerald-500/10 text-emerald-300"
+      };
+    }
+
+    if (["intermedio", "medium", "intermediate"].includes(normalized)) {
+      return {
+        label: "Intermedio",
+        stars: 2,
+        className: "border-amber-500/30 bg-amber-500/10 text-amber-300"
+      };
+    }
+
+    if (["dificil", "hard", "advanced", "avanzado"].includes(normalized)) {
+      return {
+        label: "Difícil",
+        stars: 3,
+        className: "border-red-500/30 bg-red-500/10 text-red-300"
+      };
+    }
+
+    return {
+      label: value,
+      stars: 0,
+      className: "border-white/10 bg-white/5 text-neutral-300"
+    };
+  };
+
+  const renderStars = (stars: number) => {
+    if (stars <= 0) return null;
+    return "★".repeat(stars) + "☆".repeat(3 - stars);
+  };
+
+  const DifficultyStars = ({ difficulty }: { difficulty?: string | null }) => {
+    const norm = normalizeDifficulty(difficulty);
+    if (!norm) return null;
+
+    return (
+      <span className={`inline-flex items-center gap-1 border px-2 py-0.5 rounded-md text-[10px] font-bold uppercase tracking-wider backdrop-blur-md ${norm.className}`}>
+        {norm.stars > 0 && <span className="mr-0.5 tracking-tight">{renderStars(norm.stars)}</span>}
+        <span>{norm.label}</span>
+      </span>
+    );
   };
 
   return (
@@ -198,13 +248,10 @@ export default function LibreriaStlPage() {
                   )}
                   {/* Badges Flotantes */}
                   <div className="absolute top-3 right-3 flex flex-col items-end gap-1.5">
-                    {f.difficulty && (
-                      <span className="px-2 py-1 rounded-md text-[10px] font-bold uppercase tracking-wider bg-black/60 backdrop-blur-md border border-white/10 text-white">
-                        {translateDifficulty(f.difficulty)}
-                      </span>
-                    )}
+                    <DifficultyStars difficulty={f.difficulty} />
                   </div>
                 </div>
+
 
                 {/* Contenido */}
                 <div className="p-5 flex flex-col flex-1">
