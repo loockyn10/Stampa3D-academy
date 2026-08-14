@@ -1,9 +1,9 @@
 "use client";
 
 import React, { useState, useRef, useEffect } from "react";
-import { Bot, X, Send, Loader2, Sparkles } from "lucide-react";
+import { Bot, X, Send, Loader2 } from "lucide-react";
 import { askStampyAction, StampyContextPayload } from "@/app/stampy/actions";
-import { Card } from "@/components/ui/card";
+import { createPortal } from "react-dom";
 
 interface StampyLessonChatProps {
   courseTitle: string;
@@ -37,6 +37,11 @@ export function StampyLessonChat({ courseTitle, moduleTitle, lesson }: StampyLes
   const [input, setInput] = useState("");
   const [isLoading, setIsLoading] = useState(false);
   const messagesEndRef = useRef<HTMLDivElement>(null);
+  const [mounted, setMounted] = useState(false);
+
+  useEffect(() => {
+    setMounted(true);
+  }, []);
 
   const scrollToBottom = () => {
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
@@ -84,14 +89,16 @@ export function StampyLessonChat({ courseTitle, moduleTitle, lesson }: StampyLes
     }
   };
 
-  return (
+  if (!mounted) return null;
+
+  return createPortal(
     <>
       {/* Botón Flotante */}
       {!isOpen && (
         <button
           type="button"
           onClick={() => setIsOpen(true)}
-          className="fixed bottom-6 right-6 z-[70] flex h-14 w-14 items-center justify-center rounded-full border border-orange-500/40 bg-orange-500 text-white shadow-2xl shadow-orange-500/25 transition hover:bg-orange-400 hover:scale-105 active:scale-95"
+          className="fixed bottom-6 right-6 z-[100] flex h-14 w-14 items-center justify-center rounded-full border border-orange-500/40 bg-orange-500 text-white shadow-2xl shadow-orange-500/25 transition hover:bg-orange-400 hover:scale-105 active:scale-95"
           title="Preguntarle a Stampy"
         >
           <Bot size={28} className="animate-soft-pulse" />
@@ -101,7 +108,7 @@ export function StampyLessonChat({ courseTitle, moduleTitle, lesson }: StampyLes
       {/* Panel Lateral */}
       {isOpen && (
         <aside 
-          className="fixed inset-x-3 bottom-3 z-[70] h-[82dvh] max-h-[82dvh] overflow-hidden rounded-2xl border border-orange-500/30 bg-neutral-950/95 shadow-2xl shadow-orange-500/15 backdrop-blur-xl md:inset-auto md:bottom-6 md:right-6 md:h-[80dvh] md:max-h-[760px] md:w-[420px] md:max-w-[calc(100vw-3rem)] animate-in fade-in zoom-in-95 slide-in-from-bottom-2"
+          className="fixed inset-x-3 bottom-3 z-[100] h-[82dvh] max-h-[82dvh] overflow-hidden rounded-2xl border border-orange-500/30 bg-neutral-950/95 shadow-2xl shadow-orange-500/15 backdrop-blur-xl md:inset-auto md:bottom-6 md:right-6 md:h-[80dvh] md:max-h-[760px] md:w-[420px] md:max-w-[calc(100vw-3rem)] animate-in fade-in zoom-in-95 slide-in-from-bottom-2"
         >
           <div className="flex h-full min-h-0 flex-col">
             {/* Cabecera */}
@@ -183,6 +190,7 @@ export function StampyLessonChat({ courseTitle, moduleTitle, lesson }: StampyLes
           onClick={() => setIsOpen(false)}
         />
       )}
-    </>
+    </>,
+    document.body
   );
 }
