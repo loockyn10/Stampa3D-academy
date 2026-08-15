@@ -57,49 +57,50 @@ export default function TalleresPage() {
 
   return (
     <div className="space-y-8 pb-10">
-      {/* Header Premium */}
-      <div className="relative overflow-hidden rounded-3xl bg-[#111] border border-white/10 p-8 sm:p-10 shadow-2xl">
-        <div className="absolute inset-0 bg-gradient-to-br from-blue-500/10 to-transparent pointer-events-none" />
-        <div className="relative z-10 max-w-3xl">
-          <div className="flex items-center gap-2 mb-3 justify-between">
-            <Link 
-              href="/academia"
-              className="rounded-full bg-white/5 hover:bg-white/10 text-gray-300 text-xs font-bold px-3 py-1 uppercase tracking-wider border border-white/10 transition-colors"
-            >
-              ← Academia
-            </Link>
+      {/* Header Premium & Buscador Integrado */}
+      <div className="bg-[#111] border border-white/10 rounded-2xl p-6 sm:p-8 flex flex-col gap-6 relative overflow-hidden">
+        <div className="absolute top-0 right-0 w-64 h-64 bg-blue-500/5 rounded-full blur-3xl pointer-events-none -translate-y-1/2 translate-x-1/2"></div>
+        <div className="relative z-10 flex flex-col md:flex-row md:items-end justify-between gap-6">
+          <div className="max-w-xl">
+            <div className="flex items-center gap-2 mb-4 justify-between">
+              <Link 
+                href="/academia"
+                className="inline-flex items-center gap-2 px-3 py-1 bg-blue-500/10 border border-blue-500/20 text-blue-400 text-[10px] font-bold uppercase tracking-wider rounded-full transition-colors hover:bg-blue-500/20"
+              >
+                ← Academia
+              </Link>
+            </div>
+            <h1 className="text-3xl md:text-4xl font-black text-white tracking-tight mb-2 flex items-center gap-3">
+              <PenTool size={36} className="text-blue-500" /> Talleres
+            </h1>
+            <p className="text-sm text-gray-400">
+              Proyectos prácticos para aplicar lo aprendido y crear productos reales.
+            </p>
           </div>
-          <h1 className="text-3xl font-bold text-white sm:text-4xl flex items-center gap-3 mt-4">
-            <PenTool size={36} className="text-blue-500" /> Talleres
-          </h1>
-          <p className="mt-3 text-base text-gray-400 leading-relaxed">
-            Proyectos prácticos para aplicar lo aprendido y crear productos reales.
-          </p>
+          
+          <div className="w-full md:w-80 shrink-0">
+            <div className="relative">
+              <svg className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 h-5 w-5" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor">
+                <path fillRule="evenodd" d="M9 3.5a5.5 5.5 0 100 11 5.5 5.5 0 000-11zM2 9a7 7 0 1112.452 4.391l3.328 3.329a.75.75 0 11-1.06 1.06l-3.329-3.328A7 7 0 012 9z" clipRule="evenodd" />
+              </svg>
+              <input
+                type="text"
+                value={searchTerm}
+                onChange={(e) => setSearchTerm(e.target.value)}
+                placeholder="Buscar talleres..."
+                className="w-full bg-[#0a0a0a] border border-white/10 text-white text-sm rounded-xl py-3 pl-10 pr-4 focus:outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-500 transition-all"
+              />
+              {searchTerm && (
+                <button
+                  onClick={() => setSearchTerm("")}
+                  className="absolute right-3 top-1/2 -translate-y-1/2 text-neutral-500 hover:text-white text-xs font-semibold"
+                >
+                  Limpiar
+                </button>
+              )}
+            </div>
+          </div>
         </div>
-      </div>
-
-      {/* Buscador */}
-      <div className="relative max-w-xl">
-        <div className="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none">
-          <svg className="h-5 w-5 text-neutral-500" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor">
-            <path fillRule="evenodd" d="M9 3.5a5.5 5.5 0 100 11 5.5 5.5 0 000-11zM2 9a7 7 0 1112.452 4.391l3.328 3.329a.75.75 0 11-1.06 1.06l-3.329-3.328A7 7 0 012 9z" clipRule="evenodd" />
-          </svg>
-        </div>
-        <input
-          type="text"
-          value={searchTerm}
-          onChange={(e) => setSearchTerm(e.target.value)}
-          placeholder="Buscar talleres por proyecto, producto o técnica..."
-          className="w-full pl-11 pr-4 py-3 bg-neutral-900 border border-white/10 rounded-xl text-neutral-100 placeholder-neutral-500 focus:outline-none focus:ring-2 focus:ring-blue-500/50 focus:border-blue-500/50 transition-all shadow-inner"
-        />
-        {searchTerm && (
-          <button
-            onClick={() => setSearchTerm("")}
-            className="absolute inset-y-0 right-0 pr-4 flex items-center text-neutral-500 hover:text-white"
-          >
-            Limpiar
-          </button>
-        )}
       </div>
 
       {error && (
