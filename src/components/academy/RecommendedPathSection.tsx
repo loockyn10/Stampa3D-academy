@@ -91,14 +91,16 @@ export function RecommendedPathSection({ profile, learningPaths, courses }: Reco
         </Link>
       </div>
 
-      <div 
-        className="grid justify-center gap-6"
-        style={{
-          gridTemplateColumns: "repeat(auto-fit, minmax(min(100%, 300px), 360px))",
-        }}
-      >
+      <div className="flex flex-wrap justify-center gap-6">
         {roadmapCourses.map((c, index) => (
-          <div key={`rec-${c.id}`} className="relative group">
+          <div 
+            key={`rec-${c.id}`} 
+            className="relative group min-w-0"
+            style={{
+              flex: "0 1 clamp(280px, 28vw, 360px)",
+              maxWidth: "100%",
+            }}
+          >
             <div className="absolute -top-3 -left-3 w-8 h-8 rounded-full bg-[#ff6a00] text-white flex items-center justify-center font-bold text-sm shadow-lg z-10 border-4 border-[#050505]">
               {index + 1}
             </div>
