@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useMemo } from "react";
 import Link from "next/link";
 import { AlertTriangle, Plus, Minus, Loader2, Package, Box, History, X, Edit2, Search, ChevronDown, ChevronUp } from "lucide-react";
 import { Card } from "@/components/ui/card";
@@ -56,6 +56,36 @@ export default function StockPage() {
   const [consumeSelectedProductId, setConsumeSelectedProductId] = useState<string>("");
   const [consumeAddStock, setConsumeAddStock] = useState(true);
   const [consumeLoading, setConsumeLoading] = useState(false);
+
+  // Filament Filters
+  const [filamentSearch, setFilamentSearch] = useState("");
+  const [selectedMaterial, setSelectedMaterial] = useState("all");
+  const [selectedColor, setSelectedColor] = useState("all");
+
+  const filteredFilaments = useMemo(() => {
+    return filaments.filter(f => {
+      const searchMatch = !filamentSearch || 
+        f.name?.toLowerCase().includes(filamentSearch.toLowerCase()) || 
+        f.filament_type?.toLowerCase().includes(filamentSearch.toLowerCase()) || 
+        f.color?.toLowerCase().includes(filamentSearch.toLowerCase());
+      
+      const matMatch = selectedMaterial === "all" || f.filament_type?.toLowerCase() === selectedMaterial.toLowerCase();
+      
+      const colorMatch = selectedColor === "all" || f.color?.toLowerCase() === selectedColor.toLowerCase();
+      
+      return searchMatch && matMatch && colorMatch;
+    });
+  }, [filaments, filamentSearch, selectedMaterial, selectedColor]);
+
+  const uniqueMaterials = useMemo(() => {
+    const mats = new Set(filaments.map(f => f.filament_type).filter(Boolean));
+    return Array.from(mats).sort();
+  }, [filaments]);
+
+  const uniqueColors = useMemo(() => {
+    const colors = new Set(filaments.map(f => f.color).filter(Boolean));
+    return Array.from(colors).sort();
+  }, [filaments]);
 
   // Filament Editor Modal States
   const [filamentModalOpen, setFilamentModalOpen] = useState(false);
@@ -474,7 +504,8 @@ export default function StockPage() {
     setConsumeLoading(false);
   };
 
-  const lowProductsCount = products.filter((r) => r.is_active && r.stock_quantity <= 1).length;
+  // Stock low product warning hidden until thresholds are configurable.
+  const lowProductsCount: number = 0; // products.filter((r) => r.is_active && r.stock_quantity <= 1).length;
   const lowFilamentsCount = filaments.filter((r) => r.remaining_grams < 200).length;
   const totalLowCount = lowProductsCount + lowFilamentsCount;
 
@@ -575,25 +606,79 @@ export default function StockPage() {
           </button>
         </div>
         {tab === "filamentos" && (
-          <div className="flex items-center gap-2">
-            <button
-              onClick={() => {
-                setFilamentFormData({
-                  name: "", filament_type: "PLA", color: "", total_grams: 1000, remaining_grams: 1000, purchase_price: 0, is_active: true
-                });
-                setEditingFilamentId("new");
-                setFilamentModalOpen(true);
-              }}
-              className="flex items-center gap-2 text-sm font-bold text-white bg-orange-600 hover:bg-orange-500 px-4 py-2 rounded-lg transition-colors border border-orange-500"
-            >
-              <Plus size={15} /> Nuevo Filamento
-            </button>
-            <button 
-              onClick={() => setConsumeModalOpen(true)} 
-              className="flex items-center gap-2 text-sm font-bold text-orange-700 bg-orange-50 hover:bg-orange-100 px-4 py-2 rounded-lg transition-colors border border-orange-200 mr-2"
-            >
-              <Package size={15} /> Descontar por producto
-            </button>
+          <div className="flex flex-col gap-4">
+            <div className="flex items-center gap-2">
+              <button
+                onClick={() => {
+                  setFilamentFormData({
+                    name: "", filament_type: "PLA", color: "", total_grams: 1000, remaining_grams: 1000, purchase_price: 0, is_active: true
+                  });
+                  setEditingFilamentId("new");
+                  setFilamentModalOpen(true);
+                }}
+                className="flex items-center gap-2 text-sm font-bold text-white bg-orange-600 hover:bg-orange-500 px-4 py-2 rounded-lg transition-colors border border-orange-500"
+              >
+                <Plus size={15} /> Nuevo Filamento
+              </button>
+              <button 
+                onClick={() => setConsumeModalOpen(true)} 
+                className="flex items-center gap-2 text-sm font-bold text-orange-700 bg-orange-50 hover:bg-orange-100 px-4 py-2 rounded-lg transition-colors border border-orange-200 mr-2"
+              >
+                <Package size={15} /> Descontar por producto
+              </button>
+            </div>
+
+            <div className="mb-2 flex flex-col md:flex-row gap-3">
+              <div className="relative flex-1">
+                <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" size={18} />
+                <input 
+                  type="text" 
+                  placeholder="Buscar filamentos..." 
+                  value={filamentSearch}
+                  onChange={(e) => setFilamentSearch(e.target.value)}
+                  className="w-full pl-10 pr-10 py-2.5 bg-[#111] border border-white/10 rounded-xl text-sm text-white focus:outline-none focus:border-orange-500/50"
+                />
+                {filamentSearch && (
+                  <button onClick={() => setFilamentSearch("")} className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-white">
+                    <X size={16} />
+                  </button>
+                )}
+              </div>
+              
+              <div className="flex flex-wrap gap-3">
+                <select
+                  value={selectedMaterial}
+                  onChange={(e) => setSelectedMaterial(e.target.value)}
+                  className="bg-[#111] border border-white/10 rounded-xl px-3 py-2.5 text-sm text-white focus:outline-none focus:border-orange-500/50 min-w-[150px]"
+                >
+                  <option value="all">Todos los materiales</option>
+                  {uniqueMaterials.map((m: any) => <option key={m} value={m}>{m}</option>)}
+                </select>
+                
+                <select
+                  value={selectedColor}
+                  onChange={(e) => setSelectedColor(e.target.value)}
+                  className="bg-[#111] border border-white/10 rounded-xl px-3 py-2.5 text-sm text-white focus:outline-none focus:border-orange-500/50 min-w-[150px]"
+                >
+                  <option value="all">Todos los colores</option>
+                  {uniqueColors.map((c: any) => <option key={c} value={c}>{c}</option>)}
+                </select>
+                
+                {(filamentSearch || selectedMaterial !== "all" || selectedColor !== "all") && (
+                  <button 
+                    onClick={() => {
+                      setFilamentSearch("");
+                      setSelectedMaterial("all");
+                      setSelectedColor("all");
+                    }}
+                    className="px-4 py-2.5 bg-[#111] border border-white/10 rounded-xl text-sm text-gray-400 hover:text-white hover:bg-white/5 transition-colors shrink-0"
+                    title="Limpiar filtros"
+                  >
+                    Limpiar
+                  </button>
+                )}
+              </div>
+            </div>
           </div>
         )}
       </div>
@@ -805,7 +890,14 @@ export default function StockPage() {
                 )
               })}
 
-              {tab === "filamentos" && filaments.map((f) => {
+              {tab === "filamentos" && filteredFilaments.length === 0 && (
+                <tr>
+                  <td colSpan={5} className="px-5 py-12 text-center text-gray-400 text-sm">
+                    No encontramos filamentos con esa búsqueda.
+                  </td>
+                </tr>
+              )}
+              {tab === "filamentos" && filteredFilaments.map((f) => {
                 const isLow = f.remaining_grams < 200;
                 return (
                 <tr key={f.id} className="hover:bg-[#0a0a0a] transition-colors">
