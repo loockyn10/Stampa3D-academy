@@ -116,7 +116,12 @@ export default function TalleresPage() {
       ) : courses.length > 0 ? (
         <div>
           {filteredCourses.length > 0 ? (
-            <div className="grid grid-cols-[repeat(auto-fit,minmax(280px,360px))] justify-center gap-6">
+            <div 
+              className="grid justify-center gap-6"
+              style={{
+                gridTemplateColumns: "repeat(auto-fit, minmax(min(100%, 300px), 360px))",
+              }}
+            >
               {filteredCourses.map((c) => (
                 <CourseCard key={c.id} course={c} />
               ))}

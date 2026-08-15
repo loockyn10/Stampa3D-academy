@@ -28,7 +28,7 @@ export function CourseCard({ course }: CourseCardProps) {
   };
 
   return (
-    <Link href={`/cursos/${course.slug || course.id}`} className="group w-full max-w-[360px] aspect-[10/7] flex flex-col block mx-auto">
+    <Link href={`/cursos/${course.slug || course.id}`} className="group w-full min-w-0 aspect-[10/7] flex flex-col block">
       <Card className="overflow-hidden p-0 h-full flex flex-col bg-[#111] border-white/10 hover:border-[#ff6a00]/50 transition-all duration-300 shadow-lg group-hover:shadow-[0_8px_30px_rgb(255,106,0,0.12)] group-hover:-translate-y-1">
         
         {/* 70% Superior: Imagen */}
