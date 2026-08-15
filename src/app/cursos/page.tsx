@@ -117,18 +117,9 @@ export default function CursosPage() {
         <div>
           <h2 className="text-2xl font-bold text-white mb-6">Todos los cursos</h2>
           {filteredCourses.length > 0 ? (
-            <div className="flex flex-wrap justify-center gap-6">
+            <div className="grid grid-cols-1 gap-6 sm:grid-cols-2 lg:grid-cols-3">
               {filteredCourses.map((c) => (
-                <div
-                  key={c.id}
-                  className="min-w-0"
-                  style={{
-                    flex: "0 1 clamp(280px, 28vw, 360px)",
-                    maxWidth: "100%",
-                  }}
-                >
-                  <CourseCard course={c} />
-                </div>
+                <CourseCard key={c.id} course={c} />
               ))}
             </div>
           ) : (
