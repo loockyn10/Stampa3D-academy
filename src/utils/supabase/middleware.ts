@@ -91,6 +91,24 @@ export async function updateSession(request: NextRequest) {
       }
     }
 
+    // Beta tester / manual grant access check
+    if (!hasAccess) {
+      const { data: grants } = await supabase
+        .from('user_access_grants')
+        .select('id, grant_type, status, expires_at')
+        .eq('user_id', user.id)
+        .eq('status', 'active')
+        .in('grant_type', ['beta_tester', 'manual_free_access', 'internal_tester'])
+        .limit(1)
+
+      if (grants && grants.length > 0) {
+        const grant = grants[0]
+        if (!grant.expires_at || new Date(grant.expires_at).getTime() > Date.now()) {
+          hasAccess = true
+        }
+      }
+    }
+
     // Admin routes protection
     if (pathname.startsWith('/admin') && role !== 'admin') {
       return redirectWithCookies('/')
