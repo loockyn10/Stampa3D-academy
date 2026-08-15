@@ -244,9 +244,18 @@ export function UsersTable() {
                         </span>
                       )}
                       {user.founderData && (
-                        <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-semibold bg-amber-500/10 text-amber-300 border border-amber-500/30 w-fit">
-                          <Star size={9} /> Fundador #{user.founderData.founder_number}
-                        </span>
+                        <div className="flex flex-col gap-0.5">
+                          <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-semibold bg-amber-500/10 text-amber-300 border border-amber-500/30 w-fit">
+                            <Star size={9} />
+                            {user.founderData.status === 'active' ? 'Fundador' : 'Reservado'} #{user.founderData.founder_number}
+                          </span>
+                          {user.founderData.price_paid && (
+                            <span className="text-[10px] text-amber-500/70 pl-0.5">${Number(user.founderData.price_paid).toLocaleString('es-AR')}</span>
+                          )}
+                          {user.founderData.confirmed_at && (
+                            <span className="text-[10px] text-gray-600 pl-0.5">Confirmado {new Date(user.founderData.confirmed_at).toLocaleDateString('es-AR')}</span>
+                          )}
+                        </div>
                       )}
                     </div>
                   </td>
@@ -340,9 +349,10 @@ export function UsersTable() {
                         <button
                           onClick={() => handleMarkFounder(user.id, user.display_name || user.full_name || user.email || "Usuario")}
                           disabled={updatingId === user.id}
-                          className="flex items-center gap-1 px-2 py-1 rounded-lg text-[10px] font-semibold bg-amber-500/10 text-amber-300 border border-amber-500/30 hover:bg-amber-500/20 transition-colors disabled:opacity-50"
+                          title="Override manual. El flujo normal es automático al pagar."
+                          className="flex items-center gap-1 px-2 py-1 rounded-lg text-[10px] font-semibold bg-white/5 text-gray-500 border border-white/10 hover:bg-amber-500/10 hover:text-amber-400 hover:border-amber-500/30 transition-colors disabled:opacity-50"
                         >
-                          <Star size={9} /> Fundador
+                          <Star size={9} /> Override Fundador
                         </button>
                       )}
                     </div>

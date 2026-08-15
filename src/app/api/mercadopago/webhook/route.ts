@@ -184,7 +184,48 @@ export async function POST(request: Request) {
           if (Object.keys(profileUpdates).length > 0) {
             await supabaseAdmin.from('profiles').update(profileUpdates).eq('id', userId);
           }
+
+          // ── Confirm founder reservation on successful authorization ──
+          if (status === "authorized") {
+            try {
+              const { data: pendingFounder } = await supabaseAdmin
+                .from('founder_members')
+                .select('id, founder_number, reservation_expires_at')
+                .eq('user_id', userId)
+                .eq('status', 'reserved')
+                .single()
+
+              if (pendingFounder) {
+                const reservationValid = !pendingFounder.reservation_expires_at ||
+                  new Date(pendingFounder.reservation_expires_at) > new Date()
+
+                if (reservationValid) {
+                  await supabaseAdmin
+                    .from('founder_members')
+                    .update({
+                      status: 'active',
+                      confirmed_at: new Date().toISOString(),
+                      mercado_pago_preapproval_id: String(preapproval.id),
+                    })
+                    .eq('id', pendingFounder.id)
+
+                  console.log(`[webhook] Founder #${pendingFounder.founder_number} confirmed for user ${userId}`)
+                } else {
+                  // Reservation expired — mark as expired, don't auto-confirm
+                  await supabaseAdmin
+                    .from('founder_members')
+                    .update({ status: 'expired' })
+                    .eq('id', pendingFounder.id)
+                  console.warn(`[webhook] Founder reservation expired for user ${userId}`)
+                }
+              }
+            } catch (founderErr: any) {
+              // Non-critical — don't block membership activation
+              console.error('[webhook] Founder confirmation error:', founderErr.message)
+            }
+          }
         }
+
       } else {
          console.warn(`No se pudo resolver el user_id para el preapproval ${preapproval.id}`);
       }
