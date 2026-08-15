@@ -486,14 +486,15 @@ export default function StockPage() {
         eyebrow="Mi taller"
         title="Stock"
         action={
-          <div className="flex items-center gap-3">
-
-            <Link href={tab === "productos" ? "/productos" : "/configuracion"}>
-              <PrimaryButton>
-                <Plus size={15} /> {tab === "productos" ? "Nuevo Producto" : "Nuevo Filamento"}
-              </PrimaryButton>
-            </Link>
-          </div>
+          tab === "productos" ? (
+            <div className="flex items-center gap-3">
+              <Link href="/productos">
+                <PrimaryButton>
+                  <Plus size={15} /> Nuevo Producto
+                </PrimaryButton>
+              </Link>
+            </div>
+          ) : null
         }
       />
 
