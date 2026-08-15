@@ -8,7 +8,7 @@ import { PrimaryButton, GhostButton } from "@/components/ui/button";
 import { SectionTitle } from "@/components/ui/section-title";
 import { createClient } from "@/utils/supabase/client";
 import { FileUploadDropzone } from "@/components/ui/file-upload-dropzone";
-
+import { ColorSwatchLabel } from "@/components/ui/color-swatch-label";
 
 // Pricing Status Helper
 function getProductPricingStatus(product: any, allFilaments: any[], allPrinters: any[], allProductTypes: any[]) {
@@ -983,14 +983,22 @@ export default function ProductosPage() {
                   <div className="space-y-2">
                     {comp.materials.map((mat, matIndex) => (
                       <div key={matIndex} className="flex items-center gap-2">
-                        <div className="flex-1">
+                        <div className="flex-1 flex items-center gap-2">
+                          {(() => {
+                            const sel = filaments.find(f => f.id === mat.filament_id);
+                            return sel ? (
+                              <div className="shrink-0" title={sel.color || "Personalizado"}>
+                                <ColorSwatchLabel color={sel.color} colorHex={sel.color_hex} size="sm" fallbackLabel="" />
+                              </div>
+                            ) : null;
+                          })()}
                           <select
                             value={mat.filament_id}
                             onChange={(e) => handleComponentMaterialChange(compIndex, matIndex, "filament_id", e.target.value)}
                             className="w-full text-xs border-white/20 rounded-md focus:border-orange-500 focus:ring-orange-500 text-white bg-[#111]"
                           >
                             <option value="">Seleccionar filamento...</option>
-                            {filaments.map(f => <option key={f.id} value={f.id}>{f.name} {f.color ? `(${f.color})` : ""}</option>)}
+                            {filaments.map(f => <option key={f.id} value={f.id}>{f.name}</option>)}
                           </select>
                         </div>
                         <div className="w-24 flex items-center gap-1">

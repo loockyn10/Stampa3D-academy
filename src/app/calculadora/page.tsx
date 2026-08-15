@@ -8,8 +8,8 @@ import { GhostButton } from "@/components/ui/button";
 import { SectionTitle } from "@/components/ui/section-title";
 import { createClient } from "@/utils/supabase/client";
 import { FileUploadDropzone } from "@/components/ui/file-upload-dropzone";
-
-
+import { Combobox } from "@/components/ui/combobox";
+import { normalizeFilamentColor } from "@/lib/colors/filament-colors";
 interface NumberFieldProps {
   label: string;
   value: number;
@@ -18,6 +18,29 @@ interface NumberFieldProps {
   step?: number;
   disabled?: boolean;
 }
+
+const FilamentOptionLabel = ({ name, color, colorHex }: { name: string, color?: string | null, colorHex?: string | null }) => {
+  let resolvedHex = "#737373";
+  if (colorHex && /^#[0-9A-Fa-f]{6}$/i.test(colorHex)) {
+    resolvedHex = colorHex;
+  } else if (color) {
+    const normalized = normalizeFilamentColor(color);
+    if (normalized && normalized.hex) {
+      resolvedHex = normalized.hex;
+    }
+  }
+
+  return (
+    <span className="inline-flex items-center gap-2 min-w-0 w-full">
+      <span
+        className="h-3 w-3 shrink-0 rounded-full border border-white/20 shadow-sm"
+        style={{ backgroundColor: resolvedHex }}
+        aria-hidden="true"
+      />
+      <span className="truncate">{name}</span>
+    </span>
+  );
+};
 
 function NumberField({ label, value, onChange, suffix, step = 1, disabled = false }: NumberFieldProps) {
   return (
@@ -390,17 +413,16 @@ export default function CalculadoraPage() {
               <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
                 <label className="block">
                   <span className="mb-1 block text-xs font-semibold text-gray-500">Filamento a usar</span>
-                  <select 
-                    value={selectedFilamentId} 
-                    onChange={(e) => setSelectedFilamentId(e.target.value)} 
-                    className="w-full text-sm rounded-xl border border-white/10 bg-[#0a0a0a] py-2.5 px-3 text-white outline-none focus:border-[#ff6a00] focus:ring-1 focus:ring-[#ff6a00]"
-                  >
-                    {filaments.map(f => (
-                      <option key={f.id} value={f.id}>
-                        {f.name}{f.color ? ` (${f.color})` : ""}
-                      </option>
-                    ))}
-                  </select>
+                  <Combobox
+                    options={filaments.map(f => ({
+                      id: f.id,
+                      label: f.name,
+                      element: <FilamentOptionLabel name={f.name} color={f.color} colorHex={f.color_hex} />
+                    }))}
+                    value={selectedFilamentId}
+                    onChange={(val) => setSelectedFilamentId(String(val))}
+                    placeholder="Seleccioná un filamento..."
+                  />
                 </label>
                 <div>
                   <NumberField label="Gramos de la pieza" value={weight} onChange={setWeight} suffix="g" />

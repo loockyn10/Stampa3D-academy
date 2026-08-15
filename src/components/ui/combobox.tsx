@@ -6,6 +6,7 @@ import { ChevronDown, Check, Search } from "lucide-react";
 interface Option {
   id: string | number;
   label: string;
+  element?: React.ReactNode;
 }
 
 interface ComboboxProps {
@@ -51,7 +52,7 @@ export function Combobox({ options, value, onChange, placeholder = "Seleccionar.
         }}
       >
         <span className={selectedOption ? "text-white truncate block w-full pr-2" : "text-gray-500 truncate block w-full pr-2"}>
-          {selectedOption ? selectedOption.label : placeholder}
+          {selectedOption ? (selectedOption.element || selectedOption.label) : placeholder}
         </span>
         <ChevronDown size={16} className="text-gray-400 ml-2 shrink-0" />
       </button>
@@ -83,7 +84,7 @@ export function Combobox({ options, value, onChange, placeholder = "Seleccionar.
                 <li
                   key={option.id}
                   className={`cursor-pointer select-none relative py-2 pl-3 pr-9 text-sm hover:bg-orange-50 ${
-                    String(value) === String(option.id) ? "text-orange-900 font-medium" : "text-white"
+                    String(value) === String(option.id) ? "text-orange-900 font-medium" : "text-white hover:text-gray-900"
                   }`}
                   onClick={() => {
                     onChange(option.id);
@@ -91,7 +92,7 @@ export function Combobox({ options, value, onChange, placeholder = "Seleccionar.
                     setQuery("");
                   }}
                 >
-                  <span className="block truncate">{option.label}</span>
+                  <span className="block truncate">{option.element || option.label}</span>
                   {String(value) === String(option.id) && (
                     <span className="absolute inset-y-0 right-0 flex items-center pr-4 text-orange-600">
                       <Check size={16} />
