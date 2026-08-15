@@ -231,6 +231,7 @@ export default function ProductosPage() {
   const [userId, setUserId] = useState<string | null>(null);
 
   const [editingId, setEditingId] = useState<string | null>(null);
+  const [detailProduct, setDetailProduct] = useState<any>(null);
   const [formData, setFormData] = useState({
     name: "",
     description: "",
@@ -1186,143 +1187,49 @@ export default function ProductosPage() {
                   <AlertTriangle size={16} className="text-yellow-500 mt-0.5 shrink-0" />
                   <div className="min-w-0 flex-1">
                     <p className="text-xs font-bold text-yellow-400 uppercase tracking-wide">Requiere Recalcular</p>
-                    <p className="text-xs text-yellow-500 mt-0.5">
-                      {pricingStatus.reasons.slice(0, 2).map((r, i) => (
-                        <span key={i} className="block">• {r}</span>
-                      ))}
-                      {pricingStatus.reasons.length > 2 && (
-                        <span className="block italic text-yellow-500/70 mt-0.5">+ {pricingStatus.reasons.length - 2} cambios más</span>
-                      )}
-                    </p>
                   </div>
                 </div>
               )}
 
               <div className="flex items-start gap-3">
                 {p.image_url ? (
-                  <img src={p.image_url} alt={p.name} className="h-14 w-14 shrink-0 rounded-xl object-cover bg-[#0a0a0a] border border-white/5" />
+                  <img src={p.image_url} alt={p.name} className="h-16 w-16 shrink-0 rounded-xl object-cover bg-[#0a0a0a] border border-white/5" />
                 ) : (
-                  <div className="flex h-14 w-14 shrink-0 items-center justify-center rounded-xl bg-[#0a0a0a] text-2xl select-none border border-white/5 text-gray-400">
+                  <div className="flex h-16 w-16 shrink-0 items-center justify-center rounded-xl bg-[#0a0a0a] text-2xl select-none border border-white/5 text-gray-400">
                     📦
                   </div>
                 )}
                 <div className="min-w-0 flex-1">
-                  <div className="flex items-center gap-2">
-                    <p className="truncate text-sm font-bold text-white">{p.name}</p>
-                    {p.product_components?.length > 1 && (
-                      <span className="px-1.5 py-0.5 bg-blue-100 text-blue-700 text-[9px] font-bold uppercase rounded-md">Por partes</span>
+                  <div className="flex items-start justify-between gap-2 mb-1">
+                    <p className="truncate text-base font-bold text-white leading-tight">{p.name}</p>
+                    {p.product_components?.length > 1 ? (
+                      <span className="px-1.5 py-0.5 bg-blue-500/10 text-blue-400 text-[10px] font-bold uppercase rounded-md border border-blue-500/20 shrink-0">Armable</span>
+                    ) : (
+                      <span className="px-1.5 py-0.5 bg-gray-800 text-gray-400 text-[10px] font-bold uppercase rounded-md border border-gray-700 shrink-0">Simple</span>
                     )}
                   </div>
-                  <p className="text-xs text-gray-400 truncate">{p.description || "Sin descripción"}</p>
-                  <div className="mt-1 flex flex-wrap items-center gap-1.5 text-xs text-gray-500">
-                    {(() => {
-                      const snapMats = p.calculation_snapshot?.materials;
-                      if (snapMats && Array.isArray(snapMats) && snapMats.length > 0) {
-                        if (snapMats.length === 1) {
-                          const f = filaments.find(f => f.id === snapMats[0].filament_id);
-                          return (
-                            <>
-                              {f && <div className="w-2.5 h-2.5 rounded-full border border-white/20" style={{ backgroundColor: f.color || '#ccc' }}></div>}
-                              <span className="truncate max-w-[80px]">{snapMats[0].filament_name || f?.name || "Filamento"}</span> ·
-                            </>
-                          );
-                        } else {
-                          return (
-                            <>
-                              <span className="truncate max-w-[120px] font-medium">{snapMats.length} materiales</span> ·
-                            </>
-                          );
-                        }
-                      } else if (filament) {
-                        return (
-                          <>
-                            <div className="w-2.5 h-2.5 rounded-full border border-white/20" style={{ backgroundColor: filament.color || '#ccc' }}></div>
-                            <span className="truncate max-w-[80px]">{filament.name}</span> ·
-                          </>
-                        );
-                      }
-                      return null;
-                    })()}
-                    <span>{p.grams || 0}g</span> · <span>{formatTime(p.print_time_minutes)}</span>
+                  <p className="text-xs text-gray-400 truncate mb-2">{p.description || "Sin descripción"}</p>
+                  
+                  <div className="flex items-end gap-4 mt-2">
+                    <div>
+                      <p className="text-[10px] text-gray-500 uppercase font-semibold">Venta</p>
+                      <p className="text-sm font-black text-orange-500">${p.sale_price?.toFixed(2) || "0.00"}</p>
+                    </div>
+                    <div>
+                      <p className="text-[10px] text-gray-500 uppercase font-semibold">Stock</p>
+                      <p className={`text-sm font-bold ${p.stock_quantity > 0 ? 'text-white' : 'text-red-500'}`}>{p.stock_quantity || 0}</p>
+                    </div>
                   </div>
                 </div>
               </div>
-
-              {/* Prices + Profit */}
-              <div className="mt-4 grid grid-cols-4 gap-1.5 rounded-xl bg-[#0a0a0a] p-3 text-center border border-white/5">
-                <div>
-                  <p className="text-xs font-bold text-white">${p.base_cost?.toFixed(2) || "0.00"}</p>
-                  <p className="text-[10px] text-gray-400">Costo</p>
-                </div>
-                <div>
-                  <p className="text-xs font-bold text-orange-600">${p.sale_price?.toFixed(2) || "0.00"}</p>
-                  <p className="text-[10px] text-gray-400">Venta</p>
-                </div>
-                <div>
-                  <p className={`text-xs font-bold flex items-center justify-center gap-0.5 ${profit > 0 ? 'text-emerald-600' : profit < 0 ? 'text-red-500' : 'text-gray-400'}`}>
-                    {profit > 0 ? <TrendingUp size={10} /> : profit < 0 ? <TrendingDown size={10} /> : <Minus size={10} />}
-                    ${Math.abs(profit).toFixed(2)}
-                  </p>
-                  <p className="text-[10px] text-gray-400">Ganancia</p>
-                </div>
-                <div>
-                  <p className={`text-xs font-bold ${p.stock_quantity > 0 ? 'text-white' : 'text-red-500'}`}>{p.stock_quantity || 0}</p>
-                  <p className="text-[10px] text-gray-400">Terminados</p>
-                </div>
-              </div>
-
-              {/* Parts Details */}
-              {p.product_components?.length > 1 && (
-                <div className="mt-2 bg-[#0a0a0a] rounded-xl p-3 border border-white/5 mt-3">
-                  <div className="flex items-center justify-between mb-2">
-                    <p className="text-xs font-bold text-gray-300">Piezas requeridas</p>
-                    <p className="text-[10px] font-bold text-white bg-white/10 px-2 py-0.5 rounded-full">
-                      Armables: {Math.min(...p.product_components.map((c: any) => Math.floor((c.stock_quantity || 0) / (c.quantity_per_product || 1)))) || 0}
-                    </p>
-                  </div>
-                  <div className="space-y-1">
-                    {p.product_components.map((c: any) => {
-                      const needed = c.quantity_per_product || 1;
-                      const hasStock = c.stock_quantity >= needed;
-                      return (
-                        <div key={c.id} className="flex justify-between items-center text-xs">
-                          <span className="text-gray-400 truncate mr-2">{c.name}</span>
-                          <span className={`font-medium ${hasStock ? 'text-white' : 'text-red-500'}`}>
-                            {c.stock_quantity || 0} / {needed}
-                          </span>
-                        </div>
-                      );
-                    })}
-                  </div>
-                </div>
-              )}
-
-              {/* Margin badge */}
-              {p.sale_price > 0 && p.base_cost > 0 && (
-                <div className="mt-2 flex items-center justify-end">
-                  <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full ${marginPct >= 30 ? 'bg-emerald-500/10 text-emerald-400 border border-emerald-500/20' : marginPct >= 15 ? 'bg-yellow-100 text-yellow-500/90' : 'bg-red-500/10 text-red-400 border border-red-500/20'}`}>
-                    {marginPct.toFixed(0)}% margen
-                  </span>
-                </div>
-              )}
 
               <div className="mt-auto pt-4 flex gap-2">
-                <GhostButton onClick={() => handleEdit(p)} className="flex-1 py-2 text-xs font-bold text-white bg-orange-500 hover:bg-orange-600 border border-orange-500">
+                <button onClick={() => setDetailProduct(p)} className="flex-1 py-2 text-xs font-bold text-gray-300 bg-white/5 hover:bg-white/10 hover:text-white rounded-lg transition-colors border border-white/10">
+                  Ver detalle
+                </button>
+                <button onClick={(e) => { e.stopPropagation(); handleEdit(p); }} className="flex-1 py-2 text-xs font-bold text-white bg-orange-600 hover:bg-orange-500 rounded-lg transition-colors border border-orange-500 flex items-center justify-center gap-1.5">
                   <Pencil size={13} /> Editar
-                </GhostButton>
-                <GhostButton
-                  onClick={() => handleRecalculate(p)}
-                  className={`flex-1 py-2 text-xs border ${pricingStatus.needsRecalculation ? 'text-yellow-500 bg-yellow-500/10 hover:bg-yellow-500/20 border-yellow-500/30' : 'text-gray-300 hover:text-white hover:bg-white/5 border-white/10 bg-[#111]'}`}
-                  title="Recalcular precio con valores actuales"
-                >
-                  <RefreshCw size={13} className={pricingStatus.needsRecalculation ? "animate-pulse" : ""} /> Recalcular
-                </GhostButton>
-                <GhostButton onClick={() => handleDuplicate(p)} className="px-2.5 py-2 text-gray-500 hover:text-white bg-[#111] border border-white/10">
-                  <Copy size={13} />
-                </GhostButton>
-                <GhostButton onClick={() => handleDelete(p.id)} className="px-2.5 py-2 text-red-500 hover:bg-red-500/10 border border-white/10 bg-[#111]">
-                  <Trash2 size={13} />
-                </GhostButton>
+                </button>
               </div>
             </Card>
           );
@@ -1449,6 +1356,178 @@ export default function ProductosPage() {
           </div>
         </div>
       )}
+      {/* MODAL: DETALLE DEL PRODUCTO */}
+      {detailProduct && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm p-4 overflow-y-auto">
+          <div className="bg-[#0a0a0a] w-full max-w-2xl rounded-2xl shadow-2xl overflow-hidden border border-white/10 my-8 flex flex-col max-h-[90vh]">
+            <div className="flex items-center justify-between px-6 py-4 border-b border-white/10 shrink-0 bg-[#111]">
+              <h3 className="font-bold text-white text-lg flex items-center gap-2">
+                Detalle del Producto
+              </h3>
+              <button onClick={() => setDetailProduct(null)} className="text-gray-400 hover:text-white transition-colors">
+                <X size={20} />
+              </button>
+            </div>
+
+            <div className="p-6 overflow-y-auto flex-1">
+              <div className="flex flex-col sm:flex-row gap-6 mb-6">
+                {detailProduct.image_url ? (
+                  <img src={detailProduct.image_url} alt={detailProduct.name} className="h-32 w-32 shrink-0 rounded-xl object-cover bg-[#111] border border-white/10 shadow-lg" />
+                ) : (
+                  <div className="flex h-32 w-32 shrink-0 items-center justify-center rounded-xl bg-[#111] text-5xl select-none border border-white/10 text-gray-500 shadow-lg">
+                    📦
+                  </div>
+                )}
+                <div className="flex-1">
+                  <div className="flex items-start justify-between gap-4 mb-2">
+                    <h2 className="text-2xl font-black text-white leading-tight">{detailProduct.name}</h2>
+                    {detailProduct.product_components?.length > 1 ? (
+                      <span className="px-2 py-1 bg-blue-500/10 text-blue-400 text-xs font-bold uppercase rounded-md border border-blue-500/20 shrink-0">Armable</span>
+                    ) : (
+                      <span className="px-2 py-1 bg-gray-800 text-gray-400 text-xs font-bold uppercase rounded-md border border-gray-700 shrink-0">Simple</span>
+                    )}
+                  </div>
+                  <p className="text-sm text-gray-400 mb-4">{detailProduct.description || "Sin descripción proporcionada."}</p>
+                  
+                  <div className="flex flex-wrap gap-4">
+                    <div className="bg-[#111] px-4 py-2 rounded-xl border border-white/5">
+                      <p className="text-[10px] text-gray-500 uppercase font-semibold mb-0.5">Stock Disponible</p>
+                      <p className={`text-lg font-black ${detailProduct.stock_quantity > 0 ? 'text-white' : 'text-red-500'}`}>{detailProduct.stock_quantity || 0} u.</p>
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 mb-6">
+                {/* Sección Precios */}
+                <div className="bg-[#111] border border-white/5 rounded-xl p-4">
+                  <h4 className="text-sm font-bold text-gray-300 mb-4 flex items-center gap-2">💰 Valores</h4>
+                  <div className="space-y-3">
+                    <div className="flex justify-between items-center">
+                      <span className="text-xs text-gray-400">Costo Base</span>
+                      <span className="text-sm font-bold text-white">${detailProduct.base_cost?.toFixed(2) || "0.00"}</span>
+                    </div>
+                    <div className="flex justify-between items-center">
+                      <span className="text-xs text-gray-400">Venta Sugerida/Actual</span>
+                      <span className="text-sm font-black text-orange-500">${detailProduct.sale_price?.toFixed(2) || "0.00"}</span>
+                    </div>
+                    <hr className="border-white/5" />
+                    <div className="flex justify-between items-center">
+                      <span className="text-xs text-gray-400">Ganancia</span>
+                      {(() => {
+                        const pProfit = (detailProduct.sale_price || 0) - (detailProduct.base_cost || 0);
+                        return (
+                          <span className={`text-sm font-bold ${pProfit > 0 ? 'text-emerald-500' : pProfit < 0 ? 'text-red-500' : 'text-gray-400'}`}>
+                            {pProfit > 0 ? '+' : ''}${pProfit.toFixed(2)}
+                          </span>
+                        );
+                      })()}
+                    </div>
+                    <div className="flex justify-between items-center">
+                      <span className="text-xs text-gray-400">Margen</span>
+                      {(() => {
+                        const pProfit = (detailProduct.sale_price || 0) - (detailProduct.base_cost || 0);
+                        const margin = detailProduct.sale_price > 0 ? ((pProfit / detailProduct.sale_price) * 100) : 0;
+                        return (
+                          <span className={`text-xs font-bold px-1.5 py-0.5 rounded-md ${margin >= 30 ? 'bg-emerald-500/10 text-emerald-400' : margin >= 15 ? 'bg-yellow-500/10 text-yellow-500' : 'bg-red-500/10 text-red-400'}`}>
+                            {margin.toFixed(0)}%
+                          </span>
+                        );
+                      })()}
+                    </div>
+                  </div>
+                </div>
+
+                {/* Sección Producción */}
+                <div className="bg-[#111] border border-white/5 rounded-xl p-4">
+                  <h4 className="text-sm font-bold text-gray-300 mb-4 flex items-center gap-2">⚙️ Producción</h4>
+                  <div className="space-y-3">
+                    <div className="flex justify-between items-center">
+                      <span className="text-xs text-gray-400">Material total</span>
+                      <span className="text-sm font-bold text-white">{detailProduct.grams || 0}g</span>
+                    </div>
+                    <div className="flex justify-between items-center">
+                      <span className="text-xs text-gray-400">Tiempo de impresión</span>
+                      <span className="text-sm font-bold text-white">{formatTime(detailProduct.print_time_minutes)}</span>
+                    </div>
+                    <hr className="border-white/5" />
+                    <div className="flex flex-col gap-1">
+                      <span className="text-xs text-gray-400">Materiales (Snapshot)</span>
+                      <div className="flex flex-wrap gap-1.5 mt-1">
+                        {(() => {
+                          const snapMats = detailProduct.calculation_snapshot?.materials;
+                          if (snapMats && Array.isArray(snapMats) && snapMats.length > 0) {
+                            return snapMats.map((m: any, i: number) => (
+                              <span key={i} className="text-[10px] bg-white/5 border border-white/10 px-2 py-1 rounded text-gray-300 truncate max-w-full">
+                                {m.filament_name} ({m.grams}g)
+                              </span>
+                            ));
+                          }
+                          return <span className="text-[10px] text-gray-600">No especificado</span>;
+                        })()}
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              {/* Sección Partes/Componentes */}
+              {detailProduct.product_components?.length > 1 && (
+                <div className="bg-[#111] border border-white/5 rounded-xl p-4 mb-6">
+                  <div className="flex items-center justify-between mb-4">
+                    <h4 className="text-sm font-bold text-gray-300 flex items-center gap-2">🧩 Componentes Requeridos</h4>
+                    <p className="text-[10px] font-bold text-blue-400 bg-blue-500/10 px-2 py-1 rounded-lg border border-blue-500/20">
+                      Capacidad: {Math.min(...detailProduct.product_components.map((c: any) => Math.floor((c.stock_quantity || 0) / (c.quantity_per_product || 1)))) || 0} sets
+                    </p>
+                  </div>
+                  
+                  <div className="space-y-2">
+                    {detailProduct.product_components.map((c: any) => {
+                      const needed = c.quantity_per_product || 1;
+                      const hasStock = c.stock_quantity >= needed;
+                      return (
+                        <div key={c.id} className="flex flex-col sm:flex-row sm:justify-between sm:items-center bg-[#0a0a0a] p-3 rounded-lg border border-white/5 gap-2">
+                          <div>
+                            <p className="text-xs font-bold text-gray-200">{c.name}</p>
+                            <p className="text-[10px] text-gray-500 mt-0.5">{c.grams || 0}g · {formatTime(c.print_time_minutes)}</p>
+                          </div>
+                          <div className="flex items-center gap-3">
+                            <div className="text-right">
+                              <p className="text-[10px] text-gray-500 uppercase">Req.</p>
+                              <p className="text-sm font-bold text-white">x{needed}</p>
+                            </div>
+                            <div className="h-6 w-px bg-white/10 mx-1"></div>
+                            <div className="text-right">
+                              <p className="text-[10px] text-gray-500 uppercase">Stock</p>
+                              <p className={`text-sm font-bold ${hasStock ? 'text-emerald-500' : 'text-red-500'}`}>{c.stock_quantity || 0}</p>
+                            </div>
+                          </div>
+                        </div>
+                      );
+                    })}
+                  </div>
+                </div>
+              )}
+            </div>
+
+            <div className="px-6 py-4 border-t border-white/10 shrink-0 bg-[#111] flex justify-end gap-3">
+              <button onClick={() => setDetailProduct(null)} className="px-4 py-2 text-sm font-bold text-gray-400 hover:text-white hover:bg-white/5 rounded-lg transition-colors">
+                Cerrar
+              </button>
+              <button 
+                onClick={() => {
+                  handleEdit(detailProduct);
+                  setDetailProduct(null);
+                }} 
+                className="flex items-center gap-2 px-4 py-2 text-sm font-bold bg-orange-600 hover:bg-orange-500 text-white rounded-lg transition-colors border border-orange-500"
+              >
+                <Pencil size={15} /> Editar Producto
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
     </div>
   );
 }
