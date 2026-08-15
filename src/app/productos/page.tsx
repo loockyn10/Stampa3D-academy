@@ -267,6 +267,23 @@ export default function ProductosPage() {
     fetchData();
   }, []);
 
+  useEffect(() => {
+    if (!loading && products.length > 0) {
+      if (typeof window !== "undefined") {
+        const params = new URLSearchParams(window.location.search);
+        const editId = params.get("edit");
+        if (editId && editingId !== editId) {
+          const productToEdit = products.find(p => p.id === editId);
+          if (productToEdit) {
+            handleEdit(productToEdit);
+            // Remove query param to prevent re-triggering
+            window.history.replaceState({}, '', '/productos');
+          }
+        }
+      }
+    }
+  }, [loading, products]);
+
   const fetchData = async () => {
     setLoading(true);
     const { data: { user } } = await supabase.auth.getUser();

@@ -2,7 +2,7 @@
 
 import React, { useState, useEffect } from "react";
 import Link from "next/link";
-import { AlertTriangle, Plus, Minus, Loader2, Package, Box, History, X, Edit2 } from "lucide-react";
+import { AlertTriangle, Plus, Minus, Loader2, Package, Box, History, X, Edit2, Search, ChevronDown, ChevronUp } from "lucide-react";
 import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { PrimaryButton } from "@/components/ui/button";
@@ -14,6 +14,13 @@ import { createClient } from "@/utils/supabase/client";
 export default function StockPage() {
   const supabase = createClient();
   const [tab, setTab] = useState<"productos" | "filamentos">("productos");
+  
+  const [searchProduct, setSearchProduct] = useState("");
+  const [expandedProducts, setExpandedProducts] = useState<string[]>([]);
+  
+  const toggleExpand = (id: string) => {
+    setExpandedProducts(prev => prev.includes(id) ? prev.filter(p => p !== id) : [...prev, id]);
+  };
   
   const [products, setProducts] = useState<any[]>([]);
   const [filaments, setFilaments] = useState<any[]>([]);
@@ -524,13 +531,35 @@ export default function StockPage() {
             )}
           </button>
         </div>
-        <button 
-          onClick={() => setConsumeModalOpen(true)} 
-          className="flex items-center gap-2 text-sm font-bold text-orange-700 bg-orange-50 hover:bg-orange-100 px-4 py-2 rounded-lg transition-colors border border-orange-200 mr-2"
-        >
-          <Package size={15} /> Descontar por producto
-        </button>
+        {tab === "filamentos" && (
+          <button 
+            onClick={() => setConsumeModalOpen(true)} 
+            className="flex items-center gap-2 text-sm font-bold text-orange-700 bg-orange-50 hover:bg-orange-100 px-4 py-2 rounded-lg transition-colors border border-orange-200 mr-2"
+          >
+            <Package size={15} /> Descontar por producto
+          </button>
+        )}
       </div>
+
+      {tab === "productos" && (
+        <div className="mb-6">
+          <div className="relative">
+            <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" size={18} />
+            <input 
+              type="text" 
+              placeholder="Buscar productos..." 
+              value={searchProduct}
+              onChange={(e) => setSearchProduct(e.target.value)}
+              className="w-full pl-10 pr-10 py-2.5 bg-white/5 border border-white/10 rounded-xl text-sm text-white focus:outline-none focus:border-orange-500/50"
+            />
+            {searchProduct && (
+              <button onClick={() => setSearchProduct("")} className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-white">
+                <X size={16} />
+              </button>
+            )}
+          </div>
+        </div>
+      )}
 
       <Card className="overflow-hidden p-0">
         <div className="overflow-x-auto">
@@ -545,8 +574,15 @@ export default function StockPage() {
               </tr>
             </thead>
             <tbody className="divide-y divide-gray-100">
-              
-              {tab === "productos" && products.map((p) => {
+              {tab === "productos" && products.filter(p => {
+                if (!searchProduct) return true;
+                const term = searchProduct.toLowerCase();
+                const pComps = productComponents.filter(c => c.product_id === p.id && c.is_active);
+                const compsStr = pComps.map(c => c.name).join(" ");
+                return p.name?.toLowerCase().includes(term) || 
+                       p.description?.toLowerCase().includes(term) || 
+                       compsStr.toLowerCase().includes(term);
+              }).map((p) => {
                 const isLow = p.stock_quantity <= 1;
                 const pComps = productComponents.filter(c => c.product_id === p.id && c.is_active);
                 const isParts = pComps.length > 1 || (pComps.length === 1 && pComps[0].name !== "Producto completo");
@@ -640,12 +676,33 @@ export default function StockPage() {
                           >
                             <History size={16} />
                           </button>
+                          <Link href={`/productos?edit=${p.id}`}>
+                            <button className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-bold rounded-lg border border-white/10 text-gray-400 hover:bg-white/5 hover:text-white transition-colors" title="Editar">
+                              <Edit2 size={14} /> Editar
+                            </button>
+                          </Link>
+                          
+                          {isParts && (
+                            <button 
+                              onClick={() => toggleExpand(p.id)}
+                              className="flex items-center justify-center p-1.5 text-gray-400 hover:text-white hover:bg-white/5 rounded-lg transition-colors ml-1"
+                            >
+                              {expandedProducts.includes(p.id) ? <ChevronUp size={16} /> : <ChevronDown size={16} />}
+                            </button>
+                          )}
                         </div>
                       </td>
                     </tr>
                     
                     {/* Render Parts below product if any */}
-                    {isParts && pComps.map(c => (
+                    {isParts && expandedProducts.includes(p.id) && pComps.map(c => {
+                      const mats = componentFilaments.filter(f => f.component_id === c.id);
+                      const matStrings = mats.map(m => {
+                        const f = filaments.find(fil => fil.id === m.filament_id);
+                        return f ? `${f.name} · ${m.grams}g` : `${m.grams}g`;
+                      }).join(" / ");
+                      
+                      return (
                       <tr key={c.id} className="bg-[#0a0a0a]/50 border-t border-white/5">
                         <td className="px-5 py-2 pl-16">
                           <div className="flex items-center gap-2">
@@ -653,6 +710,7 @@ export default function StockPage() {
                             <span className="text-sm font-medium text-gray-400">{c.name}</span>
                             <span className="text-[10px] text-gray-400">({c.quantity_per_product} por prod.)</span>
                           </div>
+                          {matStrings && <div className="text-[10px] text-gray-500 mt-0.5 ml-3.5">{matStrings}</div>}
                         </td>
                         <td className="px-5 py-2"></td>
                         <td className="px-5 py-2">
@@ -681,7 +739,7 @@ export default function StockPage() {
                           </div>
                         </td>
                       </tr>
-                    ))}
+                    )})}
                   </React.Fragment>
                 )
               })}
@@ -770,6 +828,26 @@ export default function StockPage() {
           {tab === "productos" && products.length === 0 && !loading && (
             <div className="py-12 text-center">
               <p className="text-gray-400 text-sm">No tienes productos. Ve a la sección de Productos para crearlos.</p>
+            </div>
+          )}
+
+          {tab === "productos" && products.length > 0 && products.filter(p => {
+            if (!searchProduct) return true;
+            const term = searchProduct.toLowerCase();
+            const pComps = productComponents.filter(c => c.product_id === p.id && c.is_active);
+            const compsStr = pComps.map(c => c.name).join(" ");
+            return p.name?.toLowerCase().includes(term) || 
+                   p.description?.toLowerCase().includes(term) || 
+                   compsStr.toLowerCase().includes(term);
+          }).length === 0 && (
+            <div className="py-12 text-center">
+              <p className="text-gray-400 text-sm mb-4">No encontramos productos con esa búsqueda.</p>
+              <button
+                onClick={() => setSearchProduct("")}
+                className="px-4 py-2 bg-white/5 hover:bg-white/10 border border-white/10 rounded-lg text-sm text-white transition-colors"
+              >
+                Limpiar búsqueda
+              </button>
             </div>
           )}
 
