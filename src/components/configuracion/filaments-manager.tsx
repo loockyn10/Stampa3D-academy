@@ -3,6 +3,7 @@
 import React, { useState, useEffect } from "react";
 import { createClient } from "@/utils/supabase/client";
 import { Plus, Edit2, Save, Trash2, Loader2, AlertCircle } from "lucide-react";
+import { ColorSwatchLabel } from "@/components/ui/color-swatch-label";
 import { Card } from "@/components/ui/card";
 import { FilamentEditor } from "@/components/filaments/FilamentEditor";
 
@@ -119,7 +120,6 @@ export function FilamentsManager() {
             <Card key={f.id} className="p-4 flex flex-col hover:border-orange-500/30 transition-colors">
               <div className="flex justify-between items-start mb-2">
                 <div className="flex items-center gap-2">
-                  <div className="w-3 h-3 rounded-full border border-white/20" style={{ backgroundColor: f.color_hex || f.color }} />
                   <h4 className="font-bold text-white">{f.name}</h4>
                 </div>
                 <div className="flex gap-2">
@@ -131,8 +131,12 @@ export function FilamentsManager() {
                   </button>
                 </div>
               </div>
-              <div className="text-sm text-gray-500 space-y-1 mb-4 flex-1">
+              <div className="text-sm text-gray-500 space-y-2 mb-4 flex-1">
                 <p>Tipo: <span className="font-medium text-gray-300">{f.filament_type}</span></p>
+                <div className="flex items-center gap-1.5">
+                  <span>Color:</span>
+                  <ColorSwatchLabel color={f.color} colorHex={f.color_hex} size="sm" />
+                </div>
                 <p>Precio: <span className="font-medium text-gray-300">${f.purchase_price}</span></p>
                 <p>Restante: <span className="font-medium text-gray-300">{f.remaining_grams}g / {f.total_grams}g</span></p>
               </div>

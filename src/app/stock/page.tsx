@@ -10,6 +10,7 @@ import { SectionTitle } from "@/components/ui/section-title";
 import { EmptyState } from "@/components/ui/empty-state";
 import { FilamentEditor } from "@/components/filaments/FilamentEditor";
 import { normalizeFilamentColor } from "@/lib/colors/filament-colors";
+import { ColorSwatchLabel } from "@/components/ui/color-swatch-label";
 
 import { createClient } from "@/utils/supabase/client";
 
@@ -83,8 +84,16 @@ export default function StockPage() {
   }, [filaments]);
 
   const uniqueColors = useMemo(() => {
-    const colors = new Set(filaments.map(f => f.color).filter(Boolean));
-    return Array.from(colors).sort();
+    const colorMap = new Map<string, { color: string, hex: string | null }>();
+    filaments.forEach(f => {
+      if (f.color) {
+        const normalized = f.color.trim().toLowerCase();
+        if (!colorMap.has(normalized)) {
+          colorMap.set(normalized, { color: f.color, hex: f.color_hex });
+        }
+      }
+    });
+    return Array.from(colorMap.values()).sort((a, b) => a.color.localeCompare(b.color));
   }, [filaments]);
 
   // Filament Editor Modal States
@@ -655,14 +664,27 @@ export default function StockPage() {
                   {uniqueMaterials.map((m: any) => <option key={m} value={m}>{m}</option>)}
                 </select>
                 
-                <select
-                  value={selectedColor}
-                  onChange={(e) => setSelectedColor(e.target.value)}
-                  className="bg-[#111] border border-white/10 rounded-xl px-3 py-2.5 text-sm text-white focus:outline-none focus:border-orange-500/50 min-w-[150px]"
-                >
-                  <option value="all">Todos los colores</option>
-                  {uniqueColors.map((c: any) => <option key={c} value={c}>{c}</option>)}
-                </select>
+                <div className="flex bg-[#111] border border-white/10 rounded-xl overflow-x-auto max-w-[280px] sm:max-w-md hide-scrollbar items-center p-1">
+                  <button
+                    onClick={() => setSelectedColor("all")}
+                    className={`px-3 py-1.5 text-xs font-medium rounded-lg whitespace-nowrap transition-colors ${
+                      selectedColor === "all" ? "bg-white/10 text-white" : "text-gray-400 hover:text-gray-200"
+                    }`}
+                  >
+                    Todos
+                  </button>
+                  {uniqueColors.map((c: any) => (
+                    <button
+                      key={c.color}
+                      onClick={() => setSelectedColor(c.color)}
+                      className={`px-2 py-1.5 rounded-lg transition-colors whitespace-nowrap flex items-center ${
+                        selectedColor === c.color ? "bg-white/10 text-white" : "text-gray-400 hover:bg-white/5 opacity-80 hover:opacity-100 hover:text-gray-200"
+                      }`}
+                    >
+                      <ColorSwatchLabel color={c.color} colorHex={c.hex} size="sm" fallbackLabel={c.color} />
+                    </button>
+                  ))}
+                </div>
                 
                 {(filamentSearch || selectedMaterial !== "all" || selectedColor !== "all") && (
                   <button 
@@ -904,10 +926,8 @@ export default function StockPage() {
                   <td className="px-5 py-3.5 font-semibold text-white">
                     <div className="flex flex-col">
                       <div className="flex items-center gap-3">
-                        <div className="w-4 h-4 rounded-full border border-white/20 shadow-sm" style={{ backgroundColor: f.color_hex || normalizeFilamentColor(f.color || "").hex }}></div>
-                        <span>{f.name}</span>
+                        <ColorSwatchLabel color={f.color} colorHex={f.color_hex} size="md" fallbackLabel={f.name} />
                       </div>
-                      {f.color && <span className="text-[10px] text-gray-400 mt-0.5 ml-7">{f.color}</span>}
                     </div>
                   </td>
                   <td className="px-5 py-3.5 text-gray-400 font-medium">
