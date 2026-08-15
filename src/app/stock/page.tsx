@@ -682,14 +682,18 @@ export default function StockPage() {
                             </button>
                           </Link>
                           
-                          {isParts && (
-                            <button 
-                              onClick={() => toggleExpand(p.id)}
-                              className="flex items-center justify-center p-1.5 text-gray-400 hover:text-white hover:bg-white/5 rounded-lg transition-colors ml-1"
-                            >
-                              {expandedProducts.includes(p.id) ? <ChevronUp size={16} /> : <ChevronDown size={16} />}
-                            </button>
-                          )}
+                          <div className="flex h-8 w-8 shrink-0 items-center justify-center ml-1">
+                            {isParts ? (
+                              <button 
+                                onClick={() => toggleExpand(p.id)}
+                                className="flex h-full w-full items-center justify-center text-gray-400 hover:text-white hover:bg-white/5 rounded-lg transition-colors"
+                              >
+                                {expandedProducts.includes(p.id) ? <ChevronUp size={16} /> : <ChevronDown size={16} />}
+                              </button>
+                            ) : (
+                              <span aria-hidden="true" className="block h-full w-full" />
+                            )}
+                          </div>
                         </div>
                       </td>
                     </tr>
