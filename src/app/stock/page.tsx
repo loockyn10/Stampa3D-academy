@@ -8,6 +8,8 @@ import { Badge } from "@/components/ui/badge";
 import { PrimaryButton } from "@/components/ui/button";
 import { SectionTitle } from "@/components/ui/section-title";
 import { EmptyState } from "@/components/ui/empty-state";
+import { FilamentEditor } from "@/components/filaments/FilamentEditor";
+import { normalizeFilamentColor } from "@/lib/colors/filament-colors";
 
 import { createClient } from "@/utils/supabase/client";
 
@@ -54,6 +56,13 @@ export default function StockPage() {
   const [consumeSelectedProductId, setConsumeSelectedProductId] = useState<string>("");
   const [consumeAddStock, setConsumeAddStock] = useState(true);
   const [consumeLoading, setConsumeLoading] = useState(false);
+
+  // Filament Editor Modal States
+  const [filamentModalOpen, setFilamentModalOpen] = useState(false);
+  const [editingFilamentId, setEditingFilamentId] = useState<string | null>(null);
+  const [filamentFormData, setFilamentFormData] = useState<any>({
+    name: "", filament_type: "PLA", color: "", total_grams: 1000, remaining_grams: 1000, purchase_price: 0, is_active: true
+  });
 
   useEffect(() => {
     fetchData();
@@ -248,15 +257,48 @@ export default function StockPage() {
     setHistoryLoading(false);
   };
 
-  const loadProductHistory = async (id: string) => {
-    setHistoryProductId(id);
+  const handleSaveFilament = async () => {
+    setError(null);
+    const { data: { user } } = await supabase.auth.getUser();
+    if (!user) return;
+
+    const payload = {
+      ...filamentFormData,
+      user_id: user.id,
+      total_grams: parseFloat(String(filamentFormData.total_grams)) || 0,
+      remaining_grams: parseFloat(String(filamentFormData.remaining_grams)) || 0,
+      purchase_price: parseFloat(String(filamentFormData.purchase_price)) || 0,
+    };
+
+    if (editingFilamentId === "new") {
+      const { data, error: insertError } = await supabase.from("filaments").insert([payload]).select().single();
+      if (insertError) {
+        setError(insertError.message);
+        return;
+      }
+      setFilaments([data, ...filaments]);
+    } else {
+      const { error: updateError } = await supabase.from("filaments").update(payload).eq("id", editingFilamentId);
+      if (updateError) {
+        setError(updateError.message);
+        return;
+      }
+      setFilaments(filaments.map(f => f.id === editingFilamentId ? { ...f, ...payload } : f));
+    }
+    
+    setFilamentModalOpen(false);
+    setEditingFilamentId(null);
+  };
+
+  const loadProductHistory = async (productId: string) => {
+    setHistoryProductId(productId);
     setHistoryProductModalOpen(true);
     setHistoryProductLoading(true);
 
     const { data, error } = await supabase
       .from("product_stock_movements")
       .select("*")
-      .eq("product_id", id)
+      .eq("product_id", productId)
       .order("created_at", { ascending: false })
       .limit(10);
 
@@ -532,12 +574,26 @@ export default function StockPage() {
           </button>
         </div>
         {tab === "filamentos" && (
-          <button 
-            onClick={() => setConsumeModalOpen(true)} 
-            className="flex items-center gap-2 text-sm font-bold text-orange-700 bg-orange-50 hover:bg-orange-100 px-4 py-2 rounded-lg transition-colors border border-orange-200 mr-2"
-          >
-            <Package size={15} /> Descontar por producto
-          </button>
+          <div className="flex items-center gap-2">
+            <button
+              onClick={() => {
+                setFilamentFormData({
+                  name: "", filament_type: "PLA", color: "", total_grams: 1000, remaining_grams: 1000, purchase_price: 0, is_active: true
+                });
+                setEditingFilamentId("new");
+                setFilamentModalOpen(true);
+              }}
+              className="flex items-center gap-2 text-sm font-bold text-white bg-orange-600 hover:bg-orange-500 px-4 py-2 rounded-lg transition-colors border border-orange-500"
+            >
+              <Plus size={15} /> Nuevo Filamento
+            </button>
+            <button 
+              onClick={() => setConsumeModalOpen(true)} 
+              className="flex items-center gap-2 text-sm font-bold text-orange-700 bg-orange-50 hover:bg-orange-100 px-4 py-2 rounded-lg transition-colors border border-orange-200 mr-2"
+            >
+              <Package size={15} /> Descontar por producto
+            </button>
+          </div>
         )}
       </div>
 
@@ -753,9 +809,12 @@ export default function StockPage() {
                 return (
                 <tr key={f.id} className="hover:bg-[#0a0a0a] transition-colors">
                   <td className="px-5 py-3.5 font-semibold text-white">
-                    <div className="flex items-center gap-3">
-                      <div className="w-4 h-4 rounded-full border border-white/20" style={{ backgroundColor: f.color || '#ccc' }}></div>
-                      <span>{f.name}</span>
+                    <div className="flex flex-col">
+                      <div className="flex items-center gap-3">
+                        <div className="w-4 h-4 rounded-full border border-white/20 shadow-sm" style={{ backgroundColor: f.color_hex || normalizeFilamentColor(f.color || "").hex }}></div>
+                        <span>{f.name}</span>
+                      </div>
+                      {f.color && <span className="text-[10px] text-gray-400 mt-0.5 ml-7">{f.color}</span>}
                     </div>
                   </td>
                   <td className="px-5 py-3.5 text-gray-400 font-medium">
@@ -815,12 +874,16 @@ export default function StockPage() {
                       >
                         <History size={16} />
                       </button>
-
-                      <Link href="/configuracion">
-                        <button className="text-gray-400 hover:text-orange-600 p-1.5 rounded-lg hover:bg-orange-50 transition-colors" title="Editar filamento">
-                          <Edit2 size={16} />
-                        </button>
-                      </Link>
+                      <button 
+                        onClick={() => {
+                          setFilamentFormData(f);
+                          setEditingFilamentId(f.id);
+                          setFilamentModalOpen(true);
+                        }}
+                        className="text-gray-400 hover:text-orange-600 p-1.5 rounded-lg hover:bg-orange-50 transition-colors" title="Editar filamento"
+                      >
+                        <Edit2 size={16} />
+                      </button>
                     </div>
                   </td>
                 </tr>
@@ -1127,6 +1190,42 @@ export default function StockPage() {
           </div>
         </div>
       )}
+
+      {/* Filament Editor Modal */}
+      {filamentModalOpen && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm p-4">
+          <div className="w-full max-w-2xl bg-[#0a0a0a] rounded-xl shadow-2xl border border-white/10 overflow-hidden flex flex-col max-h-[90vh]">
+            <div className="flex justify-between items-center p-4 border-b border-white/10">
+              <h3 className="text-lg font-bold text-white flex items-center gap-2">
+                <Box size={20} className="text-orange-500" />
+                {editingFilamentId === "new" ? "Nuevo Filamento" : "Editar Filamento"}
+              </h3>
+              <button 
+                onClick={() => {
+                  setFilamentModalOpen(false);
+                  setEditingFilamentId(null);
+                }}
+                className="text-gray-400 hover:text-white transition-colors"
+              >
+                <X size={20} />
+              </button>
+            </div>
+            
+            <div className="p-4 overflow-y-auto">
+              <FilamentEditor 
+                formData={filamentFormData} 
+                setFormData={setFilamentFormData} 
+                onSave={handleSaveFilament} 
+                onCancel={() => {
+                  setFilamentModalOpen(false);
+                  setEditingFilamentId(null);
+                }} 
+              />
+            </div>
+          </div>
+        </div>
+      )}
+
     </div>
   );
 }

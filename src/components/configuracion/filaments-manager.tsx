@@ -4,6 +4,7 @@ import React, { useState, useEffect } from "react";
 import { createClient } from "@/utils/supabase/client";
 import { Plus, Edit2, Save, Trash2, Loader2, AlertCircle } from "lucide-react";
 import { Card } from "@/components/ui/card";
+import { FilamentEditor } from "@/components/filaments/FilamentEditor";
 
 export function FilamentsManager() {
   const supabase = createClient();
@@ -118,7 +119,7 @@ export function FilamentsManager() {
             <Card key={f.id} className="p-4 flex flex-col hover:border-orange-500/30 transition-colors">
               <div className="flex justify-between items-start mb-2">
                 <div className="flex items-center gap-2">
-                  <div className="w-3 h-3 rounded-full border border-white/20" style={{ backgroundColor: f.color }} />
+                  <div className="w-3 h-3 rounded-full border border-white/20" style={{ backgroundColor: f.color_hex || f.color }} />
                   <h4 className="font-bold text-white">{f.name}</h4>
                 </div>
                 <div className="flex gap-2">
@@ -153,59 +154,4 @@ export function FilamentsManager() {
   );
 }
 
-function FilamentEditor({ formData, setFormData, onSave, onCancel }: any) {
-  const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) => {
-    const { name, value, type } = e.target;
-    if (type === "checkbox") {
-      setFormData((prev: any) => ({ ...prev, [name]: (e.target as HTMLInputElement).checked }));
-    } else {
-      setFormData((prev: any) => ({ ...prev, [name]: value }));
-    }
-  };
 
-  return (
-    <Card className="p-4 border-orange-500/30 shadow-md">
-      <div className="space-y-3">
-        <div>
-          <label className="block text-xs font-semibold text-gray-300 mb-1">Nombre</label>
-          <input type="text" name="name" value={formData.name} onChange={handleChange} className="w-full text-sm border-white/10 rounded-md text-neutral-100 bg-neutral-900 border focus:border-[#ff6a00] focus:ring-[#ff6a00]/20 focus:ring-2 placeholder:text-neutral-500 disabled:bg-neutral-800 disabled:text-neutral-500" placeholder="Ej. Grilon3 PLA Negro" />
-        </div>
-        <div className="grid grid-cols-2 gap-2">
-          <div>
-            <label className="block text-xs font-semibold text-gray-300 mb-1">Tipo</label>
-            <input type="text" name="filament_type" value={formData.filament_type} onChange={handleChange} className="w-full text-sm border-white/10 rounded-md text-neutral-100 bg-neutral-900 border focus:border-[#ff6a00] focus:ring-[#ff6a00]/20 focus:ring-2 placeholder:text-neutral-500 disabled:bg-neutral-800 disabled:text-neutral-500" placeholder="PLA, PETG" />
-          </div>
-          <div>
-            <label className="block text-xs font-semibold text-gray-300 mb-1">Color</label>
-            <div className="flex h-9">
-              <input type="color" name="color" value={formData.color} onChange={handleChange} className="h-full w-12 rounded-l-md border-y border-l border-white/10 cursor-pointer p-0.5 bg-neutral-900 border text-neutral-100 focus:border-[#ff6a00] focus:ring-[#ff6a00]/20 focus:ring-2 placeholder:text-neutral-500 disabled:bg-neutral-800 disabled:text-neutral-500" />
-              <input type="text" name="color" value={formData.color} onChange={handleChange} className="w-full text-sm border-white/10 rounded-r-md text-neutral-100 bg-neutral-900 border focus:border-[#ff6a00] focus:ring-[#ff6a00]/20 focus:ring-2 placeholder:text-neutral-500 disabled:bg-neutral-800 disabled:text-neutral-500" />
-            </div>
-          </div>
-        </div>
-        <div className="grid grid-cols-2 gap-2">
-          <div>
-            <label className="block text-xs font-semibold text-gray-300 mb-1">Gramos Total</label>
-            <input type="number" name="total_grams" value={formData.total_grams} onChange={handleChange} className="w-full text-sm border-white/10 rounded-md text-neutral-100 bg-neutral-900 border focus:border-[#ff6a00] focus:ring-[#ff6a00]/20 focus:ring-2 placeholder:text-neutral-500 disabled:bg-neutral-800 disabled:text-neutral-500" />
-          </div>
-          <div>
-            <label className="block text-xs font-semibold text-gray-300 mb-1">Gramos Restantes</label>
-            <input type="number" name="remaining_grams" value={formData.remaining_grams} onChange={handleChange} className="w-full text-sm border-white/10 rounded-md text-neutral-100 bg-neutral-900 border focus:border-[#ff6a00] focus:ring-[#ff6a00]/20 focus:ring-2 placeholder:text-neutral-500 disabled:bg-neutral-800 disabled:text-neutral-500" />
-          </div>
-        </div>
-        <div>
-          <label className="block text-xs font-semibold text-gray-300 mb-1">Precio Compra ($)</label>
-          <input type="number" name="purchase_price" value={formData.purchase_price} onChange={handleChange} className="w-full text-sm border-white/10 rounded-md text-neutral-100 bg-neutral-900 border focus:border-[#ff6a00] focus:ring-[#ff6a00]/20 focus:ring-2 placeholder:text-neutral-500 disabled:bg-neutral-800 disabled:text-neutral-500" />
-        </div>
-        <div className="flex items-center gap-2 pt-1">
-          <input type="checkbox" name="is_active" checked={formData.is_active} onChange={handleChange} className="rounded text-[#ff6a00] focus:ring-[#ff6a00]/20" />
-          <label className="text-sm font-medium text-gray-300">Filamento Activo</label>
-        </div>
-      </div>
-      <div className="mt-4 flex gap-2 justify-end">
-        <button onClick={onCancel} className="px-3 py-1.5 text-xs font-bold text-gray-400 hover:bg-[#111]/5 rounded-md transition-colors">Cancelar</button>
-        <button onClick={onSave} className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-bold bg-orange-500/100 hover:bg-orange-600 text-white rounded-md transition-colors"><Save size={14} /> Guardar</button>
-      </div>
-    </Card>
-  );
-}
