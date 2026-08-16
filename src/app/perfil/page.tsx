@@ -44,7 +44,7 @@ function PerfilContent() {
       setProfile({ ...pData, email: user.email });
 
       // Ensure referral_code exists
-      const code = await getOrCreateReferralCode(supabase, user.id, pData.referral_code);
+      const code = await getOrCreateReferralCode(supabase, user.id, pData.referral_code, pData);
       setReferralCode(code);
     }
 
