@@ -1,6 +1,7 @@
 "use server";
 
 import { createClient } from "@/utils/supabase/server";
+import { getStampyUserContext } from "@/lib/stampy/user-context";
 export type StampyContextPayload =
   | {
       source: "lesson";
@@ -62,6 +63,8 @@ export async function askStampyAction(
   if (!user) {
     return { error: "No autorizado" };
   }
+
+  const userContext = await getStampyUserContext(user.id);
 
   // Fetch recommendable lessons
   const { data: lessons, error } = await supabase
@@ -242,7 +245,28 @@ Reglas adicionales para respuesta en pantalla:
 - Mantené respuestas breves y prácticas.\n\n`;
       }
       
+      if (userContext) {
+        systemPrompt += `CONTEXTO DEL USUARIO:
+- Nombre: ${userContext.displayName || userContext.fullName || 'No especificado'}
+- Nivel: ${userContext.experienceLevel || 'No especificado'}
+- Impresora principal: ${userContext.printerBrand || 'No especificada'}${userContext.printerModel ? ` (${userContext.printerModel})` : ''}
+- Slicer: ${userContext.slicerPreference || 'No especificado'}
+- Objetivo: ${userContext.mainGoal || 'No especificado'}
+- Etapa comercial: ${userContext.commercialStage || 'No especificada'}
+- Ruta recomendada: ${userContext.recommendedPathTitle || 'No especificada'}
+- Código de referido: ${userContext.referralCode || 'No generado'}
+- Estado de membresía: ${userContext.membershipStatus || 'No activa'}
+
+Reglas para el contexto del usuario:
+- Usá estos datos para adaptar la respuesta a su situación.
+- No menciones todos los datos a menos que sea relevante.
+- No digas "según tu perfil" ni "como me indica tu contexto" todo el tiempo. Sé natural.
+- Si faltan datos clave (ej. no sabes su nivel o su impresora), podés sugerirle sutilmente que complete su perfil/configuración para ayudarlo mejor.
+- No inventes datos que estén como "No especificado".\n\n`;
+      }
+
       systemPrompt += `Tu trabajo es escuchar al usuario, entender qué problema o situación tiene con impresión 3D, costos, ventas o gestión de taller, y guiarlo hacia la clase o herramienta correcta dentro de la plataforma.
+
 
 Personalidad:
 - Sos cercano, práctico y vivo.
