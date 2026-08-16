@@ -5,7 +5,8 @@ import { Bot, X, Send, Loader2, Minimize2 } from "lucide-react";
 import { createPortal } from "react-dom";
 import { usePathname } from "next/navigation";
 import { askStampyAction, StampyContextPayload } from "@/app/stampy/actions";
-import { fetchStampyPageContext, StampyPageContext } from "@/lib/stampy/page-context";
+import { getStaticStampyPageContext } from "@/lib/stampy/static-page-contexts";
+import { StampyPageContext } from "@/lib/stampy/page-context";
 import { useStampyContext } from "@/components/stampy/StampyContextProvider";
 
 type Message = {
@@ -56,7 +57,18 @@ export function GlobalStampyWidget() {
 
   useEffect(() => {
     if (pathname && !shouldHide(pathname)) {
-      fetchStampyPageContext(pathname).then(setPageCtx);
+      const staticCtx = getStaticStampyPageContext(pathname);
+      if (staticCtx) {
+        setPageCtx({
+          source: "page",
+          pathname,
+          pageTitle: staticCtx.title,
+          pageDescription: staticCtx.context,
+          suggestedQuestions: staticCtx.suggestedQuestions || []
+        });
+      } else {
+        setPageCtx(null);
+      }
     }
   }, [pathname]);
 
@@ -73,11 +85,9 @@ export function GlobalStampyWidget() {
   const isCourseDetail = /^\/cursos\/[^/]+/.test(pathname || "");
   if (isCourseDetail) return null;
 
-  const defaultCtx: StampyPageContext = {
+  const defaultCtx: StampyContextPayload = {
     source: "page",
-    pathname: pathname || "",
-    pageTitle: "Plataforma",
-    pageDescription: ""
+    pathname: pathname || ""
   };
   
   const currentCtx = pageCtx || defaultCtx;
