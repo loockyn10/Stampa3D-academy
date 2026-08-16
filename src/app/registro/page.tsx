@@ -11,8 +11,7 @@ function RegistroForm() {
   const [password, setPassword] = useState("");
   const [showPassword, setShowPassword] = useState(false);
   const [name, setName] = useState("");
-  const [refCode, setRefCode] = useState("");
-  const [inviteCode, setInviteCode] = useState("");
+  const [referralCode, setReferralCode] = useState("");
   const [error, setError] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(false);
   const router = useRouter();
@@ -22,10 +21,9 @@ function RegistroForm() {
   // Pre-populate from query params
   useEffect(() => {
     const ref = searchParams.get("ref");
-    if (ref) setRefCode(ref.toUpperCase().trim());
-
     const invite = searchParams.get("invite");
-    if (invite) setInviteCode(invite.toUpperCase().trim());
+    const codeToUse = ref || invite;
+    if (codeToUse) setReferralCode(codeToUse.toUpperCase().trim());
   }, [searchParams]);
 
   const handleRegister = async (e: React.FormEvent) => {
@@ -33,59 +31,49 @@ function RegistroForm() {
     setIsLoading(true);
     setError(null);
 
-    // Validate referral code if provided
-    if (refCode.trim() !== "") {
-      const { data: refProfile, error: refError } = await supabase
-        .from("profiles")
-        .select("id")
-        .eq("referral_code", refCode.trim().toUpperCase())
-        .single();
+    // Validate single referral code
+    if (referralCode.trim() !== "") {
+      const code = referralCode.trim().toUpperCase();
+      let isValid = false;
 
-      if (refError || !refProfile) {
-        setError("El código de referido no es válido. Revisalo y volvé a intentar.");
-        setIsLoading(false);
-        return;
-      }
-    }
-
-    // Validate invite code if provided (basic client-side check)
-    if (inviteCode.trim() !== "") {
-      const now = new Date().toISOString();
+      // 1. Check if it's an invite code (beta)
       const { data: inviteData, error: inviteError } = await supabase
         .from("invite_codes")
-        .select("id, status, expires_at, max_uses, used_count")
-        .eq("code", inviteCode.trim().toUpperCase())
+        .select("status, expires_at, max_uses, used_count")
+        .eq("code", code)
         .single();
 
-      if (inviteError || !inviteData) {
-        setError("El código de invitación no existe o no es válido.");
-        setIsLoading(false);
-        return;
+      if (inviteData && !inviteError) {
+        if (inviteData.status === "active" &&
+            (!inviteData.expires_at || new Date(inviteData.expires_at) > new Date()) &&
+            (inviteData.max_uses === null || inviteData.used_count < inviteData.max_uses)) {
+          isValid = true;
+        }
       }
 
-      if (inviteData.status !== "active") {
-        setError("Este código de invitación no está activo.");
-        setIsLoading(false);
-        return;
+      // 2. Check if it's a regular referral code
+      if (!isValid) {
+        const { data: refProfile, error: refError } = await supabase
+          .from("profiles")
+          .select("id")
+          .eq("referral_code", code)
+          .single();
+
+        if (refProfile && !refError) {
+          isValid = true;
+        }
       }
 
-      if (inviteData.expires_at && new Date(inviteData.expires_at) < new Date()) {
-        setError("Este código de invitación ya venció.");
-        setIsLoading(false);
-        return;
-      }
-
-      if (inviteData.max_uses !== null && inviteData.used_count >= inviteData.max_uses) {
-        setError("Este código de invitación ya agotó todos sus usos disponibles.");
+      if (!isValid) {
+        setError("El código ingresado no es válido. Revisalo y volvé a intentar, o borralo para continuar.");
         setIsLoading(false);
         return;
       }
     }
 
-    // Persist codes in localStorage as fallback for email-confirmation flow
+    // Persist code in localStorage as fallback for email-confirmation flow
     try {
-      if (refCode.trim()) localStorage.setItem("pending_referral_code", refCode.trim().toUpperCase());
-      if (inviteCode.trim()) localStorage.setItem("pending_invite_code", inviteCode.trim().toUpperCase());
+      if (referralCode.trim()) localStorage.setItem("stampa_pending_referral_code", referralCode.trim().toUpperCase());
     } catch {}
 
     const { error: signUpError } = await supabase.auth.signUp({
@@ -94,8 +82,7 @@ function RegistroForm() {
       options: {
         data: {
           full_name: name,
-          referral_code_used: refCode.trim().toUpperCase() || null,
-          invite_code_used: inviteCode.trim().toUpperCase() || null,
+          referral_code_used: referralCode.trim().toUpperCase() || null,
         },
       },
     });
@@ -123,21 +110,9 @@ function RegistroForm() {
             </div>
             <h2 className="text-3xl font-bold tracking-tight text-white">Crear cuenta</h2>
             <p className="mt-2 text-sm text-gray-400">
-              {inviteCode
-                ? "Estás usando un código de invitación beta. 🎉"
-                : "Unite a la Academia Stampa."}
+              Unite a la Academia Stampa.
             </p>
           </div>
-
-          {inviteCode && (
-            <div className="bg-cyan-500/10 border border-cyan-500/30 rounded-xl p-4 text-sm text-cyan-300 flex items-center gap-3">
-              <Gift size={16} className="shrink-0" />
-              <div>
-                <p className="font-semibold">Invitación beta activa</p>
-                <p className="text-xs text-cyan-400/80 mt-0.5">Al registrarte con el código <strong>{inviteCode}</strong> tendrás acceso anticipado gratuito.</p>
-              </div>
-            </div>
-          )}
 
           <form className="space-y-6" onSubmit={handleRegister}>
             {error && (
@@ -200,28 +175,6 @@ function RegistroForm() {
                 </div>
               </div>
 
-              {/* Invite Code */}
-              <div>
-                <label htmlFor="invite-code" className="block text-xs font-semibold text-gray-400 uppercase tracking-wider mb-2">
-                  Código de invitación beta <span className="text-gray-600 font-normal normal-case">(opcional)</span>
-                </label>
-                <div className="relative">
-                  <div className="pointer-events-none absolute inset-y-0 left-0 flex items-center pl-3">
-                    <Gift className="h-5 w-5 text-neutral-500" />
-                  </div>
-                  <input
-                    id="invite-code" name="invite-code" type="text"
-                    value={inviteCode} onChange={e => setInviteCode(e.target.value.toUpperCase().trim())}
-                    className="block w-full rounded-xl border border-white/10 pl-10 focus:border-cyan-500/60 focus:ring-cyan-500/20 focus:ring-2 sm:text-sm py-3 text-neutral-100 placeholder-neutral-500 bg-white/5 outline-none transition-all font-mono tracking-widest"
-                    placeholder="BETA-XXXXXX"
-                    maxLength={20}
-                  />
-                </div>
-                {inviteCode && (
-                  <p className="mt-1.5 text-xs text-cyan-400">Código de invitación: <span className="font-bold">{inviteCode}</span></p>
-                )}
-              </div>
-
               {/* Referral Code */}
               <div>
                 <label htmlFor="ref-code" className="block text-xs font-semibold text-gray-400 uppercase tracking-wider mb-2">
@@ -233,15 +186,13 @@ function RegistroForm() {
                   </div>
                   <input
                     id="ref-code" name="ref-code" type="text"
-                    value={refCode} onChange={e => setRefCode(e.target.value.toUpperCase().trim())}
+                    value={referralCode} onChange={e => setReferralCode(e.target.value.toUpperCase().trim())}
                     className="block w-full rounded-xl border border-white/10 pl-10 focus:border-violet-500/60 focus:ring-violet-500/20 focus:ring-2 sm:text-sm py-3 text-neutral-100 placeholder-neutral-500 bg-white/5 outline-none transition-all font-mono tracking-widest"
-                    placeholder="STAMPAXXXXXX"
+                    placeholder="Ej: STAMPA123"
                     maxLength={20}
                   />
                 </div>
-                {refCode && (
-                  <p className="mt-1.5 text-xs text-violet-400">Código de referido: <span className="font-bold">{refCode}</span></p>
-                )}
+                <p className="mt-1.5 text-xs text-gray-500">Si alguien te invitó a Academia Stampa, ingresá su código acá.</p>
               </div>
             </div>
 

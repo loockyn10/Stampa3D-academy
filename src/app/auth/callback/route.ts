@@ -33,8 +33,7 @@ export async function GET(request: Request) {
       const userId = sessionData.user.id
       const meta = sessionData.user.user_metadata || {}
 
-      const refCode = (refFromUrl || meta.referral_code_used || '').toUpperCase().trim() || null
-      const inviteCode = (inviteFromUrl || meta.invite_code_used || '').toUpperCase().trim() || null
+      const submittedCode = (searchParams.get('ref') || searchParams.get('invite') || meta.referral_code_used || '').toUpperCase().trim() || null
 
       // Use admin client for writes that bypass RLS
       const supabaseAdmin = createAdminClient(
@@ -42,25 +41,26 @@ export async function GET(request: Request) {
         process.env.SUPABASE_SERVICE_ROLE_KEY!
       )
 
-      // ── 1. Resolve invite code (beta access) ─────────────────────
-      if (inviteCode) {
+      if (submittedCode) {
         try {
           const now = new Date().toISOString()
+          let isResolved = false
 
-          // Fetch and validate invite code
+          // ── 1. Resolve as invite code (beta access) ─────────────────────
           const { data: invite } = await supabaseAdmin
             .from('invite_codes')
             .select('id, status, expires_at, max_uses, used_count, access_expires_at')
-            .eq('code', inviteCode)
+            .eq('code', submittedCode)
             .single()
 
-          const isValid =
+          const isInviteValid =
             invite &&
             invite.status === 'active' &&
             (!invite.expires_at || new Date(invite.expires_at) > new Date()) &&
             (invite.max_uses === null || invite.used_count < invite.max_uses)
 
-          if (isValid) {
+          if (isInviteValid) {
+            isResolved = true
             // Check user hasn't redeemed this code before
             const { data: existingRedemption } = await supabaseAdmin
               .from('invite_code_redemptions')
@@ -70,62 +70,55 @@ export async function GET(request: Request) {
               .single()
 
             if (!existingRedemption) {
-              // Insert redemption
               await supabaseAdmin.from('invite_code_redemptions').insert({
                 invite_code_id: invite.id,
                 user_id: userId,
                 redeemed_at: now,
               })
 
-              // Increment used_count
               await supabaseAdmin
                 .from('invite_codes')
                 .update({ used_count: invite.used_count + 1 })
                 .eq('id', invite.id)
 
-              // Create beta access grant
               await supabaseAdmin.from('user_access_grants').insert({
                 user_id: userId,
                 grant_type: 'beta_tester',
                 status: 'active',
                 expires_at: invite.access_expires_at || null,
-                notes: `Acceso beta por código ${inviteCode}`,
+                notes: `Acceso beta por código ${submittedCode}`,
               })
             }
           }
-        } catch (err: any) {
-          console.error('[auth/callback] Invite code processing error:', err.message)
-        }
-      }
 
-      // ── 2. Resolve referral code ──────────────────────────────────
-      if (refCode) {
-        try {
-          const { data: referrerProfile } = await supabaseAdmin
-            .from('profiles')
-            .select('id')
-            .eq('referral_code', refCode)
-            .single()
-
-          if (referrerProfile && referrerProfile.id !== userId) {
-            await supabaseAdmin.from('referrals').upsert(
-              {
-                referrer_user_id: referrerProfile.id,
-                referred_user_id: userId,
-                referral_code: refCode,
-                status: 'pending',
-              },
-              { onConflict: 'referred_user_id', ignoreDuplicates: true }
-            )
-
-            await supabaseAdmin
+          // ── 2. Resolve as referral code (if not a beta code) ──────────
+          if (!isResolved) {
+            const { data: referrerProfile } = await supabaseAdmin
               .from('profiles')
-              .update({ referred_by_user_id: referrerProfile.id })
-              .eq('id', userId)
-              .is('referred_by_user_id', null)
+              .select('id')
+              .eq('referral_code', submittedCode)
+              .single()
+
+            if (referrerProfile && referrerProfile.id !== userId) {
+              await supabaseAdmin.from('referrals').upsert(
+                {
+                  referrer_user_id: referrerProfile.id,
+                  referred_user_id: userId,
+                  referral_code: submittedCode,
+                  status: 'pending',
+                },
+                { onConflict: 'referred_user_id', ignoreDuplicates: true }
+              )
+
+              await supabaseAdmin
+                .from('profiles')
+                .update({ referred_by_user_id: referrerProfile.id })
+                .eq('id', userId)
+                .is('referred_by_user_id', null)
+            }
           }
         } catch (err: any) {
-          console.error('[auth/callback] Referral code processing error:', err.message)
+          console.error('[auth/callback] Code processing error:', err.message)
         }
       }
 
