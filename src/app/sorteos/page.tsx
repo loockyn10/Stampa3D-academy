@@ -6,7 +6,7 @@ import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { SectionTitle } from "@/components/ui/section-title";
 import { createClient } from "@/utils/supabase/client";
-
+import { getOrCreateReferralCode } from "@/lib/referral";
 
 export default function SorteosPage() {
   const supabase = createClient();
@@ -14,6 +14,9 @@ export default function SorteosPage() {
   const [activePrizes, setActivePrizes] = useState<any[]>([]);
   const [pastWinners, setPastWinners] = useState<any[]>([]);
   const [memberLevel, setMemberLevel] = useState<string>("member");
+  const [referralCode, setReferralCode] = useState<string | null>(null);
+  const [bonusEntries, setBonusEntries] = useState<number>(0);
+  const [copied, setCopied] = useState(false);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
@@ -26,10 +29,31 @@ export default function SorteosPage() {
     const { data: { user } } = await supabase.auth.getUser();
     if (!user) return;
 
-    // Fetch user profile for member_level
-    const { data: profile } = await supabase.from("profiles").select("member_level").eq("id", user.id).single();
+    // Fetch user profile for member_level and referral
+    const { data: profile } = await supabase.from("profiles").select("*").eq("id", user.id).single();
     if (profile) {
       setMemberLevel(profile.member_level || "member");
+      
+      let refCode = profile.referral_code;
+      if (!refCode) {
+        refCode = await getOrCreateReferralCode(supabase, user.id, null, profile);
+      }
+      setReferralCode(refCode);
+    }
+
+    // Fetch bonus entries
+    try {
+      const { data: bonusData, error: bonusError } = await supabase
+        .from("user_raffle_bonus_entries")
+        .select("entries_count")
+        .eq("user_id", user.id)
+        .eq("is_active", true);
+      
+      if (bonusData && !bonusError) {
+        setBonusEntries(bonusData.reduce((acc, curr) => acc + (curr.entries_count || 0), 0));
+      }
+    } catch (e) {
+      // ignore table not found
     }
 
     // Fetch active raffle
@@ -89,7 +113,7 @@ export default function SorteosPage() {
             Sorteos
           </h1>
           <p className="text-sm text-gray-400">
-            Participá en sorteos exclusivos para miembros de Academia Stampa. Mientras tu membresía esté activa, podés participar en los sorteos disponibles.
+            Participá de sorteos exclusivos para miembros de Academia Stampa. Cada participación suma una chance. Podés ganar participaciones extra invitando amigos con tu código.
           </p>
         </div>
       </div>
@@ -115,7 +139,7 @@ export default function SorteosPage() {
                   Participación Activa
                 </p>
                 <p className="text-[11px] text-green-500/70 font-medium">
-                  Tu nivel <b>{memberLevel}</b> te da <b>{getChances()} chance{getChances() > 1 ? 's' : ''}</b> en este sorteo.
+                  Tenés <b>{getChances() + bonusEntries} participacion{getChances() + bonusEntries !== 1 ? 'es' : ''}</b> en este sorteo.
                 </p>
               </div>
             </div>
@@ -173,26 +197,60 @@ export default function SorteosPage() {
         </div>
       )}
 
-      {/* 3. Cómo funcionan los sorteos */}
+      {/* 3. Mis participaciones */}
       <div>
-        <h3 className="text-lg font-bold text-white mb-4">Cómo funcionan los sorteos</h3>
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-          <Card className="bg-[#111] border-white/10 p-5 rounded-xl">
-            <div className="w-8 h-8 rounded-lg bg-orange-500/10 text-orange-500 flex items-center justify-center font-black mb-3 border border-orange-500/20">1</div>
-            <h4 className="font-bold text-white text-sm mb-1">Mantené tu membresía activa</h4>
-            <p className="text-xs text-gray-400">Tu participación es automática siempre que tengas acceso a la plataforma.</p>
-          </Card>
-          <Card className="bg-[#111] border-white/10 p-5 rounded-xl">
-            <div className="w-8 h-8 rounded-lg bg-orange-500/10 text-orange-500 flex items-center justify-center font-black mb-3 border border-orange-500/20">2</div>
-            <h4 className="font-bold text-white text-sm mb-1">Revisá la fecha del sorteo</h4>
-            <p className="text-xs text-gray-400">Verificá los premios en juego y agendá cuándo se anuncian los ganadores.</p>
-          </Card>
-          <Card className="bg-[#111] border-white/10 p-5 rounded-xl">
-            <div className="w-8 h-8 rounded-lg bg-orange-500/10 text-orange-500 flex items-center justify-center font-black mb-3 border border-orange-500/20">3</div>
-            <h4 className="font-bold text-white text-sm mb-1">Ganadores en el historial</h4>
-            <p className="text-xs text-gray-400">Los resultados quedan registrados abajo. ¡Mucha suerte!</p>
-          </Card>
-        </div>
+        <h3 className="text-lg font-bold text-white mb-4">Mis participaciones</h3>
+        <Card className="bg-[#111] border-white/10 p-6 md:p-8 rounded-2xl relative overflow-hidden group">
+          <div className="absolute top-0 right-0 w-32 h-32 bg-violet-500/10 rounded-full blur-3xl -translate-y-1/2 translate-x-1/2 pointer-events-none"></div>
+          
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-8 relative z-10">
+            <div className="flex flex-col justify-center border-b md:border-b-0 md:border-r border-white/5 pb-8 md:pb-0 md:pr-8">
+              <p className="text-sm text-gray-400 font-medium mb-2 uppercase tracking-wider">Total Acumuladas</p>
+              <div className="flex items-baseline gap-2 mb-2">
+                <span className="text-5xl font-black text-transparent bg-clip-text bg-gradient-to-br from-violet-400 to-orange-400">
+                  {getChances() + bonusEntries}
+                </span>
+                <span className="text-lg font-bold text-gray-500">chances</span>
+              </div>
+              <p className="text-xs text-gray-500">
+                {getChances()} base + {bonusEntries} extra por referidos
+              </p>
+            </div>
+
+            <div className="flex flex-col justify-center">
+              <div className="mb-4">
+                <p className="text-sm font-bold text-white mb-1">Invitá amigos y sumá chances</p>
+                <p className="text-xs text-gray-400">Cuando alguien se suscriba usando tu código, sumás 1 participación extra.</p>
+              </div>
+              
+              <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-2">
+                <div className="flex-1 bg-[#0a0a0a] border border-white/10 rounded-xl px-4 py-3 flex items-center shadow-inner overflow-hidden">
+                  {referralCode ? (
+                    <span className="font-mono text-sm font-bold text-violet-400 tracking-wider truncate">
+                      {typeof window !== 'undefined' ? `${window.location.origin}/registro?ref=${referralCode}` : referralCode}
+                    </span>
+                  ) : (
+                    <span className="text-xs text-gray-500 italic truncate">Tu código se está preparando...</span>
+                  )}
+                </div>
+                <button 
+                  onClick={() => {
+                    if (referralCode) {
+                      const link = typeof window !== 'undefined' ? `${window.location.origin}/registro?ref=${referralCode}` : referralCode;
+                      navigator.clipboard.writeText(link);
+                      setCopied(true);
+                      setTimeout(() => setCopied(false), 2000);
+                    }
+                  }}
+                  disabled={!referralCode}
+                  className="shrink-0 px-4 py-3 bg-white/5 hover:bg-white/10 border border-white/10 text-white rounded-xl text-sm font-bold transition-colors flex items-center justify-center min-w-[120px] disabled:opacity-50"
+                >
+                  {copied ? "¡Copiado!" : "Copiar link"}
+                </button>
+              </div>
+            </div>
+          </div>
+        </Card>
       </div>
 
       {/* 4. Historial de Sorteos */}
