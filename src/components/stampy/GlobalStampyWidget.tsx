@@ -5,7 +5,7 @@ import { Bot, X, Send, Loader2, Minimize2 } from "lucide-react";
 import { createPortal } from "react-dom";
 import { usePathname } from "next/navigation";
 import { askStampyAction } from "@/app/stampy/actions";
-import { getStampyPageContext } from "@/lib/stampy/page-context";
+import { fetchStampyPageContext, StampyPageContext } from "@/lib/stampy/page-context";
 import { useStampyContext } from "@/components/stampy/StampyContextProvider";
 
 type Message = {
@@ -46,12 +46,19 @@ export function GlobalStampyWidget() {
   ]);
   const [input, setInput] = useState("");
   const [isLoading, setIsLoading] = useState(false);
+  const [pageCtx, setPageCtx] = useState<StampyPageContext | null>(null);
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const [mounted, setMounted] = useState(false);
 
   useEffect(() => {
     setMounted(true);
   }, []);
+
+  useEffect(() => {
+    if (pathname && !shouldHide(pathname)) {
+      fetchStampyPageContext(pathname).then(setPageCtx);
+    }
+  }, [pathname]);
 
   useEffect(() => {
     if (isOpen) {
@@ -66,15 +73,21 @@ export function GlobalStampyWidget() {
   const isCourseDetail = /^\/cursos\/[^/]+/.test(pathname || "");
   if (isCourseDetail) return null;
 
-  const pageCtx = getStampyPageContext(pathname || "");
+  const defaultCtx: StampyPageContext = {
+    source: "page",
+    pathname: pathname || "",
+    pageTitle: "Plataforma",
+    pageDescription: ""
+  };
+  
+  const currentCtx = pageCtx || defaultCtx;
+  const effectiveContext = stampyContext ?? currentCtx;
 
-  // Prefer lesson context if set by a provider (future sub-route providers)
-  const effectiveContext = stampyContext ?? pageCtx;
+  const handleSend = async (forcedInput?: string) => {
+    const text = forcedInput || input.trim();
+    if (!text || isLoading) return;
 
-  const handleSend = async () => {
-    if (!input.trim() || isLoading) return;
-
-    const userMsg: Message = { role: "user", content: input.trim() };
+    const userMsg: Message = { role: "user", content: text };
     const newMessages = [...messages, userMsg];
     setMessages(newMessages);
     setInput("");
@@ -146,7 +159,7 @@ export function GlobalStampyWidget() {
                   <p className="text-[11px] text-gray-500 truncate max-w-[200px]">
                     {effectiveContext.source === "lesson"
                       ? `Clase: ${(effectiveContext as any).lessonTitle || ""}`
-                      : `Pantalla: ${pageCtx.pageTitle}`}
+                      : `Pantalla: ${currentCtx.pageTitle}`}
                   </p>
                 </div>
               </div>
@@ -181,6 +194,22 @@ export function GlobalStampyWidget() {
                   </div>
                 </div>
               ))}
+              
+              {/* Suggested Questions */}
+              {!isLoading && messages.length === 1 && currentCtx.suggestedQuestions && currentCtx.suggestedQuestions.length > 0 && (
+                <div className="flex flex-wrap gap-2 pt-2 pl-9">
+                  {currentCtx.suggestedQuestions.map((sq, idx) => (
+                    <button
+                      key={idx}
+                      onClick={() => handleSend(sq)}
+                      className="px-3 py-1.5 text-xs font-medium text-cyan-300 bg-cyan-500/10 hover:bg-cyan-500/20 border border-cyan-500/30 rounded-full transition-colors text-left"
+                    >
+                      {sq}
+                    </button>
+                  ))}
+                </div>
+              )}
+
               {isLoading && (
                 <div className="flex justify-start">
                   <div className="w-7 h-7 shrink-0 rounded-full bg-cyan-500/10 border border-cyan-500/20 flex items-center justify-center text-cyan-400 mt-0.5 mr-2">
@@ -208,7 +237,7 @@ export function GlobalStampyWidget() {
                   disabled={isLoading}
                 />
                 <button
-                  onClick={handleSend}
+                  onClick={() => handleSend()}
                   disabled={isLoading || !input.trim()}
                   className="absolute right-2 p-2 bg-gradient-to-r from-cyan-500 to-violet-600 text-white rounded-lg disabled:opacity-50 disabled:cursor-not-allowed hover:brightness-110 transition-colors"
                 >

@@ -23,6 +23,7 @@ import {
   Globe,
   Users,
   Tag,
+  Bot,
 } from "lucide-react";
 import { Youtube, Instagram } from "@/components/ui/icons";
 import { createClient } from "@/utils/supabase/client";
@@ -162,7 +163,8 @@ export function Sidebar({ mobileOpen, setMobileOpen }: SidebarProps) {
                 group: "Administración",
                 items: [
                   { path: "/admin", label: "Admin", icon: Shield },
-                  { path: "/admin/codigos", label: "Códigos", icon: Tag }
+                  { path: "/admin/codigos", label: "Códigos", icon: Tag },
+                  { path: "/admin/stampy/contextos", label: "Contextos Stampy", icon: Bot }
                 ]
               };
               if (userGroupIndex !== -1) {

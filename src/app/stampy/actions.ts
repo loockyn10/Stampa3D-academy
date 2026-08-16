@@ -21,9 +21,11 @@ export type StampyContextPayload =
       pathname?: string;
       pageTitle?: string;
       pageDescription?: string;
+      dbContext?: string; // New: context directly from database
       userIntentHints?: string[];
       relatedRoutes?: string[];
       toolKey?: string;
+      suggestedQuestions?: string[];
     };
 
 function cleanText(value?: string | null): string {
@@ -98,60 +100,59 @@ export async function askStampyAction(
 
   const recentUserMessages = recentConversation.filter(msg => msg.role === 'user').slice(-2).map(m => m.content);
   
-  let searchQuery = currentQuery;
-  if (isDependent && recentUserMessages.length > 0) {
-    searchQuery = cleanText(recentUserMessages.join(" ") + " " + safeMessage);
-  }
-  const evaluateLessons = (queryToUse: string) => {
-    return lessons.map((l: any) => {
-      let score = 0;
-      let reasons: string[] = [];
-      const ai_problems = Array.isArray(l.ai_problems) ? l.ai_problems : [];
-      const ai_topics = Array.isArray(l.ai_topics) ? l.ai_topics : [];
-      
-      ai_problems.forEach((p: string) => {
-        if (includesUsefulNeedle(queryToUse, p)) { score += 5; reasons.push(`problem: ${p} +5`); }
-      });
-
-      ai_topics.forEach((t: string) => {
-        if (includesUsefulNeedle(queryToUse, t)) { score += 3; reasons.push(`topic: ${t} +3`); }
-      });
-
-      if (includesUsefulNeedle(queryToUse, l.title)) { score += 2; reasons.push(`title: ${l.title} +2`); }
-      if (includesUsefulNeedle(queryToUse, l.ai_summary)) { score += 1; reasons.push(`summary: match +1`); }
-      if (includesUsefulNeedle(queryToUse, l.ai_related_tool)) { score += 1; reasons.push(`tool: ${l.ai_related_tool} +1`); }
-      if (score === 0 && includesUsefulNeedle(queryToUse, l.description)) { score += 1; reasons.push(`description: match +1`); }
-
-      if (process.env.NODE_ENV === 'development' && score > 0) {
-        console.log("[Stampy lesson score]", l.title, score, reasons);
-      }
-
-      return { ...l, _score: score };
-    }).sort((a: any, b: any) => b._score - a._score);
-  };
-
-  let scoredLessons = evaluateLessons(currentQuery);
-  let contextRecommendations = scoredLessons.filter(l => l._score >= 3).slice(0, 5);
-
-  const { findRelevantKnowledge } = await import("@/lib/stampy/knowledge-search");
-  let knowledgeItems = findRelevantKnowledge(currentQuery);
-
-  const isLessonEmpty = contextRecommendations.length === 0;
-  const isKnowledgeEmpty = knowledgeItems.length === 0;
-
-  if ((isLessonEmpty || isKnowledgeEmpty) && isDependent && recentUserMessages.length > 0) {
-    if (isLessonEmpty) {
-      scoredLessons = evaluateLessons(searchQuery);
-      contextRecommendations = scoredLessons.filter(l => l._score >= 3).slice(0, 5);
+  const searchQueries = isDependent && recentUserMessages.length > 0
+    ? [...recentUserMessages, currentQuery]
+    : [currentQuery];
+  
+  const relevantLessons = lessons.filter(lesson => {
+    let score = 0;
+    for (const q of searchQueries) {
+      if (includesUsefulNeedle(lesson.title, q)) score += 5;
+      if (includesUsefulNeedle(lesson.description, q)) score += 3;
+      if (includesUsefulNeedle(lesson.ai_summary, q)) score += 4;
+      if (lesson.ai_topics?.some((t: string) => includesUsefulNeedle(t, q))) score += 3;
+      if (lesson.ai_problems?.some((p: string) => includesUsefulNeedle(p, q))) score += 4;
     }
-    if (isKnowledgeEmpty) {
-      knowledgeItems = findRelevantKnowledge(searchQuery);
+    return score > 0;
+  });
+
+  const knowledgeItems = [
+    { id: 'calculator-basic', route: '/calculadora', keywords: ['calculadora', 'precio', 'cotizar', 'cobrar', 'costo', 'ganancia', 'margen', 'markup'] },
+    { id: 'calculator-advanced', route: '/calculadora', keywords: ['calculadora avanzada', 'desglose', 'electricidad', 'amortizacion', 'envio', 'comision', 'mano de obra'] },
+    { id: 'budgets', route: '/presupuestos', keywords: ['presupuesto', 'cotizacion', 'cliente', 'pdf', 'enviar precio'] },
+    { id: 'products', route: '/productos', keywords: ['catalogo', 'producto', 'guardar precio', 'piezas', 'repetitivo'] },
+    { id: 'filament-stock', route: '/stock', keywords: ['stock', 'filamento', 'rollo', 'inventario', 'colores', 'material'] },
+    { id: 'finished-product-stock', route: '/stock', keywords: ['stock', 'producto terminado', 'inventario'] },
+    { id: 'courses', route: '/cursos', keywords: ['cursos', 'aprender', 'formacion', 'clases', 'estudiar'] },
+    { id: 'workshops', route: '/talleres', keywords: ['taller', 'proyecto', 'practica', 'paso a paso'] },
+    { id: 'academy', route: '/academia', keywords: ['academia', 'empezar', 'ruta'] },
+    { id: 'stl-library', route: '/libreria-stl', keywords: ['stl', 'descargar', 'modelo', '3d', 'archivo'] },
+    { id: 'raffles', route: '/sorteos', keywords: ['sorteo', 'ganar', 'beneficio', 'premio'] },
+    { id: 'community', route: '/canales', keywords: ['comunidad', 'grupo', 'telegram', 'whatsapp', 'ayuda', 'foro'] },
+  ];
+
+  let contextRecommendations = relevantLessons;
+  if (context && context.source === 'lesson') {
+    const currentLessonModuleId = context.lessonId 
+      ? lessons.find(l => l.id === context.lessonId)?.course_modules 
+        ? (lessons.find(l => l.id === context.lessonId)?.course_modules as any).id 
+        : null
+      : null;
+    
+    if (currentLessonModuleId) {
+      const sameModuleLessons = lessons.filter(l => 
+        (l.course_modules as any)?.id === currentLessonModuleId && 
+        l.id !== context.lessonId
+      );
+      
+      const others = relevantLessons.filter(l => (l.course_modules as any)?.id !== currentLessonModuleId);
+      contextRecommendations = [...sameModuleLessons, ...others];
     }
   }
 
   const topRecommendations = contextRecommendations.slice(0, 3).map(l => ({
     ...l,
-    courseKind: l.course_modules?.courses?.course_kind || "course"
+    courseKind: (l.course_modules as any)?.courses?.course_kind || "course"
   })); // UI gets top 3
 
   let answer = "";
@@ -182,6 +183,13 @@ export async function askStampyAction(
       if (k.id === 'community') relatedToolsList.push('comunidad');
     }
   });
+
+  // Si hay contexto de página y tiene toolKey relacionada (desde BD)
+  if (context && context.source === 'page' && context.relatedRoutes) {
+    context.relatedRoutes.forEach(rt => {
+       relatedToolsList.push(rt);
+    });
+  }
 
   // Filtramos duplicates (ej. si calculator-basic y advanced metieron 2 'calculadora')
   const uniqueRelatedToolsList = Array.from(new Set(relatedToolsList));
@@ -223,12 +231,15 @@ Reglas para respuestas en clase:
 Pantalla: ${context.pageTitle || ''}
 Ruta: ${context.pathname || ''}
 Descripción: ${context.pageDescription || ''}
+Contexto Base de Datos: ${context.dbContext || 'Sin contexto base'}
 
 Reglas adicionales para respuesta en pantalla:
-- Si el usuario pregunta "qué hago acá" o "cómo funciona", explicá brevemente para qué sirve esta sección.
+- Usá este contexto para responder más útilmente.
+- Si el usuario pregunta "qué hago acá" o "cómo funciona", explicá brevemente para qué sirve esta sección en base al contexto.
 - Priorizá orientar usando esta herramienta/sección si la pregunta se relaciona con ella.
-- No digas "según el contexto provisto".
-- Si el usuario pregunta cómo navegar, indicá la ruta correcta.\n\n`;
+- No digas "según el contexto cargado" o provisto.
+- Si el usuario pregunta algo fuera de esta pantalla, podés responder normal orientando a la ruta correcta.
+- Mantené respuestas breves y prácticas.\n\n`;
       }
       
       systemPrompt += `Tu trabajo es escuchar al usuario, entender qué problema o situación tiene con impresión 3D, costos, ventas o gestión de taller, y guiarlo hacia la clase o herramienta correcta dentro de la plataforma.
@@ -273,14 +284,13 @@ Forma ideal:
       const contextObj = contextRecommendations.map(l => ({
         lessonId: l.id,
         lessonTitle: l.title,
-        courseTitle: l.course_modules?.courses?.title,
-        moduleTitle: l.course_modules?.title,
+        courseTitle: (l.course_modules as any)?.courses?.title,
+        moduleTitle: (l.course_modules as any)?.title,
         aiSummary: l.ai_summary,
         topics: l.ai_topics,
         problems: l.ai_problems,
         level: l.ai_level,
-        relatedTool: l.ai_related_tool,
-        score: l._score
+        relatedTool: l.ai_related_tool
       }));
 
       const conversationContext = recentConversation.map(msg => 
@@ -306,7 +316,7 @@ Herramientas disponibles encontradas para este caso:
 ${uniqueRelatedToolsList.length > 0 ? uniqueRelatedToolsList.join(", ") : "Ninguna"}
 
 Base de conocimiento (herramientas/flujos recomendados):
-${JSON.stringify(knowledgeItems.map(k => ({ title: k.title, route: k.route, shortDescription: k.shortDescription, whenToRecommend: k.whenToRecommend, howToUse: k.howToUse, relatedTools: k.relatedTools })), null, 2)}
+${JSON.stringify(knowledgeItems.map(k => ({ id: k.id, route: k.route, keywords: k.keywords })), null, 2)}
 `;
 
       const response = await openai.chat.completions.create({
