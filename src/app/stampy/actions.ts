@@ -98,6 +98,41 @@ Reglas:
 - Respuestas breves y prácticas.\n`;
     }
 
+    // 4. Buscar contexto del usuario de forma segura
+    let userContext = null;
+    try {
+      const { getStampyUserContext } = await import("@/lib/stampy/user-context");
+      userContext = await getStampyUserContext(user.id);
+    } catch (e) {
+      console.error("[Stampy] user context failed", e);
+    }
+
+    if (userContext) {
+      systemPrompt += `\nDatos del usuario:
+- Nombre: ${userContext.displayName || 'No especificado'}
+- Nivel: ${userContext.experienceLevelLabel || 'No especificado'}
+- Impresora principal: ${userContext.printerLabel || 'No especificada'}
+- Slicer: ${userContext.slicerLabel || 'No especificado'}
+- Objetivo: ${userContext.mainGoalLabel || 'No especificado'}
+- Etapa comercial: ${userContext.commercialStageLabel || 'No especificada'}
+- Código de referido: ${userContext.referralCode || 'No generado'}
+- Estado de membresía: ${userContext.membershipStatusLabel || 'No activa'}`;
+      if (userContext.memberLevelLabel) {
+         systemPrompt += ` (${userContext.memberLevelLabel})`;
+      }
+      
+      systemPrompt += `
+
+Reglas del usuario:
+- Usá estos datos solo para adaptar la respuesta.
+- No los repitas todos salvo que el usuario pregunte.
+- No digas "según tu perfil" en cada respuesta.
+- No inventes datos si están vacíos.
+- Si falta onboarding, podés sugerir completar el perfil/configuración.
+- No menciones datos internos.
+- Respuestas breves y prácticas.\n`;
+    }
+
     const completion = await openai.chat.completions.create({
       model: process.env.OPENAI_MODEL || "gpt-4o-mini",
       messages: [

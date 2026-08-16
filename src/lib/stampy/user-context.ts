@@ -1,22 +1,17 @@
 import { createClient } from "@/utils/supabase/server";
-import { cookies } from "next/headers";
 
-export interface StampyUserContext {
+export type StampyUserContext = {
   displayName?: string;
-  fullName?: string;
-  printerBrand?: string;
-  printerModel?: string;
-  experienceLevel?: string;
-  mainGoal?: string;
-  slicerPreference?: string;
-  commercialStage?: string;
+  experienceLevelLabel?: string;
+  mainGoalLabel?: string;
+  slicerLabel?: string;
+  commercialStageLabel?: string;
+  printerLabel?: string;
   onboardingCompleted?: boolean;
   referralCode?: string;
-  membershipStatus?: string;
-  memberLevel?: string;
-  recommendedPathTitle?: string;
-  recommendedPathChips?: string[];
-}
+  membershipStatusLabel?: string;
+  memberLevelLabel?: string;
+};
 
 const expLevelMap: Record<string, string> = {
   beginner: "Está empezando",
@@ -66,77 +61,51 @@ const printerMap: Record<string, string> = {
   none_yet: "Todavía no tiene impresora"
 };
 
+const membershipStatusMap: Record<string, string> = {
+  active: "membresía activa",
+  inactive: "membresía inactiva",
+  cancelled: "membresía cancelada",
+  expired: "membresía vencida"
+};
+
+const memberLevelMap: Record<string, string> = {
+  bronze: "Bronce",
+  silver: "Plata",
+  gold: "Oro",
+  elite: "Elite"
+};
+
 export async function getStampyUserContext(userId: string): Promise<StampyUserContext | null> {
   const supabase = await createClient();
-  const { data: profile } = await supabase
+  const { data: profile, error } = await supabase
     .from("profiles")
     .select("display_name, full_name, main_printer_brand, main_printer_model, experience_level, main_goal, slicer_preference, commercial_stage, onboarding_completed, referral_code, membership_status, member_level")
     .eq("id", userId)
     .single();
 
+  if (error) {
+    console.error("[Stampy] getStampyUserContext db error", error);
+    return null;
+  }
   if (!profile) return null;
 
-  const brand = profile.main_printer_brand || "other";
-  const goal = profile.main_goal || "all";
-  
-  let title = "Ruta recomendada para empezar";
-  let chips: string[] = [];
-
-  const addChip = (label: string) => {
-    if (!chips.includes(label)) chips.push(label);
-  };
-
-  if (brand === "bambu_lab") {
-    title = "Ruta recomendada para Bambu Lab";
-    addChip("Bambu Lab");
-  } else if (brand === "flashforge") {
-    title = "Ruta recomendada para Flashforge";
-    addChip("Flashforge");
-  } else if (brand === "none_yet") {
-    title = "Ruta para empezar desde cero sin impresora";
-    addChip("Sin impresora");
-  } else {
-    title = "Ruta general recomendada";
-    if (brand && brand !== "other") {
-      addChip(brand.charAt(0).toUpperCase() + brand.slice(1));
-    } else {
-      addChip("Ruta General");
-    }
+  let printerLabel = profile.main_printer_brand ? (printerMap[profile.main_printer_brand] || profile.main_printer_brand) : undefined;
+  if (printerLabel && profile.main_printer_model) {
+    printerLabel = `${printerLabel} ${profile.main_printer_model}`;
   }
 
-  if (goal === "sell_products") {
-    addChip("Vender productos");
-  } else if (goal === "learn_slicer") {
-    addChip("Aprender Slicer");
-  } else if (goal === "improve_quality") {
-    addChip("Mejorar calidad");
-  } else if (goal === "manage_business") {
-    addChip("Organizar taller");
-  } else if (goal === "first_print") {
-    addChip("Primera impresión");
-  } else if (goal === "all") {
-    addChip("Un poco de todo");
-  }
-
-  if (profile.experience_level === "beginner") addChip("Empezando desde cero");
-  if (profile.experience_level === "basic") addChip("Algunas impresiones");
-  if (profile.experience_level === "intermediate") addChip("Quiero mejorar");
-  if (profile.experience_level === "advanced") addChip("Tengo experiencia");
+  const displayName = profile.display_name || profile.full_name || undefined;
 
   return {
-    displayName: profile.display_name,
-    fullName: profile.full_name,
-    printerBrand: profile.main_printer_brand ? (printerMap[profile.main_printer_brand] || profile.main_printer_brand) : undefined,
-    printerModel: profile.main_printer_model,
-    experienceLevel: profile.experience_level ? (expLevelMap[profile.experience_level] || profile.experience_level) : undefined,
-    mainGoal: profile.main_goal ? (goalMap[profile.main_goal] || profile.main_goal) : undefined,
-    slicerPreference: profile.slicer_preference ? (slicerMap[profile.slicer_preference] || profile.slicer_preference) : undefined,
-    commercialStage: profile.commercial_stage ? (commercialStageMap[profile.commercial_stage] || profile.commercial_stage) : undefined,
+    displayName,
+    printerLabel,
+    experienceLevelLabel: profile.experience_level ? (expLevelMap[profile.experience_level] || profile.experience_level) : undefined,
+    mainGoalLabel: profile.main_goal ? (goalMap[profile.main_goal] || profile.main_goal) : undefined,
+    slicerLabel: profile.slicer_preference ? (slicerMap[profile.slicer_preference] || profile.slicer_preference) : undefined,
+    commercialStageLabel: profile.commercial_stage ? (commercialStageMap[profile.commercial_stage] || profile.commercial_stage) : undefined,
     onboardingCompleted: profile.onboarding_completed,
     referralCode: profile.referral_code,
-    membershipStatus: profile.membership_status,
-    memberLevel: profile.member_level,
-    recommendedPathTitle: title,
-    recommendedPathChips: chips
+    membershipStatusLabel: profile.membership_status ? (membershipStatusMap[profile.membership_status] || profile.membership_status) : undefined,
+    memberLevelLabel: profile.member_level ? (memberLevelMap[profile.member_level] || profile.member_level) : undefined,
   };
 }
