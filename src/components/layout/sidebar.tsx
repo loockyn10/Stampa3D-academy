@@ -22,6 +22,7 @@ import {
   Sparkles,
   Globe,
   Users,
+  Tag,
 } from "lucide-react";
 import { Youtube, Instagram } from "@/components/ui/icons";
 import { createClient } from "@/utils/supabase/client";
@@ -160,7 +161,8 @@ export function Sidebar({ mobileOpen, setMobileOpen }: SidebarProps) {
               const adminGroup = {
                 group: "Administración",
                 items: [
-                  { path: "/admin", label: "Admin", icon: Shield }
+                  { path: "/admin", label: "Admin", icon: Shield },
+                  { path: "/admin/codigos", label: "Códigos", icon: Tag }
                 ]
               };
               if (userGroupIndex !== -1) {

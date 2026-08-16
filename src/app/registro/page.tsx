@@ -3,6 +3,7 @@
 import { useState, useEffect, Suspense } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { createClient } from "@/utils/supabase/client";
+import { resolveRegistrationCode } from "@/lib/codes/resolve-code";
 import Link from "next/link";
 import { Layers, Mail, Lock, User, Eye, EyeOff, Tag, Gift, AlertCircle } from "lucide-react";
 
@@ -33,41 +34,19 @@ function RegistroForm() {
 
     // Validate single referral code
     if (referralCode.trim() !== "") {
-      const code = referralCode.trim().toUpperCase();
-      let isValid = false;
+      const resolution = await resolveRegistrationCode(referralCode, supabase);
 
-      // 1. Check if it's an invite code (beta)
-      const { data: inviteData, error: inviteError } = await supabase
-        .from("invite_codes")
-        .select("status, expires_at, max_uses, used_count")
-        .eq("code", code)
-        .single();
-
-      if (inviteData && !inviteError) {
-        if (inviteData.status === "active" &&
-            (!inviteData.expires_at || new Date(inviteData.expires_at) > new Date()) &&
-            (inviteData.max_uses === null || inviteData.used_count < inviteData.max_uses)) {
-          isValid = true;
-        }
-      }
-
-      // 2. Check if it's a regular referral code
-      if (!isValid) {
-        const { data: refProfile, error: refError } = await supabase
-          .from("profiles")
-          .select("id")
-          .eq("referral_code", code)
-          .single();
-
-        if (refProfile && !refError) {
-          isValid = true;
-        }
-      }
-
-      if (!isValid) {
-        setError("El código ingresado no es válido. Revisalo y volvé a intentar, o borralo para continuar.");
+      if (!resolution.isValid) {
+        setError(resolution.errorMessage || "El código ingresado no es válido.");
         setIsLoading(false);
         return;
+      }
+
+      // If it's a promo code, save to localStorage for checkout
+      if (resolution.type === 'promo') {
+        try {
+          localStorage.setItem("stampa_pending_promo_code", resolution.code);
+        } catch {}
       }
     }
 
