@@ -79,8 +79,12 @@ export function StampyLessonChat({ courseTitle, moduleTitle, lesson }: StampyLes
 
     const conversationContext = newMessages.slice(-6);
 
+    const removeUndefined = (obj: any) => {
+      return Object.fromEntries(Object.entries(obj).filter(([_, v]) => v !== undefined));
+    };
+
     try {
-      const response = await askStampyAction(userMsg.content, conversationContext, context);
+      const response = await askStampyAction(userMsg.content, conversationContext, removeUndefined(context) as StampyContextPayload);
       setMessages([...newMessages, { role: "assistant", content: response.answer || "Hubo un error al generar la respuesta." }]);
     } catch (err) {
       setMessages([...newMessages, { role: "assistant", content: "Hubo un error de conexión con mi servidor. Por favor, probá de nuevo." }]);

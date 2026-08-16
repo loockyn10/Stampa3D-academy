@@ -4,7 +4,7 @@ import React, { useState, useRef, useEffect } from "react";
 import { Bot, X, Send, Loader2, Minimize2 } from "lucide-react";
 import { createPortal } from "react-dom";
 import { usePathname } from "next/navigation";
-import { askStampyAction } from "@/app/stampy/actions";
+import { askStampyAction, StampyContextPayload } from "@/app/stampy/actions";
 import { fetchStampyPageContext, StampyPageContext } from "@/lib/stampy/page-context";
 import { useStampyContext } from "@/components/stampy/StampyContextProvider";
 
@@ -98,11 +98,15 @@ export function GlobalStampyWidget() {
       content: m.content,
     }));
 
+    const removeUndefined = (obj: any) => {
+      return Object.fromEntries(Object.entries(obj).filter(([_, v]) => v !== undefined));
+    };
+
     try {
       const response = await askStampyAction(
         userMsg.content,
         conversationContext,
-        effectiveContext
+        removeUndefined(effectiveContext) as StampyContextPayload
       );
       setMessages([
         ...newMessages,

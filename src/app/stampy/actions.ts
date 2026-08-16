@@ -64,28 +64,35 @@ export async function askStampyAction(
     return { error: "No autorizado" };
   }
 
-  const userContext = await getStampyUserContext(user.id);
+  let userContext = null;
+  try {
+    userContext = await getStampyUserContext(user.id);
+  } catch (err) {
+    console.error("[Stampy] user context failed", err);
+  }
 
   // Fetch recommendable lessons
-  const { data: lessons, error } = await supabase
-    .from('lessons')
-    .select(`
-      id, title, description, ai_summary, ai_topics, ai_problems, ai_level, ai_related_tool,
-      course_modules!inner (
-        id, title,
-        courses!inner (id, title, slug, status, course_kind)
-      )
-    `)
-    .eq('is_ai_recommendable', true)
-    .eq('course_modules.courses.status', 'published');
+  let lessons: any[] = [];
+  try {
+    const { data, error } = await supabase
+      .from('lessons')
+      .select(`
+        id, title, description, ai_summary, ai_topics, ai_problems, ai_level, ai_related_tool,
+        course_modules!inner (
+          id, title,
+          courses!inner (id, title, slug, status, course_kind)
+        )
+      `)
+      .eq('is_ai_recommendable', true)
+      .eq('course_modules.courses.status', 'published');
 
-  if (error || !lessons) {
-    console.error("Stampy DB error", error);
-    return { 
-      answer: "No pude buscar recomendaciones en este momento. Probá de nuevo.",
-      recommendations: [],
-      relatedTools: []
-    };
+    if (error) {
+      console.error("[Stampy] recommendations DB error", error);
+    } else if (data) {
+      lessons = data;
+    }
+  } catch (err) {
+    console.error("[Stampy] recommendations failed", err);
   }
 
   // Limitar/sanear conversation
