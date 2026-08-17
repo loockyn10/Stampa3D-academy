@@ -133,6 +133,35 @@ Reglas del usuario:
 - Respuestas breves y prácticas.\n`;
     }
 
+    if (pathname && pathname.startsWith("/sorteos")) {
+      let rafflesContext = null;
+      try {
+        const { getStampyRafflesContext } = await import("@/lib/stampy/tool-contexts/raffles-context");
+        rafflesContext = await getStampyRafflesContext(user.id);
+      } catch (error) {
+        console.error("[Stampy] raffles context failed", error);
+      }
+
+      if (rafflesContext) {
+        systemPrompt += `\n\nContexto real de sorteos del usuario:
+- Código de referido: ${rafflesContext.referralCode || 'No tiene'}
+- Participaciones base: ${rafflesContext.baseEntries}
+- Participaciones extra: ${rafflesContext.bonusEntries}
+- Participaciones totales: ${rafflesContext.totalEntries}
+- Referidos pendientes: ${rafflesContext.pendingReferrals}
+- Referidos convertidos: ${rafflesContext.convertedReferrals}
+- Sorteo activo: ${rafflesContext.activeRaffle?.title || 'Ninguno'}
+
+Reglas:
+- Usá estos datos solo si el usuario pregunta por sorteos, chances, participaciones o referidos.
+- No recites todos los números si no hace falta.
+- Si pregunta cómo sumar chances, mencioná su código de referido.
+- No prometas premios ni resultados.
+- No digas que ganó si no hay dato real.
+- Respuestas breves.\n`;
+      }
+    }
+
     const completion = await openai.chat.completions.create({
       model: process.env.OPENAI_MODEL || "gpt-4o-mini",
       messages: [
