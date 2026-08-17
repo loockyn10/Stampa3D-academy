@@ -162,6 +162,48 @@ Reglas:
       }
     }
 
+    if (pathname && pathname.startsWith("/stock")) {
+      let stockContext = null;
+      try {
+        const { getStampyStockContext } = await import("@/lib/stampy/tool-contexts/stock-context");
+        stockContext = await getStampyStockContext(user.id);
+      } catch (error) {
+        console.error("[Stampy] stock context failed", error);
+      }
+
+      if (stockContext) {
+        if (stockContext.totalFilaments === 0 && stockContext.totalProducts === 0) {
+          systemPrompt += `\n\nContexto real de stock del usuario:
+El usuario todavía no tiene filamentos ni productos cargados en su stock.`;
+        } else {
+          systemPrompt += `\n\nContexto real de stock del usuario:
+- Filamentos activos: ${stockContext.totalFilaments}
+- Filamentos bajos: ${stockContext.lowStockFilaments.length > 0 ? stockContext.lowStockFilaments.map(f => f.name).join(', ') : 'Ninguno'}
+- Filamentos vacíos: ${stockContext.emptyFilaments.length > 0 ? stockContext.emptyFilaments.map(f => f.name).join(', ') : 'Ninguno'}
+- Productos activos: ${stockContext.totalProducts}
+- Productos sin stock: ${stockContext.outOfStockProducts.length > 0 ? stockContext.outOfStockProducts.map(p => p.name).join(', ') : 'Ninguno'}
+- Productos con stock bajo: ${stockContext.lowStockProducts.length > 0 ? stockContext.lowStockProducts.map(p => p.name).join(', ') : 'Ninguno'}`;
+
+          if (stockContext.lowMarginProducts && stockContext.lowMarginProducts.length > 0) {
+            systemPrompt += `\n- Productos con margen bajo: ${stockContext.lowMarginProducts.map(p => p.name).join(', ')}`;
+          }
+          if (stockContext.recentMovements && stockContext.recentMovements.length > 0) {
+            systemPrompt += `\n- Últimos movimientos: ${stockContext.recentMovements.map(m => m.label).join(' | ')}`;
+          }
+        }
+
+        systemPrompt += `\n\nReglas:
+- Usá estos datos solo si el usuario pregunta por stock, filamentos, productos, faltantes, reposición o movimientos.
+- No recites todos los datos si no hace falta.
+- Priorizá alertas accionables.
+- No digas que descontaste stock.
+- No modifiques nada.
+- Si el usuario quiere modificar stock, explicale dónde hacerlo.
+- Si no hay datos, sugerí cargarlos.
+- Respuestas breves y prácticas.\n`;
+      }
+    }
+
     const completion = await openai.chat.completions.create({
       model: process.env.OPENAI_MODEL || "gpt-4o-mini",
       messages: [
