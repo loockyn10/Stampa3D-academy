@@ -166,13 +166,32 @@ Reglas:
       let stockContext = null;
       try {
         const { getStampyStockContext } = await import("@/lib/stampy/tool-contexts/stock-context");
-        stockContext = await getStampyStockContext(user.id);
+        stockContext = await getStampyStockContext(user.id, message);
       } catch (error) {
         console.error("[Stampy] stock context failed", error);
       }
 
       if (stockContext) {
-        if (stockContext.totalFilaments === 0 && stockContext.totalProducts === 0) {
+        if (stockContext.specificFilamentQuery) {
+          const q = stockContext.specificFilamentQuery;
+          systemPrompt += `\n\nConsulta específica de filamento detectada:
+- Material detectado: ${q.detectedMaterial || 'Cualquiera'}
+- Color detectado: ${q.detectedColor || 'Cualquiera'}
+- Filamentos encontrados:
+${q.matches.length > 0 ? q.matches.map(m => `  - ${m.name}: ${m.remainingGrams} g disponibles`).join('\n') : '  No encontré filamentos activos que coincidan.'}
+- Total disponible: ${q.totalRemainingGrams} g
+
+Reglas:
+- Si el usuario pregunta "cuántos gramos", responder con cantidades.
+- Si hay varios filamentos, listar cada uno y el total.
+- Si no hay coincidencias, decir que no encontraste filamentos que coincidan con ese material/color.
+- No responder solo con resumen de stock bajo si hay una consulta específica.
+- No mencionar HEX.
+- No inventar datos.
+- No modifiques nada.
+- Si el usuario quiere modificar stock, explicale dónde hacerlo.
+- Respuestas breves y prácticas.\n`;
+        } else if (stockContext.totalFilaments === 0 && stockContext.totalProducts === 0) {
           systemPrompt += `\n\nContexto real de stock del usuario:
 El usuario todavía no tiene filamentos ni productos cargados en su stock.`;
         } else {
@@ -190,9 +209,8 @@ El usuario todavía no tiene filamentos ni productos cargados en su stock.`;
           if (stockContext.recentMovements && stockContext.recentMovements.length > 0) {
             systemPrompt += `\n- Últimos movimientos: ${stockContext.recentMovements.map(m => m.label).join(' | ')}`;
           }
-        }
-
-        systemPrompt += `\n\nReglas:
+          
+          systemPrompt += `\n\nReglas:
 - Usá estos datos solo si el usuario pregunta por stock, filamentos, productos, faltantes, reposición o movimientos.
 - No recites todos los datos si no hace falta.
 - Priorizá alertas accionables.
@@ -201,6 +219,7 @@ El usuario todavía no tiene filamentos ni productos cargados en su stock.`;
 - Si el usuario quiere modificar stock, explicale dónde hacerlo.
 - Si no hay datos, sugerí cargarlos.
 - Respuestas breves y prácticas.\n`;
+        }
       }
     }
 

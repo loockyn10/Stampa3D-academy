@@ -1,5 +1,18 @@
 import { createClient } from "@/utils/supabase/server";
 
+export type SpecificFilamentStockQuery = {
+  detectedMaterial?: string;
+  detectedColor?: string;
+  matches: Array<{
+    name: string;
+    material?: string | null;
+    color?: string | null;
+    remainingGrams: number;
+    totalGrams?: number | null;
+  }>;
+  totalRemainingGrams: number;
+};
+
 export type StampyStockContext = {
   totalFilaments: number;
   lowStockFilaments: Array<{
@@ -32,9 +45,39 @@ export type StampyStockContext = {
     label: string;
     createdAt: string;
   }>;
+  specificFilamentQuery?: SpecificFilamentStockQuery;
 };
 
-export async function getStampyStockContext(userId: string): Promise<StampyStockContext | null> {
+function parseFilamentStockQuery(message: string) {
+  const normalized = message.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "").trim();
+
+  const materials = ["pla+", "pla", "petg", "abs", "asa", "tpu", "nylon", "pa", "pc", "resina", "flex", "hips", "pva"];
+  const colors = [
+    "rojo", "azul", "negro", "blanco", "gris", "verde", "amarillo", "naranja", "violeta", 
+    "morado", "rosa", "fucsia", "cian", "celeste", "turquesa", "marron", "beige", "crema", 
+    "dorado", "cobre", "plateado", "transparente"
+  ];
+
+  let detectedMaterial: string | undefined;
+  for (const m of materials) {
+    if (normalized.includes(m)) {
+      detectedMaterial = m;
+      break;
+    }
+  }
+
+  let detectedColor: string | undefined;
+  for (const c of colors) {
+    if (normalized.includes(c)) {
+      detectedColor = c;
+      break;
+    }
+  }
+
+  return { detectedMaterial, detectedColor };
+}
+
+export async function getStampyStockContext(userId: string, message?: string): Promise<StampyStockContext | null> {
   try {
     const supabase = await createClient();
 
@@ -72,6 +115,46 @@ export async function getStampyStockContext(userId: string): Promise<StampyStock
         material: f.filament_type,
         color: f.color
       }));
+
+    let specificFilamentQuery: SpecificFilamentStockQuery | undefined;
+
+    if (message) {
+      const { detectedMaterial, detectedColor } = parseFilamentStockQuery(message);
+      if (detectedMaterial || detectedColor) {
+        const matches = (filaments || []).filter(f => {
+          const nameNorm = (f.name || "").toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "");
+          const typeNorm = (f.filament_type || "").toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "");
+          const colorNorm = (f.color || "").toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "");
+
+          let matchMat = true;
+          if (detectedMaterial) {
+            matchMat = typeNorm.includes(detectedMaterial) || nameNorm.includes(detectedMaterial);
+          }
+
+          let matchCol = true;
+          if (detectedColor) {
+            matchCol = colorNorm.includes(detectedColor) || nameNorm.includes(detectedColor);
+          }
+
+          return matchMat && matchCol;
+        });
+
+        const totalRemainingGrams = matches.reduce((acc, curr) => acc + (curr.remaining_grams || 0), 0);
+        
+        specificFilamentQuery = {
+          detectedMaterial: detectedMaterial ? detectedMaterial.toUpperCase() : undefined,
+          detectedColor: detectedColor ? detectedColor.charAt(0).toUpperCase() + detectedColor.slice(1) : undefined,
+          matches: matches.slice(0, 10).map(m => ({
+            name: m.name,
+            material: m.filament_type,
+            color: m.color,
+            remainingGrams: m.remaining_grams || 0,
+            totalGrams: m.total_grams
+          })),
+          totalRemainingGrams
+        };
+      }
+    }
 
     // 2. Productos activos
     const { data: products, error: productsError } = await supabase
@@ -121,8 +204,8 @@ export async function getStampyStockContext(userId: string): Promise<StampyStock
           marginPercent
         };
       })
-      .filter(p => p.salePrice > 0) // solo considerar si tiene precio
-      .sort((a, b) => a.marginPercent - b.marginPercent) // de menor a mayor
+      .filter(p => p.salePrice > 0)
+      .sort((a, b) => a.marginPercent - b.marginPercent)
       .slice(0, 3);
 
     // 3. Movimientos recientes
@@ -161,7 +244,6 @@ export async function getStampyStockContext(userId: string): Promise<StampyStock
         }));
       }
       
-      // order and slice
       recentMovements = recentMovements
         .sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime())
         .slice(0, 5);
@@ -178,7 +260,8 @@ export async function getStampyStockContext(userId: string): Promise<StampyStock
       outOfStockProducts,
       lowStockProducts,
       lowMarginProducts,
-      recentMovements
+      recentMovements,
+      specificFilamentQuery
     };
 
   } catch (error) {
