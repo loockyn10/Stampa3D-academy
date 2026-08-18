@@ -13,6 +13,11 @@ export interface CodeResolutionResult {
   errorMessage?: string;
 }
 
+export function normalizeRegistrationCode(code: string): string {
+  if (!code) return "";
+  return code.toUpperCase().trim().replace(/\s+/g, '-');
+}
+
 /**
  * Resolves a code against invite_codes and profiles tables.
  * @param code The raw code string provided by the user.
@@ -23,11 +28,11 @@ export async function resolveRegistrationCode(
   code: string,
   supabase: any
 ): Promise<CodeResolutionResult> {
-  if (!code || code.trim() === "") {
+  const normalizedCode = normalizeRegistrationCode(code);
+  
+  if (!normalizedCode) {
     return { type: 'invalid', isValid: false, code: '', data: null, errorMessage: 'Código vacío.' };
   }
-
-  const normalizedCode = code.toUpperCase().trim();
 
   // 1. Check invite_codes first (beta or promo)
   const { data: inviteData, error: inviteError } = await supabase

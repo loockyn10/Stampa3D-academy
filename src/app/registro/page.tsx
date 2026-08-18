@@ -3,7 +3,7 @@
 import { useState, useEffect, Suspense } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { createClient } from "@/utils/supabase/client";
-import { resolveRegistrationCode } from "@/lib/codes/resolve-code";
+import { normalizeRegistrationCode } from "@/lib/codes/resolve-code";
 import Link from "next/link";
 import { Layers, Mail, Lock, User, Eye, EyeOff, Tag, Gift, AlertCircle } from "lucide-react";
 
@@ -32,27 +32,15 @@ function RegistroForm() {
     setIsLoading(true);
     setError(null);
 
-    // Validate single referral code
-    if (referralCode.trim() !== "") {
-      const resolution = await resolveRegistrationCode(referralCode, supabase);
-
-      if (!resolution.isValid) {
-        setError(resolution.errorMessage || "El código ingresado no es válido.");
-        setIsLoading(false);
-        return;
-      }
-
-      // If it's a promo code, save to localStorage for checkout
-      if (resolution.type === 'promo') {
-        try {
-          localStorage.setItem("stampa_pending_promo_code", resolution.code);
-        } catch {}
-      }
-    }
+    const normalizedCode = normalizeRegistrationCode(referralCode);
 
     // Persist code in localStorage as fallback for email-confirmation flow
     try {
-      if (referralCode.trim()) localStorage.setItem("stampa_pending_referral_code", referralCode.trim().toUpperCase());
+      if (normalizedCode) {
+        localStorage.setItem("stampa_pending_referral_code", normalizedCode);
+        // Also set promo code to be safe, since we don't know the type yet
+        localStorage.setItem("stampa_pending_promo_code", normalizedCode);
+      }
     } catch {}
 
     const { error: signUpError } = await supabase.auth.signUp({
@@ -61,7 +49,7 @@ function RegistroForm() {
       options: {
         data: {
           full_name: name,
-          referral_code_used: referralCode.trim().toUpperCase() || null,
+          referral_code_used: normalizedCode || null,
         },
       },
     });

@@ -2,7 +2,7 @@ import { NextResponse } from 'next/server'
 import { createServerClient } from '@supabase/ssr'
 import { createClient as createAdminClient } from '@supabase/supabase-js'
 import { cookies } from 'next/headers'
-import { resolveRegistrationCode } from '@/lib/codes/resolve-code'
+import { resolveRegistrationCode, normalizeRegistrationCode } from '@/lib/codes/resolve-code'
 
 export async function GET(request: Request) {
   const { searchParams, origin } = new URL(request.url)
@@ -34,7 +34,8 @@ export async function GET(request: Request) {
       const userId = sessionData.user.id
       const meta = sessionData.user.user_metadata || {}
 
-      const submittedCode = (searchParams.get('ref') || searchParams.get('invite') || meta.referral_code_used || '').toUpperCase().trim() || null
+      const rawCode = searchParams.get('ref') || searchParams.get('invite') || meta.referral_code_used || '';
+      const submittedCode = normalizeRegistrationCode(rawCode) || null;
 
       // Use admin client for writes that bypass RLS
       const supabaseAdmin = createAdminClient(
