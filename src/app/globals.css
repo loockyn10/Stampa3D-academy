@@ -1,14 +1,14 @@
 @import "tailwindcss";
 
 :root {
-  --stampa-bg: #0b0b0f;
-  --stampa-bg-soft: #111116;
-  --stampa-surface: #16161d;
-  --stampa-surface-soft: #1d1d26;
+  --stampa-bg: #171717;
+  --stampa-bg-soft: #212126;
+  --stampa-surface: #212121;
+  --stampa-surface-soft: #2c2c2c;
   --stampa-border: rgba(255, 255, 255, 0.12);
 
-  --stampa-orange: #fb923c;
-  --stampa-orange-hover: #fdba74;
+  --stampa-orange: #e7771c;
+  --stampa-orange-hover: #df8525;
   --stampa-orange-muted: rgba(251, 146, 60, 0.12);
   --stampa-orange-border: rgba(251, 146, 60, 0.28);
 
@@ -25,7 +25,7 @@
   --color-foreground: var(--foreground);
   --font-sans: var(--font-geist-sans);
   --font-mono: var(--font-geist-mono);
-  
+
   /* Stampa variables mapped to Tailwind colors */
   --color-stampa-bg: var(--stampa-bg);
   --color-stampa-bg-soft: var(--stampa-bg-soft);
@@ -82,6 +82,7 @@ option {
     opacity: 0;
     transform: translateY(8px);
   }
+
   to {
     opacity: 1;
     transform: translateY(0);
@@ -93,6 +94,7 @@ option {
     opacity: 0;
     transform: translateY(12px);
   }
+
   to {
     opacity: 1;
     transform: translateY(0);
@@ -100,9 +102,17 @@ option {
 }
 
 @keyframes stampa-soft-pulse {
-  0% { opacity: 1; }
-  50% { opacity: 0.6; }
-  100% { opacity: 1; }
+  0% {
+    opacity: 1;
+  }
+
+  50% {
+    opacity: 0.6;
+  }
+
+  100% {
+    opacity: 1;
+  }
 }
 
 .animate-page-in {
@@ -136,6 +146,7 @@ option {
 
 /* Preferencias de accesibilidad (Reduced Motion) */
 @media (prefers-reduced-motion: reduce) {
+
   *,
   *::before,
   *::after {
