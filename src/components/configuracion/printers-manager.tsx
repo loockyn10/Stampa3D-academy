@@ -308,9 +308,9 @@ function PrinterEditor({ formData, setFormData, onSave, onCancel }: any) {
           <label className="text-sm font-medium text-gray-300">Impresora Activa</label>
         </div>
       </div>
-      <div className="mt-4 flex gap-2 justify-end">
-        <button onClick={onCancel} className="px-3 py-1.5 text-xs font-bold text-gray-400 hover:bg-[#111]/5 rounded-md transition-colors">Cancelar</button>
-        <button onClick={onSave} className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-bold bg-orange-500/100 hover:bg-orange-600 text-white rounded-md transition-colors"><Save size={14} /> Guardar</button>
+      <div className="mt-4 flex flex-col-reverse sm:flex-row gap-2 justify-end">
+        <button onClick={onCancel} className="w-full sm:w-auto px-3 py-1.5 text-xs font-bold text-gray-400 hover:bg-[#111]/5 rounded-md transition-colors text-center">Cancelar</button>
+        <button onClick={onSave} className="w-full sm:w-auto flex justify-center items-center gap-1.5 px-3 py-1.5 text-xs font-bold bg-orange-500/100 hover:bg-orange-600 text-white rounded-md transition-colors"><Save size={14} /> Guardar</button>
       </div>
     </Card>
   );

@@ -237,8 +237,8 @@ export function AccountManager() {
           </div>
         </div>
 
-        <div className="flex justify-end pt-4 border-t border-white/5">
-          <PrimaryButton type="submit" disabled={saving}>
+        <div className="pt-4 border-t border-white/5 flex flex-col sm:flex-row sm:justify-end">
+          <PrimaryButton type="submit" disabled={saving} className="w-full sm:w-auto">
             {saving ? <Loader2 className="animate-spin mr-2 h-4 w-4" /> : <Save size={16} className="mr-2" />}
             {saving ? "Guardando..." : "Guardar cambios"}
           </PrimaryButton>

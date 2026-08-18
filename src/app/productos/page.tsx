@@ -1165,14 +1165,14 @@ export default function ProductosPage() {
             </div>
           )}
 
-          <div className="flex items-center justify-between border-t border-white/5 pt-4">
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between border-t border-white/5 pt-4 gap-4">
             <div className="flex items-center gap-2">
               <input type="checkbox" name="is_active" checked={formData.is_active} onChange={handleChange} className="rounded text-[#ff6a00] focus:ring-[#ff6a00]/20" />
               <label className="text-sm font-medium text-gray-300">Producto Activo</label>
             </div>
-            <div className="flex gap-2">
-              <button onClick={() => setEditingId(null)} className="px-4 py-2 text-sm font-bold text-gray-400 hover:bg-white/5 rounded-lg transition-colors">Cancelar</button>
-              <button onClick={handleSave} className="flex items-center gap-2 px-4 py-2 text-sm font-bold bg-orange-500 hover:bg-orange-600 text-white rounded-lg transition-colors">
+            <div className="flex flex-col-reverse sm:flex-row gap-2 w-full sm:w-auto">
+              <button onClick={() => setEditingId(null)} className="w-full sm:w-auto px-4 py-2 text-sm font-bold text-gray-400 hover:bg-white/5 rounded-lg transition-colors text-center">Cancelar</button>
+              <button onClick={handleSave} className="w-full sm:w-auto flex items-center justify-center gap-2 px-4 py-2 text-sm font-bold bg-orange-500 hover:bg-orange-600 text-white rounded-lg transition-colors">
                 <Save size={16} /> Guardar
               </button>
             </div>

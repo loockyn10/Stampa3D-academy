@@ -237,44 +237,46 @@ export default function AdminStampyContextosPage() {
         </div>
       ) : (
         <div className="bg-[#111] border border-white/10 rounded-xl overflow-hidden">
-          <table className="w-full text-left border-collapse">
-            <thead>
-              <tr className="bg-[#0a0a0a] border-b border-white/10 text-xs font-semibold text-gray-500 uppercase tracking-wide">
-                <th className="px-4 py-3">Ruta</th>
-                <th className="px-4 py-3">Título</th>
-                <th className="px-4 py-3">Prioridad</th>
-                <th className="px-4 py-3">Estado</th>
-                <th className="px-4 py-3 text-right">Acciones</th>
-              </tr>
-            </thead>
-            <tbody className="divide-y divide-white/5">
-              {contexts.map(c => (
-                <tr key={c.id} className="text-sm hover:bg-[#0a0a0a] transition-colors">
-                  <td className="px-4 py-3">
-                    <span className="font-mono text-cyan-400">{c.route_pattern}</span>
-                    <span className="ml-2 text-[10px] text-gray-500 uppercase border border-gray-700 rounded px-1">{c.match_type}</span>
-                  </td>
-                  <td className="px-4 py-3 text-gray-300 font-medium">{c.title}</td>
-                  <td className="px-4 py-3 text-gray-500">{c.priority}</td>
-                  <td className="px-4 py-3">
-                    <span className={`inline-flex px-2 py-0.5 rounded text-[10px] font-bold ${c.is_active ? 'bg-green-500/10 text-green-400' : 'bg-gray-500/10 text-gray-400'}`}>
-                      {c.is_active ? "Activo" : "Inactivo"}
-                    </span>
-                  </td>
-                  <td className="px-4 py-3">
-                    <div className="flex items-center justify-end gap-2">
-                      <button onClick={() => openEdit(c)} className="p-1.5 text-gray-400 hover:text-white hover:bg-white/10 rounded-lg">
-                        <Edit size={16} />
-                      </button>
-                      <button onClick={() => toggleStatus(c.id, c.is_active)} className={`p-1.5 rounded-lg ${c.is_active ? 'text-red-400 hover:bg-red-500/10' : 'text-green-400 hover:bg-green-500/10'}`}>
-                        {c.is_active ? <ToggleLeft size={16} /> : <ToggleRight size={16} />}
-                      </button>
-                    </div>
-                  </td>
+          <div className="overflow-x-auto">
+            <table className="w-full text-left border-collapse">
+              <thead>
+                <tr className="bg-[#0a0a0a] border-b border-white/10 text-xs font-semibold text-gray-500 uppercase tracking-wide">
+                  <th className="px-4 py-3">Ruta</th>
+                  <th className="px-4 py-3">Título</th>
+                  <th className="px-4 py-3">Prioridad</th>
+                  <th className="px-4 py-3">Estado</th>
+                  <th className="px-4 py-3 text-right">Acciones</th>
                 </tr>
-              ))}
-            </tbody>
-          </table>
+              </thead>
+              <tbody className="divide-y divide-white/5">
+                {contexts.map(c => (
+                  <tr key={c.id} className="text-sm hover:bg-[#0a0a0a] transition-colors">
+                    <td className="px-4 py-3">
+                      <span className="font-mono text-cyan-400">{c.route_pattern}</span>
+                      <span className="ml-2 text-[10px] text-gray-500 uppercase border border-gray-700 rounded px-1">{c.match_type}</span>
+                    </td>
+                    <td className="px-4 py-3 text-gray-300 font-medium">{c.title}</td>
+                    <td className="px-4 py-3 text-gray-500">{c.priority}</td>
+                    <td className="px-4 py-3">
+                      <span className={`inline-flex px-2 py-0.5 rounded text-[10px] font-bold ${c.is_active ? 'bg-green-500/10 text-green-400' : 'bg-gray-500/10 text-gray-400'}`}>
+                        {c.is_active ? "Activo" : "Inactivo"}
+                      </span>
+                    </td>
+                    <td className="px-4 py-3">
+                      <div className="flex items-center justify-end gap-2">
+                        <button onClick={() => openEdit(c)} className="p-1.5 text-gray-400 hover:text-white hover:bg-white/10 rounded-lg">
+                          <Edit size={16} />
+                        </button>
+                        <button onClick={() => toggleStatus(c.id, c.is_active)} className={`p-1.5 rounded-lg ${c.is_active ? 'text-red-400 hover:bg-red-500/10' : 'text-green-400 hover:bg-green-500/10'}`}>
+                          {c.is_active ? <ToggleLeft size={16} /> : <ToggleRight size={16} />}
+                        </button>
+                      </div>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
         </div>
       )}
     </div>

@@ -615,8 +615,8 @@ export default function StockPage() {
           </button>
         </div>
         {tab === "filamentos" && (
-          <div className="flex flex-col gap-4">
-            <div className="flex items-center gap-2">
+          <div className="flex flex-col gap-4 w-full">
+            <div className="grid grid-cols-1 sm:flex sm:flex-wrap gap-2 w-full">
               <button
                 onClick={() => {
                   setFilamentFormData({
@@ -625,20 +625,20 @@ export default function StockPage() {
                   setEditingFilamentId("new");
                   setFilamentModalOpen(true);
                 }}
-                className="flex items-center gap-2 text-sm font-bold text-white bg-orange-600 hover:bg-orange-500 px-4 py-2 rounded-lg transition-colors border border-orange-500"
+                className="flex items-center justify-center gap-2 text-sm font-bold text-white bg-orange-600 hover:bg-orange-500 px-4 py-2 rounded-lg transition-colors border border-orange-500 w-full sm:w-auto"
               >
                 <Plus size={15} /> Nuevo Filamento
               </button>
               <button 
                 onClick={() => setConsumeModalOpen(true)} 
-                className="flex items-center gap-2 text-sm font-bold text-orange-700 bg-orange-50 hover:bg-orange-100 px-4 py-2 rounded-lg transition-colors border border-orange-200 mr-2"
+                className="flex items-center justify-center gap-2 text-sm font-bold text-orange-700 bg-orange-50 hover:bg-orange-100 px-4 py-2 rounded-lg transition-colors border border-orange-200 w-full sm:w-auto"
               >
                 <Package size={15} /> Descontar por producto
               </button>
             </div>
 
-            <div className="mb-2 flex flex-col md:flex-row gap-3">
-              <div className="relative flex-1">
+            <div className="mb-2 flex flex-col lg:flex-row gap-3 w-full">
+              <div className="relative w-full lg:flex-1">
                 <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" size={18} />
                 <input 
                   type="text" 
@@ -654,7 +654,7 @@ export default function StockPage() {
                 )}
               </div>
               
-              <div className="flex flex-wrap gap-3">
+              <div className="grid grid-cols-1 sm:flex sm:flex-wrap gap-3 w-full lg:w-auto">
                 <select
                   value={selectedMaterial}
                   onChange={(e) => setSelectedMaterial(e.target.value)}
@@ -664,7 +664,7 @@ export default function StockPage() {
                   {uniqueMaterials.map((m: any) => <option key={m} value={m}>{m}</option>)}
                 </select>
                 
-                <div className="flex bg-[#111] border border-white/10 rounded-xl overflow-x-auto max-w-[280px] sm:max-w-md hide-scrollbar items-center p-1">
+                <div className="flex bg-[#111] border border-white/10 rounded-xl overflow-x-auto w-full sm:max-w-md hide-scrollbar items-center p-1">
                   <button
                     onClick={() => setSelectedColor("all")}
                     className={`px-3 py-1.5 text-xs font-medium rounded-lg whitespace-nowrap transition-colors ${
@@ -693,7 +693,7 @@ export default function StockPage() {
                       setSelectedMaterial("all");
                       setSelectedColor("all");
                     }}
-                    className="px-4 py-2.5 bg-[#111] border border-white/10 rounded-xl text-sm text-gray-400 hover:text-white hover:bg-white/5 transition-colors shrink-0"
+                    className="w-full sm:w-auto px-4 py-2.5 bg-[#111] border border-white/10 rounded-xl text-sm text-gray-400 hover:text-white hover:bg-white/5 transition-colors shrink-0"
                     title="Limpiar filtros"
                   >
                     Limpiar

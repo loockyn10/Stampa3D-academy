@@ -58,49 +58,51 @@ export default function AdminSorteosPage() {
       </div>
 
       <Card className="overflow-hidden p-0">
-        <table className="w-full text-left text-sm">
-          <thead className="bg-[#0a0a0a] text-xs font-semibold uppercase tracking-wide text-gray-500">
-            <tr>
-              <th className="px-5 py-3">Título</th>
-              <th className="px-5 py-3">Fecha del Sorteo</th>
-              <th className="px-5 py-3">Premios</th>
-              <th className="px-5 py-3">Estado</th>
-              <th className="px-5 py-3 text-right">Acciones</th>
-            </tr>
-          </thead>
-          <tbody className="divide-y divide-gray-100">
-            {raffles.map((r) => (
-              <tr key={r.id} className="hover:bg-[#0a0a0a] transition-colors">
-                <td className="px-5 py-3.5 font-semibold text-white">
-                  <div className="flex items-center gap-3">
-                    <div className="w-8 h-8 rounded bg-orange-500/10 flex items-center justify-center text-orange-500">
-                      <Gift size={16} />
-                    </div>
-                    {r.title}
-                  </div>
-                </td>
-                <td className="px-5 py-3.5 text-gray-400 font-medium">
-                  {r.draw_date ? new Date(r.draw_date).toLocaleDateString() : "Sin fecha"}
-                </td>
-                <td className="px-5 py-3.5 text-gray-400 font-medium">
-                  {r.raffle_prizes?.length || 0}
-                </td>
-                <td className="px-5 py-3.5">
-                  {getStatusBadge(r.status, r.is_active)}
-                </td>
-                <td className="px-5 py-3.5">
-                  <div className="flex justify-end gap-1.5">
-                    <Link href={`/admin/sorteos/${r.id}`}>
-                      <GhostButton className="px-3 py-1.5 text-xs text-gray-300 bg-[#111] border border-white/10">
-                        <Pencil size={13} className="mr-1" /> Editar / Premios
-                      </GhostButton>
-                    </Link>
-                  </div>
-                </td>
+        <div className="overflow-x-auto">
+          <table className="w-full text-left text-sm">
+            <thead className="bg-[#0a0a0a] text-xs font-semibold uppercase tracking-wide text-gray-500">
+              <tr>
+                <th className="px-5 py-3">Título</th>
+                <th className="px-5 py-3">Fecha del Sorteo</th>
+                <th className="px-5 py-3">Premios</th>
+                <th className="px-5 py-3">Estado</th>
+                <th className="px-5 py-3 text-right">Acciones</th>
               </tr>
-            ))}
-          </tbody>
-        </table>
+            </thead>
+            <tbody className="divide-y divide-gray-100">
+              {raffles.map((r) => (
+                <tr key={r.id} className="hover:bg-[#0a0a0a] transition-colors">
+                  <td className="px-5 py-3.5 font-semibold text-white">
+                    <div className="flex items-center gap-3">
+                      <div className="w-8 h-8 rounded bg-orange-500/10 flex items-center justify-center text-orange-500">
+                        <Gift size={16} />
+                      </div>
+                      {r.title}
+                    </div>
+                  </td>
+                  <td className="px-5 py-3.5 text-gray-400 font-medium">
+                    {r.draw_date ? new Date(r.draw_date).toLocaleDateString() : "Sin fecha"}
+                  </td>
+                  <td className="px-5 py-3.5 text-gray-400 font-medium">
+                    {r.raffle_prizes?.length || 0}
+                  </td>
+                  <td className="px-5 py-3.5">
+                    {getStatusBadge(r.status, r.is_active)}
+                  </td>
+                  <td className="px-5 py-3.5">
+                    <div className="flex justify-end gap-1.5">
+                      <Link href={`/admin/sorteos/${r.id}`}>
+                        <GhostButton className="px-3 py-1.5 text-xs text-gray-300 bg-[#111] border border-white/10">
+                          <Pencil size={13} className="mr-1" /> Editar / Premios
+                        </GhostButton>
+                      </Link>
+                    </div>
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
 
         {raffles.length === 0 && (
           <div className="py-12 text-center text-gray-500 text-sm">

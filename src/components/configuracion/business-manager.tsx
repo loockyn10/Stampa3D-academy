@@ -160,7 +160,7 @@ export function BusinessManager() {
       </div>
 
       <div className="border-t border-white/5 pt-5">
-        <PrimaryButton onClick={handleSave} disabled={saving}>
+        <PrimaryButton onClick={handleSave} disabled={saving} className="w-full sm:w-auto">
           {saving ? <Loader2 size={16} className="animate-spin mr-2" /> : null} Guardar cambios
         </PrimaryButton>
       </div>

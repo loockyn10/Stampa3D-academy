@@ -131,8 +131,8 @@ export function SettingsManager() {
           </div>
         </div>
 
-        <div className="mt-6 flex justify-end pt-4 border-t border-white/5">
-          <button onClick={handleSave} disabled={saving} className="flex items-center gap-1.5 px-4 py-2 text-sm font-bold bg-orange-500/100 hover:bg-orange-600 text-white rounded-md transition-colors disabled:opacity-50">
+        <div className="mt-6 pt-4 border-t border-white/5 flex flex-col sm:flex-row sm:justify-end">
+          <button onClick={handleSave} disabled={saving} className="w-full sm:w-auto flex justify-center items-center gap-1.5 px-4 py-2 text-sm font-bold bg-orange-500/100 hover:bg-orange-600 text-white rounded-md transition-colors disabled:opacity-50">
             {saving ? <Loader2 size={16} className="animate-spin" /> : <Save size={16} />}
             Guardar Ajustes
           </button>
