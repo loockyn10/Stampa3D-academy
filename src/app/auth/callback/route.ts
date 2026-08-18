@@ -34,7 +34,7 @@ export async function GET(request: Request) {
       const userId = sessionData.user.id
       const meta = sessionData.user.user_metadata || {}
 
-      const rawCode = searchParams.get('ref') || searchParams.get('invite') || meta.referral_code_used || '';
+      const rawCode = searchParams.get('ref') || searchParams.get('invite') || meta.registration_code || meta.referral_code_used || '';
       const submittedCode = normalizeRegistrationCode(rawCode) || null;
 
       // Use admin client for writes that bypass RLS

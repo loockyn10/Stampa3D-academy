@@ -49,6 +49,7 @@ function RegistroForm() {
       options: {
         data: {
           full_name: name,
+          registration_code: normalizedCode || null,
           referral_code_used: normalizedCode || null,
         },
       },

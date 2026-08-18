@@ -12,9 +12,19 @@ export function SinAccesoClient() {
   const [price, setPrice] = useState<string | null>(null);
   const [loadingPrice, setLoadingPrice] = useState(true);
 
+  const [isEmailConfirmed, setIsEmailConfirmed] = useState(true);
+  const [checkingEmail, setCheckingEmail] = useState(true);
+
   useEffect(() => {
-    async function fetchPrice() {
+    async function checkEmailAndFetchPrice() {
       try {
+        const { data: { user } } = await supabase.auth.getUser();
+        if (user) {
+          // Si el proveedor no es email, asumimos que está confirmado (ej. Google) o si tiene email_confirmed_at
+          const isConfirmed = user.app_metadata?.provider !== "email" || !!user.email_confirmed_at;
+          setIsEmailConfirmed(isConfirmed);
+        }
+
         const { data } = await supabase
           .from("membership_settings")
           .select("monthly_price")
@@ -24,15 +34,16 @@ export function SinAccesoClient() {
         if (data?.monthly_price) {
           setPrice(String(data.monthly_price));
         } else {
-          setPrice(null);
+          setPrice(process.env.NEXT_PUBLIC_MEMBERSHIP_MONTHLY_PRICE || "19900");
         }
       } catch (err) {
-        setPrice(null);
+        setPrice(process.env.NEXT_PUBLIC_MEMBERSHIP_MONTHLY_PRICE || "19900");
       } finally {
         setLoadingPrice(false);
+        setCheckingEmail(false);
       }
     }
-    fetchPrice();
+    checkEmailAndFetchPrice();
   }, [supabase]);
 
   const handleLogout = async () => {
@@ -106,27 +117,44 @@ export function SinAccesoClient() {
           <h2 className="text-3xl font-bold tracking-tight text-white">
             Cuenta inactiva
           </h2>
-          <p className="mt-4 text-sm text-gray-400">
-            Tu cuenta ha sido creada correctamente, pero tu membresía aún no se encuentra activa.
-          </p>
-          <div className="mt-4 p-4 bg-orange-50 rounded-lg border border-orange-100 min-h-[56px] flex items-center justify-center">
-            {loadingPrice ? (
-              <p className="text-sm font-semibold text-orange-800 flex items-center gap-2">
-                <Loader2 size={16} className="animate-spin" /> Cargando precio...
+          {checkingEmail ? (
+            <p className="mt-4 text-sm text-gray-400">Verificando estado de tu cuenta...</p>
+          ) : !isEmailConfirmed ? (
+            <>
+              <p className="mt-4 text-sm text-gray-400">
+                Tenés que confirmar tu email para activar tu cuenta.
               </p>
-            ) : price ? (
-              <p className="text-sm font-semibold text-orange-800">
-                Valor mensual: {formatPrice(price)} / mes
+              <div className="mt-4 p-4 bg-orange-50 rounded-lg border border-orange-100 min-h-[56px] flex items-center justify-center">
+                <p className="text-sm font-semibold text-orange-800">
+                  Revisá tu bandeja de entrada o spam.
+                </p>
+              </div>
+            </>
+          ) : (
+            <>
+              <p className="mt-4 text-sm text-gray-400">
+                Tu cuenta ha sido creada correctamente, pero tu membresía aún no se encuentra activa.
               </p>
-            ) : (
-              <p className="text-sm font-semibold text-orange-800 opacity-70">
-                Precio no disponible
+              <div className="mt-4 p-4 bg-orange-50 rounded-lg border border-orange-100 min-h-[56px] flex items-center justify-center">
+                {loadingPrice ? (
+                  <p className="text-sm font-semibold text-orange-800 flex items-center gap-2">
+                    <Loader2 size={16} className="animate-spin" /> Cargando precio...
+                  </p>
+                ) : price ? (
+                  <p className="text-sm font-semibold text-orange-800">
+                    Valor mensual: {formatPrice(price)} / mes
+                  </p>
+                ) : (
+                  <p className="text-sm font-semibold text-orange-800 opacity-70">
+                    Precio no disponible
+                  </p>
+                )}
+              </div>
+              <p className="mt-4 text-sm text-gray-400">
+                Si ya realizaste el pago, aguardá unos minutos mientras procesamos la información.
               </p>
-            )}
-          </div>
-          <p className="mt-4 text-sm text-gray-400">
-            Si ya realizaste el pago, aguardá unos minutos mientras procesamos la información.
-          </p>
+            </>
+          )}
         </div>
 
         {error && (
@@ -137,15 +165,26 @@ export function SinAccesoClient() {
         )}
 
         <div className="mt-8 flex flex-col gap-3">
-          <button
-            type="button"
-            onClick={handleActivateMembership}
-            disabled={loading}
-            className="w-full rounded-lg bg-stampa-orange px-3 py-3 text-sm font-semibold text-white hover:bg-stampa-orange transition-colors flex items-center justify-center gap-2 disabled:opacity-70 disabled:cursor-not-allowed"
-          >
-            {loading && <Loader2 size={16} className="animate-spin" />}
-            {loading ? "Generando link..." : "Activar membresía"}
-          </button>
+          {!checkingEmail && !isEmailConfirmed ? (
+            <button
+              type="button"
+              onClick={() => window.location.reload()}
+              disabled={loading}
+              className="w-full rounded-lg bg-stampa-orange px-3 py-3 text-sm font-semibold text-white hover:bg-stampa-orange transition-colors flex items-center justify-center gap-2 disabled:opacity-70 disabled:cursor-not-allowed"
+            >
+              Ya confirmé mi email, volver a intentar
+            </button>
+          ) : (
+            <button
+              type="button"
+              onClick={handleActivateMembership}
+              disabled={loading || checkingEmail}
+              className="w-full rounded-lg bg-stampa-orange px-3 py-3 text-sm font-semibold text-white hover:bg-stampa-orange transition-colors flex items-center justify-center gap-2 disabled:opacity-70 disabled:cursor-not-allowed"
+            >
+              {loading && <Loader2 size={16} className="animate-spin" />}
+              {loading ? "Generando link..." : "Activar membresía"}
+            </button>
+          )}
           
           <button
             type="button"

@@ -46,34 +46,17 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: 'Precio de membresía inválido o no configurado' }, { status: 500 });
     }
 
-    // ── Get dynamic price (founder slot or normal) ────────────────
-    const pricing = await getMembershipCheckoutPrice(supabaseAdmin, user.id, normalPrice, currency);
-
-    console.log('[create-subscription] Pricing resolved:', {
-      userId: user.id,
-      price: pricing.price,
-      isFounderPrice: pricing.isFounderPrice,
-      founderNumber: pricing.founderNumber,
-      founderTierName: pricing.founderTierName,
-    });
-
-    // Build subscription reason
-    let reason = "Membresía Academia Stampa";
-    if (pricing.isFounderPrice && pricing.founderTierName) {
-      reason = `Membresía Fundadora #${pricing.founderNumber} — ${pricing.founderTierName}`;
-    }
-
     const payload = {
-      reason,
+      reason: "Membresía Academia Stampa",
       external_reference: user.id,
       payer_email: user.email,
       auto_recurring: {
         frequency: 1,
         frequency_type: "months",
-        transaction_amount: Number(pricing.price),
-        currency_id: pricing.currency
+        transaction_amount: normalPrice,
+        currency_id: currency
       },
-      back_url: new URL("/pago/estado", process.env.NEXT_PUBLIC_APP_URL!).toString(),
+      back_url: new URL("/pago/estado", appUrl).toString(),
       status: "pending"
     };
 
@@ -124,20 +107,15 @@ export async function POST(request: Request) {
     const initPoint = mpData.init_point;
     const preapprovalId = mpData.id;
 
-    // Save subscription with founder metadata in raw_data
+    // Save subscription
     const { error: insertError } = await supabaseAdmin.from("subscriptions").upsert({
       user_id: user.id,
       mercado_pago_preapproval_id: preapprovalId,
       status: mpData.status || "pending",
       payer_email: user.email,
-      amount: Number(pricing.price),
-      currency: pricing.currency,
-      raw_data: {
-        ...mpData,
-        founder_number: pricing.founderNumber,
-        founder_tier: pricing.founderTierName,
-        is_founder_price: pricing.isFounderPrice,
-      },
+      amount: normalPrice,
+      currency: currency,
+      raw_data: mpData,
       next_payment_at: mpData.next_payment_date || null,
       created_at: new Date().toISOString(),
       updated_at: new Date().toISOString()
@@ -154,10 +132,6 @@ export async function POST(request: Request) {
     return NextResponse.json({
       init_point: initPoint,
       preapproval_id: preapprovalId,
-      is_founder_price: pricing.isFounderPrice,
-      founder_number: pricing.founderNumber,
-      founder_tier: pricing.founderTierName,
-      price: pricing.price,
     });
   } catch (error: any) {
     console.error("Error in create-subscription route:", error);
