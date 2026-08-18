@@ -126,7 +126,7 @@ export default function AdminCodigosPage() {
       code_type: codeType,
       title: title.trim() || null,
       max_uses: maxUses ? parseInt(maxUses) : null,
-      starts_at: startsAt || null,
+      starts_at: startsAt || new Date().toISOString(),
       expires_at: expiresAt || null,
       notes: notes.trim() || null,
     };
