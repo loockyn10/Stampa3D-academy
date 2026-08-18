@@ -882,7 +882,7 @@ export default function ProductosPage() {
             </div>
             <div>
               <label className="block text-xs font-semibold text-gray-300 mb-1">Tiempo de Impresión</label>
-              <div className="grid grid-cols-2 gap-1.5">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-1.5">
                 <div>
                   <label className="block text-[11px] font-semibold text-gray-300 mb-1">Horas</label>
                   <input type="number" name="print_time_hours" min="0" value={formData.print_time_hours} onChange={handleChange} className="w-full text-sm border-white/10 rounded-md text-neutral-100 bg-neutral-900 border focus:border-[#ff6a00] focus:ring-[#ff6a00]/20 focus:ring-2 placeholder:text-neutral-500 disabled:bg-neutral-800 disabled:text-neutral-500" />
@@ -1099,7 +1099,7 @@ export default function ProductosPage() {
             )}
           </div>
 
-          <div className="grid grid-cols-3 gap-2">
+          <div className="grid grid-cols-1 sm:grid-cols-3 gap-2">
             <div>
               <label className="block text-xs font-semibold text-gray-300 mb-1">Costo Base ($)</label>
               <input type="number" name="base_cost" value={formData.base_cost} onChange={handleChange} className="w-full text-sm border-white/10 rounded-md text-neutral-100 bg-neutral-900 border focus:border-[#ff6a00] focus:ring-[#ff6a00]/20 focus:ring-2 placeholder:text-neutral-500 disabled:bg-neutral-800 disabled:text-neutral-500" />
@@ -1299,7 +1299,7 @@ export default function ProductosPage() {
               ) : recalcData ? (
                 <div className="space-y-4">
                   {/* Comparison */}
-                  <div className="grid grid-cols-2 gap-3">
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                     <div className="bg-[#0a0a0a] p-4 rounded-xl text-center border border-white/10">
                       <p className="text-[10px] text-gray-400 font-semibold uppercase mb-1">Precio Actual</p>
                       <p className="text-2xl font-black text-gray-300">${recalcData.currentSalePrice.toFixed(2)}</p>

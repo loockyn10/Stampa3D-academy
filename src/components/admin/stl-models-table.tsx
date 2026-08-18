@@ -56,7 +56,7 @@ export function StlModelsTable() {
 
       <div className="bg-[#111] border border-white/10 rounded-xl overflow-hidden shadow-sm">
         <div className="overflow-x-auto">
-          <table className="w-full text-left border-collapse">
+          <table className="w-full min-w-[800px] text-left border-collapse">
             <thead>
               <tr className="bg-[#0a0a0a] border-b border-white/10 text-sm font-medium text-gray-500">
                 <th className="px-4 py-3">Miniatura</th>

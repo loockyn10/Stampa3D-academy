@@ -29,11 +29,11 @@ export function MainLayout({ children }: { children: React.ReactNode }) {
 
   return (
     <StampyContextProvider>
-      <div className="flex min-h-screen bg-[#050505] text-[#ededed] font-sans">
+      <div className="flex min-h-screen w-full min-w-0 bg-[#050505] text-[#ededed] font-sans">
         <Sidebar mobileOpen={mobileOpen} setMobileOpen={setMobileOpen} />
-        <div className="flex min-h-screen flex-1 flex-col lg:pl-0">
+        <div className="flex min-h-screen min-w-0 flex-1 flex-col lg:pl-0">
           <Header setMobileOpen={setMobileOpen} />
-          <main className="flex-1 px-4 py-6 sm:px-6 lg:px-8 lg:py-8 animate-page-in relative">
+          <main className="flex-1 min-w-0 px-4 py-6 sm:px-6 lg:px-8 lg:py-8 animate-page-in relative">
             {children}
           </main>
         </div>

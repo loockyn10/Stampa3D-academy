@@ -47,7 +47,7 @@ export function FilamentEditor({ formData, setFormData, onSave, onCancel }: any)
           <label className="block text-xs font-semibold text-gray-300 mb-1">Nombre</label>
           <input type="text" name="name" value={formData.name || ""} onChange={handleChange} className="w-full text-sm border-white/10 rounded-md text-neutral-100 bg-neutral-900 border focus:border-[#ff6a00] focus:ring-[#ff6a00]/20 focus:ring-2 placeholder:text-neutral-500 disabled:bg-neutral-800 disabled:text-neutral-500" placeholder="Ej. Grilon3 PLA Negro" />
         </div>
-        <div className="grid grid-cols-2 gap-2">
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
           <div>
             <label className="block text-xs font-semibold text-gray-300 mb-1">Tipo</label>
             <input type="text" name="filament_type" value={formData.filament_type || ""} onChange={handleChange} className="w-full text-sm border-white/10 rounded-md text-neutral-100 bg-neutral-900 border focus:border-[#ff6a00] focus:ring-[#ff6a00]/20 focus:ring-2 placeholder:text-neutral-500 disabled:bg-neutral-800 disabled:text-neutral-500" placeholder="PLA, PETG" />
@@ -66,7 +66,7 @@ export function FilamentEditor({ formData, setFormData, onSave, onCancel }: any)
             </div>
           </div>
         </div>
-        <div className="grid grid-cols-2 gap-2">
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
           <div>
             <label className="block text-xs font-semibold text-gray-300 mb-1">Gramos Total</label>
             <input type="number" name="total_grams" value={formData.total_grams !== undefined ? formData.total_grams : ""} onChange={handleChange} className="w-full text-sm border-white/10 rounded-md text-neutral-100 bg-neutral-900 border focus:border-[#ff6a00] focus:ring-[#ff6a00]/20 focus:ring-2 placeholder:text-neutral-500 disabled:bg-neutral-800 disabled:text-neutral-500" />

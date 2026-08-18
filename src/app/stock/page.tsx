@@ -727,7 +727,7 @@ export default function StockPage() {
 
       <Card className="overflow-hidden p-0">
         <div className="overflow-x-auto">
-          <table className="w-full text-left text-sm">
+          <table className="w-full min-w-[720px] text-left text-sm">
             <thead className="bg-[#0a0a0a] text-xs font-semibold uppercase tracking-wide text-gray-400">
               <tr>
                 <th className="px-5 py-3">Nombre</th>
