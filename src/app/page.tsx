@@ -193,7 +193,7 @@ export default function InicioPage() {
     <div className="space-y-10 pb-10">
       {/* 1. Hero Interno */}
       <div className="relative overflow-hidden rounded-3xl bg-stampa-surface border border-stampa-border p-8 sm:p-10 shadow-2xl">
-        <div className="absolute inset-0 bg-gradient-to-br from-[#ff6a00]/10 to-transparent pointer-events-none" />
+        <div className="absolute inset-0 bg-gradient-to-br from-[#ff6a00]/20 to-transparent pointer-events-none" />
         <div className="relative z-10 max-w-2xl">
           <div className="flex items-center justify-between mb-2">
             <p className="text-sm font-semibold text-stampa-orange uppercase tracking-wider">Hola, {userFirstName}</p>
@@ -242,10 +242,10 @@ export default function InicioPage() {
 
       {/* 3. Grid Principal */}
       <div className="grid grid-cols-1 gap-8 lg:grid-cols-3">
-        
+
         {/* Columna Izquierda (Ocupa 2/3) */}
         <div className="lg:col-span-2 space-y-10">
-          
+
           {/* Continuar Aprendiendo */}
           <div>
             <SectionTitle
@@ -319,7 +319,7 @@ export default function InicioPage() {
 
         {/* Columna Derecha (Ocupa 1/3) */}
         <div className="space-y-10">
-          
+
           {/* Mi Taller (Resumen) */}
           <div>
             <SectionTitle title="Mi Taller" />
@@ -333,7 +333,7 @@ export default function InicioPage() {
                 </div>
                 <span className="text-base font-bold text-white">{budgetsCount}</span>
               </Link>
-              
+
               <Link href="/libreria-stl" className="flex items-center justify-between group">
                 <div className="flex items-center gap-3">
                   <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-white/5 text-gray-400 group-hover:text-green-400 transition-colors">

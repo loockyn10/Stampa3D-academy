@@ -45,7 +45,7 @@ export default function PresupuestosPage() {
     discount_percent: 0,
   });
   const [budgetItems, setBudgetItems] = useState<any[]>([]);
-  
+
   // Client Form State
   const [showClientForm, setShowClientForm] = useState(false);
   const [clientData, setClientData] = useState({ id: "", name: "", phone: "", email: "", notes: "", fiscal_condition: "", cuit: "", is_active: true });
@@ -110,10 +110,10 @@ export default function PresupuestosPage() {
 
   const handleEdit = async (b: any) => {
     setFormData({
-      title: b.title || "", client_id: b.client_id || "", status: b.status || "draft", 
+      title: b.title || "", client_id: b.client_id || "", status: b.status || "draft",
       notes: b.notes || "", valid_until: b.valid_until || "", discount_percent: b.discount_percent || 0
     });
-    
+
     // Fetch items for this budget
     const { data, error } = await supabase.from("budget_items").select("*").eq("budget_id", b.id);
     if (!error && data) {
@@ -166,10 +166,10 @@ export default function PresupuestosPage() {
         const unitBaseCost = p.base_cost || 0;
         const unitProfit = (p.sale_price || 0) - unitBaseCost;
         const qty = newItems[index].quantity || 1;
-        newItems[index] = { 
-          ...newItems[index], 
-          product_id: p.id, 
-          item_name: p.name, 
+        newItems[index] = {
+          ...newItems[index],
+          product_id: p.id,
+          item_name: p.name,
           unit_price: p.sale_price || 0,
           subtotal: (p.sale_price || 0) * qty,
           unit_base_cost: unitBaseCost,
@@ -262,10 +262,10 @@ export default function PresupuestosPage() {
       alert("Debes guardar el presupuesto antes de descargarlo.");
       return;
     }
-    
+
     // Find client
     const currentClient = clients.find(c => c.id === formData.client_id);
-    
+
     // Prepare budget object with full details
     const budgetData = {
       id: editingId,
@@ -277,22 +277,22 @@ export default function PresupuestosPage() {
     setIsGeneratingPdf(true);
     try {
       const blob = await pdf(
-        <BudgetPDFDocument 
-          budget={budgetData} 
-          items={budgetItems} 
-          client={currentClient} 
-          profile={profile} 
+        <BudgetPDFDocument
+          budget={budgetData}
+          items={budgetItems}
+          client={currentClient}
+          profile={profile}
         />
       ).toBlob();
-      
+
       const url = URL.createObjectURL(blob);
       const link = document.createElement("a");
       link.href = url;
-      
+
       // Sanitized filename
       const titleClean = formData.title ? formData.title.replace(/[^a-z0-9]/gi, '-').toLowerCase() : "sin-titulo";
       link.download = `presupuesto-${titleClean}.pdf`;
-      
+
       document.body.appendChild(link);
       link.click();
       document.body.removeChild(link);
@@ -309,12 +309,12 @@ export default function PresupuestosPage() {
     setGeneratingPdfId(b.id);
     try {
       const currentClient = clients.find(c => c.id === b.client_id);
-      
+
       const { data: itemsData, error: itemsError } = await supabase
         .from("budget_items")
         .select("*")
         .eq("budget_id", b.id);
-      
+
       if (itemsError) throw itemsError;
 
       const budgetData = {
@@ -329,21 +329,21 @@ export default function PresupuestosPage() {
       };
 
       const blob = await pdf(
-        <BudgetPDFDocument 
-          budget={budgetData} 
-          items={itemsData || []} 
-          client={currentClient} 
-          profile={profile} 
+        <BudgetPDFDocument
+          budget={budgetData}
+          items={itemsData || []}
+          client={currentClient}
+          profile={profile}
         />
       ).toBlob();
-      
+
       const url = URL.createObjectURL(blob);
       const link = document.createElement("a");
       link.href = url;
-      
+
       const titleClean = b.title ? b.title.replace(/[^a-z0-9]/gi, '-').toLowerCase() : "sin-titulo";
       link.download = `presupuesto-${titleClean}.pdf`;
-      
+
       document.body.appendChild(link);
       link.click();
       document.body.removeChild(link);
@@ -358,7 +358,7 @@ export default function PresupuestosPage() {
 
   const handleSaveClient = async () => {
     if (!clientData.name) return alert("El nombre del cliente es obligatorio.");
-    
+
     const { data: { user } } = await supabase.auth.getUser();
     if (!user) return;
 
@@ -449,7 +449,7 @@ export default function PresupuestosPage() {
     } else if (data) {
       const updatedProducts = [...products, data].sort((a, b) => a.name.localeCompare(b.name));
       setProducts(updatedProducts);
-      
+
       setBudgetItems([...budgetItems, {
         id: "temp-" + Date.now(),
         product_id: data.id,
@@ -482,7 +482,7 @@ export default function PresupuestosPage() {
       {/* 1. Header Premium */}
       {!editingId ? (
         <div className="relative overflow-hidden rounded-3xl bg-stampa-surface border border-stampa-border p-8 sm:p-10 shadow-2xl">
-          <div className="absolute inset-0 bg-gradient-to-br from-[#ff6a00]/10 to-transparent pointer-events-none" />
+          <div className="absolute inset-0 bg-gradient-to-br from-[#ff6a00]/20 to-transparent pointer-events-none" />
           <div className="relative z-10 flex flex-col md:flex-row md:items-center justify-between gap-6">
             <div className="max-w-2xl">
               <div className="flex items-center gap-2 mb-3 justify-between">
@@ -520,8 +520,8 @@ export default function PresupuestosPage() {
             </h2>
           </div>
           {editingId !== "new" && (
-            <button 
-              onClick={handleDownloadPdf} 
+            <button
+              onClick={handleDownloadPdf}
               disabled={isGeneratingPdf}
               className="w-full sm:w-auto flex justify-center items-center gap-2 text-sm font-bold text-stampa-orange hover:text-[#ff7a1a] bg-stampa-orange/10 border border-[#ff6a00]/20 px-4 py-2 rounded-lg shadow-sm transition-colors disabled:opacity-50"
             >
@@ -543,7 +543,7 @@ export default function PresupuestosPage() {
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-8 items-start animate-in fade-in-50 duration-300">
           {/* COLUMNA FORMULARIO */}
           <div className="lg:col-span-2 space-y-6">
-            
+
             {/* 1. Datos del Cliente */}
             <Card className="p-6 sm:p-8 bg-stampa-surface border-stampa-border shadow-lg">
               <div className="flex justify-between items-end mb-6 border-b border-stampa-border pb-3">
@@ -567,10 +567,10 @@ export default function PresupuestosPage() {
 
               {!showClientForm ? (
                 <div className="max-w-md">
-                  <Combobox 
+                  <Combobox
                     options={clients.map(c => ({ id: c.id, label: c.name }))}
                     value={formData.client_id}
-                    onChange={(val) => setFormData({...formData, client_id: val.toString()})}
+                    onChange={(val) => setFormData({ ...formData, client_id: val.toString() })}
                     placeholder="Seleccioná o buscá un cliente..."
                     emptyText="No se encontraron clientes."
                   />
@@ -579,23 +579,23 @@ export default function PresupuestosPage() {
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4 bg-stampa-bg-soft p-5 rounded-xl border border-stampa-border shadow-inner">
                   <div>
                     <label className="block text-xs font-semibold text-gray-500 mb-1.5">Nombre completo *</label>
-                    <input type="text" placeholder="Ej. Juan Pérez" value={clientData.name} onChange={e => setClientData({...clientData, name: e.target.value})} className="w-full text-sm rounded-xl border border-stampa-border bg-stampa-surface px-3 py-2.5 text-white outline-none focus:border-[#ff6a00] focus:ring-1 focus:ring-[#ff6a00]" />
+                    <input type="text" placeholder="Ej. Juan Pérez" value={clientData.name} onChange={e => setClientData({ ...clientData, name: e.target.value })} className="w-full text-sm rounded-xl border border-stampa-border bg-stampa-surface px-3 py-2.5 text-white outline-none focus:border-[#ff6a00] focus:ring-1 focus:ring-[#ff6a00]" />
                   </div>
                   <div>
                     <label className="block text-xs font-semibold text-gray-500 mb-1.5">Teléfono</label>
-                    <input type="text" placeholder="Ej. +54 9 11..." value={clientData.phone} onChange={e => setClientData({...clientData, phone: e.target.value})} className="w-full text-sm rounded-xl border border-stampa-border bg-stampa-surface px-3 py-2.5 text-white outline-none focus:border-[#ff6a00] focus:ring-1 focus:ring-[#ff6a00]" />
+                    <input type="text" placeholder="Ej. +54 9 11..." value={clientData.phone} onChange={e => setClientData({ ...clientData, phone: e.target.value })} className="w-full text-sm rounded-xl border border-stampa-border bg-stampa-surface px-3 py-2.5 text-white outline-none focus:border-[#ff6a00] focus:ring-1 focus:ring-[#ff6a00]" />
                   </div>
                   <div>
                     <label className="block text-xs font-semibold text-gray-500 mb-1.5">Email</label>
-                    <input type="email" placeholder="Ej. juan@mail.com" value={clientData.email} onChange={e => setClientData({...clientData, email: e.target.value})} className="w-full text-sm rounded-xl border border-stampa-border bg-stampa-surface px-3 py-2.5 text-white outline-none focus:border-[#ff6a00] focus:ring-1 focus:ring-[#ff6a00]" />
+                    <input type="email" placeholder="Ej. juan@mail.com" value={clientData.email} onChange={e => setClientData({ ...clientData, email: e.target.value })} className="w-full text-sm rounded-xl border border-stampa-border bg-stampa-surface px-3 py-2.5 text-white outline-none focus:border-[#ff6a00] focus:ring-1 focus:ring-[#ff6a00]" />
                   </div>
                   <div>
                     <label className="block text-xs font-semibold text-gray-500 mb-1.5">CUIT</label>
-                    <input type="text" placeholder="Ej. 20-12345678-9" value={clientData.cuit} onChange={e => setClientData({...clientData, cuit: e.target.value})} className="w-full text-sm rounded-xl border border-stampa-border bg-stampa-surface px-3 py-2.5 text-white outline-none focus:border-[#ff6a00] focus:ring-1 focus:ring-[#ff6a00]" />
+                    <input type="text" placeholder="Ej. 20-12345678-9" value={clientData.cuit} onChange={e => setClientData({ ...clientData, cuit: e.target.value })} className="w-full text-sm rounded-xl border border-stampa-border bg-stampa-surface px-3 py-2.5 text-white outline-none focus:border-[#ff6a00] focus:ring-1 focus:ring-[#ff6a00]" />
                   </div>
                   <div>
                     <label className="block text-xs font-semibold text-gray-500 mb-1.5">Condición Fiscal</label>
-                    <select value={clientData.fiscal_condition} onChange={e => setClientData({...clientData, fiscal_condition: e.target.value})} className="w-full text-sm rounded-xl border border-stampa-border bg-stampa-surface px-3 py-2.5 text-white outline-none focus:border-[#ff6a00] focus:ring-1 focus:ring-[#ff6a00]">
+                    <select value={clientData.fiscal_condition} onChange={e => setClientData({ ...clientData, fiscal_condition: e.target.value })} className="w-full text-sm rounded-xl border border-stampa-border bg-stampa-surface px-3 py-2.5 text-white outline-none focus:border-[#ff6a00] focus:ring-1 focus:ring-[#ff6a00]">
                       <option value="">Consumidor Final</option>
                       <option value="Responsable Inscripto">Responsable Inscripto</option>
                       <option value="Monotributo">Monotributo</option>
@@ -604,13 +604,13 @@ export default function PresupuestosPage() {
                   </div>
                   <div className="flex items-center mt-6">
                     <label className="flex items-center gap-2 cursor-pointer">
-                      <input type="checkbox" checked={clientData.is_active} onChange={e => setClientData({...clientData, is_active: e.target.checked})} className="rounded bg-stampa-surface border-white/20 text-stampa-orange focus:ring-[#ff6a00]" />
+                      <input type="checkbox" checked={clientData.is_active} onChange={e => setClientData({ ...clientData, is_active: e.target.checked })} className="rounded bg-stampa-surface border-white/20 text-stampa-orange focus:ring-[#ff6a00]" />
                       <span className="text-sm text-gray-300 font-medium">Cliente Activo</span>
                     </label>
                   </div>
                   <div className="md:col-span-2">
                     <label className="block text-xs font-semibold text-gray-500 mb-1.5">Notas del cliente</label>
-                    <input type="text" placeholder="Ej. Entregar de 10 a 14hs" value={clientData.notes} onChange={e => setClientData({...clientData, notes: e.target.value})} className="w-full text-sm rounded-xl border border-stampa-border bg-stampa-surface px-3 py-2.5 text-white outline-none focus:border-[#ff6a00] focus:ring-1 focus:ring-[#ff6a00]" />
+                    <input type="text" placeholder="Ej. Entregar de 10 a 14hs" value={clientData.notes} onChange={e => setClientData({ ...clientData, notes: e.target.value })} className="w-full text-sm rounded-xl border border-stampa-border bg-stampa-surface px-3 py-2.5 text-white outline-none focus:border-[#ff6a00] focus:ring-1 focus:ring-[#ff6a00]" />
                   </div>
                   <div className="md:col-span-2 flex justify-end gap-3 mt-4 pt-4 border-t border-stampa-border">
                     <button onClick={handleCancelClientForm} className="text-sm font-bold text-gray-400 hover:text-white px-4 py-2 transition-colors">Cancelar</button>
@@ -689,11 +689,11 @@ export default function PresupuestosPage() {
                   <div className="space-y-4">
                     <div>
                       <label className="block text-xs font-semibold text-gray-500 mb-1.5">Título / Referencia *</label>
-                      <input type="text" value={formData.title} onChange={e => setFormData({...formData, title: e.target.value})} className="w-full text-sm rounded-xl border border-stampa-border bg-stampa-bg-soft px-3 py-2.5 text-white outline-none focus:border-[#ff6a00] focus:ring-1 focus:ring-[#ff6a00]" placeholder="Ej. Presupuesto Macetas" />
+                      <input type="text" value={formData.title} onChange={e => setFormData({ ...formData, title: e.target.value })} className="w-full text-sm rounded-xl border border-stampa-border bg-stampa-bg-soft px-3 py-2.5 text-white outline-none focus:border-[#ff6a00] focus:ring-1 focus:ring-[#ff6a00]" placeholder="Ej. Presupuesto Macetas" />
                     </div>
                     <div>
                       <label className="block text-xs font-semibold text-gray-500 mb-1.5">Notas (visibles en PDF)</label>
-                      <textarea rows={3} value={formData.notes} onChange={e => setFormData({...formData, notes: e.target.value})} className="w-full text-sm rounded-xl border border-stampa-border bg-stampa-bg-soft px-3 py-2.5 text-white outline-none focus:border-[#ff6a00] focus:ring-1 focus:ring-[#ff6a00]" placeholder="Detalles de entrega, condiciones..."></textarea>
+                      <textarea rows={3} value={formData.notes} onChange={e => setFormData({ ...formData, notes: e.target.value })} className="w-full text-sm rounded-xl border border-stampa-border bg-stampa-bg-soft px-3 py-2.5 text-white outline-none focus:border-[#ff6a00] focus:ring-1 focus:ring-[#ff6a00]" placeholder="Detalles de entrega, condiciones..."></textarea>
                     </div>
                   </div>
                 </div>
@@ -702,15 +702,15 @@ export default function PresupuestosPage() {
                   <div className="space-y-4">
                     <div>
                       <label className="block text-xs font-semibold text-gray-500 mb-1.5 flex items-center gap-1.5"><Clock size={14} /> Fecha de Validez</label>
-                      <input type="date" value={formData.valid_until ? formData.valid_until.substring(0,10) : ""} onChange={e => setFormData({...formData, valid_until: e.target.value})} className="w-full text-sm rounded-xl border border-stampa-border bg-stampa-bg-soft px-3 py-2.5 text-white outline-none focus:border-[#ff6a00] focus:ring-1 focus:ring-[#ff6a00] [color-scheme:dark]" />
+                      <input type="date" value={formData.valid_until ? formData.valid_until.substring(0, 10) : ""} onChange={e => setFormData({ ...formData, valid_until: e.target.value })} className="w-full text-sm rounded-xl border border-stampa-border bg-stampa-bg-soft px-3 py-2.5 text-white outline-none focus:border-[#ff6a00] focus:ring-1 focus:ring-[#ff6a00] [color-scheme:dark]" />
                     </div>
                     <div>
                       <label className="block text-xs font-semibold text-gray-500 mb-1.5">Estado</label>
                       <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 bg-stampa-bg-soft p-1.5 rounded-xl border border-stampa-border">
-                        <button type="button" onClick={() => setFormData({...formData, status: "draft"})} className={`text-[11px] py-2 px-1 rounded-lg font-bold transition-all uppercase tracking-wider ${formData.status === "draft" ? "bg-[#222] text-white shadow-sm border border-stampa-border" : "text-gray-500 hover:text-gray-300"}`}>Borrador</button>
-                        <button type="button" onClick={() => setFormData({...formData, status: "sent"})} className={`text-[11px] py-2 px-1 rounded-lg font-bold transition-all uppercase tracking-wider ${formData.status === "sent" ? "bg-indigo-500/20 text-indigo-400 border border-indigo-500/30" : "text-gray-500 hover:text-gray-300"}`}>Enviado</button>
-                        <button type="button" onClick={() => setFormData({...formData, status: "approved"})} className={`text-[11px] py-2 px-1 rounded-lg font-bold transition-all uppercase tracking-wider ${formData.status === "approved" ? "bg-emerald-500/20 text-emerald-400 border border-emerald-500/30" : "text-gray-500 hover:text-gray-300"}`}>Aprobado</button>
-                        <button type="button" onClick={() => setFormData({...formData, status: "rejected"})} className={`text-[11px] py-2 px-1 rounded-lg font-bold transition-all uppercase tracking-wider ${formData.status === "rejected" ? "bg-rose-500/20 text-rose-400 border border-rose-500/30" : "text-gray-500 hover:text-gray-300"}`}>Rechazado</button>
+                        <button type="button" onClick={() => setFormData({ ...formData, status: "draft" })} className={`text-[11px] py-2 px-1 rounded-lg font-bold transition-all uppercase tracking-wider ${formData.status === "draft" ? "bg-[#222] text-white shadow-sm border border-stampa-border" : "text-gray-500 hover:text-gray-300"}`}>Borrador</button>
+                        <button type="button" onClick={() => setFormData({ ...formData, status: "sent" })} className={`text-[11px] py-2 px-1 rounded-lg font-bold transition-all uppercase tracking-wider ${formData.status === "sent" ? "bg-indigo-500/20 text-indigo-400 border border-indigo-500/30" : "text-gray-500 hover:text-gray-300"}`}>Enviado</button>
+                        <button type="button" onClick={() => setFormData({ ...formData, status: "approved" })} className={`text-[11px] py-2 px-1 rounded-lg font-bold transition-all uppercase tracking-wider ${formData.status === "approved" ? "bg-emerald-500/20 text-emerald-400 border border-emerald-500/30" : "text-gray-500 hover:text-gray-300"}`}>Aprobado</button>
+                        <button type="button" onClick={() => setFormData({ ...formData, status: "rejected" })} className={`text-[11px] py-2 px-1 rounded-lg font-bold transition-all uppercase tracking-wider ${formData.status === "rejected" ? "bg-rose-500/20 text-rose-400 border border-rose-500/30" : "text-gray-500 hover:text-gray-300"}`}>Rechazado</button>
                       </div>
                     </div>
                   </div>
@@ -724,7 +724,7 @@ export default function PresupuestosPage() {
           <div className="lg:col-span-1 lg:sticky lg:top-6 space-y-4">
             <Card className="p-6 bg-stampa-bg-soft border-[#ff6a00]/30 shadow-xl overflow-hidden relative">
               <div className="absolute top-0 inset-x-0 h-1 bg-gradient-to-r from-transparent via-[#ff6a00] to-transparent opacity-50" />
-              
+
               <h3 className="text-sm font-bold text-white flex items-center gap-2 border-b border-stampa-border pb-3 mb-5">
                 <DollarSign size={18} className="text-stampa-orange" /> Resumen
               </h3>
@@ -734,23 +734,23 @@ export default function PresupuestosPage() {
                   <span className="text-sm font-medium text-gray-400">Subtotal</span>
                   <span className="text-sm font-bold text-white">${subtotal.toFixed(2)}</span>
                 </div>
-                
+
                 <div className="flex justify-between items-center group">
-                  <span className="text-sm font-medium text-gray-400 flex items-center gap-1.5"><Percent size={14}/> Descuento</span>
+                  <span className="text-sm font-medium text-gray-400 flex items-center gap-1.5"><Percent size={14} /> Descuento</span>
                   <div className="flex items-center gap-2">
-                    <input 
-                      type="number" 
+                    <input
+                      type="number"
                       min="0" max="100" step="any"
                       placeholder="0"
-                      value={formData.discount_percent || ""} 
+                      value={formData.discount_percent || ""}
                       onChange={e => {
                         let val = parseFloat(e.target.value);
                         if (isNaN(val)) val = 0;
                         if (val < 0) val = 0;
                         if (val > 100) val = 100;
-                        setFormData({...formData, discount_percent: val});
+                        setFormData({ ...formData, discount_percent: val });
                       }}
-                      className="w-16 text-right text-sm rounded-lg border border-stampa-border bg-stampa-surface px-2 py-1.5 text-white outline-none focus:border-[#ff6a00] focus:ring-1 focus:ring-[#ff6a00] transition-colors" 
+                      className="w-16 text-right text-sm rounded-lg border border-stampa-border bg-stampa-surface px-2 py-1.5 text-white outline-none focus:border-[#ff6a00] focus:ring-1 focus:ring-[#ff6a00] transition-colors"
                     />
                     <span className="text-sm font-bold text-gray-500">%</span>
                   </div>
@@ -815,13 +815,13 @@ export default function PresupuestosPage() {
                   <div className="flex justify-between items-start mb-4">
                     <div className="pr-2">
                       <h4 className="font-bold text-white text-base truncate mb-1 group-hover:text-stampa-orange transition-colors">{b.title || "Sin título"}</h4>
-                      <p className="text-xs font-medium text-gray-500 flex items-center gap-1.5"><UserPlus size={12}/> {b.clients?.name || "Cliente eliminado"}</p>
+                      <p className="text-xs font-medium text-gray-500 flex items-center gap-1.5"><UserPlus size={12} /> {b.clients?.name || "Cliente eliminado"}</p>
                     </div>
                     <span className={`shrink-0 text-[10px] font-bold uppercase tracking-wider px-2 py-1 rounded-md border ${statusClasses}`}>
                       {statusConf.label}
                     </span>
                   </div>
-                  
+
                   <div className="flex justify-between items-end mt-6">
                     <div>
                       <p className="text-[10px] font-bold text-gray-500 uppercase tracking-wider mb-0.5">Total</p>
@@ -832,13 +832,13 @@ export default function PresupuestosPage() {
                     </p>
                   </div>
                 </div>
-                
+
                 <div className="grid grid-cols-3 border-t border-stampa-border bg-stampa-bg-soft divide-x divide-white/5">
                   <button onClick={() => handleEdit(b)} className="flex items-center justify-center gap-2 py-3 text-xs font-bold text-gray-400 hover:text-white hover:bg-white/5 transition-colors">
                     <Pencil size={14} /> Editar
                   </button>
-                  <button 
-                    onClick={() => handleDownloadPdfById(b)} 
+                  <button
+                    onClick={() => handleDownloadPdfById(b)}
                     disabled={generatingPdfId === b.id}
                     className="flex items-center justify-center gap-2 py-3 text-xs font-bold text-stampa-orange hover:text-[#ff7a1a] hover:bg-stampa-orange/5 transition-colors disabled:opacity-50"
                   >
@@ -891,49 +891,49 @@ export default function PresupuestosPage() {
                 <X size={20} />
               </button>
             </div>
-            
+
             <div className="p-6 space-y-5 max-h-[70vh] overflow-y-auto custom-scrollbar">
               <div>
                 <label className="block text-xs font-semibold text-gray-400 mb-1.5">Nombre *</label>
-                <input 
-                  type="text" 
-                  placeholder="Ej. Maceta Hexagonal" 
-                  value={productData.name} 
-                  onChange={e => setProductData({...productData, name: e.target.value})} 
-                  className="w-full text-sm rounded-xl border border-stampa-border bg-stampa-bg-soft px-3 py-2.5 text-white outline-none focus:border-[#ff6a00] focus:ring-1 focus:ring-[#ff6a00]" 
+                <input
+                  type="text"
+                  placeholder="Ej. Maceta Hexagonal"
+                  value={productData.name}
+                  onChange={e => setProductData({ ...productData, name: e.target.value })}
+                  className="w-full text-sm rounded-xl border border-stampa-border bg-stampa-bg-soft px-3 py-2.5 text-white outline-none focus:border-[#ff6a00] focus:ring-1 focus:ring-[#ff6a00]"
                 />
               </div>
 
               <div>
                 <label className="block text-xs font-semibold text-gray-400 mb-1.5">Descripción</label>
-                <textarea 
+                <textarea
                   rows={2}
-                  placeholder="Descripción opcional" 
-                  value={productData.description} 
-                  onChange={e => setProductData({...productData, description: e.target.value})} 
-                  className="w-full text-sm rounded-xl border border-stampa-border bg-stampa-bg-soft px-3 py-2.5 text-white outline-none focus:border-[#ff6a00] focus:ring-1 focus:ring-[#ff6a00]" 
+                  placeholder="Descripción opcional"
+                  value={productData.description}
+                  onChange={e => setProductData({ ...productData, description: e.target.value })}
+                  className="w-full text-sm rounded-xl border border-stampa-border bg-stampa-bg-soft px-3 py-2.5 text-white outline-none focus:border-[#ff6a00] focus:ring-1 focus:ring-[#ff6a00]"
                 />
               </div>
 
               <div className="grid grid-cols-2 gap-4">
                 <div>
                   <label className="block text-xs font-semibold text-gray-400 mb-1.5">Precio de venta *</label>
-                  <input 
-                    type="number" 
-                    min="0" step="any" placeholder="Ej. 1500" 
-                    value={productData.sale_price || ""} 
-                    onChange={e => setProductData({...productData, sale_price: parseFloat(e.target.value) || 0})} 
-                    className="w-full text-sm rounded-xl border border-stampa-border bg-stampa-bg-soft px-3 py-2.5 text-white outline-none focus:border-[#ff6a00] focus:ring-1 focus:ring-[#ff6a00]" 
+                  <input
+                    type="number"
+                    min="0" step="any" placeholder="Ej. 1500"
+                    value={productData.sale_price || ""}
+                    onChange={e => setProductData({ ...productData, sale_price: parseFloat(e.target.value) || 0 })}
+                    className="w-full text-sm rounded-xl border border-stampa-border bg-stampa-bg-soft px-3 py-2.5 text-white outline-none focus:border-[#ff6a00] focus:ring-1 focus:ring-[#ff6a00]"
                   />
                 </div>
                 <div>
                   <label className="block text-xs font-semibold text-gray-400 mb-1.5">Costo base</label>
-                  <input 
-                    type="number" 
-                    min="0" step="any" placeholder="Opcional" 
-                    value={productData.base_cost || ""} 
-                    onChange={e => setProductData({...productData, base_cost: parseFloat(e.target.value) || 0})} 
-                    className="w-full text-sm rounded-xl border border-stampa-border bg-stampa-bg-soft px-3 py-2.5 text-white outline-none focus:border-[#ff6a00] focus:ring-1 focus:ring-[#ff6a00]" 
+                  <input
+                    type="number"
+                    min="0" step="any" placeholder="Opcional"
+                    value={productData.base_cost || ""}
+                    onChange={e => setProductData({ ...productData, base_cost: parseFloat(e.target.value) || 0 })}
+                    className="w-full text-sm rounded-xl border border-stampa-border bg-stampa-bg-soft px-3 py-2.5 text-white outline-none focus:border-[#ff6a00] focus:ring-1 focus:ring-[#ff6a00]"
                   />
                 </div>
               </div>
@@ -941,22 +941,22 @@ export default function PresupuestosPage() {
               <div className="grid grid-cols-2 gap-4">
                 <div>
                   <label className="block text-xs font-semibold text-gray-400 mb-1.5">Gramos</label>
-                  <input 
-                    type="number" 
-                    min="0" step="any" placeholder="Opcional" 
-                    value={productData.grams || ""} 
-                    onChange={e => setProductData({...productData, grams: parseFloat(e.target.value) || 0})} 
-                    className="w-full text-sm rounded-xl border border-stampa-border bg-stampa-bg-soft px-3 py-2.5 text-white outline-none focus:border-[#ff6a00] focus:ring-1 focus:ring-[#ff6a00]" 
+                  <input
+                    type="number"
+                    min="0" step="any" placeholder="Opcional"
+                    value={productData.grams || ""}
+                    onChange={e => setProductData({ ...productData, grams: parseFloat(e.target.value) || 0 })}
+                    className="w-full text-sm rounded-xl border border-stampa-border bg-stampa-bg-soft px-3 py-2.5 text-white outline-none focus:border-[#ff6a00] focus:ring-1 focus:ring-[#ff6a00]"
                   />
                 </div>
                 <div>
                   <label className="block text-xs font-semibold text-gray-400 mb-1.5">Stock Inicial</label>
-                  <input 
-                    type="number" 
-                    min="0" placeholder="Opcional" 
-                    value={productData.stock_quantity || ""} 
-                    onChange={e => setProductData({...productData, stock_quantity: parseInt(e.target.value) || 0})} 
-                    className="w-full text-sm rounded-xl border border-stampa-border bg-stampa-bg-soft px-3 py-2.5 text-white outline-none focus:border-[#ff6a00] focus:ring-1 focus:ring-[#ff6a00]" 
+                  <input
+                    type="number"
+                    min="0" placeholder="Opcional"
+                    value={productData.stock_quantity || ""}
+                    onChange={e => setProductData({ ...productData, stock_quantity: parseInt(e.target.value) || 0 })}
+                    className="w-full text-sm rounded-xl border border-stampa-border bg-stampa-bg-soft px-3 py-2.5 text-white outline-none focus:border-[#ff6a00] focus:ring-1 focus:ring-[#ff6a00]"
                   />
                 </div>
               </div>
@@ -964,31 +964,31 @@ export default function PresupuestosPage() {
               <div className="grid grid-cols-2 gap-4">
                 <div>
                   <label className="block text-xs font-semibold text-gray-400 mb-1.5">Tiempo (Horas)</label>
-                  <input 
-                    type="number" 
-                    min="0" placeholder="Horas" 
-                    value={productData.print_time_hours || ""} 
-                    onChange={e => setProductData({...productData, print_time_hours: parseInt(e.target.value) || 0})} 
-                    className="w-full text-sm rounded-xl border border-stampa-border bg-stampa-bg-soft px-3 py-2.5 text-white outline-none focus:border-[#ff6a00] focus:ring-1 focus:ring-[#ff6a00]" 
+                  <input
+                    type="number"
+                    min="0" placeholder="Horas"
+                    value={productData.print_time_hours || ""}
+                    onChange={e => setProductData({ ...productData, print_time_hours: parseInt(e.target.value) || 0 })}
+                    className="w-full text-sm rounded-xl border border-stampa-border bg-stampa-bg-soft px-3 py-2.5 text-white outline-none focus:border-[#ff6a00] focus:ring-1 focus:ring-[#ff6a00]"
                   />
                 </div>
                 <div>
                   <label className="block text-xs font-semibold text-gray-400 mb-1.5">Tiempo (Minutos)</label>
-                  <input 
-                    type="number" 
-                    min="0" max="59" placeholder="Minutos" 
-                    value={productData.print_time_minutes || ""} 
-                    onChange={e => setProductData({...productData, print_time_minutes: parseInt(e.target.value) || 0})} 
-                    className="w-full text-sm rounded-xl border border-stampa-border bg-stampa-bg-soft px-3 py-2.5 text-white outline-none focus:border-[#ff6a00] focus:ring-1 focus:ring-[#ff6a00]" 
+                  <input
+                    type="number"
+                    min="0" max="59" placeholder="Minutos"
+                    value={productData.print_time_minutes || ""}
+                    onChange={e => setProductData({ ...productData, print_time_minutes: parseInt(e.target.value) || 0 })}
+                    className="w-full text-sm rounded-xl border border-stampa-border bg-stampa-bg-soft px-3 py-2.5 text-white outline-none focus:border-[#ff6a00] focus:ring-1 focus:ring-[#ff6a00]"
                   />
                 </div>
               </div>
 
               <div>
                 <label className="block text-xs font-semibold text-gray-400 mb-1.5">Filamento</label>
-                <select 
-                  value={productData.filament_id} 
-                  onChange={e => setProductData({...productData, filament_id: e.target.value})} 
+                <select
+                  value={productData.filament_id}
+                  onChange={e => setProductData({ ...productData, filament_id: e.target.value })}
                   className="w-full text-sm rounded-xl border border-stampa-border bg-stampa-bg-soft px-3 py-2.5 text-white outline-none focus:border-[#ff6a00] focus:ring-1 focus:ring-[#ff6a00]"
                 >
                   <option value="">Ninguno</option>
@@ -998,27 +998,27 @@ export default function PresupuestosPage() {
 
               <div>
                 <label className="block text-xs font-semibold text-gray-400 mb-1.5">URL de Imagen</label>
-                <input 
-                  type="text" 
-                  placeholder="Ej. https://..." 
-                  value={productData.image_url} 
-                  onChange={e => setProductData({...productData, image_url: e.target.value})} 
-                  className="w-full text-sm rounded-xl border border-stampa-border bg-stampa-bg-soft px-3 py-2.5 text-white outline-none focus:border-[#ff6a00] focus:ring-1 focus:ring-[#ff6a00]" 
+                <input
+                  type="text"
+                  placeholder="Ej. https://..."
+                  value={productData.image_url}
+                  onChange={e => setProductData({ ...productData, image_url: e.target.value })}
+                  className="w-full text-sm rounded-xl border border-stampa-border bg-stampa-bg-soft px-3 py-2.5 text-white outline-none focus:border-[#ff6a00] focus:ring-1 focus:ring-[#ff6a00]"
                 />
               </div>
             </div>
 
             <div className="bg-stampa-bg-soft px-6 py-4 flex justify-end gap-3 border-t border-stampa-border">
-              <button 
-                type="button" 
-                onClick={() => setShowProductModal(false)} 
+              <button
+                type="button"
+                onClick={() => setShowProductModal(false)}
                 className="px-5 py-2.5 text-sm font-bold text-gray-400 hover:text-white transition-colors"
               >
                 Cancelar
               </button>
-              <button 
-                type="button" 
-                onClick={handleSaveProduct} 
+              <button
+                type="button"
+                onClick={handleSaveProduct}
                 className="px-6 py-2.5 text-sm font-bold bg-stampa-orange hover:bg-stampa-orange-hover text-white rounded-xl transition-colors shadow-lg shadow-[#ff6a00]/20"
               >
                 Guardar Producto

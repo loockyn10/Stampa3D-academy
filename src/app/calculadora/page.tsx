@@ -91,7 +91,7 @@ export default function CalculadoraPage() {
   const [laborCost, setLaborCost] = useState(0);
   const [otherCost, setOtherCost] = useState(0);
   const [fixedCost, setFixedCost] = useState(0);
-  
+
   const [manualMultiplier, setManualMultiplier] = useState(0);
   const [manualPlatformCommission, setManualPlatformCommission] = useState(0);
   const [manualPlatformExtra, setManualPlatformExtra] = useState(0);
@@ -187,7 +187,7 @@ export default function CalculadoraPage() {
   const calc = useMemo(() => {
     const errorMultiplier = 1 + (manualErrorPercent / 100);
     const weightWithError = weight * errorMultiplier;
-    
+
     // Costo Material
     const costPerGram = manualPricePerKg / 1000;
     const materialCost = weightWithError * costPerGram;
@@ -318,409 +318,409 @@ export default function CalculadoraPage() {
   const hasValidCalc = calc.baseCost > 0 && calc.normalPrice > 0;
 
   return <div className="space-y-8 pb-10">
-      {/* 1. Header Premium */}
-      <div className="relative overflow-hidden rounded-3xl bg-stampa-surface border border-stampa-border p-8 sm:p-10 shadow-2xl">
-        <div className="absolute inset-0 bg-gradient-to-br from-[#ff6a00]/10 to-transparent pointer-events-none" />
-        <div className="relative z-10 max-w-3xl">
-          <div className="flex items-center gap-2 mb-3 justify-between">
-            <span className="rounded-full bg-stampa-orange/10 text-stampa-orange text-xs font-bold px-3 py-1 uppercase tracking-wider border border-[#ff6a00]/20">
-              Herramienta de taller
-            </span>
+    {/* 1. Header Premium */}
+    <div className="relative overflow-hidden rounded-3xl bg-stampa-surface border border-stampa-border p-8 sm:p-10 shadow-2xl">
+      <div className="absolute inset-0 bg-gradient-to-br from-[#ff6a00]/20 to-transparent pointer-events-none" />
+      <div className="relative z-10 max-w-3xl">
+        <div className="flex items-center gap-2 mb-3 justify-between">
+          <span className="rounded-full bg-stampa-orange/10 text-stampa-orange text-xs font-bold px-3 py-1 uppercase tracking-wider border border-[#ff6a00]/20">
+            Herramienta de taller
+          </span>
 
-          </div>
-          <h1 className="text-3xl font-bold text-white sm:text-4xl flex items-center gap-3">
-            <Calculator size={32} className="text-stampa-orange" /> Calculadora de precios
-          </h1>
-          <p className="mt-3 text-base text-gray-400">
-            Calculá cuánto cobrar una impresión usando material, tiempo, margen y costos extra.
-          </p>
-          <div className="mt-8">
-            <Link href="/configuracion?tab=calculadora" className="inline-flex items-center gap-2 px-6 py-3 text-sm font-semibold bg-white/5 border border-stampa-border text-white rounded-xl hover:bg-white/10 transition-colors">
-              <Settings size={18} /> Configurar valores
-            </Link>
-          </div>
+        </div>
+        <h1 className="text-3xl font-bold text-white sm:text-4xl flex items-center gap-3">
+          <Calculator size={32} className="text-stampa-orange" /> Calculadora de precios
+        </h1>
+        <p className="mt-3 text-base text-gray-400">
+          Calculá cuánto cobrar una impresión usando material, tiempo, margen y costos extra.
+        </p>
+        <div className="mt-8">
+          <Link href="/configuracion?tab=calculadora" className="inline-flex items-center gap-2 px-6 py-3 text-sm font-semibold bg-white/5 border border-stampa-border text-white rounded-xl hover:bg-white/10 transition-colors">
+            <Settings size={18} /> Configurar valores
+          </Link>
         </div>
       </div>
+    </div>
 
-      {missingData && (
-        <div className="space-y-3">
-          {printers.length === 0 && (
-            <div className="bg-stampa-orange/10 border border-[#ff6a00]/20 p-4 rounded-xl flex items-start gap-3">
-              <AlertCircle className="text-stampa-orange mt-0.5" size={20} />
-              <div>
-                <h4 className="text-sm font-bold text-stampa-orange">No tenés impresoras cargadas</h4>
-                <p className="text-xs text-stampa-orange/80 mt-1">
-                  Importá una impresora del catálogo Stampa o cargá una manualmente.
-                </p>
-                <div className="flex flex-col sm:flex-row gap-2 mt-3">
-                  <Link href="/configuracion?tab=taller" className="text-center inline-block bg-stampa-orange text-white text-xs font-semibold px-3 py-1.5 rounded-lg hover:bg-stampa-orange-hover transition-colors shadow-sm shadow-[#ff6a00]/20 w-full sm:w-auto">
-                    Importar impresora
-                  </Link>
-                  <Link href="/configuracion?tab=taller" className="text-center inline-block bg-stampa-surface text-stampa-orange border border-[#ff6a00]/30 text-xs font-semibold px-3 py-1.5 rounded-lg hover:bg-stampa-orange/10 transition-colors w-full sm:w-auto">
-                    Agregar manualmente
-                  </Link>
-                </div>
-              </div>
-            </div>
-          )}
-          {(filaments.length === 0 || multipliers.length === 0) && (
-            <div className="bg-stampa-orange/10 border border-[#ff6a00]/20 p-4 rounded-xl flex items-start gap-3">
-              <AlertCircle className="text-stampa-orange mt-0.5" size={20} />
-              <div>
-                <h4 className="text-sm font-bold text-stampa-orange">Faltan datos de configuración</h4>
-                <p className="text-xs text-stampa-orange/80 mt-1">
-                  Para usar la calculadora necesitas tener al menos un filamento y un tipo de producto configurados.
-                </p>
-                <Link href="/configuracion?tab=taller" className="inline-block mt-3 bg-stampa-orange text-white text-xs font-semibold px-3 py-1.5 rounded-lg hover:bg-stampa-orange-hover transition-colors shadow-sm shadow-[#ff6a00]/20">
-                  Ir a Configuración
+    {missingData && (
+      <div className="space-y-3">
+        {printers.length === 0 && (
+          <div className="bg-stampa-orange/10 border border-[#ff6a00]/20 p-4 rounded-xl flex items-start gap-3">
+            <AlertCircle className="text-stampa-orange mt-0.5" size={20} />
+            <div>
+              <h4 className="text-sm font-bold text-stampa-orange">No tenés impresoras cargadas</h4>
+              <p className="text-xs text-stampa-orange/80 mt-1">
+                Importá una impresora del catálogo Stampa o cargá una manualmente.
+              </p>
+              <div className="flex flex-col sm:flex-row gap-2 mt-3">
+                <Link href="/configuracion?tab=taller" className="text-center inline-block bg-stampa-orange text-white text-xs font-semibold px-3 py-1.5 rounded-lg hover:bg-stampa-orange-hover transition-colors shadow-sm shadow-[#ff6a00]/20 w-full sm:w-auto">
+                  Importar impresora
+                </Link>
+                <Link href="/configuracion?tab=taller" className="text-center inline-block bg-stampa-surface text-stampa-orange border border-[#ff6a00]/30 text-xs font-semibold px-3 py-1.5 rounded-lg hover:bg-stampa-orange/10 transition-colors w-full sm:w-auto">
+                  Agregar manualmente
                 </Link>
               </div>
             </div>
-          )}
-        </div>
-      )}
+          </div>
+        )}
+        {(filaments.length === 0 || multipliers.length === 0) && (
+          <div className="bg-stampa-orange/10 border border-[#ff6a00]/20 p-4 rounded-xl flex items-start gap-3">
+            <AlertCircle className="text-stampa-orange mt-0.5" size={20} />
+            <div>
+              <h4 className="text-sm font-bold text-stampa-orange">Faltan datos de configuración</h4>
+              <p className="text-xs text-stampa-orange/80 mt-1">
+                Para usar la calculadora necesitas tener al menos un filamento y un tipo de producto configurados.
+              </p>
+              <Link href="/configuracion?tab=taller" className="inline-block mt-3 bg-stampa-orange text-white text-xs font-semibold px-3 py-1.5 rounded-lg hover:bg-stampa-orange-hover transition-colors shadow-sm shadow-[#ff6a00]/20">
+                Ir a Configuración
+              </Link>
+            </div>
+          </div>
+        )}
+      </div>
+    )}
 
-      {/* 2. Selector de Modo */}
-      <div className="flex p-1 bg-stampa-surface border border-stampa-border rounded-xl w-full sm:w-fit mx-auto sm:mx-0">
-        <button
-          onClick={() => setAdvanced(false)}
-          className={`flex-1 sm:w-64 px-4 py-2.5 rounded-lg text-sm font-bold transition-all flex flex-col items-center justify-center gap-0.5 ${!advanced ? 'bg-white/10 text-white shadow-sm' : 'text-gray-500 hover:text-gray-300'}`}
-        >
-          <span>Modo Básico</span>
-          <span className={`text-[10px] font-normal ${!advanced ? 'text-gray-300' : 'text-gray-600'}`}>Para estimaciones rápidas</span>
-        </button>
-        <button
-          onClick={() => setAdvanced(true)}
-          className={`flex-1 sm:w-64 px-4 py-2.5 rounded-lg text-sm font-bold transition-all flex flex-col items-center justify-center gap-0.5 ${advanced ? 'bg-indigo-500/20 text-indigo-400 shadow-sm border border-indigo-500/20' : 'text-gray-500 hover:text-gray-300'}`}
-        >
-          <span>Modo Avanzado</span>
-          <span className={`text-[10px] font-normal ${advanced ? 'text-indigo-400/80' : 'text-gray-600'}`}>Para precios más reales</span>
-        </button>
+    {/* 2. Selector de Modo */}
+    <div className="flex p-1 bg-stampa-surface border border-stampa-border rounded-xl w-full sm:w-fit mx-auto sm:mx-0">
+      <button
+        onClick={() => setAdvanced(false)}
+        className={`flex-1 sm:w-64 px-4 py-2.5 rounded-lg text-sm font-bold transition-all flex flex-col items-center justify-center gap-0.5 ${!advanced ? 'bg-white/10 text-white shadow-sm' : 'text-gray-500 hover:text-gray-300'}`}
+      >
+        <span>Modo Básico</span>
+        <span className={`text-[10px] font-normal ${!advanced ? 'text-gray-300' : 'text-gray-600'}`}>Para estimaciones rápidas</span>
+      </button>
+      <button
+        onClick={() => setAdvanced(true)}
+        className={`flex-1 sm:w-64 px-4 py-2.5 rounded-lg text-sm font-bold transition-all flex flex-col items-center justify-center gap-0.5 ${advanced ? 'bg-indigo-500/20 text-indigo-400 shadow-sm border border-indigo-500/20' : 'text-gray-500 hover:text-gray-300'}`}
+      >
+        <span>Modo Avanzado</span>
+        <span className={`text-[10px] font-normal ${advanced ? 'text-indigo-400/80' : 'text-gray-600'}`}>Para precios más reales</span>
+      </button>
+    </div>
+
+    <div className="grid grid-cols-1 lg:grid-cols-3 gap-8 items-start">
+      {/* Columna Formularios */}
+      <div className="lg:col-span-2 space-y-6">
+
+        {/* Bloque Básico */}
+        <Card className="p-6 sm:p-8 bg-stampa-surface border-stampa-border shadow-lg">
+          <div className="mb-6">
+            <h2 className="text-lg font-bold text-white flex items-center gap-2">Datos principales</h2>
+            <p className="text-sm text-gray-400 mt-1">Estos datos alcanzan para una estimación rápida.</p>
+          </div>
+
+          <div className="space-y-6">
+            <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+              <label className="block">
+                <span className="mb-1 block text-xs font-semibold text-gray-500">Filamento a usar</span>
+                <Combobox
+                  options={filaments.map(f => ({
+                    id: f.id,
+                    label: f.name,
+                    element: <FilamentOptionLabel name={f.name} color={f.color} colorHex={f.color_hex} />
+                  }))}
+                  value={selectedFilamentId}
+                  onChange={(val) => setSelectedFilamentId(String(val))}
+                  placeholder="Seleccioná un filamento..."
+                />
+              </label>
+              <div>
+                <NumberField label="Gramos de la pieza" value={weight} onChange={setWeight} suffix="g" />
+                <p className="text-[10px] text-gray-500 mt-1 ml-1 flex items-center gap-1"><Info size={10} /> Extraelo del slicer</p>
+              </div>
+            </div>
+
+            <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
+              <label className="block sm:col-span-1">
+                <span className="mb-1 block text-xs font-semibold text-gray-500">Impresora</span>
+                <select
+                  value={selectedPrinterId}
+                  onChange={(e) => setSelectedPrinterId(e.target.value)}
+                  className="w-full text-sm rounded-xl border border-stampa-border bg-stampa-bg-soft py-2.5 px-3 text-white outline-none focus:border-[#ff6a00] focus:ring-1 focus:ring-[#ff6a00]"
+                >
+                  {printers.map(p => <option key={p.id} value={p.id}>{p.name}</option>)}
+                </select>
+              </label>
+              <div className="sm:col-span-2 grid grid-cols-2 gap-4">
+                <NumberField label="Horas" value={hours} onChange={setHours} suffix="h" step={1} />
+                <NumberField label="Minutos" value={minutes} onChange={setMinutes} suffix="m" step={1} />
+              </div>
+            </div>
+
+            <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+              <label className="block">
+                <span className="mb-1 block text-xs font-semibold text-gray-500">Tipo de producto (Margen)</span>
+                <select
+                  value={selectedMultiplierId}
+                  onChange={(e) => setSelectedMultiplierId(e.target.value)}
+                  className="w-full text-sm rounded-xl border border-stampa-border bg-stampa-bg-soft py-2.5 px-3 text-white outline-none focus:border-[#ff6a00] focus:ring-1 focus:ring-[#ff6a00]"
+                >
+                  {multipliers.map(m => <option key={m.id} value={m.id}>{m.name} (x{m.multiplier})</option>)}
+                </select>
+              </label>
+            </div>
+          </div>
+        </Card>
+
+        {/* Bloque Avanzado */}
+        {advanced && (
+          <Card className="p-6 sm:p-8 bg-stampa-surface border-indigo-500/30 shadow-lg relative overflow-hidden animate-in fade-in-50 duration-300">
+            <div className="absolute top-0 right-0 bg-indigo-500/20 text-indigo-400 text-[10px] font-bold px-3 py-1 rounded-bl-xl border-b border-l border-indigo-500/30">
+              MODO AVANZADO
+            </div>
+            <div className="mb-6 pr-24">
+              <h2 className="text-lg font-bold text-white">Costos Avanzados</h2>
+              <p className="text-sm text-gray-400 mt-1">Sumá costos extra para calcular un precio más real.</p>
+            </div>
+
+            <div className="grid grid-cols-1 gap-8 sm:grid-cols-2">
+              {/* Grupo 1 */}
+              <div className="space-y-4">
+                <h3 className="text-xs font-bold text-indigo-400 uppercase tracking-wider flex items-center gap-2 border-b border-indigo-500/20 pb-2">
+                  <span className="h-1.5 w-1.5 rounded-full bg-indigo-500"></span> Material y Taller
+                </h3>
+                <div className="space-y-3">
+                  <NumberField label="Margen de error (desperdicio)" value={manualErrorPercent} onChange={setManualErrorPercent} suffix="%" />
+                  <NumberField label="Costo por kg manual (sobreescribe)" value={manualPricePerKg} onChange={setManualPricePerKg} suffix="$" />
+                  <NumberField label="Consumo de impresora" value={manualPrinterConsumption} onChange={setManualPrinterConsumption} suffix="W" />
+                  <NumberField label="Costo del kWh eléctrico" value={manualKwhPrice} onChange={setManualKwhPrice} suffix="$" />
+                </div>
+              </div>
+
+              {/* Grupo 2 */}
+              <div className="space-y-4">
+                <h3 className="text-xs font-bold text-indigo-400 uppercase tracking-wider flex items-center gap-2 border-b border-indigo-500/20 pb-2">
+                  <span className="h-1.5 w-1.5 rounded-full bg-indigo-500"></span> Costos Extras y Márgenes
+                </h3>
+                <div className="space-y-3">
+                  <NumberField label="Mantenimiento de máquina por hora" value={manualPrinterMaintenance} onChange={setManualPrinterMaintenance} suffix="$" />
+                  <NumberField label="Costo de mano de obra (total)" value={laborCost} onChange={setLaborCost} suffix="$" />
+                  <NumberField label="Otros costos adicionales" value={otherCost} onChange={setOtherCost} suffix="$" />
+                  <NumberField label="Markup manual (sobreescribe)" value={manualMultiplier} onChange={setManualMultiplier} suffix="x" step={0.1} />
+                </div>
+              </div>
+            </div>
+
+            {/* Grupo 3 */}
+            <div className="mt-8 pt-6 border-t border-stampa-border">
+              <h3 className="text-xs font-bold text-indigo-400 uppercase tracking-wider flex items-center gap-2 mb-4">
+                <span className="h-1.5 w-1.5 rounded-full bg-indigo-500"></span> Plataforma de Venta (ML, etc.)
+              </h3>
+              <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
+                <NumberField label="Comisión plataforma" value={manualPlatformCommission} onChange={setManualPlatformCommission} suffix="%" />
+                <NumberField label="Fijo extra plataforma" value={manualPlatformExtra} onChange={setManualPlatformExtra} suffix="$" />
+                <NumberField label="Costo Envío" value={shippingCost} onChange={setShippingCost} suffix="$" />
+              </div>
+            </div>
+          </Card>
+        )}
+
       </div>
 
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-8 items-start">
-        {/* Columna Formularios */}
-        <div className="lg:col-span-2 space-y-6">
-          
-          {/* Bloque Básico */}
-          <Card className="p-6 sm:p-8 bg-stampa-surface border-stampa-border shadow-lg">
-            <div className="mb-6">
-              <h2 className="text-lg font-bold text-white flex items-center gap-2">Datos principales</h2>
-              <p className="text-sm text-gray-400 mt-1">Estos datos alcanzan para una estimación rápida.</p>
+      {/* Columna Resultado (Sticky) */}
+      <div className="lg:col-span-1 lg:sticky lg:top-6 space-y-4">
+        <Card className="p-6 bg-stampa-bg-soft border-[#ff6a00]/30 shadow-xl overflow-hidden relative">
+          <div className="absolute top-0 inset-x-0 h-1 bg-gradient-to-r from-transparent via-[#ff6a00] to-transparent opacity-50" />
+
+          <h3 className="text-sm font-bold text-white flex items-center gap-2 border-b border-stampa-border pb-3 mb-4">
+            <DollarSign size={18} className="text-stampa-orange" /> Resumen del cálculo
+          </h3>
+
+          <div className="space-y-3 mb-6">
+            <div className="flex items-center justify-between">
+              <p className="text-xs text-gray-500">Material</p>
+              <p className="text-sm font-medium text-gray-300">${calc.materialCost.toFixed(2)}</p>
             </div>
-            
-            <div className="space-y-6">
-              <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+            <div className="flex items-center justify-between">
+              <p className="text-xs text-gray-500">Electricidad</p>
+              <p className="text-sm font-medium text-gray-300">${calc.energyCost.toFixed(2)}</p>
+            </div>
+            <div className="flex items-center justify-between">
+              <p className="text-xs text-gray-500">Mantenimiento</p>
+              <p className="text-sm font-medium text-gray-300">${calc.printerCost.toFixed(2)}</p>
+            </div>
+            <div className="flex items-center justify-between">
+              <p className="text-xs text-gray-500">Costo Fijo</p>
+              <p className="text-sm font-medium text-gray-300">${calc.fixedCost.toFixed(2)}</p>
+            </div>
+            {advanced && (laborCost > 0 || otherCost > 0) && (
+              <div className="flex items-center justify-between">
+                <p className="text-xs text-gray-500">Mano obra y otros</p>
+                <p className="text-sm font-medium text-gray-300">${(laborCost + otherCost).toFixed(2)}</p>
+              </div>
+            )}
+          </div>
+
+          <div className="bg-stampa-surface border border-stampa-border rounded-xl p-4 space-y-3">
+            <div className="flex items-center justify-between border-b border-stampa-border pb-3">
+              <p className="text-xs font-bold text-gray-500 uppercase tracking-wider">Costo Base</p>
+              <p className="text-base font-bold text-white">${calc.baseCost.toFixed(2)}</p>
+            </div>
+            <div className="flex items-center justify-between">
+              <p className="text-xs font-bold text-emerald-500/80 uppercase tracking-wider">Precio Sugerido</p>
+              <p className="text-2xl font-black text-emerald-400">${calc.normalPrice.toFixed(2)}</p>
+            </div>
+            <div className="flex items-center justify-between mt-1">
+              <p className="text-[10px] text-gray-500 uppercase tracking-wider">Ganancia estimada</p>
+              <p className="text-xs font-bold text-emerald-500">${calc.profit.toFixed(2)}</p>
+            </div>
+          </div>
+
+          {advanced && (
+            <div className="mt-4 bg-indigo-500/10 border border-indigo-500/20 rounded-xl p-4">
+              <p className="text-[10px] font-bold text-indigo-400/80 uppercase tracking-wider mb-1">Precio p/ Mercado Libre</p>
+              <p className="text-xl font-black text-indigo-400">${calc.mlPrice.toFixed(2)}</p>
+              <p className="text-[10px] text-indigo-400/60 mt-1 leading-tight">Incluye comisiones, extras y envíos.</p>
+            </div>
+          )}
+        </Card>
+
+        {/* Acciones */}
+        <div className="space-y-3">
+          <button
+            onClick={openSaveModal}
+            disabled={!hasValidCalc}
+            className="w-full flex items-center justify-center gap-2 px-4 py-3.5 rounded-xl bg-stampa-orange hover:bg-stampa-orange-hover text-white text-sm font-bold transition-all shadow-lg shadow-[#ff6a00]/10 disabled:opacity-50 disabled:cursor-not-allowed"
+          >
+            <PackagePlus size={18} /> Guardar como producto
+          </button>
+          <Link
+            href="/presupuestos"
+            className="w-full flex items-center justify-center gap-2 px-4 py-3.5 rounded-xl bg-stampa-surface hover:bg-white/5 border border-stampa-border text-white text-sm font-bold transition-all"
+          >
+            <FileText size={18} /> Crear presupuesto
+          </Link>
+          <p className="text-[11px] text-center text-gray-500 leading-tight px-4">
+            Después de calcular, podés guardar la pieza para reutilizarla en presupuestos.
+          </p>
+        </div>
+      </div>
+    </div>
+
+    {/* MODAL: GUARDAR COMO PRODUCTO */}
+    {showSaveModal && (
+      <div className="fixed inset-0 z-50 flex items-center justify-center bg-stampa-bg/60 backdrop-blur-sm p-4">
+        <div className="bg-stampa-surface w-full max-w-md rounded-2xl border border-stampa-border shadow-2xl overflow-hidden animate-in zoom-in-95 duration-200">
+          <div className="flex items-center justify-between px-6 py-4 border-b border-stampa-border bg-stampa-bg-soft">
+            <h3 className="font-bold text-white flex items-center gap-2">
+              <PackagePlus size={18} className="text-stampa-orange" /> Guardar como producto
+            </h3>
+            <button onClick={() => setShowSaveModal(false)} className="text-gray-400 hover:text-white transition-colors">
+              <X size={20} />
+            </button>
+          </div>
+
+          {saveSuccess ? (
+            <div className="p-8 text-center bg-stampa-surface">
+              <div className="mx-auto w-16 h-16 bg-emerald-500/10 rounded-full flex items-center justify-center mb-4 border border-emerald-500/20">
+                <CheckCircle2 size={32} className="text-emerald-400" />
+              </div>
+              <p className="font-bold text-white text-lg mb-1">¡Producto guardado!</p>
+              <p className="text-sm text-gray-400 mb-8">El producto fue agregado a tu catálogo.</p>
+              <div className="flex gap-3 justify-center">
+                <Link href="/productos" className="px-5 py-2.5 bg-stampa-orange text-white rounded-xl text-sm font-bold hover:bg-stampa-orange-hover transition-colors shadow-lg shadow-[#ff6a00]/20">
+                  Ver catálogo
+                </Link>
+                <button onClick={() => setShowSaveModal(false)} className="px-5 py-2.5 bg-[#1a1a1a] border border-stampa-border text-white rounded-xl text-sm font-bold hover:bg-white/5 transition-colors">
+                  Seguir calculando
+                </button>
+              </div>
+            </div>
+          ) : (
+            <div className="p-6 space-y-5 bg-stampa-surface">
+              {/* Resumen del cálculo */}
+              <div className="bg-stampa-bg-soft p-3 rounded-xl border border-stampa-border grid grid-cols-3 gap-2 text-center">
+                <div>
+                  <p className="font-bold text-white text-sm">${calc.baseCost.toFixed(2)}</p>
+                  <p className="text-[10px] text-gray-500 uppercase tracking-wider">Costo Base</p>
+                </div>
+                <div className="border-x border-stampa-border">
+                  <p className="font-bold text-stampa-orange text-sm">${calc.normalPrice.toFixed(2)}</p>
+                  <p className="text-[10px] text-gray-500 uppercase tracking-wider">Precio</p>
+                </div>
+                <div>
+                  <p className="font-bold text-emerald-400 text-sm">${calc.profit.toFixed(2)}</p>
+                  <p className="text-[10px] text-gray-500 uppercase tracking-wider">Ganancia</p>
+                </div>
+              </div>
+
+              <div className="space-y-4">
                 <label className="block">
-                  <span className="mb-1 block text-xs font-semibold text-gray-500">Filamento a usar</span>
-                  <Combobox
-                    options={filaments.map(f => ({
-                      id: f.id,
-                      label: f.name,
-                      element: <FilamentOptionLabel name={f.name} color={f.color} colorHex={f.color_hex} />
-                    }))}
-                    value={selectedFilamentId}
-                    onChange={(val) => setSelectedFilamentId(String(val))}
-                    placeholder="Seleccioná un filamento..."
+                  <span className="block text-xs font-semibold text-gray-400 mb-1.5">Nombre del producto *</span>
+                  <input
+                    type="text"
+                    value={productForm.name}
+                    onChange={(e) => setProductForm(prev => ({ ...prev, name: e.target.value }))}
+                    className="w-full text-sm rounded-xl border border-stampa-border bg-stampa-bg-soft px-3 py-2.5 text-white outline-none focus:border-[#ff6a00] focus:ring-1 focus:ring-[#ff6a00]"
+                    placeholder="Ej. Maceta geométrica 15cm"
                   />
                 </label>
-                <div>
-                  <NumberField label="Gramos de la pieza" value={weight} onChange={setWeight} suffix="g" />
-                  <p className="text-[10px] text-gray-500 mt-1 ml-1 flex items-center gap-1"><Info size={10} /> Extraelo del slicer</p>
-                </div>
-              </div>
 
-              <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
-                <label className="block sm:col-span-1">
-                  <span className="mb-1 block text-xs font-semibold text-gray-500">Impresora</span>
-                  <select 
-                    value={selectedPrinterId} 
-                    onChange={(e) => setSelectedPrinterId(e.target.value)} 
-                    className="w-full text-sm rounded-xl border border-stampa-border bg-stampa-bg-soft py-2.5 px-3 text-white outline-none focus:border-[#ff6a00] focus:ring-1 focus:ring-[#ff6a00]"
-                  >
-                    {printers.map(p => <option key={p.id} value={p.id}>{p.name}</option>)}
-                  </select>
-                </label>
-                <div className="sm:col-span-2 grid grid-cols-2 gap-4">
-                  <NumberField label="Horas" value={hours} onChange={setHours} suffix="h" step={1} />
-                  <NumberField label="Minutos" value={minutes} onChange={setMinutes} suffix="m" step={1} />
-                </div>
-              </div>
-
-              <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
                 <label className="block">
-                  <span className="mb-1 block text-xs font-semibold text-gray-500">Tipo de producto (Margen)</span>
-                  <select 
-                    value={selectedMultiplierId} 
-                    onChange={(e) => setSelectedMultiplierId(e.target.value)} 
-                    className="w-full text-sm rounded-xl border border-stampa-border bg-stampa-bg-soft py-2.5 px-3 text-white outline-none focus:border-[#ff6a00] focus:ring-1 focus:ring-[#ff6a00]"
-                  >
-                    {multipliers.map(m => <option key={m.id} value={m.id}>{m.name} (x{m.multiplier})</option>)}
-                  </select>
+                  <span className="block text-xs font-semibold text-gray-400 mb-1.5">Descripción (Opcional)</span>
+                  <textarea
+                    value={productForm.description}
+                    onChange={(e) => setProductForm(prev => ({ ...prev, description: e.target.value }))}
+                    rows={2}
+                    className="w-full text-sm rounded-xl border border-stampa-border bg-stampa-bg-soft px-3 py-2.5 text-white outline-none focus:border-[#ff6a00] focus:ring-1 focus:ring-[#ff6a00]"
+                  />
                 </label>
-              </div>
-            </div>
-          </Card>
 
-          {/* Bloque Avanzado */}
-          {advanced && (
-            <Card className="p-6 sm:p-8 bg-stampa-surface border-indigo-500/30 shadow-lg relative overflow-hidden animate-in fade-in-50 duration-300">
-              <div className="absolute top-0 right-0 bg-indigo-500/20 text-indigo-400 text-[10px] font-bold px-3 py-1 rounded-bl-xl border-b border-l border-indigo-500/30">
-                MODO AVANZADO
-              </div>
-              <div className="mb-6 pr-24">
-                <h2 className="text-lg font-bold text-white">Costos Avanzados</h2>
-                <p className="text-sm text-gray-400 mt-1">Sumá costos extra para calcular un precio más real.</p>
-              </div>
-              
-              <div className="grid grid-cols-1 gap-8 sm:grid-cols-2">
-                {/* Grupo 1 */}
-                <div className="space-y-4">
-                  <h3 className="text-xs font-bold text-indigo-400 uppercase tracking-wider flex items-center gap-2 border-b border-indigo-500/20 pb-2">
-                    <span className="h-1.5 w-1.5 rounded-full bg-indigo-500"></span> Material y Taller
-                  </h3>
-                  <div className="space-y-3">
-                    <NumberField label="Margen de error (desperdicio)" value={manualErrorPercent} onChange={setManualErrorPercent} suffix="%" />
-                    <NumberField label="Costo por kg manual (sobreescribe)" value={manualPricePerKg} onChange={setManualPricePerKg} suffix="$" />
-                    <NumberField label="Consumo de impresora" value={manualPrinterConsumption} onChange={setManualPrinterConsumption} suffix="W" />
-                    <NumberField label="Costo del kWh eléctrico" value={manualKwhPrice} onChange={setManualKwhPrice} suffix="$" />
+                <label className="block">
+                  <span className="block text-xs font-semibold text-gray-400 mb-1.5">Stock inicial</span>
+                  <input
+                    type="number"
+                    min="0"
+                    value={productForm.stock_quantity}
+                    onChange={(e) => setProductForm(prev => ({ ...prev, stock_quantity: parseInt(e.target.value) || 0 }))}
+                    className="w-full text-sm rounded-xl border border-stampa-border bg-stampa-bg-soft px-3 py-2.5 text-white outline-none focus:border-[#ff6a00] focus:ring-1 focus:ring-[#ff6a00]"
+                  />
+                </label>
+
+                <div className="block">
+                  <span className="block text-xs font-semibold text-gray-400 mb-1.5">Imagen del producto (Opcional)</span>
+                  <div className="bg-stampa-bg-soft rounded-xl border border-stampa-border p-1">
+                    <FileUploadDropzone
+                      bucket="product-images"
+                      pathPrefix={`${userId}/products`}
+                      accept=".jpg,.jpeg,.png,.webp"
+                      publicBucket={true}
+                      onUploaded={(url) => setProductForm(prev => ({ ...prev, image_url: url }))}
+                      label="Subir imagen"
+                    />
                   </div>
-                </div>
-
-                {/* Grupo 2 */}
-                <div className="space-y-4">
-                  <h3 className="text-xs font-bold text-indigo-400 uppercase tracking-wider flex items-center gap-2 border-b border-indigo-500/20 pb-2">
-                    <span className="h-1.5 w-1.5 rounded-full bg-indigo-500"></span> Costos Extras y Márgenes
-                  </h3>
-                  <div className="space-y-3">
-                    <NumberField label="Mantenimiento de máquina por hora" value={manualPrinterMaintenance} onChange={setManualPrinterMaintenance} suffix="$" />
-                    <NumberField label="Costo de mano de obra (total)" value={laborCost} onChange={setLaborCost} suffix="$" />
-                    <NumberField label="Otros costos adicionales" value={otherCost} onChange={setOtherCost} suffix="$" />
-                    <NumberField label="Markup manual (sobreescribe)" value={manualMultiplier} onChange={setManualMultiplier} suffix="x" step={0.1} />
-                  </div>
+                  {productForm.image_url && (
+                    <div className="mt-2 flex items-center gap-2 p-2 rounded-lg bg-white/5 border border-stampa-border">
+                      <img src={productForm.image_url} alt="Preview" className="h-10 w-10 rounded object-cover" />
+                      <span className="text-xs text-gray-400 truncate pr-2">{productForm.image_url}</span>
+                    </div>
+                  )}
                 </div>
               </div>
 
-              {/* Grupo 3 */}
-              <div className="mt-8 pt-6 border-t border-stampa-border">
-                <h3 className="text-xs font-bold text-indigo-400 uppercase tracking-wider flex items-center gap-2 mb-4">
-                  <span className="h-1.5 w-1.5 rounded-full bg-indigo-500"></span> Plataforma de Venta (ML, etc.)
-                </h3>
-                <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
-                  <NumberField label="Comisión plataforma" value={manualPlatformCommission} onChange={setManualPlatformCommission} suffix="%" />
-                  <NumberField label="Fijo extra plataforma" value={manualPlatformExtra} onChange={setManualPlatformExtra} suffix="$" />
-                  <NumberField label="Costo Envío" value={shippingCost} onChange={setShippingCost} suffix="$" />
-                </div>
-              </div>
-            </Card>
-          )}
-
-        </div>
-
-        {/* Columna Resultado (Sticky) */}
-        <div className="lg:col-span-1 lg:sticky lg:top-6 space-y-4">
-          <Card className="p-6 bg-stampa-bg-soft border-[#ff6a00]/30 shadow-xl overflow-hidden relative">
-            <div className="absolute top-0 inset-x-0 h-1 bg-gradient-to-r from-transparent via-[#ff6a00] to-transparent opacity-50" />
-            
-            <h3 className="text-sm font-bold text-white flex items-center gap-2 border-b border-stampa-border pb-3 mb-4">
-              <DollarSign size={18} className="text-stampa-orange" /> Resumen del cálculo
-            </h3>
-            
-            <div className="space-y-3 mb-6">
-              <div className="flex items-center justify-between">
-                <p className="text-xs text-gray-500">Material</p>
-                <p className="text-sm font-medium text-gray-300">${calc.materialCost.toFixed(2)}</p>
-              </div>
-              <div className="flex items-center justify-between">
-                <p className="text-xs text-gray-500">Electricidad</p>
-                <p className="text-sm font-medium text-gray-300">${calc.energyCost.toFixed(2)}</p>
-              </div>
-              <div className="flex items-center justify-between">
-                <p className="text-xs text-gray-500">Mantenimiento</p>
-                <p className="text-sm font-medium text-gray-300">${calc.printerCost.toFixed(2)}</p>
-              </div>
-              <div className="flex items-center justify-between">
-                <p className="text-xs text-gray-500">Costo Fijo</p>
-                <p className="text-sm font-medium text-gray-300">${calc.fixedCost.toFixed(2)}</p>
-              </div>
-              {advanced && (laborCost > 0 || otherCost > 0) && (
-                <div className="flex items-center justify-between">
-                  <p className="text-xs text-gray-500">Mano obra y otros</p>
-                  <p className="text-sm font-medium text-gray-300">${(laborCost + otherCost).toFixed(2)}</p>
+              {saveError && (
+                <div className="bg-red-500/10 text-red-400 p-3 rounded-xl text-xs border border-red-500/20 flex items-center gap-2">
+                  <AlertCircle size={14} className="shrink-0" /> {saveError}
                 </div>
               )}
+
+              <div className="flex justify-end gap-3 pt-4 border-t border-stampa-border mt-2">
+                <button onClick={() => setShowSaveModal(false)} className="px-5 py-2.5 text-sm font-bold text-gray-400 hover:text-white transition-colors">
+                  Cancelar
+                </button>
+                <button
+                  onClick={handleSaveAsProduct}
+                  disabled={savingProduct}
+                  className="flex items-center gap-2 px-5 py-2.5 text-sm font-bold bg-stampa-orange hover:bg-stampa-orange-hover text-white rounded-xl disabled:opacity-50 transition-colors shadow-lg shadow-[#ff6a00]/20"
+                >
+                  {savingProduct ? <Loader2 size={16} className="animate-spin" /> : <Save size={16} />}
+                  Guardar
+                </button>
+              </div>
             </div>
-
-            <div className="bg-stampa-surface border border-stampa-border rounded-xl p-4 space-y-3">
-              <div className="flex items-center justify-between border-b border-stampa-border pb-3">
-                <p className="text-xs font-bold text-gray-500 uppercase tracking-wider">Costo Base</p>
-                <p className="text-base font-bold text-white">${calc.baseCost.toFixed(2)}</p>
-              </div>
-              <div className="flex items-center justify-between">
-                <p className="text-xs font-bold text-emerald-500/80 uppercase tracking-wider">Precio Sugerido</p>
-                <p className="text-2xl font-black text-emerald-400">${calc.normalPrice.toFixed(2)}</p>
-              </div>
-              <div className="flex items-center justify-between mt-1">
-                <p className="text-[10px] text-gray-500 uppercase tracking-wider">Ganancia estimada</p>
-                <p className="text-xs font-bold text-emerald-500">${calc.profit.toFixed(2)}</p>
-              </div>
-            </div>
-
-            {advanced && (
-              <div className="mt-4 bg-indigo-500/10 border border-indigo-500/20 rounded-xl p-4">
-                <p className="text-[10px] font-bold text-indigo-400/80 uppercase tracking-wider mb-1">Precio p/ Mercado Libre</p>
-                <p className="text-xl font-black text-indigo-400">${calc.mlPrice.toFixed(2)}</p>
-                <p className="text-[10px] text-indigo-400/60 mt-1 leading-tight">Incluye comisiones, extras y envíos.</p>
-              </div>
-            )}
-          </Card>
-
-          {/* Acciones */}
-          <div className="space-y-3">
-            <button
-              onClick={openSaveModal}
-              disabled={!hasValidCalc}
-              className="w-full flex items-center justify-center gap-2 px-4 py-3.5 rounded-xl bg-stampa-orange hover:bg-stampa-orange-hover text-white text-sm font-bold transition-all shadow-lg shadow-[#ff6a00]/10 disabled:opacity-50 disabled:cursor-not-allowed"
-            >
-              <PackagePlus size={18} /> Guardar como producto
-            </button>
-            <Link
-              href="/presupuestos"
-              className="w-full flex items-center justify-center gap-2 px-4 py-3.5 rounded-xl bg-stampa-surface hover:bg-white/5 border border-stampa-border text-white text-sm font-bold transition-all"
-            >
-              <FileText size={18} /> Crear presupuesto
-            </Link>
-            <p className="text-[11px] text-center text-gray-500 leading-tight px-4">
-              Después de calcular, podés guardar la pieza para reutilizarla en presupuestos.
-            </p>
-          </div>
+          )}
         </div>
       </div>
-
-      {/* MODAL: GUARDAR COMO PRODUCTO */}
-      {showSaveModal && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-stampa-bg/60 backdrop-blur-sm p-4">
-          <div className="bg-stampa-surface w-full max-w-md rounded-2xl border border-stampa-border shadow-2xl overflow-hidden animate-in zoom-in-95 duration-200">
-            <div className="flex items-center justify-between px-6 py-4 border-b border-stampa-border bg-stampa-bg-soft">
-              <h3 className="font-bold text-white flex items-center gap-2">
-                <PackagePlus size={18} className="text-stampa-orange" /> Guardar como producto
-              </h3>
-              <button onClick={() => setShowSaveModal(false)} className="text-gray-400 hover:text-white transition-colors">
-                <X size={20} />
-              </button>
-            </div>
-
-            {saveSuccess ? (
-              <div className="p-8 text-center bg-stampa-surface">
-                <div className="mx-auto w-16 h-16 bg-emerald-500/10 rounded-full flex items-center justify-center mb-4 border border-emerald-500/20">
-                  <CheckCircle2 size={32} className="text-emerald-400" />
-                </div>
-                <p className="font-bold text-white text-lg mb-1">¡Producto guardado!</p>
-                <p className="text-sm text-gray-400 mb-8">El producto fue agregado a tu catálogo.</p>
-                <div className="flex gap-3 justify-center">
-                  <Link href="/productos" className="px-5 py-2.5 bg-stampa-orange text-white rounded-xl text-sm font-bold hover:bg-stampa-orange-hover transition-colors shadow-lg shadow-[#ff6a00]/20">
-                    Ver catálogo
-                  </Link>
-                  <button onClick={() => setShowSaveModal(false)} className="px-5 py-2.5 bg-[#1a1a1a] border border-stampa-border text-white rounded-xl text-sm font-bold hover:bg-white/5 transition-colors">
-                    Seguir calculando
-                  </button>
-                </div>
-              </div>
-            ) : (
-              <div className="p-6 space-y-5 bg-stampa-surface">
-                {/* Resumen del cálculo */}
-                <div className="bg-stampa-bg-soft p-3 rounded-xl border border-stampa-border grid grid-cols-3 gap-2 text-center">
-                  <div>
-                    <p className="font-bold text-white text-sm">${calc.baseCost.toFixed(2)}</p>
-                    <p className="text-[10px] text-gray-500 uppercase tracking-wider">Costo Base</p>
-                  </div>
-                  <div className="border-x border-stampa-border">
-                    <p className="font-bold text-stampa-orange text-sm">${calc.normalPrice.toFixed(2)}</p>
-                    <p className="text-[10px] text-gray-500 uppercase tracking-wider">Precio</p>
-                  </div>
-                  <div>
-                    <p className="font-bold text-emerald-400 text-sm">${calc.profit.toFixed(2)}</p>
-                    <p className="text-[10px] text-gray-500 uppercase tracking-wider">Ganancia</p>
-                  </div>
-                </div>
-
-                <div className="space-y-4">
-                  <label className="block">
-                    <span className="block text-xs font-semibold text-gray-400 mb-1.5">Nombre del producto *</span>
-                    <input
-                      type="text"
-                      value={productForm.name}
-                      onChange={(e) => setProductForm(prev => ({ ...prev, name: e.target.value }))}
-                      className="w-full text-sm rounded-xl border border-stampa-border bg-stampa-bg-soft px-3 py-2.5 text-white outline-none focus:border-[#ff6a00] focus:ring-1 focus:ring-[#ff6a00]"
-                      placeholder="Ej. Maceta geométrica 15cm"
-                    />
-                  </label>
-
-                  <label className="block">
-                    <span className="block text-xs font-semibold text-gray-400 mb-1.5">Descripción (Opcional)</span>
-                    <textarea
-                      value={productForm.description}
-                      onChange={(e) => setProductForm(prev => ({ ...prev, description: e.target.value }))}
-                      rows={2}
-                      className="w-full text-sm rounded-xl border border-stampa-border bg-stampa-bg-soft px-3 py-2.5 text-white outline-none focus:border-[#ff6a00] focus:ring-1 focus:ring-[#ff6a00]"
-                    />
-                  </label>
-
-                  <label className="block">
-                    <span className="block text-xs font-semibold text-gray-400 mb-1.5">Stock inicial</span>
-                    <input
-                      type="number"
-                      min="0"
-                      value={productForm.stock_quantity}
-                      onChange={(e) => setProductForm(prev => ({ ...prev, stock_quantity: parseInt(e.target.value) || 0 }))}
-                      className="w-full text-sm rounded-xl border border-stampa-border bg-stampa-bg-soft px-3 py-2.5 text-white outline-none focus:border-[#ff6a00] focus:ring-1 focus:ring-[#ff6a00]"
-                    />
-                  </label>
-
-                  <div className="block">
-                    <span className="block text-xs font-semibold text-gray-400 mb-1.5">Imagen del producto (Opcional)</span>
-                    <div className="bg-stampa-bg-soft rounded-xl border border-stampa-border p-1">
-                      <FileUploadDropzone
-                        bucket="product-images"
-                        pathPrefix={`${userId}/products`}
-                        accept=".jpg,.jpeg,.png,.webp"
-                        publicBucket={true}
-                        onUploaded={(url) => setProductForm(prev => ({ ...prev, image_url: url }))}
-                        label="Subir imagen"
-                      />
-                    </div>
-                    {productForm.image_url && (
-                      <div className="mt-2 flex items-center gap-2 p-2 rounded-lg bg-white/5 border border-stampa-border">
-                        <img src={productForm.image_url} alt="Preview" className="h-10 w-10 rounded object-cover" />
-                        <span className="text-xs text-gray-400 truncate pr-2">{productForm.image_url}</span>
-                      </div>
-                    )}
-                  </div>
-                </div>
-
-                {saveError && (
-                  <div className="bg-red-500/10 text-red-400 p-3 rounded-xl text-xs border border-red-500/20 flex items-center gap-2">
-                    <AlertCircle size={14} className="shrink-0" /> {saveError}
-                  </div>
-                )}
-
-                <div className="flex justify-end gap-3 pt-4 border-t border-stampa-border mt-2">
-                  <button onClick={() => setShowSaveModal(false)} className="px-5 py-2.5 text-sm font-bold text-gray-400 hover:text-white transition-colors">
-                    Cancelar
-                  </button>
-                  <button
-                    onClick={handleSaveAsProduct}
-                    disabled={savingProduct}
-                    className="flex items-center gap-2 px-5 py-2.5 text-sm font-bold bg-stampa-orange hover:bg-stampa-orange-hover text-white rounded-xl disabled:opacity-50 transition-colors shadow-lg shadow-[#ff6a00]/20"
-                  >
-                    {savingProduct ? <Loader2 size={16} className="animate-spin" /> : <Save size={16} />}
-                    Guardar
-                  </button>
-                </div>
-              </div>
-            )}
-          </div>
-        </div>
-      )}
-    </div>;
+    )}
+  </div>;
 }

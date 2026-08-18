@@ -23,19 +23,19 @@ export default function CursoDetailPage({ params }: PageProps) {
   const [resources, setResources] = useState<Record<string, any[]>>({});
   const [progress, setProgress] = useState<Record<string, boolean>>({});
   const [user, setUser] = useState<any>(null);
-  
+
   const [activeLesson, setActiveLesson] = useState<any>(null);
   const [loading, setLoading] = useState(true);
   const [markingProgress, setMarkingProgress] = useState(false);
   const [openModules, setOpenModules] = useState<Record<string, boolean>>({});
   const [completedBanner, setCompletedBanner] = useState(false);
-  
+
   const supabase = createClient();
 
   useEffect(() => {
     const fetchCourseData = async () => {
       setLoading(true);
-      
+
       const { data: { user } } = await supabase.auth.getUser();
       setUser(user);
 
@@ -77,7 +77,7 @@ export default function CursoDetailPage({ params }: PageProps) {
               grouped[l.module_id].push(l);
             });
             setLessons(grouped);
-            
+
             // Set first lesson as active by default
             const firstModule = modulesData[0];
             if (firstModule && grouped[firstModule.id] && grouped[firstModule.id].length > 0) {
@@ -93,7 +93,7 @@ export default function CursoDetailPage({ params }: PageProps) {
                 .in("lesson_id", lessonIds)
                 .eq("is_active", true)
                 .order("sort_order", { ascending: true });
-              
+
               if (resourcesData) {
                 const resGrouped: Record<string, any[]> = {};
                 resourcesData.forEach(r => {
@@ -110,7 +110,7 @@ export default function CursoDetailPage({ params }: PageProps) {
                   .select("*")
                   .eq("user_id", user.id)
                   .in("lesson_id", lessonIds);
-                
+
                 if (progressData) {
                   const progGrouped: Record<string, boolean> = {};
                   progressData.forEach(p => {
@@ -177,7 +177,7 @@ export default function CursoDetailPage({ params }: PageProps) {
         .delete()
         .eq("user_id", user.id)
         .eq("lesson_id", activeLesson.id);
-        
+
       if (error) {
         console.error("Error al borrar progreso:", error);
       } else {
@@ -188,20 +188,20 @@ export default function CursoDetailPage({ params }: PageProps) {
       const { error } = await supabase
         .from("lesson_progress")
         .upsert(
-          { 
-            user_id: user.id, 
-            lesson_id: activeLesson.id, 
-            completed_at: new Date().toISOString() 
+          {
+            user_id: user.id,
+            lesson_id: activeLesson.id,
+            completed_at: new Date().toISOString()
           },
           { onConflict: "user_id,lesson_id" }
         );
-        
+
       if (error) {
         console.error("Error al guardar progreso:", error);
         setMarkingProgress(false);
       } else {
         setProgress(prev => ({ ...prev, [activeLesson.id]: true }));
-        
+
         // Find next lesson
         const next = getNextLesson();
         if (next) {
@@ -258,7 +258,7 @@ export default function CursoDetailPage({ params }: PageProps) {
   const allLessons = Object.values(lessons).flat();
   const totalLessons = allLessons.length;
   const totalDuration = allLessons.reduce((acc, l) => acc + (l.duration_minutes || 0), 0);
-  
+
   const completedCount = Object.values(progress).filter(Boolean).length;
   const progressPercent = totalLessons > 0 ? Math.round((completedCount / totalLessons) * 100) : 0;
 
@@ -313,27 +313,27 @@ export default function CursoDetailPage({ params }: PageProps) {
       }
       return (
         <div className="aspect-video rounded-2xl overflow-hidden bg-stampa-bg border border-stampa-border shadow-2xl">
-          <iframe 
-            src={`https://player.vimeo.com/video/${vimeoId}`} 
-            className="w-full h-full" 
-            allow="autoplay; fullscreen; picture-in-picture" 
+          <iframe
+            src={`https://player.vimeo.com/video/${vimeoId}`}
+            className="w-full h-full"
+            allow="autoplay; fullscreen; picture-in-picture"
             allowFullScreen
           ></iframe>
         </div>
       );
     }
-    
+
     if (url.includes('youtube.com') || url.includes('youtu.be')) {
       let ytId = '';
       if (url.includes('youtu.be/')) ytId = url.split('youtu.be/')[1].split('?')[0];
       else if (url.includes('v=')) ytId = url.split('v=')[1].split('&')[0];
-      
+
       return (
-         <div className="aspect-video rounded-2xl overflow-hidden bg-stampa-bg border border-stampa-border shadow-2xl">
-          <iframe 
-            src={`https://www.youtube.com/embed/${ytId}`} 
-            className="w-full h-full" 
-            allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture" 
+        <div className="aspect-video rounded-2xl overflow-hidden bg-stampa-bg border border-stampa-border shadow-2xl">
+          <iframe
+            src={`https://www.youtube.com/embed/${ytId}`}
+            className="w-full h-full"
+            allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
             allowFullScreen
           ></iframe>
         </div>
@@ -358,7 +358,7 @@ export default function CursoDetailPage({ params }: PageProps) {
 
       {/* Header del Curso Premium */}
       <div className="relative overflow-hidden rounded-3xl bg-stampa-surface border border-stampa-border p-8 shadow-2xl">
-        <div className="absolute inset-0 bg-gradient-to-r from-[#ff6a00]/10 via-transparent to-transparent opacity-50" />
+        <div className="absolute inset-0 bg-gradient-to-r from-[#ff6a00]/20 via-transparent to-transparent opacity-50" />
         <div className="relative z-10">
           <div className="flex flex-wrap items-center gap-3 mb-4">
             <span className={`${getCourseLevelClasses(course)} shadow-sm`}>
@@ -379,9 +379,9 @@ export default function CursoDetailPage({ params }: PageProps) {
       <div className="grid grid-cols-1 gap-8 lg:grid-cols-3">
         {/* Columna Principal: Video y Detalles */}
         <div className="lg:col-span-2 space-y-6">
-          
+
           {renderVideo()}
-          
+
           <div className="flex flex-col gap-4">
             <div className="flex flex-col sm:flex-row sm:items-start justify-between gap-4">
               <h2 className="text-xl font-bold text-white flex items-center gap-2">
@@ -390,14 +390,13 @@ export default function CursoDetailPage({ params }: PageProps) {
               </h2>
               {user && activeLesson && (
                 <div className="flex flex-wrap gap-2 sm:shrink-0">
-                  <button 
+                  <button
                     onClick={handleToggleProgress}
                     disabled={markingProgress}
-                    className={`inline-flex items-center justify-center gap-2 px-4 py-2 rounded-xl text-sm font-bold transition-all ${
-                      progress[activeLesson.id] 
-                        ? "bg-green-500/10 text-green-400 border border-green-500/20 hover:bg-green-500/20" 
+                    className={`inline-flex items-center justify-center gap-2 px-4 py-2 rounded-xl text-sm font-bold transition-all ${progress[activeLesson.id]
+                        ? "bg-green-500/10 text-green-400 border border-green-500/20 hover:bg-green-500/20"
                         : "bg-stampa-surface text-gray-300 border border-stampa-border hover:border-white/20 hover:bg-white/5"
-                    }`}
+                      }`}
                   >
                     {markingProgress ? <Loader2 className="animate-spin h-4 w-4" /> : <CheckCircle2 className="h-4 w-4" />}
                     {progress[activeLesson.id] ? "Completada" : "Marcar completada"}
@@ -405,7 +404,7 @@ export default function CursoDetailPage({ params }: PageProps) {
                   {(() => {
                     const next = getNextLesson();
                     return next ? (
-                      <button 
+                      <button
                         onClick={() => setActiveLesson(next)}
                         className="inline-flex items-center justify-center gap-2 px-4 py-2 rounded-xl text-sm font-bold transition-all bg-stampa-orange text-white hover:bg-[#e65c00] shadow-lg shadow-[#ff6a00]/20"
                       >
@@ -484,7 +483,7 @@ export default function CursoDetailPage({ params }: PageProps) {
               <h3 className="text-sm font-bold text-white">Contenido del curso</h3>
               <span className="text-xs font-semibold text-gray-500">{completedCount} de {totalLessons}</span>
             </div>
-            
+
             <div className="divide-y divide-white/5 overflow-y-auto overflow-x-hidden flex-1 scrollbar-thin scrollbar-thumb-white/10 scrollbar-track-transparent">
               {modules.map((m) => {
                 const isOpen = !!openModules[m.id];
@@ -510,7 +509,7 @@ export default function CursoDetailPage({ params }: PageProps) {
                         {isOpen ? <ChevronDown size={14} /> : <ChevronRight size={14} />}
                       </div>
                     </button>
-                    
+
                     {isOpen && (
                       <div className="bg-stampa-bg-soft px-3 py-2 space-y-1 shadow-inner">
                         {(lessons[m.id] || []).map((lesson) => {
@@ -520,11 +519,10 @@ export default function CursoDetailPage({ params }: PageProps) {
                             <button
                               key={lesson.id}
                               onClick={() => setActiveLesson(lesson)}
-                              className={`group flex w-full items-center gap-3 rounded-xl px-3 py-3 text-left transition-all ${
-                                isActive 
-                                  ? "bg-stampa-orange/10 border border-[#ff6a00]/20 text-stampa-orange" 
+                              className={`group flex w-full items-center gap-3 rounded-xl px-3 py-3 text-left transition-all ${isActive
+                                  ? "bg-stampa-orange/10 border border-[#ff6a00]/20 text-stampa-orange"
                                   : "border border-transparent hover:bg-white/5 hover:border-stampa-border text-gray-400"
-                              }`}
+                                }`}
                             >
                               <div className="shrink-0 flex items-center justify-center w-6 h-6">
                                 {isCompleted ? (
@@ -589,7 +587,7 @@ export default function CursoDetailPage({ params }: PageProps) {
         </div>
       </div>
       {activeLesson && (
-        <StampyLessonChat 
+        <StampyLessonChat
           courseTitle={course.title}
           moduleTitle={modules.find(m => m.id === activeLesson.module_id)?.title || ''}
           lesson={activeLesson}
