@@ -521,7 +521,7 @@ export default function StockPage() {
   if (loading) return <div className="py-24 flex justify-center"><Loader2 className="animate-spin h-8 w-8 text-orange-500" /></div>;
 
   return (
-    <div>
+    <div className="pb-24">
       <SectionTitle
         eyebrow="Mi taller"
         title="Stock"
@@ -581,11 +581,11 @@ export default function StockPage() {
         </div>
       )}
 
-      <div className="mb-6 flex items-center justify-between border-b border-white/10 flex-wrap gap-2 pb-2 sm:pb-0">
-        <div className="flex">
+      <div className="mb-6 flex flex-col sm:flex-row items-start sm:items-center justify-between border-b border-white/10 flex-wrap gap-4 pb-2 sm:pb-0">
+        <div className="flex overflow-x-auto w-full sm:w-auto hide-scrollbar">
           <button
             onClick={() => setTab("productos")}
-            className={`flex items-center gap-2 border-b-2 px-4 py-3 text-sm font-semibold transition-colors ${
+            className={`flex items-center gap-2 border-b-2 px-4 py-3 text-sm font-semibold transition-colors whitespace-nowrap ${
               tab === "productos"
                 ? "border-orange-500 text-orange-600"
                 : "border-transparent text-gray-400 hover:text-gray-300 hover:border-white/20"
@@ -593,14 +593,14 @@ export default function StockPage() {
           >
             <Package size={16} /> Productos
             {lowProductsCount > 0 && (
-              <span className="flex h-5 w-5 items-center justify-center rounded-full bg-orange-100 text-[10px] text-orange-600">
+              <span className="flex h-5 w-5 items-center justify-center rounded-full bg-orange-100 text-[10px] text-orange-600 shrink-0">
                 {lowProductsCount}
               </span>
             )}
           </button>
           <button
             onClick={() => setTab("filamentos")}
-            className={`flex items-center gap-2 border-b-2 px-4 py-3 text-sm font-semibold transition-colors ${
+            className={`flex items-center gap-2 border-b-2 px-4 py-3 text-sm font-semibold transition-colors whitespace-nowrap ${
               tab === "filamentos"
                 ? "border-orange-500 text-orange-600"
                 : "border-transparent text-gray-400 hover:text-gray-300 hover:border-white/20"
@@ -608,7 +608,7 @@ export default function StockPage() {
           >
             <Box size={16} /> Filamentos
             {lowFilamentsCount > 0 && (
-              <span className="flex h-5 w-5 items-center justify-center rounded-full bg-orange-100 text-[10px] text-orange-600">
+              <span className="flex h-5 w-5 items-center justify-center rounded-full bg-orange-100 text-[10px] text-orange-600 shrink-0">
                 {lowFilamentsCount}
               </span>
             )}
@@ -1284,17 +1284,17 @@ export default function StockPage() {
               )}
 
             </div>
-            <div className="p-4 border-t border-white/5 flex justify-end gap-3 bg-[#0a0a0a]">
+            <div className="p-4 border-t border-white/5 flex flex-col-reverse sm:flex-row sm:justify-end gap-3 bg-[#0a0a0a]">
               <button 
                 onClick={() => setConsumeModalOpen(false)} 
-                className="px-4 py-2 text-sm font-bold text-gray-400 hover:bg-gray-200 rounded-lg transition-colors"
+                className="w-full sm:w-auto px-4 py-2 text-sm font-bold text-gray-400 hover:bg-[#111]/5 rounded-lg transition-colors text-center"
               >
                 Cancelar
               </button>
               <button 
                 onClick={handleConfirmConsume} 
                 disabled={consumeCart.length === 0 || !calculateConsumePreview().isValid || consumeLoading}
-                className="flex items-center gap-2 px-5 py-2 text-sm font-bold bg-orange-500 hover:bg-orange-600 disabled:opacity-50 disabled:cursor-not-allowed text-white rounded-lg transition-colors shadow-sm"
+                className="w-full sm:w-auto flex justify-center items-center gap-2 px-5 py-2 text-sm font-bold bg-orange-500 hover:bg-orange-600 disabled:opacity-50 disabled:cursor-not-allowed text-white rounded-lg transition-colors shadow-sm"
               >
                 {consumeLoading ? <Loader2 size={16} className="animate-spin" /> : <Package size={16} />}
                 Confirmar descuento

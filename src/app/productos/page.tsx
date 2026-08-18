@@ -848,7 +848,7 @@ export default function ProductosPage() {
   if (loading) return <div className="py-24 flex justify-center"><Loader2 className="animate-spin h-8 w-8 text-orange-500" /></div>;
 
   return (
-    <div>
+    <div className="pb-24">
       <SectionTitle
         eyebrow="Mi taller"
         title="Productos"
@@ -1267,8 +1267,8 @@ export default function ProductosPage() {
       {/* MODAL: RECALCULAR PRECIO */}
       {recalcProductId && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4">
-          <div className="bg-[#111] w-full max-w-md rounded-2xl shadow-2xl overflow-hidden">
-            <div className="flex items-center justify-between px-6 py-4 border-b border-white/5">
+          <div className="bg-[#111] w-full max-w-md rounded-2xl shadow-2xl flex flex-col max-h-[90vh] overflow-hidden">
+            <div className="flex items-center justify-between px-6 py-4 border-b border-white/5 shrink-0">
               <h3 className="font-bold text-white flex items-center gap-2">
                 <RefreshCw size={18} className="text-indigo-500" /> Recalcular precio
               </h3>
@@ -1277,7 +1277,7 @@ export default function ProductosPage() {
               </button>
             </div>
 
-            <div className="p-6">
+            <div className="p-6 overflow-y-auto">
               {recalcLoading ? (
                 <div className="flex flex-col items-center py-8 gap-3">
                   <Loader2 className="animate-spin h-8 w-8 text-indigo-500" />

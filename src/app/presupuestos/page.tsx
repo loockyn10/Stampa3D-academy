@@ -509,13 +509,13 @@ export default function PresupuestosPage() {
           </div>
         </div>
       ) : (
-        <div className="flex items-center justify-between border-b border-white/10 pb-4">
+        <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between border-b border-white/10 pb-4 gap-4">
           <div className="flex items-center gap-4">
-            <button onClick={() => setEditingId(null)} className="p-2 bg-[#111] border border-white/10 rounded-lg text-gray-400 hover:text-white hover:bg-white/5 transition-colors">
+            <button onClick={() => setEditingId(null)} className="p-2 bg-[#111] border border-white/10 rounded-lg text-gray-400 hover:text-white hover:bg-white/5 transition-colors shrink-0">
               <ArrowLeft size={20} />
             </button>
-            <h2 className="text-2xl font-bold text-white flex items-center gap-2">
-              <FileText size={24} className="text-[#ff6a00]" />
+            <h2 className="text-xl sm:text-2xl font-bold text-white flex items-center gap-2">
+              <FileText size={24} className="text-[#ff6a00] shrink-0" />
               {editingId === "new" ? "Nuevo Presupuesto" : "Editar Presupuesto"}
             </h2>
           </div>
@@ -523,7 +523,7 @@ export default function PresupuestosPage() {
             <button 
               onClick={handleDownloadPdf} 
               disabled={isGeneratingPdf}
-              className="flex items-center gap-2 text-sm font-bold text-[#ff6a00] hover:text-[#ff7a1a] bg-[#ff6a00]/10 border border-[#ff6a00]/20 px-4 py-2 rounded-lg shadow-sm transition-colors disabled:opacity-50"
+              className="w-full sm:w-auto flex justify-center items-center gap-2 text-sm font-bold text-[#ff6a00] hover:text-[#ff7a1a] bg-[#ff6a00]/10 border border-[#ff6a00]/20 px-4 py-2 rounded-lg shadow-sm transition-colors disabled:opacity-50"
             >
               {isGeneratingPdf ? <Loader2 size={16} className="animate-spin" /> : <Download size={16} />}
               Descargar PDF

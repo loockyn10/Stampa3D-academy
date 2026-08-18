@@ -43,7 +43,7 @@ function ConfiguracionContent() {
       <p className="text-gray-400 text-sm -mt-3 mb-6">Configurá tu cuenta, tu negocio y los valores que usa tu taller.</p>
 
       <div className="mb-8 border-b border-white/10">
-        <nav className="-mb-px flex space-x-8 overflow-x-auto" aria-label="Tabs">
+        <nav className="-mb-px flex space-x-6 sm:space-x-8 overflow-x-auto hide-scrollbar" aria-label="Tabs">
           <button
             onClick={() => handleTabChange("cuenta")}
             className={`whitespace-nowrap flex items-center gap-2 border-b-2 py-4 px-1 text-sm font-medium transition-colors ${

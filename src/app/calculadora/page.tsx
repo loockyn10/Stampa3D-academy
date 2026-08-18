@@ -352,11 +352,11 @@ export default function CalculadoraPage() {
                 <p className="text-xs text-[#ff6a00]/80 mt-1">
                   Importá una impresora del catálogo Stampa o cargá una manualmente.
                 </p>
-                <div className="flex gap-2 mt-3">
-                  <Link href="/configuracion?tab=taller" className="inline-block bg-[#ff6a00] text-white text-xs font-semibold px-3 py-1.5 rounded-lg hover:bg-[#ff7a1a] transition-colors shadow-sm shadow-[#ff6a00]/20">
+                <div className="flex flex-col sm:flex-row gap-2 mt-3">
+                  <Link href="/configuracion?tab=taller" className="text-center inline-block bg-[#ff6a00] text-white text-xs font-semibold px-3 py-1.5 rounded-lg hover:bg-[#ff7a1a] transition-colors shadow-sm shadow-[#ff6a00]/20 w-full sm:w-auto">
                     Importar impresora
                   </Link>
-                  <Link href="/configuracion?tab=taller" className="inline-block bg-[#111] text-[#ff6a00] border border-[#ff6a00]/30 text-xs font-semibold px-3 py-1.5 rounded-lg hover:bg-[#ff6a00]/10 transition-colors">
+                  <Link href="/configuracion?tab=taller" className="text-center inline-block bg-[#111] text-[#ff6a00] border border-[#ff6a00]/30 text-xs font-semibold px-3 py-1.5 rounded-lg hover:bg-[#ff6a00]/10 transition-colors w-full sm:w-auto">
                     Agregar manualmente
                   </Link>
                 </div>

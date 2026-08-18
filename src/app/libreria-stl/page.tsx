@@ -349,7 +349,7 @@ export default function LibreriaStlPage() {
         </div>
         <a 
           href="/stampy"
-          className="shrink-0 px-6 py-2.5 bg-[#0a0a0a] hover:bg-white/5 text-white text-sm font-bold rounded-xl border border-white/10 transition-colors shadow-sm"
+          className="w-full md:w-auto text-center shrink-0 px-6 py-2.5 bg-[#0a0a0a] hover:bg-white/5 text-white text-sm font-bold rounded-xl border border-white/10 transition-colors shadow-sm"
         >
           Preguntarle a Stampy
         </a>

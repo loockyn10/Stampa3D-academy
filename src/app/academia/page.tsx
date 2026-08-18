@@ -160,7 +160,7 @@ export default function AcademiaPage() {
                   <h3 className="text-white font-bold text-lg mb-1">¿Querés ajustar tus recomendaciones?</h3>
                   <p className="text-gray-400 text-sm">Podés cambiar tu impresora, objetivo o nivel desde Configuración para recalcular tu ruta.</p>
                 </div>
-                <div className="inline-flex items-center gap-2 bg-white/5 group-hover:bg-[#ff6a00] group-hover:text-white px-4 py-2 rounded-lg text-sm text-gray-300 font-medium transition-colors whitespace-nowrap">
+                <div className="flex justify-center items-center gap-2 bg-white/5 group-hover:bg-[#ff6a00] group-hover:text-white px-4 py-2 rounded-lg text-sm text-gray-300 font-medium transition-colors whitespace-nowrap w-full sm:w-auto">
                   Ajustar perfil
                   <ArrowRight className="w-4 h-4" />
                 </div>
