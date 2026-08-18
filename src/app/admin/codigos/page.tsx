@@ -71,9 +71,28 @@ export default function AdminCodigosPage() {
 
   useEffect(() => { fetchCodes(); }, []);
 
+  const handleGenerateCode = (type: string = codeType) => {
+    let prefix = "BETA";
+    if (type.includes("discount")) prefix = "PROMO";
+    if (type === "fixed_price") prefix = "PRECIO";
+    
+    let generated = "";
+    let attempts = 0;
+    while (attempts < 10) {
+      generated = generateCode(prefix);
+      if (!codes.some(c => c.code === generated)) break;
+      attempts++;
+    }
+    
+    if (attempts >= 10) {
+      showMsg("No se pudo generar un código único.", "error");
+      return;
+    }
+    setNewCode(generated);
+  };
+
   const openNewForm = () => {
     setEditingId(null);
-    setNewCode(generateCode("BETA"));
     setTitle("");
     setCodeType("beta_tester");
     setDiscountValue("");
@@ -83,6 +102,7 @@ export default function AdminCodigosPage() {
     setExpiresAt("");
     setAccessExpiresAt("");
     setNotes("");
+    handleGenerateCode("beta_tester");
     setShowForm(true);
   };
 
@@ -101,38 +121,20 @@ export default function AdminCodigosPage() {
     setShowForm(true);
   };
 
-  const handleSave = async () => {
-    setCreating(true);
-    setError(null);
-
-    const codeToUse = newCode.trim().toUpperCase() || generateCode("STAMPA");
-    const { data: { user } } = await supabase.auth.getUser();
-
-    // Validations
-    if (!codeToUse) {
-      showMsg("El código no puede estar vacío.", "error");
-      setCreating(false);
-      return;
-    }
-    
-    if (["discount_percent", "discount_fixed_amount", "fixed_price"].includes(codeType) && !discountValue) {
-      showMsg("Debe ingresar un valor para el descuento/precio.", "error");
-      setCreating(false);
-      return;
-    }
-
+  const buildInviteCodePayload = (normalizedCode: string) => {
     const payload: any = {
-      code: codeToUse,
+      code: normalizedCode,
       code_type: codeType,
       title: title.trim() || null,
       max_uses: maxUses ? parseInt(maxUses) : null,
-      starts_at: startsAt || new Date().toISOString(),
-      expires_at: expiresAt || null,
+      starts_at: startsAt ? new Date(startsAt).toISOString() : new Date().toISOString(),
+      expires_at: expiresAt ? new Date(expiresAt).toISOString() : null,
       notes: notes.trim() || null,
+      applies_to: "membership"
     };
 
     if (codeType === "beta_tester" || codeType === "manual_free_access") {
-      payload.access_expires_at = accessExpiresAt || null;
+      payload.access_expires_at = accessExpiresAt ? new Date(accessExpiresAt).toISOString() : null;
       payload.discount_type = null;
       payload.discount_value = null;
       payload.discount_duration = "forever";
@@ -146,6 +148,53 @@ export default function AdminCodigosPage() {
       if (codeType === "fixed_price") payload.discount_type = "fixed_price";
     }
 
+    return payload;
+  };
+
+  const handleSave = async () => {
+    setCreating(true);
+    setError(null);
+
+    const normalizedCode = newCode.trim().toUpperCase().replace(/\s+/g, '-');
+    const { data: { user } } = await supabase.auth.getUser();
+
+    // Validations
+    if (!normalizedCode) {
+      showMsg("El código no puede estar vacío.", "error");
+      setCreating(false);
+      return;
+    }
+    
+    if (["discount_percent", "discount_fixed_amount", "fixed_price"].includes(codeType)) {
+      const val = parseFloat(discountValue);
+      if (!discountValue || isNaN(val) || val <= 0 || (codeType === "discount_percent" && val > 100)) {
+        showMsg("Debe ingresar un valor válido para el descuento/precio.", "error");
+        setCreating(false);
+        return;
+      }
+    }
+    
+    if (startsAt && expiresAt && new Date(expiresAt) <= new Date(startsAt)) {
+      showMsg("El vencimiento debe ser posterior a la fecha de inicio.", "error");
+      setCreating(false);
+      return;
+    }
+
+    // Duplicate Check before insert/update
+    const { data: existingCodes } = await supabase
+      .from("invite_codes")
+      .select("id")
+      .eq("code", normalizedCode)
+      .neq("id", editingId || "00000000-0000-0000-0000-000000000000");
+
+    if (existingCodes && existingCodes.length > 0) {
+      showMsg("Ese código ya existe. Usá otro código.", "error");
+      setCreating(false);
+      return;
+    }
+
+    const payload = buildInviteCodePayload(normalizedCode);
+
     let err;
     if (editingId) {
       const { error } = await supabase.from("invite_codes").update(payload).eq("id", editingId);
@@ -158,9 +207,13 @@ export default function AdminCodigosPage() {
     }
 
     if (err) {
-      showMsg(err.message, "error");
+      if (err.code === '23505' || err.message?.includes('invite_codes_code_key')) {
+        showMsg("Ese código ya existe. Probá con otro.", "error");
+      } else {
+        showMsg(err.message, "error");
+      }
     } else {
-      showMsg(editingId ? `Código actualizado exitosamente.` : `Código ${codeToUse} creado exitosamente.`);
+      showMsg(editingId ? `Código actualizado exitosamente.` : `Código ${normalizedCode} creado exitosamente.`);
       setShowForm(false);
       fetchCodes();
     }
@@ -291,8 +344,13 @@ export default function AdminCodigosPage() {
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
             <div>
               <label className="block text-xs font-semibold text-gray-400 uppercase tracking-wider mb-1.5">Código</label>
-              <input type="text" value={newCode} onChange={e => setNewCode(e.target.value.toUpperCase().trim())}
-                placeholder="EJ: PROMO50" className="w-full rounded-xl border border-stampa-border px-3 py-2.5 text-sm text-white bg-white/5 focus:outline-none focus:border-stampa-orange/50 font-mono" />
+              <div className="flex gap-2">
+                <input type="text" value={newCode} onChange={e => setNewCode(e.target.value.toUpperCase().trim())}
+                  placeholder="EJ: PROMO50" className="w-full rounded-xl border border-stampa-border px-3 py-2.5 text-sm text-white bg-white/5 focus:outline-none focus:border-stampa-orange/50 font-mono" />
+                <button type="button" onClick={() => handleGenerateCode(codeType)} className="px-3 rounded-xl bg-white/10 hover:bg-white/20 text-gray-300 text-xs font-semibold border border-stampa-border transition-colors">
+                  Generar
+                </button>
+              </div>
             </div>
             <div>
               <label className="block text-xs font-semibold text-gray-400 uppercase tracking-wider mb-1.5">Título (Opcional)</label>
@@ -302,7 +360,12 @@ export default function AdminCodigosPage() {
 
             <div className="sm:col-span-2 border-t border-stampa-border pt-4 mt-2">
               <label className="block text-xs font-semibold text-gray-400 uppercase tracking-wider mb-1.5">Tipo de código</label>
-              <select value={codeType} onChange={e => setCodeType(e.target.value)}
+              <select value={codeType} onChange={e => {
+                setCodeType(e.target.value);
+                setDiscountValue("");
+                setDiscountDuration("forever");
+                setAccessExpiresAt("");
+              }}
                 className="w-full rounded-xl border border-stampa-border px-3 py-2.5 text-sm text-white bg-stampa-surface focus:outline-none focus:border-stampa-orange/50">
                 <option value="beta_tester">Beta Tester (Acceso a la app)</option>
                 <option value="manual_free_access">Acceso Gratis Temporal (Membresía bonificada)</option>
