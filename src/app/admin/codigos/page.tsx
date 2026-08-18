@@ -135,11 +135,11 @@ export default function AdminCodigosPage() {
       payload.access_expires_at = accessExpiresAt || null;
       payload.discount_type = null;
       payload.discount_value = null;
-      payload.discount_duration = null;
+      payload.discount_duration = "forever";
     } else {
       payload.access_expires_at = null;
       payload.discount_value = parseFloat(discountValue);
-      payload.discount_duration = discountDuration;
+      payload.discount_duration = discountDuration || "forever";
       
       if (codeType === "discount_percent") payload.discount_type = "percent";
       if (codeType === "discount_fixed_amount") payload.discount_type = "fixed_amount";
