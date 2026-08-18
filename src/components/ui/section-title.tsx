@@ -11,7 +11,7 @@ export function SectionTitle({ eyebrow, title, action }: SectionTitleProps) {
     <div className="mb-4 flex flex-col items-start gap-3 sm:flex-row sm:items-end sm:justify-between">
       <div className="min-w-0 w-full sm:w-auto">
         {eyebrow && (
-          <p className="mb-1 text-xs font-semibold uppercase tracking-wide text-[#ff6a00] truncate">
+          <p className="mb-1 text-xs font-semibold uppercase tracking-wide text-stampa-orange truncate">
             {eyebrow}
           </p>
         )}

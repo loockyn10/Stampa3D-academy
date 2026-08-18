@@ -24,7 +24,7 @@ export default function AdminStlDashboardPage() {
 
       <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
         <Link href="/admin/stl/categorias" className="block">
-          <div className="bg-[#111] p-6 rounded-xl border border-white/10 shadow-sm hover:shadow-md transition-shadow cursor-pointer h-full">
+          <div className="bg-stampa-surface p-6 rounded-xl border border-stampa-border shadow-sm hover:shadow-md transition-shadow cursor-pointer h-full">
             <div className="flex items-center gap-4 mb-4">
               <div className="p-3 bg-indigo-50 text-indigo-600 rounded-lg">
                 <Tags size={24} />
@@ -38,7 +38,7 @@ export default function AdminStlDashboardPage() {
         </Link>
         
         <Link href="/admin/stl/modelos" className="block">
-          <div className="bg-[#111] p-6 rounded-xl border border-white/10 shadow-sm hover:shadow-md transition-shadow cursor-pointer h-full">
+          <div className="bg-stampa-surface p-6 rounded-xl border border-stampa-border shadow-sm hover:shadow-md transition-shadow cursor-pointer h-full">
             <div className="flex items-center gap-4 mb-4">
               <div className="p-3 bg-emerald-50 text-emerald-600 rounded-lg">
                 <Box size={24} /> {/* Placeholder icon */}

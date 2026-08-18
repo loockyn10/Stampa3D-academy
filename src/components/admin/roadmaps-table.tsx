@@ -39,7 +39,7 @@ export function RoadmapsTable() {
 
   if (loading) {
     return (
-      <div className="flex justify-center items-center py-20 bg-[#111] rounded-2xl border border-white/5">
+      <div className="flex justify-center items-center py-20 bg-stampa-surface rounded-2xl border border-stampa-border">
         <Loader2 className="animate-spin text-pink-500 w-8 h-8" />
       </div>
     );
@@ -47,7 +47,7 @@ export function RoadmapsTable() {
 
   if (roadmaps.length === 0) {
     return (
-      <div className="text-center py-16 bg-[#111] rounded-2xl border border-white/5 shadow-lg">
+      <div className="text-center py-16 bg-stampa-surface rounded-2xl border border-stampa-border shadow-lg">
         <p className="text-gray-400 font-medium">Todavía no creaste roadmaps.</p>
         <Link 
           href="/admin/roadmaps/nuevo" 
@@ -60,11 +60,11 @@ export function RoadmapsTable() {
   }
 
   return (
-    <div className="bg-[#111] rounded-2xl border border-white/5 shadow-lg overflow-hidden">
+    <div className="bg-stampa-surface rounded-2xl border border-stampa-border shadow-lg overflow-hidden">
       <div className="overflow-x-auto">
         <table className="w-full min-w-[800px] text-left border-collapse">
           <thead>
-            <tr className="bg-[#1a1a1a] border-b border-white/5 text-xs uppercase tracking-wider text-gray-500">
+            <tr className="bg-[#1a1a1a] border-b border-stampa-border text-xs uppercase tracking-wider text-gray-500">
               <th className="px-6 py-4 font-bold">Roadmap</th>
               <th className="px-6 py-4 font-bold">Filtros</th>
               <th className="px-6 py-4 font-bold">Cursos</th>

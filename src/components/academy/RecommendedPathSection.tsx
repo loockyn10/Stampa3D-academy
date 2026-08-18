@@ -68,14 +68,14 @@ export function RecommendedPathSection({ profile, learningPaths, courses }: Reco
       <div className="flex flex-col md:flex-row md:items-end justify-between gap-4 mb-6">
         <div>
           <h2 className="text-2xl font-bold text-white flex items-center gap-2 mb-2">
-            <Compass className="text-[#ff6a00]" size={24} /> {roadmapTitle}
+            <Compass className="text-stampa-orange" size={24} /> {roadmapTitle}
           </h2>
           <p className="text-gray-400 text-sm">{roadmapSubtitle}</p>
           
           {roadmapChips.length > 0 && (
             <div className="flex flex-wrap gap-2 mt-4">
               {roadmapChips.map(chip => (
-                <span key={chip} className="px-3 py-1 bg-white/5 border border-white/10 rounded-full text-xs text-gray-300 font-medium">
+                <span key={chip} className="px-3 py-1 bg-white/5 border border-stampa-border rounded-full text-xs text-gray-300 font-medium">
                   {chip}
                 </span>
               ))}
@@ -94,14 +94,14 @@ export function RecommendedPathSection({ profile, learningPaths, courses }: Reco
       <div className="grid grid-cols-1 gap-6 sm:grid-cols-2 lg:grid-cols-3">
         {roadmapCourses.map((c, index) => (
           <div key={`rec-${c.id}`} className="relative group">
-            <div className="absolute -top-3 -left-3 w-8 h-8 rounded-full bg-[#ff6a00] text-white flex items-center justify-center font-bold text-sm shadow-lg z-10 border-4 border-[#050505]">
+            <div className="absolute -top-3 -left-3 w-8 h-8 rounded-full bg-stampa-orange text-white flex items-center justify-center font-bold text-sm shadow-lg z-10 border-4 border-[#050505]">
               {index + 1}
             </div>
             <div className="rounded-3xl border border-[#ff6a00]/30 shadow-[0_0_15px_rgba(255,106,0,0.1)] overflow-hidden h-full">
               <CourseCard course={c} />
               {c.roadmap_reason && (
-                <div className="bg-[#ff6a00]/10 px-4 py-3 text-xs text-[#ff6a00] font-medium border-t border-[#ff6a00]/20 flex items-center gap-2">
-                  <span className="w-1.5 h-1.5 rounded-full bg-[#ff6a00] animate-pulse" />
+                <div className="bg-stampa-orange/10 px-4 py-3 text-xs text-stampa-orange font-medium border-t border-[#ff6a00]/20 flex items-center gap-2">
+                  <span className="w-1.5 h-1.5 rounded-full bg-stampa-orange animate-pulse" />
                   {c.roadmap_reason}
                 </div>
               )}

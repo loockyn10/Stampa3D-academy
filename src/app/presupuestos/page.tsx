@@ -475,47 +475,47 @@ export default function PresupuestosPage() {
     }
   };
 
-  if (loading) return <div className="py-24 flex justify-center"><Loader2 className="animate-spin h-8 w-8 text-orange-500" /></div>;
+  if (loading) return <div className="py-24 flex justify-center"><Loader2 className="animate-spin h-8 w-8 text-stampa-orange" /></div>;
 
   return (
     <div className="space-y-8 pb-10">
       {/* 1. Header Premium */}
       {!editingId ? (
-        <div className="relative overflow-hidden rounded-3xl bg-[#111] border border-white/10 p-8 sm:p-10 shadow-2xl">
+        <div className="relative overflow-hidden rounded-3xl bg-stampa-surface border border-stampa-border p-8 sm:p-10 shadow-2xl">
           <div className="absolute inset-0 bg-gradient-to-br from-[#ff6a00]/10 to-transparent pointer-events-none" />
           <div className="relative z-10 flex flex-col md:flex-row md:items-center justify-between gap-6">
             <div className="max-w-2xl">
               <div className="flex items-center gap-2 mb-3 justify-between">
-                <span className="rounded-full bg-[#ff6a00]/10 text-[#ff6a00] text-xs font-bold px-3 py-1 uppercase tracking-wider border border-[#ff6a00]/20">
+                <span className="rounded-full bg-stampa-orange/10 text-stampa-orange text-xs font-bold px-3 py-1 uppercase tracking-wider border border-[#ff6a00]/20">
                   Herramienta de venta
                 </span>
 
               </div>
               <h1 className="text-3xl font-bold text-white sm:text-4xl flex items-center gap-3">
-                <Briefcase size={32} className="text-[#ff6a00]" /> Presupuestos
+                <Briefcase size={32} className="text-stampa-orange" /> Presupuestos
               </h1>
               <p className="mt-3 text-base text-gray-400">
                 Armá presupuestos profesionales para clientes, agregá productos y descargá el PDF.
               </p>
             </div>
             <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-3 shrink-0">
-              <Link href="/productos" className="inline-flex justify-center items-center gap-2 px-5 py-3 text-sm font-semibold bg-[#111] border border-white/10 text-white rounded-xl hover:bg-white/5 transition-colors">
+              <Link href="/productos" className="inline-flex justify-center items-center gap-2 px-5 py-3 text-sm font-semibold bg-stampa-surface border border-stampa-border text-white rounded-xl hover:bg-white/5 transition-colors">
                 <Package size={16} /> Ver productos
               </Link>
-              <button onClick={handleCreateNew} className="inline-flex justify-center items-center gap-2 px-6 py-3 text-sm font-bold bg-[#ff6a00] text-white rounded-xl hover:bg-[#ff7a1a] transition-all shadow-lg shadow-[#ff6a00]/20">
+              <button onClick={handleCreateNew} className="inline-flex justify-center items-center gap-2 px-6 py-3 text-sm font-bold bg-stampa-orange text-white rounded-xl hover:bg-stampa-orange-hover transition-all shadow-lg shadow-[#ff6a00]/20">
                 <Plus size={18} /> Nuevo presupuesto
               </button>
             </div>
           </div>
         </div>
       ) : (
-        <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between border-b border-white/10 pb-4 gap-4">
+        <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between border-b border-stampa-border pb-4 gap-4">
           <div className="flex items-center gap-4">
-            <button onClick={() => setEditingId(null)} className="p-2 bg-[#111] border border-white/10 rounded-lg text-gray-400 hover:text-white hover:bg-white/5 transition-colors shrink-0">
+            <button onClick={() => setEditingId(null)} className="p-2 bg-stampa-surface border border-stampa-border rounded-lg text-gray-400 hover:text-white hover:bg-white/5 transition-colors shrink-0">
               <ArrowLeft size={20} />
             </button>
             <h2 className="text-xl sm:text-2xl font-bold text-white flex items-center gap-2">
-              <FileText size={24} className="text-[#ff6a00] shrink-0" />
+              <FileText size={24} className="text-stampa-orange shrink-0" />
               {editingId === "new" ? "Nuevo Presupuesto" : "Editar Presupuesto"}
             </h2>
           </div>
@@ -523,7 +523,7 @@ export default function PresupuestosPage() {
             <button 
               onClick={handleDownloadPdf} 
               disabled={isGeneratingPdf}
-              className="w-full sm:w-auto flex justify-center items-center gap-2 text-sm font-bold text-[#ff6a00] hover:text-[#ff7a1a] bg-[#ff6a00]/10 border border-[#ff6a00]/20 px-4 py-2 rounded-lg shadow-sm transition-colors disabled:opacity-50"
+              className="w-full sm:w-auto flex justify-center items-center gap-2 text-sm font-bold text-stampa-orange hover:text-[#ff7a1a] bg-stampa-orange/10 border border-[#ff6a00]/20 px-4 py-2 rounded-lg shadow-sm transition-colors disabled:opacity-50"
             >
               {isGeneratingPdf ? <Loader2 size={16} className="animate-spin" /> : <Download size={16} />}
               Descargar PDF
@@ -545,8 +545,8 @@ export default function PresupuestosPage() {
           <div className="lg:col-span-2 space-y-6">
             
             {/* 1. Datos del Cliente */}
-            <Card className="p-6 sm:p-8 bg-[#111] border-white/10 shadow-lg">
-              <div className="flex justify-between items-end mb-6 border-b border-white/10 pb-3">
+            <Card className="p-6 sm:p-8 bg-stampa-surface border-stampa-border shadow-lg">
+              <div className="flex justify-between items-end mb-6 border-b border-stampa-border pb-3">
                 <div>
                   <h3 className="text-lg font-bold text-white flex items-center gap-2">Cliente</h3>
                   <p className="text-sm text-gray-400 mt-1">Elegí un cliente existente o cargá uno nuevo.</p>
@@ -558,7 +558,7 @@ export default function PresupuestosPage() {
                         <Pencil size={14} /> Editar
                       </button>
                     )}
-                    <button onClick={() => { setClientData({ id: "", name: "", phone: "", email: "", notes: "", fiscal_condition: "", cuit: "", is_active: true }); setShowClientForm(true); }} className="text-xs font-bold text-[#ff6a00] hover:text-[#ff7a1a] flex items-center gap-1.5 px-3 py-1.5 bg-[#ff6a00]/10 border border-[#ff6a00]/20 rounded-lg transition-colors">
+                    <button onClick={() => { setClientData({ id: "", name: "", phone: "", email: "", notes: "", fiscal_condition: "", cuit: "", is_active: true }); setShowClientForm(true); }} className="text-xs font-bold text-stampa-orange hover:text-[#ff7a1a] flex items-center gap-1.5 px-3 py-1.5 bg-stampa-orange/10 border border-[#ff6a00]/20 rounded-lg transition-colors">
                       <UserPlus size={14} /> Nuevo
                     </button>
                   </div>
@@ -576,26 +576,26 @@ export default function PresupuestosPage() {
                   />
                 </div>
               ) : (
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4 bg-[#0a0a0a] p-5 rounded-xl border border-white/5 shadow-inner">
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4 bg-stampa-bg-soft p-5 rounded-xl border border-stampa-border shadow-inner">
                   <div>
                     <label className="block text-xs font-semibold text-gray-500 mb-1.5">Nombre completo *</label>
-                    <input type="text" placeholder="Ej. Juan Pérez" value={clientData.name} onChange={e => setClientData({...clientData, name: e.target.value})} className="w-full text-sm rounded-xl border border-white/10 bg-[#111] px-3 py-2.5 text-white outline-none focus:border-[#ff6a00] focus:ring-1 focus:ring-[#ff6a00]" />
+                    <input type="text" placeholder="Ej. Juan Pérez" value={clientData.name} onChange={e => setClientData({...clientData, name: e.target.value})} className="w-full text-sm rounded-xl border border-stampa-border bg-stampa-surface px-3 py-2.5 text-white outline-none focus:border-[#ff6a00] focus:ring-1 focus:ring-[#ff6a00]" />
                   </div>
                   <div>
                     <label className="block text-xs font-semibold text-gray-500 mb-1.5">Teléfono</label>
-                    <input type="text" placeholder="Ej. +54 9 11..." value={clientData.phone} onChange={e => setClientData({...clientData, phone: e.target.value})} className="w-full text-sm rounded-xl border border-white/10 bg-[#111] px-3 py-2.5 text-white outline-none focus:border-[#ff6a00] focus:ring-1 focus:ring-[#ff6a00]" />
+                    <input type="text" placeholder="Ej. +54 9 11..." value={clientData.phone} onChange={e => setClientData({...clientData, phone: e.target.value})} className="w-full text-sm rounded-xl border border-stampa-border bg-stampa-surface px-3 py-2.5 text-white outline-none focus:border-[#ff6a00] focus:ring-1 focus:ring-[#ff6a00]" />
                   </div>
                   <div>
                     <label className="block text-xs font-semibold text-gray-500 mb-1.5">Email</label>
-                    <input type="email" placeholder="Ej. juan@mail.com" value={clientData.email} onChange={e => setClientData({...clientData, email: e.target.value})} className="w-full text-sm rounded-xl border border-white/10 bg-[#111] px-3 py-2.5 text-white outline-none focus:border-[#ff6a00] focus:ring-1 focus:ring-[#ff6a00]" />
+                    <input type="email" placeholder="Ej. juan@mail.com" value={clientData.email} onChange={e => setClientData({...clientData, email: e.target.value})} className="w-full text-sm rounded-xl border border-stampa-border bg-stampa-surface px-3 py-2.5 text-white outline-none focus:border-[#ff6a00] focus:ring-1 focus:ring-[#ff6a00]" />
                   </div>
                   <div>
                     <label className="block text-xs font-semibold text-gray-500 mb-1.5">CUIT</label>
-                    <input type="text" placeholder="Ej. 20-12345678-9" value={clientData.cuit} onChange={e => setClientData({...clientData, cuit: e.target.value})} className="w-full text-sm rounded-xl border border-white/10 bg-[#111] px-3 py-2.5 text-white outline-none focus:border-[#ff6a00] focus:ring-1 focus:ring-[#ff6a00]" />
+                    <input type="text" placeholder="Ej. 20-12345678-9" value={clientData.cuit} onChange={e => setClientData({...clientData, cuit: e.target.value})} className="w-full text-sm rounded-xl border border-stampa-border bg-stampa-surface px-3 py-2.5 text-white outline-none focus:border-[#ff6a00] focus:ring-1 focus:ring-[#ff6a00]" />
                   </div>
                   <div>
                     <label className="block text-xs font-semibold text-gray-500 mb-1.5">Condición Fiscal</label>
-                    <select value={clientData.fiscal_condition} onChange={e => setClientData({...clientData, fiscal_condition: e.target.value})} className="w-full text-sm rounded-xl border border-white/10 bg-[#111] px-3 py-2.5 text-white outline-none focus:border-[#ff6a00] focus:ring-1 focus:ring-[#ff6a00]">
+                    <select value={clientData.fiscal_condition} onChange={e => setClientData({...clientData, fiscal_condition: e.target.value})} className="w-full text-sm rounded-xl border border-stampa-border bg-stampa-surface px-3 py-2.5 text-white outline-none focus:border-[#ff6a00] focus:ring-1 focus:ring-[#ff6a00]">
                       <option value="">Consumidor Final</option>
                       <option value="Responsable Inscripto">Responsable Inscripto</option>
                       <option value="Monotributo">Monotributo</option>
@@ -604,25 +604,25 @@ export default function PresupuestosPage() {
                   </div>
                   <div className="flex items-center mt-6">
                     <label className="flex items-center gap-2 cursor-pointer">
-                      <input type="checkbox" checked={clientData.is_active} onChange={e => setClientData({...clientData, is_active: e.target.checked})} className="rounded bg-[#111] border-white/20 text-[#ff6a00] focus:ring-[#ff6a00]" />
+                      <input type="checkbox" checked={clientData.is_active} onChange={e => setClientData({...clientData, is_active: e.target.checked})} className="rounded bg-stampa-surface border-white/20 text-stampa-orange focus:ring-[#ff6a00]" />
                       <span className="text-sm text-gray-300 font-medium">Cliente Activo</span>
                     </label>
                   </div>
                   <div className="md:col-span-2">
                     <label className="block text-xs font-semibold text-gray-500 mb-1.5">Notas del cliente</label>
-                    <input type="text" placeholder="Ej. Entregar de 10 a 14hs" value={clientData.notes} onChange={e => setClientData({...clientData, notes: e.target.value})} className="w-full text-sm rounded-xl border border-white/10 bg-[#111] px-3 py-2.5 text-white outline-none focus:border-[#ff6a00] focus:ring-1 focus:ring-[#ff6a00]" />
+                    <input type="text" placeholder="Ej. Entregar de 10 a 14hs" value={clientData.notes} onChange={e => setClientData({...clientData, notes: e.target.value})} className="w-full text-sm rounded-xl border border-stampa-border bg-stampa-surface px-3 py-2.5 text-white outline-none focus:border-[#ff6a00] focus:ring-1 focus:ring-[#ff6a00]" />
                   </div>
-                  <div className="md:col-span-2 flex justify-end gap-3 mt-4 pt-4 border-t border-white/5">
+                  <div className="md:col-span-2 flex justify-end gap-3 mt-4 pt-4 border-t border-stampa-border">
                     <button onClick={handleCancelClientForm} className="text-sm font-bold text-gray-400 hover:text-white px-4 py-2 transition-colors">Cancelar</button>
-                    <button onClick={handleSaveClient} className="text-sm font-bold bg-[#ff6a00] hover:bg-[#ff7a1a] text-white px-5 py-2 rounded-xl transition-colors shadow-lg shadow-[#ff6a00]/10">Guardar Cliente</button>
+                    <button onClick={handleSaveClient} className="text-sm font-bold bg-stampa-orange hover:bg-stampa-orange-hover text-white px-5 py-2 rounded-xl transition-colors shadow-lg shadow-[#ff6a00]/10">Guardar Cliente</button>
                   </div>
                 </div>
               )}
             </Card>
 
             {/* 2. Productos e Items */}
-            <Card className="p-6 sm:p-8 bg-[#111] border-white/10 shadow-lg">
-              <div className="flex flex-col sm:flex-row justify-between items-start sm:items-end mb-6 border-b border-white/10 pb-3 gap-3">
+            <Card className="p-6 sm:p-8 bg-stampa-surface border-stampa-border shadow-lg">
+              <div className="flex flex-col sm:flex-row justify-between items-start sm:items-end mb-6 border-b border-stampa-border pb-3 gap-3">
                 <div>
                   <h3 className="text-lg font-bold text-white flex items-center gap-2">Productos e items</h3>
                   <p className="text-sm text-gray-400 mt-1">Agregá los productos para este presupuesto.</p>
@@ -634,10 +634,10 @@ export default function PresupuestosPage() {
                       grams: 0, print_time_hours: 0, print_time_minutes: 0, base_cost: 0, sale_price: 0, stock_quantity: 0
                     });
                     setShowProductModal(true);
-                  }} className="flex-1 sm:flex-none text-xs font-bold text-gray-300 hover:text-white bg-[#0a0a0a] border border-white/10 px-3 py-2 rounded-lg transition-colors flex items-center justify-center gap-1.5">
+                  }} className="flex-1 sm:flex-none text-xs font-bold text-gray-300 hover:text-white bg-stampa-bg-soft border border-stampa-border px-3 py-2 rounded-lg transition-colors flex items-center justify-center gap-1.5">
                     <Plus size={14} /> Nuevo en catálogo
                   </button>
-                  <button type="button" onClick={handleAddItem} className="flex-1 sm:flex-none text-xs font-bold text-[#ff6a00] hover:text-[#ff7a1a] bg-[#ff6a00]/10 border border-[#ff6a00]/20 px-3 py-2 rounded-lg transition-colors flex items-center justify-center gap-1.5">
+                  <button type="button" onClick={handleAddItem} className="flex-1 sm:flex-none text-xs font-bold text-stampa-orange hover:text-[#ff7a1a] bg-stampa-orange/10 border border-[#ff6a00]/20 px-3 py-2 rounded-lg transition-colors flex items-center justify-center gap-1.5">
                     <ShoppingCart size={14} /> Agregar Item
                   </button>
                 </div>
@@ -645,7 +645,7 @@ export default function PresupuestosPage() {
 
               <div className="space-y-3">
                 {budgetItems.length === 0 ? (
-                  <div className="text-center py-8 bg-[#0a0a0a] rounded-xl border border-dashed border-white/10 flex flex-col items-center gap-3">
+                  <div className="text-center py-8 bg-stampa-bg-soft rounded-xl border border-dashed border-stampa-border flex flex-col items-center gap-3">
                     <Package size={32} className="text-gray-600" />
                     <div>
                       <p className="text-sm text-gray-400 font-medium">No hay productos en esta cotización.</p>
@@ -654,7 +654,7 @@ export default function PresupuestosPage() {
                   </div>
                 ) : (
                   budgetItems.map((item, idx) => (
-                    <div key={item.id} className="flex flex-col lg:flex-row items-start lg:items-center gap-3 bg-[#0a0a0a] p-3 rounded-xl border border-white/5 relative group">
+                    <div key={item.id} className="flex flex-col lg:flex-row items-start lg:items-center gap-3 bg-stampa-bg-soft p-3 rounded-xl border border-stampa-border relative group">
                       <div className="w-full lg:flex-1">
                         <Combobox
                           options={products.map(p => ({ id: p.id, label: `${p.name} ($${p.sale_price})` }))}
@@ -663,11 +663,11 @@ export default function PresupuestosPage() {
                         />
                       </div>
                       <div className="flex items-center justify-between lg:justify-end gap-4 w-full lg:w-auto mt-1 lg:mt-0">
-                        <div className="flex items-center gap-2 bg-[#111] px-2 py-1.5 rounded-lg border border-white/5">
+                        <div className="flex items-center gap-2 bg-stampa-surface px-2 py-1.5 rounded-lg border border-stampa-border">
                           <span className="text-[10px] text-gray-500 font-bold uppercase">Cant</span>
                           <input type="number" min="1" value={item.quantity} onChange={(e) => handleItemChange(idx, "quantity", e.target.value)} className="w-16 text-sm font-bold border-none bg-transparent focus:ring-0 text-white p-0 text-center" />
                         </div>
-                        <div className="flex items-center gap-3 bg-[#111] px-3 py-1.5 rounded-lg border border-white/5 min-w-[120px] justify-between">
+                        <div className="flex items-center gap-3 bg-stampa-surface px-3 py-1.5 rounded-lg border border-stampa-border min-w-[120px] justify-between">
                           <span className="text-[10px] text-gray-500 font-bold uppercase">Sub</span>
                           <span className="font-bold text-white text-sm">${item.subtotal.toFixed(2)}</span>
                         </div>
@@ -682,32 +682,32 @@ export default function PresupuestosPage() {
             </Card>
 
             {/* 3. Notas y Validez */}
-            <Card className="p-6 sm:p-8 bg-[#111] border-white/10 shadow-lg">
+            <Card className="p-6 sm:p-8 bg-stampa-surface border-stampa-border shadow-lg">
               <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                 <div>
-                  <h3 className="text-sm font-bold text-white mb-4 border-b border-white/10 pb-2">Información adicional</h3>
+                  <h3 className="text-sm font-bold text-white mb-4 border-b border-stampa-border pb-2">Información adicional</h3>
                   <div className="space-y-4">
                     <div>
                       <label className="block text-xs font-semibold text-gray-500 mb-1.5">Título / Referencia *</label>
-                      <input type="text" value={formData.title} onChange={e => setFormData({...formData, title: e.target.value})} className="w-full text-sm rounded-xl border border-white/10 bg-[#0a0a0a] px-3 py-2.5 text-white outline-none focus:border-[#ff6a00] focus:ring-1 focus:ring-[#ff6a00]" placeholder="Ej. Presupuesto Macetas" />
+                      <input type="text" value={formData.title} onChange={e => setFormData({...formData, title: e.target.value})} className="w-full text-sm rounded-xl border border-stampa-border bg-stampa-bg-soft px-3 py-2.5 text-white outline-none focus:border-[#ff6a00] focus:ring-1 focus:ring-[#ff6a00]" placeholder="Ej. Presupuesto Macetas" />
                     </div>
                     <div>
                       <label className="block text-xs font-semibold text-gray-500 mb-1.5">Notas (visibles en PDF)</label>
-                      <textarea rows={3} value={formData.notes} onChange={e => setFormData({...formData, notes: e.target.value})} className="w-full text-sm rounded-xl border border-white/10 bg-[#0a0a0a] px-3 py-2.5 text-white outline-none focus:border-[#ff6a00] focus:ring-1 focus:ring-[#ff6a00]" placeholder="Detalles de entrega, condiciones..."></textarea>
+                      <textarea rows={3} value={formData.notes} onChange={e => setFormData({...formData, notes: e.target.value})} className="w-full text-sm rounded-xl border border-stampa-border bg-stampa-bg-soft px-3 py-2.5 text-white outline-none focus:border-[#ff6a00] focus:ring-1 focus:ring-[#ff6a00]" placeholder="Detalles de entrega, condiciones..."></textarea>
                     </div>
                   </div>
                 </div>
                 <div>
-                  <h3 className="text-sm font-bold text-white mb-4 border-b border-white/10 pb-2">Control</h3>
+                  <h3 className="text-sm font-bold text-white mb-4 border-b border-stampa-border pb-2">Control</h3>
                   <div className="space-y-4">
                     <div>
                       <label className="block text-xs font-semibold text-gray-500 mb-1.5 flex items-center gap-1.5"><Clock size={14} /> Fecha de Validez</label>
-                      <input type="date" value={formData.valid_until ? formData.valid_until.substring(0,10) : ""} onChange={e => setFormData({...formData, valid_until: e.target.value})} className="w-full text-sm rounded-xl border border-white/10 bg-[#0a0a0a] px-3 py-2.5 text-white outline-none focus:border-[#ff6a00] focus:ring-1 focus:ring-[#ff6a00] [color-scheme:dark]" />
+                      <input type="date" value={formData.valid_until ? formData.valid_until.substring(0,10) : ""} onChange={e => setFormData({...formData, valid_until: e.target.value})} className="w-full text-sm rounded-xl border border-stampa-border bg-stampa-bg-soft px-3 py-2.5 text-white outline-none focus:border-[#ff6a00] focus:ring-1 focus:ring-[#ff6a00] [color-scheme:dark]" />
                     </div>
                     <div>
                       <label className="block text-xs font-semibold text-gray-500 mb-1.5">Estado</label>
-                      <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 bg-[#0a0a0a] p-1.5 rounded-xl border border-white/5">
-                        <button type="button" onClick={() => setFormData({...formData, status: "draft"})} className={`text-[11px] py-2 px-1 rounded-lg font-bold transition-all uppercase tracking-wider ${formData.status === "draft" ? "bg-[#222] text-white shadow-sm border border-white/10" : "text-gray-500 hover:text-gray-300"}`}>Borrador</button>
+                      <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 bg-stampa-bg-soft p-1.5 rounded-xl border border-stampa-border">
+                        <button type="button" onClick={() => setFormData({...formData, status: "draft"})} className={`text-[11px] py-2 px-1 rounded-lg font-bold transition-all uppercase tracking-wider ${formData.status === "draft" ? "bg-[#222] text-white shadow-sm border border-stampa-border" : "text-gray-500 hover:text-gray-300"}`}>Borrador</button>
                         <button type="button" onClick={() => setFormData({...formData, status: "sent"})} className={`text-[11px] py-2 px-1 rounded-lg font-bold transition-all uppercase tracking-wider ${formData.status === "sent" ? "bg-indigo-500/20 text-indigo-400 border border-indigo-500/30" : "text-gray-500 hover:text-gray-300"}`}>Enviado</button>
                         <button type="button" onClick={() => setFormData({...formData, status: "approved"})} className={`text-[11px] py-2 px-1 rounded-lg font-bold transition-all uppercase tracking-wider ${formData.status === "approved" ? "bg-emerald-500/20 text-emerald-400 border border-emerald-500/30" : "text-gray-500 hover:text-gray-300"}`}>Aprobado</button>
                         <button type="button" onClick={() => setFormData({...formData, status: "rejected"})} className={`text-[11px] py-2 px-1 rounded-lg font-bold transition-all uppercase tracking-wider ${formData.status === "rejected" ? "bg-rose-500/20 text-rose-400 border border-rose-500/30" : "text-gray-500 hover:text-gray-300"}`}>Rechazado</button>
@@ -722,11 +722,11 @@ export default function PresupuestosPage() {
 
           {/* COLUMNA TOTALES Y ACCIONES (Sticky) */}
           <div className="lg:col-span-1 lg:sticky lg:top-6 space-y-4">
-            <Card className="p-6 bg-[#0a0a0a] border-[#ff6a00]/30 shadow-xl overflow-hidden relative">
+            <Card className="p-6 bg-stampa-bg-soft border-[#ff6a00]/30 shadow-xl overflow-hidden relative">
               <div className="absolute top-0 inset-x-0 h-1 bg-gradient-to-r from-transparent via-[#ff6a00] to-transparent opacity-50" />
               
-              <h3 className="text-sm font-bold text-white flex items-center gap-2 border-b border-white/10 pb-3 mb-5">
-                <DollarSign size={18} className="text-[#ff6a00]" /> Resumen
+              <h3 className="text-sm font-bold text-white flex items-center gap-2 border-b border-stampa-border pb-3 mb-5">
+                <DollarSign size={18} className="text-stampa-orange" /> Resumen
               </h3>
 
               <div className="space-y-4 mb-6">
@@ -750,7 +750,7 @@ export default function PresupuestosPage() {
                         if (val > 100) val = 100;
                         setFormData({...formData, discount_percent: val});
                       }}
-                      className="w-16 text-right text-sm rounded-lg border border-white/10 bg-[#111] px-2 py-1.5 text-white outline-none focus:border-[#ff6a00] focus:ring-1 focus:ring-[#ff6a00] transition-colors" 
+                      className="w-16 text-right text-sm rounded-lg border border-stampa-border bg-stampa-surface px-2 py-1.5 text-white outline-none focus:border-[#ff6a00] focus:ring-1 focus:ring-[#ff6a00] transition-colors" 
                     />
                     <span className="text-sm font-bold text-gray-500">%</span>
                   </div>
@@ -767,7 +767,7 @@ export default function PresupuestosPage() {
 
                 <div className="flex justify-between items-end">
                   <span className="text-sm font-bold text-gray-400 uppercase tracking-wider mb-1">TOTAL</span>
-                  <span className="text-3xl font-black text-[#ff6a00]">${total.toFixed(2)}</span>
+                  <span className="text-3xl font-black text-stampa-orange">${total.toFixed(2)}</span>
                 </div>
 
                 {estimatedProfit > 0 && (
@@ -780,11 +780,11 @@ export default function PresupuestosPage() {
             </Card>
 
             <div className="space-y-3">
-              <button onClick={handleSaveBudget} className="w-full flex justify-center items-center gap-2 px-4 py-3.5 text-sm font-bold bg-[#ff6a00] hover:bg-[#ff7a1a] text-white rounded-xl transition-all shadow-lg shadow-[#ff6a00]/10">
+              <button onClick={handleSaveBudget} className="w-full flex justify-center items-center gap-2 px-4 py-3.5 text-sm font-bold bg-stampa-orange hover:bg-stampa-orange-hover text-white rounded-xl transition-all shadow-lg shadow-[#ff6a00]/10">
                 <Save size={18} /> Guardar Presupuesto
               </button>
               {editingId !== "new" && (
-                <button onClick={handleDownloadPdf} disabled={isGeneratingPdf} className="w-full flex justify-center items-center gap-2 px-4 py-3 text-sm font-bold text-gray-300 hover:text-white bg-[#111] hover:bg-white/5 border border-white/10 rounded-xl transition-colors disabled:opacity-50">
+                <button onClick={handleDownloadPdf} disabled={isGeneratingPdf} className="w-full flex justify-center items-center gap-2 px-4 py-3 text-sm font-bold text-gray-300 hover:text-white bg-stampa-surface hover:bg-white/5 border border-stampa-border rounded-xl transition-colors disabled:opacity-50">
                   {isGeneratingPdf ? <Loader2 size={16} className="animate-spin" /> : <Download size={16} />}
                   Descargar PDF
                 </button>
@@ -803,18 +803,18 @@ export default function PresupuestosPage() {
           {budgets.map((b) => {
             const statusConf = STATUS_MAP[b.status as keyof typeof STATUS_MAP] || { label: b.status, color: "gray" };
             const statusClasses = {
-              "gray": "bg-[#222] text-gray-300 border-white/10",
+              "gray": "bg-[#222] text-gray-300 border-stampa-border",
               "dark": "bg-indigo-500/10 text-indigo-400 border-indigo-500/20",
               "green": "bg-emerald-500/10 text-emerald-400 border-emerald-500/20",
               "orange": "bg-rose-500/10 text-rose-400 border-rose-500/20",
             }[statusConf.color];
 
             return (
-              <Card key={b.id} className="p-0 flex flex-col justify-between bg-[#111] border-white/10 hover:border-white/20 transition-all overflow-hidden group">
+              <Card key={b.id} className="p-0 flex flex-col justify-between bg-stampa-surface border-stampa-border hover:border-white/20 transition-all overflow-hidden group">
                 <div className="p-5 flex-1">
                   <div className="flex justify-between items-start mb-4">
                     <div className="pr-2">
-                      <h4 className="font-bold text-white text-base truncate mb-1 group-hover:text-[#ff6a00] transition-colors">{b.title || "Sin título"}</h4>
+                      <h4 className="font-bold text-white text-base truncate mb-1 group-hover:text-stampa-orange transition-colors">{b.title || "Sin título"}</h4>
                       <p className="text-xs font-medium text-gray-500 flex items-center gap-1.5"><UserPlus size={12}/> {b.clients?.name || "Cliente eliminado"}</p>
                     </div>
                     <span className={`shrink-0 text-[10px] font-bold uppercase tracking-wider px-2 py-1 rounded-md border ${statusClasses}`}>
@@ -827,20 +827,20 @@ export default function PresupuestosPage() {
                       <p className="text-[10px] font-bold text-gray-500 uppercase tracking-wider mb-0.5">Total</p>
                       <p className="text-xl font-black text-white">${parseFloat(b.total_amount || 0).toFixed(2)}</p>
                     </div>
-                    <p className="text-xs text-gray-500 font-medium bg-[#0a0a0a] px-2 py-1 rounded border border-white/5">
+                    <p className="text-xs text-gray-500 font-medium bg-stampa-bg-soft px-2 py-1 rounded border border-stampa-border">
                       {new Date(b.created_at).toLocaleDateString()}
                     </p>
                   </div>
                 </div>
                 
-                <div className="grid grid-cols-3 border-t border-white/5 bg-[#0a0a0a] divide-x divide-white/5">
+                <div className="grid grid-cols-3 border-t border-stampa-border bg-stampa-bg-soft divide-x divide-white/5">
                   <button onClick={() => handleEdit(b)} className="flex items-center justify-center gap-2 py-3 text-xs font-bold text-gray-400 hover:text-white hover:bg-white/5 transition-colors">
                     <Pencil size={14} /> Editar
                   </button>
                   <button 
                     onClick={() => handleDownloadPdfById(b)} 
                     disabled={generatingPdfId === b.id}
-                    className="flex items-center justify-center gap-2 py-3 text-xs font-bold text-[#ff6a00] hover:text-[#ff7a1a] hover:bg-[#ff6a00]/5 transition-colors disabled:opacity-50"
+                    className="flex items-center justify-center gap-2 py-3 text-xs font-bold text-stampa-orange hover:text-[#ff7a1a] hover:bg-stampa-orange/5 transition-colors disabled:opacity-50"
                   >
                     {generatingPdfId === b.id ? <Loader2 size={14} className="animate-spin" /> : <Download size={14} />}
                     PDF
@@ -858,19 +858,19 @@ export default function PresupuestosPage() {
       {/* EMPTY STATE */}
       {!editingId && budgets.length === 0 && (
         <div className="max-w-2xl mx-auto mt-12">
-          <div className="bg-[#111] rounded-3xl p-10 text-center border border-white/10 shadow-xl">
-            <div className="w-20 h-20 bg-[#ff6a00]/10 rounded-full flex items-center justify-center mx-auto mb-6 border border-[#ff6a00]/20">
-              <Briefcase size={40} className="text-[#ff6a00]" />
+          <div className="bg-stampa-surface rounded-3xl p-10 text-center border border-stampa-border shadow-xl">
+            <div className="w-20 h-20 bg-stampa-orange/10 rounded-full flex items-center justify-center mx-auto mb-6 border border-[#ff6a00]/20">
+              <Briefcase size={40} className="text-stampa-orange" />
             </div>
             <h2 className="text-2xl font-bold text-white mb-3">Todavía no creaste presupuestos</h2>
             <p className="text-gray-400 mb-8 max-w-md mx-auto">
               Cuando un cliente te pida precio, creá un presupuesto detallado y descargalo en PDF para enviarlo de forma profesional.
             </p>
             <div className="flex flex-col sm:flex-row items-center justify-center gap-4">
-              <button onClick={handleCreateNew} className="w-full sm:w-auto px-8 py-3.5 font-bold text-sm text-white bg-[#ff6a00] hover:bg-[#ff7a1a] rounded-xl transition-all shadow-lg shadow-[#ff6a00]/20">
+              <button onClick={handleCreateNew} className="w-full sm:w-auto px-8 py-3.5 font-bold text-sm text-white bg-stampa-orange hover:bg-stampa-orange-hover rounded-xl transition-all shadow-lg shadow-[#ff6a00]/20">
                 Crear mi primer presupuesto
               </button>
-              <Link href="/calculadora" className="w-full sm:w-auto px-8 py-3.5 font-bold text-sm text-gray-300 hover:text-white bg-[#1a1a1a] border border-white/10 hover:bg-white/5 rounded-xl transition-all">
+              <Link href="/calculadora" className="w-full sm:w-auto px-8 py-3.5 font-bold text-sm text-gray-300 hover:text-white bg-[#1a1a1a] border border-stampa-border hover:bg-white/5 rounded-xl transition-all">
                 Ir a la Calculadora
               </Link>
             </div>
@@ -881,11 +881,11 @@ export default function PresupuestosPage() {
 
       {/* Product Creation Modal */}
       {showProductModal && (
-        <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center p-4 z-50 overflow-y-auto">
-          <div className="bg-[#111] rounded-2xl shadow-2xl w-full max-w-lg overflow-hidden border border-white/10 my-8 animate-in zoom-in-95 duration-200">
-            <div className="bg-[#0a0a0a] px-6 py-4 flex justify-between items-center border-b border-white/10">
+        <div className="fixed inset-0 bg-stampa-bg/60 backdrop-blur-sm flex items-center justify-center p-4 z-50 overflow-y-auto">
+          <div className="bg-stampa-surface rounded-2xl shadow-2xl w-full max-w-lg overflow-hidden border border-stampa-border my-8 animate-in zoom-in-95 duration-200">
+            <div className="bg-stampa-bg-soft px-6 py-4 flex justify-between items-center border-b border-stampa-border">
               <h3 className="text-base font-bold text-white flex items-center gap-2">
-                <Package size={18} className="text-[#ff6a00]" /> Nuevo Producto Rápido
+                <Package size={18} className="text-stampa-orange" /> Nuevo Producto Rápido
               </h3>
               <button type="button" onClick={() => setShowProductModal(false)} className="text-gray-400 hover:text-white transition-colors">
                 <X size={20} />
@@ -900,7 +900,7 @@ export default function PresupuestosPage() {
                   placeholder="Ej. Maceta Hexagonal" 
                   value={productData.name} 
                   onChange={e => setProductData({...productData, name: e.target.value})} 
-                  className="w-full text-sm rounded-xl border border-white/10 bg-[#0a0a0a] px-3 py-2.5 text-white outline-none focus:border-[#ff6a00] focus:ring-1 focus:ring-[#ff6a00]" 
+                  className="w-full text-sm rounded-xl border border-stampa-border bg-stampa-bg-soft px-3 py-2.5 text-white outline-none focus:border-[#ff6a00] focus:ring-1 focus:ring-[#ff6a00]" 
                 />
               </div>
 
@@ -911,7 +911,7 @@ export default function PresupuestosPage() {
                   placeholder="Descripción opcional" 
                   value={productData.description} 
                   onChange={e => setProductData({...productData, description: e.target.value})} 
-                  className="w-full text-sm rounded-xl border border-white/10 bg-[#0a0a0a] px-3 py-2.5 text-white outline-none focus:border-[#ff6a00] focus:ring-1 focus:ring-[#ff6a00]" 
+                  className="w-full text-sm rounded-xl border border-stampa-border bg-stampa-bg-soft px-3 py-2.5 text-white outline-none focus:border-[#ff6a00] focus:ring-1 focus:ring-[#ff6a00]" 
                 />
               </div>
 
@@ -923,7 +923,7 @@ export default function PresupuestosPage() {
                     min="0" step="any" placeholder="Ej. 1500" 
                     value={productData.sale_price || ""} 
                     onChange={e => setProductData({...productData, sale_price: parseFloat(e.target.value) || 0})} 
-                    className="w-full text-sm rounded-xl border border-white/10 bg-[#0a0a0a] px-3 py-2.5 text-white outline-none focus:border-[#ff6a00] focus:ring-1 focus:ring-[#ff6a00]" 
+                    className="w-full text-sm rounded-xl border border-stampa-border bg-stampa-bg-soft px-3 py-2.5 text-white outline-none focus:border-[#ff6a00] focus:ring-1 focus:ring-[#ff6a00]" 
                   />
                 </div>
                 <div>
@@ -933,7 +933,7 @@ export default function PresupuestosPage() {
                     min="0" step="any" placeholder="Opcional" 
                     value={productData.base_cost || ""} 
                     onChange={e => setProductData({...productData, base_cost: parseFloat(e.target.value) || 0})} 
-                    className="w-full text-sm rounded-xl border border-white/10 bg-[#0a0a0a] px-3 py-2.5 text-white outline-none focus:border-[#ff6a00] focus:ring-1 focus:ring-[#ff6a00]" 
+                    className="w-full text-sm rounded-xl border border-stampa-border bg-stampa-bg-soft px-3 py-2.5 text-white outline-none focus:border-[#ff6a00] focus:ring-1 focus:ring-[#ff6a00]" 
                   />
                 </div>
               </div>
@@ -946,7 +946,7 @@ export default function PresupuestosPage() {
                     min="0" step="any" placeholder="Opcional" 
                     value={productData.grams || ""} 
                     onChange={e => setProductData({...productData, grams: parseFloat(e.target.value) || 0})} 
-                    className="w-full text-sm rounded-xl border border-white/10 bg-[#0a0a0a] px-3 py-2.5 text-white outline-none focus:border-[#ff6a00] focus:ring-1 focus:ring-[#ff6a00]" 
+                    className="w-full text-sm rounded-xl border border-stampa-border bg-stampa-bg-soft px-3 py-2.5 text-white outline-none focus:border-[#ff6a00] focus:ring-1 focus:ring-[#ff6a00]" 
                   />
                 </div>
                 <div>
@@ -956,7 +956,7 @@ export default function PresupuestosPage() {
                     min="0" placeholder="Opcional" 
                     value={productData.stock_quantity || ""} 
                     onChange={e => setProductData({...productData, stock_quantity: parseInt(e.target.value) || 0})} 
-                    className="w-full text-sm rounded-xl border border-white/10 bg-[#0a0a0a] px-3 py-2.5 text-white outline-none focus:border-[#ff6a00] focus:ring-1 focus:ring-[#ff6a00]" 
+                    className="w-full text-sm rounded-xl border border-stampa-border bg-stampa-bg-soft px-3 py-2.5 text-white outline-none focus:border-[#ff6a00] focus:ring-1 focus:ring-[#ff6a00]" 
                   />
                 </div>
               </div>
@@ -969,7 +969,7 @@ export default function PresupuestosPage() {
                     min="0" placeholder="Horas" 
                     value={productData.print_time_hours || ""} 
                     onChange={e => setProductData({...productData, print_time_hours: parseInt(e.target.value) || 0})} 
-                    className="w-full text-sm rounded-xl border border-white/10 bg-[#0a0a0a] px-3 py-2.5 text-white outline-none focus:border-[#ff6a00] focus:ring-1 focus:ring-[#ff6a00]" 
+                    className="w-full text-sm rounded-xl border border-stampa-border bg-stampa-bg-soft px-3 py-2.5 text-white outline-none focus:border-[#ff6a00] focus:ring-1 focus:ring-[#ff6a00]" 
                   />
                 </div>
                 <div>
@@ -979,7 +979,7 @@ export default function PresupuestosPage() {
                     min="0" max="59" placeholder="Minutos" 
                     value={productData.print_time_minutes || ""} 
                     onChange={e => setProductData({...productData, print_time_minutes: parseInt(e.target.value) || 0})} 
-                    className="w-full text-sm rounded-xl border border-white/10 bg-[#0a0a0a] px-3 py-2.5 text-white outline-none focus:border-[#ff6a00] focus:ring-1 focus:ring-[#ff6a00]" 
+                    className="w-full text-sm rounded-xl border border-stampa-border bg-stampa-bg-soft px-3 py-2.5 text-white outline-none focus:border-[#ff6a00] focus:ring-1 focus:ring-[#ff6a00]" 
                   />
                 </div>
               </div>
@@ -989,7 +989,7 @@ export default function PresupuestosPage() {
                 <select 
                   value={productData.filament_id} 
                   onChange={e => setProductData({...productData, filament_id: e.target.value})} 
-                  className="w-full text-sm rounded-xl border border-white/10 bg-[#0a0a0a] px-3 py-2.5 text-white outline-none focus:border-[#ff6a00] focus:ring-1 focus:ring-[#ff6a00]"
+                  className="w-full text-sm rounded-xl border border-stampa-border bg-stampa-bg-soft px-3 py-2.5 text-white outline-none focus:border-[#ff6a00] focus:ring-1 focus:ring-[#ff6a00]"
                 >
                   <option value="">Ninguno</option>
                   {filaments.map(f => <option key={f.id} value={f.id}>{f.name}</option>)}
@@ -1003,12 +1003,12 @@ export default function PresupuestosPage() {
                   placeholder="Ej. https://..." 
                   value={productData.image_url} 
                   onChange={e => setProductData({...productData, image_url: e.target.value})} 
-                  className="w-full text-sm rounded-xl border border-white/10 bg-[#0a0a0a] px-3 py-2.5 text-white outline-none focus:border-[#ff6a00] focus:ring-1 focus:ring-[#ff6a00]" 
+                  className="w-full text-sm rounded-xl border border-stampa-border bg-stampa-bg-soft px-3 py-2.5 text-white outline-none focus:border-[#ff6a00] focus:ring-1 focus:ring-[#ff6a00]" 
                 />
               </div>
             </div>
 
-            <div className="bg-[#0a0a0a] px-6 py-4 flex justify-end gap-3 border-t border-white/10">
+            <div className="bg-stampa-bg-soft px-6 py-4 flex justify-end gap-3 border-t border-stampa-border">
               <button 
                 type="button" 
                 onClick={() => setShowProductModal(false)} 
@@ -1019,7 +1019,7 @@ export default function PresupuestosPage() {
               <button 
                 type="button" 
                 onClick={handleSaveProduct} 
-                className="px-6 py-2.5 text-sm font-bold bg-[#ff6a00] hover:bg-[#ff7a1a] text-white rounded-xl transition-colors shadow-lg shadow-[#ff6a00]/20"
+                className="px-6 py-2.5 text-sm font-bold bg-stampa-orange hover:bg-stampa-orange-hover text-white rounded-xl transition-colors shadow-lg shadow-[#ff6a00]/20"
               >
                 Guardar Producto
               </button>

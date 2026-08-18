@@ -120,7 +120,7 @@ export default function StampyPage() {
       <div className="flex flex-col lg:flex-row gap-4 md:gap-6 flex-1 min-h-0">
         
         {/* Chat Area */}
-        <div className="flex-1 flex flex-col bg-[#050505] border border-white/10 rounded-2xl overflow-hidden shadow-2xl">
+        <div className="flex-1 flex flex-col bg-stampa-bg border border-stampa-border rounded-2xl overflow-hidden shadow-2xl">
           <div className="flex-1 overflow-y-auto p-4 md:p-6 space-y-6">
             {messages.map((msg) => (
               <div key={msg.id} className={`flex gap-4 ${msg.role === "user" ? "justify-end" : "justify-start"}`}>
@@ -131,7 +131,7 @@ export default function StampyPage() {
                   </div>
                 )}
                 
-                <div className={`max-w-[85%] ${msg.role === "user" ? "bg-gradient-to-r from-cyan-500 to-violet-600 text-white rounded-2xl rounded-tr-sm px-4 py-3 shadow-md shadow-cyan-500/5" : "bg-[#111] border border-white/10 shadow-sm rounded-2xl rounded-tl-sm px-5 py-4"}`}>
+                <div className={`max-w-[85%] ${msg.role === "user" ? "bg-gradient-to-r from-cyan-500 to-violet-600 text-white rounded-2xl rounded-tr-sm px-4 py-3 shadow-md shadow-cyan-500/5" : "bg-stampa-surface border border-stampa-border shadow-sm rounded-2xl rounded-tl-sm px-5 py-4"}`}>
                   <p className={`text-sm ${msg.role === "user" ? "text-white" : "text-gray-300"} whitespace-pre-wrap`}>
                     {msg.content}
                   </p>
@@ -142,7 +142,7 @@ export default function StampyPage() {
                       {msg.recommendations.map((rec: any, idx: number) => {
                         const courseId = rec.course_modules?.courses?.slug || rec.course_modules?.courses?.id || "";
                         return (
-                          <div key={idx} className="bg-white/5 border border-white/10 rounded-xl p-3 flex flex-col sm:flex-row sm:items-center justify-between gap-3 group">
+                          <div key={idx} className="bg-white/5 border border-stampa-border rounded-xl p-3 flex flex-col sm:flex-row sm:items-center justify-between gap-3 group">
                             <div>
                               <div className="flex items-center gap-2 mb-1">
                                 {rec.courseKind === "workshop" ? (
@@ -156,12 +156,12 @@ export default function StampyPage() {
                                 )}
                                 <span className="text-[10px] text-gray-500 font-bold tracking-wider truncate uppercase">{rec.course_modules?.courses?.title}</span>
                               </div>
-                              <p className="text-sm font-semibold text-white group-hover:text-[#ff6a00] transition-colors">{rec.title}</p>
+                              <p className="text-sm font-semibold text-white group-hover:text-stampa-orange transition-colors">{rec.title}</p>
                               {rec.ai_summary && <p className="text-xs text-gray-500 mt-1 line-clamp-2">{rec.ai_summary}</p>}
                             </div>
                             <Link 
                               href={courseId ? `/cursos/${courseId}` : "/cursos"} 
-                              className="shrink-0 flex items-center justify-center gap-1 bg-[#1a1a1a] border border-white/10 text-gray-300 hover:text-[#ff6a00] hover:border-[#ff6a00]/30 px-3 py-1.5 rounded-lg text-xs font-semibold transition-colors shadow-sm"
+                              className="shrink-0 flex items-center justify-center gap-1 bg-[#1a1a1a] border border-stampa-border text-gray-300 hover:text-stampa-orange hover:border-[#ff6a00]/30 px-3 py-1.5 rounded-lg text-xs font-semibold transition-colors shadow-sm"
                             >
                               Ver clase <ChevronRight size={14} />
                             </Link>
@@ -204,14 +204,14 @@ export default function StampyPage() {
                     });
                     if (filteredTools.length === 0) return null;
                     return (
-                      <div className="mt-4 pt-4 border-t border-white/10">
+                      <div className="mt-4 pt-4 border-t border-stampa-border">
                         <p className="text-[11px] font-bold text-gray-500 uppercase tracking-wider mb-3">También te puede servir:</p>
                         <div className="flex flex-wrap gap-2">
                           {filteredTools.map((t: string) => {
                             const tool = TOOL_MAP[t];
                             const Icon = tool.icon;
                             return (
-                              <Link key={t} href={tool.href} className="flex items-center gap-2 bg-[#1a1a1a] border border-white/5 text-gray-300 hover:bg-white/5 hover:text-white px-3 py-2 rounded-lg text-xs font-bold transition-colors shadow-sm">
+                              <Link key={t} href={tool.href} className="flex items-center gap-2 bg-[#1a1a1a] border border-stampa-border text-gray-300 hover:bg-white/5 hover:text-white px-3 py-2 rounded-lg text-xs font-bold transition-colors shadow-sm">
                                 <Icon size={14} />
                                 {tool.label}
                               </Link>
@@ -236,7 +236,7 @@ export default function StampyPage() {
                 <div className="w-8 h-8 shrink-0 rounded-full bg-cyan-500/10 flex items-center justify-center text-cyan-400 mt-1 shadow-sm border border-cyan-500/20">
                   <Bot size={18} />
                 </div>
-                <div className="bg-[#111] border border-white/10 shadow-sm rounded-2xl rounded-tl-sm px-5 py-4 flex items-center gap-3">
+                <div className="bg-stampa-surface border border-stampa-border shadow-sm rounded-2xl rounded-tl-sm px-5 py-4 flex items-center gap-3">
                   <Loader2 size={16} className="animate-spin text-cyan-400" />
                   <p className="text-sm text-gray-400 italic">Stampy está buscando por dónde conviene arrancar...</p>
                 </div>
@@ -246,14 +246,14 @@ export default function StampyPage() {
             <div ref={messagesEndRef} />
           </div>
           
-          <div className="p-4 bg-[#0a0a0a] border-t border-white/10 shrink-0">
+          <div className="p-4 bg-stampa-bg-soft border-t border-stampa-border shrink-0">
             <div className="relative flex items-end">
               <textarea
                 value={input}
                 onChange={(e) => setInput(e.target.value)}
                 onKeyDown={handleKeyDown}
                 placeholder="Preguntale algo a Stampy..."
-                className="w-full bg-[#111] border border-white/10 rounded-xl py-3 pl-4 pr-12 text-sm text-white placeholder:text-gray-400 focus:outline-none focus:ring-2 focus:ring-cyan-400/20 focus:border-cyan-400/60 resize-none overflow-y-auto"
+                className="w-full bg-stampa-surface border border-stampa-border rounded-xl py-3 pl-4 pr-12 text-sm text-white placeholder:text-gray-400 focus:outline-none focus:ring-2 focus:ring-cyan-400/20 focus:border-cyan-400/60 resize-none overflow-y-auto"
                 rows={1}
                 disabled={loading}
                 style={{ minHeight: '52px', maxHeight: '120px' }}
@@ -272,7 +272,7 @@ export default function StampyPage() {
 
         {/* Quick Suggestions Sidebar */}
         <div className="w-full lg:w-72 shrink-0">
-          <div className="bg-[#111] border border-white/10 rounded-2xl p-5 shadow-sm">
+          <div className="bg-stampa-surface border border-stampa-border rounded-2xl p-5 shadow-sm">
             <h3 className="text-sm font-bold text-white mb-3 flex items-center gap-2">
               Sugerencias rápidas
             </h3>
@@ -282,7 +282,7 @@ export default function StampyPage() {
                   key={i}
                   onClick={() => setInput(sug)}
                   disabled={loading}
-                  className="text-left text-xs font-medium bg-[#0a0a0a] border border-white/5 hover:bg-orange-50 hover:border-orange-200 hover:text-orange-700 text-gray-400 px-3 py-2.5 rounded-xl transition-colors"
+                  className="text-left text-xs font-medium bg-stampa-bg-soft border border-stampa-border hover:bg-orange-50 hover:border-orange-200 hover:text-orange-700 text-gray-400 px-3 py-2.5 rounded-xl transition-colors"
                 >
                   "{sug}"
                 </button>

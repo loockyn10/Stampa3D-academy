@@ -8,17 +8,17 @@ export function LandingCTA() {
   const [ref, isIntersecting] = useIntersection<HTMLDivElement>({ threshold: 0.1 });
 
   return (
-    <section id="precio" className="py-24 bg-black relative overflow-hidden border-t border-white/5">
+    <section id="precio" className="py-24 bg-stampa-bg relative overflow-hidden border-t border-stampa-border">
       {/* Background elements - Desktop Only Glow */}
       <div className="absolute inset-0 z-0 hidden md:block">
-        <div className="absolute bottom-0 left-1/2 -translate-x-1/2 w-full max-w-3xl h-[400px] bg-orange-600/20 blur-[120px] rounded-full pointer-events-none stampa-pulse" />
+        <div className="absolute bottom-0 left-1/2 -translate-x-1/2 w-full max-w-3xl h-[400px] bg-stampa-orange/20 blur-[120px] rounded-full pointer-events-none stampa-pulse" />
         <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_bottom,rgba(0,0,0,0)_0%,rgba(0,0,0,0.9)_100%)] pointer-events-none" />
         {/* Subtle grid to match hero */}
         <div className="absolute inset-0 opacity-[0.02]" style={{ backgroundImage: 'linear-gradient(to right, #ffffff 1px, transparent 1px), linear-gradient(to bottom, #ffffff 1px, transparent 1px)', backgroundSize: '40px 40px' }} />
       </div>
 
       <div className="container mx-auto px-6 relative z-10" ref={ref}>
-        <div className={`max-w-4xl mx-auto bg-zinc-950 md:bg-zinc-900/60 border border-orange-500/20 md:border-orange-500/30 rounded-3xl p-8 md:p-16 text-center md:backdrop-blur-xl shadow-lg md:shadow-[0_0_50px_rgba(234,88,12,0.15)] relative overflow-hidden stampa-reveal-hidden ${isIntersecting ? 'stampa-reveal-visible' : ''}`}>
+        <div className={`max-w-4xl mx-auto bg-stampa-bg md:bg-zinc-900/60 border border-stampa-orange/20 md:border-stampa-orange/30 rounded-3xl p-8 md:p-16 text-center md:backdrop-blur-xl shadow-lg md:shadow-[0_0_50px_rgba(234,88,12,0.15)] relative overflow-hidden stampa-reveal-hidden ${isIntersecting ? 'stampa-reveal-visible' : ''}`}>
           
           {/* Animated border line - Desktop Only */}
           <div className="absolute top-0 left-0 right-0 h-1 bg-gradient-to-r from-transparent via-orange-500 to-transparent opacity-50 hidden md:block" style={{ animation: 'stampa-shine 4s infinite' }} />
@@ -50,7 +50,7 @@ export function LandingCTA() {
 
             <Link 
               href="#plataforma"
-              className="w-full sm:w-auto inline-flex items-center justify-center gap-2 px-10 py-4 md:py-5 rounded-xl bg-white/5 hover:bg-white/10 border border-white/10 text-white font-medium text-lg transition-all duration-300 md:hover:border-orange-500/30 group"
+              className="w-full sm:w-auto inline-flex items-center justify-center gap-2 px-10 py-4 md:py-5 rounded-xl bg-white/5 hover:bg-white/10 border border-stampa-border text-white font-medium text-lg transition-all duration-300 md:hover:border-stampa-orange/30 group"
             >
               <LayoutDashboard className="w-5 h-5 group-hover:text-orange-400 transition-colors" />
               Ver plataforma

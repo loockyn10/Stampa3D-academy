@@ -77,6 +77,6 @@ export function getCourseLevelClasses(labelOrCourse: any): string {
     case "Taller":
       return base + "bg-sky-500/10 text-sky-300 border-sky-500/30";
     default:
-      return base + "bg-white/5 text-neutral-300 border-white/10";
+      return base + "bg-white/5 text-neutral-300 border-stampa-border";
   }
 }

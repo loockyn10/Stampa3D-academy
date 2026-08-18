@@ -170,7 +170,7 @@ export function StlModelForm({ modelId }: { modelId?: string }) {
   }
 
   return (
-    <form onSubmit={handleSubmit} className="space-y-6 bg-[#111] p-6 rounded-xl border border-white/10 shadow-sm">
+    <form onSubmit={handleSubmit} className="space-y-6 bg-stampa-surface p-6 rounded-xl border border-stampa-border shadow-sm">
       {error && (
         <div className="bg-red-50 text-red-600 p-4 rounded-lg flex items-center gap-2 text-sm border border-red-100">
           <AlertCircle className="h-4 w-4" />
@@ -193,7 +193,7 @@ export function StlModelForm({ modelId }: { modelId?: string }) {
             name="title"
             value={formData.title}
             onChange={handleChange}
-            className="w-full text-sm border-white/10 rounded-md text-neutral-100 bg-neutral-900 border focus:border-[#ff6a00] focus:ring-[#ff6a00]/20 focus:ring-2 placeholder:text-neutral-500 disabled:bg-neutral-800 disabled:text-neutral-500"
+            className="w-full text-sm border-stampa-border rounded-md text-neutral-100 bg-stampa-surface border focus:border-[#ff6a00] focus:ring-[#ff6a00]/20 focus:ring-2 placeholder:text-neutral-500 disabled:bg-neutral-800 disabled:text-neutral-500"
             placeholder="Ej. Maceta Geométrica"
           />
         </div>
@@ -204,7 +204,7 @@ export function StlModelForm({ modelId }: { modelId?: string }) {
             name="category_id"
             value={formData.category_id}
             onChange={handleChange}
-            className="w-full text-sm border-white/10 rounded-md text-neutral-100 bg-neutral-900 border focus:border-[#ff6a00] focus:ring-[#ff6a00]/20 focus:ring-2 placeholder:text-neutral-500 disabled:bg-neutral-800 disabled:text-neutral-500"
+            className="w-full text-sm border-stampa-border rounded-md text-neutral-100 bg-stampa-surface border focus:border-[#ff6a00] focus:ring-[#ff6a00]/20 focus:ring-2 placeholder:text-neutral-500 disabled:bg-neutral-800 disabled:text-neutral-500"
           >
             <option value="">-- Sin categoría --</option>
             {categories.map((c) => (
@@ -222,7 +222,7 @@ export function StlModelForm({ modelId }: { modelId?: string }) {
             value={formData.description}
             onChange={handleChange}
             rows={4}
-            className="w-full text-sm border-white/10 rounded-md text-neutral-100 bg-neutral-900 border focus:border-[#ff6a00] focus:ring-[#ff6a00]/20 focus:ring-2 placeholder:text-neutral-500 disabled:bg-neutral-800 disabled:text-neutral-500"
+            className="w-full text-sm border-stampa-border rounded-md text-neutral-100 bg-stampa-surface border focus:border-[#ff6a00] focus:ring-[#ff6a00]/20 focus:ring-2 placeholder:text-neutral-500 disabled:bg-neutral-800 disabled:text-neutral-500"
           />
         </div>
 
@@ -232,7 +232,7 @@ export function StlModelForm({ modelId }: { modelId?: string }) {
             name="difficulty"
             value={formData.difficulty}
             onChange={handleChange}
-            className="w-full text-sm border-white/10 rounded-md text-neutral-100 bg-neutral-900 border focus:border-[#ff6a00] focus:ring-[#ff6a00]/20 focus:ring-2 placeholder:text-neutral-500 disabled:bg-neutral-800 disabled:text-neutral-500"
+            className="w-full text-sm border-stampa-border rounded-md text-neutral-100 bg-stampa-surface border focus:border-[#ff6a00] focus:ring-[#ff6a00]/20 focus:ring-2 placeholder:text-neutral-500 disabled:bg-neutral-800 disabled:text-neutral-500"
           >
             <option value="beginner">Principiante</option>
             <option value="intermediate">Intermedio</option>
@@ -247,7 +247,7 @@ export function StlModelForm({ modelId }: { modelId?: string }) {
             name="material_type"
             value={formData.material_type}
             onChange={handleChange}
-            className="w-full text-sm border-white/10 rounded-md text-neutral-100 bg-neutral-900 border focus:border-[#ff6a00] focus:ring-[#ff6a00]/20 focus:ring-2 placeholder:text-neutral-500 disabled:bg-neutral-800 disabled:text-neutral-500"
+            className="w-full text-sm border-stampa-border rounded-md text-neutral-100 bg-stampa-surface border focus:border-[#ff6a00] focus:ring-[#ff6a00]/20 focus:ring-2 placeholder:text-neutral-500 disabled:bg-neutral-800 disabled:text-neutral-500"
             placeholder="Ej. PLA, PETG"
           />
         </div>
@@ -259,7 +259,7 @@ export function StlModelForm({ modelId }: { modelId?: string }) {
             name="estimated_print_time"
             value={formData.estimated_print_time}
             onChange={handleChange}
-            className="w-full text-sm border-white/10 rounded-md text-neutral-100 bg-neutral-900 border focus:border-[#ff6a00] focus:ring-[#ff6a00]/20 focus:ring-2 placeholder:text-neutral-500 disabled:bg-neutral-800 disabled:text-neutral-500"
+            className="w-full text-sm border-stampa-border rounded-md text-neutral-100 bg-stampa-surface border focus:border-[#ff6a00] focus:ring-[#ff6a00]/20 focus:ring-2 placeholder:text-neutral-500 disabled:bg-neutral-800 disabled:text-neutral-500"
             placeholder="Ej. 2h 30m"
           />
         </div>
@@ -271,12 +271,12 @@ export function StlModelForm({ modelId }: { modelId?: string }) {
             name="thumbnail_url"
             value={formData.thumbnail_url}
             onChange={handleChange}
-            className="w-full text-sm border-white/10 rounded-md text-neutral-100 bg-neutral-900 border focus:border-[#ff6a00] focus:ring-[#ff6a00]/20 focus:ring-2 placeholder:text-neutral-500 disabled:bg-neutral-800 disabled:text-neutral-500"
+            className="w-full text-sm border-stampa-border rounded-md text-neutral-100 bg-stampa-surface border focus:border-[#ff6a00] focus:ring-[#ff6a00]/20 focus:ring-2 placeholder:text-neutral-500 disabled:bg-neutral-800 disabled:text-neutral-500"
             placeholder="https://ejemplo.com/imagen.jpg o usa un Dropzone en otra sección"
           />
         </div>
 
-        <div className="space-y-2 md:col-span-2 p-4 bg-[#0a0a0a] border border-white/10 rounded-xl">
+        <div className="space-y-2 md:col-span-2 p-4 bg-stampa-bg-soft border border-stampa-border rounded-xl">
           <label className="text-sm font-semibold text-gray-300 block mb-2">Archivo descargable</label>
           
           {formData.file_url ? (
@@ -312,14 +312,14 @@ export function StlModelForm({ modelId }: { modelId?: string }) {
               name="is_active"
               checked={formData.is_active}
               onChange={handleChange}
-              className="rounded text-[#ff6a00] focus:ring-[#ff6a00]/20"
+              className="rounded text-stampa-orange focus:ring-[#ff6a00]/20"
             />
             Archivo Activo (Visible)
           </label>
         </div>
       </div>
 
-      <div className="pt-4 border-t border-white/5 flex justify-end">
+      <div className="pt-4 border-t border-stampa-border flex justify-end">
         <button
           type="submit"
           disabled={saving}

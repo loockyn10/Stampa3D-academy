@@ -6,10 +6,10 @@ import { LandingHeroMockup } from "./LandingHeroMockup";
 
 export function LandingHero() {
   return (
-    <section className="relative min-h-[95vh] flex items-center justify-center overflow-hidden bg-black text-white pt-24 pb-16">
+    <section className="relative min-h-[95vh] flex items-center justify-center overflow-hidden bg-stampa-bg text-white pt-24 pb-16">
       {/* Background Effects */}
       <div className="absolute inset-0 z-0">
-        <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[1000px] h-[1000px] bg-orange-600/15 rounded-full blur-[150px] opacity-70 animate-pulse" />
+        <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[1000px] h-[1000px] bg-stampa-orange/15 rounded-full blur-[150px] opacity-70 animate-pulse" />
         <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_center,rgba(0,0,0,0.1)_0%,rgba(0,0,0,0.95)_100%)]" />
         
         {/* Technical Grid */}
@@ -28,10 +28,10 @@ export function LandingHero() {
       <div className="container mx-auto px-6 relative z-10 grid lg:grid-cols-2 gap-12 items-center">
         {/* Text Content */}
         <div className="max-w-2xl text-center lg:text-left pt-10 lg:pt-0">
-          <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-orange-500/10 border border-orange-500/20 text-orange-400 text-sm font-medium mb-8 animate-fade-in-up">
+          <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-stampa-orange/10 border border-stampa-orange/20 text-orange-400 text-sm font-medium mb-8 animate-fade-in-up">
             <span className="relative flex h-2 w-2">
               <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-orange-400 opacity-75"></span>
-              <span className="relative inline-flex rounded-full h-2 w-2 bg-orange-500"></span>
+              <span className="relative inline-flex rounded-full h-2 w-2 bg-stampa-orange"></span>
             </span>
             Stampa3D Academy
           </div>
@@ -63,9 +63,9 @@ export function LandingHero() {
             
             <Link 
               href="#contenido"
-              className="w-full sm:w-auto px-8 py-4 rounded-xl bg-white/5 hover:bg-white/10 border border-white/10 text-white font-medium transition-all duration-300 flex items-center justify-center gap-2 hover:border-orange-500/30 group"
+              className="w-full sm:w-auto px-8 py-4 rounded-xl bg-white/5 hover:bg-white/10 border border-stampa-border text-white font-medium transition-all duration-300 flex items-center justify-center gap-2 hover:border-stampa-orange/30 group"
             >
-              <div className="w-8 h-8 rounded-full bg-white/10 flex items-center justify-center group-hover:bg-orange-500/20 group-hover:text-orange-400 transition-colors">
+              <div className="w-8 h-8 rounded-full bg-white/10 flex items-center justify-center group-hover:bg-stampa-orange/20 group-hover:text-orange-400 transition-colors">
                 <Play className="w-4 h-4 ml-0.5" />
               </div>
               Ver qué incluye

@@ -175,12 +175,12 @@ export default function AdminStampyContextosPage() {
             <div>
               <label className="block text-xs font-semibold text-gray-400 uppercase tracking-wider mb-1.5">Ruta</label>
               <input type="text" value={routePattern} onChange={e => setRoutePattern(e.target.value)}
-                placeholder="/calculadora" className="w-full rounded-xl border border-white/10 px-3 py-2 text-sm text-white bg-white/5 focus:border-cyan-500/50 outline-none" />
+                placeholder="/calculadora" className="w-full rounded-xl border border-stampa-border px-3 py-2 text-sm text-white bg-white/5 focus:border-cyan-500/50 outline-none" />
             </div>
             <div>
               <label className="block text-xs font-semibold text-gray-400 uppercase tracking-wider mb-1.5">Tipo de Match</label>
               <select value={matchType} onChange={e => setMatchType(e.target.value)}
-                className="w-full rounded-xl border border-white/10 px-3 py-2 text-sm text-white bg-[#111] focus:border-cyan-500/50 outline-none">
+                className="w-full rounded-xl border border-stampa-border px-3 py-2 text-sm text-white bg-stampa-surface focus:border-cyan-500/50 outline-none">
                 <option value="exact">Exacto (ej: /calculadora)</option>
                 <option value="prefix">Prefijo (ej: /cursos engloba todo adentro)</option>
               </select>
@@ -189,36 +189,36 @@ export default function AdminStampyContextosPage() {
             <div className="md:col-span-2">
               <label className="block text-xs font-semibold text-gray-400 uppercase tracking-wider mb-1.5">Título de la pantalla</label>
               <input type="text" value={title} onChange={e => setTitle(e.target.value)}
-                placeholder="Calculadora" className="w-full rounded-xl border border-white/10 px-3 py-2 text-sm text-white bg-white/5 focus:border-cyan-500/50 outline-none" />
+                placeholder="Calculadora" className="w-full rounded-xl border border-stampa-border px-3 py-2 text-sm text-white bg-white/5 focus:border-cyan-500/50 outline-none" />
             </div>
 
             <div className="md:col-span-2">
               <label className="block text-xs font-semibold text-gray-400 uppercase tracking-wider mb-1.5">Contexto para Stampy</label>
               <textarea value={contextText} onChange={e => setContextText(e.target.value)} rows={3}
-                placeholder="Herramienta para calcular precios de impresión 3D..." className="w-full rounded-xl border border-white/10 px-3 py-2 text-sm text-white bg-white/5 focus:border-cyan-500/50 outline-none resize-none" />
+                placeholder="Herramienta para calcular precios de impresión 3D..." className="w-full rounded-xl border border-stampa-border px-3 py-2 text-sm text-white bg-white/5 focus:border-cyan-500/50 outline-none resize-none" />
             </div>
 
             <div>
               <label className="block text-xs font-semibold text-gray-400 uppercase tracking-wider mb-1.5">Preguntas Sugeridas (Una por línea)</label>
               <textarea value={suggested} onChange={e => setSuggested(e.target.value)} rows={3}
-                placeholder="¿Cómo calculo el costo de luz?&#10;¿Qué margen me conviene?" className="w-full rounded-xl border border-white/10 px-3 py-2 text-sm text-white bg-white/5 focus:border-cyan-500/50 outline-none resize-none" />
+                placeholder="¿Cómo calculo el costo de luz?&#10;¿Qué margen me conviene?" className="w-full rounded-xl border border-stampa-border px-3 py-2 text-sm text-white bg-white/5 focus:border-cyan-500/50 outline-none resize-none" />
             </div>
 
             <div>
               <label className="block text-xs font-semibold text-gray-400 uppercase tracking-wider mb-1.5">Herramientas Relacionadas (Una por línea)</label>
               <textarea value={related} onChange={e => setRelated(e.target.value)} rows={3}
-                placeholder="presupuestos&#10;productos" className="w-full rounded-xl border border-white/10 px-3 py-2 text-sm text-white bg-white/5 focus:border-cyan-500/50 outline-none resize-none" />
+                placeholder="presupuestos&#10;productos" className="w-full rounded-xl border border-stampa-border px-3 py-2 text-sm text-white bg-white/5 focus:border-cyan-500/50 outline-none resize-none" />
             </div>
 
             <div>
               <label className="block text-xs font-semibold text-gray-400 uppercase tracking-wider mb-1.5">Prioridad (Mayor número gana)</label>
               <input type="number" value={priority} onChange={e => setPriority(e.target.value)}
-                className="w-full rounded-xl border border-white/10 px-3 py-2 text-sm text-white bg-white/5 focus:border-cyan-500/50 outline-none" />
+                className="w-full rounded-xl border border-stampa-border px-3 py-2 text-sm text-white bg-white/5 focus:border-cyan-500/50 outline-none" />
             </div>
           </div>
 
           <div className="flex gap-2 mt-5">
-            <button onClick={() => setShowForm(false)} className="px-4 py-2 rounded-xl text-sm font-semibold text-gray-400 hover:text-white bg-white/5 border border-white/10">Cancelar</button>
+            <button onClick={() => setShowForm(false)} className="px-4 py-2 rounded-xl text-sm font-semibold text-gray-400 hover:text-white bg-white/5 border border-stampa-border">Cancelar</button>
             <button onClick={handleSave} disabled={saving} className="px-4 py-2 flex items-center gap-2 rounded-xl text-sm font-semibold text-white bg-cyan-600 hover:bg-cyan-500 disabled:opacity-50">
               {saving ? <Loader2 size={16} className="animate-spin" /> : <Check size={16} />}
               Guardar
@@ -232,15 +232,15 @@ export default function AdminStampyContextosPage() {
           <Loader2 className="animate-spin text-cyan-500" size={32} />
         </div>
       ) : contexts.length === 0 ? (
-        <div className="text-center py-12 bg-[#111] border border-white/5 rounded-2xl">
+        <div className="text-center py-12 bg-stampa-surface border border-stampa-border rounded-2xl">
           <p className="text-gray-500 text-sm">No hay contextos configurados.</p>
         </div>
       ) : (
-        <div className="bg-[#111] border border-white/10 rounded-xl overflow-hidden">
+        <div className="bg-stampa-surface border border-stampa-border rounded-xl overflow-hidden">
           <div className="overflow-x-auto">
             <table className="w-full text-left border-collapse">
               <thead>
-                <tr className="bg-[#0a0a0a] border-b border-white/10 text-xs font-semibold text-gray-500 uppercase tracking-wide">
+                <tr className="bg-stampa-bg-soft border-b border-stampa-border text-xs font-semibold text-gray-500 uppercase tracking-wide">
                   <th className="px-4 py-3">Ruta</th>
                   <th className="px-4 py-3">Título</th>
                   <th className="px-4 py-3">Prioridad</th>
@@ -250,7 +250,7 @@ export default function AdminStampyContextosPage() {
               </thead>
               <tbody className="divide-y divide-white/5">
                 {contexts.map(c => (
-                  <tr key={c.id} className="text-sm hover:bg-[#0a0a0a] transition-colors">
+                  <tr key={c.id} className="text-sm hover:bg-stampa-bg-soft transition-colors">
                     <td className="px-4 py-3">
                       <span className="font-mono text-cyan-400">{c.route_pattern}</span>
                       <span className="ml-2 text-[10px] text-gray-500 uppercase border border-gray-700 rounded px-1">{c.match_type}</span>

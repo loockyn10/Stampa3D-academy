@@ -154,11 +154,11 @@ export function GlobalStampyWidget() {
 
       {/* Panel */}
       {isOpen && (
-        <aside className="fixed inset-x-3 bottom-3 z-[100] h-[82dvh] max-h-[82dvh] overflow-hidden rounded-2xl border border-cyan-400/30 bg-neutral-950/95 shadow-2xl shadow-cyan-500/15 backdrop-blur-xl md:inset-auto md:bottom-6 md:right-6 md:h-[80dvh] md:max-h-[760px] md:w-[420px] md:max-w-[calc(100vw-3rem)] animate-in fade-in zoom-in-95 slide-in-from-bottom-2">
+        <aside className="fixed inset-x-3 bottom-3 z-[100] h-[82dvh] max-h-[82dvh] overflow-hidden rounded-2xl border border-cyan-400/30 bg-stampa-bg/95 shadow-2xl shadow-cyan-500/15 backdrop-blur-xl md:inset-auto md:bottom-6 md:right-6 md:h-[80dvh] md:max-h-[760px] md:w-[420px] md:max-w-[calc(100vw-3rem)] animate-in fade-in zoom-in-95 slide-in-from-bottom-2">
           <div className="flex h-full min-h-0 flex-col">
 
             {/* Header */}
-            <div className="flex items-center justify-between p-4 border-b border-white/10 bg-white/[0.03] shrink-0">
+            <div className="flex items-center justify-between p-4 border-b border-stampa-border bg-white/[0.03] shrink-0">
               <div className="flex items-center gap-3">
                 <div className="p-2 bg-cyan-500/10 text-cyan-400 rounded-xl border border-cyan-400/25">
                   <Bot size={20} />
@@ -179,7 +179,7 @@ export function GlobalStampyWidget() {
               </div>
               <button
                 onClick={() => setIsOpen(false)}
-                className="text-gray-400 hover:text-white transition-colors p-2 bg-white/5 border border-white/10 rounded-full hover:bg-white/10 hover:border-cyan-400/40"
+                className="text-gray-400 hover:text-white transition-colors p-2 bg-white/5 border border-stampa-border rounded-full hover:bg-white/10 hover:border-cyan-400/40"
               >
                 <X size={18} />
               </button>
@@ -201,7 +201,7 @@ export function GlobalStampyWidget() {
                     className={`max-w-[80%] rounded-2xl p-3 text-sm ${
                       m.role === "user"
                         ? "bg-gradient-to-r from-cyan-500 to-violet-600 text-white rounded-tr-sm shadow-sm"
-                        : "bg-[#1a1a1a] border border-white/10 text-gray-200 rounded-tl-sm"
+                        : "bg-[#1a1a1a] border border-stampa-border text-gray-200 rounded-tl-sm"
                     }`}
                   >
                     {m.content}
@@ -229,7 +229,7 @@ export function GlobalStampyWidget() {
                   <div className="w-7 h-7 shrink-0 rounded-full bg-cyan-500/10 border border-cyan-500/20 flex items-center justify-center text-cyan-400 mt-0.5 mr-2">
                     <Bot size={14} />
                   </div>
-                  <div className="bg-[#1a1a1a] border border-white/10 text-gray-400 rounded-2xl rounded-tl-sm p-3 text-sm flex items-center gap-2">
+                  <div className="bg-[#1a1a1a] border border-stampa-border text-gray-400 rounded-2xl rounded-tl-sm p-3 text-sm flex items-center gap-2">
                     <Loader2 size={14} className="animate-spin text-cyan-400" />
                     <span>Pensando...</span>
                   </div>
@@ -239,7 +239,7 @@ export function GlobalStampyWidget() {
             </div>
 
             {/* Input */}
-            <div className="p-4 bg-neutral-950/95 border-t border-white/10 shrink-0">
+            <div className="p-4 bg-stampa-bg/95 border-t border-stampa-border shrink-0">
               <div className="relative flex items-center">
                 <input
                   type="text"
@@ -247,7 +247,7 @@ export function GlobalStampyWidget() {
                   onChange={(e) => setInput(e.target.value)}
                   onKeyDown={(e) => e.key === "Enter" && handleSend()}
                   placeholder="Preguntale algo a Stampy..."
-                  className="w-full bg-white/5 border border-white/10 text-neutral-100 text-sm rounded-xl py-3 pl-4 pr-12 focus:outline-none focus:border-cyan-400/60 focus:ring-2 focus:ring-cyan-400/20 transition-all duration-200 placeholder:text-gray-500"
+                  className="w-full bg-white/5 border border-stampa-border text-neutral-100 text-sm rounded-xl py-3 pl-4 pr-12 focus:outline-none focus:border-cyan-400/60 focus:ring-2 focus:ring-cyan-400/20 transition-all duration-200 placeholder:text-gray-500"
                   disabled={isLoading}
                 />
                 <button
@@ -266,7 +266,7 @@ export function GlobalStampyWidget() {
       {/* Mobile overlay */}
       {isOpen && (
         <div
-          className="fixed inset-0 bg-black/60 z-[99] sm:hidden"
+          className="fixed inset-0 bg-stampa-bg/60 z-[99] sm:hidden"
           onClick={() => setIsOpen(false)}
         />
       )}

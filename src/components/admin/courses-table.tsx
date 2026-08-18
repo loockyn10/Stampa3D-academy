@@ -56,11 +56,11 @@ export function CoursesTable() {
         </div>
       )}
 
-      <div className="bg-[#111] border border-white/10 rounded-xl overflow-hidden shadow-sm">
+      <div className="bg-stampa-surface border border-stampa-border rounded-xl overflow-hidden shadow-sm">
         <div className="overflow-x-auto">
           <table className="w-full min-w-[800px] text-left border-collapse">
             <thead>
-              <tr className="bg-[#0a0a0a] border-b border-white/10 text-sm font-medium text-gray-500">
+              <tr className="bg-stampa-bg-soft border-b border-stampa-border text-sm font-medium text-gray-500">
                 <th className="px-4 py-3">Título</th>
                 <th className="px-4 py-3">Categoría</th>
                 <th className="px-4 py-3">Instructor</th>
@@ -73,7 +73,7 @@ export function CoursesTable() {
             </thead>
             <tbody className="divide-y divide-gray-100">
               {courses.map((course) => (
-                <tr key={course.id} className="text-sm hover:bg-[#0a0a0a] transition-colors">
+                <tr key={course.id} className="text-sm hover:bg-stampa-bg-soft transition-colors">
                   <td className="px-4 py-3 font-medium text-white">
                     {course.title}
                   </td>

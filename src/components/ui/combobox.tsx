@@ -45,7 +45,7 @@ export function Combobox({ options, value, onChange, placeholder = "Seleccionar.
     <div className={`relative ${className}`} ref={wrapperRef}>
       <button
         type="button"
-        className="w-full bg-[#111] text-left text-sm border border-white/20 rounded-md shadow-sm px-3 py-2 focus:outline-none focus:ring-1 focus:ring-orange-500 focus:border-orange-500 flex justify-between items-center"
+        className="w-full bg-stampa-surface text-left text-sm border border-white/20 rounded-md shadow-sm px-3 py-2 focus:outline-none focus:ring-1 focus:ring-stampa-orange focus:border-stampa-orange flex justify-between items-center"
         onClick={() => {
           setIsOpen(!isOpen);
           setQuery("");
@@ -58,14 +58,14 @@ export function Combobox({ options, value, onChange, placeholder = "Seleccionar.
       </button>
 
       {isOpen && (
-        <div className="absolute z-10 mt-1 w-full bg-[#111] shadow-lg rounded-md text-base ring-1 ring-black ring-opacity-5 overflow-visible focus:outline-none sm:text-sm">
-          <div className="bg-[#111] px-2 py-2 border-b border-white/5 rounded-t-md">
+        <div className="absolute z-10 mt-1 w-full bg-stampa-surface shadow-lg rounded-md text-base ring-1 ring-black ring-opacity-5 overflow-visible focus:outline-none sm:text-sm">
+          <div className="bg-stampa-surface px-2 py-2 border-b border-stampa-border rounded-t-md">
             <div className="relative">
               <Search size={14} className="absolute left-2.5 top-2.5 text-gray-400" />
               <input
                 type="text"
                 autoFocus
-                className="w-full pl-8 pr-3 py-1.5 text-sm border border-white/10 rounded-md focus:outline-none bg-neutral-900 focus:border-[#ff6a00] focus:ring-[#ff6a00]/20 focus:ring-2 placeholder:text-neutral-500 disabled:bg-neutral-800 disabled:text-neutral-500"
+                className="w-full pl-8 pr-3 py-1.5 text-sm border border-stampa-border rounded-md focus:outline-none bg-stampa-surface focus:border-[#ff6a00] focus:ring-[#ff6a00]/20 focus:ring-2 placeholder:text-neutral-500 disabled:bg-neutral-800 disabled:text-neutral-500"
                 placeholder="Buscar..."
                 value={query}
                 onChange={(e) => setQuery(e.target.value)}
@@ -94,7 +94,7 @@ export function Combobox({ options, value, onChange, placeholder = "Seleccionar.
                 >
                   <span className="block truncate">{option.element || option.label}</span>
                   {String(value) === String(option.id) && (
-                    <span className="absolute inset-y-0 right-0 flex items-center pr-4 text-orange-600">
+                    <span className="absolute inset-y-0 right-0 flex items-center pr-4 text-stampa-orange">
                       <Check size={16} />
                     </span>
                   )}

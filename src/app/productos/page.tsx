@@ -845,7 +845,7 @@ export default function ProductosPage() {
     return new Date(dateStr).toLocaleDateString("es-AR", { day: "2-digit", month: "2-digit", year: "2-digit" });
   };
 
-  if (loading) return <div className="py-24 flex justify-center"><Loader2 className="animate-spin h-8 w-8 text-orange-500" /></div>;
+  if (loading) return <div className="py-24 flex justify-center"><Loader2 className="animate-spin h-8 w-8 text-stampa-orange" /></div>;
 
   return (
     <div className="pb-24">
@@ -869,7 +869,7 @@ export default function ProductosPage() {
       )}
 
       {editingId && (
-        <Card className="mb-8 p-5 bg-[#111] border border-orange-500/30 shadow-md ring-1 ring-orange-500/20">
+        <Card className="mb-8 p-5 bg-stampa-surface border border-stampa-orange/30 shadow-md ring-1 ring-stampa-orange/20">
           <div className="flex justify-between items-center mb-4">
             <h3 className="text-lg font-bold text-white">{editingId === "new" ? "Nuevo Producto" : "Editar Producto"}</h3>
             <button onClick={() => setEditingId(null)} className="text-gray-400 hover:text-gray-300"><X size={20} /></button>
@@ -878,18 +878,18 @@ export default function ProductosPage() {
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
             <div>
               <label className="block text-xs font-semibold text-gray-300 mb-1">Nombre</label>
-              <input type="text" name="name" value={formData.name} onChange={handleChange} className="w-full text-sm border-white/10 rounded-md text-neutral-100 bg-neutral-900 border focus:border-[#ff6a00] focus:ring-[#ff6a00]/20 focus:ring-2 placeholder:text-neutral-500 disabled:bg-neutral-800 disabled:text-neutral-500" placeholder="Ej. Llavero personalizado" />
+              <input type="text" name="name" value={formData.name} onChange={handleChange} className="w-full text-sm border-stampa-border rounded-md text-neutral-100 bg-stampa-surface border focus:border-[#ff6a00] focus:ring-[#ff6a00]/20 focus:ring-2 placeholder:text-neutral-500 disabled:bg-neutral-800 disabled:text-neutral-500" placeholder="Ej. Llavero personalizado" />
             </div>
             <div>
               <label className="block text-xs font-semibold text-gray-300 mb-1">Tiempo de Impresión</label>
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-1.5">
                 <div>
                   <label className="block text-[11px] font-semibold text-gray-300 mb-1">Horas</label>
-                  <input type="number" name="print_time_hours" min="0" value={formData.print_time_hours} onChange={handleChange} className="w-full text-sm border-white/10 rounded-md text-neutral-100 bg-neutral-900 border focus:border-[#ff6a00] focus:ring-[#ff6a00]/20 focus:ring-2 placeholder:text-neutral-500 disabled:bg-neutral-800 disabled:text-neutral-500" />
+                  <input type="number" name="print_time_hours" min="0" value={formData.print_time_hours} onChange={handleChange} className="w-full text-sm border-stampa-border rounded-md text-neutral-100 bg-stampa-surface border focus:border-[#ff6a00] focus:ring-[#ff6a00]/20 focus:ring-2 placeholder:text-neutral-500 disabled:bg-neutral-800 disabled:text-neutral-500" />
                 </div>
                 <div>
                   <label className="block text-[11px] font-semibold text-gray-300 mb-1">Minutos</label>
-                  <input type="number" name="print_time_remaining_minutes" min="0" max="59" value={formData.print_time_remaining_minutes} onChange={handleChange} className="w-full text-sm border-white/10 rounded-md text-neutral-100 bg-neutral-900 border focus:border-[#ff6a00] focus:ring-[#ff6a00]/20 focus:ring-2 placeholder:text-neutral-500 disabled:bg-neutral-800 disabled:text-neutral-500" />
+                  <input type="number" name="print_time_remaining_minutes" min="0" max="59" value={formData.print_time_remaining_minutes} onChange={handleChange} className="w-full text-sm border-stampa-border rounded-md text-neutral-100 bg-stampa-surface border focus:border-[#ff6a00] focus:ring-[#ff6a00]/20 focus:ring-2 placeholder:text-neutral-500 disabled:bg-neutral-800 disabled:text-neutral-500" />
                 </div>
               </div>
             </div>
@@ -906,7 +906,7 @@ export default function ProductosPage() {
                   value="simple"
                   checked={formData.mode === "simple"}
                   onChange={handleChange}
-                  className="text-[#ff6a00] focus:ring-[#ff6a00]/20"
+                  className="text-stampa-orange focus:ring-[#ff6a00]/20"
                 />
                 <span className="text-sm text-gray-300">Producto simple</span>
               </label>
@@ -917,7 +917,7 @@ export default function ProductosPage() {
                   value="parts"
                   checked={formData.mode === "parts"}
                   onChange={handleChange}
-                  className="text-[#ff6a00] focus:ring-[#ff6a00]/20"
+                  className="text-stampa-orange focus:ring-[#ff6a00]/20"
                 />
                 <span className="text-sm text-gray-300">Producto por partes</span>
               </label>
@@ -925,13 +925,13 @@ export default function ProductosPage() {
           </div>
 
           {/* Materiales y Partes del Producto */}
-          <div className="mb-4 bg-[#0a0a0a]/50 p-4 rounded-xl border border-white/10 shadow-sm">
+          <div className="mb-4 bg-stampa-bg-soft/50 p-4 rounded-xl border border-stampa-border shadow-sm">
             <div className="flex items-center justify-between mb-3">
               <h4 className="text-sm font-bold text-white">
                 {formData.mode === "simple" ? "Materiales del producto" : "Partes del producto"}
               </h4>
               {formData.mode === "parts" && (
-                <button type="button" onClick={addComponent} className="text-xs font-bold text-orange-600 hover:text-orange-700 flex items-center gap-1">
+                <button type="button" onClick={addComponent} className="text-xs font-bold text-stampa-orange hover:text-orange-700 flex items-center gap-1">
                   <Plus size={14} /> Agregar parte
                 </button>
               )}
@@ -939,7 +939,7 @@ export default function ProductosPage() {
 
             <div className="space-y-4">
               {formData.components.map((comp, compIndex) => (
-                <div key={compIndex} className={`p-3 rounded-lg border ${formData.mode === "parts" ? 'bg-[#111] border-white/10' : 'border-transparent'}`}>
+                <div key={compIndex} className={`p-3 rounded-lg border ${formData.mode === "parts" ? 'bg-stampa-surface border-stampa-border' : 'border-transparent'}`}>
 
                   {formData.mode === "parts" && (
                     <div className="flex items-start gap-2 mb-3">
@@ -949,7 +949,7 @@ export default function ProductosPage() {
                           value={comp.name}
                           onChange={(e) => handleComponentChange(compIndex, "name", e.target.value)}
                           placeholder="Nombre de la parte (ej. Cuerpo)"
-                          className="w-full text-sm font-medium border-white/20 rounded-md focus:border-orange-500 focus:ring-orange-500"
+                          className="w-full text-sm font-medium border-white/20 rounded-md focus:border-stampa-orange focus:ring-stampa-orange"
                         />
                         <div className="flex gap-2">
                           <label className="flex items-center gap-2 text-xs text-gray-400">
@@ -995,7 +995,7 @@ export default function ProductosPage() {
                           <select
                             value={mat.filament_id}
                             onChange={(e) => handleComponentMaterialChange(compIndex, matIndex, "filament_id", e.target.value)}
-                            className="w-full text-xs border-white/20 rounded-md focus:border-orange-500 focus:ring-orange-500 text-white bg-[#111]"
+                            className="w-full text-xs border-white/20 rounded-md focus:border-stampa-orange focus:ring-stampa-orange text-white bg-stampa-surface"
                           >
                             <option value="">Seleccionar filamento...</option>
                             {filaments.map(f => <option key={f.id} value={f.id}>{f.name}</option>)}
@@ -1007,7 +1007,7 @@ export default function ProductosPage() {
                             min="0" step="0.1"
                             value={mat.grams}
                             onChange={(e) => handleComponentMaterialChange(compIndex, matIndex, "grams", parseFloat(e.target.value) || 0)}
-                            className="w-full text-xs border-white/20 rounded-md focus:border-orange-500 focus:ring-orange-500 text-white bg-[#111]"
+                            className="w-full text-xs border-white/20 rounded-md focus:border-stampa-orange focus:ring-stampa-orange text-white bg-stampa-surface"
                             placeholder="Gramos"
                           />
                           <span className="text-xs text-gray-500">g</span>
@@ -1018,7 +1018,7 @@ export default function ProductosPage() {
                       </div>
                     ))}
 
-                    <button type="button" onClick={() => addComponentMaterial(compIndex)} className="text-xs font-bold text-orange-600 hover:text-orange-700 flex items-center gap-1 mt-1">
+                    <button type="button" onClick={() => addComponentMaterial(compIndex)} className="text-xs font-bold text-stampa-orange hover:text-orange-700 flex items-center gap-1 mt-1">
                       <Plus size={12} /> Agregar material {formData.mode === "parts" && "a esta parte"}
                     </button>
 
@@ -1029,9 +1029,9 @@ export default function ProductosPage() {
           </div>
 
           {/* Embedded Calculator */}
-          <div className="mb-4 bg-[#0a0a0a]/50 p-4 rounded-xl border border-white/10 shadow-sm">
+          <div className="mb-4 bg-stampa-bg-soft/50 p-4 rounded-xl border border-stampa-border shadow-sm">
             <div className="flex items-center gap-2 mb-3">
-              <RefreshCw size={16} className="text-orange-500" />
+              <RefreshCw size={16} className="text-stampa-orange" />
               <h4 className="text-sm font-bold text-white">Cálculo Rápido</h4>
               <p className="text-xs text-gray-500 ml-2 font-medium hidden sm:block">Calculá automáticamente usando tus costos.</p>
             </div>
@@ -1039,14 +1039,14 @@ export default function ProductosPage() {
             <div className="grid grid-cols-1 md:grid-cols-2 gap-3 mb-3">
               <div>
                 <label className="block text-[11px] font-semibold text-gray-300 mb-1">Impresora</label>
-                <select name="printer_id" value={formData.printer_id} onChange={handleChange} className="w-full text-xs border-white/10 rounded-md text-neutral-100 bg-neutral-900 border focus:border-[#ff6a00] focus:ring-[#ff6a00]/20 focus:ring-2 placeholder:text-neutral-500 disabled:bg-neutral-800 disabled:text-neutral-500">
+                <select name="printer_id" value={formData.printer_id} onChange={handleChange} className="w-full text-xs border-stampa-border rounded-md text-neutral-100 bg-stampa-surface border focus:border-[#ff6a00] focus:ring-[#ff6a00]/20 focus:ring-2 placeholder:text-neutral-500 disabled:bg-neutral-800 disabled:text-neutral-500">
                   <option value="">Seleccionar impresora...</option>
                   {printers.map(p => <option key={p.id} value={p.id}>{p.name}</option>)}
                 </select>
               </div>
               <div>
                 <label className="block text-[11px] font-semibold text-gray-300 mb-1">Tipo de producto</label>
-                <select name="product_type_id" value={formData.product_type_id} onChange={handleChange} className="w-full text-xs border-white/10 rounded-md text-neutral-100 bg-neutral-900 border focus:border-[#ff6a00] focus:ring-[#ff6a00]/20 focus:ring-2 placeholder:text-neutral-500 disabled:bg-neutral-800 disabled:text-neutral-500">
+                <select name="product_type_id" value={formData.product_type_id} onChange={handleChange} className="w-full text-xs border-stampa-border rounded-md text-neutral-100 bg-stampa-surface border focus:border-[#ff6a00] focus:ring-[#ff6a00]/20 focus:ring-2 placeholder:text-neutral-500 disabled:bg-neutral-800 disabled:text-neutral-500">
                   <option value="">Seleccionar tipo...</option>
                   {productTypes.map(pt => <option key={pt.id} value={pt.id}>{pt.name}</option>)}
                 </select>
@@ -1057,7 +1057,7 @@ export default function ProductosPage() {
               <button
                 type="button"
                 onClick={handleEditorCalculate}
-                className="bg-[#111] border border-orange-200 text-orange-600 px-4 py-2 rounded-lg text-xs font-bold hover:bg-orange-50 transition-colors"
+                className="bg-stampa-surface border border-orange-200 text-stampa-orange px-4 py-2 rounded-lg text-xs font-bold hover:bg-orange-50 transition-colors"
               >
                 Calcular precio
               </button>
@@ -1067,22 +1067,22 @@ export default function ProductosPage() {
             </div>
 
             {calcPreview && (
-              <div className="mt-4 pt-4 border-t border-white/10">
+              <div className="mt-4 pt-4 border-t border-stampa-border">
                 <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 mb-3">
-                  <div className="bg-[#111] p-2 rounded border border-white/5 text-center">
+                  <div className="bg-stampa-surface p-2 rounded border border-stampa-border text-center">
                     <p className="text-[10px] text-gray-400">Material</p>
                     <p className="text-xs font-bold text-gray-300">${calcPreview.materialCost.toFixed(2)}</p>
                   </div>
-                  <div className="bg-[#111] p-2 rounded border border-white/5 text-center">
+                  <div className="bg-stampa-surface p-2 rounded border border-stampa-border text-center">
                     <p className="text-[10px] text-gray-400">Electricidad</p>
                     <p className="text-xs font-bold text-gray-300">${calcPreview.electricityCost.toFixed(2)}</p>
                   </div>
-                  <div className="bg-[#111] p-2 rounded border border-white/5 text-center">
+                  <div className="bg-stampa-surface p-2 rounded border border-stampa-border text-center">
                     <p className="text-[10px] text-gray-400">Mant+Fijo</p>
                     <p className="text-xs font-bold text-gray-300">${(calcPreview.maintenanceCost + calcPreview.fixedCost).toFixed(2)}</p>
                   </div>
                   <div className="bg-orange-50 p-2 rounded border border-orange-100 text-center">
-                    <p className="text-[10px] text-orange-600 font-bold">Venta Sugerida (x{calcPreview.multiplier})</p>
+                    <p className="text-[10px] text-stampa-orange font-bold">Venta Sugerida (x{calcPreview.multiplier})</p>
                     <p className="text-sm font-black text-orange-700">${calcPreview.salePrice.toFixed(2)}</p>
                   </div>
                 </div>
@@ -1090,7 +1090,7 @@ export default function ProductosPage() {
                   <button
                     type="button"
                     onClick={applyEditorCalculation}
-                    className="bg-orange-500 text-white px-4 py-2 rounded-lg text-xs font-bold hover:bg-orange-600 transition-colors"
+                    className="bg-stampa-orange text-white px-4 py-2 rounded-lg text-xs font-bold hover:bg-stampa-orange transition-colors"
                   >
                     Usar precio sugerido
                   </button>
@@ -1102,15 +1102,15 @@ export default function ProductosPage() {
           <div className="grid grid-cols-1 sm:grid-cols-3 gap-2">
             <div>
               <label className="block text-xs font-semibold text-gray-300 mb-1">Costo Base ($)</label>
-              <input type="number" name="base_cost" value={formData.base_cost} onChange={handleChange} className="w-full text-sm border-white/10 rounded-md text-neutral-100 bg-neutral-900 border focus:border-[#ff6a00] focus:ring-[#ff6a00]/20 focus:ring-2 placeholder:text-neutral-500 disabled:bg-neutral-800 disabled:text-neutral-500" />
+              <input type="number" name="base_cost" value={formData.base_cost} onChange={handleChange} className="w-full text-sm border-stampa-border rounded-md text-neutral-100 bg-stampa-surface border focus:border-[#ff6a00] focus:ring-[#ff6a00]/20 focus:ring-2 placeholder:text-neutral-500 disabled:bg-neutral-800 disabled:text-neutral-500" />
             </div>
             <div>
               <label className="block text-xs font-semibold text-gray-300 mb-1">Precio Venta ($)</label>
-              <input type="number" name="sale_price" value={formData.sale_price} onChange={handleChange} className="w-full text-sm border-white/10 rounded-md text-neutral-100 bg-neutral-900 border focus:border-[#ff6a00] focus:ring-[#ff6a00]/20 focus:ring-2 placeholder:text-neutral-500 disabled:bg-neutral-800 disabled:text-neutral-500" />
+              <input type="number" name="sale_price" value={formData.sale_price} onChange={handleChange} className="w-full text-sm border-stampa-border rounded-md text-neutral-100 bg-stampa-surface border focus:border-[#ff6a00] focus:ring-[#ff6a00]/20 focus:ring-2 placeholder:text-neutral-500 disabled:bg-neutral-800 disabled:text-neutral-500" />
             </div>
             <div>
               <label className="block text-xs font-semibold text-gray-300 mb-1">Stock Actual</label>
-              <input type="number" name="stock_quantity" value={formData.stock_quantity} onChange={handleChange} className="w-full text-sm border-white/10 rounded-md text-neutral-100 bg-neutral-900 border focus:border-[#ff6a00] focus:ring-[#ff6a00]/20 focus:ring-2 placeholder:text-neutral-500 disabled:bg-neutral-800 disabled:text-neutral-500" />
+              <input type="number" name="stock_quantity" value={formData.stock_quantity} onChange={handleChange} className="w-full text-sm border-stampa-border rounded-md text-neutral-100 bg-stampa-surface border focus:border-[#ff6a00] focus:ring-[#ff6a00]/20 focus:ring-2 placeholder:text-neutral-500 disabled:bg-neutral-800 disabled:text-neutral-500" />
             </div>
           </div>
           <div className="md:col-span-2">
@@ -1125,14 +1125,14 @@ export default function ProductosPage() {
                 label="Subir Imagen"
               />
               <div className="flex items-center gap-2">
-                <hr className="flex-1 border-white/10" />
+                <hr className="flex-1 border-stampa-border" />
                 <span className="text-[10px] text-gray-400 font-semibold uppercase">O URL Externa</span>
-                <hr className="flex-1 border-white/10" />
+                <hr className="flex-1 border-stampa-border" />
               </div>
               <div className="flex gap-4 items-center">
-                <input type="text" name="image_url" value={formData.image_url} onChange={handleChange} className="flex-1 text-sm border-white/10 rounded-lg px-3 py-2 text-neutral-100 bg-neutral-900 border focus:border-[#ff6a00] focus:ring-[#ff6a00]/20 focus:ring-2 placeholder:text-neutral-500 disabled:bg-neutral-800 disabled:text-neutral-500" placeholder="https://..." />
+                <input type="text" name="image_url" value={formData.image_url} onChange={handleChange} className="flex-1 text-sm border-stampa-border rounded-lg px-3 py-2 text-neutral-100 bg-stampa-surface border focus:border-[#ff6a00] focus:ring-[#ff6a00]/20 focus:ring-2 placeholder:text-neutral-500 disabled:bg-neutral-800 disabled:text-neutral-500" placeholder="https://..." />
                 {formData.image_url && (
-                  <div className="h-12 w-12 shrink-0 rounded-lg bg-white/5 overflow-hidden border border-white/10">
+                  <div className="h-12 w-12 shrink-0 rounded-lg bg-white/5 overflow-hidden border border-stampa-border">
                     <img src={formData.image_url} alt="Producto" className="w-full h-full object-cover" />
                   </div>
                 )}
@@ -1142,7 +1142,7 @@ export default function ProductosPage() {
 
           {/* Historial de precios */}
           {editingId !== "new" && historyProductId === editingId && (
-            <div className="mb-4 border border-white/5 rounded-xl p-3">
+            <div className="mb-4 border border-stampa-border rounded-xl p-3">
               <div className="flex items-center gap-2 mb-2 text-xs font-bold text-gray-400">
                 <History size={14} /> Historial de precios
               </div>
@@ -1165,14 +1165,14 @@ export default function ProductosPage() {
             </div>
           )}
 
-          <div className="flex flex-col sm:flex-row sm:items-center justify-between border-t border-white/5 pt-4 gap-4">
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between border-t border-stampa-border pt-4 gap-4">
             <div className="flex items-center gap-2">
-              <input type="checkbox" name="is_active" checked={formData.is_active} onChange={handleChange} className="rounded text-[#ff6a00] focus:ring-[#ff6a00]/20" />
+              <input type="checkbox" name="is_active" checked={formData.is_active} onChange={handleChange} className="rounded text-stampa-orange focus:ring-[#ff6a00]/20" />
               <label className="text-sm font-medium text-gray-300">Producto Activo</label>
             </div>
             <div className="flex flex-col-reverse sm:flex-row gap-2 w-full sm:w-auto">
               <button onClick={() => setEditingId(null)} className="w-full sm:w-auto px-4 py-2 text-sm font-bold text-gray-400 hover:bg-white/5 rounded-lg transition-colors text-center">Cancelar</button>
-              <button onClick={handleSave} className="w-full sm:w-auto flex items-center justify-center gap-2 px-4 py-2 text-sm font-bold bg-orange-500 hover:bg-orange-600 text-white rounded-lg transition-colors">
+              <button onClick={handleSave} className="w-full sm:w-auto flex items-center justify-center gap-2 px-4 py-2 text-sm font-bold bg-stampa-orange hover:bg-stampa-orange text-white rounded-lg transition-colors">
                 <Save size={16} /> Guardar
               </button>
             </div>
@@ -1188,7 +1188,7 @@ export default function ProductosPage() {
           const pricingStatus = getProductPricingStatus(p, filaments, printers, productTypes);
 
           return (
-            <Card key={p.id} className={`p-4 transition-all bg-[#111] border border-white/10 hover:border-orange-500/30 hover:shadow-[0_0_15px_rgba(255,106,0,0.05)] flex flex-col h-full ${!p.is_active ? 'opacity-60 grayscale' : ''} ${pricingStatus.needsRecalculation ? 'border-yellow-500/50 bg-yellow-500/5 ring-1 ring-yellow-500/20' : ''}`}>
+            <Card key={p.id} className={`p-4 transition-all bg-stampa-surface border border-stampa-border hover:border-stampa-orange/30 hover:shadow-[0_0_15px_rgba(255,106,0,0.05)] flex flex-col h-full ${!p.is_active ? 'opacity-60 grayscale' : ''} ${pricingStatus.needsRecalculation ? 'border-yellow-500/50 bg-yellow-500/5 ring-1 ring-yellow-500/20' : ''}`}>
 
               {pricingStatus.needsRecalculation && (
                 <div className="mb-3 flex items-start gap-2 bg-yellow-500/10 rounded-lg p-2.5 border border-yellow-500/20">
@@ -1201,9 +1201,9 @@ export default function ProductosPage() {
 
               <div className="flex items-start gap-3">
                 {p.image_url ? (
-                  <img src={p.image_url} alt={p.name} className="h-16 w-16 shrink-0 rounded-xl object-cover bg-[#0a0a0a] border border-white/5" />
+                  <img src={p.image_url} alt={p.name} className="h-16 w-16 shrink-0 rounded-xl object-cover bg-stampa-bg-soft border border-stampa-border" />
                 ) : (
-                  <div className="flex h-16 w-16 shrink-0 items-center justify-center rounded-xl bg-[#0a0a0a] text-2xl select-none border border-white/5 text-gray-400">
+                  <div className="flex h-16 w-16 shrink-0 items-center justify-center rounded-xl bg-stampa-bg-soft text-2xl select-none border border-stampa-border text-gray-400">
                     📦
                   </div>
                 )}
@@ -1221,7 +1221,7 @@ export default function ProductosPage() {
                   <div className="flex items-end gap-4 mt-2">
                     <div>
                       <p className="text-[10px] text-gray-500 uppercase font-semibold">Venta</p>
-                      <p className="text-sm font-black text-orange-500">${p.sale_price?.toFixed(2) || "0.00"}</p>
+                      <p className="text-sm font-black text-stampa-orange">${p.sale_price?.toFixed(2) || "0.00"}</p>
                     </div>
                     <div>
                       <p className="text-[10px] text-gray-500 uppercase font-semibold">Stock</p>
@@ -1232,10 +1232,10 @@ export default function ProductosPage() {
               </div>
 
               <div className="mt-auto pt-4 flex gap-2">
-                <button onClick={() => setDetailProduct(p)} className="flex-1 py-2 text-xs font-bold text-gray-300 bg-white/5 hover:bg-white/10 hover:text-white rounded-lg transition-colors border border-white/10">
+                <button onClick={() => setDetailProduct(p)} className="flex-1 py-2 text-xs font-bold text-gray-300 bg-white/5 hover:bg-white/10 hover:text-white rounded-lg transition-colors border border-stampa-border">
                   Ver detalle
                 </button>
-                <button onClick={(e) => { e.stopPropagation(); handleEdit(p); }} className="flex-1 py-2 text-xs font-bold text-white bg-orange-600 hover:bg-orange-500 rounded-lg transition-colors border border-orange-500 flex items-center justify-center gap-1.5">
+                <button onClick={(e) => { e.stopPropagation(); handleEdit(p); }} className="flex-1 py-2 text-xs font-bold text-white bg-stampa-orange hover:bg-stampa-orange rounded-lg transition-colors border border-stampa-orange flex items-center justify-center gap-1.5">
                   <Pencil size={13} /> Editar
                 </button>
               </div>
@@ -1245,8 +1245,8 @@ export default function ProductosPage() {
       </div>
 
       {products.length === 0 && !editingId && (
-        <div className="py-20 flex flex-col items-center justify-center bg-[#111] rounded-2xl border border-white/5 shadow-xl">
-          <div className="w-16 h-16 bg-[#0a0a0a] rounded-2xl flex items-center justify-center mb-4 border border-white/10 shadow-inner">
+        <div className="py-20 flex flex-col items-center justify-center bg-stampa-surface rounded-2xl border border-stampa-border shadow-xl">
+          <div className="w-16 h-16 bg-stampa-bg-soft rounded-2xl flex items-center justify-center mb-4 border border-stampa-border shadow-inner">
             <span className="text-3xl grayscale opacity-50">📦</span>
           </div>
           <h3 className="text-xl font-bold text-white mb-2">Todavía no cargaste productos</h3>
@@ -1254,10 +1254,10 @@ export default function ProductosPage() {
             Guardá las piezas que vendés seguido para reutilizarlas en presupuestos y controlar mejor tus costos.
           </p>
           <div className="flex gap-3">
-            <PrimaryButton onClick={handleCreateNew} className="bg-orange-500 hover:bg-orange-600 text-white">
+            <PrimaryButton onClick={handleCreateNew} className="bg-stampa-orange hover:bg-stampa-orange text-white">
               Crear producto
             </PrimaryButton>
-            <Link href="/calculadora" className="px-4 py-2 bg-[#0a0a0a] border border-white/10 text-white text-sm font-bold rounded-lg hover:bg-white/5 transition-colors">
+            <Link href="/calculadora" className="px-4 py-2 bg-stampa-bg-soft border border-stampa-border text-white text-sm font-bold rounded-lg hover:bg-white/5 transition-colors">
               Calcular precio primero
             </Link>
           </div>
@@ -1266,9 +1266,9 @@ export default function ProductosPage() {
 
       {/* MODAL: RECALCULAR PRECIO */}
       {recalcProductId && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4">
-          <div className="bg-[#111] w-full max-w-md rounded-2xl shadow-2xl flex flex-col max-h-[90vh] overflow-hidden">
-            <div className="flex items-center justify-between px-6 py-4 border-b border-white/5 shrink-0">
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-stampa-bg/40 p-4">
+          <div className="bg-stampa-surface w-full max-w-md rounded-2xl shadow-2xl flex flex-col max-h-[90vh] overflow-hidden">
+            <div className="flex items-center justify-between px-6 py-4 border-b border-stampa-border shrink-0">
               <h3 className="font-bold text-white flex items-center gap-2">
                 <RefreshCw size={18} className="text-indigo-500" /> Recalcular precio
               </h3>
@@ -1286,7 +1286,7 @@ export default function ProductosPage() {
               ) : recalcError ? (
                 <div>
                   <div className="bg-orange-50 border border-orange-200 p-4 rounded-xl mb-4 flex items-start gap-3">
-                    <AlertCircle size={18} className="text-orange-600 mt-0.5 shrink-0" />
+                    <AlertCircle size={18} className="text-stampa-orange mt-0.5 shrink-0" />
                     <p className="text-sm text-orange-800">{recalcError}</p>
                   </div>
                   <p className="text-xs text-gray-500">
@@ -1300,7 +1300,7 @@ export default function ProductosPage() {
                 <div className="space-y-4">
                   {/* Comparison */}
                   <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                    <div className="bg-[#0a0a0a] p-4 rounded-xl text-center border border-white/10">
+                    <div className="bg-stampa-bg-soft p-4 rounded-xl text-center border border-stampa-border">
                       <p className="text-[10px] text-gray-400 font-semibold uppercase mb-1">Precio Actual</p>
                       <p className="text-2xl font-black text-gray-300">${recalcData.currentSalePrice.toFixed(2)}</p>
                     </div>
@@ -1315,7 +1315,7 @@ export default function ProductosPage() {
                     const diff = recalcData.recommendedSalePrice - recalcData.currentSalePrice;
                     const isUp = diff > 0;
                     return (
-                      <div className={`flex items-center justify-center gap-2 py-2 px-4 rounded-full text-sm font-bold ${isUp ? 'bg-yellow-50 text-yellow-500/90' : diff < 0 ? 'bg-green-50 text-green-700' : 'bg-[#0a0a0a] text-gray-500'}`}>
+                      <div className={`flex items-center justify-center gap-2 py-2 px-4 rounded-full text-sm font-bold ${isUp ? 'bg-yellow-50 text-yellow-500/90' : diff < 0 ? 'bg-green-50 text-green-700' : 'bg-stampa-bg-soft text-gray-500'}`}>
                         {isUp ? <TrendingUp size={16} /> : diff < 0 ? <TrendingDown size={16} /> : <Minus size={16} />}
                         {diff === 0 ? "El precio está al día" : `${isUp ? "Subida" : "Bajada"} de $${Math.abs(diff).toFixed(2)}`}
                       </div>
@@ -1323,7 +1323,7 @@ export default function ProductosPage() {
                   })()}
 
                   {/* Breakdown */}
-                  <div className="bg-[#0a0a0a] p-3 rounded-xl text-xs space-y-1.5">
+                  <div className="bg-stampa-bg-soft p-3 rounded-xl text-xs space-y-1.5">
                     <p className="font-bold text-gray-300 mb-2">Detalle del nuevo cálculo</p>
                     {[
                       ["Material", recalcData.breakdown.materialCost],
@@ -1337,7 +1337,7 @@ export default function ProductosPage() {
                         <span className="font-semibold">${val.toFixed(2)}</span>
                       </div>
                     ))}
-                    <div className="flex justify-between font-bold text-white border-t border-white/10 pt-1.5 mt-1.5">
+                    <div className="flex justify-between font-bold text-white border-t border-stampa-border pt-1.5 mt-1.5">
                       <span>Costo Base</span>
                       <span>${recalcData.recommendedBaseCost.toFixed(2)}</span>
                     </div>
@@ -1366,9 +1366,9 @@ export default function ProductosPage() {
       )}
       {/* MODAL: DETALLE DEL PRODUCTO */}
       {detailProduct && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm p-4 overflow-y-auto">
-          <div className="bg-[#0a0a0a] w-full max-w-2xl rounded-2xl shadow-2xl overflow-hidden border border-white/10 my-8 flex flex-col max-h-[90vh]">
-            <div className="flex items-center justify-between px-6 py-4 border-b border-white/10 shrink-0 bg-[#111]">
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-stampa-bg/60 backdrop-blur-sm p-4 overflow-y-auto">
+          <div className="bg-stampa-bg-soft w-full max-w-2xl rounded-2xl shadow-2xl overflow-hidden border border-stampa-border my-8 flex flex-col max-h-[90vh]">
+            <div className="flex items-center justify-between px-6 py-4 border-b border-stampa-border shrink-0 bg-stampa-surface">
               <h3 className="font-bold text-white text-lg flex items-center gap-2">
                 Detalle del Producto
               </h3>
@@ -1380,9 +1380,9 @@ export default function ProductosPage() {
             <div className="p-6 overflow-y-auto flex-1">
               <div className="flex flex-col sm:flex-row gap-6 mb-6">
                 {detailProduct.image_url ? (
-                  <img src={detailProduct.image_url} alt={detailProduct.name} className="h-32 w-32 shrink-0 rounded-xl object-cover bg-[#111] border border-white/10 shadow-lg" />
+                  <img src={detailProduct.image_url} alt={detailProduct.name} className="h-32 w-32 shrink-0 rounded-xl object-cover bg-stampa-surface border border-stampa-border shadow-lg" />
                 ) : (
-                  <div className="flex h-32 w-32 shrink-0 items-center justify-center rounded-xl bg-[#111] text-5xl select-none border border-white/10 text-gray-500 shadow-lg">
+                  <div className="flex h-32 w-32 shrink-0 items-center justify-center rounded-xl bg-stampa-surface text-5xl select-none border border-stampa-border text-gray-500 shadow-lg">
                     📦
                   </div>
                 )}
@@ -1398,7 +1398,7 @@ export default function ProductosPage() {
                   <p className="text-sm text-gray-400 mb-4">{detailProduct.description || "Sin descripción proporcionada."}</p>
                   
                   <div className="flex flex-wrap gap-4">
-                    <div className="bg-[#111] px-4 py-2 rounded-xl border border-white/5">
+                    <div className="bg-stampa-surface px-4 py-2 rounded-xl border border-stampa-border">
                       <p className="text-[10px] text-gray-500 uppercase font-semibold mb-0.5">Stock Disponible</p>
                       <p className={`text-lg font-black ${detailProduct.stock_quantity > 0 ? 'text-white' : 'text-red-500'}`}>{detailProduct.stock_quantity || 0} u.</p>
                     </div>
@@ -1408,7 +1408,7 @@ export default function ProductosPage() {
 
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 mb-6">
                 {/* Sección Precios */}
-                <div className="bg-[#111] border border-white/5 rounded-xl p-4">
+                <div className="bg-stampa-surface border border-stampa-border rounded-xl p-4">
                   <h4 className="text-sm font-bold text-gray-300 mb-4 flex items-center gap-2">💰 Valores</h4>
                   <div className="space-y-3">
                     <div className="flex justify-between items-center">
@@ -1417,9 +1417,9 @@ export default function ProductosPage() {
                     </div>
                     <div className="flex justify-between items-center">
                       <span className="text-xs text-gray-400">Venta Sugerida/Actual</span>
-                      <span className="text-sm font-black text-orange-500">${detailProduct.sale_price?.toFixed(2) || "0.00"}</span>
+                      <span className="text-sm font-black text-stampa-orange">${detailProduct.sale_price?.toFixed(2) || "0.00"}</span>
                     </div>
-                    <hr className="border-white/5" />
+                    <hr className="border-stampa-border" />
                     <div className="flex justify-between items-center">
                       <span className="text-xs text-gray-400">Ganancia</span>
                       {(() => {
@@ -1447,7 +1447,7 @@ export default function ProductosPage() {
                 </div>
 
                 {/* Sección Producción */}
-                <div className="bg-[#111] border border-white/5 rounded-xl p-4">
+                <div className="bg-stampa-surface border border-stampa-border rounded-xl p-4">
                   <h4 className="text-sm font-bold text-gray-300 mb-4 flex items-center gap-2">⚙️ Producción</h4>
                   <div className="space-y-3">
                     <div className="flex justify-between items-center">
@@ -1458,7 +1458,7 @@ export default function ProductosPage() {
                       <span className="text-xs text-gray-400">Tiempo de impresión</span>
                       <span className="text-sm font-bold text-white">{formatTime(detailProduct.print_time_minutes)}</span>
                     </div>
-                    <hr className="border-white/5" />
+                    <hr className="border-stampa-border" />
                     <div className="flex flex-col gap-1">
                       <span className="text-xs text-gray-400">Materiales (Snapshot)</span>
                       <div className="flex flex-wrap gap-1.5 mt-1">
@@ -1466,7 +1466,7 @@ export default function ProductosPage() {
                           const snapMats = detailProduct.calculation_snapshot?.materials;
                           if (snapMats && Array.isArray(snapMats) && snapMats.length > 0) {
                             return snapMats.map((m: any, i: number) => (
-                              <span key={i} className="text-[10px] bg-white/5 border border-white/10 px-2 py-1 rounded text-gray-300 truncate max-w-full">
+                              <span key={i} className="text-[10px] bg-white/5 border border-stampa-border px-2 py-1 rounded text-gray-300 truncate max-w-full">
                                 {m.filament_name} ({m.grams}g)
                               </span>
                             ));
@@ -1481,7 +1481,7 @@ export default function ProductosPage() {
 
               {/* Sección Partes/Componentes */}
               {detailProduct.product_components?.length > 1 && (
-                <div className="bg-[#111] border border-white/5 rounded-xl p-4 mb-6">
+                <div className="bg-stampa-surface border border-stampa-border rounded-xl p-4 mb-6">
                   <div className="flex items-center justify-between mb-4">
                     <h4 className="text-sm font-bold text-gray-300 flex items-center gap-2">🧩 Componentes Requeridos</h4>
                     <p className="text-[10px] font-bold text-blue-400 bg-blue-500/10 px-2 py-1 rounded-lg border border-blue-500/20">
@@ -1494,7 +1494,7 @@ export default function ProductosPage() {
                       const needed = c.quantity_per_product || 1;
                       const hasStock = c.stock_quantity >= needed;
                       return (
-                        <div key={c.id} className="flex flex-col sm:flex-row sm:justify-between sm:items-center bg-[#0a0a0a] p-3 rounded-lg border border-white/5 gap-2">
+                        <div key={c.id} className="flex flex-col sm:flex-row sm:justify-between sm:items-center bg-stampa-bg-soft p-3 rounded-lg border border-stampa-border gap-2">
                           <div>
                             <p className="text-xs font-bold text-gray-200">{c.name}</p>
                             <p className="text-[10px] text-gray-500 mt-0.5">{c.grams || 0}g · {formatTime(c.print_time_minutes)}</p>
@@ -1518,7 +1518,7 @@ export default function ProductosPage() {
               )}
             </div>
 
-            <div className="px-6 py-4 border-t border-white/10 shrink-0 bg-[#111] flex justify-end gap-3">
+            <div className="px-6 py-4 border-t border-stampa-border shrink-0 bg-stampa-surface flex justify-end gap-3">
               <button onClick={() => setDetailProduct(null)} className="px-4 py-2 text-sm font-bold text-gray-400 hover:text-white hover:bg-white/5 rounded-lg transition-colors">
                 Cerrar
               </button>
@@ -1527,7 +1527,7 @@ export default function ProductosPage() {
                   handleEdit(detailProduct);
                   setDetailProduct(null);
                 }} 
-                className="flex items-center gap-2 px-4 py-2 text-sm font-bold bg-orange-600 hover:bg-orange-500 text-white rounded-lg transition-colors border border-orange-500"
+                className="flex items-center gap-2 px-4 py-2 text-sm font-bold bg-stampa-orange hover:bg-stampa-orange text-white rounded-lg transition-colors border border-stampa-orange"
               >
                 <Pencil size={15} /> Editar Producto
               </button>

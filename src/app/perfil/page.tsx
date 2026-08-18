@@ -110,7 +110,7 @@ function PerfilContent() {
     setTimeout(() => setCopied(false), 2500);
   };
 
-  if (loading && !profile) return <div className="py-24 flex justify-center"><Loader2 className="animate-spin h-8 w-8 text-orange-500" /></div>;
+  if (loading && !profile) return <div className="py-24 flex justify-center"><Loader2 className="animate-spin h-8 w-8 text-stampa-orange" /></div>;
 
   const displayName = profile?.display_name || profile?.full_name || profile?.company_name || "Usuario";
   const isBetaTester = !!betaGrant;
@@ -130,9 +130,9 @@ function PerfilContent() {
       {profile && (
         <div className="space-y-6">
           <Card className="max-w-xl p-6">
-            <div className="flex items-start justify-between border-b border-white/5 pb-5 mb-5">
+            <div className="flex items-start justify-between border-b border-stampa-border pb-5 mb-5">
               <div className="flex items-center gap-4">
-                <div className="flex h-16 w-16 items-center justify-center rounded-full bg-orange-100 text-xl font-bold text-orange-600 select-none uppercase">
+                <div className="flex h-16 w-16 items-center justify-center rounded-full bg-orange-100 text-xl font-bold text-stampa-orange select-none uppercase">
                   {displayName.substring(0, 2) || "US"}
                 </div>
                 <div className="flex-1">
@@ -164,7 +164,7 @@ function PerfilContent() {
             </div>
 
             {subscription && (
-              <div className="mb-6 p-4 rounded-xl border border-white/5 bg-[#0a0a0a] flex flex-col gap-1 text-sm">
+              <div className="mb-6 p-4 rounded-xl border border-stampa-border bg-stampa-bg-soft flex flex-col gap-1 text-sm">
                 <div className="flex justify-between">
                   <span className="text-gray-500 font-semibold">Estado de membresía</span>
                   <span className="font-bold text-white">
@@ -185,7 +185,7 @@ function PerfilContent() {
                 </p>
 
                 {subscription.amount && (
-                  <div className="flex justify-between mt-3 pt-3 border-t border-white/10">
+                  <div className="flex justify-between mt-3 pt-3 border-t border-stampa-border">
                     <span className="text-gray-500 font-semibold">Monto mensual (Suscripción {subscription.status})</span>
                     <span className="font-bold text-white">${subscription.amount}</span>
                   </div>
@@ -223,7 +223,7 @@ function PerfilContent() {
                 <h3 className="font-bold text-white text-base">Tu código de referido</h3>
               </div>
 
-              <div className="bg-[#0a0a0a] border border-white/5 rounded-xl p-4 mb-4">
+              <div className="bg-stampa-bg-soft border border-stampa-border rounded-xl p-4 mb-4">
                 <p className="text-2xl font-mono font-bold text-white tracking-widest text-center select-all">
                   {referralCode}
                 </p>
@@ -232,7 +232,7 @@ function PerfilContent() {
               <div className="mb-4">
                 <p className="text-xs text-gray-500 mb-2">Link de invitación</p>
                 <div className="flex items-center gap-2">
-                  <code className="flex-1 text-xs text-gray-300 bg-[#0a0a0a] border border-white/5 rounded-lg px-3 py-2 truncate">
+                  <code className="flex-1 text-xs text-gray-300 bg-stampa-bg-soft border border-stampa-border rounded-lg px-3 py-2 truncate">
                     {APP_BASE_URL}/registro?ref={referralCode}
                   </code>
                   <button
@@ -253,7 +253,7 @@ function PerfilContent() {
               </p>
 
               {(referralStats.pending > 0 || referralStats.converted > 0) && (
-                <div className="mt-4 pt-4 border-t border-white/5 flex gap-4">
+                <div className="mt-4 pt-4 border-t border-stampa-border flex gap-4">
                   {referralStats.pending > 0 && (
                     <div className="text-center">
                       <p className="text-xl font-bold text-white">{referralStats.pending}</p>
@@ -284,7 +284,7 @@ function PerfilContent() {
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 {badges.map(b => (
                   <Card key={b.id} className="p-4 flex items-center gap-3 border-orange-200 bg-orange-50/30">
-                    <div className="w-12 h-12 flex items-center justify-center rounded-full bg-[#111] shadow-sm border border-white/5 text-2xl">
+                    <div className="w-12 h-12 flex items-center justify-center rounded-full bg-stampa-surface shadow-sm border border-stampa-border text-2xl">
                       {b.icon}
                     </div>
                     <div>
@@ -304,7 +304,7 @@ function PerfilContent() {
 
 export default function PerfilPage() {
   return (
-    <Suspense fallback={<div className="py-24 flex justify-center"><Loader2 className="animate-spin h-8 w-8 text-orange-500" /></div>}>
+    <Suspense fallback={<div className="py-24 flex justify-center"><Loader2 className="animate-spin h-8 w-8 text-stampa-orange" /></div>}>
       <PerfilContent />
     </Suspense>
   );

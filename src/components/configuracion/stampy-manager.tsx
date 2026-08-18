@@ -39,12 +39,12 @@ export function StampyManager({ setTab }: { setTab: (tab: any) => void }) {
     setLoading(false);
   };
 
-  if (loading) return <div className="py-12 flex justify-center"><Loader2 className="animate-spin h-8 w-8 text-[#ff6a00]" /></div>;
+  if (loading) return <div className="py-12 flex justify-center"><Loader2 className="animate-spin h-8 w-8 text-stampa-orange" /></div>;
 
   return (
-    <Card className="max-w-2xl p-6 bg-[#111] border-white/10 space-y-6 animate-slide-up">
-      <div className="flex items-center gap-4 border-b border-white/5 pb-5">
-        <div className="p-3 bg-orange-500/10 text-orange-500 rounded-xl border border-orange-500/20 shadow-inner animate-soft-pulse">
+    <Card className="max-w-2xl p-6 bg-stampa-surface border-stampa-border space-y-6 animate-slide-up">
+      <div className="flex items-center gap-4 border-b border-stampa-border pb-5">
+        <div className="p-3 bg-stampa-orange/10 text-stampa-orange rounded-xl border border-stampa-orange/20 shadow-inner animate-soft-pulse">
           <Bot size={24} />
         </div>
         <div>
@@ -62,7 +62,7 @@ export function StampyManager({ setTab }: { setTab: (tab: any) => void }) {
 
         <div className="space-y-3">
           
-          <div className="flex items-center justify-between p-3 bg-[#111] rounded-lg border border-white/5">
+          <div className="flex items-center justify-between p-3 bg-stampa-surface rounded-lg border border-stampa-border">
             <div className="flex items-center gap-3">
               {hasPrinters ? <CheckCircle2 className="text-green-500" size={20} /> : <Circle className="text-gray-600" size={20} />}
               <span className={`text-sm ${hasPrinters ? "text-white font-medium" : "text-gray-500"}`}>Cargar impresoras</span>
@@ -74,7 +74,7 @@ export function StampyManager({ setTab }: { setTab: (tab: any) => void }) {
             )}
           </div>
 
-          <div className="flex items-center justify-between p-3 bg-[#111] rounded-lg border border-white/5">
+          <div className="flex items-center justify-between p-3 bg-stampa-surface rounded-lg border border-stampa-border">
             <div className="flex items-center gap-3">
               {hasFilaments ? <CheckCircle2 className="text-green-500" size={20} /> : <Circle className="text-gray-600" size={20} />}
               <span className={`text-sm ${hasFilaments ? "text-white font-medium" : "text-gray-500"}`}>Cargar filamentos</span>
@@ -86,7 +86,7 @@ export function StampyManager({ setTab }: { setTab: (tab: any) => void }) {
             )}
           </div>
 
-          <div className="flex items-center justify-between p-3 bg-[#111] rounded-lg border border-white/5">
+          <div className="flex items-center justify-between p-3 bg-stampa-surface rounded-lg border border-stampa-border">
             <div className="flex items-center gap-3">
               {hasBusinessData ? <CheckCircle2 className="text-green-500" size={20} /> : <Circle className="text-gray-600" size={20} />}
               <span className={`text-sm ${hasBusinessData ? "text-white font-medium" : "text-gray-500"}`}>Completar datos del negocio</span>

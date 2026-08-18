@@ -92,7 +92,7 @@ export default function SorteosPage() {
   if (loading) {
     return (
       <div className="flex items-center justify-center py-24">
-        <Loader2 className="h-8 w-8 animate-spin text-orange-500" />
+        <Loader2 className="h-8 w-8 animate-spin text-stampa-orange" />
       </div>
     );
   }
@@ -100,11 +100,11 @@ export default function SorteosPage() {
   return (
     <div className="flex flex-col gap-8 pb-12">
       {/* 1. Header Premium */}
-      <div className="bg-[#111] border border-white/10 rounded-2xl p-6 sm:p-8 flex flex-col relative overflow-hidden">
-        <div className="absolute top-0 right-0 w-64 h-64 bg-orange-500/10 rounded-full blur-3xl pointer-events-none -translate-y-1/2 translate-x-1/2"></div>
+      <div className="bg-stampa-surface border border-stampa-border rounded-2xl p-6 sm:p-8 flex flex-col relative overflow-hidden">
+        <div className="absolute top-0 right-0 w-64 h-64 bg-stampa-orange/10 rounded-full blur-3xl pointer-events-none -translate-y-1/2 translate-x-1/2"></div>
         <div className="relative z-10 max-w-2xl">
           <div className="flex items-center gap-2 mb-4 justify-between">
-            <div className="inline-flex items-center gap-2 px-3 py-1 bg-orange-500/10 border border-orange-500/20 text-orange-400 text-[10px] font-bold uppercase tracking-wider rounded-full">
+            <div className="inline-flex items-center gap-2 px-3 py-1 bg-stampa-orange/10 border border-stampa-orange/20 text-orange-400 text-[10px] font-bold uppercase tracking-wider rounded-full">
               <span className="text-[10px]">⭐</span> Beneficio para miembros
             </div>
 
@@ -126,10 +126,10 @@ export default function SorteosPage() {
 
       {/* 2. Sorteo Activo Destacado */}
       {activeRaffle ? (
-        <Card className="overflow-hidden bg-[#111] border-white/10 shadow-lg shadow-black/50 border border-orange-500/30 ring-1 ring-orange-500/20 rounded-2xl">
+        <Card className="overflow-hidden bg-stampa-surface border-stampa-border shadow-lg shadow-black/50 border border-stampa-orange/30 ring-1 ring-stampa-orange/20 rounded-2xl">
           <div className="grid grid-cols-1 md:grid-cols-5">
-            <div className="md:col-span-2 flex flex-col items-center justify-center bg-[#0a0a0a] p-10 text-center border-b md:border-b-0 md:border-r border-white/5 relative overflow-hidden">
-              <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-48 h-48 bg-orange-500/10 blur-3xl rounded-full"></div>
+            <div className="md:col-span-2 flex flex-col items-center justify-center bg-stampa-bg-soft p-10 text-center border-b md:border-b-0 md:border-r border-stampa-border relative overflow-hidden">
+              <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-48 h-48 bg-stampa-orange/10 blur-3xl rounded-full"></div>
               <span className="text-8xl select-none mb-6 relative z-10 drop-shadow-2xl">🎁</span>
               
               {/* Estado de Participación */}
@@ -146,10 +146,10 @@ export default function SorteosPage() {
             
             <div className="md:col-span-3 p-8 flex flex-col">
               <div className="mb-4">
-                <Badge tone="dark" className="bg-orange-500/10 text-orange-400 border border-orange-500/20">Sorteo activo</Badge>
+                <Badge tone="dark" className="bg-stampa-orange/10 text-orange-400 border border-stampa-orange/20">Sorteo activo</Badge>
               </div>
               <h3 className="text-3xl font-black text-white mb-2">{activeRaffle.title}</h3>
-              <p className="flex items-center gap-2 text-sm font-bold text-orange-500 mb-6 bg-orange-500/5 inline-flex self-start px-3 py-1.5 rounded-lg border border-orange-500/10">
+              <p className="flex items-center gap-2 text-sm font-bold text-stampa-orange mb-6 bg-stampa-orange/5 inline-flex self-start px-3 py-1.5 rounded-lg border border-stampa-orange/10">
                 <CalendarDays size={16} /> Se sortea el {new Date(activeRaffle.draw_date).toLocaleDateString()}
               </p>
               
@@ -162,15 +162,15 @@ export default function SorteosPage() {
                   <h4 className="text-[10px] font-bold text-gray-500 uppercase tracking-wider mb-3">Premios en juego</h4>
                   <ul className="space-y-2">
                     {activePrizes.map((prize, idx) => (
-                      <li key={prize.id} className="flex gap-3 bg-[#0a0a0a] p-3 rounded-xl border border-white/5 items-center">
+                      <li key={prize.id} className="flex gap-3 bg-stampa-bg-soft p-3 rounded-xl border border-stampa-border items-center">
                         {prize.image_url ? (
-                          <img src={prize.image_url} alt="" className="w-10 h-10 object-cover rounded-lg border border-white/10" />
+                          <img src={prize.image_url} alt="" className="w-10 h-10 object-cover rounded-lg border border-stampa-border" />
                         ) : (
-                          <div className="w-10 h-10 bg-[#111] rounded-lg flex items-center justify-center text-lg border border-white/10 shadow-inner">🏆</div>
+                          <div className="w-10 h-10 bg-stampa-surface rounded-lg flex items-center justify-center text-lg border border-stampa-border shadow-inner">🏆</div>
                         )}
                         <div className="flex-1">
                           <p className="text-sm font-bold text-white leading-none mb-1">
-                            <span className="text-orange-500">{idx + 1}º</span> {prize.name}
+                            <span className="text-stampa-orange">{idx + 1}º</span> {prize.name}
                           </p>
                           <p className="text-xs text-gray-500 line-clamp-1">{prize.description}</p>
                         </div>
@@ -183,15 +183,15 @@ export default function SorteosPage() {
           </div>
         </Card>
       ) : (
-        <div className="py-20 flex flex-col items-center justify-center bg-[#111] rounded-2xl border border-white/5 shadow-xl">
-          <div className="w-16 h-16 bg-[#0a0a0a] rounded-2xl flex items-center justify-center mb-4 border border-white/10 shadow-inner">
+        <div className="py-20 flex flex-col items-center justify-center bg-stampa-surface rounded-2xl border border-stampa-border shadow-xl">
+          <div className="w-16 h-16 bg-stampa-bg-soft rounded-2xl flex items-center justify-center mb-4 border border-stampa-border shadow-inner">
             <span className="text-3xl grayscale opacity-50">🎟️</span>
           </div>
           <h3 className="text-xl font-bold text-white mb-2">No hay sorteo activo en este momento</h3>
           <p className="text-sm text-gray-400 font-medium mb-6 max-w-sm text-center">
             Cuando haya un sorteo disponible para miembros, lo vas a ver acá listo para participar.
           </p>
-          <a href="/canales" className="px-6 py-2.5 bg-[#0a0a0a] hover:bg-white/5 text-white text-sm font-bold rounded-xl border border-white/10 transition-colors shadow-sm">
+          <a href="/canales" className="px-6 py-2.5 bg-stampa-bg-soft hover:bg-white/5 text-white text-sm font-bold rounded-xl border border-stampa-border transition-colors shadow-sm">
             Ir a la Comunidad
           </a>
         </div>
@@ -200,11 +200,11 @@ export default function SorteosPage() {
       {/* 3. Mis participaciones */}
       <div>
         <h3 className="text-lg font-bold text-white mb-4">Mis participaciones</h3>
-        <Card className="bg-[#111] border-white/10 p-6 md:p-8 rounded-2xl relative overflow-hidden group">
+        <Card className="bg-stampa-surface border-stampa-border p-6 md:p-8 rounded-2xl relative overflow-hidden group">
           <div className="absolute top-0 right-0 w-32 h-32 bg-violet-500/10 rounded-full blur-3xl -translate-y-1/2 translate-x-1/2 pointer-events-none"></div>
           
           <div className="grid grid-cols-1 md:grid-cols-2 gap-8 relative z-10">
-            <div className="flex flex-col justify-center border-b md:border-b-0 md:border-r border-white/5 pb-8 md:pb-0 md:pr-8">
+            <div className="flex flex-col justify-center border-b md:border-b-0 md:border-r border-stampa-border pb-8 md:pb-0 md:pr-8">
               <p className="text-sm text-gray-400 font-medium mb-2 uppercase tracking-wider">Total Acumuladas</p>
               <div className="flex items-baseline gap-2 mb-2">
                 <span className="text-5xl font-black text-transparent bg-clip-text bg-gradient-to-br from-violet-400 to-orange-400">
@@ -224,7 +224,7 @@ export default function SorteosPage() {
               </div>
               
               <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-2">
-                <div className="flex-1 bg-[#0a0a0a] border border-white/10 rounded-xl px-4 py-3 flex items-center shadow-inner overflow-hidden">
+                <div className="flex-1 bg-stampa-bg-soft border border-stampa-border rounded-xl px-4 py-3 flex items-center shadow-inner overflow-hidden">
                   {referralCode ? (
                     <span className="font-mono text-sm font-bold text-violet-400 tracking-wider truncate">
                       {typeof window !== 'undefined' ? `${window.location.origin}/registro?ref=${referralCode}` : referralCode}
@@ -243,7 +243,7 @@ export default function SorteosPage() {
                     }
                   }}
                   disabled={!referralCode}
-                  className="shrink-0 px-4 py-3 bg-white/5 hover:bg-white/10 border border-white/10 text-white rounded-xl text-sm font-bold transition-colors flex items-center justify-center min-w-[120px] disabled:opacity-50"
+                  className="shrink-0 px-4 py-3 bg-white/5 hover:bg-white/10 border border-stampa-border text-white rounded-xl text-sm font-bold transition-colors flex items-center justify-center min-w-[120px] disabled:opacity-50"
                 >
                   {copied ? "¡Copiado!" : "Copiar link"}
                 </button>
@@ -258,27 +258,27 @@ export default function SorteosPage() {
         <h3 className="text-lg font-bold text-white mb-4">Historial de sorteos</h3>
         
         {pastWinners.length === 0 ? (
-          <div className="py-12 text-center bg-[#111] rounded-xl border border-white/5">
+          <div className="py-12 text-center bg-stampa-surface rounded-xl border border-stampa-border">
             <p className="text-sm text-gray-500 font-medium">Todavía no hay sorteos finalizados.</p>
           </div>
         ) : (
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
             {pastWinners.map((w) => (
-              <Card key={w.id} className="bg-[#111] p-5 flex flex-col justify-between border border-white/10 hover:border-orange-500/30 transition-colors rounded-xl relative overflow-hidden group">
-                <div className="absolute top-0 right-0 w-24 h-24 bg-orange-500/5 rounded-full blur-2xl -translate-y-1/2 translate-x-1/2 group-hover:bg-orange-500/10 transition-colors"></div>
+              <Card key={w.id} className="bg-stampa-surface p-5 flex flex-col justify-between border border-stampa-border hover:border-stampa-orange/30 transition-colors rounded-xl relative overflow-hidden group">
+                <div className="absolute top-0 right-0 w-24 h-24 bg-stampa-orange/5 rounded-full blur-2xl -translate-y-1/2 translate-x-1/2 group-hover:bg-stampa-orange/10 transition-colors"></div>
                 <div className="relative z-10">
-                  <div className="mb-4 flex h-12 w-12 items-center justify-center rounded-xl bg-[#0a0a0a] text-orange-500 border border-white/5 shadow-inner">
+                  <div className="mb-4 flex h-12 w-12 items-center justify-center rounded-xl bg-stampa-bg-soft text-stampa-orange border border-stampa-border shadow-inner">
                     <Trophy size={20} />
                   </div>
                   <p className="text-[10px] font-bold text-gray-500 uppercase tracking-wider mb-1">Ganador</p>
                   <p className="text-base font-black text-white leading-tight mb-2">{w.winner_name_snapshot}</p>
                   
-                  <div className="bg-[#0a0a0a] rounded-lg p-2.5 border border-white/5 mt-3">
+                  <div className="bg-stampa-bg-soft rounded-lg p-2.5 border border-stampa-border mt-3">
                     <p className="text-[10px] text-gray-500 font-medium mb-0.5">Premio</p>
                     <p className="text-xs font-bold text-orange-400 line-clamp-2 leading-snug">{w.prize_name_snapshot}</p>
                   </div>
                 </div>
-                <div className="mt-5 pt-4 border-t border-white/5 flex items-center justify-between">
+                <div className="mt-5 pt-4 border-t border-stampa-border flex items-center justify-between">
                   <p className="text-[10px] font-bold text-gray-400 truncate max-w-[120px]" title={w.raffles?.title || "Sorteo"}>
                     {w.raffles?.title || "Sorteo"}
                   </p>
@@ -295,7 +295,7 @@ export default function SorteosPage() {
       {/* 5. CTA Stampy */}
       <div className="mt-4 bg-gradient-to-r from-cyan-500/5 to-violet-500/5 border border-cyan-500/20 rounded-2xl p-6 flex flex-col md:flex-row items-center justify-between gap-6 shadow-xl">
         <div className="flex items-center gap-4">
-          <div className="w-12 h-12 bg-[#0a0a0a] rounded-xl flex items-center justify-center border border-cyan-500/10 shrink-0 shadow-inner">
+          <div className="w-12 h-12 bg-stampa-bg-soft rounded-xl flex items-center justify-center border border-cyan-500/10 shrink-0 shadow-inner">
             <span className="text-2xl">🤖</span>
           </div>
           <div>

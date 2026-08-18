@@ -93,7 +93,7 @@ export function Header({ setMobileOpen }: HeaderProps) {
   }
 
   return (
-    <header className="sticky top-0 z-20 flex h-16 items-center border-b border-white/5 bg-[#050505]/80 px-4 backdrop-blur lg:px-8">
+    <header className="sticky top-0 z-20 flex h-16 items-center border-b border-stampa-border bg-stampa-bg/80 px-4 backdrop-blur lg:px-8">
       {/* 1. Izquierda: Título y menú mobile */}
       <div className="flex flex-1 items-center gap-3 min-w-0">
         <button className="text-gray-400 lg:hidden shrink-0" onClick={() => setMobileOpen(true)}>
@@ -116,14 +116,14 @@ export function Header({ setMobileOpen }: HeaderProps) {
 
         <button className="relative flex h-9 w-9 items-center justify-center rounded-xl text-gray-400 hover:bg-white/5 hover:text-white transition-colors">
           <Bell size={18} />
-          <span className="absolute right-2 top-2 h-1.5 w-1.5 rounded-full bg-[#ff6a00]" />
+          <span className="absolute right-2 top-2 h-1.5 w-1.5 rounded-full bg-stampa-orange" />
         </button>
 
         <Link href="/perfil" className="flex items-center gap-2 rounded-xl py-1 pl-1 pr-2 hover:bg-white/5 transition-colors">
           {profile?.avatar_url ? (
             <img src={profile.avatar_url} alt="Avatar" className="h-8 w-8 rounded-full object-cover shrink-0" />
           ) : (
-            <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-orange-100 text-sm font-bold text-orange-600">
+            <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-orange-100 text-sm font-bold text-stampa-orange">
               {getInitials()}
             </div>
           )}

@@ -18,7 +18,7 @@ export function LandingNavbar() {
     <nav 
       className={`fixed top-0 left-0 right-0 z-50 transition-all duration-300 ${
         scrolled 
-          ? "bg-black/80 border-b border-white/10 py-3 shadow-[0_4px_30px_rgba(0,0,0,0.5)] md:backdrop-blur-md" 
+          ? "bg-stampa-bg/80 border-b border-stampa-border py-3 shadow-[0_4px_30px_rgba(0,0,0,0.5)] md:backdrop-blur-md" 
           : "bg-transparent py-5"
       }`}
     >
@@ -30,7 +30,7 @@ export function LandingNavbar() {
             S
           </div>
           <span className="font-bold text-xl text-white tracking-tight hidden sm:block">
-            Stampa3D <span className="text-orange-500">Academy</span>
+            Stampa3D <span className="text-stampa-orange">Academy</span>
           </span>
         </Link>
 
@@ -45,7 +45,7 @@ export function LandingNavbar() {
         {/* Action */}
         <Link 
           href="/login"
-          className="px-5 py-2 rounded-lg bg-white/10 hover:bg-orange-500 text-white text-sm font-medium transition-all duration-300 border border-white/10 hover:border-orange-400 shadow-[0_0_0_rgba(234,88,12,0)] hover:shadow-[0_0_15px_rgba(234,88,12,0.4)]"
+          className="px-5 py-2 rounded-lg bg-white/10 hover:bg-stampa-orange text-white text-sm font-medium transition-all duration-300 border border-stampa-border hover:border-orange-400 shadow-[0_0_0_rgba(234,88,12,0)] hover:shadow-[0_0_15px_rgba(234,88,12,0.4)]"
         >
           Entrar
         </Link>

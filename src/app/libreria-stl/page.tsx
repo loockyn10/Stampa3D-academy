@@ -77,7 +77,7 @@ export default function LibreriaStlPage() {
   if (loading) {
     return (
       <div className="flex items-center justify-center py-24">
-        <Loader2 className="h-8 w-8 animate-spin text-orange-500" />
+        <Loader2 className="h-8 w-8 animate-spin text-stampa-orange" />
       </div>
     );
   }
@@ -119,7 +119,7 @@ export default function LibreriaStlPage() {
     return {
       label: value,
       stars: 0,
-      className: "border-white/10 bg-white/5 text-neutral-300"
+      className: "border-stampa-border bg-white/5 text-neutral-300"
     };
   };
 
@@ -143,12 +143,12 @@ export default function LibreriaStlPage() {
   return (
     <div className="flex flex-col gap-8 pb-12">
       {/* 1. Header Premium & Buscador Integrado */}
-      <div className="bg-[#111] border border-white/10 rounded-2xl p-6 sm:p-8 flex flex-col gap-6 relative overflow-hidden">
-        <div className="absolute top-0 right-0 w-64 h-64 bg-orange-500/5 rounded-full blur-3xl pointer-events-none -translate-y-1/2 translate-x-1/2"></div>
+      <div className="bg-stampa-surface border border-stampa-border rounded-2xl p-6 sm:p-8 flex flex-col gap-6 relative overflow-hidden">
+        <div className="absolute top-0 right-0 w-64 h-64 bg-stampa-orange/5 rounded-full blur-3xl pointer-events-none -translate-y-1/2 translate-x-1/2"></div>
         <div className="relative z-10 flex flex-col md:flex-row md:items-end justify-between gap-6">
           <div className="max-w-xl">
             <div className="flex items-center gap-2 mb-4 justify-between">
-              <div className="inline-flex items-center gap-2 px-3 py-1 bg-orange-500/10 border border-orange-500/20 text-orange-400 text-[10px] font-bold uppercase tracking-wider rounded-full">
+              <div className="inline-flex items-center gap-2 px-3 py-1 bg-stampa-orange/10 border border-stampa-orange/20 text-orange-400 text-[10px] font-bold uppercase tracking-wider rounded-full">
                 <span className="text-[10px]">✨</span> Recursos para miembros
               </div>
 
@@ -169,7 +169,7 @@ export default function LibreriaStlPage() {
                 value={query}
                 onChange={(e) => setQuery(e.target.value)}
                 placeholder="Buscar modelos, materiales..."
-                className="w-full bg-[#0a0a0a] border border-white/10 text-white text-sm rounded-xl py-3 pl-10 pr-4 focus:outline-none focus:border-orange-500 focus:ring-1 focus:ring-orange-500 transition-all"
+                className="w-full bg-stampa-bg-soft border border-stampa-border text-white text-sm rounded-xl py-3 pl-10 pr-4 focus:outline-none focus:border-stampa-orange focus:ring-1 focus:ring-stampa-orange transition-all"
               />
             </div>
           </div>
@@ -183,8 +183,8 @@ export default function LibreriaStlPage() {
             onClick={() => setSelectedCatId(null)}
             className={`px-4 py-2 rounded-full text-xs font-bold transition-all border ${
               selectedCatId === null 
-                ? "bg-orange-500/10 border-orange-500/50 text-orange-400 shadow-[0_0_10px_rgba(255,106,0,0.1)]" 
-                : "bg-[#0a0a0a] border-white/5 text-gray-400 hover:text-white hover:border-white/10"
+                ? "bg-stampa-orange/10 border-stampa-orange/50 text-orange-400 shadow-[0_0_10px_rgba(255,106,0,0.1)]" 
+                : "bg-stampa-bg-soft border-stampa-border text-gray-400 hover:text-white hover:border-stampa-border"
             }`}
           >
             Todas
@@ -195,12 +195,12 @@ export default function LibreriaStlPage() {
               onClick={() => setSelectedCatId(c.id)}
               className={`flex items-center gap-2 px-4 py-2 rounded-full text-xs font-bold transition-all border ${
                 selectedCatId === c.id
-                  ? "bg-orange-500/10 border-orange-500/50 text-orange-400 shadow-[0_0_10px_rgba(255,106,0,0.1)]"
-                  : "bg-[#0a0a0a] border-white/5 text-gray-400 hover:text-white hover:border-white/10"
+                  ? "bg-stampa-orange/10 border-stampa-orange/50 text-orange-400 shadow-[0_0_10px_rgba(255,106,0,0.1)]"
+                  : "bg-stampa-bg-soft border-stampa-border text-gray-400 hover:text-white hover:border-stampa-border"
               }`}
             >
               {c.name}
-              <span className={`px-1.5 py-0.5 rounded-md text-[9px] ${selectedCatId === c.id ? "bg-orange-500/20" : "bg-white/5"}`}>
+              <span className={`px-1.5 py-0.5 rounded-md text-[9px] ${selectedCatId === c.id ? "bg-stampa-orange/20" : "bg-white/5"}`}>
                 {models.filter(m => m.category_id === c.id).length}
               </span>
             </button>
@@ -210,8 +210,8 @@ export default function LibreriaStlPage() {
 
       {/* 3. Cards de Archivos STL */}
       {filteredItems.length === 0 ? (
-        <div className="py-20 flex flex-col items-center justify-center bg-[#111] rounded-2xl border border-white/5 shadow-xl">
-          <div className="w-16 h-16 bg-[#0a0a0a] rounded-2xl flex items-center justify-center mb-4 border border-white/10 shadow-inner">
+        <div className="py-20 flex flex-col items-center justify-center bg-stampa-surface rounded-2xl border border-stampa-border shadow-xl">
+          <div className="w-16 h-16 bg-stampa-bg-soft rounded-2xl flex items-center justify-center mb-4 border border-stampa-border shadow-inner">
             <span className="text-3xl grayscale opacity-50">📁</span>
           </div>
           <h3 className="text-xl font-bold text-white mb-2">
@@ -225,7 +225,7 @@ export default function LibreriaStlPage() {
           {(query || selectedCatId) && (
             <button 
               onClick={() => { setQuery(""); setSelectedCatId(null); }}
-              className="px-6 py-2.5 bg-orange-500 hover:bg-orange-600 text-white text-sm font-bold rounded-lg transition-colors"
+              className="px-6 py-2.5 bg-stampa-orange hover:bg-stampa-orange text-white text-sm font-bold rounded-lg transition-colors"
             >
               Ver todos los archivos
             </button>
@@ -238,9 +238,9 @@ export default function LibreriaStlPage() {
             const isDownloading = downloadingId === (activeVariant?.id || null);
 
             return (
-              <Card key={f.id} className="group overflow-hidden bg-[#111] border border-white/10 hover:border-orange-500/30 hover:shadow-[0_0_20px_rgba(255,106,0,0.05)] transition-all flex flex-col h-full rounded-2xl">
+              <Card key={f.id} className="group overflow-hidden bg-stampa-surface border border-stampa-border hover:border-stampa-orange/30 hover:shadow-[0_0_20px_rgba(255,106,0,0.05)] transition-all flex flex-col h-full rounded-2xl">
                 {/* Thumbnail */}
-                <div className="relative flex h-48 items-center justify-center bg-[#0a0a0a] border-b border-white/5 overflow-hidden">
+                <div className="relative flex h-48 items-center justify-center bg-stampa-bg-soft border-b border-stampa-border overflow-hidden">
                   {f.thumbnail_url ? (
                     <img src={f.thumbnail_url} alt={f.title} className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500" />
                   ) : (
@@ -255,7 +255,7 @@ export default function LibreriaStlPage() {
 
                 {/* Contenido */}
                 <div className="p-5 flex flex-col flex-1">
-                  <p className="text-[10px] font-bold text-orange-500 uppercase tracking-wider mb-1.5 truncate">
+                  <p className="text-[10px] font-bold text-stampa-orange uppercase tracking-wider mb-1.5 truncate">
                     {f.category?.name || "Categoría General"}
                   </p>
                   <h3 className="font-bold text-white text-base leading-snug mb-3 line-clamp-2 group-hover:text-orange-100 transition-colors">
@@ -263,11 +263,11 @@ export default function LibreriaStlPage() {
                   </h3>
                   
                   <div className="mt-auto grid grid-cols-2 gap-2 mb-4">
-                    <div className="bg-[#0a0a0a] rounded-lg p-2 border border-white/5">
+                    <div className="bg-stampa-bg-soft rounded-lg p-2 border border-stampa-border">
                       <span className="block text-[10px] text-gray-500 font-medium mb-0.5">Material</span>
                       <span className="block text-xs text-white font-bold truncate">{f.material_type || "-"}</span>
                     </div>
-                    <div className="bg-[#0a0a0a] rounded-lg p-2 border border-white/5">
+                    <div className="bg-stampa-bg-soft rounded-lg p-2 border border-stampa-border">
                       <span className="block text-[10px] text-gray-500 font-medium mb-0.5">Tiempo Imp.</span>
                       <span className="block text-xs text-white font-bold truncate">{f.estimated_print_time || "-"}</span>
                     </div>
@@ -312,8 +312,8 @@ export default function LibreriaStlPage() {
                       }}
                       className={`flex w-full items-center justify-center gap-2 rounded-xl py-3 text-xs font-bold transition-all shadow-lg ${
                         isDownloading 
-                          ? 'bg-orange-500/50 text-white cursor-not-allowed shadow-none' 
-                          : 'bg-orange-500 hover:bg-orange-600 text-white shadow-orange-500/20 hover:shadow-orange-500/40'
+                          ? 'bg-stampa-orange/50 text-white cursor-not-allowed shadow-none' 
+                          : 'bg-stampa-orange hover:bg-stampa-orange text-white shadow-stampa-orange/20 hover:shadow-stampa-orange/40'
                       }`}
                     >
                       {isDownloading ? <Loader2 size={16} className="animate-spin" /> : <Download size={16} />}
@@ -322,7 +322,7 @@ export default function LibreriaStlPage() {
                   ) : (
                     <button 
                       disabled
-                      className="flex w-full items-center justify-center gap-2 rounded-xl py-3 text-xs font-bold bg-[#0a0a0a] text-gray-600 border border-white/5 cursor-not-allowed"
+                      className="flex w-full items-center justify-center gap-2 rounded-xl py-3 text-xs font-bold bg-stampa-bg-soft text-gray-600 border border-stampa-border cursor-not-allowed"
                     >
                       Archivo no disponible
                     </button>
@@ -335,9 +335,9 @@ export default function LibreriaStlPage() {
       )}
 
       {/* 4. Bloque Informativo */}
-      <div className="mt-8 bg-gradient-to-r from-[#111] to-[#151515] border border-white/10 rounded-2xl p-6 flex flex-col md:flex-row items-center justify-between gap-6 shadow-xl">
+      <div className="mt-8 bg-gradient-to-r from-[#111] to-[#151515] border border-stampa-border rounded-2xl p-6 flex flex-col md:flex-row items-center justify-between gap-6 shadow-xl">
         <div className="flex items-center gap-4">
-          <div className="w-12 h-12 bg-[#0a0a0a] rounded-xl flex items-center justify-center border border-white/5 shrink-0 shadow-inner">
+          <div className="w-12 h-12 bg-stampa-bg-soft rounded-xl flex items-center justify-center border border-stampa-border shrink-0 shadow-inner">
             <span className="text-2xl">💡</span>
           </div>
           <div>
@@ -349,7 +349,7 @@ export default function LibreriaStlPage() {
         </div>
         <a 
           href="/stampy"
-          className="w-full md:w-auto text-center shrink-0 px-6 py-2.5 bg-[#0a0a0a] hover:bg-white/5 text-white text-sm font-bold rounded-xl border border-white/10 transition-colors shadow-sm"
+          className="w-full md:w-auto text-center shrink-0 px-6 py-2.5 bg-stampa-bg-soft hover:bg-white/5 text-white text-sm font-bold rounded-xl border border-stampa-border transition-colors shadow-sm"
         >
           Preguntarle a Stampy
         </a>

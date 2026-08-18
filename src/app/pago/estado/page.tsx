@@ -49,11 +49,11 @@ export default function PagoEstadoPage() {
 
   return (
     <div className="flex min-h-screen items-center justify-center bg-[#F7F7F9] px-4 py-12 sm:px-6 lg:px-8">
-      <div className="w-full max-w-md space-y-8 bg-[#111] p-8 rounded-2xl shadow-sm border border-white/5 text-center">
+      <div className="w-full max-w-md space-y-8 bg-stampa-surface p-8 rounded-2xl shadow-sm border border-stampa-border text-center">
         
         {loading && (
           <div className="flex flex-col items-center justify-center">
-            <Loader2 className="h-12 w-12 text-orange-500 animate-spin mb-4" />
+            <Loader2 className="h-12 w-12 text-stampa-orange animate-spin mb-4" />
             <h2 className="text-2xl font-bold tracking-tight text-white">
               Estamos verificando tu membresía...
             </h2>
@@ -74,7 +74,7 @@ export default function PagoEstadoPage() {
             </p>
             <button
               onClick={checkStatus}
-              className="w-full rounded-lg bg-orange-500 px-3 py-3 text-sm font-semibold text-white hover:bg-orange-600 transition-colors"
+              className="w-full rounded-lg bg-stampa-orange px-3 py-3 text-sm font-semibold text-white hover:bg-stampa-orange transition-colors"
             >
               Reintentar
             </button>
@@ -109,13 +109,13 @@ export default function PagoEstadoPage() {
                 <div className="flex flex-col w-full gap-3">
                   <button
                     onClick={checkStatus}
-                    className="w-full rounded-lg bg-orange-500 px-3 py-3 text-sm font-semibold text-white hover:bg-orange-600 transition-colors"
+                    className="w-full rounded-lg bg-stampa-orange px-3 py-3 text-sm font-semibold text-white hover:bg-stampa-orange transition-colors"
                   >
                     Reintentar verificación
                   </button>
                   <button
                     onClick={() => router.push("/")}
-                    className="w-full rounded-lg bg-[#111] border border-white/20 px-3 py-3 text-sm font-semibold text-gray-300 hover:bg-[#0a0a0a] transition-colors"
+                    className="w-full rounded-lg bg-stampa-surface border border-white/20 px-3 py-3 text-sm font-semibold text-gray-300 hover:bg-stampa-bg-soft transition-colors"
                   >
                     Volver al inicio
                   </button>
@@ -132,7 +132,7 @@ export default function PagoEstadoPage() {
                 </p>
                 <button
                   onClick={() => router.push("/sin-acceso")}
-                  className="w-full rounded-lg bg-orange-500 px-3 py-3 text-sm font-semibold text-white hover:bg-orange-600 transition-colors"
+                  className="w-full rounded-lg bg-stampa-orange px-3 py-3 text-sm font-semibold text-white hover:bg-stampa-orange transition-colors"
                 >
                   Volver a Sin Acceso
                 </button>
@@ -149,13 +149,13 @@ export default function PagoEstadoPage() {
                 <div className="flex flex-col w-full gap-3">
                   <button
                     onClick={checkStatus}
-                    className="w-full rounded-lg bg-orange-500 px-3 py-3 text-sm font-semibold text-white hover:bg-orange-600 transition-colors"
+                    className="w-full rounded-lg bg-stampa-orange px-3 py-3 text-sm font-semibold text-white hover:bg-stampa-orange transition-colors"
                   >
                     Reintentar
                   </button>
                   <button
                     onClick={() => router.push("/")}
-                    className="w-full rounded-lg bg-[#111] border border-white/20 px-3 py-3 text-sm font-semibold text-gray-300 hover:bg-[#0a0a0a] transition-colors"
+                    className="w-full rounded-lg bg-stampa-surface border border-white/20 px-3 py-3 text-sm font-semibold text-gray-300 hover:bg-stampa-bg-soft transition-colors"
                   >
                     Volver al inicio
                   </button>

@@ -119,7 +119,7 @@ export default function AdminPrintersPage() {
     setFormData((prev) => ({ ...prev, [name]: val }));
   };
 
-  if (loading) return <div className="py-24 flex justify-center"><Loader2 className="animate-spin h-8 w-8 text-orange-500" /></div>;
+  if (loading) return <div className="py-24 flex justify-center"><Loader2 className="animate-spin h-8 w-8 text-stampa-orange" /></div>;
 
   return (
     <div className="max-w-5xl mx-auto space-y-6">
@@ -131,7 +131,7 @@ export default function AdminPrintersPage() {
         <button
           onClick={handleCreateNew}
           disabled={editingId !== null}
-          className="flex items-center gap-2 bg-orange-500/100 text-white px-4 py-2 rounded-lg text-sm font-semibold hover:bg-orange-600 disabled:opacity-50 transition-colors"
+          className="flex items-center gap-2 bg-stampa-orange/100 text-white px-4 py-2 rounded-lg text-sm font-semibold hover:bg-stampa-orange disabled:opacity-50 transition-colors"
         >
           <Plus size={16} /> Nueva Plantilla
         </button>
@@ -144,7 +144,7 @@ export default function AdminPrintersPage() {
       )}
 
       {editingId && (
-        <div className="bg-[#111] p-6 rounded-xl border border-orange-500/30 shadow-sm ring-1 ring-orange-100 mb-6">
+        <div className="bg-stampa-surface p-6 rounded-xl border border-stampa-orange/30 shadow-sm ring-1 ring-orange-100 mb-6">
           <div className="flex justify-between items-center mb-4">
             <h3 className="text-lg font-bold text-white">{editingId === "new" ? "Nueva Plantilla" : "Editar Plantilla"}</h3>
             <button onClick={() => setEditingId(null)} className="text-gray-400 hover:text-gray-300">
@@ -154,42 +154,42 @@ export default function AdminPrintersPage() {
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
             <div>
               <label className="block text-xs font-semibold text-gray-300 mb-1">Nombre Visible (Ej: Creality Ender 3 V2)</label>
-              <input type="text" name="name" value={formData.name} onChange={handleChange} className="w-full text-sm border-white/10 rounded-md bg-neutral-900 border focus:border-[#ff6a00] focus:ring-[#ff6a00]/20 focus:ring-2 placeholder:text-neutral-500 disabled:bg-neutral-800 disabled:text-neutral-500" required />
+              <input type="text" name="name" value={formData.name} onChange={handleChange} className="w-full text-sm border-stampa-border rounded-md bg-stampa-surface border focus:border-[#ff6a00] focus:ring-[#ff6a00]/20 focus:ring-2 placeholder:text-neutral-500 disabled:bg-neutral-800 disabled:text-neutral-500" required />
             </div>
             <div className="grid grid-cols-2 gap-2">
               <div>
                 <label className="block text-xs font-semibold text-gray-300 mb-1">Marca</label>
-                <input type="text" name="brand" value={formData.brand} onChange={handleChange} className="w-full text-sm border-white/10 rounded-md bg-neutral-900 border focus:border-[#ff6a00] focus:ring-[#ff6a00]/20 focus:ring-2 placeholder:text-neutral-500 disabled:bg-neutral-800 disabled:text-neutral-500" />
+                <input type="text" name="brand" value={formData.brand} onChange={handleChange} className="w-full text-sm border-stampa-border rounded-md bg-stampa-surface border focus:border-[#ff6a00] focus:ring-[#ff6a00]/20 focus:ring-2 placeholder:text-neutral-500 disabled:bg-neutral-800 disabled:text-neutral-500" />
               </div>
               <div>
                 <label className="block text-xs font-semibold text-gray-300 mb-1">Modelo</label>
-                <input type="text" name="model" value={formData.model} onChange={handleChange} className="w-full text-sm border-white/10 rounded-md bg-neutral-900 border focus:border-[#ff6a00] focus:ring-[#ff6a00]/20 focus:ring-2 placeholder:text-neutral-500 disabled:bg-neutral-800 disabled:text-neutral-500" />
+                <input type="text" name="model" value={formData.model} onChange={handleChange} className="w-full text-sm border-stampa-border rounded-md bg-stampa-surface border focus:border-[#ff6a00] focus:ring-[#ff6a00]/20 focus:ring-2 placeholder:text-neutral-500 disabled:bg-neutral-800 disabled:text-neutral-500" />
               </div>
             </div>
             
             <div className="grid grid-cols-2 gap-4">
               <div>
                 <label className="block text-xs font-semibold text-gray-300 mb-1">Consumo Estimado (Watts)</label>
-                <input type="number" name="power_watts" value={formData.power_watts} onChange={handleChange} className="w-full text-sm border-white/10 rounded-md bg-neutral-900 border focus:border-[#ff6a00] focus:ring-[#ff6a00]/20 focus:ring-2 placeholder:text-neutral-500 disabled:bg-neutral-800 disabled:text-neutral-500" />
+                <input type="number" name="power_watts" value={formData.power_watts} onChange={handleChange} className="w-full text-sm border-stampa-border rounded-md bg-stampa-surface border focus:border-[#ff6a00] focus:ring-[#ff6a00]/20 focus:ring-2 placeholder:text-neutral-500 disabled:bg-neutral-800 disabled:text-neutral-500" />
               </div>
               <div>
                 <label className="block text-xs font-semibold text-gray-300 mb-1">Costo Mantenimiento ($/hora)</label>
-                <input type="number" step="0.01" name="maintenance_cost_per_hour" value={formData.maintenance_cost_per_hour} onChange={handleChange} className="w-full text-sm border-white/10 rounded-md bg-neutral-900 border focus:border-[#ff6a00] focus:ring-[#ff6a00]/20 focus:ring-2 placeholder:text-neutral-500 disabled:bg-neutral-800 disabled:text-neutral-500" />
+                <input type="number" step="0.01" name="maintenance_cost_per_hour" value={formData.maintenance_cost_per_hour} onChange={handleChange} className="w-full text-sm border-stampa-border rounded-md bg-stampa-surface border focus:border-[#ff6a00] focus:ring-[#ff6a00]/20 focus:ring-2 placeholder:text-neutral-500 disabled:bg-neutral-800 disabled:text-neutral-500" />
               </div>
             </div>
 
             <div>
               <label className="block text-xs font-semibold text-gray-300 mb-1">Volumen de Impresión (X, Y, Z mm)</label>
               <div className="flex gap-2">
-                <input type="number" name="bed_size_x_mm" value={formData.bed_size_x_mm} onChange={handleChange} placeholder="X" className="w-full text-sm border-white/10 rounded-md bg-neutral-900 border focus:border-[#ff6a00] focus:ring-[#ff6a00]/20 focus:ring-2 placeholder:text-neutral-500 disabled:bg-neutral-800 disabled:text-neutral-500" />
-                <input type="number" name="bed_size_y_mm" value={formData.bed_size_y_mm} onChange={handleChange} placeholder="Y" className="w-full text-sm border-white/10 rounded-md bg-neutral-900 border focus:border-[#ff6a00] focus:ring-[#ff6a00]/20 focus:ring-2 placeholder:text-neutral-500 disabled:bg-neutral-800 disabled:text-neutral-500" />
-                <input type="number" name="bed_size_z_mm" value={formData.bed_size_z_mm} onChange={handleChange} placeholder="Z" className="w-full text-sm border-white/10 rounded-md bg-neutral-900 border focus:border-[#ff6a00] focus:ring-[#ff6a00]/20 focus:ring-2 placeholder:text-neutral-500 disabled:bg-neutral-800 disabled:text-neutral-500" />
+                <input type="number" name="bed_size_x_mm" value={formData.bed_size_x_mm} onChange={handleChange} placeholder="X" className="w-full text-sm border-stampa-border rounded-md bg-stampa-surface border focus:border-[#ff6a00] focus:ring-[#ff6a00]/20 focus:ring-2 placeholder:text-neutral-500 disabled:bg-neutral-800 disabled:text-neutral-500" />
+                <input type="number" name="bed_size_y_mm" value={formData.bed_size_y_mm} onChange={handleChange} placeholder="Y" className="w-full text-sm border-stampa-border rounded-md bg-stampa-surface border focus:border-[#ff6a00] focus:ring-[#ff6a00]/20 focus:ring-2 placeholder:text-neutral-500 disabled:bg-neutral-800 disabled:text-neutral-500" />
+                <input type="number" name="bed_size_z_mm" value={formData.bed_size_z_mm} onChange={handleChange} placeholder="Z" className="w-full text-sm border-stampa-border rounded-md bg-stampa-surface border focus:border-[#ff6a00] focus:ring-[#ff6a00]/20 focus:ring-2 placeholder:text-neutral-500 disabled:bg-neutral-800 disabled:text-neutral-500" />
               </div>
             </div>
 
             <div>
               <label className="block text-xs font-semibold text-gray-300 mb-1">Tipo de Impresora</label>
-              <select name="printer_type" value={formData.printer_type} onChange={handleChange} className="w-full text-sm border-white/10 rounded-md bg-neutral-900 border focus:border-[#ff6a00] focus:ring-[#ff6a00]/20 focus:ring-2 placeholder:text-neutral-500 disabled:bg-neutral-800 disabled:text-neutral-500">
+              <select name="printer_type" value={formData.printer_type} onChange={handleChange} className="w-full text-sm border-stampa-border rounded-md bg-stampa-surface border focus:border-[#ff6a00] focus:ring-[#ff6a00]/20 focus:ring-2 placeholder:text-neutral-500 disabled:bg-neutral-800 disabled:text-neutral-500">
                 <option value="FDM">FDM (Filamento)</option>
                 <option value="SLA">SLA/DLP (Resina)</option>
               </select>
@@ -197,34 +197,34 @@ export default function AdminPrintersPage() {
             
             <div className="md:col-span-2">
               <label className="block text-xs font-semibold text-gray-300 mb-1">Notas</label>
-              <textarea name="notes" value={formData.notes} onChange={handleChange} rows={2} className="w-full text-sm border-white/10 rounded-md bg-neutral-900 border focus:border-[#ff6a00] focus:ring-[#ff6a00]/20 focus:ring-2 placeholder:text-neutral-500 disabled:bg-neutral-800 disabled:text-neutral-500"></textarea>
+              <textarea name="notes" value={formData.notes} onChange={handleChange} rows={2} className="w-full text-sm border-stampa-border rounded-md bg-stampa-surface border focus:border-[#ff6a00] focus:ring-[#ff6a00]/20 focus:ring-2 placeholder:text-neutral-500 disabled:bg-neutral-800 disabled:text-neutral-500"></textarea>
             </div>
 
             <div className="flex items-center gap-4 mt-2">
               <label className="flex items-center gap-2 text-sm text-gray-300 cursor-pointer">
-                <input type="checkbox" name="is_active" checked={formData.is_active} onChange={handleChange} className="rounded text-[#ff6a00] focus:ring-[#ff6a00]/20 border-white/20" />
+                <input type="checkbox" name="is_active" checked={formData.is_active} onChange={handleChange} className="rounded text-stampa-orange focus:ring-[#ff6a00]/20 border-white/20" />
                 <span>Plantilla Activa</span>
               </label>
               <div>
                 <label className="flex items-center gap-2 text-sm text-gray-300">
                   <span className="text-xs font-semibold">Orden</span>
-                  <input type="number" name="sort_order" value={formData.sort_order} onChange={handleChange} className="w-16 text-sm border-white/10 rounded-md p-1 bg-neutral-900 border focus:border-[#ff6a00] focus:ring-[#ff6a00]/20 focus:ring-2 placeholder:text-neutral-500 disabled:bg-neutral-800 disabled:text-neutral-500" />
+                  <input type="number" name="sort_order" value={formData.sort_order} onChange={handleChange} className="w-16 text-sm border-stampa-border rounded-md p-1 bg-stampa-surface border focus:border-[#ff6a00] focus:ring-[#ff6a00]/20 focus:ring-2 placeholder:text-neutral-500 disabled:bg-neutral-800 disabled:text-neutral-500" />
                 </label>
               </div>
             </div>
           </div>
-          <div className="flex justify-end pt-4 border-t border-white/5">
-            <button onClick={handleSave} className="flex items-center gap-2 bg-orange-500/100 hover:bg-orange-600 text-white px-5 py-2.5 rounded-lg text-sm font-semibold transition-colors">
+          <div className="flex justify-end pt-4 border-t border-stampa-border">
+            <button onClick={handleSave} className="flex items-center gap-2 bg-stampa-orange/100 hover:bg-stampa-orange text-white px-5 py-2.5 rounded-lg text-sm font-semibold transition-colors">
               <Save size={16} /> Guardar
             </button>
           </div>
         </div>
       )}
 
-      <div className="bg-[#111] rounded-xl shadow-sm border border-white/10 overflow-hidden">
+      <div className="bg-stampa-surface rounded-xl shadow-sm border border-stampa-border overflow-hidden">
         <div className="overflow-x-auto">
           <table className="w-full">
-            <thead className="bg-[#0a0a0a] border-b border-white/10">
+            <thead className="bg-stampa-bg-soft border-b border-stampa-border">
               <tr>
                 <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Nombre / Marca</th>
                 <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Specs</th>
@@ -241,7 +241,7 @@ export default function AdminPrintersPage() {
                 </tr>
               ) : (
                 templates.map((t) => (
-                  <tr key={t.id} className="hover:bg-[#0a0a0a]/50 transition-colors">
+                  <tr key={t.id} className="hover:bg-stampa-bg-soft/50 transition-colors">
                     <td className="px-6 py-4">
                       <div className="font-semibold text-white">{t.name}</div>
                       <div className="text-xs text-gray-500">{t.brand} {t.model}</div>
@@ -253,14 +253,14 @@ export default function AdminPrintersPage() {
                       )}
                     </td>
                     <td className="px-6 py-4">
-                      <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${t.is_active ? 'bg-green-500/100/20 text-green-400' : 'bg-[#111]/5 text-gray-200'}`}>
+                      <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${t.is_active ? 'bg-green-500/100/20 text-green-400' : 'bg-stampa-surface/5 text-gray-200'}`}>
                         {t.is_active ? 'Activa' : 'Inactiva'}
                       </span>
                     </td>
                     <td className="px-6 py-4 text-right">
                       <button
                         onClick={() => handleEdit(t)}
-                        className="p-2 text-gray-400 hover:text-orange-500 hover:bg-orange-500/10 rounded-lg transition-colors"
+                        className="p-2 text-gray-400 hover:text-stampa-orange hover:bg-stampa-orange/10 rounded-lg transition-colors"
                       >
                         <Edit2 size={16} />
                       </button>

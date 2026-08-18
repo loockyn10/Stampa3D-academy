@@ -83,7 +83,7 @@ export function FilamentsManager() {
     }
   };
 
-  if (loading) return <div className="py-8 flex justify-center"><Loader2 className="animate-spin text-orange-500" /></div>;
+  if (loading) return <div className="py-8 flex justify-center"><Loader2 className="animate-spin text-stampa-orange" /></div>;
 
   return (
     <div className="space-y-4">
@@ -102,7 +102,7 @@ export function FilamentsManager() {
             });
             setEditingId("new");
           }}
-          className="flex items-center gap-1.5 bg-orange-500/100 hover:bg-orange-600 text-white px-3 py-1.5 rounded-lg text-sm font-medium transition-colors"
+          className="flex items-center gap-1.5 bg-stampa-orange/100 hover:bg-stampa-orange text-white px-3 py-1.5 rounded-lg text-sm font-medium transition-colors"
         >
           <Plus size={16} /> Añadir Filamento
         </button>
@@ -117,13 +117,13 @@ export function FilamentsManager() {
           editingId === f.id ? (
             <FilamentEditor key={f.id} formData={formData} setFormData={setFormData} onSave={handleSave} onCancel={() => setEditingId(null)} />
           ) : (
-            <Card key={f.id} className="p-4 flex flex-col hover:border-orange-500/30 transition-colors">
+            <Card key={f.id} className="p-4 flex flex-col hover:border-stampa-orange/30 transition-colors">
               <div className="flex justify-between items-start mb-2">
                 <div className="flex items-center gap-2">
                   <h4 className="font-bold text-white">{f.name}</h4>
                 </div>
                 <div className="flex gap-2">
-                  <button onClick={() => { setFormData(f); setEditingId(f.id); }} className="text-gray-400 hover:text-orange-500 transition-colors">
+                  <button onClick={() => { setFormData(f); setEditingId(f.id); }} className="text-gray-400 hover:text-stampa-orange transition-colors">
                     <Edit2 size={16} />
                   </button>
                   <button onClick={() => handleDelete(f)} className="text-red-400 hover:text-red-300 hover:bg-red-500/10 p-1 rounded transition-colors" title="Eliminar filamento">
@@ -140,8 +140,8 @@ export function FilamentsManager() {
                 <p>Precio: <span className="font-medium text-gray-300">${f.purchase_price}</span></p>
                 <p>Restante: <span className="font-medium text-gray-300">{f.remaining_grams}g / {f.total_grams}g</span></p>
               </div>
-              <div className="flex items-center justify-between pt-3 border-t border-white/5">
-                <span className={`text-xs px-2 py-0.5 rounded-md font-medium ${f.is_active ? 'bg-green-500/20 text-green-400' : 'bg-[#111]/5 text-gray-400'}`}>
+              <div className="flex items-center justify-between pt-3 border-t border-stampa-border">
+                <span className={`text-xs px-2 py-0.5 rounded-md font-medium ${f.is_active ? 'bg-green-500/20 text-green-400' : 'bg-stampa-surface/5 text-gray-400'}`}>
                   {f.is_active ? 'Activo' : 'Inactivo'}
                 </span>
               </div>
@@ -149,7 +149,7 @@ export function FilamentsManager() {
           )
         ))}
         {filaments.length === 0 && editingId !== "new" && (
-          <div className="col-span-full py-12 text-center bg-[#0a0a0a] rounded-xl border border-dashed border-white/20">
+          <div className="col-span-full py-12 text-center bg-stampa-bg-soft rounded-xl border border-dashed border-white/20">
             <p className="text-sm text-gray-500">No tienes filamentos registrados.</p>
           </div>
         )}

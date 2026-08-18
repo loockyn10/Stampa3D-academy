@@ -23,21 +23,21 @@ export function LandingComparison() {
   const [ref, isIntersecting] = useIntersection<HTMLDivElement>({ threshold: 0.1 });
 
   return (
-    <section className="py-24 bg-black relative">
+    <section className="py-24 bg-stampa-bg relative">
       {/* Background glow in center desktop */}
-      <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[600px] h-[600px] bg-orange-600/10 blur-[150px] rounded-full pointer-events-none hidden md:block" />
+      <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[600px] h-[600px] bg-stampa-orange/10 blur-[150px] rounded-full pointer-events-none hidden md:block" />
 
       <div className="container mx-auto px-6 relative z-10" ref={ref}>
         <div className={`text-center max-w-3xl mx-auto mb-16 stampa-reveal-hidden ${isIntersecting ? 'stampa-reveal-visible' : ''}`}>
           <h2 className="text-3xl md:text-5xl font-bold text-white mb-6">
-            La diferencia entre <span className="text-gray-500">un hobby</span> y <span className="text-orange-500">un negocio</span>
+            La diferencia entre <span className="text-gray-500">un hobby</span> y <span className="text-stampa-orange">un negocio</span>
           </h2>
         </div>
 
         <div className="flex flex-col lg:flex-row gap-6 max-w-5xl mx-auto">
           
           {/* Sin Stampa */}
-          <div className={`w-full lg:w-1/2 bg-zinc-950/80 border border-zinc-800 rounded-3xl p-8 md:p-12 relative overflow-hidden stampa-reveal-hidden ${isIntersecting ? 'stampa-reveal-visible' : ''}`} style={{ animationDelay: '0.1s' }}>
+          <div className={`w-full lg:w-1/2 bg-stampa-bg/80 border border-zinc-800 rounded-3xl p-8 md:p-12 relative overflow-hidden stampa-reveal-hidden ${isIntersecting ? 'stampa-reveal-visible' : ''}`} style={{ animationDelay: '0.1s' }}>
             <h3 className="text-2xl font-bold text-gray-400 mb-8 flex items-center gap-3">
               <div className="w-8 h-8 rounded-full bg-zinc-900 border border-zinc-700 flex items-center justify-center">
                 <X className="w-4 h-4 text-gray-500" />
@@ -58,11 +58,11 @@ export function LandingComparison() {
           </div>
 
           {/* Con Stampa */}
-          <div className={`w-full lg:w-1/2 bg-zinc-900/60 border border-orange-500/40 rounded-3xl p-8 md:p-12 relative overflow-hidden group stampa-reveal-hidden ${isIntersecting ? 'stampa-reveal-visible' : ''}`} style={{ animationDelay: '0.3s' }}>
-            <div className="absolute top-0 right-0 w-64 h-64 bg-orange-500/10 blur-3xl rounded-full transition-opacity duration-700 opacity-50 group-hover:opacity-100 hidden md:block" />
+          <div className={`w-full lg:w-1/2 bg-zinc-900/60 border border-stampa-orange/40 rounded-3xl p-8 md:p-12 relative overflow-hidden group stampa-reveal-hidden ${isIntersecting ? 'stampa-reveal-visible' : ''}`} style={{ animationDelay: '0.3s' }}>
+            <div className="absolute top-0 right-0 w-64 h-64 bg-stampa-orange/10 blur-3xl rounded-full transition-opacity duration-700 opacity-50 group-hover:opacity-100 hidden md:block" />
             
             <h3 className="text-2xl font-bold text-white mb-8 flex items-center gap-3 relative z-10">
-              <div className="w-8 h-8 rounded-full bg-orange-500/20 border border-orange-500/50 flex items-center justify-center">
+              <div className="w-8 h-8 rounded-full bg-stampa-orange/20 border border-stampa-orange/50 flex items-center justify-center">
                 <Check className="w-4 h-4 text-orange-400" />
               </div>
               Con Stampa Academy

@@ -139,7 +139,7 @@ export default function InicioPage() {
   if (loading) {
     return (
       <div className="flex items-center justify-center py-24">
-        <Loader2 className="h-8 w-8 animate-spin text-[#ff6a00]" />
+        <Loader2 className="h-8 w-8 animate-spin text-stampa-orange" />
       </div>
     );
   }
@@ -192,11 +192,11 @@ export default function InicioPage() {
   return (
     <div className="space-y-10 pb-10">
       {/* 1. Hero Interno */}
-      <div className="relative overflow-hidden rounded-3xl bg-[#111] border border-white/10 p-8 sm:p-10 shadow-2xl">
+      <div className="relative overflow-hidden rounded-3xl bg-stampa-surface border border-stampa-border p-8 sm:p-10 shadow-2xl">
         <div className="absolute inset-0 bg-gradient-to-br from-[#ff6a00]/10 to-transparent pointer-events-none" />
         <div className="relative z-10 max-w-2xl">
           <div className="flex items-center justify-between mb-2">
-            <p className="text-sm font-semibold text-[#ff6a00] uppercase tracking-wider">Hola, {userFirstName}</p>
+            <p className="text-sm font-semibold text-stampa-orange uppercase tracking-wider">Hola, {userFirstName}</p>
 
           </div>
           <h1 className="text-3xl font-bold text-white sm:text-4xl">¿Qué querés resolver hoy?</h1>
@@ -208,11 +208,11 @@ export default function InicioPage() {
               <Bot size={18} className="mr-2" /> Preguntarle a Stampy
             </PrimaryButton>
             {continuingCourse ? (
-              <GhostButton href={`/cursos/${continuingCourse.id}`} className="px-6 py-3 text-base bg-white/5 border border-white/10 text-white hover:bg-white/10">
+              <GhostButton href={`/cursos/${continuingCourse.id}`} className="px-6 py-3 text-base bg-white/5 border border-stampa-border text-white hover:bg-white/10">
                 <Play size={18} className="mr-2" /> Continuar curso
               </GhostButton>
             ) : (
-              <GhostButton href="/cursos" className="px-6 py-3 text-base bg-white/5 border border-white/10 text-white hover:bg-white/10">
+              <GhostButton href="/cursos" className="px-6 py-3 text-base bg-white/5 border border-stampa-border text-white hover:bg-white/10">
                 <BookOpen size={18} className="mr-2" /> Explorar cursos
               </GhostButton>
             )}
@@ -226,12 +226,12 @@ export default function InicioPage() {
         <div className="mt-4 grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
           {quickAccess.map((item, i) => (
             <Link key={i} href={item.href}>
-              <Card className="group h-full p-5 bg-[#111] border-white/10 hover:border-[#ff6a00]/50 hover:bg-white/5 transition-all cursor-pointer flex flex-col justify-between">
+              <Card className="group h-full p-5 bg-stampa-surface border-stampa-border hover:border-[#ff6a00]/50 hover:bg-white/5 transition-all cursor-pointer flex flex-col justify-between">
                 <div>
                   <div className={`flex h-10 w-10 items-center justify-center rounded-xl bg-white/5 ${item.color} mb-4 group-hover:scale-110 transition-transform`}>
                     <item.icon size={20} />
                   </div>
-                  <h3 className="text-base font-bold text-white group-hover:text-[#ff6a00] transition-colors">{item.title}</h3>
+                  <h3 className="text-base font-bold text-white group-hover:text-stampa-orange transition-colors">{item.title}</h3>
                   <p className="mt-2 text-sm text-gray-400">{item.desc}</p>
                 </div>
               </Card>
@@ -251,7 +251,7 @@ export default function InicioPage() {
             <SectionTitle
               title="Continuar aprendiendo"
               action={
-                <Link href="/cursos" className="text-xs font-semibold text-[#ff6a00] hover:underline flex items-center gap-1">
+                <Link href="/cursos" className="text-xs font-semibold text-stampa-orange hover:underline flex items-center gap-1">
                   Ver academia <ArrowRight size={14} />
                 </Link>
               }
@@ -259,7 +259,7 @@ export default function InicioPage() {
             <div className="mt-4">
               {continuingCourse ? (
                 <Link href={`/cursos/${continuingCourse.id}`}>
-                  <Card className="flex items-center gap-5 p-5 bg-[#111] border-white/10 hover:border-[#ff6a00]/30 hover:bg-white/5 transition-all cursor-pointer">
+                  <Card className="flex items-center gap-5 p-5 bg-stampa-surface border-stampa-border hover:border-[#ff6a00]/30 hover:bg-white/5 transition-all cursor-pointer">
                     <div className="flex h-20 w-20 shrink-0 items-center justify-center rounded-xl bg-white/5 text-3xl overflow-hidden">
                       {continuingCourse.thumbnail_url ? (
                         <img src={continuingCourse.thumbnail_url} alt={continuingCourse.title} className="w-full h-full object-cover" />
@@ -274,12 +274,12 @@ export default function InicioPage() {
                       </p>
                       <ProgressBar value={continuingCourse.progress} className="mt-3 h-2" />
                     </div>
-                    <ChevronRight size={24} className="text-gray-500 shrink-0 group-hover:text-[#ff6a00] transition-colors" />
+                    <ChevronRight size={24} className="text-gray-500 shrink-0 group-hover:text-stampa-orange transition-colors" />
                   </Card>
                 </Link>
               ) : (
                 <Link href="/cursos">
-                  <Card className="flex items-center justify-between p-6 bg-[#111] border-white/10 hover:border-[#ff6a00]/30 hover:bg-white/5 transition-all cursor-pointer">
+                  <Card className="flex items-center justify-between p-6 bg-stampa-surface border-stampa-border hover:border-[#ff6a00]/30 hover:bg-white/5 transition-all cursor-pointer">
                     <div>
                       <h3 className="text-base font-bold text-white">Seguí con tus cursos</h3>
                       <p className="mt-1 text-sm text-gray-400">Entrá a la academia y continuá tu ruta de aprendizaje.</p>
@@ -293,11 +293,11 @@ export default function InicioPage() {
 
           {/* Stampy Destacado */}
           <div>
-            <Card className="relative overflow-hidden bg-[#111] border-[#ff6a00]/30 p-6 sm:p-8 flex flex-col sm:flex-row items-center gap-6">
+            <Card className="relative overflow-hidden bg-stampa-surface border-[#ff6a00]/30 p-6 sm:p-8 flex flex-col sm:flex-row items-center gap-6">
               <div className="absolute top-0 right-0 p-4 opacity-10 pointer-events-none">
                 <Bot size={120} />
               </div>
-              <div className="flex h-16 w-16 shrink-0 items-center justify-center rounded-2xl bg-[#ff6a00]/10 text-[#ff6a00] border border-[#ff6a00]/20 relative z-10">
+              <div className="flex h-16 w-16 shrink-0 items-center justify-center rounded-2xl bg-stampa-orange/10 text-stampa-orange border border-[#ff6a00]/20 relative z-10">
                 <Bot size={32} />
               </div>
               <div className="flex-1 text-center sm:text-left relative z-10">
@@ -323,7 +323,7 @@ export default function InicioPage() {
           {/* Mi Taller (Resumen) */}
           <div>
             <SectionTitle title="Mi Taller" />
-            <Card className="mt-4 p-5 bg-[#111] border-white/10 flex flex-col gap-4">
+            <Card className="mt-4 p-5 bg-stampa-surface border-stampa-border flex flex-col gap-4">
               <Link href="/presupuestos" className="flex items-center justify-between group">
                 <div className="flex items-center gap-3">
                   <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-white/5 text-gray-400 group-hover:text-blue-400 transition-colors">
@@ -361,9 +361,9 @@ export default function InicioPage() {
             <SectionTitle title="Sorteos para miembros" />
             <div className="mt-4">
               {upcomingRaffle ? (
-                <Card className="p-5 bg-[#111] border-white/10 group cursor-pointer hover:border-[#ff6a00]/30 transition-all">
+                <Card className="p-5 bg-stampa-surface border-stampa-border group cursor-pointer hover:border-[#ff6a00]/30 transition-all">
                   <Link href="/sorteos">
-                    <div className="mb-4 flex h-32 items-center justify-center rounded-xl bg-white/5 overflow-hidden relative border border-white/5">
+                    <div className="mb-4 flex h-32 items-center justify-center rounded-xl bg-white/5 overflow-hidden relative border border-stampa-border">
                       {upcomingRaffle.raffle_prizes && upcomingRaffle.raffle_prizes[0]?.image_url ? (
                         <img src={upcomingRaffle.raffle_prizes[0].image_url} alt={upcomingRaffle.title} className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500" />
                       ) : (
@@ -379,13 +379,13 @@ export default function InicioPage() {
                   </Link>
                 </Card>
               ) : (
-                <Card className="p-5 bg-[#111] border-white/10 text-center flex flex-col items-center">
-                  <div className="mb-4 flex h-14 w-14 items-center justify-center rounded-full bg-white/5 text-gray-500 border border-white/5">
+                <Card className="p-5 bg-stampa-surface border-stampa-border text-center flex flex-col items-center">
+                  <div className="mb-4 flex h-14 w-14 items-center justify-center rounded-full bg-white/5 text-gray-500 border border-stampa-border">
                     <Gift size={24} />
                   </div>
                   <h3 className="text-base font-bold text-white">Revisá sorteos activos</h3>
                   <p className="text-sm text-gray-400 mt-2 mb-5">Participá por premios y beneficios exclusivos para la academia.</p>
-                  <GhostButton href="/sorteos" className="w-full bg-white/5 text-white border border-white/10 hover:bg-white/10">
+                  <GhostButton href="/sorteos" className="w-full bg-white/5 text-white border border-stampa-border hover:bg-white/10">
                     Ver sorteos
                   </GhostButton>
                 </Card>

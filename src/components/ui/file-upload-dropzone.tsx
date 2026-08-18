@@ -119,7 +119,7 @@ export function FileUploadDropzone({
       
       <div
         className={`relative flex flex-col items-center justify-center w-full min-h-[120px] rounded-xl border-2 border-dashed transition-all p-4 text-center cursor-pointer overflow-hidden
-          ${isDragging ? "border-orange-500 bg-orange-50" : "border-white/20 bg-[#0a0a0a] hover:bg-white/5"}
+          ${isDragging ? "border-stampa-orange bg-orange-50" : "border-white/20 bg-stampa-bg-soft hover:bg-white/5"}
           ${success ? "border-green-500 bg-green-50" : ""}
           ${error ? "border-red-500 bg-red-50" : ""}
         `}
@@ -132,12 +132,12 @@ export function FileUploadDropzone({
           type="file"
           accept={accept}
           onChange={handleFileChange}
-          className="absolute inset-0 w-full h-full opacity-0 cursor-pointer bg-neutral-900 border border-white/10 text-neutral-100 focus:border-[#ff6a00] focus:ring-[#ff6a00]/20 focus:ring-2 placeholder:text-neutral-500 disabled:bg-neutral-800 disabled:text-neutral-500"
+          className="absolute inset-0 w-full h-full opacity-0 cursor-pointer bg-stampa-surface border border-stampa-border text-neutral-100 focus:border-[#ff6a00] focus:ring-[#ff6a00]/20 focus:ring-2 placeholder:text-neutral-500 disabled:bg-neutral-800 disabled:text-neutral-500"
           disabled={loading}
         />
         
         {loading ? (
-          <div className="flex flex-col items-center justify-center space-y-2 text-orange-500">
+          <div className="flex flex-col items-center justify-center space-y-2 text-stampa-orange">
             <Loader2 className="w-8 h-8 animate-spin" />
             <span className="text-xs font-medium text-gray-400">Subiendo {fileName}...</span>
           </div>
@@ -146,7 +146,7 @@ export function FileUploadDropzone({
             <CheckCircle2 className="w-8 h-8" />
             <span className="text-xs font-medium text-gray-200">Archivo subido correctamente</span>
             <span className="text-[10px] text-gray-500 max-w-[200px] truncate">{fileName}</span>
-            <button onClick={reset} className="relative z-10 mt-2 text-[10px] font-semibold text-gray-400 bg-[#111] px-3 py-1 rounded border border-white/10 hover:bg-white/5">
+            <button onClick={reset} className="relative z-10 mt-2 text-[10px] font-semibold text-gray-400 bg-stampa-surface px-3 py-1 rounded border border-stampa-border hover:bg-white/5">
               Reemplazar archivo
             </button>
           </div>
@@ -162,7 +162,7 @@ export function FileUploadDropzone({
             </span>
             {!error && accept && <span className="text-[10px] text-gray-400">Formatos permitidos: {accept.split(',').join(', ')}</span>}
             {error && (
-               <button onClick={reset} className="relative z-10 mt-2 text-[10px] font-semibold text-gray-400 bg-[#111] px-3 py-1 rounded border border-white/10 hover:bg-white/5">
+               <button onClick={reset} className="relative z-10 mt-2 text-[10px] font-semibold text-gray-400 bg-stampa-surface px-3 py-1 rounded border border-stampa-border hover:bg-white/5">
                  Intentar de nuevo
                </button>
             )}

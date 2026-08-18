@@ -63,12 +63,12 @@ export function BusinessManager() {
     setSaving(false);
   };
 
-  if (loading) return <div className="py-12 flex justify-center"><Loader2 className="animate-spin h-8 w-8 text-orange-500" /></div>;
+  if (loading) return <div className="py-12 flex justify-center"><Loader2 className="animate-spin h-8 w-8 text-stampa-orange" /></div>;
 
   return (
     <Card className="max-w-2xl p-6 space-y-6">
-      <div className="flex items-center gap-3 border-b border-white/5 pb-4">
-        <div className="p-2 bg-orange-100 text-orange-600 rounded-xl">
+      <div className="flex items-center gap-3 border-b border-stampa-border pb-4">
+        <div className="p-2 bg-orange-100 text-stampa-orange rounded-xl">
           <Building2 size={24} />
         </div>
         <div>
@@ -91,7 +91,7 @@ export function BusinessManager() {
           <input
             value={companyName}
             onChange={(e) => setCompanyName(e.target.value)}
-            className="w-full rounded-xl border border-white/20 bg-[#111] text-white px-3 py-2.5 text-sm outline-none focus:border-orange-500 focus:ring-2 focus:ring-orange-100"
+            className="w-full rounded-xl border border-white/20 bg-stampa-surface text-white px-3 py-2.5 text-sm outline-none focus:border-stampa-orange focus:ring-2 focus:ring-orange-100"
             placeholder="Ej. Stampa3D Academy"
           />
         </label>
@@ -108,19 +108,19 @@ export function BusinessManager() {
               label="Subir logo desde tu PC"
             />
             <div className="flex items-center gap-2">
-              <hr className="flex-1 border-white/10" />
+              <hr className="flex-1 border-stampa-border" />
               <span className="text-[10px] text-gray-400 font-semibold uppercase">O URL Externa</span>
-              <hr className="flex-1 border-white/10" />
+              <hr className="flex-1 border-stampa-border" />
             </div>
             <div className="flex gap-4 items-center">
               <input
                 placeholder="https://..."
                 value={companyLogoUrl}
                 onChange={(e) => setCompanyLogoUrl(e.target.value)}
-                className="flex-1 rounded-xl border border-white/20 bg-[#111] text-white px-3 py-2.5 text-sm outline-none focus:border-orange-500 focus:ring-2 focus:ring-orange-100"
+                className="flex-1 rounded-xl border border-white/20 bg-stampa-surface text-white px-3 py-2.5 text-sm outline-none focus:border-stampa-orange focus:ring-2 focus:ring-orange-100"
               />
               {companyLogoUrl && (
-                <div className="h-12 w-12 shrink-0 rounded-lg bg-white/5 overflow-hidden border border-white/10">
+                <div className="h-12 w-12 shrink-0 rounded-lg bg-white/5 overflow-hidden border border-stampa-border">
                   <img src={companyLogoUrl} alt="Logo" className="w-full h-full object-cover" />
                 </div>
               )}
@@ -133,7 +133,7 @@ export function BusinessManager() {
           <input
             value={companyPhone}
             onChange={(e) => setCompanyPhone(e.target.value)}
-            className="w-full rounded-xl border border-white/20 bg-[#111] text-white px-3 py-2.5 text-sm outline-none focus:border-orange-500 focus:ring-2 focus:ring-orange-100"
+            className="w-full rounded-xl border border-white/20 bg-stampa-surface text-white px-3 py-2.5 text-sm outline-none focus:border-stampa-orange focus:ring-2 focus:ring-orange-100"
             placeholder="Ej. +54 9 11 1234-5678"
           />
         </label>
@@ -143,7 +143,7 @@ export function BusinessManager() {
           <input
             value={companyCity}
             onChange={(e) => setCompanyCity(e.target.value)}
-            className="w-full rounded-xl border border-white/20 bg-[#111] text-white px-3 py-2.5 text-sm outline-none focus:border-orange-500 focus:ring-2 focus:ring-orange-100"
+            className="w-full rounded-xl border border-white/20 bg-stampa-surface text-white px-3 py-2.5 text-sm outline-none focus:border-stampa-orange focus:ring-2 focus:ring-orange-100"
             placeholder="Ej. Buenos Aires"
           />
         </label>
@@ -153,13 +153,13 @@ export function BusinessManager() {
           <input
             value={companyAddress}
             onChange={(e) => setCompanyAddress(e.target.value)}
-            className="w-full rounded-xl border border-white/20 bg-[#111] text-white px-3 py-2.5 text-sm outline-none focus:border-orange-500 focus:ring-2 focus:ring-orange-100"
+            className="w-full rounded-xl border border-white/20 bg-stampa-surface text-white px-3 py-2.5 text-sm outline-none focus:border-stampa-orange focus:ring-2 focus:ring-orange-100"
             placeholder="Ej. Calle Falsa 123"
           />
         </label>
       </div>
 
-      <div className="border-t border-white/5 pt-5">
+      <div className="border-t border-stampa-border pt-5">
         <PrimaryButton onClick={handleSave} disabled={saving} className="w-full sm:w-auto">
           {saving ? <Loader2 size={16} className="animate-spin mr-2" /> : null} Guardar cambios
         </PrimaryButton>

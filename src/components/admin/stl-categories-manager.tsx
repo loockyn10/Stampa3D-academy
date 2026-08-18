@@ -49,7 +49,7 @@ export function StlCategoriesManager() {
         </div>
       )}
 
-      <div className="bg-[#111] p-6 rounded-xl border border-white/10 shadow-sm space-y-4">
+      <div className="bg-stampa-surface p-6 rounded-xl border border-stampa-border shadow-sm space-y-4">
         <div className="flex items-center justify-between">
           <h2 className="text-lg font-bold text-white">Listado de Categorías</h2>
           <button 
@@ -62,15 +62,15 @@ export function StlCategoriesManager() {
 
         <div className="space-y-3">
           {editingCatId === "new" && (
-            <div className="p-4 bg-[#0a0a0a] rounded-lg border border-white/10 space-y-3">
-              <input type="text" placeholder="Nombre (ej. Funcionales)" value={catForm.name} onChange={e => setCatForm({...catForm, name: e.target.value})} className="w-full text-sm border-white/20 rounded-md focus:border-orange-500 focus:ring-orange-500 text-white bg-[#111]" />
-              <input type="text" placeholder="Slug (ej. funcionales)" value={catForm.slug} onChange={e => setCatForm({...catForm, slug: e.target.value})} className="w-full text-sm border-white/20 rounded-md focus:border-orange-500 focus:ring-orange-500 text-white bg-[#111]" />
-              <textarea placeholder="Descripción (opcional)" value={catForm.description || ""} onChange={e => setCatForm({...catForm, description: e.target.value})} className="w-full text-sm border-white/20 rounded-md focus:border-orange-500 focus:ring-orange-500 text-white bg-[#111]" />
-              <input type="text" placeholder="URL de imagen (opcional)" value={catForm.thumbnail_url || ""} onChange={e => setCatForm({...catForm, thumbnail_url: e.target.value})} className="w-full text-sm border-white/20 rounded-md focus:border-orange-500 focus:ring-orange-500 text-white bg-[#111]" />
+            <div className="p-4 bg-stampa-bg-soft rounded-lg border border-stampa-border space-y-3">
+              <input type="text" placeholder="Nombre (ej. Funcionales)" value={catForm.name} onChange={e => setCatForm({...catForm, name: e.target.value})} className="w-full text-sm border-white/20 rounded-md focus:border-stampa-orange focus:ring-stampa-orange text-white bg-stampa-surface" />
+              <input type="text" placeholder="Slug (ej. funcionales)" value={catForm.slug} onChange={e => setCatForm({...catForm, slug: e.target.value})} className="w-full text-sm border-white/20 rounded-md focus:border-stampa-orange focus:ring-stampa-orange text-white bg-stampa-surface" />
+              <textarea placeholder="Descripción (opcional)" value={catForm.description || ""} onChange={e => setCatForm({...catForm, description: e.target.value})} className="w-full text-sm border-white/20 rounded-md focus:border-stampa-orange focus:ring-stampa-orange text-white bg-stampa-surface" />
+              <input type="text" placeholder="URL de imagen (opcional)" value={catForm.thumbnail_url || ""} onChange={e => setCatForm({...catForm, thumbnail_url: e.target.value})} className="w-full text-sm border-white/20 rounded-md focus:border-stampa-orange focus:ring-stampa-orange text-white bg-stampa-surface" />
               <div className="flex gap-4">
-                <input type="number" placeholder="Orden" value={catForm.sort_order} onChange={e => setCatForm({...catForm, sort_order: parseInt(e.target.value) || 0})} className="w-32 text-sm border-white/20 rounded-md focus:border-orange-500 focus:ring-orange-500 text-white bg-[#111]" />
+                <input type="number" placeholder="Orden" value={catForm.sort_order} onChange={e => setCatForm({...catForm, sort_order: parseInt(e.target.value) || 0})} className="w-32 text-sm border-white/20 rounded-md focus:border-stampa-orange focus:ring-stampa-orange text-white bg-stampa-surface" />
                 <label className="flex items-center gap-2 text-sm text-gray-300">
-                  <input type="checkbox" checked={catForm.is_active} onChange={e => setCatForm({...catForm, is_active: e.target.checked})} className="rounded text-orange-600 focus:ring-orange-500" />
+                  <input type="checkbox" checked={catForm.is_active} onChange={e => setCatForm({...catForm, is_active: e.target.checked})} className="rounded text-stampa-orange focus:ring-stampa-orange" />
                   Activa
                 </label>
               </div>
@@ -82,17 +82,17 @@ export function StlCategoriesManager() {
           )}
 
           {categories.map(cat => (
-            <div key={cat.id} className="p-3 border border-white/5 rounded-lg flex items-center justify-between hover:bg-[#0a0a0a] transition-colors">
+            <div key={cat.id} className="p-3 border border-stampa-border rounded-lg flex items-center justify-between hover:bg-stampa-bg-soft transition-colors">
               {editingCatId === cat.id ? (
                 <div className="w-full space-y-3">
-                  <input type="text" value={catForm.name} onChange={e => setCatForm({...catForm, name: e.target.value})} className="w-full text-sm border-white/20 rounded-md focus:border-orange-500 focus:ring-orange-500 text-white bg-[#111]" />
-                  <input type="text" value={catForm.slug} onChange={e => setCatForm({...catForm, slug: e.target.value})} className="w-full text-sm border-white/20 rounded-md focus:border-orange-500 focus:ring-orange-500 text-white bg-[#111]" />
-                  <textarea value={catForm.description || ""} onChange={e => setCatForm({...catForm, description: e.target.value})} className="w-full text-sm border-white/20 rounded-md focus:border-orange-500 focus:ring-orange-500 text-white bg-[#111]" />
-                  <input type="text" placeholder="URL de imagen" value={catForm.thumbnail_url || ""} onChange={e => setCatForm({...catForm, thumbnail_url: e.target.value})} className="w-full text-sm border-white/20 rounded-md focus:border-orange-500 focus:ring-orange-500 text-white bg-[#111]" />
+                  <input type="text" value={catForm.name} onChange={e => setCatForm({...catForm, name: e.target.value})} className="w-full text-sm border-white/20 rounded-md focus:border-stampa-orange focus:ring-stampa-orange text-white bg-stampa-surface" />
+                  <input type="text" value={catForm.slug} onChange={e => setCatForm({...catForm, slug: e.target.value})} className="w-full text-sm border-white/20 rounded-md focus:border-stampa-orange focus:ring-stampa-orange text-white bg-stampa-surface" />
+                  <textarea value={catForm.description || ""} onChange={e => setCatForm({...catForm, description: e.target.value})} className="w-full text-sm border-white/20 rounded-md focus:border-stampa-orange focus:ring-stampa-orange text-white bg-stampa-surface" />
+                  <input type="text" placeholder="URL de imagen" value={catForm.thumbnail_url || ""} onChange={e => setCatForm({...catForm, thumbnail_url: e.target.value})} className="w-full text-sm border-white/20 rounded-md focus:border-stampa-orange focus:ring-stampa-orange text-white bg-stampa-surface" />
                   <div className="flex gap-4">
-                    <input type="number" value={catForm.sort_order} onChange={e => setCatForm({...catForm, sort_order: parseInt(e.target.value) || 0})} className="w-32 text-sm border-white/20 rounded-md focus:border-orange-500 focus:ring-orange-500 text-white bg-[#111]" />
+                    <input type="number" value={catForm.sort_order} onChange={e => setCatForm({...catForm, sort_order: parseInt(e.target.value) || 0})} className="w-32 text-sm border-white/20 rounded-md focus:border-stampa-orange focus:ring-stampa-orange text-white bg-stampa-surface" />
                     <label className="flex items-center gap-2 text-sm text-gray-300">
-                      <input type="checkbox" checked={catForm.is_active} onChange={e => setCatForm({...catForm, is_active: e.target.checked})} className="rounded text-orange-600 focus:ring-orange-500" />
+                      <input type="checkbox" checked={catForm.is_active} onChange={e => setCatForm({...catForm, is_active: e.target.checked})} className="rounded text-stampa-orange focus:ring-stampa-orange" />
                       Activa
                     </label>
                   </div>

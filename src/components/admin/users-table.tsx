@@ -188,7 +188,7 @@ export function UsersTable() {
   if (loading) {
     return (
       <div className="flex items-center justify-center py-12">
-        <Loader2 className="h-8 w-8 animate-spin text-orange-500" />
+        <Loader2 className="h-8 w-8 animate-spin text-stampa-orange" />
       </div>
     );
   }
@@ -209,11 +209,11 @@ export function UsersTable() {
         </div>
       )}
 
-      <div className="bg-[#111] border border-white/10 rounded-xl overflow-hidden shadow-sm">
+      <div className="bg-stampa-surface border border-stampa-border rounded-xl overflow-hidden shadow-sm">
         <div className="overflow-x-auto">
           <table className="w-full min-w-[1000px] text-left border-collapse">
             <thead>
-              <tr className="bg-[#0a0a0a] border-b border-white/10 text-sm font-medium text-gray-500">
+              <tr className="bg-stampa-bg-soft border-b border-stampa-border text-sm font-medium text-gray-500">
                 <th className="px-4 py-3">Nombre</th>
                 <th className="px-4 py-3">Estado</th>
                 <th className="px-4 py-3">Rol</th>
@@ -227,7 +227,7 @@ export function UsersTable() {
             </thead>
             <tbody className="divide-y divide-white/5">
               {users.map((user) => (
-                <tr key={user.id} className="text-sm hover:bg-[#0a0a0a] transition-colors">
+                <tr key={user.id} className="text-sm hover:bg-stampa-bg-soft transition-colors">
                   <td className="px-4 py-3 font-medium text-white">
                     <div>
                       {user.display_name || user.full_name || user.email || "Usuario sin nombre"}
@@ -264,7 +264,7 @@ export function UsersTable() {
                       value={user.role}
                       onChange={(e) => handleUpdate(user.id, "role", e.target.value)}
                       disabled={updatingId === user.id}
-                      className="text-sm border-white/20 rounded-md focus:ring-orange-500 focus:border-orange-500 bg-[#111] shadow-sm disabled:opacity-50"
+                      className="text-sm border-white/20 rounded-md focus:ring-stampa-orange focus:border-stampa-orange bg-stampa-surface shadow-sm disabled:opacity-50"
                     >
                       <option value="member">Member</option>
                       <option value="admin">Admin</option>
@@ -275,8 +275,8 @@ export function UsersTable() {
                       value={user.membership_status}
                       onChange={(e) => handleUpdate(user.id, "membership_status", e.target.value)}
                       disabled={updatingId === user.id}
-                      className={`text-sm border-white/20 rounded-md focus:ring-orange-500 focus:border-orange-500 shadow-sm disabled:opacity-50 ${
-                        user.membership_status === "active" ? "bg-green-500/10 text-green-300 font-medium" : "bg-[#111]"
+                      className={`text-sm border-white/20 rounded-md focus:ring-stampa-orange focus:border-stampa-orange shadow-sm disabled:opacity-50 ${
+                        user.membership_status === "active" ? "bg-green-500/10 text-green-300 font-medium" : "bg-stampa-surface"
                       }`}
                     >
                       <option value="active">Active</option>
@@ -290,7 +290,7 @@ export function UsersTable() {
                       value={user.member_level}
                       onChange={(e) => handleUpdate(user.id, "member_level", e.target.value)}
                       disabled={updatingId === user.id}
-                      className="text-sm border-white/20 rounded-md focus:ring-orange-500 focus:border-orange-500 bg-[#111] shadow-sm disabled:opacity-50"
+                      className="text-sm border-white/20 rounded-md focus:ring-stampa-orange focus:border-stampa-orange bg-stampa-surface shadow-sm disabled:opacity-50"
                     >
                       <option value="bronze">Bronze</option>
                       <option value="silver">Silver</option>
@@ -320,7 +320,7 @@ export function UsersTable() {
                       value={user.active_months}
                       onChange={(e) => handleUpdate(user.id, "active_months", parseInt(e.target.value) || 0)}
                       disabled={updatingId === user.id}
-                      className="w-16 text-sm border-white/20 rounded-md focus:ring-orange-500 focus:border-orange-500 bg-[#111] shadow-sm disabled:opacity-50"
+                      className="w-16 text-sm border-white/20 rounded-md focus:ring-stampa-orange focus:border-stampa-orange bg-stampa-surface shadow-sm disabled:opacity-50"
                     />
                   </td>
                   <td className="px-4 py-3">
@@ -350,7 +350,7 @@ export function UsersTable() {
                           onClick={() => handleMarkFounder(user.id, user.display_name || user.full_name || user.email || "Usuario")}
                           disabled={updatingId === user.id}
                           title="Override manual. El flujo normal es automático al pagar."
-                          className="flex items-center gap-1 px-2 py-1 rounded-lg text-[10px] font-semibold bg-white/5 text-gray-500 border border-white/10 hover:bg-amber-500/10 hover:text-amber-400 hover:border-amber-500/30 transition-colors disabled:opacity-50"
+                          className="flex items-center gap-1 px-2 py-1 rounded-lg text-[10px] font-semibold bg-white/5 text-gray-500 border border-stampa-border hover:bg-amber-500/10 hover:text-amber-400 hover:border-amber-500/30 transition-colors disabled:opacity-50"
                         >
                           <Star size={9} /> Override Fundador
                         </button>
@@ -374,8 +374,8 @@ export function UsersTable() {
 
       {/* Beta Grant Modal */}
       {betaModal && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm">
-          <div className="bg-[#111] border border-white/10 rounded-2xl shadow-2xl p-6 w-full max-w-md mx-4">
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-stampa-bg/60 backdrop-blur-sm">
+          <div className="bg-stampa-surface border border-stampa-border rounded-2xl shadow-2xl p-6 w-full max-w-md mx-4">
             <h3 className="text-lg font-bold text-white mb-1 flex items-center gap-2">
               <Shield size={16} className="text-cyan-400" />
               Dar acceso Beta
@@ -391,7 +391,7 @@ export function UsersTable() {
                   type="date"
                   value={betaExpires}
                   onChange={(e) => setBetaExpires(e.target.value)}
-                  className="w-full rounded-xl border border-white/10 px-3 py-2.5 text-sm text-white bg-white/5 focus:outline-none focus:border-orange-500/50"
+                  className="w-full rounded-xl border border-stampa-border px-3 py-2.5 text-sm text-white bg-white/5 focus:outline-none focus:border-stampa-orange/50"
                 />
               </div>
               <div>
@@ -403,7 +403,7 @@ export function UsersTable() {
                   onChange={(e) => setBetaNotes(e.target.value)}
                   rows={2}
                   placeholder="Ej. Acceso para testear módulo de sorteos..."
-                  className="w-full rounded-xl border border-white/10 px-3 py-2.5 text-sm text-white bg-white/5 focus:outline-none focus:border-orange-500/50 resize-none"
+                  className="w-full rounded-xl border border-stampa-border px-3 py-2.5 text-sm text-white bg-white/5 focus:outline-none focus:border-stampa-orange/50 resize-none"
                 />
               </div>
             </div>
@@ -411,7 +411,7 @@ export function UsersTable() {
             <div className="flex gap-2 mt-6">
               <button
                 onClick={() => { setBetaModal(null); setBetaNotes(""); setBetaExpires(""); }}
-                className="flex-1 px-4 py-2.5 rounded-xl text-sm font-semibold text-gray-400 bg-white/5 border border-white/10 hover:bg-white/10 transition-colors"
+                className="flex-1 px-4 py-2.5 rounded-xl text-sm font-semibold text-gray-400 bg-white/5 border border-stampa-border hover:bg-white/10 transition-colors"
               >
                 Cancelar
               </button>

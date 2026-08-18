@@ -115,20 +115,20 @@ export function Sidebar({ mobileOpen, setMobileOpen }: SidebarProps) {
       {/* Mobile overlay */}
       {mobileOpen && (
         <div
-          className="fixed inset-0 z-30 bg-black/60 lg:hidden"
+          className="fixed inset-0 z-30 bg-stampa-bg/60 lg:hidden"
           onClick={() => setMobileOpen(false)}
         />
       )}
 
       <aside
-        className={`fixed inset-y-0 left-0 z-40 flex w-64 flex-col border-r border-white/5 bg-[#070707] transition-transform duration-200 lg:static lg:translate-x-0 ${
+        className={`fixed inset-y-0 left-0 z-40 flex w-64 flex-col border-r border-stampa-border bg-stampa-bg transition-transform duration-200 lg:static lg:translate-x-0 ${
           mobileOpen ? "translate-x-0" : "-translate-x-full"
         }`}
       >
         {/* Brand logo header */}
         <div className="flex items-center justify-between px-5 py-5">
           <Link href="/" className="flex items-center gap-2" onClick={() => setMobileOpen(false)}>
-            <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-[#ff6a00] text-white">
+            <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-stampa-orange text-white">
               <Layers size={18} />
             </div>
             <div>
@@ -146,7 +146,7 @@ export function Sidebar({ mobileOpen, setMobileOpen }: SidebarProps) {
           href="/"
           onClick={() => setMobileOpen(false)}
           className={`mx-3 mb-2 flex items-center gap-3 rounded-xl px-3 py-2.5 text-sm font-semibold transition-colors ${
-            pathname === "/" ? "bg-[#ff6a00]/10 text-[#ff6a00]" : "text-gray-400 hover:bg-white/5 hover:text-white"
+            pathname === "/" ? "bg-stampa-orange/10 text-stampa-orange" : "text-gray-400 hover:bg-white/5 hover:text-white"
           }`}
         >
           <div className="flex h-5 w-5 items-center justify-center">🏠</div>
@@ -192,7 +192,7 @@ export function Sidebar({ mobileOpen, setMobileOpen }: SidebarProps) {
                           active
                             ? isStampy
                               ? "bg-cyan-500/10 text-cyan-400"
-                              : "bg-[#ff6a00]/10 text-[#ff6a00]"
+                              : "bg-stampa-orange/10 text-stampa-orange"
                             : item.path === "/salir"
                             ? "text-gray-500 hover:bg-red-500/10 hover:text-red-400"
                             : "text-gray-400 hover:bg-white/5 hover:text-white"
@@ -204,7 +204,7 @@ export function Sidebar({ mobileOpen, setMobileOpen }: SidebarProps) {
                             active
                               ? isStampy
                                 ? "text-cyan-400"
-                                : "text-[#ff6a00]"
+                                : "text-stampa-orange"
                               : item.path === "/salir"
                               ? "text-gray-500 group-hover:text-red-400"
                               : isStampy
@@ -213,7 +213,7 @@ export function Sidebar({ mobileOpen, setMobileOpen }: SidebarProps) {
                           }
                         />
                         <span className="flex-1 text-left">{item.label}</span>
-                        {active && <span className={`h-1.5 w-1.5 rounded-full ${isStampy ? 'bg-cyan-400' : 'bg-[#ff6a00]'}`} />}
+                        {active && <span className={`h-1.5 w-1.5 rounded-full ${isStampy ? 'bg-cyan-400' : 'bg-stampa-orange'}`} />}
                       </Link>
                     );
                   })}
@@ -225,8 +225,8 @@ export function Sidebar({ mobileOpen, setMobileOpen }: SidebarProps) {
 
         {/* Membership CTA banner */}
         {!loading && !isMembershipActive && !isAdmin && (
-          <div className="mx-3 mb-4 rounded-2xl bg-white/5 border border-white/10 p-4 text-white">
-            <p className="text-xs font-semibold text-[#ff6a00]">Activar membresía</p>
+          <div className="mx-3 mb-4 rounded-2xl bg-white/5 border border-stampa-border p-4 text-white">
+            <p className="text-xs font-semibold text-stampa-orange">Activar membresía</p>
             <p className="mt-1 text-xs text-gray-400">Desbloqueá todos los cursos y STL exclusivos de la academia.</p>
             <Link 
               href="/sin-acceso"

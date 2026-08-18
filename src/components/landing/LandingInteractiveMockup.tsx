@@ -36,7 +36,7 @@ export function LandingInteractiveMockup() {
   const [ref, isIntersecting] = useIntersection<HTMLDivElement>({ threshold: 0.1 });
 
   return (
-    <section id="plataforma" className="py-24 bg-black relative border-b border-white/5 overflow-hidden">
+    <section id="plataforma" className="py-24 bg-stampa-bg relative border-b border-stampa-border overflow-hidden">
       <div className="container mx-auto px-6" ref={ref}>
         
         <div className={`text-center max-w-3xl mx-auto mb-16 stampa-reveal-hidden ${isIntersecting ? 'stampa-reveal-visible' : ''}`}>
@@ -62,13 +62,13 @@ export function LandingInteractiveMockup() {
                 onClick={() => setActiveStep(step.id)}
                 className={`p-6 rounded-2xl border transition-all duration-300 cursor-pointer flex items-start gap-4 stampa-reveal-hidden ${isIntersecting ? 'stampa-reveal-visible' : ''} ${
                   activeStep === step.id 
-                    ? 'bg-zinc-900 border-orange-500/50 shadow-[0_0_30px_rgba(234,88,12,0.15)]' 
-                    : 'bg-zinc-900/40 border-white/5 hover:bg-zinc-900/80 hover:border-white/10'
+                    ? 'bg-zinc-900 border-stampa-orange/50 shadow-[0_0_30px_rgba(234,88,12,0.15)]' 
+                    : 'bg-zinc-900/40 border-stampa-border hover:bg-zinc-900/80 hover:border-stampa-border'
                 }`}
                 style={{ animationDelay: `${idx * 0.1}s` }}
               >
                 <div className={`w-12 h-12 rounded-xl flex items-center justify-center shrink-0 transition-colors duration-300 ${
-                  activeStep === step.id ? 'bg-orange-500/20 text-orange-400' : 'bg-white/5 text-gray-500'
+                  activeStep === step.id ? 'bg-stampa-orange/20 text-orange-400' : 'bg-white/5 text-gray-500'
                 }`}>
                   <step.icon className="w-6 h-6" />
                 </div>
@@ -84,13 +84,13 @@ export function LandingInteractiveMockup() {
 
           {/* Right: Mockup */}
           <div className={`w-full lg:w-7/12 relative stampa-reveal-hidden ${isIntersecting ? 'stampa-reveal-visible' : ''}`} style={{ animationDelay: '0.4s' }}>
-            <div className="relative w-full aspect-square md:aspect-[4/3] bg-[#09090b] border border-white/10 rounded-2xl shadow-2xl overflow-hidden group">
+            <div className="relative w-full aspect-square md:aspect-[4/3] bg-[#09090b] border border-stampa-border rounded-2xl shadow-2xl overflow-hidden group">
               {/* Glow background behind mockup (desktop only) */}
               <div className="absolute -inset-4 bg-gradient-to-r from-orange-600 to-orange-400 rounded-2xl blur-2xl opacity-0 group-hover:opacity-20 transition duration-1000 hidden md:block -z-10" />
               
-              <div className="absolute inset-0 bg-[#09090b] rounded-2xl overflow-hidden flex flex-col z-10 border border-white/5">
+              <div className="absolute inset-0 bg-[#09090b] rounded-2xl overflow-hidden flex flex-col z-10 border border-stampa-border">
                 {/* Header */}
-                <div className="h-10 border-b border-white/5 bg-white/5 flex items-center px-4 justify-between shrink-0">
+                <div className="h-10 border-b border-stampa-border bg-white/5 flex items-center px-4 justify-between shrink-0">
                   <div className="flex gap-2">
                     <div className="w-3 h-3 rounded-full bg-red-500/80" />
                     <div className="w-3 h-3 rounded-full bg-yellow-500/80" />
@@ -101,7 +101,7 @@ export function LandingInteractiveMockup() {
                 </div>
 
                 {/* Body Content - Changes based on activeStep */}
-                <div className="flex-1 p-6 relative overflow-hidden bg-black/50">
+                <div className="flex-1 p-6 relative overflow-hidden bg-stampa-bg/50">
                   
                   {/* Step 1: Cursos */}
                   <div className={`absolute inset-0 p-6 md:p-10 transition-all duration-500 ${activeStep === 1 ? 'opacity-100 translate-x-0' : 'opacity-0 translate-x-8 pointer-events-none'}`}>
@@ -109,11 +109,11 @@ export function LandingInteractiveMockup() {
                       <BookOpen className="w-6 h-6 text-blue-400" />
                       <span className="font-semibold text-white text-xl">Impresión 3D desde cero</span>
                     </div>
-                    <div className="bg-zinc-900 border border-white/10 rounded-xl p-6 mb-6 shadow-xl relative overflow-hidden group-hover:border-blue-500/30 transition-colors">
+                    <div className="bg-zinc-900 border border-stampa-border rounded-xl p-6 mb-6 shadow-xl relative overflow-hidden group-hover:border-blue-500/30 transition-colors">
                       <div className="absolute top-0 right-0 w-32 h-32 bg-blue-500/10 blur-2xl rounded-full" />
                       <div className="text-sm text-gray-400 mb-2">Módulo 2: Calibración y Slicing</div>
                       <div className="text-2xl font-bold text-white mb-6">Configuración de retracciones</div>
-                      <div className="h-3 w-full bg-black rounded-full overflow-hidden border border-white/5">
+                      <div className="h-3 w-full bg-stampa-bg rounded-full overflow-hidden border border-stampa-border">
                         <div className="h-full bg-gradient-to-r from-blue-600 to-blue-400 w-[68%]" />
                       </div>
                       <div className="text-sm font-medium text-blue-400 mt-3 text-right">68% Completado</div>
@@ -131,12 +131,12 @@ export function LandingInteractiveMockup() {
                       <span className="font-semibold text-white text-xl">Cálculo de costos</span>
                     </div>
                     <div className="grid grid-cols-2 gap-4 mb-6">
-                      <div className="bg-zinc-900 border border-white/5 rounded-xl p-5">
+                      <div className="bg-zinc-900 border border-stampa-border rounded-xl p-5">
                         <div className="text-xs text-gray-500 uppercase tracking-wider mb-1">Material</div>
                         <div className="text-xl font-bold text-white">135 g</div>
                         <div className="text-xs text-gray-400 mt-1">PLA Negro ($1.200)</div>
                       </div>
-                      <div className="bg-zinc-900 border border-white/5 rounded-xl p-5">
+                      <div className="bg-zinc-900 border border-stampa-border rounded-xl p-5">
                         <div className="text-xs text-gray-500 uppercase tracking-wider mb-1">Tiempo</div>
                         <div className="text-xl font-bold text-white">4h 20m</div>
                         <div className="text-xs text-gray-400 mt-1">Luz + Amortización ($850)</div>
@@ -155,10 +155,10 @@ export function LandingInteractiveMockup() {
                       <span className="font-semibold text-white text-xl">Inventario en tiempo real</span>
                     </div>
                     <div className="space-y-4">
-                      <div className="bg-zinc-900 border border-white/10 rounded-xl p-5 flex justify-between items-center relative overflow-hidden">
-                        <div className="absolute left-0 top-0 bottom-0 w-1 bg-orange-500" />
+                      <div className="bg-zinc-900 border border-stampa-border rounded-xl p-5 flex justify-between items-center relative overflow-hidden">
+                        <div className="absolute left-0 top-0 bottom-0 w-1 bg-stampa-orange" />
                         <div className="flex items-center gap-4">
-                          <div className="w-4 h-4 rounded-full bg-zinc-950 border-2 border-zinc-700 shadow-sm" />
+                          <div className="w-4 h-4 rounded-full bg-stampa-bg border-2 border-zinc-700 shadow-sm" />
                           <div>
                             <div className="text-white font-bold">PLA Negro</div>
                             <div className="text-xs text-gray-400">GST3D - Abierta</div>
@@ -170,7 +170,7 @@ export function LandingInteractiveMockup() {
                         </div>
                       </div>
                       
-                      <div className="bg-zinc-900 border border-white/5 rounded-xl p-5 flex justify-between items-center">
+                      <div className="bg-zinc-900 border border-stampa-border rounded-xl p-5 flex justify-between items-center">
                         <div className="flex items-center gap-4">
                           <div className="w-4 h-4 rounded-full bg-white border-2 border-gray-300 shadow-sm" />
                           <div>
@@ -205,7 +205,7 @@ export function LandingInteractiveMockup() {
                       <span className="font-semibold text-white text-xl">Presupuesto #PRE-0042</span>
                     </div>
                     
-                    <div className="bg-zinc-900 border border-white/10 rounded-xl p-6 md:p-8 relative overflow-hidden shadow-xl">
+                    <div className="bg-zinc-900 border border-stampa-border rounded-xl p-6 md:p-8 relative overflow-hidden shadow-xl">
                       <div className="absolute top-0 right-0 w-32 h-32 bg-purple-500/10 blur-3xl rounded-full" />
                       
                       <div className="flex justify-between items-start mb-8">
@@ -229,7 +229,7 @@ export function LandingInteractiveMockup() {
                         </div>
                       </div>
 
-                      <div className="border-t border-white/10 pt-6 flex justify-between items-end">
+                      <div className="border-t border-stampa-border pt-6 flex justify-between items-end">
                         <span className="text-sm text-gray-400 font-medium">Total Final:</span>
                         <span className="text-4xl font-black text-transparent bg-clip-text bg-gradient-to-r from-purple-400 to-white">$115.000</span>
                       </div>

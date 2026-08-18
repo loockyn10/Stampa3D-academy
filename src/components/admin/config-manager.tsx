@@ -80,7 +80,7 @@ export function ConfigManager() {
       )}
 
       {/* CATEGORIES SECTION */}
-      <div className="bg-[#111] p-6 rounded-xl border border-white/10 shadow-sm space-y-4">
+      <div className="bg-stampa-surface p-6 rounded-xl border border-stampa-border shadow-sm space-y-4">
         <div className="flex items-center justify-between">
           <h2 className="text-lg font-bold text-white">Categorías</h2>
           <button 
@@ -93,10 +93,10 @@ export function ConfigManager() {
 
         <div className="space-y-3">
           {editingCatId === "new" && (
-            <div className="p-3 bg-[#0a0a0a] rounded-lg border border-white/10 space-y-3">
-              <input type="text" placeholder="Nombre" value={catForm.name} onChange={e => setCatForm({...catForm, name: e.target.value})} className="bg-[#111] text-white w-full text-sm border-white/20 rounded-md" />
-              <input type="text" placeholder="Slug" value={catForm.slug} onChange={e => setCatForm({...catForm, slug: e.target.value})} className="bg-[#111] text-white w-full text-sm border-white/20 rounded-md" />
-              <input type="number" placeholder="Orden" value={catForm.sort_order} onChange={e => setCatForm({...catForm, sort_order: parseInt(e.target.value) || 0})} className="bg-[#111] text-white w-full text-sm border-white/20 rounded-md" />
+            <div className="p-3 bg-stampa-bg-soft rounded-lg border border-stampa-border space-y-3">
+              <input type="text" placeholder="Nombre" value={catForm.name} onChange={e => setCatForm({...catForm, name: e.target.value})} className="bg-stampa-surface text-white w-full text-sm border-white/20 rounded-md" />
+              <input type="text" placeholder="Slug" value={catForm.slug} onChange={e => setCatForm({...catForm, slug: e.target.value})} className="bg-stampa-surface text-white w-full text-sm border-white/20 rounded-md" />
+              <input type="number" placeholder="Orden" value={catForm.sort_order} onChange={e => setCatForm({...catForm, sort_order: parseInt(e.target.value) || 0})} className="bg-stampa-surface text-white w-full text-sm border-white/20 rounded-md" />
               <div className="flex justify-end gap-2">
                 <button onClick={() => setEditingCatId(null)} className="p-1 text-gray-500 hover:text-gray-300"><X size={18} /></button>
                 <button onClick={handleSaveCat} className="p-1 text-blue-600 hover:text-blue-800"><Check size={18} /></button>
@@ -107,10 +107,10 @@ export function ConfigManager() {
           {categories.map((cat) => (
             <div key={cat.id}>
               {editingCatId === cat.id ? (
-                <div className="p-3 bg-[#0a0a0a] rounded-lg border border-blue-200 space-y-3">
-                  <input type="text" value={catForm.name} onChange={e => setCatForm({...catForm, name: e.target.value})} className="bg-[#111] text-white w-full text-sm border-white/20 rounded-md" />
-                  <input type="text" value={catForm.slug} onChange={e => setCatForm({...catForm, slug: e.target.value})} className="bg-[#111] text-white w-full text-sm border-white/20 rounded-md" />
-                  <input type="number" value={catForm.sort_order} onChange={e => setCatForm({...catForm, sort_order: parseInt(e.target.value) || 0})} className="bg-[#111] text-white w-full text-sm border-white/20 rounded-md" />
+                <div className="p-3 bg-stampa-bg-soft rounded-lg border border-blue-200 space-y-3">
+                  <input type="text" value={catForm.name} onChange={e => setCatForm({...catForm, name: e.target.value})} className="bg-stampa-surface text-white w-full text-sm border-white/20 rounded-md" />
+                  <input type="text" value={catForm.slug} onChange={e => setCatForm({...catForm, slug: e.target.value})} className="bg-stampa-surface text-white w-full text-sm border-white/20 rounded-md" />
+                  <input type="number" value={catForm.sort_order} onChange={e => setCatForm({...catForm, sort_order: parseInt(e.target.value) || 0})} className="bg-stampa-surface text-white w-full text-sm border-white/20 rounded-md" />
                   <div className="flex items-center gap-2">
                      <input type="checkbox" checked={catForm.is_active} onChange={e => setCatForm({...catForm, is_active: e.target.checked})} />
                      <label className="text-sm">Activa</label>
@@ -121,7 +121,7 @@ export function ConfigManager() {
                   </div>
                 </div>
               ) : (
-                <div className="flex items-center justify-between p-3 border border-white/5 rounded-lg hover:bg-[#0a0a0a]">
+                <div className="flex items-center justify-between p-3 border border-stampa-border rounded-lg hover:bg-stampa-bg-soft">
                   <div>
                     <p className="text-sm font-medium text-white">{cat.name}</p>
                     <p className="text-xs text-gray-500">/{cat.slug} - Orden: {cat.sort_order}</p>
@@ -135,7 +135,7 @@ export function ConfigManager() {
       </div>
 
       {/* INSTRUCTORS SECTION */}
-      <div className="bg-[#111] p-6 rounded-xl border border-white/10 shadow-sm space-y-4">
+      <div className="bg-stampa-surface p-6 rounded-xl border border-stampa-border shadow-sm space-y-4">
         <div className="flex items-center justify-between">
           <h2 className="text-lg font-bold text-white">Instructores</h2>
           <button 
@@ -148,10 +148,10 @@ export function ConfigManager() {
 
         <div className="space-y-3">
           {editingInstId === "new" && (
-            <div className="p-3 bg-[#0a0a0a] rounded-lg border border-white/10 space-y-3">
-              <input type="text" placeholder="Nombre" value={instForm.name} onChange={e => setInstForm({...instForm, name: e.target.value})} className="bg-[#111] text-white w-full text-sm border-white/20 rounded-md" />
-              <input type="text" placeholder="Avatar URL" value={instForm.avatar_url} onChange={e => setInstForm({...instForm, avatar_url: e.target.value})} className="bg-[#111] text-white w-full text-sm border-white/20 rounded-md" />
-              <textarea placeholder="Bio" value={instForm.bio} onChange={e => setInstForm({...instForm, bio: e.target.value})} className="bg-[#111] text-white w-full text-sm border-white/20 rounded-md" rows={2} />
+            <div className="p-3 bg-stampa-bg-soft rounded-lg border border-stampa-border space-y-3">
+              <input type="text" placeholder="Nombre" value={instForm.name} onChange={e => setInstForm({...instForm, name: e.target.value})} className="bg-stampa-surface text-white w-full text-sm border-white/20 rounded-md" />
+              <input type="text" placeholder="Avatar URL" value={instForm.avatar_url} onChange={e => setInstForm({...instForm, avatar_url: e.target.value})} className="bg-stampa-surface text-white w-full text-sm border-white/20 rounded-md" />
+              <textarea placeholder="Bio" value={instForm.bio} onChange={e => setInstForm({...instForm, bio: e.target.value})} className="bg-stampa-surface text-white w-full text-sm border-white/20 rounded-md" rows={2} />
               <div className="flex justify-end gap-2">
                 <button onClick={() => setEditingInstId(null)} className="p-1 text-gray-500 hover:text-gray-300"><X size={18} /></button>
                 <button onClick={handleSaveInst} className="p-1 text-blue-600 hover:text-blue-800"><Check size={18} /></button>
@@ -162,10 +162,10 @@ export function ConfigManager() {
           {instructors.map((inst) => (
             <div key={inst.id}>
               {editingInstId === inst.id ? (
-                <div className="p-3 bg-[#0a0a0a] rounded-lg border border-blue-200 space-y-3">
-                  <input type="text" value={instForm.name} onChange={e => setInstForm({...instForm, name: e.target.value})} className="bg-[#111] text-white w-full text-sm border-white/20 rounded-md" />
-                  <input type="text" placeholder="Avatar URL" value={instForm.avatar_url} onChange={e => setInstForm({...instForm, avatar_url: e.target.value})} className="bg-[#111] text-white w-full text-sm border-white/20 rounded-md" />
-                  <textarea value={instForm.bio} onChange={e => setInstForm({...instForm, bio: e.target.value})} className="bg-[#111] text-white w-full text-sm border-white/20 rounded-md" rows={2} />
+                <div className="p-3 bg-stampa-bg-soft rounded-lg border border-blue-200 space-y-3">
+                  <input type="text" value={instForm.name} onChange={e => setInstForm({...instForm, name: e.target.value})} className="bg-stampa-surface text-white w-full text-sm border-white/20 rounded-md" />
+                  <input type="text" placeholder="Avatar URL" value={instForm.avatar_url} onChange={e => setInstForm({...instForm, avatar_url: e.target.value})} className="bg-stampa-surface text-white w-full text-sm border-white/20 rounded-md" />
+                  <textarea value={instForm.bio} onChange={e => setInstForm({...instForm, bio: e.target.value})} className="bg-stampa-surface text-white w-full text-sm border-white/20 rounded-md" rows={2} />
                   <div className="flex items-center gap-2">
                      <input type="checkbox" checked={instForm.is_active} onChange={e => setInstForm({...instForm, is_active: e.target.checked})} />
                      <label className="text-sm">Activo</label>
@@ -176,7 +176,7 @@ export function ConfigManager() {
                   </div>
                 </div>
               ) : (
-                <div className="flex items-center justify-between p-3 border border-white/5 rounded-lg hover:bg-[#0a0a0a]">
+                <div className="flex items-center justify-between p-3 border border-stampa-border rounded-lg hover:bg-stampa-bg-soft">
                   <div className="flex items-center gap-3">
                     {inst.avatar_url ? (
                       <img src={inst.avatar_url} alt={inst.name} className="w-8 h-8 rounded-full object-cover bg-gray-200" />

@@ -46,7 +46,7 @@ function NumberField({ label, value, onChange, suffix, step = 1, disabled = fals
   return (
     <label className={`block ${disabled ? "opacity-60" : ""}`}>
       <span className="mb-1 block text-xs font-semibold text-gray-500">{label}</span>
-      <div className={`flex items-center rounded-xl border border-white/10 bg-[#111] px-3 ${!disabled && "focus-within:border-[#ff6a00] focus-within:bg-[#1a1a1a] focus-within:ring-2 focus-within:ring-[#ff6a00]/20"}`}>
+      <div className={`flex items-center rounded-xl border border-stampa-border bg-stampa-surface px-3 ${!disabled && "focus-within:border-[#ff6a00] focus-within:bg-[#1a1a1a] focus-within:ring-2 focus-within:ring-[#ff6a00]/20"}`}>
         <input
           type="number"
           step={step}
@@ -311,7 +311,7 @@ export default function CalculadoraPage() {
   };
 
   if (loading) {
-    return <div className="py-24 flex justify-center"><Loader2 className="animate-spin h-8 w-8 text-[#ff6a00]" /></div>;
+    return <div className="py-24 flex justify-center"><Loader2 className="animate-spin h-8 w-8 text-stampa-orange" /></div>;
   }
 
   const missingData = filaments.length === 0 || printers.length === 0 || multipliers.length === 0;
@@ -319,23 +319,23 @@ export default function CalculadoraPage() {
 
   return <div className="space-y-8 pb-10">
       {/* 1. Header Premium */}
-      <div className="relative overflow-hidden rounded-3xl bg-[#111] border border-white/10 p-8 sm:p-10 shadow-2xl">
+      <div className="relative overflow-hidden rounded-3xl bg-stampa-surface border border-stampa-border p-8 sm:p-10 shadow-2xl">
         <div className="absolute inset-0 bg-gradient-to-br from-[#ff6a00]/10 to-transparent pointer-events-none" />
         <div className="relative z-10 max-w-3xl">
           <div className="flex items-center gap-2 mb-3 justify-between">
-            <span className="rounded-full bg-[#ff6a00]/10 text-[#ff6a00] text-xs font-bold px-3 py-1 uppercase tracking-wider border border-[#ff6a00]/20">
+            <span className="rounded-full bg-stampa-orange/10 text-stampa-orange text-xs font-bold px-3 py-1 uppercase tracking-wider border border-[#ff6a00]/20">
               Herramienta de taller
             </span>
 
           </div>
           <h1 className="text-3xl font-bold text-white sm:text-4xl flex items-center gap-3">
-            <Calculator size={32} className="text-[#ff6a00]" /> Calculadora de precios
+            <Calculator size={32} className="text-stampa-orange" /> Calculadora de precios
           </h1>
           <p className="mt-3 text-base text-gray-400">
             Calculá cuánto cobrar una impresión usando material, tiempo, margen y costos extra.
           </p>
           <div className="mt-8">
-            <Link href="/configuracion?tab=calculadora" className="inline-flex items-center gap-2 px-6 py-3 text-sm font-semibold bg-white/5 border border-white/10 text-white rounded-xl hover:bg-white/10 transition-colors">
+            <Link href="/configuracion?tab=calculadora" className="inline-flex items-center gap-2 px-6 py-3 text-sm font-semibold bg-white/5 border border-stampa-border text-white rounded-xl hover:bg-white/10 transition-colors">
               <Settings size={18} /> Configurar valores
             </Link>
           </div>
@@ -345,18 +345,18 @@ export default function CalculadoraPage() {
       {missingData && (
         <div className="space-y-3">
           {printers.length === 0 && (
-            <div className="bg-[#ff6a00]/10 border border-[#ff6a00]/20 p-4 rounded-xl flex items-start gap-3">
-              <AlertCircle className="text-[#ff6a00] mt-0.5" size={20} />
+            <div className="bg-stampa-orange/10 border border-[#ff6a00]/20 p-4 rounded-xl flex items-start gap-3">
+              <AlertCircle className="text-stampa-orange mt-0.5" size={20} />
               <div>
-                <h4 className="text-sm font-bold text-[#ff6a00]">No tenés impresoras cargadas</h4>
-                <p className="text-xs text-[#ff6a00]/80 mt-1">
+                <h4 className="text-sm font-bold text-stampa-orange">No tenés impresoras cargadas</h4>
+                <p className="text-xs text-stampa-orange/80 mt-1">
                   Importá una impresora del catálogo Stampa o cargá una manualmente.
                 </p>
                 <div className="flex flex-col sm:flex-row gap-2 mt-3">
-                  <Link href="/configuracion?tab=taller" className="text-center inline-block bg-[#ff6a00] text-white text-xs font-semibold px-3 py-1.5 rounded-lg hover:bg-[#ff7a1a] transition-colors shadow-sm shadow-[#ff6a00]/20 w-full sm:w-auto">
+                  <Link href="/configuracion?tab=taller" className="text-center inline-block bg-stampa-orange text-white text-xs font-semibold px-3 py-1.5 rounded-lg hover:bg-stampa-orange-hover transition-colors shadow-sm shadow-[#ff6a00]/20 w-full sm:w-auto">
                     Importar impresora
                   </Link>
-                  <Link href="/configuracion?tab=taller" className="text-center inline-block bg-[#111] text-[#ff6a00] border border-[#ff6a00]/30 text-xs font-semibold px-3 py-1.5 rounded-lg hover:bg-[#ff6a00]/10 transition-colors w-full sm:w-auto">
+                  <Link href="/configuracion?tab=taller" className="text-center inline-block bg-stampa-surface text-stampa-orange border border-[#ff6a00]/30 text-xs font-semibold px-3 py-1.5 rounded-lg hover:bg-stampa-orange/10 transition-colors w-full sm:w-auto">
                     Agregar manualmente
                   </Link>
                 </div>
@@ -364,14 +364,14 @@ export default function CalculadoraPage() {
             </div>
           )}
           {(filaments.length === 0 || multipliers.length === 0) && (
-            <div className="bg-[#ff6a00]/10 border border-[#ff6a00]/20 p-4 rounded-xl flex items-start gap-3">
-              <AlertCircle className="text-[#ff6a00] mt-0.5" size={20} />
+            <div className="bg-stampa-orange/10 border border-[#ff6a00]/20 p-4 rounded-xl flex items-start gap-3">
+              <AlertCircle className="text-stampa-orange mt-0.5" size={20} />
               <div>
-                <h4 className="text-sm font-bold text-[#ff6a00]">Faltan datos de configuración</h4>
-                <p className="text-xs text-[#ff6a00]/80 mt-1">
+                <h4 className="text-sm font-bold text-stampa-orange">Faltan datos de configuración</h4>
+                <p className="text-xs text-stampa-orange/80 mt-1">
                   Para usar la calculadora necesitas tener al menos un filamento y un tipo de producto configurados.
                 </p>
-                <Link href="/configuracion?tab=taller" className="inline-block mt-3 bg-[#ff6a00] text-white text-xs font-semibold px-3 py-1.5 rounded-lg hover:bg-[#ff7a1a] transition-colors shadow-sm shadow-[#ff6a00]/20">
+                <Link href="/configuracion?tab=taller" className="inline-block mt-3 bg-stampa-orange text-white text-xs font-semibold px-3 py-1.5 rounded-lg hover:bg-stampa-orange-hover transition-colors shadow-sm shadow-[#ff6a00]/20">
                   Ir a Configuración
                 </Link>
               </div>
@@ -381,7 +381,7 @@ export default function CalculadoraPage() {
       )}
 
       {/* 2. Selector de Modo */}
-      <div className="flex p-1 bg-[#111] border border-white/10 rounded-xl w-full sm:w-fit mx-auto sm:mx-0">
+      <div className="flex p-1 bg-stampa-surface border border-stampa-border rounded-xl w-full sm:w-fit mx-auto sm:mx-0">
         <button
           onClick={() => setAdvanced(false)}
           className={`flex-1 sm:w-64 px-4 py-2.5 rounded-lg text-sm font-bold transition-all flex flex-col items-center justify-center gap-0.5 ${!advanced ? 'bg-white/10 text-white shadow-sm' : 'text-gray-500 hover:text-gray-300'}`}
@@ -403,7 +403,7 @@ export default function CalculadoraPage() {
         <div className="lg:col-span-2 space-y-6">
           
           {/* Bloque Básico */}
-          <Card className="p-6 sm:p-8 bg-[#111] border-white/10 shadow-lg">
+          <Card className="p-6 sm:p-8 bg-stampa-surface border-stampa-border shadow-lg">
             <div className="mb-6">
               <h2 className="text-lg font-bold text-white flex items-center gap-2">Datos principales</h2>
               <p className="text-sm text-gray-400 mt-1">Estos datos alcanzan para una estimación rápida.</p>
@@ -436,7 +436,7 @@ export default function CalculadoraPage() {
                   <select 
                     value={selectedPrinterId} 
                     onChange={(e) => setSelectedPrinterId(e.target.value)} 
-                    className="w-full text-sm rounded-xl border border-white/10 bg-[#0a0a0a] py-2.5 px-3 text-white outline-none focus:border-[#ff6a00] focus:ring-1 focus:ring-[#ff6a00]"
+                    className="w-full text-sm rounded-xl border border-stampa-border bg-stampa-bg-soft py-2.5 px-3 text-white outline-none focus:border-[#ff6a00] focus:ring-1 focus:ring-[#ff6a00]"
                   >
                     {printers.map(p => <option key={p.id} value={p.id}>{p.name}</option>)}
                   </select>
@@ -453,7 +453,7 @@ export default function CalculadoraPage() {
                   <select 
                     value={selectedMultiplierId} 
                     onChange={(e) => setSelectedMultiplierId(e.target.value)} 
-                    className="w-full text-sm rounded-xl border border-white/10 bg-[#0a0a0a] py-2.5 px-3 text-white outline-none focus:border-[#ff6a00] focus:ring-1 focus:ring-[#ff6a00]"
+                    className="w-full text-sm rounded-xl border border-stampa-border bg-stampa-bg-soft py-2.5 px-3 text-white outline-none focus:border-[#ff6a00] focus:ring-1 focus:ring-[#ff6a00]"
                   >
                     {multipliers.map(m => <option key={m.id} value={m.id}>{m.name} (x{m.multiplier})</option>)}
                   </select>
@@ -464,7 +464,7 @@ export default function CalculadoraPage() {
 
           {/* Bloque Avanzado */}
           {advanced && (
-            <Card className="p-6 sm:p-8 bg-[#111] border-indigo-500/30 shadow-lg relative overflow-hidden animate-in fade-in-50 duration-300">
+            <Card className="p-6 sm:p-8 bg-stampa-surface border-indigo-500/30 shadow-lg relative overflow-hidden animate-in fade-in-50 duration-300">
               <div className="absolute top-0 right-0 bg-indigo-500/20 text-indigo-400 text-[10px] font-bold px-3 py-1 rounded-bl-xl border-b border-l border-indigo-500/30">
                 MODO AVANZADO
               </div>
@@ -502,7 +502,7 @@ export default function CalculadoraPage() {
               </div>
 
               {/* Grupo 3 */}
-              <div className="mt-8 pt-6 border-t border-white/5">
+              <div className="mt-8 pt-6 border-t border-stampa-border">
                 <h3 className="text-xs font-bold text-indigo-400 uppercase tracking-wider flex items-center gap-2 mb-4">
                   <span className="h-1.5 w-1.5 rounded-full bg-indigo-500"></span> Plataforma de Venta (ML, etc.)
                 </h3>
@@ -519,11 +519,11 @@ export default function CalculadoraPage() {
 
         {/* Columna Resultado (Sticky) */}
         <div className="lg:col-span-1 lg:sticky lg:top-6 space-y-4">
-          <Card className="p-6 bg-[#0a0a0a] border-[#ff6a00]/30 shadow-xl overflow-hidden relative">
+          <Card className="p-6 bg-stampa-bg-soft border-[#ff6a00]/30 shadow-xl overflow-hidden relative">
             <div className="absolute top-0 inset-x-0 h-1 bg-gradient-to-r from-transparent via-[#ff6a00] to-transparent opacity-50" />
             
-            <h3 className="text-sm font-bold text-white flex items-center gap-2 border-b border-white/10 pb-3 mb-4">
-              <DollarSign size={18} className="text-[#ff6a00]" /> Resumen del cálculo
+            <h3 className="text-sm font-bold text-white flex items-center gap-2 border-b border-stampa-border pb-3 mb-4">
+              <DollarSign size={18} className="text-stampa-orange" /> Resumen del cálculo
             </h3>
             
             <div className="space-y-3 mb-6">
@@ -551,8 +551,8 @@ export default function CalculadoraPage() {
               )}
             </div>
 
-            <div className="bg-[#111] border border-white/5 rounded-xl p-4 space-y-3">
-              <div className="flex items-center justify-between border-b border-white/5 pb-3">
+            <div className="bg-stampa-surface border border-stampa-border rounded-xl p-4 space-y-3">
+              <div className="flex items-center justify-between border-b border-stampa-border pb-3">
                 <p className="text-xs font-bold text-gray-500 uppercase tracking-wider">Costo Base</p>
                 <p className="text-base font-bold text-white">${calc.baseCost.toFixed(2)}</p>
               </div>
@@ -580,13 +580,13 @@ export default function CalculadoraPage() {
             <button
               onClick={openSaveModal}
               disabled={!hasValidCalc}
-              className="w-full flex items-center justify-center gap-2 px-4 py-3.5 rounded-xl bg-[#ff6a00] hover:bg-[#ff7a1a] text-white text-sm font-bold transition-all shadow-lg shadow-[#ff6a00]/10 disabled:opacity-50 disabled:cursor-not-allowed"
+              className="w-full flex items-center justify-center gap-2 px-4 py-3.5 rounded-xl bg-stampa-orange hover:bg-stampa-orange-hover text-white text-sm font-bold transition-all shadow-lg shadow-[#ff6a00]/10 disabled:opacity-50 disabled:cursor-not-allowed"
             >
               <PackagePlus size={18} /> Guardar como producto
             </button>
             <Link
               href="/presupuestos"
-              className="w-full flex items-center justify-center gap-2 px-4 py-3.5 rounded-xl bg-[#111] hover:bg-white/5 border border-white/10 text-white text-sm font-bold transition-all"
+              className="w-full flex items-center justify-center gap-2 px-4 py-3.5 rounded-xl bg-stampa-surface hover:bg-white/5 border border-stampa-border text-white text-sm font-bold transition-all"
             >
               <FileText size={18} /> Crear presupuesto
             </Link>
@@ -599,11 +599,11 @@ export default function CalculadoraPage() {
 
       {/* MODAL: GUARDAR COMO PRODUCTO */}
       {showSaveModal && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm p-4">
-          <div className="bg-[#111] w-full max-w-md rounded-2xl border border-white/10 shadow-2xl overflow-hidden animate-in zoom-in-95 duration-200">
-            <div className="flex items-center justify-between px-6 py-4 border-b border-white/10 bg-[#0a0a0a]">
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-stampa-bg/60 backdrop-blur-sm p-4">
+          <div className="bg-stampa-surface w-full max-w-md rounded-2xl border border-stampa-border shadow-2xl overflow-hidden animate-in zoom-in-95 duration-200">
+            <div className="flex items-center justify-between px-6 py-4 border-b border-stampa-border bg-stampa-bg-soft">
               <h3 className="font-bold text-white flex items-center gap-2">
-                <PackagePlus size={18} className="text-[#ff6a00]" /> Guardar como producto
+                <PackagePlus size={18} className="text-stampa-orange" /> Guardar como producto
               </h3>
               <button onClick={() => setShowSaveModal(false)} className="text-gray-400 hover:text-white transition-colors">
                 <X size={20} />
@@ -611,31 +611,31 @@ export default function CalculadoraPage() {
             </div>
 
             {saveSuccess ? (
-              <div className="p-8 text-center bg-[#111]">
+              <div className="p-8 text-center bg-stampa-surface">
                 <div className="mx-auto w-16 h-16 bg-emerald-500/10 rounded-full flex items-center justify-center mb-4 border border-emerald-500/20">
                   <CheckCircle2 size={32} className="text-emerald-400" />
                 </div>
                 <p className="font-bold text-white text-lg mb-1">¡Producto guardado!</p>
                 <p className="text-sm text-gray-400 mb-8">El producto fue agregado a tu catálogo.</p>
                 <div className="flex gap-3 justify-center">
-                  <Link href="/productos" className="px-5 py-2.5 bg-[#ff6a00] text-white rounded-xl text-sm font-bold hover:bg-[#ff7a1a] transition-colors shadow-lg shadow-[#ff6a00]/20">
+                  <Link href="/productos" className="px-5 py-2.5 bg-stampa-orange text-white rounded-xl text-sm font-bold hover:bg-stampa-orange-hover transition-colors shadow-lg shadow-[#ff6a00]/20">
                     Ver catálogo
                   </Link>
-                  <button onClick={() => setShowSaveModal(false)} className="px-5 py-2.5 bg-[#1a1a1a] border border-white/10 text-white rounded-xl text-sm font-bold hover:bg-white/5 transition-colors">
+                  <button onClick={() => setShowSaveModal(false)} className="px-5 py-2.5 bg-[#1a1a1a] border border-stampa-border text-white rounded-xl text-sm font-bold hover:bg-white/5 transition-colors">
                     Seguir calculando
                   </button>
                 </div>
               </div>
             ) : (
-              <div className="p-6 space-y-5 bg-[#111]">
+              <div className="p-6 space-y-5 bg-stampa-surface">
                 {/* Resumen del cálculo */}
-                <div className="bg-[#0a0a0a] p-3 rounded-xl border border-white/5 grid grid-cols-3 gap-2 text-center">
+                <div className="bg-stampa-bg-soft p-3 rounded-xl border border-stampa-border grid grid-cols-3 gap-2 text-center">
                   <div>
                     <p className="font-bold text-white text-sm">${calc.baseCost.toFixed(2)}</p>
                     <p className="text-[10px] text-gray-500 uppercase tracking-wider">Costo Base</p>
                   </div>
-                  <div className="border-x border-white/5">
-                    <p className="font-bold text-[#ff6a00] text-sm">${calc.normalPrice.toFixed(2)}</p>
+                  <div className="border-x border-stampa-border">
+                    <p className="font-bold text-stampa-orange text-sm">${calc.normalPrice.toFixed(2)}</p>
                     <p className="text-[10px] text-gray-500 uppercase tracking-wider">Precio</p>
                   </div>
                   <div>
@@ -651,7 +651,7 @@ export default function CalculadoraPage() {
                       type="text"
                       value={productForm.name}
                       onChange={(e) => setProductForm(prev => ({ ...prev, name: e.target.value }))}
-                      className="w-full text-sm rounded-xl border border-white/10 bg-[#0a0a0a] px-3 py-2.5 text-white outline-none focus:border-[#ff6a00] focus:ring-1 focus:ring-[#ff6a00]"
+                      className="w-full text-sm rounded-xl border border-stampa-border bg-stampa-bg-soft px-3 py-2.5 text-white outline-none focus:border-[#ff6a00] focus:ring-1 focus:ring-[#ff6a00]"
                       placeholder="Ej. Maceta geométrica 15cm"
                     />
                   </label>
@@ -662,7 +662,7 @@ export default function CalculadoraPage() {
                       value={productForm.description}
                       onChange={(e) => setProductForm(prev => ({ ...prev, description: e.target.value }))}
                       rows={2}
-                      className="w-full text-sm rounded-xl border border-white/10 bg-[#0a0a0a] px-3 py-2.5 text-white outline-none focus:border-[#ff6a00] focus:ring-1 focus:ring-[#ff6a00]"
+                      className="w-full text-sm rounded-xl border border-stampa-border bg-stampa-bg-soft px-3 py-2.5 text-white outline-none focus:border-[#ff6a00] focus:ring-1 focus:ring-[#ff6a00]"
                     />
                   </label>
 
@@ -673,13 +673,13 @@ export default function CalculadoraPage() {
                       min="0"
                       value={productForm.stock_quantity}
                       onChange={(e) => setProductForm(prev => ({ ...prev, stock_quantity: parseInt(e.target.value) || 0 }))}
-                      className="w-full text-sm rounded-xl border border-white/10 bg-[#0a0a0a] px-3 py-2.5 text-white outline-none focus:border-[#ff6a00] focus:ring-1 focus:ring-[#ff6a00]"
+                      className="w-full text-sm rounded-xl border border-stampa-border bg-stampa-bg-soft px-3 py-2.5 text-white outline-none focus:border-[#ff6a00] focus:ring-1 focus:ring-[#ff6a00]"
                     />
                   </label>
 
                   <div className="block">
                     <span className="block text-xs font-semibold text-gray-400 mb-1.5">Imagen del producto (Opcional)</span>
-                    <div className="bg-[#0a0a0a] rounded-xl border border-white/10 p-1">
+                    <div className="bg-stampa-bg-soft rounded-xl border border-stampa-border p-1">
                       <FileUploadDropzone
                         bucket="product-images"
                         pathPrefix={`${userId}/products`}
@@ -690,7 +690,7 @@ export default function CalculadoraPage() {
                       />
                     </div>
                     {productForm.image_url && (
-                      <div className="mt-2 flex items-center gap-2 p-2 rounded-lg bg-white/5 border border-white/10">
+                      <div className="mt-2 flex items-center gap-2 p-2 rounded-lg bg-white/5 border border-stampa-border">
                         <img src={productForm.image_url} alt="Preview" className="h-10 w-10 rounded object-cover" />
                         <span className="text-xs text-gray-400 truncate pr-2">{productForm.image_url}</span>
                       </div>
@@ -704,14 +704,14 @@ export default function CalculadoraPage() {
                   </div>
                 )}
 
-                <div className="flex justify-end gap-3 pt-4 border-t border-white/5 mt-2">
+                <div className="flex justify-end gap-3 pt-4 border-t border-stampa-border mt-2">
                   <button onClick={() => setShowSaveModal(false)} className="px-5 py-2.5 text-sm font-bold text-gray-400 hover:text-white transition-colors">
                     Cancelar
                   </button>
                   <button
                     onClick={handleSaveAsProduct}
                     disabled={savingProduct}
-                    className="flex items-center gap-2 px-5 py-2.5 text-sm font-bold bg-[#ff6a00] hover:bg-[#ff7a1a] text-white rounded-xl disabled:opacity-50 transition-colors shadow-lg shadow-[#ff6a00]/20"
+                    className="flex items-center gap-2 px-5 py-2.5 text-sm font-bold bg-stampa-orange hover:bg-stampa-orange-hover text-white rounded-xl disabled:opacity-50 transition-colors shadow-lg shadow-[#ff6a00]/20"
                   >
                     {savingProduct ? <Loader2 size={16} className="animate-spin" /> : <Save size={16} />}
                     Guardar

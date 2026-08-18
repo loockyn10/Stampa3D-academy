@@ -1,8 +1,23 @@
 @import "tailwindcss";
 
 :root {
-  --background: #050505;
-  --foreground: #ededed;
+  --stampa-bg: #0b0b0f;
+  --stampa-bg-soft: #111116;
+  --stampa-surface: #16161d;
+  --stampa-surface-soft: #1d1d26;
+  --stampa-border: rgba(255, 255, 255, 0.12);
+
+  --stampa-orange: #fb923c;
+  --stampa-orange-hover: #fdba74;
+  --stampa-orange-muted: rgba(251, 146, 60, 0.12);
+  --stampa-orange-border: rgba(251, 146, 60, 0.28);
+
+  --stampa-text: #f4f4f5;
+  --stampa-text-muted: #a1a1aa;
+  --stampa-text-soft: #d4d4d8;
+
+  --background: var(--stampa-bg);
+  --foreground: var(--stampa-text);
 }
 
 @theme inline {
@@ -10,6 +25,20 @@
   --color-foreground: var(--foreground);
   --font-sans: var(--font-geist-sans);
   --font-mono: var(--font-geist-mono);
+  
+  /* Stampa variables mapped to Tailwind colors */
+  --color-stampa-bg: var(--stampa-bg);
+  --color-stampa-bg-soft: var(--stampa-bg-soft);
+  --color-stampa-surface: var(--stampa-surface);
+  --color-stampa-surface-soft: var(--stampa-surface-soft);
+  --color-stampa-border: var(--stampa-border);
+  --color-stampa-orange: var(--stampa-orange);
+  --color-stampa-orange-hover: var(--stampa-orange-hover);
+  --color-stampa-orange-muted: var(--stampa-orange-muted);
+  --color-stampa-orange-border: var(--stampa-orange-border);
+  --color-stampa-text: var(--stampa-text);
+  --color-stampa-text-muted: var(--stampa-text-muted);
+  --color-stampa-text-soft: var(--stampa-text-soft);
 }
 
 body {
@@ -22,14 +51,14 @@ body {
 input:not([type="checkbox"]):not([type="radio"]),
 textarea,
 select {
-  color: #ededed !important;
-  background-color: #111111 !important;
-  border-color: rgba(255,255,255,0.1) !important;
+  color: var(--stampa-text) !important;
+  background-color: var(--stampa-surface-soft) !important;
+  border-color: var(--stampa-border) !important;
 }
 
 input:not([type="checkbox"]):not([type="radio"])::placeholder,
 textarea::placeholder {
-  color: #6B7280 !important;
+  color: var(--stampa-text-muted) !important;
   opacity: 1 !important;
 }
 
@@ -37,13 +66,13 @@ input:not([type="checkbox"]):not([type="radio"]):focus,
 textarea:focus,
 select:focus {
   outline: none !important;
-  border-color: #ff6a00 !important;
-  box-shadow: 0 0 0 2px rgba(255, 106, 0, 0.2) !important;
+  border-color: var(--stampa-orange) !important;
+  box-shadow: 0 0 0 2px var(--stampa-orange-border) !important;
 }
 
 option {
-  color: #ededed !important;
-  background-color: #111111 !important;
+  color: var(--stampa-text) !important;
+  background-color: var(--stampa-surface-soft) !important;
 }
 
 
@@ -96,8 +125,8 @@ option {
 @media (hover: hover) {
   .stampa-card-interactive:hover {
     transform: translateY(-2px);
-    border-color: rgba(255, 106, 0, 0.3) !important;
-    box-shadow: 0 4px 20px -5px rgba(255, 106, 0, 0.1) !important;
+    border-color: var(--stampa-orange-border) !important;
+    box-shadow: 0 4px 20px -5px var(--stampa-orange-muted) !important;
   }
 }
 

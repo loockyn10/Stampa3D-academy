@@ -107,7 +107,7 @@ export default function AdminInsigniasPage() {
     else setUserBadges(userBadges.filter(ub => ub.id !== id));
   };
 
-  if (loading) return <div className="py-24 flex justify-center"><Loader2 className="animate-spin h-8 w-8 text-orange-500" /></div>;
+  if (loading) return <div className="py-24 flex justify-center"><Loader2 className="animate-spin h-8 w-8 text-stampa-orange" /></div>;
 
   return (
     <div className="space-y-8">
@@ -129,7 +129,7 @@ export default function AdminInsigniasPage() {
 
       {editingBadgeId && (
         <Card className="p-6 border-orange-300 shadow-md ring-1 ring-orange-100">
-          <div className="flex justify-between items-center mb-4 border-b border-white/5 pb-2">
+          <div className="flex justify-between items-center mb-4 border-b border-stampa-border pb-2">
             <h3 className="text-lg font-bold text-white">{editingBadgeId === "new" ? "Crear Insignia" : "Editar Insignia"}</h3>
             <button onClick={() => setEditingBadgeId(null)} className="text-gray-400 hover:text-gray-300"><X size={20} /></button>
           </div>
@@ -137,29 +137,29 @@ export default function AdminInsigniasPage() {
             <div className="flex gap-4">
               <div className="w-16">
                 <label className="block text-xs font-semibold text-gray-300 mb-1">Icono</label>
-                <input type="text" value={badgeForm.icon} onChange={e => setBadgeForm({...badgeForm, icon: e.target.value})} className="w-full text-center text-sm border-white/20 rounded-md focus:border-orange-500 bg-[#111] text-white" placeholder="🏆" />
+                <input type="text" value={badgeForm.icon} onChange={e => setBadgeForm({...badgeForm, icon: e.target.value})} className="w-full text-center text-sm border-white/20 rounded-md focus:border-stampa-orange bg-stampa-surface text-white" placeholder="🏆" />
               </div>
               <div className="flex-1">
                 <label className="block text-xs font-semibold text-gray-300 mb-1">Nombre</label>
-                <input type="text" value={badgeForm.name} onChange={e => setBadgeForm({...badgeForm, name: e.target.value})} className="w-full text-sm border-white/20 rounded-md focus:border-orange-500 bg-[#111] text-white" />
+                <input type="text" value={badgeForm.name} onChange={e => setBadgeForm({...badgeForm, name: e.target.value})} className="w-full text-sm border-white/20 rounded-md focus:border-stampa-orange bg-stampa-surface text-white" />
               </div>
             </div>
             <div>
               <label className="block text-xs font-semibold text-gray-300 mb-1">Descripción</label>
-              <input type="text" value={badgeForm.description} onChange={e => setBadgeForm({...badgeForm, description: e.target.value})} className="w-full text-sm border-white/20 rounded-md focus:border-orange-500 bg-[#111] text-white" />
+              <input type="text" value={badgeForm.description} onChange={e => setBadgeForm({...badgeForm, description: e.target.value})} className="w-full text-sm border-white/20 rounded-md focus:border-stampa-orange bg-stampa-surface text-white" />
             </div>
             <div className="flex items-center gap-6">
               <div>
                 <label className="block text-xs font-semibold text-gray-300 mb-1">Orden</label>
-                <input type="number" min="1" value={badgeForm.sort_order} onChange={e => setBadgeForm({...badgeForm, sort_order: parseInt(e.target.value)||1})} className="w-20 text-sm border-white/20 rounded-md focus:border-orange-500 bg-[#111] text-white" />
+                <input type="number" min="1" value={badgeForm.sort_order} onChange={e => setBadgeForm({...badgeForm, sort_order: parseInt(e.target.value)||1})} className="w-20 text-sm border-white/20 rounded-md focus:border-stampa-orange bg-stampa-surface text-white" />
               </div>
               <label className="flex items-center gap-2 mt-4">
-                <input type="checkbox" checked={badgeForm.is_active} onChange={e => setBadgeForm({...badgeForm, is_active: e.target.checked})} className="rounded text-orange-500 focus:ring-orange-500" />
+                <input type="checkbox" checked={badgeForm.is_active} onChange={e => setBadgeForm({...badgeForm, is_active: e.target.checked})} className="rounded text-stampa-orange focus:ring-stampa-orange" />
                 <span className="text-sm font-semibold text-gray-300">Activa</span>
               </label>
             </div>
           </div>
-          <div className="flex justify-end pt-4 mt-4 border-t border-white/5">
+          <div className="flex justify-end pt-4 mt-4 border-t border-stampa-border">
             <PrimaryButton onClick={handleSaveBadge}><Save size={15} /> Guardar</PrimaryButton>
           </div>
         </Card>
@@ -168,15 +168,15 @@ export default function AdminInsigniasPage() {
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
         {/* BADGES LIST */}
         <Card className="p-0 overflow-hidden">
-          <div className="bg-[#0a0a0a] px-5 py-3 border-b border-white/5">
+          <div className="bg-stampa-bg-soft px-5 py-3 border-b border-stampa-border">
             <h3 className="font-bold text-gray-300 text-sm">Catálogo de Insignias</h3>
           </div>
           <ul className="divide-y divide-gray-100 max-h-[600px] overflow-y-auto">
             {badges.length === 0 && <li className="p-5 text-sm text-gray-500 text-center">No hay insignias.</li>}
             {badges.map(b => (
-              <li key={b.id} className={`flex justify-between items-center p-4 hover:bg-[#0a0a0a] transition-colors ${!b.is_active ? 'opacity-60 grayscale' : ''}`}>
+              <li key={b.id} className={`flex justify-between items-center p-4 hover:bg-stampa-bg-soft transition-colors ${!b.is_active ? 'opacity-60 grayscale' : ''}`}>
                 <div className="flex items-center gap-4">
-                  <div className="w-12 h-12 flex items-center justify-center bg-[#111] border border-white/10 rounded-full text-2xl shadow-sm">
+                  <div className="w-12 h-12 flex items-center justify-center bg-stampa-surface border border-stampa-border rounded-full text-2xl shadow-sm">
                     {b.icon || "🏆"}
                   </div>
                   <div>
@@ -184,7 +184,7 @@ export default function AdminInsigniasPage() {
                     <p className="text-xs text-gray-500">{b.description || "Sin descripción"}</p>
                   </div>
                 </div>
-                <GhostButton onClick={() => handleEditBadge(b)} className="px-3 py-1.5 text-xs text-gray-300 bg-[#111] border border-white/10">
+                <GhostButton onClick={() => handleEditBadge(b)} className="px-3 py-1.5 text-xs text-gray-300 bg-stampa-surface border border-stampa-border">
                   <Pencil size={13} /> Editar
                 </GhostButton>
               </li>
@@ -195,18 +195,18 @@ export default function AdminInsigniasPage() {
         {/* ASSIGN BADGES */}
         <div className="space-y-6">
           <Card className="p-6">
-            <h3 className="text-lg font-bold text-white mb-4 border-b border-white/5 pb-2">Otorgar Insignia</h3>
+            <h3 className="text-lg font-bold text-white mb-4 border-b border-stampa-border pb-2">Otorgar Insignia</h3>
             <div className="space-y-4">
               <div>
                 <label className="block text-xs font-semibold text-gray-300 mb-1">Seleccionar Usuario</label>
-                <select value={assignForm.user_id} onChange={e => setAssignForm({...assignForm, user_id: e.target.value})} className="w-full text-sm border-white/20 rounded-md focus:border-orange-500 bg-[#111] text-white">
+                <select value={assignForm.user_id} onChange={e => setAssignForm({...assignForm, user_id: e.target.value})} className="w-full text-sm border-white/20 rounded-md focus:border-stampa-orange bg-stampa-surface text-white">
                   <option value="">Buscar usuario...</option>
                   {profiles.map(p => <option key={p.id} value={p.id}>{p.name || p.email}</option>)}
                 </select>
               </div>
               <div>
                 <label className="block text-xs font-semibold text-gray-300 mb-1">Seleccionar Insignia</label>
-                <select value={assignForm.badge_id} onChange={e => setAssignForm({...assignForm, badge_id: e.target.value})} className="w-full text-sm border-white/20 rounded-md focus:border-orange-500 bg-[#111] text-white">
+                <select value={assignForm.badge_id} onChange={e => setAssignForm({...assignForm, badge_id: e.target.value})} className="w-full text-sm border-white/20 rounded-md focus:border-stampa-orange bg-stampa-surface text-white">
                   <option value="">Asignar insignia...</option>
                   {badges.filter(b => b.is_active).map(b => <option key={b.id} value={b.id}>{b.icon} {b.name}</option>)}
                 </select>
@@ -218,16 +218,16 @@ export default function AdminInsigniasPage() {
           </Card>
 
           <Card className="p-0 overflow-hidden">
-            <div className="bg-[#0a0a0a] px-5 py-3 border-b border-white/5">
+            <div className="bg-stampa-bg-soft px-5 py-3 border-b border-stampa-border">
               <h3 className="font-bold text-gray-300 text-sm">Últimas Asignaciones</h3>
             </div>
             <ul className="divide-y divide-gray-100 max-h-[400px] overflow-y-auto">
               {userBadges.length === 0 && <li className="p-5 text-sm text-gray-500 text-center">Nadie ha recibido insignias aún.</li>}
               {userBadges.map(ub => (
-                <li key={ub.id} className="flex justify-between items-center p-3 bg-[#111]">
+                <li key={ub.id} className="flex justify-between items-center p-3 bg-stampa-surface">
                   <div>
                     <p className="text-sm font-bold text-white">{ub.profiles?.name || ub.profiles?.email}</p>
-                    <p className="text-xs font-semibold text-orange-600 flex items-center gap-1 mt-0.5">
+                    <p className="text-xs font-semibold text-stampa-orange flex items-center gap-1 mt-0.5">
                       <span>{ub.badges?.icon}</span> {ub.badges?.name}
                     </p>
                     <p className="text-[10px] text-gray-400 mt-1">{new Date(ub.awarded_at).toLocaleDateString()}</p>

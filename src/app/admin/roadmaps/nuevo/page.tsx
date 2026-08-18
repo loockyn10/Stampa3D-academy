@@ -9,7 +9,7 @@ export default function NuevoRoadmapPage() {
       <div className="flex items-center gap-4 mb-6">
         <Link 
           href="/admin/roadmaps"
-          className="p-2 bg-[#111] border border-white/10 rounded-xl text-gray-400 hover:text-white hover:bg-white/5 transition-all"
+          className="p-2 bg-stampa-surface border border-stampa-border rounded-xl text-gray-400 hover:text-white hover:bg-white/5 transition-all"
         >
           <ArrowLeft size={20} />
         </Link>

@@ -41,7 +41,7 @@ export default function AdminSorteosPage() {
     return <Badge tone="gray">{status}</Badge>;
   };
 
-  if (loading) return <div className="py-24 flex justify-center"><Loader2 className="animate-spin h-8 w-8 text-orange-500" /></div>;
+  if (loading) return <div className="py-24 flex justify-center"><Loader2 className="animate-spin h-8 w-8 text-stampa-orange" /></div>;
 
   return (
     <div className="space-y-6">
@@ -60,7 +60,7 @@ export default function AdminSorteosPage() {
       <Card className="overflow-hidden p-0">
         <div className="overflow-x-auto">
           <table className="w-full text-left text-sm">
-            <thead className="bg-[#0a0a0a] text-xs font-semibold uppercase tracking-wide text-gray-500">
+            <thead className="bg-stampa-bg-soft text-xs font-semibold uppercase tracking-wide text-gray-500">
               <tr>
                 <th className="px-5 py-3">Título</th>
                 <th className="px-5 py-3">Fecha del Sorteo</th>
@@ -71,10 +71,10 @@ export default function AdminSorteosPage() {
             </thead>
             <tbody className="divide-y divide-gray-100">
               {raffles.map((r) => (
-                <tr key={r.id} className="hover:bg-[#0a0a0a] transition-colors">
+                <tr key={r.id} className="hover:bg-stampa-bg-soft transition-colors">
                   <td className="px-5 py-3.5 font-semibold text-white">
                     <div className="flex items-center gap-3">
-                      <div className="w-8 h-8 rounded bg-orange-500/10 flex items-center justify-center text-orange-500">
+                      <div className="w-8 h-8 rounded bg-stampa-orange/10 flex items-center justify-center text-stampa-orange">
                         <Gift size={16} />
                       </div>
                       {r.title}
@@ -92,7 +92,7 @@ export default function AdminSorteosPage() {
                   <td className="px-5 py-3.5">
                     <div className="flex justify-end gap-1.5">
                       <Link href={`/admin/sorteos/${r.id}`}>
-                        <GhostButton className="px-3 py-1.5 text-xs text-gray-300 bg-[#111] border border-white/10">
+                        <GhostButton className="px-3 py-1.5 text-xs text-gray-300 bg-stampa-surface border border-stampa-border">
                           <Pencil size={13} className="mr-1" /> Editar / Premios
                         </GhostButton>
                       </Link>

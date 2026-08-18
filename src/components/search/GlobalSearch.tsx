@@ -132,9 +132,9 @@ export function GlobalSearch() {
         };
       case "course":
         return {
-          icon: <GraduationCap size={12} className="text-[#ff6a00]" />,
+          icon: <GraduationCap size={12} className="text-stampa-orange" />,
           label: "Curso",
-          className: "bg-[#ff6a00]/10 text-[#ff6a00] border-[#ff6a00]/20"
+          className: "bg-stampa-orange/10 text-stampa-orange border-[#ff6a00]/20"
         };
       case "workshop":
         return {
@@ -158,13 +158,13 @@ export function GlobalSearch() {
           }}
           onFocus={() => setIsOpen(true)}
           placeholder="Buscar cursos, herramientas, talleres..."
-          className="w-full rounded-xl border border-white/10 bg-[#0a0a0a] py-2 pl-9 pr-3 text-sm text-neutral-100 placeholder-neutral-500 outline-none focus:bg-[#111] focus:border-[#ff6a00] focus:ring-[#ff6a00]/20 focus:ring-2 transition-all"
+          className="w-full rounded-xl border border-stampa-border bg-stampa-bg-soft py-2 pl-9 pr-3 text-sm text-neutral-100 placeholder-neutral-500 outline-none focus:bg-stampa-surface focus:border-[#ff6a00] focus:ring-[#ff6a00]/20 focus:ring-2 transition-all"
         />
       </div>
 
       {/* Dropdown de resultados */}
       {isOpen && searchTerm.trim() && (
-        <div className="absolute top-full left-0 right-0 mt-2 rounded-xl border border-white/10 bg-[#111] shadow-2xl overflow-hidden z-50">
+        <div className="absolute top-full left-0 right-0 mt-2 rounded-xl border border-stampa-border bg-stampa-surface shadow-2xl overflow-hidden z-50">
           {filteredResults.length > 0 ? (
             <ul className="max-h-[400px] overflow-y-auto py-2">
               {filteredResults.map((result) => {
@@ -177,7 +177,7 @@ export function GlobalSearch() {
                     >
                       <div className="flex-1 min-w-0">
                         <div className="flex items-center gap-2 mb-1">
-                          <h4 className="text-sm font-bold text-white truncate group-hover:text-[#ff6a00] transition-colors">
+                          <h4 className="text-sm font-bold text-white truncate group-hover:text-stampa-orange transition-colors">
                             {result.title}
                           </h4>
                           <span className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full border text-[10px] font-medium whitespace-nowrap ${badgeUI.className}`}>

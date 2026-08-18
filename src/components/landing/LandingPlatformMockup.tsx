@@ -38,9 +38,9 @@ export function LandingPlatformMockup() {
   }, [isIntersecting]);
 
   return (
-    <section className="py-24 bg-zinc-950 overflow-hidden relative">
+    <section className="py-24 bg-stampa-bg overflow-hidden relative">
       {/* Background gradients */}
-      <div className="absolute top-0 right-0 w-[600px] h-[600px] bg-orange-600/10 blur-[120px] rounded-full pointer-events-none" />
+      <div className="absolute top-0 right-0 w-[600px] h-[600px] bg-stampa-orange/10 blur-[120px] rounded-full pointer-events-none" />
       
       <div className="container mx-auto px-6" ref={ref}>
         <div className={`text-center max-w-3xl mx-auto mb-16 stampa-reveal-hidden ${isIntersecting ? 'stampa-reveal-visible' : ''}`}>
@@ -57,9 +57,9 @@ export function LandingPlatformMockup() {
           {/* Decorative frame */}
           <div className="absolute -inset-1 bg-gradient-to-r from-orange-600 to-orange-400 rounded-2xl blur opacity-25 group-hover:opacity-40 transition duration-1000 group-hover:duration-200" />
           
-          <div className="relative bg-[#09090b] border border-white/10 rounded-2xl shadow-2xl overflow-hidden">
+          <div className="relative bg-[#09090b] border border-stampa-border rounded-2xl shadow-2xl overflow-hidden">
             {/* Window header */}
-            <div className="h-12 border-b border-white/5 bg-white/5 flex items-center px-4 justify-between">
+            <div className="h-12 border-b border-stampa-border bg-white/5 flex items-center px-4 justify-between">
               <div className="flex gap-2">
                 <div className="w-3 h-3 rounded-full bg-red-500/80" />
                 <div className="w-3 h-3 rounded-full bg-yellow-500/80" />
@@ -76,10 +76,10 @@ export function LandingPlatformMockup() {
             <div className="p-6 md:p-8 grid md:grid-cols-12 gap-6">
               
               {/* Sidebar (simplified) */}
-              <div className="hidden md:flex flex-col gap-4 col-span-3 border-r border-white/5 pr-6">
+              <div className="hidden md:flex flex-col gap-4 col-span-3 border-r border-stampa-border pr-6">
                 <div className="h-8 w-3/4 bg-white/10 rounded mb-4" />
                 {[BookOpen, CalculatorIcon, Database, FileText, Gift].map((Icon, idx) => (
-                  <div key={idx} className={`flex items-center gap-3 p-2 rounded-lg ${idx === 0 ? 'bg-orange-500/10 text-orange-400' : 'text-gray-400'}`}>
+                  <div key={idx} className={`flex items-center gap-3 p-2 rounded-lg ${idx === 0 ? 'bg-stampa-orange/10 text-orange-400' : 'text-gray-400'}`}>
                     <Icon className="w-5 h-5" />
                     <div className="h-4 w-1/2 bg-current opacity-20 rounded" />
                   </div>
@@ -92,7 +92,7 @@ export function LandingPlatformMockup() {
                 {/* Top Cards Row */}
                 <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
                   {/* Card 1: Progreso */}
-                  <div className={`bg-white/5 border border-white/5 rounded-xl p-4 flex flex-col gap-3 hover:bg-white/10 transition-colors cursor-default stampa-reveal-hidden ${isIntersecting ? 'stampa-reveal-visible' : ''}`} style={{ animationDelay: '0.4s' }}>
+                  <div className={`bg-white/5 border border-stampa-border rounded-xl p-4 flex flex-col gap-3 hover:bg-white/10 transition-colors cursor-default stampa-reveal-hidden ${isIntersecting ? 'stampa-reveal-visible' : ''}`} style={{ animationDelay: '0.4s' }}>
                     <div className="flex justify-between items-start">
                       <div className="p-2 rounded-lg bg-blue-400/10 text-blue-400">
                         <BookOpen className="w-4 h-4" />
@@ -111,7 +111,7 @@ export function LandingPlatformMockup() {
                   </div>
 
                   {/* Card 2: Precio */}
-                  <div className={`bg-white/5 border border-white/5 rounded-xl p-4 flex flex-col gap-3 hover:bg-white/10 transition-colors cursor-default stampa-reveal-hidden ${isIntersecting ? 'stampa-reveal-visible' : ''}`} style={{ animationDelay: '0.5s' }}>
+                  <div className={`bg-white/5 border border-stampa-border rounded-xl p-4 flex flex-col gap-3 hover:bg-white/10 transition-colors cursor-default stampa-reveal-hidden ${isIntersecting ? 'stampa-reveal-visible' : ''}`} style={{ animationDelay: '0.5s' }}>
                     <div className="flex justify-between items-start">
                       <div className="p-2 rounded-lg bg-green-400/10 text-green-400">
                         <DollarSign className="w-4 h-4" />
@@ -126,7 +126,7 @@ export function LandingPlatformMockup() {
                   </div>
 
                   {/* Card 3: Filamento */}
-                  <div className={`bg-white/5 border border-white/5 rounded-xl p-4 flex flex-col gap-3 hover:bg-white/10 transition-colors cursor-default stampa-reveal-hidden ${isIntersecting ? 'stampa-reveal-visible' : ''}`} style={{ animationDelay: '0.6s' }}>
+                  <div className={`bg-white/5 border border-stampa-border rounded-xl p-4 flex flex-col gap-3 hover:bg-white/10 transition-colors cursor-default stampa-reveal-hidden ${isIntersecting ? 'stampa-reveal-visible' : ''}`} style={{ animationDelay: '0.6s' }}>
                     <div className="flex justify-between items-start">
                       <div className="p-2 rounded-lg bg-orange-400/10 text-orange-400">
                         <Database className="w-4 h-4" />
@@ -139,7 +139,7 @@ export function LandingPlatformMockup() {
                   </div>
 
                   {/* Card 4: Presupuestos */}
-                  <div className={`bg-white/5 border border-white/5 rounded-xl p-4 flex flex-col gap-3 hover:bg-white/10 transition-colors cursor-default relative overflow-hidden stampa-reveal-hidden ${isIntersecting ? 'stampa-reveal-visible' : ''}`} style={{ animationDelay: '0.7s' }}>
+                  <div className={`bg-white/5 border border-stampa-border rounded-xl p-4 flex flex-col gap-3 hover:bg-white/10 transition-colors cursor-default relative overflow-hidden stampa-reveal-hidden ${isIntersecting ? 'stampa-reveal-visible' : ''}`} style={{ animationDelay: '0.7s' }}>
                     <div className="absolute -right-4 -top-4 w-12 h-12 bg-purple-500/20 rounded-full blur-xl animate-pulse" />
                     <div className="flex justify-between items-start relative z-10">
                       <div className="p-2 rounded-lg bg-purple-400/10 text-purple-400">
@@ -156,35 +156,35 @@ export function LandingPlatformMockup() {
                 {/* Main Action Area */}
                 <div className="grid lg:grid-cols-3 gap-6">
                   {/* Calculator preview */}
-                  <div className={`lg:col-span-2 bg-gradient-to-br from-zinc-900 to-black border border-white/5 rounded-xl p-6 stampa-reveal-hidden ${isIntersecting ? 'stampa-reveal-visible' : ''}`} style={{ animationDelay: '0.8s' }}>
+                  <div className={`lg:col-span-2 bg-gradient-to-br from-zinc-900 to-black border border-stampa-border rounded-xl p-6 stampa-reveal-hidden ${isIntersecting ? 'stampa-reveal-visible' : ''}`} style={{ animationDelay: '0.8s' }}>
                     <div className="text-sm font-medium text-white mb-4 flex items-center gap-2">
-                      <Activity className="w-4 h-4 text-orange-500" />
+                      <Activity className="w-4 h-4 text-stampa-orange" />
                       Calculadora Rápida
                     </div>
                     <div className="space-y-4">
                       <div className="grid grid-cols-2 gap-4">
                         <div className="space-y-2">
                           <div className="h-3 w-20 bg-white/10 rounded" />
-                          <div className="h-10 bg-white/5 rounded-lg border border-white/10 flex items-center px-3">
+                          <div className="h-10 bg-white/5 rounded-lg border border-stampa-border flex items-center px-3">
                             <div className="h-4 w-16 bg-white/20 rounded" />
                           </div>
                         </div>
                         <div className="space-y-2">
                           <div className="h-3 w-24 bg-white/10 rounded" />
-                          <div className="h-10 bg-white/5 rounded-lg border border-white/10 flex items-center px-3">
+                          <div className="h-10 bg-white/5 rounded-lg border border-stampa-border flex items-center px-3">
                             <div className="h-4 w-12 bg-white/20 rounded" />
                           </div>
                         </div>
                       </div>
-                      <div className="h-12 bg-orange-600/20 text-orange-400 border border-orange-500/30 rounded-lg flex items-center justify-center font-medium hover:bg-orange-600/30 transition-colors cursor-pointer">
+                      <div className="h-12 bg-stampa-orange/20 text-orange-400 border border-stampa-orange/30 rounded-lg flex items-center justify-center font-medium hover:bg-stampa-orange/30 transition-colors cursor-pointer">
                         Calcular Costo Final
                       </div>
                     </div>
                   </div>
 
                   {/* Active giveaway / Sidebar widget */}
-                  <div className={`bg-orange-950/20 border border-orange-500/20 rounded-xl p-6 flex flex-col justify-between relative overflow-hidden stampa-reveal-hidden ${isIntersecting ? 'stampa-reveal-visible' : ''}`} style={{ animationDelay: '0.9s' }}>
-                    <div className="absolute top-0 right-0 w-32 h-32 bg-orange-500/10 rounded-full blur-2xl -mr-16 -mt-16" />
+                  <div className={`bg-orange-950/20 border border-stampa-orange/20 rounded-xl p-6 flex flex-col justify-between relative overflow-hidden stampa-reveal-hidden ${isIntersecting ? 'stampa-reveal-visible' : ''}`} style={{ animationDelay: '0.9s' }}>
+                    <div className="absolute top-0 right-0 w-32 h-32 bg-stampa-orange/10 rounded-full blur-2xl -mr-16 -mt-16" />
                     <div className="relative z-10">
                       <div className="flex items-center gap-2 text-orange-400 mb-3">
                         <Gift className="w-4 h-4 animate-bounce" style={{ animationDuration: '2s' }} />
@@ -193,7 +193,7 @@ export function LandingPlatformMockup() {
                       <div className="text-white font-bold mb-2">Bobina PLA Grilon3</div>
                       <div className="text-xs text-gray-400">Participá subiendo tu última impresión al foro.</div>
                     </div>
-                    <div className="mt-4 h-8 bg-orange-500 hover:bg-orange-400 transition-colors text-white rounded text-sm flex items-center justify-center font-medium opacity-90 cursor-pointer relative z-10">
+                    <div className="mt-4 h-8 bg-stampa-orange hover:bg-orange-400 transition-colors text-white rounded text-sm flex items-center justify-center font-medium opacity-90 cursor-pointer relative z-10">
                       Participar
                     </div>
                   </div>

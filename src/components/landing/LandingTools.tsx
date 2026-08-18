@@ -16,9 +16,9 @@ export function LandingTools() {
   const [ref, isIntersecting] = useIntersection<HTMLDivElement>({ threshold: 0.1 });
 
   return (
-    <section className="py-24 bg-zinc-950 text-white border-t border-white/5 relative overflow-hidden">
+    <section className="py-24 bg-stampa-bg text-white border-t border-stampa-border relative overflow-hidden">
       {/* Background flare */}
-      <div className="absolute bottom-0 left-0 w-96 h-96 bg-orange-600/5 blur-[100px] rounded-full pointer-events-none" />
+      <div className="absolute bottom-0 left-0 w-96 h-96 bg-stampa-orange/5 blur-[100px] rounded-full pointer-events-none" />
 
       <div className="container mx-auto px-6 relative z-10" ref={ref}>
         <div className="flex flex-col lg:flex-row items-center gap-12">
@@ -34,7 +34,7 @@ export function LandingTools() {
             <div className="grid grid-cols-2 gap-4">
               {tools.slice(0,4).map((tool, idx) => (
                 <div key={idx} className="flex items-center gap-3 group">
-                  <div className="w-8 h-8 rounded-full bg-orange-500/10 flex items-center justify-center text-orange-400 shrink-0 group-hover:bg-orange-500/20 group-hover:scale-110 transition-all duration-300">
+                  <div className="w-8 h-8 rounded-full bg-stampa-orange/10 flex items-center justify-center text-orange-400 shrink-0 group-hover:bg-stampa-orange/20 group-hover:scale-110 transition-all duration-300">
                     <tool.icon className="w-4 h-4" />
                   </div>
                   <span className="text-gray-300 font-medium group-hover:text-white transition-colors">{tool.name}</span>
@@ -48,7 +48,7 @@ export function LandingTools() {
               {tools.map((tool, idx) => (
                 <div 
                   key={idx} 
-                  className={`bg-zinc-900 border border-white/5 p-6 rounded-xl flex flex-col items-center text-center hover:bg-zinc-800 hover:border-orange-500/30 hover:shadow-[0_0_20px_rgba(234,88,12,0.1)] hover:-translate-y-1 transition-all duration-300 stampa-reveal-hidden ${isIntersecting ? 'stampa-reveal-visible' : ''}`}
+                  className={`bg-zinc-900 border border-stampa-border p-6 rounded-xl flex flex-col items-center text-center hover:bg-zinc-800 hover:border-stampa-orange/30 hover:shadow-[0_0_20px_rgba(234,88,12,0.1)] hover:-translate-y-1 transition-all duration-300 stampa-reveal-hidden ${isIntersecting ? 'stampa-reveal-visible' : ''}`}
                   style={{ animationDelay: `${idx * 0.1 + 0.2}s` }}
                 >
                   <tool.icon className="w-8 h-8 text-gray-400 mb-4 group-hover:text-orange-400 transition-colors" />

@@ -143,23 +143,23 @@ export function ToolTutorial({ toolKey, buttonLabel = "? Tutorial", compact = fa
       <button
         onClick={handleOpenManual}
         title="Ver tutorial de esta herramienta"
-        className={`flex items-center gap-1.5 bg-white/5 border border-white/10 hover:border-[#ff6a00]/40 text-neutral-200 rounded-full transition-colors ${
+        className={`flex items-center gap-1.5 bg-white/5 border border-stampa-border hover:border-[#ff6a00]/40 text-neutral-200 rounded-full transition-colors ${
           compact ? "p-1.5" : "px-3 py-1.5 text-xs font-semibold"
         }`}
       >
-        <HelpCircle size={compact ? 16 : 14} className={compact ? "" : "text-[#ff6a00]"} />
+        <HelpCircle size={compact ? 16 : 14} className={compact ? "" : "text-stampa-orange"} />
         {!compact && <span>{buttonLabel}</span>}
       </button>
 
       {/* Modal */}
       {showModal && (
-        <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/80 backdrop-blur-sm p-4">
-          <div className="bg-[#0a0a0a] w-full max-w-3xl rounded-2xl border border-white/10 shadow-2xl overflow-hidden animate-in zoom-in-95 duration-200 flex flex-col max-h-[90vh]">
+        <div className="fixed inset-0 z-[100] flex items-center justify-center bg-stampa-bg/80 backdrop-blur-sm p-4">
+          <div className="bg-stampa-bg-soft w-full max-w-3xl rounded-2xl border border-stampa-border shadow-2xl overflow-hidden animate-in zoom-in-95 duration-200 flex flex-col max-h-[90vh]">
             
             {/* Header */}
-            <div className="flex items-center justify-between px-6 py-4 border-b border-white/10 bg-[#111]">
+            <div className="flex items-center justify-between px-6 py-4 border-b border-stampa-border bg-stampa-surface">
               <h3 className="font-bold text-white flex items-center gap-2">
-                <HelpCircle size={18} className="text-[#ff6a00]" /> 
+                <HelpCircle size={18} className="text-stampa-orange" /> 
                 {tutorial.title || "Tutorial de la herramienta"}
               </h3>
               <button 
@@ -178,10 +178,10 @@ export function ToolTutorial({ toolKey, buttonLabel = "? Tutorial", compact = fa
                 </p>
               )}
 
-              <div className="rounded-xl overflow-hidden bg-[#111] border border-white/5 aspect-video w-full flex items-center justify-center relative">
+              <div className="rounded-xl overflow-hidden bg-stampa-surface border border-stampa-border aspect-video w-full flex items-center justify-center relative">
                 {isPendingTutorialUrl(tutorial.video_url) || !tutorial.video_url ? (
                   <div className="flex flex-col items-center justify-center p-8 text-center">
-                    <AlertCircle size={40} className="text-[#ff6a00]/60 mb-3" />
+                    <AlertCircle size={40} className="text-stampa-orange/60 mb-3" />
                     <h4 className="text-white font-bold text-lg mb-1">Tutorial pendiente de cargar</h4>
                     <p className="text-gray-400 text-sm max-w-sm">
                       Cuando el video esté disponible, vas a poder verlo acá.
@@ -209,7 +209,7 @@ export function ToolTutorial({ toolKey, buttonLabel = "? Tutorial", compact = fa
                       href={tutorial.video_url} 
                       target="_blank" 
                       rel="noopener noreferrer"
-                      className="inline-flex items-center gap-2 px-5 py-2.5 bg-[#ff6a00] hover:bg-[#ff7a1a] text-white font-bold rounded-xl transition-colors"
+                      className="inline-flex items-center gap-2 px-5 py-2.5 bg-stampa-orange hover:bg-stampa-orange-hover text-white font-bold rounded-xl transition-colors"
                     >
                       Ver video externo
                     </a>
@@ -219,7 +219,7 @@ export function ToolTutorial({ toolKey, buttonLabel = "? Tutorial", compact = fa
             </div>
 
             {/* Footer */}
-            <div className="p-4 border-t border-white/10 bg-[#111] flex justify-end">
+            <div className="p-4 border-t border-stampa-border bg-stampa-surface flex justify-end">
               <button
                 onClick={handleClose}
                 className="px-6 py-2 bg-white/10 hover:bg-white/20 text-white text-sm font-bold rounded-xl transition-colors"

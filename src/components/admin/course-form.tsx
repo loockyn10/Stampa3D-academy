@@ -204,7 +204,7 @@ export function CourseForm({ courseId }: { courseId?: string }) {
   const isWorkshop = formData.course_kind === "workshop";
 
   return (
-    <form onSubmit={handleSubmit} className="space-y-6 bg-[#111] p-6 rounded-xl border border-white/10 shadow-sm">
+    <form onSubmit={handleSubmit} className="space-y-6 bg-stampa-surface p-6 rounded-xl border border-stampa-border shadow-sm">
       {error && (
         <div className="bg-red-50/10 text-red-400 p-4 rounded-lg flex items-center gap-2 text-sm border border-red-500/20">
           <AlertCircle className="h-4 w-4 shrink-0" />
@@ -229,7 +229,7 @@ export function CourseForm({ courseId }: { courseId?: string }) {
             value={formData.title}
             onChange={handleChange}
             required
-            className="w-full text-sm bg-neutral-900 text-neutral-100 border-white/10 rounded-md shadow-sm border focus:border-[#ff6a00] focus:ring-[#ff6a00]/20 focus:ring-2 placeholder:text-neutral-500 disabled:bg-neutral-800 disabled:text-neutral-500"
+            className="w-full text-sm bg-stampa-surface text-neutral-100 border-stampa-border rounded-md shadow-sm border focus:border-[#ff6a00] focus:ring-[#ff6a00]/20 focus:ring-2 placeholder:text-neutral-500 disabled:bg-neutral-800 disabled:text-neutral-500"
           />
         </div>
         
@@ -241,7 +241,7 @@ export function CourseForm({ courseId }: { courseId?: string }) {
             value={formData.slug}
             onChange={handleChange}
             required
-            className="w-full text-sm bg-neutral-900 text-neutral-100 border-white/10 rounded-md shadow-sm border focus:border-[#ff6a00] focus:ring-[#ff6a00]/20 focus:ring-2 placeholder:text-neutral-500 disabled:bg-neutral-800 disabled:text-neutral-500"
+            className="w-full text-sm bg-stampa-surface text-neutral-100 border-stampa-border rounded-md shadow-sm border focus:border-[#ff6a00] focus:ring-[#ff6a00]/20 focus:ring-2 placeholder:text-neutral-500 disabled:bg-neutral-800 disabled:text-neutral-500"
           />
         </div>
 
@@ -253,7 +253,7 @@ export function CourseForm({ courseId }: { courseId?: string }) {
             value={formData.description}
             onChange={handleChange}
             rows={3}
-            className="w-full text-sm bg-neutral-900 text-neutral-100 border-white/10 rounded-md shadow-sm border focus:border-[#ff6a00] focus:ring-[#ff6a00]/20 focus:ring-2 placeholder:text-neutral-500 disabled:bg-neutral-800 disabled:text-neutral-500"
+            className="w-full text-sm bg-stampa-surface text-neutral-100 border-stampa-border rounded-md shadow-sm border focus:border-[#ff6a00] focus:ring-[#ff6a00]/20 focus:ring-2 placeholder:text-neutral-500 disabled:bg-neutral-800 disabled:text-neutral-500"
           />
         </div>
 
@@ -268,14 +268,14 @@ export function CourseForm({ courseId }: { courseId?: string }) {
           
           <div className="mt-1 flex flex-col gap-4">
             {showPreview ? (
-              <div className="relative aspect-video w-full max-w-sm rounded-lg overflow-hidden border border-white/10 group">
+              <div className="relative aspect-video w-full max-w-sm rounded-lg overflow-hidden border border-stampa-border group">
                 {/* eslint-disable-next-line @next/next/no-img-element */}
                 <img 
                   src={thumbnailPreview || formData.thumbnail_url} 
                   alt="Preview" 
                   className="w-full h-full object-cover"
                 />
-                <div className="absolute inset-0 bg-black/50 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center gap-2 backdrop-blur-sm">
+                <div className="absolute inset-0 bg-stampa-bg/50 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center gap-2 backdrop-blur-sm">
                   <button
                     type="button"
                     onClick={() => fileInputRef.current?.click()}
@@ -299,7 +299,7 @@ export function CourseForm({ courseId }: { courseId?: string }) {
             ) : (
               <div 
                 onClick={() => fileInputRef.current?.click()}
-                className="w-full max-w-sm aspect-video border-2 border-dashed border-white/10 hover:border-orange-500/40 bg-white/5 rounded-xl flex flex-col items-center justify-center cursor-pointer transition-colors text-neutral-400 hover:text-neutral-200"
+                className="w-full max-w-sm aspect-video border-2 border-dashed border-stampa-border hover:border-stampa-orange/40 bg-white/5 rounded-xl flex flex-col items-center justify-center cursor-pointer transition-colors text-neutral-400 hover:text-neutral-200"
               >
                 <ImageIcon className="mb-2 h-8 w-8 opacity-50" />
                 <span className="text-sm font-medium">Subir imagen</span>
@@ -323,7 +323,7 @@ export function CourseForm({ courseId }: { courseId?: string }) {
                 value={formData.thumbnail_url}
                 onChange={handleChange}
                 placeholder="https://..."
-                className="w-full text-xs bg-neutral-900 text-neutral-100 border-white/10 rounded-md shadow-sm border focus:border-[#ff6a00] focus:ring-[#ff6a00]/20 focus:ring-2 placeholder:text-neutral-600 disabled:bg-neutral-800 disabled:text-neutral-500"
+                className="w-full text-xs bg-stampa-surface text-neutral-100 border-stampa-border rounded-md shadow-sm border focus:border-[#ff6a00] focus:ring-[#ff6a00]/20 focus:ring-2 placeholder:text-neutral-600 disabled:bg-neutral-800 disabled:text-neutral-500"
               />
             </div>
           </div>
@@ -336,11 +336,11 @@ export function CourseForm({ courseId }: { courseId?: string }) {
             name="category_id"
             value={formData.category_id}
             onChange={handleChange}
-            className="w-full text-sm bg-neutral-900 text-neutral-100 border-white/10 rounded-md shadow-sm border focus:border-[#ff6a00] focus:ring-[#ff6a00]/20 focus:ring-2 placeholder:text-neutral-500 disabled:bg-neutral-800 disabled:text-neutral-500"
+            className="w-full text-sm bg-stampa-surface text-neutral-100 border-stampa-border rounded-md shadow-sm border focus:border-[#ff6a00] focus:ring-[#ff6a00]/20 focus:ring-2 placeholder:text-neutral-500 disabled:bg-neutral-800 disabled:text-neutral-500"
           >
-            <option value="" className="text-white bg-[#111]">Selecciona una categoría</option>
+            <option value="" className="text-white bg-stampa-surface">Selecciona una categoría</option>
             {categories.map((c) => (
-              <option key={c.id} value={c.id} className="text-white bg-[#111]">{c.name}</option>
+              <option key={c.id} value={c.id} className="text-white bg-stampa-surface">{c.name}</option>
             ))}
           </select>
         </div>
@@ -351,11 +351,11 @@ export function CourseForm({ courseId }: { courseId?: string }) {
             name="instructor_id"
             value={formData.instructor_id}
             onChange={handleChange}
-            className="w-full text-sm bg-neutral-900 text-neutral-100 border-white/10 rounded-md shadow-sm border focus:border-[#ff6a00] focus:ring-[#ff6a00]/20 focus:ring-2 placeholder:text-neutral-500 disabled:bg-neutral-800 disabled:text-neutral-500"
+            className="w-full text-sm bg-stampa-surface text-neutral-100 border-stampa-border rounded-md shadow-sm border focus:border-[#ff6a00] focus:ring-[#ff6a00]/20 focus:ring-2 placeholder:text-neutral-500 disabled:bg-neutral-800 disabled:text-neutral-500"
           >
-            <option value="" className="text-white bg-[#111]">Selecciona un instructor</option>
+            <option value="" className="text-white bg-stampa-surface">Selecciona un instructor</option>
             {instructors.map((i) => (
-              <option key={i.id} value={i.id} className="text-white bg-[#111]">{i.name}</option>
+              <option key={i.id} value={i.id} className="text-white bg-stampa-surface">{i.name}</option>
             ))}
           </select>
         </div>
@@ -367,11 +367,11 @@ export function CourseForm({ courseId }: { courseId?: string }) {
             name="level"
             value={formData.level}
             onChange={handleChange}
-            className="w-full text-sm bg-neutral-900 text-neutral-100 border-white/10 rounded-md shadow-sm border focus:border-[#ff6a00] focus:ring-[#ff6a00]/20 focus:ring-2 placeholder:text-neutral-500 disabled:bg-neutral-800 disabled:text-neutral-500"
+            className="w-full text-sm bg-stampa-surface text-neutral-100 border-stampa-border rounded-md shadow-sm border focus:border-[#ff6a00] focus:ring-[#ff6a00]/20 focus:ring-2 placeholder:text-neutral-500 disabled:bg-neutral-800 disabled:text-neutral-500"
           >
-            <option value="beginner" className="text-white bg-[#111]">Principiante</option>
-            <option value="intermediate" className="text-white bg-[#111]">Intermedio</option>
-            <option value="advanced" className="text-white bg-[#111]">Avanzado</option>
+            <option value="beginner" className="text-white bg-stampa-surface">Principiante</option>
+            <option value="intermediate" className="text-white bg-stampa-surface">Intermedio</option>
+            <option value="advanced" className="text-white bg-stampa-surface">Avanzado</option>
           </select>
         </div>
 
@@ -383,10 +383,10 @@ export function CourseForm({ courseId }: { courseId?: string }) {
             name="course_kind"
             value={formData.course_kind}
             onChange={handleChange}
-            className="w-full text-sm bg-neutral-900 text-neutral-100 border-white/10 rounded-md shadow-sm border focus:border-[#ff6a00] focus:ring-[#ff6a00]/20 focus:ring-2 placeholder:text-neutral-500 disabled:bg-neutral-800 disabled:text-neutral-500"
+            className="w-full text-sm bg-stampa-surface text-neutral-100 border-stampa-border rounded-md shadow-sm border focus:border-[#ff6a00] focus:ring-[#ff6a00]/20 focus:ring-2 placeholder:text-neutral-500 disabled:bg-neutral-800 disabled:text-neutral-500"
           >
-            <option value="course" className="text-white bg-[#111]">Curso</option>
-            <option value="workshop" className="text-white bg-[#111]">Taller</option>
+            <option value="course" className="text-white bg-stampa-surface">Curso</option>
+            <option value="workshop" className="text-white bg-stampa-surface">Taller</option>
           </select>
           <p className="text-xs text-gray-500">Usá Curso para rutas estructuradas y Taller para proyectos prácticos.</p>
         </div>
@@ -399,7 +399,7 @@ export function CourseForm({ courseId }: { courseId?: string }) {
             name="sort_order"
             value={formData.sort_order}
             onChange={handleChange}
-            className="w-full text-sm bg-neutral-900 text-neutral-100 border-white/10 rounded-md shadow-sm border focus:border-[#ff6a00] focus:ring-[#ff6a00]/20 focus:ring-2 placeholder:text-neutral-500 disabled:bg-neutral-800 disabled:text-neutral-500"
+            className="w-full text-sm bg-stampa-surface text-neutral-100 border-stampa-border rounded-md shadow-sm border focus:border-[#ff6a00] focus:ring-[#ff6a00]/20 focus:ring-2 placeholder:text-neutral-500 disabled:bg-neutral-800 disabled:text-neutral-500"
           />
         </div>
 
@@ -409,16 +409,16 @@ export function CourseForm({ courseId }: { courseId?: string }) {
             name="status"
             value={formData.status}
             onChange={handleChange}
-            className="w-full text-sm bg-neutral-900 text-neutral-100 border-white/10 rounded-md shadow-sm border focus:border-[#ff6a00] focus:ring-[#ff6a00]/20 focus:ring-2 placeholder:text-neutral-500 disabled:bg-neutral-800 disabled:text-neutral-500"
+            className="w-full text-sm bg-stampa-surface text-neutral-100 border-stampa-border rounded-md shadow-sm border focus:border-[#ff6a00] focus:ring-[#ff6a00]/20 focus:ring-2 placeholder:text-neutral-500 disabled:bg-neutral-800 disabled:text-neutral-500"
           >
-            <option value="draft" className="text-white bg-[#111]">Borrador</option>
-            <option value="published" className="text-white bg-[#111]">Publicado</option>
-            <option value="archived" className="text-white bg-[#111]">Archivado</option>
+            <option value="draft" className="text-white bg-stampa-surface">Borrador</option>
+            <option value="published" className="text-white bg-stampa-surface">Publicado</option>
+            <option value="archived" className="text-white bg-stampa-surface">Archivado</option>
           </select>
         </div>
       </div>
 
-      <div className="flex justify-end pt-4 border-t border-white/5">
+      <div className="flex justify-end pt-4 border-t border-stampa-border">
         <button
           type="submit"
           disabled={saving}

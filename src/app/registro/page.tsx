@@ -77,14 +77,14 @@ function RegistroForm() {
   };
 
   return (
-    <div className="min-h-screen bg-[#050505] text-neutral-100 flex items-center justify-center relative overflow-hidden">
-      <div className="absolute top-0 right-1/4 w-96 h-96 bg-orange-500/10 rounded-full blur-[120px] pointer-events-none" />
-      <div className="absolute bottom-0 left-1/4 w-96 h-96 bg-orange-600/10 rounded-full blur-[120px] pointer-events-none" />
+    <div className="min-h-screen bg-stampa-bg text-neutral-100 flex items-center justify-center relative overflow-hidden">
+      <div className="absolute top-0 right-1/4 w-96 h-96 bg-stampa-orange/10 rounded-full blur-[120px] pointer-events-none" />
+      <div className="absolute bottom-0 left-1/4 w-96 h-96 bg-stampa-orange/10 rounded-full blur-[120px] pointer-events-none" />
 
       <div className="relative z-10 w-full max-w-md px-6 py-12">
-        <div className="space-y-8 bg-neutral-950/80 p-8 sm:p-10 rounded-2xl shadow-2xl border border-white/10 backdrop-blur-xl">
+        <div className="space-y-8 bg-stampa-bg/80 p-8 sm:p-10 rounded-2xl shadow-2xl border border-stampa-border backdrop-blur-xl">
           <div className="flex flex-col items-center">
-            <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-[#ff6a00] text-white mb-4 shadow-lg shadow-orange-500/20">
+            <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-stampa-orange text-white mb-4 shadow-lg shadow-stampa-orange/20">
               <Layers className="h-6 w-6" />
             </div>
             <h2 className="text-3xl font-bold tracking-tight text-white">Crear cuenta</h2>
@@ -112,7 +112,7 @@ function RegistroForm() {
                   <input
                     id="name" name="name" type="text" autoComplete="name" required
                     value={name} onChange={e => setName(e.target.value)}
-                    className="block w-full rounded-xl border border-white/10 pl-10 focus:border-orange-500/60 focus:ring-orange-500/20 focus:ring-2 sm:text-sm py-3 text-neutral-100 placeholder-neutral-500 bg-white/5 outline-none transition-all"
+                    className="block w-full rounded-xl border border-stampa-border pl-10 focus:border-stampa-orange/60 focus:ring-stampa-orange/20 focus:ring-2 sm:text-sm py-3 text-neutral-100 placeholder-neutral-500 bg-white/5 outline-none transition-all"
                     placeholder="Juan Pérez"
                   />
                 </div>
@@ -128,7 +128,7 @@ function RegistroForm() {
                   <input
                     id="email-address" name="email" type="email" autoComplete="email" required
                     value={email} onChange={e => setEmail(e.target.value)}
-                    className="block w-full rounded-xl border border-white/10 pl-10 focus:border-orange-500/60 focus:ring-orange-500/20 focus:ring-2 sm:text-sm py-3 text-neutral-100 placeholder-neutral-500 bg-white/5 outline-none transition-all"
+                    className="block w-full rounded-xl border border-stampa-border pl-10 focus:border-stampa-orange/60 focus:ring-stampa-orange/20 focus:ring-2 sm:text-sm py-3 text-neutral-100 placeholder-neutral-500 bg-white/5 outline-none transition-all"
                     placeholder="tu@email.com"
                   />
                 </div>
@@ -144,7 +144,7 @@ function RegistroForm() {
                   <input
                     id="password" name="password" type={showPassword ? "text" : "password"} autoComplete="new-password" required
                     value={password} onChange={e => setPassword(e.target.value)}
-                    className="block w-full rounded-xl border border-white/10 pl-10 pr-10 focus:border-orange-500/60 focus:ring-orange-500/20 focus:ring-2 sm:text-sm py-3 text-neutral-100 placeholder-neutral-500 bg-white/5 outline-none transition-all"
+                    className="block w-full rounded-xl border border-stampa-border pl-10 pr-10 focus:border-stampa-orange/60 focus:ring-stampa-orange/20 focus:ring-2 sm:text-sm py-3 text-neutral-100 placeholder-neutral-500 bg-white/5 outline-none transition-all"
                     placeholder="••••••••"
                   />
                   <button type="button" onClick={() => setShowPassword(!showPassword)}
@@ -166,7 +166,7 @@ function RegistroForm() {
                   <input
                     id="ref-code" name="ref-code" type="text"
                     value={referralCode} onChange={e => setReferralCode(e.target.value.toUpperCase().trim())}
-                    className="block w-full rounded-xl border border-white/10 pl-10 focus:border-violet-500/60 focus:ring-violet-500/20 focus:ring-2 sm:text-sm py-3 text-neutral-100 placeholder-neutral-500 bg-white/5 outline-none transition-all font-mono tracking-widest"
+                    className="block w-full rounded-xl border border-stampa-border pl-10 focus:border-violet-500/60 focus:ring-violet-500/20 focus:ring-2 sm:text-sm py-3 text-neutral-100 placeholder-neutral-500 bg-white/5 outline-none transition-all font-mono tracking-widest"
                     placeholder="Ej: STAMPA123"
                     maxLength={20}
                   />
@@ -177,7 +177,7 @@ function RegistroForm() {
 
             <button
               type="submit" disabled={isLoading}
-              className="group relative flex w-full justify-center rounded-xl bg-orange-500 hover:bg-orange-400 px-4 py-3 text-sm font-semibold text-white shadow-lg shadow-orange-500/20 disabled:opacity-70 transition-all active:scale-[0.98]"
+              className="group relative flex w-full justify-center rounded-xl bg-stampa-orange hover:bg-orange-400 px-4 py-3 text-sm font-semibold text-white shadow-lg shadow-stampa-orange/20 disabled:opacity-70 transition-all active:scale-[0.98]"
             >
               {isLoading ? (
                 <span className="flex items-center gap-2 justify-center">
@@ -191,7 +191,7 @@ function RegistroForm() {
             </button>
           </form>
 
-          <div className="text-center pt-2 border-t border-white/5">
+          <div className="text-center pt-2 border-t border-stampa-border">
             <p className="text-sm text-gray-400">
               ¿Ya tenés cuenta?{" "}
               <Link href="/login" className="font-medium text-orange-400 hover:text-orange-300 transition-colors">
@@ -208,8 +208,8 @@ function RegistroForm() {
 export default function RegistroPage() {
   return (
     <Suspense fallback={
-      <div className="min-h-screen bg-[#050505] flex items-center justify-center">
-        <div className="animate-spin h-8 w-8 border-2 border-orange-500 border-t-transparent rounded-full" />
+      <div className="min-h-screen bg-stampa-bg flex items-center justify-center">
+        <div className="animate-spin h-8 w-8 border-2 border-stampa-orange border-t-transparent rounded-full" />
       </div>
     }>
       <RegistroForm />

@@ -29,7 +29,7 @@ export function MainLayout({ children }: { children: React.ReactNode }) {
 
   return (
     <StampyContextProvider>
-      <div className="flex min-h-screen w-full min-w-0 bg-[#050505] text-[#ededed] font-sans">
+      <div className="flex min-h-screen w-full min-w-0 bg-stampa-bg text-[#ededed] font-sans">
         <Sidebar mobileOpen={mobileOpen} setMobileOpen={setMobileOpen} />
         <div className="flex min-h-screen min-w-0 flex-1 flex-col lg:pl-0">
           <Header setMobileOpen={setMobileOpen} />

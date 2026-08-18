@@ -95,20 +95,20 @@ export function AccountManager() {
   if (loading) {
     return (
       <div className="flex justify-center p-12">
-        <Loader2 className="animate-spin text-[#ff6a00] h-8 w-8" />
+        <Loader2 className="animate-spin text-stampa-orange h-8 w-8" />
       </div>
     );
   }
 
   return (
     <div className="space-y-6">
-      <div className="p-4 bg-white/5 border border-white/10 rounded-xl mb-6">
+      <div className="p-4 bg-white/5 border border-stampa-border rounded-xl mb-6">
         <p className="text-sm text-gray-400">
           <strong className="text-white">Preferencias Iniciales.</strong> Estos datos los cargaste al ingresar por primera vez. Nos sirven para recomendarte contenido, pero podés actualizarlos cuando quieras.
         </p>
       </div>
 
-      <form onSubmit={handleSave} className="bg-neutral-950 border border-white/10 rounded-2xl p-6 md:p-8 space-y-8">
+      <form onSubmit={handleSave} className="bg-stampa-bg border border-stampa-border rounded-2xl p-6 md:p-8 space-y-8">
         
         {errorMsg && (
           <div className="p-4 bg-red-500/10 border border-red-500/20 text-red-400 rounded-xl text-sm">
@@ -123,7 +123,7 @@ export function AccountManager() {
         )}
 
         <div className="space-y-4">
-          <h3 className="text-lg font-bold text-white border-b border-white/5 pb-2">Datos personales</h3>
+          <h3 className="text-lg font-bold text-white border-b border-stampa-border pb-2">Datos personales</h3>
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             <div>
               <label className="block text-sm font-medium text-gray-400 mb-1">Nombre completo</label>
@@ -131,7 +131,7 @@ export function AccountManager() {
                 type="text" 
                 value={fullName}
                 onChange={(e) => setFullName(e.target.value)}
-                className="w-full bg-neutral-900 border border-white/10 rounded-xl px-4 py-2.5 text-white focus:outline-none focus:border-[#ff6a00] transition-colors"
+                className="w-full bg-stampa-surface border border-stampa-border rounded-xl px-4 py-2.5 text-white focus:outline-none focus:border-[#ff6a00] transition-colors"
                 required
               />
             </div>
@@ -141,7 +141,7 @@ export function AccountManager() {
                 type="text" 
                 value={displayName}
                 onChange={(e) => setDisplayName(e.target.value)}
-                className="w-full bg-neutral-900 border border-white/10 rounded-xl px-4 py-2.5 text-white focus:outline-none focus:border-[#ff6a00] transition-colors"
+                className="w-full bg-stampa-surface border border-stampa-border rounded-xl px-4 py-2.5 text-white focus:outline-none focus:border-[#ff6a00] transition-colors"
               />
             </div>
           </div>
@@ -151,20 +151,20 @@ export function AccountManager() {
               type="tel" 
               value={phone}
               onChange={(e) => setPhone(e.target.value)}
-              className="w-full bg-neutral-900 border border-white/10 rounded-xl px-4 py-2.5 text-white focus:outline-none focus:border-[#ff6a00] transition-colors"
+              className="w-full bg-stampa-surface border border-stampa-border rounded-xl px-4 py-2.5 text-white focus:outline-none focus:border-[#ff6a00] transition-colors"
             />
           </div>
         </div>
 
         <div className="space-y-4">
-          <h3 className="text-lg font-bold text-white border-b border-white/5 pb-2">Tu impresora principal</h3>
+          <h3 className="text-lg font-bold text-white border-b border-stampa-border pb-2">Tu impresora principal</h3>
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             <div>
               <label className="block text-sm font-medium text-gray-400 mb-1">Marca</label>
               <select 
                 value={brand}
                 onChange={(e) => setBrand(e.target.value)}
-                className="w-full bg-neutral-900 border border-white/10 rounded-xl px-4 py-3 text-white focus:outline-none focus:border-[#ff6a00] transition-colors appearance-none"
+                className="w-full bg-stampa-surface border border-stampa-border rounded-xl px-4 py-3 text-white focus:outline-none focus:border-[#ff6a00] transition-colors appearance-none"
               >
                 <option value="" disabled>Seleccioná una marca...</option>
                 {PRINTER_BRAND_OPTIONS.map(opt => (
@@ -181,7 +181,7 @@ export function AccountManager() {
                   value={model}
                   onChange={(e) => setModel(e.target.value)}
                   placeholder="Ej: A1 Mini, K1..."
-                  className="w-full bg-neutral-900 border border-white/10 rounded-xl px-4 py-2.5 text-white focus:outline-none focus:border-[#ff6a00] transition-colors"
+                  className="w-full bg-stampa-surface border border-stampa-border rounded-xl px-4 py-2.5 text-white focus:outline-none focus:border-[#ff6a00] transition-colors"
                 />
               </div>
             )}
@@ -189,14 +189,14 @@ export function AccountManager() {
         </div>
 
         <div className="space-y-4">
-          <h3 className="text-lg font-bold text-white border-b border-white/5 pb-2">Experiencia y Objetivos</h3>
+          <h3 className="text-lg font-bold text-white border-b border-stampa-border pb-2">Experiencia y Objetivos</h3>
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             <div>
               <label className="block text-sm font-medium text-gray-400 mb-1">Nivel de experiencia</label>
               <select 
                 value={experience}
                 onChange={(e) => setExperience(e.target.value)}
-                className="w-full bg-neutral-900 border border-white/10 rounded-xl px-4 py-3 text-white focus:outline-none focus:border-[#ff6a00] transition-colors appearance-none"
+                className="w-full bg-stampa-surface border border-stampa-border rounded-xl px-4 py-3 text-white focus:outline-none focus:border-[#ff6a00] transition-colors appearance-none"
               >
                 <option value="" disabled>Seleccioná tu nivel...</option>
                 {EXPERIENCE_LEVEL_OPTIONS.map(opt => (
@@ -210,7 +210,7 @@ export function AccountManager() {
               <select 
                 value={goal}
                 onChange={(e) => setGoal(e.target.value)}
-                className="w-full bg-neutral-900 border border-white/10 rounded-xl px-4 py-3 text-white focus:outline-none focus:border-[#ff6a00] transition-colors appearance-none"
+                className="w-full bg-stampa-surface border border-stampa-border rounded-xl px-4 py-3 text-white focus:outline-none focus:border-[#ff6a00] transition-colors appearance-none"
               >
                 <option value="" disabled>Seleccioná un objetivo...</option>
                 {MAIN_GOAL_OPTIONS.map(opt => (
@@ -226,7 +226,7 @@ export function AccountManager() {
               <select 
                 value={stage}
                 onChange={(e) => setStage(e.target.value)}
-                className="w-full bg-neutral-900 border border-white/10 rounded-xl px-4 py-3 text-white focus:outline-none focus:border-[#ff6a00] transition-colors appearance-none"
+                className="w-full bg-stampa-surface border border-stampa-border rounded-xl px-4 py-3 text-white focus:outline-none focus:border-[#ff6a00] transition-colors appearance-none"
               >
                 <option value="" disabled>Seleccioná tu etapa...</option>
                 {COMMERCIAL_STAGE_OPTIONS.map(opt => (
@@ -237,7 +237,7 @@ export function AccountManager() {
           </div>
         </div>
 
-        <div className="pt-4 border-t border-white/5 flex flex-col sm:flex-row sm:justify-end">
+        <div className="pt-4 border-t border-stampa-border flex flex-col sm:flex-row sm:justify-end">
           <PrimaryButton type="submit" disabled={saving} className="w-full sm:w-auto">
             {saving ? <Loader2 className="animate-spin mr-2 h-4 w-4" /> : <Save size={16} className="mr-2" />}
             {saving ? "Guardando..." : "Guardar cambios"}

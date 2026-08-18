@@ -244,7 +244,7 @@ export default function AdminCodigosPage() {
           </div>
           <button
             onClick={openNewForm}
-            className="flex items-center justify-center gap-2 px-4 py-2 rounded-xl bg-orange-600 hover:bg-orange-500 text-white text-sm font-semibold transition-colors shadow-lg shadow-orange-500/20"
+            className="flex items-center justify-center gap-2 px-4 py-2 rounded-xl bg-stampa-orange hover:bg-stampa-orange text-white text-sm font-semibold transition-colors shadow-lg shadow-stampa-orange/20"
           >
             <Plus size={16} /> Nuevo código
           </button>
@@ -252,19 +252,19 @@ export default function AdminCodigosPage() {
       </div>
 
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
-        <Card className="p-4 border-white/5 bg-[#111] flex flex-col items-center justify-center text-center">
+        <Card className="p-4 border-stampa-border bg-stampa-surface flex flex-col items-center justify-center text-center">
           <p className="text-gray-400 text-xs font-semibold uppercase tracking-wider mb-1">Activos</p>
           <p className="text-2xl font-bold text-white">{stats.totalActive}</p>
         </Card>
-        <Card className="p-4 border-white/5 bg-[#111] flex flex-col items-center justify-center text-center">
+        <Card className="p-4 border-stampa-border bg-stampa-surface flex flex-col items-center justify-center text-center">
           <p className="text-gray-400 text-xs font-semibold uppercase tracking-wider mb-1">Usos Totales</p>
           <p className="text-2xl font-bold text-white">{stats.totalUses}</p>
         </Card>
-        <Card className="p-4 border-white/5 bg-[#111] flex flex-col items-center justify-center text-center">
+        <Card className="p-4 border-stampa-border bg-stampa-surface flex flex-col items-center justify-center text-center">
           <p className="text-gray-400 text-xs font-semibold uppercase tracking-wider mb-1">Betas</p>
           <p className="text-2xl font-bold text-cyan-400">{stats.totalBeta}</p>
         </Card>
-        <Card className="p-4 border-white/5 bg-[#111] flex flex-col items-center justify-center text-center">
+        <Card className="p-4 border-stampa-border bg-stampa-surface flex flex-col items-center justify-center text-center">
           <p className="text-gray-400 text-xs font-semibold uppercase tracking-wider mb-1">Promos</p>
           <p className="text-2xl font-bold text-violet-400">{stats.totalPromo}</p>
         </Card>
@@ -283,7 +283,7 @@ export default function AdminCodigosPage() {
 
       {/* Form */}
       {showForm && (
-        <Card className="p-6 border-orange-500/30 bg-orange-500/5">
+        <Card className="p-6 border-stampa-orange/30 bg-stampa-orange/5">
           <h3 className="font-bold text-white text-base mb-4 flex items-center gap-2">
             {editingId ? <Edit size={16} className="text-orange-400" /> : <Plus size={16} className="text-orange-400" />}
             {editingId ? "Editar código" : "Nuevo código"}
@@ -292,18 +292,18 @@ export default function AdminCodigosPage() {
             <div>
               <label className="block text-xs font-semibold text-gray-400 uppercase tracking-wider mb-1.5">Código</label>
               <input type="text" value={newCode} onChange={e => setNewCode(e.target.value.toUpperCase().trim())}
-                placeholder="EJ: PROMO50" className="w-full rounded-xl border border-white/10 px-3 py-2.5 text-sm text-white bg-white/5 focus:outline-none focus:border-orange-500/50 font-mono" />
+                placeholder="EJ: PROMO50" className="w-full rounded-xl border border-stampa-border px-3 py-2.5 text-sm text-white bg-white/5 focus:outline-none focus:border-stampa-orange/50 font-mono" />
             </div>
             <div>
               <label className="block text-xs font-semibold text-gray-400 uppercase tracking-wider mb-1.5">Título (Opcional)</label>
               <input type="text" value={title} onChange={e => setTitle(e.target.value)}
-                placeholder="Ej: Beta testers agosto" className="w-full rounded-xl border border-white/10 px-3 py-2.5 text-sm text-white bg-white/5 focus:outline-none focus:border-orange-500/50" />
+                placeholder="Ej: Beta testers agosto" className="w-full rounded-xl border border-stampa-border px-3 py-2.5 text-sm text-white bg-white/5 focus:outline-none focus:border-stampa-orange/50" />
             </div>
 
-            <div className="sm:col-span-2 border-t border-white/10 pt-4 mt-2">
+            <div className="sm:col-span-2 border-t border-stampa-border pt-4 mt-2">
               <label className="block text-xs font-semibold text-gray-400 uppercase tracking-wider mb-1.5">Tipo de código</label>
               <select value={codeType} onChange={e => setCodeType(e.target.value)}
-                className="w-full rounded-xl border border-white/10 px-3 py-2.5 text-sm text-white bg-[#111] focus:outline-none focus:border-orange-500/50">
+                className="w-full rounded-xl border border-stampa-border px-3 py-2.5 text-sm text-white bg-stampa-surface focus:outline-none focus:border-stampa-orange/50">
                 <option value="beta_tester">Beta Tester (Acceso a la app)</option>
                 <option value="manual_free_access">Acceso Gratis Temporal (Membresía bonificada)</option>
                 <option value="discount_percent">Descuento Porcentual (%)</option>
@@ -317,7 +317,7 @@ export default function AdminCodigosPage() {
               <div className="sm:col-span-2">
                 <label className="block text-xs font-semibold text-gray-400 uppercase tracking-wider mb-1.5">Acceso caduca el (Opcional)</label>
                 <input type="date" value={accessExpiresAt} onChange={e => setAccessExpiresAt(e.target.value)}
-                  className="w-full rounded-xl border border-white/10 px-3 py-2.5 text-sm text-white bg-white/5 focus:outline-none focus:border-orange-500/50" />
+                  className="w-full rounded-xl border border-stampa-border px-3 py-2.5 text-sm text-white bg-white/5 focus:outline-none focus:border-stampa-orange/50" />
                 <p className="text-xs text-gray-500 mt-1">Si queda vacío, el acceso no tiene fecha de vencimiento.</p>
               </div>
             ) : (
@@ -328,12 +328,12 @@ export default function AdminCodigosPage() {
                   </label>
                   <input type="number" value={discountValue} onChange={e => setDiscountValue(e.target.value)}
                     placeholder={codeType === "discount_percent" ? "50" : "19900"}
-                    className="w-full rounded-xl border border-white/10 px-3 py-2.5 text-sm text-white bg-white/5 focus:outline-none focus:border-orange-500/50" />
+                    className="w-full rounded-xl border border-stampa-border px-3 py-2.5 text-sm text-white bg-white/5 focus:outline-none focus:border-stampa-orange/50" />
                 </div>
                 <div>
                   <label className="block text-xs font-semibold text-gray-400 uppercase tracking-wider mb-1.5">Duración del descuento</label>
                   <select value={discountDuration} onChange={e => setDiscountDuration(e.target.value)}
-                    className="w-full rounded-xl border border-white/10 px-3 py-2.5 text-sm text-white bg-[#111] focus:outline-none focus:border-orange-500/50">
+                    className="w-full rounded-xl border border-stampa-border px-3 py-2.5 text-sm text-white bg-stampa-surface focus:outline-none focus:border-stampa-orange/50">
                     <option value="once">Un solo uso (primer mes)</option>
                     <option value="forever">Para siempre (recurrente)</option>
                   </select>
@@ -341,31 +341,31 @@ export default function AdminCodigosPage() {
               </>
             )}
 
-            <div className="sm:col-span-2 border-t border-white/10 pt-4 mt-2"></div>
+            <div className="sm:col-span-2 border-t border-stampa-border pt-4 mt-2"></div>
 
             <div>
               <label className="block text-xs font-semibold text-gray-400 uppercase tracking-wider mb-1.5">Límite de usos</label>
               <input type="number" value={maxUses} onChange={e => setMaxUses(e.target.value)}
                 placeholder="Ej: 50 (vacío = sin límite)" min="1"
-                className="w-full rounded-xl border border-white/10 px-3 py-2.5 text-sm text-white bg-white/5 focus:outline-none focus:border-orange-500/50" />
+                className="w-full rounded-xl border border-stampa-border px-3 py-2.5 text-sm text-white bg-white/5 focus:outline-none focus:border-stampa-orange/50" />
             </div>
             <div>
               <label className="block text-xs font-semibold text-gray-400 uppercase tracking-wider mb-1.5">Vencimiento del código (No del acceso)</label>
               <input type="date" value={expiresAt} onChange={e => setExpiresAt(e.target.value)}
-                className="w-full rounded-xl border border-white/10 px-3 py-2.5 text-sm text-white bg-white/5 focus:outline-none focus:border-orange-500/50" />
+                className="w-full rounded-xl border border-stampa-border px-3 py-2.5 text-sm text-white bg-white/5 focus:outline-none focus:border-stampa-orange/50" />
             </div>
             
             <div className="sm:col-span-2">
               <label className="block text-xs font-semibold text-gray-400 uppercase tracking-wider mb-1.5">Notas internas</label>
               <textarea value={notes} onChange={e => setNotes(e.target.value)} rows={2}
-                placeholder="Opcional..." className="w-full rounded-xl border border-white/10 px-3 py-2.5 text-sm text-white bg-white/5 focus:outline-none focus:border-orange-500/50 resize-none" />
+                placeholder="Opcional..." className="w-full rounded-xl border border-stampa-border px-3 py-2.5 text-sm text-white bg-white/5 focus:outline-none focus:border-stampa-orange/50 resize-none" />
             </div>
           </div>
           <div className="flex gap-2 mt-5">
-            <button onClick={() => setShowForm(false)} className="flex-1 px-4 py-2.5 rounded-xl text-sm font-semibold text-gray-400 bg-white/5 border border-white/10 hover:bg-white/10 transition-colors">
+            <button onClick={() => setShowForm(false)} className="flex-1 px-4 py-2.5 rounded-xl text-sm font-semibold text-gray-400 bg-white/5 border border-stampa-border hover:bg-white/10 transition-colors">
               Cancelar
             </button>
-            <button onClick={handleSave} disabled={creating} className="flex-1 flex justify-center items-center gap-2 px-4 py-2.5 rounded-xl text-sm font-semibold text-white bg-orange-600 hover:bg-orange-500 transition-colors disabled:opacity-60">
+            <button onClick={handleSave} disabled={creating} className="flex-1 flex justify-center items-center gap-2 px-4 py-2.5 rounded-xl text-sm font-semibold text-white bg-stampa-orange hover:bg-stampa-orange transition-colors disabled:opacity-60">
               {creating ? <Loader2 size={14} className="animate-spin" /> : <Check size={14} />}
               Guardar código
             </button>
@@ -379,16 +379,16 @@ export default function AdminCodigosPage() {
           <Loader2 className="animate-spin h-8 w-8 text-orange-400" />
         </div>
       ) : codes.length === 0 ? (
-        <Card className="p-10 text-center border-dashed border-white/20 bg-[#111]">
+        <Card className="p-10 text-center border-dashed border-white/20 bg-stampa-surface">
           <Tag size={32} className="text-gray-600 mx-auto mb-3" />
           <p className="text-gray-400 font-semibold">No hay códigos creados.</p>
         </Card>
       ) : (
-        <div className="bg-[#111] border border-white/10 rounded-xl overflow-hidden shadow-sm">
+        <div className="bg-stampa-surface border border-stampa-border rounded-xl overflow-hidden shadow-sm">
           <div className="overflow-x-auto">
             <table className="w-full text-left border-collapse">
               <thead>
-                <tr className="bg-[#0a0a0a] border-b border-white/10 text-xs font-semibold text-gray-500 uppercase tracking-wide">
+                <tr className="bg-stampa-bg-soft border-b border-stampa-border text-xs font-semibold text-gray-500 uppercase tracking-wide">
                   <th className="px-5 py-3">Código</th>
                   <th className="px-5 py-3">Tipo</th>
                   <th className="px-5 py-3">Beneficio</th>
@@ -406,7 +406,7 @@ export default function AdminCodigosPage() {
                   const effectiveStatus = isExpired ? "expired" : isDepleted ? "depleted" : c.status;
 
                   return (
-                    <tr key={c.id} className="text-sm hover:bg-[#0a0a0a] transition-colors">
+                    <tr key={c.id} className="text-sm hover:bg-stampa-bg-soft transition-colors">
                       <td className="px-5 py-3">
                         <div className="flex flex-col">
                           <span className="font-mono font-bold text-white tracking-widest">{c.code}</span>
@@ -432,7 +432,7 @@ export default function AdminCodigosPage() {
                         <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-semibold ${
                           effectiveStatus === "active" ? "bg-green-500/10 text-green-300 border border-green-500/30" :
                           effectiveStatus === "expired" || effectiveStatus === "depleted" ? "bg-red-500/10 text-red-300 border border-red-500/30" :
-                          "bg-white/5 text-gray-400 border border-white/10"
+                          "bg-white/5 text-gray-400 border border-stampa-border"
                         }`}>
                           {effectiveStatus === "active" ? "Activo" : effectiveStatus === "inactive" ? "Inactivo" : effectiveStatus === "expired" ? "Vencido" : "Agotado"}
                         </span>

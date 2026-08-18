@@ -65,7 +65,7 @@ export default function NuevoSorteoPage() {
     <div className="space-y-6">
       <div className="flex items-center gap-4">
         <Link href="/admin/sorteos">
-          <GhostButton className="p-2 border border-white/10 bg-[#111]">
+          <GhostButton className="p-2 border border-stampa-border bg-stampa-surface">
             <ArrowLeft size={18} className="text-gray-400" />
           </GhostButton>
         </Link>
@@ -78,7 +78,7 @@ export default function NuevoSorteoPage() {
         </div>
       )}
 
-      <Card className="p-6 border-orange-500/30">
+      <Card className="p-6 border-stampa-orange/30">
         <div className="grid grid-cols-1 md:grid-cols-2 gap-5 mb-6">
           <div className="md:col-span-2">
             <label className="block text-xs font-semibold text-gray-300 mb-1">Título del Sorteo</label>
@@ -87,7 +87,7 @@ export default function NuevoSorteoPage() {
               name="title" 
               value={formData.title} 
               onChange={handleChange} 
-              className="w-full text-sm border-white/10 rounded-md bg-neutral-900 text-neutral-100 border focus:border-[#ff6a00] focus:ring-[#ff6a00]/20 focus:ring-2 placeholder:text-neutral-500 disabled:bg-neutral-800 disabled:text-neutral-500" 
+              className="w-full text-sm border-stampa-border rounded-md bg-stampa-surface text-neutral-100 border focus:border-[#ff6a00] focus:ring-[#ff6a00]/20 focus:ring-2 placeholder:text-neutral-500 disabled:bg-neutral-800 disabled:text-neutral-500" 
               placeholder="Ej. Sorteo de Primavera" 
             />
           </div>
@@ -98,7 +98,7 @@ export default function NuevoSorteoPage() {
               value={formData.description} 
               onChange={handleChange} 
               rows={3}
-              className="w-full text-sm border-white/10 rounded-md bg-neutral-900 text-neutral-100 border focus:border-[#ff6a00] focus:ring-[#ff6a00]/20 focus:ring-2 placeholder:text-neutral-500 disabled:bg-neutral-800 disabled:text-neutral-500" 
+              className="w-full text-sm border-stampa-border rounded-md bg-stampa-surface text-neutral-100 border focus:border-[#ff6a00] focus:ring-[#ff6a00]/20 focus:ring-2 placeholder:text-neutral-500 disabled:bg-neutral-800 disabled:text-neutral-500" 
               placeholder="¿Cómo participar? ¿Cuáles son los premios?..." 
             />
           </div>
@@ -109,7 +109,7 @@ export default function NuevoSorteoPage() {
               name="draw_date" 
               value={formData.draw_date} 
               onChange={handleChange} 
-              className="w-full text-sm border-white/10 rounded-md bg-neutral-900 text-neutral-100 border focus:border-[#ff6a00] focus:ring-[#ff6a00]/20 focus:ring-2 placeholder:text-neutral-500 disabled:bg-neutral-800 disabled:text-neutral-500" 
+              className="w-full text-sm border-stampa-border rounded-md bg-stampa-surface text-neutral-100 border focus:border-[#ff6a00] focus:ring-[#ff6a00]/20 focus:ring-2 placeholder:text-neutral-500 disabled:bg-neutral-800 disabled:text-neutral-500" 
             />
           </div>
           <div>
@@ -118,7 +118,7 @@ export default function NuevoSorteoPage() {
               name="status" 
               value={formData.status} 
               onChange={handleChange} 
-              className="w-full text-sm border-white/10 rounded-md bg-neutral-900 text-neutral-100 border focus:border-[#ff6a00] focus:ring-[#ff6a00]/20 focus:ring-2 placeholder:text-neutral-500 disabled:bg-neutral-800 disabled:text-neutral-500"
+              className="w-full text-sm border-stampa-border rounded-md bg-stampa-surface text-neutral-100 border focus:border-[#ff6a00] focus:ring-[#ff6a00]/20 focus:ring-2 placeholder:text-neutral-500 disabled:bg-neutral-800 disabled:text-neutral-500"
             >
               <option value="draft">Borrador</option>
               <option value="active">Activo (Visible)</option>
@@ -133,16 +133,16 @@ export default function NuevoSorteoPage() {
                 name="is_active" 
                 checked={formData.is_active} 
                 onChange={handleChange} 
-                className="rounded text-[#ff6a00] focus:ring-[#ff6a00]/20" 
+                className="rounded text-stampa-orange focus:ring-[#ff6a00]/20" 
               />
               <span className="text-sm font-semibold text-gray-300">Sorteo Activo en la plataforma (Sólo puede haber uno activo visible a la vez preferentemente)</span>
             </label>
           </div>
         </div>
 
-        <div className="flex justify-end gap-3 pt-4 border-t border-white/5">
+        <div className="flex justify-end gap-3 pt-4 border-t border-stampa-border">
           <Link href="/admin/sorteos">
-            <GhostButton className="px-4 py-2 border border-white/10 font-bold text-gray-400 hover:bg-[#0a0a0a]">Cancelar</GhostButton>
+            <GhostButton className="px-4 py-2 border border-stampa-border font-bold text-gray-400 hover:bg-stampa-bg-soft">Cancelar</GhostButton>
           </Link>
           <PrimaryButton onClick={handleSave} disabled={saving} className="flex items-center gap-2 px-6">
             <Save size={16} /> {saving ? "Guardando..." : "Guardar y Continuar"}

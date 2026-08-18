@@ -518,7 +518,7 @@ export default function StockPage() {
   const lowFilamentsCount = filaments.filter((r) => r.remaining_grams < 200).length;
   const totalLowCount = lowProductsCount + lowFilamentsCount;
 
-  if (loading) return <div className="py-24 flex justify-center"><Loader2 className="animate-spin h-8 w-8 text-orange-500" /></div>;
+  if (loading) return <div className="py-24 flex justify-center"><Loader2 className="animate-spin h-8 w-8 text-stampa-orange" /></div>;
 
   return (
     <div className="pb-24">
@@ -546,7 +546,7 @@ export default function StockPage() {
 
       {totalLowCount > 0 && (
         <div className="mb-5 flex items-center gap-2.5 rounded-xl border border-orange-200 bg-orange-50 px-4 py-3 text-sm text-orange-700">
-          <AlertTriangle size={16} className="text-orange-600 shrink-0" />
+          <AlertTriangle size={16} className="text-stampa-orange shrink-0" />
           <p>
             {(() => {
               const prodText = lowProductsCount > 0 
@@ -581,19 +581,19 @@ export default function StockPage() {
         </div>
       )}
 
-      <div className="mb-6 flex flex-col sm:flex-row items-start sm:items-center justify-between border-b border-white/10 flex-wrap gap-4 pb-2 sm:pb-0">
+      <div className="mb-6 flex flex-col sm:flex-row items-start sm:items-center justify-between border-b border-stampa-border flex-wrap gap-4 pb-2 sm:pb-0">
         <div className="flex overflow-x-auto w-full sm:w-auto hide-scrollbar">
           <button
             onClick={() => setTab("productos")}
             className={`flex items-center gap-2 border-b-2 px-4 py-3 text-sm font-semibold transition-colors whitespace-nowrap ${
               tab === "productos"
-                ? "border-orange-500 text-orange-600"
+                ? "border-stampa-orange text-stampa-orange"
                 : "border-transparent text-gray-400 hover:text-gray-300 hover:border-white/20"
             }`}
           >
             <Package size={16} /> Productos
             {lowProductsCount > 0 && (
-              <span className="flex h-5 w-5 items-center justify-center rounded-full bg-orange-100 text-[10px] text-orange-600 shrink-0">
+              <span className="flex h-5 w-5 items-center justify-center rounded-full bg-orange-100 text-[10px] text-stampa-orange shrink-0">
                 {lowProductsCount}
               </span>
             )}
@@ -602,13 +602,13 @@ export default function StockPage() {
             onClick={() => setTab("filamentos")}
             className={`flex items-center gap-2 border-b-2 px-4 py-3 text-sm font-semibold transition-colors whitespace-nowrap ${
               tab === "filamentos"
-                ? "border-orange-500 text-orange-600"
+                ? "border-stampa-orange text-stampa-orange"
                 : "border-transparent text-gray-400 hover:text-gray-300 hover:border-white/20"
             }`}
           >
             <Box size={16} /> Filamentos
             {lowFilamentsCount > 0 && (
-              <span className="flex h-5 w-5 items-center justify-center rounded-full bg-orange-100 text-[10px] text-orange-600 shrink-0">
+              <span className="flex h-5 w-5 items-center justify-center rounded-full bg-orange-100 text-[10px] text-stampa-orange shrink-0">
                 {lowFilamentsCount}
               </span>
             )}
@@ -625,7 +625,7 @@ export default function StockPage() {
                   setEditingFilamentId("new");
                   setFilamentModalOpen(true);
                 }}
-                className="flex items-center justify-center gap-2 text-sm font-bold text-white bg-orange-600 hover:bg-orange-500 px-4 py-2 rounded-lg transition-colors border border-orange-500 w-full sm:w-auto"
+                className="flex items-center justify-center gap-2 text-sm font-bold text-white bg-stampa-orange hover:bg-stampa-orange px-4 py-2 rounded-lg transition-colors border border-stampa-orange w-full sm:w-auto"
               >
                 <Plus size={15} /> Nuevo Filamento
               </button>
@@ -645,7 +645,7 @@ export default function StockPage() {
                   placeholder="Buscar filamentos..." 
                   value={filamentSearch}
                   onChange={(e) => setFilamentSearch(e.target.value)}
-                  className="w-full pl-10 pr-10 py-2.5 bg-[#111] border border-white/10 rounded-xl text-sm text-white focus:outline-none focus:border-orange-500/50"
+                  className="w-full pl-10 pr-10 py-2.5 bg-stampa-surface border border-stampa-border rounded-xl text-sm text-white focus:outline-none focus:border-stampa-orange/50"
                 />
                 {filamentSearch && (
                   <button onClick={() => setFilamentSearch("")} className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-white">
@@ -658,13 +658,13 @@ export default function StockPage() {
                 <select
                   value={selectedMaterial}
                   onChange={(e) => setSelectedMaterial(e.target.value)}
-                  className="bg-[#111] border border-white/10 rounded-xl px-3 py-2.5 text-sm text-white focus:outline-none focus:border-orange-500/50 min-w-[150px]"
+                  className="bg-stampa-surface border border-stampa-border rounded-xl px-3 py-2.5 text-sm text-white focus:outline-none focus:border-stampa-orange/50 min-w-[150px]"
                 >
                   <option value="all">Todos los materiales</option>
                   {uniqueMaterials.map((m: any) => <option key={m} value={m}>{m}</option>)}
                 </select>
                 
-                <div className="flex bg-[#111] border border-white/10 rounded-xl overflow-x-auto w-full sm:max-w-md hide-scrollbar items-center p-1">
+                <div className="flex bg-stampa-surface border border-stampa-border rounded-xl overflow-x-auto w-full sm:max-w-md hide-scrollbar items-center p-1">
                   <button
                     onClick={() => setSelectedColor("all")}
                     className={`px-3 py-1.5 text-xs font-medium rounded-lg whitespace-nowrap transition-colors ${
@@ -693,7 +693,7 @@ export default function StockPage() {
                       setSelectedMaterial("all");
                       setSelectedColor("all");
                     }}
-                    className="w-full sm:w-auto px-4 py-2.5 bg-[#111] border border-white/10 rounded-xl text-sm text-gray-400 hover:text-white hover:bg-white/5 transition-colors shrink-0"
+                    className="w-full sm:w-auto px-4 py-2.5 bg-stampa-surface border border-stampa-border rounded-xl text-sm text-gray-400 hover:text-white hover:bg-white/5 transition-colors shrink-0"
                     title="Limpiar filtros"
                   >
                     Limpiar
@@ -714,7 +714,7 @@ export default function StockPage() {
               placeholder="Buscar productos..." 
               value={searchProduct}
               onChange={(e) => setSearchProduct(e.target.value)}
-              className="w-full pl-10 pr-10 py-2.5 bg-white/5 border border-white/10 rounded-xl text-sm text-white focus:outline-none focus:border-orange-500/50"
+              className="w-full pl-10 pr-10 py-2.5 bg-white/5 border border-stampa-border rounded-xl text-sm text-white focus:outline-none focus:border-stampa-orange/50"
             />
             {searchProduct && (
               <button onClick={() => setSearchProduct("")} className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-white">
@@ -728,7 +728,7 @@ export default function StockPage() {
       <Card className="overflow-hidden p-0">
         <div className="overflow-x-auto">
           <table className="w-full min-w-[720px] text-left text-sm">
-            <thead className="bg-[#0a0a0a] text-xs font-semibold uppercase tracking-wide text-gray-400">
+            <thead className="bg-stampa-bg-soft text-xs font-semibold uppercase tracking-wide text-gray-400">
               <tr>
                 <th className="px-5 py-3">Nombre</th>
                 <th className="px-5 py-3">{tab === "productos" ? "Precio Venta" : "Tipo / Color"}</th>
@@ -754,13 +754,13 @@ export default function StockPage() {
 
                 return (
                   <React.Fragment key={p.id}>
-                    <tr className="hover:bg-[#0a0a0a] transition-colors">
+                    <tr className="hover:bg-stampa-bg-soft transition-colors">
                       <td className="px-5 py-3.5 font-semibold text-white">
                         <div className="flex items-center gap-3">
                           {p.image_url ? (
-                            <img src={p.image_url} alt="" className="w-8 h-8 rounded bg-white/5 object-cover border border-white/10" />
+                            <img src={p.image_url} alt="" className="w-8 h-8 rounded bg-white/5 object-cover border border-stampa-border" />
                           ) : (
-                            <div className="w-8 h-8 rounded bg-white/5 flex items-center justify-center border border-white/10 text-gray-400 text-xs">📦</div>
+                            <div className="w-8 h-8 rounded bg-white/5 flex items-center justify-center border border-stampa-border text-gray-400 text-xs">📦</div>
                           )}
                           <div className="flex flex-col">
                             <span>{p.name}</span>
@@ -797,7 +797,7 @@ export default function StockPage() {
                                 title="Este ajuste modifica el stock del producto terminado restando stock de las piezas."
                               >
                                 <Package size={14} /> Armar
-                                <span className="bg-[#111] px-1.5 py-0.5 rounded text-[10px] border border-indigo-100">{maxAssemble}</span>
+                                <span className="bg-stampa-surface px-1.5 py-0.5 rounded text-[10px] border border-indigo-100">{maxAssemble}</span>
                               </button>
                             </div>
                           )}
@@ -810,13 +810,13 @@ export default function StockPage() {
                               placeholder="Cant."
                               value={productAdjustAmounts[p.id] || ""}
                               onChange={(e) => setProductAdjustAmounts(prev => ({...prev, [p.id]: e.target.value}))}
-                              className="w-16 h-8 text-xs border border-white/10 rounded-md px-2 bg-[#0a0a0a] text-white focus:border-orange-500 focus:ring-orange-500 outline-none"
+                              className="w-16 h-8 text-xs border border-stampa-border rounded-md px-2 bg-stampa-bg-soft text-white focus:border-stampa-orange focus:ring-stampa-orange outline-none"
                               disabled={adjustingProduct === p.id}
                             />
                             <button
                               onClick={() => handleAdjustProductStock(p.id, "subtract")}
                               disabled={adjustingProduct === p.id}
-                              className="flex h-8 w-8 items-center justify-center rounded-md border border-white/10 text-red-600 bg-[#111] hover:bg-red-50 disabled:opacity-50 transition-colors shadow-sm"
+                              className="flex h-8 w-8 items-center justify-center rounded-md border border-stampa-border text-red-600 bg-stampa-surface hover:bg-red-50 disabled:opacity-50 transition-colors shadow-sm"
                               title="Restar terminado"
                             >
                               {adjustingProduct === p.id ? <Loader2 size={14} className="animate-spin" /> : <Minus size={14} />}
@@ -824,7 +824,7 @@ export default function StockPage() {
                             <button
                               onClick={() => handleAdjustProductStock(p.id, "add")}
                               disabled={adjustingProduct === p.id}
-                              className="flex h-8 w-8 items-center justify-center rounded-md border border-white/10 text-green-600 bg-[#111] hover:bg-green-50 disabled:opacity-50 transition-colors shadow-sm"
+                              className="flex h-8 w-8 items-center justify-center rounded-md border border-stampa-border text-green-600 bg-stampa-surface hover:bg-green-50 disabled:opacity-50 transition-colors shadow-sm"
                               title="Sumar terminado"
                             >
                               {adjustingProduct === p.id ? <Loader2 size={14} className="animate-spin" /> : <Plus size={14} />}
@@ -841,7 +841,7 @@ export default function StockPage() {
                             <History size={16} />
                           </button>
                           <Link href={`/productos?edit=${p.id}`}>
-                            <button className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-bold rounded-lg border border-white/10 text-gray-400 hover:bg-white/5 hover:text-white transition-colors" title="Editar">
+                            <button className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-bold rounded-lg border border-stampa-border text-gray-400 hover:bg-white/5 hover:text-white transition-colors" title="Editar">
                               <Edit2 size={14} /> Editar
                             </button>
                           </Link>
@@ -871,7 +871,7 @@ export default function StockPage() {
                       }).join(" / ");
                       
                       return (
-                      <tr key={c.id} className="bg-[#0a0a0a]/50 border-t border-white/5">
+                      <tr key={c.id} className="bg-stampa-bg-soft/50 border-t border-stampa-border">
                         <td className="px-5 py-2 pl-16">
                           <div className="flex items-center gap-2">
                             <div className="w-1.5 h-1.5 rounded-full bg-blue-300"></div>
@@ -893,14 +893,14 @@ export default function StockPage() {
                           <div className="flex justify-end gap-1">
                             <button
                               onClick={() => handleAdjustComponentStock(c.id, -1)}
-                              className="flex h-6 w-6 items-center justify-center rounded border border-white/10 text-gray-400 bg-[#111] hover:bg-[#0a0a0a] hover:text-red-600 transition-colors"
+                              className="flex h-6 w-6 items-center justify-center rounded border border-stampa-border text-gray-400 bg-stampa-surface hover:bg-stampa-bg-soft hover:text-red-600 transition-colors"
                               disabled={c.stock_quantity <= 0}
                             >
                               <Minus size={12} />
                             </button>
                             <button
                               onClick={() => handleAdjustComponentStock(c.id, 1)}
-                              className="flex h-6 w-6 items-center justify-center rounded border border-white/10 text-gray-400 bg-[#111] hover:bg-[#0a0a0a] hover:text-green-600 transition-colors"
+                              className="flex h-6 w-6 items-center justify-center rounded border border-stampa-border text-gray-400 bg-stampa-surface hover:bg-stampa-bg-soft hover:text-green-600 transition-colors"
                             >
                               <Plus size={12} />
                             </button>
@@ -922,7 +922,7 @@ export default function StockPage() {
               {tab === "filamentos" && filteredFilaments.map((f) => {
                 const isLow = f.remaining_grams < 200;
                 return (
-                <tr key={f.id} className="hover:bg-[#0a0a0a] transition-colors">
+                <tr key={f.id} className="hover:bg-stampa-bg-soft transition-colors">
                   <td className="px-5 py-3.5 font-semibold text-white">
                     <div className="flex flex-col">
                       <div className="flex items-center gap-3">
@@ -957,13 +957,13 @@ export default function StockPage() {
                           placeholder="g"
                           value={filamentAdjustAmounts[f.id] || ""}
                           onChange={(e) => setFilamentAdjustAmounts(prev => ({...prev, [f.id]: e.target.value}))}
-                          className="w-16 h-8 text-xs border border-white/10 rounded-md px-2 bg-[#0a0a0a] text-white focus:border-orange-500 focus:ring-orange-500 outline-none"
+                          className="w-16 h-8 text-xs border border-stampa-border rounded-md px-2 bg-stampa-bg-soft text-white focus:border-stampa-orange focus:ring-stampa-orange outline-none"
                           disabled={adjustingFilament === f.id}
                         />
                         <button
                           onClick={() => handleAdjustFilamentStock(f.id, "subtract")}
                           disabled={adjustingFilament === f.id}
-                          className="flex h-8 w-8 items-center justify-center rounded-md border border-white/10 text-red-600 bg-[#111] hover:bg-red-50 disabled:opacity-50 transition-colors shadow-sm"
+                          className="flex h-8 w-8 items-center justify-center rounded-md border border-stampa-border text-red-600 bg-stampa-surface hover:bg-red-50 disabled:opacity-50 transition-colors shadow-sm"
                           title="Restar"
                         >
                           {adjustingFilament === f.id ? <Loader2 size={14} className="animate-spin" /> : <Minus size={14} />}
@@ -971,7 +971,7 @@ export default function StockPage() {
                         <button
                           onClick={() => handleAdjustFilamentStock(f.id, "add")}
                           disabled={adjustingFilament === f.id}
-                          className="flex h-8 w-8 items-center justify-center rounded-md border border-white/10 text-green-600 bg-[#111] hover:bg-green-50 disabled:opacity-50 transition-colors shadow-sm"
+                          className="flex h-8 w-8 items-center justify-center rounded-md border border-stampa-border text-green-600 bg-stampa-surface hover:bg-green-50 disabled:opacity-50 transition-colors shadow-sm"
                           title="Sumar"
                         >
                           {adjustingFilament === f.id ? <Loader2 size={14} className="animate-spin" /> : <Plus size={14} />}
@@ -993,7 +993,7 @@ export default function StockPage() {
                           setEditingFilamentId(f.id);
                           setFilamentModalOpen(true);
                         }}
-                        className="text-gray-400 hover:text-orange-600 p-1.5 rounded-lg hover:bg-orange-50 transition-colors" title="Editar filamento"
+                        className="text-gray-400 hover:text-stampa-orange p-1.5 rounded-lg hover:bg-orange-50 transition-colors" title="Editar filamento"
                       >
                         <Edit2 size={16} />
                       </button>
@@ -1024,7 +1024,7 @@ export default function StockPage() {
               <p className="text-gray-400 text-sm mb-4">No encontramos productos con esa búsqueda.</p>
               <button
                 onClick={() => setSearchProduct("")}
-                className="px-4 py-2 bg-white/5 hover:bg-white/10 border border-white/10 rounded-lg text-sm text-white transition-colors"
+                className="px-4 py-2 bg-white/5 hover:bg-white/10 border border-stampa-border rounded-lg text-sm text-white transition-colors"
               >
                 Limpiar búsqueda
               </button>
@@ -1042,9 +1042,9 @@ export default function StockPage() {
 
       {/* History Modal for Filaments */}
       {historyModalOpen && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50">
-          <div className="bg-[#111] rounded-xl shadow-xl max-w-lg w-full max-h-[90vh] flex flex-col overflow-hidden border border-white/10">
-            <div className="p-4 border-b border-white/5 flex justify-between items-center bg-[#0a0a0a]">
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-stampa-bg/50">
+          <div className="bg-stampa-surface rounded-xl shadow-xl max-w-lg w-full max-h-[90vh] flex flex-col overflow-hidden border border-stampa-border">
+            <div className="p-4 border-b border-stampa-border flex justify-between items-center bg-stampa-bg-soft">
               <div>
                 <h3 className="text-lg font-bold text-white">Historial de Movimientos</h3>
                 <p className="text-xs text-gray-400">Últimos 10 cambios en este filamento.</p>
@@ -1055,7 +1055,7 @@ export default function StockPage() {
             </div>
             <div className="p-4 overflow-y-auto flex-1">
               {historyLoading ? (
-                <div className="py-8 flex justify-center"><Loader2 className="animate-spin text-orange-500" /></div>
+                <div className="py-8 flex justify-center"><Loader2 className="animate-spin text-stampa-orange" /></div>
               ) : historyMovements.length === 0 ? (
                 <div className="text-center py-8 text-sm text-gray-400">No hay movimientos registrados.</div>
               ) : (
@@ -1063,7 +1063,7 @@ export default function StockPage() {
                   {historyMovements.map(m => {
                     const isPositive = m.grams_delta > 0;
                     return (
-                      <div key={m.id} className="flex flex-col gap-1 text-sm border-b border-white/5 pb-3">
+                      <div key={m.id} className="flex flex-col gap-1 text-sm border-b border-stampa-border pb-3">
                         <div className="flex justify-between items-start">
                           <span className={`font-bold ${isPositive ? 'text-green-600' : 'text-red-600'}`}>
                             {isPositive ? '+' : ''}{m.grams_delta}g
@@ -1088,9 +1088,9 @@ export default function StockPage() {
 
       {/* History Modal for Products */}
       {historyProductModalOpen && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50">
-          <div className="bg-[#111] rounded-xl shadow-xl max-w-lg w-full max-h-[90vh] flex flex-col overflow-hidden border border-white/10">
-            <div className="p-4 border-b border-white/5 flex justify-between items-center bg-[#0a0a0a]">
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-stampa-bg/50">
+          <div className="bg-stampa-surface rounded-xl shadow-xl max-w-lg w-full max-h-[90vh] flex flex-col overflow-hidden border border-stampa-border">
+            <div className="p-4 border-b border-stampa-border flex justify-between items-center bg-stampa-bg-soft">
               <div>
                 <h3 className="text-lg font-bold text-white">Historial de Movimientos</h3>
                 <p className="text-xs text-gray-400">Últimos 10 cambios en este producto.</p>
@@ -1101,7 +1101,7 @@ export default function StockPage() {
             </div>
             <div className="p-4 overflow-y-auto flex-1">
               {historyProductLoading ? (
-                <div className="py-8 flex justify-center"><Loader2 className="animate-spin text-orange-500" /></div>
+                <div className="py-8 flex justify-center"><Loader2 className="animate-spin text-stampa-orange" /></div>
               ) : historyProductMovements.length === 0 ? (
                 <div className="text-center py-8 text-sm text-gray-400">No hay movimientos registrados.</div>
               ) : (
@@ -1109,7 +1109,7 @@ export default function StockPage() {
                   {historyProductMovements.map(m => {
                     const isPositive = m.quantity_delta > 0;
                     return (
-                      <div key={m.id} className="flex flex-col gap-1 text-sm border-b border-white/5 pb-3">
+                      <div key={m.id} className="flex flex-col gap-1 text-sm border-b border-stampa-border pb-3">
                         <div className="flex justify-between items-start">
                           <span className={`font-bold ${isPositive ? 'text-green-600' : 'text-red-600'}`}>
                             {isPositive ? '+' : ''}{m.quantity_delta} u.
@@ -1134,11 +1134,11 @@ export default function StockPage() {
 
       {/* Consume by Product Modal */}
       {consumeModalOpen && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4">
-          <div className="bg-[#111] w-full max-w-2xl rounded-2xl shadow-2xl overflow-hidden flex flex-col max-h-[90vh] border border-white/10">
-            <div className="flex items-center justify-between px-6 py-4 border-b border-white/5">
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-stampa-bg/40 p-4">
+          <div className="bg-stampa-surface w-full max-w-2xl rounded-2xl shadow-2xl overflow-hidden flex flex-col max-h-[90vh] border border-stampa-border">
+            <div className="flex items-center justify-between px-6 py-4 border-b border-stampa-border">
               <h3 className="font-bold text-white flex items-center gap-2">
-                <Package size={18} className="text-orange-500" /> Descontar por producto
+                <Package size={18} className="text-stampa-orange" /> Descontar por producto
               </h3>
               <button onClick={() => setConsumeModalOpen(false)} className="text-gray-400 hover:text-gray-300">
                 <X size={20} />
@@ -1153,7 +1153,7 @@ export default function StockPage() {
                   <select 
                     value={consumeSelectedProductId} 
                     onChange={(e) => setConsumeSelectedProductId(e.target.value)} 
-                    className="flex-1 text-sm border-white/20 rounded-lg focus:border-orange-500 focus:ring-orange-500 bg-[#0a0a0a] text-white"
+                    className="flex-1 text-sm border-white/20 rounded-lg focus:border-stampa-orange focus:ring-stampa-orange bg-stampa-bg-soft text-white"
                   >
                     <option value="">Buscar producto o parte...</option>
                     {products.filter(p => p.is_active).map(p => {
@@ -1185,10 +1185,10 @@ export default function StockPage() {
                   <h4 className="text-sm font-semibold text-white mb-3">Productos a descontar</h4>
                   <div className="space-y-3">
                     {consumeCart.map((item, idx) => (
-                      <div key={idx} className="flex items-center justify-between bg-[#0a0a0a] border border-white/10 p-3 rounded-lg">
+                      <div key={idx} className="flex items-center justify-between bg-stampa-bg-soft border border-stampa-border p-3 rounded-lg">
                         <div className="flex items-center gap-3 overflow-hidden">
                           {item.product?.image_url ? (
-                            <img src={item.product.image_url} alt="" className="w-10 h-10 rounded-md object-cover border border-white/10 shrink-0" />
+                            <img src={item.product.image_url} alt="" className="w-10 h-10 rounded-md object-cover border border-stampa-border shrink-0" />
                           ) : (
                             <div className="w-10 h-10 rounded-md bg-gray-200 flex items-center justify-center shrink-0 text-gray-400">
                               {item.type === "component" ? "🧩" : "📦"}
@@ -1214,7 +1214,7 @@ export default function StockPage() {
                                 const q = parseInt(e.target.value) || 1;
                                 setConsumeCart(prev => prev.map((p, i) => i === idx ? { ...p, quantity: Math.max(1, q) } : p));
                               }}
-                              className="w-16 text-sm border-white/20 rounded focus:border-orange-500 focus:ring-orange-500 p-1 bg-[#0a0a0a] text-white"
+                              className="w-16 text-sm border-white/20 rounded focus:border-stampa-orange focus:ring-stampa-orange p-1 bg-stampa-bg-soft text-white"
                             />
                           </div>
                           <button onClick={() => setConsumeCart(prev => prev.filter((_, i) => i !== idx))} className="text-red-400 hover:text-red-600 p-1">
@@ -1264,13 +1264,13 @@ export default function StockPage() {
 
               {/* Settings */}
               {consumeCart.length > 0 && (
-                <div className="bg-[#0a0a0a] border border-white/10 p-4 rounded-xl flex items-start gap-3">
+                <div className="bg-stampa-bg-soft border border-stampa-border p-4 rounded-xl flex items-start gap-3">
                   <input 
                     type="checkbox" 
                     id="consumeAddStock" 
                     checked={consumeAddStock} 
                     onChange={(e) => setConsumeAddStock(e.target.checked)} 
-                    className="mt-1 rounded text-orange-600 focus:ring-orange-500" 
+                    className="mt-1 rounded text-stampa-orange focus:ring-stampa-orange" 
                   />
                   <div>
                     <label htmlFor="consumeAddStock" className="block text-sm font-bold text-white cursor-pointer">
@@ -1284,17 +1284,17 @@ export default function StockPage() {
               )}
 
             </div>
-            <div className="p-4 border-t border-white/5 flex flex-col-reverse sm:flex-row sm:justify-end gap-3 bg-[#0a0a0a]">
+            <div className="p-4 border-t border-stampa-border flex flex-col-reverse sm:flex-row sm:justify-end gap-3 bg-stampa-bg-soft">
               <button 
                 onClick={() => setConsumeModalOpen(false)} 
-                className="w-full sm:w-auto px-4 py-2 text-sm font-bold text-gray-400 hover:bg-[#111]/5 rounded-lg transition-colors text-center"
+                className="w-full sm:w-auto px-4 py-2 text-sm font-bold text-gray-400 hover:bg-stampa-surface/5 rounded-lg transition-colors text-center"
               >
                 Cancelar
               </button>
               <button 
                 onClick={handleConfirmConsume} 
                 disabled={consumeCart.length === 0 || !calculateConsumePreview().isValid || consumeLoading}
-                className="w-full sm:w-auto flex justify-center items-center gap-2 px-5 py-2 text-sm font-bold bg-orange-500 hover:bg-orange-600 disabled:opacity-50 disabled:cursor-not-allowed text-white rounded-lg transition-colors shadow-sm"
+                className="w-full sm:w-auto flex justify-center items-center gap-2 px-5 py-2 text-sm font-bold bg-stampa-orange hover:bg-stampa-orange disabled:opacity-50 disabled:cursor-not-allowed text-white rounded-lg transition-colors shadow-sm"
               >
                 {consumeLoading ? <Loader2 size={16} className="animate-spin" /> : <Package size={16} />}
                 Confirmar descuento
@@ -1306,11 +1306,11 @@ export default function StockPage() {
 
       {/* Filament Editor Modal */}
       {filamentModalOpen && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm p-4">
-          <div className="w-full max-w-2xl bg-[#0a0a0a] rounded-xl shadow-2xl border border-white/10 overflow-hidden flex flex-col max-h-[90vh]">
-            <div className="flex justify-between items-center p-4 border-b border-white/10">
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-stampa-bg/60 backdrop-blur-sm p-4">
+          <div className="w-full max-w-2xl bg-stampa-bg-soft rounded-xl shadow-2xl border border-stampa-border overflow-hidden flex flex-col max-h-[90vh]">
+            <div className="flex justify-between items-center p-4 border-b border-stampa-border">
               <h3 className="text-lg font-bold text-white flex items-center gap-2">
-                <Box size={20} className="text-orange-500" />
+                <Box size={20} className="text-stampa-orange" />
                 {editingFilamentId === "new" ? "Nuevo Filamento" : "Editar Filamento"}
               </h3>
               <button 

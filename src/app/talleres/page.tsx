@@ -58,7 +58,7 @@ export default function TalleresPage() {
   return (
     <div className="space-y-8 pb-10">
       {/* Header Premium & Buscador Integrado */}
-      <div className="bg-[#111] border border-white/10 rounded-2xl p-6 sm:p-8 flex flex-col gap-6 relative overflow-hidden">
+      <div className="bg-stampa-surface border border-stampa-border rounded-2xl p-6 sm:p-8 flex flex-col gap-6 relative overflow-hidden">
         <div className="absolute top-0 right-0 w-64 h-64 bg-blue-500/5 rounded-full blur-3xl pointer-events-none -translate-y-1/2 translate-x-1/2"></div>
         <div className="relative z-10 flex flex-col md:flex-row md:items-end justify-between gap-6">
           <div className="max-w-xl">
@@ -88,7 +88,7 @@ export default function TalleresPage() {
                 value={searchTerm}
                 onChange={(e) => setSearchTerm(e.target.value)}
                 placeholder="Buscar talleres..."
-                className="w-full bg-[#0a0a0a] border border-white/10 text-white text-sm rounded-xl py-3 pl-10 pr-4 focus:outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-500 transition-all"
+                className="w-full bg-stampa-bg-soft border border-stampa-border text-white text-sm rounded-xl py-3 pl-10 pr-4 focus:outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-500 transition-all"
               />
               {searchTerm && (
                 <button
@@ -122,11 +122,11 @@ export default function TalleresPage() {
               ))}
             </div>
           ) : (
-            <div className="bg-[#111] border border-white/10 p-8 rounded-xl text-center">
+            <div className="bg-stampa-surface border border-stampa-border p-8 rounded-xl text-center">
               <p className="text-gray-400 mb-4">No encontramos talleres con esa búsqueda.</p>
               <button
                 onClick={() => setSearchTerm("")}
-                className="px-4 py-2 bg-white/5 hover:bg-white/10 border border-white/10 rounded-lg text-sm text-white transition-colors"
+                className="px-4 py-2 bg-white/5 hover:bg-white/10 border border-stampa-border rounded-lg text-sm text-white transition-colors"
               >
                 Limpiar búsqueda
               </button>
@@ -135,7 +135,7 @@ export default function TalleresPage() {
         </div>
       ) : (
         <div className="max-w-xl mx-auto mt-12 text-center">
-          <div className="bg-[#111] rounded-3xl p-10 border border-white/10 shadow-xl">
+          <div className="bg-stampa-surface rounded-3xl p-10 border border-stampa-border shadow-xl">
             <div className="w-20 h-20 bg-white/5 rounded-full flex items-center justify-center mx-auto mb-6">
               <PenTool size={40} className="text-gray-500" />
             </div>

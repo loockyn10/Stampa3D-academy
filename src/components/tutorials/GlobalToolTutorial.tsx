@@ -223,7 +223,7 @@ export function GlobalToolTutorial() {
       <button
         onClick={handleOpenManual}
         title="Ver tutorial"
-        className="fixed bottom-7 right-24 z-[100] flex h-10 w-10 items-center justify-center rounded-full border border-orange-500/40 bg-orange-500 text-lg font-bold text-white shadow-2xl shadow-orange-500/25 transition hover:scale-105 hover:bg-orange-400 active:scale-95"
+        className="fixed bottom-7 right-24 z-[100] flex h-10 w-10 items-center justify-center rounded-full border border-stampa-orange/40 bg-stampa-orange text-lg font-bold text-white shadow-2xl shadow-stampa-orange/25 transition hover:scale-105 hover:bg-orange-400 active:scale-95"
       >
         ?
       </button>
@@ -231,13 +231,13 @@ export function GlobalToolTutorial() {
 
       {/* Modal */}
       {open && (
-        <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/70 backdrop-blur-sm p-4 animate-in fade-in duration-200">
-          <div className="bg-neutral-950 w-full max-w-3xl rounded-2xl border border-white/10 shadow-2xl overflow-hidden flex flex-col max-h-[90vh]">
+        <div className="fixed inset-0 z-[100] flex items-center justify-center bg-stampa-bg/70 backdrop-blur-sm p-4 animate-in fade-in duration-200">
+          <div className="bg-stampa-bg w-full max-w-3xl rounded-2xl border border-stampa-border shadow-2xl overflow-hidden flex flex-col max-h-[90vh]">
             
             {/* Header */}
-            <div className="flex items-center justify-between px-6 py-4 border-b border-white/10">
+            <div className="flex items-center justify-between px-6 py-4 border-b border-stampa-border">
               <h3 className="font-bold text-white flex items-center gap-2">
-                <HelpCircle size={18} className="text-[#ff6a00]" /> 
+                <HelpCircle size={18} className="text-stampa-orange" /> 
                 {tutorial.title || "Tutorial de la herramienta"}
               </h3>
               <button 
@@ -256,10 +256,10 @@ export function GlobalToolTutorial() {
                 </p>
               )}
 
-              <div className="rounded-xl overflow-hidden bg-black/50 border border-white/5 aspect-video w-full flex items-center justify-center relative shadow-inner">
+              <div className="rounded-xl overflow-hidden bg-stampa-bg/50 border border-stampa-border aspect-video w-full flex items-center justify-center relative shadow-inner">
                 {isPendingTutorialUrl(tutorial.video_url) || !tutorial.video_url ? (
                   <div className="flex flex-col items-center justify-center p-8 text-center">
-                    <AlertCircle size={40} className="text-[#ff6a00]/60 mb-3 animate-pulse" />
+                    <AlertCircle size={40} className="text-stampa-orange/60 mb-3 animate-pulse" />
                     <h4 className="text-white font-bold text-lg mb-1">Tutorial pendiente de cargar</h4>
                     <p className="text-gray-400 text-sm max-w-sm">
                       Cuando el video esté disponible, vas a poder verlo acá.
@@ -287,7 +287,7 @@ export function GlobalToolTutorial() {
                       href={tutorial.video_url} 
                       target="_blank" 
                       rel="noopener noreferrer"
-                      className="inline-flex items-center gap-2 px-6 py-3 bg-[#ff6a00] hover:bg-[#ff7a1a] text-white font-bold rounded-xl transition-colors shadow-lg shadow-orange-500/20"
+                      className="inline-flex items-center gap-2 px-6 py-3 bg-stampa-orange hover:bg-stampa-orange-hover text-white font-bold rounded-xl transition-colors shadow-lg shadow-stampa-orange/20"
                     >
                       Ver video externo
                     </a>
@@ -297,7 +297,7 @@ export function GlobalToolTutorial() {
             </div>
 
             {/* Footer */}
-            <div className="p-4 border-t border-white/10 flex justify-end">
+            <div className="p-4 border-t border-stampa-border flex justify-end">
               <button
                 onClick={handleClose}
                 className="px-6 py-2.5 bg-white/10 hover:bg-white/20 text-white text-sm font-bold rounded-xl transition-colors"

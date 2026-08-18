@@ -106,7 +106,7 @@ export default function AdminMembresiaPage() {
   };
 
   if (loading && !currentSettings) {
-    return <div className="py-24 flex justify-center"><Loader2 className="animate-spin h-8 w-8 text-orange-500" /></div>;
+    return <div className="py-24 flex justify-center"><Loader2 className="animate-spin h-8 w-8 text-stampa-orange" /></div>;
   }
 
   return (
@@ -142,9 +142,9 @@ export default function AdminMembresiaPage() {
             <p className="text-sm text-gray-500">Configuración vigente de la membresía.</p>
           </div>
           
-          <div className="bg-orange-500/10 border border-orange-100 p-4 rounded-xl flex items-center justify-between">
+          <div className="bg-stampa-orange/10 border border-orange-100 p-4 rounded-xl flex items-center justify-between">
             <div>
-              <p className="text-xs font-semibold text-orange-600 uppercase mb-1">Precio Mensual</p>
+              <p className="text-xs font-semibold text-stampa-orange uppercase mb-1">Precio Mensual</p>
               <p className="text-3xl font-black text-white">
                 {currentSettings?.monthly_price ? formatPrice(currentSettings.monthly_price) : "No definido"}
               </p>
@@ -162,7 +162,7 @@ export default function AdminMembresiaPage() {
           )}
         </Card>
 
-        <Card className="p-6 space-y-6 border-orange-500/30">
+        <Card className="p-6 space-y-6 border-stampa-orange/30">
           <div>
             <h3 className="text-lg font-bold text-white">Actualizar Precio</h3>
             <p className="text-sm text-gray-500">Los nuevos usuarios pagarán este monto.</p>
@@ -177,7 +177,7 @@ export default function AdminMembresiaPage() {
                 placeholder="Ej. 15000"
                 value={newPrice}
                 onChange={(e) => setNewPrice(e.target.value)}
-                className="w-full rounded-xl border border-white/20 bg-[#111] px-3 py-2.5 text-sm outline-none focus:border-orange-500 focus:ring-2 focus:ring-orange-100"
+                className="w-full rounded-xl border border-white/20 bg-stampa-surface px-3 py-2.5 text-sm outline-none focus:border-stampa-orange focus:ring-2 focus:ring-orange-100"
               />
             </label>
 
@@ -188,16 +188,16 @@ export default function AdminMembresiaPage() {
                 placeholder="Motivo del cambio..."
                 value={notes}
                 onChange={(e) => setNotes(e.target.value)}
-                className="w-full rounded-xl border border-white/20 bg-[#111] px-3 py-2.5 text-sm outline-none focus:border-orange-500 focus:ring-2 focus:ring-orange-100"
+                className="w-full rounded-xl border border-white/20 bg-stampa-surface px-3 py-2.5 text-sm outline-none focus:border-stampa-orange focus:ring-2 focus:ring-orange-100"
               />
             </label>
 
-            <label className="flex items-start gap-3 p-3 bg-[#0a0a0a] border border-white/10 rounded-lg cursor-pointer hover:bg-[#111]/5 transition-colors">
+            <label className="flex items-start gap-3 p-3 bg-stampa-bg-soft border border-stampa-border rounded-lg cursor-pointer hover:bg-stampa-surface/5 transition-colors">
               <input
                 type="checkbox"
                 checked={applyToExisting}
                 onChange={(e) => setApplyToExisting(e.target.checked)}
-                className="mt-0.5 rounded text-orange-500 focus:ring-orange-500"
+                className="mt-0.5 rounded text-stampa-orange focus:ring-stampa-orange"
               />
               <div className="flex-1">
                 <span className="block text-sm font-semibold text-white">Aplicar también a suscripciones activas existentes</span>
@@ -225,7 +225,7 @@ export default function AdminMembresiaPage() {
           ) : (
             <div className="overflow-x-auto">
               <table className="w-full text-left text-sm text-gray-400">
-                <thead className="border-b border-white/5 bg-[#0a0a0a] text-xs font-semibold uppercase text-gray-500">
+                <thead className="border-b border-stampa-border bg-stampa-bg-soft text-xs font-semibold uppercase text-gray-500">
                   <tr>
                     <th className="px-4 py-3">Fecha</th>
                     <th className="px-4 py-3">Anterior</th>
@@ -236,7 +236,7 @@ export default function AdminMembresiaPage() {
                 </thead>
                 <tbody className="divide-y divide-gray-100">
                   {history.map((h) => (
-                    <tr key={h.id} className="hover:bg-[#0a0a0a]">
+                    <tr key={h.id} className="hover:bg-stampa-bg-soft">
                       <td className="px-4 py-3 whitespace-nowrap">{formatDate(h.created_at)}</td>
                       <td className="px-4 py-3">{formatPrice(h.previous_price)}</td>
                       <td className="px-4 py-3 font-semibold text-white">{formatPrice(h.new_price)}</td>
@@ -244,7 +244,7 @@ export default function AdminMembresiaPage() {
                         {h.apply_to_existing ? (
                           <span className="inline-flex items-center rounded-full bg-blue-500/10 px-2 py-1 text-xs font-medium text-blue-700">Sí</span>
                         ) : (
-                          <span className="inline-flex items-center rounded-full bg-[#111]/5 px-2 py-1 text-xs font-medium text-gray-400">No</span>
+                          <span className="inline-flex items-center rounded-full bg-stampa-surface/5 px-2 py-1 text-xs font-medium text-gray-400">No</span>
                         )}
                       </td>
                       <td className="px-4 py-3">

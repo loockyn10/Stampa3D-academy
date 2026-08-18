@@ -234,7 +234,7 @@ export default function CursoDetailPage({ params }: PageProps) {
   if (loading) {
     return (
       <div className="flex justify-center items-center min-h-[60vh]">
-        <Loader2 className="animate-spin text-[#ff6a00] h-12 w-12" />
+        <Loader2 className="animate-spin text-stampa-orange h-12 w-12" />
       </div>
     );
   }
@@ -247,7 +247,7 @@ export default function CursoDetailPage({ params }: PageProps) {
         </div>
         <h2 className="text-2xl font-bold text-white mb-3">Curso no encontrado</h2>
         <p className="text-gray-400">El curso que estás buscando no existe o no está disponible.</p>
-        <Link href="/cursos" className="mt-6 px-6 py-3 bg-[#ff6a00] text-white rounded-xl font-bold hover:bg-[#e65c00] transition-colors shadow-lg shadow-[#ff6a00]/20">
+        <Link href="/cursos" className="mt-6 px-6 py-3 bg-stampa-orange text-white rounded-xl font-bold hover:bg-[#e65c00] transition-colors shadow-lg shadow-[#ff6a00]/20">
           Volver a cursos
         </Link>
       </div>
@@ -273,7 +273,7 @@ export default function CursoDetailPage({ params }: PageProps) {
   const renderVideo = () => {
     if (!activeLesson || !activeLesson.video_url || !activeLesson.video_url.trim()) {
       return (
-        <div className="flex aspect-video items-center justify-center rounded-2xl bg-[#0a0a0a] border border-white/5 text-6xl text-white">
+        <div className="flex aspect-video items-center justify-center rounded-2xl bg-stampa-bg-soft border border-stampa-border text-6xl text-white">
           <Play size={44} className="opacity-20 text-gray-500" />
           <span className="absolute text-sm mt-20 text-gray-500 font-medium">Esta clase todavía no tiene video cargado.</span>
         </div>
@@ -294,7 +294,7 @@ export default function CursoDetailPage({ params }: PageProps) {
       url.includes('mediadelivery.net/embed')
     ) {
       return (
-        <div className="relative w-full overflow-hidden rounded-2xl bg-black border border-white/10 shadow-2xl" style={{ paddingTop: "56.25%" }}>
+        <div className="relative w-full overflow-hidden rounded-2xl bg-stampa-bg border border-stampa-border shadow-2xl" style={{ paddingTop: "56.25%" }}>
           <iframe
             src={url}
             loading="lazy"
@@ -312,7 +312,7 @@ export default function CursoDetailPage({ params }: PageProps) {
         vimeoId = url.split('player.vimeo.com/video/')[1].split('?')[0];
       }
       return (
-        <div className="aspect-video rounded-2xl overflow-hidden bg-black border border-white/10 shadow-2xl">
+        <div className="aspect-video rounded-2xl overflow-hidden bg-stampa-bg border border-stampa-border shadow-2xl">
           <iframe 
             src={`https://player.vimeo.com/video/${vimeoId}`} 
             className="w-full h-full" 
@@ -329,7 +329,7 @@ export default function CursoDetailPage({ params }: PageProps) {
       else if (url.includes('v=')) ytId = url.split('v=')[1].split('&')[0];
       
       return (
-         <div className="aspect-video rounded-2xl overflow-hidden bg-black border border-white/10 shadow-2xl">
+         <div className="aspect-video rounded-2xl overflow-hidden bg-stampa-bg border border-stampa-border shadow-2xl">
           <iframe 
             src={`https://www.youtube.com/embed/${ytId}`} 
             className="w-full h-full" 
@@ -341,7 +341,7 @@ export default function CursoDetailPage({ params }: PageProps) {
     }
 
     return (
-      <div className="aspect-video rounded-2xl overflow-hidden bg-black border border-white/10 shadow-2xl">
+      <div className="aspect-video rounded-2xl overflow-hidden bg-stampa-bg border border-stampa-border shadow-2xl">
         <video src={url} controls className="w-full h-full" />
       </div>
     );
@@ -357,17 +357,17 @@ export default function CursoDetailPage({ params }: PageProps) {
       </Link>
 
       {/* Header del Curso Premium */}
-      <div className="relative overflow-hidden rounded-3xl bg-[#111] border border-white/10 p-8 shadow-2xl">
+      <div className="relative overflow-hidden rounded-3xl bg-stampa-surface border border-stampa-border p-8 shadow-2xl">
         <div className="absolute inset-0 bg-gradient-to-r from-[#ff6a00]/10 via-transparent to-transparent opacity-50" />
         <div className="relative z-10">
           <div className="flex flex-wrap items-center gap-3 mb-4">
             <span className={`${getCourseLevelClasses(course)} shadow-sm`}>
               {getCourseLevelLabel(course)}
             </span>
-            <span className="flex items-center gap-1.5 bg-white/5 text-gray-300 text-xs font-bold px-3 py-1 rounded-full border border-white/5">
-              <Layers size={14} className="text-[#ff6a00]" /> {totalLessons} lecciones
+            <span className="flex items-center gap-1.5 bg-white/5 text-gray-300 text-xs font-bold px-3 py-1 rounded-full border border-stampa-border">
+              <Layers size={14} className="text-stampa-orange" /> {totalLessons} lecciones
             </span>
-            <span className="flex items-center gap-1.5 bg-white/5 text-gray-300 text-xs font-bold px-3 py-1 rounded-full border border-white/5">
+            <span className="flex items-center gap-1.5 bg-white/5 text-gray-300 text-xs font-bold px-3 py-1 rounded-full border border-stampa-border">
               <Clock size={14} className="text-blue-400" /> {formatDuration(totalDuration)}
             </span>
           </div>
@@ -385,7 +385,7 @@ export default function CursoDetailPage({ params }: PageProps) {
           <div className="flex flex-col gap-4">
             <div className="flex flex-col sm:flex-row sm:items-start justify-between gap-4">
               <h2 className="text-xl font-bold text-white flex items-center gap-2">
-                <Video className="text-[#ff6a00]" size={24} />
+                <Video className="text-stampa-orange" size={24} />
                 {activeLesson ? activeLesson.title : "Selecciona una clase"}
               </h2>
               {user && activeLesson && (
@@ -396,7 +396,7 @@ export default function CursoDetailPage({ params }: PageProps) {
                     className={`inline-flex items-center justify-center gap-2 px-4 py-2 rounded-xl text-sm font-bold transition-all ${
                       progress[activeLesson.id] 
                         ? "bg-green-500/10 text-green-400 border border-green-500/20 hover:bg-green-500/20" 
-                        : "bg-[#111] text-gray-300 border border-white/10 hover:border-white/20 hover:bg-white/5"
+                        : "bg-stampa-surface text-gray-300 border border-stampa-border hover:border-white/20 hover:bg-white/5"
                     }`}
                   >
                     {markingProgress ? <Loader2 className="animate-spin h-4 w-4" /> : <CheckCircle2 className="h-4 w-4" />}
@@ -407,7 +407,7 @@ export default function CursoDetailPage({ params }: PageProps) {
                     return next ? (
                       <button 
                         onClick={() => setActiveLesson(next)}
-                        className="inline-flex items-center justify-center gap-2 px-4 py-2 rounded-xl text-sm font-bold transition-all bg-[#ff6a00] text-white hover:bg-[#e65c00] shadow-lg shadow-[#ff6a00]/20"
+                        className="inline-flex items-center justify-center gap-2 px-4 py-2 rounded-xl text-sm font-bold transition-all bg-stampa-orange text-white hover:bg-[#e65c00] shadow-lg shadow-[#ff6a00]/20"
                       >
                         Siguiente clase
                       </button>
@@ -424,7 +424,7 @@ export default function CursoDetailPage({ params }: PageProps) {
             )}
 
             {activeLesson?.description && (
-              <div className="bg-[#111] p-6 rounded-2xl border border-white/10 shadow-sm">
+              <div className="bg-stampa-surface p-6 rounded-2xl border border-stampa-border shadow-sm">
                 <h3 className="text-sm font-bold text-white mb-2">Acerca de esta clase</h3>
                 <p className="text-sm text-gray-400 leading-relaxed whitespace-pre-wrap">
                   {activeLesson.description}
@@ -434,13 +434,13 @@ export default function CursoDetailPage({ params }: PageProps) {
           </div>
 
           {resources[activeLesson?.id] && resources[activeLesson?.id].length > 0 && (
-            <div className="border border-white/10 rounded-2xl overflow-hidden shadow-sm">
-              <div className="bg-[#111] px-5 py-4 border-b border-white/10">
+            <div className="border border-stampa-border rounded-2xl overflow-hidden shadow-sm">
+              <div className="bg-stampa-surface px-5 py-4 border-b border-stampa-border">
                 <h3 className="text-sm font-bold text-white flex items-center gap-2">
                   <File className="text-blue-400" size={18} /> Recursos de la clase
                 </h3>
               </div>
-              <div className="divide-y divide-white/5 bg-[#0a0a0a]">
+              <div className="divide-y divide-white/5 bg-stampa-bg-soft">
                 {resources[activeLesson.id].map(res => (
                   <div key={res.id} className="flex items-center justify-between p-5 hover:bg-white/5 transition-colors">
                     <div className="flex items-center gap-4">
@@ -452,7 +452,7 @@ export default function CursoDetailPage({ params }: PageProps) {
                         <p className="text-[11px] font-semibold text-gray-500 uppercase tracking-wider">{res.resource_type}</p>
                       </div>
                     </div>
-                    <button onClick={() => handleOpenResource(res.url)} className="px-4 py-2 text-xs font-bold text-white bg-white/5 hover:bg-white/10 border border-white/10 rounded-xl transition-colors">
+                    <button onClick={() => handleOpenResource(res.url)} className="px-4 py-2 text-xs font-bold text-white bg-white/5 hover:bg-white/10 border border-stampa-border rounded-xl transition-colors">
                       Descargar
                     </button>
                   </div>
@@ -465,22 +465,22 @@ export default function CursoDetailPage({ params }: PageProps) {
         {/* Columna Secundaria: Temario, Progreso y Promociones */}
         <div className="space-y-6">
           {user && (
-            <div className="p-6 bg-[#111] rounded-2xl border border-white/10 shadow-lg relative overflow-hidden">
+            <div className="p-6 bg-stampa-surface rounded-2xl border border-stampa-border shadow-lg relative overflow-hidden">
               <div className="absolute top-0 right-0 p-4 opacity-5 pointer-events-none">
                 <GraduationCap size={100} />
               </div>
               <div className="relative z-10">
                 <div className="flex justify-between items-end mb-3">
                   <span className="text-sm font-bold text-gray-300">Tu progreso</span>
-                  <span className="text-2xl font-black text-[#ff6a00] leading-none">{progressPercent}%</span>
+                  <span className="text-2xl font-black text-stampa-orange leading-none">{progressPercent}%</span>
                 </div>
                 <ProgressBar value={progressPercent} className="h-2.5" />
               </div>
             </div>
           )}
 
-          <div className="bg-[#111] rounded-2xl border border-white/10 shadow-lg overflow-hidden flex flex-col max-h-[800px]">
-            <div className="p-5 bg-[#111] border-b border-white/10 flex items-center justify-between z-10 shrink-0">
+          <div className="bg-stampa-surface rounded-2xl border border-stampa-border shadow-lg overflow-hidden flex flex-col max-h-[800px]">
+            <div className="p-5 bg-stampa-surface border-b border-stampa-border flex items-center justify-between z-10 shrink-0">
               <h3 className="text-sm font-bold text-white">Contenido del curso</h3>
               <span className="text-xs font-semibold text-gray-500">{completedCount} de {totalLessons}</span>
             </div>
@@ -490,13 +490,13 @@ export default function CursoDetailPage({ params }: PageProps) {
                 const isOpen = !!openModules[m.id];
                 const modProg = getModuleProgress(m.id);
                 return (
-                  <div key={m.id} className="border-b border-white/5 last:border-0">
+                  <div key={m.id} className="border-b border-stampa-border last:border-0">
                     <button
                       onClick={() => setOpenModules(prev => ({ ...prev, [m.id]: !prev[m.id] }))}
                       className={`w-full flex items-center justify-between p-4 transition-colors text-left ${isOpen ? 'bg-white/5' : 'hover:bg-white/5'}`}
                     >
                       <div className="flex-1 min-w-0 pr-4">
-                        <h4 className="font-bold text-sm text-white truncate group-hover:text-[#ff6a00] transition-colors">
+                        <h4 className="font-bold text-sm text-white truncate group-hover:text-stampa-orange transition-colors">
                           Módulo {m.sort_order}: {m.title}
                         </h4>
                         {modProg && (
@@ -512,7 +512,7 @@ export default function CursoDetailPage({ params }: PageProps) {
                     </button>
                     
                     {isOpen && (
-                      <div className="bg-[#0a0a0a] px-3 py-2 space-y-1 shadow-inner">
+                      <div className="bg-stampa-bg-soft px-3 py-2 space-y-1 shadow-inner">
                         {(lessons[m.id] || []).map((lesson) => {
                           const isActive = activeLesson?.id === lesson.id;
                           const isCompleted = progress[lesson.id];
@@ -522,15 +522,15 @@ export default function CursoDetailPage({ params }: PageProps) {
                               onClick={() => setActiveLesson(lesson)}
                               className={`group flex w-full items-center gap-3 rounded-xl px-3 py-3 text-left transition-all ${
                                 isActive 
-                                  ? "bg-[#ff6a00]/10 border border-[#ff6a00]/20 text-[#ff6a00]" 
-                                  : "border border-transparent hover:bg-white/5 hover:border-white/10 text-gray-400"
+                                  ? "bg-stampa-orange/10 border border-[#ff6a00]/20 text-stampa-orange" 
+                                  : "border border-transparent hover:bg-white/5 hover:border-stampa-border text-gray-400"
                               }`}
                             >
                               <div className="shrink-0 flex items-center justify-center w-6 h-6">
                                 {isCompleted ? (
                                   <CheckCircle2 size={16} className="text-green-500" />
                                 ) : isActive ? (
-                                  <Play size={16} className="text-[#ff6a00] fill-current" />
+                                  <Play size={16} className="text-stampa-orange fill-current" />
                                 ) : (
                                   <Circle size={16} className="text-gray-600 group-hover:text-gray-400 transition-colors" />
                                 )}
@@ -539,7 +539,7 @@ export default function CursoDetailPage({ params }: PageProps) {
                                 {lesson.sort_order}. {lesson.title}
                               </span>
                               {lesson.duration_minutes && (
-                                <span className={`text-[10px] font-bold shrink-0 px-2 py-1 rounded-md ${isActive ? 'bg-[#ff6a00]/20 text-[#ff6a00]' : 'bg-white/5 text-gray-500 group-hover:bg-white/10'}`}>
+                                <span className={`text-[10px] font-bold shrink-0 px-2 py-1 rounded-md ${isActive ? 'bg-stampa-orange/20 text-stampa-orange' : 'bg-white/5 text-gray-500 group-hover:bg-white/10'}`}>
                                   {lesson.duration_minutes}m
                                 </span>
                               )}
