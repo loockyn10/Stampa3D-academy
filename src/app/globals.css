@@ -7,10 +7,10 @@
   --stampa-surface-soft: #2c2c2c;
   --stampa-border: rgba(255, 255, 255, 0.12);
 
-  --stampa-orange: #e7771c;
-  --stampa-orange-hover: #df8525;
+  --stampa-orange: #ff780a;
+  --stampa-orange-hover: #ff8826;
   --stampa-orange-muted: rgba(251, 146, 60, 0.12);
-  --stampa-orange-border: rgba(251, 146, 60, 0.28);
+  --stampa-orange-border: rgba(213, 60, 251, 0.28);
 
   --stampa-text: #f4f4f5;
   --stampa-text-muted: #a1a1aa;

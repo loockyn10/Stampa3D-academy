@@ -19,7 +19,7 @@ export default function AcademiaPage() {
     const fetchData = async () => {
       setLoading(true);
       setError(null);
-      
+
       const { data: { user } } = await supabase.auth.getUser();
       if (user) {
         const { data: profileData } = await supabase
@@ -61,7 +61,7 @@ export default function AcademiaPage() {
         if (coursesData) setCourses(coursesData);
         if (lpData) setLearningPaths(lpData);
       }
-      
+
       setLoading(false);
     };
 
@@ -72,7 +72,7 @@ export default function AcademiaPage() {
     <div className="space-y-8 pb-10">
       {/* Header Premium */}
       <div className="relative overflow-hidden rounded-3xl bg-stampa-surface border border-stampa-border p-8 sm:p-10 shadow-2xl">
-        <div className="absolute inset-0 bg-gradient-to-br from-[#ff6a00]/10 to-transparent pointer-events-none" />
+        <div className="absolute inset-0 bg-gradient-to-br from-[#ff6a00]/20 to-transparent pointer-events-none" />
         <div className="relative z-10 max-w-3xl">
           <div className="flex items-center gap-2 mb-3">
             <span className="rounded-full bg-stampa-orange/10 text-stampa-orange text-xs font-bold px-3 py-1 uppercase tracking-wider border border-[#ff6a00]/20">
@@ -95,14 +95,14 @@ export default function AcademiaPage() {
             <div className="absolute top-0 right-0 p-8 opacity-10 transition-transform group-hover:scale-110 group-hover:opacity-20">
               <BookOpen size={100} className="text-stampa-orange" />
             </div>
-            
+
             <div className="relative z-10">
               <h2 className="text-2xl font-bold text-white mb-3">Cursos</h2>
               <p className="text-gray-400 max-w-[85%]">
                 Aprendé de forma estructurada, desde fundamentos hasta herramientas avanzadas.
               </p>
             </div>
-            
+
             <div className="relative z-10 mt-8 flex items-center text-stampa-orange font-bold text-sm uppercase tracking-wider">
               Explorar cursos
               <ArrowRight className="ml-2 w-4 h-4 transition-transform group-hover:translate-x-1" />
@@ -116,14 +116,14 @@ export default function AcademiaPage() {
             <div className="absolute top-0 right-0 p-8 opacity-10 transition-transform group-hover:scale-110 group-hover:opacity-20">
               <PenTool size={100} className="text-blue-500" />
             </div>
-            
+
             <div className="relative z-10">
               <h2 className="text-2xl font-bold text-white mb-3">Talleres</h2>
               <p className="text-gray-400 max-w-[85%]">
                 Construí proyectos reales paso a paso y aplicá lo aprendido en productos concretos.
               </p>
             </div>
-            
+
             <div className="relative z-10 mt-8 flex items-center text-blue-500 font-bold text-sm uppercase tracking-wider">
               Explorar talleres
               <ArrowRight className="ml-2 w-4 h-4 transition-transform group-hover:translate-x-1" />
