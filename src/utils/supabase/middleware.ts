@@ -34,6 +34,20 @@ export async function updateSession(request: NextRequest) {
 
   const { pathname } = request.nextUrl
 
+  const publicApiRoutes = [
+    "/api/mercadopago/create-subscription",
+    "/api/mercadopago/sync-subscription",
+    "/api/mercadopago/webhook",
+  ];
+
+  const isPublicApiRoute = publicApiRoutes.some((route) =>
+    pathname === route || pathname.startsWith(`${route}/`)
+  );
+
+  if (isPublicApiRoute) {
+    return supabaseResponse;
+  }
+
   // Define public routes
   const isPublicRoute = 
     pathname.startsWith('/login') || 
