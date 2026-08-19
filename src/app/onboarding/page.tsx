@@ -64,7 +64,7 @@ export default function OnboardingPage() {
       const { data: { user } } = await supabase.auth.getUser();
       if (!user) throw new Error("No user found");
 
-      let payload = {};
+      let payload: any = {};
       if (isSkip) {
         payload = {
           onboarding_completed: true,
@@ -87,20 +87,51 @@ export default function OnboardingPage() {
         };
       }
 
-      const { error } = await supabase
-        .from("profiles")
-        .update(payload)
-        .eq("id", user.id);
+      console.log("[Onboarding] submit start", payload);
+      console.log("[Onboarding] user", user.id);
 
-      if (error) throw error;
+      const { data: existingProfile } = await supabase
+        .from("profiles")
+        .select("id")
+        .eq("id", user.id)
+        .single();
+
+      let updateError = null;
+      let updateData = null;
+
+      if (!existingProfile) {
+        payload.id = user.id;
+        const { data, error } = await supabase
+          .from("profiles")
+          .insert(payload)
+          .select();
+        updateError = error;
+        updateData = data;
+      } else {
+        const { data, error } = await supabase
+          .from("profiles")
+          .update(payload)
+          .eq("id", user.id)
+          .select();
+        updateError = error;
+        updateData = data;
+      }
+
+      if (updateError || !updateData || updateData.length === 0) {
+        console.error("[Onboarding] update error", updateError || "No rows updated");
+        throw updateError || new Error("No rows updated");
+      }
+
+      console.log("[Onboarding] update success", updateData);
       
       // Start fallback timer in case navigation hangs
       setTimeout(() => setShowFallback(true), 3000);
 
-      router.replace("/");
       router.refresh();
+      router.replace("/");
     } catch (err: any) {
-      setErrorMsg("No pudimos guardar tu onboarding. Probá de nuevo.");
+      console.error("[Onboarding] update profile failed", err);
+      setErrorMsg("No pudimos guardar tus datos. Probá de nuevo.");
       setSaving(false);
     }
   };
@@ -129,8 +160,7 @@ export default function OnboardingPage() {
             <p className="text-gray-400 text-sm mb-3">Si no redirige automáticamente...</p>
             <button
               onClick={() => {
-                router.replace("/");
-                router.refresh();
+                window.location.href = "/";
               }}
               className="px-6 py-2 bg-white/10 hover:bg-white/20 text-white rounded-xl font-medium transition-colors"
             >
