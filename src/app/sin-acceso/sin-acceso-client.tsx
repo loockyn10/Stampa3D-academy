@@ -64,11 +64,15 @@ export function SinAccesoClient() {
         },
       });
 
+      console.log("[MP frontend] status", response.status);
       const text = await response.text();
+      console.log("[MP frontend] raw response", text);
+      
       let data = null;
 
       try {
         data = text ? JSON.parse(text) : null;
+        console.log("[MP frontend] data", data);
       } catch (error) {
         console.error("Respuesta no JSON:", text);
       }
@@ -88,11 +92,14 @@ export function SinAccesoClient() {
         throw new Error(errorMessage);
       }
 
-      if (!data?.init_point) {
-        throw new Error("Mercado Pago no devolvió init_point");
+      const initPoint = data?.init_point || data?.initPoint || data?.sandbox_init_point;
+
+      if (!initPoint) {
+        console.error("[MP frontend] Missing init point", data);
+        throw new Error("No recibimos el link de pago.");
       }
 
-      window.location.href = data.init_point;
+      window.location.href = initPoint;
     } catch (error) {
       console.error(error);
       setError(error instanceof Error ? error.message : "Error inesperado");

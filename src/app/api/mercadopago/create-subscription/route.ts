@@ -3,6 +3,7 @@ import { createClient } from '@/utils/supabase/server';
 import { createClient as createSupabaseClient } from '@supabase/supabase-js';
 
 export async function POST(request: Request) {
+  console.log("[MP create-subscription] endpoint hit");
   try {
     const supabase = await createClient();
     const { data: { user }, error: userError } = await supabase.auth.getUser();
