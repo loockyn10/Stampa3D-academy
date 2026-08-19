@@ -139,12 +139,12 @@ export function PrinterCatalogModal({ onClose, onSelect, userId }: PrinterCatalo
   });
 
   return (
-    <div className="fixed inset-0 z-[100] overflow-y-auto bg-black/70 backdrop-blur-sm">
-      <div className="min-h-full flex items-start justify-center p-4 sm:items-center sm:p-6">
-        <div className="bg-stampa-surface w-full max-w-2xl rounded-2xl border border-white/10 shadow-2xl flex flex-col max-h-[90vh] animate-in zoom-in-95 duration-200">
+    <div className="fixed inset-0 z-[100] bg-black/70 backdrop-blur-sm">
+      <div className="flex min-h-dvh items-start justify-center overflow-y-auto px-4 py-[5dvh]">
+        <div className="bg-stampa-surface w-full max-w-2xl overflow-hidden rounded-2xl border border-white/10 shadow-2xl flex flex-col max-h-[90dvh] animate-in zoom-in-95 duration-200">
         
         {/* Header */}
-        <div className="flex flex-col gap-3 px-6 py-5 border-b border-stampa-border bg-stampa-bg-soft shrink-0 rounded-t-2xl">
+        <div className="sticky top-0 z-10 flex flex-col gap-3 px-6 py-5 border-b border-white/10 bg-stampa-bg-soft shrink-0">
           <div className="flex items-center justify-between">
             <h3 className="text-lg font-bold text-white flex items-center gap-2">
               <Printer size={20} className="text-stampa-orange" /> Catálogo de Impresoras
@@ -167,7 +167,7 @@ export function PrinterCatalogModal({ onClose, onSelect, userId }: PrinterCatalo
         </div>
 
         {/* Content */}
-        <div className="p-4 sm:p-6 overflow-y-auto flex-1">
+        <div className="p-4 sm:p-6 overflow-y-auto flex-1 max-h-[calc(90dvh-120px)]">
           {error && (
             <div className="mb-4 p-3 rounded-xl bg-red-500/10 text-red-400 text-sm border border-red-500/20 text-center">
               {error}
