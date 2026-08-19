@@ -1,7 +1,6 @@
 import { NextResponse } from 'next/server';
 import { createClient } from '@/utils/supabase/server';
 import { createClient as createSupabaseClient } from '@supabase/supabase-js';
-import { getMembershipCheckoutPrice } from '@/lib/founder-pricing';
 
 export async function POST(request: Request) {
   try {
@@ -21,7 +20,7 @@ export async function POST(request: Request) {
     const accessToken = process.env.MERCADO_PAGO_ACCESS_TOKEN;
     const serviceRoleKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
 
-    if (!accessToken) return NextResponse.json({ error: 'MERCADO_PAGO_ACCESS_TOKEN no configurado' }, { status: 500 });
+    if (!accessToken) return NextResponse.json({ error: 'Falta configurar Mercado Pago.' }, { status: 500 });
     if (!appUrl) return NextResponse.json({ error: 'NEXT_PUBLIC_APP_URL no configurado' }, { status: 500 });
     if (!serviceRoleKey) return NextResponse.json({ error: 'SUPABASE_SERVICE_ROLE_KEY no configurado' }, { status: 500 });
 
@@ -37,13 +36,23 @@ export async function POST(request: Request) {
       .eq("id", "default")
       .single();
 
-    const normalPrice = settings?.monthly_price
+    const price = settings?.monthly_price
       ? Number(settings.monthly_price)
       : Number(fallbackPrice);
     const currency = settings?.currency || "ARS";
 
-    if (!normalPrice || isNaN(normalPrice) || normalPrice <= 0) {
+    if (!Number.isFinite(price) || price <= 0) {
       return NextResponse.json({ error: 'Precio de membresía inválido o no configurado' }, { status: 500 });
+    }
+
+    console.log("[MP create-subscription] price", price);
+
+    let backUrlStr = "";
+    try {
+      backUrlStr = new URL("/pago/estado", appUrl).toString();
+    } catch (e) {
+      // Fallback in case NEXT_PUBLIC_APP_URL is missing the protocol
+      backUrlStr = `https://${appUrl.replace(/^https?:\/\//, '')}/pago/estado`;
     }
 
     const payload = {
@@ -53,10 +62,10 @@ export async function POST(request: Request) {
       auto_recurring: {
         frequency: 1,
         frequency_type: "months",
-        transaction_amount: normalPrice,
+        transaction_amount: price,
         currency_id: currency
       },
-      back_url: new URL("/pago/estado", appUrl).toString(),
+      back_url: backUrlStr,
       status: "pending"
     };
 
@@ -70,41 +79,33 @@ export async function POST(request: Request) {
     });
 
     const mpText = await mpResponse.text();
-    let mpData = null;
-    try {
-      mpData = mpText ? JSON.parse(mpText) : null;
-    } catch (error) {
-      console.error("Mercado Pago respondió texto no JSON:", mpText);
-    }
-
-    console.error("Mercado Pago preapproval response", {
-      ok: mpResponse.ok,
-      status: mpResponse.status,
-      statusText: mpResponse.statusText,
-      body: mpData || mpText || null,
-    });
+    
+    console.error("[MP create-subscription] status", mpResponse.status);
+    console.error("[MP create-subscription] response", mpText);
 
     if (!mpResponse.ok) {
       return NextResponse.json(
-        {
-          error: "Mercado Pago rejected subscription creation",
-          status: mpResponse.status,
-          statusText: mpResponse.statusText,
-          details: mpData || mpText || null,
-        },
+        { error: "No pudimos crear la suscripción. Probá de nuevo." },
         { status: mpResponse.status }
       );
     }
 
-    if (!mpData?.id || !mpData?.init_point) {
+    let mpData = null;
+    try {
+      mpData = JSON.parse(mpText);
+    } catch (error) {
+      console.error("Mercado Pago respondió texto no JSON:", mpText);
+      return NextResponse.json({ error: "Respuesta inválida de Mercado Pago." }, { status: 500 });
+    }
+
+    const initPoint = mpData.init_point ?? mpData.sandbox_init_point;
+    if (!initPoint) {
       console.error("Mercado Pago no devolvió init_point o id:", mpData);
       return NextResponse.json({
-        error: "Mercado Pago no devolvió init_point",
-        details: mpData
+        error: "No pudimos crear la suscripción. Probá de nuevo."
       }, { status: 500 });
     }
 
-    const initPoint = mpData.init_point;
     const preapprovalId = mpData.id;
 
     // Save subscription
@@ -113,7 +114,7 @@ export async function POST(request: Request) {
       mercado_pago_preapproval_id: preapprovalId,
       status: mpData.status || "pending",
       payer_email: user.email,
-      amount: normalPrice,
+      amount: price,
       currency: currency,
       raw_data: mpData,
       next_payment_at: mpData.next_payment_date || null,
