@@ -2,7 +2,7 @@
 
 import React, { useState, useEffect } from "react";
 import { createClient } from "@/utils/supabase/client";
-import { Plus, Edit2, Save, Loader2, AlertCircle } from "lucide-react";
+import { Plus, Edit2, Save, Loader2, AlertCircle, Trash2 } from "lucide-react";
 import { Card } from "@/components/ui/card";
 
 export function ProductTypesManager() {
@@ -28,6 +28,9 @@ export function ProductTypesManager() {
     setLoading(true);
     const { data: { user } } = await supabase.auth.getUser();
     if (!user) return;
+
+    // Ensure defaults exist before fetching
+    await supabase.rpc("ensure_default_calculator_product_types");
 
     const { data, error } = await supabase
       .from("calculator_product_types")
@@ -64,6 +67,39 @@ export function ProductTypesManager() {
     }
     
     if (!error) setEditingId(null);
+  };
+
+  const toggleStatus = async (typeId: string, currentStatus: boolean) => {
+    const { error } = await supabase
+      .from("calculator_product_types")
+      .update({ is_active: !currentStatus })
+      .eq("id", typeId);
+
+    if (error) {
+      setError(error.message);
+    } else {
+      setTypes(types.map(t => t.id === typeId ? { ...t, is_active: !currentStatus } : t));
+    }
+  };
+
+  const handleDelete = async (typeId: string) => {
+    if (!window.confirm("¿Estás seguro de eliminar este tipo de producto?")) return;
+    
+    setError(null);
+    const { error } = await supabase
+      .from("calculator_product_types")
+      .delete()
+      .eq("id", typeId);
+
+    if (error) {
+      if (error.code === '23503' || error.message.includes('violates foreign key')) {
+        setError("No se pudo eliminar porque este tipo está en uso. Podés desactivarlo.");
+      } else {
+        setError(error.message);
+      }
+    } else {
+      setTypes(types.filter(t => t.id !== typeId));
+    }
   };
 
   if (loading) return <div className="py-8 flex justify-center"><Loader2 className="animate-spin text-stampa-orange" /></div>;
@@ -112,9 +148,17 @@ export function ProductTypesManager() {
                 <p>Costo fijo: <span className="font-medium text-gray-300">${t.fixed_cost ?? 0}</span></p>
               </div>
               <div className="flex items-center justify-between pt-3 border-t border-stampa-border">
-                <span className={`text-xs px-2 py-0.5 rounded-md font-medium ${t.is_active ? 'bg-green-500/20 text-green-400' : 'bg-stampa-surface/5 text-gray-400'}`}>
+                <button 
+                  onClick={() => toggleStatus(t.id, t.is_active)}
+                  className={`text-xs px-2.5 py-1 rounded-md font-semibold transition-colors border ${t.is_active ? 'bg-green-500/10 text-green-400 border-green-500/20 hover:bg-green-500/20' : 'bg-white/5 text-gray-400 border-white/10 hover:bg-white/10'}`}
+                >
                   {t.is_active ? 'Activo' : 'Inactivo'}
-                </span>
+                </button>
+                <div className="flex gap-2">
+                  <button onClick={() => handleDelete(t.id)} className="text-gray-400 hover:text-red-400 transition-colors p-1" title="Eliminar">
+                    <Trash2 size={16} />
+                  </button>
+                </div>
               </div>
             </Card>
           )

@@ -122,6 +122,9 @@ export default function CalculadoraPage() {
     }
     setUserId(user.id);
 
+    // Ensure defaults exist before fetching
+    await supabase.rpc("ensure_default_calculator_product_types");
+
     const [fRes, pRes, mRes, sRes] = await Promise.all([
       supabase.from("filaments").select("*").eq("user_id", user.id).eq("is_active", true),
       supabase.from("printers").select("*").eq("user_id", user.id).eq("is_active", true),
