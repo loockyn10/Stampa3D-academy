@@ -1,6 +1,7 @@
 "use client";
 
 import React, { useState, useEffect } from "react";
+import { createPortal } from "react-dom";
 import { X, Search, Loader2, Printer } from "lucide-react";
 import { createClient } from "@/utils/supabase/client";
 
@@ -18,11 +19,24 @@ export function PrinterCatalogModal({ onClose, onSelect, userId }: PrinterCatalo
   const [search, setSearch] = useState("");
   const [importingId, setImportingId] = useState<string | null>(null);
   const [userPrinters, setUserPrinters] = useState<any[]>([]);
+  const [mounted, setMounted] = useState(false);
 
   useEffect(() => {
+    setMounted(true);
     fetchTemplates();
     fetchUserPrinters();
   }, []);
+
+  useEffect(() => {
+    if (!mounted) return;
+
+    const previousOverflow = document.body.style.overflow;
+    document.body.style.overflow = "hidden";
+
+    return () => {
+      document.body.style.overflow = previousOverflow;
+    };
+  }, [mounted]);
 
   const fetchUserPrinters = async () => {
     const { data } = await supabase
@@ -138,10 +152,15 @@ export function PrinterCatalogModal({ onClose, onSelect, userId }: PrinterCatalo
     );
   });
 
-  return (
-    <div className="fixed inset-0 z-[100] bg-black/70 backdrop-blur-sm">
+  if (!mounted) return null;
+
+  return createPortal(
+    <div className="fixed inset-0 z-[9999] bg-black/70 backdrop-blur-sm" onClick={onClose}>
       <div className="flex min-h-dvh items-start justify-center overflow-y-auto px-4 py-[5dvh]">
-        <div className="bg-stampa-surface w-full max-w-2xl overflow-hidden rounded-2xl border border-white/10 shadow-2xl flex flex-col max-h-[90dvh] animate-in zoom-in-95 duration-200">
+        <div 
+          className="bg-stampa-surface w-full max-w-2xl overflow-hidden rounded-2xl border border-white/10 shadow-2xl flex flex-col max-h-[90dvh] animate-in zoom-in-95 duration-200"
+          onClick={(e) => e.stopPropagation()}
+        >
         
         {/* Header */}
         <div className="sticky top-0 z-10 flex flex-col gap-3 px-6 py-5 border-b border-white/10 bg-stampa-bg-soft shrink-0">
@@ -274,6 +293,7 @@ export function PrinterCatalogModal({ onClose, onSelect, userId }: PrinterCatalo
         </div>
         </div>
       </div>
-    </div>
+    </div>,
+    document.body
   );
 }
