@@ -51,7 +51,11 @@ export function SinAccesoClient() {
     window.location.href = "/login";
   };
 
-  const handleActivateMembership = async () => {
+  const handleCreateSubscription = async (e?: React.MouseEvent) => {
+    if (e) {
+      e.preventDefault();
+    }
+    
     try {
       setLoading(true);
       setError(null);
@@ -64,45 +68,38 @@ export function SinAccesoClient() {
         },
       });
 
-      console.log("[MP frontend] status", response.status);
       const text = await response.text();
-      console.log("[MP frontend] raw response", text);
-      
       let data = null;
 
       try {
         data = text ? JSON.parse(text) : null;
-        console.log("[MP frontend] data", data);
-      } catch (error) {
-        console.error("Respuesta no JSON:", text);
+      } catch (parseError) {
+        console.error("[MP frontend] invalid JSON response", text);
       }
+
+      console.log("[MP frontend] status", response.status);
+      console.log("[MP frontend] data", data);
 
       if (!response.ok) {
-        console.error("Create subscription error response:", data);
-        let errorMessage = data?.error || "Error al crear la suscripción";
-
-        if (data?.details) {
-          errorMessage += "\n\nDetalle Mercado Pago:\n";
-          errorMessage +=
-            typeof data.details === "string"
-              ? data.details
-              : JSON.stringify(data.details, null, 2);
-        }
-
-        throw new Error(errorMessage);
+        console.error("Create subscription error response:", data || text);
+        throw new Error(data?.error || "Error al crear la suscripción");
       }
 
-      const initPoint = data?.init_point || data?.initPoint || data?.sandbox_init_point;
+      const initPoint = data?.init_point || data?.initPoint || data?.url;
 
       if (!initPoint) {
-        console.error("[MP frontend] Missing init point", data);
+        console.error("[MP frontend] missing init point", data);
         throw new Error("No recibimos el link de pago.");
       }
 
       window.location.href = initPoint;
     } catch (error) {
       console.error(error);
-      setError(error instanceof Error ? error.message : "Error inesperado");
+      setError(
+        error instanceof Error
+          ? error.message
+          : "Error al crear la suscripción"
+      );
     } finally {
       setLoading(false);
     }
@@ -184,7 +181,7 @@ export function SinAccesoClient() {
           ) : (
             <button
               type="button"
-              onClick={handleActivateMembership}
+              onClick={handleCreateSubscription}
               disabled={loading || checkingEmail}
               className="w-full rounded-lg bg-stampa-orange px-3 py-3 text-sm font-semibold text-white hover:bg-stampa-orange transition-colors flex items-center justify-center gap-2 disabled:opacity-70 disabled:cursor-not-allowed"
             >
