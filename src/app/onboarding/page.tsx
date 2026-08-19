@@ -4,9 +4,9 @@ import React, { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { createClient } from "@/utils/supabase/client";
 import { Loader2, ArrowRight } from "lucide-react";
-import { 
-  PRINTER_BRAND_OPTIONS, 
-  EXPERIENCE_LEVEL_OPTIONS, 
+import {
+  PRINTER_BRAND_OPTIONS,
+  EXPERIENCE_LEVEL_OPTIONS,
   MAIN_GOAL_OPTIONS,
   COMMERCIAL_STAGE_OPTIONS
 } from "@/lib/profile-options";
@@ -123,12 +123,10 @@ export default function OnboardingPage() {
       }
 
       console.log("[Onboarding] update success", updateData);
-      
-      // Start fallback timer in case navigation hangs
-      setTimeout(() => setShowFallback(true), 3000);
 
-      router.refresh();
-      router.replace("/");
+      setShowFallback(true);
+      window.location.replace("/");
+      return;
     } catch (err: any) {
       console.error("[Onboarding] update profile failed", err);
       setErrorMsg("No pudimos guardar tus datos. Probá de nuevo.");
@@ -154,7 +152,7 @@ export default function OnboardingPage() {
       <div className="min-h-screen flex flex-col items-center justify-center bg-stampa-bg">
         <Loader2 className="animate-spin text-stampa-orange h-12 w-12 mb-4" />
         <p className="text-white font-medium">Preparando tu experiencia...</p>
-        
+
         {showFallback && (
           <div className="mt-8 flex flex-col items-center animate-in fade-in">
             <p className="text-gray-400 text-sm mb-3">Si no redirige automáticamente...</p>
@@ -191,16 +189,16 @@ export default function OnboardingPage() {
         )}
 
         <form onSubmit={handleSubmit} className="space-y-8 bg-stampa-bg p-6 md:p-8 rounded-2xl border border-stampa-border shadow-2xl">
-          
+
           {/* SECCIÓN 1: Datos básicos */}
           <div className="space-y-4">
             <h2 className="text-xl font-bold text-white border-b border-stampa-border pb-2">1. Datos básicos</h2>
-            
+
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <div>
                 <label className="block text-sm font-medium text-gray-400 mb-1">Nombre completo</label>
-                <input 
-                  type="text" 
+                <input
+                  type="text"
                   value={fullName}
                   onChange={(e) => setFullName(e.target.value)}
                   className="w-full bg-stampa-surface border border-stampa-border rounded-xl px-4 py-2.5 text-white focus:outline-none focus:border-[#ff6a00] transition-colors"
@@ -209,8 +207,8 @@ export default function OnboardingPage() {
               </div>
               <div>
                 <label className="block text-sm font-medium text-gray-400 mb-1">Nombre para mostrar (Opcional)</label>
-                <input 
-                  type="text" 
+                <input
+                  type="text"
                   value={displayName}
                   onChange={(e) => setDisplayName(e.target.value)}
                   className="w-full bg-stampa-surface border border-stampa-border rounded-xl px-4 py-2.5 text-white focus:outline-none focus:border-[#ff6a00] transition-colors"
@@ -219,8 +217,8 @@ export default function OnboardingPage() {
             </div>
             <div>
               <label className="block text-sm font-medium text-gray-400 mb-1">Teléfono (Opcional)</label>
-              <input 
-                type="tel" 
+              <input
+                type="tel"
                 value={phone}
                 onChange={(e) => setPhone(e.target.value)}
                 className="w-full bg-stampa-surface border border-stampa-border rounded-xl px-4 py-2.5 text-white focus:outline-none focus:border-[#ff6a00] transition-colors"
@@ -231,11 +229,11 @@ export default function OnboardingPage() {
           {/* SECCIÓN 2: Impresora principal */}
           <div className="space-y-4">
             <h2 className="text-xl font-bold text-white border-b border-stampa-border pb-2">2. Tu impresora principal</h2>
-            
+
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <div>
                 <label className="block text-sm font-medium text-gray-400 mb-1">Marca</label>
-                <select 
+                <select
                   value={brand}
                   onChange={(e) => setBrand(e.target.value)}
                   className="w-full bg-stampa-surface border border-stampa-border rounded-xl px-4 py-3 text-white focus:outline-none focus:border-[#ff6a00] transition-colors appearance-none"
@@ -247,12 +245,12 @@ export default function OnboardingPage() {
                   ))}
                 </select>
               </div>
-              
+
               {brand !== "none_yet" && (
                 <div>
                   <label className="block text-sm font-medium text-gray-400 mb-1">Modelo</label>
-                  <input 
-                    type="text" 
+                  <input
+                    type="text"
                     value={model}
                     onChange={(e) => setModel(e.target.value)}
                     placeholder="Ej: A1 Mini, K1, Ender 3, Adventurer 5M, Centauri Carbon, Saturn 4..."
@@ -272,9 +270,9 @@ export default function OnboardingPage() {
           {/* SECCIÓN 3: Nivel de experiencia */}
           <div className="space-y-4">
             <h2 className="text-xl font-bold text-white border-b border-stampa-border pb-2">3. Nivel de experiencia</h2>
-            
+
             <div>
-              <select 
+              <select
                 value={experience}
                 onChange={(e) => setExperience(e.target.value)}
                 className="w-full bg-stampa-surface border border-stampa-border rounded-xl px-4 py-3 text-white focus:outline-none focus:border-[#ff6a00] transition-colors appearance-none"
@@ -291,9 +289,9 @@ export default function OnboardingPage() {
           {/* SECCIÓN 4: Objetivo principal */}
           <div className="space-y-4">
             <h2 className="text-xl font-bold text-white border-b border-stampa-border pb-2">4. Objetivo principal</h2>
-            
+
             <div>
-              <select 
+              <select
                 value={goal}
                 onChange={(e) => setGoal(e.target.value)}
                 className="w-full bg-stampa-surface border border-stampa-border rounded-xl px-4 py-3 text-white focus:outline-none focus:border-[#ff6a00] transition-colors appearance-none"
@@ -310,10 +308,10 @@ export default function OnboardingPage() {
           {/* SECCIÓN 5: Estado comercial */}
           <div className="space-y-4">
             <h2 className="text-xl font-bold text-white border-b border-stampa-border pb-2">5. Estado comercial</h2>
-            
+
             <div>
               <label className="block text-sm font-medium text-gray-400 mb-1">¿En qué etapa estás?</label>
-              <select 
+              <select
                 value={stage}
                 onChange={(e) => setStage(e.target.value)}
                 className="w-full bg-stampa-surface border border-stampa-border rounded-xl px-4 py-3 text-white focus:outline-none focus:border-[#ff6a00] transition-colors appearance-none"
