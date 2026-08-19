@@ -17,10 +17,20 @@ export function PrinterCatalogModal({ onClose, onSelect, userId }: PrinterCatalo
   const [error, setError] = useState<string | null>(null);
   const [search, setSearch] = useState("");
   const [importingId, setImportingId] = useState<string | null>(null);
+  const [userPrinters, setUserPrinters] = useState<any[]>([]);
 
   useEffect(() => {
     fetchTemplates();
+    fetchUserPrinters();
   }, []);
+
+  const fetchUserPrinters = async () => {
+    const { data } = await supabase
+      .from("printers")
+      .select("id, source_template_id, is_active")
+      .eq("user_id", userId);
+    setUserPrinters(data || []);
+  };
 
   const fetchTemplates = async () => {
     setLoading(true);
@@ -44,28 +54,28 @@ export function PrinterCatalogModal({ onClose, onSelect, userId }: PrinterCatalo
     setError(null);
 
     try {
-      // 1. Check if the user already has this printer via source_template_id
-      const { data: existingPrinter, error: fetchError } = await supabase
-        .from("printers")
-        .select("id")
-        .eq("user_id", userId)
-        .eq("source_template_id", template.id)
-        .limit(1)
-        .single();
+      const existing = userPrinters.find(p => p.source_template_id === template.id);
 
-      if (existingPrinter) {
-        // Already exists, just select it and show a message
-        alert("Esta impresora ya estaba en tu taller.");
-        onSelect(existingPrinter.id);
-        return;
+      if (existing) {
+        if (existing.is_active) {
+          alert("Impresora seleccionada.");
+          onSelect(existing.id);
+          return;
+        } else {
+          // Reactivate
+          const { error: updateError } = await supabase
+            .from("printers")
+            .update({ is_active: true, updated_at: new Date().toISOString() })
+            .eq("id", existing.id);
+            
+          if (updateError) throw updateError;
+          alert("Impresora agregada a la calculadora.");
+          onSelect(existing.id);
+          return;
+        }
       }
 
-      // If we got here but got a real error (not 'PGRST116' which means 0 rows)
-      if (fetchError && fetchError.code !== 'PGRST116') {
-        throw fetchError;
-      }
-
-      // 2. Insert new printer mapped from template
+      // Insert new printer mapped from template
       const payload = {
         user_id: userId,
         name: template.name,
@@ -84,11 +94,36 @@ export function PrinterCatalogModal({ onClose, onSelect, userId }: PrinterCatalo
       if (insertError) throw insertError;
 
       if (newPrinter) {
+        alert("Impresora agregada a tu taller.");
         onSelect(newPrinter.id);
       }
     } catch (err: any) {
       console.error("Error importing printer:", err);
       setError("No se pudo importar la impresora.");
+      setImportingId(null);
+    }
+  };
+
+  const handleRemove = async (templateId: string) => {
+    const existing = userPrinters.find(p => p.source_template_id === templateId);
+    if (!existing) return;
+    
+    setImportingId(templateId);
+    try {
+      const { error: updateError } = await supabase
+        .from("printers")
+        .update({ is_active: false, updated_at: new Date().toISOString() })
+        .eq("id", existing.id);
+        
+      if (updateError) throw updateError;
+      
+      alert("Impresora quitada de la calculadora.");
+      await fetchUserPrinters();
+      onSelect(""); // Signal parent to refresh but not close
+    } catch (err: any) {
+      console.error("Error removing printer:", err);
+      setError("No se pudo quitar la impresora.");
+    } finally {
       setImportingId(null);
     }
   };
@@ -104,8 +139,9 @@ export function PrinterCatalogModal({ onClose, onSelect, userId }: PrinterCatalo
   });
 
   return (
-    <div className="fixed inset-0 z-[100] flex items-center justify-center bg-stampa-bg/80 backdrop-blur-sm p-4">
-      <div className="bg-stampa-surface w-full max-w-2xl rounded-2xl border border-stampa-border shadow-2xl flex flex-col max-h-[90vh] animate-in zoom-in-95 duration-200">
+    <div className="fixed inset-0 z-[100] overflow-y-auto bg-black/70 backdrop-blur-sm">
+      <div className="min-h-full flex items-start justify-center p-4 sm:items-center sm:p-6">
+        <div className="bg-stampa-surface w-full max-w-2xl rounded-2xl border border-white/10 shadow-2xl flex flex-col max-h-[90vh] animate-in zoom-in-95 duration-200">
         
         {/* Header */}
         <div className="flex flex-col gap-3 px-6 py-5 border-b border-stampa-border bg-stampa-bg-soft shrink-0 rounded-t-2xl">
@@ -155,54 +191,87 @@ export function PrinterCatalogModal({ onClose, onSelect, userId }: PrinterCatalo
             </div>
           ) : (
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-              {filteredTemplates.map((t) => (
-                <div 
-                  key={t.id} 
-                  className="bg-stampa-bg border border-stampa-border hover:border-stampa-orange/50 rounded-xl p-4 flex flex-col justify-between transition-all group"
-                >
-                  <div>
-                    <h4 className="font-bold text-white text-base leading-tight mb-1">{t.name}</h4>
-                    <p className="text-xs text-stampa-orange font-medium mb-3">{t.brand} {t.model !== t.name && `- ${t.model}`}</p>
-                    
-                    <div className="space-y-1 mb-4">
-                      <p className="text-xs text-gray-400 flex justify-between">
-                        <span>Consumo:</span>
-                        <span className="text-gray-300 font-medium">{t.power_watts}W</span>
-                      </p>
-                      <p className="text-xs text-gray-400 flex justify-between">
-                        <span>Mantenimiento:</span>
-                        <span className="text-gray-300 font-medium">${t.maintenance_cost_per_hour}/h</span>
-                      </p>
-                      {t.printer_type && (
-                        <p className="text-xs text-gray-400 flex justify-between">
-                          <span>Tipo:</span>
-                          <span className="text-gray-300 font-medium">{t.printer_type}</span>
-                        </p>
-                      )}
-                      {t.bed_size_x_mm && t.bed_size_y_mm && t.bed_size_z_mm && (
-                        <p className="text-xs text-gray-400 flex justify-between">
-                          <span>Volumen:</span>
-                          <span className="text-gray-300 font-medium">{t.bed_size_x_mm}x{t.bed_size_y_mm}x{t.bed_size_z_mm} mm</span>
-                        </p>
-                      )}
-                    </div>
-                  </div>
-                  
-                  <button 
-                    onClick={() => handleSelect(t)}
-                    disabled={!!importingId}
-                    className="w-full py-2 bg-white/5 hover:bg-stampa-orange text-white text-xs font-bold rounded-lg border border-stampa-border hover:border-transparent transition-all flex items-center justify-center gap-2"
+              {filteredTemplates.map((t) => {
+                const existing = userPrinters.find(p => p.source_template_id === t.id);
+                const isAdded = existing && existing.is_active;
+                const isHidden = existing && !existing.is_active;
+
+                return (
+                  <div 
+                    key={t.id} 
+                    className={`bg-stampa-bg border hover:border-stampa-orange/50 rounded-xl p-4 flex flex-col justify-between transition-all group ${isAdded ? 'border-stampa-orange/30 shadow-[0_0_15px_rgba(255,106,0,0.05)]' : 'border-stampa-border'}`}
                   >
-                    {importingId === t.id ? (
-                      <Loader2 size={14} className="animate-spin" />
+                    <div>
+                      <div className="flex justify-between items-start mb-1">
+                        <h4 className="font-bold text-white text-base leading-tight pr-2">{t.name}</h4>
+                        {isAdded && (
+                          <span className="shrink-0 bg-stampa-orange/20 text-stampa-orange text-[10px] font-bold px-2 py-0.5 rounded-full border border-stampa-orange/20">
+                            Agregada
+                          </span>
+                        )}
+                        {isHidden && (
+                          <span className="shrink-0 bg-gray-500/20 text-gray-400 text-[10px] font-bold px-2 py-0.5 rounded-full border border-gray-500/20">
+                            Oculta
+                          </span>
+                        )}
+                      </div>
+                      <p className="text-xs text-stampa-orange font-medium mb-3">{t.brand} {t.model !== t.name && `- ${t.model}`}</p>
+                      
+                      <div className="space-y-1 mb-4">
+                        <p className="text-xs text-gray-400 flex justify-between">
+                          <span>Consumo:</span>
+                          <span className="text-gray-300 font-medium">{t.power_watts}W</span>
+                        </p>
+                        <p className="text-xs text-gray-400 flex justify-between">
+                          <span>Mantenimiento:</span>
+                          <span className="text-gray-300 font-medium">${t.maintenance_cost_per_hour}/h</span>
+                        </p>
+                        {t.printer_type && (
+                          <p className="text-xs text-gray-400 flex justify-between">
+                            <span>Tipo:</span>
+                            <span className="text-gray-300 font-medium">{t.printer_type}</span>
+                          </p>
+                        )}
+                        {t.bed_size_x_mm && t.bed_size_y_mm && t.bed_size_z_mm && (
+                          <p className="text-xs text-gray-400 flex justify-between">
+                            <span>Volumen:</span>
+                            <span className="text-gray-300 font-medium">{t.bed_size_x_mm}x{t.bed_size_y_mm}x{t.bed_size_z_mm} mm</span>
+                          </p>
+                        )}
+                      </div>
+                    </div>
+                    
+                    {isAdded ? (
+                      <button 
+                        onClick={() => handleRemove(t.id)}
+                        disabled={!!importingId}
+                        className="w-full py-2 bg-red-500/10 hover:bg-red-500/20 text-red-400 text-xs font-bold rounded-lg border border-red-500/20 hover:border-red-500/30 transition-all flex items-center justify-center gap-2"
+                      >
+                        {importingId === t.id ? (
+                          <Loader2 size={14} className="animate-spin" />
+                        ) : (
+                          "Quitar"
+                        )}
+                      </button>
                     ) : (
-                      "Seleccionar"
+                      <button 
+                        onClick={() => handleSelect(t)}
+                        disabled={!!importingId}
+                        className="w-full py-2 bg-white/5 hover:bg-stampa-orange text-white text-xs font-bold rounded-lg border border-stampa-border hover:border-transparent transition-all flex items-center justify-center gap-2"
+                      >
+                        {importingId === t.id ? (
+                          <Loader2 size={14} className="animate-spin" />
+                        ) : (
+                          "Seleccionar"
+                        )}
+                      </button>
                     )}
-                  </button>
-                </div>
-              ))}
+                  </div>
+                );
+              })}
             </div>
           )}
+        </div>
         </div>
       </div>
     </div>
