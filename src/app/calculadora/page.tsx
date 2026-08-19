@@ -2,13 +2,14 @@
 
 import React, { useState, useEffect, useMemo } from "react";
 import Link from "next/link";
-import { Zap, DollarSign, Loader2, AlertCircle, Settings, Save, X, PackagePlus, CheckCircle2, Calculator, Info, FileText } from "lucide-react";
+import { Zap, DollarSign, Loader2, AlertCircle, Settings, Save, X, PackagePlus, CheckCircle2, Calculator, Info, FileText, Plus } from "lucide-react";
 import { Card } from "@/components/ui/card";
 import { GhostButton } from "@/components/ui/button";
 import { SectionTitle } from "@/components/ui/section-title";
 import { createClient } from "@/utils/supabase/client";
 import { FileUploadDropzone } from "@/components/ui/file-upload-dropzone";
 import { Combobox } from "@/components/ui/combobox";
+import { PrinterCatalogModal } from "@/components/calculadora/printer-catalog-modal";
 import { normalizeFilamentColor } from "@/lib/colors/filament-colors";
 interface NumberFieldProps {
   label: string;
@@ -102,6 +103,7 @@ export default function CalculadoraPage() {
   const [savingProduct, setSavingProduct] = useState(false);
   const [saveSuccess, setSaveSuccess] = useState(false);
   const [saveError, setSaveError] = useState<string | null>(null);
+  const [showCatalogModal, setShowCatalogModal] = useState(false);
   const [productForm, setProductForm] = useState({
     name: "",
     description: "",
@@ -186,6 +188,16 @@ export default function CalculadoraPage() {
     }
 
   }, [selectedFilamentId, selectedPrinterId, selectedMultiplierId, filaments, printers, multipliers]);
+
+  const handlePrinterSelected = async (newPrinterId: string) => {
+    // Refresh printers list
+    const { data } = await supabase.from("printers").select("*").eq("user_id", userId).eq("is_active", true);
+    if (data) {
+      setPrinters(data);
+      setSelectedPrinterId(newPrinterId);
+      setShowCatalogModal(false);
+    }
+  };
 
   const calc = useMemo(() => {
     const errorMultiplier = 1 + (manualErrorPercent / 100);
@@ -353,15 +365,15 @@ export default function CalculadoraPage() {
             <div>
               <h4 className="text-sm font-bold text-stampa-orange">No tenés impresoras cargadas</h4>
               <p className="text-xs text-stampa-orange/80 mt-1">
-                Importá una impresora del catálogo Stampa o cargá una manualmente.
+                Elegí una impresora del catálogo de Stampa para empezar.
               </p>
               <div className="flex flex-col sm:flex-row gap-2 mt-3">
-                <Link href="/configuracion?tab=taller" className="text-center inline-block bg-stampa-orange text-white text-xs font-semibold px-3 py-1.5 rounded-lg hover:bg-stampa-orange-hover transition-colors shadow-sm shadow-[#ff6a00]/20 w-full sm:w-auto">
-                  Importar impresora
-                </Link>
-                <Link href="/configuracion?tab=taller" className="text-center inline-block bg-stampa-surface text-stampa-orange border border-[#ff6a00]/30 text-xs font-semibold px-3 py-1.5 rounded-lg hover:bg-stampa-orange/10 transition-colors w-full sm:w-auto">
-                  Agregar manualmente
-                </Link>
+                <button 
+                  onClick={() => setShowCatalogModal(true)}
+                  className="text-center inline-block bg-stampa-orange text-white text-xs font-semibold px-3 py-1.5 rounded-lg hover:bg-stampa-orange-hover transition-colors shadow-sm shadow-[#ff6a00]/20 w-full sm:w-auto"
+                >
+                  Elegir impresora del catálogo
+                </button>
               </div>
             </div>
           </div>
@@ -435,14 +447,26 @@ export default function CalculadoraPage() {
 
             <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
               <label className="block sm:col-span-1">
-                <span className="mb-1 block text-xs font-semibold text-gray-500">Impresora</span>
-                <select
-                  value={selectedPrinterId}
-                  onChange={(e) => setSelectedPrinterId(e.target.value)}
-                  className="w-full text-sm rounded-xl border border-stampa-border bg-stampa-bg-soft py-2.5 px-3 text-white outline-none focus:border-[#ff6a00] focus:ring-1 focus:ring-[#ff6a00]"
-                >
-                  {printers.map(p => <option key={p.id} value={p.id}>{p.name}</option>)}
-                </select>
+                <div className="flex items-center justify-between mb-1">
+                  <span className="block text-xs font-semibold text-gray-500">Impresora</span>
+                </div>
+                <div className="flex gap-2">
+                  <select
+                    value={selectedPrinterId}
+                    onChange={(e) => setSelectedPrinterId(e.target.value)}
+                    className="w-full text-sm rounded-xl border border-stampa-border bg-stampa-bg-soft py-2.5 px-3 text-white outline-none focus:border-[#ff6a00] focus:ring-1 focus:ring-[#ff6a00]"
+                  >
+                    {printers.map(p => <option key={p.id} value={p.id}>{p.name}</option>)}
+                  </select>
+                  <button 
+                    type="button" 
+                    onClick={() => setShowCatalogModal(true)}
+                    className="shrink-0 flex items-center justify-center bg-white/5 hover:bg-white/10 text-white rounded-xl border border-stampa-border px-3 transition-colors"
+                    title="Elegir del catálogo"
+                  >
+                    <Plus size={16} />
+                  </button>
+                </div>
               </label>
               <div className="sm:col-span-2 grid grid-cols-2 gap-4">
                 <NumberField label="Horas" value={hours} onChange={setHours} suffix="h" step={1} />
@@ -724,6 +748,15 @@ export default function CalculadoraPage() {
           )}
         </div>
       </div>
+    )}
+
+    {/* MODAL: CATÁLOGO DE IMPRESORAS */}
+    {showCatalogModal && userId && (
+      <PrinterCatalogModal 
+        userId={userId} 
+        onClose={() => setShowCatalogModal(false)} 
+        onSelect={handlePrinterSelected} 
+      />
     )}
   </div>;
 }
