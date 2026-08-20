@@ -8,7 +8,7 @@ import { GhostButton } from "@/components/ui/button";
 import { SectionTitle } from "@/components/ui/section-title";
 import { createClient } from "@/utils/supabase/client";
 import { FileUploadDropzone } from "@/components/ui/file-upload-dropzone";
-import { Combobox } from "@/components/ui/combobox";
+import { CalculatorSelect } from "@/components/ui/calculator-select";
 import { PrinterCatalogModal } from "@/components/calculadora/printer-catalog-modal";
 import { FilamentCatalogModal } from "@/components/calculadora/filament-catalog-modal";
 import { normalizeFilamentColor } from "@/lib/colors/filament-colors";
@@ -486,15 +486,16 @@ export default function CalculadoraPage() {
                 <span className="mb-1 block text-xs font-semibold text-gray-500">Filamento a usar</span>
                 <div className="flex gap-2">
                   <div className="flex-1 min-w-0">
-                    <Combobox
+                    <CalculatorSelect
                       options={filaments.map(f => ({
-                        id: f.id,
+                        value: f.id,
                         label: f.name,
                         element: <FilamentOptionLabel name={f.name} color={f.color} colorHex={f.color_hex} />
                       }))}
                       value={selectedFilamentId}
-                      onChange={(val) => setSelectedFilamentId(String(val))}
+                      onChange={(val) => setSelectedFilamentId(val)}
                       placeholder="Seleccioná un filamento..."
+                      searchable={true}
                     />
                   </div>
                   <button 
@@ -519,13 +520,18 @@ export default function CalculadoraPage() {
                   <span className="block text-xs font-semibold text-gray-500">Impresora</span>
                 </div>
                 <div className="flex gap-2">
-                  <select
-                    value={selectedPrinterId}
-                    onChange={(e) => setSelectedPrinterId(e.target.value)}
-                    className="w-full text-sm rounded-xl border border-stampa-border bg-stampa-bg-soft py-2.5 px-3 text-white outline-none focus:border-[#ff6a00] focus:ring-1 focus:ring-[#ff6a00]"
-                  >
-                    {printers.map(p => <option key={p.id} value={p.id}>{p.name}</option>)}
-                  </select>
+                  <div className="flex-1 min-w-0">
+                    <CalculatorSelect
+                      options={printers.map(p => ({
+                        value: p.id,
+                        label: `${p.name}${p.power_watts ? ` (${p.power_watts}W)` : ""}`,
+                      }))}
+                      value={selectedPrinterId}
+                      onChange={(val) => setSelectedPrinterId(val)}
+                      placeholder="Seleccioná una impresora..."
+                      searchable={true}
+                    />
+                  </div>
                   <button 
                     type="button" 
                     onClick={() => setShowCatalogModal(true)}
@@ -545,13 +551,16 @@ export default function CalculadoraPage() {
             <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
               <label className="block">
                 <span className="mb-1 block text-xs font-semibold text-gray-500">Tipo de producto (Margen)</span>
-                <select
+                <CalculatorSelect
+                  options={multipliers.map(m => ({
+                    value: m.id,
+                    label: `${m.name} (x${m.multiplier})`,
+                  }))}
                   value={selectedMultiplierId}
-                  onChange={(e) => setSelectedMultiplierId(e.target.value)}
-                  className="w-full text-sm rounded-xl border border-stampa-border bg-stampa-bg-soft py-2.5 px-3 text-white outline-none focus:border-[#ff6a00] focus:ring-1 focus:ring-[#ff6a00]"
-                >
-                  {multipliers.map(m => <option key={m.id} value={m.id}>{m.name} (x{m.multiplier})</option>)}
-                </select>
+                  onChange={(val) => setSelectedMultiplierId(val)}
+                  placeholder="Seleccioná margen..."
+                  searchable={false}
+                />
               </label>
             </div>
           </div>
