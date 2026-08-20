@@ -1,6 +1,6 @@
 import React from 'react'
 import Link from 'next/link'
-import { Users, Settings, ShieldAlert, GraduationCap, Boxes, Gift, Trophy, MonitorSmartphone, DollarSign, Map, Calculator } from 'lucide-react'
+import { Users, Settings, ShieldAlert, GraduationCap, Boxes, Gift, Trophy, MonitorSmartphone, DollarSign, Map, Calculator, Tag, Bot } from 'lucide-react'
 import { SectionTitle } from "@/components/ui/section-title";
 
 export default function AdminDashboardPage() {
@@ -172,6 +172,36 @@ export default function AdminDashboardPage() {
             </div>
             <p className="text-sm text-gray-400 font-medium relative z-10">
               Administrá el catálogo global de filamentos para la calculadora.
+            </p>
+          </div>
+        </Link>
+        
+        <Link href="/admin/codigos" className="block group">
+          <div className="bg-stampa-surface p-6 rounded-2xl border border-stampa-border shadow-lg shadow-black/20 hover:border-stampa-orange/30 transition-all h-full relative overflow-hidden">
+            <div className="absolute top-0 right-0 w-24 h-24 bg-yellow-500/5 rounded-full blur-2xl group-hover:bg-yellow-500/10 transition-colors -translate-y-1/2 translate-x-1/2"></div>
+            <div className="flex items-center gap-4 mb-4 relative z-10">
+              <div className="p-3 bg-stampa-bg-soft border border-stampa-border text-yellow-500 rounded-xl shadow-inner">
+                <Tag size={24} />
+              </div>
+              <h2 className="text-lg font-bold text-white group-hover:text-yellow-400 transition-colors">Códigos</h2>
+            </div>
+            <p className="text-sm text-gray-400 font-medium relative z-10">
+              Gestión de códigos de descuento, referidos y acceso.
+            </p>
+          </div>
+        </Link>
+
+        <Link href="/admin/stampy/contextos" className="block group">
+          <div className="bg-stampa-surface p-6 rounded-2xl border border-stampa-border shadow-lg shadow-black/20 hover:border-stampa-orange/30 transition-all h-full relative overflow-hidden">
+            <div className="absolute top-0 right-0 w-24 h-24 bg-cyan-400/5 rounded-full blur-2xl group-hover:bg-cyan-400/10 transition-colors -translate-y-1/2 translate-x-1/2"></div>
+            <div className="flex items-center gap-4 mb-4 relative z-10">
+              <div className="p-3 bg-stampa-bg-soft border border-stampa-border text-cyan-400 rounded-xl shadow-inner">
+                <Bot size={24} />
+              </div>
+              <h2 className="text-lg font-bold text-white group-hover:text-cyan-300 transition-colors">Contextos Stampy</h2>
+            </div>
+            <p className="text-sm text-gray-400 font-medium relative z-10">
+              Administración de información de contexto para el asistente Stampy IA.
             </p>
           </div>
         </Link>
