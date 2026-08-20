@@ -112,7 +112,7 @@ export function FilamentCatalogModal({ onClose, onSelect, userId }: FilamentCata
       if (insertError) throw insertError;
 
       if (newFilament) {
-        alert("Filamento agregado a tu taller.");
+        //alert("Filamento agregado a tu taller.");
         onSelect(newFilament.id);
       }
     } catch (err: any) {
@@ -135,7 +135,7 @@ export function FilamentCatalogModal({ onClose, onSelect, userId }: FilamentCata
 
       if (updateError) throw updateError;
 
-      alert("Filamento quitado de la calculadora.");
+      //alert("Filamento quitado de la calculadora.");
       await fetchUserFilaments();
       onSelect(""); // Signal parent to refresh but not close
     } catch (err: any) {

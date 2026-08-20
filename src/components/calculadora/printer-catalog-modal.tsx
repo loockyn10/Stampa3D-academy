@@ -131,7 +131,7 @@ export function PrinterCatalogModal({ onClose, onSelect, userId }: PrinterCatalo
 
       if (updateError) throw updateError;
 
-      alert("Impresora quitada de la calculadora.");
+      //alert("Impresora quitada de la calculadora.");
       await fetchUserPrinters();
       onSelect(""); // Signal parent to refresh but not close
     } catch (err: any) {
