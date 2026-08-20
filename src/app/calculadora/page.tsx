@@ -14,11 +14,18 @@ import { FilamentCatalogModal } from "@/components/calculadora/filament-catalog-
 import { normalizeFilamentColor } from "@/lib/colors/filament-colors";
 interface NumberFieldProps {
   label: string;
-  value: number;
-  onChange: (val: number) => void;
+  value: string;
+  onChange: (val: string) => void;
   suffix?: string;
   step?: number;
   disabled?: boolean;
+}
+
+function normalizeNumericInput(value: string) {
+  const cleaned = value.replace(",", ".").replace(/[^\d.]/g, "");
+  if (cleaned === "") return "";
+  if (cleaned.startsWith("0.")) return cleaned;
+  return cleaned.replace(/^0+(?=\d)/, "");
 }
 
 const FilamentOptionLabel = ({ name, color, colorHex }: { name: string, color?: string | null, colorHex?: string | null }) => {
@@ -48,16 +55,21 @@ function NumberField({ label, value, onChange, suffix, step = 1, disabled = fals
   return (
     <label className={`block ${disabled ? "opacity-60" : ""}`}>
       <span className="mb-1 block text-xs font-semibold text-gray-500">{label}</span>
-      <div className={`flex items-center rounded-xl border border-stampa-border bg-stampa-surface px-3 ${!disabled && "focus-within:border-[#ff6a00] focus-within:bg-[#1a1a1a] focus-within:ring-2 focus-within:ring-[#ff6a00]/20"}`}>
+      <div className="relative">
         <input
-          type="number"
-          step={step}
+          type="text"
+          inputMode="decimal"
           value={value}
-          onChange={(e) => onChange(parseFloat(e.target.value) || 0)}
-          className="w-full bg-transparent py-2.5 text-sm text-white outline-none"
+          onChange={(e) => onChange(normalizeNumericInput(e.target.value))}
+          placeholder="0"
+          className="h-11 w-full rounded-xl border border-white/10 bg-white/[0.06] px-4 pr-10 text-sm text-white placeholder:text-neutral-500 outline-none transition focus:border-[#ff6a00]/60 focus:bg-white/[0.08] focus:ring-2 focus:ring-[#ff6a00]/10 disabled:opacity-50"
           disabled={disabled}
         />
-        {suffix && <span className="text-xs font-medium text-gray-500">{suffix}</span>}
+        {suffix && (
+          <span className="pointer-events-none absolute right-3 top-1/2 -translate-y-1/2 text-xs font-medium text-neutral-500">
+            {suffix}
+          </span>
+        )}
       </div>
     </label>
   );
@@ -80,24 +92,24 @@ export default function CalculadoraPage() {
   const [selectedPrinterId, setSelectedPrinterId] = useState("");
   const [selectedMultiplierId, setSelectedMultiplierId] = useState("");
 
-  const [weight, setWeight] = useState(0);
-  const [hours, setHours] = useState(0);
-  const [minutes, setMinutes] = useState(0);
+  const [weight, setWeight] = useState<string>("");
+  const [hours, setHours] = useState<string>("");
+  const [minutes, setMinutes] = useState<string>("");
 
   // Advanced Overrides
-  const [manualPricePerKg, setManualPricePerKg] = useState(0);
-  const [manualErrorPercent, setManualErrorPercent] = useState(0);
-  const [manualKwhPrice, setManualKwhPrice] = useState(0);
-  const [manualPrinterConsumption, setManualPrinterConsumption] = useState(0);
-  const [manualPrinterMaintenance, setManualPrinterMaintenance] = useState(0);
-  const [laborCost, setLaborCost] = useState(0);
-  const [otherCost, setOtherCost] = useState(0);
-  const [fixedCost, setFixedCost] = useState(0);
+  const [manualPricePerKg, setManualPricePerKg] = useState<string>("");
+  const [manualErrorPercent, setManualErrorPercent] = useState<string>("");
+  const [manualKwhPrice, setManualKwhPrice] = useState<string>("");
+  const [manualPrinterConsumption, setManualPrinterConsumption] = useState<string>("");
+  const [manualPrinterMaintenance, setManualPrinterMaintenance] = useState<string>("");
+  const [laborCost, setLaborCost] = useState<string>("");
+  const [otherCost, setOtherCost] = useState<string>("");
+  const [fixedCost, setFixedCost] = useState<string>("");
 
-  const [manualMultiplier, setManualMultiplier] = useState(0);
-  const [manualPlatformCommission, setManualPlatformCommission] = useState(0);
-  const [manualPlatformExtra, setManualPlatformExtra] = useState(0);
-  const [shippingCost, setShippingCost] = useState(0);
+  const [manualMultiplier, setManualMultiplier] = useState<string>("");
+  const [manualPlatformCommission, setManualPlatformCommission] = useState<string>("");
+  const [manualPlatformExtra, setManualPlatformExtra] = useState<string>("");
+  const [shippingCost, setShippingCost] = useState<string>("");
 
   // Save as product modal
   const [showSaveModal, setShowSaveModal] = useState(false);
@@ -159,10 +171,10 @@ export default function CalculadoraPage() {
     if (pRes.data && pRes.data.length > 0) setSelectedPrinterId(pRes.data[0].id);
     if (mRes.data && mRes.data.length > 0) setSelectedMultiplierId(mRes.data[0].id);
 
-    setManualErrorPercent(userSettings?.default_error_percent || 0);
-    setManualKwhPrice(userSettings?.electricity_price_kwh || 0);
-    setManualPlatformCommission(userSettings?.platform_commission_percent || 0);
-    setManualPlatformExtra(userSettings?.mercado_libre_extra_amount || 0);
+    setManualErrorPercent(String(userSettings?.default_error_percent || ""));
+    setManualKwhPrice(String(userSettings?.electricity_price_kwh || ""));
+    setManualPlatformCommission(String(userSettings?.platform_commission_percent || ""));
+    setManualPlatformExtra(String(userSettings?.mercado_libre_extra_amount || ""));
 
     setLoading(false);
   };
@@ -173,20 +185,20 @@ export default function CalculadoraPage() {
     if (fil) {
       const totalGrams = fil.total_grams || 0;
       if (totalGrams > 0) {
-        setManualPricePerKg((fil.purchase_price / totalGrams) * 1000);
+        setManualPricePerKg(String((fil.purchase_price / totalGrams) * 1000));
       }
     }
 
     const pri = printers.find(p => p.id === selectedPrinterId);
     if (pri) {
-      setManualPrinterConsumption(pri.power_watts || 0);
-      setManualPrinterMaintenance(pri.maintenance_cost_per_hour || 0);
+      setManualPrinterConsumption(String(pri.power_watts || ""));
+      setManualPrinterMaintenance(String(pri.maintenance_cost_per_hour || ""));
     }
 
     const mul = multipliers.find(m => m.id === selectedMultiplierId);
     if (mul) {
-      setManualMultiplier(mul.multiplier || 1);
-      setFixedCost(mul.fixed_cost || 0);
+      setManualMultiplier(String(mul.multiplier || "1"));
+      setFixedCost(String(mul.fixed_cost || ""));
     }
 
   }, [selectedFilamentId, selectedPrinterId, selectedMultiplierId, filaments, printers, multipliers]);
@@ -217,37 +229,54 @@ export default function CalculadoraPage() {
   };
 
   const calc = useMemo(() => {
-    const errorMultiplier = 1 + (manualErrorPercent / 100);
-    const weightWithError = weight * errorMultiplier;
+    const numWeight = Number(weight) || 0;
+    const numManualErrorPercent = Number(manualErrorPercent) || 0;
+    const numManualPricePerKg = Number(manualPricePerKg) || 0;
+    const numHours = Number(hours) || 0;
+    const numMinutes = Number(minutes) || 0;
+    const numManualPrinterConsumption = Number(manualPrinterConsumption) || 0;
+    const numManualKwhPrice = Number(manualKwhPrice) || 0;
+    const numManualPrinterMaintenance = Number(manualPrinterMaintenance) || 0;
+    const numLaborCost = Number(laborCost) || 0;
+    const numOtherCost = Number(otherCost) || 0;
+    const numFixedCost = Number(fixedCost) || 0;
+    const numManualMultiplier = Number(manualMultiplier) || 0;
+    const numManualPlatformExtra = Number(manualPlatformExtra) || 0;
+    const numManualPlatformCommission = Number(manualPlatformCommission) || 0;
+    const numShippingCost = Number(shippingCost) || 0;
+
+    const errorMultiplier = 1 + (numManualErrorPercent / 100);
+    const weightWithError = numWeight * errorMultiplier;
 
     // Costo Material
-    const costPerGram = manualPricePerKg / 1000;
+    const costPerGram = numManualPricePerKg / 1000;
     const materialCost = weightWithError * costPerGram;
 
     // Tiempo total en horas
-    const totalHours = hours + (minutes / 60);
+    const totalHours = numHours + (numMinutes / 60);
 
     // Costo Eléctrico
-    const energyCost = totalHours * (manualPrinterConsumption / 1000) * manualKwhPrice;
+    const energyCost = totalHours * (numManualPrinterConsumption / 1000) * numManualKwhPrice;
 
     // Costo Mantenimiento/Amortización
-    const printerCost = totalHours * manualPrinterMaintenance;
+    const printerCost = totalHours * numManualPrinterMaintenance;
 
     // Costo Base
-    const baseCost = materialCost + energyCost + printerCost + laborCost + otherCost + fixedCost;
+    const baseCost = materialCost + energyCost + printerCost + numLaborCost + numOtherCost + numFixedCost;
 
     // Precio Normal
-    const normalPrice = baseCost * manualMultiplier;
+    const normalPrice = baseCost * numManualMultiplier;
 
     // Precio Mercado Libre
-    const mlPrice = normalPrice + manualPlatformExtra + (normalPrice * manualPlatformCommission / 100) + shippingCost;
+    const mlPrice = normalPrice + numManualPlatformExtra + (normalPrice * numManualPlatformCommission / 100) + numShippingCost;
 
     // Ganancia
     const profit = normalPrice - baseCost;
 
     return {
-      materialCost, energyCost, printerCost, fixedCost, baseCost, normalPrice, mlPrice, profit,
-      weightWithError, totalHours
+      materialCost, energyCost, printerCost, fixedCost: numFixedCost, baseCost, normalPrice, mlPrice, profit,
+      weightWithError, totalHours,
+      numWeight, numHours, numMinutes, numLaborCost, numOtherCost, numManualMultiplier, numManualErrorPercent
     };
   }, [
     weight, manualErrorPercent, manualPricePerKg,
@@ -275,18 +304,18 @@ export default function CalculadoraPage() {
     const snapshot = {
       source: "calculator",
       mode: advanced ? "advanced" : "basic",
-      grams: weight,
+      grams: calc.numWeight,
       grams_with_error: calc.weightWithError,
-      error_percent: manualErrorPercent,
-      print_time_minutes: (hours * 60) + minutes,
+      error_percent: calc.numManualErrorPercent,
+      print_time_minutes: (calc.numHours * 60) + calc.numMinutes,
       material_cost: calc.materialCost,
       electricity_cost: calc.energyCost,
       maintenance_cost: calc.printerCost,
       fixed_cost: calc.fixedCost,
-      labor_cost: laborCost,
-      other_costs: otherCost,
+      labor_cost: calc.numLaborCost,
+      other_costs: calc.numOtherCost,
       base_cost: calc.baseCost,
-      multiplier: manualMultiplier,
+      multiplier: calc.numManualMultiplier,
       sale_price: calc.normalPrice,
       profit: calc.profit,
       // Filament details
@@ -315,8 +344,8 @@ export default function CalculadoraPage() {
       filament_id: selectedFilamentId || null,
       product_type_id: selectedMultiplierId || null,
       printer_id: selectedPrinterId || null,
-      grams: weight,
-      print_time_minutes: (hours * 60) + minutes,
+      grams: calc.numWeight,
+      print_time_minutes: (calc.numHours * 60) + calc.numMinutes,
       base_cost: calc.baseCost,
       sale_price: calc.normalPrice,
       stock_quantity: productForm.stock_quantity || 0,
@@ -609,10 +638,10 @@ export default function CalculadoraPage() {
               <p className="text-xs text-gray-500">Costo Fijo</p>
               <p className="text-sm font-medium text-gray-300">${calc.fixedCost.toFixed(2)}</p>
             </div>
-            {advanced && (laborCost > 0 || otherCost > 0) && (
+            {advanced && (calc.numLaborCost > 0 || calc.numOtherCost > 0) && (
               <div className="flex items-center justify-between">
                 <p className="text-xs text-gray-500">Mano obra y otros</p>
-                <p className="text-sm font-medium text-gray-300">${(laborCost + otherCost).toFixed(2)}</p>
+                <p className="text-sm font-medium text-gray-300">${(calc.numLaborCost + calc.numOtherCost).toFixed(2)}</p>
               </div>
             )}
           </div>
