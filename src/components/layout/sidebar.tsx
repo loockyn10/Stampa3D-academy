@@ -162,9 +162,7 @@ export function Sidebar({ mobileOpen, setMobileOpen }: SidebarProps) {
               const adminGroup = {
                 group: "Administración",
                 items: [
-                  { path: "/admin", label: "Admin", icon: Shield },
-                  { path: "/admin/codigos", label: "Códigos", icon: Tag },
-                  { path: "/admin/stampy/contextos", label: "Contextos Stampy", icon: Bot }
+                  { path: "/admin", label: "Admin", icon: Shield }
                 ]
               };
               if (userGroupIndex !== -1) {
