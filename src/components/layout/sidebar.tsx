@@ -164,6 +164,7 @@ export function Sidebar({ mobileOpen, setMobileOpen }: SidebarProps) {
                 items: [
                   { path: "/admin", label: "Admin", icon: Shield },
                   { path: "/admin/calculadora", label: "Tipos Calculadora", icon: Calculator },
+                  { path: "/admin/calculadora/filamentos", label: "Filamentos Calculadora", icon: Calculator },
                   { path: "/admin/codigos", label: "Códigos", icon: Tag },
                   { path: "/admin/stampy/contextos", label: "Contextos Stampy", icon: Bot }
                 ]

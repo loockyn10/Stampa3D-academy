@@ -10,6 +10,7 @@ import { createClient } from "@/utils/supabase/client";
 import { FileUploadDropzone } from "@/components/ui/file-upload-dropzone";
 import { Combobox } from "@/components/ui/combobox";
 import { PrinterCatalogModal } from "@/components/calculadora/printer-catalog-modal";
+import { FilamentCatalogModal } from "@/components/calculadora/filament-catalog-modal";
 import { normalizeFilamentColor } from "@/lib/colors/filament-colors";
 interface NumberFieldProps {
   label: string;
@@ -104,6 +105,7 @@ export default function CalculadoraPage() {
   const [saveSuccess, setSaveSuccess] = useState(false);
   const [saveError, setSaveError] = useState<string | null>(null);
   const [showCatalogModal, setShowCatalogModal] = useState(false);
+  const [showFilamentCatalogModal, setShowFilamentCatalogModal] = useState(false);
   const [productForm, setProductForm] = useState({
     name: "",
     description: "",
@@ -196,6 +198,21 @@ export default function CalculadoraPage() {
       setPrinters(data);
       setSelectedPrinterId(newPrinterId);
       setShowCatalogModal(false);
+    }
+  };
+
+  const handleFilamentSelected = async (newFilamentId: string) => {
+    // Refresh filaments list
+    const { data } = await supabase.from("filaments").select("*").eq("user_id", userId).eq("is_active", true);
+    if (data) {
+      setFilaments(data);
+      if (newFilamentId) {
+        setSelectedFilamentId(newFilamentId);
+        setShowFilamentCatalogModal(false);
+      } else {
+        if (data.length > 0) setSelectedFilamentId(data[0].id);
+        else setSelectedFilamentId("");
+      }
     }
   };
 
@@ -386,9 +403,19 @@ export default function CalculadoraPage() {
               <p className="text-xs text-stampa-orange/80 mt-1">
                 Para usar la calculadora necesitas tener al menos un filamento y un tipo de producto configurados.
               </p>
-              <Link href="/configuracion?tab=taller" className="inline-block mt-3 bg-stampa-orange text-white text-xs font-semibold px-3 py-1.5 rounded-lg hover:bg-stampa-orange-hover transition-colors shadow-sm shadow-[#ff6a00]/20">
-                Ir a Configuración
-              </Link>
+              <div className="flex flex-col sm:flex-row gap-2 mt-3">
+                {filaments.length === 0 && (
+                  <button 
+                    onClick={() => setShowFilamentCatalogModal(true)}
+                    className="text-center inline-block bg-stampa-orange text-white text-xs font-semibold px-3 py-1.5 rounded-lg hover:bg-stampa-orange-hover transition-colors shadow-sm shadow-[#ff6a00]/20 w-full sm:w-auto"
+                  >
+                    Elegir filamento del catálogo
+                  </button>
+                )}
+                <Link href="/configuracion?tab=taller" className="text-center inline-block bg-stampa-orange text-white text-xs font-semibold px-3 py-1.5 rounded-lg hover:bg-stampa-orange-hover transition-colors shadow-sm shadow-[#ff6a00]/20 w-full sm:w-auto">
+                  Ir a Configuración
+                </Link>
+              </div>
             </div>
           </div>
         )}
@@ -428,16 +455,28 @@ export default function CalculadoraPage() {
             <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
               <label className="block">
                 <span className="mb-1 block text-xs font-semibold text-gray-500">Filamento a usar</span>
-                <Combobox
-                  options={filaments.map(f => ({
-                    id: f.id,
-                    label: f.name,
-                    element: <FilamentOptionLabel name={f.name} color={f.color} colorHex={f.color_hex} />
-                  }))}
-                  value={selectedFilamentId}
-                  onChange={(val) => setSelectedFilamentId(String(val))}
-                  placeholder="Seleccioná un filamento..."
-                />
+                <div className="flex gap-2">
+                  <div className="flex-1 min-w-0">
+                    <Combobox
+                      options={filaments.map(f => ({
+                        id: f.id,
+                        label: f.name,
+                        element: <FilamentOptionLabel name={f.name} color={f.color} colorHex={f.color_hex} />
+                      }))}
+                      value={selectedFilamentId}
+                      onChange={(val) => setSelectedFilamentId(String(val))}
+                      placeholder="Seleccioná un filamento..."
+                    />
+                  </div>
+                  <button 
+                    type="button" 
+                    onClick={() => setShowFilamentCatalogModal(true)}
+                    className="shrink-0 flex items-center justify-center bg-white/5 hover:bg-white/10 text-white rounded-xl border border-stampa-border px-3 transition-colors"
+                    title="Elegir filamento del catálogo"
+                  >
+                    <Plus size={16} />
+                  </button>
+                </div>
               </label>
               <div>
                 <NumberField label="Gramos de la pieza" value={weight} onChange={setWeight} suffix="g" />
@@ -756,6 +795,15 @@ export default function CalculadoraPage() {
         userId={userId} 
         onClose={() => setShowCatalogModal(false)} 
         onSelect={handlePrinterSelected} 
+      />
+    )}
+
+    {/* MODAL: CATÁLOGO DE FILAMENTOS */}
+    {showFilamentCatalogModal && userId && (
+      <FilamentCatalogModal 
+        userId={userId} 
+        onClose={() => setShowFilamentCatalogModal(false)} 
+        onSelect={handleFilamentSelected} 
       />
     )}
   </div>;
