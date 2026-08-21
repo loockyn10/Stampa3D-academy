@@ -48,7 +48,12 @@ body {
   cursor: url("/cursors/cursor_stampa32_flecha.png") 0 0, auto !important;
 }
 
-button {
+button,
+a,
+[role="button"],
+.cursor-pointer,
+label,
+summary {
   cursor: url("/cursors/cursor_stampa32_manito.png") 0 0, auto !important;
 }
 
