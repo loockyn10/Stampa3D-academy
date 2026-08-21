@@ -46,140 +46,139 @@ body {
   color: var(--foreground);
   font-family: Arial, Helvetica, sans-serif;
   /*cursor: url("/cursors/Stampa_3DPhotoshop.png"), 0 0, auto !important;*/
-  cursor: crosshair !important;
-}
+  cursor: url("/cursors/cursor_stampa.png") 0 0, auto !important;
 
-/* Global Form Control Styles */
-input:not([type="checkbox"]):not([type="radio"]),
-textarea,
-select {
-  color: var(--stampa-text) !important;
-  background-color: var(--stampa-surface-soft) !important;
-  border-color: var(--stampa-border) !important;
-}
-
-input:not([type="checkbox"]):not([type="radio"])::placeholder,
-textarea::placeholder {
-  color: var(--stampa-text-muted) !important;
-  opacity: 1 !important;
-}
-
-input:not([type="checkbox"]):not([type="radio"]):focus,
-textarea:focus,
-select:focus {
-  outline: none !important;
-  border-color: var(--stampa-orange) !important;
-  box-shadow: 0 0 0 2px var(--stampa-orange-border) !important;
-}
-
-option {
-  color: var(--stampa-text) !important;
-  background-color: var(--stampa-surface-soft) !important;
-}
-
-
-/* SPRINT UX/UI 1K: Animaciones Globales Premium */
-@keyframes stampa-page-in {
-  from {
-    opacity: 0;
-    transform: translateY(8px);
+  /* Global Form Control Styles */
+  input:not([type="checkbox"]):not([type="radio"]),
+  textarea,
+  select {
+    color: var(--stampa-text) !important;
+    background-color: var(--stampa-surface-soft) !important;
+    border-color: var(--stampa-border) !important;
   }
 
-  to {
-    opacity: 1;
-    transform: translateY(0);
-  }
-}
-
-@keyframes stampa-slide-up {
-  from {
-    opacity: 0;
-    transform: translateY(12px);
+  input:not([type="checkbox"]):not([type="radio"])::placeholder,
+  textarea::placeholder {
+    color: var(--stampa-text-muted) !important;
+    opacity: 1 !important;
   }
 
-  to {
-    opacity: 1;
-    transform: translateY(0);
-  }
-}
-
-@keyframes stampa-soft-pulse {
-  0% {
-    opacity: 1;
+  input:not([type="checkbox"]):not([type="radio"]):focus,
+  textarea:focus,
+  select:focus {
+    outline: none !important;
+    border-color: var(--stampa-orange) !important;
+    box-shadow: 0 0 0 2px var(--stampa-orange-border) !important;
   }
 
-  50% {
-    opacity: 0.6;
+  option {
+    color: var(--stampa-text) !important;
+    background-color: var(--stampa-surface-soft) !important;
   }
 
-  100% {
-    opacity: 1;
+
+  /* SPRINT UX/UI 1K: Animaciones Globales Premium */
+  @keyframes stampa-page-in {
+    from {
+      opacity: 0;
+      transform: translateY(8px);
+    }
+
+    to {
+      opacity: 1;
+      transform: translateY(0);
+    }
   }
-}
 
-.animate-page-in {
-  animation: stampa-page-in 250ms ease-out forwards;
-}
+  @keyframes stampa-slide-up {
+    from {
+      opacity: 0;
+      transform: translateY(12px);
+    }
 
-.animate-slide-up {
-  animation: stampa-slide-up 300ms ease-out forwards;
-}
-
-.animate-soft-pulse {
-  animation: stampa-soft-pulse 2.5s ease-in-out infinite;
-}
-
-/* Interacción de Tarjetas (Cards) Premium */
-.stampa-card-interactive {
-  transition: transform 180ms ease-out, border-color 180ms ease-out, box-shadow 180ms ease-out;
-}
-
-@media (hover: hover) {
-  .stampa-card-interactive:hover {
-    transform: translateY(-2px);
-    border-color: var(--stampa-orange-border) !important;
-    box-shadow: 0 4px 20px -5px var(--stampa-orange-muted) !important;
+    to {
+      opacity: 1;
+      transform: translateY(0);
+    }
   }
-}
 
-.stampa-card-interactive:active {
-  transform: translateY(0) scale(0.995);
-}
+  @keyframes stampa-soft-pulse {
+    0% {
+      opacity: 1;
+    }
 
-/* Preferencias de accesibilidad (Reduced Motion) */
-@media (prefers-reduced-motion: reduce) {
+    50% {
+      opacity: 0.6;
+    }
 
-  *,
-  *::before,
-  *::after {
-    animation-duration: 0.01ms !important;
-    animation-iteration-count: 1 !important;
-    transition-duration: 0.01ms !important;
-    scroll-behavior: auto !important;
+    100% {
+      opacity: 1;
+    }
   }
-}
 
-.stampa-scrollbar {
-  scrollbar-width: thin;
-  scrollbar-color: rgba(255, 106, 0, 0.65) rgba(255, 255, 255, 0.06);
-}
+  .animate-page-in {
+    animation: stampa-page-in 250ms ease-out forwards;
+  }
 
-.stampa-scrollbar::-webkit-scrollbar {
-  width: 8px;
-  height: 8px;
-}
+  .animate-slide-up {
+    animation: stampa-slide-up 300ms ease-out forwards;
+  }
 
-.stampa-scrollbar::-webkit-scrollbar-track {
-  background: rgba(255, 255, 255, 0.06);
-  border-radius: 999px;
-}
+  .animate-soft-pulse {
+    animation: stampa-soft-pulse 2.5s ease-in-out infinite;
+  }
 
-.stampa-scrollbar::-webkit-scrollbar-thumb {
-  background: rgba(255, 106, 0, 0.65);
-  border-radius: 999px;
-  border: 2px solid rgba(17, 17, 17, 1);
-}
+  /* Interacción de Tarjetas (Cards) Premium */
+  .stampa-card-interactive {
+    transition: transform 180ms ease-out, border-color 180ms ease-out, box-shadow 180ms ease-out;
+  }
 
-.stampa-scrollbar::-webkit-scrollbar-thumb:hover {
-  background: rgba(255, 106, 0, 0.9);
-}
+  @media (hover: hover) {
+    .stampa-card-interactive:hover {
+      transform: translateY(-2px);
+      border-color: var(--stampa-orange-border) !important;
+      box-shadow: 0 4px 20px -5px var(--stampa-orange-muted) !important;
+    }
+  }
+
+  .stampa-card-interactive:active {
+    transform: translateY(0) scale(0.995);
+  }
+
+  /* Preferencias de accesibilidad (Reduced Motion) */
+  @media (prefers-reduced-motion: reduce) {
+
+    *,
+    *::before,
+    *::after {
+      animation-duration: 0.01ms !important;
+      animation-iteration-count: 1 !important;
+      transition-duration: 0.01ms !important;
+      scroll-behavior: auto !important;
+    }
+  }
+
+  .stampa-scrollbar {
+    scrollbar-width: thin;
+    scrollbar-color: rgba(255, 106, 0, 0.65) rgba(255, 255, 255, 0.06);
+  }
+
+  .stampa-scrollbar::-webkit-scrollbar {
+    width: 8px;
+    height: 8px;
+  }
+
+  .stampa-scrollbar::-webkit-scrollbar-track {
+    background: rgba(255, 255, 255, 0.06);
+    border-radius: 999px;
+  }
+
+  .stampa-scrollbar::-webkit-scrollbar-thumb {
+    background: rgba(255, 106, 0, 0.65);
+    border-radius: 999px;
+    border: 2px solid rgba(17, 17, 17, 1);
+  }
+
+  .stampa-scrollbar::-webkit-scrollbar-thumb:hover {
+    background: rgba(255, 106, 0, 0.9);
+  }
