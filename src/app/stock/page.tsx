@@ -1209,29 +1209,38 @@ export default function StockPage() {
               <div>
                 <label className="block text-sm font-semibold text-gray-300 mb-2">Agregar producto</label>
                 <div className="flex gap-2">
-                  <select 
-                    value={consumeSelectedProductId} 
-                    onChange={(e) => setConsumeSelectedProductId(e.target.value)} 
-                    className="flex-1 text-sm border-white/20 rounded-lg focus:border-stampa-orange focus:ring-stampa-orange bg-stampa-bg-soft text-white"
-                  >
-                    <option value="">Buscar producto o parte...</option>
-                    {products.filter(p => p.is_active).map(p => {
-                      const pComps = productComponents.filter(c => c.product_id === p.id && c.is_active);
-                      const isParts = pComps.length > 1 || (pComps.length === 1 && pComps[0].name !== "Producto completo");
-                      if (isParts) {
-                        return (
-                          <optgroup key={p.id} label={p.name}>
-                            <option value={`product|${p.id}`}>📦 {p.name} (Completo)</option>
-                            {pComps.map(c => (
-                              <option key={c.id} value={`component|${c.id}`}>&nbsp;&nbsp;🧩 Pieza: {c.name}</option>
-                            ))}
-                          </optgroup>
-                        );
-                      } else {
-                        return <option key={p.id} value={`product|${p.id}`}>📦 {p.name}</option>
-                      }
-                    })}
-                  </select>
+                  <div className="flex-1 min-w-0">
+                    <CalculatorSelect
+                      options={products.filter(p => p.is_active).flatMap(p => {
+                        const pComps = productComponents.filter(c => c.product_id === p.id && c.is_active);
+                        const isParts = pComps.length > 1 || (pComps.length === 1 && pComps[0].name !== "Producto completo");
+                        if (isParts) {
+                          return [
+                            {
+                              value: `product|${p.id}`,
+                              label: `${p.name} (Completo)`,
+                              element: <span className="truncate">📦 <span className="text-gray-400">{p.name}</span> (Completo)</span>
+                            },
+                            ...pComps.map(c => ({
+                              value: `component|${c.id}`,
+                              label: `${p.name} - ${c.name}`,
+                              element: <span className="truncate">🧩 <span className="text-gray-400">{p.name}</span> · {c.name}</span>
+                            }))
+                          ];
+                        } else {
+                          return [{
+                            value: `product|${p.id}`,
+                            label: p.name,
+                            element: <span className="truncate">📦 {p.name}</span>
+                          }];
+                        }
+                      })}
+                      value={consumeSelectedProductId}
+                      onChange={(val) => setConsumeSelectedProductId(val)}
+                      placeholder="Buscar producto o parte..."
+                      searchable={true}
+                    />
+                  </div>
                   <PrimaryButton onClick={handleAddToCart} disabled={!consumeSelectedProductId}>
                     <Plus size={16} /> Agregar
                   </PrimaryButton>
