@@ -45,7 +45,7 @@ body {
   background: var(--background);
   color: var(--foreground);
   font-family: Arial, Helvetica, sans-serif;
-  cursor: url("/cursors/cursor_stampa32_flecha.png") 0 0, auto !important;
+  cursor: url("/cursors/cursor_stampa32_flecha2.png") 0 0, auto !important;
 }
 
 button,
@@ -54,7 +54,7 @@ a,
 .cursor-pointer,
 label,
 summary {
-  cursor: url("/cursors/cursor_stampa32_manito.png") 0 0, auto !important;
+  cursor: url("/cursors/cursor_stampa32_manito2.png") 0 0, auto !important;
 }
 
 
