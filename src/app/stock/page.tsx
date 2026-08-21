@@ -13,6 +13,7 @@ import { normalizeFilamentColor } from "@/lib/colors/filament-colors";
 import { ColorSwatchLabel } from "@/components/ui/color-swatch-label";
 import { FilamentCatalogModal } from "@/components/calculadora/filament-catalog-modal";
 import { CalculatorSelect } from "@/components/ui/calculator-select";
+import { getFilamentLabel } from "@/lib/filaments/utils";
 
 const ColorOptionLabel = ({ name, colorHex }: { name: string, colorHex?: string | null }) => {
   let resolvedHex = "#737373";
@@ -1280,10 +1281,21 @@ export default function StockPage() {
                               min="1" 
                               value={item.quantity} 
                               onChange={(e) => {
-                                const q = parseInt(e.target.value) || 1;
-                                setConsumeCart(prev => prev.map((p, i) => i === idx ? { ...p, quantity: Math.max(1, q) } : p));
+                                const val = e.target.value;
+                                if (val === "") {
+                                  // allow intermediate empty state if desired, but we can default to 1 on blur or just update state directly
+                                  setConsumeCart(prev => prev.map((p, i) => i === idx ? { ...p, quantity: "" as any } : p));
+                                } else {
+                                  const q = parseInt(val) || 1;
+                                  setConsumeCart(prev => prev.map((p, i) => i === idx ? { ...p, quantity: Math.max(1, q) } : p));
+                                }
                               }}
-                              className="w-16 text-sm border-white/20 rounded focus:border-stampa-orange focus:ring-stampa-orange p-1 bg-stampa-bg-soft text-white"
+                              onBlur={(e) => {
+                                if (!e.target.value) {
+                                  setConsumeCart(prev => prev.map((p, i) => i === idx ? { ...p, quantity: 1 } : p));
+                                }
+                              }}
+                              className="h-9 w-16 text-center text-sm rounded-lg border border-white/10 bg-white/[0.06] text-white focus:border-stampa-orange/60 focus:ring-2 focus:ring-stampa-orange/10 transition-all outline-none [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
                             />
                           </div>
                           <button onClick={() => setConsumeCart(prev => prev.filter((_, i) => i !== idx))} className="text-red-400 hover:text-red-600 p-1">
@@ -1303,19 +1315,19 @@ export default function StockPage() {
                   <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                     {calculateConsumePreview().preview.map(p => (
                       <div key={p.filament_id} className={`p-3 rounded-xl border ${p.needed > p.available ? 'bg-red-50 border border-red-500/20' : 'bg-orange-50 border-orange-100'}`}>
-                        <p className="font-bold text-sm text-white truncate mb-1">
-                          {p.filament?.name || 'Material desconocido'} {p.filament?.color ? `(${p.filament.color})` : ''}
+                        <p className="font-bold text-sm text-neutral-900 truncate mb-1">
+                          {p.filament ? getFilamentLabel(p.filament) : 'Material desconocido'} {p.filament?.color ? `(${p.filament.color})` : ''}
                         </p>
                         <div className="flex justify-between text-xs mb-1">
-                          <span className="text-gray-400">Requiere:</span>
-                          <span className="font-bold text-white">{p.needed.toFixed(1)} g</span>
+                          <span className="text-neutral-600">Requiere:</span>
+                          <span className="font-bold text-neutral-800">{p.needed.toFixed(1)} g</span>
                         </div>
                         <div className="flex justify-between text-xs mb-1">
-                          <span className="text-gray-400">Disponible:</span>
-                          <span className="font-medium text-white">{p.available} g</span>
+                          <span className="text-neutral-600">Disponible:</span>
+                          <span className="font-medium text-neutral-800">{p.available} g</span>
                         </div>
                         <div className="flex justify-between text-xs pt-1 border-t border-orange-200/50 mt-1">
-                          <span className="text-gray-400">Quedarán:</span>
+                          <span className="text-neutral-600">Quedarán:</span>
                           <span className={`font-bold ${p.remainingAfter < 0 ? 'text-red-600' : 'text-orange-700'}`}>
                             {p.remainingAfter.toFixed(1)} g
                           </span>
