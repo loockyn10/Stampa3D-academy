@@ -118,11 +118,10 @@ export function FilamentCatalogModal({ onClose, onSelect, onImported, mode = "si
         }
       }
 
-      const displayName = buildDisplayName(template);
-
       const payload = {
         user_id: userId,
-        name: displayName,
+        brand: template.brand || null,
+        name: template.name || null,
         filament_type: template.filament_type,
         color: template.color || null,
         color_hex: template.color_hex || null,
@@ -187,11 +186,10 @@ export function FilamentCatalogModal({ onClose, onSelect, onImported, mode = "si
           }
         } else {
           // Insert new
-          const displayName = buildDisplayName(template);
-
           const payload = {
             user_id: userId,
-            name: displayName,
+            brand: template.brand || null,
+            name: template.name || null,
             filament_type: template.filament_type,
             color: template.color || null,
             color_hex: template.color_hex || null,

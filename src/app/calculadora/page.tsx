@@ -12,6 +12,7 @@ import { CalculatorSelect } from "@/components/ui/calculator-select";
 import { PrinterCatalogModal } from "@/components/calculadora/printer-catalog-modal";
 import { FilamentCatalogModal } from "@/components/calculadora/filament-catalog-modal";
 import { normalizeFilamentColor } from "@/lib/colors/filament-colors";
+import { getFilamentLabel } from "@/lib/filaments/utils";
 interface NumberFieldProps {
   label: string;
   value: string;
@@ -28,16 +29,19 @@ function normalizeNumericInput(value: string) {
   return cleaned.replace(/^0+(?=\d)/, "");
 }
 
-const FilamentOptionLabel = ({ name, color, colorHex }: { name: string, color?: string | null, colorHex?: string | null }) => {
+const FilamentOptionLabel = ({ filament }: { filament: any }) => {
   let resolvedHex = "#737373";
-  if (colorHex && /^#[0-9A-Fa-f]{6}$/i.test(colorHex)) {
-    resolvedHex = colorHex;
-  } else if (color) {
-    const normalized = normalizeFilamentColor(color);
+  if (filament.color_hex && /^#[0-9A-Fa-f]{6}$/i.test(filament.color_hex)) {
+    resolvedHex = filament.color_hex;
+  } else if (filament.color) {
+    const normalized = normalizeFilamentColor(filament.color);
     if (normalized && normalized.hex) {
       resolvedHex = normalized.hex;
     }
   }
+
+  const brand = filament.brand || (filament.filament_templates?.brand) || null;
+  const displayName = getFilamentLabel({ ...filament, brand });
 
   return (
     <span className="inline-flex items-center gap-2 min-w-0 w-full">
@@ -46,7 +50,7 @@ const FilamentOptionLabel = ({ name, color, colorHex }: { name: string, color?: 
         style={{ backgroundColor: resolvedHex }}
         aria-hidden="true"
       />
-      <span className="truncate">{name}</span>
+      <span className="truncate">{displayName}</span>
     </span>
   );
 };
@@ -142,7 +146,7 @@ export default function CalculadoraPage() {
     await supabase.rpc("ensure_default_calculator_product_types");
 
     const [fRes, pRes, mRes, sRes] = await Promise.all([
-      supabase.from("filaments").select("*").eq("user_id", user.id).eq("is_active", true),
+      supabase.from("filaments").select("*, filament_templates(brand)").eq("user_id", user.id).eq("is_active", true),
       supabase.from("printers").select("*").eq("user_id", user.id).eq("is_active", true),
       supabase.from("calculator_product_types").select("*").eq("user_id", user.id).eq("is_active", true).order("sort_order"),
       supabase.from("calculator_settings").select("*").eq("user_id", user.id).single()
@@ -488,8 +492,8 @@ export default function CalculadoraPage() {
                     <CalculatorSelect
                       options={filaments.map(f => ({
                         value: f.id,
-                        label: f.name,
-                        element: <FilamentOptionLabel name={f.name} color={f.color} colorHex={f.color_hex} />
+                        label: getFilamentLabel(f),
+                        element: <FilamentOptionLabel filament={f} />
                       }))}
                       value={selectedFilamentId}
                       onChange={(val) => setSelectedFilamentId(val)}

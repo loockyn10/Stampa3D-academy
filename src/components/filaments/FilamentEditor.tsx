@@ -43,18 +43,24 @@ export function FilamentEditor({ formData, setFormData, onSave, onCancel }: any)
   return (
     <Card className="p-4 border-stampa-orange/30 shadow-md">
       <div className="space-y-3">
-        <div>
-          <label className="block text-xs font-semibold text-gray-300 mb-1">Nombre</label>
-          <input type="text" name="name" value={formData.name || ""} onChange={handleChange} className="w-full text-sm border-stampa-border rounded-md text-neutral-100 bg-stampa-surface border focus:border-[#ff6a00] focus:ring-[#ff6a00]/20 focus:ring-2 placeholder:text-neutral-500 disabled:bg-neutral-800 disabled:text-neutral-500" placeholder="Ej. Grilon3 PLA Negro" />
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+          <div>
+            <label className="block text-xs font-semibold text-gray-300 mb-1">Tipo *</label>
+            <input type="text" name="filament_type" value={formData.filament_type || ""} onChange={handleChange} className="w-full text-sm border-stampa-border rounded-md text-neutral-100 bg-stampa-surface border focus:border-[#ff6a00] focus:ring-[#ff6a00]/20 focus:ring-2 placeholder:text-neutral-500 disabled:bg-neutral-800 disabled:text-neutral-500" placeholder="PLA, PETG, TPU" />
+          </div>
+          <div>
+            <label className="block text-xs font-semibold text-gray-300 mb-1">Marca *</label>
+            <input type="text" name="brand" value={formData.brand || ""} onChange={handleChange} className="w-full text-sm border-stampa-border rounded-md text-neutral-100 bg-stampa-surface border focus:border-[#ff6a00] focus:ring-[#ff6a00]/20 focus:ring-2 placeholder:text-neutral-500 disabled:bg-neutral-800 disabled:text-neutral-500" placeholder="Ej: Hellbot, Elegoo, W3D" />
+          </div>
         </div>
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
           <div>
-            <label className="block text-xs font-semibold text-gray-300 mb-1">Tipo</label>
-            <input type="text" name="filament_type" value={formData.filament_type || ""} onChange={handleChange} className="w-full text-sm border-stampa-border rounded-md text-neutral-100 bg-stampa-surface border focus:border-[#ff6a00] focus:ring-[#ff6a00]/20 focus:ring-2 placeholder:text-neutral-500 disabled:bg-neutral-800 disabled:text-neutral-500" placeholder="PLA, PETG" />
+            <label className="block text-xs font-semibold text-gray-300 mb-1">Subtipo (Opcional)</label>
+            <input type="text" name="name" value={formData.name || ""} onChange={handleChange} className="w-full text-sm border-stampa-border rounded-md text-neutral-100 bg-stampa-surface border focus:border-[#ff6a00] focus:ring-[#ff6a00]/20 focus:ring-2 placeholder:text-neutral-500 disabled:bg-neutral-800 disabled:text-neutral-500" placeholder="Ej: Ecofila, Silk, Mate, Pro" />
           </div>
           <div>
             <label className="block text-xs font-semibold text-gray-300 mb-1">Color</label>
-            <input type="text" name="color" value={formData.color || ""} onChange={handleChange} className="w-full text-sm border-stampa-border rounded-md text-neutral-100 bg-stampa-surface border focus:border-[#ff6a00] focus:ring-[#ff6a00]/20 focus:ring-2 placeholder:text-neutral-500 disabled:bg-neutral-800 disabled:text-neutral-500" placeholder="Ej. Naranja" />
+            <input type="text" name="color" value={formData.color || ""} onChange={handleChange} className="w-full text-sm border-stampa-border rounded-md text-neutral-100 bg-stampa-surface border focus:border-[#ff6a00] focus:ring-[#ff6a00]/20 focus:ring-2 placeholder:text-neutral-500 disabled:bg-neutral-800 disabled:text-neutral-500" placeholder="Ej. Rojo, Negro" />
             
             <div className="flex items-center gap-2 mt-2">
               <input type="color" name="color_hex" value={formData.color_hex || colorResult.hex} onChange={handleChange} className="h-6 w-8 rounded cursor-pointer p-0 bg-transparent border-0" title="Ajustar color manualmente" />

@@ -127,7 +127,7 @@ export default function StockPage() {
   const [showFilamentCatalogModal, setShowFilamentCatalogModal] = useState(false);
   const [editingFilamentId, setEditingFilamentId] = useState<string | null>(null);
   const [filamentFormData, setFilamentFormData] = useState<any>({
-    name: "", filament_type: "PLA", color: "", total_grams: 1000, remaining_grams: 1000, purchase_price: 0, is_active: true
+    name: "", filament_type: "PLA", brand: "", color: "", total_grams: 1000, remaining_grams: 1000, purchase_price: 0, is_active: true
   });
 
   useEffect(() => {
@@ -347,6 +347,8 @@ export default function StockPage() {
 
     const payload = {
       ...filamentFormData,
+      brand: filamentFormData.brand?.trim() || null,
+      name: filamentFormData.name?.trim() || null,
       user_id: user.id,
       total_grams: parseFloat(String(filamentFormData.total_grams)) || 0,
       remaining_grams: parseFloat(String(filamentFormData.remaining_grams)) || 0,
@@ -676,7 +678,7 @@ export default function StockPage() {
               <button
                 onClick={() => {
                   setFilamentFormData({
-                    name: "", filament_type: "PLA", color: "", total_grams: 1000, remaining_grams: 1000, purchase_price: 0, is_active: true
+                    name: "", filament_type: "PLA", brand: "", color: "", total_grams: 1000, remaining_grams: 1000, purchase_price: 0, is_active: true
                   });
                   setEditingFilamentId("new");
                   setFilamentModalOpen(true);
@@ -777,7 +779,7 @@ export default function StockPage() {
               <tr>
                 {tab === "filamentos" && <th className="px-5 py-3 w-10"></th>}
                 {tab === "filamentos" && <th className="px-5 py-3">Marca</th>}
-                <th className="px-5 py-3">Nombre</th>
+                <th className="px-5 py-3">Subtipo</th>
                 <th className="px-5 py-3">{tab === "productos" ? "Precio Venta" : "Tipo"}</th>
                 {tab === "filamentos" && <th className="px-5 py-3">Color</th>}
                 <th className="px-5 py-3">Cantidad</th>
@@ -985,7 +987,7 @@ export default function StockPage() {
                     {brand}
                   </td>
                   <td className="px-5 py-3.5 font-semibold text-white">
-                    {f.name}
+                    {f.name || "—"}
                   </td>
                   <td className="px-5 py-3.5 text-gray-400 font-medium">
                     {f.filament_type}
