@@ -2,7 +2,7 @@
 
 import React, { useState, useEffect, useMemo } from "react";
 import Link from "next/link";
-import { AlertTriangle, Plus, Minus, Loader2, Package, Box, History, X, Edit2, Search, ChevronDown, ChevronUp } from "lucide-react";
+import { AlertTriangle, Plus, Minus, Loader2, Package, Box, History, X, Edit2, Search, ChevronDown, ChevronUp, Trash2 } from "lucide-react";
 import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { PrimaryButton } from "@/components/ui/button";
@@ -12,6 +12,30 @@ import { FilamentEditor } from "@/components/filaments/FilamentEditor";
 import { normalizeFilamentColor } from "@/lib/colors/filament-colors";
 import { ColorSwatchLabel } from "@/components/ui/color-swatch-label";
 import { FilamentCatalogModal } from "@/components/calculadora/filament-catalog-modal";
+import { CalculatorSelect } from "@/components/ui/calculator-select";
+
+const ColorOptionLabel = ({ name, colorHex }: { name: string, colorHex?: string | null }) => {
+  let resolvedHex = "#737373";
+  if (colorHex && /^#[0-9A-Fa-f]{6}$/i.test(colorHex)) {
+    resolvedHex = colorHex;
+  } else if (name) {
+    const normalized = normalizeFilamentColor(name);
+    if (normalized && normalized.hex) {
+      resolvedHex = normalized.hex;
+    }
+  }
+
+  return (
+    <span className="inline-flex items-center gap-2 min-w-0 w-full">
+      <span
+        className="h-3 w-3 shrink-0 rounded-full border border-white/20 shadow-sm"
+        style={{ backgroundColor: resolvedHex }}
+        aria-hidden="true"
+      />
+      <span className="truncate">{name}</span>
+    </span>
+  );
+};
 
 import { createClient } from "@/utils/supabase/client";
 
@@ -118,7 +142,7 @@ export default function StockPage() {
 
     const [prodRes, filRes, compRes, compFilRes] = await Promise.all([
       supabase.from("products").select("*").eq("user_id", user.id).order("name", { ascending: true }),
-      supabase.from("filaments").select("*").eq("user_id", user.id).eq("is_active", true).order("name", { ascending: true }),
+      supabase.from("filaments").select("*, filament_templates(brand)").eq("user_id", user.id).eq("is_active", true).order("name", { ascending: true }),
       supabase.from("product_components").select("*").eq("user_id", user.id).eq("is_active", true),
       supabase.from("product_component_filaments").select("*").eq("user_id", user.id)
     ]);
@@ -278,6 +302,22 @@ export default function StockPage() {
       await fetchData();
     }
     setAdjustingFilament(null);
+  };
+
+  const handleRemoveFilament = async (id: string) => {
+    if (!confirm("¿Querés quitar este filamento del stock?")) return;
+    
+    const { error } = await supabase
+      .from("filaments")
+      .update({ is_active: false, updated_at: new Date().toISOString() })
+      .eq("id", id)
+      .eq("user_id", userId);
+      
+    if (error) {
+      alert("Error al quitar el filamento: " + error.message);
+    } else {
+      await fetchData();
+    }
   };
 
   const loadFilamentHistory = async (id: string) => {
@@ -620,7 +660,19 @@ export default function StockPage() {
         </div>
         {tab === "filamentos" && (
           <div className="flex flex-col gap-4 w-full">
-            <div className="grid grid-cols-1 sm:flex sm:flex-wrap gap-2 w-full">
+            <div className="grid grid-cols-1 sm:flex sm:flex-wrap gap-2 w-full justify-end">
+              <button 
+                onClick={() => setConsumeModalOpen(true)} 
+                className="flex items-center justify-center gap-2 text-sm font-bold text-orange-700 bg-orange-50 hover:bg-orange-100 px-4 py-2 rounded-lg transition-colors border border-orange-200 w-full sm:w-auto"
+              >
+                <Package size={15} /> Descontar por producto
+              </button>
+              <button
+                onClick={() => setShowFilamentCatalogModal(true)}
+                className="flex items-center justify-center gap-2 text-sm font-bold text-stampa-orange bg-stampa-orange/10 hover:bg-stampa-orange/20 px-4 py-2 rounded-lg transition-colors border border-stampa-orange/20 w-full sm:w-auto"
+              >
+                <Package size={15} /> Importar desde catálogo
+              </button>
               <button
                 onClick={() => {
                   setFilamentFormData({
@@ -633,67 +685,50 @@ export default function StockPage() {
               >
                 <Plus size={15} /> Nuevo Filamento
               </button>
-              <button
-                onClick={() => setShowFilamentCatalogModal(true)}
-                className="flex items-center justify-center gap-2 text-sm font-bold text-stampa-orange bg-stampa-orange/10 hover:bg-stampa-orange/20 px-4 py-2 rounded-lg transition-colors border border-stampa-orange/20 w-full sm:w-auto"
-              >
-                <Package size={15} /> Importar desde catálogo
-              </button>
-              <button 
-                onClick={() => setConsumeModalOpen(true)} 
-                className="flex items-center justify-center gap-2 text-sm font-bold text-orange-700 bg-orange-50 hover:bg-orange-100 px-4 py-2 rounded-lg transition-colors border border-orange-200 w-full sm:w-auto"
-              >
-                <Package size={15} /> Descontar por producto
-              </button>
             </div>
 
             <div className="mb-2 flex flex-col lg:flex-row gap-3 w-full">
-              <div className="relative w-full lg:flex-1">
-                <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" size={18} />
+              <div className="relative w-full lg:flex-1 flex items-center">
+                <Search className="absolute left-3 text-gray-400" size={18} />
                 <input 
                   type="text" 
                   placeholder="Buscar filamentos..." 
                   value={filamentSearch}
                   onChange={(e) => setFilamentSearch(e.target.value)}
-                  className="w-full pl-10 pr-10 py-2.5 bg-stampa-surface border border-stampa-border rounded-xl text-sm text-white focus:outline-none focus:border-stampa-orange/50"
+                  className="w-full pl-10 pr-10 h-11 bg-white/[0.06] border border-white/10 rounded-xl text-sm text-white focus:outline-none focus:border-orange-500/60 focus:ring-2 focus:ring-orange-500/10 transition-all"
                 />
                 {filamentSearch && (
-                  <button onClick={() => setFilamentSearch("")} className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-white">
+                  <button onClick={() => setFilamentSearch("")} className="absolute right-3 text-gray-400 hover:text-white">
                     <X size={16} />
                   </button>
                 )}
               </div>
               
               <div className="grid grid-cols-1 sm:flex sm:flex-wrap gap-3 w-full lg:w-auto">
-                <select
-                  value={selectedMaterial}
-                  onChange={(e) => setSelectedMaterial(e.target.value)}
-                  className="bg-stampa-surface border border-stampa-border rounded-xl px-3 py-2.5 text-sm text-white focus:outline-none focus:border-stampa-orange/50 min-w-[150px]"
-                >
-                  <option value="all">Todos los materiales</option>
-                  {uniqueMaterials.map((m: any) => <option key={m} value={m}>{m}</option>)}
-                </select>
+                <div className="min-w-[150px]">
+                  <CalculatorSelect
+                    options={[
+                      { value: "all", label: "Todos los materiales" },
+                      ...uniqueMaterials.map((m: any) => ({ value: m, label: m }))
+                    ]}
+                    value={selectedMaterial}
+                    onChange={(val) => setSelectedMaterial(val)}
+                  />
+                </div>
                 
-                <div className="flex bg-stampa-surface border border-stampa-border rounded-xl overflow-x-auto w-full sm:max-w-md hide-scrollbar items-center p-1">
-                  <button
-                    onClick={() => setSelectedColor("all")}
-                    className={`px-3 py-1.5 text-xs font-medium rounded-lg whitespace-nowrap transition-colors ${
-                      selectedColor === "all" ? "bg-white/10 text-white" : "text-gray-400 hover:text-gray-200"
-                    }`}
-                  >
-                    Todos
-                  </button>
-                  {uniqueColors.map((c: any) => (
-                    <button
-                      key={c.color}
-                      onClick={() => setSelectedColor(c.color)}
-                      className={`px-2 py-1.5 rounded-lg transition-colors whitespace-nowrap flex items-center ${
-                        selectedColor === c.color ? "bg-white/10 text-white" : "text-gray-400 hover:bg-white/5 opacity-80 hover:opacity-100 hover:text-gray-200"
-                      }`}
-                    >
-                      <ColorSwatchLabel color={c.color} colorHex={c.hex} size="sm" fallbackLabel={c.color} />
-                    </button>
-                  ))}
+                <div className="min-w-[150px]">
+                  <CalculatorSelect
+                    options={[
+                      { value: "all", label: "Todos los colores", element: <span className="flex items-center gap-2"><span className="w-3 h-3 rounded-full border border-white/20 bg-transparent flex items-center justify-center"><span className="w-1.5 h-1.5 rounded-full bg-white/50"></span></span> Todos los colores</span> },
+                      ...uniqueColors.map((c: any) => ({
+                        value: c.color,
+                        label: c.color,
+                        element: <ColorOptionLabel name={c.color} colorHex={c.hex} />
+                      }))
+                    ]}
+                    value={selectedColor}
+                    onChange={(val) => setSelectedColor(val)}
+                  />
                 </div>
                 
                 {(filamentSearch || selectedMaterial !== "all" || selectedColor !== "all") && (
@@ -740,10 +775,13 @@ export default function StockPage() {
           <table className="w-full min-w-[720px] text-left text-sm">
             <thead className="bg-stampa-bg-soft text-xs font-semibold uppercase tracking-wide text-gray-400">
               <tr>
+                {tab === "filamentos" && <th className="px-5 py-3 w-10"></th>}
+                {tab === "filamentos" && <th className="px-5 py-3">Marca</th>}
                 <th className="px-5 py-3">Nombre</th>
-                <th className="px-5 py-3">{tab === "productos" ? "Precio Venta" : "Tipo / Color"}</th>
+                <th className="px-5 py-3">{tab === "productos" ? "Precio Venta" : "Tipo"}</th>
+                {tab === "filamentos" && <th className="px-5 py-3">Color</th>}
                 <th className="px-5 py-3">Cantidad</th>
-                <th className="px-5 py-3">Estado</th>
+                {tab === "productos" && <th className="px-5 py-3">Estado</th>}
                 <th className="px-5 py-3 text-right">Acciones</th>
               </tr>
             </thead>
@@ -931,17 +969,29 @@ export default function StockPage() {
               )}
               {tab === "filamentos" && filteredFilaments.map((f) => {
                 const isLow = f.remaining_grams < 200;
+                const brand = f.brand || (f.filament_templates?.brand) || "—";
                 return (
                 <tr key={f.id} className="hover:bg-stampa-bg-soft transition-colors">
+                  <td className="px-5 py-3.5">
+                    <button
+                      onClick={() => handleRemoveFilament(f.id)}
+                      className="text-gray-500 hover:text-red-500 transition-colors p-1.5 rounded-lg hover:bg-red-500/10"
+                      title="Quitar filamento"
+                    >
+                      <Trash2 size={16} />
+                    </button>
+                  </td>
+                  <td className="px-5 py-3.5 text-gray-300 font-medium">
+                    {brand}
+                  </td>
                   <td className="px-5 py-3.5 font-semibold text-white">
-                    <div className="flex flex-col">
-                      <div className="flex items-center gap-3">
-                        <ColorSwatchLabel color={f.color} colorHex={f.color_hex} size="md" fallbackLabel={f.name} />
-                      </div>
-                    </div>
+                    {f.name}
                   </td>
                   <td className="px-5 py-3.5 text-gray-400 font-medium">
                     {f.filament_type}
+                  </td>
+                  <td className="px-5 py-3.5">
+                    <ColorOptionLabel name={f.color} colorHex={f.color_hex} />
                   </td>
                   <td className="px-5 py-3.5">
                     <div className="flex items-center gap-2">
@@ -952,9 +1002,6 @@ export default function StockPage() {
                         <Badge tone="gray" className="ml-1 border border-red-500/20 bg-red-500/10 text-red-400">Bajo</Badge>
                       )}
                     </div>
-                  </td>
-                  <td className="px-5 py-3.5">
-                    <span className="text-xs px-2 py-1 rounded-md font-medium bg-green-500/10 text-green-400 border border-green-500/20">Activo</span>
                   </td>
                   <td className="px-5 py-3.5">
                     <div className="flex justify-end items-center gap-3">
