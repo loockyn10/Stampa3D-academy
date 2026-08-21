@@ -65,7 +65,7 @@ input[type="search"],
 input[type="number"],
 textarea,
 [contenteditable="true"] {
-  cursor: url("/cursors/cursor_stampa32_input2.png") 10 10, auto !important;
+  cursor: url("/cursors/cursor_stampa32_input2.png") 14 14, auto !important;
 }
 
 /* Global Form Control Styles */
