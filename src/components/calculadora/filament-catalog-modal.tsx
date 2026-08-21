@@ -2,16 +2,18 @@
 
 import React, { useState, useEffect } from "react";
 import { createPortal } from "react-dom";
-import { X, Search, Loader2, Package } from "lucide-react";
+import { X, Search, Loader2, Package, Check, Plus } from "lucide-react";
 import { createClient } from "@/utils/supabase/client";
 
 interface FilamentCatalogModalProps {
   onClose: () => void;
-  onSelect: (filamentId: string) => void;
+  onSelect?: (filamentId: string) => void; // Kept for backwards compatibility if needed
+  onImported?: (importedFilaments: any[]) => void;
+  mode?: "single" | "multiple";
   userId: string;
 }
 
-export function FilamentCatalogModal({ onClose, onSelect, userId }: FilamentCatalogModalProps) {
+export function FilamentCatalogModal({ onClose, onSelect, onImported, mode = "single", userId }: FilamentCatalogModalProps) {
   const supabase = createClient();
   const [templates, setTemplates] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
@@ -20,6 +22,10 @@ export function FilamentCatalogModal({ onClose, onSelect, userId }: FilamentCata
   const [importingId, setImportingId] = useState<string | null>(null);
   const [userFilaments, setUserFilaments] = useState<any[]>([]);
   const [mounted, setMounted] = useState(false);
+  
+  // Multi-select state
+  const [selectedTemplateIds, setSelectedTemplateIds] = useState<string[]>([]);
+  const [isBulkImporting, setIsBulkImporting] = useState(false);
 
   useEffect(() => {
     setMounted(true);
@@ -63,7 +69,32 @@ export function FilamentCatalogModal({ onClose, onSelect, userId }: FilamentCata
     setLoading(false);
   };
 
+  const toggleSelection = (templateId: string) => {
+    if (mode === "single") return; // Handled directly by handleSelect
+    
+    setSelectedTemplateIds(prev => 
+      prev.includes(templateId) 
+        ? prev.filter(id => id !== templateId)
+        : [...prev, templateId]
+    );
+  };
+
+  // Helper to build safe display name
+  const buildDisplayName = (template: any) => {
+    return [
+      template.filament_type,
+      template.brand,
+      template.name
+    ].filter(Boolean).join(" ");
+  };
+
+  // The original single select function
   const handleSelect = async (template: any) => {
+    if (mode === "multiple") {
+      toggleSelection(template.id);
+      return;
+    }
+
     setImportingId(template.id);
     setError(null);
 
@@ -72,8 +103,7 @@ export function FilamentCatalogModal({ onClose, onSelect, userId }: FilamentCata
 
       if (existing) {
         if (existing.is_active) {
-          //alert("Filamento seleccionado.");
-          onSelect(existing.id);
+          onSelect?.(existing.id);
           return;
         } else {
           // Reactivate
@@ -83,19 +113,13 @@ export function FilamentCatalogModal({ onClose, onSelect, userId }: FilamentCata
             .eq("id", existing.id);
 
           if (updateError) throw updateError;
-          //alert("Filamento agregado a la calculadora.");
-          onSelect(existing.id);
+          onSelect?.(existing.id);
           return;
         }
       }
 
-      const displayName = [
-        template.filament_type,
-        template.brand,
-        template.name
-      ].filter(Boolean).join(" ");
+      const displayName = buildDisplayName(template);
 
-      // Insert new filament mapped from template
       const payload = {
         user_id: userId,
         name: displayName,
@@ -118,13 +142,86 @@ export function FilamentCatalogModal({ onClose, onSelect, userId }: FilamentCata
       if (insertError) throw insertError;
 
       if (newFilament) {
-        //alert("Filamento agregado a tu taller.");
-        onSelect(newFilament.id);
+        onSelect?.(newFilament.id);
       }
     } catch (err: any) {
       console.error("Error importing filament:", err);
       setError("No se pudo importar el filamento.");
+    } finally {
       setImportingId(null);
+    }
+  };
+
+  // New bulk import logic
+  const handleBulkImport = async () => {
+    if (selectedTemplateIds.length === 0) return;
+    
+    setIsBulkImporting(true);
+    setError(null);
+    
+    try {
+      const importedFilaments: any[] = [];
+      const now = new Date().toISOString();
+      
+      for (const tId of selectedTemplateIds) {
+        const template = templates.find(t => t.id === tId);
+        if (!template) continue;
+        
+        const existing = userFilaments.find(p => p.source_template_id === template.id);
+        
+        if (existing) {
+          if (!existing.is_active) {
+            // Reactivate
+            const { data, error: updateError } = await supabase
+              .from("filaments")
+              .update({ is_active: true, updated_at: now })
+              .eq("id", existing.id)
+              .select()
+              .single();
+              
+            if (updateError) throw updateError;
+            importedFilaments.push(data);
+          } else {
+            // Already active, just push it (though UI prevents selecting it)
+            importedFilaments.push(existing);
+          }
+        } else {
+          // Insert new
+          const displayName = buildDisplayName(template);
+
+          const payload = {
+            user_id: userId,
+            name: displayName,
+            filament_type: template.filament_type,
+            color: template.color || null,
+            color_hex: template.color_hex || null,
+            total_grams: template.default_total_grams,
+            remaining_grams: template.default_total_grams,
+            purchase_price: template.default_purchase_price,
+            is_active: true,
+            source_template_id: template.id,
+          };
+
+          const { data, error: insertError } = await supabase
+            .from("filaments")
+            .insert([payload])
+            .select()
+            .single();
+
+          if (insertError) throw insertError;
+          importedFilaments.push(data);
+        }
+      }
+      
+      // Notify parent
+      onImported?.(importedFilaments);
+      onClose(); // Multiple mode bulk import closes the modal explicitly
+      
+    } catch (err: any) {
+      console.error("Error bulk importing filaments:", err);
+      setError("Ocurrió un error al importar los filamentos seleccionados.");
+    } finally {
+      setIsBulkImporting(false);
     }
   };
 
@@ -141,9 +238,12 @@ export function FilamentCatalogModal({ onClose, onSelect, userId }: FilamentCata
 
       if (updateError) throw updateError;
 
-      //alert("Filamento quitado de la calculadora.");
       await fetchUserFilaments();
-      onSelect(""); // Signal parent to refresh but not close
+      if (mode === "single") {
+        onSelect?.(""); // Signal parent to refresh but not close
+      } else {
+        // In multiple mode, just refresh local state so it appears as "Oculto"
+      }
     } catch (err: any) {
       console.error("Error removing filament:", err);
       setError("No se pudo quitar el filamento.");
@@ -179,7 +279,7 @@ export function FilamentCatalogModal({ onClose, onSelect, userId }: FilamentCata
               <h3 className="text-lg font-bold text-white flex items-center gap-2">
                 <Package size={20} className="text-stampa-orange" /> Catálogo de Filamentos
               </h3>
-              <button onClick={onClose} className="text-gray-400 hover:text-white transition-colors p-1" disabled={!!importingId}>
+              <button onClick={onClose} className="text-gray-400 hover:text-white transition-colors p-1" disabled={!!importingId || isBulkImporting}>
                 <X size={20} />
               </button>
             </div>
@@ -197,7 +297,7 @@ export function FilamentCatalogModal({ onClose, onSelect, userId }: FilamentCata
           </div>
 
           {/* Content */}
-          <div className="p-4 sm:p-6 overflow-y-auto flex-1 max-h-[calc(90dvh-120px)]">
+          <div className="p-4 sm:p-6 overflow-y-auto flex-1 pb-24">
             {error && (
               <div className="mb-4 p-3 rounded-xl bg-red-500/10 text-red-400 text-sm border border-red-500/20 text-center">
                 {error}
@@ -225,16 +325,33 @@ export function FilamentCatalogModal({ onClose, onSelect, userId }: FilamentCata
                   const existing = userFilaments.find(p => p.source_template_id === t.id);
                   const isAdded = existing && existing.is_active;
                   const isHidden = existing && !existing.is_active;
+                  const isSelected = selectedTemplateIds.includes(t.id);
 
                   return (
                     <div
                       key={t.id}
-                      className={`bg-stampa-bg border hover:border-stampa-orange/50 rounded-xl p-4 flex flex-col justify-between transition-all group ${isAdded ? 'border-stampa-orange/30 shadow-[0_0_15px_rgba(255,106,0,0.05)]' : 'border-stampa-border'}`}
+                      className={`bg-stampa-bg border rounded-xl p-4 flex flex-col justify-between transition-all group cursor-pointer ${
+                        isAdded ? 'border-stampa-orange/30 shadow-[0_0_15px_rgba(255,106,0,0.05)]' : 
+                        isSelected ? 'border-stampa-orange bg-stampa-orange/5' :
+                        'border-stampa-border hover:border-stampa-orange/50'
+                      }`}
+                      onClick={() => {
+                        if (!isAdded && mode === "multiple") {
+                          toggleSelection(t.id);
+                        }
+                      }}
                     >
                       <div>
                         <div className="flex justify-between items-start mb-3">
                           <div className="min-w-0 flex-1">
                             <div className="flex min-w-0 items-center gap-2 flex-wrap">
+                              {mode === "multiple" && !isAdded && (
+                                <div className={`shrink-0 w-5 h-5 rounded-md border flex items-center justify-center transition-colors ${
+                                  isSelected ? "bg-stampa-orange border-stampa-orange text-white" : "border-gray-500 text-transparent"
+                                }`}>
+                                  <Check size={14} />
+                                </div>
+                              )}
                               {t.color_hex && (
                                 <span className="shrink-0 h-3 w-3 rounded-full border border-white/20" style={{ backgroundColor: t.color_hex }} />
                               )}
@@ -291,8 +408,11 @@ export function FilamentCatalogModal({ onClose, onSelect, userId }: FilamentCata
 
                       {isAdded ? (
                         <button
-                          onClick={() => handleRemove(t.id)}
-                          disabled={!!importingId}
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            handleRemove(t.id);
+                          }}
+                          disabled={!!importingId || isBulkImporting}
                           className="w-full py-2 bg-red-500/10 hover:bg-red-500/20 text-red-400 text-xs font-bold rounded-lg border border-red-500/20 hover:border-red-500/30 transition-all flex items-center justify-center gap-2"
                         >
                           {importingId === t.id ? (
@@ -302,17 +422,22 @@ export function FilamentCatalogModal({ onClose, onSelect, userId }: FilamentCata
                           )}
                         </button>
                       ) : (
-                        <button
-                          onClick={() => handleSelect(t)}
-                          disabled={!!importingId}
-                          className="w-full py-2 bg-white/5 hover:bg-stampa-orange text-white text-xs font-bold rounded-lg border border-stampa-border hover:border-transparent transition-all flex items-center justify-center gap-2"
-                        >
-                          {importingId === t.id ? (
-                            <Loader2 size={14} className="animate-spin" />
-                          ) : (
-                            "Seleccionar"
-                          )}
-                        </button>
+                        mode === "single" && (
+                          <button
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              handleSelect(t);
+                            }}
+                            disabled={!!importingId}
+                            className="w-full py-2 bg-white/5 hover:bg-stampa-orange text-white text-xs font-bold rounded-lg border border-stampa-border hover:border-transparent transition-all flex items-center justify-center gap-2"
+                          >
+                            {importingId === t.id ? (
+                              <Loader2 size={14} className="animate-spin" />
+                            ) : (
+                              "Seleccionar"
+                            )}
+                          </button>
+                        )
                       )}
                     </div>
                   );
@@ -320,9 +445,32 @@ export function FilamentCatalogModal({ onClose, onSelect, userId }: FilamentCata
               </div>
             )}
           </div>
+          
+          {/* Footer for multiple selection */}
+          {mode === "multiple" && !loading && (
+            <div className="absolute bottom-0 left-0 right-0 p-4 bg-stampa-bg-soft border-t border-white/10 backdrop-blur-md">
+              <button
+                onClick={handleBulkImport}
+                disabled={selectedTemplateIds.length === 0 || isBulkImporting}
+                className="w-full py-3 bg-stampa-orange hover:bg-orange-600 disabled:bg-gray-600 disabled:text-gray-400 disabled:cursor-not-allowed text-white text-sm font-bold rounded-xl transition-all flex items-center justify-center gap-2 shadow-lg"
+              >
+                {isBulkImporting ? (
+                  <>
+                    <Loader2 size={18} className="animate-spin" /> Procesando...
+                  </>
+                ) : (
+                  <>
+                    <Plus size={18} /> Agregar {selectedTemplateIds.length} {selectedTemplateIds.length === 1 ? 'filamento' : 'filamentos'}
+                  </>
+                )}
+              </button>
+            </div>
+          )}
+          
         </div>
       </div>
     </div>,
     document.body
   );
 }
+

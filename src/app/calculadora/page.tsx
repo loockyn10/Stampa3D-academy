@@ -213,17 +213,16 @@ export default function CalculadoraPage() {
     }
   };
 
-  const handleFilamentSelected = async (newFilamentId: string) => {
+  const handleFilamentImported = async (importedFilaments: any[]) => {
     // Refresh filaments list
     const { data } = await supabase.from("filaments").select("*").eq("user_id", userId).eq("is_active", true);
     if (data) {
       setFilaments(data);
-      if (newFilamentId) {
-        setSelectedFilamentId(newFilamentId);
-        setShowFilamentCatalogModal(false);
+      if (importedFilaments && importedFilaments.length > 0) {
+        setSelectedFilamentId(importedFilaments[0].id);
+        alert(`Se agregaron ${importedFilaments.length} filamentos a tu taller.`);
       } else {
-        if (data.length > 0) setSelectedFilamentId(data[0].id);
-        else setSelectedFilamentId("");
+        if (data.length > 0 && !data.find(f => f.id === selectedFilamentId)) setSelectedFilamentId(data[0].id);
       }
     }
   };
@@ -841,7 +840,8 @@ export default function CalculadoraPage() {
       <FilamentCatalogModal 
         userId={userId} 
         onClose={() => setShowFilamentCatalogModal(false)} 
-        onSelect={handleFilamentSelected} 
+        mode="multiple"
+        onImported={handleFilamentImported} 
       />
     )}
   </div>;

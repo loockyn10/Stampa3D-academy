@@ -11,6 +11,7 @@ import { EmptyState } from "@/components/ui/empty-state";
 import { FilamentEditor } from "@/components/filaments/FilamentEditor";
 import { normalizeFilamentColor } from "@/lib/colors/filament-colors";
 import { ColorSwatchLabel } from "@/components/ui/color-swatch-label";
+import { FilamentCatalogModal } from "@/components/calculadora/filament-catalog-modal";
 
 import { createClient } from "@/utils/supabase/client";
 
@@ -31,6 +32,7 @@ export default function StockPage() {
   const [componentFilaments, setComponentFilaments] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [userId, setUserId] = useState<string | null>(null);
 
   // Stock Adjustment States for Filaments
   const [filamentAdjustAmounts, setFilamentAdjustAmounts] = useState<Record<string, string>>({});
@@ -98,6 +100,7 @@ export default function StockPage() {
 
   // Filament Editor Modal States
   const [filamentModalOpen, setFilamentModalOpen] = useState(false);
+  const [showFilamentCatalogModal, setShowFilamentCatalogModal] = useState(false);
   const [editingFilamentId, setEditingFilamentId] = useState<string | null>(null);
   const [filamentFormData, setFilamentFormData] = useState<any>({
     name: "", filament_type: "PLA", color: "", total_grams: 1000, remaining_grams: 1000, purchase_price: 0, is_active: true
@@ -111,6 +114,7 @@ export default function StockPage() {
     setLoading(true);
     const { data: { user } } = await supabase.auth.getUser();
     if (!user) return;
+    setUserId(user.id);
 
     const [prodRes, filRes, compRes, compFilRes] = await Promise.all([
       supabase.from("products").select("*").eq("user_id", user.id).order("name", { ascending: true }),
@@ -628,6 +632,12 @@ export default function StockPage() {
                 className="flex items-center justify-center gap-2 text-sm font-bold text-white bg-stampa-orange hover:bg-stampa-orange px-4 py-2 rounded-lg transition-colors border border-stampa-orange w-full sm:w-auto"
               >
                 <Plus size={15} /> Nuevo Filamento
+              </button>
+              <button
+                onClick={() => setShowFilamentCatalogModal(true)}
+                className="flex items-center justify-center gap-2 text-sm font-bold text-stampa-orange bg-stampa-orange/10 hover:bg-stampa-orange/20 px-4 py-2 rounded-lg transition-colors border border-stampa-orange/20 w-full sm:w-auto"
+              >
+                <Package size={15} /> Importar desde catálogo
               </button>
               <button 
                 onClick={() => setConsumeModalOpen(true)} 
@@ -1337,6 +1347,22 @@ export default function StockPage() {
             </div>
           </div>
         </div>
+      )}
+
+      {/* Filament Catalog Modal */}
+      {showFilamentCatalogModal && userId && (
+        <FilamentCatalogModal 
+          userId={userId} 
+          onClose={() => setShowFilamentCatalogModal(false)} 
+          mode="multiple"
+          onImported={async (importedFilaments) => {
+            if (importedFilaments && importedFilaments.length > 0) {
+              alert(`Se agregaron ${importedFilaments.length} filamentos a tu stock.`);
+            }
+            await fetchData();
+            setShowFilamentCatalogModal(false);
+          }} 
+        />
       )}
 
     </div>
