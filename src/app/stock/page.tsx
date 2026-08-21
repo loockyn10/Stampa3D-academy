@@ -1239,6 +1239,7 @@ export default function StockPage() {
                       onChange={(val) => setConsumeSelectedProductId(val)}
                       placeholder="Buscar producto o parte..."
                       searchable={true}
+                      usePortal={true}
                     />
                   </div>
                   <PrimaryButton onClick={handleAddToCart} disabled={!consumeSelectedProductId}>
