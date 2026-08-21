@@ -89,10 +89,16 @@ export function FilamentCatalogModal({ onClose, onSelect, userId }: FilamentCata
         }
       }
 
+      const displayName = [
+        template.filament_type,
+        template.brand,
+        template.name
+      ].filter(Boolean).join(" ");
+
       // Insert new filament mapped from template
       const payload = {
         user_id: userId,
-        name: template.brand ? `${template.brand} ${template.name}` : template.name,
+        name: displayName,
         filament_type: template.filament_type,
         color: template.color || null,
         color_hex: template.color_hex || null,
@@ -228,23 +234,28 @@ export function FilamentCatalogModal({ onClose, onSelect, userId }: FilamentCata
                       <div>
                         <div className="flex justify-between items-start mb-3">
                           <div className="min-w-0 flex-1">
-                            {t.filament_type && (
-                              <div className="text-xs font-semibold uppercase tracking-wide text-orange-400 flex items-center gap-2">
-                                {t.color_hex && (
-                                  <span className="shrink-0 h-3 w-3 rounded-full border border-white/20" style={{ backgroundColor: t.color_hex }} />
-                                )}
-                                <span className="truncate">{t.filament_type}</span>
-                              </div>
-                            )}
-                            
-                            {t.brand && (
-                              <div className="mt-1 truncate text-sm font-medium text-white">
-                                {t.brand}
-                              </div>
-                            )}
+                            <div className="flex min-w-0 items-center gap-2 flex-wrap">
+                              {t.color_hex && (
+                                <span className="shrink-0 h-3 w-3 rounded-full border border-white/20" style={{ backgroundColor: t.color_hex }} />
+                              )}
+                              
+                              {t.filament_type && (
+                                <span className="text-xs font-semibold uppercase tracking-wide text-orange-400 shrink-0">
+                                  {t.filament_type}
+                                </span>
+                              )}
+                              
+                              {t.brand && (
+                                <span className="truncate text-sm font-medium text-white">
+                                  {t.brand}
+                                </span>
+                              )}
 
-                            <div className="truncate text-sm font-medium text-white">
-                              {t.name}
+                              {t.name && (
+                                <span className="truncate text-sm font-medium text-white">
+                                  {t.name}
+                                </span>
+                              )}
                             </div>
                           </div>
 

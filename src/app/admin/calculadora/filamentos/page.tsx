@@ -47,10 +47,7 @@ export default function AdminFilamentosPage() {
   const handleSave = async () => {
     setError(null);
     
-    if (!formData.name.trim()) {
-      setError("El nombre es requerido.");
-      return;
-    }
+    // name is now optional (Subtipo)
     if (!formData.filament_type.trim()) {
       setError("El material es requerido.");
       return;
@@ -64,7 +61,7 @@ export default function AdminFilamentosPage() {
 
     const payload = {
       brand: formData.brand.trim() || null,
-      name: formData.name.trim(),
+      name: formData.name.trim() || null,
       filament_type: formData.filament_type.trim(),
       color: formData.color.trim() || null,
       color_hex: resolvedHex,
@@ -174,12 +171,12 @@ export default function AdminFilamentosPage() {
                     {t.color_hex && (
                       <span className="w-3 h-3 rounded-full border border-white/20" style={{ backgroundColor: t.color_hex }} title={t.color_hex} />
                     )}
-                    {t.name}
+                    {t.name || "-"}
                   </h4>
                   <p className="text-xs text-stampa-orange font-medium mt-0.5">{t.brand || "Sin marca"} • {t.filament_type}</p>
                 </div>
                 <div className="flex gap-1.5 opacity-100 lg:opacity-0 lg:group-hover:opacity-100 transition-opacity">
-                  <button onClick={() => { setFormData({ ...t, color_hex: t.color_hex || "", brand: t.brand || "", color: t.color || "", notes: t.notes || "" }); setEditingId(t.id); }} className="p-1.5 text-gray-400 bg-white/5 rounded-md hover:text-white hover:bg-white/10 transition-colors">
+                  <button onClick={() => { setFormData({ ...t, color_hex: t.color_hex || "", brand: t.brand || "", color: t.color || "", notes: t.notes || "", name: t.name || "" }); setEditingId(t.id); }} className="p-1.5 text-gray-400 bg-white/5 rounded-md hover:text-white hover:bg-white/10 transition-colors">
                     <Edit2 size={15} />
                   </button>
                   <button onClick={() => handleDelete(t.id)} className="p-1.5 text-red-400/70 bg-red-500/5 rounded-md hover:text-red-400 hover:bg-red-500/10 transition-colors">
@@ -249,8 +246,8 @@ function FilamentEditor({ formData, setFormData, onSave, onCancel }: any) {
           <input type="text" name="brand" value={formData.brand} onChange={handleChange} className="w-full text-sm border-stampa-border rounded-xl text-neutral-100 bg-stampa-bg border focus:border-stampa-orange focus:ring-stampa-orange/20 focus:ring-4 transition-all px-3 py-2" placeholder="Ej. Hellbot" />
         </div>
         <div>
-          <label className="block text-xs font-semibold text-gray-400 mb-1.5 uppercase tracking-wider">Nombre *</label>
-          <input type="text" name="name" value={formData.name} onChange={handleChange} className="w-full text-sm border-stampa-border rounded-xl text-neutral-100 bg-stampa-bg border focus:border-stampa-orange focus:ring-stampa-orange/20 focus:ring-4 transition-all px-3 py-2" placeholder="Ej. PLA Negro" />
+          <label className="block text-xs font-semibold text-gray-400 mb-1.5 uppercase tracking-wider">Subtipo</label>
+          <input type="text" name="name" value={formData.name} onChange={handleChange} className="w-full text-sm border-stampa-border rounded-xl text-neutral-100 bg-stampa-bg border focus:border-stampa-orange focus:ring-stampa-orange/20 focus:ring-4 transition-all px-3 py-2" placeholder="Ej: Ecofila, Pro, Silk, Mate" />
         </div>
         
         <div>
