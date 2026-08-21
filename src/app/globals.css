@@ -57,6 +57,16 @@ summary {
   cursor: url("/cursors/cursor_stampa32_manito2.png") 0 0, auto !important;
 }
 
+/* Inputs de texto */
+input[type="text"],
+input[type="email"],
+input[type="password"],
+input[type="search"],
+input[type="number"],
+textarea,
+[contenteditable="true"] {
+  cursor: url("/cursors/cursor_stampa32_input2.png") 0 0, auto !important;
+}
 
 /* Global Form Control Styles */
 input:not([type="checkbox"]):not([type="radio"]),
