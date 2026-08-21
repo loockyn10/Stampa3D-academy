@@ -295,7 +295,7 @@ export function FilamentCatalogModal({ onClose, onSelect, onImported, mode = "si
           </div>
 
           {/* Content */}
-          <div className="p-4 sm:p-6 overflow-y-auto flex-1 pb-24">
+          <div className="p-4 sm:p-6 overflow-y-auto stampa-scrollbar flex-1 pb-24">
             {error && (
               <div className="mb-4 p-3 rounded-xl bg-red-500/10 text-red-400 text-sm border border-red-500/20 text-center">
                 {error}
