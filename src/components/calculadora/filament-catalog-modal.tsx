@@ -226,25 +226,41 @@ export function FilamentCatalogModal({ onClose, onSelect, userId }: FilamentCata
                       className={`bg-stampa-bg border hover:border-stampa-orange/50 rounded-xl p-4 flex flex-col justify-between transition-all group ${isAdded ? 'border-stampa-orange/30 shadow-[0_0_15px_rgba(255,106,0,0.05)]' : 'border-stampa-border'}`}
                     >
                       <div>
-                        <div className="flex justify-between items-start mb-1">
-                          <h4 className="font-bold text-white text-base leading-tight pr-2 flex items-center gap-2">
-                            {t.color_hex && (
-                              <span className="shrink-0 h-3 w-3 rounded-full border border-white/20" style={{ backgroundColor: t.color_hex }} />
+                        <div className="flex justify-between items-start mb-3">
+                          <div className="min-w-0 flex-1">
+                            {t.filament_type && (
+                              <div className="text-xs font-semibold uppercase tracking-wide text-orange-400 flex items-center gap-2">
+                                {t.color_hex && (
+                                  <span className="shrink-0 h-3 w-3 rounded-full border border-white/20" style={{ backgroundColor: t.color_hex }} />
+                                )}
+                                <span className="truncate">{t.filament_type}</span>
+                              </div>
                             )}
-                            <span className="truncate">{t.name}</span>
-                          </h4>
-                          {isAdded && (
-                            <span className="shrink-0 bg-stampa-orange/20 text-stampa-orange text-[10px] font-bold px-2 py-0.5 rounded-full border border-stampa-orange/20">
-                              Agregado
-                            </span>
-                          )}
-                          {isHidden && (
-                            <span className="shrink-0 bg-gray-500/20 text-gray-400 text-[10px] font-bold px-2 py-0.5 rounded-full border border-gray-500/20">
-                              Oculto
-                            </span>
-                          )}
+                            
+                            {t.brand && (
+                              <div className="mt-1 truncate text-sm font-medium text-white">
+                                {t.brand}
+                              </div>
+                            )}
+
+                            <div className="truncate text-sm font-medium text-white">
+                              {t.name}
+                            </div>
+                          </div>
+
+                          <div className="shrink-0 flex flex-col gap-1 items-end pl-2">
+                            {isAdded && (
+                              <span className="bg-stampa-orange/20 text-stampa-orange text-[10px] font-bold px-2 py-0.5 rounded-full border border-stampa-orange/20">
+                                Agregado
+                              </span>
+                            )}
+                            {isHidden && (
+                              <span className="bg-gray-500/20 text-gray-400 text-[10px] font-bold px-2 py-0.5 rounded-full border border-gray-500/20">
+                                Oculto
+                              </span>
+                            )}
+                          </div>
                         </div>
-                        <p className="text-xs text-stampa-orange font-medium mb-3">{t.brand || "Sin marca"} • {t.filament_type}</p>
 
                         <div className="space-y-1 mb-4">
                           <p className="text-xs text-gray-400 flex justify-between">
