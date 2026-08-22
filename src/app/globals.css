@@ -57,6 +57,18 @@ summary {
   cursor: url("/cursors/cursor_stampa32_manito2.png") 0 0, auto !important;
 }
 
+
+::selection {
+  background: rgba(255, 106, 0, 0.55);
+  color: #ffffff;
+}
+
+::-moz-selection {
+  background: rgba(255, 106, 0, 0.55);
+  color: #ffffff;
+}
+
+
 /* Inputs de texto */
 input[type="text"],
 input[type="email"],
