@@ -154,7 +154,7 @@ export function Sidebar({ mobileOpen, setMobileOpen }: SidebarProps) {
         </Link>
 
         {/* Navigation Groups */}
-        <nav className="flex-1 overflow-y-auto px-3 pb-4">
+        <nav className="flex-1 overflow-y-auto stampa-scrollbar px-3 pb-4">
           {(() => {
             const groupsToRender = [...NAV_GROUPS];
             if (isAdmin) {

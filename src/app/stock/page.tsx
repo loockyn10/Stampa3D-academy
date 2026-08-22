@@ -774,7 +774,7 @@ export default function StockPage() {
       )}
 
       <Card className="overflow-hidden p-0">
-        <div className="overflow-x-auto">
+        <div className="overflow-x-auto stampa-scrollbar">
           <table className="w-full min-w-[720px] text-left text-sm">
             <thead className="bg-stampa-bg-soft text-xs font-semibold uppercase tracking-wide text-gray-400">
               <tr>
@@ -1113,7 +1113,7 @@ export default function StockPage() {
                 <X size={20} />
               </button>
             </div>
-            <div className="p-4 overflow-y-auto flex-1">
+            <div className="p-4 overflow-y-auto stampa-scrollbar flex-1">
               {historyLoading ? (
                 <div className="py-8 flex justify-center"><Loader2 className="animate-spin text-stampa-orange" /></div>
               ) : historyMovements.length === 0 ? (
@@ -1159,7 +1159,7 @@ export default function StockPage() {
                 <X size={20} />
               </button>
             </div>
-            <div className="p-4 overflow-y-auto flex-1">
+            <div className="p-4 overflow-y-auto stampa-scrollbar flex-1">
               {historyProductLoading ? (
                 <div className="py-8 flex justify-center"><Loader2 className="animate-spin text-stampa-orange" /></div>
               ) : historyProductMovements.length === 0 ? (
@@ -1205,7 +1205,7 @@ export default function StockPage() {
               </button>
             </div>
             
-            <div className="p-6 overflow-y-auto flex-1 space-y-6">
+            <div className="p-6 overflow-y-auto stampa-scrollbar flex-1 space-y-6">
               {/* Selector */}
               <div>
                 <label className="block text-sm font-semibold text-gray-300 mb-2">Agregar producto</label>
@@ -1405,7 +1405,7 @@ export default function StockPage() {
               </button>
             </div>
             
-            <div className="p-4 overflow-y-auto">
+            <div className="p-4 overflow-y-auto stampa-scrollbar">
               <FilamentEditor 
                 formData={filamentFormData} 
                 setFormData={setFilamentFormData} 

@@ -134,7 +134,7 @@ export function CalculatorSelect({
               </div>
             )}
             
-            <ul className="overflow-y-auto py-1.5 flex-1 min-h-0">
+            <ul className="overflow-y-auto stampa-scrollbar py-1.5 flex-1 min-h-0">
               {filteredOptions.length === 0 ? (
                 <li className="text-neutral-500 cursor-default select-none relative py-2.5 px-4 text-xs">
                   {emptyMessage}
@@ -186,7 +186,7 @@ export function CalculatorSelect({
               </div>
             )}
             
-            <ul className="max-h-60 overflow-y-auto py-1.5">
+            <ul className="max-h-60 overflow-y-auto stampa-scrollbar py-1.5">
               {filteredOptions.length === 0 ? (
                 <li className="text-neutral-500 cursor-default select-none relative py-2.5 px-4 text-xs">
                   {emptyMessage}

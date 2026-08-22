@@ -186,7 +186,7 @@ export function PrinterCatalogModal({ onClose, onSelect, userId }: PrinterCatalo
           </div>
 
           {/* Content */}
-          <div className="p-4 sm:p-6 overflow-y-auto flex-1 max-h-[calc(90dvh-120px)]">
+          <div className="p-4 sm:p-6 overflow-y-auto stampa-scrollbar flex-1 max-h-[calc(90dvh-120px)]">
             {error && (
               <div className="mb-4 p-3 rounded-xl bg-red-500/10 text-red-400 text-sm border border-red-500/20 text-center">
                 {error}
