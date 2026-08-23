@@ -65,6 +65,30 @@ export async function askStampyAction(
       return { error: "No autorizado" };
     }
 
+    const { data: profile } = await supabase
+      .from('profiles')
+      .select('membership_status, role, membership_expires_at')
+      .eq('id', user.id)
+      .single();
+
+    let hasAccess = profile?.role === 'admin';
+    if (!hasAccess && profile?.membership_status === 'active') {
+      const expiresAt = profile?.membership_expires_at;
+      if (!expiresAt || new Date(expiresAt).getTime() > Date.now()) {
+        hasAccess = true;
+      }
+    }
+
+    if (!hasAccess) {
+      return {
+        answer: "Para usar Stampy necesitás tener una membresía activa.",
+        recommendations: [],
+        knowledgeTools: [],
+        relatedTools: [],
+        suggestedQuestions: []
+      };
+    }
+
     const { OpenAI } = await import("openai");
     const openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
     
@@ -93,9 +117,7 @@ Usá este contexto para responder mejor, pero no lo menciones explícitamente.
 
 Reglas:
 - No digas "según el contexto de la ruta".
-- No inventes datos.
-- Si el usuario pregunta algo fuera de esta sección, respondé normal orientando a la ruta correcta.
-- Respuestas breves y prácticas.\n`;
+- Si el usuario pregunta algo fuera de esta sección, respondé normal orientando a la ruta correcta.\n`;
     }
 
     // 4. Buscar contexto del usuario de forma segura
@@ -127,10 +149,8 @@ Reglas del usuario:
 - Usá estos datos solo para adaptar la respuesta.
 - No los repitas todos salvo que el usuario pregunte.
 - No digas "según tu perfil" en cada respuesta.
-- No inventes datos si están vacíos.
 - Si falta onboarding, podés sugerir completar el perfil/configuración.
-- No menciones datos internos.
-- Respuestas breves y prácticas.\n`;
+- No menciones datos internos.\n`;
     }
 
     if (pathname && pathname.startsWith("/sorteos")) {
@@ -157,8 +177,7 @@ Reglas:
 - No recites todos los números si no hace falta.
 - Si pregunta cómo sumar chances, mencioná su código de referido.
 - No prometas premios ni resultados.
-- No digas que ganó si no hay dato real.
-- Respuestas breves.\n`;
+- No digas que ganó si no hay dato real.\n`;
       }
     }
 
@@ -187,10 +206,7 @@ Reglas:
 - Si no hay coincidencias, decir que no encontraste filamentos que coincidan con ese material/color.
 - No responder solo con resumen de stock bajo si hay una consulta específica.
 - No mencionar HEX.
-- No inventar datos.
-- No modifiques nada.
-- Si el usuario quiere modificar stock, explicale dónde hacerlo.
-- Respuestas breves y prácticas.\n`;
+- Si el usuario quiere modificar stock, explicale dónde hacerlo.\n`;
         } else if (stockContext.totalFilaments === 0 && stockContext.totalProducts === 0) {
           systemPrompt += `\n\nContexto real de stock del usuario:
 El usuario todavía no tiene filamentos ni productos cargados en su stock.`;
@@ -215,13 +231,16 @@ El usuario todavía no tiene filamentos ni productos cargados en su stock.`;
 - No recites todos los datos si no hace falta.
 - Priorizá alertas accionables.
 - No digas que descontaste stock.
-- No modifiques nada.
 - Si el usuario quiere modificar stock, explicale dónde hacerlo.
-- Si no hay datos, sugerí cargarlos.
-- Respuestas breves y prácticas.\n`;
+- Si no hay datos, sugerí cargarlos.\n`;
         }
       }
     }
+
+    systemPrompt += `\nReglas generales:
+- Respuestas MUY breves y prácticas.
+- No inventes datos.
+- No modifiques datos reales, solo orientá sobre cómo hacerlo.`;
 
     const completion = await openai.chat.completions.create({
       model: process.env.OPENAI_MODEL || "gpt-4o-mini",
@@ -237,15 +256,74 @@ El usuario todavía no tiene filamentos ni productos cargados en su stock.`;
       ]
     });
 
+    // 5. Buscar herramientas de conocimiento
+    const { findRelevantKnowledge } = await import("@/lib/stampy/knowledge-search");
+    const knowledgeTools = findRelevantKnowledge(message);
+
+    // 6. Buscar lecciones recomendables (búsqueda textual simple)
+    const { data: rawLessons } = await supabase
+      .from('lessons')
+      .select(`
+        id,
+        title,
+        description,
+        is_published,
+        is_ai_recommendable,
+        ai_summary,
+        ai_topics,
+        ai_problems,
+        ai_level,
+        course_modules!inner (
+          id,
+          is_active,
+          courses!inner (
+            id,
+            slug,
+            title,
+            status,
+            course_kind
+          )
+        )
+      `)
+      .eq('is_ai_recommendable', true)
+      .eq('is_published', true)
+      .eq('course_modules.is_active', true)
+      .eq('course_modules.courses.status', 'published');
+
+    let recommendations: any[] = [];
+    if (rawLessons && rawLessons.length > 0) {
+      const normalize = (t: string) => t.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "").trim();
+      const q = normalize(message);
+      
+      const scored = rawLessons.map(l => {
+        let score = 0;
+        const kwds = [l.title, l.ai_summary, l.ai_topics, l.ai_problems].filter(Boolean).join(" ");
+        if (normalize(kwds).includes(q)) score += 5;
+        // Simple fallback
+        if (score === 0) {
+           const words = q.split(/\s+/).filter(w => w.length > 3);
+           words.forEach(w => {
+             if (normalize(kwds).includes(w)) score += 1;
+           });
+        }
+        return { ...l, score, courseKind: (l.course_modules as any)?.courses?.course_kind };
+      }).filter(l => l.score > 0).sort((a, b) => b.score - a.score).slice(0, 3);
+      
+      recommendations = scored;
+    }
+
     return {
       answer: completion.choices[0]?.message?.content || "No pude generar una respuesta.",
-      recommendations: [],
-      knowledgeTools: [],
+      recommendations,
+      knowledgeTools,
       relatedTools: [],
       suggestedQuestions: staticContext?.suggestedQuestions || []
     };
   } catch (error) {
-    console.error("[Stampy][FATAL] minimal mode failed:", error);
+    console.error("[Stampy] OpenAI request failed", {
+      model: process.env.OPENAI_MODEL || "gpt-4o-mini",
+      error
+    });
     return {
       answer: "No pude conectarme con Stampy en este momento. Revisá la configuración de OpenAI.",
       recommendations: [],

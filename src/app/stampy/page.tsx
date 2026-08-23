@@ -280,7 +280,7 @@ export default function StampyPage() {
               {QUICK_SUGGESTIONS.map((sug, i) => (
                 <button
                   key={i}
-                  onClick={() => setInput(sug)}
+                  onClick={() => handleSend(sug)}
                   disabled={loading}
                   className="text-left text-xs font-medium bg-stampa-bg-soft border border-stampa-border hover:bg-orange-50 hover:border-orange-200 hover:text-orange-700 text-gray-400 px-3 py-2.5 rounded-xl transition-colors"
                 >
