@@ -173,6 +173,16 @@ export async function getStampyWorkshopContext({
     const detectedBrand = userBrands.find(b => q.includes(b));
     const hasFilamentKeyword = ["filamento", "filamentos", "material", "materiales"].some(kw => q.includes(kw));
 
+    const isGeneralFilamentListQuery = 
+      q.includes("que filamentos tengo") ||
+      q.includes("qué filamentos tengo") ||
+      q.includes("mis filamentos") ||
+      q.includes("filamentos cargados") ||
+      q.includes("filamentos activos") ||
+      q.includes("materiales disponibles") ||
+      q.includes("que materiales tengo") ||
+      q.includes("qué materiales tengo");
+
     isFilamentQuery = Boolean(detectedMaterial || detectedBrand || hasFilamentKeyword);
 
     let matchedFilaments: any[] = [];
@@ -189,18 +199,45 @@ export async function getStampyWorkshopContext({
 
       if (isFilamentQuery) {
         // Extract relevant tokens
-        const ignoreWords = ["tengo", "tenes", "tenés", "cuanto", "cuánto", "filamento", "filamentos", "material", "materiales", "de", "del", "la", "el", "un", "una", "hay", "cargado", "cargados", "stock", "disponible", "disponibles"];
-        relevantTokens = q.split(/\s+/).filter(w => w.length > 0 && !ignoreWords.includes(w));
-
-        if (relevantTokens.length > 0) {
-          matchedFilaments = filaments.filter(f => 
-            relevantTokens.every(token => f.searchableText.includes(token))
-          );
+        const ignoreWords = [
+          "filamento", "filamentos", "material", "materiales",
+          "tengo", "tenes", "tenés", "que", "qué", "cuales", "cuáles",
+          "mis", "cargados", "cargado", "activos", "activo",
+          "stock", "hay", "disponible", "disponibles",
+          "cuanto", "cuánto", "de", "del", "el", "la", "los", "las",
+          "un", "una"
+        ];
+        
+        if (!isGeneralFilamentListQuery) {
+          relevantTokens = q.split(/\s+/).filter(w => w.length > 0 && !ignoreWords.includes(w) && !ignoreWords.includes(normalizeSearchText(w)));
+          if (relevantTokens.length > 0) {
+            matchedFilaments = filaments.filter((f: any) => 
+              relevantTokens.every(token => f.searchableText.includes(token))
+            );
+          }
         }
 
-        if (relevantTokens.length > 0) {
+        console.log("[Stampy DEBUG] filament matching", {
+          message,
+          isFilamentQuery,
+          isGeneralFilamentListQuery,
+          activeFilamentsCount: activeFilaments.length,
+          relevantTokens,
+          matchedFilamentsCount: matchedFilaments.length,
+          sampleLabels: activeFilaments.slice(0, 5).map((f: any) => getFilamentLabel(f)),
+        });
+
+        if (isGeneralFilamentListQuery || relevantTokens.length === 0) {
+          text += "Filamentos activos:\n";
+          text += `- Total activos: ${filamentsCount}\n\n`;
+          text += "Listado:\n";
+          filaments.slice(0, 10).forEach((f: any) => {
+            text += `- ${getFilamentLabel(f)}: ${f.remaining_grams || 0}g / ${f.total_grams || 1000}g\n`;
+          });
+          text += "\n";
+        } else {
+          text += "Consulta específica de filamentos:\n";
           if (matchedFilaments.length > 0) {
-            text += "Consulta específica de filamentos:\n";
             text += `Coincidencias para "${relevantTokens.join(" ")}":\n`;
             let totalGrams = 0;
             matchedFilaments.forEach((f: any) => {
@@ -209,17 +246,13 @@ export async function getStampyWorkshopContext({
             });
             text += `\nTotal aproximado: ${totalGrams}g disponibles.\n\n`;
           } else {
-            text += `No se encontraron filamentos activos que coincidan con "${relevantTokens.join(" ")}".\n\n`;
+            text += `No encontré filamentos activos que coincidan con '${relevantTokens.join(" ")}'.\n`;
+            text += `Actualmente tenés activo:\n`;
+            filaments.slice(0, 5).forEach((f: any) => {
+              text += `- ${getFilamentLabel(f)}: ${f.remaining_grams || 0}g / ${f.total_grams || 1000}g\n`;
+            });
+            text += "\n";
           }
-        } else {
-          // If they just asked "Tengo filamentos?" without specific tokens
-          text += "Filamentos activos (resumen):\n";
-          text += `- Total activos: ${filamentsCount}\n\n`;
-          text += "Listado:\n";
-          filaments.slice(0, 10).forEach((f: any) => {
-            text += `- ${getFilamentLabel(f)}: ${f.remaining_grams || 0}g / ${f.total_grams || 1000}g\n`;
-          });
-          text += "\n";
         }
       } else {
         // General summary
@@ -241,7 +274,7 @@ export async function getStampyWorkshopContext({
       }
     } else {
       if (activeFilaments && !activeFilamentsError && activeFilaments.length === 0) {
-        text += "No tenés filamentos activos en el taller.\n\n";
+        text += "No tenés filamentos activos cargados en tu taller.\n\n";
       }
     }
 
