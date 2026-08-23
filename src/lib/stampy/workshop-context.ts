@@ -24,6 +24,8 @@ export async function getStampyWorkshopContext({
 
   let isFilamentQuery = false;
   let isProductQuery = false;
+  let activeFilamentsErrorMsg: string | null = null;
+  let sampleFilaments = "";
 
   try {
     // 1. Profile / Onboarding
@@ -105,9 +107,28 @@ export async function getStampyWorkshopContext({
       .limit(50);
 
     if (activeFilamentsError) {
+      activeFilamentsErrorMsg = activeFilamentsError.message;
       console.error("[Stampy] active filaments query failed", activeFilamentsError);
       text += "No pude leer los filamentos por un error interno.\n\n";
     }
+
+    const sampleData = activeFilaments?.slice(0, 10).map((f: any) => ({
+      id: f.id,
+      filament_type: f.filament_type,
+      brand: f.brand,
+      name: f.name,
+      color: f.color,
+      remaining_grams: f.remaining_grams,
+      total_grams: f.total_grams,
+      is_active: f.is_active,
+    }));
+
+    console.log("[Stampy DEBUG] active filaments raw result", {
+      userId,
+      error: activeFilamentsError?.message ?? null,
+      count: activeFilaments?.length ?? null,
+      sample: sampleData
+    });
 
     console.log("[Stampy] active filaments debug", {
       userId,
@@ -131,6 +152,12 @@ export async function getStampyWorkshopContext({
         filament.name,
         filament.color,
       ].filter(Boolean).join(" ");
+    }
+
+    if (activeFilaments && activeFilaments.length > 0) {
+      sampleFilaments = activeFilaments.slice(0, 10).map((f: any) => 
+        `- ${getFilamentLabel(f)}: ${f.remaining_grams || 0}g / ${f.total_grams || 1000}g`
+      ).join("\n");
     }
 
     const q = normalizeSearchText(message);
@@ -266,5 +293,5 @@ export async function getStampyWorkshopContext({
     console.error("[Stampy] getStampyWorkshopContext error", error);
   }
 
-  return { text, isFilamentQuery, isProductQuery };
+  return { text, isFilamentQuery, isProductQuery, printersCount, filamentsCount, productsCount, activeFilamentsErrorMsg, sampleFilaments };
 }

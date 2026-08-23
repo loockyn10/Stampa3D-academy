@@ -100,6 +100,18 @@ export async function askStampyAction(
       message
     });
 
+    if (message.trim() === "/debug taller") {
+      const debugText = `DEBUG CONTEXTO TALLER\n\nuserId: ${user.id}\n\nprintersCount: ${workshopContext.printersCount}\nactiveFilamentsCount: ${workshopContext.filamentsCount}\nactiveFilamentsError: ${workshopContext.activeFilamentsErrorMsg}\nproductsCount: ${workshopContext.productsCount}\n\nFilamentos activos sample:\n${workshopContext.sampleFilaments}\n\nContexto final:\n${workshopContext.text}`;
+      
+      return {
+        answer: debugText,
+        recommendations: [],
+        knowledgeTools: [],
+        relatedTools: [],
+        suggestedQuestions: []
+      };
+    }
+
     // 1. Obtener pathname del contexto opcional
     const pathname = (context && context.source === "page") ? context.pathname : undefined;
     
@@ -290,6 +302,12 @@ Si el usuario pide una acción:
       isProductQuery: workshopContext.isProductQuery,
       selectedContext: workshopContext.isFilamentQuery ? "filaments" : workshopContext.isProductQuery ? "products" : "general",
       relatedTools: knowledgeTools.map((t: any) => t.id),
+    });
+
+    console.log("[Stampy DEBUG] final workshop context", {
+      chars: workshopContext.text.length,
+      includesFilamentos: workshopContext.text.toLowerCase().includes("filamento"),
+      preview: workshopContext.text.slice(0, 2000),
     });
 
     const completion = await openai.chat.completions.create({
