@@ -92,6 +92,14 @@ export async function askStampyAction(
     const { OpenAI } = await import("openai");
     const openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
     
+    // 0. Contexto del taller del usuario (Solo Lectura)
+    const { getStampyWorkshopContext } = await import("@/lib/stampy/workshop-context");
+    const workshopContext = await getStampyWorkshopContext({
+      supabase,
+      userId: user.id,
+      message
+    });
+
     // 1. Obtener pathname del contexto opcional
     const pathname = (context && context.source === "page") ? context.pathname : undefined;
     
@@ -236,6 +244,28 @@ El usuario todavía no tiene filamentos ni productos cargados en su stock.`;
         }
       }
     }
+
+    systemPrompt += `\n\nDATOS DEL USUARIO Y TALLER:
+${workshopContext.text}
+
+Reglas del taller:
+- Estos datos son solo lectura.
+- No digas "no tengo acceso" si el dato está en este bloque.
+- Si el dato no está disponible, decilo naturalmente.
+- No inventes stock, impresoras ni productos fuera del contexto.
+- Podés usar este contexto para responder preguntas sobre impresoras cargadas, filamentos disponibles, stock aproximado, productos cargados y configuración general.
+
+No podés todavía:
+- crear datos
+- editar datos
+- descontar stock
+- crear presupuestos
+- ejecutar acciones
+
+Si el usuario pide una acción:
+- explicá brevemente que por ahora podés orientarlo
+- mandalo a la herramienta correspondiente
+- no digas que lo hiciste\n`;
 
     systemPrompt += `\nReglas generales:
 - Respuestas MUY breves y prácticas.
