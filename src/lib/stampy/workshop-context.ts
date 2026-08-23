@@ -14,6 +14,14 @@ export async function getStampyWorkshopContext({
   let filamentsCount = 0;
   let productsCount = 0;
 
+  function normalizeSearchText(value: unknown) {
+    return String(value ?? "")
+      .normalize("NFD")
+      .replace(/[\u0300-\u036f]/g, "")
+      .toLowerCase()
+      .trim();
+  }
+
   try {
     // 1. Profile / Onboarding
     const { data: profile } = await supabase
@@ -75,56 +83,90 @@ export async function getStampyWorkshopContext({
     }
 
     // 3. Filaments
-    const { data: filaments } = await supabase
+    const { data: filamentsData, error: filamentsError } = await supabase
       .from("filaments")
-      .select("*")
+      .select("id,filament_type,brand,name,color,remaining_grams,total_grams,is_active")
       .eq("user_id", userId)
       .eq("is_active", true)
-      .limit(100); // Get up to 100 to process matching, we'll limit output
+      .order("created_at", { ascending: false })
+      .limit(50);
 
-    const normalize = (t: string) => t ? t.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "").trim() : "";
-    const q = normalize(message);
+    if (filamentsError) {
+      console.error("[Stampy] filaments query failed", filamentsError);
+    }
 
-    // Common materials & colors to check if the query is specific
-    const commonMaterials = ["pla", "petg", "abs", "asa", "tpu", "nylon", "resina", "pc", "pva"];
-    const commonColors = ["negro", "blanco", "rojo", "azul", "verde", "amarillo", "gris", "transparente", "naranja", "violeta", "rosa", "marron", "natural"];
+    const q = normalizeSearchText(message);
+
+    const KNOWN_FILAMENT_TYPES = [
+      "pla", "pla rapid", "pla silk", "petg", "tpu", "abs", "asa", "nylon", "resina", "pc", "pva"
+    ];
     
     // Extract brands dynamically from user's filaments
-    const userBrands = Array.from(new Set(filaments?.map(f => normalize(f.brand)).filter(Boolean) || []));
+    const userBrands = Array.from(new Set(filamentsData?.map(f => normalizeSearchText(f.brand)).filter(Boolean) || []));
 
-    const detectedMaterial = commonMaterials.find(m => q.includes(m));
-    const detectedColor = commonColors.find(c => q.includes(c));
+    const detectedMaterial = KNOWN_FILAMENT_TYPES.find(m => q.includes(m));
+    const detectedBrand = userBrands.find(b => q.includes(b));
+    const hasFilamentKeyword = ["filamento", "filamentos", "material", "materiales"].some(kw => q.includes(kw));
 
-    const isSpecificQuery = detectedMaterial || detectedColor || userBrands.some(b => q.includes(b));
+    const isFilamentQuery = detectedMaterial || detectedBrand || hasFilamentKeyword;
 
-    if (filaments && filaments.length > 0) {
-      filamentsCount = filaments.length;
+    let matchedFilaments: any[] = [];
+    let relevantTokens: string[] = [];
 
-      if (isSpecificQuery) {
-        // Find matches
-        const matches = filaments.filter(f => {
-          const label = normalize([f.filament_type, f.brand, f.name, f.color].filter(Boolean).join(" "));
-          return q.split(/\s+/).filter(w => w.length > 2).some(w => label.includes(w));
-        }).slice(0, 20); // max 20 for specific
+    if (filamentsData && filamentsData.length > 0) {
+      filamentsCount = filamentsData.length;
 
-        text += "Consulta específica de filamentos:\n";
-        if (matches.length > 0) {
-          text += `Coincidencias encontradas:\n`;
-          let totalGrams = 0;
-          matches.forEach((f: any) => {
-            const label = [f.filament_type, f.brand, f.name, f.color].filter(Boolean).join(" ");
-            text += `- ${label}: ${f.remaining_grams || f.remaining_quantity_grams || 0}g disponibles de ${f.total_grams || 1000}g\n`;
-            totalGrams += Number(f.remaining_grams || f.remaining_quantity_grams || 0);
-          });
-          text += `\nTotal aproximado: ${totalGrams}g disponibles.\n\n`;
+      // Enhance filaments with searchableText
+      const filaments = filamentsData.map(f => {
+        const searchableText = normalizeSearchText([
+          f.filament_type,
+          f.brand,
+          f.name,
+          f.color
+        ].filter(Boolean).join(" "));
+        return { ...f, searchableText };
+      });
+
+      if (isFilamentQuery) {
+        // Extract relevant tokens
+        const ignoreWords = ["tengo", "tenes", "tenés", "cuanto", "cuánto", "filamento", "filamentos", "material", "materiales", "de", "del", "la", "el", "un", "una", "hay", "cargado", "cargados", "stock", "disponible", "disponibles"];
+        relevantTokens = q.split(/\s+/).filter(w => w.length > 0 && !ignoreWords.includes(w));
+
+        if (relevantTokens.length > 0) {
+          matchedFilaments = filaments.filter(f => 
+            relevantTokens.every(token => f.searchableText.includes(token))
+          );
+        }
+
+        if (relevantTokens.length > 0) {
+          text += "Consulta específica de filamentos:\n";
+          if (matchedFilaments.length > 0) {
+            text += `Coincidencias para "${relevantTokens.join(" ")}":\n`;
+            let totalGrams = 0;
+            matchedFilaments.forEach((f: any) => {
+              const label = [f.filament_type, f.brand, f.name, f.color].filter(Boolean).join(" ").toUpperCase();
+              text += `- ${label}: ${f.remaining_grams || 0}g disponibles de ${f.total_grams || 1000}g\n`;
+              totalGrams += Number(f.remaining_grams || 0);
+            });
+            text += `\nTotal aproximado: ${totalGrams}g disponibles.\n\n`;
+          } else {
+            text += `No se encontraron filamentos activos que coincidan con "${relevantTokens.join(" ")}".\n\n`;
+          }
         } else {
-          text += "No se encontraron filamentos activos que coincidan.\n\n";
+          // If they just asked "Tengo filamentos?" without specific tokens
+          text += "Filamentos activos (resumen):\n";
+          text += `- Total: ${filamentsCount}\n\n`;
+          filaments.slice(0, 10).forEach((f: any) => {
+            const label = [f.filament_type, f.brand, f.name, f.color].filter(Boolean).join(" ").toUpperCase();
+            text += `- ${label}: ${f.remaining_grams || 0}g / ${f.total_grams || 1000}g\n`;
+          });
+          text += "\n";
         }
       } else {
         // General summary
         const types = Array.from(new Set(filaments.map(f => f.filament_type).filter(Boolean)));
         const colors = Array.from(new Set(filaments.map(f => f.color).filter(Boolean)));
-        const lowStock = filaments.filter(f => Number(f.remaining_grams || f.remaining_quantity_grams || 0) < 100);
+        const lowStock = filaments.filter(f => Number(f.remaining_grams || 0) < 100);
 
         text += "Filamentos activos:\n";
         text += `- Total: ${filamentsCount}\n`;
@@ -133,13 +175,15 @@ export async function getStampyWorkshopContext({
         text += `- Bajo stock: ${lowStock.length} filamentos con menos de 100g\n\n`;
 
         filaments.slice(0, 10).forEach((f: any) => {
-          const label = [f.filament_type, f.brand, f.name, f.color].filter(Boolean).join(" ");
-          text += `- ${label}: ${f.remaining_grams || f.remaining_quantity_grams || 0}g / ${f.total_grams || 1000}g\n`;
+          const label = [f.filament_type, f.brand, f.name, f.color].filter(Boolean).join(" ").toUpperCase();
+          text += `- ${label}: ${f.remaining_grams || 0}g / ${f.total_grams || 1000}g\n`;
         });
         text += "\n";
       }
     } else {
-      text += "Filamentos activos:\nNo tiene filamentos cargados.\n\n";
+      if (filamentsData && !filamentsError) {
+        text += "Filamentos activos:\nNo tiene filamentos cargados.\n\n";
+      }
     }
 
     // 4. Products
@@ -158,11 +202,11 @@ export async function getStampyWorkshopContext({
       text += `- Total activos: ${productsCount}\n`;
       text += `- Con stock bajo/cero: ${lowStockProducts.length}\n\n`;
 
-      const productKeywords = ["producto", "productos", "stock de producto", "artículo", "articulo", "venta", "vendo", "catálogo", "catalogo", "precio de venta"];
+      const productKeywords = ["producto", "productos", "stock de producto", "artículo", "articulo", "artículos", "articulos", "venta", "vendo", "catálogo", "catalogo", "precio de venta"];
       const asksForProducts = productKeywords.some(kw => q.includes(kw));
 
-      if (asksForProducts && !detectedMaterial) {
-        const matches = products.filter(p => normalize(p.name).split(/\s+/).some(w => w.length > 3 && q.includes(w)));
+      if (asksForProducts && !isFilamentQuery) {
+        const matches = products.filter(p => normalizeSearchText(p.name).split(/\s+/).some(w => w.length > 3 && q.includes(w)));
         const toShow = matches.length > 0 ? matches.slice(0, 10) : products.slice(0, 5);
         
         toShow.forEach((p: any) => {
@@ -179,13 +223,11 @@ export async function getStampyWorkshopContext({
       text = text.substring(0, 2450) + "\n\n...Contexto del taller resumido por tamaño.";
     }
 
-    console.log("[Stampy] workshop context summary", {
-      printersCount: printers?.length ?? 0,
-      filamentsCount: filaments?.length ?? 0,
-      productsCount: products?.length ?? 0,
-      detectedMaterial,
-      detectedColor,
-      contextChars: text.length,
+    console.log("[Stampy] filament intent", {
+      filamentsCount,
+      relevantTokens: typeof relevantTokens !== 'undefined' ? relevantTokens : [],
+      matchedFilamentsCount: typeof matchedFilaments !== 'undefined' ? matchedFilaments.length : 0,
+      detectedAsFilamentQuery: typeof isFilamentQuery !== 'undefined' ? isFilamentQuery : false,
     });
 
   } catch (error) {
