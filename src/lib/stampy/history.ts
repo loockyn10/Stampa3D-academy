@@ -100,25 +100,51 @@ export async function saveMessages(
   assistantMessage: string,
   metadata: any
 ) {
+  console.log("[Stampy 1C DEBUG] saveMessages input", {
+    conversationId,
+    userId,
+    userContentChars: userMessage?.length ?? null,
+    assistantContentChars: assistantMessage?.length ?? null,
+    mode: metadata?.mode,
+  });
+
   try {
-    const { error } = await supabase.from("stampy_messages").insert([
+    const rows = [
       {
         conversation_id: conversationId,
         user_id: userId,
         role: "user",
         content: userMessage,
+        metadata: {
+          mode: metadata?.mode,
+        },
       },
       {
         conversation_id: conversationId,
         user_id: userId,
         role: "assistant",
         content: assistantMessage,
-        metadata,
+        metadata: metadata ?? {},
       },
-    ]);
+    ];
+
+    const { data, error } = await supabase
+      .from("stampy_messages")
+      .insert(rows)
+      .select("id, role");
+
+    console.log("[Stampy 1C DEBUG] saveMessages insert result", {
+      conversationId,
+      insertedCount: data?.length ?? 0,
+      roles: data?.map((m) => m.role) ?? [],
+      error: error?.message ?? null,
+      details: (error as any)?.details ?? null,
+      hint: (error as any)?.hint ?? null,
+      code: (error as any)?.code ?? null,
+    });
 
     if (error) {
-      console.error("[Stampy] Failed to save messages", error);
+      console.error("[Stampy] saveMessages failed", error);
     }
   } catch (error) {
     console.error("[Stampy] saveMessages exception", error);
