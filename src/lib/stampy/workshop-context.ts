@@ -83,16 +83,51 @@ export async function getStampyWorkshopContext({
     }
 
     // 3. Filaments
-    const { data: filamentsData, error: filamentsError } = await supabase
+    const { data: activeFilaments, error: activeFilamentsError } = await supabase
       .from("filaments")
-      .select("id,filament_type,brand,name,color,remaining_grams,total_grams,is_active")
+      .select(`
+        id,
+        filament_type,
+        brand,
+        name,
+        color,
+        remaining_grams,
+        total_grams,
+        is_active,
+        created_at
+      `)
       .eq("user_id", userId)
       .eq("is_active", true)
       .order("created_at", { ascending: false })
       .limit(50);
 
-    if (filamentsError) {
-      console.error("[Stampy] filaments query failed", filamentsError);
+    if (activeFilamentsError) {
+      console.error("[Stampy] active filaments query failed", activeFilamentsError);
+      text += "No pude leer los filamentos por un error interno.\n\n";
+    }
+
+    console.log("[Stampy] active filaments debug", {
+      userId,
+      activeFilamentsError: activeFilamentsError?.message ?? null,
+      activeFilamentsCount: activeFilaments?.length ?? null,
+      sample: activeFilaments?.slice(0, 5).map((f: any) => ({
+        filament_type: f.filament_type,
+        brand: f.brand,
+        name: f.name,
+        color: f.color,
+        remaining_grams: f.remaining_grams,
+        total_grams: f.total_grams,
+        is_active: f.is_active,
+      })),
+    });
+
+    function getFilamentLabel(filament: any) {
+      return [
+        filament.filament_type,
+        filament.brand,
+        filament.name,
+        filament.color,
+      ].filter(Boolean).join(" ");
     }
 
     const q = normalizeSearchText(message);
@@ -102,7 +137,7 @@ export async function getStampyWorkshopContext({
     ];
     
     // Extract brands dynamically from user's filaments
-    const userBrands = Array.from(new Set(filamentsData?.map(f => normalizeSearchText(f.brand)).filter(Boolean) || []));
+    const userBrands = Array.from(new Set(activeFilaments?.map(f => normalizeSearchText(f.brand)).filter(Boolean) || []));
 
     const detectedMaterial = KNOWN_FILAMENT_TYPES.find(m => q.includes(m));
     const detectedBrand = userBrands.find(b => q.includes(b));
@@ -113,17 +148,12 @@ export async function getStampyWorkshopContext({
     let matchedFilaments: any[] = [];
     let relevantTokens: string[] = [];
 
-    if (filamentsData && filamentsData.length > 0) {
-      filamentsCount = filamentsData.length;
+    if (activeFilaments && activeFilaments.length > 0) {
+      filamentsCount = activeFilaments.length;
 
       // Enhance filaments with searchableText
-      const filaments = filamentsData.map(f => {
-        const searchableText = normalizeSearchText([
-          f.filament_type,
-          f.brand,
-          f.name,
-          f.color
-        ].filter(Boolean).join(" "));
+      const filaments = activeFilaments.map((f: any) => {
+        const searchableText = normalizeSearchText(getFilamentLabel(f));
         return { ...f, searchableText };
       });
 
@@ -139,13 +169,12 @@ export async function getStampyWorkshopContext({
         }
 
         if (relevantTokens.length > 0) {
-          text += "Consulta específica de filamentos:\n";
           if (matchedFilaments.length > 0) {
+            text += "Consulta específica de filamentos:\n";
             text += `Coincidencias para "${relevantTokens.join(" ")}":\n`;
             let totalGrams = 0;
             matchedFilaments.forEach((f: any) => {
-              const label = [f.filament_type, f.brand, f.name, f.color].filter(Boolean).join(" ").toUpperCase();
-              text += `- ${label}: ${f.remaining_grams || 0}g disponibles de ${f.total_grams || 1000}g\n`;
+              text += `- ${getFilamentLabel(f)}: ${f.remaining_grams || 0}g disponibles de ${f.total_grams || 1000}g\n`;
               totalGrams += Number(f.remaining_grams || 0);
             });
             text += `\nTotal aproximado: ${totalGrams}g disponibles.\n\n`;
@@ -155,34 +184,34 @@ export async function getStampyWorkshopContext({
         } else {
           // If they just asked "Tengo filamentos?" without specific tokens
           text += "Filamentos activos (resumen):\n";
-          text += `- Total: ${filamentsCount}\n\n`;
+          text += `- Total activos: ${filamentsCount}\n\n`;
+          text += "Listado:\n";
           filaments.slice(0, 10).forEach((f: any) => {
-            const label = [f.filament_type, f.brand, f.name, f.color].filter(Boolean).join(" ").toUpperCase();
-            text += `- ${label}: ${f.remaining_grams || 0}g / ${f.total_grams || 1000}g\n`;
+            text += `- ${getFilamentLabel(f)}: ${f.remaining_grams || 0}g / ${f.total_grams || 1000}g\n`;
           });
           text += "\n";
         }
       } else {
         // General summary
-        const types = Array.from(new Set(filaments.map(f => f.filament_type).filter(Boolean)));
-        const colors = Array.from(new Set(filaments.map(f => f.color).filter(Boolean)));
-        const lowStock = filaments.filter(f => Number(f.remaining_grams || 0) < 100);
-
+        const types = Array.from(new Set(filaments.map((f: any) => f.filament_type).filter(Boolean)));
+        const brands = Array.from(new Set(filaments.map((f: any) => f.brand).filter(Boolean)));
+        const colors = Array.from(new Set(filaments.map((f: any) => f.color).filter(Boolean)));
+        
         text += "Filamentos activos:\n";
-        text += `- Total: ${filamentsCount}\n`;
+        text += `- Total activos: ${filamentsCount}\n`;
         text += `- Materiales: ${types.join(", ") || "Ninguno"}\n`;
-        text += `- Colores: ${colors.join(", ") || "Ninguno"}\n`;
-        text += `- Bajo stock: ${lowStock.length} filamentos con menos de 100g\n\n`;
+        text += `- Marcas: ${brands.join(", ") || "Ninguna"}\n`;
+        text += `- Colores: ${colors.join(", ") || "Ninguno"}\n\n`;
 
+        text += "Listado:\n";
         filaments.slice(0, 10).forEach((f: any) => {
-          const label = [f.filament_type, f.brand, f.name, f.color].filter(Boolean).join(" ").toUpperCase();
-          text += `- ${label}: ${f.remaining_grams || 0}g / ${f.total_grams || 1000}g\n`;
+          text += `- ${getFilamentLabel(f)}: ${f.remaining_grams || 0}g / ${f.total_grams || 1000}g\n`;
         });
         text += "\n";
       }
     } else {
-      if (filamentsData && !filamentsError) {
-        text += "Filamentos activos:\nNo tiene filamentos cargados.\n\n";
+      if (activeFilaments && !activeFilamentsError && activeFilaments.length === 0) {
+        text += "No tenés filamentos activos en el taller.\n\n";
       }
     }
 
