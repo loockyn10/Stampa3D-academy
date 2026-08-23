@@ -112,38 +112,7 @@ export async function getStampyWorkshopContext({
       text += "No pude leer los filamentos por un error interno.\n\n";
     }
 
-    const sampleData = activeFilaments?.slice(0, 10).map((f: any) => ({
-      id: f.id,
-      filament_type: f.filament_type,
-      brand: f.brand,
-      name: f.name,
-      color: f.color,
-      remaining_grams: f.remaining_grams,
-      total_grams: f.total_grams,
-      is_active: f.is_active,
-    }));
 
-    console.log("[Stampy DEBUG] active filaments raw result", {
-      userId,
-      error: activeFilamentsError?.message ?? null,
-      count: activeFilaments?.length ?? null,
-      sample: sampleData
-    });
-
-    console.log("[Stampy] active filaments debug", {
-      userId,
-      activeFilamentsError: activeFilamentsError?.message ?? null,
-      activeFilamentsCount: activeFilaments?.length ?? null,
-      sample: activeFilaments?.slice(0, 5).map((f: any) => ({
-        filament_type: f.filament_type,
-        brand: f.brand,
-        name: f.name,
-        color: f.color,
-        remaining_grams: f.remaining_grams,
-        total_grams: f.total_grams,
-        is_active: f.is_active,
-      })),
-    });
 
     function getFilamentLabel(filament: any) {
       return [
@@ -217,15 +186,6 @@ export async function getStampyWorkshopContext({
           }
         }
 
-        console.log("[Stampy DEBUG] filament matching", {
-          message,
-          isFilamentQuery,
-          isGeneralFilamentListQuery,
-          activeFilamentsCount: activeFilaments.length,
-          relevantTokens,
-          matchedFilamentsCount: matchedFilaments.length,
-          sampleLabels: activeFilaments.slice(0, 5).map((f: any) => getFilamentLabel(f)),
-        });
 
         if (isGeneralFilamentListQuery || relevantTokens.length === 0) {
           text += "Filamentos activos:\n";
@@ -315,11 +275,13 @@ export async function getStampyWorkshopContext({
       text = text.substring(0, 2450) + "\n\n...Contexto del taller resumido por tamaño.";
     }
 
-    console.log("[Stampy] filament intent", {
-      filamentsCount,
-      relevantTokens: typeof relevantTokens !== 'undefined' ? relevantTokens : [],
-      matchedFilamentsCount: typeof matchedFilaments !== 'undefined' ? matchedFilaments.length : 0,
-      detectedAsFilamentQuery: typeof isFilamentQuery !== 'undefined' ? isFilamentQuery : false,
+    console.log("[Stampy] workshop context summary", {
+      printersCount,
+      activeFilamentsCount: filamentsCount,
+      productsCount,
+      isFilamentQuery,
+      isProductQuery,
+      contextChars: text.length,
     });
 
   } catch (error) {

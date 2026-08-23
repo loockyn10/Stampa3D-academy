@@ -100,7 +100,7 @@ export async function askStampyAction(
       message
     });
 
-    if (message.trim() === "/debug taller") {
+    if (message.trim() === "/debug taller" && process.env.NODE_ENV !== "production") {
       const debugText = `DEBUG CONTEXTO TALLER\n\nuserId: ${user.id}\n\nprintersCount: ${workshopContext.printersCount}\nactiveFilamentsCount: ${workshopContext.filamentsCount}\nactiveFilamentsError: ${workshopContext.activeFilamentsErrorMsg}\nproductsCount: ${workshopContext.productsCount}\n\nFilamentos activos sample:\n${workshopContext.sampleFilaments}\n\nContexto final:\n${workshopContext.text}`;
       
       return {
@@ -296,19 +296,6 @@ Si el usuario pide una acción:
       knowledgeTools = knowledgeTools.filter((t: any) => t.id !== "filament-stock");
     }
 
-    console.log("[Stampy DEBUG] intent routing", {
-      message,
-      isFilamentQuery: workshopContext.isFilamentQuery,
-      isProductQuery: workshopContext.isProductQuery,
-      selectedContext: workshopContext.isFilamentQuery ? "filaments" : workshopContext.isProductQuery ? "products" : "general",
-      relatedTools: knowledgeTools.map((t: any) => t.id),
-    });
-
-    console.log("[Stampy DEBUG] final workshop context", {
-      chars: workshopContext.text.length,
-      includesFilamentos: workshopContext.text.toLowerCase().includes("filamento"),
-      preview: workshopContext.text.slice(0, 2000),
-    });
 
     const completion = await openai.chat.completions.create({
       model: process.env.OPENAI_MODEL || "gpt-4o-mini",
