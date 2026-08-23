@@ -270,7 +270,27 @@ Si el usuario pide una acción:
     systemPrompt += `\nReglas generales:
 - Respuestas MUY breves y prácticas.
 - No inventes datos.
-- No modifiques datos reales, solo orientá sobre cómo hacerlo.`;
+- No modifiques datos reales, solo orientá sobre cómo hacerlo.
+- Cuando el usuario pregunte por filamentos, materiales o tipos como PLA/PETG/TPU, usá exclusivamente el contexto de filamentos. No interpretes esos términos como productos. Si recomendás una herramienta, mandá a Stock de filamentos, no a Stock de productos.`;
+
+    // 5. Buscar herramientas de conocimiento
+    const { findRelevantKnowledge } = await import("@/lib/stampy/knowledge-search");
+    let knowledgeTools = findRelevantKnowledge(message);
+
+    // Ajustar herramientas según intent
+    if (workshopContext.isFilamentQuery) {
+      knowledgeTools = knowledgeTools.filter((t: any) => t.id !== "finished-product-stock" && t.id !== "products");
+    } else if (workshopContext.isProductQuery) {
+      knowledgeTools = knowledgeTools.filter((t: any) => t.id !== "filament-stock");
+    }
+
+    console.log("[Stampy DEBUG] intent routing", {
+      message,
+      isFilamentQuery: workshopContext.isFilamentQuery,
+      isProductQuery: workshopContext.isProductQuery,
+      selectedContext: workshopContext.isFilamentQuery ? "filaments" : workshopContext.isProductQuery ? "products" : "general",
+      relatedTools: knowledgeTools.map((t: any) => t.id),
+    });
 
     const completion = await openai.chat.completions.create({
       model: process.env.OPENAI_MODEL || "gpt-4o-mini",
@@ -286,9 +306,6 @@ Si el usuario pide una acción:
       ]
     });
 
-    // 5. Buscar herramientas de conocimiento
-    const { findRelevantKnowledge } = await import("@/lib/stampy/knowledge-search");
-    const knowledgeTools = findRelevantKnowledge(message);
 
     // 6. Buscar lecciones recomendables (búsqueda textual simple)
     const { data: rawLessons } = await supabase

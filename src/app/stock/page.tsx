@@ -1,7 +1,8 @@
 "use client";
 
-import React, { useState, useEffect, useMemo } from "react";
+import React, { useState, useEffect, useMemo, Suspense } from "react";
 import Link from "next/link";
+import { useSearchParams } from "next/navigation";
 import { AlertTriangle, Plus, Minus, Loader2, Package, Box, History, X, Edit2, Search, ChevronDown, ChevronUp, Trash2 } from "lucide-react";
 import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -40,9 +41,11 @@ const ColorOptionLabel = ({ name, colorHex }: { name: string, colorHex?: string 
 
 import { createClient } from "@/utils/supabase/client";
 
-export default function StockPage() {
+function StockPageContent() {
   const supabase = createClient();
-  const [tab, setTab] = useState<"productos" | "filamentos">("productos");
+  const searchParams = useSearchParams();
+  const initialTab = searchParams.get("tab") === "filamentos" ? "filamentos" : "productos";
+  const [tab, setTab] = useState<"productos" | "filamentos">(initialTab);
   
   const [searchProduct, setSearchProduct] = useState("");
   const [expandedProducts, setExpandedProducts] = useState<string[]>([]);
@@ -1437,5 +1440,17 @@ export default function StockPage() {
       )}
 
     </div>
+  );
+}
+
+export default function StockPage() {
+  return (
+    <Suspense fallback={
+      <div className="flex min-h-screen items-center justify-center bg-stampa-bg">
+        <Loader2 className="h-10 w-10 animate-spin text-stampa-orange" />
+      </div>
+    }>
+      <StockPageContent />
+    </Suspense>
   );
 }

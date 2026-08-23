@@ -129,7 +129,7 @@ export const STAMPY_APP_KNOWLEDGE: StampyKnowledgeItem[] = [
     id: "filament-stock",
     title: "Stock de filamentos",
     category: "tool",
-    route: "/stock",
+    route: "/stock?tab=filamentos",
     shortDescription: "Sirve para controlar cuántos gramos quedan de cada filamento y registrar entradas o salidas de material.",
     whenToRecommend: [
       "cuando el usuario quiere organizar su stock",
@@ -156,7 +156,7 @@ export const STAMPY_APP_KNOWLEDGE: StampyKnowledgeItem[] = [
     id: "finished-product-stock",
     title: "Stock de productos terminados",
     category: "tool",
-    route: "/stock",
+    route: "/stock?tab=productos",
     shortDescription: "Sirve para controlar unidades disponibles de productos ya impresos y listos para vender.",
     whenToRecommend: [
       "cuando el usuario imprime productos por adelantado",

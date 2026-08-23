@@ -22,6 +22,9 @@ export async function getStampyWorkshopContext({
       .trim();
   }
 
+  let isFilamentQuery = false;
+  let isProductQuery = false;
+
   try {
     // 1. Profile / Onboarding
     const { data: profile } = await supabase
@@ -143,7 +146,7 @@ export async function getStampyWorkshopContext({
     const detectedBrand = userBrands.find(b => q.includes(b));
     const hasFilamentKeyword = ["filamento", "filamentos", "material", "materiales"].some(kw => q.includes(kw));
 
-    const isFilamentQuery = detectedMaterial || detectedBrand || hasFilamentKeyword;
+    isFilamentQuery = Boolean(detectedMaterial || detectedBrand || hasFilamentKeyword);
 
     let matchedFilaments: any[] = [];
     let relevantTokens: string[] = [];
@@ -232,9 +235,9 @@ export async function getStampyWorkshopContext({
       text += `- Con stock bajo/cero: ${lowStockProducts.length}\n\n`;
 
       const productKeywords = ["producto", "productos", "stock de producto", "artículo", "articulo", "artículos", "articulos", "venta", "vendo", "catálogo", "catalogo", "precio de venta"];
-      const asksForProducts = productKeywords.some(kw => q.includes(kw));
+      isProductQuery = productKeywords.some(kw => q.includes(kw));
 
-      if (asksForProducts && !isFilamentQuery) {
+      if (isProductQuery && !isFilamentQuery) {
         const matches = products.filter(p => normalizeSearchText(p.name).split(/\s+/).some(w => w.length > 3 && q.includes(w)));
         const toShow = matches.length > 0 ? matches.slice(0, 10) : products.slice(0, 5);
         
@@ -263,5 +266,5 @@ export async function getStampyWorkshopContext({
     console.error("[Stampy] getStampyWorkshopContext error", error);
   }
 
-  return { text };
+  return { text, isFilamentQuery, isProductQuery };
 }
