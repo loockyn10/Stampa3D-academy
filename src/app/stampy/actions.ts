@@ -407,12 +407,6 @@ Si el usuario pide una acción:
     }
 
     if (actualConversationId) {
-      console.log("[Stampy 1C DEBUG] before saveMessages", {
-        conversationId: actualConversationId,
-        userId: user.id,
-        mode: requestMode,
-      });
-
       await saveMessages(
         supabase, 
         user.id, 
