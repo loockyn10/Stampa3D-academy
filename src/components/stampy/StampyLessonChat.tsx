@@ -36,6 +36,7 @@ export function StampyLessonChat({ courseTitle, moduleTitle, lesson }: StampyLes
   ]);
   const [input, setInput] = useState("");
   const [isLoading, setIsLoading] = useState(false);
+  const [conversationId, setConversationId] = useState<string | null>(null);
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const [mounted, setMounted] = useState(false);
 
@@ -77,14 +78,15 @@ export function StampyLessonChat({ courseTitle, moduleTitle, lesson }: StampyLes
       transcript: lesson.transcript
     };
 
-    const conversationContext = newMessages.slice(-6);
-
     const removeUndefined = (obj: any) => {
       return Object.fromEntries(Object.entries(obj).filter(([_, v]) => v !== undefined));
     };
 
     try {
-      const response = await askStampyAction(userMsg.content, conversationContext, removeUndefined(context) as StampyContextPayload);
+      const response = await askStampyAction(userMsg.content, conversationId, removeUndefined(context) as StampyContextPayload);
+      if (response.conversationId && response.conversationId !== conversationId) {
+        setConversationId(response.conversationId);
+      }
       setMessages([...newMessages, { role: "assistant", content: response.answer || "Hubo un error al generar la respuesta." }]);
     } catch (err) {
       setMessages([...newMessages, { role: "assistant", content: "Hubo un error de conexión con mi servidor. Por favor, probá de nuevo." }]);

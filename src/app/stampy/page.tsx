@@ -49,11 +49,17 @@ export default function StampyPage() {
   ]);
   const [input, setInput] = useState("");
   const [loading, setLoading] = useState(false);
+  const [conversationId, setConversationId] = useState<string | null>(null);
   const messagesEndRef = useRef<HTMLDivElement>(null);
 
   const scrollToBottom = () => {
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
   };
+
+  useEffect(() => {
+    const savedId = localStorage.getItem("stampy_current_conversation_id");
+    if (savedId) setConversationId(savedId);
+  }, []);
 
   useEffect(() => {
     scrollToBottom();
@@ -72,7 +78,13 @@ export default function StampyPage() {
     setLoading(true);
 
     try {
-      const res = await askStampyAction(text, recentConversation);
+      const res = await askStampyAction(text, conversationId);
+      
+      if (res.conversationId && res.conversationId !== conversationId) {
+        setConversationId(res.conversationId);
+        localStorage.setItem("stampy_current_conversation_id", res.conversationId);
+      }
+
       if (res.error) {
         setMessages(prev => [...prev, { id: Date.now().toString(), role: "stampy", content: res.error || "Error al comunicarse con Stampy." }]);
       } else {
@@ -86,9 +98,19 @@ export default function StampyPage() {
         }]);
       }
     } catch (e) {
-      setMessages(prev => [...prev, { id: Date.now().toString(), role: "stampy", content: "No pude buscar recomendaciones en este momento. Probá de nuevo." }]);
+      setMessages(prev => [...prev, { id: Date.now().toString(), role: "stampy", content: "No pude comunicarme en este momento. Probá de nuevo." }]);
     }
     setLoading(false);
+  };
+
+  const startNewConversation = () => {
+    setConversationId(null);
+    localStorage.removeItem("stampy_current_conversation_id");
+    setMessages([{
+      id: Date.now().toString(),
+      role: "stampy",
+      content: "Hola de nuevo. ¿En qué te ayudo ahora?"
+    }]);
   };
 
   const handleKeyDown = (e: React.KeyboardEvent) => {
@@ -111,6 +133,12 @@ export default function StampyPage() {
                 <span className="bg-gradient-to-r from-cyan-300 via-sky-300 to-violet-400 bg-clip-text text-transparent">Stampy</span>
                 <span className="inline-flex items-center gap-1 rounded-full border px-2.5 py-1 text-xs font-semibold bg-cyan-500/10 text-cyan-300 border-cyan-500/30">Asistente de la academia</span>
               </h1>
+              <button
+                onClick={startNewConversation}
+                className="text-xs font-semibold px-3 py-1.5 rounded-lg border border-stampa-border bg-stampa-surface hover:bg-white/5 text-gray-300 transition-colors"
+              >
+                Nueva conversación
+              </button>
             </div>
             <p className="text-xs md:text-sm text-gray-500 mt-1">Contale qué problema tenés y te guía hacia la clase o herramienta correcta.</p>
           </div>

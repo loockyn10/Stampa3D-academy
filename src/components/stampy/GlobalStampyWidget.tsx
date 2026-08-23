@@ -47,6 +47,7 @@ export function GlobalStampyWidget() {
   ]);
   const [input, setInput] = useState("");
   const [isLoading, setIsLoading] = useState(false);
+  const [conversationId, setConversationId] = useState<string | null>(null);
   const [pageCtx, setPageCtx] = useState<StampyPageContext | null>(null);
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const [mounted, setMounted] = useState(false);
@@ -102,12 +103,6 @@ export function GlobalStampyWidget() {
     setMessages(newMessages);
     setInput("");
     setIsLoading(true);
-
-    const conversationContext = newMessages.slice(-6).map((m) => ({
-      role: m.role as "user" | "assistant",
-      content: m.content,
-    }));
-
     const removeUndefined = (obj: any) => {
       return Object.fromEntries(Object.entries(obj).filter(([_, v]) => v !== undefined));
     };
@@ -115,9 +110,12 @@ export function GlobalStampyWidget() {
     try {
       const response = await askStampyAction(
         userMsg.content,
-        conversationContext,
+        conversationId,
         removeUndefined(effectiveContext) as StampyContextPayload
       );
+      if (response.conversationId && response.conversationId !== conversationId) {
+        setConversationId(response.conversationId);
+      }
       setMessages([
         ...newMessages,
         {

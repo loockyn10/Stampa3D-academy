@@ -54,12 +54,19 @@ function includesUsefulNeedle(haystack: string, needle?: string | null) {
 
 export async function askStampyAction(
   message: string,
-  conversation?: { role: "user" | "assistant"; content: string }[],
+  conversationId?: string | null,
   context?: StampyContextPayload
 ) {
+  const startTime = Date.now();
+  let actualConversationId = conversationId || null;
+  let answerText = "No pude generar una respuesta.";
+  let requestMode: "openai" | "direct" | "blocked" | "error" = "openai";
+  const supabase = await createClient();
+  let user: any = null;
+
   try {
-    const supabase = await createClient();
-    const { data: { user } } = await supabase.auth.getUser();
+    const { data } = await supabase.auth.getUser();
+    user = data.user;
     
     if (!user) {
       return { error: "No autorizado" };
@@ -85,8 +92,41 @@ export async function askStampyAction(
         recommendations: [],
         knowledgeTools: [],
         relatedTools: [],
-        suggestedQuestions: []
+        suggestedQuestions: [],
+        conversationId: actualConversationId
       };
+    }
+
+    // Rate Limit Check
+    const { checkStampyRateLimit } = await import("@/lib/stampy/rate-limit");
+    const rateLimit = await checkStampyRateLimit({ supabase, userId: user.id });
+    if (rateLimit.isBlocked) {
+      const { logStampyUsage } = await import("@/lib/stampy/usage-log");
+      await logStampyUsage({
+        supabase,
+        userId: user.id,
+        conversationId: actualConversationId,
+        model: null,
+        mode: "blocked",
+        status: "blocked",
+        messageChars: message.length,
+      });
+
+      return {
+        answer: "Llegaste al límite temporal de mensajes de Stampy. Probá de nuevo más tarde.",
+        recommendations: [],
+        knowledgeTools: [],
+        relatedTools: [],
+        suggestedQuestions: [],
+        conversationId: actualConversationId
+      };
+    }
+
+    // Ensure Conversation
+    const { ensureConversation, getRecentHistory, saveMessages } = await import("@/lib/stampy/history");
+    const ensuredId = await ensureConversation({ supabase, userId: user.id, conversationId: actualConversationId, message });
+    if (ensuredId) {
+      actualConversationId = ensuredId;
     }
 
     const { OpenAI } = await import("openai");
@@ -283,7 +323,8 @@ Si el usuario pide una acción:
 - Respuestas MUY breves y prácticas.
 - No inventes datos.
 - No modifiques datos reales, solo orientá sobre cómo hacerlo.
-- Cuando el usuario pregunte por filamentos, materiales o tipos como PLA/PETG/TPU, usá exclusivamente el contexto de filamentos. No interpretes esos términos como productos. Si recomendás una herramienta, mandá a Stock de filamentos, no a Stock de productos.`;
+- Cuando el usuario pregunte por filamentos, materiales o tipos como PLA/PETG/TPU, usá exclusivamente el contexto de filamentos. No interpretes esos términos como productos. Si recomendás una herramienta, mandá a Stock de filamentos, no a Stock de productos.
+- Podés usar el historial reciente de esta conversación para mantener continuidad. No inventes datos permanentes del usuario si no aparecen en el perfil, el taller o el historial reciente. Si el usuario cambia de tema, adaptate al nuevo tema.`;
 
     // 5. Buscar herramientas de conocimiento
     const { findRelevantKnowledge } = await import("@/lib/stampy/knowledge-search");
@@ -297,21 +338,22 @@ Si el usuario pide una acción:
     }
 
 
+    // Cargar historial reciente
+    const recentHistory = actualConversationId ? await getRecentHistory(supabase, actualConversationId, user.id) : [];
+
+    const messagesPayload: any[] = [
+      { role: "system", content: systemPrompt },
+      ...recentHistory,
+      { role: "user", content: message }
+    ];
+
+    const modelName = process.env.OPENAI_MODEL || "gpt-4o-mini";
     const completion = await openai.chat.completions.create({
-      model: process.env.OPENAI_MODEL || "gpt-4o-mini",
-      messages: [
-        {
-          role: "system",
-          content: systemPrompt
-        },
-        {
-          role: "user",
-          content: message
-        }
-      ]
+      model: modelName,
+      messages: messagesPayload
     });
 
-
+    answerText = completion.choices[0]?.message?.content || "No pude generar una respuesta.";
     // 6. Buscar lecciones recomendables (búsqueda textual simple)
     const { data: rawLessons } = await supabase
       .from('lessons')
@@ -364,24 +406,76 @@ Si el usuario pide una acción:
       recommendations = scored;
     }
 
+    if (actualConversationId) {
+      await saveMessages(
+        supabase, 
+        user.id, 
+        actualConversationId, 
+        message, 
+        answerText, 
+        { mode: requestMode, model: modelName, relatedToolsCount: knowledgeTools.length, recommendationsCount: recommendations.length }
+      );
+
+      const { logStampyUsage } = await import("@/lib/stampy/usage-log");
+      await logStampyUsage({
+        supabase,
+        userId: user.id,
+        conversationId: actualConversationId,
+        model: modelName,
+        mode: requestMode,
+        status: "success",
+        messageChars: message.length,
+        promptChars: systemPrompt.length + recentHistory.map((m: any) => m.content.length).reduce((a: number, b: number) => a + b, 0),
+        completionChars: answerText.length,
+        latencyMs: Date.now() - startTime
+      });
+    }
+
+    console.log("[Stampy] request", {
+      userId: user.id,
+      conversationId: actualConversationId,
+      mode: requestMode,
+      isRateLimited: false,
+      historyCount: recentHistory.length,
+      latencyMs: Date.now() - startTime,
+    });
+
     return {
-      answer: completion.choices[0]?.message?.content || "No pude generar una respuesta.",
+      answer: answerText,
       recommendations,
       knowledgeTools,
       relatedTools: [],
-      suggestedQuestions: staticContext?.suggestedQuestions || []
+      suggestedQuestions: staticContext?.suggestedQuestions || [],
+      conversationId: actualConversationId
     };
   } catch (error) {
     console.error("[Stampy] OpenAI request failed", {
       model: process.env.OPENAI_MODEL || "gpt-4o-mini",
       error
     });
+
+    if (actualConversationId) {
+      const { logStampyUsage } = await import("@/lib/stampy/usage-log");
+      await logStampyUsage({
+        supabase,
+        userId: user?.id,
+        conversationId: actualConversationId,
+        model: process.env.OPENAI_MODEL || "gpt-4o-mini",
+        mode: "error",
+        status: "error",
+        messageChars: message.length,
+        errorMessage: String(error).substring(0, 500),
+        latencyMs: Date.now() - startTime
+      });
+    }
+
     return {
       answer: "No pude conectarme con Stampy en este momento. Revisá la configuración de OpenAI.",
       recommendations: [],
       knowledgeTools: [],
       relatedTools: [],
-      suggestedQuestions: []
+      suggestedQuestions: [],
+      conversationId: actualConversationId
     };
   }
 }
