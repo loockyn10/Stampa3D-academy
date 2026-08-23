@@ -51,18 +51,23 @@ export async function getStampyWorkshopContext({
     }
 
     // 2. Printers
-    const { data: printers } = await supabase
-      .from("user_printers")
-      .select("*") 
+    const { data: printers, error: printersError } = await supabase
+      .from("printers")
+      .select("name,power_watts,maintenance_cost_per_hour,is_active")
       .eq("user_id", userId)
       .eq("is_active", true)
+      .order("created_at", { ascending: false })
       .limit(10);
+
+    if (printersError) {
+      console.error("[Stampy] printers query failed", printersError);
+    }
 
     if (printers && printers.length > 0) {
       printersCount = printers.length;
-      text += "Impresoras cargadas:\n";
+      text += "Impresoras cargadas en el taller:\n";
       printers.forEach((p: any) => {
-        text += `- ${p.name} — ${p.power_watts || p.consumption_watts || 0}W\n`;
+        text += `- ${p.name} — ${p.power_watts || 0}W\n`;
       });
       text += "\n";
     } else {
@@ -81,15 +86,16 @@ export async function getStampyWorkshopContext({
     const q = normalize(message);
 
     // Common materials & colors to check if the query is specific
-    const commonMaterials = ["pla", "petg", "abs", "asa", "tpu", "nylon", "resina"];
+    const commonMaterials = ["pla", "petg", "abs", "asa", "tpu", "nylon", "resina", "pc", "pva"];
     const commonColors = ["negro", "blanco", "rojo", "azul", "verde", "amarillo", "gris", "transparente", "naranja", "violeta", "rosa", "marron", "natural"];
     
     // Extract brands dynamically from user's filaments
     const userBrands = Array.from(new Set(filaments?.map(f => normalize(f.brand)).filter(Boolean) || []));
 
-    const isSpecificQuery = commonMaterials.some(m => q.includes(m)) || 
-                            commonColors.some(c => q.includes(c)) || 
-                            userBrands.some(b => q.includes(b));
+    const detectedMaterial = commonMaterials.find(m => q.includes(m));
+    const detectedColor = commonColors.find(c => q.includes(c));
+
+    const isSpecificQuery = detectedMaterial || detectedColor || userBrands.some(b => q.includes(b));
 
     if (filaments && filaments.length > 0) {
       filamentsCount = filaments.length;
@@ -144,7 +150,7 @@ export async function getStampyWorkshopContext({
       .eq("is_active", true)
       .limit(50);
 
-    if (products && products.length > 0) {
+      if (products && products.length > 0) {
       productsCount = products.length;
       const lowStockProducts = products.filter(p => Number(p.stock_quantity || 0) <= 0);
       
@@ -152,7 +158,10 @@ export async function getStampyWorkshopContext({
       text += `- Total activos: ${productsCount}\n`;
       text += `- Con stock bajo/cero: ${lowStockProducts.length}\n\n`;
 
-      if (q.includes("producto") || q.includes("stock")) {
+      const productKeywords = ["producto", "productos", "stock de producto", "artículo", "articulo", "venta", "vendo", "catálogo", "catalogo", "precio de venta"];
+      const asksForProducts = productKeywords.some(kw => q.includes(kw));
+
+      if (asksForProducts && !detectedMaterial) {
         const matches = products.filter(p => normalize(p.name).split(/\s+/).some(w => w.length > 3 && q.includes(w)));
         const toShow = matches.length > 0 ? matches.slice(0, 10) : products.slice(0, 5);
         
@@ -170,11 +179,12 @@ export async function getStampyWorkshopContext({
       text = text.substring(0, 2450) + "\n\n...Contexto del taller resumido por tamaño.";
     }
 
-    console.log("[Stampy] workshop context", {
-      userId,
-      printersCount,
-      filamentsCount,
-      productsCount,
+    console.log("[Stampy] workshop context summary", {
+      printersCount: printers?.length ?? 0,
+      filamentsCount: filaments?.length ?? 0,
+      productsCount: products?.length ?? 0,
+      detectedMaterial,
+      detectedColor,
       contextChars: text.length,
     });
 
