@@ -341,6 +341,32 @@ Si el usuario pide una acción:
     // Cargar historial reciente
     const recentHistory = actualConversationId ? await getRecentHistory(supabase, actualConversationId, user.id) : [];
 
+    let lessonId = context?.source === "lesson" ? context.lessonId : undefined;
+    let transcriptContextText = "";
+    if (lessonId) {
+      const { getLessonTranscriptContext } = await import("@/lib/stampy/lesson-transcripts");
+      const transcriptData = await getLessonTranscriptContext({
+        supabase,
+        lessonId,
+        message,
+      });
+
+      console.log("[Stampy] lesson transcript context", {
+        lessonId,
+        transcriptFound: transcriptData.transcriptFound,
+        transcriptChars: transcriptData.transcriptChars,
+        segmentsUsed: transcriptData.segmentsUsed,
+      });
+
+      if (transcriptData.transcriptFound) {
+        transcriptContextText = `\n\n${transcriptData.text}\n\nRegla sobre la transcripción:\nTengo acceso a una transcripción de la clase actual. Usala como fuente principal para responder preguntas sobre esta clase. No digas que viste el video; decí que según la clase o según el contenido de la clase. Si la transcripción no contiene la respuesta, aclaralo y luego podés orientar con conocimiento general.`;
+      }
+    }
+
+    if (transcriptContextText) {
+      systemPrompt += transcriptContextText;
+    }
+
     const messagesPayload: any[] = [
       { role: "system", content: systemPrompt },
       ...recentHistory,

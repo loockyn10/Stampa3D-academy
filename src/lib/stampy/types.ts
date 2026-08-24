@@ -31,3 +31,34 @@ export interface StampyUsageLog {
   error_message: string | null;
   created_at: string;
 }
+
+export interface LessonTranscript {
+  id: string;
+  lesson_id: string;
+  source_type: string;
+  language: string;
+  status: string;
+  transcript_text: string | null;
+  raw_payload: any | null;
+  provider: string | null;
+  external_id: string | null;
+  source_url: string | null;
+  duration_seconds: number | null;
+  segments_count: number;
+  imported_by: string | null;
+  generated_at: string | null;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface LessonTranscriptSegment {
+  id: string;
+  transcript_id: string;
+  lesson_id: string;
+  position: number;
+  start_seconds: number;
+  end_seconds: number;
+  text: string;
+  confidence: number | null;
+  created_at: string;
+}
