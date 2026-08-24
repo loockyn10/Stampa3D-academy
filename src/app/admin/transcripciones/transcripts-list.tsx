@@ -205,7 +205,6 @@ export function TranscriptsList({ lessons }: { lessons: any[] }) {
                         <div className="shrink-0">
                           <Link
                             href={`/admin/transcripciones/${lesson.id}`}
-                            onClick={() => console.log("[Admin Transcriptions] open lesson", { lessonId: lesson.id, lessonTitle: lesson.title })}
                             className="inline-flex items-center justify-center h-8 px-3 rounded-lg bg-white/5 border border-stampa-border text-xs font-medium text-gray-300 hover:bg-white/10 hover:text-white transition-colors"
                           >
                             {lesson.transcript ? (

@@ -22,11 +22,6 @@ export default async function EditTranscriptPage({ params }: { params: { lessonI
   const { lessonId: paramLessonId } = await params;
   const lessonId = paramLessonId;
   
-  console.log("[Admin Transcriptions] editor params", {
-    lessonId,
-    type: typeof lessonId,
-  });
-
   // 1. Fetch lesson
   const { data: lesson, error: lessonError } = await supabase
     .from("lessons")
