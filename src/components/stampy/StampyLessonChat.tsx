@@ -75,7 +75,8 @@ export function StampyLessonChat({ courseTitle, moduleTitle, lesson }: StampyLes
       lessonProblems: lesson.ai_problems,
       lessonLevel: lesson.ai_level,
       relatedTool: lesson.ai_related_tool,
-      transcript: lesson.transcript
+      transcript: lesson.transcript,
+      pathname: window.location.pathname + window.location.search
     };
 
     const removeUndefined = (obj: any) => {

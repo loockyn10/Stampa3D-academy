@@ -78,7 +78,10 @@ export default function StampyPage() {
     setLoading(true);
 
     try {
-      const res = await askStampyAction(text, conversationId);
+      const res = await askStampyAction(text, conversationId, {
+        source: "page",
+        pathname: window.location.pathname + window.location.search
+      });
       
       if (res.conversationId && res.conversationId !== conversationId) {
         setConversationId(res.conversationId);

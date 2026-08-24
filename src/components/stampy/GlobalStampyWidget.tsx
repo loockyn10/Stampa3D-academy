@@ -1,9 +1,9 @@
 "use client";
 
-import React, { useState, useRef, useEffect } from "react";
+import React, { useState, useRef, useEffect, Suspense } from "react";
 import { Bot, X, Send, Loader2, Minimize2 } from "lucide-react";
 import { createPortal } from "react-dom";
-import { usePathname } from "next/navigation";
+import { usePathname, useSearchParams } from "next/navigation";
 import { askStampyAction, StampyContextPayload } from "@/app/stampy/actions";
 import { getStaticStampyPageContext } from "@/lib/stampy/static-page-contexts";
 import { StampyPageContext } from "@/lib/stampy/page-context";
@@ -26,16 +26,17 @@ const HIDDEN_ON: string[] = [
   "/sin-acceso",
   "/pago/estado",
   "/salir",
-  // /cursos/[id] is hidden so StampyLessonChat can be used instead
-  // We detect this via /cursos/ prefix below
 ];
 
 function shouldHide(pathname: string): boolean {
   return HIDDEN_ON.some((p) => pathname.startsWith(p));
 }
 
-export function GlobalStampyWidget() {
+function StampyWidgetContent() {
   const pathname = usePathname();
+  const searchParams = useSearchParams();
+  const fullPathname = pathname + (searchParams?.toString() ? `?${searchParams.toString()}` : "");
+
   const { stampyContext } = useStampyContext();
 
   const [isOpen, setIsOpen] = useState(false);
@@ -62,7 +63,7 @@ export function GlobalStampyWidget() {
       if (staticCtx) {
         setPageCtx({
           source: "page",
-          pathname,
+          pathname: fullPathname,
           pageTitle: staticCtx.title,
           pageDescription: staticCtx.context,
           suggestedQuestions: staticCtx.suggestedQuestions || []
@@ -71,7 +72,7 @@ export function GlobalStampyWidget() {
         setPageCtx(null);
       }
     }
-  }, [pathname]);
+  }, [pathname, fullPathname]);
 
   useEffect(() => {
     if (isOpen) {
@@ -88,7 +89,7 @@ export function GlobalStampyWidget() {
 
   const defaultCtx: StampyContextPayload = {
     source: "page",
-    pathname: pathname || ""
+    pathname: fullPathname || ""
   };
   
   const currentCtx = pageCtx || defaultCtx;
@@ -138,7 +139,6 @@ export function GlobalStampyWidget() {
 
   return createPortal(
     <>
-      {/* Botón Flotante */}
       {!isOpen && (
         <button
           type="button"
@@ -150,12 +150,9 @@ export function GlobalStampyWidget() {
         </button>
       )}
 
-      {/* Panel */}
       {isOpen && (
         <aside className="fixed inset-x-3 bottom-3 z-[100] h-[82dvh] max-h-[82dvh] overflow-hidden rounded-2xl border border-cyan-400/30 bg-stampa-bg/95 shadow-2xl shadow-cyan-500/15 backdrop-blur-xl md:inset-auto md:bottom-6 md:right-6 md:h-[80dvh] md:max-h-[760px] md:w-[420px] md:max-w-[calc(100vw-3rem)] animate-in fade-in zoom-in-95 slide-in-from-bottom-2">
           <div className="flex h-full min-h-0 flex-col">
-
-            {/* Header */}
             <div className="flex items-center justify-between p-4 border-b border-stampa-border bg-white/[0.03] shrink-0">
               <div className="flex items-center gap-3">
                 <div className="p-2 bg-cyan-500/10 text-cyan-400 rounded-xl border border-cyan-400/25">
@@ -183,7 +180,6 @@ export function GlobalStampyWidget() {
               </button>
             </div>
 
-            {/* Messages */}
             <div className="min-h-0 flex-1 overflow-y-auto p-4 space-y-4 overscroll-contain">
               {messages.map((m, idx) => (
                 <div
@@ -207,7 +203,6 @@ export function GlobalStampyWidget() {
                 </div>
               ))}
               
-              {/* Suggested Questions */}
               {!isLoading && messages.length === 1 && currentCtx.suggestedQuestions && currentCtx.suggestedQuestions.length > 0 && (
                 <div className="flex flex-wrap gap-2 pt-2 pl-9">
                   {currentCtx.suggestedQuestions.map((sq, idx) => (
@@ -236,7 +231,6 @@ export function GlobalStampyWidget() {
               <div ref={messagesEndRef} />
             </div>
 
-            {/* Input */}
             <div className="p-4 bg-stampa-bg/95 border-t border-stampa-border shrink-0">
               <div className="relative flex items-center">
                 <input
@@ -261,7 +255,6 @@ export function GlobalStampyWidget() {
         </aside>
       )}
 
-      {/* Mobile overlay */}
       {isOpen && (
         <div
           className="fixed inset-0 bg-stampa-bg/60 z-[99] sm:hidden"
@@ -270,5 +263,13 @@ export function GlobalStampyWidget() {
       )}
     </>,
     document.body
+  );
+}
+
+export function GlobalStampyWidget() {
+  return (
+    <Suspense fallback={null}>
+      <StampyWidgetContent />
+    </Suspense>
   );
 }

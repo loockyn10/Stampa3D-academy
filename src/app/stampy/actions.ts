@@ -16,6 +16,7 @@ export type StampyContextPayload =
       lessonLevel?: string;
       relatedTool?: string;
       transcript?: string;
+      pathname?: string;
     }
   | {
       source: "page";
@@ -153,11 +154,29 @@ export async function askStampyAction(
     }
 
     // 1. Obtener pathname del contexto opcional
-    const pathname = (context && context.source === "page") ? context.pathname : undefined;
+    const pathname = context?.pathname;
     
-    // 2. Buscar contexto estático de forma segura (ignorar si falla)
+    // 2. Fetch new dynamic contexts
+    const { getStampyRelevantContexts } = await import("@/lib/stampy/context-search");
+    const dynamicContextData = await getStampyRelevantContexts({
+      supabase,
+      message,
+      currentPath: pathname,
+      lessonId: context?.source === "lesson" ? context.lessonId : undefined,
+    });
+
+    if (dynamicContextData.contextsCount > 0) {
+      console.log("[Stampy] relevant contexts", {
+        currentPath: pathname,
+        contextsCount: dynamicContextData.contextsCount,
+        contextTitles: dynamicContextData.contexts.map(c => c.title),
+        contextChars: dynamicContextData.text.length,
+      });
+    }
+
+    // 3. Buscar contexto estático de forma segura (ignorar si falla y usar solo si no hay match dinámico exacto de mayor prioridad)
     let staticContext = null;
-    if (pathname) {
+    if (pathname && dynamicContextData.contextsCount === 0) {
       try {
         const { getStaticStampyPageContext } = await import("@/lib/stampy/static-page-contexts");
         staticContext = getStaticStampyPageContext(pathname);
@@ -166,9 +185,13 @@ export async function askStampyAction(
       }
     }
 
-    // 3. Preparar system prompt
+    // 4. Preparar system prompt
     let systemPrompt = "Sos Stampy, el asistente de Academia Stampa. Respondé breve, práctico y en español argentino.\n";
     
+    if (dynamicContextData.text) {
+      systemPrompt += `\n${dynamicContextData.text}\n`;
+    }
+
     if (staticContext) {
       systemPrompt += `\nContexto de la pantalla actual:
 - Sección: ${staticContext.title}
