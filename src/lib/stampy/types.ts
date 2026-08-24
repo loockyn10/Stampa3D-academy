@@ -84,3 +84,25 @@ export interface StampyMessageFeedback {
   created_at: string;
   updated_at: string;
 }
+
+export type StampyActionIntentType =
+  | "discount_filament"
+  | "add_filament"
+  | "add_printer"
+  | "create_product"
+  | "create_quote"
+  | "calculate_price"
+  | "update_stock"
+  | "unknown_action";
+
+export interface StampyActionIntent {
+  type: StampyActionIntentType;
+  confidence: number;
+  title: string;
+  summary: string;
+  extracted: Record<string, unknown>;
+  toolHref?: string;
+  toolLabel?: string;
+  canExecute: false;
+  reason: string;
+}

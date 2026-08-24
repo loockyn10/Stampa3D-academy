@@ -397,12 +397,44 @@ Si el usuario pide una acción:
     ];
 
     const modelName = process.env.OPENAI_MODEL || "gpt-4o-mini";
-    const completion = await openai.chat.completions.create({
-      model: modelName,
-      messages: messagesPayload
+    
+    const { detectStampyActionIntent, buildActionIntentResponse } = await import("@/lib/stampy/action-intents");
+    const actionIntent = detectStampyActionIntent({
+      message,
+      workshopContext,
+      currentPath: pathname
     });
 
-    answerText = completion.choices[0]?.message?.content || "No pude generar una respuesta.";
+    let actionIntentMetadata = null;
+
+    if (actionIntent) {
+      answerText = buildActionIntentResponse(actionIntent);
+      requestMode = "direct";
+      actionIntentMetadata = actionIntent;
+      
+      if (actionIntent.toolHref && actionIntent.toolLabel) {
+        knowledgeTools = [{
+          title: actionIntent.toolLabel,
+          route: actionIntent.toolHref,
+          shortDescription: "Acción recomendada"
+        } as any];
+      }
+      
+      console.log("[Stampy] action intent detected", {
+        userId: user.id,
+        conversationId: actualConversationId,
+        type: actionIntent.type,
+        confidence: actionIntent.confidence,
+        canExecute: actionIntent.canExecute,
+      });
+    } else {
+      const completion = await openai.chat.completions.create({
+        model: modelName,
+        messages: messagesPayload
+      });
+
+      answerText = completion.choices[0]?.message?.content || "No pude generar una respuesta.";
+    }
     // 6. Buscar lecciones recomendables (búsqueda textual simple)
     const { data: rawLessons } = await supabase
       .from('lessons')
@@ -463,7 +495,13 @@ Si el usuario pide una acción:
         actualConversationId, 
         message, 
         answerText, 
-        { mode: requestMode, model: modelName, relatedToolsCount: knowledgeTools.length, recommendationsCount: recommendations.length }
+        { 
+          mode: requestMode, 
+          model: modelName, 
+          relatedToolsCount: knowledgeTools.length, 
+          recommendationsCount: recommendations.length,
+          actionIntent: actionIntentMetadata
+        }
       );
       assistantMessageId = saved?.assistantMessageId || null;
 
