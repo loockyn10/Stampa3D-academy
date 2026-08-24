@@ -19,36 +19,23 @@ export default async function EditTranscriptPage({ params }: { params: { lessonI
 
   if (profile?.role !== "admin") redirect("/sin-acceso");
 
-  const { lessonId } = params;
+  const { lessonId: paramLessonId } = await params;
+  const lessonId = paramLessonId;
+  
+  console.log("[Admin Transcriptions] editor params", {
+    lessonId,
+    type: typeof lessonId,
+  });
 
-  // Fetch lesson data
-  const { data: lesson, error } = await supabase
+  // 1. Fetch lesson
+  const { data: lesson, error: lessonError } = await supabase
     .from("lessons")
-    .select(`
-      id,
-      title,
-      is_active,
-      sort_order,
-      module_id,
-      course_modules:module_id (
-        id,
-        title,
-        sort_order,
-        is_active,
-        course_id,
-        courses:course_id (
-          id,
-          title,
-          status,
-          course_kind
-        )
-      )
-    `)
+    .select("id,title,module_id,is_active,sort_order,created_at")
     .eq("id", lessonId)
     .maybeSingle();
 
-  if (error) {
-    console.error("[Admin Transcriptions] lesson fetch failed", error);
+  if (lessonError) {
+    console.error("[Admin Transcriptions] lesson fetch failed", { lessonId, error: lessonError });
     return <div>No pude cargar la clase por un error interno.</div>;
   }
 
@@ -56,36 +43,63 @@ export default async function EditTranscriptPage({ params }: { params: { lessonI
     return <div>Clase no encontrada</div>;
   }
 
-  // Fetch transcript data
-  const { data: transcript } = await supabase
+  // 2. Fetch module
+  const { data: module, error: moduleError } = await supabase
+    .from("course_modules")
+    .select("id,title,course_id,is_active,sort_order")
+    .eq("id", lesson.module_id)
+    .maybeSingle();
+
+  if (moduleError) {
+    console.error("[Admin Transcriptions] module fetch failed", moduleError);
+  }
+
+  // 3. Fetch course
+  const { data: course, error: courseError } = module?.course_id
+    ? await supabase
+        .from("courses")
+        .select("id,title,status,course_kind")
+        .eq("id", module.course_id)
+        .maybeSingle()
+    : { data: null, error: null };
+
+  if (courseError) {
+    console.error("[Admin Transcriptions] course fetch failed", courseError);
+  }
+
+  // 4. Fetch transcript
+  const { data: transcript, error: transcriptError } = await supabase
     .from("lesson_transcripts")
     .select("*")
     .eq("lesson_id", lessonId)
     .maybeSingle();
 
-  // Fetch segments if transcript exists
-  let segments = [];
-  if (transcript) {
-    const { data: segs } = await supabase
-      .from("lesson_transcript_segments")
-      .select("*")
-      .eq("transcript_id", transcript.id)
-      .order("position", { ascending: true });
-    if (segs) segments = segs;
+  if (transcriptError) {
+    console.error("[Admin Transcriptions] transcript fetch failed", transcriptError);
   }
 
-  const moduleInfo = Array.isArray(lesson.course_modules) ? lesson.course_modules[0] : lesson.course_modules;
-  const courseInfo = moduleInfo ? (Array.isArray((moduleInfo as any).courses) ? (moduleInfo as any).courses[0] : (moduleInfo as any).courses) : null;
+  // 5. Fetch segments
+  const { data: segments, error: segmentsError } = transcript?.id
+    ? await supabase
+        .from("lesson_transcript_segments")
+        .select("id,transcript_id,lesson_id,position,start_seconds,end_seconds,text,created_at")
+        .eq("transcript_id", transcript.id)
+        .order("position", { ascending: true })
+    : { data: [], error: null };
+
+  if (segmentsError) {
+    console.error("[Admin Transcriptions] segments fetch failed", segmentsError);
+  }
 
   return (
     <div className="pb-12">
       <TranscriptEditor
         lessonId={lessonId}
         lessonTitle={lesson.title}
-        moduleTitle={(moduleInfo as any)?.title}
-        courseTitle={courseInfo?.title}
+        moduleTitle={module?.title}
+        courseTitle={course?.title}
         initialTranscript={transcript}
-        initialSegments={segments}
+        initialSegments={segments || []}
       />
     </div>
   );
