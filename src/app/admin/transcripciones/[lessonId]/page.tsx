@@ -22,20 +22,35 @@ export default async function EditTranscriptPage({ params }: { params: { lessonI
   const { lessonId } = params;
 
   // Fetch lesson data
-  const { data: lesson } = await supabase
+  const { data: lesson, error } = await supabase
     .from("lessons")
     .select(`
       id,
       title,
-      course_modules!inner (
+      is_active,
+      sort_order,
+      module_id,
+      course_modules:module_id (
+        id,
         title,
-        courses!inner (
-          title
+        sort_order,
+        is_active,
+        course_id,
+        courses:course_id (
+          id,
+          title,
+          status,
+          course_kind
         )
       )
     `)
     .eq("id", lessonId)
-    .single();
+    .maybeSingle();
+
+  if (error) {
+    console.error("[Admin Transcriptions] lesson fetch failed", error);
+    return <div>No pude cargar la clase por un error interno.</div>;
+  }
 
   if (!lesson) {
     return <div>Clase no encontrada</div>;
