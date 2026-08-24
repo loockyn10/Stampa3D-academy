@@ -6,6 +6,7 @@ import { askStampyAction } from "./actions";
 import Link from "next/link";
 import { Badge } from "@/components/ui/badge";
 
+import { StampyFeedback } from "@/components/stampy/StampyFeedback";
 
 interface Message {
   id: string;
@@ -14,6 +15,7 @@ interface Message {
   recommendations?: any[];
   relatedTools?: string[];
   knowledgeTools?: any[];
+  assistantMessageId?: string | null;
 }
 
 const QUICK_SUGGESTIONS = [
@@ -97,7 +99,8 @@ export default function StampyPage() {
           content: res.answer || "",
           recommendations: res.recommendations,
           relatedTools: res.relatedTools,
-          knowledgeTools: res.knowledgeTools
+          knowledgeTools: res.knowledgeTools,
+          assistantMessageId: res.assistantMessageId
         }]);
       }
     } catch (e) {
@@ -252,6 +255,17 @@ export default function StampyPage() {
                       </div>
                     );
                   })()}
+
+                  {/* Feedback UI */}
+                  {msg.role === "stampy" && msg.assistantMessageId && conversationId && (
+                    <div className="mt-4 pt-4 border-t border-stampa-border">
+                      <StampyFeedback 
+                        messageId={msg.assistantMessageId} 
+                        conversationId={conversationId} 
+                        source="stampy_page" 
+                      />
+                    </div>
+                  )}
                 </div>
 
                 {msg.role === "user" && (

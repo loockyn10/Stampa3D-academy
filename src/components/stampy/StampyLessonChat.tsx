@@ -4,6 +4,7 @@ import React, { useState, useRef, useEffect } from "react";
 import { Bot, X, Send, Loader2 } from "lucide-react";
 import { askStampyAction, StampyContextPayload } from "@/app/stampy/actions";
 import { createPortal } from "react-dom";
+import { StampyFeedback } from "@/components/stampy/StampyFeedback";
 
 interface StampyLessonChatProps {
   courseTitle: string;
@@ -24,6 +25,7 @@ interface StampyLessonChatProps {
 type Message = {
   role: "user" | "assistant";
   content: string;
+  assistantMessageId?: string | null;
 };
 
 export function StampyLessonChat({ courseTitle, moduleTitle, lesson }: StampyLessonChatProps) {
@@ -88,7 +90,7 @@ export function StampyLessonChat({ courseTitle, moduleTitle, lesson }: StampyLes
       if (response.conversationId && response.conversationId !== conversationId) {
         setConversationId(response.conversationId);
       }
-      setMessages([...newMessages, { role: "assistant", content: response.answer || "Hubo un error al generar la respuesta." }]);
+      setMessages([...newMessages, { role: "assistant", content: response.answer || "Hubo un error al generar la respuesta.", assistantMessageId: response.assistantMessageId }]);
     } catch (err) {
       setMessages([...newMessages, { role: "assistant", content: "Hubo un error de conexión con mi servidor. Por favor, probá de nuevo." }]);
     } finally {
@@ -150,7 +152,16 @@ export function StampyLessonChat({ courseTitle, moduleTitle, lesson }: StampyLes
                         : 'bg-[#1a1a1a] border border-stampa-border text-gray-200 rounded-tl-sm'
                     }`}
                   >
-                    {m.content}
+                    <div className="whitespace-pre-wrap">{m.content}</div>
+                    {m.role === 'assistant' && m.assistantMessageId && conversationId && (
+                      <div className="mt-2 pt-2 border-t border-stampa-border/50">
+                        <StampyFeedback 
+                          messageId={m.assistantMessageId} 
+                          conversationId={conversationId} 
+                          source="lesson_chat" 
+                        />
+                      </div>
+                    )}
                   </div>
                 </div>
               ))}

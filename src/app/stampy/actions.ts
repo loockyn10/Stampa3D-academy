@@ -455,8 +455,9 @@ Si el usuario pide una acción:
       recommendations = scored;
     }
 
+    let assistantMessageId: string | null = null;
     if (actualConversationId) {
-      await saveMessages(
+      const saved = await saveMessages(
         supabase, 
         user.id, 
         actualConversationId, 
@@ -464,6 +465,7 @@ Si el usuario pide una acción:
         answerText, 
         { mode: requestMode, model: modelName, relatedToolsCount: knowledgeTools.length, recommendationsCount: recommendations.length }
       );
+      assistantMessageId = saved?.assistantMessageId || null;
 
       const { logStampyUsage } = await import("@/lib/stampy/usage-log");
       await logStampyUsage({
@@ -495,7 +497,8 @@ Si el usuario pide una acción:
       knowledgeTools,
       relatedTools: [],
       suggestedQuestions: staticContext?.suggestedQuestions || [],
-      conversationId: actualConversationId
+      conversationId: actualConversationId,
+      assistantMessageId
     };
   } catch (error) {
     console.error("[Stampy] OpenAI request failed", {

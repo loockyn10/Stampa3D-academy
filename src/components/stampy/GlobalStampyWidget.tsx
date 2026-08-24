@@ -8,10 +8,12 @@ import { askStampyAction, StampyContextPayload } from "@/app/stampy/actions";
 import { getStaticStampyPageContext } from "@/lib/stampy/static-page-contexts";
 import { StampyPageContext } from "@/lib/stampy/page-context";
 import { useStampyContext } from "@/components/stampy/StampyContextProvider";
+import { StampyFeedback } from "@/components/stampy/StampyFeedback";
 
 type Message = {
   role: "user" | "assistant";
   content: string;
+  assistantMessageId?: string | null;
 };
 
 // Routes where GlobalStampyWidget must NOT appear
@@ -122,6 +124,7 @@ function StampyWidgetContent() {
         {
           role: "assistant",
           content: response.answer || "Hubo un error al generar la respuesta.",
+          assistantMessageId: response.assistantMessageId
         },
       ]);
     } catch {
@@ -198,7 +201,16 @@ function StampyWidgetContent() {
                         : "bg-[#1a1a1a] border border-stampa-border text-gray-200 rounded-tl-sm"
                     }`}
                   >
-                    {m.content}
+                    <div className="whitespace-pre-wrap">{m.content}</div>
+                    {m.role === "assistant" && m.assistantMessageId && conversationId && (
+                      <div className="mt-2 pt-2 border-t border-stampa-border/50">
+                        <StampyFeedback 
+                          messageId={m.assistantMessageId} 
+                          conversationId={conversationId} 
+                          source="global_widget" 
+                        />
+                      </div>
+                    )}
                   </div>
                 </div>
               ))}

@@ -62,3 +62,25 @@ export interface LessonTranscriptSegment {
   confidence: number | null;
   created_at: string;
 }
+
+export type StampyFeedbackReason = 
+  | "helpful"
+  | "incorrect"
+  | "too_generic"
+  | "did_not_understand"
+  | "did_not_use_context"
+  | "bad_tool_recommendation"
+  | "other";
+
+export interface StampyMessageFeedback {
+  id: string;
+  message_id: string;
+  conversation_id: string;
+  user_id: string;
+  rating: "positive" | "negative";
+  reason: StampyFeedbackReason | null;
+  comment: string | null;
+  source: string;
+  created_at: string;
+  updated_at: string;
+}

@@ -99,7 +99,7 @@ export async function saveMessages(
   userMessage: string,
   assistantMessage: string,
   metadata: any
-) {
+): Promise<{ userMessageId: string | null; assistantMessageId: string | null }> {
   try {
     const rows = [
       {
@@ -120,15 +120,29 @@ export async function saveMessages(
       },
     ];
 
-    const { error } = await supabase
+    const { data, error } = await supabase
       .from("stampy_messages")
       .insert(rows)
       .select("id, role");
 
     if (error) {
       console.error("[Stampy] saveMessages failed", error);
+      return { userMessageId: null, assistantMessageId: null };
     }
+
+    let userMessageId = null;
+    let assistantMessageId = null;
+
+    if (data) {
+      for (const row of data) {
+        if (row.role === "user") userMessageId = row.id;
+        if (row.role === "assistant") assistantMessageId = row.id;
+      }
+    }
+
+    return { userMessageId, assistantMessageId };
   } catch (error) {
     console.error("[Stampy] saveMessages exception", error);
+    return { userMessageId: null, assistantMessageId: null };
   }
 }
