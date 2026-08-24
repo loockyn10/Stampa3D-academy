@@ -197,13 +197,32 @@ function CalculadoraPageContent() {
       const g = searchParams.get("grams");
       const h = searchParams.get("hours");
       const material = searchParams.get("material");
+      const brand = searchParams.get("brand");
+      const color = searchParams.get("color");
+      const printerName = searchParams.get("printer");
+      const pricingType = searchParams.get("pricingType");
 
       if (g) setWeight(g);
       if (h) setHours(h);
 
-      if (material) {
-        const match = filaments.find(f => f.filament_type?.toLowerCase() === material.toLowerCase());
+      if (material || brand || color) {
+        const match = filaments.find(f => {
+          const matMatch = !material || f.filament_type?.toLowerCase() === material.toLowerCase();
+          const colorMatch = !color || f.color?.toLowerCase() === color.toLowerCase();
+          const brandMatch = !brand || f.brand?.toLowerCase() === brand.toLowerCase() || f.filament_templates?.brand?.toLowerCase() === brand.toLowerCase();
+          return matMatch && colorMatch && brandMatch;
+        });
         if (match) setSelectedFilamentId(match.id);
+      }
+
+      if (printerName) {
+        const match = printers.find(p => p.name?.toLowerCase().includes(printerName.toLowerCase()));
+        if (match) setSelectedPrinterId(match.id);
+      }
+
+      if (pricingType) {
+        const match = multipliers.find(m => m.name?.toLowerCase().includes(pricingType.toLowerCase()));
+        if (match) setSelectedMultiplierId(match.id);
       }
 
       router.replace("/calculadora");

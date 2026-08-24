@@ -113,13 +113,56 @@ function PresupuestosPageContent() {
 
   // Stampy Prefill Effect
   useEffect(() => {
-    if (loading) return;
+    if (loading || clients.length === 0 && products.length === 0) return;
     const action = searchParams.get("action");
     if (action === "new") {
-      handleCreateNew();
+      const clientName = searchParams.get("client");
+      const productName = searchParams.get("product");
+      const quantityParam = searchParams.get("quantity");
+      const quantity = quantityParam ? parseInt(quantityParam, 10) : 1;
+
+      let matchedClientId = "";
+      if (clientName) {
+        const match = clients.find(c => c.name.toLowerCase().includes(clientName.toLowerCase()));
+        if (match) matchedClientId = match.id;
+      }
+
+      setFormData({
+        title: clientName ? `Presupuesto ${clientName} #TEMP` : "",
+        client_id: matchedClientId,
+        status: "draft",
+        notes: "",
+        valid_until: "",
+        discount_percent: 0
+      });
+
+      let initialItems: any[] = [];
+      if (productName) {
+        const match = products.find(p => p.name.toLowerCase().includes(productName.toLowerCase()));
+        if (match) {
+          const unitBaseCost = match.base_cost || 0;
+          const unitProfit = (match.sale_price || 0) - unitBaseCost;
+          initialItems.push({
+            id: "temp-" + Date.now(),
+            product_id: match.id,
+            item_name: match.name,
+            quantity: quantity,
+            unit_price: match.sale_price || 0,
+            subtotal: (match.sale_price || 0) * quantity,
+            unit_base_cost: unitBaseCost,
+            unit_profit: unitProfit,
+            total_profit: unitProfit * quantity,
+          });
+        }
+      }
+
+      setBudgetItems(initialItems);
+      setEditingId("new");
+      setShowClientForm(false);
+      
       router.replace("/presupuestos");
     }
-  }, [searchParams, loading, router]);
+  }, [searchParams, loading, router, clients, products]);
 
   const handleEdit = async (b: any) => {
     setFormData({

@@ -110,12 +110,57 @@ export function detectStampyActionIntent({
     }
   }
 
-  // 2. add_filament
+  // 2. increase_filament_stock
+  if (
+    (norm.includes("agregar") || norm.includes("agregame") ||
+    norm.includes("cargar") || norm.includes("sumar") ||
+    norm.includes("sumame") || norm.includes("compre")) &&
+    norm.match(/(filamento|rollo|kilo|pla|petg|tpu|abs|asa|nylon|resina)/) &&
+    !norm.includes("nuevo filamento") &&
+    !norm.includes("filamento nuevo")
+  ) {
+    const grams = parseGrams(norm) || (norm.includes("rollo") || norm.includes("kilo") ? 1000 : null);
+    const matchMaterial = norm.match(/(pla|petg|tpu|abs|asa|nylon|resina)/);
+    const material = matchMaterial ? matchMaterial[1].toUpperCase() : null;
+    const matchColor = norm.match(/(rojo|azul|verde|negro|blanco|amarillo|naranja|gris|violeta|cian|transparente|natural)/);
+    const color = matchColor ? matchColor[1] : null;
+    
+    // Attempt to extract brand heuristically (e.g., words near PLA or color)
+    const brandMatch = norm.match(/(w3d|elegoo|gst3d|grilon|printalot|hellbot|creality)/);
+    const brand = brandMatch ? brandMatch[1].toUpperCase() : null;
+
+    if (grams || material || color) {
+      const toolHref = buildToolHref("/stock", {
+        tab: "filamentos",
+        action: "increase",
+        material,
+        brand,
+        color,
+        grams
+      });
+
+      return {
+        type: "increase_filament_stock",
+        confidence: 0.9,
+        title: "Aumentar stock de filamento",
+        summary: "Se detectó la intención de agregar cantidad a un filamento existente.",
+        extracted: { grams, material, brand, color },
+        toolHref,
+        toolLabel: "Stock de filamentos",
+        canExecute: false,
+        reason: "Matched add verbs with existing filament context."
+      };
+    }
+  }
+
+  // 3. add_filament
   if (
     (norm.includes("agregar") || norm.includes("agregame") ||
     norm.includes("cargar") || norm.includes("sumar") ||
     norm.includes("sumame") || norm.includes("compre") ||
+    norm.includes("creame") || norm.includes("crear") ||
     norm.includes("nuevo")) &&
+    (norm.includes("nuevo") || norm.includes("que no tengo")) &&
     norm.match(/(filamento|rollo|pla|petg|tpu|abs|asa|nylon|resina)/)
   ) {
     const matchMaterial = norm.match(/(pla|petg|tpu|abs|asa|nylon|resina)/);
@@ -133,13 +178,13 @@ export function detectStampyActionIntent({
     return {
       type: "add_filament",
       confidence: 0.9,
-      title: "Agregar filamento",
-      summary: "Se detectó la intención de ingresar nuevo material al stock.",
+      title: "Agregar filamento nuevo",
+      summary: "Se detectó la intención de ingresar un nuevo material al stock.",
       extracted: { material, color },
       toolHref,
       toolLabel: "Stock de filamentos",
       canExecute: false,
-      reason: "Matched add verbs with filament context."
+      reason: "Matched add verbs with new filament context."
     };
   }
 
@@ -190,25 +235,46 @@ export function detectStampyActionIntent({
   if (
     norm.includes("presupuesto") || norm.includes("presupuestar") ||
     norm.includes("presupuestame") || norm.includes("cotizame") ||
-    norm.includes("cotizar") || norm.includes("cobro a un cliente")
+    norm.includes("cotizar") || norm.includes("cobro a un cliente") ||
+    norm.includes("presupuesto para") || norm.includes("cotizame para")
   ) {
-    const grams = parseGrams(norm);
-    const hours = parseHours(norm);
-    const matchMaterial = norm.match(/(pla|petg|tpu|abs|asa|nylon|resina)/);
-    const material = matchMaterial ? matchMaterial[1].toUpperCase() : null;
+    // Regex to match "para [clientName] de [quantity] [productName]"
+    let clientName = null;
+    let productName = null;
+    let quantity = null;
+    let title = null;
+    let validUntil = null;
+    const missingFields: string[] = [];
 
-    const toolHref = buildToolHref("/presupuestos", { action: "new", grams, hours, material });
+    const paraMatch = message.match(/para\s+([A-Za-z\s]+?)(?:\s+de\s+|\s+por\s+|\s+con\s+|\.|$)/i);
+    if (paraMatch && paraMatch[1]) {
+      clientName = paraMatch[1].trim();
+    }
+
+    const qtyMatch = message.match(/de\s+(\d+)\s+([A-Za-z\s]+)/i) || message.match(/por\s+(\d+)\s+([A-Za-z\s]+)/i);
+    if (qtyMatch) {
+      quantity = parseInt(qtyMatch[1], 10);
+      productName = qtyMatch[2].trim();
+    }
+    
+    if (clientName) {
+      title = `Presupuesto ${clientName} #TEMP`;
+    }
+    
+    if (!validUntil) missingFields.push("validUntil");
+
+    const toolHref = buildToolHref("/presupuestos", { action: "new", client: clientName, product: productName, quantity });
 
     return {
       type: "create_quote",
       confidence: 0.9,
       title: "Crear presupuesto",
       summary: "Se detectó la intención de armar un presupuesto para un cliente.",
-      extracted: { grams, hours, material },
+      extracted: { clientName, productName, quantity, title, validUntil, missingFields },
       toolHref,
       toolLabel: "Presupuestos",
       canExecute: false,
-      reason: "Matched quote verbs."
+      reason: "Matched quote verbs with custom details."
     };
   }
 
@@ -216,25 +282,37 @@ export function detectStampyActionIntent({
   if (
     norm.includes("calcular") || norm.includes("calculame") ||
     norm.includes("cuanto deberia cobrar") || norm.includes("precio de impresion") ||
-    norm.includes("cuanto sale imprimir")
+    norm.includes("cuanto sale imprimir") || norm.includes("precio para") || norm.includes("cobro por")
   ) {
     const grams = parseGrams(norm);
     const hours = parseHours(norm);
     const matchMaterial = norm.match(/(pla|petg|tpu|abs|asa|nylon|resina)/);
     const material = matchMaterial ? matchMaterial[1].toUpperCase() : null;
+    
+    const brandMatch = norm.match(/(w3d|elegoo|gst3d|grilon|printalot|hellbot|creality)/);
+    const brand = brandMatch ? brandMatch[1].toUpperCase() : null;
+    
+    const matchColor = norm.match(/(rojo|azul|verde|negro|blanco|amarillo|naranja|gris|violeta|cian|transparente|natural)/);
+    const color = matchColor ? matchColor[1] : null;
 
-    const toolHref = buildToolHref("/calculadora", { action: "calculate", grams, hours, material });
+    const printerMatch = message.match(/(?:en la|en|impresora)\s+(Bambu [A-Za-z0-9\s]+|Creality [A-Za-z0-9\s]+|Ender [A-Za-z0-9\s]+|Prusa [A-Za-z0-9\s]+)/i);
+    const printerName = printerMatch ? printerMatch[1].trim() : null;
+    
+    const pricingMatch = message.match(/(?:para un cliente|para|cliente)\s+(minorista|mayorista|llavero|jarro)/i) || norm.match(/(minorista|mayorista|llavero|jarro)/);
+    const pricingType = pricingMatch ? pricingMatch[1] : null;
+
+    const toolHref = buildToolHref("/calculadora", { action: "calculate", grams, hours, material, brand, color, printer: printerName, pricingType });
 
     return {
       type: "calculate_price",
       confidence: 0.9,
       title: "Calcular precio",
       summary: "Se detectó la intención de calcular costos de impresión.",
-      extracted: { grams, hours, material },
+      extracted: { grams, hours, material, brand, color, printerName, pricingType },
       toolHref,
       toolLabel: "Calculadora de precios",
       canExecute: false,
-      reason: "Matched calculate verbs."
+      reason: "Matched calculate verbs with full context."
     };
   }
 
@@ -260,6 +338,34 @@ export function detectStampyActionIntent({
 }
 
 export function buildActionIntentResponse(intent: StampyActionIntent): string {
+  if (intent.type === "create_quote") {
+    let response = "Detecté que querés crear un presupuesto.\n\nDatos detectados:\n";
+    const { clientName, productName, quantity, missingFields } = intent.extracted;
+    if (clientName) response += `- Cliente: ${clientName}\n`;
+    if (productName) response += `- Producto: ${productName}\n`;
+    if (quantity) response += `- Cantidad: ${quantity}\n`;
+    
+    if (missingFields && (missingFields as string[]).includes("validUntil")) {
+      response += "\nMe falta la fecha de validez para dejarlo completo. No creé ningún presupuesto todavía, pero te dejo el presupuestador preparado para que revises y completes los datos.";
+    } else {
+      response += "\nNo creé ningún presupuesto todavía, pero te dejo el presupuestador preparado para que revises y completes los datos.";
+    }
+    return response;
+  }
+
+  if (intent.type === "calculate_price") {
+    let response = "Detecté que querés calcular el precio de una impresión.\n\nDatos detectados:\n";
+    const { printerName, material, brand, color, grams, hours, pricingType } = intent.extracted;
+    if (printerName) response += `- Impresora: ${printerName}\n`;
+    if (material || brand || color) response += `- Filamento: ${[material, brand, color].filter(Boolean).join(" ")}\n`;
+    if (grams) response += `- Material usado: ${grams}g\n`;
+    if (hours) response += `- Tiempo: ${hours}h\n`;
+    if (pricingType) response += `- Tipo/categoría: ${pricingType}\n`;
+    
+    response += "\nNo calculé ni guardé nada desde el chat. Te dejo la calculadora preparada para que revises los datos y obtengas el precio desde la herramienta.";
+    return response;
+  }
+
   let response = "Detecté que querés hacer una acción, pero todavía no ejecuto cambios directamente desde el chat.\n\n";
   response += "Acción detectada:\n";
   response += `- Tipo: ${intent.title}\n`;
@@ -267,13 +373,14 @@ export function buildActionIntentResponse(intent: StampyActionIntent): string {
   const extractedKeys = Object.keys(intent.extracted);
   if (extractedKeys.length > 0) {
     const extractedLines = extractedKeys
-      .filter(k => intent.extracted[k] !== null && intent.extracted[k] !== undefined)
+      .filter(k => intent.extracted[k] !== null && intent.extracted[k] !== undefined && k !== "missingFields" && k !== "title")
       .map(k => {
         let label = k;
         if (k === "grams") label = "Cantidad";
         if (k === "hours") label = "Horas";
         if (k === "material") label = "Material";
         if (k === "color") label = "Color";
+        if (k === "brand") label = "Marca";
         return `  - ${label}: ${intent.extracted[k]}${k === "grams" ? "g" : ""}${k === "hours" ? "h" : ""}`;
       });
     

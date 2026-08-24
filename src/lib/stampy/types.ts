@@ -88,6 +88,7 @@ export interface StampyMessageFeedback {
 export type StampyActionIntentType =
   | "discount_filament"
   | "add_filament"
+  | "increase_filament_stock"
   | "add_printer"
   | "create_product"
   | "create_quote"

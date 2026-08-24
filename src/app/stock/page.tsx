@@ -138,13 +138,15 @@ function StockPageContent() {
 
   // Action Intents Modal States
   const [stampyDiscountModalOpen, setStampyDiscountModalOpen] = useState(false);
-  const [stampyDiscountData, setStampyDiscountData] = useState<{
+  const [stampyIncreaseModalOpen, setStampyIncreaseModalOpen] = useState(false);
+  const [stampyActionData, setStampyActionData] = useState<{
     filamentId: string;
     grams: number;
     material?: string;
+    brand?: string;
     color?: string;
   } | null>(null);
-  const [stampyDiscountError, setStampyDiscountError] = useState<string | null>(null);
+  const [stampyActionError, setStampyActionError] = useState<string | null>(null);
 
   useEffect(() => {
     if (filaments.length === 0) return; // Esperar a que carguen
@@ -177,9 +179,41 @@ function StockPageContent() {
         }
       }
 
-      setStampyDiscountData({ filamentId: matchId, grams, material: material || "", color: color || "" });
-      setStampyDiscountError(errorMsg);
+      setStampyActionData({ filamentId: matchId, grams, material: material || "", color: color || "" });
+      setStampyActionError(errorMsg);
       setStampyDiscountModalOpen(true);
+
+      router.replace("/stock?tab=filamentos");
+    } else if (action === "increase") {
+      const material = searchParams.get("material");
+      const brand = searchParams.get("brand");
+      const color = searchParams.get("color");
+      const gramsParam = searchParams.get("grams");
+      const grams = gramsParam ? parseInt(gramsParam, 10) : 0;
+
+      let matchId = "";
+      let errorMsg = null;
+      
+      if (material || brand || color) {
+        const matches = filaments.filter(f => {
+          const matMatch = !material || f.filament_type?.toLowerCase() === material.toLowerCase();
+          const colorMatch = !color || f.color?.toLowerCase() === color.toLowerCase();
+          const brandMatch = !brand || f.brand?.toLowerCase() === brand.toLowerCase() || f.filament_templates?.brand?.toLowerCase() === brand.toLowerCase();
+          return matMatch && colorMatch && brandMatch;
+        });
+
+        if (matches.length === 1) {
+          matchId = matches[0].id;
+        } else if (matches.length > 1) {
+          errorMsg = `Se encontraron ${matches.length} filamentos que coinciden con ${material || ""} ${brand || ""} ${color || ""}. Por favor selecciona uno manualmente.`;
+        } else {
+          errorMsg = `No encontramos un filamento activo que coincida con ${material || ""} ${brand || ""} ${color || ""}.`;
+        }
+      }
+
+      setStampyActionData({ filamentId: matchId, grams, material: material || "", brand: brand || "", color: color || "" });
+      setStampyActionError(errorMsg);
+      setStampyIncreaseModalOpen(true);
 
       router.replace("/stock?tab=filamentos");
     } else if (action === "add") {
@@ -1510,12 +1544,12 @@ function StockPageContent() {
             
             <h3 className="text-xl font-bold text-white mb-2">Descontar Filamento</h3>
             
-            {stampyDiscountError ? (
+            {stampyActionError ? (
               <div className="mb-6 rounded-lg bg-orange-500/10 border border-orange-500/30 p-4 text-orange-400 text-sm">
                 <AlertTriangle size={18} className="inline mr-2 -mt-0.5" />
-                {stampyDiscountError}
+                {stampyActionError}
               </div>
-            ) : stampyDiscountData?.filamentId ? (
+            ) : stampyActionData?.filamentId ? (
               <div className="space-y-4">
                 <p className="text-sm text-gray-300">
                   Stampy detectó que querés registrar la siguiente salida:
@@ -1524,12 +1558,12 @@ function StockPageContent() {
                   <div className="flex justify-between items-center">
                     <span className="text-gray-400 text-sm">Filamento:</span>
                     <span className="font-bold text-white">
-                      {filaments.find(f => f.id === stampyDiscountData.filamentId)?.name || 'Seleccionado'}
+                      {filaments.find(f => f.id === stampyActionData.filamentId)?.name || 'Seleccionado'}
                     </span>
                   </div>
                   <div className="flex justify-between items-center">
                     <span className="text-gray-400 text-sm">Cantidad a descontar:</span>
-                    <span className="font-bold text-stampa-orange">{stampyDiscountData.grams} g</span>
+                    <span className="font-bold text-stampa-orange">{stampyActionData.grams} g</span>
                   </div>
                 </div>
               </div>
@@ -1542,14 +1576,71 @@ function StockPageContent() {
               >
                 Cerrar
               </button>
-              {stampyDiscountData?.filamentId && !stampyDiscountError && (
+              {stampyActionData?.filamentId && !stampyActionError && (
                 <PrimaryButton 
                   onClick={async () => {
-                    await handleAdjustFilamentStock(stampyDiscountData.filamentId, "subtract", stampyDiscountData.grams);
+                    await handleAdjustFilamentStock(stampyActionData.filamentId, "subtract", stampyActionData.grams);
                     setStampyDiscountModalOpen(false);
                   }}
                 >
                   Confirmar descuento
+                </PrimaryButton>
+              )}
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Stampy Action Intent - Increase Confirm Modal */}
+      {stampyIncreaseModalOpen && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/80 px-4 backdrop-blur-sm">
+          <div className="w-full max-w-md rounded-2xl border border-stampa-border bg-stampa-bg p-6 shadow-2xl relative overflow-hidden">
+            <button onClick={() => setStampyIncreaseModalOpen(false)} className="absolute right-4 top-4 rounded-full p-2 text-gray-400 hover:bg-white/10 hover:text-white transition-colors">
+              <X size={18} />
+            </button>
+            
+            <h3 className="text-xl font-bold text-white mb-2">Aumentar Stock de Filamento</h3>
+            
+            {stampyActionError ? (
+              <div className="mb-6 rounded-lg bg-orange-500/10 border border-orange-500/30 p-4 text-orange-400 text-sm">
+                <AlertTriangle size={18} className="inline mr-2 -mt-0.5" />
+                {stampyActionError}
+              </div>
+            ) : stampyActionData?.filamentId ? (
+              <div className="space-y-4">
+                <p className="text-sm text-gray-300">
+                  Stampy detectó que querés registrar el siguiente ingreso:
+                </p>
+                <div className="rounded-lg bg-[#1a1a1a] p-4 border border-white/5 space-y-2">
+                  <div className="flex justify-between items-center">
+                    <span className="text-gray-400 text-sm">Filamento:</span>
+                    <span className="font-bold text-white">
+                      {filaments.find(f => f.id === stampyActionData.filamentId)?.name || 'Seleccionado'}
+                    </span>
+                  </div>
+                  <div className="flex justify-between items-center">
+                    <span className="text-gray-400 text-sm">Cantidad a ingresar:</span>
+                    <span className="font-bold text-emerald-400">+{stampyActionData.grams} g</span>
+                  </div>
+                </div>
+              </div>
+            ) : null}
+
+            <div className="mt-8 flex justify-end gap-3">
+              <button 
+                onClick={() => setStampyIncreaseModalOpen(false)}
+                className="rounded-lg px-4 py-2.5 text-sm font-semibold text-gray-400 hover:text-white transition-colors"
+              >
+                Cerrar
+              </button>
+              {stampyActionData?.filamentId && !stampyActionError && (
+                <PrimaryButton 
+                  onClick={async () => {
+                    await handleAdjustFilamentStock(stampyActionData.filamentId, "add", stampyActionData.grams);
+                    setStampyIncreaseModalOpen(false);
+                  }}
+                >
+                  Confirmar ingreso
                 </PrimaryButton>
               )}
             </div>
