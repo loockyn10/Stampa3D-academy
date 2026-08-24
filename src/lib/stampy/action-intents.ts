@@ -8,6 +8,47 @@ function normalize(text: string): string {
     .trim();
 }
 
+function buildToolHref(basePath: string, params: Record<string, string | number | null | undefined>): string {
+  const urlParams = new URLSearchParams();
+  for (const [key, value] of Object.entries(params)) {
+    if (value !== null && value !== undefined && value !== "") {
+      const strValue = String(value);
+      // Sanitize length
+      if (strValue.length > 80) continue;
+      
+      if (typeof value === "number") {
+        if (!Number.isFinite(value) || value < 0) continue;
+        // Reasonable max
+        if (key === "grams" && value > 100000) continue;
+        if (key === "hours" && value > 10000) continue;
+      }
+      urlParams.append(key, strValue);
+    }
+  }
+  const qs = urlParams.toString();
+  return qs ? `${basePath}?${qs}` : basePath;
+}
+
+function parseGrams(text: string): number | null {
+  const norm = normalize(text);
+  if (norm.includes("medio kilo") || norm.includes("medio kg")) return 500;
+  
+  const kgMatch = norm.match(/(\d+(?:\.\d+)?)\s*(kg|kilos|kilo)/);
+  if (kgMatch) return Math.round(parseFloat(kgMatch[1]) * 1000);
+  
+  const gMatch = norm.match(/(\d+(?:\.\d+)?)\s*(g|gr|gramos)/);
+  if (gMatch) return Math.round(parseFloat(gMatch[1]));
+
+  return null;
+}
+
+function parseHours(text: string): number | null {
+  const norm = normalize(text);
+  const match = norm.match(/(\d+(?:\.\d+)?)\s*(h|hs|horas|hora)/);
+  if (match) return parseFloat(match[1]);
+  return null;
+}
+
 export function detectStampyActionIntent({
   message,
   workshopContext,
@@ -19,7 +60,6 @@ export function detectStampyActionIntent({
 }): StampyActionIntent | null {
   const norm = normalize(message);
 
-  // Must contain an action verb
   const actionVerbs = [
     "descontar", "descontame", "sacar", "sacame", "restar", "restale", "consumi", "use ",
     "agregar", "agregame", "cargar", "cargame", "sumar", "sumame", "compre", "nuevo",
@@ -29,7 +69,7 @@ export function detectStampyActionIntent({
 
   const hasActionVerb = actionVerbs.some((verb) => norm.includes(verb));
   if (!hasActionVerb) {
-    return null; // Probable query, not an action
+    return null;
   }
 
   // 1. discount_filament
@@ -42,18 +82,27 @@ export function detectStampyActionIntent({
   ) {
     const isFilamentRelated = norm.match(/(filamento|rollo|pla|petg|tpu|abs|asa|nylon|resina)/);
     if (isFilamentRelated) {
-      const matchGrams = norm.match(/(\d+)\s*(g|gr|gramos)/);
+      const grams = parseGrams(norm);
       const matchMaterial = norm.match(/(pla|petg|tpu|abs|asa|nylon|resina)/);
+      const material = matchMaterial ? matchMaterial[1].toUpperCase() : null;
+      const matchColor = norm.match(/(rojo|azul|verde|negro|blanco|amarillo|naranja|gris|violeta|cian|transparente|natural)/);
+      const color = matchColor ? matchColor[1] : null;
+
+      const toolHref = buildToolHref("/stock", {
+        tab: "filamentos",
+        action: "discount",
+        material,
+        color,
+        grams
+      });
+
       return {
         type: "discount_filament",
         confidence: 0.9,
         title: "Descontar filamento",
         summary: "Se detectó la intención de restar material del stock.",
-        extracted: {
-          grams: matchGrams ? parseInt(matchGrams[1], 10) : null,
-          material: matchMaterial ? matchMaterial[1].toUpperCase() : null
-        },
-        toolHref: "/stock?tab=filamentos",
+        extracted: { grams, material, color },
+        toolHref,
         toolLabel: "Stock de filamentos",
         canExecute: false,
         reason: "Matched discount verbs with filament context."
@@ -70,17 +119,24 @@ export function detectStampyActionIntent({
     norm.match(/(filamento|rollo|pla|petg|tpu|abs|asa|nylon|resina)/)
   ) {
     const matchMaterial = norm.match(/(pla|petg|tpu|abs|asa|nylon|resina)/);
-    const colorMatch = norm.match(/(rojo|azul|verde|negro|blanco|amarillo|naranja|gris)/);
+    const material = matchMaterial ? matchMaterial[1].toUpperCase() : null;
+    const matchColor = norm.match(/(rojo|azul|verde|negro|blanco|amarillo|naranja|gris|violeta|cian|transparente|natural)/);
+    const color = matchColor ? matchColor[1] : null;
+
+    const toolHref = buildToolHref("/stock", {
+      tab: "filamentos",
+      action: "add",
+      material,
+      color
+    });
+
     return {
       type: "add_filament",
       confidence: 0.9,
       title: "Agregar filamento",
       summary: "Se detectó la intención de ingresar nuevo material al stock.",
-      extracted: {
-        material: matchMaterial ? matchMaterial[1].toUpperCase() : null,
-        color: colorMatch ? colorMatch[1] : null,
-      },
-      toolHref: "/stock?tab=filamentos",
+      extracted: { material, color },
+      toolHref,
       toolLabel: "Stock de filamentos",
       canExecute: false,
       reason: "Matched add verbs with filament context."
@@ -95,13 +151,14 @@ export function detectStampyActionIntent({
     norm.includes("nueva")) &&
     (norm.includes("impresora") || norm.includes("maquina") || norm.includes("bambu") || norm.includes("ender") || norm.includes("a1 mini"))
   ) {
+    const toolHref = buildToolHref("/calculadora", { action: "add_printer" });
     return {
       type: "add_printer",
       confidence: 0.9,
       title: "Agregar impresora",
       summary: "Se detectó la intención de registrar una nueva impresora.",
       extracted: {},
-      toolHref: "/calculadora",
+      toolHref,
       toolLabel: "Calculadora de precios",
       canExecute: false,
       reason: "Matched add verbs with printer context."
@@ -115,13 +172,14 @@ export function detectStampyActionIntent({
     norm.includes("nuevo") || norm.includes("suma")) &&
     (norm.includes("producto") || norm.includes("vender") || norm.includes("articulo") || norm.includes("pieza"))
   ) {
+    const toolHref = buildToolHref("/productos", { action: "new" });
     return {
       type: "create_product",
       confidence: 0.8,
       title: "Crear producto",
       summary: "Se detectó la intención de crear un producto en stock.",
       extracted: {},
-      toolHref: "/productos",
+      toolHref,
       toolLabel: "Productos",
       canExecute: false,
       reason: "Matched create verbs with product context."
@@ -134,13 +192,20 @@ export function detectStampyActionIntent({
     norm.includes("presupuestame") || norm.includes("cotizame") ||
     norm.includes("cotizar") || norm.includes("cobro a un cliente")
   ) {
+    const grams = parseGrams(norm);
+    const hours = parseHours(norm);
+    const matchMaterial = norm.match(/(pla|petg|tpu|abs|asa|nylon|resina)/);
+    const material = matchMaterial ? matchMaterial[1].toUpperCase() : null;
+
+    const toolHref = buildToolHref("/presupuestos", { action: "new", grams, hours, material });
+
     return {
       type: "create_quote",
       confidence: 0.9,
       title: "Crear presupuesto",
       summary: "Se detectó la intención de armar un presupuesto para un cliente.",
-      extracted: {},
-      toolHref: "/presupuestos",
+      extracted: { grams, hours, material },
+      toolHref,
       toolLabel: "Presupuestos",
       canExecute: false,
       reason: "Matched quote verbs."
@@ -153,13 +218,20 @@ export function detectStampyActionIntent({
     norm.includes("cuanto deberia cobrar") || norm.includes("precio de impresion") ||
     norm.includes("cuanto sale imprimir")
   ) {
+    const grams = parseGrams(norm);
+    const hours = parseHours(norm);
+    const matchMaterial = norm.match(/(pla|petg|tpu|abs|asa|nylon|resina)/);
+    const material = matchMaterial ? matchMaterial[1].toUpperCase() : null;
+
+    const toolHref = buildToolHref("/calculadora", { action: "calculate", grams, hours, material });
+
     return {
       type: "calculate_price",
       confidence: 0.9,
       title: "Calcular precio",
       summary: "Se detectó la intención de calcular costos de impresión.",
-      extracted: {},
-      toolHref: "/calculadora",
+      extracted: { grams, hours, material },
+      toolHref,
       toolLabel: "Calculadora de precios",
       canExecute: false,
       reason: "Matched calculate verbs."
@@ -199,9 +271,10 @@ export function buildActionIntentResponse(intent: StampyActionIntent): string {
       .map(k => {
         let label = k;
         if (k === "grams") label = "Cantidad";
+        if (k === "hours") label = "Horas";
         if (k === "material") label = "Material";
         if (k === "color") label = "Color";
-        return `  - ${label}: ${intent.extracted[k]}${k === "grams" ? "g" : ""}`;
+        return `  - ${label}: ${intent.extracted[k]}${k === "grams" ? "g" : ""}${k === "hours" ? "h" : ""}`;
       });
     
     if (extractedLines.length > 0) {
@@ -210,8 +283,7 @@ export function buildActionIntentResponse(intent: StampyActionIntent): string {
   }
 
   if (intent.toolLabel) {
-    response += `- Herramienta recomendada: ${intent.toolLabel}\n\n`;
-    response += `Para hacerlo ahora, usá la sugerencia de herramienta acá abajo y registralo manualmente.`;
+    response += `\nTe dejo la herramienta de **${intent.toolLabel}** preparada acá abajo para que revises y confirmes la acción manualmente.`;
   }
 
   return response;

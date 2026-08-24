@@ -2,7 +2,7 @@
 
 import React, { useState, useEffect, useMemo, Suspense } from "react";
 import Link from "next/link";
-import { useSearchParams } from "next/navigation";
+import { useSearchParams, useRouter } from "next/navigation";
 import { AlertTriangle, Plus, Minus, Loader2, Package, Box, History, X, Edit2, Search, ChevronDown, ChevronUp, Trash2 } from "lucide-react";
 import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -133,6 +133,67 @@ function StockPageContent() {
   const [filamentFormData, setFilamentFormData] = useState<any>({
     name: "", filament_type: "PLA", brand: "", color: "", total_grams: 1000, remaining_grams: 1000, purchase_price: 0, is_active: true
   });
+
+  const router = useRouter();
+
+  // Action Intents Modal States
+  const [stampyDiscountModalOpen, setStampyDiscountModalOpen] = useState(false);
+  const [stampyDiscountData, setStampyDiscountData] = useState<{
+    filamentId: string;
+    grams: number;
+    material?: string;
+    color?: string;
+  } | null>(null);
+  const [stampyDiscountError, setStampyDiscountError] = useState<string | null>(null);
+
+  useEffect(() => {
+    if (filaments.length === 0) return; // Esperar a que carguen
+    
+    const action = searchParams.get("action");
+    if (!action) return;
+
+    if (action === "discount") {
+      const material = searchParams.get("material");
+      const color = searchParams.get("color");
+      const gramsParam = searchParams.get("grams");
+      const grams = gramsParam ? parseInt(gramsParam, 10) : 0;
+
+      let matchId = "";
+      let errorMsg = null;
+      
+      if (material || color) {
+        const matches = filaments.filter(f => {
+          const matMatch = !material || f.filament_type?.toLowerCase() === material.toLowerCase();
+          const colorMatch = !color || f.color?.toLowerCase() === color.toLowerCase();
+          return matMatch && colorMatch;
+        });
+
+        if (matches.length === 1) {
+          matchId = matches[0].id;
+        } else if (matches.length > 1) {
+          errorMsg = `Se encontraron ${matches.length} filamentos que coinciden con ${material || ""} ${color || ""}. Por favor selecciona uno manualmente.`;
+        } else {
+          errorMsg = `No encontramos un filamento activo que coincida con ${material || ""} ${color || ""}.`;
+        }
+      }
+
+      setStampyDiscountData({ filamentId: matchId, grams, material: material || "", color: color || "" });
+      setStampyDiscountError(errorMsg);
+      setStampyDiscountModalOpen(true);
+
+      router.replace("/stock?tab=filamentos");
+    } else if (action === "add") {
+      const material = searchParams.get("material") || "PLA";
+      const color = searchParams.get("color") || "";
+      
+      setFilamentFormData({
+        name: "", filament_type: material.toUpperCase(), brand: "", color: color, total_grams: 1000, remaining_grams: 1000, purchase_price: 0, is_active: true
+      });
+      setFilamentModalOpen(true);
+      
+      router.replace("/stock?tab=filamentos");
+    }
+  }, [searchParams, filaments, router]);
 
   useEffect(() => {
     fetchData();
@@ -266,8 +327,8 @@ function StockPageContent() {
     }
   };
 
-  const handleAdjustFilamentStock = async (id: string, type: "add" | "subtract") => {
-    const amountStr = filamentAdjustAmounts[id] || "";
+  const handleAdjustFilamentStock = async (id: string, type: "add" | "subtract", explicitAmount?: number) => {
+    const amountStr = explicitAmount !== undefined ? String(explicitAmount) : filamentAdjustAmounts[id] || "";
     const amount = parseInt(amountStr);
     
     if (!amount || amount <= 0 || isNaN(amount)) {
@@ -1437,6 +1498,63 @@ function StockPageContent() {
             setShowFilamentCatalogModal(false);
           }} 
         />
+      )}
+
+      {/* Stampy Action Intent - Discount Confirm Modal */}
+      {stampyDiscountModalOpen && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/80 px-4 backdrop-blur-sm">
+          <div className="w-full max-w-md rounded-2xl border border-stampa-border bg-stampa-bg p-6 shadow-2xl relative overflow-hidden">
+            <button onClick={() => setStampyDiscountModalOpen(false)} className="absolute right-4 top-4 rounded-full p-2 text-gray-400 hover:bg-white/10 hover:text-white transition-colors">
+              <X size={18} />
+            </button>
+            
+            <h3 className="text-xl font-bold text-white mb-2">Descontar Filamento</h3>
+            
+            {stampyDiscountError ? (
+              <div className="mb-6 rounded-lg bg-orange-500/10 border border-orange-500/30 p-4 text-orange-400 text-sm">
+                <AlertTriangle size={18} className="inline mr-2 -mt-0.5" />
+                {stampyDiscountError}
+              </div>
+            ) : stampyDiscountData?.filamentId ? (
+              <div className="space-y-4">
+                <p className="text-sm text-gray-300">
+                  Stampy detectó que querés registrar la siguiente salida:
+                </p>
+                <div className="rounded-lg bg-[#1a1a1a] p-4 border border-white/5 space-y-2">
+                  <div className="flex justify-between items-center">
+                    <span className="text-gray-400 text-sm">Filamento:</span>
+                    <span className="font-bold text-white">
+                      {filaments.find(f => f.id === stampyDiscountData.filamentId)?.name || 'Seleccionado'}
+                    </span>
+                  </div>
+                  <div className="flex justify-between items-center">
+                    <span className="text-gray-400 text-sm">Cantidad a descontar:</span>
+                    <span className="font-bold text-stampa-orange">{stampyDiscountData.grams} g</span>
+                  </div>
+                </div>
+              </div>
+            ) : null}
+
+            <div className="mt-8 flex justify-end gap-3">
+              <button 
+                onClick={() => setStampyDiscountModalOpen(false)}
+                className="rounded-lg px-4 py-2.5 text-sm font-semibold text-gray-400 hover:text-white transition-colors"
+              >
+                Cerrar
+              </button>
+              {stampyDiscountData?.filamentId && !stampyDiscountError && (
+                <PrimaryButton 
+                  onClick={async () => {
+                    await handleAdjustFilamentStock(stampyDiscountData.filamentId, "subtract", stampyDiscountData.grams);
+                    setStampyDiscountModalOpen(false);
+                  }}
+                >
+                  Confirmar descuento
+                </PrimaryButton>
+              )}
+            </div>
+          </div>
+        </div>
       )}
 
     </div>

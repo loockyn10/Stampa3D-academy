@@ -414,9 +414,9 @@ Si el usuario pide una acción:
       
       if (actionIntent.toolHref && actionIntent.toolLabel) {
         knowledgeTools = [{
-          title: actionIntent.toolLabel,
+          title: `Abrir ${actionIntent.toolLabel}`,
           route: actionIntent.toolHref,
-          shortDescription: "Acción recomendada"
+          shortDescription: "Revisá los datos y confirmá la acción desde la herramienta."
         } as any];
       }
       

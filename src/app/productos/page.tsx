@@ -2,6 +2,7 @@
 
 import React, { useState, useEffect } from "react";
 import Link from "next/link";
+import { useSearchParams, useRouter } from "next/navigation";
 import { Plus, Pencil, Copy, Trash2, Loader2, Save, X, AlertCircle, RefreshCw, TrendingUp, TrendingDown, Minus, ChevronDown, ChevronUp, History, AlertTriangle } from "lucide-react";
 import { Card } from "@/components/ui/card";
 import { PrimaryButton, GhostButton } from "@/components/ui/button";
@@ -219,7 +220,9 @@ export function calculateProductPrice({ components, printTimeMinutes, printer, p
   };
 }
 
-export default function ProductosPage() {
+function ProductosPageContent() {
+  const searchParams = useSearchParams();
+  const router = useRouter();
   const supabase = createClient();
   const [products, setProducts] = useState<any[]>([]);
   const [filaments, setFilaments] = useState<any[]>([]);
@@ -321,6 +324,18 @@ export default function ProductosPage() {
 
     setLoading(false);
   };
+
+
+
+  // Stampy Prefill Effect
+  useEffect(() => {
+    if (loading) return;
+    const action = searchParams.get("action");
+    if (action === "new") {
+      handleCreateNew();
+      router.replace("/productos");
+    }
+  }, [searchParams, loading, router]);
 
   const handleCreateNew = () => {
     setFormData({
@@ -1537,5 +1552,13 @@ export default function ProductosPage() {
       )}
 
     </div>
+  );
+}
+
+export default function ProductosPage() {
+  return (
+    <React.Suspense fallback={<div className="p-8 text-center"><Loader2 className="animate-spin inline-block h-8 w-8 text-stampa-orange" /></div>}>
+      <ProductosPageContent />
+    </React.Suspense>
   );
 }

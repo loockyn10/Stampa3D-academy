@@ -2,6 +2,7 @@
 
 import React, { useState, useEffect, useMemo } from "react";
 import Link from "next/link";
+import { useSearchParams, useRouter } from "next/navigation";
 import { Zap, DollarSign, Loader2, AlertCircle, Settings, Save, X, PackagePlus, CheckCircle2, Calculator, Info, FileText, Plus } from "lucide-react";
 import { Card } from "@/components/ui/card";
 import { GhostButton } from "@/components/ui/button";
@@ -79,7 +80,9 @@ function NumberField({ label, value, onChange, suffix, step = 1, disabled = fals
   );
 }
 
-export default function CalculadoraPage() {
+function CalculadoraPageContent() {
+  const searchParams = useSearchParams();
+  const router = useRouter();
   const supabase = createClient();
   const [advanced, setAdvanced] = useState(false);
   const [loading, setLoading] = useState(true);
@@ -182,6 +185,33 @@ export default function CalculadoraPage() {
 
     setLoading(false);
   };
+
+  // Stampy Prefill Effect
+  useEffect(() => {
+    if (loading || filaments.length === 0 || printers.length === 0) return;
+    
+    const action = searchParams.get("action");
+    if (!action) return;
+
+    if (action === "calculate") {
+      const g = searchParams.get("grams");
+      const h = searchParams.get("hours");
+      const material = searchParams.get("material");
+
+      if (g) setWeight(g);
+      if (h) setHours(h);
+
+      if (material) {
+        const match = filaments.find(f => f.filament_type?.toLowerCase() === material.toLowerCase());
+        if (match) setSelectedFilamentId(match.id);
+      }
+
+      router.replace("/calculadora");
+    } else if (action === "add_printer") {
+      setShowCatalogModal(true);
+      router.replace("/calculadora");
+    }
+  }, [searchParams, loading, filaments, printers, router]);
 
   useEffect(() => {
     // When selected items change, update manual overrides to defaults
@@ -849,4 +879,12 @@ export default function CalculadoraPage() {
       />
     )}
   </div>;
+}
+
+export default function CalculadoraPage() {
+  return (
+    <React.Suspense fallback={<div className="p-8 text-center"><Loader2 className="animate-spin inline-block h-8 w-8 text-stampa-orange" /></div>}>
+      <CalculadoraPageContent />
+    </React.Suspense>
+  );
 }

@@ -2,6 +2,7 @@
 
 import React, { useState, useEffect } from "react";
 import Link from "next/link";
+import { useSearchParams, useRouter } from "next/navigation";
 import { Plus, Pencil, FileText, Trash2, Loader2, AlertCircle, Save, X, UserPlus, ShoppingCart, Download, Briefcase, Settings, ArrowLeft, Package, Clock, Percent, DollarSign } from "lucide-react";
 import { Card } from "@/components/ui/card";
 import { PrimaryButton, GhostButton } from "@/components/ui/button";
@@ -20,7 +21,9 @@ const STATUS_MAP: Record<string, { label: string, color: "gray" | "dark" | "gree
   rejected: { label: "Rechazado", color: "orange" },
 };
 
-export default function PresupuestosPage() {
+function PresupuestosPageContent() {
+  const searchParams = useSearchParams();
+  const router = useRouter();
   const supabase = createClient();
   const [budgets, setBudgets] = useState<any[]>([]);
   const [clients, setClients] = useState<any[]>([]);
@@ -107,6 +110,16 @@ export default function PresupuestosPage() {
     setEditingId("new");
     setShowClientForm(false);
   };
+
+  // Stampy Prefill Effect
+  useEffect(() => {
+    if (loading) return;
+    const action = searchParams.get("action");
+    if (action === "new") {
+      handleCreateNew();
+      router.replace("/presupuestos");
+    }
+  }, [searchParams, loading, router]);
 
   const handleEdit = async (b: any) => {
     setFormData({
@@ -1028,5 +1041,13 @@ export default function PresupuestosPage() {
         </div>
       )}
     </div>
+  );
+}
+
+export default function PresupuestosPage() {
+  return (
+    <React.Suspense fallback={<div className="p-8 text-center"><Loader2 className="animate-spin inline-block h-8 w-8 text-stampa-orange" /></div>}>
+      <PresupuestosPageContent />
+    </React.Suspense>
   );
 }
