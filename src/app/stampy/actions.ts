@@ -166,12 +166,7 @@ export async function askStampyAction(
     });
 
     if (dynamicContextData.contextsCount > 0) {
-      console.log("[Stampy] relevant contexts", {
-        currentPath: pathname,
-        contextsCount: dynamicContextData.contextsCount,
-        contextTitles: dynamicContextData.contexts.map(c => c.title),
-        contextChars: dynamicContextData.text.length,
-      });
+      // (context logs removed)
     }
 
     // 3. Buscar contexto estático de forma segura (ignorar si falla y usar solo si no hay match dinámico exacto de mayor prioridad)
@@ -374,12 +369,7 @@ Si el usuario pide una acción:
         message,
       });
 
-      console.log("[Stampy] lesson transcript context", {
-        lessonId,
-        transcriptFound: transcriptData.transcriptFound,
-        transcriptChars: transcriptData.transcriptChars,
-        segmentsUsed: transcriptData.segmentsUsed,
-      });
+      // (transcript logs removed)
 
       if (transcriptData.transcriptFound) {
         transcriptContextText = `\n\n${transcriptData.text}\n\nRegla sobre la transcripción:\nTengo acceso a una transcripción de la clase actual. Usala como fuente principal para responder preguntas sobre esta clase. No digas que viste el video; decí que según la clase o según el contenido de la clase. Si la transcripción no contiene la respuesta, aclaralo y luego podés orientar con conocimiento general.`;
@@ -520,14 +510,7 @@ Si el usuario pide una acción:
       });
     }
 
-    console.log("[Stampy] request", {
-      userId: user.id,
-      conversationId: actualConversationId,
-      mode: requestMode,
-      isRateLimited: false,
-      historyCount: recentHistory.length,
-      latencyMs: Date.now() - startTime,
-    });
+    // (request log removed)
 
     return {
       answer: answerText,
