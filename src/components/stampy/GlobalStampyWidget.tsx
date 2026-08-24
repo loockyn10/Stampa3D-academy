@@ -9,11 +9,14 @@ import { getStaticStampyPageContext } from "@/lib/stampy/static-page-contexts";
 import { StampyPageContext } from "@/lib/stampy/page-context";
 import { useStampyContext } from "@/components/stampy/StampyContextProvider";
 import { StampyFeedback } from "@/components/stampy/StampyFeedback";
+import { ActionIntentCard } from "@/components/stampy/ActionIntentCard";
 
 type Message = {
   role: "user" | "assistant";
   content: string;
   assistantMessageId?: string | null;
+  actionIntent?: any;
+  actionRequestId?: string | null;
 };
 
 // Routes where GlobalStampyWidget must NOT appear
@@ -119,14 +122,13 @@ function StampyWidgetContent() {
       if (response.conversationId && response.conversationId !== conversationId) {
         setConversationId(response.conversationId);
       }
-      setMessages([
-        ...newMessages,
-        {
-          role: "assistant",
-          content: response.answer || "Hubo un error al generar la respuesta.",
-          assistantMessageId: response.assistantMessageId
-        },
-      ]);
+      setMessages([...newMessages, { 
+        role: "assistant", 
+        content: response.answer || "Hubo un error al generar la respuesta.", 
+        assistantMessageId: response.assistantMessageId,
+        actionIntent: response.actionIntent,
+        actionRequestId: response.actionRequestId
+      }]);
     } catch {
       setMessages([
         ...newMessages,
@@ -202,7 +204,17 @@ function StampyWidgetContent() {
                     }`}
                   >
                     <div className="whitespace-pre-wrap">{m.content}</div>
-                    {m.role === "assistant" && m.assistantMessageId && conversationId && (
+
+                    {m.actionIntent && (
+                      <div className="mt-3">
+                        <ActionIntentCard 
+                          actionIntent={m.actionIntent} 
+                          actionRequestId={m.actionRequestId} 
+                        />
+                      </div>
+                    )}
+
+                    {m.role === 'assistant' && m.assistantMessageId && conversationId && (
                       <div className="mt-2 pt-2 border-t border-stampa-border/50">
                         <StampyFeedback 
                           messageId={m.assistantMessageId} 

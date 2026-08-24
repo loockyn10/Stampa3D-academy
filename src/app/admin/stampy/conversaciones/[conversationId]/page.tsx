@@ -1,6 +1,6 @@
 import React from "react";
 import { createClient } from "@/utils/supabase/server";
-import { Bot, User, ArrowLeft, ThumbsUp, ThumbsDown } from "lucide-react";
+import { Bot, User, ArrowLeft, ThumbsUp, ThumbsDown, AlertCircle } from "lucide-react";
 import Link from "next/link";
 import { notFound } from "next/navigation";
 
@@ -104,6 +104,25 @@ export default async function AdminStampyConversationPage({ params }: { params: 
                             )}
                           </div>
                         )}
+                      </div>
+                    </div>
+                  )}
+                  
+                  {msg.role === "assistant" && msg.metadata?.actionIntent && (
+                    <div className="mt-4 pt-3 border-t border-stampa-border/50">
+                      <div className="flex items-start gap-2">
+                        <div className="flex flex-col gap-2 w-full">
+                          <span className="flex items-center gap-1 text-[11px] font-bold text-stampa-orange bg-stampa-orange/10 px-2 py-0.5 rounded-md border border-stampa-orange/20 w-fit">
+                            <AlertCircle size={12} /> Acción detectada
+                          </span>
+                          <div className="bg-black/20 rounded p-2 text-xs border border-white/5 w-full">
+                            <div className="text-gray-300 mb-1 font-medium">Type: {msg.metadata.actionIntent.type}</div>
+                            {msg.metadata.actionIntent.toolHref && (
+                              <div className="text-gray-400">Tool: {msg.metadata.actionIntent.toolHref}</div>
+                            )}
+                            <div className="text-gray-400 mt-1">Can Execute: false</div>
+                          </div>
+                        </div>
                       </div>
                     </div>
                   )}

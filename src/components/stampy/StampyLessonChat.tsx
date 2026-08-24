@@ -5,6 +5,7 @@ import { Bot, X, Send, Loader2 } from "lucide-react";
 import { askStampyAction, StampyContextPayload } from "@/app/stampy/actions";
 import { createPortal } from "react-dom";
 import { StampyFeedback } from "@/components/stampy/StampyFeedback";
+import { ActionIntentCard } from "@/components/stampy/ActionIntentCard";
 
 interface StampyLessonChatProps {
   courseTitle: string;
@@ -26,6 +27,8 @@ type Message = {
   role: "user" | "assistant";
   content: string;
   assistantMessageId?: string | null;
+  actionIntent?: any;
+  actionRequestId?: string | null;
 };
 
 export function StampyLessonChat({ courseTitle, moduleTitle, lesson }: StampyLessonChatProps) {
@@ -90,7 +93,13 @@ export function StampyLessonChat({ courseTitle, moduleTitle, lesson }: StampyLes
       if (response.conversationId && response.conversationId !== conversationId) {
         setConversationId(response.conversationId);
       }
-      setMessages([...newMessages, { role: "assistant", content: response.answer || "Hubo un error al generar la respuesta.", assistantMessageId: response.assistantMessageId }]);
+      setMessages([...newMessages, { 
+        role: "assistant", 
+        content: response.answer || "Hubo un error al generar la respuesta.", 
+        assistantMessageId: response.assistantMessageId,
+        actionIntent: response.actionIntent,
+        actionRequestId: response.actionRequestId
+      }]);
     } catch (err) {
       setMessages([...newMessages, { role: "assistant", content: "Hubo un error de conexión con mi servidor. Por favor, probá de nuevo." }]);
     } finally {
@@ -153,6 +162,16 @@ export function StampyLessonChat({ courseTitle, moduleTitle, lesson }: StampyLes
                     }`}
                   >
                     <div className="whitespace-pre-wrap">{m.content}</div>
+                    
+                    {m.actionIntent && (
+                      <div className="mt-3">
+                        <ActionIntentCard 
+                          actionIntent={m.actionIntent} 
+                          actionRequestId={m.actionRequestId} 
+                        />
+                      </div>
+                    )}
+
                     {m.role === 'assistant' && m.assistantMessageId && conversationId && (
                       <div className="mt-2 pt-2 border-t border-stampa-border/50">
                         <StampyFeedback 

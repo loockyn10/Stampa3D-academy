@@ -106,3 +106,25 @@ export interface StampyActionIntent {
   canExecute: false;
   reason: string;
 }
+
+export type StampyActionRequestStatus = "suggested" | "opened_tool" | "cancelled" | "executed" | "error";
+
+export interface StampyActionRequest {
+  id: string;
+  user_id: string;
+  conversation_id: string;
+  message_id: string;
+  action_type: StampyActionIntentType;
+  status: StampyActionRequestStatus;
+  confidence: number;
+  extracted: Record<string, any>;
+  tool_href: string | null;
+  tool_label: string | null;
+  source: string;
+  can_execute: boolean;
+  executed_at: string | null;
+  cancelled_at: string | null;
+  error_message: string | null;
+  created_at: string;
+  updated_at: string;
+}

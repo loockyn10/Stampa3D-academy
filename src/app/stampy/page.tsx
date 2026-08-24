@@ -7,6 +7,7 @@ import Link from "next/link";
 import { Badge } from "@/components/ui/badge";
 
 import { StampyFeedback } from "@/components/stampy/StampyFeedback";
+import { ActionIntentCard } from "@/components/stampy/ActionIntentCard";
 
 interface Message {
   id: string;
@@ -16,6 +17,8 @@ interface Message {
   relatedTools?: string[];
   knowledgeTools?: any[];
   assistantMessageId?: string | null;
+  actionIntent?: any;
+  actionRequestId?: string | null;
 }
 
 const QUICK_SUGGESTIONS = [
@@ -100,7 +103,9 @@ export default function StampyPage() {
           recommendations: res.recommendations,
           relatedTools: res.relatedTools,
           knowledgeTools: res.knowledgeTools,
-          assistantMessageId: res.assistantMessageId
+          assistantMessageId: res.assistantMessageId,
+          actionIntent: res.actionIntent,
+          actionRequestId: res.actionRequestId
         }]);
       }
     } catch (e) {
@@ -205,8 +210,16 @@ export default function StampyPage() {
                     </div>
                   )}
 
+                  {/* Action Intent Card */}
+                  {msg.actionIntent && (
+                    <ActionIntentCard 
+                      actionIntent={msg.actionIntent} 
+                      actionRequestId={msg.actionRequestId} 
+                    />
+                  )}
+
                   {/* Knowledge Tools */}
-                  {msg.knowledgeTools && msg.knowledgeTools.length > 0 && (
+                  {msg.knowledgeTools && msg.knowledgeTools.length > 0 && !msg.actionIntent && (
                     <div className="mt-4 space-y-3">
                       {msg.knowledgeTools.map((kt: any, idx: number) => (
                         <div key={idx} className="bg-indigo-900/20 border border-indigo-500/20 rounded-xl p-3 flex flex-col sm:flex-row sm:items-center justify-between gap-3 group shadow-sm">

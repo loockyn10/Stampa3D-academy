@@ -478,6 +478,7 @@ Si el usuario pide una acción:
     }
 
     let assistantMessageId: string | null = null;
+    let actionRequestId: string | null = null;
     if (actualConversationId) {
       const saved = await saveMessages(
         supabase, 
@@ -494,6 +495,30 @@ Si el usuario pide una acción:
         }
       );
       assistantMessageId = saved?.assistantMessageId || null;
+
+      if (actionIntentMetadata && assistantMessageId) {
+        const { createStampyActionRequest } = await import("@/lib/stampy/action-requests");
+        const res = await createStampyActionRequest({
+          userId: user.id,
+          conversationId: actualConversationId,
+          messageId: assistantMessageId,
+          actionIntent: actionIntentMetadata as any,
+          source: context?.source || "stampy"
+        });
+        
+        if (res.actionRequestId) {
+          actionRequestId = res.actionRequestId;
+          // Actualizar metadata del mensaje con el actionRequestId
+          await supabase.from("stampy_messages").update({ 
+            metadata: { 
+              mode: requestMode, 
+              model: modelName,
+              actionIntent: actionIntentMetadata,
+              actionRequestId: res.actionRequestId
+            } 
+          }).eq("id", assistantMessageId);
+        }
+      }
 
       const { logStampyUsage } = await import("@/lib/stampy/usage-log");
       await logStampyUsage({
@@ -519,7 +544,9 @@ Si el usuario pide una acción:
       relatedTools: [],
       suggestedQuestions: staticContext?.suggestedQuestions || [],
       conversationId: actualConversationId,
-      assistantMessageId
+      assistantMessageId,
+      actionRequestId,
+      actionIntent: actionIntentMetadata
     };
   } catch (error) {
     console.error("[Stampy] OpenAI request failed", {
@@ -548,7 +575,9 @@ Si el usuario pide una acción:
       knowledgeTools: [],
       relatedTools: [],
       suggestedQuestions: [],
-      conversationId: actualConversationId
+      conversationId: actualConversationId,
+      actionRequestId: null,
+      actionIntent: null
     };
   }
 }

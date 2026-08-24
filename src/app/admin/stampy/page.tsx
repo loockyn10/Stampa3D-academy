@@ -1,6 +1,6 @@
 import React from "react";
 import { createClient } from "@/utils/supabase/server";
-import { MessageSquare, AlertCircle, BarChart3, Bot, ThumbsUp, ThumbsDown } from "lucide-react";
+import { MessageSquare, AlertCircle, BarChart3, Bot, ThumbsUp, ThumbsDown, Activity } from "lucide-react";
 import Link from "next/link";
 
 export const dynamic = "force-dynamic";
@@ -72,6 +72,32 @@ export default async function AdminStampyDashboardPage() {
     .order("created_at", { ascending: false })
     .limit(10);
 
+  // Action Requests Stats (24h)
+  const { data: actions24h } = await supabase
+    .from("stampy_action_requests")
+    .select("status")
+    .gte("created_at", isoOneDay);
+
+  const actionsCount = actions24h?.length || 0;
+  const openedCount = actions24h?.filter(a => a.status === "opened_tool").length || 0;
+  const cancelledCount = actions24h?.filter(a => a.status === "cancelled").length || 0;
+
+  // Recent Action Requests
+  const { data: recentActions } = await supabase
+    .from("stampy_action_requests")
+    .select(`
+      id,
+      action_type,
+      status,
+      tool_label,
+      created_at,
+      conversation_id,
+      profiles ( email )
+    `)
+    .order("created_at", { ascending: false })
+    .limit(10);
+
+
   return (
     <div className="space-y-6 max-w-6xl mx-auto">
       <div>
@@ -121,6 +147,31 @@ export default async function AdminStampyDashboardPage() {
           <span className="text-2xl font-bold text-white">{ratio24h}% <span className="text-xs text-gray-500 font-normal">({pos24h} 👍 / {neg24h} 👎)</span></span>
         </div>
       </div>
+
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+        <div className="bg-[#1a1a1a] border border-stampa-border rounded-xl p-4 flex flex-col gap-2">
+          <div className="flex items-center gap-2 text-stampa-orange">
+            <Activity size={16} />
+            <span className="text-sm font-medium">Acciones (24h)</span>
+          </div>
+          <span className="text-2xl font-bold text-white">{actionsCount}</span>
+        </div>
+        <div className="bg-[#1a1a1a] border border-stampa-border rounded-xl p-4 flex flex-col gap-2">
+          <div className="flex items-center gap-2 text-blue-400">
+            <Activity size={16} />
+            <span className="text-sm font-medium">Tools Abiertos (24h)</span>
+          </div>
+          <span className="text-2xl font-bold text-white">{openedCount}</span>
+        </div>
+        <div className="bg-[#1a1a1a] border border-stampa-border rounded-xl p-4 flex flex-col gap-2">
+          <div className="flex items-center gap-2 text-red-400">
+            <AlertCircle size={16} />
+            <span className="text-sm font-medium">Canceladas (24h)</span>
+          </div>
+          <span className="text-2xl font-bold text-white">{cancelledCount}</span>
+        </div>
+      </div>
+
 
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
         <div className="bg-[#1a1a1a] border border-stampa-border rounded-xl p-5 shadow-sm">
@@ -190,6 +241,52 @@ export default async function AdminStampyDashboardPage() {
               ))
             ) : (
               <p className="text-sm text-gray-500 text-center py-4">No hay feedback reciente.</p>
+            )}
+          </div>
+        </div>
+
+        <div className="bg-[#1a1a1a] border border-stampa-border rounded-xl p-5 shadow-sm lg:col-span-2">
+          <h2 className="text-lg font-bold text-white mb-4">Solicitudes de Acción Recientes</h2>
+          <div className="space-y-3">
+            {recentActions && recentActions.length > 0 ? (
+              recentActions.map((action: any) => (
+                <div key={action.id} className="flex flex-col gap-2 p-3 bg-white/5 border border-stampa-border rounded-lg">
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center gap-2">
+                      <span className="font-bold text-sm text-white">{action.action_type}</span>
+                      <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full uppercase ${
+                        action.status === 'opened_tool' ? 'bg-blue-500/20 text-blue-400' :
+                        action.status === 'cancelled' ? 'bg-red-500/20 text-red-400' :
+                        action.status === 'suggested' ? 'bg-yellow-500/20 text-yellow-400' :
+                        'bg-gray-500/20 text-gray-400'
+                      }`}>
+                        {action.status}
+                      </span>
+                    </div>
+                    <span className="text-xs text-gray-500">{new Date(action.created_at).toLocaleString('es-AR')}</span>
+                  </div>
+                  <div className="flex items-center justify-between mt-1">
+                    <div className="text-xs text-gray-400">
+                      <span className="font-semibold text-gray-300">Usuario:</span> {(action.profiles as any)?.email || "Desconocido"}
+                    </div>
+                    {action.conversation_id && (
+                      <Link 
+                        href={`/admin/stampy/conversaciones/${action.conversation_id}`}
+                        className="text-xs text-cyan-400 hover:text-cyan-300"
+                      >
+                        Ver chat
+                      </Link>
+                    )}
+                  </div>
+                  {action.tool_label && (
+                    <div className="text-xs text-gray-500 mt-1">
+                      Tool: <span className="text-gray-300">{action.tool_label}</span>
+                    </div>
+                  )}
+                </div>
+              ))
+            ) : (
+              <p className="text-sm text-gray-500 text-center py-4">No hay solicitudes de acción recientes.</p>
             )}
           </div>
         </div>
