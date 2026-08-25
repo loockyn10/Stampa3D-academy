@@ -32,6 +32,8 @@ export function FileUploadDropzone({
   const [success, setSuccess] = useState(false);
   const [fileName, setFileName] = useState<string | null>(null);
 
+  const [uploadProgress, setUploadProgress] = useState<number>(0);
+
   const supabase = createClient();
 
   const handleDrag = useCallback((e: React.DragEvent) => {
@@ -63,11 +65,22 @@ export function FileUploadDropzone({
   const handleUpload = async (file: File) => {
     setError(null);
     setSuccess(false);
+    setUploadProgress(0);
 
     // Validate size
     if (file.size > maxSizeMb * 1024 * 1024) {
       setError(`El archivo es muy pesado. Máximo ${maxSizeMb}MB.`);
       return;
+    }
+
+    // Validate extension if accept is provided
+    if (accept) {
+      const fileExt = "." + file.name.split('.').pop()?.toLowerCase();
+      const acceptedExts = accept.split(',').map(ext => ext.trim().toLowerCase());
+      if (!acceptedExts.some(ext => fileExt === ext || file.name.toLowerCase().endsWith(ext))) {
+         setError(`El archivo debe ser uno de los siguientes tipos: ${accept}`);
+         return;
+      }
     }
 
     setLoading(true);
@@ -76,31 +89,83 @@ export function FileUploadDropzone({
     try {
       const cleanName = sanitizeFileName(file.name);
       const filePath = `${pathPrefix}/${Date.now()}-${cleanName}`;
-
-      const { error: uploadError } = await supabase.storage
-        .from(bucket)
-        .upload(filePath, file, { upsert: true });
-
-      if (uploadError) {
-        console.error("Storage upload error:", uploadError);
-        setError(uploadError.message || "Error al subir el archivo.");
+      
+      const onUploadComplete = (finalFilePath: string) => {
+        setSuccess(true);
+        if (publicBucket) {
+          const { data } = supabase.storage.from(bucket).getPublicUrl(finalFilePath);
+          onUploaded(data.publicUrl);
+        } else {
+          const ref = buildStorageReference(bucket, finalFilePath);
+          onUploaded(ref);
+        }
         setLoading(false);
-        return;
-      }
+      };
 
-      setSuccess(true);
+      if (maxSizeMb > 20) { // Usa TUS para archivos grandes
+        const { data: sessionData, error: sessionError } = await supabase.auth.getSession();
+        if (sessionError || !sessionData.session) {
+          throw new Error("No hay sesión activa para subir el archivo.");
+        }
 
-      if (publicBucket) {
-        const { data } = supabase.storage.from(bucket).getPublicUrl(filePath);
-        onUploaded(data.publicUrl);
-      } else {
-        const ref = buildStorageReference(bucket, filePath);
-        onUploaded(ref);
+        const tus = await import("tus-js-client");
+        const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
+        const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
+        const uploadEndpoint = `${supabaseUrl}/storage/v1/upload/resumable`;
+
+        const upload = new tus.Upload(file, {
+          endpoint: uploadEndpoint,
+          retryDelays: [0, 3000, 5000, 10000, 20000],
+          headers: {
+            authorization: `Bearer ${sessionData.session.access_token}`,
+            apikey: supabaseAnonKey!,
+          },
+          uploadDataDuringCreation: true,
+          removeFingerprintOnSuccess: true,
+          metadata: {
+            bucketName: bucket,
+            objectName: filePath,
+            contentType: file.type || "application/octet-stream",
+            cacheControl: "3600",
+          },
+          chunkSize: 6 * 1024 * 1024, // 6 MB
+          onError: (err) => {
+            console.error("TUS upload failed:", err);
+            setError(err.message || "Error al subir el archivo grande.");
+            setLoading(false);
+          },
+          onProgress: (bytesUploaded, bytesTotal) => {
+            const percentage = Math.round((bytesUploaded / bytesTotal) * 100);
+            setUploadProgress(percentage);
+          },
+          onSuccess: () => {
+            onUploadComplete(filePath);
+          },
+        });
+
+        upload.findPreviousUploads().then((previousUploads) => {
+          if (previousUploads.length) {
+            upload.resumeFromPreviousUpload(previousUploads[0]);
+          }
+          upload.start();
+        });
+      } else { // Standard direct upload
+        const { error: uploadError } = await supabase.storage
+          .from(bucket)
+          .upload(filePath, file, { upsert: true });
+
+        if (uploadError) {
+          console.error("Storage upload error:", uploadError);
+          setError(uploadError.message || "Error al subir el archivo.");
+          setLoading(false);
+          return;
+        }
+
+        onUploadComplete(filePath);
       }
     } catch (err: any) {
-      console.error("Unexpected upload error:", err);
-      setError(err.message || "Ocurrió un error inesperado.");
-    } finally {
+      console.error("Upload error:", err);
+      setError(err.message || "Ocurrió un error inesperado al subir.");
       setLoading(false);
     }
   };
@@ -137,9 +202,23 @@ export function FileUploadDropzone({
         />
         
         {loading ? (
-          <div className="flex flex-col items-center justify-center space-y-2 text-stampa-orange">
+          <div className="flex flex-col items-center justify-center space-y-3 text-stampa-orange w-full px-6">
             <Loader2 className="w-8 h-8 animate-spin" />
             <span className="text-xs font-medium text-gray-400">Subiendo {fileName}...</span>
+            {uploadProgress > 0 && (
+              <div className="w-full max-w-xs mt-2">
+                <div className="flex justify-between text-[10px] text-gray-500 mb-1">
+                  <span>Progreso</span>
+                  <span>{uploadProgress}%</span>
+                </div>
+                <div className="w-full bg-white/10 rounded-full h-1.5">
+                  <div 
+                    className="bg-stampa-orange h-1.5 rounded-full transition-all duration-300"
+                    style={{ width: `${uploadProgress}%` }}
+                  ></div>
+                </div>
+              </div>
+            )}
           </div>
         ) : success ? (
           <div className="flex flex-col items-center justify-center space-y-2 text-green-600">
