@@ -81,6 +81,23 @@ export function detectStampyActionIntent({
     norm.includes("hacer presupuesto") || norm.includes("armar presupuesto") ||
     norm.includes("crear presupuesto")
   ) {
+    // Check if it's an insufficient quote request based solely on grams
+    const hasGramsOnly = (norm.includes("presupuesto de") || norm.includes("presupuesto por")) && norm.match(/\d+\s*(g|gr|gramos|hs|h|horas)/);
+    
+    if (hasGramsOnly && !norm.includes("para")) {
+       return {
+        type: "create_quote",
+        confidence: 0.9,
+        title: "Presupuesto insuficiente",
+        summary: "Se detectó intención de armar presupuesto solo por gramos o horas.",
+        extracted: { incomplete: true, reason: "grams_only" },
+        toolHref: "/presupuestos",
+        toolLabel: "Presupuestos",
+        canExecute: false,
+        reason: "Matched quote verbs but missing all critical data (grams only)."
+      };
+    }
+
     return {
       type: "create_quote",
       confidence: 0.9,
@@ -341,6 +358,9 @@ export function detectStampyActionIntent({
 
 export function buildActionIntentResponse(intent: StampyActionIntent): string {
   if (intent.type === "create_quote") {
+    if (intent.extracted.incomplete && intent.extracted.reason === "grams_only") {
+      return "Con solo gramos no alcanza para armar un presupuesto. Para presupuestar necesitás indicar cliente, producto, cantidad, título, fecha de validez y notas. Los gramos pueden servir como información adicional, pero no son la base del presupuesto.";
+    }
     return "Para armar un presupuesto necesitás cargarlo desde la herramienta de Presupuestos. Los datos principales son cliente, producto, cantidad, título, fecha de validez y notas. Todavía no creo presupuestos desde el chat, pero te dejo el acceso para que lo cargues y revises.";
   }
 
