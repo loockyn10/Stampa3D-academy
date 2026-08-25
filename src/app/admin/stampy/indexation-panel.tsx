@@ -57,9 +57,10 @@ export function IndexationPanel({ stats }: { stats: any[] }) {
              <div>
                <p className="font-bold">Indexación completada en {result.result?.durationMs}ms</p>
                <ul className="mt-2 space-y-1 text-xs">
-                 <li>Creados: {result.result?.chunksCreated}</li>
-                 <li>Actualizados: {result.result?.chunksUpdated}</li>
-                 <li>Errores: {result.result?.errors}</li>
+                 <li>Fuentes procesadas: {result.result?.chunksBuilt}</li>
+                 <li>Chunks creados: {result.result?.chunksCreated}</li>
+                 <li>Chunks actualizados: {result.result?.chunksUpdated}</li>
+                 <li>Errores: {result.result?.errorsCount}</li>
                </ul>
              </div>
           )}
