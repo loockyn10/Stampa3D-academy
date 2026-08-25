@@ -191,6 +191,21 @@ export default function AdminDashboardPage() {
           </div>
         </Link>
 
+        <Link href="/admin/stampy" className="block group">
+          <div className="bg-stampa-surface p-6 rounded-2xl border border-stampa-border shadow-lg shadow-black/20 hover:border-stampa-orange/30 transition-all h-full relative overflow-hidden">
+            <div className="absolute top-0 right-0 w-24 h-24 bg-cyan-400/5 rounded-full blur-2xl group-hover:bg-cyan-400/10 transition-colors -translate-y-1/2 translate-x-1/2"></div>
+            <div className="flex items-center gap-4 mb-4 relative z-10">
+              <div className="p-3 bg-stampa-bg-soft border border-stampa-border text-cyan-400 rounded-xl shadow-inner">
+                <Bot size={24} />
+              </div>
+              <h2 className="text-lg font-bold text-white group-hover:text-cyan-300 transition-colors">Stampy</h2>
+            </div>
+            <p className="text-sm text-gray-400 font-medium relative z-10">
+              Observabilidad, conversaciones, feedback e índice de conocimiento.
+            </p>
+          </div>
+        </Link>
+
         <Link href="/admin/stampy/contextos" className="block group">
           <div className="bg-stampa-surface p-6 rounded-2xl border border-stampa-border shadow-lg shadow-black/20 hover:border-stampa-orange/30 transition-all h-full relative overflow-hidden">
             <div className="absolute top-0 right-0 w-24 h-24 bg-cyan-400/5 rounded-full blur-2xl group-hover:bg-cyan-400/10 transition-colors -translate-y-1/2 translate-x-1/2"></div>
