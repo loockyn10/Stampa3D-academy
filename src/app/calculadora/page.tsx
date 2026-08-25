@@ -207,9 +207,11 @@ function CalculadoraPageContent() {
 
       if (material || brand || color) {
         const match = filaments.find(f => {
-          const matMatch = !material || f.filament_type?.toLowerCase() === material.toLowerCase();
-          const colorMatch = !color || f.color?.toLowerCase() === color.toLowerCase();
-          const brandMatch = !brand || f.brand?.toLowerCase() === brand.toLowerCase() || f.filament_templates?.brand?.toLowerCase() === brand.toLowerCase();
+          const matMatch = !material || (f.filament_type && f.filament_type.toLowerCase().includes(material.toLowerCase()));
+          const colorMatch = !color || (f.color && f.color.toLowerCase().includes(color.toLowerCase()));
+          const brandMatch = !brand || 
+            (f.brand && f.brand.toLowerCase().includes(brand.toLowerCase())) || 
+            (f.filament_templates?.brand && f.filament_templates.brand.toLowerCase().includes(brand.toLowerCase()));
           return matMatch && colorMatch && brandMatch;
         });
         if (match) setSelectedFilamentId(match.id);
