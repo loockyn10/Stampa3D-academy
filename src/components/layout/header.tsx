@@ -1,15 +1,16 @@
 "use client";
 
-import React, { useState, useEffect } from "react";
 import { usePathname } from "next/navigation";
 import { Menu, Search, Bell, ChevronDown } from "lucide-react";
 import { COURSES } from "@/data/mock-data";
-import { createClient } from "@/utils/supabase/client";
 import Link from "next/link";
 import { GlobalSearch } from "@/components/search/GlobalSearch";
+import type { UserAccessSnapshot } from "@/lib/auth/user-access";
 
 interface HeaderProps {
   setMobileOpen: (open: boolean) => void;
+  access: UserAccessSnapshot | null;
+  loading: boolean;
 }
 
 const PAGE_TITLES: Record<string, string> = {
@@ -33,31 +34,12 @@ const PAGE_TITLES: Record<string, string> = {
   "/canales": "Canales",
 };
 
-export function Header({ setMobileOpen }: HeaderProps) {
+export function Header({ setMobileOpen, access, loading }: HeaderProps) {
   const pathname = usePathname();
-  const supabase = createClient();
-  const [profile, setProfile] = useState<any>(null);
-
-  useEffect(() => {
-    async function loadProfile() {
-      const { data: { user } } = await supabase.auth.getUser();
-      if (!user) return;
-
-      const { data } = await supabase
-        .from("profiles")
-        .select("full_name, display_name, email, avatar_url, member_level, membership_status")
-        .eq("id", user.id)
-        .single();
-      
-      if (data) {
-        setProfile(data);
-      }
-    }
-    loadProfile();
-  }, [supabase]);
+  const identity = access?.identity;
 
   const getInitials = () => {
-    const name = profile?.full_name || profile?.display_name || profile?.email || "U";
+    const name = identity?.fullName || identity?.displayName || identity?.email || "U";
     const parts = name.trim().split(/\s+/);
     if (parts.length >= 2) {
       return (parts[0][0] + parts[1][0]).toUpperCase();
@@ -66,10 +48,17 @@ export function Header({ setMobileOpen }: HeaderProps) {
   };
 
   const getMemberLevelLabel = () => {
-    if (!profile) return "Miembro";
-    if (profile.membership_status !== "active") return "Membresía inactiva";
-    
-    switch (profile.member_level) {
+    if (loading || !access) return "Miembro";
+    if (access.capabilities.accessAdmin) return "Administrador";
+
+    if (!access.membershipValid) {
+      if (access.validGrantTypes.includes("beta_tester")) return "Beta Tester";
+      if (access.validGrantTypes.includes("manual_free_access")) return "Acceso gratuito";
+      if (access.validGrantTypes.includes("internal_tester")) return "Tester interno";
+      return "Membresía inactiva";
+    }
+
+    switch (identity?.memberLevel) {
       case "bronze": return "Miembro Bronce";
       case "silver": return "Miembro Silver";
       case "gold": return "Miembro Gold";
@@ -120,8 +109,8 @@ export function Header({ setMobileOpen }: HeaderProps) {
         </button>
 
         <Link href="/perfil" className="flex items-center gap-2 rounded-xl py-1 pl-1 pr-2 hover:bg-white/5 transition-colors">
-          {profile?.avatar_url ? (
-            <img src={profile.avatar_url} alt="Avatar" className="h-8 w-8 rounded-full object-cover shrink-0" />
+          {identity?.avatarUrl ? (
+            <img src={identity.avatarUrl} alt="Avatar" className="h-8 w-8 rounded-full object-cover shrink-0" />
           ) : (
             <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-orange-100 text-sm font-bold text-stampa-orange">
               {getInitials()}
@@ -129,7 +118,7 @@ export function Header({ setMobileOpen }: HeaderProps) {
           )}
           <div className="hidden text-left sm:block min-w-max">
             <p className="text-xs font-semibold leading-none text-white truncate max-w-[120px]">
-              {profile?.full_name || profile?.display_name || profile?.email || "Mi perfil"}
+              {identity?.fullName || identity?.displayName || identity?.email || "Mi perfil"}
             </p>
             <p className="mt-0.5 text-[11px] leading-none text-gray-400 truncate max-w-[120px]">
               {getMemberLevelLabel()}

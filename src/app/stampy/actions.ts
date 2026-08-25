@@ -1,12 +1,14 @@
 "use server";
 
 import { createClient } from "@/utils/supabase/server";
-import { getStampyUserContext } from "@/lib/stampy/user-context";
+import { getCurrentUserAccess } from "@/lib/auth/user-access";
+import type { ChatCompletionMessageParam } from "openai/resources/chat/completions";
 export type StampyContextPayload =
   | {
       source: "lesson";
       courseTitle?: string;
       moduleTitle?: string;
+      courseId?: string;
       lessonId?: string;
       lessonTitle?: string;
       lessonDescription?: string;
@@ -63,31 +65,18 @@ export async function askStampyAction(
   let answerText = "No pude generar una respuesta.";
   let requestMode: "openai" | "direct" | "blocked" | "error" = "openai";
   const supabase = await createClient();
-  let user: any = null;
+  let currentUserId: string | null = null;
 
   try {
-    const { data } = await supabase.auth.getUser();
-    user = data.user;
-    
-    if (!user) {
+    const { access } = await getCurrentUserAccess(supabase);
+    const userId = access.userId;
+    currentUserId = userId;
+
+    if (!access.authenticated || !userId) {
       return { error: "No autorizado" };
     }
 
-    const { data: profile } = await supabase
-      .from('profiles')
-      .select('membership_status, role, membership_expires_at')
-      .eq('id', user.id)
-      .single();
-
-    let hasAccess = profile?.role === 'admin';
-    if (!hasAccess && profile?.membership_status === 'active') {
-      const expiresAt = profile?.membership_expires_at;
-      if (!expiresAt || new Date(expiresAt).getTime() > Date.now()) {
-        hasAccess = true;
-      }
-    }
-
-    if (!hasAccess) {
+    if (!access.capabilities.useStampy) {
       return {
         answer: "Para usar Stampy necesitás tener una membresía activa.",
         recommendations: [],
@@ -100,12 +89,12 @@ export async function askStampyAction(
 
     // Rate Limit Check
     const { checkStampyRateLimit } = await import("@/lib/stampy/rate-limit");
-    const rateLimit = await checkStampyRateLimit({ supabase, userId: user.id });
+    const rateLimit = await checkStampyRateLimit({ supabase, userId });
     if (rateLimit.isBlocked) {
       const { logStampyUsage } = await import("@/lib/stampy/usage-log");
       await logStampyUsage({
         supabase,
-        userId: user.id,
+        userId,
         conversationId: actualConversationId,
         model: null,
         mode: "blocked",
@@ -125,7 +114,7 @@ export async function askStampyAction(
 
     // Ensure Conversation
     const { ensureConversation, getRecentHistory, saveMessages } = await import("@/lib/stampy/history");
-    const ensuredId = await ensureConversation({ supabase, userId: user.id, conversationId: actualConversationId, message });
+    const ensuredId = await ensureConversation({ supabase, userId, conversationId: actualConversationId, message });
     if (ensuredId) {
       actualConversationId = ensuredId;
     }
@@ -137,12 +126,12 @@ export async function askStampyAction(
     const { getStampyWorkshopContext } = await import("@/lib/stampy/workshop-context");
     const workshopContext = await getStampyWorkshopContext({
       supabase,
-      userId: user.id,
+      userId,
       message
     });
 
     if (message.trim() === "/debug taller" && process.env.NODE_ENV !== "production") {
-      const debugText = `DEBUG CONTEXTO TALLER\n\nuserId: ${user.id}\n\nprintersCount: ${workshopContext.printersCount}\nactiveFilamentsCount: ${workshopContext.filamentsCount}\nactiveFilamentsError: ${workshopContext.activeFilamentsErrorMsg}\nproductsCount: ${workshopContext.productsCount}\n\nFilamentos activos sample:\n${workshopContext.sampleFilaments}\n\nContexto final:\n${workshopContext.text}`;
+      const debugText = `DEBUG CONTEXTO TALLER\n\nuserId: ${userId}\n\nprintersCount: ${workshopContext.printersCount}\nactiveFilamentsCount: ${workshopContext.filamentsCount}\nactiveFilamentsError: ${workshopContext.activeFilamentsErrorMsg}\nproductsCount: ${workshopContext.productsCount}\n\nFilamentos activos sample:\n${workshopContext.sampleFilaments}\n\nContexto final:\n${workshopContext.text}`;
       
       return {
         answer: debugText,
@@ -207,7 +196,7 @@ No inventes que existe una clase completa o contenidos si solo tenés el título
     let userContext = null;
     try {
       const { getStampyUserContext } = await import("@/lib/stampy/user-context");
-      userContext = await getStampyUserContext(user.id);
+      userContext = await getStampyUserContext(userId);
     } catch (e) {
       console.error("[Stampy] user context failed", e);
     }
@@ -240,7 +229,7 @@ Reglas del usuario:
       let rafflesContext = null;
       try {
         const { getStampyRafflesContext } = await import("@/lib/stampy/tool-contexts/raffles-context");
-        rafflesContext = await getStampyRafflesContext(user.id);
+        rafflesContext = await getStampyRafflesContext(userId);
       } catch (error) {
         console.error("[Stampy] raffles context failed", error);
       }
@@ -268,7 +257,7 @@ Reglas:
       let stockContext = null;
       try {
         const { getStampyStockContext } = await import("@/lib/stampy/tool-contexts/stock-context");
-        stockContext = await getStampyStockContext(user.id, message);
+        stockContext = await getStampyStockContext(userId, message);
       } catch (error) {
         console.error("[Stampy] stock context failed", error);
       }
@@ -356,16 +345,16 @@ Si el usuario pide una acción:
 
     // Ajustar herramientas según intent
     if (workshopContext.isFilamentQuery) {
-      knowledgeTools = knowledgeTools.filter((t: any) => t.id !== "finished-product-stock" && t.id !== "products");
+      knowledgeTools = knowledgeTools.filter((tool) => tool.id !== "finished-product-stock" && tool.id !== "products");
     } else if (workshopContext.isProductQuery) {
-      knowledgeTools = knowledgeTools.filter((t: any) => t.id !== "filament-stock");
+      knowledgeTools = knowledgeTools.filter((tool) => tool.id !== "filament-stock");
     }
 
 
     // Cargar historial reciente
-    const recentHistory = actualConversationId ? await getRecentHistory(supabase, actualConversationId, user.id) : [];
+    const recentHistory = actualConversationId ? await getRecentHistory(supabase, actualConversationId, userId) : [];
 
-    let lessonId = context?.source === "lesson" ? context.lessonId : undefined;
+    const lessonId = context?.source === "lesson" ? context.lessonId : undefined;
     let transcriptContextText = "";
     if (lessonId) {
       const { getLessonTranscriptContext } = await import("@/lib/stampy/lesson-transcripts");
@@ -390,7 +379,7 @@ Si el usuario pide una acción:
     const retrievedKnowledge = await retrieveStampyKnowledge({
       supabase,
       query: message,
-      courseId: (context as any)?.courseId,
+      courseId: context?.source === "lesson" ? context.courseId : undefined,
       lessonId,
       currentPath: pathname,
       maxChunks: 8,
@@ -411,7 +400,7 @@ ${relevantContracts.map(formatToolContractForPrompt).join("\n\n")}\n`;
       }
     }
 
-    const messagesPayload: any[] = [
+    const messagesPayload: ChatCompletionMessageParam[] = [
       { role: "system", content: systemPrompt },
       ...recentHistory,
       { role: "user", content: message }
@@ -438,11 +427,11 @@ ${relevantContracts.map(formatToolContractForPrompt).join("\n\n")}\n`;
           title: `Abrir ${actionIntent.toolLabel}`,
           route: actionIntent.toolHref,
           shortDescription: "Revisá los datos y confirmá la acción desde la herramienta."
-        } as any];
+        }] as typeof knowledgeTools;
       }
       
       console.log("[Stampy] action intent detected", {
-        userId: user.id,
+        userId,
         conversationId: actualConversationId,
         type: actionIntent.type,
         confidence: actionIntent.confidence,
@@ -486,7 +475,7 @@ ${relevantContracts.map(formatToolContractForPrompt).join("\n\n")}\n`;
       .eq('course_modules.is_active', true)
       .eq('course_modules.courses.status', 'published');
 
-    let recommendations: any[] = [];
+    let recommendations: unknown[] = [];
     if (rawLessons && rawLessons.length > 0) {
       const normalize = (t: string) => t.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "").trim();
       const q = normalize(message);
@@ -502,7 +491,15 @@ ${relevantContracts.map(formatToolContractForPrompt).join("\n\n")}\n`;
              if (normalize(kwds).includes(w)) score += 1;
            });
         }
-        return { ...l, score, courseKind: (l.course_modules as any)?.courses?.course_kind };
+        return {
+          ...l,
+          score,
+          courseKind: (
+            l.course_modules as {
+              courses?: { course_kind?: string | null };
+            } | null
+          )?.courses?.course_kind,
+        };
       }).filter(l => l.score > 0).sort((a, b) => b.score - a.score).slice(0, 3);
       
       recommendations = scored;
@@ -513,7 +510,7 @@ ${relevantContracts.map(formatToolContractForPrompt).join("\n\n")}\n`;
     if (actualConversationId) {
       const saved = await saveMessages(
         supabase, 
-        user.id, 
+        userId,
         actualConversationId, 
         message, 
         answerText, 
@@ -530,10 +527,10 @@ ${relevantContracts.map(formatToolContractForPrompt).join("\n\n")}\n`;
       if (actionIntentMetadata && assistantMessageId) {
         const { createStampyActionRequest } = await import("@/lib/stampy/action-requests");
         const res = await createStampyActionRequest({
-          userId: user.id,
+          userId,
           conversationId: actualConversationId,
           messageId: assistantMessageId,
-          actionIntent: actionIntentMetadata as any,
+          actionIntent: actionIntentMetadata,
           source: context?.source || "stampy"
         });
         
@@ -554,13 +551,13 @@ ${relevantContracts.map(formatToolContractForPrompt).join("\n\n")}\n`;
       const { logStampyUsage } = await import("@/lib/stampy/usage-log");
       await logStampyUsage({
         supabase,
-        userId: user.id,
+        userId,
         conversationId: actualConversationId,
         model: modelName,
         mode: requestMode,
         status: "success",
         messageChars: message.length,
-        promptChars: systemPrompt.length + recentHistory.map((m: any) => m.content.length).reduce((a: number, b: number) => a + b, 0),
+        promptChars: systemPrompt.length + recentHistory.reduce((total, historyMessage) => total + historyMessage.content.length, 0),
         completionChars: answerText.length,
         latencyMs: Date.now() - startTime
       });
@@ -585,11 +582,11 @@ ${relevantContracts.map(formatToolContractForPrompt).join("\n\n")}\n`;
       error
     });
 
-    if (actualConversationId) {
+    if (actualConversationId && currentUserId) {
       const { logStampyUsage } = await import("@/lib/stampy/usage-log");
       await logStampyUsage({
         supabase,
-        userId: user?.id,
+        userId: currentUserId,
         conversationId: actualConversationId,
         model: process.env.OPENAI_MODEL || "gpt-4o-mini",
         mode: "error",

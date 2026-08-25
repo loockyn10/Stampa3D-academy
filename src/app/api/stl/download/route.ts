@@ -2,15 +2,20 @@ import { NextRequest, NextResponse } from "next/server";
 import { createClient } from "@/utils/supabase/server";
 import { createClient as createSupabaseClient } from "@supabase/supabase-js";
 import { isExternalUrl, parseStorageReference } from "@/lib/storage";
+import { getCurrentUserAccess } from "@/lib/auth/user-access";
 
 export async function POST(req: NextRequest) {
   try {
     const supabaseServer = await createClient();
     
-    // 1. Validar autenticación
-    const { data: { user } } = await supabaseServer.auth.getUser();
-    if (!user) {
+    // 1. Validar autenticación y acceso en servidor
+    const { access } = await getCurrentUserAccess(supabaseServer);
+    if (!access.authenticated || !access.userId) {
       return NextResponse.json({ error: "No autorizado" }, { status: 401 });
+    }
+
+    if (!access.capabilities.downloadStl) {
+      return NextResponse.json({ error: "Membresía inactiva o expirada" }, { status: 403 });
     }
 
     // 2. Obtener payload (variantId o modelId)
@@ -20,35 +25,7 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: "Falta variantId o modelId" }, { status: 400 });
     }
 
-    // 3. Validar acceso a la plataforma
-    const { data: profile } = await supabaseServer
-      .from("profiles")
-      .select("membership_status, role, membership_expires_at")
-      .eq("id", user.id)
-      .single();
-
-    if (!profile) {
-      return NextResponse.json({ error: "Perfil no encontrado" }, { status: 403 });
-    }
-
-    const membershipStatus = profile.membership_status;
-    const role = profile.role;
-    const expiresAt = profile.membership_expires_at;
-
-    let hasAccess = role === "admin";
-    if (!hasAccess && membershipStatus === "active") {
-      if (!expiresAt) {
-        hasAccess = true;
-      } else {
-        hasAccess = new Date(expiresAt).getTime() > Date.now();
-      }
-    }
-
-    if (!hasAccess) {
-      return NextResponse.json({ error: "Membresía inactiva o expirada" }, { status: 403 });
-    }
-
-    // 4. Buscar la variante (por variantId o la primera activa por modelId)
+    // 3. Buscar la variante (por variantId o la primera activa por modelId)
     let variant;
     let varError;
 
@@ -78,7 +55,7 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: "Archivo o variante no encontrada" }, { status: 404 });
     }
 
-    if (!variant.is_active && role !== "admin") {
+    if (!variant.is_active && !access.capabilities.viewInactiveContent) {
       return NextResponse.json({ error: "Variante inactiva" }, { status: 403 });
     }
 
@@ -87,7 +64,7 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: "La variante no tiene archivo asociado" }, { status: 404 });
     }
 
-    // 5. Procesar archivo según tipo
+    // 4. Procesar archivo según tipo
     if (isExternalUrl(fileUrl)) {
       // URL externa (Google Drive), mantener compatibilidad
       return NextResponse.json({ url: fileUrl });
@@ -116,7 +93,7 @@ export async function POST(req: NextRequest) {
 
     return NextResponse.json({ error: "Formato de archivo no soportado" }, { status: 400 });
 
-  } catch (error: any) {
+  } catch (error: unknown) {
     console.error("API stl/download error:", error);
     return NextResponse.json({ error: "Error interno del servidor" }, { status: 500 });
   }

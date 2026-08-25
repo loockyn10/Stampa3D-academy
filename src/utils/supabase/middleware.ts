@@ -1,5 +1,6 @@
 import { createServerClient } from '@supabase/ssr'
 import { NextResponse, type NextRequest } from 'next/server'
+import { resolveUserAccess } from '@/lib/auth/user-access'
 
 export async function updateSession(request: NextRequest) {
   let supabaseResponse = NextResponse.next({
@@ -15,7 +16,7 @@ export async function updateSession(request: NextRequest) {
           return request.cookies.getAll()
         },
         setAll(cookiesToSet) {
-          cookiesToSet.forEach(({ name, value, options }) => request.cookies.set(name, value))
+          cookiesToSet.forEach(({ name, value }) => request.cookies.set(name, value))
           supabaseResponse = NextResponse.next({
             request,
           })
@@ -85,47 +86,13 @@ export async function updateSession(request: NextRequest) {
   }
 
   if (user) {
-    const { data: profile } = await supabase
-      .from('profiles')
-      .select('membership_status, role, membership_expires_at, onboarding_completed')
-      .eq('id', user.id)
-      .single()
-
-    const membershipStatus = profile?.membership_status
-    const role = profile?.role
-    const expiresAt = profile?.membership_expires_at
-    
-    let hasAccess = role === 'admin'
-    if (!hasAccess) {
-      if (membershipStatus === 'active') {
-        if (!expiresAt) {
-          hasAccess = true
-        } else {
-          hasAccess = new Date(expiresAt).getTime() > Date.now()
-        }
-      }
-    }
-
-    // Beta tester / manual grant access check
-    if (!hasAccess) {
-      const { data: grants } = await supabase
-        .from('user_access_grants')
-        .select('id, grant_type, status, expires_at')
-        .eq('user_id', user.id)
-        .eq('status', 'active')
-        .in('grant_type', ['beta_tester', 'manual_free_access', 'internal_tester'])
-        .limit(1)
-
-      if (grants && grants.length > 0) {
-        const grant = grants[0]
-        if (!grant.expires_at || new Date(grant.expires_at).getTime() > Date.now()) {
-          hasAccess = true
-        }
-      }
-    }
+    const { access } = await resolveUserAccess(supabase, user.id, {
+      email: user.email ?? null,
+    })
+    const hasAccess = access.capabilities.accessPlatform
 
     // Admin routes protection
-    if (pathname.startsWith('/admin') && role !== 'admin') {
+    if (pathname.startsWith('/admin') && !access.capabilities.accessAdmin) {
       return redirectWithCookies('/')
     }
 
@@ -142,9 +109,8 @@ export async function updateSession(request: NextRequest) {
     }
 
     // Onboarding redirection rule
-    const onboardingCompleted = profile?.onboarding_completed === true;
     const isExceptionRoute = pathname === '/onboarding' || pathname === '/salir' || pathname === '/pago/estado' || pathname === '/sin-acceso' || isPublicRoute;
-    if (!onboardingCompleted && !isExceptionRoute) {
+    if (access.needsOnboarding && !isExceptionRoute) {
       return redirectWithCookies('/onboarding')
     }
   }

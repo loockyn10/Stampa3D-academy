@@ -1,6 +1,5 @@
 "use client";
 
-import React from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import {
@@ -11,8 +10,6 @@ import {
   FileText,
   Package,
   Archive,
-  Send,
-  MessageCircle,
   User,
   Settings,
   LogOut,
@@ -22,15 +19,14 @@ import {
   Sparkles,
   Globe,
   Users,
-  Tag,
-  Bot,
 } from "lucide-react";
-import { Youtube, Instagram } from "@/components/ui/icons";
-import { createClient } from "@/utils/supabase/client";
+import type { UserAccessSnapshot } from "@/lib/auth/user-access";
 
 interface SidebarProps {
   mobileOpen: boolean;
   setMobileOpen: (open: boolean) => void;
+  access: UserAccessSnapshot | null;
+  loading: boolean;
 }
 
 const NAV_GROUPS = [
@@ -69,37 +65,10 @@ const NAV_GROUPS = [
   },
 ];
 
-export function Sidebar({ mobileOpen, setMobileOpen }: SidebarProps) {
+export function Sidebar({ mobileOpen, setMobileOpen, access, loading }: SidebarProps) {
   const pathname = usePathname();
-  const supabase = createClient();
-  const [isAdmin, setIsAdmin] = React.useState(false);
-  const [isMembershipActive, setIsMembershipActive] = React.useState(false);
-  const [loading, setLoading] = React.useState(true);
-
-  React.useEffect(() => {
-    async function checkRoleAndMembership() {
-      const { data: { user } } = await supabase.auth.getUser();
-      if (!user) {
-        setLoading(false);
-        return;
-      }
-      const { data: profile } = await supabase
-        .from("profiles")
-        .select("role, membership_status")
-        .eq("id", user.id)
-        .single();
-      if (profile) {
-        if (profile.role === "admin") {
-          setIsAdmin(true);
-        }
-        if (profile.membership_status === "active") {
-          setIsMembershipActive(true);
-        }
-      }
-      setLoading(false);
-    }
-    checkRoleAndMembership();
-  }, []);
+  const isAdmin = access?.capabilities.accessAdmin === true;
+  const hasPlatformAccess = access?.capabilities.accessPlatform === true;
 
   // Helper to check if a route is active
   const isActive = (path: string) => {
@@ -222,7 +191,7 @@ export function Sidebar({ mobileOpen, setMobileOpen }: SidebarProps) {
         </nav>
 
         {/* Membership CTA banner */}
-        {!loading && !isMembershipActive && !isAdmin && (
+        {!loading && !hasPlatformAccess && (
           <div className="mx-3 mb-4 rounded-2xl bg-white/5 border border-stampa-border p-4 text-white">
             <p className="text-xs font-semibold text-stampa-orange">Activar membresía</p>
             <p className="mt-1 text-xs text-gray-400">Desbloqueá todos los cursos y STL exclusivos de la academia.</p>
