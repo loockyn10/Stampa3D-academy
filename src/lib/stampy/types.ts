@@ -129,3 +129,27 @@ export interface StampyActionRequest {
   created_at: string;
   updated_at: string;
 }
+
+export interface StampyKnowledgeChunk {
+  id: string;
+  source_type: string;
+  source_id: string | null;
+  source_key: string | null;
+  title: string;
+  content: string;
+  route: string;
+  category: string | null;
+  tags: string[] | null;
+  course_id: string | null;
+  module_id: string | null;
+  lesson_id: string | null;
+  metadata: Record<string, any> | null;
+  is_active: boolean;
+  last_indexed_at: string;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface StampyRetrievedChunk extends StampyKnowledgeChunk {
+  similarity: number;
+}

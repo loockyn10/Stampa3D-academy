@@ -381,6 +381,20 @@ Si el usuario pide una acción:
       systemPrompt += transcriptContextText;
     }
 
+    const { retrieveStampyKnowledge } = await import("@/lib/stampy/retrieval");
+    const retrievedKnowledge = await retrieveStampyKnowledge({
+      supabase,
+      query: message,
+      courseId: (context as any)?.courseId,
+      lessonId,
+      currentPath: pathname,
+      maxChunks: 8,
+    });
+
+    if (retrievedKnowledge) {
+      systemPrompt += `\n\n${retrievedKnowledge}`;
+    }
+
     const messagesPayload: any[] = [
       { role: "system", content: systemPrompt },
       ...recentHistory,

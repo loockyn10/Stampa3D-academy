@@ -2,6 +2,7 @@ import React from "react";
 import { createClient } from "@/utils/supabase/server";
 import { MessageSquare, AlertCircle, BarChart3, Bot, ThumbsUp, ThumbsDown, Activity } from "lucide-react";
 import Link from "next/link";
+import { IndexationPanel } from "./indexation-panel";
 
 export const dynamic = "force-dynamic";
 
@@ -97,6 +98,19 @@ export default async function AdminStampyDashboardPage() {
     .order("created_at", { ascending: false })
     .limit(10);
 
+  // Knowledge Index Stats
+  const { data: rawChunks } = await supabase
+    .from("stampy_knowledge_chunks")
+    .select("source_type")
+    .eq("is_active", true);
+
+  const chunkStats = Object.entries(
+    (rawChunks || []).reduce((acc: any, curr: any) => {
+      acc[curr.source_type] = (acc[curr.source_type] || 0) + 1;
+      return acc;
+    }, {})
+  ).map(([source_type, count]) => ({ source_type, count }));
+
 
   return (
     <div className="space-y-6 max-w-6xl mx-auto">
@@ -172,8 +186,9 @@ export default async function AdminStampyDashboardPage() {
         </div>
       </div>
 
+      <IndexationPanel stats={chunkStats} />
 
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mt-6">
         <div className="bg-[#1a1a1a] border border-stampa-border rounded-xl p-5 shadow-sm">
           <h2 className="text-lg font-bold text-white mb-4">Conversaciones Recientes</h2>
           <div className="space-y-3">
