@@ -198,6 +198,11 @@ Reglas:
 - Si el usuario pregunta algo fuera de esta sección, respondé normal orientando a la ruta correcta.\n`;
     }
 
+    systemPrompt += `\nRegla sobre contenido de la Academia:
+Si el usuario pregunta por clases específicas o contenido de la academia y no hay chunks suficientes devueltos en tu contexto, debés ser prudente. 
+Podés decir algo como "Todavía no tengo contenido cargado suficiente de esa clase. Puedo orientarte de forma general o indicarte dónde verlo cuando esté disponible".
+No inventes que existe una clase completa o contenidos si solo tenés el título.\n`;
+
     // 4. Buscar contexto del usuario de forma segura
     let userContext = null;
     try {

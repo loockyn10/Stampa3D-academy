@@ -37,6 +37,10 @@ export function IndexationPanel({ stats }: { stats: any[] }) {
           Reindexar
         </button>
       </div>
+      
+      <p className="text-sm text-gray-400 mb-4">
+        El índice solo toma contenido real. Las clases que todavía no tienen descripción, resumen, metadata o transcripción se omiten para evitar que Stampy invente contenido.
+      </p>
 
       <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-4">
         {stats.length > 0 ? stats.map((s, i) => (
@@ -54,14 +58,38 @@ export function IndexationPanel({ stats }: { stats: any[] }) {
           {result.error ? (
             <p>Error: {result.error}</p>
           ) : (
-             <div>
-               <p className="font-bold">Indexación completada en {result.result?.durationMs}ms</p>
-               <ul className="mt-2 space-y-1 text-xs">
-                 <li>Fuentes procesadas: {result.result?.chunksBuilt}</li>
-                 <li>Chunks creados: {result.result?.chunksCreated}</li>
-                 <li>Chunks actualizados: {result.result?.chunksUpdated}</li>
-                 <li>Errores: {result.result?.errorsCount}</li>
-               </ul>
+             <div className="space-y-3">
+               <p className="font-bold border-b border-white/10 pb-2">Indexación completada en {result.result?.durationMs}ms</p>
+               
+               <div className="grid grid-cols-2 gap-4">
+                 <div>
+                   <p className="text-gray-300 mb-1">Fuentes encontradas (con contenido):</p>
+                   <ul className="space-y-1 text-xs">
+                     <li>Contextos Stampy: {result.result?.sourcesFound?.stampy_context || 0}</li>
+                     <li>Cursos: {result.result?.sourcesFound?.course || 0}</li>
+                     <li>Talleres: {result.result?.sourcesFound?.workshop || 0}</li>
+                     <li>Módulos: {result.result?.sourcesFound?.module || 0}</li>
+                     <li>Clases: {result.result?.sourcesFound?.lesson || 0}</li>
+                   </ul>
+                 </div>
+                 
+                 <div>
+                   <p className="text-gray-300 mb-1">Fuentes omitidas (vacías):</p>
+                   <ul className="space-y-1 text-xs">
+                     <li>Cursos: {result.result?.skippedEmpty?.coursesSkippedEmpty || 0}</li>
+                     <li>Talleres: {result.result?.skippedEmpty?.workshopsSkippedEmpty || 0}</li>
+                     <li>Módulos: {result.result?.skippedEmpty?.modulesSkippedEmpty || 0}</li>
+                     <li>Clases: {result.result?.skippedEmpty?.lessonsSkippedEmpty || 0}</li>
+                   </ul>
+                 </div>
+               </div>
+
+               <p className="pt-2 border-t border-white/10">
+                 Chunks generados: {result.result?.chunksBuilt} (Creados: {result.result?.chunksCreated}, Actualizados: {result.result?.chunksUpdated})
+               </p>
+               {result.result?.errorsCount > 0 && (
+                 <p className="text-red-400">Errores: {result.result?.errorsCount}</p>
+               )}
              </div>
           )}
         </div>

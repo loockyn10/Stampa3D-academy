@@ -2,31 +2,49 @@ import { SupabaseClient } from "@supabase/supabase-js";
 import { createEmbedding } from "./embeddings";
 import { StampyKnowledgeChunk } from "./types";
 
-export async function buildKnowledgeChunksFromSources(supabase: SupabaseClient): Promise<Omit<StampyKnowledgeChunk, "id" | "last_indexed_at" | "created_at" | "updated_at">[]> {
+export interface BuildChunksResult {
+  chunks: Omit<StampyKnowledgeChunk, "id" | "last_indexed_at" | "created_at" | "updated_at">[];
+  stats: {
+    sourcesFound: {
+      stampy_context: number;
+      course: number;
+      workshop: number;
+      module: number;
+      lesson: number;
+      lesson_transcript: number;
+    };
+    skippedEmpty: {
+      coursesSkippedEmpty: number;
+      workshopsSkippedEmpty: number;
+      modulesSkippedEmpty: number;
+      lessonsSkippedEmpty: number;
+    };
+  };
+}
+
+export async function buildKnowledgeChunksFromSources(supabase: SupabaseClient): Promise<BuildChunksResult> {
   const chunks: Omit<StampyKnowledgeChunk, "id" | "last_indexed_at" | "created_at" | "updated_at">[] = [];
 
-  let stampyContextsCount = 0;
-  let coursesCount = 0;
-  let workshopsCount = 0;
-  let modulesCount = 0;
-  let lessonsCount = 0;
-  let transcriptsCount = 0;
+  const sourcesFound = { stampy_context: 0, course: 0, workshop: 0, module: 0, lesson: 0, lesson_transcript: 0 };
+  const skippedEmpty = { coursesSkippedEmpty: 0, workshopsSkippedEmpty: 0, modulesSkippedEmpty: 0, lessonsSkippedEmpty: 0 };
 
   // 1. Contextos Stampy
   try {
     const { data: contexts, error: ctxErr } = await supabase
       .from("stampy_page_contexts")
       .select("*");
-      // Not filtering by is_active in case it doesn't exist, we just take all or check if exists.
-      // Wait, in previous implementation I had .eq("is_active", true). If the column is missing it throws.
-      // I'll select all and filter in JS safely.
 
     if (ctxErr) {
       console.error("[Stampy Indexer] Error fetching stampy_page_contexts", ctxErr);
     } else if (contexts) {
-      stampyContextsCount = contexts.length;
+      sourcesFound.stampy_context = contexts.length;
       for (const ctx of contexts) {
-        if (ctx.is_active === false) continue; // skip if explicitly false
+        if (ctx.is_active === false) continue;
+        if (!ctx.context || ctx.context.trim().length < 10) {
+          // skippedEmpty not strictly required for contexts as they shouldn't be empty, but just in case
+          continue;
+        }
+
         chunks.push({
           source_type: "stampy_context",
           source_id: ctx.id,
@@ -61,16 +79,24 @@ export async function buildKnowledgeChunksFromSources(supabase: SupabaseClient):
     } else if (rawCourses) {
       courses = rawCourses;
       for (const c of courses) {
-        if (c.course_kind === "course") coursesCount++;
-        if (c.course_kind === "workshop") workshopsCount++;
+        const isCourse = c.course_kind === "course";
+        if (isCourse) sourcesFound.course++;
+        else sourcesFound.workshop++;
 
-        const sourceType = c.course_kind === "course" ? "course" : "workshop";
+        // Require a description to be considered "real content"
+        if (!c.description || c.description.trim().length < 20) {
+          if (isCourse) skippedEmpty.coursesSkippedEmpty++;
+          else skippedEmpty.workshopsSkippedEmpty++;
+          continue;
+        }
+
+        const sourceType = isCourse ? "course" : "workshop";
         chunks.push({
           source_type: sourceType,
           source_id: c.id,
           source_key: null,
           title: c.title,
-          content: `Título: ${c.title}\nTipo: ${c.course_kind}\nNivel: ${c.level || 'General'}\nDescripción:\n${c.description || 'Sin descripción.'}`,
+          content: `Título: ${c.title}\nTipo: ${c.course_kind}\nNivel: ${c.level || 'General'}\nDescripción:\n${c.description}`,
           route: `/cursos/${c.id}`,
           category: c.category,
           tags: c.category ? [c.category] : [],
@@ -101,17 +127,24 @@ export async function buildKnowledgeChunksFromSources(supabase: SupabaseClient):
         console.error("[Stampy Indexer] Error fetching course_modules", modErr);
       } else if (rawModules) {
         modules = rawModules;
-        modulesCount = modules.length;
+        sourcesFound.module = modules.length;
+        
         for (const m of modules) {
           const parentCourse = courses.find(c => c.id === m.course_id);
           if (!parentCourse) continue;
+
+          // Require a description to index a module directly
+          if (!m.description || m.description.trim().length < 15) {
+            skippedEmpty.modulesSkippedEmpty++;
+            continue;
+          }
 
           chunks.push({
             source_type: "module",
             source_id: m.id,
             source_key: null,
             title: m.title,
-            content: `Curso: ${parentCourse.title}\nMódulo: ${m.title}\nDescripción:\n${m.description || 'Sin descripción.'}`,
+            content: `Curso: ${parentCourse.title}\nMódulo: ${m.title}\nDescripción:\n${m.description}`,
             route: `/cursos/${parentCourse.id}`,
             category: parentCourse.category,
             tags: [],
@@ -143,9 +176,29 @@ export async function buildKnowledgeChunksFromSources(supabase: SupabaseClient):
         console.error("[Stampy Indexer] Error fetching lessons", lessErr);
       } else if (rawLessons) {
         lessons = rawLessons;
+        sourcesFound.lesson = lessons.length;
+
+        // Fetch transcripts to check if lesson has transcript
+        const { data: transcripts } = await supabase
+          .from("lesson_transcripts")
+          .select("lesson_id, status")
+          .in("lesson_id", lessons.map(l => l.id))
+          .eq("status", "ready");
+
         for (const l of lessons) {
-          if (l.is_ai_recommendable === false) continue; // skip if explicitly false
-          lessonsCount++;
+          if (l.is_ai_recommendable === false) continue;
+
+          const hasDesc = l.description && l.description.trim().length > 10;
+          const hasSummary = l.ai_summary && l.ai_summary.trim().length > 10;
+          const hasTopics = l.ai_topics && l.ai_topics.length > 0;
+          const hasProblems = l.ai_problems && l.ai_problems.length > 0;
+          const hasTranscript = transcripts && transcripts.some(t => t.lesson_id === l.id);
+
+          // Si no tiene nada de contenido útil, se omite
+          if (!hasDesc && !hasSummary && !hasTopics && !hasProblems && !hasTranscript) {
+            skippedEmpty.lessonsSkippedEmpty++;
+            continue; // Not enough content to index
+          }
 
           const parentModule = modules.find(m => m.id === l.module_id);
           if (!parentModule) continue;
@@ -154,9 +207,10 @@ export async function buildKnowledgeChunksFromSources(supabase: SupabaseClient):
           if (!parentCourse) continue;
 
           let content = `Curso: ${parentCourse.title}\nMódulo: ${parentModule.title}\nClase: ${l.title}\n`;
-          if (l.ai_summary) content += `Resumen:\n${l.ai_summary}\n`;
-          if (l.ai_topics && l.ai_topics.length > 0) content += `Temas: ${l.ai_topics.join(', ')}\n`;
-          if (l.ai_problems && l.ai_problems.length > 0) content += `Problemas que resuelve: ${l.ai_problems.join(', ')}\n`;
+          if (hasDesc) content += `Descripción:\n${l.description}\n`;
+          if (hasSummary) content += `Resumen:\n${l.ai_summary}\n`;
+          if (hasTopics) content += `Temas: ${l.ai_topics.join(', ')}\n`;
+          if (hasProblems) content += `Problemas que resuelve: ${l.ai_problems.join(', ')}\n`;
           if (l.ai_related_tool) content += `Herramienta recomendada: ${l.ai_related_tool}\n`;
 
           const tags = [...(l.ai_topics || []), ...(l.ai_problems || [])];
@@ -204,7 +258,7 @@ export async function buildKnowledgeChunksFromSources(supabase: SupabaseClient):
       } else if (transcripts) {
         for (const t of transcripts) {
           if (!t.transcript_text) continue;
-          transcriptsCount++;
+          sourcesFound.lesson_transcript++;
           
           const parentLesson = lessons.find(l => l.id === t.lesson_id);
           if (!parentLesson) continue;
@@ -267,16 +321,9 @@ export async function buildKnowledgeChunksFromSources(supabase: SupabaseClient):
     console.error("[Stampy Indexer] Failed to process lesson_transcripts", e);
   }
 
-  console.log("[Stampy Indexer] sources", {
-    coursesCount,
-    workshopsCount,
-    modulesCount,
-    lessonsCount,
-    stampyContextsCount,
-    transcriptsCount,
-  });
+  console.log("[Stampy Indexer] sources and skips", { sourcesFound, skippedEmpty });
 
-  return chunks;
+  return { chunks, stats: { sourcesFound, skippedEmpty } };
 }
 
 export async function indexStampyKnowledge(supabase: SupabaseClient) {
@@ -286,11 +333,16 @@ export async function indexStampyKnowledge(supabase: SupabaseClient) {
   let chunksUpdated = 0;
   let errors = 0;
   let chunksBuilt = 0;
-
+  let sourcesFound = {};
+  let skippedEmpty = {};
+  
   try {
-    const chunks = await buildKnowledgeChunksFromSources(supabase);
-    chunksBuilt = chunks.length;
+    const buildResult = await buildKnowledgeChunksFromSources(supabase);
+    const chunks = buildResult.chunks;
+    sourcesFound = buildResult.stats.sourcesFound;
+    skippedEmpty = buildResult.stats.skippedEmpty;
     
+    chunksBuilt = chunks.length;
     let processedCount = 0;
 
     for (const chunk of chunks) {
@@ -392,7 +444,8 @@ export async function indexStampyKnowledge(supabase: SupabaseClient) {
   const durationMs = Date.now() - startTime;
   
   console.log("[Stampy Indexer] reindex finished", {
-    sourcesFound: chunksBuilt,
+    sourcesFound,
+    skippedEmpty,
     chunksBuilt,
     chunksCreated,
     chunksUpdated,
@@ -400,5 +453,5 @@ export async function indexStampyKnowledge(supabase: SupabaseClient) {
     durationMs,
   });
 
-  return { chunksBuilt, chunksCreated, chunksUpdated, errorsCount: errors, durationMs };
+  return { sourcesFound, skippedEmpty, chunksBuilt, chunksCreated, chunksUpdated, errorsCount: errors, durationMs };
 }

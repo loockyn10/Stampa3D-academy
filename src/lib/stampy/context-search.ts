@@ -38,15 +38,24 @@ export async function getStampyRelevantContexts({
     const cleanMsg = cleanText(message);
     const msgWords = cleanMsg.split(/\s+/).filter(w => w.length > 3);
     
+    // Parse currentPath
+    let basePath = "";
+    let pathWords: string[] = [];
+    if (currentPath) {
+      const parts = currentPath.split("?");
+      basePath = parts[0];
+      pathWords = currentPath.split(/[\/?=&-]/).filter(w => w.length > 3);
+    }
+    
     // Scoring
     const scoredContexts = activeContexts.map(ctx => {
       let score = 0;
       
-      // 1. Path match
+      // 1. Path match (Base path)
       if (currentPath) {
-        if (ctx.match_type === "exact" && currentPath === ctx.route_pattern) {
+        if (ctx.match_type === "exact" && (currentPath === ctx.route_pattern || basePath === ctx.route_pattern)) {
           score += 10;
-        } else if (ctx.match_type === "prefix" && currentPath.startsWith(ctx.route_pattern)) {
+        } else if (ctx.match_type === "prefix" && (currentPath.startsWith(ctx.route_pattern) || basePath.startsWith(ctx.route_pattern))) {
           score += 7;
         }
       }
@@ -61,10 +70,24 @@ export async function getStampyRelevantContexts({
         if (cleanTitle.includes(word)) score += 3;
       });
 
+      // Bonus: Path query params matching title/keywords (e.g. "filamentos")
+      pathWords.forEach(word => {
+        if (cleanTitle.includes(word.toLowerCase())) {
+          score += 5; // Strong signal if current URL contains keyword in the context title
+        }
+      });
+
       // 3. Content match
       const cleanContent = cleanText(ctx.context);
       msgWords.forEach(word => {
         if (cleanContent.includes(word)) score += 1;
+      });
+      
+      // Path keywords matching content
+      pathWords.forEach(word => {
+        if (cleanContent.includes(word.toLowerCase())) {
+          score += 2;
+        }
       });
       
       return {
@@ -81,6 +104,12 @@ export async function getStampyRelevantContexts({
         return (b.priority || 0) - (a.priority || 0);
       })
       .slice(0, limit);
+
+    console.log("[Stampy Context Audit]", {
+      currentPath,
+      matchedContextsCount: sorted.length,
+      matchedContextTitles: sorted.map(c => c.title),
+    });
 
     if (sorted.length === 0) {
       return { text: "", contexts: [], contextsCount: 0 };
