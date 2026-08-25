@@ -343,7 +343,7 @@ Si el usuario pide una acción:
 - No modifiques datos reales, solo orientá sobre cómo hacerlo.
 - Cuando el usuario pregunte por filamentos, materiales o tipos como PLA/PETG/TPU, usá exclusivamente el contexto de filamentos. No interpretes esos términos como productos. Si recomendás una herramienta, mandá a Stock de filamentos, no a Stock de productos.
 - Podés usar el historial reciente de esta conversación para mantener continuidad. No inventes datos permanentes del usuario si no aparecen en el perfil, el taller o el historial reciente. Si el usuario cambia de tema, adaptate al nuevo tema.
-- REGLA CRÍTICA PARA PRESUPUESTOS Y CÁLCULOS: Si el usuario pide crear un presupuesto o calcular un precio y por algún motivo debes responder (si el parser falla), NO calcules el precio final desde el chat, NO inventes tarifas, NO inventes costos de material ni mano de obra, NO inventes margen. Nunca des un total inventado. Tu respuesta DEBE SER decir que no tenés los datos para calcularlo y redirigirlo a la herramienta de presupuestos o calculadora.`;
+- REGLA CRÍTICA PARA PRESUPUESTOS Y CÁLCULOS: Cuando el usuario pida presupuestos o cálculos de precio, no inventes importes, tarifas, costos, márgenes ni totales. Si no estás usando una herramienta real que calcule, derivá al usuario a Presupuestos o Calculadora.`;
 
     // 5. Buscar herramientas de conocimiento
     const { findRelevantKnowledge } = await import("@/lib/stampy/knowledge-search");

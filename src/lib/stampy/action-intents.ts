@@ -72,7 +72,7 @@ export function detectStampyActionIntent({
     return null;
   }
 
-  // 1. create_quote (PRIORITY ABSOLUTA)
+  // 1. create_quote (PRIORITY ABSOLUTA - MODO SEGURO)
   if (
     norm.includes("presupuesto") || norm.includes("presupuestar") ||
     norm.includes("presupuestame") || norm.includes("cotizame") ||
@@ -81,59 +81,16 @@ export function detectStampyActionIntent({
     norm.includes("hacer presupuesto") || norm.includes("armar presupuesto") ||
     norm.includes("crear presupuesto")
   ) {
-    let clientName = null;
-    let productName = null;
-    let quantity = null;
-    let title = null;
-    let validUntil = null;
-    const missingFields: string[] = [];
-
-    const paraMatch = message.match(/para\s+([A-Za-z\s]+?)(?:\s+de\s+|\s+por\s+|\s+con\s+|\.|$)/i);
-    if (paraMatch && paraMatch[1]) {
-      clientName = paraMatch[1].trim();
-    }
-
-    const qtyMatch = message.match(/(?:de|por)\s+(\d+)\s+([A-Za-z0-9\s]+?)(?:\s+para\s+|\.|$)/i);
-    if (qtyMatch) {
-      quantity = parseInt(qtyMatch[1], 10);
-      productName = qtyMatch[2].trim();
-    }
-    
-    if (clientName) {
-      title = `Presupuesto ${clientName} #TEMP`;
-    }
-    
-    if (!clientName) missingFields.push("clientName");
-    if (!productName) missingFields.push("productName");
-    if (!quantity) missingFields.push("quantity");
-    if (!validUntil) missingFields.push("validUntil");
-
-    if (!clientName || !productName || !quantity) {
-      return {
-        type: "create_quote",
-        confidence: 0.9,
-        title: "Presupuesto Incompleto",
-        summary: "Se detectó la intención de armar un presupuesto, pero faltan datos clave.",
-        extracted: { incomplete: true, missingFields },
-        toolHref: "/presupuestos",
-        toolLabel: "Presupuestos",
-        canExecute: false,
-        reason: "Matched quote verbs but missing critical data."
-      };
-    }
-
-    const toolHref = buildToolHref("/presupuestos", { action: "new", client: clientName, product: productName, quantity });
-
     return {
       type: "create_quote",
       confidence: 0.9,
       title: "Crear presupuesto",
-      summary: "Se detectó la intención de armar un presupuesto para un cliente.",
-      extracted: { clientName, productName, quantity, title, validUntil, missingFields },
-      toolHref,
+      summary: "Se detectó la intención de armar un presupuesto.",
+      extracted: {},
+      toolHref: "/presupuestos",
       toolLabel: "Presupuestos",
       canExecute: false,
-      reason: "Matched quote verbs with custom details."
+      reason: "Matched quote verbs (safe mode)."
     };
   }
 
@@ -296,7 +253,7 @@ export function detectStampyActionIntent({
     };
   }
 
-  // 6. calculate_price
+  // 6. calculate_price (MODO SEGURO)
   if (
     norm.includes("calcular") || norm.includes("calculame") ||
     norm.includes("cuanto deberia cobrar") || norm.includes("precio de impresion") ||
@@ -304,36 +261,22 @@ export function detectStampyActionIntent({
   ) {
     const grams = parseGrams(norm);
     const hours = parseHours(norm);
-    const matchMaterial = norm.match(/(pla|petg|tpu|abs|asa|nylon|resina)/);
-    const material = matchMaterial ? matchMaterial[1].toUpperCase() : null;
     
-    const brandMatch = norm.match(/(w3d|elegoo|gst3d|grilon|printalot|hellbot|creality)/);
-    const brand = brandMatch ? brandMatch[1].toUpperCase() : null;
-    
-    const matchColor = norm.match(/(rojo|azul|verde|negro|blanco|amarillo|naranja|gris|violeta|cian|transparente|natural)/);
-    const color = matchColor ? matchColor[1] : null;
-
-    const printerMatch = message.match(/(?:en la|en|impresora)\s+([A-Za-z0-9\s]+?)(?:\s+de\s+|\s+para\s+|\.|$)/i);
-    let printerName = null;
-    if (printerMatch && (printerMatch[1].toLowerCase().includes("bambu") || printerMatch[1].toLowerCase().includes("creality") || printerMatch[1].toLowerCase().includes("ender") || printerMatch[1].toLowerCase().includes("prusa") || printerMatch[1].toLowerCase().includes("artillery"))) {
-      printerName = printerMatch[1].trim();
+    let toolHref = "/calculadora";
+    if (grams || hours) {
+      toolHref = buildToolHref("/calculadora", { action: "calculate", grams, hours });
     }
-    
-    const pricingMatch = message.match(/(?:para un cliente|para|cliente)\s+(minorista|mayorista|llavero|jarro|personalizado)/i) || norm.match(/(minorista|mayorista|llavero|jarro|personalizado)/);
-    const pricingType = pricingMatch ? pricingMatch[1] : null;
-
-    const toolHref = buildToolHref("/calculadora", { action: "calculate", grams, hours, material, brand, color, printer: printerName, pricingType });
 
     return {
       type: "calculate_price",
       confidence: 0.9,
       title: "Calcular precio",
       summary: "Se detectó la intención de calcular costos de impresión.",
-      extracted: { grams, hours, material, brand, color, printerName, pricingType },
+      extracted: { grams, hours },
       toolHref,
       toolLabel: "Calculadora de precios",
       canExecute: false,
-      reason: "Matched calculate verbs with full context."
+      reason: "Matched calculate verbs (safe mode)."
     };
   }
 
@@ -398,34 +341,11 @@ export function detectStampyActionIntent({
 
 export function buildActionIntentResponse(intent: StampyActionIntent): string {
   if (intent.type === "create_quote") {
-    if (intent.extracted.incomplete) {
-      return "Para armar un presupuesto necesito al menos cliente, producto y cantidad. Por ejemplo: 'Hacé un presupuesto para Lucas Marchetti de 2 Jarros de Argentina'. Los gramos pueden ir como nota si querés.";
-    }
-    let response = "Detecté que querés crear un presupuesto.\n\nDatos detectados:\n";
-    const { clientName, productName, quantity, missingFields } = intent.extracted;
-    if (clientName) response += `- Cliente: ${clientName}\n`;
-    if (productName) response += `- Producto: ${productName}\n`;
-    if (quantity) response += `- Cantidad: ${quantity}\n`;
-    
-    if (missingFields && (missingFields as string[]).includes("validUntil")) {
-      response += "\nMe falta la fecha de validez para dejarlo completo. No creé ningún presupuesto todavía, pero te dejo el presupuestador preparado para que revises y completes los datos.";
-    } else {
-      response += "\nNo creé ningún presupuesto todavía, pero te dejo el presupuestador preparado para que revises y completes los datos.";
-    }
-    return response;
+    return "Para armar un presupuesto necesitás cargarlo desde la herramienta de Presupuestos. Los datos principales son cliente, producto, cantidad, título, fecha de validez y notas. Todavía no creo presupuestos desde el chat, pero te dejo el acceso para que lo cargues y revises.";
   }
 
   if (intent.type === "calculate_price") {
-    let response = "Detecté que querés calcular el precio de una impresión.\n\nDatos detectados:\n";
-    const { printerName, material, brand, color, grams, hours, pricingType } = intent.extracted;
-    if (printerName) response += `- Impresora: ${printerName}\n`;
-    if (material || brand || color) response += `- Filamento: ${[material, brand, color].filter(Boolean).join(" ")}\n`;
-    if (grams) response += `- Material usado: ${grams}g\n`;
-    if (hours) response += `- Tiempo: ${hours}h\n`;
-    if (pricingType) response += `- Tipo/categoría: ${pricingType}\n`;
-    
-    response += "\nNo calculé ni guardé nada desde el chat. Te dejo la calculadora preparada para que revises los datos y obtengas el precio desde la herramienta.";
-    return response;
+    return "Puedo llevarte a la calculadora para que revises el cálculo. Si detecto gramos y horas, los puedo precargar, pero revisá manualmente impresora, filamento y tipo de producto antes de tomar el precio como válido.";
   }
 
   let response = "Detecté que querés hacer una acción, pero todavía no ejecuto cambios directamente desde el chat.\n\n";
