@@ -53,7 +53,7 @@ export async function buildKnowledgeChunksFromSources(supabase: SupabaseClient):
   try {
     const { data: rawCourses, error: courseErr } = await supabase
       .from("courses")
-      .select("id, title, description, status, course_kind, level, category")
+      .select("*")
       .eq("status", "published");
 
     if (courseErr) {
@@ -93,7 +93,7 @@ export async function buildKnowledgeChunksFromSources(supabase: SupabaseClient):
       const publishedCourseIds = courses.map(c => c.id);
       const { data: rawModules, error: modErr } = await supabase
         .from("course_modules")
-        .select("id, title, description, course_id, is_active, sort_order")
+        .select("*")
         .in("course_id", publishedCourseIds)
         .eq("is_active", true);
 
@@ -135,7 +135,7 @@ export async function buildKnowledgeChunksFromSources(supabase: SupabaseClient):
       const activeModuleIds = modules.map(m => m.id);
       const { data: rawLessons, error: lessErr } = await supabase
         .from("lessons")
-        .select("id, title, description, ai_summary, ai_topics, ai_problems, ai_level, ai_related_tool, is_ai_recommendable, module_id, is_active")
+        .select("*")
         .in("module_id", activeModuleIds)
         .eq("is_active", true);
 
@@ -195,7 +195,7 @@ export async function buildKnowledgeChunksFromSources(supabase: SupabaseClient):
       const activeLessonIds = lessons.map(l => l.id);
       const { data: transcripts, error: trErr } = await supabase
         .from("lesson_transcripts")
-        .select("lesson_id, transcript_text, status")
+        .select("*")
         .in("lesson_id", activeLessonIds)
         .eq("status", "ready");
 
