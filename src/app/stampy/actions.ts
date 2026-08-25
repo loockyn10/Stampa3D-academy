@@ -400,6 +400,17 @@ Si el usuario pide una acción:
       systemPrompt += `\n\n${retrievedKnowledge}`;
     }
 
+    // 5.5 Inyectar Tool Contracts según la ruta actual
+    if (pathname) {
+      const { getRelevantContractsForPath, formatToolContractForPrompt } = await import("@/lib/stampy/tool-registry");
+      const relevantContracts = getRelevantContractsForPath(pathname);
+      if (relevantContracts.length > 0) {
+        systemPrompt += `\n\nCONTRATOS DE HERRAMIENTAS (REGLAS ESTRICTAS):
+Al estar en esta ruta, debés respetar cómo funcionan estas herramientas reales. Si el usuario te pide hacer algo relacionado a esto, seguí estas reglas:
+${relevantContracts.map(formatToolContractForPrompt).join("\n\n")}\n`;
+      }
+    }
+
     const messagesPayload: any[] = [
       { role: "system", content: systemPrompt },
       ...recentHistory,

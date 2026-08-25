@@ -21,6 +21,15 @@ export async function createStampyActionRequest({
   try {
     const supabase = await createClient();
 
+    const { getStampyToolContractsForIntent } = await import("./tool-registry");
+    const contracts = getStampyToolContractsForIntent(actionIntent.type);
+    const contract = contracts.length > 0 ? contracts[0] : null;
+
+    const extractedData = { ...(actionIntent.extracted ?? {}) };
+    if (contract) {
+      extractedData.toolContractId = contract.id;
+    }
+
     const payload = {
       user_id: userId,
       conversation_id: conversationId,
@@ -28,7 +37,7 @@ export async function createStampyActionRequest({
       action_type: actionIntent.type,
       status: "suggested",
       confidence: actionIntent.confidence,
-      extracted: actionIntent.extracted ?? {},
+      extracted: extractedData,
       tool_href: actionIntent.toolHref || null,
       tool_label: actionIntent.toolLabel || null,
       source: source,

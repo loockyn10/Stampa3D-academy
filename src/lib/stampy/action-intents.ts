@@ -356,7 +356,12 @@ export function detectStampyActionIntent({
   return null;
 }
 
+import { getStampyToolContractsForIntent } from "./tool-registry";
+
 export function buildActionIntentResponse(intent: StampyActionIntent): string {
+  const contracts = getStampyToolContractsForIntent(intent.type);
+  const contract = contracts.length > 0 ? contracts[0] : null;
+
   if (intent.type === "create_quote") {
     if (intent.extracted.incomplete && intent.extracted.reason === "grams_only") {
       return "Con solo gramos no alcanza para armar un presupuesto. Para presupuestar necesitás indicar cliente, producto, cantidad, título, fecha de validez y notas. Los gramos pueden servir como información adicional, pero no son la base del presupuesto.";
@@ -375,7 +380,7 @@ export function buildActionIntentResponse(intent: StampyActionIntent): string {
   const extractedKeys = Object.keys(intent.extracted);
   if (extractedKeys.length > 0) {
     const extractedLines = extractedKeys
-      .filter(k => intent.extracted[k] !== null && intent.extracted[k] !== undefined && k !== "missingFields" && k !== "title")
+      .filter(k => intent.extracted[k] !== null && intent.extracted[k] !== undefined && k !== "missingFields" && k !== "title" && k !== "incomplete" && k !== "reason")
       .map(k => {
         let label = k;
         if (k === "grams") label = "Cantidad";
@@ -389,6 +394,10 @@ export function buildActionIntentResponse(intent: StampyActionIntent): string {
     if (extractedLines.length > 0) {
       response += "- Datos detectados:\n" + extractedLines.join("\n") + "\n";
     }
+  }
+
+  if (contract && contract.safetyNotes.length > 0) {
+    response += `\nNotas de seguridad:\n${contract.safetyNotes.map(n => `- ${n}`).join("\n")}\n`;
   }
 
   if (intent.toolLabel) {
