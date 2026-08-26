@@ -327,6 +327,28 @@ test("calculator prefill matching tolerates richer printer and filament labels",
   assert.equal(toolPrefill.findStampyNamedMatch(productTypes, "minorista")?.id, "type-1");
 });
 
+test("quotes applies prefill once after loading and cleans the URL without navigation", () => {
+  const source = fs
+    .readFileSync(path.join(root, "src/app/presupuestos/page.tsx"), "utf8")
+    .replace(/\r\n/g, "\n");
+
+  const loadingGuardIndex = source.indexOf("if (loading || prefillAppliedRef.current) return;");
+  const markAppliedIndex = source.indexOf("prefillAppliedRef.current = true;", loadingGuardIndex);
+  const openNewIndex = source.indexOf('setEditingId("new");', markAppliedIndex);
+  const cleanUrlIndex = source.indexOf("window.history.replaceState", openNewIndex);
+
+  assert.ok(loadingGuardIndex > 0);
+  assert.ok(markAppliedIndex > loadingGuardIndex);
+  assert.ok(openNewIndex > markAppliedIndex);
+  assert.ok(cleanUrlIndex > openNewIndex);
+  assert.match(source, /searchParams\.get\("client"\)/);
+  assert.match(source, /searchParams\.get\("product"\)/);
+  assert.match(source, /searchParams\.get\("quantity"\)/);
+  assert.match(source, /searchParams\.get\("title"\)/);
+  assert.match(source, /searchParams\.get\("notes"\)/);
+  assert.doesNotMatch(source, /router\.replace\("\/presupuestos"/);
+});
+
 test("consecutive client replies keep the second response tied to the second request", () => {
   const firstRequestId = "request-1";
   const secondRequestId = "request-2";

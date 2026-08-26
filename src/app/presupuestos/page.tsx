@@ -1,8 +1,8 @@
 "use client";
 
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useRef } from "react";
 import Link from "next/link";
-import { useSearchParams, useRouter } from "next/navigation";
+import { usePathname, useSearchParams } from "next/navigation";
 import { Plus, Pencil, FileText, Trash2, Loader2, AlertCircle, Save, X, UserPlus, ShoppingCart, Download, Briefcase, Settings, ArrowLeft, Package, Clock, Percent, DollarSign } from "lucide-react";
 import { Card } from "@/components/ui/card";
 import { PrimaryButton, GhostButton } from "@/components/ui/button";
@@ -27,8 +27,9 @@ const STATUS_MAP: Record<string, { label: string, color: "gray" | "dark" | "gree
 
 function PresupuestosPageContent() {
   const searchParams = useSearchParams();
-  const router = useRouter();
+  const pathname = usePathname();
   const supabase = createClient();
+  const prefillAppliedRef = useRef(false);
   const [budgets, setBudgets] = useState<any[]>([]);
   const [clients, setClients] = useState<any[]>([]);
   const [products, setProducts] = useState<any[]>([]);
@@ -80,7 +81,10 @@ function PresupuestosPageContent() {
   const fetchData = async () => {
     setLoading(true);
     const { data: { user } } = await supabase.auth.getUser();
-    if (!user) return;
+    if (!user) {
+      setLoading(false);
+      return;
+    }
 
     const [bRes, cRes, pRes, filRes, profRes] = await Promise.all([
       supabase.from("budgets").select("*, clients(name)").eq("user_id", user.id).order("created_at", { ascending: false }),
@@ -119,70 +123,92 @@ function PresupuestosPageContent() {
 
   // Stampy Prefill Effect
   useEffect(() => {
-    if (loading) return;
     const action = searchParams.get("action");
-    if (action === "new") {
-      const clientName = searchParams.get("client");
-      const productName = searchParams.get("product");
-      const quantityParam = searchParams.get("quantity");
-      const quantity = Number(parsePositiveStampyPrefillNumber(quantityParam) || 1);
-      const notices: string[] = [];
-
-      const matchedClient = findStampyNamedMatch(clients, clientName);
-      const matchedClientId = matchedClient?.id || "";
-      if (clientName && !matchedClient) {
-        setClientData({
-          id: "",
-          name: clientName,
-          phone: "",
-          email: "",
-          notes: "",
-          fiscal_condition: "",
-          cuit: "",
-          is_active: true,
-        });
-        notices.push(`No encontré al cliente “${clientName}”. Dejé su nombre preparado para que revises si querés crearlo.`);
-      }
-
-      setFormData({
-        title: clientName ? `Presupuesto ${clientName}` : "",
-        client_id: matchedClientId,
-        status: "draft",
-        notes: "",
-        valid_until: "",
-        discount_percent: 0
-      });
-
-      const initialItems: any[] = [];
-      if (productName) {
-        const match = findStampyNamedMatch(products, productName);
-        if (match) {
-          const unitBaseCost = match.base_cost || 0;
-          const unitProfit = (match.sale_price || 0) - unitBaseCost;
-          initialItems.push({
-            id: "temp-" + Date.now(),
-            product_id: match.id,
-            item_name: match.name,
-            quantity: quantity,
-            unit_price: match.sale_price || 0,
-            subtotal: (match.sale_price || 0) * quantity,
-            unit_base_cost: unitBaseCost,
-            unit_profit: unitProfit,
-            total_profit: unitProfit * quantity,
-          });
-        } else {
-          notices.push(`No encontré el producto “${productName}”. Elegí uno existente o cargalo manualmente; la cantidad pedida es ${quantity}.`);
-        }
-      }
-
-      setBudgetItems(initialItems);
-      setEditingId("new");
-      setShowClientForm(Boolean(clientName && !matchedClient));
-      setPrefillNotice(notices.length > 0 ? notices.join(" ") : null);
-      
-      router.replace("/presupuestos", { scroll: false });
+    if (action !== "new") {
+      prefillAppliedRef.current = false;
+      return;
     }
-  }, [searchParams, loading, router, clients, products]);
+    if (loading || prefillAppliedRef.current) return;
+
+    prefillAppliedRef.current = true;
+    const clientName = searchParams.get("client")?.trim() || null;
+    const productName = searchParams.get("product")?.trim() || null;
+    const requestedTitle = searchParams.get("title")?.trim() || null;
+    const requestedNotes = searchParams.get("notes")?.trim() || "";
+    const quantityParam = searchParams.get("quantity");
+    const quantity = Number(parsePositiveStampyPrefillNumber(quantityParam) || 1);
+    const notices: string[] = [];
+
+    const matchedClient = findStampyNamedMatch(clients, clientName);
+    const matchedProduct = findStampyNamedMatch(products, productName);
+
+    if (process.env.NODE_ENV !== "production") {
+      console.log("[Quotes Prefill]", {
+        action,
+        client: clientName,
+        product: productName,
+        quantity,
+        clientsLoaded: clients.length,
+        productsLoaded: products.length,
+        matchedClient: matchedClient?.name || null,
+        matchedProduct: matchedProduct?.name || null,
+      });
+    }
+
+    if (clientName && !matchedClient) {
+      setClientData({
+        id: "",
+        name: clientName,
+        phone: "",
+        email: "",
+        notes: "",
+        fiscal_condition: "",
+        cuit: "",
+        is_active: true,
+      });
+      notices.push("No encontré este cliente cargado. Podés crearlo o seleccionarlo manualmente.");
+    }
+
+    setFormData({
+      title: requestedTitle || (clientName ? `Presupuesto ${clientName}` : ""),
+      client_id: matchedClient?.id || "",
+      status: "draft",
+      notes: requestedNotes,
+      valid_until: "",
+      discount_percent: 0
+    });
+
+    const initialItems: any[] = [];
+    if (matchedProduct) {
+      const unitBaseCost = matchedProduct.base_cost || 0;
+      const unitProfit = (matchedProduct.sale_price || 0) - unitBaseCost;
+      initialItems.push({
+        id: "temp-" + Date.now(),
+        product_id: matchedProduct.id,
+        item_name: matchedProduct.name,
+        quantity,
+        unit_price: matchedProduct.sale_price || 0,
+        subtotal: (matchedProduct.sale_price || 0) * quantity,
+        unit_base_cost: unitBaseCost,
+        unit_profit: unitProfit,
+        total_profit: unitProfit * quantity,
+      });
+    } else if (productName) {
+      notices.push("No encontré este producto cargado. Seleccionalo manualmente o crealo antes de confirmar.");
+    }
+
+    setBudgetItems(initialItems);
+    setEditingId("new");
+    setShowClientForm(Boolean(clientName && !matchedClient));
+    setPrefillNotice(notices.length > 0 ? notices.join(" ") : null);
+
+    const cleanedParams = new URLSearchParams(searchParams.toString());
+    for (const param of ["action", "client", "product", "quantity", "title", "notes"]) {
+      cleanedParams.delete(param);
+    }
+    const cleanedQuery = cleanedParams.toString();
+    window.history.replaceState(null, "", cleanedQuery ? `${pathname}?${cleanedQuery}` : pathname);
+  }, [searchParams, loading, pathname, clients, products]);
 
   const handleEdit = async (b: any) => {
     setFormData({
