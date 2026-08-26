@@ -111,12 +111,13 @@ export function detectStampyActionIntent({
     norm.includes("crear presupuesto")
   ) {
     const quoteDetails = parseQuoteDetails(message);
-    const quoteToolHref = buildToolHref("/presupuestos", {
-      action: "new",
-      client: quoteDetails.clientName,
-      product: quoteDetails.productName,
-      quantity: quoteDetails.quantity,
-    });
+    const quoteToolHref = quoteDetails.clientName
+      ? buildToolHref("/presupuestos", {
+          action: "new",
+          client: quoteDetails.clientName,
+          title: `Presupuesto ${quoteDetails.clientName}`,
+        })
+      : undefined;
     // Check if it's an insufficient quote request based solely on grams
     const hasGramsOnly = (norm.includes("presupuesto de") || norm.includes("presupuesto por")) && norm.match(/\d+\s*(g|gr|gramos|hs|h|horas)/);
     

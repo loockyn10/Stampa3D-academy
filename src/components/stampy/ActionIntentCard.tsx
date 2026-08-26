@@ -21,6 +21,13 @@ export function ActionIntentCard({ actionIntent, actionRequestId, initialStatus 
   const handleOpenTool = async () => {
     if (!actionIntent.toolHref) return;
 
+    if (process.env.NODE_ENV !== "production") {
+      console.log("[Stampy Tool Link]", {
+        type: actionIntent.type,
+        toolHref: actionIntent.toolHref,
+      });
+    }
+
     if (actionRequestId && status === "suggested") {
       setIsProcessing(true);
       const { success } = await markStampyActionRequestOpened({ actionRequestId });

@@ -226,17 +226,24 @@ test("a complete quote is validated and derived safely to quotes", async () => {
     productName: "Jarros de Argentina",
     quantity: 2
   });
+  const expectedHref = "/presupuestos?action=new&client=Lucas%20Marchetti&title=Presupuesto%20Lucas%20Marchetti";
+  assert.equal(actionIntent.toolHref, expectedHref);
+  assert.doesNotMatch(actionIntent.toolHref, /[?&]product=/);
+  assert.doesNotMatch(actionIntent.toolHref, /[?&]quantity=/);
 
   const actionRequests = [];
-  const actions = loadAskStampyAction({ actionRequests });
+  const savedMetadata = [];
+  const actions = loadAskStampyAction({ actionRequests, savedMetadata });
   const result = await actions.askStampyAction(message);
   assert.equal(result.validation.isValid, true);
   assert.equal(result.actionIntent.canExecute, false);
   assert.equal(
     result.knowledgeTools[0].route,
-    "/presupuestos?action=new&client=Lucas%20Marchetti&product=Jarros%20de%20Argentina&quantity=2"
+    expectedHref
   );
   assert.equal(actionRequests.length, 1);
+  assert.equal(actionRequests[0].actionIntent.toolHref, expectedHref);
+  assert.equal(savedMetadata[0].actionIntent.toolHref, expectedHref);
   assert.doesNotMatch(result.answer, /\$|precio de \d/i);
 });
 
@@ -270,11 +277,27 @@ test("calculator without grams or hours asks for both and creates no action requ
 });
 
 test("invalid quote validation removes the tool href", async () => {
+  const rawIntent = actionIntents.detectStampyActionIntent({
+    message: "Haceme un presupuesto de 100g"
+  });
+  assert.equal(rawIntent.toolHref, undefined);
+
   const actions = loadAskStampyAction();
   const result = await actions.askStampyAction("Haceme un presupuesto de 100g");
   assert.equal(result.validation.isValid, false);
   assert.equal(result.actionIntent.toolHref, undefined);
   assert.equal(result.actionIntent.canExecute, false);
+});
+
+test("the shared action button navigates with the complete action intent href", () => {
+  const source = fs.readFileSync(
+    path.join(root, "src/components/stampy/ActionIntentCard.tsx"),
+    "utf8"
+  );
+
+  assert.match(source, /router\.push\(actionIntent\.toolHref\)/);
+  assert.match(source, /\[Stampy Tool Link\]/);
+  assert.doesNotMatch(source, /router\.push\(.*contract\.route/);
 });
 
 test("calculator intent extracts and encodes all supported prefill fields", () => {
