@@ -3,6 +3,8 @@
 import { createClient } from "@/utils/supabase/server";
 import { getCurrentUserAccess } from "@/lib/auth/user-access";
 import { validateStampyMessage } from "@/lib/stampy/message-policy";
+import type { StampyActionIntent } from "@/lib/stampy/types";
+import type { StampyActionValidationResult } from "@/lib/stampy/action-validator";
 import type { ChatCompletionMessageParam } from "openai/resources/chat/completions";
 export type StampyContextPayload =
   | {
@@ -54,6 +56,47 @@ function includesUsefulNeedle(haystack: string, needle?: string | null) {
   const cleanedNeedle = cleanText(needle);
   if (!isUsefulText(cleanedNeedle)) return false;
   return haystack.includes(cleanedNeedle);
+}
+
+const ACTION_FIELD_LABELS: Record<string, string> = {
+  clientName: "cliente",
+  productName: "producto",
+  quantity: "cantidad",
+  grams: "gramos",
+  hours: "horas",
+  filamentReference: "material, color o marca del filamento",
+  material: "material",
+  toolContract: "contrato de herramienta",
+};
+
+function formatFieldList(fields: string[]): string {
+  const labels = fields.map((field) => ACTION_FIELD_LABELS[field] ?? field);
+  if (labels.length <= 1) return labels[0] ?? "";
+  return `${labels.slice(0, -1).join(", ")} y ${labels.at(-1)}`;
+}
+
+function buildActionValidationResponse(
+  actionIntent: StampyActionIntent,
+  validation: StampyActionValidationResult
+): string {
+  const parts: string[] = [];
+
+  if (validation.missingFields.length > 0) {
+    parts.push(`Me faltan estos datos: ${formatFieldList(validation.missingFields)}.`);
+  }
+  if (validation.invalidFields.length > 0) {
+    parts.push(`Estos datos no son válidos: ${formatFieldList(validation.invalidFields)}.`);
+  }
+
+  if (actionIntent.type === "create_quote") {
+    parts.push("No calculé ningún precio ni usé gramos como base del presupuesto.");
+  } else if (actionIntent.type === "calculate_price") {
+    parts.push("Indicame gramos y horas para poder prepararte el acceso a la calculadora, sin inventar un precio.");
+  } else {
+    parts.push("Pasame esos datos y te preparo el acceso a la herramienta para que confirmes la acción manualmente.");
+  }
+
+  return parts.join(" ");
 }
 
 export async function askStampyAction(
@@ -149,12 +192,30 @@ export async function askStampyAction(
     });
 
     if (actionIntent) {
+      const { getStampyToolContractsForIntent } = await import("@/lib/stampy/tool-registry");
+      const { validateStampyActionIntent } = await import("@/lib/stampy/action-validator");
+      const toolContract = getStampyToolContractsForIntent(actionIntent.type)[0] ?? null;
+      const validation = validateStampyActionIntent({ actionIntent, toolContract });
+      const validatedActionIntent: StampyActionIntent = {
+        ...actionIntent,
+        extracted: validation.normalizedExtracted,
+        canExecute: false,
+      };
+      const validationMetadata = {
+        isValid: validation.isValid,
+        missingFields: validation.missingFields,
+        invalidFields: validation.invalidFields,
+        warnings: validation.warnings,
+      };
+
       requestMode = "direct";
-      answerText = buildActionIntentResponse(actionIntent);
-      const knowledgeTools = actionIntent.toolHref && actionIntent.toolLabel
+      answerText = validation.isValid
+        ? buildActionIntentResponse(validatedActionIntent)
+        : buildActionValidationResponse(validatedActionIntent, validation);
+      const knowledgeTools = validation.isValid && validatedActionIntent.toolHref && validatedActionIntent.toolLabel
         ? [{
-            title: `Abrir ${actionIntent.toolLabel}`,
-            route: actionIntent.toolHref,
+            title: `Abrir ${validatedActionIntent.toolLabel}`,
+            route: validatedActionIntent.toolHref,
             shortDescription: "Revisá los datos y confirmá la acción desde la herramienta."
           }]
         : [];
@@ -173,18 +234,19 @@ export async function askStampyAction(
             model: null,
             relatedToolsCount: knowledgeTools.length,
             recommendationsCount: 0,
-            actionIntent
+            actionIntent: validatedActionIntent,
+            validation: validationMetadata,
           }
         );
         assistantMessageId = saved?.assistantMessageId || null;
 
-        if (assistantMessageId) {
+        if (assistantMessageId && validation.isValid) {
           const { createStampyActionRequest } = await import("@/lib/stampy/action-requests");
           const result = await createStampyActionRequest({
             userId,
             conversationId: actualConversationId,
             messageId: assistantMessageId,
-            actionIntent,
+            actionIntent: validatedActionIntent,
             source: context?.source || "stampy"
           });
           actionRequestId = result.actionRequestId;
@@ -196,8 +258,9 @@ export async function askStampyAction(
                 metadata: {
                   mode: requestMode,
                   model: null,
-                  actionIntent,
-                  actionRequestId
+                  actionIntent: validatedActionIntent,
+                  actionRequestId,
+                  validation: validationMetadata,
                 }
               })
               .eq("id", assistantMessageId);
@@ -228,7 +291,8 @@ export async function askStampyAction(
         conversationId: actualConversationId,
         assistantMessageId,
         actionRequestId,
-        actionIntent
+        actionIntent: validatedActionIntent,
+        validation: validationMetadata,
       };
     }
 

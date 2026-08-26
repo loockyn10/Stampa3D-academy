@@ -39,8 +39,8 @@ export const STAMPY_TOOL_REGISTRY: StampyToolContract[] = [
     route: "/calculadora",
     area: "calculator",
     supportedIntents: ["calculate_price"],
-    requiredFields: ["grams", "hours", "printerName", "filament", "productType"],
-    optionalFields: ["material", "brand", "color", "subtype", "name"],
+    requiredFields: ["grams", "hours"],
+    optionalFields: ["printerName", "filament", "productType", "material", "brand", "color", "subtype", "name"],
     forbiddenFields: ["invented_price"],
     safetyNotes: [
       "No inventar precio desde el chat.",
@@ -57,11 +57,12 @@ export const STAMPY_TOOL_REGISTRY: StampyToolContract[] = [
     route: "/stock?tab=filamentos",
     area: "stock",
     supportedIntents: ["increase_filament_stock"],
-    requiredFields: ["grams", "material", "brand", "color"],
-    optionalFields: [],
+    requiredFields: ["grams"],
+    optionalFields: ["material", "brand", "color"],
     forbiddenFields: ["create_new_if_increasing"],
     safetyNotes: [
       "'un rollo' = 1000g, 'un kilo' = 1000g, 'medio kilo' = 500g.",
+      "Debe haber material, color o marca suficiente para identificar el filamento existente.",
       "No crear filamento nuevo si el usuario está sumando gramos a uno existente.",
       "No modificar stock directamente desde el chat.",
       "Abrir la herramienta y que el usuario confirme la acción."
@@ -75,11 +76,12 @@ export const STAMPY_TOOL_REGISTRY: StampyToolContract[] = [
     route: "/stock?tab=filamentos",
     area: "stock",
     supportedIntents: ["discount_filament"],
-    requiredFields: ["grams", "material", "brand", "color"],
-    optionalFields: [],
+    requiredFields: ["grams"],
+    optionalFields: ["material", "brand", "color"],
     forbiddenFields: [],
     safetyNotes: [
       "No descontar material directamente desde el chat.",
+      "Debe haber material, color o marca suficiente para identificar el filamento.",
       "Abrir la herramienta y que el usuario confirme el descuento dentro de Stock."
     ],
     canExecuteFromChat: false
@@ -91,8 +93,8 @@ export const STAMPY_TOOL_REGISTRY: StampyToolContract[] = [
     route: "/stock?tab=filamentos",
     area: "stock",
     supportedIntents: ["add_filament"],
-    requiredFields: ["material", "brand", "color"],
-    optionalFields: ["subtype", "name", "total_grams"],
+    requiredFields: ["material"],
+    optionalFields: ["brand", "color", "subtype", "name", "total_grams"],
     forbiddenFields: [],
     safetyNotes: [
       "Solo usar si el usuario dice claramente 'nuevo filamento' o 'crear filamento'."

@@ -49,6 +49,26 @@ function parseHours(text: string): number | null {
   return null;
 }
 
+function parseQuoteDetails(message: string): {
+  clientName: string | null;
+  productName: string | null;
+  quantity: number | null;
+} {
+  const match = message
+    .trim()
+    .match(/\bpara\s+(.+?)\s+de\s+(\d+)\s+(.+?)[.!?]?$/i);
+
+  if (!match) {
+    return { clientName: null, productName: null, quantity: null };
+  }
+
+  return {
+    clientName: match[1].trim(),
+    quantity: Number.parseInt(match[2], 10),
+    productName: match[3].trim(),
+  };
+}
+
 export function detectStampyActionIntent({
   message,
   currentPath,
@@ -61,7 +81,7 @@ export function detectStampyActionIntent({
   const actionVerbs = [
     "descontar", "descontame", "sacar", "sacame", "restar", "restale", "consumi", "use ",
     "agregar", "agregame", "cargar", "cargame", "sumar", "sumame", "compre", "nuevo",
-    "crear", "generar", "hacer", "haceme", "cotizar", "cotizame", "presupuestar", "presupuestame",
+    "crear", "generar", "hacer", "hace", "haceme", "cotizar", "cotizame", "presupuestar", "presupuestame",
     "modificar", "actualizar", "corregir", "cambiar", "calcular", "calculame", "usado"
   ];
 
@@ -79,6 +99,7 @@ export function detectStampyActionIntent({
     norm.includes("hacer presupuesto") || norm.includes("armar presupuesto") ||
     norm.includes("crear presupuesto")
   ) {
+    const quoteDetails = parseQuoteDetails(message);
     // Check if it's an insufficient quote request based solely on grams
     const hasGramsOnly = (norm.includes("presupuesto de") || norm.includes("presupuesto por")) && norm.match(/\d+\s*(g|gr|gramos|hs|h|horas)/);
     
@@ -88,7 +109,11 @@ export function detectStampyActionIntent({
         confidence: 0.9,
         title: "Presupuesto insuficiente",
         summary: "Se detectó intención de armar presupuesto solo por gramos o horas.",
-        extracted: { incomplete: true, reason: "grams_only" },
+        extracted: {
+          ...quoteDetails,
+          incomplete: true,
+          reason: "grams_only"
+        },
         toolHref: "/presupuestos",
         toolLabel: "Presupuestos",
         canExecute: false,
@@ -101,7 +126,7 @@ export function detectStampyActionIntent({
       confidence: 0.9,
       title: "Crear presupuesto",
       summary: "Se detectó la intención de armar un presupuesto.",
-      extracted: {},
+      extracted: quoteDetails,
       toolHref: "/presupuestos",
       toolLabel: "Presupuestos",
       canExecute: false,
