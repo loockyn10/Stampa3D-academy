@@ -199,6 +199,8 @@ export async function askStampyAction(
       const validatedActionIntent: StampyActionIntent = {
         ...actionIntent,
         extracted: validation.normalizedExtracted,
+        toolHref: validation.isValid ? actionIntent.toolHref : undefined,
+        toolLabel: validation.isValid ? actionIntent.toolLabel : undefined,
         canExecute: false,
       };
       const validationMetadata = {

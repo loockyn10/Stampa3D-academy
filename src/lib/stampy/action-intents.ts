@@ -25,7 +25,7 @@ function buildToolHref(basePath: string, params: Record<string, string | number 
       urlParams.append(key, strValue);
     }
   }
-  const qs = urlParams.toString();
+  const qs = urlParams.toString().replace(/\+/g, "%20");
   return qs ? `${basePath}?${qs}` : basePath;
 }
 
@@ -69,6 +69,17 @@ function parseQuoteDetails(message: string): {
   };
 }
 
+function toDisplayCase(value: string): string {
+  return value.charAt(0).toUpperCase() + value.slice(1).toLowerCase();
+}
+
+function parsePrinterName(message: string): string | null {
+  const match = message.match(
+    /\b(?:en la|en|impresora)\s+((?:Bambu|Creality|Ender|Prusa)\s+.+?)(?=\s+de\s+\d+(?:[.,]\d+)?\s*(?:h|hs|hora|horas)\b|\s+(?:con|usando)\b|$)/i
+  );
+  return match ? match[1].trim() : null;
+}
+
 export function detectStampyActionIntent({
   message,
   currentPath,
@@ -100,6 +111,12 @@ export function detectStampyActionIntent({
     norm.includes("crear presupuesto")
   ) {
     const quoteDetails = parseQuoteDetails(message);
+    const quoteToolHref = buildToolHref("/presupuestos", {
+      action: "new",
+      client: quoteDetails.clientName,
+      product: quoteDetails.productName,
+      quantity: quoteDetails.quantity,
+    });
     // Check if it's an insufficient quote request based solely on grams
     const hasGramsOnly = (norm.includes("presupuesto de") || norm.includes("presupuesto por")) && norm.match(/\d+\s*(g|gr|gramos|hs|h|horas)/);
     
@@ -114,7 +131,7 @@ export function detectStampyActionIntent({
           incomplete: true,
           reason: "grams_only"
         },
-        toolHref: "/presupuestos",
+        toolHref: quoteToolHref,
         toolLabel: "Presupuestos",
         canExecute: false,
         reason: "Matched quote verbs but missing all critical data (grams only)."
@@ -127,7 +144,7 @@ export function detectStampyActionIntent({
       title: "Crear presupuesto",
       summary: "Se detectó la intención de armar un presupuesto.",
       extracted: quoteDetails,
-      toolHref: "/presupuestos",
+      toolHref: quoteToolHref,
       toolLabel: "Presupuestos",
       canExecute: false,
       reason: "Matched quote verbs (safe mode)."
@@ -304,56 +321,40 @@ export function detectStampyActionIntent({
   ) {
     const grams = parseGrams(norm);
     const hours = parseHours(norm);
-    
-    let toolHref = "/calculadora";
-    if (grams || hours) {
-      toolHref = buildToolHref("/calculadora", { action: "calculate", grams, hours });
-    }
-
-    return {
-      type: "calculate_price",
-      confidence: 0.9,
-      title: "Calcular precio",
-      summary: "Se detectó la intención de calcular costos de impresión.",
-      extracted: { grams, hours },
-      toolHref,
-      toolLabel: "Calculadora de precios",
-      canExecute: false,
-      reason: "Matched calculate verbs (safe mode)."
-    };
-  }
-
-  // 6. calculate_price
-  if (
-    norm.includes("calcular") || norm.includes("calculame") ||
-    norm.includes("cuanto deberia cobrar") || norm.includes("precio de impresion") ||
-    norm.includes("cuanto sale imprimir") || norm.includes("precio para") || norm.includes("cobro por")
-  ) {
-    const grams = parseGrams(norm);
-    const hours = parseHours(norm);
     const matchMaterial = norm.match(/(pla|petg|tpu|abs|asa|nylon|resina)/);
     const material = matchMaterial ? matchMaterial[1].toUpperCase() : null;
-    
-    const brandMatch = norm.match(/(w3d|elegoo|gst3d|grilon|printalot|hellbot|creality)/);
-    const brand = brandMatch ? brandMatch[1].toUpperCase() : null;
-    
-    const matchColor = norm.match(/(rojo|azul|verde|negro|blanco|amarillo|naranja|gris|violeta|cian|transparente|natural)/);
-    const color = matchColor ? matchColor[1] : null;
+    const materialIndex = material ? norm.indexOf(material.toLowerCase()) : -1;
+    const filamentContext = materialIndex >= 0
+      ? norm.slice(materialIndex).split(/\s+para\b/)[0]
+      : norm;
 
-    const printerMatch = message.match(/(?:en la|en|impresora)\s+(Bambu [A-Za-z0-9\s]+|Creality [A-Za-z0-9\s]+|Ender [A-Za-z0-9\s]+|Prusa [A-Za-z0-9\s]+)/i);
-    const printerName = printerMatch ? printerMatch[1].trim() : null;
+    const brandMatch = filamentContext.match(/(w3d|elegoo|gst3d|grilon|printalot|hellbot|creality)/);
+    const brand = brandMatch ? brandMatch[1].toUpperCase() : null;
+    const matchColor = filamentContext.match(/(rojo|azul|verde|negro|blanco|amarillo|naranja|gris|violeta|cian|transparente|natural)/);
+    const color = matchColor ? toDisplayCase(matchColor[1]) : null;
+
+    const printerName = parsePrinterName(message);
     
     const pricingMatch = message.match(/(?:para un cliente|para|cliente)\s+(minorista|mayorista|llavero|jarro)/i) || norm.match(/(minorista|mayorista|llavero|jarro)/);
-    const pricingType = pricingMatch ? pricingMatch[1] : null;
+    const productType = pricingMatch ? pricingMatch[1].toLowerCase() : null;
 
-    const toolHref = buildToolHref("/calculadora", { action: "calculate", grams, hours, material, brand, color, printer: printerName, pricingType });
+    const toolHref = buildToolHref("/calculadora", {
+      action: "calculate",
+      grams,
+      hours,
+      printer: printerName,
+      material,
+      brand,
+      color,
+      productType,
+    });
 
     return {
       type: "calculate_price",
       confidence: 0.9,
       title: "Calcular precio",
       summary: "Se detectó la intención de calcular costos de impresión.",
-      extracted: { grams, hours, material, brand, color, printerName, pricingType },
+      extracted: { grams, hours, printerName, material, brand, color, productType },
       toolHref,
       toolLabel: "Calculadora de precios",
       canExecute: false,

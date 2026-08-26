@@ -14,6 +14,11 @@ import { PrinterCatalogModal } from "@/components/calculadora/printer-catalog-mo
 import { FilamentCatalogModal } from "@/components/calculadora/filament-catalog-modal";
 import { normalizeFilamentColor } from "@/lib/colors/filament-colors";
 import { getFilamentLabel } from "@/lib/filaments/utils";
+import {
+  findStampyFilamentMatch,
+  findStampyNamedMatch,
+  parsePositiveStampyPrefillNumber,
+} from "@/lib/stampy/tool-prefill";
 interface NumberFieldProps {
   label: string;
   value: string;
@@ -188,7 +193,7 @@ function CalculadoraPageContent() {
 
   // Stampy Prefill Effect
   useEffect(() => {
-    if (loading || filaments.length === 0 || printers.length === 0) return;
+    if (loading) return;
     
     const action = searchParams.get("action");
     if (!action) return;
@@ -200,39 +205,36 @@ function CalculadoraPageContent() {
       const brand = searchParams.get("brand");
       const color = searchParams.get("color");
       const printerName = searchParams.get("printer");
-      const pricingType = searchParams.get("pricingType");
+      const productType = searchParams.get("productType")
+        || searchParams.get("pricingType")
+        || searchParams.get("customerType");
 
-      if (g) setWeight(g);
-      if (h) setHours(h);
+      const normalizedGrams = parsePositiveStampyPrefillNumber(g);
+      const normalizedHours = parsePositiveStampyPrefillNumber(h);
+      if (normalizedGrams) setWeight(normalizedGrams);
+      if (normalizedHours) setHours(normalizedHours);
 
       if (material || brand || color) {
-        const match = filaments.find(f => {
-          const matMatch = !material || (f.filament_type && f.filament_type.toLowerCase().includes(material.toLowerCase()));
-          const colorMatch = !color || (f.color && f.color.toLowerCase().includes(color.toLowerCase()));
-          const brandMatch = !brand || 
-            (f.brand && f.brand.toLowerCase().includes(brand.toLowerCase())) || 
-            (f.filament_templates?.brand && f.filament_templates.brand.toLowerCase().includes(brand.toLowerCase()));
-          return matMatch && colorMatch && brandMatch;
-        });
+        const match = findStampyFilamentMatch(filaments, { material, brand, color });
         if (match) setSelectedFilamentId(match.id);
       }
 
       if (printerName) {
-        const match = printers.find(p => p.name?.toLowerCase().includes(printerName.toLowerCase()));
+        const match = findStampyNamedMatch(printers, printerName);
         if (match) setSelectedPrinterId(match.id);
       }
 
-      if (pricingType) {
-        const match = multipliers.find(m => m.name?.toLowerCase().includes(pricingType.toLowerCase()));
+      if (productType) {
+        const match = findStampyNamedMatch(multipliers, productType);
         if (match) setSelectedMultiplierId(match.id);
       }
 
-      router.replace("/calculadora");
+      router.replace("/calculadora", { scroll: false });
     } else if (action === "add_printer") {
       setShowCatalogModal(true);
       router.replace("/calculadora");
     }
-  }, [searchParams, loading, filaments, printers, router]);
+  }, [searchParams, loading, filaments, printers, multipliers, router]);
 
   useEffect(() => {
     // When selected items change, update manual overrides to defaults

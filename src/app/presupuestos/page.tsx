@@ -12,6 +12,10 @@ import { Badge } from "@/components/ui/badge";
 import { createClient } from "@/utils/supabase/client";
 import { pdf } from "@react-pdf/renderer";
 import BudgetPDFDocument from "@/components/presupuestos/budget-pdf-document";
+import {
+  findStampyNamedMatch,
+  parsePositiveStampyPrefillNumber,
+} from "@/lib/stampy/tool-prefill";
 
 
 const STATUS_MAP: Record<string, { label: string, color: "gray" | "dark" | "green" | "orange" }> = {
@@ -31,6 +35,7 @@ function PresupuestosPageContent() {
   const [filaments, setFilaments] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [prefillNotice, setPrefillNotice] = useState<string | null>(null);
 
   // Profile
   const [profile, setProfile] = useState<any>(null);
@@ -103,6 +108,7 @@ function PresupuestosPageContent() {
   };
 
   const handleCreateNew = () => {
+    setPrefillNotice(null);
     setFormData({
       title: "", client_id: "", status: "draft", notes: "", valid_until: "", discount_percent: 0
     });
@@ -113,22 +119,33 @@ function PresupuestosPageContent() {
 
   // Stampy Prefill Effect
   useEffect(() => {
-    if (loading || clients.length === 0 && products.length === 0) return;
+    if (loading) return;
     const action = searchParams.get("action");
     if (action === "new") {
       const clientName = searchParams.get("client");
       const productName = searchParams.get("product");
       const quantityParam = searchParams.get("quantity");
-      const quantity = quantityParam ? parseInt(quantityParam, 10) : 1;
+      const quantity = Number(parsePositiveStampyPrefillNumber(quantityParam) || 1);
+      const notices: string[] = [];
 
-      let matchedClientId = "";
-      if (clientName) {
-        const match = clients.find(c => c.name.toLowerCase().includes(clientName.toLowerCase()));
-        if (match) matchedClientId = match.id;
+      const matchedClient = findStampyNamedMatch(clients, clientName);
+      const matchedClientId = matchedClient?.id || "";
+      if (clientName && !matchedClient) {
+        setClientData({
+          id: "",
+          name: clientName,
+          phone: "",
+          email: "",
+          notes: "",
+          fiscal_condition: "",
+          cuit: "",
+          is_active: true,
+        });
+        notices.push(`No encontré al cliente “${clientName}”. Dejé su nombre preparado para que revises si querés crearlo.`);
       }
 
       setFormData({
-        title: clientName ? `Presupuesto ${clientName} #TEMP` : "",
+        title: clientName ? `Presupuesto ${clientName}` : "",
         client_id: matchedClientId,
         status: "draft",
         notes: "",
@@ -136,9 +153,9 @@ function PresupuestosPageContent() {
         discount_percent: 0
       });
 
-      let initialItems: any[] = [];
+      const initialItems: any[] = [];
       if (productName) {
-        const match = products.find(p => p.name.toLowerCase().includes(productName.toLowerCase()));
+        const match = findStampyNamedMatch(products, productName);
         if (match) {
           const unitBaseCost = match.base_cost || 0;
           const unitProfit = (match.sale_price || 0) - unitBaseCost;
@@ -153,14 +170,17 @@ function PresupuestosPageContent() {
             unit_profit: unitProfit,
             total_profit: unitProfit * quantity,
           });
+        } else {
+          notices.push(`No encontré el producto “${productName}”. Elegí uno existente o cargalo manualmente; la cantidad pedida es ${quantity}.`);
         }
       }
 
       setBudgetItems(initialItems);
       setEditingId("new");
-      setShowClientForm(false);
+      setShowClientForm(Boolean(clientName && !matchedClient));
+      setPrefillNotice(notices.length > 0 ? notices.join(" ") : null);
       
-      router.replace("/presupuestos");
+      router.replace("/presupuestos", { scroll: false });
     }
   }, [searchParams, loading, router, clients, products]);
 
@@ -591,6 +611,13 @@ function PresupuestosPageContent() {
       {error && (
         <div className="bg-red-500/10 border border-red-500/20 p-4 rounded-xl flex items-center gap-3 text-sm text-red-400">
           <AlertCircle size={20} className="shrink-0" /> {error}
+        </div>
+      )}
+
+      {prefillNotice && (
+        <div className="bg-cyan-500/10 border border-cyan-500/20 p-4 rounded-xl flex items-start gap-3 text-sm text-cyan-200">
+          <AlertCircle size={20} className="shrink-0 mt-0.5" />
+          <span>{prefillNotice}</span>
         </div>
       )}
 

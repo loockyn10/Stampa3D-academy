@@ -8,10 +8,11 @@ import { Badge } from "@/components/ui/badge";
 
 import { StampyFeedback } from "@/components/stampy/StampyFeedback";
 import { ActionIntentCard } from "@/components/stampy/ActionIntentCard";
+import { createStampyMessageId, createStampyRequestId } from "@/lib/stampy/client-message-id";
 
 interface Message {
   id: string;
-  role: "user" | "stampy";
+  role: "user" | "assistant";
   content: string;
   recommendations?: any[];
   relatedTools?: string[];
@@ -48,7 +49,7 @@ export default function StampyPage() {
   const [messages, setMessages] = useState<Message[]>([
     {
       id: "1",
-      role: "stampy",
+      role: "assistant",
       content: "Hola, soy Stampy. Contame qué problema tenés con tu impresión, tus costos o tu taller, y te ayudo a encontrar por dónde seguir dentro de Academia Stampa."
     }
   ]);
@@ -56,6 +57,7 @@ export default function StampyPage() {
   const [loading, setLoading] = useState(false);
   const [conversationId, setConversationId] = useState<string | null>(null);
   const messagesEndRef = useRef<HTMLDivElement>(null);
+  const requestInFlightRef = useRef(false);
 
   const scrollToBottom = () => {
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
@@ -71,19 +73,22 @@ export default function StampyPage() {
   }, [messages, loading]);
 
   const handleSend = async (text: string) => {
-    if (!text.trim() || loading) return;
+    const safeText = text.trim();
+    if (!safeText || loading || requestInFlightRef.current) return;
+    requestInFlightRef.current = true;
 
-    const recentConversation = messages
-      .slice(-6)
-      .map(m => ({ role: (m.role === "stampy" ? "assistant" : "user") as "user" | "assistant", content: m.content }));
-
-    const userMsg: Message = { id: Date.now().toString(), role: "user", content: text };
+    const requestId = createStampyRequestId();
+    const userMsg: Message = {
+      id: createStampyMessageId(requestId, "user"),
+      role: "user",
+      content: safeText,
+    };
     setMessages(prev => [...prev, userMsg]);
     setInput("");
     setLoading(true);
 
     try {
-      const res = await askStampyAction(text, conversationId, {
+      const res = await askStampyAction(safeText, conversationId, {
         source: "page",
         pathname: window.location.pathname + window.location.search
       });
@@ -94,11 +99,15 @@ export default function StampyPage() {
       }
 
       if (res.error) {
-        setMessages(prev => [...prev, { id: Date.now().toString(), role: "stampy", content: res.error || "Error al comunicarse con Stampy." }]);
+        setMessages(prev => [...prev, {
+          id: createStampyMessageId(requestId, "assistant"),
+          role: "assistant",
+          content: res.error || "Error al comunicarse con Stampy."
+        }]);
       } else {
         setMessages(prev => [...prev, {
-          id: Date.now().toString(),
-          role: "stampy",
+          id: createStampyMessageId(requestId, "assistant"),
+          role: "assistant",
           content: res.answer || "",
           recommendations: res.recommendations,
           relatedTools: res.relatedTools,
@@ -108,18 +117,25 @@ export default function StampyPage() {
           actionRequestId: res.actionRequestId
         }]);
       }
-    } catch (e) {
-      setMessages(prev => [...prev, { id: Date.now().toString(), role: "stampy", content: "No pude comunicarme en este momento. Probá de nuevo." }]);
+    } catch {
+      setMessages(prev => [...prev, {
+        id: createStampyMessageId(requestId, "assistant"),
+        role: "assistant",
+        content: "No pude comunicarme en este momento. Probá de nuevo."
+      }]);
+    } finally {
+      requestInFlightRef.current = false;
+      setLoading(false);
     }
-    setLoading(false);
   };
 
   const startNewConversation = () => {
+    if (requestInFlightRef.current) return;
     setConversationId(null);
     localStorage.removeItem("stampy_current_conversation_id");
     setMessages([{
-      id: Date.now().toString(),
-      role: "stampy",
+      id: "new-conversation:assistant",
+      role: "assistant",
       content: "Hola de nuevo. ¿En qué te ayudo ahora?"
     }]);
   };
@@ -146,6 +162,7 @@ export default function StampyPage() {
               </h1>
               <button
                 onClick={startNewConversation}
+                disabled={loading}
                 className="text-xs font-semibold px-3 py-1.5 rounded-lg border border-stampa-border bg-stampa-surface hover:bg-white/5 text-gray-300 transition-colors"
               >
                 Nueva conversación
@@ -164,7 +181,7 @@ export default function StampyPage() {
             {messages.map((msg) => (
               <div key={msg.id} className={`flex gap-4 ${msg.role === "user" ? "justify-end" : "justify-start"}`}>
                 
-                {msg.role === "stampy" && (
+                {msg.role === "assistant" && (
                   <div className="w-8 h-8 shrink-0 rounded-full bg-cyan-500/10 flex items-center justify-center text-cyan-400 mt-1 shadow-sm border border-cyan-500/20">
                     <Bot size={18} />
                   </div>
@@ -270,7 +287,7 @@ export default function StampyPage() {
                   })()}
 
                   {/* Feedback UI */}
-                  {msg.role === "stampy" && msg.assistantMessageId && conversationId && (
+                  {msg.role === "assistant" && msg.assistantMessageId && conversationId && (
                     <div className="mt-4 pt-4 border-t border-stampa-border">
                       <StampyFeedback 
                         messageId={msg.assistantMessageId} 

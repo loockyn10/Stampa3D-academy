@@ -6,6 +6,7 @@ import { askStampyAction, StampyContextPayload } from "@/app/stampy/actions";
 import { createPortal } from "react-dom";
 import { StampyFeedback } from "@/components/stampy/StampyFeedback";
 import { ActionIntentCard } from "@/components/stampy/ActionIntentCard";
+import { createStampyMessageId, createStampyRequestId } from "@/lib/stampy/client-message-id";
 
 interface StampyLessonChatProps {
   courseTitle: string;
@@ -24,6 +25,7 @@ interface StampyLessonChatProps {
 }
 
 type Message = {
+  id: string;
   role: "user" | "assistant";
   content: string;
   assistantMessageId?: string | null;
@@ -35,6 +37,7 @@ export function StampyLessonChat({ courseTitle, moduleTitle, lesson }: StampyLes
   const [isOpen, setIsOpen] = useState(false);
   const [messages, setMessages] = useState<Message[]>([
     {
+      id: "lesson-welcome:assistant",
       role: "assistant",
       content: "Estoy viendo esta clase con vos. Preguntame lo que no se entienda y te lo bajo a tierra."
     }
@@ -44,6 +47,7 @@ export function StampyLessonChat({ courseTitle, moduleTitle, lesson }: StampyLes
   const [conversationId, setConversationId] = useState<string | null>(null);
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const [mounted, setMounted] = useState(false);
+  const requestInFlightRef = useRef(false);
 
   useEffect(() => {
     setMounted(true);
@@ -60,11 +64,17 @@ export function StampyLessonChat({ courseTitle, moduleTitle, lesson }: StampyLes
   }, [messages, isOpen]);
 
   const handleSend = async () => {
-    if (!input.trim() || isLoading) return;
+    const safeInput = input.trim();
+    if (!safeInput || isLoading || requestInFlightRef.current) return;
+    requestInFlightRef.current = true;
 
-    const userMsg: Message = { role: "user", content: input.trim() };
-    const newMessages = [...messages, userMsg];
-    setMessages(newMessages);
+    const requestId = createStampyRequestId();
+    const userMsg: Message = {
+      id: createStampyMessageId(requestId, "user"),
+      role: "user",
+      content: safeInput,
+    };
+    setMessages((current) => [...current, userMsg]);
     setInput("");
     setIsLoading(true);
 
@@ -93,16 +103,22 @@ export function StampyLessonChat({ courseTitle, moduleTitle, lesson }: StampyLes
       if (response.conversationId && response.conversationId !== conversationId) {
         setConversationId(response.conversationId);
       }
-      setMessages([...newMessages, { 
+      setMessages((current) => [...current, {
+        id: createStampyMessageId(requestId, "assistant"),
         role: "assistant", 
         content: response.answer || "Hubo un error al generar la respuesta.", 
         assistantMessageId: response.assistantMessageId,
         actionIntent: response.actionIntent,
         actionRequestId: response.actionRequestId
       }]);
-    } catch (err) {
-      setMessages([...newMessages, { role: "assistant", content: "Hubo un error de conexión con mi servidor. Por favor, probá de nuevo." }]);
+    } catch {
+      setMessages((current) => [...current, {
+        id: createStampyMessageId(requestId, "assistant"),
+        role: "assistant",
+        content: "Hubo un error de conexión con mi servidor. Por favor, probá de nuevo."
+      }]);
     } finally {
+      requestInFlightRef.current = false;
       setIsLoading(false);
     }
   };
@@ -152,8 +168,8 @@ export function StampyLessonChat({ courseTitle, moduleTitle, lesson }: StampyLes
 
             {/* Mensajes */}
             <div className="min-h-0 flex-1 overflow-y-auto p-4 space-y-4 overscroll-contain">
-              {messages.map((m, idx) => (
-                <div key={idx} className={`flex ${m.role === 'user' ? 'justify-end' : 'justify-start'}`}>
+              {messages.map((m) => (
+                <div key={m.id} className={`flex ${m.role === 'user' ? 'justify-end' : 'justify-start'}`}>
                   <div 
                     className={`max-w-[85%] rounded-2xl p-3 text-sm ${
                       m.role === 'user' 

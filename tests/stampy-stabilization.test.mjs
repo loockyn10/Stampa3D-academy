@@ -41,6 +41,8 @@ const actionValidator = loadTypeScriptModule("src/lib/stampy/action-validator.ts
   "./types": {}
 });
 const messagePolicy = loadTypeScriptModule("src/lib/stampy/message-policy.ts");
+const clientMessageIds = loadTypeScriptModule("src/lib/stampy/client-message-id.ts");
+const toolPrefill = loadTypeScriptModule("src/lib/stampy/tool-prefill.ts");
 
 function loadAskStampyAction({ touchedTables = [], savedMetadata = [], actionRequests = [] } = {}) {
   const supabase = {
@@ -230,7 +232,10 @@ test("a complete quote is validated and derived safely to quotes", async () => {
   const result = await actions.askStampyAction(message);
   assert.equal(result.validation.isValid, true);
   assert.equal(result.actionIntent.canExecute, false);
-  assert.equal(result.knowledgeTools[0].route, "/presupuestos");
+  assert.equal(
+    result.knowledgeTools[0].route,
+    "/presupuestos?action=new&client=Lucas%20Marchetti&product=Jarros%20de%20Argentina&quantity=2"
+  );
   assert.equal(actionRequests.length, 1);
   assert.doesNotMatch(result.answer, /\$|precio de \d/i);
 });
@@ -262,6 +267,102 @@ test("calculator without grams or hours asks for both and creates no action requ
   assert.deepEqual(result.knowledgeTools, []);
   assert.equal(result.actionRequestId, null);
   assert.equal(actionRequests.length, 0);
+});
+
+test("invalid quote validation removes the tool href", async () => {
+  const actions = loadAskStampyAction();
+  const result = await actions.askStampyAction("Haceme un presupuesto de 100g");
+  assert.equal(result.validation.isValid, false);
+  assert.equal(result.actionIntent.toolHref, undefined);
+  assert.equal(result.actionIntent.canExecute, false);
+});
+
+test("calculator intent extracts and encodes all supported prefill fields", () => {
+  const message = "Calculame el precio de una impresión en la Creality HI de 5hs y 167gr de filamento PLA W3D Cian para un cliente minorista";
+  const { actionIntent, validation } = detectAndValidate(message);
+
+  assert.equal(actionIntent.type, "calculate_price");
+  assert.equal(validation.isValid, true);
+  assert.deepEqual(actionIntent.extracted, {
+    grams: 167,
+    hours: 5,
+    printerName: "Creality HI",
+    material: "PLA",
+    brand: "W3D",
+    color: "Cian",
+    productType: "minorista"
+  });
+  assert.equal(
+    actionIntent.toolHref,
+    "/calculadora?action=calculate&grams=167&hours=5&printer=Creality%20HI&material=PLA&brand=W3D&color=Cian&productType=minorista"
+  );
+  assert.equal(actionIntent.canExecute, false);
+});
+
+test("calculator prefill matching tolerates richer printer and filament labels", () => {
+  const printers = [
+    { id: "printer-1", name: "Creality HI Combo" },
+    { id: "printer-2", name: "Bambu A1" }
+  ];
+  const filaments = [
+    {
+      id: "filament-1",
+      filament_type: "PLA",
+      brand: "W3D",
+      name: "PLA W3D SILK",
+      color: "Cian"
+    }
+  ];
+  const productTypes = [{ id: "type-1", name: "Minorista" }];
+
+  assert.equal(toolPrefill.findStampyNamedMatch(printers, "Creality HI")?.id, "printer-1");
+  assert.equal(
+    toolPrefill.findStampyFilamentMatch(filaments, {
+      material: "PLA",
+      brand: "W3D",
+      color: "Cian"
+    })?.id,
+    "filament-1"
+  );
+  assert.equal(toolPrefill.findStampyNamedMatch(productTypes, "minorista")?.id, "type-1");
+});
+
+test("consecutive client replies keep the second response tied to the second request", () => {
+  const firstRequestId = "request-1";
+  const secondRequestId = "request-2";
+  const messages = [
+    {
+      id: clientMessageIds.createStampyMessageId(firstRequestId, "user"),
+      content: "Respondé solamente: Azul marino"
+    },
+    {
+      id: clientMessageIds.createStampyMessageId(firstRequestId, "assistant"),
+      content: "Azul marino"
+    },
+    {
+      id: clientMessageIds.createStampyMessageId(secondRequestId, "user"),
+      content: "Respondé solamente: una torta de cumpleaños"
+    },
+    {
+      id: clientMessageIds.createStampyMessageId(secondRequestId, "assistant"),
+      content: "una torta de cumpleaños"
+    }
+  ];
+
+  assert.equal(messages.at(-1).id, "request-2:assistant");
+  assert.equal(messages.at(-1).content, "una torta de cumpleaños");
+  assert.notEqual(messages.at(-1).content, messages[1].content);
+
+  for (const relativePath of [
+    "src/app/stampy/page.tsx",
+    "src/components/stampy/GlobalStampyWidget.tsx",
+    "src/components/stampy/StampyLessonChat.tsx"
+  ]) {
+    const source = fs.readFileSync(path.join(root, relativePath), "utf8");
+    assert.doesNotMatch(source, /setMessages\(\[\.\.\.newMessages/);
+    assert.match(source, /key=\{(?:msg|m)\.id\}/);
+    assert.match(source, /requestInFlightRef\.current/);
+  }
 });
 
 test("filament stock increase remains valid and non-executable", () => {

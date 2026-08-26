@@ -1,7 +1,7 @@
 "use client";
 
 import React, { useState, useRef, useEffect, Suspense } from "react";
-import { Bot, X, Send, Loader2, Minimize2 } from "lucide-react";
+import { Bot, X, Send, Loader2 } from "lucide-react";
 import { createPortal } from "react-dom";
 import { usePathname, useSearchParams } from "next/navigation";
 import { askStampyAction, StampyContextPayload } from "@/app/stampy/actions";
@@ -10,8 +10,10 @@ import { StampyPageContext } from "@/lib/stampy/page-context";
 import { useStampyContext } from "@/components/stampy/StampyContextProvider";
 import { StampyFeedback } from "@/components/stampy/StampyFeedback";
 import { ActionIntentCard } from "@/components/stampy/ActionIntentCard";
+import { createStampyMessageId, createStampyRequestId } from "@/lib/stampy/client-message-id";
 
 type Message = {
+  id: string;
   role: "user" | "assistant";
   content: string;
   assistantMessageId?: string | null;
@@ -47,6 +49,7 @@ function StampyWidgetContent() {
   const [isOpen, setIsOpen] = useState(false);
   const [messages, setMessages] = useState<Message[]>([
     {
+      id: "global-welcome:assistant",
       role: "assistant",
       content: "Hola, soy Stampy. Contame qué problema tenés con tu impresión, tus costos o tu taller, y te ayudo a encontrar por dónde seguir.",
     },
@@ -57,6 +60,7 @@ function StampyWidgetContent() {
   const [pageCtx, setPageCtx] = useState<StampyPageContext | null>(null);
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const [mounted, setMounted] = useState(false);
+  const requestInFlightRef = useRef(false);
 
   useEffect(() => {
     setMounted(true);
@@ -101,12 +105,17 @@ function StampyWidgetContent() {
   const effectiveContext = stampyContext ?? currentCtx;
 
   const handleSend = async (forcedInput?: string) => {
-    const text = forcedInput || input.trim();
-    if (!text || isLoading) return;
+    const text = (forcedInput || input).trim();
+    if (!text || isLoading || requestInFlightRef.current) return;
+    requestInFlightRef.current = true;
 
-    const userMsg: Message = { role: "user", content: text };
-    const newMessages = [...messages, userMsg];
-    setMessages(newMessages);
+    const requestId = createStampyRequestId();
+    const userMsg: Message = {
+      id: createStampyMessageId(requestId, "user"),
+      role: "user",
+      content: text,
+    };
+    setMessages((current) => [...current, userMsg]);
     setInput("");
     setIsLoading(true);
     const removeUndefined = (obj: any) => {
@@ -122,7 +131,8 @@ function StampyWidgetContent() {
       if (response.conversationId && response.conversationId !== conversationId) {
         setConversationId(response.conversationId);
       }
-      setMessages([...newMessages, { 
+      setMessages((current) => [...current, {
+        id: createStampyMessageId(requestId, "assistant"),
         role: "assistant", 
         content: response.answer || "Hubo un error al generar la respuesta.", 
         assistantMessageId: response.assistantMessageId,
@@ -130,14 +140,15 @@ function StampyWidgetContent() {
         actionRequestId: response.actionRequestId
       }]);
     } catch {
-      setMessages([
-        ...newMessages,
+      setMessages((current) => [...current,
         {
+          id: createStampyMessageId(requestId, "assistant"),
           role: "assistant",
           content: "Hubo un error de conexión. Por favor, probá de nuevo.",
         },
       ]);
     } finally {
+      requestInFlightRef.current = false;
       setIsLoading(false);
     }
   };
@@ -186,9 +197,9 @@ function StampyWidgetContent() {
             </div>
 
             <div className="min-h-0 flex-1 overflow-y-auto p-4 space-y-4 overscroll-contain">
-              {messages.map((m, idx) => (
+              {messages.map((m) => (
                 <div
-                  key={idx}
+                  key={m.id}
                   className={`flex ${m.role === "user" ? "justify-end" : "justify-start"}`}
                 >
                   {m.role === "assistant" && (
