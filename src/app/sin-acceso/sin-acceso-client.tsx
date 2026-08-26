@@ -4,6 +4,20 @@ import { Building2, Loader2, AlertCircle } from "lucide-react";
 import { useState, useEffect } from "react";
 import { createClient } from "@/utils/supabase/client";
 
+const CHECKOUT_ATTEMPT_STORAGE_KEY = "stampa_membership_checkout_attempt";
+
+function getCheckoutIdempotencyKey(): string {
+  const existing = window.sessionStorage.getItem(CHECKOUT_ATTEMPT_STORAGE_KEY);
+
+  if (existing) {
+    return existing;
+  }
+
+  const idempotencyKey = window.crypto.randomUUID();
+  window.sessionStorage.setItem(CHECKOUT_ATTEMPT_STORAGE_KEY, idempotencyKey);
+  return idempotencyKey;
+}
+
 export function SinAccesoClient() {
   const supabase = createClient();
   const [loading, setLoading] = useState(false);
@@ -36,7 +50,7 @@ export function SinAccesoClient() {
         } else {
           setPrice(process.env.NEXT_PUBLIC_MEMBERSHIP_MONTHLY_PRICE || "19900");
         }
-      } catch (err) {
+      } catch {
         setPrice(process.env.NEXT_PUBLIC_MEMBERSHIP_MONTHLY_PRICE || "19900");
       } finally {
         setLoadingPrice(false);
@@ -60,12 +74,14 @@ export function SinAccesoClient() {
       setLoading(true);
       setError(null);
       console.log("Creando suscripción Mercado Pago");
+      const idempotencyKey = getCheckoutIdempotencyKey();
 
       const response = await fetch("/api/mercadopago/create-subscription", {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
         },
+        body: JSON.stringify({ idempotency_key: idempotencyKey }),
       });
 
       const text = await response.text();
@@ -73,12 +89,23 @@ export function SinAccesoClient() {
 
       try {
         data = text ? JSON.parse(text) : null;
-      } catch (parseError) {
+      } catch {
         console.error("[MP frontend] invalid JSON response", text);
       }
 
       console.log("[MP frontend] status", response.status);
       console.log("[MP frontend] data", data);
+
+      if (data?.new_attempt_required) {
+        window.sessionStorage.removeItem(CHECKOUT_ATTEMPT_STORAGE_KEY);
+      }
+
+      if (response.status === 202) {
+        throw new Error(
+          data?.error ||
+            "Estamos verificando el intento con Mercado Pago. Probá nuevamente en unos instantes.",
+        );
+      }
 
       if (!response.ok) {
         console.error("Create subscription error response:", data || text);
