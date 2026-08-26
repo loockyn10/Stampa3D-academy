@@ -51,11 +51,9 @@ function parseHours(text: string): number | null {
 
 export function detectStampyActionIntent({
   message,
-  workshopContext,
   currentPath,
 }: {
   message: string;
-  workshopContext?: any;
   currentPath?: string | null;
 }): StampyActionIntent | null {
   const norm = normalize(message);
@@ -206,11 +204,14 @@ export function detectStampyActionIntent({
     const material = matchMaterial ? matchMaterial[1].toUpperCase() : null;
     const matchColor = norm.match(/(rojo|azul|verde|negro|blanco|amarillo|naranja|gris|violeta|cian|transparente|natural)/);
     const color = matchColor ? matchColor[1] : null;
+    const brandMatch = norm.match(/(w3d|elegoo|gst3d|grilon|printalot|hellbot|creality)/);
+    const brand = brandMatch ? brandMatch[1].toUpperCase() : null;
 
     const toolHref = buildToolHref("/stock", {
       tab: "filamentos",
       action: "add",
       material,
+      brand,
       color
     });
 
@@ -219,7 +220,7 @@ export function detectStampyActionIntent({
       confidence: 0.9,
       title: "Agregar filamento nuevo",
       summary: "Se detectó la intención de ingresar un nuevo material al stock.",
-      extracted: { material, color },
+      extracted: { material, brand, color },
       toolHref,
       toolLabel: "Stock de filamentos",
       canExecute: false,

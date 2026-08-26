@@ -67,10 +67,6 @@ export default function LibreriaStlPage() {
         (s.category?.name || "").toLowerCase().includes(query.toLowerCase())
       );
     }
-    console.log("categories", categories);
-    console.log("models", models);
-    console.log("selectedCategoryId", selectedCatId);
-    console.log("filteredModels", f);
     return f;
   }, [modelsWithData, selectedCatId, query, categories, models]);
 

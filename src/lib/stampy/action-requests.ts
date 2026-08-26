@@ -74,16 +74,25 @@ export async function markStampyActionRequestOpened({
     const { data: { user } } = await supabase.auth.getUser();
     if (!user) return { success: false, error: "No user" };
 
-    const { error } = await supabase
+    const { data, error } = await supabase
       .from("stampy_action_requests")
       .update({ status: "opened_tool", updated_at: new Date().toISOString() })
       .eq("id", actionRequestId)
       .eq("user_id", user.id)
-      .eq("status", "suggested");
+      .eq("status", "suggested")
+      .select("id")
+      .maybeSingle();
 
     if (error) {
       console.error("[markStampyActionRequestOpened] Error:", error);
       return { success: false, error: error.message };
+    }
+
+    if (!data) {
+      return {
+        success: false,
+        error: "No se encontró una solicitud pendiente para abrir."
+      };
     }
 
     return { success: true };
@@ -105,7 +114,7 @@ export async function cancelStampyActionRequest({
     const { data: { user } } = await supabase.auth.getUser();
     if (!user) return { success: false, error: "No user" };
 
-    const { error } = await supabase
+    const { data, error } = await supabase
       .from("stampy_action_requests")
       .update({ 
         status: "cancelled", 
@@ -114,11 +123,20 @@ export async function cancelStampyActionRequest({
       })
       .eq("id", actionRequestId)
       .eq("user_id", user.id)
-      .in("status", ["suggested", "opened_tool"]); // Allow cancel if opened but not executed
+      .in("status", ["suggested", "opened_tool"])
+      .select("id")
+      .maybeSingle(); // Allow cancel if opened but not executed
 
     if (error) {
       console.error("[cancelStampyActionRequest] Error:", error);
       return { success: false, error: error.message };
+    }
+
+    if (!data) {
+      return {
+        success: false,
+        error: "No se encontró una solicitud pendiente para cancelar."
+      };
     }
 
     return { success: true };

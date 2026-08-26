@@ -2,6 +2,7 @@
 
 import { createClient } from "@/utils/supabase/server";
 import { getCurrentUserAccess } from "@/lib/auth/user-access";
+import { validateStampyMessage } from "@/lib/stampy/message-policy";
 import type { ChatCompletionMessageParam } from "openai/resources/chat/completions";
 export type StampyContextPayload =
   | {
@@ -87,6 +88,22 @@ export async function askStampyAction(
       };
     }
 
+    const messageValidation = validateStampyMessage(message);
+    if (!messageValidation.valid) {
+      return {
+        error: messageValidation.error,
+        answer: messageValidation.error,
+        recommendations: [],
+        knowledgeTools: [],
+        relatedTools: [],
+        suggestedQuestions: [],
+        conversationId: actualConversationId,
+        actionRequestId: null,
+        actionIntent: null
+      };
+    }
+    const userMessage = messageValidation.message;
+
     // Rate Limit Check
     const { checkStampyRateLimit } = await import("@/lib/stampy/rate-limit");
     const rateLimit = await checkStampyRateLimit({ supabase, userId });
@@ -99,7 +116,7 @@ export async function askStampyAction(
         model: null,
         mode: "blocked",
         status: "blocked",
-        messageChars: message.length,
+        messageChars: userMessage.length,
       });
 
       return {
@@ -114,9 +131,105 @@ export async function askStampyAction(
 
     // Ensure Conversation
     const { ensureConversation, getRecentHistory, saveMessages } = await import("@/lib/stampy/history");
-    const ensuredId = await ensureConversation({ supabase, userId, conversationId: actualConversationId, message });
+    const ensuredId = await ensureConversation({
+      supabase,
+      userId,
+      conversationId: actualConversationId,
+      message: userMessage
+    });
     if (ensuredId) {
       actualConversationId = ensuredId;
+    }
+
+    const pathname = context?.pathname;
+    const { detectStampyActionIntent, buildActionIntentResponse } = await import("@/lib/stampy/action-intents");
+    const actionIntent = detectStampyActionIntent({
+      message: userMessage,
+      currentPath: pathname
+    });
+
+    if (actionIntent) {
+      requestMode = "direct";
+      answerText = buildActionIntentResponse(actionIntent);
+      const knowledgeTools = actionIntent.toolHref && actionIntent.toolLabel
+        ? [{
+            title: `Abrir ${actionIntent.toolLabel}`,
+            route: actionIntent.toolHref,
+            shortDescription: "Revisá los datos y confirmá la acción desde la herramienta."
+          }]
+        : [];
+
+      let assistantMessageId: string | null = null;
+      let actionRequestId: string | null = null;
+      if (actualConversationId) {
+        const saved = await saveMessages(
+          supabase,
+          userId,
+          actualConversationId,
+          userMessage,
+          answerText,
+          {
+            mode: requestMode,
+            model: null,
+            relatedToolsCount: knowledgeTools.length,
+            recommendationsCount: 0,
+            actionIntent
+          }
+        );
+        assistantMessageId = saved?.assistantMessageId || null;
+
+        if (assistantMessageId) {
+          const { createStampyActionRequest } = await import("@/lib/stampy/action-requests");
+          const result = await createStampyActionRequest({
+            userId,
+            conversationId: actualConversationId,
+            messageId: assistantMessageId,
+            actionIntent,
+            source: context?.source || "stampy"
+          });
+          actionRequestId = result.actionRequestId;
+
+          if (actionRequestId) {
+            await supabase
+              .from("stampy_messages")
+              .update({
+                metadata: {
+                  mode: requestMode,
+                  model: null,
+                  actionIntent,
+                  actionRequestId
+                }
+              })
+              .eq("id", assistantMessageId);
+          }
+        }
+
+        const { logStampyUsage } = await import("@/lib/stampy/usage-log");
+        await logStampyUsage({
+          supabase,
+          userId,
+          conversationId: actualConversationId,
+          model: null,
+          mode: requestMode,
+          status: "success",
+          messageChars: userMessage.length,
+          promptChars: 0,
+          completionChars: answerText.length,
+          latencyMs: Date.now() - startTime
+        });
+      }
+
+      return {
+        answer: answerText,
+        recommendations: [],
+        knowledgeTools,
+        relatedTools: [],
+        suggestedQuestions: [],
+        conversationId: actualConversationId,
+        assistantMessageId,
+        actionRequestId,
+        actionIntent
+      };
     }
 
     const { OpenAI } = await import("openai");
@@ -127,10 +240,10 @@ export async function askStampyAction(
     const workshopContext = await getStampyWorkshopContext({
       supabase,
       userId,
-      message
+      message: userMessage
     });
 
-    if (message.trim() === "/debug taller" && process.env.NODE_ENV !== "production") {
+    if (userMessage === "/debug taller" && process.env.NODE_ENV !== "production") {
       const debugText = `DEBUG CONTEXTO TALLER\n\nuserId: ${userId}\n\nprintersCount: ${workshopContext.printersCount}\nactiveFilamentsCount: ${workshopContext.filamentsCount}\nactiveFilamentsError: ${workshopContext.activeFilamentsErrorMsg}\nproductsCount: ${workshopContext.productsCount}\n\nFilamentos activos sample:\n${workshopContext.sampleFilaments}\n\nContexto final:\n${workshopContext.text}`;
       
       return {
@@ -142,14 +255,11 @@ export async function askStampyAction(
       };
     }
 
-    // 1. Obtener pathname del contexto opcional
-    const pathname = context?.pathname;
-    
     // 2. Fetch new dynamic contexts
     const { getStampyRelevantContexts } = await import("@/lib/stampy/context-search");
     const dynamicContextData = await getStampyRelevantContexts({
       supabase,
-      message,
+      message: userMessage,
       currentPath: pathname,
       lessonId: context?.source === "lesson" ? context.lessonId : undefined,
     });
@@ -257,7 +367,7 @@ Reglas:
       let stockContext = null;
       try {
         const { getStampyStockContext } = await import("@/lib/stampy/tool-contexts/stock-context");
-        stockContext = await getStampyStockContext(userId, message);
+        stockContext = await getStampyStockContext(userId, userMessage);
       } catch (error) {
         console.error("[Stampy] stock context failed", error);
       }
@@ -341,7 +451,7 @@ Si el usuario pide una acción:
 
     // 5. Buscar herramientas de conocimiento
     const { findRelevantKnowledge } = await import("@/lib/stampy/knowledge-search");
-    let knowledgeTools = findRelevantKnowledge(message);
+    let knowledgeTools = findRelevantKnowledge(userMessage);
 
     // Ajustar herramientas según intent
     if (workshopContext.isFilamentQuery) {
@@ -361,7 +471,7 @@ Si el usuario pide una acción:
       const transcriptData = await getLessonTranscriptContext({
         supabase,
         lessonId,
-        message,
+        message: userMessage,
       });
 
       // (transcript logs removed)
@@ -378,7 +488,7 @@ Si el usuario pide una acción:
     const { retrieveStampyKnowledge } = await import("@/lib/stampy/retrieval");
     const retrievedKnowledge = await retrieveStampyKnowledge({
       supabase,
-      query: message,
+      query: userMessage,
       courseId: context?.source === "lesson" ? context.courseId : undefined,
       lessonId,
       currentPath: pathname,
@@ -403,48 +513,17 @@ ${relevantContracts.map(formatToolContractForPrompt).join("\n\n")}\n`;
     const messagesPayload: ChatCompletionMessageParam[] = [
       { role: "system", content: systemPrompt },
       ...recentHistory,
-      { role: "user", content: message }
+      { role: "user", content: userMessage }
     ];
 
     const modelName = process.env.OPENAI_MODEL || "gpt-4o-mini";
-    
-    const { detectStampyActionIntent, buildActionIntentResponse } = await import("@/lib/stampy/action-intents");
-    const actionIntent = detectStampyActionIntent({
-      message,
-      workshopContext,
-      currentPath: pathname
+
+    const completion = await openai.chat.completions.create({
+      model: modelName,
+      messages: messagesPayload
     });
 
-    let actionIntentMetadata = null;
-
-    if (actionIntent) {
-      answerText = buildActionIntentResponse(actionIntent);
-      requestMode = "direct";
-      actionIntentMetadata = actionIntent;
-      
-      if (actionIntent.toolHref && actionIntent.toolLabel) {
-        knowledgeTools = [{
-          title: `Abrir ${actionIntent.toolLabel}`,
-          route: actionIntent.toolHref,
-          shortDescription: "Revisá los datos y confirmá la acción desde la herramienta."
-        }] as typeof knowledgeTools;
-      }
-      
-      console.log("[Stampy] action intent detected", {
-        userId,
-        conversationId: actualConversationId,
-        type: actionIntent.type,
-        confidence: actionIntent.confidence,
-        canExecute: actionIntent.canExecute,
-      });
-    } else {
-      const completion = await openai.chat.completions.create({
-        model: modelName,
-        messages: messagesPayload
-      });
-
-      answerText = completion.choices[0]?.message?.content || "No pude generar una respuesta.";
-    }
+    answerText = completion.choices[0]?.message?.content || "No pude generar una respuesta.";
     // 6. Buscar lecciones recomendables (búsqueda textual simple)
     const { data: rawLessons } = await supabase
       .from('lessons')
@@ -478,7 +557,7 @@ ${relevantContracts.map(formatToolContractForPrompt).join("\n\n")}\n`;
     let recommendations: unknown[] = [];
     if (rawLessons && rawLessons.length > 0) {
       const normalize = (t: string) => t.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "").trim();
-      const q = normalize(message);
+      const q = normalize(userMessage);
       
       const scored = rawLessons.map(l => {
         let score = 0;
@@ -506,47 +585,22 @@ ${relevantContracts.map(formatToolContractForPrompt).join("\n\n")}\n`;
     }
 
     let assistantMessageId: string | null = null;
-    let actionRequestId: string | null = null;
     if (actualConversationId) {
       const saved = await saveMessages(
         supabase, 
         userId,
         actualConversationId, 
-        message, 
+        userMessage,
         answerText, 
         { 
           mode: requestMode, 
           model: modelName, 
           relatedToolsCount: knowledgeTools.length, 
           recommendationsCount: recommendations.length,
-          actionIntent: actionIntentMetadata
+          actionIntent: null
         }
       );
       assistantMessageId = saved?.assistantMessageId || null;
-
-      if (actionIntentMetadata && assistantMessageId) {
-        const { createStampyActionRequest } = await import("@/lib/stampy/action-requests");
-        const res = await createStampyActionRequest({
-          userId,
-          conversationId: actualConversationId,
-          messageId: assistantMessageId,
-          actionIntent: actionIntentMetadata,
-          source: context?.source || "stampy"
-        });
-        
-        if (res.actionRequestId) {
-          actionRequestId = res.actionRequestId;
-          // Actualizar metadata del mensaje con el actionRequestId
-          await supabase.from("stampy_messages").update({ 
-            metadata: { 
-              mode: requestMode, 
-              model: modelName,
-              actionIntent: actionIntentMetadata,
-              actionRequestId: res.actionRequestId
-            } 
-          }).eq("id", assistantMessageId);
-        }
-      }
 
       const { logStampyUsage } = await import("@/lib/stampy/usage-log");
       await logStampyUsage({
@@ -556,7 +610,7 @@ ${relevantContracts.map(formatToolContractForPrompt).join("\n\n")}\n`;
         model: modelName,
         mode: requestMode,
         status: "success",
-        messageChars: message.length,
+        messageChars: userMessage.length,
         promptChars: systemPrompt.length + recentHistory.reduce((total, historyMessage) => total + historyMessage.content.length, 0),
         completionChars: answerText.length,
         latencyMs: Date.now() - startTime
@@ -573,8 +627,8 @@ ${relevantContracts.map(formatToolContractForPrompt).join("\n\n")}\n`;
       suggestedQuestions: staticContext?.suggestedQuestions || [],
       conversationId: actualConversationId,
       assistantMessageId,
-      actionRequestId,
-      actionIntent: actionIntentMetadata
+      actionRequestId: null,
+      actionIntent: null
     };
   } catch (error) {
     console.error("[Stampy] OpenAI request failed", {
