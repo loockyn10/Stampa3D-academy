@@ -19,7 +19,12 @@ export interface ActionIntentCardProps {
 
 export function ActionIntentCard({ actionIntent, actionRequestId, initialStatus = "suggested" }: ActionIntentCardProps) {
   const router = useRouter();
-  const [status, setStatus] = useState(initialStatus);
+  const autoExecution = actionIntent?.extracted?.autoExecution as
+    | { executed?: boolean }
+    | undefined;
+  const [status, setStatus] = useState(
+    autoExecution?.executed === true ? "executed" : initialStatus
+  );
   const [isProcessing, setIsProcessing] = useState(false);
   const [resultMessage, setResultMessage] = useState<string | null>(null);
 
@@ -155,6 +160,7 @@ export function ActionIntentCard({ actionIntent, actionRequestId, initialStatus 
         "powerWattsAssumed",
         "maintenanceCostPerHourAssumed",
         "validationWarnings",
+        "autoExecution",
         ...(isCreateFilament
           ? ["material", "brand", "name", "color", "totalGrams"]
           : []),

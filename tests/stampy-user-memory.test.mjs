@@ -156,6 +156,18 @@ function loadMemoryAwareAskStampyAction({
     "@/lib/stampy/action-intents": actionIntents,
     "@/lib/stampy/action-validator": actionValidator,
     "@/lib/stampy/tool-registry": toolRegistry,
+    "@/lib/stampy/action-settings": {
+      getStampyActionSettings: async () => ({
+        settings: {
+          autoExecuteLowRisk: false,
+          autoExecuteFilamentMovements: false,
+          autoExecuteCreateFilament: false,
+          autoExecuteCreatePrinter: false,
+        },
+        error: null,
+      }),
+      canAutoExecuteStampyAction: () => false,
+    },
     "@/lib/stampy/action-requests": {
       createStampyActionRequest: async () => ({
         actionRequestId: "action-request-1",
@@ -180,6 +192,9 @@ function loadMemoryAwareAskStampyAction({
         },
       }),
       getResolvedFilamentLabel: () => "PLA",
+      executeFilamentStockMovement: async () => ({ success: false }),
+      executeCreateFilament: async () => ({ success: false }),
+      executeCreatePrinter: async () => ({ success: false }),
     },
     "@/lib/stampy/user-memory": memoryModule,
     "@/lib/stampy/workshop-context": {

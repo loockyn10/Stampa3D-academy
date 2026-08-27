@@ -101,6 +101,18 @@ function loadAskStampyAction({
     "@/lib/stampy/action-intents": actionIntents,
     "@/lib/stampy/action-validator": actionValidator,
     "@/lib/stampy/tool-registry": toolRegistry,
+    "@/lib/stampy/action-settings": {
+      getStampyActionSettings: async () => ({
+        settings: {
+          autoExecuteLowRisk: false,
+          autoExecuteFilamentMovements: false,
+          autoExecuteCreateFilament: false,
+          autoExecuteCreatePrinter: false,
+        },
+        error: null,
+      }),
+      canAutoExecuteStampyAction: () => false,
+    },
     "@/lib/stampy/action-requests": {
       createStampyActionRequest: async (params) => {
         actionRequests.push(params);
@@ -111,6 +123,9 @@ function loadAskStampyAction({
       resolveFilamentMatch: async () => filamentMatch,
       findDuplicateActiveFilament: async () => duplicateCheck,
       findDuplicatePrinter: async () => printerDuplicateCheck,
+      executeFilamentStockMovement: async () => ({ success: false }),
+      executeCreateFilament: async () => ({ success: false }),
+      executeCreatePrinter: async () => ({ success: false }),
       getResolvedFilamentLabel: (filament) =>
         [filament.filament_type, filament.brand, filament.name, filament.color]
           .filter(Boolean)

@@ -191,6 +191,198 @@ function buildCreatePrinterResponse(actionIntent: StampyActionIntent): string {
   )}${warningText}\n\nAntes de crearla necesito que confirmes. Todavía no hice cambios.`;
 }
 
+type AutoExecutionReason =
+  | "user_setting_enabled"
+  | "setting_disabled"
+  | "ambiguous_target"
+  | "validation_failed"
+  | "unsupported_action"
+  | "insufficient_stock"
+  | "settings_unavailable"
+  | "rpc_error";
+
+interface AutoExecutionAudit {
+  attempted: true;
+  allowed: boolean;
+  reason: AutoExecutionReason;
+  executed?: boolean;
+  errorCode?: string | null;
+}
+
+function isSupportedAutoExecutionAction(
+  actionIntent: StampyActionIntent
+): boolean {
+  return (
+    isFilamentMovementAction(actionIntent) ||
+    isCreateFilamentAction(actionIntent) ||
+    isCreatePrinterAction(actionIntent)
+  );
+}
+
+async function resolveAutoExecutionAudit({
+  supabase,
+  userId,
+  actionIntent,
+  validation,
+}: {
+  supabase: Awaited<ReturnType<typeof createClient>>;
+  userId: string;
+  actionIntent: StampyActionIntent;
+  validation: StampyActionValidationResult;
+}): Promise<AutoExecutionAudit> {
+  if (!validation.isValid) {
+    return { attempted: true, allowed: false, reason: "validation_failed" };
+  }
+
+  if (!isSupportedAutoExecutionAction(actionIntent)) {
+    return { attempted: true, allowed: false, reason: "unsupported_action" };
+  }
+
+  if (isFilamentMovementAction(actionIntent)) {
+    const resolvedTarget = actionIntent.extracted.resolvedTarget as
+      | { id?: string; remainingGramsBefore?: number }
+      | undefined;
+    const grams = Number(actionIntent.extracted.grams);
+    if (
+      actionIntent.extracted.matchStatus !== "unique" ||
+      actionIntent.extracted.requiresConfirmation !== true ||
+      !resolvedTarget?.id ||
+      !Number.isFinite(grams) ||
+      grams <= 0
+    ) {
+      return { attempted: true, allowed: false, reason: "ambiguous_target" };
+    }
+
+    if (
+      actionIntent.type === "discount_filament" &&
+      Number(resolvedTarget.remainingGramsBefore) < grams
+    ) {
+      return { attempted: true, allowed: false, reason: "insufficient_stock" };
+    }
+  }
+
+  if (
+    (isCreateFilamentAction(actionIntent) ||
+      isCreatePrinterAction(actionIntent)) &&
+    (actionIntent.extracted.duplicateStatus !== "clear" ||
+      actionIntent.extracted.requiresConfirmation !== true)
+  ) {
+    return { attempted: true, allowed: false, reason: "ambiguous_target" };
+  }
+
+  try {
+    const {
+      canAutoExecuteStampyAction,
+      getStampyActionSettings,
+    } = await import("@/lib/stampy/action-settings");
+    const settingsResult = await getStampyActionSettings({
+      supabase,
+      userId,
+    });
+    if (settingsResult.error) {
+      console.error(
+        "[Stampy] action settings unavailable",
+        settingsResult.error.substring(0, 200)
+      );
+      return {
+        attempted: true,
+        allowed: false,
+        reason: "settings_unavailable",
+      };
+    }
+
+    const allowed = canAutoExecuteStampyAction({
+      settings: settingsResult.settings,
+      actionType: actionIntent.type,
+    });
+    return {
+      attempted: true,
+      allowed,
+      reason: allowed ? "user_setting_enabled" : "setting_disabled",
+    };
+  } catch (error) {
+    console.error(
+      "[Stampy] action settings unavailable",
+      String(error).substring(0, 200)
+    );
+    return {
+      attempted: true,
+      allowed: false,
+      reason: "settings_unavailable",
+    };
+  }
+}
+
+async function executeAutomaticStampyAction({
+  supabase,
+  actionRequestId,
+  actionIntent,
+}: {
+  supabase: Awaited<ReturnType<typeof createClient>>;
+  actionRequestId: string;
+  actionIntent: StampyActionIntent;
+}) {
+  const {
+    executeCreateFilament,
+    executeCreatePrinter,
+    executeFilamentStockMovement,
+  } = await import("@/lib/stampy/action-executor");
+
+  if (isFilamentMovementAction(actionIntent)) {
+    return executeFilamentStockMovement({ supabase, actionRequestId });
+  }
+  if (isCreateFilamentAction(actionIntent)) {
+    return executeCreateFilament({ supabase, actionRequestId });
+  }
+  if (isCreatePrinterAction(actionIntent)) {
+    return executeCreatePrinter({ supabase, actionRequestId });
+  }
+
+  return {
+    success: false,
+    errorCode: "unsupported_action",
+    message: "Esta acción no admite ejecución automática.",
+  };
+}
+
+function buildAutoExecutionSuccessResponse(
+  actionIntent: StampyActionIntent,
+  result: {
+    message: string;
+    newRemainingGrams?: number | null;
+    label?: string | null;
+    remainingGrams?: number | null;
+    printerName?: string | null;
+  }
+): string {
+  if (isFilamentMovementAction(actionIntent)) {
+    const target = actionIntent.extracted.resolvedTarget as
+      | { label?: string }
+      | undefined;
+    const verb =
+      actionIntent.type === "discount_filament" ? "desconté" : "sumé";
+    const preposition =
+      actionIntent.type === "discount_filament" ? "de" : "a";
+    return `Listo, ${verb} ${Number(actionIntent.extracted.grams)}g ${
+      target?.label ? `${preposition} ${target.label}` : "al filamento"
+    }. Ahora te quedan ${Number(result.newRemainingGrams)}g.`;
+  }
+
+  if (isCreateFilamentAction(actionIntent)) {
+    return `Listo, creé el filamento ${
+      result.label ?? String(actionIntent.extracted.material)
+    } con ${Number(result.remainingGrams)}g disponibles.`;
+  }
+
+  if (isCreatePrinterAction(actionIntent)) {
+    return `Listo, creé la impresora ${
+      result.printerName ?? String(actionIntent.extracted.printerName)
+    }.`;
+  }
+
+  return result.message;
+}
+
 export async function askStampyAction(
   message: string,
   conversationId?: string | null,
@@ -466,8 +658,33 @@ export async function askStampyAction(
         }
       }
 
+      let autoExecution = await resolveAutoExecutionAudit({
+        supabase,
+        userId,
+        actionIntent: validatedActionIntent,
+        validation,
+      });
+      if (autoExecution.reason === "insufficient_stock") {
+        validatedActionIntent = {
+          ...validatedActionIntent,
+          extracted: {
+            ...validatedActionIntent.extracted,
+            requiresConfirmation: false,
+          },
+        };
+      }
+      validatedActionIntent = {
+        ...validatedActionIntent,
+        extracted: {
+          ...validatedActionIntent.extracted,
+          autoExecution,
+        },
+      };
+
       requestMode = "direct";
-      answerText = validation.isValid
+      answerText = autoExecution.reason === "insufficient_stock"
+        ? "No hay suficientes gramos disponibles para hacer ese descuento. No modifiqué tu stock; revisalo desde Stock."
+        : validation.isValid
         ? isFilamentMovementAction(validatedActionIntent)
           ? buildFilamentMovementResponse(validatedActionIntent)
           : isCreateFilamentAction(validatedActionIntent)
@@ -517,9 +734,56 @@ export async function askStampyAction(
           actionRequestId = result.actionRequestId;
 
           if (actionRequestId) {
+            if (autoExecution.allowed) {
+              const executionResult = await executeAutomaticStampyAction({
+                supabase,
+                actionRequestId,
+                actionIntent: validatedActionIntent,
+              });
+              autoExecution = executionResult.success
+                ? {
+                    ...autoExecution,
+                    executed: true,
+                    errorCode: null,
+                  }
+                : {
+                    attempted: true,
+                    allowed: false,
+                    reason: "rpc_error",
+                    executed: false,
+                    errorCode: executionResult.errorCode,
+                  };
+              validatedActionIntent = {
+                ...validatedActionIntent,
+                extracted: {
+                  ...validatedActionIntent.extracted,
+                  autoExecution,
+                  ...(executionResult.success
+                    ? { requiresConfirmation: false }
+                    : {}),
+                },
+              };
+
+              if (executionResult.success) {
+                answerText = buildAutoExecutionSuccessResponse(
+                  validatedActionIntent,
+                  executionResult
+                );
+              } else {
+                answerText = `${executionResult.message} No hice cambios automáticamente; podés revisar y confirmar la acción manualmente.`;
+              }
+
+              await supabase
+                .from("stampy_action_requests")
+                .update({ extracted: validatedActionIntent.extracted })
+                .eq("id", actionRequestId)
+                .eq("user_id", userId);
+            }
+
             await supabase
               .from("stampy_messages")
               .update({
+                content: answerText,
                 metadata: {
                   mode: requestMode,
                   model: null,
