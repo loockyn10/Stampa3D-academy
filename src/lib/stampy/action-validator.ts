@@ -125,6 +125,14 @@ export function validateStampyActionIntent({
         toolContract?.requiredFields ?? ["material"],
         missingFields
       );
+      if (!hasValue(normalizedExtracted.totalGrams)) {
+        normalizedExtracted.totalGrams = 1000;
+        normalizedExtracted.totalGramsAssumed = true;
+      }
+      normalizePositiveNumber(normalizedExtracted, "totalGrams", invalidFields);
+      if (normalizedExtracted.totalGramsAssumed === true) {
+        warnings.push("Como no indicaste el peso, se asumirá un rollo de 1000g.");
+      }
       break;
 
     default:

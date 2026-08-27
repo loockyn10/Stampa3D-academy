@@ -288,6 +288,7 @@ test("the confirmation Server Action authenticates and sends only the action req
       }),
     },
     "./action-executor": {
+      executeCreateFilament: async () => ({ success: false }),
       executeFilamentStockMovement: async (params) => {
         executorCalls.push(params);
         return { success: true, message: "ok" };

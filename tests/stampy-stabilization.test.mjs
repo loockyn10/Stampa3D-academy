@@ -48,6 +48,7 @@ function loadAskStampyAction({
   touchedTables = [],
   savedMetadata = [],
   actionRequests = [],
+  duplicateCheck = { status: "clear" },
   filamentMatch = {
     status: "unique",
     filament: {
@@ -107,6 +108,7 @@ function loadAskStampyAction({
     },
     "@/lib/stampy/action-executor": {
       resolveFilamentMatch: async () => filamentMatch,
+      findDuplicateActiveFilament: async () => duplicateCheck,
       getResolvedFilamentLabel: (filament) =>
         [filament.filament_type, filament.brand, filament.name, filament.color]
           .filter(Boolean)
@@ -535,6 +537,80 @@ test("new filament validates as create rather than stock increase", () => {
   assert.equal(actionIntent.canExecute, false);
 });
 
+test("a valid new PETG filament is prepared for explicit confirmation", async () => {
+  const actionRequests = [];
+  const actions = loadAskStampyAction({ actionRequests });
+  const result = await actions.askStampyAction(
+    "Creame un filamento nuevo PETG rojo Elegoo de 1kg"
+  );
+
+  assert.equal(result.actionIntent.type, "add_filament");
+  assert.equal(result.actionIntent.canExecute, false);
+  assert.equal(result.actionIntent.extracted.material, "PETG");
+  assert.equal(result.actionIntent.extracted.brand, "ELEGOO");
+  assert.equal(result.actionIntent.extracted.color, "rojo");
+  assert.equal(result.actionIntent.extracted.totalGrams, 1000);
+  assert.equal(result.actionIntent.extracted.totalGramsAssumed, false);
+  assert.equal(result.actionIntent.extracted.requiresConfirmation, true);
+  assert.equal(result.actionIntent.extracted.duplicateStatus, "clear");
+  assert.match(result.answer, /necesito que confirmes/i);
+  assert.equal(actionRequests.length, 1);
+  assert.equal(actionRequests[0].actionIntent.extracted.actionType, "add_filament");
+});
+
+test("a new filament defaults to a clearly disclosed 1000g roll", async () => {
+  const actions = loadAskStampyAction();
+  const result = await actions.askStampyAction(
+    "Creame un filamento nuevo PLA W3D Cian"
+  );
+
+  assert.equal(result.actionIntent.type, "add_filament");
+  assert.equal(result.actionIntent.extracted.totalGrams, 1000);
+  assert.equal(result.actionIntent.extracted.totalGramsAssumed, true);
+  assert.match(result.answer, /1000g \(asumido\)/i);
+});
+
+test("new filament extraction keeps subtype separate from the full label", () => {
+  const intent = actionIntents.detectStampyActionIntent({
+    message: "Creá un rollo nuevo de PLA Hellbot Ecofila azul",
+  });
+
+  assert.equal(intent.type, "add_filament");
+  assert.equal(intent.extracted.material, "PLA");
+  assert.equal(intent.extracted.brand, "HELLBOT");
+  assert.equal(intent.extracted.name, "Ecofila");
+  assert.equal(intent.extracted.color, "azul");
+  assert.equal(intent.extracted.totalGrams, 1000);
+  assert.equal(intent.extracted.totalGramsAssumed, false);
+});
+
+test("a duplicate active filament disables creation confirmation and keeps Stock fallback", async () => {
+  const actions = loadAskStampyAction({
+    duplicateCheck: {
+      status: "duplicate",
+      filament: {
+        id: "existing-filament",
+        user_id: "user-1",
+        name: null,
+        filament_type: "PLA",
+        brand: "W3D",
+        color: "Cian",
+        remaining_grams: 800,
+        total_grams: 1000,
+        is_active: true,
+      },
+    },
+  });
+  const result = await actions.askStampyAction(
+    "Creame un filamento nuevo PLA W3D Cian"
+  );
+
+  assert.equal(result.actionIntent.extracted.requiresConfirmation, false);
+  assert.equal(result.actionIntent.extracted.duplicateStatus, "duplicate");
+  assert.match(result.answer, /evitar duplicados/i);
+  assert.match(result.actionIntent.toolHref, /^\/stock/);
+});
+
 test("direct intents and oversized messages return before OpenAI and retrieval setup", () => {
   const source = fs
     .readFileSync(path.join(root, "src/app/stampy/actions.ts"), "utf8")
@@ -579,7 +655,10 @@ function makeActionRequestModule(updateResult) {
   return loadTypeScriptModule("src/lib/stampy/action-requests.ts", {
     "@/utils/supabase/server": { createClient: async () => supabase },
     "@/lib/auth/user-access": { getCurrentUserAccess: async () => ({ access: {} }) },
-    "./action-executor": { executeFilamentStockMovement: async () => ({ success: false }) },
+    "./action-executor": {
+      executeFilamentStockMovement: async () => ({ success: false }),
+      executeCreateFilament: async () => ({ success: false }),
+    },
     "./types": {}
   });
 }

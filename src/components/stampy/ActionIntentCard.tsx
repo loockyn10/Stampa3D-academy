@@ -5,6 +5,7 @@ import {
   markStampyActionRequestOpened,
   cancelStampyActionRequest,
   confirmStampyActionRequest,
+  confirmStampyCreateFilamentAction,
 } from "@/lib/stampy/action-requests";
 import { ExternalLink, AlertCircle, Trash2, CheckCircle2, Loader2 } from "lucide-react";
 import { useRouter } from "next/navigation";
@@ -77,6 +78,22 @@ export function ActionIntentCard({ actionIntent, actionRequestId, initialStatus 
     setIsProcessing(false);
   };
 
+  const handleConfirmCreation = async () => {
+    if (!actionRequestId) return;
+
+    setIsProcessing(true);
+    setResultMessage(null);
+    const result = await confirmStampyCreateFilamentAction(actionRequestId);
+    if (result.success) {
+      setStatus("executed");
+      setResultMessage(result.message);
+    } else {
+      if (result.errorCode === "already_executed") setStatus("executed");
+      setResultMessage(result.message);
+    }
+    setIsProcessing(false);
+  };
+
   const isCancelled = status === "cancelled";
   const isExecuted = status === "executed";
   const resolvedTarget = actionIntent.extracted?.resolvedTarget as
@@ -85,6 +102,7 @@ export function ActionIntentCard({ actionIntent, actionRequestId, initialStatus 
   const isFilamentMovement =
     actionIntent.type === "increase_filament_stock" ||
     actionIntent.type === "discount_filament";
+  const isCreateFilament = actionIntent.type === "add_filament";
   const canConfirmMovement =
     Boolean(actionRequestId) &&
     isFilamentMovement &&
@@ -92,9 +110,46 @@ export function ActionIntentCard({ actionIntent, actionRequestId, initialStatus 
     Boolean(resolvedTarget?.label) &&
     !isCancelled &&
     !isExecuted;
+  const canConfirmCreation =
+    Boolean(actionRequestId) &&
+    isCreateFilament &&
+    actionIntent.extracted?.requiresConfirmation === true &&
+    actionIntent.extracted?.duplicateStatus === "clear" &&
+    !isCancelled &&
+    !isExecuted;
   const visibleExtracted = Object.entries(actionIntent.extracted || {}).filter(
-    ([key]) => !["requiresConfirmation", "resolvedTarget", "matchStatus"].includes(key)
+    ([key]) =>
+      ![
+        "requiresConfirmation",
+        "resolvedTarget",
+        "matchStatus",
+        "actionType",
+        "duplicateStatus",
+        "duplicateTarget",
+        "totalGramsAssumed",
+        ...(isCreateFilament
+          ? ["material", "brand", "name", "color", "totalGrams"]
+          : []),
+      ].includes(key)
   );
+  const creationSummary = isCreateFilament
+    ? [
+        ["Material", actionIntent.extracted?.material],
+        ["Marca", actionIntent.extracted?.brand],
+        ["Subtipo", actionIntent.extracted?.name],
+        ["Color", actionIntent.extracted?.color],
+        [
+          "Peso total",
+          actionIntent.extracted?.totalGrams
+            ? `${actionIntent.extracted.totalGrams}g${
+                actionIntent.extracted.totalGramsAssumed === true
+                  ? " (asumido)"
+                  : ""
+              }`
+            : null,
+        ],
+      ].filter((entry) => entry[1] !== null && entry[1] !== undefined && entry[1] !== "")
+    : [];
   
   return (
     <div className={`mt-4 rounded-xl border p-4 ${isCancelled ? 'border-gray-800 bg-gray-900/50 opacity-60' : 'border-stampa-orange/30 bg-stampa-orange/5'}`}>
@@ -115,6 +170,14 @@ export function ActionIntentCard({ actionIntent, actionRequestId, initialStatus 
                 <span className="font-medium text-gray-300">{String(val)}</span>
               </div>
             ))}
+            {creationSummary.map(([label, value]) => (
+              <div key={String(label)} className="flex justify-between gap-3 text-xs">
+                <span className="text-gray-500">{String(label)}:</span>
+                <span className="text-right font-medium text-gray-300">
+                  {String(value)}
+                </span>
+              </div>
+            ))}
             {resolvedTarget?.label && (
               <div className="flex justify-between gap-3 text-xs">
                 <span className="text-gray-500">Filamento:</span>
@@ -130,6 +193,8 @@ export function ActionIntentCard({ actionIntent, actionRequestId, initialStatus 
               <CheckCircle2 size={12} />
               {canConfirmMovement
                 ? "Stampy todavía no hizo cambios. Confirmá el movimiento para ejecutarlo."
+                : canConfirmCreation
+                  ? "Stampy todavía no hizo cambios. Confirmá la creación para ejecutarla."
                 : "Stampy no hizo cambios. Revisá y confirmá en la herramienta."}
             </p>
           )}
@@ -144,6 +209,16 @@ export function ActionIntentCard({ actionIntent, actionRequestId, initialStatus 
                 >
                   {isProcessing ? <Loader2 size={14} className="animate-spin" /> : <CheckCircle2 size={14} />}
                   Confirmar movimiento
+                </button>
+              )}
+              {canConfirmCreation && (
+                <button
+                  onClick={handleConfirmCreation}
+                  disabled={isProcessing}
+                  className="flex-1 basis-full flex items-center justify-center gap-2 rounded-lg bg-emerald-600 hover:bg-emerald-500 px-3 py-2 text-xs font-semibold text-white transition-colors disabled:opacity-50"
+                >
+                  {isProcessing ? <Loader2 size={14} className="animate-spin" /> : <CheckCircle2 size={14} />}
+                  Confirmar creación
                 </button>
               )}
               <button
@@ -172,7 +247,9 @@ export function ActionIntentCard({ actionIntent, actionRequestId, initialStatus 
 
           {isExecuted && (
             <p className="text-xs font-medium text-emerald-400">
-              {resultMessage || "Listo, actualicé el stock de filamento."}
+              {resultMessage || (isCreateFilament
+                ? "Listo, creé el filamento."
+                : "Listo, actualicé el stock de filamento.")}
             </p>
           )}
 

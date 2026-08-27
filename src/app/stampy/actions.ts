@@ -66,6 +66,7 @@ const ACTION_FIELD_LABELS: Record<string, string> = {
   hours: "horas",
   filamentReference: "material, color o marca del filamento",
   material: "material",
+  totalGrams: "peso total",
   toolContract: "contrato de herramienta",
 };
 
@@ -106,6 +107,10 @@ function isFilamentMovementAction(actionIntent: StampyActionIntent): boolean {
   );
 }
 
+function isCreateFilamentAction(actionIntent: StampyActionIntent): boolean {
+  return actionIntent.type === "add_filament";
+}
+
 function buildFilamentMovementResponse(actionIntent: StampyActionIntent): string {
   const resolvedTarget = actionIntent.extracted.resolvedTarget as
     | { label?: string; remainingGramsBefore?: number }
@@ -124,6 +129,31 @@ function buildFilamentMovementResponse(actionIntent: StampyActionIntent): string
   }
 
   return "No encontré un filamento activo que coincida con esos datos. Te dejo Stock abierto para que lo selecciones manualmente. Todavía no modifiqué tu stock.";
+}
+
+function buildCreateFilamentResponse(actionIntent: StampyActionIntent): string {
+  const extracted = actionIntent.extracted;
+  if (extracted.duplicateStatus === "duplicate") {
+    return "Ya encontré un filamento parecido cargado. Para evitar duplicados, te conviene aumentar stock desde el existente o revisar Stock. Todavía no creé nada.";
+  }
+
+  if (extracted.requiresConfirmation !== true) {
+    return "No pude verificar con seguridad que el filamento sea nuevo. Abrí Stock para revisarlo antes de crear nada.";
+  }
+
+  const details = [
+    `- Material: ${String(extracted.material)}`,
+    extracted.brand ? `- Marca: ${String(extracted.brand)}` : null,
+    extracted.name ? `- Subtipo: ${String(extracted.name)}` : null,
+    extracted.color ? `- Color: ${String(extracted.color)}` : null,
+    `- Peso total: ${Number(extracted.totalGrams)}g${
+      extracted.totalGramsAssumed === true ? " (asumido)" : ""
+    }`,
+  ].filter((detail): detail is string => Boolean(detail));
+
+  return `Preparé este filamento nuevo:\n\n${details.join(
+    "\n"
+  )}\n\nAntes de crearlo necesito que confirmes. Todavía no hice cambios.`;
 }
 
 export async function askStampyAction(
@@ -293,10 +323,64 @@ export async function askStampyAction(
         }
       }
 
+      if (validation.isValid && isCreateFilamentAction(validatedActionIntent)) {
+        try {
+          const { findDuplicateActiveFilament, getResolvedFilamentLabel } =
+            await import("@/lib/stampy/action-executor");
+          const duplicateCheck = await findDuplicateActiveFilament({
+            supabase,
+            userId,
+            extracted: validation.normalizedExtracted,
+          });
+
+          if (duplicateCheck.status === "error") {
+            console.error(
+              "[Stampy] duplicate filament check failed",
+              duplicateCheck.error?.substring(0, 200)
+            );
+          }
+
+          validatedActionIntent = {
+            ...validatedActionIntent,
+            extracted: {
+              ...validatedActionIntent.extracted,
+              actionType: "add_filament",
+              duplicateStatus: duplicateCheck.status,
+              requiresConfirmation: duplicateCheck.status === "clear",
+              ...(duplicateCheck.filament
+                ? {
+                    duplicateTarget: {
+                      type: "filament",
+                      id: duplicateCheck.filament.id,
+                      label: getResolvedFilamentLabel(duplicateCheck.filament),
+                    },
+                  }
+                : {}),
+            },
+          };
+        } catch (error) {
+          console.error(
+            "[Stampy] duplicate filament check failed",
+            String(error).substring(0, 200)
+          );
+          validatedActionIntent = {
+            ...validatedActionIntent,
+            extracted: {
+              ...validatedActionIntent.extracted,
+              actionType: "add_filament",
+              duplicateStatus: "error",
+              requiresConfirmation: false,
+            },
+          };
+        }
+      }
+
       requestMode = "direct";
       answerText = validation.isValid
         ? isFilamentMovementAction(validatedActionIntent)
           ? buildFilamentMovementResponse(validatedActionIntent)
+          : isCreateFilamentAction(validatedActionIntent)
+            ? buildCreateFilamentResponse(validatedActionIntent)
           : buildActionIntentResponse(validatedActionIntent)
         : buildActionValidationResponse(validatedActionIntent, validation);
       const knowledgeTools = validation.isValid && validatedActionIntent.toolHref && validatedActionIntent.toolLabel

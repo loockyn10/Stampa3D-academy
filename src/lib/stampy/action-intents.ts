@@ -42,6 +42,33 @@ function parseGrams(text: string): number | null {
   return null;
 }
 
+function parseNewFilamentWeight(text: string): {
+  totalGrams: number;
+  assumed: boolean;
+} {
+  const parsedGrams = parseGrams(text);
+  if (parsedGrams) return { totalGrams: parsedGrams, assumed: false };
+
+  const norm = normalize(text);
+  if (/\b(?:un|1)\s+rollo\b/.test(norm) || /\bun\s+kilo\b/.test(norm)) {
+    return { totalGrams: 1000, assumed: false };
+  }
+
+  return { totalGrams: 1000, assumed: true };
+}
+
+function parseFilamentSubtype(text: string): string | null {
+  const norm = normalize(text);
+  const subtypes: Array<[RegExp, string]> = [
+    [/\becofila\b/, "Ecofila"],
+    [/\bsilk\b/, "Silk"],
+    [/\bmate\b/, "Mate"],
+    [/\bpro\b/, "Pro"],
+  ];
+
+  return subtypes.find(([pattern]) => pattern.test(norm))?.[1] ?? null;
+}
+
 function parseHours(text: string): number | null {
   const norm = normalize(text);
   const match = norm.match(/(\d+(?:\.\d+)?)\s*(h|hs|horas|hora)/);
@@ -252,13 +279,17 @@ export function detectStampyActionIntent({
     const color = matchColor ? matchColor[1] : null;
     const brandMatch = norm.match(/(w3d|elegoo|gst3d|grilon|printalot|hellbot|creality)/);
     const brand = brandMatch ? brandMatch[1].toUpperCase() : null;
+    const name = parseFilamentSubtype(message);
+    const { totalGrams, assumed: totalGramsAssumed } = parseNewFilamentWeight(message);
 
     const toolHref = buildToolHref("/stock", {
       tab: "filamentos",
       action: "add",
       material,
       brand,
-      color
+      name,
+      color,
+      totalGrams,
     });
 
     return {
@@ -266,7 +297,14 @@ export function detectStampyActionIntent({
       confidence: 0.9,
       title: "Agregar filamento nuevo",
       summary: "Se detectó la intención de ingresar un nuevo material al stock.",
-      extracted: { material, brand, color },
+      extracted: {
+        material,
+        brand,
+        name,
+        color,
+        totalGrams,
+        totalGramsAssumed,
+      },
       toolHref,
       toolLabel: "Stock de filamentos",
       canExecute: false,

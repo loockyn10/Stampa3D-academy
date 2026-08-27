@@ -94,10 +94,12 @@ export const STAMPY_TOOL_REGISTRY: StampyToolContract[] = [
     area: "stock",
     supportedIntents: ["add_filament"],
     requiredFields: ["material"],
-    optionalFields: ["brand", "color", "subtype", "name", "total_grams"],
+    optionalFields: ["brand", "color", "subtype", "name", "totalGrams"],
     forbiddenFields: [],
     safetyNotes: [
-      "Solo usar si el usuario dice claramente 'nuevo filamento' o 'crear filamento'."
+      "Solo usar si el usuario dice claramente 'nuevo filamento' o 'crear filamento'.",
+      "Nunca crear desde el primer mensaje: requiere confirmación explícita.",
+      "No crear si ya existe un filamento activo claramente duplicado."
     ],
     canExecuteFromChat: false
   },
