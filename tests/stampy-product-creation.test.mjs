@@ -732,6 +732,18 @@ test("economics patch maps extracted fields to the existing product columns", ()
   );
 
   assert.match(sql, /create or replace function public\.confirm_stampy_create_product/i);
+  assert.equal(
+    (sql.match(/as \$stampy_create_product_economics\$/g) ?? []).length,
+    1
+  );
+  assert.equal(
+    (sql.match(/^\$stampy_create_product_economics\$;$/gm) ?? []).length,
+    1
+  );
+  assert.doesNotMatch(sql, /as \$\$/i);
+  assert.doesNotMatch(sql, /^\$\$;$/m);
+  assert.doesNotMatch(sql, /^\s*begin;\s*$/im);
+  assert.doesNotMatch(sql, /^\s*commit;\s*$/im);
   assert.match(sql, /extracted ->> 'printTimeMinutes'/i);
   assert.match(sql, /extracted ->> 'baseCost'/i);
   assert.match(sql, /extracted ->> 'salePrice'/i);

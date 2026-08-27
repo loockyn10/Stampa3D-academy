@@ -1,5 +1,3 @@
-begin;
-
 create or replace function public.confirm_stampy_create_product(
   p_action_request_id uuid
 )
@@ -16,7 +14,7 @@ returns table (
 language plpgsql
 security invoker
 set search_path = ''
-as $$
+as $stampy_create_product_economics$
 declare
   current_user_id uuid := auth.uid();
   action_request public.stampy_action_requests%rowtype;
@@ -440,7 +438,7 @@ begin
     product_name_value, inserted_components, unmatched_components,
     null::text, result_message;
 end;
-$$;
+$stampy_create_product_economics$;
 
 revoke all on function public.confirm_stampy_create_product(uuid)
 from public, anon, authenticated;
@@ -449,5 +447,3 @@ grant execute on function public.confirm_stampy_create_product(uuid)
 to authenticated;
 
 notify pgrst, 'reload schema';
-
-commit;
