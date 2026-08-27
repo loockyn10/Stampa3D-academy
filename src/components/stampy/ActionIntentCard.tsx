@@ -1,8 +1,12 @@
 "use client";
 
 import React, { useState } from "react";
-import { markStampyActionRequestOpened, cancelStampyActionRequest } from "@/lib/stampy/action-requests";
-import { ExternalLink, AlertCircle, Trash2, CheckCircle2 } from "lucide-react";
+import {
+  markStampyActionRequestOpened,
+  cancelStampyActionRequest,
+  confirmStampyActionRequest,
+} from "@/lib/stampy/action-requests";
+import { ExternalLink, AlertCircle, Trash2, CheckCircle2, Loader2 } from "lucide-react";
 import { useRouter } from "next/navigation";
 
 export interface ActionIntentCardProps {
@@ -15,6 +19,7 @@ export function ActionIntentCard({ actionIntent, actionRequestId, initialStatus 
   const router = useRouter();
   const [status, setStatus] = useState(initialStatus);
   const [isProcessing, setIsProcessing] = useState(false);
+  const [resultMessage, setResultMessage] = useState<string | null>(null);
 
   if (!actionIntent) return null;
 
@@ -46,14 +51,50 @@ export function ActionIntentCard({ actionIntent, actionRequestId, initialStatus 
     }
     
     setIsProcessing(true);
-    const { success } = await cancelStampyActionRequest({ actionRequestId });
+    const { success, error } = await cancelStampyActionRequest({ actionRequestId });
     if (success) {
       setStatus("cancelled");
+      setResultMessage(null);
+    } else if (error) {
+      setResultMessage(error);
+    }
+    setIsProcessing(false);
+  };
+
+  const handleConfirmMovement = async () => {
+    if (!actionRequestId) return;
+
+    setIsProcessing(true);
+    setResultMessage(null);
+    const result = await confirmStampyActionRequest({ actionRequestId });
+    if (result.success) {
+      setStatus("executed");
+      setResultMessage(result.message);
+    } else {
+      if (result.errorCode === "already_executed") setStatus("executed");
+      setResultMessage(result.message);
     }
     setIsProcessing(false);
   };
 
   const isCancelled = status === "cancelled";
+  const isExecuted = status === "executed";
+  const resolvedTarget = actionIntent.extracted?.resolvedTarget as
+    | { label?: string; remainingGramsBefore?: number }
+    | undefined;
+  const isFilamentMovement =
+    actionIntent.type === "increase_filament_stock" ||
+    actionIntent.type === "discount_filament";
+  const canConfirmMovement =
+    Boolean(actionRequestId) &&
+    isFilamentMovement &&
+    actionIntent.extracted?.requiresConfirmation === true &&
+    Boolean(resolvedTarget?.label) &&
+    !isCancelled &&
+    !isExecuted;
+  const visibleExtracted = Object.entries(actionIntent.extracted || {}).filter(
+    ([key]) => !["requiresConfirmation", "resolvedTarget", "matchStatus"].includes(key)
+  );
   
   return (
     <div className={`mt-4 rounded-xl border p-4 ${isCancelled ? 'border-gray-800 bg-gray-900/50 opacity-60' : 'border-stampa-orange/30 bg-stampa-orange/5'}`}>
@@ -68,23 +109,43 @@ export function ActionIntentCard({ actionIntent, actionRequestId, initialStatus 
           </div>
 
           <div className="rounded-lg bg-black/40 p-3 border border-white/5 space-y-1.5">
-            {Object.entries(actionIntent.extracted || {}).map(([key, val]) => (
+            {visibleExtracted.map(([key, val]) => (
               <div key={key} className="flex justify-between text-xs">
                 <span className="text-gray-500 capitalize">{key}:</span>
                 <span className="font-medium text-gray-300">{String(val)}</span>
               </div>
             ))}
+            {resolvedTarget?.label && (
+              <div className="flex justify-between gap-3 text-xs">
+                <span className="text-gray-500">Filamento:</span>
+                <span className="text-right font-medium text-gray-300">
+                  {resolvedTarget.label}
+                </span>
+              </div>
+            )}
           </div>
 
-          {!isCancelled && (
+          {!isCancelled && !isExecuted && (
             <p className="text-xs text-stampa-orange flex items-center gap-1.5">
               <CheckCircle2 size={12} />
-              Stampy no hizo cambios. Revisá y confirmá en la herramienta.
+              {canConfirmMovement
+                ? "Stampy todavía no hizo cambios. Confirmá el movimiento para ejecutarlo."
+                : "Stampy no hizo cambios. Revisá y confirmá en la herramienta."}
             </p>
           )}
 
-          {!isCancelled && actionIntent.toolHref && (
-            <div className="flex gap-2 pt-2">
+          {!isCancelled && !isExecuted && actionIntent.toolHref && (
+            <div className="flex flex-wrap gap-2 pt-2">
+              {canConfirmMovement && (
+                <button
+                  onClick={handleConfirmMovement}
+                  disabled={isProcessing}
+                  className="flex-1 basis-full flex items-center justify-center gap-2 rounded-lg bg-emerald-600 hover:bg-emerald-500 px-3 py-2 text-xs font-semibold text-white transition-colors disabled:opacity-50"
+                >
+                  {isProcessing ? <Loader2 size={14} className="animate-spin" /> : <CheckCircle2 size={14} />}
+                  Confirmar movimiento
+                </button>
+              )}
               <button
                 onClick={handleOpenTool}
                 disabled={isProcessing}
@@ -107,6 +168,16 @@ export function ActionIntentCard({ actionIntent, actionRequestId, initialStatus 
 
           {isCancelled && (
             <p className="text-xs text-gray-500 italic">Acción descartada por el usuario.</p>
+          )}
+
+          {isExecuted && (
+            <p className="text-xs font-medium text-emerald-400">
+              {resultMessage || "Listo, actualicé el stock de filamento."}
+            </p>
+          )}
+
+          {resultMessage && !isExecuted && !isCancelled && (
+            <p className="text-xs font-medium text-red-400">{resultMessage}</p>
           )}
         </div>
       </div>

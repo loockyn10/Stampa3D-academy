@@ -1,7 +1,9 @@
 "use server";
 
 import { createClient } from "@/utils/supabase/server";
+import { getCurrentUserAccess } from "@/lib/auth/user-access";
 import { StampyActionIntent, StampyActionRequest } from "./types";
+import { executeFilamentStockMovement } from "./action-executor";
 
 interface CreateStampyActionRequestParams {
   userId: string;
@@ -104,6 +106,45 @@ export async function markStampyActionRequestOpened({
 
 interface CancelParams {
   actionRequestId: string;
+}
+
+interface ConfirmParams {
+  actionRequestId: string;
+}
+
+const UUID_PATTERN =
+  /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
+
+export async function confirmStampyActionRequest({
+  actionRequestId,
+}: ConfirmParams) {
+  if (!UUID_PATTERN.test(actionRequestId)) {
+    return {
+      success: false,
+      errorCode: "invalid_action_request_id",
+      message: "La solicitud de confirmación no es válida.",
+    };
+  }
+
+  const supabase = await createClient();
+  const { access } = await getCurrentUserAccess(supabase);
+  if (!access.authenticated || !access.userId) {
+    return {
+      success: false,
+      errorCode: "unauthenticated",
+      message: "Necesitás iniciar sesión para confirmar el movimiento.",
+    };
+  }
+
+  if (!access.capabilities.useStampy) {
+    return {
+      success: false,
+      errorCode: "stampy_access_required",
+      message: "No tenés acceso habilitado para usar Stampy.",
+    };
+  }
+
+  return executeFilamentStockMovement({ supabase, actionRequestId });
 }
 
 export async function cancelStampyActionRequest({

@@ -44,7 +44,25 @@ const messagePolicy = loadTypeScriptModule("src/lib/stampy/message-policy.ts");
 const clientMessageIds = loadTypeScriptModule("src/lib/stampy/client-message-id.ts");
 const toolPrefill = loadTypeScriptModule("src/lib/stampy/tool-prefill.ts");
 
-function loadAskStampyAction({ touchedTables = [], savedMetadata = [], actionRequests = [] } = {}) {
+function loadAskStampyAction({
+  touchedTables = [],
+  savedMetadata = [],
+  actionRequests = [],
+  filamentMatch = {
+    status: "unique",
+    filament: {
+      id: "filament-1",
+      user_id: "user-1",
+      name: "PLA Cian",
+      filament_type: "PLA",
+      brand: "W3D",
+      color: "Cian",
+      remaining_grams: 900,
+      total_grams: 1000,
+      is_active: true
+    }
+  }
+} = {}) {
   const supabase = {
     from(table) {
       touchedTables.push(table);
@@ -86,6 +104,13 @@ function loadAskStampyAction({ touchedTables = [], savedMetadata = [], actionReq
         actionRequests.push(params);
         return { actionRequestId: "request-1", error: null };
       }
+    },
+    "@/lib/stampy/action-executor": {
+      resolveFilamentMatch: async () => filamentMatch,
+      getResolvedFilamentLabel: (filament) =>
+        [filament.filament_type, filament.brand, filament.name, filament.color]
+          .filter(Boolean)
+          .join(" · ")
     },
     "@/lib/stampy/usage-log": { logStampyUsage: async () => undefined }
   });
@@ -170,6 +195,69 @@ test("a direct stock intent persists only Stampy metadata and returns before Ope
   assert.equal(result.actionIntent.canExecute, false);
   assert.equal(result.actionRequestId, "request-1");
   assert.deepEqual(touchedTables, ["stampy_messages"]);
+});
+
+test("a unique filament match creates a suggested confirmation without changing stock", async () => {
+  const touchedTables = [];
+  const actionRequests = [];
+  const savedMetadata = [];
+  const actions = loadAskStampyAction({ touchedTables, actionRequests, savedMetadata });
+  const result = await actions.askStampyAction("Descontame 50g de PLA Cian W3D");
+
+  assert.equal(result.actionIntent.type, "discount_filament");
+  assert.equal(result.actionIntent.canExecute, false);
+  assert.equal(result.actionIntent.extracted.requiresConfirmation, true);
+  assert.equal(result.actionIntent.extracted.matchStatus, "unique");
+  assert.deepEqual(result.actionIntent.extracted.resolvedTarget, {
+    type: "filament",
+    id: "filament-1",
+    label: "PLA · W3D · PLA Cian · Cian",
+    remainingGramsBefore: 900
+  });
+  assert.match(result.answer, /necesito que confirmes/i);
+  assert.match(result.answer, /Todavía no modifiqué tu stock/i);
+  assert.equal(actionRequests.length, 1);
+  assert.equal(actionRequests[0].actionIntent.extracted.requiresConfirmation, true);
+  assert.equal(savedMetadata[0].actionIntent.extracted.resolvedTarget.id, "filament-1");
+  assert.deepEqual(touchedTables, ["stampy_messages"]);
+});
+
+test("multiple filament matches disable confirmation and keep Stock as fallback", async () => {
+  const actions = loadAskStampyAction({
+    filamentMatch: {
+      status: "multiple",
+      matches: [{ id: "filament-1" }, { id: "filament-2" }]
+    }
+  });
+  const result = await actions.askStampyAction("Descontame 50g de PLA Cian");
+
+  assert.equal(result.actionIntent.extracted.requiresConfirmation, false);
+  assert.equal(result.actionIntent.extracted.matchStatus, "multiple");
+  assert.match(result.answer, /más de un filamento/i);
+  assert.match(result.knowledgeTools[0].route, /^\/stock/);
+});
+
+test("missing filament matches disable confirmation and keep Stock as fallback", async () => {
+  const actions = loadAskStampyAction({
+    filamentMatch: { status: "none", matches: [] }
+  });
+  const result = await actions.askStampyAction("Agregame 50g de PETG Rojo");
+
+  assert.equal(result.actionIntent.extracted.requiresConfirmation, false);
+  assert.equal(result.actionIntent.extracted.matchStatus, "none");
+  assert.match(result.answer, /No encontré un filamento activo/i);
+  assert.match(result.knowledgeTools[0].route, /^\/stock/);
+});
+
+test("quotes remain safe and never expose real confirmation", async () => {
+  const actions = loadAskStampyAction();
+  const result = await actions.askStampyAction(
+    "Hacé un presupuesto para Lucas Marchetti de 2 Jarros de Argentina"
+  );
+
+  assert.equal(result.actionIntent.type, "create_quote");
+  assert.equal(result.actionIntent.canExecute, false);
+  assert.notEqual(result.actionIntent.extracted.requiresConfirmation, true);
 });
 
 test("obsolete or overlapping filament intent mappings are absent", () => {
@@ -490,6 +578,8 @@ function makeActionRequestModule(updateResult) {
 
   return loadTypeScriptModule("src/lib/stampy/action-requests.ts", {
     "@/utils/supabase/server": { createClient: async () => supabase },
+    "@/lib/auth/user-access": { getCurrentUserAccess: async () => ({ access: {} }) },
+    "./action-executor": { executeFilamentStockMovement: async () => ({ success: false }) },
     "./types": {}
   });
 }

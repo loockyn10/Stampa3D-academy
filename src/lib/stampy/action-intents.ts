@@ -167,11 +167,14 @@ export function detectStampyActionIntent({
       const material = matchMaterial ? matchMaterial[1].toUpperCase() : null;
       const matchColor = norm.match(/(rojo|azul|verde|negro|blanco|amarillo|naranja|gris|violeta|cian|transparente|natural)/);
       const color = matchColor ? matchColor[1] : null;
+      const brandMatch = norm.match(/(w3d|elegoo|gst3d|grilon|printalot|hellbot|creality)/);
+      const brand = brandMatch ? brandMatch[1].toUpperCase() : null;
 
       const toolHref = buildToolHref("/stock", {
         tab: "filamentos",
         action: "discount",
         material,
+        brand,
         color,
         grams
       });
@@ -181,7 +184,7 @@ export function detectStampyActionIntent({
         confidence: 0.9,
         title: "Descontar filamento",
         summary: "Se detectó la intención de restar material del stock.",
-        extracted: { grams, material, color },
+        extracted: { grams, material, brand, color },
         toolHref,
         toolLabel: "Stock de filamentos",
         canExecute: false,

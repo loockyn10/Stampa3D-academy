@@ -64,8 +64,8 @@ export const STAMPY_TOOL_REGISTRY: StampyToolContract[] = [
       "'un rollo' = 1000g, 'un kilo' = 1000g, 'medio kilo' = 500g.",
       "Debe haber material, color o marca suficiente para identificar el filamento existente.",
       "No crear filamento nuevo si el usuario está sumando gramos a uno existente.",
-      "No modificar stock directamente desde el chat.",
-      "Abrir la herramienta y que el usuario confirme la acción."
+      "Nunca modificar stock desde el primer mensaje.",
+      "Solo ejecutar con match único y confirmación explícita; Stock sigue disponible como fallback."
     ],
     canExecuteFromChat: false
   },
@@ -80,9 +80,9 @@ export const STAMPY_TOOL_REGISTRY: StampyToolContract[] = [
     optionalFields: ["material", "brand", "color"],
     forbiddenFields: [],
     safetyNotes: [
-      "No descontar material directamente desde el chat.",
+      "Nunca descontar material desde el primer mensaje.",
       "Debe haber material, color o marca suficiente para identificar el filamento.",
-      "Abrir la herramienta y que el usuario confirme el descuento dentro de Stock."
+      "Solo ejecutar con match único, stock suficiente y confirmación explícita; Stock sigue disponible como fallback."
     ],
     canExecuteFromChat: false
   },

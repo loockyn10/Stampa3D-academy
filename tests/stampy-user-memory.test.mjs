@@ -162,6 +162,23 @@ function loadMemoryAwareAskStampyAction({
         error: null,
       }),
     },
+    "@/lib/stampy/action-executor": {
+      resolveFilamentMatch: async () => ({
+        status: "unique",
+        filament: {
+          id: "filament-1",
+          user_id: "user-1",
+          name: "PLA",
+          filament_type: "PLA",
+          brand: null,
+          color: null,
+          remaining_grams: 900,
+          total_grams: 1000,
+          is_active: true,
+        },
+      }),
+      getResolvedFilamentLabel: () => "PLA",
+    },
     "@/lib/stampy/user-memory": memoryModule,
     "@/lib/stampy/workshop-context": {
       getStampyWorkshopContext: async () => ({

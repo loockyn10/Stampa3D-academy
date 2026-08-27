@@ -99,6 +99,33 @@ function buildActionValidationResponse(
   return parts.join(" ");
 }
 
+function isFilamentMovementAction(actionIntent: StampyActionIntent): boolean {
+  return (
+    actionIntent.type === "increase_filament_stock" ||
+    actionIntent.type === "discount_filament"
+  );
+}
+
+function buildFilamentMovementResponse(actionIntent: StampyActionIntent): string {
+  const resolvedTarget = actionIntent.extracted.resolvedTarget as
+    | { label?: string; remainingGramsBefore?: number }
+    | undefined;
+  const grams = Number(actionIntent.extracted.grams);
+  const matchStatus = actionIntent.extracted.matchStatus;
+
+  if (actionIntent.extracted.requiresConfirmation === true && resolvedTarget?.label) {
+    const actionLabel =
+      actionIntent.type === "discount_filament" ? "descontar stock" : "aumentar stock";
+    return `Detecté un movimiento de filamento:\n\n- Acción: ${actionLabel}\n- Filamento: ${resolvedTarget.label}\n- Cantidad: ${grams}g\n\nAntes de hacerlo necesito que confirmes. Todavía no modifiqué tu stock.`;
+  }
+
+  if (matchStatus === "multiple") {
+    return "Encontré más de un filamento posible. Para evitar errores, elegilo desde Stock. Todavía no modifiqué tu stock.";
+  }
+
+  return "No encontré un filamento activo que coincida con esos datos. Te dejo Stock abierto para que lo selecciones manualmente. Todavía no modifiqué tu stock.";
+}
+
 export async function askStampyAction(
   message: string,
   conversationId?: string | null,
@@ -196,7 +223,7 @@ export async function askStampyAction(
       const { validateStampyActionIntent } = await import("@/lib/stampy/action-validator");
       const toolContract = getStampyToolContractsForIntent(actionIntent.type)[0] ?? null;
       const validation = validateStampyActionIntent({ actionIntent, toolContract });
-      const validatedActionIntent: StampyActionIntent = {
+      let validatedActionIntent: StampyActionIntent = {
         ...actionIntent,
         extracted: validation.normalizedExtracted,
         toolHref: validation.isValid ? actionIntent.toolHref : undefined,
@@ -210,9 +237,67 @@ export async function askStampyAction(
         warnings: validation.warnings,
       };
 
+      if (validation.isValid && isFilamentMovementAction(validatedActionIntent)) {
+        try {
+          const { getResolvedFilamentLabel, resolveFilamentMatch } = await import(
+            "@/lib/stampy/action-executor"
+          );
+          const filamentMatch = await resolveFilamentMatch({
+            supabase,
+            userId,
+            extracted: validation.normalizedExtracted,
+          });
+
+          if (filamentMatch.error) {
+            console.error("[Stampy] filament match failed", filamentMatch.error);
+          }
+
+          if (filamentMatch.status === "unique" && filamentMatch.filament) {
+            validatedActionIntent = {
+              ...validatedActionIntent,
+              extracted: {
+                ...validatedActionIntent.extracted,
+                matchStatus: "unique",
+                requiresConfirmation: true,
+                resolvedTarget: {
+                  type: "filament",
+                  id: filamentMatch.filament.id,
+                  label: getResolvedFilamentLabel(filamentMatch.filament),
+                  remainingGramsBefore: filamentMatch.filament.remaining_grams,
+                },
+              },
+            };
+          } else {
+            validatedActionIntent = {
+              ...validatedActionIntent,
+              extracted: {
+                ...validatedActionIntent.extracted,
+                matchStatus: filamentMatch.status,
+                requiresConfirmation: false,
+              },
+            };
+          }
+        } catch (error) {
+          console.error(
+            "[Stampy] filament match failed",
+            String(error).substring(0, 200)
+          );
+          validatedActionIntent = {
+            ...validatedActionIntent,
+            extracted: {
+              ...validatedActionIntent.extracted,
+              matchStatus: "none",
+              requiresConfirmation: false,
+            },
+          };
+        }
+      }
+
       requestMode = "direct";
       answerText = validation.isValid
-        ? buildActionIntentResponse(validatedActionIntent)
+        ? isFilamentMovementAction(validatedActionIntent)
+          ? buildFilamentMovementResponse(validatedActionIntent)
+          : buildActionIntentResponse(validatedActionIntent)
         : buildActionValidationResponse(validatedActionIntent, validation);
       const knowledgeTools = validation.isValid && validatedActionIntent.toolHref && validatedActionIntent.toolLabel
         ? [{
