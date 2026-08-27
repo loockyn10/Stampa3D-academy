@@ -49,6 +49,7 @@ function loadAskStampyAction({
   savedMetadata = [],
   actionRequests = [],
   duplicateCheck = { status: "clear" },
+  printerDuplicateCheck = { status: "clear" },
   filamentMatch = {
     status: "unique",
     filament: {
@@ -109,6 +110,7 @@ function loadAskStampyAction({
     "@/lib/stampy/action-executor": {
       resolveFilamentMatch: async () => filamentMatch,
       findDuplicateActiveFilament: async () => duplicateCheck,
+      findDuplicatePrinter: async () => printerDuplicateCheck,
       getResolvedFilamentLabel: (filament) =>
         [filament.filament_type, filament.brand, filament.name, filament.color]
           .filter(Boolean)
@@ -167,6 +169,17 @@ const intentCases = [
     intent: "discount_filament",
     contract: "stock.filaments.discount",
     extracted: { grams: 500, material: "PLA" }
+  },
+  {
+    message: "Creame una impresora Bambu A1 Mini de 350 watts",
+    intent: "add_printer",
+    contract: "calculator.printers.create",
+    extracted: {
+      printerName: "Bambu A1 Mini",
+      brand: "Bambu",
+      model: "A1 Mini",
+      powerWatts: 350,
+    }
   }
 ];
 
@@ -611,6 +624,111 @@ test("a duplicate active filament disables creation confirmation and keeps Stock
   assert.match(result.actionIntent.toolHref, /^\/stock/);
 });
 
+test("a valid printer is prepared for explicit confirmation", async () => {
+  const actionRequests = [];
+  const actions = loadAskStampyAction({ actionRequests });
+  const result = await actions.askStampyAction(
+    "Creame una impresora Bambu A1 Mini de 350 watts"
+  );
+
+  assert.equal(result.actionIntent.type, "add_printer");
+  assert.equal(result.actionIntent.canExecute, false);
+  assert.equal(result.actionIntent.extracted.printerName, "Bambu A1 Mini");
+  assert.equal(result.actionIntent.extracted.brand, "Bambu");
+  assert.equal(result.actionIntent.extracted.model, "A1 Mini");
+  assert.equal(result.actionIntent.extracted.powerWatts, 350);
+  assert.equal(result.actionIntent.extracted.maintenanceCostPerHour, 0);
+  assert.equal(result.actionIntent.extracted.requiresConfirmation, true);
+  assert.equal(result.actionIntent.extracted.duplicateStatus, "clear");
+  assert.match(result.answer, /necesito que confirmes/i);
+  assert.equal(actionRequests.length, 1);
+  assert.equal(actionRequests[0].actionIntent.extracted.actionType, "add_printer");
+});
+
+test("a printer without power remains valid with explicit zero-value warnings", async () => {
+  const actions = loadAskStampyAction();
+  const result = await actions.askStampyAction(
+    "Agregá una impresora nueva Ender 3"
+  );
+
+  assert.equal(result.actionIntent.type, "add_printer");
+  assert.equal(result.validation.isValid, true);
+  assert.equal(result.actionIntent.extracted.printerName, "Ender 3");
+  assert.equal(result.actionIntent.extracted.powerWatts, 0);
+  assert.equal(result.actionIntent.extracted.powerWattsAssumed, true);
+  assert.equal(result.actionIntent.extracted.maintenanceCostPerHour, 0);
+  assert.match(
+    result.actionIntent.extracted.validationWarnings.join(" "),
+    /Potencia no especificada/i
+  );
+  assert.match(result.answer, /0W/i);
+});
+
+test("an existing active printer disables confirmation and keeps Calculator fallback", async () => {
+  const actions = loadAskStampyAction({
+    printerDuplicateCheck: {
+      status: "active_duplicate",
+      printer: {
+        id: "printer-1",
+        user_id: "user-1",
+        name: "Bambu A1 Mini",
+        power_watts: 350,
+        maintenance_cost_per_hour: 0,
+        is_active: true,
+        source_template_id: null,
+      },
+    },
+  });
+  const result = await actions.askStampyAction(
+    "Creame una impresora Bambu A1 Mini de 350 watts"
+  );
+
+  assert.equal(result.actionIntent.extracted.requiresConfirmation, false);
+  assert.equal(result.actionIntent.extracted.duplicateStatus, "active_duplicate");
+  assert.match(result.answer, /evitar duplicados/i);
+  assert.match(result.actionIntent.toolHref, /^\/calculadora/);
+  assert.equal(result.actionIntent.toolLabel, "Calculadora");
+});
+
+test("an inactive printer is never reactivated from Stampy", async () => {
+  const actions = loadAskStampyAction({
+    printerDuplicateCheck: {
+      status: "inactive_match",
+      printer: {
+        id: "printer-1",
+        user_id: "user-1",
+        name: "Ender 3",
+        power_watts: 0,
+        maintenance_cost_per_hour: 0,
+        is_active: false,
+        source_template_id: null,
+      },
+    },
+  });
+  const result = await actions.askStampyAction(
+    "Agregá una impresora nueva Ender 3"
+  );
+
+  assert.equal(result.actionIntent.extracted.requiresConfirmation, false);
+  assert.equal(result.actionIntent.extracted.duplicateStatus, "inactive_match");
+  assert.match(result.answer, /no la reactiva automáticamente/i);
+});
+
+test("printer creation recognizes supported workshop phrasing without inventing power", () => {
+  const scenarios = [
+    ["Cargame una impresora Creality HI de 300W", "Creality HI", 300],
+    ["Sumá al taller una Bambu P1S", "Bambu P1S", 0],
+    ["Quiero cargar mi Artillery Genius Pro", "Artillery Genius Pro", 0],
+  ];
+
+  for (const [message, printerName, powerWatts] of scenarios) {
+    const intent = actionIntents.detectStampyActionIntent({ message });
+    assert.equal(intent.type, "add_printer");
+    assert.equal(intent.extracted.printerName, printerName);
+    assert.equal(intent.extracted.powerWatts, powerWatts);
+  }
+});
+
 test("direct intents and oversized messages return before OpenAI and retrieval setup", () => {
   const source = fs
     .readFileSync(path.join(root, "src/app/stampy/actions.ts"), "utf8")
@@ -658,6 +776,7 @@ function makeActionRequestModule(updateResult) {
     "./action-executor": {
       executeFilamentStockMovement: async () => ({ success: false }),
       executeCreateFilament: async () => ({ success: false }),
+      executeCreatePrinter: async () => ({ success: false }),
     },
     "./types": {}
   });

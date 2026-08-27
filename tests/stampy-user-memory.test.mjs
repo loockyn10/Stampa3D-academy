@@ -164,6 +164,7 @@ function loadMemoryAwareAskStampyAction({
     },
     "@/lib/stampy/action-executor": {
       findDuplicateActiveFilament: async () => ({ status: "clear" }),
+      findDuplicatePrinter: async () => ({ status: "clear" }),
       resolveFilamentMatch: async () => ({
         status: "unique",
         filament: {

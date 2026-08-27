@@ -107,6 +107,78 @@ function parsePrinterName(message: string): string | null {
   return match ? match[1].trim() : null;
 }
 
+function parseNewPrinterDetails(message: string): {
+  printerName: string | null;
+  brand: string | null;
+  model: string | null;
+  powerWatts: number;
+  powerWattsAssumed: boolean;
+  maintenanceCostPerHour: number;
+  maintenanceCostPerHourAssumed: boolean;
+} {
+  const stopPattern =
+    "(?=\\s+(?:de\\s+)?\\d+(?:[.,]\\d+)?\\s*(?:w|watts?|vatios?)\\b|\\s+(?:con\\s+)?mantenimiento\\b|[.!?]?$)";
+  const patterns = [
+    new RegExp(`\\bimpresora(?:\\s+nueva)?\\s+(.+?)${stopPattern}`, "i"),
+    new RegExp(`\\bal\\s+taller\\s+(?:una|un)\\s+(.+?)${stopPattern}`, "i"),
+    new RegExp(`\\bcargar\\s+mi\\s+(.+?)${stopPattern}`, "i"),
+  ];
+  const nameMatch = patterns
+    .map((pattern) => message.trim().match(pattern))
+    .find(Boolean);
+  const printerName = nameMatch?.[1]
+    ? nameMatch[1].replace(/\s+/g, " ").replace(/[.!?]+$/, "").trim()
+    : null;
+
+  const normalizedName = normalize(printerName ?? "");
+  const knownBrands: Array<[string, string]> = [
+    ["bambu lab", "Bambu Lab"],
+    ["bambu", "Bambu"],
+    ["creality", "Creality"],
+    ["artillery", "Artillery"],
+    ["prusa", "Prusa"],
+    ["elegoo", "Elegoo"],
+    ["anycubic", "Anycubic"],
+    ["sovol", "Sovol"],
+    ["flashforge", "Flashforge"],
+    ["qidi", "Qidi"],
+  ];
+  const brandEntry = knownBrands.find(([candidate]) =>
+    normalizedName.startsWith(`${candidate} `) || normalizedName === candidate
+  );
+  const brand = brandEntry?.[1] ?? null;
+  const model = printerName
+    ? brandEntry
+      ? printerName.slice(brandEntry[0].length).trim() || null
+      : printerName
+    : null;
+
+  const powerMatch = message.match(
+    /\b(\d+(?:[.,]\d+)?)\s*(?:w|watts?|vatios?)\b/i
+  );
+  const powerWatts = powerMatch
+    ? Number.parseFloat(powerMatch[1].replace(",", "."))
+    : 0;
+
+  const maintenanceMatch =
+    message.match(
+      /\bmantenimiento(?:\s*(?:por\s+hora|\/h))?\s*(?:de|a)?\s*\$?\s*(\d+(?:[.,]\d+)?)/i
+    ) ?? message.match(/\$\s*(\d+(?:[.,]\d+)?)\s*(?:\/h|por\s+hora)\b/i);
+  const maintenanceCostPerHour = maintenanceMatch
+    ? Number.parseFloat(maintenanceMatch[1].replace(",", "."))
+    : 0;
+
+  return {
+    printerName,
+    brand,
+    model,
+    powerWatts,
+    powerWattsAssumed: !powerMatch,
+    maintenanceCostPerHour,
+    maintenanceCostPerHourAssumed: !maintenanceMatch,
+  };
+}
+
 export function detectStampyActionIntent({
   message,
   currentPath,
@@ -118,8 +190,8 @@ export function detectStampyActionIntent({
 
   const actionVerbs = [
     "descontar", "descontame", "sacar", "sacame", "restar", "restale", "consumi", "use ",
-    "agregar", "agregame", "cargar", "cargame", "sumar", "sumame", "compre", "nuevo",
-    "crear", "generar", "hacer", "hace", "haceme", "cotizar", "cotizame", "presupuestar", "presupuestame",
+    "agregar", "agrega", "agregame", "cargar", "cargame", "sumar", "sumame", "compre", "nuevo",
+    "crear", "creame", "generar", "hacer", "hace", "haceme", "suma ", "cotizar", "cotizame", "presupuestar", "presupuestame",
     "modificar", "actualizar", "corregir", "cambiar", "calcular", "calculame", "usado"
   ];
 
@@ -222,7 +294,7 @@ export function detectStampyActionIntent({
 
   // 2. increase_filament_stock
   if (
-    (norm.includes("agregar") || norm.includes("agregame") ||
+    (norm.includes("agregar") || norm.includes("agrega") || norm.includes("agregame") ||
     norm.includes("cargar") || norm.includes("sumar") ||
     norm.includes("sumame") || norm.includes("compre")) &&
     norm.match(/(filamento|rollo|kilo|pla|petg|tpu|abs|asa|nylon|resina)/) &&
@@ -314,21 +386,32 @@ export function detectStampyActionIntent({
 
   // 3. add_printer
   if (
-    (norm.includes("agregar") || norm.includes("agregame") ||
-    norm.includes("cargar") || norm.includes("sumar") ||
+    (norm.includes("agregar") || norm.includes("agrega") || norm.includes("agregame") ||
+    norm.includes("cargar") || norm.includes("cargame") ||
+    norm.includes("crear") || norm.includes("creame") ||
+    norm.includes("sumar") || norm.includes("suma ") ||
     norm.includes("sumame") || norm.includes("compre") ||
     norm.includes("nueva")) &&
-    (norm.includes("impresora") || norm.includes("maquina") || norm.includes("bambu") || norm.includes("ender") || norm.includes("a1 mini"))
+    (norm.includes("impresora") || norm.includes("maquina") ||
+      norm.includes("bambu") || norm.includes("creality") ||
+      norm.includes("ender") || norm.includes("artillery") ||
+      norm.includes("prusa") || norm.includes("anycubic") ||
+      norm.includes("sovol") || norm.includes("flashforge") ||
+      norm.includes("qidi"))
   ) {
-    const toolHref = buildToolHref("/calculadora", { action: "add_printer" });
+    const printerDetails = parseNewPrinterDetails(message);
+    const toolHref = buildToolHref("/calculadora", {
+      action: "add_printer",
+      printer: printerDetails.printerName,
+    });
     return {
       type: "add_printer",
       confidence: 0.9,
       title: "Agregar impresora",
       summary: "Se detectó la intención de registrar una nueva impresora.",
-      extracted: {},
+      extracted: printerDetails,
       toolHref,
-      toolLabel: "Calculadora de precios",
+      toolLabel: "Calculadora",
       canExecute: false,
       reason: "Matched add verbs with printer context."
     };

@@ -30,6 +30,28 @@ export interface DuplicateFilamentResult {
   error?: string;
 }
 
+export interface ResolvedPrinter {
+  id: string;
+  user_id: string;
+  name: string;
+  power_watts: number;
+  maintenance_cost_per_hour: number;
+  is_active: boolean;
+  source_template_id: string | null;
+}
+
+export interface DuplicatePrinterResult {
+  status:
+    | "clear"
+    | "active_duplicate"
+    | "inactive_match"
+    | "ambiguous"
+    | "error";
+  printer?: ResolvedPrinter;
+  matches?: ResolvedPrinter[];
+  error?: string;
+}
+
 interface ResolveFilamentMatchParams {
   supabase: SupabaseClient;
   userId: string;
@@ -58,6 +80,17 @@ export interface CreateFilamentExecutionResult {
   message: string;
 }
 
+export interface CreatePrinterExecutionResult {
+  success: boolean;
+  actionRequestId: string | null;
+  printerId: string | null;
+  printerName: string | null;
+  powerWatts: number | null;
+  maintenanceCostPerHour: number | null;
+  errorCode: string | null;
+  message: string;
+}
+
 interface ExecuteFilamentStockMovementParams {
   supabase: SupabaseClient;
   actionRequestId: string;
@@ -81,6 +114,17 @@ interface RpcCreateFilamentResult {
   label: string | null;
   total_grams: number | string | null;
   remaining_grams: number | string | null;
+  error_code: string | null;
+  message: string;
+}
+
+interface RpcCreatePrinterResult {
+  success: boolean;
+  action_request_id: string | null;
+  printer_id: string | null;
+  printer_name: string | null;
+  power_watts: number | string | null;
+  maintenance_cost_per_hour: number | string | null;
   error_code: string | null;
   message: string;
 }
@@ -217,6 +261,53 @@ export async function findDuplicateActiveFilament({
     : { status: "clear" };
 }
 
+export async function findDuplicatePrinter({
+  supabase,
+  userId,
+  printerName,
+}: {
+  supabase: SupabaseClient;
+  userId: string;
+  printerName: string;
+}): Promise<DuplicatePrinterResult> {
+  const normalizedRequestedName = normalizeMatchText(printerName);
+  if (!normalizedRequestedName) {
+    return { status: "error", matches: [], error: "missing_printer_name" };
+  }
+
+  const { data, error } = await supabase
+    .from("printers")
+    .select(
+      "id, user_id, name, power_watts, maintenance_cost_per_hour, is_active, source_template_id"
+    )
+    .eq("user_id", userId);
+
+  if (error) return { status: "error", matches: [], error: error.message };
+
+  const printers = (data ?? []) as ResolvedPrinter[];
+  const exactMatches = printers.filter(
+    (printer) => normalizeMatchText(printer.name) === normalizedRequestedName
+  );
+  const candidates =
+    exactMatches.length > 0
+      ? exactMatches
+      : printers.filter((printer) => {
+          const normalizedName = normalizeMatchText(printer.name);
+          return (
+            normalizedName.includes(normalizedRequestedName) ||
+            normalizedRequestedName.includes(normalizedName)
+          );
+        });
+
+  if (candidates.length === 0) return { status: "clear", matches: [] };
+  if (candidates.length > 1) return { status: "ambiguous", matches: candidates };
+
+  const printer = candidates[0];
+  return printer.is_active
+    ? { status: "active_duplicate", printer, matches: candidates }
+    : { status: "inactive_match", printer, matches: candidates };
+}
+
 function toNullableNumber(value: number | string | null): number | null {
   if (value === null) return null;
   const numberValue = typeof value === "number" ? value : Number(value);
@@ -314,6 +405,57 @@ export async function executeCreateFilament({
     label: row.label,
     totalGrams: toNullableNumber(row.total_grams),
     remainingGrams: toNullableNumber(row.remaining_grams),
+    errorCode: row.error_code,
+    message: row.message,
+  };
+}
+
+export async function executeCreatePrinter({
+  supabase,
+  actionRequestId,
+}: ExecuteFilamentStockMovementParams): Promise<CreatePrinterExecutionResult> {
+  const { data, error } = await supabase.rpc("confirm_stampy_create_printer", {
+    p_action_request_id: actionRequestId,
+  });
+
+  if (error) {
+    return {
+      success: false,
+      actionRequestId,
+      printerId: null,
+      printerName: null,
+      powerWatts: null,
+      maintenanceCostPerHour: null,
+      errorCode: "rpc_error",
+      message: error.message || "No pude crear la impresora.",
+    };
+  }
+
+  const row = (Array.isArray(data) ? data[0] : data) as
+    | RpcCreatePrinterResult
+    | null;
+  if (!row) {
+    return {
+      success: false,
+      actionRequestId,
+      printerId: null,
+      printerName: null,
+      powerWatts: null,
+      maintenanceCostPerHour: null,
+      errorCode: "empty_rpc_result",
+      message: "La creación no devolvió un resultado válido.",
+    };
+  }
+
+  return {
+    success: row.success === true,
+    actionRequestId: row.action_request_id,
+    printerId: row.printer_id,
+    printerName: row.printer_name,
+    powerWatts: toNullableNumber(row.power_watts),
+    maintenanceCostPerHour: toNullableNumber(
+      row.maintenance_cost_per_hour
+    ),
     errorCode: row.error_code,
     message: row.message,
   };

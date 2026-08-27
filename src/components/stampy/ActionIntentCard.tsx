@@ -6,6 +6,7 @@ import {
   cancelStampyActionRequest,
   confirmStampyActionRequest,
   confirmStampyCreateFilamentAction,
+  confirmStampyCreatePrinterAction,
 } from "@/lib/stampy/action-requests";
 import { ExternalLink, AlertCircle, Trash2, CheckCircle2, Loader2 } from "lucide-react";
 import { useRouter } from "next/navigation";
@@ -94,6 +95,22 @@ export function ActionIntentCard({ actionIntent, actionRequestId, initialStatus 
     setIsProcessing(false);
   };
 
+  const handleConfirmPrinterCreation = async () => {
+    if (!actionRequestId) return;
+
+    setIsProcessing(true);
+    setResultMessage(null);
+    const result = await confirmStampyCreatePrinterAction(actionRequestId);
+    if (result.success) {
+      setStatus("executed");
+      setResultMessage(result.message);
+    } else {
+      if (result.errorCode === "already_executed") setStatus("executed");
+      setResultMessage(result.message);
+    }
+    setIsProcessing(false);
+  };
+
   const isCancelled = status === "cancelled";
   const isExecuted = status === "executed";
   const resolvedTarget = actionIntent.extracted?.resolvedTarget as
@@ -103,6 +120,7 @@ export function ActionIntentCard({ actionIntent, actionRequestId, initialStatus 
     actionIntent.type === "increase_filament_stock" ||
     actionIntent.type === "discount_filament";
   const isCreateFilament = actionIntent.type === "add_filament";
+  const isCreatePrinter = actionIntent.type === "add_printer";
   const canConfirmMovement =
     Boolean(actionRequestId) &&
     isFilamentMovement &&
@@ -117,6 +135,13 @@ export function ActionIntentCard({ actionIntent, actionRequestId, initialStatus 
     actionIntent.extracted?.duplicateStatus === "clear" &&
     !isCancelled &&
     !isExecuted;
+  const canConfirmPrinterCreation =
+    Boolean(actionRequestId) &&
+    isCreatePrinter &&
+    actionIntent.extracted?.requiresConfirmation === true &&
+    actionIntent.extracted?.duplicateStatus === "clear" &&
+    !isCancelled &&
+    !isExecuted;
   const visibleExtracted = Object.entries(actionIntent.extracted || {}).filter(
     ([key]) =>
       ![
@@ -127,8 +152,20 @@ export function ActionIntentCard({ actionIntent, actionRequestId, initialStatus 
         "duplicateStatus",
         "duplicateTarget",
         "totalGramsAssumed",
+        "powerWattsAssumed",
+        "maintenanceCostPerHourAssumed",
+        "validationWarnings",
         ...(isCreateFilament
           ? ["material", "brand", "name", "color", "totalGrams"]
+          : []),
+        ...(isCreatePrinter
+          ? [
+              "printerName",
+              "brand",
+              "model",
+              "powerWatts",
+              "maintenanceCostPerHour",
+            ]
           : []),
       ].includes(key)
   );
@@ -150,6 +187,20 @@ export function ActionIntentCard({ actionIntent, actionRequestId, initialStatus 
         ],
       ].filter((entry) => entry[1] !== null && entry[1] !== undefined && entry[1] !== "")
     : [];
+  const printerSummary = isCreatePrinter
+    ? [
+        ["Nombre", actionIntent.extracted?.printerName],
+        ["Potencia", `${Number(actionIntent.extracted?.powerWatts ?? 0)}W`],
+        [
+          "Mantenimiento/hora",
+          `$${Number(actionIntent.extracted?.maintenanceCostPerHour ?? 0)}`,
+        ],
+      ]
+    : [];
+  const printerWarnings =
+    isCreatePrinter && Array.isArray(actionIntent.extracted?.validationWarnings)
+      ? (actionIntent.extracted.validationWarnings as string[])
+      : [];
   
   return (
     <div className={`mt-4 rounded-xl border p-4 ${isCancelled ? 'border-gray-800 bg-gray-900/50 opacity-60' : 'border-stampa-orange/30 bg-stampa-orange/5'}`}>
@@ -178,6 +229,14 @@ export function ActionIntentCard({ actionIntent, actionRequestId, initialStatus 
                 </span>
               </div>
             ))}
+            {printerSummary.map(([label, value]) => (
+              <div key={String(label)} className="flex justify-between gap-3 text-xs">
+                <span className="text-gray-500">{String(label)}:</span>
+                <span className="text-right font-medium text-gray-300">
+                  {String(value)}
+                </span>
+              </div>
+            ))}
             {resolvedTarget?.label && (
               <div className="flex justify-between gap-3 text-xs">
                 <span className="text-gray-500">Filamento:</span>
@@ -188,12 +247,22 @@ export function ActionIntentCard({ actionIntent, actionRequestId, initialStatus 
             )}
           </div>
 
+          {printerWarnings.length > 0 && !isCancelled && !isExecuted && (
+            <div className="space-y-1 text-xs text-amber-300">
+              {printerWarnings.map((warning) => (
+                <p key={warning}>- {warning}</p>
+              ))}
+            </div>
+          )}
+
           {!isCancelled && !isExecuted && (
             <p className="text-xs text-stampa-orange flex items-center gap-1.5">
               <CheckCircle2 size={12} />
               {canConfirmMovement
                 ? "Stampy todavía no hizo cambios. Confirmá el movimiento para ejecutarlo."
                 : canConfirmCreation
+                  ? "Stampy todavía no hizo cambios. Confirmá la creación para ejecutarla."
+                : canConfirmPrinterCreation
                   ? "Stampy todavía no hizo cambios. Confirmá la creación para ejecutarla."
                 : "Stampy no hizo cambios. Revisá y confirmá en la herramienta."}
             </p>
@@ -214,6 +283,16 @@ export function ActionIntentCard({ actionIntent, actionRequestId, initialStatus 
               {canConfirmCreation && (
                 <button
                   onClick={handleConfirmCreation}
+                  disabled={isProcessing}
+                  className="flex-1 basis-full flex items-center justify-center gap-2 rounded-lg bg-emerald-600 hover:bg-emerald-500 px-3 py-2 text-xs font-semibold text-white transition-colors disabled:opacity-50"
+                >
+                  {isProcessing ? <Loader2 size={14} className="animate-spin" /> : <CheckCircle2 size={14} />}
+                  Confirmar creación
+                </button>
+              )}
+              {canConfirmPrinterCreation && (
+                <button
+                  onClick={handleConfirmPrinterCreation}
                   disabled={isProcessing}
                   className="flex-1 basis-full flex items-center justify-center gap-2 rounded-lg bg-emerald-600 hover:bg-emerald-500 px-3 py-2 text-xs font-semibold text-white transition-colors disabled:opacity-50"
                 >
@@ -249,7 +328,9 @@ export function ActionIntentCard({ actionIntent, actionRequestId, initialStatus 
             <p className="text-xs font-medium text-emerald-400">
               {resultMessage || (isCreateFilament
                 ? "Listo, creé el filamento."
-                : "Listo, actualicé el stock de filamento.")}
+                : isCreatePrinter
+                  ? "Listo, creé la impresora."
+                  : "Listo, actualicé el stock de filamento.")}
             </p>
           )}
 

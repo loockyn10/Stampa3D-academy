@@ -51,6 +51,28 @@ export const STAMPY_TOOL_REGISTRY: StampyToolContract[] = [
     canExecuteFromChat: false
   },
   {
+    id: "calculator.printers.create",
+    name: "Crear impresora",
+    description: "Crear una impresora nueva en el taller.",
+    route: "/calculadora",
+    area: "calculator",
+    supportedIntents: ["add_printer"],
+    requiredFields: ["printerName"],
+    optionalFields: [
+      "brand",
+      "model",
+      "powerWatts",
+      "maintenanceCostPerHour",
+    ],
+    forbiddenFields: ["invented_power", "automatic_reactivation"],
+    safetyNotes: [
+      "Nunca crear desde el primer mensaje: requiere confirmación explícita.",
+      "No inventar potencia ni mantenimiento por el modelo.",
+      "No crear ni reactivar si ya existe una impresora coincidente.",
+    ],
+    canExecuteFromChat: false,
+  },
+  {
     id: "stock.filaments.increase",
     name: "Aumentar stock de filamento",
     description: "Aumentar gramos disponibles de un filamento existente.",

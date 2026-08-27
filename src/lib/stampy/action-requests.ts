@@ -5,6 +5,7 @@ import { getCurrentUserAccess } from "@/lib/auth/user-access";
 import { StampyActionIntent, StampyActionRequest } from "./types";
 import {
   executeCreateFilament,
+  executeCreatePrinter,
   executeFilamentStockMovement,
 } from "./action-executor";
 
@@ -178,6 +179,36 @@ export async function confirmStampyCreateFilamentAction(actionRequestId: string)
   }
 
   return executeCreateFilament({ supabase, actionRequestId });
+}
+
+export async function confirmStampyCreatePrinterAction(actionRequestId: string) {
+  if (!UUID_PATTERN.test(actionRequestId)) {
+    return {
+      success: false,
+      errorCode: "invalid_action_request_id",
+      message: "La solicitud de creación no es válida.",
+    };
+  }
+
+  const supabase = await createClient();
+  const { access } = await getCurrentUserAccess(supabase);
+  if (!access.authenticated || !access.userId) {
+    return {
+      success: false,
+      errorCode: "unauthenticated",
+      message: "Necesitás iniciar sesión para crear la impresora.",
+    };
+  }
+
+  if (!access.capabilities.useStampy) {
+    return {
+      success: false,
+      errorCode: "stampy_access_required",
+      message: "No tenés acceso habilitado para usar Stampy.",
+    };
+  }
+
+  return executeCreatePrinter({ supabase, actionRequestId });
 }
 
 export async function cancelStampyActionRequest({

@@ -67,6 +67,9 @@ const ACTION_FIELD_LABELS: Record<string, string> = {
   filamentReference: "material, color o marca del filamento",
   material: "material",
   totalGrams: "peso total",
+  printerName: "nombre de la impresora",
+  powerWatts: "potencia",
+  maintenanceCostPerHour: "mantenimiento por hora",
   toolContract: "contrato de herramienta",
 };
 
@@ -109,6 +112,10 @@ function isFilamentMovementAction(actionIntent: StampyActionIntent): boolean {
 
 function isCreateFilamentAction(actionIntent: StampyActionIntent): boolean {
   return actionIntent.type === "add_filament";
+}
+
+function isCreatePrinterAction(actionIntent: StampyActionIntent): boolean {
+  return actionIntent.type === "add_printer";
 }
 
 function buildFilamentMovementResponse(actionIntent: StampyActionIntent): string {
@@ -154,6 +161,34 @@ function buildCreateFilamentResponse(actionIntent: StampyActionIntent): string {
   return `Preparé este filamento nuevo:\n\n${details.join(
     "\n"
   )}\n\nAntes de crearlo necesito que confirmes. Todavía no hice cambios.`;
+}
+
+function buildCreatePrinterResponse(actionIntent: StampyActionIntent): string {
+  const extracted = actionIntent.extracted;
+  if (extracted.duplicateStatus === "active_duplicate") {
+    return "Ya encontré una impresora parecida cargada. Para evitar duplicados, revisala desde Calculadora. Todavía no creé nada.";
+  }
+  if (extracted.duplicateStatus === "inactive_match") {
+    return "Ya existe una impresora parecida, pero está inactiva. Por ahora Stampy no la reactiva automáticamente; abrí Calculadora para revisarla.";
+  }
+  if (extracted.duplicateStatus === "ambiguous") {
+    return "Encontré varias impresoras parecidas y no puedo elegir una con seguridad. Abrí Calculadora para revisarlas.";
+  }
+  if (extracted.requiresConfirmation !== true) {
+    return "No pude verificar con seguridad que la impresora sea nueva. Abrí Calculadora para revisarla antes de crear nada.";
+  }
+
+  const warnings = Array.isArray(extracted.validationWarnings)
+    ? (extracted.validationWarnings as string[])
+    : [];
+  const warningText = warnings.length
+    ? `\n\n${warnings.map((warning) => `- ${warning}`).join("\n")}`
+    : "";
+  return `Detecté una nueva impresora:\n\n- Nombre: ${String(
+    extracted.printerName
+  )}\n- Potencia: ${Number(extracted.powerWatts)}W\n- Mantenimiento/hora: $${Number(
+    extracted.maintenanceCostPerHour
+  )}${warningText}\n\nAntes de crearla necesito que confirmes. Todavía no hice cambios.`;
 }
 
 export async function askStampyAction(
@@ -375,12 +410,70 @@ export async function askStampyAction(
         }
       }
 
+      if (validation.isValid && isCreatePrinterAction(validatedActionIntent)) {
+        try {
+          const { findDuplicatePrinter } = await import(
+            "@/lib/stampy/action-executor"
+          );
+          const duplicateCheck = await findDuplicatePrinter({
+            supabase,
+            userId,
+            printerName: String(validation.normalizedExtracted.printerName),
+          });
+
+          if (duplicateCheck.status === "error") {
+            console.error(
+              "[Stampy] duplicate printer check failed",
+              duplicateCheck.error?.substring(0, 200)
+            );
+          }
+
+          validatedActionIntent = {
+            ...validatedActionIntent,
+            extracted: {
+              ...validatedActionIntent.extracted,
+              actionType: "add_printer",
+              duplicateStatus: duplicateCheck.status,
+              requiresConfirmation: duplicateCheck.status === "clear",
+              validationWarnings: validation.warnings,
+              ...(duplicateCheck.printer
+                ? {
+                    duplicateTarget: {
+                      type: "printer",
+                      id: duplicateCheck.printer.id,
+                      label: duplicateCheck.printer.name,
+                      isActive: duplicateCheck.printer.is_active,
+                    },
+                  }
+                : {}),
+            },
+          };
+        } catch (error) {
+          console.error(
+            "[Stampy] duplicate printer check failed",
+            String(error).substring(0, 200)
+          );
+          validatedActionIntent = {
+            ...validatedActionIntent,
+            extracted: {
+              ...validatedActionIntent.extracted,
+              actionType: "add_printer",
+              duplicateStatus: "error",
+              requiresConfirmation: false,
+              validationWarnings: validation.warnings,
+            },
+          };
+        }
+      }
+
       requestMode = "direct";
       answerText = validation.isValid
         ? isFilamentMovementAction(validatedActionIntent)
           ? buildFilamentMovementResponse(validatedActionIntent)
           : isCreateFilamentAction(validatedActionIntent)
             ? buildCreateFilamentResponse(validatedActionIntent)
+            : isCreatePrinterAction(validatedActionIntent)
+              ? buildCreatePrinterResponse(validatedActionIntent)
           : buildActionIntentResponse(validatedActionIntent)
         : buildActionValidationResponse(validatedActionIntent, validation);
       const knowledgeTools = validation.isValid && validatedActionIntent.toolHref && validatedActionIntent.toolLabel

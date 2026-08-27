@@ -35,6 +35,23 @@ function normalizePositiveNumber(
   extracted[field] = normalized;
 }
 
+function normalizeNonNegativeNumber(
+  extracted: Record<string, unknown>,
+  field: string,
+  invalidFields: string[]
+) {
+  const value = extracted[field];
+  if (!hasValue(value)) return;
+
+  const normalized = typeof value === "number" ? value : Number(value);
+  if (!Number.isFinite(normalized) || normalized < 0) {
+    invalidFields.push(field);
+    return;
+  }
+
+  extracted[field] = normalized;
+}
+
 function normalizeFilamentGrams(extracted: Record<string, unknown>) {
   const value = extracted.grams;
   if (typeof value !== "string") return;
@@ -132,6 +149,38 @@ export function validateStampyActionIntent({
       normalizePositiveNumber(normalizedExtracted, "totalGrams", invalidFields);
       if (normalizedExtracted.totalGramsAssumed === true) {
         warnings.push("Como no indicaste el peso, se asumirá un rollo de 1000g.");
+      }
+      break;
+
+    case "add_printer":
+      addMissingFields(
+        normalizedExtracted,
+        toolContract?.requiredFields ?? ["printerName"],
+        missingFields
+      );
+      if (!hasValue(normalizedExtracted.powerWatts)) {
+        normalizedExtracted.powerWatts = 0;
+        normalizedExtracted.powerWattsAssumed = true;
+      }
+      if (!hasValue(normalizedExtracted.maintenanceCostPerHour)) {
+        normalizedExtracted.maintenanceCostPerHour = 0;
+        normalizedExtracted.maintenanceCostPerHourAssumed = true;
+      }
+      normalizeNonNegativeNumber(normalizedExtracted, "powerWatts", invalidFields);
+      normalizeNonNegativeNumber(
+        normalizedExtracted,
+        "maintenanceCostPerHour",
+        invalidFields
+      );
+      if (normalizedExtracted.powerWattsAssumed === true) {
+        warnings.push(
+          "Potencia no especificada; queda en 0W para completar después."
+        );
+      }
+      if (normalizedExtracted.maintenanceCostPerHourAssumed === true) {
+        warnings.push(
+          "Mantenimiento por hora no especificado; queda en $0 para completar después."
+        );
       }
       break;
 
