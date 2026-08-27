@@ -519,3 +519,254 @@ test("action request updates still report success when a row was returned", asyn
     true
   );
 });
+
+function loadHistoryModule() {
+  return loadTypeScriptModule("src/lib/stampy/history.ts", {
+    "@supabase/supabase-js": {},
+    "./types": {}
+  });
+}
+
+function makeHistorySupabase(rows) {
+  const queries = [];
+  return {
+    queries,
+    from(table) {
+      assert.equal(table, "stampy_messages");
+      const filters = {};
+      const query = {
+        select() {
+          return this;
+        },
+        eq(column, value) {
+          filters[column] = value;
+          return this;
+        },
+        order(column, options) {
+          assert.equal(column, "created_at");
+          assert.deepEqual(options, { ascending: false });
+          return this;
+        },
+        async limit(limit) {
+          queries.push({ filters: { ...filters }, limit });
+          const data = rows
+            .filter((row) =>
+              Object.entries(filters).every(([column, value]) => row[column] === value)
+            )
+            .sort((left, right) => right.created_at.localeCompare(left.created_at))
+            .slice(0, limit)
+            .map(({ role, content, created_at }) => ({ role, content, created_at }));
+          return { data, error: null };
+        }
+      };
+      return query;
+    }
+  };
+}
+
+test("recent history is isolated by both conversation and current user", async () => {
+  const history = loadHistoryModule();
+  const supabase = makeHistorySupabase([
+    {
+      conversation_id: "conversation-a",
+      user_id: "user-1",
+      role: "user",
+      content: "Hacé un presupuesto para Lucas de 2 jarros y 100g.",
+      created_at: "2026-08-26T10:00:00.000Z"
+    },
+    {
+      conversation_id: "conversation-b",
+      user_id: "user-1",
+      role: "user",
+      content: "Siempre uso OrcaSlicer.",
+      created_at: "2026-08-26T11:00:00.000Z"
+    },
+    {
+      conversation_id: "conversation-b",
+      user_id: "user-2",
+      role: "user",
+      content: "Dato de otro usuario.",
+      created_at: "2026-08-26T12:00:00.000Z"
+    }
+  ]);
+
+  const previousMessages = await history.getRecentHistory(
+    supabase,
+    "conversation-b",
+    "user-1"
+  );
+
+  assert.deepEqual(previousMessages, [
+    { role: "user", content: "Siempre uso OrcaSlicer." }
+  ]);
+  assert.doesNotMatch(JSON.stringify(previousMessages), /Lucas|jarros|100g|presupuesto/i);
+  assert.deepEqual(supabase.queries[0], {
+    filters: { conversation_id: "conversation-b", user_id: "user-1" },
+    limit: 8
+  });
+});
+
+test("recent history remains chronological inside the same conversation", async () => {
+  const history = loadHistoryModule();
+  const supabase = makeHistorySupabase([
+    {
+      conversation_id: "conversation-blue",
+      user_id: "user-1",
+      role: "user",
+      content: "Mi color favorito para esta prueba es azul marino.",
+      created_at: "2026-08-26T10:00:00.000Z"
+    },
+    {
+      conversation_id: "conversation-blue",
+      user_id: "user-1",
+      role: "assistant",
+      content: "Lo tengo presente en esta conversación.",
+      created_at: "2026-08-26T10:01:00.000Z"
+    }
+  ]);
+
+  assert.deepEqual(
+    await history.getRecentHistory(supabase, "conversation-blue", "user-1"),
+    [
+      { role: "user", content: "Mi color favorito para esta prueba es azul marino." },
+      { role: "assistant", content: "Lo tengo presente en esta conversación." }
+    ]
+  );
+});
+
+test("ensureConversation creates a new row when no explicit conversation id is sent", async () => {
+  const history = loadHistoryModule();
+  let existingConversationLookupCount = 0;
+  const insertedRows = [];
+  const supabase = {
+    from(table) {
+      assert.equal(table, "stampy_conversations");
+      return {
+        select() {
+          existingConversationLookupCount += 1;
+          throw new Error("No existing conversation should be selected");
+        },
+        insert(row) {
+          insertedRows.push(row);
+          return {
+            select() {
+              return {
+                async single() {
+                  return { data: { id: "conversation-new" }, error: null };
+                }
+              };
+            }
+          };
+        }
+      };
+    }
+  };
+
+  const conversationId = await history.ensureConversation({
+    supabase,
+    userId: "user-1",
+    conversationId: null,
+    message: "¿Qué color te dije recién?"
+  });
+
+  assert.equal(conversationId, "conversation-new");
+  assert.equal(existingConversationLookupCount, 0);
+  assert.equal(insertedRows.length, 1);
+  assert.equal(insertedRows[0].user_id, "user-1");
+});
+
+test("ensureConversation never reuses an explicit conversation owned by another user", async () => {
+  const history = loadHistoryModule();
+  const insertedRows = [];
+  let updatedForeignConversation = false;
+  const supabase = {
+    from(table) {
+      assert.equal(table, "stampy_conversations");
+      return {
+        select() {
+          return {
+            eq(column, value) {
+              assert.equal(column, "id");
+              assert.equal(value, "conversation-foreign");
+              return {
+                async single() {
+                  return {
+                    data: { id: "conversation-foreign", user_id: "user-2" },
+                    error: null
+                  };
+                }
+              };
+            }
+          };
+        },
+        update() {
+          updatedForeignConversation = true;
+          return { eq: async () => ({ error: null }) };
+        },
+        insert(row) {
+          insertedRows.push(row);
+          return {
+            select() {
+              return {
+                async single() {
+                  return { data: { id: "conversation-owned" }, error: null };
+                }
+              };
+            }
+          };
+        }
+      };
+    }
+  };
+
+  const conversationId = await history.ensureConversation({
+    supabase,
+    userId: "user-1",
+    conversationId: "conversation-foreign",
+    message: "Nueva conversación segura"
+  });
+
+  assert.equal(conversationId, "conversation-owned");
+  assert.equal(updatedForeignConversation, false);
+  assert.equal(insertedRows.length, 1);
+});
+
+test("Stampy clients use separate conversation storage keys and reset controls", () => {
+  const mainSource = fs.readFileSync(path.join(root, "src/app/stampy/page.tsx"), "utf8");
+  const widgetSource = fs.readFileSync(
+    path.join(root, "src/components/stampy/GlobalStampyWidget.tsx"),
+    "utf8"
+  );
+  const lessonSource = fs.readFileSync(
+    path.join(root, "src/components/stampy/StampyLessonChat.tsx"),
+    "utf8"
+  );
+  const courseSource = fs.readFileSync(
+    path.join(root, "src/app/cursos/[id]/page.tsx"),
+    "utf8"
+  );
+
+  assert.match(mainSource, /stampy_main_conversation_id/);
+  assert.match(widgetSource, /stampy_widget_conversation_id/);
+  assert.match(lessonSource, /stampy_lesson_conversation_id_\$\{lessonId\}/);
+  assert.match(mainSource, /localStorage\.removeItem\(MAIN_CONVERSATION_STORAGE_KEY\)/);
+  assert.match(widgetSource, /localStorage\.removeItem\(WIDGET_CONVERSATION_STORAGE_KEY\)/);
+  assert.match(
+    lessonSource,
+    /localStorage\.removeItem\(getLessonConversationStorageKey\(lesson\.id\)\)/
+  );
+  assert.match(widgetSource, />\s*Nueva conversación\s*</);
+  assert.match(lessonSource, />\s*Nueva conversación\s*</);
+  assert.match(courseSource, /<StampyLessonChat\s+key=\{activeLesson\.id\}/);
+});
+
+test("history diagnostics are development-only and contain compact previews", () => {
+  const source = fs.readFileSync(path.join(root, "src/lib/stampy/history.ts"), "utf8");
+  const environmentGuard = source.indexOf('process.env.NODE_ENV !== "production"');
+  const logIndex = source.indexOf('console.log("[Stampy History]"');
+
+  assert.ok(environmentGuard > 0);
+  assert.ok(logIndex > environmentGuard);
+  assert.match(source, /previousMessagesCount: history\.length/);
+  assert.match(source, /substring\(0, 80\)/);
+});

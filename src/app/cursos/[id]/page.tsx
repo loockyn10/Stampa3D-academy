@@ -588,6 +588,7 @@ export default function CursoDetailPage({ params }: PageProps) {
       </div>
       {activeLesson && (
         <StampyLessonChat
+          key={activeLesson.id}
           courseTitle={course.title}
           moduleTitle={modules.find(m => m.id === activeLesson.module_id)?.title || ''}
           lesson={activeLesson}

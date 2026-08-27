@@ -33,18 +33,28 @@ type Message = {
   actionRequestId?: string | null;
 };
 
+function getLessonConversationStorageKey(lessonId: string) {
+  return `stampy_lesson_conversation_id_${lessonId}`;
+}
+
+function createLessonWelcomeMessage(): Message {
+  return {
+    id: "lesson-welcome:assistant",
+    role: "assistant",
+    content: "Estoy viendo esta clase con vos. Preguntame lo que no se entienda y te lo bajo a tierra.",
+  };
+}
+
 export function StampyLessonChat({ courseTitle, moduleTitle, lesson }: StampyLessonChatProps) {
   const [isOpen, setIsOpen] = useState(false);
-  const [messages, setMessages] = useState<Message[]>([
-    {
-      id: "lesson-welcome:assistant",
-      role: "assistant",
-      content: "Estoy viendo esta clase con vos. Preguntame lo que no se entienda y te lo bajo a tierra."
-    }
-  ]);
+  const [messages, setMessages] = useState<Message[]>([createLessonWelcomeMessage()]);
   const [input, setInput] = useState("");
   const [isLoading, setIsLoading] = useState(false);
-  const [conversationId, setConversationId] = useState<string | null>(null);
+  const [conversationId, setConversationId] = useState<string | null>(() =>
+    typeof window === "undefined"
+      ? null
+      : localStorage.getItem(getLessonConversationStorageKey(lesson.id))
+  );
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const [mounted, setMounted] = useState(false);
   const requestInFlightRef = useRef(false);
@@ -67,6 +77,7 @@ export function StampyLessonChat({ courseTitle, moduleTitle, lesson }: StampyLes
     const safeInput = input.trim();
     if (!safeInput || isLoading || requestInFlightRef.current) return;
     requestInFlightRef.current = true;
+    const requestLessonId = lesson.id;
 
     const requestId = createStampyRequestId();
     const userMsg: Message = {
@@ -102,6 +113,10 @@ export function StampyLessonChat({ courseTitle, moduleTitle, lesson }: StampyLes
       const response = await askStampyAction(userMsg.content, conversationId, removeUndefined(context) as StampyContextPayload);
       if (response.conversationId && response.conversationId !== conversationId) {
         setConversationId(response.conversationId);
+        localStorage.setItem(
+          getLessonConversationStorageKey(requestLessonId),
+          response.conversationId
+        );
       }
       setMessages((current) => [...current, {
         id: createStampyMessageId(requestId, "assistant"),
@@ -121,6 +136,14 @@ export function StampyLessonChat({ courseTitle, moduleTitle, lesson }: StampyLes
       requestInFlightRef.current = false;
       setIsLoading(false);
     }
+  };
+
+  const startNewConversation = () => {
+    if (requestInFlightRef.current) return;
+    setConversationId(null);
+    localStorage.removeItem(getLessonConversationStorageKey(lesson.id));
+    setMessages([createLessonWelcomeMessage()]);
+    setInput("");
   };
 
   if (!mounted) return null;
@@ -158,12 +181,22 @@ export function StampyLessonChat({ courseTitle, moduleTitle, lesson }: StampyLes
                   <p className="text-xs text-gray-400 max-w-[200px] truncate">Contexto: {lesson.title}</p>
                 </div>
               </div>
-              <button 
-                onClick={() => setIsOpen(false)} 
-                className="text-gray-400 hover:text-white transition-colors p-2 bg-white/5 border border-stampa-border rounded-full hover:bg-white/10 hover:border-cyan-400/40"
-              >
-                <X size={18} />
-              </button>
+              <div className="flex items-center gap-2">
+                <button
+                  type="button"
+                  onClick={startNewConversation}
+                  disabled={isLoading}
+                  className="rounded-lg border border-stampa-border bg-white/5 px-2.5 py-1.5 text-[11px] font-semibold text-gray-300 transition-colors hover:bg-white/10 disabled:opacity-50"
+                >
+                  Nueva conversación
+                </button>
+                <button
+                  onClick={() => setIsOpen(false)}
+                  className="text-gray-400 hover:text-white transition-colors p-2 bg-white/5 border border-stampa-border rounded-full hover:bg-white/10 hover:border-cyan-400/40"
+                >
+                  <X size={18} />
+                </button>
+              </div>
             </div>
 
             {/* Mensajes */}

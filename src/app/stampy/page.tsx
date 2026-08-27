@@ -32,6 +32,9 @@ const QUICK_SUGGESTIONS = [
   "Tengo problemas con OrcaSlicer"
 ];
 
+const MAIN_CONVERSATION_STORAGE_KEY = "stampy_main_conversation_id";
+const LEGACY_CONVERSATION_STORAGE_KEY = "stampy_current_conversation_id";
+
 const TOOL_MAP: Record<string, { label: string; href: string; icon: any }> = {
   "calculadora": { label: "Calculadora de precios", href: "/calculadora", icon: Calculator },
   "presupuestos": { label: "Presupuestos", href: "/presupuestos", icon: FileText },
@@ -55,7 +58,11 @@ export default function StampyPage() {
   ]);
   const [input, setInput] = useState("");
   const [loading, setLoading] = useState(false);
-  const [conversationId, setConversationId] = useState<string | null>(null);
+  const [conversationId, setConversationId] = useState<string | null>(() =>
+    typeof window === "undefined"
+      ? null
+      : localStorage.getItem(MAIN_CONVERSATION_STORAGE_KEY)
+  );
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const requestInFlightRef = useRef(false);
 
@@ -64,8 +71,7 @@ export default function StampyPage() {
   };
 
   useEffect(() => {
-    const savedId = localStorage.getItem("stampy_current_conversation_id");
-    if (savedId) setConversationId(savedId);
+    localStorage.removeItem(LEGACY_CONVERSATION_STORAGE_KEY);
   }, []);
 
   useEffect(() => {
@@ -95,7 +101,7 @@ export default function StampyPage() {
       
       if (res.conversationId && res.conversationId !== conversationId) {
         setConversationId(res.conversationId);
-        localStorage.setItem("stampy_current_conversation_id", res.conversationId);
+        localStorage.setItem(MAIN_CONVERSATION_STORAGE_KEY, res.conversationId);
       }
 
       if (res.error) {
@@ -132,7 +138,7 @@ export default function StampyPage() {
   const startNewConversation = () => {
     if (requestInFlightRef.current) return;
     setConversationId(null);
-    localStorage.removeItem("stampy_current_conversation_id");
+    localStorage.removeItem(MAIN_CONVERSATION_STORAGE_KEY);
     setMessages([{
       id: "new-conversation:assistant",
       role: "assistant",

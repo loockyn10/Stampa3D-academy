@@ -21,6 +21,14 @@ type Message = {
   actionRequestId?: string | null;
 };
 
+const WIDGET_CONVERSATION_STORAGE_KEY = "stampy_widget_conversation_id";
+
+const WIDGET_WELCOME_MESSAGE: Message = {
+  id: "global-welcome:assistant",
+  role: "assistant",
+  content: "Hola, soy Stampy. Contame qué problema tenés con tu impresión, tus costos o tu taller, y te ayudo a encontrar por dónde seguir.",
+};
+
 // Routes where GlobalStampyWidget must NOT appear
 const HIDDEN_ON: string[] = [
   "/login",
@@ -47,16 +55,14 @@ function StampyWidgetContent() {
   const { stampyContext } = useStampyContext();
 
   const [isOpen, setIsOpen] = useState(false);
-  const [messages, setMessages] = useState<Message[]>([
-    {
-      id: "global-welcome:assistant",
-      role: "assistant",
-      content: "Hola, soy Stampy. Contame qué problema tenés con tu impresión, tus costos o tu taller, y te ayudo a encontrar por dónde seguir.",
-    },
-  ]);
+  const [messages, setMessages] = useState<Message[]>([WIDGET_WELCOME_MESSAGE]);
   const [input, setInput] = useState("");
   const [isLoading, setIsLoading] = useState(false);
-  const [conversationId, setConversationId] = useState<string | null>(null);
+  const [conversationId, setConversationId] = useState<string | null>(() =>
+    typeof window === "undefined"
+      ? null
+      : localStorage.getItem(WIDGET_CONVERSATION_STORAGE_KEY)
+  );
   const [pageCtx, setPageCtx] = useState<StampyPageContext | null>(null);
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const [mounted, setMounted] = useState(false);
@@ -130,6 +136,7 @@ function StampyWidgetContent() {
       );
       if (response.conversationId && response.conversationId !== conversationId) {
         setConversationId(response.conversationId);
+        localStorage.setItem(WIDGET_CONVERSATION_STORAGE_KEY, response.conversationId);
       }
       setMessages((current) => [...current, {
         id: createStampyMessageId(requestId, "assistant"),
@@ -151,6 +158,14 @@ function StampyWidgetContent() {
       requestInFlightRef.current = false;
       setIsLoading(false);
     }
+  };
+
+  const startNewConversation = () => {
+    if (requestInFlightRef.current) return;
+    setConversationId(null);
+    localStorage.removeItem(WIDGET_CONVERSATION_STORAGE_KEY);
+    setMessages([WIDGET_WELCOME_MESSAGE]);
+    setInput("");
   };
 
   return createPortal(
@@ -188,12 +203,22 @@ function StampyWidgetContent() {
                   </p>
                 </div>
               </div>
-              <button
-                onClick={() => setIsOpen(false)}
-                className="text-gray-400 hover:text-white transition-colors p-2 bg-white/5 border border-stampa-border rounded-full hover:bg-white/10 hover:border-cyan-400/40"
-              >
-                <X size={18} />
-              </button>
+              <div className="flex items-center gap-2">
+                <button
+                  type="button"
+                  onClick={startNewConversation}
+                  disabled={isLoading}
+                  className="rounded-lg border border-stampa-border bg-white/5 px-2.5 py-1.5 text-[11px] font-semibold text-gray-300 transition-colors hover:bg-white/10 disabled:opacity-50"
+                >
+                  Nueva conversación
+                </button>
+                <button
+                  onClick={() => setIsOpen(false)}
+                  className="text-gray-400 hover:text-white transition-colors p-2 bg-white/5 border border-stampa-border rounded-full hover:bg-white/10 hover:border-cyan-400/40"
+                >
+                  <X size={18} />
+                </button>
+              </div>
             </div>
 
             <div className="min-h-0 flex-1 overflow-y-auto p-4 space-y-4 overscroll-contain">

@@ -77,15 +77,22 @@ export async function getRecentHistory(
       return [];
     }
 
-    if (!recentMessages || recentMessages.length === 0) {
-      return [];
-    }
-
     // Reverse to chronological order and truncate
-    return recentMessages.reverse().map((m: any) => ({
+    const history = (recentMessages ?? []).reverse().map((m: any) => ({
       role: m.role as "user" | "assistant",
       content: m.content.substring(0, 1200),
     }));
+
+    if (process.env.NODE_ENV !== "production") {
+      console.log("[Stampy History]", {
+        conversationId,
+        previousMessagesCount: history.length,
+        firstMessagePreview: history[0]?.content.substring(0, 80) ?? null,
+        lastMessagePreview: history.at(-1)?.content.substring(0, 80) ?? null,
+      });
+    }
+
+    return history;
   } catch (error) {
     console.error("[Stampy] recent history exception", error);
     return [];

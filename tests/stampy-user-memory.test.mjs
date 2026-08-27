@@ -62,6 +62,7 @@ function loadMemoryAwareAskStampyAction({
   loadMemory,
   saveMemory,
   openAiAnswer = "Respuesta normal",
+  recentHistory = [],
 } = {}) {
   const events = [];
   const assistantMetadata = [];
@@ -145,7 +146,7 @@ function loadMemoryAwareAskStampyAction({
     },
     "@/lib/stampy/history": {
       ensureConversation: async () => "conversation-1",
-      getRecentHistory: async () => [],
+      getRecentHistory: async () => recentHistory,
       saveMessages: async (...args) => {
         events.push("messages-saved");
         assistantMetadata.push(args[5]);
@@ -231,6 +232,11 @@ test("casual or irrelevant personal details are not remembered", () => {
   assert.deepEqual(userMemory.extractUsefulMemory("No dormí bien"), []);
   assert.deepEqual(userMemory.extractUsefulMemory("Mi perro se llama Moro"), []);
   assert.deepEqual(userMemory.extractUsefulMemory("Hoy estoy cansado"), []);
+  assert.deepEqual(
+    userMemory.extractUsefulMemory("Hacé un presupuesto para Lucas de 2 jarros y 100g"),
+    []
+  );
+  assert.deepEqual(userMemory.extractUsefulMemory("Mi color favorito es azul marino"), []);
 });
 
 test("questions and negated facts are not remembered", () => {
@@ -432,10 +438,13 @@ test("askStampyAction injects relevant Orca memory into the system prompt", asyn
   });
 
   const result = await harness.actions.askStampyAction("¿Qué slicer me conviene usar?");
-  const systemPrompt = harness.completionPayloads[0].messages[0].content;
+  const completionMessages = harness.completionPayloads[0].messages;
+  const systemPrompt = completionMessages[0].content;
 
   assert.equal(result.answer, "Respuesta normal");
   assert.match(systemPrompt, /MEMORIAS ÚTILES DEL USUARIO:\n- Usa Orca\./);
+  assert.doesNotMatch(systemPrompt, /Lucas|jarros|100g/i);
+  assert.doesNotMatch(JSON.stringify(completionMessages.slice(1)), /Lucas|jarros|100g/i);
   assert.ok(
     systemPrompt.indexOf("DATOS DEL USUARIO Y TALLER:") <
       systemPrompt.indexOf("MEMORIAS ÚTILES DEL USUARIO:")
@@ -445,6 +454,32 @@ test("askStampyAction injects relevant Orca memory into the system prompt", asyn
     loadedCount: 1,
     savedCount: 0,
   });
+});
+
+test("askStampyAction keeps short history inside the same explicit conversation", async () => {
+  const harness = loadMemoryAwareAskStampyAction({
+    recentHistory: [
+      { role: "user", content: "Mi color favorito para esta prueba es azul marino." },
+      { role: "assistant", content: "Entendido para esta conversación." },
+    ],
+  });
+
+  await harness.actions.askStampyAction("¿Qué color te dije recién?");
+  const messages = harness.completionPayloads[0].messages;
+
+  assert.equal(messages[1].content, "Mi color favorito para esta prueba es azul marino.");
+  assert.equal(messages.at(-1).content, "¿Qué color te dije recién?");
+});
+
+test("askStampyAction has no casual color context in a new conversation", async () => {
+  const harness = loadMemoryAwareAskStampyAction();
+
+  await harness.actions.askStampyAction("¿Qué color te dije recién?");
+  const messages = harness.completionPayloads[0].messages;
+
+  assert.equal(messages.length, 2);
+  assert.equal(messages.at(-1).content, "¿Qué color te dije recién?");
+  assert.doesNotMatch(JSON.stringify(messages), /azul marino/i);
 });
 
 test("askStampyAction does not persist casual messages", async () => {
