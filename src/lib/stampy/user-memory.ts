@@ -51,8 +51,10 @@ interface RankRelevantMemoryParams {
 interface LoadRelevantMemoryParams {
   supabase: SupabaseClient;
   userId: string;
-  message: string;
+  message?: string;
+  query?: string;
   maxResults?: number;
+  limit?: number;
 }
 
 export interface LoadRelevantMemoryResult {
@@ -192,7 +194,7 @@ export function extractUsefulMemory(message: string): ExtractedUsefulMemory[] {
   )) {
     addMemory(memories, {
       category: "software",
-      memoryKey: "slicer",
+      memoryKey: "preferred_slicer",
       memoryValue: software.value,
       confidence: 0.95,
     });
@@ -376,7 +378,10 @@ export function rankRelevantMemory({
 }
 
 function memoryToSentence(memory: StampyUserMemory): string {
-  if (memory.category === "software" && memory.memory_key === "slicer") {
+  if (
+    memory.category === "software" &&
+    (memory.memory_key === "preferred_slicer" || memory.memory_key === "slicer")
+  ) {
     return `Usa ${memory.memory_value}.`;
   }
   if (memory.category === "printing" && memory.memory_key === "preferred_material") {
@@ -414,10 +419,16 @@ function memoryToSentence(memory: StampyUserMemory): string {
 
 export function formatRelevantMemoryForPrompt(memories: StampyUserMemory[]): string {
   if (memories.length === 0) return "";
-  return `Memorias útiles del usuario:\n${memories
-    .slice(0, 10)
-    .map((memory) => `- ${memoryToSentence(memory)}`)
-    .join("\n")}`;
+
+  const maxPromptChars = 1200;
+  let promptText = "MEMORIAS ÚTILES DEL USUARIO:";
+  for (const memory of memories.slice(0, 10)) {
+    const line = `\n- ${memoryToSentence(memory)}`;
+    if (promptText.length + line.length > maxPromptChars) break;
+    promptText += line;
+  }
+
+  return promptText;
 }
 
 /**
@@ -462,10 +473,14 @@ export async function loadRelevantMemory({
   supabase,
   userId,
   message,
-  maxResults = 10,
+  query,
+  maxResults,
+  limit,
 }: LoadRelevantMemoryParams): Promise<LoadRelevantMemoryResult> {
-  const categories = getRelevantCategories(message);
-  if (categories.length === 0 || maxResults <= 0) {
+  const memoryQuery = query ?? message ?? "";
+  const resultLimit = limit ?? maxResults ?? 10;
+  const categories = getRelevantCategories(memoryQuery);
+  if (categories.length === 0 || resultLimit <= 0) {
     return { memories: [], promptText: "", error: null };
   }
 
@@ -484,7 +499,11 @@ export async function loadRelevantMemory({
   }
 
   const rows = Array.isArray(data) ? data.filter(isStampyUserMemory) : [];
-  const memories = rankRelevantMemory({ message, memories: rows, maxResults });
+  const memories = rankRelevantMemory({
+    message: memoryQuery,
+    memories: rows,
+    maxResults: resultLimit,
+  });
   return {
     memories,
     promptText: formatRelevantMemoryForPrompt(memories),

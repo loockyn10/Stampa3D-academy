@@ -238,6 +238,7 @@ export async function askStampyAction(
             recommendationsCount: 0,
             actionIntent: validatedActionIntent,
             validation: validationMetadata,
+            memory: { loadedCount: 0, savedCount: 0 },
           }
         );
         assistantMessageId = saved?.assistantMessageId || null;
@@ -263,6 +264,7 @@ export async function askStampyAction(
                   actionIntent: validatedActionIntent,
                   actionRequestId,
                   validation: validationMetadata,
+                  memory: { loadedCount: 0, savedCount: 0 },
                 }
               })
               .eq("id", assistantMessageId);
@@ -296,6 +298,27 @@ export async function askStampyAction(
         actionIntent: validatedActionIntent,
         validation: validationMetadata,
       };
+    }
+
+    let loadedMemoryCount = 0;
+    let memoryPromptText = "";
+    try {
+      const { loadRelevantMemory } = await import("@/lib/stampy/user-memory");
+      const relevantMemory = await loadRelevantMemory({
+        supabase,
+        userId,
+        query: userMessage,
+        limit: 10,
+      });
+
+      if (relevantMemory.error) {
+        console.error("[Stampy] memory load failed", relevantMemory.error);
+      } else {
+        loadedMemoryCount = relevantMemory.memories.length;
+        memoryPromptText = relevantMemory.promptText;
+      }
+    } catch (error) {
+      console.error("[Stampy] memory load failed", String(error).substring(0, 200));
     }
 
     const { OpenAI } = await import("openai");
@@ -507,6 +530,10 @@ Si el usuario pide una acción:
 - mandalo a la herramienta correspondiente
 - no digas que lo hiciste\n`;
 
+    if (memoryPromptText) {
+      systemPrompt += `\n\n${memoryPromptText}\n`;
+    }
+
     systemPrompt += `\nReglas generales:
 - Respuestas MUY breves y prácticas.
 - No inventes datos.
@@ -651,22 +678,73 @@ ${relevantContracts.map(formatToolContractForPrompt).join("\n\n")}\n`;
     }
 
     let assistantMessageId: string | null = null;
+    let savedMemoryCount = 0;
     if (actualConversationId) {
+      const assistantMetadata = {
+        mode: requestMode,
+        model: modelName,
+        relatedToolsCount: knowledgeTools.length,
+        recommendationsCount: recommendations.length,
+        actionIntent: null,
+        memory: { loadedCount: loadedMemoryCount, savedCount: 0 },
+      };
       const saved = await saveMessages(
         supabase, 
         userId,
         actualConversationId, 
         userMessage,
         answerText, 
-        { 
-          mode: requestMode, 
-          model: modelName, 
-          relatedToolsCount: knowledgeTools.length, 
-          recommendationsCount: recommendations.length,
-          actionIntent: null
-        }
+        assistantMetadata
       );
       assistantMessageId = saved?.assistantMessageId || null;
+
+      if (saved?.userMessageId) {
+        try {
+          const { saveUserMemory } = await import("@/lib/stampy/user-memory");
+          const memorySaveResult = await saveUserMemory({
+            supabase,
+            userId,
+            sourceMessageId: saved.userMessageId,
+            message: userMessage,
+          });
+          savedMemoryCount = memorySaveResult.savedCount;
+
+          if (memorySaveResult.errors.length > 0) {
+            console.error("[Stampy] memory save failed", {
+              count: memorySaveResult.errors.length,
+              error: memorySaveResult.errors[0]?.substring(0, 200),
+            });
+          }
+        } catch (error) {
+          console.error("[Stampy] memory save failed", String(error).substring(0, 200));
+        }
+
+        if (assistantMessageId && savedMemoryCount > 0) {
+          try {
+            const { error: metadataError } = await supabase
+              .from("stampy_messages")
+              .update({
+                metadata: {
+                  ...assistantMetadata,
+                  memory: {
+                    loadedCount: loadedMemoryCount,
+                    savedCount: savedMemoryCount,
+                  },
+                },
+              })
+              .eq("id", assistantMessageId);
+
+            if (metadataError) {
+              console.error("[Stampy] memory metadata update failed", metadataError.message);
+            }
+          } catch (error) {
+            console.error(
+              "[Stampy] memory metadata update failed",
+              String(error).substring(0, 200)
+            );
+          }
+        }
+      }
 
       const { logStampyUsage } = await import("@/lib/stampy/usage-log");
       await logStampyUsage({

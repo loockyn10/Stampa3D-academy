@@ -6,7 +6,7 @@ import ts from "typescript";
 
 const root = process.cwd();
 
-function loadTypeScriptModule(relativePath) {
+function loadTypeScriptModule(relativePath, dependencies = {}) {
   const filename = path.join(root, relativePath);
   const source = fs.readFileSync(filename, "utf8");
   const { outputText } = ts.transpileModule(source, {
@@ -21,6 +21,7 @@ function loadTypeScriptModule(relativePath) {
 
   new Function("require", "module", "exports", outputText)(
     (specifier) => {
+      if (Object.hasOwn(dependencies, specifier)) return dependencies[specifier];
       throw new Error(`Unexpected dependency ${specifier} while loading ${relativePath}`);
     },
     loadedModule,
@@ -31,6 +32,16 @@ function loadTypeScriptModule(relativePath) {
 }
 
 const userMemory = loadTypeScriptModule("src/lib/stampy/user-memory.ts");
+const messagePolicy = loadTypeScriptModule("src/lib/stampy/message-policy.ts");
+const toolRegistry = loadTypeScriptModule("src/lib/stampy/tool-registry.ts");
+const actionIntents = loadTypeScriptModule("src/lib/stampy/action-intents.ts", {
+  "./tool-registry": toolRegistry,
+  "./types": {},
+});
+const actionValidator = loadTypeScriptModule("src/lib/stampy/action-validator.ts", {
+  "./tool-registry": toolRegistry,
+  "./types": {},
+});
 
 function makeMemory(overrides = {}) {
   return {
@@ -47,11 +58,147 @@ function makeMemory(overrides = {}) {
   };
 }
 
+function loadMemoryAwareAskStampyAction({
+  loadMemory,
+  saveMemory,
+  openAiAnswer = "Respuesta normal",
+} = {}) {
+  const events = [];
+  const assistantMetadata = [];
+  const metadataUpdates = [];
+  const rpcCalls = [];
+  const completionPayloads = [];
+
+  const lessonsQuery = {
+    select() {
+      return this;
+    },
+    eq() {
+      return this;
+    },
+    then(resolve, reject) {
+      return Promise.resolve({ data: [], error: null }).then(resolve, reject);
+    },
+  };
+  const supabase = {
+    async rpc(name, params) {
+      events.push("memory-save");
+      rpcCalls.push({ name, params });
+      return { data: null, error: null };
+    },
+    from(table) {
+      if (table === "lessons") return lessonsQuery;
+      if (table === "stampy_messages") {
+        return {
+          update(payload) {
+            metadataUpdates.push(payload.metadata);
+            return {
+              async eq() {
+                return { data: null, error: null };
+              },
+            };
+          },
+        };
+      }
+      throw new Error(`Unexpected table ${table}`);
+    },
+  };
+
+  class MockOpenAI {
+    constructor() {
+      this.chat = {
+        completions: {
+          create: async (payload) => {
+            events.push("openai");
+            completionPayloads.push(payload);
+            return { choices: [{ message: { content: openAiAnswer } }] };
+          },
+        },
+      };
+    }
+  }
+
+  const memoryModule = {
+    loadRelevantMemory:
+      loadMemory ??
+      (async () => {
+        events.push("memory-load");
+        return { memories: [], promptText: "", error: null };
+      }),
+    saveUserMemory: saveMemory ?? userMemory.saveUserMemory,
+  };
+
+  const actions = loadTypeScriptModule("src/app/stampy/actions.ts", {
+    "@/utils/supabase/server": { createClient: async () => supabase },
+    "@/lib/auth/user-access": {
+      getCurrentUserAccess: async () => ({
+        access: {
+          authenticated: true,
+          userId: "user-1",
+          capabilities: { useStampy: true },
+        },
+      }),
+    },
+    "@/lib/stampy/message-policy": messagePolicy,
+    "@/lib/stampy/rate-limit": {
+      checkStampyRateLimit: async () => ({ isBlocked: false }),
+    },
+    "@/lib/stampy/history": {
+      ensureConversation: async () => "conversation-1",
+      getRecentHistory: async () => [],
+      saveMessages: async (...args) => {
+        events.push("messages-saved");
+        assistantMetadata.push(args[5]);
+        return { userMessageId: "user-message-1", assistantMessageId: "assistant-message-1" };
+      },
+    },
+    "@/lib/stampy/action-intents": actionIntents,
+    "@/lib/stampy/action-validator": actionValidator,
+    "@/lib/stampy/tool-registry": toolRegistry,
+    "@/lib/stampy/action-requests": {
+      createStampyActionRequest: async () => ({
+        actionRequestId: "action-request-1",
+        error: null,
+      }),
+    },
+    "@/lib/stampy/user-memory": memoryModule,
+    "@/lib/stampy/workshop-context": {
+      getStampyWorkshopContext: async () => ({
+        text: "Sin datos de taller cargados.",
+        printersCount: 0,
+        filamentsCount: 0,
+        productsCount: 0,
+        activeFilamentsErrorMsg: null,
+        sampleFilaments: "",
+        isFilamentQuery: false,
+        isProductQuery: false,
+      }),
+    },
+    "@/lib/stampy/context-search": {
+      getStampyRelevantContexts: async () => ({ contextsCount: 0, text: "" }),
+    },
+    "@/lib/stampy/user-context": { getStampyUserContext: async () => null },
+    "@/lib/stampy/knowledge-search": { findRelevantKnowledge: () => [] },
+    "@/lib/stampy/retrieval": { retrieveStampyKnowledge: async () => "" },
+    "@/lib/stampy/usage-log": { logStampyUsage: async () => undefined },
+    openai: { OpenAI: MockOpenAI },
+  });
+
+  return {
+    actions,
+    events,
+    assistantMetadata,
+    metadataUpdates,
+    rpcCalls,
+    completionPayloads,
+  };
+}
+
 test('"Siempre uso Orca" extracts only a software memory', () => {
   assert.deepEqual(userMemory.extractUsefulMemory("Siempre uso Orca"), [
     {
       category: "software",
-      memoryKey: "slicer",
+      memoryKey: "preferred_slicer",
       memoryValue: "Orca",
       confidence: 0.95,
     },
@@ -217,7 +364,7 @@ test("warping loads only hardware, printing and workflow memories", async () => 
   assert.deepEqual(queriedCategories, ["hardware", "printing", "workflow"]);
   assert.equal(queriedCategories.includes("business"), false);
   assert.equal(result.memories.length, 3);
-  assert.match(result.promptText, /^Memorias útiles del usuario:/);
+  assert.match(result.promptText, /^MEMORIAS ÚTILES DEL USUARIO:/);
 });
 
 test("unrelated messages do not query persistent memory", async () => {
@@ -237,6 +384,144 @@ test("unrelated messages do not query persistent memory", async () => {
 
   assert.equal(queryCount, 0);
   assert.deepEqual(result, { memories: [], promptText: "", error: null });
+});
+
+test("askStampyAction saves an extracted memory only after persisting the response", async () => {
+  const harness = loadMemoryAwareAskStampyAction();
+  const result = await harness.actions.askStampyAction("Siempre uso Orca");
+
+  assert.equal(result.answer, "Respuesta normal");
+  assert.equal(harness.rpcCalls.length, 1);
+  assert.deepEqual(harness.rpcCalls[0], {
+    name: "save_stampy_user_memory",
+    params: {
+      p_user_id: "user-1",
+      p_category: "software",
+      p_memory_key: "preferred_slicer",
+      p_memory_value: "Orca",
+      p_confidence: 0.95,
+      p_source_message_id: "user-message-1",
+    },
+  });
+  assert.ok(harness.events.indexOf("openai") < harness.events.indexOf("messages-saved"));
+  assert.ok(harness.events.indexOf("messages-saved") < harness.events.indexOf("memory-save"));
+  assert.deepEqual(harness.metadataUpdates.at(-1).memory, {
+    loadedCount: 0,
+    savedCount: 1,
+  });
+});
+
+test("askStampyAction injects relevant Orca memory into the system prompt", async () => {
+  const orcaMemory = makeMemory({
+    id: "software-1",
+    category: "software",
+    memory_key: "preferred_slicer",
+    memory_value: "Orca",
+  });
+  const harness = loadMemoryAwareAskStampyAction({
+    loadMemory: async ({ query, limit }) => {
+      harness.events.push("memory-load");
+      assert.equal(query, "¿Qué slicer me conviene usar?");
+      assert.equal(limit, 10);
+      return {
+        memories: [orcaMemory],
+        promptText: userMemory.formatRelevantMemoryForPrompt([orcaMemory]),
+        error: null,
+      };
+    },
+  });
+
+  const result = await harness.actions.askStampyAction("¿Qué slicer me conviene usar?");
+  const systemPrompt = harness.completionPayloads[0].messages[0].content;
+
+  assert.equal(result.answer, "Respuesta normal");
+  assert.match(systemPrompt, /MEMORIAS ÚTILES DEL USUARIO:\n- Usa Orca\./);
+  assert.ok(
+    systemPrompt.indexOf("DATOS DEL USUARIO Y TALLER:") <
+      systemPrompt.indexOf("MEMORIAS ÚTILES DEL USUARIO:")
+  );
+  assert.ok(harness.events.indexOf("memory-load") < harness.events.indexOf("openai"));
+  assert.deepEqual(harness.assistantMetadata[0].memory, {
+    loadedCount: 1,
+    savedCount: 0,
+  });
+});
+
+test("askStampyAction does not persist casual messages", async () => {
+  const harness = loadMemoryAwareAskStampyAction();
+  const result = await harness.actions.askStampyAction("No dormí bien");
+
+  assert.equal(result.answer, "Respuesta normal");
+  assert.equal(harness.rpcCalls.length, 0);
+  assert.deepEqual(harness.assistantMetadata[0].memory, {
+    loadedCount: 0,
+    savedCount: 0,
+  });
+});
+
+test("memory load and save failures never replace a valid Stampy response", async () => {
+  const harness = loadMemoryAwareAskStampyAction({
+    loadMemory: async () => {
+      throw new Error("load unavailable");
+    },
+    saveMemory: async () => {
+      throw new Error("save unavailable");
+    },
+  });
+
+  const originalConsoleError = console.error;
+  console.error = () => undefined;
+  try {
+    const result = await harness.actions.askStampyAction("Siempre uso Orca");
+    assert.equal(result.answer, "Respuesta normal");
+    assert.equal(result.actionIntent, null);
+  } finally {
+    console.error = originalConsoleError;
+  }
+
+  assert.deepEqual(harness.assistantMetadata[0].memory, {
+    loadedCount: 0,
+    savedCount: 0,
+  });
+});
+
+test("direct intents keep the fast path without loading or saving memory", async () => {
+  let memoryCalls = 0;
+  const harness = loadMemoryAwareAskStampyAction({
+    loadMemory: async () => {
+      memoryCalls += 1;
+      return { memories: [], promptText: "", error: null };
+    },
+    saveMemory: async () => {
+      memoryCalls += 1;
+      return { extracted: [], savedCount: 0, errors: [] };
+    },
+  });
+
+  const result = await harness.actions.askStampyAction("Agregame 50g de PLA");
+
+  assert.equal(memoryCalls, 0);
+  assert.equal(result.actionIntent.type, "increase_filament_stock");
+  assert.equal(result.actionIntent.canExecute, false);
+  assert.equal(harness.events.includes("openai"), false);
+  assert.deepEqual(harness.assistantMetadata[0].memory, {
+    loadedCount: 0,
+    savedCount: 0,
+  });
+});
+
+test("memory prompt is capped at 1200 characters without partial lines", () => {
+  const memories = Array.from({ length: 10 }, (_, index) =>
+    makeMemory({
+      id: `long-${index}`,
+      memory_key: `detail_${index}`,
+      memory_value: "x".repeat(250),
+    })
+  );
+  const prompt = userMemory.formatRelevantMemoryForPrompt(memories);
+
+  assert.ok(prompt.length <= 1200);
+  assert.equal(prompt.endsWith("."), true);
 });
 
 test("ranking returns at most ten relevant memories and prompt formatting is explicit", () => {
@@ -270,7 +555,7 @@ test("ranking returns at most ten relevant memories and prompt formatting is exp
     makeMemory({
       id: "software-1",
       category: "software",
-      memory_key: "slicer",
+      memory_key: "preferred_slicer",
       memory_value: "Orca",
     }),
     makeMemory(),
@@ -283,7 +568,7 @@ test("ranking returns at most ten relevant memories and prompt formatting is exp
   ]);
   assert.equal(
     prompt,
-    "Memorias útiles del usuario:\n- Usa Orca.\n- Prefiere PLA.\n- Tiene nozzle 0.6 mm."
+    "MEMORIAS ÚTILES DEL USUARIO:\n- Usa Orca.\n- Prefiere PLA.\n- Tiene nozzle 0.6 mm."
   );
 });
 
