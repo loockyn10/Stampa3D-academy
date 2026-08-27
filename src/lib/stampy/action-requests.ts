@@ -8,6 +8,7 @@ import {
   executeCreatePrinter,
   executeCreateProduct,
   executeFilamentStockMovement,
+  executeProductFilamentDiscount,
 } from "./action-executor";
 
 interface CreateStampyActionRequestParams {
@@ -240,6 +241,38 @@ export async function confirmStampyCreateProductAction(actionRequestId: string) 
   }
 
   return executeCreateProduct({ supabase, actionRequestId });
+}
+
+export async function confirmStampyDiscountProductFilamentsAction(
+  actionRequestId: string
+) {
+  if (!UUID_PATTERN.test(actionRequestId)) {
+    return {
+      success: false,
+      errorCode: "invalid_action_request_id",
+      message: "La solicitud de descuento no es válida.",
+    };
+  }
+
+  const supabase = await createClient();
+  const { access } = await getCurrentUserAccess(supabase);
+  if (!access.authenticated || !access.userId) {
+    return {
+      success: false,
+      errorCode: "unauthenticated",
+      message: "Necesitás iniciar sesión para descontar los filamentos.",
+    };
+  }
+
+  if (!access.capabilities.useStampy) {
+    return {
+      success: false,
+      errorCode: "stampy_access_required",
+      message: "No tenés acceso habilitado para usar Stampy.",
+    };
+  }
+
+  return executeProductFilamentDiscount({ supabase, actionRequestId });
 }
 
 export async function cancelStampyActionRequest({

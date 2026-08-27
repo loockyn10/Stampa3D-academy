@@ -136,6 +136,46 @@ export function validateStampyActionIntent({
       break;
     }
 
+    case "discount_product_filaments": {
+      const items = Array.isArray(normalizedExtracted.items)
+        ? normalizedExtracted.items
+        : [];
+      if (items.length === 0) missingFields.push("items");
+      if (items.length > 10) invalidFields.push("items");
+
+      normalizedExtracted.items = items.map((item, index) => {
+        if (!item || typeof item !== "object") {
+          invalidFields.push(`items.${index}`);
+          return item;
+        }
+        const normalizedItem = { ...(item as Record<string, unknown>) };
+        const productName = normalizedItem.productName;
+        if (
+          typeof productName !== "string" ||
+          productName.trim().length < 2 ||
+          productName.trim().length > 160 ||
+          !/[\p{L}\p{N}]/u.test(productName)
+        ) {
+          invalidFields.push(`items.${index}.productName`);
+        } else {
+          normalizedItem.productName = productName.trim();
+        }
+
+        const quantity = Number(normalizedItem.quantity);
+        if (!Number.isInteger(quantity) || quantity <= 0 || quantity > 50) {
+          invalidFields.push(`items.${index}.quantity`);
+        } else {
+          normalizedItem.quantity = quantity;
+        }
+        return normalizedItem;
+      });
+      warnings.push("Esta acción no se autoejecuta y requiere confirmación explícita.");
+      warnings.push(
+        "Solo se descontarán filamentos; no baja el stock de productos terminados todavía."
+      );
+      break;
+    }
+
     case "add_filament":
       addMissingFields(
         normalizedExtracted,

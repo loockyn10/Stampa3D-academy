@@ -8,6 +8,7 @@ import {
   confirmStampyCreateFilamentAction,
   confirmStampyCreatePrinterAction,
   confirmStampyCreateProductAction,
+  confirmStampyDiscountProductFilamentsAction,
 } from "@/lib/stampy/action-requests";
 import { ExternalLink, AlertCircle, Trash2, CheckCircle2, Loader2 } from "lucide-react";
 import { useRouter } from "next/navigation";
@@ -152,6 +153,33 @@ export function ActionIntentCard({ actionIntent, actionRequestId, initialStatus 
     setIsProcessing(false);
   };
 
+  const handleConfirmProductFilamentDiscount = async () => {
+    if (!actionRequestId) return;
+
+    setIsProcessing(true);
+    setResultMessage(null);
+    const result = await confirmStampyDiscountProductFilamentsAction(
+      actionRequestId
+    );
+    if (result.success) {
+      setStatus("executed");
+    } else if (result.errorCode === "already_executed") {
+      setStatus("executed");
+    }
+    setResultMessage(result.message);
+    setIsProcessing(false);
+  };
+
+  const handleOpenRelatedTool = async (path: string) => {
+    if (actionRequestId && status === "suggested") {
+      setIsProcessing(true);
+      const { success } = await markStampyActionRequestOpened({ actionRequestId });
+      if (success) setStatus("opened_tool");
+      setIsProcessing(false);
+    }
+    router.push(path);
+  };
+
   const isCancelled = status === "cancelled";
   const isExecuted = status === "executed";
   const resolvedTarget = actionIntent.extracted?.resolvedTarget as
@@ -163,6 +191,8 @@ export function ActionIntentCard({ actionIntent, actionRequestId, initialStatus 
   const isCreateFilament = actionIntent.type === "add_filament";
   const isCreatePrinter = actionIntent.type === "add_printer";
   const isCreateProduct = actionIntent.type === "create_product";
+  const isProductFilamentDiscount =
+    actionIntent.type === "discount_product_filaments";
   const canConfirmMovement =
     Boolean(actionRequestId) &&
     isFilamentMovement &&
@@ -191,6 +221,17 @@ export function ActionIntentCard({ actionIntent, actionRequestId, initialStatus 
     actionIntent.extracted?.duplicateStatus === "clear" &&
     !isCancelled &&
     !isExecuted;
+  const productDiscountBlockers =
+    isProductFilamentDiscount && Array.isArray(actionIntent.extracted?.blockers)
+      ? (actionIntent.extracted.blockers as Array<Record<string, unknown>>)
+      : [];
+  const canConfirmProductFilamentDiscount =
+    Boolean(actionRequestId) &&
+    isProductFilamentDiscount &&
+    actionIntent.extracted?.requiresConfirmation === true &&
+    productDiscountBlockers.length === 0 &&
+    !isCancelled &&
+    !isExecuted;
   const visibleExtracted = Object.entries(actionIntent.extracted || {}).filter(
     ([key]) =>
       ![
@@ -206,6 +247,15 @@ export function ActionIntentCard({ actionIntent, actionRequestId, initialStatus 
         "validationWarnings",
         "autoExecution",
         "unmatchedComponentsCount",
+        ...(isProductFilamentDiscount
+          ? [
+              "items",
+              "resolvedProducts",
+              "consumptions",
+              "blockers",
+              "warnings",
+            ]
+          : []),
         ...(isCreateFilament
           ? ["material", "brand", "name", "color", "totalGrams"]
           : []),
@@ -270,6 +320,20 @@ export function ActionIntentCard({ actionIntent, actionRequestId, initialStatus 
   const productWarnings =
     isCreateProduct && Array.isArray(actionIntent.extracted?.validationWarnings)
       ? (actionIntent.extracted.validationWarnings as string[])
+      : [];
+  const productDiscountProducts =
+    isProductFilamentDiscount &&
+    Array.isArray(actionIntent.extracted?.resolvedProducts)
+      ? (actionIntent.extracted.resolvedProducts as Array<Record<string, unknown>>)
+      : [];
+  const productDiscountConsumptions =
+    isProductFilamentDiscount &&
+    Array.isArray(actionIntent.extracted?.consumptions)
+      ? (actionIntent.extracted.consumptions as Array<Record<string, unknown>>)
+      : [];
+  const productDiscountWarnings =
+    isProductFilamentDiscount && Array.isArray(actionIntent.extracted?.warnings)
+      ? (actionIntent.extracted.warnings as string[])
       : [];
   
   return (
@@ -361,6 +425,33 @@ export function ActionIntentCard({ actionIntent, actionRequestId, initialStatus 
                 )}
               </>
             )}
+            {isProductFilamentDiscount && (
+              <>
+                <div className="pt-1 text-xs">
+                  <span className="text-gray-500">Productos:</span>
+                  <div className="mt-1 space-y-1 text-right font-medium text-gray-300">
+                    {productDiscountProducts.map((product) => (
+                      <p key={String(product.productId)}>
+                        {Number(product.quantity)} × {String(product.productName)}
+                      </p>
+                    ))}
+                  </div>
+                </div>
+                {productDiscountConsumptions.length > 0 && (
+                  <div className="pt-1 text-xs">
+                    <span className="text-gray-500">Filamentos a descontar:</span>
+                    <div className="mt-1 space-y-1 text-right font-medium text-gray-300">
+                      {productDiscountConsumptions.map((consumption) => (
+                        <p key={String(consumption.filamentId)}>
+                          {String(consumption.label)}: {Number(consumption.requiredGrams)}g
+                          {" → quedan "}{Number(consumption.afterRemainingGrams)}g
+                        </p>
+                      ))}
+                    </div>
+                  </div>
+                )}
+              </>
+            )}
             {resolvedTarget?.label && (
               <div className="flex justify-between gap-3 text-xs">
                 <span className="text-gray-500">Filamento:</span>
@@ -385,6 +476,25 @@ export function ActionIntentCard({ actionIntent, actionRequestId, initialStatus 
               ))}
             </div>
           )}
+          {isProductFilamentDiscount &&
+            productDiscountBlockers.length > 0 &&
+            !isCancelled &&
+            !isExecuted && (
+              <div className="space-y-1 text-xs text-red-300">
+                {productDiscountBlockers.map((blocker, index) => (
+                  <p key={`${String(blocker.code)}-${index}`}>
+                    - {String(blocker.message)}
+                  </p>
+                ))}
+              </div>
+            )}
+          {productDiscountWarnings.length > 0 && !isCancelled && !isExecuted && (
+            <div className="space-y-1 text-xs text-amber-300">
+              {productDiscountWarnings.map((warning) => (
+                <p key={warning}>- {warning}</p>
+              ))}
+            </div>
+          )}
 
           {!isCancelled && !isExecuted && (
             <p className="text-xs text-stampa-orange flex items-center gap-1.5">
@@ -397,6 +507,8 @@ export function ActionIntentCard({ actionIntent, actionRequestId, initialStatus 
                   ? "Stampy todavía no hizo cambios. Confirmá la creación para ejecutarla."
                 : canConfirmProductCreation
                   ? "Stampy todavía no hizo cambios. Confirmá la creación para ejecutarla."
+                : canConfirmProductFilamentDiscount
+                  ? "Stampy todavía no hizo cambios. Confirmá el descuento para ejecutarlo."
                 : "Stampy no hizo cambios. Revisá y confirmá en la herramienta."}
             </p>
           )}
@@ -443,7 +555,37 @@ export function ActionIntentCard({ actionIntent, actionRequestId, initialStatus 
                   Confirmar creación
                 </button>
               )}
-              <button
+              {canConfirmProductFilamentDiscount && (
+                <button
+                  onClick={handleConfirmProductFilamentDiscount}
+                  disabled={isProcessing}
+                  className="flex-1 basis-full flex items-center justify-center gap-2 rounded-lg bg-emerald-600 hover:bg-emerald-500 px-3 py-2 text-xs font-semibold text-white transition-colors disabled:opacity-50"
+                >
+                  {isProcessing ? <Loader2 size={14} className="animate-spin" /> : <CheckCircle2 size={14} />}
+                  Confirmar descuento
+                </button>
+              )}
+              {isProductFilamentDiscount && (
+                <>
+                  <button
+                    onClick={() => handleOpenRelatedTool("/productos")}
+                    disabled={isProcessing}
+                    className="flex-1 flex items-center justify-center gap-2 rounded-lg bg-white/10 hover:bg-white/20 px-3 py-2 text-xs font-semibold text-white transition-colors disabled:opacity-50"
+                  >
+                    <ExternalLink size={14} />
+                    Abrir Productos
+                  </button>
+                  <button
+                    onClick={() => handleOpenRelatedTool("/stock?tab=filamentos")}
+                    disabled={isProcessing}
+                    className="flex-1 flex items-center justify-center gap-2 rounded-lg bg-white/10 hover:bg-white/20 px-3 py-2 text-xs font-semibold text-white transition-colors disabled:opacity-50"
+                  >
+                    <ExternalLink size={14} />
+                    Abrir Stock
+                  </button>
+                </>
+              )}
+              {!isProductFilamentDiscount && <button
                 onClick={handleOpenTool}
                 disabled={isProcessing}
                 className="flex-1 flex items-center justify-center gap-2 rounded-lg bg-white/10 hover:bg-white/20 px-3 py-2 text-xs font-semibold text-white transition-colors disabled:opacity-50"
@@ -451,6 +593,7 @@ export function ActionIntentCard({ actionIntent, actionRequestId, initialStatus 
                 <ExternalLink size={14} />
                 Abrir {actionIntent.toolLabel || "herramienta"}
               </button>
+              }
               
               <button
                 onClick={handleCancel}
@@ -475,7 +618,9 @@ export function ActionIntentCard({ actionIntent, actionRequestId, initialStatus 
                   ? "Listo, creé la impresora."
                   : isCreateProduct
                     ? "Listo, creé el producto."
-                  : "Listo, actualicé el stock de filamento.")}
+                    : isProductFilamentDiscount
+                      ? "Listo, desconté los filamentos de los productos."
+                    : "Listo, actualicé el stock de filamento.")}
             </p>
           )}
 

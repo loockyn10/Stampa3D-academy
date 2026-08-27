@@ -438,6 +438,70 @@ function looksLikeProductCreation(message: string): boolean {
   );
 }
 
+export interface StampyProductDiscountItem {
+  productName: string;
+  quantity: number;
+}
+
+function cleanProductDiscountName(value: string): string {
+  return value
+    .replace(
+      /,?\s*(?:descontame|descont[aá]|restame|rest[aá])\s+(?:del\s+stock\s+)?(?:los?\s+)?(?:filamentos?|material(?:es)?|receta)\s*$/i,
+      ""
+    )
+    .replace(/^[,.;\s]+|[,.;\s]+$/g, "")
+    .replace(/\s+/g, " ")
+    .trim();
+}
+
+function parseProductDiscountItems(message: string): StampyProductDiscountItem[] {
+  const normalizedMessage = normalize(message);
+  const hasProductRecipeCue =
+    /\b(?:descont|rest|consumi|use)\w*\b/.test(normalizedMessage) &&
+    (/(?:filamentos?|material(?:es)?|receta)\s+de\b/.test(normalizedMessage) ||
+      /\b(?:consumi|use)\s+-?\d+(?:[.,]\d+)?\s+(?:unidades?\s+de\s+)?/.test(
+        normalizedMessage
+      ) ||
+      /\b(?:consumi|use)\s+.+,\s*descont\w*\s+(?:los?\s+)?filamentos?\b/.test(
+        normalizedMessage
+      ));
+  if (!hasProductRecipeCue || /\b\d+(?:[.,]\d+)?\s*(?:g|gr|gramos)\b/.test(normalizedMessage)) {
+    return [];
+  }
+
+  const recipeMatch = message.match(
+    /\b(?:filamentos?|material(?:es)?|receta)\s+de\s+(.+)$/i
+  );
+  const usedMatch = message.match(
+    /\b(?:us[eé]|consum[ií])\s+(.+?)(?:,\s*descont\w*\s+(?:los?\s+)?filamentos?\s*)?$/i
+  );
+  const rawItems = recipeMatch?.[1] ?? usedMatch?.[1];
+  if (!rawItems) return [];
+
+  const segments = rawItems.split(/\s+y\s+(?=-?\d)/i);
+  return segments
+    .map((segment): StampyProductDiscountItem | null => {
+      const cleaned = cleanProductDiscountName(segment);
+      const quantityMatch = cleaned.match(
+        /^(-?\d+(?:[.,]\d+)?)\s*(?:unidades?\s+de\s+)?(.+)$/i
+      );
+      if (quantityMatch) {
+        const productName = cleanProductDiscountName(quantityMatch[2]);
+        return productName
+          ? {
+              productName,
+              quantity: Number.parseFloat(quantityMatch[1].replace(",", ".")),
+            }
+          : null;
+      }
+
+      return segments.length === 1 && cleaned
+        ? { productName: cleaned, quantity: 1 }
+        : null;
+    })
+    .filter((item): item is StampyProductDiscountItem => item !== null);
+}
+
 export function detectStampyActionIntent({
   message,
   currentPath,
@@ -448,7 +512,7 @@ export function detectStampyActionIntent({
   const norm = normalize(message);
 
   const actionVerbs = [
-    "descontar", "descontame", "sacar", "sacame", "restar", "restale", "consumi", "use ",
+    "descontar", "desconta", "descontame", "sacar", "sacame", "restar", "resta ", "restale", "consumi", "use ",
     "agregar", "agrega", "agregame", "cargar", "cargame", "sumar", "sumame", "compre", "nuevo",
     "crear", "crea ", "creame", "carga ", "generar", "hacer", "hace", "haceme", "suma ", "cotizar", "cotizame", "presupuestar", "presupuestame",
     "modificar", "actualizar", "corregir", "cambiar", "calcular", "calculame", "usado"
@@ -525,6 +589,26 @@ export function detectStampyActionIntent({
       toolLabel: "Productos",
       canExecute: false,
       reason: "Matched product creation with optional filament recipe.",
+    };
+  }
+
+  // 1.4 discount_product_filaments. It runs before a direct filament discount
+  // because plural filament/material references here describe product recipes.
+  const productDiscountItems = parseProductDiscountItems(message);
+  if (productDiscountItems.length > 0) {
+    return {
+      type: "discount_product_filaments",
+      confidence: 0.93,
+      title: "Descontar filamentos por producto",
+      summary: "Se detectó la intención de consumir filamentos según recetas de productos.",
+      extracted: {
+        actionType: "discount_product_filaments",
+        items: productDiscountItems,
+      },
+      toolHref: "/productos",
+      toolLabel: "Productos",
+      canExecute: false,
+      reason: "Matched a product recipe stock discount request.",
     };
   }
 

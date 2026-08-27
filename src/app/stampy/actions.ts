@@ -73,6 +73,7 @@ const ACTION_FIELD_LABELS: Record<string, string> = {
   baseCost: "costo base",
   salePrice: "precio de venta",
   components: "receta de filamentos",
+  items: "productos y cantidades",
   powerWatts: "potencia",
   maintenanceCostPerHour: "mantenimiento por hora",
   toolContract: "contrato de herramienta",
@@ -125,6 +126,12 @@ function isCreatePrinterAction(actionIntent: StampyActionIntent): boolean {
 
 function isCreateProductAction(actionIntent: StampyActionIntent): boolean {
   return actionIntent.type === "create_product";
+}
+
+function isProductFilamentDiscountAction(
+  actionIntent: StampyActionIntent
+): boolean {
+  return actionIntent.type === "discount_product_filaments";
 }
 
 function buildFilamentMovementResponse(actionIntent: StampyActionIntent): string {
@@ -266,6 +273,23 @@ function buildCreateProductResponse(actionIntent: StampyActionIntent): string {
   )}\n- Costo base: ${formatMoney(extracted.baseCost)}\n- Precio de venta: ${formatMoney(
     extracted.salePrice
   )}${recipeText}${warningText}\n\nAntes de crearlo necesito que confirmes. Todavía no hice cambios.`;
+}
+
+function buildProductFilamentDiscountResponse(
+  actionIntent: StampyActionIntent
+): string {
+  const extracted = actionIntent.extracted;
+  const blockers = Array.isArray(extracted.blockers)
+    ? (extracted.blockers as Array<{ message?: string }>)
+    : [];
+  if (blockers.length > 0) {
+    return blockers[0].message ??
+      "No pude preparar el descuento con seguridad. Revisá las recetas desde Productos.";
+  }
+  if (extracted.requiresConfirmation !== true) {
+    return "No pude verificar las recetas y el stock con seguridad. No modifiqué ningún filamento.";
+  }
+  return "Encontré las recetas y preparé el descuento. Revisá el resumen antes de confirmar. Esta acción no baja el stock de productos terminados.";
 }
 
 type AutoExecutionReason =
@@ -627,6 +651,60 @@ export async function askStampyAction(
         }
       }
 
+      if (
+        validation.isValid &&
+        isProductFilamentDiscountAction(validatedActionIntent)
+      ) {
+        try {
+          const { prepareProductFilamentDiscount } = await import(
+            "@/lib/stampy/action-executor"
+          );
+          const preparation = await prepareProductFilamentDiscount({
+            supabase,
+            userId,
+            items: validation.normalizedExtracted.items as Array<{
+              productName: string;
+              quantity: number;
+            }>,
+          });
+          validatedActionIntent = {
+            ...validatedActionIntent,
+            extracted: {
+              ...validatedActionIntent.extracted,
+              actionType: "discount_product_filaments",
+              resolvedProducts: preparation.products,
+              consumptions: preparation.consumptions,
+              blockers: preparation.blockers,
+              warnings: preparation.warnings,
+              requiresConfirmation: preparation.blockers.length === 0,
+            },
+          };
+        } catch (error) {
+          console.error(
+            "[Stampy] product filament discount preparation failed",
+            String(error).substring(0, 200)
+          );
+          validatedActionIntent = {
+            ...validatedActionIntent,
+            extracted: {
+              ...validatedActionIntent.extracted,
+              actionType: "discount_product_filaments",
+              resolvedProducts: [],
+              consumptions: [],
+              blockers: [
+                {
+                  code: "preparation_failed",
+                  message:
+                    "No pude verificar las recetas y el stock. No modifiqué ningún filamento.",
+                },
+              ],
+              warnings: validation.warnings,
+              requiresConfirmation: false,
+            },
+          };
+        }
+      }
+
       if (validation.isValid && isCreateFilamentAction(validatedActionIntent)) {
         try {
           const { findDuplicateActiveFilament, getResolvedFilamentLabel } =
@@ -856,6 +934,8 @@ export async function askStampyAction(
               ? buildCreatePrinterResponse(validatedActionIntent)
               : isCreateProductAction(validatedActionIntent)
                 ? buildCreateProductResponse(validatedActionIntent)
+                : isProductFilamentDiscountAction(validatedActionIntent)
+                  ? buildProductFilamentDiscountResponse(validatedActionIntent)
           : buildActionIntentResponse(validatedActionIntent)
         : buildActionValidationResponse(validatedActionIntent, validation);
       const knowledgeTools = validation.isValid && validatedActionIntent.toolHref && validatedActionIntent.toolLabel

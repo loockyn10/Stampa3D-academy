@@ -86,6 +86,40 @@ export interface ProductComponentsResolution {
   errors: string[];
 }
 
+export interface ProductFilamentDiscountItem {
+  productName: string;
+  quantity: number;
+}
+
+export interface PreparedProductDiscount {
+  productId: string;
+  productName: string;
+  quantity: number;
+  componentsCount: number;
+}
+
+export interface PreparedFilamentConsumption {
+  filamentId: string;
+  label: string;
+  requiredGrams: number;
+  remainingGrams: number;
+  afterRemainingGrams: number;
+}
+
+export interface ProductDiscountBlocker {
+  code: string;
+  message: string;
+  productName?: string;
+  componentSnapshot?: string;
+}
+
+export interface ProductFilamentDiscountPreparation {
+  products: PreparedProductDiscount[];
+  consumptions: PreparedFilamentConsumption[];
+  blockers: ProductDiscountBlocker[];
+  warnings: string[];
+}
+
 interface ResolveFilamentMatchParams {
   supabase: SupabaseClient;
   userId: string;
@@ -185,6 +219,26 @@ interface RpcCreateProductResult {
   message: string;
 }
 
+interface RpcProductFilamentDiscountResult {
+  success: boolean;
+  action_request_id: string | null;
+  products_count: number | string | null;
+  filaments_count: number | string | null;
+  total_grams: number | string | null;
+  error_code: string | null;
+  message: string;
+}
+
+export interface ProductFilamentDiscountExecutionResult {
+  success: boolean;
+  actionRequestId: string | null;
+  productsCount: number | null;
+  filamentsCount: number | null;
+  totalGrams: number | null;
+  errorCode: string | null;
+  message: string;
+}
+
 function normalizeMatchText(value: unknown): string {
   if (typeof value !== "string") return "";
   return value
@@ -203,6 +257,13 @@ function matchesReference(candidate: unknown, reference: unknown): boolean {
     normalizedCandidate.includes(normalizedReference) ||
     normalizedReference.includes(normalizedCandidate)
   );
+}
+
+function normalizeProductReference(value: unknown): string {
+  return normalizeMatchText(value)
+    .split(" ")
+    .map((word) => (word.length > 3 && word.endsWith("s") ? word.slice(0, -1) : word))
+    .join(" ");
 }
 
 function readTemplateBrand(filament: ResolvedFilament): string | null {
@@ -454,6 +515,273 @@ export async function resolveProductFilamentComponents({
   };
 }
 
+export async function prepareProductFilamentDiscount({
+  supabase,
+  userId,
+  items,
+}: {
+  supabase: SupabaseClient;
+  userId: string;
+  items: ProductFilamentDiscountItem[];
+}): Promise<ProductFilamentDiscountPreparation> {
+  const warnings = [
+    "Esta acción descuenta filamentos y requiere confirmación explícita.",
+    "No baja el stock de productos terminados todavía.",
+  ];
+  const blockers: ProductDiscountBlocker[] = [];
+  const preparedProducts: PreparedProductDiscount[] = [];
+
+  const { data: productData, error: productError } = await supabase
+    .from("products")
+    .select("id, user_id, name, stock_quantity, sale_price, image_url, is_active")
+    .eq("user_id", userId)
+    .eq("is_active", true);
+  if (productError) {
+    return {
+      products: [],
+      consumptions: [],
+      blockers: [
+        {
+          code: "products_query_failed",
+          message: "No pude consultar tus productos para preparar el descuento.",
+        },
+      ],
+      warnings,
+    };
+  }
+
+  const products = (productData ?? []) as ResolvedProduct[];
+  const resolvedItems: Array<{
+    product: ResolvedProduct;
+    quantity: number;
+  }> = [];
+  for (const item of items) {
+    const requestedName = normalizeProductReference(item.productName);
+    const exactMatches = products.filter(
+      (product) => normalizeProductReference(product.name) === requestedName
+    );
+    const candidates =
+      exactMatches.length > 0
+        ? exactMatches
+        : products.filter((product) => {
+            const candidate = normalizeProductReference(product.name);
+            return candidate.includes(requestedName) || requestedName.includes(candidate);
+          });
+
+    if (candidates.length === 0) {
+      blockers.push({
+        code: "product_not_found",
+        productName: item.productName,
+        message: `No encontré un producto activo que coincida con ${item.productName}.`,
+      });
+      continue;
+    }
+    if (candidates.length > 1) {
+      blockers.push({
+        code: "product_ambiguous",
+        productName: item.productName,
+        message: `Encontré más de un producto parecido a ${item.productName}; necesito que aclares cuál es.`,
+      });
+      continue;
+    }
+    resolvedItems.push({ product: candidates[0], quantity: item.quantity });
+  }
+
+  const productIds = Array.from(
+    new Set(resolvedItems.map(({ product }) => product.id))
+  );
+  if (productIds.length === 0) {
+    return { products: [], consumptions: [], blockers, warnings };
+  }
+
+  const { data: componentData, error: componentError } = await supabase
+    .from("product_components")
+    .select("id, product_id, name, quantity_per_product, is_active")
+    .in("product_id", productIds)
+    .eq("is_active", true);
+  if (componentError) {
+    blockers.push({
+      code: "recipes_query_failed",
+      message: "No pude consultar las recetas de tus productos.",
+    });
+    return { products: [], consumptions: [], blockers, warnings };
+  }
+
+  const components = (componentData ?? []) as Array<{
+    id: string;
+    product_id: string;
+    name: string;
+    quantity_per_product: number;
+    is_active: boolean;
+  }>;
+  const componentIds = components.map((component) => component.id);
+  const { data: materialData, error: materialError } = componentIds.length
+    ? await supabase
+        .from("product_component_filaments")
+        .select(
+          "id, component_id, filament_id, grams, filament_type, brand, name, color"
+        )
+        .in("component_id", componentIds)
+    : { data: [], error: null };
+  if (materialError) {
+    blockers.push({
+      code: "recipe_materials_query_failed",
+      message: "No pude consultar los filamentos de las recetas.",
+    });
+    return { products: [], consumptions: [], blockers, warnings };
+  }
+
+  const materials = (materialData ?? []) as Array<{
+    id: string;
+    component_id: string;
+    filament_id: string | null;
+    grams: number;
+    filament_type: string | null;
+    brand: string | null;
+    name: string | null;
+    color: string | null;
+  }>;
+  const requestedFilamentIds = Array.from(
+    new Set(
+      materials
+        .map((material) => material.filament_id)
+        .filter((id): id is string => Boolean(id))
+    )
+  );
+  const { data: filamentData, error: filamentError } = requestedFilamentIds.length
+    ? await supabase
+        .from("filaments")
+        .select(
+          "id, user_id, name, filament_type, brand, color, remaining_grams, total_grams, is_active, filament_templates(brand)"
+        )
+        .in("id", requestedFilamentIds)
+        .eq("user_id", userId)
+        .eq("is_active", true)
+    : { data: [], error: null };
+  if (filamentError) {
+    blockers.push({
+      code: "filaments_query_failed",
+      message: "No pude consultar el stock actual de filamentos.",
+    });
+    return { products: [], consumptions: [], blockers, warnings };
+  }
+
+  const filaments = (filamentData ?? []) as ResolvedFilament[];
+  const filamentsById = new Map(filaments.map((filament) => [filament.id, filament]));
+  const totals = new Map<string, number>();
+
+  for (const { product, quantity } of resolvedItems) {
+    const productComponents = components.filter(
+      (component) => component.product_id === product.id
+    );
+    preparedProducts.push({
+      productId: product.id,
+      productName: product.name,
+      quantity,
+      componentsCount: productComponents.length,
+    });
+    if (productComponents.length === 0) {
+      blockers.push({
+        code: "recipe_missing",
+        productName: product.name,
+        message: `El producto ${product.name} no tiene receta de filamentos cargada.`,
+      });
+      continue;
+    }
+
+    for (const component of productComponents) {
+      const componentMaterials = materials.filter(
+        (material) => material.component_id === component.id
+      );
+      if (componentMaterials.length === 0) {
+        blockers.push({
+          code: "recipe_missing",
+          productName: product.name,
+          message: `El producto ${product.name} tiene un componente sin receta de filamentos.`,
+        });
+        continue;
+      }
+
+      const componentQuantity = Number(component.quantity_per_product);
+      if (!Number.isFinite(componentQuantity) || componentQuantity <= 0) {
+        blockers.push({
+          code: "invalid_component_quantity",
+          productName: product.name,
+          message: `La receta de ${product.name} tiene una cantidad de componente inválida.`,
+        });
+        continue;
+      }
+
+      for (const material of componentMaterials) {
+        const snapshot = [
+          material.filament_type,
+          material.brand,
+          material.name,
+          material.color,
+        ]
+          .filter(Boolean)
+          .join(" ");
+        if (!material.filament_id) {
+          blockers.push({
+            code: "filament_unresolved",
+            productName: product.name,
+            componentSnapshot: snapshot,
+            message: `El producto ${product.name} tiene un componente de ${Number(
+              material.grams
+            )}g ${snapshot || "sin identificar"}, pero no está asociado a un filamento exacto.`,
+          });
+          continue;
+        }
+        const filament = filamentsById.get(material.filament_id);
+        if (!filament) {
+          blockers.push({
+            code: "filament_unavailable",
+            productName: product.name,
+            componentSnapshot: snapshot,
+            message: `Un filamento de la receta de ${product.name} no existe, no está activo o no pertenece al usuario.`,
+          });
+          continue;
+        }
+        const grams = Number(material.grams);
+        if (!Number.isFinite(grams) || grams <= 0) {
+          blockers.push({
+            code: "invalid_recipe_grams",
+            productName: product.name,
+            message: `La receta de ${product.name} contiene una cantidad de gramos inválida.`,
+          });
+          continue;
+        }
+        const required = grams * componentQuantity * quantity;
+        totals.set(filament.id, (totals.get(filament.id) ?? 0) + required);
+      }
+    }
+  }
+
+  const consumptions = Array.from(totals.entries()).map(
+    ([filamentId, requiredGrams]): PreparedFilamentConsumption => {
+      const filament = filamentsById.get(filamentId)!;
+      const remainingGrams = Number(filament.remaining_grams ?? 0);
+      if (remainingGrams < requiredGrams) {
+        blockers.push({
+          code: "insufficient_stock",
+          message: `No alcanza el stock de ${getResolvedFilamentLabel(
+            filament
+          )}: necesitás ${requiredGrams}g y te quedan ${remainingGrams}g.`,
+        });
+      }
+      return {
+        filamentId,
+        label: getResolvedFilamentLabel(filament),
+        requiredGrams,
+        remainingGrams,
+        afterRemainingGrams: remainingGrams - requiredGrams,
+      };
+    }
+  );
+
+  return { products: preparedProducts, consumptions, blockers, warnings };
+}
+
 function toNullableNumber(value: number | string | null): number | null {
   if (value === null) return null;
   const numberValue = typeof value === "number" ? value : Number(value);
@@ -653,6 +981,53 @@ export async function executeCreateProduct({
     unmatchedComponentsCount: toNullableNumber(
       row.unmatched_components_count
     ),
+    errorCode: row.error_code,
+    message: row.message,
+  };
+}
+
+export async function executeProductFilamentDiscount({
+  supabase,
+  actionRequestId,
+}: ExecuteFilamentStockMovementParams): Promise<ProductFilamentDiscountExecutionResult> {
+  const { data, error } = await supabase.rpc(
+    "confirm_stampy_discount_product_filaments",
+    { p_action_request_id: actionRequestId }
+  );
+
+  if (error) {
+    return {
+      success: false,
+      actionRequestId,
+      productsCount: null,
+      filamentsCount: null,
+      totalGrams: null,
+      errorCode: "rpc_error",
+      message: error.message || "No pude confirmar el descuento por productos.",
+    };
+  }
+
+  const row = (Array.isArray(data) ? data[0] : data) as
+    | RpcProductFilamentDiscountResult
+    | null;
+  if (!row) {
+    return {
+      success: false,
+      actionRequestId,
+      productsCount: null,
+      filamentsCount: null,
+      totalGrams: null,
+      errorCode: "empty_rpc_result",
+      message: "La confirmación no devolvió un resultado válido.",
+    };
+  }
+
+  return {
+    success: row.success === true,
+    actionRequestId: row.action_request_id,
+    productsCount: toNullableNumber(row.products_count),
+    filamentsCount: toNullableNumber(row.filaments_count),
+    totalGrams: toNullableNumber(row.total_grams),
     errorCode: row.error_code,
     message: row.message,
   };

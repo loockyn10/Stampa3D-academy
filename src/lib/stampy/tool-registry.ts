@@ -109,6 +109,23 @@ export const STAMPY_TOOL_REGISTRY: StampyToolContract[] = [
     canExecuteFromChat: false
   },
   {
+    id: "products.filaments.discount",
+    name: "Descontar filamentos por producto",
+    description: "Descontar del stock los filamentos requeridos por recetas de productos.",
+    route: "/productos",
+    area: "products",
+    supportedIntents: ["discount_product_filaments"],
+    requiredFields: ["items"],
+    optionalFields: ["resolvedProducts", "consumptions", "blockers", "warnings"],
+    forbiddenFields: ["automatic_execution", "product_stock_mutation"],
+    safetyNotes: [
+      "Siempre requiere confirmación explícita.",
+      "La receta y el stock deben revalidarse en servidor al confirmar.",
+      "No modifica el stock de productos terminados.",
+    ],
+    canExecuteFromChat: false,
+  },
+  {
     id: "stock.filaments.create",
     name: "Crear filamento",
     description: "Crear o cargar un filamento nuevo en el stock.",
