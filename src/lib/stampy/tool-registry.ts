@@ -133,7 +133,14 @@ export const STAMPY_TOOL_REGISTRY: StampyToolContract[] = [
     area: "products",
     supportedIntents: ["create_product"],
     requiredFields: ["productName"],
-    optionalFields: ["description", "initialStock", "price", "components"],
+    optionalFields: [
+      "description",
+      "initialStock",
+      "printTimeMinutes",
+      "baseCost",
+      "salePrice",
+      "components",
+    ],
     forbiddenFields: [],
     safetyNotes: [
       "No confundir producto con filamento.",

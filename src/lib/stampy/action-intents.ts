@@ -239,6 +239,8 @@ function parseProductFilamentComponents(
     const tail = match[3]
       .replace(/\b(?:con\s+)?stock\b.*$/i, "")
       .replace(/\breceta\b.*$/i, "")
+      .replace(/\b(?:tarda|demora|tiempo\s+de\s+impresi[oó]n)\b.*$/i, "")
+      .replace(/\b(?:costo|precio|venta|lo\s+vendo|se\s+vende)\b.*$/i, "")
       .trim();
     const brandEntry = PRODUCT_RECIPE_BRANDS.find(([pattern]) =>
       pattern.test(tail)
@@ -273,34 +275,141 @@ function parseProductFilamentComponents(
   return components;
 }
 
+function parseLocalizedDecimal(rawValue: string): number | null {
+  const compact = rawValue.replace(/[$\s]/g, "");
+  if (!/^-?\d[\d.,]*$/.test(compact)) return null;
+
+  const sign = compact.startsWith("-") ? -1 : 1;
+  const unsigned = compact.replace(/^-/, "");
+  const lastDot = unsigned.lastIndexOf(".");
+  const lastComma = unsigned.lastIndexOf(",");
+  let normalized = unsigned;
+
+  if (lastDot >= 0 && lastComma >= 0) {
+    const decimalSeparator = lastDot > lastComma ? "." : ",";
+    const thousandsSeparator = decimalSeparator === "." ? /,/g : /\./g;
+    normalized = unsigned
+      .replace(thousandsSeparator, "")
+      .replace(decimalSeparator, ".");
+  } else {
+    const separator = lastDot >= 0 ? "." : lastComma >= 0 ? "," : null;
+    if (separator) {
+      const groups = unsigned.split(separator);
+      const isThousands =
+        groups.length > 2 ||
+        (groups.length === 2 && groups[0].length <= 3 && groups[1].length === 3);
+      normalized = isThousands
+        ? groups.join("")
+        : `${groups[0]}.${groups.slice(1).join("")}`;
+    }
+  }
+
+  const parsed = Number.parseFloat(normalized) * sign;
+  return Number.isFinite(parsed) ? parsed : null;
+}
+
+function parseProductMoneyField(
+  message: string,
+  labelPattern: string
+): number | string | null {
+  const label = new RegExp(`\\b(?:${labelPattern})\\b`, "i");
+  const labelMatch = label.exec(message);
+  if (!labelMatch) return null;
+
+  const afterLabel = message.slice(labelMatch.index + labelMatch[0].length);
+  const amountMatch = afterLabel.match(
+    /^\s*(?:(?:de|a)\s+)?\$?\s*(-?\d[\d.,]*)/i
+  );
+  if (!amountMatch) return "invalid";
+
+  return parseLocalizedDecimal(amountMatch[1]) ?? "invalid";
+}
+
+function parseProductPrintTime(message: string): number | string | null {
+  const marker = /\b(?:tarda|demora|tiempo\s+de\s+impresi[oó]n)\b/i.exec(message);
+  if (!marker) return null;
+
+  const timeText = message
+    .slice(marker.index + marker[0].length)
+    .split(/[,.;]|\s+y\s+(?=(?:costo|precio|venta|stock|usa|lleva)\b)/i)[0]
+    .trim();
+  const hoursMatch = timeText.match(
+    /(-?\d+(?:[.,]\d+)?)\s*(?:h|hs|hora|horas)\b/i
+  );
+  const minutesMatch = timeText.match(
+    /(-?\d+(?:[.,]\d+)?)\s*(?:m|min|mins|minuto|minutos)\b/i
+  );
+  const hasHalfHour = /\b(?:y\s+)?media\b/i.test(timeText);
+
+  if (!hoursMatch && !minutesMatch) return "invalid";
+
+  const hours = hoursMatch
+    ? Number.parseFloat(hoursMatch[1].replace(",", "."))
+    : 0;
+  const minutes = minutesMatch
+    ? Number.parseFloat(minutesMatch[1].replace(",", "."))
+    : 0;
+  const totalMinutes = hours * 60 + minutes + (hasHalfHour ? 30 : 0);
+  return Number.isFinite(totalMinutes) ? totalMinutes : "invalid";
+}
+
+const PRODUCT_NAME_STOP_PATTERN =
+  "(?=\\s*(?:,|\\b(?:con\\s+)?(?:stock(?:\\s+inicial)?|cantidad\\s+-?\\d+\\s+unidades?|carg[aá]\\s+-?\\d+\\s+unidades?|que\\s+usa|que\\s+lleva|con\\s+receta|receta|que\\s+tarda|tarda|que\\s+demora|demora|tiempo\\s+de\\s+impresi[oó]n|con\\s+costo|costo|precio|valor|venta|lo\\s+vendo|se\\s+vende|con\\s+-?\\d+(?:[.,]\\d+)?\\s*(?:g|gr|gramos)))\\b|[.!?]?$)";
+
 function parseProductDetails(message: string): {
   productName: string | null;
-  initialStock: number | null;
-  price: number | null;
+  initialStock: number | string | null;
+  printTimeMinutes: number | string | null;
+  baseCost: number | string | null;
+  salePrice: number | string | null;
   components: StampyProductFilamentComponent[];
 } {
+  const creationPattern = "(?:creame|cre[aá]|crear|cargame|carg[aá]|agregame|agreg[aá])";
   const explicitProductMatch = message.match(
-    /\b(?:creame|cre[aá]|crear|cargame|carg[aá]|agregame|agreg[aá])\s+(?:un\s+)?producto\s+(.+?)(?=\s+(?:con\s+stock|stock|que\s+usa|que\s+lleva|con\s+receta|receta|con\s+precio|precio|valor|con\s+\d+(?:[.,]\d+)?\s*(?:g|gr|gramos))\b|[.!?]?$)/i
+    new RegExp(
+      `\\b${creationPattern}\\s+(?:un\\s+)?producto\\s+(.+?)${PRODUCT_NAME_STOP_PATTERN}`,
+      "i"
+    )
   );
-  const implicitRecipeMatch = message.match(
-    /\b(?:creame|cre[aá]|cargame|carg[aá])\s+(.+?)(?=\s+(?:con\s+stock|stock|que\s+usa|que\s+lleva|con\s+receta|receta|con\s+precio|precio|valor|con\s+\d+(?:[.,]\d+)?\s*(?:g|gr|gramos))\b)/i
+  const implicitProductMatch = message.match(
+    new RegExp(
+      `\\b${creationPattern}\\s+(.+?)${PRODUCT_NAME_STOP_PATTERN}`,
+      "i"
+    )
   );
-  const productName = (explicitProductMatch?.[1] ?? implicitRecipeMatch?.[1])
+  const productName = (explicitProductMatch?.[1] ?? implicitProductMatch?.[1])
     ?.replace(/\s+/g, " ")
+    .replace(/[,;:]+$/, "")
     .trim() ?? null;
-  const stockMatch = message.match(
-    /\bstock(?:\s+inicial)?\s*(?:de|:)?\s*(\d+)\b/i
+  const stockMarker = message.match(
+    /\b(?:stock(?:\s+inicial)?\s*(?:de|:)?|cantidad\s+|carg[aá]\s+)(-?\d+(?:[.,]\d+)?)\s*(?:unidades?)?\b/i
   );
-  const priceMatch = message.match(
-    /\b(?:precio|valor)\s*(?:de|:)?\s*\$?\s*(\d+(?:[.,]\d+)?)\b/i
+  const hasInvalidStockMarker =
+    !stockMarker &&
+    /\b(?:stock(?:\s+inicial)?|cantidad(?:\s+\S+)?\s+unidades?|carg[aá](?:\s+\S+)?\s+unidades?)\b/i.test(
+      message
+    );
+  const explicitSalePrice = parseProductMoneyField(
+    message,
+    "precio\\s+de\\s+venta|precio\\s+final|lo\\s+vendo|se\\s+vende|venta"
   );
+  const legacySalePrice = /\bprecio\s+de\s+costo\b/i.test(message)
+    ? null
+    : parseProductMoneyField(message, "precio|valor");
 
   return {
     productName,
-    initialStock: stockMatch ? Number.parseInt(stockMatch[1], 10) : null,
-    price: priceMatch
-      ? Number.parseFloat(priceMatch[1].replace(",", "."))
-      : null,
+    initialStock: stockMarker
+      ? parseLocalizedDecimal(stockMarker[1]) ?? "invalid"
+      : hasInvalidStockMarker
+        ? "invalid"
+        : null,
+    printTimeMinutes: parseProductPrintTime(message),
+    baseCost: parseProductMoneyField(
+      message,
+      "costo\\s+de\\s+producci[oó]n|precio\\s+de\\s+costo|costo\\s+base|me\\s+cuesta|costo"
+    ),
+    salePrice: explicitSalePrice ?? legacySalePrice,
     components: parseProductFilamentComponents(message),
   };
 }
@@ -319,6 +428,10 @@ function looksLikeProductCreation(message: string): boolean {
 
   return (
     /\b(?:receta|que usa|que lleva)\b/.test(normalized) ||
+    /\b(?:tarda|demora|tiempo de impresion|costo|precio de venta|precio final|lo vendo|se vende|venta)\b/.test(
+      normalized
+    ) ||
+    /\b(?:stock(?: inicial)?|cantidad)\s+-?\d+\b/.test(normalized) ||
     /\bcon\s+\d+(?:[.,]\d+)?\s*(?:g|gr|gramos)\s+(?:pla|petg|tpu|abs|asa|nylon|resina)\b/.test(
       normalized
     )

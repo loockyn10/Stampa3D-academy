@@ -69,8 +69,11 @@ test("simple product extracts a name and validates with recipe and stock warning
   assert.equal(actionIntent.extracted.productName, "Jarro Argentina");
   assert.deepEqual(actionIntent.extracted.components, []);
   assert.equal(validation.isValid, true);
-  assert.match(validation.warnings.join(" "), /no tiene receta/i);
+  assert.match(validation.warnings.join(" "), /no indicaste receta/i);
   assert.match(validation.warnings.join(" "), /stock inicial/i);
+  assert.match(validation.warnings.join(" "), /tiempo de impresión/i);
+  assert.match(validation.warnings.join(" "), /costo base/i);
+  assert.match(validation.warnings.join(" "), /precio de venta/i);
 });
 
 test("product stock is extracted without becoming a recipe amount", () => {
@@ -131,7 +134,126 @@ test("multi-filament recipes preserve grams, materials, brands and colors", () =
     "Creame un producto Soporte Celular con precio 1500"
   );
   assert.equal(priced.actionIntent.extracted.productName, "Soporte Celular");
-  assert.equal(priced.actionIntent.extracted.price, 1500);
+  assert.equal(priced.actionIntent.extracted.salePrice, 1500);
+  assert.equal(priced.actionIntent.extracted.price, undefined);
+});
+
+test("product time supports hours, mixed duration, half hours and minutes", () => {
+  assert.equal(
+    detectAndValidate("Creame un producto Jarro Argentina que tarda 4 horas")
+      .actionIntent.extracted.printTimeMinutes,
+    240
+  );
+  assert.equal(
+    detectAndValidate("Creame Maceta que demora 3h 30m").actionIntent.extracted
+      .printTimeMinutes,
+    210
+  );
+  assert.equal(
+    detectAndValidate("Creame Llavero que tarda 45 minutos").actionIntent
+      .extracted.printTimeMinutes,
+    45
+  );
+  assert.equal(
+    detectAndValidate("Creame Mate que tarda 3 horas y media").actionIntent
+      .extracted.printTimeMinutes,
+    210
+  );
+  assert.equal(
+    detectAndValidate("Creame Soporte que demora 2 horas 15 minutos")
+      .actionIntent.extracted.printTimeMinutes,
+    135
+  );
+});
+
+test("product costs and sale prices are extracted without a generic price field", () => {
+  const first = detectAndValidate(
+    "Creame Jarro con costo de $1200 y precio de venta $3500"
+  );
+  assert.equal(first.actionIntent.extracted.productName, "Jarro");
+  assert.equal(first.actionIntent.extracted.baseCost, 1200);
+  assert.equal(first.actionIntent.extracted.salePrice, 3500);
+  assert.equal(first.actionIntent.extracted.price, undefined);
+
+  const second = detectAndValidate(
+    "Creame Maceta, costo base 1800 y lo vendo a 4500"
+  );
+  assert.equal(second.actionIntent.extracted.productName, "Maceta");
+  assert.equal(second.actionIntent.extracted.baseCost, 1800);
+  assert.equal(second.actionIntent.extracted.salePrice, 4500);
+});
+
+test("localized money forms normalize deterministically", () => {
+  const cases = [
+    ["$1200", 1200],
+    ["1200", 1200],
+    ["1.200", 1200],
+    ["1,200", 1200],
+    ["1200,50", 1200.5],
+    ["1200.50", 1200.5],
+  ];
+  for (const [raw, expected] of cases) {
+    const { actionIntent } = detectAndValidate(
+      `Creame Pieza con costo ${raw} y precio de venta ${raw}`
+    );
+    assert.equal(actionIntent.extracted.baseCost, expected);
+    assert.equal(actionIntent.extracted.salePrice, expected);
+  }
+});
+
+test("complete product keeps stock, economics, time and multifilament recipe", () => {
+  const { actionIntent, validation } = detectAndValidate(
+    "Creame un producto Jarro Argentina con stock 5, tarda 4 horas, costo $1200, precio de venta $3500 y usa 50g PLA Hellbot azul y 17g PLA Elegoo rojo"
+  );
+
+  assert.equal(validation.isValid, true);
+  assert.equal(actionIntent.extracted.productName, "Jarro Argentina");
+  assert.equal(actionIntent.extracted.initialStock, 5);
+  assert.equal(actionIntent.extracted.printTimeMinutes, 240);
+  assert.equal(actionIntent.extracted.baseCost, 1200);
+  assert.equal(actionIntent.extracted.salePrice, 3500);
+  assert.equal(actionIntent.extracted.components.length, 2);
+});
+
+test("stock variants apply only inside create_product", () => {
+  assert.equal(
+    detectAndValidate("Creame un producto Mate, cantidad 10 unidades").actionIntent
+      .extracted.initialStock,
+    10
+  );
+  assert.equal(
+    detectAndValidate("Creame un producto Mate y cargá 12 unidades").actionIntent
+      .extracted.initialStock,
+    12
+  );
+  assert.notEqual(
+    actionIntents.detectStampyActionIntent({
+      message: "Haceme un presupuesto para Lucas de 10 mates",
+    })?.type,
+    "create_product"
+  );
+});
+
+test("invalid product economics and time are blocked", () => {
+  for (const message of [
+    "Creame Pieza A con stock -1",
+    "Creame Pieza A que tarda -2 horas",
+    "Creame Pieza A con costo -1200",
+    "Creame Pieza A con precio de venta -3500",
+  ]) {
+    const { validation } = detectAndValidate(message);
+    assert.equal(validation.isValid, false, message);
+    assert.ok(validation.invalidFields.length > 0, message);
+  }
+});
+
+test("calculator sale-price request is not classified as product creation", () => {
+  assert.notEqual(
+    actionIntents.detectStampyActionIntent({
+      message: "Calculame precio de venta para 50g",
+    })?.type,
+    "create_product"
+  );
 });
 
 function makeReadSupabase(tables) {
@@ -448,7 +570,15 @@ function createAtomicProductRpc({ unmatched = false } = {}) {
         };
       }
 
-      state.products.push({ id: "product-1", name: "Jarro Argentina" });
+      state.products.push({
+        id: "product-1",
+        name: "Jarro Argentina",
+        print_time_minutes: 240,
+        base_cost: 1200,
+        sale_price: 3500,
+        stock_quantity: 5,
+        grams: 50,
+      });
       state.components.push({
         grams: 50,
         filament_id: unmatched ? null : "filament-1",
@@ -492,6 +622,15 @@ test("valid confirmation creates product and recipe once", async () => {
   assert.equal(second.success, false);
   assert.equal(second.errorCode, "already_executed");
   assert.equal(state.products.length, 1);
+  assert.deepEqual(state.products[0], {
+    id: "product-1",
+    name: "Jarro Argentina",
+    print_time_minutes: 240,
+    base_cost: 1200,
+    sale_price: 3500,
+    stock_quantity: 5,
+    grams: 50,
+  });
   assert.equal(state.components.length, 1);
   assert.equal(state.requestStatus, "executed");
 });
@@ -583,6 +722,39 @@ test("migration reuses the real recipe model and keeps creation transactional", 
   assert.doesNotMatch(sql, /grant execute[\s\S]*service_role/i);
 });
 
+test("economics patch maps extracted fields to the existing product columns", () => {
+  const sql = fs.readFileSync(
+    path.join(
+      root,
+      "supabase/migrations/20260827033559_patch_stampy_create_product_economics.sql"
+    ),
+    "utf8"
+  );
+
+  assert.match(sql, /create or replace function public\.confirm_stampy_create_product/i);
+  assert.match(sql, /extracted ->> 'printTimeMinutes'/i);
+  assert.match(sql, /extracted ->> 'baseCost'/i);
+  assert.match(sql, /extracted ->> 'salePrice'/i);
+  assert.match(
+    sql,
+    /coalesce\([\s\S]*extracted ->> 'salePrice'[\s\S]*extracted ->> 'price'/i
+  );
+  assert.doesNotMatch(
+    sql,
+    /base_cost_text\s*:=\s*[^;]*extracted ->> 'price'/i
+  );
+  assert.match(
+    sql,
+    /print_time_minutes, base_cost, sale_price, stock_quantity[\s\S]*print_time_value, base_cost_value, sale_price_value,[\s\S]*initial_stock_value/i
+  );
+  assert.match(sql, /total_recipe_grams/i);
+  assert.match(sql, /Guardé[\s\S]*stock inicial[\s\S]*tiempo[\s\S]*costo[\s\S]*venta/i);
+  assert.match(sql, /stampy_action_requests[\s\S]*for update/i);
+  assert.match(sql, /pg_advisory_xact_lock/i);
+  assert.match(sql, /updated_requests <> 1[\s\S]*raise exception/i);
+  assert.doesNotMatch(sql, /alter table|add column|create table/i);
+});
+
 test("ActionIntentCard exposes product confirmation and recipe summary", () => {
   const source = fs.readFileSync(
     path.join(root, "src/components/stampy/ActionIntentCard.tsx"),
@@ -593,5 +765,9 @@ test("ActionIntentCard exposes product confirmation and recipe summary", () => {
   assert.match(source, /canConfirmProductCreation/);
   assert.match(source, /Receta:/);
   assert.match(source, /Stock inicial:/);
+  assert.match(source, /Tiempo de impresión:/);
+  assert.match(source, /Costo base:/);
+  assert.match(source, /Precio de venta:/);
+  assert.match(source, /Intl\.NumberFormat\("es-AR"/);
   assert.match(source, /Confirmar creación/);
 });

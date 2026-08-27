@@ -18,6 +18,25 @@ export interface ActionIntentCardProps {
   initialStatus?: "suggested" | "opened_tool" | "cancelled" | "executed" | "error";
 }
 
+function formatProductTime(value: unknown): string {
+  if (value === null || value === undefined || value === "") return "No indicado";
+  const minutes = Number(value);
+  if (!Number.isFinite(minutes)) return "No indicado";
+  const hours = Math.floor(minutes / 60);
+  const remainingMinutes = minutes % 60;
+  return [hours ? `${hours}h` : "", remainingMinutes ? `${remainingMinutes}m` : ""]
+    .filter(Boolean)
+    .join(" ") || "0m";
+}
+
+function formatProductMoney(value: unknown): string {
+  if (value === null || value === undefined || value === "") return "No indicado";
+  const amount = Number(value);
+  return Number.isFinite(amount)
+    ? `$${new Intl.NumberFormat("es-AR", { maximumFractionDigits: 2 }).format(amount)}`
+    : "No indicado";
+}
+
 export function ActionIntentCard({ actionIntent, actionRequestId, initialStatus = "suggested" }: ActionIntentCardProps) {
   const router = useRouter();
   const autoExecution = actionIntent?.extracted?.autoExecution as
@@ -200,7 +219,15 @@ export function ActionIntentCard({ actionIntent, actionRequestId, initialStatus 
             ]
           : []),
         ...(isCreateProduct
-          ? ["productName", "initialStock", "price", "components"]
+          ? [
+              "productName",
+              "initialStock",
+              "printTimeMinutes",
+              "baseCost",
+              "salePrice",
+              "price",
+              "components",
+            ]
           : []),
       ].includes(key)
   );
@@ -292,6 +319,24 @@ export function ActionIntentCard({ actionIntent, actionRequestId, initialStatus 
                   <span className="text-gray-500">Stock inicial:</span>
                   <span className="text-right font-medium text-gray-300">
                     {String(actionIntent.extracted?.initialStock ?? 0)}
+                  </span>
+                </div>
+                <div className="flex justify-between gap-3 text-xs">
+                  <span className="text-gray-500">Tiempo de impresión:</span>
+                  <span className="text-right font-medium text-gray-300">
+                    {formatProductTime(actionIntent.extracted?.printTimeMinutes)}
+                  </span>
+                </div>
+                <div className="flex justify-between gap-3 text-xs">
+                  <span className="text-gray-500">Costo base:</span>
+                  <span className="text-right font-medium text-gray-300">
+                    {formatProductMoney(actionIntent.extracted?.baseCost)}
+                  </span>
+                </div>
+                <div className="flex justify-between gap-3 text-xs">
+                  <span className="text-gray-500">Precio de venta:</span>
+                  <span className="text-right font-medium text-gray-300">
+                    {formatProductMoney(actionIntent.extracted?.salePrice)}
                   </span>
                 </div>
                 {productComponents.length > 0 && (

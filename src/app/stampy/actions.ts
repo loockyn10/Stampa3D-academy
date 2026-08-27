@@ -69,6 +69,9 @@ const ACTION_FIELD_LABELS: Record<string, string> = {
   totalGrams: "peso total",
   printerName: "nombre de la impresora",
   initialStock: "stock inicial",
+  printTimeMinutes: "tiempo de impresión",
+  baseCost: "costo base",
+  salePrice: "precio de venta",
   components: "receta de filamentos",
   powerWatts: "potencia",
   maintenanceCostPerHour: "mantenimiento por hora",
@@ -232,6 +235,23 @@ function buildCreateProductResponse(actionIntent: StampyActionIntent): string {
     extracted.initialStock === null || extracted.initialStock === undefined
       ? "0 (no indicado)"
       : String(extracted.initialStock);
+  const formatMinutes = (value: unknown) => {
+    if (value === null || value === undefined || value === "") return "no indicado";
+    const minutes = Number(value);
+    if (!Number.isFinite(minutes)) return "no indicado";
+    const hours = Math.floor(minutes / 60);
+    const remainingMinutes = minutes % 60;
+    return [hours ? `${hours}h` : "", remainingMinutes ? `${remainingMinutes}m` : ""]
+      .filter(Boolean)
+      .join(" ") || "0m";
+  };
+  const formatMoney = (value: unknown) => {
+    if (value === null || value === undefined || value === "") return "no indicado";
+    const amount = Number(value);
+    return Number.isFinite(amount)
+      ? `$${new Intl.NumberFormat("es-AR", { maximumFractionDigits: 2 }).format(amount)}`
+      : "no indicado";
+  };
   const warnings = Array.isArray(extracted.validationWarnings)
     ? (extracted.validationWarnings as string[])
     : [];
@@ -241,7 +261,11 @@ function buildCreateProductResponse(actionIntent: StampyActionIntent): string {
 
   return `Preparé este producto:\n\n- Producto: ${String(
     extracted.productName
-  )}\n- Stock inicial: ${stockText}${recipeText}${warningText}\n\nAntes de crearlo necesito que confirmes. Todavía no hice cambios.`;
+  )}\n- Stock inicial: ${stockText}\n- Tiempo de impresión: ${formatMinutes(
+    extracted.printTimeMinutes
+  )}\n- Costo base: ${formatMoney(extracted.baseCost)}\n- Precio de venta: ${formatMoney(
+    extracted.salePrice
+  )}${recipeText}${warningText}\n\nAntes de crearlo necesito que confirmes. Todavía no hice cambios.`;
 }
 
 type AutoExecutionReason =

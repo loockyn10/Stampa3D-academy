@@ -195,7 +195,50 @@ export function validateStampyActionIntent({
         "initialStock",
         invalidFields
       );
-      normalizeNonNegativeNumber(normalizedExtracted, "price", invalidFields);
+      normalizeNonNegativeNumber(
+        normalizedExtracted,
+        "printTimeMinutes",
+        invalidFields
+      );
+      normalizeNonNegativeNumber(normalizedExtracted, "baseCost", invalidFields);
+      normalizeNonNegativeNumber(normalizedExtracted, "salePrice", invalidFields);
+
+      if (
+        hasValue(normalizedExtracted.printTimeMinutes) &&
+        !invalidFields.includes("printTimeMinutes") &&
+        (!Number.isInteger(normalizedExtracted.printTimeMinutes) ||
+          Number(normalizedExtracted.printTimeMinutes) > 100000000)
+      ) {
+        invalidFields.push("printTimeMinutes");
+      }
+      for (const field of ["baseCost", "salePrice"]) {
+        if (
+          hasValue(normalizedExtracted[field]) &&
+          !invalidFields.includes(field) &&
+          Number(normalizedExtracted[field]) > 1000000000000
+        ) {
+          invalidFields.push(field);
+        }
+      }
+
+      const productName = normalizedExtracted.productName;
+      if (
+        hasValue(productName) &&
+        (typeof productName !== "string" ||
+          productName.trim().length < 2 ||
+          productName.trim().length > 160 ||
+          !/[\p{L}\p{N}]/u.test(productName))
+      ) {
+        invalidFields.push("productName");
+      }
+      if (
+        hasValue(normalizedExtracted.initialStock) &&
+        !invalidFields.includes("initialStock") &&
+        (!Number.isInteger(normalizedExtracted.initialStock) ||
+          Number(normalizedExtracted.initialStock) > 100000000)
+      ) {
+        invalidFields.push("initialStock");
+      }
 
       const components = Array.isArray(normalizedExtracted.components)
         ? normalizedExtracted.components
@@ -222,12 +265,19 @@ export function validateStampyActionIntent({
       normalizedExtracted.components = normalizedComponents;
 
       if (normalizedComponents.length === 0) {
-        warnings.push(
-          "El producto no tiene receta de filamentos; podés cargarla después desde Productos."
-        );
+        warnings.push("No indicaste receta de filamentos.");
       }
       if (!hasValue(normalizedExtracted.initialStock)) {
         warnings.push("No se indicó stock inicial; se usará 0.");
+      }
+      if (!hasValue(normalizedExtracted.printTimeMinutes)) {
+        warnings.push("No indicaste tiempo de impresión.");
+      }
+      if (!hasValue(normalizedExtracted.baseCost)) {
+        warnings.push("No indicaste costo base.");
+      }
+      if (!hasValue(normalizedExtracted.salePrice)) {
+        warnings.push("No indicaste precio de venta.");
       }
       break;
     }
