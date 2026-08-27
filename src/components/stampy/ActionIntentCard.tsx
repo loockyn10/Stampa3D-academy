@@ -7,6 +7,7 @@ import {
   confirmStampyActionRequest,
   confirmStampyCreateFilamentAction,
   confirmStampyCreatePrinterAction,
+  confirmStampyCreateProductAction,
 } from "@/lib/stampy/action-requests";
 import { ExternalLink, AlertCircle, Trash2, CheckCircle2, Loader2 } from "lucide-react";
 import { useRouter } from "next/navigation";
@@ -116,6 +117,22 @@ export function ActionIntentCard({ actionIntent, actionRequestId, initialStatus 
     setIsProcessing(false);
   };
 
+  const handleConfirmProductCreation = async () => {
+    if (!actionRequestId) return;
+
+    setIsProcessing(true);
+    setResultMessage(null);
+    const result = await confirmStampyCreateProductAction(actionRequestId);
+    if (result.success) {
+      setStatus("executed");
+      setResultMessage(result.message);
+    } else {
+      if (result.errorCode === "already_executed") setStatus("executed");
+      setResultMessage(result.message);
+    }
+    setIsProcessing(false);
+  };
+
   const isCancelled = status === "cancelled";
   const isExecuted = status === "executed";
   const resolvedTarget = actionIntent.extracted?.resolvedTarget as
@@ -126,6 +143,7 @@ export function ActionIntentCard({ actionIntent, actionRequestId, initialStatus 
     actionIntent.type === "discount_filament";
   const isCreateFilament = actionIntent.type === "add_filament";
   const isCreatePrinter = actionIntent.type === "add_printer";
+  const isCreateProduct = actionIntent.type === "create_product";
   const canConfirmMovement =
     Boolean(actionRequestId) &&
     isFilamentMovement &&
@@ -147,6 +165,13 @@ export function ActionIntentCard({ actionIntent, actionRequestId, initialStatus 
     actionIntent.extracted?.duplicateStatus === "clear" &&
     !isCancelled &&
     !isExecuted;
+  const canConfirmProductCreation =
+    Boolean(actionRequestId) &&
+    isCreateProduct &&
+    actionIntent.extracted?.requiresConfirmation === true &&
+    actionIntent.extracted?.duplicateStatus === "clear" &&
+    !isCancelled &&
+    !isExecuted;
   const visibleExtracted = Object.entries(actionIntent.extracted || {}).filter(
     ([key]) =>
       ![
@@ -161,6 +186,7 @@ export function ActionIntentCard({ actionIntent, actionRequestId, initialStatus 
         "maintenanceCostPerHourAssumed",
         "validationWarnings",
         "autoExecution",
+        "unmatchedComponentsCount",
         ...(isCreateFilament
           ? ["material", "brand", "name", "color", "totalGrams"]
           : []),
@@ -172,6 +198,9 @@ export function ActionIntentCard({ actionIntent, actionRequestId, initialStatus 
               "powerWatts",
               "maintenanceCostPerHour",
             ]
+          : []),
+        ...(isCreateProduct
+          ? ["productName", "initialStock", "price", "components"]
           : []),
       ].includes(key)
   );
@@ -205,6 +234,14 @@ export function ActionIntentCard({ actionIntent, actionRequestId, initialStatus 
     : [];
   const printerWarnings =
     isCreatePrinter && Array.isArray(actionIntent.extracted?.validationWarnings)
+      ? (actionIntent.extracted.validationWarnings as string[])
+      : [];
+  const productComponents =
+    isCreateProduct && Array.isArray(actionIntent.extracted?.components)
+      ? (actionIntent.extracted.components as Array<Record<string, unknown>>)
+      : [];
+  const productWarnings =
+    isCreateProduct && Array.isArray(actionIntent.extracted?.validationWarnings)
       ? (actionIntent.extracted.validationWarnings as string[])
       : [];
   
@@ -243,6 +280,42 @@ export function ActionIntentCard({ actionIntent, actionRequestId, initialStatus 
                 </span>
               </div>
             ))}
+            {isCreateProduct && (
+              <>
+                <div className="flex justify-between gap-3 text-xs">
+                  <span className="text-gray-500">Producto:</span>
+                  <span className="text-right font-medium text-gray-300">
+                    {String(actionIntent.extracted?.productName)}
+                  </span>
+                </div>
+                <div className="flex justify-between gap-3 text-xs">
+                  <span className="text-gray-500">Stock inicial:</span>
+                  <span className="text-right font-medium text-gray-300">
+                    {String(actionIntent.extracted?.initialStock ?? 0)}
+                  </span>
+                </div>
+                {productComponents.length > 0 && (
+                  <div className="pt-1 text-xs">
+                    <span className="text-gray-500">Receta:</span>
+                    <div className="mt-1 space-y-1 text-right font-medium text-gray-300">
+                      {productComponents.map((component, index) => (
+                        <p key={`${String(component.material)}-${index}`}>
+                          {Number(component.grams)}g {[
+                            component.material,
+                            component.brand,
+                            component.name,
+                            component.color,
+                          ].filter(Boolean).join(" ")}
+                          {component.matchStatus === "unique"
+                            ? ""
+                            : " (sin match exacto)"}
+                        </p>
+                      ))}
+                    </div>
+                  </div>
+                )}
+              </>
+            )}
             {resolvedTarget?.label && (
               <div className="flex justify-between gap-3 text-xs">
                 <span className="text-gray-500">Filamento:</span>
@@ -260,6 +333,13 @@ export function ActionIntentCard({ actionIntent, actionRequestId, initialStatus 
               ))}
             </div>
           )}
+          {productWarnings.length > 0 && !isCancelled && !isExecuted && (
+            <div className="space-y-1 text-xs text-amber-300">
+              {productWarnings.map((warning) => (
+                <p key={warning}>- {warning}</p>
+              ))}
+            </div>
+          )}
 
           {!isCancelled && !isExecuted && (
             <p className="text-xs text-stampa-orange flex items-center gap-1.5">
@@ -269,6 +349,8 @@ export function ActionIntentCard({ actionIntent, actionRequestId, initialStatus 
                 : canConfirmCreation
                   ? "Stampy todavía no hizo cambios. Confirmá la creación para ejecutarla."
                 : canConfirmPrinterCreation
+                  ? "Stampy todavía no hizo cambios. Confirmá la creación para ejecutarla."
+                : canConfirmProductCreation
                   ? "Stampy todavía no hizo cambios. Confirmá la creación para ejecutarla."
                 : "Stampy no hizo cambios. Revisá y confirmá en la herramienta."}
             </p>
@@ -306,6 +388,16 @@ export function ActionIntentCard({ actionIntent, actionRequestId, initialStatus 
                   Confirmar creación
                 </button>
               )}
+              {canConfirmProductCreation && (
+                <button
+                  onClick={handleConfirmProductCreation}
+                  disabled={isProcessing}
+                  className="flex-1 basis-full flex items-center justify-center gap-2 rounded-lg bg-emerald-600 hover:bg-emerald-500 px-3 py-2 text-xs font-semibold text-white transition-colors disabled:opacity-50"
+                >
+                  {isProcessing ? <Loader2 size={14} className="animate-spin" /> : <CheckCircle2 size={14} />}
+                  Confirmar creación
+                </button>
+              )}
               <button
                 onClick={handleOpenTool}
                 disabled={isProcessing}
@@ -336,6 +428,8 @@ export function ActionIntentCard({ actionIntent, actionRequestId, initialStatus 
                 ? "Listo, creé el filamento."
                 : isCreatePrinter
                   ? "Listo, creé la impresora."
+                  : isCreateProduct
+                    ? "Listo, creé el producto."
                   : "Listo, actualicé el stock de filamento.")}
             </p>
           )}

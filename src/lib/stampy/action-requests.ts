@@ -6,6 +6,7 @@ import { StampyActionIntent, StampyActionRequest } from "./types";
 import {
   executeCreateFilament,
   executeCreatePrinter,
+  executeCreateProduct,
   executeFilamentStockMovement,
 } from "./action-executor";
 
@@ -209,6 +210,36 @@ export async function confirmStampyCreatePrinterAction(actionRequestId: string) 
   }
 
   return executeCreatePrinter({ supabase, actionRequestId });
+}
+
+export async function confirmStampyCreateProductAction(actionRequestId: string) {
+  if (!UUID_PATTERN.test(actionRequestId)) {
+    return {
+      success: false,
+      errorCode: "invalid_action_request_id",
+      message: "La solicitud de creación no es válida.",
+    };
+  }
+
+  const supabase = await createClient();
+  const { access } = await getCurrentUserAccess(supabase);
+  if (!access.authenticated || !access.userId) {
+    return {
+      success: false,
+      errorCode: "unauthenticated",
+      message: "Necesitás iniciar sesión para crear el producto.",
+    };
+  }
+
+  if (!access.capabilities.useStampy) {
+    return {
+      success: false,
+      errorCode: "stampy_access_required",
+      message: "No tenés acceso habilitado para usar Stampy.",
+    };
+  }
+
+  return executeCreateProduct({ supabase, actionRequestId });
 }
 
 export async function cancelStampyActionRequest({

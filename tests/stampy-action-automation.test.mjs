@@ -132,6 +132,10 @@ function loadAutomationHarness({
       executions.push({ kind: "printer", params });
       return printerResult;
     },
+    executeCreateProduct: async () => {
+      executions.push({ kind: "product" });
+      return { success: false };
+    },
   };
 
   const actions = loadTypeScriptModule("src/app/stampy/actions.ts", {

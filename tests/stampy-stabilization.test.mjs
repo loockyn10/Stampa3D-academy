@@ -126,6 +126,7 @@ function loadAskStampyAction({
       executeFilamentStockMovement: async () => ({ success: false }),
       executeCreateFilament: async () => ({ success: false }),
       executeCreatePrinter: async () => ({ success: false }),
+      executeCreateProduct: async () => ({ success: false }),
       getResolvedFilamentLabel: (filament) =>
         [filament.filament_type, filament.brand, filament.name, filament.color]
           .filter(Boolean)
@@ -792,6 +793,7 @@ function makeActionRequestModule(updateResult) {
       executeFilamentStockMovement: async () => ({ success: false }),
       executeCreateFilament: async () => ({ success: false }),
       executeCreatePrinter: async () => ({ success: false }),
+      executeCreateProduct: async () => ({ success: false }),
     },
     "./types": {}
   });

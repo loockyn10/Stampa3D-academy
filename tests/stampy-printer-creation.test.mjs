@@ -247,6 +247,7 @@ test("the printer Server Action authenticates and sends only the action request 
         calls.push(params);
         return { success: true, message: "ok" };
       },
+      executeCreateProduct: async () => ({ success: false }),
     },
     "./types": {},
   });

@@ -184,6 +184,54 @@ export function validateStampyActionIntent({
       }
       break;
 
+    case "create_product": {
+      addMissingFields(
+        normalizedExtracted,
+        toolContract?.requiredFields ?? ["productName"],
+        missingFields
+      );
+      normalizeNonNegativeNumber(
+        normalizedExtracted,
+        "initialStock",
+        invalidFields
+      );
+      normalizeNonNegativeNumber(normalizedExtracted, "price", invalidFields);
+
+      const components = Array.isArray(normalizedExtracted.components)
+        ? normalizedExtracted.components
+        : [];
+      const normalizedComponents = components.map((component, index) => {
+        if (!component || typeof component !== "object") {
+          invalidFields.push(`components.${index}`);
+          return component;
+        }
+
+        const normalizedComponent = {
+          ...(component as Record<string, unknown>),
+        };
+        normalizePositiveNumber(
+          normalizedComponent,
+          "grams",
+          invalidFields
+        );
+        if (!hasValue(normalizedComponent.material)) {
+          invalidFields.push(`components.${index}.material`);
+        }
+        return normalizedComponent;
+      });
+      normalizedExtracted.components = normalizedComponents;
+
+      if (normalizedComponents.length === 0) {
+        warnings.push(
+          "El producto no tiene receta de filamentos; podés cargarla después desde Productos."
+        );
+      }
+      if (!hasValue(normalizedExtracted.initialStock)) {
+        warnings.push("No se indicó stock inicial; se usará 0.");
+      }
+      break;
+    }
+
     default:
       if (toolContract) {
         addMissingFields(normalizedExtracted, toolContract.requiredFields, missingFields);

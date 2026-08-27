@@ -52,6 +52,40 @@ export interface DuplicatePrinterResult {
   error?: string;
 }
 
+export interface ResolvedProduct {
+  id: string;
+  user_id: string;
+  name: string;
+  stock_quantity: number;
+  sale_price: number;
+  image_url: string | null;
+  is_active: boolean;
+}
+
+export interface DuplicateProductResult {
+  status: "clear" | "duplicate" | "ambiguous" | "error";
+  product?: ResolvedProduct;
+  matches?: ResolvedProduct[];
+  error?: string;
+}
+
+export interface ResolvedProductComponent extends Record<string, unknown> {
+  grams: number;
+  material: string;
+  brand: string | null;
+  name: string | null;
+  color: string | null;
+  filamentId: string | null;
+  filamentLabel: string | null;
+  matchStatus: "unique" | "none" | "multiple";
+}
+
+export interface ProductComponentsResolution {
+  components: ResolvedProductComponent[];
+  unmatchedCount: number;
+  errors: string[];
+}
+
 interface ResolveFilamentMatchParams {
   supabase: SupabaseClient;
   userId: string;
@@ -91,6 +125,17 @@ export interface CreatePrinterExecutionResult {
   message: string;
 }
 
+export interface CreateProductExecutionResult {
+  success: boolean;
+  actionRequestId: string | null;
+  productId: string | null;
+  productName: string | null;
+  componentsCount: number | null;
+  unmatchedComponentsCount: number | null;
+  errorCode: string | null;
+  message: string;
+}
+
 interface ExecuteFilamentStockMovementParams {
   supabase: SupabaseClient;
   actionRequestId: string;
@@ -125,6 +170,17 @@ interface RpcCreatePrinterResult {
   printer_name: string | null;
   power_watts: number | string | null;
   maintenance_cost_per_hour: number | string | null;
+  error_code: string | null;
+  message: string;
+}
+
+interface RpcCreateProductResult {
+  success: boolean;
+  action_request_id: string | null;
+  product_id: string | null;
+  product_name: string | null;
+  components_count: number | string | null;
+  unmatched_components_count: number | string | null;
   error_code: string | null;
   message: string;
 }
@@ -308,6 +364,96 @@ export async function findDuplicatePrinter({
     : { status: "inactive_match", printer, matches: candidates };
 }
 
+export async function findDuplicateProduct({
+  supabase,
+  userId,
+  productName,
+}: {
+  supabase: SupabaseClient;
+  userId: string;
+  productName: string;
+}): Promise<DuplicateProductResult> {
+  const normalizedRequestedName = normalizeMatchText(productName);
+  if (!normalizedRequestedName) {
+    return { status: "error", matches: [], error: "missing_product_name" };
+  }
+
+  const { data, error } = await supabase
+    .from("products")
+    .select("id, user_id, name, stock_quantity, sale_price, image_url, is_active")
+    .eq("user_id", userId)
+    .eq("is_active", true);
+
+  if (error) return { status: "error", matches: [], error: error.message };
+
+  const products = (data ?? []) as ResolvedProduct[];
+  const exactMatches = products.filter(
+    (product) => normalizeMatchText(product.name) === normalizedRequestedName
+  );
+  const candidates =
+    exactMatches.length > 0
+      ? exactMatches
+      : products.filter((product) => {
+          const normalizedName = normalizeMatchText(product.name);
+          return (
+            normalizedName.includes(normalizedRequestedName) ||
+            normalizedRequestedName.includes(normalizedName)
+          );
+        });
+
+  if (candidates.length === 0) return { status: "clear", matches: [] };
+  if (candidates.length > 1) {
+    return { status: "ambiguous", matches: candidates };
+  }
+  return { status: "duplicate", product: candidates[0], matches: candidates };
+}
+
+export async function resolveProductFilamentComponents({
+  supabase,
+  userId,
+  components,
+}: {
+  supabase: SupabaseClient;
+  userId: string;
+  components: Array<Record<string, unknown>>;
+}): Promise<ProductComponentsResolution> {
+  const errors: string[] = [];
+  const resolvedComponents = await Promise.all(
+    components.map(async (component): Promise<ResolvedProductComponent> => {
+      const match = await resolveFilamentMatch({
+        supabase,
+        userId,
+        extracted: component,
+      });
+      if (match.error) errors.push(match.error);
+
+      return {
+        ...component,
+        grams: Number(component.grams),
+        material: String(component.material),
+        brand: typeof component.brand === "string" ? component.brand : null,
+        name: typeof component.name === "string" ? component.name : null,
+        color: typeof component.color === "string" ? component.color : null,
+        filamentId:
+          match.status === "unique" && match.filament ? match.filament.id : null,
+        filamentLabel:
+          match.status === "unique" && match.filament
+            ? getResolvedFilamentLabel(match.filament)
+            : null,
+        matchStatus: match.status,
+      };
+    })
+  );
+
+  return {
+    components: resolvedComponents,
+    unmatchedCount: resolvedComponents.filter(
+      (component) => component.matchStatus !== "unique"
+    ).length,
+    errors,
+  };
+}
+
 function toNullableNumber(value: number | string | null): number | null {
   if (value === null) return null;
   const numberValue = typeof value === "number" ? value : Number(value);
@@ -455,6 +601,57 @@ export async function executeCreatePrinter({
     powerWatts: toNullableNumber(row.power_watts),
     maintenanceCostPerHour: toNullableNumber(
       row.maintenance_cost_per_hour
+    ),
+    errorCode: row.error_code,
+    message: row.message,
+  };
+}
+
+export async function executeCreateProduct({
+  supabase,
+  actionRequestId,
+}: ExecuteFilamentStockMovementParams): Promise<CreateProductExecutionResult> {
+  const { data, error } = await supabase.rpc("confirm_stampy_create_product", {
+    p_action_request_id: actionRequestId,
+  });
+
+  if (error) {
+    return {
+      success: false,
+      actionRequestId,
+      productId: null,
+      productName: null,
+      componentsCount: null,
+      unmatchedComponentsCount: null,
+      errorCode: "rpc_error",
+      message: error.message || "No pude crear el producto.",
+    };
+  }
+
+  const row = (Array.isArray(data) ? data[0] : data) as
+    | RpcCreateProductResult
+    | null;
+  if (!row) {
+    return {
+      success: false,
+      actionRequestId,
+      productId: null,
+      productName: null,
+      componentsCount: null,
+      unmatchedComponentsCount: null,
+      errorCode: "empty_rpc_result",
+      message: "La creación no devolvió un resultado válido.",
+    };
+  }
+
+  return {
+    success: row.success === true,
+    actionRequestId: row.action_request_id,
+    productId: row.product_id,
+    productName: row.product_name,
+    componentsCount: toNullableNumber(row.components_count),
+    unmatchedComponentsCount: toNullableNumber(
+      row.unmatched_components_count
     ),
     errorCode: row.error_code,
     message: row.message,

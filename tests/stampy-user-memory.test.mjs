@@ -195,6 +195,7 @@ function loadMemoryAwareAskStampyAction({
       executeFilamentStockMovement: async () => ({ success: false }),
       executeCreateFilament: async () => ({ success: false }),
       executeCreatePrinter: async () => ({ success: false }),
+      executeCreateProduct: async () => ({ success: false }),
     },
     "@/lib/stampy/user-memory": memoryModule,
     "@/lib/stampy/workshop-context": {

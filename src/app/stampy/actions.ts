@@ -68,6 +68,8 @@ const ACTION_FIELD_LABELS: Record<string, string> = {
   material: "material",
   totalGrams: "peso total",
   printerName: "nombre de la impresora",
+  initialStock: "stock inicial",
+  components: "receta de filamentos",
   powerWatts: "potencia",
   maintenanceCostPerHour: "mantenimiento por hora",
   toolContract: "contrato de herramienta",
@@ -116,6 +118,10 @@ function isCreateFilamentAction(actionIntent: StampyActionIntent): boolean {
 
 function isCreatePrinterAction(actionIntent: StampyActionIntent): boolean {
   return actionIntent.type === "add_printer";
+}
+
+function isCreateProductAction(actionIntent: StampyActionIntent): boolean {
+  return actionIntent.type === "create_product";
 }
 
 function buildFilamentMovementResponse(actionIntent: StampyActionIntent): string {
@@ -189,6 +195,53 @@ function buildCreatePrinterResponse(actionIntent: StampyActionIntent): string {
   )}\n- Potencia: ${Number(extracted.powerWatts)}W\n- Mantenimiento/hora: $${Number(
     extracted.maintenanceCostPerHour
   )}${warningText}\n\nAntes de crearla necesito que confirmes. Todavía no hice cambios.`;
+}
+
+function buildCreateProductResponse(actionIntent: StampyActionIntent): string {
+  const extracted = actionIntent.extracted;
+  if (
+    extracted.duplicateStatus === "duplicate" ||
+    extracted.duplicateStatus === "ambiguous"
+  ) {
+    return "Ya encontré un producto parecido cargado. Para evitar duplicados, abrí Productos o Stock. Todavía no creé nada.";
+  }
+  if (extracted.requiresConfirmation !== true) {
+    return "No pude verificar con seguridad que el producto sea nuevo. Abrí Productos para revisarlo antes de crear nada.";
+  }
+
+  const components = Array.isArray(extracted.components)
+    ? (extracted.components as Array<Record<string, unknown>>)
+    : [];
+  const componentLines = components.map((component) => {
+    const details = [
+      component.material,
+      component.brand,
+      component.name,
+      component.color,
+    ].filter(Boolean);
+    const suffix =
+      component.matchStatus === "unique"
+        ? ""
+        : " (sin filamento exacto asociado)";
+    return `- ${Number(component.grams)}g ${details.join(" ")}${suffix}`;
+  });
+  const recipeText = componentLines.length
+    ? `\n- Receta:\n${componentLines.join("\n")}`
+    : "\n- Receta: no indicada";
+  const stockText =
+    extracted.initialStock === null || extracted.initialStock === undefined
+      ? "0 (no indicado)"
+      : String(extracted.initialStock);
+  const warnings = Array.isArray(extracted.validationWarnings)
+    ? (extracted.validationWarnings as string[])
+    : [];
+  const warningText = warnings.length
+    ? `\n\n${warnings.map((warning) => `- ${warning}`).join("\n")}`
+    : "";
+
+  return `Preparé este producto:\n\n- Producto: ${String(
+    extracted.productName
+  )}\n- Stock inicial: ${stockText}${recipeText}${warningText}\n\nAntes de crearlo necesito que confirmes. Todavía no hice cambios.`;
 }
 
 type AutoExecutionReason =
@@ -658,6 +711,92 @@ export async function askStampyAction(
         }
       }
 
+      if (validation.isValid && isCreateProductAction(validatedActionIntent)) {
+        try {
+          const { findDuplicateProduct, resolveProductFilamentComponents } =
+            await import("@/lib/stampy/action-executor");
+          const duplicateCheck = await findDuplicateProduct({
+            supabase,
+            userId,
+            productName: String(validation.normalizedExtracted.productName),
+          });
+          const rawComponents = Array.isArray(
+            validation.normalizedExtracted.components
+          )
+            ? (validation.normalizedExtracted.components as Array<
+                Record<string, unknown>
+              >)
+            : [];
+          const componentResolution =
+            duplicateCheck.status === "clear" && rawComponents.length > 0
+              ? await resolveProductFilamentComponents({
+                  supabase,
+                  userId,
+                  components: rawComponents,
+                })
+              : {
+                  components: rawComponents,
+                  unmatchedCount: rawComponents.length,
+                  errors: [] as string[],
+                };
+
+          if (duplicateCheck.status === "error") {
+            console.error(
+              "[Stampy] duplicate product check failed",
+              duplicateCheck.error?.substring(0, 200)
+            );
+          }
+          if (componentResolution.errors.length > 0) {
+            console.error(
+              "[Stampy] product component match failed",
+              componentResolution.errors[0].substring(0, 200)
+            );
+          }
+          if (componentResolution.unmatchedCount > 0) {
+            validationMetadata.warnings.push(
+              `${componentResolution.unmatchedCount} componente(s) se guardarán sin filamento exacto asociado.`
+            );
+          }
+
+          validatedActionIntent = {
+            ...validatedActionIntent,
+            extracted: {
+              ...validatedActionIntent.extracted,
+              actionType: "create_product",
+              components: componentResolution.components,
+              unmatchedComponentsCount: componentResolution.unmatchedCount,
+              duplicateStatus: duplicateCheck.status,
+              requiresConfirmation: duplicateCheck.status === "clear",
+              validationWarnings: validationMetadata.warnings,
+              ...(duplicateCheck.product
+                ? {
+                    duplicateTarget: {
+                      type: "product",
+                      id: duplicateCheck.product.id,
+                      label: duplicateCheck.product.name,
+                    },
+                  }
+                : {}),
+            },
+          };
+        } catch (error) {
+          console.error(
+            "[Stampy] product preparation failed",
+            String(error).substring(0, 200)
+          );
+          validatedActionIntent = {
+            ...validatedActionIntent,
+            extracted: {
+              ...validatedActionIntent.extracted,
+              actionType: "create_product",
+              duplicateStatus: "error",
+              requiresConfirmation: false,
+              validationWarnings: validationMetadata.warnings,
+            },
+          };
+        }
+      }
+
       let autoExecution = await resolveAutoExecutionAudit({
         supabase,
         userId,
@@ -691,6 +830,8 @@ export async function askStampyAction(
             ? buildCreateFilamentResponse(validatedActionIntent)
             : isCreatePrinterAction(validatedActionIntent)
               ? buildCreatePrinterResponse(validatedActionIntent)
+              : isCreateProductAction(validatedActionIntent)
+                ? buildCreateProductResponse(validatedActionIntent)
           : buildActionIntentResponse(validatedActionIntent)
         : buildActionValidationResponse(validatedActionIntent, validation);
       const knowledgeTools = validation.isValid && validatedActionIntent.toolHref && validatedActionIntent.toolLabel

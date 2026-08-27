@@ -224,6 +224,7 @@ test("the create Server Action authenticates and sends only the action request i
     "./action-executor": {
       executeFilamentStockMovement: async () => ({ success: false }),
       executeCreatePrinter: async () => ({ success: false }),
+      executeCreateProduct: async () => ({ success: false }),
       executeCreateFilament: async (params) => {
         executorCalls.push(params);
         return { success: true, message: "ok" };

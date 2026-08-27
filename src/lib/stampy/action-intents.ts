@@ -179,6 +179,152 @@ function parseNewPrinterDetails(message: string): {
   };
 }
 
+const PRODUCT_RECIPE_MATERIALS = [
+  "PLA",
+  "PETG",
+  "TPU",
+  "ABS",
+  "ASA",
+  "NYLON",
+  "RESINA",
+] as const;
+
+const PRODUCT_RECIPE_BRANDS: Array<[RegExp, string]> = [
+  [/\bhellbot\b/i, "Hellbot"],
+  [/\belegoo\b/i, "Elegoo"],
+  [/\bw3d\b/i, "W3D"],
+  [/\bgst3d\b/i, "GST3D"],
+  [/\bgrilon\b/i, "Grilon"],
+  [/\bprintalot\b/i, "Printalot"],
+  [/\bcreality\b/i, "Creality"],
+];
+
+const PRODUCT_RECIPE_COLORS = [
+  "rojo",
+  "azul",
+  "verde",
+  "negro",
+  "blanco",
+  "amarillo",
+  "naranja",
+  "gris",
+  "violeta",
+  "cian",
+  "transparente",
+  "natural",
+];
+
+export interface StampyProductFilamentComponent {
+  grams: number;
+  material: string;
+  brand: string | null;
+  name: string | null;
+  color: string | null;
+}
+
+function parseProductFilamentComponents(
+  message: string
+): StampyProductFilamentComponent[] {
+  const materialPattern = PRODUCT_RECIPE_MATERIALS.join("|");
+  const componentPattern = new RegExp(
+    `(\\d+(?:[.,]\\d+)?)\\s*(?:g|gr|gramos)\\s+(${materialPattern})\\b(.*?)(?=(?:\\s*(?:,|y)\\s*)\\d+(?:[.,]\\d+)?\\s*(?:g|gr|gramos)\\b|[.!?]?$)`,
+    "gi"
+  );
+  const components: StampyProductFilamentComponent[] = [];
+
+  for (const match of message.matchAll(componentPattern)) {
+    const grams = Number.parseFloat(match[1].replace(",", "."));
+    if (!Number.isFinite(grams) || grams <= 0) continue;
+
+    const tail = match[3]
+      .replace(/\b(?:con\s+)?stock\b.*$/i, "")
+      .replace(/\breceta\b.*$/i, "")
+      .trim();
+    const brandEntry = PRODUCT_RECIPE_BRANDS.find(([pattern]) =>
+      pattern.test(tail)
+    );
+    const normalizedTail = normalize(tail);
+    const color =
+      PRODUCT_RECIPE_COLORS.find((candidate) =>
+        new RegExp(`\\b${candidate}\\b`, "i").test(normalizedTail)
+      ) ?? null;
+    let subtype = tail;
+    for (const [pattern] of PRODUCT_RECIPE_BRANDS) {
+      subtype = subtype.replace(pattern, " ");
+    }
+    for (const candidate of PRODUCT_RECIPE_COLORS) {
+      subtype = subtype.replace(new RegExp(`\\b${candidate}\\b`, "gi"), " ");
+    }
+    subtype = subtype
+      .replace(/\b(?:de|del|filamento|material)\b/gi, " ")
+      .replace(/[,.;]+/g, " ")
+      .replace(/\s+/g, " ")
+      .trim();
+
+    components.push({
+      grams,
+      material: match[2].toUpperCase(),
+      brand: brandEntry?.[1] ?? null,
+      name: subtype || null,
+      color,
+    });
+  }
+
+  return components;
+}
+
+function parseProductDetails(message: string): {
+  productName: string | null;
+  initialStock: number | null;
+  price: number | null;
+  components: StampyProductFilamentComponent[];
+} {
+  const explicitProductMatch = message.match(
+    /\b(?:creame|cre[aá]|crear|cargame|carg[aá]|agregame|agreg[aá])\s+(?:un\s+)?producto\s+(.+?)(?=\s+(?:con\s+stock|stock|que\s+usa|que\s+lleva|con\s+receta|receta|con\s+precio|precio|valor|con\s+\d+(?:[.,]\d+)?\s*(?:g|gr|gramos))\b|[.!?]?$)/i
+  );
+  const implicitRecipeMatch = message.match(
+    /\b(?:creame|cre[aá]|cargame|carg[aá])\s+(.+?)(?=\s+(?:con\s+stock|stock|que\s+usa|que\s+lleva|con\s+receta|receta|con\s+precio|precio|valor|con\s+\d+(?:[.,]\d+)?\s*(?:g|gr|gramos))\b)/i
+  );
+  const productName = (explicitProductMatch?.[1] ?? implicitRecipeMatch?.[1])
+    ?.replace(/\s+/g, " ")
+    .trim() ?? null;
+  const stockMatch = message.match(
+    /\bstock(?:\s+inicial)?\s*(?:de|:)?\s*(\d+)\b/i
+  );
+  const priceMatch = message.match(
+    /\b(?:precio|valor)\s*(?:de|:)?\s*\$?\s*(\d+(?:[.,]\d+)?)\b/i
+  );
+
+  return {
+    productName,
+    initialStock: stockMatch ? Number.parseInt(stockMatch[1], 10) : null,
+    price: priceMatch
+      ? Number.parseFloat(priceMatch[1].replace(",", "."))
+      : null,
+    components: parseProductFilamentComponents(message),
+  };
+}
+
+function looksLikeProductCreation(message: string): boolean {
+  const normalized = normalize(message);
+  if (
+    !/\b(?:crear|crea|creame|cargar|carga|cargame|agregar|agrega|agregame)\b/.test(
+      normalized
+    )
+  ) {
+    return false;
+  }
+  if (/\bproducto\b/.test(normalized)) return true;
+  if (/\b(?:filamento|impresora|maquina)\b/.test(normalized)) return false;
+
+  return (
+    /\b(?:receta|que usa|que lleva)\b/.test(normalized) ||
+    /\bcon\s+\d+(?:[.,]\d+)?\s*(?:g|gr|gramos)\s+(?:pla|petg|tpu|abs|asa|nylon|resina)\b/.test(
+      normalized
+    )
+  );
+}
+
 export function detectStampyActionIntent({
   message,
   currentPath,
@@ -191,7 +337,7 @@ export function detectStampyActionIntent({
   const actionVerbs = [
     "descontar", "descontame", "sacar", "sacame", "restar", "restale", "consumi", "use ",
     "agregar", "agrega", "agregame", "cargar", "cargame", "sumar", "sumame", "compre", "nuevo",
-    "crear", "creame", "generar", "hacer", "hace", "haceme", "suma ", "cotizar", "cotizame", "presupuestar", "presupuestame",
+    "crear", "crea ", "creame", "carga ", "generar", "hacer", "hace", "haceme", "suma ", "cotizar", "cotizame", "presupuestar", "presupuestame",
     "modificar", "actualizar", "corregir", "cambiar", "calcular", "calculame", "usado"
   ];
 
@@ -248,6 +394,24 @@ export function detectStampyActionIntent({
       toolLabel: "Presupuestos",
       canExecute: false,
       reason: "Matched quote verbs (safe mode)."
+    };
+  }
+
+  // 1.25 create_product. It must run before filament intents because a product
+  // recipe can contain filament names and verbs such as "cargá" or "usa".
+  if (looksLikeProductCreation(message)) {
+    const productDetails = parseProductDetails(message);
+    const toolHref = buildToolHref("/productos", { action: "new" });
+    return {
+      type: "create_product",
+      confidence: productDetails.productName ? 0.92 : 0.75,
+      title: "Crear producto",
+      summary: "Se detectó la intención de crear un producto.",
+      extracted: productDetails,
+      toolHref,
+      toolLabel: "Productos",
+      canExecute: false,
+      reason: "Matched product creation with optional filament recipe.",
     };
   }
 
@@ -414,27 +578,6 @@ export function detectStampyActionIntent({
       toolLabel: "Calculadora",
       canExecute: false,
       reason: "Matched add verbs with printer context."
-    };
-  }
-
-  // 4. create_product
-  if (
-    (norm.includes("crear") || norm.includes("agregar") ||
-    norm.includes("agregame") || norm.includes("cargar") ||
-    norm.includes("nuevo") || norm.includes("suma")) &&
-    (norm.includes("producto") || norm.includes("vender") || norm.includes("articulo") || norm.includes("pieza"))
-  ) {
-    const toolHref = buildToolHref("/productos", { action: "new" });
-    return {
-      type: "create_product",
-      confidence: 0.8,
-      title: "Crear producto",
-      summary: "Se detectó la intención de crear un producto en stock.",
-      extracted: {},
-      toolHref,
-      toolLabel: "Productos",
-      canExecute: false,
-      reason: "Matched create verbs with product context."
     };
   }
 
