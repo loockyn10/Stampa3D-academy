@@ -202,6 +202,7 @@ export default function StampyPage() {
                     <div className="mt-4 space-y-3">
                       {msg.recommendations.map((rec: any, idx: number) => {
                         const courseId = rec.course_modules?.courses?.slug || rec.course_modules?.courses?.id || "";
+                        const courseHref = rec.href || (courseId ? `/cursos/${courseId}` : "/cursos");
                         return (
                           <div key={idx} className="bg-white/5 border border-stampa-border rounded-xl p-3 flex flex-col sm:flex-row sm:items-center justify-between gap-3 group">
                             <div>
@@ -221,10 +222,10 @@ export default function StampyPage() {
                               {rec.ai_summary && <p className="text-xs text-gray-500 mt-1 line-clamp-2">{rec.ai_summary}</p>}
                             </div>
                             <Link 
-                              href={courseId ? `/cursos/${courseId}` : "/cursos"} 
+                              href={courseHref}
                               className="shrink-0 flex items-center justify-center gap-1 bg-[#1a1a1a] border border-stampa-border text-gray-300 hover:text-stampa-orange hover:border-[#ff6a00]/30 px-3 py-1.5 rounded-lg text-xs font-semibold transition-colors shadow-sm"
                             >
-                              Ver clase <ChevronRight size={14} />
+                              Abrir curso <ChevronRight size={14} />
                             </Link>
                           </div>
                         )

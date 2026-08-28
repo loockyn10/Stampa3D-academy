@@ -1082,6 +1082,12 @@ export async function askStampyAction(
       };
     }
 
+    const {
+      classifyStampyKnowledgeIntent,
+      formatStampyKnowledgeIntentForPrompt,
+    } = await import("@/lib/stampy/knowledge-intent");
+    const knowledgeIntent = classifyStampyKnowledgeIntent(userMessage);
+
     let loadedMemoryCount = 0;
     let memoryPromptText = "";
     try {
@@ -1160,7 +1166,15 @@ No inventes datos ni afirmes que una acción se ejecutó si solo quedó preparad
 Si hay datos concretos, respondé con seguridad. Si faltan, decí exactamente qué necesitás.
 Para problemas de impresión 3D, priorizá diagnóstico práctico y pruebas en orden. Para negocio, proponé una acción concreta. Para usar la plataforma, indicá la sección correcta.
 Si hay una clase relevante, podés recomendarla sin forzarla.
+No nombres clases o videos concretos por tu cuenta. El servidor agregará después sólo recomendaciones verificadas del catálogo.
 `;
+
+    const knowledgeIntentPrompt = formatStampyKnowledgeIntentForPrompt(
+      knowledgeIntent
+    );
+    if (knowledgeIntentPrompt) {
+      systemPrompt += `\n${knowledgeIntentPrompt}\n`;
+    }
     
     if (dynamicContextData.text) {
       systemPrompt += `\n${dynamicContextData.text}\n`;
@@ -1372,6 +1386,13 @@ Reglas del taller:
       systemPrompt += `\n\n${retrievedKnowledge}`;
     }
 
+    systemPrompt += `\n\nPrioridad de fuentes para responder:
+1. Transcripción o contenido oficial relevante de la clase.
+2. Contextos oficiales activos de Stampy.
+3. Metadata y fragmentos indexados de clases.
+4. Conocimiento general de impresión 3D.
+Si las fuentes oficiales no alcanzan, respondé igual con una solución práctica, pero no atribuyas información a una clase concreta.`;
+
     // 5.5 Inyectar Tool Contracts según la ruta actual
     if (pathname) {
       const { getRelevantContractsForPath, formatToolContractForPrompt } = await import("@/lib/stampy/tool-registry");
@@ -1397,64 +1418,23 @@ ${relevantContracts.map(formatToolContractForPrompt).join("\n\n")}\n`;
     });
 
     answerText = completion.choices[0]?.message?.content || "No pude responder esta vez. Probá de nuevo.";
-    // 6. Buscar lecciones recomendables (búsqueda textual simple)
-    const { data: rawLessons } = await supabase
-      .from('lessons')
-      .select(`
-        id,
-        title,
-        description,
-        is_published,
-        is_ai_recommendable,
-        ai_summary,
-        ai_topics,
-        ai_problems,
-        ai_level,
-        course_modules!inner (
-          id,
-          is_active,
-          courses!inner (
-            id,
-            slug,
-            title,
-            status,
-            course_kind
-          )
-        )
-      `)
-      .eq('is_ai_recommendable', true)
-      .eq('is_published', true)
-      .eq('course_modules.is_active', true)
-      .eq('course_modules.courses.status', 'published');
 
-    let recommendations: unknown[] = [];
-    if (rawLessons && rawLessons.length > 0) {
-      const normalize = (t: string) => t.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "").trim();
-      const q = normalize(userMessage);
-      
-      const scored = rawLessons.map(l => {
-        let score = 0;
-        const kwds = [l.title, l.ai_summary, l.ai_topics, l.ai_problems].filter(Boolean).join(" ");
-        if (normalize(kwds).includes(q)) score += 5;
-        // Simple fallback
-        if (score === 0) {
-           const words = q.split(/\s+/).filter(w => w.length > 3);
-           words.forEach(w => {
-             if (normalize(kwds).includes(w)) score += 1;
-           });
-        }
-        return {
-          ...l,
-          score,
-          courseKind: (
-            l.course_modules as {
-              courses?: { course_kind?: string | null };
-            } | null
-          )?.courses?.course_kind,
-        };
-      }).filter(l => l.score > 0).sort((a, b) => b.score - a.score).slice(0, 3);
-      
-      recommendations = scored;
+    const {
+      buildStampyLessonRecommendationText,
+      findStampyLessonRecommendations,
+    } = await import("@/lib/stampy/lesson-recommendations");
+    const recommendations = await findStampyLessonRecommendations({
+      supabase,
+      query: userMessage,
+      intent: knowledgeIntent,
+      limit: 2,
+    });
+    const recommendationText = buildStampyLessonRecommendationText({
+      recommendations,
+      intent: knowledgeIntent,
+    });
+    if (recommendationText) {
+      answerText = `${answerText.trim()}\n\n${recommendationText}`;
     }
 
     let assistantMessageId: string | null = null;
@@ -1465,6 +1445,7 @@ ${relevantContracts.map(formatToolContractForPrompt).join("\n\n")}\n`;
         model: modelName,
         relatedToolsCount: knowledgeTools.length,
         recommendationsCount: recommendations.length,
+        knowledgeIntent: knowledgeIntent?.type ?? null,
         actionIntent: null,
         memory: { loadedCount: loadedMemoryCount, savedCount: 0 },
       };
@@ -1552,7 +1533,8 @@ ${relevantContracts.map(formatToolContractForPrompt).join("\n\n")}\n`;
       conversationId: actualConversationId,
       assistantMessageId,
       actionRequestId: null,
-      actionIntent: null
+      actionIntent: null,
+      knowledgeIntent: knowledgeIntent?.type ?? null,
     };
   } catch (error) {
     console.error("[Stampy] OpenAI request failed", {

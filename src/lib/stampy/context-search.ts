@@ -119,7 +119,7 @@ export async function getStampyRelevantContexts({
     let totalChars = 0;
     const maxChars = 5000;
     
-    let text = "CONTEXTOS OFICIALES DE STAMPY:\nEstos bloques son conocimiento editable de Academia Stampa. Usalos como referencia oficial cuando respondas sobre la plataforma.\n\n";
+    let text = "CONTEXTOS OFICIALES DE STAMPY:\nEstos bloques son conocimiento editable de Academia Stampa. Usalos como referencia oficial cuando respondas sobre impresión 3D, negocio o la plataforma.\n\n";
     totalChars += text.length;
     
     const finalContexts = [];

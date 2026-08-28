@@ -4,6 +4,7 @@ import React, { useState, useRef, useEffect } from "react";
 import { Bot, X, Send, Loader2 } from "lucide-react";
 import { askStampyAction, StampyContextPayload } from "@/app/stampy/actions";
 import { createPortal } from "react-dom";
+import Link from "next/link";
 import { StampyFeedback } from "@/components/stampy/StampyFeedback";
 import { ActionIntentCard } from "@/components/stampy/ActionIntentCard";
 import { createStampyMessageId, createStampyRequestId } from "@/lib/stampy/client-message-id";
@@ -31,6 +32,12 @@ type Message = {
   assistantMessageId?: string | null;
   actionIntent?: any;
   actionRequestId?: string | null;
+  recommendations?: Array<{
+    id: string;
+    title: string;
+    courseTitle: string;
+    href: string;
+  }>;
 };
 
 function getLessonConversationStorageKey(lessonId: string) {
@@ -124,7 +131,8 @@ export function StampyLessonChat({ courseTitle, moduleTitle, lesson }: StampyLes
         content: response.answer || "No pude responder esta vez. Probá de nuevo.",
         assistantMessageId: response.assistantMessageId,
         actionIntent: response.actionIntent,
-        actionRequestId: response.actionRequestId
+        actionRequestId: response.actionRequestId,
+        recommendations: response.recommendations,
       }]);
     } catch {
       setMessages((current) => [...current, {
@@ -211,6 +219,23 @@ export function StampyLessonChat({ courseTitle, moduleTitle, lesson }: StampyLes
                     }`}
                   >
                     <div className="whitespace-pre-wrap">{m.content}</div>
+
+                    {m.recommendations && m.recommendations.length > 0 && (
+                      <div className="mt-3 space-y-2">
+                        {m.recommendations.slice(0, 2).map((recommendation) => (
+                          <Link
+                            key={recommendation.id}
+                            href={recommendation.href}
+                            className="block rounded-lg border border-cyan-500/20 bg-cyan-500/5 px-3 py-2 text-xs text-cyan-300 transition-colors hover:bg-cyan-500/10"
+                          >
+                            {recommendation.title}
+                            <span className="block text-[10px] text-gray-500">
+                              {recommendation.courseTitle}
+                            </span>
+                          </Link>
+                        ))}
+                      </div>
+                    )}
                     
                     {m.actionIntent && (
                       <div className="mt-3">

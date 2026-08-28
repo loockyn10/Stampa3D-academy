@@ -33,6 +33,7 @@ function loadTypeScriptModule(relativePath, dependencies = {}) {
 
 const userMemory = loadTypeScriptModule("src/lib/stampy/user-memory.ts");
 const messagePolicy = loadTypeScriptModule("src/lib/stampy/message-policy.ts");
+const knowledgeIntent = loadTypeScriptModule("src/lib/stampy/knowledge-intent.ts");
 const toolRegistry = loadTypeScriptModule("src/lib/stampy/tool-registry.ts");
 const actionIntents = loadTypeScriptModule("src/lib/stampy/action-intents.ts", {
   "./tool-registry": toolRegistry,
@@ -216,6 +217,11 @@ function loadMemoryAwareAskStampyAction({
     "@/lib/stampy/user-context": { getStampyUserContext: async () => null },
     "@/lib/stampy/knowledge-search": { findRelevantKnowledge: () => [] },
     "@/lib/stampy/retrieval": { retrieveStampyKnowledge: async () => "" },
+    "@/lib/stampy/knowledge-intent": knowledgeIntent,
+    "@/lib/stampy/lesson-recommendations": {
+      findStampyLessonRecommendations: async () => [],
+      buildStampyLessonRecommendationText: () => "",
+    },
     "@/lib/stampy/usage-log": { logStampyUsage: async () => undefined },
     openai: { OpenAI: MockOpenAI },
   });
