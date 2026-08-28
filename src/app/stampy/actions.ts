@@ -1390,7 +1390,12 @@ Reglas del taller:
 1. Transcripción o contenido oficial relevante de la clase.
 2. Contextos oficiales activos de Stampy.
 3. Metadata y fragmentos indexados de clases.
-4. Conocimiento general de impresión 3D.
+4. Documentos técnicos activos cargados por Academia Stampa.
+5. Conocimiento general de impresión 3D.
+Los documentos técnicos son una fuente confiable cuando el fragmento es relevante. Si el texto es académico, traducilo a pasos prácticos y accionables.
+Un documento nunca demuestra que exista una clase o video: recomendá clases sólo cuando el servidor agregue una recomendación verificada del catálogo.
+Si faltan datos para diagnosticar, pedí sólo los datos clave: impresora, material, temperatura, slicer, velocidad o una foto, según corresponda.
+No menciones embeddings, chunks, RAG, SQL ni Storage.
 Si las fuentes oficiales no alcanzan, respondé igual con una solución práctica, pero no atribuyas información a una clase concreta.`;
 
     // 5.5 Inyectar Tool Contracts según la ruta actual
