@@ -6,6 +6,10 @@ import { Plus, Edit2, Save, Trash2, Loader2, AlertCircle } from "lucide-react";
 import { ColorSwatchLabel } from "@/components/ui/color-swatch-label";
 import { Card } from "@/components/ui/card";
 import { FilamentEditor } from "@/components/filaments/FilamentEditor";
+import {
+  buildFilamentInsertPayload,
+  buildFilamentMutationPayload,
+} from "@/lib/filaments/mutation-payload";
 
 export function FilamentsManager() {
   const supabase = createClient();
@@ -49,16 +53,11 @@ export function FilamentsManager() {
     const { data: { user } } = await supabase.auth.getUser();
     if (!user) return;
 
-    const payload = {
-      ...formData,
-      user_id: user.id,
-      total_grams: parseFloat(String(formData.total_grams)) || 0,
-      remaining_grams: parseFloat(String(formData.remaining_grams)) || 0,
-      purchase_price: parseFloat(String(formData.purchase_price)) || 0,
-    };
+    const payload = buildFilamentMutationPayload(formData);
 
     if (editingId === "new") {
-      const { data, error } = await supabase.from("filaments").insert([payload]).select().single();
+      const insertPayload = buildFilamentInsertPayload(formData, user.id);
+      const { data, error } = await supabase.from("filaments").insert([insertPayload]).select().single();
       if (error) setError(error.message);
       else setFilaments([data, ...filaments]);
     } else {
@@ -157,5 +156,4 @@ export function FilamentsManager() {
     </div>
   );
 }
-
 

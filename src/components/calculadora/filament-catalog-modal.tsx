@@ -109,7 +109,7 @@ export function FilamentCatalogModal({ onClose, onSelect, onImported, mode = "si
           // Reactivate
           const { error: updateError } = await supabase
             .from("filaments")
-            .update({ is_active: true, updated_at: new Date().toISOString() })
+            .update({ is_active: true })
             .eq("id", existing.id);
 
           if (updateError) throw updateError;
@@ -160,8 +160,6 @@ export function FilamentCatalogModal({ onClose, onSelect, onImported, mode = "si
     
     try {
       const importedFilaments: any[] = [];
-      const now = new Date().toISOString();
-      
       for (const tId of selectedTemplateIds) {
         const template = templates.find(t => t.id === tId);
         if (!template) continue;
@@ -173,7 +171,7 @@ export function FilamentCatalogModal({ onClose, onSelect, onImported, mode = "si
             // Reactivate
             const { data, error: updateError } = await supabase
               .from("filaments")
-              .update({ is_active: true, updated_at: now })
+              .update({ is_active: true })
               .eq("id", existing.id)
               .select()
               .single();
@@ -231,7 +229,7 @@ export function FilamentCatalogModal({ onClose, onSelect, onImported, mode = "si
     try {
       const { error: updateError } = await supabase
         .from("filaments")
-        .update({ is_active: false, updated_at: new Date().toISOString() })
+        .update({ is_active: false })
         .eq("id", existing.id);
 
       if (updateError) throw updateError;
@@ -471,4 +469,3 @@ export function FilamentCatalogModal({ onClose, onSelect, onImported, mode = "si
     document.body
   );
 }
-

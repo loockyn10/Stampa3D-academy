@@ -15,6 +15,10 @@ import { ColorSwatchLabel } from "@/components/ui/color-swatch-label";
 import { FilamentCatalogModal } from "@/components/calculadora/filament-catalog-modal";
 import { CalculatorSelect } from "@/components/ui/calculator-select";
 import { getFilamentLabel } from "@/lib/filaments/utils";
+import {
+  buildFilamentInsertPayload,
+  buildFilamentMutationPayload,
+} from "@/lib/filaments/mutation-payload";
 
 const ColorOptionLabel = ({ name, colorHex }: { name: string, colorHex?: string | null }) => {
   let resolvedHex = "#737373";
@@ -408,7 +412,7 @@ function StockPageContent() {
     
     const { error } = await supabase
       .from("filaments")
-      .update({ is_active: false, updated_at: new Date().toISOString() })
+      .update({ is_active: false })
       .eq("id", id)
       .eq("user_id", userId);
       
@@ -444,18 +448,11 @@ function StockPageContent() {
     const { data: { user } } = await supabase.auth.getUser();
     if (!user) return;
 
-    const payload = {
-      ...filamentFormData,
-      brand: filamentFormData.brand?.trim() || null,
-      name: filamentFormData.name?.trim() || null,
-      user_id: user.id,
-      total_grams: parseFloat(String(filamentFormData.total_grams)) || 0,
-      remaining_grams: parseFloat(String(filamentFormData.remaining_grams)) || 0,
-      purchase_price: parseFloat(String(filamentFormData.purchase_price)) || 0,
-    };
+    const payload = buildFilamentMutationPayload(filamentFormData);
 
     if (editingFilamentId === "new") {
-      const { data, error: insertError } = await supabase.from("filaments").insert([payload]).select().single();
+      const insertPayload = buildFilamentInsertPayload(filamentFormData, user.id);
+      const { data, error: insertError } = await supabase.from("filaments").insert([insertPayload]).select().single();
       if (insertError) {
         setError(insertError.message);
         return;
