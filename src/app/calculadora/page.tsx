@@ -14,7 +14,11 @@ import { PrinterCatalogModal } from "@/components/calculadora/printer-catalog-mo
 import { FilamentCatalogModal } from "@/components/calculadora/filament-catalog-modal";
 import { normalizeFilamentColor } from "@/lib/colors/filament-colors";
 import { getFilamentLabel } from "@/lib/filaments/utils";
-import { calculateCalculatorPricing } from "@/lib/calculator/pricing";
+import {
+  aggregateCalculatorRecipeLines,
+  calculateCalculatorFilamentPricing,
+  calculateCalculatorPricing,
+} from "@/lib/calculator/pricing";
 import {
   findStampyFilamentMatch,
   findStampyNamedMatch,
@@ -28,6 +32,14 @@ interface NumberFieldProps {
   step?: number;
   disabled?: boolean;
 }
+
+interface CalculatorFilamentLine {
+  id: string;
+  filamentId: string;
+  grams: string;
+}
+
+const INITIAL_FILAMENT_LINE_ID = "filament-line-1";
 
 function normalizeNumericInput(value: string) {
   const cleaned = value.replace(",", ".").replace(/[^\d.]/g, "");
@@ -101,11 +113,12 @@ function CalculadoraPageContent() {
   const [settings, setSettings] = useState<any>(null);
 
   // Form State
-  const [selectedFilamentId, setSelectedFilamentId] = useState("");
+  const [filamentLines, setFilamentLines] = useState<CalculatorFilamentLine[]>([
+    { id: INITIAL_FILAMENT_LINE_ID, filamentId: "", grams: "" },
+  ]);
   const [selectedPrinterId, setSelectedPrinterId] = useState("");
   const [selectedMultiplierId, setSelectedMultiplierId] = useState("");
 
-  const [weight, setWeight] = useState<string>("");
   const [hours, setHours] = useState<string>("");
   const [minutes, setMinutes] = useState<string>("");
 
@@ -180,7 +193,13 @@ function CalculadoraPageContent() {
     setSettings(userSettings);
 
     // Set defaults
-    if (fRes.data && fRes.data.length > 0) setSelectedFilamentId(fRes.data[0].id);
+    if (fRes.data && fRes.data.length > 0) {
+      setFilamentLines((current) => current.map((line, index) => (
+        index === 0 && !line.filamentId
+          ? { ...line, filamentId: fRes.data[0].id }
+          : line
+      )));
+    }
     if (pRes.data && pRes.data.length > 0) setSelectedPrinterId(pRes.data[0].id);
     if (mRes.data && mRes.data.length > 0) setSelectedMultiplierId(mRes.data[0].id);
 
@@ -212,12 +231,20 @@ function CalculadoraPageContent() {
 
       const normalizedGrams = parsePositiveStampyPrefillNumber(g);
       const normalizedHours = parsePositiveStampyPrefillNumber(h);
-      if (normalizedGrams) setWeight(normalizedGrams);
+      if (normalizedGrams) {
+        setFilamentLines((current) => current.map((line, index) => (
+          index === 0 ? { ...line, grams: normalizedGrams } : line
+        )));
+      }
       if (normalizedHours) setHours(normalizedHours);
 
       if (material || brand || color) {
         const match = findStampyFilamentMatch(filaments, { material, brand, color });
-        if (match) setSelectedFilamentId(match.id);
+        if (match) {
+          setFilamentLines((current) => current.map((line, index) => (
+            index === 0 ? { ...line, filamentId: match.id } : line
+          )));
+        }
       }
 
       if (printerName) {
@@ -239,14 +266,6 @@ function CalculadoraPageContent() {
 
   useEffect(() => {
     // When selected items change, update manual overrides to defaults
-    const fil = filaments.find(f => f.id === selectedFilamentId);
-    if (fil) {
-      const totalGrams = fil.total_grams || 0;
-      if (totalGrams > 0) {
-        setManualPricePerKg(String((fil.purchase_price / totalGrams) * 1000));
-      }
-    }
-
     const pri = printers.find(p => p.id === selectedPrinterId);
     if (pri) {
       setManualPrinterConsumption(String(pri.power_watts || ""));
@@ -259,7 +278,7 @@ function CalculadoraPageContent() {
       setFixedCost(String(mul.fixed_cost || ""));
     }
 
-  }, [selectedFilamentId, selectedPrinterId, selectedMultiplierId, filaments, printers, multipliers]);
+  }, [selectedPrinterId, selectedMultiplierId, printers, multipliers]);
 
   const handlePrinterSelected = async (newPrinterId: string) => {
     // Refresh printers list
@@ -273,22 +292,59 @@ function CalculadoraPageContent() {
 
   const handleFilamentImported = async (importedFilaments: any[]) => {
     // Refresh filaments list
-    const { data } = await supabase.from("filaments").select("*").eq("user_id", userId).eq("is_active", true);
+    const { data } = await supabase
+      .from("filaments")
+      .select("*, filament_templates(brand)")
+      .eq("user_id", userId)
+      .eq("is_active", true);
     if (data) {
       setFilaments(data);
       if (importedFilaments && importedFilaments.length > 0) {
-        setSelectedFilamentId(importedFilaments[0].id);
+        setFilamentLines((current) => current.map((line, index) => (
+          index === 0 ? { ...line, filamentId: importedFilaments[0].id } : line
+        )));
         alert(`Se agregaron ${importedFilaments.length} filamentos a tu taller.`);
       } else {
-        if (data.length > 0 && !data.find(f => f.id === selectedFilamentId)) setSelectedFilamentId(data[0].id);
+        setFilamentLines((current) => current.map((line) => (
+          data.length > 0 && !data.find((filament) => filament.id === line.filamentId)
+            ? { ...line, filamentId: data[0].id }
+            : line
+        )));
       }
     }
   };
 
+  const updateFilamentLine = (
+    lineId: string,
+    patch: Partial<Pick<CalculatorFilamentLine, "filamentId" | "grams">>,
+  ) => {
+    setFilamentLines((current) => current.map((line) => (
+      line.id === lineId ? { ...line, ...patch } : line
+    )));
+  };
+
+  const addFilamentLine = () => {
+    setFilamentLines((current) => [
+      ...current,
+      {
+        id: crypto.randomUUID(),
+        filamentId: filaments[0]?.id || "",
+        grams: "",
+      },
+    ]);
+  };
+
+  const removeFilamentLine = (lineId: string) => {
+    setFilamentLines((current) => (
+      current.length > 1 ? current.filter((line) => line.id !== lineId) : current
+    ));
+  };
+
   const calc = useMemo(() => {
-    const numWeight = Number(weight) || 0;
     const numManualErrorPercent = Number(manualErrorPercent) || 0;
-    const numManualPricePerKg = Number(manualPricePerKg) || 0;
+    const numManualPricePerKg = manualPricePerKg.trim()
+      ? Number(manualPricePerKg) || 0
+      : null;
     const numHours = Number(hours) || 0;
     const numMinutes = Number(minutes) || 0;
     const numManualPrinterConsumption = Number(manualPrinterConsumption) || 0;
@@ -302,12 +358,27 @@ function CalculadoraPageContent() {
     const numManualPlatformCommission = Number(manualPlatformCommission) || 0;
     const numShippingCost = Number(shippingCost) || 0;
 
-    const errorMultiplier = 1 + (numManualErrorPercent / 100);
-    const weightWithError = numWeight * errorMultiplier;
+    const filamentPricing = calculateCalculatorFilamentPricing({
+      lines: filamentLines.map((line) => {
+        const filament = filaments.find((item) => item.id === line.filamentId);
+        const filamentTotalGrams = Number(filament?.total_grams) || 0;
+        const costPerKg = filamentTotalGrams > 0
+          ? ((Number(filament?.purchase_price) || 0) / filamentTotalGrams) * 1000
+          : 0;
+        const brand = filament?.brand || filament?.filament_templates?.brand || null;
 
-    // Costo Material
-    const costPerGram = numManualPricePerKg / 1000;
-    const materialCost = weightWithError * costPerGram;
+        return {
+          filamentId: line.filamentId,
+          label: getFilamentLabel({ ...filament, brand }),
+          grams: Number(line.grams) || 0,
+          costPerKg,
+        };
+      }),
+      wasteRate: numManualErrorPercent / 100,
+      manualCostPerKg: numManualPricePerKg,
+    });
+
+    const materialCost = filamentPricing.filamentCostWithWaste;
 
     // Tiempo total en horas
     const totalHours = numHours + (numMinutes / 60);
@@ -341,13 +412,27 @@ function CalculadoraPageContent() {
       fixedCostOverheadRate: pricing.fixedCostOverheadRate,
       fixedCostOverheadAmount: pricing.fixedCostOverheadAmount,
       fixedCostAdjusted: pricing.fixedCostAdjusted,
+      otherCostsRaw: pricing.otherCostsRaw,
+      otherCostsOverheadRate: pricing.otherCostsOverheadRate,
+      otherCostsOverheadAmount: pricing.otherCostsOverheadAmount,
+      otherCostsAdjusted: pricing.otherCostsAdjusted,
       multipliableCost: pricing.multipliableCost,
       nonMultipliableCost: pricing.nonMultipliableCost,
-      weightWithError, totalHours,
-      numWeight, numHours, numMinutes, numLaborCost, numOtherCost, numManualMultiplier, numManualErrorPercent
+      weightWithError: filamentPricing.totalFilamentGrams * (1 + filamentPricing.wasteRate),
+      totalHours,
+      filamentLines: filamentPricing.filamentLines,
+      totalFilamentGrams: filamentPricing.totalFilamentGrams,
+      filamentCostRaw: filamentPricing.filamentCostRaw,
+      wasteRate: filamentPricing.wasteRate,
+      filamentCostWithWaste: filamentPricing.filamentCostWithWaste,
+      hasValidFilamentLines: filamentPricing.isValid,
+      numHours, numMinutes, numLaborCost, numOtherCost, numManualMultiplier, numManualErrorPercent,
+      platformCommissionRate: numManualPlatformCommission / 100,
+      platformFixedFee: numManualPlatformExtra,
+      shippingCost: numShippingCost,
     };
   }, [
-    weight, manualErrorPercent, manualPricePerKg,
+    filamentLines, filaments, manualErrorPercent, manualPricePerKg,
     hours, minutes, manualPrinterConsumption, manualKwhPrice, manualPrinterMaintenance,
     laborCost, otherCost, fixedCost, manualMultiplier, manualPlatformExtra, manualPlatformCommission, shippingCost
   ]);
@@ -361,18 +446,34 @@ function CalculadoraPageContent() {
       setSaveError("Debes estar logueado para guardar productos.");
       return;
     }
+    if (!calc.hasValidFilamentLines) {
+      setSaveError("Completá un filamento y una cantidad mayor a 0 en cada línea.");
+      return;
+    }
 
     setSavingProduct(true);
     setSaveError(null);
 
-    const selectedFilament = filaments.find(f => f.id === selectedFilamentId);
+    const recipeLines = aggregateCalculatorRecipeLines(calc.filamentLines.map((line) => {
+      const filament = filaments.find((item) => item.id === line.filamentId);
+      return {
+        filamentId: line.filamentId,
+        grams: line.grams,
+        filamentType: filament?.filament_type || null,
+        brand: filament?.brand || filament?.filament_templates?.brand || null,
+        name: filament?.name || null,
+        color: filament?.color || null,
+      };
+    }));
+    const firstRecipeLine = recipeLines[0];
+    const selectedFilament = filaments.find(f => f.id === firstRecipeLine?.filamentId);
     const selectedPrinter = printers.find(p => p.id === selectedPrinterId);
     const selectedMultiplier = multipliers.find(m => m.id === selectedMultiplierId);
 
     const snapshot = {
       source: "calculator",
       mode: advanced ? "advanced" : "basic",
-      grams: calc.numWeight,
+      grams: calc.totalFilamentGrams,
       grams_with_error: calc.weightWithError,
       error_percent: calc.numManualErrorPercent,
       print_time_minutes: (calc.numHours * 60) + calc.numMinutes,
@@ -398,8 +499,24 @@ function CalculadoraPageContent() {
       fixedCostAdjusted: calc.fixedCostAdjusted,
       baseCost: calc.baseCost,
       salePrice: calc.normalPrice,
+      filamentLines: calc.filamentLines,
+      totalFilamentGrams: calc.totalFilamentGrams,
+      filamentCostRaw: calc.filamentCostRaw,
+      wasteRate: calc.wasteRate,
+      filamentCostWithWaste: calc.filamentCostWithWaste,
+      laborCost: calc.numLaborCost,
+      otherCostsRaw: calc.otherCostsRaw,
+      otherCostsOverheadRate: calc.otherCostsOverheadRate,
+      otherCostsOverheadAmount: calc.otherCostsOverheadAmount,
+      otherCostsAdjusted: calc.otherCostsAdjusted,
+      markup: calc.numManualMultiplier,
+      salePriceBeforePlatform: calc.normalPrice,
+      platformCommissionRate: calc.platformCommissionRate,
+      platformFixedFee: calc.platformFixedFee,
+      shippingCost: calc.shippingCost,
+      finalSalePrice: calc.mlPrice,
       // Filament details
-      filament_id: selectedFilamentId || null,
+      filament_id: firstRecipeLine?.filamentId || null,
       filament_name: selectedFilament?.name || null,
       filament_purchase_price: selectedFilament?.purchase_price || null,
       filament_total_grams: selectedFilament?.total_grams || null,
@@ -421,10 +538,10 @@ function CalculadoraPageContent() {
       name: productForm.name.trim(),
       description: productForm.description || null,
       image_url: productForm.image_url || null,
-      filament_id: selectedFilamentId || null,
+      filament_id: firstRecipeLine?.filamentId || null,
       product_type_id: selectedMultiplierId || null,
       printer_id: selectedPrinterId || null,
-      grams: calc.numWeight,
+      grams: calc.totalFilamentGrams,
       print_time_minutes: (calc.numHours * 60) + calc.numMinutes,
       base_cost: calc.baseCost,
       sale_price: calc.normalPrice,
@@ -434,13 +551,85 @@ function CalculadoraPageContent() {
       is_active: true,
     };
 
-    const { error } = await supabase.from("products").insert([payload]);
-    if (error) {
-      console.error("Error guardando producto:", error);
-      setSaveError(error.message);
-    } else {
-      setSaveSuccess(true);
+    const { data: savedProduct, error: productError } = await supabase
+      .from("products")
+      .insert([payload])
+      .select("id")
+      .single();
+
+    if (productError || !savedProduct) {
+      console.error("Error guardando producto:", productError);
+      setSaveError(productError?.message || "No se pudo guardar el producto.");
+      setSavingProduct(false);
+      return;
     }
+
+    const rollbackProduct = async (componentId?: string) => {
+      if (componentId) {
+        const { error: componentRollbackError } = await supabase
+          .from("product_components")
+          .delete()
+          .eq("id", componentId)
+          .eq("user_id", userId);
+        if (componentRollbackError) {
+          console.error("No se pudo revertir la receta incompleta:", componentRollbackError);
+        }
+      }
+      const { error: rollbackError } = await supabase
+        .from("products")
+        .delete()
+        .eq("id", savedProduct.id)
+        .eq("user_id", userId);
+      if (rollbackError) {
+        console.error("No se pudo revertir el producto incompleto:", rollbackError);
+      }
+    };
+
+    const { data: component, error: componentError } = await supabase
+      .from("product_components")
+      .insert([{
+        user_id: userId,
+        product_id: savedProduct.id,
+        name: "Producto completo",
+        quantity_per_product: 1,
+        stock_quantity: 0,
+        sort_order: 0,
+        is_active: true,
+      }])
+      .select("id")
+      .single();
+
+    if (componentError || !component) {
+      await rollbackProduct();
+      console.error("Error guardando receta del producto:", componentError);
+      setSaveError(componentError?.message || "No se pudo guardar la receta del producto.");
+      setSavingProduct(false);
+      return;
+    }
+
+    const { error: recipeError } = await supabase
+      .from("product_component_filaments")
+      .insert(recipeLines.map((line, index) => ({
+        user_id: userId,
+        component_id: component.id,
+        filament_id: line.filamentId,
+        filament_type: line.filamentType || null,
+        brand: line.brand || null,
+        name: line.name || null,
+        color: line.color || null,
+        grams: line.grams,
+        sort_order: index,
+      })));
+
+    if (recipeError) {
+      await rollbackProduct(component.id);
+      console.error("Error guardando filamentos de la receta:", recipeError);
+      setSaveError(recipeError.message);
+      setSavingProduct(false);
+      return;
+    }
+
+    setSaveSuccess(true);
     setSavingProduct(false);
   };
 
@@ -456,7 +645,10 @@ function CalculadoraPageContent() {
   }
 
   const missingData = filaments.length === 0 || printers.length === 0 || multipliers.length === 0;
-  const hasValidCalc = calc.baseCost > 0 && calc.normalPrice > 0;
+  const hasValidCalc = calc.hasValidFilamentLines && calc.baseCost > 0 && calc.normalPrice > 0;
+  const hasDuplicateFilaments = new Set(
+    filamentLines.map((line) => line.filamentId).filter(Boolean),
+  ).size < filamentLines.filter((line) => line.filamentId).length;
 
   return <div className="space-y-8 pb-10">
     {/* 1. Header Premium */}
@@ -561,41 +753,102 @@ function CalculadoraPageContent() {
           </div>
 
           <div className="space-y-6">
-            <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
-              <label className="block">
-                <span className="mb-1 block text-xs font-semibold text-gray-500">Filamento a usar</span>
-                <div className="flex gap-2">
-                  <div className="flex-1 min-w-0">
+            <div className="space-y-3">
+              <div className="flex items-center justify-between gap-3">
+                <span className="text-xs font-semibold text-gray-500">Filamentos usados</span>
+                <button
+                  type="button"
+                  onClick={() => setShowFilamentCatalogModal(true)}
+                  className="inline-flex h-8 items-center gap-1.5 rounded-lg border border-stampa-border bg-white/5 px-2.5 text-[11px] font-semibold text-gray-300 transition-colors hover:bg-white/10 hover:text-white"
+                >
+                  <Plus size={13} /> Catálogo
+                </button>
+              </div>
+
+              {filamentLines.map((line, index) => (
+                <div
+                  key={line.id}
+                  className="grid grid-cols-1 items-end gap-3 sm:grid-cols-[minmax(0,1fr)_8rem_auto]"
+                >
+                  <label className="block min-w-0">
+                    <span className="mb-1 block text-[11px] font-medium text-gray-600">
+                      Filamento {index + 1}
+                    </span>
                     <CalculatorSelect
                       options={filaments.map(f => ({
                         value: f.id,
                         label: getFilamentLabel(f),
                         element: <FilamentOptionLabel filament={f} />
                       }))}
-                      value={selectedFilamentId}
-                      onChange={(val) => setSelectedFilamentId(val)}
+                      value={line.filamentId}
+                      onChange={(value) => updateFilamentLine(line.id, { filamentId: value })}
                       placeholder="Seleccioná un filamento..."
                       searchable={true}
                     />
-                  </div>
-                  <button 
-                    type="button" 
-                    onClick={() => setShowFilamentCatalogModal(true)}
-                    className="shrink-0 flex items-center justify-center bg-white/5 hover:bg-white/10 text-white rounded-xl border border-stampa-border px-3 transition-colors"
-                    title="Elegir filamento del catálogo"
-                  >
-                    <Plus size={16} />
-                  </button>
+                  </label>
+                  <NumberField
+                    label="Gramos"
+                    value={line.grams}
+                    onChange={(grams) => updateFilamentLine(line.id, { grams })}
+                    suffix="g"
+                  />
+                  {filamentLines.length > 1 && (
+                    <button
+                      type="button"
+                      onClick={() => removeFilamentLine(line.id)}
+                      className="flex h-11 items-center justify-center rounded-xl border border-red-500/20 bg-red-500/5 px-3 text-red-400 transition-colors hover:bg-red-500/10 sm:w-11"
+                      title={`Eliminar filamento ${index + 1}`}
+                      aria-label={`Eliminar filamento ${index + 1}`}
+                    >
+                      <X size={16} />
+                    </button>
+                  )}
                 </div>
-              </label>
-              <div>
-                <NumberField label="Gramos de la pieza" value={weight} onChange={setWeight} suffix="g" />
-                <p className="text-[10px] text-gray-500 mt-1 ml-1 flex items-center gap-1"><Info size={10} /> Extraelo del slicer</p>
-              </div>
+              ))}
+
+              <button
+                type="button"
+                onClick={addFilamentLine}
+                className="flex h-9 w-full items-center justify-center gap-2 rounded-xl border border-dashed border-white/15 bg-white/[0.03] text-xs font-semibold text-gray-400 transition-colors hover:border-[#ff6a00]/40 hover:bg-[#ff6a00]/5 hover:text-stampa-orange"
+              >
+                <Plus size={14} /> Agregar otro filamento
+              </button>
+
+              {!calc.hasValidFilamentLines && (
+                <p className="flex items-center gap-1 text-[11px] text-amber-400/90">
+                  <Info size={11} /> Elegí un filamento e ingresá más de 0 gramos en cada línea.
+                </p>
+              )}
+              {hasDuplicateFilaments && (
+                <p className="text-[11px] text-gray-500">
+                  Las líneas repetidas se sumarán como un solo filamento al guardar el producto.
+                </p>
+              )}
             </div>
 
-            <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
-              <label className="block sm:col-span-1">
+            <div className="grid grid-cols-2 gap-4">
+              <NumberField label="Horas" value={hours} onChange={setHours} suffix="h" step={1} />
+              <NumberField label="Minutos" value={minutes} onChange={setMinutes} suffix="m" step={1} />
+            </div>
+
+            <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+              <label className="block">
+                <span className="mb-1 block text-xs font-semibold text-gray-500">Tipo de producto</span>
+                <CalculatorSelect
+                  options={multipliers.map(m => ({
+                    value: m.id,
+                    label: `${m.name} (x${m.multiplier})`,
+                  }))}
+                  value={selectedMultiplierId}
+                  onChange={(val) => setSelectedMultiplierId(val)}
+                  placeholder="Seleccioná margen..."
+                  searchable={false}
+                />
+                <p className="mt-2 text-[11px] leading-relaxed text-gray-500">
+                  Los insumos extra del tipo elegido pueden incluir aluminio, pegamento, frascos o packaging. Se les suma un 30% por envío, desperdicio o unidades falladas.
+                </p>
+              </label>
+              <label className="block">
                 <div className="flex items-center justify-between mb-1">
                   <span className="block text-xs font-semibold text-gray-500">Impresora</span>
                 </div>
@@ -622,29 +875,6 @@ function CalculadoraPageContent() {
                   </button>
                 </div>
               </label>
-              <div className="sm:col-span-2 grid grid-cols-2 gap-4">
-                <NumberField label="Horas" value={hours} onChange={setHours} suffix="h" step={1} />
-                <NumberField label="Minutos" value={minutes} onChange={setMinutes} suffix="m" step={1} />
-              </div>
-            </div>
-
-            <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
-              <label className="block">
-                <span className="mb-1 block text-xs font-semibold text-gray-500">Tipo de producto (Markup sólo sobre filamento)</span>
-                <CalculatorSelect
-                  options={multipliers.map(m => ({
-                    value: m.id,
-                    label: `${m.name} (x${m.multiplier})`,
-                  }))}
-                  value={selectedMultiplierId}
-                  onChange={(val) => setSelectedMultiplierId(val)}
-                  placeholder="Seleccioná margen..."
-                  searchable={false}
-                />
-                <p className="mt-2 text-[11px] leading-relaxed text-gray-500">
-                  Los insumos extra del tipo elegido pueden incluir aluminio, pegamento, frascos o packaging. Se les suma un 30% por envío, desperdicio o unidades falladas; el markup no se aplica a esos insumos.
-                </p>
-              </label>
             </div>
           </div>
         </Card>
@@ -668,7 +898,7 @@ function CalculadoraPageContent() {
                 </h3>
                 <div className="space-y-3">
                   <NumberField label="Margen de error (desperdicio)" value={manualErrorPercent} onChange={setManualErrorPercent} suffix="%" />
-                  <NumberField label="Costo por kg manual (sobreescribe)" value={manualPricePerKg} onChange={setManualPricePerKg} suffix="$" />
+                  <NumberField label="Costo por kg manual (aplica a todos)" value={manualPricePerKg} onChange={setManualPricePerKg} suffix="$" />
                   <NumberField label="Consumo de impresora" value={manualPrinterConsumption} onChange={setManualPrinterConsumption} suffix="W" />
                   <NumberField label="Costo del kWh eléctrico" value={manualKwhPrice} onChange={setManualKwhPrice} suffix="$" />
                 </div>
@@ -726,20 +956,20 @@ function CalculadoraPageContent() {
               <p className="text-xs text-gray-500">Mantenimiento</p>
               <p className="text-sm font-medium text-gray-300">${calc.printerCost.toFixed(2)}</p>
             </div>
+            {calc.numLaborCost > 0 && (
+              <div className="flex items-center justify-between">
+                <p className="text-xs text-gray-500">Mano de obra</p>
+                <p className="text-sm font-medium text-gray-300">${calc.numLaborCost.toFixed(2)}</p>
+              </div>
+            )}
             <div className="flex items-center justify-between">
               <p className="text-xs text-gray-500">Insumos extra</p>
-              <p className="text-sm font-medium text-gray-300">${calc.fixedCost.toFixed(2)}</p>
+              <p className="text-sm font-medium text-gray-300">${calc.otherCostsRaw.toFixed(2)}</p>
             </div>
             <div className="flex items-center justify-between">
               <p className="text-xs text-gray-500">Recargo insumos 30%</p>
-              <p className="text-sm font-medium text-gray-300">${calc.fixedCostOverheadAmount.toFixed(2)}</p>
+              <p className="text-sm font-medium text-gray-300">${calc.otherCostsOverheadAmount.toFixed(2)}</p>
             </div>
-            {advanced && (calc.numLaborCost > 0 || calc.numOtherCost > 0) && (
-              <div className="flex items-center justify-between">
-                <p className="text-xs text-gray-500">Mano obra y otros</p>
-                <p className="text-sm font-medium text-gray-300">${(calc.numLaborCost + calc.numOtherCost).toFixed(2)}</p>
-              </div>
-            )}
           </div>
 
           <div className="bg-stampa-surface border border-stampa-border rounded-xl p-4 space-y-3">

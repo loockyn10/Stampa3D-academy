@@ -27,7 +27,12 @@ function loadPricingModule() {
   return loadedModule.exports;
 }
 
-const { calculateCalculatorPricing, FIXED_COST_OVERHEAD_RATE } = loadPricingModule();
+const {
+  aggregateCalculatorRecipeLines,
+  calculateCalculatorFilamentPricing,
+  calculateCalculatorPricing,
+  FIXED_COST_OVERHEAD_RATE,
+} = loadPricingModule();
 
 test("markup applies only to filament and fixed inputs receive a 30 percent overhead", () => {
   const result = calculateCalculatorPricing({
@@ -109,7 +114,7 @@ test("high and decimal fixed inputs receive exactly one overhead and no markup",
   assert.ok(Math.abs(decimalFixed.salePrice - 160.485) < 1e-10);
 });
 
-test("existing advanced labor and other costs stay additive without markup", () => {
+test("labor stays additive and additional inputs receive overhead without markup", () => {
   const result = calculateCalculatorPricing({
     filamentCost: 100,
     electricityCost: 10,
@@ -120,8 +125,91 @@ test("existing advanced labor and other costs stay additive without markup", () 
     otherCost: 25,
   });
 
-  assert.equal(result.baseCost, 205);
-  assert.equal(result.salePrice, 505);
+  assert.equal(result.otherCostsRaw, 25);
+  assert.equal(result.otherCostsOverheadAmount, 7.5);
+  assert.equal(result.baseCost, 212.5);
+  assert.equal(result.salePrice, 512.5);
+});
+
+test("multiple filaments are summed before waste and markup", () => {
+  const filamentPricing = calculateCalculatorFilamentPricing({
+    lines: [
+      { filamentId: "a", label: "PLA A", grams: 150, costPerKg: 10_000 },
+      { filamentId: "b", label: "PLA B", grams: 25, costPerKg: 20_000 },
+    ],
+    wasteRate: 0.05,
+  });
+  const result = calculateCalculatorPricing({
+    filamentCost: filamentPricing.filamentCostWithWaste,
+    electricityCost: 60,
+    maintenanceCost: 450,
+    fixedCost: 0,
+    otherCost: 1_800,
+    multiplier: 3,
+  });
+
+  assert.equal(filamentPricing.totalFilamentGrams, 175);
+  assert.equal(filamentPricing.filamentCostRaw, 2_000);
+  assert.equal(filamentPricing.filamentCostWithWaste, 2_100);
+  assert.equal(result.otherCostsOverheadAmount, 540);
+  assert.equal(result.otherCostsAdjusted, 2_340);
+  assert.equal(result.baseCost, 4_950);
+  assert.equal(result.salePrice, 9_150);
+  assert.notEqual(result.salePrice, result.baseCost * 3);
+});
+
+test("removing a filament line recalculates with the remaining line", () => {
+  const twoLines = [
+    { filamentId: "a", label: "PLA A", grams: 150, costPerKg: 10_000 },
+    { filamentId: "b", label: "PLA B", grams: 25, costPerKg: 20_000 },
+  ];
+  const multiple = calculateCalculatorFilamentPricing({ lines: twoLines, wasteRate: 0 });
+  const single = calculateCalculatorFilamentPricing({ lines: twoLines.slice(0, 1), wasteRate: 0 });
+
+  assert.equal(multiple.filamentCostRaw, 2_000);
+  assert.equal(single.totalFilamentGrams, 150);
+  assert.equal(single.filamentCostRaw, 1_500);
+});
+
+test("every filament line requires a selection and positive grams", () => {
+  const blankGrams = calculateCalculatorFilamentPricing({
+    lines: [{ filamentId: "a", label: "PLA A", grams: 0, costPerKg: 10_000 }],
+    wasteRate: 0,
+  });
+  const blankFilament = calculateCalculatorFilamentPricing({
+    lines: [{ filamentId: "", label: "", grams: 50, costPerKg: 10_000 }],
+    wasteRate: 0,
+  });
+
+  assert.equal(blankGrams.isValid, false);
+  assert.equal(blankFilament.isValid, false);
+});
+
+test("manual cost per kg overrides every filament line", () => {
+  const result = calculateCalculatorFilamentPricing({
+    lines: [
+      { filamentId: "a", label: "PLA A", grams: 100, costPerKg: 10_000 },
+      { filamentId: "b", label: "PLA B", grams: 50, costPerKg: 20_000 },
+    ],
+    wasteRate: 0,
+    manualCostPerKg: 30_000,
+  });
+
+  assert.deepEqual(result.filamentLines.map((line) => line.costPerKg), [30_000, 30_000]);
+  assert.equal(result.filamentCostRaw, 4_500);
+});
+
+test("product recipe aggregates duplicate filament lines and preserves total grams", () => {
+  const recipe = aggregateCalculatorRecipeLines([
+    { filamentId: "a", grams: 150, filamentType: "PLA", color: "Azul" },
+    { filamentId: "b", grams: 25, filamentType: "PLA", color: "Rojo" },
+    { filamentId: "a", grams: 10, filamentType: "PLA", color: "Azul" },
+  ]);
+
+  assert.equal(recipe.length, 2);
+  assert.equal(recipe[0].filamentId, "a");
+  assert.equal(recipe[0].grams, 160);
+  assert.equal(recipe.reduce((total, line) => total + line.grams, 0), 185);
 });
 
 test("calculator product snapshot keeps legacy keys and adds the new breakdown", () => {
@@ -147,6 +235,10 @@ test("calculator product snapshot keeps legacy keys and adds the new breakdown",
   assert.match(source, /fixed_cost: calc\.fixedCost/);
   assert.match(source, /base_cost: calc\.baseCost/);
   assert.match(source, /sale_price: calc\.normalPrice/);
+  assert.match(source, /grams: calc\.totalFilamentGrams/);
+  assert.match(source, /\.from\("product_components"\)/);
+  assert.match(source, /\.from\("product_component_filaments"\)/);
+  assert.match(source, /filamentLines: calc\.filamentLines/);
 });
 
 test("calculator summary stays compact while adjusted inputs remain internal", () => {
