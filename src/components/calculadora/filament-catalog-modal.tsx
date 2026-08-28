@@ -293,7 +293,7 @@ export function FilamentCatalogModal({ onClose, onSelect, onImported, mode = "si
           </div>
 
           {/* Content */}
-          <div className="p-4 sm:p-6 overflow-y-auto stampa-scrollbar flex-1 pb-24">
+          <div className="min-h-0 flex-1 overflow-y-auto p-4 stampa-scrollbar sm:p-6">
             {error && (
               <div className="mb-4 p-3 rounded-xl bg-red-500/10 text-red-400 text-sm border border-red-500/20 text-center">
                 {error}
@@ -444,7 +444,7 @@ export function FilamentCatalogModal({ onClose, onSelect, onImported, mode = "si
           
           {/* Footer for multiple selection */}
           {mode === "multiple" && !loading && (
-            <div className="absolute bottom-0 left-0 right-0 p-4 bg-stampa-bg-soft border-t border-white/10 backdrop-blur-md">
+            <div className="shrink-0 border-t border-white/10 bg-stampa-bg-soft p-4 backdrop-blur-md">
               <button
                 onClick={handleBulkImport}
                 disabled={selectedTemplateIds.length === 0 || isBulkImporting}
