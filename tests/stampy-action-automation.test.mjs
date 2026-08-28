@@ -221,7 +221,7 @@ test("filament movement with automation off keeps confirmation", async () => {
     harness.actionRequests[0].actionIntent.extracted.autoExecution.allowed,
     false
   );
-  assert.match(result.answer, /confirmes/i);
+  assert.match(result.answer, /Confirmá si está bien/i);
 });
 
 test("unique filament movement auto-executes when both settings are on", async () => {
@@ -343,7 +343,7 @@ test("settings read failures remain fail closed", async () => {
     );
     assert.equal(harness.executions.length, 0);
     assert.equal(result.actionIntent.extracted.autoExecution.reason, "settings_unavailable");
-    assert.match(result.answer, /confirmes/i);
+    assert.match(result.answer, /Confirmá si está bien/i);
   } finally {
     console.error = originalConsoleError;
   }

@@ -26,7 +26,7 @@ const WIDGET_CONVERSATION_STORAGE_KEY = "stampy_widget_conversation_id";
 const WIDGET_WELCOME_MESSAGE: Message = {
   id: "global-welcome:assistant",
   role: "assistant",
-  content: "Hola, soy Stampy. Contame qué problema tenés con tu impresión, tus costos o tu taller, y te ayudo a encontrar por dónde seguir.",
+  content: "Hola, soy Stampy. Te ayudo con impresión 3D, costos y esta pantalla. ¿Qué querés resolver?",
 };
 
 // Routes where GlobalStampyWidget must NOT appear
@@ -104,11 +104,23 @@ function StampyWidgetContent() {
 
   const defaultCtx: StampyContextPayload = {
     source: "page",
-    pathname: fullPathname || ""
+    pathname: fullPathname || "",
+    pageTitle: "Academia",
+    suggestedQuestions: [
+      "¿Qué puedo hacer en esta pantalla?",
+      "¿Qué filamentos tengo cargados?",
+      "Ayudame a solucionar warping",
+      "Dame una idea de producto rentable",
+    ],
   };
   
   const currentCtx = pageCtx || defaultCtx;
   const effectiveContext = stampyContext ?? currentCtx;
+  const quickSuggestions =
+    "suggestedQuestions" in effectiveContext &&
+    Array.isArray(effectiveContext.suggestedQuestions)
+      ? effectiveContext.suggestedQuestions.slice(0, 4)
+      : [];
 
   const handleSend = async (forcedInput?: string) => {
     const text = (forcedInput || input).trim();
@@ -141,7 +153,7 @@ function StampyWidgetContent() {
       setMessages((current) => [...current, {
         id: createStampyMessageId(requestId, "assistant"),
         role: "assistant", 
-        content: response.answer || "Hubo un error al generar la respuesta.", 
+        content: response.answer || "No pude responder esta vez. Probá de nuevo.",
         assistantMessageId: response.assistantMessageId,
         actionIntent: response.actionIntent,
         actionRequestId: response.actionRequestId
@@ -151,7 +163,7 @@ function StampyWidgetContent() {
         {
           id: createStampyMessageId(requestId, "assistant"),
           role: "assistant",
-          content: "Hubo un error de conexión. Por favor, probá de nuevo.",
+          content: "Algo falló al procesarlo. No hice ningún cambio. Probá de nuevo.",
         },
       ]);
     } finally {
@@ -199,7 +211,7 @@ function StampyWidgetContent() {
                   <p className="text-[11px] text-gray-500 truncate max-w-[200px]">
                     {effectiveContext.source === "lesson"
                       ? `Clase: ${(effectiveContext as any).lessonTitle || ""}`
-                      : `Pantalla: ${currentCtx.pageTitle}`}
+                      : `Pantalla: ${currentCtx.pageTitle || "Academia"}`}
                   </p>
                 </div>
               </div>
@@ -263,9 +275,9 @@ function StampyWidgetContent() {
                 </div>
               ))}
               
-              {!isLoading && messages.length === 1 && currentCtx.suggestedQuestions && currentCtx.suggestedQuestions.length > 0 && (
+              {!isLoading && messages.length === 1 && quickSuggestions.length > 0 && (
                 <div className="flex flex-wrap gap-2 pt-2 pl-9">
-                  {currentCtx.suggestedQuestions.map((sq, idx) => (
+                  {quickSuggestions.map((sq, idx) => (
                     <button
                       key={idx}
                       onClick={() => handleSend(sq)}

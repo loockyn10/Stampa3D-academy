@@ -438,7 +438,8 @@ test("askStampyAction stores the fully prepared non-executable action request", 
     harness.actionRequests[0].actionIntent.extracted.actionType,
     "discount_product_filaments"
   );
-  assert.match(result.answer, /revisá el resumen antes de confirmar/i);
+  assert.match(result.answer, /Preparé el descuento de materiales/i);
+  assert.match(result.answer, /Confirmá si está bien/i);
 });
 
 function createAtomicRpc() {

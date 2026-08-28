@@ -84,7 +84,7 @@ export function ActionIntentCard({ actionIntent, actionRequestId, initialStatus 
       setStatus("cancelled");
       setResultMessage(null);
     } else if (error) {
-      setResultMessage(error);
+      setResultMessage("No pude cancelar la acción. Probá de nuevo.");
     }
     setIsProcessing(false);
   };
@@ -97,7 +97,16 @@ export function ActionIntentCard({ actionIntent, actionRequestId, initialStatus 
     const result = await confirmStampyActionRequest({ actionRequestId });
     if (result.success) {
       setStatus("executed");
-      setResultMessage(result.message);
+      const isDiscount = actionIntent.type === "discount_filament";
+      const verb = isDiscount ? "desconté" : "sumé";
+      const preposition = isDiscount ? "de" : "a";
+      const label = actionIntent.extracted?.resolvedTarget?.label || "el filamento";
+      const newRemainingGrams = "newRemainingGrams" in result
+        ? result.newRemainingGrams
+        : null;
+      setResultMessage(
+        `Listo, ${verb} ${Number(actionIntent.extracted?.grams)}g ${preposition} ${label}. Ahora te quedan ${Number(newRemainingGrams)}g.`
+      );
     } else {
       if (result.errorCode === "already_executed") setStatus("executed");
       setResultMessage(result.message);
@@ -113,7 +122,13 @@ export function ActionIntentCard({ actionIntent, actionRequestId, initialStatus 
     const result = await confirmStampyCreateFilamentAction(actionRequestId);
     if (result.success) {
       setStatus("executed");
-      setResultMessage(result.message);
+      const label = "label" in result ? result.label : null;
+      const remainingGrams = "remainingGrams" in result
+        ? result.remainingGrams
+        : null;
+      setResultMessage(
+        `Listo, creé ${label || String(actionIntent.extracted?.material)} con ${Number(remainingGrams)}g disponibles.`
+      );
     } else {
       if (result.errorCode === "already_executed") setStatus("executed");
       setResultMessage(result.message);
@@ -129,7 +144,10 @@ export function ActionIntentCard({ actionIntent, actionRequestId, initialStatus 
     const result = await confirmStampyCreatePrinterAction(actionRequestId);
     if (result.success) {
       setStatus("executed");
-      setResultMessage(result.message);
+      const printerName = "printerName" in result ? result.printerName : null;
+      setResultMessage(
+        `Listo, creé la impresora ${printerName || String(actionIntent.extracted?.printerName)}.`
+      );
     } else {
       if (result.errorCode === "already_executed") setStatus("executed");
       setResultMessage(result.message);
@@ -145,7 +163,16 @@ export function ActionIntentCard({ actionIntent, actionRequestId, initialStatus 
     const result = await confirmStampyCreateProductAction(actionRequestId);
     if (result.success) {
       setStatus("executed");
-      setResultMessage(result.message);
+      const componentsCount = "componentsCount" in result
+        ? result.componentsCount
+        : null;
+      const productName = "productName" in result ? result.productName : null;
+      const recipeText = Number(componentsCount) > 0
+        ? " También guardé su receta de filamentos."
+        : "";
+      setResultMessage(
+        `Listo, creé ${productName || String(actionIntent.extracted?.productName)}.${recipeText}`
+      );
     } else {
       if (result.errorCode === "already_executed") setStatus("executed");
       setResultMessage(result.message);
@@ -163,10 +190,16 @@ export function ActionIntentCard({ actionIntent, actionRequestId, initialStatus 
     );
     if (result.success) {
       setStatus("executed");
+      const totalGrams = "totalGrams" in result ? result.totalGrams : null;
+      setResultMessage(
+        `Listo, desconté los filamentos de esos productos. En total se descontaron ${Number(totalGrams)}g.`
+      );
     } else if (result.errorCode === "already_executed") {
       setStatus("executed");
+      setResultMessage(result.message);
+    } else {
+      setResultMessage(result.message);
     }
-    setResultMessage(result.message);
     setIsProcessing(false);
   };
 
@@ -417,7 +450,7 @@ export function ActionIntentCard({ actionIntent, actionRequestId, initialStatus 
                           ].filter(Boolean).join(" ")}
                           {component.matchStatus === "unique"
                             ? ""
-                            : " (sin match exacto)"}
+                            : " (sin filamento asociado)"}
                         </p>
                       ))}
                     </div>
@@ -500,16 +533,16 @@ export function ActionIntentCard({ actionIntent, actionRequestId, initialStatus 
             <p className="text-xs text-stampa-orange flex items-center gap-1.5">
               <CheckCircle2 size={12} />
               {canConfirmMovement
-                ? "Stampy todavía no hizo cambios. Confirmá el movimiento para ejecutarlo."
+                ? "Movimiento preparado. Revisalo y confirmá para aplicarlo."
                 : canConfirmCreation
-                  ? "Stampy todavía no hizo cambios. Confirmá la creación para ejecutarla."
+                  ? "Filamento preparado. Revisalo y confirmá para crearlo."
                 : canConfirmPrinterCreation
-                  ? "Stampy todavía no hizo cambios. Confirmá la creación para ejecutarla."
+                  ? "Impresora preparada. Revisala y confirmá para crearla."
                 : canConfirmProductCreation
-                  ? "Stampy todavía no hizo cambios. Confirmá la creación para ejecutarla."
+                  ? "Producto preparado. Revisalo y confirmá para crearlo."
                 : canConfirmProductFilamentDiscount
-                  ? "Stampy todavía no hizo cambios. Confirmá el descuento para ejecutarlo."
-                : "Stampy no hizo cambios. Revisá y confirmá en la herramienta."}
+                  ? "Descuento preparado. Revisalo y confirmá para aplicarlo."
+                : "No hice cambios. Revisá los datos en la herramienta."}
             </p>
           )}
 
@@ -607,7 +640,7 @@ export function ActionIntentCard({ actionIntent, actionRequestId, initialStatus 
           )}
 
           {isCancelled && (
-            <p className="text-xs text-gray-500 italic">Acción descartada por el usuario.</p>
+            <p className="text-xs text-gray-500 italic">Cancelaste esta acción. No hice ningún cambio.</p>
           )}
 
           {isExecuted && (

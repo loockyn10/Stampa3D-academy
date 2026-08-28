@@ -245,8 +245,9 @@ test("a unique filament match creates a suggested confirmation without changing 
     label: "PLA · W3D · PLA Cian · Cian",
     remainingGramsBefore: 900
   });
-  assert.match(result.answer, /necesito que confirmes/i);
-  assert.match(result.answer, /Todavía no modifiqué tu stock/i);
+  assert.match(result.answer, /Voy a descontar 50g/i);
+  assert.match(result.answer, /Te quedarían 850g/i);
+  assert.match(result.answer, /Confirmá si está bien/i);
   assert.equal(actionRequests.length, 1);
   assert.equal(actionRequests[0].actionIntent.extracted.requiresConfirmation, true);
   assert.equal(savedMetadata[0].actionIntent.extracted.resolvedTarget.id, "filament-1");
@@ -582,7 +583,8 @@ test("a valid new PETG filament is prepared for explicit confirmation", async ()
   assert.equal(result.actionIntent.extracted.totalGramsAssumed, false);
   assert.equal(result.actionIntent.extracted.requiresConfirmation, true);
   assert.equal(result.actionIntent.extracted.duplicateStatus, "clear");
-  assert.match(result.answer, /necesito que confirmes/i);
+  assert.match(result.answer, /Voy a crear este filamento/i);
+  assert.match(result.answer, /Confirmá si está bien/i);
   assert.equal(actionRequests.length, 1);
   assert.equal(actionRequests[0].actionIntent.extracted.actionType, "add_filament");
 });
@@ -596,7 +598,7 @@ test("a new filament defaults to a clearly disclosed 1000g roll", async () => {
   assert.equal(result.actionIntent.type, "add_filament");
   assert.equal(result.actionIntent.extracted.totalGrams, 1000);
   assert.equal(result.actionIntent.extracted.totalGramsAssumed, true);
-  assert.match(result.answer, /1000g \(asumido\)/i);
+  assert.match(result.answer, /1000g \(asumí un rollo porque no indicaste el peso\)/i);
 });
 
 test("new filament extraction keeps subtype separate from the full label", () => {
@@ -656,7 +658,8 @@ test("a valid printer is prepared for explicit confirmation", async () => {
   assert.equal(result.actionIntent.extracted.maintenanceCostPerHour, 0);
   assert.equal(result.actionIntent.extracted.requiresConfirmation, true);
   assert.equal(result.actionIntent.extracted.duplicateStatus, "clear");
-  assert.match(result.answer, /necesito que confirmes/i);
+  assert.match(result.answer, /Voy a crear esta impresora/i);
+  assert.match(result.answer, /Confirmá si está bien/i);
   assert.equal(actionRequests.length, 1);
   assert.equal(actionRequests[0].actionIntent.extracted.actionType, "add_printer");
 });

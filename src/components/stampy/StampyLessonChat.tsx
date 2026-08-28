@@ -121,7 +121,7 @@ export function StampyLessonChat({ courseTitle, moduleTitle, lesson }: StampyLes
       setMessages((current) => [...current, {
         id: createStampyMessageId(requestId, "assistant"),
         role: "assistant", 
-        content: response.answer || "Hubo un error al generar la respuesta.", 
+        content: response.answer || "No pude responder esta vez. Probá de nuevo.",
         assistantMessageId: response.assistantMessageId,
         actionIntent: response.actionIntent,
         actionRequestId: response.actionRequestId
@@ -130,7 +130,7 @@ export function StampyLessonChat({ courseTitle, moduleTitle, lesson }: StampyLes
       setMessages((current) => [...current, {
         id: createStampyMessageId(requestId, "assistant"),
         role: "assistant",
-        content: "Hubo un error de conexión con mi servidor. Por favor, probá de nuevo."
+        content: "Algo falló al procesarlo. No hice ningún cambio. Probá de nuevo."
       }]);
     } finally {
       requestInFlightRef.current = false;

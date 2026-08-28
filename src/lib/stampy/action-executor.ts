@@ -580,7 +580,7 @@ export async function prepareProductFilamentDiscount({
       blockers.push({
         code: "product_ambiguous",
         productName: item.productName,
-        message: `Encontré más de un producto parecido a ${item.productName}; necesito que aclares cuál es.`,
+        message: `Encontré más de un producto parecido a ${item.productName}. Decime cuál querés usar o revisalos desde Productos.`,
       });
       continue;
     }
@@ -726,9 +726,9 @@ export async function prepareProductFilamentDiscount({
             code: "filament_unresolved",
             productName: product.name,
             componentSnapshot: snapshot,
-            message: `El producto ${product.name} tiene un componente de ${Number(
+            message: `No puedo descontar ${product.name} todavía porque su receta incluye ${Number(
               material.grams
-            )}g ${snapshot || "sin identificar"}, pero no está asociado a un filamento exacto.`,
+            )}g ${snapshot || "de un material sin identificar"} sin asociar a un filamento del stock. Abrí Productos, asociá el filamento correcto y volvé a intentarlo.`,
           });
           continue;
         }
@@ -797,6 +797,10 @@ export async function executeFilamentStockMovement({
   });
 
   if (error) {
+    console.error(
+      "[Stampy] filament movement confirmation failed",
+      error.message.substring(0, 200)
+    );
     return {
       success: false,
       actionRequestId,
@@ -805,7 +809,7 @@ export async function executeFilamentStockMovement({
       newRemainingGrams: null,
       deltaGrams: null,
       errorCode: "rpc_error",
-      message: error.message || "No pude confirmar el movimiento de filamento.",
+      message: "Algo falló al confirmar el movimiento. No hice ningún cambio. Probá de nuevo o abrí Stock.",
     };
   }
 
@@ -844,6 +848,10 @@ export async function executeCreateFilament({
   });
 
   if (error) {
+    console.error(
+      "[Stampy] filament creation confirmation failed",
+      error.message.substring(0, 200)
+    );
     return {
       success: false,
       actionRequestId,
@@ -852,7 +860,7 @@ export async function executeCreateFilament({
       totalGrams: null,
       remainingGrams: null,
       errorCode: "rpc_error",
-      message: error.message || "No pude crear el filamento.",
+      message: "Algo falló al crear el filamento. No hice ningún cambio. Probá de nuevo o abrí Stock.",
     };
   }
 
@@ -893,6 +901,10 @@ export async function executeCreatePrinter({
   });
 
   if (error) {
+    console.error(
+      "[Stampy] printer creation confirmation failed",
+      error.message.substring(0, 200)
+    );
     return {
       success: false,
       actionRequestId,
@@ -901,7 +913,7 @@ export async function executeCreatePrinter({
       powerWatts: null,
       maintenanceCostPerHour: null,
       errorCode: "rpc_error",
-      message: error.message || "No pude crear la impresora.",
+      message: "Algo falló al crear la impresora. No hice ningún cambio. Probá de nuevo o abrí Calculadora.",
     };
   }
 
@@ -944,6 +956,10 @@ export async function executeCreateProduct({
   });
 
   if (error) {
+    console.error(
+      "[Stampy] product creation confirmation failed",
+      error.message.substring(0, 200)
+    );
     return {
       success: false,
       actionRequestId,
@@ -952,7 +968,7 @@ export async function executeCreateProduct({
       componentsCount: null,
       unmatchedComponentsCount: null,
       errorCode: "rpc_error",
-      message: error.message || "No pude crear el producto.",
+      message: "Algo falló al crear el producto. No hice ningún cambio. Probá de nuevo o abrí Productos.",
     };
   }
 
@@ -996,6 +1012,10 @@ export async function executeProductFilamentDiscount({
   );
 
   if (error) {
+    console.error(
+      "[Stampy] product filament discount confirmation failed",
+      error.message.substring(0, 200)
+    );
     return {
       success: false,
       actionRequestId,
@@ -1003,7 +1023,7 @@ export async function executeProductFilamentDiscount({
       filamentsCount: null,
       totalGrams: null,
       errorCode: "rpc_error",
-      message: error.message || "No pude confirmar el descuento por productos.",
+      message: "Algo falló al descontar los filamentos. No hice ningún cambio. Probá de nuevo o abrí Productos.",
     };
   }
 

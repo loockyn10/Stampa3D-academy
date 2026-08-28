@@ -142,78 +142,79 @@ function buildFilamentMovementResponse(actionIntent: StampyActionIntent): string
   const matchStatus = actionIntent.extracted.matchStatus;
 
   if (actionIntent.extracted.requiresConfirmation === true && resolvedTarget?.label) {
-    const actionLabel =
-      actionIntent.type === "discount_filament" ? "descontar stock" : "aumentar stock";
-    return `Detecté un movimiento de filamento:\n\n- Acción: ${actionLabel}\n- Filamento: ${resolvedTarget.label}\n- Cantidad: ${grams}g\n\nAntes de hacerlo necesito que confirmes. Todavía no modifiqué tu stock.`;
+    const isDiscount = actionIntent.type === "discount_filament";
+    const verb = isDiscount ? "descontar" : "sumar";
+    const preposition = isDiscount ? "de" : "a";
+    const remainingBefore = Number(resolvedTarget.remainingGramsBefore);
+    const remainingAfter = isDiscount
+      ? remainingBefore - grams
+      : remainingBefore + grams;
+    const remainingText = Number.isFinite(remainingAfter)
+      ? ` Te quedarían ${remainingAfter}g.`
+      : "";
+    return `Voy a ${verb} ${grams}g ${preposition} ${resolvedTarget.label}.${remainingText} Confirmá si está bien.`;
   }
 
   if (matchStatus === "multiple") {
-    return "Encontré más de un filamento posible. Para evitar errores, elegilo desde Stock. Todavía no modifiqué tu stock.";
+    return "Encontré más de un filamento posible. Decime cuál querés usar o elegilo desde Stock. No hice cambios.";
   }
 
-  return "No encontré un filamento activo que coincida con esos datos. Te dejo Stock abierto para que lo selecciones manualmente. Todavía no modifiqué tu stock.";
+  return "No encontré un filamento activo que coincida. Revisá el nombre, material, marca o color, o elegilo desde Stock. No hice cambios.";
 }
 
 function buildCreateFilamentResponse(actionIntent: StampyActionIntent): string {
   const extracted = actionIntent.extracted;
   if (extracted.duplicateStatus === "duplicate") {
-    return "Ya encontré un filamento parecido cargado. Para evitar duplicados, te conviene aumentar stock desde el existente o revisar Stock. Todavía no creé nada.";
+    return "Ya existe un filamento parecido. Para evitar duplicados, revisalo desde Stock. No hice cambios.";
   }
 
   if (extracted.requiresConfirmation !== true) {
-    return "No pude verificar con seguridad que el filamento sea nuevo. Abrí Stock para revisarlo antes de crear nada.";
+    return "No pude confirmar que sea un filamento nuevo. Revisalo desde Stock antes de crearlo.";
   }
 
-  const details = [
-    `- Material: ${String(extracted.material)}`,
-    extracted.brand ? `- Marca: ${String(extracted.brand)}` : null,
-    extracted.name ? `- Subtipo: ${String(extracted.name)}` : null,
-    extracted.color ? `- Color: ${String(extracted.color)}` : null,
-    `- Peso total: ${Number(extracted.totalGrams)}g${
-      extracted.totalGramsAssumed === true ? " (asumido)" : ""
-    }`,
-  ].filter((detail): detail is string => Boolean(detail));
-
-  return `Preparé este filamento nuevo:\n\n${details.join(
-    "\n"
-  )}\n\nAntes de crearlo necesito que confirmes. Todavía no hice cambios.`;
+  const label = [
+    extracted.material,
+    extracted.brand,
+    extracted.name,
+    extracted.color,
+  ]
+    .filter(Boolean)
+    .join(" ");
+  const assumption = extracted.totalGramsAssumed === true
+    ? " (asumí un rollo porque no indicaste el peso)"
+    : "";
+  return `Voy a crear este filamento: ${label}, ${Number(
+    extracted.totalGrams
+  )}g${assumption}. Confirmá si está bien.`;
 }
 
 function buildCreatePrinterResponse(actionIntent: StampyActionIntent): string {
   const extracted = actionIntent.extracted;
   if (extracted.duplicateStatus === "active_duplicate") {
-    return "Ya encontré una impresora parecida cargada. Para evitar duplicados, revisala desde Calculadora. Todavía no creé nada.";
+    return "Ya existe una impresora parecida. Para evitar duplicados, revisala desde Calculadora. No hice cambios.";
   }
   if (extracted.duplicateStatus === "inactive_match") {
     return "Ya existe una impresora parecida, pero está inactiva. Por ahora Stampy no la reactiva automáticamente; abrí Calculadora para revisarla.";
   }
   if (extracted.duplicateStatus === "ambiguous") {
-    return "Encontré varias impresoras parecidas y no puedo elegir una con seguridad. Abrí Calculadora para revisarlas.";
+    return "Encontré más de una impresora posible. Decime cuál querés usar o revisalas desde Calculadora.";
   }
   if (extracted.requiresConfirmation !== true) {
     return "No pude verificar con seguridad que la impresora sea nueva. Abrí Calculadora para revisarla antes de crear nada.";
   }
 
-  const warnings = Array.isArray(extracted.validationWarnings)
-    ? (extracted.validationWarnings as string[])
-    : [];
-  const warningText = warnings.length
-    ? `\n\n${warnings.map((warning) => `- ${warning}`).join("\n")}`
-    : "";
-  return `Detecté una nueva impresora:\n\n- Nombre: ${String(
+  return `Voy a crear esta impresora: ${String(
     extracted.printerName
-  )}\n- Potencia: ${Number(extracted.powerWatts)}W\n- Mantenimiento/hora: $${Number(
-    extracted.maintenanceCostPerHour
-  )}${warningText}\n\nAntes de crearla necesito que confirmes. Todavía no hice cambios.`;
+  )}, ${Number(extracted.powerWatts)}W. Confirmá si está bien.`;
 }
 
 function buildCreateProductResponse(actionIntent: StampyActionIntent): string {
   const extracted = actionIntent.extracted;
-  if (
-    extracted.duplicateStatus === "duplicate" ||
-    extracted.duplicateStatus === "ambiguous"
-  ) {
-    return "Ya encontré un producto parecido cargado. Para evitar duplicados, abrí Productos o Stock. Todavía no creé nada.";
+  if (extracted.duplicateStatus === "duplicate") {
+    return "Ya existe un producto parecido. Para evitar duplicados, revisalo desde Productos. No hice cambios.";
+  }
+  if (extracted.duplicateStatus === "ambiguous") {
+    return "Encontré más de un producto posible. Decime cuál querés usar o revisalos desde Productos. No hice cambios.";
   }
   if (extracted.requiresConfirmation !== true) {
     return "No pude verificar con seguridad que el producto sea nuevo. Abrí Productos para revisarlo antes de crear nada.";
@@ -222,26 +223,6 @@ function buildCreateProductResponse(actionIntent: StampyActionIntent): string {
   const components = Array.isArray(extracted.components)
     ? (extracted.components as Array<Record<string, unknown>>)
     : [];
-  const componentLines = components.map((component) => {
-    const details = [
-      component.material,
-      component.brand,
-      component.name,
-      component.color,
-    ].filter(Boolean);
-    const suffix =
-      component.matchStatus === "unique"
-        ? ""
-        : " (sin filamento exacto asociado)";
-    return `- ${Number(component.grams)}g ${details.join(" ")}${suffix}`;
-  });
-  const recipeText = componentLines.length
-    ? `\n- Receta:\n${componentLines.join("\n")}`
-    : "\n- Receta: no indicada";
-  const stockText =
-    extracted.initialStock === null || extracted.initialStock === undefined
-      ? "0 (no indicado)"
-      : String(extracted.initialStock);
   const formatMinutes = (value: unknown) => {
     if (value === null || value === undefined || value === "") return "no indicado";
     const minutes = Number(value);
@@ -259,20 +240,32 @@ function buildCreateProductResponse(actionIntent: StampyActionIntent): string {
       ? `$${new Intl.NumberFormat("es-AR", { maximumFractionDigits: 2 }).format(amount)}`
       : "no indicado";
   };
-  const warnings = Array.isArray(extracted.validationWarnings)
-    ? (extracted.validationWarnings as string[])
-    : [];
-  const warningText = warnings.length
-    ? `\n\n${warnings.map((warning) => `- ${warning}`).join("\n")}`
-    : "";
+  const details = [
+    extracted.initialStock !== null && extracted.initialStock !== undefined
+      ? `stock ${Number(extracted.initialStock)}`
+      : null,
+    extracted.printTimeMinutes !== null && extracted.printTimeMinutes !== undefined
+      ? `${formatMinutes(extracted.printTimeMinutes)} de impresión`
+      : null,
+    extracted.baseCost !== null && extracted.baseCost !== undefined
+      ? `costo ${formatMoney(extracted.baseCost)}`
+      : null,
+    extracted.salePrice !== null && extracted.salePrice !== undefined
+      ? `venta ${formatMoney(extracted.salePrice)}`
+      : null,
+    components.length > 0
+      ? `${components.length} filamento${components.length === 1 ? "" : "s"} en la receta`
+      : null,
+  ].filter((detail): detail is string => Boolean(detail));
+  const detailsText = details.length === 0
+    ? ""
+    : details.length === 1
+      ? ` con ${details[0]}`
+      : ` con ${details.slice(0, -1).join(", ")} y ${details.at(-1)}`;
 
-  return `Preparé este producto:\n\n- Producto: ${String(
+  return `Voy a crear ${String(
     extracted.productName
-  )}\n- Stock inicial: ${stockText}\n- Tiempo de impresión: ${formatMinutes(
-    extracted.printTimeMinutes
-  )}\n- Costo base: ${formatMoney(extracted.baseCost)}\n- Precio de venta: ${formatMoney(
-    extracted.salePrice
-  )}${recipeText}${warningText}\n\nAntes de crearlo necesito que confirmes. Todavía no hice cambios.`;
+  )}${detailsText}. Confirmá si está bien.`;
 }
 
 function buildProductFilamentDiscountResponse(
@@ -287,9 +280,27 @@ function buildProductFilamentDiscountResponse(
       "No pude preparar el descuento con seguridad. Revisá las recetas desde Productos.";
   }
   if (extracted.requiresConfirmation !== true) {
-    return "No pude verificar las recetas y el stock con seguridad. No modifiqué ningún filamento.";
+    return "No pude verificar las recetas y el stock. Revisalas desde Productos antes de intentarlo de nuevo. No hice cambios.";
   }
-  return "Encontré las recetas y preparé el descuento. Revisá el resumen antes de confirmar. Esta acción no baja el stock de productos terminados.";
+  const products = Array.isArray(extracted.resolvedProducts)
+    ? (extracted.resolvedProducts as Array<Record<string, unknown>>)
+    : [];
+  const consumptions = Array.isArray(extracted.consumptions)
+    ? (extracted.consumptions as Array<Record<string, unknown>>)
+    : [];
+  const lines = [
+    ...products.map(
+      (product) =>
+        `- ${Number(product.quantity)} × ${String(product.productName)}`
+    ),
+    ...consumptions.map(
+      (consumption) =>
+        `- ${String(consumption.label)}: ${Number(consumption.requiredGrams)}g`
+    ),
+  ];
+  return `Preparé el descuento de materiales:\n${lines.join(
+    "\n"
+  )}\n\nConfirmá si está bien. Esta acción no cambia el stock de productos terminados.`;
 }
 
 type AutoExecutionReason =
@@ -491,7 +502,7 @@ export async function askStampyAction(
 ) {
   const startTime = Date.now();
   let actualConversationId = conversationId || null;
-  let answerText = "No pude generar una respuesta.";
+  let answerText = "No pude responder esta vez. Probá de nuevo.";
   let requestMode: "openai" | "direct" | "blocked" | "error" = "openai";
   const supabase = await createClient();
   let currentUserId: string | null = null;
@@ -548,7 +559,7 @@ export async function askStampyAction(
       });
 
       return {
-        answer: "Llegaste al límite temporal de mensajes de Stampy. Probá de nuevo más tarde.",
+        answer: "Llegaste al límite de mensajes por ahora. Probá de nuevo más tarde.",
         recommendations: [],
         knowledgeTools: [],
         relatedTools: [],
@@ -1140,7 +1151,16 @@ export async function askStampyAction(
     }
 
     // 4. Preparar system prompt
-    let systemPrompt = "Sos Stampy, el asistente de Academia Stampa. Respondé breve, práctico y en español argentino.\n";
+    let systemPrompt = `Sos Stampy, el asistente experto de Academia Stampa para impresión 3D, taller y negocio.
+Hablá en español argentino neutro, de forma cercana, clara y práctica.
+Respondé corto por defecto: primera línea directa, hasta 3 viñetas si ayudan y un próximo paso claro.
+No suenes corporativo ni conviertas cada respuesta en una clase. No uses frases como "Como IA" o "Según mi conocimiento".
+No menciones detalles internos de implementación. Nunca nombres SQL, RPC, action_request, can_execute, metadata ni Supabase.
+No inventes datos ni afirmes que una acción se ejecutó si solo quedó preparada para confirmar.
+Si hay datos concretos, respondé con seguridad. Si faltan, decí exactamente qué necesitás.
+Para problemas de impresión 3D, priorizá diagnóstico práctico y pruebas en orden. Para negocio, proponé una acción concreta. Para usar la plataforma, indicá la sección correcta.
+Si hay una clase relevante, podés recomendarla sin forzarla.
+`;
     
     if (dynamicContextData.text) {
       systemPrompt += `\n${dynamicContextData.text}\n`;
@@ -1158,9 +1178,8 @@ Reglas:
     }
 
     systemPrompt += `\nRegla sobre contenido de la Academia:
-Si el usuario pregunta por clases específicas o contenido de la academia y no hay chunks suficientes devueltos en tu contexto, debés ser prudente. 
-Podés decir algo como "Todavía no tengo contenido cargado suficiente de esa clase. Puedo orientarte de forma general o indicarte dónde verlo cuando esté disponible".
-No inventes que existe una clase completa o contenidos si solo tenés el título.\n`;
+Si el usuario pregunta por una clase y no hay contenido o transcripción relevante, decí: "No encontré contenido suficiente de esa clase para responderte con precisión. Puedo orientarte de forma general o ayudarte a buscar otra clase".
+No inventes clases ni contenidos a partir de un título.\n`;
 
     // 4. Buscar contexto del usuario de forma segura
     let userContext = null;
@@ -1283,23 +1302,12 @@ El usuario todavía no tiene filamentos ni productos cargados en su stock.`;
 ${workshopContext.text}
 
 Reglas del taller:
-- Estos datos son solo lectura.
 - No digas "no tengo acceso" si el dato está en este bloque.
 - Si el dato no está disponible, decilo naturalmente.
 - No inventes stock, impresoras ni productos fuera del contexto.
 - Podés usar este contexto para responder preguntas sobre impresoras cargadas, filamentos disponibles, stock aproximado, productos cargados y configuración general.
-
-No podés todavía:
-- crear datos
-- editar datos
-- descontar stock
-- crear presupuestos
-- ejecutar acciones
-
-Si el usuario pide una acción:
-- explicá brevemente que por ahora podés orientarlo
-- mandalo a la herramienta correspondiente
-- no digas que lo hiciste\n`;
+- Las acciones seguras se detectan y preparan fuera de este prompt. En una respuesta normal, no prometas ni simules cambios.
+- Si el usuario necesita una operación que no está disponible, explicá qué falta y dirigilo a la herramienta correspondiente.\n`;
 
     if (memoryPromptText) {
       systemPrompt += `\n\n${memoryPromptText}\n`;
@@ -1308,7 +1316,8 @@ Si el usuario pide una acción:
     systemPrompt += `\nReglas generales:
 - Respuestas MUY breves y prácticas.
 - No inventes datos.
-- No modifiques datos reales, solo orientá sobre cómo hacerlo.
+- Diferenciá con claridad una acción preparada de una acción ejecutada.
+- Ante un error, explicá el próximo paso sin culpar al usuario ni mostrar detalles técnicos.
 - Cuando el usuario pregunte por filamentos, materiales o tipos como PLA/PETG/TPU, usá exclusivamente el contexto de filamentos. No interpretes esos términos como productos. Si recomendás una herramienta, mandá a Stock de filamentos, no a Stock de productos.
 - Podés usar el historial reciente de esta conversación para mantener continuidad. No inventes datos permanentes del usuario si no aparecen en el perfil, el taller o el historial reciente. Si el usuario cambia de tema, adaptate al nuevo tema.
 - REGLA CRÍTICA PARA PRESUPUESTOS Y CÁLCULOS: Cuando el usuario pida presupuestos o cálculos de precio, no inventes importes, tarifas, costos, márgenes ni totales. Si no estás usando una herramienta real que calcule, derivá al usuario a Presupuestos o Calculadora. Si el usuario pide crear un presupuesto, no uses datos de impresión anteriores salvo que diga explícitamente 'con esos datos', 'con lo anterior' o similar.`;
@@ -1387,7 +1396,7 @@ ${relevantContracts.map(formatToolContractForPrompt).join("\n\n")}\n`;
       messages: messagesPayload
     });
 
-    answerText = completion.choices[0]?.message?.content || "No pude generar una respuesta.";
+    answerText = completion.choices[0]?.message?.content || "No pude responder esta vez. Probá de nuevo.";
     // 6. Buscar lecciones recomendables (búsqueda textual simple)
     const { data: rawLessons } = await supabase
       .from('lessons')
@@ -1567,7 +1576,7 @@ ${relevantContracts.map(formatToolContractForPrompt).join("\n\n")}\n`;
     }
 
     return {
-      answer: "No pude conectarme con Stampy en este momento. Revisá la configuración de OpenAI.",
+      answer: "Algo falló al procesarlo. No hice ningún cambio. Probá de nuevo o abrí la herramienta manualmente.",
       recommendations: [],
       knowledgeTools: [],
       relatedTools: [],

@@ -84,7 +84,7 @@ export async function getStampyWorkshopContext({
       });
       text += "\n";
     } else {
-      text += "Impresoras cargadas:\nNo tiene impresoras cargadas.\n\n";
+      text += "Impresoras cargadas:\nTodavía no tiene impresoras cargadas. Si pregunta por esto, sugerile crear una desde Calculadora o pedírtelo con nombre y potencia.\n\n";
     }
 
     // 3. Filaments
@@ -109,7 +109,7 @@ export async function getStampyWorkshopContext({
     if (activeFilamentsError) {
       activeFilamentsErrorMsg = activeFilamentsError.message;
       console.error("[Stampy] active filaments query failed", activeFilamentsError);
-      text += "No pude leer los filamentos por un error interno.\n\n";
+      text += "Estado de filamentos: no disponible temporalmente. No inventes cantidades y sugerí volver a intentar.\n\n";
     }
 
 
@@ -234,7 +234,7 @@ export async function getStampyWorkshopContext({
       }
     } else {
       if (activeFilaments && !activeFilamentsError && activeFilaments.length === 0) {
-        text += "No tenés filamentos activos cargados en tu taller.\n\n";
+        text += "Todavía no tiene filamentos cargados. Si pregunta por esto, respondé: \"Todavía no tenés filamentos cargados. Podés pedirme: 'Creame un filamento PLA rojo de 1kg'.\"\n\n";
       }
     }
 
@@ -267,7 +267,7 @@ export async function getStampyWorkshopContext({
         text += "\n";
       }
     } else {
-      text += "Productos:\nNo tiene productos cargados.\n\n";
+      text += "Productos:\nTodavía no tiene productos cargados. Si pregunta por esto, sugerile crear uno desde Productos o pedirte que lo prepares con su receta.\n\n";
     }
 
     // Truncate if too long

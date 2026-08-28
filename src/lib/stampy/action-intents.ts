@@ -848,53 +848,21 @@ export function detectStampyActionIntent({
   return null;
 }
 
-import { getStampyToolContractsForIntent } from "./tool-registry";
-
 export function buildActionIntentResponse(intent: StampyActionIntent): string {
-  const contracts = getStampyToolContractsForIntent(intent.type);
-  const contract = contracts.length > 0 ? contracts[0] : null;
-
   if (intent.type === "create_quote") {
     if (intent.extracted.incomplete && intent.extracted.reason === "grams_only") {
-      return "Con solo gramos no alcanza para armar un presupuesto. Para presupuestar necesitás indicar cliente, producto, cantidad, título, fecha de validez y notas. Los gramos pueden servir como información adicional, pero no son la base del presupuesto.";
+      return "Con solo los gramos no alcanza para armar un presupuesto. Decime cliente, producto y cantidad; el precio se revisa en Presupuestos.";
     }
-    return "Para armar un presupuesto necesitás cargarlo desde la herramienta de Presupuestos. Los datos principales son cliente, producto, cantidad, título, fecha de validez y notas. Todavía no creo presupuestos desde el chat, pero te dejo el acceso para que lo cargues y revises.";
+    return "Preparé los datos para Presupuestos. Revisalos ahí y completá el precio antes de guardarlo.";
   }
 
   if (intent.type === "calculate_price") {
     return "Puedo llevarte a la calculadora para que revises el cálculo. Si detecto gramos y horas, los puedo precargar, pero revisá manualmente impresora, filamento y tipo de producto antes de tomar el precio como válido.";
   }
 
-  let response = "Detecté que querés hacer una acción, pero todavía no ejecuto cambios directamente desde el chat.\n\n";
-  response += "Acción detectada:\n";
-  response += `- Tipo: ${intent.title}\n`;
-  
-  const extractedKeys = Object.keys(intent.extracted);
-  if (extractedKeys.length > 0) {
-    const extractedLines = extractedKeys
-      .filter(k => intent.extracted[k] !== null && intent.extracted[k] !== undefined && k !== "missingFields" && k !== "title" && k !== "incomplete" && k !== "reason")
-      .map(k => {
-        let label = k;
-        if (k === "grams") label = "Cantidad";
-        if (k === "hours") label = "Horas";
-        if (k === "material") label = "Material";
-        if (k === "color") label = "Color";
-        if (k === "brand") label = "Marca";
-        return `  - ${label}: ${intent.extracted[k]}${k === "grams" ? "g" : ""}${k === "hours" ? "h" : ""}`;
-      });
-    
-    if (extractedLines.length > 0) {
-      response += "- Datos detectados:\n" + extractedLines.join("\n") + "\n";
-    }
-  }
-
-  if (contract && contract.safetyNotes.length > 0) {
-    response += `\nNotas de seguridad:\n${contract.safetyNotes.map(n => `- ${n}`).join("\n")}\n`;
-  }
-
   if (intent.toolLabel) {
-    response += `\nTe dejo la herramienta de **${intent.toolLabel}** preparada acá abajo para que revises y confirmes la acción manualmente.`;
+    return `Preparé el acceso a ${intent.toolLabel}. Revisá los datos ahí antes de continuar.`;
   }
 
-  return response;
+  return "Entendí la acción, pero necesito que la revises desde la herramienta correspondiente antes de continuar.";
 }

@@ -480,7 +480,8 @@ test("create_product always requires confirmation and never enters low-risk auto
     reason: "unsupported_action",
   });
   assert.equal(harness.executions.length, 0);
-  assert.match(result.answer, /necesito que confirmes/i);
+  assert.match(result.answer, /Voy a crear Jarro Argentina/i);
+  assert.match(result.answer, /Confirmá si está bien/i);
   assert.equal(harness.actionRequests.length, 1);
   assert.equal(
     actionSettings.canAutoExecuteStampyAction({

@@ -23,13 +23,12 @@ interface Message {
 }
 
 const QUICK_SUGGESTIONS = [
-  "Se me levantan las esquinas",
-  "La primera capa no pega",
-  "Tengo stringing",
-  "No sé cuánto cobrar",
-  "Quiero hacer un presupuesto",
-  "Quiero organizar mi stock",
-  "Tengo problemas con OrcaSlicer"
+  "¿Qué filamentos tengo cargados?",
+  "Descontame 20g de PLA",
+  "Creame un filamento nuevo PLA rojo de 1kg",
+  "Creame una impresora Bambu A1 Mini de 350W",
+  "Ayudame a solucionar warping",
+  "Dame una idea de producto rentable",
 ];
 
 const MAIN_CONVERSATION_STORAGE_KEY = "stampy_main_conversation_id";
@@ -53,7 +52,7 @@ export default function StampyPage() {
     {
       id: "1",
       role: "assistant",
-      content: "Hola, soy Stampy. Contame qué problema tenés con tu impresión, tus costos o tu taller, y te ayudo a encontrar por dónde seguir dentro de Academia Stampa."
+      content: "Hola, soy Stampy. Te ayudo con impresión 3D, costos y tu taller. ¿Qué querés resolver?"
     }
   ]);
   const [input, setInput] = useState("");
@@ -127,7 +126,7 @@ export default function StampyPage() {
       setMessages(prev => [...prev, {
         id: createStampyMessageId(requestId, "assistant"),
         role: "assistant",
-        content: "No pude comunicarme en este momento. Probá de nuevo."
+        content: "Algo falló al procesarlo. No hice ningún cambio. Probá de nuevo."
       }]);
     } finally {
       requestInFlightRef.current = false;

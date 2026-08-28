@@ -25,9 +25,9 @@ export function getStaticStampyPageContext(pathname: string): StampyStaticPageCo
       context:
         "El usuario está gestionando stock de filamentos, productos terminados y partes. Ayudalo con movimientos, descuentos por producción, control de faltantes y stock bajo.",
       suggestedQuestions: [
-        "¿Cómo descuento filamento?",
+        "¿Qué filamentos tengo cargados?",
+        "Descontame 20g de PLA",
         "¿Cómo controlo stock bajo?",
-        "¿Qué significa este movimiento?"
       ]
     },
     {
@@ -49,7 +49,7 @@ export function getStaticStampyPageContext(pathname: string): StampyStaticPageCo
       context:
         "El usuario está gestionando productos. Ayudalo con costos guardados, precios de venta, productos simples, productos armables, partes y relación con stock.",
       suggestedQuestions: [
-        "¿Cómo creo un producto?",
+        "Creame un producto con receta de filamentos",
         "¿Qué diferencia hay entre simple y armable?",
         "¿Cómo actualizo el costo?"
       ]
