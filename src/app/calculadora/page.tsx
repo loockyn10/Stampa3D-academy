@@ -14,6 +14,7 @@ import { PrinterCatalogModal } from "@/components/calculadora/printer-catalog-mo
 import { FilamentCatalogModal } from "@/components/calculadora/filament-catalog-modal";
 import { normalizeFilamentColor } from "@/lib/colors/filament-colors";
 import { getFilamentLabel } from "@/lib/filaments/utils";
+import { calculateCalculatorPricing } from "@/lib/calculator/pricing";
 import {
   findStampyFilamentMatch,
   findStampyNamedMatch,
@@ -317,20 +318,31 @@ function CalculadoraPageContent() {
     // Costo Mantenimiento/Amortización
     const printerCost = totalHours * numManualPrinterMaintenance;
 
-    // Costo Base
-    const baseCost = materialCost + energyCost + printerCost + numLaborCost + numOtherCost + numFixedCost;
+    const pricing = calculateCalculatorPricing({
+      filamentCost: materialCost,
+      electricityCost: energyCost,
+      maintenanceCost: printerCost,
+      fixedCost: numFixedCost,
+      multiplier: numManualMultiplier,
+      laborCost: numLaborCost,
+      otherCost: numOtherCost,
+    });
 
-    // Precio Normal
-    const normalPrice = baseCost * numManualMultiplier;
+    const baseCost = pricing.baseCost;
+    const normalPrice = pricing.salePrice;
 
     // Precio Mercado Libre
     const mlPrice = normalPrice + numManualPlatformExtra + (normalPrice * numManualPlatformCommission / 100) + numShippingCost;
 
-    // Ganancia
-    const profit = normalPrice - baseCost;
+    const profit = pricing.profit;
 
     return {
       materialCost, energyCost, printerCost, fixedCost: numFixedCost, baseCost, normalPrice, mlPrice, profit,
+      fixedCostOverheadRate: pricing.fixedCostOverheadRate,
+      fixedCostOverheadAmount: pricing.fixedCostOverheadAmount,
+      fixedCostAdjusted: pricing.fixedCostAdjusted,
+      multipliableCost: pricing.multipliableCost,
+      nonMultipliableCost: pricing.nonMultipliableCost,
       weightWithError, totalHours,
       numWeight, numHours, numMinutes, numLaborCost, numOtherCost, numManualMultiplier, numManualErrorPercent
     };
@@ -368,12 +380,24 @@ function CalculadoraPageContent() {
       electricity_cost: calc.energyCost,
       maintenance_cost: calc.printerCost,
       fixed_cost: calc.fixedCost,
+      fixed_cost_overhead_rate: calc.fixedCostOverheadRate,
+      fixed_cost_overhead_amount: calc.fixedCostOverheadAmount,
+      fixed_cost_adjusted: calc.fixedCostAdjusted,
       labor_cost: calc.numLaborCost,
       other_costs: calc.numOtherCost,
       base_cost: calc.baseCost,
       multiplier: calc.numManualMultiplier,
       sale_price: calc.normalPrice,
       profit: calc.profit,
+      filamentCost: calc.materialCost,
+      electricityCost: calc.energyCost,
+      maintenanceCost: calc.printerCost,
+      fixedCost: calc.fixedCost,
+      fixedCostOverheadRate: calc.fixedCostOverheadRate,
+      fixedCostOverheadAmount: calc.fixedCostOverheadAmount,
+      fixedCostAdjusted: calc.fixedCostAdjusted,
+      baseCost: calc.baseCost,
+      salePrice: calc.normalPrice,
       // Filament details
       filament_id: selectedFilamentId || null,
       filament_name: selectedFilament?.name || null,
@@ -606,7 +630,7 @@ function CalculadoraPageContent() {
 
             <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
               <label className="block">
-                <span className="mb-1 block text-xs font-semibold text-gray-500">Tipo de producto (Margen)</span>
+                <span className="mb-1 block text-xs font-semibold text-gray-500">Tipo de producto (Markup sólo sobre filamento)</span>
                 <CalculatorSelect
                   options={multipliers.map(m => ({
                     value: m.id,
@@ -617,6 +641,9 @@ function CalculadoraPageContent() {
                   placeholder="Seleccioná margen..."
                   searchable={false}
                 />
+                <p className="mt-2 text-[11px] leading-relaxed text-gray-500">
+                  Los insumos extra del tipo elegido pueden incluir aluminio, pegamento, frascos o packaging. Se les suma un 30% por envío, desperdicio o unidades falladas; el markup no se aplica a esos insumos.
+                </p>
               </label>
             </div>
           </div>
@@ -656,7 +683,7 @@ function CalculadoraPageContent() {
                   <NumberField label="Mantenimiento de máquina por hora" value={manualPrinterMaintenance} onChange={setManualPrinterMaintenance} suffix="$" />
                   <NumberField label="Costo de mano de obra (total)" value={laborCost} onChange={setLaborCost} suffix="$" />
                   <NumberField label="Otros costos adicionales" value={otherCost} onChange={setOtherCost} suffix="$" />
-                  <NumberField label="Markup manual (sobreescribe)" value={manualMultiplier} onChange={setManualMultiplier} suffix="x" step={0.1} />
+                  <NumberField label="Markup manual sobre filamento (sobreescribe)" value={manualMultiplier} onChange={setManualMultiplier} suffix="x" step={0.1} />
                 </div>
               </div>
             </div>
@@ -688,7 +715,7 @@ function CalculadoraPageContent() {
 
           <div className="space-y-3 mb-6">
             <div className="flex items-center justify-between">
-              <p className="text-xs text-gray-500">Material</p>
+              <p className="text-xs text-gray-500">Filamento</p>
               <p className="text-sm font-medium text-gray-300">${calc.materialCost.toFixed(2)}</p>
             </div>
             <div className="flex items-center justify-between">
@@ -700,8 +727,16 @@ function CalculadoraPageContent() {
               <p className="text-sm font-medium text-gray-300">${calc.printerCost.toFixed(2)}</p>
             </div>
             <div className="flex items-center justify-between">
-              <p className="text-xs text-gray-500">Costo Fijo</p>
+              <p className="text-xs text-gray-500">Insumos extra</p>
               <p className="text-sm font-medium text-gray-300">${calc.fixedCost.toFixed(2)}</p>
+            </div>
+            <div className="flex items-center justify-between">
+              <p className="text-xs text-gray-500">Recargo insumos 30%</p>
+              <p className="text-sm font-medium text-gray-300">${calc.fixedCostOverheadAmount.toFixed(2)}</p>
+            </div>
+            <div className="flex items-center justify-between border-t border-white/5 pt-2">
+              <p className="text-xs font-semibold text-gray-400">Insumos ajustados</p>
+              <p className="text-sm font-semibold text-gray-200">${calc.fixedCostAdjusted.toFixed(2)}</p>
             </div>
             {advanced && (calc.numLaborCost > 0 || calc.numOtherCost > 0) && (
               <div className="flex items-center justify-between">
@@ -709,6 +744,11 @@ function CalculadoraPageContent() {
                 <p className="text-sm font-medium text-gray-300">${(calc.numLaborCost + calc.numOtherCost).toFixed(2)}</p>
               </div>
             )}
+          </div>
+
+          <div className="mb-4 rounded-xl border border-cyan-500/20 bg-cyan-500/5 p-3 text-xs leading-relaxed text-gray-400">
+            <p><span className="font-semibold text-cyan-300">Markup:</span> x{calc.numManualMultiplier || 0} aplicado sólo al filamento.</p>
+            <p className="mt-1">Precio sugerido = filamento con markup + luz + mantenimiento + insumos ajustados{advanced && (calc.numLaborCost > 0 || calc.numOtherCost > 0) ? " + mano de obra y otros" : ""}.</p>
           </div>
 
           <div className="bg-stampa-surface border border-stampa-border rounded-xl p-4 space-y-3">

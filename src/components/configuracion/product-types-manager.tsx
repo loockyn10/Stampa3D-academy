@@ -145,7 +145,7 @@ export function ProductTypesManager() {
               </div>
               <div className="text-sm text-gray-500 space-y-1 mb-4 flex-1">
                 <p>Markup: <span className="font-medium text-gray-300">x{t.multiplier}</span></p>
-                <p>Costo fijo: <span className="font-medium text-gray-300">${t.fixed_cost ?? 0}</span></p>
+                <p>Insumos extra: <span className="font-medium text-gray-300">${t.fixed_cost ?? 0}</span></p>
               </div>
               <div className="flex items-center justify-between pt-3 border-t border-stampa-border">
                 <button 
@@ -196,8 +196,9 @@ function TypeEditor({ formData, setFormData, onSave, onCancel }: any) {
             <input type="number" step="0.1" name="multiplier" value={formData.multiplier} onChange={handleChange} className="w-full text-sm border-stampa-border rounded-md text-neutral-100 bg-stampa-surface border focus:border-[#ff6a00] focus:ring-[#ff6a00]/20 focus:ring-2 placeholder:text-neutral-500 disabled:bg-neutral-800 disabled:text-neutral-500" />
           </div>
           <div>
-            <label className="block text-xs font-semibold text-gray-300 mb-1">Costo fijo</label>
+            <label className="block text-xs font-semibold text-gray-300 mb-1">Insumos extra</label>
             <input type="number" min="0" step="any" name="fixed_cost" value={formData.fixed_cost} onChange={handleChange} className="w-full text-sm border-stampa-border rounded-md text-neutral-100 bg-stampa-surface border focus:border-[#ff6a00] focus:ring-[#ff6a00]/20 focus:ring-2 placeholder:text-neutral-500 disabled:bg-neutral-800 disabled:text-neutral-500" placeholder="Ej: costo del jarro, packaging, tira LED..." />
+            <p className="mt-1 text-[10px] leading-relaxed text-gray-500">Al calcular, se suma un 30% para cubrir envío, desperdicio o unidades falladas. El markup no se aplica a este valor.</p>
           </div>
         </div>
         <div className="flex items-center gap-2 pt-1">
