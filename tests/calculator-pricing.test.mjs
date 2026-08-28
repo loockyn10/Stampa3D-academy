@@ -148,3 +148,17 @@ test("calculator product snapshot keeps legacy keys and adds the new breakdown",
   assert.match(source, /base_cost: calc\.baseCost/);
   assert.match(source, /sale_price: calc\.normalPrice/);
 });
+
+test("calculator summary stays compact while adjusted inputs remain internal", () => {
+  const source = fs.readFileSync(
+    path.join(root, "src/app/calculadora/page.tsx"),
+    "utf8",
+  );
+
+  assert.match(source, />Insumos extra</);
+  assert.match(source, />Recargo insumos 30%</);
+  assert.doesNotMatch(source, />Insumos ajustados</);
+  assert.doesNotMatch(source, />Markup:<\/span>/);
+  assert.doesNotMatch(source, /Precio sugerido = filamento con markup/);
+  assert.match(source, /fixedCostAdjusted: calc\.fixedCostAdjusted/);
+});

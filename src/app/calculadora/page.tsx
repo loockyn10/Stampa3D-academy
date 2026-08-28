@@ -734,21 +734,12 @@ function CalculadoraPageContent() {
               <p className="text-xs text-gray-500">Recargo insumos 30%</p>
               <p className="text-sm font-medium text-gray-300">${calc.fixedCostOverheadAmount.toFixed(2)}</p>
             </div>
-            <div className="flex items-center justify-between border-t border-white/5 pt-2">
-              <p className="text-xs font-semibold text-gray-400">Insumos ajustados</p>
-              <p className="text-sm font-semibold text-gray-200">${calc.fixedCostAdjusted.toFixed(2)}</p>
-            </div>
             {advanced && (calc.numLaborCost > 0 || calc.numOtherCost > 0) && (
               <div className="flex items-center justify-between">
                 <p className="text-xs text-gray-500">Mano obra y otros</p>
                 <p className="text-sm font-medium text-gray-300">${(calc.numLaborCost + calc.numOtherCost).toFixed(2)}</p>
               </div>
             )}
-          </div>
-
-          <div className="mb-4 rounded-xl border border-cyan-500/20 bg-cyan-500/5 p-3 text-xs leading-relaxed text-gray-400">
-            <p><span className="font-semibold text-cyan-300">Markup:</span> x{calc.numManualMultiplier || 0} aplicado sólo al filamento.</p>
-            <p className="mt-1">Precio sugerido = filamento con markup + luz + mantenimiento + insumos ajustados{advanced && (calc.numLaborCost > 0 || calc.numOtherCost > 0) ? " + mano de obra y otros" : ""}.</p>
           </div>
 
           <div className="bg-stampa-surface border border-stampa-border rounded-xl p-4 space-y-3">
