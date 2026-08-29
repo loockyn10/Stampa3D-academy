@@ -7,11 +7,14 @@ import { Badge } from "@/components/ui/badge";
 import { SectionTitle } from "@/components/ui/section-title";
 import { createClient } from "@/utils/supabase/client";
 import { getOrCreateReferralCode } from "@/lib/referral";
+import {
+  getVisibleRaffles,
+  type PublicRaffle,
+} from "@/lib/raffles/public-raffles";
 
 export default function SorteosPage() {
   const supabase = createClient();
-  const [activeRaffle, setActiveRaffle] = useState<any>(null);
-  const [activePrizes, setActivePrizes] = useState<any[]>([]);
+  const [activeRaffles, setActiveRaffles] = useState<PublicRaffle[]>([]);
   const [pastWinners, setPastWinners] = useState<any[]>([]);
   const [memberLevel, setMemberLevel] = useState<string>("member");
   const [referralCode, setReferralCode] = useState<string | null>(null);
@@ -56,22 +59,14 @@ export default function SorteosPage() {
       // ignore table not found
     }
 
-    // Fetch active raffle
-    const { data: activeData, error: activeError } = await supabase
-      .from("raffles")
-      .select("*")
-      .eq("is_active", true)
-      .order("created_at", { ascending: false })
-      .limit(1)
-      .single();
+    // Fetch every raffle that is explicitly public and active.
+    const { data: activeData, error: activeError } = await getVisibleRaffles(supabase);
 
-    if (activeError && activeError.code !== 'PGRST116') {
+    if (activeError) {
       console.error(activeError);
-      setError("Error cargando el sorteo activo.");
-    } else if (activeData) {
-      setActiveRaffle(activeData);
-      const { data: prizes } = await supabase.from("raffle_prizes").select("*").eq("raffle_id", activeData.id).order("prize_order", { ascending: true });
-      setActivePrizes(prizes || []);
+      setError("Error cargando los sorteos activos.");
+    } else {
+      setActiveRaffles(activeData);
     }
 
     // Fetch past winners
@@ -124,9 +119,13 @@ export default function SorteosPage() {
         </div>
       )}
 
-      {/* 2. Sorteo Activo Destacado */}
-      {activeRaffle ? (
-        <Card className="overflow-hidden bg-stampa-surface border-stampa-border shadow-lg shadow-black/50 border border-stampa-orange/30 ring-1 ring-stampa-orange/20 rounded-2xl">
+      {/* 2. Sorteos activos */}
+      {activeRaffles.length > 0 ? (
+        <div className="space-y-6">
+          {activeRaffles.map((activeRaffle) => {
+            const activePrizes = activeRaffle.raffle_prizes;
+            return (
+        <Card key={activeRaffle.id} className="overflow-hidden bg-stampa-surface border-stampa-border shadow-lg shadow-black/50 border border-stampa-orange/30 ring-1 ring-stampa-orange/20 rounded-2xl">
           <div className="grid grid-cols-1 md:grid-cols-5">
             <div className="md:col-span-2 flex flex-col items-center justify-center bg-stampa-bg-soft p-10 text-center border-b md:border-b-0 md:border-r border-stampa-border relative overflow-hidden">
               <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-48 h-48 bg-stampa-orange/10 blur-3xl rounded-full"></div>
@@ -150,7 +149,9 @@ export default function SorteosPage() {
               </div>
               <h3 className="text-3xl font-black text-white mb-2">{activeRaffle.title}</h3>
               <p className="flex items-center gap-2 text-sm font-bold text-stampa-orange mb-6 bg-stampa-orange/5 inline-flex self-start px-3 py-1.5 rounded-lg border border-stampa-orange/10">
-                <CalendarDays size={16} /> Se sortea el {new Date(activeRaffle.draw_date).toLocaleDateString()}
+                <CalendarDays size={16} /> {activeRaffle.draw_date
+                  ? `Se sortea el ${new Date(activeRaffle.draw_date).toLocaleDateString()}`
+                  : "Fecha a confirmar"}
               </p>
               
               <div className="text-sm text-gray-300 leading-relaxed whitespace-pre-wrap mb-8 flex-1">
@@ -182,12 +183,15 @@ export default function SorteosPage() {
             </div>
           </div>
         </Card>
+            );
+          })}
+        </div>
       ) : (
         <div className="py-20 flex flex-col items-center justify-center bg-stampa-surface rounded-2xl border border-stampa-border shadow-xl">
           <div className="w-16 h-16 bg-stampa-bg-soft rounded-2xl flex items-center justify-center mb-4 border border-stampa-border shadow-inner">
             <span className="text-3xl grayscale opacity-50">🎟️</span>
           </div>
-          <h3 className="text-xl font-bold text-white mb-2">No hay sorteo activo en este momento</h3>
+          <h3 className="text-xl font-bold text-white mb-2">Todavía no hay sorteos activos.</h3>
           <p className="text-sm text-gray-400 font-medium mb-6 max-w-sm text-center">
             Cuando haya un sorteo disponible para miembros, lo vas a ver acá listo para participar.
           </p>
