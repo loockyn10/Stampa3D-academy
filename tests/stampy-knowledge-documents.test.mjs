@@ -206,6 +206,22 @@ test("migration keeps documents private and retrieval admits only ready active d
   assert.doesNotMatch(sql, /to anon[\s\S]*for (insert|update|delete)/i);
 });
 
+test("knowledge document RPC resolves pgvector explicitly with an empty search path", () => {
+  const sql = fs.readFileSync(
+    path.join(root, "supabase/migrations/20260828103109_stampy_knowledge_documents.sql"),
+    "utf8",
+  );
+
+  assert.match(sql, /query_embedding public\.vector\(1536\)/i);
+  assert.match(sql, /::public\.vector\(1536\)/i);
+  assert.equal((sql.match(/public\.cosine_distance\(chunk\.embedding, query_embedding\)/gi) || []).length, 3);
+  assert.match(sql, /to_regprocedure\('public\.cosine_distance\(public\.vector,public\.vector\)'\)/i);
+  assert.doesNotMatch(sql, /OPERATOR\([^)]*<=>[^)]*\)/i);
+  assert.doesNotMatch(sql, /chunk\.embedding\s*<=>\s*query_embedding/i);
+  assert.match(sql, /set search_path = ''[\s\S]*public\.cosine_distance\(chunk\.embedding, query_embedding\)/i);
+  assert.match(sql, /match_stampy_knowledge_chunks\(public\.vector, double precision, integer\)/i);
+});
+
 test("admin actions reauthorize and Stampy prompt treats documents separately from classes", () => {
   const actions = fs.readFileSync(
     path.join(root, "src/app/admin/stampy/documentos/actions.ts"),

@@ -14,6 +14,9 @@ begin
   if to_regclass('public.stampy_knowledge_chunks') is null then
     raise exception 'Missing dependency: public.stampy_knowledge_chunks';
   end if;
+  if to_regprocedure('public.cosine_distance(public.vector,public.vector)') is null then
+    raise exception 'Missing dependency: public.cosine_distance(public.vector,public.vector)';
+  end if;
 end
 $$;
 
@@ -296,7 +299,7 @@ begin
     null,
     null,
     coalesce(chunk.value->'metadata', '{}'::jsonb),
-    ((chunk.value->'embedding')::text)::vector(1536),
+    ((chunk.value->'embedding')::text)::public.vector(1536),
     true,
     now()
   from jsonb_array_elements(p_chunks) as chunk(value);
@@ -329,7 +332,7 @@ using (
 );
 
 create or replace function public.match_stampy_knowledge_chunks(
-  query_embedding vector(1536),
+  query_embedding public.vector(1536),
   match_threshold double precision,
   match_count integer
 )
@@ -376,13 +379,13 @@ as $$
     chunk.last_indexed_at,
     chunk.created_at,
     chunk.updated_at,
-    1 - (chunk.embedding <=> query_embedding) as similarity
+    1 - public.cosine_distance(chunk.embedding, query_embedding) as similarity
   from public.stampy_knowledge_chunks as chunk
   where auth.uid() is not null
     and public.has_platform_access(auth.uid())
     and chunk.is_active = true
     and chunk.embedding is not null
-    and 1 - (chunk.embedding <=> query_embedding) >= match_threshold
+    and 1 - public.cosine_distance(chunk.embedding, query_embedding) >= match_threshold
     and (
       chunk.source_type <> 'knowledge_document'
       or exists (
@@ -393,7 +396,7 @@ as $$
           and document.is_active = true
       )
     )
-  order by chunk.embedding <=> query_embedding
+  order by public.cosine_distance(chunk.embedding, query_embedding)
   limit greatest(least(coalesce(match_count, 8), 50), 0);
 $$;
 
@@ -406,9 +409,9 @@ revoke all on function public.replace_stampy_knowledge_document_chunks(uuid, tex
 grant execute on function public.replace_stampy_knowledge_document_chunks(uuid, text, jsonb)
   to authenticated, service_role;
 
-revoke all on function public.match_stampy_knowledge_chunks(vector, double precision, integer)
+revoke all on function public.match_stampy_knowledge_chunks(public.vector, double precision, integer)
   from public, anon, authenticated;
-grant execute on function public.match_stampy_knowledge_chunks(vector, double precision, integer)
+grant execute on function public.match_stampy_knowledge_chunks(public.vector, double precision, integer)
   to authenticated, service_role;
 
 notify pgrst, 'reload schema';
