@@ -3,8 +3,9 @@
 import React, { useEffect, useState } from "react";
 import { createClient } from "@/utils/supabase/client";
 import { CourseCard } from "@/components/cards/course-card";
-import { Loader2, GraduationCap } from "lucide-react";
+import { GraduationCap } from "lucide-react";
 import Link from "next/link";
+import { GridSkeleton } from "@/components/ui/page-skeletons";
 
 export default function CursosPage() {
   const [courses, setCourses] = useState<any[]>([]);
@@ -110,9 +111,7 @@ export default function CursosPage() {
       )}
 
       {loading ? (
-        <div className="flex justify-center py-20">
-          <Loader2 className="animate-spin text-stampa-orange h-10 w-10" />
-        </div>
+        <GridSkeleton count={6} media />
       ) : courses.length > 0 ? (
         <div>
           <h2 className="text-2xl font-bold text-white mb-6">Todos los cursos</h2>

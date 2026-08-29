@@ -6,6 +6,7 @@ import { Card } from "@/components/ui/card";
 import { PrimaryButton } from "@/components/ui/button";
 import { createClient } from "@/utils/supabase/client";
 import { FileUploadDropzone } from "@/components/ui/file-upload-dropzone";
+import { FormSkeleton } from "@/components/ui/page-skeletons";
 
 export function BusinessManager() {
   const supabase = createClient();
@@ -63,7 +64,7 @@ export function BusinessManager() {
     setSaving(false);
   };
 
-  if (loading) return <div className="py-12 flex justify-center"><Loader2 className="animate-spin h-8 w-8 text-stampa-orange" /></div>;
+  if (loading) return <FormSkeleton fields={6} />;
 
   return (
     <Card className="max-w-2xl p-6 space-y-6">

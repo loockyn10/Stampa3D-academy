@@ -10,6 +10,7 @@ import { SectionTitle } from "@/components/ui/section-title";
 import { createClient } from "@/utils/supabase/client";
 import { FileUploadDropzone } from "@/components/ui/file-upload-dropzone";
 import { ColorSwatchLabel } from "@/components/ui/color-swatch-label";
+import { ProductsPageSkeleton } from "@/components/ui/page-skeletons";
 
 // Pricing Status Helper
 function getProductPricingStatus(product: any, allFilaments: any[], allPrinters: any[], allProductTypes: any[]) {
@@ -860,7 +861,7 @@ function ProductosPageContent() {
     return new Date(dateStr).toLocaleDateString("es-AR", { day: "2-digit", month: "2-digit", year: "2-digit" });
   };
 
-  if (loading) return <div className="py-24 flex justify-center"><Loader2 className="animate-spin h-8 w-8 text-stampa-orange" /></div>;
+  if (loading) return <ProductsPageSkeleton />;
 
   return (
     <div className="pb-24">
@@ -1557,7 +1558,7 @@ function ProductosPageContent() {
 
 export default function ProductosPage() {
   return (
-    <React.Suspense fallback={<div className="p-8 text-center"><Loader2 className="animate-spin inline-block h-8 w-8 text-stampa-orange" /></div>}>
+    <React.Suspense fallback={<ProductsPageSkeleton />}>
       <ProductosPageContent />
     </React.Suspense>
   );

@@ -23,6 +23,7 @@ import {
   findStampyNamedMatch,
   parsePositiveStampyPrefillNumber,
 } from "@/lib/stampy/tool-prefill";
+import { CalculatorPageSkeleton } from "@/components/ui/page-skeletons";
 
 const PrinterCatalogModal = dynamic(() => import("@/components/calculadora/printer-catalog-modal").then((module) => module.PrinterCatalogModal));
 const FilamentCatalogModal = dynamic(() => import("@/components/calculadora/filament-catalog-modal").then((module) => module.FilamentCatalogModal));
@@ -643,7 +644,7 @@ function CalculadoraPageContent() {
   };
 
   if (loading) {
-    return <div className="py-24 flex justify-center"><Loader2 className="animate-spin h-8 w-8 text-stampa-orange" /></div>;
+    return <CalculatorPageSkeleton />;
   }
 
   const missingData = filaments.length === 0 || printers.length === 0 || multipliers.length === 0;
@@ -1169,7 +1170,7 @@ function CalculadoraPageContent() {
 
 export default function CalculadoraPage() {
   return (
-    <React.Suspense fallback={<div className="p-8 text-center"><Loader2 className="animate-spin inline-block h-8 w-8 text-stampa-orange" /></div>}>
+    <React.Suspense fallback={<CalculatorPageSkeleton />}>
       <CalculadoraPageContent />
     </React.Suspense>
   );

@@ -4,6 +4,7 @@ import React, { useState, useEffect } from "react";
 import { createClient } from "@/utils/supabase/client";
 import { PrimaryButton } from "@/components/ui/button";
 import { Loader2, Save } from "lucide-react";
+import { FormSkeleton } from "@/components/ui/page-skeletons";
 import { 
   PRINTER_BRAND_OPTIONS, 
   EXPERIENCE_LEVEL_OPTIONS, 
@@ -93,11 +94,7 @@ export function AccountManager() {
   };
 
   if (loading) {
-    return (
-      <div className="flex justify-center p-12">
-        <Loader2 className="animate-spin text-stampa-orange h-8 w-8" />
-      </div>
-    );
+    return <FormSkeleton fields={6} />;
   }
 
   return (

@@ -3,14 +3,15 @@
 import React, { useState, useEffect, Suspense } from "react";
 import { useSearchParams, useRouter } from "next/navigation";
 import dynamic from "next/dynamic";
-import { Building2, Wrench, Calculator, Bot, Loader2 } from "lucide-react";
+import { Building2, Wrench, Calculator, Bot } from "lucide-react";
 import { SectionTitle } from "@/components/ui/section-title";
 
 
 import { User } from "lucide-react";
+import { FormSkeleton, SettingsPageSkeleton } from "@/components/ui/page-skeletons";
 
 const managerLoading = () => (
-  <div className="h-40 animate-pulse rounded-2xl border border-stampa-border bg-white/5" />
+  <FormSkeleton fields={4} />
 );
 
 const AccountManager = dynamic(() => import("@/components/configuracion/account-manager").then((module) => module.AccountManager), { loading: managerLoading });
@@ -150,7 +151,7 @@ function ConfiguracionContent() {
 
 export default function ConfiguracionPage() {
   return (
-    <Suspense fallback={<div className="py-24 flex justify-center"><Loader2 className="animate-spin h-8 w-8 text-stampa-orange" /></div>}>
+    <Suspense fallback={<SettingsPageSkeleton />}>
       <ConfiguracionContent />
     </Suspense>
   );

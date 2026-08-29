@@ -2,12 +2,13 @@
 
 import React, { useState, useEffect } from "react";
 import Link from "next/link";
-import { Plus, Pencil, Gift, Loader2 } from "lucide-react";
+import { Plus, Pencil, Gift } from "lucide-react";
 import { Card } from "@/components/ui/card";
 import { PrimaryButton, GhostButton } from "@/components/ui/button";
 import { SectionTitle } from "@/components/ui/section-title";
 import { Badge } from "@/components/ui/badge";
 import { createClient } from "@/utils/supabase/client";
+import { AdminListSkeleton } from "@/components/ui/page-skeletons";
 
 export default function AdminSorteosPage() {
   const supabase = createClient();
@@ -41,7 +42,7 @@ export default function AdminSorteosPage() {
     return <Badge tone="gray">{status}</Badge>;
   };
 
-  if (loading) return <div className="py-24 flex justify-center"><Loader2 className="animate-spin h-8 w-8 text-stampa-orange" /></div>;
+  if (loading) return <AdminListSkeleton />;
 
   return (
     <div className="space-y-6">

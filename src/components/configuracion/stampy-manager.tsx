@@ -2,6 +2,7 @@
 
 import React, { useState, useEffect } from "react";
 import { Loader2, Bot, CheckCircle2, Circle, ShieldCheck } from "lucide-react";
+import { FormSkeleton } from "@/components/ui/page-skeletons";
 import { Card } from "@/components/ui/card";
 import { GhostButton } from "@/components/ui/button";
 import { createClient } from "@/utils/supabase/client";
@@ -115,7 +116,7 @@ export function StampyManager({ setTab }: { setTab: (tab: any) => void }) {
     setSavingSettings(false);
   };
 
-  if (loading) return <div className="py-12 flex justify-center"><Loader2 className="animate-spin h-8 w-8 text-stampa-orange" /></div>;
+  if (loading) return <FormSkeleton fields={4} />;
 
   return (
     <Card className="max-w-2xl p-6 bg-stampa-surface border-stampa-border space-y-6 animate-slide-up">

@@ -10,6 +10,7 @@ import {
   buildFilamentInsertPayload,
   buildFilamentMutationPayload,
 } from "@/lib/filaments/mutation-payload";
+import { TableSkeleton } from "@/components/ui/page-skeletons";
 
 export function FilamentsManager() {
   const supabase = createClient();
@@ -82,7 +83,7 @@ export function FilamentsManager() {
     }
   };
 
-  if (loading) return <div className="py-8 flex justify-center"><Loader2 className="animate-spin text-stampa-orange" /></div>;
+  if (loading) return <TableSkeleton rows={5} columns={5} />;
 
   return (
     <div className="space-y-4">
@@ -156,4 +157,3 @@ export function FilamentsManager() {
     </div>
   );
 }
-

@@ -3,6 +3,7 @@
 import React, { useState, useEffect } from "react";
 import { createClient } from "@/utils/supabase/client";
 import { Save, Loader2, AlertCircle } from "lucide-react";
+import { FormSkeleton } from "@/components/ui/page-skeletons";
 import { Card } from "@/components/ui/card";
 
 export function SettingsManager() {
@@ -89,7 +90,7 @@ export function SettingsManager() {
     setSaving(false);
   };
 
-  if (loading) return <div className="py-8 flex justify-center"><Loader2 className="animate-spin text-stampa-orange" /></div>;
+  if (loading) return <FormSkeleton fields={6} />;
 
   return (
     <div className="space-y-4 max-w-2xl">

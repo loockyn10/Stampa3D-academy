@@ -2,10 +2,11 @@
 
 import React, { useEffect, useState } from "react";
 import Link from "next/link";
-import { GraduationCap, ArrowRight, BookOpen, PenTool, Loader2 } from "lucide-react";
+import { GraduationCap, ArrowRight, BookOpen, PenTool } from "lucide-react";
 import { createClient } from "@/utils/supabase/client";
 import { RecommendedPathSection } from "@/components/academy/RecommendedPathSection";
 import { UserProfile } from "@/lib/learning-roadmaps";
+import { GridSkeleton } from "@/components/ui/page-skeletons";
 
 export default function AcademiaPage() {
   const [courses, setCourses] = useState<any[]>([]);
@@ -144,9 +145,7 @@ export default function AcademiaPage() {
       )}
 
       {loading ? (
-        <div className="flex justify-center py-10">
-          <Loader2 className="animate-spin text-stampa-orange h-8 w-8" />
-        </div>
+        <GridSkeleton count={3} media />
       ) : (
         <>
           {courses.length > 0 && (

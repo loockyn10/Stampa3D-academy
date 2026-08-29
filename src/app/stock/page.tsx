@@ -18,6 +18,7 @@ import {
   buildFilamentInsertPayload,
   buildFilamentMutationPayload,
 } from "@/lib/filaments/mutation-payload";
+import { StockPageSkeleton } from "@/components/ui/page-skeletons";
 
 const FilamentEditor = dynamic(() => import("@/components/filaments/FilamentEditor").then((module) => module.FilamentEditor));
 const FilamentCatalogModal = dynamic(() => import("@/components/calculadora/filament-catalog-modal").then((module) => module.FilamentCatalogModal));
@@ -662,7 +663,7 @@ function StockPageContent() {
   const lowFilamentsCount = filaments.filter((r) => r.remaining_grams < 200).length;
   const totalLowCount = lowProductsCount + lowFilamentsCount;
 
-  if (loading) return <div className="py-24 flex justify-center"><Loader2 className="animate-spin h-8 w-8 text-stampa-orange" /></div>;
+  if (loading) return <StockPageSkeleton />;
 
   return (
     <div className="pb-24">
@@ -1653,11 +1654,7 @@ function StockPageContent() {
 
 export default function StockPage() {
   return (
-    <Suspense fallback={
-      <div className="flex min-h-screen items-center justify-center bg-stampa-bg">
-        <Loader2 className="h-10 w-10 animate-spin text-stampa-orange" />
-      </div>
-    }>
+    <Suspense fallback={<StockPageSkeleton />}>
       <StockPageContent />
     </Suspense>
   );

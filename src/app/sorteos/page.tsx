@@ -2,7 +2,7 @@
 
 import React, { useState, useEffect } from "react";
 import Link from "next/link";
-import { CalendarDays, Gift, Trophy, Loader2, AlertCircle } from "lucide-react";
+import { CalendarDays, Gift, Trophy, AlertCircle } from "lucide-react";
 import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { SectionTitle } from "@/components/ui/section-title";
@@ -12,6 +12,7 @@ import {
   getVisibleRaffles,
   type PublicRaffle,
 } from "@/lib/raffles/public-raffles";
+import { RafflesPageSkeleton } from "@/components/ui/page-skeletons";
 
 export default function SorteosPage() {
   const [supabase] = useState(() => createClient());
@@ -85,11 +86,7 @@ export default function SorteosPage() {
   };
 
   if (loading) {
-    return (
-      <div className="flex items-center justify-center py-24">
-        <Loader2 className="h-8 w-8 animate-spin text-stampa-orange" />
-      </div>
-    );
+    return <RafflesPageSkeleton />;
   }
 
   return (

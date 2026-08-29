@@ -3,6 +3,7 @@
 import React, { useState, useEffect } from "react";
 import { createClient } from "@/utils/supabase/client";
 import { Plus, Edit2, Save, Loader2, AlertCircle, Trash2 } from "lucide-react";
+import { TableSkeleton } from "@/components/ui/page-skeletons";
 import { Card } from "@/components/ui/card";
 
 export function ProductTypesManager() {
@@ -102,7 +103,7 @@ export function ProductTypesManager() {
     }
   };
 
-  if (loading) return <div className="py-8 flex justify-center"><Loader2 className="animate-spin text-stampa-orange" /></div>;
+  if (loading) return <TableSkeleton rows={5} columns={4} />;
 
   return (
     <div className="space-y-4">
