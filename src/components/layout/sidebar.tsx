@@ -1,6 +1,7 @@
 "use client";
 
 import Link from "next/link";
+import Image from "next/image";
 import { usePathname } from "next/navigation";
 import {
   BookOpen,
@@ -13,7 +14,6 @@ import {
   User,
   Settings,
   LogOut,
-  Layers,
   X,
   Shield,
   Sparkles,
@@ -97,9 +97,13 @@ export function Sidebar({ mobileOpen, setMobileOpen, access, loading }: SidebarP
         {/* Brand logo header */}
         <div className="flex items-center justify-between px-5 py-5">
           <Link href="/" className="flex items-center gap-2" onClick={() => setMobileOpen(false)}>
-            <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-stampa-orange text-white">
-              <Layers size={18} />
-            </div>
+            <Image
+              src="/favicon.svg"
+              alt="Stampa"
+              width={36}
+              height={36}
+              className="h-9 w-9 shrink-0 object-contain"
+            />
             <div>
               <p className="text-sm font-bold leading-none text-white">Stampa</p>
               <p className="mt-0.5 text-[11px] leading-none text-gray-500">Academia 3D</p>
