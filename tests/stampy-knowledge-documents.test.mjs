@@ -3,6 +3,7 @@ import fs from "node:fs";
 import path from "node:path";
 import test from "node:test";
 import ts from "typescript";
+import * as unpdf from "unpdf";
 
 const root = process.cwd();
 
@@ -36,6 +37,129 @@ const retrievalPolicy = loadTypeScriptModule(
   "src/lib/stampy/knowledge-retrieval-policy.ts",
   { "./types": {} },
 );
+
+function createTestPdf(text = "") {
+  const escapedText = text.replaceAll("\\", "\\\\").replaceAll("(", "\\(").replaceAll(")", "\\)");
+  const stream = text ? `BT /F1 12 Tf 72 720 Td (${escapedText}) Tj ET` : "";
+  const objects = [
+    "<< /Type /Catalog /Pages 2 0 R >>",
+    "<< /Type /Pages /Kids [3 0 R] /Count 1 >>",
+    "<< /Type /Page /Parent 2 0 R /MediaBox [0 0 612 792] /Resources << /Font << /F1 4 0 R >> >> /Contents 5 0 R >>",
+    "<< /Type /Font /Subtype /Type1 /BaseFont /Helvetica >>",
+    `<< /Length ${Buffer.byteLength(stream)} >>\nstream\n${stream}\nendstream`,
+  ];
+  let pdf = "%PDF-1.4\n";
+  const offsets = [0];
+  objects.forEach((object, index) => {
+    offsets.push(Buffer.byteLength(pdf));
+    pdf += `${index + 1} 0 obj\n${object}\nendobj\n`;
+  });
+  const xrefOffset = Buffer.byteLength(pdf);
+  pdf += `xref\n0 ${objects.length + 1}\n0000000000 65535 f \n`;
+  for (const offset of offsets.slice(1)) {
+    pdf += `${String(offset).padStart(10, "0")} 00000 n \n`;
+  }
+  pdf += `trailer\n<< /Size ${objects.length + 1} /Root 1 0 R >>\nstartxref\n${xrefOffset}\n%%EOF`;
+  const bytes = Buffer.from(pdf, "ascii");
+  return bytes.buffer.slice(bytes.byteOffset, bytes.byteOffset + bytes.byteLength);
+}
+
+test("serverless PDF extraction reads selectable text without browser DOM APIs", async () => {
+  const extraction = loadTypeScriptModule(
+    "src/lib/stampy/pdf-extraction.ts",
+    { "server-only": {}, unpdf },
+  );
+
+  const result = await extraction.extractPdfText(
+    createTestPdf("Texto seleccionable de impresion 3D con suficiente contenido para indexar Stampy."),
+  );
+
+  assert.equal(result.totalPages, 1);
+  assert.match(result.text, /Texto seleccionable de impresion 3D/);
+  assert.match(result.pages[0].text, /Stampy/);
+});
+
+test("a PDF without selectable text returns the controlled scanned-PDF error", async () => {
+  const extraction = loadTypeScriptModule(
+    "src/lib/stampy/pdf-extraction.ts",
+    { "server-only": {}, unpdf },
+  );
+  const originalError = console.error;
+  console.error = () => {};
+  try {
+    await assert.rejects(
+      extraction.extractPdfText(createTestPdf()),
+      /Puede ser un PDF escaneado/i,
+    );
+  } finally {
+    console.error = originalError;
+  }
+});
+
+test("one unreadable PDF page does not discard extractable pages", async () => {
+  const extraction = loadTypeScriptModule(
+    "src/lib/stampy/pdf-extraction.ts",
+    {
+      "server-only": {},
+      unpdf: {
+        getDocumentProxy: async () => ({
+          numPages: 2,
+          getPage: async (pageNumber) => {
+            if (pageNumber === 1) throw new Error("broken page");
+            return {
+              getTextContent: async () => ({
+                items: [{ str: "Contenido recuperado de la segunda pagina con texto suficiente para Stampy.", hasEOL: true }],
+              }),
+              cleanup() {},
+            };
+          },
+          loadingTask: { destroy: async () => {} },
+        }),
+      },
+    },
+  );
+  const originalWarn = console.warn;
+  console.warn = () => {};
+  try {
+    const result = await extraction.extractPdfText(createTestPdf("placeholder"));
+    assert.equal(result.pages[0].text, "");
+    assert.match(result.pages[1].text, /Contenido recuperado/);
+  } finally {
+    console.warn = originalWarn;
+  }
+});
+
+test("PDF parsing stays server-only and no longer bundles pdf-parse", () => {
+  const extraction = fs.readFileSync(
+    path.join(root, "src/lib/stampy/pdf-extraction.ts"),
+    "utf8",
+  );
+  const actions = fs.readFileSync(
+    path.join(root, "src/app/admin/stampy/documentos/actions.ts"),
+    "utf8",
+  );
+  const page = fs.readFileSync(
+    path.join(root, "src/app/admin/stampy/documentos/page.tsx"),
+    "utf8",
+  );
+  const client = fs.readFileSync(
+    path.join(root, "src/app/admin/stampy/documentos/knowledge-documents-admin.tsx"),
+    "utf8",
+  );
+  const nextConfig = fs.readFileSync(path.join(root, "next.config.ts"), "utf8");
+  const packageJson = JSON.parse(fs.readFileSync(path.join(root, "package.json"), "utf8"));
+
+  assert.match(extraction, /^import "server-only";/);
+  assert.match(extraction, /await import\("unpdf"\)/);
+  assert.doesNotMatch(extraction, /from ["']pdf-parse["']/);
+  assert.doesNotMatch(page, /pdf-parse|unpdf/);
+  assert.doesNotMatch(client, /pdf-parse|unpdf/);
+  assert.doesNotMatch(nextConfig, /pdf-parse/);
+  assert.equal(packageJson.dependencies["pdf-parse"], undefined);
+  assert.equal(packageJson.dependencies.unpdf, "^1.8.1");
+  assert.match(actions, /error instanceof PdfExtractionError/);
+  assert.match(actions, /return \{ success: false, error: message \}/);
+});
 
 function words(chars, prefix = "contenido") {
   return Array.from({ length: Math.ceil(chars / (prefix.length + 5)) }, (_, index) => `${prefix}-${index}`).join(" ");

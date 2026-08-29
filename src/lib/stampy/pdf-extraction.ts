@@ -1,20 +1,42 @@
 import "server-only";
 
-import { PDFParse } from "pdf-parse";
 import type { KnowledgeDocumentPage } from "./knowledge-document-chunking";
 
 export const MAX_KNOWLEDGE_DOCUMENT_BYTES = 20 * 1024 * 1024;
+export const PDF_EXTRACTION_ERROR_MESSAGE =
+  "No se pudo extraer texto del PDF. Puede ser un PDF escaneado o incompatible.";
 
 export interface ExtractedPdfDocument {
+  text: string;
   pages: KnowledgeDocumentPage[];
   totalPages: number;
 }
 
-export class PdfHasNoExtractableTextError extends Error {
-  constructor() {
-    super("No se pudo extraer texto. Puede ser un PDF escaneado. OCR queda pendiente.");
+export class PdfExtractionError extends Error {
+  constructor(message = PDF_EXTRACTION_ERROR_MESSAGE, options?: ErrorOptions) {
+    super(message, options);
+    this.name = "PdfExtractionError";
+  }
+}
+
+export class PdfHasNoExtractableTextError extends PdfExtractionError {
+  constructor(options?: ErrorOptions) {
+    super("No se pudo extraer texto del PDF. Puede ser un PDF escaneado.", options);
     this.name = "PdfHasNoExtractableTextError";
   }
+}
+
+function normalizePdfText(text: string): string {
+  return text
+    .replace(/\u0000/g, "")
+    .replace(/[^\S\n]+/g, " ")
+    .replace(/ ?\n ?/g, "\n")
+    .replace(/\n{3,}/g, "\n\n")
+    .trim();
+}
+
+function compactPdfError(error: unknown): string {
+  return (error instanceof Error ? error.message : String(error)).slice(0, 300);
 }
 
 export async function extractPdfText(data: ArrayBuffer): Promise<ExtractedPdfDocument> {
@@ -30,13 +52,34 @@ export async function extractPdfText(data: ArrayBuffer): Promise<ExtractedPdfDoc
     throw new Error("El archivo no tiene una firma PDF válida.");
   }
 
-  const parser = new PDFParse({ data: new Uint8Array(data) });
+  let pdf: Awaited<ReturnType<typeof import("unpdf")["getDocumentProxy"]>> | null = null;
   try {
-    const result = await parser.getText();
-    const pages = result.pages.map((page) => ({
-      pageNumber: page.num,
-      text: page.text.trim(),
-    }));
+    const { getDocumentProxy } = await import("unpdf");
+    pdf = await getDocumentProxy(new Uint8Array(data));
+    const pages: KnowledgeDocumentPage[] = [];
+
+    for (let pageNumber = 1; pageNumber <= pdf.numPages; pageNumber += 1) {
+      try {
+        const page = await pdf.getPage(pageNumber);
+        try {
+          const content = await page.getTextContent();
+          const rawText = content.items
+            .filter((item) => "str" in item)
+            .map((item) => `${item.str}${item.hasEOL ? "\n" : ""}`)
+            .join("");
+          pages.push({ pageNumber, text: normalizePdfText(rawText) });
+        } finally {
+          page.cleanup();
+        }
+      } catch (error) {
+        console.warn("[Stampy Knowledge PDF Page]", {
+          pageNumber,
+          error: compactPdfError(error),
+        });
+        pages.push({ pageNumber, text: "" });
+      }
+    }
+
     const selectableChars = pages.reduce(
       (total, page) => total + page.text.replace(/\s/g, "").length,
       0,
@@ -46,8 +89,16 @@ export async function extractPdfText(data: ArrayBuffer): Promise<ExtractedPdfDoc
       throw new PdfHasNoExtractableTextError();
     }
 
-    return { pages, totalPages: result.total };
+    return {
+      text: pages.map((page) => page.text).filter(Boolean).join("\n\n"),
+      pages,
+      totalPages: pdf.numPages,
+    };
+  } catch (error) {
+    console.error("[Stampy Knowledge PDF Extraction]", error);
+    if (error instanceof PdfExtractionError) throw error;
+    throw new PdfExtractionError(PDF_EXTRACTION_ERROR_MESSAGE, { cause: error });
   } finally {
-    await parser.destroy();
+    await pdf?.loadingTask.destroy();
   }
 }

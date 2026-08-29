@@ -10,7 +10,11 @@ import {
   STAMPY_KNOWLEDGE_DOCUMENT_BUCKET,
   type StampyKnowledgeDocumentForIndexing,
 } from "@/lib/stampy/knowledge-document-indexer";
-import { MAX_KNOWLEDGE_DOCUMENT_BYTES } from "@/lib/stampy/pdf-extraction";
+import {
+  MAX_KNOWLEDGE_DOCUMENT_BYTES,
+  PDF_EXTRACTION_ERROR_MESSAGE,
+  PdfExtractionError,
+} from "@/lib/stampy/pdf-extraction";
 import { createClient } from "@/utils/supabase/server";
 
 const ADMIN_DOCUMENTS_PATH = "/admin/stampy/documentos";
@@ -104,9 +108,11 @@ export async function processStampyKnowledgeDocument(documentId: string) {
     revalidatePath(ADMIN_DOCUMENTS_PATH);
     return { success: true, result };
   } catch (error) {
-    const message = compactError(error);
-    console.error("[Stampy Documents] processing failed", message);
-    await admin.supabase
+    const message = error instanceof PdfExtractionError
+      ? PDF_EXTRACTION_ERROR_MESSAGE
+      : compactError(error);
+    console.error("[Stampy Documents] processing failed", compactError(error));
+    const { error: statusError } = await admin.supabase
       .from("stampy_knowledge_documents")
       .update({
         status: "error",
@@ -114,8 +120,11 @@ export async function processStampyKnowledgeDocument(documentId: string) {
         processed_at: null,
       })
       .eq("id", documentId);
+    if (statusError) {
+      console.error("[Stampy Documents] error status update failed", compactError(statusError));
+    }
     revalidatePath(ADMIN_DOCUMENTS_PATH);
-    return { error: message };
+    return { success: false, error: message };
   }
 }
 
