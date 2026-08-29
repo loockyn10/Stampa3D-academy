@@ -3,7 +3,6 @@
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useState } from "react";
-import * as tus from "tus-js-client";
 import {
   AlertCircle,
   Archive,
@@ -16,11 +15,12 @@ import {
   UploadCloud,
 } from "lucide-react";
 import { createClient } from "@/utils/supabase/client";
-import type { KnowledgeDocumentAdminRow } from "./page";
+import type { KnowledgeDocumentAdminRow, KnowledgeDocumentPreviewChunk } from "./page";
 import {
   archiveStampyKnowledgeDocument,
   createStampyKnowledgeDocument,
   deleteStampyKnowledgeDocument,
+  getStampyKnowledgeDocumentPreview,
   processStampyKnowledgeDocument,
   setStampyKnowledgeDocumentActive,
   updateStampyKnowledgeDocument,
@@ -50,6 +50,7 @@ async function uploadPrivatePdf(file: File, filePath: string, onProgress: (value
   const anonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
   if (!supabaseUrl || !anonKey) throw new Error("Falta configuración pública de Supabase.");
 
+  const tus = await import("tus-js-client");
   await new Promise<void>((resolve, reject) => {
     const upload = new tus.Upload(file, {
       endpoint: `${supabaseUrl}/storage/v1/upload/resumable`,
@@ -103,6 +104,9 @@ export function KnowledgeDocumentsAdmin({
   const [uploading, setUploading] = useState(false);
   const [progress, setProgress] = useState(0);
   const [notice, setNotice] = useState<string | null>(initialError);
+  const [previewByDocument, setPreviewByDocument] = useState<Record<string, KnowledgeDocumentPreviewChunk[]>>({});
+  const [previewLoadingId, setPreviewLoadingId] = useState<string | null>(null);
+  const [openPreviewId, setOpenPreviewId] = useState<string | null>(null);
 
   const runAction = async (id: string, action: () => Promise<ActionResult>) => {
     setBusyId(id);
@@ -169,6 +173,34 @@ export function KnowledgeDocumentsAdmin({
         description: nextDescription,
       }),
     );
+  };
+
+  const handlePreview = async (documentId: string) => {
+    if (openPreviewId === documentId) {
+      setOpenPreviewId(null);
+      return;
+    }
+    setOpenPreviewId(documentId);
+    if (previewByDocument[documentId]) return;
+
+    setPreviewLoadingId(documentId);
+    try {
+      const result = await getStampyKnowledgeDocumentPreview(documentId);
+      if (result.error) {
+        setNotice(result.error);
+        setOpenPreviewId(null);
+      } else {
+        setPreviewByDocument((current) => ({
+          ...current,
+          [documentId]: result.previewChunks ?? [],
+        }));
+      }
+    } catch (error) {
+      setNotice(error instanceof Error ? error.message : "No se pudo cargar la vista previa.");
+      setOpenPreviewId(null);
+    } finally {
+      setPreviewLoadingId(null);
+    }
   };
 
   return (
@@ -247,17 +279,23 @@ export function KnowledgeDocumentsAdmin({
                 <div className="mt-4 flex items-center gap-2 text-xs text-emerald-300"><CheckCircle2 size={14} /> Disponible para retrieval cuando está activo.</div>
               )}
 
-              {(document.extracted_text || document.preview_chunks.length > 0) && (
-                <details className="mt-4 rounded-xl border border-white/5 bg-black/20 p-3">
-                  <summary className="cursor-pointer text-sm font-semibold text-gray-300">Vista previa de extracción e índice</summary>
-                  {document.extracted_text && <pre className="mt-3 max-h-64 overflow-auto whitespace-pre-wrap text-xs text-gray-400">{document.extracted_text.slice(0, 6_000)}</pre>}
-                  {document.preview_chunks.map((chunk) => (
+              {document.chunks_count > 0 && (
+                <div className="mt-4 rounded-xl border border-white/5 bg-black/20 p-3">
+                  <button
+                    type="button"
+                    onClick={() => void handlePreview(document.id)}
+                    className="flex items-center gap-2 text-sm font-semibold text-gray-300 hover:text-white"
+                  >
+                    {previewLoadingId === document.id && <Loader2 size={14} className="animate-spin" />}
+                    {openPreviewId === document.id ? "Ocultar vista previa" : "Ver vista previa del índice"}
+                  </button>
+                  {openPreviewId === document.id && (previewByDocument[document.id] ?? []).map((chunk) => (
                     <div key={chunk.id} className="mt-3 border-t border-white/5 pt-3">
                       <p className="text-xs font-semibold text-cyan-300">{chunk.title}</p>
                       <p className="mt-1 line-clamp-6 whitespace-pre-wrap text-xs text-gray-500">{chunk.content.slice(0, 1_500)}</p>
                     </div>
                   ))}
-                </details>
+                </div>
               )}
             </article>
           );

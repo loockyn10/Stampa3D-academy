@@ -14,95 +14,81 @@ export default async function AdminStampyDashboardPage() {
   thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
   const isoThirtyDays = thirtyDaysAgo.toISOString();
 
-  const { count: msgsCount } = await supabase
-    .from("stampy_messages")
-    .select("id", { count: "exact", head: true })
-    .gte("created_at", isoThirtyDays);
-
-  const { count: convsCount } = await supabase
-    .from("stampy_conversations")
-    .select("id", { count: "exact", head: true })
-    .gte("created_at", isoThirtyDays);
-
-  const { count: errsCount } = await supabase
-    .from("stampy_usage_logs")
-    .select("id", { count: "exact", head: true })
-    .in("status", ["error", "blocked"])
-    .gte("created_at", isoThirtyDays);
-
-  // Feedback Stats (24h)
   const oneDayAgo = new Date();
   oneDayAgo.setDate(oneDayAgo.getDate() - 1);
   const isoOneDay = oneDayAgo.toISOString();
 
-  const { data: feedback24h } = await supabase
-    .from("stampy_message_feedback")
-    .select("rating")
-    .gte("created_at", isoOneDay);
+  const [
+    messagesResult,
+    conversationsResult,
+    errorsResult,
+    feedbackResult,
+    recentConversationsResult,
+    recentFeedbackResult,
+    actionsResult,
+    recentActionsResult,
+    chunksResult,
+  ] = await Promise.all([
+    supabase
+      .from("stampy_messages")
+      .select("id", { count: "exact", head: true })
+      .gte("created_at", isoThirtyDays),
+    supabase
+      .from("stampy_conversations")
+      .select("id", { count: "exact", head: true })
+      .gte("created_at", isoThirtyDays),
+    supabase
+      .from("stampy_usage_logs")
+      .select("id", { count: "exact", head: true })
+      .in("status", ["error", "blocked"])
+      .gte("created_at", isoThirtyDays),
+    supabase
+      .from("stampy_message_feedback")
+      .select("rating")
+      .gte("created_at", isoOneDay),
+    supabase
+      .from("stampy_conversations")
+      .select("id, title, last_message_at, profiles ( email )")
+      .order("last_message_at", { ascending: false })
+      .limit(15),
+    supabase
+      .from("stampy_message_feedback")
+      .select("id, rating, reason, comment, source, conversation_id, created_at, profiles ( email )")
+      .order("created_at", { ascending: false })
+      .limit(10),
+    supabase
+      .from("stampy_action_requests")
+      .select("status")
+      .gte("created_at", isoOneDay),
+    supabase
+      .from("stampy_action_requests")
+      .select("id, action_type, status, tool_label, created_at, conversation_id, profiles ( email )")
+      .order("created_at", { ascending: false })
+      .limit(10),
+    supabase
+      .from("stampy_knowledge_chunks")
+      .select("source_type")
+      .eq("is_active", true),
+  ]);
+
+  const { count: msgsCount } = messagesResult;
+  const { count: convsCount } = conversationsResult;
+  const { count: errsCount } = errorsResult;
+  const { data: feedback24h } = feedbackResult;
+  const { data: recentConvs } = recentConversationsResult;
+  const { data: recentFeedback } = recentFeedbackResult;
+  const { data: actions24h } = actionsResult;
+  const { data: recentActions } = recentActionsResult;
+  const { data: rawChunks } = chunksResult;
 
   const pos24h = feedback24h?.filter((f) => f.rating === "positive").length || 0;
   const neg24h = feedback24h?.filter((f) => f.rating === "negative").length || 0;
   const total24h = pos24h + neg24h;
   const ratio24h = total24h > 0 ? Math.round((pos24h / total24h) * 100) : 0;
 
-  // Recent Conversations
-  const { data: recentConvs } = await supabase
-    .from("stampy_conversations")
-    .select(`
-      id,
-      title,
-      last_message_at,
-      profiles ( email )
-    `)
-    .order("last_message_at", { ascending: false })
-    .limit(15);
-
-  // Recent Feedback
-  const { data: recentFeedback } = await supabase
-    .from("stampy_message_feedback")
-    .select(`
-      id,
-      rating,
-      reason,
-      comment,
-      source,
-      conversation_id,
-      created_at,
-      profiles ( email )
-    `)
-    .order("created_at", { ascending: false })
-    .limit(10);
-
-  // Action Requests Stats (24h)
-  const { data: actions24h } = await supabase
-    .from("stampy_action_requests")
-    .select("status")
-    .gte("created_at", isoOneDay);
-
   const actionsCount = actions24h?.length || 0;
   const openedCount = actions24h?.filter(a => a.status === "opened_tool").length || 0;
   const cancelledCount = actions24h?.filter(a => a.status === "cancelled").length || 0;
-
-  // Recent Action Requests
-  const { data: recentActions } = await supabase
-    .from("stampy_action_requests")
-    .select(`
-      id,
-      action_type,
-      status,
-      tool_label,
-      created_at,
-      conversation_id,
-      profiles ( email )
-    `)
-    .order("created_at", { ascending: false })
-    .limit(10);
-
-  // Knowledge Index Stats
-  const { data: rawChunks } = await supabase
-    .from("stampy_knowledge_chunks")
-    .select("source_type")
-    .eq("is_active", true);
 
   const chunkStats = Object.entries(
     (rawChunks || []).reduce((acc: any, curr: any) => {

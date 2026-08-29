@@ -11,7 +11,7 @@ export default function CursosPage() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [searchTerm, setSearchTerm] = useState("");
-  const supabase = createClient();
+  const [supabase] = useState(() => createClient());
 
   useEffect(() => {
     const fetchData = async () => {
@@ -21,7 +21,7 @@ export default function CursosPage() {
       const { data, error: fetchErr } = await supabase
         .from("courses")
         .select(`
-          *,
+          id, title, description, slug, thumbnail_url, course_kind, status, level,
           instructors ( name ),
           course_modules (
             lessons ( id, duration_minutes )

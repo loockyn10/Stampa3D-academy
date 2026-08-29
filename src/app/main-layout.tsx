@@ -6,7 +6,7 @@ import { Header } from "@/components/layout/header";
 import { usePathname } from "next/navigation";
 import { GlobalToolTutorial } from "@/components/tutorials/GlobalToolTutorial";
 import { StampyContextProvider } from "@/components/stampy/StampyContextProvider";
-import { GlobalStampyWidget } from "@/components/stampy/GlobalStampyWidget";
+import { GlobalStampyLauncher } from "@/components/stampy/GlobalStampyLauncher";
 import { createClient } from "@/utils/supabase/client";
 import {
   getCurrentUserAccess,
@@ -68,8 +68,8 @@ export function MainLayout({ children }: { children: React.ReactNode }) {
             {children}
           </main>
         </div>
-        <GlobalToolTutorial />
-        <GlobalStampyWidget />
+        <GlobalToolTutorial userId={userAccess?.userId ?? null} />
+        <GlobalStampyLauncher />
       </div>
     </StampyContextProvider>
   );

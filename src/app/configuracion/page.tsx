@@ -2,18 +2,24 @@
 
 import React, { useState, useEffect, Suspense } from "react";
 import { useSearchParams, useRouter } from "next/navigation";
+import dynamic from "next/dynamic";
 import { Building2, Wrench, Calculator, Bot, Loader2 } from "lucide-react";
 import { SectionTitle } from "@/components/ui/section-title";
 
 
-import { BusinessManager } from "@/components/configuracion/business-manager";
-import { PrintersManager } from "@/components/configuracion/printers-manager";
-import { FilamentsManager } from "@/components/configuracion/filaments-manager";
-import { SettingsManager } from "@/components/configuracion/settings-manager";
-import { ProductTypesManager } from "@/components/configuracion/product-types-manager";
-import { StampyManager } from "@/components/configuracion/stampy-manager";
-import { AccountManager } from "@/components/configuracion/account-manager";
 import { User } from "lucide-react";
+
+const managerLoading = () => (
+  <div className="h-40 animate-pulse rounded-2xl border border-stampa-border bg-white/5" />
+);
+
+const AccountManager = dynamic(() => import("@/components/configuracion/account-manager").then((module) => module.AccountManager), { loading: managerLoading });
+const BusinessManager = dynamic(() => import("@/components/configuracion/business-manager").then((module) => module.BusinessManager), { loading: managerLoading });
+const PrintersManager = dynamic(() => import("@/components/configuracion/printers-manager").then((module) => module.PrintersManager), { loading: managerLoading });
+const FilamentsManager = dynamic(() => import("@/components/configuracion/filaments-manager").then((module) => module.FilamentsManager), { loading: managerLoading });
+const SettingsManager = dynamic(() => import("@/components/configuracion/settings-manager").then((module) => module.SettingsManager), { loading: managerLoading });
+const ProductTypesManager = dynamic(() => import("@/components/configuracion/product-types-manager").then((module) => module.ProductTypesManager), { loading: managerLoading });
+const StampyManager = dynamic(() => import("@/components/configuracion/stampy-manager").then((module) => module.StampyManager), { loading: managerLoading });
 
 type Tab = "cuenta" | "negocio" | "taller" | "calculadora" | "stampy";
 

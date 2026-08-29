@@ -1,8 +1,8 @@
 "use client";
 
+import { useEffect, useState } from "react";
 import { usePathname } from "next/navigation";
 import { Menu, Search, Bell, ChevronDown } from "lucide-react";
-import { COURSES } from "@/data/mock-data";
 import Link from "next/link";
 import { GlobalSearch } from "@/components/search/GlobalSearch";
 import type { UserAccessSnapshot } from "@/lib/auth/user-access";
@@ -36,7 +36,24 @@ const PAGE_TITLES: Record<string, string> = {
 
 export function Header({ setMobileOpen, access, loading }: HeaderProps) {
   const pathname = usePathname();
+  const [courseTitle, setCourseTitle] = useState<string | null>(null);
   const identity = access?.identity;
+
+  useEffect(() => {
+    let active = true;
+    if (!pathname.startsWith("/cursos/")) {
+      setCourseTitle(null);
+      return;
+    }
+
+    const courseId = pathname.split("/").pop();
+    import("@/data/mock-data").then(({ COURSES }) => {
+      if (!active) return;
+      setCourseTitle(COURSES.find((course) => course.id === courseId)?.title ?? null);
+    });
+
+    return () => { active = false; };
+  }, [pathname]);
 
   const getInitials = () => {
     const name = identity?.fullName || identity?.displayName || identity?.email || "U";
@@ -72,13 +89,7 @@ export function Header({ setMobileOpen, access, loading }: HeaderProps) {
 
   // Handle dynamic course route title
   if (pathname.startsWith("/cursos/")) {
-    const courseId = pathname.split("/").pop();
-    const course = COURSES.find((c) => c.id === courseId);
-    if (course) {
-      title = course.title;
-    } else {
-      title = "Detalle del Curso";
-    }
+    title = courseTitle || "Detalle del Curso";
   }
 
   return (

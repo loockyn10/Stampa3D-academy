@@ -223,7 +223,7 @@ export function calculateProductPrice({ components, printTimeMinutes, printer, p
 function ProductosPageContent() {
   const searchParams = useSearchParams();
   const router = useRouter();
-  const supabase = createClient();
+  const [supabase] = useState(() => createClient());
   const [products, setProducts] = useState<any[]>([]);
   const [filaments, setFilaments] = useState<any[]>([]);
   const [printers, setPrinters] = useState<any[]>([]);

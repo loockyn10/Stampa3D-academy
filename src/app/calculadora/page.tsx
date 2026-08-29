@@ -1,6 +1,7 @@
 "use client";
 
 import React, { useState, useEffect, useMemo } from "react";
+import dynamic from "next/dynamic";
 import Link from "next/link";
 import { useSearchParams, useRouter } from "next/navigation";
 import { Zap, DollarSign, Loader2, AlertCircle, Settings, Save, X, PackagePlus, CheckCircle2, Calculator, Info, FileText, Plus } from "lucide-react";
@@ -10,8 +11,6 @@ import { SectionTitle } from "@/components/ui/section-title";
 import { createClient } from "@/utils/supabase/client";
 import { FileUploadDropzone } from "@/components/ui/file-upload-dropzone";
 import { CalculatorSelect } from "@/components/ui/calculator-select";
-import { PrinterCatalogModal } from "@/components/calculadora/printer-catalog-modal";
-import { FilamentCatalogModal } from "@/components/calculadora/filament-catalog-modal";
 import { normalizeFilamentColor } from "@/lib/colors/filament-colors";
 import { getFilamentLabel } from "@/lib/filaments/utils";
 import {
@@ -24,6 +23,9 @@ import {
   findStampyNamedMatch,
   parsePositiveStampyPrefillNumber,
 } from "@/lib/stampy/tool-prefill";
+
+const PrinterCatalogModal = dynamic(() => import("@/components/calculadora/printer-catalog-modal").then((module) => module.PrinterCatalogModal));
+const FilamentCatalogModal = dynamic(() => import("@/components/calculadora/filament-catalog-modal").then((module) => module.FilamentCatalogModal));
 interface NumberFieldProps {
   label: string;
   value: string;
@@ -101,7 +103,7 @@ function NumberField({ label, value, onChange, suffix, step = 1, disabled = fals
 function CalculadoraPageContent() {
   const searchParams = useSearchParams();
   const router = useRouter();
-  const supabase = createClient();
+  const [supabase] = useState(() => createClient());
   const [advanced, setAdvanced] = useState(false);
   const [loading, setLoading] = useState(true);
   const [userId, setUserId] = useState<string | null>(null);

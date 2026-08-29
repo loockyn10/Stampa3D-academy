@@ -10,8 +10,6 @@ import { Combobox } from "@/components/ui/combobox";
 import { SectionTitle } from "@/components/ui/section-title";
 import { Badge } from "@/components/ui/badge";
 import { createClient } from "@/utils/supabase/client";
-import { pdf } from "@react-pdf/renderer";
-import BudgetPDFDocument from "@/components/presupuestos/budget-pdf-document";
 import {
   findStampyNamedMatch,
   parsePositiveStampyPrefillNumber,
@@ -28,7 +26,7 @@ const STATUS_MAP: Record<string, { label: string, color: "gray" | "dark" | "gree
 function PresupuestosPageContent() {
   const searchParams = useSearchParams();
   const pathname = usePathname();
-  const supabase = createClient();
+  const [supabase] = useState(() => createClient());
   const prefillAppliedRef = useRef(false);
   const [budgets, setBudgets] = useState<any[]>([]);
   const [clients, setClients] = useState<any[]>([]);
@@ -378,6 +376,10 @@ function PresupuestosPageContent() {
 
     setIsGeneratingPdf(true);
     try {
+      const [{ pdf }, { default: BudgetPDFDocument }] = await Promise.all([
+        import("@react-pdf/renderer"),
+        import("@/components/presupuestos/budget-pdf-document"),
+      ]);
       const blob = await pdf(
         <BudgetPDFDocument
           budget={budgetData}
@@ -410,6 +412,10 @@ function PresupuestosPageContent() {
   const handleDownloadPdfById = async (b: any) => {
     setGeneratingPdfId(b.id);
     try {
+      const [{ pdf }, { default: BudgetPDFDocument }] = await Promise.all([
+        import("@react-pdf/renderer"),
+        import("@/components/presupuestos/budget-pdf-document"),
+      ]);
       const currentClient = clients.find(c => c.id === b.client_id);
 
       const { data: itemsData, error: itemsError } = await supabase

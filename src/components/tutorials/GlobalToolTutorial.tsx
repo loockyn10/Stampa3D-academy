@@ -21,9 +21,9 @@ const routeToolMap = [
   { match: "/configuracion", toolKey: "settings" }
 ];
 
-export function GlobalToolTutorial() {
+export function GlobalToolTutorial({ userId }: { userId: string | null }) {
   const pathname = usePathname();
-  const supabase = createClient();
+  const [supabase] = useState(() => createClient());
   
   const [toolKey, setToolKey] = useState<string | null>(null);
   const [tutorial, setTutorial] = useState<ToolTutorialType | null>(null);
@@ -32,8 +32,6 @@ export function GlobalToolTutorial() {
   const [hasAutoOpened, setHasAutoOpened] = useState(false);
   const [open, setOpen] = useState(false);
   const [openSource, setOpenSource] = useState<"auto" | "manual" | null>(null);
-  const [user, setUser] = useState<any | null>(null);
-  const [userId, setUserId] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
   const [isDev] = useState(process.env.NODE_ENV === "development");
 
@@ -91,8 +89,7 @@ export function GlobalToolTutorial() {
           setHasCheckedView(false);
         }
 
-        const { data: { user: authUser } } = await supabase.auth.getUser();
-        if (!authUser) {
+        if (!userId) {
           if (mounted) {
             setTutorial(null);
             setView(null);
@@ -102,28 +99,28 @@ export function GlobalToolTutorial() {
           return;
         }
         
-        if (mounted) {
-          setUser(authUser);
-          setUserId(authUser.id);
-        }
+        const [tutorialResult, viewResult] = await Promise.all([
+          supabase
+            .from("tool_tutorials")
+            .select("id, tool_key, title, description, video_url, is_active")
+            .eq("tool_key", toolKey)
+            .eq("is_active", true)
+            .maybeSingle(),
+          supabase
+            .from("user_tool_tutorial_views")
+            .select("id, user_id, tool_key, viewed_at, dismissed_at")
+            .eq("user_id", userId)
+            .eq("tool_key", toolKey)
+            .maybeSingle(),
+        ]);
 
-        const { data: tutData, error: tutError } = await supabase
-          .from("tool_tutorials")
-          .select("id, tool_key, title, description, video_url, is_active")
-          .eq("tool_key", toolKey)
-          .eq("is_active", true)
-          .maybeSingle();
+        const { data: tutData, error: tutError } = tutorialResult;
 
         if (tutError && isDev) {
           console.warn("[GlobalToolTutorial] Error fetching tool_tutorials:", tutError);
         }
 
-        const { data: viewData, error: viewError } = await supabase
-          .from("user_tool_tutorial_views")
-          .select("id, user_id, tool_key, viewed_at, dismissed_at")
-          .eq("user_id", authUser.id)
-          .eq("tool_key", toolKey)
-          .maybeSingle();
+        const { data: viewData, error: viewError } = viewResult;
 
         if (viewError && isDev) {
           console.warn("[GlobalToolTutorial] Error fetching view data:", viewError);
@@ -159,13 +156,13 @@ export function GlobalToolTutorial() {
     return () => {
       mounted = false;
     };
-  }, [toolKey, supabase, isDev]);
+  }, [toolKey, userId, supabase, isDev]);
 
   // Auto-open logic
   useEffect(() => {
     if (
       tutorial &&
-      user &&
+      userId &&
       toolKey &&
       hasCheckedView &&
       !view &&
@@ -175,15 +172,15 @@ export function GlobalToolTutorial() {
       setOpenSource("auto");
       setHasAutoOpened(true);
     }
-  }, [tutorial, user, toolKey, view, hasCheckedView, hasAutoOpened]);
+  }, [tutorial, userId, toolKey, view, hasCheckedView, hasAutoOpened]);
 
   const handleClose = async () => {
     setOpen(false);
     
-    if (user && toolKey && tutorial) {
+    if (userId && toolKey && tutorial) {
       try {
         const payload = {
-          user_id: user.id,
+          user_id: userId,
           tool_key: toolKey,
           viewed_at: new Date().toISOString(),
           dismissed_at: new Date().toISOString(),

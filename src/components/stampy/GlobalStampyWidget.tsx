@@ -54,14 +54,14 @@ function shouldHide(pathname: string): boolean {
   return HIDDEN_ON.some((p) => pathname.startsWith(p));
 }
 
-function StampyWidgetContent() {
+function StampyWidgetContent({ initiallyOpen = false }: { initiallyOpen?: boolean }) {
   const pathname = usePathname();
   const searchParams = useSearchParams();
   const fullPathname = pathname + (searchParams?.toString() ? `?${searchParams.toString()}` : "");
 
   const { stampyContext } = useStampyContext();
 
-  const [isOpen, setIsOpen] = useState(false);
+  const [isOpen, setIsOpen] = useState(initiallyOpen);
   const [messages, setMessages] = useState<Message[]>([WIDGET_WELCOME_MESSAGE]);
   const [input, setInput] = useState("");
   const [isLoading, setIsLoading] = useState(false);
@@ -363,10 +363,10 @@ function StampyWidgetContent() {
   );
 }
 
-export function GlobalStampyWidget() {
+export function GlobalStampyWidget({ initiallyOpen = false }: { initiallyOpen?: boolean }) {
   return (
     <Suspense fallback={null}>
-      <StampyWidgetContent />
+      <StampyWidgetContent initiallyOpen={initiallyOpen} />
     </Suspense>
   );
 }

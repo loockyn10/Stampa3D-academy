@@ -40,13 +40,17 @@ export function GlobalSearch() {
   const [searchTerm, setSearchTerm] = useState("");
   const [isOpen, setIsOpen] = useState(false);
   const [courses, setCourses] = useState<SearchResult[]>([]);
+  const [supabase] = useState(() => createClient());
   const router = useRouter();
   const searchRef = useRef<HTMLDivElement>(null);
+  const coursesRequestRef = useRef<Promise<void> | null>(null);
+  const coursesLoadedRef = useRef(false);
 
-  // Cargar cursos al montar
-  useEffect(() => {
-    async function loadCourses() {
-      const supabase = createClient();
+  // La navegación global no necesita cargar el catálogo hasta que el usuario busca.
+  const ensureCoursesLoaded = () => {
+    if (coursesLoadedRef.current || coursesRequestRef.current) return;
+
+    coursesRequestRef.current = (async () => {
       const { data } = await supabase
         .from("courses")
         .select("id, title, description, slug, course_kind, thumbnail_url")
@@ -63,9 +67,11 @@ export function GlobalSearch() {
         }));
         setCourses(mappedCourses);
       }
-    }
-    loadCourses();
-  }, []);
+      coursesLoadedRef.current = true;
+    })().finally(() => {
+      coursesRequestRef.current = null;
+    });
+  };
 
   // Cerrar al clickear afuera
   useEffect(() => {
@@ -156,7 +162,10 @@ export function GlobalSearch() {
             setSearchTerm(e.target.value);
             setIsOpen(true);
           }}
-          onFocus={() => setIsOpen(true)}
+          onFocus={() => {
+            setIsOpen(true);
+            ensureCoursesLoaded();
+          }}
           placeholder="Buscar cursos, herramientas, talleres..."
           className="w-full rounded-xl border border-stampa-border bg-stampa-bg-soft py-2 pl-9 pr-3 text-sm text-neutral-100 placeholder-neutral-500 outline-none focus:bg-stampa-surface focus:border-[#ff6a00] focus:ring-[#ff6a00]/20 focus:ring-2 transition-all"
         />

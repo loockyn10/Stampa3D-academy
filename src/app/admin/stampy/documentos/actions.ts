@@ -128,6 +128,23 @@ export async function processStampyKnowledgeDocument(documentId: string) {
   }
 }
 
+export async function getStampyKnowledgeDocumentPreview(documentId: string) {
+  const admin = await requireAdmin();
+  if (!admin) return { error: "No autorizado." };
+  if (!documentId) return { error: "Documento inválido." };
+
+  const { data, error } = await admin.supabase
+    .from("stampy_knowledge_chunks")
+    .select("id, title, content, source_key")
+    .eq("source_type", "knowledge_document")
+    .eq("source_id", documentId)
+    .order("source_key", { ascending: true })
+    .limit(3);
+
+  if (error) return { error: error.message };
+  return { success: true, previewChunks: data ?? [] };
+}
+
 export async function updateStampyKnowledgeDocument(input: {
   documentId: string;
   title: string;

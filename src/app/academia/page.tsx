@@ -13,7 +13,7 @@ export default function AcademiaPage() {
   const [profile, setProfile] = useState<UserProfile | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const supabase = createClient();
+  const [supabase] = useState(() => createClient());
 
   useEffect(() => {
     const fetchData = async () => {
@@ -21,38 +21,43 @@ export default function AcademiaPage() {
       setError(null);
 
       const { data: { user } } = await supabase.auth.getUser();
-      if (user) {
-        const { data: profileData } = await supabase
+      const profileRequest = user
+        ? supabase
           .from("profiles")
           .select("main_printer_brand, main_printer_model, experience_level, main_goal, commercial_stage, onboarding_completed")
           .eq("id", user.id)
-          .single();
-        if (profileData) setProfile(profileData);
-      }
+          .single()
+        : Promise.resolve({ data: null, error: null });
 
-      const { data: coursesData, error: fetchErr } = await supabase
-        .from("courses")
-        .select(`
-          *,
+      const [profileResult, coursesResult, learningPathsResult] = await Promise.all([
+        profileRequest,
+        supabase
+          .from("courses")
+          .select(`
+          id, title, description, slug, thumbnail_url, course_kind, status, level,
           instructors ( name ),
           course_modules (
             lessons ( id, duration_minutes )
           )
         `)
-        .eq("status", "published")
-        .eq("course_kind", "course")
-        .order("sort_order", { ascending: true });
-
-      const { data: lpData } = await supabase
-        .from("learning_paths")
-        .select(`
-          *,
+          .eq("status", "published")
+          .eq("course_kind", "course")
+          .order("sort_order", { ascending: true }),
+        supabase
+          .from("learning_paths")
+          .select(`
+          id, name, description, printer_brand, experience_level, main_goal, commercial_stage, is_active, is_default,
           learning_path_courses (
             course_id,
             reason,
             sort_order
           )
-        `);
+        `),
+      ]);
+
+      const { data: coursesData, error: fetchErr } = coursesResult;
+      const { data: lpData } = learningPathsResult;
+      if (profileResult.data) setProfile(profileResult.data);
 
       if (fetchErr) {
         console.error("Error fetching data:", fetchErr);

@@ -1,6 +1,7 @@
 "use client";
 
 import React, { useState, useEffect, useMemo, Suspense } from "react";
+import dynamic from "next/dynamic";
 import Link from "next/link";
 import { useSearchParams, useRouter } from "next/navigation";
 import { AlertTriangle, Plus, Minus, Loader2, Package, Box, History, X, Edit2, Search, ChevronDown, ChevronUp, Trash2 } from "lucide-react";
@@ -9,16 +10,17 @@ import { Badge } from "@/components/ui/badge";
 import { PrimaryButton } from "@/components/ui/button";
 import { SectionTitle } from "@/components/ui/section-title";
 import { EmptyState } from "@/components/ui/empty-state";
-import { FilamentEditor } from "@/components/filaments/FilamentEditor";
 import { normalizeFilamentColor } from "@/lib/colors/filament-colors";
 import { ColorSwatchLabel } from "@/components/ui/color-swatch-label";
-import { FilamentCatalogModal } from "@/components/calculadora/filament-catalog-modal";
 import { CalculatorSelect } from "@/components/ui/calculator-select";
 import { getFilamentLabel } from "@/lib/filaments/utils";
 import {
   buildFilamentInsertPayload,
   buildFilamentMutationPayload,
 } from "@/lib/filaments/mutation-payload";
+
+const FilamentEditor = dynamic(() => import("@/components/filaments/FilamentEditor").then((module) => module.FilamentEditor));
+const FilamentCatalogModal = dynamic(() => import("@/components/calculadora/filament-catalog-modal").then((module) => module.FilamentCatalogModal));
 
 const ColorOptionLabel = ({ name, colorHex }: { name: string, colorHex?: string | null }) => {
   let resolvedHex = "#737373";
@@ -46,7 +48,7 @@ const ColorOptionLabel = ({ name, colorHex }: { name: string, colorHex?: string 
 import { createClient } from "@/utils/supabase/client";
 
 function StockPageContent() {
-  const supabase = createClient();
+  const [supabase] = useState(() => createClient());
   const searchParams = useSearchParams();
   const initialTab = searchParams.get("tab") === "filamentos" ? "filamentos" : "productos";
   const [tab, setTab] = useState<"productos" | "filamentos">(initialTab);

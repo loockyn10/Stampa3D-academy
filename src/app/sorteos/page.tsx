@@ -1,6 +1,7 @@
 "use client";
 
 import React, { useState, useEffect } from "react";
+import Link from "next/link";
 import { CalendarDays, Gift, Trophy, Loader2, AlertCircle } from "lucide-react";
 import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -13,7 +14,7 @@ import {
 } from "@/lib/raffles/public-raffles";
 
 export default function SorteosPage() {
-  const supabase = createClient();
+  const [supabase] = useState(() => createClient());
   const [activeRaffles, setActiveRaffles] = useState<PublicRaffle[]>([]);
   const [pastWinners, setPastWinners] = useState<any[]>([]);
   const [memberLevel, setMemberLevel] = useState<string>("member");
@@ -24,60 +25,59 @@ export default function SorteosPage() {
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
-    fetchData();
-  }, []);
+    let active = true;
 
-  const fetchData = async () => {
-    setLoading(true);
-    const { data: { user } } = await supabase.auth.getUser();
-    if (!user) return;
-
-    // Fetch user profile for member_level and referral
-    const { data: profile } = await supabase.from("profiles").select("*").eq("id", user.id).single();
-    if (profile) {
-      setMemberLevel(profile.member_level || "member");
-      
-      let refCode = profile.referral_code;
-      if (!refCode) {
-        refCode = await getOrCreateReferralCode(supabase, user.id, null, profile);
+    const fetchData = async () => {
+      setLoading(true);
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) {
+        if (active) setLoading(false);
+        return;
       }
-      setReferralCode(refCode);
-    }
 
-    // Fetch bonus entries
-    try {
-      const { data: bonusData, error: bonusError } = await supabase
-        .from("user_raffle_bonus_entries")
-        .select("entries_count")
-        .eq("user_id", user.id)
-        .eq("is_active", true);
-      
-      if (bonusData && !bonusError) {
-        setBonusEntries(bonusData.reduce((acc, curr) => acc + (curr.entries_count || 0), 0));
+      const [profileResult, bonusResult, rafflesResult, winnersResult] = await Promise.all([
+        supabase
+          .from("profiles")
+          .select("member_level, referral_code, display_name, full_name, email")
+          .eq("id", user.id)
+          .single(),
+        supabase
+          .from("user_raffle_bonus_entries")
+          .select("entries_count")
+          .eq("user_id", user.id)
+          .eq("is_active", true),
+        getVisibleRaffles(supabase),
+        supabase
+          .from("raffle_winners")
+          .select("id, winner_name_snapshot, prize_name_snapshot, won_at, raffles(title, draw_date)")
+          .order("won_at", { ascending: false }),
+      ]);
+
+      if (!active) return;
+      const profile = profileResult.data;
+      if (profile) {
+        setMemberLevel(profile.member_level || "member");
+        let refCode = profile.referral_code;
+        if (!refCode) refCode = await getOrCreateReferralCode(supabase, user.id, null, profile);
+        if (active) setReferralCode(refCode);
       }
-    } catch (e) {
-      // ignore table not found
-    }
 
-    // Fetch every raffle that is explicitly public and active.
-    const { data: activeData, error: activeError } = await getVisibleRaffles(supabase);
+      if (bonusResult.data && !bonusResult.error) {
+        setBonusEntries(bonusResult.data.reduce((sum, row) => sum + (row.entries_count || 0), 0));
+      }
+      if (rafflesResult.error) {
+        console.error(rafflesResult.error);
+        setError("Error cargando los sorteos activos.");
+      } else {
+        setActiveRaffles(rafflesResult.data);
+      }
+      setPastWinners(winnersResult.data || []);
+      setLoading(false);
+    };
 
-    if (activeError) {
-      console.error(activeError);
-      setError("Error cargando los sorteos activos.");
-    } else {
-      setActiveRaffles(activeData);
-    }
-
-    // Fetch past winners
-    const { data: winnersData } = await supabase
-      .from("raffle_winners")
-      .select("*, raffles(title, draw_date)")
-      .order("won_at", { ascending: false });
-
-    setPastWinners(winnersData || []);
-    setLoading(false);
-  };
+    void fetchData();
+    return () => { active = false; };
+  }, [supabase]);
 
   const getChances = () => {
     if (memberLevel === "gold" || memberLevel === "elite") return 2;
@@ -195,9 +195,9 @@ export default function SorteosPage() {
           <p className="text-sm text-gray-400 font-medium mb-6 max-w-sm text-center">
             Cuando haya un sorteo disponible para miembros, lo vas a ver acá listo para participar.
           </p>
-          <a href="/canales" className="px-6 py-2.5 bg-stampa-bg-soft hover:bg-white/5 text-white text-sm font-bold rounded-xl border border-stampa-border transition-colors shadow-sm">
+          <Link href="/canales" className="px-6 py-2.5 bg-stampa-bg-soft hover:bg-white/5 text-white text-sm font-bold rounded-xl border border-stampa-border transition-colors shadow-sm">
             Ir a la Comunidad
-          </a>
+          </Link>
         </div>
       )}
 
