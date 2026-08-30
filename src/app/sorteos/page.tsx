@@ -2,7 +2,7 @@
 
 import React, { useState, useEffect } from "react";
 import Link from "next/link";
-import { AlertCircle, CalendarDays, Gift, Ticket, Trophy } from "lucide-react";
+import { AlertCircle, CalendarDays, Gift, Ticket, Trophy, UserPlus } from "lucide-react";
 import { Card } from "@/components/ui/card";
 import { createClient } from "@/utils/supabase/client";
 import { getOrCreateReferralCode } from "@/lib/referral";
@@ -11,6 +11,24 @@ import {
   type PublicRaffle,
 } from "@/lib/raffles/public-raffles";
 import { RafflesPageSkeleton } from "@/components/ui/page-skeletons";
+
+const PRIZE_TONES = [
+  {
+    row: "border-stampa-orange/25 bg-stampa-orange/[0.06] hover:border-stampa-orange/40 hover:bg-stampa-orange/[0.09]",
+    position: "text-stampa-orange",
+    fallback: "border-stampa-orange/20 bg-stampa-orange/10 text-stampa-orange",
+  },
+  {
+    row: "border-cyan-400/20 bg-cyan-500/[0.05] hover:border-cyan-400/35 hover:bg-cyan-500/[0.08]",
+    position: "text-cyan-300",
+    fallback: "border-cyan-400/20 bg-cyan-500/10 text-cyan-300",
+  },
+  {
+    row: "border-violet-400/20 bg-violet-500/[0.05] hover:border-violet-400/35 hover:bg-violet-500/[0.08]",
+    position: "text-violet-300",
+    fallback: "border-violet-400/20 bg-violet-500/10 text-violet-300",
+  },
+] as const;
 
 export default function SorteosPage() {
   const [supabase] = useState(() => createClient());
@@ -89,11 +107,19 @@ export default function SorteosPage() {
 
   return (
     <div className="flex flex-col gap-6 pb-8 sm:gap-8 sm:pb-12">
-      <header className="max-w-2xl">
-        <h1 className="text-3xl font-black tracking-tight text-white md:text-4xl">Sorteos</h1>
-        <p className="mt-2 text-sm text-gray-400">
-          Participá de los sorteos de Stampa y sumá chances invitando amigos.
-        </p>
+      <header className="relative overflow-hidden rounded-2xl border border-stampa-orange/15 bg-gradient-to-br from-stampa-orange/[0.08] via-stampa-surface to-cyan-500/[0.05] p-5 sm:p-6">
+        <div className="pointer-events-none absolute -right-16 -top-20 h-48 w-48 rounded-full bg-violet-500/10 blur-3xl" />
+        <div className="relative flex max-w-2xl items-center gap-3">
+          <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl border border-stampa-orange/25 bg-stampa-orange/10 text-stampa-orange shadow-[0_0_20px_rgba(255,106,0,0.08)]">
+            <Gift size={21} aria-hidden="true" />
+          </div>
+          <div className="min-w-0">
+            <h1 className="text-3xl font-black tracking-tight text-white md:text-4xl">Sorteos</h1>
+            <p className="mt-1 text-sm text-gray-400">
+              Participá de los sorteos de Stampa y sumá chances invitando amigos.
+            </p>
+          </div>
+        </div>
       </header>
 
       {error && (
@@ -110,18 +136,21 @@ export default function SorteosPage() {
             const mainPrize = activePrizes[0];
             const totalChances = getChances() + bonusEntries;
             return (
-              <Card key={activeRaffle.id} className="overflow-hidden rounded-2xl border border-stampa-border bg-stampa-surface shadow-lg shadow-black/30">
+              <Card key={activeRaffle.id} className="group relative overflow-hidden rounded-2xl border border-stampa-orange/20 bg-gradient-to-br from-stampa-orange/[0.07] via-stampa-surface to-violet-500/[0.06] shadow-lg shadow-black/30 transition-[border-color,box-shadow] duration-200 hover:border-stampa-orange/35 hover:shadow-[0_0_24px_rgba(255,106,0,0.07)]">
+                <div className="pointer-events-none absolute inset-x-0 top-0 z-10 h-px bg-gradient-to-r from-transparent via-stampa-orange/60 to-transparent" />
                 {mainPrize?.image_url ? (
-                  <div className="h-36 overflow-hidden border-b border-stampa-border bg-stampa-bg-soft sm:h-40">
+                  <div className="relative h-40 overflow-hidden border-b border-stampa-orange/15 bg-gradient-to-br from-stampa-orange/10 via-stampa-bg-soft to-violet-500/10 sm:h-44">
                     <img
                       src={mainPrize.image_url}
                       alt={mainPrize.name}
-                      className="h-full w-full object-cover transition-transform duration-500 hover:scale-[1.02]"
+                      className="h-full w-full object-cover transition-transform duration-500 group-hover:scale-[1.025]"
                     />
+                    <div className="pointer-events-none absolute inset-0 bg-gradient-to-t from-black/35 via-transparent to-cyan-400/[0.04]" />
                   </div>
                 ) : (
-                  <div className="flex h-24 items-center justify-center border-b border-stampa-border bg-stampa-bg-soft text-gray-500">
-                    <Gift size={28} aria-hidden="true" />
+                  <div className="relative flex h-28 items-center justify-center overflow-hidden border-b border-stampa-orange/15 bg-gradient-to-br from-stampa-orange/10 via-stampa-bg-soft to-violet-500/10 text-stampa-orange/70">
+                    <div className="absolute h-20 w-20 rounded-full bg-stampa-orange/10 blur-2xl" />
+                    <Gift size={28} className="relative" aria-hidden="true" />
                   </div>
                 )}
 
@@ -129,7 +158,7 @@ export default function SorteosPage() {
                   <h2 className="text-xl font-black leading-tight text-white sm:text-2xl">{activeRaffle.title}</h2>
 
                   <div className="mt-3 flex flex-wrap items-center gap-2 text-xs font-semibold">
-                    <span className="inline-flex items-center gap-1.5 rounded-lg border border-stampa-orange/15 bg-stampa-orange/5 px-2.5 py-1.5 text-stampa-orange">
+                    <span className="inline-flex items-center gap-1.5 rounded-lg border border-stampa-orange/30 bg-stampa-orange/10 px-2.5 py-1.5 font-bold uppercase tracking-wide text-stampa-orange shadow-[0_0_14px_rgba(255,106,0,0.05)]">
                       <CalendarDays size={14} aria-hidden="true" />
                       {activeRaffle.draw_date
                         ? new Date(activeRaffle.draw_date).toLocaleDateString("es-AR", {
@@ -139,7 +168,7 @@ export default function SorteosPage() {
                           })
                         : "Fecha a confirmar"}
                     </span>
-                    <span className="inline-flex items-center gap-1.5 rounded-lg border border-violet-400/20 bg-violet-500/10 px-2.5 py-1.5 text-violet-300">
+                    <span className="inline-flex items-center gap-1.5 rounded-lg border border-cyan-400/25 bg-gradient-to-r from-cyan-500/10 to-violet-500/10 px-2.5 py-1.5 font-bold text-cyan-200 shadow-[0_0_14px_rgba(34,211,238,0.05)]">
                       <Ticket size={14} aria-hidden="true" />
                       {totalChances} {totalChances === 1 ? "chance" : "chances"}
                     </span>
@@ -149,26 +178,29 @@ export default function SorteosPage() {
                     <div className="mt-5">
                       <h3 className="mb-2 text-[10px] font-bold uppercase tracking-[0.16em] text-gray-500">Premios</h3>
                       <ul className="space-y-2">
-                        {activePrizes.map((prize, idx) => (
-                          <li key={prize.id} className="flex min-w-0 items-center gap-3 rounded-xl border border-stampa-border bg-stampa-bg-soft p-2.5">
-                            {prize.image_url ? (
-                              <img src={prize.image_url} alt="" className="h-10 w-10 shrink-0 rounded-lg border border-stampa-border object-cover" />
-                            ) : (
-                              <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg border border-stampa-border bg-stampa-surface text-gray-500">
-                                <Gift size={16} aria-hidden="true" />
-                              </div>
-                            )}
-                            <div className="min-w-0 flex-1">
-                              <p className="text-sm font-bold leading-snug text-white">
-                                <span className="mr-1 text-stampa-orange">{idx + 1}º</span>
-                                {prize.name}
-                              </p>
-                              {prize.description && (
-                                <p className="mt-0.5 line-clamp-1 text-xs text-gray-500">{prize.description}</p>
+                        {activePrizes.map((prize, idx) => {
+                          const tone = PRIZE_TONES[Math.min(idx, PRIZE_TONES.length - 1)];
+                          return (
+                            <li key={prize.id} className={`flex min-w-0 items-center gap-3 rounded-xl border p-2.5 transition-colors duration-150 ${tone.row}`}>
+                              {prize.image_url ? (
+                                <img src={prize.image_url} alt="" className="h-10 w-10 shrink-0 rounded-lg border border-white/10 object-cover shadow-sm" />
+                              ) : (
+                                <div className={`flex h-10 w-10 shrink-0 items-center justify-center rounded-lg border ${tone.fallback}`}>
+                                  <Gift size={16} aria-hidden="true" />
+                                </div>
                               )}
-                            </div>
-                          </li>
-                        ))}
+                              <div className="min-w-0 flex-1">
+                                <p className="text-sm font-bold leading-snug text-white">
+                                  <span className={`mr-1 ${tone.position}`}>{idx + 1}º</span>
+                                  {prize.name}
+                                </p>
+                                {prize.description && (
+                                  <p className="mt-0.5 line-clamp-1 text-xs text-gray-400">{prize.description}</p>
+                                )}
+                              </div>
+                            </li>
+                          );
+                        })}
                       </ul>
                     </div>
                   )}
@@ -192,26 +224,33 @@ export default function SorteosPage() {
       {/* 3. Mis chances */}
       <div>
         <h2 className="mb-3 text-lg font-bold text-white">Mis chances</h2>
-        <Card className="relative overflow-hidden rounded-2xl border-stampa-border bg-stampa-surface p-4 sm:p-5 md:p-6">
-          <div className="pointer-events-none absolute right-0 top-0 h-32 w-32 -translate-y-1/2 translate-x-1/2 rounded-full bg-violet-500/10 blur-3xl" />
+        <Card className="relative overflow-hidden rounded-2xl border-cyan-400/20 bg-gradient-to-br from-cyan-500/[0.07] via-stampa-surface to-violet-500/[0.08] p-4 shadow-[0_0_24px_rgba(34,211,238,0.04)] sm:p-5 md:p-6">
+          <div className="pointer-events-none absolute right-0 top-0 h-36 w-36 -translate-y-1/2 translate-x-1/2 rounded-full bg-violet-500/15 blur-3xl" />
 
           <div className="relative z-10 grid grid-cols-1 gap-5 md:grid-cols-[minmax(180px,0.7fr)_minmax(0,1.3fr)] md:gap-6">
-            <div className="flex flex-col justify-center border-b border-stampa-border pb-5 md:border-b-0 md:border-r md:pb-0 md:pr-6">
+            <div className="flex flex-col justify-center border-b border-cyan-400/15 pb-5 md:border-b-0 md:border-r md:pb-0 md:pr-6">
               <div className="flex items-baseline gap-2">
-                <span className="text-5xl font-black text-transparent bg-clip-text bg-gradient-to-br from-violet-400 to-orange-400">
+                <span className="bg-gradient-to-br from-cyan-300 to-violet-400 bg-clip-text text-5xl font-black text-transparent drop-shadow-[0_0_18px_rgba(34,211,238,0.12)]">
                   {getChances() + bonusEntries}
                 </span>
                 <span className="text-sm font-bold text-gray-400">chances totales</span>
               </div>
               <p className="mt-1 text-xs text-gray-500">
-                {getChances()} base · {bonusEntries} por referidos
+                <span className="text-cyan-300/80">{getChances()} base</span>
+                <span className="mx-1.5 text-gray-600">·</span>
+                <span className="text-violet-300/80">{bonusEntries} por referidos</span>
               </p>
             </div>
 
-            <div className="flex flex-col justify-center">
-              <div className="mb-3">
-                <h3 className="text-sm font-bold text-white">Invitá amigos y sumá chances</h3>
-                <p className="mt-1 text-xs text-gray-400">Cada referido suma +1 chance.</p>
+            <div className="flex flex-col justify-center rounded-xl border border-violet-400/15 bg-violet-500/[0.05] p-3.5 sm:p-4">
+              <div className="mb-3 flex items-start gap-2.5">
+                <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg border border-violet-400/20 bg-violet-500/10 text-violet-300">
+                  <UserPlus size={16} aria-hidden="true" />
+                </div>
+                <div>
+                  <h3 className="text-sm font-bold text-white">Invitá amigos y sumá chances</h3>
+                  <p className="mt-0.5 text-xs text-gray-400">Cada referido suma +1 chance.</p>
+                </div>
               </div>
 
               <div className="flex min-w-0 items-stretch gap-2">
@@ -234,7 +273,7 @@ export default function SorteosPage() {
                     }
                   }}
                   disabled={!referralCode}
-                  className="flex shrink-0 items-center justify-center rounded-xl border border-stampa-border bg-white/5 px-3 py-2.5 text-xs font-bold text-white transition-colors hover:bg-white/10 disabled:opacity-50 sm:px-4 sm:text-sm"
+                  className="flex shrink-0 items-center justify-center rounded-xl border border-stampa-orange/60 bg-stampa-orange px-3 py-2.5 text-xs font-bold text-white shadow-[0_0_16px_rgba(255,106,0,0.12)] transition-[background-color,filter] hover:brightness-110 focus:outline-none focus:ring-2 focus:ring-stampa-orange/30 disabled:opacity-50 sm:px-4 sm:text-sm"
                 >
                   {copied ? "¡Copiado!" : "Copiar"}
                 </button>
