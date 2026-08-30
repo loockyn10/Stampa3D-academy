@@ -10,18 +10,13 @@ interface MobileRadialMenuProps {
 }
 
 type RadialItemStyle = CSSProperties & {
-  "--radial-x": string;
-  "--radial-y": string;
+  "--radial-angle": string;
+  "--radial-counter-angle": string;
+  "--radial-radius": string;
 };
 
-const RADIAL_POSITIONS = [
-  { x: "calc(clamp(6.25rem, 34vw, 9rem) * -1)", y: "-4.75rem" },
-  { x: "calc(clamp(3.75rem, 21vw, 5.5rem) * -1)", y: "-9.25rem" },
-  { x: "calc(clamp(2rem, 10vw, 2.75rem) * -1)", y: "-12.75rem" },
-  { x: "clamp(2rem, 10vw, 2.75rem)", y: "-12.75rem" },
-  { x: "clamp(3.75rem, 21vw, 5.5rem)", y: "-9.25rem" },
-  { x: "clamp(6.25rem, 34vw, 9rem)", y: "-4.75rem" },
-] as const;
+const RADIAL_ARC_ANGLES = [210, 232, 254, 286, 308, 330] as const;
+const RADIAL_RADIUS = "clamp(8.25rem, 42vw, 10.75rem)";
 
 export function MobileRadialMenu({ open, onClose }: MobileRadialMenuProps) {
   return (
@@ -47,11 +42,12 @@ export function MobileRadialMenu({ open, onClose }: MobileRadialMenuProps) {
       >
         {secondaryMobileNavigation.map((item, index) => {
           const Icon = item.icon;
-          const position = RADIAL_POSITIONS[index];
+          const angle = RADIAL_ARC_ANGLES[index];
           const delay = open ? 40 + index * 50 : (secondaryMobileNavigation.length - index - 1) * 24;
           const style: RadialItemStyle = {
-            "--radial-x": position.x,
-            "--radial-y": position.y,
+            "--radial-angle": `${angle}deg`,
+            "--radial-counter-angle": `${-angle}deg`,
+            "--radial-radius": RADIAL_RADIUS,
             transitionDelay: `${delay}ms`,
           };
 

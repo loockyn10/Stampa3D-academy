@@ -183,10 +183,10 @@ option {
   pointer-events: auto;
   transition-duration: 300ms, 180ms;
   transform:
-    translate(
-      calc(-50% + var(--radial-x)),
-      calc(-50% + var(--radial-y))
-    )
+    translate(-50%, -50%)
+    rotate(var(--radial-angle))
+    translateX(var(--radial-radius))
+    rotate(var(--radial-counter-angle))
     scale(1);
 }
 
