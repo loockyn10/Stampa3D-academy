@@ -176,15 +176,15 @@ export default function StampyPage() {
             <Sparkles size={24} />
           </div>
           <div className="flex-1">
-            <div className="flex items-center justify-between w-full">
-              <h1 className="text-2xl font-bold flex items-center gap-3">
+            <div className="flex w-full flex-col items-start gap-2 sm:flex-row sm:items-center sm:justify-between">
+              <h1 className="flex min-w-0 flex-wrap items-center gap-x-2 gap-y-1 text-xl font-bold sm:text-2xl">
                 <span className="bg-gradient-to-r from-cyan-300 via-sky-300 to-violet-400 bg-clip-text text-transparent">Stampy</span>
-                <span className="inline-flex items-center gap-1 rounded-full border px-2.5 py-1 text-xs font-semibold bg-cyan-500/10 text-cyan-300 border-cyan-500/30">Asistente de la academia</span>
+                <span className="inline-flex items-center rounded-full border border-cyan-500/30 bg-cyan-500/10 px-2 py-0.5 text-[10px] font-semibold leading-4 text-cyan-300 sm:px-2.5 sm:py-1 sm:text-xs">Asistente de la academia</span>
               </h1>
               <button
                 onClick={startNewConversation}
                 disabled={loading}
-                className="text-xs font-semibold px-3 py-1.5 rounded-lg border border-stampa-border bg-stampa-surface hover:bg-white/5 text-gray-300 transition-colors"
+                className="shrink-0 rounded-lg border border-stampa-border bg-stampa-surface px-3 py-1.5 text-xs font-semibold text-gray-300 transition-colors hover:bg-white/5"
               >
                 Nueva conversación
               </button>
