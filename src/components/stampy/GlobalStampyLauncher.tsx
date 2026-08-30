@@ -23,12 +23,12 @@ const HIDDEN_ON = [
   "/salir",
 ];
 
-export function GlobalStampyLauncher() {
+export function GlobalStampyLauncher({ mobileMenuOpen = false }: { mobileMenuOpen?: boolean }) {
   const pathname = usePathname();
   const [activated, setActivated] = useState(false);
 
   if (activated) {
-    return <GlobalStampyWidget initiallyOpen />;
+    return <GlobalStampyWidget initiallyOpen mobileMenuOpen={mobileMenuOpen} />;
   }
 
   if (HIDDEN_ON.some((route) => pathname.startsWith(route))) return null;
@@ -40,7 +40,9 @@ export function GlobalStampyLauncher() {
       onClick={() => setActivated(true)}
       title="Preguntarle a Stampy"
       aria-label="Abrir Stampy"
-      className="fixed bottom-6 right-6 z-[100] flex h-14 w-14 items-center justify-center rounded-full border border-cyan-300/40 bg-gradient-to-r from-cyan-400 to-violet-500 text-white shadow-2xl shadow-cyan-500/25 transition hover:brightness-110 hover:scale-105 active:scale-95"
+      className={`mobile-floating-stampy fixed z-[50] flex h-14 w-14 items-center justify-center rounded-full border border-cyan-300/40 bg-gradient-to-r from-cyan-400 to-violet-500 text-white shadow-2xl shadow-cyan-500/25 transition hover:brightness-110 hover:scale-105 active:scale-95 lg:z-[100] ${
+        mobileMenuOpen ? "mobile-floating-action-hidden" : ""
+      }`}
     >
       <Bot size={28} className="animate-soft-pulse" />
     </button>

@@ -21,7 +21,13 @@ const routeToolMap = [
   { match: "/configuracion", toolKey: "settings" }
 ];
 
-export function GlobalToolTutorial({ userId }: { userId: string | null }) {
+export function GlobalToolTutorial({
+  userId,
+  mobileMenuOpen = false,
+}: {
+  userId: string | null;
+  mobileMenuOpen?: boolean;
+}) {
   const pathname = usePathname();
   const [supabase] = useState(() => createClient());
   
@@ -166,13 +172,14 @@ export function GlobalToolTutorial({ userId }: { userId: string | null }) {
       toolKey &&
       hasCheckedView &&
       !view &&
-      !hasAutoOpened
+      !hasAutoOpened &&
+      !mobileMenuOpen
     ) {
       setOpen(true);
       setOpenSource("auto");
       setHasAutoOpened(true);
     }
-  }, [tutorial, userId, toolKey, view, hasCheckedView, hasAutoOpened]);
+  }, [tutorial, userId, toolKey, view, hasCheckedView, hasAutoOpened, mobileMenuOpen]);
 
   const handleClose = async () => {
     setOpen(false);
@@ -220,14 +227,17 @@ export function GlobalToolTutorial({ userId }: { userId: string | null }) {
       <button
         onClick={handleOpenManual}
         title="Ver tutorial"
-        className="fixed bottom-7 right-24 z-[100] flex h-10 w-10 items-center justify-center rounded-full border border-stampa-orange/40 bg-stampa-orange text-lg font-bold text-white shadow-2xl shadow-stampa-orange/25 transition hover:scale-105 hover:bg-orange-400 active:scale-95"
+        aria-label="Abrir tutorial de esta página"
+        className={`mobile-floating-tutorial fixed z-[50] flex h-10 w-10 items-center justify-center rounded-full border border-stampa-orange/40 bg-stampa-orange text-lg font-bold text-white shadow-2xl shadow-stampa-orange/25 transition hover:scale-105 hover:bg-orange-400 active:scale-95 lg:z-[100] ${
+          mobileMenuOpen ? "mobile-floating-action-hidden" : ""
+        }`}
       >
         ?
       </button>
 
 
       {/* Modal */}
-      {open && (
+      {open && !mobileMenuOpen && (
         <div className="fixed inset-0 z-[100] flex items-center justify-center bg-stampa-bg/70 backdrop-blur-sm p-4 animate-in fade-in duration-200">
           <div className="bg-stampa-bg w-full max-w-3xl rounded-2xl border border-stampa-border shadow-2xl overflow-hidden flex flex-col max-h-[90vh]">
             

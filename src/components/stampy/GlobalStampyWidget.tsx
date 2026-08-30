@@ -54,7 +54,13 @@ function shouldHide(pathname: string): boolean {
   return HIDDEN_ON.some((p) => pathname.startsWith(p));
 }
 
-function StampyWidgetContent({ initiallyOpen = false }: { initiallyOpen?: boolean }) {
+function StampyWidgetContent({
+  initiallyOpen = false,
+  mobileMenuOpen = false,
+}: {
+  initiallyOpen?: boolean;
+  mobileMenuOpen?: boolean;
+}) {
   const pathname = usePathname();
   const searchParams = useSearchParams();
   const fullPathname = pathname + (searchParams?.toString() ? `?${searchParams.toString()}` : "");
@@ -194,7 +200,9 @@ function StampyWidgetContent({ initiallyOpen = false }: { initiallyOpen?: boolea
         <button
           type="button"
           onClick={() => setIsOpen(true)}
-          className="fixed bottom-6 right-6 z-[100] flex h-14 w-14 items-center justify-center rounded-full border border-cyan-300/40 bg-gradient-to-r from-cyan-400 to-violet-500 text-white shadow-2xl shadow-cyan-500/25 transition hover:brightness-110 hover:scale-105 active:scale-95"
+          className={`mobile-floating-stampy fixed z-[50] flex h-14 w-14 items-center justify-center rounded-full border border-cyan-300/40 bg-gradient-to-r from-cyan-400 to-violet-500 text-white shadow-2xl shadow-cyan-500/25 transition hover:brightness-110 hover:scale-105 active:scale-95 lg:z-[100] ${
+            mobileMenuOpen ? "mobile-floating-action-hidden" : ""
+          }`}
           title="Preguntarle a Stampy"
         >
           <Bot size={28} className="animate-soft-pulse" />
@@ -202,7 +210,7 @@ function StampyWidgetContent({ initiallyOpen = false }: { initiallyOpen?: boolea
       )}
 
       {isOpen && (
-        <aside className="fixed inset-x-3 bottom-3 z-[100] h-[82dvh] max-h-[82dvh] overflow-hidden rounded-2xl border border-cyan-400/30 bg-stampa-bg/95 shadow-2xl shadow-cyan-500/15 backdrop-blur-xl md:inset-auto md:bottom-6 md:right-6 md:h-[80dvh] md:max-h-[760px] md:w-[420px] md:max-w-[calc(100vw-3rem)] animate-in fade-in zoom-in-95 slide-in-from-bottom-2">
+        <aside className="mobile-stampy-panel fixed inset-x-3 z-[100] overflow-hidden rounded-2xl border border-cyan-400/30 bg-stampa-bg/95 shadow-2xl shadow-cyan-500/15 backdrop-blur-xl lg:inset-auto lg:bottom-6 lg:right-6 lg:h-[80dvh] lg:max-h-[760px] lg:w-[420px] lg:max-w-[calc(100vw-3rem)] animate-in fade-in zoom-in-95 slide-in-from-bottom-2">
           <div className="flex h-full min-h-0 flex-col">
             <div className="flex items-center justify-between p-4 border-b border-stampa-border bg-white/[0.03] shrink-0">
               <div className="flex items-center gap-3">
@@ -363,10 +371,16 @@ function StampyWidgetContent({ initiallyOpen = false }: { initiallyOpen?: boolea
   );
 }
 
-export function GlobalStampyWidget({ initiallyOpen = false }: { initiallyOpen?: boolean }) {
+export function GlobalStampyWidget({
+  initiallyOpen = false,
+  mobileMenuOpen = false,
+}: {
+  initiallyOpen?: boolean;
+  mobileMenuOpen?: boolean;
+}) {
   return (
     <Suspense fallback={null}>
-      <StampyWidgetContent initiallyOpen={initiallyOpen} />
+      <StampyWidgetContent initiallyOpen={initiallyOpen} mobileMenuOpen={mobileMenuOpen} />
     </Suspense>
   );
 }

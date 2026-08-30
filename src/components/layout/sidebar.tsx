@@ -14,7 +14,6 @@ import {
   User,
   Settings,
   LogOut,
-  X,
   Shield,
   Sparkles,
   Globe,
@@ -23,8 +22,6 @@ import {
 import type { UserAccessSnapshot } from "@/lib/auth/user-access";
 
 interface SidebarProps {
-  mobileOpen: boolean;
-  setMobileOpen: (open: boolean) => void;
   access: UserAccessSnapshot | null;
   loading: boolean;
 }
@@ -65,7 +62,7 @@ const NAV_GROUPS = [
   },
 ];
 
-export function Sidebar({ mobileOpen, setMobileOpen, access, loading }: SidebarProps) {
+export function Sidebar({ access, loading }: SidebarProps) {
   const pathname = usePathname();
   const isAdmin = access?.capabilities.accessAdmin === true;
   const hasPlatformAccess = access?.capabilities.accessPlatform === true;
@@ -80,23 +77,10 @@ export function Sidebar({ mobileOpen, setMobileOpen, access, loading }: SidebarP
   };
 
   return (
-    <>
-      {/* Mobile overlay */}
-      {mobileOpen && (
-        <div
-          className="fixed inset-0 z-30 bg-stampa-bg/60 lg:hidden"
-          onClick={() => setMobileOpen(false)}
-        />
-      )}
-
-      <aside
-        className={`fixed inset-y-0 left-0 z-40 flex w-64 flex-col border-r border-stampa-border bg-stampa-bg transition-transform duration-200 lg:static lg:translate-x-0 ${
-          mobileOpen ? "translate-x-0" : "-translate-x-full"
-        }`}
-      >
+      <aside className="hidden w-64 shrink-0 flex-col border-r border-stampa-border bg-stampa-bg lg:flex">
         {/* Brand logo header */}
-        <div className="flex items-center justify-between px-5 py-5">
-          <Link href="/" className="flex items-center gap-2" onClick={() => setMobileOpen(false)}>
+        <div className="flex items-center px-5 py-5">
+          <Link href="/" className="flex items-center gap-2">
             <Image
               src="/favicon.svg"
               alt="Stampa"
@@ -109,15 +93,11 @@ export function Sidebar({ mobileOpen, setMobileOpen, access, loading }: SidebarP
               <p className="mt-0.5 text-[11px] leading-none text-gray-500">Academia 3D</p>
             </div>
           </Link>
-          <button className="text-gray-400 lg:hidden" onClick={() => setMobileOpen(false)}>
-            <X size={20} />
-          </button>
         </div>
 
         {/* Dashboard/Inicio Link */}
         <Link
           href="/"
-          onClick={() => setMobileOpen(false)}
           className={`mx-3 mb-2 flex items-center gap-3 rounded-xl px-3 py-2.5 text-sm font-semibold transition-colors ${
             pathname === "/" ? "bg-stampa-orange/10 text-stampa-orange" : "text-gray-400 hover:bg-white/5 hover:text-white"
           }`}
@@ -158,7 +138,6 @@ export function Sidebar({ mobileOpen, setMobileOpen, access, loading }: SidebarP
                       <Link
                         key={item.path}
                         href={item.path}
-                        onClick={() => setMobileOpen(false)}
                         className={`group flex w-full items-center gap-3 rounded-xl px-3 py-2.5 text-sm font-medium transition-colors duration-150 ${
                           active
                             ? isStampy
@@ -201,7 +180,6 @@ export function Sidebar({ mobileOpen, setMobileOpen, access, loading }: SidebarP
             <p className="mt-1 text-xs text-gray-400">Desbloqueá todos los cursos y STL exclusivos de la academia.</p>
             <Link 
               href="/sin-acceso"
-              onClick={() => setMobileOpen(false)}
               className="mt-3 block w-full text-center rounded-lg bg-white/10 py-2 text-xs font-semibold hover:bg-white/20 transition-colors"
             >
               Ver planes
@@ -209,6 +187,5 @@ export function Sidebar({ mobileOpen, setMobileOpen, access, loading }: SidebarP
           </div>
         )}
       </aside>
-    </>
   );
 }

@@ -153,7 +153,7 @@ export default function StampyPage() {
   };
 
   return (
-    <div className="flex flex-col h-[calc(100vh-6rem)] md:h-[calc(100vh-12rem)] max-w-6xl mx-auto p-4 md:p-6 gap-4 md:gap-6">
+    <div className="stampy-page-shell mx-auto flex max-w-6xl flex-col gap-4 p-4 md:gap-6 md:p-6">
       <div className="flex flex-col mb-1 shrink-0">
         <div className="flex items-center gap-3">
           <div className="p-2 bg-gradient-to-r from-cyan-500/20 to-violet-500/20 text-cyan-400 border border-cyan-400/20 rounded-xl">

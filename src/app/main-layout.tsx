@@ -3,6 +3,8 @@
 import React, { useEffect, useState } from "react";
 import { Sidebar } from "@/components/layout/sidebar";
 import { Header } from "@/components/layout/header";
+import { MobileHeader } from "@/components/layout/mobile-header";
+import { MobileBottomNavigation } from "@/components/layout/mobile-bottom-navigation";
 import { usePathname } from "next/navigation";
 import { GlobalToolTutorial } from "@/components/tutorials/GlobalToolTutorial";
 import { StampyContextProvider } from "@/components/stampy/StampyContextProvider";
@@ -14,7 +16,7 @@ import {
 } from "@/lib/auth/user-access";
 
 export function MainLayout({ children }: { children: React.ReactNode }) {
-  const [mobileOpen, setMobileOpen] = useState(false);
+  const [mobileToolsOpen, setMobileToolsOpen] = useState(false);
   const [supabase] = useState(() => createClient());
   const [userAccess, setUserAccess] = useState<UserAccessSnapshot | null>(null);
   const [accessLoading, setAccessLoading] = useState(true);
@@ -51,25 +53,24 @@ export function MainLayout({ children }: { children: React.ReactNode }) {
 
   return (
     <StampyContextProvider>
-      <div className="flex min-h-screen w-full min-w-0 bg-stampa-bg text-[#ededed] font-sans">
-        <Sidebar
-          mobileOpen={mobileOpen}
-          setMobileOpen={setMobileOpen}
-          access={userAccess}
-          loading={accessLoading}
-        />
+      <div className="flex min-h-screen w-full min-w-0 overflow-x-clip bg-stampa-bg text-[#ededed] font-sans">
+        <Sidebar access={userAccess} loading={accessLoading} />
         <div className="flex min-h-screen min-w-0 flex-1 flex-col lg:pl-0">
-          <Header
-            setMobileOpen={setMobileOpen}
-            access={userAccess}
-            loading={accessLoading}
-          />
-          <main className="flex-1 min-w-0 px-4 py-6 sm:px-6 lg:px-8 lg:py-8 animate-page-in relative">
+          <MobileHeader access={userAccess} loading={accessLoading} />
+          <Header access={userAccess} loading={accessLoading} />
+          <main className="mobile-shell-content relative min-w-0 flex-1 animate-page-in px-4 py-6 sm:px-6 lg:px-8 lg:py-8">
             {children}
           </main>
         </div>
-        <GlobalToolTutorial userId={userAccess?.userId ?? null} />
-        <GlobalStampyLauncher />
+        <GlobalToolTutorial
+          userId={userAccess?.userId ?? null}
+          mobileMenuOpen={mobileToolsOpen}
+        />
+        <GlobalStampyLauncher mobileMenuOpen={mobileToolsOpen} />
+        <MobileBottomNavigation
+          toolsOpen={mobileToolsOpen}
+          onToolsOpenChange={setMobileToolsOpen}
+        />
       </div>
     </StampyContextProvider>
   );

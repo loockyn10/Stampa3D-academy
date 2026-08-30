@@ -2,13 +2,12 @@
 
 import { useEffect, useState } from "react";
 import { usePathname } from "next/navigation";
-import { Menu, Search, Bell, ChevronDown } from "lucide-react";
+import { Bell, ChevronDown } from "lucide-react";
 import Link from "next/link";
 import { GlobalSearch } from "@/components/search/GlobalSearch";
 import type { UserAccessSnapshot } from "@/lib/auth/user-access";
 
 interface HeaderProps {
-  setMobileOpen: (open: boolean) => void;
   access: UserAccessSnapshot | null;
   loading: boolean;
 }
@@ -34,7 +33,7 @@ const PAGE_TITLES: Record<string, string> = {
   "/canales": "Canales",
 };
 
-export function Header({ setMobileOpen, access, loading }: HeaderProps) {
+export function Header({ access, loading }: HeaderProps) {
   const pathname = usePathname();
   const [courseTitle, setCourseTitle] = useState<string | null>(null);
   const identity = access?.identity;
@@ -93,27 +92,19 @@ export function Header({ setMobileOpen, access, loading }: HeaderProps) {
   }
 
   return (
-    <header className="sticky top-0 z-20 flex h-16 items-center border-b border-stampa-border bg-stampa-bg/80 px-4 backdrop-blur lg:px-8">
-      {/* 1. Izquierda: Título y menú mobile */}
+    <header className="sticky top-0 z-20 hidden h-16 items-center border-b border-stampa-border bg-stampa-bg/80 px-8 backdrop-blur lg:flex">
+      {/* 1. Izquierda: Título */}
       <div className="flex flex-1 items-center gap-3 min-w-0">
-        <button className="text-gray-400 lg:hidden shrink-0" onClick={() => setMobileOpen(true)}>
-          <Menu size={22} />
-        </button>
-        <h1 className="truncate text-base font-bold text-white sm:block">{title}</h1>
+        <h1 className="truncate text-base font-bold text-white">{title}</h1>
       </div>
 
-      {/* 2. Centro: Buscador global (oculto en mobile) */}
-      <div className="mx-6 hidden w-full max-w-xl flex-1 md:block">
+      {/* 2. Centro: Buscador global */}
+      <div className="mx-6 w-full max-w-xl flex-1">
         <GlobalSearch />
       </div>
 
       {/* 3. Derecha: Iconos y perfil */}
       <div className="flex flex-1 items-center justify-end gap-3">
-        {/* Lupa para mobile (comportamiento futuro opcional) */}
-        <button className="md:hidden flex h-9 w-9 items-center justify-center rounded-xl text-gray-400 hover:bg-white/5 hover:text-white transition-colors">
-          <Search size={18} />
-        </button>
-
         <button className="relative flex h-9 w-9 items-center justify-center rounded-xl text-gray-400 hover:bg-white/5 hover:text-white transition-colors">
           <Bell size={18} />
           <span className="absolute right-2 top-2 h-1.5 w-1.5 rounded-full bg-stampa-orange" />
