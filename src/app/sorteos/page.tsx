@@ -48,6 +48,7 @@ export default function SorteosPage() {
 
     const fetchData = async () => {
       setLoading(true);
+      setError(null);
       const { data: { user } } = await supabase.auth.getUser();
       if (!user) {
         if (active) setLoading(false);
@@ -138,7 +139,7 @@ export default function SorteosPage() {
       )}
 
       {/* 2. Sorteos activos */}
-      {activeRaffles.length > 0 ? (
+      {!error && (activeRaffles.length > 0 ? (
         <div className="grid grid-cols-1 gap-4 md:grid-cols-2 xl:gap-6">
           {activeRaffles.map((activeRaffle) => {
             const activePrizes = activeRaffle.raffle_prizes;
@@ -233,7 +234,7 @@ export default function SorteosPage() {
             Ir a la Comunidad
           </Link>
         </div>
-      )}
+      ))}
 
       {/* 3. Mis chances */}
       <div>

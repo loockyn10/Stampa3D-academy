@@ -80,6 +80,7 @@ test("public query filters both fields, has no limit, and the page renders every
   assert.doesNotMatch(helperSource, /\.single\(/);
   assert.match(pageSource, /activeRaffles\.map\(\(activeRaffle\)/);
   assert.match(pageSource, /Todavía no hay sorteos activos\./);
+  assert.match(pageSource, /!error && \(activeRaffles\.length > 0/);
 });
 
 test("admin keeps its unfiltered list and continues to show draft state", () => {
