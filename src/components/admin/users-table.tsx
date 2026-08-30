@@ -3,6 +3,10 @@
 import React, { useEffect, useState } from "react";
 import { createClient } from "@/utils/supabase/client";
 import { Loader2, CheckCircle2, AlertCircle, Shield, Star, ShieldOff } from "lucide-react";
+import {
+  activateFounderOverrideAdmin,
+  grantBetaAccessAdmin,
+} from "@/app/admin/usuarios/actions";
 
 type Profile = {
   id: string;
@@ -115,22 +119,16 @@ export function UsersTable() {
   const handleGrantBeta = async () => {
     if (!betaModal) return;
     setBetaLoading(true);
+    setError(null);
 
-    const { data: { user } } = await supabase.auth.getUser();
+    const result = await grantBetaAccessAdmin({
+      userId: betaModal.userId,
+      notes: betaNotes,
+      expiresAt: betaExpires ? new Date(betaExpires).toISOString() : null,
+    });
 
-    const payload: any = {
-      user_id: betaModal.userId,
-      grant_type: "beta_tester",
-      status: "active",
-      granted_by: user?.id,
-      notes: betaNotes.trim() || null,
-      expires_at: betaExpires ? new Date(betaExpires).toISOString() : null,
-    };
-
-    const { error: grantError } = await supabase.from("user_access_grants").insert(payload);
-
-    if (grantError) {
-      setError(grantError.message);
+    if (!result.success) {
+      setError(result.error || "No se pudo otorgar el acceso Beta.");
     } else {
       showSuccess(`Acceso Beta otorgado a ${betaModal.name}.`);
       setBetaModal(null);
@@ -159,27 +157,14 @@ export function UsersTable() {
 
   const handleMarkFounder = async (userId: string, name: string) => {
     setUpdatingId(userId);
+    setError(null);
 
-    // Get next founder number
-    const { data: lastFounder } = await supabase
-      .from("founder_members")
-      .select("founder_number")
-      .order("founder_number", { ascending: false })
-      .limit(1)
-      .maybeSingle();
+    const result = await activateFounderOverrideAdmin(userId);
 
-    const nextNumber = (lastFounder?.founder_number || 0) + 1;
-
-    const { error: founderError } = await supabase.from("founder_members").insert({
-      user_id: userId,
-      founder_number: nextNumber,
-      status: "active",
-    });
-
-    if (founderError) {
-      setError(founderError.message);
+    if (!result.success) {
+      setError(result.error || "No se pudo asignar el beneficio fundador.");
     } else {
-      showSuccess(`${name} marcado como Fundador #${nextNumber}.`);
+      showSuccess(`${name} marcado como Fundador #${result.founderNumber}.`);
       await fetchUsers();
     }
     setUpdatingId(null);
@@ -249,8 +234,10 @@ export function UsersTable() {
                             <Star size={9} />
                             {user.founderData.status === 'active' ? 'Fundador' : 'Reservado'} #{user.founderData.founder_number}
                           </span>
-                          {user.founderData.price_paid && (
-                            <span className="text-[10px] text-amber-500/70 pl-0.5">${Number(user.founderData.price_paid).toLocaleString('es-AR')}</span>
+                          {user.founderData.price != null && (
+                            <span className="text-[10px] text-amber-500/70 pl-0.5">
+                              ${Number(user.founderData.price).toLocaleString('es-AR')} {user.founderData.currency || 'ARS'}
+                            </span>
                           )}
                           {user.founderData.confirmed_at && (
                             <span className="text-[10px] text-gray-600 pl-0.5">Confirmado {new Date(user.founderData.confirmed_at).toLocaleDateString('es-AR')}</span>

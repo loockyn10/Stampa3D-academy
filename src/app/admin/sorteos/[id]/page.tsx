@@ -14,6 +14,9 @@ import {
   RAFFLE_IMAGES_BUCKET,
   resolveRaffleImageUrl,
 } from "@/lib/raffles/images";
+import { PLATFORM_GRANT_TYPES } from "@/lib/auth/access-policy";
+import { getRaffleParticipantChances } from "@/lib/raffles/participants";
+import { assignRaffleWinner } from "./actions";
 
 export default function EditarSorteoPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = use(params);
@@ -77,9 +80,73 @@ export default function EditarSorteoPage({ params }: { params: Promise<{ id: str
     const { data: wData } = await supabase.from("raffle_winners").select("*").eq("raffle_id", id).order("won_at", { ascending: false });
     setWinners(wData || []);
 
-    // 4. Fetch Profiles for Winner Selection
-    const { data: profData } = await supabase.from("profiles").select("id, name, email").order("name", { ascending: true });
-    setProfiles(profData || []);
+    // 4. Derive eligible participants from the same access facts used by the app.
+    const { data: profData, error: profilesError } = await supabase
+      .from("profiles")
+      .select("id, email, full_name, display_name, role, membership_status, membership_expires_at, onboarding_completed, member_level")
+      .order("created_at", { ascending: false });
+
+    if (profilesError) {
+      setError(`No se pudieron cargar los participantes: ${profilesError.message}`);
+      setProfiles([]);
+    } else {
+      const profileIds = (profData || []).map((profile) => profile.id);
+      let grants: any[] = [];
+      let bonusRows: any[] = [];
+      let participantFactsAvailable = true;
+
+      if (profileIds.length > 0) {
+        const [grantsResult, bonusResult] = await Promise.all([
+          supabase
+            .from("user_access_grants")
+            .select("user_id, grant_type, status, expires_at")
+            .in("user_id", profileIds)
+            .eq("status", "active")
+            .in("grant_type", [...PLATFORM_GRANT_TYPES]),
+          supabase
+            .from("user_raffle_bonus_entries")
+            .select("user_id, entries_count")
+            .in("user_id", profileIds)
+            .eq("is_active", true),
+        ]);
+
+        if (grantsResult.error || bonusResult.error) {
+          setError(`No se pudieron calcular las chances: ${grantsResult.error?.message || bonusResult.error?.message}`);
+          participantFactsAvailable = false;
+        } else {
+          grants = grantsResult.data || [];
+          bonusRows = bonusResult.data || [];
+        }
+      }
+
+      const participants = participantFactsAvailable ? (profData || []).flatMap((profile) => {
+        const profileGrants = grants
+          .filter((grant) => grant.user_id === profile.id)
+          .map((grant) => ({
+            grantType: grant.grant_type,
+            status: grant.status,
+            expiresAt: grant.expires_at,
+          }));
+        const bonusEntries = bonusRows
+          .filter((row) => row.user_id === profile.id)
+          .reduce((total, row) => total + Number(row.entries_count || 0), 0);
+        const chances = getRaffleParticipantChances({
+          profile,
+          grants: profileGrants,
+          bonusEntries,
+        });
+
+        if (chances === null) return [];
+        return [{
+          id: profile.id,
+          email: profile.email || "",
+          name: profile.display_name || profile.full_name || profile.email || "Usuario sin nombre",
+          chances,
+        }];
+      }).sort((left, right) => left.name.localeCompare(right.name, "es")) : [];
+
+      setProfiles(participants);
+    }
 
     setLoading(false);
   };
@@ -131,25 +198,15 @@ export default function EditarSorteoPage({ params }: { params: Promise<{ id: str
       return alert("Selecciona un usuario y un premio.");
     }
     
-    const selectedPrize = prizes.find(p => p.id === winnerForm.prize_id);
-    const selectedUser = profiles.find(p => p.id === winnerForm.user_id);
-    
-    if (!selectedPrize || !selectedUser) return;
-
-    const payload = {
-      raffle_id: id,
-      prize_id: selectedPrize.id,
-      user_id: selectedUser.id,
-      winner_name_snapshot: selectedUser.name || selectedUser.email || "Usuario sin nombre",
-      prize_name_snapshot: selectedPrize.name,
-      won_at: new Date().toISOString()
-    };
-
-    const { data, error } = await supabase.from("raffle_winners").insert([payload]).select().single();
-    if (error) {
-      alert("Error: " + error.message);
-    } else if (data) {
-      setWinners([data, ...winners]);
+    const result = await assignRaffleWinner({
+      raffleId: id,
+      prizeId: winnerForm.prize_id,
+      userId: winnerForm.user_id,
+    });
+    if (!result.success) {
+      alert("Error: " + result.error);
+    } else if (result.winner) {
+      setWinners([result.winner, ...winners]);
       setWinnerForm({ user_id: "", prize_id: "" });
     }
   };
@@ -341,9 +398,16 @@ export default function EditarSorteoPage({ params }: { params: Promise<{ id: str
             <div>
               <label className="block text-xs font-semibold text-gray-300 mb-1">Seleccionar Ganador (Usuario)</label>
               <select value={winnerForm.user_id} onChange={(e) => setWinnerForm({...winnerForm, user_id: e.target.value})} className="w-full text-sm border-white/20 rounded-md focus:border-stampa-orange bg-stampa-surface text-white">
-                <option value="">Buscar usuario...</option>
-                {profiles.map(p => <option key={p.id} value={p.id}>{p.name || p.email}</option>)}
+                <option value="">Seleccionar participante...</option>
+                {profiles.map(p => (
+                  <option key={p.id} value={p.id}>
+                    {p.name}{p.email && p.email !== p.name ? ` · ${p.email}` : ""} · {p.chances} {p.chances === 1 ? "chance" : "chances"}
+                  </option>
+                ))}
               </select>
+              {profiles.length === 0 && (
+                <p className="mt-1.5 text-xs text-gray-500">No hay usuarios con acceso vigente para este sorteo.</p>
+              )}
             </div>
             <div>
               <label className="block text-xs font-semibold text-gray-300 mb-1">Seleccionar Premio Otorgado</label>
