@@ -1,4 +1,4 @@
-import type { Metadata } from "next";
+import type { Metadata, Viewport } from "next";
 import { Geist, Geist_Mono } from "next/font/google";
 import "./globals.css";
 import { MainLayout } from "./main-layout";
@@ -15,10 +15,19 @@ const geistMono = Geist_Mono({
 
 export const metadata: Metadata = {
   title: "Academia Stampa",
-  description: "Plataforma de cursos y herramientas para emprendedores de impresión 3D.",
+  description: "Plataforma de impresión 3D de Stampa",
+  applicationName: "Academia Stampa",
   icons: {
-    icon: "/favicon.svg",
+    icon: [
+      { url: "/favicon.svg", type: "image/svg+xml" },
+      { url: "/icons/icon-192.png", sizes: "192x192", type: "image/png" },
+    ],
   },
+};
+
+export const viewport: Viewport = {
+  themeColor: "#171717",
+  colorScheme: "dark",
 };
 
 export default function RootLayout({
