@@ -30,6 +30,7 @@ const QUICK_SUGGESTIONS = [
   "Ayudame a solucionar warping",
   "Dame una idea de producto rentable",
 ];
+const MOBILE_QUICK_SUGGESTIONS = QUICK_SUGGESTIONS.slice(0, 3);
 
 const MAIN_CONVERSATION_STORAGE_KEY = "stampy_main_conversation_id";
 const LEGACY_CONVERSATION_STORAGE_KEY = "stampy_current_conversation_id";
@@ -57,6 +58,8 @@ export default function StampyPage() {
   ]);
   const [input, setInput] = useState("");
   const [loading, setLoading] = useState(false);
+  const [conversationResolved, setConversationResolved] = useState(false);
+  const [mobileSuggestionsDismissed, setMobileSuggestionsDismissed] = useState(false);
   const [conversationId, setConversationId] = useState<string | null>(() =>
     typeof window === "undefined"
       ? null
@@ -71,6 +74,8 @@ export default function StampyPage() {
 
   useEffect(() => {
     localStorage.removeItem(LEGACY_CONVERSATION_STORAGE_KEY);
+    setConversationId(localStorage.getItem(MAIN_CONVERSATION_STORAGE_KEY));
+    setConversationResolved(true);
   }, []);
 
   useEffect(() => {
@@ -81,6 +86,7 @@ export default function StampyPage() {
     const safeText = text.trim();
     if (!safeText || loading || requestInFlightRef.current) return;
     requestInFlightRef.current = true;
+    setMobileSuggestionsDismissed(true);
 
     const requestId = createStampyRequestId();
     const userMsg: Message = {
@@ -138,6 +144,8 @@ export default function StampyPage() {
     if (requestInFlightRef.current) return;
     setConversationId(null);
     localStorage.removeItem(MAIN_CONVERSATION_STORAGE_KEY);
+    setInput("");
+    setMobileSuggestionsDismissed(false);
     setMessages([{
       id: "new-conversation:assistant",
       role: "assistant",
@@ -151,6 +159,14 @@ export default function StampyPage() {
       handleSend(input);
     }
   };
+
+  const hasUserMessages = messages.some((message) => message.role === "user");
+  const showMobileEmptyState =
+    conversationResolved &&
+    !conversationId &&
+    !hasUserMessages &&
+    !mobileSuggestionsDismissed &&
+    !loading;
 
   return (
     <div className="stampy-page-shell mx-auto flex max-w-6xl flex-col gap-4 p-4 md:gap-6 md:p-6">
@@ -183,8 +199,36 @@ export default function StampyPage() {
         {/* Chat Area */}
         <div className="flex-1 flex flex-col bg-stampa-bg border border-stampa-border rounded-2xl overflow-hidden shadow-2xl">
           <div className="flex-1 overflow-y-auto p-4 md:p-6 space-y-6">
+            {showMobileEmptyState && (
+              <div className="flex min-h-full items-center justify-center py-2 lg:hidden">
+                <div className="flex w-full max-w-xs flex-col items-center text-center">
+                  <div className="mb-2 flex h-10 w-10 items-center justify-center rounded-full border border-cyan-500/25 bg-cyan-500/10 text-cyan-400">
+                    <Bot size={20} />
+                  </div>
+                  <h2 className="text-sm font-bold text-white">Stampy</h2>
+                  <p className="mt-1 text-xs text-gray-400">¿Qué necesitás resolver?</p>
+                  <div className="mt-4 grid w-full gap-2">
+                    {MOBILE_QUICK_SUGGESTIONS.map((suggestion) => (
+                      <button
+                        key={suggestion}
+                        type="button"
+                        onClick={() => handleSend(suggestion)}
+                        disabled={loading}
+                        className="min-h-11 rounded-xl border border-stampa-border bg-stampa-surface px-3 py-2 text-left text-xs font-medium text-gray-300 transition-colors hover:border-cyan-400/35 hover:bg-cyan-500/5 hover:text-cyan-200 disabled:opacity-50"
+                      >
+                        {suggestion}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+              </div>
+            )}
+
             {messages.map((msg) => (
-              <div key={msg.id} className={`flex gap-4 ${msg.role === "user" ? "justify-end" : "justify-start"}`}>
+              <div
+                key={msg.id}
+                className={`${showMobileEmptyState ? "hidden lg:flex" : "flex"} gap-4 ${msg.role === "user" ? "justify-end" : "justify-start"}`}
+              >
                 
                 {msg.role === "assistant" && (
                   <div className="w-8 h-8 shrink-0 rounded-full bg-cyan-500/10 flex items-center justify-center text-cyan-400 mt-1 shadow-sm border border-cyan-500/20">
@@ -331,7 +375,11 @@ export default function StampyPage() {
             <div className="relative flex items-end">
               <textarea
                 value={input}
-                onChange={(e) => setInput(e.target.value)}
+                onChange={(e) => {
+                  const nextInput = e.target.value;
+                  setInput(nextInput);
+                  if (nextInput.trim()) setMobileSuggestionsDismissed(true);
+                }}
                 onKeyDown={handleKeyDown}
                 placeholder="Preguntale algo a Stampy..."
                 className="w-full bg-stampa-surface border border-stampa-border rounded-xl py-3 pl-4 pr-12 text-sm text-white placeholder:text-gray-400 focus:outline-none focus:ring-2 focus:ring-cyan-400/20 focus:border-cyan-400/60 resize-none overflow-y-auto"
@@ -352,7 +400,7 @@ export default function StampyPage() {
         </div>
 
         {/* Quick Suggestions Sidebar */}
-        <div className="w-full lg:w-72 shrink-0">
+        <div className="hidden w-72 shrink-0 lg:block">
           <div className="bg-stampa-surface border border-stampa-border rounded-2xl p-5 shadow-sm">
             <h3 className="text-sm font-bold text-white mb-3 flex items-center gap-2">
               Sugerencias rápidas
