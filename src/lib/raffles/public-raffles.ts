@@ -14,6 +14,7 @@ export interface PublicRaffle {
   id: string;
   title: string;
   description: string | null;
+  cover_image_url: string | null;
   draw_date: string | null;
   status: string;
   is_active: boolean;
@@ -36,6 +37,7 @@ export async function getVisibleRaffles(
       id,
       title,
       description,
+      cover_image_url,
       draw_date,
       status,
       is_active,

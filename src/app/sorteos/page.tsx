@@ -4,12 +4,14 @@ import React, { useState, useEffect } from "react";
 import Link from "next/link";
 import { AlertCircle, CalendarDays, Gift, Ticket, Trophy, UserPlus } from "lucide-react";
 import { Card } from "@/components/ui/card";
+import { RaffleImage } from "@/components/raffles/raffle-image";
 import { createClient } from "@/utils/supabase/client";
 import { getOrCreateReferralCode } from "@/lib/referral";
 import {
   getVisibleRaffles,
   type PublicRaffle,
 } from "@/lib/raffles/public-raffles";
+import { resolveRaffleImageUrl } from "@/lib/raffles/images";
 import { RafflesPageSkeleton } from "@/components/ui/page-skeletons";
 
 const PRIZE_TONES = [
@@ -86,7 +88,14 @@ export default function SorteosPage() {
         console.error(rafflesResult.error);
         setError("Error cargando los sorteos activos.");
       } else {
-        setActiveRaffles(rafflesResult.data);
+        setActiveRaffles(rafflesResult.data.map((raffle) => ({
+          ...raffle,
+          cover_image_url: resolveRaffleImageUrl(supabase, raffle.cover_image_url),
+          raffle_prizes: raffle.raffle_prizes.map((prize) => ({
+            ...prize,
+            image_url: resolveRaffleImageUrl(supabase, prize.image_url),
+          })),
+        })));
       }
       setPastWinners(winnersResult.data || []);
       setLoading(false);
@@ -134,25 +143,27 @@ export default function SorteosPage() {
           {activeRaffles.map((activeRaffle) => {
             const activePrizes = activeRaffle.raffle_prizes;
             const mainPrize = activePrizes[0];
+            const coverImage = activeRaffle.cover_image_url || mainPrize?.image_url;
             const totalChances = getChances() + bonusEntries;
             return (
               <Card key={activeRaffle.id} className="group relative overflow-hidden rounded-2xl border border-stampa-orange/20 bg-gradient-to-br from-stampa-orange/[0.07] via-stampa-surface to-violet-500/[0.06] shadow-lg shadow-black/30 transition-[border-color,box-shadow] duration-200 hover:border-stampa-orange/35 hover:shadow-[0_0_24px_rgba(255,106,0,0.07)]">
                 <div className="pointer-events-none absolute inset-x-0 top-0 z-10 h-px bg-gradient-to-r from-transparent via-stampa-orange/60 to-transparent" />
-                {mainPrize?.image_url ? (
-                  <div className="relative h-40 overflow-hidden border-b border-stampa-orange/15 bg-gradient-to-br from-stampa-orange/10 via-stampa-bg-soft to-violet-500/10 sm:h-44">
-                    <img
-                      src={mainPrize.image_url}
-                      alt={mainPrize.name}
-                      className="h-full w-full object-cover transition-transform duration-500 group-hover:scale-[1.025]"
-                    />
+                <div className="relative h-40 overflow-hidden border-b border-stampa-orange/15 bg-gradient-to-br from-stampa-orange/10 via-stampa-bg-soft to-violet-500/10 sm:h-44">
+                  <RaffleImage
+                    src={coverImage}
+                    alt={activeRaffle.title}
+                    className="h-full w-full object-cover transition-transform duration-500 group-hover:scale-[1.025]"
+                    fallback={(
+                      <div className="relative flex h-full items-center justify-center text-stampa-orange/70">
+                        <div className="absolute h-20 w-20 rounded-full bg-stampa-orange/10 blur-2xl" />
+                        <Gift size={28} className="relative" aria-hidden="true" />
+                      </div>
+                    )}
+                  />
+                  {coverImage && (
                     <div className="pointer-events-none absolute inset-0 bg-gradient-to-t from-black/35 via-transparent to-cyan-400/[0.04]" />
-                  </div>
-                ) : (
-                  <div className="relative flex h-28 items-center justify-center overflow-hidden border-b border-stampa-orange/15 bg-gradient-to-br from-stampa-orange/10 via-stampa-bg-soft to-violet-500/10 text-stampa-orange/70">
-                    <div className="absolute h-20 w-20 rounded-full bg-stampa-orange/10 blur-2xl" />
-                    <Gift size={28} className="relative" aria-hidden="true" />
-                  </div>
-                )}
+                  )}
+                </div>
 
                 <div className="flex flex-col p-4 sm:p-5">
                   <h2 className="text-xl font-black leading-tight text-white sm:text-2xl">{activeRaffle.title}</h2>
@@ -182,13 +193,16 @@ export default function SorteosPage() {
                           const tone = PRIZE_TONES[Math.min(idx, PRIZE_TONES.length - 1)];
                           return (
                             <li key={prize.id} className={`flex min-w-0 items-center gap-3 rounded-xl border p-2.5 transition-colors duration-150 ${tone.row}`}>
-                              {prize.image_url ? (
-                                <img src={prize.image_url} alt="" className="h-10 w-10 shrink-0 rounded-lg border border-white/10 object-cover shadow-sm" />
-                              ) : (
-                                <div className={`flex h-10 w-10 shrink-0 items-center justify-center rounded-lg border ${tone.fallback}`}>
+                              <RaffleImage
+                                src={prize.image_url}
+                                alt=""
+                                className="h-10 w-10 shrink-0 rounded-lg border border-white/10 bg-white/[0.03] object-contain shadow-sm"
+                                fallback={(
+                                  <div className={`flex h-10 w-10 shrink-0 items-center justify-center rounded-lg border ${tone.fallback}`}>
                                   <Gift size={16} aria-hidden="true" />
-                                </div>
-                              )}
+                                  </div>
+                                )}
+                              />
                               <div className="min-w-0 flex-1">
                                 <p className="text-sm font-bold leading-snug text-white">
                                   <span className={`mr-1 ${tone.position}`}>{idx + 1}º</span>
