@@ -21,18 +21,19 @@ const HIDDEN_ON = [
   "/sin-acceso",
   "/pago/estado",
   "/salir",
+  "/stampy",
 ];
 
 export function GlobalStampyLauncher({ mobileMenuOpen = false }: { mobileMenuOpen?: boolean }) {
   const pathname = usePathname();
   const [activated, setActivated] = useState(false);
 
+  if (HIDDEN_ON.some((route) => pathname === route || pathname.startsWith(`${route}/`))) return null;
+  if (/^\/cursos\/[^/]+/.test(pathname)) return null;
+
   if (activated) {
     return <GlobalStampyWidget initiallyOpen mobileMenuOpen={mobileMenuOpen} />;
   }
-
-  if (HIDDEN_ON.some((route) => pathname.startsWith(route))) return null;
-  if (/^\/cursos\/[^/]+/.test(pathname)) return null;
 
   return (
     <button

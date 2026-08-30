@@ -40,6 +40,36 @@ export function GlobalToolTutorial({
   const [openSource, setOpenSource] = useState<"auto" | "manual" | null>(null);
   const [loading, setLoading] = useState(true);
   const [isDev] = useState(process.env.NODE_ENV === "development");
+  const [stampyTutorialBottom, setStampyTutorialBottom] = useState<number | null>(null);
+  const isStampyRoute = pathname === "/stampy" || pathname.startsWith("/stampy/");
+
+  useEffect(() => {
+    if (!isStampyRoute) {
+      setStampyTutorialBottom(null);
+      return;
+    }
+
+    const composer = document.querySelector<HTMLElement>("[data-stampy-composer]");
+    if (!composer) return;
+
+    const updateTutorialPosition = () => {
+      const viewportHeight = window.visualViewport?.height ?? window.innerHeight;
+      const composerTop = composer.getBoundingClientRect().top;
+      setStampyTutorialBottom(Math.max(0, viewportHeight - composerTop + 12));
+    };
+
+    const resizeObserver = new ResizeObserver(updateTutorialPosition);
+    resizeObserver.observe(composer);
+    window.addEventListener("resize", updateTutorialPosition);
+    window.visualViewport?.addEventListener("resize", updateTutorialPosition);
+    updateTutorialPosition();
+
+    return () => {
+      resizeObserver.disconnect();
+      window.removeEventListener("resize", updateTutorialPosition);
+      window.visualViewport?.removeEventListener("resize", updateTutorialPosition);
+    };
+  }, [isStampyRoute]);
 
   // Determine toolKey based on route
   useEffect(() => {
@@ -228,7 +258,8 @@ export function GlobalToolTutorial({
         onClick={handleOpenManual}
         title="Ver tutorial"
         aria-label="Abrir tutorial de esta página"
-        className={`mobile-floating-tutorial fixed z-[50] flex h-10 w-10 items-center justify-center rounded-full border border-stampa-orange/40 bg-stampa-orange text-lg font-bold text-white shadow-2xl shadow-stampa-orange/25 transition hover:scale-105 hover:bg-orange-400 active:scale-95 lg:z-[100] ${
+        style={stampyTutorialBottom !== null ? { "--stampy-tutorial-bottom": `${stampyTutorialBottom}px` } as React.CSSProperties : undefined}
+        className={`mobile-floating-tutorial ${isStampyRoute ? "mobile-floating-tutorial-stampy" : ""} fixed z-[50] flex h-10 w-10 items-center justify-center rounded-full border border-stampa-orange/40 bg-stampa-orange text-lg font-bold text-white shadow-2xl shadow-stampa-orange/25 transition hover:scale-105 hover:bg-orange-400 active:scale-95 lg:z-[100] ${
           mobileMenuOpen ? "mobile-floating-action-hidden" : ""
         }`}
       >

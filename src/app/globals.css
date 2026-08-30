@@ -200,6 +200,13 @@ option {
   bottom: calc(var(--mobile-bottom-navigation-height) + env(safe-area-inset-bottom) + 5rem);
 }
 
+.mobile-floating-tutorial-stampy {
+  bottom: var(
+    --stampy-tutorial-bottom,
+    calc(var(--mobile-bottom-navigation-height) + env(safe-area-inset-bottom) + 8rem)
+  );
+}
+
 .mobile-floating-action-hidden {
   opacity: 0;
   pointer-events: none;
