@@ -3,7 +3,7 @@
 import React, { useState, useEffect } from "react";
 import Link from "next/link";
 import { useSearchParams, useRouter } from "next/navigation";
-import { Plus, Pencil, Copy, Trash2, Loader2, Save, X, AlertCircle, RefreshCw, TrendingUp, TrendingDown, Minus, ChevronDown, ChevronUp, History, AlertTriangle } from "lucide-react";
+import { Plus, Pencil, Copy, Trash2, Loader2, Save, X, AlertCircle, RefreshCw, TrendingUp, TrendingDown, Minus, ChevronDown, ChevronUp, History, AlertTriangle, CheckCircle2 } from "lucide-react";
 import { Card } from "@/components/ui/card";
 import { PrimaryButton, GhostButton } from "@/components/ui/button";
 import { SectionTitle } from "@/components/ui/section-title";
@@ -11,6 +11,7 @@ import { createClient } from "@/utils/supabase/client";
 import { FileUploadDropzone } from "@/components/ui/file-upload-dropzone";
 import { ColorSwatchLabel } from "@/components/ui/color-swatch-label";
 import { ProductsPageSkeleton } from "@/components/ui/page-skeletons";
+import { deleteProductAction } from "./actions";
 
 // Pricing Status Helper
 function getProductPricingStatus(product: any, allFilaments: any[], allPrinters: any[], allProductTypes: any[]) {
@@ -236,6 +237,10 @@ function ProductosPageContent() {
 
   const [editingId, setEditingId] = useState<string | null>(null);
   const [detailProduct, setDetailProduct] = useState<any>(null);
+  const [deleteTarget, setDeleteTarget] = useState<{ id: string; name: string } | null>(null);
+  const [deleteLoading, setDeleteLoading] = useState(false);
+  const [deleteError, setDeleteError] = useState<string | null>(null);
+  const [successMessage, setSuccessMessage] = useState<string | null>(null);
   const [formData, setFormData] = useState({
     name: "",
     description: "",
@@ -296,7 +301,7 @@ function ProductosPageContent() {
     setUserId(user.id);
 
     const [prodRes, filRes, priRes, ptRes, setRes, compsRes] = await Promise.all([
-      supabase.from("products").select("*, filaments(name, color)").eq("user_id", user.id).order("created_at", { ascending: false }),
+      supabase.from("products").select("*, filaments(name, color)").eq("user_id", user.id).eq("is_active", true).order("created_at", { ascending: false }),
       supabase.from("filaments").select("*").eq("user_id", user.id).eq("is_active", true),
       supabase.from("printers").select("*").eq("user_id", user.id).eq("is_active", true),
       supabase.from("calculator_product_types").select("*").eq("user_id", user.id).eq("is_active", true),
@@ -413,11 +418,29 @@ function ProductosPageContent() {
     loadPriceHistory(p.id);
   };
 
-  const handleDelete = async (id: string) => {
-    if (!confirm("¿Seguro que deseas eliminar este producto?")) return;
-    const { error } = await supabase.from("products").delete().eq("id", id);
-    if (error) alert("Error: " + error.message);
-    else setProducts(products.filter(p => p.id !== id));
+  const handleDelete = async () => {
+    if (!deleteTarget || deleteLoading) return;
+    setDeleteLoading(true);
+    setDeleteError(null);
+
+    try {
+      const result = await deleteProductAction(deleteTarget.id);
+      if (!result.success) {
+        setDeleteError(result.error);
+        return;
+      }
+
+      setProducts((current) => current.filter((product) => product.id !== deleteTarget.id));
+      if (detailProduct?.id === deleteTarget.id) setDetailProduct(null);
+      if (editingId === deleteTarget.id) setEditingId(null);
+      setSuccessMessage("Producto eliminado.");
+      setDeleteTarget(null);
+      window.setTimeout(() => setSuccessMessage(null), 3_000);
+    } catch {
+      setDeleteError("No se pudo eliminar el producto. Probá nuevamente.");
+    } finally {
+      setDeleteLoading(false);
+    }
   };
 
   const handleDuplicate = async (p: any) => {
@@ -884,6 +907,12 @@ function ProductosPageContent() {
         </div>
       )}
 
+      {successMessage && (
+        <div className="mb-6 flex items-center gap-2 rounded-lg border border-emerald-500/20 bg-emerald-500/10 p-4 text-sm text-emerald-300">
+          <CheckCircle2 size={16} /> {successMessage}
+        </div>
+      )}
+
       {editingId && (
         <Card className="mb-8 p-5 bg-stampa-surface border border-stampa-orange/30 shadow-md ring-1 ring-stampa-orange/20">
           <div className="flex justify-between items-center mb-4">
@@ -1247,12 +1276,24 @@ function ProductosPageContent() {
                 </div>
               </div>
 
-              <div className="mt-auto pt-4 flex gap-2">
-                <button onClick={() => setDetailProduct(p)} className="flex-1 py-2 text-xs font-bold text-gray-300 bg-white/5 hover:bg-white/10 hover:text-white rounded-lg transition-colors border border-stampa-border">
+              <div className="mt-auto flex gap-2 pt-4">
+                <button onClick={() => setDetailProduct(p)} className="min-h-11 flex-1 rounded-lg border border-stampa-border bg-white/5 px-2 py-2 text-xs font-bold text-gray-300 transition-colors hover:bg-white/10 hover:text-white">
                   Ver detalle
                 </button>
-                <button onClick={(e) => { e.stopPropagation(); handleEdit(p); }} className="flex-1 py-2 text-xs font-bold text-white bg-stampa-orange hover:bg-stampa-orange rounded-lg transition-colors border border-stampa-orange flex items-center justify-center gap-1.5">
+                <button onClick={(e) => { e.stopPropagation(); handleEdit(p); }} className="min-h-11 flex-1 rounded-lg border border-stampa-orange bg-stampa-orange px-2 py-2 text-xs font-bold text-white transition-colors hover:bg-stampa-orange flex items-center justify-center gap-1.5">
                   <Pencil size={13} /> Editar
+                </button>
+                <button
+                  type="button"
+                  onClick={() => {
+                    setDeleteError(null);
+                    setDeleteTarget({ id: p.id, name: p.name });
+                  }}
+                  className="flex h-11 w-11 shrink-0 items-center justify-center rounded-lg border border-red-500/25 bg-red-500/10 text-red-300 transition-colors hover:border-red-500/40 hover:bg-red-500/20"
+                  aria-label={`Eliminar ${p.name}`}
+                  title="Eliminar producto"
+                >
+                  <Trash2 size={16} />
                 </button>
               </div>
             </Card>
@@ -1276,6 +1317,62 @@ function ProductosPageContent() {
             <Link href="/calculadora" className="px-4 py-2 bg-stampa-bg-soft border border-stampa-border text-white text-sm font-bold rounded-lg hover:bg-white/5 transition-colors">
               Calcular precio primero
             </Link>
+          </div>
+        </div>
+      )}
+
+      {/* MODAL: ELIMINAR PRODUCTO */}
+      {deleteTarget && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-stampa-bg/70 p-4 backdrop-blur-sm">
+          <div
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="delete-product-title"
+            className="w-full max-w-md overflow-hidden rounded-2xl border border-red-500/20 bg-stampa-surface shadow-2xl"
+          >
+            <div className="flex items-start gap-3 border-b border-stampa-border p-5 sm:p-6">
+              <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl border border-red-500/25 bg-red-500/10 text-red-300">
+                <Trash2 size={19} />
+              </div>
+              <div className="min-w-0">
+                <h2 id="delete-product-title" className="text-lg font-bold text-white">¿Eliminar producto?</h2>
+                <p className="mt-1 text-sm text-gray-400">
+                  Esta acción eliminará <span className="font-semibold text-gray-200">{deleteTarget.name}</span> y su receta asociada. No se puede deshacer desde la plataforma.
+                </p>
+              </div>
+            </div>
+
+            <div className="p-5 sm:p-6">
+              {deleteError && (
+                <div className="mb-4 flex items-start gap-2 rounded-xl border border-red-500/25 bg-red-500/10 p-3 text-sm text-red-300">
+                  <AlertCircle size={16} className="mt-0.5 shrink-0" />
+                  <span>{deleteError}</span>
+                </div>
+              )}
+
+              <div className="flex flex-col-reverse gap-2 sm:flex-row sm:justify-end">
+                <button
+                  type="button"
+                  onClick={() => {
+                    setDeleteTarget(null);
+                    setDeleteError(null);
+                  }}
+                  disabled={deleteLoading}
+                  className="min-h-11 rounded-xl border border-stampa-border px-4 py-2.5 text-sm font-bold text-gray-300 transition-colors hover:bg-white/5 disabled:opacity-50 sm:min-w-28"
+                >
+                  Cancelar
+                </button>
+                <button
+                  type="button"
+                  onClick={handleDelete}
+                  disabled={deleteLoading}
+                  className="flex min-h-11 items-center justify-center gap-2 rounded-xl border border-red-500/40 bg-red-600 px-4 py-2.5 text-sm font-bold text-white transition-colors hover:bg-red-500 disabled:cursor-not-allowed disabled:opacity-60 sm:min-w-40"
+                >
+                  {deleteLoading ? <Loader2 size={16} className="animate-spin" /> : <Trash2 size={16} />}
+                  {deleteLoading ? "Eliminando..." : "Eliminar producto"}
+                </button>
+              </div>
+            </div>
           </div>
         </div>
       )}
