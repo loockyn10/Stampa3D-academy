@@ -4,9 +4,11 @@ import React, { useState, useEffect } from "react";
 import { createClient } from "@/utils/supabase/client";
 import { Loader2, AlertCircle, Plus, Edit2, Trash2, Save, X, ChevronDown, ChevronUp, Video } from "lucide-react";
 import { LessonResourcesManager } from "./lesson-resources-manager";
+import { useAppFeedback } from "@/components/ui/app-feedback";
 
 export function ModulesManager({ courseId }: { courseId: string }) {
   const supabase = createClient();
+  const { confirmAction } = useAppFeedback();
   const [modules, setModules] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -101,7 +103,13 @@ export function ModulesManager({ courseId }: { courseId: string }) {
   };
 
   const handleDeleteModule = async (id: string) => {
-    if (!confirm("¿Eliminar módulo y todas sus clases?")) return;
+    const confirmed = await confirmAction({
+      title: "Eliminar módulo",
+      description: "¿Seguro que querés eliminar este módulo y todas sus clases?",
+      confirmLabel: "Eliminar módulo",
+      destructive: true,
+    });
+    if (!confirmed) return;
     const { error: err } = await supabase.from("course_modules").delete().eq("id", id);
     if (err) setError(err.message);
     else setModules(modules.filter(m => m.id !== id));
@@ -167,7 +175,13 @@ export function ModulesManager({ courseId }: { courseId: string }) {
   };
 
   const handleDeleteLesson = async (moduleId: string, id: string) => {
-    if (!confirm("¿Eliminar clase?")) return;
+    const confirmed = await confirmAction({
+      title: "Eliminar clase",
+      description: "¿Seguro que querés eliminar esta clase?",
+      confirmLabel: "Eliminar clase",
+      destructive: true,
+    });
+    if (!confirmed) return;
     const { error: err } = await supabase.from("lessons").delete().eq("id", id);
     if (err) setError(err.message);
     else {

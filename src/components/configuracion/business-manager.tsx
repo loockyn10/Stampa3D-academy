@@ -7,8 +7,10 @@ import { PrimaryButton } from "@/components/ui/button";
 import { createClient } from "@/utils/supabase/client";
 import { FileUploadDropzone } from "@/components/ui/file-upload-dropzone";
 import { FormSkeleton } from "@/components/ui/page-skeletons";
+import { useAppFeedback } from "@/components/ui/app-feedback";
 
 export function BusinessManager() {
+  const { toast } = useAppFeedback();
   const supabase = createClient();
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
@@ -59,7 +61,7 @@ export function BusinessManager() {
     if (error) {
       setError(error.message);
     } else {
-      alert("Datos del negocio actualizados correctamente.");
+      toast.success("Datos del negocio actualizados correctamente.");
     }
     setSaving(false);
   };

@@ -15,6 +15,7 @@ import {
   UploadCloud,
 } from "lucide-react";
 import { createClient } from "@/utils/supabase/client";
+import { useAppFeedback } from "@/components/ui/app-feedback";
 import type { KnowledgeDocumentAdminRow, KnowledgeDocumentPreviewChunk } from "./page";
 import {
   archiveStampyKnowledgeDocument,
@@ -97,6 +98,7 @@ export function KnowledgeDocumentsAdmin({
   initialError: string | null;
 }) {
   const router = useRouter();
+  const { confirmAction, promptForValue } = useAppFeedback();
   const [title, setTitle] = useState("");
   const [description, setDescription] = useState("");
   const [file, setFile] = useState<File | null>(null);
@@ -161,18 +163,39 @@ export function KnowledgeDocumentsAdmin({
     }
   };
 
-  const handleEdit = (document: KnowledgeDocumentAdminRow) => {
-    const nextTitle = window.prompt("Título del documento", document.title);
+  const handleEdit = async (document: KnowledgeDocumentAdminRow) => {
+    const nextTitle = await promptForValue({
+      title: "Editar documento",
+      label: "Título del documento",
+      initialValue: document.title,
+      confirmLabel: "Continuar",
+    });
     if (nextTitle === null) return;
-    const nextDescription = window.prompt("Descripción", document.description ?? "");
+    const nextDescription = await promptForValue({
+      title: "Editar documento",
+      label: "Descripción",
+      initialValue: document.description ?? "",
+      confirmLabel: "Guardar cambios",
+    });
     if (nextDescription === null) return;
-    void runAction(document.id, () =>
+    await runAction(document.id, () =>
       updateStampyKnowledgeDocument({
         documentId: document.id,
         title: nextTitle,
         description: nextDescription,
       }),
     );
+  };
+
+  const handleDelete = async (document: KnowledgeDocumentAdminRow) => {
+    const confirmed = await confirmAction({
+      title: "Eliminar documento",
+      description: `Se eliminarán definitivamente “${document.title}” y todos sus fragmentos indexados.`,
+      confirmLabel: "Eliminar documento",
+      destructive: true,
+    });
+    if (!confirmed) return;
+    await runAction(document.id, () => deleteStampyKnowledgeDocument(document.id));
   };
 
   const handlePreview = async (documentId: string) => {
@@ -263,11 +286,11 @@ export function KnowledgeDocumentsAdmin({
                   {document.processed_at && <p className="mt-1 text-xs text-gray-600">Procesado: {new Date(document.processed_at).toLocaleString("es-AR")}</p>}
                 </div>
                 <div className="flex flex-wrap gap-2">
-                  <button disabled={busy} onClick={() => handleEdit(document)} className="rounded-lg border border-stampa-border p-2 text-gray-400 hover:text-white" title="Editar"><Pencil size={15} /></button>
+                  <button disabled={busy} onClick={() => void handleEdit(document)} className="rounded-lg border border-stampa-border p-2 text-gray-400 hover:text-white" title="Editar"><Pencil size={15} /></button>
                   <button disabled={busy || document.status === "processing"} onClick={() => void runAction(document.id, () => processStampyKnowledgeDocument(document.id))} className="flex items-center gap-1 rounded-lg border border-stampa-border px-3 py-2 text-xs text-cyan-300" title="Reindexar">{busy ? <Loader2 size={14} className="animate-spin" /> : <RefreshCw size={14} />} Reindexar</button>
                   <button disabled={busy || document.status === "archived"} onClick={() => void runAction(document.id, () => setStampyKnowledgeDocumentActive(document.id, !document.is_active))} className="rounded-lg border border-stampa-border px-3 py-2 text-xs text-gray-300">{document.is_active ? "Desactivar" : "Activar"}</button>
                   <button disabled={busy || document.status === "archived"} onClick={() => void runAction(document.id, () => archiveStampyKnowledgeDocument(document.id))} className="rounded-lg border border-stampa-border p-2 text-amber-300" title="Archivar"><Archive size={15} /></button>
-                  <button disabled={busy} onClick={() => { if (window.confirm(`Eliminar definitivamente “${document.title}” y sus chunks?`)) void runAction(document.id, () => deleteStampyKnowledgeDocument(document.id)); }} className="rounded-lg border border-red-500/20 p-2 text-red-300" title="Eliminar"><Trash2 size={15} /></button>
+                  <button disabled={busy} onClick={() => void handleDelete(document)} className="rounded-lg border border-red-500/20 p-2 text-red-300" title="Eliminar"><Trash2 size={15} /></button>
                 </div>
               </div>
 

@@ -2,6 +2,7 @@ import type { Metadata, Viewport } from "next";
 import { Geist, Geist_Mono } from "next/font/google";
 import "./globals.css";
 import { MainLayout } from "./main-layout";
+import { AppFeedbackProvider } from "@/components/ui/app-feedback";
 
 const geistSans = Geist({
   variable: "--font-geist-sans",
@@ -41,7 +42,9 @@ export default function RootLayout({
       className={`${geistSans.variable} ${geistMono.variable} h-full antialiased`}
     >
       <body className="min-h-full flex flex-col bg-stampa-bg text-[#ededed] font-sans">
-        <MainLayout>{children}</MainLayout>
+        <AppFeedbackProvider>
+          <MainLayout>{children}</MainLayout>
+        </AppFeedbackProvider>
       </body>
     </html>
   );

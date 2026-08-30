@@ -5,9 +5,11 @@ import { createClient } from "@/utils/supabase/client";
 import { Plus, Edit2, Save, Loader2, AlertCircle, Trash2 } from "lucide-react";
 import { TableSkeleton } from "@/components/ui/page-skeletons";
 import { Card } from "@/components/ui/card";
+import { useAppFeedback } from "@/components/ui/app-feedback";
 
 export function ProductTypesManager() {
   const supabase = createClient();
+  const { confirmAction } = useAppFeedback();
   const [types, setTypes] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -84,7 +86,13 @@ export function ProductTypesManager() {
   };
 
   const handleDelete = async (typeId: string) => {
-    if (!window.confirm("¿Estás seguro de eliminar este tipo de producto?")) return;
+    const confirmed = await confirmAction({
+      title: "Eliminar tipo de producto",
+      description: "¿Seguro que querés eliminar este tipo de producto?",
+      confirmLabel: "Eliminar tipo",
+      destructive: true,
+    });
+    if (!confirmed) return;
     
     setError(null);
     const { error } = await supabase

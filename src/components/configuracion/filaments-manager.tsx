@@ -11,9 +11,11 @@ import {
   buildFilamentMutationPayload,
 } from "@/lib/filaments/mutation-payload";
 import { TableSkeleton } from "@/components/ui/page-skeletons";
+import { useAppFeedback } from "@/components/ui/app-feedback";
 
 export function FilamentsManager() {
   const supabase = createClient();
+  const { confirmAction } = useAppFeedback();
   const [filaments, setFilaments] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -71,9 +73,13 @@ export function FilamentsManager() {
   };
 
   const handleDelete = async (filament: any) => {
-    if (!window.confirm(`¿Seguro que querés eliminar este filamento? No aparecerá más para nuevos cálculos, pero los movimientos y productos anteriores se conservarán.`)) {
-      return;
-    }
+    const confirmed = await confirmAction({
+      title: "Eliminar filamento",
+      description: "No aparecerá más para nuevos cálculos, pero los movimientos y productos anteriores se conservarán.",
+      confirmLabel: "Eliminar filamento",
+      destructive: true,
+    });
+    if (!confirmed) return;
 
     const { error } = await supabase.from("filaments").update({ is_active: false }).eq("id", filament.id);
     if (error) {

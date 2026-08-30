@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import { upsertLessonTranscript, saveLessonTranscriptSegments, deleteLessonTranscript } from "../actions";
 import { ArrowLeft, Save, Trash2, Wand2, Plus, Clock, FileText, CheckCircle2 } from "lucide-react";
 import Link from "next/link";
+import { useAppFeedback } from "@/components/ui/app-feedback";
 
 interface TranscriptEditorProps {
   lessonId: string;
@@ -23,6 +24,7 @@ export function TranscriptEditor({
   initialTranscript,
   initialSegments
 }: TranscriptEditorProps) {
+  const { confirmAction } = useAppFeedback();
   const router = useRouter();
   
   const [status, setStatus] = useState(initialTranscript?.status || "draft");
@@ -93,7 +95,13 @@ export function TranscriptEditor({
 
   const handleDelete = async () => {
     if (!initialTranscript?.id) return;
-    if (!confirm("¿Seguro que querés eliminar esta transcripción y sus segmentos?")) return;
+    const confirmed = await confirmAction({
+      title: "Eliminar transcripción",
+      description: "¿Seguro que querés eliminar esta transcripción y todos sus segmentos?",
+      confirmLabel: "Eliminar transcripción",
+      destructive: true,
+    });
+    if (!confirmed) return;
     
     setIsDeleting(true);
     try {
@@ -106,10 +114,16 @@ export function TranscriptEditor({
     }
   };
 
-  const parseSegmentsFromText = () => {
+  const parseSegmentsFromText = async () => {
     if (!transcriptText.trim()) return;
     if (segments.length > 0) {
-      if (!confirm("Esto reemplazará los segmentos actuales. ¿Continuar?")) return;
+      const confirmed = await confirmAction({
+        title: "Reemplazar segmentos",
+        description: "Esto reemplazará los segmentos actuales por los detectados en el texto.",
+        confirmLabel: "Reemplazar",
+        destructive: true,
+      });
+      if (!confirmed) return;
     }
 
     const newSegments: any[] = [];

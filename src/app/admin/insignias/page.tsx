@@ -7,8 +7,10 @@ import { PrimaryButton, GhostButton } from "@/components/ui/button";
 import { SectionTitle } from "@/components/ui/section-title";
 import { Badge } from "@/components/ui/badge";
 import { createClient } from "@/utils/supabase/client";
+import { useAppFeedback } from "@/components/ui/app-feedback";
 
 export default function AdminInsigniasPage() {
+  const { toast, confirmAction } = useAppFeedback();
   const supabase = createClient();
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -58,7 +60,7 @@ export default function AdminInsigniasPage() {
   };
 
   const handleSaveBadge = async () => {
-    if (!badgeForm.name) return alert("El nombre es obligatorio.");
+    if (!badgeForm.name) return toast.error("El nombre es obligatorio.");
     setError(null);
     
     const payload = { ...badgeForm };
@@ -81,7 +83,7 @@ export default function AdminInsigniasPage() {
   };
 
   const handleAssignBadge = async () => {
-    if (!assignForm.user_id || !assignForm.badge_id) return alert("Selecciona usuario e insignia.");
+    if (!assignForm.user_id || !assignForm.badge_id) return toast.error("Seleccioná usuario e insignia.");
     setError(null);
 
     const payload = {
@@ -92,8 +94,8 @@ export default function AdminInsigniasPage() {
 
     const { error } = await supabase.from("user_badges").insert([payload]);
     if (error) {
-      if (error.code === '23505') alert("Este usuario ya tiene esa insignia.");
-      else alert("Error: " + error.message);
+      if (error.code === '23505') toast.info("Este usuario ya tiene esa insignia.");
+      else toast.error("Error: " + error.message);
     } else {
       await fetchData(); // Recargar para traer las relaciones
       setAssignForm({ user_id: "", badge_id: "" });
@@ -101,9 +103,15 @@ export default function AdminInsigniasPage() {
   };
 
   const handleRemoveUserBadge = async (id: string) => {
-    if (!confirm("¿Quitar esta insignia al usuario?")) return;
+    const confirmed = await confirmAction({
+      title: "Quitar insignia",
+      description: "¿Querés quitar esta insignia al usuario?",
+      confirmLabel: "Quitar insignia",
+      destructive: true,
+    });
+    if (!confirmed) return;
     const { error } = await supabase.from("user_badges").delete().eq("id", id);
-    if (error) alert("Error: " + error.message);
+    if (error) toast.error("Error: " + error.message);
     else setUserBadges(userBadges.filter(ub => ub.id !== id));
   };
 

@@ -10,8 +10,10 @@ import {
   MAIN_GOAL_OPTIONS,
   COMMERCIAL_STAGE_OPTIONS
 } from "@/lib/profile-options";
+import { useAppFeedback } from "@/components/ui/app-feedback";
 
 export function RoadmapForm({ initialData = null }: { initialData?: any }) {
+  const { toast } = useAppFeedback();
   const router = useRouter();
   const supabase = createClient();
   const [saving, setSaving] = useState(false);
@@ -142,7 +144,7 @@ export function RoadmapForm({ initialData = null }: { initialData?: any }) {
       router.refresh();
     } catch (error) {
       console.error("Error saving roadmap:", error);
-      alert("Hubo un error al guardar.");
+      toast.error("Hubo un error al guardar.");
     } finally {
       setSaving(false);
     }

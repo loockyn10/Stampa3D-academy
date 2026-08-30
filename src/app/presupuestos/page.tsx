@@ -14,6 +14,7 @@ import {
   findStampyNamedMatch,
   parsePositiveStampyPrefillNumber,
 } from "@/lib/stampy/tool-prefill";
+import { useAppFeedback } from "@/components/ui/app-feedback";
 
 
 const STATUS_MAP: Record<string, { label: string, color: "gray" | "dark" | "green" | "orange" }> = {
@@ -24,6 +25,7 @@ const STATUS_MAP: Record<string, { label: string, color: "gray" | "dark" | "gree
 };
 
 function PresupuestosPageContent() {
+  const { toast, confirmAction } = useAppFeedback();
   const searchParams = useSearchParams();
   const pathname = usePathname();
   const [supabase] = useState(() => createClient());
@@ -227,17 +229,23 @@ function PresupuestosPageContent() {
   };
 
   const handleDelete = async (id: string) => {
-    if (!confirm("¿Seguro que deseas eliminar este presupuesto?")) return;
+    const confirmed = await confirmAction({
+      title: "Eliminar presupuesto",
+      description: "¿Seguro que querés eliminar este presupuesto? Esta acción no se puede deshacer.",
+      confirmLabel: "Eliminar presupuesto",
+      destructive: true,
+    });
+    if (!confirmed) return;
     const { error: itemsError } = await supabase.from("budget_items").delete().eq("budget_id", id);
     if (!itemsError) {
       const { error } = await supabase.from("budgets").delete().eq("id", id);
-      if (error) alert("Error: " + error.message);
+      if (error) toast.error("Error: " + error.message);
       else setBudgets(budgets.filter(b => b.id !== id));
     }
   };
 
   const handleAddItem = () => {
-    if (products.length === 0) return alert("No tienes productos activos para agregar.");
+    if (products.length === 0) return toast.info("No tenés productos activos para agregar.");
     const p = products[0];
     const unitBaseCost = p.base_cost || 0;
     const unitProfit = (p.sale_price || 0) - unitBaseCost;
@@ -300,9 +308,9 @@ function PresupuestosPageContent() {
   const total = Math.max(0, subtotal - discountAmount);
 
   const handleSaveBudget = async () => {
-    if (!formData.title.trim()) return alert("Agregá un título para el presupuesto.");
-    if (!formData.client_id) return alert("Por favor selecciona un cliente.");
-    if (budgetItems.length === 0) return alert("Agrega al menos un producto al presupuesto.");
+    if (!formData.title.trim()) return toast.error("Agregá un título para el presupuesto.");
+    if (!formData.client_id) return toast.error("Por favor seleccioná un cliente.");
+    if (budgetItems.length === 0) return toast.error("Agregá al menos un producto al presupuesto.");
 
     setError(null);
     const { data: { user } } = await supabase.auth.getUser();
@@ -359,7 +367,7 @@ function PresupuestosPageContent() {
 
   const handleDownloadPdf = async () => {
     if (editingId === "new") {
-      alert("Debes guardar el presupuesto antes de descargarlo.");
+      toast.info("Debés guardar el presupuesto antes de descargarlo.");
       return;
     }
 
@@ -403,7 +411,7 @@ function PresupuestosPageContent() {
       URL.revokeObjectURL(url);
     } catch (err: any) {
       console.error(err);
-      alert("Hubo un error al generar el PDF: " + err.message);
+      toast.error("Hubo un error al generar el PDF: " + err.message);
     } finally {
       setIsGeneratingPdf(false);
     }
@@ -458,14 +466,14 @@ function PresupuestosPageContent() {
       URL.revokeObjectURL(url);
     } catch (err: any) {
       console.error(err);
-      alert("Hubo un error al generar el PDF: " + err.message);
+      toast.error("Hubo un error al generar el PDF: " + err.message);
     } finally {
       setGeneratingPdfId(null);
     }
   };
 
   const handleSaveClient = async () => {
-    if (!clientData.name) return alert("El nombre del cliente es obligatorio.");
+    if (!clientData.name) return toast.error("El nombre del cliente es obligatorio.");
 
     const { data: { user } } = await supabase.auth.getUser();
     if (!user) return;
@@ -485,7 +493,7 @@ function PresupuestosPageContent() {
       // Editar
       const { data, error } = await supabase.from("clients").update(payload).eq("id", clientData.id).select().single();
       if (error) {
-        alert("Error actualizando cliente: " + error.message);
+        toast.error("Error actualizando cliente: " + error.message);
       } else {
         setClients(clients.map(c => c.id === data.id ? data : c));
         setFormData(prev => ({ ...prev, client_id: data.id }));
@@ -495,7 +503,7 @@ function PresupuestosPageContent() {
       // Crear
       const { data, error } = await supabase.from("clients").insert([payload]).select().single();
       if (error) {
-        alert("Error creando cliente: " + error.message);
+        toast.error("Error creando cliente: " + error.message);
       } else {
         setClients([...clients, data].sort((a, b) => a.name.localeCompare(b.name)));
         setFormData(prev => ({ ...prev, client_id: data.id }));
@@ -527,8 +535,8 @@ function PresupuestosPageContent() {
   };
 
   const handleSaveProduct = async () => {
-    if (!productData.name.trim()) return alert("El nombre del producto es obligatorio.");
-    if (parseFloat(String(productData.sale_price)) < 0) return alert("El precio de venta debe ser mayor o igual a 0.");
+    if (!productData.name.trim()) return toast.error("El nombre del producto es obligatorio.");
+    if (parseFloat(String(productData.sale_price)) < 0) return toast.error("El precio de venta debe ser mayor o igual a 0.");
 
     const { data: { user } } = await supabase.auth.getUser();
     if (!user) return;
@@ -553,7 +561,7 @@ function PresupuestosPageContent() {
 
     const { data, error } = await supabase.from("products").insert([payload]).select().single();
     if (error) {
-      alert("Error creando producto: " + error.message);
+      toast.error("Error creando producto: " + error.message);
     } else if (data) {
       const updatedProducts = [...products, data].sort((a, b) => a.name.localeCompare(b.name));
       setProducts(updatedProducts);

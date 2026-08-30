@@ -12,6 +12,7 @@ import { FileUploadDropzone } from "@/components/ui/file-upload-dropzone";
 import { ColorSwatchLabel } from "@/components/ui/color-swatch-label";
 import { ProductsPageSkeleton } from "@/components/ui/page-skeletons";
 import { deleteProductAction } from "./actions";
+import { useAppFeedback } from "@/components/ui/app-feedback";
 
 // Pricing Status Helper
 function getProductPricingStatus(product: any, allFilaments: any[], allPrinters: any[], allProductTypes: any[]) {
@@ -223,6 +224,7 @@ export function calculateProductPrice({ components, printTimeMinutes, printer, p
 }
 
 function ProductosPageContent() {
+  const { toast } = useAppFeedback();
   const searchParams = useSearchParams();
   const router = useRouter();
   const [supabase] = useState(() => createClient());
@@ -456,7 +458,7 @@ function ProductosPageContent() {
     };
 
     const { data, error } = await supabase.from("products").insert([payload]).select("*, filaments(name, color)").single();
-    if (error) alert("Error: " + error.message);
+    if (error) toast.error("Error: " + error.message);
     else if (data) setProducts([data, ...products]);
   };
 
@@ -680,7 +682,7 @@ function ProductosPageContent() {
     });
 
     if (totalMinutes === 0 || !hasValidComponents || !formData.printer_id || !formData.product_type_id) {
-      alert("Completá materiales, partes (con nombre y gramos), tiempo, impresora y tipo de producto para calcular.");
+      toast.error("Completá materiales, partes (con nombre y gramos), tiempo, impresora y tipo de producto para calcular.");
       return;
     }
 
@@ -688,7 +690,7 @@ function ProductosPageContent() {
     const productType = productTypes.find(pt => pt.id === formData.product_type_id);
 
     if (hasInvalidMaterials) {
-      alert("Un filamento seleccionado no es válido o no tiene gramos totales configurados.");
+      toast.error("Un filamento seleccionado no es válido o no tiene gramos totales configurados.");
       return;
     }
 
@@ -842,7 +844,7 @@ function ProductosPageContent() {
         .single();
 
       if (error2) {
-        alert("Error al actualizar: " + error2.message);
+        toast.error("Error al actualizar: " + error2.message);
       } else if (data2) {
         setProducts(products.map(p => p.id === recalcProductId ? data2 : p));
         setRecalcProductId(null);

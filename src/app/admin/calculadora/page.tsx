@@ -5,8 +5,10 @@ import { createClient } from "@/utils/supabase/client";
 import { Plus, Edit2, Save, Loader2, AlertCircle, Trash2 } from "lucide-react";
 import { Card } from "@/components/ui/card";
 import { useRouter } from "next/navigation";
+import { useAppFeedback } from "@/components/ui/app-feedback";
 
 export default function AdminCalculadoraPage() {
+  const { confirmAction } = useAppFeedback();
   const supabase = createClient();
   const router = useRouter();
   const [templates, setTemplates] = useState<any[]>([]);
@@ -94,7 +96,13 @@ export default function AdminCalculadoraPage() {
   };
 
   const handleDelete = async (id: string) => {
-    if (!window.confirm("¿Estás seguro de eliminar este template por defecto?")) return;
+    const confirmed = await confirmAction({
+      title: "Eliminar template",
+      description: "¿Seguro que querés eliminar este template por defecto?",
+      confirmLabel: "Eliminar template",
+      destructive: true,
+    });
+    if (!confirmed) return;
 
     const { error } = await supabase
       .from("calculator_product_type_templates")

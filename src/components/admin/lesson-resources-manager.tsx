@@ -4,6 +4,7 @@ import React, { useState, useEffect } from "react";
 import { createClient } from "@/utils/supabase/client";
 import { Loader2, Plus, Edit2, Trash2, File, Link as LinkIcon, Settings, Upload } from "lucide-react";
 import { FileUploadDropzone } from "@/components/ui/file-upload-dropzone";
+import { useAppFeedback } from "@/components/ui/app-feedback";
 
 interface LessonResourcesManagerProps {
   lessonId: string;
@@ -11,6 +12,7 @@ interface LessonResourcesManagerProps {
 
 export function LessonResourcesManager({ lessonId }: LessonResourcesManagerProps) {
   const supabase = createClient();
+  const { confirmAction } = useAppFeedback();
   const [resources, setResources] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -78,7 +80,13 @@ export function LessonResourcesManager({ lessonId }: LessonResourcesManagerProps
   };
 
   const handleDelete = async (id: string) => {
-    if (!confirm("¿Eliminar este recurso?")) return;
+    const confirmed = await confirmAction({
+      title: "Eliminar recurso",
+      description: "¿Seguro que querés eliminar este recurso?",
+      confirmLabel: "Eliminar recurso",
+      destructive: true,
+    });
+    if (!confirmed) return;
     const { error: err } = await supabase.from("lesson_resources").delete().eq("id", id);
     if (err) setError(err.message);
     else setResources(resources.filter(r => r.id !== id));

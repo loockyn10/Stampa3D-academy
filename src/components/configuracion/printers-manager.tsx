@@ -5,9 +5,11 @@ import { createClient } from "@/utils/supabase/client";
 import { Plus, Edit2, Save, Loader2, AlertCircle, Trash2 } from "lucide-react";
 import { TableSkeleton } from "@/components/ui/page-skeletons";
 import { Card } from "@/components/ui/card";
+import { useAppFeedback } from "@/components/ui/app-feedback";
 
 export function PrintersManager() {
   const supabase = createClient();
+  const { confirmAction } = useAppFeedback();
   const [printers, setPrinters] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -72,9 +74,13 @@ export function PrintersManager() {
   };
 
   const handleDelete = async (printer: any) => {
-    if (!window.confirm(`¿Seguro que querés eliminar esta impresora? No aparecerá más en tus cálculos, pero los registros anteriores se conservarán.`)) {
-      return;
-    }
+    const confirmed = await confirmAction({
+      title: "Eliminar impresora",
+      description: "No aparecerá más en tus cálculos, pero los registros anteriores se conservarán.",
+      confirmLabel: "Eliminar impresora",
+      destructive: true,
+    });
+    if (!confirmed) return;
 
     const { error } = await supabase.from("printers").update({ is_active: false }).eq("id", printer.id);
     if (error) {

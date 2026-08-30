@@ -6,8 +6,10 @@ import { Plus, Edit2, Save, Loader2, AlertCircle, Trash2 } from "lucide-react";
 import { Card } from "@/components/ui/card";
 import { useRouter } from "next/navigation";
 import { getFilamentLabel } from "@/lib/filaments/utils";
+import { useAppFeedback } from "@/components/ui/app-feedback";
 
 export default function AdminFilamentosPage() {
+  const { confirmAction } = useAppFeedback();
   const supabase = createClient();
   const router = useRouter();
   const [templates, setTemplates] = useState<any[]>([]);
@@ -115,7 +117,13 @@ export default function AdminFilamentosPage() {
   };
 
   const handleDelete = async (id: string) => {
-    if (!window.confirm("¿Estás seguro de eliminar este filamento del catálogo global?")) return;
+    const confirmed = await confirmAction({
+      title: "Eliminar filamento global",
+      description: "¿Seguro que querés eliminar este filamento del catálogo global?",
+      confirmLabel: "Eliminar filamento",
+      destructive: true,
+    });
+    if (!confirmed) return;
 
     const { error } = await supabase
       .from("filament_templates")

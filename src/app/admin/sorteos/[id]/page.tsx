@@ -17,8 +17,10 @@ import {
 import { PLATFORM_GRANT_TYPES } from "@/lib/auth/access-policy";
 import { getRaffleParticipantChances } from "@/lib/raffles/participants";
 import { assignRaffleWinner } from "./actions";
+import { useAppFeedback } from "@/components/ui/app-feedback";
 
 export default function EditarSorteoPage({ params }: { params: Promise<{ id: string }> }) {
+  const { toast, confirmAction } = useAppFeedback();
   const { id } = use(params);
   const router = useRouter();
   const supabase = createClient();
@@ -164,11 +166,11 @@ export default function EditarSorteoPage({ params }: { params: Promise<{ id: str
 
     const { error } = await supabase.from("raffles").update(payload).eq("id", id);
     if (error) setError(error.message);
-    else alert("Sorteo actualizado correctamente.");
+    else toast.success("Sorteo actualizado correctamente.");
   };
 
   const handleAddPrize = async () => {
-    if (!prizeForm.name) return alert("El nombre del premio es obligatorio.");
+    if (!prizeForm.name) return toast.error("El nombre del premio es obligatorio.");
     const payload = {
       raffle_id: id,
       name: prizeForm.name,
@@ -179,7 +181,7 @@ export default function EditarSorteoPage({ params }: { params: Promise<{ id: str
     
     const { data, error } = await supabase.from("raffle_prizes").insert([payload]).select().single();
     if (error) {
-      alert("Error: " + error.message);
+      toast.error("Error: " + error.message);
     } else if (data) {
       setPrizes([...prizes, data]);
       setPrizeForm({ name: "", description: "", image_url: "", sort_order: prizes.length + 2 });
@@ -187,15 +189,21 @@ export default function EditarSorteoPage({ params }: { params: Promise<{ id: str
   };
 
   const handleDeletePrize = async (id: string) => {
-    if (!confirm("¿Seguro que deseas eliminar este premio?")) return;
+    const confirmed = await confirmAction({
+      title: "Eliminar premio",
+      description: "¿Seguro que querés eliminar este premio? Esta acción no se puede deshacer.",
+      confirmLabel: "Eliminar premio",
+      destructive: true,
+    });
+    if (!confirmed) return;
     const { error } = await supabase.from("raffle_prizes").delete().eq("id", id);
-    if (error) alert("Error: " + error.message);
+    if (error) toast.error("Error: " + error.message);
     else setPrizes(prizes.filter(p => p.id !== id));
   };
 
   const handleAddWinner = async () => {
     if (!winnerForm.user_id || !winnerForm.prize_id) {
-      return alert("Selecciona un usuario y un premio.");
+      return toast.error("Seleccioná un usuario y un premio.");
     }
     
     const result = await assignRaffleWinner({
@@ -204,7 +212,7 @@ export default function EditarSorteoPage({ params }: { params: Promise<{ id: str
       userId: winnerForm.user_id,
     });
     if (!result.success) {
-      alert("Error: " + result.error);
+      toast.error("Error: " + result.error);
     } else if (result.winner) {
       setWinners([result.winner, ...winners]);
       setWinnerForm({ user_id: "", prize_id: "" });
@@ -212,9 +220,15 @@ export default function EditarSorteoPage({ params }: { params: Promise<{ id: str
   };
 
   const handleDeleteWinner = async (id: string) => {
-    if (!confirm("¿Eliminar este ganador?")) return;
+    const confirmed = await confirmAction({
+      title: "Eliminar ganador",
+      description: "¿Seguro que querés quitar este ganador del sorteo?",
+      confirmLabel: "Eliminar ganador",
+      destructive: true,
+    });
+    if (!confirmed) return;
     const { error } = await supabase.from("raffle_winners").delete().eq("id", id);
-    if (error) alert("Error: " + error.message);
+    if (error) toast.error("Error: " + error.message);
     else setWinners(winners.filter(w => w.id !== id));
   };
 

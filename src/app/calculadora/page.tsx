@@ -24,6 +24,7 @@ import {
   parsePositiveStampyPrefillNumber,
 } from "@/lib/stampy/tool-prefill";
 import { CalculatorPageSkeleton } from "@/components/ui/page-skeletons";
+import { useAppFeedback } from "@/components/ui/app-feedback";
 
 const PrinterCatalogModal = dynamic(() => import("@/components/calculadora/printer-catalog-modal").then((module) => module.PrinterCatalogModal));
 const FilamentCatalogModal = dynamic(() => import("@/components/calculadora/filament-catalog-modal").then((module) => module.FilamentCatalogModal));
@@ -102,6 +103,7 @@ function NumberField({ label, value, onChange, suffix, step = 1, disabled = fals
 }
 
 function CalculadoraPageContent() {
+  const { toast } = useAppFeedback();
   const searchParams = useSearchParams();
   const router = useRouter();
   const [supabase] = useState(() => createClient());
@@ -306,7 +308,7 @@ function CalculadoraPageContent() {
         setFilamentLines((current) => current.map((line, index) => (
           index === 0 ? { ...line, filamentId: importedFilaments[0].id } : line
         )));
-        alert(`Se agregaron ${importedFilaments.length} filamentos a tu taller.`);
+        toast.success(`Se agregaron ${importedFilaments.length} filamentos a tu taller.`);
       } else {
         setFilamentLines((current) => current.map((line) => (
           data.length > 0 && !data.find((filament) => filament.id === line.filamentId)

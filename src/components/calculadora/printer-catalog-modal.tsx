@@ -72,7 +72,6 @@ export function PrinterCatalogModal({ onClose, onSelect, userId }: PrinterCatalo
 
       if (existing) {
         if (existing.is_active) {
-          //alert("Impresora seleccionada.");
           onSelect(existing.id);
           return;
         } else {
@@ -83,7 +82,6 @@ export function PrinterCatalogModal({ onClose, onSelect, userId }: PrinterCatalo
             .eq("id", existing.id);
 
           if (updateError) throw updateError;
-          //alert("Impresora agregada a la calculadora.");
           onSelect(existing.id);
           return;
         }
@@ -108,7 +106,6 @@ export function PrinterCatalogModal({ onClose, onSelect, userId }: PrinterCatalo
       if (insertError) throw insertError;
 
       if (newPrinter) {
-        //alert("Impresora agregada a tu taller.");
         onSelect(newPrinter.id);
       }
     } catch (err: any) {
@@ -131,7 +128,6 @@ export function PrinterCatalogModal({ onClose, onSelect, userId }: PrinterCatalo
 
       if (updateError) throw updateError;
 
-      //alert("Impresora quitada de la calculadora.");
       await fetchUserPrinters();
       onSelect(""); // Signal parent to refresh but not close
     } catch (err: any) {

@@ -19,6 +19,7 @@ import {
   buildFilamentMutationPayload,
 } from "@/lib/filaments/mutation-payload";
 import { StockPageSkeleton } from "@/components/ui/page-skeletons";
+import { useAppFeedback } from "@/components/ui/app-feedback";
 
 const FilamentEditor = dynamic(() => import("@/components/filaments/FilamentEditor").then((module) => module.FilamentEditor));
 const FilamentCatalogModal = dynamic(() => import("@/components/calculadora/filament-catalog-modal").then((module) => module.FilamentCatalogModal));
@@ -49,6 +50,7 @@ const ColorOptionLabel = ({ name, colorHex }: { name: string, colorHex?: string 
 import { createClient } from "@/utils/supabase/client";
 
 function StockPageContent() {
+  const { toast, confirmAction, promptForValue } = useAppFeedback();
   const [supabase] = useState(() => createClient());
   const searchParams = useSearchParams();
   const initialTab = searchParams.get("tab") === "filamentos" ? "filamentos" : "productos";
@@ -270,7 +272,7 @@ function StockPageContent() {
     const amount = parseInt(amountStr);
     
     if (!amount || amount <= 0 || isNaN(amount)) {
-      alert("Por favor, ingresá una cantidad válida mayor a 0.");
+      toast.error("Por favor, ingresá una cantidad válida mayor a 0.");
       return;
     }
 
@@ -278,7 +280,7 @@ function StockPageContent() {
     if (!product) return;
 
     if (type === "subtract" && (product.stock_quantity || 0) < amount) {
-      alert("No hay suficiente stock de este producto para restar.");
+      toast.error("No hay suficiente stock de este producto para restar.");
       return;
     }
 
@@ -298,7 +300,7 @@ function StockPageContent() {
 
     if (rpcError) {
       console.error("Error ajustando stock:", rpcError);
-      alert("Hubo un error al ajustar el stock del producto: " + rpcError.message);
+      toast.error("Hubo un error al ajustar el stock del producto: " + rpcError.message);
     } else {
       setProductAdjustAmounts(prev => ({ ...prev, [id]: "" }));
       await fetchData();
@@ -311,7 +313,7 @@ function StockPageContent() {
     if (!comp) return;
 
     if (delta < 0 && (comp.stock_quantity || 0) < Math.abs(delta)) {
-      alert("No hay suficiente stock de esta pieza para restar.");
+      toast.error("No hay suficiente stock de esta pieza para restar.");
       return;
     }
 
@@ -325,7 +327,7 @@ function StockPageContent() {
     });
 
     if (rpcError) {
-      alert("Error ajustando stock de pieza: " + rpcError.message);
+      toast.error("Error ajustando stock de pieza: " + rpcError.message);
     } else {
       await fetchData(); // refresh to update stock
     }
@@ -340,16 +342,23 @@ function StockPageContent() {
     const maxAssemble = Math.min(...pComps.map(c => Math.floor((c.stock_quantity || 0) / (c.quantity_per_product || 1)))) || 0;
     
     if (maxAssemble <= 0) {
-      alert("No hay piezas suficientes para armar este producto.");
+      toast.error("No hay piezas suficientes para armar este producto.");
       return;
     }
 
-    const qtyStr = prompt(`¿Cuántos ${product.name} querés armar? (Máximo: ${maxAssemble})`, "1");
+    const qtyStr = await promptForValue({
+      title: "Armar producto",
+      description: `Podés armar hasta ${maxAssemble} unidades de ${product.name}.`,
+      label: "Cantidad",
+      initialValue: "1",
+      inputMode: "numeric",
+      confirmLabel: "Armar producto",
+    });
     if (!qtyStr) return;
     const qty = parseInt(qtyStr);
     
     if (isNaN(qty) || qty <= 0 || qty > maxAssemble) {
-      alert("Cantidad inválida o superior a las piezas disponibles.");
+      toast.error("Cantidad inválida o superior a las piezas disponibles.");
       return;
     }
 
@@ -361,9 +370,9 @@ function StockPageContent() {
 
     if (error) {
       console.error(error);
-      alert("Error al armar el producto: " + error.message);
+      toast.error("Error al armar el producto: " + error.message);
     } else {
-      alert(`¡Producto armado! Se restaron las piezas y se sumaron ${qty} al stock final.`);
+      toast.success(`Producto armado. Se restaron las piezas y se sumaron ${qty} al stock final.`);
       await fetchData();
     }
   };
@@ -373,7 +382,7 @@ function StockPageContent() {
     const amount = parseInt(amountStr);
     
     if (!amount || amount <= 0 || isNaN(amount)) {
-      alert("Por favor, ingresá una cantidad válida mayor a 0.");
+      toast.error("Por favor, ingresá una cantidad válida mayor a 0.");
       return;
     }
 
@@ -381,7 +390,7 @@ function StockPageContent() {
     if (!filament) return;
 
     if (type === "subtract" && filament.remaining_grams < amount) {
-      alert("No podés restar más gramos de los que hay disponibles.");
+      toast.error("No podés restar más gramos de los que hay disponibles.");
       return;
     }
 
@@ -401,7 +410,7 @@ function StockPageContent() {
 
     if (rpcError) {
       console.error("Error ajustando stock:", rpcError);
-      alert("Hubo un error al ajustar el stock: " + rpcError.message);
+      toast.error("Hubo un error al ajustar el stock: " + rpcError.message);
     } else {
       // Clear input and refresh data
       setFilamentAdjustAmounts(prev => ({ ...prev, [id]: "" }));
@@ -411,7 +420,13 @@ function StockPageContent() {
   };
 
   const handleRemoveFilament = async (id: string) => {
-    if (!confirm("¿Querés quitar este filamento del stock?")) return;
+    const confirmed = await confirmAction({
+      title: "Quitar filamento",
+      description: "¿Querés quitar este filamento del stock? Los movimientos anteriores se conservarán.",
+      confirmLabel: "Quitar filamento",
+      destructive: true,
+    });
+    if (!confirmed) return;
     
     const { error } = await supabase
       .from("filaments")
@@ -420,7 +435,7 @@ function StockPageContent() {
       .eq("user_id", userId);
       
     if (error) {
-      alert("Error al quitar el filamento: " + error.message);
+      toast.error("Error al quitar el filamento: " + error.message);
     } else {
       await fetchData();
     }
@@ -511,7 +526,7 @@ function StockPageContent() {
       if (!prod) return;
       const hasComponents = productComponents.some(c => c.product_id === prod.id);
       if (!hasComponents && !prod.filament_id) {
-        alert("Este producto no tiene materiales configurados para descontar.");
+        toast.error("Este producto no tiene materiales configurados para descontar.");
         return;
       }
       setConsumeCart(prev => {
@@ -609,7 +624,7 @@ function StockPageContent() {
       });
       if (rpcError) {
         console.error("Error consumiendo productos completos:", rpcError);
-        alert("Hubo un error al descontar los productos completos: " + rpcError.message);
+        toast.error("Hubo un error al descontar los productos completos: " + rpcError.message);
         hasErrors = true;
       }
     }
@@ -1526,7 +1541,7 @@ function StockPageContent() {
           mode="multiple"
           onImported={async (importedFilaments) => {
             if (importedFilaments && importedFilaments.length > 0) {
-              alert(`Se agregaron ${importedFilaments.length} filamentos a tu stock.`);
+              toast.success(`Se agregaron ${importedFilaments.length} filamentos a tu stock.`);
             }
             await fetchData();
             setShowFilamentCatalogModal(false);

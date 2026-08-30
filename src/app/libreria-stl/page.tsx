@@ -9,8 +9,10 @@ import { EmptyState } from "@/components/ui/empty-state";
 import { getFileAccessUrl } from "@/lib/storage";
 
 import { createClient } from "@/utils/supabase/client";
+import { useAppFeedback } from "@/components/ui/app-feedback";
 
 export default function LibreriaStlPage() {
+  const { toast } = useAppFeedback();
   const supabase = createClient();
   const [categories, setCategories] = useState<any[]>([]);
   const [models, setModels] = useState<any[]>([]);
@@ -297,11 +299,11 @@ export default function LibreriaStlPage() {
                           if (res.ok && data.url) {
                             window.location.href = data.url;
                           } else {
-                            alert(data.error || "No pude preparar la descarga. Probá de nuevo.");
+                            toast.error(data.error || "No pude preparar la descarga. Probá de nuevo.");
                           }
                         } catch (e) {
                           console.error("Error al descargar STL:", e);
-                          alert("Ocurrió un error inesperado al intentar descargar.");
+                          toast.error("Ocurrió un error inesperado al intentar descargar.");
                         } finally {
                           setDownloadingId(null);
                         }
