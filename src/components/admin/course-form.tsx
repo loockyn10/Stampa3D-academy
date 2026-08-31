@@ -4,7 +4,17 @@ import React, { useState, useEffect, useRef } from "react";
 import { useRouter } from "next/navigation";
 import { createClient } from "@/utils/supabase/client";
 import { Loader2, AlertCircle, Save, Upload, Image as ImageIcon, X } from "lucide-react";
-import Image from "next/image";
+import { ImageCropEditor } from "@/components/ui/image-crop-editor";
+import { validateRasterImageFile, type ImageCropConfig } from "@/lib/images/crop";
+
+const COURSE_IMAGE_EDITOR_CONFIG = {
+  aspectRatio: 16 / 9,
+  outputWidth: 1280,
+  outputHeight: 720,
+  quality: 0.9,
+  outputType: "preserve",
+  maxFileSizeMb: 5,
+} satisfies ImageCropConfig;
 
 export function CourseForm({ courseId }: { courseId?: string }) {
   const router = useRouter();
@@ -22,6 +32,7 @@ export function CourseForm({ courseId }: { courseId?: string }) {
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [thumbnailFile, setThumbnailFile] = useState<File | null>(null);
   const [thumbnailPreview, setThumbnailPreview] = useState<string | null>(null);
+  const [pendingThumbnailFile, setPendingThumbnailFile] = useState<File | null>(null);
 
   const [formData, setFormData] = useState({
     title: "",
@@ -87,32 +98,38 @@ export function CourseForm({ courseId }: { courseId?: string }) {
 
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
+    e.target.value = "";
     if (!file) return;
 
-    const validTypes = ["image/jpeg", "image/png", "image/webp"];
-    if (!validTypes.includes(file.type)) {
-      setError("El archivo debe ser JPG, PNG o WEBP.");
-      return;
-    }
-    
-    const maxSize = 5 * 1024 * 1024;
-    if (file.size > maxSize) {
-      setError("El archivo debe pesar menos de 5MB.");
+    const validationError = validateRasterImageFile(file, COURSE_IMAGE_EDITOR_CONFIG.maxFileSizeMb);
+    if (validationError) {
+      setError(validationError);
       return;
     }
 
     setError(null);
+    setPendingThumbnailFile(file);
+  };
+
+  const useProcessedThumbnail = (file: File) => {
+    if (thumbnailPreview) URL.revokeObjectURL(thumbnailPreview);
     setThumbnailFile(file);
     setThumbnailPreview(URL.createObjectURL(file));
-    // Clear manual URL if file selected
-    setFormData(prev => ({ ...prev, thumbnail_url: "" }));
+    setPendingThumbnailFile(null);
+    setFormData((prev) => ({ ...prev, thumbnail_url: "" }));
   };
 
   const clearThumbnail = () => {
+    if (thumbnailPreview) URL.revokeObjectURL(thumbnailPreview);
     setThumbnailFile(null);
     setThumbnailPreview(null);
+    setPendingThumbnailFile(null);
     if (fileInputRef.current) fileInputRef.current.value = "";
   };
+
+  useEffect(() => () => {
+    if (thumbnailPreview) URL.revokeObjectURL(thumbnailPreview);
+  }, [thumbnailPreview]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -314,6 +331,15 @@ export function CourseForm({ courseId }: { courseId?: string }) {
               accept="image/jpeg,image/png,image/webp"
               className="hidden"
             />
+
+            {pendingThumbnailFile && (
+              <ImageCropEditor
+                file={pendingThumbnailFile}
+                config={COURSE_IMAGE_EDITOR_CONFIG}
+                onCancel={() => setPendingThumbnailFile(null)}
+                onConfirm={useProcessedThumbnail}
+              />
+            )}
             
             <div className="flex items-center gap-2 max-w-sm">
               <span className="text-xs text-neutral-500 shrink-0">O usar URL:</span>

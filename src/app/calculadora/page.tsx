@@ -1111,6 +1111,13 @@ function CalculadoraPageContent() {
                       pathPrefix={`${userId}/products`}
                       accept=".jpg,.jpeg,.png,.webp"
                       publicBucket={true}
+                      imageEditor={{
+                        aspectRatio: 1,
+                        outputWidth: 1000,
+                        outputHeight: 1000,
+                        quality: 0.9,
+                        outputType: "preserve",
+                      }}
                       onUploaded={(url) => setProductForm(prev => ({ ...prev, image_url: url }))}
                       label="Subir imagen"
                     />

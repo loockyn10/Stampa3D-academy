@@ -281,6 +281,13 @@ export default function EditarSorteoPage({ params }: { params: Promise<{ id: str
                     publicBucket
                     label="Subir o cambiar portada"
                     helperText="Elegí una imagen horizontal"
+                    imageEditor={{
+                      aspectRatio: 16 / 9,
+                      outputWidth: 1280,
+                      outputHeight: 720,
+                      quality: 0.9,
+                      outputType: "preserve",
+                    }}
                     onUploaded={(url) => setFormData((current) => ({ ...current, cover_image_url: url }))}
                   />
                 ) : (
@@ -353,6 +360,13 @@ export default function EditarSorteoPage({ params }: { params: Promise<{ id: str
                   publicBucket
                   label="Imagen del premio"
                   helperText="Subí una foto del producto"
+                  imageEditor={{
+                    aspectRatio: 1,
+                    outputWidth: 800,
+                    outputHeight: 800,
+                    quality: 0.9,
+                    outputType: "preserve",
+                  }}
                   onUploaded={(url) => setPrizeForm((current) => ({ ...current, image_url: url }))}
                 />
               ) : (

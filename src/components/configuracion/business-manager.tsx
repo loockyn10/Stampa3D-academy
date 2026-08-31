@@ -105,8 +105,15 @@ export function BusinessManager() {
             <FileUploadDropzone
               bucket="company-logos"
               pathPrefix={profileId || "default"}
-              accept=".jpg,.jpeg,.png,.webp,.svg"
+              accept=".jpg,.jpeg,.png,.webp"
               publicBucket={true}
+              imageEditor={{
+                aspectRatio: 1,
+                outputWidth: 800,
+                outputHeight: 800,
+                quality: 0.92,
+                outputType: "preserve",
+              }}
               onUploaded={(url) => setCompanyLogoUrl(url)}
               label="Subir logo desde tu PC"
             />

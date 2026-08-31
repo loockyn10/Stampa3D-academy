@@ -970,8 +970,15 @@ function ProductosPageContent() {
               <FileUploadDropzone
                 bucket="product-images"
                 pathPrefix={`${userId || "default"}/products`}
-                accept=".jpg,.jpeg,.png,.webp,.svg"
+                accept=".jpg,.jpeg,.png,.webp"
                 publicBucket={true}
+                imageEditor={{
+                  aspectRatio: 1,
+                  outputWidth: 1000,
+                  outputHeight: 1000,
+                  quality: 0.9,
+                  outputType: "preserve",
+                }}
                 onUploaded={(url) => setFormData(prev => ({ ...prev, image_url: url }))}
                 label="Subir Imagen"
               />

@@ -1,9 +1,15 @@
 "use client";
 
-import React, { useCallback, useState } from "react";
-import { UploadCloud, File as FileIcon, X, Loader2, CheckCircle2, AlertCircle } from "lucide-react";
+import React, { useRef, useState } from "react";
+import { UploadCloud, Loader2, CheckCircle2, AlertCircle } from "lucide-react";
 import { createClient } from "@/utils/supabase/client";
 import { sanitizeFileName, buildStorageReference } from "@/lib/storage";
+import { ImageCropEditor } from "@/components/ui/image-crop-editor";
+import {
+  getSupportedRasterImageType,
+  validateRasterImageFile,
+  type ImageCropConfig,
+} from "@/lib/images/crop";
 
 interface FileUploadDropzoneProps {
   bucket: string;
@@ -14,6 +20,7 @@ interface FileUploadDropzoneProps {
   publicBucket?: boolean;
   label?: string;
   helperText?: string;
+  imageEditor?: ImageCropConfig;
 }
 
 export function FileUploadDropzone({
@@ -25,18 +32,21 @@ export function FileUploadDropzone({
   publicBucket = false,
   label = "Subir archivo",
   helperText = "Arrastrá un archivo acá o seleccioná desde tu PC",
+  imageEditor,
 }: FileUploadDropzoneProps) {
   const [isDragging, setIsDragging] = useState(false);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState(false);
   const [fileName, setFileName] = useState<string | null>(null);
+  const [pendingImage, setPendingImage] = useState<File | null>(null);
+  const inputRef = useRef<HTMLInputElement>(null);
 
   const [uploadProgress, setUploadProgress] = useState<number>(0);
 
   const supabase = createClient();
 
-  const handleDrag = useCallback((e: React.DragEvent) => {
+  const handleDrag = (e: React.DragEvent) => {
     e.preventDefault();
     e.stopPropagation();
     if (e.type === "dragenter" || e.type === "dragover") {
@@ -44,22 +54,62 @@ export function FileUploadDropzone({
     } else if (e.type === "dragleave") {
       setIsDragging(false);
     }
-  }, []);
+  };
 
-  const handleDrop = useCallback((e: React.DragEvent) => {
+  const handleDrop = (e: React.DragEvent) => {
     e.preventDefault();
     e.stopPropagation();
     setIsDragging(false);
     
     if (e.dataTransfer.files && e.dataTransfer.files[0]) {
-      handleUpload(e.dataTransfer.files[0]);
+      handleSelectedFile(e.dataTransfer.files[0]);
     }
-  }, []);
+  };
 
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     if (e.target.files && e.target.files[0]) {
-      handleUpload(e.target.files[0]);
+      handleSelectedFile(e.target.files[0]);
     }
+    e.target.value = "";
+  };
+
+  const validateAcceptedFile = (file: File): string | null => {
+    const maximumSize = imageEditor?.maxFileSizeMb ?? maxSizeMb;
+    if (file.size > maximumSize * 1024 * 1024) {
+      return `El archivo es muy pesado. Máximo ${maximumSize}MB.`;
+    }
+
+    if (accept) {
+      const acceptedValues = accept.split(",").map((value) => value.trim().toLowerCase());
+      const fileName = file.name.toLowerCase();
+      const fileType = file.type.toLowerCase();
+      const isAccepted = acceptedValues.some((value) => {
+        if (value.startsWith(".")) return fileName.endsWith(value);
+        if (value.endsWith("/*")) return fileType.startsWith(value.slice(0, -1));
+        return fileType === value;
+      });
+      if (!isAccepted) return `El archivo debe ser uno de los siguientes tipos: ${accept}`;
+    }
+
+    if (imageEditor) return validateRasterImageFile(file, maximumSize);
+    return null;
+  };
+
+  const handleSelectedFile = (file: File) => {
+    setError(null);
+    setSuccess(false);
+    const validationError = validateAcceptedFile(file);
+    if (validationError) {
+      setError(validationError);
+      return;
+    }
+
+    if (imageEditor) {
+      setPendingImage(file);
+      return;
+    }
+
+    void handleUpload(file);
   };
 
   const handleUpload = async (file: File) => {
@@ -67,20 +117,10 @@ export function FileUploadDropzone({
     setSuccess(false);
     setUploadProgress(0);
 
-    // Validate size
-    if (file.size > maxSizeMb * 1024 * 1024) {
-      setError(`El archivo es muy pesado. Máximo ${maxSizeMb}MB.`);
+    const validationError = validateAcceptedFile(file);
+    if (validationError) {
+      setError(validationError);
       return;
-    }
-
-    // Validate extension if accept is provided
-    if (accept) {
-      const fileExt = "." + file.name.split('.').pop()?.toLowerCase();
-      const acceptedExts = accept.split(',').map(ext => ext.trim().toLowerCase());
-      if (!acceptedExts.some(ext => fileExt === ext || file.name.toLowerCase().endsWith(ext))) {
-         setError(`El archivo debe ser uno de los siguientes tipos: ${accept}`);
-         return;
-      }
     }
 
     setLoading(true);
@@ -163,9 +203,9 @@ export function FileUploadDropzone({
 
         onUploadComplete(filePath);
       }
-    } catch (err: any) {
+    } catch (err: unknown) {
       console.error("Upload error:", err);
-      setError(err.message || "Ocurrió un error inesperado al subir.");
+      setError(err instanceof Error ? err.message : "Ocurrió un error inesperado al subir.");
       setLoading(false);
     }
   };
@@ -176,6 +216,8 @@ export function FileUploadDropzone({
     setSuccess(false);
     setError(null);
     setFileName(null);
+    setPendingImage(null);
+    if (inputRef.current) inputRef.current.value = "";
   };
 
   return (
@@ -194,6 +236,7 @@ export function FileUploadDropzone({
         onDrop={handleDrop}
       >
         <input
+          ref={inputRef}
           type="file"
           accept={accept}
           onChange={handleFileChange}
@@ -248,6 +291,17 @@ export function FileUploadDropzone({
           </div>
         )}
       </div>
+      {pendingImage && imageEditor && getSupportedRasterImageType(pendingImage) && (
+        <ImageCropEditor
+          file={pendingImage}
+          config={imageEditor}
+          onCancel={() => setPendingImage(null)}
+          onConfirm={(processedFile) => {
+            setPendingImage(null);
+            void handleUpload(processedFile);
+          }}
+        />
+      )}
     </div>
   );
 }

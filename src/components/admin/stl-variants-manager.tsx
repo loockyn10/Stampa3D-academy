@@ -194,10 +194,17 @@ function VariantFormEditor({ varForm, setVarForm, onSave, onCancel, modelId }: a
             <FileUploadDropzone
               bucket="stl-thumbnails"
               pathPrefix={`stl-thumbnails/${modelId}`}
-              accept=".jpg,.jpeg,.png,.webp,.svg"
+              accept=".jpg,.jpeg,.png,.webp"
               publicBucket={true}
               maxSizeMb={5}
               helperText="Máximo 5 MB."
+              imageEditor={{
+                aspectRatio: 4 / 3,
+                outputWidth: 1200,
+                outputHeight: 900,
+                quality: 0.9,
+                outputType: "preserve",
+              }}
               onUploaded={(url) => setVarForm((prev: any) => ({ ...prev, thumbnail_url: url }))}
               label="Subir Imagen"
             />
