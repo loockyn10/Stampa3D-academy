@@ -17,6 +17,11 @@ export interface ImageCropConfig {
   cropShape?: ImageCropShape;
   maxFileSizeMb?: number;
   maxZoom?: number;
+  showGrid?: boolean;
+  preview?: {
+    label?: string;
+    title?: string;
+  };
 }
 
 export interface CropFrameSize {
@@ -47,6 +52,13 @@ export interface CropSourceRect {
   width: number;
   height: number;
   scale: number;
+}
+
+export interface CropPreviewLayout {
+  left: number;
+  top: number;
+  width: number;
+  height: number;
 }
 
 const EXTENSION_TO_MIME: Record<string, SupportedRasterImageType> = {
@@ -119,6 +131,28 @@ export function getCropSourceRect({ image, frame, zoom, offset }: CropGeometryPa
     width: Math.min(image.width, frame.width / scale),
     height: Math.min(image.height, frame.height / scale),
     scale,
+  };
+}
+
+export function getCropPreviewLayout({
+  image,
+  source,
+  preview,
+}: {
+  image: CropImageSize;
+  source: CropSourceRect;
+  preview: CropFrameSize;
+}): CropPreviewLayout {
+  if (source.width <= 0 || source.height <= 0 || preview.width <= 0 || preview.height <= 0) {
+    return { left: 0, top: 0, width: 0, height: 0 };
+  }
+
+  const scale = Math.max(preview.width / source.width, preview.height / source.height);
+  return {
+    left: -source.x * scale,
+    top: -source.y * scale,
+    width: image.width * scale,
+    height: image.height * scale,
   };
 }
 

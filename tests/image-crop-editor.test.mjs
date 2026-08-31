@@ -83,6 +83,38 @@ test("dragging and zooming change the physical source crop deterministically", (
   });
 });
 
+test("preview reproduces the exact physical crop without applying a second crop", () => {
+  const image = { width: 2400, height: 1600 };
+  const source = crop.getCropSourceRect({
+    image,
+    frame: { width: 480, height: 270 },
+    zoom: 1.25,
+    offset: { x: 75, y: -20 },
+  });
+  const preview = { width: 320, height: 180 };
+  const layout = crop.getCropPreviewLayout({ image, source, preview });
+
+  assert.equal(layout.left, -source.x * (preview.width / source.width));
+  assert.equal(layout.top, -source.y * (preview.height / source.height));
+  assert.equal(layout.width, image.width * (preview.width / source.width));
+  assert.equal(layout.height, image.height * (preview.height / source.height));
+});
+
+test("course and workshop covers share one 16:9 preset and one public card frame", () => {
+  const preset = fs.readFileSync(path.join(root, "src/lib/images/presets.ts"), "utf8");
+  const card = fs.readFileSync(path.join(root, "src/components/cards/course-card.tsx"), "utf8");
+  const form = fs.readFileSync(path.join(root, "src/components/admin/course-form.tsx"), "utf8");
+
+  assert.match(preset, /COURSE_COVER_ASPECT_RATIO = 16 \/ 9/);
+  assert.match(preset, /COURSE_COVER_OUTPUT_WIDTH = 1280/);
+  assert.match(preset, /COURSE_COVER_OUTPUT_HEIGHT = 720/);
+  assert.match(preset, /showGrid: true/);
+  assert.match(card, /aspect-video/);
+  assert.doesNotMatch(card, /flex-\[7\]|group-hover:scale-105/);
+  assert.match(form, /getCourseCoverImageEditorConfig/);
+  assert.match(form, /course_kind === "workshop"/);
+});
+
 test("all real raster uploaders use the shared editor and non-image uploads do not", () => {
   const files = {
     raffle: fs.readFileSync(path.join(root, "src/app/admin/sorteos/[id]/page.tsx"), "utf8"),

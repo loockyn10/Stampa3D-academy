@@ -28,16 +28,16 @@ export function CourseCard({ course }: CourseCardProps) {
   };
 
   return (
-    <Link href={`/cursos/${course.slug || course.id}`} className="group h-[320px] flex flex-col block">
+    <Link href={`/cursos/${course.slug || course.id}`} className="group block h-full">
       <Card className="overflow-hidden p-0 h-full flex flex-col bg-stampa-surface border-stampa-border hover:border-[#ff6a00]/50 transition-all duration-300 shadow-lg group-hover:shadow-[0_8px_30px_rgb(255,106,0,0.12)] group-hover:-translate-y-1">
         
-        {/* 70% Superior: Imagen */}
-        <div className="relative flex-[7] bg-stampa-bg-soft overflow-hidden">
+        {/* Portada 16:9 compartida por cursos y talleres en todos los breakpoints. */}
+        <div className="relative aspect-video shrink-0 bg-stampa-bg-soft overflow-hidden">
           {course.thumbnail_url ? (
             <img 
               src={course.thumbnail_url} 
               alt={title} 
-              className="w-full h-full object-cover transition-transform duration-700 group-hover:scale-105" 
+              className="w-full h-full object-cover"
             />
           ) : (
             <div className="w-full h-full flex flex-col items-center justify-center bg-gradient-to-br from-neutral-900 to-neutral-950 relative overflow-hidden">
@@ -73,8 +73,8 @@ export function CourseCard({ course }: CourseCardProps) {
           </div>
         </div>
         
-        {/* 30% Inferior: Info Compacta */}
-        <div className="flex-[3] flex flex-col justify-center px-4 py-3 bg-gradient-to-t from-neutral-950 to-neutral-900 border-t border-stampa-border relative z-20">
+        {/* Información compacta */}
+        <div className="flex min-h-24 flex-1 flex-col justify-center px-4 py-3 bg-gradient-to-t from-neutral-950 to-neutral-900 border-t border-stampa-border relative z-20">
           <h3 className="text-sm sm:text-base font-bold leading-tight text-white line-clamp-1 group-hover:text-stampa-orange transition-colors">
             {title}
           </h3>

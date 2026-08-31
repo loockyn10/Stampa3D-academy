@@ -5,19 +5,11 @@ import { useRouter } from "next/navigation";
 import { createClient } from "@/utils/supabase/client";
 import { Loader2, AlertCircle, Save, Trash2, Upload, Image as ImageIcon, X } from "lucide-react";
 import { ImageCropEditor } from "@/components/ui/image-crop-editor";
-import { validateRasterImageFile, type ImageCropConfig } from "@/lib/images/crop";
+import { validateRasterImageFile } from "@/lib/images/crop";
+import { getCourseCoverImageEditorConfig } from "@/lib/images/presets";
 import { getCourseKindUi } from "@/lib/academy/course-kind";
 import { deleteCourseAction } from "@/app/admin/cursos/actions";
 import { useAppFeedback } from "@/components/ui/app-feedback";
-
-const COURSE_IMAGE_EDITOR_CONFIG = {
-  aspectRatio: 16 / 9,
-  outputWidth: 1280,
-  outputHeight: 720,
-  quality: 0.9,
-  outputType: "preserve",
-  maxFileSizeMb: 5,
-} satisfies ImageCropConfig;
 
 export function CourseForm({ courseId }: { courseId?: string }) {
   const router = useRouter();
@@ -108,7 +100,7 @@ export function CourseForm({ courseId }: { courseId?: string }) {
     e.target.value = "";
     if (!file) return;
 
-    const validationError = validateRasterImageFile(file, COURSE_IMAGE_EDITOR_CONFIG.maxFileSizeMb);
+    const validationError = validateRasterImageFile(file, courseCoverEditorConfig.maxFileSizeMb ?? 5);
     if (validationError) {
       setError(validationError);
       return;
@@ -261,6 +253,9 @@ export function CourseForm({ courseId }: { courseId?: string }) {
 
   const showPreview = thumbnailPreview || formData.thumbnail_url;
   const isWorkshop = formData.course_kind === "workshop";
+  const courseCoverEditorConfig = getCourseCoverImageEditorConfig(
+    formData.title || (isWorkshop ? "Nombre del taller" : "Nombre del curso"),
+  );
 
   return (
     <form onSubmit={handleSubmit} className="space-y-6 bg-stampa-surface p-6 rounded-xl border border-stampa-border shadow-sm">
@@ -377,7 +372,7 @@ export function CourseForm({ courseId }: { courseId?: string }) {
             {pendingThumbnailFile && (
               <ImageCropEditor
                 file={pendingThumbnailFile}
-                config={COURSE_IMAGE_EDITOR_CONFIG}
+                config={courseCoverEditorConfig}
                 onCancel={() => setPendingThumbnailFile(null)}
                 onConfirm={useProcessedThumbnail}
               />

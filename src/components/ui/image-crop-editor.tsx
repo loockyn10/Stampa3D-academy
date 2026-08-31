@@ -6,6 +6,8 @@ import { Loader2, Minus, Plus, RotateCcw, X } from "lucide-react";
 import {
   clampCropOffset,
   createCroppedImageFile,
+  getCropPreviewLayout,
+  getCropSourceRect,
   getCoverScale,
   type CropFrameSize,
   type CropOffset,
@@ -25,11 +27,13 @@ export function ImageCropEditor({ file, config, onCancel, onConfirm }: ImageCrop
   const [imageUrl] = useState(() => URL.createObjectURL(file));
   const [imageSize, setImageSize] = useState({ width: 0, height: 0 });
   const [frameSize, setFrameSize] = useState<CropFrameSize>({ width: 0, height: 0 });
+  const [previewSize, setPreviewSize] = useState<CropFrameSize>({ width: 0, height: 0 });
   const [zoom, setZoom] = useState(1);
   const [offset, setOffset] = useState<CropOffset>(INITIAL_OFFSET);
   const [processing, setProcessing] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const frameRef = useRef<HTMLDivElement>(null);
+  const previewRef = useRef<HTMLDivElement>(null);
   const imageRef = useRef<HTMLImageElement>(null);
   const cancelButtonRef = useRef<HTMLButtonElement>(null);
   const dialogRef = useRef<HTMLDivElement>(null);
@@ -65,6 +69,21 @@ export function ImageCropEditor({ file, config, onCancel, onConfirm }: ImageCrop
     observer.observe(frame);
     return () => observer.disconnect();
   }, [imageSize, zoom]);
+
+  useEffect(() => {
+    const preview = previewRef.current;
+    if (!preview) return;
+
+    const updateSize = () => {
+      const bounds = preview.getBoundingClientRect();
+      setPreviewSize({ width: bounds.width, height: bounds.height });
+    };
+    updateSize();
+
+    const observer = new ResizeObserver(updateSize);
+    observer.observe(preview);
+    return () => observer.disconnect();
+  }, [config.preview]);
 
   useEffect(() => {
     previousFocusRef.current = document.activeElement instanceof HTMLElement ? document.activeElement : null;
@@ -111,6 +130,12 @@ export function ImageCropEditor({ file, config, onCancel, onConfirm }: ImageCrop
     const scale = getCoverScale(imageSize, frameSize) * zoom;
     return { width: imageSize.width * scale, height: imageSize.height * scale };
   }, [frameSize, imageSize, zoom]);
+
+  const previewLayout = useMemo(() => {
+    if (!imageSize.width || !frameSize.width || !previewSize.width) return null;
+    const source = getCropSourceRect({ image: imageSize, frame: frameSize, zoom, offset });
+    return getCropPreviewLayout({ image: imageSize, source, preview: previewSize });
+  }, [frameSize, imageSize, offset, previewSize, zoom]);
 
   const updateZoom = useCallback((nextZoom: number) => {
     const clampedZoom = Math.min(maxZoom, Math.max(1, nextZoom));
@@ -243,8 +268,46 @@ export function ImageCropEditor({ file, config, onCancel, onConfirm }: ImageCrop
                 transform: `translate(calc(-50% + ${offset.x}px), calc(-50% + ${offset.y}px))`,
               }}
             />
+            {config.showGrid && (
+              <div aria-hidden="true" className="pointer-events-none absolute inset-0">
+                <span className="absolute inset-y-0 left-1/3 w-px bg-white/25" />
+                <span className="absolute inset-y-0 left-2/3 w-px bg-white/25" />
+                <span className="absolute inset-x-0 top-1/3 h-px bg-white/25" />
+                <span className="absolute inset-x-0 top-2/3 h-px bg-white/25" />
+              </div>
+            )}
             <div className="pointer-events-none absolute inset-0 ring-1 ring-inset ring-white/30" />
           </div>
+
+          {config.preview && (
+            <section className="mx-auto mt-4 max-w-sm" aria-label={config.preview.label ?? "Vista previa"}>
+              <p className="mb-2 text-xs font-semibold uppercase tracking-wide text-gray-400">
+                {config.preview.label ?? "Vista previa"}
+              </p>
+              <div className="overflow-hidden rounded-2xl border border-stampa-border bg-stampa-surface shadow-lg">
+                <div
+                  ref={previewRef}
+                  className="relative w-full overflow-hidden bg-stampa-bg-soft"
+                  style={{ aspectRatio: config.aspectRatio }}
+                >
+                  {previewLayout && (
+                    // eslint-disable-next-line @next/next/no-img-element
+                    <img
+                      src={imageUrl}
+                      alt="Vista previa de la portada en la tarjeta"
+                      draggable={false}
+                      className="pointer-events-none absolute max-w-none select-none"
+                      style={previewLayout}
+                    />
+                  )}
+                </div>
+                <div className="border-t border-stampa-border bg-gradient-to-t from-neutral-950 to-neutral-900 px-4 py-3">
+                  <p className="truncate text-sm font-bold text-white">{config.preview.title}</p>
+                  <p className="mt-2 text-xs text-gray-400">Vista en Academia</p>
+                </div>
+              </div>
+            </section>
+          )}
 
           <div className="mx-auto mt-4 max-w-xl rounded-xl border border-stampa-border bg-stampa-bg-soft p-3 sm:p-4">
             <div className="flex items-center gap-2 sm:gap-3">
