@@ -3,9 +3,12 @@
 import React, { useState, useEffect, useRef } from "react";
 import { useRouter } from "next/navigation";
 import { createClient } from "@/utils/supabase/client";
-import { Loader2, AlertCircle, Save, Upload, Image as ImageIcon, X } from "lucide-react";
+import { Loader2, AlertCircle, Save, Trash2, Upload, Image as ImageIcon, X } from "lucide-react";
 import { ImageCropEditor } from "@/components/ui/image-crop-editor";
 import { validateRasterImageFile, type ImageCropConfig } from "@/lib/images/crop";
+import { getCourseKindUi } from "@/lib/academy/course-kind";
+import { deleteCourseAction } from "@/app/admin/cursos/actions";
+import { useAppFeedback } from "@/components/ui/app-feedback";
 
 const COURSE_IMAGE_EDITOR_CONFIG = {
   aspectRatio: 16 / 9,
@@ -20,9 +23,11 @@ export function CourseForm({ courseId }: { courseId?: string }) {
   const router = useRouter();
   const supabase = createClient();
   const isEditing = !!courseId;
+  const { confirmAction, toast } = useAppFeedback();
 
   const [loadingData, setLoadingData] = useState(isEditing);
   const [saving, setSaving] = useState(false);
+  const [deleting, setDeleting] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState<string | null>(null);
 
@@ -33,6 +38,7 @@ export function CourseForm({ courseId }: { courseId?: string }) {
   const [thumbnailFile, setThumbnailFile] = useState<File | null>(null);
   const [thumbnailPreview, setThumbnailPreview] = useState<string | null>(null);
   const [pendingThumbnailFile, setPendingThumbnailFile] = useState<File | null>(null);
+  const [persistedCourseKind, setPersistedCourseKind] = useState("course");
 
   const [formData, setFormData] = useState({
     title: "",
@@ -67,6 +73,7 @@ export function CourseForm({ courseId }: { courseId?: string }) {
         if (courseError) {
           setError("Error cargando el curso.");
         } else if (courseData) {
+          setPersistedCourseKind(courseData.course_kind || "course");
           setFormData({
             title: courseData.title || "",
             slug: courseData.slug || "",
@@ -198,6 +205,7 @@ export function CourseForm({ courseId }: { courseId?: string }) {
     }
 
     setSuccess("Curso guardado correctamente.");
+    setPersistedCourseKind(formData.course_kind);
     setSaving(false);
     if (!isEditing && finalId) {
       router.push(`/admin/cursos/${finalId}`);
@@ -206,6 +214,40 @@ export function CourseForm({ courseId }: { courseId?: string }) {
       // For now, clear the file state since it's uploaded
       clearThumbnail();
       // Optionally reload data but the next reload will fetch it
+    }
+  };
+
+  const handleDelete = async () => {
+    if (!courseId || deleting) return;
+    const courseKindUi = getCourseKindUi(persistedCourseKind);
+    const confirmed = await confirmAction({
+      title: `¿Eliminar ${courseKindUi.singular}?`,
+      description: `Se eliminará el ${courseKindUi.singular} y su contenido asociado. Esta acción no se puede deshacer.`,
+      confirmLabel: `Eliminar ${courseKindUi.singular}`,
+      cancelLabel: "Cancelar",
+      destructive: true,
+    });
+    if (!confirmed) return;
+
+    setDeleting(true);
+    setError(null);
+    try {
+      const result = await deleteCourseAction(courseId);
+      if (!result.success) {
+        setError(result.error);
+        toast.error(result.error);
+        setDeleting(false);
+        return;
+      }
+
+      toast.success(`${courseKindUi.singularTitle} eliminado correctamente.`);
+      router.push("/admin/cursos");
+      router.refresh();
+    } catch {
+      const deleteError = `No se pudo eliminar el ${courseKindUi.singular}.`;
+      setError(deleteError);
+      toast.error(deleteError);
+      setDeleting(false);
     }
   };
 
@@ -463,6 +505,26 @@ export function CourseForm({ courseId }: { courseId?: string }) {
           )}
         </button>
       </div>
+
+      {isEditing && (
+        <div className="flex flex-col gap-3 rounded-xl border border-red-500/25 bg-red-500/5 p-4 sm:flex-row sm:items-center sm:justify-between">
+          <div>
+            <p className="text-sm font-bold text-red-300">Zona de eliminación</p>
+            <p className="mt-1 text-xs text-gray-400">Esta acción elimina también el contenido asociado cuando las relaciones de la base lo permiten.</p>
+          </div>
+          <button
+            type="button"
+            onClick={handleDelete}
+            disabled={saving || deleting}
+            className="inline-flex min-h-11 shrink-0 items-center justify-center gap-2 rounded-xl border border-red-500/40 px-4 py-2.5 text-sm font-bold text-red-300 transition-colors hover:bg-red-500/10 disabled:cursor-not-allowed disabled:opacity-50"
+          >
+            {deleting ? <Loader2 size={17} className="animate-spin" /> : <Trash2 size={17} />}
+            {deleting
+              ? "Eliminando..."
+              : `Eliminar ${getCourseKindUi(persistedCourseKind).singular}`}
+          </button>
+        </div>
+      )}
     </form>
   );
 }

@@ -10,6 +10,7 @@ import { createClient } from "@/utils/supabase/client";
 import { getCourseLevelLabel, getCourseLevelClasses } from "@/lib/course-style";
 import { getFileAccessUrl } from "@/lib/storage";
 import { StampyLessonChat } from "@/components/stampy/StampyLessonChat";
+import { getCourseKindUi } from "@/lib/academy/course-kind";
 
 interface PageProps {
   params: Promise<{ id: string }>;
@@ -247,8 +248,8 @@ export default function CursoDetailPage({ params }: PageProps) {
         </div>
         <h2 className="text-2xl font-bold text-white mb-3">Curso no encontrado</h2>
         <p className="text-gray-400">El curso que estás buscando no existe o no está disponible.</p>
-        <Link href="/cursos" className="mt-6 px-6 py-3 bg-stampa-orange text-white rounded-xl font-bold hover:bg-[#e65c00] transition-colors shadow-lg shadow-[#ff6a00]/20">
-          Volver a cursos
+        <Link href="/academia" className="mt-6 px-6 py-3 bg-stampa-orange text-white rounded-xl font-bold hover:bg-[#e65c00] transition-colors shadow-lg shadow-[#ff6a00]/20">
+          Volver a Academia
         </Link>
       </div>
     );
@@ -261,6 +262,7 @@ export default function CursoDetailPage({ params }: PageProps) {
 
   const completedCount = Object.values(progress).filter(Boolean).length;
   const progressPercent = totalLessons > 0 ? Math.round((completedCount / totalLessons) * 100) : 0;
+  const courseKindUi = getCourseKindUi(course.course_kind);
 
   const formatDuration = (mins: number) => {
     if (!mins) return "0h 0m";
@@ -350,10 +352,10 @@ export default function CursoDetailPage({ params }: PageProps) {
   return (
     <div className="pb-12 space-y-6">
       <Link
-        href="/cursos"
+        href={courseKindUi.publicListHref}
         className="inline-flex items-center gap-2 text-sm font-semibold text-gray-400 hover:text-white transition-colors"
       >
-        <ArrowLeft size={16} /> Volver a cursos
+        <ArrowLeft size={16} /> Volver a {courseKindUi.plural}
       </Link>
 
       {/* Header del Curso Premium */}
