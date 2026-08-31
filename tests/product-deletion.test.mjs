@@ -12,21 +12,24 @@ const pageSource = fs.readFileSync(
   path.join(root, "src/app/productos/page.tsx"),
   "utf8",
 );
+const deleteActionSource = actionSource.slice(
+  actionSource.indexOf("export async function deleteProductAction"),
+);
 
 test("product deletion is authorized and constrained to the current owner", () => {
-  assert.match(actionSource, /getCurrentUserAccess\(supabase\)/);
-  assert.match(actionSource, /access\.capabilities\.accessPlatform/);
-  assert.match(actionSource, /\.eq\("id", productId\)[\s\S]*\.eq\("user_id", access\.userId\)/);
-  assert.match(actionSource, /No se encontró el producto o no te pertenece/);
+  assert.match(deleteActionSource, /getCurrentUserAccess\(supabase\)/);
+  assert.match(deleteActionSource, /access\.capabilities\.accessPlatform/);
+  assert.match(deleteActionSource, /\.eq\("id", productId\)[\s\S]*\.eq\("user_id", access\.userId\)/);
+  assert.match(deleteActionSource, /No se encontró el producto o no te pertenece/);
 });
 
 test("safe deletion archives the product and recipe without changing stock", () => {
-  assert.match(actionSource, /from\("products"\)[\s\S]*update\(\{ is_active: false \}\)/);
-  assert.match(actionSource, /from\("product_components"\)[\s\S]*update\(\{ is_active: false \}\)/);
-  assert.match(actionSource, /from\("product_part_requirements"\)[\s\S]*update\(\{ is_active: false \}\)/);
-  assert.doesNotMatch(actionSource, /from\("filaments"\)/);
-  assert.doesNotMatch(actionSource, /from\("product_stock_movements"\)/);
-  assert.doesNotMatch(actionSource, /\.delete\(\)/);
+  assert.match(deleteActionSource, /from\("products"\)[\s\S]*update\(\{ is_active: false \}\)/);
+  assert.match(deleteActionSource, /from\("product_components"\)[\s\S]*update\(\{ is_active: false \}\)/);
+  assert.match(deleteActionSource, /from\("product_part_requirements"\)[\s\S]*update\(\{ is_active: false \}\)/);
+  assert.doesNotMatch(deleteActionSource, /from\("filaments"\)/);
+  assert.doesNotMatch(deleteActionSource, /from\("product_stock_movements"\)/);
+  assert.doesNotMatch(deleteActionSource, /\.delete\(\)/);
 });
 
 test("products page exposes a confirmed, loading-aware mobile delete flow", () => {

@@ -3,7 +3,7 @@
 import React, { useState, useEffect } from "react";
 import Link from "next/link";
 import { useSearchParams, useRouter } from "next/navigation";
-import { Plus, Pencil, Copy, Trash2, Loader2, Save, X, AlertCircle, RefreshCw, TrendingUp, TrendingDown, Minus, ChevronDown, ChevronUp, History, AlertTriangle, CheckCircle2 } from "lucide-react";
+import { Plus, Pencil, Copy, Trash2, Loader2, Save, X, AlertCircle, RefreshCw, DollarSign, ChevronDown, ChevronUp, History, AlertTriangle, CheckCircle2 } from "lucide-react";
 import { Card } from "@/components/ui/card";
 import { PrimaryButton, GhostButton } from "@/components/ui/button";
 import { SectionTitle } from "@/components/ui/section-title";
@@ -11,8 +11,13 @@ import { createClient } from "@/utils/supabase/client";
 import { FileUploadDropzone } from "@/components/ui/file-upload-dropzone";
 import { ColorSwatchLabel } from "@/components/ui/color-swatch-label";
 import { ProductsPageSkeleton } from "@/components/ui/page-skeletons";
-import { deleteProductAction } from "./actions";
+import {
+  deleteProductAction,
+  recalculateAllProductPricesAction,
+  recalculateProductPriceAction,
+} from "./actions";
 import { useAppFeedback } from "@/components/ui/app-feedback";
+import { calculateProductPrice } from "@/lib/products/pricing";
 
 // Pricing Status Helper
 function getProductPricingStatus(product: any, allFilaments: any[], allPrinters: any[], allProductTypes: any[]) {
@@ -91,140 +96,17 @@ function getProductPricingStatus(product: any, allFilaments: any[], allPrinters:
   };
 }
 
-// Reusable Calculator Logic
-export function calculateProductPrice({ components, printTimeMinutes, printer, productType, calculatorSettings, oldSnapshot }: any) {
-  const errorPercent = calculatorSettings?.default_error_percent || 0;
-  const errorMultiplier = 1 + (errorPercent / 100);
-
-  let materialCost = 0;
-  let totalGrams = 0;
-  let totalGramsWithError = 0;
-
-  const processedComponents: any[] = [];
-  const processedMaterials: any[] = []; // for compatibility
-  let mode = "simple_multifilament";
-
-  if (components && Array.isArray(components)) {
-    if (components.length > 1 || (components.length === 1 && components[0].name !== "Producto completo")) {
-      mode = "components";
-    }
-
-    for (const comp of components) {
-      const compQty = parseFloat(comp.quantity_per_product) || 1;
-      const compMats: any[] = [];
-
-      if (comp.materials && Array.isArray(comp.materials)) {
-        for (const mat of comp.materials) {
-          const gPerUnit = parseFloat(mat.grams) || 0;
-          const gTotal = gPerUnit * compQty;
-          const gTotalWithError = gTotal * errorMultiplier;
-
-          totalGrams += gTotal;
-          totalGramsWithError += gTotalWithError;
-
-          let matCost = 0;
-          let costPerGram = null;
-          if (mat.filament && mat.filament.total_grams > 0) {
-            costPerGram = mat.filament.purchase_price / mat.filament.total_grams;
-            matCost = gTotalWithError * costPerGram;
-            materialCost += matCost;
-          }
-
-          const processedMat = {
-            filament_id: mat.filament?.id || mat.filament_id,
-            filament_name: mat.filament?.name || null,
-            grams: gPerUnit,
-            grams_total: gTotal,
-            grams_with_error: gTotalWithError,
-            filament_purchase_price: mat.filament?.purchase_price || null,
-            filament_total_grams: mat.filament?.total_grams || null,
-            filament_cost_per_gram: costPerGram,
-            material_cost: matCost
-          };
-
-          compMats.push(processedMat);
-          processedMaterials.push(processedMat);
-        }
-      }
-
-      processedComponents.push({
-        component_id: comp.id || null,
-        name: comp.name || "Producto completo",
-        quantity_per_product: compQty,
-        materials: compMats
-      });
-    }
-  }
-
-  const totalHours = (printTimeMinutes || 0) / 60;
-  const kwhPrice = calculatorSettings?.electricity_price_kwh || oldSnapshot?.kwhPrice || 0;
-  const powerWatts = printer?.power_watts || oldSnapshot?.printer_consumption_watts || 0;
-  const maintenanceCostPerHour = printer?.maintenance_cost_per_hour || oldSnapshot?.maintenance_cost_per_hour || 0;
-
-  const energyCost = totalHours * (powerWatts / 1000) * kwhPrice;
-  const printerCost = totalHours * maintenanceCostPerHour;
-  const fixedCost = productType?.fixed_cost || oldSnapshot?.fixed_cost || 0;
-  const laborCost = oldSnapshot?.labor_cost || 0;
-  const otherCosts = oldSnapshot?.other_costs || 0;
-
-  const baseCost = materialCost + energyCost + printerCost + fixedCost + laborCost + otherCosts;
-  const multiplier = productType?.multiplier || oldSnapshot?.multiplier || 1;
-  const salePrice = baseCost * multiplier;
-  const profit = salePrice - baseCost;
-
-  const snapshot = {
-    ...(oldSnapshot || {}),
-    source: "product_editor",
-    mode: mode,
-    components: processedComponents,
-    materials: processedMaterials, // Flat list for visual compatibility
-    grams: totalGrams,
-    grams_with_error: totalGramsWithError,
-    total_grams: totalGrams,
-    total_grams_with_error: totalGramsWithError,
-    error_percent: errorPercent,
-    print_time_minutes: printTimeMinutes,
-    material_cost: materialCost,
-    electricity_cost: energyCost,
-    maintenance_cost: printerCost,
-    fixed_cost: fixedCost,
-    labor_cost: laborCost,
-    other_costs: otherCosts,
-    base_cost: baseCost,
-    multiplier: multiplier,
-    sale_price: salePrice,
-    profit: profit,
-
-    // Fallbacks for compatibility
-    filament_id: processedMaterials.length > 0 ? processedMaterials[0].filament_id : null,
-    filament_name: processedMaterials.length > 0 ? processedMaterials[0].filament_name : null,
-
-    printer_id: printer?.id || null,
-    printer_name: printer?.name || null,
-    printer_power_watts: printer?.power_watts || null,
-    printer_maintenance_cost_per_hour: printer?.maintenance_cost_per_hour || null,
-    product_type_id: productType?.id || null,
-    product_type_name: productType?.name || null,
-    product_type_multiplier: productType?.multiplier || null,
-    product_type_fixed_cost: productType?.fixed_cost || null,
-  };
-
-  return {
-    gramsWithError: totalGramsWithError,
-    materialCost,
-    electricityCost: energyCost,
-    maintenanceCost: printerCost,
-    fixedCost,
-    baseCost,
-    salePrice,
-    profit,
-    snapshot,
-    multiplier
-  };
+function RecalculatePriceIcon({ loading = false, size = 18 }: { loading?: boolean; size?: number }) {
+  return (
+    <span className="relative inline-flex shrink-0 items-center justify-center" style={{ width: size, height: size }} aria-hidden="true">
+      <RefreshCw size={size} className={loading ? "animate-spin" : ""} />
+      {!loading && <DollarSign size={Math.max(9, Math.round(size * 0.55))} strokeWidth={3} className="absolute" />}
+    </span>
+  );
 }
 
 function ProductosPageContent() {
-  const { toast } = useAppFeedback();
+  const { toast, confirmAction } = useAppFeedback();
   const searchParams = useSearchParams();
   const router = useRouter();
   const [supabase] = useState(() => createClient());
@@ -263,12 +145,8 @@ function ProductosPageContent() {
   const [calcPreview, setCalcPreview] = useState<any>(null);
   const [pendingSnapshot, setPendingSnapshot] = useState<any>(null);
 
-  // Recalculate modal state
-  const [recalcProductId, setRecalcProductId] = useState<string | null>(null);
-  const [recalcData, setRecalcData] = useState<{ currentSalePrice: number; recommendedSalePrice: number; recommendedBaseCost: number; breakdown: any; newSnapshot?: any } | null>(null);
-  const [recalcLoading, setRecalcLoading] = useState(false);
-  const [recalcSaving, setRecalcSaving] = useState(false);
-  const [recalcError, setRecalcError] = useState<string | null>(null);
+  const [recalculatingProductId, setRecalculatingProductId] = useState<string | null>(null);
+  const [recalculatingAll, setRecalculatingAll] = useState(false);
 
   // Price history
   const [historyProductId, setHistoryProductId] = useState<string | null>(null);
@@ -717,145 +595,63 @@ function ProductosPageContent() {
     setCalcPreview(null);
   };
 
-  const handleRecalculate = async (product: any) => {
-    setRecalcProductId(product.id);
-    setRecalcData(null);
-    setRecalcError(null);
-    setRecalcLoading(true);
-
-    // Fetch product components and materials
-    let loadedMaterials: { filament_id: string, grams: number }[] = [];
-    const { data: compData } = await supabase.from("product_components").select("*").eq("product_id", product.id).eq("is_active", true).order("sort_order").limit(1);
-
-    if (compData && compData.length > 0) {
-      const compId = compData[0].id;
-      const { data: filData } = await supabase.from("product_component_filaments").select("*").eq("component_id", compId).order("sort_order");
-      if (filData && filData.length > 0) {
-        loadedMaterials = filData.map(f => ({ filament_id: f.filament_id, grams: parseFloat(f.grams) }));
-      }
-    }
-
-    // Fallback if no components/materials found
-    if (loadedMaterials.length === 0) {
-      if (product.filament_id) {
-        loadedMaterials = [{ filament_id: product.filament_id, grams: product.grams || 0 }];
-      }
-    }
-
-    // Resolve material instances
-    const builtMaterials = loadedMaterials.map(m => {
-      const fil = filaments.find(f => f.id === m.filament_id);
-      return { filament: fil, filament_id: m.filament_id, grams: m.grams };
-    });
-
-    // Check snapshot for more context
-    const snap = product.calculation_snapshot;
-    const printerId = snap?.printer_id || product.printer_id || null;
-    const productTypeId = snap?.product_type_id || product.product_type_id || null;
-
-    const printer = printers.find(p => p.id === printerId);
-    const productType = productTypes.find(pt => pt.id === productTypeId);
-
-    // Fetch fresh settings just in case
-    const { data: currentSettings } = await supabase
-      .from("calculator_settings")
-      .select("*")
-      .eq("user_id", product.user_id)
-      .single();
-
-    const result = calculateProductPrice({
-      materials: builtMaterials,
-      printTimeMinutes: product.print_time_minutes || 0,
-      printer,
-      productType,
-      calculatorSettings: currentSettings || calculatorSettings,
-      oldSnapshot: snap,
-    });
-
-    if (result.baseCost <= 0) {
-      setRecalcError("No hay suficiente información para recalcular. Asegurate de que el producto tenga filamento, impresora y tipo de producto configurados.");
-      setRecalcLoading(false);
-      return;
-    }
-
-    setRecalcData({
-      currentSalePrice: product.sale_price || 0,
-      recommendedSalePrice: parseFloat(result.salePrice.toFixed(2)),
-      recommendedBaseCost: parseFloat(result.baseCost.toFixed(2)),
-      breakdown: {
-        materialCost: parseFloat(result.materialCost.toFixed(2)),
-        energyCost: parseFloat(result.electricityCost.toFixed(2)),
-        printerCost: parseFloat(result.maintenanceCost.toFixed(2)),
-        fixedCost: parseFloat(result.fixedCost.toFixed(2)),
-        laborCost: parseFloat(result.snapshot.labor_cost?.toFixed(2) || 0),
-        otherCosts: parseFloat(result.snapshot.other_costs?.toFixed(2) || 0),
-        multiplier: result.multiplier,
-      },
-      newSnapshot: result.snapshot
-    });
-    setRecalcLoading(false);
+  const applyRecalculatedProducts = (updates: any[]) => {
+    const byId = new Map(updates.map((product) => [product.id, product]));
+    setProducts((current) => current.map((product) => (
+      byId.has(product.id) ? { ...product, ...byId.get(product.id) } : product
+    )));
+    setDetailProduct((current: any) => (
+      current && byId.has(current.id) ? { ...current, ...byId.get(current.id) } : current
+    ));
   };
 
-  const handleConfirmRecalc = async () => {
-    if (!recalcProductId || !recalcData || !userId) return;
-    setRecalcSaving(true);
-
-    const product = products.find(p => p.id === recalcProductId);
-    if (!product) { setRecalcSaving(false); return; }
-
-    // Try to save history (if table exists), fail silently if not
-    const historyPayload = {
-      product_id: recalcProductId,
-      user_id: userId,
-      old_base_cost: product.base_cost,
-      old_sale_price: product.sale_price,
-      new_base_cost: recalcData.recommendedBaseCost,
-      new_sale_price: recalcData.recommendedSalePrice,
-      source: "manual_recalculate",
-      changed_at: new Date().toISOString(),
-    };
-    await supabase.from("product_price_history").insert([historyPayload]);
-    // ^^ No error handling - fail silently if table doesn't exist
-
-    // Update the product
-    const { data, error } = await supabase
-      .from("products")
-      .update({
-        base_cost: recalcData.recommendedBaseCost,
-        sale_price: recalcData.recommendedSalePrice,
-        calculation_snapshot: recalcData.newSnapshot,
-        cost_updated_at: new Date().toISOString(),
-      })
-      .eq("id", recalcProductId)
-      .select("*, filaments(name, color)")
-      .single();
-
-    if (error) {
-      // If cost_updated_at doesn't exist, retry without it
-      const { data: data2, error: error2 } = await supabase
-        .from("products")
-        .update({
-          base_cost: recalcData.recommendedBaseCost,
-          sale_price: recalcData.recommendedSalePrice,
-          calculation_snapshot: recalcData.newSnapshot,
-        })
-        .eq("id", recalcProductId)
-        .select("*, filaments(name, color)")
-        .single();
-
-      if (error2) {
-        toast.error("Error al actualizar: " + error2.message);
-      } else if (data2) {
-        setProducts(products.map(p => p.id === recalcProductId ? data2 : p));
-        setRecalcProductId(null);
-        setRecalcData(null);
+  const handleRecalculateProduct = async (productId: string) => {
+    if (recalculatingProductId || recalculatingAll) return;
+    setRecalculatingProductId(productId);
+    try {
+      const result = await recalculateProductPriceAction(productId);
+      if (!result.success || !("product" in result)) {
+        toast.error(result.error || "No se pudo recalcular el producto.");
+        return;
       }
-    } else if (data) {
-      setProducts(products.map(p => p.id === recalcProductId ? data : p));
-      setRecalcProductId(null);
-      setRecalcData(null);
+      applyRecalculatedProducts([result.product]);
+      toast.success("Precio recalculado correctamente.");
+    } catch {
+      toast.error("No se pudo recalcular el producto. Probá nuevamente.");
+    } finally {
+      setRecalculatingProductId(null);
     }
-    setRecalcSaving(false);
+  };
+
+  const handleRecalculateAll = async () => {
+    if (recalculatingAll || recalculatingProductId) return;
+    const confirmed = await confirmAction({
+      title: "¿Recalcular todos los productos?",
+      description: "Se actualizarán los precios usando los costos y configuraciones actuales.",
+      confirmLabel: "Recalcular todos",
+    });
+    if (!confirmed) return;
+
+    setRecalculatingAll(true);
+    try {
+      const result = await recalculateAllProductPricesAction();
+      if ("error" in result) {
+        toast.error(result.error);
+        return;
+      }
+      applyRecalculatedProducts(result.updatedProducts);
+      if (result.total === 0) {
+        toast.info("No hay productos para recalcular.");
+      } else if (result.failed === 0) {
+        toast.success(`${result.succeeded} productos recalculados correctamente.`);
+      } else {
+        toast.error(`No se pudieron recalcular ${result.failed} de ${result.total} productos.`);
+      }
+    } catch {
+      toast.error("No se pudieron recalcular los productos. Probá nuevamente.");
+    } finally {
+      setRecalculatingAll(false);
+    }
   };
 
   // -------- PRICE HISTORY --------
@@ -894,9 +690,17 @@ function ProductosPageContent() {
         eyebrow="Mi taller"
         title="Productos"
         action={
-          <div className="flex items-center gap-3">
-
-            <PrimaryButton onClick={handleCreateNew} disabled={editingId !== null}>
+          <div className="flex w-full flex-col gap-2 min-[390px]:flex-row sm:w-auto sm:items-center sm:gap-3">
+            <button
+              type="button"
+              onClick={() => void handleRecalculateAll()}
+              disabled={recalculatingAll || recalculatingProductId !== null || products.length === 0}
+              className="inline-flex min-h-11 flex-1 items-center justify-center gap-2 rounded-xl border border-emerald-500/35 bg-emerald-500/10 px-4 py-2.5 text-sm font-bold text-emerald-300 transition-colors hover:border-emerald-400/50 hover:bg-emerald-500/20 disabled:cursor-not-allowed disabled:opacity-50 sm:flex-none"
+            >
+              <RecalculatePriceIcon loading={recalculatingAll} size={17} />
+              {recalculatingAll ? "Recalculando…" : "Recalcular Todos"}
+            </button>
+            <PrimaryButton className="min-h-11 flex-1 sm:flex-none" onClick={handleCreateNew} disabled={editingId !== null || recalculatingAll}>
               <Plus size={15} /> Nuevo producto
             </PrimaryButton>
           </div>
@@ -1287,6 +1091,16 @@ function ProductosPageContent() {
                 </button>
                 <button
                   type="button"
+                  onClick={() => void handleRecalculateProduct(p.id)}
+                  disabled={recalculatingAll || recalculatingProductId !== null}
+                  className="flex h-11 w-11 shrink-0 items-center justify-center rounded-lg border border-emerald-500/35 bg-emerald-500/10 text-emerald-300 transition-colors hover:border-emerald-400/50 hover:bg-emerald-500/20 disabled:cursor-not-allowed disabled:opacity-50"
+                  aria-label={`Recalcular precio de ${p.name}`}
+                  title="Recalcular precio"
+                >
+                  <RecalculatePriceIcon loading={recalculatingProductId === p.id} size={17} />
+                </button>
+                <button
+                  type="button"
                   onClick={() => {
                     setDeleteError(null);
                     setDeleteTarget({ id: p.id, name: p.name });
@@ -1379,106 +1193,6 @@ function ProductosPageContent() {
         </div>
       )}
 
-      {/* MODAL: RECALCULAR PRECIO */}
-      {recalcProductId && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-stampa-bg/40 p-4">
-          <div className="bg-stampa-surface w-full max-w-md rounded-2xl shadow-2xl flex flex-col max-h-[90vh] overflow-hidden">
-            <div className="flex items-center justify-between px-6 py-4 border-b border-stampa-border shrink-0">
-              <h3 className="font-bold text-white flex items-center gap-2">
-                <RefreshCw size={18} className="text-indigo-500" /> Recalcular precio
-              </h3>
-              <button onClick={() => { setRecalcProductId(null); setRecalcData(null); setRecalcError(null); }} className="text-gray-400 hover:text-gray-300">
-                <X size={20} />
-              </button>
-            </div>
-
-            <div className="p-6 overflow-y-auto">
-              {recalcLoading ? (
-                <div className="flex flex-col items-center py-8 gap-3">
-                  <Loader2 className="animate-spin h-8 w-8 text-indigo-500" />
-                  <p className="text-sm text-gray-500">Calculando con valores actuales...</p>
-                </div>
-              ) : recalcError ? (
-                <div>
-                  <div className="bg-orange-50 border border-orange-200 p-4 rounded-xl mb-4 flex items-start gap-3">
-                    <AlertCircle size={18} className="text-stampa-orange mt-0.5 shrink-0" />
-                    <p className="text-sm text-orange-800">{recalcError}</p>
-                  </div>
-                  <p className="text-xs text-gray-500">
-                    Para recalcular correctamente, asegurate de haber creado el producto desde la calculadora con todos los datos completos.
-                  </p>
-                  <div className="flex justify-end mt-4">
-                    <button onClick={() => { setRecalcProductId(null); setRecalcError(null); }} className="px-4 py-2 text-sm font-bold text-gray-400 hover:bg-white/5 rounded-lg">Cerrar</button>
-                  </div>
-                </div>
-              ) : recalcData ? (
-                <div className="space-y-4">
-                  {/* Comparison */}
-                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                    <div className="bg-stampa-bg-soft p-4 rounded-xl text-center border border-stampa-border">
-                      <p className="text-[10px] text-gray-400 font-semibold uppercase mb-1">Precio Actual</p>
-                      <p className="text-2xl font-black text-gray-300">${recalcData.currentSalePrice.toFixed(2)}</p>
-                    </div>
-                    <div className="bg-indigo-50 p-4 rounded-xl text-center border border-indigo-200">
-                      <p className="text-[10px] text-indigo-600 font-semibold uppercase mb-1">Precio Sugerido</p>
-                      <p className="text-2xl font-black text-indigo-600">${recalcData.recommendedSalePrice.toFixed(2)}</p>
-                    </div>
-                  </div>
-
-                  {/* Difference pill */}
-                  {(() => {
-                    const diff = recalcData.recommendedSalePrice - recalcData.currentSalePrice;
-                    const isUp = diff > 0;
-                    return (
-                      <div className={`flex items-center justify-center gap-2 py-2 px-4 rounded-full text-sm font-bold ${isUp ? 'bg-yellow-50 text-yellow-500/90' : diff < 0 ? 'bg-green-50 text-green-700' : 'bg-stampa-bg-soft text-gray-500'}`}>
-                        {isUp ? <TrendingUp size={16} /> : diff < 0 ? <TrendingDown size={16} /> : <Minus size={16} />}
-                        {diff === 0 ? "El precio está al día" : `${isUp ? "Subida" : "Bajada"} de $${Math.abs(diff).toFixed(2)}`}
-                      </div>
-                    );
-                  })()}
-
-                  {/* Breakdown */}
-                  <div className="bg-stampa-bg-soft p-3 rounded-xl text-xs space-y-1.5">
-                    <p className="font-bold text-gray-300 mb-2">Detalle del nuevo cálculo</p>
-                    {[
-                      ["Material", recalcData.breakdown.materialCost],
-                      ["Electricidad", recalcData.breakdown.energyCost],
-                      ["Mantenimiento", recalcData.breakdown.printerCost],
-                      ["Costo Fijo", recalcData.breakdown.fixedCost],
-                      recalcData.breakdown.laborCost > 0 && ["Mano de obra", recalcData.breakdown.laborCost],
-                    ].filter(Boolean).map(([label, val]: any) => (
-                      <div key={label} className="flex justify-between text-gray-400">
-                        <span>{label}</span>
-                        <span className="font-semibold">${val.toFixed(2)}</span>
-                      </div>
-                    ))}
-                    <div className="flex justify-between font-bold text-white border-t border-stampa-border pt-1.5 mt-1.5">
-                      <span>Costo Base</span>
-                      <span>${recalcData.recommendedBaseCost.toFixed(2)}</span>
-                    </div>
-                    <div className="flex justify-between text-gray-500">
-                      <span>Markup</span>
-                      <span>×{recalcData.breakdown.multiplier}</span>
-                    </div>
-                  </div>
-
-                  <div className="flex justify-end gap-2 pt-2">
-                    <button onClick={() => { setRecalcProductId(null); setRecalcData(null); }} className="px-4 py-2 text-sm font-bold text-gray-400 hover:bg-white/5 rounded-lg">Cancelar</button>
-                    <button
-                      onClick={handleConfirmRecalc}
-                      disabled={recalcSaving}
-                      className="flex items-center gap-2 px-4 py-2 text-sm font-bold bg-indigo-600 hover:bg-indigo-700 text-white rounded-lg disabled:opacity-60"
-                    >
-                      {recalcSaving ? <Loader2 size={14} className="animate-spin" /> : <Save size={14} />}
-                      Aplicar nuevo precio
-                    </button>
-                  </div>
-                </div>
-              ) : null}
-            </div>
-          </div>
-        </div>
-      )}
       {/* MODAL: DETALLE DEL PRODUCTO */}
       {detailProduct && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-stampa-bg/60 backdrop-blur-sm p-4 overflow-y-auto">
