@@ -49,11 +49,12 @@ test("missing and unknown levels remain neutral instead of becoming beginner", (
   assert.equal(courseStyle.getCourseLevelStyle("expert"), null);
 });
 
-test("the shared course card uses a structural stripe and a matching level badge", () => {
+test("the shared course card uses a horizontal divider and a matching level badge", () => {
   const card = fs.readFileSync(path.join(root, "src/components/cards/course-card.tsx"), "utf8");
 
   assert.match(card, /getCourseLevelStyle\(course\.level\)/);
-  assert.match(card, /w-\[5px\]/);
+  assert.match(card, /h-\[5px\] w-full/);
+  assert.doesNotMatch(card, /absolute inset-y-0 left-0/);
   assert.match(card, /levelStyle\.accentClassName/);
   assert.match(card, /levelStyle\.badgeClassName/);
   assert.match(card, /course\.course_kind === "workshop"/);

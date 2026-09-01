@@ -31,13 +31,6 @@ export function CourseCard({ course }: CourseCardProps) {
   return (
     <Link href={`/cursos/${course.slug || course.id}`} className="group block h-full">
       <Card className="relative overflow-hidden p-0 h-full flex flex-col bg-stampa-surface border-stampa-border transition-all duration-300 shadow-lg group-hover:-translate-y-0.5">
-        {levelStyle && (
-          <div
-            aria-hidden="true"
-            className={`pointer-events-none absolute inset-y-0 left-0 z-30 w-[5px] transition-all duration-300 ${levelStyle.accentClassName}`}
-          />
-        )}
-        
         {/* Portada 16:9 compartida por cursos y talleres en todos los breakpoints. */}
         <div className="relative aspect-video shrink-0 bg-stampa-bg-soft overflow-hidden">
           {course.thumbnail_url ? (
@@ -81,9 +74,16 @@ export function CourseCard({ course }: CourseCardProps) {
             )}
           </div>
         </div>
+
+        {levelStyle && (
+          <div
+            aria-hidden="true"
+            className={`pointer-events-none z-30 h-[5px] w-full shrink-0 transition-all duration-300 ${levelStyle.accentClassName}`}
+          />
+        )}
         
         {/* Información compacta */}
-        <div className="flex min-h-24 flex-1 flex-col justify-center px-4 py-3 bg-gradient-to-t from-neutral-950 to-neutral-900 border-t border-stampa-border relative z-20">
+        <div className={`flex min-h-24 flex-1 flex-col justify-center px-4 py-3 bg-gradient-to-t from-neutral-950 to-neutral-900 relative z-20 ${levelStyle ? "" : "border-t border-stampa-border"}`}>
           <h3 className="text-sm sm:text-base font-bold leading-tight text-white line-clamp-1 group-hover:text-stampa-orange transition-colors">
             {title}
           </h3>
