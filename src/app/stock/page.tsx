@@ -555,6 +555,7 @@ function StockPageContent() {
   const calculateConsumePreview = () => {
     const required: Record<string, number> = {};
     const insufficient: string[] = [];
+    const invalidRecipes: string[] = [];
 
     consumeCart.forEach(item => {
       if (item.type === "product") {
@@ -564,20 +565,31 @@ function StockPageContent() {
         if (comps.length > 0) {
           comps.forEach(c => {
             const mats = componentFilaments.filter(f => f.component_id === c.id);
+            if (mats.length === 0) invalidRecipes.push(`${c.name} no tiene una receta de filamentos configurada.`);
             mats.forEach(m => {
               const qty = item.quantity * c.quantity_per_product * parseFloat(m.grams || "0");
+              if (!m.filament_id || qty <= 0) {
+                invalidRecipes.push(`La receta de ${c.name} contiene un filamento o cantidad inválida.`);
+                return;
+              }
               required[m.filament_id] = (required[m.filament_id] || 0) + qty;
             });
           });
         } else if (item.product.filament_id) {
           // Fallback for legacy products
           const qty = item.quantity * parseFloat(item.product.grams || "0");
-          required[item.product.filament_id] = (required[item.product.filament_id] || 0) + qty;
+          if (qty <= 0) invalidRecipes.push(`${item.product.name} no tiene una cantidad de filamento válida.`);
+          else required[item.product.filament_id] = (required[item.product.filament_id] || 0) + qty;
         }
       } else if (item.type === "component" && item.component) {
         const mats = componentFilaments.filter(f => f.component_id === item.component.id);
+        if (mats.length === 0) invalidRecipes.push(`${item.component.name} no tiene una receta de filamentos configurada.`);
         mats.forEach(m => {
           const qty = item.quantity * parseFloat(m.grams || "0");
+          if (!m.filament_id || qty <= 0) {
+            invalidRecipes.push(`La receta de ${item.component.name} contiene un filamento o cantidad inválida.`);
+            return;
+          }
           required[m.filament_id] = (required[m.filament_id] || 0) + qty;
         });
       }
@@ -597,80 +609,63 @@ function StockPageContent() {
       };
     });
 
-    return { preview, insufficient, isValid: insufficient.length === 0 && consumeCart.length > 0 };
+    return {
+      preview,
+      insufficient,
+      invalidRecipes,
+      isValid: insufficient.length === 0 && invalidRecipes.length === 0 && preview.length > 0 && consumeCart.length > 0,
+    };
   };
 
   const handleConfirmConsume = async () => {
-    const { isValid } = calculateConsumePreview();
-    if (!isValid) return;
+    const preview = calculateConsumePreview();
+    if (!preview.isValid) {
+      if (preview.invalidRecipes.length > 0) toast.error(preview.invalidRecipes[0]);
+      else if (preview.insufficient.length > 0) toast.error(`No hay suficiente stock de ${preview.insufficient[0]}.`);
+      return;
+    }
 
     setConsumeLoading(true);
-    let hasErrors = false;
-    
-    // Split into products and components
     const productItems = consumeCart.filter(item => item.type === "product");
     const compItems = consumeCart.filter(item => item.type === "component" && item.component);
+    const p_product_items = productItems.map(item => ({
+      product_id: item.product.id,
+      quantity: item.quantity
+    }));
+    const p_component_items = compItems.map(item => ({
+      product_id: item.product.id,
+      component_id: item.component.id,
+      quantity: item.quantity
+    }));
 
-    // 1. Process whole products using RPC
-    if (productItems.length > 0) {
-      const p_items = productItems.map(item => ({
-        product_id: item.product.id,
-        quantity: item.quantity
-      }));
-      const { error: rpcError } = await supabase.rpc("consume_filaments_for_products", {
-        p_items,
+    try {
+      const { error: rpcError } = await supabase.rpc("consume_filaments_for_production_targets", {
+        p_product_items,
+        p_component_items,
         p_reason: "Producción registrada desde stock",
-        p_add_to_product_stock: consumeAddStock
+        p_add_to_stock: consumeAddStock
       });
       if (rpcError) {
-        console.error("Error consumiendo productos completos:", rpcError);
-        toast.error("Hubo un error al descontar los productos completos: " + rpcError.message);
-        hasErrors = true;
+        console.error("Error registrando producción:", rpcError);
+        toast.error(rpcError.message || "No se pudo registrar la producción.");
+        return;
       }
-    }
 
-    // 2. Process individual components sequentially
-    if (compItems.length > 0) {
-      for (const item of compItems) {
-        const c = item.component;
-        if (!c) continue;
-        const mats = componentFilaments.filter(f => f.component_id === c.id);
-        
-        // Decrement filaments for this component
-        for (const m of mats) {
-          const qty = item.quantity * parseFloat(m.grams || "0");
-          if (qty <= 0) continue;
-          
-          await supabase.rpc("adjust_filament_stock", {
-            p_filament_id: m.filament_id,
-            p_grams_delta: -qty,
-            p_movement_type: "production",
-            p_reason: `Impresión de pieza individual: ${c.name}`,
-            p_source_type: "product_component",
-            p_source_id: c.id
-          });
-        }
-        
-        // Optionally add to component stock
-        if (consumeAddStock) {
-          await supabase.rpc("adjust_component_stock", {
-            p_component_id: c.id,
-            p_quantity_delta: item.quantity,
-            p_movement_type: "production",
-            p_reason: "Fabricación de pieza individual",
-            p_source_type: "manual",
-            p_source_id: null
-          });
-        }
+      if (compItems.length === 1 && productItems.length === 0 && consumeAddStock) {
+        const item = compItems[0];
+        toast.success(`${item.quantity} ${item.quantity === 1 ? "unidad" : "unidades"} de ${item.component.name} producidas correctamente.`);
+      } else if (compItems.length > 0 && productItems.length === 0 && !consumeAddStock) {
+        toast.success("Los filamentos de las partes se descontaron correctamente.");
+      } else {
+        toast.success("La producción se registró correctamente.");
       }
-    }
 
-    if (!hasErrors) {
       setConsumeModalOpen(false);
       setConsumeCart([]);
+      await fetchData();
+    } finally {
+      setConsumeLoading(false);
     }
-    await fetchData(); // refreshes everything
-    setConsumeLoading(false);
   };
 
   // Stock low product warning hidden until thresholds are configurable.
@@ -1453,6 +1448,11 @@ function StockPageContent() {
                       </div>
                     ))}
                   </div>
+                  {calculateConsumePreview().invalidRecipes.map((recipeError) => (
+                    <p key={recipeError} className="mt-3 flex items-center gap-2 rounded-xl border border-red-500/25 bg-red-500/10 p-3 text-xs font-semibold text-red-300">
+                      <AlertTriangle size={14} className="shrink-0" /> {recipeError}
+                    </p>
+                  ))}
                 </div>
               )}
 
