@@ -15,6 +15,10 @@ import {
   parsePositiveStampyPrefillNumber,
 } from "@/lib/stampy/tool-prefill";
 import { useAppFeedback } from "@/components/ui/app-feedback";
+import {
+  buildBudgetItemFromProduct,
+  normalizeBudgetItemEconomics,
+} from "@/lib/budgets/items";
 
 
 const STATUS_MAP: Record<string, { label: string, color: "gray" | "dark" | "green" | "orange" }> = {
@@ -180,19 +184,9 @@ function PresupuestosPageContent() {
 
     const initialItems: any[] = [];
     if (matchedProduct) {
-      const unitBaseCost = matchedProduct.base_cost || 0;
-      const unitProfit = (matchedProduct.sale_price || 0) - unitBaseCost;
-      initialItems.push({
-        id: "temp-" + Date.now(),
-        product_id: matchedProduct.id,
-        item_name: matchedProduct.name,
-        quantity,
-        unit_price: matchedProduct.sale_price || 0,
-        subtotal: (matchedProduct.sale_price || 0) * quantity,
-        unit_base_cost: unitBaseCost,
-        unit_profit: unitProfit,
-        total_profit: unitProfit * quantity,
-      });
+      const builtItem = buildBudgetItemFromProduct(matchedProduct, quantity);
+      if (builtItem.success) initialItems.push(builtItem.item);
+      else notices.push(builtItem.error);
     } else if (productName) {
       notices.push("No encontré este producto cargado. Seleccionalo manualmente o crealo antes de confirmar.");
     }
@@ -246,20 +240,9 @@ function PresupuestosPageContent() {
 
   const handleAddItem = () => {
     if (products.length === 0) return toast.info("No tenés productos activos para agregar.");
-    const p = products[0];
-    const unitBaseCost = p.base_cost || 0;
-    const unitProfit = (p.sale_price || 0) - unitBaseCost;
-    setBudgetItems([...budgetItems, {
-      id: "temp-" + Date.now(),
-      product_id: p.id,
-      item_name: p.name,
-      quantity: 1,
-      unit_price: p.sale_price || 0,
-      subtotal: p.sale_price || 0,
-      unit_base_cost: unitBaseCost,
-      unit_profit: unitProfit,
-      total_profit: unitProfit,
-    }]);
+    const builtItem = buildBudgetItemFromProduct(products[0]);
+    if (!builtItem.success) return toast.error(builtItem.error);
+    setBudgetItems((current) => [...current, builtItem.item]);
   };
 
   const handleRemoveItem = (index: number) => {
@@ -271,30 +254,21 @@ function PresupuestosPageContent() {
     if (field === "product_id") {
       const p = products.find(prod => prod.id === value);
       if (p) {
-        const unitBaseCost = p.base_cost || 0;
-        const unitProfit = (p.sale_price || 0) - unitBaseCost;
         const qty = newItems[index].quantity || 1;
-        newItems[index] = {
-          ...newItems[index],
-          product_id: p.id,
-          item_name: p.name,
-          unit_price: p.sale_price || 0,
-          subtotal: (p.sale_price || 0) * qty,
-          unit_base_cost: unitBaseCost,
-          unit_profit: unitProfit,
-          total_profit: unitProfit * qty,
-        };
+        const builtItem = buildBudgetItemFromProduct(p, qty, newItems[index].id);
+        if (!builtItem.success) return toast.error(builtItem.error);
+        newItems[index] = builtItem.item;
       }
     } else if (field === "quantity") {
       const qty = parseInt(value) || 1;
-      newItems[index].quantity = qty;
-      newItems[index].subtotal = qty * newItems[index].unit_price;
-      const unitProfit = newItems[index].unit_profit || 0;
-      newItems[index].total_profit = unitProfit * qty;
+      const normalizedItem = normalizeBudgetItemEconomics({ ...newItems[index], quantity: qty });
+      if (!normalizedItem.success) return toast.error(normalizedItem.error);
+      newItems[index] = normalizedItem.item;
     } else if (field === "unit_price") {
       const price = parseFloat(value) || 0;
-      newItems[index].unit_price = price;
-      newItems[index].subtotal = newItems[index].quantity * price;
+      const normalizedItem = normalizeBudgetItemEconomics({ ...newItems[index], unit_price: price });
+      if (!normalizedItem.success) return toast.error(normalizedItem.error);
+      newItems[index] = normalizedItem.item;
     } else {
       newItems[index][field] = value;
     }
@@ -312,6 +286,20 @@ function PresupuestosPageContent() {
     if (!formData.client_id) return toast.error("Por favor seleccioná un cliente.");
     if (budgetItems.length === 0) return toast.error("Agregá al menos un producto al presupuesto.");
 
+    const normalizedItems = [];
+    for (const item of budgetItems) {
+      const normalizedItem = normalizeBudgetItemEconomics(item);
+      if (!normalizedItem.success) {
+        setError(normalizedItem.error);
+        return toast.error(normalizedItem.error);
+      }
+      normalizedItems.push(normalizedItem.item);
+    }
+
+    const normalizedSubtotal = normalizedItems.reduce((sum, item) => sum + item.subtotal, 0);
+    const normalizedDiscountAmount = normalizedSubtotal * (discountPercent / 100);
+    const normalizedTotal = Math.max(0, normalizedSubtotal - normalizedDiscountAmount);
+
     setError(null);
     const { data: { user } } = await supabase.auth.getUser();
     if (!user) return;
@@ -324,9 +312,9 @@ function PresupuestosPageContent() {
       notes: formData.notes,
       valid_until: formData.valid_until || null,
       discount_percent: discountPercent,
-      discount_amount: discountAmount,
-      subtotal: subtotal,
-      total_amount: total
+      discount_amount: normalizedDiscountAmount,
+      subtotal: normalizedSubtotal,
+      total_amount: normalizedTotal
     };
 
     let budgetId = editingId;
@@ -342,23 +330,33 @@ function PresupuestosPageContent() {
 
     // Process items (simplest way: delete all existing for this budget, then insert)
     if (editingId !== "new") {
-      await supabase.from("budget_items").delete().eq("budget_id", budgetId);
+      const { error: deleteItemsError } = await supabase.from("budget_items").delete().eq("budget_id", budgetId);
+      if (deleteItemsError) {
+        toast.error("No se pudieron actualizar los productos del presupuesto.");
+        return setError(deleteItemsError.message);
+      }
     }
 
-    const itemsPayload = budgetItems.map(item => ({
+    const itemsPayload = normalizedItems.map(item => ({
       budget_id: budgetId,
       product_id: item.product_id,
       item_name: item.item_name,
       quantity: item.quantity,
       unit_price: item.unit_price,
       subtotal: item.subtotal,
-      unit_base_cost: item.unit_base_cost ?? null,
-      unit_profit: item.unit_profit ?? null,
-      total_profit: item.total_profit ?? null,
+      unit_base_cost: item.unit_base_cost,
+      unit_profit: item.unit_profit,
+      total_profit: item.total_profit,
     }));
 
     const { error: itemsError } = await supabase.from("budget_items").insert(itemsPayload);
-    if (itemsError) return setError(itemsError.message);
+    if (itemsError) {
+      if (editingId === "new" && budgetId) {
+        await supabase.from("budgets").delete().eq("id", budgetId);
+      }
+      toast.error("No se pudieron guardar los productos del presupuesto.");
+      return setError(itemsError.message);
+    }
 
     // Refresh data
     await fetchData();
@@ -563,17 +561,14 @@ function PresupuestosPageContent() {
     if (error) {
       toast.error("Error creando producto: " + error.message);
     } else if (data) {
-      const updatedProducts = [...products, data].sort((a, b) => a.name.localeCompare(b.name));
-      setProducts(updatedProducts);
+      const builtItem = buildBudgetItemFromProduct(data);
+      if (!builtItem.success) {
+        toast.error(builtItem.error);
+        return;
+      }
 
-      setBudgetItems([...budgetItems, {
-        id: "temp-" + Date.now(),
-        product_id: data.id,
-        item_name: data.name,
-        quantity: 1,
-        unit_price: data.sale_price || 0,
-        subtotal: data.sale_price || 0
-      }]);
+      setProducts((current) => [...current, data].sort((a, b) => a.name.localeCompare(b.name)));
+      setBudgetItems((current) => [...current, builtItem.item]);
 
       setProductData({
         name: "",
