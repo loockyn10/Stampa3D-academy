@@ -3,7 +3,7 @@ import Link from "next/link";
 import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Clock, Layers, User, Image as ImageIcon } from "lucide-react";
-import { getCourseLevelLabel, getCourseLevelClasses } from "@/lib/course-style";
+import { getCourseLevelStyle } from "@/lib/course-style";
 
 interface CourseCardProps {
   course: any;
@@ -13,6 +13,7 @@ export function CourseCard({ course }: CourseCardProps) {
   // Try to use real DB data
   const title = course.title || "Curso sin título";
   const instructorName = course.instructors?.name || "Stampa3D";
+  const levelStyle = getCourseLevelStyle(course.level);
   
   // Calculate total duration and lessons by flattening lessons within course_modules
   const modules = course.course_modules || [];
@@ -29,7 +30,13 @@ export function CourseCard({ course }: CourseCardProps) {
 
   return (
     <Link href={`/cursos/${course.slug || course.id}`} className="group block h-full">
-      <Card className="overflow-hidden p-0 h-full flex flex-col bg-stampa-surface border-stampa-border hover:border-[#ff6a00]/50 transition-all duration-300 shadow-lg group-hover:shadow-[0_8px_30px_rgb(255,106,0,0.12)] group-hover:-translate-y-1">
+      <Card className="relative overflow-hidden p-0 h-full flex flex-col bg-stampa-surface border-stampa-border transition-all duration-300 shadow-lg group-hover:-translate-y-0.5">
+        {levelStyle && (
+          <div
+            aria-hidden="true"
+            className={`pointer-events-none absolute inset-y-0 left-0 z-30 w-[5px] transition-all duration-300 ${levelStyle.accentClassName}`}
+          />
+        )}
         
         {/* Portada 16:9 compartida por cursos y talleres en todos los breakpoints. */}
         <div className="relative aspect-video shrink-0 bg-stampa-bg-soft overflow-hidden">
@@ -49,21 +56,23 @@ export function CourseCard({ course }: CourseCardProps) {
             </div>
           )}
           
-          {/* Badge Nivel o Taller */}
-          <div className="absolute right-3 top-3 z-10">
-            {course.course_kind === "workshop" ? (
-              <span className="rounded-full border text-xs font-medium px-2.5 sm:px-3 py-1 shadow-sm backdrop-blur-sm bg-sky-500/10 text-sky-300 border-sky-500/30">
-                Taller
+          {/* Badge de nivel: refuerza el mismo color semántico de la franja. */}
+          {levelStyle && (
+            <div className="absolute right-3 top-3 z-10">
+              <span className={`inline-flex items-center gap-1.5 rounded-full border px-2.5 py-1 text-xs font-semibold shadow-sm backdrop-blur-sm sm:px-3 ${levelStyle.badgeClassName}`}>
+                <span aria-hidden="true" className={`h-2 w-2 rounded-full ${levelStyle.dotClassName}`} />
+                {levelStyle.label}
               </span>
-            ) : (
-              <span className={`${getCourseLevelClasses(course)} shadow-sm backdrop-blur-sm bg-opacity-90`}>
-                {getCourseLevelLabel(course)}
-              </span>
-            )}
-          </div>
+            </div>
+          )}
           
           {/* Badges Top Left */}
           <div className="absolute left-3 top-3 z-10 flex flex-col gap-2 items-start">
+            {course.course_kind === "workshop" && (
+              <span className="inline-flex items-center rounded-full border border-sky-500/30 bg-sky-500/10 px-2.5 py-1 text-[10px] font-bold uppercase tracking-wider text-sky-300 backdrop-blur-sm">
+                Taller
+              </span>
+            )}
             {/* Badge Estado Especial (solo si no es published) */}
             {course.status && course.status !== "published" && (
               <span className="inline-flex items-center rounded-full bg-stampa-bg/60 backdrop-blur-md border border-white/20 px-2.5 py-1 text-[10px] font-bold text-white uppercase tracking-wider">
