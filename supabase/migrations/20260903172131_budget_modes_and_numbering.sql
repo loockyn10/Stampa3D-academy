@@ -116,8 +116,25 @@ language plpgsql
 security definer
 set search_path = ''
 as $$
+declare
+  client_name text;
 begin
   new.budget_number := nextval('public.budgets_human_number_seq'::regclass);
+
+  if nullif(btrim(new.title), '') is null then
+    select nullif(btrim(client.name), '')
+      into client_name
+    from public.clients as client
+    where client.id = new.client_id;
+
+    new.title := concat_ws(
+      ' - ',
+      'Presupuesto',
+      client_name,
+      'PRES-' || lpad(new.budget_number::text, 6, '0')
+    );
+  end if;
+
   return new;
 end;
 $$;

@@ -60,3 +60,26 @@ export function formatBudgetNumber(value: unknown): string {
   if (!Number.isSafeInteger(parsed) || parsed <= 0) return "PRES-PENDIENTE";
   return `PRES-${String(parsed).padStart(6, "0")}`;
 }
+
+export function buildAutomaticBudgetTitle(clientName?: string | null, budgetNumber?: unknown): string {
+  const parts = ["Presupuesto"];
+  const normalizedClientName = clientName?.trim();
+  if (normalizedClientName) parts.push(normalizedClientName);
+
+  const parsedNumber = typeof budgetNumber === "number" ? budgetNumber : Number(budgetNumber);
+  if (Number.isSafeInteger(parsedNumber) && parsedNumber > 0) {
+    parts.push(formatBudgetNumber(parsedNumber));
+  }
+
+  return parts.join(" - ");
+}
+
+export function getDefaultBudgetValidUntil(issuedAt: Date = new Date()): string {
+  const validUntil = new Date(issuedAt.getTime());
+  validUntil.setDate(validUntil.getDate() + 7);
+
+  const year = validUntil.getFullYear();
+  const month = String(validUntil.getMonth() + 1).padStart(2, "0");
+  const day = String(validUntil.getDate()).padStart(2, "0");
+  return `${year}-${month}-${day}`;
+}

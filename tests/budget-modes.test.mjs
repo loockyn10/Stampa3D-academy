@@ -55,6 +55,44 @@ test("human budget number never exposes the internal UUID", () => {
   assert.equal(calculations.formatBudgetNumber("not-a-number"), "PRES-PENDIENTE");
 });
 
+test("automatic titles are clean before and after receiving a real number", () => {
+  assert.equal(
+    calculations.buildAutomaticBudgetTitle("Escuela Técnica N° 455"),
+    "Presupuesto - Escuela Técnica N° 455",
+  );
+  assert.equal(
+    calculations.buildAutomaticBudgetTitle("Escuela Técnica N° 455", 1),
+    "Presupuesto - Escuela Técnica N° 455 - PRES-000001",
+  );
+  assert.equal(calculations.buildAutomaticBudgetTitle(null, 1), "Presupuesto - PRES-000001");
+  assert.doesNotMatch(calculations.buildAutomaticBudgetTitle(undefined, 1), /undefined|null/);
+});
+
+test("default validity is seven local calendar days after issuance", () => {
+  assert.equal(
+    calculations.getDefaultBudgetValidUntil(new Date(2026, 8, 3, 23, 30)),
+    "2026-09-10",
+  );
+  assert.equal(
+    calculations.getDefaultBudgetValidUntil(new Date(2026, 11, 28, 12, 0)),
+    "2027-01-04",
+  );
+});
+
+test("new automatic titles are finalized by the database trigger", () => {
+  const pageSource = fs.readFileSync(path.join(root, "src/app/presupuestos/page.tsx"), "utf8");
+  const migrationSource = fs.readFileSync(
+    path.join(root, "supabase/migrations/20260903172131_budget_modes_and_numbering.sql"),
+    "utf8",
+  );
+
+  assert.match(pageSource, /editingId === "new" && isTitleAutomatic \? "" : formData\.title\.trim\(\)/);
+  assert.match(migrationSource, /new\.budget_number := nextval/);
+  assert.match(migrationSource, /if nullif\(btrim\(new\.title\), ''\) is null then/);
+  assert.match(migrationSource, /'PRES-' \|\| lpad\(new\.budget_number::text, 6, '0'\)/);
+  assert.doesNotMatch(pageSource, /count\([^)]*\)\s*\+\s*1/i);
+});
+
 test("PDF uses item_name snapshots and creation dates", () => {
   const pdfSource = fs.readFileSync(
     path.join(root, "src/components/presupuestos/budget-pdf-document.tsx"),

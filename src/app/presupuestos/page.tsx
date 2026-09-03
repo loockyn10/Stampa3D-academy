@@ -21,7 +21,9 @@ import {
 } from "@/lib/budgets/items";
 import {
   BUDGET_TAX_RATES,
+  buildAutomaticBudgetTitle,
   calculateBudgetTotals,
+  getDefaultBudgetValidUntil,
   normalizeBudgetMode,
   normalizeBudgetTaxRate,
   type BudgetMode,
@@ -92,6 +94,7 @@ function PresupuestosPageContent() {
   const [error, setError] = useState<string | null>(null);
   const [prefillNotice, setPrefillNotice] = useState<string | null>(null);
   const [showModePicker, setShowModePicker] = useState(false);
+  const [isTitleAutomatic, setIsTitleAutomatic] = useState(true);
 
   // Profile
   const [profile, setProfile] = useState<any>(null);
@@ -163,7 +166,11 @@ function PresupuestosPageContent() {
 
   const startNewBudget = (budgetType: BudgetMode) => {
     setPrefillNotice(null);
-    setFormData(emptyBudgetForm(budgetType));
+    setFormData({
+      ...emptyBudgetForm(budgetType),
+      valid_until: getDefaultBudgetValidUntil(),
+    });
+    setIsTitleAutomatic(true);
     setBudgetItems([]);
     setEditingId("new");
     setShowClientForm(false);
@@ -214,10 +221,12 @@ function PresupuestosPageContent() {
 
     setFormData({
       ...emptyBudgetForm("quick"),
-      title: requestedTitle || (clientName ? `Presupuesto ${clientName}` : ""),
+      title: requestedTitle || buildAutomaticBudgetTitle(clientName),
       client_id: matchedClient?.id || "",
       notes: requestedNotes,
+      valid_until: getDefaultBudgetValidUntil(),
     });
+    setIsTitleAutomatic(!requestedTitle);
 
     const initialItems: any[] = [];
     if (matchedProduct) {
@@ -242,6 +251,7 @@ function PresupuestosPageContent() {
   }, [searchParams, loading, pathname, clients, products]);
 
   const handleEdit = async (b: any) => {
+    setIsTitleAutomatic(false);
     setFormData({
       title: b.title || "", client_id: b.client_id || "", status: b.status || "draft",
       notes: b.notes || "", valid_until: b.valid_until || "", discount_percent: b.discount_percent || 0,
@@ -263,6 +273,20 @@ function PresupuestosPageContent() {
 
     setEditingId(b.id);
     setShowClientForm(false);
+  };
+
+  useEffect(() => {
+    if (editingId !== "new" || !isTitleAutomatic) return;
+    const selectedClient = clients.find((client) => client.id === formData.client_id);
+    const automaticTitle = selectedClient ? buildAutomaticBudgetTitle(selectedClient.name) : "";
+    setFormData((current) => current.title === automaticTitle
+      ? current
+      : { ...current, title: automaticTitle });
+  }, [clients, editingId, formData.client_id, isTitleAutomatic]);
+
+  const handleTitleChange = (value: string) => {
+    setIsTitleAutomatic(value.trim().length === 0);
+    setFormData((current) => ({ ...current, title: value }));
   };
 
   const handleDelete = async (id: string) => {
@@ -325,8 +349,10 @@ function PresupuestosPageContent() {
   const { discountAmount, netAmount, taxAmount, total } = totals;
 
   const handleSaveBudget = async () => {
-    if (!formData.title.trim()) return toast.error("Agregá un título para el presupuesto.");
     if (!formData.client_id) return toast.error("Por favor seleccioná un cliente.");
+    if (!formData.title.trim() && !(editingId === "new" && isTitleAutomatic)) {
+      return toast.error("Agregá un título para el presupuesto.");
+    }
     if (budgetItems.length === 0) return toast.error("Agregá al menos un producto al presupuesto.");
 
     const normalizedItems = [];
@@ -353,7 +379,7 @@ function PresupuestosPageContent() {
     const payload = {
       user_id: user.id,
       client_id: formData.client_id,
-      title: formData.title,
+      title: editingId === "new" && isTitleAutomatic ? "" : formData.title.trim(),
       status: formData.status,
       notes: formData.notes,
       valid_until: formData.valid_until || null,
@@ -928,7 +954,7 @@ function PresupuestosPageContent() {
                   <div className="space-y-4">
                     <div>
                       <label className="block text-xs font-semibold text-gray-500 mb-1.5">Título / Referencia *</label>
-                      <input type="text" value={formData.title} onChange={e => setFormData({ ...formData, title: e.target.value })} className="w-full text-sm rounded-xl border border-stampa-border bg-stampa-bg-soft px-3 py-2.5 text-white outline-none focus:border-[#ff6a00] focus:ring-1 focus:ring-[#ff6a00]" placeholder="Ej. Presupuesto Macetas" />
+                      <input type="text" value={formData.title} onChange={e => handleTitleChange(e.target.value)} className="w-full text-sm rounded-xl border border-stampa-border bg-stampa-bg-soft px-3 py-2.5 text-white outline-none focus:border-[#ff6a00] focus:ring-1 focus:ring-[#ff6a00]" placeholder="Se completa al elegir un cliente" />
                     </div>
                     <div>
                       <label className="block text-xs font-semibold text-gray-500 mb-1.5">Notas (visibles en PDF)</label>
