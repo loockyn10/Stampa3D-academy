@@ -1,5 +1,6 @@
 import React from "react";
 import { Document, Page, Text, View, StyleSheet, Image } from "@react-pdf/renderer";
+import { formatBudgetNumber, normalizeBudgetMode } from "@/lib/budgets/calculation";
 
 // Helper to format currency
 const formatCurrency = (amount: number) => {
@@ -57,7 +58,7 @@ const styles = StyleSheet.create({
     marginBottom: 2,
   },
   clientSection: {
-    marginBottom: 30,
+    marginBottom: 20,
     padding: 15,
     backgroundColor: "#f9fafb",
     borderRadius: 4,
@@ -67,6 +68,23 @@ const styles = StyleSheet.create({
     fontWeight: "bold",
     marginBottom: 10,
     color: "#f97316",
+  },
+  referenceSection: {
+    marginBottom: 18,
+    borderLeftWidth: 3,
+    borderLeftColor: "#f97316",
+    paddingLeft: 10,
+  },
+  referenceLabel: {
+    color: "#777",
+    fontSize: 8,
+    textTransform: "uppercase",
+    marginBottom: 3,
+  },
+  referenceValue: {
+    color: "#222",
+    fontSize: 12,
+    fontWeight: "bold",
   },
   clientRow: {
     flexDirection: "row",
@@ -151,6 +169,26 @@ const styles = StyleSheet.create({
     borderTopWidth: 1,
     borderTopColor: "#eee",
   },
+  conditionsSection: {
+    marginTop: 22,
+    padding: 14,
+    backgroundColor: "#f9fafb",
+    borderTopWidth: 2,
+    borderTopColor: "#f97316",
+  },
+  conditionRow: {
+    flexDirection: "row",
+    marginBottom: 5,
+  },
+  conditionLabel: {
+    width: 105,
+    color: "#666",
+    fontWeight: "bold",
+  },
+  conditionValue: {
+    flex: 1,
+    color: "#333",
+  },
   footer: {
     position: "absolute",
     bottom: 30,
@@ -175,10 +213,15 @@ interface BudgetPDFDocumentProps {
 export const BudgetPDFDocument: React.FC<BudgetPDFDocumentProps> = ({ budget, items, client, profile }) => {
   const companyName = profile?.company_name || "Stampa3D Academy";
   const sellerName = profile?.display_name || profile?.full_name || "Vendedor";
+  const budgetMode = normalizeBudgetMode(budget?.budget_type);
+  const isProfessional = budgetMode === "professional";
   
   const formatDate = (dateStr: string) => {
     if (!dateStr) return "-";
-    return new Date(dateStr).toLocaleDateString("es-AR");
+    const dateOnlyMatch = /^(\d{4})-(\d{2})-(\d{2})$/.exec(dateStr);
+    if (dateOnlyMatch) return `${dateOnlyMatch[3]}/${dateOnlyMatch[2]}/${dateOnlyMatch[1]}`;
+    const parsed = new Date(dateStr);
+    return Number.isNaN(parsed.getTime()) ? "-" : parsed.toLocaleDateString("es-AR");
   };
 
   return (
@@ -200,14 +243,21 @@ export const BudgetPDFDocument: React.FC<BudgetPDFDocumentProps> = ({ budget, it
           </View>
           <View style={styles.headerRight}>
             <Text style={styles.title}>PRESUPUESTO</Text>
-            <Text style={styles.budgetInfoText}>Nº: #{String(budget?.id || "0").padStart(5, '0')}</Text>
+            <Text style={styles.budgetInfoText}>Nº: {formatBudgetNumber(budget?.budget_number)}</Text>
             <Text style={styles.budgetInfoText}>Fecha: {formatDate(budget?.created_at)}</Text>
             {budget?.valid_until && (
               <Text style={styles.budgetInfoText}>Válido hasta: {formatDate(budget.valid_until)}</Text>
             )}
-            <Text style={styles.budgetInfoText}>Vendedor: {sellerName}</Text>
+            {isProfessional && <Text style={styles.budgetInfoText}>Vendedor: {sellerName}</Text>}
           </View>
         </View>
+
+        {budget?.title && (
+          <View style={styles.referenceSection}>
+            <Text style={styles.referenceLabel}>Referencia</Text>
+            <Text style={styles.referenceValue}>{budget.title}</Text>
+          </View>
+        )}
 
         {/* Client Section */}
         <View style={styles.clientSection}>
@@ -216,25 +266,31 @@ export const BudgetPDFDocument: React.FC<BudgetPDFDocumentProps> = ({ budget, it
             <Text style={styles.clientLabel}>Nombre:</Text>
             <Text style={styles.clientValue}>{client?.name || "Consumidor Final"}</Text>
           </View>
-          {client?.cuit && (
+          {isProfessional && client?.cuit && (
             <View style={styles.clientRow}>
               <Text style={styles.clientLabel}>CUIT/DNI:</Text>
               <Text style={styles.clientValue}>{client.cuit}</Text>
             </View>
           )}
-          {client?.fiscal_condition && (
+          {isProfessional && client?.fiscal_condition && (
             <View style={styles.clientRow}>
               <Text style={styles.clientLabel}>Cond. Fiscal:</Text>
               <Text style={styles.clientValue}>{client.fiscal_condition}</Text>
             </View>
           )}
-          {client?.email && (
+          {isProfessional && client?.address && (
+            <View style={styles.clientRow}>
+              <Text style={styles.clientLabel}>Dirección:</Text>
+              <Text style={styles.clientValue}>{client.address}</Text>
+            </View>
+          )}
+          {isProfessional && client?.email && (
             <View style={styles.clientRow}>
               <Text style={styles.clientLabel}>Email:</Text>
               <Text style={styles.clientValue}>{client.email}</Text>
             </View>
           )}
-          {client?.phone && (
+          {isProfessional && client?.phone && (
             <View style={styles.clientRow}>
               <Text style={styles.clientLabel}>Teléfono:</Text>
               <Text style={styles.clientValue}>{client.phone}</Text>
@@ -255,10 +311,10 @@ export const BudgetPDFDocument: React.FC<BudgetPDFDocumentProps> = ({ budget, it
           {/* Table Rows */}
           {items && items.map((item, index) => (
             <View key={index} style={styles.tableRow}>
-              <Text style={styles.colProduct}>{item.product_name || "Producto"}</Text>
+              <Text style={styles.colProduct}>{item.item_name || "Producto sin nombre"}</Text>
               <Text style={styles.colQty}>{item.quantity}</Text>
               <Text style={styles.colPrice}>{formatCurrency(item.unit_price)}</Text>
-              <Text style={styles.colSubtotal}>{formatCurrency(item.unit_price * item.quantity)}</Text>
+              <Text style={styles.colSubtotal}>{formatCurrency(item.subtotal ?? (item.unit_price * item.quantity))}</Text>
             </View>
           ))}
         </View>
@@ -274,9 +330,19 @@ export const BudgetPDFDocument: React.FC<BudgetPDFDocumentProps> = ({ budget, it
             {budget?.discount_percent > 0 && (
               <View style={styles.totalRow}>
                 <Text style={styles.totalLabel}>Descuento ({budget.discount_percent}%)</Text>
-                <Text style={styles.totalValue}>- {formatCurrency((budget.subtotal * budget.discount_percent) / 100)}</Text>
+                <Text style={styles.totalValue}>- {formatCurrency(budget.discount_amount || 0)}</Text>
               </View>
             )}
+
+            <View style={styles.totalRow}>
+              <Text style={styles.totalLabel}>Neto</Text>
+              <Text style={styles.totalValue}>{formatCurrency(budget?.net_amount ?? ((budget?.subtotal || 0) - (budget?.discount_amount || 0)))}</Text>
+            </View>
+
+            <View style={styles.totalRow}>
+              <Text style={styles.totalLabel}>IVA ({String(budget?.tax_rate || 0).replace(".", ",")}%)</Text>
+              <Text style={styles.totalValue}>{formatCurrency(budget?.tax_amount || 0)}</Text>
+            </View>
             
             <View style={styles.grandTotalRow}>
               <Text style={styles.grandTotalLabel}>TOTAL</Text>
@@ -290,6 +356,36 @@ export const BudgetPDFDocument: React.FC<BudgetPDFDocumentProps> = ({ budget, it
           <View style={styles.notesSection}>
             <Text style={styles.sectionTitle}>NOTAS / CONDICIONES</Text>
             <Text style={{ color: "#555", lineHeight: 1.4 }}>{budget.notes}</Text>
+          </View>
+        )}
+
+        {isProfessional && (budget?.payment_terms || budget?.delivery_time || budget?.delivery_method || budget?.commercial_conditions) && (
+          <View style={styles.conditionsSection}>
+            <Text style={styles.sectionTitle}>CONDICIONES COMERCIALES</Text>
+            {budget?.payment_terms && (
+              <View style={styles.conditionRow}>
+                <Text style={styles.conditionLabel}>Forma de pago:</Text>
+                <Text style={styles.conditionValue}>{budget.payment_terms}</Text>
+              </View>
+            )}
+            {budget?.delivery_time && (
+              <View style={styles.conditionRow}>
+                <Text style={styles.conditionLabel}>Plazo de entrega:</Text>
+                <Text style={styles.conditionValue}>{budget.delivery_time}</Text>
+              </View>
+            )}
+            {budget?.delivery_method && (
+              <View style={styles.conditionRow}>
+                <Text style={styles.conditionLabel}>Entrega:</Text>
+                <Text style={styles.conditionValue}>{budget.delivery_method}</Text>
+              </View>
+            )}
+            {budget?.commercial_conditions && (
+              <View style={styles.conditionRow}>
+                <Text style={styles.conditionLabel}>Observaciones:</Text>
+                <Text style={styles.conditionValue}>{budget.commercial_conditions}</Text>
+              </View>
+            )}
           </View>
         )}
 

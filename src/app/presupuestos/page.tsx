@@ -3,7 +3,7 @@
 import React, { useState, useEffect, useRef } from "react";
 import Link from "next/link";
 import { usePathname, useSearchParams } from "next/navigation";
-import { Plus, Pencil, FileText, Trash2, Loader2, AlertCircle, Save, X, UserPlus, ShoppingCart, Download, Briefcase, Settings, ArrowLeft, Package, Clock, Percent, DollarSign } from "lucide-react";
+import { Plus, Pencil, FileText, Trash2, Loader2, AlertCircle, Save, X, UserPlus, ShoppingCart, Download, Briefcase, Settings, ArrowLeft, Package, Clock, Percent, DollarSign, Zap } from "lucide-react";
 import { Card } from "@/components/ui/card";
 import { PrimaryButton, GhostButton } from "@/components/ui/button";
 import { Combobox } from "@/components/ui/combobox";
@@ -19,6 +19,14 @@ import {
   buildBudgetItemFromProduct,
   normalizeBudgetItemEconomics,
 } from "@/lib/budgets/items";
+import {
+  BUDGET_TAX_RATES,
+  calculateBudgetTotals,
+  normalizeBudgetMode,
+  normalizeBudgetTaxRate,
+  type BudgetMode,
+  type BudgetTaxRate,
+} from "@/lib/budgets/calculation";
 
 
 const STATUS_MAP: Record<string, { label: string, color: "gray" | "dark" | "green" | "orange" }> = {
@@ -27,6 +35,48 @@ const STATUS_MAP: Record<string, { label: string, color: "gray" | "dark" | "gree
   approved: { label: "Aprobado", color: "green" },
   rejected: { label: "Rechazado", color: "orange" },
 };
+
+interface BudgetFormData {
+  title: string;
+  client_id: string;
+  status: string;
+  notes: string;
+  valid_until: string;
+  discount_percent: number;
+  budget_type: BudgetMode;
+  tax_rate: BudgetTaxRate;
+  payment_terms: string;
+  delivery_time: string;
+  delivery_method: string;
+  commercial_conditions: string;
+}
+
+const emptyBudgetForm = (budgetType: BudgetMode = "quick"): BudgetFormData => ({
+  title: "",
+  client_id: "",
+  status: "draft",
+  notes: "",
+  valid_until: "",
+  discount_percent: 0,
+  budget_type: budgetType,
+  tax_rate: 0,
+  payment_terms: "",
+  delivery_time: "",
+  delivery_method: "",
+  commercial_conditions: "",
+});
+
+const emptyClientForm = () => ({
+  id: "",
+  name: "",
+  phone: "",
+  email: "",
+  address: "",
+  notes: "",
+  fiscal_condition: "",
+  cuit: "",
+  is_active: true,
+});
 
 function PresupuestosPageContent() {
   const { toast, confirmAction } = useAppFeedback();
@@ -41,6 +91,7 @@ function PresupuestosPageContent() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [prefillNotice, setPrefillNotice] = useState<string | null>(null);
+  const [showModePicker, setShowModePicker] = useState(false);
 
   // Profile
   const [profile, setProfile] = useState<any>(null);
@@ -49,19 +100,12 @@ function PresupuestosPageContent() {
 
   // Form State
   const [editingId, setEditingId] = useState<string | null>(null);
-  const [formData, setFormData] = useState({
-    title: "",
-    client_id: "",
-    status: "draft",
-    notes: "",
-    valid_until: "",
-    discount_percent: 0,
-  });
+  const [formData, setFormData] = useState<BudgetFormData>(() => emptyBudgetForm());
   const [budgetItems, setBudgetItems] = useState<any[]>([]);
 
   // Client Form State
   const [showClientForm, setShowClientForm] = useState(false);
-  const [clientData, setClientData] = useState({ id: "", name: "", phone: "", email: "", notes: "", fiscal_condition: "", cuit: "", is_active: true });
+  const [clientData, setClientData] = useState(() => emptyClientForm());
 
   // Product Modal State
   const [showProductModal, setShowProductModal] = useState(false);
@@ -115,14 +159,15 @@ function PresupuestosPageContent() {
     setLoading(false);
   };
 
-  const handleCreateNew = () => {
+  const handleCreateNew = () => setShowModePicker(true);
+
+  const startNewBudget = (budgetType: BudgetMode) => {
     setPrefillNotice(null);
-    setFormData({
-      title: "", client_id: "", status: "draft", notes: "", valid_until: "", discount_percent: 0
-    });
+    setFormData(emptyBudgetForm(budgetType));
     setBudgetItems([]);
     setEditingId("new");
     setShowClientForm(false);
+    setShowModePicker(false);
   };
 
   // Stampy Prefill Effect
@@ -161,25 +206,17 @@ function PresupuestosPageContent() {
 
     if (clientName && !matchedClient) {
       setClientData({
-        id: "",
+        ...emptyClientForm(),
         name: clientName,
-        phone: "",
-        email: "",
-        notes: "",
-        fiscal_condition: "",
-        cuit: "",
-        is_active: true,
       });
       notices.push("No encontré este cliente cargado. Podés crearlo o seleccionarlo manualmente.");
     }
 
     setFormData({
+      ...emptyBudgetForm("quick"),
       title: requestedTitle || (clientName ? `Presupuesto ${clientName}` : ""),
       client_id: matchedClient?.id || "",
-      status: "draft",
       notes: requestedNotes,
-      valid_until: "",
-      discount_percent: 0
     });
 
     const initialItems: any[] = [];
@@ -207,7 +244,13 @@ function PresupuestosPageContent() {
   const handleEdit = async (b: any) => {
     setFormData({
       title: b.title || "", client_id: b.client_id || "", status: b.status || "draft",
-      notes: b.notes || "", valid_until: b.valid_until || "", discount_percent: b.discount_percent || 0
+      notes: b.notes || "", valid_until: b.valid_until || "", discount_percent: b.discount_percent || 0,
+      budget_type: normalizeBudgetMode(b.budget_type),
+      tax_rate: normalizeBudgetTaxRate(b.tax_rate),
+      payment_terms: b.payment_terms || "",
+      delivery_time: b.delivery_time || "",
+      delivery_method: b.delivery_method || "",
+      commercial_conditions: b.commercial_conditions || "",
     });
 
     // Fetch items for this budget
@@ -278,8 +321,8 @@ function PresupuestosPageContent() {
   const subtotal = budgetItems.reduce((acc, item) => acc + (item.subtotal || 0), 0);
   const estimatedProfit = budgetItems.reduce((acc, item) => acc + (item.total_profit || 0), 0);
   const discountPercent = parseFloat(String(formData.discount_percent)) || 0;
-  const discountAmount = subtotal * (discountPercent / 100);
-  const total = Math.max(0, subtotal - discountAmount);
+  const totals = calculateBudgetTotals({ subtotal, discountPercent, taxRate: formData.tax_rate });
+  const { discountAmount, netAmount, taxAmount, total } = totals;
 
   const handleSaveBudget = async () => {
     if (!formData.title.trim()) return toast.error("Agregá un título para el presupuesto.");
@@ -297,8 +340,11 @@ function PresupuestosPageContent() {
     }
 
     const normalizedSubtotal = normalizedItems.reduce((sum, item) => sum + item.subtotal, 0);
-    const normalizedDiscountAmount = normalizedSubtotal * (discountPercent / 100);
-    const normalizedTotal = Math.max(0, normalizedSubtotal - normalizedDiscountAmount);
+    const normalizedTotals = calculateBudgetTotals({
+      subtotal: normalizedSubtotal,
+      discountPercent,
+      taxRate: formData.tax_rate,
+    });
 
     setError(null);
     const { data: { user } } = await supabase.auth.getUser();
@@ -311,10 +357,17 @@ function PresupuestosPageContent() {
       status: formData.status,
       notes: formData.notes,
       valid_until: formData.valid_until || null,
-      discount_percent: discountPercent,
-      discount_amount: normalizedDiscountAmount,
-      subtotal: normalizedSubtotal,
-      total_amount: normalizedTotal
+      discount_percent: normalizedTotals.discountPercent,
+      discount_amount: normalizedTotals.discountAmount,
+      subtotal: normalizedTotals.subtotal,
+      tax_rate: normalizedTotals.taxRate,
+      tax_amount: normalizedTotals.taxAmount,
+      total_amount: normalizedTotals.total,
+      budget_type: formData.budget_type,
+      payment_terms: formData.payment_terms || null,
+      delivery_time: formData.delivery_time || null,
+      delivery_method: formData.delivery_method || null,
+      commercial_conditions: formData.commercial_conditions || null,
     };
 
     let budgetId = editingId;
@@ -373,10 +426,16 @@ function PresupuestosPageContent() {
     const currentClient = clients.find(c => c.id === formData.client_id);
 
     // Prepare budget object with full details
+    const persistedBudget = budgets.find((budget) => budget.id === editingId);
     const budgetData = {
       id: editingId,
       ...formData,
+      budget_number: persistedBudget?.budget_number,
+      created_at: persistedBudget?.created_at,
       subtotal,
+      discount_amount: discountAmount,
+      net_amount: netAmount,
+      tax_amount: taxAmount,
       total_amount: total
     };
 
@@ -433,12 +492,23 @@ function PresupuestosPageContent() {
 
       const budgetData = {
         id: b.id,
+        budget_number: b.budget_number,
         title: b.title,
         status: b.status,
         notes: b.notes,
+        created_at: b.created_at,
         valid_until: b.valid_until,
         discount_percent: b.discount_percent || 0,
+        discount_amount: b.discount_amount || 0,
         subtotal: b.subtotal || 0,
+        net_amount: Math.max(0, Number(b.subtotal || 0) - Number(b.discount_amount || 0)),
+        tax_rate: normalizeBudgetTaxRate(b.tax_rate),
+        tax_amount: b.tax_amount || 0,
+        budget_type: normalizeBudgetMode(b.budget_type),
+        payment_terms: b.payment_terms || "",
+        delivery_time: b.delivery_time || "",
+        delivery_method: b.delivery_method || "",
+        commercial_conditions: b.commercial_conditions || "",
         total_amount: b.total_amount || 0
       };
 
@@ -481,6 +551,7 @@ function PresupuestosPageContent() {
       name: clientData.name,
       phone: clientData.phone,
       email: clientData.email,
+      address: clientData.address || null,
       notes: clientData.notes,
       fiscal_condition: clientData.fiscal_condition,
       cuit: clientData.cuit,
@@ -518,6 +589,7 @@ function PresupuestosPageContent() {
         name: c.name || "",
         phone: c.phone || "",
         email: c.email || "",
+        address: c.address || "",
         notes: c.notes || "",
         fiscal_condition: c.fiscal_condition || "",
         cuit: c.cuit || "",
@@ -529,7 +601,7 @@ function PresupuestosPageContent() {
 
   const handleCancelClientForm = () => {
     setShowClientForm(false);
-    setClientData({ id: "", name: "", phone: "", email: "", notes: "", fiscal_condition: "", cuit: "", is_active: true });
+    setClientData(emptyClientForm());
   };
 
   const handleSaveProduct = async () => {
@@ -629,6 +701,9 @@ function PresupuestosPageContent() {
               <FileText size={24} className="text-stampa-orange shrink-0" />
               {editingId === "new" ? "Nuevo Presupuesto" : "Editar Presupuesto"}
             </h2>
+            <span className="hidden sm:inline-flex rounded-full border border-stampa-border bg-stampa-bg-soft px-2.5 py-1 text-[10px] font-bold uppercase tracking-wider text-gray-400">
+              {formData.budget_type === "professional" ? "Profesional" : "Rápido"}
+            </span>
           </div>
           {editingId !== "new" && (
             <button
@@ -640,6 +715,50 @@ function PresupuestosPageContent() {
               Descargar PDF
             </button>
           )}
+        </div>
+      )}
+
+      {showModePicker && !editingId && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center overflow-y-auto bg-black/70 p-4 backdrop-blur-sm">
+          <div className="relative w-full max-w-3xl rounded-3xl border border-stampa-border bg-stampa-surface p-5 shadow-2xl sm:p-8">
+            <button
+              type="button"
+              onClick={() => setShowModePicker(false)}
+              className="absolute right-4 top-4 rounded-lg p-2 text-gray-500 transition-colors hover:bg-white/5 hover:text-white"
+              aria-label="Cerrar selector"
+            >
+              <X size={20} />
+            </button>
+            <div className="mb-6 pr-10">
+              <p className="mb-2 text-xs font-bold uppercase tracking-[0.18em] text-stampa-orange">Nuevo presupuesto</p>
+              <h2 className="text-2xl font-black text-white sm:text-3xl">¿Qué tipo querés crear?</h2>
+              <p className="mt-2 text-sm text-gray-400">Ambos usan tus mismos clientes, productos y precios.</p>
+            </div>
+            <div className="grid gap-4 sm:grid-cols-2">
+              <button
+                type="button"
+                onClick={() => startNewBudget("quick")}
+                className="group rounded-2xl border border-stampa-border bg-stampa-bg-soft p-5 text-left transition-all hover:border-[#ff6a00]/60 hover:bg-stampa-orange/5 sm:p-6"
+              >
+                <span className="mb-4 flex h-11 w-11 items-center justify-center rounded-xl bg-stampa-orange/10 text-stampa-orange">
+                  <Zap size={23} />
+                </span>
+                <span className="block text-lg font-black text-white">Presupuesto Rápido</span>
+                <span className="mt-2 block text-sm leading-6 text-gray-400">Cotización simple con cliente, productos, IVA y total. Lista en pocos segundos.</span>
+              </button>
+              <button
+                type="button"
+                onClick={() => startNewBudget("professional")}
+                className="group rounded-2xl border border-stampa-border bg-stampa-bg-soft p-5 text-left transition-all hover:border-[#ff6a00]/60 hover:bg-stampa-orange/5 sm:p-6"
+              >
+                <span className="mb-4 flex h-11 w-11 items-center justify-center rounded-xl bg-stampa-orange/10 text-stampa-orange">
+                  <FileText size={23} />
+                </span>
+                <span className="block text-lg font-black text-white">Presupuesto Profesional</span>
+                <span className="mt-2 block text-sm leading-6 text-gray-400">Presentación comercial con datos fiscales, entrega, pago y condiciones opcionales.</span>
+              </button>
+            </div>
+          </div>
         </div>
       )}
 
@@ -663,7 +782,7 @@ function PresupuestosPageContent() {
           <div className="lg:col-span-2 space-y-6">
 
             {/* 1. Datos del Cliente */}
-            <Card className="p-6 sm:p-8 bg-stampa-surface border-stampa-border shadow-lg">
+            <Card className={`${formData.budget_type === "quick" ? "p-5 sm:p-6" : "p-6 sm:p-8"} bg-stampa-surface border-stampa-border shadow-lg`}>
               <div className="flex justify-between items-end mb-6 border-b border-stampa-border pb-3">
                 <div>
                   <h3 className="text-lg font-bold text-white flex items-center gap-2">Cliente</h3>
@@ -676,7 +795,7 @@ function PresupuestosPageContent() {
                         <Pencil size={14} /> Editar
                       </button>
                     )}
-                    <button onClick={() => { setClientData({ id: "", name: "", phone: "", email: "", notes: "", fiscal_condition: "", cuit: "", is_active: true }); setShowClientForm(true); }} className="text-xs font-bold text-stampa-orange hover:text-[#ff7a1a] flex items-center gap-1.5 px-3 py-1.5 bg-stampa-orange/10 border border-[#ff6a00]/20 rounded-lg transition-colors">
+                    <button onClick={() => { setClientData(emptyClientForm()); setShowClientForm(true); }} className="text-xs font-bold text-stampa-orange hover:text-[#ff7a1a] flex items-center gap-1.5 px-3 py-1.5 bg-stampa-orange/10 border border-[#ff6a00]/20 rounded-lg transition-colors">
                       <UserPlus size={14} /> Nuevo
                     </button>
                   </div>
@@ -707,29 +826,31 @@ function PresupuestosPageContent() {
                     <label className="block text-xs font-semibold text-gray-500 mb-1.5">Email</label>
                     <input type="email" placeholder="Ej. juan@mail.com" value={clientData.email} onChange={e => setClientData({ ...clientData, email: e.target.value })} className="w-full text-sm rounded-xl border border-stampa-border bg-stampa-surface px-3 py-2.5 text-white outline-none focus:border-[#ff6a00] focus:ring-1 focus:ring-[#ff6a00]" />
                   </div>
-                  <div>
-                    <label className="block text-xs font-semibold text-gray-500 mb-1.5">CUIT</label>
-                    <input type="text" placeholder="Ej. 20-12345678-9" value={clientData.cuit} onChange={e => setClientData({ ...clientData, cuit: e.target.value })} className="w-full text-sm rounded-xl border border-stampa-border bg-stampa-surface px-3 py-2.5 text-white outline-none focus:border-[#ff6a00] focus:ring-1 focus:ring-[#ff6a00]" />
-                  </div>
-                  <div>
-                    <label className="block text-xs font-semibold text-gray-500 mb-1.5">Condición Fiscal</label>
-                    <select value={clientData.fiscal_condition} onChange={e => setClientData({ ...clientData, fiscal_condition: e.target.value })} className="w-full text-sm rounded-xl border border-stampa-border bg-stampa-surface px-3 py-2.5 text-white outline-none focus:border-[#ff6a00] focus:ring-1 focus:ring-[#ff6a00]">
-                      <option value="">Consumidor Final</option>
-                      <option value="Responsable Inscripto">Responsable Inscripto</option>
-                      <option value="Monotributo">Monotributo</option>
-                      <option value="Exento">Exento</option>
-                    </select>
-                  </div>
-                  <div className="flex items-center mt-6">
-                    <label className="flex items-center gap-2 cursor-pointer">
-                      <input type="checkbox" checked={clientData.is_active} onChange={e => setClientData({ ...clientData, is_active: e.target.checked })} className="rounded bg-stampa-surface border-white/20 text-stampa-orange focus:ring-[#ff6a00]" />
-                      <span className="text-sm text-gray-300 font-medium">Cliente Activo</span>
-                    </label>
-                  </div>
-                  <div className="md:col-span-2">
-                    <label className="block text-xs font-semibold text-gray-500 mb-1.5">Notas del cliente</label>
-                    <input type="text" placeholder="Ej. Entregar de 10 a 14hs" value={clientData.notes} onChange={e => setClientData({ ...clientData, notes: e.target.value })} className="w-full text-sm rounded-xl border border-stampa-border bg-stampa-surface px-3 py-2.5 text-white outline-none focus:border-[#ff6a00] focus:ring-1 focus:ring-[#ff6a00]" />
-                  </div>
+                  {formData.budget_type === "professional" && (
+                    <>
+                      <div>
+                        <label className="block text-xs font-semibold text-gray-500 mb-1.5">CUIT / DNI</label>
+                        <input type="text" placeholder="Ej. 20-12345678-9" value={clientData.cuit} onChange={e => setClientData({ ...clientData, cuit: e.target.value })} className="w-full text-sm rounded-xl border border-stampa-border bg-stampa-surface px-3 py-2.5 text-white outline-none focus:border-[#ff6a00] focus:ring-1 focus:ring-[#ff6a00]" />
+                      </div>
+                      <div>
+                        <label className="block text-xs font-semibold text-gray-500 mb-1.5">Condición Fiscal</label>
+                        <select value={clientData.fiscal_condition} onChange={e => setClientData({ ...clientData, fiscal_condition: e.target.value })} className="w-full text-sm rounded-xl border border-stampa-border bg-stampa-surface px-3 py-2.5 text-white outline-none focus:border-[#ff6a00] focus:ring-1 focus:ring-[#ff6a00]">
+                          <option value="">Consumidor Final</option>
+                          <option value="Responsable Inscripto">Responsable Inscripto</option>
+                          <option value="Monotributo">Monotributo</option>
+                          <option value="Exento">Exento</option>
+                        </select>
+                      </div>
+                      <div className="md:col-span-2">
+                        <label className="block text-xs font-semibold text-gray-500 mb-1.5">Dirección</label>
+                        <input type="text" placeholder="Calle, número, localidad" value={clientData.address} onChange={e => setClientData({ ...clientData, address: e.target.value })} className="w-full text-sm rounded-xl border border-stampa-border bg-stampa-surface px-3 py-2.5 text-white outline-none focus:border-[#ff6a00] focus:ring-1 focus:ring-[#ff6a00]" />
+                      </div>
+                      <div className="md:col-span-2">
+                        <label className="block text-xs font-semibold text-gray-500 mb-1.5">Notas del cliente</label>
+                        <input type="text" placeholder="Información interna del cliente" value={clientData.notes} onChange={e => setClientData({ ...clientData, notes: e.target.value })} className="w-full text-sm rounded-xl border border-stampa-border bg-stampa-surface px-3 py-2.5 text-white outline-none focus:border-[#ff6a00] focus:ring-1 focus:ring-[#ff6a00]" />
+                      </div>
+                    </>
+                  )}
                   <div className="md:col-span-2 flex justify-end gap-3 mt-4 pt-4 border-t border-stampa-border">
                     <button onClick={handleCancelClientForm} className="text-sm font-bold text-gray-400 hover:text-white px-4 py-2 transition-colors">Cancelar</button>
                     <button onClick={handleSaveClient} className="text-sm font-bold bg-stampa-orange hover:bg-stampa-orange-hover text-white px-5 py-2 rounded-xl transition-colors shadow-lg shadow-[#ff6a00]/10">Guardar Cliente</button>
@@ -836,6 +957,33 @@ function PresupuestosPageContent() {
               </div>
             </Card>
 
+            {formData.budget_type === "professional" && (
+              <Card className="p-6 sm:p-8 bg-stampa-surface border-stampa-border shadow-lg">
+                <div className="mb-6 border-b border-stampa-border pb-3">
+                  <h3 className="text-lg font-bold text-white">Condiciones comerciales</h3>
+                  <p className="mt-1 text-sm text-gray-400">Son opcionales y aparecen únicamente en el PDF profesional.</p>
+                </div>
+                <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
+                  <div>
+                    <label className="mb-1.5 block text-xs font-semibold text-gray-500">Forma de pago</label>
+                    <input type="text" value={formData.payment_terms} onChange={(event) => setFormData({ ...formData, payment_terms: event.target.value })} placeholder="Ej. 50% anticipo, saldo contra entrega" className="w-full rounded-xl border border-stampa-border bg-stampa-bg-soft px-3 py-2.5 text-sm text-white outline-none focus:border-[#ff6a00] focus:ring-1 focus:ring-[#ff6a00]" />
+                  </div>
+                  <div>
+                    <label className="mb-1.5 block text-xs font-semibold text-gray-500">Plazo de entrega</label>
+                    <input type="text" value={formData.delivery_time} onChange={(event) => setFormData({ ...formData, delivery_time: event.target.value })} placeholder="Ej. 7 días hábiles" className="w-full rounded-xl border border-stampa-border bg-stampa-bg-soft px-3 py-2.5 text-sm text-white outline-none focus:border-[#ff6a00] focus:ring-1 focus:ring-[#ff6a00]" />
+                  </div>
+                  <div className="md:col-span-2">
+                    <label className="mb-1.5 block text-xs font-semibold text-gray-500">Lugar o modalidad de entrega</label>
+                    <input type="text" value={formData.delivery_method} onChange={(event) => setFormData({ ...formData, delivery_method: event.target.value })} placeholder="Ej. Retiro por taller / envío a coordinar" className="w-full rounded-xl border border-stampa-border bg-stampa-bg-soft px-3 py-2.5 text-sm text-white outline-none focus:border-[#ff6a00] focus:ring-1 focus:ring-[#ff6a00]" />
+                  </div>
+                  <div className="md:col-span-2">
+                    <label className="mb-1.5 block text-xs font-semibold text-gray-500">Observaciones y condiciones</label>
+                    <textarea rows={3} value={formData.commercial_conditions} onChange={(event) => setFormData({ ...formData, commercial_conditions: event.target.value })} placeholder="Condiciones comerciales adicionales" className="w-full rounded-xl border border-stampa-border bg-stampa-bg-soft px-3 py-2.5 text-sm text-white outline-none focus:border-[#ff6a00] focus:ring-1 focus:ring-[#ff6a00]" />
+                  </div>
+                </div>
+              </Card>
+            )}
+
           </div>
 
           {/* COLUMNA TOTALES Y ACCIONES (Sticky) */}
@@ -878,6 +1026,32 @@ function PresupuestosPageContent() {
                   <div className="flex justify-between items-center">
                     <span className="text-xs font-medium text-gray-500 pl-5">Monto dto.</span>
                     <span className="text-xs font-semibold text-rose-400">-${discountAmount.toFixed(2)}</span>
+                  </div>
+                )}
+
+                <div className="flex items-center justify-between">
+                  <span className="text-sm font-medium text-gray-400">Neto</span>
+                  <span className="text-sm font-bold text-white">${netAmount.toFixed(2)}</span>
+                </div>
+
+                <div className="flex items-center justify-between gap-3">
+                  <label htmlFor="budget-tax-rate" className="text-sm font-medium text-gray-400">IVA</label>
+                  <select
+                    id="budget-tax-rate"
+                    value={formData.tax_rate}
+                    onChange={(event) => setFormData({ ...formData, tax_rate: normalizeBudgetTaxRate(event.target.value) })}
+                    className="rounded-lg border border-stampa-border bg-stampa-surface px-2.5 py-1.5 text-right text-sm font-bold text-white outline-none focus:border-[#ff6a00] focus:ring-1 focus:ring-[#ff6a00]"
+                  >
+                    {BUDGET_TAX_RATES.map((rate) => (
+                      <option key={rate} value={rate}>IVA {String(rate).replace(".", ",")}%</option>
+                    ))}
+                  </select>
+                </div>
+
+                {formData.tax_rate > 0 && (
+                  <div className="flex items-center justify-between">
+                    <span className="pl-5 text-xs font-medium text-gray-500">Monto IVA</span>
+                    <span className="text-xs font-semibold text-gray-300">${taxAmount.toFixed(2)}</span>
                   </div>
                 )}
 
@@ -934,6 +1108,10 @@ function PresupuestosPageContent() {
                     <div className="pr-2">
                       <h4 className="font-bold text-white text-base truncate mb-1 group-hover:text-stampa-orange transition-colors">{b.title || "Sin título"}</h4>
                       <p className="text-xs font-medium text-gray-500 flex items-center gap-1.5"><UserPlus size={12} /> {b.clients?.name || "Cliente eliminado"}</p>
+                      <span className="mt-2 inline-flex items-center gap-1 rounded-md border border-stampa-border bg-stampa-bg-soft px-2 py-0.5 text-[10px] font-bold uppercase tracking-wider text-gray-500">
+                        {normalizeBudgetMode(b.budget_type) === "professional" ? <FileText size={10} /> : <Zap size={10} />}
+                        {normalizeBudgetMode(b.budget_type) === "professional" ? "Profesional" : "Rápido"}
+                      </span>
                     </div>
                     <span className={`shrink-0 text-[10px] font-bold uppercase tracking-wider px-2 py-1 rounded-md border ${statusClasses}`}>
                       {statusConf.label}
