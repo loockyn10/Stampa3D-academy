@@ -257,13 +257,16 @@ export function formatStampyScreenContextForPrompt(value: unknown): string {
     const preferences = context.pageData.preferences;
     if (preferences) {
       const values = [
-        preferences.printerBrand && `impresora ${preferences.printerBrand}`,
-        preferences.printerModel && `modelo ${preferences.printerModel}`,
+        preferences.printerBrand && `marca de impresora ${preferences.printerBrand}`,
+        preferences.printerModel && `modelo de impresora ${preferences.printerModel}`,
         preferences.experienceLevel && `experiencia ${preferences.experienceLevel}`,
         preferences.mainGoal && `objetivo ${preferences.mainGoal}`,
         preferences.commercialStage && `etapa comercial ${preferences.commercialStage}`,
       ].filter(Boolean);
-      if (values.length > 0) lines.push(`- Preferencias visibles: ${values.join(", ")}`);
+      if (values.length > 0) {
+        lines.push(`- Datos conocidos del perfil usados para personalizar recomendaciones: ${values.join(", ")}`);
+        lines.push("- Estos datos describen el perfil del usuario. No implican que esta pantalla tenga controles para seleccionar, confirmar o configurar su impresora o sus preferencias.");
+      }
     }
   } else if (context.pageData?.kind === "budgets") {
     lines.push(`- Presupuestos visibles: ${context.pageData.visibleBudgetCount}`);

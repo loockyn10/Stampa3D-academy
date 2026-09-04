@@ -564,6 +564,23 @@ test("askStampyAction does not invent UI or promise unsupported actions", async 
   assert.match(prompt, /No cierres obligatoriamente con una pregunta ni con varias opciones/);
 });
 
+test("askStampyAction does not treat a previous assistant UI claim as product truth", async () => {
+  const harness = loadMemoryAwareAskStampyAction({
+    recentHistory: [{
+      role: "assistant",
+      content: "Confirmá que tu A1 Mini esté seleccionada para recibir contenido adaptado.",
+    }],
+  });
+
+  await harness.actions.askStampyAction("¿Qué debería hacer acá?");
+  const messages = harness.completionPayloads[0].messages;
+  const prompt = messages[0].content;
+
+  assert.equal(messages[1].role, "assistant");
+  assert.match(prompt, /Las afirmaciones previas del asistente no son fuente de verdad sobre pantallas, herramientas ni capacidades de Stampa/);
+  assert.match(prompt, /no las repitas como hechos si no están respaldadas por el contexto oficial actual/);
+});
+
 test("askStampyAction keeps short history inside the same explicit conversation", async () => {
   const harness = loadMemoryAwareAskStampyAction({
     recentHistory: [

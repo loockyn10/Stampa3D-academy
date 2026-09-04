@@ -65,6 +65,74 @@ function includesUsefulNeedle(haystack: string, needle?: string | null) {
   return haystack.includes(cleanedNeedle);
 }
 
+function logStampyPromptAudit({
+  pathname,
+  dynamicContextData,
+  staticContext,
+  screenContextPrompt,
+  profilePrinter,
+  workshopContextText,
+  history,
+  loadedMemoryCount,
+  knowledgeToolIds,
+  toolContractIds,
+  retrievedKnowledgeChars,
+  systemPromptChars,
+}: {
+  pathname?: string | null;
+  dynamicContextData: {
+    text: string;
+    contexts: Array<{ title?: unknown; route?: unknown; score?: unknown }>;
+  };
+  staticContext: { title: string; context: string } | null;
+  screenContextPrompt: string;
+  profilePrinter?: string;
+  workshopContextText: string;
+  history: Array<{ role: string; content: string }>;
+  loadedMemoryCount: number;
+  knowledgeToolIds: string[];
+  toolContractIds: string[];
+  retrievedKnowledgeChars: number;
+  systemPromptChars: number;
+}) {
+  if (
+    process.env.NODE_ENV === "production" ||
+    process.env.STAMPY_DEBUG_PROMPT !== "true"
+  ) {
+    return;
+  }
+
+  const workshopPrinterLines = workshopContextText
+    .split("\n")
+    .filter((line) => /impresora/i.test(line))
+    .slice(0, 5);
+
+  console.log("[Stampy Prompt Audit]", {
+    pathname: pathname ?? null,
+    dynamicContext: {
+      matches: dynamicContextData.contexts.map((context) => ({
+        title: context.title,
+        route: context.route,
+        score: context.score,
+      })),
+      promptText: dynamicContextData.text || null,
+    },
+    staticFallback: staticContext,
+    currentUiContext: screenContextPrompt || null,
+    profilePrinter: profilePrinter ?? null,
+    workshopPrinterLines,
+    history: history.map((message) => ({
+      role: message.role,
+      chars: message.content.length,
+    })),
+    loadedMemoryCount,
+    responseKnowledgeToolIds: knowledgeToolIds,
+    promptToolContractIds: toolContractIds,
+    retrievedKnowledgeChars,
+    systemPromptChars,
+  });
+}
+
 const ACTION_FIELD_LABELS: Record<string, string> = {
   clientName: "cliente",
   productName: "producto",
@@ -1374,7 +1442,7 @@ Reglas del taller:
 - Diferenciá con claridad una acción preparada de una acción ejecutada.
 - Ante un error, explicá el próximo paso sin culpar al usuario ni mostrar detalles técnicos.
 - Cuando el usuario pregunte por filamentos, materiales o tipos como PLA/PETG/TPU, usá exclusivamente el contexto de filamentos. No interpretes esos términos como productos. Si recomendás una herramienta, mandá a Stock de filamentos, no a Stock de productos.
-- Podés usar el historial reciente de esta conversación para mantener continuidad. No inventes datos permanentes del usuario si no aparecen en el perfil, el taller o el historial reciente. Si el usuario cambia de tema, adaptate al nuevo tema.
+- Podés usar el historial reciente de esta conversación para mantener continuidad. Las afirmaciones previas del asistente no son fuente de verdad sobre pantallas, herramientas ni capacidades de Stampa: no las repitas como hechos si no están respaldadas por el contexto oficial actual. No inventes datos permanentes del usuario si no aparecen en el perfil, el taller o el historial reciente. Si el usuario cambia de tema, adaptate al nuevo tema.
 - REGLA CRÍTICA PARA PRESUPUESTOS Y CÁLCULOS: Cuando el usuario pida presupuestos o cálculos de precio, no inventes importes, tarifas, costos, márgenes ni totales. Si no estás usando una herramienta real que calcule, derivá al usuario a Presupuestos o Calculadora. Si pregunta sólo por un total visible, respondé sólo ese total; desglosalo únicamente si lo pide. Si el usuario pide crear un presupuesto, no uses datos de impresión anteriores salvo que diga explícitamente 'con esos datos', 'con lo anterior' o similar.`;
 
     // 5. Buscar herramientas de conocimiento
@@ -1440,15 +1508,32 @@ No menciones embeddings, chunks, RAG, SQL ni Storage.
 Si las fuentes oficiales no alcanzan, respondé igual con una solución práctica, pero no atribuyas información a una clase concreta.`;
 
     // 5.5 Inyectar Tool Contracts según la ruta actual
+    let promptToolContractIds: string[] = [];
     if (pathname) {
       const { getRelevantContractsForPath, formatToolContractForPrompt } = await import("@/lib/stampy/tool-registry");
       const relevantContracts = getRelevantContractsForPath(pathname);
+      promptToolContractIds = relevantContracts.map((contract) => contract.id);
       if (relevantContracts.length > 0) {
         systemPrompt += `\n\nCONTRATOS DE HERRAMIENTAS (REGLAS ESTRICTAS):
 Al estar en esta ruta, debés respetar cómo funcionan estas herramientas reales. Si el usuario te pide hacer algo relacionado a esto, seguí estas reglas:
 ${relevantContracts.map(formatToolContractForPrompt).join("\n\n")}\n`;
       }
     }
+
+    logStampyPromptAudit({
+      pathname,
+      dynamicContextData,
+      staticContext,
+      screenContextPrompt,
+      profilePrinter: userContext?.printerLabel,
+      workshopContextText: workshopContext.text,
+      history: recentHistory,
+      loadedMemoryCount,
+      knowledgeToolIds: knowledgeTools.map((tool) => tool.id),
+      toolContractIds: promptToolContractIds,
+      retrievedKnowledgeChars: retrievedKnowledge?.length ?? 0,
+      systemPromptChars: systemPrompt.length,
+    });
 
     const messagesPayload: ChatCompletionMessageParam[] = [
       { role: "system", content: systemPrompt },

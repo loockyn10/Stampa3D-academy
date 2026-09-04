@@ -80,6 +80,27 @@ test("budget draft keeps visible values but drops authorization and internal-cos
   assert.doesNotMatch(prompt, /spoofed-user|secret|unitBaseCost|recipe/);
 });
 
+test("academy profile facts keep the printer without implying a screen selector", () => {
+  const prompt = screenContext.formatStampyScreenContextForPrompt({
+    page: { section: "academy", route: "/academia", title: "Academia" },
+    pageData: {
+      kind: "academy",
+      recommendedPath: { id: "path-1", name: "Principiante Bambu" },
+      preferences: {
+        printerBrand: "Bambu Lab",
+        printerModel: "A1 Mini",
+        experienceLevel: "beginner",
+      },
+    },
+  });
+
+  assert.match(prompt, /Datos conocidos del perfil usados para personalizar recomendaciones/);
+  assert.match(prompt, /marca de impresora Bambu Lab/);
+  assert.match(prompt, /modelo de impresora A1 Mini/);
+  assert.match(prompt, /No implican que esta pantalla tenga controles para seleccionar, confirmar o configurar/i);
+  assert.doesNotMatch(prompt, /Preferencias visibles/);
+});
+
 test("invalid or absent screen context preserves backwards compatibility", () => {
   assert.equal(screenContext.sanitizeStampyScreenContext(undefined), null);
   assert.equal(screenContext.sanitizeStampyScreenContext({ page: { section: "academy" } }), null);
