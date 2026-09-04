@@ -48,7 +48,35 @@ test("catalog and inline products build the same complete budget item", () => {
     unit_base_cost: 325.5,
     unit_profit: 574.5,
     total_profit: 1723.5,
+    commercial_description: "",
+    material: "",
+    color: "",
+    finish: "",
+    technology: "",
+    commercial_notes: "",
   });
+});
+
+test("professional item details survive economic recalculation", () => {
+  const result = budgetItems.normalizeBudgetItemEconomics({
+    id: "item-pro",
+    product_id: "product-pro",
+    item_name: "Jarro Argentina",
+    quantity: 2,
+    unit_price: 5000,
+    unit_base_cost: 2000,
+    commercial_description: "Impresión de presentación institucional",
+    material: "PLA+",
+    color: "Celeste y blanco",
+    finish: "Estándar",
+    technology: "FDM",
+    commercial_notes: "Incluye empaque",
+  });
+
+  assert.equal(result.success, true);
+  assert.equal(result.item.commercial_description, "Impresión de presentación institucional");
+  assert.equal(result.item.material, "PLA+");
+  assert.equal(result.item.commercial_notes, "Incluye empaque");
 });
 
 test("missing product economics are rejected instead of replaced with zero", () => {

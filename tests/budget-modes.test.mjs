@@ -34,9 +34,61 @@ test("IVA is calculated on the net amount after discount", () => {
       netAmount: 90000,
       taxRate: 21,
       taxAmount: 18900,
+      additionalCharges: 0,
       total: 108900,
     },
   );
+});
+
+test("additional charges are added after tax without changing the tax base", () => {
+  const result = calculations.calculateBudgetTotals({
+    subtotal: 100000,
+    discountPercent: 10,
+    taxRate: 21,
+    additionalCharges: 5000,
+  });
+  assert.equal(result.netAmount, 90000);
+  assert.equal(result.taxAmount, 18900);
+  assert.equal(result.additionalCharges, 5000);
+  assert.equal(result.total, 113900);
+});
+
+test("deposit conditions calculate amount and remaining balance without changing total", () => {
+  assert.deepEqual(calculations.calculateBudgetDeposit(250000, "percent", 50), {
+    requiredAmount: 125000,
+    remainingAmount: 125000,
+  });
+  assert.deepEqual(calculations.calculateBudgetDeposit(250000, "fixed", 50000), {
+    requiredAmount: 50000,
+    remainingAmount: 200000,
+  });
+});
+
+test("payment methods have stable customer-facing labels", () => {
+  assert.equal(calculations.getBudgetPaymentLabel("transfer"), "Transferencia");
+  assert.equal(calculations.getBudgetPaymentLabel("custom", "Cheque a 30 días"), "Cheque a 30 días");
+  assert.equal(calculations.getBudgetPaymentLabel(null, "Condición histórica"), "Condición histórica");
+});
+
+test("professional fields are persisted and isolated from quick presentation", () => {
+  const pageSource = fs.readFileSync(path.join(root, "src/app/presupuestos/page.tsx"), "utf8");
+  const migrationSource = fs.readFileSync(
+    path.join(root, "supabase/migrations/20260903172131_budget_modes_and_numbering.sql"),
+    "utf8",
+  );
+
+  for (const field of [
+    "client_snapshot", "client_reference", "payment_method", "deposit_type",
+    "deposit_value", "additional_charges", "warranty", "warranty_conditions",
+  ]) {
+    assert.match(pageSource, new RegExp(`${field}:`));
+    assert.match(migrationSource, new RegExp(`add column if not exists ${field}`));
+  }
+  for (const field of ["commercial_description", "material", "color", "finish", "technology", "commercial_notes"]) {
+    assert.match(pageSource, new RegExp(`${field}: item\\.${field}`));
+    assert.match(migrationSource, new RegExp(`add column if not exists ${field}`));
+  }
+  assert.match(pageSource, /formData\.budget_type === "professional"/);
 });
 
 test("supported tax rates calculate deterministic totals", () => {
@@ -102,5 +154,9 @@ test("PDF uses item_name snapshots and creation dates", () => {
   assert.doesNotMatch(pdfSource, /item\.product_name/);
   assert.match(pdfSource, /budget\?\.created_at/);
   assert.match(pdfSource, /formatBudgetNumber\(budget\?\.budget_number\)/);
+  assert.match(pdfSource, /item\.commercial_description/);
+  assert.match(pdfSource, /budget\?\.additional_charges/);
+  assert.match(pdfSource, /paymentLabel/);
+  assert.match(pdfSource, /budget\?\.warranty/);
   assert.doesNotMatch(pdfSource, /Ganancia|unit_base_cost|total_profit/);
 });

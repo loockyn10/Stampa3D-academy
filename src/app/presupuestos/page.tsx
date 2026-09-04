@@ -22,11 +22,13 @@ import {
 import {
   BUDGET_TAX_RATES,
   buildAutomaticBudgetTitle,
+  calculateBudgetDeposit,
   calculateBudgetTotals,
   getDefaultBudgetValidUntil,
   normalizeBudgetMode,
   normalizeBudgetTaxRate,
   type BudgetMode,
+  type BudgetDepositType,
   type BudgetTaxRate,
 } from "@/lib/budgets/calculation";
 
@@ -49,9 +51,59 @@ interface BudgetFormData {
   tax_rate: BudgetTaxRate;
   payment_terms: string;
   delivery_time: string;
+  delivery_time_option: string;
   delivery_method: string;
   commercial_conditions: string;
+  client_reference: string;
+  payment_method: string;
+  deposit_type: BudgetDepositType;
+  deposit_value: number;
+  additional_charges: number;
+  warranty: string;
+  warranty_option: string;
+  warranty_conditions: string;
 }
+
+interface BudgetClientSnapshot {
+  name: string;
+  cuit: string;
+  fiscal_condition: string;
+  email: string;
+  phone: string;
+  address: string;
+  city: string;
+  province: string;
+  postal_code: string;
+  contact_person: string;
+}
+
+const PAYMENT_METHODS = [
+  ["", "Sin especificar"], ["transfer", "Transferencia"], ["cash", "Efectivo"],
+  ["cash_payment", "Contado"], ["prepaid", "100% anticipado"],
+  ["half_upfront", "50% anticipo / 50% contra entrega"], ["to_agree", "A convenir"],
+  ["custom", "Personalizado"],
+] as const;
+
+const DELIVERY_TIMES = ["", "24/48 hs", "3 días hábiles", "5 días hábiles", "7 días hábiles", "10 días hábiles", "15 días hábiles", "custom"] as const;
+const WARRANTIES = ["", "Sin garantía específica", "30 días", "60 días", "90 días", "custom"] as const;
+
+const emptyClientSnapshot = (): BudgetClientSnapshot => ({
+  name: "", cuit: "", fiscal_condition: "", email: "", phone: "", address: "",
+  city: "", province: "", postal_code: "", contact_person: "",
+});
+
+const clientToSnapshot = (client: any): BudgetClientSnapshot => ({
+  name: client?.name || "",
+  cuit: client?.cuit || "",
+  fiscal_condition: client?.fiscal_condition || "",
+  email: client?.email || "",
+  phone: client?.phone || "",
+  address: client?.address || "",
+  city: client?.city || "",
+  province: client?.province || "",
+  postal_code: client?.postal_code || "",
+  contact_person: client?.contact_person || "",
+});
 
 const emptyBudgetForm = (budgetType: BudgetMode = "quick"): BudgetFormData => ({
   title: "",
@@ -64,8 +116,17 @@ const emptyBudgetForm = (budgetType: BudgetMode = "quick"): BudgetFormData => ({
   tax_rate: 0,
   payment_terms: "",
   delivery_time: "",
+  delivery_time_option: "",
   delivery_method: "",
   commercial_conditions: "",
+  client_reference: "",
+  payment_method: "",
+  deposit_type: "none",
+  deposit_value: 0,
+  additional_charges: 0,
+  warranty: "",
+  warranty_option: "",
+  warranty_conditions: "",
 });
 
 const emptyClientForm = () => ({
@@ -74,6 +135,10 @@ const emptyClientForm = () => ({
   phone: "",
   email: "",
   address: "",
+  city: "",
+  province: "",
+  postal_code: "",
+  contact_person: "",
   notes: "",
   fiscal_condition: "",
   cuit: "",
@@ -105,6 +170,7 @@ function PresupuestosPageContent() {
   const [editingId, setEditingId] = useState<string | null>(null);
   const [formData, setFormData] = useState<BudgetFormData>(() => emptyBudgetForm());
   const [budgetItems, setBudgetItems] = useState<any[]>([]);
+  const [clientSnapshot, setClientSnapshot] = useState<BudgetClientSnapshot>(() => emptyClientSnapshot());
 
   // Client Form State
   const [showClientForm, setShowClientForm] = useState(false);
@@ -171,6 +237,7 @@ function PresupuestosPageContent() {
       valid_until: getDefaultBudgetValidUntil(),
     });
     setIsTitleAutomatic(true);
+    setClientSnapshot(emptyClientSnapshot());
     setBudgetItems([]);
     setEditingId("new");
     setShowClientForm(false);
@@ -227,6 +294,7 @@ function PresupuestosPageContent() {
       valid_until: getDefaultBudgetValidUntil(),
     });
     setIsTitleAutomatic(!requestedTitle);
+    setClientSnapshot(clientToSnapshot(matchedClient));
 
     const initialItems: any[] = [];
     if (matchedProduct) {
@@ -259,9 +327,22 @@ function PresupuestosPageContent() {
       tax_rate: normalizeBudgetTaxRate(b.tax_rate),
       payment_terms: b.payment_terms || "",
       delivery_time: b.delivery_time || "",
+      delivery_time_option: DELIVERY_TIMES.includes(b.delivery_time) ? b.delivery_time : (b.delivery_time ? "custom" : ""),
       delivery_method: b.delivery_method || "",
       commercial_conditions: b.commercial_conditions || "",
+      client_reference: b.client_reference || "",
+      payment_method: b.payment_method || (b.payment_terms ? "custom" : ""),
+      deposit_type: ["percent", "fixed"].includes(b.deposit_type) ? b.deposit_type : "none",
+      deposit_value: Number(b.deposit_value) || 0,
+      additional_charges: Number(b.additional_charges) || 0,
+      warranty: b.warranty || "",
+      warranty_option: WARRANTIES.includes(b.warranty) ? b.warranty : (b.warranty ? "custom" : ""),
+      warranty_conditions: b.warranty_conditions || "",
     });
+    const masterClient = clients.find((client) => client.id === b.client_id);
+    setClientSnapshot(b.client_snapshot && typeof b.client_snapshot === "object"
+      ? { ...emptyClientSnapshot(), ...b.client_snapshot }
+      : clientToSnapshot(masterClient));
 
     // Fetch items for this budget
     const { data, error } = await supabase.from("budget_items").select("*").eq("budget_id", b.id);
@@ -277,16 +358,21 @@ function PresupuestosPageContent() {
 
   useEffect(() => {
     if (editingId !== "new" || !isTitleAutomatic) return;
-    const selectedClient = clients.find((client) => client.id === formData.client_id);
-    const automaticTitle = selectedClient ? buildAutomaticBudgetTitle(selectedClient.name) : "";
+    const automaticTitle = formData.client_id ? buildAutomaticBudgetTitle(clientSnapshot.name) : "";
     setFormData((current) => current.title === automaticTitle
       ? current
       : { ...current, title: automaticTitle });
-  }, [clients, editingId, formData.client_id, isTitleAutomatic]);
+  }, [clientSnapshot.name, editingId, formData.client_id, isTitleAutomatic]);
 
   const handleTitleChange = (value: string) => {
     setIsTitleAutomatic(value.trim().length === 0);
     setFormData((current) => ({ ...current, title: value }));
+  };
+
+  const handleClientSelection = (clientId: string) => {
+    const selectedClient = clients.find((client) => client.id === clientId);
+    setFormData((current) => ({ ...current, client_id: clientId }));
+    setClientSnapshot(clientToSnapshot(selectedClient));
   };
 
   const handleDelete = async (id: string) => {
@@ -345,8 +431,14 @@ function PresupuestosPageContent() {
   const subtotal = budgetItems.reduce((acc, item) => acc + (item.subtotal || 0), 0);
   const estimatedProfit = budgetItems.reduce((acc, item) => acc + (item.total_profit || 0), 0);
   const discountPercent = parseFloat(String(formData.discount_percent)) || 0;
-  const totals = calculateBudgetTotals({ subtotal, discountPercent, taxRate: formData.tax_rate });
-  const { discountAmount, netAmount, taxAmount, total } = totals;
+  const totals = calculateBudgetTotals({
+    subtotal,
+    discountPercent,
+    taxRate: formData.tax_rate,
+    additionalCharges: formData.budget_type === "professional" ? formData.additional_charges : 0,
+  });
+  const { discountAmount, netAmount, taxAmount, additionalCharges, total } = totals;
+  const deposit = calculateBudgetDeposit(total, formData.deposit_type, formData.deposit_value);
 
   const handleSaveBudget = async () => {
     if (!formData.client_id) return toast.error("Por favor seleccioná un cliente.");
@@ -370,6 +462,7 @@ function PresupuestosPageContent() {
       subtotal: normalizedSubtotal,
       discountPercent,
       taxRate: formData.tax_rate,
+      additionalCharges: formData.budget_type === "professional" ? formData.additional_charges : 0,
     });
 
     setError(null);
@@ -394,6 +487,16 @@ function PresupuestosPageContent() {
       delivery_time: formData.delivery_time || null,
       delivery_method: formData.delivery_method || null,
       commercial_conditions: formData.commercial_conditions || null,
+      client_snapshot: formData.budget_type === "professional" ? clientSnapshot : null,
+      client_reference: formData.client_reference || null,
+      payment_method: formData.payment_method || null,
+      deposit_type: formData.budget_type === "professional" ? formData.deposit_type : "none",
+      deposit_value: formData.budget_type === "professional"
+        ? Math.min(formData.deposit_type === "percent" ? 100 : Number.POSITIVE_INFINITY, Math.max(0, Number(formData.deposit_value) || 0))
+        : 0,
+      additional_charges: normalizedTotals.additionalCharges,
+      warranty: formData.warranty || null,
+      warranty_conditions: formData.warranty_conditions || null,
     };
 
     let budgetId = editingId;
@@ -426,6 +529,12 @@ function PresupuestosPageContent() {
       unit_base_cost: item.unit_base_cost,
       unit_profit: item.unit_profit,
       total_profit: item.total_profit,
+      commercial_description: item.commercial_description || null,
+      material: item.material || null,
+      color: item.color || null,
+      finish: item.finish || null,
+      technology: item.technology || null,
+      commercial_notes: item.commercial_notes || null,
     }));
 
     const { error: itemsError } = await supabase.from("budget_items").insert(itemsPayload);
@@ -449,7 +558,9 @@ function PresupuestosPageContent() {
     }
 
     // Find client
-    const currentClient = clients.find(c => c.id === formData.client_id);
+    const currentClient = formData.budget_type === "professional"
+      ? clientSnapshot
+      : clients.find(c => c.id === formData.client_id);
 
     // Prepare budget object with full details
     const persistedBudget = budgets.find((budget) => budget.id === editingId);
@@ -462,6 +573,7 @@ function PresupuestosPageContent() {
       discount_amount: discountAmount,
       net_amount: netAmount,
       tax_amount: taxAmount,
+      additional_charges: additionalCharges,
       total_amount: total
     };
 
@@ -507,7 +619,9 @@ function PresupuestosPageContent() {
         import("@react-pdf/renderer"),
         import("@/components/presupuestos/budget-pdf-document"),
       ]);
-      const currentClient = clients.find(c => c.id === b.client_id);
+      const currentClient = normalizeBudgetMode(b.budget_type) === "professional" && b.client_snapshot
+        ? b.client_snapshot
+        : clients.find(c => c.id === b.client_id);
 
       const { data: itemsData, error: itemsError } = await supabase
         .from("budget_items")
@@ -535,6 +649,13 @@ function PresupuestosPageContent() {
         delivery_time: b.delivery_time || "",
         delivery_method: b.delivery_method || "",
         commercial_conditions: b.commercial_conditions || "",
+        client_reference: b.client_reference || "",
+        payment_method: b.payment_method || "",
+        deposit_type: b.deposit_type || "none",
+        deposit_value: Number(b.deposit_value) || 0,
+        additional_charges: Number(b.additional_charges) || 0,
+        warranty: b.warranty || "",
+        warranty_conditions: b.warranty_conditions || "",
         total_amount: b.total_amount || 0
       };
 
@@ -578,6 +699,10 @@ function PresupuestosPageContent() {
       phone: clientData.phone,
       email: clientData.email,
       address: clientData.address || null,
+      city: clientData.city || null,
+      province: clientData.province || null,
+      postal_code: clientData.postal_code || null,
+      contact_person: clientData.contact_person || null,
       notes: clientData.notes,
       fiscal_condition: clientData.fiscal_condition,
       cuit: clientData.cuit,
@@ -592,6 +717,7 @@ function PresupuestosPageContent() {
       } else {
         setClients(clients.map(c => c.id === data.id ? data : c));
         setFormData(prev => ({ ...prev, client_id: data.id }));
+        setClientSnapshot(clientToSnapshot(data));
         setShowClientForm(false);
       }
     } else {
@@ -602,6 +728,7 @@ function PresupuestosPageContent() {
       } else {
         setClients([...clients, data].sort((a, b) => a.name.localeCompare(b.name)));
         setFormData(prev => ({ ...prev, client_id: data.id }));
+        setClientSnapshot(clientToSnapshot(data));
         setShowClientForm(false);
       }
     }
@@ -616,6 +743,10 @@ function PresupuestosPageContent() {
         phone: c.phone || "",
         email: c.email || "",
         address: c.address || "",
+        city: c.city || "",
+        province: c.province || "",
+        postal_code: c.postal_code || "",
+        contact_person: c.contact_person || "",
         notes: c.notes || "",
         fiscal_condition: c.fiscal_condition || "",
         cuit: c.cuit || "",
@@ -811,7 +942,7 @@ function PresupuestosPageContent() {
             <Card className={`${formData.budget_type === "quick" ? "p-5 sm:p-6" : "p-6 sm:p-8"} bg-stampa-surface border-stampa-border shadow-lg`}>
               <div className="flex justify-between items-end mb-6 border-b border-stampa-border pb-3">
                 <div>
-                  <h3 className="text-lg font-bold text-white flex items-center gap-2">Cliente</h3>
+                  <h3 className="text-lg font-bold text-white flex items-center gap-2">1. Cliente</h3>
                   <p className="text-sm text-gray-400 mt-1">Elegí un cliente existente o cargá uno nuevo.</p>
                 </div>
                 {!showClientForm && (
@@ -829,14 +960,37 @@ function PresupuestosPageContent() {
               </div>
 
               {!showClientForm ? (
-                <div className="max-w-md">
-                  <Combobox
-                    options={clients.map(c => ({ id: c.id, label: c.name }))}
-                    value={formData.client_id}
-                    onChange={(val) => setFormData({ ...formData, client_id: val.toString() })}
-                    placeholder="Seleccioná o buscá un cliente..."
-                    emptyText="No se encontraron clientes."
-                  />
+                <div className="space-y-5">
+                  <div className="max-w-md">
+                    <Combobox
+                      options={clients.map(c => ({ id: c.id, label: c.name }))}
+                      value={formData.client_id}
+                      onChange={(val) => handleClientSelection(val.toString())}
+                      placeholder="Seleccioná o buscá un cliente..."
+                      emptyText="No se encontraron clientes."
+                    />
+                  </div>
+                  {formData.budget_type === "professional" && formData.client_id && (
+                    <div className="rounded-xl border border-stampa-border bg-stampa-bg-soft p-4 sm:p-5">
+                      <div className="mb-4">
+                        <p className="text-sm font-bold text-white">Datos para este presupuesto</p>
+                        <p className="mt-1 text-xs text-gray-500">Podés ajustarlos sin modificar el cliente guardado en tu agenda.</p>
+                      </div>
+                      <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+                        {([
+                          ["name", "Nombre / Razón social"], ["cuit", "CUIT / DNI"],
+                          ["fiscal_condition", "Condición frente al IVA"], ["contact_person", "Persona de contacto"],
+                          ["email", "Email"], ["phone", "Teléfono"], ["address", "Domicilio"],
+                          ["city", "Localidad"], ["province", "Provincia"], ["postal_code", "Código postal"],
+                        ] as const).map(([field, label]) => (
+                          <label key={field} className={field === "address" ? "sm:col-span-2" : ""}>
+                            <span className="mb-1 block text-xs font-semibold text-gray-500">{label}</span>
+                            <input value={clientSnapshot[field]} onChange={(event) => setClientSnapshot((current) => ({ ...current, [field]: event.target.value }))} className="w-full rounded-xl border border-stampa-border bg-stampa-surface px-3 py-2.5 text-sm text-white outline-none focus:border-[#ff6a00] focus:ring-1 focus:ring-[#ff6a00]" />
+                          </label>
+                        ))}
+                      </div>
+                    </div>
+                  )}
                 </div>
               ) : (
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4 bg-stampa-bg-soft p-5 rounded-xl border border-stampa-border shadow-inner">
@@ -871,6 +1025,22 @@ function PresupuestosPageContent() {
                         <label className="block text-xs font-semibold text-gray-500 mb-1.5">Dirección</label>
                         <input type="text" placeholder="Calle, número, localidad" value={clientData.address} onChange={e => setClientData({ ...clientData, address: e.target.value })} className="w-full text-sm rounded-xl border border-stampa-border bg-stampa-surface px-3 py-2.5 text-white outline-none focus:border-[#ff6a00] focus:ring-1 focus:ring-[#ff6a00]" />
                       </div>
+                      <div>
+                        <label className="block text-xs font-semibold text-gray-500 mb-1.5">Localidad</label>
+                        <input type="text" value={clientData.city} onChange={e => setClientData({ ...clientData, city: e.target.value })} className="w-full text-sm rounded-xl border border-stampa-border bg-stampa-surface px-3 py-2.5 text-white outline-none focus:border-[#ff6a00] focus:ring-1 focus:ring-[#ff6a00]" />
+                      </div>
+                      <div>
+                        <label className="block text-xs font-semibold text-gray-500 mb-1.5">Provincia</label>
+                        <input type="text" value={clientData.province} onChange={e => setClientData({ ...clientData, province: e.target.value })} className="w-full text-sm rounded-xl border border-stampa-border bg-stampa-surface px-3 py-2.5 text-white outline-none focus:border-[#ff6a00] focus:ring-1 focus:ring-[#ff6a00]" />
+                      </div>
+                      <div>
+                        <label className="block text-xs font-semibold text-gray-500 mb-1.5">Código postal</label>
+                        <input type="text" value={clientData.postal_code} onChange={e => setClientData({ ...clientData, postal_code: e.target.value })} className="w-full text-sm rounded-xl border border-stampa-border bg-stampa-surface px-3 py-2.5 text-white outline-none focus:border-[#ff6a00] focus:ring-1 focus:ring-[#ff6a00]" />
+                      </div>
+                      <div>
+                        <label className="block text-xs font-semibold text-gray-500 mb-1.5">Persona de contacto</label>
+                        <input type="text" value={clientData.contact_person} onChange={e => setClientData({ ...clientData, contact_person: e.target.value })} className="w-full text-sm rounded-xl border border-stampa-border bg-stampa-surface px-3 py-2.5 text-white outline-none focus:border-[#ff6a00] focus:ring-1 focus:ring-[#ff6a00]" />
+                      </div>
                       <div className="md:col-span-2">
                         <label className="block text-xs font-semibold text-gray-500 mb-1.5">Notas del cliente</label>
                         <input type="text" placeholder="Información interna del cliente" value={clientData.notes} onChange={e => setClientData({ ...clientData, notes: e.target.value })} className="w-full text-sm rounded-xl border border-stampa-border bg-stampa-surface px-3 py-2.5 text-white outline-none focus:border-[#ff6a00] focus:ring-1 focus:ring-[#ff6a00]" />
@@ -889,7 +1059,7 @@ function PresupuestosPageContent() {
             <Card className="p-6 sm:p-8 bg-stampa-surface border-stampa-border shadow-lg">
               <div className="flex flex-col sm:flex-row justify-between items-start sm:items-end mb-6 border-b border-stampa-border pb-3 gap-3">
                 <div>
-                  <h3 className="text-lg font-bold text-white flex items-center gap-2">Productos e items</h3>
+                  <h3 className="text-lg font-bold text-white flex items-center gap-2">2. Productos y servicios</h3>
                   <p className="text-sm text-gray-400 mt-1">Agregá los productos para este presupuesto.</p>
                 </div>
                 <div className="flex gap-2 w-full sm:w-auto">
@@ -919,27 +1089,46 @@ function PresupuestosPageContent() {
                   </div>
                 ) : (
                   budgetItems.map((item, idx) => (
-                    <div key={item.id} className="flex flex-col lg:flex-row items-start lg:items-center gap-3 bg-stampa-bg-soft p-3 rounded-xl border border-stampa-border relative group">
-                      <div className="w-full lg:flex-1">
-                        <Combobox
-                          options={products.map(p => ({ id: p.id, label: `${p.name} ($${p.sale_price})` }))}
-                          value={item.product_id}
-                          onChange={(val) => handleItemChange(idx, "product_id", val)}
-                        />
-                      </div>
-                      <div className="flex items-center justify-between lg:justify-end gap-4 w-full lg:w-auto mt-1 lg:mt-0">
-                        <div className="flex items-center gap-2 bg-stampa-surface px-2 py-1.5 rounded-lg border border-stampa-border">
-                          <span className="text-[10px] text-gray-500 font-bold uppercase">Cant</span>
-                          <input type="number" min="1" value={item.quantity} onChange={(e) => handleItemChange(idx, "quantity", e.target.value)} className="w-16 text-sm font-bold border-none bg-transparent focus:ring-0 text-white p-0 text-center" />
+                    <div key={item.id} className="space-y-3 rounded-xl border border-stampa-border bg-stampa-bg-soft p-3">
+                      <div className="flex flex-col items-start gap-3 lg:flex-row lg:items-center">
+                        <div className="w-full lg:flex-1">
+                          <Combobox
+                            options={products.map(p => ({ id: p.id, label: `${p.name} ($${p.sale_price})` }))}
+                            value={item.product_id}
+                            onChange={(val) => handleItemChange(idx, "product_id", val)}
+                          />
                         </div>
-                        <div className="flex items-center gap-3 bg-stampa-surface px-3 py-1.5 rounded-lg border border-stampa-border min-w-[120px] justify-between">
-                          <span className="text-[10px] text-gray-500 font-bold uppercase">Sub</span>
-                          <span className="font-bold text-white text-sm">${item.subtotal.toFixed(2)}</span>
+                        <div className="mt-1 flex w-full items-center justify-between gap-2 lg:mt-0 lg:w-auto lg:justify-end">
+                          <div className="flex items-center gap-2 rounded-lg border border-stampa-border bg-stampa-surface px-2 py-1.5">
+                            <span className="text-[10px] font-bold uppercase text-gray-500">Cant</span>
+                            <input type="number" min="1" value={item.quantity} onChange={(e) => handleItemChange(idx, "quantity", e.target.value)} className="w-12 border-none bg-transparent p-0 text-center text-sm font-bold text-white focus:ring-0 sm:w-16" />
+                          </div>
+                          <div className="flex min-w-[105px] items-center justify-between gap-2 rounded-lg border border-stampa-border bg-stampa-surface px-3 py-1.5 sm:min-w-[120px]">
+                            <span className="text-[10px] font-bold uppercase text-gray-500">Sub</span>
+                            <span className="text-sm font-bold text-white">${item.subtotal.toFixed(2)}</span>
+                          </div>
+                          <button onClick={() => handleRemoveItem(idx)} className="rounded-lg p-2 text-gray-500 transition-colors hover:bg-red-400/10 hover:text-red-400" title="Eliminar item">
+                            <Trash2 size={16} />
+                          </button>
                         </div>
-                        <button onClick={() => handleRemoveItem(idx)} className="p-2 text-gray-500 hover:text-red-400 hover:bg-red-400/10 rounded-lg transition-colors" title="Eliminar item">
-                          <Trash2 size={16} />
-                        </button>
                       </div>
+                      {formData.budget_type === "professional" && (
+                        <div className="grid grid-cols-1 gap-3 border-t border-stampa-border pt-3 sm:grid-cols-2 lg:grid-cols-3">
+                          <label className="sm:col-span-2 lg:col-span-3">
+                            <span className="mb-1 block text-[11px] font-semibold text-gray-500">Descripción comercial</span>
+                            <textarea rows={2} value={item.commercial_description || ""} onChange={(event) => handleItemChange(idx, "commercial_description", event.target.value)} placeholder="Descripción visible para el cliente" className="w-full rounded-lg border border-stampa-border bg-stampa-surface px-3 py-2 text-sm text-white outline-none focus:border-[#ff6a00]" />
+                          </label>
+                          {([[
+                            "material", "Material"], ["color", "Color"], ["finish", "Terminación"],
+                            ["technology", "Tecnología"], ["commercial_notes", "Observación del producto"],
+                          ] as const).map(([field, label]) => (
+                            <label key={field} className={field === "commercial_notes" ? "sm:col-span-2" : ""}>
+                              <span className="mb-1 block text-[11px] font-semibold text-gray-500">{label}</span>
+                              <input value={item[field] || ""} onChange={(event) => handleItemChange(idx, field, event.target.value)} className="w-full rounded-lg border border-stampa-border bg-stampa-surface px-3 py-2 text-sm text-white outline-none focus:border-[#ff6a00]" />
+                            </label>
+                          ))}
+                        </div>
+                      )}
                     </div>
                   ))
                 )}
@@ -986,26 +1175,94 @@ function PresupuestosPageContent() {
             {formData.budget_type === "professional" && (
               <Card className="p-6 sm:p-8 bg-stampa-surface border-stampa-border shadow-lg">
                 <div className="mb-6 border-b border-stampa-border pb-3">
-                  <h3 className="text-lg font-bold text-white">Condiciones comerciales</h3>
-                  <p className="mt-1 text-sm text-gray-400">Son opcionales y aparecen únicamente en el PDF profesional.</p>
+                  <h3 className="text-lg font-bold text-white">4. Condiciones comerciales</h3>
+                  <p className="mt-1 text-sm text-gray-400">Pago, entrega y garantía. Todo es opcional.</p>
                 </div>
-                <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
-                  <div>
-                    <label className="mb-1.5 block text-xs font-semibold text-gray-500">Forma de pago</label>
-                    <input type="text" value={formData.payment_terms} onChange={(event) => setFormData({ ...formData, payment_terms: event.target.value })} placeholder="Ej. 50% anticipo, saldo contra entrega" className="w-full rounded-xl border border-stampa-border bg-stampa-bg-soft px-3 py-2.5 text-sm text-white outline-none focus:border-[#ff6a00] focus:ring-1 focus:ring-[#ff6a00]" />
-                  </div>
-                  <div>
-                    <label className="mb-1.5 block text-xs font-semibold text-gray-500">Plazo de entrega</label>
-                    <input type="text" value={formData.delivery_time} onChange={(event) => setFormData({ ...formData, delivery_time: event.target.value })} placeholder="Ej. 7 días hábiles" className="w-full rounded-xl border border-stampa-border bg-stampa-bg-soft px-3 py-2.5 text-sm text-white outline-none focus:border-[#ff6a00] focus:ring-1 focus:ring-[#ff6a00]" />
-                  </div>
-                  <div className="md:col-span-2">
-                    <label className="mb-1.5 block text-xs font-semibold text-gray-500">Lugar o modalidad de entrega</label>
-                    <input type="text" value={formData.delivery_method} onChange={(event) => setFormData({ ...formData, delivery_method: event.target.value })} placeholder="Ej. Retiro por taller / envío a coordinar" className="w-full rounded-xl border border-stampa-border bg-stampa-bg-soft px-3 py-2.5 text-sm text-white outline-none focus:border-[#ff6a00] focus:ring-1 focus:ring-[#ff6a00]" />
-                  </div>
-                  <div className="md:col-span-2">
-                    <label className="mb-1.5 block text-xs font-semibold text-gray-500">Observaciones y condiciones</label>
+                <div className="space-y-6">
+                  <section className="grid grid-cols-1 gap-4 md:grid-cols-2">
+                    <div className="md:col-span-2">
+                      <label className="mb-1.5 block text-xs font-semibold text-gray-500">Referencia / Orden de compra</label>
+                      <input type="text" value={formData.client_reference} onChange={(event) => setFormData({ ...formData, client_reference: event.target.value })} placeholder="Ej. OC-1234 / Proyecto Laboratorio 2026" className="w-full rounded-xl border border-stampa-border bg-stampa-bg-soft px-3 py-2.5 text-sm text-white outline-none focus:border-[#ff6a00]" />
+                    </div>
+                    <div>
+                      <label className="mb-1.5 block text-xs font-semibold text-gray-500">Forma de pago</label>
+                      <select value={formData.payment_method} onChange={(event) => setFormData({ ...formData, payment_method: event.target.value })} className="w-full rounded-xl border border-stampa-border bg-stampa-bg-soft px-3 py-2.5 text-sm text-white outline-none focus:border-[#ff6a00]">
+                        {PAYMENT_METHODS.map(([value, label]) => <option key={value} value={value}>{label}</option>)}
+                      </select>
+                    </div>
+                    {formData.payment_method === "custom" && (
+                      <div>
+                        <label className="mb-1.5 block text-xs font-semibold text-gray-500">Forma de pago personalizada</label>
+                        <input type="text" value={formData.payment_terms} onChange={(event) => setFormData({ ...formData, payment_terms: event.target.value })} className="w-full rounded-xl border border-stampa-border bg-stampa-bg-soft px-3 py-2.5 text-sm text-white outline-none focus:border-[#ff6a00]" />
+                      </div>
+                    )}
+                    <div>
+                      <label className="mb-1.5 block text-xs font-semibold text-gray-500">Anticipo requerido</label>
+                      <select value={formData.deposit_type} onChange={(event) => setFormData({ ...formData, deposit_type: event.target.value as BudgetDepositType })} className="w-full rounded-xl border border-stampa-border bg-stampa-bg-soft px-3 py-2.5 text-sm text-white outline-none focus:border-[#ff6a00]">
+                        <option value="none">Sin anticipo</option><option value="percent">Porcentaje</option><option value="fixed">Monto fijo</option>
+                      </select>
+                    </div>
+                    {formData.deposit_type !== "none" && (
+                      <div>
+                        <label className="mb-1.5 block text-xs font-semibold text-gray-500">{formData.deposit_type === "percent" ? "Porcentaje" : "Monto"}</label>
+                        <input type="number" min="0" max={formData.deposit_type === "percent" ? 100 : undefined} value={formData.deposit_value || ""} onChange={(event) => setFormData({ ...formData, deposit_value: Math.max(0, Number(event.target.value) || 0) })} className="w-full rounded-xl border border-stampa-border bg-stampa-bg-soft px-3 py-2.5 text-sm text-white outline-none focus:border-[#ff6a00]" />
+                        <p className="mt-1.5 text-xs text-gray-500">Anticipo: ${deposit.requiredAmount.toFixed(2)} · Saldo: ${deposit.remainingAmount.toFixed(2)}</p>
+                      </div>
+                    )}
+                  </section>
+
+                  <section className="grid grid-cols-1 gap-4 border-t border-stampa-border pt-5 md:grid-cols-2">
+                    <h4 className="text-sm font-bold text-white md:col-span-2">5. Entrega</h4>
+                    <div>
+                      <label className="mb-1.5 block text-xs font-semibold text-gray-500">Plazo estimado</label>
+                      <select value={formData.delivery_time_option} onChange={(event) => { const option = event.target.value; setFormData({ ...formData, delivery_time_option: option, delivery_time: option === "custom" ? "" : option }); }} className="w-full rounded-xl border border-stampa-border bg-stampa-bg-soft px-3 py-2.5 text-sm text-white outline-none focus:border-[#ff6a00]">
+                        {DELIVERY_TIMES.map((value) => <option key={value} value={value}>{value === "" ? "Sin especificar" : value === "custom" ? "Personalizado" : value}</option>)}
+                      </select>
+                    </div>
+                    <div>
+                      <label className="mb-1.5 block text-xs font-semibold text-gray-500">Modalidad</label>
+                      <select value={formData.delivery_method} onChange={(event) => setFormData({ ...formData, delivery_method: event.target.value })} className="w-full rounded-xl border border-stampa-border bg-stampa-bg-soft px-3 py-2.5 text-sm text-white outline-none focus:border-[#ff6a00]">
+                        <option value="">Sin especificar</option><option value="Retiro">Retiro</option><option value="Envío">Envío</option><option value="A coordinar">A coordinar</option>
+                      </select>
+                    </div>
+                    {formData.delivery_time_option === "custom" && (
+                      <div className="md:col-span-2">
+                        <label className="mb-1.5 block text-xs font-semibold text-gray-500">Plazo personalizado</label>
+                        <input type="text" value={formData.delivery_time} onChange={(event) => setFormData({ ...formData, delivery_time: event.target.value })} className="w-full rounded-xl border border-stampa-border bg-stampa-bg-soft px-3 py-2.5 text-sm text-white outline-none focus:border-[#ff6a00]" />
+                      </div>
+                    )}
+                    <div className="md:col-span-2">
+                      <label className="mb-1.5 block text-xs font-semibold text-gray-500">Envío / Otros cargos</label>
+                      <input type="number" min="0" value={formData.additional_charges || ""} onChange={(event) => setFormData({ ...formData, additional_charges: Math.max(0, Number(event.target.value) || 0) })} placeholder="0" className="w-full rounded-xl border border-stampa-border bg-stampa-bg-soft px-3 py-2.5 text-sm text-white outline-none focus:border-[#ff6a00]" />
+                      <p className="mt-1.5 text-xs text-gray-500">Se suma al total después del IVA.</p>
+                    </div>
+                  </section>
+
+                  <section className="grid grid-cols-1 gap-4 border-t border-stampa-border pt-5 md:grid-cols-2">
+                    <h4 className="text-sm font-bold text-white md:col-span-2">6. Garantía</h4>
+                    <div>
+                      <label className="mb-1.5 block text-xs font-semibold text-gray-500">Garantía</label>
+                      <select value={formData.warranty_option} onChange={(event) => { const option = event.target.value; setFormData({ ...formData, warranty_option: option, warranty: option === "custom" ? "" : option }); }} className="w-full rounded-xl border border-stampa-border bg-stampa-bg-soft px-3 py-2.5 text-sm text-white outline-none focus:border-[#ff6a00]">
+                        {WARRANTIES.map((value) => <option key={value} value={value}>{value === "" ? "Sin especificar" : value === "custom" ? "Personalizada" : value}</option>)}
+                      </select>
+                    </div>
+                    {formData.warranty_option === "custom" && (
+                      <div>
+                        <label className="mb-1.5 block text-xs font-semibold text-gray-500">Garantía personalizada</label>
+                        <input type="text" value={formData.warranty} onChange={(event) => setFormData({ ...formData, warranty: event.target.value })} className="w-full rounded-xl border border-stampa-border bg-stampa-bg-soft px-3 py-2.5 text-sm text-white outline-none focus:border-[#ff6a00]" />
+                      </div>
+                    )}
+                    <div className="md:col-span-2">
+                      <label className="mb-1.5 block text-xs font-semibold text-gray-500">Condiciones de garantía</label>
+                      <textarea rows={2} value={formData.warranty_conditions} onChange={(event) => setFormData({ ...formData, warranty_conditions: event.target.value })} className="w-full rounded-xl border border-stampa-border bg-stampa-bg-soft px-3 py-2.5 text-sm text-white outline-none focus:border-[#ff6a00]" />
+                    </div>
+                  </section>
+
+                  <section className="border-t border-stampa-border pt-5">
+                    <h4 className="mb-3 text-sm font-bold text-white">7. Observaciones</h4>
+                    <label className="mb-1.5 block text-xs font-semibold text-gray-500">Condiciones adicionales</label>
                     <textarea rows={3} value={formData.commercial_conditions} onChange={(event) => setFormData({ ...formData, commercial_conditions: event.target.value })} placeholder="Condiciones comerciales adicionales" className="w-full rounded-xl border border-stampa-border bg-stampa-bg-soft px-3 py-2.5 text-sm text-white outline-none focus:border-[#ff6a00] focus:ring-1 focus:ring-[#ff6a00]" />
-                  </div>
+                  </section>
                 </div>
               </Card>
             )}
@@ -1018,7 +1275,7 @@ function PresupuestosPageContent() {
               <div className="absolute top-0 inset-x-0 h-1 bg-gradient-to-r from-transparent via-[#ff6a00] to-transparent opacity-50" />
 
               <h3 className="text-sm font-bold text-white flex items-center gap-2 border-b border-stampa-border pb-3 mb-5">
-                <DollarSign size={18} className="text-stampa-orange" /> Resumen
+                <DollarSign size={18} className="text-stampa-orange" /> {formData.budget_type === "professional" ? "3. Impuestos y resumen" : "Resumen"}
               </h3>
 
               <div className="space-y-4 mb-6">
@@ -1059,6 +1316,13 @@ function PresupuestosPageContent() {
                   <span className="text-sm font-medium text-gray-400">Neto</span>
                   <span className="text-sm font-bold text-white">${netAmount.toFixed(2)}</span>
                 </div>
+
+                {formData.budget_type === "professional" && additionalCharges > 0 && (
+                  <div className="flex items-center justify-between">
+                    <span className="text-sm font-medium text-gray-400">Envío / adicionales</span>
+                    <span className="text-sm font-bold text-white">${additionalCharges.toFixed(2)}</span>
+                  </div>
+                )}
 
                 <div className="flex items-center justify-between gap-3">
                   <label htmlFor="budget-tax-rate" className="text-sm font-medium text-gray-400">IVA</label>

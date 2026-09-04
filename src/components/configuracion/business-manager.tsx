@@ -18,10 +18,14 @@ export function BusinessManager() {
   
   const [profileId, setProfileId] = useState<string>("");
   const [companyName, setCompanyName] = useState("");
+  const [companyLegalName, setCompanyLegalName] = useState("");
+  const [companyCuit, setCompanyCuit] = useState("");
+  const [companyEmail, setCompanyEmail] = useState("");
   const [companyLogoUrl, setCompanyLogoUrl] = useState("");
   const [companyCity, setCompanyCity] = useState("");
   const [companyAddress, setCompanyAddress] = useState("");
   const [companyPhone, setCompanyPhone] = useState("");
+  const [companyProvince, setCompanyProvince] = useState("");
 
   useEffect(() => {
     fetchData();
@@ -38,10 +42,14 @@ export function BusinessManager() {
     } else if (pData) {
       setProfileId(pData.id);
       setCompanyName(pData.company_name || "");
+      setCompanyLegalName(pData.company_legal_name || "");
+      setCompanyCuit(pData.company_cuit || "");
+      setCompanyEmail(pData.company_email || "");
       setCompanyLogoUrl(pData.company_logo_url || "");
       setCompanyCity(pData.company_city || "");
       setCompanyAddress(pData.company_address || "");
       setCompanyPhone(pData.company_phone || "");
+      setCompanyProvince(pData.company_province || "");
     }
     setLoading(false);
   };
@@ -52,10 +60,14 @@ export function BusinessManager() {
     setError(null);
     const { error } = await supabase.from("profiles").update({ 
       company_name: companyName,
+      company_legal_name: companyLegalName,
+      company_cuit: companyCuit,
+      company_email: companyEmail,
       company_logo_url: companyLogoUrl,
       company_city: companyCity,
       company_address: companyAddress,
-      company_phone: companyPhone
+      company_phone: companyPhone,
+      company_province: companyProvince
     }).eq("id", profileId);
     
     if (error) {
@@ -97,6 +109,21 @@ export function BusinessManager() {
             className="w-full rounded-xl border border-white/20 bg-stampa-surface text-white px-3 py-2.5 text-sm outline-none focus:border-stampa-orange focus:ring-2 focus:ring-orange-100"
             placeholder="Ej. Stampa3D Academy"
           />
+        </label>
+
+        <label className="block sm:col-span-2">
+          <span className="mb-1 block text-xs font-semibold text-gray-500">Razón social</span>
+          <input value={companyLegalName} onChange={(e) => setCompanyLegalName(e.target.value)} className="w-full rounded-xl border border-white/20 bg-stampa-surface text-white px-3 py-2.5 text-sm outline-none focus:border-stampa-orange focus:ring-2 focus:ring-orange-100" placeholder="Nombre legal opcional" />
+        </label>
+
+        <label className="block">
+          <span className="mb-1 block text-xs font-semibold text-gray-500">CUIT</span>
+          <input value={companyCuit} onChange={(e) => setCompanyCuit(e.target.value)} className="w-full rounded-xl border border-white/20 bg-stampa-surface text-white px-3 py-2.5 text-sm outline-none focus:border-stampa-orange focus:ring-2 focus:ring-orange-100" placeholder="20-12345678-9" />
+        </label>
+
+        <label className="block">
+          <span className="mb-1 block text-xs font-semibold text-gray-500">Email comercial</span>
+          <input type="email" value={companyEmail} onChange={(e) => setCompanyEmail(e.target.value)} className="w-full rounded-xl border border-white/20 bg-stampa-surface text-white px-3 py-2.5 text-sm outline-none focus:border-stampa-orange focus:ring-2 focus:ring-orange-100" placeholder="ventas@empresa.com" />
         </label>
         
         <div className="block sm:col-span-2">
@@ -146,6 +173,11 @@ export function BusinessManager() {
             className="w-full rounded-xl border border-white/20 bg-stampa-surface text-white px-3 py-2.5 text-sm outline-none focus:border-stampa-orange focus:ring-2 focus:ring-orange-100"
             placeholder="Ej. +54 9 11 1234-5678"
           />
+        </label>
+
+        <label className="block">
+          <span className="mb-1 block text-xs font-semibold text-gray-500">Provincia</span>
+          <input value={companyProvince} onChange={(e) => setCompanyProvince(e.target.value)} className="w-full rounded-xl border border-white/20 bg-stampa-surface text-white px-3 py-2.5 text-sm outline-none focus:border-stampa-orange focus:ring-2 focus:ring-orange-100" placeholder="Ej. Buenos Aires" />
         </label>
         
         <label className="block">

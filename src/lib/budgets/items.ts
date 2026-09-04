@@ -14,6 +14,12 @@ export interface BudgetItemEconomicsInput {
   quantity: NumberValue;
   unit_price: NumberValue;
   unit_base_cost: NumberValue;
+  commercial_description?: string | null;
+  material?: string | null;
+  color?: string | null;
+  finish?: string | null;
+  technology?: string | null;
+  commercial_notes?: string | null;
 }
 
 export interface CompleteBudgetItem {
@@ -26,6 +32,12 @@ export interface CompleteBudgetItem {
   unit_base_cost: number;
   unit_profit: number;
   total_profit: number;
+  commercial_description: string;
+  material: string;
+  color: string;
+  finish: string;
+  technology: string;
+  commercial_notes: string;
 }
 
 type BudgetItemResult =
@@ -72,6 +84,12 @@ export function normalizeBudgetItemEconomics(input: BudgetItemEconomicsInput): B
       unit_base_cost: unitBaseCost,
       unit_profit: unitProfit,
       total_profit: unitProfit * quantity,
+      commercial_description: input.commercial_description?.trim() || "",
+      material: input.material?.trim() || "",
+      color: input.color?.trim() || "",
+      finish: input.finish?.trim() || "",
+      technology: input.technology?.trim() || "",
+      commercial_notes: input.commercial_notes?.trim() || "",
     },
   };
 }
