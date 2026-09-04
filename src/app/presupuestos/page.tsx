@@ -9,6 +9,7 @@ import { PrimaryButton, GhostButton } from "@/components/ui/button";
 import { Combobox } from "@/components/ui/combobox";
 import { SectionTitle } from "@/components/ui/section-title";
 import { Badge } from "@/components/ui/badge";
+import { Dialog } from "@/components/ui/dialog";
 import { createClient } from "@/utils/supabase/client";
 import {
   findStampyNamedMatch,
@@ -875,49 +876,50 @@ function PresupuestosPageContent() {
         </div>
       )}
 
-      {showModePicker && !editingId && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center overflow-y-auto bg-black/70 p-4 backdrop-blur-sm">
-          <div className="relative w-full max-w-3xl rounded-3xl border border-stampa-border bg-stampa-surface p-5 shadow-2xl sm:p-8">
-            <button
-              type="button"
-              onClick={() => setShowModePicker(false)}
-              className="absolute right-4 top-4 rounded-lg p-2 text-gray-500 transition-colors hover:bg-white/5 hover:text-white"
-              aria-label="Cerrar selector"
-            >
-              <X size={20} />
-            </button>
-            <div className="mb-6 pr-10">
-              <p className="mb-2 text-xs font-bold uppercase tracking-[0.18em] text-stampa-orange">Nuevo presupuesto</p>
-              <h2 className="text-2xl font-black text-white sm:text-3xl">¿Qué tipo querés crear?</h2>
-              <p className="mt-2 text-sm text-gray-400">Ambos usan tus mismos clientes, productos y precios.</p>
-            </div>
-            <div className="grid gap-4 sm:grid-cols-2">
-              <button
-                type="button"
-                onClick={() => startNewBudget("quick")}
-                className="group rounded-2xl border border-stampa-border bg-stampa-bg-soft p-5 text-left transition-all hover:border-[#ff6a00]/60 hover:bg-stampa-orange/5 sm:p-6"
-              >
-                <span className="mb-4 flex h-11 w-11 items-center justify-center rounded-xl bg-stampa-orange/10 text-stampa-orange">
-                  <Zap size={23} />
-                </span>
-                <span className="block text-lg font-black text-white">Presupuesto Rápido</span>
-                <span className="mt-2 block text-sm leading-6 text-gray-400">Cotización simple con cliente, productos, IVA y total. Lista en pocos segundos.</span>
-              </button>
-              <button
-                type="button"
-                onClick={() => startNewBudget("professional")}
-                className="group rounded-2xl border border-stampa-border bg-stampa-bg-soft p-5 text-left transition-all hover:border-[#ff6a00]/60 hover:bg-stampa-orange/5 sm:p-6"
-              >
-                <span className="mb-4 flex h-11 w-11 items-center justify-center rounded-xl bg-stampa-orange/10 text-stampa-orange">
-                  <FileText size={23} />
-                </span>
-                <span className="block text-lg font-black text-white">Presupuesto Profesional</span>
-                <span className="mt-2 block text-sm leading-6 text-gray-400">Presentación comercial con datos fiscales, entrega, pago y condiciones opcionales.</span>
-              </button>
-            </div>
-          </div>
+      <Dialog
+        open={showModePicker && !editingId}
+        onClose={() => setShowModePicker(false)}
+        labelledBy="new-budget-dialog-title"
+        panelClassName="relative max-w-3xl rounded-3xl border border-stampa-border bg-stampa-surface p-5 sm:p-8"
+      >
+        <button
+          type="button"
+          onClick={() => setShowModePicker(false)}
+          className="absolute right-4 top-4 rounded-lg p-2 text-gray-500 transition-colors hover:bg-white/5 hover:text-white"
+          aria-label="Cerrar selector"
+        >
+          <X size={20} />
+        </button>
+        <div className="mb-6 pr-10">
+          <p className="mb-2 text-xs font-bold uppercase tracking-[0.18em] text-stampa-orange">Nuevo presupuesto</p>
+          <h2 id="new-budget-dialog-title" className="text-2xl font-black text-white sm:text-3xl">¿Qué tipo querés crear?</h2>
+          <p className="mt-2 text-sm text-gray-400">Ambos usan tus mismos clientes, productos y precios.</p>
         </div>
-      )}
+        <div className="grid gap-4 sm:grid-cols-2">
+          <button
+            type="button"
+            onClick={() => startNewBudget("quick")}
+            className="group rounded-2xl border border-stampa-border bg-stampa-bg-soft p-5 text-left transition-all hover:border-[#ff6a00]/60 hover:bg-stampa-orange/5 sm:p-6"
+          >
+            <span className="mb-4 flex h-11 w-11 items-center justify-center rounded-xl bg-stampa-orange/10 text-stampa-orange">
+              <Zap size={23} />
+            </span>
+            <span className="block text-lg font-black text-white">Presupuesto Rápido</span>
+            <span className="mt-2 block text-sm leading-6 text-gray-400">Cotización simple con cliente, productos, IVA y total. Lista en pocos segundos.</span>
+          </button>
+          <button
+            type="button"
+            onClick={() => startNewBudget("professional")}
+            className="group rounded-2xl border border-stampa-border bg-stampa-bg-soft p-5 text-left transition-all hover:border-[#ff6a00]/60 hover:bg-stampa-orange/5 sm:p-6"
+          >
+            <span className="mb-4 flex h-11 w-11 items-center justify-center rounded-xl bg-stampa-orange/10 text-stampa-orange">
+              <FileText size={23} />
+            </span>
+            <span className="block text-lg font-black text-white">Presupuesto Profesional</span>
+            <span className="mt-2 block text-sm leading-6 text-gray-400">Presentación comercial con datos fiscales, entrega, pago y condiciones opcionales.</span>
+          </button>
+        </div>
+      </Dialog>
 
       {error && (
         <div className="bg-red-500/10 border border-red-500/20 p-4 rounded-xl flex items-center gap-3 text-sm text-red-400">
