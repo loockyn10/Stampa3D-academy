@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, useEffect, useRef } from "react";
+import React, { useState, useEffect, useMemo, useRef } from "react";
 import Link from "next/link";
 import { usePathname, useSearchParams } from "next/navigation";
 import { Plus, Pencil, FileText, Trash2, Loader2, AlertCircle, Save, X, UserPlus, ShoppingCart, Download, Briefcase, Settings, ArrowLeft, Package, Clock, Percent, DollarSign, Zap } from "lucide-react";
@@ -32,6 +32,8 @@ import {
   type BudgetDepositType,
   type BudgetTaxRate,
 } from "@/lib/budgets/calculation";
+import { usePublishStampyScreenContext } from "@/components/stampy/StampyContextProvider";
+import type { StampyScreenContext } from "@/lib/stampy/screen-context";
 
 
 const STATUS_MAP: Record<string, { label: string, color: "gray" | "dark" | "green" | "orange" }> = {
@@ -440,6 +442,92 @@ function PresupuestosPageContent() {
   });
   const { discountAmount, netAmount, taxAmount, additionalCharges, total } = totals;
   const deposit = calculateBudgetDeposit(total, formData.deposit_type, formData.deposit_value);
+
+  const screenContext = useMemo<StampyScreenContext>(() => {
+    const currentClient = clients.find((client) => client.id === formData.client_id);
+    const editingBudget = editingId && editingId !== "new"
+      ? budgets.find((budget) => budget.id === editingId)
+      : null;
+    const mode = editingId === "new"
+      ? "create"
+      : editingId
+        ? "edit"
+        : showModePicker
+          ? "select_type"
+          : "list";
+
+    return {
+      page: {
+        section: "budgets",
+        route: pathname || "/presupuestos",
+        title: "Presupuestos",
+      },
+      mode,
+      selectedEntity: editingBudget ? {
+        type: "budget",
+        id: String(editingBudget.id),
+        name: String(editingBudget.title || `Presupuesto ${editingBudget.budget_number || ""}`).trim(),
+      } : null,
+      visibleEntities: !editingId ? budgets.slice(0, 20).map((budget, index) => ({
+        type: "budget",
+        id: String(budget.id),
+        name: String(budget.title || `Presupuesto ${budget.budget_number || ""}`).trim(),
+        position: index + 1,
+      })) : [],
+      formState: editingId ? {
+        kind: "budgetDraft",
+        budgetType: formData.budget_type,
+        client: formData.client_id || clientSnapshot.name ? {
+          ...(formData.client_id ? { id: formData.client_id } : {}),
+          name: formData.budget_type === "professional"
+            ? clientSnapshot.name
+            : currentClient?.name,
+        } : null,
+        items: budgetItems.slice(0, 15).map((item) => ({
+          productId: item.product_id || undefined,
+          name: String(item.item_name || "Producto"),
+          quantity: Number(item.quantity) || 0,
+          unitPrice: Number(item.unit_price) || 0,
+        })),
+        discountPercent,
+        taxRate: formData.tax_rate,
+        additionalCharges,
+        summary: {
+          subtotal,
+          discount: discountAmount,
+          tax: taxAmount,
+          total,
+        },
+        paymentMethod: formData.payment_method || formData.payment_terms || undefined,
+        deliveryTime: formData.delivery_time || undefined,
+      } : null,
+      pageData: {
+        kind: "budgets",
+        visibleBudgetCount: budgets.length,
+      },
+      uiState: {
+        loading,
+        modePickerOpen: showModePicker,
+      },
+    };
+  }, [
+    additionalCharges,
+    budgetItems,
+    budgets,
+    clientSnapshot.name,
+    clients,
+    discountAmount,
+    discountPercent,
+    editingId,
+    formData,
+    loading,
+    pathname,
+    showModePicker,
+    subtotal,
+    taxAmount,
+    total,
+  ]);
+  usePublishStampyScreenContext(screenContext);
 
   const handleSaveBudget = async () => {
     if (!formData.client_id) return toast.error("Por favor seleccioná un cliente.");

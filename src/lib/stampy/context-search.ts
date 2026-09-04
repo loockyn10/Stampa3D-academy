@@ -105,11 +105,13 @@ export async function getStampyRelevantContexts({
       })
       .slice(0, limit);
 
-    console.log("[Stampy Context Audit]", {
-      currentPath,
-      matchedContextsCount: sorted.length,
-      matchedContextTitles: sorted.map(c => c.title),
-    });
+    if (process.env.NODE_ENV !== "production") {
+      console.log("[Stampy Context Audit]", {
+        currentPath,
+        matchedContextsCount: sorted.length,
+        matchedContextTitles: sorted.map(c => c.title),
+      });
+    }
 
     if (sorted.length === 0) {
       return { text: "", contexts: [], contextsCount: 0 };

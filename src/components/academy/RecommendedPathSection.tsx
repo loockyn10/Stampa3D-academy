@@ -20,28 +20,38 @@ interface RecommendedPathSectionProps {
   courses: any[];
 }
 
-export function RecommendedPathSection({ profile, learningPaths, courses }: RecommendedPathSectionProps) {
-  if (courses.length === 0) return null;
+export interface RecommendedPathView {
+  id: string | null;
+  title: string;
+  subtitle: string;
+  chips: string[];
+  courses: any[];
+}
 
+export function resolveRecommendedPathView(
+  profile: UserProfile | null,
+  learningPaths: any[],
+  courses: any[],
+): RecommendedPathView | null {
+  if (courses.length === 0) return null;
   const bestDbPath = findBestLearningPath(profile, learningPaths);
-  
   let roadmapTitle = "";
   let roadmapSubtitle = "";
   let roadmapChips: string[] = [];
   let roadmapCourses: any[] = [];
-  
+  let roadmapId: string | null = null;
+
   if (bestDbPath && bestDbPath.learning_path_courses?.length > 0) {
-    // DB Roadmap
+    roadmapId = bestDbPath.id;
     roadmapTitle = bestDbPath.name;
     roadmapSubtitle = bestDbPath.description;
-    
+
     if (bestDbPath.printer_brand) roadmapChips.push(formatPrinterBrandLabel(bestDbPath.printer_brand));
     if (bestDbPath.experience_level) roadmapChips.push(formatExperienceLevelLabel(bestDbPath.experience_level));
     if (bestDbPath.main_goal) roadmapChips.push(formatMainGoalLabel(bestDbPath.main_goal));
     if (bestDbPath.commercial_stage) roadmapChips.push(formatCommercialStageLabel(bestDbPath.commercial_stage));
     if (roadmapChips.length === 0) roadmapChips.push("Ruta General");
 
-    // Map courses
     const sortedDbCourses = [...bestDbPath.learning_path_courses].sort((a, b) => a.sort_order - b.sort_order);
     roadmapCourses = sortedDbCourses.map(lpc => {
       const c = courses.find(course => course.id === lpc.course_id);
@@ -51,17 +61,34 @@ export function RecommendedPathSection({ profile, learningPaths, courses }: Reco
         roadmap_reason: lpc.reason
       };
     }).filter(Boolean);
-
   } else {
-    // Fallback hardcoded logic
     const fallbackRoadmap = getRecommendedCourseOrder(profile, courses);
     roadmapTitle = fallbackRoadmap.title;
     roadmapSubtitle = fallbackRoadmap.subtitle;
     roadmapChips = fallbackRoadmap.chips;
     roadmapCourses = fallbackRoadmap.recommendedCourses;
   }
-  
+
   if (roadmapCourses.length === 0) return null;
+
+  return {
+    id: roadmapId,
+    title: roadmapTitle,
+    subtitle: roadmapSubtitle,
+    chips: roadmapChips,
+    courses: roadmapCourses,
+  };
+}
+
+export function RecommendedPathSection({ profile, learningPaths, courses }: RecommendedPathSectionProps) {
+  const recommendation = resolveRecommendedPathView(profile, learningPaths, courses);
+  if (!recommendation) return null;
+  const {
+    title: roadmapTitle,
+    subtitle: roadmapSubtitle,
+    chips: roadmapChips,
+    courses: roadmapCourses,
+  } = recommendation;
 
   return (
     <div className="mb-12">

@@ -41,6 +41,7 @@ const actionValidator = loadTypeScriptModule("src/lib/stampy/action-validator.ts
   "./types": {}
 });
 const messagePolicy = loadTypeScriptModule("src/lib/stampy/message-policy.ts");
+const screenContext = loadTypeScriptModule("src/lib/stampy/screen-context.ts");
 const clientMessageIds = loadTypeScriptModule("src/lib/stampy/client-message-id.ts");
 const toolPrefill = loadTypeScriptModule("src/lib/stampy/tool-prefill.ts");
 
@@ -87,6 +88,7 @@ function loadAskStampyAction({
       })
     },
     "@/lib/stampy/message-policy": messagePolicy,
+    "@/lib/stampy/screen-context": screenContext,
     "@/lib/stampy/rate-limit": {
       checkStampyRateLimit: async () => ({ isBlocked: false })
     },

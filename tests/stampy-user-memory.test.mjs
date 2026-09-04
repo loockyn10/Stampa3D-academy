@@ -34,6 +34,7 @@ function loadTypeScriptModule(relativePath, dependencies = {}) {
 const userMemory = loadTypeScriptModule("src/lib/stampy/user-memory.ts");
 const messagePolicy = loadTypeScriptModule("src/lib/stampy/message-policy.ts");
 const knowledgeIntent = loadTypeScriptModule("src/lib/stampy/knowledge-intent.ts");
+const screenContext = loadTypeScriptModule("src/lib/stampy/screen-context.ts");
 const toolRegistry = loadTypeScriptModule("src/lib/stampy/tool-registry.ts");
 const actionIntents = loadTypeScriptModule("src/lib/stampy/action-intents.ts", {
   "./tool-registry": toolRegistry,
@@ -142,6 +143,10 @@ function loadMemoryAwareAskStampyAction({
       }),
     },
     "@/lib/stampy/message-policy": messagePolicy,
+    "@/lib/stampy/screen-context": screenContext,
+    "@/lib/stampy/static-page-contexts": {
+      getStaticStampyPageContext: () => null,
+    },
     "@/lib/stampy/rate-limit": {
       checkStampyRateLimit: async () => ({ isBlocked: false }),
     },
@@ -495,6 +500,41 @@ test("askStampyAction injects relevant Orca memory into the system prompt", asyn
     loadedCount: 1,
     savedCount: 0,
   });
+});
+
+test("askStampyAction injects a sanitized current UI snapshot before history", async () => {
+  const harness = loadMemoryAwareAskStampyAction({
+    recentHistory: [{ role: "assistant", content: "Mensaje histórico" }],
+  });
+
+  await harness.actions.askStampyAction("¿Qué te parece este presupuesto?", null, {
+    source: "page",
+    pathname: "/presupuestos",
+    screenContext: {
+      page: { section: "budgets", route: "/presupuestos", title: "Presupuestos" },
+      mode: "create",
+      permissions: { admin: true },
+      formState: {
+        kind: "budgetDraft",
+        budgetType: "professional",
+        client: { id: "client-1", name: "Cliente Demo" },
+        items: [{ productId: "product-1", name: "Mate Messi", quantity: 2, unitPrice: 8500, unitBaseCost: 1 }],
+        discountPercent: 10,
+        taxRate: 21,
+        additionalCharges: 500,
+        summary: { subtotal: 17000, discount: 1700, tax: 3213, total: 19013 },
+      },
+    },
+  });
+
+  const messages = harness.completionPayloads[0].messages;
+  const prompt = messages[0].content;
+  assert.match(prompt, /CURRENT UI CONTEXT:/);
+  assert.match(prompt, /Borrador de presupuesto: professional/);
+  assert.match(prompt, /Mate Messi: cantidad 2, precio unitario 8500/);
+  assert.match(prompt, /total 19013/);
+  assert.doesNotMatch(prompt, /unitBaseCost|admin: true/);
+  assert.equal(messages[1].content, "Mensaje histórico");
 });
 
 test("askStampyAction keeps short history inside the same explicit conversation", async () => {

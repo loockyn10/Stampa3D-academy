@@ -9,6 +9,7 @@ import { Badge } from "@/components/ui/badge";
 import { StampyFeedback } from "@/components/stampy/StampyFeedback";
 import { ActionIntentCard } from "@/components/stampy/ActionIntentCard";
 import { createStampyMessageId, createStampyRequestId } from "@/lib/stampy/client-message-id";
+import { useStampyScreenContext } from "@/components/stampy/StampyContextProvider";
 
 interface Message {
   id: string;
@@ -49,6 +50,7 @@ const TOOL_MAP: Record<string, { label: string; href: string; icon: any }> = {
 };
 
 export default function StampyPage() {
+  const { getScreenContextSnapshot } = useStampyScreenContext();
   const [messages, setMessages] = useState<Message[]>([
     {
       id: "1",
@@ -99,9 +101,11 @@ export default function StampyPage() {
     setLoading(true);
 
     try {
+      const screenContext = getScreenContextSnapshot();
       const res = await askStampyAction(safeText, conversationId, {
         source: "page",
-        pathname: window.location.pathname + window.location.search
+        pathname: window.location.pathname + window.location.search,
+        ...(screenContext ? { screenContext } : {}),
       });
       
       if (res.conversationId && res.conversationId !== conversationId) {

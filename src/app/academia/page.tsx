@@ -1,12 +1,14 @@
 "use client";
 
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import { GraduationCap, ArrowRight, BookOpen, PenTool } from "lucide-react";
 import { createClient } from "@/utils/supabase/client";
-import { RecommendedPathSection } from "@/components/academy/RecommendedPathSection";
+import { RecommendedPathSection, resolveRecommendedPathView } from "@/components/academy/RecommendedPathSection";
 import { UserProfile } from "@/lib/learning-roadmaps";
 import { GridSkeleton } from "@/components/ui/page-skeletons";
+import { usePublishStampyScreenContext } from "@/components/stampy/StampyContextProvider";
+import type { StampyScreenContext } from "@/lib/stampy/screen-context";
 
 export default function AcademiaPage() {
   const [courses, setCourses] = useState<any[]>([]);
@@ -73,6 +75,45 @@ export default function AcademiaPage() {
 
     fetchData();
   }, [supabase]);
+
+  const recommendation = useMemo(
+    () => resolveRecommendedPathView(profile, learningPaths, courses),
+    [profile, learningPaths, courses],
+  );
+  const screenContext = useMemo<StampyScreenContext>(() => ({
+    page: {
+      section: "academy",
+      route: "/academia",
+      title: "Academia",
+    },
+    mode: "browse",
+    pageData: {
+      kind: "academy",
+      recommendedPath: recommendation ? {
+        ...(recommendation.id ? { id: recommendation.id } : {}),
+        name: recommendation.title,
+      } : null,
+      preferences: profile ? {
+        printerBrand: profile.main_printer_brand ?? undefined,
+        printerModel: profile.main_printer_model ?? undefined,
+        experienceLevel: profile.experience_level ?? undefined,
+        mainGoal: profile.main_goal ?? undefined,
+        commercialStage: profile.commercial_stage ?? undefined,
+      } : null,
+    },
+    visibleEntities: [
+      { type: "section", id: "courses", name: "Cursos", position: 1 },
+      { type: "section", id: "workshops", name: "Talleres", position: 2 },
+      ...(recommendation?.courses ?? []).map((course, index) => ({
+        type: "course",
+        id: String(course.id),
+        name: String(course.title || "Curso"),
+        position: index + 3,
+      })),
+    ],
+    uiState: { loading },
+  }), [loading, profile, recommendation]);
+  usePublishStampyScreenContext(screenContext);
 
   return (
     <div className="space-y-8 pb-10">

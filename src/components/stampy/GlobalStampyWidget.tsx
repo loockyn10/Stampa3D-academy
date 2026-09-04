@@ -8,7 +8,7 @@ import Link from "next/link";
 import { askStampyAction, StampyContextPayload } from "@/app/stampy/actions";
 import { getStaticStampyPageContext } from "@/lib/stampy/static-page-contexts";
 import { StampyPageContext } from "@/lib/stampy/page-context";
-import { useStampyContext } from "@/components/stampy/StampyContextProvider";
+import { useStampyContext, useStampyScreenContext } from "@/components/stampy/StampyContextProvider";
 import { StampyFeedback } from "@/components/stampy/StampyFeedback";
 import { ActionIntentCard } from "@/components/stampy/ActionIntentCard";
 import { createStampyMessageId, createStampyRequestId } from "@/lib/stampy/client-message-id";
@@ -66,6 +66,7 @@ function StampyWidgetContent({
   const fullPathname = pathname + (searchParams?.toString() ? `?${searchParams.toString()}` : "");
 
   const { stampyContext } = useStampyContext();
+  const { getScreenContextSnapshot } = useStampyScreenContext();
 
   const [isOpen, setIsOpen] = useState(initiallyOpen);
   const [messages, setMessages] = useState<Message[]>([WIDGET_WELCOME_MESSAGE]);
@@ -154,10 +155,14 @@ function StampyWidgetContent({
     };
 
     try {
+      const screenContext = getScreenContextSnapshot();
+      const requestContext: StampyContextPayload = screenContext
+        ? { ...effectiveContext, screenContext }
+        : effectiveContext;
       const response = await askStampyAction(
         userMsg.content,
         conversationId,
-        removeUndefined(effectiveContext) as StampyContextPayload
+        removeUndefined(requestContext) as StampyContextPayload
       );
       if (response.conversationId && response.conversationId !== conversationId) {
         setConversationId(response.conversationId);

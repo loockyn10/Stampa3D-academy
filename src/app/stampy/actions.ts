@@ -6,7 +6,13 @@ import { validateStampyMessage } from "@/lib/stampy/message-policy";
 import type { StampyActionIntent } from "@/lib/stampy/types";
 import type { StampyActionValidationResult } from "@/lib/stampy/action-validator";
 import type { ChatCompletionMessageParam } from "openai/resources/chat/completions";
-export type StampyContextPayload =
+import type { StampyScreenContext } from "@/lib/stampy/screen-context";
+
+type StampyRequestScreenContext = {
+  screenContext?: StampyScreenContext;
+};
+
+export type StampyContextPayload = (
   | {
       source: "lesson";
       courseTitle?: string;
@@ -33,7 +39,8 @@ export type StampyContextPayload =
       relatedRoutes?: string[];
       toolKey?: string;
       suggestedQuestions?: string[];
-    };
+    }
+) & StampyRequestScreenContext;
 
 function cleanText(value?: string | null): string {
   if (!value) return "";
@@ -1111,6 +1118,13 @@ export async function askStampyAction(
 
     const { OpenAI } = await import("openai");
     const openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
+
+    const {
+      formatStampyScreenContextForPrompt,
+      sanitizeStampyScreenContext,
+    } = await import("@/lib/stampy/screen-context");
+    const screenContext = sanitizeStampyScreenContext(context?.screenContext);
+    const screenContextPrompt = formatStampyScreenContextForPrompt(screenContext);
     
     // 0. Contexto del taller del usuario (Solo Lectura)
     const { getStampyWorkshopContext } = await import("@/lib/stampy/workshop-context");
@@ -1322,6 +1336,10 @@ Reglas del taller:
 - Podés usar este contexto para responder preguntas sobre impresoras cargadas, filamentos disponibles, stock aproximado, productos cargados y configuración general.
 - Las acciones seguras se detectan y preparan fuera de este prompt. En una respuesta normal, no prometas ni simules cambios.
 - Si el usuario necesita una operación que no está disponible, explicá qué falta y dirigilo a la herramienta correspondiente.\n`;
+
+    if (screenContextPrompt) {
+      systemPrompt += `\n\n${screenContextPrompt}\n`;
+    }
 
     if (memoryPromptText) {
       systemPrompt += `\n\n${memoryPromptText}\n`;
