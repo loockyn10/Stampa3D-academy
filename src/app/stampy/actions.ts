@@ -133,6 +133,43 @@ function logStampyPromptAudit({
   });
 }
 
+function logStampyTurnAudit({
+  conversationId,
+  assistantMessageId,
+  input,
+  historyCount,
+  rawAnswer,
+  returnedAnswer,
+  removedPrefixes,
+}: {
+  conversationId: string | null;
+  assistantMessageId: string | null;
+  input: string;
+  historyCount: number;
+  rawAnswer: string;
+  returnedAnswer: string;
+  removedPrefixes: number;
+}) {
+  if (
+    process.env.NODE_ENV === "production" ||
+    process.env.STAMPY_DEBUG_PROMPT !== "true"
+  ) {
+    return;
+  }
+
+  console.log("[Stampy Turn Audit]", {
+    conversationId,
+    assistantMessageId,
+    inputPreview: input.substring(0, 120),
+    historyCount,
+    rawAnswerChars: rawAnswer.length,
+    rawAnswerPreview: rawAnswer.substring(0, 160),
+    returnedAnswerChars: returnedAnswer.length,
+    returnedAnswerPreview: returnedAnswer.substring(0, 160),
+    removedPrefixes,
+  });
+}
+
 const ACTION_FIELD_LABELS: Record<string, string> = {
   clientName: "cliente",
   productName: "producto",
@@ -1439,6 +1476,7 @@ Reglas del taller:
 - No inventes datos.
 - El contexto disponible no es una lista para volcar en la respuesta: usá sólo lo necesario para la intención actual.
 - No cierres obligatoriamente con una pregunta ni con varias opciones.
+- El historial es contexto interno para comprender referencias. Generá únicamente la respuesta al último mensaje del usuario y no copies respuestas anteriores dentro de la nueva, salvo que el usuario pida explícitamente repetirlas o citarlas.
 - Diferenciá con claridad una acción preparada de una acción ejecutada.
 - Ante un error, explicá el próximo paso sin culpar al usuario ni mostrar detalles técnicos.
 - Cuando el usuario pregunte por filamentos, materiales o tipos como PLA/PETG/TPU, usá exclusivamente el contexto de filamentos. No interpretes esos términos como productos. Si recomendás una herramienta, mandá a Stock de filamentos, no a Stock de productos.
@@ -1548,7 +1586,14 @@ ${relevantContracts.map(formatToolContractForPrompt).join("\n\n")}\n`;
       messages: messagesPayload
     });
 
-    answerText = completion.choices[0]?.message?.content || "No pude responder esta vez. Probá de nuevo.";
+    const rawAnswerText = completion.choices[0]?.message?.content || "No pude responder esta vez. Probá de nuevo.";
+    const { isolateCurrentStampyReply } = await import("@/lib/stampy/reply-policy");
+    const isolatedReply = isolateCurrentStampyReply({
+      answer: rawAnswerText,
+      history: recentHistory,
+      userMessage,
+    });
+    answerText = isolatedReply.content || "No pude responder esta vez. Probá de nuevo.";
 
     const {
       buildStampyLessonRecommendationText,
@@ -1657,6 +1702,16 @@ ${relevantContracts.map(formatToolContractForPrompt).join("\n\n")}\n`;
         latencyMs: Date.now() - startTime
       });
     }
+
+    logStampyTurnAudit({
+      conversationId: actualConversationId,
+      assistantMessageId,
+      input: userMessage,
+      historyCount: recentHistory.length,
+      rawAnswer: rawAnswerText,
+      returnedAnswer: answerText,
+      removedPrefixes: isolatedReply.removedPrefixes,
+    });
 
     // (request log removed)
 

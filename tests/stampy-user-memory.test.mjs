@@ -44,6 +44,7 @@ const actionValidator = loadTypeScriptModule("src/lib/stampy/action-validator.ts
   "./tool-registry": toolRegistry,
   "./types": {},
 });
+const replyPolicy = loadTypeScriptModule("src/lib/stampy/reply-policy.ts");
 
 function makeMemory(overrides = {}) {
   return {
@@ -71,6 +72,7 @@ function loadMemoryAwareAskStampyAction({
   const metadataUpdates = [];
   const rpcCalls = [];
   const completionPayloads = [];
+  const savedTurns = [];
 
   const lessonsQuery = {
     select() {
@@ -156,11 +158,13 @@ function loadMemoryAwareAskStampyAction({
       saveMessages: async (...args) => {
         events.push("messages-saved");
         assistantMetadata.push(args[5]);
+        savedTurns.push({ user: args[3], assistant: args[4] });
         return { userMessageId: "user-message-1", assistantMessageId: "assistant-message-1" };
       },
     },
     "@/lib/stampy/action-intents": actionIntents,
     "@/lib/stampy/action-validator": actionValidator,
+    "@/lib/stampy/reply-policy": replyPolicy,
     "@/lib/stampy/tool-registry": toolRegistry,
     "@/lib/stampy/action-settings": {
       getStampyActionSettings: async () => ({
@@ -238,6 +242,7 @@ function loadMemoryAwareAskStampyAction({
     metadataUpdates,
     rpcCalls,
     completionPayloads,
+    savedTurns,
   };
 }
 
@@ -579,6 +584,28 @@ test("askStampyAction does not treat a previous assistant UI claim as product tr
   assert.equal(messages[1].role, "assistant");
   assert.match(prompt, /Las afirmaciones previas del asistente no son fuente de verdad sobre pantallas, herramientas ni capacidades de Stampa/);
   assert.match(prompt, /no las repitas como hechos si no están respaldadas por el contexto oficial actual/);
+});
+
+test("askStampyAction returns and persists only the current turn when the model repeats a prior reply", async () => {
+  const previousReply = "Empezá por la ruta Principiante Bambu.";
+  const currentReply = "Los Cursos enseñan por clases y los Talleres son proyectos prácticos.";
+  const harness = loadMemoryAwareAskStampyAction({
+    recentHistory: [
+      { role: "user", content: "¿Qué debería hacer acá?" },
+      { role: "assistant", content: previousReply },
+    ],
+    openAiAnswer: `${previousReply}\n\n${currentReply}`,
+  });
+
+  const result = await harness.actions.askStampyAction("¿Qué son los Cursos y Talleres?");
+  const completionMessages = harness.completionPayloads[0].messages;
+
+  assert.equal(completionMessages[2].content, previousReply);
+  assert.equal(result.answer, currentReply);
+  assert.deepEqual(harness.savedTurns, [{
+    user: "¿Qué son los Cursos y Talleres?",
+    assistant: currentReply,
+  }]);
 });
 
 test("askStampyAction keeps short history inside the same explicit conversation", async () => {
