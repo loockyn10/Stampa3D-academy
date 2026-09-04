@@ -1,7 +1,7 @@
 "use client";
 
 import React, { useState, useEffect, Suspense } from "react";
-import { Loader2, AlertCircle, Settings2, Copy, Check, Users, Shield, Star } from "lucide-react";
+import { Loader2, AlertCircle, Copy, Check, Users, Shield, Star, ChevronDown } from "lucide-react";
 import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { SectionTitle } from "@/components/ui/section-title";
@@ -26,6 +26,7 @@ function PerfilContent() {
   const [founderData, setFounderData] = useState<any>(null);
   const [referralStats, setReferralStats] = useState({ pending: 0, converted: 0 });
   const [copied, setCopied] = useState(false);
+  const [membershipOpen, setMembershipOpen] = useState(false);
 
   useEffect(() => {
     fetchData();
@@ -129,15 +130,15 @@ function PerfilContent() {
 
       {profile && (
         <div className="space-y-6">
-          <Card className="max-w-xl p-6">
-            <div className="flex items-start justify-between border-b border-stampa-border pb-5 mb-5">
-              <div className="flex items-center gap-4">
-                <div className="flex h-16 w-16 items-center justify-center rounded-full bg-orange-100 text-xl font-bold text-stampa-orange select-none uppercase">
+          <Card className="max-w-4xl p-5 sm:p-6">
+            <div className={`grid gap-5 border-b border-stampa-border pb-5 mb-5 ${referralCode ? "md:grid-cols-[minmax(0,1fr)_minmax(17rem,0.8fr)]" : ""}`}>
+              <div className="flex min-w-0 items-center gap-4 sm:items-start">
+                <div className="flex h-14 w-14 shrink-0 items-center justify-center rounded-full bg-orange-100 text-lg font-bold text-stampa-orange select-none uppercase sm:h-16 sm:w-16 sm:text-xl">
                   {displayName.substring(0, 2) || "US"}
                 </div>
-                <div className="flex-1">
-                  <p className="text-base font-bold text-white">{displayName}</p>
-                  <p className="text-sm text-gray-400 mb-1.5">{profile.email}</p>
+                <div className="min-w-0 flex-1">
+                  <p className="truncate text-base font-bold text-white">{displayName}</p>
+                  <p className="mb-1.5 truncate text-sm text-gray-400">{profile.email}</p>
                   <div className="flex flex-wrap gap-2">
                     <Badge tone={profile.membership_status === "active" ? "green" : "gray"} className="capitalize">
                       {profile.membership_status === "active" ? "Activo" : "Inactivo"}
@@ -145,14 +146,12 @@ function PerfilContent() {
                     <Badge tone="dark" className="capitalize">Nivel {profile.member_level || "member"}</Badge>
                     <Badge tone="orange">{profile.active_months || calculateMonths(profile.membership_started_at || profile.created_at)} meses activo</Badge>
 
-                    {/* Beta Tester badge */}
                     {isBetaTester && (
                       <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-semibold bg-cyan-500/10 text-cyan-300 border border-cyan-500/30">
                         <Shield size={11} /> Beta Tester
                       </span>
                     )}
 
-                    {/* Founder badge */}
                     {isFounder && (
                       <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-semibold bg-amber-500/10 text-amber-300 border border-amber-500/30">
                         <Star size={11} /> Fundador #{founderData.founder_number}
@@ -161,41 +160,112 @@ function PerfilContent() {
                   </div>
                 </div>
               </div>
+
+              {referralCode && (
+                <div className="min-w-0 rounded-2xl border border-violet-500/20 bg-violet-500/5 p-4">
+                  <div className="mb-3 flex items-center justify-between gap-3">
+                    <div className="flex min-w-0 items-center gap-2">
+                      <Users size={16} className="shrink-0 text-violet-400" />
+                      <h3 className="truncate text-sm font-bold text-white">Tu código de referido</h3>
+                    </div>
+                    <span className="shrink-0 font-mono text-base font-bold tracking-wider text-violet-200 select-all">
+                      {referralCode}
+                    </span>
+                  </div>
+
+                  <div className="flex min-w-0 flex-col gap-2 sm:flex-row lg:flex-col xl:flex-row">
+                    <code className="min-w-0 flex-1 truncate rounded-lg border border-stampa-border bg-stampa-bg-soft px-3 py-2 text-xs text-gray-300">
+                      {APP_BASE_URL}/registro?ref={referralCode}
+                    </code>
+                    <button
+                      onClick={handleCopy}
+                      className={`flex shrink-0 items-center justify-center gap-1.5 rounded-lg border px-3 py-2 text-xs font-semibold transition-colors motion-reduce:transition-none ${
+                        copied
+                          ? "border-green-500/30 bg-green-500/10 text-green-400"
+                          : "border-violet-500/30 bg-violet-500/10 text-violet-300 hover:bg-violet-500/20"
+                      }`}
+                    >
+                      {copied ? <><Check size={13} /> Copiado</> : <><Copy size={13} /> Copiar link</>}
+                    </button>
+                  </div>
+
+                  <p className="mt-3 text-xs leading-relaxed text-gray-500">
+                    Cada suscripción con tu código suma una participación extra en sorteos.
+                  </p>
+
+                  {(referralStats.pending > 0 || referralStats.converted > 0) && (
+                    <div className="mt-3 flex flex-wrap gap-x-4 gap-y-1 border-t border-stampa-border pt-3 text-xs text-gray-500">
+                      {referralStats.pending > 0 && <span><strong className="text-white">{referralStats.pending}</strong> pendientes</span>}
+                      {referralStats.converted > 0 && <span><strong className="text-green-400">{referralStats.converted}</strong> convertidos</span>}
+                    </div>
+                  )}
+                </div>
+              )}
             </div>
 
             {subscription && (
-              <div className="mb-6 p-4 rounded-xl border border-stampa-border bg-stampa-bg-soft flex flex-col gap-1 text-sm">
-                <div className="flex justify-between">
-                  <span className="text-gray-500 font-semibold">Estado de membresía</span>
-                  <span className="font-bold text-white">
-                    {profile.membership_status === "active" && (subscription.status === "cancelled" || subscription.status === "canceled")
-                      ? "Cancelada (Acceso temporal)"
-                      : profile.membership_status === "active"
-                        ? "Activa"
-                        : "Vencida / Inactiva"}
+              <div className="mb-6 overflow-hidden rounded-xl border border-stampa-border bg-stampa-bg-soft text-sm">
+                <button
+                  type="button"
+                  onClick={() => setMembershipOpen((current) => !current)}
+                  aria-expanded={membershipOpen}
+                  aria-controls="profile-membership-details"
+                  className="flex w-full items-center justify-between gap-4 px-4 py-3.5 text-left transition-colors hover:bg-white/[0.03] motion-reduce:transition-none"
+                >
+                  <span className="font-bold text-white">Membresía</span>
+                  <span className="flex items-center gap-2">
+                    <span className="text-xs font-semibold text-gray-400">
+                      {profile.membership_status === "active" ? "Activa" : "Inactiva"}
+                    </span>
+                    <ChevronDown
+                      size={17}
+                      className={`text-gray-500 transition-transform duration-200 motion-reduce:transition-none ${membershipOpen ? "rotate-180" : ""}`}
+                      aria-hidden="true"
+                    />
                   </span>
+                </button>
+
+                <div
+                  id="profile-membership-details"
+                  aria-hidden={!membershipOpen}
+                  className={`grid transition-[grid-template-rows,opacity] duration-200 motion-reduce:transition-none ${membershipOpen ? "grid-rows-[1fr] opacity-100" : "grid-rows-[0fr] opacity-0"}`}
+                >
+                  <div className="overflow-hidden">
+                    <div className="border-t border-stampa-border px-4 pb-4 pt-3">
+                      <div className="flex justify-between gap-4">
+                        <span className="text-gray-500 font-semibold">Estado de membresía</span>
+                        <span className="text-right font-bold text-white">
+                          {profile.membership_status === "active" && (subscription.status === "cancelled" || subscription.status === "canceled")
+                            ? "Cancelada (Acceso temporal)"
+                            : profile.membership_status === "active"
+                              ? "Activa"
+                              : "Vencida / Inactiva"}
+                        </span>
+                      </div>
+
+                      <p className="mt-2 text-xs text-gray-500">
+                        {profile.membership_status === "active" && (subscription.status === "cancelled" || subscription.status === "canceled") && profile.membership_expires_at
+                          ? `Tu suscripción fue cancelada. Tenés acceso hasta el ${new Date(profile.membership_expires_at).toLocaleDateString("es-AR")}.`
+                          : profile.membership_status === "active"
+                            ? "Tu membresía está activa."
+                            : "Tu membresía venció."}
+                      </p>
+
+                      {subscription.amount && (
+                        <div className="flex justify-between gap-4 mt-3 pt-3 border-t border-stampa-border">
+                          <span className="text-gray-500 font-semibold">Monto mensual (Suscripción {subscription.status})</span>
+                          <span className="shrink-0 font-bold text-white">${subscription.amount}</span>
+                        </div>
+                      )}
+                      {subscription.next_payment_at && profile.membership_status === "active" && subscription.status !== "cancelled" && subscription.status !== "canceled" && (
+                        <div className="flex justify-between gap-4 mt-1">
+                          <span className="text-gray-500 font-semibold">Próximo cobro</span>
+                          <span className="shrink-0 font-bold text-white">{new Date(subscription.next_payment_at).toLocaleDateString("es-AR")}</span>
+                        </div>
+                      )}
+                    </div>
+                  </div>
                 </div>
-
-                <p className="mt-2 text-xs text-gray-500">
-                  {profile.membership_status === "active" && (subscription.status === "cancelled" || subscription.status === "canceled") && profile.membership_expires_at
-                    ? `Tu suscripción fue cancelada. Tenés acceso hasta el ${new Date(profile.membership_expires_at).toLocaleDateString("es-AR")}.`
-                    : profile.membership_status === "active"
-                      ? "Tu membresía está activa."
-                      : "Tu membresía venció."}
-                </p>
-
-                {subscription.amount && (
-                  <div className="flex justify-between mt-3 pt-3 border-t border-stampa-border">
-                    <span className="text-gray-500 font-semibold">Monto mensual (Suscripción {subscription.status})</span>
-                    <span className="font-bold text-white">${subscription.amount}</span>
-                  </div>
-                )}
-                {subscription.next_payment_at && profile.membership_status === "active" && subscription.status !== "cancelled" && subscription.status !== "canceled" && (
-                  <div className="flex justify-between mt-1">
-                    <span className="text-gray-500 font-semibold">Próximo cobro</span>
-                    <span className="font-bold text-white">{new Date(subscription.next_payment_at).toLocaleDateString("es-AR")}</span>
-                  </div>
-                )}
               </div>
             )}
 
@@ -214,62 +284,6 @@ function PerfilContent() {
               </div>
             )}
           </Card>
-
-          {/* Referral Code Section */}
-          {referralCode && (
-            <Card className="max-w-xl p-6">
-              <div className="flex items-center gap-2 mb-4">
-                <Users size={16} className="text-violet-400" />
-                <h3 className="font-bold text-white text-base">Tu código de referido</h3>
-              </div>
-
-              <div className="bg-stampa-bg-soft border border-stampa-border rounded-xl p-4 mb-4">
-                <p className="text-2xl font-mono font-bold text-white tracking-widest text-center select-all">
-                  {referralCode}
-                </p>
-              </div>
-
-              <div className="mb-4">
-                <p className="text-xs text-gray-500 mb-2">Link de invitación</p>
-                <div className="flex items-center gap-2">
-                  <code className="flex-1 text-xs text-gray-300 bg-stampa-bg-soft border border-stampa-border rounded-lg px-3 py-2 truncate">
-                    {APP_BASE_URL}/registro?ref={referralCode}
-                  </code>
-                  <button
-                    onClick={handleCopy}
-                    className={`flex items-center gap-1.5 px-3 py-2 rounded-lg text-xs font-semibold transition-all shrink-0 ${
-                      copied
-                        ? "bg-green-500/10 text-green-400 border border-green-500/30"
-                        : "bg-violet-500/10 text-violet-300 border border-violet-500/30 hover:bg-violet-500/20"
-                    }`}
-                  >
-                    {copied ? <><Check size={13} /> Copiado</> : <><Copy size={13} /> Copiar link</>}
-                  </button>
-                </div>
-              </div>
-
-              <p className="text-xs text-gray-500">
-                Cuando alguien se suscriba usando tu código, ganás una participación extra en sorteos.
-              </p>
-
-              {(referralStats.pending > 0 || referralStats.converted > 0) && (
-                <div className="mt-4 pt-4 border-t border-stampa-border flex gap-4">
-                  {referralStats.pending > 0 && (
-                    <div className="text-center">
-                      <p className="text-xl font-bold text-white">{referralStats.pending}</p>
-                      <p className="text-xs text-gray-500">Referidos pendientes</p>
-                    </div>
-                  )}
-                  {referralStats.converted > 0 && (
-                    <div className="text-center">
-                      <p className="text-xl font-bold text-green-400">{referralStats.converted}</p>
-                      <p className="text-xs text-gray-500">Referidos convertidos</p>
-                    </div>
-                  )}
-                </div>
-              )}
-            </Card>
-          )}
 
           <AccountManager />
 
