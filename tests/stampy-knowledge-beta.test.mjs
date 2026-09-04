@@ -241,6 +241,8 @@ test("askStampyAction delegates recommendations to the strict helper", () => {
 
   assert.match(source, /classifyStampyKnowledgeIntent\(userMessage\)/);
   assert.match(source, /findStampyLessonRecommendations/);
+  assert.match(source, /knowledgeIntent\?\.type === "course_recommendation"/);
+  assert.match(source, /const recommendationText = shouldRecommendLessons/);
   assert.match(source, /limit: 2/);
   assert.doesNotMatch(source, /búsqueda textual simple/);
   assert.doesNotMatch(source, /slice\(0, 3\)/);

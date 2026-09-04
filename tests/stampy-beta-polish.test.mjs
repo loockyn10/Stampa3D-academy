@@ -8,7 +8,9 @@ test("the base prompt enforces concise Stampa tone without obsolete capability c
   const source = read("src/app/stampy/actions.ts");
 
   assert.match(source, /asistente experto de Academia Stampa/);
-  assert.match(source, /primera línea directa, hasta 3 viñetas/);
+  assert.match(source, /principio de respuesta mínima suficiente/);
+  assert.match(source, /Consulta simple: respondé en 1 a 3 frases/);
+  assert.match(source, /No cierres obligatoriamente con una pregunta ni con varias opciones/);
   assert.match(source, /Nunca nombres SQL, RPC, action_request, can_execute, metadata ni Supabase/);
   assert.doesNotMatch(source, /No podés todavía:\s*\n- crear datos/);
   assert.doesNotMatch(source, /Revisá la configuración de OpenAI/);

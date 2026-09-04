@@ -537,6 +537,33 @@ test("askStampyAction injects a sanitized current UI snapshot before history", a
   assert.equal(messages[1].content, "Mensaje histórico");
 });
 
+test("askStampyAction prioritizes the exact intent and a minimum sufficient response", async () => {
+  const harness = loadMemoryAwareAskStampyAction();
+
+  await harness.actions.askStampyAction("¿Cuánto es el total?");
+  const prompt = harness.completionPayloads[0].messages[0].content;
+
+  assert.match(prompt, /Resolver la intención actual del usuario/);
+  assert.match(prompt, /respuesta mínima suficiente/i);
+  assert.match(prompt, /Consulta simple: respondé en 1 a 3 frases/);
+  assert.match(prompt, /Si el usuario pide el motivo, un desglose o más detalle, recién entonces ampliá/);
+  assert.match(prompt, /No enumeres ni menciones datos sólo porque están disponibles/);
+  assert.match(prompt, /Si pregunta sólo por un total visible, respondé sólo ese total/);
+  assert.doesNotMatch(prompt, /hasta 3 viñetas si ayudan y un próximo paso claro/);
+  assert.doesNotMatch(prompt, /Para negocio, proponé una acción concreta/);
+});
+
+test("askStampyAction does not invent UI or promise unsupported actions", async () => {
+  const harness = loadMemoryAwareAskStampyAction();
+
+  await harness.actions.askStampyAction("¿Dónde selecciono mi impresora?");
+  const prompt = harness.completionPayloads[0].messages[0].content;
+
+  assert.match(prompt, /no supongas que existe un selector, una pantalla, contenido adaptado ni una operación/i);
+  assert.match(prompt, /Sólo ofrecé abrir, modificar, crear, eliminar, recalcular, configurar o guardar cuando una herramienta o capacidad real/i);
+  assert.match(prompt, /No cierres obligatoriamente con una pregunta ni con varias opciones/);
+});
+
 test("askStampyAction keeps short history inside the same explicit conversation", async () => {
   const harness = loadMemoryAwareAskStampyAction({
     recentHistory: [
