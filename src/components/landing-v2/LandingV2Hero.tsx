@@ -14,7 +14,7 @@ export function LandingV2Hero() {
         className="absolute left-1/2 top-[-18rem] -z-10 h-[42rem] w-[42rem] -translate-x-1/2 rounded-full bg-stampa-orange/[0.09] blur-[130px]"
       />
 
-      <div className="mx-auto grid w-full max-w-7xl items-center gap-12 px-5 pb-16 pt-14 sm:px-8 sm:pb-20 sm:pt-20 lg:grid-cols-[0.88fr_1.12fr] lg:gap-10 lg:px-10 lg:pb-24 lg:pt-24 xl:gap-16">
+      <div className="mx-auto grid w-full max-w-[84rem] items-center gap-12 px-5 pb-16 pt-14 sm:px-8 sm:pb-20 sm:pt-20 lg:grid-cols-[0.88fr_1.12fr] lg:gap-10 lg:px-10 lg:pb-24 lg:pt-24 xl:grid-cols-[0.84fr_1.16fr] xl:gap-12">
         <div className="mx-auto max-w-2xl text-center lg:mx-0 lg:text-left">
           <div className="mb-7 inline-flex items-center gap-2 rounded-full border border-stampa-orange/20 bg-stampa-orange/[0.07] px-3 py-1.5 text-[11px] font-bold uppercase tracking-[0.18em] text-orange-300 sm:text-xs">
             <span className="h-1.5 w-1.5 rounded-full bg-stampa-orange" />
@@ -23,9 +23,9 @@ export function LandingV2Hero() {
 
           <h1 className="text-[clamp(2.8rem,8vw,4.9rem)] font-semibold leading-[0.98] tracking-[-0.055em] text-white lg:text-[clamp(4.2rem,5.45vw,5.4rem)]">
             <span className="block">Aprendé.</span>
-            <span className="block text-stampa-orange">Gestioná.</span>
+            <span className="block text-zinc-100">Gestioná.</span>
             <span className="block">Hacé crecer</span>
-            <span className="block text-zinc-400">tu mundo 3D.</span>
+            <span className="block text-zinc-300">tu mundo 3D.</span>
           </h1>
 
           <p className="mx-auto mt-7 max-w-xl text-base leading-7 text-zinc-400 sm:text-lg sm:leading-8 lg:mx-0">
@@ -37,7 +37,7 @@ export function LandingV2Hero() {
               href="/registro"
               className="group inline-flex min-h-12 items-center justify-center gap-2 rounded-xl bg-stampa-orange px-6 py-3 text-sm font-bold text-white shadow-[0_16px_40px_-16px_rgba(255,120,10,0.85)] transition-colors hover:bg-stampa-orange-hover focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-white"
             >
-              Entrar a Stampa
+              Empezar en Stampa
               <ArrowRight size={17} className="transition-transform group-hover:translate-x-0.5" />
             </Link>
             <Link

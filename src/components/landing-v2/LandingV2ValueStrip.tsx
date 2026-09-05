@@ -18,7 +18,7 @@ const VALUE_ITEMS = [
   },
   {
     label: "Crecer",
-    description: "Más información para tomar mejores decisiones.",
+    description: "Entendé qué funciona y qué mejorar.",
     icon: ChartNoAxesCombined,
   },
 ];
@@ -42,7 +42,7 @@ export function LandingV2ValueStrip() {
               </div>
               <div>
                 <p className="text-[11px] font-bold uppercase tracking-[0.16em] text-zinc-200">{label}</p>
-                <p className="mt-2 max-w-[15rem] text-sm leading-5 text-zinc-500">{description}</p>
+                <p className="mt-2 max-w-[15rem] text-sm leading-5 text-zinc-400/80">{description}</p>
               </div>
             </div>
           ))}

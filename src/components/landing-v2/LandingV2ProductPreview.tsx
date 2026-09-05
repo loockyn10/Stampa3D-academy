@@ -26,7 +26,7 @@ const APP_NAVIGATION = [
 
 export function LandingV2ProductPreview() {
   return (
-    <div id="producto" className="relative mx-auto w-full max-w-3xl scroll-mt-24 lg:mx-0">
+    <div id="producto" className="relative mx-auto w-full max-w-3xl scroll-mt-24 lg:mx-0 xl:-mr-6 xl:w-[calc(100%+1.5rem)] xl:max-w-none">
       <div
         aria-hidden="true"
         className="absolute -inset-8 -z-10 rounded-[3rem] bg-[radial-gradient(circle_at_70%_40%,rgba(255,120,10,0.13),transparent_60%)] blur-2xl"
