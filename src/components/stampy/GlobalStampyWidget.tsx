@@ -11,6 +11,7 @@ import { StampyPageContext } from "@/lib/stampy/page-context";
 import { useStampyContext, useStampyScreenContext } from "@/components/stampy/StampyContextProvider";
 import { StampyFeedback } from "@/components/stampy/StampyFeedback";
 import { ActionIntentCard } from "@/components/stampy/ActionIntentCard";
+import { StampyMessageContent } from "@/components/stampy/StampyMessageContent";
 import { createStampyMessageId, createStampyRequestId } from "@/lib/stampy/client-message-id";
 
 type Message = {
@@ -272,7 +273,7 @@ function StampyWidgetContent({
                         : "bg-[#1a1a1a] border border-stampa-border text-gray-200 rounded-tl-sm"
                     }`}
                   >
-                    <div className="whitespace-pre-wrap">{m.content}</div>
+                    <StampyMessageContent content={m.content} role={m.role} />
 
                     {m.recommendations && m.recommendations.length > 0 && (
                       <div className="mt-3 space-y-2">

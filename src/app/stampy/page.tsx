@@ -8,6 +8,7 @@ import { Badge } from "@/components/ui/badge";
 
 import { StampyFeedback } from "@/components/stampy/StampyFeedback";
 import { ActionIntentCard } from "@/components/stampy/ActionIntentCard";
+import { StampyMessageContent } from "@/components/stampy/StampyMessageContent";
 import { createStampyMessageId, createStampyRequestId } from "@/lib/stampy/client-message-id";
 import { useStampyScreenContext } from "@/components/stampy/StampyContextProvider";
 
@@ -240,9 +241,7 @@ export default function StampyPage() {
                 )}
                 
                 <div className={`max-w-[85%] ${msg.role === "user" ? "bg-gradient-to-r from-cyan-500 to-violet-600 text-white rounded-2xl rounded-tr-sm px-4 py-3 shadow-md shadow-cyan-500/5" : "bg-stampa-surface border border-stampa-border shadow-sm rounded-2xl rounded-tl-sm px-5 py-4"}`}>
-                  <p className={`text-sm ${msg.role === "user" ? "text-white" : "text-gray-300"} whitespace-pre-wrap`}>
-                    {msg.content}
-                  </p>
+                  <StampyMessageContent content={msg.content} role={msg.role} />
 
                   {/* Recommendations */}
                   {msg.recommendations && msg.recommendations.length > 0 && (

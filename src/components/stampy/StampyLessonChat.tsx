@@ -7,6 +7,7 @@ import { createPortal } from "react-dom";
 import Link from "next/link";
 import { StampyFeedback } from "@/components/stampy/StampyFeedback";
 import { ActionIntentCard } from "@/components/stampy/ActionIntentCard";
+import { StampyMessageContent } from "@/components/stampy/StampyMessageContent";
 import { createStampyMessageId, createStampyRequestId } from "@/lib/stampy/client-message-id";
 import { useStampyScreenContext } from "@/components/stampy/StampyContextProvider";
 
@@ -222,7 +223,7 @@ export function StampyLessonChat({ courseTitle, moduleTitle, lesson }: StampyLes
                         : 'bg-[#1a1a1a] border border-stampa-border text-gray-200 rounded-tl-sm'
                     }`}
                   >
-                    <div className="whitespace-pre-wrap">{m.content}</div>
+                    <StampyMessageContent content={m.content} role={m.role} />
 
                     {m.recommendations && m.recommendations.length > 0 && (
                       <div className="mt-3 space-y-2">
