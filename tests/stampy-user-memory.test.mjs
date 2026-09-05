@@ -551,7 +551,7 @@ test("askStampyAction injects a sanitized current UI snapshot before history", a
   const messages = harness.completionPayloads[0].messages;
   const prompt = messages[0].content;
   assert.match(prompt, /CURRENT UI CONTEXT:/);
-  assert.match(prompt, /Borrador de presupuesto: professional/);
+  assert.match(prompt, /Borrador de presupuesto: Profesional/);
   assert.match(prompt, /Mate Messi: cantidad 2, precio unitario 8500/);
   assert.match(prompt, /total 19013/);
   assert.doesNotMatch(prompt, /unitBaseCost|admin: true/);

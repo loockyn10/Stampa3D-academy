@@ -224,3 +224,99 @@ test("screen context cleanup is owner-aware so stale pages cannot clear a newer 
   assert.match(providerSource, /if \(screenContextOwnerRef\.current !== ownerId\) return/);
   assert.match(providerSource, /useEffect\(\(\) => \(\) => \{[\s\S]*clearScreenContext\(ownerId\)/);
 });
+
+test("routes and entity identifiers stay internal while the human page title stays presentable", () => {
+  const prompt = screenContext.formatStampyScreenContextForPrompt({
+    page: { section: "products", route: "/productos", title: "Productos" },
+    selectedEntity: { type: "product", id: "product-123", name: "Jarro Honda HRC" },
+  });
+  const [presentable, internal] = prompt.split("INTERNAL UI METADATA");
+
+  assert.match(presentable, /Pantalla: Productos/);
+  assert.match(presentable, /Elemento actual: Jarro Honda HRC/);
+  assert.doesNotMatch(presentable, /\/productos|product-123|type=product|id:/);
+  assert.match(internal, /route=\/productos/);
+  assert.match(internal, /type=product; id=product-123/);
+});
+
+test("duplicate visible names are distinguished by order and human facts, never by ids", () => {
+  const prompt = screenContext.formatStampyScreenContextForPrompt({
+    page: { section: "products", route: "/productos", title: "Productos" },
+    visibleEntities: [
+      {
+        type: "product",
+        id: "product-1",
+        name: "Jarro Honda HRC",
+        position: 1,
+        facts: [
+          { label: "Stock visible", value: 3 },
+          { label: "Precio de venta visible", value: 13595.4 },
+        ],
+      },
+      {
+        type: "product",
+        id: "product-2",
+        name: "Jarro Honda HRC",
+        position: 2,
+        facts: [
+          { label: "Stock visible", value: 2 },
+          { label: "Precio de venta visible", value: 14967 },
+        ],
+      },
+    ],
+  });
+  const [presentable, internal] = prompt.split("INTERNAL UI METADATA");
+
+  assert.match(presentable, /1\. Jarro Honda HRC/);
+  assert.match(presentable, /2\. Jarro Honda HRC/);
+  assert.match(presentable, /Stock visible=3/);
+  assert.match(presentable, /Precio de venta visible=14967/);
+  assert.doesNotMatch(presentable, /product-[12]|id=/);
+  assert.match(internal, /position=1;type=product;id=product-1/);
+  assert.match(internal, /position=2;type=product;id=product-2/);
+});
+
+test("facts shared by every visible entity are emitted once instead of repeated per item", () => {
+  const prompt = screenContext.formatStampyScreenContextForPrompt({
+    page: { section: "products", route: "/productos", title: "Productos" },
+    visibleEntities: Array.from({ length: 3 }, (_, index) => ({
+      type: "product",
+      id: `product-${index + 1}`,
+      name: `Producto ${index + 1}`,
+      position: index + 1,
+      facts: [
+        { label: "Stock visible", value: index + 1 },
+        { label: "Estado de precio", value: "Actualizado" },
+      ],
+    })),
+  });
+  const [presentable] = prompt.split("INTERNAL UI METADATA");
+
+  assert.match(presentable, /Datos compartidos por los 3 elementos visibles: Estado de precio=Actualizado/);
+  assert.equal(presentable.match(/Actualizado/g)?.length, 1);
+  assert.equal(presentable.match(/Stock visible=/g)?.length, 3);
+});
+
+test("technical identifiers may only be revealed after an explicit user request", () => {
+  const prompt = screenContext.formatStampyScreenContextForPrompt({
+    page: { section: "products", route: "/productos", title: "Productos" },
+    selectedEntity: { type: "product", id: "product-123", name: "Jarro Honda HRC" },
+  });
+  const actionSource = fs.readFileSync(path.join(root, "src/app/stampy/actions.ts"), "utf8");
+
+  assert.match(prompt, /Sólo podés mostrar una ruta o un identificador si el usuario pide explícitamente/);
+  assert.match(actionSource, /Sólo revelá una ruta o un identificador cuando el usuario pida explícitamente/);
+});
+
+test("edit mode gets a human activity description while its raw key stays internal", () => {
+  const prompt = screenContext.formatStampyScreenContextForPrompt({
+    page: { section: "budgets", route: "/presupuestos", title: "Presupuestos" },
+    mode: "edit",
+    pageData: { kind: "budgets", visibleBudgetCount: 2 },
+  });
+  const [presentable, internal] = prompt.split("INTERNAL UI METADATA");
+
+  assert.match(presentable, /Actividad actual: Está editando un presupuesto\./);
+  assert.doesNotMatch(presentable, /mode[_=]|Modo: edit/);
+  assert.match(internal, /mode_key=edit/);
+});
