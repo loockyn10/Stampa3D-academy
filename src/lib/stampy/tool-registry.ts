@@ -183,6 +183,7 @@ export function getStampyToolContractsForIntent(intentType: string): StampyToolC
 export function formatToolContractForPrompt(contract: StampyToolContract): string {
   let text = `HERRAMIENTA: ${contract.name}\n`;
   text += `Ruta: ${contract.route}\n`;
+  text += `Ejecución desde esta respuesta: ${contract.canExecuteFromChat ? "disponible" : "no disponible"}.\n`;
   
   if (contract.requiredFields.length > 0) {
     text += `Campos requeridos: ${contract.requiredFields.join(", ")}.\n`;
@@ -193,8 +194,45 @@ export function formatToolContractForPrompt(contract: StampyToolContract): strin
   if (contract.safetyNotes.length > 0) {
     text += `Reglas: ${contract.safetyNotes.join(" ")}\n`;
   }
+  if (!contract.canExecuteFromChat) {
+    text += "Este contrato es una referencia de validación y navegación; no autoriza a prometer ni simular la acción.\n";
+  }
   
   return text.trim();
+}
+
+export function formatStampyAvailableActionsForPrompt(
+  contracts: StampyToolContract[]
+): string {
+  const executableContracts = contracts.filter(
+    (contract) => contract.canExecuteFromChat
+  );
+  const informationalContracts = contracts.filter(
+    (contract) => !contract.canExecuteFromChat
+  );
+
+  const executableText = executableContracts.length > 0
+    ? executableContracts
+        .map((contract) => `- ${contract.name} (${contract.id})`)
+        .join("\n")
+    : "- Ninguna.";
+  const informationalText = informationalContracts.length > 0
+    ? informationalContracts
+        .map((contract) => `- ${contract.name}: ${contract.route}`)
+        .join("\n")
+    : "- Ninguna.";
+
+  return `AVAILABLE ACTIONS (FUENTE CANÓNICA DEL TURNO):
+Acciones que esta respuesta puede ejecutar:
+${executableText}
+
+Referencias informativas verificadas para esta pantalla:
+${informationalText}
+
+Reglas:
+- Si una acción no aparece en la lista de acciones ejecutables, no afirmes ni sugieras que podés realizarla.
+- Una ruta, entidad visible, herramienta relacionada, etiqueta o contrato informativo no concede capacidad de abrir, navegar, iniciar, seleccionar, modificar, crear, eliminar, recalcular, guardar, marcar ni descargar.
+- Cuando no haya una acción ejecutable, limitate a responder, explicar o indicar la ruta verificada para que el usuario actúe.`;
 }
 
 export function getRelevantContractsForPath(pathname: string): StampyToolContract[] {

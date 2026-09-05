@@ -414,7 +414,7 @@ export function buildStampyLessonRecommendationText({
   if (!intent || !RECOMMENDATION_INTENTS.has(intent.type)) return "";
 
   if (recommendations.length === 0) {
-    return "No encontré una clase específica para esto todavía, pero te dejo la solución práctica.";
+    return "No encontré una clase específica que coincida con esta consulta.";
   }
 
   if (recommendations.length === 1) {

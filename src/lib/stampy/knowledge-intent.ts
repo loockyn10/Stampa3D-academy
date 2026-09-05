@@ -6,6 +6,7 @@ export type StampyKnowledgeIntentType =
   | "business_help"
   | "platform_navigation"
   | "course_recommendation"
+  | "course_content_question"
   | "general_3d_question";
 
 export interface StampyKnowledgeIntent {
@@ -29,17 +30,30 @@ function findTerms(message: string, terms: string[]): string[] {
   return terms.filter((term) => message.includes(normalize(term)));
 }
 
-const COURSE_TERMS = [
+const COURSE_RECOMMENDATION_TERMS = [
+  "recomendame un curso",
+  "recomendas un curso",
+  "que curso",
+  "que clase",
+  "que video",
+  "tenes un video",
+  "hay un video",
+  "busco un curso",
+  "contenido sobre",
+  "donde explican",
+];
+const COURSE_CONTENT_TERMS = [
   "video",
   "clase",
   "curso",
+  "modulo",
+  "ejercicio",
   "tutorial",
-  "contenido sobre",
-  "donde explican",
 ];
 const PLATFORM_TERMS = [
   "donde veo",
   "donde encuentro",
+  "donde esta",
   "como entro",
   "en que seccion",
   "en esta pantalla",
@@ -150,22 +164,39 @@ export function classifyStampyKnowledgeIntent(
   const message = normalize(rawMessage);
   if (!message) return null;
 
+  const courseAndWorkshopComparison =
+    message.includes("curso") && message.includes("taller");
   const platformMatches = findTerms(message, PLATFORM_TERMS);
-  if (platformMatches.length > 0) {
+  if (platformMatches.length > 0 || courseAndWorkshopComparison) {
     return {
       type: "platform_navigation",
       confidence: 0.9,
-      matchedTerms: platformMatches,
+      matchedTerms: courseAndWorkshopComparison
+        ? [...platformMatches, "cursos y talleres"]
+        : platformMatches,
       focus: [],
     };
   }
 
-  const courseMatches = findTerms(message, COURSE_TERMS);
-  if (courseMatches.length > 0) {
+  const courseRecommendationMatches = findTerms(
+    message,
+    COURSE_RECOMMENDATION_TERMS
+  );
+  if (courseRecommendationMatches.length > 0) {
     return {
       type: "course_recommendation",
       confidence: 0.95,
-      matchedTerms: courseMatches,
+      matchedTerms: courseRecommendationMatches,
+      focus: [],
+    };
+  }
+
+  const courseContentMatches = findTerms(message, COURSE_CONTENT_TERMS);
+  if (courseContentMatches.length > 0) {
+    return {
+      type: "course_content_question",
+      confidence: 0.85,
+      matchedTerms: courseContentMatches,
       focus: [],
     };
   }
@@ -263,10 +294,21 @@ Ordená la calibración en pasos seguros, de a un cambio por vez, e indicá cóm
 Proponé como máximo 3 líneas concretas y una validación rápida. No des una lista larga ni inventes demanda o rentabilidad.`;
   }
   if (intent.type === "platform_navigation") {
-    return "TIPO DE CONSULTA: navegación de Academia Stampa. Indicá la sección y el siguiente paso de forma directa.";
+    return "TIPO DE CONSULTA: navegación de Academia Stampa. Respondé sólo con la sección o ubicación respaldada por el contexto actual. No agregues configuración técnica ni contenido lateral.";
   }
   if (intent.type === "course_recommendation") {
     return "TIPO DE CONSULTA: búsqueda de clase o video. Respondé la duda si podés, pero no nombres una clase concreta: el servidor agregará sólo recomendaciones verificadas del catálogo.";
   }
-  return "TIPO DE CONSULTA: consulta general de impresión 3D. Respondé de forma práctica y cerrá con el siguiente paso.";
+  if (intent.type === "course_content_question") {
+    return "TIPO DE CONSULTA: pregunta sobre contenido educativo existente. Usá sólo contenido oficial recuperado o visible; si no respalda el dato pedido, decí que no lo encontrás definido y no completes la estructura del curso por inferencia.";
+  }
+  return "TIPO DE CONSULTA: consulta general de impresión 3D. Respondé la pregunta puntual y terminá cuando quede resuelta.";
+}
+
+export function shouldRetrieveStampyKnowledge(
+  intent: StampyKnowledgeIntent | null,
+  hasLessonContext = false
+): boolean {
+  if (hasLessonContext) return true;
+  return Boolean(intent && intent.type !== "platform_navigation");
 }

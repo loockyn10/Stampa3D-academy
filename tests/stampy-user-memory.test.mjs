@@ -66,6 +66,9 @@ function loadMemoryAwareAskStampyAction({
   saveMemory,
   openAiAnswer = "Respuesta normal",
   recentHistory = [],
+  retrieveKnowledge,
+  findRecommendations,
+  buildRecommendationText,
 } = {}) {
   const events = [];
   const assistantMetadata = [];
@@ -73,6 +76,8 @@ function loadMemoryAwareAskStampyAction({
   const rpcCalls = [];
   const completionPayloads = [];
   const savedTurns = [];
+  const retrievalCalls = [];
+  const recommendationCalls = [];
 
   const lessonsQuery = {
     select() {
@@ -225,11 +230,20 @@ function loadMemoryAwareAskStampyAction({
     },
     "@/lib/stampy/user-context": { getStampyUserContext: async () => null },
     "@/lib/stampy/knowledge-search": { findRelevantKnowledge: () => [] },
-    "@/lib/stampy/retrieval": { retrieveStampyKnowledge: async () => "" },
+    "@/lib/stampy/retrieval": {
+      retrieveStampyKnowledge: async (params) => {
+        retrievalCalls.push(params);
+        return retrieveKnowledge ? retrieveKnowledge(params) : "";
+      },
+    },
     "@/lib/stampy/knowledge-intent": knowledgeIntent,
     "@/lib/stampy/lesson-recommendations": {
-      findStampyLessonRecommendations: async () => [],
-      buildStampyLessonRecommendationText: () => "",
+      findStampyLessonRecommendations: async (params) => {
+        recommendationCalls.push(params);
+        return findRecommendations ? findRecommendations(params) : [];
+      },
+      buildStampyLessonRecommendationText:
+        buildRecommendationText ?? (() => ""),
     },
     "@/lib/stampy/usage-log": { logStampyUsage: async () => undefined },
     openai: { OpenAI: MockOpenAI },
@@ -243,6 +257,8 @@ function loadMemoryAwareAskStampyAction({
     rpcCalls,
     completionPayloads,
     savedTurns,
+    retrievalCalls,
+    recommendationCalls,
   };
 }
 
@@ -584,6 +600,134 @@ test("askStampyAction does not treat a previous assistant UI claim as product tr
   assert.equal(messages[1].role, "assistant");
   assert.match(prompt, /Las afirmaciones previas del asistente no son fuente de verdad sobre pantallas, herramientas ni capacidades de Stampa/);
   assert.match(prompt, /no las repitas como hechos si no están respaldadas por el contexto oficial actual/);
+});
+
+test("grounding A: a Cursos versus Talleres answer starts with content, not response meta-commentary", async () => {
+  const directAnswer = "Los Cursos organizan el aprendizaje en módulos y clases; los Talleres son proyectos prácticos.";
+  const harness = loadMemoryAwareAskStampyAction({ openAiAnswer: directAnswer });
+
+  const result = await harness.actions.askStampyAction(
+    "¿Qué diferencia hay entre Cursos y Talleres?"
+  );
+  const prompt = harness.completionPayloads[0].messages[0].content;
+
+  assert.equal(result.answer, directAnswer);
+  assert.equal(harness.retrievalCalls.length, 0);
+  assert.equal(harness.recommendationCalls.length, 0);
+  assert.match(prompt, /APERTURA DIRECTA/);
+  assert.match(prompt, /No anuncies cómo vas a responder/);
+  assert.doesNotMatch(prompt, /Respuestas MUY breves y prácticas/);
+});
+
+test("grounding B: a vague recommendation in Academia uses visible courses without unrelated retrieval", async () => {
+  const relevantAnswer = "Empezá por Fundamentos Express de la Impresión 3D. Después seguí con Orca Slicer Principiante.";
+  const harness = loadMemoryAwareAskStampyAction({ openAiAnswer: relevantAnswer });
+
+  const result = await harness.actions.askStampyAction(
+    "¿Qué me recomendás hacer?",
+    null,
+    {
+      source: "page",
+      pathname: "/academia",
+      screenContext: {
+        page: { section: "academy", route: "/academia", title: "Academia" },
+        visibleEntities: [
+          { type: "course", id: "course-1", name: "Fundamentos Express de la Impresión 3D", position: 1 },
+          { type: "course", id: "course-2", name: "Orca Slicer Principiante", position: 2 },
+        ],
+      },
+    }
+  );
+  const prompt = harness.completionPayloads[0].messages[0].content;
+
+  assert.equal(result.answer, relevantAnswer);
+  assert.equal(harness.retrievalCalls.length, 0);
+  assert.equal(harness.recommendationCalls.length, 0);
+  assert.match(prompt, /Fundamentos Express de la Impresión 3D/);
+  assert.match(prompt, /Orca Slicer Principiante/);
+  assert.doesNotMatch(prompt, /HELLBOT|W3D|Benchy|calibration cube/i);
+});
+
+test("grounding C: Academia exposes no capability to start a course", async () => {
+  const safeAnswer = "No puedo iniciarlo por vos desde acá; lo encontrás dentro de Cursos.";
+  const harness = loadMemoryAwareAskStampyAction({ openAiAnswer: safeAnswer });
+
+  const result = await harness.actions.askStampyAction(
+    "¿Podés arrancarme el curso?",
+    null,
+    { source: "page", pathname: "/academia" }
+  );
+  const prompt = harness.completionPayloads[0].messages[0].content;
+
+  assert.equal(result.answer, safeAnswer);
+  assert.equal(harness.recommendationCalls.length, 0);
+  assert.match(prompt, /AVAILABLE ACTIONS \(FUENTE CANÓNICA DEL TURNO\)/);
+  assert.match(prompt, /Acciones que esta respuesta puede ejecutar:\n- Ninguna/);
+  assert.match(prompt, /no afirmes ni sugieras que podés realizarla/i);
+});
+
+test("grounding D: an absent course exercise cannot be presented as official content", async () => {
+  const safeAnswer = "No encuentro un primer ejercicio definido en el contenido oficial disponible.";
+  const harness = loadMemoryAwareAskStampyAction({ openAiAnswer: safeAnswer });
+
+  const result = await harness.actions.askStampyAction(
+    "Dame el primer ejercicio del curso.",
+    null,
+    { source: "page", pathname: "/academia" }
+  );
+  const prompt = harness.completionPayloads[0].messages[0].content;
+
+  assert.equal(result.answer, safeAnswer);
+  assert.equal(harness.recommendationCalls.length, 0);
+  assert.match(prompt, /GROUNDING DE CONTENIDO DE ACADEMIA/);
+  assert.match(prompt, /un título de curso no prueba que tenga determinado primer ejercicio/i);
+  assert.match(prompt, /sugerencia de Stampy.*nunca como parte oficial/i);
+});
+
+test("grounding E: a visible course location stays concrete and avoids semantic retrieval", async () => {
+  const locationAnswer = "Lo encontrás dentro de Cursos como “Fundamentos Express de la Impresión 3D”.";
+  const harness = loadMemoryAwareAskStampyAction({ openAiAnswer: locationAnswer });
+
+  const result = await harness.actions.askStampyAction(
+    "¿Dónde está Fundamentos Express?",
+    null,
+    {
+      source: "page",
+      pathname: "/academia",
+      screenContext: {
+        page: { section: "academy", route: "/academia" },
+        visibleEntities: [
+          { type: "section", id: "courses", name: "Cursos", position: 1 },
+          { type: "course", id: "course-1", name: "Fundamentos Express de la Impresión 3D", position: 2 },
+        ],
+      },
+    }
+  );
+
+  assert.equal(result.answer, locationAnswer);
+  assert.equal(harness.retrievalCalls.length, 0);
+  assert.equal(harness.recommendationCalls.length, 0);
+});
+
+test("grounding F: a false capability in assistant history is overridden by current canonical actions", async () => {
+  const harness = loadMemoryAwareAskStampyAction({
+    recentHistory: [{
+      role: "assistant",
+      content: "Puedo arrancarte el curso y marcar la primera clase como iniciada.",
+    }],
+    openAiAnswer: "No puedo iniciarlo por vos desde acá; tenés que abrirlo desde Cursos.",
+  });
+
+  await harness.actions.askStampyAction(
+    "Entonces arrancalo.",
+    null,
+    { source: "page", pathname: "/academia" }
+  );
+  const prompt = harness.completionPayloads[0].messages[0].content;
+
+  assert.match(prompt, /Un nombre o una capacidad mencionados por una respuesta anterior del asistente no prueban que existan/);
+  assert.match(prompt, /Acciones que esta respuesta puede ejecutar:\n- Ninguna/);
+  assert.match(prompt, /Las afirmaciones previas del asistente no son fuente de verdad/);
 });
 
 test("askStampyAction returns and persists only the current turn when the model repeats a prior reply", async () => {

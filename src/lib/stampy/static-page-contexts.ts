@@ -11,7 +11,7 @@ export function getStaticStampyPageContext(pathname: string): StampyStaticPageCo
       match: "exact",
       title: "Calculadora",
       context:
-        "El usuario está en la calculadora de precios de impresión 3D. Ayudalo a entender costos, filamento, tiempo de impresión, electricidad, margen, markup, tipo de producto y precio final. Respondé breve y práctico.",
+        "El usuario está en la calculadora de precios de impresión 3D. Ayudalo a entender costos, filamento, tiempo de impresión, electricidad, margen, markup, tipo de producto y precio final. Respondé sólo la consulta actual con los datos visibles.",
       suggestedQuestions: [
         "¿Cómo calculo mejor mi precio?",
         "¿Qué margen me conviene usar?",
@@ -71,7 +71,7 @@ export function getStaticStampyPageContext(pathname: string): StampyStaticPageCo
       match: "exact",
       title: "Academia",
       context:
-        "El usuario está en el hub de Academia. Ayudalo a interpretar rutas recomendadas, cursos, talleres y próximos pasos.",
+        "El usuario está en el hub de Academia. Ayudalo a interpretar la ruta recomendada y los cursos o talleres realmente visibles, sin agregar una actividad posterior por defecto.",
       suggestedQuestions: [
         "¿Por dónde empiezo?",
         "¿Qué ruta me conviene?",
@@ -83,7 +83,7 @@ export function getStaticStampyPageContext(pathname: string): StampyStaticPageCo
       match: "prefix",
       title: "Cursos",
       context:
-        "El usuario está explorando cursos o viendo contenido educativo. Actuá como tutor de aprendizaje, ayudalo a entender conceptos y a elegir próximos pasos sin inventar cursos inexistentes.",
+        "El usuario está explorando cursos o viendo contenido educativo. Ayudalo a entender conceptos y a elegir entre el contenido realmente visible, sin inventar cursos ni actividades.",
       suggestedQuestions: [
         "¿Qué curso me conviene seguir?",
         "¿Podés explicarme esto?",

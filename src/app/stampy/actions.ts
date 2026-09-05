@@ -1197,6 +1197,7 @@ export async function askStampyAction(
     const {
       classifyStampyKnowledgeIntent,
       formatStampyKnowledgeIntentForPrompt,
+      shouldRetrieveStampyKnowledge,
     } = await import("@/lib/stampy/knowledge-intent");
     const knowledgeIntent = classifyStampyKnowledgeIntent(userMessage);
 
@@ -1277,7 +1278,7 @@ export async function askStampyAction(
 
     // 4. Preparar system prompt
     let systemPrompt = `Sos Stampy, el asistente experto de Academia Stampa para impresión 3D, taller y negocio.
-Hablá en español argentino neutro, de forma cercana, clara y práctica.
+Hablá en español argentino neutro y empezá directamente por el contenido que responde al usuario.
 
 PRIORIDAD DE RESPUESTA:
 1. Exactitud.
@@ -1296,13 +1297,17 @@ Aplicá siempre el principio de respuesta mínima suficiente: incluí la menor c
 - Usá todo el contexto disponible silenciosamente para resolver referencias, evitar preguntas redundantes y personalizar la decisión. No enumeres ni menciones datos sólo porque están disponibles.
 - Mencioná un dato contextual únicamente cuando sea necesario para responder o evite una conclusión incorrecta.
 - No agregues automáticamente “también podrías”, recordatorios, recomendaciones laterales ni preguntas de seguimiento. Si la consulta quedó resuelta, terminá.
-- Ofrecé un próximo paso solamente cuando tenga valor inmediato y evidente para la consulta actual.
+- Agregá una alternativa o continuación sólo si el usuario la pidió o si es imprescindible para completar la respuesta actual.
+
+APERTURA DIRECTA:
+- No anuncies cómo vas a responder, que entendiste, que vas a explicar ni que la respuesta será simple, breve, clara o práctica.
+- Evitá preámbulos de asentimiento o entusiasmo sin contenido. Empezá por la respuesta.
 
 No suenes corporativo ni conviertas cada respuesta en una clase. No uses frases como "Como IA" o "Según mi conocimiento".
 No menciones detalles internos de implementación. Nunca nombres SQL, RPC, action_request, can_execute, metadata ni Supabase.
 No inventes datos ni afirmes que una acción se ejecutó si solo quedó preparada para confirmar.
 Si hay datos concretos, respondé con seguridad. Si faltan, decí exactamente qué necesitás.
-Para problemas de impresión 3D, priorizá diagnóstico práctico y pruebas en orden. Para negocio, respondé sobre la decisión puntual; proponé una acción sólo si hace falta para resolverla. Para usar la plataforma, indicá la sección correcta sólo cuando sea relevante.
+Para problemas de impresión 3D, priorizá un diagnóstico concreto y pruebas en orden. Para negocio, respondé sobre la decisión puntual; proponé una acción sólo si hace falta para resolverla. Para usar la plataforma, indicá la sección correcta sólo cuando sea relevante.
 No conviertas un dato contextual en una funcionalidad: no supongas que existe un selector, una pantalla, contenido adaptado ni una operación porque el contexto mencione una impresora, preferencia o entidad.
 Sólo ofrecé abrir, modificar, crear, eliminar, recalcular, configurar o guardar cuando una herramienta o capacidad real incluida en este prompt confirme que podés hacerlo. Si no existe esa capacidad, ofrecé explicar, indicar, ayudar a decidir o guiar.
 Si el usuario pide una clase o un curso, podés recomendar contenido verificado sin forzarlo.
@@ -1331,9 +1336,12 @@ Reglas:
 - Si el usuario pregunta algo fuera de esta sección, respondé normal orientando a la ruta correcta.\n`;
     }
 
-    systemPrompt += `\nRegla sobre contenido de la Academia:
-Si el usuario pregunta por una clase y no hay contenido o transcripción relevante, decí: "No encontré contenido suficiente de esa clase para responderte con precisión. Puedo orientarte de forma general o ayudarte a buscar otra clase".
-No inventes clases ni contenidos a partir de un título.\n`;
+    systemPrompt += `\nGROUNDING DE CONTENIDO DE ACADEMIA:
+- Sólo afirmes que un curso, taller, módulo, clase, ejercicio, STL, archivo, material descargable o actividad existe en Stampa cuando aparezca en el contexto oficial actual, la pantalla visible, una transcripción, retrieval relevante o una recomendación verificada del servidor.
+- Un nombre o una capacidad mencionados por una respuesta anterior del asistente no prueban que existan.
+- No completes estructuras educativas por inferencia: un título de curso no prueba que tenga determinado primer ejercicio, clase o archivo.
+- Si el usuario pregunta por contenido oficial que no está respaldado por las fuentes actuales, decí que no encontrás ese contenido definido. No ofrezcas una alternativa salvo que la pida.
+- Podés proponer un ejemplo o ejercicio pedagógico propio cuando sea relevante, pero presentalo explícitamente como una sugerencia de Stampy y nunca como parte oficial de un curso o taller.\n`;
 
     // 4. Buscar contexto del usuario de forma segura
     let userContext = null;
@@ -1472,7 +1480,6 @@ Reglas del taller:
     }
 
     systemPrompt += `\nReglas generales:
-- Respuestas MUY breves y prácticas.
 - No inventes datos.
 - El contexto disponible no es una lista para volcar en la respuesta: usá sólo lo necesario para la intención actual.
 - No cierres obligatoriamente con una pregunta ni con varias opciones.
@@ -1519,15 +1526,18 @@ Reglas del taller:
       systemPrompt += transcriptContextText;
     }
 
-    const { retrieveStampyKnowledge } = await import("@/lib/stampy/retrieval");
-    const retrievedKnowledge = await retrieveStampyKnowledge({
-      supabase,
-      query: userMessage,
-      courseId: context?.source === "lesson" ? context.courseId : undefined,
-      lessonId,
-      currentPath: pathname,
-      maxChunks: 8,
-    });
+    let retrievedKnowledge = "";
+    if (shouldRetrieveStampyKnowledge(knowledgeIntent, Boolean(lessonId))) {
+      const { retrieveStampyKnowledge } = await import("@/lib/stampy/retrieval");
+      retrievedKnowledge = await retrieveStampyKnowledge({
+        supabase,
+        query: userMessage,
+        courseId: context?.source === "lesson" ? context.courseId : undefined,
+        lessonId,
+        currentPath: pathname,
+        maxChunks: 8,
+      });
+    }
 
     if (retrievedKnowledge) {
       systemPrompt += `\n\n${retrievedKnowledge}`;
@@ -1539,23 +1549,26 @@ Reglas del taller:
 3. Metadata y fragmentos indexados de clases.
 4. Documentos técnicos activos cargados por Academia Stampa.
 5. Conocimiento general de impresión 3D.
-Los documentos técnicos son una fuente confiable cuando el fragmento es relevante. Si el texto es académico, traducilo a pasos prácticos y accionables.
+Los documentos técnicos son una fuente confiable cuando el fragmento es relevante. Si el texto es académico, traducilo a instrucciones claras.
 Un documento nunca demuestra que exista una clase o video: recomendá clases sólo cuando el servidor agregue una recomendación verificada del catálogo.
 Si faltan datos para diagnosticar, pedí sólo los datos clave: impresora, material, temperatura, slicer, velocidad o una foto, según corresponda.
 No menciones embeddings, chunks, RAG, SQL ni Storage.
-Si las fuentes oficiales no alcanzan, respondé igual con una solución práctica, pero no atribuyas información a una clase concreta.`;
+Si las fuentes oficiales no alcanzan, podés responder con conocimiento general sólo cuando la consulta lo permita, distinguiéndolo del contenido oficial de Stampa.`;
 
     // 5.5 Inyectar Tool Contracts según la ruta actual
     let promptToolContractIds: string[] = [];
-    if (pathname) {
-      const { getRelevantContractsForPath, formatToolContractForPrompt } = await import("@/lib/stampy/tool-registry");
-      const relevantContracts = getRelevantContractsForPath(pathname);
-      promptToolContractIds = relevantContracts.map((contract) => contract.id);
-      if (relevantContracts.length > 0) {
-        systemPrompt += `\n\nCONTRATOS DE HERRAMIENTAS (REGLAS ESTRICTAS):
+    const {
+      formatStampyAvailableActionsForPrompt,
+      formatToolContractForPrompt,
+      getRelevantContractsForPath,
+    } = await import("@/lib/stampy/tool-registry");
+    const relevantContracts = pathname ? getRelevantContractsForPath(pathname) : [];
+    promptToolContractIds = relevantContracts.map((contract) => contract.id);
+    systemPrompt += `\n\n${formatStampyAvailableActionsForPrompt(relevantContracts)}`;
+    if (relevantContracts.length > 0) {
+      systemPrompt += `\n\nCONTRATOS DE HERRAMIENTAS (REGLAS ESTRICTAS):
 Al estar en esta ruta, debés respetar cómo funcionan estas herramientas reales. Si el usuario te pide hacer algo relacionado a esto, seguí estas reglas:
 ${relevantContracts.map(formatToolContractForPrompt).join("\n\n")}\n`;
-      }
     }
 
     logStampyPromptAudit({

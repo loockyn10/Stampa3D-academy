@@ -33,6 +33,9 @@ function loadTypeScriptModule(relativePath, dependencies = {}) {
 const knowledgeIntent = loadTypeScriptModule(
   "src/lib/stampy/knowledge-intent.ts"
 );
+const toolRegistry = loadTypeScriptModule(
+  "src/lib/stampy/tool-registry.ts"
+);
 const actionIntents = loadTypeScriptModule(
   "src/lib/stampy/action-intents.ts",
   { "./types": {} }
@@ -78,6 +81,10 @@ test("non-operational questions are classified without becoming stock actions", 
     ["qué producto puedo vender", "business_help"],
     ["dónde veo cursos", "platform_navigation"],
     ["tenés un video sobre soportes?", "course_recommendation"],
+    ["¿Qué diferencia hay entre Cursos y Talleres?", "platform_navigation"],
+    ["¿Podés arrancarme el curso?", "course_content_question"],
+    ["Dame el primer ejercicio del curso", "course_content_question"],
+    ["¿Dónde está Fundamentos Express?", "platform_navigation"],
   ];
 
   for (const [message, expected] of cases) {
@@ -229,7 +236,42 @@ test("recommendation copy never invents a class when ranking returns no match", 
       recommendations: [],
       intent,
     }),
-    "No encontré una clase específica para esto todavía, pero te dejo la solución práctica."
+    "No encontré una clase específica que coincida con esta consulta."
+  );
+});
+
+test("retrieval is skipped for vague or navigation turns and kept for grounded knowledge intents", () => {
+  assert.equal(knowledgeIntent.shouldRetrieveStampyKnowledge(null), false);
+  assert.equal(
+    knowledgeIntent.shouldRetrieveStampyKnowledge({ type: "platform_navigation" }),
+    false
+  );
+  assert.equal(
+    knowledgeIntent.shouldRetrieveStampyKnowledge({ type: "technical_troubleshooting" }),
+    true
+  );
+  assert.equal(knowledgeIntent.shouldRetrieveStampyKnowledge(null, true), true);
+});
+
+test("available actions distinguish executable capabilities from informational contracts", () => {
+  const academyContracts = toolRegistry.getRelevantContractsForPath("/academia");
+  const calculatorContracts = toolRegistry.getRelevantContractsForPath("/calculadora");
+  const academyPrompt = toolRegistry.formatStampyAvailableActionsForPrompt(
+    academyContracts
+  );
+  const calculatorPrompt = toolRegistry.formatStampyAvailableActionsForPrompt(
+    calculatorContracts
+  );
+
+  assert.deepEqual(academyContracts, []);
+  assert.match(academyPrompt, /Acciones que esta respuesta puede ejecutar:\n- Ninguna/);
+  assert.match(calculatorPrompt, /Referencias informativas verificadas/);
+  assert.match(calculatorPrompt, /Calculadora de precios: \/calculadora/);
+  assert.match(calculatorPrompt, /una ruta.*no concede capacidad/i);
+  assert.ok(calculatorContracts.every((contract) => !contract.canExecuteFromChat));
+  assert.match(
+    toolRegistry.formatToolContractForPrompt(calculatorContracts[0]),
+    /Ejecución desde esta respuesta: no disponible/
   );
 });
 
