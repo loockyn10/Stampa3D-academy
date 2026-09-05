@@ -275,11 +275,11 @@ export function formatStampyKnowledgeIntentForPrompt(
 
   if (intent.type === "technical_troubleshooting") {
     return `TIPO DE CONSULTA: diagnóstico técnico.${focusText}
-Respondé con un diagnóstico breve, hasta 5 pasos numerados, ajustes concretos y qué dato pedir si el problema continúa.`;
+Explicá primero la causa probable con palabras cotidianas. Después indicá hasta 5 pruebas o ajustes concretos, en orden, de a uno por vez. Explicá brevemente cualquier término técnico que sea importante y pedí sólo el dato necesario si el problema continúa.`;
   }
   if (intent.type === "slicer_help") {
     return `TIPO DE CONSULTA: ayuda de slicer.${focusText}
-Indicá dónde revisar el ajuste, qué cambiar primero y cómo validar el resultado. Evitá listar parámetros que no sean relevantes.`;
+Indicá dónde revisar el ajuste, qué cambiar primero y cómo validar el resultado. Si el término del slicer puede no ser conocido, explicalo brevemente. Evitá listar parámetros que no sean relevantes.`;
   }
   if (intent.type === "material_help") {
     return `TIPO DE CONSULTA: material de impresión.${focusText}
@@ -287,7 +287,7 @@ Dá un rango práctico como punto de partida, aclarando que debe validarse con l
   }
   if (intent.type === "printer_calibration") {
     return `TIPO DE CONSULTA: calibración de impresora.${focusText}
-Ordená la calibración en pasos seguros, de a un cambio por vez, e indicá cómo comprobar si mejoró.`;
+Si la pregunta pide detalle técnico, usá el vocabulario preciso sin rebajarlo. En los demás casos, explicá la causa en lenguaje cotidiano y ordená la calibración en pasos seguros, de a un cambio por vez, indicando cómo comprobar si mejoró.`;
   }
   if (intent.type === "business_help") {
     return `TIPO DE CONSULTA: negocio de impresión 3D.${focusText}
@@ -302,7 +302,7 @@ Proponé como máximo 3 líneas concretas y una validación rápida. No des una 
   if (intent.type === "course_content_question") {
     return "TIPO DE CONSULTA: pregunta sobre contenido educativo existente. Usá sólo contenido oficial recuperado o visible; si no respalda el dato pedido, decí que no lo encontrás definido y no completes la estructura del curso por inferencia.";
   }
-  return "TIPO DE CONSULTA: consulta general de impresión 3D. Respondé la pregunta puntual y terminá cuando quede resuelta.";
+  return "TIPO DE CONSULTA: consulta general de impresión 3D. Respondé primero con una explicación cotidiana y breve. Si un término técnico es central, definilo en una frase; ampliá sólo cuando la pregunta lo pida.";
 }
 
 export function shouldRetrieveStampyKnowledge(

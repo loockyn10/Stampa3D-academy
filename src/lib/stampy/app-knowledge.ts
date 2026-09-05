@@ -227,16 +227,16 @@ export const STAMPY_APP_KNOWLEDGE: StampyKnowledgeItem[] = [
     title: "Cursos",
     category: "section",
     route: "/cursos",
-    shortDescription: "Sirve para aprender impresión 3D de forma estructurada paso a paso mediante cursos, módulos y clases.",
+    shortDescription: "Reúne clases ordenadas para aprender un tema de impresión 3D de a poco, desde la base hasta contenidos más avanzados.",
     whenToRecommend: [
-      "cuando el usuario quiere aprender de forma teórica y estructurada",
+      "cuando el usuario quiere aprender un tema desde la base y avanzar de a poco",
       "cuando tiene un problema que se explica mejor en una clase",
       "cuando pregunta por Bambu Studio, OrcaSlicer, impresión desde cero o Fusion 360",
       "cuando necesita una explicación detallada paso a paso"
     ],
     howToUse: [
       "entrar a Cursos",
-      "elegir un curso estructurado",
+      "elegir un curso acorde a lo que quiere aprender",
       "avanzar por módulos y clases",
       "marcar progreso",
       "volver a clases recomendadas cuando tenga un problema puntual"

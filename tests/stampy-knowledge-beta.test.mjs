@@ -107,10 +107,35 @@ test("technical guidance asks for a short diagnosis and concrete ordered steps",
   );
   const prompt = knowledgeIntent.formatStampyKnowledgeIntentForPrompt(intent);
 
-  assert.match(prompt, /diagnóstico breve/i);
-  assert.match(prompt, /hasta 5 pasos numerados/i);
+  assert.match(prompt, /causa probable con palabras cotidianas/i);
+  assert.match(prompt, /hasta 5 pruebas o ajustes concretos/i);
   assert.match(prompt, /offset Z/i);
   assert.match(prompt, /temperatura y velocidad de primera capa/i);
+  assert.match(prompt, /término técnico.*importante/i);
+});
+
+test("voice-sensitive questions receive the right depth instruction without hardcoded answers", () => {
+  const slicerPrompt = knowledgeIntent.formatStampyKnowledgeIntentForPrompt(
+    knowledgeIntent.classifyStampyKnowledgeIntent("¿Qué es un slicer?")
+  );
+  const coursesPrompt = knowledgeIntent.formatStampyKnowledgeIntentForPrompt(
+    knowledgeIntent.classifyStampyKnowledgeIntent("¿Qué son Cursos y Talleres?")
+  );
+  const advancedPrompt = knowledgeIntent.formatStampyKnowledgeIntentForPrompt(
+    knowledgeIntent.classifyStampyKnowledgeIntent("Explicame técnicamente qué hace pressure advance")
+  );
+  const locationPrompt = knowledgeIntent.formatStampyKnowledgeIntentForPrompt(
+    knowledgeIntent.classifyStampyKnowledgeIntent("¿Dónde encuentro Cursos?")
+  );
+  const adhesionPrompt = knowledgeIntent.formatStampyKnowledgeIntentForPrompt(
+    knowledgeIntent.classifyStampyKnowledgeIntent("¿Por qué esta pieza se despega?")
+  );
+
+  assert.match(slicerPrompt, /Si el término del slicer puede no ser conocido, explicalo brevemente/i);
+  assert.match(coursesPrompt, /Respondé sólo con la sección o ubicación/i);
+  assert.match(advancedPrompt, /Si la pregunta pide detalle técnico, usá el vocabulario preciso/i);
+  assert.match(locationPrompt, /No agregues configuración técnica ni contenido lateral/i);
+  assert.match(adhesionPrompt, /causa probable con palabras cotidianas/i);
 });
 
 test("stringing guidance focuses on temperature, retraction and humidity", () => {

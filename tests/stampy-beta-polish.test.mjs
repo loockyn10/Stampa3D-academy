@@ -17,6 +17,32 @@ test("the base prompt enforces concise Stampa tone without obsolete capability c
   assert.match(source, /Llegaste al límite de mensajes por ahora/);
 });
 
+test("the base prompt defines a pedagogical everyday voice with progressive depth", () => {
+  const source = read("src/app/stampy/actions.ts");
+
+  assert.match(source, /VOZ PEDAGÓGICA ADAPTATIVA/);
+  assert.match(source, /persona con mucha experiencia en impresión 3D que ayuda a alguien común/);
+  assert.match(source, /Respondé primero la pregunta/);
+  assert.match(source, /nivel conocido del usuario, cómo formuló la pregunta y el detalle que pidió/);
+  assert.match(source, /Con alguien que recién empieza, explicá una idea por vez/);
+  assert.match(source, /Con nivel intermedio, usá el vocabulario habitual/);
+  assert.match(source, /Con nivel avanzado, o si la propia pregunta usa conceptos avanzados con precisión/);
+  assert.match(source, /slicer, G-code, retracción, infill/);
+  assert.match(source, /ejemplo corto de una impresión real/);
+  assert.match(source, /analogía sólo si simplifica de verdad y sigue siendo técnicamente correcta/);
+  assert.match(source, /No suenes infantil, condescendiente, excesivamente académico/);
+  assert.match(source, /"Perfecto", "Excelente", "Buenísimo", "Claro" o "Te explico"/);
+});
+
+test("pedagogical guidance keeps answers short when teaching or analogy would not help", () => {
+  const source = read("src/app/stampy/actions.ts");
+
+  assert.match(source, /No agregues analogías a respuestas obvias, de navegación/);
+  assert.match(source, /Consulta simple: respondé en 1 a 3 frases/);
+  assert.match(source, /Si la consulta quedó resuelta, terminá/);
+  assert.doesNotMatch(source, /Siempre (?:usá|incluí|agregá) (?:un )?(?:ejemplo|analogía)/i);
+});
+
 test("beta quick suggestions are focused and capped for each UI", () => {
   const page = read("src/app/stampy/page.tsx");
   const widget = read("src/components/stampy/GlobalStampyWidget.tsx");
