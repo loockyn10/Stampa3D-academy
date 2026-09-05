@@ -12,6 +12,7 @@ import {
 } from "@/lib/stampy/action-requests";
 import { ExternalLink, AlertCircle, Trash2, CheckCircle2, Loader2 } from "lucide-react";
 import { useRouter } from "next/navigation";
+import { useStampyScreenContext } from "@/components/stampy/StampyContextProvider";
 
 export interface ActionIntentCardProps {
   actionIntent: any;
@@ -40,6 +41,7 @@ function formatProductMoney(value: unknown): string {
 
 export function ActionIntentCard({ actionIntent, actionRequestId, initialStatus = "suggested" }: ActionIntentCardProps) {
   const router = useRouter();
+  const { getScreenContextSnapshot } = useStampyScreenContext();
   const autoExecution = actionIntent?.extracted?.autoExecution as
     | { executed?: boolean }
     | undefined;
@@ -186,7 +188,8 @@ export function ActionIntentCard({ actionIntent, actionRequestId, initialStatus 
     setIsProcessing(true);
     setResultMessage(null);
     const result = await confirmStampyDiscountProductFilamentsAction(
-      actionRequestId
+      actionRequestId,
+      getScreenContextSnapshot(),
     );
     if (result.success) {
       setStatus("executed");
@@ -279,6 +282,8 @@ export function ActionIntentCard({ actionIntent, actionRequestId, initialStatus 
         "maintenanceCostPerHourAssumed",
         "validationWarnings",
         "autoExecution",
+        "contextBinding",
+        "confirmationExpiresAt",
         "unmatchedComponentsCount",
         ...(isProductFilamentDiscount
           ? [

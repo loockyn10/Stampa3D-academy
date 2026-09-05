@@ -18,85 +18,9 @@ import {
 } from "./actions";
 import { useAppFeedback } from "@/components/ui/app-feedback";
 import { calculateProductPrice } from "@/lib/products/pricing";
+import { getProductPricingStatus } from "@/lib/products/pricing-status";
 import { usePublishStampyScreenContext } from "@/components/stampy/StampyContextProvider";
 import type { StampyScreenContext } from "@/lib/stampy/screen-context";
-
-// Pricing Status Helper
-function getProductPricingStatus(product: any, allFilaments: any[], allPrinters: any[], allProductTypes: any[]) {
-  const snap = product.calculation_snapshot;
-  if (!snap || !snap.source) {
-    return { needsRecalculation: true, reasons: ["Producto sin snapshot de costos actualizado"] };
-  }
-
-  const reasons: string[] = [];
-
-  // Material checks
-  if (snap.materials && Array.isArray(snap.materials) && snap.materials.length > 0) {
-    for (const mat of snap.materials) {
-      const currentF = allFilaments.find(f => f.id === mat.filament_id);
-      if (!currentF) {
-        if (!reasons.includes("Configuración de material no encontrada")) reasons.push("Configuración de material no encontrada");
-      } else {
-        if (mat.filament_purchase_price && mat.filament_purchase_price !== currentF.purchase_price) {
-          reasons.push(`Cambió el precio de ${currentF.name}`);
-        }
-        if (mat.filament_total_grams && mat.filament_total_grams !== currentF.total_grams) {
-          reasons.push(`Cambió la cantidad base de ${currentF.name}`);
-        }
-      }
-    }
-  } else if (snap.filament_id || product.filament_id) {
-    const fId = snap.filament_id || product.filament_id;
-    const currentF = allFilaments.find(f => f.id === fId);
-    if (!currentF) {
-      if (!reasons.includes("Configuración de material no encontrada")) reasons.push("Configuración de material no encontrada");
-    } else {
-      if (snap.filament_purchase_price && snap.filament_purchase_price !== currentF.purchase_price) {
-        reasons.push("Cambió el precio del filamento");
-      }
-      if (snap.filament_total_grams && snap.filament_total_grams !== currentF.total_grams) {
-        reasons.push("Cambió la cantidad base del filamento");
-      }
-    }
-  }
-
-  // Printer checks
-  if (snap.printer_id || product.printer_id) {
-    const pId = snap.printer_id || product.printer_id;
-    const currentP = allPrinters.find(p => p.id === pId);
-    if (!currentP) {
-      if (!reasons.includes("Configuración vinculada no encontrada")) reasons.push("Configuración vinculada no encontrada");
-    } else {
-      if (snap.printer_power_watts && snap.printer_power_watts !== currentP.power_watts) {
-        reasons.push("Cambió el consumo de la impresora");
-      }
-      if (snap.printer_maintenance_cost_per_hour !== undefined && snap.printer_maintenance_cost_per_hour !== null && snap.printer_maintenance_cost_per_hour !== currentP.maintenance_cost_per_hour) {
-        reasons.push("Cambió el costo de mantenimiento de la impresora");
-      }
-    }
-  }
-
-  // Product Type checks
-  if (snap.product_type_id || product.product_type_id) {
-    const ptId = snap.product_type_id || product.product_type_id;
-    const currentPT = allProductTypes.find(pt => pt.id === ptId);
-    if (!currentPT) {
-      if (!reasons.includes("Configuración vinculada no encontrada")) reasons.push("Configuración vinculada no encontrada");
-    } else {
-      if (snap.product_type_multiplier && snap.product_type_multiplier !== currentPT.multiplier) {
-        reasons.push("Cambió el markup del tipo de producto");
-      }
-      if (snap.product_type_fixed_cost !== undefined && snap.product_type_fixed_cost !== null && snap.product_type_fixed_cost !== currentPT.fixed_cost) {
-        reasons.push("Cambió el costo fijo del tipo de producto");
-      }
-    }
-  }
-
-  return {
-    needsRecalculation: reasons.length > 0,
-    reasons
-  };
-}
 
 function RecalculatePriceIcon({ loading = false, size = 18 }: { loading?: boolean; size?: number }) {
   return (

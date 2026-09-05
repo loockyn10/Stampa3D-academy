@@ -10,6 +10,8 @@ export interface StampyToolContract {
   forbiddenFields: string[];
   safetyNotes: string[];
   canExecuteFromChat: boolean;
+  impact: "read" | "write" | "destructive";
+  confirmationRequired: boolean;
 }
 
 export const STAMPY_TOOL_REGISTRY: StampyToolContract[] = [
@@ -30,7 +32,9 @@ export const STAMPY_TOOL_REGISTRY: StampyToolContract[] = [
       "No inventar precio ni tarifas.",
       "No mezclar datos de calculadora salvo que el usuario diga explícitamente 'con esos datos'."
     ],
-    canExecuteFromChat: false
+    canExecuteFromChat: false,
+    impact: "write",
+    confirmationRequired: true,
   },
   {
     id: "calculator.price",
@@ -48,7 +52,9 @@ export const STAMPY_TOOL_REGISTRY: StampyToolContract[] = [
       "Si solo se puede precargar gramos y horas, decirlo claramente.",
       "La calculadora es la fuente real del cálculo, el usuario debe confirmar los datos ahí."
     ],
-    canExecuteFromChat: false
+    canExecuteFromChat: false,
+    impact: "read",
+    confirmationRequired: false,
   },
   {
     id: "calculator.printers.create",
@@ -71,6 +77,8 @@ export const STAMPY_TOOL_REGISTRY: StampyToolContract[] = [
       "No crear ni reactivar si ya existe una impresora coincidente.",
     ],
     canExecuteFromChat: false,
+    impact: "write",
+    confirmationRequired: true,
   },
   {
     id: "stock.filaments.increase",
@@ -89,7 +97,9 @@ export const STAMPY_TOOL_REGISTRY: StampyToolContract[] = [
       "Nunca modificar stock desde el primer mensaje.",
       "Solo ejecutar con match único y confirmación explícita; Stock sigue disponible como fallback."
     ],
-    canExecuteFromChat: false
+    canExecuteFromChat: false,
+    impact: "write",
+    confirmationRequired: true,
   },
   {
     id: "stock.filaments.discount",
@@ -106,7 +116,9 @@ export const STAMPY_TOOL_REGISTRY: StampyToolContract[] = [
       "Debe haber material, color o marca suficiente para identificar el filamento.",
       "Solo ejecutar con match único, stock suficiente y confirmación explícita; Stock sigue disponible como fallback."
     ],
-    canExecuteFromChat: false
+    canExecuteFromChat: false,
+    impact: "destructive",
+    confirmationRequired: true,
   },
   {
     id: "products.filaments.discount",
@@ -124,6 +136,8 @@ export const STAMPY_TOOL_REGISTRY: StampyToolContract[] = [
       "No modifica el stock de productos terminados.",
     ],
     canExecuteFromChat: false,
+    impact: "destructive",
+    confirmationRequired: true,
   },
   {
     id: "stock.filaments.create",
@@ -140,7 +154,9 @@ export const STAMPY_TOOL_REGISTRY: StampyToolContract[] = [
       "Nunca crear desde el primer mensaje: requiere confirmación explícita.",
       "No crear si ya existe un filamento activo claramente duplicado."
     ],
-    canExecuteFromChat: false
+    canExecuteFromChat: false,
+    impact: "write",
+    confirmationRequired: true,
   },
   {
     id: "products.create",
@@ -164,7 +180,82 @@ export const STAMPY_TOOL_REGISTRY: StampyToolContract[] = [
       "No confundir producto con presupuesto.",
       "Si no está claro qué es, preguntar antes."
     ],
-    canExecuteFromChat: false
+    canExecuteFromChat: false,
+    impact: "write",
+    confirmationRequired: true,
+  },
+  {
+    id: "products.inspect",
+    name: "Consultar producto",
+    description: "Consultar precio, ganancia, estado y receta reales de un producto.",
+    route: "/productos",
+    area: "products",
+    supportedIntents: ["inspect_product"],
+    requiredFields: ["productId"],
+    optionalFields: ["aspect"],
+    forbiddenFields: ["userId", "arbitrary_select"],
+    safetyNotes: [
+      "El producto se vuelve a consultar en servidor y debe pertenecer al usuario.",
+      "El contexto visual sólo identifica; no es fuente de datos críticos.",
+    ],
+    canExecuteFromChat: true,
+    impact: "read",
+    confirmationRequired: false,
+  },
+  {
+    id: "products.recalculate",
+    name: "Recalcular producto",
+    description: "Recalcular un producto con la misma acción del botón de Productos.",
+    route: "/productos",
+    area: "products",
+    supportedIntents: ["recalculate_product"],
+    requiredFields: ["productId"],
+    optionalFields: [],
+    forbiddenFields: ["userId", "formula", "arbitrary_update", "batch"],
+    safetyNotes: [
+      "Sólo recalcula un producto inequívoco.",
+      "No permite recalcular todos los productos desde el chat.",
+      "La acción normal de Productos valida sesión, acceso y ownership.",
+    ],
+    canExecuteFromChat: true,
+    impact: "write",
+    confirmationRequired: false,
+  },
+  {
+    id: "products.production_capacity",
+    name: "Consultar capacidad de producción",
+    description: "Cruzar la receta real de un producto con el stock actual.",
+    route: "/productos",
+    area: "products",
+    supportedIntents: ["check_product_production_capacity"],
+    requiredFields: ["productId"],
+    optionalFields: ["quantity"],
+    forbiddenFields: ["userId", "model_calculated_grams"],
+    safetyNotes: [
+      "El servidor calcula los gramos desde componentes o la receta simple, nunca desde texto generado.",
+      "No modifica stock.",
+    ],
+    canExecuteFromChat: true,
+    impact: "read",
+    confirmationRequired: false,
+  },
+  {
+    id: "stock.filaments.list",
+    name: "Consultar filamentos",
+    description: "Consultar el stock real de filamentos activos del usuario.",
+    route: "/stock?tab=filamentos",
+    area: "stock",
+    supportedIntents: ["list_filaments", "get_filament"],
+    requiredFields: [],
+    optionalFields: ["material", "brand", "color", "lowStockOnly"],
+    forbiddenFields: ["userId", "screen_context_grams", "arbitrary_select"],
+    safetyNotes: [
+      "Siempre consulta datos actuales del servidor.",
+      "Si hay varias bobinas coincidentes informa el total y el detalle.",
+    ],
+    canExecuteFromChat: true,
+    impact: "read",
+    confirmationRequired: false,
   }
 ];
 
@@ -184,6 +275,7 @@ export function formatToolContractForPrompt(contract: StampyToolContract): strin
   let text = `HERRAMIENTA: ${contract.name}\n`;
   text += `Ruta: ${contract.route}\n`;
   text += `Ejecución desde esta respuesta: ${contract.canExecuteFromChat ? "disponible" : "no disponible"}.\n`;
+  text += `Impacto: ${contract.impact}. Confirmación: ${contract.confirmationRequired ? "obligatoria" : "no requerida"}.\n`;
   
   if (contract.requiredFields.length > 0) {
     text += `Campos requeridos: ${contract.requiredFields.join(", ")}.\n`;

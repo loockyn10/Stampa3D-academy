@@ -244,7 +244,8 @@ export async function confirmStampyCreateProductAction(actionRequestId: string) 
 }
 
 export async function confirmStampyDiscountProductFilamentsAction(
-  actionRequestId: string
+  actionRequestId: string,
+  currentScreenContext?: unknown,
 ) {
   if (!UUID_PATTERN.test(actionRequestId)) {
     return {
@@ -270,6 +271,73 @@ export async function confirmStampyDiscountProductFilamentsAction(
       errorCode: "stampy_access_required",
       message: "No tenés acceso habilitado para usar Stampy.",
     };
+  }
+
+  const { data: actionRequest, error: actionRequestError } = await supabase
+    .from("stampy_action_requests")
+    .select("id, status, extracted")
+    .eq("id", actionRequestId)
+    .eq("user_id", access.userId)
+    .maybeSingle();
+  if (actionRequestError || !actionRequest) {
+    return {
+      success: false,
+      errorCode: "action_request_not_found",
+      message: "No encontré una acción pendiente para confirmar.",
+    };
+  }
+
+  const extracted = actionRequest.extracted && typeof actionRequest.extracted === "object"
+    ? actionRequest.extracted as Record<string, unknown>
+    : {};
+  const contextBinding = extracted.contextBinding && typeof extracted.contextBinding === "object"
+    ? extracted.contextBinding as Record<string, unknown>
+    : null;
+  const confirmationExpiresAt = Date.parse(String(extracted.confirmationExpiresAt ?? ""));
+  if (!Number.isFinite(confirmationExpiresAt) || confirmationExpiresAt <= Date.now()) {
+    await supabase
+      .from("stampy_action_requests")
+      .update({
+        status: "cancelled",
+        cancelled_at: new Date().toISOString(),
+        updated_at: new Date().toISOString(),
+      })
+      .eq("id", actionRequestId)
+      .eq("user_id", access.userId)
+      .in("status", ["suggested", "opened_tool"]);
+    return {
+      success: false,
+      errorCode: "confirmation_expired",
+      message: "La confirmación venció. Prepará nuevamente el descuento para usar el stock actual.",
+    };
+  }
+  if (contextBinding) {
+    const { sanitizeStampyScreenContext } = await import("./screen-context");
+    const screenContext = sanitizeStampyScreenContext(currentScreenContext);
+    const expectedRoute = String(contextBinding.route ?? "");
+    const expectedEntityId = String(contextBinding.selectedEntityId ?? "");
+    const stillCurrent =
+      screenContext?.page.route === expectedRoute
+      && screenContext.selectedEntity?.type === "product"
+      && screenContext.selectedEntity.id === expectedEntityId;
+
+    if (!stillCurrent) {
+      await supabase
+        .from("stampy_action_requests")
+        .update({
+          status: "cancelled",
+          cancelled_at: new Date().toISOString(),
+          updated_at: new Date().toISOString(),
+        })
+        .eq("id", actionRequestId)
+        .eq("user_id", access.userId)
+        .in("status", ["suggested", "opened_tool"]);
+      return {
+        success: false,
+        errorCode: "stale_context",
+        message: "La selección cambió o la confirmación venció. Prepará nuevamente el descuento para usar los datos actuales.",
+      };
+    }
   }
 
   return executeProductFilamentDiscount({ supabase, actionRequestId });

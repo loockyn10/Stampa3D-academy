@@ -693,9 +693,110 @@ export async function askStampyAction(
     }
 
     const pathname = context?.pathname;
+    let screenContext: StampyScreenContext | null = null;
+    if (context?.screenContext) {
+      const { sanitizeStampyScreenContext } = await import("@/lib/stampy/screen-context");
+      screenContext = sanitizeStampyScreenContext(context?.screenContext);
+    }
+    const shouldCheckProductStockTools = Boolean(
+      screenContext && (
+        screenContext.page.route.startsWith("/productos")
+        || screenContext.page.route.startsWith("/stock")
+      )
+    )
+      || /(?:recalcul|cu[aá]nto gano|ganancia|margen|por qu[eé].*(?:cuesta|amarill)|qu[eé] filamentos? usa|receta|me alcanza|cu[aá]ntos puedo|por terminarse|stock bajo|bobina|agreg.*al stock)/i.test(userMessage);
+    let productStockIntent = null;
+    let actionDetectionMessage = userMessage;
+    if (shouldCheckProductStockTools) {
+      const {
+        bindSelectedProductToConsumptionMessage,
+        detectStampyProductStockToolIntent,
+      } = await import("@/lib/stampy/product-stock-tool-intents");
+      productStockIntent = detectStampyProductStockToolIntent({
+        message: userMessage,
+        screenContext,
+      });
+      actionDetectionMessage = bindSelectedProductToConsumptionMessage(
+        userMessage,
+        screenContext,
+      );
+    }
+
+    if (productStockIntent) {
+      const {
+        executeStampyProductStockTool,
+        formatStampyProductStockToolResult,
+      } = await import("@/lib/stampy/product-stock-tools");
+      const toolResult = await executeStampyProductStockTool({
+        supabase,
+        userId,
+        intent: productStockIntent,
+        recalculateProduct: productStockIntent.toolName === "products.recalculate"
+          ? async (productId) => {
+              const { recalculateProductPriceAction } = await import("@/app/productos/actions");
+              return recalculateProductPriceAction(productId);
+            }
+          : undefined,
+      });
+      requestMode = "direct";
+      answerText = formatStampyProductStockToolResult(toolResult);
+      let assistantMessageId: string | null = null;
+
+      if (actualConversationId) {
+        const saved = await saveMessages(
+          supabase,
+          userId,
+          actualConversationId,
+          userMessage,
+          answerText,
+          {
+            mode: requestMode,
+            model: null,
+            actionIntent: null,
+            toolExecution: {
+              toolName: toolResult.toolName,
+              impact: toolResult.impact,
+              confirmationRequired: toolResult.confirmationRequired,
+              success: toolResult.success,
+              errorCode: toolResult.errorCode ?? null,
+            },
+            memory: { loadedCount: 0, savedCount: 0 },
+          },
+        );
+        assistantMessageId = saved.assistantMessageId;
+
+        const { logStampyUsage } = await import("@/lib/stampy/usage-log");
+        await logStampyUsage({
+          supabase,
+          userId,
+          conversationId: actualConversationId,
+          model: null,
+          mode: requestMode,
+          status: toolResult.success ? "success" : "error",
+          messageChars: userMessage.length,
+          promptChars: 0,
+          completionChars: answerText.length,
+          latencyMs: Date.now() - startTime,
+        });
+      }
+
+      return {
+        answer: answerText,
+        recommendations: [],
+        knowledgeTools: [],
+        relatedTools: [],
+        suggestedQuestions: [],
+        conversationId: actualConversationId,
+        assistantMessageId,
+        actionRequestId: null,
+        actionIntent: null,
+      };
+    }
+
+    const consumptionUsesSelectedProduct = actionDetectionMessage !== userMessage;
     const { detectStampyActionIntent, buildActionIntentResponse } = await import("@/lib/stampy/action-intents");
     const actionIntent = detectStampyActionIntent({
-      message: userMessage,
+      message: actionDetectionMessage,
       currentPath: pathname
     });
 
@@ -800,6 +901,15 @@ export async function askStampyAction(
               blockers: preparation.blockers,
               warnings: preparation.warnings,
               requiresConfirmation: preparation.blockers.length === 0,
+              confirmationExpiresAt: new Date(Date.now() + 10 * 60 * 1000).toISOString(),
+              ...(consumptionUsesSelectedProduct && screenContext?.selectedEntity?.type === "product"
+                ? {
+                    contextBinding: {
+                      route: screenContext.page.route,
+                      selectedEntityId: screenContext.selectedEntity.id,
+                    },
+                  }
+                : {}),
             },
           };
         } catch (error) {
@@ -1225,11 +1335,7 @@ export async function askStampyAction(
     const { OpenAI } = await import("openai");
     const openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
 
-    const {
-      formatStampyScreenContextForPrompt,
-      sanitizeStampyScreenContext,
-    } = await import("@/lib/stampy/screen-context");
-    const screenContext = sanitizeStampyScreenContext(context?.screenContext);
+    const { formatStampyScreenContextForPrompt } = await import("@/lib/stampy/screen-context");
     const screenContextPrompt = formatStampyScreenContextForPrompt(screenContext);
     
     // 0. Contexto del taller del usuario (Solo Lectura)

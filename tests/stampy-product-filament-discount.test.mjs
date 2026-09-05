@@ -501,7 +501,25 @@ test("RPC adapter reports one atomic execution and rejects reconfirmation", asyn
 
 test("Server Action authenticates and sends only actionRequestId", async () => {
   const calls = [];
-  const supabase = {};
+  const supabase = {
+    from(table) {
+      assert.equal(table, "stampy_action_requests");
+      return {
+        select() { return this; },
+        eq() { return this; },
+        maybeSingle: async () => ({
+          data: {
+            id: ACTION_REQUEST_ID,
+            status: "suggested",
+            extracted: {
+              confirmationExpiresAt: new Date(Date.now() + 60_000).toISOString(),
+            },
+          },
+          error: null,
+        }),
+      };
+    },
+  };
   const actionRequests = loadTypeScriptModule(
     "src/lib/stampy/action-requests.ts",
     {
@@ -533,6 +551,101 @@ test("Server Action authenticates and sends only actionRequestId", async () => {
   );
   assert.equal(result.success, true);
   assert.deepEqual(calls, [{ supabase, actionRequestId: ACTION_REQUEST_ID }]);
+});
+
+test("a selected-product confirmation is cancelled when the current entity changed", async () => {
+  let executorCalls = 0;
+  let cancellationUpdates = 0;
+  const supabase = {
+    from() {
+      return {
+        select() { return this; },
+        update() { cancellationUpdates += 1; return this; },
+        eq() { return this; },
+        in() { return this; },
+        maybeSingle: async () => ({
+          data: {
+            id: ACTION_REQUEST_ID,
+            status: "suggested",
+            extracted: {
+              confirmationExpiresAt: new Date(Date.now() + 60_000).toISOString(),
+              contextBinding: { route: "/productos", selectedEntityId: "product-a" },
+            },
+          },
+          error: null,
+        }),
+      };
+    },
+  };
+  const actionRequests = loadTypeScriptModule(
+    "src/lib/stampy/action-requests.ts",
+    {
+      "@/utils/supabase/server": { createClient: async () => supabase },
+      "@/lib/auth/user-access": {
+        getCurrentUserAccess: async () => ({ access: { authenticated: true, userId: "user-1", capabilities: { useStampy: true } } }),
+      },
+      "./screen-context": { sanitizeStampyScreenContext: (value) => value },
+      "./action-executor": {
+        executeCreateFilament: async () => ({ success: false }),
+        executeCreatePrinter: async () => ({ success: false }),
+        executeCreateProduct: async () => ({ success: false }),
+        executeFilamentStockMovement: async () => ({ success: false }),
+        executeProductFilamentDiscount: async () => { executorCalls += 1; return { success: true }; },
+      },
+      "./types": {},
+    },
+  );
+  const result = await actionRequests.confirmStampyDiscountProductFilamentsAction(
+    ACTION_REQUEST_ID,
+    { page: { route: "/productos" }, selectedEntity: { type: "product", id: "product-b" } },
+  );
+  assert.equal(result.success, false);
+  assert.equal(result.errorCode, "stale_context");
+  assert.equal(executorCalls, 0);
+  assert.equal(cancellationUpdates, 1);
+});
+
+test("an expired product consumption confirmation never reaches the stock RPC", async () => {
+  let executorCalls = 0;
+  const supabase = {
+    from() {
+      return {
+        select() { return this; },
+        update() { return this; },
+        eq() { return this; },
+        in() { return this; },
+        maybeSingle: async () => ({
+          data: {
+            id: ACTION_REQUEST_ID,
+            status: "suggested",
+            extracted: { confirmationExpiresAt: new Date(Date.now() - 1_000).toISOString() },
+          },
+          error: null,
+        }),
+      };
+    },
+  };
+  const actionRequests = loadTypeScriptModule(
+    "src/lib/stampy/action-requests.ts",
+    {
+      "@/utils/supabase/server": { createClient: async () => supabase },
+      "@/lib/auth/user-access": {
+        getCurrentUserAccess: async () => ({ access: { authenticated: true, userId: "user-1", capabilities: { useStampy: true } } }),
+      },
+      "./action-executor": {
+        executeCreateFilament: async () => ({ success: false }),
+        executeCreatePrinter: async () => ({ success: false }),
+        executeCreateProduct: async () => ({ success: false }),
+        executeFilamentStockMovement: async () => ({ success: false }),
+        executeProductFilamentDiscount: async () => { executorCalls += 1; return { success: true }; },
+      },
+      "./types": {},
+    },
+  );
+  const result = await actionRequests.confirmStampyDiscountProductFilamentsAction(ACTION_REQUEST_ID);
+  assert.equal(result.success, false);
+  assert.equal(result.errorCode, "confirmation_expired");
+  assert.equal(executorCalls, 0);
 });
 
 test("product recipe discounts are never eligible for low-risk automation", () => {
