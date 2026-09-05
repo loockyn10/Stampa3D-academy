@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useMemo } from "react";
 import Link from "next/link";
 import { AlertCircle, CalendarDays, Gift, Ticket, Trophy, UserPlus } from "lucide-react";
 import { Card } from "@/components/ui/card";
@@ -13,6 +13,8 @@ import {
 } from "@/lib/raffles/public-raffles";
 import { resolveRaffleImageUrl } from "@/lib/raffles/images";
 import { RafflesPageSkeleton } from "@/components/ui/page-skeletons";
+import { usePublishStampyScreenContext } from "@/components/stampy/StampyContextProvider";
+import type { StampyScreenContext } from "@/lib/stampy/screen-context";
 
 const PRIZE_TONES = [
   {
@@ -110,6 +112,41 @@ export default function SorteosPage() {
     if (memberLevel === "gold" || memberLevel === "elite") return 2;
     return 1;
   };
+
+  const stampyScreenContext = useMemo<StampyScreenContext>(() => {
+    const baseChances = memberLevel === "gold" || memberLevel === "elite" ? 2 : 1;
+    return {
+      page: { section: "raffles", route: "/sorteos", title: "Sorteos" },
+      mode: "browse",
+      visibleEntities: activeRaffles.slice(0, 20).map((raffle, index) => ({
+        type: "active_raffle",
+        id: String(raffle.id),
+        name: raffle.title,
+        position: index + 1,
+        facts: [
+          { label: "Estado visible", value: "Activo" },
+          ...(raffle.draw_date ? [{ label: "Fecha de sorteo visible", value: new Date(raffle.draw_date).toLocaleDateString("es-AR") }] : []),
+          ...(raffle.raffle_prizes[0]?.name ? [{ label: "Premio principal visible", value: String(raffle.raffle_prizes[0].name) }] : []),
+          { label: "Cantidad de premios visibles", value: raffle.raffle_prizes.length },
+          { label: "Mis chances visibles", value: baseChances + bonusEntries },
+        ],
+      })),
+      pageData: {
+        kind: "pageFacts",
+        facts: [
+          { label: "Sorteos activos visibles", value: activeRaffles.length },
+          { label: "Chances base visibles", value: baseChances },
+          { label: "Chances por referidos visibles", value: bonusEntries },
+          { label: "Chances totales visibles", value: baseChances + bonusEntries },
+          { label: "Sorteos anteriores visibles", value: pastWinners.length },
+          { label: "Código de referido disponible en pantalla", value: Boolean(referralCode) },
+        ],
+      },
+      uiState: { loading },
+    };
+  }, [activeRaffles, bonusEntries, loading, memberLevel, pastWinners.length, referralCode]);
+
+  usePublishStampyScreenContext(stampyScreenContext);
 
   if (loading) {
     return <RafflesPageSkeleton />;

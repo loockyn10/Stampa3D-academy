@@ -6,6 +6,8 @@ import { Card } from "@/components/ui/card";
 import { PrimaryButton } from "@/components/ui/button";
 import { Youtube, Instagram } from "@/components/ui/icons";
 import { ShoppingBag } from "lucide-react";
+import { usePublishStampyScreenContext } from "@/components/stampy/StampyContextProvider";
+import type { StampyScreenContext } from "@/lib/stampy/screen-context";
 
 export default function RedesPage() {
   const socialNetworks = [
@@ -46,6 +48,24 @@ export default function RedesPage() {
       color: "bg-orange-50 text-stampa-orange border-orange-100",
     },
   ];
+
+  const stampyScreenContext: StampyScreenContext = {
+    page: { section: "community", route: "/redes", title: "Redes" },
+    mode: "browse",
+    visibleEntities: socialNetworks.map((network, index) => ({
+      type: "social_network",
+      id: network.name.toLowerCase().replace(/\s+/g, "-"),
+      name: network.name,
+      position: index + 1,
+      facts: [{ label: "Estado visible", value: network.url === "#" ? "Próximamente" : "Disponible" }],
+    })),
+    pageData: {
+      kind: "pageFacts",
+      facts: [{ label: "Redes visibles", value: socialNetworks.length }],
+    },
+  };
+
+  usePublishStampyScreenContext(stampyScreenContext);
 
   return (
     <div className="pb-12 max-w-5xl">

@@ -5,6 +5,8 @@ import { SectionTitle } from "@/components/ui/section-title";
 import { Card } from "@/components/ui/card";
 import { PrimaryButton } from "@/components/ui/button";
 import { Send, MessageCircle } from "lucide-react";
+import { usePublishStampyScreenContext } from "@/components/stampy/StampyContextProvider";
+import type { StampyScreenContext } from "@/lib/stampy/screen-context";
 
 export default function CanalesPage() {
   const channels = [
@@ -25,6 +27,24 @@ export default function CanalesPage() {
       color: "bg-sky-50 text-sky-600 border-sky-100",
     },
   ];
+
+  const stampyScreenContext: StampyScreenContext = {
+    page: { section: "community", route: "/canales", title: "Canales" },
+    mode: "browse",
+    visibleEntities: channels.map((channel, index) => ({
+      type: "community_channel",
+      id: channel.name.toLowerCase(),
+      name: channel.name,
+      position: index + 1,
+      facts: [{ label: "Enlace disponible", value: true }],
+    })),
+    pageData: {
+      kind: "pageFacts",
+      facts: [{ label: "Canales visibles", value: channels.length }],
+    },
+  };
+
+  usePublishStampyScreenContext(stampyScreenContext);
 
   return (
     <div className="pb-12 max-w-5xl">

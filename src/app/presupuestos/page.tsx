@@ -448,13 +448,15 @@ function PresupuestosPageContent() {
     const editingBudget = editingId && editingId !== "new"
       ? budgets.find((budget) => budget.id === editingId)
       : null;
-    const mode = editingId === "new"
-      ? "create"
-      : editingId
-        ? "edit"
-        : showModePicker
-          ? "select_type"
-          : "list";
+    const mode = showClientForm
+      ? clientData.id ? "edit_client" : "create_client"
+      : editingId === "new"
+        ? "create"
+        : editingId
+          ? "edit"
+          : showModePicker
+            ? "select_type"
+            : "list";
 
     return {
       page: {
@@ -463,18 +465,34 @@ function PresupuestosPageContent() {
         title: "Presupuestos",
       },
       mode,
-      selectedEntity: editingBudget ? {
-        type: "budget",
-        id: String(editingBudget.id),
-        name: String(editingBudget.title || `Presupuesto ${editingBudget.budget_number || ""}`).trim(),
-      } : null,
+      selectedEntity: showClientForm && clientData.id ? {
+        type: "client",
+        id: String(clientData.id),
+        name: String(clientData.name || "Cliente"),
+      } : editingBudget ? {
+          type: "budget",
+          id: String(editingBudget.id),
+          name: String(editingBudget.title || `Presupuesto ${editingBudget.budget_number || ""}`).trim(),
+        } : currentClient ? {
+          type: "client",
+          id: String(currentClient.id),
+          name: String(currentClient.name || "Cliente"),
+        } : null,
       visibleEntities: !editingId ? budgets.slice(0, 20).map((budget, index) => ({
         type: "budget",
         id: String(budget.id),
         name: String(budget.title || `Presupuesto ${budget.budget_number || ""}`).trim(),
         position: index + 1,
       })) : [],
-      formState: editingId ? {
+      formState: showClientForm ? {
+        kind: "formDraft",
+        formType: clientData.id ? "Edición de cliente" : "Nuevo cliente",
+        fields: [
+          { label: "Nombre ingresado", value: clientData.name || "Sin completar" },
+          { label: "Condición fiscal elegida", value: clientData.fiscal_condition || "Consumidor Final" },
+          { label: "Cliente activo", value: clientData.is_active !== false },
+        ],
+      } : editingId ? {
         kind: "budgetDraft",
         budgetType: formData.budget_type,
         client: formData.client_id || clientSnapshot.name ? {
@@ -508,6 +526,7 @@ function PresupuestosPageContent() {
       uiState: {
         loading,
         modePickerOpen: showModePicker,
+        ...(showClientForm ? { activeDialog: clientData.id ? "Editar cliente" : "Nuevo cliente" } : {}),
       },
     };
   }, [
@@ -515,6 +534,7 @@ function PresupuestosPageContent() {
     budgetItems,
     budgets,
     clientSnapshot.name,
+    clientData,
     clients,
     discountAmount,
     discountPercent,
@@ -523,6 +543,7 @@ function PresupuestosPageContent() {
     loading,
     pathname,
     showModePicker,
+    showClientForm,
     subtotal,
     taxAmount,
     total,

@@ -25,6 +25,8 @@ import {
 } from "@/lib/stampy/tool-prefill";
 import { CalculatorPageSkeleton } from "@/components/ui/page-skeletons";
 import { useAppFeedback } from "@/components/ui/app-feedback";
+import { usePublishStampyScreenContext } from "@/components/stampy/StampyContextProvider";
+import type { StampyScreenContext } from "@/lib/stampy/screen-context";
 
 const PrinterCatalogModal = dynamic(() => import("@/components/calculadora/printer-catalog-modal").then((module) => module.PrinterCatalogModal));
 const FilamentCatalogModal = dynamic(() => import("@/components/calculadora/filament-catalog-modal").then((module) => module.FilamentCatalogModal));
@@ -644,6 +646,87 @@ function CalculadoraPageContent() {
     setSaveSuccess(false);
     setShowSaveModal(true);
   };
+
+  const stampyScreenContext = useMemo<StampyScreenContext>(() => {
+    const selectedPrinter = printers.find((printer) => printer.id === selectedPrinterId);
+    const selectedMultiplier = multipliers.find((multiplier) => multiplier.id === selectedMultiplierId);
+    const activeDialog = showSaveModal
+      ? "Guardar cálculo como producto"
+      : showCatalogModal
+        ? "Catálogo de impresoras"
+        : showFilamentCatalogModal
+          ? "Catálogo de filamentos"
+          : undefined;
+
+    return {
+      page: { section: "calculator", route: "/calculadora", title: "Calculadora" },
+      mode: advanced ? "advanced" : "basic",
+      selectedEntity: selectedPrinter ? {
+        type: "printer",
+        id: String(selectedPrinter.id),
+        name: selectedPrinter.name,
+      } : null,
+      visibleEntities: filamentLines.slice(0, 20).flatMap((line, index) => {
+        const filament = filaments.find((candidate) => candidate.id === line.filamentId);
+        if (!filament) return [];
+        return [{
+          type: "filament_in_calculation",
+          id: String(filament.id),
+          name: getFilamentLabel(filament),
+          position: index + 1,
+          facts: [{ label: "Gramos ingresados", value: Number(line.grams || 0) }],
+        }];
+      }),
+      formState: {
+        kind: "formDraft",
+        formType: showSaveModal ? "Producto a guardar desde la calculadora" : "Cálculo sin guardar",
+        fields: [
+          { label: "Modo", value: advanced ? "Avanzado" : "Básico" },
+          { label: "Impresora elegida", value: selectedPrinter?.name ?? "Sin seleccionar" },
+          { label: "Tipo de producto elegido", value: selectedMultiplier?.name ?? "Sin seleccionar" },
+          { label: "Horas ingresadas", value: Number(hours || 0) },
+          { label: "Minutos ingresados", value: Number(minutes || 0) },
+          { label: "Porcentaje de desperdicio ingresado", value: Number(manualErrorPercent || 0) },
+          { label: "Mano de obra ingresada", value: Number(laborCost || 0) },
+          { label: "Insumos extra ingresados", value: Number(otherCost || 0) },
+          { label: "Costo fijo ingresado", value: Number(fixedCost || 0) },
+          { label: "Markup manual visible", value: Number(manualMultiplier || 0) },
+          { label: "Costo base calculado", value: Number(calc.baseCost || 0) },
+          { label: "Precio sugerido calculado", value: Number(calc.normalPrice || 0) },
+          { label: "Ganancia estimada", value: Number(calc.profit || 0) },
+          { label: "Precio de Mercado Libre calculado", value: Number(calc.mlPrice || 0) },
+          ...(showSaveModal
+            ? [{ label: "Nombre de producto ingresado", value: productForm.name || "Sin completar" }]
+            : []),
+        ],
+        items: filamentLines.slice(0, 20).map((line, index) => {
+          const filament = filaments.find((candidate) => candidate.id === line.filamentId);
+          return {
+            type: "filament_line_draft",
+            id: line.id,
+            name: filament ? getFilamentLabel(filament) : `Filamento ${index + 1} sin seleccionar`,
+            position: index + 1,
+            facts: [{ label: "Gramos ingresados", value: Number(line.grams || 0) }],
+          };
+        }),
+      },
+      pageData: {
+        kind: "pageFacts",
+        facts: [
+          { label: "Filamentos disponibles", value: filaments.length },
+          { label: "Impresoras disponibles", value: printers.length },
+          { label: "Tipos de producto disponibles", value: multipliers.length },
+          { label: "El cálculo visible tiene datos suficientes", value: calc.hasValidFilamentLines && calc.baseCost > 0 },
+        ],
+      },
+      uiState: {
+        loading,
+        ...(activeDialog ? { activeDialog } : {}),
+      },
+    };
+  }, [advanced, calc, filamentLines, filaments, fixedCost, hours, laborCost, loading, manualErrorPercent, manualMultiplier, minutes, multipliers, otherCost, printers, productForm.name, selectedMultiplierId, selectedPrinterId, showCatalogModal, showFilamentCatalogModal, showSaveModal]);
+
+  usePublishStampyScreenContext(stampyScreenContext);
 
   if (loading) {
     return <CalculatorPageSkeleton />;

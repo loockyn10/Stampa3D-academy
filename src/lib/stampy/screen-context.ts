@@ -1,5 +1,8 @@
 export const STAMPY_SCREEN_CONTEXT_LIMITS = {
   visibleEntities: 20,
+  entityFacts: 8,
+  pageFacts: 20,
+  draftItems: 20,
   budgetItems: 15,
   shortText: 120,
   longText: 240,
@@ -17,6 +20,14 @@ export interface StampyScreenEntity {
   id: string;
   name?: string;
   position?: number;
+  facts?: StampyScreenFact[];
+}
+
+export type StampyScreenFactValue = string | number | boolean;
+
+export interface StampyScreenFact {
+  label: string;
+  value: StampyScreenFactValue;
 }
 
 export interface StampyAcademyPageData {
@@ -37,6 +48,11 @@ export interface StampyAcademyPageData {
 export interface StampyBudgetsPageData {
   kind: "budgets";
   visibleBudgetCount: number;
+}
+
+export interface StampyPageFactsData {
+  kind: "pageFacts";
+  facts: StampyScreenFact[];
 }
 
 export interface StampyBudgetDraftItem {
@@ -67,9 +83,20 @@ export interface StampyBudgetDraftContext {
   deliveryTime?: string;
 }
 
+export interface StampyFormDraftContext {
+  kind: "formDraft";
+  formType: string;
+  fields: StampyScreenFact[];
+  items?: StampyScreenEntity[];
+}
+
 export interface StampyScreenUiState {
   modePickerOpen?: boolean;
   loading?: boolean;
+  activeTab?: string;
+  activeDialog?: string;
+  searchQuery?: string;
+  filters?: StampyScreenFact[];
 }
 
 export interface StampyScreenContext {
@@ -77,9 +104,9 @@ export interface StampyScreenContext {
   mode?: string | null;
   selectedEntity?: StampyScreenEntity | null;
   visibleEntities?: StampyScreenEntity[];
-  formState?: StampyBudgetDraftContext | null;
+  formState?: StampyBudgetDraftContext | StampyFormDraftContext | null;
   uiState?: StampyScreenUiState | null;
-  pageData?: StampyAcademyPageData | StampyBudgetsPageData | null;
+  pageData?: StampyAcademyPageData | StampyBudgetsPageData | StampyPageFactsData | null;
 }
 
 function objectValue(value: unknown): Record<string, unknown> | null {
@@ -103,6 +130,27 @@ function safeNumber(value: unknown, minimum = 0, maximum = 1_000_000_000): numbe
   return Math.min(maximum, Math.max(minimum, parsed));
 }
 
+function sanitizeFacts(value: unknown, limit: number): StampyScreenFact[] {
+  if (!Array.isArray(value)) return [];
+
+  return value.slice(0, limit).flatMap((candidate) => {
+    const fact = objectValue(candidate);
+    const label = safeText(fact?.label, 80);
+    if (!fact || !label) return [];
+
+    let factValue: StampyScreenFactValue | undefined;
+    if (typeof fact.value === "string") {
+      factValue = safeText(fact.value, STAMPY_SCREEN_CONTEXT_LIMITS.longText);
+    } else if (typeof fact.value === "number" && Number.isFinite(fact.value)) {
+      factValue = Math.min(1_000_000_000, Math.max(-1_000_000_000, fact.value));
+    } else if (typeof fact.value === "boolean") {
+      factValue = fact.value;
+    }
+
+    return factValue === undefined ? [] : [{ label, value: factValue }];
+  });
+}
+
 function sanitizeEntity(value: unknown): StampyScreenEntity | null {
   const entity = objectValue(value);
   if (!entity) return null;
@@ -116,6 +164,9 @@ function sanitizeEntity(value: unknown): StampyScreenEntity | null {
     id,
     ...(safeText(entity.name, 160) ? { name: safeText(entity.name, 160) } : {}),
     ...(positionValue !== undefined ? { position: Math.trunc(positionValue) } : {}),
+    ...(sanitizeFacts(entity.facts, STAMPY_SCREEN_CONTEXT_LIMITS.entityFacts).length > 0
+      ? { facts: sanitizeFacts(entity.facts, STAMPY_SCREEN_CONTEXT_LIMITS.entityFacts) }
+      : {}),
   };
 }
 
@@ -149,6 +200,13 @@ function sanitizeBudgetsPageData(value: Record<string, unknown>): StampyBudgetsP
   return {
     kind: "budgets",
     visibleBudgetCount: Math.trunc(safeNumber(value.visibleBudgetCount, 0, 10_000) ?? 0),
+  };
+}
+
+function sanitizePageFactsData(value: Record<string, unknown>): StampyPageFactsData {
+  return {
+    kind: "pageFacts",
+    facts: sanitizeFacts(value.facts, STAMPY_SCREEN_CONTEXT_LIMITS.pageFacts),
   };
 }
 
@@ -194,6 +252,31 @@ function sanitizeBudgetDraft(value: unknown): StampyBudgetDraftContext | null {
   };
 }
 
+function sanitizeFormState(
+  value: unknown
+): StampyBudgetDraftContext | StampyFormDraftContext | null {
+  const draft = objectValue(value);
+  if (!draft) return null;
+  if (draft.kind === "budgetDraft") return sanitizeBudgetDraft(draft);
+  if (draft.kind !== "formDraft") return null;
+
+  const formType = safeText(draft.formType, 80);
+  if (!formType) return null;
+  const items = Array.isArray(draft.items)
+    ? draft.items
+        .slice(0, STAMPY_SCREEN_CONTEXT_LIMITS.draftItems)
+        .map(sanitizeEntity)
+        .filter((entity): entity is StampyScreenEntity => Boolean(entity))
+    : [];
+
+  return {
+    kind: "formDraft",
+    formType,
+    fields: sanitizeFacts(draft.fields, STAMPY_SCREEN_CONTEXT_LIMITS.pageFacts),
+    ...(items.length > 0 ? { items } : {}),
+  };
+}
+
 export function sanitizeStampyScreenContext(value: unknown): StampyScreenContext | null {
   const context = objectValue(value);
   const pageValue = objectValue(context?.page);
@@ -213,6 +296,8 @@ export function sanitizeStampyScreenContext(value: unknown): StampyScreenContext
     ? sanitizeAcademyPageData(pageDataValue)
     : pageDataValue?.kind === "budgets"
       ? sanitizeBudgetsPageData(pageDataValue)
+      : pageDataValue?.kind === "pageFacts"
+        ? sanitizePageFactsData(pageDataValue)
       : null;
   const uiStateValue = objectValue(context.uiState);
 
@@ -225,10 +310,16 @@ export function sanitizeStampyScreenContext(value: unknown): StampyScreenContext
     mode: safeText(context.mode, 40) ?? null,
     selectedEntity,
     visibleEntities,
-    formState: sanitizeBudgetDraft(context.formState),
+    formState: sanitizeFormState(context.formState),
     uiState: uiStateValue ? {
       ...(typeof uiStateValue.modePickerOpen === "boolean" ? { modePickerOpen: uiStateValue.modePickerOpen } : {}),
       ...(typeof uiStateValue.loading === "boolean" ? { loading: uiStateValue.loading } : {}),
+      ...(safeText(uiStateValue.activeTab, 80) ? { activeTab: safeText(uiStateValue.activeTab, 80) } : {}),
+      ...(safeText(uiStateValue.activeDialog, 80) ? { activeDialog: safeText(uiStateValue.activeDialog, 80) } : {}),
+      ...(safeText(uiStateValue.searchQuery, 160) ? { searchQuery: safeText(uiStateValue.searchQuery, 160) } : {}),
+      ...(sanitizeFacts(uiStateValue.filters, STAMPY_SCREEN_CONTEXT_LIMITS.entityFacts).length > 0
+        ? { filters: sanitizeFacts(uiStateValue.filters, STAMPY_SCREEN_CONTEXT_LIMITS.entityFacts) }
+        : {}),
     } : null,
     pageData,
   };
@@ -271,17 +362,32 @@ export function formatStampyScreenContextForPrompt(value: unknown): string {
     }
   } else if (context.pageData?.kind === "budgets") {
     lines.push(`- Presupuestos visibles: ${context.pageData.visibleBudgetCount}`);
+  } else if (context.pageData?.kind === "pageFacts" && context.pageData.facts.length > 0) {
+    lines.push("- Datos visibles de la pantalla:");
+    for (const fact of context.pageData.facts) {
+      lines.push(`  - ${fact.label}: ${String(fact.value)}`);
+    }
+  }
+
+  if (context.uiState?.activeTab) lines.push(`- Pestaña activa: ${context.uiState.activeTab}`);
+  if (context.uiState?.activeDialog) lines.push(`- Diálogo visible: ${context.uiState.activeDialog}`);
+  if (context.uiState?.searchQuery) lines.push(`- Búsqueda visible: ${context.uiState.searchQuery}`);
+  if (context.uiState?.filters && context.uiState.filters.length > 0) {
+    lines.push(`- Filtros visibles: ${context.uiState.filters.map((fact) => `${fact.label}=${String(fact.value)}`).join(", ")}`);
   }
 
   if (context.visibleEntities && context.visibleEntities.length > 0) {
     lines.push("- Entidades visibles, en orden:");
     for (const entity of context.visibleEntities) {
       lines.push(`  ${entity.position ?? "-"}. ${entity.type}: ${entity.name ?? entity.id} (id: ${entity.id})`);
+      if (entity.facts && entity.facts.length > 0) {
+        lines.push(`     Datos visibles: ${entity.facts.map((fact) => `${fact.label}=${String(fact.value)}`).join(", ")}`);
+      }
     }
   }
 
   const draft = context.formState;
-  if (draft) {
+  if (draft?.kind === "budgetDraft") {
     lines.push(`- Borrador de presupuesto: ${draft.budgetType}`);
     if (draft.client?.name || draft.client?.id) {
       lines.push(`- Cliente del borrador: ${draft.client.name ?? "sin nombre"}${draft.client.id ? ` (id: ${draft.client.id})` : ""}`);
@@ -297,6 +403,20 @@ export function formatStampyScreenContextForPrompt(value: unknown): string {
     lines.push(`- Resumen visible: subtotal ${draft.summary.subtotal}, descuento ${draft.summary.discount}, IVA ${draft.summary.tax}, total ${draft.summary.total}`);
     if (draft.paymentMethod) lines.push(`- Forma de pago: ${draft.paymentMethod}`);
     if (draft.deliveryTime) lines.push(`- Plazo de entrega: ${draft.deliveryTime}`);
+  } else if (draft?.kind === "formDraft") {
+    lines.push(`- Borrador actual sin guardar: ${draft.formType}`);
+    for (const field of draft.fields) {
+      lines.push(`  - ${field.label}: ${String(field.value)}`);
+    }
+    if (draft.items && draft.items.length > 0) {
+      lines.push("- Elementos del borrador:");
+      for (const item of draft.items) {
+        lines.push(`  - ${item.type}: ${item.name ?? item.id}`);
+        if (item.facts && item.facts.length > 0) {
+          lines.push(`    ${item.facts.map((fact) => `${fact.label}=${String(fact.value)}`).join(", ")}`);
+        }
+      }
+    }
   }
 
   lines.push("- Para cualquier acción o dato sensible, revalidá autenticación, permisos, ownership y estado real en servidor.");

@@ -8,6 +8,7 @@ import Link from "next/link";
 import { StampyFeedback } from "@/components/stampy/StampyFeedback";
 import { ActionIntentCard } from "@/components/stampy/ActionIntentCard";
 import { createStampyMessageId, createStampyRequestId } from "@/lib/stampy/client-message-id";
+import { useStampyScreenContext } from "@/components/stampy/StampyContextProvider";
 
 interface StampyLessonChatProps {
   courseTitle: string;
@@ -53,6 +54,7 @@ function createLessonWelcomeMessage(): Message {
 }
 
 export function StampyLessonChat({ courseTitle, moduleTitle, lesson }: StampyLessonChatProps) {
+  const { getScreenContextSnapshot } = useStampyScreenContext();
   const [isOpen, setIsOpen] = useState(false);
   const [messages, setMessages] = useState<Message[]>([createLessonWelcomeMessage()]);
   const [input, setInput] = useState("");
@@ -96,6 +98,7 @@ export function StampyLessonChat({ courseTitle, moduleTitle, lesson }: StampyLes
     setInput("");
     setIsLoading(true);
 
+    const screenContext = getScreenContextSnapshot();
     const context: StampyContextPayload = {
       source: "lesson",
       courseTitle,
@@ -109,7 +112,8 @@ export function StampyLessonChat({ courseTitle, moduleTitle, lesson }: StampyLes
       lessonLevel: lesson.ai_level,
       relatedTool: lesson.ai_related_tool,
       transcript: lesson.transcript,
-      pathname: window.location.pathname + window.location.search
+      pathname: window.location.pathname + window.location.search,
+      screenContext: screenContext ?? undefined,
     };
 
     const removeUndefined = (obj: any) => {

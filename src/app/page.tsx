@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import { BookOpen, Download, FileText, Play, Calculator, ChevronRight, CalendarDays, Gift, Boxes, Loader2, Bot, ArrowRight, Tag, Layers } from "lucide-react";
 import { Card } from "@/components/ui/card";
@@ -10,6 +10,8 @@ import { SectionTitle } from "@/components/ui/section-title";
 import { Badge } from "@/components/ui/badge";
 import { EmptyState } from "@/components/ui/empty-state";
 import { createClient } from "@/utils/supabase/client";
+import { usePublishStampyScreenContext } from "@/components/stampy/StampyContextProvider";
+import type { StampyScreenContext } from "@/lib/stampy/screen-context";
 
 
 export default function InicioPage() {
@@ -135,6 +137,58 @@ export default function InicioPage() {
     }
     loadDashboard();
   }, []);
+
+  const stampyScreenContext = useMemo<StampyScreenContext>(() => {
+    const visibleEntities: NonNullable<StampyScreenContext["visibleEntities"]> = [];
+    if (continuingCourse) {
+      visibleEntities.push({
+        type: "course_in_progress",
+        id: String(continuingCourse.id),
+        name: continuingCourse.title,
+        position: visibleEntities.length + 1,
+        facts: [
+          { label: "Progreso visible en porcentaje", value: Number(continuingCourse.progress || 0) },
+          { label: "Lecciones completadas", value: Number(continuingCourse.completedLessons || 0) },
+          { label: "Lecciones totales", value: Number(continuingCourse.totalLessons || 0) },
+        ],
+      });
+    }
+    if (upcomingRaffle) {
+      visibleEntities.push({
+        type: "upcoming_raffle",
+        id: String(upcomingRaffle.id),
+        name: upcomingRaffle.title,
+        position: visibleEntities.length + 1,
+        facts: [
+          ...(upcomingRaffle.draw_date
+            ? [{ label: "Fecha visible del sorteo", value: new Date(upcomingRaffle.draw_date).toLocaleDateString("es-AR") }]
+            : []),
+          ...(upcomingRaffle.raffle_prizes?.[0]?.name
+            ? [{ label: "Premio principal visible", value: String(upcomingRaffle.raffle_prizes[0].name) }]
+            : []),
+        ],
+      });
+    }
+
+    return {
+      page: { section: "dashboard", route: "/", title: "Inicio" },
+      mode: "overview",
+      visibleEntities,
+      pageData: {
+        kind: "pageFacts",
+        facts: [
+          { label: "Presupuestos creados", value: budgetsCount },
+          { label: "STL descargados", value: downloadsCount },
+          { label: "Cursos iniciados", value: coursesCount },
+          { label: "Hay un curso para continuar visible", value: Boolean(continuingCourse) },
+          { label: "Hay un sorteo próximo visible", value: Boolean(upcomingRaffle) },
+        ],
+      },
+      uiState: { loading },
+    };
+  }, [budgetsCount, continuingCourse, coursesCount, downloadsCount, loading, upcomingRaffle]);
+
+  usePublishStampyScreenContext(stampyScreenContext);
 
   if (loading) {
     return (

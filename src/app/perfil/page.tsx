@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, useEffect, Suspense } from "react";
+import React, { useState, useEffect, useMemo, Suspense } from "react";
 import { Loader2, AlertCircle, Copy, Check, Users, Shield, Star, ChevronDown } from "lucide-react";
 import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -9,6 +9,8 @@ import { createClient } from "@/utils/supabase/client";
 import Link from "next/link";
 import { AccountManager } from "@/components/configuracion/account-manager";
 import { getOrCreateReferralCode } from "@/lib/referral";
+import { usePublishStampyScreenContext } from "@/components/stampy/StampyContextProvider";
+import type { StampyScreenContext } from "@/lib/stampy/screen-context";
 
 const APP_BASE_URL = process.env.NEXT_PUBLIC_APP_URL || "https://academia-stampa.com";
 
@@ -110,6 +112,39 @@ function PerfilContent() {
     setCopied(true);
     setTimeout(() => setCopied(false), 2500);
   };
+
+  const stampyScreenContext = useMemo<StampyScreenContext>(() => ({
+    page: { section: "profile", route: "/perfil", title: "Mi Perfil" },
+    mode: membershipOpen ? "membership_details" : "view",
+    visibleEntities: badges.slice(0, 20).map((badge, index) => ({
+      type: "badge",
+      id: String(badge.id),
+      name: badge.name,
+      position: index + 1,
+    })),
+    pageData: {
+      kind: "pageFacts",
+      facts: [
+        { label: "Estado de membresía visible", value: profile?.membership_status === "active" ? "Activa" : "Inactiva" },
+        { label: "Nivel de membresía visible", value: String(profile?.member_level || "member") },
+        { label: "Acceso beta visible", value: Boolean(betaGrant) },
+        { label: "Estado fundador visible", value: Boolean(founderData && founderData.status === "active") },
+        { label: "Código de referido disponible en pantalla", value: Boolean(referralCode) },
+        { label: "Referidos pendientes visibles", value: referralStats.pending },
+        { label: "Referidos convertidos visibles", value: referralStats.converted },
+        { label: "Insignias visibles", value: badges.length },
+        ...(membershipOpen && subscription?.status
+          ? [{ label: "Estado visible de la suscripción", value: String(subscription.status) }]
+          : []),
+      ],
+    },
+    uiState: {
+      loading,
+      ...(membershipOpen ? { activeDialog: "Detalle desplegado de membresía" } : {}),
+    },
+  }), [badges, betaGrant, founderData, loading, membershipOpen, profile?.member_level, profile?.membership_status, referralCode, referralStats.converted, referralStats.pending, subscription?.status]);
+
+  usePublishStampyScreenContext(stampyScreenContext);
 
   if (loading && !profile) return <div className="py-24 flex justify-center"><Loader2 className="animate-spin h-8 w-8 text-stampa-orange" /></div>;
 

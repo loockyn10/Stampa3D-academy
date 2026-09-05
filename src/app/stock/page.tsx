@@ -20,6 +20,8 @@ import {
 } from "@/lib/filaments/mutation-payload";
 import { StockPageSkeleton } from "@/components/ui/page-skeletons";
 import { useAppFeedback } from "@/components/ui/app-feedback";
+import { usePublishStampyScreenContext } from "@/components/stampy/StampyContextProvider";
+import type { StampyScreenContext } from "@/lib/stampy/screen-context";
 
 const FilamentEditor = dynamic(() => import("@/components/filaments/FilamentEditor").then((module) => module.FilamentEditor));
 const FilamentCatalogModal = dynamic(() => import("@/components/calculadora/filament-catalog-modal").then((module) => module.FilamentCatalogModal));
@@ -672,6 +674,130 @@ function StockPageContent() {
   const lowProductsCount: number = 0; // products.filter((r) => r.is_active && r.stock_quantity <= 1).length;
   const lowFilamentsCount = filaments.filter((r) => r.remaining_grams < 200).length;
   const totalLowCount = lowProductsCount + lowFilamentsCount;
+
+  const stampyScreenContext = useMemo<StampyScreenContext>(() => {
+    const visibleProducts = products.filter((product) => (
+      !searchProduct || String(product.name || "").toLowerCase().includes(searchProduct.toLowerCase())
+    ));
+    const historyFilament = historyFilamentId
+      ? filaments.find((filament) => filament.id === historyFilamentId)
+      : null;
+    const historyProduct = historyProductId
+      ? products.find((product) => product.id === historyProductId)
+      : null;
+    const editingFilament = editingFilamentId
+      ? filaments.find((filament) => filament.id === editingFilamentId)
+      : null;
+    const stampyFilament = stampyActionData?.filamentId
+      ? filaments.find((filament) => filament.id === stampyActionData.filamentId)
+      : null;
+    const activeDialog = consumeModalOpen
+      ? "Registrar producción"
+      : filamentModalOpen
+        ? editingFilamentId ? "Editar filamento" : "Nuevo filamento"
+        : historyModalOpen
+          ? "Historial de filamento"
+          : historyProductModalOpen
+            ? "Historial de producto"
+            : showFilamentCatalogModal
+              ? "Catálogo de filamentos"
+              : stampyDiscountModalOpen
+                ? "Descontar filamento sugerido por Stampy"
+                : stampyIncreaseModalOpen
+                  ? "Aumentar filamento sugerido por Stampy"
+                  : undefined;
+
+    const selected = historyFilament ?? historyProduct ?? editingFilament ?? stampyFilament;
+
+    return {
+      page: { section: "stock", route: `/stock?tab=${tab}`, title: "Stock" },
+      mode: consumeModalOpen
+        ? "production"
+        : filamentModalOpen
+          ? editingFilamentId ? "edit_filament" : "create_filament"
+          : historyModalOpen || historyProductModalOpen
+            ? "history"
+            : tab === "filamentos" ? "filaments" : "products",
+      selectedEntity: selected ? {
+        type: historyProduct ? "product" : "filament",
+        id: String(selected.id),
+        name: selected.name,
+      } : null,
+      visibleEntities: tab === "filamentos"
+        ? filteredFilaments.slice(0, 20).map((filament, index) => ({
+          type: "filament",
+          id: String(filament.id),
+          name: getFilamentLabel(filament),
+          position: index + 1,
+          facts: [
+            ...(filament.filament_type ? [{ label: "Material visible", value: String(filament.filament_type) }] : []),
+            ...(filament.color ? [{ label: "Color visible", value: String(filament.color) }] : []),
+            { label: "Gramos restantes visibles", value: Number(filament.remaining_grams || 0) },
+          ],
+        }))
+        : visibleProducts.slice(0, 20).map((product, index) => ({
+          type: "product",
+          id: String(product.id),
+          name: product.name,
+          position: index + 1,
+          facts: [{ label: "Stock visible", value: Number(product.stock_quantity || 0) }],
+        })),
+      formState: consumeModalOpen ? {
+        kind: "formDraft",
+        formType: "Producción a registrar",
+        fields: [
+          { label: "Agregar unidades producidas al stock", value: consumeAddStock },
+          { label: "Objetivos cargados", value: consumeCart.length },
+        ],
+        items: consumeCart.slice(0, 20).map((item, index) => ({
+          type: item.type === "component" ? "product_component" : "product",
+          id: String(item.component?.id ?? item.product.id ?? `production-item-${index + 1}`),
+          name: item.component?.name ?? item.product.name,
+          position: index + 1,
+          facts: [
+            { label: "Producto", value: String(item.product.name || "Sin nombre") },
+            { label: "Cantidad a producir", value: Number(item.quantity || 0) },
+          ],
+        })),
+      } : filamentModalOpen ? {
+        kind: "formDraft",
+        formType: editingFilamentId ? "Edición de filamento" : "Nuevo filamento",
+        fields: [
+          { label: "Nombre ingresado", value: String(filamentFormData.name || "Sin completar") },
+          { label: "Material ingresado", value: String(filamentFormData.filament_type || "Sin completar") },
+          { label: "Marca ingresada", value: String(filamentFormData.brand || "Sin completar") },
+          { label: "Color ingresado", value: String(filamentFormData.color || "Sin completar") },
+          { label: "Gramos totales ingresados", value: Number(filamentFormData.total_grams || 0) },
+          { label: "Gramos restantes ingresados", value: Number(filamentFormData.remaining_grams || 0) },
+          { label: "Precio de compra ingresado", value: Number(filamentFormData.purchase_price || 0) },
+        ],
+      } : null,
+      pageData: {
+        kind: "pageFacts",
+        facts: [
+          { label: "Productos cargados", value: products.length },
+          { label: "Filamentos cargados", value: filaments.length },
+          { label: "Filamentos con alerta visible de bajo stock", value: lowFilamentsCount },
+        ],
+      },
+      uiState: {
+        loading,
+        activeTab: tab,
+        ...(activeDialog ? { activeDialog } : {}),
+        ...((tab === "filamentos" ? filamentSearch : searchProduct)
+          ? { searchQuery: tab === "filamentos" ? filamentSearch : searchProduct }
+          : {}),
+        ...(tab === "filamentos" ? {
+          filters: [
+            { label: "Material", value: selectedMaterial === "all" ? "Todos" : selectedMaterial },
+            { label: "Color", value: selectedColor === "all" ? "Todos" : selectedColor },
+          ],
+        } : {}),
+      },
+    };
+  }, [consumeAddStock, consumeCart, consumeModalOpen, editingFilamentId, filamentFormData, filamentModalOpen, filamentSearch, filaments, filteredFilaments, historyFilamentId, historyModalOpen, historyProductId, historyProductModalOpen, loading, lowFilamentsCount, products, searchProduct, selectedColor, selectedMaterial, showFilamentCatalogModal, stampyActionData, stampyDiscountModalOpen, stampyIncreaseModalOpen, tab]);
+
+  usePublishStampyScreenContext(stampyScreenContext);
 
   if (loading) return <StockPageSkeleton />;
 

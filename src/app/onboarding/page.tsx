@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useMemo } from "react";
 import { useRouter } from "next/navigation";
 import { createClient } from "@/utils/supabase/client";
 import { Loader2, ArrowRight } from "lucide-react";
@@ -10,6 +10,8 @@ import {
   MAIN_GOAL_OPTIONS,
   COMMERCIAL_STAGE_OPTIONS
 } from "@/lib/profile-options";
+import { usePublishStampyScreenContext } from "@/components/stampy/StampyContextProvider";
+import type { StampyScreenContext } from "@/lib/stampy/screen-context";
 
 export default function OnboardingPage() {
   const router = useRouter();
@@ -138,6 +140,31 @@ export default function OnboardingPage() {
     e.preventDefault();
     handleSave(false);
   };
+
+  const stampyScreenContext = useMemo<StampyScreenContext>(() => ({
+    page: { section: "onboarding", route: "/onboarding", title: "Configuración inicial" },
+    mode: saving ? "saving" : "edit",
+    formState: {
+      kind: "formDraft",
+      formType: "Preferencias iniciales sin guardar",
+      fields: [
+        { label: "Marca de impresora declarada en este formulario", value: brand || "Sin completar" },
+        ...(brand !== "none_yet"
+          ? [{ label: "Modelo de impresora declarado en este formulario", value: model || "Sin completar" }]
+          : []),
+        { label: "Nivel de experiencia declarado", value: experience || "Sin completar" },
+        { label: "Objetivo principal declarado", value: goal || "Sin completar" },
+        { label: "Etapa comercial declarada", value: stage || "Sin completar" },
+      ],
+    },
+    pageData: {
+      kind: "pageFacts",
+      facts: [{ label: "Formulario visible", value: "Configuración inicial de la experiencia" }],
+    },
+    uiState: { loading: loading || saving },
+  }), [brand, experience, goal, loading, model, saving, stage]);
+
+  usePublishStampyScreenContext(stampyScreenContext);
 
   if (loading) {
     return (

@@ -1,6 +1,6 @@
 "use client";
 
-import React, { use, useEffect, useState } from "react";
+import React, { use, useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import { ArrowLeft, Play, CheckCircle2, Circle, Loader2, Video, File, ChevronDown, ChevronRight, GraduationCap, Clock, Layers, Sparkles } from "lucide-react";
 import { Card } from "@/components/ui/card";
@@ -11,6 +11,8 @@ import { getCourseLevelLabel, getCourseLevelClasses } from "@/lib/course-style";
 import { getFileAccessUrl } from "@/lib/storage";
 import { StampyLessonChat } from "@/components/stampy/StampyLessonChat";
 import { getCourseKindUi } from "@/lib/academy/course-kind";
+import { usePublishStampyScreenContext } from "@/components/stampy/StampyContextProvider";
+import type { StampyScreenContext } from "@/lib/stampy/screen-context";
 
 interface PageProps {
   params: Promise<{ id: string }>;
@@ -231,6 +233,102 @@ export default function CursoDetailPage({ params }: PageProps) {
       console.error("Error opening resource:", e);
     }
   };
+
+  const orderedLessons = useMemo(() => {
+    const sortedModules = [...modules].sort((a, b) => (a.sort_order || 0) - (b.sort_order || 0));
+    return sortedModules.flatMap((module) => (
+      [...(lessons[module.id] || [])].sort((a, b) => (a.sort_order || 0) - (b.sort_order || 0))
+    ));
+  }, [lessons, modules]);
+
+  const stampyScreenContext = useMemo<StampyScreenContext>(() => {
+    const isWorkshop = course?.course_kind === "workshop";
+    const contentType = isWorkshop ? "workshop" : "course";
+    const completedLessons = orderedLessons.filter((lesson) => progress[lesson.id]).length;
+    const activeModule = activeLesson
+      ? modules.find((module) => module.id === activeLesson.module_id)
+      : null;
+    const visibleOutline: NonNullable<StampyScreenContext["visibleEntities"]> = [];
+    for (const module of [...modules].sort((a, b) => (a.sort_order || 0) - (b.sort_order || 0))) {
+      if (visibleOutline.length >= 20) break;
+      const moduleLessons = [...(lessons[module.id] || [])]
+        .sort((a, b) => (a.sort_order || 0) - (b.sort_order || 0));
+      const completedInModule = moduleLessons.filter((lesson) => progress[lesson.id]).length;
+      visibleOutline.push({
+        type: "course_module",
+        id: String(module.id),
+        name: module.title,
+        position: visibleOutline.length + 1,
+        facts: [
+          { label: "Lecciones del módulo", value: moduleLessons.length },
+          { label: "Lecciones completadas del módulo", value: completedInModule },
+          { label: "Módulo desplegado", value: Boolean(openModules[module.id]) },
+        ],
+      });
+      if (!openModules[module.id]) continue;
+      for (const lesson of moduleLessons) {
+        if (visibleOutline.length >= 20) break;
+        visibleOutline.push({
+          type: "lesson",
+          id: String(lesson.id),
+          name: lesson.title,
+          position: visibleOutline.length + 1,
+          facts: [
+            { label: "Módulo", value: String(module.title) },
+            { label: "Completada", value: Boolean(progress[lesson.id]) },
+            ...(lesson.duration_minutes
+              ? [{ label: "Duración en minutos", value: Number(lesson.duration_minutes) }]
+              : []),
+          ],
+        });
+      }
+    }
+
+    return {
+      page: {
+        section: isWorkshop ? "workshops" : "courses",
+        route: `/cursos/${id}`,
+        title: course?.title ?? (isWorkshop ? "Detalle del taller" : "Detalle del curso"),
+      },
+      mode: activeLesson ? "lesson" : "overview",
+      selectedEntity: activeLesson ? {
+        type: "lesson",
+        id: String(activeLesson.id),
+        name: activeLesson.title,
+        facts: [
+          ...(activeModule?.title ? [{ label: "Módulo visible", value: String(activeModule.title) }] : []),
+          { label: "Completada", value: Boolean(progress[activeLesson.id]) },
+          ...(activeLesson.duration_minutes
+            ? [{ label: "Duración visible en minutos", value: Number(activeLesson.duration_minutes) }]
+            : []),
+        ],
+      } : course ? {
+        type: contentType,
+        id: String(course.id),
+        name: course.title,
+      } : null,
+      visibleEntities: visibleOutline,
+      pageData: {
+        kind: "pageFacts",
+        facts: [
+          { label: "Tipo de contenido", value: isWorkshop ? "Taller" : "Curso" },
+          ...(course?.title ? [{ label: isWorkshop ? "Taller actual" : "Curso actual", value: String(course.title) }] : []),
+          ...(course?.description ? [{ label: "Descripción breve visible", value: String(course.description) }] : []),
+          ...(course?.level ? [{ label: "Nivel visible", value: String(course.level) }] : []),
+          { label: "Módulos visibles", value: modules.length },
+          { label: "Lecciones visibles", value: orderedLessons.length },
+          { label: "Lecciones completadas", value: completedLessons },
+          { label: "Progreso visible en porcentaje", value: orderedLessons.length > 0
+            ? Math.round((completedLessons / orderedLessons.length) * 100)
+            : 0 },
+          ...(activeModule?.title ? [{ label: "Módulo actualmente abierto", value: String(activeModule.title) }] : []),
+        ],
+      },
+      uiState: { loading },
+    };
+  }, [activeLesson, course, id, lessons, loading, modules, openModules, orderedLessons, progress]);
+
+  usePublishStampyScreenContext(stampyScreenContext);
 
   if (loading) {
     return (

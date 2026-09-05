@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, useEffect, Suspense } from "react";
+import React, { useState, useEffect, useMemo, Suspense } from "react";
 import { useSearchParams, useRouter } from "next/navigation";
 import dynamic from "next/dynamic";
 import { Building2, Wrench, Calculator, Bot } from "lucide-react";
@@ -9,6 +9,8 @@ import { SectionTitle } from "@/components/ui/section-title";
 
 import { User } from "lucide-react";
 import { FormSkeleton, SettingsPageSkeleton } from "@/components/ui/page-skeletons";
+import { usePublishStampyScreenContext } from "@/components/stampy/StampyContextProvider";
+import type { StampyScreenContext } from "@/lib/stampy/screen-context";
 
 const managerLoading = () => (
   <FormSkeleton fields={4} />
@@ -23,6 +25,14 @@ const ProductTypesManager = dynamic(() => import("@/components/configuracion/pro
 const StampyManager = dynamic(() => import("@/components/configuracion/stampy-manager").then((module) => module.StampyManager), { loading: managerLoading });
 
 type Tab = "cuenta" | "negocio" | "taller" | "calculadora" | "stampy";
+
+const CONFIGURATION_AREAS: { id: Tab; name: string; visibleContent: string }[] = [
+  { id: "cuenta", name: "Cuenta", visibleContent: "Datos y seguridad de la cuenta" },
+  { id: "negocio", name: "Negocio", visibleContent: "Datos del negocio" },
+  { id: "taller", name: "Taller", visibleContent: "Impresoras y filamentos" },
+  { id: "calculadora", name: "Calculadora", visibleContent: "Costos y tipos de producto" },
+  { id: "stampy", name: "Stampy", visibleContent: "Preferencias del asistente" },
+];
 
 function ConfiguracionContent() {
   const searchParams = useSearchParams();
@@ -40,6 +50,36 @@ function ConfiguracionContent() {
     setActiveTab(t);
     router.replace(`/configuracion?tab=${t}`);
   };
+
+  const stampyScreenContext = useMemo<StampyScreenContext>(() => {
+    const activeArea = CONFIGURATION_AREAS.find((area) => area.id === activeTab)!;
+    return {
+      page: {
+        section: "configuration",
+        route: `/configuracion?tab=${activeTab}`,
+        title: "Configuración",
+      },
+      mode: "edit",
+      selectedEntity: {
+        type: "configuration_area",
+        id: activeArea.id,
+        name: activeArea.name,
+      },
+      visibleEntities: CONFIGURATION_AREAS.map((area, index) => ({
+        type: "configuration_area",
+        id: area.id,
+        name: area.name,
+        position: index + 1,
+      })),
+      pageData: {
+        kind: "pageFacts",
+        facts: [{ label: "Contenido del área actualmente visible", value: activeArea.visibleContent }],
+      },
+      uiState: { activeTab: activeArea.name },
+    };
+  }, [activeTab]);
+
+  usePublishStampyScreenContext(stampyScreenContext);
 
   return (
     <div className="pb-12">

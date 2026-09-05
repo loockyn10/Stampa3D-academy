@@ -10,6 +10,8 @@ import { getFileAccessUrl } from "@/lib/storage";
 
 import { createClient } from "@/utils/supabase/client";
 import { useAppFeedback } from "@/components/ui/app-feedback";
+import { usePublishStampyScreenContext } from "@/components/stampy/StampyContextProvider";
+import type { StampyScreenContext } from "@/lib/stampy/screen-context";
 
 export default function LibreriaStlPage() {
   const { toast } = useAppFeedback();
@@ -71,6 +73,45 @@ export default function LibreriaStlPage() {
     }
     return f;
   }, [modelsWithData, selectedCatId, query, categories, models]);
+
+  const stampyScreenContext = useMemo<StampyScreenContext>(() => {
+    const selectedCategory = selectedCatId
+      ? categories.find((category) => category.id === selectedCatId)
+      : null;
+    return {
+      page: { section: "stl_library", route: "/libreria-stl", title: "Librería STL" },
+      mode: "browse",
+      visibleEntities: filteredItems.slice(0, 20).map((model, index) => ({
+        type: "stl_model",
+        id: String(model.id),
+        name: model.title,
+        position: index + 1,
+        facts: [
+          ...(model.category?.name ? [{ label: "Categoría visible", value: String(model.category.name) }] : []),
+          ...(model.difficulty ? [{ label: "Dificultad visible", value: String(model.difficulty) }] : []),
+          ...(model.material_type ? [{ label: "Material recomendado visible", value: String(model.material_type) }] : []),
+          ...(model.estimated_print_time ? [{ label: "Tiempo estimado visible", value: String(model.estimated_print_time) }] : []),
+          { label: "Archivo disponible", value: Boolean(model.variants?.some((variant: any) => variant.is_active && variant.file_url)) },
+        ],
+      })),
+      pageData: {
+        kind: "pageFacts",
+        facts: [
+          { label: "Modelos disponibles", value: modelsWithData.length },
+          { label: "Modelos visibles con el filtro actual", value: filteredItems.length },
+          { label: "Categorías disponibles", value: categories.length },
+        ],
+      },
+      uiState: {
+        loading,
+        ...(query ? { searchQuery: query } : {}),
+        filters: [{ label: "Categoría", value: selectedCategory?.name ?? "Todas" }],
+        ...(downloadingId ? { activeDialog: "Preparando descarga del archivo seleccionado" } : {}),
+      },
+    };
+  }, [categories, downloadingId, filteredItems, loading, modelsWithData.length, query, selectedCatId]);
+
+  usePublishStampyScreenContext(stampyScreenContext);
 
   if (loading) {
     return (

@@ -1,10 +1,12 @@
 "use client";
 
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useMemo, useState } from "react";
 import { createClient } from "@/utils/supabase/client";
 import { CourseCard } from "@/components/cards/course-card";
 import { Loader2, PenTool } from "lucide-react";
 import Link from "next/link";
+import { usePublishStampyScreenContext } from "@/components/stampy/StampyContextProvider";
+import type { StampyScreenContext } from "@/lib/stampy/screen-context";
 
 export default function TalleresPage() {
   const [courses, setCourses] = useState<any[]>([]);
@@ -44,7 +46,7 @@ export default function TalleresPage() {
     fetchData();
   }, [supabase]);
 
-  const filteredCourses = courses.filter((c) => {
+  const filteredCourses = useMemo(() => courses.filter((c) => {
     const term = searchTerm.toLowerCase();
     return (
       (c.title || "").toLowerCase().includes(term) ||
@@ -53,7 +55,32 @@ export default function TalleresPage() {
       (c.slug || "").toLowerCase().includes(term) ||
       (c.instructors?.name || "").toLowerCase().includes(term)
     );
-  });
+  }), [courses, searchTerm]);
+
+  const stampyScreenContext = useMemo<StampyScreenContext>(() => ({
+    page: { section: "workshops", route: "/talleres", title: "Talleres" },
+    mode: "browse",
+    visibleEntities: filteredCourses.slice(0, 20).map((workshop, index) => ({
+      type: "workshop",
+      id: String(workshop.id),
+      name: workshop.title,
+      position: index + 1,
+      facts: workshop.level ? [{ label: "Nivel visible", value: String(workshop.level) }] : [],
+    })),
+    pageData: {
+      kind: "pageFacts",
+      facts: [
+        { label: "Talleres publicados", value: courses.length },
+        { label: "Talleres visibles con el filtro actual", value: filteredCourses.length },
+      ],
+    },
+    uiState: {
+      loading,
+      ...(searchTerm ? { searchQuery: searchTerm } : {}),
+    },
+  }), [courses.length, filteredCourses, loading, searchTerm]);
+
+  usePublishStampyScreenContext(stampyScreenContext);
 
   return (
     <div className="space-y-8 pb-10">

@@ -6,6 +6,7 @@ import { Youtube, Instagram } from "@/components/ui/icons";
 import { Card } from "@/components/ui/card";
 import { PrimaryButton } from "@/components/ui/button";
 import { SectionTitle } from "@/components/ui/section-title";
+import { usePublishStampyScreenContext } from "@/components/stampy/StampyContextProvider";
 
 interface SocialInfo {
   icon: React.ComponentType<any>;
@@ -53,6 +54,21 @@ interface SocialViewProps {
 export function SocialView({ id }: SocialViewProps) {
   const s = SOCIALS[id];
   const Icon = s.icon;
+
+  usePublishStampyScreenContext({
+    page: { section: "community", route: `/${id}`, title: s.name },
+    mode: "detail",
+    selectedEntity: {
+      type: "community_channel",
+      id,
+      name: s.name,
+      facts: [{ label: "Enlace visible", value: true }],
+    },
+    pageData: {
+      kind: "pageFacts",
+      facts: [{ label: "Canal actualmente visible", value: s.name }],
+    },
+  });
 
   return (
     <div>

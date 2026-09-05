@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useMemo } from "react";
 import Link from "next/link";
 import { useSearchParams, useRouter } from "next/navigation";
 import { Plus, Pencil, Copy, Trash2, Loader2, Save, X, AlertCircle, RefreshCw, DollarSign, ChevronDown, ChevronUp, History, AlertTriangle, CheckCircle2 } from "lucide-react";
@@ -18,6 +18,8 @@ import {
 } from "./actions";
 import { useAppFeedback } from "@/components/ui/app-feedback";
 import { calculateProductPrice } from "@/lib/products/pricing";
+import { usePublishStampyScreenContext } from "@/components/stampy/StampyContextProvider";
+import type { StampyScreenContext } from "@/lib/stampy/screen-context";
 
 // Pricing Status Helper
 function getProductPricingStatus(product: any, allFilaments: any[], allPrinters: any[], allProductTypes: any[]) {
@@ -681,6 +683,114 @@ function ProductosPageContent() {
     if (!dateStr) return "";
     return new Date(dateStr).toLocaleDateString("es-AR", { day: "2-digit", month: "2-digit", year: "2-digit" });
   };
+
+  const stampyScreenContext = useMemo<StampyScreenContext>(() => {
+    const editingProduct = editingId && editingId !== "new"
+      ? products.find((product) => product.id === editingId)
+      : null;
+    const historyProduct = historyProductId
+      ? products.find((product) => product.id === historyProductId)
+      : null;
+    const selectedProduct = detailProduct ?? editingProduct ?? historyProduct
+      ?? (deleteTarget ? products.find((product) => product.id === deleteTarget.id) : null);
+    const detailPricingStatus = detailProduct
+      ? getProductPricingStatus(detailProduct, filaments, printers, productTypes)
+      : null;
+    const detailProfit = detailProduct
+      ? Number(detailProduct.sale_price || 0) - Number(detailProduct.base_cost || 0)
+      : 0;
+    const mode = editingId === "new"
+      ? "create"
+      : editingId
+        ? "edit"
+        : detailProduct
+          ? "detail"
+          : historyProductId
+            ? "price_history"
+            : deleteTarget
+              ? "delete_confirmation"
+              : "browse";
+
+    return {
+      page: { section: "products", route: "/productos", title: "Productos" },
+      mode,
+      selectedEntity: selectedProduct ? {
+        type: "product",
+        id: String(selectedProduct.id),
+        name: selectedProduct.name,
+        facts: detailProduct ? [
+          { label: "Stock visible", value: Number(detailProduct.stock_quantity || 0) },
+          { label: "Costo base visible", value: Number(detailProduct.base_cost || 0) },
+          { label: "Precio de venta visible", value: Number(detailProduct.sale_price || 0) },
+          { label: "Ganancia visible", value: detailProfit },
+          { label: "Margen visible en porcentaje", value: detailProduct.sale_price > 0 ? (detailProfit / detailProduct.sale_price) * 100 : 0 },
+          { label: "Composición", value: detailProduct.product_components?.length > 1 ? "Por partes" : "Simple" },
+          { label: "Cantidad de componentes visibles", value: detailProduct.product_components?.length || 0 },
+          { label: "Estado de precio", value: detailPricingStatus?.needsRecalculation ? "Requiere recálculo" : "Actualizado" },
+        ] : editingProduct ? [
+          { label: "Estado visible", value: "En edición" },
+        ] : [],
+      } : null,
+      visibleEntities: products.slice(0, 20).map((product, index) => {
+        const pricingStatus = getProductPricingStatus(product, filaments, printers, productTypes);
+        return {
+          type: "product",
+          id: String(product.id),
+          name: product.name,
+          position: index + 1,
+          facts: [
+            { label: "Stock visible", value: Number(product.stock_quantity || 0) },
+            { label: "Precio de venta visible", value: Number(product.sale_price || 0) },
+            { label: "Estado de precio", value: pricingStatus.needsRecalculation ? "Requiere recálculo" : "Actualizado" },
+          ],
+        };
+      }),
+      formState: editingId ? {
+        kind: "formDraft",
+        formType: editingId === "new" ? "Nuevo producto" : "Edición de producto",
+        fields: [
+          { label: "Nombre ingresado", value: formData.name },
+          { label: "Composición elegida", value: formData.mode === "parts" ? "Por partes" : "Simple" },
+          { label: "Impresora elegida", value: printers.find((printer) => printer.id === formData.printer_id)?.name ?? "Sin seleccionar" },
+          { label: "Tipo de producto elegido", value: productTypes.find((type) => type.id === formData.product_type_id)?.name ?? "Sin seleccionar" },
+          { label: "Horas ingresadas", value: Number(formData.print_time_hours || 0) },
+          { label: "Minutos ingresados", value: Number(formData.print_time_remaining_minutes || 0) },
+          { label: "Costo base visible", value: Number(formData.base_cost || 0) },
+          { label: "Precio de venta ingresado", value: Number(formData.sale_price || 0) },
+          { label: "Stock ingresado", value: Number(formData.stock_quantity || 0) },
+        ],
+        items: formData.components.slice(0, 20).map((component, index) => ({
+          type: "product_component_draft",
+          id: component.id ?? `draft-component-${index + 1}`,
+          name: component.name || `Parte ${index + 1}`,
+          position: index + 1,
+          facts: [
+            { label: "Cantidad por producto", value: Number(component.quantity_per_product || 0) },
+            { label: "Materiales cargados", value: component.materials.length },
+          ],
+        })),
+      } : null,
+      pageData: {
+        kind: "pageFacts",
+        facts: [
+          { label: "Productos visibles", value: products.length },
+          {
+            label: "Productos que muestran recálculo pendiente",
+            value: products.filter((product) => getProductPricingStatus(product, filaments, printers, productTypes).needsRecalculation).length,
+          },
+        ],
+      },
+      uiState: {
+        loading,
+        ...(editingId ? { activeDialog: editingId === "new" ? "Nuevo producto" : "Editar producto" } : {}),
+        ...(detailProduct ? { activeDialog: "Detalle de producto" } : {}),
+        ...(historyProductId ? { activeDialog: "Historial de precios" } : {}),
+        ...(deleteTarget ? { activeDialog: "Confirmar eliminación" } : {}),
+      },
+    };
+  }, [deleteTarget, detailProduct, editingId, filaments, formData, historyProductId, loading, printers, productTypes, products]);
+
+  usePublishStampyScreenContext(stampyScreenContext);
 
   if (loading) return <ProductsPageSkeleton />;
 
