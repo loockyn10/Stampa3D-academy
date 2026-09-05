@@ -14,6 +14,7 @@ export interface StampyProductStockToolIntent {
   productName?: string;
   aspect?: "profit" | "pricing" | "recipe" | "summary";
   quantity?: number | null;
+  filamentId?: string;
   filamentQuery?: {
     material?: string;
     color?: string;
@@ -21,6 +22,38 @@ export interface StampyProductStockToolIntent {
     lowStockOnly?: boolean;
   };
   clarification?: string;
+}
+
+function resolveVisibleFilament(
+  message: string,
+  context: StampyScreenContext | null,
+): StampyScreenEntity | null {
+  if (!context) return null;
+  const normalizedMessage = normalize(message);
+  const visibleFilaments = (context.visibleEntities ?? []).filter(
+    (entity) => entity.type === "filament",
+  );
+  const ordinalPatterns: Array<[RegExp, number]> = [
+    [/\b(?:primer|primero|primera)\b/, 1],
+    [/\b(?:segundo|segunda)\b/, 2],
+    [/\b(?:tercer|tercero|tercera)\b/, 3],
+    [/\b(?:cuarto|cuarta)\b/, 4],
+  ];
+  const ordinal = ordinalPatterns.find(([pattern]) => pattern.test(normalizedMessage));
+  if (ordinal) {
+    return visibleFilaments.find((entity) => entity.position === ordinal[1]) ?? null;
+  }
+  const namedMatches = visibleFilaments.filter(
+    (entity) => entity.name && normalizedMessage.includes(normalize(entity.name)),
+  );
+  if (namedMatches.length === 1) return namedMatches[0];
+  if (
+    context.selectedEntity?.type === "filament"
+    && /\b(?:este|esta|esto|seleccionado|seleccionada)\b/.test(normalizedMessage)
+  ) {
+    return context.selectedEntity;
+  }
+  return null;
 }
 
 function normalize(value: string): string {
@@ -171,11 +204,17 @@ export function detectStampyProductStockToolIntent({
     };
   }
 
+  const selectedFilament = resolveVisibleFilament(message, screenContext);
   const stockQuestion = /\b(?:cuanto|cuantos|queda|quedan|tengo|bobina|rollo|por terminarse|stock bajo)\b/.test(normalizedMessage)
     && (/\b(?:filamento|pla|petg|tpu|abs|asa|nylon|resina|bobina|rollo|stock)\b/.test(normalizedMessage)
-      || /\b(?:cual|cuales).*(?:por terminarse|queda poco)\b/.test(normalizedMessage));
+      || /\b(?:cual|cuales).*(?:por terminarse|queda poco)\b/.test(normalizedMessage)
+      || Boolean(selectedFilament));
   if (stockQuestion) {
-    return { toolName: "stock.filaments.list", filamentQuery: parseFilamentQuery(message) };
+    return {
+      toolName: "stock.filaments.list",
+      filamentId: selectedFilament?.id,
+      filamentQuery: parseFilamentQuery(message),
+    };
   }
 
   const asksRecipe = /\b(?:que filamentos? usa|que material(?:es)? usa|receta|que lleva)\b/.test(normalizedMessage);

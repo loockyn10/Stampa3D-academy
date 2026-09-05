@@ -227,6 +227,7 @@ export async function executeStampyProductStockTool({
     }
     const query = intent.filamentQuery ?? {};
     const matches = (data ?? [])
+      .filter((filament) => !intent.filamentId || filament.id === intent.filamentId)
       .filter((filament) => !query.material || normalize(filament.filament_type).includes(normalize(query.material)))
       .filter((filament) => !query.color || normalize(filament.color).includes(normalize(query.color)))
       .filter((filament) => !query.brand || normalize(filament.brand).includes(normalize(query.brand)))
@@ -284,6 +285,7 @@ export async function executeStampyProductStockTool({
           materialCost: Number(snapshot.filament_cost_with_waste ?? snapshot.material_cost ?? 0),
           electricityCost: Number(snapshot.electricity_cost ?? 0),
           maintenanceCost: Number(snapshot.maintenance_cost ?? 0),
+          fixedCost: Number(snapshot.fixed_cost_adjusted ?? snapshot.fixed_cost ?? 0),
           laborCost: Number(snapshot.labor_cost ?? 0),
           otherCosts: Number(snapshot.other_costs_adjusted ?? snapshot.other_costs ?? 0),
           multiplier: Number(snapshot.multiplier ?? snapshot.product_type_multiplier ?? 0),
@@ -416,6 +418,7 @@ export function formatStampyProductStockToolResult(result: StampyProductStockToo
         ["Material", breakdown.materialCost],
         ["Electricidad", breakdown.electricityCost],
         ["Mantenimiento", breakdown.maintenanceCost],
+        ["Costo fijo", breakdown.fixedCost],
         ["Mano de obra", breakdown.laborCost],
         ["Otros costos", breakdown.otherCosts],
       ]

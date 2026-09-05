@@ -247,7 +247,7 @@ export const STAMPY_TOOL_REGISTRY: StampyToolContract[] = [
     area: "stock",
     supportedIntents: ["list_filaments", "get_filament"],
     requiredFields: [],
-    optionalFields: ["material", "brand", "color", "lowStockOnly"],
+    optionalFields: ["filamentId", "material", "brand", "color", "lowStockOnly"],
     forbiddenFields: ["userId", "screen_context_grams", "arbitrary_select"],
     safetyNotes: [
       "Siempre consulta datos actuales del servidor.",

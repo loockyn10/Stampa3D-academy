@@ -97,6 +97,21 @@ test("selected product is bound to the existing safe consumption preview", () =>
   );
 });
 
+test("a selected filament resolves the contextual stock question", () => {
+  const intent = intents.detectStampyProductStockToolIntent({
+    message: "¿Cuánto me queda de esta?",
+    screenContext: {
+      page: { section: "stock", route: "/stock?tab=filamentos" },
+      selectedEntity: { type: "filament", id: "filament-a", name: "PLA W3D blanco" },
+      visibleEntities: [
+        { type: "filament", id: "filament-a", name: "PLA W3D blanco", position: 1 },
+      ],
+    },
+  });
+  assert.equal(intent.toolName, "stock.filaments.list");
+  assert.equal(intent.filamentId, "filament-a");
+});
+
 class Query {
   constructor(rows) {
     this.rows = rows;
@@ -117,7 +132,18 @@ function createSupabase() {
       id: "product-a", user_id: "user-a", name: "Jarro Argentina", description: null,
       stock_quantity: 2, base_cost: 100, sale_price: 150, filament_id: "filament-a", grams: 999,
       printer_id: null, product_type_id: null, print_time_minutes: 60,
-      calculation_snapshot: {}, cost_updated_at: null, is_active: true,
+      calculation_snapshot: {
+        source: "product_editor",
+        materials: [{ filament_id: "filament-a", filament_purchase_price: 10000, filament_total_grams: 1000 }],
+        material_cost: 50,
+        electricity_cost: 5,
+        maintenance_cost: 10,
+        fixed_cost_adjusted: 15,
+        labor_cost: 20,
+        other_costs_adjusted: 25,
+        multiplier: 3,
+      },
+      cost_updated_at: null, is_active: true,
     }],
     product_components: [{ id: "component-a", product_id: "product-a", user_id: "user-a", name: "Cuerpo", quantity_per_product: 1, sort_order: 0, stock_quantity: 0, is_active: true }],
     product_component_filaments: [{ id: "recipe-a", user_id: "user-a", component_id: "component-a", filament_id: "filament-a", grams: 100, filament_type: "PLA", brand: "W3D", name: null, color: "blanco", sort_order: 0 }],
@@ -138,6 +164,38 @@ test("capacity uses component recipes once and current server stock", async () =
   assert.equal(result.data.requirements[0].missingGrams, 100);
   assert.equal(result.data.maxProducible, 5);
   assert.equal(result.data.requirements.length, 1, "legacy product grams must not be added when components exist");
+});
+
+test("product inspection returns real profit, current pricing status and one recipe source", async () => {
+  const result = await tools.executeStampyProductStockTool({
+    supabase: createSupabase(),
+    userId: "user-a",
+    intent: { toolName: "products.inspect", productId: "product-a", aspect: "pricing" },
+  });
+  assert.equal(result.success, true);
+  assert.equal(result.data.product.profit, 50);
+  assert.equal(result.data.pricingStatus.needsRecalculation, false);
+  assert.equal(result.data.recipe.length, 1);
+  const answer = tools.formatStampyProductStockToolResult(result);
+  assert.match(answer, /precio actualizado/i);
+  assert.match(answer, /Costo fijo/);
+  assert.doesNotMatch(answer, /product-a|filament-a|RPC/i);
+});
+
+test("the extracted pricing-status helper preserves the real yellow-state reason", () => {
+  const status = pricingStatus.getProductPricingStatus(
+    {
+      calculation_snapshot: {
+        source: "product_editor",
+        materials: [{ filament_id: "filament-a", filament_purchase_price: 9000, filament_total_grams: 1000 }],
+      },
+    },
+    [{ id: "filament-a", name: "PLA blanco", purchase_price: 10000, total_grams: 1000 }],
+    [],
+    [],
+  );
+  assert.equal(status.needsRecalculation, true);
+  assert.deepEqual(status.reasons, ["Cambió el precio de PLA blanco"]);
 });
 
 test("stock read sums matching real bobbins and never accepts a caller userId", async () => {
@@ -176,6 +234,13 @@ test("tool registry is the canonical impact and confirmation source", () => {
     { impact: registry.getStampyToolContract("products.filaments.discount").impact, confirmationRequired: registry.getStampyToolContract("products.filaments.discount").confirmationRequired },
     { impact: "destructive", confirmationRequired: true },
   );
+  const productTools = registry.getRelevantContractsForPath("/productos").map((contract) => contract.id);
+  const stockTools = registry.getRelevantContractsForPath("/stock?tab=filamentos").map((contract) => contract.id);
+  assert.ok(productTools.includes("products.inspect"));
+  assert.ok(productTools.includes("products.recalculate"));
+  assert.ok(!productTools.includes("stock.filaments.list"));
+  assert.ok(stockTools.includes("stock.filaments.list"));
+  assert.ok(!stockTools.includes("products.recalculate"));
 });
 
 test("Stampy orchestration keeps tool events, auth and stale-context protection server-side", () => {
