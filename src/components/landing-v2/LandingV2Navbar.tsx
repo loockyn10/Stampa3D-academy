@@ -9,6 +9,8 @@ const NAV_ITEMS = [
   { href: "#academia", label: "Academia" },
   { href: "#herramientas", label: "Herramientas" },
   { href: "#stampy", label: "Stampy" },
+  { href: "#comunidad", label: "Comunidad" },
+  { href: "#precios", label: "Precios" },
 ];
 
 export function LandingV2Navbar() {
@@ -38,7 +40,7 @@ export function LandingV2Navbar() {
           </span>
         </Link>
 
-        <div className="hidden items-center gap-8 md:flex">
+        <div className="hidden items-center gap-7 lg:flex">
           {NAV_ITEMS.map((item) => (
             <Link
               key={item.href}
@@ -50,7 +52,7 @@ export function LandingV2Navbar() {
           ))}
         </div>
 
-        <div className="hidden items-center gap-3 md:flex">
+        <div className="hidden items-center gap-3 lg:flex">
           <Link
             href="/login"
             className="rounded-xl px-4 py-2.5 text-sm font-semibold text-zinc-300 transition-colors hover:text-white focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-stampa-orange"
@@ -71,7 +73,7 @@ export function LandingV2Navbar() {
           aria-expanded={mobileOpen}
           aria-controls="landing-v2-mobile-navigation"
           onClick={() => setMobileOpen((open) => !open)}
-          className="flex h-11 w-11 items-center justify-center rounded-xl border border-white/10 bg-white/[0.04] text-white transition-colors hover:bg-white/[0.08] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-stampa-orange md:hidden"
+          className="flex h-11 w-11 items-center justify-center rounded-xl border border-white/10 bg-white/[0.04] text-white transition-colors hover:bg-white/[0.08] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-stampa-orange lg:hidden"
         >
           {mobileOpen ? <X size={20} /> : <Menu size={20} />}
         </button>
@@ -80,7 +82,7 @@ export function LandingV2Navbar() {
       {mobileOpen ? (
         <div
           id="landing-v2-mobile-navigation"
-          className="mx-4 rounded-2xl border border-white/10 bg-[#1c1c1f]/95 p-3 shadow-2xl shadow-black/40 backdrop-blur-xl md:hidden"
+          className="mx-4 rounded-2xl border border-white/10 bg-[#1c1c1f]/95 p-3 shadow-2xl shadow-black/40 backdrop-blur-xl lg:hidden"
         >
           <div className="grid gap-1">
             {NAV_ITEMS.map((item) => (

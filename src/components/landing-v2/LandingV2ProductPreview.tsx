@@ -83,7 +83,7 @@ export function LandingV2ProductPreview() {
             </div>
 
             <div className="mt-5 grid gap-3 sm:grid-cols-[1.32fr_0.68fr]">
-              <div id="academia" className="scroll-mt-24 rounded-xl border border-white/[0.09] bg-[#222225] p-4 sm:p-5">
+              <div id="preview-academia" className="rounded-xl border border-white/[0.09] bg-[#222225] p-4 sm:p-5">
                 <div className="flex items-start justify-between gap-3">
                   <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-stampa-orange/10 text-stampa-orange">
                     <CirclePlay size={17} />
@@ -101,7 +101,7 @@ export function LandingV2ProductPreview() {
                 </div>
               </div>
 
-              <div id="herramientas" className="scroll-mt-24 rounded-xl border border-white/[0.09] bg-[#222225] p-4">
+              <div id="preview-herramientas" className="rounded-xl border border-white/[0.09] bg-[#222225] p-4">
                 <div className="flex items-center justify-between">
                   <Boxes size={16} className="text-emerald-400" />
                   <span className="text-[8px] font-semibold text-emerald-400">Stock saludable</span>
@@ -132,8 +132,8 @@ export function LandingV2ProductPreview() {
       </div>
 
       <div
-        id="stampy"
-        className="relative -mt-10 ml-auto w-[min(90%,20rem)] scroll-mt-24 rounded-2xl border border-cyan-400/20 bg-[#202326]/95 p-4 shadow-[0_24px_55px_-22px_rgba(0,0,0,0.95)] backdrop-blur sm:absolute sm:-bottom-8 sm:-right-4 sm:mt-0 sm:w-[19rem] lg:-right-7"
+        id="preview-stampy"
+        className="relative -mt-10 ml-auto w-[min(90%,20rem)] rounded-2xl border border-cyan-400/20 bg-[#202326]/95 p-4 shadow-[0_24px_55px_-22px_rgba(0,0,0,0.95)] backdrop-blur sm:absolute sm:-bottom-8 sm:-right-4 sm:mt-0 sm:w-[19rem] lg:-right-7"
       >
         <div className="flex items-center gap-2.5">
           <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-cyan-400/10 text-cyan-300">
