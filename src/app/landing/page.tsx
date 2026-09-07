@@ -1,11 +1,12 @@
 import type { Metadata } from "next";
-import LandingOldPage from "../landing-old/page";
+import { LandingMembershipPage } from "@/components/landing-membership/LandingMembershipPage";
 
 export const metadata: Metadata = {
-  title: "Stampa3D Academy | Academia de impresión 3D",
-  description: "Aprendé impresión 3D, calculá precios, organizá tu stock y convertí tu impresora en un negocio real.",
+  title: "Academia Stampa | Formación y gestión para impresión 3D",
+  description:
+    "Aprendé impresión 3D, calculá costos, organizá tu taller y generá presupuestos profesionales desde una sola plataforma.",
 };
 
 export default function LandingPage() {
-  return <LandingOldPage />;
+  return <LandingMembershipPage />;
 }

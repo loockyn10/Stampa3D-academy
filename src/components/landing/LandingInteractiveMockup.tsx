@@ -31,7 +31,17 @@ const steps = [
   }
 ];
 
-export function LandingInteractiveMockup() {
+interface LandingInteractiveMockupProps {
+  title?: string;
+  description?: string;
+  stepBenefits?: Partial<Record<number, string>>;
+}
+
+export function LandingInteractiveMockup({
+  title = "Todo lo que tu taller necesita",
+  description = "Un ecosistema diseñado específicamente para hacer rentable la impresión 3D.",
+  stepBenefits,
+}: LandingInteractiveMockupProps = {}) {
   const [activeStep, setActiveStep] = useState(1);
   const [ref, isIntersecting] = useIntersection<HTMLDivElement>({ threshold: 0.1 });
 
@@ -41,10 +51,10 @@ export function LandingInteractiveMockup() {
         
         <div className={`text-center max-w-3xl mx-auto mb-16 stampa-reveal-hidden ${isIntersecting ? 'stampa-reveal-visible' : ''}`}>
           <h2 className="text-3xl md:text-5xl font-bold text-white mb-6">
-            Todo lo que tu taller necesita
+            {title}
           </h2>
           <p className="text-gray-400 text-lg md:text-xl">
-            Un ecosistema diseñado específicamente para hacer rentable la impresión 3D.
+            {description}
           </p>
         </div>
 
@@ -53,14 +63,17 @@ export function LandingInteractiveMockup() {
           {/* Left: Tabs / Cards */}
           <div className="w-full lg:w-5/12 flex flex-col gap-4 relative z-10">
             {steps.map((step, idx) => (
-              <div 
+              <button
+                type="button"
                 key={step.id}
                 onMouseEnter={() => {
                   // Only trigger hover on desktop
                   if (window.innerWidth >= 1024) setActiveStep(step.id);
                 }}
                 onClick={() => setActiveStep(step.id)}
-                className={`p-6 rounded-2xl border transition-all duration-300 cursor-pointer flex items-start gap-4 stampa-reveal-hidden ${isIntersecting ? 'stampa-reveal-visible' : ''} ${
+                aria-pressed={activeStep === step.id}
+                aria-label={`${step.title}: ${stepBenefits?.[step.id] ?? step.desc}`}
+                className={`w-full p-6 rounded-2xl border text-left transition-all duration-300 cursor-pointer flex items-start gap-4 stampa-reveal-hidden focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-orange-400 ${isIntersecting ? 'stampa-reveal-visible' : ''} ${
                   activeStep === step.id 
                     ? 'bg-zinc-900 border-stampa-orange/50 shadow-[0_0_30px_rgba(234,88,12,0.15)]' 
                     : 'bg-zinc-900/40 border-stampa-border hover:bg-zinc-900/80 hover:border-stampa-border'
@@ -76,9 +89,9 @@ export function LandingInteractiveMockup() {
                   <h3 className={`font-bold text-lg mb-1 transition-colors duration-300 ${
                     activeStep === step.id ? 'text-white' : 'text-gray-400'
                   }`}>{step.title}</h3>
-                  <p className="text-gray-500 text-sm">{step.desc}</p>
+                  <p className="text-gray-500 text-sm">{stepBenefits?.[step.id] ?? step.desc}</p>
                 </div>
-              </div>
+              </button>
             ))}
           </div>
 
