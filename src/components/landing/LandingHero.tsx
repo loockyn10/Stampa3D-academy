@@ -33,7 +33,7 @@ export function LandingHero() {
               <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-orange-400 opacity-75"></span>
               <span className="relative inline-flex rounded-full h-2 w-2 bg-stampa-orange"></span>
             </span>
-            Stampa3D Academy
+            Academia Stampa
           </div>
           
           <h1 className="text-5xl lg:text-7xl font-bold tracking-tight mb-6 leading-tight animate-fade-in-up" style={{ animationDelay: "0.1s" }}>

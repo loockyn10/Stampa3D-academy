@@ -10,7 +10,7 @@ import { LandingTools } from '@/components/landing/LandingTools';
 import { LandingCTA } from '@/components/landing/LandingCTA';
 
 export const metadata: Metadata = {
-  title: "Stampa3D Academy | Academia de impresión 3D",
+  title: "Stampa3D Academys | Academia de impresión 3D",
   description: "Aprendé impresión 3D, calculá precios, organizá tu stock y convertí tu impresora en un negocio real.",
 };
 

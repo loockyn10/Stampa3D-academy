@@ -45,7 +45,7 @@ export function LandingHeroMockup() {
             <div className="flex items-center justify-between mb-3">
               <div className="flex items-center gap-2 text-white/80">
                 <Calculator className="w-5 h-5 text-green-400" />
-                <span className="text-sm font-medium">Cotizador</span>
+                <span className="text-sm font-medium">Calculadora</span>
               </div>
             </div>
             <p className="text-xs text-white/50 mb-1">Precio sugerido (Soporte Joystick)</p>
