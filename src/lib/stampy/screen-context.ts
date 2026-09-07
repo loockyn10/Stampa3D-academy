@@ -60,11 +60,14 @@ export interface StampyBudgetDraftItem {
   name: string;
   quantity: number;
   unitPrice: number;
+  estimatedProfit?: number;
 }
 
 export interface StampyBudgetDraftContext {
   kind: "budgetDraft";
   budgetType: "quick" | "professional";
+  title?: string;
+  validUntil?: string;
   client?: {
     id?: string;
     name?: string;
@@ -78,9 +81,46 @@ export interface StampyBudgetDraftContext {
     discount: number;
     tax: number;
     total: number;
+    estimatedProfit?: number;
   };
   paymentMethod?: string;
   deliveryTime?: string;
+}
+
+export interface StampyCalculatorDraftContext {
+  kind: "calculatorDraft";
+  mode: "basic" | "advanced";
+  valid: boolean;
+  printer?: {
+    id?: string;
+    name: string;
+  } | null;
+  productType?: string | null;
+  filaments: Array<{
+    id?: string;
+    name: string;
+    grams: number;
+    costPerKg: number;
+    cost: number;
+  }>;
+  timeMinutes: number;
+  printerPowerWatts: number;
+  electricityPriceKwh: number;
+  maintenanceCostPerHour: number;
+  wastePercent: number;
+  laborCost: number;
+  otherCost: number;
+  fixedCost: number;
+  multiplier: number;
+  result: {
+    filamentCost: number;
+    electricityCost: number;
+    maintenanceCost: number;
+    baseCost: number;
+    salePrice: number;
+    profit: number;
+    marketplacePrice: number;
+  };
 }
 
 export interface StampyFormDraftContext {
@@ -104,7 +144,7 @@ export interface StampyScreenContext {
   mode?: string | null;
   selectedEntity?: StampyScreenEntity | null;
   visibleEntities?: StampyScreenEntity[];
-  formState?: StampyBudgetDraftContext | StampyFormDraftContext | null;
+  formState?: StampyBudgetDraftContext | StampyCalculatorDraftContext | StampyFormDraftContext | null;
   uiState?: StampyScreenUiState | null;
   pageData?: StampyAcademyPageData | StampyBudgetsPageData | StampyPageFactsData | null;
 }
@@ -225,6 +265,9 @@ function sanitizeBudgetDraft(value: unknown): StampyBudgetDraftContext | null {
         name,
         quantity: safeNumber(item.quantity, 0, 1_000_000) ?? 0,
         unitPrice: safeNumber(item.unitPrice, 0) ?? 0,
+        ...(safeNumber(item.estimatedProfit, -1_000_000_000, 1_000_000_000) !== null
+          ? { estimatedProfit: safeNumber(item.estimatedProfit, -1_000_000_000, 1_000_000_000) ?? 0 }
+          : {}),
       }];
     })
     : [];
@@ -233,6 +276,8 @@ function sanitizeBudgetDraft(value: unknown): StampyBudgetDraftContext | null {
   return {
     kind: "budgetDraft",
     budgetType: draft.budgetType === "professional" ? "professional" : "quick",
+    ...(safeText(draft.title, 200) ? { title: safeText(draft.title, 200) } : {}),
+    ...(safeText(draft.validUntil, 40) ? { validUntil: safeText(draft.validUntil, 40) } : {}),
     client: clientValue ? {
       ...(safeText(clientValue.id, 120) ? { id: safeText(clientValue.id, 120) } : {}),
       ...(safeText(clientValue.name, 160) ? { name: safeText(clientValue.name, 160) } : {}),
@@ -246,18 +291,77 @@ function sanitizeBudgetDraft(value: unknown): StampyBudgetDraftContext | null {
       discount: safeNumber(summaryValue?.discount, 0) ?? 0,
       tax: safeNumber(summaryValue?.tax, 0) ?? 0,
       total: safeNumber(summaryValue?.total, 0) ?? 0,
+      ...(safeNumber(summaryValue?.estimatedProfit, -1_000_000_000, 1_000_000_000) !== null
+        ? { estimatedProfit: safeNumber(summaryValue?.estimatedProfit, -1_000_000_000, 1_000_000_000) ?? 0 }
+        : {}),
     },
     ...(safeText(draft.paymentMethod) ? { paymentMethod: safeText(draft.paymentMethod) } : {}),
     ...(safeText(draft.deliveryTime) ? { deliveryTime: safeText(draft.deliveryTime) } : {}),
   };
 }
 
+function sanitizeCalculatorDraft(value: unknown): StampyCalculatorDraftContext | null {
+  const draft = objectValue(value);
+  if (!draft || draft.kind !== "calculatorDraft") return null;
+
+  const printerValue = objectValue(draft.printer);
+  const printerName = safeText(printerValue?.name, 160);
+  const resultValue = objectValue(draft.result);
+  const filaments = Array.isArray(draft.filaments)
+    ? draft.filaments
+        .slice(0, STAMPY_SCREEN_CONTEXT_LIMITS.draftItems)
+        .flatMap((candidate) => {
+          const filament = objectValue(candidate);
+          const name = safeText(filament?.name, 160);
+          if (!filament || !name) return [];
+          return [{
+            ...(safeText(filament.id, 120) ? { id: safeText(filament.id, 120) } : {}),
+            name,
+            grams: safeNumber(filament.grams, 0) ?? 0,
+            costPerKg: safeNumber(filament.costPerKg, 0) ?? 0,
+            cost: safeNumber(filament.cost, 0) ?? 0,
+          }];
+        })
+    : [];
+
+  return {
+    kind: "calculatorDraft",
+    mode: draft.mode === "advanced" ? "advanced" : "basic",
+    valid: draft.valid === true,
+    printer: printerName ? {
+      ...(safeText(printerValue?.id, 120) ? { id: safeText(printerValue?.id, 120) } : {}),
+      name: printerName,
+    } : null,
+    productType: safeText(draft.productType, 160) ?? null,
+    filaments,
+    timeMinutes: safeNumber(draft.timeMinutes, 0) ?? 0,
+    printerPowerWatts: safeNumber(draft.printerPowerWatts, 0) ?? 0,
+    electricityPriceKwh: safeNumber(draft.electricityPriceKwh, 0) ?? 0,
+    maintenanceCostPerHour: safeNumber(draft.maintenanceCostPerHour, 0) ?? 0,
+    wastePercent: safeNumber(draft.wastePercent, 0, 100) ?? 0,
+    laborCost: safeNumber(draft.laborCost, 0) ?? 0,
+    otherCost: safeNumber(draft.otherCost, 0) ?? 0,
+    fixedCost: safeNumber(draft.fixedCost, 0) ?? 0,
+    multiplier: safeNumber(draft.multiplier, 0, 1_000) ?? 0,
+    result: {
+      filamentCost: safeNumber(resultValue?.filamentCost, 0) ?? 0,
+      electricityCost: safeNumber(resultValue?.electricityCost, 0) ?? 0,
+      maintenanceCost: safeNumber(resultValue?.maintenanceCost, 0) ?? 0,
+      baseCost: safeNumber(resultValue?.baseCost, 0) ?? 0,
+      salePrice: safeNumber(resultValue?.salePrice, 0) ?? 0,
+      profit: safeNumber(resultValue?.profit, -1_000_000_000, 1_000_000_000) ?? 0,
+      marketplacePrice: safeNumber(resultValue?.marketplacePrice, 0) ?? 0,
+    },
+  };
+}
+
 function sanitizeFormState(
   value: unknown
-): StampyBudgetDraftContext | StampyFormDraftContext | null {
+): StampyBudgetDraftContext | StampyCalculatorDraftContext | StampyFormDraftContext | null {
   const draft = objectValue(value);
   if (!draft) return null;
   if (draft.kind === "budgetDraft") return sanitizeBudgetDraft(draft);
+  if (draft.kind === "calculatorDraft") return sanitizeCalculatorDraft(draft);
   if (draft.kind !== "formDraft") return null;
 
   const formType = safeText(draft.formType, 80);
@@ -456,20 +560,45 @@ export function formatStampyScreenContextForPrompt(value: unknown): string {
   const draft = context.formState;
   if (draft?.kind === "budgetDraft") {
     lines.push(`- Borrador de presupuesto: ${draft.budgetType === "professional" ? "Profesional" : "Rápido"}`);
+    if (draft.title) lines.push(`- Título: ${draft.title}`);
+    if (draft.validUntil) lines.push(`- Válido hasta: ${draft.validUntil}`);
     if (draft.client?.name || draft.client?.id) {
       lines.push(`- Cliente del borrador: ${draft.client.name ?? "sin nombre visible"}`);
     }
     lines.push("- Ítems del borrador:");
     if (draft.items.length === 0) lines.push("  - Ninguno");
     for (const [index, item] of draft.items.entries()) {
-      lines.push(`  ${index + 1}. ${item.name}: cantidad ${item.quantity}, precio unitario ${item.unitPrice}`);
+      lines.push(`  ${index + 1}. ${item.name}: cantidad ${item.quantity}, precio unitario ${item.unitPrice}${item.estimatedProfit !== undefined ? `, ganancia estimada ${item.estimatedProfit}` : ""}`);
     }
     lines.push(`- Descuento: ${draft.discountPercent}%`);
     lines.push(`- IVA: ${draft.taxRate}%`);
     lines.push(`- Cargos adicionales: ${draft.additionalCharges}`);
     lines.push(`- Resumen visible: subtotal ${draft.summary.subtotal}, descuento ${draft.summary.discount}, IVA ${draft.summary.tax}, total ${draft.summary.total}`);
+    if (draft.summary.estimatedProfit !== undefined) lines.push(`- Ganancia estimada interna del borrador: ${draft.summary.estimatedProfit}`);
     if (draft.paymentMethod) lines.push(`- Forma de pago: ${draft.paymentMethod}`);
     if (draft.deliveryTime) lines.push(`- Plazo de entrega: ${draft.deliveryTime}`);
+  } else if (draft?.kind === "calculatorDraft") {
+    lines.push(`- Cálculo actual sin guardar: modo ${draft.mode === "advanced" ? "Avanzado" : "Básico"}`);
+    lines.push(`- Datos suficientes para calcular: ${draft.valid ? "Sí" : "No"}`);
+    if (draft.printer?.name) lines.push(`- Impresora elegida: ${draft.printer.name}`);
+    if (draft.productType) lines.push(`- Tipo de producto elegido: ${draft.productType}`);
+    lines.push(`- Tiempo ingresado: ${draft.timeMinutes} minutos`);
+    lines.push(`- Desperdicio: ${draft.wastePercent}%`);
+    lines.push(`- Mano de obra: ${draft.laborCost}`);
+    lines.push(`- Insumos extra: ${draft.otherCost}`);
+    lines.push(`- Costo fijo: ${draft.fixedCost}`);
+    lines.push(`- Multiplicador sobre filamento: ${draft.multiplier}`);
+    if (draft.filaments.length > 0) {
+      lines.push("- Filamentos del cálculo:");
+      for (const filament of draft.filaments) {
+        lines.push(`  - ${filament.name}: ${filament.grams} g; costo ${filament.cost}`);
+      }
+    }
+    lines.push(`- Desglose calculado: filamento ${draft.result.filamentCost}, electricidad ${draft.result.electricityCost}, mantenimiento ${draft.result.maintenanceCost}, mano de obra ${draft.laborCost}, insumos y costos fijos sin recargo ${draft.otherCost + draft.fixedCost}`);
+    lines.push(`- Resultado calculado: costo base ${draft.result.baseCost}, precio sugerido ${draft.result.salePrice}, ganancia ${draft.result.profit}`);
+    if (draft.result.marketplacePrice > 0) {
+      lines.push(`- Precio calculado para Mercado Libre: ${draft.result.marketplacePrice}`);
+    }
   } else if (draft?.kind === "formDraft") {
     lines.push(`- Borrador actual sin guardar: ${draft.formType}`);
     for (const field of draft.fields) {
@@ -492,6 +621,12 @@ export function formatStampyScreenContextForPrompt(value: unknown): string {
   if (context.mode) lines.push(`- mode_key=${context.mode}`);
   if (context.selectedEntity) {
     lines.push(`- selected_entity: type=${context.selectedEntity.type}; id=${context.selectedEntity.id}`);
+  }
+  if (context.formState?.kind === "calculatorDraft") {
+    if (context.formState.printer?.id) lines.push(`- calculator_printer_id=${context.formState.printer.id}`);
+    if (context.formState.filaments.length > 0) {
+      lines.push(`- calculator_filament_ids=${context.formState.filaments.map((filament) => filament.id ?? "unselected").join(",")}`);
+    }
   }
   if (context.pageData?.kind === "academy" && context.pageData.recommendedPath?.id) {
     lines.push(`- recommended_path_id=${context.pageData.recommendedPath.id}`);

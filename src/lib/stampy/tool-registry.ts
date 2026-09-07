@@ -57,6 +57,25 @@ export const STAMPY_TOOL_REGISTRY: StampyToolContract[] = [
     confirmationRequired: false,
   },
   {
+    id: "clients.inspect",
+    name: "Consultar cliente",
+    description: "Consultar datos comerciales y presupuestos del cliente seleccionado.",
+    route: "/presupuestos",
+    area: "clients",
+    supportedIntents: ["inspect_client"],
+    requiredFields: ["clientId"],
+    optionalFields: ["aspect"],
+    forbiddenFields: ["userId", "arbitrary_select", "screen_context_contact_data"],
+    safetyNotes: [
+      "El cliente y sus presupuestos se vuelven a consultar en servidor.",
+      "Ambas consultas validan ownership con el usuario autenticado.",
+      "Los datos de contacto sólo se muestran cuando el usuario los pide.",
+    ],
+    canExecuteFromChat: true,
+    impact: "read",
+    confirmationRequired: false,
+  },
+  {
     id: "calculator.printers.create",
     name: "Crear impresora",
     description: "Crear una impresora nueva en el taller.",
@@ -332,6 +351,7 @@ export function getRelevantContractsForPath(pathname: string): StampyToolContrac
   
   if (pathname.startsWith("/presupuestos")) {
     contracts.push(...getStampyToolContractsForArea("quotes"));
+    contracts.push(...getStampyToolContractsForArea("clients"));
   } else if (pathname.startsWith("/calculadora")) {
     contracts.push(...getStampyToolContractsForArea("calculator"));
   } else if (pathname.startsWith("/stock")) {

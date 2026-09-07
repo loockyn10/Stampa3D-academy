@@ -188,7 +188,7 @@ test("remaining high-value user pages publish lightweight dynamic screen context
     ["src/app/cursos/[id]/page.tsx", /mode: activeLesson \? "lesson" : "overview"/, /type: "lesson"/],
     ["src/app/productos/page.tsx", /section: "products"/, /Estado de precio/],
     ["src/app/stock/page.tsx", /section: "stock"/, /Gramos restantes visibles/],
-    ["src/app/calculadora/page.tsx", /section: "calculator"/, /Precio sugerido calculado/],
+    ["src/app/calculadora/page.tsx", /section: "calculator"/, /kind: "calculatorDraft"/],
     ["src/app/sorteos/page.tsx", /section: "raffles"/, /Chances totales visibles/],
     ["src/app/perfil/page.tsx", /section: "profile"/, /Código de referido disponible en pantalla/],
     ["src/app/configuracion/page.tsx", /section: "configuration"/, /activeTab/],
@@ -213,6 +213,7 @@ test("embedded client editing is contextualized without sending contact or fisca
   );
 
   assert.match(contextSource, /type: "client"/);
+  assert.match(contextSource, /clients\.slice\(0, 20\)/);
   assert.match(contextSource, /formType: clientData\.id \? "Edición de cliente" : "Nuevo cliente"/);
   assert.doesNotMatch(contextSource, /clientData\.(email|phone|address|cuit)/);
 });

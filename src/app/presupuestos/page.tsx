@@ -478,12 +478,21 @@ function PresupuestosPageContent() {
           id: String(currentClient.id),
           name: String(currentClient.name || "Cliente"),
         } : null,
-      visibleEntities: !editingId ? budgets.slice(0, 20).map((budget, index) => ({
-        type: "budget",
-        id: String(budget.id),
-        name: String(budget.title || `Presupuesto ${budget.budget_number || ""}`).trim(),
-        position: index + 1,
-      })) : [],
+      visibleEntities: editingId && !showClientForm
+        ? clients.slice(0, 20).map((client, index) => ({
+            type: "client",
+            id: String(client.id),
+            name: String(client.name || "Cliente"),
+            position: index + 1,
+          }))
+        : !editingId
+          ? budgets.slice(0, 20).map((budget, index) => ({
+              type: "budget",
+              id: String(budget.id),
+              name: String(budget.title || `Presupuesto ${budget.budget_number || ""}`).trim(),
+              position: index + 1,
+            }))
+          : [],
       formState: showClientForm ? {
         kind: "formDraft",
         formType: clientData.id ? "Edición de cliente" : "Nuevo cliente",
@@ -495,6 +504,8 @@ function PresupuestosPageContent() {
       } : editingId ? {
         kind: "budgetDraft",
         budgetType: formData.budget_type,
+        title: formData.title || undefined,
+        validUntil: formData.valid_until || undefined,
         client: formData.client_id || clientSnapshot.name ? {
           ...(formData.client_id ? { id: formData.client_id } : {}),
           name: formData.budget_type === "professional"
@@ -506,6 +517,7 @@ function PresupuestosPageContent() {
           name: String(item.item_name || "Producto"),
           quantity: Number(item.quantity) || 0,
           unitPrice: Number(item.unit_price) || 0,
+          estimatedProfit: Number(item.total_profit) || 0,
         })),
         discountPercent,
         taxRate: formData.tax_rate,
@@ -515,6 +527,7 @@ function PresupuestosPageContent() {
           discount: discountAmount,
           tax: taxAmount,
           total,
+          estimatedProfit: estimatedProfit - discountAmount,
         },
         paymentMethod: formData.payment_method || formData.payment_terms || undefined,
         deliveryTime: formData.delivery_time || undefined,
@@ -539,6 +552,7 @@ function PresupuestosPageContent() {
     discountAmount,
     discountPercent,
     editingId,
+    estimatedProfit,
     formData,
     loading,
     pathname,

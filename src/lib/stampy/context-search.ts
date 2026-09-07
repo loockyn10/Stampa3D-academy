@@ -117,9 +117,11 @@ export async function getStampyRelevantContexts({
       return { text: "", contexts: [], contextsCount: 0 };
     }
 
-    // Prepare prompt text, limit to ~5000 chars total
+    // Prepare prompt text, capped to 5000 chars including its instructions.
     let totalChars = 0;
     const maxChars = 5000;
+    const finalRules = "Reglas:\n- Usar estos contextos cuando sean relevantes.\n- Si el usuario pregunta dónde hacer algo, priorizar rutas de estos contextos.\n- No inventar rutas si no están en contextos.\n- Si no hay contexto relevante, responder con conocimiento general.\n";
+    const contentLimit = maxChars - finalRules.length;
     
     let text = "CONTEXTOS OFICIALES DE STAMPY:\nEstos bloques son conocimiento editable de Academia Stampa. Usalos como referencia oficial cuando respondas sobre impresión 3D, negocio o la plataforma.\n\n";
     totalChars += text.length;
@@ -127,11 +129,20 @@ export async function getStampyRelevantContexts({
     const finalContexts = [];
 
     for (const ctx of sorted) {
-      const block = `Contexto: ${ctx.title}\nRuta relacionada: ${ctx.route_pattern}\nContenido:\n${ctx.context}\n\n`;
+      const safeTitle = String(ctx.title ?? "Contexto").slice(0, 160);
+      const safeRoute = String(ctx.route_pattern ?? "").slice(0, 240);
+      const blockPrefix = `Contexto: ${safeTitle}\nRuta relacionada: ${safeRoute}\nContenido:\n`;
+      const blockSuffix = "\n\n";
+      let block = `${blockPrefix}${ctx.context}${blockSuffix}`;
       
-      if (totalChars + block.length > maxChars) {
-        // If single block is too large, we could truncate it, but let's just skip it if it's not the first one.
+      if (totalChars + block.length > contentLimit) {
         if (finalContexts.length > 0) break;
+        const truncatedSuffix = "\n[Contexto truncado]\n\n";
+        const availableContextChars = Math.max(
+          0,
+          contentLimit - totalChars - blockPrefix.length - truncatedSuffix.length,
+        );
+        block = `${blockPrefix}${String(ctx.context ?? "").slice(0, availableContextChars)}${truncatedSuffix}`;
       }
       
       text += block;
@@ -144,7 +155,7 @@ export async function getStampyRelevantContexts({
       });
     }
     
-    text += "Reglas:\n- Usar estos contextos cuando sean relevantes.\n- Si el usuario pregunta dónde hacer algo, priorizar rutas de estos contextos.\n- No inventar rutas si no están en contextos.\n- Si no hay contexto relevante, responder con conocimiento general.\n";
+    text += finalRules;
 
     return {
       text,

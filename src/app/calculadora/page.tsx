@@ -678,37 +678,39 @@ function CalculadoraPageContent() {
         }];
       }),
       formState: {
-        kind: "formDraft",
-        formType: showSaveModal ? "Producto a guardar desde la calculadora" : "Cálculo sin guardar",
-        fields: [
-          { label: "Modo", value: advanced ? "Avanzado" : "Básico" },
-          { label: "Impresora elegida", value: selectedPrinter?.name ?? "Sin seleccionar" },
-          { label: "Tipo de producto elegido", value: selectedMultiplier?.name ?? "Sin seleccionar" },
-          { label: "Horas ingresadas", value: Number(hours || 0) },
-          { label: "Minutos ingresados", value: Number(minutes || 0) },
-          { label: "Porcentaje de desperdicio ingresado", value: Number(manualErrorPercent || 0) },
-          { label: "Mano de obra ingresada", value: Number(laborCost || 0) },
-          { label: "Insumos extra ingresados", value: Number(otherCost || 0) },
-          { label: "Costo fijo ingresado", value: Number(fixedCost || 0) },
-          { label: "Markup manual visible", value: Number(manualMultiplier || 0) },
-          { label: "Costo base calculado", value: Number(calc.baseCost || 0) },
-          { label: "Precio sugerido calculado", value: Number(calc.normalPrice || 0) },
-          { label: "Ganancia estimada", value: Number(calc.profit || 0) },
-          { label: "Precio de Mercado Libre calculado", value: Number(calc.mlPrice || 0) },
-          ...(showSaveModal
-            ? [{ label: "Nombre de producto ingresado", value: productForm.name || "Sin completar" }]
-            : []),
-        ],
-        items: filamentLines.slice(0, 20).map((line, index) => {
+        kind: "calculatorDraft",
+        mode: advanced ? "advanced" : "basic",
+        valid: calc.hasValidFilamentLines && calc.baseCost > 0,
+        printer: selectedPrinter ? { id: String(selectedPrinter.id), name: selectedPrinter.name } : null,
+        productType: selectedMultiplier?.name ?? null,
+        filaments: filamentLines.slice(0, 20).map((line, index) => {
           const filament = filaments.find((candidate) => candidate.id === line.filamentId);
           return {
-            type: "filament_line_draft",
-            id: line.id,
+            id: filament ? String(filament.id) : undefined,
             name: filament ? getFilamentLabel(filament) : `Filamento ${index + 1} sin seleccionar`,
-            position: index + 1,
-            facts: [{ label: "Gramos ingresados", value: Number(line.grams || 0) }],
+            grams: Number(line.grams || 0),
+            costPerKg: Number(calc.filamentLines[index]?.costPerKg || 0),
+            cost: Number(calc.filamentLines[index]?.filamentCost || 0) * (1 + calc.wasteRate),
           };
         }),
+        timeMinutes: (Number(hours || 0) * 60) + Number(minutes || 0),
+        printerPowerWatts: Number(manualPrinterConsumption || 0),
+        electricityPriceKwh: Number(manualKwhPrice || 0),
+        maintenanceCostPerHour: Number(manualPrinterMaintenance || 0),
+        wastePercent: Number(manualErrorPercent || 0),
+        laborCost: Number(laborCost || 0),
+        otherCost: Number(otherCost || 0),
+        fixedCost: Number(fixedCost || 0),
+        multiplier: Number(manualMultiplier || 0),
+        result: {
+          filamentCost: Number(calc.materialCost || 0),
+          electricityCost: Number(calc.energyCost || 0),
+          maintenanceCost: Number(calc.printerCost || 0),
+          baseCost: Number(calc.baseCost || 0),
+          salePrice: Number(calc.normalPrice || 0),
+          profit: Number(calc.profit || 0),
+          marketplacePrice: Number(calc.mlPrice || 0),
+        },
       },
       pageData: {
         kind: "pageFacts",
@@ -724,7 +726,7 @@ function CalculadoraPageContent() {
         ...(activeDialog ? { activeDialog } : {}),
       },
     };
-  }, [advanced, calc, filamentLines, filaments, fixedCost, hours, laborCost, loading, manualErrorPercent, manualMultiplier, minutes, multipliers, otherCost, printers, productForm.name, selectedMultiplierId, selectedPrinterId, showCatalogModal, showFilamentCatalogModal, showSaveModal]);
+  }, [advanced, calc, filamentLines, filaments, fixedCost, hours, laborCost, loading, manualErrorPercent, manualKwhPrice, manualMultiplier, manualPrinterConsumption, manualPrinterMaintenance, minutes, multipliers, otherCost, printers, selectedMultiplierId, selectedPrinterId, showCatalogModal, showFilamentCatalogModal, showSaveModal]);
 
   usePublishStampyScreenContext(stampyScreenContext);
 

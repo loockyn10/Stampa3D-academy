@@ -65,6 +65,17 @@ function includesUsefulNeedle(haystack: string, needle?: string | null) {
   return haystack.includes(cleanedNeedle);
 }
 
+function shouldTryScreenAnalysis(message: string, section?: string | null): boolean {
+  const text = cleanText(message);
+  if (section === "calculator") {
+    return /caro|costo|pesa|ganancia|gano|margen|cobrando|precio|cambiarias|ajustarias|mejorarias|agrego|agrega|sumo|suma|subo|subi|anado/.test(text);
+  }
+  if (section === "budgets") {
+    return /cobrando|cobrar|total|desglos|ganancia|gano|margen|barato|caro|descuento|iva|impuesto|envio|cargo|adicional|falta|incompleto|cambiarias|ajustarias|mejorarias|como queda ahora/.test(text);
+  }
+  return false;
+}
+
 function logStampyPromptAudit({
   pathname,
   dynamicContextData,
@@ -773,6 +784,137 @@ export async function askStampyAction(
           model: null,
           mode: requestMode,
           status: toolResult.success ? "success" : "error",
+          messageChars: userMessage.length,
+          promptChars: 0,
+          completionChars: answerText.length,
+          latencyMs: Date.now() - startTime,
+        });
+      }
+
+      return {
+        answer: answerText,
+        recommendations: [],
+        knowledgeTools: [],
+        relatedTools: [],
+        suggestedQuestions: [],
+        conversationId: actualConversationId,
+        assistantMessageId,
+        actionRequestId: null,
+        actionIntent: null,
+      };
+    }
+
+    const hasClientScreenContext = screenContext?.selectedEntity?.type === "client"
+      || screenContext?.visibleEntities?.some((entity) => entity.type === "client") === true;
+    const shouldCheckClientTools = hasClientScreenContext
+      && /(?:presupuestos?|[uú]ltimo|[uú]ltima|datos?|falta|incomplet|email|correo|informaci[oó]n|resumen)/i.test(userMessage);
+    const clientIntent = shouldCheckClientTools
+      ? (await import("@/lib/stampy/client-tool-intents")).detectStampyClientToolIntent({
+          message: userMessage,
+          screenContext,
+        })
+      : null;
+    if (clientIntent) {
+      const {
+        executeStampyClientTool,
+        formatStampyClientToolResult,
+      } = await import("@/lib/stampy/client-tools");
+      const toolResult = await executeStampyClientTool({
+        supabase,
+        userId,
+        intent: clientIntent,
+      });
+      requestMode = "direct";
+      answerText = formatStampyClientToolResult(toolResult);
+      let assistantMessageId: string | null = null;
+
+      if (actualConversationId) {
+        const saved = await saveMessages(
+          supabase,
+          userId,
+          actualConversationId,
+          userMessage,
+          answerText,
+          {
+            mode: requestMode,
+            model: null,
+            actionIntent: null,
+            toolExecution: {
+              toolName: toolResult.toolName,
+              impact: "read",
+              confirmationRequired: false,
+              success: toolResult.success,
+              errorCode: toolResult.errorCode ?? null,
+            },
+            memory: { loadedCount: 0, savedCount: 0 },
+          },
+        );
+        assistantMessageId = saved.assistantMessageId;
+
+        const { logStampyUsage } = await import("@/lib/stampy/usage-log");
+        await logStampyUsage({
+          supabase,
+          userId,
+          conversationId: actualConversationId,
+          model: null,
+          mode: requestMode,
+          status: toolResult.success ? "success" : "error",
+          messageChars: userMessage.length,
+          promptChars: 0,
+          completionChars: answerText.length,
+          latencyMs: Date.now() - startTime,
+        });
+      }
+
+      return {
+        answer: answerText,
+        recommendations: [],
+        knowledgeTools: [],
+        relatedTools: [],
+        suggestedQuestions: [],
+        conversationId: actualConversationId,
+        assistantMessageId,
+        actionRequestId: null,
+        actionIntent: null,
+      };
+    }
+
+    const screenAnalysis = screenContext && shouldTryScreenAnalysis(userMessage, screenContext.page.section)
+      ? (await import("@/lib/stampy/screen-analysis")).analyzeStampyScreenQuestion({
+          message: userMessage,
+          screenContext,
+        })
+      : null;
+    if (screenAnalysis) {
+      requestMode = "direct";
+      answerText = screenAnalysis.answer;
+      let assistantMessageId: string | null = null;
+
+      if (actualConversationId) {
+        const saved = await saveMessages(
+          supabase,
+          userId,
+          actualConversationId,
+          userMessage,
+          answerText,
+          {
+            mode: requestMode,
+            model: null,
+            actionIntent: null,
+            screenAnalysis: { kind: screenAnalysis.kind },
+            memory: { loadedCount: 0, savedCount: 0 },
+          },
+        );
+        assistantMessageId = saved.assistantMessageId;
+
+        const { logStampyUsage } = await import("@/lib/stampy/usage-log");
+        await logStampyUsage({
+          supabase,
+          userId,
+          conversationId: actualConversationId,
+          model: null,
+          mode: requestMode,
+          status: "success",
           messageChars: userMessage.length,
           promptChars: 0,
           completionChars: answerText.length,
