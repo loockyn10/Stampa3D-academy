@@ -9,6 +9,7 @@ const INTERNAL_ROUTE_ROOTS = [
   "/configuracion",
   "/cursos",
   "/libreria-stl",
+  "/mi-negocio",
   "/perfil",
   "/presupuestos",
   "/productos",

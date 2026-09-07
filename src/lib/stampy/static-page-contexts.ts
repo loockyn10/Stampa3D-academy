@@ -7,6 +7,18 @@ export type StampyStaticPageContext = {
 export function getStaticStampyPageContext(pathname: string): StampyStaticPageContext | null {
   const routes = [
     {
+      pattern: "/mi-negocio",
+      match: "prefix",
+      title: "Mi Negocio",
+      context:
+        "El usuario está en Mi Negocio, su catálogo o su inventario comercial. Los productos fabricados toman receta, costo productivo y stock terminado desde Productos; los artículos de reventa tienen costo y stock comercial propios. Ayudalo a interpretar la información visible, sin prometer ventas, publicación pública ni movimientos comerciales que todavía no existen.",
+      suggestedQuestions: [
+        "¿Qué diferencia hay entre fabricado y reventa?",
+        "¿De dónde sale este stock?",
+        "¿Cómo organizo mi catálogo?",
+      ],
+    },
+    {
       pattern: "/calculadora",
       match: "exact",
       title: "Calculadora",

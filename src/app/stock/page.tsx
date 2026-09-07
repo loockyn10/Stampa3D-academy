@@ -4,7 +4,7 @@ import React, { useState, useEffect, useMemo, Suspense } from "react";
 import dynamic from "next/dynamic";
 import Link from "next/link";
 import { useSearchParams, useRouter } from "next/navigation";
-import { AlertTriangle, Plus, Minus, Loader2, Package, Box, History, X, Edit2, Search, ChevronDown, ChevronUp, Trash2 } from "lucide-react";
+import { AlertTriangle, Plus, Minus, Loader2, Package, Box, History, X, Edit2, Search, ChevronDown, ChevronUp } from "lucide-react";
 import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { PrimaryButton } from "@/components/ui/button";
@@ -22,6 +22,7 @@ import { StockPageSkeleton } from "@/components/ui/page-skeletons";
 import { useAppFeedback } from "@/components/ui/app-feedback";
 import { usePublishStampyScreenContext } from "@/components/stampy/StampyContextProvider";
 import type { StampyScreenContext } from "@/lib/stampy/screen-context";
+import { FilamentStockCard } from "@/components/filaments/FilamentStockCard";
 
 const FilamentEditor = dynamic(() => import("@/components/filaments/FilamentEditor").then((module) => module.FilamentEditor));
 const FilamentCatalogModal = dynamic(() => import("@/components/calculadora/filament-catalog-modal").then((module) => module.FilamentCatalogModal));
@@ -1007,18 +1008,47 @@ function StockPageContent() {
         </div>
       )}
 
-      <Card className="overflow-hidden p-0">
+      {tab === "filamentos" && (
+        filteredFilaments.length === 0 ? (
+          <Card className="p-10 text-center">
+            <p className="text-sm text-gray-400">
+              {filaments.length === 0
+                ? "No tenés filamentos activos. Agregá uno para empezar a controlar tu material."
+                : "No encontramos filamentos con esa búsqueda."}
+            </p>
+          </Card>
+        ) : (
+          <div className="grid grid-cols-1 gap-4 md:grid-cols-2 2xl:grid-cols-3">
+            {filteredFilaments.map((filament) => (
+              <FilamentStockCard
+                key={filament.id}
+                filament={filament}
+                adjustAmount={filamentAdjustAmounts[filament.id] || ""}
+                adjusting={adjustingFilament === filament.id}
+                onAdjustAmountChange={(value) => setFilamentAdjustAmounts((current) => ({ ...current, [filament.id]: value }))}
+                onAdjust={(type) => void handleAdjustFilamentStock(filament.id, type)}
+                onHistory={() => void loadFilamentHistory(filament.id)}
+                onEdit={() => {
+                  setFilamentFormData(filament);
+                  setEditingFilamentId(filament.id);
+                  setFilamentModalOpen(true);
+                }}
+                onRemove={() => void handleRemoveFilament(filament.id)}
+              />
+            ))}
+          </div>
+        )
+      )}
+
+      {tab === "productos" && <Card className="overflow-hidden p-0">
         <div className="overflow-x-auto stampa-scrollbar">
           <table className="w-full min-w-[720px] text-left text-sm">
             <thead className="bg-stampa-bg-soft text-xs font-semibold uppercase tracking-wide text-gray-400">
               <tr>
-                {tab === "filamentos" && <th className="px-5 py-3 w-10"></th>}
-                {tab === "filamentos" && <th className="px-5 py-3">Marca</th>}
                 <th className="px-5 py-3">Subtipo</th>
-                <th className="px-5 py-3">{tab === "productos" ? "Precio Venta" : "Tipo"}</th>
-                {tab === "filamentos" && <th className="px-5 py-3">Color</th>}
+                <th className="px-5 py-3">Precio Venta</th>
                 <th className="px-5 py-3">Cantidad</th>
-                {tab === "productos" && <th className="px-5 py-3">Estado</th>}
+                <th className="px-5 py-3">Estado</th>
                 <th className="px-5 py-3 text-right">Acciones</th>
               </tr>
             </thead>
@@ -1197,105 +1227,6 @@ function StockPageContent() {
                 )
               })}
 
-              {tab === "filamentos" && filteredFilaments.length === 0 && (
-                <tr>
-                  <td colSpan={5} className="px-5 py-12 text-center text-gray-400 text-sm">
-                    No encontramos filamentos con esa búsqueda.
-                  </td>
-                </tr>
-              )}
-              {tab === "filamentos" && filteredFilaments.map((f) => {
-                const isLow = f.remaining_grams < 200;
-                const brand = f.brand || (f.filament_templates?.brand) || "—";
-                return (
-                <tr key={f.id} className="hover:bg-stampa-bg-soft transition-colors">
-                  <td className="px-5 py-3.5">
-                    <button
-                      onClick={() => handleRemoveFilament(f.id)}
-                      className="text-gray-500 hover:text-red-500 transition-colors p-1.5 rounded-lg hover:bg-red-500/10"
-                      title="Quitar filamento"
-                    >
-                      <Trash2 size={16} />
-                    </button>
-                  </td>
-                  <td className="px-5 py-3.5 text-gray-300 font-medium">
-                    {brand}
-                  </td>
-                  <td className="px-5 py-3.5 font-semibold text-white">
-                    {f.name || "—"}
-                  </td>
-                  <td className="px-5 py-3.5 text-gray-400 font-medium">
-                    {f.filament_type}
-                  </td>
-                  <td className="px-5 py-3.5">
-                    <ColorOptionLabel name={f.color} colorHex={f.color_hex} />
-                  </td>
-                  <td className="px-5 py-3.5">
-                    <div className="flex items-center gap-2">
-                      <span className={`font-bold ${isLow ? "text-red-600" : "text-white"}`}>
-                        {f.remaining_grams || 0}g <span className="text-gray-400 font-normal text-sm">/ {f.total_grams}g</span>
-                      </span>
-                      {isLow && (
-                        <Badge tone="gray" className="ml-1 border border-red-500/20 bg-red-500/10 text-red-400">Bajo</Badge>
-                      )}
-                    </div>
-                  </td>
-                  <td className="px-5 py-3.5">
-                    <div className="flex justify-end items-center gap-3">
-                      
-                      <div className="flex items-center gap-1">
-                        <input 
-                          type="number"
-                          min="1"
-                          step="1"
-                          placeholder="g"
-                          value={filamentAdjustAmounts[f.id] || ""}
-                          onChange={(e) => setFilamentAdjustAmounts(prev => ({...prev, [f.id]: e.target.value}))}
-                          className="w-16 h-8 text-xs border border-stampa-border rounded-md px-2 bg-stampa-bg-soft text-white focus:border-stampa-orange focus:ring-stampa-orange outline-none"
-                          disabled={adjustingFilament === f.id}
-                        />
-                        <button
-                          onClick={() => handleAdjustFilamentStock(f.id, "subtract")}
-                          disabled={adjustingFilament === f.id}
-                          className="flex h-8 w-8 items-center justify-center rounded-md border border-stampa-border text-red-600 bg-stampa-surface hover:bg-red-50 disabled:opacity-50 transition-colors shadow-sm"
-                          title="Restar"
-                        >
-                          {adjustingFilament === f.id ? <Loader2 size={14} className="animate-spin" /> : <Minus size={14} />}
-                        </button>
-                        <button
-                          onClick={() => handleAdjustFilamentStock(f.id, "add")}
-                          disabled={adjustingFilament === f.id}
-                          className="flex h-8 w-8 items-center justify-center rounded-md border border-stampa-border text-green-600 bg-stampa-surface hover:bg-green-50 disabled:opacity-50 transition-colors shadow-sm"
-                          title="Sumar"
-                        >
-                          {adjustingFilament === f.id ? <Loader2 size={14} className="animate-spin" /> : <Plus size={14} />}
-                        </button>
-                      </div>
-
-                      <div className="h-6 w-px bg-gray-200 mx-1"></div>
-                      
-                      <button 
-                        onClick={() => loadFilamentHistory(f.id)}
-                        className="text-gray-400 hover:text-blue-600 p-1.5 rounded-lg hover:bg-blue-50 transition-colors"
-                        title="Historial de movimientos"
-                      >
-                        <History size={16} />
-                      </button>
-                      <button 
-                        onClick={() => {
-                          setFilamentFormData(f);
-                          setEditingFilamentId(f.id);
-                          setFilamentModalOpen(true);
-                        }}
-                        className="text-gray-400 hover:text-stampa-orange p-1.5 rounded-lg hover:bg-orange-50 transition-colors" title="Editar filamento"
-                      >
-                        <Edit2 size={16} />
-                      </button>
-                    </div>
-                  </td>
-                </tr>
-              )})}
-
             </tbody>
           </table>
 
@@ -1325,14 +1256,8 @@ function StockPageContent() {
             </div>
           )}
 
-          {tab === "filamentos" && filaments.length === 0 && !loading && (
-            <div className="py-12 text-center">
-              <p className="text-gray-400 text-sm">No tienes filamentos activos. Ve a la Configuración para añadirlos.</p>
-            </div>
-          )}
-
         </div>
-      </Card>
+      </Card>}
 
       {/* History Modal for Filaments */}
       {historyModalOpen && (

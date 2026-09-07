@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import Image from "next/image";
-import { usePathname } from "next/navigation";
+import { usePathname, useSearchParams } from "next/navigation";
 import {
   BookOpen,
   Gift,
@@ -18,6 +18,11 @@ import {
   Sparkles,
   Globe,
   Users,
+  Factory,
+  Printer,
+  ShoppingBag,
+  Store,
+  Warehouse,
 } from "lucide-react";
 import type { UserAccessSnapshot } from "@/lib/auth/user-access";
 
@@ -31,18 +36,35 @@ const NAV_GROUPS = [
     group: "Plataforma",
     items: [
       { path: "/stampy", label: "Stampy IA", icon: Sparkles },
-      { path: "/academia", label: "Academia", icon: BookOpen },
       { path: "/sorteos", label: "Sorteos", icon: Gift },
-      { path: "/calculadora", label: "Calculadora", icon: Calculator },
       { path: "/libreria-stl", label: "Librería STL", icon: Boxes },
+    ],
+  },
+  {
+    group: "Academia",
+    items: [
+      { path: "/academia", label: "Academia", icon: BookOpen },
+      { path: "/cursos", label: "Cursos", icon: BookOpen },
+      { path: "/talleres", label: "Talleres", icon: Factory },
     ],
   },
   {
     group: "Mi taller",
     items: [
-      { path: "/presupuestos", label: "Presupuestos", icon: FileText },
-      { path: "/productos", label: "Productos", icon: Package },
-      { path: "/stock", label: "Stock", icon: Archive },
+      { path: "/configuracion?tab=taller", label: "Impresoras", icon: Printer },
+      { path: "/stock?tab=filamentos", label: "Filamentos", icon: Archive },
+      { path: "/productos", label: "Productos fabricados", icon: Package },
+      { path: "/calculadora", label: "Calculadora", icon: Calculator },
+      { path: "/stock?tab=productos", label: "Producción", icon: Factory },
+    ],
+  },
+  {
+    group: "Mi negocio",
+    items: [
+      { path: "/mi-negocio", label: "Resumen", icon: Store },
+      { path: "/mi-negocio/catalogo", label: "Catálogo", icon: ShoppingBag },
+      { path: "/mi-negocio/inventario", label: "Inventario", icon: Warehouse },
+      { path: "/presupuestos", label: "Clientes y presupuestos", icon: FileText },
     ],
   },
   {
@@ -64,16 +86,26 @@ const NAV_GROUPS = [
 
 export function Sidebar({ access, loading }: SidebarProps) {
   const pathname = usePathname();
+  const searchParams = useSearchParams();
   const isAdmin = access?.capabilities.accessAdmin === true;
   const hasPlatformAccess = access?.capabilities.accessPlatform === true;
 
   // Helper to check if a route is active
   const isActive = (path: string) => {
-    const basePath = path.split("?")[0];
+    const [basePath, query] = path.split("?");
     if (basePath === "/") {
       return pathname === "/";
     }
-    return pathname.startsWith(basePath);
+    if (pathname !== basePath && !pathname.startsWith(`${basePath}/`)) return false;
+    if (!query) {
+      if (basePath === "/mi-negocio") return pathname === "/mi-negocio";
+      return true;
+    }
+    const expected = new URLSearchParams(query);
+    return Array.from(expected.entries()).every(([key, value]) => {
+      const actual = searchParams.get(key);
+      return actual === value || (basePath === "/stock" && key === "tab" && value === "productos" && actual === null);
+    });
   };
 
   return (

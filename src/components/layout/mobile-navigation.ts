@@ -4,11 +4,11 @@ import {
   BookOpen,
   Boxes,
   Calculator,
-  FileText,
   Gift,
   Globe,
   Package,
   Settings,
+  Store,
   Users,
 } from "lucide-react";
 
@@ -28,17 +28,18 @@ export const mainMobileNavigation: readonly MobileNavigationItem[] = [
     activePrefixes: ["/academia", "/cursos", "/talleres"],
   },
   {
-    href: "/calculadora",
-    label: "Calculadora",
-    shortLabel: "Calculadora",
-    icon: Calculator,
-    activePrefixes: ["/calculadora"],
-  },
-  {
     href: "/stock",
-    label: "Stock",
+    label: "Mi Taller",
+    shortLabel: "Taller",
     icon: Archive,
     activePrefixes: ["/stock"],
+  },
+  {
+    href: "/mi-negocio",
+    label: "Mi Negocio",
+    shortLabel: "Negocio",
+    icon: Store,
+    activePrefixes: ["/mi-negocio", "/presupuestos"],
   },
   {
     href: "/productos",
@@ -50,11 +51,11 @@ export const mainMobileNavigation: readonly MobileNavigationItem[] = [
 
 export const secondaryMobileNavigation: readonly MobileNavigationItem[] = [
   {
-    href: "/presupuestos",
-    label: "Presupuestos",
-    shortLabel: "Presupuestos",
-    icon: FileText,
-    activePrefixes: ["/presupuestos"],
+    href: "/calculadora",
+    label: "Calculadora",
+    shortLabel: "Calculadora",
+    icon: Calculator,
+    activePrefixes: ["/calculadora"],
   },
   {
     href: "/libreria-stl",

@@ -3,7 +3,7 @@
 import React, { useState, useEffect, useMemo } from "react";
 import Link from "next/link";
 import { useSearchParams, useRouter } from "next/navigation";
-import { Plus, Pencil, Copy, Trash2, Loader2, Save, X, AlertCircle, RefreshCw, DollarSign, ChevronDown, ChevronUp, History, AlertTriangle, CheckCircle2 } from "lucide-react";
+import { Plus, Pencil, Copy, Trash2, Loader2, Save, X, AlertCircle, RefreshCw, DollarSign, ChevronDown, ChevronUp, History, AlertTriangle, CheckCircle2, Store } from "lucide-react";
 import { Card } from "@/components/ui/card";
 import { PrimaryButton, GhostButton } from "@/components/ui/button";
 import { SectionTitle } from "@/components/ui/section-title";
@@ -44,6 +44,7 @@ function ProductosPageContent() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [userId, setUserId] = useState<string | null>(null);
+  const [businessLinkedProductIds, setBusinessLinkedProductIds] = useState<Set<string>>(new Set());
 
   const [editingId, setEditingId] = useState<string | null>(null);
   const [detailProduct, setDetailProduct] = useState<any>(null);
@@ -106,13 +107,14 @@ function ProductosPageContent() {
     if (!user) return;
     setUserId(user.id);
 
-    const [prodRes, filRes, priRes, ptRes, setRes, compsRes] = await Promise.all([
+    const [prodRes, filRes, priRes, ptRes, setRes, compsRes, businessRes] = await Promise.all([
       supabase.from("products").select("*, filaments(name, color)").eq("user_id", user.id).eq("is_active", true).order("created_at", { ascending: false }),
       supabase.from("filaments").select("*").eq("user_id", user.id).eq("is_active", true),
       supabase.from("printers").select("*").eq("user_id", user.id).eq("is_active", true),
       supabase.from("calculator_product_types").select("*").eq("user_id", user.id).eq("is_active", true),
       supabase.from("calculator_settings").select("*").eq("user_id", user.id).single(),
-      supabase.from("product_components").select("*").eq("user_id", user.id).eq("is_active", true)
+      supabase.from("product_components").select("*").eq("user_id", user.id).eq("is_active", true),
+      supabase.from("business_catalog_items").select("source_product_id").eq("user_id", user.id).not("source_product_id", "is", null),
     ]);
 
     if (prodRes.error) setError(prodRes.error.message);
@@ -133,6 +135,9 @@ function ProductosPageContent() {
     if (!priRes.error) setPrinters(priRes.data || []);
     if (!ptRes.error) setProductTypes(ptRes.data || []);
     if (!setRes.error) setCalculatorSettings(setRes.data || null);
+    if (!businessRes.error) {
+      setBusinessLinkedProductIds(new Set((businessRes.data || []).flatMap((item) => item.source_product_id ? [item.source_product_id] : [])));
+    }
 
     setLoading(false);
   };
@@ -1140,6 +1145,18 @@ function ProductosPageContent() {
                 >
                   <RecalculatePriceIcon loading={recalculatingProductId === p.id} size={17} />
                 </button>
+                <Link
+                  href={businessLinkedProductIds.has(p.id) ? "/mi-negocio/catalogo" : `/mi-negocio/catalogo?producto=${p.id}`}
+                  className={`flex h-11 w-11 shrink-0 items-center justify-center rounded-lg border transition-colors ${
+                    businessLinkedProductIds.has(p.id)
+                      ? "border-emerald-500/35 bg-emerald-500/10 text-emerald-300 hover:bg-emerald-500/20"
+                      : "border-cyan-500/35 bg-cyan-500/10 text-cyan-300 hover:bg-cyan-500/20"
+                  }`}
+                  aria-label={businessLinkedProductIds.has(p.id) ? `${p.name} ya está en Mi Negocio` : `Agregar ${p.name} a Mi Negocio`}
+                  title={businessLinkedProductIds.has(p.id) ? "Ya está en Mi Negocio" : "Agregar a Mi Negocio"}
+                >
+                  <Store size={16} />
+                </Link>
                 <button
                   type="button"
                   onClick={() => {

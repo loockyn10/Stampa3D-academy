@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useEffect, useState } from "react";
+import React, { Suspense, useEffect, useState } from "react";
 import { Sidebar } from "@/components/layout/sidebar";
 import { Header } from "@/components/layout/header";
 import { MobileHeader } from "@/components/layout/mobile-header";
@@ -54,7 +54,9 @@ export function MainLayout({ children }: { children: React.ReactNode }) {
   return (
     <StampyContextProvider>
       <div className="flex min-h-screen w-full min-w-0 overflow-x-clip bg-stampa-bg text-[#ededed] font-sans">
-        <Sidebar access={userAccess} loading={accessLoading} />
+        <Suspense fallback={<aside className="hidden w-64 shrink-0 border-r border-stampa-border bg-stampa-bg lg:block" />}>
+          <Sidebar access={userAccess} loading={accessLoading} />
+        </Suspense>
         <div className="flex min-h-screen min-w-0 flex-1 flex-col lg:pl-0">
           <MobileHeader access={userAccess} loading={accessLoading} />
           <Header access={userAccess} loading={accessLoading} />
