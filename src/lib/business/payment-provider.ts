@@ -33,6 +33,7 @@ export interface ProviderPayment {
   status: string;
   statusDetail: string | null;
   amount: number;
+  refundedAmount: number;
   currency: string;
   externalReference: string | null;
   collectorId: string | null;
@@ -46,4 +47,3 @@ export interface PaymentProvider {
   findCheckoutByExternalReference(externalReference: string): Promise<ProviderCheckout | null>;
   getPayment(paymentId: string): Promise<ProviderPayment>;
 }
-

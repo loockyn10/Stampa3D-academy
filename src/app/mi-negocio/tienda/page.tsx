@@ -3,15 +3,16 @@
 import { useEffect, useMemo, useState } from "react";
 import Image from "next/image";
 import Link from "next/link";
-import { ArrowLeft, Check, Copy, ExternalLink, Loader2, Store } from "lucide-react";
+import { ArrowLeft, Check, Copy, ExternalLink, Loader2, Store, WalletCards } from "lucide-react";
 import { FileUploadDropzone } from "@/components/ui/file-upload-dropzone";
 import { Card } from "@/components/ui/card";
 import { SectionTitle } from "@/components/ui/section-title";
 import { useAppFeedback } from "@/components/ui/app-feedback";
 import { usePublishStampyScreenContext } from "@/components/stampy/StampyContextProvider";
 import { normalizeStorefrontSlug } from "@/lib/business/storefront";
+import type { BusinessPaymentConnection } from "@/lib/business/orders";
 import type { StampyScreenContext } from "@/lib/stampy/screen-context";
-import { loadBusinessStorefrontWorkspaceAction, saveBusinessStorefrontAction } from "../actions";
+import { loadBusinessPaymentConnectionAction, loadBusinessStorefrontWorkspaceAction, saveBusinessStorefrontAction } from "../actions";
 
 const inputClass = "mt-1.5 min-h-11 w-full rounded-xl border border-stampa-border bg-stampa-bg-soft px-3 text-sm text-white outline-none focus:border-stampa-orange";
 const APP_URL = (process.env.NEXT_PUBLIC_APP_URL || "https://academia-stampa.com").replace(/\/$/, "");
@@ -23,11 +24,12 @@ export default function BusinessStorefrontSettingsPage() {
   const [saving, setSaving] = useState(false);
   const [copied, setCopied] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [connection, setConnection] = useState<BusinessPaymentConnection | null>(null);
   const [form, setForm] = useState({ name: "", slug: "", description: "", logoUrl: "", bannerUrl: "", whatsapp: "", publicEmail: "", isActive: false });
 
   useEffect(() => {
     let active = true;
-    void loadBusinessStorefrontWorkspaceAction().then((result) => {
+    void Promise.all([loadBusinessStorefrontWorkspaceAction(), loadBusinessPaymentConnectionAction()]).then(([result, paymentResult]) => {
       if (!active) return;
       if (!result.success) setError(result.error);
       else {
@@ -38,6 +40,7 @@ export default function BusinessStorefrontSettingsPage() {
           whatsapp: result.storefront.whatsapp || "", publicEmail: result.storefront.public_email || "", isActive: result.storefront.is_active,
         });
       }
+      if (paymentResult.success) setConnection(paymentResult.connection);
       setLoading(false);
     });
     return () => { active = false; };
@@ -70,12 +73,18 @@ export default function BusinessStorefrontSettingsPage() {
     catch { toast.error("No pudimos copiar el enlace. Podés seleccionarlo manualmente."); }
   };
 
+  const disconnectPayments = async () => {
+    const response = await fetch("/api/business/mercadopago/disconnect", { method: "POST" });
+    if (!response.ok) return toast.error("No pudimos desconectar Mercado Pago.");
+    setConnection(null); toast.success("Mercado Pago desconectado.");
+  };
+
   if (loading) return <div className="flex min-h-64 items-center justify-center text-gray-500"><Loader2 className="animate-spin" /></div>;
 
   return <div className="pb-24">
     <Link href="/mi-negocio" className="mb-4 inline-flex items-center gap-1.5 text-xs font-semibold text-gray-500 hover:text-white"><ArrowLeft size={14} /> Mi Negocio</Link>
     <SectionTitle eyebrow="Mi Negocio" title="Mi Tienda" />
-    <p className="mb-6 max-w-2xl text-sm leading-6 text-gray-400">Configurá una vidriera pública para compartir tu catálogo. En esta etapa las consultas se resuelven por WhatsApp o email; no hay checkout.</p>
+    <p className="mb-6 max-w-2xl text-sm leading-6 text-gray-400">Configurá tu tienda pública y, cuando conectes una cuenta de prueba de Mercado Pago, validá el checkout antes de habilitar cobros reales.</p>
     {error && <Card className="mb-5 border-red-500/25 p-4 text-sm text-red-300">No se pudo cargar la tienda: {error}</Card>}
 
     <div className="grid gap-5 xl:grid-cols-[minmax(0,1fr)_22rem]">
@@ -100,6 +109,7 @@ export default function BusinessStorefrontSettingsPage() {
       </Card>
 
       <aside className="space-y-4">
+        <Card className="p-5"><WalletCards className="text-stampa-orange" size={23} /><h2 className="mt-3 text-sm font-bold text-white">Mercado Pago</h2>{connection?.status === "connected" ? <><p className="mt-2 text-xs leading-5 text-gray-400">Cuenta conectada en modo {connection.liveMode ? "productivo" : "prueba"}. Los tokens se guardan cifrados y sólo se usan en servidor.</p><div className="mt-3 flex gap-2"><Link href="/mi-negocio/pedidos" className="inline-flex min-h-10 flex-1 items-center justify-center rounded-xl bg-stampa-orange px-3 text-xs font-bold text-white">Ver pedidos</Link><button type="button" onClick={() => void disconnectPayments()} className="min-h-10 rounded-xl border border-stampa-border px-3 text-xs font-bold text-gray-300">Desconectar</button></div></> : <><p className="mt-2 text-xs leading-5 text-gray-500">Conectá una cuenta vendedora de prueba mediante OAuth para habilitar el carrito. Producción permanece bloqueada por configuración.</p><a href="/api/business/mercadopago/connect" className="mt-3 inline-flex min-h-10 w-full items-center justify-center rounded-xl bg-[#009ee3] px-3 text-xs font-black text-white">Conectar cuenta de prueba</a></>}</Card>
         <Card className="p-5"><Store className="text-stampa-orange" size={23} /><h2 className="mt-3 text-sm font-bold text-white">Enlace compartible</h2>{publicUrl ? <><div className="mt-3 break-all rounded-xl bg-black/20 p-3 text-xs text-gray-300">{publicUrl}</div><div className="mt-3 grid grid-cols-2 gap-2"><button type="button" onClick={() => void copyLink()} className="inline-flex min-h-11 items-center justify-center gap-2 rounded-xl border border-stampa-border text-xs font-bold text-white">{copied ? <Check size={15} /> : <Copy size={15} />}{copied ? "Copiado" : "Copiar"}</button><Link href={`/tienda/${normalizedSlug}`} target="_blank" className="inline-flex min-h-11 items-center justify-center gap-2 rounded-xl border border-stampa-border text-xs font-bold text-white"><ExternalLink size={15} /> Abrir</Link></div></> : <p className="mt-3 text-xs leading-5 text-gray-500">Completá un slug para generar el enlace.</p>}</Card>
         <Card className="p-5 text-xs leading-5 text-gray-500"><p className="font-bold text-gray-300">Publicación controlada</p><p className="mt-2">Activar la tienda no publica productos automáticamente. Elegí cuáles mostrar desde Catálogo.</p><Link href="/mi-negocio/catalogo" className="mt-3 inline-block font-bold text-stampa-orange">Gestionar productos →</Link></Card>
       </aside>

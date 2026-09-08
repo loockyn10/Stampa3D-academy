@@ -7,6 +7,7 @@ import {
   Boxes,
   FileText,
   ReceiptText,
+  PackageCheck,
   ShoppingBag,
   Store,
   Users,
@@ -59,6 +60,12 @@ const availableAreas = [
     description: "Configurá y compartí una vidriera pública con los productos que elijas.",
     icon: Store,
   },
+  {
+    href: "/mi-negocio/pedidos",
+    title: "Pedidos online",
+    description: "Revisá compras iniciadas en tu tienda, pagos confirmados y pedidos que requieren atención.",
+    icon: PackageCheck,
+  },
 ] as const;
 
 const futureAreas = [
@@ -78,7 +85,7 @@ export default function MiNegocioPage() {
     pageData: {
       kind: "pageFacts",
       facts: [
-        { label: "Áreas disponibles", value: "Venta rápida, Catálogo, Inventario, Clientes, Presupuestos, Ventas y Mi Tienda" },
+        { label: "Áreas disponibles", value: "Venta rápida, Catálogo, Inventario, Clientes, Presupuestos, Ventas, Pedidos online y Mi Tienda" },
         { label: "Áreas futuras", value: "Caja y métricas" },
       ],
     },

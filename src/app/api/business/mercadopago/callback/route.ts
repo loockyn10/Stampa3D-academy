@@ -2,7 +2,7 @@ import crypto from "node:crypto";
 import { cookies } from "next/headers";
 import { NextResponse, type NextRequest } from "next/server";
 import { decryptBusinessSecret, encryptBusinessSecret, sha256 } from "@/lib/business/payment-crypto";
-import { businessLiveModeAllowed, createBusinessAdminClient, requireBusinessAppUrl } from "@/lib/business/server";
+import { businessLiveModeAllowed, createBusinessAdminClient } from "@/lib/business/server";
 
 export const runtime = "nodejs";
 
@@ -76,4 +76,3 @@ export async function GET(request: NextRequest) {
   cookieStore.delete("stampa_mp_oauth_state");
   return NextResponse.redirect(destination);
 }
-

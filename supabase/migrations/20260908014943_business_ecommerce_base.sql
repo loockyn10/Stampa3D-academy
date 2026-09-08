@@ -183,6 +183,7 @@ create table if not exists public.business_payment_webhook_events (
 );
 
 create unique index if not exists business_orders_user_idempotency_uidx on public.business_orders(user_id, idempotency_key);
+create unique index if not exists business_payment_accounts_provider_user_uidx on public.business_payment_accounts(provider, provider_user_id) where provider_user_id is not null;
 create unique index if not exists business_orders_user_number_uidx on public.business_orders(user_id, order_number);
 create unique index if not exists business_orders_public_token_uidx on public.business_orders(public_token);
 create unique index if not exists business_orders_external_reference_uidx on public.business_orders(provider, provider_external_reference);
@@ -498,7 +499,7 @@ begin
     return query select true,o.id,o.sale_id,existing_payment.id is not null,false,null::text,'Reembolso registrado; el inventario requiere revisión manual.'::text; return;
   elsif mapped_status = 'partially_refunded' then
     update public.business_orders set status='partially_refunded',payment_status='partially_refunded' where id=o.id;
-    return query select true,o.id,o.sale_id,found,false,null::text,'Reembolso parcial registrado.'::text; return;
+    return query select true,o.id,o.sale_id,existing_payment.id is not null,false,null::text,'Reembolso parcial registrado; el inventario requiere revisión manual.'::text; return;
   elsif mapped_status <> 'approved' then
     update public.business_orders set payment_status=mapped_status where id=o.id and status='awaiting_payment';
     return query select true,o.id,o.sale_id,existing_payment.id is not null,false,null::text,'Estado de pago actualizado.'::text; return;

@@ -92,13 +92,18 @@ export class MercadoPagoMarketplaceProvider implements PaymentProvider {
     const id = stringValue(raw.id);
     const status = stringValue(raw.status);
     const amount = Number(raw.transaction_amount);
+    const refundedAmount = Number(raw.transaction_amount_refunded || 0);
     const currency = stringValue(raw.currency_id);
     if (!id || !status || !Number.isFinite(amount) || !currency) throw new Error("Respuesta de pago incompleta de Mercado Pago");
+    const normalizedStatus = status === "approved" && refundedAmount > 0
+      ? (refundedAmount >= amount ? "refunded" : "partially_refunded")
+      : status;
     return {
       id,
-      status,
+      status: normalizedStatus,
       statusDetail: stringValue(raw.status_detail),
       amount,
+      refundedAmount: Number.isFinite(refundedAmount) ? refundedAmount : 0,
       currency,
       externalReference: stringValue(raw.external_reference),
       collectorId: stringValue(raw.collector_id),

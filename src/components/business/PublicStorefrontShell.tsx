@@ -2,6 +2,7 @@ import Image from "next/image";
 import Link from "next/link";
 import { Mail, MessageCircle, PackageOpen, Store } from "lucide-react";
 import { buildWhatsappProductUrl, type PublicStorefront, type PublicStorefrontProduct } from "@/lib/business/storefront";
+import { AddToStorefrontCartButton } from "./PublicStorefrontCart";
 
 const money = new Intl.NumberFormat("es-AR", { style: "currency", currency: "ARS", maximumFractionDigits: 2 });
 
@@ -15,20 +16,21 @@ export function PublicStorefrontHeader({ store }: { store: PublicStorefront }) {
   </>;
 }
 
-export function PublicProductContact({ store, product }: { store: PublicStorefront; product: PublicStorefrontProduct }) {
+export function PublicProductContact({ store, product, checkoutEnabled = false }: { store: PublicStorefront; product: PublicStorefrontProduct; checkoutEnabled?: boolean }) {
   if (!product.available) return <span className="inline-flex min-h-12 w-full items-center justify-center rounded-xl bg-white/5 px-4 text-sm font-bold text-neutral-500">Sin stock</span>;
+  if (checkoutEnabled) return <AddToStorefrontCartButton product={product} />;
   if (store.whatsapp) return <a href={buildWhatsappProductUrl(store.whatsapp, product.name, store.name)} target="_blank" rel="noreferrer" className="inline-flex min-h-12 w-full items-center justify-center gap-2 rounded-xl bg-emerald-500 px-4 text-sm font-black text-white hover:bg-emerald-400"><MessageCircle size={18} /> Consultar por WhatsApp</a>;
   if (store.publicEmail) return <a href={`mailto:${store.publicEmail}?subject=${encodeURIComponent(`Consulta por ${product.name}`)}`} className="inline-flex min-h-12 w-full items-center justify-center gap-2 rounded-xl bg-orange-500 px-4 text-sm font-black text-white hover:bg-orange-400"><Mail size={18} /> Consultar</a>;
   return <span className="inline-flex min-h-12 w-full items-center justify-center rounded-xl border border-white/10 px-4 text-center text-sm text-neutral-400">Contacto no configurado</span>;
 }
 
-export function PublicStorefrontProductCard({ store, product }: { store: PublicStorefront; product: PublicStorefrontProduct }) {
+export function PublicStorefrontProductCard({ store, product, checkoutEnabled = false }: { store: PublicStorefront; product: PublicStorefrontProduct; checkoutEnabled?: boolean }) {
   return <article className="group overflow-hidden rounded-2xl border border-white/10 bg-neutral-900/80 shadow-xl shadow-black/10">
     <Link href={`/tienda/${store.slug}/${product.slug}`} className="block">
       <div className="relative aspect-square overflow-hidden bg-neutral-800">{product.imageUrl ? <Image unoptimized src={product.imageUrl} alt={product.name} fill sizes="(max-width: 640px) 50vw, (max-width: 1024px) 33vw, 25vw" className="object-cover transition-transform duration-300 group-hover:scale-[1.03]" /> : <div className="flex h-full items-center justify-center text-neutral-600"><PackageOpen size={36} /></div>}<span className={`absolute left-3 top-3 rounded-full px-2.5 py-1 text-[10px] font-black ${product.available ? "bg-emerald-500/90 text-white" : "bg-neutral-950/85 text-neutral-300"}`}>{product.available ? "Disponible" : "Sin stock"}</span></div>
       <div className="p-4"><p className="text-[10px] font-bold uppercase tracking-wider text-orange-400">{product.category}</p><h2 className="mt-1 line-clamp-2 text-base font-bold text-white">{product.name}</h2>{product.description && <p className="mt-2 line-clamp-2 text-xs leading-5 text-neutral-500">{product.description}</p>}<p className="mt-3 text-lg font-black text-white">{money.format(product.price)}</p></div>
     </Link>
-    <div className="px-4 pb-4"><PublicProductContact store={store} product={product} /></div>
+    <div className="px-4 pb-4"><PublicProductContact store={store} product={product} checkoutEnabled={checkoutEnabled} /></div>
   </article>;
 }
 

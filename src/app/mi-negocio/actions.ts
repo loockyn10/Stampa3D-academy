@@ -20,6 +20,7 @@ import {
   type BusinessStorefront,
 } from "@/lib/business/storefront";
 import { getCurrentUserAccess } from "@/lib/auth/user-access";
+import type { BusinessOrderItemSummary, BusinessOrderSummary, BusinessPaymentConnection } from "@/lib/business/orders";
 import { createClient } from "@/utils/supabase/server";
 
 const UUID_PATTERN = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
@@ -420,6 +421,47 @@ export async function loadBusinessStorefrontWorkspaceAction(): Promise<
     .maybeSingle();
   if (error) return { success: false, error: error.message, userId: null, storefront: null };
   return { success: true, userId: authorized.userId, storefront: data as BusinessStorefront | null };
+}
+
+export async function loadBusinessPaymentConnectionAction(): Promise<
+  | { success: true; connection: BusinessPaymentConnection | null }
+  | { success: false; error: string; connection: null }
+> {
+  const authorized = await authorizeBusinessAccess();
+  if (!authorized.success) return { success: false, error: authorized.error, connection: null };
+  const { data, error } = await authorized.supabase.rpc("get_business_payment_connection");
+  if (error) return { success: false, error: error.message, connection: null };
+  const row = Array.isArray(data) ? data[0] : data;
+  if (!row) return { success: true, connection: null };
+  return { success: true, connection: {
+    provider: "mercado_pago", status: row.status, providerUserId: row.provider_user_id,
+    liveMode: row.live_mode === true, tokenExpiresAt: row.token_expires_at,
+    connectedAt: row.connected_at, lastError: row.last_error,
+  } as BusinessPaymentConnection };
+}
+
+export async function loadBusinessOrdersAction(): Promise<
+  | { success: true; orders: BusinessOrderSummary[] }
+  | { success: false; error: string; orders: [] }
+> {
+  const authorized = await authorizeBusinessAccess();
+  if (!authorized.success) return { success: false, error: authorized.error, orders: [] };
+  const { data: orders, error } = await authorized.supabase.from("business_orders")
+    .select("id, order_number, status, payment_status, currency, total, buyer_name, buyer_email, buyer_phone, provider, provider_preference_id, expires_at, paid_at, created_at")
+    .eq("user_id", authorized.userId).order("created_at", { ascending: false }).limit(100);
+  if (error) return { success: false, error: error.message, orders: [] };
+  const ids = (orders || []).map((order) => order.id);
+  const { data: items, error: itemsError } = ids.length
+    ? await authorized.supabase.from("business_order_items")
+      .select("id, order_id, product_name_snapshot, sku_snapshot, image_url_snapshot, unit_price, quantity, subtotal")
+      .eq("user_id", authorized.userId).in("order_id", ids)
+    : { data: [], error: null };
+  if (itemsError) return { success: false, error: itemsError.message, orders: [] };
+  const orderItems = (items || []) as BusinessOrderItemSummary[];
+  return { success: true, orders: (orders || []).map((order) => ({
+    ...order, order_number: Number(order.order_number), total: Number(order.total),
+    items: orderItems.filter((item) => item.order_id === order.id).map((item) => ({ ...item, unit_price: Number(item.unit_price), quantity: Number(item.quantity), subtotal: Number(item.subtotal) })),
+  })) as BusinessOrderSummary[] };
 }
 
 export async function saveBusinessStorefrontAction(input: BusinessStorefrontInput) {
