@@ -68,6 +68,7 @@ const NAV_GROUPS = [
       { path: "/mi-negocio/catalogo", label: "Catálogo", icon: ShoppingBag },
       { path: "/mi-negocio/inventario", label: "Inventario", icon: Warehouse },
       { path: "/mi-negocio/ventas", label: "Ventas", icon: ReceiptText },
+      { path: "/mi-negocio/tienda", label: "Mi Tienda", icon: Store },
       { path: "/presupuestos", label: "Clientes y presupuestos", icon: FileText },
     ],
   },

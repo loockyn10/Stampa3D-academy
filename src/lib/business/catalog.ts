@@ -18,6 +18,7 @@ export interface BusinessCatalogItem {
   image_urls: string[];
   is_active: boolean;
   is_published: boolean;
+  public_slug: string | null;
   created_at: string;
   updated_at: string;
 }

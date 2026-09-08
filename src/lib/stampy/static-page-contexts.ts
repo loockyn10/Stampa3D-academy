@@ -11,7 +11,7 @@ export function getStaticStampyPageContext(pathname: string): StampyStaticPageCo
       match: "prefix",
       title: "Mi Negocio",
       context:
-        "El usuario está en Mi Negocio, su catálogo o su inventario comercial. Los productos fabricados toman receta, costo productivo y stock terminado desde Productos; los artículos de reventa tienen costo y stock comercial propios. Ayudalo a interpretar la información visible, sin prometer ventas, publicación pública ni movimientos comerciales que todavía no existen.",
+        "El usuario está en Mi Negocio: catálogo, inventario, ventas o configuración de su tienda pública. Los productos fabricados toman receta, costo productivo y stock terminado desde Productos; los artículos de reventa tienen costo y stock comercial propios. Puede activar una vidriera y publicar productos individualmente. Ayudalo a interpretar la configuración visible, pero no confirmes ventas ni cambies publicaciones desde la conversación.",
       suggestedQuestions: [
         "¿Qué diferencia hay entre fabricado y reventa?",
         "¿De dónde sale este stock?",

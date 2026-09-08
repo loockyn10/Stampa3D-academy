@@ -4,7 +4,7 @@ import { Suspense, useCallback, useEffect, useMemo, useState } from "react";
 import { useSearchParams } from "next/navigation";
 import Link from "next/link";
 import Image from "next/image";
-import { ArrowLeft, Boxes, Factory, Loader2, Plus, ShoppingBag, X } from "lucide-react";
+import { ArrowLeft, Boxes, Eye, EyeOff, Factory, Loader2, Plus, ShoppingBag, X } from "lucide-react";
 import { Dialog } from "@/components/ui/dialog";
 import { Card } from "@/components/ui/card";
 import { SectionTitle } from "@/components/ui/section-title";
@@ -20,6 +20,7 @@ import {
   createResaleCatalogItemAction,
   linkManufacturedProductAction,
   loadBusinessWorkspaceAction,
+  setBusinessCatalogPublicationAction,
 } from "../actions";
 
 const inputClass = "w-full rounded-xl border border-stampa-border bg-stampa-bg-soft px-3 py-2.5 text-sm text-white outline-none transition-colors placeholder:text-gray-600 focus:border-stampa-orange/60";
@@ -46,6 +47,7 @@ function CatalogoContent() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
+  const [publishingId, setPublishingId] = useState<string | null>(null);
   const [resaleOpen, setResaleOpen] = useState(false);
   const [manufacturedOpen, setManufacturedOpen] = useState(false);
   const [resaleForm, setResaleForm] = useState(emptyResaleForm);
@@ -145,6 +147,7 @@ function CatalogoContent() {
         { label: "Productos comerciales", value: items.length },
         { label: "Fabricados vinculados", value: items.filter((item) => item.source_type === "manufactured").length },
         { label: "Productos de reventa", value: items.filter((item) => item.source_type === "resale").length },
+        { label: "Publicados en tienda", value: items.filter((item) => item.is_published).length },
       ],
     },
     uiState: { loading, ...(resaleOpen || manufacturedOpen ? { activeDialog: resaleOpen ? "Nuevo producto de reventa" : "Agregar producto fabricado" } : {}) },
@@ -195,6 +198,17 @@ function CatalogoContent() {
     closeManufactured();
     setLoading(true);
     await loadWorkspace();
+  };
+
+  const togglePublication = async (item: BusinessCatalogItem) => {
+    setPublishingId(item.id);
+    const result = await setBusinessCatalogPublicationAction({ catalogItemId: item.id, published: !item.is_published });
+    setPublishingId(null);
+    if (!result.success) return toast.error(result.error);
+    setItems((current) => current.map((candidate) => candidate.id === item.id
+      ? { ...candidate, is_published: !item.is_published, public_slug: result.publicSlug }
+      : candidate));
+    toast.success(item.is_published ? "Producto ocultado de la tienda." : "Producto publicado en la tienda.");
   };
 
   return (
@@ -262,9 +276,12 @@ function CatalogoContent() {
                   <div><p className="text-gray-500">Stock</p><p className="mt-0.5 font-bold text-white">{stock === null ? "Sin fuente" : `${stock} u.`}</p></div>
                   <div><p className="text-gray-500">SKU</p><p className="mt-0.5 truncate font-semibold text-gray-300">{item.sku || "Sin SKU"}</p></div>
                 </div>
-                <div className="mt-3 flex items-center justify-between text-[10px] text-gray-500">
-                  <span>{item.is_active ? "Activo" : "Inactivo"}</span>
-                  <span>Publicación: futura</span>
+                <div className="mt-3 flex items-center justify-between gap-3">
+                  <span className="text-[10px] text-gray-500">{item.is_active ? "Activo" : "Inactivo"}</span>
+                  <button type="button" disabled={!item.is_active || publishingId === item.id} onClick={() => void togglePublication(item)} className={`inline-flex min-h-9 items-center gap-1.5 rounded-lg border px-3 text-[11px] font-bold disabled:opacity-40 ${item.is_published ? "border-emerald-500/30 bg-emerald-500/10 text-emerald-300" : "border-stampa-border text-gray-400 hover:bg-white/5"}`}>
+                    {publishingId === item.id ? <Loader2 size={13} className="animate-spin" /> : item.is_published ? <Eye size={13} /> : <EyeOff size={13} />}
+                    {item.is_published ? "Publicado" : "No publicado"}
+                  </button>
                 </div>
               </Card>
             );

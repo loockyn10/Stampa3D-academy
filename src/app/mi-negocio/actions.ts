@@ -12,6 +12,13 @@ import {
   type BusinessSaleSummary,
   type WorkshopProductSummary,
 } from "@/lib/business/catalog";
+import {
+  normalizePublicUrl,
+  normalizePublicWhatsapp,
+  normalizeStorefrontSlug,
+  validateStorefrontSlug,
+  type BusinessStorefront,
+} from "@/lib/business/storefront";
 import { getCurrentUserAccess } from "@/lib/auth/user-access";
 import { createClient } from "@/utils/supabase/server";
 
@@ -54,6 +61,17 @@ export interface BusinessInventoryAdjustmentInput {
   reason?: string;
 }
 
+export interface BusinessStorefrontInput {
+  name: string;
+  slug: string;
+  description?: string;
+  logoUrl?: string;
+  bannerUrl?: string;
+  whatsapp?: string;
+  publicEmail?: string;
+  isActive: boolean;
+}
+
 async function authorizeBusinessAccess() {
   const supabase = await createClient();
   const { access, error } = await getCurrentUserAccess(supabase);
@@ -91,7 +109,7 @@ export async function loadBusinessWorkspaceAction(): Promise<
   const [itemsResult, productsResult] = await Promise.all([
     authorized.supabase
       .from("business_catalog_items")
-      .select("id, user_id, source_type, source_product_id, name, category, brand, description, purchase_cost, sale_price, resale_stock_quantity, sku, barcode, supplier, image_urls, is_active, is_published, created_at, updated_at")
+      .select("id, user_id, source_type, source_product_id, name, category, brand, description, purchase_cost, sale_price, resale_stock_quantity, sku, barcode, supplier, image_urls, is_active, is_published, public_slug, created_at, updated_at")
       .eq("user_id", authorized.userId)
       .order("created_at", { ascending: false }),
     authorized.supabase
@@ -226,7 +244,7 @@ export async function loadBusinessOperationsAction(): Promise<
   const [itemsResult, productsResult, clientsResult, movementsResult] = await Promise.all([
     authorized.supabase
       .from("business_catalog_items")
-      .select("id, user_id, source_type, source_product_id, name, category, brand, description, purchase_cost, sale_price, resale_stock_quantity, sku, barcode, supplier, image_urls, is_active, is_published, created_at, updated_at")
+      .select("id, user_id, source_type, source_product_id, name, category, brand, description, purchase_cost, sale_price, resale_stock_quantity, sku, barcode, supplier, image_urls, is_active, is_published, public_slug, created_at, updated_at")
       .eq("user_id", authorized.userId)
       .order("name", { ascending: true }),
     authorized.supabase
@@ -387,4 +405,67 @@ export async function loadBusinessSalesAction(): Promise<
       })),
     })) as BusinessSaleSummary[],
   };
+}
+
+export async function loadBusinessStorefrontWorkspaceAction(): Promise<
+  | { success: true; userId: string; storefront: BusinessStorefront | null }
+  | { success: false; error: string; userId: null; storefront: null }
+> {
+  const authorized = await authorizeBusinessAccess();
+  if (!authorized.success) return { success: false, error: authorized.error, userId: null, storefront: null };
+  const { data, error } = await authorized.supabase
+    .from("business_storefronts")
+    .select("user_id, name, slug, description, logo_url, banner_url, whatsapp, public_email, is_active, created_at, updated_at")
+    .eq("user_id", authorized.userId)
+    .maybeSingle();
+  if (error) return { success: false, error: error.message, userId: null, storefront: null };
+  return { success: true, userId: authorized.userId, storefront: data as BusinessStorefront | null };
+}
+
+export async function saveBusinessStorefrontAction(input: BusinessStorefrontInput) {
+  const authorized = await authorizeBusinessAccess();
+  if (!authorized.success) return authorized;
+  const name = normalizeOptionalBusinessText(input.name, 120);
+  const slug = normalizeStorefrontSlug(input.slug);
+  const slugError = validateStorefrontSlug(slug);
+  const description = normalizeOptionalBusinessText(input.description, 600);
+  const whatsapp = normalizePublicWhatsapp(input.whatsapp);
+  const publicEmail = normalizeOptionalBusinessText(input.publicEmail, 254)?.toLowerCase() ?? null;
+  const logoUrl = normalizePublicUrl(input.logoUrl);
+  const bannerUrl = normalizePublicUrl(input.bannerUrl);
+  if (!name) return { success: false as const, error: "Ingresá el nombre comercial." };
+  if (slugError) return { success: false as const, error: slugError };
+  if (input.whatsapp?.trim() && !whatsapp) return { success: false as const, error: "Ingresá un WhatsApp válido con código de país." };
+  if (publicEmail && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(publicEmail)) return { success: false as const, error: "Ingresá un email público válido." };
+  if (input.logoUrl?.trim() && !logoUrl) return { success: false as const, error: "La URL del logo no es válida." };
+  if (input.bannerUrl?.trim() && !bannerUrl) return { success: false as const, error: "La URL del banner no es válida." };
+
+  const { error } = await authorized.supabase.from("business_storefronts").upsert({
+    user_id: authorized.userId, name, slug, description, logo_url: logoUrl, banner_url: bannerUrl,
+    whatsapp, public_email: publicEmail, is_active: input.isActive === true,
+  }, { onConflict: "user_id" });
+  if (error?.code === "23505") return { success: false as const, error: "Ese slug ya está siendo usado por otra tienda." };
+  if (error) return { success: false as const, error: error.message };
+  revalidatePath("/mi-negocio/tienda");
+  revalidatePath(`/tienda/${slug}`);
+  return { success: true as const, slug };
+}
+
+export async function setBusinessCatalogPublicationAction(input: { catalogItemId: string; published: boolean }) {
+  const authorized = await authorizeBusinessAccess();
+  if (!authorized.success) return authorized;
+  if (!UUID_PATTERN.test(input.catalogItemId)) return { success: false as const, error: "El producto no es válido." };
+  const { data, error } = await authorized.supabase
+    .from("business_catalog_items")
+    .update({ is_published: input.published === true })
+    .eq("id", input.catalogItemId)
+    .eq("user_id", authorized.userId)
+    .eq("is_active", true)
+    .select("id, public_slug")
+    .maybeSingle();
+  if (error) return { success: false as const, error: error.message };
+  if (!data) return { success: false as const, error: "El producto no existe, está inactivo o no te pertenece." };
+  revalidatePath("/mi-negocio/catalogo");
+  revalidatePath("/mi-negocio/tienda");
+  return { success: true as const, publicSlug: data.public_slug as string | null };
 }

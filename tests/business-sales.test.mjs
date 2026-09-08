@@ -93,7 +93,9 @@ test("an RPC error rolls the function transaction back instead of returning part
 });
 
 test("server action accepts identity and quantities only and revalidates through the RPC", () => {
-  const saleBlock = actions.slice(actions.indexOf("export async function confirmBusinessSaleAction"));
+  const saleStart = actions.indexOf("export async function confirmBusinessSaleAction");
+  const saleEnd = actions.indexOf("export async function loadBusinessSalesAction", saleStart);
+  const saleBlock = actions.slice(saleStart, saleEnd);
   assert.match(saleBlock, /authorizeBusinessAccess\(\)/);
   assert.match(saleBlock, /p_items: input\.items/);
   assert.match(saleBlock, /p_client_id: input\.clientId \|\| null/);

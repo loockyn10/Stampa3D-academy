@@ -53,10 +53,15 @@ const availableAreas = [
     description: "Consultá operaciones registradas, clientes, artículos e importes.",
     icon: ReceiptText,
   },
+  {
+    href: "/mi-negocio/tienda",
+    title: "Mi Tienda",
+    description: "Configurá y compartí una vidriera pública con los productos que elijas.",
+    icon: Store,
+  },
 ] as const;
 
 const futureAreas = [
-  { title: "Tienda pública", description: "Publicación online de una selección de tu catálogo.", icon: Store },
   { title: "Caja y métricas", description: "Ingresos, resultados y decisiones comerciales.", icon: BadgeDollarSign },
 ] as const;
 
@@ -73,8 +78,8 @@ export default function MiNegocioPage() {
     pageData: {
       kind: "pageFacts",
       facts: [
-        { label: "Áreas disponibles", value: "Venta rápida, Catálogo, Inventario, Clientes, Presupuestos y Ventas" },
-        { label: "Áreas futuras", value: "Tienda pública y métricas" },
+        { label: "Áreas disponibles", value: "Venta rápida, Catálogo, Inventario, Clientes, Presupuestos, Ventas y Mi Tienda" },
+        { label: "Áreas futuras", value: "Caja y métricas" },
       ],
     },
   };
@@ -110,7 +115,7 @@ export default function MiNegocioPage() {
           <p className="text-xs font-bold uppercase tracking-wider text-gray-500">Próximas etapas</p>
           <span className="rounded-full border border-white/10 bg-white/5 px-2 py-0.5 text-[10px] font-semibold text-gray-500">No disponibles todavía</span>
         </div>
-        <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
+        <div className="grid grid-cols-1 gap-4">
           {futureAreas.map((area) => {
             const Icon = area.icon;
             return (

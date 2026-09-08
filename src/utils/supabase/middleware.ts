@@ -52,6 +52,8 @@ export async function updateSession(request: NextRequest) {
   // Define public routes
   const isPublicRoute = 
     pathname.startsWith('/landing') ||
+    pathname === '/tienda' ||
+    pathname.startsWith('/tienda/') ||
     pathname.startsWith('/login') || 
     pathname.startsWith('/registro') || 
     pathname.startsWith('/recuperar-password') || 
