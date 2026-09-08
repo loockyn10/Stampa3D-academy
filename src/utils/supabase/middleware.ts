@@ -39,6 +39,10 @@ export async function updateSession(request: NextRequest) {
     "/api/mercadopago/create-subscription",
     "/api/mercadopago/sync-subscription",
     "/api/mercadopago/webhook",
+    "/api/business/mercadopago/callback",
+    "/api/business/mercadopago/webhook",
+    "/api/business/storefront",
+    "/api/business/orders/expire",
   ];
 
   const isPublicApiRoute = publicApiRoutes.some((route) =>

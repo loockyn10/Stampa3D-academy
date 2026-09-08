@@ -36,6 +36,23 @@ export interface PublicStorefrontProduct {
   available: boolean;
 }
 
+export interface PublicStorefrontCheckoutStatus {
+  enabled: boolean;
+  testMode: boolean;
+}
+
+export interface PublicBusinessOrder {
+  orderNumber: number;
+  orderStatus: string;
+  paymentStatus: string;
+  total: number;
+  currency: string;
+  buyerName: string;
+  createdAt: string;
+  expiresAt: string;
+  items: Array<{ name: string; quantity: number; unitPrice: number; subtotal: number }>;
+}
+
 export function normalizeStorefrontSlug(value: unknown): string {
   if (typeof value !== "string") return "";
   return value.normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase()
@@ -116,5 +133,31 @@ export async function loadPublicStorefrontProduct(client: PublicStorefrontClient
     description: row.product_description ? String(row.product_description) : null,
     price: Number(row.product_price), imageUrl: row.product_image_url ? String(row.product_image_url) : null,
     available: row.product_available === true,
+  };
+}
+
+export async function loadPublicStorefrontCheckoutStatus(client: PublicStorefrontClient, slugValue: string): Promise<PublicStorefrontCheckoutStatus> {
+  const slug = normalizeStorefrontSlug(slugValue);
+  if (!slug) return { enabled: false, testMode: true };
+  const { data, error } = await client.rpc("get_public_business_storefront_checkout_status", { p_store_slug: slug });
+  const row = firstRow(data);
+  if (error || !row) return { enabled: false, testMode: true };
+  return { enabled: row.checkout_enabled === true, testMode: row.test_mode !== false };
+}
+
+export async function loadPublicBusinessOrder(client: PublicStorefrontClient, storeSlug: string, publicToken: string): Promise<PublicBusinessOrder | null> {
+  const { data, error } = await client.rpc("get_public_business_order", {
+    p_store_slug: normalizeStorefrontSlug(storeSlug), p_public_token: publicToken,
+  });
+  const row = firstRow(data);
+  if (error || !row || !Array.isArray(row.items)) return null;
+  return {
+    orderNumber: Number(row.order_number), orderStatus: String(row.order_status), paymentStatus: String(row.payment_status),
+    total: Number(row.total_amount), currency: String(row.currency), buyerName: String(row.buyer_name),
+    createdAt: String(row.created_at), expiresAt: String(row.expires_at),
+    items: row.items.map((item) => {
+      const value = item && typeof item === "object" ? item as Record<string, unknown> : {};
+      return { name: String(value.name), quantity: Number(value.quantity), unitPrice: Number(value.unitPrice), subtotal: Number(value.subtotal) };
+    }),
   };
 }
