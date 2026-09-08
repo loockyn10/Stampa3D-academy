@@ -33,6 +33,50 @@ export interface WorkshopProductSummary {
   is_active: boolean;
 }
 
+export interface BusinessClientSummary {
+  id: string;
+  name: string;
+}
+
+export interface BusinessInventoryMovement {
+  id: string;
+  catalog_item_id: string;
+  sale_id: string | null;
+  movement_type: "sale" | "restock" | "manual_adjustment" | "return" | "transfer_to_workshop";
+  quantity_delta: number;
+  previous_quantity: number;
+  new_quantity: number;
+  reason: string | null;
+  reference: string | null;
+  created_at: string;
+}
+
+export interface BusinessSaleItem {
+  id: string;
+  sale_id: string;
+  catalog_item_id: string;
+  source_type: BusinessCatalogSourceType;
+  product_name_snapshot: string;
+  sku_snapshot: string | null;
+  barcode_snapshot: string | null;
+  unit_price: number;
+  quantity: number;
+  subtotal: number;
+}
+
+export interface BusinessSaleSummary {
+  id: string;
+  sale_number: number;
+  client_id: string | null;
+  client_name: string | null;
+  status: "completed" | "voided";
+  currency: "ARS";
+  subtotal: number;
+  total: number;
+  created_at: string;
+  items: BusinessSaleItem[];
+}
+
 export function resolveBusinessCatalogStock(
   item: Pick<BusinessCatalogItem, "source_type" | "source_product_id" | "resale_stock_quantity">,
   products: readonly WorkshopProductSummary[],

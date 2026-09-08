@@ -3,6 +3,7 @@
 import Link from "next/link";
 import {
   BadgeDollarSign,
+  Barcode,
   Boxes,
   FileText,
   ReceiptText,
@@ -16,6 +17,12 @@ import { usePublishStampyScreenContext } from "@/components/stampy/StampyContext
 import type { StampyScreenContext } from "@/lib/stampy/screen-context";
 
 const availableAreas = [
+  {
+    href: "/mi-negocio/venta-rapida",
+    title: "Venta rápida",
+    description: "Escaneá o buscá productos, armá el carrito y descontá stock al confirmar.",
+    icon: Barcode,
+  },
   {
     href: "/mi-negocio/catalogo",
     title: "Catálogo",
@@ -40,10 +47,15 @@ const availableAreas = [
     description: "Prepará propuestas rápidas o profesionales con tus productos y clientes.",
     icon: FileText,
   },
+  {
+    href: "/mi-negocio/ventas",
+    title: "Ventas",
+    description: "Consultá operaciones registradas, clientes, artículos e importes.",
+    icon: ReceiptText,
+  },
 ] as const;
 
 const futureAreas = [
-  { title: "Ventas", description: "Registro de operaciones y actualización de inventario.", icon: ReceiptText },
   { title: "Tienda pública", description: "Publicación online de una selección de tu catálogo.", icon: Store },
   { title: "Caja y métricas", description: "Ingresos, resultados y decisiones comerciales.", icon: BadgeDollarSign },
 ] as const;
@@ -61,8 +73,8 @@ export default function MiNegocioPage() {
     pageData: {
       kind: "pageFacts",
       facts: [
-        { label: "Áreas disponibles", value: "Catálogo, Inventario, Clientes y Presupuestos" },
-        { label: "Áreas futuras", value: "Ventas, tienda pública y métricas" },
+        { label: "Áreas disponibles", value: "Venta rápida, Catálogo, Inventario, Clientes, Presupuestos y Ventas" },
+        { label: "Áreas futuras", value: "Tienda pública y métricas" },
       ],
     },
   };
@@ -75,7 +87,7 @@ export default function MiNegocioPage() {
         Tu espacio comercial está separado del taller: acá decidís qué ofrecés y a qué precio; las recetas y la producción siguen donde corresponden.
       </p>
 
-      <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-4">
+      <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-3">
         {availableAreas.map((area) => {
           const Icon = area.icon;
           return (
@@ -98,7 +110,7 @@ export default function MiNegocioPage() {
           <p className="text-xs font-bold uppercase tracking-wider text-gray-500">Próximas etapas</p>
           <span className="rounded-full border border-white/10 bg-white/5 px-2 py-0.5 text-[10px] font-semibold text-gray-500">No disponibles todavía</span>
         </div>
-        <div className="grid grid-cols-1 gap-4 md:grid-cols-3">
+        <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
           {futureAreas.map((area) => {
             const Icon = area.icon;
             return (

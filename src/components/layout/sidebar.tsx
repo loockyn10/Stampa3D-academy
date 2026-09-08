@@ -5,11 +5,13 @@ import Image from "next/image";
 import { usePathname, useSearchParams } from "next/navigation";
 import {
   BookOpen,
+  Barcode,
   Gift,
   Calculator,
   Boxes,
   FileText,
   Package,
+  ReceiptText,
   Archive,
   User,
   Settings,
@@ -62,8 +64,10 @@ const NAV_GROUPS = [
     group: "Mi negocio",
     items: [
       { path: "/mi-negocio", label: "Resumen", icon: Store },
+      { path: "/mi-negocio/venta-rapida", label: "Venta rápida", icon: Barcode },
       { path: "/mi-negocio/catalogo", label: "Catálogo", icon: ShoppingBag },
       { path: "/mi-negocio/inventario", label: "Inventario", icon: Warehouse },
+      { path: "/mi-negocio/ventas", label: "Ventas", icon: ReceiptText },
       { path: "/presupuestos", label: "Clientes y presupuestos", icon: FileText },
     ],
   },

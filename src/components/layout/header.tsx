@@ -26,6 +26,8 @@ const PAGE_TITLES: Record<string, string> = {
   "/mi-negocio": "Mi Negocio",
   "/mi-negocio/catalogo": "Catálogo comercial",
   "/mi-negocio/inventario": "Inventario comercial",
+  "/mi-negocio/venta-rapida": "Venta rápida",
+  "/mi-negocio/ventas": "Ventas",
   "/perfil": "Mi perfil",
   "/salir": "Sesión cerrada",
   "/telegram": "Telegram",
@@ -44,7 +46,6 @@ export function Header({ access, loading }: HeaderProps) {
   useEffect(() => {
     let active = true;
     if (!pathname.startsWith("/cursos/")) {
-      setCourseTitle(null);
       return;
     }
 
