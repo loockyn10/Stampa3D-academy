@@ -51,6 +51,7 @@ function CatalogoContent() {
   const [items, setItems] = useState<BusinessCatalogItem[]>([]);
   const [products, setProducts] = useState<WorkshopProductSummary[]>([]);
   const [movements, setMovements] = useState<BusinessInventoryMovement[]>([]);
+  const [locationsEnabled, setLocationsEnabled] = useState(false);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
@@ -84,11 +85,13 @@ function CatalogoContent() {
       setItems([]);
       setProducts([]);
       setMovements([]);
+      setLocationsEnabled(false);
     } else {
       setError(null);
       setItems(result.items);
       setProducts(result.products);
       setMovements(result.movements);
+      setLocationsEnabled(result.locationsEnabled);
       const requestedProductId = searchParams.get("producto");
       const alreadyLinked = result.items.some((item) => item.source_product_id === requestedProductId);
       const requestedProduct = result.products.find((product) => product.id === requestedProductId);
@@ -419,6 +422,7 @@ function CatalogoContent() {
                       <Boxes size={14} /> Ajustar stock de reventa
                     </button>
                   )}
+                  {locationsEnabled && <Link href="/mi-negocio/reposicion" className="mt-2 inline-flex min-h-9 w-full items-center justify-center rounded-lg text-[11px] font-bold text-gray-500 hover:bg-white/5 hover:text-gray-300">Configurar showroom y mínimo</Link>}
                 </div>
               </Card>
               </div>

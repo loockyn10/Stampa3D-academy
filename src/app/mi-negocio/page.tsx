@@ -7,6 +7,7 @@ import {
   FileText,
   ReceiptText,
   PackageCheck,
+  RefreshCcw,
   ShoppingBag,
   Store,
   Users,
@@ -34,6 +35,12 @@ const availableAreas = [
     title: "Ventas",
     description: "Consultá operaciones registradas, clientes, artículos e importes.",
     icon: ReceiptText,
+  },
+  {
+    href: "/mi-negocio/reposicion",
+    title: "Reposición",
+    description: "Completá tu showroom y revisá qué conviene volver a comprar.",
+    icon: RefreshCcw,
   },
   {
     href: "/presupuestos",
@@ -78,7 +85,7 @@ export default function MiNegocioPage() {
     pageData: {
       kind: "pageFacts",
       facts: [
-        { label: "Áreas disponibles", value: "Catálogo, Venta rápida, Ventas, Clientes, Presupuestos, Mi Tienda y Pedidos online" },
+        { label: "Áreas disponibles", value: "Catálogo, Venta rápida, Ventas, Reposición, Clientes, Presupuestos, Mi Tienda y Pedidos online" },
         { label: "Áreas futuras", value: "Caja y métricas" },
       ],
     },

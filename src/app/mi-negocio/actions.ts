@@ -21,6 +21,11 @@ import {
 } from "@/lib/business/storefront";
 import { getCurrentUserAccess } from "@/lib/auth/user-access";
 import type { BusinessOrderItemSummary, BusinessOrderSummary, BusinessPaymentConnection } from "@/lib/business/orders";
+import {
+  normalizeBusinessReplenishmentWorkspace,
+  type BusinessInventoryPeriod,
+  type BusinessReplenishmentWorkspace,
+} from "@/lib/business/replenishment";
 import { createClient } from "@/utils/supabase/server";
 
 const UUID_PATTERN = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
@@ -97,6 +102,7 @@ function revalidateBusinessPages() {
   revalidatePath("/mi-negocio");
   revalidatePath("/mi-negocio/catalogo");
   revalidatePath("/mi-negocio/inventario");
+  revalidatePath("/mi-negocio/reposicion");
   revalidatePath("/productos");
   revalidatePath("/mi-taller/productos");
   revalidatePath("/mi-taller/inventario");
@@ -238,13 +244,15 @@ export async function loadBusinessOperationsAction(): Promise<
       products: WorkshopProductSummary[];
       clients: BusinessClientSummary[];
       movements: BusinessInventoryMovement[];
+      locationsEnabled: boolean;
+      locationItems: BusinessReplenishmentWorkspace["items"];
     }
-  | { success: false; error: string; items: []; products: []; clients: []; movements: [] }
+  | { success: false; error: string; items: []; products: []; clients: []; movements: []; locationsEnabled: false; locationItems: [] }
 > {
   const authorized = await authorizeBusinessAccess();
-  if (!authorized.success) return { ...authorized, items: [], products: [], clients: [], movements: [] };
+  if (!authorized.success) return { ...authorized, items: [], products: [], clients: [], movements: [], locationsEnabled: false, locationItems: [] };
 
-  const [itemsResult, productsResult, clientsResult, movementsResult] = await Promise.all([
+  const [itemsResult, productsResult, clientsResult, movementsResult, locationsResult] = await Promise.all([
     authorized.supabase
       .from("business_catalog_items")
       .select("id, user_id, source_type, source_product_id, name, category, brand, description, purchase_cost, sale_price, resale_stock_quantity, sku, barcode, supplier, image_urls, is_active, is_published, public_slug, created_at, updated_at")
@@ -265,18 +273,22 @@ export async function loadBusinessOperationsAction(): Promise<
       .eq("user_id", authorized.userId)
       .order("created_at", { ascending: false })
       .limit(100),
+    authorized.supabase.rpc("get_business_replenishment_workspace", { p_period: "week" }),
   ]);
 
-  const queryError = itemsResult.error || productsResult.error || clientsResult.error || movementsResult.error;
+  const queryError = itemsResult.error || productsResult.error || clientsResult.error || movementsResult.error || locationsResult.error;
   if (queryError) {
-    return { success: false, error: queryError.message, items: [], products: [], clients: [], movements: [] };
+    return { success: false, error: queryError.message, items: [], products: [], clients: [], movements: [], locationsEnabled: false, locationItems: [] };
   }
+  const locationWorkspace = normalizeBusinessReplenishmentWorkspace(locationsResult.data);
   return {
     success: true,
     items: (itemsResult.data || []) as BusinessCatalogItem[],
     products: (productsResult.data || []) as WorkshopProductSummary[],
     clients: (clientsResult.data || []) as BusinessClientSummary[],
     movements: (movementsResult.data || []) as BusinessInventoryMovement[],
+    locationsEnabled: locationWorkspace?.enabled === true,
+    locationItems: locationWorkspace?.items ?? [],
   };
 }
 
@@ -332,7 +344,14 @@ export async function confirmBusinessSaleAction(input: BusinessSaleInput) {
   ));
   if (!validItems) return { success: false as const, error: "El carrito contiene cantidades inválidas." };
 
-  const { data, error } = await authorized.supabase.rpc("confirm_business_sale", {
+  const { data: settings, error: settingsError } = await authorized.supabase
+    .from("business_inventory_location_settings")
+    .select("locations_enabled")
+    .eq("user_id", authorized.userId)
+    .maybeSingle();
+  if (settingsError) return { success: false as const, error: "No se pudo verificar desde qué ubicación descontar la venta." };
+  const saleRpc = settings?.locations_enabled === true ? "confirm_business_showroom_sale" : "confirm_business_sale";
+  const { data, error } = await authorized.supabase.rpc(saleRpc, {
     p_idempotency_key: input.idempotencyKey,
     p_items: input.items,
     p_client_id: input.clientId || null,
@@ -352,6 +371,60 @@ export async function confirmBusinessSaleAction(input: BusinessSaleInput) {
     total: Number(row.total_amount),
     replayed: row.replayed === true,
   };
+}
+
+export async function loadBusinessReplenishmentAction(period: BusinessInventoryPeriod): Promise<
+  | { success: true; workspace: BusinessReplenishmentWorkspace }
+  | { success: false; error: string; workspace: null }
+> {
+  const authorized = await authorizeBusinessAccess();
+  if (!authorized.success) return { success: false, error: authorized.error, workspace: null };
+  const { data, error } = await authorized.supabase.rpc("get_business_replenishment_workspace", { p_period: period });
+  if (error) return { success: false, error: error.message, workspace: null };
+  const workspace = normalizeBusinessReplenishmentWorkspace(data);
+  if (!workspace) return { success: false, error: "No se pudo interpretar el estado de reposición.", workspace: null };
+  return { success: true, workspace };
+}
+
+export async function configureBusinessLocationsAction(input: { enabled: boolean; initialLocation?: "showroom" | "warehouse" | "keep" }) {
+  const authorized = await authorizeBusinessAccess();
+  if (!authorized.success) return authorized;
+  const { data, error } = await authorized.supabase.rpc("configure_business_inventory_locations", {
+    p_enabled: input.enabled,
+    p_initial_location: input.enabled ? input.initialLocation ?? null : null,
+  });
+  const row = Array.isArray(data) ? data[0] : data;
+  if (error || !row?.success) return { success: false as const, error: row?.message || error?.message || "No se pudo guardar la configuración." };
+  revalidateBusinessPages();
+  return { success: true as const, enabled: row.enabled === true };
+}
+
+export async function saveBusinessInventoryPolicyAction(input: { catalogItemId: string; showroomTarget: number | null; stockMinimum: number | null; unitWeightGrams: number | null }) {
+  const authorized = await authorizeBusinessAccess();
+  if (!authorized.success) return authorized;
+  if (!UUID_PATTERN.test(input.catalogItemId)) return { success: false as const, error: "El producto no es válido." };
+  const validOptional = (value: number | null, strictlyPositive = false) => value === null || (Number.isFinite(value) && Number.isInteger(value) && (strictlyPositive ? value > 0 : value >= 0));
+  if (!validOptional(input.showroomTarget) || !validOptional(input.stockMinimum) || !validOptional(input.unitWeightGrams, true)) return { success: false as const, error: "Revisá objetivo, mínimo y peso unitario." };
+  const { data, error } = await authorized.supabase.rpc("save_business_inventory_policy", {
+    p_catalog_item_id: input.catalogItemId,
+    p_showroom_target: input.showroomTarget,
+    p_stock_minimum: input.stockMinimum,
+    p_unit_weight_grams: input.unitWeightGrams,
+  });
+  if (error || data !== true) return { success: false as const, error: error?.message || "No se pudo guardar la configuración del producto." };
+  revalidateBusinessPages();
+  return { success: true as const };
+}
+
+export async function replenishBusinessShowroomAction(input: { catalogItemIds: string[]; idempotencyKey: string }) {
+  const authorized = await authorizeBusinessAccess();
+  if (!authorized.success) return authorized;
+  if (!UUID_PATTERN.test(input.idempotencyKey) || input.catalogItemIds.length < 1 || input.catalogItemIds.length > 200 || input.catalogItemIds.some((id) => !UUID_PATTERN.test(id))) return { success: false as const, error: "La reposición no es válida." };
+  const { data, error } = await authorized.supabase.rpc("replenish_business_showroom", { p_catalog_item_ids: input.catalogItemIds, p_operation_key: input.idempotencyKey });
+  const row = Array.isArray(data) ? data[0] : data;
+  if (error || !row?.success) return { success: false as const, error: row?.message || error?.message || "No se pudo completar la reposición." };
+  revalidateBusinessPages();
+  return { success: true as const, movedUnits: Number(row.moved_units), productCount: Number(row.product_count), replayed: row.replayed === true };
 }
 
 export async function loadBusinessSalesAction(): Promise<
