@@ -110,7 +110,7 @@ test("catalog cards always expose Delete through the shared custom Dialog", () =
 });
 
 test("catalog cards expose Edit and preload a metadata-only editor", () => {
-  assert.match(catalogPage, /<Pencil size=\{14\} \/> Editar/);
+  assert.match(catalogPage, /<Pencil size=\{14\}[\s\S]*Editar/);
   assert.match(catalogPage, /<Dialog open=\{editItem !== null\}/);
   assert.match(catalogPage, /Nombre comercial[\s\S]*Marca[\s\S]*Categoría[\s\S]*Precio de venta/);
   assert.match(catalogPage, /Estos cambios no modifican el stock ni sus movimientos/);

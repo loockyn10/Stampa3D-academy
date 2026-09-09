@@ -4,8 +4,9 @@ import { Suspense, useCallback, useEffect, useMemo, useRef, useState } from "rea
 import { useRouter, useSearchParams } from "next/navigation";
 import Link from "next/link";
 import Image from "next/image";
-import { ArrowLeft, Boxes, Eye, EyeOff, Factory, History, Loader2, Minus, Pencil, Plus, ShoppingBag, Trash2, X } from "lucide-react";
+import { ArrowLeft, Barcode, Boxes, Eye, EyeOff, Factory, History, Loader2, Minus, PackagePlus, Pencil, Plus, ShoppingBag, Trash2, X } from "lucide-react";
 import { useBarcodeScanHandler } from "@/components/barcode/BarcodeScannerProvider";
+import { StockReceiptDialog } from "@/components/business/StockReceiptDialog";
 import { FileUploadDropzone } from "@/components/ui/file-upload-dropzone";
 import { Dialog } from "@/components/ui/dialog";
 import { Card } from "@/components/ui/card";
@@ -14,6 +15,7 @@ import { useAppFeedback } from "@/components/ui/app-feedback";
 import { usePublishStampyScreenContext } from "@/components/stampy/StampyContextProvider";
 import type { StampyScreenContext } from "@/lib/stampy/screen-context";
 import { normalizeBarcode } from "@/lib/barcode/hid-scanner";
+import type { BusinessBarcodeType } from "@/lib/business/stock-receipt";
 import {
   getBusinessProductDisplayName,
   resolveBusinessCatalogStock,
@@ -26,7 +28,9 @@ import {
   archiveBusinessCatalogItemAction,
   createResaleCatalogItemAction,
   linkManufacturedProductAction,
+  loadBusinessStockReceiptSetupAction,
   loadBusinessOperationsAction,
+  saveBusinessCatalogBarcodesAction,
   setBusinessCatalogPublicationAction,
   updateBusinessCatalogItemAction,
 } from "../actions";
@@ -45,6 +49,8 @@ const emptyResaleForm = {
   sku: "",
   barcode: "",
   supplier: "",
+  caseBarcode: "",
+  caseUnitsPerScan: "10",
   isActive: true,
 };
 
@@ -64,10 +70,16 @@ function CatalogoContent() {
   const [deleting, setDeleting] = useState(false);
   const [editItem, setEditItem] = useState<BusinessCatalogItem | null>(null);
   const [editing, setEditing] = useState(false);
+  const [loadingEditId, setLoadingEditId] = useState<string | null>(null);
+  const [capturingBarcode, setCapturingBarcode] = useState<BusinessBarcodeType | null>(null);
   const [editForm, setEditForm] = useState({
     name: "", category: "", brand: "", description: "", purchaseCost: "",
-    salePrice: "", sku: "", barcode: "", supplier: "", imageUrl: "",
+    salePrice: "", sku: "", barcode: "", caseBarcode: "", caseUnitsPerScan: "10", supplier: "", imageUrl: "",
   });
+  const editOriginalBarcodesRef = useRef<{ unitBarcode: string; caseBarcode: string; caseUnitsPerScan: number | null } | null>(null);
+  const [stockReceiptOpen, setStockReceiptOpen] = useState(false);
+  const [stockReceiptResumeBarcode, setStockReceiptResumeBarcode] = useState<string | null>(null);
+  const [stockProductPrefill, setStockProductPrefill] = useState<{ barcode: string; barcodeType: BusinessBarcodeType; unitsPerScan: number } | null>(null);
   const [resaleOpen, setResaleOpen] = useState(false);
   const [manufacturedOpen, setManufacturedOpen] = useState(false);
   const [adjustmentItem, setAdjustmentItem] = useState<BusinessCatalogItem | null>(null);
@@ -154,9 +166,22 @@ function CatalogoContent() {
   );
   const scannedCatalogItem = items.find((item) => item.id === scannedCatalogItemId) ?? null;
 
-  const handleCatalogBarcode = useCallback((rawBarcode: string) => {
+  const handleCatalogBarcode = useCallback(async (rawBarcode: string) => {
     const barcode = normalizeBarcode(rawBarcode);
-    const found = items.find((item) => normalizeBarcode(item.barcode ?? "").toLowerCase() === barcode.toLowerCase());
+    let found = items.find((item) => normalizeBarcode(item.barcode ?? "").toLowerCase() === barcode.toLowerCase());
+    if (!found) {
+      const setup = await loadBusinessStockReceiptSetupAction();
+      if (!setup.success) {
+        toast.error("No se pudo verificar el código. Volvé a intentarlo.");
+        return;
+      }
+      const presentation = setup.presentations.find((candidate) => candidate.barcode.toLocaleLowerCase("es-AR") === barcode.toLocaleLowerCase("es-AR"));
+      if (presentation && !presentation.isActive) {
+        toast.info(`${presentation.displayName} está archivado.`);
+        return;
+      }
+      found = presentation ? items.find((item) => item.id === presentation.catalogItemId) : undefined;
+    }
     if (found) {
       setScannedCatalogItemId(found.id);
       toast.info(`${getBusinessProductDisplayName(found)} encontrado en el catálogo.`);
@@ -173,8 +198,24 @@ function CatalogoContent() {
     id: "business-catalog",
     route: "/mi-negocio/catalogo",
     priority: 100,
-    enabled: !loading,
+    enabled: !loading && !stockReceiptOpen,
     onScan: (scan) => handleCatalogBarcode(scan.value),
+  });
+
+  useBarcodeScanHandler({
+    id: "business-catalog-barcode-capture",
+    route: "/mi-negocio/catalogo",
+    priority: 1_100,
+    enabled: editItem !== null && capturingBarcode !== null,
+    allowWhenDialogOpen: true,
+    onScan: (scan) => {
+      const barcode = normalizeBarcode(scan.value);
+      setEditForm((current) => capturingBarcode === "case"
+        ? { ...current, caseBarcode: barcode }
+        : { ...current, barcode });
+      setCapturingBarcode(null);
+      toast.info("Código capturado.");
+    },
   });
 
   useEffect(() => {
@@ -264,10 +305,38 @@ function CatalogoContent() {
       salePrice: Number(resaleForm.salePrice),
       initialStock: Number(resaleForm.initialStock),
     });
+    if (!result.success) {
+      setSaving(false);
+      return toast.error(result.error);
+    }
+    if (resaleForm.caseBarcode.trim()) {
+      const barcodeResult = await saveBusinessCatalogBarcodesAction({
+        catalogItemId: result.itemId,
+        unitBarcode: resaleForm.barcode,
+        caseBarcode: resaleForm.caseBarcode,
+        caseUnitsPerScan: Number(resaleForm.caseUnitsPerScan),
+      });
+      if (!barcodeResult.success) {
+        setSaving(false);
+        const archived = await archiveBusinessCatalogItemAction({ catalogItemId: result.itemId });
+        setResaleOpen(false);
+        if (stockProductPrefill) {
+          setStockProductPrefill(null);
+          setStockReceiptOpen(true);
+        }
+        return toast.error(archived.success
+          ? `El producto quedó archivado hasta corregir su código de caja: ${barcodeResult.error}`
+          : `No se pudo completar el código de caja ni archivar el alta incompleta: ${barcodeResult.error}`);
+      }
+    }
     setSaving(false);
-    if (!result.success) return toast.error(result.error);
     toast.success(result.restored ? "Producto de reventa restaurado en el catálogo." : "Producto de reventa agregado al catálogo.");
     setResaleOpen(false);
+    if (stockProductPrefill) {
+      setStockReceiptResumeBarcode(stockProductPrefill.barcode);
+      setStockReceiptOpen(true);
+      setStockProductPrefill(null);
+    }
     setResaleForm(emptyResaleForm);
     setLoading(true);
     await loadWorkspace();
@@ -309,8 +378,20 @@ function CatalogoContent() {
     toast.success("Producto eliminado de Mi Negocio.");
   };
 
-  const openEdit = (item: BusinessCatalogItem) => {
+  const openEdit = async (item: BusinessCatalogItem) => {
+    setLoadingEditId(item.id);
+    const setup = await loadBusinessStockReceiptSetupAction();
+    setLoadingEditId(null);
+    if (!setup.success) return toast.error(`No se pudieron cargar los códigos del producto: ${setup.error}`);
+    const unit = setup.presentations.find((presentation) => presentation.catalogItemId === item.id && presentation.barcodeType === "unit");
+    const box = setup.presentations.find((presentation) => presentation.catalogItemId === item.id && presentation.barcodeType === "case");
+    editOriginalBarcodesRef.current = {
+      unitBarcode: unit?.barcode || item.barcode || "",
+      caseBarcode: box?.barcode || "",
+      caseUnitsPerScan: box?.unitsPerScan || null,
+    };
     setEditItem(item);
+    setCapturingBarcode(null);
     setEditForm({
       name: item.name,
       category: item.category,
@@ -319,7 +400,9 @@ function CatalogoContent() {
       purchaseCost: item.purchase_cost === null ? "" : String(item.purchase_cost),
       salePrice: String(item.sale_price),
       sku: item.sku || "",
-      barcode: item.barcode || "",
+      barcode: unit?.barcode || item.barcode || "",
+      caseBarcode: box?.barcode || "",
+      caseUnitsPerScan: String(box?.unitsPerScan || 10),
       supplier: item.supplier || "",
       imageUrl: item.image_urls?.[0] || "",
     });
@@ -328,6 +411,16 @@ function CatalogoContent() {
   const saveEdit = async () => {
     if (!editItem || editing) return;
     setEditing(true);
+    const barcodeResult = await saveBusinessCatalogBarcodesAction({
+      catalogItemId: editItem.id,
+      unitBarcode: editForm.barcode,
+      caseBarcode: editForm.caseBarcode,
+      caseUnitsPerScan: editForm.caseBarcode ? Number(editForm.caseUnitsPerScan) : null,
+    });
+    if (!barcodeResult.success) {
+      setEditing(false);
+      return toast.error(barcodeResult.error);
+    }
     const result = await updateBusinessCatalogItemAction({
       catalogItemId: editItem.id,
       name: editForm.name,
@@ -342,11 +435,43 @@ function CatalogoContent() {
       imageUrls: editForm.imageUrl ? [editForm.imageUrl] : [],
     });
     setEditing(false);
-    if (!result.success) return toast.error(result.error);
+    if (!result.success) {
+      const original = editOriginalBarcodesRef.current;
+      if (original) {
+        await saveBusinessCatalogBarcodesAction({ catalogItemId: editItem.id, ...original });
+      }
+      return toast.error(result.error);
+    }
     setItems((current) => current.map((item) => item.id === result.item.id ? result.item : item));
     setEditItem(null);
+    editOriginalBarcodesRef.current = null;
     toast.success("Producto comercial actualizado.");
   };
+
+  const createProductFromStockReceipt = (input: { barcode: string; barcodeType: BusinessBarcodeType; unitsPerScan: number }) => {
+    setStockProductPrefill(input);
+    setStockReceiptOpen(false);
+    setResaleForm({
+      ...emptyResaleForm,
+      barcode: input.barcodeType === "unit" ? input.barcode : "",
+      caseBarcode: input.barcodeType === "case" ? input.barcode : "",
+      caseUnitsPerScan: String(input.unitsPerScan),
+    });
+    setResaleOpen(true);
+  };
+
+  const closeResale = () => {
+    setResaleOpen(false);
+    setResaleForm(emptyResaleForm);
+    if (stockProductPrefill) {
+      setStockProductPrefill(null);
+      setStockReceiptOpen(true);
+    }
+  };
+
+  const consumeStockReceiptResume = useCallback(() => {
+    setStockReceiptResumeBarcode(null);
+  }, []);
 
   const openAdjustment = (item: BusinessCatalogItem) => {
     setAdjustmentItem(item);
@@ -405,6 +530,9 @@ function CatalogoContent() {
         title="Catálogo comercial"
         action={(
           <div className="grid w-full grid-cols-1 gap-2 min-[390px]:grid-cols-2 sm:flex sm:w-auto">
+            <button onClick={() => setStockReceiptOpen(true)} className="inline-flex min-h-11 items-center justify-center gap-2 rounded-xl border border-emerald-500/35 bg-emerald-500/10 px-4 text-xs font-bold text-emerald-200 hover:bg-emerald-500/15 min-[390px]:col-span-2 sm:order-last sm:col-span-1">
+              <PackagePlus size={16} /> Cargar stock
+            </button>
             <button onClick={() => setManufacturedOpen(true)} className="inline-flex min-h-11 items-center justify-center gap-2 rounded-xl border border-stampa-border bg-white/5 px-4 text-xs font-bold text-white hover:bg-white/10">
               <Factory size={16} /> Del taller
             </button>
@@ -486,7 +614,7 @@ function CatalogoContent() {
                   )}
                   {locationsEnabled && <Link href="/mi-negocio/reposicion" className="mt-2 inline-flex min-h-9 w-full items-center justify-center rounded-lg text-[11px] font-bold text-gray-500 hover:bg-white/5 hover:text-gray-300">Configurar showroom y mínimo</Link>}
                   <div className="mt-2 grid grid-cols-2 gap-2">
-                    <button type="button" onClick={() => openEdit(item)} className="inline-flex min-h-10 items-center justify-center gap-2 rounded-lg border border-stampa-border bg-white/5 px-3 text-xs font-bold text-white hover:bg-white/10"><Pencil size={14} /> Editar</button>
+                    <button type="button" disabled={loadingEditId !== null} onClick={() => void openEdit(item)} className="inline-flex min-h-10 items-center justify-center gap-2 rounded-lg border border-stampa-border bg-white/5 px-3 text-xs font-bold text-white hover:bg-white/10 disabled:opacity-50">{loadingEditId === item.id ? <Loader2 size={14} className="animate-spin" /> : <Pencil size={14} />} Editar</button>
                     <button type="button" onClick={() => setDeleteItem(item)} className="inline-flex min-h-10 items-center justify-center gap-2 rounded-lg border border-red-500/25 bg-red-500/5 px-3 text-xs font-bold text-red-300 hover:bg-red-500/10"><Trash2 size={14} /> Eliminar</button>
                   </div>
                 </div>
@@ -496,6 +624,15 @@ function CatalogoContent() {
           })}
         </div>
       )}
+
+      <StockReceiptDialog
+        open={stockReceiptOpen}
+        onClose={() => setStockReceiptOpen(false)}
+        onConfirmed={loadWorkspace}
+        onCreateProduct={createProductFromStockReceipt}
+        resumeBarcode={stockReceiptResumeBarcode}
+        onResumeConsumed={consumeStockReceiptResume}
+      />
 
       <Dialog open={adjustmentItem !== null} onClose={closeAdjustment} labelledBy="catalog-adjustment-title" panelClassName="max-w-lg rounded-2xl border border-stampa-border bg-stampa-surface">
         {adjustmentItem && <>
@@ -568,7 +705,15 @@ function CatalogoContent() {
             {editItem.source_type === "resale" && <label className="text-xs font-semibold text-gray-300">Costo de compra<input type="number" min="0" step="0.01" value={editForm.purchaseCost} onChange={(event) => setEditForm({ ...editForm, purchaseCost: event.target.value })} className={`${inputClass} mt-1.5`} /></label>}
             {editItem.source_type === "resale" && <label className="text-xs font-semibold text-gray-300">Proveedor<input value={editForm.supplier} onChange={(event) => setEditForm({ ...editForm, supplier: event.target.value })} className={`${inputClass} mt-1.5`} /></label>}
             <label className="text-xs font-semibold text-gray-300">SKU<input value={editForm.sku} onChange={(event) => setEditForm({ ...editForm, sku: event.target.value })} className={`${inputClass} mt-1.5`} /></label>
-            <label className="text-xs font-semibold text-gray-300">Código de barras<input value={editForm.barcode} onChange={(event) => setEditForm({ ...editForm, barcode: event.target.value })} className={`${inputClass} mt-1.5`} /></label>
+            <div className="rounded-xl border border-stampa-border p-3 sm:col-span-2">
+              <p className="mb-3 text-xs font-black uppercase tracking-wide text-gray-400">Códigos de barras</p>
+              <div className="grid gap-3 sm:grid-cols-2">
+                <label className="text-xs font-semibold text-gray-300">Código unitario<div className="mt-1.5 flex gap-2"><input value={editForm.barcode} onChange={(event) => setEditForm({ ...editForm, barcode: event.target.value })} className={inputClass} /><button type="button" onClick={() => setCapturingBarcode("unit")} className={`shrink-0 rounded-xl border px-3 text-xs font-bold ${capturingBarcode === "unit" ? "border-stampa-orange bg-stampa-orange/10 text-orange-200" : "border-stampa-border text-gray-300"}`}><Barcode size={15} className="mx-auto" /><span className="sr-only">Escanear código unitario</span></button></div></label>
+                <label className="text-xs font-semibold text-gray-300">Código de caja<div className="mt-1.5 flex gap-2"><input value={editForm.caseBarcode} onChange={(event) => setEditForm({ ...editForm, caseBarcode: event.target.value })} className={inputClass} /><button type="button" onClick={() => setCapturingBarcode("case")} className={`shrink-0 rounded-xl border px-3 text-xs font-bold ${capturingBarcode === "case" ? "border-stampa-orange bg-stampa-orange/10 text-orange-200" : "border-stampa-border text-gray-300"}`}><Barcode size={15} className="mx-auto" /><span className="sr-only">Escanear código de caja</span></button></div></label>
+                <label className="text-xs font-semibold text-gray-300 sm:col-start-2">Unidades por caja<input type="number" min="2" step="1" disabled={!editForm.caseBarcode} value={editForm.caseUnitsPerScan} onChange={(event) => setEditForm({ ...editForm, caseUnitsPerScan: event.target.value })} className={`${inputClass} mt-1.5 disabled:opacity-40`} /></label>
+              </div>
+              {capturingBarcode && <p className="mt-3 text-xs font-bold text-orange-200">Escaneá ahora el código {capturingBarcode === "case" ? "de la caja" : "unitario"}…</p>}
+            </div>
             <label className="text-xs font-semibold text-gray-300 sm:col-span-2">Descripción comercial<textarea value={editForm.description} onChange={(event) => setEditForm({ ...editForm, description: event.target.value })} rows={3} className={`${inputClass} mt-1.5 resize-none`} /></label>
             <div className="sm:col-span-2">
               <p className="mb-2 text-xs font-semibold text-gray-300">Imagen comercial</p>
@@ -611,10 +756,10 @@ function CatalogoContent() {
         </div>
       </Dialog>
 
-      <Dialog open={resaleOpen} onClose={() => setResaleOpen(false)} labelledBy="resale-dialog-title" panelClassName="max-w-2xl rounded-2xl border border-stampa-border bg-stampa-surface">
+      <Dialog open={resaleOpen} onClose={closeResale} labelledBy="resale-dialog-title" panelClassName="max-w-2xl rounded-2xl border border-stampa-border bg-stampa-surface">
         <div className="flex items-center justify-between border-b border-stampa-border p-5">
           <div><h2 id="resale-dialog-title" className="font-bold text-white">Nuevo producto de reventa</h2><p className="mt-1 text-xs text-gray-500">Producto comercial sin receta de fabricación.</p></div>
-          <button onClick={() => setResaleOpen(false)} className="p-2 text-gray-500 hover:text-white"><X size={18} /></button>
+          <button onClick={closeResale} className="p-2 text-gray-500 hover:text-white"><X size={18} /></button>
         </div>
         <div className="grid gap-4 p-5 sm:grid-cols-2">
           <label className="text-xs font-semibold text-gray-300">Nombre<input value={resaleForm.name} onChange={(e) => setResaleForm({ ...resaleForm, name: e.target.value })} className={`${inputClass} mt-1.5`} /></label>
@@ -626,11 +771,13 @@ function CatalogoContent() {
           <label className="text-xs font-semibold text-gray-300">Stock inicial<input type="number" min="0" step="1" value={resaleForm.initialStock} onChange={(e) => setResaleForm({ ...resaleForm, initialStock: e.target.value })} className={`${inputClass} mt-1.5`} /></label>
           <label className="text-xs font-semibold text-gray-300">SKU opcional<input value={resaleForm.sku} onChange={(e) => setResaleForm({ ...resaleForm, sku: e.target.value })} className={`${inputClass} mt-1.5`} /></label>
           <label className="text-xs font-semibold text-gray-300">Código de barras opcional<input value={resaleForm.barcode} onChange={(e) => setResaleForm({ ...resaleForm, barcode: e.target.value })} className={`${inputClass} mt-1.5`} /></label>
+          <label className="text-xs font-semibold text-gray-300">Código de caja opcional<input value={resaleForm.caseBarcode} onChange={(e) => setResaleForm({ ...resaleForm, caseBarcode: e.target.value })} className={`${inputClass} mt-1.5`} /></label>
+          <label className="text-xs font-semibold text-gray-300">Unidades por caja<input type="number" min="2" step="1" disabled={!resaleForm.caseBarcode} value={resaleForm.caseUnitsPerScan} onChange={(e) => setResaleForm({ ...resaleForm, caseUnitsPerScan: e.target.value })} className={`${inputClass} mt-1.5 disabled:opacity-40`} /></label>
           <label className="text-xs font-semibold text-gray-300 sm:col-span-2">Descripción comercial<textarea value={resaleForm.description} onChange={(e) => setResaleForm({ ...resaleForm, description: e.target.value })} rows={3} className={`${inputClass} mt-1.5 resize-none`} /></label>
           <label className="flex items-center gap-2 text-sm text-gray-300 sm:col-span-2"><input type="checkbox" checked={resaleForm.isActive} onChange={(e) => setResaleForm({ ...resaleForm, isActive: e.target.checked })} /> Activo en el catálogo</label>
         </div>
         <div className="flex flex-col-reverse gap-2 border-t border-stampa-border p-5 sm:flex-row sm:justify-end">
-          <button onClick={() => setResaleOpen(false)} className="min-h-11 rounded-xl px-4 text-sm font-semibold text-gray-400 hover:bg-white/5">Cancelar</button>
+          <button onClick={closeResale} className="min-h-11 rounded-xl px-4 text-sm font-semibold text-gray-400 hover:bg-white/5">Cancelar</button>
           <button disabled={saving} onClick={() => void saveResale()} className="inline-flex min-h-11 items-center justify-center gap-2 rounded-xl bg-stampa-orange px-5 text-sm font-bold text-white disabled:opacity-50">{saving && <Loader2 size={15} className="animate-spin" />} Guardar producto</button>
         </div>
       </Dialog>

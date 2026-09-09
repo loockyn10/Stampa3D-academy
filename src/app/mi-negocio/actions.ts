@@ -21,12 +21,17 @@ import {
   type BusinessStorefront,
 } from "@/lib/business/storefront";
 import { getCurrentUserAccess } from "@/lib/auth/user-access";
+import { isValidBarcode, normalizeBarcode } from "@/lib/barcode/hid-scanner";
 import type { BusinessOrderItemSummary, BusinessOrderSummary, BusinessPaymentConnection } from "@/lib/business/orders";
 import {
   normalizeBusinessReplenishmentWorkspace,
   type BusinessInventoryPeriod,
   type BusinessReplenishmentWorkspace,
 } from "@/lib/business/replenishment";
+import type {
+  BusinessStockReceiptItem,
+  BusinessStockReceiptPresentation,
+} from "@/lib/business/stock-receipt";
 import { createClient } from "@/utils/supabase/server";
 
 const UUID_PATTERN = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
@@ -80,6 +85,18 @@ export interface BusinessInventoryAdjustmentInput {
   catalogItemId: string;
   quantityDelta: number;
   reason?: string;
+}
+
+export interface BusinessCatalogBarcodeInput {
+  catalogItemId: string;
+  unitBarcode?: string;
+  caseBarcode?: string;
+  caseUnitsPerScan?: number | null;
+}
+
+export interface BusinessStockReceiptInput {
+  operationKey: string;
+  scans: Array<{ barcode: string; scanCount: number }>;
 }
 
 export interface BusinessStorefrontInput {
@@ -408,6 +425,174 @@ export async function adjustBusinessInventoryAction(input: BusinessInventoryAdju
     success: true as const,
     previousQuantity: Number(row.previous_quantity),
     newQuantity: Number(row.new_quantity),
+    replayed: row.replayed === true,
+  };
+}
+
+export async function loadBusinessStockReceiptSetupAction(): Promise<
+  | { success: true; items: BusinessStockReceiptItem[]; presentations: BusinessStockReceiptPresentation[] }
+  | { success: false; error: string; items: []; presentations: [] }
+> {
+  const authorized = await authorizeBusinessAccess();
+  if (!authorized.success) return { ...authorized, items: [], presentations: [] };
+
+  const [itemsResult, barcodesResult, policiesResult] = await Promise.all([
+    authorized.supabase
+      .from("business_catalog_items")
+      .select("id, name, brand, category, source_type, is_active")
+      .eq("user_id", authorized.userId)
+      .order("name", { ascending: true }),
+    authorized.supabase
+      .from("business_catalog_barcodes")
+      .select("id, catalog_item_id, barcode, barcode_type, units_per_scan")
+      .eq("user_id", authorized.userId)
+      .order("created_at", { ascending: true }),
+    authorized.supabase
+      .from("business_inventory_policies")
+      .select("catalog_item_id, unit_weight_grams")
+      .eq("user_id", authorized.userId),
+  ]);
+  const queryError = itemsResult.error || barcodesResult.error || policiesResult.error;
+  if (queryError) {
+    return { success: false, error: queryError.message, items: [], presentations: [] };
+  }
+
+  const weightById = new Map((policiesResult.data || []).map((policy) => [
+    policy.catalog_item_id,
+    policy.unit_weight_grams !== null
+      && Number.isFinite(Number(policy.unit_weight_grams))
+      && Number(policy.unit_weight_grams) > 0
+      ? Number(policy.unit_weight_grams)
+      : null,
+  ]));
+  const catalogItems = (itemsResult.data || []).flatMap((item): BusinessStockReceiptItem[] => {
+    if (item.source_type !== "resale" && item.source_type !== "manufactured") return [];
+    return [{
+      catalogItemId: item.id,
+      displayName: getBusinessProductDisplayName({ name: item.name, brand: item.brand }),
+      category: item.category || "Sin categoría",
+      sourceType: item.source_type,
+      isActive: item.is_active === true,
+      unitWeightGrams: weightById.get(item.id) ?? null,
+    }];
+  });
+  const catalogById = new Map(catalogItems.map((item) => [item.catalogItemId, item]));
+  const categoryById = new Map((itemsResult.data || []).map((item) => [item.id, item.category]));
+  const presentations = (barcodesResult.data || []).flatMap((barcode): BusinessStockReceiptPresentation[] => {
+    const item = catalogById.get(barcode.catalog_item_id);
+    if (!item || (barcode.barcode_type !== "unit" && barcode.barcode_type !== "case")) return [];
+    return [{
+      id: barcode.id,
+      catalogItemId: item.catalogItemId,
+      barcode: barcode.barcode,
+      barcodeType: barcode.barcode_type,
+      unitsPerScan: Number(barcode.units_per_scan),
+      displayName: item.displayName,
+      category: categoryById.get(item.catalogItemId) || item.category,
+      sourceType: item.sourceType,
+      isActive: item.isActive,
+      unitWeightGrams: item.unitWeightGrams,
+    }];
+  });
+
+  return { success: true, items: catalogItems, presentations };
+}
+
+export async function saveBusinessCatalogBarcodesAction(input: BusinessCatalogBarcodeInput) {
+  const authorized = await authorizeBusinessAccess();
+  if (!authorized.success) return authorized;
+  if (!UUID_PATTERN.test(input.catalogItemId)) {
+    return { success: false as const, error: "El producto no es válido." };
+  }
+
+  const unitBarcode = normalizeBarcode(input.unitBarcode || "");
+  const caseBarcode = normalizeBarcode(input.caseBarcode || "");
+  if (unitBarcode && !isValidBarcode(unitBarcode, 1)) {
+    return { success: false as const, error: "El código unitario no es válido." };
+  }
+  if (caseBarcode && !isValidBarcode(caseBarcode, 1)) {
+    return { success: false as const, error: "El código de caja no es válido." };
+  }
+  if (unitBarcode && caseBarcode && unitBarcode.toLocaleLowerCase("es-AR") === caseBarcode.toLocaleLowerCase("es-AR")) {
+    return { success: false as const, error: "El código unitario y el de caja deben ser diferentes." };
+  }
+  const caseUnits = caseBarcode ? Number(input.caseUnitsPerScan) : null;
+  if (caseBarcode && (!Number.isInteger(caseUnits) || Number(caseUnits) < 2 || Number(caseUnits) > 100_000)) {
+    return { success: false as const, error: "Indicá cuántas unidades contiene cada caja." };
+  }
+
+  const { data, error } = await authorized.supabase.rpc("save_business_catalog_barcodes", {
+    p_catalog_item_id: input.catalogItemId,
+    p_unit_barcode: unitBarcode || null,
+    p_case_barcode: caseBarcode || null,
+    p_case_units_per_scan: caseUnits,
+  });
+  const row = Array.isArray(data) ? data[0] : data;
+  if (error || !row?.success) {
+    return { success: false as const, error: row?.message || friendlyMutationError(error) };
+  }
+  revalidateBusinessPages();
+  return {
+    success: true as const,
+    unitBarcode: row.unit_barcode as string | null,
+    caseBarcode: row.case_barcode as string | null,
+    caseUnitsPerScan: row.case_units_per_scan === null ? null : Number(row.case_units_per_scan),
+  };
+}
+
+export async function restoreBusinessCatalogItemAction(input: { catalogItemId: string }) {
+  const authorized = await authorizeBusinessAccess();
+  if (!authorized.success) return authorized;
+  if (!UUID_PATTERN.test(input.catalogItemId)) {
+    return { success: false as const, error: "El producto no es válido." };
+  }
+  const { data, error } = await authorized.supabase
+    .from("business_catalog_items")
+    .update({ is_active: true })
+    .eq("id", input.catalogItemId)
+    .eq("user_id", authorized.userId)
+    .eq("is_active", false)
+    .select("id")
+    .maybeSingle();
+  if (error || !data) {
+    return { success: false as const, error: error?.message || "El producto no existe, ya está activo o no te pertenece." };
+  }
+  revalidateBusinessPages();
+  return { success: true as const };
+}
+
+export async function confirmBusinessStockReceiptAction(input: BusinessStockReceiptInput) {
+  const authorized = await authorizeBusinessAccess();
+  if (!authorized.success) return authorized;
+  if (!UUID_PATTERN.test(input.operationKey) || !Array.isArray(input.scans) || input.scans.length < 1 || input.scans.length > 100) {
+    return { success: false as const, error: "El ingreso de stock no es válido." };
+  }
+  const scans = input.scans.flatMap((scan) => {
+    const barcode = normalizeBarcode(scan.barcode);
+    return isValidBarcode(barcode, 1)
+      && Number.isInteger(scan.scanCount)
+      && scan.scanCount > 0
+      && scan.scanCount <= 100_000
+      ? [{ barcode, scanCount: scan.scanCount }]
+      : [];
+  });
+  if (scans.length !== input.scans.length) {
+    return { success: false as const, error: "El ingreso contiene códigos o cantidades inválidas." };
+  }
+
+  const { data, error } = await authorized.supabase.rpc("confirm_business_stock_receipt", {
+    p_operation_key: input.operationKey,
+    p_scans: scans,
+  });
+  const row = Array.isArray(data) ? data[0] : data;
+  if (error || !row?.success) {
+    return { success: false as const, error: row?.message || error?.message || "No se pudo confirmar el ingreso." };
+  }
+  revalidateBusinessPages();
+  return {
+    success: true as const,
+    totalUnits: Number(row.total_units),
+    productCount: Number(row.product_count),
     replayed: row.replayed === true,
   };
 }

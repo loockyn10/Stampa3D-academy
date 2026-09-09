@@ -26,6 +26,7 @@ interface BarcodeScanHandlerRegistration {
   route: string;
   priority?: number;
   enabled?: boolean;
+  allowWhenDialogOpen?: boolean;
   onScan: (scan: BarcodeScan) => void | Promise<void>;
 }
 
@@ -99,7 +100,7 @@ export function BarcodeScannerProvider({
 
   const findContextualHandler = useCallback((currentPathname: string) => (
     [...handlersRef.current.values()]
-      .filter((handler) => routeMatches(currentPathname, handler.route))
+      .filter((handler) => handler.enabled !== false && routeMatches(currentPathname, handler.route))
       .sort((left, right) => (right.priority ?? 0) - (left.priority ?? 0))[0] ?? null
   ), []);
 
@@ -159,7 +160,8 @@ export function BarcodeScannerProvider({
     const detector = detectorRef.current;
     const handleKeyDown = (event: KeyboardEvent) => {
       if (event.isComposing || event.repeat || event.ctrlKey || event.metaKey || event.altKey) return;
-      if (hasBlockingDialog()) {
+      const contextualHandler = findContextualHandler(pathnameRef.current);
+      if (hasBlockingDialog() && contextualHandler?.allowWhenDialogOpen !== true) {
         detector.reset();
         editableSnapshotRef.current = null;
         return;
@@ -194,7 +196,7 @@ export function BarcodeScannerProvider({
       detector.reset();
       editableSnapshotRef.current = null;
     };
-  }, [dispatchBarcode, enabled, pathname]);
+  }, [dispatchBarcode, enabled, findContextualHandler, pathname]);
 
   const contextValue = useMemo(() => ({ registerHandler }), [registerHandler]);
   return (
@@ -209,6 +211,7 @@ export function useBarcodeScanHandler({
   route,
   priority = 0,
   enabled = true,
+  allowWhenDialogOpen = false,
   onScan,
 }: BarcodeScanHandlerRegistration) {
   const context = useContext(BarcodeScannerContext);
@@ -225,7 +228,8 @@ export function useBarcodeScanHandler({
       route,
       priority,
       enabled,
+      allowWhenDialogOpen,
       onScan: (scan) => onScanRef.current(scan),
     });
-  }, [context, enabled, id, priority, route]);
+  }, [allowWhenDialogOpen, context, enabled, id, priority, route]);
 }

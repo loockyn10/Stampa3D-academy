@@ -33,7 +33,7 @@ export function normalizeBarcode(value: string): string {
   return value.replace(/[\r\n\t]+$/g, "").trim();
 }
 
-export function isValidBarcode(value: string, minLength = HID_BARCODE_THRESHOLDS.minLength): boolean {
+export function isValidBarcode(value: string, minLength: number = HID_BARCODE_THRESHOLDS.minLength): boolean {
   const normalized = normalizeBarcode(value);
   return normalized.length >= minLength
     && normalized.length <= HID_BARCODE_THRESHOLDS.maxLength
