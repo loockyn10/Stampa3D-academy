@@ -32,6 +32,7 @@ const cart = loadTypeScriptModule(path.join(root, "src/lib/business/cart.ts"), {
 });
 const migration = fs.readFileSync(path.join(root, "supabase/migrations/20260907201247_business_inventory_and_sales.sql"), "utf8");
 const locationSalesMigration = fs.readFileSync(path.join(root, "supabase/migrations/20260909031859_business_catalog_archive_and_combined_location_sales.sql"), "utf8");
+const displayNamesMigration = fs.readFileSync(path.join(root, "supabase/migrations/20260909040035_business_quick_sale_display_names.sql"), "utf8");
 const actions = fs.readFileSync(path.join(root, "src/app/mi-negocio/actions.ts"), "utf8");
 const scanner = fs.readFileSync(path.join(root, "src/components/business/BarcodeScanner.tsx"), "utf8");
 
@@ -113,6 +114,13 @@ test("seven barcode scans can consume combined showroom and warehouse availabili
   }
   assert.equal(currentCart[0].quantity, 7);
   assert.equal(cart.addBusinessCartItem(currentCart, item).success, false);
+});
+
+test("search, cart and barcode feedback share the branded display name", () => {
+  const branded = cart.toBusinessCartItem({ ...catalogItems[1], name: "PLA Negro", brand: "W3D" }, products);
+  assert.equal(branded.name, "W3D PLA Negro");
+  const alreadyBranded = cart.toBusinessCartItem({ ...catalogItems[1], name: "W3D PLA Negro", brand: "W3D" }, products);
+  assert.equal(alreadyBranded.name, "W3D PLA Negro");
 });
 
 test("cart validates quantities and calculates totals deterministically", () => {
@@ -221,4 +229,12 @@ test("location sale is atomic, concurrent-safe, idempotent and records its sourc
 
 test("locations disabled preserve the original quick-sale RPC", () => {
   assert.match(locationSalesMigration, /if not exists \([\s\S]*settings\.locations_enabled[\s\S]*select \* from public\.confirm_business_sale/i);
+});
+
+test("future quick-sale snapshots store the descriptive brand plus name without rewriting history", () => {
+  assert.match(displayNamesMigration, /create or replace function public\.business_catalog_display_name/i);
+  assert.match(displayNamesMigration, /before insert on public\.business_sale_items/i);
+  assert.match(displayNamesMigration, /source_order_id is not null then[\s\S]*return new/i);
+  assert.match(displayNamesMigration, /new\.product_name_snapshot := public\.business_catalog_display_name/i);
+  assert.doesNotMatch(displayNamesMigration, /update public\.business_sale_items[\s\S]*product_name_snapshot/i);
 });

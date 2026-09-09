@@ -78,6 +78,20 @@ export interface BusinessSaleSummary {
   items: BusinessSaleItem[];
 }
 
+export function getBusinessProductDisplayName(
+  item: Pick<BusinessCatalogItem, "name" | "brand">,
+): string {
+  const name = normalizeOptionalBusinessText(item.name, 160) ?? "Producto";
+  const brand = normalizeOptionalBusinessText(item.brand, 100);
+  if (!brand) return name;
+
+  const comparableName = name.toLocaleLowerCase("es-AR");
+  const comparableBrand = brand.toLocaleLowerCase("es-AR");
+  if (comparableName.includes(comparableBrand)) return name;
+
+  return `${brand} ${name}`;
+}
+
 export function resolveBusinessCatalogStock(
   item: Pick<BusinessCatalogItem, "source_type" | "source_product_id" | "resale_stock_quantity">,
   products: readonly WorkshopProductSummary[],

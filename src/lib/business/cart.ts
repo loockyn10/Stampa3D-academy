@@ -1,4 +1,5 @@
 import {
+  getBusinessProductDisplayName,
   resolveBusinessCatalogStock,
   type BusinessCatalogItem,
   type WorkshopProductSummary,
@@ -33,7 +34,7 @@ export function toBusinessCartItem(
   if (!item.is_active || stock === null) return null;
   return {
     catalogItemId: item.id,
-    name: item.name,
+    name: getBusinessProductDisplayName(item),
     sourceType: item.source_type,
     unitPrice: Math.max(0, Number(item.sale_price) || 0),
     quantity: 1,

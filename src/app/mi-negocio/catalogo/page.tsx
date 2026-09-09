@@ -4,8 +4,9 @@ import { Suspense, useCallback, useEffect, useMemo, useRef, useState } from "rea
 import { useRouter, useSearchParams } from "next/navigation";
 import Link from "next/link";
 import Image from "next/image";
-import { ArrowLeft, Boxes, Eye, EyeOff, Factory, History, Loader2, Minus, Plus, ShoppingBag, Trash2, X } from "lucide-react";
+import { ArrowLeft, Boxes, Eye, EyeOff, Factory, History, Loader2, Minus, Pencil, Plus, ShoppingBag, Trash2, X } from "lucide-react";
 import { useBarcodeScanHandler } from "@/components/barcode/BarcodeScannerProvider";
+import { FileUploadDropzone } from "@/components/ui/file-upload-dropzone";
 import { Dialog } from "@/components/ui/dialog";
 import { Card } from "@/components/ui/card";
 import { SectionTitle } from "@/components/ui/section-title";
@@ -14,6 +15,7 @@ import { usePublishStampyScreenContext } from "@/components/stampy/StampyContext
 import type { StampyScreenContext } from "@/lib/stampy/screen-context";
 import { normalizeBarcode } from "@/lib/barcode/hid-scanner";
 import {
+  getBusinessProductDisplayName,
   resolveBusinessCatalogStock,
   type BusinessCatalogItem,
   type BusinessInventoryMovement,
@@ -26,6 +28,7 @@ import {
   linkManufacturedProductAction,
   loadBusinessOperationsAction,
   setBusinessCatalogPublicationAction,
+  updateBusinessCatalogItemAction,
 } from "../actions";
 
 const inputClass = "w-full rounded-xl border border-stampa-border bg-stampa-bg-soft px-3 py-2.5 text-sm text-white outline-none transition-colors placeholder:text-gray-600 focus:border-stampa-orange/60";
@@ -59,6 +62,12 @@ function CatalogoContent() {
   const [publishingId, setPublishingId] = useState<string | null>(null);
   const [deleteItem, setDeleteItem] = useState<BusinessCatalogItem | null>(null);
   const [deleting, setDeleting] = useState(false);
+  const [editItem, setEditItem] = useState<BusinessCatalogItem | null>(null);
+  const [editing, setEditing] = useState(false);
+  const [editForm, setEditForm] = useState({
+    name: "", category: "", brand: "", description: "", purchaseCost: "",
+    salePrice: "", sku: "", barcode: "", supplier: "", imageUrl: "",
+  });
   const [resaleOpen, setResaleOpen] = useState(false);
   const [manufacturedOpen, setManufacturedOpen] = useState(false);
   const [adjustmentItem, setAdjustmentItem] = useState<BusinessCatalogItem | null>(null);
@@ -150,7 +159,7 @@ function CatalogoContent() {
     const found = items.find((item) => normalizeBarcode(item.barcode ?? "").toLowerCase() === barcode.toLowerCase());
     if (found) {
       setScannedCatalogItemId(found.id);
-      toast.info(`${found.name} encontrado en el catálogo.`);
+      toast.info(`${getBusinessProductDisplayName(found)} encontrado en el catálogo.`);
       return;
     }
 
@@ -257,7 +266,7 @@ function CatalogoContent() {
     });
     setSaving(false);
     if (!result.success) return toast.error(result.error);
-    toast.success("Producto de reventa agregado al catálogo.");
+    toast.success(result.restored ? "Producto de reventa restaurado en el catálogo." : "Producto de reventa agregado al catálogo.");
     setResaleOpen(false);
     setResaleForm(emptyResaleForm);
     setLoading(true);
@@ -272,7 +281,7 @@ function CatalogoContent() {
     });
     setSaving(false);
     if (!result.success) return toast.error(result.error);
-    toast.success("Producto del taller agregado a Mi Negocio.");
+    toast.success(result.restored ? "Producto restaurado en Mi Negocio." : "Producto del taller agregado a Mi Negocio.");
     closeManufactured();
     setLoading(true);
     await loadWorkspace();
@@ -298,6 +307,45 @@ function CatalogoContent() {
     setItems((current) => current.filter((item) => item.id !== deleteItem.id));
     setDeleteItem(null);
     toast.success("Producto eliminado de Mi Negocio.");
+  };
+
+  const openEdit = (item: BusinessCatalogItem) => {
+    setEditItem(item);
+    setEditForm({
+      name: item.name,
+      category: item.category,
+      brand: item.brand || "",
+      description: item.description || "",
+      purchaseCost: item.purchase_cost === null ? "" : String(item.purchase_cost),
+      salePrice: String(item.sale_price),
+      sku: item.sku || "",
+      barcode: item.barcode || "",
+      supplier: item.supplier || "",
+      imageUrl: item.image_urls?.[0] || "",
+    });
+  };
+
+  const saveEdit = async () => {
+    if (!editItem || editing) return;
+    setEditing(true);
+    const result = await updateBusinessCatalogItemAction({
+      catalogItemId: editItem.id,
+      name: editForm.name,
+      category: editForm.category,
+      brand: editForm.brand,
+      description: editForm.description,
+      purchaseCost: editItem.source_type === "resale" ? Number(editForm.purchaseCost) : null,
+      salePrice: Number(editForm.salePrice),
+      sku: editForm.sku,
+      barcode: editForm.barcode,
+      supplier: editForm.supplier,
+      imageUrls: editForm.imageUrl ? [editForm.imageUrl] : [],
+    });
+    setEditing(false);
+    if (!result.success) return toast.error(result.error);
+    setItems((current) => current.map((item) => item.id === result.item.id ? result.item : item));
+    setEditItem(null);
+    toast.success("Producto comercial actualizado.");
   };
 
   const openAdjustment = (item: BusinessCatalogItem) => {
@@ -405,7 +453,7 @@ function CatalogoContent() {
                   )}
                   <div className="min-w-0 flex-1">
                     <div className="flex items-start justify-between gap-2">
-                      <h2 className="truncate text-sm font-bold text-white">{item.name}</h2>
+                      <h2 className="truncate text-sm font-bold text-white">{getBusinessProductDisplayName(item)}</h2>
                       <span className={`shrink-0 rounded-full px-2 py-0.5 text-[9px] font-black uppercase tracking-wide ${item.source_type === "manufactured" ? "bg-cyan-500/10 text-cyan-300" : "bg-violet-500/10 text-violet-300"}`}>
                         {item.source_type === "manufactured" ? "Fabricado" : "Reventa"}
                       </span>
@@ -437,9 +485,10 @@ function CatalogoContent() {
                     </button>
                   )}
                   {locationsEnabled && <Link href="/mi-negocio/reposicion" className="mt-2 inline-flex min-h-9 w-full items-center justify-center rounded-lg text-[11px] font-bold text-gray-500 hover:bg-white/5 hover:text-gray-300">Configurar showroom y mínimo</Link>}
-                  <button type="button" onClick={() => setDeleteItem(item)} className="mt-2 inline-flex min-h-10 w-full items-center justify-center gap-2 rounded-lg border border-red-500/25 bg-red-500/5 px-3 text-xs font-bold text-red-300 hover:bg-red-500/10">
-                    <Trash2 size={14} /> Eliminar
-                  </button>
+                  <div className="mt-2 grid grid-cols-2 gap-2">
+                    <button type="button" onClick={() => openEdit(item)} className="inline-flex min-h-10 items-center justify-center gap-2 rounded-lg border border-stampa-border bg-white/5 px-3 text-xs font-bold text-white hover:bg-white/10"><Pencil size={14} /> Editar</button>
+                    <button type="button" onClick={() => setDeleteItem(item)} className="inline-flex min-h-10 items-center justify-center gap-2 rounded-lg border border-red-500/25 bg-red-500/5 px-3 text-xs font-bold text-red-300 hover:bg-red-500/10"><Trash2 size={14} /> Eliminar</button>
+                  </div>
                 </div>
               </Card>
               </div>
@@ -452,7 +501,7 @@ function CatalogoContent() {
         {adjustmentItem && <>
           <div className="flex items-start justify-between border-b border-stampa-border p-5">
             <div>
-              <h2 id="catalog-adjustment-title" className="text-lg font-bold text-white">Ajustar {adjustmentItem.name}</h2>
+              <h2 id="catalog-adjustment-title" className="text-lg font-bold text-white">Ajustar {getBusinessProductDisplayName(adjustmentItem)}</h2>
               <p className="mt-1 text-sm text-gray-500">Stock actual: {resolveBusinessCatalogStock(adjustmentItem, products) ?? "no disponible"} unidades</p>
             </div>
             <button type="button" onClick={closeAdjustment} className="rounded-lg p-2 text-gray-500 hover:text-white"><X size={18} /></button>
@@ -488,7 +537,7 @@ function CatalogoContent() {
         {deleteItem && <>
           <div className="flex items-start justify-between gap-4 border-b border-stampa-border p-5">
             <div>
-              <h2 id="catalog-delete-title" className="text-lg font-bold text-white">¿Eliminar “{deleteItem.name}”?</h2>
+              <h2 id="catalog-delete-title" className="text-lg font-bold text-white">¿Eliminar “{getBusinessProductDisplayName(deleteItem)}”?</h2>
               <p className="mt-1 text-sm leading-6 text-gray-400">Esta acción lo quitará de Mi Negocio.</p>
               {deleteItem.source_type === "manufactured" && <p className="mt-2 text-xs leading-5 text-cyan-200">El producto seguirá existiendo en Mi Taller con su receta, costos y stock.</p>}
             </div>
@@ -497,6 +546,39 @@ function CatalogoContent() {
           <div className="flex flex-col-reverse gap-2 p-5 min-[390px]:flex-row min-[390px]:justify-end">
             <button type="button" disabled={deleting} onClick={() => setDeleteItem(null)} className="min-h-11 rounded-xl px-4 text-sm font-semibold text-gray-400 hover:bg-white/5 disabled:opacity-40">Cancelar</button>
             <button type="button" disabled={deleting} onClick={() => void archiveCatalogItem()} className="inline-flex min-h-11 items-center justify-center gap-2 rounded-xl bg-red-500 px-5 text-sm font-black text-white hover:bg-red-400 disabled:opacity-50">{deleting && <Loader2 size={16} className="animate-spin" />} Eliminar</button>
+          </div>
+        </>}
+      </Dialog>
+
+      <Dialog open={editItem !== null} onClose={() => { if (!editing) setEditItem(null); }} labelledBy="catalog-edit-title" panelClassName="max-w-2xl rounded-2xl border border-stampa-border bg-stampa-surface">
+        {editItem && <>
+          <div className="flex items-start justify-between gap-4 border-b border-stampa-border p-5">
+            <div>
+              <h2 id="catalog-edit-title" className="text-lg font-bold text-white">Editar producto comercial</h2>
+              <p className="mt-1 text-xs leading-5 text-gray-500">Estos cambios no modifican el stock ni sus movimientos.</p>
+              {editItem.source_type === "manufactured" && <p className="mt-1 text-xs leading-5 text-cyan-200">Receta, componentes y costos productivos se administran desde Mi Taller.</p>}
+            </div>
+            <button type="button" disabled={editing} onClick={() => setEditItem(null)} aria-label="Cerrar" className="shrink-0 rounded-lg p-2 text-gray-500 hover:bg-white/5 hover:text-white disabled:opacity-40"><X size={18} /></button>
+          </div>
+          <div className="grid gap-4 p-5 sm:grid-cols-2">
+            <label className="text-xs font-semibold text-gray-300">Nombre comercial<input value={editForm.name} onChange={(event) => setEditForm({ ...editForm, name: event.target.value })} className={`${inputClass} mt-1.5`} /></label>
+            <label className="text-xs font-semibold text-gray-300">Marca<input value={editForm.brand} onChange={(event) => setEditForm({ ...editForm, brand: event.target.value })} className={`${inputClass} mt-1.5`} /></label>
+            <label className="text-xs font-semibold text-gray-300">Categoría<input value={editForm.category} onChange={(event) => setEditForm({ ...editForm, category: event.target.value })} className={`${inputClass} mt-1.5`} /></label>
+            <label className="text-xs font-semibold text-gray-300">Precio de venta<input type="number" min="0" step="0.01" value={editForm.salePrice} onChange={(event) => setEditForm({ ...editForm, salePrice: event.target.value })} className={`${inputClass} mt-1.5`} /></label>
+            {editItem.source_type === "resale" && <label className="text-xs font-semibold text-gray-300">Costo de compra<input type="number" min="0" step="0.01" value={editForm.purchaseCost} onChange={(event) => setEditForm({ ...editForm, purchaseCost: event.target.value })} className={`${inputClass} mt-1.5`} /></label>}
+            {editItem.source_type === "resale" && <label className="text-xs font-semibold text-gray-300">Proveedor<input value={editForm.supplier} onChange={(event) => setEditForm({ ...editForm, supplier: event.target.value })} className={`${inputClass} mt-1.5`} /></label>}
+            <label className="text-xs font-semibold text-gray-300">SKU<input value={editForm.sku} onChange={(event) => setEditForm({ ...editForm, sku: event.target.value })} className={`${inputClass} mt-1.5`} /></label>
+            <label className="text-xs font-semibold text-gray-300">Código de barras<input value={editForm.barcode} onChange={(event) => setEditForm({ ...editForm, barcode: event.target.value })} className={`${inputClass} mt-1.5`} /></label>
+            <label className="text-xs font-semibold text-gray-300 sm:col-span-2">Descripción comercial<textarea value={editForm.description} onChange={(event) => setEditForm({ ...editForm, description: event.target.value })} rows={3} className={`${inputClass} mt-1.5 resize-none`} /></label>
+            <div className="sm:col-span-2">
+              <p className="mb-2 text-xs font-semibold text-gray-300">Imagen comercial</p>
+              <FileUploadDropzone bucket="business-storefront-assets" pathPrefix={`${editItem.user_id}/catalog/${editItem.id}`} accept=".jpg,.jpeg,.png,.webp" maxSizeMb={5} publicBucket imageEditor={{ aspectRatio: 1, outputWidth: 1000, outputHeight: 1000, quality: 0.88, outputType: "preserve" }} onUploaded={(imageUrl) => setEditForm((current) => ({ ...current, imageUrl }))} label="Subir imagen" />
+              {editForm.imageUrl && <div className="mt-3 flex items-center gap-3"><Image unoptimized src={editForm.imageUrl} width={72} height={72} alt="Vista previa del producto" className="h-18 w-18 rounded-xl border border-stampa-border object-cover" /><button type="button" onClick={() => setEditForm({ ...editForm, imageUrl: "" })} className="text-xs font-bold text-red-300">Quitar imagen</button></div>}
+            </div>
+          </div>
+          <div className="flex flex-col-reverse gap-2 border-t border-stampa-border p-5 min-[390px]:flex-row min-[390px]:justify-end">
+            <button type="button" disabled={editing} onClick={() => setEditItem(null)} className="min-h-11 rounded-xl px-4 text-sm font-semibold text-gray-400 hover:bg-white/5 disabled:opacity-40">Cancelar</button>
+            <button type="button" disabled={editing} onClick={() => void saveEdit()} className="inline-flex min-h-11 items-center justify-center gap-2 rounded-xl bg-stampa-orange px-5 text-sm font-black text-white disabled:opacity-50">{editing && <Loader2 size={16} className="animate-spin" />} Guardar cambios</button>
           </div>
         </>}
       </Dialog>

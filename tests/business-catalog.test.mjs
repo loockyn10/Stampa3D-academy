@@ -74,6 +74,13 @@ test("business inputs normalize money, stock and optional text deterministically
   assert.equal(catalog.normalizeOptionalBusinessText("  PLA   Azul  ", 80), "PLA Azul");
 });
 
+test("commercial display name adds brand once and preserves unbranded names", () => {
+  assert.equal(catalog.getBusinessProductDisplayName({ brand: "W3D", name: "PLA Negro" }), "W3D PLA Negro");
+  assert.equal(catalog.getBusinessProductDisplayName({ brand: "W3D", name: "W3D PLA Negro" }), "W3D PLA Negro");
+  assert.equal(catalog.getBusinessProductDisplayName({ brand: "w3d", name: "W3D-PLA Negro" }), "W3D-PLA Negro");
+  assert.equal(catalog.getBusinessProductDisplayName({ brand: null, name: "Mate Messi" }), "Mate Messi");
+});
+
 test("migration prevents duplicate links and separates commercial stock", () => {
   assert.match(migration, /unique index if not exists business_catalog_items_user_source_product_uidx/i);
   assert.match(migration, /source_type in \('manufactured', 'resale'\)/i);
@@ -100,6 +107,37 @@ test("catalog cards always expose Delete through the shared custom Dialog", () =
   assert.match(catalogPage, /Esta acción lo quitará de Mi Negocio\./);
   assert.match(catalogPage, /El producto seguirá existiendo en Mi Taller/);
   assert.doesNotMatch(catalogPage, /\b(?:window\.)?(?:confirm|alert|prompt)\s*\(/);
+});
+
+test("catalog cards expose Edit and preload a metadata-only editor", () => {
+  assert.match(catalogPage, /<Pencil size=\{14\} \/> Editar/);
+  assert.match(catalogPage, /<Dialog open=\{editItem !== null\}/);
+  assert.match(catalogPage, /Nombre comercial[\s\S]*Marca[\s\S]*Categoría[\s\S]*Precio de venta/);
+  assert.match(catalogPage, /Estos cambios no modifican el stock ni sus movimientos/);
+});
+
+test("manufactured and resale creation restore archived rows instead of inserting duplicates", () => {
+  const resaleStart = actions.indexOf("export async function createResaleCatalogItemAction");
+  const manufacturedStart = actions.indexOf("export async function linkManufacturedProductAction");
+  const operationsStart = actions.indexOf("export async function loadBusinessOperationsAction");
+  const resaleBlock = actions.slice(resaleStart, manufacturedStart);
+  const manufacturedBlock = actions.slice(manufacturedStart, operationsStart);
+  assert.match(resaleBlock, /\.eq\("source_type", "resale"\)[\s\S]*equivalentRows[\s\S]*candidate\.is_active/);
+  assert.match(resaleBlock, /archivedMatches\.length === 1[\s\S]*\.update\(\{ is_active: true \}\)[\s\S]*restored: true/);
+  assert.match(manufacturedBlock, /\.eq\("source_product_id", product\.id\)[\s\S]*existingCatalogItem\?\.is_active/);
+  assert.match(manufacturedBlock, /\.update\(\{ is_active: true \}\)[\s\S]*\.eq\("id", existingCatalogItem\.id\)[\s\S]*restored: true/);
+});
+
+test("catalog edit updates commercial metadata without touching stock, balances or movements", () => {
+  const start = actions.indexOf("export async function updateBusinessCatalogItemAction");
+  const end = actions.indexOf("export async function archiveBusinessCatalogItemAction", start);
+  const block = actions.slice(start, end);
+  const mutation = block.slice(block.indexOf(".update({"), block.indexOf(".eq(\"id\", currentItem.id)"));
+  for (const field of ["name", "category", "brand", "description", "purchase_cost", "sale_price", "sku", "barcode", "supplier", "image_urls"]) {
+    assert.match(mutation, new RegExp(`${field}:?`));
+  }
+  assert.doesNotMatch(mutation, /resale_stock_quantity|stock_quantity|location|movement|source_product_id/);
+  assert.match(block, /\.eq\("user_id", authorized\.userId\)/);
 });
 
 test("archived catalog items disappear from operational loaders and historical rows remain untouched", () => {

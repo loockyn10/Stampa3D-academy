@@ -2,6 +2,7 @@
 
 import { revalidatePath } from "next/cache";
 import {
+  getBusinessProductDisplayName,
   normalizeBusinessMoney,
   normalizeBusinessStock,
   normalizeOptionalBusinessText,
@@ -52,6 +53,20 @@ export interface ManufacturedCatalogInput {
   sku?: string;
   barcode?: string;
   isActive: boolean;
+}
+
+export interface BusinessCatalogEditInput {
+  catalogItemId: string;
+  name: string;
+  category: string;
+  brand?: string;
+  description?: string;
+  purchaseCost?: number | null;
+  salePrice: number;
+  sku?: string;
+  barcode?: string;
+  supplier?: string;
+  imageUrls: string[];
 }
 
 export interface BusinessSaleInput {
@@ -150,11 +165,55 @@ export async function createResaleCatalogItemAction(input: ResaleCatalogInput) {
   const purchaseCost = normalizeBusinessMoney(input.purchaseCost);
   const salePrice = normalizeBusinessMoney(input.salePrice);
   const initialStock = normalizeBusinessStock(input.initialStock);
+  const brand = normalizeOptionalBusinessText(input.brand, 100);
+  const description = normalizeOptionalBusinessText(input.description, 500);
+  const sku = normalizeOptionalBusinessText(input.sku, 80);
+  const barcode = normalizeOptionalBusinessText(input.barcode, 120);
+  const supplier = normalizeOptionalBusinessText(input.supplier, 160);
   if (!name || !category) {
     return { success: false as const, error: "Completá el nombre y la categoría." };
   }
   if (purchaseCost === null || salePrice === null || initialStock === null) {
     return { success: false as const, error: "Costo, precio y stock deben ser valores válidos y no negativos." };
+  }
+
+  const { data: existingRows, error: existingError } = await authorized.supabase
+    .from("business_catalog_items")
+    .select("id, name, brand, sku, barcode, is_active")
+    .eq("user_id", authorized.userId)
+    .eq("source_type", "resale");
+  if (existingError) return { success: false as const, error: existingError.message };
+
+  const comparable = (value: unknown) => normalizeOptionalBusinessText(value, 160)?.toLocaleLowerCase("es-AR") ?? "";
+  const equivalentRows = (existingRows || []).filter((candidate) => {
+    if (barcode && comparable(candidate.barcode) === comparable(barcode)) return true;
+    if (sku && comparable(candidate.sku) === comparable(sku)) return true;
+    return !barcode && !sku
+      && comparable(candidate.name) === comparable(name)
+      && comparable(candidate.brand) === comparable(brand);
+  });
+  if (equivalentRows.some((candidate) => candidate.is_active)) {
+    return { success: false as const, error: "Este producto ya está en Mi Negocio." };
+  }
+  const archivedMatches = equivalentRows.filter((candidate) => !candidate.is_active);
+  if (archivedMatches.length > 1) {
+    return { success: false as const, error: "Encontramos más de un producto archivado equivalente. Revisá su SKU o código de barras." };
+  }
+  if (archivedMatches.length === 1) {
+    if (input.isActive !== true) {
+      return { success: false as const, error: "Ese producto ya está archivado. Marcá Activo para restaurarlo." };
+    }
+    const { data: restored, error: restoreError } = await authorized.supabase
+      .from("business_catalog_items")
+      .update({ is_active: true })
+      .eq("id", archivedMatches[0].id)
+      .eq("user_id", authorized.userId)
+      .eq("is_active", false)
+      .select("id")
+      .maybeSingle();
+    if (restoreError || !restored) return { success: false as const, error: friendlyMutationError(restoreError) };
+    revalidateBusinessPages();
+    return { success: true as const, itemId: restored.id, restored: true as const };
   }
 
   const { data, error } = await authorized.supabase
@@ -165,14 +224,14 @@ export async function createResaleCatalogItemAction(input: ResaleCatalogInput) {
       source_product_id: null,
       name,
       category,
-      brand: normalizeOptionalBusinessText(input.brand, 100),
-      description: normalizeOptionalBusinessText(input.description, 500),
+      brand,
+      description,
       purchase_cost: purchaseCost,
       sale_price: salePrice,
       resale_stock_quantity: initialStock,
-      sku: normalizeOptionalBusinessText(input.sku, 80),
-      barcode: normalizeOptionalBusinessText(input.barcode, 120),
-      supplier: normalizeOptionalBusinessText(input.supplier, 160),
+      sku,
+      barcode,
+      supplier,
       image_urls: [],
       is_active: input.isActive === true,
       is_published: false,
@@ -182,7 +241,7 @@ export async function createResaleCatalogItemAction(input: ResaleCatalogInput) {
 
   if (error || !data) return { success: false as const, error: friendlyMutationError(error) };
   revalidateBusinessPages();
-  return { success: true as const, itemId: data.id };
+  return { success: true as const, itemId: data.id, restored: false as const };
 }
 
 export async function linkManufacturedProductAction(input: ManufacturedCatalogInput) {
@@ -190,12 +249,6 @@ export async function linkManufacturedProductAction(input: ManufacturedCatalogIn
   if (!authorized.success) return authorized;
   if (!UUID_PATTERN.test(input.sourceProductId)) {
     return { success: false as const, error: "El producto del taller no es válido." };
-  }
-
-  const category = requiredText(input.category, 100);
-  const salePrice = normalizeBusinessMoney(input.salePrice);
-  if (!category || salePrice === null) {
-    return { success: false as const, error: "Completá una categoría y un precio de venta válidos." };
   }
 
   const { data: product, error: productError } = await authorized.supabase
@@ -208,6 +261,39 @@ export async function linkManufacturedProductAction(input: ManufacturedCatalogIn
 
   if (productError || !product) {
     return { success: false as const, error: "No se encontró el producto activo o no te pertenece." };
+  }
+
+  const { data: existingCatalogItem, error: existingError } = await authorized.supabase
+    .from("business_catalog_items")
+    .select("id, is_active")
+    .eq("user_id", authorized.userId)
+    .eq("source_product_id", product.id)
+    .maybeSingle();
+  if (existingError) return { success: false as const, error: existingError.message };
+  if (existingCatalogItem?.is_active) {
+    return { success: false as const, error: "Este producto ya está en Mi Negocio." };
+  }
+  if (existingCatalogItem) {
+    if (input.isActive !== true) {
+      return { success: false as const, error: "Ese producto ya está archivado. Marcá Activo para restaurarlo." };
+    }
+    const { data: restored, error: restoreError } = await authorized.supabase
+      .from("business_catalog_items")
+      .update({ is_active: true })
+      .eq("id", existingCatalogItem.id)
+      .eq("user_id", authorized.userId)
+      .eq("is_active", false)
+      .select("id")
+      .maybeSingle();
+    if (restoreError || !restored) return { success: false as const, error: friendlyMutationError(restoreError) };
+    revalidateBusinessPages();
+    return { success: true as const, itemId: restored.id, restored: true as const };
+  }
+
+  const category = requiredText(input.category, 100);
+  const salePrice = normalizeBusinessMoney(input.salePrice);
+  if (!category || salePrice === null) {
+    return { success: false as const, error: "Completá una categoría y un precio de venta válidos." };
   }
 
   const { data, error } = await authorized.supabase
@@ -235,7 +321,7 @@ export async function linkManufacturedProductAction(input: ManufacturedCatalogIn
 
   if (error || !data) return { success: false as const, error: friendlyMutationError(error) };
   revalidateBusinessPages();
-  return { success: true as const, itemId: data.id };
+  return { success: true as const, itemId: data.id, restored: false as const };
 }
 
 export async function loadBusinessOperationsAction(): Promise<
@@ -381,11 +467,29 @@ export async function loadBusinessReplenishmentAction(period: BusinessInventoryP
 > {
   const authorized = await authorizeBusinessAccess();
   if (!authorized.success) return { success: false, error: authorized.error, workspace: null };
-  const { data, error } = await authorized.supabase.rpc("get_business_replenishment_workspace", { p_period: period });
-  if (error) return { success: false, error: error.message, workspace: null };
-  const workspace = normalizeBusinessReplenishmentWorkspace(data);
+  const [workspaceResult, catalogResult] = await Promise.all([
+    authorized.supabase.rpc("get_business_replenishment_workspace", { p_period: period }),
+    authorized.supabase
+      .from("business_catalog_items")
+      .select("id, name, brand")
+      .eq("user_id", authorized.userId)
+      .eq("is_active", true),
+  ]);
+  const queryError = workspaceResult.error || catalogResult.error;
+  if (queryError) return { success: false, error: queryError.message, workspace: null };
+  const workspace = normalizeBusinessReplenishmentWorkspace(workspaceResult.data);
   if (!workspace) return { success: false, error: "No se pudo interpretar el estado de reposición.", workspace: null };
-  return { success: true, workspace };
+  const catalogNames = new Map((catalogResult.data || []).map((item) => [
+    item.id,
+    getBusinessProductDisplayName({ name: item.name, brand: item.brand }),
+  ]));
+  return {
+    success: true,
+    workspace: {
+      ...workspace,
+      items: workspace.items.map((item) => ({ ...item, name: catalogNames.get(item.catalogItemId) ?? item.name })),
+    },
+  };
 }
 
 export async function configureBusinessLocationsAction(input: { enabled: boolean; initialLocation?: "showroom" | "warehouse" | "keep" }) {
@@ -587,6 +691,77 @@ export async function setBusinessCatalogPublicationAction(input: { catalogItemId
   revalidatePath("/mi-negocio/catalogo");
   revalidatePath("/mi-negocio/tienda");
   return { success: true as const, publicSlug: data.public_slug as string | null };
+}
+
+export async function updateBusinessCatalogItemAction(input: BusinessCatalogEditInput) {
+  const authorized = await authorizeBusinessAccess();
+  if (!authorized.success) return authorized;
+  if (!UUID_PATTERN.test(input.catalogItemId)) {
+    return { success: false as const, error: "El producto no es válido." };
+  }
+
+  const name = requiredText(input.name, 160);
+  const category = requiredText(input.category, 100);
+  const salePrice = normalizeBusinessMoney(input.salePrice);
+  if (!name || !category || salePrice === null) {
+    return { success: false as const, error: "Completá nombre, categoría y precio con valores válidos." };
+  }
+  if (!Array.isArray(input.imageUrls) || input.imageUrls.length > 5) {
+    return { success: false as const, error: "Las imágenes del producto no son válidas." };
+  }
+  const imageUrls = input.imageUrls.flatMap((value) => {
+    const normalized = normalizePublicUrl(value);
+    return normalized ? [normalized] : [];
+  });
+  if (imageUrls.length !== input.imageUrls.filter((value) => typeof value === "string" && value.trim()).length) {
+    return { success: false as const, error: "Revisá las URLs de las imágenes del producto." };
+  }
+
+  const { data: currentItem, error: currentError } = await authorized.supabase
+    .from("business_catalog_items")
+    .select("id, source_type")
+    .eq("id", input.catalogItemId)
+    .eq("user_id", authorized.userId)
+    .eq("is_active", true)
+    .maybeSingle();
+  if (currentError) return { success: false as const, error: currentError.message };
+  if (!currentItem) {
+    return { success: false as const, error: "El producto no existe, fue eliminado o no te pertenece." };
+  }
+
+  const purchaseCost = currentItem.source_type === "resale"
+    ? normalizeBusinessMoney(input.purchaseCost)
+    : null;
+  if (currentItem.source_type === "resale" && purchaseCost === null) {
+    return { success: false as const, error: "Ingresá un costo de compra válido." };
+  }
+
+  const { data, error } = await authorized.supabase
+    .from("business_catalog_items")
+    .update({
+      name,
+      category,
+      brand: normalizeOptionalBusinessText(input.brand, 100),
+      description: normalizeOptionalBusinessText(input.description, 500),
+      purchase_cost: purchaseCost,
+      sale_price: salePrice,
+      sku: normalizeOptionalBusinessText(input.sku, 80),
+      barcode: normalizeOptionalBusinessText(input.barcode, 120),
+      supplier: currentItem.source_type === "resale" ? normalizeOptionalBusinessText(input.supplier, 160) : null,
+      image_urls: [...new Set(imageUrls)],
+    })
+    .eq("id", currentItem.id)
+    .eq("user_id", authorized.userId)
+    .eq("is_active", true)
+    .select("id, user_id, source_type, source_product_id, name, category, brand, description, purchase_cost, sale_price, resale_stock_quantity, sku, barcode, supplier, image_urls, is_active, is_published, public_slug, created_at, updated_at")
+    .maybeSingle();
+
+  if (error) return { success: false as const, error: friendlyMutationError(error) };
+  if (!data) return { success: false as const, error: "El producto cambió mientras lo editabas. Volvé a intentarlo." };
+  revalidateBusinessPages();
+  revalidatePath("/mi-negocio/venta-rapida");
+  revalidatePath("/mi-negocio/tienda");
+  return { success: true as const, item: data as BusinessCatalogItem };
 }
 
 export async function archiveBusinessCatalogItemAction(input: { catalogItemId: string }) {

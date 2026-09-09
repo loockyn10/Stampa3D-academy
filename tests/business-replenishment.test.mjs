@@ -4,6 +4,7 @@ import test from "node:test";
 import ts from "typescript";
 
 const source = readFileSync(new URL("../src/lib/business/replenishment.ts", import.meta.url), "utf8");
+const businessActions = readFileSync(new URL("../src/app/mi-negocio/actions.ts", import.meta.url), "utf8");
 const js = ts.transpileModule(source, { compilerOptions: { module: ts.ModuleKind.CommonJS, target: ts.ScriptTarget.ES2022 } }).outputText;
 const compiledModule = { exports: {} };
 new Function("module", "exports", js)(compiledModule, compiledModule.exports);
@@ -22,6 +23,15 @@ test("reposición posterior a una venta desde showroom y depósito conserva el t
   const replenishment = calculateShowroomReplenishment(afterSale);
   assert.deepEqual(replenishment, { needed: 6, movable: 6, remainingShortage: 0 });
   assert.equal(afterSale.showroom + replenishment.movable + afterSale.warehouse - replenishment.movable, 9);
+});
+
+test("reposición enriquece nombres con la representación comercial centralizada", () => {
+  const start = businessActions.indexOf("export async function loadBusinessReplenishmentAction");
+  const end = businessActions.indexOf("export async function configureBusinessLocationsAction", start);
+  const block = businessActions.slice(start, end);
+  assert.match(block, /\.select\("id, name, brand"\)/);
+  assert.match(block, /getBusinessProductDisplayName/);
+  assert.match(block, /catalogNames\.get\(item\.catalogItemId\) \?\? item\.name/);
 });
 
 test("producto sin objetivo no se recomienda", () => {
