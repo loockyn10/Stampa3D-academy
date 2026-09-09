@@ -100,6 +100,31 @@ test("real backend facts drive each V1 event", () => {
   assert.match(stock, /record_production_with_xp/);
 });
 
+test("commercial stock XP rewards only explicit stock operations without sale or replenishment overlap", () => {
+  const triggerFunction = migration.match(
+    /create or replace function public\.xp_on_business_stock_movement\(\)[\s\S]*?\$xp_stock_trigger\$;/i,
+  )?.[0] ?? "";
+
+  assert.match(triggerFunction, /new\.movement_type in \('restock', 'manual_adjustment'\)/i);
+  assert.doesNotMatch(triggerFunction, /new\.movement_type in \([^)]*'sale'/i);
+  assert.doesNotMatch(triggerFunction, /new\.movement_type in \([^)]*'return'/i);
+  assert.doesNotMatch(triggerFunction, /new\.movement_type in \([^)]*'transfer_to_workshop'/i);
+  assert.match(migration, /business_replenishment_award_xp after insert on public\.business_inventory_transfers/i);
+  assert.match(migration, /'stock_adjusted:' \|\| new\.operation_key::text/i);
+  assert.deepEqual(config.evaluateXpAward({ eventType: "stock_adjusted" }), { xpAwarded: 5, reason: "awarded" });
+  assert.deepEqual(config.evaluateXpAward({ eventType: "stock_adjusted", awardedToday: 1 }), { xpAwarded: 0, reason: "daily_limit" });
+  assert.deepEqual(config.evaluateXpAward({ eventType: "stock_adjusted", eventAlreadyExists: true }), { xpAwarded: 0, reason: "duplicate" });
+});
+
+test("historical production backfill tolerates the unversioned product movement schema", () => {
+  assert.doesNotMatch(migration, /movement\.type\b/i);
+  assert.match(migration, /to_jsonb\(movement\) ->> 'movement_type'/i);
+  assert.match(migration, /to_jsonb\(movement\) ->> 'type'/i);
+  assert.match(migration, /to_jsonb\(movement\) ->> 'quantity_delta'/i);
+  assert.match(migration, /in \('add', 'manual_add', 'production'\)/i);
+  assert.doesNotMatch(migration, /progress\.created_at\b/i);
+});
+
 test("historical bonus is capped, idempotent and does not make new users eligible", () => {
   assert.match(migration, /profile\.created_at < timestamptz '2026-09-09 14:52:59-03'/i);
   assert.match(migration, /least\(count\(\*\)::integer, 2\) \* 10/i);

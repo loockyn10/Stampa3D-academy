@@ -74,6 +74,14 @@ create index if not exists user_xp_events_source_idx
 create index if not exists user_xp_summary_level_idx
   on public.user_xp_summary (level, total_xp desc);
 
+-- Keep a partially executed migration fail-closed. Supabase projects may have
+-- default table grants, while the policies are intentionally created near the
+-- end after every dependency has been defined.
+alter table public.user_xp_events enable row level security;
+alter table public.user_xp_summary enable row level security;
+revoke all on table public.user_xp_events from anon, authenticated;
+revoke all on table public.user_xp_summary from anon, authenticated;
+
 alter table public.raffles add column if not exists minimum_level integer;
 do $xp_raffle_constraint$
 begin
@@ -269,6 +277,11 @@ begin
 end;
 $award_user_xp$;
 
+-- This is an internal engine. Revoke immediately so a statement-by-statement
+-- runner cannot leave it publicly executable if a later backfill fails.
+revoke all on function public.award_user_xp(uuid,text,text,uuid,text,timestamptz,jsonb)
+from public, anon, authenticated;
+
 create or replace function public.record_calculator_xp(
   p_operation_key uuid,
   p_total_grams numeric,
@@ -394,7 +407,7 @@ begin
   perform 1 from public.award_user_xp(
     new.user_id, 'class_completed', 'lesson', new.lesson_id,
     'class_completed:' || new.lesson_id::text,
-    coalesce(new.completed_at, new.created_at, now()), '{}'::jsonb
+    coalesce(new.completed_at, now()), '{}'::jsonb
   );
   return new;
 end;
@@ -524,10 +537,29 @@ select distinct on (movement.user_id)
 from public.product_stock_movements movement
 join public.profiles profile on profile.id = movement.user_id
 where profile.created_at < timestamptz '2026-09-09 14:52:59-03'
-  and movement.type = 'add'
-  and movement.quantity > 0
-  and coalesce(movement.reason, '') ilike '%producci%'
-order by movement.user_id, movement.created_at, movement.id
+  -- product_stock_movements predates the versioned schema and has existed with
+  -- both `type` and `movement_type`. JSON access keeps the launch backfill
+  -- compatible without assuming that either optional column exists.
+  and coalesce(
+    nullif(to_jsonb(movement) ->> 'quantity', '')::numeric,
+    nullif(to_jsonb(movement) ->> 'quantity_delta', '')::numeric,
+    0
+  ) > 0
+  and (
+    coalesce(to_jsonb(movement) ->> 'reason', '') ilike '%producci%'
+    or lower(coalesce(to_jsonb(movement) ->> 'source_type', '')) in ('production', 'product_production')
+  )
+  and coalesce(
+    lower(nullif(to_jsonb(movement) ->> 'movement_type', '')),
+    lower(nullif(to_jsonb(movement) ->> 'type', '')),
+    'add'
+  ) in ('add', 'manual_add', 'production')
+order by movement.user_id,
+  coalesce(
+    nullif(to_jsonb(movement) ->> 'created_at', '')::timestamptz,
+    timestamptz '2026-09-09 14:52:59-03'
+  ),
+  movement.id
 on conflict (user_id, event_key) do nothing;
 
 -- Historical lessons are marked with zero-XP per-entity entries so toggling an
@@ -535,9 +567,9 @@ on conflict (user_id, event_key) do nothing;
 insert into public.user_xp_events (user_id, event_type, category, source_entity_type, source_entity_id, event_key, xp_awarded, logical_day, metadata, created_at)
 select progress.user_id, 'class_completed', 'academy', 'lesson', progress.lesson_id,
   'class_completed:' || progress.lesson_id::text, 0,
-  (coalesce(progress.completed_at, progress.created_at, timestamptz '2026-09-09 14:52:59-03') at time zone 'America/Argentina/Buenos_Aires')::date,
+  (coalesce(progress.completed_at, timestamptz '2026-09-09 14:52:59-03') at time zone 'America/Argentina/Buenos_Aires')::date,
   jsonb_build_object('label', 'Clase completada', 'awardReason', 'historical_marker'),
-  coalesce(progress.completed_at, progress.created_at, timestamptz '2026-09-09 14:52:59-03')
+  coalesce(progress.completed_at, timestamptz '2026-09-09 14:52:59-03')
 from public.lesson_progress progress
 join public.profiles profile on profile.id = progress.user_id
 where profile.created_at < timestamptz '2026-09-09 14:52:59-03'
