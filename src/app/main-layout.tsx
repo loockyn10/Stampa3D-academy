@@ -15,6 +15,7 @@ import {
   type UserAccessSnapshot,
 } from "@/lib/auth/user-access";
 import { BarcodeScannerProvider } from "@/components/barcode/BarcodeScannerProvider";
+import { XpFeedbackListener } from "@/components/xp/XpFeedbackListener";
 
 export function MainLayout({ children }: { children: React.ReactNode }) {
   const [mobileToolsOpen, setMobileToolsOpen] = useState(false);
@@ -59,6 +60,7 @@ export function MainLayout({ children }: { children: React.ReactNode }) {
       enabled={!accessLoading && userAccess?.capabilities.accessPlatform === true}
     >
       <StampyContextProvider>
+      <XpFeedbackListener />
       <div className="flex min-h-screen w-full min-w-0 overflow-x-clip bg-stampa-bg text-[#ededed] font-sans">
         <Suspense fallback={<aside className="hidden w-64 shrink-0 border-r border-stampa-border bg-stampa-bg lg:block" />}>
           <Sidebar access={userAccess} loading={accessLoading} />

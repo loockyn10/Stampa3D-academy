@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, useEffect, useMemo } from "react";
+import React, { useState, useEffect, useMemo, useRef } from "react";
 import dynamic from "next/dynamic";
 import Link from "next/link";
 import { useSearchParams, useRouter } from "next/navigation";
@@ -112,6 +112,8 @@ function CalculadoraPageContent() {
   const [advanced, setAdvanced] = useState(false);
   const [loading, setLoading] = useState(true);
   const [userId, setUserId] = useState<string | null>(null);
+  const initialXpCalculationSignatureRef = useRef<string | null>(null);
+  const xpCalculationAttemptedRef = useRef(false);
 
   // User Data
   const [filaments, setFilaments] = useState<any[]>([]);
@@ -443,6 +445,49 @@ function CalculadoraPageContent() {
     hours, minutes, manualPrinterConsumption, manualKwhPrice, manualPrinterMaintenance,
     laborCost, otherCost, fixedCost, manualMultiplier, manualPlatformExtra, manualPlatformCommission, shippingCost
   ]);
+
+  const xpCalculationSignature = useMemo(() => JSON.stringify({
+    filamentLines: filamentLines.map((line) => ({ filamentId: line.filamentId, grams: line.grams })),
+    selectedPrinterId,
+    selectedMultiplierId,
+    hours,
+    minutes,
+    totalGrams: calc.totalFilamentGrams,
+    baseCost: calc.baseCost,
+    salePrice: calc.normalPrice,
+  }), [calc.baseCost, calc.normalPrice, calc.totalFilamentGrams, filamentLines, hours, minutes, selectedMultiplierId, selectedPrinterId]);
+
+  useEffect(() => {
+    if (loading || !userId) return;
+    if (initialXpCalculationSignatureRef.current === null) {
+      initialXpCalculationSignatureRef.current = xpCalculationSignature;
+      return;
+    }
+    const isMeaningful = calc.hasValidFilamentLines
+      && calc.totalFilamentGrams > 0
+      && calc.baseCost > 0
+      && calc.normalPrice > 0;
+    if (!isMeaningful
+      || xpCalculationAttemptedRef.current
+      || xpCalculationSignature === initialXpCalculationSignatureRef.current) return;
+
+    const timeout = window.setTimeout(() => {
+      xpCalculationAttemptedRef.current = true;
+      void supabase.rpc("record_calculator_xp", {
+        p_operation_key: crypto.randomUUID(),
+        p_total_grams: calc.totalFilamentGrams,
+        p_duration_minutes: Math.max(0, Math.round(calc.totalHours * 60)),
+        p_base_cost: calc.baseCost,
+        p_sale_price: calc.normalPrice,
+      }).then(({ error: xpError }) => {
+        if (xpError) {
+          xpCalculationAttemptedRef.current = false;
+          console.error("[XP] calculator event failed", xpError.message.slice(0, 160));
+        }
+      });
+    }, 1_000);
+    return () => window.clearTimeout(timeout);
+  }, [calc.baseCost, calc.hasValidFilamentLines, calc.normalPrice, calc.totalFilamentGrams, calc.totalHours, loading, supabase, userId, xpCalculationSignature]);
 
   const handleSaveAsProduct = async () => {
     if (!productForm.name.trim()) {

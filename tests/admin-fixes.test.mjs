@@ -28,10 +28,12 @@ function transpileModule(relativePath, resolveDependency = () => {
 }
 
 const accessPolicy = transpileModule("src/lib/auth/access-policy.ts");
+const xpRaffleBonuses = transpileModule("src/lib/xp/raffle-bonuses.ts");
 const { getRaffleParticipantChances } = transpileModule(
   "src/lib/raffles/participants.ts",
   (specifier) => {
     if (specifier === "@/lib/auth/access-policy") return accessPolicy;
+    if (specifier === "@/lib/xp/raffle-bonuses") return xpRaffleBonuses;
     throw new Error(`Unexpected runtime dependency: ${specifier}`);
   },
 );

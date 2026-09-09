@@ -2,6 +2,7 @@ import {
   evaluateAccessPolicy,
   type AccessGrantFact,
 } from "@/lib/auth/access-policy";
+import { getXpRaffleBonusChances } from "@/lib/xp/raffle-bonuses";
 
 export interface RaffleParticipantProfile {
   role: string | null;
@@ -15,6 +16,8 @@ export function getRaffleParticipantChances(input: {
   profile: RaffleParticipantProfile;
   grants: AccessGrantFact[];
   bonusEntries: number;
+  xpLevel?: number;
+  xpBonusesEnabled?: boolean;
   now?: Date;
 }): number | null {
   const access = evaluateAccessPolicy({
@@ -32,5 +35,7 @@ export function getRaffleParticipantChances(input: {
     ? 2
     : 1;
 
-  return baseChances + Math.max(0, input.bonusEntries);
+  return baseChances
+    + Math.max(0, input.bonusEntries)
+    + getXpRaffleBonusChances(input.xpLevel ?? 1, input.xpBonusesEnabled === true);
 }

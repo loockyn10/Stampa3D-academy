@@ -1,4 +1,5 @@
 import { createClient } from "@/utils/supabase/server";
+import { getXpProgress } from "@/lib/xp/progression";
 
 export type StampyUserContext = {
   displayName?: string;
@@ -11,6 +12,9 @@ export type StampyUserContext = {
   referralCode?: string;
   membershipStatusLabel?: string;
   memberLevelLabel?: string;
+  xpLevel: number;
+  totalXp: number;
+  xpToNextLevel: number;
 };
 
 const expLevelMap: Record<string, string> = {
@@ -77,11 +81,19 @@ const memberLevelMap: Record<string, string> = {
 
 export async function getStampyUserContext(userId: string): Promise<StampyUserContext | null> {
   const supabase = await createClient();
-  const { data: profile, error } = await supabase
-    .from("profiles")
-    .select("display_name, full_name, main_printer_brand, main_printer_model, experience_level, main_goal, slicer_preference, commercial_stage, onboarding_completed, referral_code, membership_status, member_level")
-    .eq("id", userId)
-    .single();
+  const [profileResult, xpResult] = await Promise.all([
+    supabase
+      .from("profiles")
+      .select("display_name, full_name, main_printer_brand, main_printer_model, experience_level, main_goal, slicer_preference, commercial_stage, onboarding_completed, referral_code, membership_status, member_level")
+      .eq("id", userId)
+      .single(),
+    supabase
+      .from("user_xp_summary")
+      .select("total_xp")
+      .eq("user_id", userId)
+      .maybeSingle(),
+  ]);
+  const { data: profile, error } = profileResult;
 
   if (error) {
     console.error("[Stampy] getStampyUserContext db error", error);
@@ -95,6 +107,7 @@ export async function getStampyUserContext(userId: string): Promise<StampyUserCo
   }
 
   const displayName = profile.display_name || profile.full_name || undefined;
+  const xpProgress = getXpProgress(xpResult.error ? 0 : Number(xpResult.data?.total_xp) || 0);
 
   return {
     displayName,
@@ -107,5 +120,8 @@ export async function getStampyUserContext(userId: string): Promise<StampyUserCo
     referralCode: profile.referral_code,
     membershipStatusLabel: profile.membership_status ? (membershipStatusMap[profile.membership_status] || profile.membership_status) : undefined,
     memberLevelLabel: profile.member_level ? (memberLevelMap[profile.member_level] || profile.member_level) : undefined,
+    xpLevel: xpProgress.level,
+    totalXp: xpProgress.totalXp,
+    xpToNextLevel: xpProgress.xpToNextLevel,
   };
 }

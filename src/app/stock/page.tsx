@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, useEffect, useMemo, Suspense } from "react";
+import React, { useState, useEffect, useMemo, useRef, Suspense } from "react";
 import dynamic from "next/dynamic";
 import Link from "next/link";
 import { useSearchParams, useRouter } from "next/navigation";
@@ -105,6 +105,7 @@ export function StockPageContent({ workshopSection }: { workshopSection?: Worksh
   const [consumeSelectedProductId, setConsumeSelectedProductId] = useState<string>("");
   const [consumeAddStock, setConsumeAddStock] = useState(true);
   const [consumeLoading, setConsumeLoading] = useState(false);
+  const productionAttemptRef = useRef<{ fingerprint: string; operationKey: string } | null>(null);
 
   // Filament Filters
   const [filamentSearch, setFilamentSearch] = useState("");
@@ -646,9 +647,14 @@ export function StockPageContent({ workshopSection }: { workshopSection?: Worksh
       component_id: item.component.id,
       quantity: item.quantity
     }));
+    const productionFingerprint = JSON.stringify({ p_product_items, p_component_items, consumeAddStock });
+    if (productionAttemptRef.current?.fingerprint !== productionFingerprint) {
+      productionAttemptRef.current = { fingerprint: productionFingerprint, operationKey: crypto.randomUUID() };
+    }
 
     try {
-      const { error: rpcError } = await supabase.rpc("consume_filaments_for_production_targets", {
+      const { error: rpcError } = await supabase.rpc("record_production_with_xp", {
+        p_operation_key: productionAttemptRef.current.operationKey,
         p_product_items,
         p_component_items,
         p_reason: "Producción registrada desde stock",
@@ -671,6 +677,7 @@ export function StockPageContent({ workshopSection }: { workshopSection?: Worksh
 
       setConsumeModalOpen(false);
       setConsumeCart([]);
+      productionAttemptRef.current = null;
       await fetchData();
     } finally {
       setConsumeLoading(false);

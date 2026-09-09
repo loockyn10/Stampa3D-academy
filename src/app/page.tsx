@@ -12,6 +12,7 @@ import { EmptyState } from "@/components/ui/empty-state";
 import { createClient } from "@/utils/supabase/client";
 import { usePublishStampyScreenContext } from "@/components/stampy/StampyContextProvider";
 import type { StampyScreenContext } from "@/lib/stampy/screen-context";
+import { getXpProgress } from "@/lib/xp/progression";
 
 
 export default function InicioPage() {
@@ -21,6 +22,7 @@ export default function InicioPage() {
   const [coursesCount, setCoursesCount] = useState(0);
   const [downloadsCount, setDownloadsCount] = useState(0);
   const [budgetsCount, setBudgetsCount] = useState(0);
+  const [totalXp, setTotalXp] = useState(0);
 
   const [continuingCourse, setContinuingCourse] = useState<any>(null);
   const [upcomingRaffle, setUpcomingRaffle] = useState<any>(null);
@@ -40,6 +42,12 @@ export default function InicioPage() {
         const { data: profile } = await supabase.from("profiles").select("display_name, full_name").eq("id", user.id).single();
         const name = profile?.display_name || profile?.full_name || "Usuario";
         setUserFirstName(name.split(" ")[0]);
+        const { data: xpSummary } = await supabase
+          .from("user_xp_summary")
+          .select("total_xp")
+          .eq("user_id", user.id)
+          .maybeSingle();
+        setTotalXp(Number(xpSummary?.total_xp) || 0);
 
         // 2. Counts
         // Budgets
@@ -138,6 +146,8 @@ export default function InicioPage() {
     loadDashboard();
   }, []);
 
+  const xpProgress = useMemo(() => getXpProgress(totalXp), [totalXp]);
+
   const stampyScreenContext = useMemo<StampyScreenContext>(() => {
     const visibleEntities: NonNullable<StampyScreenContext["visibleEntities"]> = [];
     if (continuingCourse) {
@@ -180,13 +190,15 @@ export default function InicioPage() {
           { label: "Presupuestos creados", value: budgetsCount },
           { label: "STL descargados", value: downloadsCount },
           { label: "Cursos iniciados", value: coursesCount },
+          { label: "Nivel XP", value: xpProgress.level },
+          { label: "XP total", value: xpProgress.totalXp },
           { label: "Hay un curso para continuar visible", value: Boolean(continuingCourse) },
           { label: "Hay un sorteo próximo visible", value: Boolean(upcomingRaffle) },
         ],
       },
       uiState: { loading },
     };
-  }, [budgetsCount, continuingCourse, coursesCount, downloadsCount, loading, upcomingRaffle]);
+  }, [budgetsCount, continuingCourse, coursesCount, downloadsCount, loading, upcomingRaffle, xpProgress.level, xpProgress.totalXp]);
 
   usePublishStampyScreenContext(stampyScreenContext);
 
@@ -249,9 +261,11 @@ export default function InicioPage() {
       <div className="relative overflow-hidden rounded-3xl bg-stampa-surface border border-stampa-border p-8 sm:p-10 shadow-2xl">
         <div className="absolute inset-0 bg-gradient-to-br from-[#ff6a00]/20 to-transparent pointer-events-none" />
         <div className="relative z-10 max-w-2xl">
-          <div className="flex items-center justify-between mb-2">
+          <div className="flex items-center justify-between gap-3 mb-2">
             <p className="text-sm font-semibold text-stampa-orange uppercase tracking-wider">Hola, {userFirstName}</p>
-
+            <Link href="/perfil" className="shrink-0 rounded-full border border-stampa-orange/25 bg-stampa-orange/10 px-3 py-1.5 text-xs font-bold text-orange-200 transition-colors hover:bg-stampa-orange/15">
+              Nivel {xpProgress.level} · {xpProgress.totalXp} XP
+            </Link>
           </div>
           <h1 className="text-3xl font-bold text-white sm:text-4xl">¿Qué querés resolver hoy?</h1>
           <p className="mt-3 text-base text-gray-400">

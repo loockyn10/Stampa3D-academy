@@ -11,6 +11,7 @@ import { AccountManager } from "@/components/configuracion/account-manager";
 import { getOrCreateReferralCode } from "@/lib/referral";
 import { usePublishStampyScreenContext } from "@/components/stampy/StampyContextProvider";
 import type { StampyScreenContext } from "@/lib/stampy/screen-context";
+import { XpProgressCard, type XpActivityItem } from "@/components/xp/XpProgressCard";
 
 const APP_BASE_URL = process.env.NEXT_PUBLIC_APP_URL || "https://academia-stampa.com";
 
@@ -29,6 +30,8 @@ function PerfilContent() {
   const [referralStats, setReferralStats] = useState({ pending: 0, converted: 0 });
   const [copied, setCopied] = useState(false);
   const [membershipOpen, setMembershipOpen] = useState(false);
+  const [totalXp, setTotalXp] = useState(0);
+  const [xpActivity, setXpActivity] = useState<XpActivityItem[]>([]);
 
   useEffect(() => {
     fetchData();
@@ -94,6 +97,26 @@ function PerfilContent() {
       });
     }
 
+    const [xpSummaryResult, xpEventsResult] = await Promise.all([
+      supabase.from("user_xp_summary").select("total_xp").eq("user_id", user.id).maybeSingle(),
+      supabase
+        .from("user_xp_events")
+        .select("id, xp_awarded, metadata, created_at")
+        .eq("user_id", user.id)
+        .gt("xp_awarded", 0)
+        .order("created_at", { ascending: false })
+        .limit(8),
+    ]);
+    if (!xpSummaryResult.error) setTotalXp(Number(xpSummaryResult.data?.total_xp) || 0);
+    if (!xpEventsResult.error) {
+      setXpActivity((xpEventsResult.data || []).map((event) => ({
+        id: event.id,
+        xpAwarded: Number(event.xp_awarded) || 0,
+        label: typeof event.metadata?.label === "string" ? event.metadata.label : "Actividad completada",
+        createdAt: event.created_at,
+      })));
+    }
+
     setLoading(false);
   };
 
@@ -133,6 +156,7 @@ function PerfilContent() {
         { label: "Referidos pendientes visibles", value: referralStats.pending },
         { label: "Referidos convertidos visibles", value: referralStats.converted },
         { label: "Insignias visibles", value: badges.length },
+        { label: "XP total visible", value: totalXp },
         ...(membershipOpen && subscription?.status
           ? [{ label: "Estado visible de la suscripción", value: String(subscription.status) }]
           : []),
@@ -142,7 +166,7 @@ function PerfilContent() {
       loading,
       ...(membershipOpen ? { activeDialog: "Detalle desplegado de membresía" } : {}),
     },
-  }), [badges, betaGrant, founderData, loading, membershipOpen, profile?.member_level, profile?.membership_status, referralCode, referralStats.converted, referralStats.pending, subscription?.status]);
+  }), [badges, betaGrant, founderData, loading, membershipOpen, profile?.member_level, profile?.membership_status, referralCode, referralStats.converted, referralStats.pending, subscription?.status, totalXp]);
 
   usePublishStampyScreenContext(stampyScreenContext);
 
@@ -165,6 +189,7 @@ function PerfilContent() {
 
       {profile && (
         <div className="space-y-6">
+          <XpProgressCard totalXp={totalXp} recentActivity={xpActivity} />
           <Card className="max-w-4xl p-5 sm:p-6">
             <div className={`grid gap-5 border-b border-stampa-border pb-5 mb-5 ${referralCode ? "md:grid-cols-[minmax(0,1fr)_minmax(17rem,0.8fr)]" : ""}`}>
               <div className="flex min-w-0 items-center gap-4 sm:items-start">

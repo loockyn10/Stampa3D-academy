@@ -1636,15 +1636,20 @@ Reglas:
     if (userContext) {
       systemPrompt += `\nDatos del usuario:
 - Nombre: ${userContext.displayName || 'No especificado'}
-- Nivel: ${userContext.experienceLevelLabel || 'No especificado'}
+- Experiencia de impresión: ${userContext.experienceLevelLabel || 'No especificada'}
 - Impresora principal: ${userContext.printerLabel || 'No especificada'}
 - Slicer: ${userContext.slicerLabel || 'No especificado'}
 - Objetivo: ${userContext.mainGoalLabel || 'No especificado'}
 - Etapa comercial: ${userContext.commercialStageLabel || 'No especificada'}
 - Código de referido: ${userContext.referralCode || 'No generado'}
-- Estado de membresía: ${userContext.membershipStatusLabel || 'No activa'}`;
+- Estado de membresía: ${userContext.membershipStatusLabel || 'No activa'}
+- Progresión: Nivel ${userContext.xpLevel}, ${userContext.totalXp} XP totales, ${userContext.xpToNextLevel} XP para el próximo nivel`;
       if (userContext.memberLevelLabel) {
          systemPrompt += ` (${userContext.memberLevelLabel})`;
+      }
+      if (/\b(xp|nivel(?:es)?|puntos?|recompensas?)\b/i.test(userMessage)) {
+        const { formatPublicXpRulesForStampy } = await import("@/lib/xp/config");
+        systemPrompt += `\n\nREGLAS REALES DE XP:\n${formatPublicXpRulesForStampy()}\nExplicá solo estas reglas. No podés otorgar XP, cambiar niveles ni prometer recompensas no listadas.`;
       }
       
       systemPrompt += `

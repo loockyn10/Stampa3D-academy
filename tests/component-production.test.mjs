@@ -9,12 +9,16 @@ const migration = fs.readFileSync(
   path.join(root, "supabase/migrations/20260901002424_produce_product_components.sql"),
   "utf8",
 );
+const xpMigration = fs.readFileSync(
+  path.join(root, "supabase/migrations/20260909145259_xp_progression_foundation.sql"),
+  "utf8",
+);
 
 test("component targets retain both product and component identity in one RPC call", () => {
   assert.match(page, /p_component_items = compItems\.map/);
   assert.match(page, /product_id: item\.product\.id/);
   assert.match(page, /component_id: item\.component\.id/);
-  assert.match(page, /consume_filaments_for_production_targets/);
+  assert.match(page, /record_production_with_xp/);
   assert.doesNotMatch(page, /Process individual components sequentially/);
 });
 
@@ -51,4 +55,11 @@ test("the wrapper keeps complete products on the existing RPC and makes mixed ca
   assert.match(migration, /public\.consume_filaments_for_components\(/i);
   assert.match(migration, /consume_filaments_for_production_targets/);
   assert.match(migration, /security invoker/i);
+});
+
+test("the XP wrapper delegates to the existing atomic production RPC", () => {
+  assert.match(xpMigration, /create or replace function public\.record_production_with_xp/i);
+  assert.match(xpMigration, /production_result := public\.consume_filaments_for_production_targets/i);
+  assert.match(xpMigration, /pg_advisory_xact_lock/i);
+  assert.match(xpMigration, /'production_registered:' \|\| p_operation_key::text/i);
 });
