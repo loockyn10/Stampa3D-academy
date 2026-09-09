@@ -220,7 +220,7 @@ export default function VentaRapidaPage() {
     <div className="pb-32">
       <Link href="/mi-negocio" className="mb-4 inline-flex items-center gap-1.5 text-xs font-semibold text-gray-500 hover:text-white"><ArrowLeft size={14} /> Mi Negocio</Link>
       <SectionTitle eyebrow="Mi Negocio" title="Venta rápida" action={<Link href="/mi-negocio/ventas" className="inline-flex min-h-11 w-full items-center justify-center rounded-xl border border-stampa-border px-4 text-xs font-bold text-gray-300 hover:bg-white/5 sm:w-auto">Ver ventas</Link>} />
-      <p className="mb-6 max-w-2xl text-sm leading-6 text-gray-400">Escaneá o buscá productos, armá el carrito y confirmá. El precio y el stock se validan otra vez al registrar la venta.{locationsEnabled ? " Las ventas presenciales salen del showroom." : ""}</p>
+      <p className="mb-6 max-w-2xl text-sm leading-6 text-gray-400">Escaneá o buscá productos, armá el carrito y confirmá. El precio y el stock se validan otra vez al registrar la venta.{locationsEnabled ? " Podés vender las unidades disponibles entre showroom y depósito." : ""}</p>
       {error && <Card className="mb-5 border-red-500/25 p-4 text-sm text-red-300">No se pudo cargar la operación: {error}</Card>}
       <div className="min-h-10" aria-live="polite" aria-atomic="true">
         {scanFeedback && (
@@ -256,7 +256,7 @@ export default function VentaRapidaPage() {
           </div>
           {loading ? <div className="flex min-h-48 items-center justify-center text-gray-500"><Loader2 className="animate-spin" /></div> : search.trim() ? (
             <div className="mt-3 grid gap-2">
-              {results.length === 0 ? <Card className="p-5 text-sm text-gray-400">No encontramos productos disponibles.{locationsEnabled ? " Si tenés unidades en depósito, reponelas al showroom." : ""}</Card> : results.map((item) => (
+              {results.length === 0 ? <Card className="p-5 text-sm text-gray-400">No encontramos productos disponibles.</Card> : results.map((item) => (
                 <button key={item.catalogItemId} type="button" onClick={() => addToCart(item)} className="flex min-h-16 items-center justify-between gap-3 rounded-xl border border-stampa-border bg-stampa-surface px-4 text-left hover:border-stampa-orange/40">
                   <span className="min-w-0"><span className="block truncate text-sm font-bold text-white">{item.name}</span><span className="block truncate text-xs text-gray-500">{item.sku || item.barcode || "Sin código"} · {item.availableStock} u.</span></span>
                   <span className="shrink-0 text-sm font-black text-stampa-orange">{money.format(item.unitPrice)}</span>
@@ -271,7 +271,7 @@ export default function VentaRapidaPage() {
           <div className="max-h-[42dvh] divide-y divide-stampa-border overflow-y-auto">
             {cart.length === 0 ? <p className="p-8 text-center text-sm text-gray-500">Todavía no agregaste productos.</p> : cart.map((item) => (
               <div key={item.catalogItemId} className="p-4">
-                <div className="flex items-start justify-between gap-3"><div className="min-w-0"><p className="truncate text-sm font-bold text-white">{item.name}</p><p className="mt-1 text-xs text-gray-500">{money.format(item.unitPrice)} c/u · {locationsEnabled ? "showroom" : "stock"} {item.availableStock}{locationsEnabled && item.warehouseStock ? ` · depósito ${item.warehouseStock}` : ""}</p></div><button type="button" onClick={() => replaceCart(cartRef.current.filter((candidate) => candidate.catalogItemId !== item.catalogItemId))} aria-label={`Quitar ${item.name}`} className="rounded-lg p-2 text-gray-500 hover:bg-red-500/10 hover:text-red-300"><Trash2 size={16} /></button></div>
+                <div className="flex items-start justify-between gap-3"><div className="min-w-0"><p className="truncate text-sm font-bold text-white">{item.name}</p><p className="mt-1 text-xs text-gray-500">{money.format(item.unitPrice)} c/u · {item.availableStock} disponibles</p>{locationsEnabled && <p className="mt-1 text-[11px] text-gray-600">Showroom {item.showroomStock ?? 0} · Depósito {item.warehouseStock ?? 0}</p>}</div><button type="button" onClick={() => replaceCart(cartRef.current.filter((candidate) => candidate.catalogItemId !== item.catalogItemId))} aria-label={`Quitar ${item.name}`} className="rounded-lg p-2 text-gray-500 hover:bg-red-500/10 hover:text-red-300"><Trash2 size={16} /></button></div>
                 <div className="mt-3 flex items-center justify-between"><div className="flex items-center rounded-xl border border-stampa-border"><button type="button" disabled={item.quantity <= 1} onClick={() => changeQuantity(item.catalogItemId, item.quantity - 1)} className="flex h-10 w-10 items-center justify-center disabled:opacity-30"><Minus size={15} /></button><span className="w-9 text-center text-sm font-bold text-white">{item.quantity}</span><button type="button" disabled={item.quantity >= item.availableStock} onClick={() => changeQuantity(item.catalogItemId, item.quantity + 1)} className="flex h-10 w-10 items-center justify-center disabled:opacity-30"><Plus size={15} /></button></div><p className="text-sm font-black text-white">{money.format(item.unitPrice * item.quantity)}</p></div>
               </div>
             ))}

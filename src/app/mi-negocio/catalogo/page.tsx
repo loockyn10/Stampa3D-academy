@@ -4,7 +4,7 @@ import { Suspense, useCallback, useEffect, useMemo, useRef, useState } from "rea
 import { useRouter, useSearchParams } from "next/navigation";
 import Link from "next/link";
 import Image from "next/image";
-import { ArrowLeft, Boxes, Eye, EyeOff, Factory, History, Loader2, Minus, Plus, ShoppingBag, X } from "lucide-react";
+import { ArrowLeft, Boxes, Eye, EyeOff, Factory, History, Loader2, Minus, Plus, ShoppingBag, Trash2, X } from "lucide-react";
 import { useBarcodeScanHandler } from "@/components/barcode/BarcodeScannerProvider";
 import { Dialog } from "@/components/ui/dialog";
 import { Card } from "@/components/ui/card";
@@ -21,6 +21,7 @@ import {
 } from "@/lib/business/catalog";
 import {
   adjustBusinessInventoryAction,
+  archiveBusinessCatalogItemAction,
   createResaleCatalogItemAction,
   linkManufacturedProductAction,
   loadBusinessOperationsAction,
@@ -56,6 +57,8 @@ function CatalogoContent() {
   const [error, setError] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
   const [publishingId, setPublishingId] = useState<string | null>(null);
+  const [deleteItem, setDeleteItem] = useState<BusinessCatalogItem | null>(null);
+  const [deleting, setDeleting] = useState(false);
   const [resaleOpen, setResaleOpen] = useState(false);
   const [manufacturedOpen, setManufacturedOpen] = useState(false);
   const [adjustmentItem, setAdjustmentItem] = useState<BusinessCatalogItem | null>(null);
@@ -286,6 +289,17 @@ function CatalogoContent() {
     toast.success(item.is_published ? "Producto ocultado de la tienda." : "Producto publicado en la tienda.");
   };
 
+  const archiveCatalogItem = async () => {
+    if (!deleteItem || deleting) return;
+    setDeleting(true);
+    const result = await archiveBusinessCatalogItemAction({ catalogItemId: deleteItem.id });
+    setDeleting(false);
+    if (!result.success) return toast.error(result.error);
+    setItems((current) => current.filter((item) => item.id !== deleteItem.id));
+    setDeleteItem(null);
+    toast.success("Producto eliminado de Mi Negocio.");
+  };
+
   const openAdjustment = (item: BusinessCatalogItem) => {
     setAdjustmentItem(item);
     setAdjustmentDirection("add");
@@ -423,6 +437,9 @@ function CatalogoContent() {
                     </button>
                   )}
                   {locationsEnabled && <Link href="/mi-negocio/reposicion" className="mt-2 inline-flex min-h-9 w-full items-center justify-center rounded-lg text-[11px] font-bold text-gray-500 hover:bg-white/5 hover:text-gray-300">Configurar showroom y mínimo</Link>}
+                  <button type="button" onClick={() => setDeleteItem(item)} className="mt-2 inline-flex min-h-10 w-full items-center justify-center gap-2 rounded-lg border border-red-500/25 bg-red-500/5 px-3 text-xs font-bold text-red-300 hover:bg-red-500/10">
+                    <Trash2 size={14} /> Eliminar
+                  </button>
                 </div>
               </Card>
               </div>
@@ -463,6 +480,23 @@ function CatalogoContent() {
                 ))}
               </div>
             )}
+          </div>
+        </>}
+      </Dialog>
+
+      <Dialog open={deleteItem !== null} onClose={() => { if (!deleting) setDeleteItem(null); }} labelledBy="catalog-delete-title" panelClassName="max-w-md rounded-2xl border border-stampa-border bg-stampa-surface">
+        {deleteItem && <>
+          <div className="flex items-start justify-between gap-4 border-b border-stampa-border p-5">
+            <div>
+              <h2 id="catalog-delete-title" className="text-lg font-bold text-white">¿Eliminar “{deleteItem.name}”?</h2>
+              <p className="mt-1 text-sm leading-6 text-gray-400">Esta acción lo quitará de Mi Negocio.</p>
+              {deleteItem.source_type === "manufactured" && <p className="mt-2 text-xs leading-5 text-cyan-200">El producto seguirá existiendo en Mi Taller con su receta, costos y stock.</p>}
+            </div>
+            <button type="button" disabled={deleting} onClick={() => setDeleteItem(null)} aria-label="Cerrar" className="shrink-0 rounded-lg p-2 text-gray-500 hover:bg-white/5 hover:text-white disabled:opacity-40"><X size={18} /></button>
+          </div>
+          <div className="flex flex-col-reverse gap-2 p-5 min-[390px]:flex-row min-[390px]:justify-end">
+            <button type="button" disabled={deleting} onClick={() => setDeleteItem(null)} className="min-h-11 rounded-xl px-4 text-sm font-semibold text-gray-400 hover:bg-white/5 disabled:opacity-40">Cancelar</button>
+            <button type="button" disabled={deleting} onClick={() => void archiveCatalogItem()} className="inline-flex min-h-11 items-center justify-center gap-2 rounded-xl bg-red-500 px-5 text-sm font-black text-white hover:bg-red-400 disabled:opacity-50">{deleting && <Loader2 size={16} className="animate-spin" />} Eliminar</button>
           </div>
         </>}
       </Dialog>

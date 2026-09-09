@@ -120,6 +120,7 @@ export async function loadBusinessWorkspaceAction(): Promise<
       .from("business_catalog_items")
       .select("id, user_id, source_type, source_product_id, name, category, brand, description, purchase_cost, sale_price, resale_stock_quantity, sku, barcode, supplier, image_urls, is_active, is_published, public_slug, created_at, updated_at")
       .eq("user_id", authorized.userId)
+      .eq("is_active", true)
       .order("created_at", { ascending: false }),
     authorized.supabase
       .from("products")
@@ -257,6 +258,7 @@ export async function loadBusinessOperationsAction(): Promise<
       .from("business_catalog_items")
       .select("id, user_id, source_type, source_product_id, name, category, brand, description, purchase_cost, sale_price, resale_stock_quantity, sku, barcode, supplier, image_urls, is_active, is_published, public_slug, created_at, updated_at")
       .eq("user_id", authorized.userId)
+      .eq("is_active", true)
       .order("name", { ascending: true }),
     authorized.supabase
       .from("products")
@@ -585,4 +587,31 @@ export async function setBusinessCatalogPublicationAction(input: { catalogItemId
   revalidatePath("/mi-negocio/catalogo");
   revalidatePath("/mi-negocio/tienda");
   return { success: true as const, publicSlug: data.public_slug as string | null };
+}
+
+export async function archiveBusinessCatalogItemAction(input: { catalogItemId: string }) {
+  const authorized = await authorizeBusinessAccess();
+  if (!authorized.success) return authorized;
+  if (!UUID_PATTERN.test(input.catalogItemId)) {
+    return { success: false as const, error: "El producto no es válido." };
+  }
+
+  const { data, error } = await authorized.supabase
+    .from("business_catalog_items")
+    .update({ is_active: false, is_published: false })
+    .eq("id", input.catalogItemId)
+    .eq("user_id", authorized.userId)
+    .eq("is_active", true)
+    .select("id, source_type")
+    .maybeSingle();
+
+  if (error) return { success: false as const, error: error.message };
+  if (!data) {
+    return { success: false as const, error: "El producto no existe, ya fue eliminado o no te pertenece." };
+  }
+
+  revalidateBusinessPages();
+  revalidatePath("/mi-negocio/venta-rapida");
+  revalidatePath("/mi-negocio/tienda");
+  return { success: true as const, sourceType: data.source_type as "manufactured" | "resale" };
 }

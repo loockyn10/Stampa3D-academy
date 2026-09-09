@@ -17,6 +17,13 @@ test("reposición limitada por depósito informa faltante restante", () => {
   assert.deepEqual(calculateShowroomReplenishment({ showroom: 2, warehouse: 2, showroomTarget: 6 }), { needed: 4, movable: 2, remainingShortage: 2 });
 });
 
+test("reposición posterior a una venta desde showroom y depósito conserva el total", () => {
+  const afterSale = { showroom: 0, warehouse: 9, showroomTarget: 6 };
+  const replenishment = calculateShowroomReplenishment(afterSale);
+  assert.deepEqual(replenishment, { needed: 6, movable: 6, remainingShortage: 0 });
+  assert.equal(afterSale.showroom + replenishment.movable + afterSale.warehouse - replenishment.movable, 9);
+});
+
 test("producto sin objetivo no se recomienda", () => {
   assert.deepEqual(calculateShowroomReplenishment({ showroom: 2, warehouse: 10, showroomTarget: null }), { needed: 0, movable: 0, remainingShortage: 0 });
 });

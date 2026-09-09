@@ -26,6 +26,8 @@ const migration = fs.readFileSync(
   path.join(root, "supabase/migrations/20260907172205_business_catalog_foundation.sql"),
   "utf8",
 );
+const actions = fs.readFileSync(path.join(root, "src/app/mi-negocio/actions.ts"), "utf8");
+const catalogPage = fs.readFileSync(path.join(root, "src/app/mi-negocio/catalogo/page.tsx"), "utf8");
 
 const workshopProducts = [{
   id: "product-a",
@@ -79,4 +81,29 @@ test("migration prevents duplicate links and separates commercial stock", () => 
   assert.match(migration, /source_type = 'resale'[\s\S]*source_product_id is null/i);
   assert.match(migration, /public\.has_platform_access\(auth\.uid\(\)\)/i);
   assert.doesNotMatch(migration, /\b(drop table|truncate|delete from)\b/i);
+});
+
+test("catalog delete is an owned soft archive and never deletes the workshop product", () => {
+  const start = actions.indexOf("export async function archiveBusinessCatalogItemAction");
+  const block = actions.slice(start);
+  assert.match(block, /authorizeBusinessAccess\(\)/);
+  assert.match(block, /\.from\("business_catalog_items"\)[\s\S]*\.update\(\{ is_active: false, is_published: false \}\)/);
+  assert.match(block, /\.eq\("user_id", authorized\.userId\)/);
+  assert.match(block, /\.select\("id, source_type"\)[\s\S]*\.maybeSingle\(\)/);
+  assert.doesNotMatch(block, /\.from\("products"\)[\s\S]*\.(delete|update)\(/);
+  assert.doesNotMatch(block, /\.delete\(/);
+});
+
+test("catalog cards always expose Delete through the shared custom Dialog", () => {
+  assert.match(catalogPage, /<Trash2 size=\{14\} \/> Eliminar/);
+  assert.match(catalogPage, /<Dialog open=\{deleteItem !== null\}/);
+  assert.match(catalogPage, /Esta acción lo quitará de Mi Negocio\./);
+  assert.match(catalogPage, /El producto seguirá existiendo en Mi Taller/);
+  assert.doesNotMatch(catalogPage, /\b(?:window\.)?(?:confirm|alert|prompt)\s*\(/);
+});
+
+test("archived catalog items disappear from operational loaders and historical rows remain untouched", () => {
+  assert.match(actions, /\.from\("business_catalog_items"\)[\s\S]*\.eq\("is_active", true\)/);
+  assert.doesNotMatch(actions.slice(actions.indexOf("archiveBusinessCatalogItemAction")), /business_sale_items[\s\S]*\.(?:delete|update)\(/);
+  assert.match(migration, /business_catalog_items_user_barcode_uidx[\s\S]*where barcode is not null/i);
 });

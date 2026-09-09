@@ -31,6 +31,7 @@ const cart = loadTypeScriptModule(path.join(root, "src/lib/business/cart.ts"), {
   "../barcode/hid-scanner": hidScanner,
 });
 const migration = fs.readFileSync(path.join(root, "supabase/migrations/20260907201247_business_inventory_and_sales.sql"), "utf8");
+const locationSalesMigration = fs.readFileSync(path.join(root, "supabase/migrations/20260909031859_business_catalog_archive_and_combined_location_sales.sql"), "utf8");
 const actions = fs.readFileSync(path.join(root, "src/app/mi-negocio/actions.ts"), "utf8");
 const scanner = fs.readFileSync(path.join(root, "src/components/business/BarcodeScanner.tsx"), "utf8");
 
@@ -90,6 +91,28 @@ test("unknown barcode is not created and zero stock cannot enter the cart", () =
   assert.equal(cart.findCatalogItemByBarcode(catalogItems, "missing"), null);
   const unavailable = { ...cart.toBusinessCartItem(catalogItems[1], products), availableStock: 0 };
   assert.equal(cart.addBusinessCartItem([], unavailable).success, false);
+  assert.equal(cart.findCatalogItemByBarcode([{ ...catalogItems[1], is_active: false }], "123"), null);
+});
+
+test("quick sale exposes showroom plus warehouse as the available stock", () => {
+  const item = cart.toBusinessCartItem(catalogItems[0], products, { showroom: 2, warehouse: 10 });
+  assert.equal(item.availableStock, 12);
+  assert.equal(item.showroomStock, 2);
+  assert.equal(item.warehouseStock, 10);
+  assert.equal(cart.setBusinessCartQuantity([item], item.catalogItemId, 12).success, true);
+  assert.equal(cart.setBusinessCartQuantity([item], item.catalogItemId, 13).success, false);
+});
+
+test("seven barcode scans can consume combined showroom and warehouse availability", () => {
+  const item = cart.toBusinessCartItem(catalogItems[1], products, { showroom: 2, warehouse: 5 });
+  let currentCart = [];
+  for (let scan = 0; scan < 7; scan += 1) {
+    const result = cart.addBusinessCartItem(currentCart, item);
+    assert.equal(result.success, true);
+    currentCart = result.cart;
+  }
+  assert.equal(currentCart[0].quantity, 7);
+  assert.equal(cart.addBusinessCartItem(currentCart, item).success, false);
 });
 
 test("cart validates quantities and calculates totals deterministically", () => {
@@ -158,4 +181,44 @@ test("scanner feature-detects formats and always stops camera resources", () => 
   assert.match(scanner, /getTracks\(\)\.forEach\(\(track\) => track\.stop\(\)\)/);
   assert.match(scanner, /useEffect\(\(\) => stop, \[stop\]\)/);
   assert.match(scanner, /búsqueda manual/i);
+});
+
+test("combined location sale consumes showroom first and warehouse second", () => {
+  assert.match(locationSalesMigration, /showroom_consumed := least\(coalesce\(showroom_qty, 0\), requested\.quantity\)/i);
+  assert.match(locationSalesMigration, /warehouse_consumed := requested\.quantity - showroom_consumed/i);
+  assert.match(locationSalesMigration, /set_config\('stampa\.inventory_sale_location_id', showroom_id::text, true\)/i);
+  assert.match(locationSalesMigration, /select \* into sale_result[\s\S]*confirm_business_sale/i);
+  assert.doesNotMatch(locationSalesMigration, /insert into public\.business_inventory_transfers/i);
+});
+
+test("combined sale supports 2+10 distributions and rejects quantity 13", () => {
+  const consume = (showroom, warehouse, quantity) => {
+    if (showroom + warehouse < quantity) return null;
+    const fromShowroom = Math.min(showroom, quantity);
+    return { showroom: showroom - fromShowroom, warehouse: warehouse - (quantity - fromShowroom) };
+  };
+  assert.deepEqual(consume(2, 10, 3), { showroom: 0, warehouse: 9 });
+  assert.deepEqual(consume(5, 10, 3), { showroom: 2, warehouse: 10 });
+  assert.deepEqual(consume(2, 10, 12), { showroom: 0, warehouse: 0 });
+  assert.equal(consume(2, 10, 13), null);
+  assert.deepEqual(consume(0, 10, 3), { showroom: 0, warehouse: 7 });
+});
+
+test("missing showroom balance is lazily created and warehouse is reconciled from authority", () => {
+  assert.match(locationSalesMigration, /ensure_business_inventory_location_balances\(catalog_item\.id\)/i);
+  assert.match(locationSalesMigration, /distributed_qty < authoritative_qty[\s\S]*authoritative_qty - distributed_qty/i);
+  assert.match(locationSalesMigration, /coalesce\(showroom_qty, 0\) \+ coalesce\(warehouse_qty, 0\) < requested\.quantity/i);
+});
+
+test("location sale is atomic, concurrent-safe, idempotent and records its source split", () => {
+  assert.match(locationSalesMigration, /pg_advisory_xact_lock[\s\S]*business-sale:/i);
+  assert.match(locationSalesMigration, /order by \(element ->> 'catalogItemId'\)::uuid/i);
+  assert.match(locationSalesMigration, /for update/i);
+  assert.match(locationSalesMigration, /A retry must replay before validating the now-reduced stock/i);
+  assert.match(locationSalesMigration, /location_breakdown = location_breakdowns -> \(movement\.catalog_item_id::text\)/i);
+  assert.match(locationSalesMigration, /updated_movements <> jsonb_object_length\(location_breakdowns\)[\s\S]*raise exception/i);
+});
+
+test("locations disabled preserve the original quick-sale RPC", () => {
+  assert.match(locationSalesMigration, /if not exists \([\s\S]*settings\.locations_enabled[\s\S]*select \* from public\.confirm_business_sale/i);
 });

@@ -14,6 +14,7 @@ export interface BusinessCartItem {
   availableStock: number;
   sku: string | null;
   barcode: string | null;
+  showroomStock?: number;
   warehouseStock?: number;
 }
 
@@ -26,7 +27,9 @@ export function toBusinessCartItem(
   products: readonly WorkshopProductSummary[],
   locationStock?: { showroom: number; warehouse: number } | null,
 ): BusinessCartItem | null {
-  const stock = locationStock ? Math.max(0, locationStock.showroom) : resolveBusinessCatalogStock(item, products);
+  const showroomStock = locationStock ? Math.max(0, locationStock.showroom) : 0;
+  const warehouseStock = locationStock ? Math.max(0, locationStock.warehouse) : 0;
+  const stock = locationStock ? showroomStock + warehouseStock : resolveBusinessCatalogStock(item, products);
   if (!item.is_active || stock === null) return null;
   return {
     catalogItemId: item.id,
@@ -37,7 +40,7 @@ export function toBusinessCartItem(
     availableStock: stock,
     sku: item.sku,
     barcode: item.barcode,
-    ...(locationStock ? { warehouseStock: Math.max(0, locationStock.warehouse) } : {}),
+    ...(locationStock ? { showroomStock, warehouseStock } : {}),
   };
 }
 
@@ -46,9 +49,7 @@ export function addBusinessCartItem(
   item: BusinessCartItem,
 ): CartMutationResult {
   if (item.availableStock < 1) {
-    return { success: false, cart: [...cart], error: item.warehouseStock
-      ? `No hay unidades en showroom. Tenés ${item.warehouseStock} en depósito.`
-      : "El producto no tiene stock disponible." };
+    return { success: false, cart: [...cart], error: "El producto no tiene stock disponible." };
   }
   const existing = cart.find((candidate) => candidate.catalogItemId === item.catalogItemId);
   if (!existing) return { success: true, cart: [...cart, item] };
