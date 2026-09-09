@@ -3,6 +3,7 @@ import {
   type BusinessCatalogItem,
   type WorkshopProductSummary,
 } from "./catalog";
+import { normalizeBarcode } from "../barcode/hid-scanner";
 
 export interface BusinessCartItem {
   catalogItemId: string;
@@ -96,7 +97,7 @@ export function findCatalogItemByBarcode(
   items: readonly BusinessCatalogItem[],
   barcode: string,
 ): BusinessCatalogItem | null {
-  const normalized = barcode.trim().toLowerCase();
+  const normalized = normalizeBarcode(barcode).toLowerCase();
   if (!normalized) return null;
-  return items.find((item) => item.is_active && item.barcode?.trim().toLowerCase() === normalized) ?? null;
+  return items.find((item) => item.is_active && normalizeBarcode(item.barcode ?? "").toLowerCase() === normalized) ?? null;
 }

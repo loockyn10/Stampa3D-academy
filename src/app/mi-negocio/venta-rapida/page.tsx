@@ -2,7 +2,9 @@
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import { ArrowLeft, Barcode, Loader2, Minus, Plus, Search, ShoppingCart, Trash2 } from "lucide-react";
+import { useBarcodeScanHandler } from "@/components/barcode/BarcodeScannerProvider";
 import { BarcodeScanner } from "@/components/business/BarcodeScanner";
 import { usePublishStampyScreenContext } from "@/components/stampy/StampyContextProvider";
 import { Card } from "@/components/ui/card";
@@ -26,7 +28,8 @@ const money = new Intl.NumberFormat("es-AR", { style: "currency", currency: "ARS
 const SALE_ATTEMPT_STORAGE_KEY = "stampa:quick-sale-attempt";
 
 export default function VentaRapidaPage() {
-  const { toast, confirmAction } = useAppFeedback();
+  const router = useRouter();
+  const { toast } = useAppFeedback();
   const [items, setItems] = useState<BusinessCatalogItem[]>([]);
   const [products, setProducts] = useState<WorkshopProductSummary[]>([]);
   const [clients, setClients] = useState<BusinessClientSummary[]>([]);
@@ -37,7 +40,13 @@ export default function VentaRapidaPage() {
   const [loading, setLoading] = useState(true);
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [unknownBarcode, setUnknownBarcode] = useState<string | null>(null);
+  const [scanFeedback, setScanFeedback] = useState<{ tone: "success" | "error"; message: string } | null>(null);
   const saleAttemptRef = useRef<{ key: string; fingerprint: string } | null>(null);
+  const submittingRef = useRef(false);
+  const cartRef = useRef<BusinessCartItem[]>([]);
+  const searchInputRef = useRef<HTMLInputElement>(null);
+  const feedbackTimerRef = useRef<number | null>(null);
 
   const load = useCallback(async () => {
     const result = await loadBusinessOperationsAction();
@@ -64,6 +73,10 @@ export default function VentaRapidaPage() {
       setLoading(false);
     });
     return () => { active = false; };
+  }, []);
+
+  useEffect(() => () => {
+    if (feedbackTimerRef.current !== null) window.clearTimeout(feedbackTimerRef.current);
   }, []);
 
   const available = useMemo(() => items.flatMap((item) => {
@@ -94,35 +107,70 @@ export default function VentaRapidaPage() {
   }), [available, cart, loading, scannerOpen, search, selectedClient?.name, total]);
   usePublishStampyScreenContext(stampyContext);
 
-  const addToCart = useCallback((item: BusinessCartItem) => {
-    const result = addBusinessCartItem(cart, item);
-    setCart(result.cart);
-    if (!result.success) toast.error(result.error);
-  }, [cart, toast]);
+  const showScanFeedback = useCallback((tone: "success" | "error", message: string) => {
+    setScanFeedback({ tone, message });
+    if (feedbackTimerRef.current !== null) window.clearTimeout(feedbackTimerRef.current);
+    feedbackTimerRef.current = window.setTimeout(() => setScanFeedback(null), 1_800);
+  }, []);
+
+  const replaceCart = useCallback((nextCart: BusinessCartItem[]) => {
+    cartRef.current = nextCart;
+    setCart(nextCart);
+  }, []);
+
+  const addToCart = useCallback((item: BusinessCartItem, source: "manual" | "scan" = "manual") => {
+    const result = addBusinessCartItem(cartRef.current, item);
+    replaceCart(result.cart);
+    if (result.success) {
+      if (source === "scan") showScanFeedback("success", `✓ ${item.name} agregado`);
+      return;
+    }
+    if (source === "scan") {
+      showScanFeedback("error", result.error.includes("stock")
+        ? `Stock máximo alcanzado para ${item.name}`
+        : result.error);
+    } else {
+      toast.error(result.error);
+    }
+  }, [replaceCart, showScanFeedback, toast]);
 
   const changeQuantity = (catalogItemId: string, quantity: number) => {
-    const result = setBusinessCartQuantity(cart, catalogItemId, quantity);
-    setCart(result.cart);
+    const result = setBusinessCartQuantity(cartRef.current, catalogItemId, quantity);
+    replaceCart(result.cart);
     if (!result.success) toast.error(result.error);
   };
 
   const handleBarcode = useCallback((barcode: string) => {
     const catalogItem = findCatalogItemByBarcode(items, barcode);
-    if (!catalogItem) return toast.error(`Producto no encontrado: no hay un artículo activo con el código ${barcode}.`);
+    if (!catalogItem) {
+      setUnknownBarcode(barcode);
+      showScanFeedback("error", `Código no encontrado: ${barcode}`);
+      return;
+    }
     const cartItem = toBusinessCartItem(catalogItem, products);
-    if (!cartItem) return toast.error("El producto no tiene una fuente de stock disponible.");
-    addToCart(cartItem);
-  }, [addToCart, items, products, toast]);
+    if (!cartItem) {
+      showScanFeedback("error", "El producto no tiene una fuente de stock disponible.");
+      return;
+    }
+    setUnknownBarcode(null);
+    setSearch("");
+    addToCart(cartItem, "scan");
+  }, [addToCart, items, products, showScanFeedback]);
+
+  useBarcodeScanHandler({
+    id: "quick-sale",
+    route: "/mi-negocio/venta-rapida",
+    priority: 100,
+    enabled: !loading && !submitting,
+    onScan: (scan) => handleBarcode(scan.value),
+  });
 
   const confirmSale = async () => {
-    if (cart.length === 0 || submitting) return;
-    const confirmed = await confirmAction({
-      title: "Confirmar venta",
-      description: `Se registrará una venta por ${money.format(total)} y se descontará el inventario correspondiente.`,
-      confirmLabel: "Registrar venta",
-    });
-    if (!confirmed) return;
-    const fingerprint = buildBusinessSaleFingerprint(cart, clientId || null);
+    if (cartRef.current.length === 0 || submittingRef.current) return;
+    submittingRef.current = true;
+    setSubmitting(true);
+    const saleCart = [...cartRef.current];
+    const fingerprint = buildBusinessSaleFingerprint(saleCart, clientId || null);
     if (saleAttemptRef.current?.fingerprint !== fingerprint) {
       try {
         const stored = JSON.parse(sessionStorage.getItem(SALE_ATTEMPT_STORAGE_KEY) || "null") as { fingerprint?: string; key?: string } | null;
@@ -133,25 +181,26 @@ export default function VentaRapidaPage() {
         saleAttemptRef.current = { fingerprint, key: crypto.randomUUID() };
       }
     }
-    setSubmitting(true);
     let result: Awaited<ReturnType<typeof confirmBusinessSaleAction>>;
     try {
       result = await confirmBusinessSaleAction({
         idempotencyKey: saleAttemptRef.current.key,
         clientId: clientId || null,
-        items: cart.map((item) => ({ catalogItemId: item.catalogItemId, quantity: item.quantity })),
+        items: saleCart.map((item) => ({ catalogItemId: item.catalogItemId, quantity: item.quantity })),
       });
     } catch {
+      submittingRef.current = false;
       setSubmitting(false);
       toast.error("No recibimos la respuesta. Reintentá: la misma venta no se registrará dos veces.");
       return;
     }
+    submittingRef.current = false;
     setSubmitting(false);
     if (!result.success) return toast.error(result.error);
     toast.success(`Venta N.º ${result.saleNumber} registrada${result.replayed ? " (ya estaba procesada)" : ""}.`);
     saleAttemptRef.current = null;
     try { sessionStorage.removeItem(SALE_ATTEMPT_STORAGE_KEY); } catch { /* Storage can be disabled. */ }
-    setCart([]);
+    replaceCart([]);
     setClientId("");
     setSearch("");
     setLoading(true);
@@ -164,11 +213,36 @@ export default function VentaRapidaPage() {
       <SectionTitle eyebrow="Mi Negocio" title="Venta rápida" action={<Link href="/mi-negocio/ventas" className="inline-flex min-h-11 w-full items-center justify-center rounded-xl border border-stampa-border px-4 text-xs font-bold text-gray-300 hover:bg-white/5 sm:w-auto">Ver ventas</Link>} />
       <p className="mb-6 max-w-2xl text-sm leading-6 text-gray-400">Escaneá o buscá productos, armá el carrito y confirmá. El precio y el stock se validan otra vez al registrar la venta.</p>
       {error && <Card className="mb-5 border-red-500/25 p-4 text-sm text-red-300">No se pudo cargar la operación: {error}</Card>}
+      <div className="min-h-10" aria-live="polite" aria-atomic="true">
+        {scanFeedback && (
+          <div className={`mb-3 inline-flex rounded-xl border px-3 py-2 text-xs font-bold ${scanFeedback.tone === "success" ? "border-emerald-500/30 bg-emerald-500/10 text-emerald-200" : "border-amber-500/30 bg-amber-500/10 text-amber-100"}`}>
+            {scanFeedback.message}
+          </div>
+        )}
+      </div>
+
+      {unknownBarcode && (
+        <Card className="mb-4 border-amber-500/25 p-4">
+          <p className="text-sm font-bold text-white">Código no encontrado</p>
+          <p className="mt-1 break-all font-mono text-xs text-amber-200">{unknownBarcode}</p>
+          <div className="mt-3 flex flex-wrap gap-2">
+            <button type="button" onClick={() => { setUnknownBarcode(null); setSearch(""); searchInputRef.current?.focus(); }} className="min-h-9 rounded-lg border border-stampa-border px-3 text-xs font-bold text-gray-300 hover:bg-white/5">Buscar producto</button>
+            <button type="button" onClick={() => router.push(`/mi-negocio/catalogo?crear=reventa&barcode=${encodeURIComponent(unknownBarcode)}`)} className="min-h-9 rounded-lg bg-stampa-orange px-3 text-xs font-bold text-white">Crear producto</button>
+            <button type="button" onClick={() => setUnknownBarcode(null)} className="min-h-9 rounded-lg px-3 text-xs font-bold text-gray-500 hover:text-white">Cerrar</button>
+          </div>
+        </Card>
+      )}
 
       <div className="grid gap-5 xl:grid-cols-[minmax(0,1.1fr)_minmax(22rem,0.9fr)]">
         <section className="min-w-0">
           <div className="flex gap-2">
-            <label className="relative min-w-0 flex-1"><Search className="absolute left-3 top-3.5 text-gray-500" size={17} /><span className="sr-only">Buscar producto</span><input value={search} onChange={(event) => setSearch(event.target.value)} placeholder="Producto, SKU o código" className="min-h-11 w-full rounded-xl border border-stampa-border bg-stampa-surface pl-10 pr-3 text-sm text-white outline-none focus:border-stampa-orange" /></label>
+            <label className="relative min-w-0 flex-1"><Search className="absolute left-3 top-3.5 text-gray-500" size={17} /><span className="sr-only">Buscar producto</span><input ref={searchInputRef} value={search} onChange={(event) => setSearch(event.target.value)} onKeyDown={(event) => {
+              if (event.key !== "Enter" || !search.trim()) return;
+              event.preventDefault();
+              const exactBarcodeItem = findCatalogItemByBarcode(items, search);
+              if (exactBarcodeItem) handleBarcode(search);
+              else if (results.length === 1) { addToCart(results[0]); setSearch(""); }
+            }} placeholder="Producto, SKU o código" className="min-h-11 w-full rounded-xl border border-stampa-border bg-stampa-surface pl-10 pr-3 text-sm text-white outline-none focus:border-stampa-orange" /></label>
             <button type="button" onClick={() => setScannerOpen(true)} className="inline-flex min-h-11 shrink-0 items-center justify-center gap-2 rounded-xl bg-stampa-orange px-3 text-sm font-bold text-white min-[390px]:px-4"><Barcode size={18} /><span className="hidden min-[390px]:inline">Escanear</span></button>
           </div>
           {loading ? <div className="flex min-h-48 items-center justify-center text-gray-500"><Loader2 className="animate-spin" /></div> : search.trim() ? (
@@ -188,7 +262,7 @@ export default function VentaRapidaPage() {
           <div className="max-h-[42dvh] divide-y divide-stampa-border overflow-y-auto">
             {cart.length === 0 ? <p className="p-8 text-center text-sm text-gray-500">Todavía no agregaste productos.</p> : cart.map((item) => (
               <div key={item.catalogItemId} className="p-4">
-                <div className="flex items-start justify-between gap-3"><div className="min-w-0"><p className="truncate text-sm font-bold text-white">{item.name}</p><p className="mt-1 text-xs text-gray-500">{money.format(item.unitPrice)} c/u · stock {item.availableStock}</p></div><button type="button" onClick={() => setCart((current) => current.filter((candidate) => candidate.catalogItemId !== item.catalogItemId))} aria-label={`Quitar ${item.name}`} className="rounded-lg p-2 text-gray-500 hover:bg-red-500/10 hover:text-red-300"><Trash2 size={16} /></button></div>
+                <div className="flex items-start justify-between gap-3"><div className="min-w-0"><p className="truncate text-sm font-bold text-white">{item.name}</p><p className="mt-1 text-xs text-gray-500">{money.format(item.unitPrice)} c/u · stock {item.availableStock}</p></div><button type="button" onClick={() => replaceCart(cartRef.current.filter((candidate) => candidate.catalogItemId !== item.catalogItemId))} aria-label={`Quitar ${item.name}`} className="rounded-lg p-2 text-gray-500 hover:bg-red-500/10 hover:text-red-300"><Trash2 size={16} /></button></div>
                 <div className="mt-3 flex items-center justify-between"><div className="flex items-center rounded-xl border border-stampa-border"><button type="button" disabled={item.quantity <= 1} onClick={() => changeQuantity(item.catalogItemId, item.quantity - 1)} className="flex h-10 w-10 items-center justify-center disabled:opacity-30"><Minus size={15} /></button><span className="w-9 text-center text-sm font-bold text-white">{item.quantity}</span><button type="button" disabled={item.quantity >= item.availableStock} onClick={() => changeQuantity(item.catalogItemId, item.quantity + 1)} className="flex h-10 w-10 items-center justify-center disabled:opacity-30"><Plus size={15} /></button></div><p className="text-sm font-black text-white">{money.format(item.unitPrice * item.quantity)}</p></div>
               </div>
             ))}
@@ -196,7 +270,7 @@ export default function VentaRapidaPage() {
           <div className="space-y-4 border-t border-stampa-border p-4">
             <label className="block text-xs font-semibold text-gray-400">Cliente opcional<select value={clientId} onChange={(event) => setClientId(event.target.value)} className="mt-1.5 min-h-11 w-full rounded-xl border border-stampa-border bg-stampa-bg-soft px-3 text-sm text-white"><option value="">Sin cliente</option>{clients.map((client) => <option key={client.id} value={client.id}>{client.name}</option>)}</select></label>
             <div className="flex items-end justify-between"><span className="text-sm text-gray-400">Total</span><span className="text-2xl font-black text-white">{money.format(total)}</span></div>
-            <button type="button" disabled={cart.length === 0 || submitting} onClick={() => void confirmSale()} className="inline-flex min-h-12 w-full items-center justify-center gap-2 rounded-xl bg-stampa-orange px-4 text-sm font-black text-white disabled:opacity-45">{submitting && <Loader2 size={17} className="animate-spin" />} Confirmar venta</button>
+            <button type="button" disabled={cart.length === 0 || submitting} onClick={() => void confirmSale()} className="inline-flex min-h-12 w-full items-center justify-center gap-2 rounded-xl bg-stampa-orange px-4 text-sm font-black text-white disabled:opacity-45">{submitting && <Loader2 size={17} className="animate-spin" />} {submitting ? "Procesando..." : "Confirmar venta"}</button>
           </div>
         </Card>
       </div>

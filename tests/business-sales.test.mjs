@@ -25,7 +25,11 @@ function loadTypeScriptModule(filename, dependencies = {}) {
 }
 
 const catalog = loadTypeScriptModule(path.join(root, "src/lib/business/catalog.ts"));
-const cart = loadTypeScriptModule(path.join(root, "src/lib/business/cart.ts"), { "./catalog": catalog });
+const hidScanner = loadTypeScriptModule(path.join(root, "src/lib/barcode/hid-scanner.ts"));
+const cart = loadTypeScriptModule(path.join(root, "src/lib/business/cart.ts"), {
+  "./catalog": catalog,
+  "../barcode/hid-scanner": hidScanner,
+});
 const migration = fs.readFileSync(path.join(root, "supabase/migrations/20260907201247_business_inventory_and_sales.sql"), "utf8");
 const actions = fs.readFileSync(path.join(root, "src/app/mi-negocio/actions.ts"), "utf8");
 const scanner = fs.readFileSync(path.join(root, "src/components/business/BarcodeScanner.tsx"), "utf8");
@@ -48,6 +52,38 @@ test("manual search or one scan adds a product and repeated scans increment with
   const third = cart.addBusinessCartItem(second.cart, cartItem);
   assert.equal(third.success, false);
   assert.equal(third.cart[0].quantity, 2);
+});
+
+test("five continuous scans increment the same item five times without stale cart state", () => {
+  const catalogItem = { ...catalogItems[1], id: "catalog-many", barcode: "00012345", resale_stock_quantity: 5 };
+  const cartItem = cart.toBusinessCartItem(catalogItem, products);
+  let currentCart = [];
+  for (let scan = 0; scan < 5; scan += 1) {
+    const result = cart.addBusinessCartItem(currentCart, cartItem);
+    assert.equal(result.success, true);
+    currentCart = result.cart;
+  }
+  assert.equal(currentCart[0].quantity, 5);
+  const overStock = cart.addBusinessCartItem(currentCart, cartItem);
+  assert.equal(overStock.success, false);
+  assert.equal(overStock.cart[0].quantity, 5);
+});
+
+test("continuous scans of different products produce one cart line per product", () => {
+  let currentCart = [];
+  for (let index = 0; index < 10; index += 1) {
+    const item = cart.toBusinessCartItem({
+      ...catalogItems[1],
+      id: `catalog-${index}`,
+      barcode: `0000000${index}`,
+      resale_stock_quantity: 1,
+    }, products);
+    const result = cart.addBusinessCartItem(currentCart, item);
+    assert.equal(result.success, true);
+    currentCart = result.cart;
+  }
+  assert.equal(currentCart.length, 10);
+  assert.equal(currentCart.reduce((sum, item) => sum + item.quantity, 0), 10);
 });
 
 test("unknown barcode is not created and zero stock cannot enter the cart", () => {
@@ -110,7 +146,7 @@ test("quick sale keeps its attempt key for a lost response and clears it only af
   assert.match(page, /No recibimos la respuesta\. Reintentá/);
   assert.match(page, /sessionStorage\.removeItem\(SALE_ATTEMPT_STORAGE_KEY\)/);
   assert.match(page, /Producto, SKU o código/);
-  assert.match(page, /Producto no encontrado/);
+  assert.match(page, /Código no encontrado/);
   assert.match(page, /<option value="">Sin cliente<\/option>/);
   assert.match(page, /disabled=\{cart\.length === 0 \|\| submitting\}/);
 });

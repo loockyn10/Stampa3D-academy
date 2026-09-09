@@ -1,16 +1,18 @@
 "use client";
 
 import { Suspense, useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { useSearchParams } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 import Link from "next/link";
 import Image from "next/image";
 import { ArrowLeft, Boxes, Eye, EyeOff, Factory, History, Loader2, Minus, Plus, ShoppingBag, X } from "lucide-react";
+import { useBarcodeScanHandler } from "@/components/barcode/BarcodeScannerProvider";
 import { Dialog } from "@/components/ui/dialog";
 import { Card } from "@/components/ui/card";
 import { SectionTitle } from "@/components/ui/section-title";
 import { useAppFeedback } from "@/components/ui/app-feedback";
 import { usePublishStampyScreenContext } from "@/components/stampy/StampyContextProvider";
 import type { StampyScreenContext } from "@/lib/stampy/screen-context";
+import { normalizeBarcode } from "@/lib/barcode/hid-scanner";
 import {
   resolveBusinessCatalogStock,
   type BusinessCatalogItem,
@@ -43,6 +45,7 @@ const emptyResaleForm = {
 };
 
 function CatalogoContent() {
+  const router = useRouter();
   const searchParams = useSearchParams();
   const { toast } = useAppFeedback();
   const [items, setItems] = useState<BusinessCatalogItem[]>([]);
@@ -59,7 +62,9 @@ function CatalogoContent() {
   const [adjustmentQuantity, setAdjustmentQuantity] = useState("1");
   const [adjustmentReason, setAdjustmentReason] = useState("");
   const [adjusting, setAdjusting] = useState(false);
+  const [scannedCatalogItemId, setScannedCatalogItemId] = useState<string | null>(null);
   const adjustmentAttemptRef = useRef<string | null>(null);
+  const handledBarcodePrefillRef = useRef<string | null>(null);
   const [resaleForm, setResaleForm] = useState(emptyResaleForm);
   const [manufacturedForm, setManufacturedForm] = useState({
     sourceProductId: "",
@@ -96,9 +101,20 @@ function CatalogoContent() {
         }));
         setManufacturedOpen(true);
       }
+      const requestedBarcode = normalizeBarcode(searchParams.get("barcode") ?? "");
+      if (
+        searchParams.get("crear") === "reventa"
+        && requestedBarcode
+        && handledBarcodePrefillRef.current !== requestedBarcode
+      ) {
+        handledBarcodePrefillRef.current = requestedBarcode;
+        setResaleForm((current) => ({ ...current, barcode: requestedBarcode }));
+        setResaleOpen(true);
+        router.replace("/mi-negocio/catalogo", { scroll: false });
+      }
     }
     setLoading(false);
-  }, [searchParams]);
+  }, [router, searchParams]);
 
   const loadWorkspace = useCallback(async () => {
     const result = await loadBusinessOperationsAction();
@@ -121,6 +137,44 @@ function CatalogoContent() {
     () => products.filter((product) => product.is_active && !linkedProductIds.has(product.id)),
     [linkedProductIds, products],
   );
+  const scannedCatalogItem = items.find((item) => item.id === scannedCatalogItemId) ?? null;
+
+  const handleCatalogBarcode = useCallback((rawBarcode: string) => {
+    const barcode = normalizeBarcode(rawBarcode);
+    const found = items.find((item) => normalizeBarcode(item.barcode ?? "").toLowerCase() === barcode.toLowerCase());
+    if (found) {
+      setScannedCatalogItemId(found.id);
+      toast.info(`${found.name} encontrado en el catálogo.`);
+      return;
+    }
+
+    setScannedCatalogItemId(null);
+    setResaleForm({ ...emptyResaleForm, barcode });
+    setResaleOpen(true);
+    toast.info("Código nuevo: completá los datos para agregarlo al catálogo.");
+  }, [items, toast]);
+
+  useBarcodeScanHandler({
+    id: "business-catalog",
+    route: "/mi-negocio/catalogo",
+    priority: 100,
+    enabled: !loading,
+    onScan: (scan) => handleCatalogBarcode(scan.value),
+  });
+
+  useEffect(() => {
+    if (!scannedCatalogItemId) return;
+    const frame = window.requestAnimationFrame(() => {
+      const card = document.getElementById(`catalog-item-${scannedCatalogItemId}`);
+      card?.scrollIntoView({ behavior: "smooth", block: "center" });
+      card?.focus({ preventScroll: true });
+    });
+    const timeout = window.setTimeout(() => setScannedCatalogItemId(null), 2_500);
+    return () => {
+      window.cancelAnimationFrame(frame);
+      window.clearTimeout(timeout);
+    };
+  }, [scannedCatalogItemId]);
 
   const stampyContext = useMemo<StampyScreenContext>(() => ({
     page: { section: "business", route: "/mi-negocio/catalogo", title: "Catálogo de Mi Negocio" },
@@ -132,6 +186,14 @@ function CatalogoContent() {
       facts: [
         { label: "Origen", value: "Reventa" },
         { label: "Stock visible", value: resolveBusinessCatalogStock(adjustmentItem, products) ?? 0 },
+      ],
+    } : scannedCatalogItem ? {
+      type: "business_catalog_item",
+      id: scannedCatalogItem.id,
+      name: scannedCatalogItem.name,
+      facts: [
+        { label: "Origen", value: scannedCatalogItem.source_type === "manufactured" ? "Fabricado" : "Reventa" },
+        { label: "Stock visible", value: resolveBusinessCatalogStock(scannedCatalogItem, products) ?? "No disponible" },
       ],
     } : null,
     visibleEntities: items.slice(0, 20).map((item, index) => ({
@@ -161,7 +223,7 @@ function CatalogoContent() {
         activeDialog: adjustmentItem ? "Ajustar stock de reventa" : resaleOpen ? "Nuevo producto de reventa" : "Agregar producto fabricado",
       } : {}),
     },
-  }), [adjustmentItem, items, loading, manufacturedOpen, products, resaleOpen]);
+  }), [adjustmentItem, items, loading, manufacturedOpen, products, resaleOpen, scannedCatalogItem]);
   usePublishStampyScreenContext(stampyContext);
 
   const closeManufactured = () => {
@@ -311,7 +373,13 @@ function CatalogoContent() {
             const stock = resolveBusinessCatalogStock(item, products);
             const image = item.image_urls?.[0];
             return (
-              <Card key={item.id} className={`overflow-hidden p-4 ${item.is_active ? "" : "opacity-60"}`}>
+              <div
+                key={item.id}
+                id={`catalog-item-${item.id}`}
+                tabIndex={-1}
+                className="rounded-2xl outline-none"
+              >
+              <Card className={`overflow-hidden p-4 transition-all ${item.is_active ? "" : "opacity-60"} ${scannedCatalogItemId === item.id ? "border-stampa-orange ring-2 ring-stampa-orange/25" : ""}`}>
                 <div className="flex gap-3">
                   {image ? (
                     <Image unoptimized src={image} alt="" width={64} height={64} className="h-16 w-16 shrink-0 rounded-xl border border-stampa-border object-cover" />
@@ -353,6 +421,7 @@ function CatalogoContent() {
                   )}
                 </div>
               </Card>
+              </div>
             );
           })}
         </div>

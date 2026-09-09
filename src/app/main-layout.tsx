@@ -14,6 +14,7 @@ import {
   getCurrentUserAccess,
   type UserAccessSnapshot,
 } from "@/lib/auth/user-access";
+import { BarcodeScannerProvider } from "@/components/barcode/BarcodeScannerProvider";
 
 export function MainLayout({ children }: { children: React.ReactNode }) {
   const [mobileToolsOpen, setMobileToolsOpen] = useState(false);
@@ -54,7 +55,10 @@ export function MainLayout({ children }: { children: React.ReactNode }) {
   }
 
   return (
-    <StampyContextProvider>
+    <BarcodeScannerProvider
+      enabled={!accessLoading && userAccess?.capabilities.accessPlatform === true}
+    >
+      <StampyContextProvider>
       <div className="flex min-h-screen w-full min-w-0 overflow-x-clip bg-stampa-bg text-[#ededed] font-sans">
         <Suspense fallback={<aside className="hidden w-64 shrink-0 border-r border-stampa-border bg-stampa-bg lg:block" />}>
           <Sidebar access={userAccess} loading={accessLoading} />
@@ -76,6 +80,7 @@ export function MainLayout({ children }: { children: React.ReactNode }) {
           onToolsOpenChange={setMobileToolsOpen}
         />
       </div>
-    </StampyContextProvider>
+      </StampyContextProvider>
+    </BarcodeScannerProvider>
   );
 }
