@@ -4,6 +4,7 @@ import React, { useState, useEffect } from "react";
 import { createPortal } from "react-dom";
 import { X, Search, Loader2, Printer } from "lucide-react";
 import { createClient } from "@/utils/supabase/client";
+import { PrinterCatalogImage } from "@/components/printers/PrinterCatalogImage";
 
 interface PrinterCatalogModalProps {
   onClose: () => void;
@@ -217,6 +218,7 @@ export function PrinterCatalogModal({ onClose, onSelect, userId }: PrinterCatalo
                       className={`bg-stampa-bg border hover:border-stampa-orange/50 rounded-xl p-4 flex flex-col justify-between transition-all group ${isAdded ? 'border-stampa-orange/30 shadow-[0_0_15px_rgba(255,106,0,0.05)]' : 'border-stampa-border'}`}
                     >
                       <div>
+                        <PrinterCatalogImage imagePath={t.image_path} alt={t.name} className="mb-3 aspect-[4/3] w-full rounded-lg border border-stampa-border" />
                         <div className="flex justify-between items-start mb-1">
                           <h4 className="font-bold text-white text-base leading-tight pr-2">{t.name}</h4>
                           {isAdded && (

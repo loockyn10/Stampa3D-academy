@@ -2,12 +2,13 @@
 
 import React, { useState, useEffect, useMemo } from "react";
 import { createClient } from "@/utils/supabase/client";
-import { Plus, Edit2, Save, Loader2, AlertCircle, Printer as PrinterIcon, Trash2 } from "lucide-react";
+import { Plus, Edit2, Save, Loader2, AlertCircle, Trash2 } from "lucide-react";
 import { TableSkeleton } from "@/components/ui/page-skeletons";
 import { Card } from "@/components/ui/card";
 import { useAppFeedback } from "@/components/ui/app-feedback";
 import { usePublishStampyScreenContext } from "@/components/stampy/StampyContextProvider";
 import type { StampyScreenContext } from "@/lib/stampy/screen-context";
+import { PrinterCatalogImage } from "@/components/printers/PrinterCatalogImage";
 
 export function PrintersManager() {
   const supabase = createClient();
@@ -82,7 +83,7 @@ export function PrintersManager() {
         .order("created_at", { ascending: false }),
       supabase
         .from("printer_templates")
-        .select("id, name, brand, model, printer_type, bed_size_x_mm, bed_size_y_mm, bed_size_z_mm")
+        .select("id, name, brand, model, printer_type, bed_size_x_mm, bed_size_y_mm, bed_size_z_mm, image_path")
         .eq("is_active", true),
     ]);
 
@@ -217,10 +218,12 @@ export function PrintersManager() {
             <PrinterEditor key={p.id} formData={formData} setFormData={setFormData} onSave={handleSave} onCancel={() => setEditingId(null)} />
           ) : (
             <Card key={p.id} className="p-4 flex flex-col hover:border-stampa-orange/30 transition-colors">
+              <PrinterCatalogImage
+                imagePath={template?.image_path}
+                alt={template?.name || p.name || "Impresora"}
+                className="mb-4 aspect-[4/3] w-full rounded-xl border border-stampa-border"
+              />
               <div className="mb-4 flex gap-3">
-                <div className="flex h-16 w-16 shrink-0 items-center justify-center rounded-xl border border-stampa-border bg-stampa-bg-soft text-stampa-orange">
-                  <PrinterIcon size={27} />
-                </div>
                 <div className="min-w-0 flex-1">
                   <div className="flex items-start justify-between gap-2">
                     <div className="min-w-0">
@@ -296,6 +299,7 @@ export function PrintersManager() {
                       const alreadyAdded = printers.some(p => p.source_template_id === t.id);
                       return (
                         <Card key={t.id} className="p-4 flex flex-col hover:border-stampa-orange/30 transition-colors bg-stampa-surface">
+                          <PrinterCatalogImage imagePath={t.image_path} alt={t.name} className="mb-3 aspect-[4/3] w-full rounded-lg border border-stampa-border" />
                           <div className="flex-1">
                             <h4 className="font-bold text-white text-sm">{t.name}</h4>
                             <p className="text-xs text-gray-500 mb-2">{t.brand} {t.model}</p>

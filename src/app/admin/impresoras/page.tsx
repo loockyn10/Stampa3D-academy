@@ -2,15 +2,24 @@
 
 import React, { useState, useEffect } from "react";
 import { createClient } from "@/utils/supabase/client";
-import { Plus, Edit2, Save, X, Loader2, AlertCircle } from "lucide-react";
+import { Plus, Edit2, Save, X, Loader2, AlertCircle, Trash2 } from "lucide-react";
+import { FileUploadDropzone } from "@/components/ui/file-upload-dropzone";
+import { PrinterCatalogImage } from "@/components/printers/PrinterCatalogImage";
+import { getPrinterCatalogImageEditorConfig } from "@/lib/images/presets";
+import { parseStorageReference } from "@/lib/storage";
+import { PRINTER_CATALOG_IMAGES_BUCKET } from "@/lib/printers/catalog-image";
 
 export default function AdminPrintersPage() {
   const supabase = createClient();
   const [templates, setTemplates] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
+  const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
   const [editingId, setEditingId] = useState<string | null>(null);
+  const [uploadPathId, setUploadPathId] = useState<string | null>(null);
+  const [persistedImagePath, setPersistedImagePath] = useState<string | null>(null);
+  const [pendingImagePath, setPendingImagePath] = useState<string | null>(null);
   const [formData, setFormData] = useState({
     brand: "",
     model: "",
@@ -24,6 +33,7 @@ export default function AdminPrintersPage() {
     notes: "",
     is_active: true,
     sort_order: 0,
+    image_path: null as string | null,
   });
 
   useEffect(() => {
@@ -57,8 +67,12 @@ export default function AdminPrintersPage() {
       notes: t.notes || "",
       is_active: t.is_active,
       sort_order: t.sort_order || 0,
+      image_path: t.image_path || null,
     });
     setEditingId(t.id);
+    setUploadPathId(t.id);
+    setPersistedImagePath(t.image_path || null);
+    setPendingImagePath(null);
   };
 
   const handleCreateNew = () => {
@@ -75,11 +89,73 @@ export default function AdminPrintersPage() {
       notes: "",
       is_active: true,
       sort_order: 0,
+      image_path: null,
     });
     setEditingId("new");
+    setUploadPathId(crypto.randomUUID());
+    setPersistedImagePath(null);
+    setPendingImagePath(null);
+  };
+
+  const removeStoredImage = async (path: string) => {
+    const { error: storageError } = await supabase.storage
+      .from(PRINTER_CATALOG_IMAGES_BUCKET)
+      .remove([path]);
+    if (storageError) throw storageError;
+  };
+
+  const closeEditor = async () => {
+    if (pendingImagePath && pendingImagePath !== persistedImagePath) {
+      try {
+        await removeStoredImage(pendingImagePath);
+      } catch (cleanupError) {
+        console.error("Could not clean up unsaved printer catalog image", cleanupError);
+      }
+    }
+    setEditingId(null);
+    setUploadPathId(null);
+    setPersistedImagePath(null);
+    setPendingImagePath(null);
+  };
+
+  const handleImageUploaded = async (reference: string) => {
+    const parsed = parseStorageReference(reference);
+    if (!parsed || parsed.bucket !== PRINTER_CATALOG_IMAGES_BUCKET || !uploadPathId) {
+      setError("La imagen se subió con una referencia inválida.");
+      return;
+    }
+    if (!parsed.path.startsWith(`printer-templates/${uploadPathId}/`)) {
+      setError("La ruta de la imagen no corresponde a este modelo.");
+      return;
+    }
+
+    if (pendingImagePath && pendingImagePath !== parsed.path && pendingImagePath !== persistedImagePath) {
+      try {
+        await removeStoredImage(pendingImagePath);
+      } catch (cleanupError) {
+        console.error("Could not clean up replaced printer catalog image", cleanupError);
+      }
+    }
+    setPendingImagePath(parsed.path);
+    setFormData((current) => ({ ...current, image_path: parsed.path }));
+  };
+
+  const handleRemoveImage = async () => {
+    if (pendingImagePath && pendingImagePath !== persistedImagePath) {
+      try {
+        await removeStoredImage(pendingImagePath);
+      } catch (cleanupError) {
+        setError("No se pudo eliminar la imagen recién subida.");
+        return;
+      }
+    }
+    setPendingImagePath(null);
+    setFormData((current) => ({ ...current, image_path: null }));
   };
 
   const handleSave = async () => {
+    if (saving || !uploadPathId) return;
+    setSaving(true);
     setError(null);
     const payload = {
       brand: formData.brand,
@@ -94,23 +170,46 @@ export default function AdminPrintersPage() {
       notes: formData.notes,
       is_active: formData.is_active,
       sort_order: parseInt(String(formData.sort_order)) || 0,
+      image_path: formData.image_path,
     };
 
     if (editingId === "new") {
-      const { data, error } = await supabase.from("printer_templates").insert([payload]).select().single();
-      if (error) setError(error.message);
+      const { data, error } = await supabase.from("printer_templates").insert([{ id: uploadPathId, ...payload }]).select().single();
+      if (error) {
+        setError(error.message);
+        setSaving(false);
+        return;
+      }
       else {
         setTemplates([data, ...templates]);
         setEditingId(null);
+        setUploadPathId(null);
+        setPendingImagePath(null);
       }
     } else {
       const { data, error } = await supabase.from("printer_templates").update(payload).eq("id", editingId).select().single();
-      if (error) setError(error.message);
+      if (error) {
+        setError(error.message);
+        setSaving(false);
+        return;
+      }
       else {
         setTemplates(templates.map((t) => (t.id === editingId ? data : t)));
         setEditingId(null);
+        setUploadPathId(null);
+        setPendingImagePath(null);
       }
     }
+
+    if (persistedImagePath && persistedImagePath !== formData.image_path) {
+      try {
+        await removeStoredImage(persistedImagePath);
+      } catch (cleanupError) {
+        console.error("Could not clean up previous printer catalog image", cleanupError);
+      }
+    }
+    setPersistedImagePath(null);
+    setSaving(false);
   };
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement>) => {
@@ -147,7 +246,7 @@ export default function AdminPrintersPage() {
         <div className="bg-stampa-surface p-6 rounded-xl border border-stampa-orange/30 shadow-sm ring-1 ring-orange-100 mb-6">
           <div className="flex justify-between items-center mb-4">
             <h3 className="text-lg font-bold text-white">{editingId === "new" ? "Nueva Plantilla" : "Editar Plantilla"}</h3>
-            <button onClick={() => setEditingId(null)} className="text-gray-400 hover:text-gray-300">
+            <button onClick={() => void closeEditor()} className="text-gray-400 hover:text-gray-300" disabled={saving}>
               <X size={20} />
             </button>
           </div>
@@ -200,6 +299,39 @@ export default function AdminPrintersPage() {
               <textarea name="notes" value={formData.notes} onChange={handleChange} rows={2} className="w-full text-sm border-stampa-border rounded-md bg-stampa-surface border focus:border-[#ff6a00] focus:ring-[#ff6a00]/20 focus:ring-2 placeholder:text-neutral-500 disabled:bg-neutral-800 disabled:text-neutral-500"></textarea>
             </div>
 
+            <div className="space-y-3 md:col-span-2">
+              <div>
+                <label className="block text-xs font-semibold text-gray-300">Imagen de la impresora</label>
+                <p className="mt-1 text-xs text-gray-500">Formato 4:3. Procurá que la impresora quede completa y centrada.</p>
+              </div>
+              {formData.image_path && (
+                <div className="relative aspect-[4/3] w-full max-w-xs overflow-hidden rounded-xl border border-stampa-border">
+                  <PrinterCatalogImage imagePath={formData.image_path} alt={formData.name || "Impresora del catálogo"} className="h-full w-full" />
+                  <button
+                    type="button"
+                    onClick={() => void handleRemoveImage()}
+                    className="absolute right-2 top-2 inline-flex min-h-10 items-center gap-1.5 rounded-lg bg-red-500/90 px-3 text-xs font-bold text-white shadow-lg hover:bg-red-500"
+                  >
+                    <Trash2 size={15} /> Eliminar imagen
+                  </button>
+                </div>
+              )}
+              {uploadPathId && (
+                <FileUploadDropzone
+                  key={uploadPathId}
+                  bucket={PRINTER_CATALOG_IMAGES_BUCKET}
+                  pathPrefix={`printer-templates/${uploadPathId}`}
+                  accept="image/jpeg,image/png,image/webp"
+                  maxSizeMb={5}
+                  publicBucket={false}
+                  label={formData.image_path ? "Reemplazar imagen" : "Subir imagen"}
+                  helperText="Arrastrá una foto o seleccionála desde tu equipo"
+                  imageEditor={getPrinterCatalogImageEditorConfig(formData.name || "Impresora")}
+                  onUploaded={(reference) => void handleImageUploaded(reference)}
+                />
+              )}
+            </div>
+
             <div className="flex items-center gap-4 mt-2">
               <label className="flex items-center gap-2 text-sm text-gray-300 cursor-pointer">
                 <input type="checkbox" name="is_active" checked={formData.is_active} onChange={handleChange} className="rounded text-stampa-orange focus:ring-[#ff6a00]/20 border-white/20" />
@@ -214,8 +346,8 @@ export default function AdminPrintersPage() {
             </div>
           </div>
           <div className="flex justify-end pt-4 border-t border-stampa-border">
-            <button onClick={handleSave} className="flex items-center gap-2 bg-stampa-orange/100 hover:bg-stampa-orange text-white px-5 py-2.5 rounded-lg text-sm font-semibold transition-colors">
-              <Save size={16} /> Guardar
+            <button onClick={handleSave} disabled={saving} className="flex items-center gap-2 bg-stampa-orange/100 hover:bg-stampa-orange text-white px-5 py-2.5 rounded-lg text-sm font-semibold transition-colors disabled:opacity-50">
+              {saving ? <Loader2 size={16} className="animate-spin" /> : <Save size={16} />} Guardar
             </button>
           </div>
         </div>
@@ -226,6 +358,7 @@ export default function AdminPrintersPage() {
           <table className="w-full">
             <thead className="bg-stampa-bg-soft border-b border-stampa-border">
               <tr>
+                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Imagen</th>
                 <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Nombre / Marca</th>
                 <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Specs</th>
                 <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Estado</th>
@@ -235,13 +368,16 @@ export default function AdminPrintersPage() {
             <tbody className="divide-y divide-white/10">
               {templates.length === 0 ? (
                 <tr>
-                  <td colSpan={4} className="px-6 py-8 text-center text-sm text-gray-500">
+                  <td colSpan={5} className="px-6 py-8 text-center text-sm text-gray-500">
                     No hay plantillas creadas.
                   </td>
                 </tr>
               ) : (
                 templates.map((t) => (
                   <tr key={t.id} className="hover:bg-stampa-bg-soft/50 transition-colors">
+                    <td className="px-6 py-3">
+                      <PrinterCatalogImage imagePath={t.image_path} alt={t.name} className="h-16 w-20 rounded-lg border border-stampa-border" />
+                    </td>
                     <td className="px-6 py-4">
                       <div className="font-semibold text-white">{t.name}</div>
                       <div className="text-xs text-gray-500">{t.brand} {t.model}</div>
