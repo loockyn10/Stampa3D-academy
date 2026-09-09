@@ -289,7 +289,11 @@ export async function recalculateProductPriceAction(productId: string) {
       context,
       source: "manual_recalculate",
     });
-    if (result.success) revalidatePath("/productos");
+    if (result.success) {
+      revalidatePath("/productos");
+      revalidatePath("/mi-taller/productos");
+      revalidatePath("/mi-taller/inventario");
+    }
     return result;
   } catch (error) {
     return {
@@ -321,6 +325,8 @@ export async function recalculateAllProductPricesAction() {
     }
 
     revalidatePath("/productos");
+    revalidatePath("/mi-taller/productos");
+    revalidatePath("/mi-taller/inventario");
     return {
       success: failures.length === 0,
       total: context.products.length,
@@ -442,5 +448,7 @@ export async function deleteProductAction(productId: string) {
   }
 
   revalidatePath("/productos");
+  revalidatePath("/mi-taller/productos");
+  revalidatePath("/mi-taller/inventario");
   return { success: true as const, productId: archivedProduct.id };
 }

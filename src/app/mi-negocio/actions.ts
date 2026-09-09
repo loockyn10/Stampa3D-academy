@@ -98,6 +98,8 @@ function revalidateBusinessPages() {
   revalidatePath("/mi-negocio/catalogo");
   revalidatePath("/mi-negocio/inventario");
   revalidatePath("/productos");
+  revalidatePath("/mi-taller/productos");
+  revalidatePath("/mi-taller/inventario");
 }
 
 export async function loadBusinessWorkspaceAction(): Promise<

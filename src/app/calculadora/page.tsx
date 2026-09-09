@@ -803,7 +803,7 @@ function CalculadoraPageContent() {
                     Elegir filamento del catálogo
                   </button>
                 )}
-                <Link href="/configuracion?tab=taller" className="text-center inline-block bg-stampa-orange text-white text-xs font-semibold px-3 py-1.5 rounded-lg hover:bg-stampa-orange-hover transition-colors shadow-sm shadow-[#ff6a00]/20 w-full sm:w-auto">
+                <Link href="/mi-taller/impresoras" className="text-center inline-block bg-stampa-orange text-white text-xs font-semibold px-3 py-1.5 rounded-lg hover:bg-stampa-orange-hover transition-colors shadow-sm shadow-[#ff6a00]/20 w-full sm:w-auto">
                   Ir a Configuración
                 </Link>
               </div>
@@ -1129,7 +1129,7 @@ function CalculadoraPageContent() {
               <p className="font-bold text-white text-lg mb-1">¡Producto guardado!</p>
               <p className="text-sm text-gray-400 mb-8">El producto fue agregado a tu catálogo.</p>
               <div className="flex gap-3 justify-center">
-                <Link href="/productos" className="px-5 py-2.5 bg-stampa-orange text-white rounded-xl text-sm font-bold hover:bg-stampa-orange-hover transition-colors shadow-lg shadow-[#ff6a00]/20">
+                <Link href="/mi-taller/productos" className="px-5 py-2.5 bg-stampa-orange text-white rounded-xl text-sm font-bold hover:bg-stampa-orange-hover transition-colors shadow-lg shadow-[#ff6a00]/20">
                   Ver catálogo
                 </Link>
                 <button onClick={() => setShowSaveModal(false)} className="px-5 py-2.5 bg-[#1a1a1a] border border-stampa-border text-white rounded-xl text-sm font-bold hover:bg-white/5 transition-colors">

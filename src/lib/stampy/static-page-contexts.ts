@@ -19,6 +19,45 @@ export function getStaticStampyPageContext(pathname: string): StampyStaticPageCo
       ],
     },
     {
+      pattern: "/mi-taller/impresoras",
+      match: "exact",
+      title: "Mi Taller · Impresoras",
+      context:
+        "El usuario está administrando las impresoras de su taller. Ayudalo a interpretar la impresora visible, potencia, mantenimiento, estado y catálogo de modelos sin inventar especificaciones.",
+      suggestedQuestions: ["¿Qué impresora tengo cargada?", "¿Qué datos conviene configurar?", "¿Cómo influye en mis costos?"],
+    },
+    {
+      pattern: "/mi-taller/filamentos",
+      match: "exact",
+      title: "Mi Taller · Filamentos",
+      context:
+        "El usuario está gestionando bobinas y stock de filamentos. Ayudalo con gramos disponibles, entradas, salidas, filtros y consumo por receta usando sólo datos actuales.",
+      suggestedQuestions: ["¿Qué filamentos tengo cargados?", "Descontame 20g de PLA", "¿Qué material está bajo?"],
+    },
+    {
+      pattern: "/mi-taller/productos",
+      match: "exact",
+      title: "Mi Taller · Productos",
+      context:
+        "El usuario está gestionando la definición productiva de sus productos: receta, componentes, filamentos, tiempo, costo y precio calculado. El stock visible es contextual; los movimientos se gestionan en Inventario.",
+      suggestedQuestions: ["¿Cómo está formada esta receta?", "¿Necesita recalcularse?", "¿Cuánto puedo fabricar?"],
+    },
+    {
+      pattern: "/mi-taller/inventario",
+      match: "exact",
+      title: "Mi Taller · Inventario",
+      context:
+        "El usuario está gestionando unidades terminadas de productos fabricados. Registrar producción descuenta filamentos por la receta y suma stock terminado; un ajuste manual cambia unidades sin consumir material.",
+      suggestedQuestions: ["¿Cuántas unidades tengo?", "¿Cómo registro producción?", "¿Qué diferencia hay con un ajuste manual?"],
+    },
+    {
+      pattern: "/mi-taller",
+      match: "prefix",
+      title: "Mi Taller",
+      context:
+        "Mi Taller concentra fabricación: impresoras, filamentos, definición productiva e inventario terminado.",
+    },
+    {
       pattern: "/calculadora",
       match: "exact",
       title: "Calculadora",
@@ -131,7 +170,7 @@ export function getStaticStampyPageContext(pathname: string): StampyStaticPageCo
       match: "exact",
       title: "Configuración",
       context:
-        "El usuario está configurando su taller, perfil, impresoras, filamentos y datos de cálculo. Ayudalo a cargar datos correctamente.",
+        "El usuario está configurando su cuenta, negocio, datos de cálculo y preferencias. Impresoras y filamentos se administran en Mi Taller.",
       suggestedQuestions: [
         "¿Qué datos tengo que cargar?",
         "¿Cómo configuro mi impresora?",

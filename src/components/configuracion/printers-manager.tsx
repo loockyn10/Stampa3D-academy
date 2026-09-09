@@ -1,11 +1,13 @@
 "use client";
 
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useMemo } from "react";
 import { createClient } from "@/utils/supabase/client";
-import { Plus, Edit2, Save, Loader2, AlertCircle, Trash2 } from "lucide-react";
+import { Plus, Edit2, Save, Loader2, AlertCircle, Printer as PrinterIcon, Trash2 } from "lucide-react";
 import { TableSkeleton } from "@/components/ui/page-skeletons";
 import { Card } from "@/components/ui/card";
 import { useAppFeedback } from "@/components/ui/app-feedback";
+import { usePublishStampyScreenContext } from "@/components/stampy/StampyContextProvider";
+import type { StampyScreenContext } from "@/lib/stampy/screen-context";
 
 export function PrintersManager() {
   const supabase = createClient();
@@ -28,6 +30,41 @@ export function PrintersManager() {
   const [loadingTemplates, setLoadingTemplates] = useState(false);
   const [searchQuery, setSearchQuery] = useState("");
 
+  const stampyContext = useMemo<StampyScreenContext>(() => {
+    const editingPrinter = editingId && editingId !== "new"
+      ? printers.find((printer) => printer.id === editingId)
+      : null;
+
+    return {
+      page: { section: "workshop", route: "/mi-taller/impresoras", title: "Mi Taller · Impresoras" },
+      mode: editingId === "new" ? "create_printer" : editingPrinter ? "edit_printer" : showCatalog ? "printer_catalog" : "printers",
+      selectedEntity: editingPrinter ? {
+        type: "printer",
+        id: String(editingPrinter.id),
+        name: String(editingPrinter.name || "Impresora"),
+        facts: [
+          { label: "Potencia visible", value: Number(editingPrinter.power_watts || 0) },
+          { label: "Mantenimiento por hora visible", value: Number(editingPrinter.maintenance_cost_per_hour || 0) },
+          { label: "Estado", value: editingPrinter.is_active ? "Activa" : "Inactiva" },
+        ],
+      } : null,
+      visibleEntities: printers.slice(0, 20).map((printer, index) => ({
+        type: "printer",
+        id: String(printer.id),
+        name: String(printer.name || "Impresora"),
+        position: index + 1,
+        facts: [
+          { label: "Potencia visible", value: Number(printer.power_watts || 0) },
+          { label: "Estado", value: printer.is_active ? "Activa" : "Inactiva" },
+        ],
+      })),
+      pageData: { kind: "pageFacts", facts: [{ label: "Impresoras cargadas", value: printers.length }] },
+      uiState: { loading, ...(editingId || showCatalog ? { activeDialog: showCatalog ? "Catálogo de impresoras" : editingId === "new" ? "Nueva impresora" : "Editar impresora" } : {}) },
+    };
+  }, [editingId, loading, printers, showCatalog]);
+
+  usePublishStampyScreenContext(stampyContext);
+
   useEffect(() => {
     fetchPrinters();
   }, []);
@@ -37,14 +74,21 @@ export function PrintersManager() {
     const { data: { user } } = await supabase.auth.getUser();
     if (!user) return;
 
-    const { data, error } = await supabase
-      .from("printers")
-      .select("*")
-      .eq("user_id", user.id)
-      .order("created_at", { ascending: false });
+    const [{ data, error }, { data: templateData }] = await Promise.all([
+      supabase
+        .from("printers")
+        .select("*")
+        .eq("user_id", user.id)
+        .order("created_at", { ascending: false }),
+      supabase
+        .from("printer_templates")
+        .select("id, name, brand, model, printer_type, bed_size_x_mm, bed_size_y_mm, bed_size_z_mm")
+        .eq("is_active", true),
+    ]);
 
     if (error) setError(error.message);
     else setPrinters(data || []);
+    if (templateData) setTemplates(templateData);
     setLoading(false);
   };
 
@@ -167,20 +211,32 @@ export function PrintersManager() {
           <PrinterEditor formData={formData} setFormData={setFormData} onSave={handleSave} onCancel={() => setEditingId(null)} />
         )}
 
-        {printers.map((p) => (
-          editingId === p.id ? (
+        {printers.map((p) => {
+          const template = templates.find((candidate) => candidate.id === p.source_template_id);
+          return editingId === p.id ? (
             <PrinterEditor key={p.id} formData={formData} setFormData={setFormData} onSave={handleSave} onCancel={() => setEditingId(null)} />
           ) : (
             <Card key={p.id} className="p-4 flex flex-col hover:border-stampa-orange/30 transition-colors">
-              <div className="flex justify-between items-start mb-2">
-                <h4 className="font-bold text-white">{p.name}</h4>
-                <div className="flex gap-2">
-                  <button onClick={() => { setFormData(p); setEditingId(p.id); }} className="text-gray-400 hover:text-stampa-orange transition-colors">
-                    <Edit2 size={16} />
-                  </button>
-                  <button onClick={() => handleDelete(p)} className="text-red-400 hover:text-red-300 hover:bg-red-500/10 p-1 rounded transition-colors" title="Eliminar impresora">
-                    <Trash2 size={16} />
-                  </button>
+              <div className="mb-4 flex gap-3">
+                <div className="flex h-16 w-16 shrink-0 items-center justify-center rounded-xl border border-stampa-border bg-stampa-bg-soft text-stampa-orange">
+                  <PrinterIcon size={27} />
+                </div>
+                <div className="min-w-0 flex-1">
+                  <div className="flex items-start justify-between gap-2">
+                    <div className="min-w-0">
+                      <h4 className="truncate font-bold text-white">{p.name}</h4>
+                      {template && <p className="mt-1 truncate text-xs text-gray-500">{template.brand || "Catálogo Stampa"}{template.model ? ` · ${template.model}` : ""}</p>}
+                    </div>
+                    <div className="flex shrink-0 gap-1">
+                      <button onClick={() => { setFormData(p); setEditingId(p.id); }} className="rounded p-1 text-gray-400 transition-colors hover:bg-white/5 hover:text-stampa-orange" aria-label={`Editar ${p.name}`}>
+                        <Edit2 size={16} />
+                      </button>
+                      <button onClick={() => handleDelete(p)} className="rounded p-1 text-red-400 transition-colors hover:bg-red-500/10 hover:text-red-300" title="Eliminar impresora" aria-label={`Eliminar ${p.name}`}>
+                        <Trash2 size={16} />
+                      </button>
+                    </div>
+                  </div>
+                  {template?.printer_type && <p className="mt-2 text-[11px] font-semibold uppercase tracking-wide text-gray-500">{template.printer_type}</p>}
                 </div>
               </div>
               <div className="text-sm text-gray-500 space-y-1 mb-4 flex-1">
@@ -194,7 +250,7 @@ export function PrintersManager() {
               </div>
             </Card>
           )
-        ))}
+        })}
         {printers.length === 0 && editingId !== "new" && (
           <div className="col-span-full py-12 text-center bg-stampa-bg-soft rounded-xl border border-dashed border-white/20">
             <p className="text-sm text-gray-500">No tienes impresoras registradas.</p>

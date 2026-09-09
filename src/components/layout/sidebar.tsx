@@ -5,15 +5,9 @@ import Image from "next/image";
 import { usePathname, useSearchParams } from "next/navigation";
 import {
   BookOpen,
-  Barcode,
   Gift,
   Calculator,
   Boxes,
-  FileText,
-  Package,
-  PackageCheck,
-  ReceiptText,
-  Archive,
   User,
   Settings,
   LogOut,
@@ -21,11 +15,8 @@ import {
   Sparkles,
   Globe,
   Users,
-  Factory,
   Printer,
-  ShoppingBag,
   Store,
-  Warehouse,
 } from "lucide-react";
 import type { UserAccessSnapshot } from "@/lib/auth/user-access";
 
@@ -39,39 +30,17 @@ const NAV_GROUPS = [
     group: "Plataforma",
     items: [
       { path: "/stampy", label: "Stampy IA", icon: Sparkles },
+      { path: "/calculadora", label: "Calculadora", icon: Calculator },
       { path: "/sorteos", label: "Sorteos", icon: Gift },
       { path: "/libreria-stl", label: "Librería STL", icon: Boxes },
     ],
   },
   {
-    group: "Academia",
+    group: "Áreas",
     items: [
       { path: "/academia", label: "Academia", icon: BookOpen },
-      { path: "/cursos", label: "Cursos", icon: BookOpen },
-      { path: "/talleres", label: "Talleres", icon: Factory },
-    ],
-  },
-  {
-    group: "Mi taller",
-    items: [
-      { path: "/configuracion?tab=taller", label: "Impresoras", icon: Printer },
-      { path: "/stock?tab=filamentos", label: "Filamentos", icon: Archive },
-      { path: "/productos", label: "Productos fabricados", icon: Package },
-      { path: "/calculadora", label: "Calculadora", icon: Calculator },
-      { path: "/stock?tab=productos", label: "Producción", icon: Factory },
-    ],
-  },
-  {
-    group: "Mi negocio",
-    items: [
-      { path: "/mi-negocio", label: "Resumen", icon: Store },
-      { path: "/mi-negocio/venta-rapida", label: "Venta rápida", icon: Barcode },
-      { path: "/mi-negocio/catalogo", label: "Catálogo", icon: ShoppingBag },
-      { path: "/mi-negocio/inventario", label: "Inventario", icon: Warehouse },
-      { path: "/mi-negocio/ventas", label: "Ventas", icon: ReceiptText },
-      { path: "/mi-negocio/pedidos", label: "Pedidos online", icon: PackageCheck },
-      { path: "/mi-negocio/tienda", label: "Mi Tienda", icon: Store },
-      { path: "/presupuestos", label: "Clientes y presupuestos", icon: FileText },
+      { path: "/mi-taller", label: "Mi Taller", icon: Printer },
+      { path: "/mi-negocio", label: "Mi Negocio", icon: Store },
     ],
   },
   {
@@ -104,10 +73,7 @@ export function Sidebar({ access, loading }: SidebarProps) {
       return pathname === "/";
     }
     if (pathname !== basePath && !pathname.startsWith(`${basePath}/`)) return false;
-    if (!query) {
-      if (basePath === "/mi-negocio") return pathname === "/mi-negocio";
-      return true;
-    }
+    if (!query) return true;
     const expected = new URLSearchParams(query);
     return Array.from(expected.entries()).every(([key, value]) => {
       const actual = searchParams.get(key);

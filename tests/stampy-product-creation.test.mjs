@@ -463,7 +463,7 @@ test("a similar active product disables confirmation", async () => {
   assert.equal(result.actionIntent.extracted.requiresConfirmation, false);
   assert.equal(result.actionIntent.extracted.duplicateStatus, "duplicate");
   assert.match(result.answer, /producto parecido/i);
-  assert.match(result.knowledgeTools[0].route, /^\/productos/);
+  assert.match(result.knowledgeTools[0].route, /^\/mi-taller\/productos/);
 });
 
 test("create_product always requires confirmation and never enters low-risk automation", async () => {

@@ -578,7 +578,7 @@ export function detectStampyActionIntent({
   // recipe can contain filament names and verbs such as "cargá" or "usa".
   if (looksLikeProductCreation(message)) {
     const productDetails = parseProductDetails(message);
-    const toolHref = buildToolHref("/productos", { action: "new" });
+    const toolHref = buildToolHref("/mi-taller/productos", { action: "new" });
     return {
       type: "create_product",
       confidence: productDetails.productName ? 0.92 : 0.75,
@@ -605,7 +605,7 @@ export function detectStampyActionIntent({
         actionType: "discount_product_filaments",
         items: productDiscountItems,
       },
-      toolHref: "/productos",
+      toolHref: "/mi-taller/productos",
       toolLabel: "Productos",
       canExecute: false,
       reason: "Matched a product recipe stock discount request.",
@@ -630,8 +630,7 @@ export function detectStampyActionIntent({
       const brandMatch = norm.match(/(w3d|elegoo|gst3d|grilon|printalot|hellbot|creality)/);
       const brand = brandMatch ? brandMatch[1].toUpperCase() : null;
 
-      const toolHref = buildToolHref("/stock", {
-        tab: "filamentos",
+      const toolHref = buildToolHref("/mi-taller/filamentos", {
         action: "discount",
         material,
         brand,
@@ -673,8 +672,7 @@ export function detectStampyActionIntent({
     const brand = brandMatch ? brandMatch[1].toUpperCase() : null;
 
     if (grams || material || color) {
-      const toolHref = buildToolHref("/stock", {
-        tab: "filamentos",
+      const toolHref = buildToolHref("/mi-taller/filamentos", {
         action: "increase",
         material,
         brand,
@@ -715,8 +713,7 @@ export function detectStampyActionIntent({
     const name = parseFilamentSubtype(message);
     const { totalGrams, assumed: totalGramsAssumed } = parseNewFilamentWeight(message);
 
-    const toolHref = buildToolHref("/stock", {
-      tab: "filamentos",
+    const toolHref = buildToolHref("/mi-taller/filamentos", {
       action: "add",
       material,
       brand,
@@ -761,7 +758,7 @@ export function detectStampyActionIntent({
       norm.includes("qidi"))
   ) {
     const printerDetails = parseNewPrinterDetails(message);
-    const toolHref = buildToolHref("/calculadora", {
+    const toolHref = buildToolHref("/mi-taller/impresoras", {
       action: "add_printer",
       printer: printerDetails.printerName,
     });
@@ -772,7 +769,7 @@ export function detectStampyActionIntent({
       summary: "Se detectó la intención de registrar una nueva impresora.",
       extracted: printerDetails,
       toolHref,
-      toolLabel: "Calculadora",
+      toolLabel: "Impresoras",
       canExecute: false,
       reason: "Matched add verbs with printer context."
     };
@@ -838,7 +835,7 @@ export function detectStampyActionIntent({
       title: "Actualizar stock general",
       summary: "Se detectó la intención de modificar las cantidades del stock.",
       extracted: {},
-      toolHref: "/stock",
+      toolHref: "/mi-taller/inventario",
       toolLabel: "Control de Stock",
       canExecute: false,
       reason: "Matched generic update stock verbs."

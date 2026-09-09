@@ -2,6 +2,10 @@
 -- Apply after 20260907213952_business_storefront.sql. This migration does not
 -- enable production payments and does not execute any external provider call.
 
+-- DDL should fail fast instead of waiting indefinitely behind application traffic.
+-- This does not replace the stable lock order used below.
+set lock_timeout = '10s';
+
 do $$
 begin
   if to_regclass('public.business_storefronts') is null then raise exception 'Missing dependency: public.business_storefronts'; end if;
@@ -21,7 +25,7 @@ $$;
 
 create table if not exists public.business_payment_accounts (
   id uuid primary key default gen_random_uuid(),
-  user_id uuid not null unique references auth.users(id) on delete cascade,
+  user_id uuid not null unique,
   provider text not null default 'mercado_pago',
   provider_user_id text,
   access_token_encrypted text,
@@ -48,7 +52,7 @@ create table if not exists public.business_payment_accounts (
 
 create table if not exists public.business_payment_oauth_states (
   id uuid primary key default gen_random_uuid(),
-  user_id uuid not null references auth.users(id) on delete cascade,
+  user_id uuid not null,
   provider text not null default 'mercado_pago',
   state_hash text not null unique,
   code_verifier_encrypted text not null,
@@ -63,7 +67,7 @@ create table if not exists public.business_payment_oauth_states (
 
 create table if not exists public.business_orders (
   id uuid primary key default gen_random_uuid(),
-  user_id uuid not null references auth.users(id) on delete restrict,
+  user_id uuid not null,
   order_number bigint not null,
   public_token uuid not null default gen_random_uuid(),
   status text not null default 'awaiting_payment',
@@ -84,7 +88,7 @@ create table if not exists public.business_orders (
   provider_checkout_url text,
   provider_checkout_status text not null default 'ready',
   provider_error text,
-  sale_id uuid references public.business_sales(id) on delete restrict,
+  sale_id uuid,
   expires_at timestamptz not null,
   paid_at timestamptz,
   cancelled_at timestamptz,
@@ -107,9 +111,9 @@ create table if not exists public.business_orders (
 
 create table if not exists public.business_order_items (
   id uuid primary key default gen_random_uuid(),
-  order_id uuid not null references public.business_orders(id) on delete cascade,
-  user_id uuid not null references auth.users(id) on delete restrict,
-  catalog_item_id uuid not null references public.business_catalog_items(id) on delete restrict,
+  order_id uuid not null,
+  user_id uuid not null,
+  catalog_item_id uuid not null,
   source_type text not null,
   product_name_snapshot text not null,
   sku_snapshot text,
@@ -125,10 +129,10 @@ create table if not exists public.business_order_items (
 
 create table if not exists public.business_stock_reservations (
   id uuid primary key default gen_random_uuid(),
-  order_id uuid not null references public.business_orders(id) on delete cascade,
-  user_id uuid not null references auth.users(id) on delete restrict,
-  catalog_item_id uuid not null references public.business_catalog_items(id) on delete restrict,
-  source_product_id uuid references public.products(id) on delete restrict,
+  order_id uuid not null,
+  user_id uuid not null,
+  catalog_item_id uuid not null,
+  source_product_id uuid,
   quantity integer not null,
   status text not null default 'reserved',
   expires_at timestamptz not null,
@@ -142,8 +146,8 @@ create table if not exists public.business_stock_reservations (
 
 create table if not exists public.business_payments (
   id uuid primary key default gen_random_uuid(),
-  user_id uuid not null references auth.users(id) on delete restrict,
-  order_id uuid not null references public.business_orders(id) on delete restrict,
+  user_id uuid not null,
+  order_id uuid not null,
   provider text not null,
   provider_payment_id text not null,
   status text not null,
@@ -182,6 +186,21 @@ create table if not exists public.business_payment_webhook_events (
   constraint business_payment_webhook_attempts_check check (processing_attempts > 0)
 );
 
+-- Add the legacy-side pointer only when it is genuinely absent. An unconditional
+-- ALTER TABLE ... ADD COLUMN IF NOT EXISTS still takes a strong table lock.
+do $$
+begin
+  if not exists (
+    select 1 from pg_attribute
+    where attrelid = 'public.business_sales'::regclass
+      and attname = 'order_id' and not attisdropped
+  ) then
+    lock table public.business_orders, public.business_sales in share row exclusive mode;
+    alter table public.business_sales add column order_id uuid;
+  end if;
+end
+$$;
+
 create unique index if not exists business_orders_user_idempotency_uidx on public.business_orders(user_id, idempotency_key);
 create unique index if not exists business_payment_accounts_provider_user_uidx on public.business_payment_accounts(provider, provider_user_id) where provider_user_id is not null;
 create unique index if not exists business_orders_user_number_uidx on public.business_orders(user_id, order_number);
@@ -198,16 +217,117 @@ create index if not exists business_orders_expiry_idx on public.business_orders(
 create index if not exists business_reservations_active_idx on public.business_stock_reservations(catalog_item_id, expires_at) where status = 'reserved';
 create index if not exists business_payments_order_idx on public.business_payments(order_id, created_at desc);
 create index if not exists business_oauth_states_expiry_idx on public.business_payment_oauth_states(expires_at) where consumed_at is null;
+create unique index if not exists business_sales_order_uidx on public.business_sales(order_id) where order_id is not null;
 
+-- Foreign keys are deliberately added only after every table and supporting
+-- index exists. NOT VALID avoids scanning existing rows while the constraint is
+-- installed; validation is performed in a separate, idempotent phase below.
 do $$
 begin
-  if not exists (select 1 from pg_constraint where conrelid = 'public.business_sales'::regclass and conname = 'business_sales_order_id_fkey') then
-    alter table public.business_sales add column if not exists order_id uuid;
-    alter table public.business_sales add constraint business_sales_order_id_fkey foreign key (order_id) references public.business_orders(id) on delete restrict;
+  if not exists (select 1 from pg_constraint where conrelid = 'public.business_payment_accounts'::regclass and conname = 'business_payment_accounts_user_id_fkey') then
+    alter table public.business_payment_accounts add constraint business_payment_accounts_user_id_fkey foreign key (user_id) references auth.users(id) on delete cascade not valid;
+  end if;
+  if not exists (select 1 from pg_constraint where conrelid = 'public.business_payment_oauth_states'::regclass and conname = 'business_payment_oauth_states_user_id_fkey') then
+    alter table public.business_payment_oauth_states add constraint business_payment_oauth_states_user_id_fkey foreign key (user_id) references auth.users(id) on delete cascade not valid;
+  end if;
+  if not exists (select 1 from pg_constraint where conrelid = 'public.business_orders'::regclass and conname = 'business_orders_user_id_fkey') then
+    alter table public.business_orders add constraint business_orders_user_id_fkey foreign key (user_id) references auth.users(id) on delete restrict not valid;
+  end if;
+  if not exists (select 1 from pg_constraint where conrelid = 'public.business_order_items'::regclass and conname = 'business_order_items_order_id_fkey') then
+    alter table public.business_order_items add constraint business_order_items_order_id_fkey foreign key (order_id) references public.business_orders(id) on delete cascade not valid;
+  end if;
+  if not exists (select 1 from pg_constraint where conrelid = 'public.business_order_items'::regclass and conname = 'business_order_items_user_id_fkey') then
+    alter table public.business_order_items add constraint business_order_items_user_id_fkey foreign key (user_id) references auth.users(id) on delete restrict not valid;
+  end if;
+  if not exists (select 1 from pg_constraint where conrelid = 'public.business_order_items'::regclass and conname = 'business_order_items_catalog_item_id_fkey') then
+    alter table public.business_order_items add constraint business_order_items_catalog_item_id_fkey foreign key (catalog_item_id) references public.business_catalog_items(id) on delete restrict not valid;
+  end if;
+  if not exists (select 1 from pg_constraint where conrelid = 'public.business_stock_reservations'::regclass and conname = 'business_stock_reservations_order_id_fkey') then
+    alter table public.business_stock_reservations add constraint business_stock_reservations_order_id_fkey foreign key (order_id) references public.business_orders(id) on delete cascade not valid;
+  end if;
+  if not exists (select 1 from pg_constraint where conrelid = 'public.business_stock_reservations'::regclass and conname = 'business_stock_reservations_user_id_fkey') then
+    alter table public.business_stock_reservations add constraint business_stock_reservations_user_id_fkey foreign key (user_id) references auth.users(id) on delete restrict not valid;
+  end if;
+  if not exists (select 1 from pg_constraint where conrelid = 'public.business_stock_reservations'::regclass and conname = 'business_stock_reservations_catalog_item_id_fkey') then
+    alter table public.business_stock_reservations add constraint business_stock_reservations_catalog_item_id_fkey foreign key (catalog_item_id) references public.business_catalog_items(id) on delete restrict not valid;
+  end if;
+  if not exists (select 1 from pg_constraint where conrelid = 'public.business_stock_reservations'::regclass and conname = 'business_stock_reservations_source_product_id_fkey') then
+    alter table public.business_stock_reservations add constraint business_stock_reservations_source_product_id_fkey foreign key (source_product_id) references public.products(id) on delete restrict not valid;
+  end if;
+  if not exists (select 1 from pg_constraint where conrelid = 'public.business_payments'::regclass and conname = 'business_payments_user_id_fkey') then
+    alter table public.business_payments add constraint business_payments_user_id_fkey foreign key (user_id) references auth.users(id) on delete restrict not valid;
+  end if;
+  if not exists (select 1 from pg_constraint where conrelid = 'public.business_payments'::regclass and conname = 'business_payments_order_id_fkey') then
+    alter table public.business_payments add constraint business_payments_order_id_fkey foreign key (order_id) references public.business_orders(id) on delete restrict not valid;
   end if;
 end
 $$;
-create unique index if not exists business_sales_order_uidx on public.business_sales(order_id) where order_id is not null;
+
+-- The two cross-links are retained for compatibility but are installed together
+-- and in one documented order: business_orders first, business_sales second.
+do $$
+begin
+  lock table public.business_orders, public.business_sales in share row exclusive mode;
+  if not exists (select 1 from pg_constraint where conrelid = 'public.business_orders'::regclass and conname = 'business_orders_sale_id_fkey') then
+    alter table public.business_orders add constraint business_orders_sale_id_fkey foreign key (sale_id) references public.business_sales(id) on delete restrict not valid;
+  end if;
+  if not exists (select 1 from pg_constraint where conrelid = 'public.business_sales'::regclass and conname = 'business_sales_order_id_fkey') then
+    alter table public.business_sales add constraint business_sales_order_id_fkey foreign key (order_id) references public.business_orders(id) on delete restrict not valid;
+  end if;
+end
+$$;
+
+-- Existing inline constraints from an earlier partial execution already have
+-- these names and are normally validated. Skip their ALTER TABLE entirely.
+do $$
+declare constraint_to_validate record;
+begin
+  if exists (
+    select 1 from pg_constraint
+    where not convalidated and (
+      (conrelid = 'public.business_orders'::regclass and conname = 'business_orders_sale_id_fkey')
+      or (conrelid = 'public.business_sales'::regclass and conname = 'business_sales_order_id_fkey')
+    )
+  ) then
+    lock table public.business_orders, public.business_sales in share row exclusive mode;
+  end if;
+  for constraint_to_validate in
+    select namespace.nspname as schema_name, relation.relname as table_name, constraint_row.conname
+    from pg_constraint constraint_row
+    join pg_class relation on relation.oid = constraint_row.conrelid
+    join pg_namespace namespace on namespace.oid = relation.relnamespace
+    where constraint_row.contype = 'f' and not constraint_row.convalidated
+      and (relation.oid, constraint_row.conname) in (
+        ('public.business_payment_accounts'::regclass, 'business_payment_accounts_user_id_fkey'),
+        ('public.business_payment_oauth_states'::regclass, 'business_payment_oauth_states_user_id_fkey'),
+        ('public.business_orders'::regclass, 'business_orders_user_id_fkey'),
+        ('public.business_order_items'::regclass, 'business_order_items_order_id_fkey'),
+        ('public.business_order_items'::regclass, 'business_order_items_user_id_fkey'),
+        ('public.business_order_items'::regclass, 'business_order_items_catalog_item_id_fkey'),
+        ('public.business_stock_reservations'::regclass, 'business_stock_reservations_order_id_fkey'),
+        ('public.business_stock_reservations'::regclass, 'business_stock_reservations_user_id_fkey'),
+        ('public.business_stock_reservations'::regclass, 'business_stock_reservations_catalog_item_id_fkey'),
+        ('public.business_stock_reservations'::regclass, 'business_stock_reservations_source_product_id_fkey'),
+        ('public.business_payments'::regclass, 'business_payments_user_id_fkey'),
+        ('public.business_payments'::regclass, 'business_payments_order_id_fkey'),
+        ('public.business_orders'::regclass, 'business_orders_sale_id_fkey'),
+        ('public.business_sales'::regclass, 'business_sales_order_id_fkey')
+      )
+    order by case relation.relname
+      when 'business_payment_accounts' then 1
+      when 'business_payment_oauth_states' then 2
+      when 'business_orders' then 3
+      when 'business_order_items' then 4
+      when 'business_stock_reservations' then 5
+      when 'business_payments' then 6
+      when 'business_sales' then 7
+      else 8 end,
+      constraint_row.conname
+  loop
+    execute format('alter table %I.%I validate constraint %I', constraint_to_validate.schema_name, constraint_to_validate.table_name, constraint_to_validate.conname);
+  end loop;
+end
+$$;
 
 drop trigger if exists business_payment_accounts_set_updated_at on public.business_payment_accounts;
 create trigger business_payment_accounts_set_updated_at before update on public.business_payment_accounts for each row execute function public.set_updated_at();
@@ -643,3 +763,4 @@ revoke all on function public.get_public_business_storefront_checkout_status(tex
 grant execute on function public.get_public_business_storefront_checkout_status(text) to anon,authenticated;
 
 notify pgrst,'reload schema';
+reset lock_timeout;

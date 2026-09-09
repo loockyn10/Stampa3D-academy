@@ -1,10 +1,10 @@
 "use client";
 
-import { Suspense, useCallback, useEffect, useMemo, useState } from "react";
+import { Suspense, useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useSearchParams } from "next/navigation";
 import Link from "next/link";
 import Image from "next/image";
-import { ArrowLeft, Boxes, Eye, EyeOff, Factory, Loader2, Plus, ShoppingBag, X } from "lucide-react";
+import { ArrowLeft, Boxes, Eye, EyeOff, Factory, History, Loader2, Minus, Plus, ShoppingBag, X } from "lucide-react";
 import { Dialog } from "@/components/ui/dialog";
 import { Card } from "@/components/ui/card";
 import { SectionTitle } from "@/components/ui/section-title";
@@ -14,16 +14,19 @@ import type { StampyScreenContext } from "@/lib/stampy/screen-context";
 import {
   resolveBusinessCatalogStock,
   type BusinessCatalogItem,
+  type BusinessInventoryMovement,
   type WorkshopProductSummary,
 } from "@/lib/business/catalog";
 import {
+  adjustBusinessInventoryAction,
   createResaleCatalogItemAction,
   linkManufacturedProductAction,
-  loadBusinessWorkspaceAction,
+  loadBusinessOperationsAction,
   setBusinessCatalogPublicationAction,
 } from "../actions";
 
 const inputClass = "w-full rounded-xl border border-stampa-border bg-stampa-bg-soft px-3 py-2.5 text-sm text-white outline-none transition-colors placeholder:text-gray-600 focus:border-stampa-orange/60";
+const movementDate = new Intl.DateTimeFormat("es-AR", { dateStyle: "short", timeStyle: "short" });
 
 const emptyResaleForm = {
   name: "",
@@ -44,12 +47,19 @@ function CatalogoContent() {
   const { toast } = useAppFeedback();
   const [items, setItems] = useState<BusinessCatalogItem[]>([]);
   const [products, setProducts] = useState<WorkshopProductSummary[]>([]);
+  const [movements, setMovements] = useState<BusinessInventoryMovement[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
   const [publishingId, setPublishingId] = useState<string | null>(null);
   const [resaleOpen, setResaleOpen] = useState(false);
   const [manufacturedOpen, setManufacturedOpen] = useState(false);
+  const [adjustmentItem, setAdjustmentItem] = useState<BusinessCatalogItem | null>(null);
+  const [adjustmentDirection, setAdjustmentDirection] = useState<"add" | "subtract">("add");
+  const [adjustmentQuantity, setAdjustmentQuantity] = useState("1");
+  const [adjustmentReason, setAdjustmentReason] = useState("");
+  const [adjusting, setAdjusting] = useState(false);
+  const adjustmentAttemptRef = useRef<string | null>(null);
   const [resaleForm, setResaleForm] = useState(emptyResaleForm);
   const [manufacturedForm, setManufacturedForm] = useState({
     sourceProductId: "",
@@ -61,16 +71,19 @@ function CatalogoContent() {
     isActive: true,
   });
 
-  const loadWorkspace = useCallback(async () => {
-    const result = await loadBusinessWorkspaceAction();
+  const applyWorkspaceResult = useCallback((
+    result: Awaited<ReturnType<typeof loadBusinessOperationsAction>>,
+  ) => {
     if (!result.success) {
       setError(result.error);
       setItems([]);
       setProducts([]);
+      setMovements([]);
     } else {
       setError(null);
       setItems(result.items);
       setProducts(result.products);
+      setMovements(result.movements);
       const requestedProductId = searchParams.get("producto");
       const alreadyLinked = result.items.some((item) => item.source_product_id === requestedProductId);
       const requestedProduct = result.products.find((product) => product.id === requestedProductId);
@@ -87,35 +100,18 @@ function CatalogoContent() {
     setLoading(false);
   }, [searchParams]);
 
+  const loadWorkspace = useCallback(async () => {
+    const result = await loadBusinessOperationsAction();
+    applyWorkspaceResult(result);
+  }, [applyWorkspaceResult]);
+
   useEffect(() => {
     let active = true;
-    void loadBusinessWorkspaceAction().then((result) => {
-      if (!active) return;
-      if (!result.success) {
-        setError(result.error);
-        setItems([]);
-        setProducts([]);
-      } else {
-        setError(null);
-        setItems(result.items);
-        setProducts(result.products);
-        const requestedProductId = searchParams.get("producto");
-        const alreadyLinked = result.items.some((item) => item.source_product_id === requestedProductId);
-        const requestedProduct = result.products.find((product) => product.id === requestedProductId);
-        if (requestedProduct && !alreadyLinked) {
-          setManufacturedForm((current) => ({
-            ...current,
-            sourceProductId: requestedProduct.id,
-            description: requestedProduct.description || "",
-            salePrice: String(requestedProduct.sale_price || 0),
-          }));
-          setManufacturedOpen(true);
-        }
-      }
-      setLoading(false);
+    void loadBusinessOperationsAction().then((result) => {
+      if (active) applyWorkspaceResult(result);
     });
     return () => { active = false; };
-  }, [searchParams]);
+  }, [applyWorkspaceResult]);
 
   const linkedProductIds = useMemo(
     () => new Set(items.flatMap((item) => item.source_product_id ? [item.source_product_id] : [])),
@@ -128,7 +124,16 @@ function CatalogoContent() {
 
   const stampyContext = useMemo<StampyScreenContext>(() => ({
     page: { section: "business", route: "/mi-negocio/catalogo", title: "Catálogo de Mi Negocio" },
-    mode: resaleOpen ? "create_resale" : manufacturedOpen ? "link_manufactured" : "catalog",
+    mode: adjustmentItem ? "adjust_resale_inventory" : resaleOpen ? "create_resale" : manufacturedOpen ? "link_manufactured" : "catalog",
+    selectedEntity: adjustmentItem ? {
+      type: "business_catalog_item",
+      id: adjustmentItem.id,
+      name: adjustmentItem.name,
+      facts: [
+        { label: "Origen", value: "Reventa" },
+        { label: "Stock visible", value: resolveBusinessCatalogStock(adjustmentItem, products) ?? 0 },
+      ],
+    } : null,
     visibleEntities: items.slice(0, 20).map((item, index) => ({
       type: "business_catalog_item",
       id: item.id,
@@ -150,8 +155,13 @@ function CatalogoContent() {
         { label: "Publicados en tienda", value: items.filter((item) => item.is_published).length },
       ],
     },
-    uiState: { loading, ...(resaleOpen || manufacturedOpen ? { activeDialog: resaleOpen ? "Nuevo producto de reventa" : "Agregar producto fabricado" } : {}) },
-  }), [items, loading, manufacturedOpen, products, resaleOpen]);
+    uiState: {
+      loading,
+      ...(adjustmentItem || resaleOpen || manufacturedOpen ? {
+        activeDialog: adjustmentItem ? "Ajustar stock de reventa" : resaleOpen ? "Nuevo producto de reventa" : "Agregar producto fabricado",
+      } : {}),
+    },
+  }), [adjustmentItem, items, loading, manufacturedOpen, products, resaleOpen]);
   usePublishStampyScreenContext(stampyContext);
 
   const closeManufactured = () => {
@@ -209,6 +219,53 @@ function CatalogoContent() {
       ? { ...candidate, is_published: !item.is_published, public_slug: result.publicSlug }
       : candidate));
     toast.success(item.is_published ? "Producto ocultado de la tienda." : "Producto publicado en la tienda.");
+  };
+
+  const openAdjustment = (item: BusinessCatalogItem) => {
+    setAdjustmentItem(item);
+    setAdjustmentDirection("add");
+    setAdjustmentQuantity("1");
+    setAdjustmentReason("");
+    adjustmentAttemptRef.current = null;
+  };
+
+  const closeAdjustment = () => {
+    if (!adjusting) setAdjustmentItem(null);
+  };
+
+  const saveAdjustment = async () => {
+    if (!adjustmentItem || adjusting) return;
+    const amount = Number(adjustmentQuantity);
+    const currentStock = resolveBusinessCatalogStock(adjustmentItem, products);
+    if (!Number.isInteger(amount) || amount <= 0) return toast.error("Ingresá una cantidad entera mayor a cero.");
+    if (!adjustmentReason.trim()) return toast.error("Indicá el motivo para dejar trazabilidad.");
+    if (adjustmentDirection === "subtract" && currentStock !== null && amount > currentStock) {
+      return toast.error("No hay stock suficiente para ese ajuste.");
+    }
+
+    adjustmentAttemptRef.current ??= crypto.randomUUID();
+    setAdjusting(true);
+    let result: Awaited<ReturnType<typeof adjustBusinessInventoryAction>>;
+    try {
+      result = await adjustBusinessInventoryAction({
+        idempotencyKey: adjustmentAttemptRef.current,
+        catalogItemId: adjustmentItem.id,
+        quantityDelta: adjustmentDirection === "add" ? amount : -amount,
+        reason: adjustmentReason,
+      });
+    } catch {
+      setAdjusting(false);
+      toast.error("No recibimos la respuesta. Reintentá: el mismo ajuste no se aplicará dos veces.");
+      return;
+    }
+    setAdjusting(false);
+    if (!result.success) return toast.error(result.error);
+
+    toast.success(`Stock actualizado: ${result.newQuantity} unidades${result.replayed ? " (ajuste ya aplicado)" : ""}.`);
+    adjustmentAttemptRef.current = null;
+    setAdjustmentItem(null);
+    setLoading(true);
+    await loadWorkspace();
   };
 
   return (
@@ -275,6 +332,7 @@ function CatalogoContent() {
                 <div className="mt-4 grid grid-cols-2 gap-2 rounded-xl border border-white/5 bg-black/10 p-3 text-xs">
                   <div><p className="text-gray-500">Stock</p><p className="mt-0.5 font-bold text-white">{stock === null ? "Sin fuente" : `${stock} u.`}</p></div>
                   <div><p className="text-gray-500">SKU</p><p className="mt-0.5 truncate font-semibold text-gray-300">{item.sku || "Sin SKU"}</p></div>
+                  <div className="col-span-2"><p className="text-gray-500">Código de barras</p><p className="mt-0.5 truncate font-semibold text-gray-300">{item.barcode || "Sin código"}</p></div>
                 </div>
                 <div className="mt-3 flex items-center justify-between gap-3">
                   <span className="text-[10px] text-gray-500">{item.is_active ? "Activo" : "Inactivo"}</span>
@@ -283,11 +341,58 @@ function CatalogoContent() {
                     {item.is_published ? "Publicado" : "No publicado"}
                   </button>
                 </div>
+                <div className="mt-3 border-t border-stampa-border pt-3">
+                  {item.source_type === "manufactured" ? (
+                    <Link href="/mi-taller/inventario" className="inline-flex min-h-10 w-full items-center justify-center gap-2 rounded-lg border border-cyan-500/30 bg-cyan-500/10 px-3 text-xs font-bold text-cyan-200 hover:bg-cyan-500/15">
+                      <Factory size={14} /> Gestionar stock en Mi Taller
+                    </Link>
+                  ) : (
+                    <button type="button" onClick={() => openAdjustment(item)} disabled={!item.is_active} className="inline-flex min-h-10 w-full items-center justify-center gap-2 rounded-lg border border-stampa-border bg-white/5 px-3 text-xs font-bold text-white hover:bg-white/10 disabled:opacity-40">
+                      <Boxes size={14} /> Ajustar stock de reventa
+                    </button>
+                  )}
+                </div>
               </Card>
             );
           })}
         </div>
       )}
+
+      <Dialog open={adjustmentItem !== null} onClose={closeAdjustment} labelledBy="catalog-adjustment-title" panelClassName="max-w-lg rounded-2xl border border-stampa-border bg-stampa-surface">
+        {adjustmentItem && <>
+          <div className="flex items-start justify-between border-b border-stampa-border p-5">
+            <div>
+              <h2 id="catalog-adjustment-title" className="text-lg font-bold text-white">Ajustar {adjustmentItem.name}</h2>
+              <p className="mt-1 text-sm text-gray-500">Stock actual: {resolveBusinessCatalogStock(adjustmentItem, products) ?? "no disponible"} unidades</p>
+            </div>
+            <button type="button" onClick={closeAdjustment} className="rounded-lg p-2 text-gray-500 hover:text-white"><X size={18} /></button>
+          </div>
+          <div className="space-y-4 p-5">
+            <div className="grid grid-cols-2 gap-2">
+              <button type="button" onClick={() => { setAdjustmentDirection("add"); adjustmentAttemptRef.current = null; }} className={`flex min-h-11 items-center justify-center gap-2 rounded-xl border text-sm font-bold ${adjustmentDirection === "add" ? "border-emerald-400/50 bg-emerald-400/10 text-emerald-200" : "border-stampa-border text-gray-400"}`}><Plus size={16} /> Sumar</button>
+              <button type="button" onClick={() => { setAdjustmentDirection("subtract"); adjustmentAttemptRef.current = null; }} className={`flex min-h-11 items-center justify-center gap-2 rounded-xl border text-sm font-bold ${adjustmentDirection === "subtract" ? "border-red-400/50 bg-red-400/10 text-red-200" : "border-stampa-border text-gray-400"}`}><Minus size={16} /> Restar</button>
+            </div>
+            <label className="block text-xs font-semibold text-gray-300">Cantidad<input type="number" inputMode="numeric" min="1" step="1" value={adjustmentQuantity} onChange={(event) => { setAdjustmentQuantity(event.target.value); adjustmentAttemptRef.current = null; }} className="mt-1.5 min-h-11 w-full rounded-xl border border-stampa-border bg-stampa-bg-soft px-3 text-sm text-white" /></label>
+            <label className="block text-xs font-semibold text-gray-300">Motivo<textarea value={adjustmentReason} onChange={(event) => { setAdjustmentReason(event.target.value); adjustmentAttemptRef.current = null; }} maxLength={300} rows={3} placeholder="Ej.: reposición, conteo físico, unidad dañada" className="mt-1.5 w-full resize-none rounded-xl border border-stampa-border bg-stampa-bg-soft p-3 text-sm text-white" /></label>
+            <button type="button" disabled={adjusting} onClick={() => void saveAdjustment()} className="inline-flex min-h-12 w-full items-center justify-center gap-2 rounded-xl bg-stampa-orange text-sm font-black text-white disabled:opacity-50">{adjusting && <Loader2 size={16} className="animate-spin" />} Confirmar ajuste</button>
+          </div>
+          <div className="border-t border-stampa-border p-5">
+            <h3 className="flex items-center gap-2 text-xs font-bold uppercase tracking-wide text-gray-400"><History size={15} /> Últimos movimientos</h3>
+            {movements.filter((movement) => movement.catalog_item_id === adjustmentItem.id).slice(0, 12).length === 0 ? (
+              <p className="mt-3 text-xs text-gray-500">Sin movimientos comerciales registrados.</p>
+            ) : (
+              <div className="mt-3 max-h-44 space-y-2 overflow-y-auto">
+                {movements.filter((movement) => movement.catalog_item_id === adjustmentItem.id).slice(0, 12).map((movement) => (
+                  <div key={movement.id} className="flex items-start justify-between gap-3 rounded-xl bg-white/[0.03] p-3">
+                    <div><p className="text-xs font-semibold text-gray-300">{movement.reason || "Movimiento de inventario"}</p><p className="mt-1 text-[11px] text-gray-500">{movementDate.format(new Date(movement.created_at))}</p></div>
+                    <p className={`text-sm font-black ${movement.quantity_delta > 0 ? "text-emerald-300" : "text-red-300"}`}>{movement.quantity_delta > 0 ? "+" : ""}{movement.quantity_delta}</p>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+        </>}
+      </Dialog>
 
       <Dialog open={manufacturedOpen} onClose={closeManufactured} labelledBy="manufactured-dialog-title" panelClassName="max-w-xl rounded-2xl border border-stampa-border bg-stampa-surface">
         <div className="flex items-center justify-between border-b border-stampa-border p-5">

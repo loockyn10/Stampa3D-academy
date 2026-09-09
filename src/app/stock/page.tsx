@@ -52,11 +52,17 @@ const ColorOptionLabel = ({ name, colorHex }: { name: string, colorHex?: string 
 
 import { createClient } from "@/utils/supabase/client";
 
-function StockPageContent() {
+type WorkshopStockSection = "filaments" | "inventory";
+
+export function StockPageContent({ workshopSection }: { workshopSection?: WorkshopStockSection } = {}) {
   const { toast, confirmAction, promptForValue } = useAppFeedback();
   const [supabase] = useState(() => createClient());
   const searchParams = useSearchParams();
-  const initialTab = searchParams.get("tab") === "filamentos" ? "filamentos" : "productos";
+  const initialTab = workshopSection === "filaments"
+    ? "filamentos"
+    : workshopSection === "inventory"
+      ? "productos"
+      : searchParams.get("tab") === "filamentos" ? "filamentos" : "productos";
   const [tab, setTab] = useState<"productos" | "filamentos">(initialTab);
   
   const [searchProduct, setSearchProduct] = useState("");
@@ -195,7 +201,7 @@ function StockPageContent() {
       setStampyActionError(errorMsg);
       setStampyDiscountModalOpen(true);
 
-      router.replace("/stock?tab=filamentos");
+      router.replace("/mi-taller/filamentos");
     } else if (action === "increase") {
       const material = searchParams.get("material");
       const brand = searchParams.get("brand");
@@ -227,7 +233,7 @@ function StockPageContent() {
       setStampyActionError(errorMsg);
       setStampyIncreaseModalOpen(true);
 
-      router.replace("/stock?tab=filamentos");
+      router.replace("/mi-taller/filamentos");
     } else if (action === "add") {
       const material = searchParams.get("material") || "PLA";
       const color = searchParams.get("color") || "";
@@ -237,7 +243,7 @@ function StockPageContent() {
       });
       setFilamentModalOpen(true);
       
-      router.replace("/stock?tab=filamentos");
+      router.replace("/mi-taller/filamentos");
     }
   }, [searchParams, filaments, router]);
 
@@ -711,7 +717,19 @@ function StockPageContent() {
     const selected = historyFilament ?? historyProduct ?? editingFilament ?? stampyFilament;
 
     return {
-      page: { section: "stock", route: `/stock?tab=${tab}`, title: "Stock" },
+      page: {
+        section: workshopSection ? "workshop" : "stock",
+        route: workshopSection === "filaments"
+          ? "/mi-taller/filamentos"
+          : workshopSection === "inventory"
+            ? "/mi-taller/inventario"
+            : `/stock?tab=${tab}`,
+        title: workshopSection === "filaments"
+          ? "Mi Taller · Filamentos"
+          : workshopSection === "inventory"
+            ? "Mi Taller · Inventario"
+            : "Stock",
+      },
       mode: consumeModalOpen
         ? "production"
         : filamentModalOpen
@@ -796,7 +814,7 @@ function StockPageContent() {
         } : {}),
       },
     };
-  }, [consumeAddStock, consumeCart, consumeModalOpen, editingFilamentId, filamentFormData, filamentModalOpen, filamentSearch, filaments, filteredFilaments, historyFilamentId, historyModalOpen, historyProductId, historyProductModalOpen, loading, lowFilamentsCount, products, searchProduct, selectedColor, selectedMaterial, showFilamentCatalogModal, stampyActionData, stampyDiscountModalOpen, stampyIncreaseModalOpen, tab]);
+  }, [consumeAddStock, consumeCart, consumeModalOpen, editingFilamentId, filamentFormData, filamentModalOpen, filamentSearch, filaments, filteredFilaments, historyFilamentId, historyModalOpen, historyProductId, historyProductModalOpen, loading, lowFilamentsCount, products, searchProduct, selectedColor, selectedMaterial, showFilamentCatalogModal, stampyActionData, stampyDiscountModalOpen, stampyIncreaseModalOpen, tab, workshopSection]);
 
   usePublishStampyScreenContext(stampyScreenContext);
 
@@ -806,11 +824,15 @@ function StockPageContent() {
     <div className="pb-24">
       <SectionTitle
         eyebrow="Mi taller"
-        title="Stock"
+        title={workshopSection === "filaments" ? "Filamentos" : workshopSection === "inventory" ? "Inventario" : "Stock"}
         action={
-          tab === "productos" ? (
+          workshopSection === "inventory" ? (
+            <PrimaryButton onClick={() => { setConsumeAddStock(true); setConsumeModalOpen(true); }}>
+              <Package size={15} /> Registrar producción
+            </PrimaryButton>
+          ) : tab === "productos" ? (
             <div className="flex items-center gap-3">
-              <Link href="/productos">
+              <Link href="/mi-taller/productos">
                 <PrimaryButton>
                   <Plus size={15} /> Nuevo Producto
                 </PrimaryButton>
@@ -819,6 +841,12 @@ function StockPageContent() {
           ) : null
         }
       />
+
+      {workshopSection === "inventory" && (
+        <p className="-mt-3 mb-6 max-w-3xl text-sm leading-6 text-gray-400">
+          Controlá las unidades terminadas. Registrar producción consume la receta y suma unidades; los controles manuales corrigen el conteo sin descontar filamento.
+        </p>
+      )}
 
       {error && (
         <div className="mb-6 bg-red-50 border border-red-100 p-4 rounded-lg text-sm text-red-600">
@@ -863,7 +891,7 @@ function StockPageContent() {
         </div>
       )}
 
-      <div className="mb-6 flex flex-col sm:flex-row items-start sm:items-center justify-between border-b border-stampa-border flex-wrap gap-4 pb-2 sm:pb-0">
+      {!workshopSection && <div className="mb-6 flex flex-col sm:flex-row items-start sm:items-center justify-between border-b border-stampa-border flex-wrap gap-4 pb-2 sm:pb-0">
         <div className="flex overflow-x-auto w-full sm:w-auto hide-scrollbar">
           <button
             onClick={() => setTab("productos")}
@@ -986,7 +1014,68 @@ function StockPageContent() {
             </div>
           </div>
         )}
-      </div>
+      </div>}
+
+      {workshopSection === "filaments" && (
+        <div className="mb-6 flex flex-col gap-4">
+          <div className="grid grid-cols-1 gap-2 sm:flex sm:flex-wrap sm:justify-end">
+            <button
+              onClick={() => { setConsumeAddStock(false); setConsumeModalOpen(true); }}
+              className="flex items-center justify-center gap-2 rounded-lg border border-orange-200 bg-orange-50 px-4 py-2 text-sm font-bold text-orange-700 transition-colors hover:bg-orange-100"
+            >
+              <Package size={15} /> Descontar por producto
+            </button>
+            <button
+              onClick={() => setShowFilamentCatalogModal(true)}
+              className="flex items-center justify-center gap-2 rounded-lg border border-stampa-orange/20 bg-stampa-orange/10 px-4 py-2 text-sm font-bold text-stampa-orange transition-colors hover:bg-stampa-orange/20"
+            >
+              <Package size={15} /> Importar desde catálogo
+            </button>
+            <button
+              onClick={() => {
+                setFilamentFormData({
+                  name: "", filament_type: "PLA", brand: "", color: "", total_grams: 1000, remaining_grams: 1000, purchase_price: 0, is_active: true
+                });
+                setEditingFilamentId("new");
+                setFilamentModalOpen(true);
+              }}
+              className="flex items-center justify-center gap-2 rounded-lg border border-stampa-orange bg-stampa-orange px-4 py-2 text-sm font-bold text-white transition-colors hover:bg-stampa-orange"
+            >
+              <Plus size={15} /> Nuevo Filamento
+            </button>
+          </div>
+
+          <div className="flex flex-col gap-3 lg:flex-row">
+            <div className="relative flex w-full items-center lg:flex-1">
+              <Search className="absolute left-3 text-gray-400" size={18} />
+              <input
+                type="text"
+                placeholder="Buscar filamentos..."
+                value={filamentSearch}
+                onChange={(event) => setFilamentSearch(event.target.value)}
+                className="h-11 w-full rounded-xl border border-white/10 bg-white/[0.06] pl-10 pr-10 text-sm text-white outline-none transition-all focus:border-orange-500/60 focus:ring-2 focus:ring-orange-500/10"
+              />
+              {filamentSearch && <button onClick={() => setFilamentSearch("")} className="absolute right-3 text-gray-400 hover:text-white"><X size={16} /></button>}
+            </div>
+            <div className="grid w-full grid-cols-1 gap-3 sm:grid-cols-2 lg:w-auto">
+              <div className="min-w-[150px]">
+                <CalculatorSelect
+                  options={[{ value: "all", label: "Todos los materiales" }, ...uniqueMaterials.map((material: any) => ({ value: material, label: material }))]}
+                  value={selectedMaterial}
+                  onChange={(value) => setSelectedMaterial(value)}
+                />
+              </div>
+              <div className="min-w-[150px]">
+                <CalculatorSelect
+                  options={[{ value: "all", label: "Todos los colores" }, ...uniqueColors.map((color: any) => ({ value: color.color, label: color.color, element: <ColorOptionLabel name={color.color} colorHex={color.hex} /> }))]}
+                  value={selectedColor}
+                  onChange={(value) => setSelectedColor(value)}
+                />
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
 
       {tab === "productos" && (
         <div className="mb-6">
@@ -1045,7 +1134,7 @@ function StockPageContent() {
           <table className="w-full min-w-[720px] text-left text-sm">
             <thead className="bg-stampa-bg-soft text-xs font-semibold uppercase tracking-wide text-gray-400">
               <tr>
-                <th className="px-5 py-3">Subtipo</th>
+                <th className="px-5 py-3">{workshopSection === "inventory" ? "Producto" : "Subtipo"}</th>
                 <th className="px-5 py-3">Precio Venta</th>
                 <th className="px-5 py-3">Cantidad</th>
                 <th className="px-5 py-3">Estado</th>
@@ -1155,7 +1244,7 @@ function StockPageContent() {
                           >
                             <History size={16} />
                           </button>
-                          <Link href={`/productos?edit=${p.id}`}>
+                          <Link href={`/mi-taller/productos?edit=${p.id}`}>
                             <button className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-bold rounded-lg border border-stampa-border text-gray-400 hover:bg-white/5 hover:text-white transition-colors" title="Editar">
                               <Edit2 size={14} /> Editar
                             </button>
@@ -1357,7 +1446,7 @@ function StockPageContent() {
           <div className="bg-stampa-surface w-full max-w-2xl rounded-2xl shadow-2xl overflow-hidden flex flex-col max-h-[90vh] border border-stampa-border">
             <div className="flex items-center justify-between px-6 py-4 border-b border-stampa-border">
               <h3 className="font-bold text-white flex items-center gap-2">
-                <Package size={18} className="text-stampa-orange" /> Descontar por producto
+                <Package size={18} className="text-stampa-orange" /> {consumeAddStock ? "Registrar producción" : "Descontar por producto"}
               </h3>
               <button onClick={() => setConsumeModalOpen(false)} className="text-gray-400 hover:text-gray-300">
                 <X size={20} />
@@ -1508,7 +1597,7 @@ function StockPageContent() {
               )}
 
               {/* Settings */}
-              {consumeCart.length > 0 && (
+              {consumeCart.length > 0 && workshopSection !== "inventory" && (
                 <div className="bg-stampa-bg-soft border border-stampa-border p-4 rounded-xl flex items-start gap-3">
                   <input 
                     type="checkbox" 
@@ -1542,7 +1631,7 @@ function StockPageContent() {
                 className="w-full sm:w-auto flex justify-center items-center gap-2 px-5 py-2 text-sm font-bold bg-stampa-orange hover:bg-stampa-orange disabled:opacity-50 disabled:cursor-not-allowed text-white rounded-lg transition-colors shadow-sm"
               >
                 {consumeLoading ? <Loader2 size={16} className="animate-spin" /> : <Package size={16} />}
-                Confirmar descuento
+                {consumeAddStock ? "Confirmar producción" : "Confirmar descuento"}
               </button>
             </div>
           </div>

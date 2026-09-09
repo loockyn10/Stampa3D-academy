@@ -40,8 +40,8 @@ const LEGACY_CONVERSATION_STORAGE_KEY = "stampy_current_conversation_id";
 const TOOL_MAP: Record<string, { label: string; href: string; icon: any }> = {
   "calculadora": { label: "Calculadora de precios", href: "/calculadora", icon: Calculator },
   "presupuestos": { label: "Presupuestos", href: "/presupuestos", icon: FileText },
-  "stock": { label: "Stock de material", href: "/stock", icon: Archive },
-  "productos": { label: "Productos", href: "/productos", icon: Package },
+  "stock": { label: "Stock de material", href: "/mi-taller/filamentos", icon: Archive },
+  "productos": { label: "Productos", href: "/mi-taller/productos", icon: Package },
   "libreria-stl": { label: "Librería STL", href: "/libreria-stl", icon: Boxes },
   "cursos": { label: "Cursos", href: "/cursos", icon: BookOpen },
   "academia": { label: "Academia", href: "/academia", icon: BookOpen },

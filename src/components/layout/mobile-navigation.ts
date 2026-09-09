@@ -1,12 +1,11 @@
 import type { LucideIcon } from "lucide-react";
 import {
-  Archive,
   BookOpen,
   Boxes,
   Calculator,
   Gift,
   Globe,
-  Package,
+  Home,
   Settings,
   Store,
   Users,
@@ -22,17 +21,23 @@ export interface MobileNavigationItem {
 
 export const mainMobileNavigation: readonly MobileNavigationItem[] = [
   {
+    href: "/",
+    label: "Inicio",
+    icon: Home,
+    activePrefixes: ["/"],
+  },
+  {
     href: "/academia",
     label: "Academia",
     icon: BookOpen,
     activePrefixes: ["/academia", "/cursos", "/talleres"],
   },
   {
-    href: "/stock",
+    href: "/mi-taller",
     label: "Mi Taller",
     shortLabel: "Taller",
-    icon: Archive,
-    activePrefixes: ["/stock"],
+    icon: Boxes,
+    activePrefixes: ["/mi-taller"],
   },
   {
     href: "/mi-negocio",
@@ -40,12 +45,6 @@ export const mainMobileNavigation: readonly MobileNavigationItem[] = [
     shortLabel: "Negocio",
     icon: Store,
     activePrefixes: ["/mi-negocio", "/presupuestos"],
-  },
-  {
-    href: "/productos",
-    label: "Productos",
-    icon: Package,
-    activePrefixes: ["/productos"],
   },
 ];
 
@@ -95,6 +94,7 @@ export function isMobileNavigationItemActive(
   pathname: string,
   item: MobileNavigationItem,
 ): boolean {
+  if (item.href === "/") return pathname === "/";
   return item.activePrefixes.some(
     (prefix) => pathname === prefix || pathname.startsWith(`${prefix}/`),
   );

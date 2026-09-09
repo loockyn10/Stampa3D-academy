@@ -1,6 +1,7 @@
 "use client";
 
 import React, { useState, useEffect } from "react";
+import { useRouter } from "next/navigation";
 import { Loader2, Bot, CheckCircle2, Circle, ShieldCheck } from "lucide-react";
 import { FormSkeleton } from "@/components/ui/page-skeletons";
 import { Card } from "@/components/ui/card";
@@ -56,6 +57,7 @@ function SettingToggle({
 }
 
 export function StampyManager({ setTab }: { setTab: (tab: any) => void }) {
+  const router = useRouter();
   const supabase = createClient();
   const [loading, setLoading] = useState(true);
   
@@ -205,7 +207,7 @@ export function StampyManager({ setTab }: { setTab: (tab: any) => void }) {
               <span className={`text-sm ${hasPrinters ? "text-white font-medium" : "text-gray-500"}`}>Cargar impresoras</span>
             </div>
             {!hasPrinters && (
-              <GhostButton onClick={() => setTab("taller")} className="text-xs">
+              <GhostButton onClick={() => router.push("/mi-taller/impresoras")} className="text-xs">
                 Ir a Taller
               </GhostButton>
             )}
@@ -217,7 +219,7 @@ export function StampyManager({ setTab }: { setTab: (tab: any) => void }) {
               <span className={`text-sm ${hasFilaments ? "text-white font-medium" : "text-gray-500"}`}>Cargar filamentos</span>
             </div>
             {!hasFilaments && (
-              <GhostButton onClick={() => setTab("taller")} className="text-xs">
+              <GhostButton onClick={() => router.push("/mi-taller/filamentos")} className="text-xs">
                 Ir a Taller
               </GhostButton>
             )}

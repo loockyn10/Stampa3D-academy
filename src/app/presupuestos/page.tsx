@@ -963,7 +963,7 @@ function PresupuestosPageContent() {
               </p>
             </div>
             <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-3 shrink-0">
-              <Link href="/productos" className="inline-flex justify-center items-center gap-2 px-5 py-3 text-sm font-semibold bg-stampa-surface border border-stampa-border text-white rounded-xl hover:bg-white/5 transition-colors">
+              <Link href="/mi-taller/productos" className="inline-flex justify-center items-center gap-2 px-5 py-3 text-sm font-semibold bg-stampa-surface border border-stampa-border text-white rounded-xl hover:bg-white/5 transition-colors">
                 <Package size={16} /> Ver productos
               </Link>
               <button onClick={handleCreateNew} className="inline-flex justify-center items-center gap-2 px-6 py-3 text-sm font-bold bg-stampa-orange text-white rounded-xl hover:bg-stampa-orange-hover transition-all shadow-lg shadow-[#ff6a00]/20">

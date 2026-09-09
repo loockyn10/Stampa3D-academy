@@ -3,7 +3,7 @@
 import React, { useState, useEffect, useMemo, Suspense } from "react";
 import { useSearchParams, useRouter } from "next/navigation";
 import dynamic from "next/dynamic";
-import { Building2, Wrench, Calculator, Bot } from "lucide-react";
+import { Building2, Calculator, Bot } from "lucide-react";
 import { SectionTitle } from "@/components/ui/section-title";
 
 
@@ -18,18 +18,15 @@ const managerLoading = () => (
 
 const AccountManager = dynamic(() => import("@/components/configuracion/account-manager").then((module) => module.AccountManager), { loading: managerLoading });
 const BusinessManager = dynamic(() => import("@/components/configuracion/business-manager").then((module) => module.BusinessManager), { loading: managerLoading });
-const PrintersManager = dynamic(() => import("@/components/configuracion/printers-manager").then((module) => module.PrintersManager), { loading: managerLoading });
-const FilamentsManager = dynamic(() => import("@/components/configuracion/filaments-manager").then((module) => module.FilamentsManager), { loading: managerLoading });
 const SettingsManager = dynamic(() => import("@/components/configuracion/settings-manager").then((module) => module.SettingsManager), { loading: managerLoading });
 const ProductTypesManager = dynamic(() => import("@/components/configuracion/product-types-manager").then((module) => module.ProductTypesManager), { loading: managerLoading });
 const StampyManager = dynamic(() => import("@/components/configuracion/stampy-manager").then((module) => module.StampyManager), { loading: managerLoading });
 
-type Tab = "cuenta" | "negocio" | "taller" | "calculadora" | "stampy";
+type Tab = "cuenta" | "negocio" | "calculadora" | "stampy";
 
 const CONFIGURATION_AREAS: { id: Tab; name: string; visibleContent: string }[] = [
   { id: "cuenta", name: "Cuenta", visibleContent: "Datos y seguridad de la cuenta" },
   { id: "negocio", name: "Negocio", visibleContent: "Datos del negocio" },
-  { id: "taller", name: "Taller", visibleContent: "Impresoras y filamentos" },
   { id: "calculadora", name: "Calculadora", visibleContent: "Costos y tipos de producto" },
   { id: "stampy", name: "Stampy", visibleContent: "Preferencias del asistente" },
 ];
@@ -41,7 +38,7 @@ function ConfiguracionContent() {
 
   useEffect(() => {
     const t = searchParams.get("tab") as Tab;
-    if (t && ["cuenta", "negocio", "taller", "calculadora", "stampy"].includes(t)) {
+    if (t && ["cuenta", "negocio", "calculadora", "stampy"].includes(t)) {
       setActiveTab(t);
     }
   }, [searchParams]);
@@ -116,18 +113,6 @@ function ConfiguracionContent() {
           </button>
 
           <button
-            onClick={() => handleTabChange("taller")}
-            className={`whitespace-nowrap flex items-center gap-2 border-b-2 py-4 px-1 text-sm font-medium transition-colors ${
-              activeTab === "taller"
-                ? "border-[#ff6a00] text-stampa-orange"
-                : "border-transparent text-gray-500 hover:border-white/20 hover:text-gray-300"
-            }`}
-          >
-            <Wrench size={18} />
-            Taller
-          </button>
-
-          <button
             onClick={() => handleTabChange("calculadora")}
             className={`whitespace-nowrap flex items-center gap-2 border-b-2 py-4 px-1 text-sm font-medium transition-colors ${
               activeTab === "calculadora"
@@ -158,18 +143,6 @@ function ConfiguracionContent() {
         {activeTab === "cuenta" && <AccountManager />}
 
         {activeTab === "negocio" && <BusinessManager />}
-        
-        {activeTab === "taller" && (
-          <div className="space-y-8 max-w-4xl">
-            <div className="p-4 bg-white/5 border border-stampa-border rounded-xl mb-6">
-              <p className="text-sm text-gray-400">
-                <strong className="text-white">Equipamiento y materiales.</strong> Las impresoras y filamentos que cargues acá se usan para calcular costos de impresión y gestionar tu stock.
-              </p>
-            </div>
-            <PrintersManager />
-            <FilamentsManager />
-          </div>
-        )}
         
         {activeTab === "calculadora" && (
           <div className="space-y-8 max-w-4xl">

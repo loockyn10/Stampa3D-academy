@@ -98,3 +98,29 @@ test("migration is non-destructive and production payments default off", () => {
   assert.match(read(".env.example"), /BUSINESS_MERCADO_PAGO_ALLOW_LIVE=false/);
   assert.match(read("src/lib/business/server.ts"), /=== "true"/);
 });
+
+test("migration acquires cross-table DDL locks in one stable order and survives partial application", () => {
+  assert.doesNotMatch(migration, /sale_id uuid references public\.business_sales/i);
+  assert.doesNotMatch(migration, /order_id uuid references public\.business_orders/i);
+  assert.match(migration, /set lock_timeout = '10s'/);
+  assert.match(migration, /lock table public\.business_orders, public\.business_sales in share row exclusive mode/);
+  assert.match(migration, /business_orders_sale_id_fkey[\s\S]*business_sales_order_id_fkey/);
+  assert.match(migration, /foreign key \(sale_id\).*not valid/);
+  assert.match(migration, /foreign key \(order_id\).*not valid/);
+  assert.match(migration, /not constraint_row\.convalidated/);
+  assert.match(migration, /pg_attribute[\s\S]*attname = 'order_id'/);
+  assert.ok(migration.indexOf("create table if not exists public.business_payment_webhook_events") < migration.indexOf("business_orders_sale_id_fkey"));
+  assert.ok(migration.indexOf("business_sales_order_uidx") < migration.indexOf("business_orders_sale_id_fkey"));
+});
+
+test("deadlock and partial-state diagnostics are versioned and read-only", () => {
+  const oidDiagnostic = read("supabase/diagnostics/20260908_business_ecommerce_deadlock_oids.sql");
+  const stateDiagnostic = read("supabase/diagnostics/20260908_business_ecommerce_state.sql");
+  assert.match(oidDiagnostic, /relation\.oid in \(17181, 20672\)/);
+  assert.match(oidDiagnostic, /pg_locks/);
+  assert.match(stateDiagnostic, /to_regclass\('public\.' \|\| name\)/);
+  assert.match(stateDiagnostic, /convalidated/);
+  assert.match(stateDiagnostic, /information_schema\.triggers/);
+  assert.match(stateDiagnostic, /pg_policies/);
+  assert.doesNotMatch(`${oidDiagnostic}\n${stateDiagnostic}`, /\b(?:drop table|truncate|delete from|alter table)\b/i);
+});

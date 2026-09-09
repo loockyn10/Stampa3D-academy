@@ -713,6 +713,7 @@ export async function askStampyAction(
       screenContext && (
         screenContext.page.route.startsWith("/productos")
         || screenContext.page.route.startsWith("/stock")
+        || screenContext.page.route.startsWith("/mi-taller")
       )
     )
       || /(?:recalcul|cu[aá]nto gano|ganancia|margen|por qu[eé].*(?:cuesta|amarill)|qu[eé] filamentos? usa|receta|me alcanza|cu[aá]ntos puedo|por terminarse|stock bajo|bobina|agreg.*al stock)/i.test(userMessage);
@@ -1684,7 +1685,7 @@ Reglas:
       }
     }
 
-    if (pathname && pathname.startsWith("/stock")) {
+    if (pathname && (pathname.startsWith("/stock") || pathname.startsWith("/mi-taller/filamentos") || pathname.startsWith("/mi-taller/inventario"))) {
       let stockContext = null;
       try {
         const { getStampyStockContext } = await import("@/lib/stampy/tool-contexts/stock-context");

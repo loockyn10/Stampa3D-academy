@@ -224,14 +224,14 @@ export default function InicioPage() {
       title: "Revisar stock",
       desc: "Controlá filamentos, productos terminados y movimientos.",
       icon: Layers,
-      href: "/stock",
+      href: "/mi-taller/inventario",
       color: "text-yellow-400"
     },
     {
       title: "Cargar producto",
       desc: "Guardá piezas recurrentes con costos y precios.",
       icon: Tag,
-      href: "/productos",
+      href: "/mi-taller/productos",
       color: "text-pink-400"
     },
     {

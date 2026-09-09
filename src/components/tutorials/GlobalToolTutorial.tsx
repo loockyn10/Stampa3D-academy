@@ -16,6 +16,10 @@ const routeToolMap = [
   { match: "/presupuestos", toolKey: "budgets" },
   { match: "/productos", toolKey: "products" },
   { match: "/stock", toolKey: "stock" },
+  { match: "/mi-taller/impresoras", toolKey: "printers" },
+  { match: "/mi-taller/filamentos", toolKey: "stock" },
+  { match: "/mi-taller/productos", toolKey: "products" },
+  { match: "/mi-taller/inventario", toolKey: "stock" },
   { match: "/libreria-stl", toolKey: "stl_library" },
   { match: "/sorteos", toolKey: "raffles" },
   { match: "/configuracion", toolKey: "settings" }

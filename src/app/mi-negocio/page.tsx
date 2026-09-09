@@ -4,7 +4,6 @@ import Link from "next/link";
 import {
   BadgeDollarSign,
   Barcode,
-  Boxes,
   FileText,
   ReceiptText,
   PackageCheck,
@@ -19,22 +18,22 @@ import type { StampyScreenContext } from "@/lib/stampy/screen-context";
 
 const availableAreas = [
   {
-    href: "/mi-negocio/venta-rapida",
-    title: "Venta rápida",
-    description: "Escaneá o buscá productos, armá el carrito y descontá stock al confirmar.",
-    icon: Barcode,
-  },
-  {
     href: "/mi-negocio/catalogo",
     title: "Catálogo",
     description: "Organizá lo que fabricás y los productos que revendés sin mezclar sus costos ni recetas.",
     icon: ShoppingBag,
   },
   {
-    href: "/mi-negocio/inventario",
-    title: "Inventario",
-    description: "Consultá unidades comerciales usando la fuente correcta para cada tipo de producto.",
-    icon: Boxes,
+    href: "/mi-negocio/venta-rapida",
+    title: "Venta rápida",
+    description: "Escaneá o buscá productos, armá el carrito y descontá stock al confirmar.",
+    icon: Barcode,
+  },
+  {
+    href: "/mi-negocio/ventas",
+    title: "Ventas",
+    description: "Consultá operaciones registradas, clientes, artículos e importes.",
+    icon: ReceiptText,
   },
   {
     href: "/presupuestos",
@@ -47,12 +46,6 @@ const availableAreas = [
     title: "Presupuestos",
     description: "Prepará propuestas rápidas o profesionales con tus productos y clientes.",
     icon: FileText,
-  },
-  {
-    href: "/mi-negocio/ventas",
-    title: "Ventas",
-    description: "Consultá operaciones registradas, clientes, artículos e importes.",
-    icon: ReceiptText,
   },
   {
     href: "/mi-negocio/tienda",
@@ -85,7 +78,7 @@ export default function MiNegocioPage() {
     pageData: {
       kind: "pageFacts",
       facts: [
-        { label: "Áreas disponibles", value: "Venta rápida, Catálogo, Inventario, Clientes, Presupuestos, Ventas, Pedidos online y Mi Tienda" },
+        { label: "Áreas disponibles", value: "Catálogo, Venta rápida, Ventas, Clientes, Presupuestos, Mi Tienda y Pedidos online" },
         { label: "Áreas futuras", value: "Caja y métricas" },
       ],
     },

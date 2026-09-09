@@ -101,7 +101,7 @@ export const STAMPY_APP_KNOWLEDGE: StampyKnowledgeItem[] = [
     id: "products",
     title: "Productos",
     category: "tool",
-    route: "/productos",
+    route: "/mi-taller/productos",
     shortDescription: "Sirve para guardar piezas o productos recurrentes con costos, precio de venta, tiempo de impresión, material usado, imagen y stock.",
     whenToRecommend: [
       "cuando el usuario vende una pieza repetidamente",
@@ -129,7 +129,7 @@ export const STAMPY_APP_KNOWLEDGE: StampyKnowledgeItem[] = [
     id: "filament-stock",
     title: "Stock de filamentos",
     category: "tool",
-    route: "/stock?tab=filamentos",
+    route: "/mi-taller/filamentos",
     shortDescription: "Sirve para controlar cuántos gramos quedan de cada filamento y registrar entradas o salidas de material.",
     whenToRecommend: [
       "cuando el usuario quiere organizar su stock",
@@ -156,7 +156,7 @@ export const STAMPY_APP_KNOWLEDGE: StampyKnowledgeItem[] = [
     id: "finished-product-stock",
     title: "Stock de productos terminados",
     category: "tool",
-    route: "/stock?tab=productos",
+    route: "/mi-taller/inventario",
     shortDescription: "Sirve para controlar unidades disponibles de productos ya impresos y listos para vender.",
     whenToRecommend: [
       "cuando el usuario imprime productos por adelantado",

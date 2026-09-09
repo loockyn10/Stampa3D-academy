@@ -700,5 +700,5 @@ test("ActionIntentCard shows safe confirmation, blockers and both fallbacks", ()
   assert.match(source, /Confirmar descuento/);
   assert.match(source, /Filamentos a descontar:/);
   assert.match(source, /Abrir Productos/);
-  assert.match(source, /Abrir Stock/);
+  assert.match(source, /Abrir Filamentos/);
 });

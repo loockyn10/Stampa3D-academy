@@ -2,7 +2,7 @@
 
 import React, { useState, useEffect, useRef, useMemo } from "react";
 import { useRouter } from "next/navigation";
-import { Search, GraduationCap, Wrench, Package, PenTool } from "lucide-react";
+import { Search, GraduationCap, Wrench, PenTool } from "lucide-react";
 import { createClient } from "@/utils/supabase/client";
 
 // Tipos para los resultados de búsqueda
@@ -26,8 +26,9 @@ const STATIC_TOOLS: SearchResult[] = [
   { id: "tool-stampy", title: "Stampy", description: "Asistente de IA", type: "tool", path: "/stampy", keywords: ["ayuda", "ia", "preguntar", "problema"] },
   { id: "tool-calculadora", title: "Calculadora", description: "Calculá precios de impresión 3D", type: "tool", path: "/calculadora", keywords: ["precio", "costo", "calcular", "cobrar", "margen"] },
   { id: "tool-presupuestos", title: "Presupuestos", description: "Crea cotizaciones PDF", type: "tool", path: "/presupuestos", keywords: ["presupuesto", "cliente", "pdf", "cotizar"] },
-  { id: "tool-productos", title: "Productos", description: "Catálogo de productos", type: "tool", path: "/productos", keywords: ["productos", "catalogo"] },
-  { id: "tool-stock", title: "Stock", description: "Control de inventario", type: "tool", path: "/stock", keywords: ["filamento", "productos", "movimientos", "inventario"] },
+  { id: "tool-productos", title: "Productos", description: "Definición productiva", type: "tool", path: "/mi-taller/productos", keywords: ["productos", "receta", "fabricar"] },
+  { id: "tool-stock", title: "Inventario", description: "Stock terminado", type: "tool", path: "/mi-taller/inventario", keywords: ["productos", "movimientos", "inventario", "producción"] },
+  { id: "tool-filamentos", title: "Filamentos", description: "Stock de materiales", type: "tool", path: "/mi-taller/filamentos", keywords: ["filamento", "gramos", "bobinas", "material"] },
   { id: "tool-stl", title: "Librería STL", description: "Modelos 3D", type: "tool", path: "/libreria-stl", keywords: ["stl", "descargar", "modelos", "archivos"] },
   { id: "tool-sorteos", title: "Sorteos", description: "Participá por premios", type: "tool", path: "/sorteos", keywords: ["sorteos", "premios", "ganar"] },
   { id: "tool-perfil", title: "Perfil", description: "Tu cuenta", type: "tool", path: "/perfil", keywords: ["perfil", "cuenta", "usuario"] },

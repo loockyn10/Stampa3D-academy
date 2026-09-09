@@ -79,8 +79,8 @@ export const STAMPY_TOOL_REGISTRY: StampyToolContract[] = [
     id: "calculator.printers.create",
     name: "Crear impresora",
     description: "Crear una impresora nueva en el taller.",
-    route: "/calculadora",
-    area: "calculator",
+    route: "/mi-taller/impresoras",
+    area: "workshop",
     supportedIntents: ["add_printer"],
     requiredFields: ["printerName"],
     optionalFields: [
@@ -103,7 +103,7 @@ export const STAMPY_TOOL_REGISTRY: StampyToolContract[] = [
     id: "stock.filaments.increase",
     name: "Aumentar stock de filamento",
     description: "Aumentar gramos disponibles de un filamento existente.",
-    route: "/stock?tab=filamentos",
+    route: "/mi-taller/filamentos",
     area: "stock",
     supportedIntents: ["increase_filament_stock"],
     requiredFields: ["grams"],
@@ -124,7 +124,7 @@ export const STAMPY_TOOL_REGISTRY: StampyToolContract[] = [
     id: "stock.filaments.discount",
     name: "Descontar stock de filamento",
     description: "Descontar material usado.",
-    route: "/stock?tab=filamentos",
+    route: "/mi-taller/filamentos",
     area: "stock",
     supportedIntents: ["discount_filament"],
     requiredFields: ["grams"],
@@ -143,7 +143,7 @@ export const STAMPY_TOOL_REGISTRY: StampyToolContract[] = [
     id: "products.filaments.discount",
     name: "Descontar filamentos por producto",
     description: "Descontar del stock los filamentos requeridos por recetas de productos.",
-    route: "/productos",
+    route: "/mi-taller/productos",
     area: "products",
     supportedIntents: ["discount_product_filaments"],
     requiredFields: ["items"],
@@ -162,7 +162,7 @@ export const STAMPY_TOOL_REGISTRY: StampyToolContract[] = [
     id: "stock.filaments.create",
     name: "Crear filamento",
     description: "Crear o cargar un filamento nuevo en el stock.",
-    route: "/stock?tab=filamentos",
+    route: "/mi-taller/filamentos",
     area: "stock",
     supportedIntents: ["add_filament"],
     requiredFields: ["material"],
@@ -181,7 +181,7 @@ export const STAMPY_TOOL_REGISTRY: StampyToolContract[] = [
     id: "products.create",
     name: "Crear producto",
     description: "Crear un nuevo producto del usuario.",
-    route: "/productos",
+    route: "/mi-taller/productos",
     area: "products",
     supportedIntents: ["create_product"],
     requiredFields: ["productName"],
@@ -207,7 +207,7 @@ export const STAMPY_TOOL_REGISTRY: StampyToolContract[] = [
     id: "products.inspect",
     name: "Consultar producto",
     description: "Consultar precio, ganancia, estado y receta reales de un producto.",
-    route: "/productos",
+    route: "/mi-taller/productos",
     area: "products",
     supportedIntents: ["inspect_product"],
     requiredFields: ["productId"],
@@ -225,7 +225,7 @@ export const STAMPY_TOOL_REGISTRY: StampyToolContract[] = [
     id: "products.recalculate",
     name: "Recalcular producto",
     description: "Recalcular un producto con la misma acción del botón de Productos.",
-    route: "/productos",
+    route: "/mi-taller/productos",
     area: "products",
     supportedIntents: ["recalculate_product"],
     requiredFields: ["productId"],
@@ -244,7 +244,7 @@ export const STAMPY_TOOL_REGISTRY: StampyToolContract[] = [
     id: "products.production_capacity",
     name: "Consultar capacidad de producción",
     description: "Cruzar la receta real de un producto con el stock actual.",
-    route: "/productos",
+    route: "/mi-taller/productos",
     area: "products",
     supportedIntents: ["check_product_production_capacity"],
     requiredFields: ["productId"],
@@ -262,7 +262,7 @@ export const STAMPY_TOOL_REGISTRY: StampyToolContract[] = [
     id: "stock.filaments.list",
     name: "Consultar filamentos",
     description: "Consultar el stock real de filamentos activos del usuario.",
-    route: "/stock?tab=filamentos",
+    route: "/mi-taller/filamentos",
     area: "stock",
     supportedIntents: ["list_filaments", "get_filament"],
     requiredFields: [],
@@ -354,9 +354,14 @@ export function getRelevantContractsForPath(pathname: string): StampyToolContrac
     contracts.push(...getStampyToolContractsForArea("clients"));
   } else if (pathname.startsWith("/calculadora")) {
     contracts.push(...getStampyToolContractsForArea("calculator"));
-  } else if (pathname.startsWith("/stock")) {
+  } else if (pathname.startsWith("/mi-taller/filamentos") || pathname.startsWith("/stock")) {
     contracts.push(...getStampyToolContractsForArea("stock"));
-  } else if (pathname.startsWith("/productos")) {
+  } else if (pathname.startsWith("/mi-taller/impresoras")) {
+    contracts.push(...getStampyToolContractsForArea("workshop"));
+  } else if (pathname.startsWith("/mi-taller/productos") || pathname.startsWith("/productos")) {
+    contracts.push(...getStampyToolContractsForArea("products"));
+  } else if (pathname.startsWith("/mi-taller/inventario")) {
+    contracts.push(...getStampyToolContractsForArea("stock"));
     contracts.push(...getStampyToolContractsForArea("products"));
   }
   

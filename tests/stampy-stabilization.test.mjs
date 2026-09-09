@@ -268,7 +268,7 @@ test("multiple filament matches disable confirmation and keep Stock as fallback"
   assert.equal(result.actionIntent.extracted.requiresConfirmation, false);
   assert.equal(result.actionIntent.extracted.matchStatus, "multiple");
   assert.match(result.answer, /más de un filamento/i);
-  assert.match(result.knowledgeTools[0].route, /^\/stock/);
+  assert.match(result.knowledgeTools[0].route, /^\/mi-taller\/filamentos/);
 });
 
 test("missing filament matches disable confirmation and keep Stock as fallback", async () => {
@@ -280,7 +280,7 @@ test("missing filament matches disable confirmation and keep Stock as fallback",
   assert.equal(result.actionIntent.extracted.requiresConfirmation, false);
   assert.equal(result.actionIntent.extracted.matchStatus, "none");
   assert.match(result.answer, /No encontré un filamento activo/i);
-  assert.match(result.knowledgeTools[0].route, /^\/stock/);
+  assert.match(result.knowledgeTools[0].route, /^\/mi-taller\/filamentos/);
 });
 
 test("quotes remain safe and never expose real confirmation", async () => {
@@ -641,7 +641,7 @@ test("a duplicate active filament disables creation confirmation and keeps Stock
   assert.equal(result.actionIntent.extracted.requiresConfirmation, false);
   assert.equal(result.actionIntent.extracted.duplicateStatus, "duplicate");
   assert.match(result.answer, /evitar duplicados/i);
-  assert.match(result.actionIntent.toolHref, /^\/stock/);
+  assert.match(result.actionIntent.toolHref, /^\/mi-taller\/filamentos/);
 });
 
 test("a valid printer is prepared for explicit confirmation", async () => {
@@ -685,7 +685,7 @@ test("a printer without power remains valid with explicit zero-value warnings", 
   assert.match(result.answer, /0W/i);
 });
 
-test("an existing active printer disables confirmation and keeps Calculator fallback", async () => {
+test("an existing active printer disables confirmation and keeps the workshop fallback", async () => {
   const actions = loadAskStampyAction({
     printerDuplicateCheck: {
       status: "active_duplicate",
@@ -707,8 +707,8 @@ test("an existing active printer disables confirmation and keeps Calculator fall
   assert.equal(result.actionIntent.extracted.requiresConfirmation, false);
   assert.equal(result.actionIntent.extracted.duplicateStatus, "active_duplicate");
   assert.match(result.answer, /evitar duplicados/i);
-  assert.match(result.actionIntent.toolHref, /^\/calculadora/);
-  assert.equal(result.actionIntent.toolLabel, "Calculadora");
+  assert.match(result.actionIntent.toolHref, /^\/mi-taller\/impresoras/);
+  assert.equal(result.actionIntent.toolLabel, "Impresoras");
 });
 
 test("an inactive printer is never reactivated from Stampy", async () => {

@@ -94,7 +94,7 @@ function ProductosPageContent() {
           if (productToEdit) {
             handleEdit(productToEdit);
             // Remove query param to prevent re-triggering
-            window.history.replaceState({}, '', '/productos');
+            window.history.replaceState({}, '', '/mi-taller/productos');
           }
         }
       }
@@ -150,7 +150,7 @@ function ProductosPageContent() {
     const action = searchParams.get("action");
     if (action === "new") {
       handleCreateNew();
-      router.replace("/productos");
+      router.replace("/mi-taller/productos");
     }
   }, [searchParams, loading, router]);
 
@@ -641,7 +641,7 @@ function ProductosPageContent() {
               : "browse";
 
     return {
-      page: { section: "products", route: "/productos", title: "Productos" },
+      page: { section: "workshop", route: "/mi-taller/productos", title: "Mi Taller · Productos" },
       mode,
       selectedEntity: selectedProduct ? {
         type: "product",
