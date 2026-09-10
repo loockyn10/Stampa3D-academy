@@ -31,7 +31,7 @@ const cart = loadTypeScriptModule(path.join(root, "src/lib/business/cart.ts"), {
   "../barcode/hid-scanner": hidScanner,
 });
 const migration = fs.readFileSync(path.join(root, "supabase/migrations/20260907201247_business_inventory_and_sales.sql"), "utf8");
-const locationSalesMigration = fs.readFileSync(path.join(root, "supabase/migrations/20260909031859_business_catalog_archive_and_combined_location_sales.sql"), "utf8");
+const locationSalesMigration = fs.readFileSync(path.join(root, "supabase/migrations/20260910140721_fix_business_sale_location_movements.sql"), "utf8");
 const displayNamesMigration = fs.readFileSync(path.join(root, "supabase/migrations/20260909040035_business_quick_sale_display_names.sql"), "utf8");
 const actions = fs.readFileSync(path.join(root, "src/app/mi-negocio/actions.ts"), "utf8");
 const scanner = fs.readFileSync(path.join(root, "src/components/business/BarcodeScanner.tsx"), "utf8");
@@ -96,6 +96,8 @@ test("unknown barcode is not created and zero stock cannot enter the cart", () =
 });
 
 test("quick sale exposes showroom plus warehouse as the available stock", () => {
+  assert.equal(cart.getBusinessAvailableForSale({ showroom: 2, warehouse: 10 }), 12);
+  assert.equal(cart.getBusinessAvailableForSale({ showroom: -2, warehouse: 10 }), 10);
   const item = cart.toBusinessCartItem(catalogItems[0], products, { showroom: 2, warehouse: 10 });
   assert.equal(item.availableStock, 12);
   assert.equal(item.showroomStock, 2);
@@ -205,7 +207,7 @@ test("combined sale supports 2+10 distributions and rejects quantity 13", () => 
     const fromShowroom = Math.min(showroom, quantity);
     return { showroom: showroom - fromShowroom, warehouse: warehouse - (quantity - fromShowroom) };
   };
-  assert.deepEqual(consume(2, 10, 3), { showroom: 0, warehouse: 9 });
+  assert.deepEqual(consume(2, 10, 5), { showroom: 0, warehouse: 7 });
   assert.deepEqual(consume(5, 10, 3), { showroom: 2, warehouse: 10 });
   assert.deepEqual(consume(2, 10, 12), { showroom: 0, warehouse: 0 });
   assert.equal(consume(2, 10, 13), null);
@@ -222,13 +224,17 @@ test("location sale is atomic, concurrent-safe, idempotent and records its sourc
   assert.match(locationSalesMigration, /pg_advisory_xact_lock[\s\S]*business-sale:/i);
   assert.match(locationSalesMigration, /order by \(element ->> 'catalogItemId'\)::uuid/i);
   assert.match(locationSalesMigration, /for update/i);
-  assert.match(locationSalesMigration, /A retry must replay before validating the now-reduced stock/i);
-  assert.match(locationSalesMigration, /location_breakdown = location_breakdowns -> \(movement\.catalog_item_id::text\)/i);
-  assert.match(locationSalesMigration, /updated_movements <> jsonb_object_length\(location_breakdowns\)[\s\S]*raise exception/i);
+  assert.match(locationSalesMigration, /Replay before validating stock/i);
+  assert.match(locationSalesMigration, /add column if not exists location_id uuid/i);
+  assert.match(locationSalesMigration, /set location_id = showroom_id[\s\S]*quantity_delta = -showroom_consumed/i);
+  assert.match(locationSalesMigration, /warehouse_id, 'sale'[\s\S]*-warehouse_consumed/i);
+  assert.match(locationSalesMigration, /Location balances did not match the recorded sale movements/i);
+  assert.doesNotMatch(locationSalesMigration, /location_breakdown/i);
 });
 
 test("locations disabled preserve the original quick-sale RPC", () => {
-  assert.match(locationSalesMigration, /if not exists \([\s\S]*settings\.locations_enabled[\s\S]*select \* from public\.confirm_business_sale/i);
+  assert.match(locationSalesMigration, /from public\.business_inventory_location_settings settings[\s\S]*settings\.locations_enabled/i);
+  assert.match(locationSalesMigration, /return query select \*[\s\S]*from public\.confirm_business_sale\(p_idempotency_key, p_items, p_client_id\)/i);
 });
 
 test("future quick-sale snapshots store the descriptive brand plus name without rewriting history", () => {

@@ -28,6 +28,7 @@ const catalog = loadTypeScriptModule(path.join(root, "src/lib/business/catalog.t
 const search = loadTypeScriptModule(path.join(root, "src/lib/business/search.ts"), { "./catalog": catalog });
 const metrics = loadTypeScriptModule(path.join(root, "src/lib/business/metrics.ts"));
 const migration = fs.readFileSync(path.join(root, "supabase/migrations/20260910053553_business_polish.sql"), "utf8");
+const saleLocationFix = fs.readFileSync(path.join(root, "supabase/migrations/20260910140721_fix_business_sale_location_movements.sql"), "utf8");
 const actions = fs.readFileSync(path.join(root, "src/app/mi-negocio/actions.ts"), "utf8");
 const catalogPage = fs.readFileSync(path.join(root, "src/app/mi-negocio/catalogo/page.tsx"), "utf8");
 const replenishmentPage = fs.readFileSync(path.join(root, "src/app/mi-negocio/reposicion/page.tsx"), "utf8");
@@ -76,13 +77,13 @@ test("bulk purchase cost is an owned atomic RPC that changes no sale price, stoc
 });
 
 test("sale void is owned, concurrent-safe, idempotent and blocks online sales", () => {
-  const functionSql = migration.match(/create or replace function public\.void_business_sale[\s\S]*?\$void_sale\$;/i)?.[0] ?? "";
+  const functionSql = saleLocationFix.match(/create or replace function public\.void_business_sale[\s\S]*?\$void_sale_by_location\$;/i)?.[0] ?? "";
   assert.match(functionSql, /where sale\.id = p_sale_id[\s\S]*sale\.user_id = current_user_id[\s\S]*for update/);
   assert.match(functionSql, /target_sale\.status = 'voided'[\s\S]*stock no se modificó/);
   assert.match(functionSql, /target_sale\.order_id is not null[\s\S]*pago online/);
   assert.match(functionSql, /movement\.movement_type = 'sale'/);
   assert.match(functionSql, /insert into public\.business_inventory_movements[\s\S]*'void_sale'/);
-  assert.match(functionSql, /set status = 'voided', voided_at = now\(\), void_reason/);
+  assert.match(functionSql, /set status = 'voided',[\s\S]*voided_at = now\(\),[\s\S]*void_reason/);
   assert.doesNotMatch(functionSql, /delete from public\.business_sales/i);
   assert.doesNotMatch(functionSql, /refund|mercado_pago|payment_provider/i);
   assert.match(salesPage, /Eliminar esta venta/);
@@ -90,12 +91,43 @@ test("sale void is owned, concurrent-safe, idempotent and blocks online sales", 
 });
 
 test("sale void restores the recorded showroom and warehouse split", () => {
-  assert.match(migration, /showroom_restore := coalesce\(\(original_movement\.location_breakdown ->> 'showroom'\)::integer, 0\)/);
-  assert.match(migration, /warehouse_restore := coalesce\(\(original_movement\.location_breakdown ->> 'warehouse'\)::integer, 0\)/);
-  assert.match(migration, /quantity = balance\.quantity - showroom_restore/);
-  assert.match(migration, /quantity = balance\.quantity \+ showroom_restore/);
-  assert.match(migration, /quantity = balance\.quantity \+ warehouse_restore/);
-  assert.match(migration, /location_breakdown\s*\n\s*\) values/);
+  assert.match(saleLocationFix, /group by movement\.location_id/);
+  assert.match(saleLocationFix, /quantity = balance\.quantity - relocate_quantity/);
+  assert.match(saleLocationFix, /quantity = balance\.quantity \+ source_location\.quantity/);
+  assert.match(saleLocationFix, /source_location\.location_id, 'void_sale'/);
+  assert.match(saleLocationFix, /venta legacy restaurada en depósito/);
+  assert.doesNotMatch(saleLocationFix, /location_breakdown/);
+});
+
+test("sale void validates movement totals and rolls back if it cannot mark the sale", () => {
+  const functionSql = saleLocationFix.match(/create or replace function public\.void_business_sale[\s\S]*?\$void_sale_by_location\$;/i)?.[0] ?? "";
+  assert.match(functionSql, /movement_total <> sold_item\.quantity/);
+  assert.match(functionSql, /localized_count not in \(0, movement_count\)/);
+  assert.match(functionSql, /updated_sales <> 1 then raise exception/);
+  assert.match(functionSql, /target_sale\.status = 'voided'[\s\S]*stock no se modificó/);
+  assert.ok(functionSql.indexOf("Validate and lock the complete sale") < functionSql.indexOf("p_quantity_delta => restore_quantity"));
+  assert.match(functionSql, /order by item\.catalog_item_id[\s\S]*for update/);
+  assert.match(functionSql, /Location distribution exceeds authoritative stock/);
+});
+
+test("a localized 2 showroom + 3 warehouse sale is exactly reversible only once", () => {
+  const original = { showroom: 2, warehouse: 10 };
+  const movement = { showroom: -2, warehouse: -3 };
+  const afterSale = {
+    showroom: original.showroom + movement.showroom,
+    warehouse: original.warehouse + movement.warehouse,
+  };
+  assert.deepEqual(afterSale, { showroom: 0, warehouse: 7 });
+
+  let status = "completed";
+  const voidOnce = (stock) => {
+    if (status === "voided") return stock;
+    status = "voided";
+    return { showroom: stock.showroom - movement.showroom, warehouse: stock.warehouse - movement.warehouse };
+  };
+  const restored = voidOnce(afterSale);
+  assert.deepEqual(restored, original);
+  assert.deepEqual(voidOnce(restored), original);
 });
 
 test("metrics use the business timezone and exclude voided and refunded sales", () => {

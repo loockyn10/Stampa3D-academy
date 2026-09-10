@@ -23,6 +23,10 @@ export type CartMutationResult =
   | { success: true; cart: BusinessCartItem[] }
   | { success: false; cart: BusinessCartItem[]; error: string };
 
+export function getBusinessAvailableForSale(locationStock: { showroom: number; warehouse: number }): number {
+  return Math.max(0, locationStock.showroom) + Math.max(0, locationStock.warehouse);
+}
+
 export function toBusinessCartItem(
   item: BusinessCatalogItem,
   products: readonly WorkshopProductSummary[],
@@ -30,7 +34,7 @@ export function toBusinessCartItem(
 ): BusinessCartItem | null {
   const showroomStock = locationStock ? Math.max(0, locationStock.showroom) : 0;
   const warehouseStock = locationStock ? Math.max(0, locationStock.warehouse) : 0;
-  const stock = locationStock ? showroomStock + warehouseStock : resolveBusinessCatalogStock(item, products);
+  const stock = locationStock ? getBusinessAvailableForSale(locationStock) : resolveBusinessCatalogStock(item, products);
   if (!item.is_active || stock === null) return null;
   return {
     catalogItemId: item.id,
