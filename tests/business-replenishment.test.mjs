@@ -29,9 +29,10 @@ test("reposición enriquece nombres con la representación comercial centralizad
   const start = businessActions.indexOf("export async function loadBusinessReplenishmentAction");
   const end = businessActions.indexOf("export async function configureBusinessLocationsAction", start);
   const block = businessActions.slice(start, end);
-  assert.match(block, /\.select\("id, name, brand"\)/);
+  assert.match(block, /\.select\("id, name, brand, category, sku, purchase_cost, source_type"\)/);
   assert.match(block, /getBusinessProductDisplayName/);
-  assert.match(block, /catalogNames\.get\(item\.catalogItemId\) \?\? item\.name/);
+  assert.match(block, /catalogDetails\.get\(item\.catalogItemId\)/);
+  assert.match(block, /purchaseCost: detail\?\.source_type === "resale"[\s\S]*detail\.purchase_cost/);
 });
 
 test("producto sin objetivo no se recomienda", () => {

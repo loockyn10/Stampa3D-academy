@@ -2,7 +2,7 @@
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import Link from "next/link";
-import { ArrowLeft, Boxes, Loader2, PackageCheck, Settings2, ShoppingBasket, X } from "lucide-react";
+import { ArrowLeft, Boxes, CheckSquare2, Loader2, PackageCheck, Search, Settings2, ShoppingBasket, Square, X } from "lucide-react";
 import { usePublishStampyScreenContext } from "@/components/stampy/StampyContextProvider";
 import { Card } from "@/components/ui/card";
 import { Dialog } from "@/components/ui/dialog";
@@ -17,9 +17,11 @@ import {
   type BusinessReplenishmentItem,
   type BusinessReplenishmentWorkspace,
 } from "@/lib/business/replenishment";
+import { matchesBusinessSearch } from "@/lib/business/search";
 import type { StampyScreenContext } from "@/lib/stampy/screen-context";
 import {
   configureBusinessLocationsAction,
+  bulkUpdateBusinessPurchaseCostAction,
   loadBusinessReplenishmentAction,
   replenishBusinessShowroomAction,
   saveBusinessInventoryPolicyAction,
@@ -36,6 +38,7 @@ function optionalInteger(value: string): number | null {
 export default function ReposicionPage() {
   const { toast } = useAppFeedback();
   const [tab, setTab] = useState<"showroom" | "purchases">("showroom");
+  const [search, setSearch] = useState("");
   const [period, setPeriod] = useState<BusinessInventoryPeriod>("week");
   const [workspace, setWorkspace] = useState<BusinessReplenishmentWorkspace | null>(null);
   const [loading, setLoading] = useState(true);
@@ -49,6 +52,10 @@ export default function ReposicionPage() {
   const [weight, setWeight] = useState("");
   const [saving, setSaving] = useState(false);
   const [bulkOpen, setBulkOpen] = useState(false);
+  const [bulkCostOpen, setBulkCostOpen] = useState(false);
+  const [bulkCost, setBulkCost] = useState("");
+  const [selectedCostIds, setSelectedCostIds] = useState<string[]>([]);
+  const [bulkCostSaving, setBulkCostSaving] = useState(false);
   const [replenishingId, setReplenishingId] = useState<string | null>(null);
   const operationRef = useRef<string | null>(null);
 
@@ -71,18 +78,27 @@ export default function ReposicionPage() {
     return () => { active = false; };
   }, [period]);
 
-  const suggestions = useMemo(() => (workspace?.items ?? []).flatMap((item) => {
+  const filteredItems = useMemo(
+    () => (workspace?.items ?? []).filter((item) => matchesBusinessSearch(item, search)),
+    [search, workspace],
+  );
+  const suggestions = useMemo(() => filteredItems.flatMap((item) => {
     const replenishment = calculateShowroomReplenishment(item);
     return replenishment.needed > 0 ? [{ item, ...replenishment }] : [];
-  }).sort((a, b) => b.needed - a.needed), [workspace]);
+  }).sort((a, b) => b.needed - a.needed), [filteredItems]);
   const movableSuggestions = suggestions.filter((suggestion) => suggestion.movable > 0);
   const bulkUnits = movableSuggestions.reduce((sum, suggestion) => sum + suggestion.movable, 0);
 
-  const purchaseRows = useMemo(() => (workspace?.items ?? []).map((item) => ({
+  const purchaseRows = useMemo(() => filteredItems.map((item) => ({
     item,
     purchase: calculatePurchaseSuggestion(item.stockMinimum, item.totalStock),
     kilograms: soldWeightKg(item.soldUnits, item.unitWeightGrams),
-  })).sort((a, b) => b.item.soldUnits - a.item.soldUnits), [workspace]);
+  })).sort((a, b) => b.item.soldUnits - a.item.soldUnits), [filteredItems]);
+  const selectableCostRows = purchaseRows.filter(({ item }) => item.sourceType === "resale");
+  const allFilteredCostsSelected = selectableCostRows.length > 0
+    && selectableCostRows.every(({ item }) => selectedCostIds.includes(item.catalogItemId));
+  const selectedCostRows = (workspace?.items ?? []).filter((item) => selectedCostIds.includes(item.catalogItemId));
+  const currentCosts = Array.from(new Set(selectedCostRows.map((item) => item.purchaseCost)));
   const invoiced = purchaseRows.reduce((sum, row) => sum + row.item.soldTotal, 0);
   const filamentKg = purchaseRows.reduce((sum, row) => sum + (row.kilograms ?? 0), 0);
   const otherUnits = purchaseRows.reduce((sum, row) => sum + (row.kilograms === null ? row.item.soldUnits : 0), 0);
@@ -96,8 +112,8 @@ export default function ReposicionPage() {
     pageData: { kind: "pageFacts", facts: tab === "showroom"
       ? [{ label: "Productos para reponer", value: suggestions.length }, { label: "Unidades que pueden moverse", value: bulkUnits }]
       : [{ label: "Período", value: getBusinessPeriodLabel(period) }, { label: "Facturado", value: invoiced }, { label: "Kilogramos vendidos", value: filamentKg }, { label: "Otros productos vendidos", value: otherUnits }] },
-    uiState: { loading, activeTab: tab === "showroom" ? "Showroom" : "Compras" },
-  }), [bulkUnits, filamentKg, invoiced, loading, otherUnits, period, purchaseRows, suggestions, tab]);
+    uiState: { loading, activeTab: tab === "showroom" ? "Showroom" : "Compras", searchQuery: search },
+  }), [bulkUnits, filamentKg, invoiced, loading, otherUnits, period, purchaseRows, search, suggestions, tab]);
   usePublishStampyScreenContext(stampyContext);
 
   const activate = async (location: "warehouse" | "showroom" | "keep" = initialLocation) => {
@@ -143,6 +159,33 @@ export default function ReposicionPage() {
     operationRef.current = null; setBulkOpen(false); setLoading(true); await load(period);
   };
 
+  const toggleCostSelection = (catalogItemId: string) => {
+    setSelectedCostIds((current) => current.includes(catalogItemId)
+      ? current.filter((id) => id !== catalogItemId)
+      : [...current, catalogItemId]);
+  };
+
+  const toggleAllFilteredCosts = () => {
+    const filteredIds = selectableCostRows.map(({ item }) => item.catalogItemId);
+    setSelectedCostIds((current) => allFilteredCostsSelected
+      ? current.filter((id) => !filteredIds.includes(id))
+      : Array.from(new Set([...current, ...filteredIds])));
+  };
+
+  const applyBulkCost = async () => {
+    const nextCost = Number(bulkCost);
+    if (!Number.isFinite(nextCost) || nextCost < 0) return toast.error("Ingresá un costo válido igual o mayor a cero.");
+    setBulkCostSaving(true);
+    const result = await bulkUpdateBusinessPurchaseCostAction({ catalogItemIds: selectedCostIds, purchaseCost: nextCost });
+    setBulkCostSaving(false);
+    if (!result.success) return toast.error(result.error);
+    toast.success(`Costo actualizado en ${result.updatedCount} productos.`);
+    setBulkCostOpen(false);
+    setBulkCost("");
+    setSelectedCostIds([]);
+    await load(period);
+  };
+
   return <div className="pb-28">
     <Link href="/mi-negocio" className="mb-4 inline-flex items-center gap-1.5 text-xs font-semibold text-gray-500 hover:text-white"><ArrowLeft size={14} /> Mi Negocio</Link>
     <SectionTitle eyebrow="Mi Negocio" title="Reposición" action={workspace?.enabled ? <button type="button" onClick={() => void disable()} disabled={configuring} className="min-h-10 rounded-xl border border-stampa-border px-3 text-xs font-bold text-gray-400 hover:text-white disabled:opacity-50">Desactivar showroom</button> : undefined} />
@@ -150,14 +193,16 @@ export default function ReposicionPage() {
     {error && <Card className="mb-5 border-red-500/25 p-4 text-sm text-red-300">No se pudo cargar Reposición: {error}</Card>}
     {loading ? <div className="flex min-h-56 items-center justify-center text-gray-500"><Loader2 className="animate-spin" /></div> : !workspace?.enabled ? <Card className="mx-auto max-w-2xl p-7 text-center sm:p-10"><Boxes size={34} className="mx-auto text-stampa-orange" /><h2 className="mt-4 text-xl font-black text-white">¿Tenés mercadería exhibida y stock guardado?</h2><p className="mx-auto mt-2 max-w-lg text-sm leading-6 text-gray-400">Stampa puede decirte qué llevar del depósito al showroom cada día. Si no lo necesitás, Catálogo y Venta rápida siguen funcionando como siempre.</p><button type="button" disabled={configuring} onClick={() => workspace?.initialized ? void activate("keep") : setActivationOpen(true)} className="mt-6 min-h-12 rounded-xl bg-stampa-orange px-6 text-sm font-black text-white disabled:opacity-50">{workspace?.initialized ? "Volver a activar showroom" : "Configurar showroom"}</button></Card> : <>
       <div className="mb-5 grid grid-cols-2 rounded-xl border border-stampa-border bg-stampa-surface p-1"><button onClick={() => setTab("showroom")} className={`min-h-11 rounded-lg text-sm font-bold ${tab === "showroom" ? "bg-stampa-orange text-white" : "text-gray-400"}`}>Showroom</button><button onClick={() => setTab("purchases")} className={`min-h-11 rounded-lg text-sm font-bold ${tab === "purchases" ? "bg-stampa-orange text-white" : "text-gray-400"}`}>Compras</button></div>
+      <label className="relative mb-5 block max-w-2xl"><Search className="pointer-events-none absolute left-3.5 top-3.5 text-gray-500" size={17} /><span className="sr-only">Buscar en Reposición</span><input value={search} onChange={(event) => setSearch(event.target.value)} placeholder="Buscar por producto, marca, categoría o SKU" className="min-h-11 w-full rounded-xl border border-stampa-border bg-stampa-surface pl-10 pr-4 text-sm text-white outline-none placeholder:text-gray-600 focus:border-stampa-orange/60" /></label>
       {tab === "showroom" ? <section>
         <div className="mb-4 flex flex-col gap-3 min-[390px]:flex-row min-[390px]:items-center min-[390px]:justify-between"><div><h2 className="font-black text-white">Para reponer hoy</h2><p className="mt-1 text-xs text-gray-500">Sólo aparecen productos con objetivo pendiente.</p></div>{movableSuggestions.length > 0 && <button onClick={() => setBulkOpen(true)} className="min-h-11 rounded-xl bg-stampa-orange px-4 text-sm font-black text-white">Reponer todo</button>}</div>
         {suggestions.length === 0 ? <Card className="p-8 text-center"><PackageCheck className="mx-auto text-emerald-300" /><p className="mt-3 font-bold text-white">El showroom está completo</p><p className="mt-1 text-sm text-gray-500">O todavía no definiste objetivos para tus productos.</p></Card> : <div className="grid gap-3 lg:grid-cols-2">{suggestions.map(({ item, movable, remainingShortage }) => <Card key={item.catalogItemId} className="p-4"><div className="flex items-start justify-between gap-3"><div className="min-w-0"><h3 className="truncate text-sm font-black text-white">{item.name}</h3><p className="mt-1 text-xs text-gray-500">Showroom {item.showroom} / {item.showroomTarget} · Depósito {item.warehouse}</p></div><button onClick={() => openPolicy(item)} aria-label={`Configurar ${item.name}`} className="rounded-lg p-2 text-gray-500 hover:bg-white/5"><Settings2 size={16} /></button></div><div className="mt-4 flex items-end justify-between gap-4"><div><p className="text-xs text-gray-500">Mover</p><p className="text-2xl font-black text-stampa-orange">{movable} u.</p>{remainingShortage > 0 && <p className="mt-1 text-xs text-amber-300">Faltan {remainingShortage} para completar</p>}</div><button disabled={movable === 0 || replenishingId !== null} onClick={() => { operationRef.current=null; void replenish([item.catalogItemId]); }} className="min-h-11 rounded-xl border border-stampa-orange/40 bg-stampa-orange/10 px-4 text-xs font-black text-orange-200 disabled:opacity-40">{replenishingId === item.catalogItemId ? "Reponiendo..." : "Reponer"}</button></div></Card>)}</div>}
-        <div className="mt-5"><p className="mb-2 text-xs font-bold uppercase tracking-wide text-gray-500">Configurar objetivos</p><div className="flex flex-wrap gap-2">{workspace.items.map((item) => <button key={item.catalogItemId} onClick={() => openPolicy(item)} className="rounded-lg border border-stampa-border px-3 py-2 text-xs text-gray-400 hover:text-white">{item.name}{item.showroomTarget === null ? " · definir objetivo" : ` · objetivo ${item.showroomTarget}`}</button>)}</div></div>
+        <div className="mt-5"><p className="mb-2 text-xs font-bold uppercase tracking-wide text-gray-500">Configurar objetivos</p><div className="flex flex-wrap gap-2">{filteredItems.map((item) => <button key={item.catalogItemId} onClick={() => openPolicy(item)} className="rounded-lg border border-stampa-border px-3 py-2 text-xs text-gray-400 hover:text-white">{item.name}{item.showroomTarget === null ? " · definir objetivo" : ` · objetivo ${item.showroomTarget}`}</button>)}</div></div>
       </section> : <section>
-        <div className="mb-4 flex items-center justify-between gap-3"><div><h2 className="font-black text-white">{getBusinessPeriodLabel(period)}</h2><p className="mt-1 text-xs text-gray-500">Ventas completadas · lunes a domingo · {workspace.timezone}</p></div><div className="flex rounded-lg border border-stampa-border p-1"><button onClick={() => { setLoading(true); setPeriod("week"); }} className={`rounded-md px-3 py-2 text-xs font-bold ${period === "week" ? "bg-white/10 text-white" : "text-gray-500"}`}>Semana</button><button onClick={() => { setLoading(true); setPeriod("month"); }} className={`rounded-md px-3 py-2 text-xs font-bold ${period === "month" ? "bg-white/10 text-white" : "text-gray-500"}`}>Mes</button></div></div>
+        <div className="mb-4 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between"><div><h2 className="font-black text-white">{getBusinessPeriodLabel(period)}</h2><p className="mt-1 text-xs text-gray-500">Ventas completadas · lunes a domingo · {workspace.timezone}</p></div><div className="flex flex-wrap gap-2"><button type="button" disabled={selectedCostIds.length === 0} onClick={() => setBulkCostOpen(true)} className="min-h-10 rounded-lg border border-stampa-orange/35 bg-stampa-orange/10 px-3 text-xs font-black text-orange-200 disabled:opacity-40">Editar en masa ({selectedCostIds.length})</button><div className="flex rounded-lg border border-stampa-border p-1"><button onClick={() => { setLoading(true); setPeriod("week"); }} className={`rounded-md px-3 py-2 text-xs font-bold ${period === "week" ? "bg-white/10 text-white" : "text-gray-500"}`}>Semana</button><button onClick={() => { setLoading(true); setPeriod("month"); }} className={`rounded-md px-3 py-2 text-xs font-bold ${period === "month" ? "bg-white/10 text-white" : "text-gray-500"}`}>Mes</button></div></div></div>
         <div className="mb-4 grid gap-3 sm:grid-cols-3"><Card className="p-4"><p className="text-xs text-gray-500">Filamento vendido</p><p className="mt-1 text-xl font-black text-white">{filamentKg.toLocaleString("es-AR")} kg</p></Card><Card className="p-4"><p className="text-xs text-gray-500">Otros productos</p><p className="mt-1 text-xl font-black text-white">{otherUnits} u.</p></Card><Card className="p-4"><p className="text-xs text-gray-500">Facturado</p><p className="mt-1 text-xl font-black text-white">{money.format(invoiced)}</p></Card></div>
-        <div className="grid gap-3">{purchaseRows.map(({ item, purchase, kilograms }) => <Card key={item.catalogItemId} className="grid gap-3 p-4 sm:grid-cols-[minmax(0,1.5fr)_repeat(3,minmax(7rem,0.7fr))_auto] sm:items-center"><div className="min-w-0"><p className="truncate text-sm font-black text-white">{item.name}</p><p className="text-xs text-gray-500">{item.category}</p></div><div><p className="text-[10px] uppercase text-gray-500">Vendiste</p><p className="text-sm font-bold text-gray-200">{kilograms === null ? `${item.soldUnits} u.` : `${kilograms.toLocaleString("es-AR")} kg`}</p></div><div><p className="text-[10px] uppercase text-gray-500">Stock total</p><p className="text-sm font-bold text-gray-200">{item.totalStock} u.</p></div><div><p className="text-[10px] uppercase text-gray-500">Sugerencia</p><p className={`text-sm font-bold ${purchase && purchase > 0 ? "text-amber-300" : "text-emerald-300"}`}>{purchase === null ? "Sin mínimo" : purchase > 0 ? `Comprar ${purchase}` : "No hace falta"}</p></div><button onClick={() => openPolicy(item)} className="min-h-9 rounded-lg border border-stampa-border px-3 text-xs font-bold text-gray-400">Configurar</button></Card>)}</div>
+        {selectableCostRows.length > 0 && <button type="button" onClick={toggleAllFilteredCosts} className="mb-3 inline-flex min-h-10 items-center gap-2 rounded-lg border border-stampa-border px-3 text-xs font-bold text-gray-300">{allFilteredCostsSelected ? <CheckSquare2 size={16} className="text-stampa-orange" /> : <Square size={16} />} {allFilteredCostsSelected ? "Deseleccionar resultados" : "Seleccionar resultados filtrados"}</button>}
+        <div className="grid gap-3">{purchaseRows.map(({ item, purchase, kilograms }) => { const selectable = item.sourceType === "resale"; const selectedCost = selectedCostIds.includes(item.catalogItemId); return <Card key={item.catalogItemId} className="grid gap-3 p-4 sm:grid-cols-[auto_minmax(0,1.5fr)_repeat(3,minmax(7rem,0.7fr))_auto] sm:items-center">{selectable ? <button type="button" onClick={() => toggleCostSelection(item.catalogItemId)} className="flex h-10 w-10 items-center justify-center rounded-lg text-gray-500" aria-label={`${selectedCost ? "Deseleccionar" : "Seleccionar"} ${item.name}`}>{selectedCost ? <CheckSquare2 size={18} className="text-stampa-orange" /> : <Square size={18} />}</button> : <span className="hidden sm:block" />}<div className="min-w-0"><p className="truncate text-sm font-black text-white">{item.name}</p><p className="text-xs text-gray-500">{item.category}{item.sku ? ` · ${item.sku}` : ""}</p><p className="mt-1 text-[11px] text-gray-500">{selectable ? `Costo ${money.format(item.purchaseCost ?? 0)}` : "Costo administrado en Productos"}</p></div><div><p className="text-[10px] uppercase text-gray-500">Vendiste</p><p className="text-sm font-bold text-gray-200">{kilograms === null ? `${item.soldUnits} u.` : `${kilograms.toLocaleString("es-AR")} kg`}</p></div><div><p className="text-[10px] uppercase text-gray-500">Stock total</p><p className="text-sm font-bold text-gray-200">{item.totalStock} u.</p></div><div><p className="text-[10px] uppercase text-gray-500">Sugerencia</p><p className={`text-sm font-bold ${purchase && purchase > 0 ? "text-amber-300" : "text-emerald-300"}`}>{purchase === null ? "Sin mínimo" : purchase > 0 ? `Comprar ${purchase}` : "No hace falta"}</p></div><button onClick={() => openPolicy(item)} className="min-h-9 rounded-lg border border-stampa-border px-3 text-xs font-bold text-gray-400">Configurar</button></Card>; })}</div>
       </section>}
     </>}
 
@@ -166,5 +211,6 @@ export default function ReposicionPage() {
     <Dialog open={editing !== null} onClose={() => setEditing(null)} labelledBy="policy-title" panelClassName="max-w-lg rounded-2xl border border-stampa-border bg-stampa-surface">{editing && <><div className="flex items-start justify-between border-b border-stampa-border p-5"><div><h2 id="policy-title" className="font-black text-white">{editing.name}</h2><p className="mt-1 text-xs text-gray-500">Cada dato es opcional y cumple una función distinta.</p></div><button onClick={() => setEditing(null)} className="p-2 text-gray-500"><X size={18} /></button></div><div className="space-y-4 p-5"><label className="block text-xs font-bold text-gray-300">Objetivo showroom<input inputMode="numeric" value={target} onChange={(e) => setTarget(e.target.value)} placeholder="Ej.: 6" className="mt-1.5 min-h-11 w-full rounded-xl border border-stampa-border bg-stampa-bg-soft px-3 text-white" /><span className="mt-1 block font-normal text-gray-500">Cuántas unidades querés exhibir.</span></label><label className="block text-xs font-bold text-gray-300">Stock mínimo<input inputMode="numeric" value={minimum} onChange={(e) => setMinimum(e.target.value)} placeholder="Ej.: 10" className="mt-1.5 min-h-11 w-full rounded-xl border border-stampa-border bg-stampa-bg-soft px-3 text-white" /><span className="mt-1 block font-normal text-gray-500">Reserva total que querés conservar.</span></label><label className="block text-xs font-bold text-gray-300">Peso por unidad en gramos<input inputMode="numeric" value={weight} onChange={(e) => setWeight(e.target.value)} placeholder="Ej.: 1000" className="mt-1.5 min-h-11 w-full rounded-xl border border-stampa-border bg-stampa-bg-soft px-3 text-white" /><span className="mt-1 block font-normal text-gray-500">Sólo si querés ver equivalencias en kg.</span></label><button disabled={saving} onClick={() => void savePolicy()} className="min-h-12 w-full rounded-xl bg-stampa-orange text-sm font-black text-white disabled:opacity-50">{saving ? "Guardando..." : "Guardar"}</button></div></>}</Dialog>
 
     <Dialog open={bulkOpen} onClose={() => setBulkOpen(false)} labelledBy="bulk-title" panelClassName="max-w-md rounded-2xl border border-stampa-border bg-stampa-surface"><div className="p-5"><ShoppingBasket className="text-stampa-orange" /><h2 id="bulk-title" className="mt-3 text-lg font-black text-white">Confirmar reposición</h2><p className="mt-2 text-sm text-gray-400">Vas a mover <strong className="text-white">{bulkUnits} unidades</strong> de <strong className="text-white">{movableSuggestions.length} productos</strong> al showroom.</p><div className="mt-5 grid grid-cols-2 gap-2"><button onClick={() => setBulkOpen(false)} className="min-h-11 rounded-xl border border-stampa-border text-sm font-bold text-gray-300">Cancelar</button><button disabled={replenishingId !== null} onClick={() => { operationRef.current=null; void replenish(movableSuggestions.map(({ item }) => item.catalogItemId)); }} className="min-h-11 rounded-xl bg-stampa-orange text-sm font-black text-white disabled:opacity-50">Confirmar</button></div></div></Dialog>
+    <Dialog open={bulkCostOpen} onClose={() => setBulkCostOpen(false)} labelledBy="bulk-cost-title" panelClassName="max-w-md rounded-2xl border border-stampa-border bg-stampa-surface"><div className="p-5"><h2 id="bulk-cost-title" className="text-lg font-black text-white">Editar {selectedCostIds.length} productos</h2><p className="mt-2 text-sm text-gray-400">Costo actual: <strong className="text-white">{currentCosts.length === 1 ? money.format(currentCosts[0] ?? 0) : "Varios valores"}</strong></p><label className="mt-5 block text-xs font-bold text-gray-300">Nuevo costo<input type="number" min="0" step="0.01" value={bulkCost} onChange={(event) => setBulkCost(event.target.value)} className="mt-1.5 min-h-11 w-full rounded-xl border border-stampa-border bg-stampa-bg-soft px-3 text-sm text-white outline-none focus:border-stampa-orange" /></label><p className="mt-2 text-xs leading-5 text-gray-500">Sólo cambia el costo de compra. Precio de venta, stock y códigos permanecen intactos.</p><div className="mt-5 grid grid-cols-2 gap-2"><button type="button" onClick={() => setBulkCostOpen(false)} className="min-h-11 rounded-xl border border-stampa-border text-sm font-bold text-gray-300">Cancelar</button><button type="button" disabled={bulkCostSaving || !bulkCost.trim()} onClick={() => void applyBulkCost()} className="min-h-11 rounded-xl bg-stampa-orange text-sm font-black text-white disabled:opacity-50">{bulkCostSaving ? "Aplicando..." : "Confirmar cambios"}</button></div></div></Dialog>
   </div>;
 }

@@ -34,6 +34,7 @@ const PAGE_TITLES: Record<string, string> = {
   "/mi-negocio/venta-rapida": "Venta rápida",
   "/mi-negocio/ventas": "Ventas",
   "/mi-negocio/reposicion": "Reposición",
+  "/mi-negocio/metricas": "Métricas",
   "/mi-negocio/pedidos": "Pedidos online",
   "/mi-negocio/tienda": "Mi Tienda",
   "/perfil": "Mi perfil",

@@ -2,6 +2,10 @@
 
 import { revalidatePath } from "next/cache";
 import {
+  normalizeBusinessMetrics,
+  type BusinessMetrics,
+} from "@/lib/business/metrics";
+import {
   getBusinessProductDisplayName,
   normalizeBusinessMoney,
   normalizeBusinessStock,
@@ -78,6 +82,11 @@ export interface BusinessSaleInput {
   idempotencyKey: string;
   clientId?: string | null;
   items: Array<{ catalogItemId: string; quantity: number }>;
+}
+
+export interface BusinessBulkCostInput {
+  catalogItemIds: string[];
+  purchaseCost: number;
 }
 
 export interface BusinessInventoryAdjustmentInput {
@@ -656,7 +665,7 @@ export async function loadBusinessReplenishmentAction(period: BusinessInventoryP
     authorized.supabase.rpc("get_business_replenishment_workspace", { p_period: period }),
     authorized.supabase
       .from("business_catalog_items")
-      .select("id, name, brand")
+      .select("id, name, brand, category, sku, purchase_cost, source_type")
       .eq("user_id", authorized.userId)
       .eq("is_active", true),
   ]);
@@ -664,17 +673,48 @@ export async function loadBusinessReplenishmentAction(period: BusinessInventoryP
   if (queryError) return { success: false, error: queryError.message, workspace: null };
   const workspace = normalizeBusinessReplenishmentWorkspace(workspaceResult.data);
   if (!workspace) return { success: false, error: "No se pudo interpretar el estado de reposición.", workspace: null };
-  const catalogNames = new Map((catalogResult.data || []).map((item) => [
-    item.id,
-    getBusinessProductDisplayName({ name: item.name, brand: item.brand }),
-  ]));
+  const catalogDetails = new Map((catalogResult.data || []).map((item) => [item.id, item]));
   return {
     success: true,
     workspace: {
       ...workspace,
-      items: workspace.items.map((item) => ({ ...item, name: catalogNames.get(item.catalogItemId) ?? item.name })),
+      items: workspace.items.map((item) => {
+        const detail = catalogDetails.get(item.catalogItemId);
+        return {
+          ...item,
+          name: detail ? getBusinessProductDisplayName({ name: detail.name, brand: detail.brand }) : item.name,
+          brand: detail?.brand ?? null,
+          category: detail?.category ?? item.category,
+          sku: detail?.sku ?? null,
+          purchaseCost: detail?.source_type === "resale" && detail.purchase_cost !== null
+            ? Number(detail.purchase_cost)
+            : null,
+        };
+      }),
     },
   };
+}
+
+export async function bulkUpdateBusinessPurchaseCostAction(input: BusinessBulkCostInput) {
+  const authorized = await authorizeBusinessAccess();
+  if (!authorized.success) return authorized;
+  const ids = Array.from(new Set(input.catalogItemIds));
+  const purchaseCost = normalizeBusinessMoney(input.purchaseCost);
+  if (ids.length < 1 || ids.length > 500 || ids.some((id) => !UUID_PATTERN.test(id))) {
+    return { success: false as const, error: "Seleccioná entre 1 y 500 productos válidos." };
+  }
+  if (purchaseCost === null) return { success: false as const, error: "El nuevo costo debe ser igual o mayor a cero." };
+
+  const { data, error } = await authorized.supabase.rpc("bulk_update_business_purchase_cost", {
+    p_catalog_item_ids: ids,
+    p_purchase_cost: purchaseCost,
+  });
+  const row = Array.isArray(data) ? data[0] : data;
+  if (error || !row?.success) {
+    return { success: false as const, error: row?.message || error?.message || "No se pudieron actualizar los costos." };
+  }
+  revalidateBusinessPages();
+  return { success: true as const, updatedCount: Number(row.updated_count) };
 }
 
 export async function configureBusinessLocationsAction(input: { enabled: boolean; initialLocation?: "showroom" | "warehouse" | "keep" }) {
@@ -727,7 +767,7 @@ export async function loadBusinessSalesAction(): Promise<
 
   const { data: salesData, error: salesError } = await authorized.supabase
     .from("business_sales")
-    .select("id, sale_number, client_id, status, currency, subtotal, total, created_at")
+    .select("id, sale_number, client_id, status, currency, subtotal, total, order_id, voided_at, void_reason, created_at")
     .eq("user_id", authorized.userId)
     .order("created_at", { ascending: false })
     .limit(50);
@@ -758,20 +798,62 @@ export async function loadBusinessSalesAction(): Promise<
   const clients = (clientsResult.data || []) as BusinessClientSummary[];
   return {
     success: true,
-    sales: (salesData || []).map((sale) => ({
-      ...sale,
-      sale_number: Number(sale.sale_number),
-      subtotal: Number(sale.subtotal),
-      total: Number(sale.total),
-      client_name: clients.find((client) => client.id === sale.client_id)?.name ?? null,
-      items: saleItems.filter((item) => item.sale_id === sale.id).map((item) => ({
-        ...item,
-        unit_price: Number(item.unit_price),
-        quantity: Number(item.quantity),
-        subtotal: Number(item.subtotal),
-      })),
-    })) as BusinessSaleSummary[],
+    sales: (salesData || []).map((sale) => {
+      const { order_id: orderId, ...saleFields } = sale;
+      return {
+        ...saleFields,
+        sale_number: Number(sale.sale_number),
+        subtotal: Number(sale.subtotal),
+        total: Number(sale.total),
+        is_online_sale: Boolean(orderId),
+        client_name: clients.find((client) => client.id === sale.client_id)?.name ?? null,
+        items: saleItems.filter((item) => item.sale_id === sale.id).map((item) => ({
+          ...item,
+          unit_price: Number(item.unit_price),
+          quantity: Number(item.quantity),
+          subtotal: Number(item.subtotal),
+        })),
+      };
+    }) as BusinessSaleSummary[],
   };
+}
+
+export async function voidBusinessSaleAction(input: { saleId: string; reason: string }) {
+  const authorized = await authorizeBusinessAccess();
+  if (!authorized.success) return authorized;
+  if (!UUID_PATTERN.test(input.saleId)) return { success: false as const, error: "La venta no es válida." };
+  const reason = requiredText(input.reason, 120);
+  if (!reason) return { success: false as const, error: "Elegí un motivo para eliminar la venta." };
+
+  const { data, error } = await authorized.supabase.rpc("void_business_sale", {
+    p_sale_id: input.saleId,
+    p_reason: reason,
+  });
+  const row = Array.isArray(data) ? data[0] : data;
+  if (error || !row?.success) {
+    return {
+      success: false as const,
+      error: row?.message || error?.message || "No se pudo eliminar la venta.",
+      errorCode: row?.error_code ? String(row.error_code) : null,
+    };
+  }
+  revalidatePath("/mi-negocio/ventas");
+  revalidatePath("/mi-negocio/metricas");
+  revalidateBusinessPages();
+  return { success: true as const, restoredUnits: Number(row.restored_units) };
+}
+
+export async function loadBusinessMetricsAction(period: BusinessInventoryPeriod): Promise<
+  | { success: true; metrics: BusinessMetrics }
+  | { success: false; error: string; metrics: null }
+> {
+  const authorized = await authorizeBusinessAccess();
+  if (!authorized.success) return { success: false, error: authorized.error, metrics: null };
+  const { data, error } = await authorized.supabase.rpc("get_business_metrics", { p_period: period });
+  if (error) return { success: false, error: error.message, metrics: null };
+  const metrics = normalizeBusinessMetrics(data);
+  if (!metrics) return { success: false, error: "No se pudieron interpretar las métricas del negocio.", metrics: null };
+  return { success: true, metrics };
 }
 
 export async function loadBusinessStorefrontWorkspaceAction(): Promise<

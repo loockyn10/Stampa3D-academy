@@ -4,7 +4,7 @@ import { Suspense, useCallback, useEffect, useMemo, useRef, useState } from "rea
 import { useRouter, useSearchParams } from "next/navigation";
 import Link from "next/link";
 import Image from "next/image";
-import { ArrowLeft, Barcode, Boxes, Eye, EyeOff, Factory, History, Loader2, Minus, PackagePlus, Pencil, Plus, ShoppingBag, Trash2, X } from "lucide-react";
+import { ArrowLeft, Barcode, Boxes, Eye, EyeOff, Factory, History, Loader2, Minus, PackagePlus, Pencil, Plus, Search, ShoppingBag, Trash2, X } from "lucide-react";
 import { useBarcodeScanHandler } from "@/components/barcode/BarcodeScannerProvider";
 import { StockReceiptDialog } from "@/components/business/StockReceiptDialog";
 import { FileUploadDropzone } from "@/components/ui/file-upload-dropzone";
@@ -16,6 +16,7 @@ import { usePublishStampyScreenContext } from "@/components/stampy/StampyContext
 import type { StampyScreenContext } from "@/lib/stampy/screen-context";
 import { normalizeBarcode } from "@/lib/barcode/hid-scanner";
 import type { BusinessBarcodeType } from "@/lib/business/stock-receipt";
+import { matchesBusinessSearch } from "@/lib/business/search";
 import {
   getBusinessProductDisplayName,
   resolveBusinessCatalogStock,
@@ -59,6 +60,7 @@ function CatalogoContent() {
   const searchParams = useSearchParams();
   const { toast } = useAppFeedback();
   const [items, setItems] = useState<BusinessCatalogItem[]>([]);
+  const [catalogSearch, setCatalogSearch] = useState("");
   const [products, setProducts] = useState<WorkshopProductSummary[]>([]);
   const [movements, setMovements] = useState<BusinessInventoryMovement[]>([]);
   const [locationsEnabled, setLocationsEnabled] = useState(false);
@@ -165,6 +167,10 @@ function CatalogoContent() {
     [linkedProductIds, products],
   );
   const scannedCatalogItem = items.find((item) => item.id === scannedCatalogItemId) ?? null;
+  const filteredItems = useMemo(
+    () => items.filter((item) => matchesBusinessSearch(item, catalogSearch)),
+    [catalogSearch, items],
+  );
 
   const handleCatalogBarcode = useCallback(async (rawBarcode: string) => {
     const barcode = normalizeBarcode(rawBarcode);
@@ -252,7 +258,7 @@ function CatalogoContent() {
         { label: "Stock visible", value: resolveBusinessCatalogStock(scannedCatalogItem, products) ?? "No disponible" },
       ],
     } : null,
-    visibleEntities: items.slice(0, 20).map((item, index) => ({
+    visibleEntities: filteredItems.slice(0, 20).map((item, index) => ({
       type: "business_catalog_item",
       id: item.id,
       name: item.name,
@@ -275,11 +281,12 @@ function CatalogoContent() {
     },
     uiState: {
       loading,
+      searchQuery: catalogSearch,
       ...(adjustmentItem || resaleOpen || manufacturedOpen ? {
         activeDialog: adjustmentItem ? "Ajustar stock de reventa" : resaleOpen ? "Nuevo producto de reventa" : "Agregar producto fabricado",
       } : {}),
     },
-  }), [adjustmentItem, items, loading, manufacturedOpen, products, resaleOpen, scannedCatalogItem]);
+  }), [adjustmentItem, catalogSearch, filteredItems, items, loading, manufacturedOpen, products, resaleOpen, scannedCatalogItem]);
   usePublishStampyScreenContext(stampyContext);
 
   const closeManufactured = () => {
@@ -546,6 +553,17 @@ function CatalogoContent() {
         Los fabricados conservan receta, costo y stock en Productos. Los artículos de reventa viven sólo en esta capa comercial.
       </p>
 
+      <label className="relative mb-5 block max-w-2xl">
+        <Search className="pointer-events-none absolute left-3.5 top-3.5 text-gray-500" size={17} />
+        <span className="sr-only">Buscar en el catálogo</span>
+        <input
+          value={catalogSearch}
+          onChange={(event) => setCatalogSearch(event.target.value)}
+          placeholder="Buscar por producto, marca, categoría, SKU o código"
+          className="min-h-11 w-full rounded-xl border border-stampa-border bg-stampa-surface pl-10 pr-4 text-sm text-white outline-none placeholder:text-gray-600 focus:border-stampa-orange/60"
+        />
+      </label>
+
       {error && (
         <Card className="mb-5 border-red-500/25 p-4 text-sm text-red-300">
           No se pudo cargar el catálogo: {error}
@@ -560,9 +578,15 @@ function CatalogoContent() {
           <h2 className="mt-4 text-lg font-bold text-white">Tu catálogo comercial está vacío</h2>
           <p className="mt-2 max-w-md text-sm text-gray-400">Agregá un producto que ya fabricás o cargá uno de reventa.</p>
         </Card>
+      ) : filteredItems.length === 0 ? (
+        <Card className="p-8 text-center">
+          <Search className="mx-auto text-gray-600" size={28} />
+          <p className="mt-3 font-bold text-white">No encontramos productos</p>
+          <p className="mt-1 text-sm text-gray-500">Probá con otro nombre, marca, categoría, SKU o código.</p>
+        </Card>
       ) : (
         <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-3">
-          {items.map((item) => {
+          {filteredItems.map((item) => {
             const stock = resolveBusinessCatalogStock(item, products);
             const image = item.image_urls?.[0];
             return (

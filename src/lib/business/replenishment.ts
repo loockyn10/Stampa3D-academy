@@ -11,8 +11,11 @@ export interface BusinessLocationBalance {
 
 export interface BusinessReplenishmentItem extends BusinessLocationBalance {
   name: string;
+  brand: string | null;
   category: string;
+  sku: string | null;
   sourceType: "manufactured" | "resale";
+  purchaseCost: number | null;
   totalStock: number;
   soldUnits: number;
   soldTotal: number;
@@ -40,8 +43,11 @@ export function normalizeBusinessReplenishmentWorkspace(value: unknown): Busines
     return [{
       catalogItemId: item.id,
       name: item.name,
+      brand: typeof item.brand === "string" ? item.brand : null,
       category: typeof item.category === "string" ? item.category : "Sin categoría",
+      sku: typeof item.sku === "string" ? item.sku : null,
       sourceType: item.source_type === "manufactured" ? "manufactured" as const : "resale" as const,
+      purchaseCost: optionalNumber(item.purchase_cost),
       totalStock: Number(item.total_stock) || 0,
       showroom: Number(item.showroom_stock) || 0,
       warehouse: Number(item.warehouse_stock) || 0,

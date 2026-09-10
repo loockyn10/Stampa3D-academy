@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import {
-  BadgeDollarSign,
+  ChartNoAxesCombined,
   Barcode,
   FileText,
   ReceiptText,
@@ -10,7 +10,6 @@ import {
   RefreshCcw,
   ShoppingBag,
   Store,
-  Users,
 } from "lucide-react";
 import { Card } from "@/components/ui/card";
 import { SectionTitle } from "@/components/ui/section-title";
@@ -43,10 +42,10 @@ const availableAreas = [
     icon: RefreshCcw,
   },
   {
-    href: "/presupuestos",
-    title: "Clientes",
-    description: "Administrá clientes desde el flujo actual de presupuestos.",
-    icon: Users,
+    href: "/mi-negocio/metricas",
+    title: "Métricas",
+    description: "Revisá facturación, ventas, ticket promedio y los productos que más se venden.",
+    icon: ChartNoAxesCombined,
   },
   {
     href: "/presupuestos",
@@ -68,10 +67,6 @@ const availableAreas = [
   },
 ] as const;
 
-const futureAreas = [
-  { title: "Caja y métricas", description: "Ingresos, resultados y decisiones comerciales.", icon: BadgeDollarSign },
-] as const;
-
 export default function MiNegocioPage() {
   const stampyContext: StampyScreenContext = {
     page: { section: "business", route: "/mi-negocio", title: "Mi Negocio" },
@@ -85,8 +80,7 @@ export default function MiNegocioPage() {
     pageData: {
       kind: "pageFacts",
       facts: [
-        { label: "Áreas disponibles", value: "Catálogo, Venta rápida, Ventas, Reposición, Clientes, Presupuestos, Mi Tienda y Pedidos online" },
-        { label: "Áreas futuras", value: "Caja y métricas" },
+        { label: "Áreas disponibles", value: "Catálogo, Venta rápida, Ventas, Reposición, Métricas, Presupuestos, Mi Tienda y Pedidos online" },
       ],
     },
   };
@@ -115,25 +109,6 @@ export default function MiNegocioPage() {
             </Link>
           );
         })}
-      </div>
-
-      <div className="mt-9">
-        <div className="mb-3 flex items-center gap-2">
-          <p className="text-xs font-bold uppercase tracking-wider text-gray-500">Próximas etapas</p>
-          <span className="rounded-full border border-white/10 bg-white/5 px-2 py-0.5 text-[10px] font-semibold text-gray-500">No disponibles todavía</span>
-        </div>
-        <div className="grid grid-cols-1 gap-4">
-          {futureAreas.map((area) => {
-            const Icon = area.icon;
-            return (
-              <Card key={area.title} className="p-5 opacity-60">
-                <Icon size={20} className="mb-3 text-gray-500" />
-                <h2 className="text-sm font-bold text-gray-300">{area.title}</h2>
-                <p className="mt-1.5 text-xs leading-5 text-gray-500">{area.description}</p>
-              </Card>
-            );
-          })}
-        </div>
       </div>
     </div>
   );

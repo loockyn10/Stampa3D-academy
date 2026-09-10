@@ -43,7 +43,7 @@ export interface BusinessInventoryMovement {
   id: string;
   catalog_item_id: string;
   sale_id: string | null;
-  movement_type: "sale" | "restock" | "manual_adjustment" | "return" | "transfer_to_workshop";
+  movement_type: "sale" | "restock" | "manual_adjustment" | "return" | "transfer_to_workshop" | "void_sale";
   quantity_delta: number;
   previous_quantity: number;
   new_quantity: number;
@@ -71,6 +71,9 @@ export interface BusinessSaleSummary {
   client_id: string | null;
   client_name: string | null;
   status: "completed" | "voided";
+  is_online_sale: boolean;
+  voided_at: string | null;
+  void_reason: string | null;
   currency: "ARS";
   subtotal: number;
   total: number;
