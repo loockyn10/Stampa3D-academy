@@ -23,6 +23,29 @@ interface CalculatorSelectProps {
   usePortal?: boolean;
 }
 
+function getPortalDropdownStyle(rect: DOMRect): React.CSSProperties {
+  const viewportMargin = 12;
+  const spaceBelow = window.innerHeight - rect.bottom - viewportMargin;
+  const spaceAbove = rect.top - viewportMargin;
+  const opensAbove = spaceBelow < 180 && spaceAbove > spaceBelow;
+  const availableHeight = opensAbove ? spaceAbove : spaceBelow;
+  const maxHeight = Math.min(300, Math.max(120, availableHeight));
+  const width = Math.min(rect.width, window.innerWidth - (viewportMargin * 2));
+  const left = Math.min(
+    Math.max(viewportMargin, rect.left),
+    window.innerWidth - width - viewportMargin,
+  );
+
+  return {
+    position: "fixed",
+    top: opensAbove ? Math.max(viewportMargin, rect.top - maxHeight - 4) : rect.bottom + 4,
+    left,
+    width,
+    zIndex: 9999,
+    maxHeight,
+  };
+}
+
 export function CalculatorSelect({
   options,
   value,
@@ -38,6 +61,7 @@ export function CalculatorSelect({
   const [query, setQuery] = useState("");
   const wrapperRef = useRef<HTMLDivElement>(null);
   const dropdownRef = useRef<HTMLDivElement>(null);
+  const searchInputRef = useRef<HTMLInputElement>(null);
   const [dropdownStyle, setDropdownStyle] = useState<React.CSSProperties>({});
 
   const selectedOption = options.find((o) => String(o.value) === String(value));
@@ -60,27 +84,7 @@ export function CalculatorSelect({
     if (isOpen && usePortal && wrapperRef.current) {
       const updatePosition = () => {
         if (!wrapperRef.current) return;
-        const rect = wrapperRef.current.getBoundingClientRect();
-        const viewportMargin = 12;
-        const spaceBelow = window.innerHeight - rect.bottom - viewportMargin;
-        const spaceAbove = rect.top - viewportMargin;
-        const opensAbove = spaceBelow < 180 && spaceAbove > spaceBelow;
-        const availableHeight = opensAbove ? spaceAbove : spaceBelow;
-        const maxHeight = Math.min(300, Math.max(120, availableHeight));
-        const width = Math.min(rect.width, window.innerWidth - (viewportMargin * 2));
-        const left = Math.min(
-          Math.max(viewportMargin, rect.left),
-          window.innerWidth - width - viewportMargin,
-        );
-        
-        setDropdownStyle({
-          position: "fixed",
-          top: opensAbove ? Math.max(viewportMargin, rect.top - maxHeight - 4) : rect.bottom + 4,
-          left,
-          width,
-          zIndex: 9999,
-          maxHeight,
-        });
+        setDropdownStyle(getPortalDropdownStyle(wrapperRef.current.getBoundingClientRect()));
       };
       
       updatePosition();
@@ -93,6 +97,11 @@ export function CalculatorSelect({
       };
     }
   }, [isOpen, usePortal]);
+
+  useEffect(() => {
+    if (!isOpen || !searchable) return;
+    searchInputRef.current?.focus({ preventScroll: true });
+  }, [isOpen, searchable]);
 
   const filteredOptions = !searchable || query === ""
     ? options
@@ -109,6 +118,9 @@ export function CalculatorSelect({
         className="h-11 w-full rounded-xl border border-white/10 bg-white/[0.06] px-4 text-sm text-white outline-none transition hover:bg-white/[0.08] focus:border-[#ff6a00]/60 focus:ring-2 focus:ring-[#ff6a00]/10 disabled:opacity-50 flex justify-between items-center text-left"
         onClick={() => {
           if (!disabled) {
+            if (!isOpen && usePortal && wrapperRef.current) {
+              setDropdownStyle(getPortalDropdownStyle(wrapperRef.current.getBoundingClientRect()));
+            }
             setIsOpen(!isOpen);
             setQuery("");
           }
@@ -132,8 +144,8 @@ export function CalculatorSelect({
                 <div className="relative">
                   <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-500" />
                   <input
+                    ref={searchInputRef}
                     type="text"
-                    autoFocus
                     className="w-full bg-white/[0.04] pl-9 pr-3 py-2 text-xs border border-white/10 rounded-lg text-white placeholder:text-neutral-600 focus:outline-none focus:border-[#ff6a00] focus:ring-1 focus:ring-[#ff6a00]/50"
                     placeholder="Buscar..."
                     value={query}
@@ -192,8 +204,8 @@ export function CalculatorSelect({
                 <div className="relative">
                   <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-500" />
                   <input
+                    ref={searchInputRef}
                     type="text"
-                    autoFocus
                     className="w-full bg-white/[0.04] pl-9 pr-3 py-2 text-xs border border-white/10 rounded-lg text-white placeholder:text-neutral-600 focus:outline-none focus:border-[#ff6a00] focus:ring-1 focus:ring-[#ff6a00]/50"
                     placeholder="Buscar..."
                     value={query}

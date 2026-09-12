@@ -86,6 +86,18 @@ test("product editor uses Stampa selects and keeps historical recipe references 
   assert.match(page, /!isActiveFilament\(filament\)/);
 });
 
+test("searchable portal selects focus only after positioning and never scroll the page", () => {
+  const select = fs.readFileSync(
+    path.join(root, "src/components/ui/calculator-select.tsx"),
+    "utf8",
+  );
+
+  assert.doesNotMatch(select, /\bautoFocus\b/);
+  assert.match(select, /focus\(\{ preventScroll: true \}\)/);
+  assert.match(select, /setDropdownStyle\(getPortalDropdownStyle\(wrapperRef\.current\.getBoundingClientRect\(\)\)\)[\s\S]*setIsOpen\(!isOpen\)/);
+  assert.doesNotMatch(select, /window\.scrollTo|scrollIntoView|documentElement\.scrollTop|body\.scrollTop/);
+});
+
 test("inactive filaments mark a saved price as needing recalculation", () => {
   const pricingStatus = loadTypeScriptModule(
     path.join(root, "src/lib/products/pricing-status.ts"),
