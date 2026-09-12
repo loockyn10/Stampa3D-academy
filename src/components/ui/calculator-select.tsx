@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, useRef, useEffect, useLayoutEffect } from "react";
+import React, { useState, useRef, useEffect } from "react";
 import { createPortal } from "react-dom";
 import { ChevronDown, Check, Search } from "lucide-react";
 
@@ -8,6 +8,7 @@ export interface CalculatorSelectOption {
   value: string;
   label: string;
   element?: React.ReactNode;
+  disabled?: boolean;
 }
 
 interface CalculatorSelectProps {
@@ -60,14 +61,23 @@ export function CalculatorSelect({
       const updatePosition = () => {
         if (!wrapperRef.current) return;
         const rect = wrapperRef.current.getBoundingClientRect();
-        const availableHeight = window.innerHeight - rect.bottom - 16;
-        const maxHeight = Math.min(300, Math.max(150, availableHeight));
+        const viewportMargin = 12;
+        const spaceBelow = window.innerHeight - rect.bottom - viewportMargin;
+        const spaceAbove = rect.top - viewportMargin;
+        const opensAbove = spaceBelow < 180 && spaceAbove > spaceBelow;
+        const availableHeight = opensAbove ? spaceAbove : spaceBelow;
+        const maxHeight = Math.min(300, Math.max(120, availableHeight));
+        const width = Math.min(rect.width, window.innerWidth - (viewportMargin * 2));
+        const left = Math.min(
+          Math.max(viewportMargin, rect.left),
+          window.innerWidth - width - viewportMargin,
+        );
         
         setDropdownStyle({
           position: "fixed",
-          top: rect.bottom + 4,
-          left: rect.left,
-          width: rect.width,
+          top: opensAbove ? Math.max(viewportMargin, rect.top - maxHeight - 4) : rect.bottom + 4,
+          left,
+          width,
           zIndex: 9999,
           maxHeight,
         });
@@ -134,7 +144,7 @@ export function CalculatorSelect({
               </div>
             )}
             
-            <ul className="overflow-y-auto stampa-scrollbar py-1.5 flex-1 min-h-0">
+            <ul role="listbox" className="overflow-y-auto stampa-scrollbar py-1.5 flex-1 min-h-0">
               {filteredOptions.length === 0 ? (
                 <li className="text-neutral-500 cursor-default select-none relative py-2.5 px-4 text-xs">
                   {emptyMessage}
@@ -145,10 +155,18 @@ export function CalculatorSelect({
                   return (
                     <li
                       key={option.value}
-                      className={`cursor-pointer select-none relative py-2.5 pl-4 pr-10 text-xs transition-colors hover:bg-white/5 ${
-                        isSelected ? "text-white font-semibold" : "text-neutral-300"
+                      role="option"
+                      aria-selected={isSelected}
+                      aria-disabled={option.disabled || undefined}
+                      className={`select-none relative py-2.5 pl-4 pr-10 text-xs transition-colors ${
+                        option.disabled
+                          ? "cursor-not-allowed text-neutral-500"
+                          : "cursor-pointer text-neutral-300 hover:bg-white/5"
+                      } ${
+                        isSelected ? "font-semibold text-white" : ""
                       }`}
                       onClick={() => {
+                        if (option.disabled) return;
                         onChange(option.value);
                         setIsOpen(false);
                         setQuery("");
@@ -186,7 +204,7 @@ export function CalculatorSelect({
               </div>
             )}
             
-            <ul className="max-h-60 overflow-y-auto stampa-scrollbar py-1.5">
+            <ul role="listbox" className="max-h-60 overflow-y-auto stampa-scrollbar py-1.5">
               {filteredOptions.length === 0 ? (
                 <li className="text-neutral-500 cursor-default select-none relative py-2.5 px-4 text-xs">
                   {emptyMessage}
@@ -197,10 +215,18 @@ export function CalculatorSelect({
                   return (
                     <li
                       key={option.value}
-                      className={`cursor-pointer select-none relative py-2.5 pl-4 pr-10 text-xs transition-colors hover:bg-white/5 ${
-                        isSelected ? "text-white font-semibold" : "text-neutral-300"
+                      role="option"
+                      aria-selected={isSelected}
+                      aria-disabled={option.disabled || undefined}
+                      className={`select-none relative py-2.5 pl-4 pr-10 text-xs transition-colors ${
+                        option.disabled
+                          ? "cursor-not-allowed text-neutral-500"
+                          : "cursor-pointer text-neutral-300 hover:bg-white/5"
+                      } ${
+                        isSelected ? "font-semibold text-white" : ""
                       }`}
                       onClick={() => {
+                        if (option.disabled) return;
                         onChange(option.value);
                         setIsOpen(false);
                         setQuery("");

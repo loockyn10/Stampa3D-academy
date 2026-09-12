@@ -10,6 +10,7 @@ import { SectionTitle } from "@/components/ui/section-title";
 import { createClient } from "@/utils/supabase/client";
 import { FileUploadDropzone } from "@/components/ui/file-upload-dropzone";
 import { ColorSwatchLabel } from "@/components/ui/color-swatch-label";
+import { CalculatorSelect, type CalculatorSelectOption } from "@/components/ui/calculator-select";
 import { ProductsPageSkeleton } from "@/components/ui/page-skeletons";
 import {
   deleteProductAction,
@@ -19,6 +20,7 @@ import {
 import { useAppFeedback } from "@/components/ui/app-feedback";
 import { calculateProductPrice } from "@/lib/products/pricing";
 import { getProductPricingStatus } from "@/lib/products/pricing-status";
+import { getFilamentDisplayName, getFilamentSearchText } from "@/lib/filaments/utils";
 import { usePublishStampyScreenContext } from "@/components/stampy/StampyContextProvider";
 import type { StampyScreenContext } from "@/lib/stampy/screen-context";
 
@@ -29,6 +31,26 @@ function RecalculatePriceIcon({ loading = false, size = 18 }: { loading?: boolea
       {!loading && <DollarSign size={Math.max(9, Math.round(size * 0.55))} strokeWidth={3} className="absolute" />}
     </span>
   );
+}
+
+function isActiveFilament(filament: any): boolean {
+  return filament?.is_active !== false;
+}
+
+function getPrinterDisplayName(printer: any): string {
+  const relation = Array.isArray(printer?.printer_templates)
+    ? printer.printer_templates[0]
+    : printer?.printer_templates;
+  const brand = typeof relation?.brand === "string" ? relation.brand.trim() : "";
+  const model = typeof relation?.model === "string" ? relation.model.trim() : "";
+  const customName = typeof printer?.name === "string" ? printer.name.trim() : "";
+  const catalogName = [brand, model].filter(Boolean).join(" ");
+
+  if (!catalogName) return customName || "Impresora sin nombre";
+  if (!customName || catalogName.toLocaleLowerCase("es-AR").includes(customName.toLocaleLowerCase("es-AR"))) {
+    return catalogName;
+  }
+  return `${catalogName} · ${customName}`;
 }
 
 function ProductosPageContent() {
@@ -107,10 +129,11 @@ function ProductosPageContent() {
     if (!user) return;
     setUserId(user.id);
 
-    const [prodRes, filRes, priRes, ptRes, setRes, compsRes, businessRes] = await Promise.all([
+    const [prodRes, filRes, priRes, printerTemplatesRes, ptRes, setRes, compsRes, businessRes] = await Promise.all([
       supabase.from("products").select("*, filaments(name, color)").eq("user_id", user.id).eq("is_active", true).order("created_at", { ascending: false }),
-      supabase.from("filaments").select("*").eq("user_id", user.id).eq("is_active", true),
+      supabase.from("filaments").select("*, filament_templates(brand)").eq("user_id", user.id),
       supabase.from("printers").select("*").eq("user_id", user.id).eq("is_active", true),
+      supabase.from("printer_templates").select("id, brand, model"),
       supabase.from("calculator_product_types").select("*").eq("user_id", user.id).eq("is_active", true),
       supabase.from("calculator_settings").select("*").eq("user_id", user.id).single(),
       supabase.from("product_components").select("*").eq("user_id", user.id).eq("is_active", true),
@@ -132,7 +155,15 @@ function ProductosPageContent() {
     }
 
     if (!filRes.error) setFilaments(filRes.data || []);
-    if (!priRes.error) setPrinters(priRes.data || []);
+    if (!priRes.error) {
+      const templatesById = new Map((printerTemplatesRes.data || []).map((template) => [template.id, template]));
+      setPrinters((priRes.data || []).map((printer) => ({
+        ...printer,
+        printer_templates: printer.source_template_id
+          ? templatesById.get(printer.source_template_id) || null
+          : null,
+      })));
+    }
     if (!ptRes.error) setProductTypes(ptRes.data || []);
     if (!setRes.error) setCalculatorSettings(setRes.data || null);
     if (!businessRes.error) {
@@ -155,11 +186,12 @@ function ProductosPageContent() {
   }, [searchParams, loading, router]);
 
   const handleCreateNew = () => {
+    const firstActiveFilament = filaments.find(isActiveFilament);
     setFormData({
       name: "", description: "", image_url: "",
       printer_id: printers.length > 0 ? printers[0].id : "", product_type_id: productTypes.length > 0 ? productTypes[0].id : "",
       mode: "simple",
-      components: [{ name: "Producto completo", quantity_per_product: 1, stock_quantity: 0, materials: [{ filament_id: filaments.length > 0 ? filaments[0].id : "", grams: 0 }] }],
+      components: [{ name: "Producto completo", quantity_per_product: 1, stock_quantity: 0, materials: [{ filament_id: firstActiveFilament?.id || "", grams: 0 }] }],
       print_time_hours: 0, print_time_remaining_minutes: 0, base_cost: 0, sale_price: 0, stock_quantity: 0, is_active: true
     });
     setCalcPreview(null);
@@ -203,7 +235,7 @@ function ProductosPageContent() {
       if (p.filament_id) {
         fallbackMats = [{ filament_id: p.filament_id, grams: p.grams || 0 }];
       } else {
-        fallbackMats = [{ filament_id: filaments.length > 0 ? filaments[0].id : "", grams: 0 }];
+        fallbackMats = [{ filament_id: filaments.find(isActiveFilament)?.id || "", grams: 0 }];
       }
       loadedComponents = [{
         name: "Producto completo",
@@ -275,6 +307,25 @@ function ProductosPageContent() {
     setError(null);
     const { data: { user } } = await supabase.auth.getUser();
     if (!user) return;
+
+    for (const component of formData.components) {
+      for (const material of component.materials) {
+        const grams = Number(material.grams) || 0;
+        const filament = filaments.find((candidate) => candidate.id === material.filament_id);
+        if (grams > 0 && !material.filament_id) {
+          const message = `Seleccioná un filamento válido para ${component.name || "este material"}.`;
+          setError(message);
+          toast.error(message);
+          return;
+        }
+        if (material.filament_id && (!filament || !isActiveFilament(filament))) {
+          const message = `${component.name || "Este material"} usa un filamento no disponible. Reemplazalo antes de guardar.`;
+          setError(message);
+          toast.error(message);
+          return;
+        }
+      }
+    }
 
     // Validate components and materials
     let totalGrams = 0;
@@ -403,7 +454,7 @@ function ProductosPageContent() {
     setEditingId(null);
   };
 
-  const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement>) => {
+  const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
     const { name, value, type } = e.target;
     let newValue: any = value;
 
@@ -425,13 +476,14 @@ function ProductosPageContent() {
   };
 
   const addComponent = () => {
+    const firstActiveFilament = filaments.find(isActiveFilament);
     setFormData(prev => ({
       ...prev,
       components: [...prev.components, {
         name: "",
         quantity_per_product: 1,
         stock_quantity: 0,
-        materials: [{ filament_id: filaments.length > 0 ? filaments[0].id : "", grams: 0 }]
+        materials: [{ filament_id: firstActiveFilament?.id || "", grams: 0 }]
       }]
     }));
   };
@@ -453,10 +505,11 @@ function ProductosPageContent() {
   };
 
   const addComponentMaterial = (compIndex: number) => {
+    const firstActiveFilament = filaments.find(isActiveFilament);
     const newComps = [...formData.components];
     newComps[compIndex] = {
       ...newComps[compIndex],
-      materials: [...newComps[compIndex].materials, { filament_id: filaments.length > 0 ? filaments[0].id : "", grams: 0 }]
+      materials: [...newComps[compIndex].materials, { filament_id: firstActiveFilament?.id || "", grams: 0 }]
     };
     setFormData(prev => ({ ...prev, components: newComps }));
   };
@@ -476,15 +529,18 @@ function ProductosPageContent() {
     const totalMinutes = (hours * 60) + mins;
 
     let hasValidComponents = false;
-    let hasInvalidMaterials = false;
+    let invalidMaterialMessage = "";
 
     const builtComponents = formData.components.map(c => {
-      const validMats = c.materials.filter(m => m.filament_id && m.grams > 0);
+      const validMats = c.materials.filter(m => Number(m.grams) > 0);
       if (c.name.trim() !== "" && validMats.length > 0) hasValidComponents = true;
 
       const builtMats = validMats.map(m => {
         const fil = filaments.find(f => f.id === m.filament_id);
-        if (!fil || fil.total_grams <= 0) hasInvalidMaterials = true;
+        if (!m.filament_id || !fil || !isActiveFilament(fil) || Number(fil.total_grams) <= 0) {
+          const materialName = fil ? getFilamentDisplayName(fil) : "el material sin seleccionar";
+          invalidMaterialMessage ||= `No se puede calcular porque ${c.name || "una parte"} usa ${materialName}, que no está disponible o no tiene gramos totales válidos.`;
+        }
         return { filament: fil, filament_id: m.filament_id, grams: m.grams };
       });
       return { ...c, materials: builtMats };
@@ -498,8 +554,8 @@ function ProductosPageContent() {
     const printer = printers.find(p => p.id === formData.printer_id);
     const productType = productTypes.find(pt => pt.id === formData.product_type_id);
 
-    if (hasInvalidMaterials) {
-      toast.error("Un filamento seleccionado no es válido o no tiene gramos totales configurados.");
+    if (invalidMaterialMessage) {
+      toast.error(invalidMaterialMessage);
       return;
     }
 
@@ -721,6 +777,56 @@ function ProductosPageContent() {
 
   usePublishStampyScreenContext(stampyScreenContext);
 
+  const printerOptions: CalculatorSelectOption[] = printers.map((printer) => ({
+    value: printer.id,
+    label: getPrinterDisplayName(printer),
+  }));
+  const productTypeOptions: CalculatorSelectOption[] = productTypes.map((productType) => ({
+    value: productType.id,
+    label: productType.name?.trim() || "Tipo sin nombre",
+  }));
+  const activeFilamentOptions: CalculatorSelectOption[] = filaments
+    .filter(isActiveFilament)
+    .map((filament) => {
+      const displayName = getFilamentDisplayName(filament);
+      const remainingGrams = Number(filament.remaining_grams);
+      const availableLabel = Number.isFinite(remainingGrams)
+        ? `${remainingGrams.toLocaleString("es-AR")} g disponibles`
+        : "Stock sin informar";
+      return {
+        value: filament.id,
+        label: `${getFilamentSearchText(filament)} ${availableLabel}`,
+        element: (
+          <span className="flex min-w-0 items-center gap-2">
+            <ColorSwatchLabel color={filament.color} colorHex={filament.color_hex} size="sm" fallbackLabel="" />
+            <span className="min-w-0 truncate">{displayName}</span>
+            <span className="ml-auto shrink-0 text-[10px] font-normal text-neutral-500">{availableLabel}</span>
+          </span>
+        ),
+      };
+    });
+
+  const filamentOptionsFor = (selectedId: string): CalculatorSelectOption[] => {
+    if (!selectedId || activeFilamentOptions.some((option) => option.value === selectedId)) {
+      return activeFilamentOptions;
+    }
+    const unavailable = filaments.find((filament) => filament.id === selectedId);
+    const unavailableName = unavailable
+      ? getFilamentDisplayName(unavailable)
+      : "Filamento no disponible";
+    return [{
+      value: selectedId,
+      label: `Filamento no disponible ${unavailableName}`,
+      disabled: true,
+      element: (
+        <span className="flex min-w-0 items-center gap-2 text-amber-300">
+          <AlertTriangle size={13} className="shrink-0" />
+          <span className="truncate">Filamento no disponible · {unavailableName}</span>
+        </span>
+      ),
+    }, ...activeFilamentOptions];
+  };
+
   if (loading) return <ProductsPageSkeleton />;
 
   return (
@@ -765,22 +871,16 @@ function ProductosPageContent() {
             <button onClick={() => setEditingId(null)} className="text-gray-400 hover:text-gray-300"><X size={20} /></button>
           </div>
 
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
-            <div>
-              <label className="block text-xs font-semibold text-gray-300 mb-1">Nombre</label>
-              <input type="text" name="name" value={formData.name} onChange={handleChange} className="w-full text-sm border-stampa-border rounded-md text-neutral-100 bg-stampa-surface border focus:border-[#ff6a00] focus:ring-[#ff6a00]/20 focus:ring-2 placeholder:text-neutral-500 disabled:bg-neutral-800 disabled:text-neutral-500" placeholder="Ej. Llavero personalizado" />
+          <div className="mb-4 grid grid-cols-1 items-end gap-4 md:grid-cols-2">
+            <div className="grid gap-1.5">
+              <label className="block text-xs font-semibold leading-4 text-gray-300">Nombre</label>
+              <input type="text" name="name" value={formData.name} onChange={handleChange} className="h-11 w-full rounded-xl border border-stampa-border bg-stampa-surface px-3 text-sm text-neutral-100 focus:border-[#ff6a00] focus:ring-2 focus:ring-[#ff6a00]/20 placeholder:text-neutral-500 disabled:bg-neutral-800 disabled:text-neutral-500" placeholder="Ej. Llavero personalizado" />
             </div>
-            <div>
-              <label className="block text-xs font-semibold text-gray-300 mb-1">Tiempo de Impresión</label>
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-1.5">
-                <div>
-                  <label className="block text-[11px] font-semibold text-gray-300 mb-1">Horas</label>
-                  <input type="number" name="print_time_hours" min="0" value={formData.print_time_hours} onChange={handleChange} className="w-full text-sm border-stampa-border rounded-md text-neutral-100 bg-stampa-surface border focus:border-[#ff6a00] focus:ring-[#ff6a00]/20 focus:ring-2 placeholder:text-neutral-500 disabled:bg-neutral-800 disabled:text-neutral-500" />
-                </div>
-                <div>
-                  <label className="block text-[11px] font-semibold text-gray-300 mb-1">Minutos</label>
-                  <input type="number" name="print_time_remaining_minutes" min="0" max="59" value={formData.print_time_remaining_minutes} onChange={handleChange} className="w-full text-sm border-stampa-border rounded-md text-neutral-100 bg-stampa-surface border focus:border-[#ff6a00] focus:ring-[#ff6a00]/20 focus:ring-2 placeholder:text-neutral-500 disabled:bg-neutral-800 disabled:text-neutral-500" />
-                </div>
+            <div className="grid gap-1.5">
+              <span className="block text-xs font-semibold leading-4 text-gray-300">Tiempo de Impresión</span>
+              <div className="grid grid-cols-2 gap-1.5">
+                <input aria-label="Horas" type="number" name="print_time_hours" min="0" value={formData.print_time_hours} onChange={handleChange} className="h-11 w-full rounded-xl border border-stampa-border bg-stampa-surface px-3 text-sm text-neutral-100 focus:border-[#ff6a00] focus:ring-2 focus:ring-[#ff6a00]/20 placeholder:text-neutral-500 disabled:bg-neutral-800 disabled:text-neutral-500" placeholder="Horas" />
+                <input aria-label="Minutos" type="number" name="print_time_remaining_minutes" min="0" max="59" value={formData.print_time_remaining_minutes} onChange={handleChange} className="h-11 w-full rounded-xl border border-stampa-border bg-stampa-surface px-3 text-sm text-neutral-100 focus:border-[#ff6a00] focus:ring-2 focus:ring-[#ff6a00]/20 placeholder:text-neutral-500 disabled:bg-neutral-800 disabled:text-neutral-500" placeholder="Minutos" />
               </div>
             </div>
           </div>
@@ -872,32 +972,25 @@ function ProductosPageContent() {
 
                   <div className="space-y-2">
                     {comp.materials.map((mat, matIndex) => (
-                      <div key={matIndex} className="flex items-center gap-2">
-                        <div className="flex-1 flex items-center gap-2">
-                          {(() => {
-                            const sel = filaments.find(f => f.id === mat.filament_id);
-                            return sel ? (
-                              <div className="shrink-0" title={sel.color || "Personalizado"}>
-                                <ColorSwatchLabel color={sel.color} colorHex={sel.color_hex} size="sm" fallbackLabel="" />
-                              </div>
-                            ) : null;
-                          })()}
-                          <select
+                      <div key={matIndex} className="grid grid-cols-[minmax(0,1fr)_5.5rem_auto] items-center gap-2">
+                        <div className="min-w-0">
+                          <CalculatorSelect
+                            options={filamentOptionsFor(mat.filament_id)}
                             value={mat.filament_id}
-                            onChange={(e) => handleComponentMaterialChange(compIndex, matIndex, "filament_id", e.target.value)}
-                            className="w-full text-xs border-white/20 rounded-md focus:border-stampa-orange focus:ring-stampa-orange text-white bg-stampa-surface"
-                          >
-                            <option value="">Seleccionar filamento...</option>
-                            {filaments.map(f => <option key={f.id} value={f.id}>{f.name}</option>)}
-                          </select>
+                            onChange={(value) => handleComponentMaterialChange(compIndex, matIndex, "filament_id", value)}
+                            placeholder="Seleccionar filamento..."
+                            emptyMessage="No se encontraron filamentos"
+                            searchable
+                            usePortal
+                          />
                         </div>
-                        <div className="w-24 flex items-center gap-1">
+                        <div className="flex min-w-0 items-center gap-1">
                           <input
                             type="number"
                             min="0" step="0.1"
                             value={mat.grams}
                             onChange={(e) => handleComponentMaterialChange(compIndex, matIndex, "grams", parseFloat(e.target.value) || 0)}
-                            className="w-full text-xs border-white/20 rounded-md focus:border-stampa-orange focus:ring-stampa-orange text-white bg-stampa-surface"
+                            className="h-11 min-w-0 w-full rounded-xl border border-white/20 bg-stampa-surface px-2 text-xs text-white focus:border-stampa-orange focus:ring-stampa-orange"
                             placeholder="Gramos"
                           />
                           <span className="text-xs text-gray-500">g</span>
@@ -929,17 +1022,30 @@ function ProductosPageContent() {
             <div className="grid grid-cols-1 md:grid-cols-2 gap-3 mb-3">
               <div>
                 <label className="block text-[11px] font-semibold text-gray-300 mb-1">Impresora</label>
-                <select name="printer_id" value={formData.printer_id} onChange={handleChange} className="w-full text-xs border-stampa-border rounded-md text-neutral-100 bg-stampa-surface border focus:border-[#ff6a00] focus:ring-[#ff6a00]/20 focus:ring-2 placeholder:text-neutral-500 disabled:bg-neutral-800 disabled:text-neutral-500">
-                  <option value="">Seleccionar impresora...</option>
-                  {printers.map(p => <option key={p.id} value={p.id}>{p.name}</option>)}
-                </select>
+                <CalculatorSelect
+                  options={printerOptions}
+                  value={formData.printer_id}
+                  onChange={(value) => {
+                    setFormData((current) => ({ ...current, printer_id: value }));
+                    setCalcPreview(null);
+                  }}
+                  placeholder="Seleccionar impresora..."
+                  searchable
+                  usePortal
+                />
               </div>
               <div>
                 <label className="block text-[11px] font-semibold text-gray-300 mb-1">Tipo de producto</label>
-                <select name="product_type_id" value={formData.product_type_id} onChange={handleChange} className="w-full text-xs border-stampa-border rounded-md text-neutral-100 bg-stampa-surface border focus:border-[#ff6a00] focus:ring-[#ff6a00]/20 focus:ring-2 placeholder:text-neutral-500 disabled:bg-neutral-800 disabled:text-neutral-500">
-                  <option value="">Seleccionar tipo...</option>
-                  {productTypes.map(pt => <option key={pt.id} value={pt.id}>{pt.name}</option>)}
-                </select>
+                <CalculatorSelect
+                  options={productTypeOptions}
+                  value={formData.product_type_id}
+                  onChange={(value) => {
+                    setFormData((current) => ({ ...current, product_type_id: value }));
+                    setCalcPreview(null);
+                  }}
+                  placeholder="Seleccionar tipo..."
+                  usePortal
+                />
               </div>
             </div>
 

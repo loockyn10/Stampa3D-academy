@@ -1,3 +1,5 @@
+import { getFilamentDisplayName } from "@/lib/filaments/utils";
+
 export interface ProductPricingStatus {
   needsRecalculation: boolean;
   reasons: string[];
@@ -18,23 +20,23 @@ export function getProductPricingStatus(
   if (snap.materials && Array.isArray(snap.materials) && snap.materials.length > 0) {
     for (const material of snap.materials) {
       const currentFilament = allFilaments.find((filament) => filament.id === material.filament_id);
-      if (!currentFilament) {
+      if (!currentFilament || currentFilament.is_active === false) {
         if (!reasons.includes("Configuración de material no encontrada")) {
           reasons.push("Configuración de material no encontrada");
         }
       } else {
         if (material.filament_purchase_price && material.filament_purchase_price !== currentFilament.purchase_price) {
-          reasons.push(`Cambió el precio de ${currentFilament.name}`);
+          reasons.push(`Cambió el precio de ${getFilamentDisplayName(currentFilament)}`);
         }
         if (material.filament_total_grams && material.filament_total_grams !== currentFilament.total_grams) {
-          reasons.push(`Cambió la cantidad base de ${currentFilament.name}`);
+          reasons.push(`Cambió la cantidad base de ${getFilamentDisplayName(currentFilament)}`);
         }
       }
     }
   } else if (snap.filament_id || product.filament_id) {
     const filamentId = snap.filament_id || product.filament_id;
     const currentFilament = allFilaments.find((filament) => filament.id === filamentId);
-    if (!currentFilament) {
+    if (!currentFilament || currentFilament.is_active === false) {
       if (!reasons.includes("Configuración de material no encontrada")) {
         reasons.push("Configuración de material no encontrada");
       }
