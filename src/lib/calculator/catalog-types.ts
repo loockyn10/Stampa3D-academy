@@ -32,6 +32,10 @@ export interface CalculatorCatalogResponse {
   demo: boolean;
   printers: CalculatorPrinterCatalogItem[];
   filaments: CalculatorFilamentCatalogItem[];
+  catalogPrinters: CalculatorPrinterCatalogItem[];
+  catalogFilaments: CalculatorFilamentCatalogItem[];
+  selectedPrinterTemplateIds: string[];
+  selectedFilamentTemplateIds: string[];
   preferences: CalculatorPreferenceDto | null;
   settings: {
     electricityPriceKwh: number;

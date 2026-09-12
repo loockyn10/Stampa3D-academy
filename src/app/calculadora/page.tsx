@@ -120,6 +120,8 @@ function CalculadoraPageContent() {
   const [accessMode, setAccessMode] = useState<"anonymous" | "free" | "paid">("anonymous");
   const [catalogPrinters, setCatalogPrinters] = useState<CalculatorPrinterCatalogItem[]>([]);
   const [catalogFilaments, setCatalogFilaments] = useState<CalculatorFilamentCatalogItem[]>([]);
+  const [selectedPrinterTemplateIds, setSelectedPrinterTemplateIds] = useState<string[]>([]);
+  const [selectedFilamentTemplateIds, setSelectedFilamentTemplateIds] = useState<string[]>([]);
   const [calculatorPersonalized, setCalculatorPersonalized] = useState(false);
   const [showSignupModal, setShowSignupModal] = useState(false);
   const [showPersonalizationModal, setShowPersonalizationModal] = useState(false);
@@ -175,7 +177,7 @@ function CalculadoraPageContent() {
     fetchData();
   }, []);
 
-  async function fetchData() {
+  async function fetchData(options: { suppressOnboarding?: boolean } = {}) {
     setLoading(true);
     setLoadError(null);
     const { access } = await getCurrentUserAccess(supabase);
@@ -190,8 +192,10 @@ function CalculadoraPageContent() {
         const catalog = await response.json() as CalculatorCatalogResponse & { error?: string };
         if (!response.ok) throw new Error("No pudimos cargar la configuración de cálculo.");
 
-        setCatalogPrinters(catalog.printers);
-        setCatalogFilaments(catalog.filaments);
+        setCatalogPrinters(catalog.catalogPrinters);
+        setCatalogFilaments(catalog.catalogFilaments);
+        setSelectedPrinterTemplateIds(catalog.selectedPrinterTemplateIds);
+        setSelectedFilamentTemplateIds(catalog.selectedFilamentTemplateIds);
         const mappedPrinters = catalog.printers.map((printer) => ({ ...printer, name: printer.display_name }));
         const mappedFilaments = catalog.filaments.map((filament) => ({
           id: filament.id,
@@ -225,7 +229,11 @@ function CalculadoraPageContent() {
         setManualPlatformCommission(String(catalog.settings.platformCommissionPercent));
         setManualPlatformExtra(String(catalog.settings.platformExtraAmount));
 
-        if (user && (!catalog.preferences || (catalog.preferences.onboardingStatus === "completed" && !personalized))) setShowPersonalizationModal(true);
+        if (
+          !options.suppressOnboarding
+          && user
+          && (!catalog.preferences || (catalog.preferences.onboardingStatus !== "skipped" && !personalized))
+        ) setShowPersonalizationModal(true);
         const draft = parseCalculatorGuestDraft(window.sessionStorage.getItem(CALCULATOR_GUEST_DRAFT_KEY));
         if (draft) restoreGuestDraft(draft);
       } catch {
@@ -339,15 +347,34 @@ function CalculadoraPageContent() {
     else setShowCatalogModal(true);
   };
 
-  const handlePreferencesSaved = (printerId: string | null, filamentId: string | null, skipped: boolean) => {
+  const openPrinterCatalog = () => {
+    if (accessMode === "anonymous") setShowSignupModal(true);
+    else setShowCatalogModal(true);
+  };
+
+  const openFilamentCatalog = () => {
+    if (accessMode === "anonymous") setShowSignupModal(true);
+    else setShowFilamentCatalogModal(true);
+  };
+
+  const handlePreferencesSaved = async (printerId: string | null, filamentId: string | null, skipped: boolean) => {
     setShowPersonalizationModal(false);
     if (!skipped && printerId && filamentId) {
-      setSelectedPrinterId(printerId);
-      setFilamentLines((current) => current.map((line, index) => index === 0 ? { ...line, filamentId } : line));
       setCalculatorPersonalized(true);
       toast.success("Ahora calculás con tu configuración.");
     }
     window.sessionStorage.removeItem(CALCULATOR_GUEST_DRAFT_KEY);
+    await fetchData({ suppressOnboarding: true });
+  };
+
+  const mutateFreeSelection = async (kind: "printer" | "filament", templateId: string, method: "POST" | "DELETE") => {
+    const response = await fetch("/api/calculator/selections", {
+      method,
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ kind, templateId }),
+    });
+    const data = await response.json().catch(() => null);
+    if (!response.ok) throw new Error(data?.error || "No pudimos actualizar tus opciones.");
   };
 
   const persistFreePreferences = async (printerId: string, filamentId: string) => {
@@ -436,6 +463,16 @@ function CalculadoraPageContent() {
   }, [selectedPrinterId, selectedMultiplierId, printers, multipliers]);
 
   const handlePrinterSelected = async (newPrinterId: string) => {
+    if (accessMode === "free") {
+      const filamentId = filamentLines[0]?.filamentId || "";
+      if (selectedFilamentTemplateIds.includes(filamentId)) {
+        await persistFreePreferences(newPrinterId, filamentId);
+      }
+      setShowCatalogModal(false);
+      await fetchData({ suppressOnboarding: true });
+      return;
+    }
+
     // Refresh printers list
     const { data } = await supabase.from("printers").select("*").eq("user_id", userId).eq("is_active", true);
     if (data) {
@@ -446,6 +483,15 @@ function CalculadoraPageContent() {
   };
 
   const handleFilamentImported = async (importedFilaments: any[]) => {
+    if (accessMode === "free") {
+      const selectedId = importedFilaments[0]?.id;
+      if (selectedId && selectedPrinterTemplateIds.includes(selectedPrinterId)) {
+        await persistFreePreferences(selectedPrinterId, selectedId);
+      }
+      await fetchData({ suppressOnboarding: true });
+      return;
+    }
+
     // Refresh filaments list
     const { data } = await supabase
       .from("filaments")
@@ -1063,7 +1109,7 @@ function CalculadoraPageContent() {
                 <span className="text-xs font-semibold text-gray-500">Filamentos usados</span>
                 <button
                   type="button"
-                  onClick={openCalculatorCustomization}
+                  onClick={openFilamentCatalog}
                   className="inline-flex h-8 items-center gap-1.5 rounded-lg border border-stampa-border bg-white/5 px-2.5 text-[11px] font-semibold text-gray-300 transition-colors hover:bg-white/10 hover:text-white"
                 >
                   <Plus size={13} /> Catálogo
@@ -1079,7 +1125,17 @@ function CalculadoraPageContent() {
                     <span className="mb-1 block text-[11px] font-medium text-gray-600">
                       Filamento {index + 1}
                     </span>
-                    {accessMode === "anonymous" ? <button type="button" onClick={() => setShowSignupModal(true)} className="flex h-11 w-full items-center justify-between rounded-xl border border-white/10 bg-white/[0.06] px-4 text-left text-sm text-white"><FilamentOptionLabel filament={filaments.find((candidate) => candidate.id === line.filamentId) || {}} /><LockKeyhole size={15} className="shrink-0 text-gray-500" /></button> : <CalculatorSelect
+                    {accessMode === "anonymous" ? <CalculatorSelect
+                      options={filaments.map((filament) => ({
+                        value: filament.id,
+                        label: filament.display_name || getFilamentLabel(filament),
+                        element: <FilamentOptionLabel filament={filament} />,
+                      }))}
+                      value={line.filamentId}
+                      onChange={() => undefined}
+                      searchable={true}
+                      onReadOnlyClick={() => setShowSignupModal(true)}
+                    /> : <CalculatorSelect
                       options={filaments.map(f => ({
                         value: f.id,
                         label: f.display_name || getFilamentLabel(f),
@@ -1161,9 +1217,18 @@ function CalculadoraPageContent() {
                 <div className="flex items-center justify-between mb-1">
                   <span className="block text-xs font-semibold text-gray-500">Impresora</span>
                 </div>
-                <div className={accessMode === "anonymous" ? "grid grid-cols-1" : "grid grid-cols-[minmax(0,1fr)_2.75rem] items-start gap-2"}>
+                <div className="grid grid-cols-[minmax(0,1fr)_2.75rem] items-start gap-2">
                   <div className="min-w-0">
-                    {accessMode === "anonymous" ? <button type="button" onClick={() => setShowSignupModal(true)} className="flex h-11 w-full items-center justify-between rounded-xl border border-white/10 bg-white/[0.06] px-4 text-left text-sm text-white"><span className="truncate">{printers.find((printer) => printer.id === selectedPrinterId)?.display_name || printers.find((printer) => printer.id === selectedPrinterId)?.name || "Impresora demo"}</span><LockKeyhole size={15} className="shrink-0 text-gray-500" /></button> : <CalculatorSelect
+                    {accessMode === "anonymous" ? <CalculatorSelect
+                      options={printers.map((printer) => ({
+                        value: printer.id,
+                        label: `${printer.display_name || printer.name}${printer.power_watts ? ` (${printer.power_watts}W)` : ""}`,
+                      }))}
+                      value={selectedPrinterId}
+                      onChange={() => undefined}
+                      searchable={true}
+                      onReadOnlyClick={() => setShowSignupModal(true)}
+                    /> : <CalculatorSelect
                       options={printers.map(p => ({
                         value: p.id,
                         label: `${p.display_name || p.name}${p.power_watts ? ` (${p.power_watts}W)` : ""}`,
@@ -1177,15 +1242,15 @@ function CalculadoraPageContent() {
                       searchable={true}
                     />}
                   </div>
-                  {accessMode !== "anonymous" && <button
+                  <button
                     type="button" 
-                    onClick={openCalculatorCustomization}
+                    onClick={openPrinterCatalog}
                     className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl border border-stampa-border bg-white/5 text-white transition-colors hover:bg-white/10"
                     title="Elegir del catálogo"
                     aria-label="Elegir impresora del catálogo"
                   >
                     <Plus size={16} />
-                  </button>}
+                  </button>
                 </div>
                 {isDemo && <span className="mt-1 block text-[10px] font-semibold uppercase tracking-wider text-stampa-orange/75">Configuración demo</span>}
               </div>
@@ -1471,21 +1536,39 @@ function CalculadoraPageContent() {
     )}
 
     {/* MODAL: CATÁLOGO DE IMPRESORAS */}
-    {isPaid && showCatalogModal && userId && (
+    {accessMode !== "anonymous" && showCatalogModal && userId && (
       <PrinterCatalogModal 
         userId={userId} 
         onClose={() => setShowCatalogModal(false)} 
         onSelect={handlePrinterSelected} 
+        calculatorSelection={isFree ? {
+          templates: catalogPrinters,
+          selectedTemplateIds: selectedPrinterTemplateIds,
+          add: (templateId) => mutateFreeSelection("printer", templateId, "POST"),
+          remove: async (templateId) => {
+            await mutateFreeSelection("printer", templateId, "DELETE");
+            await fetchData({ suppressOnboarding: true });
+          },
+        } : undefined}
       />
     )}
 
     {/* MODAL: CATÁLOGO DE FILAMENTOS */}
-    {isPaid && showFilamentCatalogModal && userId && (
+    {accessMode !== "anonymous" && showFilamentCatalogModal && userId && (
       <FilamentCatalogModal 
         userId={userId} 
         onClose={() => setShowFilamentCatalogModal(false)} 
         mode="multiple"
         onImported={handleFilamentImported} 
+        calculatorSelection={isFree ? {
+          templates: catalogFilaments,
+          selectedTemplateIds: selectedFilamentTemplateIds,
+          add: (templateId) => mutateFreeSelection("filament", templateId, "POST"),
+          remove: async (templateId) => {
+            await mutateFreeSelection("filament", templateId, "DELETE");
+            await fetchData({ suppressOnboarding: true });
+          },
+        } : undefined}
       />
     )}
     {showSignupModal && <CalculatorSignupModal onClose={() => setShowSignupModal(false)} />}

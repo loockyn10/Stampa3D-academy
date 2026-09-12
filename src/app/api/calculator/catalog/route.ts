@@ -146,12 +146,40 @@ export async function GET() {
   }
 
   let preferences: CalculatorPreferenceDto | null = null;
+  let selectedPrinterTemplateIds: string[] = [];
+  let selectedFilamentTemplateIds: string[] = [];
   if (user) {
-    const { data, error } = await supabase
-      .from("calculator_user_preferences")
-      .select("default_printer_template_id, default_filament_template_id, onboarding_status")
-      .eq("user_id", user.id)
-      .maybeSingle();
+    const [preferenceResult, printerSelectionsResult, filamentSelectionsResult] = await Promise.all([
+      supabase
+        .from("calculator_user_preferences")
+        .select("default_printer_template_id, default_filament_template_id, onboarding_status")
+        .eq("user_id", user.id)
+        .maybeSingle(),
+      supabase
+        .from("calculator_user_printer_templates")
+        .select("printer_template_id")
+        .eq("user_id", user.id)
+        .order("created_at", { ascending: true }),
+      supabase
+        .from("calculator_user_filament_templates")
+        .select("filament_template_id")
+        .eq("user_id", user.id)
+        .order("created_at", { ascending: true }),
+    ]);
+
+    const selectionError = printerSelectionsResult.error || filamentSelectionsResult.error;
+    if (selectionError) {
+      console.error("[calculator/catalog] selection read failed", {
+        category: catalogErrorCategory(selectionError),
+        code: selectionError.code,
+      });
+      return unavailable();
+    }
+
+    selectedPrinterTemplateIds = (printerSelectionsResult.data ?? []).map((row) => row.printer_template_id);
+    selectedFilamentTemplateIds = (filamentSelectionsResult.data ?? []).map((row) => row.filament_template_id);
+
+    const { data, error } = preferenceResult;
     if (!error && data) {
       preferences = {
         defaultPrinterTemplateId: data.default_printer_template_id,
@@ -163,11 +191,18 @@ export async function GET() {
     }
   }
 
+  const selectedPrinters = printers.filter((printer) => selectedPrinterTemplateIds.includes(printer.id));
+  const selectedFilaments = filaments.filter((filament) => selectedFilamentTemplateIds.includes(filament.id));
+
   const response: CalculatorCatalogResponse = {
     authenticated: Boolean(user),
     demo: !user || !preferences?.defaultPrinterTemplateId || !preferences?.defaultFilamentTemplateId,
-    printers: user ? printers : [demoPrinter],
-    filaments: user ? filaments : [demoFilament],
+    printers: user && selectedPrinters.length > 0 ? selectedPrinters : [demoPrinter],
+    filaments: user && selectedFilaments.length > 0 ? selectedFilaments : [demoFilament],
+    catalogPrinters: user ? printers : [],
+    catalogFilaments: user ? filaments : [],
+    selectedPrinterTemplateIds,
+    selectedFilamentTemplateIds,
     preferences,
     settings: CALCULATOR_DEMO_CONFIG.settings,
     productTypes: [...CALCULATOR_DEMO_CONFIG.productTypes],

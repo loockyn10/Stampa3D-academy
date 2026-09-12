@@ -2,7 +2,7 @@
 
 import React, { useState, useRef, useEffect } from "react";
 import { createPortal } from "react-dom";
-import { ChevronDown, Check, Search } from "lucide-react";
+import { ChevronDown, Check, LockKeyhole, Search } from "lucide-react";
 
 export interface CalculatorSelectOption {
   value: string;
@@ -21,6 +21,7 @@ interface CalculatorSelectProps {
   emptyMessage?: string;
   className?: string;
   usePortal?: boolean;
+  onReadOnlyClick?: () => void;
 }
 
 function getPortalDropdownStyle(rect: DOMRect): React.CSSProperties {
@@ -56,6 +57,7 @@ export function CalculatorSelect({
   emptyMessage = "No hay resultados",
   className = "",
   usePortal = false,
+  onReadOnlyClick,
 }: CalculatorSelectProps) {
   const [isOpen, setIsOpen] = useState(false);
   const [query, setQuery] = useState("");
@@ -117,6 +119,10 @@ export function CalculatorSelect({
         aria-expanded={isOpen}
         className="h-11 w-full rounded-xl border border-white/10 bg-white/[0.06] px-4 text-sm text-white outline-none transition hover:bg-white/[0.08] focus:border-[#ff6a00]/60 focus:ring-2 focus:ring-[#ff6a00]/10 disabled:opacity-50 flex justify-between items-center text-left"
         onClick={() => {
+          if (onReadOnlyClick) {
+            onReadOnlyClick();
+            return;
+          }
           if (!disabled) {
             if (!isOpen && usePortal && wrapperRef.current) {
               setDropdownStyle(getPortalDropdownStyle(wrapperRef.current.getBoundingClientRect()));
@@ -129,6 +135,7 @@ export function CalculatorSelect({
         <span className={selectedOption ? "text-white truncate block w-full pr-2" : "text-neutral-500 truncate block w-full pr-2"}>
           {selectedOption ? (selectedOption.element || selectedOption.label) : placeholder}
         </span>
+        {onReadOnlyClick && <LockKeyhole size={14} className="ml-2 shrink-0 text-gray-500" aria-hidden="true" />}
         <ChevronDown size={16} className="text-gray-400 ml-2 shrink-0" />
         </button>
 

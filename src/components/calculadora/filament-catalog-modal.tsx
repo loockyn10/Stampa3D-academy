@@ -4,16 +4,25 @@ import React, { useState, useEffect } from "react";
 import { createPortal } from "react-dom";
 import { X, Search, Loader2, Package, Check, Plus } from "lucide-react";
 import { createClient } from "@/utils/supabase/client";
+import { getFilamentLabel } from "@/lib/filaments/utils";
+
+interface CalculatorFilamentSelectionAdapter {
+  templates: any[];
+  selectedTemplateIds: string[];
+  add: (templateId: string) => Promise<void>;
+  remove: (templateId: string) => Promise<void>;
+}
 
 interface FilamentCatalogModalProps {
   onClose: () => void;
-  onSelect?: (filamentId: string) => void; // Kept for backwards compatibility if needed
-  onImported?: (importedFilaments: any[]) => void;
+  onSelect?: (filamentId: string) => void | Promise<void>; // Kept for backwards compatibility if needed
+  onImported?: (importedFilaments: any[]) => void | Promise<void>;
   mode?: "single" | "multiple";
   userId: string;
+  calculatorSelection?: CalculatorFilamentSelectionAdapter;
 }
 
-export function FilamentCatalogModal({ onClose, onSelect, onImported, mode = "single", userId }: FilamentCatalogModalProps) {
+export function FilamentCatalogModal({ onClose, onSelect, onImported, mode = "single", userId, calculatorSelection }: FilamentCatalogModalProps) {
   const supabase = createClient();
   const [templates, setTemplates] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
@@ -29,9 +38,15 @@ export function FilamentCatalogModal({ onClose, onSelect, onImported, mode = "si
 
   useEffect(() => {
     setMounted(true);
-    fetchTemplates();
-    fetchUserFilaments();
-  }, []);
+    if (calculatorSelection) {
+      setTemplates(calculatorSelection.templates);
+      setUserFilaments(calculatorSelection.selectedTemplateIds.map((templateId) => ({ source_template_id: templateId, is_active: true })));
+      setLoading(false);
+      return;
+    }
+    void fetchTemplates();
+    void fetchUserFilaments();
+  }, [calculatorSelection]);
 
   useEffect(() => {
     if (!mounted) return;
@@ -79,15 +94,6 @@ export function FilamentCatalogModal({ onClose, onSelect, onImported, mode = "si
     );
   };
 
-  // Helper to build safe display name
-  const buildDisplayName = (template: any) => {
-    return [
-      template.filament_type,
-      template.brand,
-      template.name
-    ].filter(Boolean).join(" ");
-  };
-
   // The original single select function
   const handleSelect = async (template: any) => {
     if (mode === "multiple") {
@@ -99,11 +105,17 @@ export function FilamentCatalogModal({ onClose, onSelect, onImported, mode = "si
     setError(null);
 
     try {
+      if (calculatorSelection) {
+        await calculatorSelection.add(template.id);
+        await onSelect?.(template.id);
+        return;
+      }
+
       const existing = userFilaments.find(p => p.source_template_id === template.id);
 
       if (existing) {
         if (existing.is_active) {
-          onSelect?.(existing.id);
+          await onSelect?.(existing.id);
           return;
         } else {
           // Reactivate
@@ -113,7 +125,7 @@ export function FilamentCatalogModal({ onClose, onSelect, onImported, mode = "si
             .eq("id", existing.id);
 
           if (updateError) throw updateError;
-          onSelect?.(existing.id);
+          await onSelect?.(existing.id);
           return;
         }
       }
@@ -141,7 +153,7 @@ export function FilamentCatalogModal({ onClose, onSelect, onImported, mode = "si
       if (insertError) throw insertError;
 
       if (newFilament) {
-        onSelect?.(newFilament.id);
+        await onSelect?.(newFilament.id);
       }
     } catch (err: any) {
       console.error("Error importing filament:", err);
@@ -163,6 +175,12 @@ export function FilamentCatalogModal({ onClose, onSelect, onImported, mode = "si
       for (const tId of selectedTemplateIds) {
         const template = templates.find(t => t.id === tId);
         if (!template) continue;
+
+        if (calculatorSelection) {
+          await calculatorSelection.add(template.id);
+          importedFilaments.push(template);
+          continue;
+        }
         
         const existing = userFilaments.find(p => p.source_template_id === template.id);
         
@@ -210,7 +228,7 @@ export function FilamentCatalogModal({ onClose, onSelect, onImported, mode = "si
       }
       
       // Notify parent
-      onImported?.(importedFilaments);
+      await onImported?.(importedFilaments);
       onClose(); // Multiple mode bulk import closes the modal explicitly
       
     } catch (err: any) {
@@ -227,6 +245,11 @@ export function FilamentCatalogModal({ onClose, onSelect, onImported, mode = "si
 
     setImportingId(templateId);
     try {
+      if (calculatorSelection) {
+        await calculatorSelection.remove(templateId);
+        return;
+      }
+
       const { error: updateError } = await supabase
         .from("filaments")
         .update({ is_active: false })
@@ -322,6 +345,7 @@ export function FilamentCatalogModal({ onClose, onSelect, onImported, mode = "si
                   const isAdded = existing && existing.is_active;
                   const isHidden = existing && !existing.is_active;
                   const isSelected = selectedTemplateIds.includes(t.id);
+                  const displayName = getFilamentLabel(t);
 
                   return (
                     <div
@@ -352,30 +376,14 @@ export function FilamentCatalogModal({ onClose, onSelect, onImported, mode = "si
                                 <span className="shrink-0 h-3 w-3 rounded-full border border-white/20" style={{ backgroundColor: t.color_hex }} />
                               )}
                               
-                              {t.filament_type && (
-                                <span className="text-xs font-semibold uppercase tracking-wide text-orange-400 shrink-0">
-                                  {t.filament_type}
-                                </span>
-                              )}
-                              
-                              {t.brand && (
-                                <span className="truncate text-sm font-medium text-white">
-                                  {t.brand}
-                                </span>
-                              )}
-
-                              {t.name && (
-                                <span className="truncate text-sm font-medium text-white">
-                                  {t.name}
-                                </span>
-                              )}
+                              <span className="truncate text-sm font-medium text-white">{displayName}</span>
                             </div>
                           </div>
 
                           <div className="shrink-0 flex flex-col gap-1 items-end pl-2">
                             {isAdded && (
-                              <span className="bg-stampa-orange/20 text-stampa-orange text-[10px] font-bold px-2 py-0.5 rounded-full border border-stampa-orange/20">
-                                Agregado
+                            <span className="inline-flex items-center gap-1 rounded-full border border-stampa-orange/30 bg-stampa-orange/20 px-2 py-0.5 text-[10px] font-bold text-stampa-orange">
+                                <Check size={11} /> Agregado
                               </span>
                             )}
                             {isHidden && (

@@ -46,6 +46,7 @@ export async function updateSession(request: NextRequest) {
     "/api/business/orders/expire",
     "/api/calculator/catalog",
     "/api/calculator/preferences",
+    "/api/calculator/selections",
   ];
 
   const isPublicApiRoute = publicApiRoutes.some((route) =>

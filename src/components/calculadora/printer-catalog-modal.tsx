@@ -2,17 +2,26 @@
 
 import React, { useState, useEffect } from "react";
 import { createPortal } from "react-dom";
-import { X, Search, Loader2, Printer } from "lucide-react";
+import { X, Search, Loader2, Printer, Check } from "lucide-react";
 import { createClient } from "@/utils/supabase/client";
 import { PrinterCatalogImage } from "@/components/printers/PrinterCatalogImage";
+import { getCalculatorPrinterDisplayName } from "@/lib/calculator/demo-catalog";
+
+interface CalculatorPrinterSelectionAdapter {
+  templates: any[];
+  selectedTemplateIds: string[];
+  add: (templateId: string) => Promise<void>;
+  remove: (templateId: string) => Promise<void>;
+}
 
 interface PrinterCatalogModalProps {
   onClose: () => void;
-  onSelect: (printerId: string) => void;
+  onSelect: (printerId: string) => void | Promise<void>;
   userId: string;
+  calculatorSelection?: CalculatorPrinterSelectionAdapter;
 }
 
-export function PrinterCatalogModal({ onClose, onSelect, userId }: PrinterCatalogModalProps) {
+export function PrinterCatalogModal({ onClose, onSelect, userId, calculatorSelection }: PrinterCatalogModalProps) {
   const supabase = createClient();
   const [templates, setTemplates] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
@@ -24,9 +33,15 @@ export function PrinterCatalogModal({ onClose, onSelect, userId }: PrinterCatalo
 
   useEffect(() => {
     setMounted(true);
-    fetchTemplates();
-    fetchUserPrinters();
-  }, []);
+    if (calculatorSelection) {
+      setTemplates(calculatorSelection.templates);
+      setUserPrinters(calculatorSelection.selectedTemplateIds.map((templateId) => ({ source_template_id: templateId, is_active: true })));
+      setLoading(false);
+      return;
+    }
+    void fetchTemplates();
+    void fetchUserPrinters();
+  }, [calculatorSelection]);
 
   useEffect(() => {
     if (!mounted) return;
@@ -69,11 +84,17 @@ export function PrinterCatalogModal({ onClose, onSelect, userId }: PrinterCatalo
     setError(null);
 
     try {
+      if (calculatorSelection) {
+        await calculatorSelection.add(template.id);
+        await onSelect(template.id);
+        return;
+      }
+
       const existing = userPrinters.find(p => p.source_template_id === template.id);
 
       if (existing) {
         if (existing.is_active) {
-          onSelect(existing.id);
+          await onSelect(existing.id);
           return;
         } else {
           // Reactivate
@@ -83,7 +104,7 @@ export function PrinterCatalogModal({ onClose, onSelect, userId }: PrinterCatalo
             .eq("id", existing.id);
 
           if (updateError) throw updateError;
-          onSelect(existing.id);
+          await onSelect(existing.id);
           return;
         }
       }
@@ -107,7 +128,7 @@ export function PrinterCatalogModal({ onClose, onSelect, userId }: PrinterCatalo
       if (insertError) throw insertError;
 
       if (newPrinter) {
-        onSelect(newPrinter.id);
+        await onSelect(newPrinter.id);
       }
     } catch (err: any) {
       console.error("Error importing printer:", err);
@@ -122,6 +143,11 @@ export function PrinterCatalogModal({ onClose, onSelect, userId }: PrinterCatalo
 
     setImportingId(templateId);
     try {
+      if (calculatorSelection) {
+        await calculatorSelection.remove(templateId);
+        return;
+      }
+
       const { error: updateError } = await supabase
         .from("printers")
         .update({ is_active: false, updated_at: new Date().toISOString() })
@@ -211,6 +237,7 @@ export function PrinterCatalogModal({ onClose, onSelect, userId }: PrinterCatalo
                   const existing = userPrinters.find(p => p.source_template_id === t.id);
                   const isAdded = existing && existing.is_active;
                   const isHidden = existing && !existing.is_active;
+                  const displayName = getCalculatorPrinterDisplayName(t);
 
                   return (
                     <div
@@ -218,12 +245,12 @@ export function PrinterCatalogModal({ onClose, onSelect, userId }: PrinterCatalo
                       className={`bg-stampa-bg border hover:border-stampa-orange/50 rounded-xl p-4 flex flex-col justify-between transition-all group ${isAdded ? 'border-stampa-orange/30 shadow-[0_0_15px_rgba(255,106,0,0.05)]' : 'border-stampa-border'}`}
                     >
                       <div>
-                        <PrinterCatalogImage imagePath={t.image_path} alt={t.name} className="mb-3 aspect-[4/3] w-full rounded-lg border border-stampa-border" />
+                        <PrinterCatalogImage imagePath={t.image_path} alt={displayName} className="mb-3 aspect-[4/3] w-full rounded-lg border border-stampa-border" />
                         <div className="flex justify-between items-start mb-1">
-                          <h4 className="font-bold text-white text-base leading-tight pr-2">{t.name}</h4>
+                          <h4 className="font-bold text-white text-base leading-tight pr-2">{displayName}</h4>
                           {isAdded && (
-                            <span className="shrink-0 bg-stampa-orange/20 text-stampa-orange text-[10px] font-bold px-2 py-0.5 rounded-full border border-stampa-orange/20">
-                              Agregada
+                            <span className="inline-flex shrink-0 items-center gap-1 rounded-full border border-stampa-orange/30 bg-stampa-orange/20 px-2 py-0.5 text-[10px] font-bold text-stampa-orange">
+                              <Check size={11} /> Agregada
                             </span>
                           )}
                           {isHidden && (
@@ -232,7 +259,7 @@ export function PrinterCatalogModal({ onClose, onSelect, userId }: PrinterCatalo
                             </span>
                           )}
                         </div>
-                        <p className="text-xs text-stampa-orange font-medium mb-3">{t.brand} {t.model !== t.name && `- ${t.model}`}</p>
+                        <p className="text-xs text-stampa-orange font-medium mb-3">{[t.brand, t.model].filter(Boolean).join(" · ")}</p>
 
                         <div className="space-y-1 mb-4">
                           <p className="text-xs text-gray-400 flex justify-between">

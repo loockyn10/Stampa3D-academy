@@ -90,20 +90,35 @@ test("invalid configured demo IDs fall back only to a complete template and expo
   assert.equal(invalid.item?.id, "filament-good");
 });
 
+test("printer display names remove embedded brand and model duplicates", () => {
+  const cases = [
+    [{ brand: "BambuLab", model: "A1", name: "BambuLab A1 Combo" }, "Bambu Lab A1 Combo"],
+    [{ brand: "Anycubic", model: "Kobra", name: "Anycubic Kobra 3" }, "Anycubic Kobra 3"],
+    [{ brand: "Bambu Lab", model: "P1P", name: "BambuLab P1P" }, "Bambu Lab P1P"],
+    [{ brand: "Creality", model: "Hi Combo", name: "Creality Hi Combo" }, "Creality Hi Combo"],
+    [{ brand: "Flashforge", model: "AD5X", name: "Flashforge AD5X" }, "Flashforge AD5X"],
+  ];
+
+  for (const [printer, expected] of cases) {
+    assert.equal(demoCatalog.getCalculatorPrinterDisplayName({ id: "test", ...printer }), expected);
+  }
+});
+
 test("catalog route keeps service role server-side, narrows fields and returns a stable public error", () => {
   assert.match(route, /SUPABASE_SERVICE_ROLE_KEY/);
   assert.doesNotMatch(route, /select\(["']\*["']\)/);
   assert.match(route, /calculator_catalog_unavailable/);
   assert.match(route, /permission_denied/);
   assert.match(route, /no_complete_demo_template/);
-  assert.match(route, /user \? printers : \[demoPrinter\]/);
-  assert.match(route, /user \? filaments : \[demoFilament\]/);
+  assert.match(route, /selectedPrinters\.length > 0 \? selectedPrinters : \[demoPrinter\]/);
+  assert.match(route, /selectedFilaments\.length > 0 \? selectedFilaments : \[demoFilament\]/);
 });
 
-test("calculator shows a retry state and hides the printer add button for anonymous demo", () => {
+test("calculator shows a retry state and gives anonymous demo controls a signup interaction", () => {
   assert.match(calculator, /No pudimos cargar la configuración de cálculo\./);
   assert.match(calculator, />\s*Reintentar\s*</);
-  assert.match(calculator, /accessMode !== "anonymous" && <button/);
+  assert.match(calculator, /onReadOnlyClick=\{\(\) => setShowSignupModal\(true\)\}/);
+  assert.match(calculator, /onClick=\{openPrinterCatalog\}/);
   assert.match(calculator, /sm:grid-cols-\[minmax\(0,1fr\)_8rem\]/);
 });
 

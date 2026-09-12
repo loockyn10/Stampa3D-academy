@@ -102,8 +102,10 @@ test("route guard exposes calculator but keeps premium routes behind accessPlatf
 
 test("catalog endpoint returns narrow DTOs and anonymous mode selects one demo", () => {
   assert.doesNotMatch(catalogRoute, /\.select\(["']\*["']\)/);
-  assert.match(catalogRoute, /user \? printers : \[demoPrinter\]/);
-  assert.match(catalogRoute, /user \? filaments : \[demoFilament\]/);
+  assert.match(catalogRoute, /user && selectedPrinters\.length > 0 \? selectedPrinters : \[demoPrinter\]/);
+  assert.match(catalogRoute, /user && selectedFilaments\.length > 0 \? selectedFilaments : \[demoFilament\]/);
+  assert.match(catalogRoute, /catalogPrinters: user \? printers : \[\]/);
+  assert.match(catalogRoute, /catalogFilaments: user \? filaments : \[\]/);
   assert.match(catalogRoute, /STAMPA_DEMO_PRINTER_TEMPLATE_ID|CALCULATOR_DEMO_CONFIG/);
 });
 

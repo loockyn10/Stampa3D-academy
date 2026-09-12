@@ -46,6 +46,24 @@ export async function PUT(request: Request) {
     ]);
     if (printer.error || filament.error) return NextResponse.json({ error: "No pudimos validar tu selección." }, { status: 503 });
     if (!printer.data || !filament.data) return NextResponse.json({ error: "La selección ya no está disponible." }, { status: 400 });
+
+    const [printerSelection, filamentSelection] = await Promise.all([
+      supabase.from("calculator_user_printer_templates").upsert({
+        user_id: user.id,
+        printer_template_id: printerId,
+      }, { onConflict: "user_id,printer_template_id", ignoreDuplicates: true }),
+      supabase.from("calculator_user_filament_templates").upsert({
+        user_id: user.id,
+        filament_template_id: filamentId,
+      }, { onConflict: "user_id,filament_template_id", ignoreDuplicates: true }),
+    ]);
+    if (printerSelection.error || filamentSelection.error) {
+      console.error("[calculator/preferences] selection save failed", {
+        printer: printerSelection.error?.code,
+        filament: filamentSelection.error?.code,
+      });
+      return NextResponse.json({ error: "No pudimos guardar tu configuración." }, { status: 503 });
+    }
   }
 
   const payload = {

@@ -55,7 +55,7 @@ export function CalculatorPersonalizationModal({
   initialPrinterId?: string | null;
   initialFilamentId?: string | null;
   onClose: () => void;
-  onSaved: (printerId: string | null, filamentId: string | null, skipped: boolean) => void;
+  onSaved: (printerId: string | null, filamentId: string | null, skipped: boolean) => void | Promise<void>;
 }) {
   const [step, setStep] = useState<1 | 2>(1);
   const [search, setSearch] = useState("");
@@ -82,7 +82,7 @@ export function CalculatorPersonalizationModal({
       });
       const data = await response.json().catch(() => null);
       if (!response.ok) throw new Error(data?.error || "No pudimos guardar tu configuración.");
-      onSaved(skipped ? null : printerId, skipped ? null : filamentId, skipped);
+      await onSaved(skipped ? null : printerId, skipped ? null : filamentId, skipped);
     } catch (caught) {
       setError(caught instanceof Error ? caught.message : "No pudimos guardar tu configuración.");
     } finally {
