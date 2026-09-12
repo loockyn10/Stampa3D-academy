@@ -1,6 +1,7 @@
 export interface CalculatorPrinterCatalogItem {
   id: string;
   name: string;
+  display_name: string;
   brand: string | null;
   model: string | null;
   power_watts: number;
@@ -11,6 +12,7 @@ export interface CalculatorPrinterCatalogItem {
 export interface CalculatorFilamentCatalogItem {
   id: string;
   name: string | null;
+  display_name: string;
   brand: string | null;
   filament_type: string;
   color: string | null;

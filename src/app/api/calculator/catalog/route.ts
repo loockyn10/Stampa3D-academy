@@ -2,6 +2,13 @@ import { NextResponse } from "next/server";
 import { createClient as createAdminClient } from "@supabase/supabase-js";
 import { createClient } from "@/utils/supabase/server";
 import { CALCULATOR_DEMO_CONFIG } from "@/lib/calculator/demo-config";
+import {
+  getCalculatorFilamentDisplayName,
+  getCalculatorPrinterDisplayName,
+  isUsableDemoFilament,
+  isUsableDemoPrinter,
+  selectDemoCatalogItem,
+} from "@/lib/calculator/demo-catalog";
 import type {
   CalculatorCatalogResponse,
   CalculatorFilamentCatalogItem,
@@ -11,22 +18,50 @@ import type {
 
 export const dynamic = "force-dynamic";
 
-function pickConfiguredOrFirst<T extends { id: string }>(items: T[], configuredId: string | null): T | null {
-  return (configuredId ? items.find((item) => item.id === configuredId) : null) ?? items[0] ?? null;
+type CatalogQueryError = {
+  code?: string;
+  message?: string;
+  details?: string;
+  hint?: string;
+};
+
+function catalogErrorCategory(error: CatalogQueryError | null): string | null {
+  if (!error) return null;
+  if (error.code === "42501") return "permission_denied";
+  if (["42P01", "PGRST205"].includes(error.code ?? "")) return "table_missing";
+  if (["42703", "PGRST204"].includes(error.code ?? "")) return "schema_mismatch";
+  if (/fetch failed|network|connect/i.test(error.message ?? "")) return "connection_failed";
+  return "query_failed";
+}
+
+function unavailable() {
+  return NextResponse.json({ error: "calculator_catalog_unavailable" }, { status: 503 });
 }
 
 export async function GET() {
   const url = process.env.NEXT_PUBLIC_SUPABASE_URL;
   const serviceRoleKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
   if (!url || !serviceRoleKey) {
-    return NextResponse.json({ error: "La configuración demo no está disponible." }, { status: 503 });
+    console.error("[calculator/catalog] unavailable", {
+      category: "missing_environment",
+      missing: [!url ? "NEXT_PUBLIC_SUPABASE_URL" : null, !serviceRoleKey ? "SUPABASE_SERVICE_ROLE_KEY" : null].filter(Boolean),
+    });
+    return unavailable();
   }
 
   const supabase = await createClient();
-  const { data: { user } } = await supabase.auth.getUser();
-  const admin = createAdminClient(url, serviceRoleKey, { auth: { persistSession: false } });
+  const { data: { user }, error: authError } = await supabase.auth.getUser();
+  if (authError) {
+    console.warn("[calculator/catalog] session unavailable; serving anonymous DTO", {
+      category: "auth_session_error",
+      message: authError.message.slice(0, 160),
+    });
+  }
+  const admin = createAdminClient(url, serviceRoleKey, {
+    auth: { persistSession: false, autoRefreshToken: false, detectSessionInUrl: false },
+  });
 
-  const [printerResult, filamentResult] = await Promise.all([
+  const catalogResults = await Promise.all([
     admin
       .from("printer_templates")
       .select("id, name, brand, model, power_watts, maintenance_cost_per_hour, image_path")
@@ -39,23 +74,75 @@ export async function GET() {
       .eq("is_active", true)
       .order("sort_order", { ascending: true })
       .order("name", { ascending: true }),
-  ]);
+  ]).catch((caught: unknown) => {
+    console.error("[calculator/catalog] unavailable", {
+      category: "connection_failed",
+      errorType: caught instanceof Error ? caught.name : "unknown_error",
+    });
+    return null;
+  });
+
+  if (!catalogResults) return unavailable();
+  const [printerResult, filamentResult] = catalogResults;
 
   if (printerResult.error || filamentResult.error) {
-    console.error("[calculator/catalog] catalog query failed", {
-      printers: printerResult.error?.message,
-      filaments: filamentResult.error?.message,
+    console.error("[calculator/catalog] unavailable", {
+      category: "catalog_query",
+      printers: printerResult.error ? {
+        category: catalogErrorCategory(printerResult.error),
+        code: printerResult.error.code,
+        message: printerResult.error.message.slice(0, 180),
+      } : null,
+      filaments: filamentResult.error ? {
+        category: catalogErrorCategory(filamentResult.error),
+        code: filamentResult.error.code,
+        message: filamentResult.error.message.slice(0, 180),
+      } : null,
     });
-    return NextResponse.json({ error: "No pudimos cargar la configuración de cálculo." }, { status: 503 });
+    return unavailable();
   }
 
-  const printers = (printerResult.data ?? []) as CalculatorPrinterCatalogItem[];
-  const filaments = (filamentResult.data ?? []) as CalculatorFilamentCatalogItem[];
-  const demoPrinter = pickConfiguredOrFirst(printers, CALCULATOR_DEMO_CONFIG.printerTemplateId);
-  const demoFilament = pickConfiguredOrFirst(filaments, CALCULATOR_DEMO_CONFIG.filamentTemplateId);
+  const rawPrinters = printerResult.data ?? [];
+  const rawFilaments = filamentResult.data ?? [];
+  const printerSelection = selectDemoCatalogItem(rawPrinters, CALCULATOR_DEMO_CONFIG.printerTemplateId, isUsableDemoPrinter);
+  const filamentSelection = selectDemoCatalogItem(rawFilaments, CALCULATOR_DEMO_CONFIG.filamentTemplateId, isUsableDemoFilament);
+
+  for (const [kind, selection, configuredId] of [
+    ["printer", printerSelection, CALCULATOR_DEMO_CONFIG.printerTemplateId],
+    ["filament", filamentSelection, CALCULATOR_DEMO_CONFIG.filamentTemplateId],
+  ] as const) {
+    if (selection.status === "configured_missing" || selection.status === "configured_invalid") {
+      console.warn("[calculator/catalog] invalid demo configuration", {
+        category: selection.status,
+        kind,
+        configuredId,
+        fallbackSelected: Boolean(selection.item),
+      });
+    }
+  }
+
+  const printers = rawPrinters.filter(isUsableDemoPrinter).map((printer) => ({
+    ...printer,
+    display_name: getCalculatorPrinterDisplayName(printer),
+  })) as CalculatorPrinterCatalogItem[];
+  const filaments = rawFilaments.filter(isUsableDemoFilament).map((filament) => ({
+    ...filament,
+    display_name: getCalculatorFilamentDisplayName(filament),
+  })) as CalculatorFilamentCatalogItem[];
+  const demoPrinter = printerSelection.item
+    ? printers.find((printer) => printer.id === printerSelection.item?.id) ?? null
+    : null;
+  const demoFilament = filamentSelection.item
+    ? filaments.find((filament) => filament.id === filamentSelection.item?.id) ?? null
+    : null;
 
   if (!demoPrinter || !demoFilament) {
-    return NextResponse.json({ error: "El catálogo demo todavía no está configurado." }, { status: 503 });
+    console.error("[calculator/catalog] unavailable", {
+      category: "no_complete_demo_template",
+      usablePrinters: printers.length,
+      usableFilaments: filaments.length,
+    });
+    return unavailable();
   }
 
   let preferences: CalculatorPreferenceDto | null = null;

@@ -36,26 +36,32 @@ function RegistroForm() {
       }
     } catch {}
 
-    const { error: signUpError } = await supabase.auth.signUp({
-      email,
-      password,
-      options: {
-        emailRedirectTo: `${window.location.origin}/auth/callback?next=${encodeURIComponent(returnTo)}`,
-        data: {
-          full_name: name,
-          registration_code: normalizedCode || null,
-          referral_code_used: normalizedCode || null,
+    try {
+      const { error: signUpError } = await supabase.auth.signUp({
+        email,
+        password,
+        options: {
+          emailRedirectTo: `${window.location.origin}/auth/callback?next=${encodeURIComponent(returnTo)}`,
+          data: {
+            full_name: name,
+            registration_code: normalizedCode || null,
+            referral_code_used: normalizedCode || null,
+          },
         },
-      },
-    });
+      });
 
-    if (signUpError) {
-      setError(signUpError.message);
+      if (signUpError) {
+        setError(signUpError.message);
+        return;
+      }
+
+      window.location.assign(returnTo === "/" ? "/sin-acceso" : returnTo);
+    } catch (caught) {
+      console.error("[registro] signup connection failed", caught instanceof Error ? caught.name : "unknown_error");
+      setError("No pudimos conectar con el servicio de registro. Revisá tu conexión e intentá nuevamente.");
+    } finally {
       setIsLoading(false);
-      return;
     }
-
-    window.location.assign(returnTo === "/" ? "/sin-acceso" : returnTo);
   };
 
   return (

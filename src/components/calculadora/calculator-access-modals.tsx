@@ -64,8 +64,8 @@ export function CalculatorPersonalizationModal({
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const normalizedSearch = search.trim().toLocaleLowerCase("es");
-  const visiblePrinters = useMemo(() => printers.filter((printer) => [printer.brand, printer.model, printer.name].some((value) => value?.toLocaleLowerCase("es").includes(normalizedSearch))), [normalizedSearch, printers]);
-  const visibleFilaments = useMemo(() => filaments.filter((filament) => [filament.brand, filament.filament_type, filament.name, filament.color].some((value) => value?.toLocaleLowerCase("es").includes(normalizedSearch))), [filaments, normalizedSearch]);
+  const visiblePrinters = useMemo(() => printers.filter((printer) => [printer.display_name, printer.brand, printer.model, printer.name].some((value) => value?.toLocaleLowerCase("es").includes(normalizedSearch))), [normalizedSearch, printers]);
+  const visibleFilaments = useMemo(() => filaments.filter((filament) => [filament.display_name, filament.brand, filament.filament_type, filament.name, filament.color].some((value) => value?.toLocaleLowerCase("es").includes(normalizedSearch))), [filaments, normalizedSearch]);
 
   const persist = async (skipped: boolean) => {
     setSaving(true);
@@ -111,12 +111,12 @@ export function CalculatorPersonalizationModal({
           const selected = printerId === printer.id;
           return <button key={printer.id} onClick={() => setPrinterId(printer.id)} className={`overflow-hidden rounded-xl border text-left transition ${selected ? "border-stampa-orange bg-stampa-orange/10" : "border-white/10 bg-white/[0.03] hover:bg-white/[0.06]"}`}>
             <PrinterCatalogImage imagePath={printer.image_path} alt={[printer.brand, printer.model || printer.name].filter(Boolean).join(" ")} className="h-28 w-full" />
-            <span className="flex items-center justify-between gap-3 p-3"><span><span className="block text-xs text-gray-500">{printer.brand || "Impresora"}</span><span className="block text-sm font-semibold text-white">{printer.model || printer.name}</span></span>{selected && <Check className="text-stampa-orange" size={18} />}</span>
+            <span className="flex items-center justify-between gap-3 p-3"><span><span className="block text-xs text-gray-500">{printer.brand || "Impresora"}</span><span className="block text-sm font-semibold text-white">{printer.model || printer.name || printer.display_name}</span></span>{selected && <Check className="text-stampa-orange" size={18} />}</span>
           </button>;
         }) : visibleFilaments.map((filament) => {
           const selected = filamentId === filament.id;
           return <button key={filament.id} onClick={() => setFilamentId(filament.id)} className={`flex items-center justify-between gap-3 rounded-xl border p-4 text-left transition ${selected ? "border-stampa-orange bg-stampa-orange/10" : "border-white/10 bg-white/[0.03] hover:bg-white/[0.06]"}`}>
-            <span className="flex min-w-0 items-center gap-3"><span className="h-8 w-8 shrink-0 rounded-full border border-white/15" style={{ backgroundColor: filament.color_hex || "#737373" }} /><span className="min-w-0"><span className="block truncate text-sm font-semibold text-white">{[filament.filament_type, filament.brand, filament.name].filter(Boolean).join(" · ")}</span><span className="block text-xs text-gray-500">{filament.color || "Color sin especificar"} · {filament.default_total_grams} g · ${filament.default_purchase_price}</span></span></span>{selected && <Check className="shrink-0 text-stampa-orange" size={18} />}
+            <span className="flex min-w-0 items-center gap-3"><span className="h-8 w-8 shrink-0 rounded-full border border-white/15" style={{ backgroundColor: filament.color_hex || "#737373" }} /><span className="min-w-0"><span className="block truncate text-sm font-semibold text-white">{filament.display_name}</span><span className="block text-xs text-gray-500">{filament.color || "Color sin especificar"} · {filament.default_total_grams} g · ${filament.default_purchase_price}</span></span></span>{selected && <Check className="shrink-0 text-stampa-orange" size={18} />}
           </button>;
         })}
       </div>

@@ -115,6 +115,7 @@ function CalculadoraPageContent() {
   const [supabase] = useState(() => createClient());
   const [advanced, setAdvanced] = useState(false);
   const [loading, setLoading] = useState(true);
+  const [loadError, setLoadError] = useState<string | null>(null);
   const [userId, setUserId] = useState<string | null>(null);
   const [accessMode, setAccessMode] = useState<"anonymous" | "free" | "paid">("anonymous");
   const [catalogPrinters, setCatalogPrinters] = useState<CalculatorPrinterCatalogItem[]>([]);
@@ -176,6 +177,7 @@ function CalculadoraPageContent() {
 
   async function fetchData() {
     setLoading(true);
+    setLoadError(null);
     const { access } = await getCurrentUserAccess(supabase);
     const user = access.userId ? { id: access.userId } : null;
     const paid = access.capabilities.accessPlatform;
@@ -186,11 +188,11 @@ function CalculadoraPageContent() {
       try {
         const response = await fetch("/api/calculator/catalog", { cache: "no-store" });
         const catalog = await response.json() as CalculatorCatalogResponse & { error?: string };
-        if (!response.ok) throw new Error(catalog.error || "No pudimos cargar la configuración demo.");
+        if (!response.ok) throw new Error("No pudimos cargar la configuración de cálculo.");
 
         setCatalogPrinters(catalog.printers);
         setCatalogFilaments(catalog.filaments);
-        const mappedPrinters = catalog.printers.map((printer) => ({ ...printer }));
+        const mappedPrinters = catalog.printers.map((printer) => ({ ...printer, name: printer.display_name }));
         const mappedFilaments = catalog.filaments.map((filament) => ({
           id: filament.id,
           name: filament.name,
@@ -198,6 +200,7 @@ function CalculadoraPageContent() {
           filament_type: filament.filament_type,
           color: filament.color,
           color_hex: filament.color_hex,
+          display_name: filament.display_name,
           total_grams: filament.default_total_grams,
           purchase_price: filament.default_purchase_price,
         }));
@@ -225,8 +228,10 @@ function CalculadoraPageContent() {
         if (user && (!catalog.preferences || (catalog.preferences.onboardingStatus === "completed" && !personalized))) setShowPersonalizationModal(true);
         const draft = parseCalculatorGuestDraft(window.sessionStorage.getItem(CALCULATOR_GUEST_DRAFT_KEY));
         if (draft) restoreGuestDraft(draft);
-      } catch (error) {
-        toast.error(error instanceof Error ? error.message : "No pudimos cargar la calculadora.");
+      } catch {
+        const message = "No pudimos cargar la configuración de cálculo.";
+        setLoadError(message);
+        toast.error(message);
       } finally {
         setLoading(false);
       }
@@ -920,6 +925,25 @@ function CalculadoraPageContent() {
     return <CalculatorPageSkeleton />;
   }
 
+  if (loadError) {
+    return (
+      <div className={`${accessMode === "anonymous" ? "min-h-screen bg-stampa-bg px-4 py-6 sm:px-6 lg:px-8 lg:py-8" : ""} flex items-center justify-center`}>
+        <Card className="w-full max-w-lg border-red-500/20 bg-stampa-surface p-6 text-center shadow-xl sm:p-8">
+          <AlertCircle className="mx-auto h-9 w-9 text-red-400" aria-hidden="true" />
+          <h1 className="mt-4 text-lg font-bold text-white">No pudimos cargar la configuración de cálculo.</h1>
+          <p className="mt-2 text-sm text-gray-400">Reintentá en unos segundos. No vamos a mostrar valores incompletos ni calcular con una configuración inválida.</p>
+          <button
+            type="button"
+            onClick={() => void fetchData()}
+            className="mt-5 inline-flex h-11 items-center justify-center rounded-xl bg-stampa-orange px-5 text-sm font-bold text-white transition hover:bg-stampa-orange-hover"
+          >
+            Reintentar
+          </button>
+        </Card>
+      </div>
+    );
+  }
+
   const missingData = filaments.length === 0 || printers.length === 0 || multipliers.length === 0;
   const hasValidCalc = calc.hasValidFilamentLines && calc.baseCost > 0 && calc.normalPrice > 0;
   const hasDuplicateFilaments = new Set(
@@ -1049,16 +1073,16 @@ function CalculadoraPageContent() {
               {filamentLines.map((line, index) => (
                 <div
                   key={line.id}
-                  className="grid grid-cols-1 items-end gap-3 sm:grid-cols-[minmax(0,1fr)_8rem_auto]"
+                  className={`grid grid-cols-1 items-end gap-3 ${filamentLines.length > 1 ? "sm:grid-cols-[minmax(0,1fr)_8rem_2.75rem]" : "sm:grid-cols-[minmax(0,1fr)_8rem]"}`}
                 >
-                  <label className="block min-w-0">
+                  <div className="block min-w-0">
                     <span className="mb-1 block text-[11px] font-medium text-gray-600">
                       Filamento {index + 1}
                     </span>
                     {accessMode === "anonymous" ? <button type="button" onClick={() => setShowSignupModal(true)} className="flex h-11 w-full items-center justify-between rounded-xl border border-white/10 bg-white/[0.06] px-4 text-left text-sm text-white"><FilamentOptionLabel filament={filaments.find((candidate) => candidate.id === line.filamentId) || {}} /><LockKeyhole size={15} className="shrink-0 text-gray-500" /></button> : <CalculatorSelect
                       options={filaments.map(f => ({
                         value: f.id,
-                        label: getFilamentLabel(f),
+                        label: f.display_name || getFilamentLabel(f),
                         element: <FilamentOptionLabel filament={f} />
                       }))}
                       value={line.filamentId}
@@ -1069,8 +1093,7 @@ function CalculadoraPageContent() {
                       placeholder="Seleccioná un filamento..."
                       searchable={true}
                     />}
-                    {isDemo && index === 0 && <span className="mt-1 block text-[10px] font-semibold uppercase tracking-wider text-stampa-orange/75">Configuración demo</span>}
-                  </label>
+                  </div>
                   <NumberField
                     label="Gramos"
                     value={line.grams}
@@ -1088,6 +1111,7 @@ function CalculadoraPageContent() {
                       <X size={16} />
                     </button>
                   )}
+                  {isDemo && index === 0 && <span className={`-mt-1 block text-[10px] font-semibold uppercase tracking-wider text-stampa-orange/75 ${filamentLines.length > 1 ? "sm:col-span-3" : "sm:col-span-2"}`}>Configuración demo</span>}
                 </div>
               ))}
 
@@ -1133,16 +1157,16 @@ function CalculadoraPageContent() {
                   Los insumos extra del tipo elegido pueden incluir aluminio, pegamento, frascos o packaging. Se les suma un 30% por envío, desperdicio o unidades falladas.
                 </p>
               </label>
-              <label className="block">
+              <div className="block">
                 <div className="flex items-center justify-between mb-1">
                   <span className="block text-xs font-semibold text-gray-500">Impresora</span>
                 </div>
-                <div className="flex gap-2">
-                  <div className="flex-1 min-w-0">
-                    {accessMode === "anonymous" ? <button type="button" onClick={() => setShowSignupModal(true)} className="flex h-11 w-full items-center justify-between rounded-xl border border-white/10 bg-white/[0.06] px-4 text-left text-sm text-white"><span className="truncate">{printers.find((printer) => printer.id === selectedPrinterId)?.name || "Impresora demo"}</span><LockKeyhole size={15} className="shrink-0 text-gray-500" /></button> : <CalculatorSelect
+                <div className={accessMode === "anonymous" ? "grid grid-cols-1" : "grid grid-cols-[minmax(0,1fr)_2.75rem] items-start gap-2"}>
+                  <div className="min-w-0">
+                    {accessMode === "anonymous" ? <button type="button" onClick={() => setShowSignupModal(true)} className="flex h-11 w-full items-center justify-between rounded-xl border border-white/10 bg-white/[0.06] px-4 text-left text-sm text-white"><span className="truncate">{printers.find((printer) => printer.id === selectedPrinterId)?.display_name || printers.find((printer) => printer.id === selectedPrinterId)?.name || "Impresora demo"}</span><LockKeyhole size={15} className="shrink-0 text-gray-500" /></button> : <CalculatorSelect
                       options={printers.map(p => ({
                         value: p.id,
-                        label: `${p.name}${p.power_watts ? ` (${p.power_watts}W)` : ""}`,
+                        label: `${p.display_name || p.name}${p.power_watts ? ` (${p.power_watts}W)` : ""}`,
                       }))}
                       value={selectedPrinterId}
                       onChange={(val) => {
@@ -1152,18 +1176,19 @@ function CalculadoraPageContent() {
                       placeholder="Seleccioná una impresora..."
                       searchable={true}
                     />}
-                    {isDemo && <span className="mt-1 block text-[10px] font-semibold uppercase tracking-wider text-stampa-orange/75">Configuración demo</span>}
                   </div>
-                  <button 
+                  {accessMode !== "anonymous" && <button
                     type="button" 
                     onClick={openCalculatorCustomization}
-                    className="shrink-0 flex items-center justify-center bg-white/5 hover:bg-white/10 text-white rounded-xl border border-stampa-border px-3 transition-colors"
+                    className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl border border-stampa-border bg-white/5 text-white transition-colors hover:bg-white/10"
                     title="Elegir del catálogo"
+                    aria-label="Elegir impresora del catálogo"
                   >
                     <Plus size={16} />
-                  </button>
+                  </button>}
                 </div>
-              </label>
+                {isDemo && <span className="mt-1 block text-[10px] font-semibold uppercase tracking-wider text-stampa-orange/75">Configuración demo</span>}
+              </div>
             </div>
           </div>
         </Card>
