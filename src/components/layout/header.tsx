@@ -51,6 +51,7 @@ export function Header({ access, loading }: HeaderProps) {
   const pathname = usePathname();
   const [courseTitle, setCourseTitle] = useState<string | null>(null);
   const identity = access?.identity;
+  const isFree = !loading && access?.authenticated === true && !access.capabilities.accessPlatform;
 
   useEffect(() => {
     let active = true;
@@ -84,7 +85,7 @@ export function Header({ access, loading }: HeaderProps) {
       if (access.validGrantTypes.includes("beta_tester")) return "Beta Tester";
       if (access.validGrantTypes.includes("manual_free_access")) return "Acceso gratuito";
       if (access.validGrantTypes.includes("internal_tester")) return "Tester interno";
-      return "Membresía inactiva";
+      return "Cuenta gratis";
     }
 
     switch (identity?.memberLevel) {
@@ -113,7 +114,7 @@ export function Header({ access, loading }: HeaderProps) {
 
       {/* 2. Centro: Buscador global */}
       <div className="mx-6 w-full max-w-xl flex-1">
-        <GlobalSearch />
+        {!isFree && <GlobalSearch />}
       </div>
 
       {/* 3. Derecha: Iconos y perfil */}

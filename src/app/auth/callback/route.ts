@@ -3,11 +3,12 @@ import { createServerClient } from '@supabase/ssr'
 import { createClient as createAdminClient } from '@supabase/supabase-js'
 import { cookies } from 'next/headers'
 import { resolveRegistrationCode, normalizeRegistrationCode } from '@/lib/codes/resolve-code'
+import { sanitizeReturnTo } from '@/lib/auth/return-to'
 
 export async function GET(request: Request) {
   const { searchParams, origin } = new URL(request.url)
   const code = searchParams.get('code')
-  const next = searchParams.get('next') ?? '/'
+  const next = sanitizeReturnTo(searchParams.get('next'))
   const refFromUrl = searchParams.get('ref')
   const inviteFromUrl = searchParams.get('invite')
 
@@ -113,7 +114,7 @@ export async function GET(request: Request) {
         }
       }
 
-      return NextResponse.redirect(`${origin}${next}`)
+      return NextResponse.redirect(new URL(next, origin))
     }
   }
 

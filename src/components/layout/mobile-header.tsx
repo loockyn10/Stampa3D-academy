@@ -26,12 +26,13 @@ function getInitials(access: UserAccessSnapshot | null): string {
 export function MobileHeader({ access, loading }: MobileHeaderProps) {
   const identity = access?.identity;
   const isAdmin = !loading && access?.role === "admin";
+  const isFree = !loading && access?.authenticated === true && !access.capabilities.accessPlatform;
 
   return (
     <header className="sticky top-0 z-30 border-b border-stampa-border bg-stampa-bg/95 backdrop-blur-xl lg:hidden">
       <div className="flex h-14 items-center justify-between px-3">
         <Link
-          href="/"
+          href={isFree ? "/calculadora" : "/"}
           aria-label="Ir al inicio"
           className="flex h-11 min-w-11 items-center gap-2 rounded-xl px-1 transition-colors active:bg-white/5"
         >
@@ -78,9 +79,7 @@ export function MobileHeader({ access, loading }: MobileHeaderProps) {
         </div>
       </div>
 
-      <div className="px-3 pb-3">
-        <GlobalSearch />
-      </div>
+      {!isFree && <div className="px-3 pb-3"><GlobalSearch /></div>}
     </header>
   );
 }

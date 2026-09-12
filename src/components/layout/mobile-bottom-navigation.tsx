@@ -3,7 +3,8 @@
 import { useEffect } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { Plus } from "lucide-react";
+import { BookOpen, Calculator, Lock, Plus, Printer, Store } from "lucide-react";
+import type { UserAccessSnapshot } from "@/lib/auth/user-access";
 import {
   isMobileNavigationItemActive,
   mainMobileNavigation,
@@ -12,6 +13,8 @@ import {
 import { MobileRadialMenu } from "./mobile-radial-menu";
 
 interface MobileBottomNavigationProps {
+  access: UserAccessSnapshot | null;
+  loading: boolean;
   toolsOpen: boolean;
   onToolsOpenChange: (open: boolean) => void;
 }
@@ -29,16 +32,25 @@ function NavigationLink({ item, pathname }: { item: MobileNavigationItem; pathna
       }`}
     >
       <Icon size={20} strokeWidth={active ? 2.4 : 2} />
-      <span className="max-w-full truncate">{item.shortLabel || item.label}</span>
+      <span className="flex max-w-full items-center gap-0.5 truncate">{item.shortLabel || item.label}{"locked" in item && item.locked ? <Lock size={9} /> : null}</span>
     </Link>
   );
 }
 
 export function MobileBottomNavigation({
+  access,
+  loading,
   toolsOpen,
   onToolsOpenChange,
 }: MobileBottomNavigationProps) {
   const pathname = usePathname();
+  const isFree = !loading && access?.authenticated === true && !access.capabilities.accessPlatform;
+  const freeItems = [
+    { href: "/calculadora", label: "Calculadora", icon: Calculator, activePrefixes: ["/calculadora"] as const },
+    { href: "/sin-acceso?feature=academia", label: "Academia", icon: BookOpen, activePrefixes: [] as const, locked: true },
+    { href: "/sin-acceso?feature=taller", label: "Taller", icon: Printer, activePrefixes: [] as const, locked: true },
+    { href: "/sin-acceso?feature=negocio", label: "Negocio", icon: Store, activePrefixes: [] as const, locked: true },
+  ];
   const leftItems = mainMobileNavigation.slice(0, 2);
   const rightItems = mainMobileNavigation.slice(2);
 
@@ -62,6 +74,10 @@ export function MobileBottomNavigation({
       document.removeEventListener("keydown", handleKeyDown);
     };
   }, [toolsOpen, onToolsOpenChange]);
+
+  if (isFree) {
+    return <div className="fixed inset-x-0 bottom-0 z-[60] lg:hidden"><nav aria-label="Navegación principal" className="border-t border-white/10 bg-stampa-bg/95 backdrop-blur-xl" style={{ height: "calc(var(--mobile-bottom-navigation-height) + env(safe-area-inset-bottom))", paddingBottom: "env(safe-area-inset-bottom)" }}><div className="grid h-[var(--mobile-bottom-navigation-height)] grid-cols-4 items-center px-1">{freeItems.map((item) => <NavigationLink key={item.href} item={item} pathname={pathname} />)}</div></nav></div>;
+  }
 
   return (
     <div className="fixed inset-x-0 bottom-0 z-[60] lg:hidden">

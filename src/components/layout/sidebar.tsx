@@ -17,6 +17,7 @@ import {
   Users,
   Printer,
   Store,
+  Lock,
 } from "lucide-react";
 import type { UserAccessSnapshot } from "@/lib/auth/user-access";
 
@@ -65,6 +66,20 @@ export function Sidebar({ access, loading }: SidebarProps) {
   const searchParams = useSearchParams();
   const isAdmin = access?.capabilities.accessAdmin === true;
   const hasPlatformAccess = access?.capabilities.accessPlatform === true;
+  const isFree = !loading && access?.authenticated === true && !hasPlatformAccess;
+  const freeGroups = [
+    { group: "Gratis", items: [{ path: "/calculadora", label: "Calculadora", icon: Calculator }] },
+    { group: "Descubrí Stampa", items: [
+      { path: "/sin-acceso?feature=stampy", label: "Stampy IA", icon: Sparkles, locked: true },
+      { path: "/sin-acceso?feature=academia", label: "Academia", icon: BookOpen, locked: true },
+      { path: "/sin-acceso?feature=taller", label: "Mi Taller", icon: Printer, locked: true },
+      { path: "/sin-acceso?feature=negocio", label: "Mi Negocio", icon: Store, locked: true },
+    ] },
+    { group: "Cuenta", items: [
+      { path: "/perfil", label: "Mi perfil", icon: User },
+      { path: "/salir", label: "Cerrar sesión", icon: LogOut },
+    ] },
+  ];
 
   // Helper to check if a route is active
   const isActive = (path: string) => {
@@ -85,7 +100,7 @@ export function Sidebar({ access, loading }: SidebarProps) {
       <aside className="hidden w-64 shrink-0 flex-col border-r border-stampa-border bg-stampa-bg lg:flex">
         {/* Brand logo header */}
         <div className="flex items-center px-5 py-5">
-          <Link href="/" className="flex items-center gap-2">
+          <Link href={isFree ? "/calculadora" : "/"} className="flex items-center gap-2">
             <Image
               src="/favicon.svg"
               alt="Stampa"
@@ -101,7 +116,7 @@ export function Sidebar({ access, loading }: SidebarProps) {
         </div>
 
         {/* Dashboard/Inicio Link */}
-        <Link
+        {!isFree && <Link
           href="/"
           className={`mx-3 mb-2 flex items-center gap-3 rounded-xl px-3 py-2.5 text-sm font-semibold transition-colors ${
             pathname === "/" ? "bg-stampa-orange/10 text-stampa-orange" : "text-gray-400 hover:bg-white/5 hover:text-white"
@@ -109,12 +124,12 @@ export function Sidebar({ access, loading }: SidebarProps) {
         >
           <div className="flex h-5 w-5 items-center justify-center">🏠</div>
           Inicio
-        </Link>
+        </Link>}
 
         {/* Navigation Groups */}
         <nav className="flex-1 overflow-y-auto stampa-scrollbar px-3 pb-4">
           {(() => {
-            const groupsToRender = [...NAV_GROUPS];
+            const groupsToRender = isFree ? freeGroups : [...NAV_GROUPS];
             if (isAdmin) {
               const userGroupIndex = groupsToRender.findIndex(g => g.group === "Usuario");
               const adminGroup = {
@@ -168,6 +183,7 @@ export function Sidebar({ access, loading }: SidebarProps) {
                           }
                         />
                         <span className="flex-1 text-left">{item.label}</span>
+                        {"locked" in item && item.locked && <Lock size={13} className="text-gray-600" />}
                         {active && <span className={`h-1.5 w-1.5 rounded-full ${isStampy ? 'bg-cyan-400' : 'bg-stampa-orange'}`} />}
                       </Link>
                     );

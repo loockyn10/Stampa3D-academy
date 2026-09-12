@@ -1,18 +1,20 @@
 "use client";
 
-import { useState } from "react";
-import { useRouter } from "next/navigation";
+import { Suspense, useState } from "react";
+import { useSearchParams } from "next/navigation";
 import { createClient } from "@/utils/supabase/client";
 import Link from "next/link";
 import { Layers, Mail, Lock, Eye, EyeOff } from "lucide-react";
+import { sanitizeReturnTo } from "@/lib/auth/return-to";
 
-export default function LoginPage() {
+function LoginForm() {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [showPassword, setShowPassword] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(false);
-  const router = useRouter();
+  const searchParams = useSearchParams();
+  const returnTo = sanitizeReturnTo(searchParams.get("returnTo"));
   const supabase = createClient();
 
   const handleLogin = async (e: React.FormEvent) => {
@@ -31,8 +33,7 @@ export default function LoginPage() {
       return;
     }
 
-    router.refresh();
-    router.push("/");
+    window.location.assign(returnTo);
   };
 
   return (
@@ -189,7 +190,7 @@ export default function LoginPage() {
               <p className="text-sm text-gray-400">
                 ¿No tenés cuenta?{" "}
                 <Link
-                  href="/registro"
+                  href={`/registro?returnTo=${encodeURIComponent(returnTo)}`}
                   className="font-medium text-orange-400 hover:text-orange-300 transition-colors"
                 >
                   Registrate acá
@@ -201,4 +202,8 @@ export default function LoginPage() {
       </div>
     </div>
   );
+}
+
+export default function LoginPage() {
+  return <Suspense fallback={<div className="min-h-screen bg-stampa-bg" />}><LoginForm /></Suspense>;
 }

@@ -1,6 +1,7 @@
 import { createServerClient } from '@supabase/ssr'
 import { NextResponse, type NextRequest } from 'next/server'
 import { resolveUserAccess } from '@/lib/auth/user-access'
+import { sanitizeReturnTo } from '@/lib/auth/return-to'
 
 export async function updateSession(request: NextRequest) {
   let supabaseResponse = NextResponse.next({
@@ -43,6 +44,8 @@ export async function updateSession(request: NextRequest) {
     "/api/business/mercadopago/webhook",
     "/api/business/storefront",
     "/api/business/orders/expire",
+    "/api/calculator/catalog",
+    "/api/calculator/preferences",
   ];
 
   const isPublicApiRoute = publicApiRoutes.some((route) =>
@@ -56,6 +59,7 @@ export async function updateSession(request: NextRequest) {
   // Define public routes
   const isPublicRoute = 
     pathname.startsWith('/landing') ||
+    pathname === '/calculadora' ||
     pathname === '/tienda' ||
     pathname.startsWith('/tienda/') ||
     pathname.startsWith('/login') || 
@@ -71,7 +75,9 @@ export async function updateSession(request: NextRequest) {
   // Helper to redirect while preserving refreshed cookies
   const redirectWithCookies = (toPath: string) => {
     const url = request.nextUrl.clone()
-    url.pathname = toPath
+    const destination = new URL(toPath, request.url)
+    url.pathname = destination.pathname
+    url.search = destination.search
     const response = NextResponse.redirect(url)
     supabaseResponse.cookies.getAll().forEach((cookie) => {
       response.cookies.set(cookie.name, cookie.value, {
@@ -104,18 +110,21 @@ export async function updateSession(request: NextRequest) {
 
     const isMpApiRoute = pathname.startsWith('/api/mercadopago')
 
-    if (!hasAccess && !isPublicRoute && !isMpApiRoute && !pathname.startsWith('/salir')) {
+    const isFreeAccountRoute = pathname === '/calculadora' || pathname === '/perfil' || pathname.startsWith('/api/calculator/');
+
+    if (!hasAccess && !isPublicRoute && !isFreeAccountRoute && !isMpApiRoute && !pathname.startsWith('/salir')) {
       return redirectWithCookies('/sin-acceso')
     }
 
     // Redirect logged-in users away from login/registro
     if ((pathname === '/login' || pathname === '/registro') && user) {
-        const dest = hasAccess ? '/' : '/sin-acceso'
+        const requestedReturnTo = sanitizeReturnTo(request.nextUrl.searchParams.get('returnTo'))
+        const dest = requestedReturnTo === '/calculadora' ? requestedReturnTo : (hasAccess ? '/' : '/sin-acceso')
         return redirectWithCookies(dest)
     }
 
     // Onboarding redirection rule
-    const isExceptionRoute = pathname === '/onboarding' || pathname === '/salir' || pathname === '/pago/estado' || pathname === '/sin-acceso' || isPublicRoute;
+    const isExceptionRoute = pathname === '/onboarding' || pathname === '/salir' || pathname === '/pago/estado' || pathname === '/sin-acceso' || (isPublicRoute && pathname !== '/calculadora');
     if (access.needsOnboarding && !isExceptionRoute) {
       return redirectWithCookies('/onboarding')
     }

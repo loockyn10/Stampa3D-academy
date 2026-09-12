@@ -24,6 +24,8 @@ export interface AccessPolicyInput {
 }
 
 export interface UserCapabilities {
+  useCalculator: boolean;
+  personalizeCalculator: boolean;
   accessPlatform: boolean;
   accessAdmin: boolean;
   useStampy: boolean;
@@ -89,6 +91,8 @@ export function evaluateAccessPolicy(
     validGrantTypes,
     accessSources,
     capabilities: {
+      useCalculator: true,
+      personalizeCalculator: input.authenticated,
       accessPlatform,
       accessAdmin,
       useStampy: accessPlatform,

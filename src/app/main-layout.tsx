@@ -23,6 +23,7 @@ export function MainLayout({ children }: { children: React.ReactNode }) {
   const [userAccess, setUserAccess] = useState<UserAccessSnapshot | null>(null);
   const [accessLoading, setAccessLoading] = useState(true);
   const pathname = usePathname();
+  const isCalculatorRoute = pathname === "/calculadora";
   const isPublicRoute = 
     pathname?.startsWith('/landing') ||
     pathname === '/tienda' ||
@@ -55,12 +56,22 @@ export function MainLayout({ children }: { children: React.ReactNode }) {
     return <main className="min-h-screen">{children}</main>;
   }
 
+  if (isCalculatorRoute && !accessLoading && !userAccess?.authenticated) {
+    return <StampyContextProvider><main className="min-h-screen">{children}</main></StampyContextProvider>;
+  }
+
+  if (isCalculatorRoute && accessLoading) {
+    return <StampyContextProvider><main className="min-h-screen bg-stampa-bg">{children}</main></StampyContextProvider>;
+  }
+
+  const hasPlatformAccess = userAccess?.capabilities.accessPlatform === true;
+
   return (
     <BarcodeScannerProvider
       enabled={!accessLoading && userAccess?.capabilities.accessPlatform === true}
     >
       <StampyContextProvider>
-      <XpFeedbackListener />
+      {hasPlatformAccess && <XpFeedbackListener />}
       <div className="flex min-h-screen w-full min-w-0 overflow-x-clip bg-stampa-bg text-[#ededed] font-sans">
         <Suspense fallback={<aside className="hidden w-64 shrink-0 border-r border-stampa-border bg-stampa-bg lg:block" />}>
           <Sidebar access={userAccess} loading={accessLoading} />
@@ -72,12 +83,14 @@ export function MainLayout({ children }: { children: React.ReactNode }) {
             {children}
           </main>
         </div>
-        <GlobalToolTutorial
+        {hasPlatformAccess && <GlobalToolTutorial
           userId={userAccess?.userId ?? null}
           mobileMenuOpen={mobileToolsOpen}
-        />
-        <GlobalStampyLauncher mobileMenuOpen={mobileToolsOpen} />
+        />}
+        {hasPlatformAccess && <GlobalStampyLauncher mobileMenuOpen={mobileToolsOpen} />}
         <MobileBottomNavigation
+          access={userAccess}
+          loading={accessLoading}
           toolsOpen={mobileToolsOpen}
           onToolsOpenChange={setMobileToolsOpen}
         />

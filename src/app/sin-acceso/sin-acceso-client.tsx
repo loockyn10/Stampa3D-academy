@@ -18,7 +18,14 @@ function getCheckoutIdempotencyKey(): string {
   return idempotencyKey;
 }
 
-export function SinAccesoClient() {
+const LOCKED_FEATURES: Record<string, { title: string; description: string }> = {
+  stampy: { title: "Stampy IA", description: "Resolvé dudas técnicas y trabajá con un asistente conectado a tus herramientas." },
+  academia: { title: "Academia", description: "Aprendé con cursos y talleres prácticos de impresión 3D." },
+  taller: { title: "Mi Taller", description: "Organizá tus impresoras, filamentos, productos e inventario." },
+  negocio: { title: "Mi Negocio", description: "Gestioná catálogo, ventas, reposición y métricas desde un mismo lugar." },
+};
+
+export function SinAccesoClient({ feature }: { feature?: string | null }) {
   const supabase = createClient();
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -28,6 +35,7 @@ export function SinAccesoClient() {
 
   const [isEmailConfirmed, setIsEmailConfirmed] = useState(true);
   const [checkingEmail, setCheckingEmail] = useState(true);
+  const lockedFeature = feature ? LOCKED_FEATURES[feature] : null;
 
   useEffect(() => {
     async function checkEmailAndFetchPrice() {
@@ -146,7 +154,7 @@ export function SinAccesoClient() {
             <Building2 className="h-6 w-6 text-stampa-orange" />
           </div>
           <h2 className="text-3xl font-bold tracking-tight text-white">
-            Cuenta inactiva
+            {lockedFeature ? `Desbloqueá ${lockedFeature.title}` : "Cuenta inactiva"}
           </h2>
           {checkingEmail ? (
             <p className="mt-4 text-sm text-gray-400">Verificando estado de tu cuenta...</p>
@@ -164,7 +172,7 @@ export function SinAccesoClient() {
           ) : (
             <>
               <p className="mt-4 text-sm text-gray-400">
-                Tu cuenta ha sido creada correctamente, pero tu membresía aún no se encuentra activa.
+                {lockedFeature?.description || "Tu cuenta ha sido creada correctamente, pero tu membresía aún no se encuentra activa."}
               </p>
               <div className="mt-4 p-4 bg-orange-50 rounded-lg border border-orange-100 min-h-[56px] flex items-center justify-center">
                 {loadingPrice ? (

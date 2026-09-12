@@ -1,31 +1,24 @@
 "use client";
 
-import { useState, useEffect, Suspense } from "react";
-import { useRouter, useSearchParams } from "next/navigation";
+import { useState, Suspense } from "react";
+import { useSearchParams } from "next/navigation";
 import { createClient } from "@/utils/supabase/client";
 import { normalizeRegistrationCode } from "@/lib/codes/resolve-code";
 import Link from "next/link";
-import { Layers, Mail, Lock, User, Eye, EyeOff, Tag, Gift, AlertCircle } from "lucide-react";
+import { Layers, Mail, Lock, User, Eye, EyeOff, Tag, AlertCircle } from "lucide-react";
+import { sanitizeReturnTo } from "@/lib/auth/return-to";
 
 function RegistroForm() {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [showPassword, setShowPassword] = useState(false);
   const [name, setName] = useState("");
-  const [referralCode, setReferralCode] = useState("");
+  const searchParams = useSearchParams();
+  const [referralCode, setReferralCode] = useState(() => (searchParams.get("ref") || searchParams.get("invite") || "").toUpperCase().trim());
   const [error, setError] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(false);
-  const router = useRouter();
   const supabase = createClient();
-  const searchParams = useSearchParams();
-
-  // Pre-populate from query params
-  useEffect(() => {
-    const ref = searchParams.get("ref");
-    const invite = searchParams.get("invite");
-    const codeToUse = ref || invite;
-    if (codeToUse) setReferralCode(codeToUse.toUpperCase().trim());
-  }, [searchParams]);
+  const returnTo = sanitizeReturnTo(searchParams.get("returnTo"));
 
   const handleRegister = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -47,6 +40,7 @@ function RegistroForm() {
       email,
       password,
       options: {
+        emailRedirectTo: `${window.location.origin}/auth/callback?next=${encodeURIComponent(returnTo)}`,
         data: {
           full_name: name,
           registration_code: normalizedCode || null,
@@ -61,8 +55,7 @@ function RegistroForm() {
       return;
     }
 
-    router.refresh();
-    router.push("/sin-acceso");
+    window.location.assign(returnTo === "/" ? "/sin-acceso" : returnTo);
   };
 
   return (
@@ -76,7 +69,7 @@ function RegistroForm() {
             <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-stampa-orange text-white mb-4 shadow-lg shadow-stampa-orange/20">
               <Layers className="h-6 w-6" />
             </div>
-            <h2 className="text-3xl font-bold tracking-tight text-white">Crear cuenta</h2>
+              <h2 className="text-3xl font-bold tracking-tight text-white">{returnTo === "/calculadora" ? "Crear cuenta gratis" : "Crear cuenta"}</h2>
             <p className="mt-2 text-sm text-gray-400">
               Unite a la Academia Stampa.
             </p>
@@ -183,7 +176,7 @@ function RegistroForm() {
           <div className="text-center pt-2 border-t border-stampa-border">
             <p className="text-sm text-gray-400">
               ¿Ya tenés cuenta?{" "}
-              <Link href="/login" className="font-medium text-orange-400 hover:text-orange-300 transition-colors">
+              <Link href={`/login?returnTo=${encodeURIComponent(returnTo)}`} className="font-medium text-orange-400 hover:text-orange-300 transition-colors">
                 Iniciá sesión acá
               </Link>
             </p>

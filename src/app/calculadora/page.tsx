@@ -4,7 +4,7 @@ import React, { useState, useEffect, useMemo, useRef } from "react";
 import dynamic from "next/dynamic";
 import Link from "next/link";
 import { useSearchParams, useRouter } from "next/navigation";
-import { Zap, DollarSign, Loader2, AlertCircle, Settings, Save, X, PackagePlus, CheckCircle2, Calculator, Info, FileText, Plus } from "lucide-react";
+import { Zap, DollarSign, Loader2, AlertCircle, Settings, Save, X, PackagePlus, CheckCircle2, Calculator, Info, FileText, Plus, LockKeyhole } from "lucide-react";
 import { Card } from "@/components/ui/card";
 import { GhostButton } from "@/components/ui/button";
 import { SectionTitle } from "@/components/ui/section-title";
@@ -27,6 +27,10 @@ import { CalculatorPageSkeleton } from "@/components/ui/page-skeletons";
 import { useAppFeedback } from "@/components/ui/app-feedback";
 import { usePublishStampyScreenContext } from "@/components/stampy/StampyContextProvider";
 import type { StampyScreenContext } from "@/lib/stampy/screen-context";
+import { getCurrentUserAccess } from "@/lib/auth/user-access";
+import type { CalculatorCatalogResponse, CalculatorFilamentCatalogItem, CalculatorPrinterCatalogItem } from "@/lib/calculator/catalog-types";
+import { CALCULATOR_GUEST_DRAFT_KEY, parseCalculatorGuestDraft, type CalculatorGuestDraft } from "@/lib/calculator/guest-draft";
+import { CalculatorPersonalizationModal, CalculatorSignupModal } from "@/components/calculadora/calculator-access-modals";
 
 const PrinterCatalogModal = dynamic(() => import("@/components/calculadora/printer-catalog-modal").then((module) => module.PrinterCatalogModal));
 const FilamentCatalogModal = dynamic(() => import("@/components/calculadora/filament-catalog-modal").then((module) => module.FilamentCatalogModal));
@@ -112,6 +116,12 @@ function CalculadoraPageContent() {
   const [advanced, setAdvanced] = useState(false);
   const [loading, setLoading] = useState(true);
   const [userId, setUserId] = useState<string | null>(null);
+  const [accessMode, setAccessMode] = useState<"anonymous" | "free" | "paid">("anonymous");
+  const [catalogPrinters, setCatalogPrinters] = useState<CalculatorPrinterCatalogItem[]>([]);
+  const [catalogFilaments, setCatalogFilaments] = useState<CalculatorFilamentCatalogItem[]>([]);
+  const [calculatorPersonalized, setCalculatorPersonalized] = useState(false);
+  const [showSignupModal, setShowSignupModal] = useState(false);
+  const [showPersonalizationModal, setShowPersonalizationModal] = useState(false);
   const initialXpCalculationSignatureRef = useRef<string | null>(null);
   const xpCalculationAttemptedRef = useRef(false);
 
@@ -164,14 +174,69 @@ function CalculadoraPageContent() {
     fetchData();
   }, []);
 
-  const fetchData = async () => {
+  async function fetchData() {
     setLoading(true);
-    const { data: { user } } = await supabase.auth.getUser();
+    const { access } = await getCurrentUserAccess(supabase);
+    const user = access.userId ? { id: access.userId } : null;
+    const paid = access.capabilities.accessPlatform;
+    setAccessMode(paid ? "paid" : user ? "free" : "anonymous");
+    setUserId(user?.id ?? null);
+
+    if (!paid) {
+      try {
+        const response = await fetch("/api/calculator/catalog", { cache: "no-store" });
+        const catalog = await response.json() as CalculatorCatalogResponse & { error?: string };
+        if (!response.ok) throw new Error(catalog.error || "No pudimos cargar la configuración demo.");
+
+        setCatalogPrinters(catalog.printers);
+        setCatalogFilaments(catalog.filaments);
+        const mappedPrinters = catalog.printers.map((printer) => ({ ...printer }));
+        const mappedFilaments = catalog.filaments.map((filament) => ({
+          id: filament.id,
+          name: filament.name,
+          brand: filament.brand,
+          filament_type: filament.filament_type,
+          color: filament.color,
+          color_hex: filament.color_hex,
+          total_grams: filament.default_total_grams,
+          purchase_price: filament.default_purchase_price,
+        }));
+        const preferredPrinterId = mappedPrinters.some((item) => item.id === catalog.preferences?.defaultPrinterTemplateId) ? catalog.preferences?.defaultPrinterTemplateId : null;
+        const preferredFilamentId = mappedFilaments.some((item) => item.id === catalog.preferences?.defaultFilamentTemplateId) ? catalog.preferences?.defaultFilamentTemplateId : null;
+        const personalized = Boolean(preferredPrinterId && preferredFilamentId);
+        setCalculatorPersonalized(personalized);
+        setPrinters(mappedPrinters);
+        setFilaments(mappedFilaments);
+        setMultipliers(catalog.productTypes);
+        setSettings({
+          default_error_percent: catalog.settings.defaultErrorPercent,
+          electricity_price_kwh: catalog.settings.electricityPriceKwh,
+          platform_commission_percent: catalog.settings.platformCommissionPercent,
+          mercado_libre_extra_amount: catalog.settings.platformExtraAmount,
+        });
+        setSelectedPrinterId(preferredPrinterId || mappedPrinters[0]?.id || "");
+        setSelectedMultiplierId(catalog.productTypes[0]?.id || "");
+        setFilamentLines((current) => current.map((line, index) => index === 0 ? { ...line, filamentId: preferredFilamentId || mappedFilaments[0]?.id || "" } : line));
+        setManualErrorPercent(String(catalog.settings.defaultErrorPercent));
+        setManualKwhPrice(String(catalog.settings.electricityPriceKwh));
+        setManualPlatformCommission(String(catalog.settings.platformCommissionPercent));
+        setManualPlatformExtra(String(catalog.settings.platformExtraAmount));
+
+        if (user && (!catalog.preferences || (catalog.preferences.onboardingStatus === "completed" && !personalized))) setShowPersonalizationModal(true);
+        const draft = parseCalculatorGuestDraft(window.sessionStorage.getItem(CALCULATOR_GUEST_DRAFT_KEY));
+        if (draft) restoreGuestDraft(draft);
+      } catch (error) {
+        toast.error(error instanceof Error ? error.message : "No pudimos cargar la calculadora.");
+      } finally {
+        setLoading(false);
+      }
+      return;
+    }
+
     if (!user) {
       setLoading(false);
       return;
     }
-    setUserId(user.id);
 
     // Ensure defaults exist before fetching
     await supabase.rpc("ensure_default_calculator_product_types");
@@ -218,6 +283,80 @@ function CalculadoraPageContent() {
     setManualPlatformExtra(String(userSettings?.mercado_libre_extra_amount || ""));
 
     setLoading(false);
+  }
+
+  function restoreGuestDraft(draft: CalculatorGuestDraft) {
+    setAdvanced(draft.advanced);
+    setFilamentLines((current) => {
+      const baseFilamentId = current[0]?.filamentId || "";
+      return (draft.grams.length ? draft.grams : [""]).map((grams, index) => ({
+        id: index === 0 ? INITIAL_FILAMENT_LINE_ID : crypto.randomUUID(),
+        filamentId: index === 0 ? baseFilamentId : "",
+        grams,
+      }));
+    });
+    setHours(draft.hours); setMinutes(draft.minutes); setManualPricePerKg(draft.manualPricePerKg);
+    setManualErrorPercent(draft.manualErrorPercent); setManualKwhPrice(draft.manualKwhPrice);
+    setManualPrinterConsumption(draft.manualPrinterConsumption); setManualPrinterMaintenance(draft.manualPrinterMaintenance);
+    setLaborCost(draft.laborCost); setOtherCost(draft.otherCost); setFixedCost(draft.fixedCost);
+    setManualMultiplier(draft.manualMultiplier); setManualPlatformCommission(draft.manualPlatformCommission);
+    setManualPlatformExtra(draft.manualPlatformExtra); setShippingCost(draft.shippingCost);
+  }
+
+  useEffect(() => {
+    if (loading || accessMode !== "anonymous") return;
+    const draft: CalculatorGuestDraft = {
+      version: 1,
+      savedAt: Date.now(),
+      advanced,
+      grams: filamentLines.map((line) => line.grams),
+      hours,
+      minutes,
+      manualPricePerKg,
+      manualErrorPercent,
+      manualKwhPrice,
+      manualPrinterConsumption,
+      manualPrinterMaintenance,
+      laborCost,
+      otherCost,
+      fixedCost,
+      manualMultiplier,
+      manualPlatformCommission,
+      manualPlatformExtra,
+      shippingCost,
+    };
+    window.sessionStorage.setItem(CALCULATOR_GUEST_DRAFT_KEY, JSON.stringify(draft));
+  }, [accessMode, advanced, filamentLines, fixedCost, hours, laborCost, loading, manualErrorPercent, manualKwhPrice, manualMultiplier, manualPlatformCommission, manualPlatformExtra, manualPricePerKg, manualPrinterConsumption, manualPrinterMaintenance, minutes, otherCost, shippingCost]);
+
+  const openCalculatorCustomization = () => {
+    if (accessMode === "anonymous") setShowSignupModal(true);
+    else if (accessMode === "free") setShowPersonalizationModal(true);
+    else setShowCatalogModal(true);
+  };
+
+  const handlePreferencesSaved = (printerId: string | null, filamentId: string | null, skipped: boolean) => {
+    setShowPersonalizationModal(false);
+    if (!skipped && printerId && filamentId) {
+      setSelectedPrinterId(printerId);
+      setFilamentLines((current) => current.map((line, index) => index === 0 ? { ...line, filamentId } : line));
+      setCalculatorPersonalized(true);
+      toast.success("Ahora calculás con tu configuración.");
+    }
+    window.sessionStorage.removeItem(CALCULATOR_GUEST_DRAFT_KEY);
+  };
+
+  const persistFreePreferences = async (printerId: string, filamentId: string) => {
+    if (accessMode !== "free" || !printerId || !filamentId) return;
+    const response = await fetch("/api/calculator/preferences", {
+      method: "PUT",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ defaultPrinterTemplateId: printerId, defaultFilamentTemplateId: filamentId, onboardingStatus: "completed" }),
+    });
+    if (!response.ok) {
+      toast.error("No pudimos guardar esa preferencia.");
+      return;
+    }
+    setCalculatorPersonalized(true);
   };
 
   // Stampy Prefill Effect
@@ -268,10 +407,12 @@ function CalculadoraPageContent() {
 
       router.replace("/calculadora", { scroll: false });
     } else if (action === "add_printer") {
-      setShowCatalogModal(true);
+      if (accessMode === "anonymous") setShowSignupModal(true);
+      else if (accessMode === "free") setShowPersonalizationModal(true);
+      else setShowCatalogModal(true);
       router.replace("/calculadora");
     }
-  }, [searchParams, loading, filaments, printers, multipliers, router]);
+  }, [accessMode, searchParams, loading, filaments, printers, multipliers, router]);
 
   useEffect(() => {
     // When selected items change, update manual overrides to defaults
@@ -458,7 +599,7 @@ function CalculadoraPageContent() {
   }), [calc.baseCost, calc.normalPrice, calc.totalFilamentGrams, filamentLines, hours, minutes, selectedMultiplierId, selectedPrinterId]);
 
   useEffect(() => {
-    if (loading || !userId) return;
+    if (loading || !userId || accessMode !== "paid") return;
     if (initialXpCalculationSignatureRef.current === null) {
       initialXpCalculationSignatureRef.current = xpCalculationSignature;
       return;
@@ -487,7 +628,7 @@ function CalculadoraPageContent() {
       });
     }, 1_000);
     return () => window.clearTimeout(timeout);
-  }, [calc.baseCost, calc.hasValidFilamentLines, calc.normalPrice, calc.totalFilamentGrams, calc.totalHours, loading, supabase, userId, xpCalculationSignature]);
+  }, [accessMode, calc.baseCost, calc.hasValidFilamentLines, calc.normalPrice, calc.totalFilamentGrams, calc.totalHours, loading, supabase, userId, xpCalculationSignature]);
 
   const handleSaveAsProduct = async () => {
     if (!productForm.name.trim()) {
@@ -784,8 +925,11 @@ function CalculadoraPageContent() {
   const hasDuplicateFilaments = new Set(
     filamentLines.map((line) => line.filamentId).filter(Boolean),
   ).size < filamentLines.filter((line) => line.filamentId).length;
+  const isPaid = accessMode === "paid";
+  const isFree = accessMode === "free";
+  const isDemo = !isPaid && !calculatorPersonalized;
 
-  return <div className="space-y-8 pb-10">
+  return <div className={`${accessMode === "anonymous" ? "min-h-screen bg-stampa-bg px-4 py-6 sm:px-6 lg:px-8 lg:py-8" : ""} space-y-8 pb-10`}>
     {/* 1. Header Premium */}
     <div className="relative overflow-hidden rounded-3xl bg-stampa-surface border border-stampa-border p-8 sm:p-10 shadow-2xl">
       <div className="absolute inset-0 bg-gradient-to-br from-[#ff6a00]/20 to-transparent pointer-events-none" />
@@ -803,14 +947,16 @@ function CalculadoraPageContent() {
           Calculá cuánto cobrar una impresión usando material, tiempo, margen y costos extra.
         </p>
         <div className="mt-8">
-          <Link href="/configuracion?tab=calculadora" className="inline-flex items-center gap-2 px-6 py-3 text-sm font-semibold bg-white/5 border border-stampa-border text-white rounded-xl hover:bg-white/10 transition-colors">
+          {isPaid ? <Link href="/configuracion?tab=calculadora" className="inline-flex items-center gap-2 px-6 py-3 text-sm font-semibold bg-white/5 border border-stampa-border text-white rounded-xl hover:bg-white/10 transition-colors">
             <Settings size={18} /> Configurar valores
-          </Link>
+          </Link> : <button type="button" onClick={openCalculatorCustomization} className="inline-flex items-center gap-2 rounded-xl border border-stampa-border bg-white/5 px-6 py-3 text-sm font-semibold text-white transition-colors hover:bg-white/10">
+            <Settings size={18} /> {isFree ? "Mis impresoras y filamentos" : "Personalizar cálculo"}
+          </button>}
         </div>
       </div>
     </div>
 
-    {missingData && (
+    {isPaid && missingData && (
       <div className="space-y-3">
         {printers.length === 0 && (
           <div className="bg-stampa-orange/10 border border-[#ff6a00]/20 p-4 rounded-xl flex items-start gap-3">
@@ -893,7 +1039,7 @@ function CalculadoraPageContent() {
                 <span className="text-xs font-semibold text-gray-500">Filamentos usados</span>
                 <button
                   type="button"
-                  onClick={() => setShowFilamentCatalogModal(true)}
+                  onClick={openCalculatorCustomization}
                   className="inline-flex h-8 items-center gap-1.5 rounded-lg border border-stampa-border bg-white/5 px-2.5 text-[11px] font-semibold text-gray-300 transition-colors hover:bg-white/10 hover:text-white"
                 >
                   <Plus size={13} /> Catálogo
@@ -909,17 +1055,21 @@ function CalculadoraPageContent() {
                     <span className="mb-1 block text-[11px] font-medium text-gray-600">
                       Filamento {index + 1}
                     </span>
-                    <CalculatorSelect
+                    {accessMode === "anonymous" ? <button type="button" onClick={() => setShowSignupModal(true)} className="flex h-11 w-full items-center justify-between rounded-xl border border-white/10 bg-white/[0.06] px-4 text-left text-sm text-white"><FilamentOptionLabel filament={filaments.find((candidate) => candidate.id === line.filamentId) || {}} /><LockKeyhole size={15} className="shrink-0 text-gray-500" /></button> : <CalculatorSelect
                       options={filaments.map(f => ({
                         value: f.id,
                         label: getFilamentLabel(f),
                         element: <FilamentOptionLabel filament={f} />
                       }))}
                       value={line.filamentId}
-                      onChange={(value) => updateFilamentLine(line.id, { filamentId: value })}
+                      onChange={(value) => {
+                        updateFilamentLine(line.id, { filamentId: value });
+                        if (index === 0) void persistFreePreferences(selectedPrinterId, value);
+                      }}
                       placeholder="Seleccioná un filamento..."
                       searchable={true}
-                    />
+                    />}
+                    {isDemo && index === 0 && <span className="mt-1 block text-[10px] font-semibold uppercase tracking-wider text-stampa-orange/75">Configuración demo</span>}
                   </label>
                   <NumberField
                     label="Gramos"
@@ -941,13 +1091,13 @@ function CalculadoraPageContent() {
                 </div>
               ))}
 
-              <button
+              {accessMode !== "anonymous" && <button
                 type="button"
                 onClick={addFilamentLine}
                 className="flex h-9 w-full items-center justify-center gap-2 rounded-xl border border-dashed border-white/15 bg-white/[0.03] text-xs font-semibold text-gray-400 transition-colors hover:border-[#ff6a00]/40 hover:bg-[#ff6a00]/5 hover:text-stampa-orange"
               >
                 <Plus size={14} /> Agregar otro filamento
-              </button>
+              </button>}
 
               {!calc.hasValidFilamentLines && (
                 <p className="flex items-center gap-1 text-[11px] text-amber-400/90">
@@ -989,20 +1139,24 @@ function CalculadoraPageContent() {
                 </div>
                 <div className="flex gap-2">
                   <div className="flex-1 min-w-0">
-                    <CalculatorSelect
+                    {accessMode === "anonymous" ? <button type="button" onClick={() => setShowSignupModal(true)} className="flex h-11 w-full items-center justify-between rounded-xl border border-white/10 bg-white/[0.06] px-4 text-left text-sm text-white"><span className="truncate">{printers.find((printer) => printer.id === selectedPrinterId)?.name || "Impresora demo"}</span><LockKeyhole size={15} className="shrink-0 text-gray-500" /></button> : <CalculatorSelect
                       options={printers.map(p => ({
                         value: p.id,
                         label: `${p.name}${p.power_watts ? ` (${p.power_watts}W)` : ""}`,
                       }))}
                       value={selectedPrinterId}
-                      onChange={(val) => setSelectedPrinterId(val)}
+                      onChange={(val) => {
+                        setSelectedPrinterId(val);
+                        void persistFreePreferences(val, filamentLines[0]?.filamentId || "");
+                      }}
                       placeholder="Seleccioná una impresora..."
                       searchable={true}
-                    />
+                    />}
+                    {isDemo && <span className="mt-1 block text-[10px] font-semibold uppercase tracking-wider text-stampa-orange/75">Configuración demo</span>}
                   </div>
                   <button 
                     type="button" 
-                    onClick={() => setShowCatalogModal(true)}
+                    onClick={openCalculatorCustomization}
                     className="shrink-0 flex items-center justify-center bg-white/5 hover:bg-white/10 text-white rounded-xl border border-stampa-border px-3 transition-colors"
                     title="Elegir del catálogo"
                   >
@@ -1133,7 +1287,7 @@ function CalculadoraPageContent() {
 
         {/* Acciones */}
         <div className="space-y-3">
-          <button
+          {isPaid ? <><button
             onClick={openSaveModal}
             disabled={!hasValidCalc}
             className="w-full flex items-center justify-center gap-2 px-4 py-3.5 rounded-xl bg-stampa-orange hover:bg-stampa-orange-hover text-white text-sm font-bold transition-all shadow-lg shadow-[#ff6a00]/10 disabled:opacity-50 disabled:cursor-not-allowed"
@@ -1149,12 +1303,17 @@ function CalculadoraPageContent() {
           <p className="text-[11px] text-center text-gray-500 leading-tight px-4">
             Después de calcular, podés guardar la pieza para reutilizarla en presupuestos.
           </p>
+          </> : <div className="rounded-2xl border border-stampa-orange/20 bg-stampa-orange/5 p-5">
+            <p className="text-sm font-bold text-white">¿Fabricás este producto habitualmente?</p>
+            <p className="mt-2 text-xs leading-relaxed text-gray-400">Con Mi Taller podés guardar su receta, costos y stock.</p>
+            <Link href="/sin-acceso?feature=taller" className="mt-4 inline-flex items-center gap-2 text-xs font-bold text-stampa-orange hover:text-orange-300">Conocer Mi Taller <span aria-hidden="true">→</span></Link>
+          </div>}
         </div>
       </div>
     </div>
 
     {/* MODAL: GUARDAR COMO PRODUCTO */}
-    {showSaveModal && (
+    {isPaid && showSaveModal && (
       <div className="fixed inset-0 z-50 flex items-center justify-center bg-stampa-bg/60 backdrop-blur-sm p-4">
         <div className="bg-stampa-surface w-full max-w-md rounded-2xl border border-stampa-border shadow-2xl overflow-hidden animate-in zoom-in-95 duration-200">
           <div className="flex items-center justify-between px-6 py-4 border-b border-stampa-border bg-stampa-bg-soft">
@@ -1287,7 +1446,7 @@ function CalculadoraPageContent() {
     )}
 
     {/* MODAL: CATÁLOGO DE IMPRESORAS */}
-    {showCatalogModal && userId && (
+    {isPaid && showCatalogModal && userId && (
       <PrinterCatalogModal 
         userId={userId} 
         onClose={() => setShowCatalogModal(false)} 
@@ -1296,12 +1455,23 @@ function CalculadoraPageContent() {
     )}
 
     {/* MODAL: CATÁLOGO DE FILAMENTOS */}
-    {showFilamentCatalogModal && userId && (
+    {isPaid && showFilamentCatalogModal && userId && (
       <FilamentCatalogModal 
         userId={userId} 
         onClose={() => setShowFilamentCatalogModal(false)} 
         mode="multiple"
         onImported={handleFilamentImported} 
+      />
+    )}
+    {showSignupModal && <CalculatorSignupModal onClose={() => setShowSignupModal(false)} />}
+    {isFree && showPersonalizationModal && (
+      <CalculatorPersonalizationModal
+        printers={catalogPrinters}
+        filaments={catalogFilaments}
+        initialPrinterId={calculatorPersonalized ? selectedPrinterId : null}
+        initialFilamentId={calculatorPersonalized ? filamentLines[0]?.filamentId : null}
+        onClose={() => setShowPersonalizationModal(false)}
+        onSaved={handlePreferencesSaved}
       />
     )}
   </div>;
