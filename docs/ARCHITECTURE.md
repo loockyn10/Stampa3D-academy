@@ -195,7 +195,18 @@ No se encontró ninguna referencia a un deadlock (`40P01`) histórico en migrati
 - mantener mobile y accesibilidad;
 - no introducir dependencias grandes por una necesidad menor.
 
-## 16. Validación técnica
+## 16. Stampa Maker (nuevo, 2026-09-17)
+
+Sección nueva `/stampa-maker` (protegida como el resto de "Plataforma": no
+está en `isFreeAccountRoute`, requiere `accessPlatform`). Primera
+herramienta: `/stampa-maker/carteles` (Creador de Carteles), texto ->
+geometría 3D de letras corpóreas huecas (fondo cerrado, frente abierto) ->
+preview three.js -> export STL. Pipeline geométrico propio en
+`src/lib/maker/geometry/*` (opentype.js + clipper-lib + earcut, sin
+Web Workers). No toca auth, RLS, pricing ni stock existentes. Detalle
+completo, dependencias y limitaciones conocidas en `docs/STAMPA_MAKER.md`.
+
+## 17. Validación técnica
 
 **Verificado (2026-09-15):** `package.json` no tiene script `test`. Comandos reales que funcionan:
 

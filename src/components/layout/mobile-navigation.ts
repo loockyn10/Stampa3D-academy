@@ -8,6 +8,7 @@ import {
   Home,
   Settings,
   Store,
+  Type,
   Users,
 } from "lucide-react";
 
@@ -62,6 +63,13 @@ export const secondaryMobileNavigation: readonly MobileNavigationItem[] = [
     shortLabel: "Librería STL",
     icon: Boxes,
     activePrefixes: ["/libreria-stl"],
+  },
+  {
+    href: "/stampa-maker",
+    label: "Stampa Maker",
+    shortLabel: "Maker",
+    icon: Type,
+    activePrefixes: ["/stampa-maker"],
   },
   {
     href: "/sorteos",

@@ -18,6 +18,7 @@ import {
   Printer,
   Store,
   Lock,
+  Type,
 } from "lucide-react";
 import type { UserAccessSnapshot } from "@/lib/auth/user-access";
 
@@ -32,6 +33,7 @@ const NAV_GROUPS = [
     items: [
       { path: "/stampy", label: "Stampy IA", icon: Sparkles },
       { path: "/calculadora", label: "Calculadora", icon: Calculator },
+      { path: "/stampa-maker", label: "Stampa Maker", icon: Type },
       { path: "/sorteos", label: "Sorteos", icon: Gift },
       { path: "/libreria-stl", label: "Librería STL", icon: Boxes },
     ],
