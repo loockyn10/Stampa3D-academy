@@ -48,7 +48,19 @@ export function extrudeContourGroups(groups: ContourGroup[], z0: number, z1: num
   for (const group of groups) {
     const outer = ensureOrientation(group.outer, false);
     const holes = group.holes.map((hole) => ensureOrientation(hole, true));
-    const rings: Point2D[][] = [outer, ...holes];
+    // earcut conecta cada hueco con el contorno exterior eligiendo un
+    // "puente" con su propia heurística interna; cuando varios vértices
+    // quedan exactamente alineados (mismo X o Y — frecuente en polígonos
+    // que salen de un offset con tramos rectos, tanto de fuentes como de
+    // Clipper; no es específico de ninguna letra), esa heurística puede
+    // elegir un puente cuyo borde interno no encuentra su contraparte
+    // (malla no-manifold) o cuyo triángulo resultante tiene área ~0
+    // (triángulo degenerado). Se aplica acá un jitter determinístico
+    // ínfimo (muy por debajo de cualquier tolerancia de impresión) a los
+    // puntos reales, antes de triangular Y de generar las paredes
+    // laterales, para que ambas partes usen exactamente las mismas
+    // coordenadas y ninguna quede exactamente colineal por accidente.
+    const rings: Point2D[][] = [outer, ...holes].map(jitterRing);
 
     if (capStart || capEnd) {
       const { vertices, holeIndices } = flattenForEarcut(rings);
@@ -58,6 +70,7 @@ export function extrudeContourGroups(groups: ContourGroup[], z0: number, z1: num
         const a: [number, number] = [vertices[ia * 2], vertices[ia * 2 + 1]];
         const b: [number, number] = [vertices[ib * 2], vertices[ib * 2 + 1]];
         const c: [number, number] = [vertices[ic * 2], vertices[ic * 2 + 1]];
+
         if (capEnd) {
           pushTriangle([a[0], a[1], z1], [b[0], b[1], z1], [c[0], c[1], z1]);
         }
@@ -95,6 +108,23 @@ function signedArea(points: Point2D[]): number {
 function ensureOrientation(points: Point2D[], wantPositive: boolean): Point2D[] {
   const isPositive = signedArea(points) > 0;
   return isPositive === wantPositive ? points : [...points].reverse();
+}
+
+// Jitter determinístico (no aleatorio: mismo punto de entrada -> mismo
+// resultado siempre, incluso entre llamadas separadas como fondo/pared)
+// muy por debajo de cualquier precisión de impresión 3D relevante.
+const TRIANGULATION_JITTER_MM = 1e-4;
+
+function hash01(x: number, y: number, salt: number): number {
+  const h = Math.sin(x * 12.9898 + y * 78.233 + salt * 37.719) * 43758.5453;
+  return h - Math.floor(h);
+}
+
+function jitterRing(ring: Point2D[]): Point2D[] {
+  return ring.map(([x, y]) => [
+    x + (hash01(x, y, 1) - 0.5) * TRIANGULATION_JITTER_MM,
+    y + (hash01(x, y, 2) - 0.5) * TRIANGULATION_JITTER_MM,
+  ]);
 }
 
 function flattenForEarcut(rings: Point2D[][]): { vertices: number[]; holeIndices: number[] } {

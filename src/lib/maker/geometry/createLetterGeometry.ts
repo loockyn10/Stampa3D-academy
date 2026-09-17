@@ -6,8 +6,12 @@ import { insetContourGroups, differenceContourGroups, clipperPathsArea } from "@
 import { extrudeContourGroups } from "@/lib/maker/geometry/extrudePolygon";
 
 /**
- * Pipeline completo: texto + parámetros -> mesh 3D triangulado (fondo cerrado
- * + paredes huecas, frente abierto). Ver /docs para el detalle del pipeline.
+ * Pipeline completo: texto + parámetros -> mesh 3D triangulado. El sólido
+ * final es la unión de dos piezas totalmente cerradas (fondo + pared), cada
+ * una respetando los huecos del glifo como anillo; el counter/cavidad nunca
+ * recibe geometría en ningún nivel de Z, así que queda libre en toda la
+ * profundidad sin que eso rompa el manifold de ninguna pieza. Ver
+ * docs/STAMPA_MAKER.md para el detalle del pipeline.
  */
 export function createLetterGeometry(font: opentype.Font, params: LetterSignParams): LetterGeometryResult {
   const warnings: LetterGeometryWarning[] = [];
@@ -32,7 +36,10 @@ export function createLetterGeometry(font: opentype.Font, params: LetterSignPara
   let anyFullyEroded = false;
 
   for (const group of contourGroups) {
-    fondoGroups.push({ outer: group.outer, holes: [] });
+    // El fondo respeta los huecos del glifo (anillo, no disco): así el
+    // counter queda completamente libre en toda la profundidad, no solo en
+    // el tramo de la pared. Ver docs/STAMPA_MAKER.md.
+    fondoGroups.push({ outer: group.outer, holes: group.holes });
 
     const insetPaths = insetContourGroups([group], params.wallMm);
     const insetArea = Math.abs(clipperPathsArea(insetPaths));
@@ -50,9 +57,13 @@ export function createLetterGeometry(font: opentype.Font, params: LetterSignPara
 
   const fondo = extrudeContourGroups(fondoGroups, 0, params.baseMm, { capStart: true, capEnd: true });
 
+  // La huella de la pared ya es un anillo delgado (ink shape menos su
+  // erosión hacia adentro): taparla en ambos extremos le da espesor real
+  // visible en la punta sin cubrir el hueco, porque earcut nunca triangula
+  // el interior del hueco (llega como holeIndices, no como área rellena).
   const wallHeight = params.depthMm - params.baseMm;
   const walls = wallHeight > 0
-    ? extrudeContourGroups(wallGroups, params.baseMm, params.depthMm, { capStart: true, capEnd: false })
+    ? extrudeContourGroups(wallGroups, params.baseMm, params.depthMm, { capStart: true, capEnd: true })
     : { positions: [] as number[], normals: [] as number[] };
 
   const positions = Float32Array.from([...fondo.positions, ...walls.positions]);

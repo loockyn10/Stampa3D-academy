@@ -7,6 +7,19 @@ import { buildContourHierarchy } from "@/lib/maker/geometry/contourHierarchy";
 // en las operaciones booleanas/offset.
 const CLIPPER_SCALE = 10000;
 
+// Tolerancia para limpiar vértices casi duplicados / "spikes" que puede
+// dejar el offset redondeado cuando dos rasgos quedan muy cerca entre sí
+// (p.ej. el travesaño entre los dos counters de una "B" en negrita, más
+// angosto que 2x wallMm). Sin esta limpieza, esos vértices casi
+// coincidentes generan triángulos degenerados/no-manifold en la
+// triangulación posterior. No es específico de ninguna letra: se aplica a
+// cualquier resultado de Clipper.
+const CLEAN_TOLERANCE_MM = 0.005;
+
+function cleanSolution(paths: ClipperLib.Paths): ClipperLib.Paths {
+  return ClipperLib.Clipper.CleanPolygons(paths, CLEAN_TOLERANCE_MM * CLIPPER_SCALE);
+}
+
 function toClipperPath(points: Point2D[]): ClipperLib.Path {
   return points.map(([x, y]) => ({ X: Math.round(x * CLIPPER_SCALE), Y: Math.round(y * CLIPPER_SCALE) }));
 }
@@ -39,7 +52,7 @@ export function insetContourGroups(groups: ContourGroup[], insetMm: number): Cli
   }
   const solution: ClipperLib.Paths = [];
   offset.Execute(solution, -insetMm * CLIPPER_SCALE);
-  return solution;
+  return cleanSolution(solution);
 }
 
 /** Resta `clipPaths` de `subjectGroups` (diferencia booleana, regla nonzero). */
@@ -54,7 +67,7 @@ export function differenceContourGroups(subjectGroups: ContourGroup[], clipPaths
   }
   const solution: ClipperLib.Paths = [];
   clipper.Execute(ClipperLib.ClipType.ctDifference, solution, ClipperLib.PolyFillType.pftNonZero, ClipperLib.PolyFillType.pftNonZero);
-  return regroupClipperSolution(solution);
+  return regroupClipperSolution(cleanSolution(solution));
 }
 
 /** Área total (mm²) de un conjunto de paths crudos de Clipper, con signo. */

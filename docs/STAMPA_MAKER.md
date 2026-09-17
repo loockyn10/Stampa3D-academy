@@ -1,6 +1,8 @@
 # STAMPA MAKER
 
-> MVP 0.1 — Creador de Carteles (letras corpóreas). Implementado 2026-09-17.
+> MVP 0.1 — Creador de Carteles (letras corpóreas). Implementado 2026-09-17,
+> fix del motor geométrico (huecos tapados / paredes sin espesor real) el
+> mismo día — ver sección 6.
 
 ## 1. Qué es
 
@@ -60,8 +62,8 @@ texto + fuente + alto(mm)
   -> por cada grupo:
        insetContourGroups(group, wallMm)       Clipper: erosiona el grupo hacia adentro
        differenceContourGroups(group, inset)   Clipper: grupo original menos el erosionado = pared
-  -> extrudeContourGroups(fondoGroups, 0, baseMm, capStart+capEnd)      slab sólido (fondo cerrado)
-  -> extrudeContourGroups(wallGroups, baseMm, depthMm, capStart, sin capEnd)  pared hueca, frente abierto
+  -> extrudeContourGroups(fondoGroups, 0, baseMm, capStart+capEnd)       fondo, respeta los huecos del glifo
+  -> extrudeContourGroups(wallGroups, baseMm, depthMm, capStart+capEnd)  pared, tapada en ambos extremos
   -> merge de ambos (triangle soup) -> THREE.BufferGeometry -> preview / STL
 ```
 
@@ -70,35 +72,53 @@ conversiones intermedias.
 
 ### Decisiones clave
 
-- **Fondo = solo el contorno exterior, sin huecos.** El "fondo cerrado" es
-  un slab sólido con la silueta exterior de cada letra (ignora huecos como
-  el ojal de la "O"), no la forma con huecos. Así el fondo queda realmente
-  cerrado (sin perforaciones), consistente con un cartel/corpóreo real.
+- **Fondo = anillo, no disco: respeta los huecos del glifo.** `fondoGroups`
+  usa `{ outer: group.outer, holes: group.holes }` (los huecos ORIGINALES
+  del glifo, sin offset), no `holes: []`. El fondo (0→baseMm) es un slab
+  con la silueta exterior de la letra MENOS sus counters — así el hueco de
+  una "O" queda completamente libre en toda la profundidad, no solo en el
+  tramo de la pared. Ver el bug corregido en la sección 6: la versión
+  anterior tapaba el counter con una cara sólida real a `z = baseMm`.
+- **Pared tapada en ambos extremos (`capStart` y `capEnd`).** La huella de
+  la pared (`wallGroups`, salida de `differenceContourGroups`) ya es un
+  anillo delgado cuyo borde interior es el counter original sin modificar
+  — earcut nunca triangula el interior de ese hueco (llega como
+  `holeIndices`, no como área rellena), así que tapar el extremo frontal
+  (`z = depthMm`) le da a la pared espesor real y visible en la punta sin
+  cubrir la cavidad. Cada pieza (fondo, y cada banda de la pared) queda así
+  totalmente cerrada/manifold por sí sola; "frente abierto" es la ausencia
+  de geometría sobre la cavidad, no un borde sin tapar.
 - **Huecos vía nonzero + Clipper, no unión previa.** No se hizo un paso de
   "unión" del glifo antes de calcular offsets: `buildContourHierarchy`
   clasifica exterior/huecos directamente por contención geométrica
   (par/impar), y esa clasificación se usa tal cual para el offset y la
-  extrusión. Es más simple que pasar por una unión booleana intermedia y
-  funciona igual de bien porque el resultado es el mismo agrupamiento que
-  usaría la regla nonzero de la fuente.
+  extrusión.
 - **Fuentes vs. salida de Clipper usan winding opuesto.** Las fuentes
   (TrueType/CFF) y las paths que devuelve Clipper tras `Difference` son cada
   una internamente consistentes (exterior y huecos van en sentidos
   opuestos) pero con convención absoluta distinta entre sí. `extrudePolygon.ts`
   normaliza explícitamente la orientación de cada contorno antes de generar
   las paredes laterales (las tapas no lo necesitan: `earcut` normaliza su
-  propia salida). Este fue el bug principal encontrado durante el
-  desarrollo (ver sección 6).
+  propia salida).
+- **Jitter determinístico antes de triangular.** earcut elige el "puente"
+  hueco↔exterior con una heurística propia; cuando hay vértices exactamente
+  alineados (mismo X o Y — común en offsets con tramos rectos, de cualquier
+  fuente o letra) puede elegir un puente que deja la malla no-manifold o un
+  triángulo de área ~0. `extrudePolygon.ts` aplica un jitter determinístico
+  de 0.0001 mm (muy por debajo de cualquier tolerancia de impresión, y
+  consistente entre llamadas separadas porque depende del hash de cada
+  punto, no de su índice) antes de triangular y de generar las paredes
+  laterales. Ver sección 6.
 - **Offset con fallback sólido.** Si `wallMm` es mayor a la mitad del trazo
   más angosto, el inset da vacío para esa letra y `differenceContourGroups`
   devuelve la letra completa sin hueco (macizo) en vez de romper. Se
   reporta como warning `WALL_TOO_THICK`, no como error bloqueante.
 - **Dos sólidos superpuestos, no una unión booleana 3D.** El fondo (0→baseMm)
-  y la pared (baseMm→depthMm) son dos extrusiones independientes que
-  comparten cara en `z = baseMm`. No se calculó una unión 3D explícita:
-  ambos sólidos son válidos por separado y el slicer los trata como una
-  sola pieza al superponerse (técnica estándar, evita la complejidad de un
-  motor de CSG 3D para este MVP).
+  y la pared (baseMm→depthMm) son dos extrusiones independientes,
+  totalmente cerradas cada una, que comparten cara en `z = baseMm`. No se
+  calculó una unión 3D explícita: ambos sólidos son válidos por separado y
+  el slicer los trata como una sola pieza al superponerse (técnica
+  estándar, evita la complejidad de un motor de CSG 3D para este MVP).
 
 ## 4. Dependencias agregadas
 
@@ -138,22 +158,54 @@ mover el pipeline a un Worker es el primer punto a evaluar.
 - Sin Web Workers: con textos muy largos (varias líneas, decenas de
   palabras) el cálculo podría notarse en la UI. No medido en este MVP.
 
-## 6. Bug encontrado y corregido durante el desarrollo
+## 6. Bugs encontrados y corregidos
 
-Al extruir letras con huecos (`O`, `B`, `8`, y cualquier texto que
-incluyera una `A`/`P`), las paredes laterales quedaban con normales
-invertidas en la interfaz fondo/pared, y algunas letras curvas (`O`, `8`)
-generaban triángulos degenerados (aristas de largo cero) por puntos
-duplicados que emite la fuente al empalmar segmentos de curva. Ambos casos
-se detectaron con un test de topología (`tests/maker-letter-geometry.test.mjs`)
-que verifica, para cada arista del mesh final, que las direcciones
-opuestas estén balanceadas (sólido cerrado o borde real del frente
-abierto) y que no haya triángulos de área ~0. Correcciones:
+### 6.1 Primera pasada (2026-09-17, implementación inicial)
 
-1. `extrudePolygon.ts` normaliza explícitamente la orientación de cada
-   contorno antes de generar paredes laterales (ver sección 3).
-2. `textToPaths.ts` deduplica puntos consecutivos casi idénticos al
-   aplanar curvas.
+Al extruir letras con huecos, las paredes laterales quedaban con normales
+invertidas en la interfaz fondo/pared. `extrudePolygon.ts` normaliza
+explícitamente la orientación de cada contorno antes de generar paredes
+laterales (ver sección 3) para corregirlo.
+
+### 6.2 Segunda pasada (mismo día, reporte de "hueco tapado" y "pared hueca")
+
+Verificación visual del STL mostró que el counter de la `O` seguía tapado
+y las paredes no se veían como un volumen sólido real. La causa NO estaba
+en `contourHierarchy`, en cómo se arma `{outer, holes}`, ni en cómo se
+pasan `holeIndices` a earcut — esa parte ya era correcta. Dos bugs reales,
+ambos en `createLetterGeometry.ts`/`extrudePolygon.ts`, no específicos de
+ninguna letra:
+
+1. **`fondoGroups` descartaba los huecos a propósito** (`holes: []`),
+   convirtiendo el fondo en un disco macizo que tapaba el counter con una
+   cara real en `z = baseMm`, por debajo de donde la pared sí dejaba el
+   hueco abierto. Mirado desde el frente, el canal se veía "tapado" al
+   llegar al fondo. Fix: `holes: group.holes` (sección 3).
+2. **La pared no tapaba su propio extremo frontal** (`capEnd: false`),
+   dejando dos superficies verticales (exterior/interior) sin unir en la
+   punta — de ahí la sensación de "pared hueca". Como la huella de la
+   pared ya es un anillo (no incluye el área del counter), taparla en
+   `capEnd: true` le da espesor real sin cubrir la cavidad. Fix:
+   `{ capStart: true, capEnd: true }` (sección 3).
+
+Al implementar el fix se encontró un tercer problema, más sutil, al
+agregar tests que verifican explícitamente que el hueco esté libre (no
+solo que la malla esté balanceada): para letras con huecos cercanos entre
+sí o a tramos rectos del contorno (`B`, `L`), earcut podía elegir un
+"puente" hueco↔exterior que dejaba la malla no-manifold o generaba un
+triángulo de área ~0, por vértices exactamente colineales (mismo X o Y).
+Fix: jitter determinístico de 0.0001 mm antes de triangular y de generar
+paredes laterales (sección 3), reproducible con cualquier fuente/letra
+donde el offset deje puntos alineados.
+
+Los tests anteriores (balance de aristas) no detectaban ninguno de los dos
+primeros bugs: una malla puede ser perfectamente watertight/manifold y
+seguir teniendo la forma equivocada (disco en vez de anillo). Se agregaron
+tests que disparan un rayo vertical por el centro de cada counter (`O`,
+`B` x2, `8` x2, `A`) y verifican que ningún triángulo lo cruce en ningún
+punto de la profundidad, más tests específicos de fondo-como-anillo,
+frente-sin-tapa-sobre-la-cavidad y espesor de pared real
+(`tests/maker-letter-geometry.test.mjs`).
 
 ## 7. Cómo validar
 
@@ -164,9 +216,16 @@ node --test tests/maker-letter-geometry.test.mjs
 ```
 
 Los tests cubren: `I, L, A, O, B, 8, STAMPA, LOOCK 3D` (mesh válido +
-topología correcta), conteo de huecos por letra (`O`→1, `B`→2, `8`→2,
-`STAMPA`→3 contando la P), warning `WALL_TOO_THICK` con pared
-desproporcionada, texto vacío, y validación de parámetros.
+topología correcta, incluyendo que no queden bordes abiertos: fondo y
+pared quedan totalmente cerrados como piezas independientes), conteo de
+huecos por letra (`O`→1, `B`→2, `8`→2, `STAMPA`→3 contando la P), y
+específicamente para huecos: el counter de `O`/`B`(x2)/`8`(x2)/`A` queda
+libre de geometría en toda la profundidad (rayo vertical por su centro),
+el fondo no tiene ninguna cara sobre el counter pero sí tiene material
+sobre el trazo (control positivo), no hay tapa exactamente en
+`z = depthMm` sobre la cavidad, y la erosión de la pared queda a
+~`wallMm` del contorno más cercano. Más: warning `WALL_TOO_THICK` con
+pared desproporcionada, texto vacío, y validación de parámetros.
 
 Verificación manual pendiente (no realizada en esta fase por no contar con
 credenciales de una cuenta con acceso Paid): abrir `/stampa-maker/carteles`

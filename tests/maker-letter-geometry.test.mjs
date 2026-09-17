@@ -64,6 +64,7 @@ function loadMakerModule(relFromSrc) {
 const { createLetterGeometry } = loadMakerModule("lib/maker/geometry/createLetterGeometry.ts");
 const { textToOpentypePath, flattenOpentypePath } = loadMakerModule("lib/maker/geometry/textToPaths.ts");
 const { buildContourHierarchy } = loadMakerModule("lib/maker/geometry/contourHierarchy.ts");
+const { insetContourGroups } = loadMakerModule("lib/maker/geometry/offsets.ts");
 const { validateLetterSignParams } = loadMakerModule("lib/maker/validation.ts");
 const opentype = nodeRequire("opentype.js");
 
@@ -154,6 +155,63 @@ function analyzeMeshTopology(positions) {
   return { degenerate, boundaryEdges, interiorEdges, nonManifold, triCount };
 }
 
+// Centroide (ponderado por área) de un polígono simple, en el mismo
+// sistema de coordenadas (mm) que usa el pipeline.
+function polygonCentroid(points) {
+  let area = 0, cx = 0, cy = 0;
+  for (let i = 0; i < points.length; i++) {
+    const [x1, y1] = points[i];
+    const [x2, y2] = points[(i + 1) % points.length];
+    const cross = x1 * y2 - x2 * y1;
+    area += cross;
+    cx += (x1 + x2) * cross;
+    cy += (y1 + y2) * cross;
+  }
+  area /= 2;
+  return [cx / (6 * area), cy / (6 * area)];
+}
+
+function sign2D(px, py, ax, ay, bx, by) {
+  return (px - bx) * (ay - by) - (ax - bx) * (py - by);
+}
+
+function pointInTriangle2D(px, py, ax, ay, bx, by, cx, cy) {
+  const d1 = sign2D(px, py, ax, ay, bx, by);
+  const d2 = sign2D(px, py, bx, by, cx, cy);
+  const d3 = sign2D(px, py, cx, cy, ax, ay);
+  const hasNeg = d1 < 0 || d2 < 0 || d3 < 0;
+  const hasPos = d1 > 0 || d2 > 0 || d3 > 0;
+  return !(hasNeg && hasPos);
+}
+
+// Lanza un rayo vertical (paralelo a Z) por (x, y) y devuelve el Z de cada
+// triángulo del mesh que atraviesa. Es la única forma confiable de probar
+// "el hueco está libre": una malla puede ser watertight y perfectamente
+// balanceada en aristas y aun así tener una cara tapando el counter (ver
+// bug corregido en createLetterGeometry.ts — el fondo tapaba el hueco con
+// una tapa real). Triángulos casi verticales (normal.z ~ 0) se ignoran: no
+// tienen una Z bien definida para un (x, y) dado y no representan tapas.
+function raycastZHits(positions, px, py) {
+  const hits = [];
+  const triCount = positions.length / 9;
+  for (let t = 0; t < triCount; t++) {
+    const o = t * 9;
+    const ax = positions[o], ay = positions[o + 1], az = positions[o + 2];
+    const bx = positions[o + 3], by = positions[o + 4], bz = positions[o + 5];
+    const cx = positions[o + 6], cy = positions[o + 7], cz = positions[o + 8];
+    if (!pointInTriangle2D(px, py, ax, ay, bx, by, cx, cy)) continue;
+
+    const ux = bx - ax, uy = by - ay, uz = bz - az;
+    const vx = cx - ax, vy = cy - ay, vz = cz - az;
+    const nx = uy * vz - uz * vy, ny = uz * vx - ux * vz, nz = ux * vy - uy * vx;
+    if (Math.abs(nz) < 1e-9) continue;
+
+    const z = az - (nx * (px - ax) + ny * (py - ay)) / nz;
+    hits.push(z);
+  }
+  return hits;
+}
+
 // --- Sección 13 del spec: casos de prueba mínimos ---
 
 for (const text of ["I", "L", "A", "O", "B", "8", "STAMPA", "LOOCK 3D"]) {
@@ -167,7 +225,11 @@ for (const text of ["I", "L", "A", "O", "B", "8", "STAMPA", "LOOCK 3D"]) {
     const topo = analyzeMeshTopology(result.positions);
     assert.equal(topo.degenerate, 0, `${text}: triángulos degenerados`);
     assert.equal(topo.nonManifold, 0, `${text}: aristas no-manifold (normales/caras incorrectas)`);
-    assert.ok(topo.boundaryEdges > 0, `${text}: se esperaba al menos el borde del frente abierto`);
+    // El fondo y cada banda de la pared se tapan en ambos extremos (ver
+    // fix de huecos): cada pieza queda totalmente cerrada por sí sola, sin
+    // bordes abiertos. "Frente abierto" es la ausencia de geometría sobre
+    // la cavidad, no un borde sin tapar (ver tests de counters más abajo).
+    assert.equal(topo.boundaryEdges, 0, `${text}: no se esperaban bordes abiertos (fondo y pared quedan totalmente cerrados)`);
   });
 }
 
@@ -256,4 +318,146 @@ test("validateLetterSignParams rechaza fondo >= profundidad", () => {
     baseMm: 10,
   });
   assert.ok(errors.some((e) => e.field === "baseMm"));
+});
+
+// --- Verificación geométrica de huecos (counters) ---
+//
+// Reproduce el bug reportado: el fondo tapaba el counter con una cara real
+// en z = baseMm, y la pared no cerraba su propio extremo frontal. Ninguno
+// de los dos problemas lo detecta analyzeMeshTopology (la malla era
+// watertight-con-borde, solo que con la forma equivocada). Estos tests
+// disparan un rayo vertical por el centro de cada counter y verifican que
+// no exista NINGÚN triángulo (de ninguna de las dos piezas, en ningún
+// tramo de Z) que lo cruce.
+
+const EPS_Z = 0.5; // mm, margen fuera de [0, depthMm] para ignorar ruido numérico
+
+function assertCounterIsFree(text, holePoints, label) {
+  const [cx, cy] = polygonCentroid(holePoints);
+  const result = createLetterGeometry(montserratBold, { ...DEFAULT_PARAMS, text });
+  const hits = raycastZHits(result.positions, cx, cy).filter(
+    (z) => z > -EPS_Z && z < DEFAULT_PARAMS.depthMm + EPS_Z,
+  );
+  assert.deepEqual(
+    hits,
+    [],
+    `${label}: se esperaba el counter libre en (${cx.toFixed(2)}, ${cy.toFixed(2)}) mm mm, pero hay geometría en z=[${hits.join(", ")}]`,
+  );
+}
+
+test('"O": el counter queda completamente libre en toda la profundidad (fondo + pared)', () => {
+  const groups = contourGroupsFor("O");
+  assertCounterIsFree("O", groups[0].holes[0], "O");
+});
+
+test('"B": ambos counters quedan completamente libres', () => {
+  const groups = contourGroupsFor("B");
+  groups[0].holes.forEach((hole, i) => assertCounterIsFree("B", hole, `B (counter ${i})`));
+});
+
+test('"8": ambos counters quedan completamente libres', () => {
+  const groups = contourGroupsFor("8");
+  groups[0].holes.forEach((hole, i) => assertCounterIsFree("8", hole, `8 (counter ${i})`));
+});
+
+test('"A": el counter triangular queda completamente libre', () => {
+  const groups = contourGroupsFor("A");
+  assertCounterIsFree("A", groups[0].holes[0], "A");
+});
+
+// --- Back/floor: el fondo debe ser un anillo, no un disco ---
+
+test('"O": el fondo (z entre 0 y baseMm) no tiene geometría sobre el counter', () => {
+  const groups = contourGroupsFor("O");
+  const [cx, cy] = polygonCentroid(groups[0].holes[0]);
+  const result = createLetterGeometry(montserratBold, { ...DEFAULT_PARAMS, text: "O" });
+  const hitsInFondo = raycastZHits(result.positions, cx, cy).filter(
+    (z) => z > -EPS_Z && z < DEFAULT_PARAMS.baseMm + EPS_Z,
+  );
+  assert.deepEqual(hitsInFondo, [], `el fondo no debería tener ninguna cara sobre el counter, hay geometría en z=[${hitsInFondo.join(", ")}]`);
+});
+
+test('"O": el fondo SÍ tiene material sólido bajo el trazo de la letra (control positivo)', () => {
+  const groups = contourGroupsFor("O");
+  // Punto sobre el trazo: a mitad de camino entre el borde exterior y el
+  // borde del counter, sobre el eje horizontal que pasa por el centro.
+  const [, holeCy] = polygonCentroid(groups[0].holes[0]);
+  const outerXs = groups[0].outer.map(([x]) => x);
+  const midX = (Math.max(...outerXs) + Math.max(...groups[0].holes[0].map(([x]) => x))) / 2;
+  const result = createLetterGeometry(montserratBold, { ...DEFAULT_PARAMS, text: "O" });
+  const hits = raycastZHits(result.positions, midX, holeCy).filter((z) => z > -EPS_Z && z < DEFAULT_PARAMS.depthMm + EPS_Z);
+  assert.ok(hits.length > 0, `se esperaba material sólido en el trazo de la "O" en (${midX.toFixed(2)}, ${holeCy.toFixed(2)})`);
+});
+
+// --- Front: no debe existir una tapa frontal cubriendo la cavidad ---
+
+test('"O": no hay ninguna cara exactamente en z = depthMm sobre el counter (frente abierto real)', () => {
+  const groups = contourGroupsFor("O");
+  const [cx, cy] = polygonCentroid(groups[0].holes[0]);
+  const result = createLetterGeometry(montserratBold, { ...DEFAULT_PARAMS, text: "O" });
+  const hits = raycastZHits(result.positions, cx, cy);
+  const nearFront = hits.filter((z) => Math.abs(z - DEFAULT_PARAMS.depthMm) < 1);
+  assert.deepEqual(nearFront, [], `no debería haber tapa frontal sobre la cavidad, se encontró en z=[${nearFront.join(", ")}]`);
+});
+
+// --- Wall thickness: la pared debe tener ~wallMm de espesor real ---
+
+function pointToSegmentDistance([px, py], [ax, ay], [bx, by]) {
+  const dx = bx - ax, dy = by - ay;
+  const lenSq = dx * dx + dy * dy;
+  const t = lenSq === 0 ? 0 : Math.max(0, Math.min(1, ((px - ax) * dx + (py - ay) * dy) / lenSq));
+  const projX = ax + t * dx, projY = ay + t * dy;
+  return Math.hypot(px - projX, py - projY);
+}
+
+function minDistanceToPolygon(point, polygon) {
+  let min = Infinity;
+  for (let i = 0; i < polygon.length; i++) {
+    const a = polygon[i];
+    const b = polygon[(i + 1) % polygon.length];
+    min = Math.min(min, pointToSegmentDistance(point, a, b));
+  }
+  return min;
+}
+
+test('"O": la erosión de la pared (wallMm=1.6) queda a ~1.6mm del contorno más cercano (exterior u hueco)', () => {
+  const groups = contourGroupsFor("O");
+  const insetPaths = insetContourGroups(groups, DEFAULT_PARAMS.wallMm);
+  assert.ok(insetPaths.length > 0, "el inset no debería estar vacío para una O de 100mm con pared 1.6mm");
+
+  // insetContourGroups devuelve paths de Clipper en unidades escaladas
+  // (mm * CLIPPER_SCALE); volvemos a mm dividiendo por la misma escala
+  // interna documentada en offsets.ts.
+  const CLIPPER_SCALE = 10000;
+  const samples = [];
+  for (const path of insetPaths) {
+    for (let i = 0; i < path.length; i += Math.max(1, Math.floor(path.length / 8))) {
+      samples.push([path[i].X / CLIPPER_SCALE, path[i].Y / CLIPPER_SCALE]);
+    }
+  }
+  assert.ok(samples.length > 0, "no se pudieron samplear puntos del inset");
+
+  // Cada punto del inset erosionó desde ALGÚN borde original: el exterior
+  // o alguno de los huecos (cuál de los dos depende de qué lado del
+  // trazo quedó ese punto). Medimos contra el más cercano de todos.
+  const referenceBoundaries = [groups[0].outer, ...groups[0].holes];
+  const distances = samples.map((pt) => Math.min(...referenceBoundaries.map((poly) => minDistanceToPolygon(pt, poly))));
+  for (const d of distances) {
+    assert.ok(
+      d > DEFAULT_PARAMS.wallMm * 0.5 && d < DEFAULT_PARAMS.wallMm * 1.5,
+      `distancia al contorno más cercano fuera de rango: ${d.toFixed(3)}mm (esperado ~${DEFAULT_PARAMS.wallMm}mm)`,
+    );
+  }
+});
+
+// --- Watertight (complementa analyzeMeshTopology, sección 12) ---
+
+test('"O": cada pieza (fondo, pared) sigue siendo topológicamente correcta tras el fix', () => {
+  const result = createLetterGeometry(montserratBold, { ...DEFAULT_PARAMS, text: "O" });
+  const topo = analyzeMeshTopology(result.positions);
+  assert.equal(topo.degenerate, 0);
+  assert.equal(topo.nonManifold, 0);
+  // Con capEnd:true en la pared, cada pieza (fondo y las 2 bandas de la
+  // pared) queda totalmente cerrada: ya no debería haber bordes sueltos.
+  assert.equal(topo.boundaryEdges, 0, "no se esperaban bordes abiertos: fondo y pared quedan totalmente cerrados como piezas independientes");
 });
