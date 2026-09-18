@@ -142,6 +142,9 @@ test("catalog edit updates commercial metadata without touching stock, balances 
 
 test("archived catalog items disappear from operational loaders and historical rows remain untouched", () => {
   assert.match(actions, /\.from\("business_catalog_items"\)[\s\S]*\.eq\("is_active", true\)/);
-  assert.doesNotMatch(actions.slice(actions.indexOf("archiveBusinessCatalogItemAction")), /business_sale_items[\s\S]*\.(?:delete|update)\(/);
+  const archiveStart = actions.indexOf("export async function archiveBusinessCatalogItemAction");
+  const archiveEnd = actions.indexOf("\nexport async function", archiveStart + 1);
+  const archiveBlock = actions.slice(archiveStart, archiveEnd === -1 ? undefined : archiveEnd);
+  assert.doesNotMatch(archiveBlock, /business_sale_items/);
   assert.match(migration, /business_catalog_items_user_barcode_uidx[\s\S]*where barcode is not null/i);
 });

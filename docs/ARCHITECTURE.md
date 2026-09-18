@@ -106,7 +106,22 @@ Conceptos:
 - ventas/items;
 - presupuestos;
 - órdenes/pagos;
-- tienda pública.
+- tienda pública;
+- cuenta corriente de clientes;
+- pagos parciales de venta.
+
+**Agregado 2026-09-18 (implementado, no aplicado remoto — ver `20260918120000_business_customer_accounts.sql`):**
+
+- `customer_account_movements`: ledger append-only de cuenta corriente. `movement_type in ('sale_debt','payment','sale_reversal','adjustment')`, `delta` positivo aumenta deuda, negativo la reduce. `balance = sum(delta)` por `client_id`. Índice único parcial `(sale_id, movement_type)` para `sale_debt`/`sale_reversal` garantiza a lo sumo un movimiento de cada tipo por venta (evita doble deuda y doble reversal).
+- `business_sale_payment_allocations`: líneas de pago inmediato (`cash`/`transfer`) por venta. La deuda nunca es una allocation; se deriva como `business_sales.total - sum(allocations)`.
+- `confirm_business_sale(p_idempotency_key, p_items, p_client_id, p_payments default null)`: firma extendida (antes 3 argumentos). `p_payments` es un array `{method, amount}[]`; `null` = compat (pago completo en efectivo, sin deuda); array vacío = deuda total; valida `sum(payments) <= total` (`overpayment` si no) y exige cliente si `debt > 0` (`client_required`). Las firmas de 3 argumentos fueron `DROP`eadas (no solo reemplazadas) para evitar ambigüedad de overload con el nuevo parámetro default.
+- `confirm_business_showroom_sale`: misma extensión de firma, reenvía `p_payments` a los 3 call-sites internos a `confirm_business_sale`.
+- `void_business_sale`: sin cambios en la restauración de stock; agrega, antes de marcar `voided`, un `sale_reversal` compensatorio si la venta tenía un `sale_debt` asociado (idempotente vía el índice único parcial).
+- `register_customer_payment(p_client_id, p_amount, p_method, p_note)`: RPC nueva, cobro posterior de deuda. Rechaza sobrepago contra el saldo actual (no ajusta silenciosamente).
+- `get_business_clients_overview(p_search)`: RPC de lectura para el listado de Clientes (nombre, teléfono, última compra, total histórico, saldo), agrega `business_sales` + `customer_account_movements` server-side.
+- `get_business_metrics`: extendida con `cashReceived`, `transferReceived`, `newCredit`, `debtCollections` (todas acotadas al período) y `outstandingReceivables` (saldo total actual, no acotado al período).
+- RLS de las dos tablas nuevas replica exactamente el patrón de `business_sales` (`select_own` + `has_platform_access`, `admin_all`, sin policies de insert/update — toda escritura pasa por las RPCs `security definer` de arriba).
+- `public.clients` (dependencia externa preexistente, igual que `has_platform_access`/`is_admin`) gana `is_active boolean not null default true` vía `add column if not exists` (no-op si Presupuestos ya la había creado).
 
 No crear una segunda fuente de verdad de stock para el mismo producto fabricado.
 
@@ -155,6 +170,8 @@ Transfers no modifican stock total.
 **Verificado:** `void_business_sale` (misma migration, líneas 398-834) hace `UPDATE status='voided'` — no es DELETE. Idempotente: si `status='voided'` ya, retorna `already_voided` sin tocar stock de nuevo. Bloquea explícitamente ventas con `order_id is not null` (pagos online) — exige un flujo separado, sin refund automático. Movimientos compensatorios (`void_sale`) se insertan por ubicación, sin borrar movimientos originales. Excluida de métricas: todas las queries de `get_business_metrics` filtran `status = 'completed'`.
 
 `location_breakdown` (columna jsonb agregada en `20260909031859`) **sigue existiendo en el schema pero ya no es referenciada** por `confirm_business_showroom_sale` ni `void_business_sale` vigentes (reemplazada por `location_id uuid` con FK en `20260910140721`). Es deuda técnica huérfana (nunca se hizo `DROP COLUMN`), no un bug activo — el error histórico `column movement.location_breakdown does not exist` no debería reproducirse con el código actual. **REQUIERE VERIFICACIÓN EN SUPABASE REMOTO** que la migration `20260910140721` esté aplicada y que no queden funciones remotas viejas apuntando a la columna.
+
+**Agregado 2026-09-18 (implementado, no aplicado remoto):** `void_business_sale` (`20260918120000_business_customer_accounts.sql`) mantiene exactamente la misma lógica de restauración de stock y agrega, antes del `update status='voided'`, la reversión financiera: si la venta tiene un movimiento `sale_debt` en `customer_account_movements`, inserta un `sale_reversal` compensatorio (`delta` negativo, mismo monto) — nunca borra el `sale_debt` original. Un segundo intento de void ya es bloqueado antes por `already_voided`, y el índice único parcial `(sale_id, movement_type)` impide un segundo `sale_reversal` aunque se llegara a insertar. Métricas nuevas (`newCredit`, `debtCollections`, `outstandingReceivables`) también filtran implícitamente por este ledger, sin necesidad de excluir ventas anuladas por separado (el `sale_reversal` ya neutraliza el `sale_debt` en la suma).
 
 ## 10. Scanner
 

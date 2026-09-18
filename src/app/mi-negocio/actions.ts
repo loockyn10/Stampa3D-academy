@@ -14,9 +14,17 @@ import {
   type BusinessClientSummary,
   type BusinessInventoryMovement,
   type BusinessSaleItem,
+  type BusinessSalePaymentAllocation,
   type BusinessSaleSummary,
   type WorkshopProductSummary,
 } from "@/lib/business/catalog";
+import {
+  normalizeBusinessCustomerOverviewRow,
+  type BusinessCustomerLedgerMovement,
+  type BusinessCustomerOverview,
+  type BusinessCustomerRecord,
+} from "@/lib/business/customers";
+import type { SalePaymentMethod } from "@/lib/business/payments";
 import {
   normalizePublicUrl,
   normalizePublicWhatsapp,
@@ -82,6 +90,21 @@ export interface BusinessSaleInput {
   idempotencyKey: string;
   clientId?: string | null;
   items: Array<{ catalogItemId: string; quantity: number }>;
+  payments: Array<{ method: SalePaymentMethod; amount: number }>;
+}
+
+export interface BusinessClientInput {
+  name: string;
+  phone?: string;
+  email?: string;
+  notes?: string;
+}
+
+export interface BusinessCustomerPaymentInput {
+  clientId: string;
+  amount: number;
+  method: SalePaymentMethod;
+  note?: string;
 }
 
 export interface BusinessBulkCostInput {
@@ -626,6 +649,16 @@ export async function confirmBusinessSaleAction(input: BusinessSaleInput) {
   ));
   if (!validItems) return { success: false as const, error: "El carrito contiene cantidades inválidas." };
 
+  if (!Array.isArray(input.payments) || input.payments.length > 5) {
+    return { success: false as const, error: "El desglose de pago no es válido." };
+  }
+  const validPayments = input.payments.every((payment) => (
+    (payment.method === "cash" || payment.method === "transfer")
+    && Number.isFinite(payment.amount)
+    && payment.amount > 0
+  ));
+  if (!validPayments) return { success: false as const, error: "El desglose de pago contiene montos o métodos inválidos." };
+
   const { data: settings, error: settingsError } = await authorized.supabase
     .from("business_inventory_location_settings")
     .select("locations_enabled")
@@ -637,10 +670,21 @@ export async function confirmBusinessSaleAction(input: BusinessSaleInput) {
     p_idempotency_key: input.idempotencyKey,
     p_items: input.items,
     p_client_id: input.clientId || null,
+    p_payments: input.payments,
   });
   const row = Array.isArray(data) ? data[0] : data;
   if (error || !row?.success) {
-    return { success: false as const, error: row?.message || error?.message || "No se pudo confirmar la venta." };
+    const errorMessages: Record<string, string> = {
+      overpayment: "El pago inmediato no puede superar el total de la venta.",
+      client_required: "Para vender con saldo pendiente necesitás seleccionar un cliente.",
+      invalid_payment: "El desglose de pago no es válido.",
+    };
+    const errorCode = row?.error_code ? String(row.error_code) : null;
+    return {
+      success: false as const,
+      error: (errorCode && errorMessages[errorCode]) || row?.message || error?.message || "No se pudo confirmar la venta.",
+      errorCode,
+    };
   }
 
   revalidateBusinessPages();
@@ -775,7 +819,7 @@ export async function loadBusinessSalesAction(): Promise<
 
   const saleIds = (salesData || []).map((sale) => sale.id);
   const clientIds = Array.from(new Set((salesData || []).flatMap((sale) => sale.client_id ? [sale.client_id] : [])));
-  const [itemsResult, clientsResult] = await Promise.all([
+  const [itemsResult, clientsResult, paymentsResult] = await Promise.all([
     saleIds.length
       ? authorized.supabase
         .from("business_sale_items")
@@ -790,21 +834,36 @@ export async function loadBusinessSalesAction(): Promise<
         .eq("user_id", authorized.userId)
         .in("id", clientIds)
       : Promise.resolve({ data: [], error: null }),
+    saleIds.length
+      ? authorized.supabase
+        .from("business_sale_payment_allocations")
+        .select("id, sale_id, method, amount")
+        .eq("user_id", authorized.userId)
+        .in("sale_id", saleIds)
+      : Promise.resolve({ data: [], error: null }),
   ]);
-  const queryError = itemsResult.error || clientsResult.error;
+  const queryError = itemsResult.error || clientsResult.error || paymentsResult.error;
   if (queryError) return { success: false, error: queryError.message, sales: [] };
 
   const saleItems = (itemsResult.data || []) as BusinessSaleItem[];
   const clients = (clientsResult.data || []) as BusinessClientSummary[];
+  const payments = (paymentsResult.data || []) as Array<BusinessSalePaymentAllocation & { sale_id: string }>;
   return {
     success: true,
     sales: (salesData || []).map((sale) => {
       const { order_id: orderId, ...saleFields } = sale;
+      const salePayments = payments.filter((payment) => payment.sale_id === sale.id).map((payment) => ({
+        id: payment.id,
+        method: payment.method,
+        amount: Number(payment.amount),
+      }));
+      const total = Number(sale.total);
+      const debtAmount = Number((total - salePayments.reduce((sum, payment) => sum + payment.amount, 0)).toFixed(2));
       return {
         ...saleFields,
         sale_number: Number(sale.sale_number),
         subtotal: Number(sale.subtotal),
-        total: Number(sale.total),
+        total,
         is_online_sale: Boolean(orderId),
         client_name: clients.find((client) => client.id === sale.client_id)?.name ?? null,
         items: saleItems.filter((item) => item.sale_id === sale.id).map((item) => ({
@@ -813,6 +872,8 @@ export async function loadBusinessSalesAction(): Promise<
           quantity: Number(item.quantity),
           subtotal: Number(item.subtotal),
         })),
+        payments: salePayments,
+        debtAmount: debtAmount > 0 ? debtAmount : 0,
       };
     }) as BusinessSaleSummary[],
   };
@@ -1056,4 +1117,314 @@ export async function archiveBusinessCatalogItemAction(input: { catalogItemId: s
   revalidatePath("/mi-negocio/venta-rapida");
   revalidatePath("/mi-negocio/tienda");
   return { success: true as const, sourceType: data.source_type as "manufactured" | "resale" };
+}
+
+function revalidateBusinessClientPages() {
+  revalidatePath("/mi-negocio/clientes");
+  revalidatePath("/mi-negocio/venta-rapida");
+  revalidatePath("/mi-negocio/ventas");
+}
+
+export async function loadBusinessClientsOverviewAction(search?: string): Promise<
+  | { success: true; clients: BusinessCustomerOverview[] }
+  | { success: false; error: string; clients: [] }
+> {
+  const authorized = await authorizeBusinessAccess();
+  if (!authorized.success) return { ...authorized, clients: [] };
+  const { data, error } = await authorized.supabase.rpc("get_business_clients_overview", {
+    p_search: normalizeOptionalBusinessText(search, 160),
+  });
+  if (error) return { success: false, error: error.message, clients: [] };
+  return { success: true, clients: (data || []).map(normalizeBusinessCustomerOverviewRow) };
+}
+
+export async function loadBusinessClientDetailAction(clientId: string): Promise<
+  | {
+      success: true;
+      client: BusinessCustomerRecord;
+      sales: BusinessSaleSummary[];
+      movements: BusinessCustomerLedgerMovement[];
+      balance: number;
+    }
+  | { success: false; error: string; client: null; sales: []; movements: []; balance: 0 }
+> {
+  const authorized = await authorizeBusinessAccess();
+  if (!authorized.success) return { success: false, error: authorized.error, client: null, sales: [], movements: [], balance: 0 };
+  if (!UUID_PATTERN.test(clientId)) {
+    return { success: false, error: "El cliente no es válido.", client: null, sales: [], movements: [], balance: 0 };
+  }
+
+  const [clientResult, salesResult, movementsResult] = await Promise.all([
+    authorized.supabase
+      .from("clients")
+      .select("id, name, phone, email, address, city, province, postal_code, contact_person, notes, fiscal_condition, cuit, is_active")
+      .eq("id", clientId)
+      .eq("user_id", authorized.userId)
+      .maybeSingle(),
+    authorized.supabase
+      .from("business_sales")
+      .select("id, sale_number, client_id, status, currency, subtotal, total, order_id, voided_at, void_reason, created_at")
+      .eq("user_id", authorized.userId)
+      .eq("client_id", clientId)
+      .order("created_at", { ascending: false })
+      .limit(100),
+    authorized.supabase
+      .from("customer_account_movements")
+      .select("id, movement_type, delta, sale_id, method, note, reference, created_at")
+      .eq("user_id", authorized.userId)
+      .eq("client_id", clientId)
+      .order("created_at", { ascending: false })
+      .limit(200),
+  ]);
+  const queryError = clientResult.error || salesResult.error || movementsResult.error;
+  if (queryError) return { success: false, error: queryError.message, client: null, sales: [], movements: [], balance: 0 };
+  if (!clientResult.data) {
+    return { success: false, error: "El cliente no existe o no te pertenece.", client: null, sales: [], movements: [], balance: 0 };
+  }
+
+  const saleIds = (salesResult.data || []).map((sale) => sale.id);
+  const [itemsResult, paymentsResult] = await Promise.all([
+    saleIds.length
+      ? authorized.supabase
+        .from("business_sale_items")
+        .select("id, sale_id, catalog_item_id, source_type, product_name_snapshot, sku_snapshot, barcode_snapshot, unit_price, quantity, subtotal")
+        .eq("user_id", authorized.userId)
+        .in("sale_id", saleIds)
+      : Promise.resolve({ data: [], error: null }),
+    saleIds.length
+      ? authorized.supabase
+        .from("business_sale_payment_allocations")
+        .select("id, sale_id, method, amount")
+        .eq("user_id", authorized.userId)
+        .in("sale_id", saleIds)
+      : Promise.resolve({ data: [], error: null }),
+  ]);
+  const itemsError = itemsResult.error || paymentsResult.error;
+  if (itemsError) return { success: false, error: itemsError.message, client: null, sales: [], movements: [], balance: 0 };
+
+  const saleItems = (itemsResult.data || []) as BusinessSaleItem[];
+  const payments = (paymentsResult.data || []) as Array<BusinessSalePaymentAllocation & { sale_id: string }>;
+  const movements = (movementsResult.data || []) as BusinessCustomerLedgerMovement[];
+  const balance = Number(movements.reduce((sum, movement) => sum + Number(movement.delta), 0).toFixed(2));
+  const clientName = clientResult.data.name;
+
+  const sales = (salesResult.data || []).map((sale) => {
+    const { order_id: orderId, ...saleFields } = sale;
+    const salePayments = payments.filter((payment) => payment.sale_id === sale.id).map((payment) => ({
+      id: payment.id,
+      method: payment.method,
+      amount: Number(payment.amount),
+    }));
+    const total = Number(sale.total);
+    const debtAmount = Number((total - salePayments.reduce((sum, payment) => sum + payment.amount, 0)).toFixed(2));
+    return {
+      ...saleFields,
+      sale_number: Number(sale.sale_number),
+      subtotal: Number(sale.subtotal),
+      total,
+      is_online_sale: Boolean(orderId),
+      client_name: clientName,
+      items: saleItems.filter((item) => item.sale_id === sale.id).map((item) => ({
+        ...item,
+        unit_price: Number(item.unit_price),
+        quantity: Number(item.quantity),
+        subtotal: Number(item.subtotal),
+      })),
+      payments: salePayments,
+      debtAmount: debtAmount > 0 ? debtAmount : 0,
+    };
+  }) as BusinessSaleSummary[];
+
+  return {
+    success: true,
+    client: clientResult.data as BusinessCustomerRecord,
+    sales,
+    movements: movements.map((movement) => ({ ...movement, delta: Number(movement.delta) })),
+    balance,
+  };
+}
+
+export async function createBusinessClientAction(input: BusinessClientInput) {
+  const authorized = await authorizeBusinessAccess();
+  if (!authorized.success) return authorized;
+  const name = requiredText(input.name, 160);
+  if (!name) return { success: false as const, error: "El nombre del cliente es obligatorio." };
+
+  const { data, error } = await authorized.supabase
+    .from("clients")
+    .insert({
+      user_id: authorized.userId,
+      name,
+      phone: normalizeOptionalBusinessText(input.phone, 60),
+      email: normalizeOptionalBusinessText(input.email, 254),
+      notes: normalizeOptionalBusinessText(input.notes, 500),
+      is_active: true,
+    })
+    .select("id, name")
+    .single();
+  if (error || !data) return { success: false as const, error: error?.message || "No se pudo crear el cliente." };
+  revalidateBusinessClientPages();
+  return { success: true as const, clientId: data.id as string, name: data.name as string };
+}
+
+export async function updateBusinessClientAction(input: BusinessClientInput & { clientId: string }) {
+  const authorized = await authorizeBusinessAccess();
+  if (!authorized.success) return authorized;
+  if (!UUID_PATTERN.test(input.clientId)) return { success: false as const, error: "El cliente no es válido." };
+  const name = requiredText(input.name, 160);
+  if (!name) return { success: false as const, error: "El nombre del cliente es obligatorio." };
+
+  const { data, error } = await authorized.supabase
+    .from("clients")
+    .update({
+      name,
+      phone: normalizeOptionalBusinessText(input.phone, 60),
+      email: normalizeOptionalBusinessText(input.email, 254),
+      notes: normalizeOptionalBusinessText(input.notes, 500),
+    })
+    .eq("id", input.clientId)
+    .eq("user_id", authorized.userId)
+    .select("id")
+    .maybeSingle();
+  if (error) return { success: false as const, error: error.message };
+  if (!data) return { success: false as const, error: "El cliente no existe o no te pertenece." };
+  revalidateBusinessClientPages();
+  return { success: true as const };
+}
+
+export async function archiveBusinessClientAction(input: { clientId: string }) {
+  const authorized = await authorizeBusinessAccess();
+  if (!authorized.success) return authorized;
+  if (!UUID_PATTERN.test(input.clientId)) return { success: false as const, error: "El cliente no es válido." };
+
+  const { data, error } = await authorized.supabase
+    .from("clients")
+    .update({ is_active: false })
+    .eq("id", input.clientId)
+    .eq("user_id", authorized.userId)
+    .eq("is_active", true)
+    .select("id")
+    .maybeSingle();
+  if (error) return { success: false as const, error: error.message };
+  if (!data) return { success: false as const, error: "El cliente no existe, ya está archivado o no te pertenece." };
+  revalidateBusinessClientPages();
+  return { success: true as const };
+}
+
+export interface BusinessSaleTicket {
+  businessName: string;
+  sale: BusinessSaleSummary;
+  customerBalance: number | null;
+}
+
+export async function loadBusinessSaleTicketAction(saleId: string): Promise<
+  | { success: true; ticket: BusinessSaleTicket }
+  | { success: false; error: string; ticket: null }
+> {
+  const authorized = await authorizeBusinessAccess();
+  if (!authorized.success) return { success: false, error: authorized.error, ticket: null };
+  if (!UUID_PATTERN.test(saleId)) return { success: false, error: "La venta no es válida.", ticket: null };
+
+  const [saleResult, storefrontResult] = await Promise.all([
+    authorized.supabase
+      .from("business_sales")
+      .select("id, sale_number, client_id, status, currency, subtotal, total, order_id, voided_at, void_reason, created_at")
+      .eq("id", saleId)
+      .eq("user_id", authorized.userId)
+      .maybeSingle(),
+    authorized.supabase
+      .from("business_storefronts")
+      .select("name")
+      .eq("user_id", authorized.userId)
+      .maybeSingle(),
+  ]);
+  if (saleResult.error) return { success: false, error: saleResult.error.message, ticket: null };
+  if (!saleResult.data) return { success: false, error: "La venta no existe o no te pertenece.", ticket: null };
+
+  const sale = saleResult.data;
+  const [itemsResult, paymentsResult, clientResult, ledgerResult] = await Promise.all([
+    authorized.supabase
+      .from("business_sale_items")
+      .select("id, sale_id, catalog_item_id, source_type, product_name_snapshot, sku_snapshot, barcode_snapshot, unit_price, quantity, subtotal")
+      .eq("user_id", authorized.userId)
+      .eq("sale_id", sale.id),
+    authorized.supabase
+      .from("business_sale_payment_allocations")
+      .select("id, method, amount")
+      .eq("user_id", authorized.userId)
+      .eq("sale_id", sale.id),
+    sale.client_id
+      ? authorized.supabase.from("clients").select("id, name").eq("id", sale.client_id).eq("user_id", authorized.userId).maybeSingle()
+      : Promise.resolve({ data: null, error: null }),
+    sale.client_id
+      ? authorized.supabase.from("customer_account_movements").select("delta").eq("user_id", authorized.userId).eq("client_id", sale.client_id)
+      : Promise.resolve({ data: null, error: null }),
+  ]);
+  const queryError = itemsResult.error || paymentsResult.error || clientResult.error || ledgerResult.error;
+  if (queryError) return { success: false, error: queryError.message, ticket: null };
+
+  const salePayments = (paymentsResult.data || []).map((payment) => ({
+    id: payment.id,
+    method: payment.method as "cash" | "transfer",
+    amount: Number(payment.amount),
+  }));
+  const total = Number(sale.total);
+  const debtAmount = Number((total - salePayments.reduce((sum, payment) => sum + payment.amount, 0)).toFixed(2));
+  const { order_id: orderId, ...saleFields } = sale;
+
+  const ticketSale: BusinessSaleSummary = {
+    ...saleFields,
+    sale_number: Number(sale.sale_number),
+    subtotal: Number(sale.subtotal),
+    total,
+    is_online_sale: Boolean(orderId),
+    client_name: clientResult.data?.name ?? null,
+    items: (itemsResult.data || []).map((item) => ({
+      ...item,
+      unit_price: Number(item.unit_price),
+      quantity: Number(item.quantity),
+      subtotal: Number(item.subtotal),
+    })),
+    payments: salePayments,
+    debtAmount: debtAmount > 0 ? debtAmount : 0,
+  };
+
+  const customerBalance = ledgerResult.data
+    ? Number(ledgerResult.data.reduce((sum, movement) => sum + Number(movement.delta), 0).toFixed(2))
+    : null;
+
+  return {
+    success: true,
+    ticket: {
+      businessName: storefrontResult.data?.name || "Mi Negocio",
+      sale: ticketSale,
+      customerBalance,
+    },
+  };
+}
+
+export async function registerCustomerPaymentAction(input: BusinessCustomerPaymentInput) {
+  const authorized = await authorizeBusinessAccess();
+  if (!authorized.success) return authorized;
+  if (!UUID_PATTERN.test(input.clientId)) return { success: false as const, error: "El cliente no es válido." };
+  if (input.method !== "cash" && input.method !== "transfer") {
+    return { success: false as const, error: "El método de cobro no es válido." };
+  }
+  if (!Number.isFinite(input.amount) || input.amount <= 0) {
+    return { success: false as const, error: "Ingresá un monto mayor a cero." };
+  }
+  const note = normalizeOptionalBusinessText(input.note, 300);
+
+  const { data, error } = await authorized.supabase.rpc("register_customer_payment", {
+    p_client_id: input.clientId,
+    p_amount: input.amount,
+    p_method: input.method,
+    p_note: note,
+  });
+  const row = Array.isArray(data) ? data[0] : data;
+  if (error || !row?.success) {
+    return { success: false as const, error: row?.message || error?.message || "No se pudo registrar el cobro." };
+  }
+  revalidateBusinessClientPages();
+  return { success: true as const, newBalance: Number(row.new_balance) };
 }

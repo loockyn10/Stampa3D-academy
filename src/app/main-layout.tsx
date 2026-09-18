@@ -35,8 +35,9 @@ export function MainLayout({ children }: { children: React.ReactNode }) {
     pathname?.startsWith('/verificar-email') || 
     pathname?.startsWith('/auth') || 
     pathname?.startsWith('/sin-acceso') || 
-    pathname?.startsWith('/pago/estado') || 
-    pathname?.startsWith('/salir');
+    pathname?.startsWith('/pago/estado') ||
+    pathname?.startsWith('/salir') ||
+    pathname?.startsWith('/mi-negocio/ticket');
 
   useEffect(() => {
     let active = true;

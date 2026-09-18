@@ -10,6 +10,7 @@ import {
   RefreshCcw,
   ShoppingBag,
   Store,
+  Users,
 } from "lucide-react";
 import { Card } from "@/components/ui/card";
 import { SectionTitle } from "@/components/ui/section-title";
@@ -34,6 +35,12 @@ const availableAreas = [
     title: "Ventas",
     description: "Consultá operaciones registradas, clientes, artículos e importes.",
     icon: ReceiptText,
+  },
+  {
+    href: "/mi-negocio/clientes",
+    title: "Clientes",
+    description: "Historial de compras, cuenta corriente y cobros por cliente.",
+    icon: Users,
   },
   {
     href: "/mi-negocio/reposicion",
@@ -80,7 +87,7 @@ export default function MiNegocioPage() {
     pageData: {
       kind: "pageFacts",
       facts: [
-        { label: "Áreas disponibles", value: "Catálogo, Venta rápida, Ventas, Reposición, Métricas, Presupuestos, Mi Tienda y Pedidos online" },
+        { label: "Áreas disponibles", value: "Catálogo, Venta rápida, Ventas, Clientes, Reposición, Métricas, Presupuestos, Mi Tienda y Pedidos online" },
       ],
     },
   };

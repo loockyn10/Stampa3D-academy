@@ -159,14 +159,32 @@ Arquitectura objetivo:
 - Catálogo
 - Venta rápida
 - Ventas
+- Clientes
 - Reposición
 - Métricas
 - Presupuestos
 - Mi Tienda
 
-`Clientes` no debe ser un destino de navegación redundante si su gestión está integrada en Presupuestos u otro flujo.
+**Decisión vigente (2026-09-18, ver D020):** `Clientes` pasó a ser un destino propio de Mi Negocio, con listado, ficha, historial de compras y cuenta corriente. Deja de ser redundante porque ahora tiene un propósito comercial independiente de Presupuestos (cuenta corriente, cobros, ticket). Reutiliza la misma tabla `clients` que ya usaba Presupuestos; no es una segunda entidad de cliente.
 
 La estructura final visible **REQUIERE VERIFICACIÓN EN REPO**.
+
+### 6.1 Cuenta corriente de clientes
+
+La deuda de un cliente es auditable mediante un ledger (`customer_account_movements`), nunca un campo mutable. `saldo = suma(delta)`: `sale_debt` y ajustes positivos aumentan la deuda; `payment` y `sale_reversal` la disminuyen.
+
+Reglas:
+
+- Cliente **opcional** en Venta rápida para Efectivo/Transferencia.
+- Cliente **obligatorio** si la venta deja saldo pendiente (deuda total o parcial).
+- No se permite sobrepago, ni en la venta ni al registrar un cobro posterior: el backend rechaza (`overpayment`) en vez de ajustar silenciosamente.
+- Anular una venta con deuda revierte el efecto financiero con un movimiento `sale_reversal` compensatorio; nunca se borra el movimiento original.
+
+### 6.2 Métodos de pago y ticket
+
+Los métodos inmediatos son `cash` y `transfer`, registrados como líneas (`business_sale_payment_allocations`) en la venta. La deuda de una venta nunca se guarda como una allocation propia: se deriva como `total - suma(allocations)` y, si es mayor a cero, genera el único movimiento `sale_debt` del ledger para esa venta. Una sola fuente de verdad de deuda.
+
+Después de confirmar una venta (o desde el detalle de una venta ya registrada) se puede imprimir un **ticket/comprobante de venta** (no es factura fiscal). Muestra negocio, fecha, cliente, items, total, desglose de pago, deuda generada y saldo pendiente del cliente si corresponde. Nunca muestra costos, márgenes ni IDs internos.
 
 ## 7. Productos fabricados vs reventa
 
@@ -300,7 +318,8 @@ Una venta anulada:
 - no cuenta en unidades ni top productos;
 - no cuenta en ticket promedio;
 - restaura stock mediante movimientos compensatorios;
-- no puede restaurar stock dos veces.
+- no puede restaurar stock dos veces;
+- si generó deuda, revierte también el efecto financiero (movimiento `sale_reversal` en la cuenta corriente del cliente), sin borrar el `sale_debt` original y sin poder revertirlo dos veces.
 
 No borrar los movimientos originales.
 
@@ -319,6 +338,8 @@ Priorizar métricas operativas:
 - kg cuando exista peso conocido;
 - productos más vendidos;
 - comparación contra período anterior cuando sea válida.
+
+Distinguir venta de flujo de caja: `efectivo recibido` y `transferencias recibidas` (dinero que realmente ingresó) son datos distintos de `facturación` (valor vendido, incluye lo que quedó a cuenta corriente). Se agregan también `deuda nueva`, `cobros de deuda` y `saldo pendiente total` (este último no acotado al período).
 
 Semana objetivo: lunes a domingo usando timezone correcto.
 

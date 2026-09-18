@@ -4,6 +4,7 @@ import {
   type BusinessCatalogItem,
   type WorkshopProductSummary,
 } from "./catalog";
+import type { SalePaymentAllocationInput } from "./payments";
 import { normalizeBarcode } from "../barcode/hid-scanner";
 
 export interface BusinessCartItem {
@@ -95,12 +96,16 @@ export function calculateBusinessCartTotal(cart: readonly BusinessCartItem[]): n
 export function buildBusinessSaleFingerprint(
   cart: readonly Pick<BusinessCartItem, "catalogItemId" | "quantity">[],
   clientId: string | null,
+  payments: readonly SalePaymentAllocationInput[] = [],
 ): string {
   return JSON.stringify({
     clientId: clientId || null,
     items: [...cart]
       .map((item) => ({ catalogItemId: item.catalogItemId, quantity: item.quantity }))
       .sort((left, right) => left.catalogItemId.localeCompare(right.catalogItemId)),
+    payments: [...payments]
+      .map((payment) => ({ method: payment.method, amount: payment.amount }))
+      .sort((left, right) => left.method.localeCompare(right.method)),
   });
 }
 

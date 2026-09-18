@@ -2,7 +2,7 @@
 
 import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
-import { ArrowLeft, BadgeDollarSign, Boxes, Loader2, ReceiptText, ShoppingBag, TrendingDown, TrendingUp } from "lucide-react";
+import { ArrowLeft, BadgeDollarSign, Banknote, Boxes, CreditCard, HandCoins, Loader2, ReceiptText, ShoppingBag, TrendingDown, TrendingUp, Wallet } from "lucide-react";
 import { usePublishStampyScreenContext } from "@/components/stampy/StampyContextProvider";
 import { Card } from "@/components/ui/card";
 import { SectionTitle } from "@/components/ui/section-title";
@@ -75,6 +75,17 @@ export default function MetricasPage() {
         <Card className="p-4"><ShoppingBag size={20} className="text-violet-300" /><p className="mt-3 text-xs text-gray-500">Ticket promedio</p><p className="mt-1 text-xl font-black text-white">{money.format(metrics.averageTicket)}</p></Card>
         <Card className="p-4"><Boxes size={20} className="text-emerald-300" /><p className="mt-3 text-xs text-gray-500">Productos vendidos</p><p className="mt-1 text-xl font-black text-white">{metrics.unitsSold} u.</p>{metrics.filamentKilograms > 0 && <p className="mt-2 text-xs font-bold text-emerald-300">{metrics.filamentKilograms.toLocaleString("es-AR")} kg con peso configurado</p>}</Card>
       </div>
+      <section className="mt-7">
+        <h2 className="font-black text-white">Cobros y cuenta corriente</h2>
+        <p className="mt-1 text-xs text-gray-500">Distingue lo vendido de lo que realmente ingresó en efectivo o transferencia durante el período.</p>
+        <div className="mt-3 grid gap-3 min-[390px]:grid-cols-2 xl:grid-cols-5">
+          <Card className="p-4"><Banknote size={20} className="text-emerald-300" /><p className="mt-3 text-xs text-gray-500">Efectivo recibido</p><p className="mt-1 text-lg font-black text-white">{money.format(metrics.cashReceived)}</p></Card>
+          <Card className="p-4"><CreditCard size={20} className="text-cyan-300" /><p className="mt-3 text-xs text-gray-500">Transferencias recibidas</p><p className="mt-1 text-lg font-black text-white">{money.format(metrics.transferReceived)}</p></Card>
+          <Card className="p-4"><HandCoins size={20} className="text-amber-300" /><p className="mt-3 text-xs text-gray-500">Deuda nueva</p><p className="mt-1 text-lg font-black text-white">{money.format(metrics.newCredit)}</p></Card>
+          <Card className="p-4"><Wallet size={20} className="text-violet-300" /><p className="mt-3 text-xs text-gray-500">Cobros de deuda</p><p className="mt-1 text-lg font-black text-white">{money.format(metrics.debtCollections)}</p></Card>
+          <Card className="p-4"><ReceiptText size={20} className="text-red-300" /><p className="mt-3 text-xs text-gray-500">Saldo pendiente total</p><p className="mt-1 text-lg font-black text-white">{money.format(metrics.outstandingReceivables)}</p></Card>
+        </div>
+      </section>
       <section className="mt-7"><h2 className="font-black text-white">Productos más vendidos</h2><p className="mt-1 text-xs text-gray-500">Top 5 del período seleccionado.</p>{metrics.topProducts.length === 0 ? <Card className="mt-3 p-8 text-center text-sm text-gray-500">Todavía no hay ventas completadas en este período.</Card> : <div className="mt-3 grid gap-3">{metrics.topProducts.map((item, index) => <Card key={item.catalogItemId} className="grid gap-3 p-4 min-[390px]:grid-cols-[auto_minmax(0,1fr)_auto] min-[390px]:items-center"><span className="flex h-9 w-9 items-center justify-center rounded-xl bg-stampa-orange/10 text-sm font-black text-stampa-orange">{index + 1}</span><div className="min-w-0"><p className="truncate text-sm font-black text-white">{item.name}</p><p className="mt-1 text-xs text-gray-500">{item.units} u.{item.kilograms !== null ? ` · ${item.kilograms.toLocaleString("es-AR")} kg` : ""}</p></div><p className="text-sm font-black text-white min-[390px]:text-right">{money.format(item.revenue)}</p></Card>)}</div>}</section>
     </>}
   </div>;

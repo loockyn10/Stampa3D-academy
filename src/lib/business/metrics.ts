@@ -25,6 +25,11 @@ export interface BusinessMetrics {
   filamentKilograms: number;
   comparison: BusinessMetricComparison;
   topProducts: BusinessTopProductMetric[];
+  cashReceived: number;
+  transferReceived: number;
+  newCredit: number;
+  debtCollections: number;
+  outstandingReceivables: number;
 }
 
 function finiteNumber(value: unknown): number {
@@ -73,5 +78,10 @@ export function normalizeBusinessMetrics(value: unknown): BusinessMetrics | null
       salesPercent: optionalPercent(comparisonRaw.salesPercent),
     },
     topProducts,
+    cashReceived: finiteNumber(raw.cashReceived),
+    transferReceived: finiteNumber(raw.transferReceived),
+    newCredit: finiteNumber(raw.newCredit),
+    debtCollections: finiteNumber(raw.debtCollections),
+    outstandingReceivables: finiteNumber(raw.outstandingReceivables),
   };
 }

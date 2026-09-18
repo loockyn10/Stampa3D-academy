@@ -3,11 +3,13 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { ArrowLeft, Barcode, Loader2, Minus, Plus, Search, ShoppingCart, Trash2 } from "lucide-react";
+import { ArrowLeft, Barcode, Loader2, Minus, Plus, Printer, Search, ShoppingCart, Trash2, UserPlus } from "lucide-react";
 import { useBarcodeScanHandler } from "@/components/barcode/BarcodeScannerProvider";
 import { BarcodeScanner } from "@/components/business/BarcodeScanner";
+import { CustomerQuickCreateDialog } from "@/components/business/CustomerQuickCreateDialog";
 import { usePublishStampyScreenContext } from "@/components/stampy/StampyContextProvider";
 import { Card } from "@/components/ui/card";
+import { Combobox } from "@/components/ui/combobox";
 import { Dialog } from "@/components/ui/dialog";
 import { SectionTitle } from "@/components/ui/section-title";
 import { useAppFeedback } from "@/components/ui/app-feedback";
@@ -21,12 +23,14 @@ import {
   type BusinessCartItem,
 } from "@/lib/business/cart";
 import type { BusinessCatalogItem, BusinessClientSummary, WorkshopProductSummary } from "@/lib/business/catalog";
+import { computeSalePaymentSplit, validateSalePaymentInput, type SalePaymentMethod } from "@/lib/business/payments";
 import type { BusinessReplenishmentItem } from "@/lib/business/replenishment";
 import type { StampyScreenContext } from "@/lib/stampy/screen-context";
 import { confirmBusinessSaleAction, loadBusinessOperationsAction } from "../actions";
 
 const money = new Intl.NumberFormat("es-AR", { style: "currency", currency: "ARS", maximumFractionDigits: 2 });
 const SALE_ATTEMPT_STORAGE_KEY = "stampa:quick-sale-attempt";
+type PaymentMode = "cash" | "transfer" | "debt";
 
 export default function VentaRapidaPage() {
   const router = useRouter();
@@ -39,12 +43,17 @@ export default function VentaRapidaPage() {
   const [cart, setCart] = useState<BusinessCartItem[]>([]);
   const [search, setSearch] = useState("");
   const [clientId, setClientId] = useState("");
+  const [quickCreateOpen, setQuickCreateOpen] = useState(false);
+  const [paymentMode, setPaymentMode] = useState<PaymentMode>("cash");
+  const [splitDebt, setSplitDebt] = useState(false);
+  const [immediateAmountInput, setImmediateAmountInput] = useState("");
   const [scannerOpen, setScannerOpen] = useState(false);
   const [loading, setLoading] = useState(true);
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [unknownBarcode, setUnknownBarcode] = useState<string | null>(null);
   const [scanFeedback, setScanFeedback] = useState<{ tone: "success" | "error"; message: string } | null>(null);
+  const [lastSale, setLastSale] = useState<{ saleId: string; saleNumber: number } | null>(null);
   const saleAttemptRef = useRef<{ key: string; fingerprint: string } | null>(null);
   const submittingRef = useRef(false);
   const cartRef = useRef<BusinessCartItem[]>([]);
@@ -98,6 +107,16 @@ export default function VentaRapidaPage() {
   }, [available, search]);
   const total = useMemo(() => calculateBusinessCartTotal(cart), [cart]);
   const selectedClient = clients.find((client) => client.id === clientId) ?? null;
+  const paymentSplit = useMemo(() => {
+    if (paymentMode === "debt") return computeSalePaymentSplit(total, "cash", null);
+    if (!splitDebt) return computeSalePaymentSplit(total, paymentMode, total);
+    const parsed = immediateAmountInput.trim() === "" ? null : Number(immediateAmountInput);
+    return computeSalePaymentSplit(total, paymentMode, Number.isFinite(parsed) ? parsed : null);
+  }, [immediateAmountInput, paymentMode, splitDebt, total]);
+  const paymentValidation = useMemo(
+    () => validateSalePaymentInput(total, paymentSplit.payments, Boolean(clientId)),
+    [clientId, paymentSplit.payments, total],
+  );
 
   const stampyContext = useMemo<StampyScreenContext>(() => ({
     page: { section: "business", route: "/mi-negocio/venta-rapida", title: "Venta rápida" },
@@ -124,6 +143,7 @@ export default function VentaRapidaPage() {
   const replaceCart = useCallback((nextCart: BusinessCartItem[]) => {
     cartRef.current = nextCart;
     setCart(nextCart);
+    setLastSale((current) => (nextCart.length > 0 ? null : current));
   }, []);
 
   const addToCart = useCallback((item: BusinessCartItem, source: "manual" | "scan" = "manual") => {
@@ -176,10 +196,15 @@ export default function VentaRapidaPage() {
 
   const confirmSale = async () => {
     if (cartRef.current.length === 0 || submittingRef.current) return;
+    if (!paymentValidation.valid) {
+      toast.error(paymentValidation.error || "Revisá el método de pago.");
+      return;
+    }
     submittingRef.current = true;
     setSubmitting(true);
     const saleCart = [...cartRef.current];
-    const fingerprint = buildBusinessSaleFingerprint(saleCart, clientId || null);
+    const salePayments = paymentSplit.payments;
+    const fingerprint = buildBusinessSaleFingerprint(saleCart, clientId || null, salePayments);
     if (saleAttemptRef.current?.fingerprint !== fingerprint) {
       try {
         const stored = JSON.parse(sessionStorage.getItem(SALE_ATTEMPT_STORAGE_KEY) || "null") as { fingerprint?: string; key?: string } | null;
@@ -196,6 +221,7 @@ export default function VentaRapidaPage() {
         idempotencyKey: saleAttemptRef.current.key,
         clientId: clientId || null,
         items: saleCart.map((item) => ({ catalogItemId: item.catalogItemId, quantity: item.quantity })),
+        payments: salePayments,
       });
     } catch {
       submittingRef.current = false;
@@ -207,11 +233,15 @@ export default function VentaRapidaPage() {
     setSubmitting(false);
     if (!result.success) return toast.error(result.error);
     toast.success(`Venta N.º ${result.saleNumber} registrada${result.replayed ? " (ya estaba procesada)" : ""}.`);
+    setLastSale({ saleId: result.saleId, saleNumber: result.saleNumber });
     saleAttemptRef.current = null;
     try { sessionStorage.removeItem(SALE_ATTEMPT_STORAGE_KEY); } catch { /* Storage can be disabled. */ }
     replaceCart([]);
     setClientId("");
     setSearch("");
+    setPaymentMode("cash");
+    setSplitDebt(false);
+    setImmediateAmountInput("");
     setLoading(true);
     await load();
   };
@@ -277,9 +307,50 @@ export default function VentaRapidaPage() {
             ))}
           </div>
           <div className="space-y-4 border-t border-stampa-border p-4">
-            <label className="block text-xs font-semibold text-gray-400">Cliente opcional<select value={clientId} onChange={(event) => setClientId(event.target.value)} className="mt-1.5 min-h-11 w-full rounded-xl border border-stampa-border bg-stampa-bg-soft px-3 text-sm text-white"><option value="">Sin cliente</option>{clients.map((client) => <option key={client.id} value={client.id}>{client.name}</option>)}</select></label>
+            <div>
+              <span className="block text-xs font-semibold text-gray-400">Cliente {paymentSplit.debt > 0 ? "(obligatorio por la deuda)" : "opcional"}</span>
+              <div className="mt-1.5 flex items-center gap-2">
+                <Combobox
+                  className="flex-1"
+                  options={[{ id: "", label: "Sin cliente" }, ...clients.map((client) => ({ id: client.id, label: client.name }))]}
+                  value={clientId}
+                  onChange={(value) => setClientId(String(value))}
+                  placeholder="Sin cliente"
+                  emptyText="No se encontraron clientes."
+                />
+                <button type="button" onClick={() => setQuickCreateOpen(true)} aria-label="Nuevo cliente" className="flex min-h-11 shrink-0 items-center justify-center gap-1.5 rounded-xl border border-stampa-border px-3 text-xs font-bold text-gray-300 hover:bg-white/5"><UserPlus size={15} /> <span className="hidden min-[390px]:inline">Nuevo</span></button>
+              </div>
+            </div>
+
+            <div>
+              <span className="block text-xs font-semibold text-gray-400">Método de pago</span>
+              <div className="mt-1.5 grid grid-cols-3 gap-1.5">
+                {(["cash", "transfer", "debt"] as const).map((mode) => (
+                  <button key={mode} type="button" onClick={() => { setPaymentMode(mode); if (mode === "debt") setSplitDebt(false); }} className={`min-h-10 rounded-xl border px-2 text-xs font-bold ${paymentMode === mode ? "border-stampa-orange bg-stampa-orange/10 text-stampa-orange" : "border-stampa-border text-gray-400"}`}>
+                    {mode === "cash" ? "Efectivo" : mode === "transfer" ? "Transferencia" : "Cuenta corriente"}
+                  </button>
+                ))}
+              </div>
+              {paymentMode !== "debt" && (
+                <label className="mt-2 flex items-center gap-2 text-xs text-gray-400">
+                  <input type="checkbox" checked={splitDebt} onChange={(event) => { setSplitDebt(event.target.checked); setImmediateAmountInput(""); }} className="h-4 w-4 rounded border-stampa-border" />
+                  Dejar parte a cuenta corriente
+                </label>
+              )}
+              {paymentMode !== "debt" && splitDebt && (
+                <label className="mt-2 block text-xs font-semibold text-gray-400">Paga ahora (vacío = deuda total)
+                  <input type="number" min={0} step="0.01" placeholder={money.format(total)} value={immediateAmountInput} onChange={(event) => setImmediateAmountInput(event.target.value)} className="mt-1.5 min-h-11 w-full rounded-xl border border-stampa-border bg-stampa-bg-soft px-3 text-sm text-white" />
+                </label>
+              )}
+              {paymentSplit.debt > 0 && <p className="mt-2 text-xs font-bold text-amber-300">Queda a cuenta corriente: {money.format(paymentSplit.debt)}</p>}
+            </div>
+
             <div className="flex items-end justify-between"><span className="text-sm text-gray-400">Total</span><span className="text-2xl font-black text-white">{money.format(total)}</span></div>
-            <button type="button" disabled={cart.length === 0 || submitting} onClick={() => void confirmSale()} className="inline-flex min-h-12 w-full items-center justify-center gap-2 rounded-xl bg-stampa-orange px-4 text-sm font-black text-white disabled:opacity-45">{submitting && <Loader2 size={17} className="animate-spin" />} {submitting ? "Procesando..." : "Confirmar venta"}</button>
+            {!paymentValidation.valid && cart.length > 0 && <p className="text-xs font-bold text-red-300">{paymentValidation.error}</p>}
+            <button type="button" disabled={cart.length === 0 || submitting || !paymentValidation.valid} onClick={() => void confirmSale()} className="inline-flex min-h-12 w-full items-center justify-center gap-2 rounded-xl bg-stampa-orange px-4 text-sm font-black text-white disabled:opacity-45">{submitting && <Loader2 size={17} className="animate-spin" />} {submitting ? "Procesando..." : "Confirmar venta"}</button>
+            {lastSale && (
+              <Link href={`/mi-negocio/ticket/${lastSale.saleId}`} target="_blank" className="inline-flex min-h-11 w-full items-center justify-center gap-2 rounded-xl border border-stampa-border text-sm font-bold text-gray-200 hover:bg-white/5"><Printer size={16} /> Imprimir ticket N.º {lastSale.saleNumber}</Link>
+            )}
           </div>
         </Card>
       </div>
@@ -289,6 +360,16 @@ export default function VentaRapidaPage() {
         <div className="px-4 pb-4 sm:px-5"><BarcodeScanner onDetected={handleBarcode} /></div>
         <div className="border-t border-stampa-border p-4"><button type="button" onClick={() => setScannerOpen(false)} className="min-h-11 w-full rounded-xl border border-stampa-border text-sm font-bold text-gray-300">Cerrar</button></div>
       </Dialog>
+
+      <CustomerQuickCreateDialog
+        open={quickCreateOpen}
+        onClose={() => setQuickCreateOpen(false)}
+        onCreated={(client) => {
+          setClients((current) => [...current, client].sort((left, right) => left.name.localeCompare(right.name)));
+          setClientId(client.id);
+          setQuickCreateOpen(false);
+        }}
+      />
     </div>
   );
 }

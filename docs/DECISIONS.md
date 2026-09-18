@@ -150,6 +150,20 @@ Un segundo agente se usa cuando aporta valor real.
 
 Si una tarea requiere modificar reglas globales, permisos, schema compartido o una decisión de producto, el agente debe detenerse o reportar la decisión antes de asumirla.
 
+## D020 — Cuenta corriente de clientes es un ledger auditable, no un campo mutable
+
+**Estado:** Accepted (2026-09-18)
+
+`Clientes` pasa a ser un destino propio de Mi Negocio (antes se consideraba redundante si estaba integrado en Presupuestos). La deuda de un cliente se audita mediante `customer_account_movements` (`sale_debt`/`payment`/`sale_reversal`/`adjustment`), nunca como un número mutable en `clients`. `saldo = sum(delta)`.
+
+Reglas fijadas:
+
+- los pagos inmediatos de una venta (`cash`/`transfer`) se guardan como allocations (`business_sale_payment_allocations`); la deuda nunca es una allocation, se deriva como `total - sum(allocations)`;
+- cliente obligatorio si la venta deja saldo pendiente, opcional si no;
+- no se permite sobrepago ni en la venta ni en un cobro posterior — rechazo explícito, nunca ajuste silencioso;
+- anular una venta con deuda genera un `sale_reversal` compensatorio, nunca borra el `sale_debt` original, y no puede duplicarse (índice único parcial por venta);
+- se reutiliza `public.clients` (ya usada por Presupuestos); no se crea una segunda tabla de clientes.
+
 ## D019 — Trabajo simultáneo requiere aislamiento
 
 **Estado:** Accepted

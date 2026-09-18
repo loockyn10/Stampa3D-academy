@@ -65,6 +65,12 @@ export interface BusinessSaleItem {
   subtotal: number;
 }
 
+export interface BusinessSalePaymentAllocation {
+  id: string;
+  method: "cash" | "transfer";
+  amount: number;
+}
+
 export interface BusinessSaleSummary {
   id: string;
   sale_number: number;
@@ -79,6 +85,8 @@ export interface BusinessSaleSummary {
   total: number;
   created_at: string;
   items: BusinessSaleItem[];
+  payments: BusinessSalePaymentAllocation[];
+  debtAmount: number;
 }
 
 export function getBusinessProductDisplayName(

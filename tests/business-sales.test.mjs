@@ -180,8 +180,8 @@ test("quick sale keeps its attempt key for a lost response and clears it only af
   assert.match(page, /sessionStorage\.removeItem\(SALE_ATTEMPT_STORAGE_KEY\)/);
   assert.match(page, /Producto, SKU o código/);
   assert.match(page, /Código no encontrado/);
-  assert.match(page, /<option value="">Sin cliente<\/option>/);
-  assert.match(page, /disabled=\{cart\.length === 0 \|\| submitting\}/);
+  assert.match(page, /\{ id: "", label: "Sin cliente" \}/);
+  assert.match(page, /disabled=\{cart\.length === 0 \|\| submitting \|\| !paymentValidation\.valid\}/);
 });
 
 test("scanner feature-detects formats and always stops camera resources", () => {

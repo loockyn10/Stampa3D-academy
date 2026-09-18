@@ -2,6 +2,12 @@
 
 Este archivo contiene únicamente trabajo pendiente o próximo. Eliminar tareas terminadas en lugar de conservar un historial infinito.
 
+## Now — Clientes / cuenta corriente / pagos / ticket (implementado 2026-09-18, ver CURRENT_STATE.md y ARCHITECTURE.md §6/§9)
+
+- [ ] Aplicar en Supabase remoto `supabase/migrations/20260918120000_business_customer_accounts.sql` (ver reporte final de la tarea para el detalle completo del SQL y el orden).
+- [ ] Prueba funcional real en ambiente con datos: venta cash/transfer/deuda/split, void con deuda, registrar cobro, sobrepago rechazado, aislamiento RLS entre usuarios — los escenarios de base de datos no se pudieron ejecutar localmente (sin arnés Postgres), solo se verificaron por lectura de código/migration.
+- [ ] Confirmar visualmente el ticket impreso en una impresora térmica real (58mm/80mm), la vista solo se validó en navegador.
+
 ## Now — Auditoría documental (completada 2026-09-15, ver CURRENT_STATE.md)
 
 La auditoría de código local está hecha. Lo que queda es exclusivamente lo que el repo no puede confirmar:

@@ -160,8 +160,9 @@ test("metrics normalizer preserves totals, comparisons and weighted top products
   assert.equal(normalized.topProducts[0].kilograms, 10);
 });
 
-test("Mi Negocio removes the redundant Clients destination and adds Metrics", () => {
-  assert.doesNotMatch(businessHub, /title: "Clientes"/);
+test("Mi Negocio adds standalone Clients (current account) and Metrics destinations", () => {
+  assert.match(businessHub, /title: "Clientes"/);
+  assert.match(businessHub, /href: "\/mi-negocio\/clientes"/);
   assert.match(businessHub, /href: "\/mi-negocio\/metricas"/);
   assert.match(metricsPage, /Facturación/);
   assert.match(metricsPage, /Ticket promedio/);
