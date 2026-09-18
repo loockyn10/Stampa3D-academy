@@ -7,9 +7,9 @@ import { SectionTitle } from "@/components/ui/section-title";
 import { Card } from "@/components/ui/card";
 import { useAppFeedback } from "@/components/ui/app-feedback";
 import { MakerTextControls } from "@/components/maker/MakerTextControls";
-import { MakerViewport } from "@/components/maker/MakerViewport";
+import { MakerViewport, type MakerViewMode } from "@/components/maker/MakerViewport";
 import { useLetterGeometry } from "@/hooks/maker/useLetterGeometry";
-import { exportLetterGeometryToSTL } from "@/lib/maker/exporters/exportSTL";
+import { exportWord } from "@/lib/maker/exporters/exportWord";
 import { downloadLettersZip } from "@/lib/maker/exporters/exportLettersZip";
 import { DEFAULT_MAKER_FONT_ID } from "@/lib/maker/fonts/registry";
 import type { LetterSignParams } from "@/lib/maker/types";
@@ -21,6 +21,8 @@ const DEFAULT_PARAMS: LetterSignParams = {
   depthMm: 40,
   wallMm: 1.6,
   baseMm: 1.2,
+  frontType: "open",
+  lidMm: 1.2,
 };
 
 export default function StampaMakerCartelesPage() {
@@ -28,6 +30,8 @@ export default function StampaMakerCartelesPage() {
   const { geometry, loading, error, fieldErrors } = useLetterGeometry(params);
   const { toast } = useAppFeedback();
   const [lettersZipLoading, setLettersZipLoading] = useState(false);
+  const [wordDownloading, setWordDownloading] = useState(false);
+  const [viewMode, setViewMode] = useState<MakerViewMode>("assembled");
 
   const handleChange = useCallback((patch: Partial<LetterSignParams>) => {
     setParams((prev) => ({ ...prev, ...patch }));
@@ -35,12 +39,15 @@ export default function StampaMakerCartelesPage() {
 
   const baseFileName = params.text.trim().toLowerCase().replace(/\s+/g, "-") || "stampa-maker";
 
-  const handleDownloadWord = useCallback(() => {
+  const handleDownloadWord = useCallback(async () => {
     if (!geometry || geometry.triangleCount === 0) return;
+    setWordDownloading(true);
     try {
-      exportLetterGeometryToSTL(geometry, baseFileName);
+      await exportWord(geometry, baseFileName);
     } catch (err) {
-      toast.error(err instanceof Error ? err.message : "No se pudo exportar el STL.");
+      toast.error(err instanceof Error ? err.message : "No se pudo exportar la palabra completa.");
+    } finally {
+      setWordDownloading(false);
     }
   }, [geometry, baseFileName, toast]);
 
@@ -74,14 +81,16 @@ export default function StampaMakerCartelesPage() {
           fieldErrors={fieldErrors}
           warnings={geometry?.warnings ?? []}
           error={error}
-          loading={loading}
+          loading={loading || wordDownloading}
           canDownload={canDownload}
           onDownloadWord={handleDownloadWord}
           onDownloadLetters={handleDownloadLetters}
           lettersZipLoading={lettersZipLoading}
+          viewMode={viewMode}
+          onChangeViewMode={setViewMode}
         />
         <Card className="overflow-hidden p-0">
-          <MakerViewport geometry={geometry} />
+          <MakerViewport geometry={geometry} viewMode={viewMode} />
         </Card>
       </div>
     </div>

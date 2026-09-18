@@ -1,5 +1,5 @@
 import type * as opentype from "opentype.js";
-import type { ContourGroup, LetterGeometryResult, LetterGeometryWarning, LetterPieceResult, LetterSignParams, Point2D } from "@/lib/maker/types";
+import type { ContourGroup, LetterGeometryResult, LetterGeometryWarning, LetterPieceResult, LetterSignParams, Point2D, TriangleSoupData } from "@/lib/maker/types";
 import { textToPerCharacterPaths, flattenOpentypePath } from "@/lib/maker/geometry/textToPaths";
 import { buildContourHierarchy } from "@/lib/maker/geometry/contourHierarchy";
 import { insetContourGroups, differenceContourGroups, regroupClipperSolution, clipperPathsArea } from "@/lib/maker/geometry/offsets";
@@ -8,15 +8,18 @@ import { extrudeContourGroups, type ExtrudedMeshData } from "@/lib/maker/geometr
 /**
  * Pipeline completo: texto + parámetros -> mesh 3D triangulado, un carácter
  * a la vez (mismo layout/kerning que un único font.getPath, ver
- * textToPerCharacterPaths). El resultado combinado (`positions`) es
+ * textToPerCharacterPaths). El resultado combinado (`body`/`lid`) es
  * exactamente la concatenación de `letters[]`: no hay un motor de
- * exportación paralelo, la letra individual usa la misma pieza que ya
- * forma parte del texto completo.
+ * exportación paralelo, la letra individual usa las mismas piezas que ya
+ * forman parte del texto completo.
  *
- * Cada letra es UN SOLO sólido soldado por coordenadas compartidas (no dos
- * cuerpos que solo se tocan): fondo + "repisa" del núcleo erosionado +
- * pared. Ver la sección "Soldadura fondo/pared" más abajo y
- * docs/STAMPA_MAKER.md.
+ * Cada letra tiene dos piezas, independientes entre sí:
+ * - `body`: UN SOLO sólido soldado por coordenadas compartidas (fondo +
+ *   "repisa" del núcleo erosionado + pared). Ver "Soldadura fondo/pared"
+ *   más abajo y docs/STAMPA_MAKER.md.
+ * - `lid` (solo si frontType === "lid"): tapa frontal plana, pieza
+ *   SEPARADA (no soldada al cuerpo a propósito, ver "Tapa frontal" más
+ *   abajo).
  */
 export function createLetterGeometry(font: opentype.Font, params: LetterSignParams): LetterGeometryResult {
   const warnings: LetterGeometryWarning[] = [];
@@ -38,17 +41,14 @@ export function createLetterGeometry(font: opentype.Font, params: LetterSignPara
 
     allRawContours.push(...rawContours);
     const contourGroups = buildContourHierarchy(rawContours);
-    const piece = buildWeldedLetterSolid(contourGroups, params);
+    const piece = buildLetterSolid(contourGroups, params);
     if (piece.fullyEroded) anyFullyEroded = true;
 
-    const positions = Float32Array.from(piece.mesh.positions);
-    const normals = Float32Array.from(piece.mesh.normals);
     letters.push({
       char,
       index: letters.length + 1,
-      positions,
-      normals,
-      triangleCount: positions.length / 9,
+      body: toTriangleSoupData(piece.body),
+      lid: piece.lid ? toTriangleSoupData(piece.lid) : null,
     });
   }
 
@@ -64,14 +64,14 @@ export function createLetterGeometry(font: opentype.Font, params: LetterSignPara
     });
   }
 
-  const positions = Float32Array.from(letters.flatMap((l) => Array.from(l.positions)));
-  const normals = Float32Array.from(letters.flatMap((l) => Array.from(l.normals)));
+  const body = concatTriangleSoups(letters.map((l) => l.body));
+  const lid = params.frontType === "lid" ? concatTriangleSoups(letters.map((l) => l.lid as TriangleSoupData)) : null;
 
   return {
-    positions,
-    normals,
-    triangleCount: positions.length / 9,
-    boundingBox: computeBoundingBox(allRawContours, params.depthMm),
+    body,
+    lid,
+    triangleCount: body.triangleCount + (lid?.triangleCount ?? 0),
+    boundingBox: computeBoundingBox(allRawContours, params.depthMm + (params.frontType === "lid" ? params.lidMm : 0)),
     warnings,
     letters,
   };
@@ -105,11 +105,19 @@ export function createLetterGeometry(font: opentype.Font, params: LetterSignPara
  * componente conectado por letra en vez de piezas superpuestas — sin
  * ninguna operación booleana 3D. Confirmado con
  * tests/maker-letter-geometry.test.mjs (conteo de shells por letra).
+ *
+ * Tapa frontal (0.2): usa exactamente la misma silueta que el fondo
+ * (`fondoGroups`: exterior menos huecos originales del glifo — nunca un
+ * disco, respeta counters) extruida como una pieza plana e independiente,
+ * de z=depthMm a z=depthMm+lidMm. A propósito NO comparte vértices con el
+ * cuerpo (ver sección 4 del pedido: "esta tapa todavía no encastra", es
+ * una tapa para pegar) — son dos sólidos que solo se tocan/apoyan en
+ * z=depthMm, cada uno exportable por separado.
  */
-function buildWeldedLetterSolid(
+function buildLetterSolid(
   contourGroups: ContourGroup[],
   params: LetterSignParams,
-): { mesh: ExtrudedMeshData; fullyEroded: boolean } {
+): { body: ExtrudedMeshData; lid: ExtrudedMeshData | null; fullyEroded: boolean } {
   const fondoGroups: ContourGroup[] = [];
   const wallGroups: ContourGroup[] = [];
   const coreGroups: ContourGroup[] = [];
@@ -156,21 +164,50 @@ function buildWeldedLetterSolid(
 
     // 4) Frente: tapa de la huella de pared en z=depthMm (mirando hacia
     //    +Z). Earcut nunca triangula el interior del núcleo (llega como
-    //    holeIndices), así que esta tapa nunca cubre la cavidad.
+    //    holeIndices), así que esta tapa nunca cubre la cavidad. Con
+    //    frontType "lid" este frente sigue existiendo (el cuerpo no
+    //    cambia): la tapa es una pieza aparte que se apoya encima, no un
+    //    reemplazo del frente de la pared.
     pieces.push(extrudeContourGroups(wallGroups, params.depthMm, params.depthMm, { capStart: false, capEnd: true, sides: false }));
   }
 
-  const mesh: ExtrudedMeshData = {
+  const body: ExtrudedMeshData = {
     positions: pieces.flatMap((p) => p.positions),
     normals: pieces.flatMap((p) => p.normals),
   };
-  return { mesh, fullyEroded };
+
+  let lid: ExtrudedMeshData | null = null;
+  if (params.frontType === "lid" && params.lidMm > 0) {
+    // Misma silueta que el fondo (exterior menos huecos originales): nunca
+    // un disco, respeta counters. Tapada en ambos extremos (pieza plana
+    // sólida e independiente, sin paredes laterales adicionales más allá
+    // de su propio borde).
+    lid = extrudeContourGroups(fondoGroups, params.depthMm, params.depthMm + params.lidMm, { capStart: true, capEnd: true });
+  }
+
+  return { body, lid, fullyEroded };
+}
+
+function toTriangleSoupData(mesh: ExtrudedMeshData): TriangleSoupData {
+  const positions = Float32Array.from(mesh.positions);
+  const normals = Float32Array.from(mesh.normals);
+  return { positions, normals, triangleCount: positions.length / 9 };
+}
+
+function concatTriangleSoups(pieces: TriangleSoupData[]): TriangleSoupData {
+  const positions = Float32Array.from(pieces.flatMap((p) => Array.from(p.positions)));
+  const normals = Float32Array.from(pieces.flatMap((p) => Array.from(p.normals)));
+  return { positions, normals, triangleCount: positions.length / 9 };
+}
+
+function emptyTriangleSoup(): TriangleSoupData {
+  return { positions: new Float32Array(0), normals: new Float32Array(0), triangleCount: 0 };
 }
 
 function emptyResult(warnings: LetterGeometryWarning[]): LetterGeometryResult {
   return {
-    positions: new Float32Array(0),
-    normals: new Float32Array(0),
+    body: emptyTriangleSoup(),
+    lid: null,
     triangleCount: 0,
     boundingBox: { width: 0, height: 0, depth: 0 },
     warnings,

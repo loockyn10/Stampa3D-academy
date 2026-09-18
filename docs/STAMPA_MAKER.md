@@ -1,16 +1,19 @@
 # STAMPA MAKER
 
-> MVP 0.1 — Creador de Carteles (letras corpóreas). Implementado 2026-09-17;
-> mismo día: fix del motor geométrico (huecos tapados / paredes sin espesor
-> real, sección 6) y exportación de letras individuales soldadas como un
-> único sólido por letra (sección 9).
+> 0.1 (2026-09-17): MVP del Creador de Carteles, fix del motor geométrico
+> (huecos tapados / paredes sin espesor real, sección 6) y exportación de
+> letras individuales soldadas como un único sólido por letra (sección 9).
+> 0.2 (2026-09-17): segundo modo de frente — tapa frontal plana como pieza
+> separada del cuerpo (sección 11).
 
 ## 1. Qué es
 
 Nueva sección de Stampa (`/stampa-maker`) para generar geometría 3D paramétrica
 imprimible. La primera (y única, en esta fase) herramienta es el **Creador de
-Carteles**: convierte texto en letras corpóreas huecas (fondo cerrado, frente
-abierto) y permite previsualizarlas en 3D y exportarlas como STL.
+Carteles**: convierte texto en letras corpóreas huecas (fondo cerrado) y
+permite previsualizarlas en 3D y exportarlas como STL. El frente puede ser
+completamente abierto (0.1) o cerrado con una tapa frontal plana, como pieza
+separada del cuerpo (0.2, sección 11).
 
 No reemplaza ni modifica ninguna arquitectura existente de Stampa (auth,
 RLS, pricing, stock). Es una sección nueva, protegida por el mismo middleware
@@ -35,8 +38,9 @@ src/lib/maker/
     createLetterGeometry.ts   orquesta el pipeline por carácter y suelda fondo+pared en un solo sólido por letra
     toBufferGeometry.ts       triangle soup -> THREE.BufferGeometry
   exporters/
-    exportSTL.ts               triangle soup -> Blob STL binario + descarga (usado por la palabra completa y por el ZIP)
-    exportLettersZip.ts        letras individuales -> recentrado + ZIP (JSZip) -> descarga
+    exportSTL.ts               triangle soup -> Blob STL binario + descarga (pieza suelta: cuerpo o tapa)
+    exportWord.ts               palabra completa -> .stl (frente abierto) o .zip cuerpo+tapa (tapa frontal)
+    exportLettersZip.ts        letras individuales -> recentrado + ZIP (JSZip) -> descarga (1 o 2 STL por letra)
 
 src/hooks/maker/useLetterGeometry.ts   corre el pipeline con debounce, fuera del render
 
@@ -304,6 +308,14 @@ sobre el trazo (control positivo), no hay tapa exactamente en
 Más: warning `WALL_TOO_THICK` con pared desproporcionada, texto vacío, y
 validación de parámetros.
 
+Para 0.2 (tapa frontal, sección 11) se suman: mesh de la tapa válido +
+manifold/watertight + counters libres para `A/O/B/8`, rango de Z de la
+tapa (`depthMm` → `depthMm+lidMm`), el cuerpo es byte-idéntico con frente
+abierto vs. tapa frontal, exportación de letra individual con tapa (2 STL
+por letra, `STAMPA` → 12 en el ZIP), exportación de palabra completa con
+tapa (`.zip` con `_cuerpo.stl`+`_tapa.stl`), y validación de `lidMm`
+(0.4–10 mm solo cuando `frontType === "lid"`).
+
 Verificación manual pendiente (no realizada en esta fase por no contar con
 credenciales de una cuenta con acceso Paid): abrir `/stampa-maker/carteles`
 autenticado, generar `STAMPA` en Montserrat Bold con los valores por
@@ -312,6 +324,9 @@ abrirlo en un slicer (OrcaSlicer/Bambu Studio) para confirmar dimensiones y
 huecos visualmente. Ídem el ZIP de letras individuales: confirmar en
 Bambu Studio/OrcaSlicer que cada STL abre como una sola pieza (que
 "Dividir en objetos" no la separe) y centrada razonablemente en la cama.
+Para 0.2: confirmar visualmente la vista explosionada (tapa separada del
+cuerpo) y que `_cuerpo.stl`/`_tapa.stl` abren como dos piezas planas que
+coinciden en su silueta exterior.
 
 ## 9. Exportación de letras individuales
 
@@ -345,13 +360,88 @@ mismas piezas), no un motor de exportación paralelo.
   después de recentrar — verificado en
   `tests/maker-letter-geometry.test.mjs` con un raycast por el counter de
   una "O" recentrada.
+- Con tapa frontal (0.2, sección 11) cada letra exporta 2 STL
+  (`..._cuerpo.stl` + `..._tapa.stl`), cada uno recentrado por separado —
+  ver sección 11.
 
-## 10. Próximos pasos sugeridos para 0.2 (no implementados)
+## 10. Próximos pasos sugeridos (no implementados)
 
 - Más fuentes / catálogo más amplio.
 - Ajuste fino de segmentación de curvas (adaptativa por curvatura).
 - Mover el pipeline (y/o el armado del ZIP) a un Web Worker si el volumen
   de texto lo justifica.
 - Exportación 3MF/OBJ, auto-layout en cama, división según tamaño de cama.
-- Todo lo explícitamente fuera de alcance en la tarea original (tapas,
-  LEDs, acrílico, DXF, encastres, costos, Supabase, etc.) — sin cambios.
+- Encastres/tolerancias para que la tapa frontal (0.2) quede sujeta sin
+  pegamento — hoy es una tapa plana para pegar, a propósito (sección 11).
+- Todo lo explícitamente fuera de alcance de 0.1/0.2 (LEDs, acrílico, DXF,
+  clips/tornillos/imanes, costos, Supabase, etc.) — sin cambios.
+
+## 11. Tapa frontal (0.2)
+
+Segundo modo de frente en `/stampa-maker/carteles`, además del frente
+abierto (0.1, sin cambios de comportamiento). Selector **Tipo de frente**:
+`Frente abierto` / `Tapa frontal`. Con tapa frontal aparece **Espesor de
+tapa** (`lidMm`, default 1.2 mm, validado en 0.4–10 mm) y un selector
+**Vista**: `Ensamblada` / `Explosionada`.
+
+### Diseño: pieza separada, no encastre
+
+La tapa es una **pieza independiente del cuerpo**, a propósito (sección 4
+del pedido: "esta tapa todavía no encastra" — es una tapa plana para
+pegar, sin labios/pestañas/snap-fit/tolerancias). `buildLetterSolid()`
+(`createLetterGeometry.ts`) genera:
+
+- `body`: exactamente el mismo sólido soldado de 0.1 (fondo + repisa +
+  pared), **sin cambios** — verificado con un test que compara byte a byte
+  el cuerpo con frente abierto vs. con tapa frontal, mismos parámetros.
+- `lid` (solo si `frontType === "lid"`): la misma silueta que el fondo
+  (`fondoGroups` — exterior menos los huecos ORIGINALES del glifo, la
+  pieza que 0.1 ya usa para el fondo) extruida como sólido plano
+  independiente de `z=depthMm` a `z=depthMm+lidMm`, con tapa en ambos
+  extremos (`capStart`+`capEnd`). Nunca un disco: reusar `fondoGroups`
+  respeta los counters exactamente igual que el fondo del cuerpo. No
+  comparte ningún paso con la generación del cuerpo aparte de esa silueta.
+
+`body` y `lid` se tocan/apoyan en `z=depthMm` (misma silueta exterior) pero
+no comparten vértices a propósito — no es una soldadura como la de la
+sección 3, es la unión de dos sólidos independientes, cada uno exportable
+por separado. La profundidad del cuerpo (`depthMm`) no cambia: la
+profundidad total ensamblada es `depthMm + lidMm`.
+
+### Preview: dos objetos 3D separados, nunca una malla fusionada
+
+`MakerViewport.tsx` crea un `THREE.Mesh` para `body` y, si existe, otro
+para `lid` — nunca los fusiona en una sola `BufferGeometry` (así la vista
+explosionada puede mover solo la tapa). Vista **Explosionada**: desplaza
+`lidMesh.position.z` +10 mm — una transformación de escena puramente
+visual (no toca `geometry.lid.positions`, no duplica geometría, no afecta
+lo que se exporta). Vista **Ensamblada** vuelve `position.z` a 0. El
+encuadre de cámara se calcula sobre la posición ensamblada siempre, para
+que no salte al cambiar de vista.
+
+### Exportación: nunca mezcladas en un STL ambiguo
+
+- **Letra individual con tapa** (`exportLettersZip.ts`): en vez de
+  `NN_CARACTER.stl`, dos archivos — `NN_CARACTER_cuerpo.stl` +
+  `NN_CARACTER_tapa.stl`, cada uno recentrado por separado (cada archivo es
+  una pieza para imprimir independiente, así que cada uno apoya en `Z=0`
+  por su cuenta). `STAMPA` con tapa → 12 STL en el ZIP.
+- **Palabra completa con tapa** (`exportWord.ts`, nuevo): en vez de
+  `STAMPA.stl`, `STAMPA.zip` con `STAMPA_cuerpo.stl` + `STAMPA_tapa.stl`,
+  en las mismas coordenadas del preview (sin recentrar: representan el
+  conjunto ensamblado). Con frente abierto, `exportWord()` sigue
+  exportando un único `.stl` — mismo comportamiento que 0.1.
+- Ambos casos usan `buildSTLBlob()` (sin cambios desde 0.1) sobre
+  `body`/`lid` directamente: preview y exportación comparten la misma
+  fuente de verdad geométrica (`createLetterGeometry()` → `{body, lid,
+  letters[]}` → preview / STL / ZIP), sin un segundo motor.
+
+### Tipos
+
+`LetterSignParams` suma `frontType: "open" | "lid"` y `lidMm: number`.
+`LetterPieceResult`/`LetterGeometryResult` pasan de exponer
+`positions`/`normals`/`triangleCount` planos a `body: TriangleSoupData` +
+`lid: TriangleSoupData | null` (mismo shape `{positions, normals,
+triangleCount}`). `geometry.triangleCount` (top-level) sigue existiendo
+como `body.triangleCount + (lid?.triangleCount ?? 0)`, para los checks
+rápidos de "¿hay algo para exportar?" que ya usaba la UI.

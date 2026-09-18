@@ -1,14 +1,14 @@
 import * as THREE from "three";
 import { STLExporter } from "three/examples/jsm/exporters/STLExporter.js";
-import type { LetterGeometryResult } from "@/lib/maker/types";
+import type { TriangleSoupData } from "@/lib/maker/types";
 import { letterGeometryToBufferGeometry, type TriangleSoup } from "@/lib/maker/geometry/toBufferGeometry";
 
 /**
  * Genera un STL binario a partir de un triangle soup (misma geometría que
- * ve el preview: LetterGeometryResult para la palabra completa, o un
- * LetterPieceResult individual). No dispara ninguna descarga: función pura,
- * reutilizada tanto por el STL de la palabra completa como por el ZIP de
- * letras individuales (una sola fuente de verdad geométrica).
+ * ve el preview: el cuerpo o la tapa de la palabra completa, o de una
+ * letra individual). No dispara ninguna descarga: función pura, reutilizada
+ * por la exportación de palabra completa y por el ZIP de letras
+ * individuales (una sola fuente de verdad geométrica).
  */
 export function buildSTLBlob(mesh: TriangleSoup): Blob {
   const geometry = letterGeometryToBufferGeometry(mesh);
@@ -33,12 +33,12 @@ export function downloadBlob(blob: Blob, fileName: string): void {
   URL.revokeObjectURL(url);
 }
 
-/** Exporta el resultado geométrico actual (la misma geometría del preview) como STL binario. */
-export function exportLetterGeometryToSTL(result: LetterGeometryResult, fileName: string): void {
-  if (result.triangleCount === 0) {
+/** Exporta una sola pieza (cuerpo o tapa) como STL binario, descargándola. */
+export function exportMeshToSTL(mesh: TriangleSoupData, fileName: string): void {
+  if (mesh.triangleCount === 0) {
     throw new Error("No hay geometría para exportar.");
   }
 
-  const blob = buildSTLBlob(result);
+  const blob = buildSTLBlob(mesh);
   downloadBlob(blob, fileName.endsWith(".stl") ? fileName : `${fileName}.stl`);
 }

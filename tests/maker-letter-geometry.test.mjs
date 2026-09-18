@@ -67,6 +67,7 @@ const { buildContourHierarchy } = loadMakerModule("lib/maker/geometry/contourHie
 const { insetContourGroups } = loadMakerModule("lib/maker/geometry/offsets.ts");
 const { validateLetterSignParams } = loadMakerModule("lib/maker/validation.ts");
 const { buildLettersZipBlob, recenterMesh } = loadMakerModule("lib/maker/exporters/exportLettersZip.ts");
+const { buildWordZipBlob } = loadMakerModule("lib/maker/exporters/exportWord.ts");
 const opentype = nodeRequire("opentype.js");
 const JSZipLib = nodeRequire("jszip");
 
@@ -84,6 +85,8 @@ const DEFAULT_PARAMS = {
   depthMm: 40,
   wallMm: 1.6,
   baseMm: 1.2,
+  frontType: "open",
+  lidMm: 1.2,
 };
 
 function assertFiniteFloatArray(arr, label) {
@@ -92,12 +95,12 @@ function assertFiniteFloatArray(arr, label) {
   }
 }
 
-function assertValidResult(result, label) {
-  assert.ok(result.triangleCount > 0, `${label}: se esperaban triángulos`);
-  assert.equal(result.positions.length, result.triangleCount * 9, `${label}: positions no coincide con triangleCount`);
-  assert.equal(result.normals.length, result.positions.length, `${label}: normals no coincide con positions`);
-  assertFiniteFloatArray(result.positions, `${label}.positions`);
-  assertFiniteFloatArray(result.normals, `${label}.normals`);
+function assertValidMesh(mesh, label) {
+  assert.ok(mesh.triangleCount > 0, `${label}: se esperaban triángulos`);
+  assert.equal(mesh.positions.length, mesh.triangleCount * 9, `${label}: positions no coincide con triangleCount`);
+  assert.equal(mesh.normals.length, mesh.positions.length, `${label}: normals no coincide con positions`);
+  assertFiniteFloatArray(mesh.positions, `${label}.positions`);
+  assertFiniteFloatArray(mesh.normals, `${label}.normals`);
 }
 
 // Analiza la topología del triangle soup: cada arista debe estar compartida
@@ -262,12 +265,12 @@ function raycastZHits(positions, px, py) {
 for (const text of ["I", "L", "A", "O", "B", "8", "STAMPA", "LOOCK 3D"]) {
   test(`createLetterGeometry genera un mesh válido para "${text}"`, () => {
     const result = createLetterGeometry(montserratBold, { ...DEFAULT_PARAMS, text });
-    assertValidResult(result, text);
+    assertValidMesh(result.body, text);
   });
 
   test(`createLetterGeometry genera una malla topológicamente correcta para "${text}"`, () => {
     const result = createLetterGeometry(montserratBold, { ...DEFAULT_PARAMS, text });
-    const topo = analyzeMeshTopology(result.positions);
+    const topo = analyzeMeshTopology(result.body.positions);
     assert.equal(topo.degenerate, 0, `${text}: triángulos degenerados`);
     assert.equal(topo.nonManifold, 0, `${text}: aristas no-manifold (normales/caras incorrectas)`);
     // El fondo y cada banda de la pared se tapan en ambos extremos (ver
@@ -328,7 +331,7 @@ test("pared mucho más gruesa que el trazo genera advertencia WALL_TOO_THICK per
     wallMm: 20,
     baseMm: 1,
   });
-  assertValidResult(result, "I-pared-excesiva");
+  assertValidMesh(result.body, "I-pared-excesiva");
   assert.ok(result.warnings.some((w) => w.code === "WALL_TOO_THICK"));
 });
 
@@ -380,7 +383,7 @@ const EPS_Z = 0.5; // mm, margen fuera de [0, depthMm] para ignorar ruido numér
 function assertCounterIsFree(text, holePoints, label) {
   const [cx, cy] = polygonCentroid(holePoints);
   const result = createLetterGeometry(montserratBold, { ...DEFAULT_PARAMS, text });
-  const hits = raycastZHits(result.positions, cx, cy).filter(
+  const hits = raycastZHits(result.body.positions, cx, cy).filter(
     (z) => z > -EPS_Z && z < DEFAULT_PARAMS.depthMm + EPS_Z,
   );
   assert.deepEqual(
@@ -416,7 +419,7 @@ test('"O": el fondo (z entre 0 y baseMm) no tiene geometría sobre el counter', 
   const groups = contourGroupsFor("O");
   const [cx, cy] = polygonCentroid(groups[0].holes[0]);
   const result = createLetterGeometry(montserratBold, { ...DEFAULT_PARAMS, text: "O" });
-  const hitsInFondo = raycastZHits(result.positions, cx, cy).filter(
+  const hitsInFondo = raycastZHits(result.body.positions, cx, cy).filter(
     (z) => z > -EPS_Z && z < DEFAULT_PARAMS.baseMm + EPS_Z,
   );
   assert.deepEqual(hitsInFondo, [], `el fondo no debería tener ninguna cara sobre el counter, hay geometría en z=[${hitsInFondo.join(", ")}]`);
@@ -430,7 +433,7 @@ test('"O": el fondo SÍ tiene material sólido bajo el trazo de la letra (contro
   const outerXs = groups[0].outer.map(([x]) => x);
   const midX = (Math.max(...outerXs) + Math.max(...groups[0].holes[0].map(([x]) => x))) / 2;
   const result = createLetterGeometry(montserratBold, { ...DEFAULT_PARAMS, text: "O" });
-  const hits = raycastZHits(result.positions, midX, holeCy).filter((z) => z > -EPS_Z && z < DEFAULT_PARAMS.depthMm + EPS_Z);
+  const hits = raycastZHits(result.body.positions, midX, holeCy).filter((z) => z > -EPS_Z && z < DEFAULT_PARAMS.depthMm + EPS_Z);
   assert.ok(hits.length > 0, `se esperaba material sólido en el trazo de la "O" en (${midX.toFixed(2)}, ${holeCy.toFixed(2)})`);
 });
 
@@ -440,7 +443,7 @@ test('"O": no hay ninguna cara exactamente en z = depthMm sobre el counter (fren
   const groups = contourGroupsFor("O");
   const [cx, cy] = polygonCentroid(groups[0].holes[0]);
   const result = createLetterGeometry(montserratBold, { ...DEFAULT_PARAMS, text: "O" });
-  const hits = raycastZHits(result.positions, cx, cy);
+  const hits = raycastZHits(result.body.positions, cx, cy);
   const nearFront = hits.filter((z) => Math.abs(z - DEFAULT_PARAMS.depthMm) < 1);
   assert.deepEqual(nearFront, [], `no debería haber tapa frontal sobre la cavidad, se encontró en z=[${nearFront.join(", ")}]`);
 });
@@ -499,7 +502,7 @@ test('"O": la erosión de la pared (wallMm=1.6) queda a ~1.6mm del contorno más
 
 test('"O": la malla completa (fondo + repisa + pared) es topológicamente correcta', () => {
   const result = createLetterGeometry(montserratBold, { ...DEFAULT_PARAMS, text: "O" });
-  const topo = analyzeMeshTopology(result.positions);
+  const topo = analyzeMeshTopology(result.body.positions);
   assert.equal(topo.degenerate, 0);
   assert.equal(topo.nonManifold, 0);
   // Fondo, repisa del núcleo y pared comparten vértices en cada frontera
@@ -526,7 +529,7 @@ test('"O": la malla completa (fondo + repisa + pared) es topológicamente correc
 for (const text of ["I", "O", "A", "B", "8"]) {
   test(`"${text}": la letra terminada es UN solo componente conectado (no varios shells)`, () => {
     const result = createLetterGeometry(montserratBold, { ...DEFAULT_PARAMS, text });
-    const components = countConnectedComponents(result.positions);
+    const components = countConnectedComponents(result.body.positions);
     assert.equal(components, 1, `"${text}": se esperaba 1 shell soldado, se encontraron ${components}`);
   });
 }
@@ -569,10 +572,10 @@ test('"LOOCK 3D": el espacio no genera archivo, se generan 7 STL con nombres ún
   assert.equal(new Set(names).size, names.length, "los nombres deben ser únicos");
 });
 
-test("recenterMesh: cada letra individual queda centrada en XY con minZ = 0", () => {
+test("recenterMesh: el cuerpo de cada letra individual queda centrado en XY con minZ = 0", () => {
   const result = createLetterGeometry(montserratBold, { ...DEFAULT_PARAMS, text: "STAMPA" });
   for (const letter of result.letters) {
-    const recentered = recenterMesh(letter);
+    const recentered = recenterMesh(letter.body);
     const b = meshBounds(recentered.positions);
     const centerX = (b.minX + b.maxX) / 2;
     const centerY = (b.minY + b.maxY) / 2;
@@ -585,10 +588,10 @@ test("recenterMesh: cada letra individual queda centrada en XY con minZ = 0", ()
 test('recenterMesh: la "P" de STAMPA no conserva su offset X original dentro de la palabra', () => {
   const result = createLetterGeometry(montserratBold, { ...DEFAULT_PARAMS, text: "STAMPA" });
   const p = result.letters.find((l) => l.char === "P");
-  const originalBounds = meshBounds(p.positions);
+  const originalBounds = meshBounds(p.body.positions);
   assert.ok(originalBounds.minX > 50, "la P debería estar bien desplazada en X dentro de la palabra completa");
 
-  const recentered = recenterMesh(p);
+  const recentered = recenterMesh(p.body);
   const b = meshBounds(recentered.positions);
   assert.ok(Math.abs((b.minX + b.maxX) / 2) < 1e-3, "el centro X recentrado debería quedar ~0");
 });
@@ -596,13 +599,13 @@ test('recenterMesh: la "P" de STAMPA no conserva su offset X original dentro de 
 test('exportación individual: la "O" recentrada mantiene el counter libre en toda la profundidad', () => {
   const result = createLetterGeometry(montserratBold, { ...DEFAULT_PARAMS, text: "O" });
   const letter = result.letters[0];
-  const recentered = recenterMesh(letter);
+  const recentered = recenterMesh(letter.body);
 
   // Centro del counter en coordenadas originales, trasladado con el mismo
   // offset que recenterMesh le aplicó a la malla completa.
   const groups = contourGroupsFor("O");
   const [holeCx, holeCy] = polygonCentroid(groups[0].holes[0]);
-  const originalBounds = meshBounds(letter.positions);
+  const originalBounds = meshBounds(letter.body.positions);
   const shiftX = (originalBounds.minX + originalBounds.maxX) / 2;
   const shiftY = (originalBounds.minY + originalBounds.maxY) / 2;
 
@@ -610,4 +613,97 @@ test('exportación individual: la "O" recentrada mantiene el counter libre en to
     (z) => z > -EPS_Z && z < DEFAULT_PARAMS.depthMm + EPS_Z,
   );
   assert.deepEqual(hits, [], `se esperaba el counter libre tras recentrar, hay geometría en z=[${hits.join(", ")}]`);
+});
+
+// --- Stampa Maker 0.2: tapa frontal plana ---
+//
+// La tapa es una pieza SEPARADA (no soldada al cuerpo, ver
+// createLetterGeometry.ts sección "Tapa frontal"): usa exactamente la
+// silueta del fondo (exterior menos huecos originales del glifo, nunca un
+// disco) extruida de z=depthMm a z=depthMm+lidMm. El cuerpo no cambia
+// cuando se activa la tapa.
+
+const LID_PARAMS = { ...DEFAULT_PARAMS, frontType: "lid", lidMm: 1.2 };
+
+test('frontType "open": result.lid y letters[].lid son null', () => {
+  const result = createLetterGeometry(montserratBold, { ...DEFAULT_PARAMS, text: "O" });
+  assert.equal(result.lid, null);
+  assert.equal(result.letters[0].lid, null);
+});
+
+for (const text of ["A", "O", "B", "8"]) {
+  test(`tapa frontal "${text}": mesh válido, manifold/watertight y sin tapar el counter`, () => {
+    const result = createLetterGeometry(montserratBold, { ...LID_PARAMS, text });
+    const letter = result.letters[0];
+    assert.ok(letter.lid, `"${text}": se esperaba una tapa`);
+    assertValidMesh(letter.lid, `${text}.lid`);
+
+    const topo = analyzeMeshTopology(letter.lid.positions);
+    assert.equal(topo.degenerate, 0, `${text}.lid: triángulos degenerados`);
+    assert.equal(topo.nonManifold, 0, `${text}.lid: aristas no-manifold`);
+    assert.equal(topo.boundaryEdges, 0, `${text}.lid: no se esperaban bordes abiertos (tapa sólida y cerrada)`);
+
+    // El counter debe seguir libre en la tapa: NO puede convertirse en un disco.
+    const groups = contourGroupsFor(text);
+    for (const hole of groups[0].holes) {
+      const [hx, hy] = polygonCentroid(hole);
+      const hits = raycastZHits(letter.lid.positions, hx, hy);
+      assert.deepEqual(hits, [], `${text}.lid: se esperaba el counter libre en la tapa, hay geometría en z=[${hits.join(", ")}]`);
+    }
+  });
+}
+
+test('tapa frontal "O": ocupa exactamente z = [depthMm, depthMm + lidMm]', () => {
+  const result = createLetterGeometry(montserratBold, { ...LID_PARAMS, text: "O" });
+  const b = meshBounds(result.letters[0].lid.positions);
+  assert.ok(Math.abs(b.minZ - LID_PARAMS.depthMm) < 1e-6, `minZ debería ser depthMm (${LID_PARAMS.depthMm}), fue ${b.minZ}`);
+  assert.ok(
+    Math.abs(b.maxZ - (LID_PARAMS.depthMm + LID_PARAMS.lidMm)) < 1e-6,
+    `maxZ debería ser depthMm+lidMm (${LID_PARAMS.depthMm + LID_PARAMS.lidMm}), fue ${b.maxZ}`,
+  );
+});
+
+test('tapa frontal "O": el cuerpo no cambia respecto al frente abierto (misma profundidad, misma malla)', () => {
+  const openResult = createLetterGeometry(montserratBold, { ...DEFAULT_PARAMS, text: "O" });
+  const lidResult = createLetterGeometry(montserratBold, { ...LID_PARAMS, text: "O" });
+  assert.deepEqual(Array.from(lidResult.letters[0].body.positions), Array.from(openResult.letters[0].body.positions));
+});
+
+test('"STAMPA" con tapa frontal: cada letra exporta cuerpo+tapa (12 STL en el ZIP, nombres correctos)', async () => {
+  const result = createLetterGeometry(montserratBold, { ...LID_PARAMS, text: "STAMPA" });
+  const blob = await buildLettersZipBlob(result.letters);
+  const zip = await JSZipLib.loadAsync(await blob.arrayBuffer());
+  const names = Object.keys(zip.files).sort();
+  assert.deepEqual(names, [
+    "01_S_cuerpo.stl", "01_S_tapa.stl",
+    "02_T_cuerpo.stl", "02_T_tapa.stl",
+    "03_A_cuerpo.stl", "03_A_tapa.stl",
+    "04_M_cuerpo.stl", "04_M_tapa.stl",
+    "05_P_cuerpo.stl", "05_P_tapa.stl",
+    "06_A_cuerpo.stl", "06_A_tapa.stl",
+  ]);
+});
+
+test('palabra completa con tapa frontal: ZIP con <nombre>_cuerpo.stl + <nombre>_tapa.stl', async () => {
+  const result = createLetterGeometry(montserratBold, { ...LID_PARAMS, text: "STAMPA" });
+  const blob = await buildWordZipBlob(result, "stampa");
+  const zip = await JSZipLib.loadAsync(await blob.arrayBuffer());
+  const names = Object.keys(zip.files).sort();
+  assert.deepEqual(names, ["stampa_cuerpo.stl", "stampa_tapa.stl"]);
+});
+
+test("validateLetterSignParams: espesor de tapa fuera de rango (0.4-10mm) cuando frontType es lid", () => {
+  const tooThin = validateLetterSignParams({ ...LID_PARAMS, text: "O", lidMm: 0.1 });
+  assert.ok(tooThin.some((e) => e.field === "lidMm"));
+
+  const tooThick = validateLetterSignParams({ ...LID_PARAMS, text: "O", lidMm: 15 });
+  assert.ok(tooThick.some((e) => e.field === "lidMm"));
+
+  const valid = validateLetterSignParams({ ...LID_PARAMS, text: "O", lidMm: 1.2 });
+  assert.ok(!valid.some((e) => e.field === "lidMm"));
+});
+
+test("validateLetterSignParams: lidMm fuera de rango no genera error si frontType es open", () => {
+  const errors = validateLetterSignParams({ ...DEFAULT_PARAMS, text: "O", lidMm: 999 });
+  assert.ok(!errors.some((e) => e.field === "lidMm"));
 });

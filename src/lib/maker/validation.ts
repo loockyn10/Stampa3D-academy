@@ -33,5 +33,9 @@ export function validateLetterSignParams(params: LetterSignParams): FieldError[]
     errors.push({ field: "baseMm", message: "El fondo debe ser menor que la profundidad total." });
   }
 
+  if (params.frontType === "lid" && !(params.lidMm >= 0.4 && params.lidMm <= 10)) {
+    errors.push({ field: "lidMm", message: "El espesor de tapa debe estar entre 0.4 y 10 mm." });
+  }
+
   return errors;
 }
