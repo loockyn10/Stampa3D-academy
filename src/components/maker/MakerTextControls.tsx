@@ -15,6 +15,8 @@ interface MakerTextControlsProps {
   params: LetterSignParams;
   onChange: (patch: Partial<LetterSignParams>) => void;
   fieldErrors: FieldError[];
+  /** Errores geométricos (p.ej. LIP_COLLAPSED): el diseño no está listo para exportar mientras existan. */
+  geometryErrors: LetterGeometryWarning[];
   warnings: LetterGeometryWarning[];
   error: string | null;
   loading: boolean;
@@ -151,6 +153,7 @@ export function MakerTextControls({
   params,
   onChange,
   fieldErrors,
+  geometryErrors,
   warnings,
   error,
   loading,
@@ -271,9 +274,21 @@ export function MakerTextControls({
         </div>
       )}
 
-      {warnings.map((warning) => (
+      {geometryErrors.length > 0 && (
+        <div className="flex flex-col gap-2 rounded-xl border border-red-500/30 bg-red-500/10 p-3 text-xs text-red-300">
+          <span className="font-semibold uppercase tracking-wide text-red-200">Diseño no listo para exportar</span>
+          {geometryErrors.map((err, i) => (
+            <div key={`${err.code}-${i}`} className="flex items-start gap-2">
+              <AlertTriangle size={15} className="mt-0.5 shrink-0" />
+              <span>{err.message}</span>
+            </div>
+          ))}
+        </div>
+      )}
+
+      {warnings.map((warning, i) => (
         <div
-          key={warning.code}
+          key={`${warning.code}-${i}`}
           className="flex items-start gap-2 rounded-xl border border-amber-500/30 bg-amber-500/10 p-3 text-xs text-amber-300"
         >
           <AlertTriangle size={15} className="mt-0.5 shrink-0" />

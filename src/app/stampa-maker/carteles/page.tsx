@@ -58,7 +58,7 @@ export default function StampaMakerCartelesPage() {
     if (!geometry || geometry.letters.length === 0) return;
     setLettersZipLoading(true);
     try {
-      await downloadLettersZip(geometry.letters, `${baseFileName}_letras`);
+      await downloadLettersZip(geometry, `${baseFileName}_letras`);
     } catch (err) {
       toast.error(err instanceof Error ? err.message : "No se pudo exportar el ZIP de letras.");
     } finally {
@@ -66,7 +66,8 @@ export default function StampaMakerCartelesPage() {
     }
   }, [geometry, baseFileName, toast]);
 
-  const canDownload = !loading && !error && fieldErrors.length === 0 && !!geometry && geometry.triangleCount > 0;
+  const canDownload =
+    !loading && !error && fieldErrors.length === 0 && !!geometry && geometry.triangleCount > 0 && geometry.errors.length === 0;
 
   return (
     <div className="flex flex-col gap-5">
@@ -82,6 +83,7 @@ export default function StampaMakerCartelesPage() {
           params={params}
           onChange={handleChange}
           fieldErrors={fieldErrors}
+          geometryErrors={geometry?.errors ?? []}
           warnings={geometry?.warnings ?? []}
           error={error}
           loading={loading || wordDownloading}

@@ -106,6 +106,16 @@ export interface LetterGeometryResult {
   triangleCount: number;
   /** Caja delimitadora aproximada del modelo, en mm. */
   boundingBox: { width: number; height: number; depth: number };
+  /**
+   * Errores geométricos: el modelo generado NO debería exportarse mientras
+   * `errors.length > 0` (p.ej. LIP_COLLAPSED — el labio del encastre
+   * desapareció en alguna letra). El preview puede seguir mostrándose para
+   * que el usuario entienda qué ajustar; los exportadores (exportWord,
+   * exportLettersZip) rechazan exportar mientras existan. Distinto de
+   * `warnings`: un warning no bloquea la exportación (p.ej.
+   * INSERT_DEPTH_CLAMPED, WALL_TOO_THICK), un error sí.
+   */
+  errors: LetterGeometryWarning[];
   warnings: LetterGeometryWarning[];
   /**
    * Geometría de cada carácter por separado (misma fuente de verdad que

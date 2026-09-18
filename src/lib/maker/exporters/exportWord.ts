@@ -9,6 +9,9 @@ import { buildSTLBlob, downloadBlob } from "@/lib/maker/exporters/exportSTL";
  * descarga: función pura, para poder testearla sin DOM.
  */
 export async function buildWordZipBlob(result: LetterGeometryResult, baseName: string): Promise<Blob> {
+  if (result.errors.length > 0) {
+    throw new Error(result.errors[0].message);
+  }
   if (!result.lid) {
     throw new Error("buildWordZipBlob requiere que result.lid exista (frontType === \"lid\").");
   }
@@ -29,6 +32,9 @@ export async function buildWordZipBlob(result: LetterGeometryResult, baseName: s
 export async function exportWord(result: LetterGeometryResult, baseName: string): Promise<void> {
   if (result.triangleCount === 0) {
     throw new Error("No hay geometría para exportar.");
+  }
+  if (result.errors.length > 0) {
+    throw new Error(result.errors[0].message);
   }
 
   if (!result.lid) {

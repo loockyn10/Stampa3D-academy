@@ -571,7 +571,7 @@ test('"STAMPA": genera 6 letras exportables y un ZIP con 6 STL nombrados correct
   const result = createLetterGeometry(montserratBold, { ...DEFAULT_PARAMS, text: "STAMPA" });
   assert.equal(result.letters.length, 6);
 
-  const blob = await buildLettersZipBlob(result.letters);
+  const blob = await buildLettersZipBlob(result);
   const zip = await JSZipLib.loadAsync(await blob.arrayBuffer());
   const names = Object.keys(zip.files).sort();
   assert.deepEqual(names, ["01_S.stl", "02_T.stl", "03_A.stl", "04_M.stl", "05_P.stl", "06_A.stl"]);
@@ -582,7 +582,7 @@ test('"LOOCK 3D": el espacio no genera archivo, se generan 7 STL con nombres ún
   assert.equal(result.letters.length, 7);
   assert.deepEqual(result.letters.map((l) => l.char), ["L", "O", "O", "C", "K", "3", "D"]);
 
-  const blob = await buildLettersZipBlob(result.letters);
+  const blob = await buildLettersZipBlob(result);
   const zip = await JSZipLib.loadAsync(await blob.arrayBuffer());
   const names = Object.keys(zip.files).sort();
   assert.deepEqual(names, ["01_L.stl", "02_O.stl", "03_O.stl", "04_C.stl", "05_K.stl", "06_3.stl", "07_D.stl"]);
@@ -688,7 +688,7 @@ test('tapa frontal "O": el cuerpo no cambia respecto al frente abierto (misma pr
 
 test('"STAMPA" con tapa frontal: cada letra exporta cuerpo+tapa (12 STL en el ZIP, nombres correctos)', async () => {
   const result = createLetterGeometry(montserratBold, { ...LID_PARAMS, text: "STAMPA" });
-  const blob = await buildLettersZipBlob(result.letters);
+  const blob = await buildLettersZipBlob(result);
   const zip = await JSZipLib.loadAsync(await blob.arrayBuffer());
   const names = Object.keys(zip.files).sort();
   assert.deepEqual(names, [
@@ -832,7 +832,7 @@ test('tapa encastrable "O": mayor clearance da un labio más chico (0.10mm vs 0.
 // el labio nunca se exporta como archivo aparte, es parte de la tapa.
 test('"STAMPA" con tapa encastrable: 12 STL en el ZIP (cuerpo+tapa por letra, no un tercer archivo de labio)', async () => {
   const result = createLetterGeometry(montserratBold, { ...LIP_PARAMS, text: "STAMPA" });
-  const blob = await buildLettersZipBlob(result.letters);
+  const blob = await buildLettersZipBlob(result);
   const zip = await JSZipLib.loadAsync(await blob.arrayBuffer());
   const names = Object.keys(zip.files).sort();
   assert.equal(names.length, 12, "se esperaban 12 STL (6 cuerpos + 6 tapas), nunca 18");
@@ -854,9 +854,16 @@ test('"LOOCK 3D" con tapa encastrable: el espacio no genera ninguna pieza (7 let
 });
 
 // --- Sección 12 del spec de 0.3: casos donde el labio es imposible ---
+//
+// Hardening (contexto nuevo): LIP_COLLAPSED pasó de warning a ERROR
+// (result.errors, no result.warnings) — una tapa pedida como "encastrable"
+// no puede exportarse en silencio sin encastre funcional. El preview sigue
+// mostrando la degradación a placa plana (buildLid.ts) para que el
+// usuario entienda qué pasa, pero ningún camino de exportación debe
+// aceptar el resultado mientras `errors` no esté vacío.
 
-test("tapa encastrable: holgura/pared excesivas para el trazo generan advertencia LIP_COLLAPSED, sin geometría corrupta", () => {
-  const result = createLetterGeometry(montserratBold, {
+function collapsedLipResult() {
+  return createLetterGeometry(montserratBold, {
     ...LIP_PARAMS,
     text: "I",
     heightMm: 5,
@@ -865,15 +872,89 @@ test("tapa encastrable: holgura/pared excesivas para el trazo generan advertenci
     baseMm: 1,
     clearanceMm: 2,
   });
+}
+
+// 2. LIP_COLLAPSED aparece como error, no warning.
+test("tapa encastrable: holgura/pared excesivas para el trazo marcan el resultado como ERROR (no warning), sin geometría corrupta", () => {
+  const result = collapsedLipResult();
   assertValidMesh(result.letters[0].lid, "I-encastre-colapsado.lid");
-  assert.ok(result.warnings.some((w) => w.code === "LIP_COLLAPSED"));
+  assert.ok(result.errors.some((e) => e.code === "LIP_COLLAPSED"), "se esperaba LIP_COLLAPSED en errors");
+  assert.ok(!result.warnings.some((w) => w.code === "LIP_COLLAPSED"), "LIP_COLLAPSED no debería aparecer en warnings");
+  assert.ok(/letra "I"/.test(result.errors[0].message), "el mensaje debería identificar la letra afectada");
 });
 
-test("tapa encastrable: insertDepthMm mayor a la cavidad disponible se ajusta automáticamente (INSERT_DEPTH_CLAMPED)", () => {
+// 1. LIP_COLLAPSED bloquea exportación (todos los caminos: palabra completa y letras individuales).
+test("tapa encastrable con LIP_COLLAPSED: ningún camino de exportación acepta el resultado", async () => {
+  const result = collapsedLipResult();
+  await assert.rejects(() => buildLettersZipBlob(result), /letra "I"/);
+  await assert.rejects(() => buildWordZipBlob(result, "stampa"), /letra "I"/);
+});
+
+// 3. Frente abierto no se ve afectado por esta validación.
+test("regresión hardening: frente abierto nunca tiene errors, aunque el trazo sea extremo", () => {
+  const result = createLetterGeometry(montserratBold, {
+    ...DEFAULT_PARAMS,
+    text: "I",
+    heightMm: 5,
+    depthMm: 10,
+    wallMm: 20,
+    baseMm: 1,
+  });
+  assert.deepEqual(result.errors, []);
+});
+
+// 4. Tapa plana (lidJoint "glue") no se ve afectada: nunca calcula labio, nunca puede colapsar.
+test('regresión hardening: tapa plana ("O") nunca tiene errors', () => {
+  const result = createLetterGeometry(montserratBold, { ...LID_PARAMS, text: "O" });
+  assert.deepEqual(result.errors, []);
+});
+
+// 5. Tapa encastrable válida sigue exportando normalmente (sin errors, sin bloqueo).
+test('tapa encastrable "O" con parámetros por defecto: sin errors, exporta normalmente', async () => {
+  const result = createLetterGeometry(montserratBold, { ...LIP_PARAMS, text: "O" });
+  assert.deepEqual(result.errors, []);
+  const zip = await buildLettersZipBlob(result);
+  assert.ok(zip.size > 0);
+  const wordZip = await buildWordZipBlob(result, "o");
+  assert.ok(wordZip.size > 0);
+});
+
+// 6. Multi-letra: una sola letra inválida invalida la exportación del conjunto (no se exporta
+// "como si fuera completamente válido"), y se identifica cuál. No se exporta parcialmente:
+// una lista simple de letras afectadas alcanza, sin un selector complejo de errores.
+test('"STAMPA" con tapa encastrable: si una sola letra colapsa (la "S"), se identifica y se bloquea la exportación del conjunto', async () => {
+  const params = { ...LIP_PARAMS, text: "STAMPA", heightMm: 25, wallMm: 2.8, clearanceMm: 0.3 };
+  const result = createLetterGeometry(montserratBold, params);
+
+  assert.equal(result.errors.length, 1, `se esperaba que solo la "S" colapsara, errors=${JSON.stringify(result.errors)}`);
+  assert.ok(/letra "S" \(posición 1\)/.test(result.errors[0].message));
+  // El resto de las letras (T, A, M, P, A) generaron su labio sin problema:
+  // el error es específico de la "S", no un colapso global del texto.
+  assert.equal(result.letters.length, 6);
+
+  await assert.rejects(() => buildLettersZipBlob(result), /letra "S"/);
+  await assert.rejects(() => buildWordZipBlob(result, "stampa"), /letra "S"/);
+});
+
+// 7 y 8. INSERT_DEPTH_CLAMPED sigue siendo un warning no bloqueante, e informa
+// la profundidad solicitada y la efectiva.
+test("tapa encastrable: insertDepthMm mayor a la cavidad disponible se ajusta automáticamente (INSERT_DEPTH_CLAMPED), sin bloquear la exportación", async () => {
   const result = createLetterGeometry(montserratBold, { ...LIP_PARAMS, text: "O", depthMm: 5, baseMm: 1, insertDepthMm: 20 });
   assert.ok(result.warnings.some((w) => w.code === "INSERT_DEPTH_CLAMPED"));
+  assert.ok(!result.errors.some((e) => e.code === "INSERT_DEPTH_CLAMPED"), "INSERT_DEPTH_CLAMPED debe ser warning, no error");
+  assert.deepEqual(result.errors, [], "un ajuste automático de profundidad no debería bloquear la exportación");
+
   const b = meshBounds(result.letters[0].lid.positions);
   assert.ok(b.minZ >= 1 - 1e-6, `el labio no debería invadir la base maciza (minZ=${b.minZ}, baseMm=1)`);
+
+  // 7. Sigue permitiendo exportar (warning no bloqueante).
+  const zip = await buildLettersZipBlob(result);
+  assert.ok(zip.size > 0);
+
+  // 8. El mensaje informa el valor solicitado (20mm) y el efectivo (depthMm-baseMm=4mm).
+  const message = result.warnings.find((w) => w.code === "INSERT_DEPTH_CLAMPED").message;
+  assert.ok(message.includes("20"), `el mensaje debería mencionar la profundidad solicitada (20mm): "${message}"`);
+  assert.ok(message.includes("4"), `el mensaje debería mencionar la profundidad efectiva (4mm): "${message}"`);
 });
 
 test("validateLetterSignParams: profundidad de encastre y holgura fuera de rango cuando lidJoint es interior-lip", () => {

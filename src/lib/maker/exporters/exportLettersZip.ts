@@ -1,5 +1,5 @@
 import JSZip from "jszip";
-import type { LetterPieceResult, TriangleSoupData } from "@/lib/maker/types";
+import type { LetterGeometryResult, LetterPieceResult, TriangleSoupData } from "@/lib/maker/types";
 import { buildSTLBlob, downloadBlob } from "@/lib/maker/exporters/exportSTL";
 
 /**
@@ -14,6 +14,11 @@ import { buildSTLBlob, downloadBlob } from "@/lib/maker/exporters/exportSTL";
  * independientes para imprimir por separado, así que cada una debe apoyar
  * en Z=0 y quedar centrada en XY por su cuenta (no una respecto de la
  * otra).
+ *
+ * Toma el `LetterGeometryResult` completo (no solo `letters[]`) para poder
+ * rechazar la exportación cuando `result.errors` no está vacío (p.ej.
+ * LIP_COLLAPSED en alguna letra): es la misma fuente de verdad que usa
+ * exportWord.ts, no una ruta alternativa que ignore el error.
  */
 
 /**
@@ -56,9 +61,12 @@ function letterBaseName(piece: LetterPieceResult): string {
 }
 
 /** Arma el ZIP en memoria (sin descargar): 1 o 2 entradas .stl por letra, recentradas. */
-export async function buildLettersZipBlob(letters: LetterPieceResult[]): Promise<Blob> {
+export async function buildLettersZipBlob(result: LetterGeometryResult): Promise<Blob> {
+  if (result.errors.length > 0) {
+    throw new Error(result.errors[0].message);
+  }
   const zip = new JSZip();
-  for (const letter of letters) {
+  for (const letter of result.letters) {
     const baseName = letterBaseName(letter);
     if (letter.lid) {
       zip.file(`${baseName}_cuerpo.stl`, buildSTLBlob(recenterMesh(letter.body)));
@@ -71,10 +79,10 @@ export async function buildLettersZipBlob(letters: LetterPieceResult[]): Promise
 }
 
 /** Arma el ZIP y dispara la descarga en el navegador. */
-export async function downloadLettersZip(letters: LetterPieceResult[], zipFileName: string): Promise<void> {
-  if (letters.length === 0) {
+export async function downloadLettersZip(result: LetterGeometryResult, zipFileName: string): Promise<void> {
+  if (result.letters.length === 0) {
     throw new Error("No hay letras para exportar.");
   }
-  const blob = await buildLettersZipBlob(letters);
+  const blob = await buildLettersZipBlob(result);
   downloadBlob(blob, zipFileName.endsWith(".zip") ? zipFileName : `${zipFileName}.zip`);
 }

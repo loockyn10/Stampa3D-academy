@@ -28,6 +28,7 @@ import { buildLid } from "@/lib/maker/geometry/lid";
  */
 export function createLetterGeometry(font: opentype.Font, params: LetterSignParams): LetterGeometryResult {
   const warnings: LetterGeometryWarning[] = [];
+  const errors: LetterGeometryWarning[] = [];
 
   if (!params.text || params.text.trim().length === 0) {
     warnings.push({ code: "EMPTY_TEXT", message: "Escribí un texto para generar el modelo." });
@@ -39,7 +40,7 @@ export function createLetterGeometry(font: opentype.Font, params: LetterSignPara
   const letters: LetterPieceResult[] = [];
   const allRawContours: Point2D[][] = [];
   let anyFullyEroded = false;
-  let anyLipCollapsed = false;
+  const collapsedLipLetters: { char: string; index: number }[] = [];
 
   // La profundidad de encastre no puede exceder la cavidad real disponible
   // (depthMm - baseMm: por debajo de baseMm el cuerpo es la base maciza,
@@ -61,12 +62,13 @@ export function createLetterGeometry(font: opentype.Font, params: LetterSignPara
     const piece = buildLetterSolid(contourGroups, params);
     if (piece.fullyEroded) anyFullyEroded = true;
 
+    const index = letters.length + 1;
     const lidResult = buildLid(contourGroups, params, insertDepthUsedMm);
-    if (lidResult.lipCollapsed) anyLipCollapsed = true;
+    if (lidResult.lipCollapsed) collapsedLipLetters.push({ char, index });
 
     letters.push({
       char,
-      index: letters.length + 1,
+      index,
       body: toTriangleSoupData(piece.body),
       lid: lidResult.lid ? toTriangleSoupData(lidResult.lid) : null,
     });
@@ -84,17 +86,24 @@ export function createLetterGeometry(font: opentype.Font, params: LetterSignPara
     });
   }
 
-  if (anyLipCollapsed) {
-    warnings.push({
+  // LIP_COLLAPSED es un ERROR, no un warning: una tapa pedida como
+  // "encastrable" no puede exportarse en silencio sin encastre funcional
+  // (ver LetterGeometryResult.errors). El preview sigue mostrando la
+  // degradación a placa plana en esa letra (buildLid ya la genera así)
+  // para que el usuario entienda qué ocurre, pero el resultado queda
+  // marcado como inválido para exportar. Un mensaje por letra afectada:
+  // alcanza con una lista simple, no hace falta un selector de errores.
+  for (const { char, index } of collapsedLipLetters) {
+    errors.push({
       code: "LIP_COLLAPSED",
-      message: "El encastre no pudo generarse en algunas zonas con estos parámetros. Reducí la holgura o utilizá una fuente más gruesa.",
+      message: `El encastre no puede generarse en la letra "${char}" (posición ${index}): el labio desaparece con estos parámetros. Reducí la holgura, reducí el espesor de pared, aumentá el tamaño o utilizá una fuente más gruesa.`,
     });
   }
 
   if (insertDepthClamped) {
     warnings.push({
       code: "INSERT_DEPTH_CLAMPED",
-      message: "La profundidad de encastre se ajustó automáticamente para no exceder la cavidad disponible.",
+      message: `Profundidad de encastre ajustada de ${formatMm(params.insertDepthMm)} mm a ${formatMm(insertDepthUsedMm)} mm porque el cuerpo no dispone de más espacio útil.`,
     });
   }
 
@@ -106,9 +115,14 @@ export function createLetterGeometry(font: opentype.Font, params: LetterSignPara
     lid,
     triangleCount: body.triangleCount + (lid?.triangleCount ?? 0),
     boundingBox: computeBoundingBox(allRawContours, params.depthMm + (params.frontType === "lid" ? params.lidMm : 0)),
+    errors,
     warnings,
     letters,
   };
+}
+
+function formatMm(value: number): string {
+  return (Math.round(value * 10) / 10).toString();
 }
 
 /**
@@ -231,6 +245,7 @@ function emptyResult(warnings: LetterGeometryWarning[]): LetterGeometryResult {
     lid: null,
     triangleCount: 0,
     boundingBox: { width: 0, height: 0, depth: 0 },
+    errors: [],
     warnings,
     letters: [],
   };

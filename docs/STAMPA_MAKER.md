@@ -5,6 +5,10 @@
 > letras individuales soldadas como un único sólido por letra (sección 9).
 > 0.2 (2026-09-17): segundo modo de frente — tapa frontal plana como pieza
 > separada del cuerpo (sección 11).
+> 0.3 (2026-09-17): tercer modo de frente — tapa encastrable con labio
+> interior (sección 12), y hardening de errores/warnings geométricos: una
+> tapa encastrable sin encastre funcional (`LIP_COLLAPSED`) bloquea la
+> exportación en vez de degradarse en silencio (sección 12.3).
 
 ## 1. Qué es
 
@@ -445,3 +449,118 @@ que no salte al cambiar de vista.
 triangleCount}`). `geometry.triangleCount` (top-level) sigue existiendo
 como `body.triangleCount + (lid?.triangleCount ?? 0)`, para los checks
 rápidos de "¿hay algo para exportar?" que ya usaba la UI.
+
+## 12. Tapa encastrable con labio interior (0.3)
+
+Tercer modo de frente en `/stampa-maker/carteles`: **Tapa encastrable**,
+además de Frente abierto (0.1) y Tapa frontal (0.2, sin cambios). La tapa
+pasa a tener una placa frontal + un labio que entra en la cavidad del
+cuerpo con holgura, soldados en una sola pieza (sin booleana 3D).
+
+### Arquitectura: cuerpo / tapa / sistema de unión, tres conceptos separados
+
+`FrontType` (`"open" | "lid"`) no creció: sigue diciendo solo si hay tapa.
+Se agregó `LidJoint = "glue" | "interior-lip"`, independiente, que dice
+*cómo* se une la tapa al cuerpo cuando `frontType === "lid"`. "Tapa plana"
+de 0.2 es `lidJoint: "glue"` (código sin tocar); la nueva es
+`lidJoint: "interior-lip"`. Un futuro sistema de unión (clips, imanes,
+tornillos) sería un valor más de `LidJoint`, no una nueva rama de
+`frontType` ni un enum combinado cuerpo×tapa×encastre desparramado por la
+app.
+
+Módulos nuevos:
+
+- `src/lib/maker/geometry/joints/interiorLip.ts` — el "sistema de
+  encastre": `fitInteriorLip()` deriva la huella 2D del labio a partir de
+  la MISMA cavidad que ya delimita el cuerpo (núcleo erosionado por
+  `wallMm`, la pared interior real — no un cuerpo especial) más un inset
+  adicional por `clearanceMm`. No sabe nada de Z ni de extrusión.
+- `src/lib/maker/geometry/lid.ts` — el concepto "tapa": arma la
+  `ExtrudedMeshData` de la tapa de un carácter. Contiene el único
+  `if`/switch sobre `lidJoint` de todo el pipeline (placa plana vs.
+  placa+labio), en un solo lugar.
+
+`createLetterGeometry.ts` (`buildLetterSolid`) genera el cuerpo exactamente
+igual para los 3 modos de frente — no hay un cuerpo especial para el
+encastre.
+
+### Convención de holgura: por lado, sin dividir por dos
+
+`clearanceMm` se pasa directo como `insetMm` a `insetContourGroups`: cada
+borde del labio queda erosionado esa distancia exacta desde la cavidad. Un
+`clearanceMm = 0.20` da ~0.20 mm de separación física en cada lado, no
+0.10 mm total.
+
+### Posición Z
+
+Con `depthMm`, `insertDepthMm` (profundidad de encastre, 0.5–20 mm,
+default 3 mm) y `lidMm` (espesor de placa, igual que en 0.2):
+
+```
+body:   0 -> depthMm                              (sin cambios)
+labio:  depthMm - insertDepthEfectivo -> depthMm
+placa:  depthMm -> depthMm + lidMm
+```
+
+`insertDepthEfectivo` es `insertDepthMm` acotado a `[0, depthMm - baseMm]`
+(la cavidad real disponible: por debajo de `baseMm` el cuerpo es la base
+maciza). Si se acota, se informa con el warning `INSERT_DEPTH_CLAMPED`
+(sección 12.3).
+
+### Placa + labio: una sola pieza soldada, sin booleana 3D
+
+Mismo mecanismo que ya suelda fondo/repisa/pared del cuerpo (grilla
+compartida 0.0001 mm + jitter determinístico en `extrudePolygon.ts`), con
+4 piezas por letra: paredes+tapa superior de la placa (silueta completa,
+sin tapar la cara inferior), repisa de la placa (tapa la cara inferior
+SOLO donde no hay labio, mirando hacia -Z), paredes del labio (sin tapa en
+ninguno de los dos extremos) y tapa de la punta del labio (mirando hacia
+-Z). Comparten coordenadas exactas en cada frontera → 1 solo componente
+conectado, verificado con `countConnectedComponents` (igual que el
+cuerpo). Los counters (huecos originales del glifo) quedan libres tanto en
+la placa como en el labio: ninguna pieza los tapa.
+
+### 12.1 Cuando el labio es imposible: colapso, no geometría corrupta
+
+Si `wallMm` + `clearanceMm` erosionan un contorno por completo (trazo muy
+fino, holgura excesiva, letra muy chica), `fitInteriorLip()` devuelve
+`collapsed: true` para ESE contorno. `lid.ts` no rompe: la placa queda
+maciza en esa zona (mismo resultado visual que la tapa plana), sin labio
+— pero el resultado completo queda marcado inválido para exportar (ver
+12.3), nunca exportado en silencio como si tuviera encastre funcional.
+
+### 12.2 Preview
+
+`MakerViewport.tsx` no necesitó cambios: trata `geometry.lid` como una
+malla opaca (placa+labio ya combinados en el mismo `TriangleSoupData`), y
+la vista explosionada desplaza esa malla completa como una sola tapa. El
+preview sigue mostrándose aunque el resultado tenga errores geométricos
+(sección 12.3) — ayuda a entender qué ajustar.
+
+### 12.3 Errores vs. warnings (hardening, misma sesión)
+
+`LetterGeometryResult` distingue `errors` de `warnings` (mismo shape
+`LetterGeometryWarning[]`, sin sistema paralelo):
+
+- **`errors`**: el modelo generado NO debería exportarse. Hoy el único
+  caso es `LIP_COLLAPSED` — una tapa pedida como "encastrable" sin
+  encastre funcional en una o más letras. Un mensaje por letra afectada
+  (carácter + posición 1-based entre caracteres exportables, p.ej. `El
+  encastre no puede generarse en la letra "S" (posición 1)...`), no un
+  selector complejo de errores.
+- **`warnings`**: el modelo es exportable pero hubo un ajuste o situación
+  relevante (`WALL_TOO_THICK`, `INSERT_DEPTH_CLAMPED`). El mensaje de
+  `INSERT_DEPTH_CLAMPED` informa el valor solicitado y el efectivo (p.ej.
+  `Profundidad de encastre ajustada de 20 mm a 4 mm...`).
+
+Los 3 caminos de exportación (`exportWord.ts`: `exportWord()` y
+`buildWordZipBlob()`; `exportLettersZip.ts`: `buildLettersZipBlob()` y
+`downloadLettersZip()`) rechazan (`throw`) si `result.errors.length > 0` —
+misma fuente de verdad, sin ruta alternativa que ignore el error.
+`exportLettersZip.ts` pasó a recibir el `LetterGeometryResult` completo
+(antes solo `letters[]`) para poder leer `errors`. En la UI,
+`MakerTextControls.tsx` muestra los errores en un bloque distinto de los
+warnings ("Diseño no listo para exportar") y `canDownload` (`page.tsx`)
+exige `geometry.errors.length === 0` — los botones de descarga quedan
+deshabilitados mientras persista el error, sin ocultarlo ni convertir la
+tapa encastrable en tapa plana automáticamente.
