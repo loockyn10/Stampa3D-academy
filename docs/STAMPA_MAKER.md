@@ -20,6 +20,18 @@
 > difusor + patrón de círculos (14.5); frente de canal luminoso interior +
 > difusor de canal (14.6); UI contextual y exportación/preview genéricos
 > por partes (14.7); limitaciones conocidas (14.8).
+> 0.4.1 (2026-09-18): iteración CORRECTIVA de 0.4 — cuatro errores de
+> interpretación geométrica detectados al probar visualmente lo
+> implementado, sin agregar familias/patrones nuevos (sección 15). Perfil
+> de costilla: de prisma de tope plano a montículo progresivo (coseno,
+> 15.1). Tapered: dos estilos, `stepped` (sin cambios) y `smooth`
+> (resolución fina + smoothstep, 15.2). Bisel: separado en dos
+> modificadores independientes — bisel frontal suavizado + continuidad con
+> la tapa (15.3), y bisel lateral/doble bisel nuevo (`grooveEnabled`,
+> 15.4). Frente perforado: orden explosionado corregido (15.5) y máscara
+> rediseñada como carcasa con faldón lateral (`maskSideDepthMm`, 15.6).
+> Fix transversal de precisión numérica en la aproximación por sub-bandas
+> (cuantización de offset, 15.7). 199 tests Maker (162 -> 199).
 
 ## 1. Qué es
 
@@ -840,5 +852,329 @@ estática), más los 162 tests del pipeline geométrico.
   identificable solo por su rango Z o su `PartKind` — asignación de
   material multi-color queda fuera de alcance de 0.4, como en versiones
   anteriores.
+
+## 15. Stampa Maker 0.4.1 — Corrección geométrica
+
+Iteración CORRECTIVA: cuatro errores de interpretación geométrica
+detectados al probar visualmente lo implementado en 0.4 (los tests pasaban,
+pero la forma física no era la esperada). Prioridad explícita: **forma
+física correcta por sobre cantidad de tests**. No se agregaron familias de
+carteles ni patrones nuevos — misma arquitectura modular `body/front/
+patterns/parts`, mismo `SignPart[]`/export genérico, sin regresiones en
+los sistemas anteriores (cuerpo standard, labio interior, tapa plana,
+frente abierto, canal luminoso).
+
+### 15.0 Herramienta compartida: perfiles de offset por bandas
+
+Antes de las 4 correcciones puntuales, `body/shared.ts` ganó un mecanismo
+genérico que las cuatro reusan (en vez de que cada modificador reimplemente
+su propia aproximación por sub-bandas, como pasaba en 0.4):
+
+- `subdivideRange(z0, z1, resolutionMm, minSteps, maxSteps)`: sub-bandas de
+  altura objetivo `resolutionMm` (referencia 0.2mm en todos los usos de
+  0.4.1), acotadas por un piso/techo de pasos para no explotar en rangos
+  grandes.
+- `footprintAtOffset(group, offsetMm)`: footprint de `group` desplazado
+  `offsetMm` con signo — positivo dilata (`outsetContourGroups`), negativo
+  erosiona (`insetContourGroups`) — unifica ambos detrás de una sola firma.
+- `buildOffsetProfileWallPieces(group, zPoints, offsetAt)`: aproxima una
+  pared cuyo footprint sigue un perfil de offset arbitrario en Z. Cada
+  sub-banda se extruye con sección constante = el footprint del extremo MÁS
+  ANCHO del par; el extremo angosto se resuelve con un escalón horizontal
+  (mismo patrón de soldadura por coordenadas compartidas que ya usaba el
+  tapered/bisel de 0.4, generalizado).
+- `buildBandedOuterWallPieces(group, z0, z1, bands: ZBand[])`: combina
+  varias bandas de modificador (costillas + bisel frontal + bisel lateral)
+  en una sola pasada, sin que compitan por el mismo tramo de Z — reemplaza
+  las dos llamadas separadas que `body/standard.ts` hacía en 0.4.
+- `raisedCosineProfile(t, peakMm)`: perfil "montículo" (media onda coseno,
+  0 en t=0, `peakMm` en t=0.5, 0 en t=1) — usado por costillas (peak
+  positivo) y bisel lateral (peak negativo).
+- `smoothstepRampProfile(t, endMm)`: perfil "rampa suave" (smoothstep,
+  3t²-2t³) con pendiente 0 en ambos extremos — usado por tapered suave y
+  bisel frontal suave.
+
+**Bug encontrado al implementar el tapered suave, corregido acá:** en los
+tramos CHATOS de un perfil suave (los extremos de un smoothstep, pendiente
+~0), muchos z-samples consecutivos piden un offset casi, pero no
+exactamente, igual (diferencias de centésimas de mm). Sin cuantizar, cada
+uno disparaba su propio cálculo de Clipper y el escalón entre ambos
+(`differenceContourGroups`) podía terminar siendo un anillo válido pero
+extremadamente fino, que earcut no siempre trianguló de forma manifold en
+letras con trazos próximos entre sí (reproducido con "B" tapered suave:
+153 aristas abiertas). Fix: `buildOffsetProfileWallPieces` cuantiza el
+offset a 0.01mm antes de pedir su footprint (con cache), así que
+z-samples casi-iguales piden EXACTAMENTE el mismo offset → el mismo
+footprint cacheado → un escalón EXACTAMENTE vacío, en vez de un anillo
+casi-nulo. Beneficia a los cuatro usos (costillas, tapered suave, bisel
+frontal suave, bisel lateral) por igual.
+
+### 15.1 Costillas: de prisma a montículo progresivo
+
+**Problema (spec):** la costilla se veía como un "camino rectangular"
+extruido abruptamente desde la pared — protrusión completa de golpe al
+entrar a la banda, y de vuelta a golpe al salir.
+
+**Corrección:** perfil matemático `raisedCosineProfile` — media onda
+coseno: `protrusion(t) = ribProtrusionMm * (0.5 - 0.5*cos(2πt))`, con `t`
+normalizado a `[0,1]` dentro de la banda. En `t=0` (borde de la banda) da
+0 exacto (empalma al ras con la pared normal, sin escalón); en `t=0.5`
+(mitad de la banda) da el máximo; en `t=1` vuelve a 0. Aproximado con
+sub-bandas de `subdivideRange` (resolución 0.2mm, 8-60 pasos según el
+ancho de costilla) vía `buildOffsetProfileWallPieces`. `ribs.ts` pasó de
+exponer `buildRibbedOuterWallPieces` (construía la pared completa) a
+exponer sólo `computeRibBands` (posición, sin cambios) +
+`ribBandsToZBands` (banda → perfil), reusado por
+`body/standard.ts#buildBandedOuterWallPieces` junto con bisel/bisel
+lateral.
+
+1 costilla y 2 costillas siguen siendo montículos independientes (no se
+fusionan salvo que los parámetros sean geométricamente incompatibles, sin
+cambios). El offset sigue afectando exterior Y counters a la vez
+(`footprintAtOffset`, mismo mecanismo uniforme que 0.4).
+
+### 15.2 Tapered: dos estilos, `stepped` y `smooth`
+
+`BodyType` no cambió; se agregó `TaperStyle = "stepped" | "smooth"`
+(`params.taperStyle`, sólo se usa/valida si `bodyType === "tapered"`).
+
+- **`stepped`** (default, sin cambios de comportamiento respecto a 0.4):
+  bandas grandes (~2mm, mínimo 8), perfil LINEAL — el aspecto escalonado
+  es un estilo a propósito, no un defecto a esconder.
+- **`smooth`**: mismo destino (0 en el frente, `rearExpansionMm` en la
+  base), pero con `subdivideRange` a resolución 0.2mm (10-120 pasos —
+  acotado para no pasar de ~120 pasos incluso en cuerpos profundos, "no
+  explotar polígonos" por sobre mantener 0.2mm exacto) + perfil
+  `smoothstepRampProfile` en vez de lineal. Ambos estilos comparten la
+  misma construcción (`buildOffsetProfileWallPieces`, anclado por el
+  extremo más ancho) — sólo cambian los breakpoints y la función de
+  offset.
+
+La transición se sigue aplicando a exterior Y counters a la vez (mismo
+`footprintAtOffset` de siempre), verificado explícitamente para "smooth"
+igual que ya se verificaba para "stepped".
+
+### 15.3 Bisel frontal: suavizado + continuidad con la tapa
+
+**Problema (spec):** el bisel se percibía "demasiado segmentado" y no se
+aplicaba coherentemente a la tapa (tapa de tamaño nominal sobresaliendo de
+un cuerpo ya biselado).
+
+**Corrección — suavizado:** mismo mecanismo que el tapered suave:
+resolución fina (0.2mm, 10-150 pasos) + `smoothstepRampProfile` en vez de
+las sub-bandas de 0.5mm con interpolación LINEAL de 0.4. `bevel.ts` pasó
+de exponer `buildBeveledOuterWallPieces` a exponer `bevelBandToZBand`
+(banda → perfil), reusado junto con costillas/bisel lateral en
+`buildBandedOuterWallPieces`. `beveledFrontFootprint` (footprint del
+frente cuando hay bisel) no cambió de comportamiento — sigue siendo
+`footprintAtOffset(group, -bevelInsetMm)`, ahora también reusado por la
+tapa (ver abajo).
+
+**Corrección — continuidad con la tapa:** `geometry/lid.ts` ganó
+`bevelPlateInsetMm(params)` — 0 si no hay bisel activo o `bodyType` no es
+`"standard"` (el bisel no aplica con tapered, sin cambios); si hay bisel,
+el mismo `bevelInsetMm` que angosta el borde real del cuerpo. La tapa
+(plana **y** encastrable) usa `footprintAtOffset(group, -plateInsetMm)`
+para su propia silueta (exterior Y counters) en vez de la silueta nominal
+— así el borde de la tapa queda exactamente del mismo tamaño que el borde
+real que deja la pared biselada, sin escalón ni voladizo. Para la tapa
+encastrable, esto obligó a mover el cálculo de placa+labio a un único loop
+por contorno original (antes recibía `plateGroups` ya armado desde afuera):
+el labio se posiciona sobre la cavidad REAL (`wallMm`, ajena al bisel — el
+bisel sólo angosta la silueta visible cerca del frente, nunca la cavidad
+oculta), pero la "repisa" (huella de la placa menos el anillo del labio)
+necesita la huella de placa YA angostada del mismo contorno para no
+desalinearse.
+
+**Hardening:** si el bisel erosiona toda la placa para alguna letra
+(trazo muy fino + bisel grande), nuevo código `BEVEL_PLATE_COLLAPSED`
+(mismo patrón que `LIP_COLLAPSED`/`CHANNEL_COLLAPSED`) bloquea la
+exportación con un mensaje por letra, en vez de degradarse en silencio.
+
+### 15.4 Bisel lateral / doble bisel (nuevo modificador)
+
+Modificador SEPARADO del bisel frontal — spec: "FRONT BEVEL modifica el
+borde frontal. DOUBLE/LIGHT BEVEL genera una cintura en mitad de la
+pared", no deben confundirse. Nombre elegido: `grooveEnabled` (+
+`grooveInsetMm`, `grooveWidthMm`, `groovePositionMm`) — "groove" en vez de
+"lightBevel"/"doubleBevel" por ser el término técnico más directo para
+una cintura/canal tallado en una pared, evitando la palabra "bevel"
+repetida en dos conceptos distintos.
+
+- `grooveWidthMm`: extensión total en Z de la banda (entra + vuelve a
+  salir).
+- `groovePositionMm`: distancia desde el FRENTE (`z=depthMm`) hasta el
+  CENTRO de la banda — misma convención "medida desde el frente" que
+  `bevelDepthMm`.
+- `grooveInsetMm`: desplazamiento máximo hacia adentro, en el centro de la
+  banda.
+
+Geometría (`body/modifiers/groove.ts`): perfil `raisedCosineProfile(t,
+-grooveInsetMm)` — el MISMO montículo que las costillas, con el pico en
+signo NEGATIVO (erosiona en vez de dilatar): 0 en el borde de la banda,
+máxima erosión a mitad de banda, 0 en el otro borde — "entra
+progresivamente, alcanza el máximo, vuelve a salir", sin un modificador
+nuevo de construcción, sólo un signo distinto sobre la misma
+infraestructura de bandas.
+
+**Combinación con costillas/bisel frontal:** `body/standard.ts` computa
+las tres bandas (costillas, bisel frontal, bisel lateral) y las combina en
+una sola pasada por `buildBandedOuterWallPieces`. Las costillas ceden
+lugar tanto al bisel frontal (sin cambios de 0.4) como al bisel lateral
+(nuevo: cualquier banda de costilla que se superponga con la banda del
+bisel lateral se descarta, mismo criterio). Bisel frontal + bisel lateral,
+en cambio, NO se resuelven automáticamente si se superponen —
+`validateLetterSignParams` bloquea la combinación con un mensaje claro en
+`groovePositionMm` (el pedido explícita permite esto: "no hace falta
+permitir todas las combinaciones si inicialmente generan conflictos
+geométricos... validarla/bloquearla claramente"). Sin superposición,
+ambos activos a la vez es una combinación válida y probada.
+
+### 15.5 Frente perforado — orden explosionado corregido
+
+**Problema (spec):** el orden físico correcto, del observador hacia
+atrás, es MÁSCARA → DIFUSOR → CUERPO; la vista explosionada invertía la
+separación entre máscara y difusor.
+
+**Causa de raíz:** `createLetterGeometry.ts#PART_ORDER` listaba `"mask"`
+antes que `"diffuser"`; `MakerViewport.tsx` asignaba el salto de
+explosión (`EXPLODE_OFFSET_MM * índice`) recorriendo `geometry.parts` en
+ESE orden — el difusor (más cerca del cuerpo en la vista ensamblada)
+terminaba con un salto MENOR que la máscara (más lejos), invirtiendo su
+separación relativa en la vista explosionada.
+
+**Corrección (dos partes, ninguna toca coordenadas de exportación):**
+
+1. `PART_ORDER` pasa a `["body", "lid", "diffuser", "mask",
+   "channelDiffuser"]` — refleja el orden físico real.
+2. `MakerViewport.tsx` deja de asignar el salto por orden de recorrido:
+   ahora calcula `explodeRankRef` a partir de la posición Z REAL de cada
+   pieza (`meshMinZ`, sólo lee `positions`) — la pieza más cerca del
+   cuerpo recibe el salto más chico, la más lejana el más grande, sin
+   importar en qué orden aparezcan en `geometry.parts`. El rank se
+   calcula una vez (cuando cambia `geometry`) y se reusa tanto al crear
+   los meshes como al alternar Ensamblada/Explosionada, así no hay
+   ninguna dependencia oculta del orden del array.
+
+### 15.6 Frente perforado — máscara como carcasa con faldón lateral
+
+**Problema (spec):** la máscara era sólo una placa plana; debía funcionar
+como una carcasa que también cubre lateralmente parte del cuerpo.
+
+**Parámetros nuevos** (sólo se usan/validan si `frontType === "perforated"`):
+
+| Campo | Rol | Default | Rango |
+|---|---|---|---|
+| `maskThicknessMm` | espesor de la CARA frontal (ya existía, redocumentado) | 1mm | 0.4-5mm |
+| `maskWallThicknessMm` | espesor de la pared del faldón lateral | 1.2mm | 0.4-5mm |
+| `maskSideDepthMm` | cobertura lateral, medida desde el frente hacia atrás | 5mm | 0-depthMm |
+| `maskClearanceMm` | holgura por lado entre el faldón y la silueta real del cuerpo | 0.2mm | 0-2mm |
+
+No se reutilizó `lidJoint`: es un concepto de unión cuerpo↔tapa, no de
+carcasa↔cuerpo (spec: "NO reutilizar lidJoint de manera conceptualmente
+incorrecta").
+
+**Geometría** (`front/perforated.ts`, reescrito):
+
+```
+outerGroups  = footprintAtOffset(group, maskClearanceMm + maskWallThicknessMm)
+innerGroups  = footprintAtOffset(group, maskClearanceMm)
+skirtRingGroups = differenceContourGroups(outerGroups, innerGroups)  // SIN limpiar (ver más abajo)
+```
+
+`outerGroups` (exterior Y counters crecidos uniformemente, mismo mecanismo
+`footprintAtOffset` que costillas/tapered) es la huella de la CARA
+frontal perforada — no la silueta original: cubre exterior, concavidades
+y counters con holgura+espesor de pared, sin bounding boxes.
+`skirtRingGroups` (el faldón) es el anillo entre ambas huellas — para un
+trazo anular ("O") da naturalmente 2 bandas (una hugging el exterior, otra
+hugging el counter), mismo patrón multi-`ContourGroup` que el resto del
+pipeline (labio interior, costillas), sin lógica especial por letra: así
+el faldón cubre "perímetro exterior; concavidades; counters/interiores"
+sin distinguir casos.
+
+El faldón se extruye desde `maskZ0 - maskSideDepthUsedMm` hasta `maskZ0`
+(donde empieza la cara), **con tapa en AMBOS extremos**
+(`capStart`+`capEnd`): es un anillo (footprint con "hoyo"), no un disco,
+así que necesita su propia tapa en cada extremo para ser watertight por sí
+solo. La tapa de la cara (que cubre el disco COMPLETO de `outerGroups`,
+incluida el área que ocupa el faldón) termina coincidiendo exactamente con
+la tapa superior del faldón en `z=maskZ0`: redundante (dos superficies en
+el mismo plano) pero no rompe manifold/watertight — mismo criterio que el
+resto de las piezas del frente (cuerpo/tapa/máscara/difusor se TOCAN sin
+fusionarse a propósito). Lo que conecta cara y faldón en 1 solo componente
+son las coordenadas EXACTAMENTE compartidas del borde exterior/de cada
+counter en `z=maskZ0`.
+
+**Bug encontrado al implementar esto, corregido en `patterns/circles.ts`:**
+`punchCirclePattern` limpiaba su salida con `CleanPolygons`
+(`cleanContourGroups`) antes de 0.4.1 — inofensivo cuando la máscara era
+una pieza plana independiente ("no suelda con nada", comentario original),
+pero rompía la soldadura cara↔faldón: `CleanPolygons` puede alterar
+levemente el borde exterior/de counter (hasta `CLEAN_TOLERANCE_MM=0.005mm`),
+y ese borde es justo el que necesita coincidir EXACTO con
+`skirtRingGroups`. Reproducido con "O"/"B"/"8": 452/243/457 aristas
+abiertas. Fix: se quitó `cleanContourGroups` de `punchCirclePattern` (ya
+no limpia su salida, mismo criterio que `differenceContourGroups` en el
+resto del pipeline desde 0.3.1) — el triángulo degenerado ocasional que
+esto podía producir con muchos agujeros cercanos ya está cubierto por el
+jitter determinístico de `extrudePolygon.ts` y tolerado explícitamente en
+los tests (`MAX_BENIGN_DEGENERATE_TRIANGLES`).
+
+**Cobertura:** `maskSideDepthMm` se acota una sola vez en
+`createLetterGeometry.ts` contra `depthMm` completo (el faldón cubre el
+LATERAL del cuerpo, que existe en toda su profundidad — a diferencia de
+`insertDepthMm`/`channelDepthMm`, que se acotan contra la cavidad hueca,
+no contra la base maciza), con warning `MASK_SIDE_DEPTH_CLAMPED` si se
+pide más de lo disponible. `maskSideDepthMm ≈ depthMm` da cobertura lateral
+completa (el faldón llega hasta `z=0`); `maskSideDepthMm = 0` da el mismo
+resultado que una placa (sin faldón, sólo la cara crecida por holgura).
+
+**Patrón:** las perforaciones (`punchCirclePattern`) se aplican SÓLO a
+`outerGroups` (la cara) — el faldón nunca pasa por el patrón, a propósito.
+
+**Hardening:** si el faldón se erosiona por completo para alguna letra
+(`skirtRingGroups` con área ~0), nuevo código `MASK_SKIRT_COLLAPSED`
+(mismo patrón que `LIP_COLLAPSED`) bloquea la exportación. Como el faldón
+crece hacia AFUERA (`outset`, nunca erosiona el cuerpo), esta condición es
+prácticamente inalcanzable con los rangos válidos actuales — se mantiene
+como red de seguridad simétrica al resto de los colapsos documentados, no
+porque se haya podido reproducir con parámetros válidos.
+
+### 15.7 UI
+
+- **Tapered:** selector `Modo` (Escalonado/Suave), contextual a `bodyType
+  === "tapered"`, antes del campo de expansión de base.
+- **Bisel:** separado en dos toggles con nombres distintos — "Bisel
+  frontal" (ya no "Bisel frontal interior") y "Bisel lateral luminoso"
+  (nuevo, con Desplazamiento/Ancho/Posición).
+- **Perforado:** se agregaron "Cobertura lateral" (`maskSideDepthMm`),
+  "Espesor lateral" (`maskWallThicknessMm`) y "Holgura"
+  (`maskClearanceMm`) junto a los campos existentes.
+- Costillas: sin cambios de controles (mismos campos, geometría corregida
+  por debajo).
+
+### 15.8 Limitaciones conocidas (0.4.1)
+
+- **`MASK_SKIRT_COLLAPSED` no se pudo reproducir con parámetros dentro de
+  los rangos válidos** (ver 15.6) — el faldón crece hacia afuera, no
+  erosiona, así que prácticamente no puede desaparecer. Se mantiene el
+  código de todos modos, mismo patrón que el resto de los colapsos.
+- **Tapered sigue sin combinar con costillas ni bisel** (14.8, sin
+  cambios) — `bodyType === "tapered"` sigue ignorando `ribsCount` y
+  `bevelEnabled` en silencio. El bisel LATERAL (nuevo, 15.4) tampoco
+  aplica con `bodyType === "tapered"` (mismo criterio: `body/tapered.ts`
+  no conoce ningún modificador de 0.4/0.4.1).
+- **Bisel lateral + canal luminoso**: no evaluado/probado en esta
+  corrección (fuera del alcance de las 4 correcciones pedidas); igual que
+  el bisel frontal, `body/standard.ts` no aplica bandas de modificador al
+  cuerpo macizo del canal luminoso.
+- **Verificación manual en navegador no realizada** — mismo motivo que
+  versiones anteriores (sin credenciales Paid en este entorno). Validado
+  en su lugar: `npx tsc --noEmit` limpio, `npm run build` exitoso, 199
+  tests Maker, y la suite completa del repo (693 tests, 1 fallo
+  preexistente no relacionado en `stampy-product-stock-tools.test.mjs`,
+  falla de resolución de módulos en el harness del test, ajeno a Stampa
+  Maker).
 - **Verificación manual en navegador no realizada** (14.7) — mismo motivo
   que 0.1-0.3.1 (sin credenciales Paid en este entorno).

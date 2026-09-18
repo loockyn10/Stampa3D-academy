@@ -16,7 +16,7 @@ export interface BuildFrontPartsResult {
    * Ver createLetterGeometry.ts: un código acá se traduce en un ERROR por
    * letra, nunca en geometría corrupta silenciosa.
    */
-  collapseErrorCode: "LIP_COLLAPSED" | "CHANNEL_COLLAPSED" | null;
+  collapseErrorCode: "LIP_COLLAPSED" | "CHANNEL_COLLAPSED" | "BEVEL_PLATE_COLLAPSED" | "MASK_SKIRT_COLLAPSED" | null;
 }
 
 /**
@@ -41,6 +41,7 @@ export function buildFrontParts(
   contourGroups: ContourGroup[],
   params: LetterSignParams,
   insertDepthUsedMm: number,
+  maskSideDepthUsedMm: number,
 ): BuildFrontPartsResult {
   switch (params.frontType) {
     case "open":
@@ -50,10 +51,16 @@ export function buildFrontParts(
       const parts: SignPart[] = lidResult.lid
         ? [{ kind: "lid", filenameSuffix: "tapa", mesh: toTriangleSoupData(lidResult.lid) }]
         : [];
-      return { parts, collapseErrorCode: lidResult.lipCollapsed ? "LIP_COLLAPSED" : null };
+      // plateCollapsed (0.4.1: el bisel frontal erosionó toda la tapa) se
+      // reporta antes que lipCollapsed — sin placa no hay nada que
+      // exportar, el mensaje de labio sería confuso/redundante ahí.
+      const collapseErrorCode = lidResult.plateCollapsed ? "BEVEL_PLATE_COLLAPSED" : lidResult.lipCollapsed ? "LIP_COLLAPSED" : null;
+      return { parts, collapseErrorCode };
     }
-    case "perforated":
-      return { parts: buildPerforatedFrontParts(contourGroups, params), collapseErrorCode: null };
+    case "perforated": {
+      const perforatedResult = buildPerforatedFrontParts(contourGroups, params, maskSideDepthUsedMm);
+      return { parts: perforatedResult.parts, collapseErrorCode: perforatedResult.skirtCollapsed ? "MASK_SKIRT_COLLAPSED" : null };
+    }
     case "light-channel": {
       const allChannelGroups: ContourGroup[] = [];
       let anyCollapsed = false;

@@ -138,6 +138,11 @@ const RIBS_COUNT_OPTIONS = [
   { value: "2", label: "2 costillas" },
 ];
 
+const TAPER_STYLE_OPTIONS: { value: LetterSignParams["taperStyle"]; label: string }[] = [
+  { value: "stepped", label: "Escalonado" },
+  { value: "smooth", label: "Suave" },
+];
+
 /**
  * "Frente" es un selector de 4 vías directo sobre `frontType` (0.4: el
  * pedido separa FRENTE de ENCASTRE — ver más abajo — a diferencia de la
@@ -246,13 +251,19 @@ export function MakerTextControls({
         </label>
 
         {params.bodyType === "tapered" && (
-          <NumberField
-            label="Expansión de la base"
-            value={params.rearExpansionMm}
-            onChange={(v) => onChange({ rearExpansionMm: v })}
-            suffix="mm"
-            error={fieldError(fieldErrors, "rearExpansionMm")}
-          />
+          <>
+            <label className="block">
+              <span className="mb-1 block text-xs font-semibold text-gray-500">Modo</span>
+              <SegmentedControl options={TAPER_STYLE_OPTIONS} value={params.taperStyle} onChange={(value) => onChange({ taperStyle: value })} />
+            </label>
+            <NumberField
+              label="Expansión de la base"
+              value={params.rearExpansionMm}
+              onChange={(v) => onChange({ rearExpansionMm: v })}
+              suffix="mm"
+              error={fieldError(fieldErrors, "rearExpansionMm")}
+            />
+          </>
         )}
 
         <div className="flex flex-col gap-3">
@@ -293,7 +304,7 @@ export function MakerTextControls({
 
           <div className="flex flex-col gap-2 rounded-xl border border-white/10 bg-white/[0.03] p-3">
             <Toggle
-              label="Bisel frontal interior"
+              label="Bisel frontal"
               checked={params.bevelEnabled}
               onChange={(checked) => onChange({ bevelEnabled: checked })}
             />
@@ -312,6 +323,39 @@ export function MakerTextControls({
                   onChange={(v) => onChange({ bevelInsetMm: v })}
                   suffix="mm"
                   error={fieldError(fieldErrors, "bevelInsetMm")}
+                />
+              </div>
+            )}
+          </div>
+
+          <div className="flex flex-col gap-2 rounded-xl border border-white/10 bg-white/[0.03] p-3">
+            <Toggle
+              label="Bisel lateral luminoso"
+              checked={params.grooveEnabled}
+              onChange={(checked) => onChange({ grooveEnabled: checked })}
+            />
+            {params.grooveEnabled && (
+              <div className="grid grid-cols-2 gap-3 pt-1">
+                <NumberField
+                  label="Desplazamiento"
+                  value={params.grooveInsetMm}
+                  onChange={(v) => onChange({ grooveInsetMm: v })}
+                  suffix="mm"
+                  error={fieldError(fieldErrors, "grooveInsetMm")}
+                />
+                <NumberField
+                  label="Ancho"
+                  value={params.grooveWidthMm}
+                  onChange={(v) => onChange({ grooveWidthMm: v })}
+                  suffix="mm"
+                  error={fieldError(fieldErrors, "grooveWidthMm")}
+                />
+                <NumberField
+                  label="Posición (desde el frente)"
+                  value={params.groovePositionMm}
+                  onChange={(v) => onChange({ groovePositionMm: v })}
+                  suffix="mm"
+                  error={fieldError(fieldErrors, "groovePositionMm")}
                 />
               </div>
             )}
@@ -406,6 +450,27 @@ export function MakerTextControls({
               onChange={(v) => onChange({ maskThicknessMm: v })}
               suffix="mm"
               error={fieldError(fieldErrors, "maskThicknessMm")}
+            />
+            <NumberField
+              label="Cobertura lateral"
+              value={params.maskSideDepthMm}
+              onChange={(v) => onChange({ maskSideDepthMm: v })}
+              suffix="mm"
+              error={fieldError(fieldErrors, "maskSideDepthMm")}
+            />
+            <NumberField
+              label="Espesor lateral"
+              value={params.maskWallThicknessMm}
+              onChange={(v) => onChange({ maskWallThicknessMm: v })}
+              suffix="mm"
+              error={fieldError(fieldErrors, "maskWallThicknessMm")}
+            />
+            <NumberField
+              label="Holgura"
+              value={params.maskClearanceMm}
+              onChange={(v) => onChange({ maskClearanceMm: v })}
+              suffix="mm"
+              error={fieldError(fieldErrors, "maskClearanceMm")}
             />
             <NumberField
               label="Espesor de difusor"

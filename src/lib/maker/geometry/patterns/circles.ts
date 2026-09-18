@@ -1,5 +1,5 @@
 import type { ContourGroup, Point2D } from "@/lib/maker/types";
-import { insetContourGroups, differenceContourGroups, regroupClipperSolution, isPointInsideContourGroups, pointsToRawPath, cleanContourGroups } from "@/lib/maker/geometry/offsets";
+import { insetContourGroups, differenceContourGroups, regroupClipperSolution, isPointInsideContourGroups, pointsToRawPath } from "@/lib/maker/geometry/offsets";
 
 export interface CirclePatternConfig {
   holeDiameterMm: number;
@@ -68,12 +68,17 @@ export function punchCirclePattern(maskGroups: ContourGroup[], config: CirclePat
   }
   if (circles.length === 0) return maskGroups;
 
-  // Limpieza de vértices casi duplicados/spikes (ver cleanContourGroups):
-  // con muchos círculos perforados, earcut puede elegir un puente
-  // degenerado si quedan vértices casi colineales entre agujeros
-  // cercanos — mismo mecanismo que ya usa el resto del pipeline para
-  // trazos próximos (p.ej. el travesaño de una "B"), sin afectar la
-  // soldadura de otras piezas (la máscara es independiente, no suelda con
-  // nada).
-  return cleanContourGroups(differenceContourGroups(maskGroups, circles.map(pointsToRawPath)));
+  // 0.4.1: SIN limpiar la salida (antes sí, ver cleanContourGroups) — desde
+  // que la máscara perforada pasó a ser una carcasa (cara + faldón lateral
+  // soldados, corrección 4B), el borde exterior/de cada counter de esta
+  // función tiene que sobrevivir EXACTO (mismas coordenadas que
+  // `outerGroups` en front/perforated.ts) para soldar con el faldón — igual
+  // razón por la que `differenceContourGroups` tampoco limpia su salida en
+  // el resto del pipeline (ver docs/STAMPA_MAKER.md sección 3). El
+  // triángulo degenerado ocasional que esto podía producir con muchos
+  // agujeros cercanos ya está cubierto por el jitter determinístico de
+  // `extrudePolygon.ts` (mismo mecanismo que protege al resto del pipeline
+  // sin CleanPolygons) y tolerado explícitamente en los tests
+  // (MAX_BENIGN_DEGENERATE_TRIANGLES).
+  return differenceContourGroups(maskGroups, circles.map(pointsToRawPath));
 }

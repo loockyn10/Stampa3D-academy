@@ -1,59 +1,74 @@
 import type { ContourGroup, LetterSignParams } from "@/lib/maker/types";
-import { outsetContourGroups, differenceContourGroups, regroupClipperSolution, contourGroupsToRawPaths } from "@/lib/maker/geometry/offsets";
 import { extrudeContourGroups, type ExtrudedMeshData } from "@/lib/maker/geometry/extrudePolygon";
-import { computeWallAndCore } from "@/lib/maker/geometry/body/shared";
+import { computeWallAndCore, subdivideRange, footprintAtOffset, buildOffsetProfileWallPieces, smoothstepRampProfile } from "@/lib/maker/geometry/body/shared";
 
-// Altura objetivo por sub-banda: `extrudeContourGroups` solo genera paredes
-// rectas (footprint constante) por llamada, así que el offset progresivo se
-// aproxima con varios tramos rectos apilados en vez de una superficie curva
-// (ver docs/STAMPA_MAKER.md) — igual de válido para impresión 3D que la
-// propia tolerancia de mallado del resto del pipeline.
-const TAPER_BAND_HEIGHT_MM = 2;
-const TAPER_MIN_BANDS = 8;
+// "stepped" (0.4, sin cambios de comportamiento): bandas grandes a
+// propósito, el escalonado es visible — un estilo, no una aproximación que
+// haya que disimular. `extrudeContourGroups` solo genera paredes rectas
+// (footprint constante) por llamada, así que el offset progresivo se
+// aproxima con varios tramos rectos apilados en vez de una superficie curva.
+const TAPER_STEPPED_BAND_HEIGHT_MM = 2;
+const TAPER_STEPPED_MIN_BANDS = 8;
 
-function taperBreakpoints(depthMm: number): number[] {
-  const bandCount = Math.max(TAPER_MIN_BANDS, Math.ceil(depthMm / TAPER_BAND_HEIGHT_MM));
+// "smooth" (0.4.1 corrección 2): misma aproximación por tramos rectos, pero
+// con resolución fina (~0.2mm, referencia del pedido) para que se perciba
+// como una pendiente continua. `TAPER_SMOOTH_MAX_STEPS` evita una
+// "explosión de polígonos" en cuerpos muy profundos: prioriza no pasarse de
+// ~100-120 pasos (la referencia del pedido, "cuerpo de 20mm: ~100 pasos")
+// por sobre mantener 0.2mm exactos cuando depthMm es grande.
+const TAPER_SMOOTH_RESOLUTION_MM = 0.2;
+const TAPER_SMOOTH_MIN_STEPS = 10;
+const TAPER_SMOOTH_MAX_STEPS = 120;
+
+function taperSteppedBreakpoints(depthMm: number): number[] {
+  const bandCount = Math.max(TAPER_STEPPED_MIN_BANDS, Math.ceil(depthMm / TAPER_STEPPED_BAND_HEIGHT_MM));
   const points: number[] = [];
   for (let i = 0; i <= bandCount; i++) points.push((depthMm * i) / bandCount);
   return points;
 }
 
-/** Offset (mm) del contorno exterior/hueco en una coordenada Z: 0 en el frente (z=depthMm, silueta nominal), rearExpansionMm en la base (z=0), progresivo entre medio. */
-function taperOffsetAt(z: number, depthMm: number, rearExpansionMm: number): number {
+/** Offset (mm) del contorno exterior/hueco en una coordenada Z, perfil LINEAL: 0 en el frente (z=depthMm, silueta nominal), rearExpansionMm en la base (z=0), progresivo entre medio. Usado por el estilo "stepped" (0.4, sin cambios). */
+function taperOffsetLinearAt(z: number, depthMm: number, rearExpansionMm: number): number {
   const t = depthMm > 0 ? z / depthMm : 1; // 0 en la base, 1 en el frente
   return rearExpansionMm * (1 - t);
 }
 
-function footprintAt(group: ContourGroup, offsetMm: number): ContourGroup[] {
-  if (offsetMm <= 1e-6) return [{ outer: group.outer, holes: group.holes }];
-  return regroupClipperSolution(outsetContourGroups([group], offsetMm));
+/** Offset (mm) del contorno exterior/hueco en una coordenada Z, perfil SMOOTHSTEP: mismo destino (0 en el frente, rearExpansionMm en la base) que el lineal, pero con pendiente 0 en ambos extremos — sin quiebre anguloso donde la banda empalma con el frente. Usado por el estilo "smooth" (0.4.1 corrección 2). */
+function taperOffsetSmoothAt(z: number, depthMm: number, rearExpansionMm: number): number {
+  const t = depthMm > 0 ? z / depthMm : 1; // 0 en la base, 1 en el frente
+  return smoothstepRampProfile(1 - t, rearExpansionMm);
 }
 
 /**
- * Cuerpo "tapered" (0.4 Etapa 3): la silueta EXTERIOR (y el borde de cada
- * counter — mismo mecanismo dilatado que las costillas, `outsetContourGroups`
- * afecta exterior y huecos a la vez) crece progresivamente desde el frente
- * (z=depthMm, offset 0 — silueta nominal, compatible con frente/tapa sin
- * cambios) hacia la base (z=0, offset `rearExpansionMm`).
+ * Cuerpo "tapered" (0.4 Etapa 3, estilos 0.4.1 corrección 2): la silueta
+ * EXTERIOR (y el borde de cada counter — mismo mecanismo dilatado que las
+ * costillas, `footprintAtOffset`/`outsetContourGroups` afecta exterior y
+ * huecos a la vez) crece progresivamente desde el frente (z=depthMm, offset
+ * 0 — silueta nominal, compatible con frente/tapa sin cambios) hacia la base
+ * (z=0, offset `rearExpansionMm`), en cualquiera de los dos estilos
+ * (`params.taperStyle`, ver types.ts):
  *
- * Construcción: N bandas ancladas por su extremo INFERIOR (bottom-anchored)
- * — la banda `i` usa el footprint evaluado en su propio `z0`, constante en
- * toda su altura. Esto hace que la tapa/base (z=0) y la banda 0 usen
- * EXACTAMENTE el mismo footprint (sin escalón en la base) y que cada banda
- * necesite un escalón horizontal (mismo patrón que la repisa del núcleo
- * erosionado — bigger-abajo/smaller-arriba, cierra mirando +Z) hacia la
- * banda siguiente, MÁS ANGOSTA. El último escalón (al llegar a z=depthMm)
+ *  - "stepped": bandas grandes (~2mm), perfil LINEAL — el aspecto original
+ *    de 0.4, sin cambios de comportamiento.
+ *  - "smooth": sub-bandas finas (~0.2mm) + perfil SMOOTHSTEP (pendiente 0 en
+ *    ambos extremos) — se percibe como una pendiente continua.
+ *
+ * Construcción (ambos estilos, vía `buildOffsetProfileWallPieces`): N bandas
+ * ancladas por su extremo INFERIOR (bottom-anchored, siempre más ancho para
+ * este perfil monótono decreciente en Z) con un escalón horizontal hacia la
+ * banda siguiente, más angosta. El último escalón (al llegar a z=depthMm)
  * cierra contra el contorno ORIGINAL exacto (offset 0), asegurando que el
- * frente quede con dimensiones nominales — necesario para que `front/`
- * (que sigue recibiendo `contourGroups` sin modificar) suelde igual que en
- * el cuerpo standard.
+ * frente quede con dimensiones nominales — necesario para que `front/` (que
+ * sigue recibiendo `contourGroups` sin modificar) suelde igual que en el
+ * cuerpo standard.
  *
  * El resto del cuerpo (repisa, paredes de la cavidad oculta, frente) usa el
  * contorno ORIGINAL sin cambios — igual filosofía que las costillas: el
  * tapered solo cambia la silueta VISIBLE, nunca la cavidad interna oculta.
  *
- * Limitación conocida de 0.4: no soporta combinarse con costillas
- * (ribsCount se ignora si bodyType es "tapered") — ver docs/STAMPA_MAKER.md.
+ * Limitación conocida de 0.4 (sin cambios en 0.4.1): no soporta combinarse
+ * con costillas (ribsCount se ignora si bodyType es "tapered") — ver
+ * docs/STAMPA_MAKER.md.
  */
 export function buildTaperedBodyPieces(
   contourGroups: ContourGroup[],
@@ -66,7 +81,14 @@ export function buildTaperedBodyPieces(
   let fullyEroded = false;
 
   const wallHeight = params.depthMm - params.baseMm;
-  const zPoints = taperBreakpoints(params.depthMm);
+  const smooth = params.taperStyle === "smooth";
+  const zPoints = smooth
+    ? subdivideRange(0, params.depthMm, TAPER_SMOOTH_RESOLUTION_MM, TAPER_SMOOTH_MIN_STEPS, TAPER_SMOOTH_MAX_STEPS)
+    : taperSteppedBreakpoints(params.depthMm);
+  const offsetAt = (z: number) =>
+    smooth
+      ? taperOffsetSmoothAt(z, params.depthMm, params.rearExpansionMm)
+      : taperOffsetLinearAt(z, params.depthMm, params.rearExpansionMm);
 
   for (const group of contourGroups) {
     fondoGroups.push({ outer: group.outer, holes: group.holes });
@@ -77,21 +99,7 @@ export function buildTaperedBodyPieces(
     coreGroups.push(...wac.coreGroups);
 
     if (wallHeight > 0 && params.rearExpansionMm > 1e-6) {
-      const footprints = zPoints.map((z) => footprintAt(group, taperOffsetAt(z, params.depthMm, params.rearExpansionMm)));
-
-      for (let i = 0; i < zPoints.length - 1; i++) {
-        const za = zPoints[i];
-        const zb = zPoints[i + 1];
-        taperedWallPieces.push(extrudeContourGroups(footprints[i], za, zb, { capStart: false, capEnd: false, sides: true }));
-
-        // Escalón hacia la banda siguiente (más angosta), en zb: cierra la
-        // diferencia footprints[i] (abajo, más ancho) - footprints[i+1]
-        // (arriba, más angosto) mirando +Z. En el último tramo,
-        // footprints[i+1] es el contorno original exacto (offset 0),
-        // asegurando el empalme nominal con el frente.
-        const shelfGroups = differenceContourGroups(footprints[i], contourGroupsToRawPaths(footprints[i + 1]));
-        taperedWallPieces.push(extrudeContourGroups(shelfGroups, zb, zb, { capStart: false, capEnd: true, sides: false }));
-      }
+      taperedWallPieces.push(...buildOffsetProfileWallPieces(group, zPoints, offsetAt));
     } else if (wallHeight > 0) {
       // Sin expansión trasera (rearExpansionMm ~0): mismo resultado que el
       // cuerpo standard, franja continua sin escalones.
@@ -107,14 +115,14 @@ export function buildTaperedBodyPieces(
     // 1) Fondo: tapa en z=0, usando el footprint MÁS ANCHO (rearExpansionMm
     //    completo) — igual al que usa la primera banda, sin escalón.
     const baseGroups = params.rearExpansionMm > 1e-6
-      ? fondoGroups.flatMap((g) => footprintAt({ outer: g.outer, holes: g.holes }, params.rearExpansionMm))
+      ? fondoGroups.flatMap((g) => footprintAtOffset({ outer: g.outer, holes: g.holes }, params.rearExpansionMm))
       : fondoGroups;
     pieces.push(extrudeContourGroups(baseGroups, 0, 0, { capStart: true, capEnd: false, sides: false }));
     pieces.push(...taperedWallPieces);
 
     // 2) Repisa, 3) paredes internas, 4) frente: igual que el cuerpo
     //    standard, sin cambios (la cavidad oculta y la interfaz de
-    //    frente/tapa no dependen del tipo de cuerpo).
+    //    frente/tapa no dependen del tipo de cuerpo ni del estilo tapered).
     pieces.push(extrudeContourGroups(coreGroups, params.baseMm, params.baseMm, { capStart: false, capEnd: true, sides: false }));
     pieces.push(extrudeContourGroups(coreGroups, params.baseMm, params.depthMm, { capStart: false, capEnd: false, sides: true, flipSides: true }));
     pieces.push(extrudeContourGroups(wallGroups, params.depthMm, params.depthMm, { capStart: false, capEnd: true, sides: false }));

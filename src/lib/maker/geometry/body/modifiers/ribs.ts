@@ -1,6 +1,4 @@
-import type { ContourGroup } from "@/lib/maker/types";
-import { outsetContourGroups, differenceContourGroups, regroupClipperSolution, contourGroupsToRawPaths } from "@/lib/maker/geometry/offsets";
-import { extrudeContourGroups, type ExtrudedMeshData } from "@/lib/maker/geometry/extrudePolygon";
+import { raisedCosineProfile, type ZBand } from "@/lib/maker/geometry/body/shared";
 
 export interface RibBand {
   z0: number;
@@ -29,59 +27,23 @@ export function computeRibBands(baseMm: number, depthMm: number, ribsCount: 0 | 
 }
 
 /**
- * Pared exterior/hueco de UN contorno (la parte "lateral" del fondo, ver
- * body/standard.ts) con costillas: sin bandas, es EXACTAMENTE la misma
- * franja continua de siempre (mismo resultado byte a byte que antes de
- * 0.4 Etapa 2). Dentro de cada banda, el contorno se dilata
- * (`outsetContourGroups`: exterior crece, huecos se achican — el
- * montículo sobresale hacia afuera Y hacia el counter) siguiendo la
- * silueta real de la letra, nunca un bounding box. Los "escalones"
- * (anillos horizontales entre la pared plana y la costilla) sueldan por
- * coordenadas compartidas, mismo mecanismo que ya usa la repisa del
- * núcleo erosionado — sin CSG.
+ * Convierte bandas de costilla en descriptores de banda genéricos (ver
+ * body/shared.ts#buildBandedOuterWallPieces, usado por body/standard.ts
+ * junto con las bandas de bisel/doble bisel). Perfil de MONTÍCULO progresivo
+ * (0.4.1 corrección 1: antes era un prisma de tope plano — "camino
+ * rectangular" — con un salto abrupto al entrar/salir de la banda; ahora es
+ * media onda coseno vía `raisedCosineProfile`): arranca EXACTAMENTE al ras
+ * del cuerpo en `band.z0` (offset 0, mismo contorno que la pared plana —
+ * suelda sin escalón visible), crece progresivamente hasta `protrusionMm` a
+ * mitad de banda y vuelve a 0 en `band.z1`, sin salto vertical en ningún
+ * extremo — un "lomo" suave, no un escalón. El offset POSITIVO dilata
+ * exterior Y huecos a la vez (`footprintAtOffset`/`outsetContourGroups`): el
+ * montículo sigue la silueta real de la letra, incluidos los counters.
  */
-export function buildRibbedOuterWallPieces(
-  group: ContourGroup,
-  z0: number,
-  z1: number,
-  bands: RibBand[],
-  protrusionMm: number,
-): ExtrudedMeshData[] {
-  const plainGroups: ContourGroup[] = [{ outer: group.outer, holes: group.holes }];
-
-  if (bands.length === 0) {
-    return [extrudeContourGroups(plainGroups, z0, z1, { capStart: false, capEnd: false, sides: true })];
-  }
-
-  const ribGroups = regroupClipperSolution(outsetContourGroups([group], protrusionMm));
-  const plainRawPaths = contourGroupsToRawPaths(plainGroups);
-  // El "rim" es solo el material AGREGADO por la costilla (costilla menos
-  // pared plana): es lo que hay que tapar en cada escalón, no toda la
-  // costilla (que ya comparte su borde interior con la pared plana).
-  const rimGroups = differenceContourGroups(ribGroups, plainRawPaths);
-
-  const pieces: ExtrudedMeshData[] = [];
-  const breakpoints = [z0, ...bands.flatMap((b) => [b.z0, b.z1]), z1].sort((a, b) => a - b);
-
-  for (let i = 0; i < breakpoints.length - 1; i++) {
-    const za = breakpoints[i];
-    const zb = breakpoints[i + 1];
-    if (zb - za < 1e-9) continue;
-    const midZ = (za + zb) / 2;
-    const inBand = bands.some((b) => midZ > b.z0 && midZ < b.z1);
-    pieces.push(extrudeContourGroups(inBand ? ribGroups : plainGroups, za, zb, { capStart: false, capEnd: false, sides: true }));
-  }
-
-  for (const band of bands) {
-    // Escalón de entrada (pared plana -> costilla, footprint crece hacia
-    // arriba): el rim nuevo aparece por encima, cierra su piso mirando -Z
-    // (no hay nada debajo de él salvo la pared delgada).
-    pieces.push(extrudeContourGroups(rimGroups, band.z0, band.z0, { capStart: true, capEnd: false, sides: false }));
-    // Escalón de salida (costilla -> pared plana, footprint se achica hacia
-    // arriba): el rim desaparece por encima, cierra su techo mirando +Z —
-    // mismo patrón que la repisa del núcleo erosionado.
-    pieces.push(extrudeContourGroups(rimGroups, band.z1, band.z1, { capStart: false, capEnd: true, sides: false }));
-  }
-
-  return pieces;
+export function ribBandsToZBands(bands: RibBand[], protrusionMm: number): ZBand[] {
+  return bands.map((band) => ({
+    z0: band.z0,
+    z1: band.z1,
+    offsetAt: (z: number) => raisedCosineProfile((z - band.z0) / (band.z1 - band.z0), protrusionMm),
+  }));
 }

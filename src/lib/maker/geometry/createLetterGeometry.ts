@@ -35,7 +35,7 @@ export function createLetterGeometry(font: opentype.Font, params: LetterSignPara
   const letters: LetterPieceResult[] = [];
   const allRawContours: Point2D[][] = [];
   let anyFullyEroded = false;
-  const collapsedLetters: { char: string; index: number; code: "LIP_COLLAPSED" | "CHANNEL_COLLAPSED" }[] = [];
+  const collapsedLetters: { char: string; index: number; code: "LIP_COLLAPSED" | "CHANNEL_COLLAPSED" | "BEVEL_PLATE_COLLAPSED" | "MASK_SKIRT_COLLAPSED" }[] = [];
 
   // La profundidad de encastre no puede exceder la cavidad real disponible
   // (depthMm - baseMm: por debajo de baseMm el cuerpo es la base maciza,
@@ -57,6 +57,17 @@ export function createLetterGeometry(font: opentype.Font, params: LetterSignPara
     : params.channelDepthMm;
   const channelDepthClamped = lightChannel && channelDepthUsedMm < params.channelDepthMm - 1e-9;
 
+  // Misma lógica para la cobertura lateral de la máscara perforada (0.4.1
+  // corrección 4B): el faldón cubre el LATERAL del cuerpo (existe en toda
+  // su profundidad, z=0 a depthMm — a diferencia de insertDepth/channelDepth,
+  // que se acotan contra la cavidad hueca, no contra la base maciza), así
+  // que se acota contra `depthMm` completo, una sola vez acá.
+  const perforated = params.frontType === "perforated";
+  const maskSideDepthUsedMm = perforated
+    ? Math.min(Math.max(params.maskSideDepthMm, 0), Math.max(params.depthMm, 0))
+    : params.maskSideDepthMm;
+  const maskSideDepthClamped = perforated && maskSideDepthUsedMm < params.maskSideDepthMm - 1e-9;
+
   for (const { char, path } of perCharacterPaths) {
     const rawContours = flattenOpentypePath(path);
     if (rawContours.length === 0) continue; // espacio u otro glifo sin tinta
@@ -68,7 +79,7 @@ export function createLetterGeometry(font: opentype.Font, params: LetterSignPara
     if (bodyResult.fullyEroded) anyFullyEroded = true;
 
     const index = letters.length + 1;
-    const frontResult = buildFrontParts(contourGroups, params, insertDepthUsedMm);
+    const frontResult = buildFrontParts(contourGroups, params, insertDepthUsedMm, maskSideDepthUsedMm);
     if (frontResult.collapseErrorCode) collapsedLetters.push({ char, index, code: frontResult.collapseErrorCode });
 
     const parts: SignPart[] = [
@@ -99,11 +110,19 @@ export function createLetterGeometry(font: opentype.Font, params: LetterSignPara
   // entienda qué ocurre, pero el resultado queda marcado como inválido
   // para exportar. Un mensaje por letra afectada: alcanza con una lista
   // simple, no hace falta un selector de errores.
+  const COLLAPSE_MESSAGES: Record<(typeof collapsedLetters)[number]["code"], (char: string, index: number) => string> = {
+    LIP_COLLAPSED: (char, index) =>
+      `El encastre no puede generarse en la letra "${char}" (posición ${index}): el labio desaparece con estos parámetros. Reducí la holgura, reducí el espesor de pared, aumentá el tamaño o utilizá una fuente más gruesa.`,
+    CHANNEL_COLLAPSED: (char, index) =>
+      `El canal luminoso no puede generarse en la letra "${char}" (posición ${index}): el trazo es demasiado fino para el ancho de canal pedido. Reducí el ancho del canal, reducí el margen, aumentá el tamaño o utilizá una fuente más gruesa.`,
+    BEVEL_PLATE_COLLAPSED: (char, index) =>
+      `La tapa no puede generarse en la letra "${char}" (posición ${index}): el bisel frontal erosiona la placa por completo con estos parámetros. Reducí el desplazamiento del bisel, aumentá el tamaño o utilizá una fuente más gruesa.`,
+    MASK_SKIRT_COLLAPSED: (char, index) =>
+      `El faldón lateral de la máscara perforada no puede generarse en la letra "${char}" (posición ${index}): la holgura/espesor pedidos erosionan el faldón por completo. Reducí la holgura, el espesor lateral, o la cobertura lateral.`,
+  };
+
   for (const { char, index, code } of collapsedLetters) {
-    const message = code === "LIP_COLLAPSED"
-      ? `El encastre no puede generarse en la letra "${char}" (posición ${index}): el labio desaparece con estos parámetros. Reducí la holgura, reducí el espesor de pared, aumentá el tamaño o utilizá una fuente más gruesa.`
-      : `El canal luminoso no puede generarse en la letra "${char}" (posición ${index}): el trazo es demasiado fino para el ancho de canal pedido. Reducí el ancho del canal, reducí el margen, aumentá el tamaño o utilizá una fuente más gruesa.`;
-    errors.push({ code, message });
+    errors.push({ code, message: COLLAPSE_MESSAGES[code](char, index) });
   }
 
   if (insertDepthClamped) {
@@ -117,6 +136,13 @@ export function createLetterGeometry(font: opentype.Font, params: LetterSignPara
     warnings.push({
       code: "CHANNEL_DEPTH_CLAMPED",
       message: `Profundidad de canal ajustada de ${formatMm(params.channelDepthMm)} mm a ${formatMm(channelDepthUsedMm)} mm porque el cuerpo no dispone de más espacio útil.`,
+    });
+  }
+
+  if (maskSideDepthClamped) {
+    warnings.push({
+      code: "MASK_SIDE_DEPTH_CLAMPED",
+      message: `Cobertura lateral de la máscara ajustada de ${formatMm(params.maskSideDepthMm)} mm a ${formatMm(maskSideDepthUsedMm)} mm porque el cuerpo no tiene más profundidad.`,
     });
   }
 
@@ -154,9 +180,15 @@ function frontExtraDepthMm(params: LetterSignParams): number {
 
 /**
  * Orden canónico de piezas en el resultado combinado: estable entre
- * builds, y el orden en el que el preview/exportadores las recorren.
+ * builds, y el orden en el que el preview/exportadores las recorren. Es
+ * también el orden FÍSICO de armado (del cuerpo hacia el observador) — 0.4.1
+ * corrección 4A: antes tenía "mask" antes que "diffuser" (el difusor, más
+ * cerca del cuerpo, terminaba después del más lejano en cualquier recorrido
+ * secuencial), la causa de raíz del offset explosionado invertido en
+ * MakerViewport.tsx (que ahora además calcula su propio orden por posición
+ * real en Z, no solo por esta lista — ver explodeRankRef ahí).
  */
-const PART_ORDER: PartKind[] = ["body", "lid", "mask", "diffuser", "channelDiffuser"];
+const PART_ORDER: PartKind[] = ["body", "lid", "diffuser", "mask", "channelDiffuser"];
 
 /** Concatena, por kind, la pieza de todas las letras que la tengan (mismo kind = mismo sufijo de archivo). */
 function combinePartsByKind(letters: LetterPieceResult[]): SignPart[] {

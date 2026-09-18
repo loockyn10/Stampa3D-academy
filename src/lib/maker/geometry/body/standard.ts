@@ -1,9 +1,10 @@
 import type { ContourGroup, LetterSignParams } from "@/lib/maker/types";
 import { insetContourGroups, differenceContourGroups, contourGroupsToRawPaths } from "@/lib/maker/geometry/offsets";
 import { extrudeContourGroups, type ExtrudedMeshData } from "@/lib/maker/geometry/extrudePolygon";
-import { computeRibBands, buildRibbedOuterWallPieces } from "@/lib/maker/geometry/body/modifiers/ribs";
-import { computeBevelBand, buildBeveledOuterWallPieces, beveledFrontFootprint } from "@/lib/maker/geometry/body/modifiers/bevel";
-import { computeWallAndCore } from "@/lib/maker/geometry/body/shared";
+import { computeRibBands, ribBandsToZBands } from "@/lib/maker/geometry/body/modifiers/ribs";
+import { computeBevelBand, bevelBandToZBand, beveledFrontFootprint } from "@/lib/maker/geometry/body/modifiers/bevel";
+import { computeGrooveBand, grooveBandToZBand } from "@/lib/maker/geometry/body/modifiers/groove";
+import { computeWallAndCore, buildBandedOuterWallPieces, type ZBand } from "@/lib/maker/geometry/body/shared";
 // El canal luminoso (0.4 Etapa 6) es, conceptualmente, un FRONT SYSTEM —
 // pero a diferencia de la tapa/máscara/difusor (piezas separadas que se
 // apoyan encima), el canal está tallado DENTRO del propio "frente" del
@@ -61,23 +62,44 @@ export function buildStandardBodyPieces(
   const fondoGroups: ContourGroup[] = [];
   const wallGroups: ContourGroup[] = [];
   const coreGroups: ContourGroup[] = [];
-  const ribbedWallPieces: ExtrudedMeshData[] = [];
+  const bandedWallPieces: ExtrudedMeshData[] = [];
   const channelFrontPieces: ExtrudedMeshData[] = [];
   const isLightChannel = params.frontType === "light-channel";
   let fullyEroded = false;
 
   const wallHeight = params.depthMm - params.baseMm;
-  // Bisel frontal (0.4 Etapa 4): banda pegada al frente. `null` si está
-  // desactivado, sin cambio de comportamiento.
+  // Bisel frontal (0.4 Etapa 4, suavizado 0.4.1): banda pegada al frente.
+  // `null` si está desactivado, sin cambio de comportamiento.
   const bevelBand = wallHeight > 0 ? computeBevelBand(params.baseMm, params.depthMm, params.bevelEnabled, params.bevelDepthMm) : null;
+  // Doble bisel / cintura luminosa (0.4.1 corrección 3B): banda
+  // INDEPENDIENTE del bisel frontal, en cualquier posición de la pared
+  // (`groovePositionMm`, medida desde el frente). `validateLetterSignParams`
+  // bloquea la combinación si se superpone con la banda de bisel (ver
+  // validation.ts) — acá solo se calcula, sin volver a chequear el choque.
+  const grooveBand = wallHeight > 0
+    ? computeGrooveBand(params.baseMm, params.depthMm, params.grooveEnabled, params.groovePositionMm, params.grooveWidthMm)
+    : null;
   // Costillas (0.4 Etapa 2): bandas dentro de la pared, nunca de la base
   // maciza NI de la banda del bisel (si está activo, las costillas quedan
   // acotadas a lo que sobra antes de esa banda — evita que ambos
   // modificadores compitan por el mismo tramo de Z). Vacío (sin cambio de
   // comportamiento) cuando ribsCount es 0 o el campo no existe (fixtures
-  // más viejos).
+  // más viejos). Además (0.4.1), cualquier costilla que caiga dentro de la
+  // banda del doble bisel se descarta — mismo criterio de "ceder lugar" que
+  // ya existía para el bisel frontal, ahora también contra el doble bisel.
   const ribsCeilingMm = bevelBand ? bevelBand.z0 : params.depthMm;
-  const ribBands = wallHeight > 0 ? computeRibBands(params.baseMm, ribsCeilingMm, params.ribsCount, params.ribWidthMm) : [];
+  const ribBandsRaw = wallHeight > 0 ? computeRibBands(params.baseMm, ribsCeilingMm, params.ribsCount, params.ribWidthMm) : [];
+  const ribBands = grooveBand ? ribBandsRaw.filter((rb) => rb.z1 <= grooveBand.z0 || rb.z0 >= grooveBand.z1) : ribBandsRaw;
+
+  // Todas las bandas de modificador de ESTA letra, combinadas en una sola
+  // pasada por `buildBandedOuterWallPieces` (0.4.1: antes costillas y bisel
+  // se generaban con dos llamadas separadas; el doble bisel se suma acá sin
+  // agregar una tercera).
+  const zBands: ZBand[] = [
+    ...ribBandsToZBands(ribBands, params.ribProtrusionMm),
+    ...(bevelBand ? [bevelBandToZBand(bevelBand, params.bevelInsetMm)] : []),
+    ...(grooveBand ? [grooveBandToZBand(grooveBand, params.grooveInsetMm)] : []),
+  ];
 
   for (const group of contourGroups) {
     fondoGroups.push({ outer: group.outer, holes: group.holes });
@@ -134,10 +156,7 @@ export function buildStandardBodyPieces(
     wallGroups.push(...groupWallGroups);
 
     if (wallHeight > 0) {
-      ribbedWallPieces.push(...buildRibbedOuterWallPieces(group, 0, ribsCeilingMm, ribBands, params.ribProtrusionMm));
-      if (bevelBand) {
-        ribbedWallPieces.push(...buildBeveledOuterWallPieces(group, bevelBand, params.bevelInsetMm));
-      }
+      bandedWallPieces.push(...buildBandedOuterWallPieces(group, 0, params.depthMm, zBands));
     }
   }
 
@@ -154,7 +173,7 @@ export function buildStandardBodyPieces(
     //    body/modifiers/ribs.ts — sin costillas, es la misma franja
     //    continua de siempre, mismo resultado byte a byte).
     pieces.push(extrudeContourGroups(fondoGroups, 0, 0, { capStart: true, capEnd: false, sides: false }));
-    pieces.push(...ribbedWallPieces);
+    pieces.push(...bandedWallPieces);
 
     if (!isLightChannel) {
       // 2) Repisa: tapa del núcleo erosionado en z=baseMm (mirando hacia

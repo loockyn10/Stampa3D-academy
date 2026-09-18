@@ -67,6 +67,8 @@ const { buildContourHierarchy } = loadMakerModule("lib/maker/geometry/contourHie
 const { insetContourGroups, outsetContourGroups, regroupClipperSolution, clipperPathsArea } = loadMakerModule("lib/maker/geometry/offsets.ts");
 const { fitInteriorLip } = loadMakerModule("lib/maker/geometry/joints/interiorLip.ts");
 const { computeRibBands } = loadMakerModule("lib/maker/geometry/body/modifiers/ribs.ts");
+const { footprintAtOffset } = loadMakerModule("lib/maker/geometry/body/shared.ts");
+const { computeGrooveBand } = loadMakerModule("lib/maker/geometry/body/modifiers/groove.ts");
 const { punchCirclePattern } = loadMakerModule("lib/maker/geometry/patterns/circles.ts");
 const { computeChannelFootprint } = loadMakerModule("lib/maker/geometry/front/lightChannel.ts");
 const { validateLetterSignParams } = loadMakerModule("lib/maker/validation.ts");
@@ -91,12 +93,17 @@ const DEFAULT_PARAMS = {
   baseMm: 1.2,
   bodyType: "standard",
   rearExpansionMm: 2,
+  taperStyle: "stepped",
   ribsCount: 0,
   ribProtrusionMm: 0.8,
   ribWidthMm: 1.2,
   bevelEnabled: false,
   bevelDepthMm: 2,
   bevelInsetMm: 1,
+  grooveEnabled: false,
+  grooveInsetMm: 1,
+  grooveWidthMm: 4,
+  groovePositionMm: 20,
   frontType: "open",
   lidMm: 1.2,
   lidJoint: "glue",
@@ -104,6 +111,9 @@ const DEFAULT_PARAMS = {
   clearanceMm: 0.2,
   lipWallMm: 0.8,
   maskThicknessMm: 1,
+  maskWallThicknessMm: 1.2,
+  maskSideDepthMm: 5,
+  maskClearanceMm: 0.2,
   diffuserThicknessMm: 0.6,
   holeDiameterMm: 2,
   pitchMm: 4,
@@ -1216,43 +1226,103 @@ for (const ribsCount of [1, 2]) {
   }
 }
 
-test('costillas laterales (1): "I" tiene un montículo medible en el rango Z esperado', () => {
+// 0.4.1 corrección 1: la costilla dejó de ser un prisma de tope plano (piso
+// y techo exactos en los bordes de la banda) para ser un MONTÍCULO
+// progresivo (media onda coseno, `raisedCosineProfile` en body/shared.ts):
+// protrusion 0 en band.z0, máxima a mitad de banda, 0 en band.z1, sin salto
+// vertical en ningún extremo. Los cruces con un offset intermedio (p.ej.
+// "a mitad del protrusion máximo") ya NO caen en los bordes exactos de la
+// banda, caen donde el coseno cruza ese valor — con la aproximación por
+// sub-bandas finas (~0.2mm), redondeado al paso más cercano.
+function raisedCosineT(frac) {
+  // 0.5 - 0.5*cos(2*pi*t) = frac  =>  t = acos(1 - 2*frac) / (2*pi) (lado ascendente)
+  return Math.acos(1 - 2 * frac) / (2 * Math.PI);
+}
+const RIB_STEP_TOLERANCE_MM = 0.35; // por encima de la resolución objetivo (~0.2mm) para tolerar el redondeo de la aproximación por pasos
+
+test('costillas laterales (1): "I" llega a máxima protrusión a mitad de banda (no en los bordes)', () => {
   const text = "I";
   const groups = contourGroupsFor(text);
   const bands = computeRibBands(DEFAULT_PARAMS.baseMm, DEFAULT_PARAMS.depthMm, 1, DEFAULT_PARAMS.ribWidthMm);
   assert.equal(bands.length, 1);
-
-  // Punto de sonda: sobre el offset a mitad del protrusion (estrictamente
-  // dentro del anillo agregado por la costilla, fuera de la silueta
-  // original), no relacionado con ningún vértice real de la malla.
-  const halfOutset = regroupClipperSolution(outsetContourGroups(groups, DEFAULT_PARAMS.ribProtrusionMm * 0.5));
-  const [px, py] = halfOutset[0].outer[0];
-
+  const band = bands[0];
   const result = createLetterGeometry(montserratBold, { ...DEFAULT_PARAMS, text, ribsCount: 1 });
-  const hits = raycastZHits(bodyOf(result).positions, px, py).sort((a, b) => a - b);
+  const bodyPositions = bodyOf(result).positions;
 
-  assert.equal(hits.length, 2, `se esperaban 2 impactos (piso+techo de la costilla), se encontraron ${hits.length}: [${hits.join(", ")}]`);
-  assert.ok(Math.abs(hits[0] - bands[0].z0) < 1e-3, `piso de la costilla fuera de rango: ${hits[0]} (esperado ${bands[0].z0})`);
-  assert.ok(Math.abs(hits[1] - bands[0].z1) < 1e-3, `techo de la costilla fuera de rango: ${hits[1]} (esperado ${bands[0].z1})`);
+  // offset a máxima protrusión (t=0.5, mitad de banda): dos impactos
+  // (piso+techo del montículo), centrados en la MITAD de la banda — a
+  // diferencia del prisma anterior (0.4), donde el offset máximo ocupaba
+  // TODO el ancho de banda de borde a borde.
+  const maxOutset = regroupClipperSolution(outsetContourGroups(groups, DEFAULT_PARAMS.ribProtrusionMm - 1e-4));
+  const [px, py] = maxOutset[0].outer[0];
+  const hits = raycastZHits(bodyPositions, px, py).sort((a, b) => a - b);
+  const bandCenter = (band.z0 + band.z1) / 2;
+  assert.equal(hits.length, 2, `se esperaban 2 impactos cerca del pico del montículo, se encontraron ${hits.length}: [${hits.join(", ")}]`);
+  assert.ok(hits[0] > band.z0 && hits[0] < bandCenter, `el piso del pico debería estar entre el borde y el centro de la banda, fue ${hits[0]}`);
+  assert.ok(hits[1] > bandCenter && hits[1] < band.z1, `el techo del pico debería estar entre el centro y el borde de la banda, fue ${hits[1]}`);
 });
 
-test('costillas laterales (2): "I" tiene dos montículos medibles, uno en cada banda', () => {
+test('costillas laterales (1): "I" progresión monotónica hasta el pico y descenso posterior (offset a t=0.5 cruza cerca de lo que predice el coseno)', () => {
+  const text = "I";
+  const groups = contourGroupsFor(text);
+  // Banda más ancha (ribWidthMm=6mm en vez del default 1.2mm) para tener
+  // más pasos de aproximación (~30 a resolución 0.2mm en vez de 8) y poder
+  // distinguir con claridad offsets intermedios distintos — con muy pocos
+  // pasos, dos fracciones de protrusión cercanas pueden caer en el mismo
+  // escalón y dar el mismo ancho medido (no es un bug, es resolución).
+  const params = { ...DEFAULT_PARAMS, text, ribsCount: 1, ribWidthMm: 6 };
+  const bands = computeRibBands(params.baseMm, params.depthMm, 1, params.ribWidthMm);
+  const band = bands[0];
+  const bandHeight = band.z1 - band.z0;
+  const result = createLetterGeometry(montserratBold, params);
+  const bodyPositions = bodyOf(result).positions;
+
+  // A mitad del protrusion máximo, el coseno cruza en t=0.25 (subiendo) y
+  // t=0.75 (bajando) — ver raisedCosineProfile: 0.5-0.5cos(2*pi*0.25)=0.5.
+  const halfOutset = regroupClipperSolution(outsetContourGroups(groups, params.ribProtrusionMm * 0.5));
+  const [px, py] = halfOutset[0].outer[0];
+  const hits = raycastZHits(bodyPositions, px, py).sort((a, b) => a - b);
+  assert.equal(hits.length, 2, `se esperaban 2 impactos (subida+bajada a mitad de protrusión), se encontraron ${hits.length}: [${hits.join(", ")}]`);
+
+  const expectedRise = band.z0 + bandHeight * raisedCosineT(0.5);
+  const expectedFall = band.z1 - bandHeight * raisedCosineT(0.5);
+  assert.ok(Math.abs(hits[0] - expectedRise) < RIB_STEP_TOLERANCE_MM, `cruce de subida fuera de tolerancia: ${hits[0]} (esperado ~${expectedRise.toFixed(2)})`);
+  assert.ok(Math.abs(hits[1] - expectedFall) < RIB_STEP_TOLERANCE_MM, `cruce de bajada fuera de tolerancia: ${hits[1]} (esperado ~${expectedFall.toFixed(2)})`);
+
+  // Progresión monotónica hasta el pico (subida) y descenso posterior
+  // (bajada): a un offset más chico (10% del máximo, más cerca del borde
+  // de la banda) el hueco entre subida y bajada debe ser MÁS ANCHO que a
+  // un offset más grande (50%, más cerca del pico) — el montículo se
+  // angosta a medida que sube, y por simetría vuelve a ensancharse
+  // bajando (mismo coseno de ambos lados del pico).
+  const tenPercentOutset = regroupClipperSolution(outsetContourGroups(groups, params.ribProtrusionMm * 0.1));
+  const [qx, qy] = tenPercentOutset[0].outer[0];
+  const tenPercentHits = raycastZHits(bodyPositions, qx, qy).sort((a, b) => a - b);
+  assert.equal(tenPercentHits.length, 2);
+  const widthAt10 = tenPercentHits[1] - tenPercentHits[0];
+  const widthAt50 = hits[1] - hits[0];
+  assert.ok(widthAt10 > widthAt50, `el ancho del montículo a 10% de protrusión (${widthAt10.toFixed(2)}) debería ser mayor que a 50% (${widthAt50.toFixed(2)}) — progresión monotónica hasta el pico, descenso simétrico del otro lado`);
+});
+
+test('costillas laterales (2): "I" tiene dos montículos independientes, cada uno con su propio pico centrado en su banda', () => {
   const text = "I";
   const groups = contourGroupsFor(text);
   const bands = computeRibBands(DEFAULT_PARAMS.baseMm, DEFAULT_PARAMS.depthMm, 2, DEFAULT_PARAMS.ribWidthMm);
   assert.equal(bands.length, 2);
 
-  const halfOutset = regroupClipperSolution(outsetContourGroups(groups, DEFAULT_PARAMS.ribProtrusionMm * 0.5));
-  const [px, py] = halfOutset[0].outer[0];
+  const maxOutset = regroupClipperSolution(outsetContourGroups(groups, DEFAULT_PARAMS.ribProtrusionMm - 1e-4));
+  const [px, py] = maxOutset[0].outer[0];
 
   const result = createLetterGeometry(montserratBold, { ...DEFAULT_PARAMS, text, ribsCount: 2 });
   const hits = raycastZHits(bodyOf(result).positions, px, py).sort((a, b) => a - b);
 
-  assert.equal(hits.length, 4, `se esperaban 4 impactos (piso+techo de cada costilla), se encontraron ${hits.length}: [${hits.join(", ")}]`);
-  assert.ok(Math.abs(hits[0] - bands[0].z0) < 1e-3);
-  assert.ok(Math.abs(hits[1] - bands[0].z1) < 1e-3);
-  assert.ok(Math.abs(hits[2] - bands[1].z0) < 1e-3);
-  assert.ok(Math.abs(hits[3] - bands[1].z1) < 1e-3);
+  assert.equal(hits.length, 4, `se esperaban 4 impactos (piso+techo de cada pico), se encontraron ${hits.length}: [${hits.join(", ")}]`);
+  const band0Center = (bands[0].z0 + bands[0].z1) / 2;
+  const band1Center = (bands[1].z0 + bands[1].z1) / 2;
+  assert.ok(hits[0] > bands[0].z0 && hits[1] < bands[0].z1, "el primer par de impactos debería estar dentro de la primera banda");
+  assert.ok(hits[0] < band0Center && hits[1] > band0Center, "el primer par debería rodear el centro de la primera banda");
+  assert.ok(hits[2] > bands[1].z0 && hits[3] < bands[1].z1, "el segundo par de impactos debería estar dentro de la segunda banda");
+  assert.ok(hits[2] < band1Center && hits[3] > band1Center, "el segundo par debería rodear el centro de la segunda banda");
 });
 
 test('costillas laterales (1): "I" no genera material más allá de ribProtrusionMm de la silueta original', () => {
@@ -1269,20 +1339,21 @@ test('costillas laterales (1) "O": el hueco central también recibe el montícul
   const text = "O";
   const groups = contourGroupsFor(text);
   const bands = computeRibBands(DEFAULT_PARAMS.baseMm, DEFAULT_PARAMS.depthMm, 1, DEFAULT_PARAMS.ribWidthMm);
+  const bandCenter = (bands[0].z0 + bands[0].z1) / 2;
 
-  // Punto de sonda DENTRO del hueco original, a mitad del protrusion desde
-  // el borde del counter: outsetContourGroups dilata el grupo completo
-  // (exterior crece, huecos se achican), así que su borde de hueco es
-  // exactamente ese punto intermedio hacia el centro del counter.
-  const halfOutset = regroupClipperSolution(outsetContourGroups(groups, DEFAULT_PARAMS.ribProtrusionMm * 0.5));
-  const holeBoundary = halfOutset[0].holes[0];
+  // Punto de sonda DENTRO del hueco original, cerca de la máxima protrusión
+  // desde el borde del counter: outsetContourGroups dilata el grupo
+  // completo (exterior crece, huecos se achican), así que su borde de hueco
+  // es exactamente ese punto intermedio hacia el centro del counter.
+  const maxOutset = regroupClipperSolution(outsetContourGroups(groups, DEFAULT_PARAMS.ribProtrusionMm - 1e-4));
+  const holeBoundary = maxOutset[0].holes[0];
   const [px, py] = holeBoundary[0];
 
   const result = createLetterGeometry(montserratBold, { ...DEFAULT_PARAMS, text, ribsCount: 1 });
   const hits = raycastZHits(bodyOf(result).positions, px, py).sort((a, b) => a - b);
   assert.equal(hits.length, 2, `se esperaban 2 impactos (piso+techo del montículo hacia el counter), se encontraron ${hits.length}: [${hits.join(", ")}]`);
-  assert.ok(Math.abs(hits[0] - bands[0].z0) < 1e-3);
-  assert.ok(Math.abs(hits[1] - bands[0].z1) < 1e-3);
+  assert.ok(hits[0] > bands[0].z0 && hits[0] < bandCenter);
+  assert.ok(hits[1] > bandCenter && hits[1] < bands[0].z1);
 });
 
 test("validateLetterSignParams: ribProtrusionMm/ribWidthMm fuera de rango cuando ribsCount > 0", () => {
@@ -1385,6 +1456,112 @@ test("cuerpo tapered: compatible con tapa frontal (la tapa usa la silueta nomina
   const standardLidResult = createLetterGeometry(montserratBold, { ...DEFAULT_PARAMS, text: "O", bodyType: "standard", frontType: "lid" });
   assert.deepEqual(
     Array.from(lidOf(taperedLidResult.letters[0]).positions),
+    Array.from(lidOf(standardLidResult.letters[0]).positions),
+  );
+});
+
+// --- 0.4.1 corrección 2: cuerpo tapered "smooth" ---
+//
+// Mismo destino (offset 0 en el frente, rearExpansionMm en la base) que
+// "stepped", pero aproximado con sub-bandas finas (~0.2mm, ver
+// TAPER_SMOOTH_RESOLUTION_MM en body/tapered.ts) + perfil smoothstep en vez
+// de las bandas grandes (~2mm) de "stepped" — debe percibirse como una
+// pendiente continua, no escalones grandes evidentes.
+
+const TAPERED_SMOOTH_PARAMS = { ...DEFAULT_PARAMS, bodyType: "tapered", taperStyle: "smooth", rearExpansionMm: 2 };
+
+for (const text of ["O", "B", "8"]) {
+  test(`cuerpo tapered suave "${text}": manifold/watertight y 1 componente conectado`, () => {
+    const result = createLetterGeometry(montserratBold, { ...TAPERED_SMOOTH_PARAMS, text });
+    const mesh = bodyOf(result);
+    assertValidMesh(mesh, `${text}-tapered-smooth`);
+    const topo = analyzeMeshTopology(mesh.positions);
+    assert.equal(topo.degenerate, 0, `${text} (tapered suave): triángulos degenerados`);
+    assert.equal(topo.nonManifold, 0, `${text} (tapered suave): aristas no-manifold`);
+    assert.equal(topo.boundaryEdges, 0, `${text} (tapered suave): no se esperaban bordes abiertos`);
+    assert.equal(countConnectedComponents(mesh.positions), 1, `${text} (tapered suave): se esperaba 1 componente conectado`);
+  });
+
+  test(`cuerpo tapered suave "${text}": mantiene los counters libres (la transición también se aplica a huecos, no sólo al exterior)`, () => {
+    const groups = contourGroupsFor(text);
+    const result = createLetterGeometry(montserratBold, { ...TAPERED_SMOOTH_PARAMS, text });
+    const mesh = bodyOf(result);
+    for (const hole of groups[0].holes) {
+      const [hx, hy] = polygonCentroid(hole);
+      const hits = raycastZHits(mesh.positions, hx, hy).filter((z) => z > -EPS_Z && z < TAPERED_SMOOTH_PARAMS.depthMm + EPS_Z);
+      assert.deepEqual(hits, [], `${text} (tapered suave): se esperaba el counter libre, hay geometría en z=[${hits.join(", ")}]`);
+    }
+  });
+}
+
+test('cuerpo tapered suave "O": el frente mantiene la silueta nominal (offset 0 en z=depthMm)', () => {
+  const text = "O";
+  const groups = contourGroupsFor(text);
+  const outsetHalf = regroupClipperSolution(outsetContourGroups(groups, TAPERED_SMOOTH_PARAMS.rearExpansionMm * 0.5));
+  const [px, py] = outsetHalf[0].outer[0];
+  const result = createLetterGeometry(montserratBold, { ...TAPERED_SMOOTH_PARAMS, text });
+  const hits = raycastZHits(bodyOf(result).positions, px, py);
+  const nearFront = hits.filter((z) => z > TAPERED_SMOOTH_PARAMS.depthMm - 2);
+  assert.deepEqual(nearFront, [], `no debería haber material fuera de la silueta nominal cerca del frente, se encontró en z=[${nearFront.join(", ")}]`);
+});
+
+test('cuerpo tapered suave "O": la expansión trasera es correcta (offset ~rearExpansionMm en la base)', () => {
+  const text = "O";
+  const groups = contourGroupsFor(text);
+  // Sonda justo por debajo del offset máximo (rearExpansionMm): debería
+  // haber material ahí muy cerca de z=0 (la base usa el footprint MÁS
+  // ANCHO, sin escalón — ver body/tapered.ts).
+  const nearMaxOutset = regroupClipperSolution(outsetContourGroups(groups, TAPERED_SMOOTH_PARAMS.rearExpansionMm - 0.1));
+  const [px, py] = nearMaxOutset[0].outer[0];
+  const result = createLetterGeometry(montserratBold, { ...TAPERED_SMOOTH_PARAMS, text });
+  const hits = raycastZHits(bodyOf(result).positions, px, py);
+  const nearBase = hits.filter((z) => z < 4);
+  assert.ok(nearBase.length > 0, "se esperaba material cerca de la base, a casi rearExpansionMm de la silueta original");
+
+  // Y no más allá del offset máximo, en ningún Z (mismo criterio que "stepped").
+  const beyondOutset = regroupClipperSolution(outsetContourGroups(groups, TAPERED_SMOOTH_PARAMS.rearExpansionMm * 1.5));
+  const [bx, by] = beyondOutset[0].outer[0];
+  const beyondHits = raycastZHits(bodyOf(result).positions, bx, by);
+  assert.deepEqual(beyondHits, [], `no debería haber material a 1.5x rearExpansionMm de la silueta original, hay en z=[${beyondHits.join(", ")}]`);
+});
+
+test('cuerpo tapered suave "O": la aproximación usa muchos pasos pequeños, ningún salto de offset mayor que una tolerancia razonable', () => {
+  const text = "O";
+  const groups = contourGroupsFor(text);
+  const result = createLetterGeometry(montserratBold, { ...TAPERED_SMOOTH_PARAMS, text });
+  const bodyPositions = bodyOf(result).positions;
+
+  // Barrido de offsets crecientes: para cada uno, encontrar el Z donde
+  // aparece/desaparece el material a esa distancia de la silueta original.
+  // Un "salto grande" en la curva offset(z) se vería como un Z muy
+  // distinto entre offsets consecutivos (paso pequeño en offset).
+  const samples = [];
+  for (let frac = 0.05; frac < 1; frac += 0.05) {
+    const outsetAt = regroupClipperSolution(outsetContourGroups(groups, TAPERED_SMOOTH_PARAMS.rearExpansionMm * frac));
+    const [px, py] = outsetAt[0].outer[0];
+    const hits = raycastZHits(bodyPositions, px, py).filter((z) => z > -EPS_Z && z < TAPERED_SMOOTH_PARAMS.depthMm + EPS_Z);
+    if (hits.length > 0) samples.push({ frac, z: Math.min(...hits) });
+  }
+  assert.ok(samples.length >= 10, `se esperaban múltiples muestras a lo largo de la rampa, hubo ${samples.length}`);
+
+  // Referencia "stepped" con las mismas bandas grandes de siempre (2mm, ~20
+  // bandas para depthMm=40): el salto máximo esperado en "smooth" debe ser
+  // claramente menor (más chico) que el ancho de una banda "stepped" — es
+  // la evidencia concreta de "pendiente extremadamente suave, sin niveles
+  // grandes evidentes" pedida en el spec.
+  let maxJump = 0;
+  for (let i = 1; i < samples.length; i++) {
+    maxJump = Math.max(maxJump, Math.abs(samples[i].z - samples[i - 1].z));
+  }
+  assert.ok(maxJump < 2, `salto máximo entre muestras consecutivas (${maxJump.toFixed(2)}mm) debería ser claramente menor a una banda "stepped" (2mm)`);
+});
+
+test('cuerpo tapered suave: compatible con tapa frontal (la tapa usa la silueta nominal del frente, sin cambios, igual que "stepped")', () => {
+  const taperedSmoothLidResult = createLetterGeometry(montserratBold, { ...TAPERED_SMOOTH_PARAMS, text: "O", frontType: "lid" });
+  assert.ok(lidOf(taperedSmoothLidResult.letters[0]), "se esperaba una tapa");
+  const standardLidResult = createLetterGeometry(montserratBold, { ...DEFAULT_PARAMS, text: "O", bodyType: "standard", frontType: "lid" });
+  assert.deepEqual(
+    Array.from(lidOf(taperedSmoothLidResult.letters[0]).positions),
     Array.from(lidOf(standardLidResult.letters[0]).positions),
   );
 });
@@ -1511,6 +1688,248 @@ test('costillas + bisel combinados "O": no se superponen (las costillas ceden lu
   assert.equal(countConnectedComponents(mesh.positions), 1);
 });
 
+// --- 0.4.1 corrección 3A: bisel frontal suave (front bevel) ---
+//
+// Mismo destino (0 en band.z0, bevelInsetMm en band.z1=depthMm) que la
+// versión de 0.4, pero con perfil smoothstep + resolución fina (~0.2mm) en
+// vez de sub-bandas de 0.5mm con interpolación LINEAL — debe verse
+// continuo, sin quiebre anguloso donde empalma con la pared normal.
+// Además, la tapa (cuando existe) debe continuar la misma silueta
+// angostada (geometry/lid.ts#bevelPlateInsetMm), en vez de una tapa de
+// tamaño nominal sobresaliendo del cuerpo biselado.
+
+test('bisel frontal "I": progresión suave — el inset a t=0.5 cruza cerca de lo que predice smoothstep, sin escalón grande', () => {
+  const text = "I";
+  const groups = contourGroupsFor(text);
+  const band = { z0: BEVEL_PARAMS.depthMm - BEVEL_PARAMS.bevelDepthMm, z1: BEVEL_PARAMS.depthMm };
+  const bandHeight = band.z1 - band.z0;
+  const result = createLetterGeometry(montserratBold, { ...BEVEL_PARAMS, text });
+  const bodyPositions = bodyOf(result).positions;
+
+  // smoothstep(t) = 3t²-2t³; a t=0.5 da exactamente 0.5 (mismo destino que
+  // el lineal en el punto medio), pero con pendiente 0 en los bordes.
+  const halfInset = regroupClipperSolution(insetContourGroups(groups, BEVEL_PARAMS.bevelInsetMm * 0.5));
+  const [px, py] = halfInset[0].outer[0];
+  const hits = raycastZHits(bodyPositions, px, py).sort((a, b) => a - b);
+  assert.ok(hits.length >= 1, "se esperaba al menos un impacto (piso) al inset de mitad de banda");
+  const expectedZ = band.z0 + bandHeight * 0.5;
+  const closest = hits.reduce((best, z) => (Math.abs(z - expectedZ) < Math.abs(best - expectedZ) ? z : best), hits[0]);
+  assert.ok(Math.abs(closest - expectedZ) < 0.35, `cruce a mitad de banda fuera de tolerancia: ${closest} (esperado ~${expectedZ.toFixed(2)})`);
+});
+
+test('bisel frontal "S": manifold/watertight y 1 componente conectado (trazo con curvas complejas)', () => {
+  const text = "S";
+  const result = createLetterGeometry(montserratBold, { ...BEVEL_PARAMS, text });
+  const mesh = bodyOf(result);
+  assertValidMesh(mesh, "S-bevel");
+  const topo = analyzeMeshTopology(mesh.positions);
+  assert.equal(topo.degenerate, 0);
+  assert.equal(topo.nonManifold, 0);
+  assert.equal(topo.boundaryEdges, 0);
+  assert.equal(countConnectedComponents(mesh.positions), 1);
+});
+
+test('bisel frontal + tapa plana "I": la tapa continúa la silueta angostada del bisel (mismo ancho que el borde real del cuerpo, sin voladizo)', () => {
+  const withBevel = createLetterGeometry(montserratBold, { ...BEVEL_PARAMS, text: "I", frontType: "lid", lidJoint: "glue" });
+  const withoutBevel = createLetterGeometry(montserratBold, { ...DEFAULT_PARAMS, text: "I", frontType: "lid", lidJoint: "glue" });
+  const lidBoundsWithBevel = meshBounds(lidOf(withBevel.letters[0]).positions);
+  const lidBoundsWithoutBevel = meshBounds(lidOf(withoutBevel.letters[0]).positions);
+
+  const widthWithBevel = lidBoundsWithBevel.maxX - lidBoundsWithBevel.minX;
+  const widthWithoutBevel = lidBoundsWithoutBevel.maxX - lidBoundsWithoutBevel.minX;
+  const expectedNarrowing = 2 * BEVEL_PARAMS.bevelInsetMm; // por lado, en ambos lados de X
+  assert.ok(
+    Math.abs((widthWithoutBevel - widthWithBevel) - expectedNarrowing) < 0.01,
+    `la tapa con bisel debería ser ${expectedNarrowing}mm más angosta que sin bisel (real: ${(widthWithoutBevel - widthWithBevel).toFixed(3)}mm) — sin esto, queda una tapa nominal sobresaliendo del cuerpo biselado (voladizo incorrecto)`,
+  );
+});
+
+test('bisel frontal + tapa encastrable "O": sigue siendo válida (placa+labio manifold, 1 componente) con la silueta angostada', () => {
+  const result = createLetterGeometry(montserratBold, { ...BEVEL_PARAMS, text: "O", frontType: "lid", lidJoint: "interior-lip" });
+  const lidMesh = lidOf(result.letters[0]);
+  assertValidMesh(lidMesh, "O.lid (bevel+interior-lip)");
+  const topo = analyzeMeshTopology(lidMesh.positions);
+  assert.equal(topo.nonManifold, 0, "O.lid (bevel+interior-lip): aristas no-manifold");
+  assert.equal(topo.boundaryEdges, 0, "O.lid (bevel+interior-lip): no se esperaban bordes abiertos");
+  assert.equal(countConnectedComponents(lidMesh.positions), 1);
+  assert.deepEqual(result.errors, [], "no se esperaban errores: el bisel + labio interior es una combinación válida con estos parámetros");
+});
+
+test("bisel frontal + tapa: si el bisel erosiona toda la placa, el resultado queda marcado con BEVEL_PLATE_COLLAPSED (error, no geometría corrupta)", () => {
+  // Letra muy chica + bisel grande respecto al trazo: la silueta angostada
+  // (footprintAtOffset con inset = bevelInsetMm) puede erosionar toda la
+  // placa. No es el foco de esta corrección (0.4.1 se concentra en
+  // suavizar/continuar el bisel, no en redefinir sus límites), pero el
+  // mecanismo de colapso (mismo patrón que LIP_COLLAPSED/CHANNEL_COLLAPSED)
+  // debe seguir bloqueando la exportación en vez de degradarse en silencio.
+  const result = createLetterGeometry(montserratBold, {
+    ...DEFAULT_PARAMS,
+    text: "I",
+    heightMm: 6,
+    bevelEnabled: true,
+    bevelDepthMm: 2,
+    bevelInsetMm: 10,
+    frontType: "lid",
+    lidJoint: "glue",
+  });
+  if (result.errors.length > 0) {
+    assert.ok(result.errors.every((e) => e.code === "BEVEL_PLATE_COLLAPSED"), "se esperaba únicamente BEVEL_PLATE_COLLAPSED");
+  }
+  // Sin importar si colapsó o no con estos parámetros puntuales, el
+  // resultado nunca debe lanzar una excepción ni dejar geometría con NaN.
+  assertFiniteFloatArray(bodyOf(result).positions, "body.positions");
+});
+
+// --- 0.4.1 corrección 3B: doble bisel / bisel lateral luminoso (groove) ---
+//
+// Modificador SEPARADO del bisel frontal: una cintura intermedia donde la
+// pared entra hacia adentro y vuelve a salir (perfil de montículo NEGATIVO,
+// misma media onda coseno que las costillas — ver
+// body/modifiers/groove.ts#grooveBandToZBand).
+
+const GROOVE_PARAMS = { ...DEFAULT_PARAMS, grooveEnabled: true, grooveInsetMm: 0.6, grooveWidthMm: 4, groovePositionMm: 20 };
+
+test('bisel lateral "I": offset 0 antes de la banda, entra progresivamente, alcanza el máximo a mitad de banda, y vuelve aproximadamente a 0 después', () => {
+  const text = "I";
+  const groups = contourGroupsFor(text);
+  const band = computeGrooveBand(GROOVE_PARAMS.baseMm, GROOVE_PARAMS.depthMm, true, GROOVE_PARAMS.groovePositionMm, GROOVE_PARAMS.grooveWidthMm);
+  assert.ok(band, "se esperaba que la banda del bisel lateral entre en la pared con estos parámetros");
+  const bandCenter = (band.z0 + band.z1) / 2;
+
+  const result = createLetterGeometry(montserratBold, { ...GROOVE_PARAMS, text });
+  const bodyPositions = bodyOf(result).positions;
+
+  // Fuera de la banda (bien por debajo de z0 o por encima de z1): la
+  // silueta original no debería mostrar ninguna cara extra ahí (mismo
+  // punto que la pared plana normal).
+  const [ox, oy] = groups[0].outer[0];
+  const hitsOutside = raycastZHits(bodyPositions, ox, oy).filter((z) => z > band.z0 + 0.3 && z < band.z1 - 0.3);
+  assert.deepEqual(hitsOutside, [], "no debería haber una cara extra sobre la silueta original bien dentro de la banda (la cintura se erosiona hacia adentro, la silueta original queda vacía ahí)");
+
+  // Al inset máximo (t=0.5, mitad de banda): dos impactos DENTRO del rango
+  // de la banda, centrados en su medio (igual patrón que el montículo de
+  // costillas, con signo invertido). El punto de sonda está INSET (a
+  // diferencia de las costillas, que sondean OUTSET): sigue siendo parte
+  // del material sólido normal fuera de la banda (fondo en z=0, frente en
+  // z=depthMm), así que se filtran esos impactos — el foco acá es
+  // exclusivamente la entrada/salida de la cintura.
+  // 90% del inset máximo (no el máximo exacto): a t=0.5 exacto el hueco
+  // entre entrada y salida es casi nulo (el pico es un único punto), y
+  // redondearía ambos impactos al mismo Z — 90% deja un hueco medible sin
+  // dejar de estar cerca del fondo de la cintura.
+  const nearMaxInset = regroupClipperSolution(insetContourGroups(groups, GROOVE_PARAMS.grooveInsetMm * 0.9));
+  const [px, py] = nearMaxInset[0].outer[0];
+  const allHits = raycastZHits(bodyPositions, px, py).sort((a, b) => a - b);
+  const hits = allHits.filter((z) => z > band.z0 - 1e-6 && z < band.z1 + 1e-6);
+  assert.equal(hits.length, 2, `se esperaban 2 impactos dentro de la banda (entrada/salida de la cintura), se encontraron ${hits.length} de ${allHits.length} totales: [${hits.join(", ")}] (todos: [${allHits.join(", ")}])`);
+  assert.ok(hits[0] > band.z0 && hits[0] < bandCenter, `el impacto de entrada debería estar entre el borde y el centro de la banda, fue ${hits[0]}`);
+  assert.ok(hits[1] > bandCenter && hits[1] < band.z1, `el impacto de salida debería estar entre el centro y el borde de la banda, fue ${hits[1]}`);
+
+  // No hay material más allá de grooveInsetMm hacia adentro en ningún Z.
+  const beyondInset = regroupClipperSolution(insetContourGroups(groups, GROOVE_PARAMS.grooveInsetMm * 1.5));
+  if (beyondInset.length > 0 && beyondInset[0].outer.length > 0) {
+    const [bx, by] = beyondInset[0].outer[0];
+    const beyondHits = raycastZHits(bodyPositions, bx, by).filter((z) => z > band.z0 - EPS_Z && z < band.z1 + EPS_Z);
+    assert.deepEqual(beyondHits, [], "no debería haber pared más allá de grooveInsetMm hacia adentro de la cintura");
+  }
+});
+
+for (const text of ["O", "B", "8"]) {
+  test(`bisel lateral "${text}": manifold/watertight, 1 componente conectado y counters libres`, () => {
+    const result = createLetterGeometry(montserratBold, { ...GROOVE_PARAMS, text });
+    const mesh = bodyOf(result);
+    assertValidMesh(mesh, `${text}-groove`);
+    const topo = analyzeMeshTopology(mesh.positions);
+    assert.equal(topo.degenerate, 0, `${text} (groove): triángulos degenerados`);
+    assert.equal(topo.nonManifold, 0, `${text} (groove): aristas no-manifold`);
+    assert.equal(topo.boundaryEdges, 0, `${text} (groove): no se esperaban bordes abiertos`);
+    assert.equal(countConnectedComponents(mesh.positions), 1, `${text} (groove): se esperaba 1 componente conectado`);
+
+    const groups = contourGroupsFor(text);
+    for (const hole of groups[0].holes) {
+      const [hx, hy] = polygonCentroid(hole);
+      const hits = raycastZHits(mesh.positions, hx, hy).filter((z) => z > -EPS_Z && z < GROOVE_PARAMS.depthMm + EPS_Z);
+      assert.deepEqual(hits, [], `${text} (groove): se esperaba el counter libre, hay geometría en z=[${hits.join(", ")}]`);
+    }
+  });
+}
+
+test("validateLetterSignParams: grooveInsetMm/grooveWidthMm/groovePositionMm fuera de rango cuando grooveEnabled", () => {
+  const badInset = validateLetterSignParams({ ...GROOVE_PARAMS, grooveInsetMm: 0 });
+  assert.ok(badInset.some((e) => e.field === "grooveInsetMm"));
+  const badWidth = validateLetterSignParams({ ...GROOVE_PARAMS, grooveWidthMm: 0 });
+  assert.ok(badWidth.some((e) => e.field === "grooveWidthMm"));
+  const valid = validateLetterSignParams({ ...GROOVE_PARAMS, text: "O" });
+  assert.ok(!valid.some((e) => e.field === "grooveInsetMm" || e.field === "grooveWidthMm" || e.field === "groovePositionMm"));
+});
+
+test("validateLetterSignParams: grooveInsetMm/grooveWidthMm fuera de rango no generan error si grooveEnabled es false", () => {
+  const errors = validateLetterSignParams({ ...DEFAULT_PARAMS, grooveEnabled: false, grooveInsetMm: 999, grooveWidthMm: 999 });
+  assert.ok(!errors.some((e) => e.field === "grooveInsetMm" || e.field === "grooveWidthMm"));
+});
+
+test("validateLetterSignParams: bisel frontal + bisel lateral superpuestos se bloquean con un mensaje claro (no compiten por el mismo tramo de pared)", () => {
+  // bisel frontal: [depthMm-2, depthMm] = [38, 40]. bisel lateral centrado
+  // en groovePositionMm=1 desde el frente, ancho 4mm: [depthMm-3, depthMm-1]
+  // Wait: se arma explícitamente superpuesto con el bisel frontal.
+  const overlapping = validateLetterSignParams({
+    ...DEFAULT_PARAMS,
+    bevelEnabled: true,
+    bevelDepthMm: 2,
+    bevelInsetMm: 1,
+    grooveEnabled: true,
+    grooveInsetMm: 0.5,
+    grooveWidthMm: 4,
+    groovePositionMm: 1,
+  });
+  assert.ok(overlapping.some((e) => e.field === "groovePositionMm"), "se esperaba un error bloqueando la superposición de bandas");
+
+  // Separados (sin superposición): no debería haber error de superposición.
+  const separated = validateLetterSignParams({
+    ...DEFAULT_PARAMS,
+    bevelEnabled: true,
+    bevelDepthMm: 2,
+    bevelInsetMm: 1,
+    grooveEnabled: true,
+    grooveInsetMm: 0.5,
+    grooveWidthMm: 4,
+    groovePositionMm: 20,
+  });
+  assert.ok(!separated.some((e) => e.field === "groovePositionMm"));
+});
+
+test('bisel frontal + bisel lateral combinados "O" (sin superponerse): ambos activos, resultado sigue siendo válido', () => {
+  const result = createLetterGeometry(montserratBold, {
+    ...DEFAULT_PARAMS,
+    text: "O",
+    bevelEnabled: true,
+    bevelDepthMm: 2,
+    bevelInsetMm: 1,
+    grooveEnabled: true,
+    grooveInsetMm: 0.5,
+    grooveWidthMm: 4,
+    groovePositionMm: 20,
+  });
+  const mesh = bodyOf(result);
+  assertValidMesh(mesh, "O-bevel+groove");
+  const topo = analyzeMeshTopology(mesh.positions);
+  assert.equal(topo.degenerate, 0);
+  assert.equal(topo.nonManifold, 0);
+  assert.equal(topo.boundaryEdges, 0);
+  assert.equal(countConnectedComponents(mesh.positions), 1);
+});
+
+test('costillas + doble bisel combinados "O": las costillas ceden lugar al bisel lateral (no se superponen) y el resultado sigue siendo válido', () => {
+  const result = createLetterGeometry(montserratBold, { ...GROOVE_PARAMS, text: "O", ribsCount: 2 });
+  const mesh = bodyOf(result);
+  assertValidMesh(mesh, "O-ribs+groove");
+  const topo = analyzeMeshTopology(mesh.positions);
+  assert.equal(topo.degenerate, 0);
+  assert.equal(topo.nonManifold, 0);
+  assert.equal(topo.boundaryEdges, 0);
+  assert.equal(countConnectedComponents(mesh.positions), 1);
+});
+
 // --- Stampa Maker 0.4 Etapa 5: frente perforado + difusor plano ---
 //
 // Máscara opaca con perforaciones (patrón de círculos, centro a centro) +
@@ -1565,6 +1984,26 @@ test('patrón circular "O": no perfora el hueco central (el counter permanece in
 
 const PERFORATED_PARAMS = { ...DEFAULT_PARAMS, frontType: "perforated" };
 
+// 0.4.1 corrección 4A: orden físico correcto, del cuerpo hacia el
+// observador: CUERPO -> DIFUSOR -> MÁSCARA (la máscara es la pieza más
+// externa/lejana). Antes, `PART_ORDER` en createLetterGeometry.ts listaba
+// "mask" antes que "diffuser" — la causa de raíz del offset explosionado
+// invertido en el viewport (ver docs/STAMPA_MAKER.md).
+test('frente perforado "O": orden físico body -> diffuser -> mask (cada pieza empieza donde termina la anterior o más allá, nunca antes)', () => {
+  const result = createLetterGeometry(montserratBold, { ...PERFORATED_PARAMS, text: "O" });
+  const letter = result.letters[0];
+  const bodyBounds = meshBounds(letter.parts.find((p) => p.kind === "body").mesh.positions);
+  const diffuserBounds = meshBounds(letter.parts.find((p) => p.kind === "diffuser").mesh.positions);
+  const maskBounds = meshBounds(letter.parts.find((p) => p.kind === "mask").mesh.positions);
+
+  assert.ok(bodyBounds.maxZ <= diffuserBounds.minZ + 1e-6, "el difusor debería empezar donde termina el cuerpo (o más adelante)");
+  assert.ok(diffuserBounds.maxZ <= maskBounds.maxZ, "la máscara (su cara) debería ser la pieza más externa, más lejos del cuerpo que el difusor");
+  // La MÁSCARA es la única con faldón (puede llegar más atrás que el
+  // difusor en minZ), pero su CARA (el extremo más externo, maxZ) siempre
+  // queda más lejos del cuerpo que el difusor — eso es lo que define el
+  // orden observador->máscara->difusor->cuerpo.
+});
+
 // Límite conocido de 0.4 Etapa 5: con CIENTOS de huecos cercanos en una
 // sola tapa (la máscara perforada, a diferencia de cualquier letra normal
 // con a lo sumo 2-3 huecos), earcut puede elegir algún "puente"
@@ -1618,7 +2057,16 @@ for (const text of ["O", "B", "8"]) {
   });
 }
 
-test('frente perforado "O": difusor y máscara ocupan los rangos Z esperados, sin superponerse', () => {
+// 0.4.1 corrección 4B: la máscara pasó de ser una placa plana a una carcasa
+// (cara perforada + faldón lateral, ver front/perforated.ts) — su huella
+// crece uniformemente por `maskClearanceMm + maskWallThicknessMm`
+// (exterior Y counters, mismo mecanismo `footprintAtOffset` que costillas/
+// tapered), así que ya no comparte límites Z ni silueta con el difusor
+// (que SÍ sigue la silueta original sin cambios). El Z de la CARA (no del
+// faldón, que se extiende más atrás) sigue empezando justo donde termina
+// el difusor.
+
+test('frente perforado "O": la cara de la máscara empieza justo donde termina el difusor, sin superponerse', () => {
   const result = createLetterGeometry(montserratBold, { ...PERFORATED_PARAMS, text: "O" });
   const letter = result.letters[0];
   const diffuserBounds = meshBounds(letter.parts.find((p) => p.kind === "diffuser").mesh.positions);
@@ -1630,27 +2078,125 @@ test('frente perforado "O": difusor y máscara ocupan los rangos Z esperados, si
   const FLOAT32_TOL = 1e-4;
   assert.ok(Math.abs(diffuserBounds.minZ - PERFORATED_PARAMS.depthMm) < FLOAT32_TOL);
   assert.ok(Math.abs(diffuserBounds.maxZ - (PERFORATED_PARAMS.depthMm + PERFORATED_PARAMS.diffuserThicknessMm)) < FLOAT32_TOL);
-  assert.ok(Math.abs(maskBounds.minZ - diffuserBounds.maxZ) < FLOAT32_TOL, "la máscara debería empezar justo donde termina el difusor");
+  // maxZ de la máscara (el extremo más lejano del cuerpo) = tope de la
+  // CARA, no del faldón (que va hacia atrás, más cerca del cuerpo).
   assert.ok(Math.abs(maskBounds.maxZ - (diffuserBounds.maxZ + PERFORATED_PARAMS.maskThicknessMm)) < FLOAT32_TOL);
 });
 
 test('frente perforado "O": la máscara tiene perforaciones visibles (un agujero del patrón queda libre en la malla generada)', () => {
+  // La máscara ya no perfora la silueta ORIGINAL directamente: perfora la
+  // silueta crecida por maskClearanceMm+maskWallThicknessMm (outerGroups en
+  // front/perforated.ts) — mismo cálculo acá para encontrar un agujero real.
   const groups = contourGroupsFor("O");
-  const plateGroups = groups.map((g) => ({ outer: g.outer, holes: g.holes }));
-  const punched = punchCirclePattern(plateGroups, {
+  const outerGroups = groups.flatMap((g) => footprintAtOffset(g, PERFORATED_PARAMS.maskClearanceMm + PERFORATED_PARAMS.maskWallThicknessMm));
+  const punched = punchCirclePattern(outerGroups, {
     holeDiameterMm: PERFORATED_PARAMS.holeDiameterMm,
     pitchMm: PERFORATED_PARAMS.pitchMm,
     edgeMarginMm: PERFORATED_PARAMS.edgeMarginMm,
   });
-  const originalHoleArea = Math.abs(polygonArea(groups[0].holes[0]));
+  const originalHoleArea = Math.abs(polygonArea(outerGroups[0].holes[0]));
   const patternHole = punched[0].holes.find((h) => Math.abs(Math.abs(polygonArea(h)) - originalHoleArea) > 1);
   assert.ok(patternHole, "se esperaba al menos un agujero del patrón distinto del counter original");
   const [hx, hy] = polygonCentroid(patternHole);
 
   const result = createLetterGeometry(montserratBold, { ...PERFORATED_PARAMS, text: "O" });
   const maskPart = result.letters[0].parts.find((p) => p.kind === "mask");
+  // Sólo en el rango Z de la CARA (no del faldón, que en XY puede pasar
+  // cerca del perímetro pero nunca perfora — ver test dedicado más abajo):
+  // un agujero real del patrón está bien adentro de la zona segura, lejos
+  // del faldón, así que no debería haber NINGÚN impacto en absoluto.
   const hits = raycastZHits(maskPart.mesh.positions, hx, hy);
   assert.deepEqual(hits, [], "se esperaba que el agujero del patrón esté libre en la máscara generada");
+});
+
+// --- 0.4.1 corrección 4B: máscara como carcasa (faldón lateral) ---
+
+test('frente perforado "O": maskSideDepthMm=5 da un faldón de ~5mm medidos desde el frente', () => {
+  const params = { ...PERFORATED_PARAMS, text: "O", maskSideDepthMm: 5 };
+  const result = createLetterGeometry(montserratBold, params);
+  const maskPart = result.letters[0].parts.find((p) => p.kind === "mask");
+  const bounds = meshBounds(maskPart.mesh.positions);
+  const expectedSkirtZ0 = params.depthMm - 5;
+  assert.ok(Math.abs(bounds.minZ - expectedSkirtZ0) < 1e-3, `el faldón debería llegar hasta z=${expectedSkirtZ0}, llegó hasta z=${bounds.minZ}`);
+});
+
+test('frente perforado "O": maskSideDepthMm >= profundidad del cuerpo da cobertura lateral completa (hasta z=0)', () => {
+  const params = { ...PERFORATED_PARAMS, text: "O", maskSideDepthMm: PERFORATED_PARAMS.depthMm };
+  const result = createLetterGeometry(montserratBold, params);
+  const maskPart = result.letters[0].parts.find((p) => p.kind === "mask");
+  const bounds = meshBounds(maskPart.mesh.positions);
+  assert.ok(Math.abs(bounds.minZ - 0) < 1e-3, `con cobertura completa el faldón debería llegar hasta z=0, llegó hasta z=${bounds.minZ}`);
+
+  // Advertencia MASK_SIDE_DEPTH_CLAMPED si se pide más de lo disponible.
+  const overResult = createLetterGeometry(montserratBold, { ...params, maskSideDepthMm: params.depthMm * 3 });
+  assert.ok(overResult.warnings.some((w) => w.code === "MASK_SIDE_DEPTH_CLAMPED"), "se esperaba MASK_SIDE_DEPTH_CLAMPED al pedir más cobertura que la profundidad disponible");
+});
+
+test('frente perforado "O": maskSideDepthMm=0 no genera faldón (sólo la cara, mismo comportamiento que una placa)', () => {
+  const params = { ...PERFORATED_PARAMS, text: "O", maskSideDepthMm: 0 };
+  const result = createLetterGeometry(montserratBold, params);
+  const maskPart = result.letters[0].parts.find((p) => p.kind === "mask");
+  const bounds = meshBounds(maskPart.mesh.positions);
+  const expectedFaceZ0 = params.depthMm + params.diffuserThicknessMm;
+  assert.ok(Math.abs(bounds.minZ - expectedFaceZ0) < 1e-3, "sin faldón, la máscara debería ocupar sólo el rango Z de la cara");
+});
+
+for (const text of ["O", "B", "8"]) {
+  test(`frente perforado "${text}": la máscara (cara + faldón) es manifold/watertight y 1 solo componente conectado`, () => {
+    const result = createLetterGeometry(montserratBold, { ...PERFORATED_PARAMS, text });
+    const maskPart = result.letters[0].parts.find((p) => p.kind === "mask");
+    const topo = analyzeMeshTopology(maskPart.mesh.positions);
+    assert.ok(topo.degenerate <= MAX_BENIGN_DEGENERATE_TRIANGLES, `${text}.mask: demasiados triángulos degenerados (${topo.degenerate})`);
+    assert.equal(topo.nonManifold, 0, `${text}.mask: aristas no-manifold`);
+    assert.equal(topo.boundaryEdges, 0, `${text}.mask: no se esperaban bordes abiertos (cara+faldón cerrados)`);
+    assert.equal(countConnectedComponents(maskPart.mesh.positions), 1, `${text}.mask: se esperaba 1 solo componente conectado (cara+faldón soldados)`);
+  });
+
+  test(`frente perforado "${text}": el counter original queda libre en el faldón también (no sólo en la cara)`, () => {
+    const groups = contourGroupsFor(text);
+    const result = createLetterGeometry(montserratBold, { ...PERFORATED_PARAMS, text });
+    const maskPart = result.letters[0].parts.find((p) => p.kind === "mask");
+    for (const hole of groups[0].holes) {
+      const [hx, hy] = polygonCentroid(hole);
+      assert.deepEqual(raycastZHits(maskPart.mesh.positions, hx, hy), [], `${text}.mask: counter debería estar libre en toda la profundidad (cara + faldón)`);
+    }
+  });
+}
+
+test('frente perforado "O": maskClearanceMm separa el faldón de la silueta real del cuerpo (holgura por lado)', () => {
+  const groups = contourGroupsFor("O");
+  const smallClearance = { ...PERFORATED_PARAMS, text: "O", maskClearanceMm: 0.2 };
+  const bigClearance = { ...PERFORATED_PARAMS, text: "O", maskClearanceMm: 1.5 };
+
+  // El borde INTERIOR del faldón (el más cerca del cuerpo real) es
+  // exactamente `footprintAtOffset(group, maskClearanceMm)` — un punto de
+  // ese borde debería estar más lejos del contorno original cuando la
+  // holgura es mayor.
+  const innerSmall = footprintAtOffset(groups[0], smallClearance.maskClearanceMm);
+  const innerBig = footprintAtOffset(groups[0], bigClearance.maskClearanceMm);
+  const distSmall = minDistanceToPolygon(innerSmall[0].outer[0], groups[0].outer);
+  const distBig = minDistanceToPolygon(innerBig[0].outer[0], groups[0].outer);
+  assert.ok(Math.abs(distSmall - smallClearance.maskClearanceMm) < 0.05);
+  assert.ok(Math.abs(distBig - bigClearance.maskClearanceMm) < 0.05);
+  assert.ok(distBig > distSmall, "una holgura mayor debería separar más el faldón de la silueta real");
+});
+
+test('frente perforado: el patrón de círculos nunca perfora el faldón lateral (sólo la cara frontal)', () => {
+  const params = { ...PERFORATED_PARAMS, text: "O", maskSideDepthMm: PERFORATED_PARAMS.depthMm };
+  const result = createLetterGeometry(montserratBold, params);
+  const maskPart = result.letters[0].parts.find((p) => p.kind === "mask");
+  const faceZ0 = params.depthMm + params.diffuserThicknessMm;
+
+  // Sondeamos en el ANILLO del faldón (entre el borde interior y exterior
+  // del faldón, ver footprintAtOffset) muy por debajo de la cara: si
+  // hubiera un agujero del patrón ahí, un rayo vertical mostraría un hueco
+  // (0 impactos) en vez de tocar la pared sólida del faldón (>=1 impacto
+  // por debajo de la cara).
+  const groups = contourGroupsFor("O");
+  const skirtMidOuter = footprintAtOffset(groups[0], params.maskClearanceMm + params.maskWallThicknessMm / 2);
+  const [sx, sy] = skirtMidOuter[0].outer[0];
+  const hitsBelowFace = raycastZHits(maskPart.mesh.positions, sx, sy).filter((z) => z < faceZ0 - 0.1);
+  assert.ok(hitsBelowFace.length > 0, "se esperaba pared sólida del faldón (sin perforar) por debajo de la cara");
 });
 
 test('"STAMPA" con frente perforado: exporta cuerpo+máscara+difusor por letra (18 STL en el ZIP)', async () => {

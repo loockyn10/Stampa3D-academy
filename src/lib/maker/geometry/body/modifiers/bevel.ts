@@ -1,14 +1,10 @@
 import type { ContourGroup } from "@/lib/maker/types";
-import { insetContourGroups, differenceContourGroups, regroupClipperSolution, contourGroupsToRawPaths } from "@/lib/maker/geometry/offsets";
-import { extrudeContourGroups, type ExtrudedMeshData } from "@/lib/maker/geometry/extrudePolygon";
+import { footprintAtOffset, smoothstepRampProfile, type ZBand } from "@/lib/maker/geometry/body/shared";
 
 export interface BevelBand {
   z0: number;
   z1: number;
 }
-
-const BEVEL_SUBBAND_HEIGHT_MM = 0.5;
-const BEVEL_MIN_SUBBANDS = 4;
 
 /**
  * Banda del bisel, pegada al frente: `[depthMm-bevelDepthMm, depthMm]`,
@@ -23,64 +19,37 @@ export function computeBevelBand(baseMm: number, depthMm: number, bevelEnabled: 
   return { z0, z1 };
 }
 
-function bevelBreakpoints(band: BevelBand): number[] {
-  const height = band.z1 - band.z0;
-  const n = Math.max(BEVEL_MIN_SUBBANDS, Math.ceil(height / BEVEL_SUBBAND_HEIGHT_MM));
-  const points: number[] = [];
-  for (let i = 0; i <= n; i++) points.push(band.z0 + (height * i) / n);
-  return points;
-}
-
-/** Inset (mm) en una coordenada Z de la banda: 0 en `band.z0` (empalma con la pared normal), `bevelInsetMm` en `band.z1 = depthMm` (empalma con el frente). */
+/** Inset (mm) en una coordenada Z de la banda: 0 en `band.z0` (pendiente 0, empalma sin quiebre con la pared normal), `bevelInsetMm` en `band.z1 = depthMm` (pendiente 0 también, empalma sin quiebre con el frente/la tapa — ver geometry/lid.ts). */
 function insetAt(z: number, band: BevelBand, bevelInsetMm: number): number {
   const t = (z - band.z0) / (band.z1 - band.z0);
-  return bevelInsetMm * t;
-}
-
-function footprintAt(group: ContourGroup, insetMm: number): ContourGroup[] {
-  if (insetMm <= 1e-6) return [{ outer: group.outer, holes: group.holes }];
-  return regroupClipperSolution(insetContourGroups([group], insetMm));
+  return smoothstepRampProfile(t, bevelInsetMm);
 }
 
 /**
  * Footprint del frente (pieza "frente" del cuerpo, ver body/standard.ts)
- * cuando hay bisel: el borde exterior/de cada counter en z=depthMm ya no
- * es el original, es el inset COMPLETO (`bevelInsetMm`) — necesario para
- * que el frente empalme con el borde real que deja la pared biselada ahí
- * (a diferencia del tapered, acá SÍ cambia la silueta de la interfaz
- * frontal, a propósito: el bisel es visible justo en el borde del frente).
+ * cuando hay bisel: el borde exterior/de cada counter en z=depthMm ya no es
+ * el original, es el inset COMPLETO (`bevelInsetMm`) — necesario para que el
+ * frente empalme con el borde real que deja la pared biselada ahí (a
+ * diferencia del tapered, acá SÍ cambia la silueta de la interfaz frontal, a
+ * propósito: el bisel es visible justo en el borde del frente). Misma huella
+ * que reusa la tapa para continuidad visual cuerpo->bisel->tapa (0.4.1
+ * corrección 3A, ver geometry/lid.ts#bevelPlateInsetMm).
  */
 export function beveledFrontFootprint(group: ContourGroup, band: BevelBand | null, bevelInsetMm: number): ContourGroup[] {
   if (!band) return [{ outer: group.outer, holes: group.holes }];
-  return footprintAt(group, bevelInsetMm);
+  return footprintAtOffset(group, -bevelInsetMm);
 }
 
 /**
- * Pared exterior/hueco con bisel: fuera de la banda, la pared normal se
- * encarga (ver body/standard.ts, que acota su propio rango para dejarle
- * lugar a esta banda). Dentro de la banda, el contorno se erosiona
- * progresivamente (`insetContourGroups`, mismo mecanismo uniforme que ya
- * erosiona exterior y huecos a la vez — "hacia adentro" en ambos, ver
- * docs/STAMPA_MAKER.md) desde 0 en `band.z0` hasta `bevelInsetMm` en
- * `band.z1 = depthMm`. Aproximado con varios tramos rectos + escalones,
- * mismo patrón que body/tapered.ts (anclado por el extremo inferior, más
- * ancho, de cada tramo — sin escalón contra lo que viene de abajo).
+ * Convierte la banda de bisel en un descriptor de banda genérico (ver
+ * body/shared.ts#buildBandedOuterWallPieces, usado por body/standard.ts
+ * junto con las bandas de costillas/doble bisel). 0.4.1 corrección 3A:
+ * perfil smoothstep (`insetAt`, pendiente 0 en ambos extremos, resolución
+ * ~0.2mm vía `MODIFIER_RESOLUTION_MM` en shared.ts) en vez del anterior
+ * (sub-bandas de 0.5mm, interpolación LINEAL — se percibía "demasiado
+ * segmentado", con un quiebre anguloso justo donde la banda empalmaba con
+ * la pared normal).
  */
-export function buildBeveledOuterWallPieces(group: ContourGroup, band: BevelBand, bevelInsetMm: number): ExtrudedMeshData[] {
-  const zPoints = bevelBreakpoints(band);
-  const footprints = zPoints.map((z) => footprintAt(group, insetAt(z, band, bevelInsetMm)));
-
-  const pieces: ExtrudedMeshData[] = [];
-  for (let i = 0; i < zPoints.length - 1; i++) {
-    const za = zPoints[i];
-    const zb = zPoints[i + 1];
-    pieces.push(extrudeContourGroups(footprints[i], za, zb, { capStart: false, capEnd: false, sides: true }));
-
-    // Escalón hacia el tramo siguiente (más angosto, más cerca del
-    // frente): cierra footprints[i] (abajo) - footprints[i+1] (arriba)
-    // mirando +Z, mismo patrón que la repisa del núcleo erosionado.
-    const shelfGroups = differenceContourGroups(footprints[i], contourGroupsToRawPaths(footprints[i + 1]));
-    pieces.push(extrudeContourGroups(shelfGroups, zb, zb, { capStart: false, capEnd: true, sides: false }));
-  }
-  return pieces;
+export function bevelBandToZBand(band: BevelBand, bevelInsetMm: number): ZBand {
+  return { z0: band.z0, z1: band.z1, offsetAt: (z: number) => -insetAt(z, band, bevelInsetMm) };
 }

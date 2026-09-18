@@ -12,6 +12,17 @@ export type MakerFontId = "montserrat-regular" | "montserrat-bold";
  */
 export type BodyType = "standard" | "tapered";
 
+/**
+ * Estilo de aproximación del cuerpo tapered (0.4.1 corrección 2). "stepped":
+ * el original de 0.4 (bandas grandes, ~2mm, escalones visibles a propósito
+ * — un estilo válido, no un defecto). "smooth": misma progresión de offset
+ * (`rearExpansionMm` en la base, 0 en el frente), pero aproximada con
+ * sub-bandas finas (~0.2mm) + interpolación smoothstep, para que se perciba
+ * como una pendiente continua en vez de escalones grandes. Ver
+ * geometry/body/tapered.ts.
+ */
+export type TaperStyle = "stepped" | "smooth";
+
 export interface MakerFontDefinition {
   id: MakerFontId;
   label: string;
@@ -62,6 +73,8 @@ export interface LetterSignParams {
    * `rearExpansionMm` más ancha, con transición progresiva entre medio.
    */
   rearExpansionMm: number;
+  /** Estilo de aproximación del tapered (ver TaperStyle). Solo se usa/valida si bodyType === "tapered". */
+  taperStyle: TaperStyle;
   /**
    * Costillas laterales (0.4 Etapa 2): relieves perimetrales que sobresalen
    * de la pared exterior/hueco de la letra en una o dos bandas de Z,
@@ -83,6 +96,22 @@ export interface LetterSignParams {
   bevelDepthMm: number;
   /** Cuánto se desplaza hacia adentro en el borde del frente, en mm. Solo se usa si bevelEnabled. */
   bevelInsetMm: number;
+  /**
+   * Doble bisel / cintura luminosa (0.4.1 corrección 3B): modificador de
+   * pared SEPARADO del bisel frontal (`bevelEnabled`) — una banda
+   * intermedia (no necesariamente pegada al frente) donde la pared entra
+   * hacia adentro y vuelve a salir, pensada para pintarse/imprimirse en un
+   * color distinto en el slicer (solo geometría, sin selección de material
+   * ni 3MF). Independiente de `bevelEnabled`: pueden combinarse mientras
+   * sus bandas de Z no se superpongan (ver validation.ts).
+   */
+  grooveEnabled: boolean;
+  /** Desplazamiento máximo hacia adentro en el centro de la banda, en mm. Solo se usa/valida si grooveEnabled. */
+  grooveInsetMm: number;
+  /** Extensión total en Z de la banda (entra + vuelve a salir), en mm. Solo se usa/valida si grooveEnabled. */
+  grooveWidthMm: number;
+  /** Distancia desde el FRENTE (z=depthMm) hasta el centro de la banda, en mm (misma convención que bevelDepthMm). Solo se usa/valida si grooveEnabled. */
+  groovePositionMm: number;
   frontType: FrontType;
   /** Espesor de la tapa, en mm. Solo se usa/valida si frontType === "lid" (cualquier lidJoint). */
   lidMm: number;
@@ -109,8 +138,24 @@ export interface LetterSignParams {
    * Solo se usa/valida si lidJoint === "interior-lip".
    */
   lipWallMm: number;
-  /** Espesor de la máscara perforada, en mm (0.4 Etapa 5). Solo se usa/valida si frontType === "perforated". */
+  /** Espesor de la CARA frontal de la máscara perforada, en mm (0.4 Etapa 5). Solo se usa/valida si frontType === "perforated". */
   maskThicknessMm: number;
+  /**
+   * Espesor de la pared del faldón lateral de la máscara (0.4.1 corrección
+   * 4B — la máscara pasa de ser una placa plana a una carcasa que también
+   * cubre el lateral del cuerpo, ver front/perforated.ts). Solo se
+   * usa/valida si frontType === "perforated".
+   */
+  maskWallThicknessMm: number;
+  /**
+   * Cuántos mm de profundidad lateral del cuerpo cubre el faldón de la
+   * máscara, medidos desde el frente hacia atrás (0 = sin faldón, ~depthMm =
+   * cobertura completa; se acota automáticamente a la profundidad
+   * disponible). Solo se usa/valida si frontType === "perforated".
+   */
+  maskSideDepthMm: number;
+  /** Holgura POR LADO entre el faldón de la máscara y la silueta real del cuerpo, en mm (no se toca físicamente). Solo se usa/valida si frontType === "perforated". */
+  maskClearanceMm: number;
   /**
    * Espesor del difusor plano, en mm. Compartido entre "perforated" (0.4
    * Etapa 5) y "light-channel" (0.4 Etapa 6, futuro) — mutuamente
@@ -148,7 +193,17 @@ export interface ContourGroup {
 }
 
 export interface LetterGeometryWarning {
-  code: "WALL_TOO_THICK" | "EMPTY_TEXT" | "NO_GLYPHS" | "LIP_COLLAPSED" | "INSERT_DEPTH_CLAMPED" | "CHANNEL_COLLAPSED" | "CHANNEL_DEPTH_CLAMPED";
+  code:
+    | "WALL_TOO_THICK"
+    | "EMPTY_TEXT"
+    | "NO_GLYPHS"
+    | "LIP_COLLAPSED"
+    | "INSERT_DEPTH_CLAMPED"
+    | "CHANNEL_COLLAPSED"
+    | "CHANNEL_DEPTH_CLAMPED"
+    | "BEVEL_PLATE_COLLAPSED"
+    | "MASK_SKIRT_COLLAPSED"
+    | "MASK_SIDE_DEPTH_CLAMPED";
   message: string;
 }
 

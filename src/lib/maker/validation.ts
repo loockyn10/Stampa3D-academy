@@ -1,4 +1,6 @@
 import type { LetterSignParams } from "@/lib/maker/types";
+import { computeBevelBand } from "@/lib/maker/geometry/body/modifiers/bevel";
+import { computeGrooveBand } from "@/lib/maker/geometry/body/modifiers/groove";
 
 export interface FieldError {
   field: keyof LetterSignParams;
@@ -55,6 +57,33 @@ export function validateLetterSignParams(params: LetterSignParams): FieldError[]
     }
   }
 
+  if (params.grooveEnabled) {
+    if (!(params.grooveInsetMm > 0 && params.grooveInsetMm <= 5)) {
+      errors.push({ field: "grooveInsetMm", message: "El desplazamiento del bisel lateral debe estar entre 0 y 5 mm." });
+    }
+    if (!(params.grooveWidthMm > 0 && params.grooveWidthMm <= 20)) {
+      errors.push({ field: "grooveWidthMm", message: "El ancho del bisel lateral debe estar entre 0 y 20 mm." });
+    }
+    if (!(params.groovePositionMm >= 0 && params.groovePositionMm <= params.depthMm)) {
+      errors.push({ field: "groovePositionMm", message: "La posición del bisel lateral debe estar dentro de la profundidad total." });
+    }
+    if (params.depthMm > 0 && !computeGrooveBand(params.baseMm, params.depthMm, true, params.groovePositionMm, params.grooveWidthMm)) {
+      errors.push({ field: "groovePositionMm", message: "El bisel lateral no entra en la pared con estos parámetros (muy cerca de la base, del frente, o demasiado ancho)." });
+    }
+    // No hace falta permitir todas las combinaciones si generan conflictos
+    // geométricos (spec 0.4.1): bisel frontal y bisel lateral son
+    // modificadores independientes, pero si sus bandas de Z se superponen
+    // se bloquea acá con un mensaje claro, en vez de dejar que compitan por
+    // el mismo tramo de pared (ver body/standard.ts).
+    if (params.bevelEnabled && params.depthMm > 0) {
+      const bevelBand = computeBevelBand(params.baseMm, params.depthMm, true, params.bevelDepthMm);
+      const grooveBand = computeGrooveBand(params.baseMm, params.depthMm, true, params.groovePositionMm, params.grooveWidthMm);
+      if (bevelBand && grooveBand && grooveBand.z1 > bevelBand.z0 && grooveBand.z0 < bevelBand.z1) {
+        errors.push({ field: "groovePositionMm", message: "El bisel lateral se superpone con el bisel frontal: alejá su posición o achicá su ancho/profundidad." });
+      }
+    }
+  }
+
   if (params.frontType === "lid" && !(params.lidMm >= 0.4 && params.lidMm <= 10)) {
     errors.push({ field: "lidMm", message: "El espesor de tapa debe estar entre 0.4 y 10 mm." });
   }
@@ -92,6 +121,15 @@ export function validateLetterSignParams(params: LetterSignParams): FieldError[]
   if (params.frontType === "perforated") {
     if (!(params.maskThicknessMm >= 0.4 && params.maskThicknessMm <= 5)) {
       errors.push({ field: "maskThicknessMm", message: "El espesor de la máscara debe estar entre 0.4 y 5 mm." });
+    }
+    if (!(params.maskWallThicknessMm >= 0.4 && params.maskWallThicknessMm <= 5)) {
+      errors.push({ field: "maskWallThicknessMm", message: "El espesor lateral de la máscara debe estar entre 0.4 y 5 mm." });
+    }
+    if (!(params.maskSideDepthMm >= 0 && params.maskSideDepthMm <= params.depthMm)) {
+      errors.push({ field: "maskSideDepthMm", message: "La cobertura lateral debe estar entre 0 mm y la profundidad total." });
+    }
+    if (!(params.maskClearanceMm >= 0 && params.maskClearanceMm <= 2)) {
+      errors.push({ field: "maskClearanceMm", message: "La holgura de la máscara debe estar entre 0 y 2 mm." });
     }
     if (!(params.diffuserThicknessMm >= 0.2 && params.diffuserThicknessMm <= 5)) {
       errors.push({ field: "diffuserThicknessMm", message: "El espesor del difusor debe estar entre 0.2 y 5 mm." });
