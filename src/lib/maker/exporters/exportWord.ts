@@ -1,33 +1,36 @@
 import JSZip from "jszip";
 import type { LetterGeometryResult } from "@/lib/maker/types";
 import { buildSTLBlob, downloadBlob } from "@/lib/maker/exporters/exportSTL";
+import { partFileEntries } from "@/lib/maker/exporters/parts";
 
 /**
- * Arma el ZIP de la palabra completa con tapa frontal (cuerpo + tapa como
- * piezas separadas, en las mismas coordenadas del preview — sin recentrar:
- * representan el conjunto tal como se ve ensamblado). No dispara ninguna
- * descarga: función pura, para poder testearla sin DOM.
+ * Arma el ZIP de la palabra completa con más de una pieza (cuerpo + tapa/
+ * máscara/difusor/etc., según `frontType`), en las mismas coordenadas del
+ * preview — sin recentrar: representan el conjunto tal como se ve
+ * ensamblado. No dispara ninguna descarga: función pura, para poder
+ * testearla sin DOM.
  */
 export async function buildWordZipBlob(result: LetterGeometryResult, baseName: string): Promise<Blob> {
   if (result.errors.length > 0) {
     throw new Error(result.errors[0].message);
   }
-  if (!result.lid) {
-    throw new Error("buildWordZipBlob requiere que result.lid exista (frontType === \"lid\").");
+  if (result.parts.length < 2) {
+    throw new Error("buildWordZipBlob requiere al menos 2 piezas (frontType !== \"open\").");
   }
   const zip = new JSZip();
-  zip.file(`${baseName}_cuerpo.stl`, buildSTLBlob(result.body));
-  zip.file(`${baseName}_tapa.stl`, buildSTLBlob(result.lid));
+  for (const entry of partFileEntries(result.parts, baseName)) {
+    zip.file(entry.fileName, buildSTLBlob(entry.mesh));
+  }
   return zip.generateAsync({ type: "blob" });
 }
 
 /**
- * Exporta la palabra completa (misma geometría que el preview: `body`/`lid`
- * combinados). Frente abierto: un solo `<nombre>.stl` (comportamiento 0.1,
- * sin cambios). Tapa frontal: cuerpo y tapa son piezas separadas a
- * propósito (no se fusionan, ver createLetterGeometry.ts) — para no
- * mezclarlas en un único STL ambiguo se exportan como `<nombre>.zip` con
- * `<nombre>_cuerpo.stl` + `<nombre>_tapa.stl`.
+ * Exporta la palabra completa (misma geometría que el preview: `parts`
+ * combinadas). Una sola pieza (frente abierto): un solo `<nombre>.stl`
+ * (comportamiento 0.1, sin cambios). Más de una pieza: son piezas
+ * separadas a propósito (nunca se fusionan, ver createLetterGeometry.ts) —
+ * para no mezclarlas en un único STL ambiguo se exportan como
+ * `<nombre>.zip` con `<nombre>_<sufijo>.stl` por pieza.
  */
 export async function exportWord(result: LetterGeometryResult, baseName: string): Promise<void> {
   if (result.triangleCount === 0) {
@@ -37,8 +40,8 @@ export async function exportWord(result: LetterGeometryResult, baseName: string)
     throw new Error(result.errors[0].message);
   }
 
-  if (!result.lid) {
-    downloadBlob(buildSTLBlob(result.body), `${baseName}.stl`);
+  if (result.parts.length === 1) {
+    downloadBlob(buildSTLBlob(result.parts[0].mesh), `${baseName}.stl`);
     return;
   }
 

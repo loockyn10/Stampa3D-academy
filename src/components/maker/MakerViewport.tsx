@@ -3,35 +3,44 @@
 import { useEffect, useRef } from "react";
 import * as THREE from "three";
 import { OrbitControls } from "three/examples/jsm/controls/OrbitControls.js";
-import type { LetterGeometryResult } from "@/lib/maker/types";
+import type { LetterGeometryResult, PartKind } from "@/lib/maker/types";
 import { letterGeometryToBufferGeometry } from "@/lib/maker/geometry/toBufferGeometry";
 
 export type MakerViewMode = "assembled" | "exploded";
 
 interface MakerViewportProps {
   geometry: LetterGeometryResult | null;
-  /** Solo visual: desplaza la tapa hacia adelante en la escena, sin tocar la geometría exportada. Default "assembled". */
+  /** Solo visual: desplaza las piezas no-"body" hacia adelante en la escena, sin tocar la geometría exportada. Default "assembled". */
   viewMode?: MakerViewMode;
 }
 
-/** Desplazamiento puramente visual de la tapa en vista explosionada (mm). */
+/** Desplazamiento puramente visual entre piezas en vista explosionada (mm). */
 const EXPLODE_OFFSET_MM = 10;
+
+/** Color por tipo de pieza, solo para diferenciarlas visualmente en el preview (no es el color real de impresión). */
+const PART_COLORS: Record<PartKind, number> = {
+  body: 0xd8d8dc,
+  lid: 0xffb066,
+  mask: 0x6b6f76,
+  diffuser: 0xfff3d6,
+  channelDiffuser: 0xfff3d6,
+};
 
 /**
  * Visor 3D imperativo (three.js "vanilla", sin react-three-fiber) para
- * mantener el preview desacoplado de la generación geométrica. Cuerpo y
- * tapa (cuando existe) son dos THREE.Mesh separados: nunca se fusionan en
- * una sola BufferGeometry, así se puede desplazar la tapa en vista
- * explosionada moviendo solo su Object3D (transform de escena, no una
- * segunda geometría ni un cambio en las coordenadas exportadas).
+ * mantener el preview desacoplado de la generación geométrica. Cada pieza
+ * de `geometry.parts` (cuerpo, tapa, máscara, difusor...) es un
+ * THREE.Mesh separado: nunca se fusionan en una sola BufferGeometry, así
+ * se puede desplazar cada una en vista explosionada moviendo solo su
+ * Object3D (transform de escena, no una segunda geometría ni un cambio en
+ * las coordenadas exportadas).
  */
 export function MakerViewport({ geometry, viewMode = "assembled" }: MakerViewportProps) {
   const containerRef = useRef<HTMLDivElement>(null);
   const sceneRef = useRef<THREE.Scene | null>(null);
   const cameraRef = useRef<THREE.PerspectiveCamera | null>(null);
   const controlsRef = useRef<OrbitControls | null>(null);
-  const bodyMeshRef = useRef<THREE.Mesh | null>(null);
-  const lidMeshRef = useRef<THREE.Mesh | null>(null);
+  const partMeshesRef = useRef<Map<PartKind, THREE.Mesh>>(new Map());
 
   useEffect(() => {
     const container = containerRef.current;
@@ -101,48 +110,43 @@ export function MakerViewport({ geometry, viewMode = "assembled" }: MakerViewpor
     const controls = controlsRef.current;
     if (!scene || !camera || !controls) return;
 
-    for (const ref of [bodyMeshRef, lidMeshRef]) {
-      if (ref.current) {
-        scene.remove(ref.current);
-        ref.current.geometry.dispose();
-        (ref.current.material as THREE.Material).dispose();
-        ref.current = null;
-      }
+    for (const mesh of partMeshesRef.current.values()) {
+      scene.remove(mesh);
+      mesh.geometry.dispose();
+      (mesh.material as THREE.Material).dispose();
     }
+    partMeshesRef.current = new Map();
 
     if (!geometry || geometry.triangleCount === 0) return;
 
     const box = new THREE.Box3();
+    // El offset explosionado de cada pieza no-"body" depende de su
+    // posición entre las piezas no-"body" presentes (1-based), no de un
+    // slot fijo: con 1 sola pieza extra (tapa, o difusor de canal) da el
+    // mismo +10mm de siempre; con 2 (máscara+difusor, 0.4 Etapa 5) se
+    // separan en +10mm/+20mm.
+    let nonBodyIndex = 0;
 
-    if (geometry.body.triangleCount > 0) {
-      const bodyGeometry = letterGeometryToBufferGeometry(geometry.body);
-      const bodyMaterial = new THREE.MeshStandardMaterial({
-        color: 0xd8d8dc,
-        roughness: 0.65,
+    for (const part of geometry.parts) {
+      if (part.mesh.triangleCount === 0) continue;
+      const bufferGeometry = letterGeometryToBufferGeometry(part.mesh);
+      const material = new THREE.MeshStandardMaterial({
+        color: PART_COLORS[part.kind],
+        roughness: part.kind === "body" ? 0.65 : 0.55,
         metalness: 0.05,
         side: THREE.DoubleSide,
       });
-      const bodyMesh = new THREE.Mesh(bodyGeometry, bodyMaterial);
-      scene.add(bodyMesh);
-      bodyMeshRef.current = bodyMesh;
-      bodyGeometry.computeBoundingBox();
-      if (bodyGeometry.boundingBox) box.union(bodyGeometry.boundingBox);
-    }
+      const mesh = new THREE.Mesh(bufferGeometry, material);
 
-    if (geometry.lid && geometry.lid.triangleCount > 0) {
-      const lidGeometry = letterGeometryToBufferGeometry(geometry.lid);
-      const lidMaterial = new THREE.MeshStandardMaterial({
-        color: 0xffb066,
-        roughness: 0.55,
-        metalness: 0.05,
-        side: THREE.DoubleSide,
-      });
-      const lidMesh = new THREE.Mesh(lidGeometry, lidMaterial);
-      lidMesh.position.z = viewMode === "exploded" ? EXPLODE_OFFSET_MM : 0;
-      scene.add(lidMesh);
-      lidMeshRef.current = lidMesh;
-      lidGeometry.computeBoundingBox();
-      if (lidGeometry.boundingBox) box.union(lidGeometry.boundingBox);
+      if (part.kind !== "body") {
+        nonBodyIndex += 1;
+        mesh.position.z = viewMode === "exploded" ? EXPLODE_OFFSET_MM * nonBodyIndex : 0;
+      }
+
+      scene.add(mesh);
+      partMeshesRef.current.set(part.kind, mesh);
+      bufferGeometry.computeBoundingBox();
+      if (bufferGeometry.boundingBox) box.union(bufferGeometry.boundingBox);
     }
 
     if (!box.isEmpty()) {
@@ -165,11 +169,15 @@ export function MakerViewport({ geometry, viewMode = "assembled" }: MakerViewpor
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [geometry]);
 
-  // Vista explosionada: solo mueve el Object3D de la tapa en la escena, sin
-  // tocar la geometría ni recrear ningún mesh. No afecta la exportación.
+  // Vista explosionada: solo mueve el Object3D de cada pieza no-"body" en
+  // la escena, sin tocar la geometría ni recrear ningún mesh. No afecta la
+  // exportación.
   useEffect(() => {
-    if (lidMeshRef.current) {
-      lidMeshRef.current.position.z = viewMode === "exploded" ? EXPLODE_OFFSET_MM : 0;
+    let nonBodyIndex = 0;
+    for (const [kind, mesh] of partMeshesRef.current) {
+      if (kind === "body") continue;
+      nonBodyIndex += 1;
+      mesh.position.z = viewMode === "exploded" ? EXPLODE_OFFSET_MM * nonBodyIndex : 0;
     }
   }, [viewMode]);
 

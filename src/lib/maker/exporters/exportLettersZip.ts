@@ -1,6 +1,7 @@
 import JSZip from "jszip";
 import type { LetterGeometryResult, LetterPieceResult, TriangleSoupData } from "@/lib/maker/types";
 import { buildSTLBlob, downloadBlob } from "@/lib/maker/exporters/exportSTL";
+import { partFileEntries } from "@/lib/maker/exporters/parts";
 
 /**
  * Exportación de letras individuales: usa exactamente los mismos
@@ -9,11 +10,11 @@ import { buildSTLBlob, downloadBlob } from "@/lib/maker/exporters/exportSTL";
  * docs/STAMPA_MAKER.md). Solo recentra coordenadas para el archivo
  * individual; no recalcula ni reinterpreta la malla.
  *
- * Con tapa frontal, cada letra exporta 2 STL (`..._cuerpo.stl` +
- * `..._tapa.stl`), cada uno recentrado por separado: son piezas
- * independientes para imprimir por separado, así que cada una debe apoyar
- * en Z=0 y quedar centrada en XY por su cuenta (no una respecto de la
- * otra).
+ * Con más de una pieza (tapa, máscara, difusor...), cada letra exporta un
+ * .stl por pieza (`..._<sufijo>.stl`), cada uno recentrado por separado:
+ * son piezas independientes para imprimir por separado, así que cada una
+ * debe apoyar en Z=0 y quedar centrada en XY por su cuenta (no una
+ * respecto de la otra).
  *
  * Toma el `LetterGeometryResult` completo (no solo `letters[]`) para poder
  * rechazar la exportación cuando `result.errors` no está vacío (p.ej.
@@ -60,7 +61,7 @@ function letterBaseName(piece: LetterPieceResult): string {
   return `${index}_${sanitizeFileNameChar(piece.char)}`;
 }
 
-/** Arma el ZIP en memoria (sin descargar): 1 o 2 entradas .stl por letra, recentradas. */
+/** Arma el ZIP en memoria (sin descargar): 1 o más entradas .stl por letra, recentradas. */
 export async function buildLettersZipBlob(result: LetterGeometryResult): Promise<Blob> {
   if (result.errors.length > 0) {
     throw new Error(result.errors[0].message);
@@ -68,11 +69,9 @@ export async function buildLettersZipBlob(result: LetterGeometryResult): Promise
   const zip = new JSZip();
   for (const letter of result.letters) {
     const baseName = letterBaseName(letter);
-    if (letter.lid) {
-      zip.file(`${baseName}_cuerpo.stl`, buildSTLBlob(recenterMesh(letter.body)));
-      zip.file(`${baseName}_tapa.stl`, buildSTLBlob(recenterMesh(letter.lid)));
-    } else {
-      zip.file(`${baseName}.stl`, buildSTLBlob(recenterMesh(letter.body)));
+    const recenteredParts = letter.parts.map((part) => ({ ...part, mesh: recenterMesh(part.mesh) }));
+    for (const entry of partFileEntries(recenteredParts, baseName)) {
+      zip.file(entry.fileName, buildSTLBlob(entry.mesh));
     }
   }
   return zip.generateAsync({ type: "blob" });

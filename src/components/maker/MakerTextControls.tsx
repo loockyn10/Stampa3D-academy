@@ -113,36 +113,48 @@ function NumberField({
   );
 }
 
-/**
- * "Tipo de frente" en la UI combina dos campos de LetterSignParams
- * (frontType + lidJoint) en un solo selector de 3 opciones: son la misma
- * decisión desde la perspectiva del usuario, aunque internamente frontType
- * (¿hay tapa?) y lidJoint (¿cómo se une?) son conceptos separados — ver
- * src/lib/maker/types.ts.
- */
-type FrontMode = "open" | "flat-lid" | "interior-lip-lid";
+function Toggle({ label, checked, onChange }: { label: string; checked: boolean; onChange: (checked: boolean) => void }) {
+  return (
+    <label className="flex cursor-pointer select-none items-center gap-2 text-xs font-semibold text-gray-300">
+      <input
+        type="checkbox"
+        checked={checked}
+        onChange={(e) => onChange(e.target.checked)}
+        className="h-4 w-4 rounded border-white/20 bg-white/[0.06] text-stampa-orange focus:ring-2 focus:ring-stampa-orange/40 focus:ring-offset-0"
+      />
+      {label}
+    </label>
+  );
+}
 
-const FRONT_MODE_OPTIONS: { value: FrontMode; label: string }[] = [
-  { value: "open", label: "Frente abierto" },
-  { value: "flat-lid", label: "Tapa frontal" },
-  { value: "interior-lip-lid", label: "Tapa encastrable" },
+const BODY_TYPE_OPTIONS: { value: LetterSignParams["bodyType"]; label: string }[] = [
+  { value: "standard", label: "Estándar" },
+  { value: "tapered", label: "Tapered" },
 ];
 
-function frontModeOf(params: LetterSignParams): FrontMode {
-  if (params.frontType !== "lid") return "open";
-  return params.lidJoint === "interior-lip" ? "interior-lip-lid" : "flat-lid";
-}
+const RIBS_COUNT_OPTIONS = [
+  { value: "0", label: "Sin costillas" },
+  { value: "1", label: "1 costilla" },
+  { value: "2", label: "2 costillas" },
+];
 
-function patchForFrontMode(mode: FrontMode): Partial<LetterSignParams> {
-  switch (mode) {
-    case "open":
-      return { frontType: "open" };
-    case "flat-lid":
-      return { frontType: "lid", lidJoint: "glue" };
-    case "interior-lip-lid":
-      return { frontType: "lid", lidJoint: "interior-lip" };
-  }
-}
+/**
+ * "Frente" es un selector de 4 vías directo sobre `frontType` (0.4: el
+ * pedido separa FRENTE de ENCASTRE — ver más abajo — a diferencia de la
+ * versión anterior, que combinaba frontType+lidJoint en un solo control de
+ * 3 vías).
+ */
+const FRONT_TYPE_OPTIONS: { value: LetterSignParams["frontType"]; label: string }[] = [
+  { value: "open", label: "Frente abierto" },
+  { value: "lid", label: "Tapa completa" },
+  { value: "perforated", label: "Perforado" },
+  { value: "light-channel", label: "Canal luminoso" },
+];
+
+const JOINT_OPTIONS: { value: LetterSignParams["lidJoint"]; label: string }[] = [
+  { value: "glue", label: "Pegado" },
+  { value: "interior-lip", label: "Labio interior" },
+];
 
 const VIEW_MODE_OPTIONS: { value: MakerViewMode; label: string }[] = [
   { value: "assembled", label: "Ensamblada" },
@@ -222,57 +234,236 @@ export function MakerTextControls({
         />
       </div>
 
-      <label className="block">
-        <span className="mb-1 block text-xs font-semibold text-gray-500">Tipo de frente</span>
-        <SegmentedControl
-          options={FRONT_MODE_OPTIONS}
-          value={frontModeOf(params)}
-          onChange={(mode) => onChange(patchForFrontMode(mode))}
-        />
-      </label>
-
-      {params.frontType === "lid" && (
-        <NumberField
-          label="Espesor de tapa"
-          value={params.lidMm}
-          onChange={(v) => onChange({ lidMm: v })}
-          suffix="mm"
-          error={fieldError(fieldErrors, "lidMm")}
-        />
-      )}
-
-      {params.frontType === "lid" && params.lidJoint === "interior-lip" && (
-        <div className="grid grid-cols-2 gap-3">
-          <NumberField
-            label="Profundidad de encastre"
-            value={params.insertDepthMm}
-            onChange={(v) => onChange({ insertDepthMm: v })}
-            suffix="mm"
-            error={fieldError(fieldErrors, "insertDepthMm")}
-          />
-          <NumberField
-            label="Espesor del labio"
-            value={params.lipWallMm}
-            onChange={(v) => onChange({ lipWallMm: v })}
-            suffix="mm"
-            error={fieldError(fieldErrors, "lipWallMm")}
-          />
-          <NumberField
-            label="Holgura"
-            value={params.clearanceMm}
-            onChange={(v) => onChange({ clearanceMm: v })}
-            suffix="mm"
-            error={fieldError(fieldErrors, "clearanceMm")}
-          />
-        </div>
-      )}
-
-      {params.frontType === "lid" && (
+      {/* CUERPO */}
+      <div className="flex flex-col gap-3 border-t border-white/10 pt-4">
         <label className="block">
-          <span className="mb-1 block text-xs font-semibold text-gray-500">Vista</span>
-          <SegmentedControl options={VIEW_MODE_OPTIONS} value={viewMode} onChange={onChangeViewMode} />
+          <span className="mb-1 block text-xs font-semibold text-gray-500">Cuerpo</span>
+          <CalculatorSelect
+            value={params.bodyType}
+            onChange={(value) => onChange({ bodyType: value as LetterSignParams["bodyType"] })}
+            options={BODY_TYPE_OPTIONS}
+          />
         </label>
-      )}
+
+        {params.bodyType === "tapered" && (
+          <NumberField
+            label="Expansión de la base"
+            value={params.rearExpansionMm}
+            onChange={(v) => onChange({ rearExpansionMm: v })}
+            suffix="mm"
+            error={fieldError(fieldErrors, "rearExpansionMm")}
+          />
+        )}
+
+        <div className="flex flex-col gap-3">
+          <span className="text-xs font-semibold text-gray-500">Modificadores</span>
+
+          <div className="flex flex-col gap-2 rounded-xl border border-white/10 bg-white/[0.03] p-3">
+            <Toggle
+              label="Costillas laterales"
+              checked={params.ribsCount > 0}
+              onChange={(checked) => onChange({ ribsCount: checked ? 1 : 0 })}
+            />
+            {params.ribsCount > 0 && (
+              <div className="flex flex-col gap-3 pt-1">
+                <CalculatorSelect
+                  value={String(params.ribsCount)}
+                  onChange={(value) => onChange({ ribsCount: Number(value) as 0 | 1 | 2 })}
+                  options={RIBS_COUNT_OPTIONS}
+                />
+                <div className="grid grid-cols-2 gap-3">
+                  <NumberField
+                    label="Protrusión"
+                    value={params.ribProtrusionMm}
+                    onChange={(v) => onChange({ ribProtrusionMm: v })}
+                    suffix="mm"
+                    error={fieldError(fieldErrors, "ribProtrusionMm")}
+                  />
+                  <NumberField
+                    label="Ancho"
+                    value={params.ribWidthMm}
+                    onChange={(v) => onChange({ ribWidthMm: v })}
+                    suffix="mm"
+                    error={fieldError(fieldErrors, "ribWidthMm")}
+                  />
+                </div>
+              </div>
+            )}
+          </div>
+
+          <div className="flex flex-col gap-2 rounded-xl border border-white/10 bg-white/[0.03] p-3">
+            <Toggle
+              label="Bisel frontal interior"
+              checked={params.bevelEnabled}
+              onChange={(checked) => onChange({ bevelEnabled: checked })}
+            />
+            {params.bevelEnabled && (
+              <div className="grid grid-cols-2 gap-3 pt-1">
+                <NumberField
+                  label="Profundidad"
+                  value={params.bevelDepthMm}
+                  onChange={(v) => onChange({ bevelDepthMm: v })}
+                  suffix="mm"
+                  error={fieldError(fieldErrors, "bevelDepthMm")}
+                />
+                <NumberField
+                  label="Desplazamiento"
+                  value={params.bevelInsetMm}
+                  onChange={(v) => onChange({ bevelInsetMm: v })}
+                  suffix="mm"
+                  error={fieldError(fieldErrors, "bevelInsetMm")}
+                />
+              </div>
+            )}
+          </div>
+        </div>
+      </div>
+
+      {/* FRENTE */}
+      <div className="flex flex-col gap-3 border-t border-white/10 pt-4">
+        <label className="block">
+          <span className="mb-1 block text-xs font-semibold text-gray-500">Frente</span>
+          <CalculatorSelect
+            value={params.frontType}
+            onChange={(value) => onChange({ frontType: value as LetterSignParams["frontType"] })}
+            options={FRONT_TYPE_OPTIONS}
+          />
+        </label>
+
+        {params.frontType === "lid" && (
+          <>
+            <NumberField
+              label="Espesor de tapa"
+              value={params.lidMm}
+              onChange={(v) => onChange({ lidMm: v })}
+              suffix="mm"
+              error={fieldError(fieldErrors, "lidMm")}
+            />
+
+            <label className="block">
+              <span className="mb-1 block text-xs font-semibold text-gray-500">Encastre</span>
+              <CalculatorSelect
+                value={params.lidJoint}
+                onChange={(value) => onChange({ lidJoint: value as LetterSignParams["lidJoint"] })}
+                options={JOINT_OPTIONS}
+              />
+            </label>
+
+            {params.lidJoint === "interior-lip" && (
+              <div className="grid grid-cols-2 gap-3">
+                <NumberField
+                  label="Profundidad de encastre"
+                  value={params.insertDepthMm}
+                  onChange={(v) => onChange({ insertDepthMm: v })}
+                  suffix="mm"
+                  error={fieldError(fieldErrors, "insertDepthMm")}
+                />
+                <NumberField
+                  label="Espesor del labio"
+                  value={params.lipWallMm}
+                  onChange={(v) => onChange({ lipWallMm: v })}
+                  suffix="mm"
+                  error={fieldError(fieldErrors, "lipWallMm")}
+                />
+                <NumberField
+                  label="Holgura"
+                  value={params.clearanceMm}
+                  onChange={(v) => onChange({ clearanceMm: v })}
+                  suffix="mm"
+                  error={fieldError(fieldErrors, "clearanceMm")}
+                />
+              </div>
+            )}
+          </>
+        )}
+
+        {params.frontType === "perforated" && (
+          <div className="grid grid-cols-2 gap-3">
+            <NumberField
+              label="Diámetro de agujero"
+              value={params.holeDiameterMm}
+              onChange={(v) => onChange({ holeDiameterMm: v })}
+              suffix="mm"
+              error={fieldError(fieldErrors, "holeDiameterMm")}
+            />
+            <NumberField
+              label="Espaciado (centro a centro)"
+              value={params.pitchMm}
+              onChange={(v) => onChange({ pitchMm: v })}
+              suffix="mm"
+              error={fieldError(fieldErrors, "pitchMm")}
+            />
+            <NumberField
+              label="Margen de borde"
+              value={params.edgeMarginMm}
+              onChange={(v) => onChange({ edgeMarginMm: v })}
+              suffix="mm"
+              error={fieldError(fieldErrors, "edgeMarginMm")}
+            />
+            <NumberField
+              label="Espesor de máscara"
+              value={params.maskThicknessMm}
+              onChange={(v) => onChange({ maskThicknessMm: v })}
+              suffix="mm"
+              error={fieldError(fieldErrors, "maskThicknessMm")}
+            />
+            <NumberField
+              label="Espesor de difusor"
+              value={params.diffuserThicknessMm}
+              onChange={(v) => onChange({ diffuserThicknessMm: v })}
+              suffix="mm"
+              error={fieldError(fieldErrors, "diffuserThicknessMm")}
+            />
+          </div>
+        )}
+
+        {params.frontType === "light-channel" && (
+          <div className="grid grid-cols-2 gap-3">
+            <NumberField
+              label="Ancho del canal"
+              value={params.channelWidthMm}
+              onChange={(v) => onChange({ channelWidthMm: v })}
+              suffix="mm"
+              error={fieldError(fieldErrors, "channelWidthMm")}
+            />
+            <NumberField
+              label="Profundidad del canal"
+              value={params.channelDepthMm}
+              onChange={(v) => onChange({ channelDepthMm: v })}
+              suffix="mm"
+              error={fieldError(fieldErrors, "channelDepthMm")}
+            />
+            <NumberField
+              label="Margen del canal"
+              value={params.channelOffsetMm}
+              onChange={(v) => onChange({ channelOffsetMm: v })}
+              suffix="mm"
+              error={fieldError(fieldErrors, "channelOffsetMm")}
+            />
+            <NumberField
+              label="Espesor de difusor"
+              value={params.diffuserThicknessMm}
+              onChange={(v) => onChange({ diffuserThicknessMm: v })}
+              suffix="mm"
+              error={fieldError(fieldErrors, "diffuserThicknessMm")}
+            />
+            <NumberField
+              label="Holgura de difusor"
+              value={params.diffuserClearanceMm}
+              onChange={(v) => onChange({ diffuserClearanceMm: v })}
+              suffix="mm"
+              error={fieldError(fieldErrors, "diffuserClearanceMm")}
+            />
+          </div>
+        )}
+
+        {params.frontType !== "open" && (
+          <label className="block">
+            <span className="mb-1 block text-xs font-semibold text-gray-500">Vista</span>
+            <SegmentedControl options={VIEW_MODE_OPTIONS} value={viewMode} onChange={onChangeViewMode} />
+          </label>
+        )}
+      </div>
 
       {error && (
         <div className="flex items-start gap-2 rounded-xl border border-red-500/30 bg-red-500/10 p-3 text-xs text-red-300">
@@ -306,7 +497,7 @@ export function MakerTextControls({
       <div className="flex flex-col gap-2">
         <Button onClick={onDownloadWord} disabled={!canDownload || loading} className="w-full">
           {loading ? <Loader2 size={16} className="animate-spin" /> : <Download size={16} />}
-          {params.frontType === "lid" ? "Palabra completa (.zip)" : "Palabra completa (.stl)"}
+          {params.frontType !== "open" ? "Palabra completa (.zip)" : "Palabra completa (.stl)"}
         </Button>
         <GhostButton onClick={onDownloadLetters} disabled={!canDownload || loading || lettersZipLoading} className="w-full">
           {lettersZipLoading ? <Loader2 size={16} className="animate-spin" /> : <FileArchive size={16} />}

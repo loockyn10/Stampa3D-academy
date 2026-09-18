@@ -36,24 +36,19 @@ export function useLetterGeometry(params: LetterSignParams): UseLetterGeometrySt
     error: null,
   });
 
+  // Depende de una serialización de `params` en vez de enumerar cada campo
+  // individualmente: LetterSignParams crece con cada sistema de cuerpo/
+  // frente nuevo (0.4+) y una lista manual de campos es fácil de olvidar
+  // actualizar (un campo nuevo sin agregar acá rompería el debounce en
+  // silencio para ese campo). `params` cambia de identidad en cada patch
+  // (ver page.tsx#handleChange), así que comparar por valor es necesario
+  // para no reiniciar el timer en cada render sin cambios reales.
+  const paramsKey = JSON.stringify(params);
   useEffect(() => {
     const timer = setTimeout(() => setDebounced(params), DEBOUNCE_MS);
     return () => clearTimeout(timer);
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [
-    params.text,
-    params.fontId,
-    params.heightMm,
-    params.depthMm,
-    params.wallMm,
-    params.baseMm,
-    params.frontType,
-    params.lidMm,
-    params.lidJoint,
-    params.insertDepthMm,
-    params.clearanceMm,
-    params.lipWallMm,
-  ]);
+  }, [paramsKey]);
 
   const fieldErrors = useMemo(() => validateLetterSignParams(debounced), [debounced]);
 

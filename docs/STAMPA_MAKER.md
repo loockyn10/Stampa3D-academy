@@ -13,6 +13,13 @@
 > toda la cavidad" a un anillo perimetral fino (`lipWallMm`, sección 12.4),
 > crítico para cartelería luminosa (la placa debe permanecer fina). Además,
 > el viewport 3D gana altura en desktop (sección 13).
+> 0.4 (2026-09-18): sistemas de cuerpo y frente — arquitectura BODY/FRONT/
+> JOINT/MODIFIERS/PATTERN con resultado genérico `parts: SignPart[]`
+> (sección 14.1); modificador de costillas laterales (14.2); cuerpo
+> tapered (14.3); bisel frontal interior (14.4); frente perforado +
+> difusor + patrón de círculos (14.5); frente de canal luminoso interior +
+> difusor de canal (14.6); UI contextual y exportación/preview genéricos
+> por partes (14.7); limitaciones conocidas (14.8).
 
 ## 1. Qué es
 
@@ -647,3 +654,191 @@ la derecha gana altura de forma independiente, sin dejar una zona vacía
 debajo. `MakerViewport.tsx` no necesitó cambios internos (ya usaba
 `h-full w-full`, hereda la altura del `<Card>` padre vía `ResizeObserver`,
 que ya reencuadra cámara/renderer en cada resize).
+
+## 14. Stampa Maker 0.4 — Sistemas de cuerpo y frente
+
+Sprint grande, implementado en 6 etapas geométricas internas + UI/export,
+cada una validada con tests antes de continuar a la siguiente (81 tests al
+empezar → 162 al cerrar la Etapa 6, todos en
+`tests/maker-letter-geometry.test.mjs`).
+
+### 14.1 Arquitectura (Etapa 1)
+
+`LetterSignParams` se mantiene como una única interfaz plana (mismo
+estilo que 0.1-0.3.1: todos los campos conviven en el objeto, solo los
+relevantes al modo activo se usan/validan). La modularidad pedida
+("distinguir BODY/FRONT/JOINT/MODIFIERS/PATTERN, sin `if` dispersos") vive
+en la estructura de módulos, no en el shape de los tipos:
+
+```
+src/lib/maker/geometry/
+  body/
+    index.ts            único switch (params.bodyType) del proyecto
+    standard.ts          cuerpo standard (fondo+repisa+pared, 0.1-0.3.1 sin cambios)
+                          + integra costillas/bisel/canal (ver más abajo)
+    tapered.ts            cuerpo tapered (14.3)
+    shared.ts             computeWallAndCore: cavidad oculta, reusada por standard/tapered
+    modifiers/
+      ribs.ts              costillas laterales (14.2)
+      bevel.ts             bisel frontal interior (14.4)
+  front/
+    index.ts            único switch (params.frontType) del proyecto
+    perforated.ts         frente perforado + difusor (14.5)
+    lightChannel.ts        canal luminoso + difusor de canal (14.6)
+  patterns/
+    circles.ts             patrón de círculos (14.5), sin registry
+  joints/
+    interiorLip.ts         sin cambios (0.3)
+  lid.ts                    sin cambios (0.2/0.3), lo llama front/index.ts
+```
+
+**Resultado como lista de piezas, no campos fijos.** `LetterGeometryResult`/
+`LetterPieceResult` pasan de `{body, lid}` a `parts: SignPart[]`
+(`{kind, filenameSuffix, mesh}`, `PartKind = "body" | "lid" | "mask" |
+"diffuser" | "channelDiffuser"`). Necesario porque 14.5/14.6 agregan piezas
+que no encajan en un par fijo. `exporters/parts.ts#partFileEntries` es el
+único lugar que decide nombres de archivo (`<base>.stl` con 1 pieza,
+`<base>_<sufijo>.stl` por pieza con 2+) — `exportWord.ts` y
+`exportLettersZip.ts` lo reusan en vez de tener cada uno su propio
+`if (piezas > 1)`. `MakerViewport.tsx` reemplaza los 2 refs fijos
+(`bodyMeshRef`/`lidMeshRef`) por un `Map<PartKind, THREE.Mesh>` + tabla de
+colores por kind; la vista explosionada apila cada pieza no-"body" por su
+posición entre las piezas presentes (1 pieza extra → mismo +10mm de
+siempre; 2 piezas extra → +10mm/+20mm).
+
+Motor geométrico sin cambios: `extrudePolygon.ts`, `contourHierarchy.ts`,
+`textToPaths.ts` no se tocaron. `offsets.ts` ganó funciones nuevas
+(`outsetContourGroups` — offset positivo, dilata material;
+`isPointInsideContourGroups` — point-in-region correcto con huecos;
+`cleanContourGroups`, `contourGroupsToRawPaths`, `pointsToRawPath`), todas
+aditivas, sin tocar las firmas existentes.
+
+### 14.2 Costillas laterales (Etapa 2)
+
+`ribsCount: 0 | 1 | 2` (default 0), `ribProtrusionMm` (default 0.8),
+`ribWidthMm` (default 1.2). 1 costilla al medio de `[baseMm, depthMm]`; 2
+en 1/3 y 2/3 — sin parámetro de posición expuesto. `body/modifiers/ribs.ts`:
+en la banda, el contorno se dilata (`outsetContourGroups`: exterior crece,
+huecos se achican — el montículo sobresale hacia afuera Y hacia el
+counter) sobre la pieza "fondo" (piece1) del cuerpo — la cavidad oculta
+(piece2/3) y el frente (piece4) no cambian, porque la costilla es un
+relieve de la superficie VISIBLE, no de la cavidad de ahorro de material.
+Escalones horizontales (mismo patrón que la repisa del núcleo erosionado)
+sueldan la transición pared plana ↔ costilla sin CSG.
+
+### 14.3 Cuerpo tapered (Etapa 3)
+
+`bodyType: "standard" | "tapered"`, `rearExpansionMm` (default 2, solo
+tapered). La silueta exterior/de counters crece progresivamente desde el
+frente (z=depthMm, offset 0 — nominal, compatible con frente/tapa sin
+cambios) hacia la base (z=0, offset `rearExpansionMm`). `body/tapered.ts`
+aproxima el offset progresivo con ~8-20 tramos rectos apilados (banda
+objetivo 2mm), anclados por su extremo inferior (más ancho) — sin escalón
+en la base, con un escalón final exacto contra el contorno original para
+empalmar con el frente. La cavidad oculta y la interfaz con frente/tapa
+usan el contorno original sin cambios.
+
+**Limitación conocida**: tapered no soporta combinarse con costillas
+(`ribsCount` se ignora si `bodyType === "tapered"`) ni con bisel — fuera de
+alcance de este sprint.
+
+### 14.4 Bisel frontal interior (Etapa 4)
+
+`bevelEnabled` (default false), `bevelDepthMm` (default 2), `bevelInsetMm`
+(default 1). Banda pegada al frente donde la pared (exterior y counters)
+se erosiona progresivamente (`insetContourGroups`, mismo mecanismo
+uniforme) desde 0 en `depthMm-bevelDepthMm` hasta `bevelInsetMm` en
+`depthMm` — mismo patrón de sub-bandeo que el tapered, con signo opuesto y
+acotado al frente. Costillas y bisel pueden combinarse: el rango de
+costillas se acota automáticamente para no superponerse con la banda del
+bisel (`ribsCeilingMm` en `body/standard.ts`).
+
+Sin sistema de materiales todavía (fuera de alcance de 0.4): la región de
+bisel es geometría normal, identificable solo por su rango Z.
+
+### 14.5 Frente perforado + difusor plano + patrón de círculos (Etapa 5)
+
+`frontType: "perforated"`. Campos: `maskThicknessMm` (1), `diffuserThicknessMm`
+(0.6, compartido con 14.6), `holeDiameterMm` (2), `pitchMm` (4, CENTRO A
+CENTRO), `edgeMarginMm` (2). `front/perforated.ts` genera 2 piezas
+siempre separadas: `diffuser` (misma silueta que la tapa plana, sin
+perforar) y `mask` (misma silueta, perforada). `patterns/circles.ts#punchCirclePattern`
+recorta una grilla de círculos contra la región seguro (erosionada por
+`edgeMarginMm + holeDiameterMm/2`, así el círculo COMPLETO respeta el
+margen) usando `isPointInsideContourGroups` (correcto con huecos — ver
+14.8) — nunca bounding boxes.
+
+### 14.6 Canal luminoso interior + difusor de canal (Etapa 6)
+
+`frontType: "light-channel"`. Campos: `channelWidthMm` (6), `channelDepthMm`
+(4), `channelOffsetMm` (2), `diffuserClearanceMm` (0.2, + `diffuserThicknessMm`
+compartido). A diferencia de los demás frentes, asume un **cuerpo macizo**
+(sin la cavidad interior hueca de ahorro de material): "el resto del
+frente permanece opaco/negro" solo tiene sentido si hay material sólido
+detrás, no un anillo fino de `wallMm`. `body/standard.ts` detecta
+`frontType === "light-channel"` (única excepción documentada a "body no
+lee frontType", ver su comentario) y: usa la silueta completa como
+footprint de partida, omite la repisa/paredes del núcleo (piezas 2/3), y
+talla el canal como una cavidad desde el frente — `channelGroups =
+inset(ink, offset) - inset(ink, offset+width)` — con piso sólido a
+`channelDepthMm` del frente (nunca atraviesa el cuerpo) y paredes internas
+propias. `front/lightChannel.ts` arma el difusor del canal (inset del
+canal por `diffuserClearanceMm`, pieza independiente a ras del frente).
+
+Colapso (`CHANNEL_COLLAPSED`, error — igual mecanismo que `LIP_COLLAPSED`):
+un trazo demasiado fino para el ancho de canal pedido no genera geometría
+corrupta, bloquea la exportación de esa letra. `channelDepthMm` se acota a
+la cavidad disponible (`CHANNEL_DEPTH_CLAMPED`, warning) igual que
+`insertDepthMm`.
+
+### 14.7 UI, preview y exportación (Etapas 7-9)
+
+`MakerTextControls.tsx`: reemplaza el selector de 3 vías (frontType+lidJoint
+combinados) por controles contextuales — `CUERPO` (Estándar/Tapered +
+expansión), `Modificadores` (costillas: toggle + cantidad + protrusión/
+ancho; bisel: toggle + profundidad/desplazamiento), `FRENTE` (4 vías:
+Abierto/Tapa completa/Perforado/Canal luminoso) y, contextual a la
+elección de frente: `Encastre` (solo con Tapa completa) o los campos
+propios de Perforado/Canal luminoso. El botón de descarga muestra
+`.zip`/`.stl` según `frontType !== "open"` (generaliza el check existente
+a los 2 frentes nuevos). Exportación y preview ya eran genéricos por
+partes desde la Etapa 1 (14.1) — no necesitaron cambios adicionales.
+
+**Verificación manual pendiente**: igual que 0.1-0.3.1, no se pudo abrir
+`/stampa-maker/carteles` en el navegador durante esta sesión por no contar
+con credenciales de una cuenta con acceso Paid (el middleware redirige a
+login sin sesión). Verificado en su lugar: `npx tsc --noEmit` limpio y
+`npm run build` exitoso (incluye `/stampa-maker/carteles` como ruta
+estática), más los 162 tests del pipeline geométrico.
+
+### 14.8 Limitaciones conocidas
+
+- **Tapered no combina con costillas ni bisel** (14.3) — combinación fuera
+  de alcance, `ribsCount`/`bevelEnabled` se ignoran silenciosamente si
+  `bodyType === "tapered"`.
+- **Earcut + muchos huecos cercanos: artefactos numéricos benignos.** Con
+  el patrón de círculos (14.5, cientos de huecos en una sola máscara),
+  earcut puede elegir algún "puente" hueco-a-hueco cuyo triángulo resultante
+  tiene área genuinamente ~0 (no una grieta ni una superposición) —
+  `TriangleSoupData` usa `Float32Array`, y ese triángulo puede colapsar a
+  colineal recién al redondear. No afecta manifold/watertight/volumen
+  real (verificado explícitamente en los tests, sin tolerancia); solo se
+  permite una tolerancia acotada (`MAX_BENIGN_DEGENERATE_TRIANGLES = 30`)
+  en el conteo de triángulos degenerados de la máscara, documentada en el
+  test en vez de ocultada. Se investigó (`Math.fround` antes de
+  triangular, aumentar el jitter) sin una solución robusta a esta densidad
+  de huecos sin arriesgar romper la soldadura en otras piezas — ver
+  historial de la sesión de implementación.
+- **Canal luminoso + letras con features complejas cerca del canal** (14.6,
+  p.ej. la pata diagonal de una "R"): mismo tipo de límite del
+  triangulador que el punto anterior, pero en la tapa del frente del
+  cuerpo (`silueta menos canal`) — puede dejar un puñado de aristas de
+  borde (`MAX_BENIGN_BOUNDARY_EDGES = 10` en el test), no una grieta de
+  espesor significativo.
+- **Sin sistema de materiales/3MF** (bisel, máscara/difusor, canal): las
+  regiones pensadas para pintar/imprimir en blanco son geometría normal,
+  identificable solo por su rango Z o su `PartKind` — asignación de
+  material multi-color queda fuera de alcance de 0.4, como en versiones
+  anteriores.
+- **Verificación manual en navegador no realizada** (14.7) — mismo motivo
+  que 0.1-0.3.1 (sin credenciales Paid en este entorno).

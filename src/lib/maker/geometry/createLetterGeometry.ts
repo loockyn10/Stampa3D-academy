@@ -1,30 +1,25 @@
 import type * as opentype from "opentype.js";
-import type { ContourGroup, LetterGeometryResult, LetterGeometryWarning, LetterPieceResult, LetterSignParams, Point2D, TriangleSoupData } from "@/lib/maker/types";
+import type { LetterGeometryResult, LetterGeometryWarning, LetterPieceResult, LetterSignParams, Point2D, PartKind, SignPart, TriangleSoupData } from "@/lib/maker/types";
 import { textToPerCharacterPaths, flattenOpentypePath } from "@/lib/maker/geometry/textToPaths";
 import { buildContourHierarchy } from "@/lib/maker/geometry/contourHierarchy";
-import { insetContourGroups, differenceContourGroups, regroupClipperSolution, clipperPathsArea } from "@/lib/maker/geometry/offsets";
-import { extrudeContourGroups, type ExtrudedMeshData } from "@/lib/maker/geometry/extrudePolygon";
-import { buildLid } from "@/lib/maker/geometry/lid";
+import { toTriangleSoupData } from "@/lib/maker/geometry/extrudePolygon";
+import { buildBody } from "@/lib/maker/geometry/body";
+import { buildFrontParts } from "@/lib/maker/geometry/front";
 
 /**
  * Pipeline completo: texto + parámetros -> mesh 3D triangulado, un carácter
  * a la vez (mismo layout/kerning que un único font.getPath, ver
- * textToPerCharacterPaths). El resultado combinado (`body`/`lid`) es
- * exactamente la concatenación de `letters[]`: no hay un motor de
- * exportación paralelo, la letra individual usa las mismas piezas que ya
- * forman parte del texto completo.
+ * textToPerCharacterPaths). El resultado combinado (`parts`) es exactamente
+ * la concatenación por kind de `letters[]`: no hay un motor de exportación
+ * paralelo, la letra individual usa las mismas piezas que ya forman parte
+ * del texto completo.
  *
- * Cada letra tiene dos piezas, independientes entre sí:
- * - `body`: UN SOLO sólido soldado por coordenadas compartidas (fondo +
- *   "repisa" del núcleo erosionado + pared). Ver "Soldadura fondo/pared"
- *   más abajo y docs/STAMPA_MAKER.md. Es EL MISMO cuerpo sin importar el
- *   modo de frente (abierto, tapa plana o tapa encastrable) — el modo de
- *   frente solo cambia qué tapa (si alguna) se le agrega, ver
- *   geometry/lid.ts.
- * - `lid` (solo si frontType === "lid"): tapa como pieza SEPARADA del
- *   cuerpo (nunca soldada a él a propósito). Su forma depende de
- *   `lidJoint` — placa plana para pegar (0.2) o placa+labio interior
- *   encastrable (0.3) — ver geometry/lid.ts.
+ * Cada letra tiene una lista de piezas físicas (`SignPart[]`), siempre con
+ * una de kind "body" (ver geometry/body/, único sólido soldado por
+ * coordenadas compartidas, sin CSG) y opcionalmente otras según
+ * `frontType` (ver geometry/front/ — tapa, y en 0.4 máscara/difusor/canal).
+ * Body y front nunca se sueldan entre sí a propósito: son piezas separadas
+ * para imprimir independientemente.
  */
 export function createLetterGeometry(font: opentype.Font, params: LetterSignParams): LetterGeometryResult {
   const warnings: LetterGeometryWarning[] = [];
@@ -40,18 +35,27 @@ export function createLetterGeometry(font: opentype.Font, params: LetterSignPara
   const letters: LetterPieceResult[] = [];
   const allRawContours: Point2D[][] = [];
   let anyFullyEroded = false;
-  const collapsedLipLetters: { char: string; index: number }[] = [];
+  const collapsedLetters: { char: string; index: number; code: "LIP_COLLAPSED" | "CHANNEL_COLLAPSED" }[] = [];
 
   // La profundidad de encastre no puede exceder la cavidad real disponible
   // (depthMm - baseMm: por debajo de baseMm el cuerpo es la base maciza,
-  // ver "Soldadura fondo/pared" más abajo) sin chocar contra ella. Es un
-  // parámetro global (no depende de la letra), así que se ajusta una sola
-  // vez acá — sección 12 del spec: no generar geometría corrupta, avisar.
+  // ver geometry/body/standard.ts) sin chocar contra ella. Es un parámetro
+  // global (no depende de la letra), así que se ajusta una sola vez acá —
+  // sección 12 del spec: no generar geometría corrupta, avisar.
   const interiorLip = params.frontType === "lid" && params.lidJoint === "interior-lip";
   const insertDepthUsedMm = interiorLip
     ? Math.min(Math.max(params.insertDepthMm, 0), Math.max(params.depthMm - params.baseMm, 0))
     : params.insertDepthMm;
   const insertDepthClamped = interiorLip && insertDepthUsedMm < params.insertDepthMm - 1e-9;
+
+  // Misma lógica para la profundidad del canal luminoso (0.4 Etapa 6): el
+  // canal nunca puede atravesar el cuerpo, así que se acota a la cavidad
+  // disponible una sola vez acá.
+  const lightChannel = params.frontType === "light-channel";
+  const channelDepthUsedMm = lightChannel
+    ? Math.min(Math.max(params.channelDepthMm, 0), Math.max(params.depthMm - params.baseMm, 0))
+    : params.channelDepthMm;
+  const channelDepthClamped = lightChannel && channelDepthUsedMm < params.channelDepthMm - 1e-9;
 
   for (const { char, path } of perCharacterPaths) {
     const rawContours = flattenOpentypePath(path);
@@ -59,19 +63,20 @@ export function createLetterGeometry(font: opentype.Font, params: LetterSignPara
 
     allRawContours.push(...rawContours);
     const contourGroups = buildContourHierarchy(rawContours);
-    const piece = buildLetterSolid(contourGroups, params);
-    if (piece.fullyEroded) anyFullyEroded = true;
+
+    const bodyResult = buildBody(contourGroups, params, { channelDepthUsedMm });
+    if (bodyResult.fullyEroded) anyFullyEroded = true;
 
     const index = letters.length + 1;
-    const lidResult = buildLid(contourGroups, params, insertDepthUsedMm);
-    if (lidResult.lipCollapsed) collapsedLipLetters.push({ char, index });
+    const frontResult = buildFrontParts(contourGroups, params, insertDepthUsedMm);
+    if (frontResult.collapseErrorCode) collapsedLetters.push({ char, index, code: frontResult.collapseErrorCode });
 
-    letters.push({
-      char,
-      index,
-      body: toTriangleSoupData(piece.body),
-      lid: lidResult.lid ? toTriangleSoupData(lidResult.lid) : null,
-    });
+    const parts: SignPart[] = [
+      { kind: "body", filenameSuffix: "cuerpo", mesh: toTriangleSoupData(bodyResult.body) },
+      ...frontResult.parts,
+    ];
+
+    letters.push({ char, index, parts });
   }
 
   if (letters.length === 0) {
@@ -86,18 +91,19 @@ export function createLetterGeometry(font: opentype.Font, params: LetterSignPara
     });
   }
 
-  // LIP_COLLAPSED es un ERROR, no un warning: una tapa pedida como
-  // "encastrable" no puede exportarse en silencio sin encastre funcional
-  // (ver LetterGeometryResult.errors). El preview sigue mostrando la
-  // degradación a placa plana en esa letra (buildLid ya la genera así)
-  // para que el usuario entienda qué ocurre, pero el resultado queda
-  // marcado como inválido para exportar. Un mensaje por letra afectada:
-  // alcanza con una lista simple, no hace falta un selector de errores.
-  for (const { char, index } of collapsedLipLetters) {
-    errors.push({
-      code: "LIP_COLLAPSED",
-      message: `El encastre no puede generarse en la letra "${char}" (posición ${index}): el labio desaparece con estos parámetros. Reducí la holgura, reducí el espesor de pared, aumentá el tamaño o utilizá una fuente más gruesa.`,
-    });
+  // LIP_COLLAPSED/CHANNEL_COLLAPSED son ERRORES, no warnings: una tapa
+  // pedida como "encastrable" o un frente pedido como "canal luminoso" no
+  // pueden exportarse en silencio sin encastre/canal funcional (ver
+  // LetterGeometryResult.errors). El preview sigue mostrando la
+  // degradación (placa plana / sin canal) en esa letra para que el usuario
+  // entienda qué ocurre, pero el resultado queda marcado como inválido
+  // para exportar. Un mensaje por letra afectada: alcanza con una lista
+  // simple, no hace falta un selector de errores.
+  for (const { char, index, code } of collapsedLetters) {
+    const message = code === "LIP_COLLAPSED"
+      ? `El encastre no puede generarse en la letra "${char}" (posición ${index}): el labio desaparece con estos parámetros. Reducí la holgura, reducí el espesor de pared, aumentá el tamaño o utilizá una fuente más gruesa.`
+      : `El canal luminoso no puede generarse en la letra "${char}" (posición ${index}): el trazo es demasiado fino para el ancho de canal pedido. Reducí el ancho del canal, reducí el margen, aumentá el tamaño o utilizá una fuente más gruesa.`;
+    errors.push({ code, message });
   }
 
   if (insertDepthClamped) {
@@ -107,14 +113,19 @@ export function createLetterGeometry(font: opentype.Font, params: LetterSignPara
     });
   }
 
-  const body = concatTriangleSoups(letters.map((l) => l.body));
-  const lid = params.frontType === "lid" ? concatTriangleSoups(letters.map((l) => l.lid as TriangleSoupData)) : null;
+  if (channelDepthClamped) {
+    warnings.push({
+      code: "CHANNEL_DEPTH_CLAMPED",
+      message: `Profundidad de canal ajustada de ${formatMm(params.channelDepthMm)} mm a ${formatMm(channelDepthUsedMm)} mm porque el cuerpo no dispone de más espacio útil.`,
+    });
+  }
+
+  const parts = combinePartsByKind(letters);
 
   return {
-    body,
-    lid,
-    triangleCount: body.triangleCount + (lid?.triangleCount ?? 0),
-    boundingBox: computeBoundingBox(allRawContours, params.depthMm + (params.frontType === "lid" ? params.lidMm : 0)),
+    parts,
+    triangleCount: parts.reduce((sum, p) => sum + p.mesh.triangleCount, 0),
+    boundingBox: computeBoundingBox(allRawContours, params.depthMm + frontExtraDepthMm(params)),
     errors,
     warnings,
     letters,
@@ -125,108 +136,44 @@ function formatMm(value: number): string {
   return (Math.round(value * 10) / 10).toString();
 }
 
-/**
- * Soldadura fondo/pared: en vez de dos sólidos independientes que solo se
- * tocan en z = baseMm (cada uno con su propia tapa completa ahí), se
- * comparte una única tapa por nivel:
- *
- *  - z = 0: tapa del fondo completo (ink shape: exterior menos huecos
- *    originales del glifo) + paredes laterales de esos mismos contornos
- *    desde z=0 hasta z=depthMm (el exterior y los huecos originales no
- *    cambian de forma en ningún punto de la pieza, así que su pared
- *    lateral es una sola franja continua, sin corte en baseMm).
- *  - z = baseMm: en vez de que el fondo tape TODO su propio contorno acá
- *    (lo que taparía el hueco, el bug de la iteración anterior) y la
- *    pared tape por separado su propia huella, se tapa únicamente el
- *    NÚCLEO erosionado (`insetContourGroups`, la misma erosión que ya se
- *    usa para calcular la huella de la pared) — es exactamente la región
- *    que queda sólida por debajo y hueca por encima. Esa única tapa hace
- *    de "repisa": visible mirando hacia el hueco desde el frente.
- *  - paredes laterales del núcleo erosionado, de baseMm a depthMm: son
- *    las mismas paredes que ya generaba la pieza de pared para sus bordes
- *    internos (huella de pared = exterior/hueco original MENOS núcleo).
- *  - z = depthMm: tapa de la huella de pared (frente, dentro del espesor
- *    de pared solamente, nunca sobre la cavidad).
- *
- * El resultado comparte vértices (mismas coordenadas, mismo jitter
- * determinístico) en cada frontera, así que la malla final es un único
- * componente conectado por letra en vez de piezas superpuestas — sin
- * ninguna operación booleana 3D. Confirmado con
- * tests/maker-letter-geometry.test.mjs (conteo de shells por letra).
- *
- * Genera SOLO el cuerpo: es el mismo sólido sin importar el modo de frente
- * (abierto, tapa plana o tapa encastrable) — ver geometry/lid.ts para la
- * tapa, una pieza SEPARADA a propósito (nunca soldada al cuerpo).
- */
-function buildLetterSolid(
-  contourGroups: ContourGroup[],
-  params: LetterSignParams,
-): { body: ExtrudedMeshData; fullyEroded: boolean } {
-  const fondoGroups: ContourGroup[] = [];
-  const wallGroups: ContourGroup[] = [];
-  const coreGroups: ContourGroup[] = [];
-  let fullyEroded = false;
-
-  for (const group of contourGroups) {
-    fondoGroups.push({ outer: group.outer, holes: group.holes });
-
-    const insetPaths = insetContourGroups([group], params.wallMm);
-    const insetArea = Math.abs(clipperPathsArea(insetPaths));
-    if (insetArea < 1e-4) fullyEroded = true;
-
-    wallGroups.push(...differenceContourGroups([group], insetPaths));
-    coreGroups.push(...regroupClipperSolution(insetPaths));
+/** Profundidad extra que suma el sistema de frente activo, solo para el bounding box aproximado (no afecta la geometría real, cada front/* ya coloca sus piezas en su propio rango Z). */
+function frontExtraDepthMm(params: LetterSignParams): number {
+  switch (params.frontType) {
+    case "open":
+      return 0;
+    case "lid":
+      return params.lidMm;
+    case "perforated":
+      return params.diffuserThicknessMm + params.maskThicknessMm;
+    case "light-channel":
+      // El canal y su difusor viven DENTRO de [0, depthMm] (el canal es
+      // una cavidad, nunca atraviesa el frente): no suman profundidad.
+      return 0;
   }
-
-  const wallHeight = params.depthMm - params.baseMm;
-  const pieces: ExtrudedMeshData[] = [];
-
-  if (wallHeight <= 0) {
-    // Caso defensivo (bloqueado por validation.ts): sin lugar para pared,
-    // el fondo pasa a ocupar toda la profundidad, macizo.
-    pieces.push(extrudeContourGroups(fondoGroups, 0, params.depthMm, { capStart: true, capEnd: true }));
-  } else {
-    // 1) Fondo: tapa en z=0 + paredes laterales del exterior/huecos
-    //    originales de punta a punta (0 -> depthMm). El exterior y cada
-    //    hueco original no cambian de forma en ningún punto de la pieza,
-    //    así que su pared lateral es una franja continua, sin corte.
-    pieces.push(extrudeContourGroups(fondoGroups, 0, params.depthMm, { capStart: true, capEnd: false }));
-
-    // 2) Repisa: tapa del núcleo erosionado en z=baseMm (mirando hacia
-    //    +Z), visible desde la cavidad. Reemplaza la tapa completa que
-    //    antes ponía el fondo ahí (esa tapaba el hueco). Vacía si el
-    //    trazo se erosionó por completo (pared > mitad del trazo).
-    pieces.push(extrudeContourGroups(coreGroups, params.baseMm, params.baseMm, { capStart: false, capEnd: true, sides: false }));
-
-    // 3) Paredes internas nuevas: bordes del núcleo erosionado, de baseMm
-    //    a depthMm (separan la pared hueca de la cavidad real). flipSides
-    //    porque, como región, el material "natural" del núcleo es su
-    //    propio interior — pero acá el núcleo representa la cavidad
-    //    (vacía) y el material real está afuera de él (huella de pared),
-    //    así que la normal debe apuntar hacia adentro del núcleo.
-    pieces.push(extrudeContourGroups(coreGroups, params.baseMm, params.depthMm, { capStart: false, capEnd: false, sides: true, flipSides: true }));
-
-    // 4) Frente: tapa de la huella de pared en z=depthMm (mirando hacia
-    //    +Z). Earcut nunca triangula el interior del núcleo (llega como
-    //    holeIndices), así que esta tapa nunca cubre la cavidad. Con
-    //    frontType "lid" este frente sigue existiendo (el cuerpo no
-    //    cambia): la tapa es una pieza aparte que se apoya encima, no un
-    //    reemplazo del frente de la pared.
-    pieces.push(extrudeContourGroups(wallGroups, params.depthMm, params.depthMm, { capStart: false, capEnd: true, sides: false }));
-  }
-
-  const body: ExtrudedMeshData = {
-    positions: pieces.flatMap((p) => p.positions),
-    normals: pieces.flatMap((p) => p.normals),
-  };
-
-  return { body, fullyEroded };
 }
 
-function toTriangleSoupData(mesh: ExtrudedMeshData): TriangleSoupData {
-  const positions = Float32Array.from(mesh.positions);
-  const normals = Float32Array.from(mesh.normals);
-  return { positions, normals, triangleCount: positions.length / 9 };
+/**
+ * Orden canónico de piezas en el resultado combinado: estable entre
+ * builds, y el orden en el que el preview/exportadores las recorren.
+ */
+const PART_ORDER: PartKind[] = ["body", "lid", "mask", "diffuser", "channelDiffuser"];
+
+/** Concatena, por kind, la pieza de todas las letras que la tengan (mismo kind = mismo sufijo de archivo). */
+function combinePartsByKind(letters: LetterPieceResult[]): SignPart[] {
+  const combined: SignPart[] = [];
+  for (const kind of PART_ORDER) {
+    const meshes: TriangleSoupData[] = [];
+    let filenameSuffix: string | null = null;
+    for (const letter of letters) {
+      const part = letter.parts.find((p) => p.kind === kind);
+      if (!part) continue;
+      meshes.push(part.mesh);
+      filenameSuffix = part.filenameSuffix;
+    }
+    if (meshes.length === 0 || filenameSuffix === null) continue;
+    combined.push({ kind, filenameSuffix, mesh: concatTriangleSoups(meshes) });
+  }
+  return combined;
 }
 
 function concatTriangleSoups(pieces: TriangleSoupData[]): TriangleSoupData {
@@ -235,14 +182,9 @@ function concatTriangleSoups(pieces: TriangleSoupData[]): TriangleSoupData {
   return { positions, normals, triangleCount: positions.length / 9 };
 }
 
-function emptyTriangleSoup(): TriangleSoupData {
-  return { positions: new Float32Array(0), normals: new Float32Array(0), triangleCount: 0 };
-}
-
 function emptyResult(warnings: LetterGeometryWarning[]): LetterGeometryResult {
   return {
-    body: emptyTriangleSoup(),
-    lid: null,
+    parts: [],
     triangleCount: 0,
     boundingBox: { width: 0, height: 0, depth: 0 },
     errors: [],

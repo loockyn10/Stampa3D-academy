@@ -1,10 +1,17 @@
 import earcut from "earcut";
-import type { ContourGroup, Point2D } from "@/lib/maker/types";
+import type { ContourGroup, Point2D, TriangleSoupData } from "@/lib/maker/types";
 
 export interface ExtrudedMeshData {
   /** xyz por vértice, triángulos sin indexar (cada triángulo repite sus 3 vértices). */
   positions: number[];
   normals: number[];
+}
+
+/** Convierte un mesh de arrays planos JS a los TypedArrays que espera TriangleSoupData (preview/export). */
+export function toTriangleSoupData(mesh: ExtrudedMeshData): TriangleSoupData {
+  const positions = Float32Array.from(mesh.positions);
+  const normals = Float32Array.from(mesh.normals);
+  return { positions, normals, triangleCount: positions.length / 9 };
 }
 
 export interface ExtrudeOptions {
