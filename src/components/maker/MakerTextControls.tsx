@@ -1,9 +1,9 @@
 "use client";
 
 import React from "react";
-import { AlertTriangle, Download, Loader2 } from "lucide-react";
+import { AlertTriangle, Download, FileArchive, Loader2 } from "lucide-react";
 import { Card } from "@/components/ui/card";
-import { Button } from "@/components/ui/button";
+import { Button, GhostButton } from "@/components/ui/button";
 import { CalculatorSelect } from "@/components/ui/calculator-select";
 import { MAKER_FONTS } from "@/lib/maker/fonts/registry";
 import type { LetterSignParams } from "@/lib/maker/types";
@@ -18,7 +18,9 @@ interface MakerTextControlsProps {
   error: string | null;
   loading: boolean;
   canDownload: boolean;
-  onDownload: () => void;
+  onDownloadWord: () => void;
+  onDownloadLetters: () => void;
+  lettersZipLoading: boolean;
 }
 
 function fieldError(fieldErrors: FieldError[], field: keyof LetterSignParams): string | undefined {
@@ -78,7 +80,9 @@ export function MakerTextControls({
   error,
   loading,
   canDownload,
-  onDownload,
+  onDownloadWord,
+  onDownloadLetters,
+  lettersZipLoading,
 }: MakerTextControlsProps) {
   return (
     <Card className="flex flex-col gap-5 p-5">
@@ -155,10 +159,16 @@ export function MakerTextControls({
         </div>
       ))}
 
-      <Button onClick={onDownload} disabled={!canDownload || loading} className="w-full">
-        {loading ? <Loader2 size={16} className="animate-spin" /> : <Download size={16} />}
-        Descargar STL
-      </Button>
+      <div className="flex flex-col gap-2">
+        <Button onClick={onDownloadWord} disabled={!canDownload || loading} className="w-full">
+          {loading ? <Loader2 size={16} className="animate-spin" /> : <Download size={16} />}
+          Palabra completa (.stl)
+        </Button>
+        <GhostButton onClick={onDownloadLetters} disabled={!canDownload || loading || lettersZipLoading} className="w-full">
+          {lettersZipLoading ? <Loader2 size={16} className="animate-spin" /> : <FileArchive size={16} />}
+          Letras individuales (.zip)
+        </GhostButton>
+      </div>
     </Card>
   );
 }

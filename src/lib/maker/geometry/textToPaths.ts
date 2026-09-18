@@ -23,6 +23,30 @@ function fontSizeForHeight(font: opentype.Font, heightMm: number): number {
   return (heightMm * font.unitsPerEm) / referenceHeight;
 }
 
+export interface PerCharacterPath {
+  char: string;
+  /** Índice del carácter dentro del string original (incluye espacios). */
+  sourceIndex: number;
+  path: opentype.Path;
+}
+
+/**
+ * Igual que textToOpentypePath, pero devuelve un path posicionado por
+ * separado para cada carácter (misma escala/kerning que el string
+ * completo: opentype.Font#getPaths usa el mismo layout que #getPath,
+ * solo que sin fusionar los comandos en un único Path). Permite exportar
+ * cada letra sin recalcular ni divergir del layout que ve el preview.
+ */
+export function textToPerCharacterPaths(
+  font: opentype.Font,
+  text: string,
+  heightMm: number,
+): PerCharacterPath[] {
+  const scale = fontSizeForHeight(font, heightMm);
+  const paths = font.getPaths(text, 0, 0, scale);
+  return Array.from(text).map((char, i) => ({ char, sourceIndex: i, path: paths[i] }));
+}
+
 export interface FlattenOptions {
   /** Longitud de cuerda objetivo por segmento de curva, en mm. */
   curveSegmentLengthMm?: number;

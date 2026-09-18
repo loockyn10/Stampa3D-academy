@@ -67,7 +67,7 @@ export function differenceContourGroups(subjectGroups: ContourGroup[], clipPaths
   }
   const solution: ClipperLib.Paths = [];
   clipper.Execute(ClipperLib.ClipType.ctDifference, solution, ClipperLib.PolyFillType.pftNonZero, ClipperLib.PolyFillType.pftNonZero);
-  return regroupClipperSolution(cleanSolution(solution));
+  return regroupClipperSolution(solution);
 }
 
 /** Área total (mm²) de un conjunto de paths crudos de Clipper, con signo. */

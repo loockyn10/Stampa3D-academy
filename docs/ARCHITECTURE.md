@@ -201,10 +201,13 @@ Sección nueva `/stampa-maker` (protegida como el resto de "Plataforma": no
 está en `isFreeAccountRoute`, requiere `accessPlatform`). Primera
 herramienta: `/stampa-maker/carteles` (Creador de Carteles), texto ->
 geometría 3D de letras corpóreas huecas (fondo cerrado, frente abierto) ->
-preview three.js -> export STL. Pipeline geométrico propio en
-`src/lib/maker/geometry/*` (opentype.js + clipper-lib + earcut, sin
-Web Workers). No toca auth, RLS, pricing ni stock existentes. Detalle
-completo, dependencias y limitaciones conocidas en `docs/STAMPA_MAKER.md`.
+preview three.js -> export STL (palabra completa o ZIP de letras
+individuales recentradas, vía `jszip`). Cada letra terminada es un único
+sólido soldado por coordenadas compartidas (1 connected component; sin
+CSG/boolean 3D). Pipeline geométrico propio en `src/lib/maker/geometry/*`
+(opentype.js + clipper-lib + earcut, sin Web Workers). No toca auth, RLS,
+pricing ni stock existentes. Detalle completo, dependencias y limitaciones
+conocidas en `docs/STAMPA_MAKER.md`.
 
 ## 17. Validación técnica
 

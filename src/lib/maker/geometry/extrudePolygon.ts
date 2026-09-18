@@ -12,6 +12,19 @@ export interface ExtrudeOptions {
   capStart?: boolean;
   /** Tapa en z1 (mirando hacia +Z). */
   capEnd?: boolean;
+  /** Paredes laterales entre z0 y z1. Default true; false = solo tapa(s), sin volumen propio (ver createLetterGeometry.ts, repisa del núcleo erosionado). */
+  sides?: boolean;
+  /**
+   * Invierte el winding (y por lo tanto la normal) de las paredes
+   * laterales, sin tocar la clasificación outer/holes usada para las
+   * tapas. Sirve cuando el mismo conjunto de contornos se reutiliza para
+   * generar una pared cuyo material queda del lado OPUESTO al que
+   * asumiría por su propia forma (ver "núcleo erosionado" en
+   * createLetterGeometry.ts: como región, su material natural es su
+   * propio interior, pero para la letra soldada el material real está
+   * afuera de él).
+   */
+  flipSides?: boolean;
 }
 
 /**
@@ -27,9 +40,14 @@ export interface ExtrudeOptions {
  * sentidos opuestos) pero usan convenciones absolutas opuestas entre sí;
  * por eso acá se normaliza explícitamente antes de extruir, en vez de
  * asumir una convención fija.
+ *
+ * `sides: false` genera solo tapa(s), sin paredes laterales propias: sirve
+ * para agregar una superficie plana (p.ej. la repisa del núcleo erosionado
+ * en createLetterGeometry.ts) que se suelda por coordenadas compartidas con
+ * las paredes laterales de otra pieza, sin volumen ni caras extra.
  */
 export function extrudeContourGroups(groups: ContourGroup[], z0: number, z1: number, options: ExtrudeOptions = {}): ExtrudedMeshData {
-  const { capStart = true, capEnd = true } = options;
+  const { capStart = true, capEnd = true, sides = true, flipSides = false } = options;
   const positions: number[] = [];
   const normals: number[] = [];
 
@@ -46,8 +64,8 @@ export function extrudeContourGroups(groups: ContourGroup[], z0: number, z1: num
   };
 
   for (const group of groups) {
-    const outer = ensureOrientation(group.outer, false);
-    const holes = group.holes.map((hole) => ensureOrientation(hole, true));
+    const outer = ensureOrientation(group.outer, false).map(snapToGrid);
+    const holes = group.holes.map((hole) => ensureOrientation(hole, true).map(snapToGrid));
     // earcut conecta cada hueco con el contorno exterior eligiendo un
     // "puente" con su propia heurística interna; cuando varios vértices
     // quedan exactamente alineados (mismo X o Y — frecuente en polígonos
@@ -80,13 +98,24 @@ export function extrudeContourGroups(groups: ContourGroup[], z0: number, z1: num
       }
     }
 
-    for (const ring of rings) {
-      const m = ring.length;
-      for (let i = 0; i < m; i++) {
-        const [x1, y1] = ring[i];
-        const [x2, y2] = ring[(i + 1) % m];
-        pushTriangle([x1, y1, z0], [x2, y2, z1], [x2, y2, z0]);
-        pushTriangle([x1, y1, z0], [x1, y1, z1], [x2, y2, z1]);
+    if (sides) {
+      for (const ring of rings) {
+        const m = ring.length;
+        for (let i = 0; i < m; i++) {
+          const [x1, y1] = ring[i];
+          const [x2, y2] = ring[(i + 1) % m];
+          const p1: [number, number, number] = [x1, y1, z0];
+          const p2: [number, number, number] = [x2, y2, z1];
+          const p3: [number, number, number] = [x2, y2, z0];
+          const p4: [number, number, number] = [x1, y1, z1];
+          if (flipSides) {
+            pushTriangle(p1, p3, p2);
+            pushTriangle(p1, p2, p4);
+          } else {
+            pushTriangle(p1, p2, p3);
+            pushTriangle(p1, p4, p2);
+          }
+        }
       }
     }
   }
@@ -108,6 +137,22 @@ function signedArea(points: Point2D[]): number {
 function ensureOrientation(points: Point2D[], wantPositive: boolean): Point2D[] {
   const isPositive = signedArea(points) > 0;
   return isPositive === wantPositive ? points : [...points].reverse();
+}
+
+// Misma grilla que CLIPPER_SCALE en offsets.ts (0.0001 mm). Las salidas de
+// Clipper ya quedan exactamente sobre esta grilla (trabaja con enteros
+// internamente); los contornos que vienen directo de la fuente, no — para
+// que un mismo borde físico (p.ej. el contorno exterior, que no cambia de
+// forma en ningún punto de la pieza) dé EXACTAMENTE las mismas coordenadas
+// venga de donde venga, se redondean acá antes de aplicar jitter. Sin este
+// paso, dos copias del mismo borde con una diferencia de ~0.00001-0.00005mm
+// pueden caer en celdas de grilla distintas después del jitter,
+// dejando la letra como shells separados en vez de un único sólido
+// soldado (ver createLetterGeometry.ts).
+const COORDINATE_GRID = 10000;
+
+function snapToGrid([x, y]: Point2D): Point2D {
+  return [Math.round(x * COORDINATE_GRID) / COORDINATE_GRID, Math.round(y * COORDINATE_GRID) / COORDINATE_GRID];
 }
 
 // Jitter determinístico (no aleatorio: mismo punto de entrada -> mismo

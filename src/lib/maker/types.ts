@@ -43,6 +43,16 @@ export interface LetterGeometryWarning {
   message: string;
 }
 
+/** Geometría de un único carácter (sin espacios), en las mismas coordenadas que el texto completo. */
+export interface LetterPieceResult {
+  char: string;
+  /** Posición 1-based entre los caracteres exportables (sin espacios): 1, 2, 3... */
+  index: number;
+  positions: Float32Array;
+  normals: Float32Array;
+  triangleCount: number;
+}
+
 export interface LetterGeometryResult {
   /** Geometría final fusionada (fondo + paredes), sin indexar (triangle soup). */
   positions: Float32Array;
@@ -51,4 +61,11 @@ export interface LetterGeometryResult {
   /** Caja delimitadora aproximada del modelo, en mm. */
   boundingBox: { width: number; height: number; depth: number };
   warnings: LetterGeometryWarning[];
+  /**
+   * Geometría de cada carácter por separado (misma fuente de verdad que
+   * `positions`: son las mismas piezas, solo sin concatenar). Vacío para
+   * texto vacío/sin glifos. Usado para exportar letras individuales sin
+   * un segundo motor geométrico paralelo.
+   */
+  letters: LetterPieceResult[];
 }

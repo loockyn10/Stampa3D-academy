@@ -10,6 +10,7 @@ import { MakerTextControls } from "@/components/maker/MakerTextControls";
 import { MakerViewport } from "@/components/maker/MakerViewport";
 import { useLetterGeometry } from "@/hooks/maker/useLetterGeometry";
 import { exportLetterGeometryToSTL } from "@/lib/maker/exporters/exportSTL";
+import { downloadLettersZip } from "@/lib/maker/exporters/exportLettersZip";
 import { DEFAULT_MAKER_FONT_ID } from "@/lib/maker/fonts/registry";
 import type { LetterSignParams } from "@/lib/maker/types";
 
@@ -26,20 +27,34 @@ export default function StampaMakerCartelesPage() {
   const [params, setParams] = useState<LetterSignParams>(DEFAULT_PARAMS);
   const { geometry, loading, error, fieldErrors } = useLetterGeometry(params);
   const { toast } = useAppFeedback();
+  const [lettersZipLoading, setLettersZipLoading] = useState(false);
 
   const handleChange = useCallback((patch: Partial<LetterSignParams>) => {
     setParams((prev) => ({ ...prev, ...patch }));
   }, []);
 
-  const handleDownload = useCallback(() => {
+  const baseFileName = params.text.trim().toLowerCase().replace(/\s+/g, "-") || "stampa-maker";
+
+  const handleDownloadWord = useCallback(() => {
     if (!geometry || geometry.triangleCount === 0) return;
     try {
-      const fileName = params.text.trim().toLowerCase().replace(/\s+/g, "-") || "stampa-maker";
-      exportLetterGeometryToSTL(geometry, fileName);
+      exportLetterGeometryToSTL(geometry, baseFileName);
     } catch (err) {
       toast.error(err instanceof Error ? err.message : "No se pudo exportar el STL.");
     }
-  }, [geometry, params.text, toast]);
+  }, [geometry, baseFileName, toast]);
+
+  const handleDownloadLetters = useCallback(async () => {
+    if (!geometry || geometry.letters.length === 0) return;
+    setLettersZipLoading(true);
+    try {
+      await downloadLettersZip(geometry.letters, `${baseFileName}_letras`);
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : "No se pudo exportar el ZIP de letras.");
+    } finally {
+      setLettersZipLoading(false);
+    }
+  }, [geometry, baseFileName, toast]);
 
   const canDownload = !loading && !error && fieldErrors.length === 0 && !!geometry && geometry.triangleCount > 0;
 
@@ -61,7 +76,9 @@ export default function StampaMakerCartelesPage() {
           error={error}
           loading={loading}
           canDownload={canDownload}
-          onDownload={handleDownload}
+          onDownloadWord={handleDownloadWord}
+          onDownloadLetters={handleDownloadLetters}
+          lettersZipLoading={lettersZipLoading}
         />
         <Card className="overflow-hidden p-0">
           <MakerViewport geometry={geometry} />

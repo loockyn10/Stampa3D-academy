@@ -66,7 +66,9 @@ const { textToOpentypePath, flattenOpentypePath } = loadMakerModule("lib/maker/g
 const { buildContourHierarchy } = loadMakerModule("lib/maker/geometry/contourHierarchy.ts");
 const { insetContourGroups } = loadMakerModule("lib/maker/geometry/offsets.ts");
 const { validateLetterSignParams } = loadMakerModule("lib/maker/validation.ts");
+const { buildLettersZipBlob, recenterMesh } = loadMakerModule("lib/maker/exporters/exportLettersZip.ts");
 const opentype = nodeRequire("opentype.js");
+const JSZipLib = nodeRequire("jszip");
 
 function loadFont(fileName) {
   const buf = fs.readFileSync(path.join(root, "public/fonts/maker", fileName));
@@ -153,6 +155,49 @@ function analyzeMeshTopology(positions) {
   }
 
   return { degenerate, boundaryEdges, interiorEdges, nonManifold, triCount };
+}
+
+// Cuenta shells/componentes conectados reales de la malla: dos triángulos
+// están en el mismo componente si comparten un vértice (misma coordenada,
+// con la misma tolerancia que analyzeMeshTopology). Esto es lo que
+// distingue "un solo sólido soldado" de "varios sólidos que solo se
+// tocan/superponen" — ambos casos pueden ser watertight y balanceados por
+// separado, pero solo el primero cuenta como 1 acá.
+function countConnectedComponents(positions) {
+  const key = (x, y, z) => `${x.toFixed(4)},${y.toFixed(4)},${z.toFixed(4)}`;
+  const parent = new Map();
+  function find(k) {
+    let root = k;
+    while (parent.get(root) !== root) root = parent.get(root);
+    let cur = k;
+    while (parent.get(cur) !== root) {
+      const next = parent.get(cur);
+      parent.set(cur, root);
+      cur = next;
+    }
+    return root;
+  }
+  function union(a, b) {
+    const ra = find(a), rb = find(b);
+    if (ra !== rb) parent.set(ra, rb);
+  }
+
+  const triCount = positions.length / 9;
+  for (let t = 0; t < triCount; t++) {
+    const o = t * 9;
+    const keys = [
+      key(positions[o], positions[o + 1], positions[o + 2]),
+      key(positions[o + 3], positions[o + 4], positions[o + 5]),
+      key(positions[o + 6], positions[o + 7], positions[o + 8]),
+    ];
+    for (const k of keys) if (!parent.has(k)) parent.set(k, k);
+    union(keys[0], keys[1]);
+    union(keys[1], keys[2]);
+  }
+
+  const roots = new Set();
+  for (const k of parent.keys()) roots.add(find(k));
+  return roots.size;
 }
 
 // Centroide (ponderado por área) de un polígono simple, en el mismo
@@ -452,12 +497,117 @@ test('"O": la erosión de la pared (wallMm=1.6) queda a ~1.6mm del contorno más
 
 // --- Watertight (complementa analyzeMeshTopology, sección 12) ---
 
-test('"O": cada pieza (fondo, pared) sigue siendo topológicamente correcta tras el fix', () => {
+test('"O": la malla completa (fondo + repisa + pared) es topológicamente correcta', () => {
   const result = createLetterGeometry(montserratBold, { ...DEFAULT_PARAMS, text: "O" });
   const topo = analyzeMeshTopology(result.positions);
   assert.equal(topo.degenerate, 0);
   assert.equal(topo.nonManifold, 0);
-  // Con capEnd:true en la pared, cada pieza (fondo y las 2 bandas de la
-  // pared) queda totalmente cerrada: ya no debería haber bordes sueltos.
-  assert.equal(topo.boundaryEdges, 0, "no se esperaban bordes abiertos: fondo y pared quedan totalmente cerrados como piezas independientes");
+  // Fondo, repisa del núcleo y pared comparten vértices en cada frontera
+  // (ver createLetterGeometry.ts): no debería quedar ningún borde suelto.
+  assert.equal(topo.boundaryEdges, 0, "no se esperaban bordes abiertos: la letra queda totalmente cerrada como un único sólido soldado");
+});
+
+// --- Connected components: ¿una letra es 1 solo sólido o varios shells? ---
+//
+// El bug original (Stampa Maker 0.1, primera versión): fondo y pared eran
+// dos sólidos watertight *independientes* que solo se tocaban/superponían
+// en z = baseMm (cada uno con su propia tapa completa ahí). Cada uno pasaba
+// analyzeMeshTopology de forma aislada, pero juntos formaban 2 (letras sin
+// huecos) o hasta 4 (letras con 2 huecos, p.ej. B/8) shells separados —
+// exactamente lo que Bambu Studio separaría con "Dividir en objetos".
+//
+// La solución (ver createLetterGeometry.ts, buildWeldedLetterSolid) no usa
+// ninguna operación booleana 3D: construye la letra desde el origen como
+// una única malla que comparte vértices en cada frontera real (exterior y
+// huecos originales corren de punta a punta; el núcleo erosionado por la
+// pared aporta la única tapa en z = baseMm, en vez de que fondo y pared
+// tapen por separado el mismo lugar). Resultado verificado acá: 1 solo
+// componente conectado por letra para I/O/A/B/8, incluso con 2 huecos.
+for (const text of ["I", "O", "A", "B", "8"]) {
+  test(`"${text}": la letra terminada es UN solo componente conectado (no varios shells)`, () => {
+    const result = createLetterGeometry(montserratBold, { ...DEFAULT_PARAMS, text });
+    const components = countConnectedComponents(result.positions);
+    assert.equal(components, 1, `"${text}": se esperaba 1 shell soldado, se encontraron ${components}`);
+  });
+}
+
+// --- Exportación de letras individuales (ZIP) ---
+
+function meshBounds(positions) {
+  let minX = Infinity, maxX = -Infinity, minY = Infinity, maxY = -Infinity, minZ = Infinity, maxZ = -Infinity;
+  for (let i = 0; i < positions.length; i += 3) {
+    const x = positions[i], y = positions[i + 1], z = positions[i + 2];
+    if (x < minX) minX = x;
+    if (x > maxX) maxX = x;
+    if (y < minY) minY = y;
+    if (y > maxY) maxY = y;
+    if (z < minZ) minZ = z;
+    if (z > maxZ) maxZ = z;
+  }
+  return { minX, maxX, minY, maxY, minZ, maxZ };
+}
+
+test('"STAMPA": genera 6 letras exportables y un ZIP con 6 STL nombrados correctamente', async () => {
+  const result = createLetterGeometry(montserratBold, { ...DEFAULT_PARAMS, text: "STAMPA" });
+  assert.equal(result.letters.length, 6);
+
+  const blob = await buildLettersZipBlob(result.letters);
+  const zip = await JSZipLib.loadAsync(await blob.arrayBuffer());
+  const names = Object.keys(zip.files).sort();
+  assert.deepEqual(names, ["01_S.stl", "02_T.stl", "03_A.stl", "04_M.stl", "05_P.stl", "06_A.stl"]);
+});
+
+test('"LOOCK 3D": el espacio no genera archivo, se generan 7 STL con nombres únicos', async () => {
+  const result = createLetterGeometry(montserratBold, { ...DEFAULT_PARAMS, text: "LOOCK 3D" });
+  assert.equal(result.letters.length, 7);
+  assert.deepEqual(result.letters.map((l) => l.char), ["L", "O", "O", "C", "K", "3", "D"]);
+
+  const blob = await buildLettersZipBlob(result.letters);
+  const zip = await JSZipLib.loadAsync(await blob.arrayBuffer());
+  const names = Object.keys(zip.files).sort();
+  assert.deepEqual(names, ["01_L.stl", "02_O.stl", "03_O.stl", "04_C.stl", "05_K.stl", "06_3.stl", "07_D.stl"]);
+  assert.equal(new Set(names).size, names.length, "los nombres deben ser únicos");
+});
+
+test("recenterMesh: cada letra individual queda centrada en XY con minZ = 0", () => {
+  const result = createLetterGeometry(montserratBold, { ...DEFAULT_PARAMS, text: "STAMPA" });
+  for (const letter of result.letters) {
+    const recentered = recenterMesh(letter);
+    const b = meshBounds(recentered.positions);
+    const centerX = (b.minX + b.maxX) / 2;
+    const centerY = (b.minY + b.maxY) / 2;
+    assert.ok(Math.abs(centerX) < 1e-3, `"${letter.char}": centro X fuera de rango (${centerX})`);
+    assert.ok(Math.abs(centerY) < 1e-3, `"${letter.char}": centro Y fuera de rango (${centerY})`);
+    assert.ok(Math.abs(b.minZ) < 1e-6, `"${letter.char}": minZ debería ser 0 (${b.minZ})`);
+  }
+});
+
+test('recenterMesh: la "P" de STAMPA no conserva su offset X original dentro de la palabra', () => {
+  const result = createLetterGeometry(montserratBold, { ...DEFAULT_PARAMS, text: "STAMPA" });
+  const p = result.letters.find((l) => l.char === "P");
+  const originalBounds = meshBounds(p.positions);
+  assert.ok(originalBounds.minX > 50, "la P debería estar bien desplazada en X dentro de la palabra completa");
+
+  const recentered = recenterMesh(p);
+  const b = meshBounds(recentered.positions);
+  assert.ok(Math.abs((b.minX + b.maxX) / 2) < 1e-3, "el centro X recentrado debería quedar ~0");
+});
+
+test('exportación individual: la "O" recentrada mantiene el counter libre en toda la profundidad', () => {
+  const result = createLetterGeometry(montserratBold, { ...DEFAULT_PARAMS, text: "O" });
+  const letter = result.letters[0];
+  const recentered = recenterMesh(letter);
+
+  // Centro del counter en coordenadas originales, trasladado con el mismo
+  // offset que recenterMesh le aplicó a la malla completa.
+  const groups = contourGroupsFor("O");
+  const [holeCx, holeCy] = polygonCentroid(groups[0].holes[0]);
+  const originalBounds = meshBounds(letter.positions);
+  const shiftX = (originalBounds.minX + originalBounds.maxX) / 2;
+  const shiftY = (originalBounds.minY + originalBounds.maxY) / 2;
+
+  const hits = raycastZHits(recentered.positions, holeCx - shiftX, holeCy - shiftY).filter(
+    (z) => z > -EPS_Z && z < DEFAULT_PARAMS.depthMm + EPS_Z,
+  );
+  assert.deepEqual(hits, [], `se esperaba el counter libre tras recentrar, hay geometría en z=[${hits.join(", ")}]`);
 });
