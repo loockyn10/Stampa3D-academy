@@ -9,6 +9,10 @@
 > interior (sección 12), y hardening de errores/warnings geométricos: una
 > tapa encastrable sin encastre funcional (`LIP_COLLAPSED`) bloquea la
 > exportación en vez de degradarse en silencio (sección 12.3).
+> 0.3.1 (2026-09-17): corrección conceptual del labio — pasa de "rellenar
+> toda la cavidad" a un anillo perimetral fino (`lipWallMm`, sección 12.4),
+> crítico para cartelería luminosa (la placa debe permanecer fina). Además,
+> el viewport 3D gana altura en desktop (sección 13).
 
 ## 1. Qué es
 
@@ -473,8 +477,10 @@ Módulos nuevos:
 - `src/lib/maker/geometry/joints/interiorLip.ts` — el "sistema de
   encastre": `fitInteriorLip()` deriva la huella 2D del labio a partir de
   la MISMA cavidad que ya delimita el cuerpo (núcleo erosionado por
-  `wallMm`, la pared interior real — no un cuerpo especial) más un inset
-  adicional por `clearanceMm`. No sabe nada de Z ni de extrusión.
+  `wallMm`, la pared interior real — no un cuerpo especial), erosionada
+  `clearanceMm` (posiciona el labio) y reducida a un ANILLO perimetral de
+  espesor `lipWallMm` (ver sección 12.4 — corrección 0.3.1: no toda esa
+  región, solo su perímetro). No sabe nada de Z ni de extrusión.
 - `src/lib/maker/geometry/lid.ts` — el concepto "tapa": arma la
   `ExtrudedMeshData` de la tapa de un carácter. Contiene el único
   `if`/switch sobre `lidJoint` de todo el pipeline (placa plana vs.
@@ -513,21 +519,37 @@ Mismo mecanismo que ya suelda fondo/repisa/pared del cuerpo (grilla
 compartida 0.0001 mm + jitter determinístico en `extrudePolygon.ts`), con
 4 piezas por letra: paredes+tapa superior de la placa (silueta completa,
 sin tapar la cara inferior), repisa de la placa (tapa la cara inferior
-SOLO donde no hay labio, mirando hacia -Z), paredes del labio (sin tapa en
-ninguno de los dos extremos) y tapa de la punta del labio (mirando hacia
--Z). Comparten coordenadas exactas en cada frontera → 1 solo componente
+donde NO hay pared de labio — desde 0.3.1 esto incluye el centro vacío
+detrás de la placa, no solo el borde exterior, mirando hacia -Z), paredes
+del ANILLO del labio (sigue ambos bordes del anillo; sin tapa en ninguno
+de los dos extremos) y tapa de la punta del labio (mirando hacia -Z).
+Comparten coordenadas exactas en cada frontera → 1 solo componente
 conectado, verificado con `countConnectedComponents` (igual que el
 cuerpo). Los counters (huecos originales del glifo) quedan libres tanto en
-la placa como en el labio: ninguna pieza los tapa.
+la placa como en el labio: ninguna pieza los tapa. Para un trazo anular
+(p.ej. "O") el anillo da naturalmente 2 bandas separadas y la repisa 3
+regiones separadas — mismo mecanismo de multi-`ContourGroup` que ya usa el
+resto del pipeline, sin lógica especial por letra.
 
 ### 12.1 Cuando el labio es imposible: colapso, no geometría corrupta
 
-Si `wallMm` + `clearanceMm` erosionan un contorno por completo (trazo muy
-fino, holgura excesiva, letra muy chica), `fitInteriorLip()` devuelve
-`collapsed: true` para ESE contorno. `lid.ts` no rompe: la placa queda
-maciza en esa zona (mismo resultado visual que la tapa plana), sin labio
-— pero el resultado completo queda marcado inválido para exportar (ver
-12.3), nunca exportado en silencio como si tuviera encastre funcional.
+`fitInteriorLip()` devuelve `collapsed: true` para un contorno en dos
+casos, ninguno de los dos se degrada en silencio a una placa maciza (ver
+12.3, `LIP_COLLAPSED` es un ERROR):
+
+1. La fit region (cavidad erosionada por `wallMm` + `clearanceMm`)
+   desaparece por completo — trazo muy fino, holgura excesiva, letra muy
+   chica: no hay dónde poner un labio.
+2. La fit region existe, pero `lipWallMm` es tan grande respecto a su
+   ancho que el vacío CENTRAL del anillo (sección 12.4) desaparece — el
+   "labio" pasaría a ser la fit region completa, macizo. Es exactamente el
+   problema que corrige 0.3.1, así que se trata igual: error, no placa
+   gruesa silenciosa.
+
+En ambos casos `lid.ts` no rompe: la placa queda maciza SOLO en esa zona
+(mismo resultado visual que la tapa plana ahí), sin labio para ese
+contorno — pero el resultado completo queda marcado inválido para
+exportar.
 
 ### 12.2 Preview
 
@@ -564,3 +586,64 @@ warnings ("Diseño no listo para exportar") y `canDownload` (`page.tsx`)
 exige `geometry.errors.length === 0` — los botones de descarga quedan
 deshabilitados mientras persista el error, sin ocultarlo ni convertir la
 tapa encastrable en tapa plana automáticamente.
+
+### 12.4 Corrección 0.3.1: el labio es un anillo perimetral fino, no un relleno macizo
+
+**Error conceptual de la primera implementación (0.3):** el labio ocupaba
+TODA la fit region (cavidad erosionada por `wallMm` + `clearanceMm`)
+extruida hacia atrás durante `insertDepthMm`. Con `lidThickness=0.6mm` +
+`insertDepth=1.4mm`, buena parte de la tapa terminaba con ~2.0mm de
+material — inaceptable para cartelería luminosa, donde la placa frontal
+debe permanecer fina para dejar pasar/difundir la luz.
+
+**Corrección:** nuevo parámetro `lipWallMm` (espesor de pared del labio,
+0.4–3mm, default 0.8mm, independiente de `lidMm`/`insertDepthMm`/
+`clearanceMm`/`wallMm` del cuerpo). El footprint del labio pasa a ser:
+
+```
+fitRegion  (cavidad + clearance, como antes)
+    -
+inset(fitRegion, lipWallMm)
+    =
+anillo/marco del labio (footprint real, sección 3 de fitInteriorLip)
+```
+
+Mismo patrón que ya usa el cuerpo para su propia pared (`ink - inset(ink,
+wallMm)`, ver sección 3) — reutilizado vía `differenceRawPaths` (nueva
+función en `offsets.ts`, factoriza la lógica que ya usaba
+`differenceContourGroups`, sin duplicarla). Para un trazo simple ("I") el
+anillo es 1 marco; para un trazo anular ("O") son 2 bandas separadas
+(exterior + interior), con un VACÍO real entre ambas — exactamente la
+sección transversal descripta en el pedido. La placa (`lidMm`) se apoya
+sobre TODO el footprint de la placa; solo donde pasa el anillo hay además
+labio por debajo — el resto (incluido el centro vacío detrás de la placa)
+queda con exactamente `lidMm` de espesor, nunca `lidMm + insertDepthMm`.
+Test dedicado: `tests/maker-letter-geometry.test.mjs`, "la zona vacía
+detrás de la placa mide solo lidThickness, nunca lidThickness+insertDepth"
+(raycast en el centro del vacío, verifica que los únicos impactos estén en
+`[depthMm, depthMm+lidMm]`).
+
+La convención de holgura (`clearanceMm` por lado, sin dividir por dos) no
+cambió: se aplica ANTES de calcular el anillo (paso 2 de `fitInteriorLip`,
+posiciona el labio), `lipWallMm` actúa DESPUÉS, sobre el resultado (paso
+3, da espesor al anillo).
+
+## 13. Viewport 3D: altura en desktop (0.3.1)
+
+El visor (`MakerViewport.tsx` dentro de un `<Card>` en
+`carteles/page.tsx`) tenía una altura fija chica (`min-h-[420px]`), dando
+una proporción de banner horizontal en desktop — insuficiente para una
+herramienta tipo CAD. El `<Card>` que envuelve el viewport ahora fija su
+altura con `clamp()` responsivo en vez de un mínimo fijo:
+
+```
+mobile:  h-[clamp(400px,60vh,500px)]
+desktop: lg:h-[clamp(650px,75vh,750px)]
+```
+
+El panel de controles (`MakerTextControls`) sigue a la izquierda con su
+altura natural (`lg:items-start` en el grid, sin cambios); el viewport a
+la derecha gana altura de forma independiente, sin dejar una zona vacía
+debajo. `MakerViewport.tsx` no necesitó cambios internos (ya usaba
+`h-full w-full`, hereda la altura del `<Card>` padre vía `ResizeObserver`,
+que ya reencuadra cámara/renderer en cada resize).

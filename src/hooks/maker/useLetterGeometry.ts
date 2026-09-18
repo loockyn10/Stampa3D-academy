@@ -52,6 +52,7 @@ export function useLetterGeometry(params: LetterSignParams): UseLetterGeometrySt
     params.lidJoint,
     params.insertDepthMm,
     params.clearanceMm,
+    params.lipWallMm,
   ]);
 
   const fieldErrors = useMemo(() => validateLetterSignParams(debounced), [debounced]);

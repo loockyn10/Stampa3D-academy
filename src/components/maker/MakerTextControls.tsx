@@ -251,6 +251,13 @@ export function MakerTextControls({
             error={fieldError(fieldErrors, "insertDepthMm")}
           />
           <NumberField
+            label="Espesor del labio"
+            value={params.lipWallMm}
+            onChange={(v) => onChange({ lipWallMm: v })}
+            suffix="mm"
+            error={fieldError(fieldErrors, "lipWallMm")}
+          />
+          <NumberField
             label="Holgura"
             value={params.clearanceMm}
             onChange={(v) => onChange({ clearanceMm: v })}

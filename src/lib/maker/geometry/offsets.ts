@@ -55,19 +55,31 @@ export function insetContourGroups(groups: ContourGroup[], insetMm: number): Cli
   return cleanSolution(solution);
 }
 
-/** Resta `clipPaths` de `subjectGroups` (diferencia booleana, regla nonzero). */
-export function differenceContourGroups(subjectGroups: ContourGroup[], clipPaths: ClipperLib.Paths): ContourGroup[] {
-  const subjectPaths = subjectGroups.flatMap(groupToClipperPaths);
-  if (subjectPaths.length === 0) return [];
+/**
+ * Resta `clipRawPaths` de `subjectRawPaths` (diferencia booleana, regla
+ * nonzero), ambos ya en paths crudos de Clipper. Es el mismo cálculo que
+ * usa `differenceContourGroups`, pero sin pasar por ContourGroup en
+ * ninguno de los dos lados: sirve para encadenar una diferencia sobre el
+ * resultado de OTRA operación de Clipper (p.ej. la pared perimetral del
+ * labio, ver joints/interiorLip.ts) sin un round-trip extra por mm/hueco.
+ */
+export function differenceRawPaths(subjectRawPaths: ClipperLib.Paths, clipRawPaths: ClipperLib.Paths): ClipperLib.Paths {
+  if (subjectRawPaths.length === 0) return [];
 
   const clipper = new ClipperLib.Clipper();
-  clipper.AddPaths(subjectPaths, ClipperLib.PolyType.ptSubject, true);
-  if (clipPaths.length > 0) {
-    clipper.AddPaths(clipPaths, ClipperLib.PolyType.ptClip, true);
+  clipper.AddPaths(subjectRawPaths, ClipperLib.PolyType.ptSubject, true);
+  if (clipRawPaths.length > 0) {
+    clipper.AddPaths(clipRawPaths, ClipperLib.PolyType.ptClip, true);
   }
   const solution: ClipperLib.Paths = [];
   clipper.Execute(ClipperLib.ClipType.ctDifference, solution, ClipperLib.PolyFillType.pftNonZero, ClipperLib.PolyFillType.pftNonZero);
-  return regroupClipperSolution(solution);
+  return solution;
+}
+
+/** Resta `clipPaths` de `subjectGroups` (diferencia booleana, regla nonzero). */
+export function differenceContourGroups(subjectGroups: ContourGroup[], clipPaths: ClipperLib.Paths): ContourGroup[] {
+  const subjectPaths = subjectGroups.flatMap(groupToClipperPaths);
+  return regroupClipperSolution(differenceRawPaths(subjectPaths, clipPaths));
 }
 
 /** Área total (mm²) de un conjunto de paths crudos de Clipper, con signo. */

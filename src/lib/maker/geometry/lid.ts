@@ -41,27 +41,38 @@ export function buildLid(contourGroups: ContourGroup[], params: LetterSignParams
 }
 
 /**
- * Tapa encastrable (0.3): placa + labio interior soldados en un único
- * sólido, ver docs/STAMPA_MAKER.md sección 12 (Tapa encastrable). Pieza:
+ * Tapa encastrable (0.3/0.3.1): placa fina + labio PERIMETRAL (un anillo
+ * de espesor `lipWallMm`, no toda la cavidad — ver joints/interiorLip.ts)
+ * soldados en un único sólido, ver docs/STAMPA_MAKER.md sección 12. Pieza:
  *
  *  - z = depthMm -> depthMm+lidMm: paredes de la placa (silueta completa)
  *    + tapa superior (cara exterior de la tapa). Sin tapar acá la cara
- *    inferior (z=depthMm): la cierran la repisa (zona sin labio) y el
- *    propio labio (zona con labio) — igual patrón que fondo/repisa/pared
- *    del cuerpo.
- *  - z = depthMm (repisa): tapa la cara inferior de la placa SOLO donde no
- *    hay labio (huella de la placa menos huella del labio), mirando hacia
+ *    inferior (z=depthMm): la cierran la repisa (zona sin labio, que
+ *    ahora incluye el CENTRO vacío detrás de la placa) y el propio labio
+ *    (solo la zona del anillo) — igual patrón que fondo/repisa/pared del
+ *    cuerpo. Esto es lo que mantiene la placa en exactamente `lidMm` de
+ *    espesor en el centro: ahí no hay nada más que placa+repisa, el labio
+ *    no llega (crítico para difusión de luz).
+ *  - z = depthMm (repisa): tapa la cara inferior de la placa donde NO hay
+ *    pared de labio (huella de la placa menos el ANILLO del labio —
+ *    incluye tanto el borde exterior como el centro vacío), mirando hacia
  *    -Z (hacia la cavidad).
- *  - z = depthMm-insertDepth -> depthMm (labio): paredes de la huella del
- *    labio (ver joints/interiorLip.ts), sin tapa en ninguno de los dos
- *    extremos acá — la punta se tapa aparte, el extremo superior se
- *    suelda contra la cara inferior de la placa.
+ *  - z = depthMm-insertDepth -> depthMm (labio): paredes del ANILLO del
+ *    labio (ver joints/interiorLip.ts — sigue ambos bordes del anillo,
+ *    exterior e interior), sin tapa en ninguno de los dos extremos acá —
+ *    la punta se tapa aparte, el extremo superior se suelda contra la
+ *    cara inferior de la placa.
  *  - z = depthMm-insertDepth (tapa de la punta del labio): cierra el
  *    extremo que entra en la cavidad, mirando hacia -Z.
  *
  * Todas las piezas comparten coordenadas exactas en cada frontera (misma
  * grilla + jitter determinístico que ya suelda el cuerpo), así que el
- * resultado es un único componente conectado, sin booleana 3D.
+ * resultado es un único componente conectado, sin booleana 3D. Para un
+ * trazo anular (p.ej. "O") el anillo del labio da naturalmente 2 bandas
+ * separadas (una por borde de la cavidad) y la repisa da 3 regiones
+ * separadas (borde exterior, centro vacío, borde del counter) — mismo
+ * mecanismo de multi-ContourGroup que ya usa el resto del pipeline
+ * (p.ej. "STAMPA" con 6 letras), sin lógica especial.
  */
 function buildInteriorLipLid(
   contourGroups: ContourGroup[],
@@ -74,7 +85,7 @@ function buildInteriorLipLid(
   let lipCollapsed = false;
 
   for (const group of contourGroups) {
-    const fit = fitInteriorLip(group, params.wallMm, params.clearanceMm, insertDepthUsedMm);
+    const fit = fitInteriorLip(group, params.wallMm, params.clearanceMm, params.lipWallMm, insertDepthUsedMm);
     if (fit.collapsed) {
       lipCollapsed = true;
       // Sin labio para este contorno: la placa queda maciza en esa zona

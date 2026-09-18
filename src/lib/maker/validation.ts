@@ -44,6 +44,9 @@ export function validateLetterSignParams(params: LetterSignParams): FieldError[]
     if (!(params.clearanceMm >= 0 && params.clearanceMm <= 2)) {
       errors.push({ field: "clearanceMm", message: "La holgura debe estar entre 0 y 2 mm." });
     }
+    if (!(params.lipWallMm >= 0.4 && params.lipWallMm <= 3)) {
+      errors.push({ field: "lipWallMm", message: "El espesor del labio debe estar entre 0.4 y 3 mm." });
+    }
   }
 
   return errors;

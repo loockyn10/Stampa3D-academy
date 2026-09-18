@@ -64,7 +64,7 @@ function loadMakerModule(relFromSrc) {
 const { createLetterGeometry } = loadMakerModule("lib/maker/geometry/createLetterGeometry.ts");
 const { textToOpentypePath, flattenOpentypePath } = loadMakerModule("lib/maker/geometry/textToPaths.ts");
 const { buildContourHierarchy } = loadMakerModule("lib/maker/geometry/contourHierarchy.ts");
-const { insetContourGroups } = loadMakerModule("lib/maker/geometry/offsets.ts");
+const { insetContourGroups, regroupClipperSolution, clipperPathsArea } = loadMakerModule("lib/maker/geometry/offsets.ts");
 const { fitInteriorLip } = loadMakerModule("lib/maker/geometry/joints/interiorLip.ts");
 const { validateLetterSignParams } = loadMakerModule("lib/maker/validation.ts");
 const { buildLettersZipBlob, recenterMesh } = loadMakerModule("lib/maker/exporters/exportLettersZip.ts");
@@ -91,6 +91,7 @@ const DEFAULT_PARAMS = {
   lidJoint: "glue",
   insertDepthMm: 3,
   clearanceMm: 0.2,
+  lipWallMm: 0.8,
 };
 
 function assertFiniteFloatArray(arr, label) {
@@ -305,8 +306,8 @@ test('el texto "STAMPA" no dispara advertencias con parámetros por defecto', ()
 
 // --- Sección 5 del spec: jerarquía de contornos y huecos ---
 
-function contourGroupsFor(char) {
-  const path = textToOpentypePath(montserratBold, char, 100);
+function contourGroupsFor(char, heightMm = 100) {
+  const path = textToOpentypePath(montserratBold, char, heightMm);
   const rawContours = flattenOpentypePath(path);
   return buildContourHierarchy(rawContours);
 }
@@ -792,38 +793,169 @@ test('tapa encastrable "O": el labio ocupa z = [depthMm - insertDepthMm, depthMm
   );
 });
 
-// H. Clearance: el labio queda a ~clearanceMm de la cavidad real del
-// cuerpo (núcleo erosionado por wallMm), por lado — sin dividir por dos.
-test('tapa encastrable "O": la holgura (clearanceMm=0.20) separa el labio ~0.20mm de la cavidad, por lado', () => {
-  const groups = contourGroupsFor("O");
-  const fit = fitInteriorLip(groups[0], DEFAULT_PARAMS.wallMm, 0.2, 3);
+// --- Corrección 0.3.1: el labio es un ANILLO/marco perimetral fino
+// (lipWallMm), NO toda la región interior de la cavidad. La corrección
+// afecta cómo se construye fitInteriorLip: ahora devuelve el anillo (2
+// bandas separadas para un trazo anular como "O", 1 marco para un trazo
+// simple como "I"), no la fit region completa. Se prueba con "I" (1 solo
+// grupo, sin ambigüedad de cuál banda es "la exterior") para las
+// mediciones precisas de holgura/espesor, y con "O" para el caso anular
+// (dos bandas + vacío central), que es el caso crítico del spec.
+
+function ringFitFor(char, heightMm, wallMm, clearanceMm, lipWallMm, insertDepthMm) {
+  const groups = contourGroupsFor(char, heightMm);
+  return { groups, fit: fitInteriorLip(groups[0], wallMm, clearanceMm, lipWallMm, insertDepthMm) };
+}
+
+// 2 y 7. "O" encastrable: placa + MARCO perimetral fino (2 bandas, no toda
+// la cavidad). Cada banda tiene UN borde que toca la fit region real (a
+// ~clearanceMm de la cavidad) y otro borde ya erosionado además por
+// lipWallMm (más lejos) — cuál de los dos es ".outer" y cuál ".holes[0]"
+// depende de la clasificación exterior/hueco de Clipper (el "outer" es
+// simplemente la curva que contiene a la otra, no necesariamente la más
+// cercana a la cavidad). Por eso se mide la distancia MÍNIMA entre AMBAS
+// curvas de cada banda y la cavidad: esa mínima es la que sigue
+// respetando exactamente `clearanceMm`.
+test('tapa encastrable "O": el labio es un anillo de 2 bandas (no toda la cavidad), y cada banda toca la cavidad a ~0.20mm por lado', () => {
+  const { groups, fit } = ringFitFor("O", DEFAULT_PARAMS.heightMm, DEFAULT_PARAMS.wallMm, 0.2, 0.8, 3);
   assert.equal(fit.collapsed, false);
+  assert.equal(fit.groups.length, 2, `"O": se esperaban 2 bandas del anillo (exterior + interior), se encontraron ${fit.groups.length}`);
 
   const CLIPPER_SCALE = 10000;
   const cavityRawPaths = insetContourGroups(groups, DEFAULT_PARAMS.wallMm);
   const cavityBoundaries = cavityRawPaths.map((path) => path.map((p) => [p.X / CLIPPER_SCALE, p.Y / CLIPPER_SCALE]));
 
-  const lipBoundary = fit.groups[0].outer;
-  const step = Math.max(1, Math.floor(lipBoundary.length / 12));
-  const samples = lipBoundary.filter((_, i) => i % step === 0);
-  assert.ok(samples.length > 0, "no se pudieron samplear puntos del labio");
-  for (const pt of samples) {
-    const d = Math.min(...cavityBoundaries.map((poly) => minDistanceToPolygon(pt, poly)));
-    assert.ok(d > 0.2 * 0.5 && d < 0.2 * 1.5, `distancia labio-cavidad fuera de rango: ${d.toFixed(3)}mm (esperado ~0.20mm)`);
+  const distanceToCavity = (curve) => {
+    const step = Math.max(1, Math.floor(curve.length / 8));
+    const samples = curve.filter((_, i) => i % step === 0);
+    return Math.min(...samples.map((pt) => Math.min(...cavityBoundaries.map((poly) => minDistanceToPolygon(pt, poly)))));
+  };
+
+  for (const ringBand of fit.groups) {
+    const nearest = Math.min(distanceToCavity(ringBand.outer), ...ringBand.holes.map(distanceToCavity));
+    assert.ok(nearest > 0.2 * 0.5 && nearest < 0.2 * 1.5, `banda del anillo demasiado lejos de la cavidad: ${nearest.toFixed(3)}mm (esperado ~0.20mm)`);
   }
 });
 
-// I. Comparación de clearance: mayor holgura -> labio más chico (más separado de la cavidad en todo su perímetro).
-test('tapa encastrable "O": mayor clearance da un labio más chico (0.10mm vs 0.30mm)', () => {
-  const groups = contourGroupsFor("O");
-  const fitSmall = fitInteriorLip(groups[0], DEFAULT_PARAMS.wallMm, 0.1, 3);
-  const fitLarge = fitInteriorLip(groups[0], DEFAULT_PARAMS.wallMm, 0.3, 3);
+// 7 (precisión, sin ambigüedad de bandas): en un trazo simple ("I", un
+// solo marco/frame) el borde exterior del anillo es literalmente el borde
+// de la fit region, así que mide clearanceMm exacto respecto de la
+// cavidad — mismo chequeo que antes de esta corrección.
+test('tapa encastrable "I": el borde exterior del marco mide ~0.20mm de la cavidad (holgura por lado)', () => {
+  const groups = contourGroupsFor("I", DEFAULT_PARAMS.heightMm);
+  const fit = fitInteriorLip(groups[0], DEFAULT_PARAMS.wallMm, 0.2, 0.8, 3);
+  assert.equal(fit.collapsed, false);
+  assert.equal(fit.groups.length, 1);
+
+  const CLIPPER_SCALE = 10000;
+  const cavityRawPaths = insetContourGroups(groups, DEFAULT_PARAMS.wallMm);
+  const cavityBoundaries = cavityRawPaths.map((path) => path.map((p) => [p.X / CLIPPER_SCALE, p.Y / CLIPPER_SCALE]));
+
+  const outer = fit.groups[0].outer;
+  const step = Math.max(1, Math.floor(outer.length / 12));
+  const samples = outer.filter((_, i) => i % step === 0);
+  for (const pt of samples) {
+    const d = Math.min(...cavityBoundaries.map((poly) => minDistanceToPolygon(pt, poly)));
+    assert.ok(d > 0.2 * 0.5 && d < 0.2 * 1.5, `distancia marco-cavidad fuera de rango: ${d.toFixed(3)}mm (esperado ~0.20mm)`);
+  }
+});
+
+// 3 y 4. La región del labio NO ocupa toda la cavidad: debe existir un
+// vacío real entre las paredes del anillo (para "O", el vacío es en sí
+// mismo anular — sigue rodeando el counter — pero deja de tocar tanto el
+// borde exterior como el borde interior de la fit region).
+test('tapa encastrable "O": existe un vacío real entre las dos bandas del anillo (el labio no ocupa toda la cavidad)', () => {
+  const groups = contourGroupsFor("O", DEFAULT_PARAMS.heightMm);
+  const cavityGroups = regroupClipperSolution(insetContourGroups(groups, DEFAULT_PARAMS.wallMm));
+  const fitGroups = regroupClipperSolution(insetContourGroups(cavityGroups, 0.2));
+  const voidRawPaths = insetContourGroups(fitGroups, 0.8);
+  const voidArea = Math.abs(clipperPathsArea(voidRawPaths));
+  assert.ok(voidArea > 1, `se esperaba un vacío central con área relevante, fue ${voidArea.toFixed(4)}mm²`);
+
+  const voidGroups = regroupClipperSolution(voidRawPaths);
+  assert.equal(voidGroups.length, 1, "el vacío de una O debería seguir siendo 1 anillo (rodea el counter)");
+  assert.equal(voidGroups[0].holes.length, 1, "el vacío debe conservar el counter como hueco, no rellenarlo");
+});
+
+// 5. Propiedad crítica para difusión de luz: una zona interior alejada del
+// perímetro (el vacío detrás de la placa) debe conservar SOLO lidThickness
+// de espesor, nunca lidThickness + insertDepth. Ejemplo del spec: O con
+// alto 50mm, profundidad 10mm, pared 1.6mm, fondo 1.2mm, lidThickness
+// 0.6mm, insertDepth 1.4mm, lipWallMm 0.8mm, clearance 0.2mm.
+test('tapa encastrable "O": la zona vacía detrás de la placa mide solo lidThickness, nunca lidThickness+insertDepth', () => {
+  const params = {
+    ...LIP_PARAMS,
+    text: "O",
+    heightMm: 50,
+    depthMm: 10,
+    wallMm: 1.6,
+    baseMm: 1.2,
+    lidMm: 0.6,
+    insertDepthMm: 1.4,
+    lipWallMm: 0.8,
+    clearanceMm: 0.2,
+  };
+  const result = createLetterGeometry(montserratBold, params);
+  assert.deepEqual(result.errors, []);
+
+  // Punto de control dentro del vacío: mismo patrón que el "control
+  // positivo" ya usado para el trazo (sección de counters arriba) —
+  // punto medio entre el borde exterior y el borde interior (counter) del
+  // vacío, sobre el eje que pasa por el centro.
+  const groups = contourGroupsFor("O", params.heightMm);
+  const cavityGroups = regroupClipperSolution(insetContourGroups(groups, params.wallMm));
+  const fitGroups = regroupClipperSolution(insetContourGroups(cavityGroups, params.clearanceMm));
+  const voidGroups = regroupClipperSolution(insetContourGroups(fitGroups, params.lipWallMm));
+  const voidOuter = voidGroups[0];
+  const [, holeCy] = polygonCentroid(voidOuter.holes[0]);
+  const midX = (Math.max(...voidOuter.outer.map(([x]) => x)) + Math.max(...voidOuter.holes[0].map(([x]) => x))) / 2;
+
+  const hits = raycastZHits(result.letters[0].lid.positions, midX, holeCy);
+  const uniqueHits = [...new Set(hits.map((z) => Math.round(z * 1000) / 1000))].sort((a, b) => a - b);
+  assert.deepEqual(
+    uniqueHits,
+    [params.depthMm, params.depthMm + params.lidMm],
+    `zona vacía: se esperaba geometría SOLO en [depthMm, depthMm+lidMm] (placa fina), se encontró en z=[${uniqueHits.join(", ")}]`,
+  );
+  const thickness = uniqueHits[1] - uniqueHits[0];
+  assert.ok(Math.abs(thickness - params.lidMm) < 1e-6, `espesor en la zona vacía debería ser lidMm (${params.lidMm}mm), fue ${thickness}mm`);
+  assert.ok(
+    Math.abs(thickness - (params.lidMm + params.insertDepthMm)) > 0.5,
+    "la zona vacía NO debería tener el espesor de lidMm+insertDepthMm (ese era el bug de la versión anterior)",
+  );
+});
+
+// 6. lipWallMm produce aproximadamente esa medida de pared donde la
+// geometría lo permite: distancia entre el borde exterior y el borde
+// interior (hueco) de cada banda del anillo.
+test('tapa encastrable "O": lipWallMm=0.8 produce ~0.8mm de espesor de pared en cada banda del anillo', () => {
+  const { fit } = ringFitFor("O", DEFAULT_PARAMS.heightMm, DEFAULT_PARAMS.wallMm, 0.2, 0.8, 3);
+  assert.equal(fit.collapsed, false);
+  for (const ringBand of fit.groups) {
+    assert.equal(ringBand.holes.length, 1, "cada banda del anillo debería tener exactamente 1 hueco (su propio borde interior)");
+    const step = Math.max(1, Math.floor(ringBand.outer.length / 8));
+    const samples = ringBand.outer.filter((_, i) => i % step === 0);
+    const dists = samples.map((pt) => minDistanceToPolygon(pt, ringBand.holes[0]));
+    for (const d of dists) {
+      assert.ok(d > 0.8 * 0.5 && d < 0.8 * 1.5, `espesor de banda fuera de rango: ${d.toFixed(3)}mm (esperado ~0.8mm)`);
+    }
+  }
+});
+
+// I. Comparación de clearance: mayor holgura -> anillo más chico/separado
+// de la cavidad (mismo mecanismo que antes, medido sobre "I" para evitar
+// ambigüedad de cuál banda del anillo es "la" banda cuando hay más de una).
+test('tapa encastrable "I": mayor clearance separa más el anillo de la cavidad (0.10mm vs 0.30mm)', () => {
+  const fitSmall = ringFitFor("I", DEFAULT_PARAMS.heightMm, DEFAULT_PARAMS.wallMm, 0.1, 0.8, 3).fit;
+  const fitLarge = ringFitFor("I", DEFAULT_PARAMS.heightMm, DEFAULT_PARAMS.wallMm, 0.3, 0.8, 3).fit;
   assert.equal(fitSmall.collapsed, false);
   assert.equal(fitLarge.collapsed, false);
+  assert.equal(fitSmall.groups.length, 1);
+  assert.equal(fitLarge.groups.length, 1);
 
   const areaSmall = Math.abs(polygonArea(fitSmall.groups[0].outer));
   const areaLarge = Math.abs(polygonArea(fitLarge.groups[0].outer));
-  assert.ok(areaLarge < areaSmall, `mayor clearance debería dar un labio más chico: ${areaLarge.toFixed(2)} vs ${areaSmall.toFixed(2)}`);
+  assert.ok(areaLarge < areaSmall, `mayor clearance debería dar un anillo más chico: ${areaLarge.toFixed(2)} vs ${areaSmall.toFixed(2)}`);
 });
 
 // J. connected components ya verificado dentro del test C-F de arriba (placa+labio: 1 componente).
@@ -890,6 +1022,25 @@ test("tapa encastrable con LIP_COLLAPSED: ningún camino de exportación acepta 
   await assert.rejects(() => buildWordZipBlob(result, "stampa"), /letra "I"/);
 });
 
+// Caso B (nuevo con la corrección de 0.3.1): la fit region es válida por sí
+// sola, pero lipWallMm es tan grande respecto a su ancho que el vacío
+// central del anillo desaparece — el "labio" pasaría a ser la fit region
+// completa (macizo), justo lo que esta corrección busca evitar. Debe
+// tratarse como LIP_COLLAPSED (error), NO degradarse en silencio a una
+// placa maciza.
+test('tapa encastrable "O": lipWallMm demasiado grande respecto a la fit region también dispara LIP_COLLAPSED (no macizo silencioso)', () => {
+  const base = { heightMm: 25, wallMm: 1.2, clearanceMm: 0.2, insertDepthMm: 3 };
+
+  const withThinLip = createLetterGeometry(montserratBold, { ...LIP_PARAMS, ...base, text: "O", lipWallMm: 1.5 });
+  assert.deepEqual(withThinLip.errors, [], "con lipWallMm=1.5 la fit region todavía debería alcanzar para un vacío central");
+
+  const withThickLip = createLetterGeometry(montserratBold, { ...LIP_PARAMS, ...base, text: "O", lipWallMm: 2 });
+  assert.ok(
+    withThickLip.errors.some((e) => e.code === "LIP_COLLAPSED"),
+    "con lipWallMm=2 (misma fit region) el vacío central debería desaparecer y marcarse como error",
+  );
+});
+
 // 3. Frente abierto no se ve afectado por esta validación.
 test("regresión hardening: frente abierto nunca tiene errors, aunque el trazo sea extremo", () => {
   const result = createLetterGeometry(montserratBold, {
@@ -923,7 +1074,7 @@ test('tapa encastrable "O" con parámetros por defecto: sin errors, exporta norm
 // "como si fuera completamente válido"), y se identifica cuál. No se exporta parcialmente:
 // una lista simple de letras afectadas alcanza, sin un selector complejo de errores.
 test('"STAMPA" con tapa encastrable: si una sola letra colapsa (la "S"), se identifica y se bloquea la exportación del conjunto', async () => {
-  const params = { ...LIP_PARAMS, text: "STAMPA", heightMm: 25, wallMm: 2.8, clearanceMm: 0.3 };
+  const params = { ...LIP_PARAMS, text: "STAMPA", heightMm: 31, wallMm: 2.8, clearanceMm: 0.3 };
   const result = createLetterGeometry(montserratBold, params);
 
   assert.equal(result.errors.length, 1, `se esperaba que solo la "S" colapsara, errors=${JSON.stringify(result.errors)}`);
@@ -968,7 +1119,19 @@ test("validateLetterSignParams: profundidad de encastre y holgura fuera de rango
   assert.ok(!valid.some((e) => e.field === "insertDepthMm" || e.field === "clearanceMm"));
 });
 
-test("validateLetterSignParams: insertDepthMm/clearanceMm fuera de rango no generan error si lidJoint es glue", () => {
-  const errors = validateLetterSignParams({ ...LID_PARAMS, text: "O", insertDepthMm: 999, clearanceMm: 999 });
-  assert.ok(!errors.some((e) => e.field === "insertDepthMm" || e.field === "clearanceMm"));
+// 1. lipWallMm validado (0.4mm - 3mm cuando lidJoint es interior-lip).
+test("validateLetterSignParams: espesor del labio (lipWallMm) fuera de rango cuando lidJoint es interior-lip", () => {
+  const tooThin = validateLetterSignParams({ ...LIP_PARAMS, text: "O", lipWallMm: 0.2 });
+  assert.ok(tooThin.some((e) => e.field === "lipWallMm"));
+
+  const tooThick = validateLetterSignParams({ ...LIP_PARAMS, text: "O", lipWallMm: 4 });
+  assert.ok(tooThick.some((e) => e.field === "lipWallMm"));
+
+  const valid = validateLetterSignParams({ ...LIP_PARAMS, text: "O", lipWallMm: 0.8 });
+  assert.ok(!valid.some((e) => e.field === "lipWallMm"));
+});
+
+test("validateLetterSignParams: insertDepthMm/clearanceMm/lipWallMm fuera de rango no generan error si lidJoint es glue", () => {
+  const errors = validateLetterSignParams({ ...LID_PARAMS, text: "O", insertDepthMm: 999, clearanceMm: 999, lipWallMm: 999 });
+  assert.ok(!errors.some((e) => e.field === "insertDepthMm" || e.field === "clearanceMm" || e.field === "lipWallMm"));
 });

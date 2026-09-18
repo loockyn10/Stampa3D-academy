@@ -58,6 +58,16 @@ export interface LetterSignParams {
    * física en cada lado). Solo se usa/valida si lidJoint === "interior-lip".
    */
   clearanceMm: number;
+  /**
+   * Espesor de la PARED del labio (perimetral), en mm. El labio es un
+   * anillo/marco fino de este espesor, no toda la región interior de la
+   * cavidad — la zona central detrás de la placa queda vacía, para no
+   * engrosar la tapa (crítico para cartelería luminosa: la placa debe
+   * conservar solo `lidMm` de espesor donde no hay labio). Independiente
+   * de `lidMm`, `insertDepthMm`, `clearanceMm` y del `wallMm` del cuerpo.
+   * Solo se usa/valida si lidJoint === "interior-lip".
+   */
+  lipWallMm: number;
 }
 
 /** Punto 2D en milímetros, en el plano de la cara del texto (X = ancho, Y = alto). */

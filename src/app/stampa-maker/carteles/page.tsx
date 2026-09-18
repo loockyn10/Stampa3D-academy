@@ -26,6 +26,7 @@ const DEFAULT_PARAMS: LetterSignParams = {
   lidJoint: "glue",
   insertDepthMm: 3,
   clearanceMm: 0.2,
+  lipWallMm: 0.8,
 };
 
 export default function StampaMakerCartelesPage() {
@@ -94,7 +95,7 @@ export default function StampaMakerCartelesPage() {
           viewMode={viewMode}
           onChangeViewMode={setViewMode}
         />
-        <Card className="overflow-hidden p-0">
+        <Card className="overflow-hidden p-0 h-[clamp(400px,60vh,500px)] lg:h-[clamp(650px,75vh,750px)]">
           <MakerViewport geometry={geometry} viewMode={viewMode} />
         </Card>
       </div>
