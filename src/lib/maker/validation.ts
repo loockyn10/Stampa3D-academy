@@ -37,5 +37,14 @@ export function validateLetterSignParams(params: LetterSignParams): FieldError[]
     errors.push({ field: "lidMm", message: "El espesor de tapa debe estar entre 0.4 y 10 mm." });
   }
 
+  if (params.frontType === "lid" && params.lidJoint === "interior-lip") {
+    if (!(params.insertDepthMm >= 0.5 && params.insertDepthMm <= 20)) {
+      errors.push({ field: "insertDepthMm", message: "La profundidad de encastre debe estar entre 0.5 y 20 mm." });
+    }
+    if (!(params.clearanceMm >= 0 && params.clearanceMm <= 2)) {
+      errors.push({ field: "clearanceMm", message: "La holgura debe estar entre 0 y 2 mm." });
+    }
+  }
+
   return errors;
 }

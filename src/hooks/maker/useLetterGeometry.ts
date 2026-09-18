@@ -40,7 +40,19 @@ export function useLetterGeometry(params: LetterSignParams): UseLetterGeometrySt
     const timer = setTimeout(() => setDebounced(params), DEBOUNCE_MS);
     return () => clearTimeout(timer);
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [params.text, params.fontId, params.heightMm, params.depthMm, params.wallMm, params.baseMm, params.frontType, params.lidMm]);
+  }, [
+    params.text,
+    params.fontId,
+    params.heightMm,
+    params.depthMm,
+    params.wallMm,
+    params.baseMm,
+    params.frontType,
+    params.lidMm,
+    params.lidJoint,
+    params.insertDepthMm,
+    params.clearanceMm,
+  ]);
 
   const fieldErrors = useMemo(() => validateLetterSignParams(debounced), [debounced]);
 

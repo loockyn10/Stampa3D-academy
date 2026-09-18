@@ -12,10 +12,23 @@ export interface MakerFontDefinition {
 
 /**
  * Tipo de frente del cuerpo. "open": frente completamente abierto (0.1, sin
- * cambios). "lid": además del cuerpo, se genera una tapa frontal plana como
- * pieza separada (0.2) — ver createLetterGeometry.ts.
+ * cambios). "lid": además del cuerpo, se genera una tapa (0.2+) como pieza
+ * separada — ver createLetterGeometry.ts. Cómo se une esa tapa al cuerpo es
+ * un concepto aparte, ver `LidJoint`.
  */
 export type FrontType = "open" | "lid";
+
+/**
+ * Sistema de unión entre la tapa y el cuerpo. Solo aplica si
+ * `frontType === "lid"`. "glue": tapa plana para pegar, sin encastre (0.2,
+ * sin cambios). "interior-lip": tapa con labio interior que entra en la
+ * cavidad del cuerpo con holgura (0.3) — ver
+ * src/lib/maker/geometry/joints/interiorLip.ts. Deliberadamente un tipo
+ * aparte de `FrontType`: agregar un futuro joint (clips, imanes, tornillos)
+ * es sumar un valor acá, no una nueva rama de frontType ni un enum
+ * combinado cuerpo×tapa×encastre en toda la app.
+ */
+export type LidJoint = "glue" | "interior-lip";
 
 /** Parámetros configurables por el usuario para el Creador de Carteles. */
 export interface LetterSignParams {
@@ -30,8 +43,21 @@ export interface LetterSignParams {
   /** Espesor del fondo cerrado, en mm. */
   baseMm: number;
   frontType: FrontType;
-  /** Espesor de la tapa frontal, en mm. Solo se usa/valida si frontType === "lid". */
+  /** Espesor de la tapa, en mm. Solo se usa/valida si frontType === "lid" (cualquier lidJoint). */
   lidMm: number;
+  /** Sistema de unión de la tapa. Solo se usa/valida si frontType === "lid". */
+  lidJoint: LidJoint;
+  /**
+   * Profundidad del labio dentro de la cavidad del cuerpo, en mm. Solo se
+   * usa/valida si lidJoint === "interior-lip".
+   */
+  insertDepthMm: number;
+  /**
+   * Holgura POR LADO entre el labio y la pared interior real del cuerpo, en
+   * mm (no se divide por dos: 0.20 mm de holgura = ~0.20 mm de separación
+   * física en cada lado). Solo se usa/valida si lidJoint === "interior-lip".
+   */
+  clearanceMm: number;
 }
 
 /** Punto 2D en milímetros, en el plano de la cara del texto (X = ancho, Y = alto). */
@@ -49,7 +75,7 @@ export interface ContourGroup {
 }
 
 export interface LetterGeometryWarning {
-  code: "WALL_TOO_THICK" | "EMPTY_TEXT" | "NO_GLYPHS";
+  code: "WALL_TOO_THICK" | "EMPTY_TEXT" | "NO_GLYPHS" | "LIP_COLLAPSED" | "INSERT_DEPTH_CLAMPED";
   message: string;
 }
 

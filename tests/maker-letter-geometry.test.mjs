@@ -65,6 +65,7 @@ const { createLetterGeometry } = loadMakerModule("lib/maker/geometry/createLette
 const { textToOpentypePath, flattenOpentypePath } = loadMakerModule("lib/maker/geometry/textToPaths.ts");
 const { buildContourHierarchy } = loadMakerModule("lib/maker/geometry/contourHierarchy.ts");
 const { insetContourGroups } = loadMakerModule("lib/maker/geometry/offsets.ts");
+const { fitInteriorLip } = loadMakerModule("lib/maker/geometry/joints/interiorLip.ts");
 const { validateLetterSignParams } = loadMakerModule("lib/maker/validation.ts");
 const { buildLettersZipBlob, recenterMesh } = loadMakerModule("lib/maker/exporters/exportLettersZip.ts");
 const { buildWordZipBlob } = loadMakerModule("lib/maker/exporters/exportWord.ts");
@@ -87,6 +88,9 @@ const DEFAULT_PARAMS = {
   baseMm: 1.2,
   frontType: "open",
   lidMm: 1.2,
+  lidJoint: "glue",
+  insertDepthMm: 3,
+  clearanceMm: 0.2,
 };
 
 function assertFiniteFloatArray(arr, label) {
@@ -217,6 +221,19 @@ function polygonCentroid(points) {
   }
   area /= 2;
   return [cx / (6 * area), cy / (6 * area)];
+}
+
+// Área con signo de un polígono simple (shoelace), en mm² (mismas unidades
+// que el resto del pipeline). Usada para comparar el tamaño del labio bajo
+// distintas holguras (sección 17.I del spec de 0.3).
+function polygonArea(points) {
+  let area = 0;
+  for (let i = 0; i < points.length; i++) {
+    const [x1, y1] = points[i];
+    const [x2, y2] = points[(i + 1) % points.length];
+    area += x1 * y2 - x2 * y1;
+  }
+  return area / 2;
 }
 
 function sign2D(px, py, ax, ay, bx, by) {
@@ -706,4 +723,171 @@ test("validateLetterSignParams: espesor de tapa fuera de rango (0.4-10mm) cuando
 test("validateLetterSignParams: lidMm fuera de rango no genera error si frontType es open", () => {
   const errors = validateLetterSignParams({ ...DEFAULT_PARAMS, text: "O", lidMm: 999 });
   assert.ok(!errors.some((e) => e.field === "lidMm"));
+});
+
+// --- Stampa Maker 0.3: tapa encastrable (labio interior) ---
+//
+// La tapa encastrable arma placa + labio en UNA sola pieza (ver
+// geometry/lid.ts, geometry/joints/interiorLip.ts): el labio deriva de la
+// MISMA cavidad que ya usa el cuerpo (núcleo erosionado por wallMm, la
+// pared interior real) más una holgura adicional por lado (clearanceMm) —
+// sin bounding boxes, rectángulos aproximados ni hacks por letra.
+
+const LIP_PARAMS = { ...DEFAULT_PARAMS, frontType: "lid", lidJoint: "interior-lip", lidMm: 1.2, insertDepthMm: 3, clearanceMm: 0.2 };
+
+// A. Regression: el cuerpo con frente abierto es ajeno a
+// lidJoint/insertDepthMm/clearanceMm (ni siquiera los lee).
+test('regresión 0.3: "O" con frente abierto no cambia con los campos nuevos presentes', () => {
+  const withExtraFields = createLetterGeometry(montserratBold, { ...LIP_PARAMS, frontType: "open", text: "O" });
+  const reference = createLetterGeometry(montserratBold, { ...DEFAULT_PARAMS, text: "O" });
+  assert.deepEqual(Array.from(withExtraFields.letters[0].body.positions), Array.from(reference.letters[0].body.positions));
+  assert.equal(withExtraFields.lid, null);
+});
+
+// B. Regression: tapa plana (lidJoint "glue") sigue siendo exactamente la
+// misma pieza que en 0.2 (mismo código: geometry/lid.ts solo movió la
+// rama "glue" tal cual, sin tocarla).
+test('regresión 0.3: tapa plana ("O") no cambia al introducir lidJoint/insertDepthMm/clearanceMm', () => {
+  const withExtraFields = createLetterGeometry(montserratBold, { ...LID_PARAMS, insertDepthMm: 3, clearanceMm: 0.2, text: "O" });
+  const reference = createLetterGeometry(montserratBold, { ...LID_PARAMS, text: "O" });
+  assert.deepEqual(Array.from(withExtraFields.letters[0].lid.positions), Array.from(reference.letters[0].lid.positions));
+});
+
+// C-F. O/A/B/8: placa+labio válido, manifold/watertight, counters libres,
+// 1 solo componente conectado (placa+labio soldados, no dos shells).
+for (const text of ["A", "O", "B", "8"]) {
+  test(`tapa encastrable "${text}": placa+labio válido, manifold/watertight, counters libres y 1 componente conectado`, () => {
+    const result = createLetterGeometry(montserratBold, { ...LIP_PARAMS, text });
+    const letter = result.letters[0];
+    assert.ok(letter.lid, `"${text}": se esperaba una tapa`);
+    assertValidMesh(letter.lid, `${text}.lid`);
+
+    const topo = analyzeMeshTopology(letter.lid.positions);
+    assert.equal(topo.degenerate, 0, `${text}.lid: triángulos degenerados`);
+    assert.equal(topo.nonManifold, 0, `${text}.lid: aristas no-manifold`);
+    assert.equal(topo.boundaryEdges, 0, `${text}.lid: no se esperaban bordes abiertos (placa+labio soldados)`);
+
+    const components = countConnectedComponents(letter.lid.positions);
+    assert.equal(components, 1, `${text}.lid: se esperaba 1 componente conectado (placa+labio soldados), se encontraron ${components}`);
+
+    const groups = contourGroupsFor(text);
+    for (const hole of groups[0].holes) {
+      const [hx, hy] = polygonCentroid(hole);
+      const hits = raycastZHits(letter.lid.positions, hx, hy);
+      assert.deepEqual(hits, [], `${text}.lid: se esperaba el counter libre en la tapa encastrable, hay geometría en z=[${hits.join(", ")}]`);
+    }
+  });
+}
+
+// G. Insert depth: el labio se extiende ~insertDepthMm hacia el interior
+// (minZ de la tapa combinada = depthMm - insertDepthMm; maxZ sin cambios).
+test('tapa encastrable "O": el labio ocupa z = [depthMm - insertDepthMm, depthMm + lidMm]', () => {
+  const result = createLetterGeometry(montserratBold, { ...LIP_PARAMS, text: "O" });
+  const b = meshBounds(result.letters[0].lid.positions);
+  const expectedMinZ = LIP_PARAMS.depthMm - LIP_PARAMS.insertDepthMm;
+  assert.ok(Math.abs(b.minZ - expectedMinZ) < 1e-6, `minZ debería ser depthMm-insertDepthMm (${expectedMinZ}), fue ${b.minZ}`);
+  assert.ok(
+    Math.abs(b.maxZ - (LIP_PARAMS.depthMm + LIP_PARAMS.lidMm)) < 1e-6,
+    `maxZ debería ser depthMm+lidMm (${LIP_PARAMS.depthMm + LIP_PARAMS.lidMm}), fue ${b.maxZ}`,
+  );
+});
+
+// H. Clearance: el labio queda a ~clearanceMm de la cavidad real del
+// cuerpo (núcleo erosionado por wallMm), por lado — sin dividir por dos.
+test('tapa encastrable "O": la holgura (clearanceMm=0.20) separa el labio ~0.20mm de la cavidad, por lado', () => {
+  const groups = contourGroupsFor("O");
+  const fit = fitInteriorLip(groups[0], DEFAULT_PARAMS.wallMm, 0.2, 3);
+  assert.equal(fit.collapsed, false);
+
+  const CLIPPER_SCALE = 10000;
+  const cavityRawPaths = insetContourGroups(groups, DEFAULT_PARAMS.wallMm);
+  const cavityBoundaries = cavityRawPaths.map((path) => path.map((p) => [p.X / CLIPPER_SCALE, p.Y / CLIPPER_SCALE]));
+
+  const lipBoundary = fit.groups[0].outer;
+  const step = Math.max(1, Math.floor(lipBoundary.length / 12));
+  const samples = lipBoundary.filter((_, i) => i % step === 0);
+  assert.ok(samples.length > 0, "no se pudieron samplear puntos del labio");
+  for (const pt of samples) {
+    const d = Math.min(...cavityBoundaries.map((poly) => minDistanceToPolygon(pt, poly)));
+    assert.ok(d > 0.2 * 0.5 && d < 0.2 * 1.5, `distancia labio-cavidad fuera de rango: ${d.toFixed(3)}mm (esperado ~0.20mm)`);
+  }
+});
+
+// I. Comparación de clearance: mayor holgura -> labio más chico (más separado de la cavidad en todo su perímetro).
+test('tapa encastrable "O": mayor clearance da un labio más chico (0.10mm vs 0.30mm)', () => {
+  const groups = contourGroupsFor("O");
+  const fitSmall = fitInteriorLip(groups[0], DEFAULT_PARAMS.wallMm, 0.1, 3);
+  const fitLarge = fitInteriorLip(groups[0], DEFAULT_PARAMS.wallMm, 0.3, 3);
+  assert.equal(fitSmall.collapsed, false);
+  assert.equal(fitLarge.collapsed, false);
+
+  const areaSmall = Math.abs(polygonArea(fitSmall.groups[0].outer));
+  const areaLarge = Math.abs(polygonArea(fitLarge.groups[0].outer));
+  assert.ok(areaLarge < areaSmall, `mayor clearance debería dar un labio más chico: ${areaLarge.toFixed(2)} vs ${areaSmall.toFixed(2)}`);
+});
+
+// J. connected components ya verificado dentro del test C-F de arriba (placa+labio: 1 componente).
+
+// K. STAMPA con tapa encastrable: 12 STL (6 cuerpos + 6 tapas), NO 18 —
+// el labio nunca se exporta como archivo aparte, es parte de la tapa.
+test('"STAMPA" con tapa encastrable: 12 STL en el ZIP (cuerpo+tapa por letra, no un tercer archivo de labio)', async () => {
+  const result = createLetterGeometry(montserratBold, { ...LIP_PARAMS, text: "STAMPA" });
+  const blob = await buildLettersZipBlob(result.letters);
+  const zip = await JSZipLib.loadAsync(await blob.arrayBuffer());
+  const names = Object.keys(zip.files).sort();
+  assert.equal(names.length, 12, "se esperaban 12 STL (6 cuerpos + 6 tapas), nunca 18");
+  assert.deepEqual(names, [
+    "01_S_cuerpo.stl", "01_S_tapa.stl",
+    "02_T_cuerpo.stl", "02_T_tapa.stl",
+    "03_A_cuerpo.stl", "03_A_tapa.stl",
+    "04_M_cuerpo.stl", "04_M_tapa.stl",
+    "05_P_cuerpo.stl", "05_P_tapa.stl",
+    "06_A_cuerpo.stl", "06_A_tapa.stl",
+  ]);
+});
+
+// L. LOOCK 3D: el espacio no genera ninguna pieza (igual que 0.1/0.2).
+test('"LOOCK 3D" con tapa encastrable: el espacio no genera ninguna pieza (7 letras, no 8)', () => {
+  const result = createLetterGeometry(montserratBold, { ...LIP_PARAMS, text: "LOOCK 3D" });
+  assert.equal(result.letters.length, 7);
+  assert.deepEqual(result.letters.map((l) => l.char), ["L", "O", "O", "C", "K", "3", "D"]);
+});
+
+// --- Sección 12 del spec de 0.3: casos donde el labio es imposible ---
+
+test("tapa encastrable: holgura/pared excesivas para el trazo generan advertencia LIP_COLLAPSED, sin geometría corrupta", () => {
+  const result = createLetterGeometry(montserratBold, {
+    ...LIP_PARAMS,
+    text: "I",
+    heightMm: 5,
+    depthMm: 10,
+    wallMm: 1,
+    baseMm: 1,
+    clearanceMm: 2,
+  });
+  assertValidMesh(result.letters[0].lid, "I-encastre-colapsado.lid");
+  assert.ok(result.warnings.some((w) => w.code === "LIP_COLLAPSED"));
+});
+
+test("tapa encastrable: insertDepthMm mayor a la cavidad disponible se ajusta automáticamente (INSERT_DEPTH_CLAMPED)", () => {
+  const result = createLetterGeometry(montserratBold, { ...LIP_PARAMS, text: "O", depthMm: 5, baseMm: 1, insertDepthMm: 20 });
+  assert.ok(result.warnings.some((w) => w.code === "INSERT_DEPTH_CLAMPED"));
+  const b = meshBounds(result.letters[0].lid.positions);
+  assert.ok(b.minZ >= 1 - 1e-6, `el labio no debería invadir la base maciza (minZ=${b.minZ}, baseMm=1)`);
+});
+
+test("validateLetterSignParams: profundidad de encastre y holgura fuera de rango cuando lidJoint es interior-lip", () => {
+  const badInsertDepth = validateLetterSignParams({ ...LIP_PARAMS, text: "O", insertDepthMm: 0.2 });
+  assert.ok(badInsertDepth.some((e) => e.field === "insertDepthMm"));
+
+  const badClearance = validateLetterSignParams({ ...LIP_PARAMS, text: "O", clearanceMm: 5 });
+  assert.ok(badClearance.some((e) => e.field === "clearanceMm"));
+
+  const valid = validateLetterSignParams({ ...LIP_PARAMS, text: "O" });
+  assert.ok(!valid.some((e) => e.field === "insertDepthMm" || e.field === "clearanceMm"));
+});
+
+test("validateLetterSignParams: insertDepthMm/clearanceMm fuera de rango no generan error si lidJoint es glue", () => {
+  const errors = validateLetterSignParams({ ...LID_PARAMS, text: "O", insertDepthMm: 999, clearanceMm: 999 });
+  assert.ok(!errors.some((e) => e.field === "insertDepthMm" || e.field === "clearanceMm"));
 });

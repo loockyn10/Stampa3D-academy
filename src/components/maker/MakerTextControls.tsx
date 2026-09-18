@@ -6,7 +6,7 @@ import { Card } from "@/components/ui/card";
 import { Button, GhostButton } from "@/components/ui/button";
 import { CalculatorSelect } from "@/components/ui/calculator-select";
 import { MAKER_FONTS } from "@/lib/maker/fonts/registry";
-import type { FrontType, LetterSignParams } from "@/lib/maker/types";
+import type { LetterSignParams } from "@/lib/maker/types";
 import type { LetterGeometryWarning } from "@/lib/maker/types";
 import type { FieldError } from "@/lib/maker/validation";
 import type { MakerViewMode } from "@/components/maker/MakerViewport";
@@ -36,7 +36,11 @@ function SegmentedControl<T extends string>({
   onChange: (value: T) => void;
 }) {
   return (
-    <div role="tablist" className="grid grid-cols-2 gap-1 rounded-xl border border-white/10 bg-white/[0.04] p-1">
+    <div
+      role="tablist"
+      className="grid gap-1 rounded-xl border border-white/10 bg-white/[0.04] p-1"
+      style={{ gridTemplateColumns: `repeat(${options.length}, minmax(0, 1fr))` }}
+    >
       {options.map((option) => {
         const active = option.value === value;
         return (
@@ -107,10 +111,36 @@ function NumberField({
   );
 }
 
-const FRONT_TYPE_OPTIONS: { value: FrontType; label: string }[] = [
+/**
+ * "Tipo de frente" en la UI combina dos campos de LetterSignParams
+ * (frontType + lidJoint) en un solo selector de 3 opciones: son la misma
+ * decisión desde la perspectiva del usuario, aunque internamente frontType
+ * (¿hay tapa?) y lidJoint (¿cómo se une?) son conceptos separados — ver
+ * src/lib/maker/types.ts.
+ */
+type FrontMode = "open" | "flat-lid" | "interior-lip-lid";
+
+const FRONT_MODE_OPTIONS: { value: FrontMode; label: string }[] = [
   { value: "open", label: "Frente abierto" },
-  { value: "lid", label: "Tapa frontal" },
+  { value: "flat-lid", label: "Tapa frontal" },
+  { value: "interior-lip-lid", label: "Tapa encastrable" },
 ];
+
+function frontModeOf(params: LetterSignParams): FrontMode {
+  if (params.frontType !== "lid") return "open";
+  return params.lidJoint === "interior-lip" ? "interior-lip-lid" : "flat-lid";
+}
+
+function patchForFrontMode(mode: FrontMode): Partial<LetterSignParams> {
+  switch (mode) {
+    case "open":
+      return { frontType: "open" };
+    case "flat-lid":
+      return { frontType: "lid", lidJoint: "glue" };
+    case "interior-lip-lid":
+      return { frontType: "lid", lidJoint: "interior-lip" };
+  }
+}
 
 const VIEW_MODE_OPTIONS: { value: MakerViewMode; label: string }[] = [
   { value: "assembled", label: "Ensamblada" },
@@ -192,9 +222,9 @@ export function MakerTextControls({
       <label className="block">
         <span className="mb-1 block text-xs font-semibold text-gray-500">Tipo de frente</span>
         <SegmentedControl
-          options={FRONT_TYPE_OPTIONS}
-          value={params.frontType}
-          onChange={(value) => onChange({ frontType: value })}
+          options={FRONT_MODE_OPTIONS}
+          value={frontModeOf(params)}
+          onChange={(mode) => onChange(patchForFrontMode(mode))}
         />
       </label>
 
@@ -206,6 +236,25 @@ export function MakerTextControls({
           suffix="mm"
           error={fieldError(fieldErrors, "lidMm")}
         />
+      )}
+
+      {params.frontType === "lid" && params.lidJoint === "interior-lip" && (
+        <div className="grid grid-cols-2 gap-3">
+          <NumberField
+            label="Profundidad de encastre"
+            value={params.insertDepthMm}
+            onChange={(v) => onChange({ insertDepthMm: v })}
+            suffix="mm"
+            error={fieldError(fieldErrors, "insertDepthMm")}
+          />
+          <NumberField
+            label="Holgura"
+            value={params.clearanceMm}
+            onChange={(v) => onChange({ clearanceMm: v })}
+            suffix="mm"
+            error={fieldError(fieldErrors, "clearanceMm")}
+          />
+        </div>
       )}
 
       {params.frontType === "lid" && (

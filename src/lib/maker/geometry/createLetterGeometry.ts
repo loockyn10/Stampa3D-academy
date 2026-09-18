@@ -4,6 +4,7 @@ import { textToPerCharacterPaths, flattenOpentypePath } from "@/lib/maker/geomet
 import { buildContourHierarchy } from "@/lib/maker/geometry/contourHierarchy";
 import { insetContourGroups, differenceContourGroups, regroupClipperSolution, clipperPathsArea } from "@/lib/maker/geometry/offsets";
 import { extrudeContourGroups, type ExtrudedMeshData } from "@/lib/maker/geometry/extrudePolygon";
+import { buildLid } from "@/lib/maker/geometry/lid";
 
 /**
  * Pipeline completo: texto + parámetros -> mesh 3D triangulado, un carácter
@@ -16,10 +17,14 @@ import { extrudeContourGroups, type ExtrudedMeshData } from "@/lib/maker/geometr
  * Cada letra tiene dos piezas, independientes entre sí:
  * - `body`: UN SOLO sólido soldado por coordenadas compartidas (fondo +
  *   "repisa" del núcleo erosionado + pared). Ver "Soldadura fondo/pared"
- *   más abajo y docs/STAMPA_MAKER.md.
- * - `lid` (solo si frontType === "lid"): tapa frontal plana, pieza
- *   SEPARADA (no soldada al cuerpo a propósito, ver "Tapa frontal" más
- *   abajo).
+ *   más abajo y docs/STAMPA_MAKER.md. Es EL MISMO cuerpo sin importar el
+ *   modo de frente (abierto, tapa plana o tapa encastrable) — el modo de
+ *   frente solo cambia qué tapa (si alguna) se le agrega, ver
+ *   geometry/lid.ts.
+ * - `lid` (solo si frontType === "lid"): tapa como pieza SEPARADA del
+ *   cuerpo (nunca soldada a él a propósito). Su forma depende de
+ *   `lidJoint` — placa plana para pegar (0.2) o placa+labio interior
+ *   encastrable (0.3) — ver geometry/lid.ts.
  */
 export function createLetterGeometry(font: opentype.Font, params: LetterSignParams): LetterGeometryResult {
   const warnings: LetterGeometryWarning[] = [];
@@ -34,6 +39,18 @@ export function createLetterGeometry(font: opentype.Font, params: LetterSignPara
   const letters: LetterPieceResult[] = [];
   const allRawContours: Point2D[][] = [];
   let anyFullyEroded = false;
+  let anyLipCollapsed = false;
+
+  // La profundidad de encastre no puede exceder la cavidad real disponible
+  // (depthMm - baseMm: por debajo de baseMm el cuerpo es la base maciza,
+  // ver "Soldadura fondo/pared" más abajo) sin chocar contra ella. Es un
+  // parámetro global (no depende de la letra), así que se ajusta una sola
+  // vez acá — sección 12 del spec: no generar geometría corrupta, avisar.
+  const interiorLip = params.frontType === "lid" && params.lidJoint === "interior-lip";
+  const insertDepthUsedMm = interiorLip
+    ? Math.min(Math.max(params.insertDepthMm, 0), Math.max(params.depthMm - params.baseMm, 0))
+    : params.insertDepthMm;
+  const insertDepthClamped = interiorLip && insertDepthUsedMm < params.insertDepthMm - 1e-9;
 
   for (const { char, path } of perCharacterPaths) {
     const rawContours = flattenOpentypePath(path);
@@ -44,11 +61,14 @@ export function createLetterGeometry(font: opentype.Font, params: LetterSignPara
     const piece = buildLetterSolid(contourGroups, params);
     if (piece.fullyEroded) anyFullyEroded = true;
 
+    const lidResult = buildLid(contourGroups, params, insertDepthUsedMm);
+    if (lidResult.lipCollapsed) anyLipCollapsed = true;
+
     letters.push({
       char,
       index: letters.length + 1,
       body: toTriangleSoupData(piece.body),
-      lid: piece.lid ? toTriangleSoupData(piece.lid) : null,
+      lid: lidResult.lid ? toTriangleSoupData(lidResult.lid) : null,
     });
   }
 
@@ -61,6 +81,20 @@ export function createLetterGeometry(font: opentype.Font, params: LetterSignPara
     warnings.push({
       code: "WALL_TOO_THICK",
       message: "El espesor de pared es demasiado grande para el tamaño del texto: algunos trazos quedaron macizos en vez de huecos.",
+    });
+  }
+
+  if (anyLipCollapsed) {
+    warnings.push({
+      code: "LIP_COLLAPSED",
+      message: "El encastre no pudo generarse en algunas zonas con estos parámetros. Reducí la holgura o utilizá una fuente más gruesa.",
+    });
+  }
+
+  if (insertDepthClamped) {
+    warnings.push({
+      code: "INSERT_DEPTH_CLAMPED",
+      message: "La profundidad de encastre se ajustó automáticamente para no exceder la cavidad disponible.",
     });
   }
 
@@ -106,18 +140,14 @@ export function createLetterGeometry(font: opentype.Font, params: LetterSignPara
  * ninguna operación booleana 3D. Confirmado con
  * tests/maker-letter-geometry.test.mjs (conteo de shells por letra).
  *
- * Tapa frontal (0.2): usa exactamente la misma silueta que el fondo
- * (`fondoGroups`: exterior menos huecos originales del glifo — nunca un
- * disco, respeta counters) extruida como una pieza plana e independiente,
- * de z=depthMm a z=depthMm+lidMm. A propósito NO comparte vértices con el
- * cuerpo (ver sección 4 del pedido: "esta tapa todavía no encastra", es
- * una tapa para pegar) — son dos sólidos que solo se tocan/apoyan en
- * z=depthMm, cada uno exportable por separado.
+ * Genera SOLO el cuerpo: es el mismo sólido sin importar el modo de frente
+ * (abierto, tapa plana o tapa encastrable) — ver geometry/lid.ts para la
+ * tapa, una pieza SEPARADA a propósito (nunca soldada al cuerpo).
  */
 function buildLetterSolid(
   contourGroups: ContourGroup[],
   params: LetterSignParams,
-): { body: ExtrudedMeshData; lid: ExtrudedMeshData | null; fullyEroded: boolean } {
+): { body: ExtrudedMeshData; fullyEroded: boolean } {
   const fondoGroups: ContourGroup[] = [];
   const wallGroups: ContourGroup[] = [];
   const coreGroups: ContourGroup[] = [];
@@ -176,16 +206,7 @@ function buildLetterSolid(
     normals: pieces.flatMap((p) => p.normals),
   };
 
-  let lid: ExtrudedMeshData | null = null;
-  if (params.frontType === "lid" && params.lidMm > 0) {
-    // Misma silueta que el fondo (exterior menos huecos originales): nunca
-    // un disco, respeta counters. Tapada en ambos extremos (pieza plana
-    // sólida e independiente, sin paredes laterales adicionales más allá
-    // de su propio borde).
-    lid = extrudeContourGroups(fondoGroups, params.depthMm, params.depthMm + params.lidMm, { capStart: true, capEnd: true });
-  }
-
-  return { body, lid, fullyEroded };
+  return { body, fullyEroded };
 }
 
 function toTriangleSoupData(mesh: ExtrudedMeshData): TriangleSoupData {

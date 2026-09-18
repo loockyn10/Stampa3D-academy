@@ -23,6 +23,9 @@ const DEFAULT_PARAMS: LetterSignParams = {
   baseMm: 1.2,
   frontType: "open",
   lidMm: 1.2,
+  lidJoint: "glue",
+  insertDepthMm: 3,
+  clearanceMm: 0.2,
 };
 
 export default function StampaMakerCartelesPage() {
