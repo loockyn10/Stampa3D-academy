@@ -4,6 +4,7 @@ import { textToPerCharacterPaths, flattenOpentypePath } from "@/lib/maker/geomet
 import { buildContourHierarchy } from "@/lib/maker/geometry/contourHierarchy";
 import { toTriangleSoupData } from "@/lib/maker/geometry/extrudePolygon";
 import { buildBody } from "@/lib/maker/geometry/body";
+import { planBackCutouts } from "@/lib/maker/geometry/backCutouts";
 import { buildFrontParts } from "@/lib/maker/geometry/front";
 
 /**
@@ -110,10 +111,15 @@ export function createGeometryFromContourPieces(pieces: ContourPiece[], params: 
     : params.lidBevelDepthMm;
   const lidBevelDepthClamped = lidBevelActive && lidBevelDepthUsedMm < params.lidBevelDepthMm - 1e-9;
 
+  // Recortes traseros (0.6): se validan una sola vez contra la cavidad de TODO el
+  // diseño; los inválidos no se cortan y bloquean la exportación (errors).
+  const backCutoutPlan = planBackCutouts(pieces, params);
+  errors.push(...backCutoutPlan.errors);
+
   for (const { char, label, contourGroups, rawContours } of pieces) {
     allRawContours.push(...(rawContours ?? contourGroups.flatMap((g) => [g.outer, ...g.holes])));
 
-    const bodyResult = buildBody(contourGroups, params, { channelDepthUsedMm });
+    const bodyResult = buildBody(contourGroups, params, { channelDepthUsedMm, backCutoutRegion: backCutoutPlan.region });
     if (bodyResult.fullyEroded) anyFullyEroded = true;
 
     const index = letters.length + 1;

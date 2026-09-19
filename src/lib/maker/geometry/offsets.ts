@@ -157,3 +157,24 @@ export function differenceContourGroups(subjectGroups: ContourGroup[], clipPaths
 export function clipperPathsArea(paths: ClipperLib.Paths): number {
   return paths.reduce((sum, p) => sum + ClipperLib.Clipper.Area(p) / (CLIPPER_SCALE * CLIPPER_SCALE), 0);
 }
+
+/** Intersección booleana de dos conjuntos de paths crudos (regla nonzero). */
+export function intersectRawPaths(subjectRawPaths: ClipperLib.Paths, clipRawPaths: ClipperLib.Paths): ClipperLib.Paths {
+  if (subjectRawPaths.length === 0 || clipRawPaths.length === 0) return [];
+  const clipper = new ClipperLib.Clipper();
+  clipper.AddPaths(subjectRawPaths, ClipperLib.PolyType.ptSubject, true);
+  clipper.AddPaths(clipRawPaths, ClipperLib.PolyType.ptClip, true);
+  const solution: ClipperLib.Paths = [];
+  clipper.Execute(ClipperLib.ClipType.ctIntersection, solution, ClipperLib.PolyFillType.pftNonZero, ClipperLib.PolyFillType.pftNonZero);
+  return solution;
+}
+
+/** Unión booleana de un conjunto de paths crudos (regla nonzero): las formas solapadas se funden en una sola abertura. */
+export function unionRawPaths(rawPaths: ClipperLib.Paths): ClipperLib.Paths {
+  if (rawPaths.length === 0) return [];
+  const clipper = new ClipperLib.Clipper();
+  clipper.AddPaths(rawPaths, ClipperLib.PolyType.ptSubject, true);
+  const solution: ClipperLib.Paths = [];
+  clipper.Execute(ClipperLib.ClipType.ctUnion, solution, ClipperLib.PolyFillType.pftNonZero, ClipperLib.PolyFillType.pftNonZero);
+  return solution;
+}

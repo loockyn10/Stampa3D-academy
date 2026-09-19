@@ -9,8 +9,8 @@ import type { LetterSignParams } from "@/lib/maker/types";
  */
 export const PRESET_SCHEMA_VERSION = 1;
 
-/** Campos de LetterSignParams que pertenecen al DISEÑO y por lo tanto nunca viajan en un preset. */
-export const DESIGN_PARAM_KEYS = ["text", "fontId", "heightMm"] as const satisfies readonly (keyof LetterSignParams)[];
+/** Campos de LetterSignParams que pertenecen al DISEÑO (incluye los recortes traseros, posicionales) y por lo tanto nunca viajan en un preset. */
+export const DESIGN_PARAM_KEYS = ["text", "fontId", "heightMm", "backCutouts"] as const satisfies readonly (keyof LetterSignParams)[];
 
 export type DesignParamKey = (typeof DESIGN_PARAM_KEYS)[number];
 

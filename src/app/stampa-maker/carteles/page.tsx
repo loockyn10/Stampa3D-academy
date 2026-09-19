@@ -5,6 +5,8 @@ import Link from "next/link";
 import { ArrowLeft } from "lucide-react";
 import { useAppFeedback } from "@/components/ui/app-feedback";
 import { MakerTextControls } from "@/components/maker/MakerTextControls";
+import { MakerBackCutoutsSection } from "@/components/maker/MakerBackCutoutsSection";
+import { Card } from "@/components/ui/card";
 import { MakerLibraryPanel } from "@/components/maker/MakerLibraryPanel";
 import { MakerViewport, type MakerDisplayMode, type MakerViewMode } from "@/components/maker/MakerViewport";
 import { BedLabel, BedWarnings, ViewportExportCard, ViewportViewCard } from "@/components/maker/MakerViewportOverlays";
@@ -184,6 +186,17 @@ export default function StampaMakerCartelesPage() {
             onPngOptionsChange: (patch) => setPngOptions((prev) => ({ ...prev, ...patch })),
           }}
         />
+
+        <Card className="p-5">
+          <MakerBackCutoutsSection
+            cutouts={params.backCutouts}
+            onChange={(backCutouts) => handleChange({ backCutouts })}
+            errors={[
+              ...fieldErrors.filter((e) => e.field === "backCutouts").map((e) => e.message),
+              ...(geometry?.errors ?? []).filter((e) => e.code === "BACK_CUTOUT_INVALID").map((e) => e.message),
+            ]}
+          />
+        </Card>
       </aside>
 
       <section className="relative h-[70dvh] min-h-[420px] overflow-hidden rounded-2xl border border-stampa-border bg-stampa-surface lg:h-auto lg:min-h-0 lg:flex-1 lg:rounded-none lg:border-0">
@@ -207,7 +220,8 @@ export default function StampaMakerCartelesPage() {
               onDownloadLetters={handleDownloadLetters}
             />
           </div>
-          <div className="flex items-end justify-between gap-3">
+          {/* Safe zone para el botón flotante de Stampy (fixed, 56px, a 24px del borde): la card se corre a la izquierda en desktop. */}
+          <div className="flex items-end justify-between gap-3 lg:pr-[5.5rem]">
             <div>{displayMode === "bed" && <BedLabel profile={profile} plateIndex={currentPlate} plateCount={plateCount} />}</div>
             <ViewportViewCard
               displayMode={displayMode}

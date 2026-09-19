@@ -52,6 +52,54 @@ export type FrontType = "open" | "lid" | "perforated" | "light-channel";
  */
 export type LidJoint = "glue" | "interior-lip";
 
+/**
+ * Recorte trasero paramétrico (BACK CUTOUT): abertura pasante en la BASE
+ * trasera del cuerpo (cable, USB-C, tornillo, colgador...). El motor solo
+ * conoce FORMAS, nunca usos: agregar counterbore/avellanado/conectores es
+ * sumar una variante acá y su polígono en geometry/backCutouts.ts.
+ *
+ * Coordenadas: milímetros en el espacio XY global del diseño, con origen
+ * (0,0) en el CENTRO de la caja del diseño (X hacia la derecha visto de
+ * frente, Y hacia arriba). `x`/`y` es el centro de la forma; en "keyhole"
+ * es el centro del círculo de la cabeza. `rotationDeg` gira en el plano XY
+ * (antihorario, alrededor de `x`/`y`) antes del recorte.
+ */
+export type BackCutout = CircleCutout | CapsuleCutout | KeyholeCutout;
+
+interface BackCutoutBase {
+  id: string;
+  x: number;
+  y: number;
+}
+
+export interface CircleCutout extends BackCutoutBase {
+  type: "circle";
+  diameterMm: number;
+}
+
+/** Ranura de extremos redondeados (semicírculos). Si widthMm < heightMm queda vertical. */
+export interface CapsuleCutout extends BackCutoutBase {
+  type: "capsule";
+  widthMm: number;
+  heightMm: number;
+  rotationDeg: number;
+}
+
+/**
+ * Cabeza circular + cuello estrecho + terminación redondeada, en una única
+ * forma continua. Con rotación 0° el cuello baja (−Y) desde la cabeza:
+ * `neckLengthMm` es la distancia entre el centro de la cabeza y el centro del
+ * extremo redondeado inferior, `tailDiameterMm` el diámetro de ese extremo.
+ */
+export interface KeyholeCutout extends BackCutoutBase {
+  type: "keyhole";
+  headDiameterMm: number;
+  neckWidthMm: number;
+  neckLengthMm: number;
+  tailDiameterMm: number;
+  rotationDeg: number;
+}
+
 /** Parámetros configurables por el usuario para el Creador de Carteles. */
 export interface LetterSignParams {
   text: string;
@@ -211,6 +259,12 @@ export interface LetterSignParams {
   channelOffsetMm: number;
   /** Holgura POR LADO entre el difusor del canal y la huella real del canal, en mm. Solo se usa/valida si frontType === "light-channel". */
   diffuserClearanceMm: number;
+  /**
+   * Recortes traseros (ver BackCutout). Pertenecen al DISEÑO concreto (su
+   * posición no tiene sentido en otro logo): se guardan en el PROYECTO, nunca
+   * en un preset.
+   */
+  backCutouts: BackCutout[];
 }
 
 /** Punto 2D en milímetros, en el plano de la cara del texto (X = ancho, Y = alto). */
@@ -240,7 +294,8 @@ export interface LetterGeometryWarning {
     | "MASK_SKIRT_COLLAPSED"
     | "MASK_SIDE_DEPTH_CLAMPED"
     | "LID_BEVEL_COLLAPSED"
-    | "LID_BEVEL_DEPTH_CLAMPED";
+    | "LID_BEVEL_DEPTH_CLAMPED"
+    | "BACK_CUTOUT_INVALID";
   message: string;
 }
 

@@ -136,7 +136,7 @@ function fieldError(fieldErrors: FieldError[], field: keyof LetterSignParams): s
   return fieldErrors.find((e) => e.field === field)?.message;
 }
 
-function NumberField({
+export function NumberField({
   label,
   value,
   onChange,

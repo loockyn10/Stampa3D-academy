@@ -1,7 +1,7 @@
 import { DEFAULT_LETTER_SIGN_PARAMS } from "@/lib/maker/defaults";
 import { DEFAULT_PNG_OPTIONS, type PngImportOptions, type PngSmoothing } from "@/lib/maker/import/types";
 import { applyPresetSettings, extractPresetSettings, type PresetSettings } from "@/lib/maker/presets/presetSettings";
-import type { LetterSignParams, MakerFontId } from "@/lib/maker/types";
+import type { BackCutout, LetterSignParams, MakerFontId } from "@/lib/maker/types";
 
 /**
  * PROJECT = trabajo concreto (diseño + configuración) para retomarlo luego.
@@ -51,7 +51,8 @@ export interface ProjectWorkState {
 export interface ProjectPayload {
   source_type: ProjectSourceType;
   source_data: ProjectSourceData;
-  settings: PresetSettings;
+  /** Receta de fabricación + recortes traseros (posicionales: solo viajan en el proyecto, nunca en un preset). */
+  settings: PresetSettings & { backCutouts: BackCutout[] };
   preset_id: string | null;
   schema_version: number;
 }
@@ -85,7 +86,7 @@ export function projectSourcePath(userId: string, projectId: string, kind: "svg"
 }
 
 export function serializeProject(state: ProjectWorkState, opts: { storagePath?: string; presetId?: string | null } = {}): ProjectPayload {
-  const settings = extractPresetSettings(state.params);
+  const settings = { ...extractPresetSettings(state.params), backCutouts: (state.params.backCutouts ?? []).map((c) => ({ ...c })) };
   const presetId = opts.presetId ?? null;
   if (state.sourceMode === "text") {
     return {
@@ -116,6 +117,24 @@ function num(value: unknown, fallback: number): number {
   return typeof value === "number" && Number.isFinite(value) && value > 0 ? value : fallback;
 }
 
+/** Lectura tolerante de los recortes traseros persistidos: descarta entradas de tipo desconocido y completa campos faltantes; proyectos anteriores (sin el campo) => []. */
+export function normalizeBackCutouts(raw: unknown): BackCutout[] {
+  if (!Array.isArray(raw)) return [];
+  const out: BackCutout[] = [];
+  raw.forEach((item, i) => {
+    const r = asRecord(item);
+    const n = (v: unknown, d: number) => (typeof v === "number" && Number.isFinite(v) ? v : d);
+    const base = { id: typeof r.id === "string" && r.id ? r.id : `cutout-${i + 1}`, x: n(r.x, 0), y: n(r.y, 0) };
+    if (r.type === "circle") out.push({ ...base, type: "circle", diameterMm: n(r.diameterMm, 5) });
+    else if (r.type === "capsule") out.push({ ...base, type: "capsule", widthMm: n(r.widthMm, 10), heightMm: n(r.heightMm, 4), rotationDeg: n(r.rotationDeg, 0) });
+    else if (r.type === "keyhole") {
+      const neckWidthMm = n(r.neckWidthMm, 4);
+      out.push({ ...base, type: "keyhole", headDiameterMm: n(r.headDiameterMm, 10), neckWidthMm, neckLengthMm: n(r.neckLengthMm, 10), tailDiameterMm: n(r.tailDiameterMm, neckWidthMm), rotationDeg: n(r.rotationDeg, 0) });
+    }
+  });
+  return out;
+}
+
 function normalizePngOptions(raw: unknown): PngImportOptions {
   const r = asRecord(raw);
   const smoothing = (["low", "medium", "high"] as PngSmoothing[]).includes(r.smoothing as PngSmoothing)
@@ -131,7 +150,10 @@ function normalizePngOptions(raw: unknown): PngImportOptions {
 /** Reconstruye el estado de trabajo desde una fila persistida. Completa con defaults lo que falte. */
 export function deserializeProject(row: ProjectRow): LoadedProject {
   const source = asRecord(row.source_data);
-  const base = applyPresetSettings(DEFAULT_LETTER_SIGN_PARAMS, row.settings, row.schema_version);
+  const base: LetterSignParams = {
+    ...applyPresetSettings(DEFAULT_LETTER_SIGN_PARAMS, row.settings, row.schema_version),
+    backCutouts: normalizeBackCutouts(asRecord(row.settings).backCutouts),
+  };
   const presetId = typeof row.preset_id === "string" ? row.preset_id : null;
 
   if (row.source_type === "svg" || row.source_type === "png") {

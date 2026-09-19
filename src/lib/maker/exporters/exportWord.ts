@@ -41,7 +41,7 @@ export async function exportWord(result: LetterGeometryResult, baseName: string)
   }
 
   if (result.parts.length === 1) {
-    downloadBlob(buildSTLBlob(result.parts[0].mesh), `${baseName}.stl`);
+    downloadBlob(buildSTLBlob(partFileEntries(result.parts, baseName)[0].mesh), `${baseName}.stl`);
     return;
   }
 

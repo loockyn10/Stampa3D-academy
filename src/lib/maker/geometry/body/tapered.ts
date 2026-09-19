@@ -1,4 +1,6 @@
 import type { ContourGroup, LetterSignParams } from "@/lib/maker/types";
+import { applyBackCutoutsToBase } from "@/lib/maker/geometry/backCutouts";
+import type { BuildStandardBodyContext } from "@/lib/maker/geometry/body/standard";
 import { extrudeContourGroups, type ExtrudedMeshData } from "@/lib/maker/geometry/extrudePolygon";
 import { computeWallAndCore, subdivideRange, footprintAtOffset, buildOffsetProfileWallPieces, smoothstepRampProfile } from "@/lib/maker/geometry/body/shared";
 
@@ -73,6 +75,7 @@ function taperOffsetSmoothAt(z: number, depthMm: number, rearExpansionMm: number
 export function buildTaperedBodyPieces(
   contourGroups: ContourGroup[],
   params: LetterSignParams,
+  ctx?: Pick<BuildStandardBodyContext, "backCutoutRegion">,
 ): { body: ExtrudedMeshData; fullyEroded: boolean } {
   const fondoGroups: ContourGroup[] = [];
   const wallGroups: ContourGroup[] = [];
@@ -117,13 +120,16 @@ export function buildTaperedBodyPieces(
     const baseGroups = params.rearExpansionMm > 1e-6
       ? fondoGroups.flatMap((g) => footprintAtOffset({ outer: g.outer, holes: g.holes }, params.rearExpansionMm))
       : fondoGroups;
-    pieces.push(extrudeContourGroups(baseGroups, 0, 0, { capStart: true, capEnd: false, sides: false }));
+    // Recortes traseros (2D), igual que en el cuerpo standard.
+    const cutouts = applyBackCutoutsToBase({ region: ctx?.backCutoutRegion, baseCapGroups: baseGroups, coreGroups, baseMm: params.baseMm });
+    pieces.push(extrudeContourGroups(cutouts.baseCapGroups, 0, 0, { capStart: true, capEnd: false, sides: false }));
     pieces.push(...taperedWallPieces);
+    pieces.push(...cutouts.holeWalls);
 
     // 2) Repisa, 3) paredes internas, 4) frente: igual que el cuerpo
     //    standard, sin cambios (la cavidad oculta y la interfaz de
     //    frente/tapa no dependen del tipo de cuerpo ni del estilo tapered).
-    pieces.push(extrudeContourGroups(coreGroups, params.baseMm, params.baseMm, { capStart: false, capEnd: true, sides: false }));
+    pieces.push(extrudeContourGroups(cutouts.shelfGroups, params.baseMm, params.baseMm, { capStart: false, capEnd: true, sides: false }));
     pieces.push(extrudeContourGroups(coreGroups, params.baseMm, params.depthMm, { capStart: false, capEnd: false, sides: true, flipSides: true }));
     pieces.push(extrudeContourGroups(wallGroups, params.depthMm, params.depthMm, { capStart: false, capEnd: true, sides: false }));
   }

@@ -49,4 +49,5 @@ export const DEFAULT_LETTER_SIGN_PARAMS: LetterSignParams = {
   channelDepthMm: 4,
   channelOffsetMm: 2,
   diffuserClearanceMm: 0.2,
+  backCutouts: [],
 };

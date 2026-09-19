@@ -28,6 +28,6 @@ export function buildBody(contourGroups: ContourGroup[], params: LetterSignParam
       // Limitación conocida de 0.4: el canal luminoso no se tapa/talla en
       // un cuerpo tapered (combinación fuera de alcance de este sprint,
       // ver docs/STAMPA_MAKER.md) — el cuerpo se genera igual, sin canal.
-      return buildTaperedBodyPieces(contourGroups, params);
+      return buildTaperedBodyPieces(contourGroups, params, ctx);
   }
 }

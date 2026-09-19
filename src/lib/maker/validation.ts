@@ -1,3 +1,4 @@
+import { validateBackCutouts } from "@/lib/maker/geometry/backCutouts";
 import type { LetterSignParams } from "@/lib/maker/types";
 import { computeBevelBand } from "@/lib/maker/geometry/body/modifiers/bevel";
 import { computeGrooveBand } from "@/lib/maker/geometry/body/modifiers/groove";
@@ -187,6 +188,10 @@ export function validateLetterSignParams(params: LetterSignParams, options: Vali
     if (!(params.edgeMarginMm >= 0 && params.edgeMarginMm <= 20)) {
       errors.push({ field: "edgeMarginMm", message: "El margen de borde debe estar entre 0 y 20 mm." });
     }
+  }
+
+  for (const e of validateBackCutouts(params.backCutouts ?? [])) {
+    errors.push({ field: "backCutouts", message: e.index >= 0 ? `Recorte ${e.index + 1}: ${e.message}` : e.message });
   }
 
   return errors;

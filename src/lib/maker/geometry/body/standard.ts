@@ -1,3 +1,4 @@
+import type * as ClipperLib from "clipper-lib";
 import type { ContourGroup, LetterSignParams } from "@/lib/maker/types";
 import { insetContourGroups, differenceContourGroups, contourGroupsToRawPaths } from "@/lib/maker/geometry/offsets";
 import { extrudeContourGroups, type ExtrudedMeshData } from "@/lib/maker/geometry/extrudePolygon";
@@ -13,6 +14,7 @@ import { computeWallAndCore, buildBandedOuterWallPieces, type ZBand } from "@/li
 // pieza. Se importa acá a propósito (única excepción documentada a "body
 // no conoce frontType") en vez de duplicar el cálculo de la huella del
 // canal.
+import { applyBackCutoutsToBase } from "@/lib/maker/geometry/backCutouts";
 import { computeChannelFootprint } from "@/lib/maker/geometry/front/lightChannel";
 
 /**
@@ -53,6 +55,8 @@ import { computeChannelFootprint } from "@/lib/maker/geometry/front/lightChannel
 export interface BuildStandardBodyContext {
   /** channelDepthMm ya acotado a la cavidad disponible (depthMm - baseMm), calculado una sola vez en createLetterGeometry.ts. Solo se usa si frontType === "light-channel". */
   channelDepthUsedMm: number;
+  /** Región global de recortes traseros ya validada (ver geometry/backCutouts.ts). Vacía/ausente = sin recortes. */
+  backCutoutRegion?: ClipperLib.Paths;
 }
 
 export function buildStandardBodyPieces(
@@ -191,8 +195,11 @@ export function buildStandardBodyPieces(
     //    punta (0 -> depthMm), con costillas si corresponde (ver
     //    body/modifiers/ribs.ts — sin costillas, es la misma franja
     //    continua de siempre, mismo resultado byte a byte).
-    pieces.push(extrudeContourGroups(fondoGroups, 0, 0, { capStart: true, capEnd: false, sides: false }));
+    // Recortes traseros (2D): huecos en la tapa de la base y en la repisa, más las paredes del recorte entre Z=0 y baseMm.
+    const cutouts = applyBackCutoutsToBase({ region: ctx.backCutoutRegion, baseCapGroups: fondoGroups, coreGroups, baseMm: params.baseMm });
+    pieces.push(extrudeContourGroups(cutouts.baseCapGroups, 0, 0, { capStart: true, capEnd: false, sides: false }));
     pieces.push(...bandedWallPieces);
+    pieces.push(...cutouts.holeWalls);
 
     if (!isLightChannel) {
       // 2) Repisa: tapa del núcleo erosionado en z=baseMm (mirando hacia
@@ -201,7 +208,7 @@ export function buildStandardBodyPieces(
       //    trazo se erosionó por completo (pared > mitad del trazo). No
       //    aplica con canal luminoso: el cuerpo es macizo, sin cavidad
       //    interior (ver arriba).
-      pieces.push(extrudeContourGroups(coreGroups, params.baseMm, params.baseMm, { capStart: false, capEnd: true, sides: false }));
+      pieces.push(extrudeContourGroups(cutouts.shelfGroups, params.baseMm, params.baseMm, { capStart: false, capEnd: true, sides: false }));
 
       // 3) Paredes internas nuevas: bordes del núcleo erosionado, de baseMm
       //    a depthMm (separan la pared hueca de la cavidad real). flipSides

@@ -1,72 +1,37 @@
 import type { LetterGeometryResult, PartKind, TriangleSoupData } from "@/lib/maker/types";
+import { getPrintTransform, meshBounds, printRotationMatrix, rotatedBounds, type Bounds3, type Matrix3 } from "@/lib/maker/printOrientation";
 import { DEFAULT_SPACING_MM, packItems, type OversizeItem, type Placement, type Plate } from "@/lib/maker/printBed/packing";
 import type { PrinterProfile } from "@/lib/maker/printBed/printerProfiles";
 
 /**
- * Orientación de impresión SUGERIDA por pieza y layout de la Vista Cama. Todo
- * son transformaciones de ESCENA sobre las mismas mallas del `SignPart`
- * original: la geometría exportada nunca se toca.
+ * Layout de la Vista Cama. La orientación de cada pieza NO se decide acá: sale
+ * de `printOrientation.ts` (PrintTransform por PartKind), la MISMA fuente que
+ * usa la exportación STL. Todo son transformaciones de ESCENA sobre las mismas
+ * mallas del `SignPart` original.
  */
-export interface Bounds {
-  minX: number;
-  maxX: number;
-  minY: number;
-  maxY: number;
-  minZ: number;
-  maxZ: number;
-}
-
-/**
- * Piezas que se imprimen "cara visible contra la cama" (se voltean 180° en X):
- * la tapa (su labio queda hacia arriba, sin voladizos) y la máscara perforada
- * (la cara plana apoya en la cama y el faldón sube). El cuerpo apoya sobre su
- * base (Z=0) y los difusores planos se dejan como están.
- */
-export const PRINT_FLIP_KINDS: readonly PartKind[] = ["lid", "mask"];
+export type Bounds = Bounds3;
 
 export interface BedItem {
   id: string;
   label: string;
   kind: PartKind;
   mesh: TriangleSoupData;
-  /** Voltear 180° en X antes de apoyar (ver PRINT_FLIP_KINDS). */
-  flip: boolean;
   /** Bounds de la malla ORIGINAL. */
   bounds: Bounds;
-  /** Huella y alto tras aplicar el volteo (antes de rotar 0°/90° en Z). */
+  /** Huella y alto tras aplicar el PrintTransform del tipo de pieza (antes de rotar 0°/90° en Z para el packing). */
   widthMm: number;
   depthMm: number;
   heightMm: number;
 }
 
-export function computeMeshBounds(positions: Float32Array): Bounds {
-  const b: Bounds = { minX: Infinity, maxX: -Infinity, minY: Infinity, maxY: -Infinity, minZ: Infinity, maxZ: -Infinity };
-  for (let i = 0; i < positions.length; i += 3) {
-    const x = positions[i], y = positions[i + 1], z = positions[i + 2];
-    if (x < b.minX) b.minX = x;
-    if (x > b.maxX) b.maxX = x;
-    if (y < b.minY) b.minY = y;
-    if (y > b.maxY) b.maxY = y;
-    if (z < b.minZ) b.minZ = z;
-    if (z > b.maxZ) b.maxZ = z;
-  }
-  return b;
-}
-
-function flipBounds(b: Bounds): Bounds {
-  return { minX: b.minX, maxX: b.maxX, minY: -b.maxY, maxY: -b.minY, minZ: -b.maxZ, maxZ: -b.minZ };
-}
-
 export function makeBedItem(id: string, label: string, kind: PartKind, mesh: TriangleSoupData): BedItem {
-  const bounds = computeMeshBounds(mesh.positions);
-  const flip = PRINT_FLIP_KINDS.includes(kind);
-  const o = flip ? flipBounds(bounds) : bounds;
+  const bounds = meshBounds(mesh.positions);
+  const o = rotatedBounds(bounds, printRotationMatrix(getPrintTransform(kind)));
   return {
     id,
     label,
     kind,
     mesh,
-    flip,
     bounds,
     widthMm: o.maxX - o.minX,
     depthMm: o.maxY - o.minY,
@@ -122,39 +87,21 @@ export function computeBedLayout(items: BedItem[], profile: PrinterProfile, spac
 
 /**
  * Matriz 4x4 column-major (para THREE.Matrix4.fromArray) que lleva la malla
- * original a su lugar en la placa: volteo opcional, giro 90° opcional en Z,
- * y traslación para que la esquina mínima quede en (x, y) y el punto más bajo
- * en Z=0 (apoyada sobre la cama).
+ * original a su lugar en la placa: PrintTransform del tipo de pieza (misma
+ * rotación que aplica la exportación STL), giro 90° opcional en Z del
+ * packing, y traslación para que la esquina mínima quede en (x, y) y el punto
+ * más bajo en Z=0 (apoyada sobre la cama).
  */
-export function placementMatrix(item: Pick<BedItem, "bounds" | "flip">, placement: Pick<Placement, "x" | "y" | "rotated">): number[] {
-  // L = R * F, con F = diag(1,-1,-1) y R = giro +90° en Z: (x,y) -> (-y,x).
-  const f = item.flip ? -1 : 1;
-  const L = placement.rotated
-    ? [
-        [0, -f, 0],
-        [1, 0, 0],
-        [0, 0, f],
-      ]
-    : [
-        [1, 0, 0],
-        [0, f, 0],
-        [0, 0, f],
-      ];
-  const b = item.bounds;
-  let minX = Infinity, minY = Infinity, minZ = Infinity;
-  for (const x of [b.minX, b.maxX]) {
-    for (const y of [b.minY, b.maxY]) {
-      for (const z of [b.minZ, b.maxZ]) {
-        minX = Math.min(minX, L[0][0] * x + L[0][1] * y + L[0][2] * z);
-        minY = Math.min(minY, L[1][0] * x + L[1][1] * y + L[1][2] * z);
-        minZ = Math.min(minZ, L[2][0] * x + L[2][1] * y + L[2][2] * z);
-      }
-    }
-  }
+export function placementMatrix(item: Pick<BedItem, "bounds" | "kind">, placement: Pick<Placement, "x" | "y" | "rotated">): number[] {
+  const P: Matrix3 = printRotationMatrix(getPrintTransform(item.kind));
+  const R: Matrix3 = placement.rotated ? [[0, -1, 0], [1, 0, 0], [0, 0, 1]] : [[1, 0, 0], [0, 1, 0], [0, 0, 1]];
+  const L: Matrix3 = [[0, 0, 0], [0, 0, 0], [0, 0, 0]];
+  for (let i = 0; i < 3; i++) for (let j = 0; j < 3; j++) for (let k = 0; k < 3; k++) L[i][j] += R[i][k] * P[k][j];
+  const o = rotatedBounds(item.bounds, L);
   return [
     L[0][0], L[1][0], L[2][0], 0,
     L[0][1], L[1][1], L[2][1], 0,
     L[0][2], L[1][2], L[2][2], 0,
-    placement.x - minX, placement.y - minY, -minZ, 1,
+    placement.x - o.minX, placement.y - o.minY, -o.minZ, 1,
   ];
 }

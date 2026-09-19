@@ -53,6 +53,7 @@
 > Clipper, counters e islas. Dependencia nueva: `upng-js` (solo decodificar
 > PNG). 45 tests nuevos en tests/maker-import.test.mjs (287 tests Maker).
 > 0.5.1 (2026-09-19): sprint UX/productividad (secciones 18-21): workspace fijo con visor + controles superpuestos, vistas Modelo/Cama (A1 256x256x256, auto-arrange, multi-placa), slider de explosión, presets y proyectos persistentes por usuario. Motor geométrico sin cambios.
+> 0.6 (2026-09-19): safe zone del overlay respecto de Stampy, orientación de impresión como fuente única para Vista Cama y STL (sección 22) y recortes traseros paramétricos circle/capsule/keyhole (sección 23).
 
 ## 1. Qué es
 
@@ -1703,3 +1704,100 @@ Bambu Lab A1." con medidas; altura > 256 mm -> warning aparte.
 - Los presets aún no tienen "de sistema"; un solo perfil de impresora.
 - Verificación visual del workspace/cama en navegador NO realizada (requiere
   sesión de usuario); Storage/RLS remotos no probados contra Supabase real.
+
+
+## 22. Orientación de impresión (fuente única) y safe zone de Stampy
+
+**Overlay**: en desktop (`lg`) la card inferior derecha del viewport se corre a
+la izquierda (`lg:pr-[5.5rem]` sobre su fila) para dejar libre el botón flotante
+de Stampy (`.mobile-floating-stampy`: 56 px, a 24 px del borde). Verticalmente no
+cambió; en mobile no se toca (Stampy usa otra ubicación sobre la barra inferior).
+
+**PrintTransform** (`lib/maker/printOrientation.ts`): `{rotationXDeg,
+rotationYDeg, rotationZDeg}` por `PartKind`, en `PRINT_TRANSFORM_BY_KIND`
+(`Record<PartKind, …>`: un PartKind nuevo obliga a decidir su orientación).
+
+| PartKind | Rotación de impresión | Motivo |
+| --- | --- | --- |
+| `body` | ninguna | apoya en su base (Z=0), cavidad hacia arriba |
+| `lid` | Y = 180° | cara visible contra la cama, labio interior hacia arriba (sin voladizos) |
+| `mask` | Y = 180° | cara plana perforada contra la cama, faldón hacia arriba |
+| `diffuser`, `channelDiffuser` | ninguna | placas planas: cualquiera de sus caras apoya |
+
+Un único módulo, dos consumidores (nada de lógica de rotación duplicada):
+
+- Vista Cama: `printBed/bedLayout.ts` (`makeBedItem`, `placementMatrix`) usa
+  `printRotationMatrix(getPrintTransform(kind))` para la huella del packing y la
+  matriz de escena (compuesta con el giro 0°/90° del packing).
+- Exportación STL: `exporters/parts.ts#partFileEntries` aplica
+  `orientMeshForPrint(mesh, kind)` — rota alrededor del centro XY de la caja de la
+  pieza (queda en su lugar en el plano) y la apoya en `minZ = 0` (nunca Z
+  negativo). Con orientación identidad devuelve la MISMA malla (el cuerpo sale
+  byte a byte como antes). `exportWord` (una sola pieza) y `exportLettersZip`
+  pasan por `partFileEntries`.
+
+El Model View y la geometría fuente (`SignPart`) no cambian.
+
+**Cambio respecto de 0.5.1**: la Vista Cama volteaba tapa/máscara 180° en X; se
+unificó en Y 180° (mismo efecto físico: cara visible hacia abajo; la huella no
+cambia, solo el espejado lateral de la pieza, irrelevante para imprimir).
+
+## 23. Recortes traseros (Back Cutouts)
+
+Aberturas PASANTES en la base trasera (Z=0..`baseMm`) que abren hacia la
+cavidad hueca. El motor trabaja sobre **formas paramétricas**, sin lógica por
+"uso" (USB-C, cable, colgador son solo medidas de una forma).
+
+```ts
+type BackCutout = CircleCutout | CapsuleCutout | KeyholeCutout   // types.ts
+// común: id, x, y (mm, relativo al CENTRO de la caja del diseño; Y arriba, visto de frente)
+// circle:  diameterMm
+// capsule: widthMm, heightMm, rotationDeg          (extremos semicirculares; width<height => vertical)
+// keyhole: headDiameterMm, neckWidthMm, neckLengthMm, tailDiameterMm, rotationDeg
+```
+
+- **Círculo**: polígono regular con vértices en 0/90/180/270° (bbox exacto =
+  diámetro), tolerancia de arco 0.02 mm.
+- **Cápsula**: dos semicírculos sobre el lado corto + tramo recto; con
+  `width == height` es un círculo; rotación en el plano XY.
+- **Keyhole**: `x/y` es el centro de la cabeza; con rotación 0° el cuello baja
+  (−Y). Es la unión Clipper de cabeza (círculo) + cuello (rectángulo de
+  `neckWidthMm`) + extremo redondeado (círculo `tailDiameterMm` a `neckLengthMm`
+  del centro de la cabeza): UN solo contorno continuo. Rotación alrededor de
+  `x/y`.
+- **Resta 2D** (`geometry/backCutouts.ts`, sin CSG 3D): `planBackCutouts` valida
+  cada recorte y funde los válidos (Clipper `union`: los solapados forman una sola
+  abertura). Cada cuerpo (`body/standard.ts`, `body/tapered.ts`) llama a
+  `applyBackCutoutsToBase`, que intersecta la región con la cavidad de ESE
+  carácter y agrega el contorno como hueco de la tapa trasera (Z=0) y de la
+  repisa (Z=`baseMm`), más sus paredes entre 0 y `baseMm` (normales hacia el
+  hueco). Los mismos lazos alimentan las tres piezas, por eso la malla queda
+  soldada/watertight. Un recorte solo afecta a la letra/región que cubre (no se
+  replica en todas). Sin recortes el resultado es idéntico byte a byte.
+- **Validación contra bordes**: zona segura = núcleo de cada carácter (cavidad
+  erosionada por `wallMm`) achicado `BACK_CUTOUT_EDGE_MARGIN_MM = 1` (interno, no
+  en la UI); con bisel posterior también se limita a la huella de la base. Un
+  recorte que la excede queda SIN cortar y produce el error
+  `BACK_CUTOUT_INVALID`: "Recorte N: El recorte está demasiado cerca del borde o
+  fuera del cuerpo." (bloquea la exportación, igual que `LIP_COLLAPSED`). Los
+  counters quedan protegidos por el mismo criterio (el núcleo excluye los
+  counters). Parámetros inválidos (medidas <= 0, cuello >= cabeza, > 50
+  recortes, NaN) se reportan como `FieldError` sobre `backCutouts`.
+- **Compatibilidad**: `standard` y `tapered`. Con frente de canal luminoso
+  (cuerpo macizo, sin cavidad) el recorte da error explícito.
+- **Preview/exportación**: la geometría es la real (no hay mallas falsas): se ve
+  en Model View girando el cartel, está en Vista Cama y en el STL del cuerpo. No
+  hay archivos extra en el ZIP.
+- **Presets/proyectos**: `backCutouts` es parte de `LetterSignParams` pero está
+  en `DESIGN_PARAM_KEYS` -> NUNCA viaja en un preset (su posición es específica
+  del diseño). El proyecto lo guarda en `settings.backCutouts` (JSONB, sin
+  columna nueva, `schema_version` sin cambios); proyectos viejos sin el campo
+  cargan con `[]` (`normalizeBackCutouts`, tolerante).
+- **UI**: `MakerBackCutoutsSection` ("Montaje y conexiones"): agregar,
+  duplicar, eliminar, tipo, medidas, X/Y y rotación (solo capsule/keyhole).
+  Sin drag & drop ni selección gráfica (futuro).
+- Fuera de alcance / futuro: counterbore, avellanado, imanes, conectores
+  completos, cavidades parciales, presets de cutouts, cortes laterales.
+
+Limitaciones conocidas: X/Y son numéricos (sin edición gráfica); visto desde
+atrás el eje X aparece espejado; el margen de 1 mm es fijo.
