@@ -44,6 +44,14 @@
 > de la pieza (16.3). Canal luminoso, gyroid, honeycomb, nuevos patterns,
 > materiales, 3MF y LEDs quedan explícitamente fuera de alcance (16.7). 242
 > tests Maker (199 -> 242).
+> 0.5 (2026-09-19): importación de SVG y PNG como origen del diseño
+> (sección 17): `DesignSource` (texto | SVG | PNG) normalizado a
+> `ContourGroup[]` ANTES del motor — el resto del pipeline (cuerpos, frentes,
+> biseles, export, preview) no sabe de dónde vino la forma. SVG vectorial
+> (parser propio, sin DOM), PNG por alpha o luminosidad (marching squares +
+> Douglas-Peucker propios), escala uniforme por alto en mm, unión booleana
+> Clipper, counters e islas. Dependencia nueva: `upng-js` (solo decodificar
+> PNG). 45 tests nuevos en tests/maker-import.test.mjs (287 tests Maker).
 
 ## 1. Qué es
 
@@ -1391,3 +1399,176 @@ explícita de parámetros, como el resto de 0.4/0.4.1.
   del repo (736 tests, 1 fallo preexistente no relacionado en
   `stampy-product-stock-tools.test.mjs`, mismo problema de resolución de
   módulos del harness ya documentado en 15.8 — ajeno a Stampa Maker).
+
+## 17. Stampa Maker 0.5 — Importación SVG / PNG
+
+Permite crear carteles/formas desde un archivo **SVG** o **PNG**, además del
+texto, reutilizando TODO el motor existente: no hay `createSvgBody()` ni
+`createPngBody()`, ni un preview o exportador paralelos.
+
+### 17.1 Arquitectura: `DesignSource` -> `ContourGroup[]` -> motor
+
+```
+DesignSource
+  ├─ text  -> OpenType -> contornos -> ContourGroup[]   (createLetterGeometry, sin cambios de comportamiento)
+  ├─ svg   -> extractSvgShapes ──┐
+  └─ png   -> traceRaster ───────┴-> RawDesign -> normalizeRawDesign -> ContourGroup[] (mm)
+                                                          │
+                                   createGeometryFromContourPieces(ContourPiece[], params)
+                                   ├─ body/ (standard, tapered, ribs, bevels, groove)
+                                   ├─ front/ (open, lid, interior lip, perforated, light-channel)
+                                   └─ parts: SignPart[] -> MakerViewport / exportWord / STL
+```
+
+- `geometry/createLetterGeometry.ts` se partió en dos: `createLetterGeometry(font,
+  params)` (texto -> `ContourPiece[]`, mismo resultado que antes: los 242 tests
+  previos pasan sin cambios) y **`createGeometryFromContourPieces(pieces,
+  params)`**, el motor compartido. Un `ContourPiece` es `{char, label,
+  contourGroups}`; `label` solo cambia cómo se nombra la pieza en los errores
+  (`la letra "S" (posición 1)` vs `el diseño importado`).
+- La frontera de importación es `src/lib/maker/import/`:
+
+```
+import/types.ts        DesignSource, DesignImportError (+códigos), IMPORT_LIMITS, RawDesign, ImportedDesign, PngImportOptions
+import/xml.ts          parser XML cerrado (sin DOM), produce un árbol de datos
+import/svgGeometry.ts  transform, path (M L H V C S Q T A Z), formas básicas, aplanado de curvas
+import/svgImport.ts    extractSvgShapes: árbol -> formas visibles rellenas (+ seguridad)
+import/rasterTrace.ts  PNG raster -> campo -> marching squares -> tiny-removal -> Douglas-Peucker
+import/pngImport.ts    decodePng (upng-js, validaciones) + extractPngShapes
+import/normalize.ts    normalizeRawDesign: escala uniforme a mm, unión Clipper, jerarquía, origen (0,0)
+import/importDesign.ts importDesign / extractRawDesign / normalizeDesign / designToContourPieces / detectFileKind
+hooks/maker/useDesignImport.ts   estado de carga + debounce + cache de la etapa 1
+```
+
+- Dos etapas: **1)** `extractRawDesign` (SVG parseado / PNG trazado, en unidades
+  de la fuente; cacheable, no depende del alto) y **2)** `normalizeDesign`
+  (escala + unión, barata). Cambiar solo el alto en mm re-ejecuta la etapa 2.
+- Un diseño importado es UNA sola `ContourPiece` (`char: "diseno"`) con todas sus
+  islas: exporta como el "diseño completo" (`<nombre>.stl`, o `.zip` con
+  `_cuerpo/_tapa/...` si hay frente). El ZIP "Letras individuales" se oculta en
+  modo archivo (export por isla: fuera de alcance, ver 17.9).
+- `validateLetterSignParams(params, { textSource: false })` omite texto y alto
+  de texto para el origen archivo (el alto del diseño se valida al importar,
+  0 < alto <= 2000 mm).
+
+### 17.2 Pipeline SVG (vectorial, sin rasterizar)
+
+1. `parseXml` (parser propio) -> árbol de datos. 2. `scanTree`: chequeo de
+seguridad sobre TODO el árbol (17.7). 3. Se leen estilos (`fill`, `fill-rule`,
+`fill-opacity`, `opacity`, `display`, `visibility`) de atributos de
+presentación, `<style>` (selectores simples `tag`, `.clase`, `#id`, `tag.clase`,
+`*`) y `style=""`, con herencia (fill/fill-rule/visibility/fill-opacity).
+4. Recorrido: `svg`/`g`/`a`/`switch` son contenedores; `defs`/`symbol`/etc. no se
+dibujan salvo vía `<use href="#id">` interno. 5. Formas: `path`, `rect` (con
+`rx/ry`), `circle`, `ellipse`, `polygon`, `polyline` (relleno cerrado implícito,
+>= 3 puntos). 6. Transforms `translate/scale/rotate(a cx cy)/skewX/skewY/matrix`,
+anidados (composición de matrices). Arcos -> cúbicas exactas; las cúbicas se
+aplanan **después** de transformar, con tolerancia ~1/3000 del lado mayor del
+dibujo. 7. Se ignoran stroke, `fill:none`, `display:none`, `visibility:hidden`,
+`opacity:0`, `fill-opacity:0` (y no cuentan para el bounding box). Colores y
+gradientes no se conservan (`fill:url(#g)` cuenta como relleno).
+
+Sin formas rellenas -> `SVG_EMPTY`. `clip-path`/`mask`/`filter` (valor != none),
+animaciones, `<image>` -> `SVG_UNSUPPORTED`; `<text>`/`tspan` -> `SVG_TEXT`
+("Este SVG contiene texto editable. Convertí el texto a curvas/trazados antes
+de importarlo."); no se descargan fuentes ni recursos.
+
+### 17.3 Pipeline PNG
+
+`decodePng` (firma + tamaño de archivo + dimensiones leídas del IHDR ANTES de
+decodificar; luego `upng-js`) -> `traceRaster`:
+
+1. **Campo escalar** `[0,1]` ("cuánto material"): si hay transparencia real
+   (>= 0.1% de píxeles con alpha < 250) manda el **alpha** (umbral interno 0.5,
+   controles de umbral/invertir ocultos en la UI, `pngMode: "alpha"`); si no,
+   **luminosidad** compuesta sobre blanco: `luminosidad < Umbral` = material,
+   **Invertir** da vuelta el criterio (logo blanco sobre negro). Imágenes > 1600 px
+   se promedian por bloques para el trabajo (el resultado se re-escala igual).
+2. **Suavizado** (Bajo/Medio/Alto = sigma 0.5/1.0/2.0 px): desenfoque gaussiano
+   separable del campo. Con marching squares + interpolación lineal sub-píxel
+   el borde sale curvo, no pixelado.
+3. **Marching squares** (casos de silla resueltos con el promedio del centro) ->
+   lazos cerrados. El campo lleva un margen vacío >= radio del desenfoque
+   (`3σ+2`) para que todo contorno cierre — con 1 sola celda de margen el
+   desenfoque "sangraba" material hacia el borde y los lazos quedaban abiertos
+   (bug encontrado con el test de umbral, corregido).
+4. **Tiny removal**, 5. **Douglas-Peucker**, 6. normalización: ver 17.5/17.6.
+
+### 17.4 Elección del trazador (sin dependencia de tracing)
+
+Se evaluó potrace (WASM/browser) e imagetracerjs. **Se descartaron**: marching
+squares con interpolación + Douglas-Peucker son ~150 líneas determinísticas y
+testeables, dan curvas suaves sobre un campo desenfocado y no suman WASM, fetch
+ni código de terceros en el camino de un archivo del usuario. Única dependencia
+nueva: **`upng-js`** (+ `@types/upng-js` en dev; trae `pako`), solo para
+**decodificar** PNG en cliente y en los tests (también genera los fixtures).
+Se prefirió a `pngjs` porque este último depende de `zlib`/`Buffer` de Node.
+
+### 17.5 Counters, islas y unión (normalize.ts)
+
+`normalizeRawDesign` es la ÚNICA frontera con el motor: escala **uniforme**
+(`heightMm / alto de la forma`, aspect ratio intacto), Y hacia arriba, mínimo en
+(0,0). Cada forma se resuelve con su propia regla (`evenodd`/`nonzero`) vía
+Clipper y luego todas se **unen** (nonzero): formas solapadas dan UN sólido, sin
+shells duplicados. Los counters salen de `regroupClipperSolution` (jerarquía
+par/impar): un donut es UN grupo `{outer, holes:[inner]}`, nunca dos sólidos.
+Las islas desconectadas son grupos separados, sin puentes, en sus posiciones
+relativas originales (un anillo con una isla dentro del hueco da 2 grupos). El
+motor las procesa como componentes físicos independientes de la misma pieza.
+Se descartan grupos < 0.0025 mm² (ruido numérico) y se re-ancla el mínimo tras
+la limpieza de Clipper.
+
+### 17.6 Simplificación y contornos pequeños (PNG)
+
+- **Tiny removal:** lazos con área < `max(6 px², 2e-5 × área del campo)` se
+  descartan, islas Y agujeros por igual (motas y pinholes). Es proporcional al
+  tamaño de la imagen: en 400×400 el piso es 6 px² (~2.5 px de diámetro), en
+  4096×4096 (trabajado a 1600 px) ~ 51 px². Un counter de ~20 px de diámetro en
+  400 px se conserva (test). Se informa `Se descartaron N motas/agujeros diminutos`.
+- **Douglas-Peucker cerrado** con `epsilon = max(0.4, 0.5σ)` px; si el total
+  supera `maxVertices/2` (30 000) se reintenta con epsilon x1.7 (hasta 8 veces).
+  Un círculo de 700 px de diámetro queda en cientos de vértices, no miles, con
+  <1% de error de área (test).
+- Gate final `maxVertices = 60 000` (post-unión): por encima -> `TOO_COMPLEX`.
+
+### 17.7 Seguridad SVG
+
+El SVG es contenido del usuario: **nunca** se usa `DOMParser`, `innerHTML`,
+`eval` ni `Function` (un test lee el código de xml/svgImport/svgGeometry y lo
+verifica); el parser produce datos y solo se leen geometría/estilo. Se rechazan
+(`SVG_UNSAFE`): `<script>`, `foreignObject`, `iframe/embed/object/audio/video/
+canvas`, atributos con `javascript:`/`vbscript:`/`data:`, cualquier `href` que no
+sea `#id` interno, `url()` que no sea `url(#id)` (atributos y `<style>`),
+`@import`, y DTDs con `<!ENTITY>` (XXE/bombas de expansión). Los handlers `on*`
+nunca se leen: se ignoran. Límites: 10 MB, 200 000 nodos, profundidad 200, 50 000
+formas, 600 000 vértices previos a la unión, `<use>` anidado <= 16.
+
+### 17.8 UI
+
+"Origen del diseño" `[Texto | SVG / PNG]` arriba del panel. **Texto:** UI
+exactamente igual. **SVG / PNG:** zona de carga (arrastrar o "Seleccionar
+archivo", `.svg`/`.png`), nombre del archivo con "quitar", **Alto del diseño**
+(mm) + "Ancho resultante", y para PNG: **Umbral** (slider 0–255) + **Invertir**
+(solo si no hay transparencia real) y **Suavizado** (Bajo/Medio/Alto). Estado
+"Procesando archivo…" y errores en rojo (mensajes de `DesignImportError`, nunca
+excepciones crudas); warnings en ámbar. Debajo siguen todos los controles
+normales (profundidad, pared, fondo, cuerpo, modificadores, frente). Preview y
+descarga usan `MakerViewport`/`exportWord` sin cambios.
+
+### 17.9 Limitaciones conocidas (0.5)
+
+- Solo SVG y PNG (sin JPG/WEBP/PDF/AI/EPS/DXF). PNG entrelazado/paleta/16 bits
+  dependen de `upng-js`; si no decodifica -> `PNG_INVALID`.
+- SVG: sin clip-path/mask/filter/texto/imágenes/animaciones (rechazo con
+  mensaje). CSS solo con selectores simples; `preserveAspectRatio`/`viewBox` no
+  cambian el resultado (se normaliza por el bounding box de las formas
+  visibles); `svg` anidados se tratan como grupos (sin x/y/viewBox propios);
+  unidades porcentuales/`em` no se resuelven.
+- Un diseño es UNA pieza: sin export individual por isla (no encajaba sin
+  complicar el alcance).
+- El trazo (`stroke`) se ignora: un logo hecho solo de líneas da SVG_EMPTY.
+- PNG con bordes semitransparentes usa alpha >= 0.5.
+- La importación corre en el hilo principal (sin Worker): ~0.2 s para 4096×4096
+  en pruebas sintéticas; archivos patológicos pueden congelar brevemente la pestaña.
+- **Verificación manual en navegador no realizada** (sin credenciales Paid en
+  este entorno): validado con typecheck, build, tests y la suite completa.

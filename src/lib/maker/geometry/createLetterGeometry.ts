@@ -1,5 +1,5 @@
 import type * as opentype from "opentype.js";
-import type { LetterGeometryResult, LetterGeometryWarning, LetterPieceResult, LetterSignParams, Point2D, PartKind, SignPart, TriangleSoupData } from "@/lib/maker/types";
+import type { ContourGroup, LetterGeometryResult, LetterGeometryWarning, LetterPieceResult, LetterSignParams, Point2D, PartKind, SignPart, TriangleSoupData } from "@/lib/maker/types";
 import { textToPerCharacterPaths, flattenOpentypePath } from "@/lib/maker/geometry/textToPaths";
 import { buildContourHierarchy } from "@/lib/maker/geometry/contourHierarchy";
 import { toTriangleSoupData } from "@/lib/maker/geometry/extrudePolygon";
@@ -22,18 +22,46 @@ import { buildFrontParts } from "@/lib/maker/geometry/front";
  * para imprimir independientemente.
  */
 export function createLetterGeometry(font: opentype.Font, params: LetterSignParams): LetterGeometryResult {
+  if (!params.text || params.text.trim().length === 0) {
+    return emptyResult([{ code: "EMPTY_TEXT", message: "Escribí un texto para generar el modelo." }]);
+  }
+
+  // Fuente "texto" -> ContourGroups. Es la única parte que conoce las
+  // fuentes: de acá en adelante el motor solo ve `ContourPiece[]`.
+  const pieces: ContourPiece[] = [];
+  for (const { char, path } of textToPerCharacterPaths(font, params.text, params.heightMm)) {
+    const rawContours = flattenOpentypePath(path);
+    if (rawContours.length === 0) continue; // espacio u otro glifo sin tinta
+    const index = pieces.length + 1;
+    pieces.push({ char, label: `la letra "${char}" (posición ${index})`, contourGroups: buildContourHierarchy(rawContours), rawContours });
+  }
+  return createGeometryFromContourPieces(pieces, params);
+}
+
+/**
+ * Una pieza física independiente del diseño ya normalizada a ContourGroups
+ * (mm, Y arriba): una letra de texto, o el diseño completo importado desde
+ * SVG/PNG (ver lib/maker/import). Frontera única entre "de dónde viene la
+ * forma" y el motor de cuerpo/frente.
+ */
+export interface ContourPiece {
+  /** Etiqueta corta para nombres de archivo (una letra, o "diseno"). */
+  char: string;
+  /** Cómo nombrar la pieza en mensajes de error, p.ej. `la letra "S" (posición 1)` o `el diseño importado`. */
+  label: string;
+  contourGroups: ContourGroup[];
+  /** Contornos crudos (solo texto): para el bounding box exacto de siempre. Si falta, se usa `contourGroups`. */
+  rawContours?: Point2D[][];
+}
+
+/** Motor compartido: ContourPiece[] + parámetros -> partes (cuerpo/frente/exportación). No sabe si la forma vino de texto, SVG o PNG. */
+export function createGeometryFromContourPieces(pieces: ContourPiece[], params: LetterSignParams): LetterGeometryResult {
   const warnings: LetterGeometryWarning[] = [];
   const errors: LetterGeometryWarning[] = [];
 
-  if (!params.text || params.text.trim().length === 0) {
-    warnings.push({ code: "EMPTY_TEXT", message: "Escribí un texto para generar el modelo." });
-    return emptyResult(warnings);
-  }
-
-  const perCharacterPaths = textToPerCharacterPaths(font, params.text, params.heightMm);
-
   const letters: LetterPieceResult[] = [];
   const allRawContours: Point2D[][] = [];
+  const collapseLabels = new Map<number, string>();
   let anyFullyEroded = false;
   const collapsedLetters: { char: string; index: number; code: "LIP_COLLAPSED" | "CHANNEL_COLLAPSED" | "BEVEL_PLATE_COLLAPSED" | "MASK_SKIRT_COLLAPSED" | "LID_BEVEL_COLLAPSED" }[] = [];
 
@@ -82,17 +110,14 @@ export function createLetterGeometry(font: opentype.Font, params: LetterSignPara
     : params.lidBevelDepthMm;
   const lidBevelDepthClamped = lidBevelActive && lidBevelDepthUsedMm < params.lidBevelDepthMm - 1e-9;
 
-  for (const { char, path } of perCharacterPaths) {
-    const rawContours = flattenOpentypePath(path);
-    if (rawContours.length === 0) continue; // espacio u otro glifo sin tinta
-
-    allRawContours.push(...rawContours);
-    const contourGroups = buildContourHierarchy(rawContours);
+  for (const { char, label, contourGroups, rawContours } of pieces) {
+    allRawContours.push(...(rawContours ?? contourGroups.flatMap((g) => [g.outer, ...g.holes])));
 
     const bodyResult = buildBody(contourGroups, params, { channelDepthUsedMm });
     if (bodyResult.fullyEroded) anyFullyEroded = true;
 
     const index = letters.length + 1;
+    collapseLabels.set(index, label);
     const frontResult = buildFrontParts(contourGroups, params, insertDepthUsedMm, maskSideDepthUsedMm, lidBevelDepthUsedMm);
     if (frontResult.collapseErrorCode) collapsedLetters.push({ char, index, code: frontResult.collapseErrorCode });
 
@@ -124,21 +149,21 @@ export function createLetterGeometry(font: opentype.Font, params: LetterSignPara
   // entienda qué ocurre, pero el resultado queda marcado como inválido
   // para exportar. Un mensaje por letra afectada: alcanza con una lista
   // simple, no hace falta un selector de errores.
-  const COLLAPSE_MESSAGES: Record<(typeof collapsedLetters)[number]["code"], (char: string, index: number) => string> = {
-    LIP_COLLAPSED: (char, index) =>
-      `El encastre no puede generarse en la letra "${char}" (posición ${index}): el labio desaparece con estos parámetros. Reducí la holgura, reducí el espesor de pared, aumentá el tamaño o utilizá una fuente más gruesa.`,
-    CHANNEL_COLLAPSED: (char, index) =>
-      `El canal luminoso no puede generarse en la letra "${char}" (posición ${index}): el trazo es demasiado fino para el ancho de canal pedido. Reducí el ancho del canal, reducí el margen, aumentá el tamaño o utilizá una fuente más gruesa.`,
-    BEVEL_PLATE_COLLAPSED: (char, index) =>
-      `La tapa no puede generarse en la letra "${char}" (posición ${index}): el bisel frontal erosiona la placa por completo con estos parámetros. Reducí el desplazamiento del bisel, aumentá el tamaño o utilizá una fuente más gruesa.`,
-    MASK_SKIRT_COLLAPSED: (char, index) =>
-      `El faldón lateral de la máscara perforada no puede generarse en la letra "${char}" (posición ${index}): la holgura/espesor pedidos erosionan el faldón por completo. Reducí la holgura, el espesor lateral, o la cobertura lateral.`,
-    LID_BEVEL_COLLAPSED: (char, index) =>
-      `El bisel de tapa/difusor no puede generarse en la letra "${char}" (posición ${index}): erosiona la cara visible de la pieza por completo con estos parámetros. Reducí el desplazamiento del bisel, aumentá el tamaño o utilizá una fuente más gruesa.`,
+  const COLLAPSE_MESSAGES: Record<(typeof collapsedLetters)[number]["code"], (label: string) => string> = {
+    LIP_COLLAPSED: (label) =>
+      `El encastre no puede generarse en ${label}: el labio desaparece con estos parámetros. Reducí la holgura, reducí el espesor de pared, aumentá el tamaño o utilizá una fuente más gruesa.`,
+    CHANNEL_COLLAPSED: (label) =>
+      `El canal luminoso no puede generarse en ${label}: el trazo es demasiado fino para el ancho de canal pedido. Reducí el ancho del canal, reducí el margen, aumentá el tamaño o utilizá una fuente más gruesa.`,
+    BEVEL_PLATE_COLLAPSED: (label) =>
+      `La tapa no puede generarse en ${label}: el bisel frontal erosiona la placa por completo con estos parámetros. Reducí el desplazamiento del bisel, aumentá el tamaño o utilizá una fuente más gruesa.`,
+    MASK_SKIRT_COLLAPSED: (label) =>
+      `El faldón lateral de la máscara perforada no puede generarse en ${label}: la holgura/espesor pedidos erosionan el faldón por completo. Reducí la holgura, el espesor lateral, o la cobertura lateral.`,
+    LID_BEVEL_COLLAPSED: (label) =>
+      `El bisel de tapa/difusor no puede generarse en ${label}: erosiona la cara visible de la pieza por completo con estos parámetros. Reducí el desplazamiento del bisel, aumentá el tamaño o utilizá una fuente más gruesa.`,
   };
 
   for (const { char, index, code } of collapsedLetters) {
-    errors.push({ code, message: COLLAPSE_MESSAGES[code](char, index) });
+    errors.push({ code, message: COLLAPSE_MESSAGES[code](collapseLabels.get(index) ?? `la letra "${char}" (posición ${index})`) });
   }
 
   if (insertDepthClamped) {

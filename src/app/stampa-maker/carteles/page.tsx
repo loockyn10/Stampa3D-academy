@@ -9,6 +9,9 @@ import { useAppFeedback } from "@/components/ui/app-feedback";
 import { MakerTextControls } from "@/components/maker/MakerTextControls";
 import { MakerViewport, type MakerViewMode } from "@/components/maker/MakerViewport";
 import { useLetterGeometry } from "@/hooks/maker/useLetterGeometry";
+import { useDesignImport } from "@/hooks/maker/useDesignImport";
+import { detectFileKind, type FileDesignSource } from "@/lib/maker/import/importDesign";
+import { DEFAULT_PNG_OPTIONS, IMPORT_LIMITS, type PngImportOptions } from "@/lib/maker/import/types";
 import { exportWord } from "@/lib/maker/exporters/exportWord";
 import { downloadLettersZip } from "@/lib/maker/exporters/exportLettersZip";
 import { DEFAULT_MAKER_FONT_ID } from "@/lib/maker/fonts/registry";
@@ -62,7 +65,15 @@ const DEFAULT_PARAMS: LetterSignParams = {
 
 export default function StampaMakerCartelesPage() {
   const [params, setParams] = useState<LetterSignParams>(DEFAULT_PARAMS);
-  const { geometry, loading, error, fieldErrors } = useLetterGeometry(params);
+  // Origen del diseño (0.5): texto, o archivo SVG/PNG -> ContourGroups (lib/maker/import).
+  const [sourceMode, setSourceMode] = useState<"text" | "file">("text");
+  const [file, setFile] = useState<FileDesignSource | null>(null);
+  const [fileError, setFileError] = useState<string | null>(null);
+  const [designHeightMm, setDesignHeightMm] = useState(100);
+  const [pngOptions, setPngOptions] = useState<PngImportOptions>(DEFAULT_PNG_OPTIONS);
+  const fromFile = sourceMode === "file";
+  const designImport = useDesignImport(fromFile ? file : null, designHeightMm, pngOptions);
+  const { geometry, loading, error, fieldErrors } = useLetterGeometry(params, designImport.design, fromFile);
   const { toast } = useAppFeedback();
   const [lettersZipLoading, setLettersZipLoading] = useState(false);
   const [wordDownloading, setWordDownloading] = useState(false);
@@ -72,7 +83,28 @@ export default function StampaMakerCartelesPage() {
     setParams((prev) => ({ ...prev, ...patch }));
   }, []);
 
-  const baseFileName = params.text.trim().toLowerCase().replace(/\s+/g, "-") || "stampa-maker";
+  const handleFile = useCallback(async (picked: File) => {
+    setFileError(null);
+    const kind = detectFileKind(picked.name);
+    if (!kind) {
+      setFileError("Formato no soportado. Subí un archivo .svg o .png.");
+      return;
+    }
+    if (picked.size > IMPORT_LIMITS.maxFileBytes) {
+      setFileError("El archivo es demasiado grande (máximo 10 MB).");
+      return;
+    }
+    try {
+      if (kind === "svg") setFile({ type: "svg", fileName: picked.name, content: await picked.text() });
+      else setFile({ type: "png", fileName: picked.name, bytes: new Uint8Array(await picked.arrayBuffer()) });
+    } catch {
+      setFileError("No se pudo leer el archivo.");
+    }
+  }, []);
+
+  const baseFileName = fromFile
+    ? (file?.fileName.replace(/\.[^.]+$/, "").toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "") || "diseno")
+    : params.text.trim().toLowerCase().replace(/\s+/g, "-") || "stampa-maker";
 
   const handleDownloadWord = useCallback(async () => {
     if (!geometry || geometry.triangleCount === 0) return;
@@ -99,7 +131,7 @@ export default function StampaMakerCartelesPage() {
   }, [geometry, baseFileName, toast]);
 
   const canDownload =
-    !loading && !error && fieldErrors.length === 0 && !!geometry && geometry.triangleCount > 0 && geometry.errors.length === 0;
+    !loading && !designImport.loading && !error && !designImport.error && fieldErrors.length === 0 && !!geometry && geometry.triangleCount > 0 && geometry.errors.length === 0;
 
   return (
     <div className="flex flex-col gap-5">
@@ -118,7 +150,27 @@ export default function StampaMakerCartelesPage() {
           geometryErrors={geometry?.errors ?? []}
           warnings={geometry?.warnings ?? []}
           error={error}
-          loading={loading || wordDownloading}
+          loading={loading || designImport.loading || wordDownloading}
+          source={{
+            mode: sourceMode,
+            onModeChange: setSourceMode,
+            fileName: file?.fileName ?? null,
+            fileKind: file?.type ?? null,
+            importing: designImport.loading,
+            importError: fileError ?? designImport.error,
+            importWarnings: designImport.design?.warnings ?? [],
+            onFile: handleFile,
+            onClear: () => {
+              setFile(null);
+              setFileError(null);
+            },
+            heightMm: designHeightMm,
+            onHeightChange: setDesignHeightMm,
+            widthMm: designImport.design?.widthMm ?? null,
+            pngMode: designImport.design?.pngMode ?? null,
+            pngOptions,
+            onPngOptionsChange: (patch) => setPngOptions((prev) => ({ ...prev, ...patch })),
+          }}
           canDownload={canDownload}
           onDownloadWord={handleDownloadWord}
           onDownloadLetters={handleDownloadLetters}
@@ -127,7 +179,7 @@ export default function StampaMakerCartelesPage() {
           onChangeViewMode={setViewMode}
         />
         <Card className="overflow-hidden p-0 h-[clamp(400px,60vh,500px)] lg:h-[clamp(650px,75vh,750px)]">
-          <MakerViewport geometry={geometry} viewMode={viewMode} />
+          <MakerViewport geometry={fromFile && !designImport.design ? null : geometry} viewMode={viewMode} />
         </Card>
       </div>
     </div>

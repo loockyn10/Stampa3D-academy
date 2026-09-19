@@ -2,7 +2,9 @@
 
 import { useEffect, useMemo, useState } from "react";
 import { loadMakerFont } from "@/lib/maker/fonts/registry";
-import { createLetterGeometry } from "@/lib/maker/geometry/createLetterGeometry";
+import { createLetterGeometry, createGeometryFromContourPieces } from "@/lib/maker/geometry/createLetterGeometry";
+import { designToContourPieces } from "@/lib/maker/import/importDesign";
+import type { ImportedDesign } from "@/lib/maker/import/types";
 import { validateLetterSignParams, type FieldError } from "@/lib/maker/validation";
 import type { LetterGeometryResult, LetterSignParams } from "@/lib/maker/types";
 
@@ -28,7 +30,7 @@ const DEBOUNCE_MS = 200;
  * Mientras el texto/parámetros no validan, se conserva la última geometría
  * válida (el panel de controles ya bloquea la descarga vía fieldErrors).
  */
-export function useLetterGeometry(params: LetterSignParams): UseLetterGeometryState {
+export function useLetterGeometry(params: LetterSignParams, importedDesign: ImportedDesign | null = null, fromFile = false): UseLetterGeometryState {
   const [debounced, setDebounced] = useState(params);
   const [asyncState, setAsyncState] = useState<AsyncGeometryState>({
     geometry: null,
@@ -50,10 +52,13 @@ export function useLetterGeometry(params: LetterSignParams): UseLetterGeometrySt
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [paramsKey]);
 
-  const fieldErrors = useMemo(() => validateLetterSignParams(debounced), [debounced]);
+  const fieldErrors = useMemo(() => validateLetterSignParams(debounced, { textSource: !fromFile }), [debounced, fromFile]);
 
   useEffect(() => {
     if (fieldErrors.length > 0) return;
+
+    // Origen archivo (0.5): se resuelve más abajo (fileResult), sin fuente tipográfica.
+    if (fromFile) return;
 
     let cancelled = false;
     setAsyncState((prev) => ({ ...prev, loading: true, error: null }));
@@ -84,7 +89,20 @@ export function useLetterGeometry(params: LetterSignParams): UseLetterGeometrySt
     return () => {
       cancelled = true;
     };
-  }, [debounced, fieldErrors.length]);
+  }, [debounced, fieldErrors.length, fromFile, importedDesign]);
 
+  // Origen archivo (0.5): la forma ya viene normalizada a ContourGroups
+  // (lib/maker/import) — mismo motor (createGeometryFromContourPieces), sin
+  // fuente tipográfica y sin carga asíncrona.
+  const fileResult = useMemo(() => {
+    if (!fromFile || !importedDesign || fieldErrors.length > 0) return { geometry: null, error: null as string | null };
+    try {
+      return { geometry: createGeometryFromContourPieces(designToContourPieces(importedDesign), debounced), error: null as string | null };
+    } catch (err) {
+      return { geometry: null, error: err instanceof Error ? err.message : "No se pudo generar la geometría." };
+    }
+  }, [fromFile, importedDesign, fieldErrors.length, debounced]);
+
+  if (fromFile) return { geometry: fileResult.geometry, loading: false, error: fileResult.error, fieldErrors };
   return { ...asyncState, fieldErrors };
 }

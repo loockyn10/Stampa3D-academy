@@ -8,15 +8,21 @@ export interface FieldError {
   message: string;
 }
 
-/** Validaciones básicas de parámetros, antes de correr el pipeline geométrico. */
-export function validateLetterSignParams(params: LetterSignParams): FieldError[] {
-  const errors: FieldError[] = [];
+export interface ValidationOptions {
+  /** false cuando el diseño viene de un archivo SVG/PNG (0.5): el texto y el alto del texto no aplican (el alto del diseño se valida en la importación). Default true. */
+  textSource?: boolean;
+}
 
-  if (!params.text || params.text.trim().length === 0) {
+/** Validaciones básicas de parámetros, antes de correr el pipeline geométrico. */
+export function validateLetterSignParams(params: LetterSignParams, options: ValidationOptions = {}): FieldError[] {
+  const errors: FieldError[] = [];
+  const textSource = options.textSource !== false;
+
+  if (textSource && (!params.text || params.text.trim().length === 0)) {
     errors.push({ field: "text", message: "Escribí un texto." });
   }
 
-  if (!(params.heightMm > 0)) {
+  if (textSource && !(params.heightMm > 0)) {
     errors.push({ field: "heightMm", message: "El alto debe ser mayor a 0." });
   }
 

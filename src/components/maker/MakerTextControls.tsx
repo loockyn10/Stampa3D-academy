@@ -1,7 +1,7 @@
 "use client";
 
 import React from "react";
-import { AlertTriangle, Download, FileArchive, Loader2 } from "lucide-react";
+import { AlertTriangle, Download, FileArchive, Loader2, Upload, X } from "lucide-react";
 import { Card } from "@/components/ui/card";
 import { Button, GhostButton } from "@/components/ui/button";
 import { CalculatorSelect } from "@/components/ui/calculator-select";
@@ -10,6 +10,28 @@ import type { LetterSignParams } from "@/lib/maker/types";
 import type { LetterGeometryWarning } from "@/lib/maker/types";
 import type { FieldError } from "@/lib/maker/validation";
 import type { MakerViewMode } from "@/components/maker/MakerViewport";
+import type { PngImportOptions } from "@/lib/maker/import/types";
+
+/** Origen del diseño (0.5): texto, o archivo SVG/PNG importado a ContourGroups (lib/maker/import). */
+export interface MakerSourceControls {
+  mode: "text" | "file";
+  onModeChange: (mode: "text" | "file") => void;
+  fileName: string | null;
+  fileKind: "svg" | "png" | null;
+  importing: boolean;
+  importError: string | null;
+  importWarnings: string[];
+  onFile: (file: File) => void;
+  onClear: () => void;
+  /** Alto del diseño importado, en mm (escala uniforme: el ancho sale del aspect ratio). */
+  heightMm: number;
+  onHeightChange: (heightMm: number) => void;
+  widthMm: number | null;
+  /** Solo PNG ya importado: "alpha" oculta umbral/invertir (la transparencia manda). */
+  pngMode: "alpha" | "luminosity" | null;
+  pngOptions: PngImportOptions;
+  onPngOptionsChange: (patch: Partial<PngImportOptions>) => void;
+}
 
 interface MakerTextControlsProps {
   params: LetterSignParams;
@@ -26,6 +48,58 @@ interface MakerTextControlsProps {
   lettersZipLoading: boolean;
   viewMode: MakerViewMode;
   onChangeViewMode: (mode: MakerViewMode) => void;
+  source: MakerSourceControls;
+}
+
+const SOURCE_MODE_OPTIONS: { value: "text" | "file"; label: string }[] = [
+  { value: "text", label: "Texto" },
+  { value: "file", label: "SVG / PNG" },
+];
+
+const SMOOTHING_OPTIONS: { value: PngImportOptions["smoothing"]; label: string }[] = [
+  { value: "low", label: "Bajo" },
+  { value: "medium", label: "Medio" },
+  { value: "high", label: "Alto" },
+];
+
+function FileDropZone({ onFile, disabled }: { onFile: (file: File) => void; disabled: boolean }) {
+  const inputRef = React.useRef<HTMLInputElement>(null);
+  const [dragging, setDragging] = React.useState(false);
+  return (
+    <div
+      onDragOver={(e) => {
+        e.preventDefault();
+        setDragging(true);
+      }}
+      onDragLeave={() => setDragging(false)}
+      onDrop={(e) => {
+        e.preventDefault();
+        setDragging(false);
+        const file = e.dataTransfer.files?.[0];
+        if (file && !disabled) onFile(file);
+      }}
+      className={`flex flex-col items-center gap-2 rounded-xl border border-dashed px-4 py-5 text-center transition-colors ${
+        dragging ? "border-stampa-orange/70 bg-stampa-orange/10" : "border-white/15 bg-white/[0.03]"
+      }`}
+    >
+      <Upload size={20} className="text-gray-500" />
+      <p className="text-xs text-gray-400">Arrastrá un SVG o PNG o seleccioná un archivo.</p>
+      <GhostButton type="button" onClick={() => inputRef.current?.click()} disabled={disabled}>
+        Seleccionar archivo
+      </GhostButton>
+      <input
+        ref={inputRef}
+        type="file"
+        accept=".svg,.png,image/svg+xml,image/png"
+        className="hidden"
+        onChange={(e) => {
+          const file = e.target.files?.[0];
+          if (file) onFile(file);
+          e.target.value = "";
+        }}
+      />
+    </div>
+  );
 }
 
 function SegmentedControl<T extends string>({
@@ -180,9 +254,99 @@ export function MakerTextControls({
   lettersZipLoading,
   viewMode,
   onChangeViewMode,
+  source,
 }: MakerTextControlsProps) {
+  const fromFile = source.mode === "file";
   return (
     <Card className="flex flex-col gap-5 p-5">
+      <div className="block">
+        <span className="mb-1 block text-xs font-semibold text-gray-500">Origen del diseño</span>
+        <SegmentedControl options={SOURCE_MODE_OPTIONS} value={source.mode} onChange={source.onModeChange} />
+      </div>
+
+      {fromFile && (
+        <div className="flex flex-col gap-3">
+          {source.fileName ? (
+            <div className="flex items-center justify-between gap-2 rounded-xl border border-white/10 bg-white/[0.04] px-3 py-2">
+              <div className="min-w-0">
+                <span className="block text-[11px] font-semibold text-gray-500">Archivo</span>
+                <span className="block truncate text-sm text-white">{source.fileName}</span>
+              </div>
+              <button
+                type="button"
+                onClick={source.onClear}
+                aria-label="Quitar archivo"
+                className="rounded-lg p-1.5 text-gray-400 transition-colors hover:bg-white/10 hover:text-white"
+              >
+                <X size={16} />
+              </button>
+            </div>
+          ) : (
+            <FileDropZone onFile={source.onFile} disabled={source.importing} />
+          )}
+
+          {source.fileName && (
+            <>
+              <NumberField label="Alto del diseño" value={source.heightMm} onChange={source.onHeightChange} suffix="mm" />
+              {source.widthMm !== null && (
+                <span className="-mt-1 text-xs text-gray-500">Ancho resultante: {Math.round(source.widthMm * 10) / 10} mm</span>
+              )}
+            </>
+          )}
+
+          {source.fileKind === "png" && source.pngMode !== "alpha" && (
+            <div className="flex flex-col gap-3 rounded-xl border border-white/10 bg-white/[0.03] p-3">
+              <label className="block">
+                <span className="mb-1 flex justify-between text-xs font-semibold text-gray-500">
+                  <span>Umbral</span>
+                  <span>{source.pngOptions.threshold}</span>
+                </span>
+                <input
+                  type="range"
+                  min={0}
+                  max={255}
+                  value={source.pngOptions.threshold}
+                  onChange={(e) => source.onPngOptionsChange({ threshold: Number(e.target.value) })}
+                  className="w-full accent-stampa-orange"
+                />
+              </label>
+              <Toggle label="Invertir" checked={source.pngOptions.invert} onChange={(checked) => source.onPngOptionsChange({ invert: checked })} />
+            </div>
+          )}
+
+          {source.fileKind === "png" && (
+            <div className="block">
+              <span className="mb-1 block text-xs font-semibold text-gray-500">Suavizado</span>
+              <SegmentedControl
+                options={SMOOTHING_OPTIONS}
+                value={source.pngOptions.smoothing}
+                onChange={(smoothing) => source.onPngOptionsChange({ smoothing })}
+              />
+            </div>
+          )}
+
+          {source.importing && (
+            <div className="flex items-center gap-2 text-xs text-gray-400">
+              <Loader2 size={14} className="animate-spin" />
+              Procesando archivo…
+            </div>
+          )}
+          {source.importError && (
+            <div className="flex items-start gap-2 rounded-xl border border-red-500/30 bg-red-500/10 p-3 text-xs text-red-300">
+              <AlertTriangle size={15} className="mt-0.5 shrink-0" />
+              <span>{source.importError}</span>
+            </div>
+          )}
+          {source.importWarnings.map((message, i) => (
+            <div key={i} className="flex items-start gap-2 rounded-xl border border-amber-500/30 bg-amber-500/10 p-3 text-xs text-amber-300">
+              <AlertTriangle size={15} className="mt-0.5 shrink-0" />
+              <span>{message}</span>
+            </div>
+          ))}
+        </div>
+      )}
+
+      {!fromFile && (
       <label className="block">
         <span className="mb-1 block text-xs font-semibold text-gray-500">Texto</span>
         <input
@@ -199,6 +363,9 @@ export function MakerTextControls({
         )}
       </label>
 
+      )}
+
+      {!fromFile && (
       <label className="block">
         <span className="mb-1 block text-xs font-semibold text-gray-500">Fuente</span>
         <CalculatorSelect
@@ -207,8 +374,10 @@ export function MakerTextControls({
           options={MAKER_FONTS.map((font) => ({ value: font.id, label: font.label }))}
         />
       </label>
+      )}
 
       <div className="grid grid-cols-2 gap-3">
+        {!fromFile && (
         <NumberField
           label="Alto"
           value={params.heightMm}
@@ -216,6 +385,7 @@ export function MakerTextControls({
           suffix="mm"
           error={fieldError(fieldErrors, "heightMm")}
         />
+        )}
         <NumberField
           label="Profundidad"
           value={params.depthMm}
@@ -618,10 +788,12 @@ export function MakerTextControls({
           {loading ? <Loader2 size={16} className="animate-spin" /> : <Download size={16} />}
           {params.frontType !== "open" ? "Palabra completa (.zip)" : "Palabra completa (.stl)"}
         </Button>
-        <GhostButton onClick={onDownloadLetters} disabled={!canDownload || loading || lettersZipLoading} className="w-full">
-          {lettersZipLoading ? <Loader2 size={16} className="animate-spin" /> : <FileArchive size={16} />}
-          Letras individuales (.zip)
-        </GhostButton>
+        {!fromFile && (
+          <GhostButton onClick={onDownloadLetters} disabled={!canDownload || loading || lettersZipLoading} className="w-full">
+            {lettersZipLoading ? <Loader2 size={16} className="animate-spin" /> : <FileArchive size={16} />}
+            Letras individuales (.zip)
+          </GhostButton>
+        )}
       </div>
     </Card>
   );
