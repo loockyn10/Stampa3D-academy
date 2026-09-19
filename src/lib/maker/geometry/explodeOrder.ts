@@ -61,3 +61,20 @@ export function computeExplodeRanks(kinds: PartKind[]): Map<PartKind, number> {
   }
   return ranks;
 }
+
+/** Separación explosionada por defecto, en % (0-100). */
+export const DEFAULT_EXPLODE_PERCENT = 45;
+
+/**
+ * Desplazamiento VISUAL (mm) entre capas consecutivas de la vista
+ * explosionada, en función del tamaño del modelo y del porcentaje elegido
+ * (0-100). Escala con la profundidad (peso principal) y con el alto del
+ * diseño, así el mismo % funciona en una letra de 50 mm y en una de 500 mm.
+ * Puramente visual: nunca toca la geometría exportada. La pieza de rank `r`
+ * se mueve `r * step` (el orden semántico lo define `computeExplodeRanks`).
+ */
+export function computeExplodeStepMm(size: { height: number; depth: number }, percent: number): number {
+  const pct = Math.min(100, Math.max(0, Number.isFinite(percent) ? percent : 0)) / 100;
+  const reference = Math.max(size.depth, 0) * 0.8 + Math.max(size.height, 0) * 0.2;
+  return pct * reference;
+}

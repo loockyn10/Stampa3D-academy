@@ -1,75 +1,34 @@
 "use client";
 
-import { useCallback, useState } from "react";
+import { useCallback, useMemo, useState } from "react";
 import Link from "next/link";
 import { ArrowLeft } from "lucide-react";
-import { SectionTitle } from "@/components/ui/section-title";
-import { Card } from "@/components/ui/card";
 import { useAppFeedback } from "@/components/ui/app-feedback";
 import { MakerTextControls } from "@/components/maker/MakerTextControls";
-import { MakerViewport, type MakerViewMode } from "@/components/maker/MakerViewport";
+import { MakerLibraryPanel } from "@/components/maker/MakerLibraryPanel";
+import { MakerViewport, type MakerDisplayMode, type MakerViewMode } from "@/components/maker/MakerViewport";
+import { BedLabel, BedWarnings, ViewportExportCard, ViewportViewCard } from "@/components/maker/MakerViewportOverlays";
 import { useLetterGeometry } from "@/hooks/maker/useLetterGeometry";
 import { useDesignImport } from "@/hooks/maker/useDesignImport";
+import { useMakerLibrary } from "@/hooks/maker/useMakerLibrary";
 import { detectFileKind, type FileDesignSource } from "@/lib/maker/import/importDesign";
 import { DEFAULT_PNG_OPTIONS, IMPORT_LIMITS, type PngImportOptions } from "@/lib/maker/import/types";
 import { exportWord } from "@/lib/maker/exporters/exportWord";
 import { downloadLettersZip } from "@/lib/maker/exporters/exportLettersZip";
-import { DEFAULT_MAKER_FONT_ID } from "@/lib/maker/fonts/registry";
+import { DEFAULT_LETTER_SIGN_PARAMS } from "@/lib/maker/defaults";
+import { DEFAULT_EXPLODE_PERCENT } from "@/lib/maker/geometry/explodeOrder";
+import { collectBedItems, computeBedLayout } from "@/lib/maker/printBed/bedLayout";
+import { DEFAULT_PRINTER_PROFILE_ID, getPrinterProfile } from "@/lib/maker/printBed/printerProfiles";
+import type { LoadedProject, ProjectWorkState } from "@/lib/maker/projects/projectData";
 import type { LetterSignParams } from "@/lib/maker/types";
 
-const DEFAULT_PARAMS: LetterSignParams = {
-  text: "STAMPA",
-  fontId: DEFAULT_MAKER_FONT_ID,
-  heightMm: 100,
-  depthMm: 40,
-  wallMm: 1.6,
-  baseMm: 1.2,
-  bodyType: "standard",
-  rearExpansionMm: 2,
-  taperStyle: "stepped",
-  ribsCount: 0,
-  ribProtrusionMm: 0.8,
-  ribWidthMm: 1.2,
-  bevelEnabled: false,
-  bevelDepthMm: 2,
-  bevelInsetMm: 1,
-  grooveEnabled: false,
-  grooveInsetMm: 1,
-  grooveWidthMm: 4,
-  groovePositionMm: 20,
-  rearBevelEnabled: false,
-  rearBevelDepthMm: 2,
-  rearBevelInsetMm: 1,
-  frontType: "open",
-  lidMm: 1.2,
-  lidJoint: "glue",
-  insertDepthMm: 3,
-  clearanceMm: 0.2,
-  lipWallMm: 0.8,
-  lidBevelEnabled: false,
-  lidBevelDepthMm: 0.4,
-  lidBevelInsetMm: 0.3,
-  maskThicknessMm: 1,
-  maskWallThicknessMm: 1.2,
-  maskSideDepthMm: 5,
-  maskClearanceMm: 0.2,
-  diffuserThicknessMm: 0.6,
-  holeDiameterMm: 2,
-  pitchMm: 4,
-  edgeMarginMm: 2,
-  channelWidthMm: 6,
-  channelDepthMm: 4,
-  channelOffsetMm: 2,
-  diffuserClearanceMm: 0.2,
-};
-
 export default function StampaMakerCartelesPage() {
-  const [params, setParams] = useState<LetterSignParams>(DEFAULT_PARAMS);
+  const [params, setParams] = useState<LetterSignParams>(DEFAULT_LETTER_SIGN_PARAMS);
   // Origen del diseño (0.5): texto, o archivo SVG/PNG -> ContourGroups (lib/maker/import).
   const [sourceMode, setSourceMode] = useState<"text" | "file">("text");
   const [file, setFile] = useState<FileDesignSource | null>(null);
   const [fileError, setFileError] = useState<string | null>(null);
-  const [designHeightMm, setDesignHeightMm] = useState(100);
+  const [designHeightMm, setDesignHeightMm] = useState(DEFAULT_LETTER_SIGN_PARAMS.heightMm);
   const [pngOptions, setPngOptions] = useState<PngImportOptions>(DEFAULT_PNG_OPTIONS);
   const fromFile = sourceMode === "file";
   const designImport = useDesignImport(fromFile ? file : null, designHeightMm, pngOptions);
@@ -77,7 +36,12 @@ export default function StampaMakerCartelesPage() {
   const { toast } = useAppFeedback();
   const [lettersZipLoading, setLettersZipLoading] = useState(false);
   const [wordDownloading, setWordDownloading] = useState(false);
+
+  // Estado puramente visual (no viaja en presets ni proyectos).
+  const [displayMode, setDisplayMode] = useState<MakerDisplayMode>("model");
   const [viewMode, setViewMode] = useState<MakerViewMode>("assembled");
+  const [explodePercent, setExplodePercent] = useState(DEFAULT_EXPLODE_PERCENT);
+  const [plateIndex, setPlateIndex] = useState(1);
 
   const handleChange = useCallback((patch: Partial<LetterSignParams>) => {
     setParams((prev) => ({ ...prev, ...patch }));
@@ -102,6 +66,39 @@ export default function StampaMakerCartelesPage() {
     }
   }, []);
 
+  // --- Presets y proyectos ---
+  const fileSize = useMemo(
+    () => (file ? (file.type === "svg" ? new TextEncoder().encode(file.content).length : file.bytes.length) : 0),
+    [file],
+  );
+  const work: ProjectWorkState = useMemo(
+    () => ({
+      params,
+      sourceMode,
+      designHeightMm,
+      pngOptions,
+      fileMeta: file ? { kind: file.type, fileName: file.fileName, sizeBytes: fileSize } : null,
+    }),
+    [params, sourceMode, designHeightMm, pngOptions, file, fileSize],
+  );
+  const handleLoadWork = useCallback((loaded: LoadedProject, loadedFile: FileDesignSource | null) => {
+    setParams(loaded.params);
+    setSourceMode(loaded.sourceMode);
+    setDesignHeightMm(loaded.designHeightMm);
+    setPngOptions(loaded.pngOptions);
+    setFile(loadedFile);
+    setFileError(null);
+  }, []);
+  const handleResetWork = useCallback((next: LetterSignParams) => {
+    setParams(next);
+    setSourceMode("text");
+    setFile(null);
+    setFileError(null);
+    setDesignHeightMm(DEFAULT_LETTER_SIGN_PARAMS.heightMm);
+    setPngOptions({ ...DEFAULT_PNG_OPTIONS });
+  }, []);
+  const library = useMakerLibrary({ work, file, onParams: setParams, onLoadWork: handleLoadWork, onResetWork: handleResetWork });
+
   const baseFileName = fromFile
     ? (file?.fileName.replace(/\.[^.]+$/, "").toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "") || "diseno")
     : params.text.trim().toLowerCase().replace(/\s+/g, "-") || "stampa-maker";
@@ -112,11 +109,11 @@ export default function StampaMakerCartelesPage() {
     try {
       await exportWord(geometry, baseFileName);
     } catch (err) {
-      toast.error(err instanceof Error ? err.message : "No se pudo exportar la palabra completa.");
+      toast.error(err instanceof Error ? err.message : `No se pudo exportar ${fromFile ? "el diseño completo" : "la palabra completa"}.`);
     } finally {
       setWordDownloading(false);
     }
-  }, [geometry, baseFileName, toast]);
+  }, [geometry, baseFileName, toast, fromFile]);
 
   const handleDownloadLetters = useCallback(async () => {
     if (!geometry || geometry.letters.length === 0) return;
@@ -133,16 +130,32 @@ export default function StampaMakerCartelesPage() {
   const canDownload =
     !loading && !designImport.loading && !error && !designImport.error && fieldErrors.length === 0 && !!geometry && geometry.triangleCount > 0 && geometry.errors.length === 0;
 
+  // --- Vista ---
+  const shownGeometry = fromFile && !designImport.design ? null : geometry;
+  const multiPart = params.frontType !== "open";
+  const profile = getPrinterProfile(DEFAULT_PRINTER_PROFILE_ID);
+  // Se calcula solo en Vista Cama: una única geometría fuente, las piezas se instancian con transformaciones de escena.
+  const bed = useMemo(() => {
+    if (displayMode !== "bed" || !shownGeometry) return null;
+    const items = collectBedItems(shownGeometry);
+    return { items, layout: computeBedLayout(items, profile) };
+  }, [displayMode, shownGeometry, profile]);
+  const plateCount = bed?.layout.plates.length ?? 0;
+  const currentPlate = Math.min(Math.max(plateIndex, 1), Math.max(plateCount, 1));
+
   return (
-    <div className="flex flex-col gap-5">
-      <Link href="/stampa-maker" className="inline-flex w-fit items-center gap-1.5 text-xs font-semibold text-gray-500 hover:text-white">
-        <ArrowLeft size={14} />
-        Stampa Maker
-      </Link>
+    <div className="flex flex-col gap-4 lg:-mx-8 lg:-my-8 lg:h-[calc(100dvh-4rem)] lg:flex-row lg:gap-0 lg:overflow-hidden">
+      <aside className="flex min-h-0 flex-col gap-4 lg:w-[380px] lg:shrink-0 lg:overflow-y-auto lg:border-r lg:border-stampa-border lg:p-4">
+        <div className="flex flex-col gap-1">
+          <Link href="/stampa-maker" className="inline-flex w-fit items-center gap-1.5 text-xs font-semibold text-gray-500 hover:text-white">
+            <ArrowLeft size={14} />
+            Stampa Maker
+          </Link>
+          <h1 className="text-lg font-bold text-white">Creador de Carteles</h1>
+        </div>
 
-      <SectionTitle eyebrow="Stampa Maker" title="Creador de Carteles" />
+        <MakerLibraryPanel library={library} />
 
-      <div className="grid gap-5 lg:grid-cols-[360px_1fr] lg:items-start">
         <MakerTextControls
           params={params}
           onChange={handleChange}
@@ -150,7 +163,6 @@ export default function StampaMakerCartelesPage() {
           geometryErrors={geometry?.errors ?? []}
           warnings={geometry?.warnings ?? []}
           error={error}
-          loading={loading || designImport.loading || wordDownloading}
           source={{
             mode: sourceMode,
             onModeChange: setSourceMode,
@@ -171,17 +183,48 @@ export default function StampaMakerCartelesPage() {
             pngOptions,
             onPngOptionsChange: (patch) => setPngOptions((prev) => ({ ...prev, ...patch })),
           }}
-          canDownload={canDownload}
-          onDownloadWord={handleDownloadWord}
-          onDownloadLetters={handleDownloadLetters}
-          lettersZipLoading={lettersZipLoading}
-          viewMode={viewMode}
-          onChangeViewMode={setViewMode}
         />
-        <Card className="overflow-hidden p-0 h-[clamp(400px,60vh,500px)] lg:h-[clamp(650px,75vh,750px)]">
-          <MakerViewport geometry={fromFile && !designImport.design ? null : geometry} viewMode={viewMode} />
-        </Card>
-      </div>
+      </aside>
+
+      <section className="relative h-[70dvh] min-h-[420px] overflow-hidden rounded-2xl border border-stampa-border bg-stampa-surface lg:h-auto lg:min-h-0 lg:flex-1 lg:rounded-none lg:border-0">
+        <MakerViewport
+          geometry={shownGeometry}
+          displayMode={displayMode}
+          viewMode={viewMode}
+          explodePercent={explodePercent}
+          bed={bed ? { items: bed.items, layout: bed.layout, profile, plateIndex: currentPlate } : null}
+        />
+        <div className="pointer-events-none absolute inset-0 flex flex-col justify-between gap-3 p-3">
+          <div className="flex items-start justify-between gap-3">
+            <div>{displayMode === "bed" && bed && <BedWarnings layout={bed.layout} profile={profile} />}</div>
+            <ViewportExportCard
+              fromFile={fromFile}
+              multiPart={multiPart}
+              canDownload={canDownload}
+              loading={wordDownloading}
+              lettersLoading={lettersZipLoading}
+              onDownloadWord={handleDownloadWord}
+              onDownloadLetters={handleDownloadLetters}
+            />
+          </div>
+          <div className="flex items-end justify-between gap-3">
+            <div>{displayMode === "bed" && <BedLabel profile={profile} plateIndex={currentPlate} plateCount={plateCount} />}</div>
+            <ViewportViewCard
+              displayMode={displayMode}
+              onDisplayModeChange={setDisplayMode}
+              viewMode={viewMode}
+              onViewModeChange={setViewMode}
+              multiPart={multiPart}
+              explodePercent={explodePercent}
+              onExplodePercentChange={setExplodePercent}
+              profile={profile}
+              plateCount={plateCount}
+              plateIndex={currentPlate}
+              onPlateChange={setPlateIndex}
+            />
+          </div>
+        </div>
+      </section>
     </div>
   );
 }

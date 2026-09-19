@@ -1,0 +1,52 @@
+import { DEFAULT_MAKER_FONT_ID } from "@/lib/maker/fonts/registry";
+import type { LetterSignParams } from "@/lib/maker/types";
+
+/**
+ * Valores iniciales de Stampa Maker (Creador de Carteles). Única fuente: la
+ * página, los presets y los proyectos parten de acá.
+ */
+export const DEFAULT_LETTER_SIGN_PARAMS: LetterSignParams = {
+  text: "STAMPA",
+  fontId: DEFAULT_MAKER_FONT_ID,
+  heightMm: 100,
+  depthMm: 40,
+  wallMm: 1.6,
+  baseMm: 1.2,
+  bodyType: "standard",
+  rearExpansionMm: 2,
+  taperStyle: "stepped",
+  ribsCount: 0,
+  ribProtrusionMm: 0.8,
+  ribWidthMm: 1.2,
+  bevelEnabled: false,
+  bevelDepthMm: 2,
+  bevelInsetMm: 1,
+  grooveEnabled: false,
+  grooveInsetMm: 1,
+  grooveWidthMm: 4,
+  groovePositionMm: 20,
+  rearBevelEnabled: false,
+  rearBevelDepthMm: 2,
+  rearBevelInsetMm: 1,
+  frontType: "open",
+  lidMm: 1.2,
+  lidJoint: "glue",
+  insertDepthMm: 3,
+  clearanceMm: 0.2,
+  lipWallMm: 0.8,
+  lidBevelEnabled: false,
+  lidBevelDepthMm: 0.4,
+  lidBevelInsetMm: 0.3,
+  maskThicknessMm: 1,
+  maskWallThicknessMm: 1.2,
+  maskSideDepthMm: 5,
+  maskClearanceMm: 0.2,
+  diffuserThicknessMm: 0.6,
+  holeDiameterMm: 2,
+  pitchMm: 4,
+  edgeMarginMm: 2,
+  channelWidthMm: 6,
+  channelDepthMm: 4,
+  channelOffsetMm: 2,
+  diffuserClearanceMm: 0.2,
+};

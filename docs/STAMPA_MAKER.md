@@ -52,6 +52,7 @@
 > Douglas-Peucker propios), escala uniforme por alto en mm, unión booleana
 > Clipper, counters e islas. Dependencia nueva: `upng-js` (solo decodificar
 > PNG). 45 tests nuevos en tests/maker-import.test.mjs (287 tests Maker).
+> 0.5.1 (2026-09-19): sprint UX/productividad (secciones 18-21): workspace fijo con visor + controles superpuestos, vistas Modelo/Cama (A1 256x256x256, auto-arrange, multi-placa), slider de explosión, presets y proyectos persistentes por usuario. Motor geométrico sin cambios.
 
 ## 1. Qué es
 
@@ -1572,3 +1573,133 @@ descarga usan `MakerViewport`/`exportWord` sin cambios.
   en pruebas sintéticas; archivos patológicos pueden congelar brevemente la pestaña.
 - **Verificación manual en navegador no realizada** (sin credenciales Paid en
   este entorno): validado con typecheck, build, tests y la suite completa.
+
+
+## 18. Sprint UX/productividad — Presets
+
+> Sprint sin geometría nueva: el motor (`createLetterGeometry`, body/front/
+> patterns/parts/export, `SignPart`) no se tocó. 287 tests Maker previos
+> intactos + 25 nuevos en `tests/maker-workspace.test.mjs` (312).
+
+**PRESET = receta reusable; PROJECT = trabajo concreto.** Un preset guarda la
+receta de fabricación (todo `LetterSignParams` salvo `text`, `fontId`,
+`heightMm`); nunca texto, SVG/PNG, alto del diseño, fuente, cámara, Modelo/
+Cama, explosionada ni el slider.
+
+- `lib/maker/defaults.ts`: `DEFAULT_LETTER_SIGN_PARAMS` (antes local a la página).
+- `lib/maker/presets/presetSettings.ts`: `PRESET_SETTING_KEYS` (whitelist
+  EXPLÍCITA; el test "cobertura de claves" falla si un campo nuevo de
+  `LetterSignParams` no se clasifica como receta o diseño),
+  `extractPresetSettings`, `applyPresetSettings` (conserva el diseño actual),
+  `normalizePresetSettings` (lectura tolerante: faltantes/inválidos/
+  desconocidos -> default; sin migraciones de JSON en v1), `resolveInitialParams`
+  (preset predeterminado o defaults de Stampa), `isPresetModified` (solo mira
+  campos de receta). `PRESET_SCHEMA_VERSION = 1`.
+- UI (`MakerLibraryPanel`, arriba del panel izquierdo): selector, "Nombre •
+  Modificado", actualizar / guardar como nuevo / renombrar / duplicar /
+  predeterminado / eliminar. Al entrar, si hay predeterminado se aplica solo.
+- Persistencia: tabla `maker_presets` (id, user_id, name, settings jsonb,
+  schema_version, is_default, created_at, updated_at); índice por `user_id`;
+  índice único parcial `(user_id) where is_default` (máx. 1 default);
+  RPC `maker_set_default_preset(uuid|null)` (SECURITY INVOKER, transacción
+  única: desmarca y marca). `user_id` lo completa `default auth.uid()` — el
+  frontend nunca lo envía.
+- RLS: select/insert/update/delete solo con `user_id = auth.uid()` + policy
+  RESTRICTIVE que exige `has_platform_access` o admin (`authenticated != paid`).
+- No hay presets "de sistema" todavía (por eso no existe la restricción de
+  borrado); si se agregan presets Stampa, deben ser filas de solo lectura.
+
+## 19. Proyectos
+
+- Un proyecto guarda el ORIGEN, no la geometría: `maker_projects` (id, user_id,
+  name, source_type text|svg|png, source_data jsonb, settings jsonb, preset_id
+  nullable, schema_version, timestamps).
+  - text: `{text, fontId, heightMm}`.
+  - svg/png: `{storagePath, originalFilename, mimeType, heightMm, sizeBytes,
+    pngOptions?}`. El archivo vive en Storage; al abrir se descarga y se
+    re-procesa con el motor vigente (nunca se persisten `ContourGroup`s).
+  - `source_data` tiene un CHECK de tamaño (< 16 KB): no entra binario/base64.
+- Bucket PRIVADO `maker-projects` (10 MB, `image/svg+xml`/`image/png`), path
+  `{user_id}/{project_id}/source.svg|png`. Policies sobre `storage.objects`:
+  la primera carpeta debe ser `auth.uid()` (+ acceso de plataforma para
+  leer/escribir). El usuario A no lee el archivo del usuario B. Al eliminar un
+  proyecto el cliente borra también el objeto.
+- `maker_projects` RLS: dueño-solamente (+ restrictiva de plataforma); INSERT/
+  UPDATE además exigen que `preset_id` sea un preset propio.
+- `lib/maker/projects/projectData.ts`: `serializeProject`, `deserializeProject`
+  (tolerante), `projectSourcePath`, `projectSignature`, `isProjectDirty`.
+- Dirty state: firma del trabajo (origen + receta + preset referenciado + meta
+  del archivo) contra la firma de la última carga/guardado; además, reemplazar
+  el archivo (identidad del objeto) marca "Modificado". Abrir/Nuevo con cambios
+  pide confirmación (`confirmAction`). Un proyecto referencia el preset usado
+  pero puede divergir sin modificarlo.
+- Capa Supabase: `lib/maker/persistence/makerRepository.ts` (`toUserMessage`
+  traduce errores a mensajes comprensibles, sin SQL crudo);
+  `hooks/maker/useMakerLibrary.ts` (estados loading/éxito/error vía toasts).
+- No hay dashboard de proyectos (solo diálogo "Abrir"), ni autosave, ni
+  cámara persistida.
+
+## 20. Workspace, Vista Modelo y Vista Cama
+
+**Layout** (`app/stampa-maker/carteles/page.tsx`): en `lg` (>=1024px) la página
+es un workspace: contenedor `lg:h-[calc(100dvh-4rem)] lg:overflow-hidden` (4rem =
+`Header` desktop `h-16`), con `lg:-mx-8 lg:-my-8` para cancelar el padding de
+`<main>` (main-layout.tsx, sin tocarlo). Columna izquierda `lg:w-[380px]
+lg:overflow-y-auto` (scroll propio, `min-h-0`); derecha `lg:flex-1` sin scroll,
+el viewport ocupa toda la altura. En mobile es flujo vertical (controles ->
+viewport de 70dvh).
+
+**Overlays** (`MakerViewportOverlays.tsx`, mismo estilo `stampa-surface` +
+blur): TOP-RIGHT exportación ("Palabra completa" para texto, "Diseño completo"
+para SVG/PNG; `.stl`/`.zip` según piezas; letras individuales solo texto — la
+lógica de export no cambió); BOTTOM-RIGHT Modelo|Cama, Ensamblada|Explosionada
+(solo si hay >1 pieza física) + slider "Separación" 0-100 % (default 45), o en
+Cama perfil/medidas y selector de placa `N / M`.
+
+**Explosión**: `computeExplodeStepMm({height, depth}, pct)` = `pct * (0.8*depth
++ 0.2*height)`; la pieza de rank `r` se mueve `r*step` en su Object3D. Sigue
+usando `computeExplodeRanks` (orden semántico perforado: difusor < máscara).
+100 % de visual, no toca geometría/STL/bounding boxes.
+
+**Modelo**: sin grid, piso ni ejes; fondo neutro (gradiente CSS), orbit/zoom/
+pan, auto-fit, cámara 3/4 propia. **Cama**: `MakerViewport` construye una
+segunda escena con instancias visuales (mismo `TriangleSoupData`, matriz de
+escena por pieza) sobre el perfil; cada modo guarda su cámara (Cama:
+superior 3/4 estilo slicer). Grid en mm (10 mm, marcado cada 50), contorno
+físico y label (perfil, medidas, placa).
+
+**PrinterProfile** (`printBed/printerProfiles.ts`): `{id, name, widthMm,
+depthMm, heightMm}`; único perfil `bambulab-a1` 256×256×256. Agregar A1 Mini/
+P1S/X1C/K1 = sumar una entrada (aún no hay selector de perfil).
+
+**Orientación** (`printBed/bedLayout.ts`): cada pieza física de cada letra es un
+ítem (si no hay `letters`, las piezas combinadas). Se apoya sobre Z=0
+(`-minZ`); tapa y máscara se voltean 180° (cara visible contra la cama).
+
+**Auto-arrange V1** (`printBed/packing.ts`, puro): shelf packing determinístico
+sobre el bbox XY, rotación 0°/90° (prefiere apaisada), separación 5 mm, orden
+por fondo decreciente. Si no entra en la placa actual abre otra: **placas
+múltiples** con selector compacto (una cama a la vez). Pieza que no entra ni
+girada -> NO se coloca, warning "Esta pieza supera el área de impresión de la
+Bambu Lab A1." con medidas; altura > 256 mm -> warning aparte.
+
+## 21. Migración y pasos manuales
+
+- Nueva: `supabase/migrations/20260919120000_maker_presets_projects.sql`
+  (solo objetos nuevos, idempotente, sin cambios destructivos). Dependencias:
+  `profiles`, `is_admin`, `has_platform_access`, `set_updated_at`.
+- NO se ejecutó contra el Supabase remoto: hay que aplicarla
+  (`supabase db push` o SQL editor) antes de usar presets/proyectos. Sin ella,
+  la UI muestra un mensaje genérico de error al cargar/guardar.
+- Sin cambios de variables de entorno.
+
+### Limitaciones conocidas (este sprint)
+
+- "Autoacomodar" manual no se agregó: el layout es determinístico y siempre
+  vigente, un botón no cambiaría el resultado.
+- El layout de cama coloca letras/piezas sueltas; no agrupa por letra ni
+  conserva la posición relativa de la palabra.
+- La orientación de impresión (volteo de tapa/máscara) es una sugerencia fija.
+- Los presets aún no tienen "de sistema"; un solo perfil de impresora.
+- Verificación visual del workspace/cama en navegador NO realizada (requiere
+  sesión de usuario); Storage/RLS remotos no probados contra Supabase real.

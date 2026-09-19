@@ -1,15 +1,14 @@
 "use client";
 
 import React from "react";
-import { AlertTriangle, Download, FileArchive, Loader2, Upload, X } from "lucide-react";
+import { AlertTriangle, Loader2, Upload, X } from "lucide-react";
 import { Card } from "@/components/ui/card";
-import { Button, GhostButton } from "@/components/ui/button";
+import { GhostButton } from "@/components/ui/button";
 import { CalculatorSelect } from "@/components/ui/calculator-select";
 import { MAKER_FONTS } from "@/lib/maker/fonts/registry";
 import type { LetterSignParams } from "@/lib/maker/types";
 import type { LetterGeometryWarning } from "@/lib/maker/types";
 import type { FieldError } from "@/lib/maker/validation";
-import type { MakerViewMode } from "@/components/maker/MakerViewport";
 import type { PngImportOptions } from "@/lib/maker/import/types";
 
 /** Origen del diseño (0.5): texto, o archivo SVG/PNG importado a ContourGroups (lib/maker/import). */
@@ -41,13 +40,6 @@ interface MakerTextControlsProps {
   geometryErrors: LetterGeometryWarning[];
   warnings: LetterGeometryWarning[];
   error: string | null;
-  loading: boolean;
-  canDownload: boolean;
-  onDownloadWord: () => void;
-  onDownloadLetters: () => void;
-  lettersZipLoading: boolean;
-  viewMode: MakerViewMode;
-  onChangeViewMode: (mode: MakerViewMode) => void;
   source: MakerSourceControls;
 }
 
@@ -102,14 +94,16 @@ function FileDropZone({ onFile, disabled }: { onFile: (file: File) => void; disa
   );
 }
 
-function SegmentedControl<T extends string>({
+export function SegmentedControl<T extends string>({
   options,
   value,
   onChange,
+  compact = false,
 }: {
   options: { value: T; label: string }[];
   value: T;
   onChange: (value: T) => void;
+  compact?: boolean;
 }) {
   return (
     <div
@@ -126,7 +120,7 @@ function SegmentedControl<T extends string>({
             role="tab"
             aria-selected={active}
             onClick={() => onChange(option.value)}
-            className={`h-9 rounded-lg text-xs font-semibold transition-colors ${
+            className={`${compact ? "h-7" : "h-9"} rounded-lg text-xs font-semibold transition-colors ${
               active ? "bg-stampa-orange/15 text-stampa-orange" : "text-gray-400 hover:text-white"
             }`}
           >
@@ -235,11 +229,6 @@ const JOINT_OPTIONS: { value: LetterSignParams["lidJoint"]; label: string }[] = 
   { value: "interior-lip", label: "Labio interior" },
 ];
 
-const VIEW_MODE_OPTIONS: { value: MakerViewMode; label: string }[] = [
-  { value: "assembled", label: "Ensamblada" },
-  { value: "exploded", label: "Explosionada" },
-];
-
 export function MakerTextControls({
   params,
   onChange,
@@ -247,13 +236,6 @@ export function MakerTextControls({
   geometryErrors,
   warnings,
   error,
-  loading,
-  canDownload,
-  onDownloadWord,
-  onDownloadLetters,
-  lettersZipLoading,
-  viewMode,
-  onChangeViewMode,
   source,
 }: MakerTextControlsProps) {
   const fromFile = source.mode === "file";
@@ -746,12 +728,6 @@ export function MakerTextControls({
           </div>
         )}
 
-        {params.frontType !== "open" && (
-          <label className="block">
-            <span className="mb-1 block text-xs font-semibold text-gray-500">Vista</span>
-            <SegmentedControl options={VIEW_MODE_OPTIONS} value={viewMode} onChange={onChangeViewMode} />
-          </label>
-        )}
       </div>
 
       {error && (
@@ -783,18 +759,6 @@ export function MakerTextControls({
         </div>
       ))}
 
-      <div className="flex flex-col gap-2">
-        <Button onClick={onDownloadWord} disabled={!canDownload || loading} className="w-full">
-          {loading ? <Loader2 size={16} className="animate-spin" /> : <Download size={16} />}
-          {params.frontType !== "open" ? "Palabra completa (.zip)" : "Palabra completa (.stl)"}
-        </Button>
-        {!fromFile && (
-          <GhostButton onClick={onDownloadLetters} disabled={!canDownload || loading || lettersZipLoading} className="w-full">
-            {lettersZipLoading ? <Loader2 size={16} className="animate-spin" /> : <FileArchive size={16} />}
-            Letras individuales (.zip)
-          </GhostButton>
-        )}
-      </div>
     </Card>
   );
 }
