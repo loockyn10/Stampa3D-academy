@@ -1887,3 +1887,7 @@ del proyecto lo detecta). Los presets siguen sin guardar recortes.
 Limitaciones: sin snapping, selección múltiple, resize ni gizmo de rotación (la
 rotación es numérica); los handles muy chicos son difíciles de acertar sin zoom;
 las piezas frontales no se ocultan en la vista trasera.
+
+### 24.1 Separación como única fuente (0.6.2)
+
+Se eliminó el selector Ensamblada/Explosionada y el estado `viewMode`: el slider **Separación** (`explosionAmount`, 0-100 %) es la única fuente. 0 % = ensamblado; 1-100 % = progresivamente explosionado (`computeExplodeOffsetMm`, mismo orden semántico por `computeExplodeRanks`). Arranca en 0 (antes arrancaba en "Ensamblada"). Durante Editar recortes el valor efectivo es 0 (`effectiveExplosionAmount`) sin pisar la preferencia del usuario, que vuelve al salir; cambiar Modelo/Cama no lo modifica. Es solo visualización: no va a presets, proyectos, exportación ni geometría.

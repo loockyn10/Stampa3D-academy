@@ -62,8 +62,22 @@ export function computeExplodeRanks(kinds: PartKind[]): Map<PartKind, number> {
   return ranks;
 }
 
-/** Separación explosionada por defecto, en % (0-100). */
-export const DEFAULT_EXPLODE_PERCENT = 45;
+/**
+ * Separación inicial (0-100). Única fuente de verdad de la vista ensamblada/
+ * explosionada: 0 = ensamblado, 1-100 = progresivamente explosionado. Arranca en
+ * 0 (como antes arrancaba en "Ensamblada").
+ */
+export const DEFAULT_EXPLOSION_AMOUNT = 0;
+
+/** Separación visual efectiva: durante Editar recortes es 0 (el valor del usuario no se toca, solo deja de aplicarse). */
+export function effectiveExplosionAmount(userAmount: number, editingCutouts: boolean): number {
+  return editingCutouts ? 0 : userAmount;
+}
+
+/** Desplazamiento Z visual (mm) de una pieza de rank `rank` (0 = cuerpo, nunca se mueve). */
+export function computeExplodeOffsetMm(size: { height: number; depth: number }, percent: number, rank: number): number {
+  return rank <= 0 ? 0 : computeExplodeStepMm(size, percent) * rank;
+}
 
 /**
  * Desplazamiento VISUAL (mm) entre capas consecutivas de la vista

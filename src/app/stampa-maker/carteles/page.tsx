@@ -8,7 +8,7 @@ import { MakerTextControls } from "@/components/maker/MakerTextControls";
 import { MakerBackCutoutsSection } from "@/components/maker/MakerBackCutoutsSection";
 import { Card } from "@/components/ui/card";
 import { MakerLibraryPanel } from "@/components/maker/MakerLibraryPanel";
-import { MakerViewport, type MakerDisplayMode, type MakerViewMode } from "@/components/maker/MakerViewport";
+import { MakerViewport, type MakerDisplayMode } from "@/components/maker/MakerViewport";
 import { BedLabel, BedWarnings, CutoutEditingBanner, ViewportExportCard, ViewportViewCard } from "@/components/maker/MakerViewportOverlays";
 import { useLetterGeometry } from "@/hooks/maker/useLetterGeometry";
 import { useDesignImport } from "@/hooks/maker/useDesignImport";
@@ -18,7 +18,7 @@ import { DEFAULT_PNG_OPTIONS, IMPORT_LIMITS, type PngImportOptions } from "@/lib
 import { exportWord } from "@/lib/maker/exporters/exportWord";
 import { downloadLettersZip } from "@/lib/maker/exporters/exportLettersZip";
 import { DEFAULT_LETTER_SIGN_PARAMS } from "@/lib/maker/defaults";
-import { DEFAULT_EXPLODE_PERCENT } from "@/lib/maker/geometry/explodeOrder";
+import { DEFAULT_EXPLOSION_AMOUNT, effectiveExplosionAmount } from "@/lib/maker/geometry/explodeOrder";
 import { checkBackCutoutPlacement, findInvalidBackCutouts, updateBackCutoutPosition } from "@/lib/maker/backCutoutEditor";
 import { collectBedItems, computeBedLayout } from "@/lib/maker/printBed/bedLayout";
 import { DEFAULT_PRINTER_PROFILE_ID, getPrinterProfile } from "@/lib/maker/printBed/printerProfiles";
@@ -42,8 +42,8 @@ export default function StampaMakerCartelesPage() {
 
   // Estado puramente visual (no viaja en presets ni proyectos).
   const [displayMode, setDisplayMode] = useState<MakerDisplayMode>("model");
-  const [viewMode, setViewMode] = useState<MakerViewMode>("assembled");
-  const [explodePercent, setExplodePercent] = useState(DEFAULT_EXPLODE_PERCENT);
+  // Única fuente de la vista ensamblada/explosionada (0 = ensamblado). Solo visualización: no va a presets, proyectos ni exportación.
+  const [explosionAmount, setExplosionAmount] = useState(DEFAULT_EXPLOSION_AMOUNT);
   const [plateIndex, setPlateIndex] = useState(1);
 
   // Modo Editar recortes: solo sobre Model View. La selección es única y compartida entre lista y viewport.
@@ -249,8 +249,7 @@ export default function StampaMakerCartelesPage() {
         <MakerViewport
           geometry={shownGeometry}
           displayMode={editing ? "model" : displayMode}
-          viewMode={editing ? "assembled" : viewMode}
-          explodePercent={explodePercent}
+          explosionAmount={effectiveExplosionAmount(explosionAmount, editing)}
           cutoutEditing={cutoutEditing}
           bed={bed ? { items: bed.items, layout: bed.layout, profile, plateIndex: currentPlate } : null}
         />
@@ -276,11 +275,9 @@ export default function StampaMakerCartelesPage() {
             <ViewportViewCard
               displayMode={displayMode}
               onDisplayModeChange={setDisplayMode}
-              viewMode={viewMode}
-              onViewModeChange={setViewMode}
               multiPart={multiPart}
-              explodePercent={explodePercent}
-              onExplodePercentChange={setExplodePercent}
+              explosionAmount={explosionAmount}
+              onExplosionAmountChange={setExplosionAmount}
               profile={profile}
               plateCount={plateCount}
               plateIndex={currentPlate}

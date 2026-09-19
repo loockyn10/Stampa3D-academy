@@ -3,7 +3,7 @@
 import React from "react";
 import { AlertTriangle, ChevronLeft, ChevronRight, Download, FileArchive, Loader2 } from "lucide-react";
 import { SegmentedControl } from "@/components/maker/MakerTextControls";
-import type { MakerDisplayMode, MakerViewMode } from "@/components/maker/MakerViewport";
+import type { MakerDisplayMode } from "@/components/maker/MakerViewport";
 import type { BedLayout } from "@/lib/maker/printBed/bedLayout";
 import type { PrinterProfile } from "@/lib/maker/printBed/printerProfiles";
 
@@ -58,17 +58,16 @@ export function ViewportExportCard({ fromFile, multiPart, canDownload, loading, 
 interface ViewCardProps {
   displayMode: MakerDisplayMode;
   onDisplayModeChange: (mode: MakerDisplayMode) => void;
-  viewMode: MakerViewMode;
-  onViewModeChange: (mode: MakerViewMode) => void;
   /** Con una sola pieza física (frente abierto) explosionar no cambia nada: se oculta el selector. */
   multiPart: boolean;
-  explodePercent: number;
-  onExplodePercentChange: (percent: number) => void;
+  /** Separación 0-100: única fuente (0 = ensamblado). */
+  explosionAmount: number;
+  onExplosionAmountChange: (amount: number) => void;
   profile: PrinterProfile;
   plateCount: number;
   plateIndex: number;
   onPlateChange: (index: number) => void;
-  /** Modo Editar recortes activo: el modo/vista quedan fijos (Modelo + Ensamblada) hasta terminar. */
+  /** Modo Editar recortes activo: el modo/vista quedan fijos (Modelo, separación efectiva 0) hasta terminar. */
   cutoutEditingActive?: boolean;
   onFinishCutoutEditing?: () => void;
 }
@@ -77,19 +76,15 @@ const DISPLAY_OPTIONS: { value: MakerDisplayMode; label: string }[] = [
   { value: "model", label: "Modelo" },
   { value: "bed", label: "Cama" },
 ];
-const VIEW_OPTIONS: { value: MakerViewMode; label: string }[] = [
-  { value: "assembled", label: "Ensamblada" },
-  { value: "exploded", label: "Explosionada" },
-];
 
 /** Tarjeta flotante BOTTOM-RIGHT: modo de visualización y controles de vista. */
 export function ViewportViewCard(props: ViewCardProps) {
-  const { displayMode, viewMode, profile, plateCount, plateIndex } = props;
+  const { displayMode, profile, plateCount, plateIndex } = props;
   if (props.cutoutEditingActive) {
     return (
       <div className={`${CARD} flex w-64 flex-col gap-2`}>
         <span className="text-[11px] font-semibold uppercase tracking-wide text-gray-500">Visualización</span>
-        <p className="text-xs text-gray-400">Editando recortes: Modelo · Ensamblada · vista trasera.</p>
+        <p className="text-xs text-gray-400">Editando recortes: Modelo · sin separación · vista trasera.</p>
         <button
           type="button"
           onClick={props.onFinishCutoutEditing}
@@ -108,26 +103,21 @@ export function ViewportViewCard(props: ViewCardProps) {
       </div>
 
       {displayMode === "model" && props.multiPart && (
-        <div>
-          <SegmentedControl compact options={VIEW_OPTIONS} value={viewMode} onChange={props.onViewModeChange} />
-          {viewMode === "exploded" && (
-            <label className="mt-2.5 block">
-              <span className="mb-1 flex justify-between text-xs font-semibold text-gray-500">
-                <span>Separación</span>
-                <span className="text-gray-300">{props.explodePercent}%</span>
-              </span>
-              <input
-                type="range"
-                min={0}
-                max={100}
-                step={1}
-                value={props.explodePercent}
-                onChange={(e) => props.onExplodePercentChange(Number(e.target.value))}
-                className="w-full accent-stampa-orange"
-              />
-            </label>
-          )}
-        </div>
+        <label className="block">
+          <span className="mb-1 flex justify-between text-xs font-semibold text-gray-500">
+            <span>Separación</span>
+            <span className="text-gray-300">{props.explosionAmount}%</span>
+          </span>
+          <input
+            type="range"
+            min={0}
+            max={100}
+            step={1}
+            value={props.explosionAmount}
+            onChange={(e) => props.onExplosionAmountChange(Number(e.target.value))}
+            className="w-full accent-stampa-orange"
+          />
+        </label>
       )}
 
       {displayMode === "bed" && (

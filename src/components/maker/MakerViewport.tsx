@@ -5,12 +5,11 @@ import * as THREE from "three";
 import { OrbitControls } from "three/examples/jsm/controls/OrbitControls.js";
 import type { LetterGeometryResult, PartKind } from "@/lib/maker/types";
 import { letterGeometryToBufferGeometry } from "@/lib/maker/geometry/toBufferGeometry";
-import { DEFAULT_EXPLODE_PERCENT, computeExplodeRanks, computeExplodeStepMm } from "@/lib/maker/geometry/explodeOrder";
+import { DEFAULT_EXPLOSION_AMOUNT, computeExplodeOffsetMm, computeExplodeRanks } from "@/lib/maker/geometry/explodeOrder";
 import { placementMatrix, type BedItem, type BedLayout } from "@/lib/maker/printBed/bedLayout";
 import type { PrinterProfile } from "@/lib/maker/printBed/printerProfiles";
 import { createCutoutEditor, type CutoutEditor, type CutoutEditorState } from "@/components/maker/cutoutEditorScene";
 
-export type MakerViewMode = "assembled" | "exploded";
 export type MakerDisplayMode = "model" | "bed";
 
 export interface MakerBedView {
@@ -25,10 +24,8 @@ interface MakerViewportProps {
   geometry: LetterGeometryResult | null;
   /** "model": objeto flotando sobre fondo neutro, sin grid. "bed": cama de impresión con las piezas orientadas y acomodadas. */
   displayMode?: MakerDisplayMode;
-  /** Solo visual: desplaza las piezas no-"body" hacia adelante en la escena, sin tocar la geometría exportada. Default "assembled". */
-  viewMode?: MakerViewMode;
-  /** Separación explosionada 0-100 (solo visual). */
-  explodePercent?: number;
+  /** Separación 0-100 (solo visual; única fuente: 0 = ensamblado). Desplaza las piezas no-"body" hacia adelante en la escena, sin tocar la geometría exportada. */
+  explosionAmount?: number;
   bed?: MakerBedView | null;
   /** Modo Editar recortes (solo Model View): cámara trasera ortográfica + handles arrastrables. null/undefined = modo apagado. */
   cutoutEditing?: CutoutEditorState | null;
@@ -107,7 +104,7 @@ function buildBedPlate(profile: PrinterProfile): THREE.Object3D {
  *    printBed/bedLayout.ts) apoyadas en Z=0 sobre el perfil de impresora.
  * Cada modo conserva su propia cámara.
  */
-export function MakerViewport({ geometry, displayMode = "model", viewMode = "assembled", explodePercent = DEFAULT_EXPLODE_PERCENT, bed = null, cutoutEditing = null }: MakerViewportProps) {
+export function MakerViewport({ geometry, displayMode = "model", explosionAmount = DEFAULT_EXPLOSION_AMOUNT, bed = null, cutoutEditing = null }: MakerViewportProps) {
   const containerRef = useRef<HTMLDivElement>(null);
   const sceneRef = useRef<THREE.Scene | null>(null);
   const cameraRef = useRef<THREE.PerspectiveCamera | null>(null);
@@ -274,13 +271,12 @@ export function MakerViewport({ geometry, displayMode = "model", viewMode = "ass
   // Vista explosionada: solo mueve el Object3D de cada pieza no-"body". La
   // distancia es visual y escala con el tamaño del modelo y el slider.
   useEffect(() => {
-    const step = geometry ? computeExplodeStepMm(geometry.boundingBox, explodePercent) : 0;
     for (const [kind, mesh] of partMeshesRef.current) {
       if (kind === "body") continue;
       const rank = explodeRankRef.current.get(kind) ?? 0;
-      mesh.position.set(0, 0, viewMode === "exploded" ? step * rank : 0);
+      mesh.position.set(0, 0, geometry ? computeExplodeOffsetMm(geometry.boundingBox, explosionAmount, rank) : 0);
     }
-  }, [viewMode, explodePercent, geometry]);
+  }, [explosionAmount, geometry]);
 
   // Escena Cama: plato + instancias visuales de las piezas de la placa actual.
   useEffect(() => {

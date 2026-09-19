@@ -64,7 +64,7 @@ function loadMakerModule(relFromSrc) {
 const { packItems } = loadMakerModule("lib/maker/printBed/packing.ts");
 const { computeBedLayout, placementMatrix, makeBedItem } = loadMakerModule("lib/maker/printBed/bedLayout.ts");
 const { PRINTER_PROFILES, getPrinterProfile } = loadMakerModule("lib/maker/printBed/printerProfiles.ts");
-const { computeExplodeStepMm, computeExplodeRanks, DEFAULT_EXPLODE_PERCENT } = loadMakerModule("lib/maker/geometry/explodeOrder.ts");
+const { computeExplodeStepMm, computeExplodeRanks, computeExplodeOffsetMm, effectiveExplosionAmount, DEFAULT_EXPLOSION_AMOUNT } = loadMakerModule("lib/maker/geometry/explodeOrder.ts");
 const { DEFAULT_LETTER_SIGN_PARAMS } = loadMakerModule("lib/maker/defaults.ts");
 const presets = loadMakerModule("lib/maker/presets/presetSettings.ts");
 const projects = loadMakerModule("lib/maker/projects/projectData.ts");
@@ -193,7 +193,7 @@ test("explosión: paso 0 en 0%, monótono, escala con el tamaño y conserva el o
   const large = { height: 500, depth: 40 };
   assert.equal(computeExplodeStepMm(small, 0), 0);
   assert.ok(computeExplodeStepMm(small, 60) > computeExplodeStepMm(small, 30));
-  assert.ok(computeExplodeStepMm(large, DEFAULT_EXPLODE_PERCENT) > computeExplodeStepMm(small, DEFAULT_EXPLODE_PERCENT));
+  assert.ok(computeExplodeStepMm(large, 45) > computeExplodeStepMm(small, 45));
   assert.equal(computeExplodeStepMm(small, 500), computeExplodeStepMm(small, 100));
   const ranks = computeExplodeRanks(["mask", "diffuser", "body"]);
   assert.ok(ranks.get("diffuser") < ranks.get("mask"));
@@ -344,4 +344,42 @@ test("persistencia: errores de base se traducen a mensajes comprensibles (sin SQ
   assert.equal(toUserMessage(raw).includes("constraint"), false);
   assert.equal(toUserMessage({ code: "42501", message: "new row violates row-level security policy" }).includes("row-level"), false);
   assert.equal(toUserMessage({ message: "select * from maker_presets failed" }).includes("select"), false);
+});
+
+// ---------------------------------------------------- separación como única fuente
+
+test("explosionAmount: 0% = ninguna pieza desplazada; 45% intermedio; 100% máximo; el cuerpo nunca se mueve", () => {
+  const size = { height: 100, depth: 40 };
+  for (const rank of [1, 2]) assert.equal(computeExplodeOffsetMm(size, 0, rank), 0);
+  const mid = computeExplodeOffsetMm(size, 45, 1);
+  const max = computeExplodeOffsetMm(size, 100, 1);
+  assert.ok(mid > 0 && mid < max);
+  assert.ok(computeExplodeOffsetMm(size, 100, 2) > computeExplodeOffsetMm(size, 100, 1), "el orden semántico se conserva (rank 2 más lejos)");
+  assert.equal(computeExplodeOffsetMm(size, 100, 0), 0);
+  assert.equal(DEFAULT_EXPLOSION_AMOUNT, 0, "arranca ensamblado, como antes");
+});
+
+test("Editar recortes: efectivo 0 sin perder la preferencia; Modelo -> Cama -> Modelo conserva el valor", () => {
+  let user = 45;
+  assert.equal(effectiveExplosionAmount(user, false), 45);
+  assert.equal(effectiveExplosionAmount(user, true), 0);
+  assert.equal(user, 45, "el valor del usuario no se pisa");
+  assert.equal(effectiveExplosionAmount(user, false), 45, "al salir vuelve al valor previo");
+  // La Vista Cama no usa ni modifica la separación: la función no depende del modo de visualización.
+  assert.equal(effectiveExplosionAmount.length, 2);
+  user = 70;
+  assert.equal(effectiveExplosionAmount(user, false), 70);
+});
+
+test("no existe el selector Ensamblada/Explosionada ni estado viewMode; la exportación no depende de la separación", () => {
+  for (const f of ["src/app/stampa-maker/carteles/page.tsx", "src/components/maker/MakerViewport.tsx", "src/components/maker/MakerViewportOverlays.tsx"]) {
+    const text = fs.readFileSync(path.join(root, f), "utf8");
+    assert.equal(/viewMode|MakerViewMode|Ensamblada|Explosionada/.test(text.replace(/sin separación/g, "")), false, f);
+  }
+  const { partFileEntries } = loadMakerModule("lib/maker/exporters/parts.ts");
+  assert.equal(partFileEntries.length, 2, "solo (parts, baseName): sin parámetro de separación");
+  const exportSrc = ["exporters/parts.ts", "exporters/exportWord.ts", "exporters/exportLettersZip.ts"].map((f) => fs.readFileSync(path.join(srcRoot, "lib/maker", f), "utf8")).join("");
+  assert.equal(/explosion|explode/i.test(exportSrc), false);
+  const settings = presets.extractPresetSettings({ ...customParams, explosionAmount: 60 });
+  assert.equal("explosionAmount" in settings, false);
 });
