@@ -77,6 +77,8 @@ type Seg = { t: "L"; p: Point2D } | { t: "C"; c1: Point2D; c2: Point2D; p: Point
 export interface SubPath {
   start: Point2D;
   segs: Seg[];
+  /** true si el subpath se cerró con Z (lo usa Neon LED para distinguir recorridos cerrados de abiertos; el resto del importador lo ignora). */
+  closed?: boolean;
 }
 
 class Scanner {
@@ -183,6 +185,7 @@ export function parsePathData(d: string): SubPath[] {
       sc.pos++;
       if (c === "Z" || c === "z") {
         if (cur) {
+          (cur as SubPath).closed = true;
           cx = sx;
           cy = sy;
           cur = null;
@@ -316,6 +319,7 @@ export function transformSubPaths(subs: SubPath[], m: Matrix): SubPath[] {
   const tp = (p: Point2D) => applyToPoint(m, p);
   return subs.map((s) => ({
     start: tp(s.start),
+    closed: s.closed,
     segs: s.segs.map((g) => (g.t === "L" ? { t: "L", p: tp(g.p) } : { t: "C", c1: tp(g.c1), c2: tp(g.c2), p: tp(g.p) }) as Seg),
   }));
 }

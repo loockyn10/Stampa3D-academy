@@ -55,6 +55,7 @@
 > 0.5.1 (2026-09-19): sprint UX/productividad (secciones 18-21): workspace fijo con visor + controles superpuestos, vistas Modelo/Cama (A1 256x256x256, auto-arrange, multi-placa), slider de explosión, presets y proyectos persistentes por usuario. Motor geométrico sin cambios.
 > 0.6 (2026-09-19): safe zone del overlay respecto de Stampy, orientación de impresión como fuente única para Vista Cama y STL (sección 22) y recortes traseros paramétricos circle/capsule/keyhole (sección 23).
 > 0.6.1 (2026-09-19): editor visual de recortes (seleccionar + arrastrar sobre la vista trasera ortográfica) y keyhole nuevo a 180° (sección 24).
+> Neon 0.1 (2026-09-19): segunda herramienta, **Neon LED** (`/stampa-maker/neon`, sección 25): canal en U imprimible para Neon Flex a partir de texto (fuente de trazos) o SVG de líneas. Motor geométrico propio, separado del de Carteles.
 
 ## 1. Qué es
 
@@ -75,6 +76,7 @@ que el resto de "Plataforma" (requiere `accessPlatform`, sin excepción Free
 ```
 src/app/stampa-maker/page.tsx              landing de la sección (lista de herramientas)
 src/app/stampa-maker/carteles/page.tsx     Creador de Carteles (tool page)
+src/app/stampa-maker/neon/page.tsx         Neon LED (tool page, sección 25)
 
 src/lib/maker/
   types.ts                  tipos compartidos del pipeline (mm en todo)
@@ -1891,3 +1893,152 @@ las piezas frontales no se ocultan en la vista trasera.
 ### 24.1 Separación como única fuente (0.6.2)
 
 Se eliminó el selector Ensamblada/Explosionada y el estado `viewMode`: el slider **Separación** (`explosionAmount`, 0-100 %) es la única fuente. 0 % = ensamblado; 1-100 % = progresivamente explosionado (`computeExplodeOffsetMm`, mismo orden semántico por `computeExplodeRanks`). Arranca en 0 (antes arrancaba en "Ensamblada"). Durante Editar recortes el valor efectivo es 0 (`effectiveExplosionAmount`) sin pisar la preferencia del usuario, que vuelve al salir; cambiar Modelo/Cama no lo modifica. Es solo visualización: no va a presets, proyectos, exportación ni geometría.
+
+## 25. Neon LED (0.1) — `/stampa-maker/neon`
+
+Segunda herramienta de Stampa Maker. Genera un **canal en U abierto por arriba**
+alrededor de un recorrido central (centerline); el Neon Flex se introduce desde
+arriba. NO es una letra maciza, ni un tubo cerrado, ni el contorno de una fuente
+normal: el motor parte de RECORRIDOS.
+
+### 25.1 Arquitectura y reutilización
+
+```
+src/lib/maker/neon/                      módulo nuevo, sin depender de createLetterGeometry.ts
+  types.ts                NeonPath, NeonParams, NeonSource, NeonIssue, NeonInputError
+  defaults.ts             defaults, channelInnerWidth/OuterWidth, margen +5 %
+  createNeonGeometry.ts   orquestador: buildNeonPaths (INPUT) y createNeonGeometry (GEOMETRÍA + métricas)
+  fonts/glyphs.ts         glifos de trazos (paths SVG, cap height = 100)
+  fonts/neonFonts.ts      catálogo de fuentes Neon
+  paths/textToNeonPaths.ts, svgToNeonPaths.ts, flattenNeonPath.ts
+  geometry/bufferPath.ts  buffer (stroke) de recorridos con Clipper
+  geometry/createChannelGeometry.ts   huellas 2D -> malla del canal U
+  metrics/pathLength.ts, curvature.ts
+  validation/validateNeonParams.ts
+src/hooks/maker/useNeonGeometry.ts       debounce; NeonPaths solo se recalculan si cambia fuente/alto
+src/components/maker/MakerNeonControls.tsx   panel izquierdo + tarjeta de exportación
+src/app/stampa-maker/neon/page.tsx
+tests/maker-neon.test.mjs                34 tests
+```
+
+**Se reutiliza tal cual**: `MakerViewport` (modelo flotante, sin grid, orbit/zoom/auto-fit),
+Vista Cama (`bedLayout`, `packing`, `PrinterProfile` A1 256×256×256, `BedWarnings` para
+oversize), `extrudeContourGroups`/`contourHierarchy`/`offsets.ts` (Clipper),
+`exportWord` + `partFileEntries` + `buildSTLBlob`, `SegmentedControl`/`NumberField`/
+`CalculatorSelect`, `import/xml.ts` + `scanTree` (seguridad SVG). El resultado Neon se
+adapta a `LetterGeometryResult` con **una sola pieza `body`** (identidad de orientación:
+piso contra la cama, U hacia arriba), así viewport, cama y export no cambiaron.
+
+**Cambios mínimos a código compartido**: `SubPath.closed?` (se marca al ver `Z`;
+Carteles lo ignora) en `import/svgGeometry.ts`, y `export` de helpers ya existentes de
+`import/svgImport.ts` (`scanTree`, `collectStyles`, `collectIds`, `selectorMatches`,
+`parseDeclarations`, `parseStyleSheet`, `CssRule`). Sin cambios de comportamiento.
+
+### 25.2 Modelo `NeonPath`
+
+`{ points: Point2D[] (mm, Y arriba, ya aplanado); closed: boolean }`. En un path cerrado
+el último punto no repite al primero. Frontera: INPUT → `NeonPath[]` → motor.
+
+### 25.3 Texto (pipeline) y fuente
+
+`texto → mayúsculas + NFD → por carácter: glifo (paths SVG) desplazado por el cursor
+→ acentos/Ñ como trazo extra → inclinación de la fuente → aplanado de curvas (0.05 mm)
+→ escala (alto de mayúscula = "Alto del diseño") → NeonPath[]`.
+
+- **Fuentes**: "Stampa Línea (recta)" y "Stampa Línea (inclinada 12°)". Es una fuente de
+  trazos **propia, dibujada para este proyecto** (A–Z, 0–9, `. , - _ ! ? : + = / '`, tildes
+  agudas/graves/diéresis y Ñ). **Licencia: sin datos de terceros, no hay atribución que
+  cumplir.** Se evaluó Hershey (licencia permisiva pero con atribución obligatoria) y no se
+  incorporó: no se vendoreó ningún dataset externo en esta versión. Agregar Hershey u otra es
+  registrar otro `NeonFontDefinition` con sus glifos; el pipeline no cambia.
+- Una letra puede ser varios NeonPaths (la A = 2 lados + travesaño = 2 paths); "STAMPA" = 9.
+- Solo mayúsculas y un renglón; caracteres sin trazo se omiten con warning `UNSUPPORTED_CHARS`.
+- Escala del texto: el alto es el de la **mayúscula** (no la caja del recorrido).
+
+### 25.4 SVG (pipeline)
+
+El SVG representa **recorridos**. Cuentan como centerline `<path>`, `<line>`, `<polyline>`,
+`<polygon>`, `<circle>`, `<ellipse>` (y `<rect>`) que tengan **trazo** (`stroke`, por atributo,
+CSS o herencia) **o no tengan relleno** (`fill="none"`); `<line>` siempre. `Z`/círculo/elipse/
+polygon/rect ⇒ cerrado. Se aplican transforms anidados (translate/scale/rotate/skew/matrix),
+`<use>`, `<defs>` y la traslación del `viewBox`; la escala uniforme se absorbe al normalizar
+por el alto del recorrido. Las formas solo rellenas se ignoran (warning `IGNORED_FILLED_SHAPES`);
+si no queda ningún recorrido: error **«Este SVG contiene formas rellenas. Para Neon LED
+necesitás un SVG de línea/trazo…»** (sin geometría). Una línea puramente horizontal no tiene
+alto para escalar: error `SVG_ZERO_HEIGHT`. Seguridad idéntica a Carteles: parser XML propio sin
+DOM, sin scripts, `foreignObject`, `javascript:`/`data:`, recursos externos, entidades,
+animaciones; los handlers `on*` nunca se leen. Texto editable, imágenes, clip-path/mask/filter
+se rechazan.
+
+### 25.5 Escala y convención de ancho
+
+- **Alto del diseño** (default 200 mm) = alto del **recorrido central** (aspect ratio fijo;
+  1 unidad = 1 mm). El canal impreso es más grande (suma el ancho exterior): la UI muestra
+  "Ancho resultante" (recorrido) y "Ancho/Alto total diseño" (pieza impresa).
+- **Holgura = TOTAL, no por lado.** `innerWidth = neonWidth + clearance` (6 + 0.3 = 6.3 mm);
+  `outerWidth = innerWidth + 2 × wallThickness` (8.7 mm). La UI muestra el ancho interior.
+- Defaults: pared 8 mm, espesor pared 1.2, fondo 1.6, radio mínimo 10 mm. Altura total 9.6 mm.
+
+### 25.6 Footprints y construcción de la U
+
+```
+inner  = buffer(paths, innerW/2)              (corredor / cavidad)
+outer  = buffer(paths, innerW/2 + pared)      (huella del piso)
+pared  = outer − inner                        (Clipper, nonzero)
+```
+`buffer` = un único `ClipperOffset` con todos los paths: **join redondo**, **tapas redondas**
+en paths abiertos (`etOpenRound`), `etClosedLine` en cerrados (anillo, **sin tapas**). Como la
+unión la resuelve Clipper, canales que se cruzan/solapan y paths autointersecados quedan
+fundidos en una región (sin paredes internas duplicadas); la cavidad del cruce queda abierta.
+
+3D sin CSG: todo se arma con las **mismas coordenadas de los anillos de `pared`** (cada
+anillo se clasifica como borde exterior o borde de cavidad probando de qué lado no hay
+material): base `z=0` + paredes exteriores `0→top`; piso de la cavidad `z=floor`; paredes
+interiores `floor→top` (normales invertidas); corona `z=top`. **No se dibuja piso bajo las
+paredes** (no hay caras internas). Comparte grilla 0.0001 mm y jitter determinístico con
+`extrudePolygon.ts`. Tests: sin aristas abiertas/no-manifold, sin triángulos degenerados,
+volumen consistente con la teoría (±1 %), piso 1.6 / altura 9.6 / paredes 1.2 / interior 6.3,
+cavidad abierta arriba en todo el recorrido.
+
+### 25.7 Métricas y validaciones
+
+- **Longitud** = suma de los centerlines ANTES del offset (cerrados incluyen el cierre);
+  **recomendado = +5 %** fijo (`NEON_LENGTH_MARGIN`, sin configuración).
+- **Radio mínimo** (warning `MIN_BEND_RADIUS`, no bloquea): estimación por muestreo, radio de la
+  circunferencia por 3 puntos (vértice y ±0.4×radio configurado de arco). Avisa solo si el
+  mínimo medido < 85 % del configurado, con "Radio detectado ≈ X mm; mínimo configurado Y mm".
+  Es una estimación, no una medición exacta. Las esquinas vivas (A, M, Z, L…) siempre avisan:
+  el motor NO redondea esquinas del recorrido.
+- **Paredes finas** (warning `THIN_WALL`): apertura morfológica de la huella de pared con un
+  umbral de 0.5× el espesor configurado (dos recorridos separados por menos de `innerW + 0.6`
+  mm dejan una pared compartida más fina). Corredores que se solapan se funden (válido).
+- **Errores** (bloquean exportación): `NO_PATHS`, `CAVITY_COLLAPSED`, `GEOMETRY_FAILED`, y los de
+  entrada (SVG relleno/inseguro, texto vacío).
+
+### 25.8 Viewport, cama y exportación
+
+Viewport y Vista Cama son los de Carteles (sin separación: una pieza). Origen de la pieza:
+esquina mínima incluyendo el canal en (0,0), `minZ=0`. Oversize (> 256×256, p.ej. el default
+de 200 mm con "STAMPA") usa la advertencia existente; **no hay división automática**.
+Exportación: **un solo `<nombre>.stl`** con todos los strokes en su posición relativa
+(`exportWord`). No se implementó el helper visual del Neon dentro del canal.
+
+### 25.9 Projects y presets (NO incluidos en 0.1)
+
+`maker_projects.source_type` tiene un CHECK (`text|svg|png`) y `maker_presets` no tiene
+discriminador de herramienta: soportar Neon requiere una migration (`tool_type` con default
+`'sign'` + ampliar el CHECK; RLS sin cambios) y tocar `makerRepository`/`projectData`/
+`presetSettings`. Se dejó fuera para no mezclar el schema de Carteles ni aplicar SQL sin
+autorización; el estado de la página ya es serializable (`NeonParams` + fuente). Proyectos
+y presets de Carteles intactos.
+
+### 25.10 Limitaciones conocidas
+
+- Sin PNG, skeletonization/medial axis ni conversión de fuentes normales o logos rellenos.
+- Fuente propia solo mayúsculas/un renglón/pocos símbolos; sin kerning por par.
+- Sin redondeo automático de esquinas del recorrido; sin puentes, clips, cable holes, división
+  por cama, G-code ni electricidad (fuera de alcance).
+- El radio mínimo es una estimación por muestreo (warning, no bloqueo).
+- La ruta exige sesión con acceso de plataforma (igual que Carteles): la verificación visual
+  de la página completa en navegador NO se hizo (sin credenciales). Se verificó el render 3D
+  real de la malla (three.js) en un harness aparte y la UI compila (`next build`).

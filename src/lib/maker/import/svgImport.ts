@@ -43,12 +43,12 @@ const MAX_PRE_UNION_VERTICES = 600000;
 
 type Props = Record<string, string>;
 
-interface CssRule {
+export interface CssRule {
   selector: string;
   props: Props;
 }
 
-function parseDeclarations(css: string): Props {
+export function parseDeclarations(css: string): Props {
   const props: Props = {};
   for (const decl of css.split(";")) {
     const i = decl.indexOf(":");
@@ -60,7 +60,7 @@ function parseDeclarations(css: string): Props {
   return props;
 }
 
-function parseStyleSheet(css: string): CssRule[] {
+export function parseStyleSheet(css: string): CssRule[] {
   if (/@import/i.test(css)) throw new DesignImportError("SVG_UNSAFE", "El SVG importa hojas de estilo externas, que no se admiten por seguridad.");
   const clean = css.replace(/\/\*[\s\S]*?\*\//g, "");
   const rules: CssRule[] = [];
@@ -74,7 +74,7 @@ function parseStyleSheet(css: string): CssRule[] {
 }
 
 /** Soporta selectores simples: `tag`, `.clase`, `#id`, `tag.clase`, `*`. Cualquier otro selector (combinadores, atributos, pseudo-clases) se ignora. */
-function selectorMatches(selector: string, node: XmlNode): boolean {
+export function selectorMatches(selector: string, node: XmlNode): boolean {
   const m = /^([a-zA-Z][\w-]*|\*)?(?:\.([\w-]+))?(?:#([\w-]+))?$/.exec(selector);
   if (!m) return false;
   const [, tag, cls, id] = m;
@@ -120,7 +120,7 @@ function num(v: string | undefined, fallback = 0): number {
 }
 
 /** Pre-chequeo de seguridad/soporte sobre TODO el árbol (aunque un nodo no se dibuje). */
-function scanTree(node: XmlNode): void {
+export function scanTree(node: XmlNode): void {
   if (UNSAFE_ELEMENTS.has(node.name)) {
     throw new DesignImportError("SVG_UNSAFE", `El SVG contiene un elemento no permitido por seguridad (<${node.name}>).`);
   }
@@ -145,12 +145,12 @@ function scanTree(node: XmlNode): void {
   for (const c of node.children) scanTree(c);
 }
 
-function collectIds(node: XmlNode, byId: Map<string, XmlNode>): void {
+export function collectIds(node: XmlNode, byId: Map<string, XmlNode>): void {
   if (node.attrs.id) byId.set(node.attrs.id, node);
   for (const c of node.children) collectIds(c, byId);
 }
 
-function collectStyles(node: XmlNode, rules: CssRule[]): void {
+export function collectStyles(node: XmlNode, rules: CssRule[]): void {
   if (node.name === "style") rules.push(...parseStyleSheet(node.text));
   for (const c of node.children) collectStyles(c, rules);
 }

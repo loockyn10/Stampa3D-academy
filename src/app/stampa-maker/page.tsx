@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { Type, ArrowRight } from "lucide-react";
+import { Type, Zap, ArrowRight } from "lucide-react";
 import { Card } from "@/components/ui/card";
 import { SectionTitle } from "@/components/ui/section-title";
 
@@ -12,7 +12,13 @@ const MAKER_TOOLS = [
     href: "/stampa-maker/carteles",
     icon: Type,
     title: "Creador de Carteles",
-    description: "Convertí texto en letras corpóreas huecas, listas para imprimir en 3D.",
+    description: "Carteles corpóreos, tapas, difusores y cuerpos paramétricos.",
+  },
+  {
+    href: "/stampa-maker/neon",
+    icon: Zap,
+    title: "Neon LED",
+    description: "Generá canales imprimibles para Neon Flex a partir de texto o recorridos SVG.",
   },
 ] as const;
 

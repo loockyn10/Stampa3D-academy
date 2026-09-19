@@ -1,0 +1,112 @@
+import type { LetterGeometryResult } from "@/lib/maker/types";
+import { DesignImportError } from "@/lib/maker/import/types";
+import { meshBounds } from "@/lib/maker/printOrientation";
+import { channelInnerWidth, channelOuterWidth } from "@/lib/maker/neon/defaults";
+import { createChannelGeometry } from "@/lib/maker/neon/geometry/createChannelGeometry";
+import { analyzeCurvature } from "@/lib/maker/neon/metrics/curvature";
+import { recommendedNeonLength, totalNeonLength } from "@/lib/maker/neon/metrics/pathLength";
+import { pathsBounds } from "@/lib/maker/neon/paths/flattenNeonPath";
+import { svgToNeonPaths } from "@/lib/maker/neon/paths/svgToNeonPaths";
+import { textToNeonPaths } from "@/lib/maker/neon/paths/textToNeonPaths";
+import {
+  NeonInputError,
+  type NeonIssue,
+  type NeonMetrics,
+  type NeonParams,
+  type NeonPath,
+  type NeonPathsResult,
+  type NeonSource,
+} from "@/lib/maker/neon/types";
+
+export type NeonPathsOutcome = { ok: true; result: NeonPathsResult } | { ok: false; message: string };
+
+/**
+ * Etapa INPUT: fuente (texto | SVG) -> NeonPath[] en mm. Independiente de los
+ * parámetros del canal (solo depende del alto del diseño), así la UI puede
+ * recalcular el canal al mover un slider sin volver a parsear el SVG.
+ */
+export function buildNeonPaths(source: NeonSource, designHeightMm: number): NeonPathsOutcome {
+  try {
+    const result =
+      source.type === "text" ? textToNeonPaths(source.text, source.fontId, designHeightMm) : svgToNeonPaths(source.content, designHeightMm);
+    return { ok: true, result };
+  } catch (err) {
+    if (err instanceof NeonInputError || err instanceof DesignImportError) return { ok: false, message: err.message };
+    return { ok: false, message: "No se pudo interpretar el diseño." };
+  }
+}
+
+export interface NeonGeometryResult {
+  /** Malla lista para MakerViewport / Vista Cama / exportWord (una sola pieza "body"); null si hay errores que impiden generarla. */
+  geometry: LetterGeometryResult | null;
+  metrics: NeonMetrics;
+  errors: NeonIssue[];
+  warnings: NeonIssue[];
+}
+
+function formatMm(v: number): string {
+  return `${Math.round(v * 10) / 10}`;
+}
+
+/**
+ * Etapa GEOMETRÍA: NeonPath[] + parámetros -> canal U + métricas. La pieza se
+ * traslada para que su esquina mínima (incluido el canal) quede en (0, 0, 0):
+ * apoyada en Z=0 y con coordenadas positivas en el STL.
+ */
+export function createNeonGeometry(paths: NeonPath[], params: NeonParams, inputIssues: NeonIssue[] = []): NeonGeometryResult {
+  const inner = channelInnerWidth(params);
+  const outer = channelOuterWidth(params);
+  const lengthMm = totalNeonLength(paths);
+  const bounds = pathsBounds(paths);
+  const curvature = analyzeCurvature(paths, params.minBendRadiusMm);
+  const metrics: NeonMetrics = {
+    lengthMm,
+    recommendedLengthMm: recommendedNeonLength(lengthMm),
+    innerWidthMm: inner,
+    outerWidthMm: outer,
+    pathBounds: bounds ? { width: bounds.maxX - bounds.minX, height: bounds.maxY - bounds.minY } : { width: 0, height: 0 },
+    printedSize: { width: 0, height: 0, depth: params.floorThicknessMm + params.wallHeightMm },
+    curvature,
+  };
+
+  const warnings: NeonIssue[] = [...inputIssues];
+  if (curvature.belowMinimum) {
+    warnings.push({
+      code: "MIN_BEND_RADIUS",
+      message:
+        curvature.minRadiusMm !== null
+          ? `Hay curvas más cerradas que el radio mínimo configurado del Neon. Radio detectado ≈ ${formatMm(curvature.minRadiusMm)}mm; mínimo configurado ${formatMm(params.minBendRadiusMm)}mm.`
+          : "Hay curvas más cerradas que el radio mínimo configurado del Neon.",
+    });
+  }
+
+  if (!bounds) {
+    return { geometry: null, metrics, errors: [{ code: "NO_PATHS", message: "No hay recorridos para generar el canal." }], warnings };
+  }
+  // Origen: esquina mínima de la pieza impresa = (0, 0).
+  const shifted: NeonPath[] = paths.map((p) => ({
+    closed: p.closed,
+    points: p.points.map(([x, y]) => [x - bounds.minX + outer / 2, y - bounds.minY + outer / 2] as const),
+  }));
+
+  const channel = createChannelGeometry(shifted, params);
+  warnings.push(...channel.warnings);
+  if (channel.errors.length > 0 || channel.mesh.triangleCount === 0) {
+    return { geometry: null, metrics, errors: channel.errors, warnings };
+  }
+
+  const b = meshBounds(channel.mesh.positions);
+  const width = b.maxX - b.minX, height = b.maxY - b.minY, depth = b.maxZ - b.minZ;
+  metrics.printedSize = { width, height, depth };
+  const geometry: LetterGeometryResult = {
+    parts: [{ kind: "body", filenameSuffix: "neon", mesh: channel.mesh }],
+    triangleCount: channel.mesh.triangleCount,
+    boundingBox: { width, height, depth },
+    errors: [],
+    warnings: [],
+    letters: [],
+    designCenter: { x: (b.minX + b.maxX) / 2, y: (b.minY + b.maxY) / 2 },
+    backCutoutSafeZone: null,
+  };
+  return { geometry, metrics, errors: [], warnings };
+}
