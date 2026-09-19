@@ -69,6 +69,10 @@ const { fitInteriorLip } = loadMakerModule("lib/maker/geometry/joints/interiorLi
 const { computeRibBands } = loadMakerModule("lib/maker/geometry/body/modifiers/ribs.ts");
 const { footprintAtOffset } = loadMakerModule("lib/maker/geometry/body/shared.ts");
 const { computeGrooveBand } = loadMakerModule("lib/maker/geometry/body/modifiers/groove.ts");
+const { computeBevelBand } = loadMakerModule("lib/maker/geometry/body/modifiers/bevel.ts");
+const { computeRearBevelBand, rearBevelBandToZBand, beveledRearFootprint } = loadMakerModule("lib/maker/geometry/body/modifiers/rearBevel.ts");
+const { computePlateBevelBand } = loadMakerModule("lib/maker/geometry/plateBevel.ts");
+const { computeExplodeRanks, PART_ASSEMBLY_LAYER } = loadMakerModule("lib/maker/geometry/explodeOrder.ts");
 const { punchCirclePattern } = loadMakerModule("lib/maker/geometry/patterns/circles.ts");
 const { computeChannelFootprint } = loadMakerModule("lib/maker/geometry/front/lightChannel.ts");
 const { validateLetterSignParams } = loadMakerModule("lib/maker/validation.ts");
@@ -104,12 +108,18 @@ const DEFAULT_PARAMS = {
   grooveInsetMm: 1,
   grooveWidthMm: 4,
   groovePositionMm: 20,
+  rearBevelEnabled: false,
+  rearBevelDepthMm: 2,
+  rearBevelInsetMm: 1,
   frontType: "open",
   lidMm: 1.2,
   lidJoint: "glue",
   insertDepthMm: 3,
   clearanceMm: 0.2,
   lipWallMm: 0.8,
+  lidBevelEnabled: false,
+  lidBevelDepthMm: 0.4,
+  lidBevelInsetMm: 0.3,
   maskThicknessMm: 1,
   maskWallThicknessMm: 1.2,
   maskSideDepthMm: 5,
@@ -2387,4 +2397,487 @@ test("validateLetterSignParams: campos del canal luminoso fuera de rango cuando 
 test("validateLetterSignParams: campos del canal luminoso fuera de rango no generan error si frontType no es light-channel", () => {
   const errors = validateLetterSignParams({ ...DEFAULT_PARAMS, text: "O", channelWidthMm: 999, channelDepthMm: 999, channelOffsetMm: 999, diffuserClearanceMm: 999 });
   assert.ok(!errors.some((e) => ["channelWidthMm", "channelDepthMm", "channelOffsetMm", "diffuserClearanceMm"].includes(e.field)));
+});
+
+// --- Stampa Maker 0.4.2: bisel posterior (equivalente trasero del bisel frontal) ---
+//
+// Mismo mecanismo de banda+perfil suave que el bisel frontal
+// (body/modifiers/bevel.ts), pero pegado a la BASE (Z=0) en vez de al
+// frente: la pared (exterior y counters) se erosiona progresivamente desde
+// 0 en Z=rearBevelDepthMm hasta rearBevelInsetMm en Z=0. También reshapea
+// el fondo (piece "fondo" del cuerpo), equivalente trasero de cómo el bisel
+// frontal reshapea el "frente" — ver body/modifiers/rearBevel.ts.
+
+const REAR_BEVEL_PARAMS = { ...DEFAULT_PARAMS, rearBevelEnabled: true, rearBevelDepthMm: 2, rearBevelInsetMm: 1 };
+
+test("bisel posterior: rearBevelEnabled=false no cambia el cuerpo (mismo resultado que sin bisel posterior)", () => {
+  const withField = createLetterGeometry(montserratBold, { ...DEFAULT_PARAMS, text: "O", rearBevelEnabled: false });
+  const reference = createLetterGeometry(montserratBold, { ...DEFAULT_PARAMS, text: "O" });
+  assert.deepEqual(Array.from(bodyOf(withField).positions), Array.from(bodyOf(reference).positions));
+});
+
+for (const text of ["O", "B", "8"]) {
+  test(`bisel posterior "${text}": manifold/watertight y 1 componente conectado`, () => {
+    const result = createLetterGeometry(montserratBold, { ...REAR_BEVEL_PARAMS, text });
+    const mesh = bodyOf(result);
+    assertValidMesh(mesh, `${text}-rear-bevel`);
+    const topo = analyzeMeshTopology(mesh.positions);
+    assert.equal(topo.degenerate, 0, `${text} (bisel posterior): triángulos degenerados`);
+    assert.equal(topo.nonManifold, 0, `${text} (bisel posterior): aristas no-manifold`);
+    assert.equal(topo.boundaryEdges, 0, `${text} (bisel posterior): no se esperaban bordes abiertos`);
+    const components = countConnectedComponents(mesh.positions);
+    assert.equal(components, 1, `${text} (bisel posterior): se esperaba 1 componente conectado, se encontraron ${components}`);
+  });
+
+  test(`bisel posterior "${text}": mantiene los counters libres`, () => {
+    const groups = contourGroupsFor(text);
+    const result = createLetterGeometry(montserratBold, { ...REAR_BEVEL_PARAMS, text });
+    const mesh = bodyOf(result);
+    for (const hole of groups[0].holes) {
+      const [hx, hy] = polygonCentroid(hole);
+      const hits = raycastZHits(mesh.positions, hx, hy).filter((z) => z > -EPS_Z && z < REAR_BEVEL_PARAMS.depthMm + EPS_Z);
+      assert.deepEqual(hits, [], `${text} (bisel posterior): se esperaba el counter libre, hay geometría en z=[${hits.join(", ")}]`);
+    }
+  });
+}
+
+// Las tres propiedades de la banda (arranca en Z trasero con el inset
+// máximo, perfil suave, vuelve a offset 0 en rearBevelDepthMm) se verifican
+// directamente sobre las funciones puras de rearBevel.ts en vez de inferirlas
+// del mesh ensamblado: una pared PLANA (sin bisel) es perfectamente vertical
+// (normal sin componente Z), así que `raycastZHits` nunca la detecta —
+// probarlo indirectamente contra la malla sería frágil/no discriminante. Las
+// pruebas de malla más abajo (manifold/counters/"progresión suave") ya
+// confirman que la banda se traduce correctamente en geometría real.
+test("computeRearBevelBand: banda anclada en Z=0 (extremo trasero) hasta rearBevelDepthMm", () => {
+  const band = computeRearBevelBand(REAR_BEVEL_PARAMS.depthMm, true, REAR_BEVEL_PARAMS.rearBevelDepthMm);
+  assert.deepEqual(band, { z0: 0, z1: REAR_BEVEL_PARAMS.rearBevelDepthMm });
+});
+
+test("computeRearBevelBand: null si está desactivado, o si la profundidad total es 0", () => {
+  assert.equal(computeRearBevelBand(REAR_BEVEL_PARAMS.depthMm, false, REAR_BEVEL_PARAMS.rearBevelDepthMm), null);
+  assert.equal(computeRearBevelBand(0, true, REAR_BEVEL_PARAMS.rearBevelDepthMm), null);
+});
+
+test("rearBevelBandToZBand: inset máximo (rearBevelInsetMm) exactamente en Z=0, offset 0 exacto en rearBevelDepthMm, perfil suave sin escalón (pendiente 0 en ambos extremos)", () => {
+  const band = computeRearBevelBand(REAR_BEVEL_PARAMS.depthMm, true, REAR_BEVEL_PARAMS.rearBevelDepthMm);
+  const zBand = rearBevelBandToZBand(band, REAR_BEVEL_PARAMS.rearBevelInsetMm);
+  assert.ok(Math.abs(zBand.offsetAt(0) - -REAR_BEVEL_PARAMS.rearBevelInsetMm) < 1e-9, "el inset máximo debería estar exactamente en Z=0 (el extremo trasero)");
+  assert.ok(Math.abs(zBand.offsetAt(band.z1) - 0) < 1e-9, "debería volver exactamente a offset 0 (pared nominal) en Z=rearBevelDepthMm");
+  // Punto medio del smoothstep: exactamente la mitad del inset máximo —
+  // mismo perfil que el bisel frontal (bevelBandToZBand), solo espejado.
+  const mid = (band.z0 + band.z1) / 2;
+  assert.ok(Math.abs(zBand.offsetAt(mid) - -REAR_BEVEL_PARAMS.rearBevelInsetMm * 0.5) < 1e-6, "a mitad de banda se espera la mitad del inset máximo");
+  // Pendiente ~0 en ambos extremos (evaluada con una diferencia finita
+  // chica): sin esto habría un quiebre anguloso al empalmar con la pared
+  // normal (spec: "la transición debe ser suave. NO escalones grandes").
+  const dz = 1e-4;
+  assert.ok(Math.abs(zBand.offsetAt(dz) - zBand.offsetAt(0)) < dz * 0.01, "pendiente distinta de 0 en Z=0 (extremo trasero)");
+  assert.ok(Math.abs(zBand.offsetAt(band.z1) - zBand.offsetAt(band.z1 - dz)) < dz * 0.01, "pendiente distinta de 0 en Z=rearBevelDepthMm");
+});
+
+test("beveledRearFootprint: sin banda devuelve el contorno original sin cambios; con banda, el inset completo (mismo mecanismo que footprintAtOffset)", () => {
+  const groups = contourGroupsFor("I");
+  const group = groups[0];
+  const band = computeRearBevelBand(REAR_BEVEL_PARAMS.depthMm, true, REAR_BEVEL_PARAMS.rearBevelDepthMm);
+
+  const withoutBand = beveledRearFootprint(group, null, REAR_BEVEL_PARAMS.rearBevelInsetMm);
+  assert.deepEqual(withoutBand, [{ outer: group.outer, holes: group.holes }]);
+
+  const withBand = beveledRearFootprint(group, band, REAR_BEVEL_PARAMS.rearBevelInsetMm);
+  const expected = footprintAtOffset(group, -REAR_BEVEL_PARAMS.rearBevelInsetMm);
+  assert.deepEqual(withBand, expected);
+});
+
+test('bisel posterior "I": progresión suave — el inset a mitad de banda cruza cerca de lo que predice smoothstep, sin escalón grande', () => {
+  const text = "I";
+  const groups = contourGroupsFor(text);
+  const band = { z0: 0, z1: REAR_BEVEL_PARAMS.rearBevelDepthMm };
+  const bandHeight = band.z1 - band.z0;
+  const result = createLetterGeometry(montserratBold, { ...REAR_BEVEL_PARAMS, text });
+  const bodyPositions = bodyOf(result).positions;
+
+  const halfInset = regroupClipperSolution(insetContourGroups(groups, REAR_BEVEL_PARAMS.rearBevelInsetMm * 0.5));
+  const [px, py] = halfInset[0].outer[0];
+  const hits = raycastZHits(bodyPositions, px, py).sort((a, b) => a - b);
+  assert.ok(hits.length >= 1, "se esperaba al menos un impacto (piso/escalón) al inset de mitad de banda");
+  const expectedZ = band.z0 + bandHeight * 0.5;
+  const closest = hits.reduce((best, z) => (Math.abs(z - expectedZ) < Math.abs(best - expectedZ) ? z : best), hits[0]);
+  assert.ok(Math.abs(closest - expectedZ) < 0.35, `cruce a mitad de banda fuera de tolerancia: ${closest} (esperado ~${expectedZ.toFixed(2)})`);
+});
+
+test("validateLetterSignParams: rearBevelDepthMm/rearBevelInsetMm fuera de rango cuando rearBevelEnabled", () => {
+  const badDepth = validateLetterSignParams({ ...REAR_BEVEL_PARAMS, text: "O", rearBevelDepthMm: 0 });
+  assert.ok(badDepth.some((e) => e.field === "rearBevelDepthMm"));
+  const badInset = validateLetterSignParams({ ...REAR_BEVEL_PARAMS, text: "O", rearBevelInsetMm: 0 });
+  assert.ok(badInset.some((e) => e.field === "rearBevelInsetMm"));
+  const valid = validateLetterSignParams({ ...REAR_BEVEL_PARAMS, text: "O" });
+  assert.ok(!valid.some((e) => e.field === "rearBevelDepthMm" || e.field === "rearBevelInsetMm"));
+});
+
+test("validateLetterSignParams: rearBevelDepthMm/rearBevelInsetMm fuera de rango no generan error si rearBevelEnabled es false", () => {
+  const errors = validateLetterSignParams({ ...DEFAULT_PARAMS, rearBevelEnabled: false, rearBevelDepthMm: 999, rearBevelInsetMm: 999 });
+  assert.ok(!errors.some((e) => e.field === "rearBevelDepthMm" || e.field === "rearBevelInsetMm"));
+});
+
+test("validateLetterSignParams: bisel frontal + bisel posterior incompatibles (bandas superpuestas) bloquean con un error, no generan geometría autointersectada", () => {
+  // bisel frontal: [depthMm-2, depthMm] = [38,40]. bisel posterior pedido
+  // con profundidad 5mm: [0,5] no se superpone (OK); pero pedido con
+  // profundidad 39mm: [0,39] sí se superpone con [38,40] -> error.
+  const overlapping = validateLetterSignParams({ ...DEFAULT_PARAMS, text: "O", bevelEnabled: true, bevelDepthMm: 2, bevelInsetMm: 1, rearBevelEnabled: true, rearBevelDepthMm: 39, rearBevelInsetMm: 1 });
+  assert.ok(overlapping.some((e) => e.field === "rearBevelDepthMm"), "se esperaba un error de superposición en rearBevelDepthMm");
+
+  const nonOverlapping = validateLetterSignParams({ ...DEFAULT_PARAMS, text: "O", bevelEnabled: true, bevelDepthMm: 2, bevelInsetMm: 1, rearBevelEnabled: true, rearBevelDepthMm: 5, rearBevelInsetMm: 1 });
+  assert.ok(!nonOverlapping.some((e) => e.field === "rearBevelDepthMm"), "sin superposición no debería haber error");
+});
+
+test("validateLetterSignParams: bisel lateral + bisel posterior superpuestos también se bloquean (mismo criterio que bisel lateral + bisel frontal)", () => {
+  // bisel posterior con profundidad 39mm: [0,39]. bisel lateral centrado en
+  // groovePositionMm=1 (medido desde el frente, depthMm=40), ancho 4mm:
+  // [depthMm-3, depthMm-1] = [37,39] -> se superpone con [0,39].
+  const overlapping = validateLetterSignParams({
+    ...DEFAULT_PARAMS,
+    text: "O",
+    rearBevelEnabled: true,
+    rearBevelDepthMm: 39,
+    rearBevelInsetMm: 1,
+    grooveEnabled: true,
+    grooveInsetMm: 0.6,
+    grooveWidthMm: 4,
+    groovePositionMm: 1,
+  });
+  assert.ok(overlapping.some((e) => e.field === "groovePositionMm"), "se esperaba un error de superposición en groovePositionMm");
+});
+
+test('bisel frontal + bisel posterior combinados "O" (sin superponerse): ambos activos, resultado sigue siendo válido', () => {
+  const result = createLetterGeometry(montserratBold, {
+    ...DEFAULT_PARAMS,
+    text: "O",
+    bevelEnabled: true,
+    bevelDepthMm: 2,
+    bevelInsetMm: 1,
+    rearBevelEnabled: true,
+    rearBevelDepthMm: 2,
+    rearBevelInsetMm: 1,
+  });
+  const mesh = bodyOf(result);
+  assertValidMesh(mesh, "O-front+rear-bevel");
+  const topo = analyzeMeshTopology(mesh.positions);
+  assert.equal(topo.degenerate, 0);
+  assert.equal(topo.nonManifold, 0);
+  assert.equal(topo.boundaryEdges, 0);
+  assert.equal(countConnectedComponents(mesh.positions), 1);
+});
+
+test('costillas + bisel posterior combinados "O": las costillas ceden lugar al bisel posterior (no se superponen) y el resultado sigue siendo válido', () => {
+  const result = createLetterGeometry(montserratBold, { ...REAR_BEVEL_PARAMS, text: "O", ribsCount: 2 });
+  const mesh = bodyOf(result);
+  assertValidMesh(mesh, "O-ribs+rear-bevel");
+  const topo = analyzeMeshTopology(mesh.positions);
+  assert.equal(topo.degenerate, 0);
+  assert.equal(topo.nonManifold, 0);
+  assert.equal(topo.boundaryEdges, 0);
+  assert.equal(countConnectedComponents(mesh.positions), 1);
+});
+
+// --- Stampa Maker 0.4.2: bisel de tapa/difusor ---
+//
+// Modificador independiente del bisel del CUERPO, aplicado a la pieza
+// frontal imprimible (tapa o difusor) — nunca a la máscara perforada. Ver
+// geometry/plateBevel.ts.
+
+const LID_BEVEL_PARAMS = { ...DEFAULT_PARAMS, frontType: "lid", lidJoint: "glue", lidMm: 1.2, lidBevelEnabled: true, lidBevelDepthMm: 0.4, lidBevelInsetMm: 0.3 };
+
+test("bisel de tapa: lidBevelEnabled=false no cambia la tapa (mismo resultado que sin bisel de tapa)", () => {
+  const withField = createLetterGeometry(montserratBold, { ...LID_BEVEL_PARAMS, text: "O", lidBevelEnabled: false });
+  const reference = createLetterGeometry(montserratBold, { ...DEFAULT_PARAMS, text: "O", frontType: "lid", lidJoint: "glue", lidMm: 1.2 });
+  assert.deepEqual(Array.from(lidOf(withField.letters[0]).positions), Array.from(lidOf(reference.letters[0]).positions));
+});
+
+for (const text of ["O", "B", "8"]) {
+  test(`bisel de tapa (placa plana) "${text}": manifold/watertight y 1 componente conectado`, () => {
+    const result = createLetterGeometry(montserratBold, { ...LID_BEVEL_PARAMS, text });
+    const mesh = lidOf(result.letters[0]);
+    assertValidMesh(mesh, `${text}-lid-bevel`);
+    const topo = analyzeMeshTopology(mesh.positions);
+    assert.equal(topo.degenerate, 0, `${text} (bisel de tapa): triángulos degenerados`);
+    assert.equal(topo.nonManifold, 0, `${text} (bisel de tapa): aristas no-manifold`);
+    assert.equal(topo.boundaryEdges, 0, `${text} (bisel de tapa): no se esperaban bordes abiertos`);
+    assert.equal(countConnectedComponents(mesh.positions), 1, `${text} (bisel de tapa): se esperaba 1 componente conectado`);
+  });
+
+  test(`bisel de tapa (placa plana) "${text}": mantiene los counters libres`, () => {
+    const groups = contourGroupsFor(text);
+    const result = createLetterGeometry(montserratBold, { ...LID_BEVEL_PARAMS, text });
+    const mesh = lidOf(result.letters[0]);
+    for (const hole of groups[0].holes) {
+      const [hx, hy] = polygonCentroid(hole);
+      const hits = raycastZHits(mesh.positions, hx, hy).filter((z) => z > LID_BEVEL_PARAMS.depthMm - EPS_Z && z < LID_BEVEL_PARAMS.depthMm + LID_BEVEL_PARAMS.lidMm + EPS_Z);
+      assert.deepEqual(hits, [], `${text} (bisel de tapa): se esperaba el counter libre, hay geometría en z=[${hits.join(", ")}]`);
+    }
+  });
+}
+
+test('bisel de tapa "I": la cara visible queda más angosta que la cara trasera (el canto recto se reemplaza por una transición inclinada)', () => {
+  const result = createLetterGeometry(montserratBold, { ...LID_BEVEL_PARAMS, text: "I" });
+  const mesh = lidOf(result.letters[0]);
+  const z1 = LID_BEVEL_PARAMS.depthMm + LID_BEVEL_PARAMS.lidMm;
+  const positions = mesh.positions;
+  let minXAtTop = Infinity, maxXAtTop = -Infinity, minXAtBottom = Infinity, maxXAtBottom = -Infinity;
+  for (let i = 0; i < positions.length; i += 3) {
+    const x = positions[i], z = positions[i + 2];
+    if (Math.abs(z - z1) < 1e-3) {
+      if (x < minXAtTop) minXAtTop = x;
+      if (x > maxXAtTop) maxXAtTop = x;
+    }
+    if (Math.abs(z - LID_BEVEL_PARAMS.depthMm) < 1e-3) {
+      if (x < minXAtBottom) minXAtBottom = x;
+      if (x > maxXAtBottom) maxXAtBottom = x;
+    }
+  }
+  const widthTop = maxXAtTop - minXAtTop;
+  const widthBottom = maxXAtBottom - minXAtBottom;
+  assert.ok(widthTop < widthBottom - 0.1, `se esperaba la cara visible (Z=${z1}, ancho ${widthTop.toFixed(2)}) más angosta que la cara trasera (ancho ${widthBottom.toFixed(2)})`);
+});
+
+test("bisel de tapa: el espesor total de la tapa (depthMm -> depthMm+lidMm) no cambia con el bisel activo", () => {
+  const result = createLetterGeometry(montserratBold, { ...LID_BEVEL_PARAMS, text: "I" });
+  const bounds = meshBounds(lidOf(result.letters[0]).positions);
+  assert.ok(Math.abs(bounds.minZ - LID_BEVEL_PARAMS.depthMm) < 1e-3, `minZ de la tapa debería seguir en depthMm, fue ${bounds.minZ}`);
+  assert.ok(Math.abs(bounds.maxZ - (LID_BEVEL_PARAMS.depthMm + LID_BEVEL_PARAMS.lidMm)) < 1e-3, `maxZ de la tapa debería seguir en depthMm+lidMm, fue ${bounds.maxZ}`);
+});
+
+const LID_BEVEL_LIP_PARAMS = { ...LID_BEVEL_PARAMS, lidJoint: "interior-lip", insertDepthMm: 3, clearanceMm: 0.2, lipWallMm: 0.8 };
+
+test('bisel de tapa + tapa encastrable "O": placa+labio siguen siendo manifold/watertight, 1 componente conectado', () => {
+  const result = createLetterGeometry(montserratBold, { ...LID_BEVEL_LIP_PARAMS, text: "O" });
+  const mesh = lidOf(result.letters[0]);
+  assertValidMesh(mesh, "O.lid (bisel de tapa + interior-lip)");
+  const topo = analyzeMeshTopology(mesh.positions);
+  assert.equal(topo.nonManifold, 0, "O.lid (bisel de tapa + interior-lip): aristas no-manifold");
+  assert.equal(topo.boundaryEdges, 0, "O.lid (bisel de tapa + interior-lip): no se esperaban bordes abiertos");
+  assert.equal(countConnectedComponents(mesh.positions), 1);
+  assert.deepEqual(result.errors, [], "no se esperaban errores: el bisel de tapa + labio interior es una combinación válida con estos parámetros");
+});
+
+test('bisel de tapa + tapa encastrable "O": el labio (Z <= depthMm) no cambia — el bisel solo afecta la cara visible', () => {
+  const withBevel = createLetterGeometry(montserratBold, { ...LID_BEVEL_LIP_PARAMS, text: "O" });
+  const withoutBevel = createLetterGeometry(montserratBold, { ...LID_BEVEL_LIP_PARAMS, text: "O", lidBevelEnabled: false });
+
+  const belowPlateTop = (positions) => {
+    const kept = [];
+    const triCount = positions.length / 9;
+    for (let t = 0; t < triCount; t++) {
+      const o = t * 9;
+      const zs = [positions[o + 2], positions[o + 5], positions[o + 8]];
+      if (zs.every((z) => z <= LID_BEVEL_LIP_PARAMS.depthMm + 1e-6)) {
+        for (let k = 0; k < 9; k++) kept.push(positions[o + k]);
+      }
+    }
+    return kept;
+  };
+
+  const withBevelLip = belowPlateTop(lidOf(withBevel.letters[0]).positions);
+  const withoutBevelLip = belowPlateTop(lidOf(withoutBevel.letters[0]).positions);
+  assert.deepEqual(withBevelLip, withoutBevelLip, "el labio/la repisa (Z <= depthMm) no debería cambiar al activar el bisel de tapa (solo afecta la cara visible)");
+});
+
+test("bisel de tapa excesivo: si erosiona la cara visible de la placa por completo, el resultado queda marcado con LID_BEVEL_COLLAPSED (error, no geometría corrupta)", () => {
+  const result = createLetterGeometry(montserratBold, {
+    ...DEFAULT_PARAMS,
+    text: "I",
+    heightMm: 6,
+    frontType: "lid",
+    lidJoint: "glue",
+    lidMm: 1.2,
+    lidBevelEnabled: true,
+    lidBevelDepthMm: 0.4,
+    lidBevelInsetMm: 10,
+  });
+  if (result.errors.length > 0) {
+    assert.ok(result.errors.every((e) => e.code === "LID_BEVEL_COLLAPSED"), "se esperaba únicamente LID_BEVEL_COLLAPSED");
+  }
+  assertFiniteFloatArray(bodyOf(result).positions, "body.positions");
+});
+
+test("bisel de tapa: lidBevelDepthMm mayor al espesor de la tapa se ajusta automáticamente (LID_BEVEL_DEPTH_CLAMPED), sin perforarla ni bloquear la exportación", async () => {
+  const result = createLetterGeometry(montserratBold, {
+    ...DEFAULT_PARAMS,
+    text: "O",
+    frontType: "lid",
+    lidJoint: "glue",
+    lidMm: 1.2,
+    lidBevelEnabled: true,
+    lidBevelDepthMm: 5,
+    lidBevelInsetMm: 0.3,
+  });
+  assert.ok(result.warnings.some((w) => w.code === "LID_BEVEL_DEPTH_CLAMPED"), "se esperaba LID_BEVEL_DEPTH_CLAMPED");
+  assert.deepEqual(result.errors, []);
+  const blob = await buildWordZipBlob(result, "stampa");
+  assert.ok(blob, "debería poder exportarse a pesar del warning");
+});
+
+test("bisel de difusor (frente perforado): lidBevelDepthMm se acota al espesor del DIFUSOR (diffuserThicknessMm), no al de la tapa", () => {
+  const result = createLetterGeometry(montserratBold, {
+    ...DEFAULT_PARAMS,
+    text: "O",
+    frontType: "perforated",
+    diffuserThicknessMm: 0.6,
+    lidBevelEnabled: true,
+    lidBevelDepthMm: 5,
+    lidBevelInsetMm: 0.2,
+  });
+  assert.ok(result.warnings.some((w) => w.code === "LID_BEVEL_DEPTH_CLAMPED"), "se esperaba LID_BEVEL_DEPTH_CLAMPED acotado al espesor del difusor");
+});
+
+const DIFFUSER_BEVEL_PARAMS = { ...DEFAULT_PARAMS, frontType: "perforated", lidBevelEnabled: true, lidBevelDepthMm: 0.2, lidBevelInsetMm: 0.15 };
+
+for (const text of ["O", "B", "8"]) {
+  test(`bisel de difusor "${text}": difusor manifold/watertight, 1 componente conectado, counters libres — máscara/faldón/orden sin cambios`, () => {
+    const result = createLetterGeometry(montserratBold, { ...DIFFUSER_BEVEL_PARAMS, text });
+    const diffuserMesh = findPart(result.letters[0], "diffuser");
+    assertValidMesh(diffuserMesh, `${text}-diffuser-bevel`);
+    const topo = analyzeMeshTopology(diffuserMesh.positions);
+    assert.equal(topo.degenerate, 0, `${text} (bisel de difusor): triángulos degenerados`);
+    assert.equal(topo.nonManifold, 0, `${text} (bisel de difusor): aristas no-manifold`);
+    assert.equal(topo.boundaryEdges, 0, `${text} (bisel de difusor): no se esperaban bordes abiertos`);
+    assert.equal(countConnectedComponents(diffuserMesh.positions), 1, `${text} (bisel de difusor): se esperaba 1 componente conectado`);
+
+    const groups = contourGroupsFor(text);
+    for (const hole of groups[0].holes) {
+      const [hx, hy] = polygonCentroid(hole);
+      const hits = raycastZHits(diffuserMesh.positions, hx, hy).filter(
+        (z) => z > DIFFUSER_BEVEL_PARAMS.depthMm - EPS_Z && z < DIFFUSER_BEVEL_PARAMS.depthMm + DIFFUSER_BEVEL_PARAMS.diffuserThicknessMm + EPS_Z,
+      );
+      assert.deepEqual(hits, [], `${text} (bisel de difusor): se esperaba el counter libre en el difusor, hay geometría en z=[${hits.join(", ")}]`);
+    }
+
+    // La máscara (nunca recibe bisel) y el orden observador->máscara->difusor
+    // (ver test "frente perforado ... orden físico") no deberían verse
+    // afectados: la máscara sigue siendo la pieza más externa.
+    const bodyBounds = meshBounds(findPart(result.letters[0], "body").positions);
+    const diffuserBounds = meshBounds(diffuserMesh.positions);
+    const maskBounds = meshBounds(findPart(result.letters[0], "mask").positions);
+    assert.ok(bodyBounds.maxZ <= diffuserBounds.minZ + 1e-6, "el difusor debería seguir empezando donde termina el cuerpo (o más adelante)");
+    assert.ok(diffuserBounds.maxZ <= maskBounds.maxZ, "la máscara debería seguir siendo la pieza más externa");
+  });
+}
+
+test("validateLetterSignParams: lidBevelDepthMm/lidBevelInsetMm fuera de rango cuando lidBevelEnabled y frontType es lid o perforated", () => {
+  const badLid = validateLetterSignParams({ ...LID_BEVEL_PARAMS, text: "O", lidBevelDepthMm: 0 });
+  assert.ok(badLid.some((e) => e.field === "lidBevelDepthMm"));
+  const badInsetLid = validateLetterSignParams({ ...LID_BEVEL_PARAMS, text: "O", lidBevelInsetMm: 0 });
+  assert.ok(badInsetLid.some((e) => e.field === "lidBevelInsetMm"));
+
+  const badPerforated = validateLetterSignParams({ ...DIFFUSER_BEVEL_PARAMS, text: "O", lidBevelDepthMm: 0 });
+  assert.ok(badPerforated.some((e) => e.field === "lidBevelDepthMm"));
+
+  const valid = validateLetterSignParams({ ...LID_BEVEL_PARAMS, text: "O" });
+  assert.ok(!valid.some((e) => e.field === "lidBevelDepthMm" || e.field === "lidBevelInsetMm"));
+});
+
+test("validateLetterSignParams: lidBevelDepthMm/lidBevelInsetMm fuera de rango no generan error si lidBevelEnabled es false, o si frontType no tiene tapa/difusor", () => {
+  const disabled = validateLetterSignParams({ ...DEFAULT_PARAMS, lidBevelEnabled: false, lidBevelDepthMm: 999, lidBevelInsetMm: 999 });
+  assert.ok(!disabled.some((e) => e.field === "lidBevelDepthMm" || e.field === "lidBevelInsetMm"));
+
+  const openFront = validateLetterSignParams({ ...DEFAULT_PARAMS, frontType: "open", lidBevelEnabled: true, lidBevelDepthMm: 999, lidBevelInsetMm: 999 });
+  assert.ok(!openFront.some((e) => e.field === "lidBevelDepthMm" || e.field === "lidBevelInsetMm"));
+});
+
+// --- Stampa Maker 0.4.2: combinación de los 4 efectos ---
+
+test('modelo con los 4 efectos "O" (bisel frontal + bisel posterior + bisel lateral luminoso + bisel de tapa): geometría válida en cuerpo y tapa', () => {
+  const params = {
+    ...DEFAULT_PARAMS,
+    text: "O",
+    bevelEnabled: true,
+    bevelDepthMm: 2,
+    bevelInsetMm: 1,
+    rearBevelEnabled: true,
+    rearBevelDepthMm: 2,
+    rearBevelInsetMm: 1,
+    grooveEnabled: true,
+    grooveInsetMm: 0.6,
+    grooveWidthMm: 4,
+    groovePositionMm: 20,
+    frontType: "lid",
+    lidJoint: "glue",
+    lidMm: 1.2,
+    lidBevelEnabled: true,
+    lidBevelDepthMm: 0.4,
+    lidBevelInsetMm: 0.3,
+  };
+  assert.deepEqual(validateLetterSignParams(params), []);
+
+  const result = createLetterGeometry(montserratBold, params);
+  assert.deepEqual(result.errors, []);
+
+  const bodyMesh = bodyOf(result);
+  assertValidMesh(bodyMesh, "O (4 efectos, cuerpo)");
+  const bodyTopo = analyzeMeshTopology(bodyMesh.positions);
+  assert.equal(bodyTopo.degenerate, 0);
+  assert.equal(bodyTopo.nonManifold, 0);
+  assert.equal(bodyTopo.boundaryEdges, 0);
+  assert.equal(countConnectedComponents(bodyMesh.positions), 1);
+
+  const lidMesh = lidOf(result.letters[0]);
+  assertValidMesh(lidMesh, "O (4 efectos, tapa)");
+  const lidTopo = analyzeMeshTopology(lidMesh.positions);
+  assert.equal(lidTopo.nonManifold, 0);
+  assert.equal(lidTopo.boundaryEdges, 0);
+  assert.equal(countConnectedComponents(lidMesh.positions), 1);
+});
+
+// --- Stampa Maker 0.4.2: orden explosionado del frente perforado (fix definitivo) ---
+//
+// El orden de la vista explosionada (MakerViewport.tsx) se deriva de una
+// capa de armado SEMÁNTICA por `PartKind` (geometry/explodeOrder.ts), no de
+// la posición Z real de la malla (`meshMinZ`, el intento de 0.4.1 que volvió
+// a romperse con el faldón lateral de la máscara — ver comentario en
+// explodeOrder.ts) ni del orden de `geometry.parts`.
+
+test("PART_ASSEMBLY_LAYER: la máscara está en una capa más externa que el difusor (mask > diffuser), el cuerpo es la capa 0", () => {
+  assert.equal(PART_ASSEMBLY_LAYER.body, 0);
+  assert.ok(PART_ASSEMBLY_LAYER.mask > PART_ASSEMBLY_LAYER.diffuser, "la máscara debe quedar en una capa más externa que el difusor");
+});
+
+test("computeExplodeRanks: difusor+máscara (frente perforado) da rank 1/2 en ese orden, sin importar el orden de entrada", () => {
+  const forward = computeExplodeRanks(["body", "diffuser", "mask"]);
+  assert.equal(forward.get("diffuser"), 1);
+  assert.equal(forward.get("mask"), 2);
+
+  // Mismo resultado con el array en orden inverso: el rank depende de la
+  // capa semántica de cada PartKind, nunca de la posición en el array (esto
+  // es exactamente lo que rompía con `meshMinZ`, ver arriba).
+  const reversed = computeExplodeRanks(["mask", "diffuser", "body"]);
+  assert.equal(reversed.get("diffuser"), 1);
+  assert.equal(reversed.get("mask"), 2);
+});
+
+test("computeExplodeRanks: una sola pieza extra (tapa, o difusor de canal) da rank 1", () => {
+  const withLid = computeExplodeRanks(["body", "lid"]);
+  assert.equal(withLid.get("lid"), 1);
+
+  const withChannelDiffuser = computeExplodeRanks(["body", "channelDiffuser"]);
+  assert.equal(withChannelDiffuser.get("channelDiffuser"), 1);
+});
+
+test("computeExplodeRanks: el cuerpo nunca recibe rank (no se explota)", () => {
+  const ranks = computeExplodeRanks(["body", "diffuser", "mask"]);
+  assert.equal(ranks.has("body"), false);
+});
+
+test('frente perforado "O": el difusor (rank 1) queda estrictamente más cerca del cuerpo que la máscara (rank 2) en la vista explosionada, sin importar el orden de geometry.parts', () => {
+  const result = createLetterGeometry(montserratBold, { ...PERFORATED_PARAMS, text: "O" });
+  const presentKinds = result.parts.map((p) => p.kind);
+  const ranks = computeExplodeRanks(presentKinds);
+  assert.equal(ranks.get("diffuser"), 1);
+  assert.equal(ranks.get("mask"), 2);
+  assert.ok(ranks.get("diffuser") < ranks.get("mask"), "el difusor debería tener un rank de explosión menor (más cerca del cuerpo) que la máscara");
+
+  // El orden en `geometry.parts` (PART_ORDER de createLetterGeometry.ts) no
+  // debería alterar el resultado: se simula invertido para confirmarlo.
+  const ranksReversed = computeExplodeRanks([...presentKinds].reverse());
+  assert.equal(ranksReversed.get("diffuser"), 1);
+  assert.equal(ranksReversed.get("mask"), 2);
 });

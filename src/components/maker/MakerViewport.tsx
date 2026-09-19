@@ -5,6 +5,7 @@ import * as THREE from "three";
 import { OrbitControls } from "three/examples/jsm/controls/OrbitControls.js";
 import type { LetterGeometryResult, PartKind } from "@/lib/maker/types";
 import { letterGeometryToBufferGeometry } from "@/lib/maker/geometry/toBufferGeometry";
+import { computeExplodeRanks } from "@/lib/maker/geometry/explodeOrder";
 
 export type MakerViewMode = "assembled" | "exploded";
 
@@ -16,20 +17,6 @@ interface MakerViewportProps {
 
 /** Desplazamiento puramente visual entre piezas en vista explosionada (mm). */
 const EXPLODE_OFFSET_MM = 10;
-
-/**
- * Rango Z mínimo (nativo, sin offset) de una pieza no-"body" — usado para
- * ordenar el desplazamiento explosionado (0.4.1 corrección 4A). Solo lectura
- * de `positions`, sin tocar la malla.
- */
-function meshMinZ(mesh: { positions: Float32Array }): number {
-  let minZ = Infinity;
-  for (let i = 2; i < mesh.positions.length; i += 3) {
-    const z = mesh.positions[i];
-    if (z < minZ) minZ = z;
-  }
-  return minZ;
-}
 
 /** Color por tipo de pieza, solo para diferenciarlas visualmente en el preview (no es el color real de impresión). */
 const PART_COLORS: Record<PartKind, number> = {
@@ -55,13 +42,15 @@ export function MakerViewport({ geometry, viewMode = "assembled" }: MakerViewpor
   const cameraRef = useRef<THREE.PerspectiveCamera | null>(null);
   const controlsRef = useRef<OrbitControls | null>(null);
   const partMeshesRef = useRef<Map<PartKind, THREE.Mesh>>(new Map());
-  // Rango de explosión de cada pieza no-"body" (0.4.1 corrección 4A):
-  // cuántos "saltos" de EXPLODE_OFFSET_MM se le aplican, en orden de
-  // distancia real al cuerpo (más cerca del cuerpo = salto más chico), NO
-  // en el orden en que aparecen en `geometry.parts` (PART_ORDER de
-  // createLetterGeometry.ts es un orden de EXPORTACIÓN/nombre de archivo,
-  // no de posición física — usarlo acá invertía máscara/difusor: el
-  // difusor, más cerca del cuerpo, terminaba MÁS lejos que la máscara).
+  // Rango de explosión de cada pieza no-"body": cuántos "saltos" de
+  // EXPLODE_OFFSET_MM se le aplican, derivado de la capa de armado
+  // SEMÁNTICA de cada PartKind (0.4.2, ver geometry/explodeOrder.ts) — ni
+  // del orden en que aparecen en `geometry.parts` (PART_ORDER de
+  // createLetterGeometry.ts es un orden de EXPORTACIÓN/nombre de archivo)
+  // ni de la posición Z real de la malla (0.4.1 intentó esto último con
+  // `meshMinZ` y volvió a romperse: el faldón lateral de la máscara
+  // perforada, 15.6, extiende su geometría hacia atrás del difusor, así que
+  // su minZ podía ser MENOR aunque sea la pieza más externa).
   const explodeRankRef = useRef<Map<PartKind, number>>(new Map());
 
   useEffect(() => {
@@ -142,20 +131,16 @@ export function MakerViewport({ geometry, viewMode = "assembled" }: MakerViewpor
     if (!geometry || geometry.triangleCount === 0) return;
 
     const box = new THREE.Box3();
-    // El offset explosionado de cada pieza no-"body" depende de qué tan
-    // lejos está REALMENTE del cuerpo en la vista ensamblada (su propio
-    // minZ nativo), no del orden en que aparece en `geometry.parts` (0.4.1
-    // corrección 4A — ver explodeRankRef más arriba): con 1 sola pieza
+    // El offset explosionado de cada pieza no-"body" depende de su capa de
+    // armado SEMÁNTICA (`PART_ASSEMBLY_LAYER`, ver explodeOrder.ts), no de
+    // su posición Z real ni del orden en `geometry.parts`: con 1 sola pieza
     // extra (tapa, o difusor de canal) da el mismo +10mm de siempre; con 2
-    // (máscara+difusor, 0.4 Etapa 5) la más cercana al cuerpo (difusor)
-    // recibe +10mm y la más lejana (máscara) +20mm — así la separación
-    // relativa entre ellas queda en el mismo orden que la vista ensamblada,
-    // nunca invertida.
-    const nonBodyRankOrder = geometry.parts
-      .filter((p) => p.kind !== "body" && p.mesh.triangleCount > 0)
-      .sort((a, b) => meshMinZ(a.mesh) - meshMinZ(b.mesh));
-    const explodeRank = new Map<PartKind, number>();
-    nonBodyRankOrder.forEach((part, i) => explodeRank.set(part.kind, i + 1));
+    // (máscara+difusor, 0.4 Etapa 5) el difusor (capa 1, más cerca del
+    // cuerpo) recibe +10mm y la máscara (capa 2, más lejos) +20mm — así la
+    // separación relativa entre ellas queda en el mismo orden que la vista
+    // ensamblada, nunca invertida.
+    const presentKinds = geometry.parts.filter((p) => p.mesh.triangleCount > 0).map((p) => p.kind);
+    const explodeRank = computeExplodeRanks(presentKinds);
     explodeRankRef.current = explodeRank;
 
     for (const part of geometry.parts) {

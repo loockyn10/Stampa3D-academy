@@ -112,6 +112,21 @@ export interface LetterSignParams {
   grooveWidthMm: number;
   /** Distancia desde el FRENTE (z=depthMm) hasta el centro de la banda, en mm (misma convención que bevelDepthMm). Solo se usa/valida si grooveEnabled. */
   groovePositionMm: number;
+  /**
+   * Bisel posterior (0.4.2): equivalente al bisel frontal (`bevelEnabled`)
+   * pero en el extremo OPUESTO del cuerpo — la pared (exterior y counters)
+   * se inclina hacia adentro en una banda pegada a la BASE (Z=0), en vez de
+   * al frente (Z=depthMm). Modificador independiente: puede combinarse con
+   * el bisel frontal mientras sus bandas no se superpongan (ver
+   * validation.ts) y con el bisel lateral/costillas (mismo criterio de
+   * "ceder lugar" que ya usan entre sí, ver body/standard.ts). No aplica
+   * con `bodyType === "tapered"` (mismo criterio que bevelEnabled/ribsCount).
+   */
+  rearBevelEnabled: boolean;
+  /** Longitud en Z de la banda del bisel posterior, en mm, medida desde la base (Z=0). Solo se usa si rearBevelEnabled. */
+  rearBevelDepthMm: number;
+  /** Cuánto se desplaza hacia adentro en el extremo trasero (Z=0), en mm. Solo se usa si rearBevelEnabled. */
+  rearBevelInsetMm: number;
   frontType: FrontType;
   /** Espesor de la tapa, en mm. Solo se usa/valida si frontType === "lid" (cualquier lidJoint). */
   lidMm: number;
@@ -138,6 +153,26 @@ export interface LetterSignParams {
    * Solo se usa/valida si lidJoint === "interior-lip".
    */
   lipWallMm: number;
+  /**
+   * Bisel de tapa/difusor (0.4.2): modificador independiente del bisel del
+   * CUERPO (`bevelEnabled`/`rearBevelEnabled`), aplicado a la pieza frontal
+   * imprimible que corresponda según `frontType` — la tapa (`frontType ===
+   * "lid"`, cualquier `lidJoint`) o el difusor plano (`frontType ===
+   * "perforated"`). NUNCA se aplica a la máscara perforada (tiene su propia
+   * geometría, ver front/perforated.ts) ni al difusor de canal (fuera de
+   * alcance de 0.4.2). Elimina el canto recto exterior de la pieza con una
+   * transición inclinada — mismo mecanismo de banda+perfil suave que el
+   * bisel del cuerpo (ver geometry/plateBevel.ts), acotado automáticamente
+   * al espesor real de la pieza (`lidMm`/`diffuserThicknessMm`, ver
+   * `LID_BEVEL_DEPTH_CLAMPED`) para no perforarla. Solo afecta el borde
+   * VISIBLE (frontal) de la pieza: el lip interior de una tapa encastrable
+   * no cambia.
+   */
+  lidBevelEnabled: boolean;
+  /** Longitud en Z de la banda del bisel de tapa/difusor, en mm, medida desde la cara visible hacia atrás. Se acota automáticamente al espesor de la pieza. Solo se usa si lidBevelEnabled. */
+  lidBevelDepthMm: number;
+  /** Cuánto se desplaza hacia adentro en la cara visible, en mm. Solo se usa si lidBevelEnabled. */
+  lidBevelInsetMm: number;
   /** Espesor de la CARA frontal de la máscara perforada, en mm (0.4 Etapa 5). Solo se usa/valida si frontType === "perforated". */
   maskThicknessMm: number;
   /**
@@ -203,7 +238,9 @@ export interface LetterGeometryWarning {
     | "CHANNEL_DEPTH_CLAMPED"
     | "BEVEL_PLATE_COLLAPSED"
     | "MASK_SKIRT_COLLAPSED"
-    | "MASK_SIDE_DEPTH_CLAMPED";
+    | "MASK_SIDE_DEPTH_CLAMPED"
+    | "LID_BEVEL_COLLAPSED"
+    | "LID_BEVEL_DEPTH_CLAMPED";
   message: string;
 }
 

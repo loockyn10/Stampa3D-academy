@@ -4,6 +4,7 @@ import { extrudeContourGroups, type ExtrudedMeshData } from "@/lib/maker/geometr
 import { computeRibBands, ribBandsToZBands } from "@/lib/maker/geometry/body/modifiers/ribs";
 import { computeBevelBand, bevelBandToZBand, beveledFrontFootprint } from "@/lib/maker/geometry/body/modifiers/bevel";
 import { computeGrooveBand, grooveBandToZBand } from "@/lib/maker/geometry/body/modifiers/groove";
+import { computeRearBevelBand, rearBevelBandToZBand, beveledRearFootprint } from "@/lib/maker/geometry/body/modifiers/rearBevel";
 import { computeWallAndCore, buildBandedOuterWallPieces, type ZBand } from "@/lib/maker/geometry/body/shared";
 // El canal luminoso (0.4 Etapa 6) es, conceptualmente, un FRONT SYSTEM —
 // pero a diferencia de la tapa/máscara/difusor (piezas separadas que se
@@ -79,6 +80,11 @@ export function buildStandardBodyPieces(
   const grooveBand = wallHeight > 0
     ? computeGrooveBand(params.baseMm, params.depthMm, params.grooveEnabled, params.groovePositionMm, params.grooveWidthMm)
     : null;
+  // Bisel posterior (0.4.2): banda pegada a la BASE (Z=0), equivalente
+  // trasero del bisel frontal — ver body/modifiers/rearBevel.ts. A
+  // diferencia del bisel frontal, no se acota contra `baseMm` (reshapea
+  // justamente el extremo trasero, incluida la base maciza).
+  const rearBevelBand = wallHeight > 0 ? computeRearBevelBand(params.depthMm, params.rearBevelEnabled, params.rearBevelDepthMm) : null;
   // Costillas (0.4 Etapa 2): bandas dentro de la pared, nunca de la base
   // maciza NI de la banda del bisel (si está activo, las costillas quedan
   // acotadas a lo que sobra antes de esa banda — evita que ambos
@@ -87,22 +93,35 @@ export function buildStandardBodyPieces(
   // más viejos). Además (0.4.1), cualquier costilla que caiga dentro de la
   // banda del doble bisel se descarta — mismo criterio de "ceder lugar" que
   // ya existía para el bisel frontal, ahora también contra el doble bisel.
+  // 0.4.2: el piso de las costillas cede lugar también a la banda del bisel
+  // posterior, mismo criterio.
+  const ribsFloorMm = rearBevelBand ? rearBevelBand.z1 : params.baseMm;
   const ribsCeilingMm = bevelBand ? bevelBand.z0 : params.depthMm;
-  const ribBandsRaw = wallHeight > 0 ? computeRibBands(params.baseMm, ribsCeilingMm, params.ribsCount, params.ribWidthMm) : [];
+  const ribBandsRaw = wallHeight > 0 && ribsFloorMm < ribsCeilingMm
+    ? computeRibBands(ribsFloorMm, ribsCeilingMm, params.ribsCount, params.ribWidthMm)
+    : [];
   const ribBands = grooveBand ? ribBandsRaw.filter((rb) => rb.z1 <= grooveBand.z0 || rb.z0 >= grooveBand.z1) : ribBandsRaw;
 
   // Todas las bandas de modificador de ESTA letra, combinadas en una sola
   // pasada por `buildBandedOuterWallPieces` (0.4.1: antes costillas y bisel
   // se generaban con dos llamadas separadas; el doble bisel se suma acá sin
-  // agregar una tercera).
+  // agregar una tercera; 0.4.2 agrega el bisel posterior de la misma forma).
+  // `validateLetterSignParams` bloquea la combinación si el bisel frontal y
+  // el posterior se superponen (ver validation.ts) — acá solo se combinan,
+  // sin volver a chequear el choque.
   const zBands: ZBand[] = [
     ...ribBandsToZBands(ribBands, params.ribProtrusionMm),
     ...(bevelBand ? [bevelBandToZBand(bevelBand, params.bevelInsetMm)] : []),
     ...(grooveBand ? [grooveBandToZBand(grooveBand, params.grooveInsetMm)] : []),
+    ...(rearBevelBand ? [rearBevelBandToZBand(rearBevelBand, params.rearBevelInsetMm)] : []),
   ];
 
   for (const group of contourGroups) {
-    fondoGroups.push({ outer: group.outer, holes: group.holes });
+    // 0.4.2: el fondo usa el footprint erosionado por el bisel posterior en
+    // su extremo (Z=0) en vez del contorno original, cuando está activo —
+    // mismo mecanismo que el "frente" ya usa para el bisel frontal
+    // (`beveledFrontFootprint`), en el extremo opuesto.
+    fondoGroups.push(...beveledRearFootprint(group, rearBevelBand, params.rearBevelInsetMm));
 
     let groupWallGroups: ContourGroup[];
     if (isLightChannel) {

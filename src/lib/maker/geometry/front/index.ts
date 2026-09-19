@@ -16,7 +16,7 @@ export interface BuildFrontPartsResult {
    * Ver createLetterGeometry.ts: un código acá se traduce en un ERROR por
    * letra, nunca en geometría corrupta silenciosa.
    */
-  collapseErrorCode: "LIP_COLLAPSED" | "CHANNEL_COLLAPSED" | "BEVEL_PLATE_COLLAPSED" | "MASK_SKIRT_COLLAPSED" | null;
+  collapseErrorCode: "LIP_COLLAPSED" | "CHANNEL_COLLAPSED" | "BEVEL_PLATE_COLLAPSED" | "MASK_SKIRT_COLLAPSED" | "LID_BEVEL_COLLAPSED" | null;
 }
 
 /**
@@ -42,24 +42,36 @@ export function buildFrontParts(
   params: LetterSignParams,
   insertDepthUsedMm: number,
   maskSideDepthUsedMm: number,
+  lidBevelDepthUsedMm: number,
 ): BuildFrontPartsResult {
   switch (params.frontType) {
     case "open":
       return { parts: [], collapseErrorCode: null };
     case "lid": {
-      const lidResult = buildLid(contourGroups, params, insertDepthUsedMm);
+      const lidResult = buildLid(contourGroups, params, insertDepthUsedMm, lidBevelDepthUsedMm);
       const parts: SignPart[] = lidResult.lid
         ? [{ kind: "lid", filenameSuffix: "tapa", mesh: toTriangleSoupData(lidResult.lid) }]
         : [];
       // plateCollapsed (0.4.1: el bisel frontal erosionó toda la tapa) se
-      // reporta antes que lipCollapsed — sin placa no hay nada que
-      // exportar, el mensaje de labio sería confuso/redundante ahí.
-      const collapseErrorCode = lidResult.plateCollapsed ? "BEVEL_PLATE_COLLAPSED" : lidResult.lipCollapsed ? "LIP_COLLAPSED" : null;
+      // reporta antes que lipCollapsed/lidBevelCollapsed — sin placa no hay
+      // nada que exportar, cualquier otro mensaje sería confuso/redundante.
+      const collapseErrorCode = lidResult.plateCollapsed
+        ? "BEVEL_PLATE_COLLAPSED"
+        : lidResult.lipCollapsed
+          ? "LIP_COLLAPSED"
+          : lidResult.lidBevelCollapsed
+            ? "LID_BEVEL_COLLAPSED"
+            : null;
       return { parts, collapseErrorCode };
     }
     case "perforated": {
-      const perforatedResult = buildPerforatedFrontParts(contourGroups, params, maskSideDepthUsedMm);
-      return { parts: perforatedResult.parts, collapseErrorCode: perforatedResult.skirtCollapsed ? "MASK_SKIRT_COLLAPSED" : null };
+      const perforatedResult = buildPerforatedFrontParts(contourGroups, params, maskSideDepthUsedMm, lidBevelDepthUsedMm);
+      const collapseErrorCode = perforatedResult.skirtCollapsed
+        ? "MASK_SKIRT_COLLAPSED"
+        : perforatedResult.diffuserBevelCollapsed
+          ? "LID_BEVEL_COLLAPSED"
+          : null;
+      return { parts: perforatedResult.parts, collapseErrorCode };
     }
     case "light-channel": {
       const allChannelGroups: ContourGroup[] = [];

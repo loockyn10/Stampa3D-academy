@@ -4,6 +4,7 @@ import { differenceContourGroups, clipperPathsArea, contourGroupsToRawPaths } fr
 import { footprintAtOffset } from "@/lib/maker/geometry/body/shared";
 import { computeBevelBand } from "@/lib/maker/geometry/body/modifiers/bevel";
 import { fitInteriorLip } from "@/lib/maker/geometry/joints/interiorLip";
+import { computePlateBevelBand, plateBevelTopFootprint, buildBeveledPlateWallAndTopCap, type PlateBevelBand } from "@/lib/maker/geometry/plateBevel";
 
 export interface LidResult {
   /** Tapa (placa, o placa+labio soldados en una sola pieza), o null si frontType !== "lid". */
@@ -12,7 +13,11 @@ export interface LidResult {
   lipCollapsed: boolean;
   /** true si el bisel frontal (ver bevelPlateInsetMm) erosionó por completo la placa en alguna letra (0.4.1 corrección 3A). */
   plateCollapsed: boolean;
+  /** true si el bisel de tapa (0.4.2, ver geometry/plateBevel.ts) erosionó por completo la cara visible de la placa en alguna letra. */
+  lidBevelCollapsed: boolean;
 }
+
+const MIN_TOP_AREA_MM2 = 1e-4;
 
 const MIN_PLATE_AREA_MM2 = 1e-4;
 
@@ -51,10 +56,16 @@ function bevelPlateInsetMm(params: LetterSignParams): number {
  * compartidas (mismo mecanismo que ya suelda fondo/repisa/pared del cuerpo,
  * sin booleana 3D).
  */
-export function buildLid(contourGroups: ContourGroup[], params: LetterSignParams, insertDepthUsedMm: number): LidResult {
-  if (params.frontType !== "lid") return { lid: null, lipCollapsed: false, plateCollapsed: false };
+export function buildLid(contourGroups: ContourGroup[], params: LetterSignParams, insertDepthUsedMm: number, lidBevelDepthUsedMm: number): LidResult {
+  if (params.frontType !== "lid") return { lid: null, lipCollapsed: false, plateCollapsed: false, lidBevelCollapsed: false };
 
   const plateInsetMm = bevelPlateInsetMm(params);
+  const plateZ0 = params.depthMm;
+  const plateZ1 = params.depthMm + params.lidMm;
+  // Bisel de tapa (0.4.2): banda propia, INDEPENDIENTE de la continuidad con
+  // el bisel frontal del cuerpo (`plateInsetMm`, arriba) — se aplica SOBRE
+  // la silueta ya angostada por esa continuidad, ver plateBevel.ts.
+  const lidBevelBand = computePlateBevelBand(plateZ0, plateZ1, params.lidBevelEnabled, lidBevelDepthUsedMm);
 
   if (params.lidJoint !== "interior-lip") {
     // Misma silueta que el fondo del cuerpo (exterior menos huecos
@@ -63,13 +74,37 @@ export function buildLid(contourGroups: ContourGroup[], params: LetterSignParams
     const plateGroups: ContourGroup[] = contourGroups.flatMap((g) => footprintAtOffset(g, -plateInsetMm));
     const plateArea = Math.abs(clipperPathsArea(contourGroupsToRawPaths(plateGroups)));
     if (plateInsetMm > 1e-6 && plateArea < MIN_PLATE_AREA_MM2) {
-      return { lid: null, lipCollapsed: false, plateCollapsed: true };
+      return { lid: null, lipCollapsed: false, plateCollapsed: true, lidBevelCollapsed: false };
     }
-    const plate = extrudeContourGroups(plateGroups, params.depthMm, params.depthMm + params.lidMm, { capStart: true, capEnd: true });
-    return { lid: plate, lipCollapsed: false, plateCollapsed: false };
+
+    if (!lidBevelBand) {
+      // Sin bisel de tapa: mismo resultado byte a byte que 0.2-0.4.1.
+      const plate = extrudeContourGroups(plateGroups, plateZ0, plateZ1, { capStart: true, capEnd: true });
+      return { lid: plate, lipCollapsed: false, plateCollapsed: false, lidBevelCollapsed: false };
+    }
+
+    const topGroups: ContourGroup[] = [];
+    const pieces: ExtrudedMeshData[] = [
+      extrudeContourGroups(plateGroups, plateZ0, plateZ0, { capStart: true, capEnd: false, sides: false }),
+    ];
+    for (const group of plateGroups) {
+      pieces.push(buildBeveledPlateWallAndTopCap(group, plateZ0, plateZ1, lidBevelBand, params.lidBevelInsetMm));
+      topGroups.push(...plateBevelTopFootprint(group, lidBevelBand, params.lidBevelInsetMm));
+    }
+    if (isTopCollapsed(topGroups, params.lidBevelInsetMm)) {
+      return { lid: null, lipCollapsed: false, plateCollapsed: false, lidBevelCollapsed: true };
+    }
+    const plate: ExtrudedMeshData = { positions: pieces.flatMap((p) => p.positions), normals: pieces.flatMap((p) => p.normals) };
+    return { lid: plate, lipCollapsed: false, plateCollapsed: false, lidBevelCollapsed: false };
   }
 
-  return buildInteriorLipLid(contourGroups, params, insertDepthUsedMm, plateInsetMm);
+  return buildInteriorLipLid(contourGroups, params, insertDepthUsedMm, plateInsetMm, lidBevelBand);
+}
+
+function isTopCollapsed(topGroups: ContourGroup[], insetMm: number): boolean {
+  if (insetMm <= 1e-6) return false;
+  const area = Math.abs(clipperPathsArea(contourGroupsToRawPaths(topGroups)));
+  return area < MIN_TOP_AREA_MM2;
 }
 
 /**
@@ -125,15 +160,29 @@ function buildInteriorLipLid(
   params: LetterSignParams,
   insertDepthUsedMm: number,
   plateInsetMm: number,
+  lidBevelBand: PlateBevelBand | null,
 ): LidResult {
   const allPlateGroups: ContourGroup[] = [];
   const allLipGroups: ContourGroup[] = [];
   const plateShelfGroups: ContourGroup[] = [];
+  const plateWallPieces: ExtrudedMeshData[] = [];
+  const topGroups: ContourGroup[] = [];
   let lipCollapsed = false;
+
+  const plateZ0 = params.depthMm;
+  const plateZ1 = params.depthMm + params.lidMm;
 
   for (const group of contourGroups) {
     const plateFootprint = footprintAtOffset(group, -plateInsetMm);
     allPlateGroups.push(...plateFootprint);
+    // Pared lateral + tapa de la cara visible de la placa (0.4.2: perfil de
+    // bisel si está activo, ver plateBevel.ts) — la cara inferior (plateZ0)
+    // NUNCA se tapa acá, la cierran la repisa/el labio más abajo, igual que
+    // antes de esta corrección.
+    for (const pg of plateFootprint) {
+      plateWallPieces.push(buildBeveledPlateWallAndTopCap(pg, plateZ0, plateZ1, lidBevelBand, params.lidBevelInsetMm));
+      topGroups.push(...plateBevelTopFootprint(pg, lidBevelBand, params.lidBevelInsetMm));
+    }
 
     const fit = fitInteriorLip(group, params.wallMm, params.clearanceMm, params.lipWallMm, insertDepthUsedMm);
     if (fit.collapsed) {
@@ -149,12 +198,15 @@ function buildInteriorLipLid(
 
   const plateArea = Math.abs(clipperPathsArea(contourGroupsToRawPaths(allPlateGroups)));
   if (plateInsetMm > 1e-6 && plateArea < MIN_PLATE_AREA_MM2) {
-    return { lid: null, lipCollapsed, plateCollapsed: true };
+    return { lid: null, lipCollapsed, plateCollapsed: true, lidBevelCollapsed: false };
+  }
+  if (isTopCollapsed(topGroups, params.lidBevelInsetMm)) {
+    return { lid: null, lipCollapsed, plateCollapsed: false, lidBevelCollapsed: true };
   }
 
   const z0 = params.depthMm - insertDepthUsedMm;
   const pieces: ExtrudedMeshData[] = [
-    extrudeContourGroups(allPlateGroups, params.depthMm, params.depthMm + params.lidMm, { capStart: false, capEnd: true }),
+    ...plateWallPieces,
     extrudeContourGroups(plateShelfGroups, params.depthMm, params.depthMm, { capStart: true, capEnd: false, sides: false }),
   ];
 
@@ -169,5 +221,5 @@ function buildInteriorLipLid(
     positions: pieces.flatMap((p) => p.positions),
     normals: pieces.flatMap((p) => p.normals),
   };
-  return { lid, lipCollapsed, plateCollapsed: false };
+  return { lid, lipCollapsed, plateCollapsed: false, lidBevelCollapsed: false };
 }

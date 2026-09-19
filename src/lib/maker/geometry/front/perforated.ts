@@ -3,14 +3,18 @@ import { extrudeContourGroups, type ExtrudedMeshData, toTriangleSoupData } from 
 import { differenceContourGroups, contourGroupsToRawPaths, clipperPathsArea } from "@/lib/maker/geometry/offsets";
 import { footprintAtOffset } from "@/lib/maker/geometry/body/shared";
 import { punchCirclePattern } from "@/lib/maker/geometry/patterns/circles";
+import { computePlateBevelBand, plateBevelTopFootprint, buildBeveledPlateWallAndTopCap } from "@/lib/maker/geometry/plateBevel";
 
 const MIN_SKIRT_AREA_MM2 = 1e-4;
+const MIN_DIFFUSER_TOP_AREA_MM2 = 1e-4;
 
 export interface PerforatedFrontResult {
   /** diffuser + mask, SIEMPRE 2 piezas separadas (ver docs/STAMPA_MAKER.md). */
   parts: SignPart[];
   /** true si el faldón lateral no se pudo generar (ring vacío) en alguna zona del contorno, con maskSideDepthUsedMm > 0. */
   skirtCollapsed: boolean;
+  /** true si el bisel de difusor (0.4.2, ver geometry/plateBevel.ts) erosionó por completo su cara visible en alguna letra. NUNCA aplica a la máscara. */
+  diffuserBevelCollapsed: boolean;
 }
 
 /**
@@ -72,11 +76,49 @@ export interface PerforatedFrontResult {
  * (la cara): el faldón nunca se perfora, a propósito (spec 0.4.1: "las
  * perforaciones pertenecen únicamente a la cara frontal").
  */
-export function buildPerforatedFrontParts(contourGroups: ContourGroup[], params: LetterSignParams, maskSideDepthUsedMm: number): PerforatedFrontResult {
-  const diffuserGroups: ContourGroup[] = contourGroups.map((g) => ({ outer: g.outer, holes: g.holes }));
+export function buildPerforatedFrontParts(
+  contourGroups: ContourGroup[],
+  params: LetterSignParams,
+  maskSideDepthUsedMm: number,
+  lidBevelDepthUsedMm: number,
+): PerforatedFrontResult {
   const diffuserZ0 = params.depthMm;
   const diffuserZ1 = diffuserZ0 + params.diffuserThicknessMm;
-  const diffuser = extrudeContourGroups(diffuserGroups, diffuserZ0, diffuserZ1, { capStart: true, capEnd: true });
+  // Bisel de difusor (0.4.2, ver geometry/plateBevel.ts): NUNCA aplica a la
+  // máscara (tiene su propia geometría de carcasa, ver más abajo) — solo al
+  // difusor plano, misma silueta completa de siempre (exterior menos huecos
+  // ORIGINALES del glifo, sin holgura ni faldón).
+  const diffuserBevelBand = computePlateBevelBand(diffuserZ0, diffuserZ1, params.lidBevelEnabled, lidBevelDepthUsedMm);
+  const diffuserPieces: ExtrudedMeshData[] = diffuserBevelBand
+    ? [extrudeContourGroups(contourGroups, diffuserZ0, diffuserZ0, { capStart: true, capEnd: false, sides: false })]
+    : [];
+  let diffuserBevelCollapsed = false;
+  for (const g of contourGroups) {
+    const group: ContourGroup = { outer: g.outer, holes: g.holes };
+    if (!diffuserBevelBand) {
+      diffuserPieces.push(extrudeContourGroups([group], diffuserZ0, diffuserZ1, { capStart: true, capEnd: true }));
+      continue;
+    }
+    // Igual criterio que LIP_COLLAPSED (joints/interiorLip.ts): el difusor
+    // es una pieza OBLIGATORIA del frente perforado (siempre 2 piezas, ver
+    // docs/STAMPA_MAKER.md), así que un contorno donde el bisel erosiona la
+    // cara visible por completo degrada a difusor plano SOLO en esa zona
+    // (en vez de descartar la pieza entera) — el error igual bloquea la
+    // exportación hasta que se ajusten los parámetros.
+    const topFootprint = plateBevelTopFootprint(group, diffuserBevelBand, params.lidBevelInsetMm);
+    const collapsedHere =
+      params.lidBevelInsetMm > 1e-6 && Math.abs(clipperPathsArea(contourGroupsToRawPaths(topFootprint))) < MIN_DIFFUSER_TOP_AREA_MM2;
+    if (collapsedHere) {
+      diffuserBevelCollapsed = true;
+      diffuserPieces.push(buildBeveledPlateWallAndTopCap(group, diffuserZ0, diffuserZ1, null, 0));
+    } else {
+      diffuserPieces.push(buildBeveledPlateWallAndTopCap(group, diffuserZ0, diffuserZ1, diffuserBevelBand, params.lidBevelInsetMm));
+    }
+  }
+  const diffuser: ExtrudedMeshData = {
+    positions: diffuserPieces.flatMap((p) => p.positions),
+    normals: diffuserPieces.flatMap((p) => p.normals),
+  };
 
   const clearance = params.maskClearanceMm;
   const wallThickness = params.maskWallThicknessMm;
@@ -134,5 +176,6 @@ export function buildPerforatedFrontParts(contourGroups: ContourGroup[], params:
       { kind: "mask", filenameSuffix: "mascara", mesh: toTriangleSoupData(mask) },
     ],
     skirtCollapsed,
+    diffuserBevelCollapsed,
   };
 }

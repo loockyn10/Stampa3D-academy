@@ -360,6 +360,32 @@ export function MakerTextControls({
               </div>
             )}
           </div>
+
+          <div className="flex flex-col gap-2 rounded-xl border border-white/10 bg-white/[0.03] p-3">
+            <Toggle
+              label="Bisel posterior"
+              checked={params.rearBevelEnabled}
+              onChange={(checked) => onChange({ rearBevelEnabled: checked })}
+            />
+            {params.rearBevelEnabled && (
+              <div className="grid grid-cols-2 gap-3 pt-1">
+                <NumberField
+                  label="Profundidad"
+                  value={params.rearBevelDepthMm}
+                  onChange={(v) => onChange({ rearBevelDepthMm: v })}
+                  suffix="mm"
+                  error={fieldError(fieldErrors, "rearBevelDepthMm")}
+                />
+                <NumberField
+                  label="Desplazamiento"
+                  value={params.rearBevelInsetMm}
+                  onChange={(v) => onChange({ rearBevelInsetMm: v })}
+                  suffix="mm"
+                  error={fieldError(fieldErrors, "rearBevelInsetMm")}
+                />
+              </div>
+            )}
+          </div>
         </div>
       </div>
 
@@ -373,6 +399,34 @@ export function MakerTextControls({
             options={FRONT_TYPE_OPTIONS}
           />
         </label>
+
+        {(params.frontType === "lid" || params.frontType === "perforated") && (
+          <div className="flex flex-col gap-2 rounded-xl border border-white/10 bg-white/[0.03] p-3">
+            <Toggle
+              label="Bisel de tapa"
+              checked={params.lidBevelEnabled}
+              onChange={(checked) => onChange({ lidBevelEnabled: checked })}
+            />
+            {params.lidBevelEnabled && (
+              <div className="grid grid-cols-2 gap-3 pt-1">
+                <NumberField
+                  label="Profundidad"
+                  value={params.lidBevelDepthMm}
+                  onChange={(v) => onChange({ lidBevelDepthMm: v })}
+                  suffix="mm"
+                  error={fieldError(fieldErrors, "lidBevelDepthMm")}
+                />
+                <NumberField
+                  label="Desplazamiento"
+                  value={params.lidBevelInsetMm}
+                  onChange={(v) => onChange({ lidBevelInsetMm: v })}
+                  suffix="mm"
+                  error={fieldError(fieldErrors, "lidBevelInsetMm")}
+                />
+              </div>
+            )}
+          </div>
+        )}
 
         {params.frontType === "lid" && (
           <>

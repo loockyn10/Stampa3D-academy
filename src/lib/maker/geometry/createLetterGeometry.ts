@@ -35,7 +35,7 @@ export function createLetterGeometry(font: opentype.Font, params: LetterSignPara
   const letters: LetterPieceResult[] = [];
   const allRawContours: Point2D[][] = [];
   let anyFullyEroded = false;
-  const collapsedLetters: { char: string; index: number; code: "LIP_COLLAPSED" | "CHANNEL_COLLAPSED" | "BEVEL_PLATE_COLLAPSED" | "MASK_SKIRT_COLLAPSED" }[] = [];
+  const collapsedLetters: { char: string; index: number; code: "LIP_COLLAPSED" | "CHANNEL_COLLAPSED" | "BEVEL_PLATE_COLLAPSED" | "MASK_SKIRT_COLLAPSED" | "LID_BEVEL_COLLAPSED" }[] = [];
 
   // La profundidad de encastre no puede exceder la cavidad real disponible
   // (depthMm - baseMm: por debajo de baseMm el cuerpo es la base maciza,
@@ -68,6 +68,20 @@ export function createLetterGeometry(font: opentype.Font, params: LetterSignPara
     : params.maskSideDepthMm;
   const maskSideDepthClamped = perforated && maskSideDepthUsedMm < params.maskSideDepthMm - 1e-9;
 
+  // Bisel de tapa/difusor (0.4.2): la profundidad de banda nunca puede
+  // superar el espesor real de la pieza a la que se aplica (`lidMm` para la
+  // tapa, `diffuserThicknessMm` para el difusor del frente perforado — ver
+  // geometry/plateBevel.ts) sin perforarla. Parámetro global (no depende de
+  // la letra), se ajusta una sola vez acá, igual que insertDepthMm/
+  // channelDepthMm/maskSideDepthMm — nunca en silencio (LID_BEVEL_DEPTH_CLAMPED).
+  const lidBevelApplicablePieceThicknessMm =
+    params.frontType === "lid" ? params.lidMm : params.frontType === "perforated" ? params.diffuserThicknessMm : 0;
+  const lidBevelActive = params.lidBevelEnabled && lidBevelApplicablePieceThicknessMm > 0;
+  const lidBevelDepthUsedMm = lidBevelActive
+    ? Math.min(Math.max(params.lidBevelDepthMm, 0), lidBevelApplicablePieceThicknessMm)
+    : params.lidBevelDepthMm;
+  const lidBevelDepthClamped = lidBevelActive && lidBevelDepthUsedMm < params.lidBevelDepthMm - 1e-9;
+
   for (const { char, path } of perCharacterPaths) {
     const rawContours = flattenOpentypePath(path);
     if (rawContours.length === 0) continue; // espacio u otro glifo sin tinta
@@ -79,7 +93,7 @@ export function createLetterGeometry(font: opentype.Font, params: LetterSignPara
     if (bodyResult.fullyEroded) anyFullyEroded = true;
 
     const index = letters.length + 1;
-    const frontResult = buildFrontParts(contourGroups, params, insertDepthUsedMm, maskSideDepthUsedMm);
+    const frontResult = buildFrontParts(contourGroups, params, insertDepthUsedMm, maskSideDepthUsedMm, lidBevelDepthUsedMm);
     if (frontResult.collapseErrorCode) collapsedLetters.push({ char, index, code: frontResult.collapseErrorCode });
 
     const parts: SignPart[] = [
@@ -119,6 +133,8 @@ export function createLetterGeometry(font: opentype.Font, params: LetterSignPara
       `La tapa no puede generarse en la letra "${char}" (posición ${index}): el bisel frontal erosiona la placa por completo con estos parámetros. Reducí el desplazamiento del bisel, aumentá el tamaño o utilizá una fuente más gruesa.`,
     MASK_SKIRT_COLLAPSED: (char, index) =>
       `El faldón lateral de la máscara perforada no puede generarse en la letra "${char}" (posición ${index}): la holgura/espesor pedidos erosionan el faldón por completo. Reducí la holgura, el espesor lateral, o la cobertura lateral.`,
+    LID_BEVEL_COLLAPSED: (char, index) =>
+      `El bisel de tapa/difusor no puede generarse en la letra "${char}" (posición ${index}): erosiona la cara visible de la pieza por completo con estos parámetros. Reducí el desplazamiento del bisel, aumentá el tamaño o utilizá una fuente más gruesa.`,
   };
 
   for (const { char, index, code } of collapsedLetters) {
@@ -143,6 +159,13 @@ export function createLetterGeometry(font: opentype.Font, params: LetterSignPara
     warnings.push({
       code: "MASK_SIDE_DEPTH_CLAMPED",
       message: `Cobertura lateral de la máscara ajustada de ${formatMm(params.maskSideDepthMm)} mm a ${formatMm(maskSideDepthUsedMm)} mm porque el cuerpo no tiene más profundidad.`,
+    });
+  }
+
+  if (lidBevelDepthClamped) {
+    warnings.push({
+      code: "LID_BEVEL_DEPTH_CLAMPED",
+      message: `Profundidad del bisel de tapa/difusor ajustada de ${formatMm(params.lidBevelDepthMm)} mm a ${formatMm(lidBevelDepthUsedMm)} mm porque la pieza no tiene más espesor disponible.`,
     });
   }
 
@@ -181,12 +204,12 @@ function frontExtraDepthMm(params: LetterSignParams): number {
 /**
  * Orden canónico de piezas en el resultado combinado: estable entre
  * builds, y el orden en el que el preview/exportadores las recorren. Es
- * también el orden FÍSICO de armado (del cuerpo hacia el observador) — 0.4.1
- * corrección 4A: antes tenía "mask" antes que "diffuser" (el difusor, más
- * cerca del cuerpo, terminaba después del más lejano en cualquier recorrido
- * secuencial), la causa de raíz del offset explosionado invertido en
- * MakerViewport.tsx (que ahora además calcula su propio orden por posición
- * real en Z, no solo por esta lista — ver explodeRankRef ahí).
+ * también el orden FÍSICO de armado (del cuerpo hacia el observador),
+ * consistente con `PART_ASSEMBLY_LAYER` (ver geometry/explodeOrder.ts) — esa
+ * tabla, no esta lista, es la fuente de verdad que usa MakerViewport.tsx
+ * para el rank de la vista explosionada (0.4.2: depender del orden de
+ * recorrido de un array, o de la posición Z real de la malla, resultó frágil
+ * dos veces — ver explodeOrder.ts para el historial).
  */
 const PART_ORDER: PartKind[] = ["body", "lid", "diffuser", "mask", "channelDiffuser"];
 

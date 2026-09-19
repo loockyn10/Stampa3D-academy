@@ -32,6 +32,18 @@
 > rediseñada como carcasa con faldón lateral (`maskSideDepthMm`, 15.6).
 > Fix transversal de precisión numérica en la aproximación por sub-bandas
 > (cuantización de offset, 15.7). 199 tests Maker (162 -> 199).
+> 0.4.2 (2026-09-18): "Bevel system completion" — completa el sistema de
+> biseles y corrige DEFINITIVAMENTE el orden explosionado (sección 16). Fix
+> de orden explosionado del perforado: capa de armado semántica por
+> `PartKind` (`PART_ASSEMBLY_LAYER`, geometry/explodeOrder.ts) en vez de la
+> posición Z real de la malla, que volvía a romperse con el faldón lateral
+> de la máscara (16.1). Bisel posterior (`rearBevelEnabled`), equivalente
+> trasero del bisel frontal, misma infraestructura de bandas (16.2). Bisel
+> de tapa/difusor (`lidBevelEnabled`), aplicado a la tapa o al difusor del
+> perforado (nunca a la máscara), acotado automáticamente al espesor real
+> de la pieza (16.3). Canal luminoso, gyroid, honeycomb, nuevos patterns,
+> materiales, 3MF y LEDs quedan explícitamente fuera de alcance (16.7). 242
+> tests Maker (199 -> 242).
 
 ## 1. Qué es
 
@@ -1178,3 +1190,204 @@ porque se haya podido reproducir con parámetros válidos.
   Maker).
 - **Verificación manual en navegador no realizada** (14.7) — mismo motivo
   que 0.1-0.3.1 (sin credenciales Paid en este entorno).
+
+## 16. Stampa Maker 0.4.2 — Bevel system completion
+
+Iteración puntual: completa el sistema de biseles del cuerpo/tapa y corrige
+DEFINITIVAMENTE el orden explosionado del frente perforado. NO implementa el
+canal luminoso interior de 0.4/0.4.1 (eso ya existía) ni ningún patrón/body
+nuevo — misma arquitectura modular `body/front/patterns/parts`, mismo
+`SignPart[]`/export genérico. Explícitamente fuera de alcance de esta
+iteración (sin cambios): light channel (ya existente, no se toca), gyroid,
+nuevos patterns, honeycomb, triangle pattern, materiales, 3MF, LEDs,
+cableado, nuevos bodies.
+
+### 16.1 Fix definitivo del orden explosionado (frente perforado)
+
+**Problema:** el fix de 0.4.1 (sección 15.5) derivaba el rank de la vista
+explosionada de `meshMinZ` — el Z mínimo REAL de cada malla. Volvió a
+romperse al agregar la máscara-carcasa con faldón lateral (0.4.1 sección
+15.6, la misma sesión): el faldón extiende su geometría hacia ATRÁS del
+difusor (hasta `depthMm - maskSideDepthMm`, potencialmente cerca de Z=0),
+así que el `minZ` de la máscara terminaba siendo MENOR que el del difusor
+aunque la máscara sea la pieza más externa — invirtiendo el rank calculado.
+
+**Corrección:** el orden de armado es una propiedad SEMÁNTICA de cada
+`PartKind` (qué rol cumple, no dónde llegan a extenderse sus vértices), así
+que se declara explícitamente en una tabla central en vez de inferirse de la
+malla. Nuevo módulo `src/lib/maker/geometry/explodeOrder.ts`:
+
+- `PART_ASSEMBLY_LAYER: Record<PartKind, number>` — 0 = cuerpo (nunca se
+  explota); `lid`/`diffuser`/`channelDiffuser` = 1 (nunca coexisten entre sí,
+  son mutuamente excluyentes por `frontType` — cada una es, cuando existe,
+  la única pieza intermedia); `mask` = 2 (más externa, coexiste con
+  `diffuser` en `frontType === "perforated"` y va SIEMPRE por delante).
+- `computeExplodeRanks(kinds: PartKind[]): Map<PartKind, number>` — deriva
+  el rank (1, 2, 3...) de cada `PartKind` presente a partir de esa tabla,
+  ordenando por capa creciente y deduplicando por capa. Función PURA, sin
+  ninguna dependencia de mesh/three.js — testeada directamente (sin
+  necesidad de generar geometría) con el orden de entrada normal Y
+  invertido, confirmando que el resultado no depende del orden del array.
+
+`MakerViewport.tsx` reemplaza el cálculo por `meshMinZ` (eliminado) por
+`computeExplodeRanks(presentKinds)`, sobre los `kind` de
+`geometry.parts` con triángulos — ninguna lógica de ordering dispersa en el
+componente. `createLetterGeometry.ts#PART_ORDER` (orden de
+combinación/exportación, sin cambios de valores) ahora documenta que
+`PART_ASSEMBLY_LAYER` es la fuente de verdad para el rank visual, no ese
+array.
+
+La posición geométrica real (assembled/export) no cambió: es una
+transformación puramente visual de `MakerViewport.tsx`, igual que en 0.4.1.
+
+### 16.2 Bisel posterior del cuerpo
+
+Equivalente TRASERO del bisel frontal (14.4/15.3): la pared (exterior y
+counters) se erosiona progresivamente en una banda pegada a la BASE (Z=0) en
+vez de al frente (Z=depthMm). Reutiliza toda la infraestructura de bandas de
+0.4.1 (`subdivideRange`, `buildOffsetProfileWallPieces`,
+`smoothstepRampProfile`, `buildBandedOuterWallPieces`) — nuevo módulo
+`src/lib/maker/geometry/body/modifiers/rearBevel.ts`, mismo patrón que
+`bevel.ts` pero espejado:
+
+- `computeRearBevelBand(depthMm, rearBevelEnabled, rearBevelDepthMm)`:
+  banda `[0, min(rearBevelDepthMm, depthMm)]`. A diferencia del bisel
+  frontal, NO se acota contra `baseMm` — el bisel posterior reshapea
+  justamente el extremo trasero, incluida la base maciza (spec: "debe
+  aplicarse desde Z=0 hacia Z=rearBevelDepthMm").
+- `rearBevelBandToZBand`: mismo perfil smoothstep que el bisel frontal, con
+  el inset MÁXIMO en `Z=0` (el extremo trasero) y `0` (nominal) en
+  `Z=rearBevelDepthMm` — pendiente 0 en ambos extremos, sin escalón.
+- `beveledRearFootprint`: equivalente trasero de `beveledFrontFootprint` —
+  la pieza "fondo" del cuerpo (antes `fondoGroups` sin modificar) ahora usa
+  este footprint erosionado cuando el bisel posterior está activo, mismo
+  mecanismo que el "frente" ya usaba para el bisel frontal.
+
+**Parámetros** (`rearBevelEnabled`, `rearBevelDepthMm` default 2mm,
+`rearBevelInsetMm` default 1mm) con validaciones equivalentes al bisel
+frontal (rangos (0,20] / (0,10] mm).
+
+**Combinación:**
+
+- Con costillas: el PISO de las costillas (antes fijo en `baseMm`) ahora
+  cede lugar a la banda del bisel posterior, mismo criterio que ya cedían
+  contra el bisel frontal/lateral — `body/standard.ts#ribsFloorMm`.
+- Con bisel frontal: ambos activos a la vez es válido SI sus bandas no se
+  superponen — `validateLetterSignParams` bloquea la combinación con un
+  error en `rearBevelDepthMm` si `frontDepth + rearDepth` haría que las
+  bandas se toquen, en vez de generar geometría autointersectada (mismo
+  criterio que el choque bisel frontal + bisel lateral de 0.4.1).
+- Con bisel lateral (groove): mismo criterio de bloqueo por superposición,
+  agregado por simetría/seguridad (no pedido explícitamente, pero evita el
+  mismo tipo de autointersección).
+- Con body standard: sí. Con `bodyType === "tapered"`: NO aplica (mismo
+  criterio que `bevelEnabled`/`ribsCount`, `body/tapered.ts` no conoce
+  ningún modificador de 0.4/0.4.1/0.4.2) — limitación documentada, no un
+  rediseño de esta iteración.
+- El perfil se aplica automáticamente a exterior, counters y concavidades
+  (mismo `footprintAtOffset` uniforme de siempre) — probado con O/8/B.
+
+### 16.3 Bisel de tapa/difusor
+
+Modificador INDEPENDIENTE de los biseles del cuerpo, aplicado a la pieza
+frontal imprimible que corresponda según `frontType`: la tapa
+(`frontType === "lid"`, cualquier `lidJoint`) o el difusor plano
+(`frontType === "perforated"`). NUNCA se aplica a la máscara perforada
+(tiene su propia geometría de carcasa) ni al difusor de canal luminoso
+(fuera de alcance de esta iteración, ver 16.6).
+
+Nuevo módulo compartido `src/lib/maker/geometry/plateBevel.ts` — a
+diferencia del bisel del CUERPO (que opera sobre una pared con cavidad
+interior propia), una placa es un sólido macizo: el bisel solo cambia la
+PARED LATERAL + la TAPA de la cara VISIBLE (`z1`, la cara frontal de la
+pieza), nunca la cara trasera (`z0`) — eso preserva el sistema de encastre
+(el labio de una tapa encastrable no cambia, ver más abajo).
+
+- `computePlateBevelBand(plateZ0, plateZ1, enabled, bevelDepthMm)`: banda
+  pegada a la cara visible `[max(plateZ0, plateZ1-bevelDepthMm), plateZ1]`.
+- `buildBeveledPlateWallAndTopCap`: pared lateral + tapa de `z1` con el
+  perfil de bisel (mismo mecanismo `buildOffsetProfileWallPieces` de
+  siempre); NUNCA emite la tapa de `z0` — el llamador decide cómo cerrar
+  esa cara (tapa completa para una placa "glue"/el difusor, o dejarla
+  abierta para que la repisa/el labio de una tapa encastrable la cierren).
+
+**Parámetros:** `lidBevelEnabled`, `lidBevelDepthMm` (banda en Z, medida
+desde la cara visible hacia atrás) + `lidBevelInsetMm` (desplazamiento
+máximo en la cara visible) — combinación depth+inset (no solo un
+`lidBevelWidthMm`) porque, igual que el bisel del cuerpo, una pieza fina
+necesita controlar ambos de forma independiente para no perforarse.
+
+**Límite automático al espesor real de la pieza:** `lidBevelDepthMm` NUNCA
+puede superar el espesor real de la pieza a la que se aplica (`lidMm` para
+la tapa, `diffuserThicknessMm` para el difusor) sin perforarla. Igual que
+`insertDepthMm`/`channelDepthMm`/`maskSideDepthMm`, el valor efectivo se
+calcula UNA vez en `createLetterGeometry.ts` (parámetro global, no depende
+de la letra) y, si el pedido excede el espesor disponible, se acota con un
+warning explícito (`LID_BEVEL_DEPTH_CLAMPED`) — nunca un clamp silencioso.
+
+**Preserva el sistema de encastre (interior lip):** para `lidJoint ===
+"interior-lip"`, el bisel solo reconstruye la pared+tapa de la placa desde
+`depthMm` hasta `depthMm+lidMm` (la cara visible); el labio (que entra en la
+cavidad, `depthMm-insertDepthEfectivo` hasta `depthMm`) y la repisa que lo
+soldaba a la placa no se tocan — verificado con un test que compara byte a
+byte toda la geometría con Z ≤ depthMm entre bisel activo/inactivo. El
+espesor total de la tapa (`depthMm` → `depthMm+lidMm`) tampoco cambia: el
+bisel angosta la silueta, nunca el rango de Z.
+
+**Difusor perforado:** cuando existe máscara+difusor+cuerpo, el difusor
+puede tener bisel propio sin tocar `maskClearanceMm`/`maskSideDepthMm`/el
+orden ensamblado (la máscara sigue siendo la pieza más externa, ver 16.1) —
+la máscara NUNCA recibe bisel.
+
+**Multipieza / hardening:** si el bisel erosiona la cara visible de una
+letra/counter por completo (trazo demasiado angosto para el desplazamiento
+pedido), no se genera geometría corrupta: nuevo código `LID_BEVEL_COLLAPSED`
+(mismo patrón que `LIP_COLLAPSED`/`BEVEL_PLATE_COLLAPSED`) bloquea la
+exportación con un mensaje por letra. Para la tapa ("glue"/"interior-lip"),
+el colapso es GLOBAL (toda la tapa de esa letra queda descartada, mismo
+criterio que `BEVEL_PLATE_COLLAPSED`, su vecino en el mismo archivo). Para
+el difusor del frente perforado, el colapso es POR CONTORNO: como el difusor
+es una pieza OBLIGATORIA del frente perforado (siempre 2 piezas), un
+contorno que colapsa degrada a difusor plano SOLO en esa zona (mismo
+criterio que `LIP_COLLAPSED`) en vez de descartar la pieza entera — el error
+sigue bloqueando la exportación hasta ajustar los parámetros.
+
+### 16.4 Modelo con los 4 efectos
+
+Los cuatro modificadores (bisel frontal, bisel posterior, bisel lateral
+luminoso/doble bisel, bisel de tapa) son independientes entre sí y pueden
+combinarse simultáneamente cuando sus bandas no se superponen — probado con
+los cuatro activos a la vez sobre "O" (cuerpo + tapa, ambos manifold/
+watertight/1 componente conectado, sin errores de validación ni de
+geometría). No se agregó un preset dedicado — sigue siendo composición
+explícita de parámetros, como el resto de 0.4/0.4.1.
+
+### 16.5 UI
+
+- **Modificadores de cuerpo:** nuevo toggle "Bisel posterior" (Profundidad/
+  Desplazamiento), junto a "Bisel frontal" y "Bisel lateral luminoso" — sin
+  cambios en los dos existentes.
+- **Tapa/difusor:** nuevo toggle "Bisel de tapa" (Profundidad/
+  Desplazamiento), visible solo cuando existe una pieza compatible
+  (`frontType === "lid"` o `"perforated"`) — oculto con frente abierto,
+  canal luminoso, o cualquier combinación sin tapa/difusor.
+
+### 16.6 Limitaciones conocidas (0.4.2)
+
+- **Tapered sigue sin combinar con ningún modificador de pared** (bisel
+  posterior incluido) — `body/tapered.ts` no conoce ribs/bevel/groove/
+  rearBevel, sin cambios respecto a 14.8/15.8.
+- **Bisel de tapa NO aplica al difusor de canal luminoso**
+  (`channelDiffuser`) — el pedido lo marcaba como aplicación "si en el
+  futuro se reutiliza"; fuera de alcance de esta iteración puntual. El
+  difusor de canal se sigue generando exactamente igual que en 0.4/0.4.1.
+- **Bisel lateral + canal luminoso**: sigue sin evaluarse (14.8/15.8, sin
+  cambios) — `body/standard.ts` no aplica bandas de modificador de forma
+  probada al cuerpo macizo del canal luminoso.
+- **Verificación manual en navegador no realizada** — mismo motivo que
+  todas las versiones anteriores (sin credenciales Paid en este entorno).
+  Validado en su lugar: `npx tsc --noEmit` limpio, `npm run build` exitoso
+  (incluye `/stampa-maker/carteles`), 242 tests Maker, y la suite completa
+  del repo (736 tests, 1 fallo preexistente no relacionado en
+  `stampy-product-stock-tools.test.mjs`, mismo problema de resolución de
+  módulos del harness ya documentado en 15.8 — ajeno a Stampa Maker).

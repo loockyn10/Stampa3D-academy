@@ -1,6 +1,7 @@
 import type { LetterSignParams } from "@/lib/maker/types";
 import { computeBevelBand } from "@/lib/maker/geometry/body/modifiers/bevel";
 import { computeGrooveBand } from "@/lib/maker/geometry/body/modifiers/groove";
+import { computeRearBevelBand } from "@/lib/maker/geometry/body/modifiers/rearBevel";
 
 export interface FieldError {
   field: keyof LetterSignParams;
@@ -81,6 +82,43 @@ export function validateLetterSignParams(params: LetterSignParams): FieldError[]
       if (bevelBand && grooveBand && grooveBand.z1 > bevelBand.z0 && grooveBand.z0 < bevelBand.z1) {
         errors.push({ field: "groovePositionMm", message: "El bisel lateral se superpone con el bisel frontal: alejá su posición o achicá su ancho/profundidad." });
       }
+    }
+    if (params.rearBevelEnabled && params.depthMm > 0) {
+      const rearBand = computeRearBevelBand(params.depthMm, true, params.rearBevelDepthMm);
+      const grooveBand = computeGrooveBand(params.baseMm, params.depthMm, true, params.groovePositionMm, params.grooveWidthMm);
+      if (rearBand && grooveBand && grooveBand.z1 > rearBand.z0 && grooveBand.z0 < rearBand.z1) {
+        errors.push({ field: "groovePositionMm", message: "El bisel lateral se superpone con el bisel posterior: alejá su posición o achicá su ancho/profundidad." });
+      }
+    }
+  }
+
+  if (params.rearBevelEnabled) {
+    if (!(params.rearBevelDepthMm > 0 && params.rearBevelDepthMm <= 20)) {
+      errors.push({ field: "rearBevelDepthMm", message: "La profundidad del bisel posterior debe estar entre 0 y 20 mm." });
+    }
+    if (!(params.rearBevelInsetMm > 0 && params.rearBevelInsetMm <= 10)) {
+      errors.push({ field: "rearBevelInsetMm", message: "El desplazamiento del bisel posterior debe estar entre 0 y 10 mm." });
+    }
+    // El bisel frontal y el posterior trabajan en extremos opuestos del
+    // cuerpo (Z=depthMm y Z=0 respectivamente, ver body/modifiers/bevel.ts y
+    // rearBevel.ts): si sus bandas se superponen la geometría se
+    // autointersectaría (spec 0.4.2, sección 2) — se bloquea acá, no se
+    // genera geometría corrupta ni se resuelve automáticamente.
+    if (params.bevelEnabled && params.depthMm > 0) {
+      const frontBand = computeBevelBand(params.baseMm, params.depthMm, true, params.bevelDepthMm);
+      const rearBand = computeRearBevelBand(params.depthMm, true, params.rearBevelDepthMm);
+      if (frontBand && rearBand && rearBand.z1 > frontBand.z0) {
+        errors.push({ field: "rearBevelDepthMm", message: "El bisel posterior se superpone con el bisel frontal: reducí una de las dos profundidades." });
+      }
+    }
+  }
+
+  if (params.lidBevelEnabled && (params.frontType === "lid" || params.frontType === "perforated")) {
+    if (!(params.lidBevelDepthMm > 0 && params.lidBevelDepthMm <= 10)) {
+      errors.push({ field: "lidBevelDepthMm", message: "La profundidad del bisel de tapa/difusor debe estar entre 0 y 10 mm." });
+    }
+    if (!(params.lidBevelInsetMm > 0 && params.lidBevelInsetMm <= 5)) {
+      errors.push({ field: "lidBevelInsetMm", message: "El desplazamiento del bisel de tapa/difusor debe estar entre 0 y 5 mm." });
     }
   }
 
