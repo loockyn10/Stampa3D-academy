@@ -68,6 +68,9 @@ interface ViewCardProps {
   plateCount: number;
   plateIndex: number;
   onPlateChange: (index: number) => void;
+  /** Modo Editar recortes activo: el modo/vista quedan fijos (Modelo + Ensamblada) hasta terminar. */
+  cutoutEditingActive?: boolean;
+  onFinishCutoutEditing?: () => void;
 }
 
 const DISPLAY_OPTIONS: { value: MakerDisplayMode; label: string }[] = [
@@ -82,6 +85,21 @@ const VIEW_OPTIONS: { value: MakerViewMode; label: string }[] = [
 /** Tarjeta flotante BOTTOM-RIGHT: modo de visualización y controles de vista. */
 export function ViewportViewCard(props: ViewCardProps) {
   const { displayMode, viewMode, profile, plateCount, plateIndex } = props;
+  if (props.cutoutEditingActive) {
+    return (
+      <div className={`${CARD} flex w-64 flex-col gap-2`}>
+        <span className="text-[11px] font-semibold uppercase tracking-wide text-gray-500">Visualización</span>
+        <p className="text-xs text-gray-400">Editando recortes: Modelo · Ensamblada · vista trasera.</p>
+        <button
+          type="button"
+          onClick={props.onFinishCutoutEditing}
+          className="h-8 rounded-lg border border-transparent bg-stampa-orange px-3 text-xs font-semibold text-neutral-950 hover:bg-stampa-orange-hover"
+        >
+          Terminar edición
+        </button>
+      </div>
+    );
+  }
   return (
     <div className={`${CARD} flex w-64 flex-col gap-2.5`}>
       <div>
@@ -149,6 +167,22 @@ export function ViewportViewCard(props: ViewCardProps) {
             </div>
           )}
         </div>
+      )}
+    </div>
+  );
+}
+
+/** Banner del modo Editar recortes (arriba a la izquierda): instrucciones y aviso de posición inválida. */
+export function CutoutEditingBanner({ invalidMessage }: { invalidMessage: string | null }) {
+  return (
+    <div className={`${CARD} flex max-w-xs flex-col gap-1 text-xs`}>
+      <span className="font-semibold text-white">Editando recortes traseros</span>
+      <span className="text-gray-400">Vista trasera. Seleccioná un recorte y arrastralo. La X guardada se mide visto de frente.</span>
+      {invalidMessage && (
+        <span className="flex items-start gap-1.5 text-red-300">
+          <AlertTriangle size={13} className="mt-0.5 shrink-0" />
+          {invalidMessage}
+        </span>
       )}
     </div>
   );

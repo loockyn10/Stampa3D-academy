@@ -8,6 +8,7 @@ import { letterGeometryToBufferGeometry } from "@/lib/maker/geometry/toBufferGeo
 import { DEFAULT_EXPLODE_PERCENT, computeExplodeRanks, computeExplodeStepMm } from "@/lib/maker/geometry/explodeOrder";
 import { placementMatrix, type BedItem, type BedLayout } from "@/lib/maker/printBed/bedLayout";
 import type { PrinterProfile } from "@/lib/maker/printBed/printerProfiles";
+import { createCutoutEditor, type CutoutEditor, type CutoutEditorState } from "@/components/maker/cutoutEditorScene";
 
 export type MakerViewMode = "assembled" | "exploded";
 export type MakerDisplayMode = "model" | "bed";
@@ -29,6 +30,8 @@ interface MakerViewportProps {
   /** Separación explosionada 0-100 (solo visual). */
   explodePercent?: number;
   bed?: MakerBedView | null;
+  /** Modo Editar recortes (solo Model View): cámara trasera ortográfica + handles arrastrables. null/undefined = modo apagado. */
+  cutoutEditing?: CutoutEditorState | null;
 }
 
 /** Color por tipo de pieza, solo para diferenciarlas visualmente en el preview (no es el color real de impresión). */
@@ -104,7 +107,7 @@ function buildBedPlate(profile: PrinterProfile): THREE.Object3D {
  *    printBed/bedLayout.ts) apoyadas en Z=0 sobre el perfil de impresora.
  * Cada modo conserva su propia cámara.
  */
-export function MakerViewport({ geometry, displayMode = "model", viewMode = "assembled", explodePercent = DEFAULT_EXPLODE_PERCENT, bed = null }: MakerViewportProps) {
+export function MakerViewport({ geometry, displayMode = "model", viewMode = "assembled", explodePercent = DEFAULT_EXPLODE_PERCENT, bed = null, cutoutEditing = null }: MakerViewportProps) {
   const containerRef = useRef<HTMLDivElement>(null);
   const sceneRef = useRef<THREE.Scene | null>(null);
   const cameraRef = useRef<THREE.PerspectiveCamera | null>(null);
@@ -118,6 +121,8 @@ export function MakerViewport({ geometry, displayMode = "model", viewMode = "ass
   const explodeRankRef = useRef<Map<PartKind, number>>(new Map());
   const camStoreRef = useRef<{ model: CameraState | null; bed: CameraState | null }>({ model: null, bed: null });
   const activeModeRef = useRef<MakerDisplayMode>(displayMode);
+  const editorRef = useRef<CutoutEditor | null>(null);
+  const geometryRef = useRef<LetterGeometryResult | null>(geometry);
 
   const fitTo = (center: THREE.Vector3, maxDim: number, dir: THREE.Vector3) => {
     const camera = cameraRef.current;
@@ -201,10 +206,15 @@ export function MakerViewport({ geometry, displayMode = "model", viewMode = "ass
     bedRoot.add(bedContent);
     bedContentRef.current = bedContent;
 
+    const editor = createCutoutEditor(scene, renderer.domElement, container);
+    editorRef.current = editor;
+
     let frameId = 0;
     const animate = () => {
-      controls.update();
-      renderer.render(scene, camera);
+      const editing = editor.isActive();
+      if (editing) editor.controls.update();
+      else controls.update();
+      renderer.render(scene, editing ? editor.camera : camera);
       frameId = requestAnimationFrame(animate);
     };
     animate();
@@ -214,12 +224,15 @@ export function MakerViewport({ geometry, displayMode = "model", viewMode = "ass
       camera.aspect = container.clientWidth / container.clientHeight;
       camera.updateProjectionMatrix();
       renderer.setSize(container.clientWidth, container.clientHeight);
+      editor.resize();
     });
     resizeObserver.observe(container);
 
     return () => {
       cancelAnimationFrame(frameId);
       resizeObserver.disconnect();
+      editor.dispose();
+      editorRef.current = null;
       controls.dispose();
       clearGroup(modelGroup);
       clearGroup(bedContent);
@@ -319,6 +332,40 @@ export function MakerViewport({ geometry, displayMode = "model", viewMode = "ass
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [displayMode]);
+
+  // Modo Editar recortes: entra/sale de la vista trasera ortográfica. La cámara
+  // perspectiva y sus controles quedan intactos (al salir, el Model View vuelve
+  // exactamente como estaba).
+  const editingOn = cutoutEditing !== null;
+  const hasGeometry = !!geometry && geometry.triangleCount > 0;
+  useEffect(() => {
+    geometryRef.current = geometry;
+  });
+  useEffect(() => {
+    const editor = editorRef.current;
+    const controls = controlsRef.current;
+    if (!editor || !controls) return;
+    if (editingOn && geometryRef.current) {
+      const g = geometryRef.current;
+      controls.enabled = false;
+      editor.enter({
+        centerX: g.designCenter.x,
+        centerY: g.designCenter.y,
+        centerZ: g.boundingBox.depth / 2,
+        width: g.boundingBox.width,
+        height: g.boundingBox.height,
+        depth: g.boundingBox.depth,
+      });
+    } else {
+      editor.exit();
+      controls.enabled = true;
+    }
+    // Solo al entrar/salir del modo (o cuando aparece la geometría): regenerar el modelo mientras se arrastra no debe resetear zoom/encuadre.
+  }, [editingOn, hasGeometry]);
+
+  useEffect(() => {
+    if (cutoutEditing) editorRef.current?.update(cutoutEditing);
+  }, [cutoutEditing]);
 
   return <div ref={containerRef} className="h-full w-full min-h-[320px] bg-[radial-gradient(ellipse_at_center,#23262c_0%,#15171b_75%)]" />;
 }

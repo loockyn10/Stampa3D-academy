@@ -9,7 +9,7 @@ import { MakerBackCutoutsSection } from "@/components/maker/MakerBackCutoutsSect
 import { Card } from "@/components/ui/card";
 import { MakerLibraryPanel } from "@/components/maker/MakerLibraryPanel";
 import { MakerViewport, type MakerDisplayMode, type MakerViewMode } from "@/components/maker/MakerViewport";
-import { BedLabel, BedWarnings, ViewportExportCard, ViewportViewCard } from "@/components/maker/MakerViewportOverlays";
+import { BedLabel, BedWarnings, CutoutEditingBanner, ViewportExportCard, ViewportViewCard } from "@/components/maker/MakerViewportOverlays";
 import { useLetterGeometry } from "@/hooks/maker/useLetterGeometry";
 import { useDesignImport } from "@/hooks/maker/useDesignImport";
 import { useMakerLibrary } from "@/hooks/maker/useMakerLibrary";
@@ -19,6 +19,7 @@ import { exportWord } from "@/lib/maker/exporters/exportWord";
 import { downloadLettersZip } from "@/lib/maker/exporters/exportLettersZip";
 import { DEFAULT_LETTER_SIGN_PARAMS } from "@/lib/maker/defaults";
 import { DEFAULT_EXPLODE_PERCENT } from "@/lib/maker/geometry/explodeOrder";
+import { checkBackCutoutPlacement, findInvalidBackCutouts, updateBackCutoutPosition } from "@/lib/maker/backCutoutEditor";
 import { collectBedItems, computeBedLayout } from "@/lib/maker/printBed/bedLayout";
 import { DEFAULT_PRINTER_PROFILE_ID, getPrinterProfile } from "@/lib/maker/printBed/printerProfiles";
 import type { LoadedProject, ProjectWorkState } from "@/lib/maker/projects/projectData";
@@ -44,6 +45,10 @@ export default function StampaMakerCartelesPage() {
   const [viewMode, setViewMode] = useState<MakerViewMode>("assembled");
   const [explodePercent, setExplodePercent] = useState(DEFAULT_EXPLODE_PERCENT);
   const [plateIndex, setPlateIndex] = useState(1);
+
+  // Modo Editar recortes: solo sobre Model View. La selección es única y compartida entre lista y viewport.
+  const [editingCutouts, setEditingCutouts] = useState(false);
+  const [selectedBackCutoutId, setSelectedBackCutoutId] = useState<string | null>(null);
 
   const handleChange = useCallback((patch: Partial<LetterSignParams>) => {
     setParams((prev) => ({ ...prev, ...patch }));
@@ -129,6 +134,16 @@ export default function StampaMakerCartelesPage() {
     }
   }, [geometry, baseFileName, toast]);
 
+  // Drag: el handle se mueve por ref en el viewport; acá llega el commit throttled (X/Y) y el final exacto. Una única fuente: params.backCutouts.
+  const handleCutoutMove = useCallback((id: string, x: number, y: number) => {
+    setParams((prev) => ({ ...prev, backCutouts: updateBackCutoutPosition(prev.backCutouts, id, x, y) }));
+  }, []);
+  const startCutoutEditing = useCallback(() => {
+    setDisplayMode("model");
+    setEditingCutouts(true);
+  }, []);
+  const finishCutoutEditing = useCallback(() => setEditingCutouts(false), []);
+
   const canDownload =
     !loading && !designImport.loading && !error && !designImport.error && fieldErrors.length === 0 && !!geometry && geometry.triangleCount > 0 && geometry.errors.length === 0;
 
@@ -142,6 +157,32 @@ export default function StampaMakerCartelesPage() {
     const items = collectBedItems(shownGeometry);
     return { items, layout: computeBedLayout(items, profile) };
   }, [displayMode, shownGeometry, profile]);
+  const editing = editingCutouts && !!shownGeometry && shownGeometry.triangleCount > 0;
+  const selectedId = params.backCutouts.some((c) => c.id === selectedBackCutoutId) ? selectedBackCutoutId : null;
+  const invalidIds = useMemo(
+    () => (editing && shownGeometry ? findInvalidBackCutouts(params.backCutouts, shownGeometry.designCenter, shownGeometry.backCutoutSafeZone) : new Set<string>()),
+    [editing, shownGeometry, params.backCutouts],
+  );
+  const selectedCutout = params.backCutouts.find((c) => c.id === selectedId) ?? null;
+  const invalidMessage =
+    editing && shownGeometry && selectedCutout && invalidIds.has(selectedCutout.id)
+      ? checkBackCutoutPlacement(selectedCutout, shownGeometry.designCenter, shownGeometry.backCutoutSafeZone).message
+      : null;
+  const cutoutEditing = useMemo(
+    () =>
+      editing && shownGeometry
+        ? {
+            cutouts: params.backCutouts,
+            selectedId,
+            origin: shownGeometry.designCenter,
+            invalidIds,
+            safeZone: shownGeometry.backCutoutSafeZone,
+            onSelect: setSelectedBackCutoutId,
+            onMove: handleCutoutMove,
+          }
+        : null,
+    [editing, shownGeometry, params.backCutouts, selectedId, invalidIds, handleCutoutMove],
+  );
   const plateCount = bed?.layout.plates.length ?? 0;
   const currentPlate = Math.min(Math.max(plateIndex, 1), Math.max(plateCount, 1));
 
@@ -191,6 +232,11 @@ export default function StampaMakerCartelesPage() {
           <MakerBackCutoutsSection
             cutouts={params.backCutouts}
             onChange={(backCutouts) => handleChange({ backCutouts })}
+            selectedId={selectedId}
+            onSelect={setSelectedBackCutoutId}
+            editing={editing}
+            canEdit={!!shownGeometry && shownGeometry.triangleCount > 0}
+            onToggleEditing={editing ? finishCutoutEditing : startCutoutEditing}
             errors={[
               ...fieldErrors.filter((e) => e.field === "backCutouts").map((e) => e.message),
               ...(geometry?.errors ?? []).filter((e) => e.code === "BACK_CUTOUT_INVALID").map((e) => e.message),
@@ -202,14 +248,18 @@ export default function StampaMakerCartelesPage() {
       <section className="relative h-[70dvh] min-h-[420px] overflow-hidden rounded-2xl border border-stampa-border bg-stampa-surface lg:h-auto lg:min-h-0 lg:flex-1 lg:rounded-none lg:border-0">
         <MakerViewport
           geometry={shownGeometry}
-          displayMode={displayMode}
-          viewMode={viewMode}
+          displayMode={editing ? "model" : displayMode}
+          viewMode={editing ? "assembled" : viewMode}
           explodePercent={explodePercent}
+          cutoutEditing={cutoutEditing}
           bed={bed ? { items: bed.items, layout: bed.layout, profile, plateIndex: currentPlate } : null}
         />
         <div className="pointer-events-none absolute inset-0 flex flex-col justify-between gap-3 p-3">
           <div className="flex items-start justify-between gap-3">
-            <div>{displayMode === "bed" && bed && <BedWarnings layout={bed.layout} profile={profile} />}</div>
+            <div>
+              {editing && <CutoutEditingBanner invalidMessage={invalidMessage} />}
+              {!editing && displayMode === "bed" && bed && <BedWarnings layout={bed.layout} profile={profile} />}
+            </div>
             <ViewportExportCard
               fromFile={fromFile}
               multiPart={multiPart}
@@ -235,6 +285,8 @@ export default function StampaMakerCartelesPage() {
               plateCount={plateCount}
               plateIndex={currentPlate}
               onPlateChange={setPlateIndex}
+              cutoutEditingActive={editing}
+              onFinishCutoutEditing={finishCutoutEditing}
             />
           </div>
         </div>

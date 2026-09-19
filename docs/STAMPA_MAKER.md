@@ -54,6 +54,7 @@
 > PNG). 45 tests nuevos en tests/maker-import.test.mjs (287 tests Maker).
 > 0.5.1 (2026-09-19): sprint UX/productividad (secciones 18-21): workspace fijo con visor + controles superpuestos, vistas Modelo/Cama (A1 256x256x256, auto-arrange, multi-placa), slider de explosión, presets y proyectos persistentes por usuario. Motor geométrico sin cambios.
 > 0.6 (2026-09-19): safe zone del overlay respecto de Stampy, orientación de impresión como fuente única para Vista Cama y STL (sección 22) y recortes traseros paramétricos circle/capsule/keyhole (sección 23).
+> 0.6.1 (2026-09-19): editor visual de recortes (seleccionar + arrastrar sobre la vista trasera ortográfica) y keyhole nuevo a 180° (sección 24).
 
 ## 1. Qué es
 
@@ -1801,3 +1802,88 @@ type BackCutout = CircleCutout | CapsuleCutout | KeyholeCutout   // types.ts
 
 Limitaciones conocidas: X/Y son numéricos (sin edición gráfica); visto desde
 atrás el eje X aparece espejado; el margen de 1 mm es fijo.
+
+
+## 24. Editor visual de recortes traseros (seleccionar + arrastrar)
+
+Iteración de UX sobre los Back Cutouts (sección 23); no agrega tipos de recorte
+ni toca el motor de geometría.
+
+**Keyhole por defecto = 180°.** Un keyhole NUEVO (`createDefaultBackCutout`,
+`KEYHOLE_DEFAULT_ROTATION_DEG`) nace con `rotationDeg = 180`: círculo grande
+ABAJO y cuello hacia arriba (el tornillo entra por el círculo y al bajar el
+cartel el vástago queda en el cuello). Los recortes ya guardados no se tocan:
+un `rotationDeg` explícito (incluido 0) se conserva tal cual al abrir un
+proyecto. Cambiar el tipo de un recorte a keyhole y duplicar también respetan
+esto (duplicar copia medidas y rotación).
+
+**Arquitectura** (todo dentro del MISMO `MakerViewport`, sin segundo canvas):
+
+- `components/maker/cutoutEditorScene.ts` (`createCutoutEditor`): cámara
+  ortográfica trasera + `OrbitControls` propios (sin rotación ni paneo, solo zoom
+  con la rueda) + grupo de HANDLES. Los handles son helpers de edición
+  (relleno semitransparente + contorno, `depthTest: false`) construidos con
+  `backCutoutPolygons` — la MISMA función que el motor — así coinciden
+  exactamente en forma, medidas, rotación y X/Y. No son parte de ningún
+  `SignPart` ni se exportan.
+- `lib/maker/backCutoutEditor.ts`: lógica pura y testeada (conversiones,
+  `updateBackCutoutPosition`, validez, `duplicateBackCutout`).
+- `MakerViewport` recibe `cutoutEditing` (null = apagado). Al activarlo entra a
+  la vista trasera; la cámara perspectiva y sus controles quedan intactos y se
+  deshabilitan, así que al salir el Model View vuelve exactamente como estaba.
+- Página: `editingCutouts` + `selectedBackCutoutId` (una única selección
+  compartida entre la lista y el viewport). Al entrar se fuerza Modelo (si
+  estaba en Cama) y Ensamblada (`viewMode` efectivo; el estado previo del
+  usuario no se pisa, así que al salir vuelve solo). El modo se abre con
+  «Editar posiciones» y se cierra con «Terminar edición» (sidebar o card del
+  viewport). No hay edición sobre la Vista Cama.
+
+**Cámara**: `OrthographicCamera` mirando perpendicular a la base (hacia +Z desde
+−Z, Y arriba), centrada en el centro del diseño (`geometry.designCenter`), con
+encuadre según el tamaño del diseño. Sin orbit: el zoom con la rueda funciona.
+
+**Raycasting y conversión**: pointer -> NDC -> `Raycaster` -> intersección con
+el plano de la base (Z=0) -> punto de escena (mm reales, no deltas de píxeles)
+-> `worldToDesign` (resta el centro del diseño) -> `x/y` del recorte
+(redondeados a 0.01 mm; no es snapping). La escena usa las mismas coordenadas que
+el diseño, así que `designToWorld/worldToDesign` son solo una traslación.
+
+**Espejo de la vista trasera**: lo aporta ÚNICAMENTE la cámara (mirando desde −Z,
+la derecha de la pantalla es −X). El handle sigue al cursor exactamente; como
+convención de guardado se mantiene «X visto de frente», por lo que arrastrar a la
+derecha en pantalla DISMINUYE la X guardada. No hay ninguna inversión de signo al
+guardar (`designToBackViewScreen` / `backViewScreenToDesign` documentan y testean
+el mapeo; el banner del editor lo aclara).
+
+**Selección y drag**: click en un handle lo selecciona y empieza el drag (con
+offset, sin saltos); `OrbitControls` del editor se deshabilita durante el drag
+(pointer capture) y se rehabilita al soltar; click en vacío deselecciona; click
+sin mover no reescribe la posición. Cursor `grab` al pasar / `grabbing` al
+arrastrar. Pointer Events (mouse; touch/lápiz funcionan razonablemente). El
+seleccionado se ve naranja Stampa, los demás gris, los inválidos rojo.
+
+**Validación visual**: `LetterGeometryResult.backCutoutSafeZone` (zona segura de
+la base; solo se calcula si hay recortes) permite validar en vivo con la misma
+prueba del motor (`isCutoutInsideSafeZone`). Inválido => handle rojo y mensaje
+«El recorte está demasiado cerca del borde.». Sin clamp: la posición inválida se
+conserva y el motor genera `BACK_CUTOUT_INVALID`, que sigue bloqueando la
+exportación.
+
+**Sincronización X/Y**: `params.backCutouts` es la única fuente. Arrastrar
+actualiza x/y (los campos de la card, ahora «Ajuste fino X/Y», se resincronizan:
+`NumberField` reacciona a cambios externos de `value`); escribir x/y mueve el
+handle.
+
+**Performance**: el handle se mueve por ref a cada frame (sin React); solo se
+hace commit al estado cada 80 ms (`LIVE_COMMIT_INTERVAL_MS`) y uno final exacto
+al soltar. La geometría real sigue con su debounce de 200 ms, por lo que durante
+un drag continuo solo se regenera en las pausas y al soltar. Los meshes de los
+handles se reutilizan: solo se reconstruye la silueta si cambia la FORMA, no la
+posición; no se recrean escena ni renderer.
+
+Persistencia: sin cambios de schema; el drag solo modifica x/y (el estado sucio
+del proyecto lo detecta). Los presets siguen sin guardar recortes.
+
+Limitaciones: sin snapping, selección múltiple, resize ni gizmo de rotación (la
+rotación es numérica); los handles muy chicos son difíciles de acertar sin zoom;
+las piezas frontales no se ocultan en la vista trasera.

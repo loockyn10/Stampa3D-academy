@@ -363,4 +363,8 @@ export interface LetterGeometryResult {
    * un segundo motor geométrico paralelo.
    */
   letters: LetterPieceResult[];
+  /** Centro (mm) de la caja del diseño: origen de las coordenadas X/Y de los recortes traseros (el editor visual lo necesita). */
+  designCenter: { x: number; y: number };
+  /** Zona segura de la base para recortes (paths crudos de Clipper); null si no hay recortes. Ver geometry/backCutouts.ts. */
+  backCutoutSafeZone: import("clipper-lib").Paths | null;
 }

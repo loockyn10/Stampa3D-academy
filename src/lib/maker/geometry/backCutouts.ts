@@ -131,6 +131,9 @@ export function backCutoutPolygons(cutout: BackCutout, origin: { x: number; y: n
   }
 }
 
+/** Un keyhole NUEVO nace a 180°: círculo grande abajo, cuello hacia arriba (el tornillo entra por el círculo y al bajar el cartel el vástago queda en el cuello). No afecta a recortes ya guardados. */
+export const KEYHOLE_DEFAULT_ROTATION_DEG = 180;
+
 /** Recorte nuevo con medidas por defecto razonables (la UI lo usa al agregar o cambiar de tipo). */
 export function createDefaultBackCutout(type: BackCutout["type"], id: string, x = 0, y = 0): BackCutout {
   switch (type) {
@@ -139,7 +142,7 @@ export function createDefaultBackCutout(type: BackCutout["type"], id: string, x 
     case "capsule":
       return { id, type, x, y, widthMm: 10, heightMm: 4, rotationDeg: 0 };
     case "keyhole":
-      return { id, type, x, y, headDiameterMm: 8, neckWidthMm: 4, neckLengthMm: 10, tailDiameterMm: 4, rotationDeg: 0 };
+      return { id, type, x, y, headDiameterMm: 8, neckWidthMm: 4, neckLengthMm: 10, tailDiameterMm: 4, rotationDeg: KEYHOLE_DEFAULT_ROTATION_DEG };
   }
 }
 
@@ -182,13 +185,22 @@ export function validateBackCutouts(cutouts: BackCutout[]): { index: number; mes
 
 // -------------------------------------------------------- planificación
 
+/** ¿El recorte cabe en la zona segura (núcleo de la cavidad menos el margen)? Misma prueba que usa el motor y el editor visual. */
+export function isCutoutInsideSafeZone(cutout: BackCutout, origin: { x: number; y: number }, safeZone: ClipperLib.Paths): boolean {
+  const raw = backCutoutPolygons(cutout, origin).map(pointsToRawPath);
+  return Math.abs(clipperPathsArea(differenceRawPaths(raw, safeZone))) <= OUTSIDE_AREA_TOLERANCE_MM2;
+}
+
 export interface BackCutoutPlan {
   /** Unión de los recortes válidos (paths crudos de Clipper, espacio global). Vacío = nada que cortar. */
   region: ClipperLib.Paths;
   errors: LetterGeometryWarning[];
+  /** Zona segura de la base (paths crudos de Clipper) para validar posiciones en vivo; null si no hay recortes (no se calculó). */
+  safeZone: ClipperLib.Paths | null;
 }
 
-function designCenter(pieces: { contourGroups: ContourGroup[] }[]): { x: number; y: number } {
+/** Centro de la caja del diseño (origen de las coordenadas X/Y de los recortes). */
+export function computeDesignCenter(pieces: { contourGroups: ContourGroup[] }[]): { x: number; y: number } {
   let minX = Infinity, maxX = -Infinity, minY = Infinity, maxY = -Infinity;
   for (const piece of pieces) {
     for (const g of piece.contourGroups) {
@@ -214,17 +226,17 @@ function designCenter(pieces: { contourGroups: ContourGroup[] }[]): { x: number;
 export function planBackCutouts(pieces: { contourGroups: ContourGroup[] }[], params: LetterSignParams): BackCutoutPlan {
   const cutouts = params.backCutouts ?? [];
   const errors: LetterGeometryWarning[] = [];
-  if (cutouts.length === 0) return { region: [], errors };
+  if (cutouts.length === 0) return { region: [], errors, safeZone: null };
 
   if (params.frontType === "light-channel") {
     errors.push({
       code: "BACK_CUTOUT_INVALID",
       message: "Los recortes traseros no están disponibles con el frente de canal luminoso (el cuerpo es macizo, sin cavidad).",
     });
-    return { region: [], errors };
+    return { region: [], errors, safeZone: null };
   }
 
-  const origin = designCenter(pieces);
+  const origin = computeDesignCenter(pieces);
   const cores: ContourGroup[] = [];
   const inks: ContourGroup[] = [];
   for (const piece of pieces) {
@@ -247,15 +259,14 @@ export function planBackCutouts(pieces: { contourGroups: ContourGroup[] }[], par
       return;
     }
     const raw = backCutoutPolygons(cutout, origin).map(pointsToRawPath);
-    const outside = Math.abs(clipperPathsArea(differenceRawPaths(raw, allowed)));
-    if (outside > OUTSIDE_AREA_TOLERANCE_MM2) {
+    if (!isCutoutInsideSafeZone(cutout, origin, allowed)) {
       errors.push({ code: "BACK_CUTOUT_INVALID", message: `Recorte ${i + 1}: ${BACK_CUTOUT_INVALID_MESSAGE}` });
       return;
     }
     valid.push(...raw);
   });
 
-  return { region: unionRawPaths(valid), errors };
+  return { region: unionRawPaths(valid), errors, safeZone: allowed };
 }
 
 // ------------------------------------------------- aplicación al cuerpo

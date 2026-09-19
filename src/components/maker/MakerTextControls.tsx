@@ -150,6 +150,14 @@ export function NumberField({
   error?: string;
 }) {
   const [text, setText] = React.useState(() => String(value));
+  // Si el valor cambia desde afuera (p.ej. arrastrar un recorte en el viewport), el texto se resincroniza;
+  // mientras el usuario escribe, el texto parseado ya coincide con `value` y no se toca.
+  const [lastValue, setLastValue] = React.useState(value);
+  if (lastValue !== value) {
+    setLastValue(value);
+    const parsed = parseFloat(text.replace(",", "."));
+    if (Number.isFinite(parsed) ? parsed !== value : value !== 0) setText(String(value));
+  }
 
   return (
     <label className="block">

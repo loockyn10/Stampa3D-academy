@@ -3,6 +3,7 @@
 import React from "react";
 import { Copy, Plus, Trash2 } from "lucide-react";
 import { NumberField, SegmentedControl } from "@/components/maker/MakerTextControls";
+import { duplicateBackCutout } from "@/lib/maker/backCutoutEditor";
 import { MAX_BACK_CUTOUTS, createDefaultBackCutout } from "@/lib/maker/geometry/backCutouts";
 import type { BackCutout } from "@/lib/maker/types";
 
@@ -23,10 +24,16 @@ interface Props {
   onChange: (cutouts: BackCutout[]) => void;
   /** Mensajes de error (parámetros o geometría) con prefijo "Recorte N: ..." para mostrarlos junto a cada tarjeta. */
   errors: string[];
+  /** Selección compartida con el viewport (una única fuente: selectedBackCutoutId). */
+  selectedId: string | null;
+  onSelect: (id: string | null) => void;
+  editing: boolean;
+  canEdit: boolean;
+  onToggleEditing: () => void;
 }
 
 /** MONTAJE Y CONEXIONES: lista de recortes traseros (cada uno una forma paramétrica; sin lógica por "uso"). */
-export function MakerBackCutoutsSection({ cutouts, onChange, errors }: Props) {
+export function MakerBackCutoutsSection({ cutouts, onChange, errors, selectedId, onSelect, editing, canEdit, onToggleEditing }: Props) {
   const update = (index: number, patch: Partial<BackCutout>) =>
     onChange(cutouts.map((c, i) => (i === index ? ({ ...c, ...patch } as BackCutout) : c)));
 
@@ -42,7 +49,7 @@ export function MakerBackCutoutsSection({ cutouts, onChange, errors }: Props) {
       <div>
         <span className="block text-[11px] font-semibold uppercase tracking-wide text-gray-500">Montaje y conexiones</span>
         <p className="mt-1 text-xs text-gray-500">
-          Aberturas pasantes en la base trasera (cable, conector, tornillo, colgador). X/Y se miden desde el centro del diseño, visto de frente.
+          Aberturas pasantes en la base trasera (cable, conector, tornillo, colgador). Arrastrá los recortes sobre el modelo con «Editar posiciones»; X/Y (desde el centro del diseño, visto de frente) sirven para el ajuste fino.
         </p>
       </div>
 
@@ -50,13 +57,29 @@ export function MakerBackCutoutsSection({ cutouts, onChange, errors }: Props) {
         <span className="text-xs font-semibold text-gray-300">Recortes traseros</span>
         <button
           type="button"
-          onClick={() => onChange([...cutouts, createDefaultBackCutout("circle", newCutoutId())])}
+          onClick={() => {
+            const created = createDefaultBackCutout("circle", newCutoutId());
+            onChange([...cutouts, created]);
+            onSelect(created.id);
+          }}
           disabled={cutouts.length >= MAX_BACK_CUTOUTS}
           className="inline-flex h-8 items-center gap-1.5 rounded-lg border border-white/10 bg-white/[0.04] px-3 text-xs font-semibold text-gray-300 transition-colors hover:bg-white/10 hover:text-white disabled:cursor-not-allowed disabled:opacity-40"
         >
           <Plus size={14} /> Agregar
         </button>
       </div>
+
+      <button
+        type="button"
+        onClick={onToggleEditing}
+        disabled={!editing && (!canEdit || cutouts.length === 0)}
+        title={cutouts.length === 0 ? "Agregá un recorte primero" : undefined}
+        className={`h-9 rounded-xl border text-xs font-semibold transition-colors disabled:cursor-not-allowed disabled:opacity-40 ${
+          editing ? "border-transparent bg-stampa-orange text-neutral-950 hover:bg-stampa-orange-hover" : "border-white/10 bg-white/[0.04] text-gray-300 hover:bg-white/10 hover:text-white"
+        }`}
+      >
+        {editing ? "Terminar edición" : "Editar posiciones"}
+      </button>
 
       {errors.filter((e) => !/^Recorte [0-9]+:/.test(e)).map((message) => (
         <span key={message} className="text-xs text-red-400">
@@ -69,7 +92,13 @@ export function MakerBackCutoutsSection({ cutouts, onChange, errors }: Props) {
       {cutouts.map((c, i) => {
         const cardErrors = errors.filter((e) => e.startsWith(`Recorte ${i + 1}:`));
         return (
-          <div key={c.id} className={`flex flex-col gap-3 rounded-xl border bg-white/[0.03] p-3 ${cardErrors.length ? "border-red-500/40" : "border-white/10"}`}>
+          <div
+            key={c.id}
+            onClick={() => onSelect(c.id)}
+            className={`flex flex-col gap-3 rounded-xl border bg-white/[0.03] p-3 ${
+              cardErrors.length ? "border-red-500/40" : c.id === selectedId ? "border-stampa-orange/60 bg-stampa-orange/[0.06]" : "border-white/10"
+            }`}
+          >
             <div className="flex items-center justify-between">
               <span className="text-xs font-semibold text-white">Recorte {i + 1}</span>
               <div className="flex gap-1">
@@ -78,7 +107,11 @@ export function MakerBackCutoutsSection({ cutouts, onChange, errors }: Props) {
                   title="Duplicar recorte"
                   aria-label={`Duplicar recorte ${i + 1}`}
                   disabled={cutouts.length >= MAX_BACK_CUTOUTS}
-                  onClick={() => onChange([...cutouts.slice(0, i + 1), { ...c, id: newCutoutId(), x: c.x + 5 }, ...cutouts.slice(i + 1)])}
+                  onClick={() => {
+                    const copy = duplicateBackCutout(c, newCutoutId());
+                    onChange([...cutouts.slice(0, i + 1), copy, ...cutouts.slice(i + 1)]);
+                    onSelect(copy.id);
+                  }}
                   className="rounded-lg p-1.5 text-gray-400 transition-colors hover:bg-white/10 hover:text-white disabled:opacity-40"
                 >
                   <Copy size={14} />
@@ -119,8 +152,8 @@ export function MakerBackCutoutsSection({ cutouts, onChange, errors }: Props) {
             )}
 
             <div className="grid grid-cols-2 gap-3">
-              <NumberField label="Posición X" value={c.x} suffix="mm" onChange={(v) => update(i, { x: v })} />
-              <NumberField label="Posición Y" value={c.y} suffix="mm" onChange={(v) => update(i, { y: v })} />
+              <NumberField label="Ajuste fino X" value={c.x} suffix="mm" onChange={(v) => update(i, { x: v })} />
+              <NumberField label="Ajuste fino Y" value={c.y} suffix="mm" onChange={(v) => update(i, { y: v })} />
             </div>
 
             {c.type !== "circle" && (

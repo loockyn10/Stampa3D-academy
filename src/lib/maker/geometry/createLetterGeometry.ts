@@ -4,7 +4,7 @@ import { textToPerCharacterPaths, flattenOpentypePath } from "@/lib/maker/geomet
 import { buildContourHierarchy } from "@/lib/maker/geometry/contourHierarchy";
 import { toTriangleSoupData } from "@/lib/maker/geometry/extrudePolygon";
 import { buildBody } from "@/lib/maker/geometry/body";
-import { planBackCutouts } from "@/lib/maker/geometry/backCutouts";
+import { computeDesignCenter, planBackCutouts } from "@/lib/maker/geometry/backCutouts";
 import { buildFrontParts } from "@/lib/maker/geometry/front";
 
 /**
@@ -209,6 +209,8 @@ export function createGeometryFromContourPieces(pieces: ContourPiece[], params: 
     errors,
     warnings,
     letters,
+    designCenter: computeDesignCenter(pieces),
+    backCutoutSafeZone: backCutoutPlan.safeZone,
   };
 }
 
@@ -276,6 +278,8 @@ function emptyResult(warnings: LetterGeometryWarning[]): LetterGeometryResult {
     errors: [],
     warnings,
     letters: [],
+    designCenter: { x: 0, y: 0 },
+    backCutoutSafeZone: null,
   };
 }
 
