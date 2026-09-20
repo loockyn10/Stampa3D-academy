@@ -57,6 +57,7 @@
 > 0.6.1 (2026-09-19): editor visual de recortes (seleccionar + arrastrar sobre la vista trasera ortográfica) y keyhole nuevo a 180° (sección 24).
 > Neon 0.1 (2026-09-19): segunda herramienta, **Neon LED** (`/stampa-maker/neon`, sección 25): canal en U imprimible para Neon Flex a partir de texto (fuente de trazos) o SVG de líneas. Motor geométrico propio, separado del de Carteles.
 > Neon 0.2 (2026-09-20): imágenes raster PNG/JPEG -> skeleton -> NeonPaths (sección 27).
+> Jarros 0.1 (2026-09-21): tercera herramienta, **Jarros 3D** (`/stampa-maker/jarros`, sección 28): motor paramétrico independiente `MugDefinition` -> perfil -> revolución -> asa por loft topológico -> malla única cerrada.
 > Neon 0.1.1 (2026-09-19): importador SVG corregido (cascada CSS real, `<text>`, mensajes diferenciados) y biblioteca de fuentes single-line reales: Mistral SingleLine y Relief SingleLine, OFL (sección 26).
 
 ## 1. Qué es
@@ -2322,3 +2323,141 @@ JPEG (calidad 50/20/8, invertido, umbral, PNG vs JPEG equivalentes, contraste, f
 
 El mismo pipeline sirve para convertir un **SVG relleno** en recorrido: `SVG fill -> render a máscara -> skeleton ->
 NeonPaths`. `rasterToNeonPaths` ya recibe una `RasterImage`, así que solo haría falta rasterizar el SVG (fuera de este sprint).
+
+## 28. Jarros 3D (0.1) — `/stampa-maker/jarros`
+
+Tercera herramienta de Stampa Maker. Un **motor paramétrico independiente** (`src/lib/maker/mugs/`, sin importar la
+geometría de Carteles ni de Neon; un test lo verifica). NO es un cilindro con asa: cuerpo revolucionado con cavidad
+real, asa barrida y unida topológicamente, y modificadores combinables.
+
+```
+MugDefinition -> validateMug -> planMugBody (perfil 2D) -> revolveProfile (con ventanas de unión)
+              -> buildHandle (loft pegado a las ventanas) -> malla indexada única -> soup + métricas -> preview / cama / STL
+```
+
+### 28.1 Arquitectura y archivos
+
+```
+src/lib/maker/mugs/
+  types.ts                MugDefinition, MugDesignProposal (futura IA), MugDecoration (futuro), MugMetrics, MugIssue
+  defaults.ts             DEFAULT_MUG, deriveHandleDefaults, normalizeMugDefinition (lectura tolerante)
+  presets.ts              presets de SISTEMA = recetas (MugRecipe) + applyMugRecipe
+  createMug.ts            orquestador: createMug(def, {quality, printer}) -> MugResult
+  body/profiles.ts        radio exterior continuo por estilo (recto/cónico/barril/abombado)
+  body/createMugBody.ts   planMugBody: perfil 2D (exterior, borde, interior, piso), radiusAt, calidad
+  handle/handlePaths.ts   eje central plano: clásica (Bézier cúbica), cuadrada, angular
+  handle/createHandle.ts  ventanas de unión + loft
+  modifiers/bands.ts      bandas; modifiers/ribs.ts  facetas y ranuras
+  geometry/mesh.ts        malla indexada, analyzeMesh (cerrada/manifold/orientada), meshToSoup (normales con ángulo de pliegue)
+  geometry/revolveProfile.ts   revolución robusta con polos y hueco (skipQuad)
+  geometry/sweep.ts       polilíneas redondeadas, remuestreo, marcos de barrido
+  geometry/merge.ts       loft entre dos anillos ya existentes de la malla
+  validation/validateMug.ts    errores (bloquean) y warnings (imprimibilidad)
+  metrics/capacity.ts     capacidad geométrica aproximada
+  projects/mugProjectData.ts   serialización a maker_projects
+src/hooks/maker/useMugGeometry.ts (debounce 150 ms, calidad preview), useMugProjects.ts
+src/components/maker/MakerMugControls.tsx, src/app/stampa-maker/jarros/page.tsx
+tests/maker-mugs.test.mjs (45 tests)
+```
+
+Se reutiliza: `MakerViewport` (+ prop `helperMesh`, ver 28.9), Vista Cama (`bedLayout`, A1 256³), `exportWord`/`partFileEntries`
+(una pieza `body` -> `jarro.stl`), `SegmentedControl`/`NumberField`, `MakerNeonProjectsPanel` (ahora acepta `emptyText`/`showType`),
+`makerRepository`. **Sin dependencias nuevas.**
+
+### 28.2 `MugDefinition` (única fuente de verdad)
+
+`mode` (`printed` | `insert-shell`), `heightMm`, `top/bottomDiameterMm`, `wall/bottomThicknessMm`, `bodyStyle`
+(`straight|conical|barrel|bulged`), `bodyBulgePct`, `rim` (`simple|thick|rounded`), `base` (`normal|reinforced`),
+`surface {style: smooth|faceted, sides}`, `grooves {enabled,count,depthMm}`, `bands {enabled,count,heightMm,reliefMm}`,
+`handle {enabled,style,auto,heightMm,projectionMm,thicknessMm,sectionWidthMm,verticalPositionPct}`, `insert {heightMm,
+top/bottomDiameterMm, clearanceMm}`, `decorations[]` (reservado, vacío). La UI y los presets SOLO editan este objeto; la
+geometría sale únicamente de `createMug`. La calidad (`preview`/`export`) es una opción del motor, no parte de la definición.
+
+Defaults: printed, 150 alto, 90 sup., 82 inf., pared 2.4, base 4, asa clásica automática.
+
+### 28.3 Perfil, revolución y pared interior
+
+- Perfil exterior `r(z)` continuo: recto = radio medio; cónico = lineal base→boca; barril = lineal + `sin(π·t)`;
+  abombado = lineal + `1 − |2t−1|^2.6` (pendiente finita en base y boca, más lleno que el barril). Diámetros de base y boca
+  se conservan siempre. Máximo abombado: barril 20 %, abombado 26 % del radio medio × `bodyBulgePct`.
+- El perfil 2D `(r, z)` es un contorno abierto de eje a eje (piso exterior → pared → borde → pared interior → piso interior)
+  y `revolveProfile` lo gira alrededor de Z (Z vertical, asa hacia +X). Los puntos con `r = 0` son polos (un solo vértice,
+  sin triángulos degenerados). Un vértice compartido por fila/columna: la malla nace **cerrada y manifold** por construcción.
+- **Pared interior (aproximación V1):** `r_in(z) = r_out(z) − wall·√(1 + r_out'(z)²)`: espesor **normal** a la pared para
+  pendientes suaves (exacto en recto/cónico; en tramos muy curvos no se compensa la curvatura). La pared exterior conserva
+  siempre >= `wall` porque todos los modificadores son **aditivos hacia afuera**.
+- Base reforzada: piso ×1.5 + empalme cuarto de círculo (r <= 6 mm) en la esquina interior. Ignorada en modo inserto.
+- Bordes: simple (cierre plano), grueso (el interior se cierra hasta 0.6·pared en los últimos 5 mm, dimensiones exteriores
+  intactas; en modo inserto engorda hacia AFUERA para no tocar la cavidad), redondeado (semicírculo de 8 segmentos).
+- Resolución: preview = filas de 2 mm y 72 segmentos; export = 0.75 mm y 192 (el STL se regenera aparte al descargar).
+  Los segmentos son múltiplo de `2×lados` y `2×ranuras` para que esquinas/valles caigan en vértices.
+
+### 28.4 Modificadores (combinables, no excluyentes)
+
+Todos suman radio (>= 0) sobre el perfil, ponderados por `mw` del punto: bandas (meseta con flancos de coseno, distribución
+uniforme entre 12 % y 88 % de la altura, siguen el radio local), ranuras (sinusoide; valle = radio base, cresta = +profundidad,
+atenuadas cerca de base y boca) y facetado (polígono con la **apotema** en el radio base, esquinas a `R/cos(π/n)`; una cara
+plana mira al asa). La cavidad interior es siempre redonda y no cambia con los modificadores (la capacidad tampoco).
+
+### 28.5 Asa y unión asa/cuerpo (sin CSG)
+
+Se evaluó CSG y se descartó: dos shells intersectadas no dan un STL válido y una dependencia CSG robusta es grande. En su
+lugar la unión es **topológica**:
+
+1. En la pared exterior se omiten los cuadriláteros de una **ventana rectangular** ancha (semi-alto >= 8 mm y semi-ancho
+   >= 8 mm) arriba y abajo (`skipQuad`).
+2. El asa es un **loft** cuyos anillos primero y último son *exactamente* los vértices del borde de esas ventanas (mismos
+   índices: la superficie del asa y la del cuerpo comparten vértices, sin costura ni gaps).
+3. Cada anillo pasa gradualmente (smoothstep, hasta 14 mm) de la ventana a la sección **oval** (ancho × espesor). Eso da
+   las zonas de unión anchas (attachment bosses) y una sección ergonómica.
+
+Recorrido plano en XZ con marcos exactos (sin torsión): `classic` = Bézier cúbica con tangentes horizontales (C suave),
+`square` = rectángulo de esquinas redondeadas, `angular` = quebrada con esquinas suaves. `projectionMm` = distancia máxima del
+eje central al cuerpo. `auto = true` deriva altura (60 % del jarro, máx. 110), proyección (46 % del diámetro máximo) y
+posición (55 %); la UI las muestra. Los tests verifican: una sola componente conexa, sin aristas de borde ni no-manifold.
+
+### 28.6 Modo "Carcasa para inserto"
+
+La cavidad es el inserto + holgura por lado (`r_in = insert/2 + clearance`, base a `bottomThickness`), la carcasa suma `wall`
+(normal) y, si el estilo es barril/abombado, volumen exterior. Altura total = base + altura del inserto. La UI muestra el
+**diámetro interior resultante**. El *insert helper* (`MugResult.insertHelper`) es una malla aparte, semitransparente, que
+**no** entra en `geometry`, en la cama ni en el STL (toggle «Mostrar inserto»). Sin claims regulatorios ("food safe").
+
+### 28.7 Métricas y validación
+
+- Capacidad geométrica aproximada = suma de troncos de cono del perfil interior hasta el borde (`π·h·(r1²+r1r2+r2²)/3`); se
+  llama así porque no descuenta menisco ni volumen útil. Volumen de material por integral de la malla (divergencia). Sin peso.
+- Errores (bloquean): espesores <= 0, rangos, radio interior < 3 mm, base demasiado alta, bandas que no entran, holgura
+  negativa, espesor de asa < 3 mm, proyección que entra en el cuerpo, asa que no cabe en la pared o demasiado corta.
+- Warnings (no bloquean): pared < 1.2 mm, asa muy fina (< 6 mm), diámetro > cama, altura > Z de la impresora.
+
+### 28.8 Proyectos y presets
+
+Proyectos: `maker_projects.source_type = 'mug'`, `source_data.definition = MugDefinition`, sin Storage. Carteles (`text|svg|png`)
+y Neon (`neon-*`) filtran por sus propios tipos y nunca ven los proyectos Jarro. **Migration nueva (NO aplicada al remoto):**
+`supabase/migrations/20260921120000_maker_mug_projects.sql` amplía el CHECK de `source_type`. Hasta aplicarla, guardar un
+proyecto Jarro falla con el mensaje comprensible del repositorio.
+
+Presets: 5 de sistema (Clásico, Barril, Taberna, Geométrico, Industrial) = `MugRecipe` aplicada con `applyMugRecipe`; no
+pisan modo ni dimensiones. **Presets de usuario:** arquitectura preparada (misma forma `MugRecipe`), no persistidos en 0.1.
+
+### 28.9 Viewport, Cama y STL
+
+`MakerViewport` gana la prop `helperMesh` (solo Modelo, `depthWrite: false`, fuera de `partMeshesRef`, del auto-fit y de la
+cama). Cama: el jarro es una pieza `body` (orientación identidad, minZ = 0, apoyado sobre la base); se validan X/Y y altura Z
+con el perfil A1. Exportar: `createMug(def, {quality: "export"})` -> `exportWord` -> un solo `jarro.stl` (X/Y mínimos en 0).
+
+### 28.10 Futuro (NO implementado)
+
+- **IA:** `prompt -> MugDesignProposal -> normalizeMugDefinition -> validateMug -> createMug`. Los tipos ya existen; no hay
+  llamada a ningún modelo. La propuesta nunca arma geometría.
+- **Branding/texturas (0.2+):** `MugDefinition.decorations[]` está reservado; texto, SVG, logos, relieves, ruido, Voronoi y
+  heightmaps se sumarían como modificadores sobre `radiusAt`, sin cambiar el pipeline.
+
+### 28.11 Limitaciones conocidas (0.1)
+
+- La UI no se pudo validar visualmente en esta sesión (la ruta exige login); el motor, la malla, tsc y el build sí están verificados.
+- El offset interior no compensa curvatura (28.3). En modo inserto, `Recto` sigue la conicidad del inserto.
+- El asa siempre está a +X y es plana (recorrido en el plano XZ); la sección siempre es oval. Ranuras atenuadas cerca del borde.
+- El STL de alta calidad (~185 k triángulos con asa) se genera de forma síncrona (~0.3 s) solo al descargar.
+- No hay editor de posiciones de bandas, ni tapa, ni múltiples piezas, ni peso estimado.

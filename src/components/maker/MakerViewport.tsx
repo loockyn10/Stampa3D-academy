@@ -3,7 +3,7 @@
 import { useEffect, useRef } from "react";
 import * as THREE from "three";
 import { OrbitControls } from "three/examples/jsm/controls/OrbitControls.js";
-import type { LetterGeometryResult, PartKind } from "@/lib/maker/types";
+import type { LetterGeometryResult, PartKind, TriangleSoupData } from "@/lib/maker/types";
 import { letterGeometryToBufferGeometry } from "@/lib/maker/geometry/toBufferGeometry";
 import { DEFAULT_EXPLOSION_AMOUNT, computeExplodeOffsetMm, computeExplodeRanks } from "@/lib/maker/geometry/explodeOrder";
 import { placementMatrix, type BedItem, type BedLayout } from "@/lib/maker/printBed/bedLayout";
@@ -29,6 +29,8 @@ interface MakerViewportProps {
   bed?: MakerBedView | null;
   /** Modo Editar recortes (solo Model View): cámara trasera ortográfica + handles arrastrables. null/undefined = modo apagado. */
   cutoutEditing?: CutoutEditorState | null;
+  /** Malla auxiliar SOLO visual (p.ej. el inserto de Jarros): semitransparente, solo en Modelo, nunca forma parte del resultado exportable. */
+  helperMesh?: TriangleSoupData | null;
 }
 
 /** Color por tipo de pieza, solo para diferenciarlas visualmente en el preview (no es el color real de impresión). */
@@ -104,7 +106,7 @@ function buildBedPlate(profile: PrinterProfile): THREE.Object3D {
  *    printBed/bedLayout.ts) apoyadas en Z=0 sobre el perfil de impresora.
  * Cada modo conserva su propia cámara.
  */
-export function MakerViewport({ geometry, displayMode = "model", explosionAmount = DEFAULT_EXPLOSION_AMOUNT, bed = null, cutoutEditing = null }: MakerViewportProps) {
+export function MakerViewport({ geometry, displayMode = "model", explosionAmount = DEFAULT_EXPLOSION_AMOUNT, bed = null, cutoutEditing = null, helperMesh = null }: MakerViewportProps) {
   const containerRef = useRef<HTMLDivElement>(null);
   const sceneRef = useRef<THREE.Scene | null>(null);
   const cameraRef = useRef<THREE.PerspectiveCamera | null>(null);
@@ -267,6 +269,24 @@ export function MakerViewport({ geometry, displayMode = "model", explosionAmount
     if (activeModeRef.current === "model") fitModel();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [geometry]);
+
+  // Malla auxiliar (helper) visual: se agrega al grupo Modelo DESPUÉS de las piezas (el efecto de arriba limpia el
+  // grupo al cambiar la geometría), sin tocar `partMeshesRef` (no se explota ni entra en el auto-fit ni en la cama).
+  useEffect(() => {
+    const group = modelGroupRef.current;
+    if (!group || !helperMesh || helperMesh.triangleCount === 0) return;
+    const mesh = new THREE.Mesh(
+      letterGeometryToBufferGeometry(helperMesh),
+      new THREE.MeshStandardMaterial({ color: 0x8fb4ff, transparent: true, opacity: 0.28, roughness: 0.4, depthWrite: false, side: THREE.DoubleSide }),
+    );
+    mesh.renderOrder = 2;
+    group.add(mesh);
+    return () => {
+      group.remove(mesh);
+      mesh.geometry.dispose();
+      (mesh.material as THREE.Material).dispose();
+    };
+  }, [geometry, helperMesh]);
 
   // Vista explosionada: solo mueve el Object3D de cada pieza no-"body". La
   // distancia es visual y escala con el tamaño del modelo y el slider.

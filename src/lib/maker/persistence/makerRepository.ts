@@ -127,15 +127,16 @@ export async function setDefaultPreset(supabase: SupabaseClient, id: string | nu
 // ------------------------------ Projects ------------------------------
 
 /** Herramienta dueña de un proyecto. Los de Neon usan `source_type` con prefijo "neon-" (ver migration 20260920120000): Carteles nunca los lista. */
-export type MakerToolKind = "sign" | "neon";
+export type MakerToolKind = "sign" | "neon" | "mug";
 const SIGN_SOURCE_TYPES = ["text", "svg", "png"];
 const NEON_SOURCE_TYPES = ["neon-text", "neon-svg", "neon-png", "neon-jpg"];
+const MUG_SOURCE_TYPES = ["mug"];
 
 export async function listProjects(supabase: SupabaseClient, tool: MakerToolKind = "sign"): Promise<ProjectSummary[]> {
   const { data, error } = await supabase
     .from("maker_projects")
     .select("id, name, source_type, updated_at")
-    .in("source_type", tool === "neon" ? NEON_SOURCE_TYPES : SIGN_SOURCE_TYPES)
+    .in("source_type", tool === "neon" ? NEON_SOURCE_TYPES : tool === "mug" ? MUG_SOURCE_TYPES : SIGN_SOURCE_TYPES)
     .order("updated_at", { ascending: false });
   if (error) fail(error);
   return (data ?? []).map((r: { id: string; name: string; source_type: string; updated_at: string }) => ({
@@ -210,7 +211,7 @@ export async function saveProject(supabase: SupabaseClient, input: SaveProjectIn
   let storagePath: string | null = null;
   const source = input.payload.source_data as { storagePath?: string };
 
-  if (input.payload.source_type !== "text" && input.payload.source_type !== "neon-text") {
+  if (!["text", "neon-text", "mug"].includes(input.payload.source_type)) {
     storagePath = input.previousStoragePath ?? null;
     if (input.upload) {
       const userId = await currentUserId(supabase);

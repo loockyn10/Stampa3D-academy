@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { Type, Zap, ArrowRight } from "lucide-react";
+import { Type, Zap, Coffee, ArrowRight } from "lucide-react";
 import { Card } from "@/components/ui/card";
 import { SectionTitle } from "@/components/ui/section-title";
 
@@ -19,6 +19,12 @@ const MAKER_TOOLS = [
     icon: Zap,
     title: "Neon LED",
     description: "Generá canales imprimibles para Neon Flex a partir de texto o recorridos SVG.",
+  },
+  {
+    href: "/stampa-maker/jarros",
+    icon: Coffee,
+    title: "JARROS 3D",
+    description: "Creá jarros únicos y listos para imprimir con cuerpos, asas y estilos paramétricos.",
   },
 ] as const;
 
