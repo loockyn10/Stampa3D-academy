@@ -1100,3 +1100,250 @@ function jpegRoundTrip(img, q) {
   const d = jpegJs.decode(jpegJs.encode({ data: img.data, width: img.width, height: img.height }, q).data, { useTArray: true, formatAsRGBA: true });
   return { width: d.width, height: d.height, data: new Uint8Array(d.data) };
 }
+
+// ==========================================================================
+// INGESTIÓN DE ARCHIVOS (capa que recibe el File): formato por contenido, mensajes, decodificación
+// ==========================================================================
+
+const { detectRasterFormat, hintFromNameAndMime } = load(`${R}detectRasterFormat.ts`);
+const { ingestRasterBytes, ingestRasterFile, INGEST_MESSAGES } = load(`${R}ingestRasterFile.ts`);
+
+const ingestJpg = () => jpgBytes(makeImage(200, 160, ring(100, 80, 60, 34)), 88);
+const ingestPng = () => pngBytes(makeImage(200, 160, ring(100, 80, 60, 34)));
+const ingest = (bytes, fileName, mimeType) => ingestRasterBytes({ bytes, fileName, mimeType });
+
+test("Ingestión 1-3: foto.jpg / foto.jpeg / FOTO.JPG con image/jpeg -> JPEG (case-insensitive), con dimensiones", () => {
+  for (const name of ["foto.jpg", "foto.jpeg", "FOTO.JPG", "FOTO.JPEG", "Foto.JpEg"]) {
+    const r = ingest(ingestJpg(), name, "image/jpeg");
+    assert.equal(r.ok, true, name);
+    assert.equal(r.kind, "jpg", name);
+    assert.deepEqual([r.width, r.height], [200, 160]);
+    assert.equal(r.detection.format, "jpeg");
+    assert.equal(r.detection.hintContradicts, false, name);
+  }
+  assert.equal(hintFromNameAndMime("a.JPG", ""), "jpeg");
+  assert.equal(hintFromNameAndMime("a.jpeg", ""), "jpeg");
+  assert.equal(hintFromNameAndMime("a.png", ""), "png");
+  assert.equal(hintFromNameAndMime("a", "image/jpg"), "jpeg", "image/jpg no estándar, tolerado");
+  assert.equal(hintFromNameAndMime("a", "image/pjpeg"), "jpeg");
+  assert.equal(hintFromNameAndMime("a.bin", "application/octet-stream"), null);
+});
+
+test("Ingestión 4-6: MIME vacío / octet-stream / extensión .png con firma JPEG -> JPEG (manda el contenido)", () => {
+  for (const [name, mime] of [["foto.jpg", ""], ["foto.jpg", "application/octet-stream"], ["sin_extension", ""], ["foto.png", "image/png"], ["foto.png", ""], ["foto.txt", "text/plain"]]) {
+    const r = ingest(ingestJpg(), name, mime);
+    assert.equal(r.ok, true, `${name} | ${JSON.stringify(mime)}`);
+    assert.equal(r.kind, "jpg", `${name} | ${JSON.stringify(mime)}`);
+  }
+  const lie = detectRasterFormat(ingestJpg(), "foto.png", "image/png");
+  assert.equal(lie.format, "jpeg");
+  assert.equal(lie.hint, "png");
+  assert.equal(lie.hintContradicts, true, "la pista contradice al contenido: se avisa pero manda el contenido");
+  // y a la inversa: un PNG con nombre .jpg es PNG
+  const png = ingest(ingestPng(), "logo.jpg", "image/jpeg");
+  assert.equal(png.ok, true);
+  assert.equal(png.kind, "png");
+  assert.equal(png.detection.hintContradicts, true);
+});
+
+test("Ingestión 7: extensión .jpg pero contenido inválido -> rechazo con mensaje propio (sin excepción)", () => {
+  const text = new TextEncoder().encode("esto no es una imagen, solo texto");
+  const r = ingest(text, "foto.jpg", "image/jpeg");
+  assert.equal(r.ok, false);
+  assert.equal(r.code, "RASTER_NOT_IMAGE");
+  assert.equal(r.message, INGEST_MESSAGES.notImage);
+  assert.equal(r.message, "El archivo seleccionado no es un PNG o JPEG válido.");
+  assert.equal(r.debug.error !== null, true);
+  assert.equal(ingest(new Uint8Array(0), "vacio.jpg", "image/jpeg").ok, false);
+  assert.equal(ingest(new Uint8Array([0xff, 0xd8]), "corto.jpg", "image/jpeg").ok, false, "dos bytes: ni la firma completa");
+});
+
+test("Ingestión: formatos conocidos NO soportados con extensión .jpg/.png (WebP, HEIC, AVIF, GIF...) -> mensaje que explica qué es", () => {
+  const riff = (tag) => { const b = new Uint8Array(32); b.set([0x52, 0x49, 0x46, 0x46, 0, 0, 0, 0, ...new TextEncoder().encode(tag)]); return b; };
+  const ftyp = (brand) => { const b = new Uint8Array(32); b.set([0, 0, 0, 0x18, ...new TextEncoder().encode("ftyp" + brand)]); return b; };
+  const cases = [
+    [riff("WEBP"), "WebP"],
+    [ftyp("heic"), "HEIC"],
+    [ftyp("avif"), "AVIF"],
+    [new TextEncoder().encode("GIF89a......."), "GIF"],
+    [new TextEncoder().encode("BM......"), "BMP"],
+    [new TextEncoder().encode("<svg xmlns='http://www.w3.org/2000/svg'/>"), "SVG"],
+  ];
+  for (const [bytes, label] of cases) {
+    const r = ingest(bytes, "foto.jpg", "image/jpeg");
+    assert.equal(r.ok, false, label);
+    assert.match(r.message, /no es un PNG o JPEG válido/, label);
+    assert.ok(r.message.includes(label), `${label}: ${r.message}`);
+    assert.match(r.message, /exportalo como PNG o JPEG/);
+    assert.ok(r.debug.format.startsWith("unsupported("), r.debug.format);
+  }
+});
+
+test("Ingestión 8: PNG válido -> PNG sin regresión (mismo resultado que antes: bytes, decode y pipeline)", () => {
+  const bytes = ingestPng();
+  for (const [n, m] of [["logo.png", "image/png"], ["LOGO.PNG", "image/png"], ["logo.png", ""], ["logo", "application/octet-stream"]]) {
+    const r = ingest(bytes, n, m);
+    assert.equal(r.ok, true, `${n}|${m}`);
+    assert.equal(r.kind, "png");
+    assert.deepEqual([r.width, r.height], [200, 160]);
+  }
+  const out = buildNeonPaths({ type: "image", fileName: "logo.png", bytes, kind: "png", raster: { ...S } }, 60);
+  assert.equal(out.ok, true);
+  assert.equal(out.result.paths.length, 1);
+  assert.equal(out.result.paths[0].closed, true);
+  assert.equal(sniffRasterKind(bytes), "png");
+});
+
+test("Ingestión 9: JPEG corrupto / truncado / con firma pero sin estructura -> error controlado y específico", () => {
+  const good = ingestJpg();
+  // sin marcador SOF (solo firma + basura)
+  const junk = ingest(new Uint8Array([0xff, 0xd8, 0xff, 0x00, 0x11, 0x22, 0x33, 0x44, 0x55]), "a.jpg", "image/jpeg");
+  assert.equal(junk.ok, false);
+  assert.equal(junk.message, INGEST_MESSAGES.jpegDecode);
+  assert.equal(junk.message, "No se pudo decodificar el archivo JPEG.");
+  assert.equal(junk.code, "RASTER_DECODE_FAILED");
+  // corrupto: se pisa el cuerpo entrópico con ceros/ruido; jpeg-js puede tolerarlo o fallar: nunca una excepción cruda
+  const corrupt = Uint8Array.from(good);
+  for (let i = Math.floor(corrupt.length * 0.3); i < corrupt.length - 2; i += 3) corrupt[i] = 0xff;
+  const rc = ingest(corrupt, "a.jpg", "image/jpeg");
+  assert.ok(rc.ok || (rc.message === INGEST_MESSAGES.jpegDecode && rc.code === "RASTER_DECODE_FAILED"), `resultado: ${rc.ok ? "tolerado" : rc.message}`);
+  // truncado a la mitad
+  const half = ingest(good.slice(0, Math.floor(good.length / 2)), "a.jpg", "image/jpeg");
+  assert.ok(half.ok || half.message === INGEST_MESSAGES.jpegDecode);
+  // cabecera con dimensiones imposibles
+  const zero = Uint8Array.from(good);
+  const sof = zero.findIndex((v, i) => v === 0xff && zero[i + 1] === 0xc0);
+  if (sof > 0) { zero[sof + 5] = 0; zero[sof + 6] = 0; }
+  const rz = ingest(zero, "a.jpg", "image/jpeg");
+  assert.equal(rz.ok, false);
+  // PNG corrupto: mensaje de PNG
+  const pngBad = ingest(ingestPng().slice(0, 60), "a.png", "image/png");
+  assert.equal(pngBad.ok, false);
+  assert.equal(pngBad.message, INGEST_MESSAGES.pngDecode);
+});
+
+test("Ingestión: JPEG demasiado grande (bytes, o dimensiones falsificadas) -> 'El JPEG supera el tamaño máximo permitido'", () => {
+  const huge = new Uint8Array(11 * 1024 * 1024);
+  huge.set([0xff, 0xd8, 0xff]);
+  const r = ingest(huge, "grande.jpg", "image/jpeg");
+  assert.equal(r.ok, false);
+  assert.equal(r.code, "RASTER_TOO_LARGE");
+  assert.match(r.message, /^El JPEG supera el tamaño máximo permitido/);
+  const forged = new Uint8Array([0xff, 0xd8, 0xff, 0xc0, 0, 17, 8, 0x23, 0x28, 0x23, 0x28, 3, 1, 0x22, 0, 2, 0x11, 1, 3, 0x11, 1, 0, 0, 0]);
+  const rf = ingest(forged, "48mp.jpg", "image/jpeg");
+  assert.equal(rf.ok, false);
+  assert.match(rf.message, /^El JPEG supera el tamaño máximo permitido/);
+  assert.match(rf.message, /9000×9000/);
+  const bigPng = new Uint8Array(11 * 1024 * 1024);
+  bigPng.set([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a]);
+  assert.match(ingest(bigPng, "g.png", "image/png").message, /^El PNG supera el tamaño máximo permitido/);
+});
+
+test("Ingestión 10: JPEG real (fixture) -> decode -> ImageData -> pipeline raster -> canal U", () => {
+  const bytes = jpgBytes(makeImage(320, 400, (x, y) => {
+    const a = ((x - 160) / 130) ** 2 + ((y - 200) / 170) ** 2;
+    const b = ((x - 160) / 80) ** 2 + ((y - 200) / 115) ** 2;
+    return a <= 1 && b >= 1;
+  }), 85);
+  const ing = ingest(bytes, "letra-o.JPG", "");
+  assert.equal(ing.ok, true);
+  const d = decodeRasterImage(bytes);
+  assert.equal(d.image.data.length, 320 * 400 * 4, "ImageData RGBA");
+  assert.equal(decodeRasterImage(bytes), d, "el pipeline reutiliza la decodificación de la ingestión");
+  const out = buildNeonPaths({ type: "image", fileName: "letra-o.JPG", bytes, kind: ing.kind, raster: { ...S, cleaning: 2 } }, 60);
+  assert.equal(out.ok, true, out.message);
+  assert.equal(out.result.paths.filter((p) => p.closed).length, 1);
+  const g = createNeonGeometry(out.result.paths, { ...P, designHeightMm: 60 }, out.result.issues);
+  assert.deepEqual(g.errors, []);
+  assert.equal(meshAudit(g.geometry.parts[0].mesh).bad, 0);
+});
+
+test("Ingestión: JPEG reales de distintos encoders (sharp/libjpeg) — progresivo, gris, 4:4:4, EXIF, ICC, CMYK, 12 MP", async () => {
+  let sharp;
+  try {
+    sharp = nodeRequire("sharp");
+  } catch {
+    return; // sharp es opcional en el repo: sin él, esta comprobación extra se omite
+  }
+  const svgFor = (w, h) => Buffer.from(`<svg xmlns="http://www.w3.org/2000/svg" width="${w}" height="${h}"><rect width="100%" height="100%" fill="white"/><circle cx="${w / 2}" cy="${h / 2}" r="${h * 0.32}" fill="none" stroke="black" stroke-width="${h * 0.1}"/></svg>`);
+  const variants = {
+    "4:2:0": [400, 300, (j) => j.jpeg({ quality: 85, chromaSubsampling: "4:2:0" })],
+    "4:4:4": [400, 300, (j) => j.jpeg({ quality: 85, chromaSubsampling: "4:4:4" })],
+    progresivo: [400, 300, (j) => j.jpeg({ quality: 85, progressive: true })],
+    gris: [400, 300, (j) => j.grayscale().jpeg({ quality: 85 })],
+    mozjpeg: [400, 300, (j) => j.jpeg({ quality: 85, mozjpeg: true })],
+    "EXIF 6": [400, 300, (j) => j.withMetadata({ orientation: 6 }).jpeg({ quality: 85 })],
+    "ICC sRGB": [400, 300, (j) => j.withMetadata({ icc: "srgb" }).jpeg({ quality: 85 })],
+    cmyk: [400, 300, (j) => j.toColourspace("cmyk").jpeg({ quality: 85 })],
+    "12 MP": [4000, 3000, (j) => j.jpeg({ quality: 80 })],
+  };
+  for (const [name, [w, h, fn]] of Object.entries(variants)) {
+    const bytes = new Uint8Array(await fn(sharp(svgFor(w, h))).toBuffer());
+    const r = ingest(bytes, `${name}.jpg`, "image/jpeg");
+    assert.equal(r.ok, true, `${name}: ${r.message}`);
+    const swapped = name === "EXIF 6";
+    assert.deepEqual([r.width, r.height], swapped ? [h, w] : [w, h], `${name}: dimensiones`);
+    const out = buildNeonPaths({ type: "image", fileName: `${name}.jpg`, bytes, kind: "jpg", raster: { ...S } }, 60);
+    assert.equal(out.ok, true, `${name}: ${out.message}`);
+    assert.equal(out.result.paths.length, 1, name);
+  }
+});
+
+test("Ingestión desde File (como el navegador): lee el arrayBuffer, MIME vacío, logs solo en desarrollo", async () => {
+  const mk = (bytes, name, type) => new File([bytes], name, { type });
+  const seen = { debug: 0, warn: 0 };
+  const origDebug = console.debug, origWarn = console.warn;
+  console.debug = () => seen.debug++;
+  console.warn = () => seen.warn++;
+  const env = process.env.NODE_ENV;
+  try {
+    process.env.NODE_ENV = "development";
+    const ok = await ingestRasterFile(mk(ingestJpg(), "foto.jpeg", ""));
+    assert.equal(ok.ok, true);
+    assert.equal(ok.kind, "jpg");
+    assert.ok(ok.bytes instanceof Uint8Array && ok.bytes.length > 100);
+    assert.equal(ok.debug.fileName, "foto.jpeg");
+    assert.equal(ok.debug.format, "jpeg");
+    assert.equal(ok.debug.byteLength, ok.bytes.length);
+    assert.deepEqual([ok.debug.width, ok.debug.height], [200, 160]);
+    const bad = await ingestRasterFile(mk(new TextEncoder().encode("hola"), "foto.jpg", "image/jpeg"));
+    assert.equal(bad.ok, false);
+    assert.equal(seen.debug, 1, "log de diagnóstico del archivo aceptado");
+    assert.equal(seen.warn, 1, "log del rechazado, con el error del decoder");
+    // producción: silencio total
+    process.env.NODE_ENV = "production";
+    seen.debug = seen.warn = 0;
+    await ingestRasterFile(mk(ingestJpg(), "foto.jpg", "image/jpeg"));
+    await ingestRasterFile(mk(new TextEncoder().encode("hola"), "foto.jpg", "image/jpeg"));
+    assert.deepEqual(seen, { debug: 0, warn: 0 });
+    // archivo enorme según File.size: se rechaza antes de leerlo
+    const big = { name: "g.jpg", type: "image/jpeg", size: 11 * 1024 * 1024, arrayBuffer: async () => { throw new Error("no debería leerse"); } };
+    const rb = await ingestRasterFile(big);
+    assert.equal(rb.ok, false);
+    assert.match(rb.message, /^El JPEG supera el tamaño máximo permitido/);
+    // lectura fallida
+    const broken = { name: "r.jpg", type: "image/jpeg", size: 100, arrayBuffer: async () => { throw new Error("NotReadableError"); } };
+    const rr = await ingestRasterFile(broken);
+    assert.equal(rr.ok, false);
+    assert.equal(rr.message, INGEST_MESSAGES.readFailed);
+    assert.equal(rr.message, "No se pudo leer el archivo.");
+  } finally {
+    console.debug = origDebug;
+    console.warn = origWarn;
+    process.env.NODE_ENV = env;
+  }
+});
+
+test("UI de ingestión: accept con imagen y extensiones, texto de ayuda con PNG/JPG/JPEG, y el decoder aísla la interop de jpeg-js", () => {
+  const controls = fs.readFileSync(path.join(srcRoot, "components/maker/MakerNeonControls.tsx"), "utf8");
+  assert.match(controls, /IMAGE_ACCEPT = "image\/png,image\/jpeg,\.png,\.jpg,\.jpeg"/);
+  assert.match(controls, /Subí un PNG, JPG o JPEG de alto contraste/);
+  assert.match(controls, /\{ value: "image", label: "Imagen" \}/);
+  const decoder = fs.readFileSync(path.join(srcRoot, "lib/maker/neon/raster/decodeRasterImage.ts"), "utf8");
+  assert.match(decoder, /resolveJpegDecode/);
+  assert.match(decoder, /useTArray: true/);
+  assert.ok(!/Buffer\.|require\(|process\./.test(decoder.replace(/\/\*[\s\S]*?\*\//g, "").replace(/\/\/.*$/gm, "")), "el decoder no usa APIs solo-Node");
+  const page = fs.readFileSync(path.join(srcRoot, "app/stampa-maker/neon/page.tsx"), "utf8");
+  assert.match(page, /ingestRasterFile/);
+  assert.ok(!/Formato no soportado\. Subí una imagen PNG o JPG/.test(page), "ya no hay un único mensaje genérico");
+});

@@ -13,7 +13,7 @@ import type { NeonFieldError } from "@/lib/maker/neon/validation/validateNeonPar
 import type { NeonFontId, NeonIssue, NeonMetrics, NeonParams, NeonSourceType } from "@/lib/maker/neon/types";
 
 /** Formatos aceptados por el selector de archivos (la validación real es por firma del archivo, no por esto). */
-export const IMAGE_ACCEPT = ".png,.jpg,.jpeg,image/png,image/jpeg";
+export const IMAGE_ACCEPT = "image/png,image/jpeg,.png,.jpg,.jpeg";
 
 const SOURCE_OPTIONS: { value: NeonSourceType; label: string }[] = [
   { value: "text", label: "Texto" },
@@ -204,7 +204,7 @@ export function MakerNeonControls(props: MakerNeonControlsProps) {
             onFile={props.onFile}
             disabled={false}
             accept={props.sourceType === "image" ? IMAGE_ACCEPT : ".svg,image/svg+xml"}
-            hint={props.sourceType === "image" ? "Arrastrá un PNG o JPG de alto contraste (logo, dibujo, texto) o seleccioná un archivo." : "Arrastrá un SVG de líneas/trazos o seleccioná un archivo."}
+            hint={props.sourceType === "image" ? "Subí un PNG, JPG o JPEG de alto contraste (logo, dibujo, texto), o arrastralo acá." : "Arrastrá un SVG de líneas/trazos o seleccioná un archivo."}
           />
         )}
         {props.sourceType !== "text" && props.fileError && <p className="text-xs text-red-400">{props.fileError}</p>}

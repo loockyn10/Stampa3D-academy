@@ -13,8 +13,8 @@ import { useNeonProjects, type NeonFileSource } from "@/hooks/maker/useNeonProje
 import type { LoadedNeonProject, NeonWorkState } from "@/lib/maker/neon/projects/neonProjectData";
 import { exportWord } from "@/lib/maker/exporters/exportWord";
 import { IMPORT_LIMITS } from "@/lib/maker/import/types";
-import { DEFAULT_RASTER_SETTINGS, RASTER_LIMITS, type RasterSettings } from "@/lib/maker/neon/raster/types";
-import { sniffRasterKind } from "@/lib/maker/neon/raster/decodeRasterImage";
+import { DEFAULT_RASTER_SETTINGS, type RasterSettings } from "@/lib/maker/neon/raster/types";
+import { ingestRasterFile } from "@/lib/maker/neon/raster/ingestRasterFile";
 import { LETTER_SPACING_MAX_PCT, LETTER_SPACING_MIN_PCT } from "@/lib/maker/neon/paths/textToNeonPaths";
 import { DEFAULT_LETTER_SPACING_PCT, DEFAULT_NEON_FONT_ID, DEFAULT_NEON_PARAMS, DEFAULT_NEON_TEXT } from "@/lib/maker/neon/defaults";
 import type { NeonFontId, NeonParams, NeonSource, NeonSourceType } from "@/lib/maker/neon/types";
@@ -54,25 +54,16 @@ export default function StampaMakerNeonPage() {
   const handleFile = useCallback(async (picked: File) => {
     setFileError(null);
     if (sourceType === "image") {
-      if (picked.size > RASTER_LIMITS.maxFileBytes) {
-        setFileError("El archivo es demasiado grande (máximo 10 MB).");
+      // El formato lo decide el CONTENIDO (firma), no la extensión ni el MIME; cada fallo tiene su mensaje.
+      const ingested = await ingestRasterFile(picked);
+      if (!ingested.ok || !ingested.bytes) {
+        setFileError(ingested.ok ? "No se pudo leer el archivo." : ingested.message);
         return;
       }
-      try {
-        const bytes = new Uint8Array(await picked.arrayBuffer());
-        // El formato lo decide la FIRMA del archivo, no la extensión ni el MIME.
-        const kind = sniffRasterKind(bytes);
-        if (!kind) {
-          setFileError("Formato no soportado. Subí una imagen PNG o JPG.");
-          return;
-        }
-        setImageFile({ kind, fileName: picked.name, bytes });
-        // El JPEG trae artefactos de compresión alrededor de los bordes: arranca con una limpieza media (se puede cambiar)
-        // y siempre en luminosidad (no tiene transparencia). Los mismos controles que el PNG.
-        if (kind === "jpg") setRaster((prev) => ({ ...prev, detectionMode: "luminance", cleaning: prev.cleaning < 2 ? 2 : prev.cleaning }));
-      } catch {
-        setFileError("No se pudo leer el archivo.");
-      }
+      setImageFile({ kind: ingested.kind, fileName: picked.name, bytes: ingested.bytes });
+      // El JPEG trae artefactos de compresión alrededor de los bordes: arranca con una limpieza media (se puede cambiar)
+      // y siempre en luminosidad (no tiene transparencia). Los mismos controles que el PNG.
+      if (ingested.kind === "jpg") setRaster((prev) => ({ ...prev, detectionMode: "luminance", cleaning: prev.cleaning < 2 ? 2 : prev.cleaning }));
       return;
     }
     if (!/\.svg$/i.test(picked.name)) {

@@ -1,15 +1,25 @@
 import UPNG from "upng-js";
-import * as jpeg from "jpeg-js";
+import * as jpegModule from "jpeg-js";
+import { detectRasterFormat, rasterKindOf } from "@/lib/maker/neon/raster/detectRasterFormat";
 import { NeonInputError } from "@/lib/maker/neon/types";
 import { RASTER_LIMITS, type RasterImage, type RasterKind } from "@/lib/maker/neon/raster/types";
 
-const PNG_SIGNATURE = [0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a];
+/**
+ * `jpeg-js` es CommonJS (`module.exports = { encode, decode }`). Según el bundler (webpack/Turbopack, dev/producción) el
+ * espacio de nombres expone `decode` directo o bajo `default`: se resuelve acá, en un solo lugar, para que la interop no
+ * dependa del entorno. Se usa SIEMPRE con `useTArray: true` (sin `Buffer`, que no existe en el navegador).
+ */
+type JpegDecode = (data: Uint8Array, opts: Record<string, unknown>) => { width: number; height: number; data: Uint8Array };
+function resolveJpegDecode(): JpegDecode {
+  const ns = jpegModule as unknown as { decode?: JpegDecode; default?: { decode?: JpegDecode } };
+  const fn = ns.decode ?? ns.default?.decode;
+  if (typeof fn !== "function") throw new Error("jpeg-js: no se encontró decode() en el bundle");
+  return fn;
+}
 
 /** Formato real por FIRMA del archivo (no por extensión ni MIME). null si no es un formato raster soportado. */
 export function sniffRasterKind(bytes: Uint8Array): RasterKind | null {
-  if (bytes.length >= 8 && PNG_SIGNATURE.every((b, i) => bytes[i] === b)) return "png";
-  if (bytes.length >= 4 && bytes[0] === 0xff && bytes[1] === 0xd8 && bytes[2] === 0xff) return "jpg";
-  return null;
+  return rasterKindOf(detectRasterFormat(bytes).format);
 }
 
 function checkDimensions(width: number, height: number, label: string): void {
@@ -125,10 +135,10 @@ export function applyExifOrientation(img: RasterImage, orientation: number): Ras
 
 function decodeJpegBytes(bytes: Uint8Array): RasterImage {
   const info = readJpegInfo(bytes);
-  if (!info) throw new NeonInputError("RASTER_INVALID", "No se pudo leer el JPEG (archivo dañado o con un formato no soportado).");
+  if (!info) throw new NeonInputError("RASTER_INVALID", "No se pudo decodificar el archivo JPEG.");
   checkDimensions(info.width, info.height, "JPEG");
   try {
-    const decoded = jpeg.decode(bytes, {
+    const decoded = resolveJpegDecode()(bytes, {
       useTArray: true,
       formatAsRGBA: true,
       maxResolutionInMP: Math.ceil(RASTER_LIMITS.maxPixels / 1e6),
@@ -137,7 +147,7 @@ function decodeJpegBytes(bytes: Uint8Array): RasterImage {
     if (decoded.width <= 0 || decoded.height <= 0) throw new Error("vacío");
     return applyExifOrientation({ width: decoded.width, height: decoded.height, data: new Uint8Array(decoded.data) }, info.orientation);
   } catch {
-    throw new NeonInputError("RASTER_INVALID", "No se pudo leer el JPEG (archivo dañado o con un formato no compatible, p.ej. CMYK).");
+    throw new NeonInputError("RASTER_INVALID", "No se pudo decodificar el archivo JPEG.");
   }
 }
 
@@ -155,7 +165,7 @@ export function decodeRasterImage(bytes: Uint8Array): { kind: RasterKind; image:
     throw new NeonInputError("RASTER_TOO_LARGE", "El archivo es demasiado grande (máximo 10 MB).");
   }
   const kind = sniffRasterKind(bytes);
-  if (!kind) throw new NeonInputError("RASTER_INVALID", "El archivo no es una imagen PNG o JPG válida.");
+  if (!kind) throw new NeonInputError("RASTER_INVALID", "El archivo seleccionado no es un PNG o JPEG válido.");
   const decoded = { kind, image: kind === "png" ? decodePngBytes(bytes) : decodeJpegBytes(bytes) };
   decodeCache.set(bytes, decoded);
   return decoded;
