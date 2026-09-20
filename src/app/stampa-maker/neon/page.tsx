@@ -10,7 +10,8 @@ import { BedLabel, BedWarnings, ViewportViewCard } from "@/components/maker/Make
 import { useNeonGeometry } from "@/hooks/maker/useNeonGeometry";
 import { exportWord } from "@/lib/maker/exporters/exportWord";
 import { IMPORT_LIMITS } from "@/lib/maker/import/types";
-import { DEFAULT_NEON_FONT_ID, DEFAULT_NEON_PARAMS, DEFAULT_NEON_TEXT } from "@/lib/maker/neon/defaults";
+import { LETTER_SPACING_MAX_PCT, LETTER_SPACING_MIN_PCT } from "@/lib/maker/neon/paths/textToNeonPaths";
+import { DEFAULT_LETTER_SPACING_PCT, DEFAULT_NEON_FONT_ID, DEFAULT_NEON_PARAMS, DEFAULT_NEON_TEXT } from "@/lib/maker/neon/defaults";
 import type { NeonFontId, NeonParams, NeonSource, NeonSourceType } from "@/lib/maker/neon/types";
 import { collectBedItems, computeBedLayout } from "@/lib/maker/printBed/bedLayout";
 import { DEFAULT_PRINTER_PROFILE_ID, getPrinterProfile } from "@/lib/maker/printBed/printerProfiles";
@@ -20,6 +21,7 @@ export default function StampaMakerNeonPage() {
   const [sourceType, setSourceType] = useState<NeonSourceType>("text");
   const [text, setText] = useState(DEFAULT_NEON_TEXT);
   const [fontId, setFontId] = useState<NeonFontId>(DEFAULT_NEON_FONT_ID);
+  const [letterSpacingPct, setLetterSpacingPct] = useState(DEFAULT_LETTER_SPACING_PCT);
   const [svgFile, setSvgFile] = useState<{ fileName: string; content: string } | null>(null);
   const [fileError, setFileError] = useState<string | null>(null);
   const [downloading, setDownloading] = useState(false);
@@ -30,9 +32,11 @@ export default function StampaMakerNeonPage() {
   const [plateIndex, setPlateIndex] = useState(1);
 
   const source = useMemo<NeonSource | null>(() => {
-    if (sourceType === "text") return { type: "text", text, fontId };
-    return svgFile ? { type: "svg", fileName: svgFile.fileName, content: svgFile.content } : null;
-  }, [sourceType, text, fontId, svgFile]);
+    // Fuera de rango se acota (el panel muestra el error de campo); NaN/vacío = espaciado recomendado.
+    const spacing = Number.isFinite(letterSpacingPct) ? Math.min(Math.max(letterSpacingPct, LETTER_SPACING_MIN_PCT), LETTER_SPACING_MAX_PCT) : 0;
+    if (sourceType === "text") return { type: "text", text, fontId, letterSpacingPct: spacing };
+    return svgFile ? { type: "svg", fileName: svgFile.fileName, content: svgFile.content, fontId, letterSpacingPct: spacing } : null;
+  }, [sourceType, text, fontId, letterSpacingPct, svgFile]);
 
   const { result, inputError, fieldErrors } = useNeonGeometry(source, params);
 
@@ -108,6 +112,8 @@ export default function StampaMakerNeonPage() {
           onTextChange={setText}
           fontId={fontId}
           onFontChange={setFontId}
+          letterSpacingPct={letterSpacingPct}
+          onLetterSpacingChange={setLetterSpacingPct}
           fileName={svgFile?.fileName ?? null}
           onFile={handleFile}
           onClearFile={() => {

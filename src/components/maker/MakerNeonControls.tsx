@@ -4,9 +4,9 @@ import React from "react";
 import { AlertTriangle, Download, Loader2, Upload, X } from "lucide-react";
 import { Card } from "@/components/ui/card";
 import { GhostButton } from "@/components/ui/button";
-import { CalculatorSelect } from "@/components/ui/calculator-select";
 import { NumberField, SegmentedControl } from "@/components/maker/MakerTextControls";
-import { NEON_FONTS } from "@/lib/maker/neon/fonts/neonFonts";
+import { NEON_FONTS, NEON_FONT_CATEGORY_LABELS, type NeonFontDefinition } from "@/lib/maker/neon/fonts/neonFonts";
+import { LETTER_SPACING_MAX_PCT, LETTER_SPACING_MIN_PCT, textToNeonPaths } from "@/lib/maker/neon/paths/textToNeonPaths";
 import type { NeonFieldError } from "@/lib/maker/neon/validation/validateNeonParams";
 import type { NeonFontId, NeonIssue, NeonMetrics, NeonParams, NeonSourceType } from "@/lib/maker/neon/types";
 
@@ -27,6 +27,62 @@ function InfoRow({ label, value, strong = false }: { label: string; value: strin
     <div className="flex items-baseline justify-between gap-3 text-xs">
       <span className="text-gray-500">{label}</span>
       <span className={strong ? "font-bold text-stampa-orange" : "font-semibold text-gray-200"}>{value}</span>
+    </div>
+  );
+}
+
+const previewCache = new Map<string, { d: string; w: number; h: number } | null>();
+
+/** Mini vista previa 2D: el nombre de la fuente dibujado con SU PROPIA geometría de trazo único (sin 3D). */
+function fontPreview(font: NeonFontDefinition) {
+  if (previewCache.has(font.id)) return previewCache.get(font.id) ?? null;
+  let out: { d: string; w: number; h: number } | null = null;
+  try {
+    const paths = textToNeonPaths(font.label, font.id, 20).paths;
+    let maxX = 0, maxY = 0;
+    for (const p of paths) for (const [x, y] of p.points) [maxX, maxY] = [Math.max(maxX, x), Math.max(maxY, y)];
+    const d = paths
+      .map((p) => "M" + p.points.map(([x, y]) => `${Math.round(x * 10) / 10} ${Math.round((maxY - y) * 10) / 10}`).join("L") + (p.closed ? "Z" : ""))
+      .join("");
+    out = { d, w: maxX, h: maxY };
+  } catch {
+    out = null;
+  }
+  previewCache.set(font.id, out);
+  return out;
+}
+
+function NeonFontPicker({ value, onChange }: { value: NeonFontId; onChange: (id: NeonFontId) => void }) {
+  return (
+    <div role="radiogroup" aria-label="Fuente Neon" className="flex flex-col gap-1.5">
+      {NEON_FONTS.map((font) => {
+        const active = font.id === value;
+        const preview = fontPreview(font);
+        return (
+          <button
+            key={font.id}
+            type="button"
+            role="radio"
+            aria-checked={active}
+            onClick={() => onChange(font.id)}
+            className={`flex items-center gap-3 rounded-xl border px-3 py-2 text-left transition-colors ${
+              active ? "border-stampa-orange/60 bg-stampa-orange/10" : "border-white/10 bg-white/[0.04] hover:border-white/25"
+            }`}
+          >
+            <span className="flex h-9 w-28 shrink-0 items-center">
+              {preview && (
+                <svg viewBox={`-2 -2 ${preview.w + 4} ${preview.h + 4}`} className={`h-full w-full ${active ? "text-stampa-orange" : "text-gray-300"}`} preserveAspectRatio="xMinYMid meet" aria-hidden>
+                  <path d={preview.d} fill="none" stroke="currentColor" strokeWidth={1.4} strokeLinecap="round" strokeLinejoin="round" vectorEffect="non-scaling-stroke" />
+                </svg>
+              )}
+            </span>
+            <span className="min-w-0">
+              <span className="block truncate text-xs font-semibold text-gray-100">{font.label}</span>
+              <span className="block truncate text-[11px] text-gray-500">{NEON_FONT_CATEGORY_LABELS[font.category]}</span>
+            </span>
+          </button>
+        );
+      })}
     </div>
   );
 }
@@ -81,6 +137,8 @@ export interface MakerNeonControlsProps {
   onTextChange: (text: string) => void;
   fontId: NeonFontId;
   onFontChange: (id: NeonFontId) => void;
+  letterSpacingPct: number;
+  onLetterSpacingChange: (pct: number) => void;
   fileName: string | null;
   onFile: (file: File) => void;
   onClearFile: () => void;
@@ -117,15 +175,6 @@ export function MakerNeonControls(props: MakerNeonControlsProps) {
                 className="h-11 w-full rounded-xl border border-white/10 bg-white/[0.06] px-4 text-sm text-white placeholder:text-neutral-500 outline-none transition focus:border-stampa-orange/60 focus:bg-white/[0.08] focus:ring-2 focus:ring-stampa-orange/10"
               />
             </label>
-            <label className="block">
-              <span className="mb-1 block text-xs font-semibold text-gray-500">Fuente Neon</span>
-              <CalculatorSelect
-                value={props.fontId}
-                onChange={(value) => props.onFontChange(value as NeonFontId)}
-                options={NEON_FONTS.map((f) => ({ value: f.id, label: f.label }))}
-              />
-            </label>
-            <p className="text-xs text-gray-500">Fuentes de trazo único: cada letra es el recorrido del Neon (se dibujan en mayúsculas).</p>
           </>
         ) : props.fileName ? (
           <div className="flex items-center justify-between gap-2 rounded-xl border border-white/10 bg-white/[0.04] px-3 py-2">
@@ -144,6 +193,26 @@ export function MakerNeonControls(props: MakerNeonControlsProps) {
             <span>{props.inputError}</span>
           </div>
         )}
+      </section>
+
+      <section className="flex flex-col gap-3">
+        <SectionLabel>Fuente Neon</SectionLabel>
+        <NeonFontPicker value={props.fontId} onChange={props.onFontChange} />
+        <NumberField
+          label="Espaciado entre letras"
+          value={props.letterSpacingPct}
+          onChange={props.onLetterSpacingChange}
+          suffix="%"
+          error={
+            props.letterSpacingPct < LETTER_SPACING_MIN_PCT || props.letterSpacingPct > LETTER_SPACING_MAX_PCT
+              ? `Debe estar entre ${LETTER_SPACING_MIN_PCT} y ${LETTER_SPACING_MAX_PCT} %.`
+              : undefined
+          }
+        />
+        <p className="text-xs text-gray-500">
+          0 % = espaciado recomendado por la fuente. Fuentes de trazo único: cada letra es el recorrido del Neon.
+          {props.sourceType === "svg" ? " En un SVG se usa para los <text>." : ""}
+        </p>
       </section>
 
       <section className="flex flex-col gap-3">

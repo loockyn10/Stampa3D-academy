@@ -282,8 +282,10 @@ test("SVG malicioso: scripts, foreignObject, javascript:, recursos externos, ent
   // Los handlers on* nunca se leen: el SVG legítimo se importa igual.
   const withHandler = buildNeonPaths({ type: "svg", fileName: "x.svg", content: svg('<line x1="0" y1="0" x2="0" y2="10" stroke="#000" onclick="alert(1)"/>', 'onload="alert(1)"') }, 50);
   assert.equal(withHandler.ok, true);
-  // Texto editable y máscaras también se rechazan (como en Carteles).
-  assert.equal(buildNeonPaths({ type: "svg", fileName: "x.svg", content: svg('<text x="0" y="10">hola</text>') }, 50).ok, false);
+  // clip-path/mask/filter siguen rechazados como "elementos no compatibles" (el <text> ahora se convierte: ver maker-neon-svg-fonts).
+  const clipped = buildNeonPaths({ type: "svg", fileName: "x.svg", content: svg('<line x1="0" y1="0" x2="0" y2="10" stroke="#000" clip-path="url(#c)"/>') }, 50);
+  assert.equal(clipped.ok, false);
+  assert.match(clipped.message, /elementos no compatibles/);
 });
 
 test("SVG solo con formas rellenas -> error claro (sin geometría incorrecta)", () => {

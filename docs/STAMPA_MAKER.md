@@ -56,6 +56,7 @@
 > 0.6 (2026-09-19): safe zone del overlay respecto de Stampy, orientación de impresión como fuente única para Vista Cama y STL (sección 22) y recortes traseros paramétricos circle/capsule/keyhole (sección 23).
 > 0.6.1 (2026-09-19): editor visual de recortes (seleccionar + arrastrar sobre la vista trasera ortográfica) y keyhole nuevo a 180° (sección 24).
 > Neon 0.1 (2026-09-19): segunda herramienta, **Neon LED** (`/stampa-maker/neon`, sección 25): canal en U imprimible para Neon Flex a partir de texto (fuente de trazos) o SVG de líneas. Motor geométrico propio, separado del de Carteles.
+> Neon 0.1.1 (2026-09-19): importador SVG corregido (cascada CSS real, `<text>`, mensajes diferenciados) y biblioteca de fuentes single-line reales: Mistral SingleLine y Relief SingleLine, OFL (sección 26).
 
 ## 1. Qué es
 
@@ -1918,7 +1919,7 @@ src/lib/maker/neon/                      módulo nuevo, sin depender de createLe
 src/hooks/maker/useNeonGeometry.ts       debounce; NeonPaths solo se recalculan si cambia fuente/alto
 src/components/maker/MakerNeonControls.tsx   panel izquierdo + tarjeta de exportación
 src/app/stampa-maker/neon/page.tsx
-tests/maker-neon.test.mjs                34 tests
+tests/maker-neon.test.mjs (34) + tests/maker-neon-svg-fonts.test.mjs (22)
 ```
 
 **Se reutiliza tal cual**: `MakerViewport` (modelo flotante, sin grid, orbit/zoom/auto-fit),
@@ -1945,7 +1946,7 @@ el último punto no repite al primero. Frontera: INPUT → `NeonPath[]` → moto
 → acentos/Ñ como trazo extra → inclinación de la fuente → aplanado de curvas (0.05 mm)
 → escala (alto de mayúscula = "Alto del diseño") → NeonPath[]`.
 
-- **Fuentes**: "Stampa Línea (recta)" y "Stampa Línea (inclinada 12°)". Es una fuente de
+- **(Actualizado en 26.6: ahora hay más fuentes.)** Fuentes originales: "Stampa Línea (recta)" y "Stampa Línea (inclinada 12°)". Es una fuente de
   trazos **propia, dibujada para este proyecto** (A–Z, 0–9, `. , - _ ! ? : + = / '`, tildes
   agudas/graves/diéresis y Ñ). **Licencia: sin datos de terceros, no hay atribución que
   cumplir.** Se evaluó Hershey (licencia permisiva pero con atribución obligatoria) y no se
@@ -2042,3 +2043,141 @@ y presets de Carteles intactos.
 - La ruta exige sesión con acceso de plataforma (igual que Carteles): la verificación visual
   de la página completa en navegador NO se hizo (sin credenciales). Se verificó el render 3D
   real de la malla (three.js) en un harness aparte y la UI compila (`next build`).
+
+## 26. Neon LED 0.1.1 — importador SVG corregido y biblioteca de fuentes single-line
+
+Iteración correctiva sobre la sección 25 (sin avanzar a 0.2: no hay skeletonization, PNG ni
+unión de letras).
+
+### 26.1 Causa raíz del rechazo SVG
+
+Diagnóstico con fixtures de exportadores reales (antes de tocar código): los casos simples
+(`stroke` como atributo, `style=""`, herencia desde `<g>`, clase CSS simple, `fill`+`stroke`)
+**ya se clasificaban bien**. No era "todo SVG cae como relleno"; eran cuatro causas concretas:
+
+1. **CSS de `<style>` con selectores no simples** (`svg path{}`, `.wrap path{}`, `g > path{}`,
+   listas con combinadores): el matcher solo entendía `tag`/`.clase`/`#id` sueltos, así que la
+   regla no aplicaba, el stroke quedaba sin resolver y el path caía como "solo relleno".
+2. **`<text>` rechazado** con un error genérico en vez de convertirse.
+3. **Texto convertido a contornos** (Illustrator/Inkscape "convertir a curvas", Figma "flatten"):
+   son paths cerrados rellenos sin stroke. **Es relleno genuino** y sigue rechazándose (sección 26.4);
+   probablemente la mayoría de los rechazos reportados.
+4. **Un único mensaje** para casos distintos (sin recorridos / solo relleno / elementos no compatibles).
+
+Además el resolvedor viejo no tenía cascada real (sin especificidad, sin `!important`, `style=""`
+mezclado por orden), y un `stroke="none"` explícito con relleno no se contaba como forma rellena.
+
+### 26.2 Resolución de estilos (`neon/paths/svgStyles.ts`)
+
+- **Cascada real**: atributos de presentación < reglas CSS (especificidad `#id` > `.clase` > `tag`,
+  luego orden) < `style=""`; `!important` por encima de todo.
+- **Selectores soportados**: `tag`, `*`, `.clase` (varias), `#id`, combinaciones (`tag.clase`, `.a.b`),
+  combinadores descendiente (` `) e hijo (`>`), listas con coma, hojas dentro de `<defs>`/CDATA.
+  **No soportados** (la regla se ignora entera, nunca a medias): pseudo-clases/elementos, selectores
+  de atributo, hermanos (`+`, `~`); `@media` se aplica sin condicionar; `var(--x)` cuenta como
+  "hay pintura visible"; `@import` y `url()` externos se rechazan (seguridad, igual que Carteles).
+- **Herencia** al recorrer el árbol: `fill`, `stroke`, `fill-opacity`, `stroke-opacity`, `visibility`,
+  `font-size`, `text-anchor`, `color` (`currentColor`), `inherit`. `opacity`/`display` de un grupo
+  descartan todo su subárbol. También aplica a elementos referenciados por `<use>`.
+- **Sin pintura** (`isNoPaint`): `none`, `transparent`, `rgba/hsla(...,0)`, `#rgba`/`#rrggbbaa` con alfa 0.
+- Un **stroke utilizable** = definido, no "sin pintura" y `stroke-opacity > 0`. `stroke-width` NO
+  interviene: el stroke SVG solo aporta el centerline; el ancho físico lo define Neon + holgura.
+
+### 26.3 Clasificación por elemento (fill / stroke)
+
+| Caso | Resultado |
+|---|---|
+| stroke visible (con o sin fill) | **recorrido**; el fill se ignora (fill+stroke usa el stroke) |
+| sin stroke y fill visible (incl. `stroke="none"` explícito) | forma rellena: se cuenta, se ignora |
+| fill none y stroke sin especificar | recorrido (línea sin pintar; leniencia) |
+| fill none y stroke none explícitos, o oculto | invisible: se cuenta como ignorado |
+| `<line>` | siempre recorrido salvo stroke explícitamente invisible |
+| `<text>` | se convierte (26.5) |
+
+Mensajes distintos: sin ningún recorrido y con formas rellenas → «Este SVG contiene únicamente formas
+rellenas. Neon LED necesita recorridos de línea. La conversión automática a línea central se agregará más
+adelante.»; sin nada utilizable → «No se encontraron recorridos de línea en el SVG.»; clip-path/mask/filter/
+imágenes → «El SVG contiene elementos no compatibles. …». Con **mezcla** de trazos y formas rellenas se
+importan los trazos y NO se bloquea: «Se importaron X recorridos. Y formas rellenas fueron ignoradas.»
+
+**Debug info** (no visible al usuario): `svgToNeonPaths(...).stats` e `inspectNeonSvg(content)` devuelven
+`{ shapes, strokeRoutes, fillOnly, textElements, ignored, paths }`.
+
+### 26.4 Texto convertido a contornos: sigue rechazado
+
+Contornos cerrados rellenos sin stroke son *fill geometry* y NO se confunden con `<text>`. Convertirlos a
+centerline requiere skeletonization/medial axis: fuera de alcance. Error de solo-relleno (26.3).
+
+### 26.5 `<text>` del SVG
+
+Se extrae el texto (incluye `<tspan>`; un `tspan` con `x`/`y` propios abre otra línea), posición `x`/`y`,
+`font-size` (px/pt/em; la mayúscula se dimensiona como 0.7 × font-size), `text-anchor` (start/middle/end,
+calculado sobre el avance como hace SVG) y el transform acumulado. Se compone con `layoutNeonText` (mismo motor
+que el modo Texto: kerning, espaciado) usando **la fuente Neon elegida en la UI**; la `font-family` original
+NO se reproduce. Aviso: «El texto del SVG se convirtió usando <fuente>.». Limitaciones: sin `textPath`
+(se lee como texto normal), sin `dx/dy/rotate` por glifo, sin `textLength`, sin `letter-spacing` CSS.
+
+### 26.6 Biblioteca de fuentes single-line
+
+Registro central `neon/fonts/neonFonts.ts` (`NeonFontDefinition`: id, label, categoría, descripción, origen,
+licencia, `caseMode`, métricas, `getGlyph`/`getKerning`). Categorías Script / Moderna / Geométrica / Técnica.
+Orden del selector: Mistral SingleLine (Script), Relief SingleLine (Moderna), Stampa Línea, Stampa Línea
+inclinada. **Selector con mini vista previa 2D** de cada fuente dibujada con su propia geometría de trazo único
+(SVG liviano, sin 3D). Default: Mistral SingleLine.
+
+| Fuente | Formato real usado | Origen | Licencia |
+|---|---|---|---|
+| **Mistral SingleLine** (Script) | **UFO** `sources/Mistral_SingleLine.ufo`: contornos ABIERTOS (no el OTF de contornos cerrados ni el OpenType-SVG) | `isdat-type/Mistral-SingleLine` @ `fc23517` | SIL OFL 1.1 — © 2025 The Mistral SingleLine Project Authors. Sin Reserved Font Name |
+| **Relief SingleLine** (Moderna) | **SVG Font** `fonts/open_svg/ReliefSingleLineSVG-Regular.svg` (paths abiertos) | `isdat-type/Relief-SingleLine` @ `01dfc57` | SIL OFL 1.1 — © 2021/2022 The Relief SingleLine Project Authors. Sin Reserved Font Name |
+| Stampa Línea (+ inclinada) | glifos propios como paths SVG | código de Stampa | propia |
+
+Textos de licencia versionados en `neon/fonts/licenses/OFL-*.txt`.
+
+**Preprocesamiento** (`scripts/build-neon-fonts.mjs`, herramienta de desarrollo, no corre en build ni runtime;
+la salida `neon/fonts/data/*.ts` está versionada y su cabecera declara origen, SHA, licencia y modificaciones):
+- Mistral: se leen los `.glif` (contornos abiertos, sin componentes); los contornos consecutivos que se tocan se
+  **encadenan en un solo trazo**; se descartan ligaduras y alternativas contextuales (GSUB, `features.fea`); el
+  kerning UFO con clases (`public.kern1/2`) se resuelve a pares planos; **`capHeight` calibrado** sobre las
+  mayúsculas reales (664 vs 580 declarado): así "Alto del diseño" coincide con la altura visible de las capitales.
+- Relief: se conserva el path data original (comandos relativos incluidos); `hkern` (g1/g2/u1/u2) → pares planos.
+- Charset: ASCII imprimible + Latin-1 (áéíóúüñ, ¿ ¡ …), 160 glifos por fuente. Kerning por letra base (una tilde
+  usa el kerning de su letra).
+- Sin modificar las formas: solo cambia el formato. Al ser OFL, las obras derivadas conservan la licencia y su
+  aviso de copyright; no se usa ningún nombre reservado.
+
+**Evaluadas y NO incorporadas: Custom-Script / Custom-Square** (`Shriinivas/inkscapestrokefont`). Los SVG Font no
+llevan aviso de licencia; el `strokefontdata/OFL.txt` del repo es la *plantilla sin completar* (sin titular);
+el repo es GPL-2 (código de las extensiones de Inkscape); y la derivación de Pinyon Script (OFL, Pinyon Project
+Authors, sin RFN) y Square Grotesk/Squarion (OFL, con Reserved Font Name «EXO» del original) solo consta en el
+README. Se verificó que ambas fuentes de origen son OFL, pero la cadena de licencia del asset concreto es
+indirecta; por la regla de no usar assets con licencia dudosa quedaron fuera. Su formato (SVG Font, `d`
+absoluto M/C) es el mismo que ya lee el conversor: incorporarlas sería sumar la entrada al script y al registro
+si se confirma la licencia con el autor.
+
+### 26.7 Espaciado y kerning
+
+`layoutNeonText`: avance del glifo + **kerning del par** + espaciado extra. Control **Espaciado entre letras**
+(`letterSpacingPct`, −20 % a +100 %, default 0 = recomendado por la fuente; 100 % = +¼ de la altura de mayúscula
+por carácter). También rige el `<text>` de un SVG. Se aplica al ancho de los espacios entre palabras.
+
+**Continuidad script**: se mantienen los trazos que da la fuente (un NeonPath por trazo, sin fusionar letras).
+Si dos trazos se tocan o cruzan, el buffer/unión del canal los funde (sección 25.6); no se inventan puentes.
+
+### 26.8 Tests (`tests/maker-neon-svg-fonts.test.mjs`, 22; `tests/maker-neon.test.mjs`, 34)
+
+Fixtures SVG 1–10 del pedido (fill none+stroke, fill-only, fill+stroke, `style`, herencia `<g>`, CSS clase/tag/
+descendiente/hijo/id/CDATA/especificidad/`!important`, mezcla 2+1 con warning, `<text>` con la fuente elegida,
+contornos rellenos → error, transforms, `<use>`), más anchors/tamaños/tspan/transform de `<text>`, "sin pintura",
+mensajes diferenciados, seguridad y stats. Fuentes: registro y licencias (archivos OFL presentes, sin RFN, cabecera
+generada), charset y paths abiertos, y para cada fuente ABC/abc/0123/STAMPA/Neon/amor: glifos, trazos abiertos, escala
+(cap height), avances, kerning, espaciado y **canal U manifold y sin errores** en amor/neon/bar/Stampa.
+
+### 26.9 Limitaciones conocidas
+
+- Sin GSUB (ligaduras/alternativas contextuales): Mistral usa sus glifos base; algunas uniones script pueden ser
+  menos fluidas que en un motor OpenType completo.
+- Selectores CSS avanzados y `@media` condicionado no se resuelven (ver 26.2).
+- En fuentes script el "Alto del diseño" es la altura de la MAYÚSCULA; una palabra en minúsculas ("amor") mide menos.
+- Las esquinas/curvas cerradas de las fuentes script pueden disparar el warning de radio mínimo (esperable a 10 mm).
+- Verificación visual de la página completa en navegador no realizada (requiere sesión); se verificó el render
+  2D de las fuentes en un harness aparte.

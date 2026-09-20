@@ -14,69 +14,97 @@ import {
   type Matrix,
   type SubPath,
 } from "@/lib/maker/import/svgGeometry";
-import { collectIds, collectStyles, parseDeclarations, scanTree, selectorMatches, type CssRule } from "@/lib/maker/import/svgImport";
+import { collectIds, scanTree } from "@/lib/maker/import/svgImport";
+import { getNeonFont, type NeonFontDefinition } from "@/lib/maker/neon/fonts/neonFonts";
 import { FLATTEN_TOLERANCE_MM, pathsBounds, scaleToMm } from "@/lib/maker/neon/paths/flattenNeonPath";
-import { NeonInputError, type NeonIssue, type NeonPath, type NeonPathsResult } from "@/lib/maker/neon/types";
+import { cascadeStyle, collectRules, isNoPaint, parseFontSize } from "@/lib/maker/neon/paths/svgStyles";
+import { layoutNeonText } from "@/lib/maker/neon/paths/textToNeonPaths";
+import { NeonInputError, type NeonFontId, type NeonIssue, type NeonPath, type NeonPathsResult } from "@/lib/maker/neon/types";
 
 /**
- * SVG -> NeonPath[] (Neon 0.1). El SVG describe RECORRIDOS, no formas rellenas:
- * cada <path>/<line>/<polyline>/<polygon>/<circle>/<ellipse>/<rect> cuenta como
- * centerline si tiene trazo (stroke) o si no tiene relleno (fill="none"). Un
- * elemento solo relleno (sin trazo) es una FORMA: se ignora, y si no queda
- * ningún recorrido se rechaza con un error claro (no se intenta obtener el
- * esqueleto de formas rellenas: eso queda para una versión futura).
+ * SVG -> NeonPath[] (Neon LED). El SVG describe RECORRIDOS; qué elementos lo son se
+ * decide por su pintura ya resuelta (atributos, `style`, CSS de <style>, herencia):
  *
- * Seguridad: mismo criterio que el importador de carteles — parser XML propio
- * sin DOM (import/xml.ts) y `scanTree` (scripts, foreignObject, handlers vía
- * href, javascript:/data:, url() externos, animaciones). Solo se lee geometría.
+ *  - STROKE visible (stroke != none/transparente, stroke-opacity > 0): es un
+ *    recorrido, con o sin relleno — el fill se ignora y solo importa la geometría
+ *    del path (el `stroke-width` NO define el ancho del Neon).
+ *  - sin stroke y con FILL visible: forma rellena. No se convierte (no hay
+ *    skeletonization); se ignora, y si no queda nada útil se rechaza con un error.
+ *  - fill none y stroke sin especificar: recorrido (geometría de línea sin pintar).
+ *  - fill none + stroke none explícitos: invisible, se ignora.
+ *  - `<text>`: se convierte con la fuente Neon elegida (nunca con su font-family).
+ *
+ * Seguridad: mismo criterio que el importador de carteles (parser XML propio sin DOM,
+ * `scanTree`: scripts, foreignObject, javascript:/data:, url() externos, entidades,
+ * animaciones; los handlers on* nunca se leen).
  */
 
 const NON_RENDERED = new Set([
   "defs", "symbol", "clipPath", "mask", "marker", "pattern", "linearGradient", "radialGradient", "filter",
   "style", "title", "desc", "metadata", "namedview", "font", "font-face",
 ]);
-const TEXT_ELEMENTS = new Set(["text", "tspan", "textPath", "tref"]);
+const SHAPE_ELEMENTS = new Set(["path", "line", "polyline", "polygon", "circle", "ellipse", "rect"]);
 const MAX_USE_DEPTH = 16;
 const MAX_SHAPES = 50000;
 const MAX_POINTS = 400000;
+const DEFAULT_FONT_SIZE = 16;
+/** Altura de mayúscula típica respecto de font-size, para dimensionar el texto SVG. */
+const TEXT_CAP_RATIO = 0.7;
 
 export const SVG_FILL_ONLY_MESSAGE =
-  "Este SVG contiene formas rellenas. Para Neon LED necesitás un SVG de línea/trazo. La conversión automática de formas a recorrido central se agregará más adelante.";
+  "Este SVG contiene únicamente formas rellenas. Neon LED necesita recorridos de línea. La conversión automática a línea central se agregará más adelante.";
+export const SVG_NO_ROUTES_MESSAGE = "No se encontraron recorridos de línea en el SVG.";
 
-type Props = Record<string, string>;
-
-const STYLE_PROPS = ["fill", "stroke", "display", "visibility", "opacity", "stroke-opacity", "clip-path", "mask", "filter"];
-
-function declaredProps(node: XmlNode, rules: CssRule[]): Props {
-  const props: Props = {};
-  for (const p of STYLE_PROPS) if (node.attrs[p] !== undefined) props[p] = node.attrs[p].trim();
-  for (const r of rules) if (selectorMatches(r.selector, node)) Object.assign(props, r.props);
-  if (node.attrs.style) Object.assign(props, parseDeclarations(node.attrs.style));
-  return props;
+/** Conteos de diagnóstico de la clasificación (desarrollo/tests; la UI no los muestra). */
+export interface NeonSvgStats {
+  /** Elementos de geometría visibles considerados (path, line, circle...). */
+  shapes: number;
+  /** Elementos usados como recorrido (con stroke, o fill none sin stroke). */
+  strokeRoutes: number;
+  /** Elementos solo rellenos (sin stroke): ignorados. */
+  fillOnly: number;
+  /** Elementos <text> convertidos con la fuente Neon. */
+  textElements: number;
+  /** Elementos invisibles (fill y stroke none, display/visibility/opacity) u omitidos. */
+  ignored: number;
+  /** NeonPaths resultantes. */
+  paths: number;
 }
 
 interface Inherited {
-  fill: string;
-  stroke: string;
+  fill: string | undefined;
+  stroke: string | undefined;
+  fillOpacity: number;
+  strokeOpacity: number;
   visible: boolean;
-}
-
-interface PendingRoute {
-  subs: SubPath[];
+  fontSize: number;
+  textAnchor: string;
+  color: string | undefined;
 }
 
 interface Ctx {
-  rules: CssRule[];
+  rules: ReturnType<typeof collectRules>;
   byId: Map<string, XmlNode>;
-  routes: PendingRoute[];
-  filledShapes: number;
+  font: NeonFontDefinition;
+  letterSpacingPct: number;
+  routes: SubPath[][];
+  stats: NeonSvgStats;
   shapeCount: number;
+  unsupportedChars: Set<string>;
 }
 
 function num(v: string | undefined, fallback = 0): number {
   if (v === undefined) return fallback;
   const n = parseFloat(v);
   return Number.isFinite(n) ? n : fallback;
+}
+
+function opacityOf(v: string | undefined, fallback: number): number {
+  if (v === undefined) return fallback;
+  const t = v.trim();
+  const n = parseFloat(t);
+  if (!Number.isFinite(n)) return fallback;
+  return t.endsWith("%") ? n / 100 : n;
 }
 
 function pointList(attr: string): Point2D[] {
@@ -91,7 +119,7 @@ function lineSubPath(points: Point2D[], closed: boolean): SubPath[] {
   return [{ start: points[0], segs: points.slice(1).map((p) => ({ t: "L", p }) as const), closed }];
 }
 
-/** Subpaths de un elemento como CENTERLINE, y si es una forma inherentemente cerrada (círculo, rect, polígono). */
+/** Subpaths de un elemento de geometría tomado como CENTERLINE. */
 function routeSubPaths(node: XmlNode): SubPath[] {
   const a = node.attrs;
   switch (node.name) {
@@ -101,8 +129,10 @@ function routeSubPaths(node: XmlNode): SubPath[] {
       return lineSubPath([[num(a.x1), num(a.y1)], [num(a.x2), num(a.y2)]], false);
     case "polyline":
       return a.points ? lineSubPath(pointList(a.points), false) : [];
-    case "polygon":
-      return a.points ? lineSubPath(pointList(a.points), true).map((s) => (s.segs.length >= 2 ? s : { ...s, closed: false })) : [];
+    case "polygon": {
+      const pts = a.points ? pointList(a.points) : [];
+      return lineSubPath(pts, pts.length >= 3);
+    }
     case "circle":
       return ellipseSubPaths(num(a.cx), num(a.cy), num(a.r), num(a.r)).map((s) => ({ ...s, closed: true }));
     case "ellipse":
@@ -117,40 +147,69 @@ function routeSubPaths(node: XmlNode): SubPath[] {
   }
 }
 
-const SHAPE_ELEMENTS = new Set(["path", "line", "polyline", "polygon", "circle", "ellipse", "rect"]);
-
-function isNone(v: string): boolean {
-  const s = v.trim().toLowerCase();
-  return s === "none" || s === "transparent";
+/** Texto plano y posición de cada "línea" de un <text> (un tspan con x/y propios abre una línea nueva). */
+function textRuns(node: XmlNode): { text: string; x: number; y: number }[] {
+  const x0 = num(node.attrs.x?.split(/[\s,]+/)[0]);
+  const y0 = num(node.attrs.y?.split(/[\s,]+/)[0]);
+  const runs: { text: string; x: number; y: number }[] = [{ text: node.text, x: x0, y: y0 }];
+  const collect = (n: XmlNode) => {
+    for (const child of n.children) {
+      if (child.name === "tspan" || child.name === "textPath" || child.name === "tref") {
+        const hasPos = child.attrs.x !== undefined || child.attrs.y !== undefined;
+        if (hasPos) {
+          runs.push({ text: child.text, x: num(child.attrs.x?.split(/[\s,]+/)[0], runs[runs.length - 1].x), y: num(child.attrs.y?.split(/[\s,]+/)[0], runs[runs.length - 1].y) });
+        } else {
+          runs[runs.length - 1].text += child.text;
+        }
+        collect(child);
+      }
+    }
+  };
+  collect(node);
+  return runs.map((r) => ({ ...r, text: r.text.replace(/\s+/g, " ").trim() })).filter((r) => r.text !== "");
 }
 
-function walk(node: XmlNode, matrix: Matrix, inherited: Inherited, ctx: Ctx, useDepth: number): void {
-  const props = declaredProps(node, ctx.rules);
-  if ((props.display ?? "").toLowerCase() === "none") return;
-  if (props.opacity !== undefined && parseFloat(props.opacity) === 0) return;
+function walk(node: XmlNode, ancestors: XmlNode[], matrix: Matrix, inherited: Inherited, ctx: Ctx, useDepth: number): void {
+  const props = cascadeStyle(node, ancestors, ctx.rules);
+  if ((props.display ?? "").toLowerCase() === "none") {
+    if (SHAPE_ELEMENTS.has(node.name) || node.name === "text") ctx.stats.ignored++;
+    return;
+  }
+  if (props.opacity !== undefined && opacityOf(props.opacity, 1) === 0) {
+    if (SHAPE_ELEMENTS.has(node.name) || node.name === "text") ctx.stats.ignored++;
+    return;
+  }
 
   for (const [k, what] of [["clip-path", "recortes (clip-path)"], ["mask", "máscaras (mask)"], ["filter", "filtros (filter)"]] as const) {
     const v = props[k];
     if (v && v.toLowerCase() !== "none") {
-      throw new DesignImportError("SVG_UNSUPPORTED", `El SVG usa ${what}, que no se admiten. Expandí/aplanó el diseño antes de importarlo.`);
+      throw new DesignImportError("SVG_UNSUPPORTED", `El SVG usa ${what}. Expandí/aplanó el diseño antes de importarlo.`);
     }
   }
 
-  let stroke = props.stroke ?? inherited.stroke;
-  if (props["stroke-opacity"] !== undefined && parseFloat(props["stroke-opacity"]) === 0) stroke = "none";
+  const pick = (v: string | undefined, inh: string | undefined) => (v === undefined || v.trim().toLowerCase() === "inherit" ? inh : v.trim());
+  const color = pick(props.color, inherited.color);
+  const resolvePaint = (v: string | undefined) => (v && v.toLowerCase() === "currentcolor" ? (color ?? "black") : v);
   const style: Inherited = {
-    fill: props.fill ?? inherited.fill,
-    stroke,
+    fill: resolvePaint(pick(props.fill, inherited.fill)),
+    stroke: resolvePaint(pick(props.stroke, inherited.stroke)),
+    fillOpacity: opacityOf(props["fill-opacity"], inherited.fillOpacity),
+    strokeOpacity: opacityOf(props["stroke-opacity"], inherited.strokeOpacity),
     visible: props.visibility !== undefined ? !/^(hidden|collapse)$/i.test(props.visibility) : inherited.visible,
+    fontSize: parseFontSize(props["font-size"], inherited.fontSize),
+    textAnchor: (props["text-anchor"] ?? inherited.textAnchor).trim().toLowerCase(),
+    color,
   };
 
   const m = multiply(matrix, parseTransform(node.attrs.transform));
 
-  if (TEXT_ELEMENTS.has(node.name)) {
-    throw new DesignImportError("SVG_TEXT", "Este SVG contiene texto editable. Convertí el texto a curvas/trazados antes de importarlo.");
-  }
   if (node.name === "image") {
-    throw new DesignImportError("SVG_UNSUPPORTED", "El SVG contiene imágenes incrustadas, que no se admiten. Usá un SVG vectorial de líneas.");
+    throw new DesignImportError("SVG_UNSUPPORTED", "El SVG contiene imágenes incrustadas. Usá un SVG vectorial de líneas.");
+  }
+
+  if (node.name === "text") {
+    handleText(node, m, style, ctx);
+    return;
   }
 
   if (node.name === "use") {
@@ -159,38 +218,73 @@ function walk(node: XmlNode, matrix: Matrix, inherited: Inherited, ctx: Ctx, use
     if (!target) return;
     if (useDepth >= MAX_USE_DEPTH) throw new DesignImportError("TOO_COMPLEX", "El SVG es demasiado complejo (referencias <use> anidadas en exceso).");
     const um = multiply(m, [1, 0, 0, 1, num(node.attrs.x), num(node.attrs.y)]);
+    const chain = [...ancestors, node];
     if (target.name === "symbol" || target.name === "svg") {
-      for (const c of target.children) walkChild(c, um, style, ctx, useDepth + 1);
+      for (const c of target.children) walkChild(c, [...chain, target], um, style, ctx, useDepth + 1);
     } else {
-      walk(target, um, style, ctx, useDepth + 1);
+      walk(target, chain, um, style, ctx, useDepth + 1);
     }
     return;
   }
 
   if (node.name === "svg" || node.name === "g" || node.name === "a" || node.name === "switch") {
-    for (const c of node.children) walkChild(c, m, style, ctx, useDepth);
+    const chain = [...ancestors, node];
+    for (const c of node.children) walkChild(c, chain, m, style, ctx, useDepth);
     return;
   }
 
-  if (!SHAPE_ELEMENTS.has(node.name) || !style.visible) return;
+  if (!SHAPE_ELEMENTS.has(node.name)) return;
   const subs = routeSubPaths(node);
   if (subs.length === 0) return;
-
-  const hasStroke = !isNone(style.stroke);
-  const hasFill = !isNone(style.fill);
-  // <line> no tiene área: siempre es un recorrido. El resto, solo si tiene trazo o no tiene relleno.
-  const isRoute = node.name === "line" || hasStroke || !hasFill;
-  if (!isRoute) {
-    ctx.filledShapes++;
+  if (!style.visible) {
+    ctx.stats.ignored++;
     return;
   }
-  if (++ctx.shapeCount > MAX_SHAPES) throw new DesignImportError("TOO_COMPLEX", "El SVG es demasiado complejo (demasiadas formas).");
-  ctx.routes.push({ subs: transformSubPaths(subs, m) });
+  ctx.stats.shapes++;
+
+  const strokeVisible = style.stroke !== undefined && !isNoPaint(style.stroke) && style.strokeOpacity > 0;
+  const strokeUnspecified = style.stroke === undefined;
+  const fillVisible = (style.fill === undefined || !isNoPaint(style.fill)) && style.fillOpacity > 0; // el fill inicial es negro
+  // <line> no tiene área: nunca es "forma rellena"; solo se descarta si su stroke es explícitamente invisible.
+  const isRoute = node.name === "line" ? strokeVisible || strokeUnspecified : strokeVisible || (strokeUnspecified && !fillVisible);
+  if (isRoute) {
+    if (++ctx.shapeCount > MAX_SHAPES) throw new DesignImportError("TOO_COMPLEX", "El SVG es demasiado complejo (demasiadas formas).");
+    ctx.stats.strokeRoutes++;
+    ctx.routes.push(transformSubPaths(subs, m));
+  } else if (node.name !== "line" && fillVisible) {
+    ctx.stats.fillOnly++; // relleno sin trazo (incluye stroke="none" explícito): forma, no recorrido
+  } else {
+    ctx.stats.ignored++; // fill y stroke ambos invisibles
+  }
 }
 
-function walkChild(node: XmlNode, matrix: Matrix, inherited: Inherited, ctx: Ctx, useDepth: number): void {
+function handleText(node: XmlNode, m: Matrix, style: Inherited, ctx: Ctx): void {
+  if (!style.visible) {
+    ctx.stats.ignored++;
+    return;
+  }
+  const runs = textRuns(node);
+  if (runs.length === 0) {
+    ctx.stats.ignored++;
+    return;
+  }
+  ctx.stats.textElements++;
+  const capSvg = style.fontSize * TEXT_CAP_RATIO;
+  const s = capSvg / ctx.font.capHeight;
+  for (const run of runs) {
+    const layout = layoutNeonText(run.text, ctx.font, ctx.letterSpacingPct);
+    for (const ch of layout.unsupported) ctx.unsupportedChars.add(ch);
+    if (layout.subs.length === 0) continue;
+    const shift = style.textAnchor === "middle" ? layout.width * s * 0.5 : style.textAnchor === "end" ? layout.width * s : 0;
+    // Glifos con Y arriba -> SVG con Y abajo; luego el transform acumulado del <text>.
+    const placed = transformSubPaths(layout.subs, [s, 0, 0, -s, run.x - shift, run.y]);
+    ctx.routes.push(transformSubPaths(placed, m));
+  }
+}
+
+function walkChild(node: XmlNode, ancestors: XmlNode[], matrix: Matrix, inherited: Inherited, ctx: Ctx, useDepth: number): void {
   if (NON_RENDERED.has(node.name)) return;
-  walk(node, matrix, inherited, ctx, useDepth);
+  walk(node, ancestors, matrix, inherited, ctx, useDepth);
 }
 
 /** Traslación del viewBox del <svg> raíz (la escala uniforme se absorbe al normalizar por el alto del recorrido). */
@@ -202,50 +296,82 @@ function viewBoxMatrix(root: XmlNode): Matrix {
   return [1, 0, 0, 1, -n[0], -n[1]];
 }
 
-export function svgToNeonPaths(content: string, heightMm: number): NeonPathsResult {
+export interface NeonSvgOptions {
+  /** Fuente Neon para los <text> del SVG. */
+  fontId?: NeonFontId;
+  letterSpacingPct?: number;
+}
+
+interface Collected {
+  routes: SubPath[][];
+  stats: NeonSvgStats;
+  font: NeonFontDefinition;
+  unsupportedChars: string[];
+}
+
+function collect(content: string, options: NeonSvgOptions): Collected {
   if (content.length > IMPORT_LIMITS.maxFileBytes) {
     throw new DesignImportError("FILE_TOO_LARGE", "El archivo SVG es demasiado grande (máximo 10 MB).");
   }
   const root = parseXml(content);
   scanTree(root);
-
-  const rules: CssRule[] = [];
-  collectStyles(root, rules);
   const byId = new Map<string, XmlNode>();
   collectIds(root, byId);
+  const font = getNeonFont(options.fontId ?? "mistral-singleline");
+  const ctx: Ctx = {
+    rules: collectRules(root),
+    byId,
+    font,
+    letterSpacingPct: options.letterSpacingPct ?? 0,
+    routes: [],
+    stats: { shapes: 0, strokeRoutes: 0, fillOnly: 0, textElements: 0, ignored: 0, paths: 0 },
+    shapeCount: 0,
+    unsupportedChars: new Set(),
+  };
+  walk(
+    root,
+    [],
+    viewBoxMatrix(root),
+    { fill: undefined, stroke: undefined, fillOpacity: 1, strokeOpacity: 1, visible: true, fontSize: DEFAULT_FONT_SIZE, textAnchor: "start", color: undefined },
+    ctx,
+    0,
+  );
+  return { routes: ctx.routes, stats: ctx.stats, font, unsupportedChars: [...ctx.unsupportedChars] };
+}
 
-  const ctx: Ctx = { rules, byId, routes: [], filledShapes: 0, shapeCount: 0 };
-  // El <svg> raíz también puede declarar su propio transform/estilo; el viewBox se aplica una sola vez, acá.
-  walk(root, viewBoxMatrix(root), { fill: "black", stroke: "none", visible: true }, ctx, 0);
+/**
+ * Diagnóstico de clasificación (desarrollo/tests): cuántos elementos se toman como
+ * recorrido, cuántos son solo relleno, cuántos textos, cuántos se ignoran. No escala ni aplana.
+ */
+export function inspectNeonSvg(content: string, options: NeonSvgOptions = {}): NeonSvgStats {
+  const c = collect(content, options);
+  return { ...c.stats, paths: c.routes.reduce((n, subs) => n + subs.length, 0) };
+}
 
-  if (ctx.routes.length === 0) {
-    if (ctx.filledShapes > 0) throw new NeonInputError("SVG_FILL_ONLY", SVG_FILL_ONLY_MESSAGE);
-    throw new NeonInputError("SVG_NO_PATHS", "El SVG no tiene recorridos (líneas/trazos) utilizables.");
+export function svgToNeonPaths(content: string, heightMm: number, options: NeonSvgOptions = {}): NeonPathsResult & { stats: NeonSvgStats } {
+  const { routes, stats, font, unsupportedChars } = collect(content, options);
+  const allSubs = routes.flat();
+
+  if (allSubs.length === 0) {
+    if (stats.fillOnly > 0) throw new NeonInputError("SVG_FILL_ONLY", SVG_FILL_ONLY_MESSAGE);
+    throw new NeonInputError("SVG_NO_PATHS", SVG_NO_ROUTES_MESSAGE);
   }
 
   // Pasada 1: tolerancia gruesa relativa al dibujo para conocer el alto; pasada 2: tolerancia en mm reales.
   let minX = Infinity, minY = Infinity, maxX = -Infinity, maxY = -Infinity;
-  for (const r of ctx.routes) {
-    const b = subPathsBounds(r.subs);
-    if (!b) continue;
-    minX = Math.min(minX, b.minX);
-    minY = Math.min(minY, b.minY);
-    maxX = Math.max(maxX, b.maxX);
-    maxY = Math.max(maxY, b.maxY);
-  }
-  if (!Number.isFinite(minX)) throw new NeonInputError("SVG_NO_PATHS", "El SVG no tiene recorridos (líneas/trazos) utilizables.");
+  const b0 = subPathsBounds(allSubs);
+  if (b0) [minX, minY, maxX, maxY] = [b0.minX, b0.minY, b0.maxX, b0.maxY];
+  if (!Number.isFinite(minX)) throw new NeonInputError("SVG_NO_PATHS", SVG_NO_ROUTES_MESSAGE);
 
   const flattenAll = (tol: number): NeonPath[] => {
     const out: NeonPath[] = [];
     let points = 0;
-    for (const r of ctx.routes) {
-      for (const sub of r.subs) {
-        const pts = flattenSubPath(sub, tol);
-        if (pts.length < 2) continue;
-        points += pts.length;
-        if (points > MAX_POINTS) throw new DesignImportError("TOO_COMPLEX", "El SVG es demasiado complejo (demasiados puntos). Simplificá el trazado antes de importarlo.");
-        out.push({ points: pts, closed: !!sub.closed });
-      }
+    for (const sub of allSubs) {
+      const pts = flattenSubPath(sub, tol);
+      if (pts.length < 2) continue;
+      points += pts.length;
+      if (points > MAX_POINTS) throw new DesignImportError("TOO_COMPLEX", "El SVG es demasiado complejo (demasiados puntos). Simplificá el trazado antes de importarlo.");
+      out.push({ points: pts, closed: !!sub.closed });
     }
     return out;
   };
@@ -257,16 +383,22 @@ export function svgToNeonPaths(content: string, heightMm: number): NeonPathsResu
     throw new NeonInputError("SVG_ZERO_HEIGHT", "El recorrido del SVG no tiene alto (es una línea horizontal): no se puede escalar por alto del diseño.");
   }
   const scale = heightMm / heightSrc;
-  const fine = flattenAll(FLATTEN_TOLERANCE_MM / scale);
-  const paths = scaleToMm(fine, scale, { flipY: true });
-  if (paths.length === 0) throw new NeonInputError("SVG_NO_PATHS", "El SVG no tiene recorridos (líneas/trazos) utilizables.");
+  const paths = scaleToMm(flattenAll(FLATTEN_TOLERANCE_MM / scale), scale, { flipY: true });
+  if (paths.length === 0) throw new NeonInputError("SVG_NO_PATHS", SVG_NO_ROUTES_MESSAGE);
+  stats.paths = paths.length;
 
   const issues: NeonIssue[] = [];
-  if (ctx.filledShapes > 0) {
+  if (stats.fillOnly > 0) {
     issues.push({
       code: "IGNORED_FILLED_SHAPES",
-      message: `Se ignoraron ${ctx.filledShapes} forma${ctx.filledShapes === 1 ? "" : "s"} rellena${ctx.filledShapes === 1 ? "" : "s"} sin trazo: Neon LED solo usa líneas/trazos.`,
+      message: `Se importaron ${paths.length} recorrido${paths.length === 1 ? "" : "s"}. ${stats.fillOnly} forma${stats.fillOnly === 1 ? " rellena fue ignorada" : "s rellenas fueron ignoradas"}.`,
     });
   }
-  return { paths, issues };
+  if (stats.textElements > 0) {
+    issues.push({ code: "SVG_TEXT_FONT", message: `El texto del SVG se convirtió usando ${font.label}.` });
+  }
+  if (unsupportedChars.length > 0) {
+    issues.push({ code: "UNSUPPORTED_CHARS", message: `Caracteres del texto SVG sin trazo en esta fuente (omitidos): ${unsupportedChars.join(" ")}` });
+  }
+  return { paths, issues, stats };
 }

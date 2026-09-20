@@ -27,10 +27,16 @@ export type NeonPathsOutcome = { ok: true; result: NeonPathsResult } | { ok: fal
  */
 export function buildNeonPaths(source: NeonSource, designHeightMm: number): NeonPathsOutcome {
   try {
+    const opts = { fontId: source.fontId, letterSpacingPct: source.letterSpacingPct };
     const result =
-      source.type === "text" ? textToNeonPaths(source.text, source.fontId, designHeightMm) : svgToNeonPaths(source.content, designHeightMm);
+      source.type === "text"
+        ? textToNeonPaths(source.text, source.fontId, designHeightMm, opts)
+        : svgToNeonPaths(source.content, designHeightMm, opts);
     return { ok: true, result };
   } catch (err) {
+    if (err instanceof DesignImportError && err.code === "SVG_UNSUPPORTED") {
+      return { ok: false, message: `El SVG contiene elementos no compatibles. ${err.message}` };
+    }
     if (err instanceof NeonInputError || err instanceof DesignImportError) return { ok: false, message: err.message };
     return { ok: false, message: "No se pudo interpretar el diseño." };
   }

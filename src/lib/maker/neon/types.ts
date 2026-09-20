@@ -13,13 +13,17 @@ export interface NeonPath {
   closed: boolean;
 }
 
-export type NeonFontId = "neon-linea" | "neon-cursiva";
+export type NeonFontId = "mistral-singleline" | "relief-singleline" | "neon-linea" | "neon-cursiva";
 
 export type NeonSourceType = "text" | "svg";
 
+/**
+ * Fuente del diseño. `fontId`/`letterSpacingPct` también rigen el texto `<text>` de un SVG
+ * (se reemplaza siempre por la fuente Neon elegida: no se reproduce la font-family original).
+ */
 export type NeonSource =
-  | { type: "text"; text: string; fontId: NeonFontId }
-  | { type: "svg"; fileName: string; content: string };
+  | { type: "text"; text: string; fontId: NeonFontId; letterSpacingPct: number }
+  | { type: "svg"; fileName: string; content: string; fontId: NeonFontId; letterSpacingPct: number };
 
 /** Parámetros físicos del canal U. */
 export interface NeonChannelParams {
@@ -48,6 +52,7 @@ export type NeonIssueCode =
   | "THIN_WALL"
   | "UNSUPPORTED_CHARS"
   | "IGNORED_FILLED_SHAPES"
+  | "SVG_TEXT_FONT"
   | "TOO_MANY_POINTS";
 
 export interface NeonIssue {
@@ -56,7 +61,7 @@ export interface NeonIssue {
 }
 
 /** Error de entrada (texto/SVG) con mensaje listo para la UI. */
-export type NeonInputErrorCode = "SVG_FILL_ONLY" | "SVG_NO_PATHS" | "SVG_ZERO_HEIGHT" | "EMPTY_TEXT" | "NO_GLYPHS";
+export type NeonInputErrorCode = "SVG_FILL_ONLY" | "SVG_NO_PATHS" | "SVG_ZERO_HEIGHT" | "SVG_UNSUPPORTED" | "EMPTY_TEXT" | "NO_GLYPHS";
 
 export class NeonInputError extends Error {
   code: NeonInputErrorCode;
