@@ -56,6 +56,7 @@
 > 0.6 (2026-09-19): safe zone del overlay respecto de Stampy, orientación de impresión como fuente única para Vista Cama y STL (sección 22) y recortes traseros paramétricos circle/capsule/keyhole (sección 23).
 > 0.6.1 (2026-09-19): editor visual de recortes (seleccionar + arrastrar sobre la vista trasera ortográfica) y keyhole nuevo a 180° (sección 24).
 > Neon 0.1 (2026-09-19): segunda herramienta, **Neon LED** (`/stampa-maker/neon`, sección 25): canal en U imprimible para Neon Flex a partir de texto (fuente de trazos) o SVG de líneas. Motor geométrico propio, separado del de Carteles.
+> Neon 0.2 (2026-09-20): imágenes raster PNG/JPEG -> skeleton -> NeonPaths (sección 27).
 > Neon 0.1.1 (2026-09-19): importador SVG corregido (cascada CSS real, `<text>`, mensajes diferenciados) y biblioteca de fuentes single-line reales: Mistral SingleLine y Relief SingleLine, OFL (sección 26).
 
 ## 1. Qué es
@@ -1919,7 +1920,7 @@ src/lib/maker/neon/                      módulo nuevo, sin depender de createLe
 src/hooks/maker/useNeonGeometry.ts       debounce; NeonPaths solo se recalculan si cambia fuente/alto
 src/components/maker/MakerNeonControls.tsx   panel izquierdo + tarjeta de exportación
 src/app/stampa-maker/neon/page.tsx
-tests/maker-neon.test.mjs (34) + tests/maker-neon-svg-fonts.test.mjs (22)
+tests/maker-neon.test.mjs (34) + tests/maker-neon-svg-fonts.test.mjs (22) + tests/maker-neon-raster.test.mjs (48)
 ```
 
 **Se reutiliza tal cual**: `MakerViewport` (modelo flotante, sin grid, orbit/zoom/auto-fit),
@@ -2181,3 +2182,143 @@ generada), charset y paths abiertos, y para cada fuente ABC/abc/0123/STAMPA/Neon
 - Las esquinas/curvas cerradas de las fuentes script pueden disparar el warning de radio mínimo (esperable a 10 mm).
 - Verificación visual de la página completa en navegador no realizada (requiere sesión); se verificó el render
   2D de las fuentes en un harness aparte.
+
+## 27. Neon LED 0.2 — imágenes raster (PNG / JPEG)
+
+Genera el RECORRIDO CENTRAL (centerline) de una imagen raster y lo entrega al motor Neon existente. **No** es
+PNG -> SVG de contorno: no hay ningún paso vectorial de contornos rellenos. El pipeline termina en `NeonPath[]` y de ahí
+en `createNeonGeometry()` (sin `createPngNeonGeometry`): Model View, Vista Cama y STL funcionan sin lógica especial.
+
+Desarrollo en dos fases sobre UN solo motor. **Checkpoint Fase A (PNG), antes de implementar JPEG:** tests
+raster/PNG 36/36, Neon 92/92, Maker 446/446, `tsc` limpio, ESLint limpio en lo nuevo, `next build` OK. Fase B (JPEG)
+solo agregó el decodificador JPEG, el contraste y la poda con radio local; no hay un segundo motor.
+
+### 27.1 Arquitectura (`src/lib/maker/neon/raster/`, sin React ni DOM)
+
+```
+types.ts               RasterImage, RasterSettings (+defaults), RASTER_LIMITS, RasterStats/Preview/Conversion
+decodeRasterImage.ts   firma -> PNG (upng-js) | JPEG (jpeg-js, dimensiones/EXIF leídos SIN decodificar); cache por bytes
+imageProcessing.ts     campos alpha/luminancia, Otsu, máscara, recorte, remuestreo, blur, componentes, islas/agujeros,
+                       mayoría 3×3, transformada de distancia exacta (EDT)
+skeletonize.ts         Guo–Hall + limpieza de esquinas en escalera
+skeletonGraph.ts       grafo (extremos/bifurcaciones/aristas/lazos), contracción de grado 2, puentes de huecos, resumen
+pruneSkeleton.ts       poda de ramas terminales cortas
+traceSkeletonPaths.ts  extensión de extremos + grafo -> recorridos
+simplifyNeonPaths.ts   Ramer–Douglas–Peucker      smoothNeonPaths.ts   Taubin (λ|μ)
+rasterToNeonPaths.ts   orquestador puro: RasterImage + RasterSettings + alto(mm) -> NeonPath[] (mm) + preview + stats
+```
+Integración: `NeonSource` suma `{ type: "image", bytes, kind, raster }` y `buildNeonPaths` lo enruta (un JPEG fuerza
+luminosidad); `useNeonGeometry` expone `raster` (máscara + paths en px + stats); UI en `MakerRasterPanel.tsx`.
+
+### 27.2 Pipeline
+
+`bytes -> RGBA -> campo (alpha | luminancia+contraste) -> umbral (alpha fijo | Otsu | manual) -> máscara (+Invertir) ->
+recorte del foreground -> resolución de trabajo -> limpieza -> skeleton -> grafo -> puentes -> poda -> extensión de
+extremos -> recorridos -> simplificación -> suavizado -> NeonPath (mm)`.
+
+- **Skeleton: Guo–Hall** (2 sub-iteraciones, determinístico, ~100 líneas, sin dependencias). Elegido sobre Zhang–Suen
+  (mejor conectividad, menos escaleras y espolones) y sobre una biblioteca/WASM (peso injustificado para el problema). Es un
+  adelgazamiento, no el eje medial exacto: preserva topología (loops, componentes, bifurcaciones); los extremos se retraen
+  ~medio ancho del trazo, por eso `extendEndpoints` los prolonga por su tangente mientras siga dentro de la máscara.
+- **Resolución de trabajo**: nunca se procesa la imagen original. Lado mayor del recorte <= **1024 px** (área promedio al
+  reducir); recortes < 320 px se amplían (bilinear SOBRE EL CAMPO, antes del umbral, máx. 4×). El skeleton corre a esa
+  resolución; la escala física se aplica después.
+- **Recorte automático** del foreground (margen técnico 2 % / mín. 2 px): un logo de 500 px en un lienzo de 2000×2000 no da
+  un diseño diminuto.
+- **PNG con alpha**: `alpha > umbral` (default 128) es material. **Luminosidad**: luminancia Rec. 709
+  (0.2126 R + 0.7152 G + 0.0722 B sobre sRGB, píxeles semitransparentes compuestos sobre blanco); material = `lum <= umbral`.
+  **Automático**: alpha si > 1 % de los píxeles tiene alpha < 250; si no, luminosidad.
+- **Umbral**: Otsu (punto medio de la meseta de máximos; con un histograma 0/255 puro da ~127, no 0) o manual 0-255; el
+  valor detectado se muestra. **Invertir** invierte la MÁSCARA, nunca los paths. **Contraste** (−100..100, común a PNG en
+  luminosidad y a JPEG): `(v−128)·f+128`.
+- **Limpieza** (0 ninguna / 1 suave / 2 media / 3 fuerte): blur gaussiano del campo (σ 0.8/1.5/2.2 px) -> umbral -> islas y
+  agujeros diminutos -> mayoría 3×3 (niveles 2-3). Los píxeles aislados nunca forman recorrido.
+- **Grafo**: 8-conectividad; extremo = grado 1, bifurcación = grado ≥ 3 (píxeles de bifurcación adyacentes fundidos en un
+  nodo, posición = centroide); aristas = cadenas de grado 2. Los nodos de grado 2 se contraen. **Lazos**: una arista que vuelve
+  a su nodo (o una componente sin nodos, como la "O") sale como `closed = true`; `stats.loops` es el número ciclomático
+  (una "O" = 1, un "8" = 2), independiente de cómo se partan en paths. **Bifurcaciones**: se permiten; warning «El recorrido
+  contiene N bifurcaciones. Las bifurcaciones pueden requerir segmentos separados de Neon Flex.» (no bloquea). Cada arista es
+  un NeonPath que termina exactamente en el punto de la bifurcación, así que el buffer del canal los une.
+- **Puentes**: dos extremos libres a <= 0.4 % del lado mayor (mín. 2.5 px) se unen con un segmento recto (cortes del umbral);
+  no se une nada más lejos.
+- **Poda**: solo ramas TERMINALES (extremo libre -> bifurcación) más cortas que `pruneMm` (default 2 mm sobre el diseño final,
+  convertido a px con la escala física) **o** ~1.3× el radio local del trazo en su bifurcación (EDT): los vértices gruesos
+  (el pico de una "A") generan abultamientos de esquina de ese largo. Nunca toca lazos, aristas entre dos bifurcaciones ni
+  ramas largas. Un trazo suelto o lazo diminuto (< umbral) se descarta como ruido. `pruneMm = 0` desactiva todo.
+- **Escala física**: el **alto del diseño** es el alto del foreground recortado (no del skeleton), así una barra horizontal
+  (skeleton de alto 0) también escala y mm↔px de la poda no es circular. La longitud Neon se calcula DESPUÉS de escalar.
+- **Simplificación** (RDP, tolerancia 0.6/1.3/2.6 px de trabajo; extremos y bifurcaciones exactos; los cerrados se parten en
+  dos mitades) y **suavizado** (0-100 -> 0-30 iteraciones Taubin sobre el recorrido re-muestreado cada 2 px; extremos fijos,
+  no encoge círculos ni lazos).
+
+### 27.3 UX
+
+Origen **[ Texto | SVG | Imagen ]**; "Imagen" acepta PNG/JPG/JPEG (la firma decide, no la extensión ni el MIME). Panel de
+conversión con preview 2D **Original / Máscara / Recorrido**, modo de detección (Automático / Transparencia / Luminosidad;
+un JPEG muestra "Luminosidad"), umbral con el valor Otsu detectado, Contraste, Invertir, Limpieza, «Eliminar ramas menores
+de N mm», Simplificación, Suavizado y estadísticas (recorridos, bifurcaciones, extremos, longitud y +5 %). Recalcula con
+debounce (200 ms) y muestra «Analizando imagen…». Un JPEG recién cargado arranca con limpieza media (artefactos de
+compresión); son los mismos controles que PNG.
+
+### 27.4 Errores y límites
+
+Archivo <= 10 MB; lado <= 8192 px y <= 40 megapíxeles (leídos del IHDR/SOF ANTES de decodificar); EXIF de JPEG aplicado.
+Mensajes: imagen inválida/dañada, demasiado grande, sin foreground ("probá Umbral/Invertir"), foreground casi total,
+limpieza que borró todo, skeleton vacío (p.ej. un círculo sólido: no tiene línea central), y «Esta imagen es demasiado
+compleja para generar un recorrido Neon limpio. Usá un logo, dibujo o imagen de alto contraste.» cuando hay > 150
+componentes, > 2500 aristas de grafo o > 400 recorridos (aviso previo a partir de 40 componentes / 120 recorridos).
+Una fotografía no se convierte "inteligentemente": da ese error o un aviso.
+
+### 27.5 Rendimiento (medido)
+
+2000×1500 px con un logo complejo -> ~250-370 ms en Node (resolución de trabajo 1028×449); decodificar suele ser lo más caro
+y se cachea por identidad de los bytes. **No se introdujo Web Worker** (no hizo falta medido); si en el futuro las imágenes
+o la resolución de trabajo crecen, el orquestador es puro y se puede mover a un Worker sin cambios.
+
+### 27.6 Proyectos (migration `20260920120000_maker_neon_projects.sql`, NO aplicada)
+
+Reusa `maker_projects`; los proyectos Neon usan `source_type` con prefijo `neon-` (`neon-text|neon-svg|neon-png|neon-jpg`),
+así que Carteles (que ahora filtra por sus propios tipos) no los lista ni los rompe. Se guarda el ORIGEN (texto, o el archivo
+en el bucket privado `maker-projects` como `source.png|jpg|svg`) y la receta: alto del diseño, parámetros del canal,
+fuente/espaciado (texto y `<text>` de SVG) y `RasterSettings` completos (`detectionMode`, umbrales, `invert`, `contrast`,
+`cleaning`, `pruneMm`, `simplify`, `smoothing`). **Nunca** el skeleton ni los NeonPaths: al abrir se descarga el original y
+se repite el pipeline (mejoras futuras del motor reprocesan proyectos viejos). Lectura tolerante (campos faltantes o fuera de
+rango -> defaults). La migration amplía el CHECK de `source_type` y agrega `image/jpeg` al bucket (privado, RLS intacta).
+**Paso manual**: aplicarla (`supabase db push`/SQL editor) antes de guardar proyectos Neon. Presets: sin cambios (no se
+guardan imágenes ni defaults raster en presets).
+
+### 27.7 Diferencias PNG / JPEG
+
+| | PNG | JPEG |
+|---|---|---|
+| Decodificador | `upng-js` (ya existía) | `jpeg-js` (nuevo, BSD-3, puro JS) |
+| Modo | Automático / Transparencia / Luminosidad | siempre Luminosidad |
+| Extras | — | orientación EXIF, limpieza media inicial |
+| Resto | idéntico: máscara, skeleton, grafo, poda, simplificación, suavizado, canal U | idéntico |
+
+### 27.8 Tests (`tests/maker-neon-raster.test.mjs`, 48; total Neon 104)
+
+Procesamiento (Otsu, luminancia, máscara/invertir, remuestreo, blur, componentes, EDT), propiedades del skeleton (barra ->
+un recorrido horizontal, donut -> un lazo, T/+ -> 1 bifurcación, espolón podado, puentes), simplificación/suavizado, pipeline
+completo con fixtures programáticos (rectángulo, línea gruesa, círculo sólido -> error claro, donut y "O", "8", islas, alpha,
+negro/blanco e invertido, Otsu/manual, ruido, espolón, T, márgenes, resolución, escala física), errores y límites (firma,
+IHDR/SOF falsificados, > 10 MB, EXIF), calidad con texto real engrosado (Relief "STAMPA"/"neon 8", Mistral "amor": > 95 %
+de los puntos a <= 0.9 mm del centerline original), end to end PNG y JPEG -> canal U manifold/watertight -> STL -> cama,
+JPEG (calidad 50/20/8, invertido, umbral, PNG vs JPEG equivalentes, contraste, foto -> error/aviso) y proyectos
+(serialización, round-trip, tolerancia, repositorio con cliente simulado, migration).
+
+### 27.9 Limitaciones conocidas
+
+- Es un adelgazamiento: en formas muy gruesas respecto de su largo la línea central es una aproximación (círculos/manchas
+  sólidas no tienen recorrido); los cruces gruesos pueden desplazar ligeramente la bifurcación.
+- Sin color, múltiples capas ni fondos con degradé o fotografías (error o aviso de complejidad).
+- El "alto del diseño" de una imagen es el del foreground (incluye el grosor del trazo original); el canal impreso suma su
+  ancho exterior, como en texto/SVG.
+- Un JPEG progresivo o con perfil de color raro se lee por `jpeg-js` (CMYK y algunos formatos raros dan error claro).
+- Sin edición del skeleton, ni puentes automáticos entre letras, ni división por cama.
+- Verificación visual de la página completa en navegador no realizada (requiere sesión de plataforma).
+
+### 27.10 A futuro (NO implementado)
+
+El mismo pipeline sirve para convertir un **SVG relleno** en recorrido: `SVG fill -> render a máscara -> skeleton ->
+NeonPaths`. `rasterToNeonPaths` ya recibe una `RasterImage`, así que solo haría falta rasterizar el SVG (fuera de este sprint).

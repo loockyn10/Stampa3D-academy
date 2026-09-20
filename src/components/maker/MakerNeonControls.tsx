@@ -5,14 +5,20 @@ import { AlertTriangle, Download, Loader2, Upload, X } from "lucide-react";
 import { Card } from "@/components/ui/card";
 import { GhostButton } from "@/components/ui/button";
 import { NumberField, SegmentedControl } from "@/components/maker/MakerTextControls";
+import { MakerRasterPanel } from "@/components/maker/MakerRasterPanel";
 import { NEON_FONTS, NEON_FONT_CATEGORY_LABELS, type NeonFontDefinition } from "@/lib/maker/neon/fonts/neonFonts";
 import { LETTER_SPACING_MAX_PCT, LETTER_SPACING_MIN_PCT, textToNeonPaths } from "@/lib/maker/neon/paths/textToNeonPaths";
+import type { RasterConversion, RasterKind, RasterSettings } from "@/lib/maker/neon/raster/types";
 import type { NeonFieldError } from "@/lib/maker/neon/validation/validateNeonParams";
 import type { NeonFontId, NeonIssue, NeonMetrics, NeonParams, NeonSourceType } from "@/lib/maker/neon/types";
+
+/** Formatos aceptados por el selector de archivos (la validación real es por firma del archivo, no por esto). */
+export const IMAGE_ACCEPT = ".png,.jpg,.jpeg,image/png,image/jpeg";
 
 const SOURCE_OPTIONS: { value: NeonSourceType; label: string }[] = [
   { value: "text", label: "Texto" },
   { value: "svg", label: "SVG" },
+  { value: "image", label: "Imagen" },
 ];
 
 const round1 = (n: number) => Math.round(n * 10) / 10;
@@ -87,7 +93,7 @@ function NeonFontPicker({ value, onChange }: { value: NeonFontId; onChange: (id:
   );
 }
 
-function SvgDropZone({ onFile, disabled }: { onFile: (file: File) => void; disabled: boolean }) {
+function FileDropZone({ onFile, disabled, accept, hint }: { onFile: (file: File) => void; disabled: boolean; accept: string; hint: string }) {
   const inputRef = React.useRef<HTMLInputElement>(null);
   const [dragging, setDragging] = React.useState(false);
   return (
@@ -108,14 +114,14 @@ function SvgDropZone({ onFile, disabled }: { onFile: (file: File) => void; disab
       }`}
     >
       <Upload size={20} className="text-gray-500" />
-      <p className="text-xs text-gray-400">Arrastrá un SVG de líneas/trazos o seleccioná un archivo.</p>
+      <p className="text-xs text-gray-400">{hint}</p>
       <GhostButton type="button" onClick={() => inputRef.current?.click()} disabled={disabled}>
         Seleccionar archivo
       </GhostButton>
       <input
         ref={inputRef}
         type="file"
-        accept=".svg,image/svg+xml"
+        accept={accept}
         className="hidden"
         onChange={(e) => {
           const file = e.target.files?.[0];
@@ -140,6 +146,16 @@ export interface MakerNeonControlsProps {
   letterSpacingPct: number;
   onLetterSpacingChange: (pct: number) => void;
   fileName: string | null;
+  /** Solo origen "imagen" con un archivo cargado: conversión raster (preview + controles). */
+  raster: {
+    fileName: string;
+    bytes: Uint8Array;
+    kind: RasterKind;
+    settings: RasterSettings;
+    onChange: (patch: Partial<RasterSettings>) => void;
+    conversion: Pick<RasterConversion, "preview" | "stats"> | null;
+    analyzing: boolean;
+  } | null;
   onFile: (file: File) => void;
   onClearFile: () => void;
   fileError: string | null;
@@ -184,9 +200,26 @@ export function MakerNeonControls(props: MakerNeonControlsProps) {
             </button>
           </div>
         ) : (
-          <SvgDropZone onFile={props.onFile} disabled={false} />
+          <FileDropZone
+            onFile={props.onFile}
+            disabled={false}
+            accept={props.sourceType === "image" ? IMAGE_ACCEPT : ".svg,image/svg+xml"}
+            hint={props.sourceType === "image" ? "Arrastrá un PNG o JPG de alto contraste (logo, dibujo, texto) o seleccioná un archivo." : "Arrastrá un SVG de líneas/trazos o seleccioná un archivo."}
+          />
         )}
-        {props.sourceType === "svg" && props.fileError && <p className="text-xs text-red-400">{props.fileError}</p>}
+        {props.sourceType !== "text" && props.fileError && <p className="text-xs text-red-400">{props.fileError}</p>}
+        {props.sourceType === "image" && props.raster && (
+          <MakerRasterPanel
+            fileName={props.raster.fileName}
+            bytes={props.raster.bytes}
+            kind={props.raster.kind}
+            settings={props.raster.settings}
+            onChange={props.raster.onChange}
+            conversion={props.raster.conversion}
+            analyzing={props.raster.analyzing}
+            metrics={metrics}
+          />
+        )}
         {props.inputError && (
           <div className="flex items-start gap-2 rounded-xl border border-red-500/30 bg-red-500/10 p-3 text-xs text-red-300">
             <AlertTriangle size={14} className="mt-0.5 shrink-0" />
@@ -195,6 +228,7 @@ export function MakerNeonControls(props: MakerNeonControlsProps) {
         )}
       </section>
 
+      {props.sourceType !== "image" && (
       <section className="flex flex-col gap-3">
         <SectionLabel>Fuente Neon</SectionLabel>
         <NeonFontPicker value={props.fontId} onChange={props.onFontChange} />
@@ -214,6 +248,7 @@ export function MakerNeonControls(props: MakerNeonControlsProps) {
           {props.sourceType === "svg" ? " En un SVG se usa para los <text>." : ""}
         </p>
       </section>
+      )}
 
       <section className="flex flex-col gap-3">
         <SectionLabel>Tamaño</SectionLabel>

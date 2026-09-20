@@ -1,6 +1,7 @@
 // Tipos del módulo Neon LED de Stampa Maker. Todo en milímetros (1 unidad = 1 mm),
 // plano XY con Y hacia arriba. Este módulo NO depende de createLetterGeometry.ts.
 import type { Point2D } from "@/lib/maker/types";
+import type { RasterConversion, RasterKind, RasterSettings } from "@/lib/maker/neon/raster/types";
 
 /**
  * Un recorrido central (centerline) por el que pasa el Neon Flex. Es la
@@ -15,7 +16,7 @@ export interface NeonPath {
 
 export type NeonFontId = "mistral-singleline" | "relief-singleline" | "neon-linea" | "neon-cursiva";
 
-export type NeonSourceType = "text" | "svg";
+export type NeonSourceType = "text" | "svg" | "image";
 
 /**
  * Fuente del diseño. `fontId`/`letterSpacingPct` también rigen el texto `<text>` de un SVG
@@ -23,7 +24,8 @@ export type NeonSourceType = "text" | "svg";
  */
 export type NeonSource =
   | { type: "text"; text: string; fontId: NeonFontId; letterSpacingPct: number }
-  | { type: "svg"; fileName: string; content: string; fontId: NeonFontId; letterSpacingPct: number };
+  | { type: "svg"; fileName: string; content: string; fontId: NeonFontId; letterSpacingPct: number }
+  | { type: "image"; fileName: string; bytes: Uint8Array; kind: RasterKind; raster: RasterSettings };
 
 /** Parámetros físicos del canal U. */
 export interface NeonChannelParams {
@@ -53,6 +55,9 @@ export type NeonIssueCode =
   | "UNSUPPORTED_CHARS"
   | "IGNORED_FILLED_SHAPES"
   | "SVG_TEXT_FONT"
+  | "RASTER_JUNCTIONS"
+  | "RASTER_COMPLEX"
+  | "RASTER_HINT"
   | "TOO_MANY_POINTS";
 
 export interface NeonIssue {
@@ -61,7 +66,8 @@ export interface NeonIssue {
 }
 
 /** Error de entrada (texto/SVG) con mensaje listo para la UI. */
-export type NeonInputErrorCode = "SVG_FILL_ONLY" | "SVG_NO_PATHS" | "SVG_ZERO_HEIGHT" | "SVG_UNSUPPORTED" | "EMPTY_TEXT" | "NO_GLYPHS";
+export type NeonInputErrorCode = "SVG_FILL_ONLY" | "SVG_NO_PATHS" | "SVG_ZERO_HEIGHT" | "SVG_UNSUPPORTED" | "EMPTY_TEXT" | "NO_GLYPHS"
+  | "RASTER_INVALID" | "RASTER_TOO_LARGE" | "RASTER_EMPTY" | "RASTER_FULL" | "RASTER_NO_PATH" | "RASTER_TOO_COMPLEX";
 
 export class NeonInputError extends Error {
   code: NeonInputErrorCode;
@@ -76,6 +82,8 @@ export interface NeonPathsResult {
   paths: NeonPath[];
   /** Avisos de entrada (caracteres omitidos, formas rellenas ignoradas...). */
   issues: NeonIssue[];
+  /** Solo origen imagen: máscara, paths en px y estadísticas para el preview 2D de la conversión. */
+  raster?: Pick<RasterConversion, "preview" | "stats">;
 }
 
 export interface CurvatureReport {

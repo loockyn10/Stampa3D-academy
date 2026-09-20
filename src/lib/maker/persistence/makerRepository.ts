@@ -5,7 +5,7 @@ import {
   deserializeProject,
   projectSourcePath,
   type LoadedProject,
-  type ProjectPayload,
+  type ProjectRow,
 } from "@/lib/maker/projects/projectData";
 
 /**
@@ -126,10 +126,16 @@ export async function setDefaultPreset(supabase: SupabaseClient, id: string | nu
 
 // ------------------------------ Projects ------------------------------
 
-export async function listProjects(supabase: SupabaseClient): Promise<ProjectSummary[]> {
+/** Herramienta dueña de un proyecto. Los de Neon usan `source_type` con prefijo "neon-" (ver migration 20260920120000): Carteles nunca los lista. */
+export type MakerToolKind = "sign" | "neon";
+const SIGN_SOURCE_TYPES = ["text", "svg", "png"];
+const NEON_SOURCE_TYPES = ["neon-text", "neon-svg", "neon-png", "neon-jpg"];
+
+export async function listProjects(supabase: SupabaseClient, tool: MakerToolKind = "sign"): Promise<ProjectSummary[]> {
   const { data, error } = await supabase
     .from("maker_projects")
     .select("id, name, source_type, updated_at")
+    .in("source_type", tool === "neon" ? NEON_SOURCE_TYPES : SIGN_SOURCE_TYPES)
     .order("updated_at", { ascending: false });
   if (error) fail(error);
   return (data ?? []).map((r: { id: string; name: string; source_type: string; updated_at: string }) => ({
@@ -144,6 +150,17 @@ export interface LoadedProjectRecord {
   id: string;
   name: string;
   project: LoadedProject;
+}
+
+/** Fila cruda de un proyecto (cualquier herramienta): quien la abre la deserializa con su propio módulo (Carteles: projectData; Neon: neonProjectData). */
+export async function fetchProjectRow(supabase: SupabaseClient, id: string): Promise<{ id: string; name: string; row: ProjectRow }> {
+  const { data, error } = await supabase
+    .from("maker_projects")
+    .select("id, name, source_type, source_data, settings, preset_id, schema_version")
+    .eq("id", id)
+    .single();
+  if (error) fail(error);
+  return { id: data.id as string, name: data.name as string, row: data as ProjectRow };
 }
 
 export async function fetchProject(supabase: SupabaseClient, id: string): Promise<LoadedProjectRecord> {
@@ -167,14 +184,23 @@ export async function downloadProjectSource(supabase: SupabaseClient, storagePat
   return data;
 }
 
+/** Forma común de lo que se persiste, sea de Carteles (ProjectPayload) o de Neon. */
+export interface GenericProjectPayload {
+  source_type: string;
+  source_data: object;
+  settings: object;
+  preset_id: string | null;
+  schema_version: number;
+}
+
 export interface SaveProjectInput {
   /** Id existente (guardar) o nuevo, generado en el cliente (crear / guardar como). */
   id: string;
   isNew: boolean;
   name: string;
-  payload: ProjectPayload;
-  /** Archivo a subir (solo SVG/PNG y solo si es nuevo o cambió). */
-  upload?: { kind: "svg" | "png"; blob: Blob } | null;
+  payload: GenericProjectPayload;
+  /** Archivo a subir (solo SVG/PNG/JPG y solo si es nuevo o cambió). */
+  upload?: { kind: "svg" | "png" | "jpg"; blob: Blob } | null;
   /** Path previo en Storage, para limpiar si cambió la extensión. */
   previousStoragePath?: string | null;
 }
@@ -184,7 +210,7 @@ export async function saveProject(supabase: SupabaseClient, input: SaveProjectIn
   let storagePath: string | null = null;
   const source = input.payload.source_data as { storagePath?: string };
 
-  if (input.payload.source_type !== "text") {
+  if (input.payload.source_type !== "text" && input.payload.source_type !== "neon-text") {
     storagePath = input.previousStoragePath ?? null;
     if (input.upload) {
       const userId = await currentUserId(supabase);

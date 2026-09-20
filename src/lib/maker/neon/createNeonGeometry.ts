@@ -5,6 +5,8 @@ import { channelInnerWidth, channelOuterWidth } from "@/lib/maker/neon/defaults"
 import { createChannelGeometry } from "@/lib/maker/neon/geometry/createChannelGeometry";
 import { analyzeCurvature } from "@/lib/maker/neon/metrics/curvature";
 import { recommendedNeonLength, totalNeonLength } from "@/lib/maker/neon/metrics/pathLength";
+import { decodeRasterImage } from "@/lib/maker/neon/raster/decodeRasterImage";
+import { rasterToNeonPaths } from "@/lib/maker/neon/raster/rasterToNeonPaths";
 import { pathsBounds } from "@/lib/maker/neon/paths/flattenNeonPath";
 import { svgToNeonPaths } from "@/lib/maker/neon/paths/svgToNeonPaths";
 import { textToNeonPaths } from "@/lib/maker/neon/paths/textToNeonPaths";
@@ -27,11 +29,21 @@ export type NeonPathsOutcome = { ok: true; result: NeonPathsResult } | { ok: fal
  */
 export function buildNeonPaths(source: NeonSource, designHeightMm: number): NeonPathsOutcome {
   try {
-    const opts = { fontId: source.fontId, letterSpacingPct: source.letterSpacingPct };
-    const result =
-      source.type === "text"
-        ? textToNeonPaths(source.text, source.fontId, designHeightMm, opts)
-        : svgToNeonPaths(source.content, designHeightMm, opts);
+    let result: NeonPathsResult;
+    if (source.type === "image") {
+      // Imagen raster (PNG/JPEG): mismo pipeline para ambos; el resultado son NeonPaths como cualquier otra fuente.
+      const { image } = decodeRasterImage(source.bytes);
+      // El JPEG no tiene canal alpha útil: siempre luminosidad (el resto del pipeline es idéntico al PNG).
+      const settings = source.kind === "jpg" ? { ...source.raster, detectionMode: "luminance" as const } : source.raster;
+      const conv = rasterToNeonPaths(image, settings, designHeightMm);
+      result = { paths: conv.paths, issues: conv.issues, raster: { preview: conv.preview, stats: conv.stats } };
+    } else {
+      const opts = { fontId: source.fontId, letterSpacingPct: source.letterSpacingPct };
+      result =
+        source.type === "text"
+          ? textToNeonPaths(source.text, source.fontId, designHeightMm, opts)
+          : svgToNeonPaths(source.content, designHeightMm, opts);
+    }
     return { ok: true, result };
   } catch (err) {
     if (err instanceof DesignImportError && err.code === "SVG_UNSUPPORTED") {

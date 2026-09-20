@@ -78,10 +78,10 @@ export interface LoadedProject {
 
 export class ProjectDataError extends Error {}
 
-export const MIME_BY_KIND: Record<"svg" | "png", string> = { svg: "image/svg+xml", png: "image/png" };
+export const MIME_BY_KIND: Record<"svg" | "png" | "jpg", string> = { svg: "image/svg+xml", png: "image/png", jpg: "image/jpeg" };
 
 /** `{user_id}/{project_id}/source.svg|png` dentro del bucket privado (la primera carpeta es el dueño: la policy de Storage la exige). */
-export function projectSourcePath(userId: string, projectId: string, kind: "svg" | "png"): string {
+export function projectSourcePath(userId: string, projectId: string, kind: "svg" | "png" | "jpg"): string {
   return `${userId}/${projectId}/source.${kind}`;
 }
 

@@ -5,11 +5,16 @@ import Link from "next/link";
 import { ArrowLeft } from "lucide-react";
 import { useAppFeedback } from "@/components/ui/app-feedback";
 import { MakerNeonControls, NeonExportCard } from "@/components/maker/MakerNeonControls";
+import { MakerNeonProjectsPanel } from "@/components/maker/MakerNeonProjectsPanel";
 import { MakerViewport, type MakerDisplayMode } from "@/components/maker/MakerViewport";
 import { BedLabel, BedWarnings, ViewportViewCard } from "@/components/maker/MakerViewportOverlays";
 import { useNeonGeometry } from "@/hooks/maker/useNeonGeometry";
+import { useNeonProjects, type NeonFileSource } from "@/hooks/maker/useNeonProjects";
+import type { LoadedNeonProject, NeonWorkState } from "@/lib/maker/neon/projects/neonProjectData";
 import { exportWord } from "@/lib/maker/exporters/exportWord";
 import { IMPORT_LIMITS } from "@/lib/maker/import/types";
+import { DEFAULT_RASTER_SETTINGS, RASTER_LIMITS, type RasterSettings } from "@/lib/maker/neon/raster/types";
+import { sniffRasterKind } from "@/lib/maker/neon/raster/decodeRasterImage";
 import { LETTER_SPACING_MAX_PCT, LETTER_SPACING_MIN_PCT } from "@/lib/maker/neon/paths/textToNeonPaths";
 import { DEFAULT_LETTER_SPACING_PCT, DEFAULT_NEON_FONT_ID, DEFAULT_NEON_PARAMS, DEFAULT_NEON_TEXT } from "@/lib/maker/neon/defaults";
 import type { NeonFontId, NeonParams, NeonSource, NeonSourceType } from "@/lib/maker/neon/types";
@@ -22,7 +27,10 @@ export default function StampaMakerNeonPage() {
   const [text, setText] = useState(DEFAULT_NEON_TEXT);
   const [fontId, setFontId] = useState<NeonFontId>(DEFAULT_NEON_FONT_ID);
   const [letterSpacingPct, setLetterSpacingPct] = useState(DEFAULT_LETTER_SPACING_PCT);
-  const [svgFile, setSvgFile] = useState<{ fileName: string; content: string } | null>(null);
+  // Los archivos se guardan como NeonFileSource (misma identidad de objeto que ve el hook de proyectos).
+  const [svgFile, setSvgFile] = useState<Extract<NeonFileSource, { kind: "svg" }> | null>(null);
+  const [imageFile, setImageFile] = useState<Extract<NeonFileSource, { kind: "png" | "jpg" }> | null>(null);
+  const [raster, setRaster] = useState<RasterSettings>(DEFAULT_RASTER_SETTINGS);
   const [fileError, setFileError] = useState<string | null>(null);
   const [downloading, setDownloading] = useState(false);
   const { toast } = useAppFeedback();
@@ -35,15 +43,38 @@ export default function StampaMakerNeonPage() {
     // Fuera de rango se acota (el panel muestra el error de campo); NaN/vacío = espaciado recomendado.
     const spacing = Number.isFinite(letterSpacingPct) ? Math.min(Math.max(letterSpacingPct, LETTER_SPACING_MIN_PCT), LETTER_SPACING_MAX_PCT) : 0;
     if (sourceType === "text") return { type: "text", text, fontId, letterSpacingPct: spacing };
+    if (sourceType === "image") return imageFile ? { type: "image", fileName: imageFile.fileName, bytes: imageFile.bytes, kind: imageFile.kind, raster } : null;
     return svgFile ? { type: "svg", fileName: svgFile.fileName, content: svgFile.content, fontId, letterSpacingPct: spacing } : null;
-  }, [sourceType, text, fontId, letterSpacingPct, svgFile]);
+  }, [sourceType, text, fontId, letterSpacingPct, svgFile, imageFile, raster]);
 
-  const { result, inputError, fieldErrors } = useNeonGeometry(source, params);
+  const { result, inputError, fieldErrors, raster: rasterConversion, pending } = useNeonGeometry(source, params);
 
   const handleChange = useCallback((patch: Partial<NeonParams>) => setParams((prev) => ({ ...prev, ...patch })), []);
 
   const handleFile = useCallback(async (picked: File) => {
     setFileError(null);
+    if (sourceType === "image") {
+      if (picked.size > RASTER_LIMITS.maxFileBytes) {
+        setFileError("El archivo es demasiado grande (máximo 10 MB).");
+        return;
+      }
+      try {
+        const bytes = new Uint8Array(await picked.arrayBuffer());
+        // El formato lo decide la FIRMA del archivo, no la extensión ni el MIME.
+        const kind = sniffRasterKind(bytes);
+        if (!kind) {
+          setFileError("Formato no soportado. Subí una imagen PNG o JPG.");
+          return;
+        }
+        setImageFile({ kind, fileName: picked.name, bytes });
+        // El JPEG trae artefactos de compresión alrededor de los bordes: arranca con una limpieza media (se puede cambiar)
+        // y siempre en luminosidad (no tiene transparencia). Los mismos controles que el PNG.
+        if (kind === "jpg") setRaster((prev) => ({ ...prev, detectionMode: "luminance", cleaning: prev.cleaning < 2 ? 2 : prev.cleaning }));
+      } catch {
+        setFileError("No se pudo leer el archivo.");
+      }
+      return;
+    }
     if (!/\.svg$/i.test(picked.name)) {
       setFileError("Formato no soportado. Neon LED acepta archivos .svg de líneas/trazos.");
       return;
@@ -53,18 +84,69 @@ export default function StampaMakerNeonPage() {
       return;
     }
     try {
-      setSvgFile({ fileName: picked.name, content: await picked.text() });
+      setSvgFile({ kind: "svg", fileName: picked.name, content: await picked.text() });
     } catch {
       setFileError("No se pudo leer el archivo.");
     }
+  }, [sourceType]);
+
+  // --- Proyectos (guardar / abrir): origen + receta, nunca el skeleton ---
+  const file: NeonFileSource | null = sourceType === "image" ? imageFile : sourceType === "svg" ? svgFile : null;
+  const work: NeonWorkState = useMemo(
+    () => ({
+      params,
+      sourceType,
+      text,
+      fontId,
+      letterSpacingPct,
+      raster,
+      fileMeta: file
+        ? { kind: file.kind, fileName: file.fileName, sizeBytes: file.kind === "svg" ? new TextEncoder().encode(file.content).length : file.bytes.length }
+        : null,
+    }),
+    [params, sourceType, text, fontId, letterSpacingPct, raster, file],
+  );
+  const handleLoadWork = useCallback((loaded: LoadedNeonProject, loadedFile: NeonFileSource | null) => {
+    setParams(loaded.params);
+    setSourceType(loaded.sourceType);
+    setText(loaded.text);
+    setFontId(loaded.fontId);
+    setLetterSpacingPct(loaded.letterSpacingPct);
+    setRaster(loaded.raster);
+    setFileError(null);
+    if (loadedFile?.kind === "svg") setSvgFile(loadedFile);
+    else if (loadedFile) setImageFile(loadedFile);
   }, []);
+  const handleResetWork = useCallback((): NeonWorkState => {
+    setParams(DEFAULT_NEON_PARAMS);
+    setSourceType("text");
+    setText(DEFAULT_NEON_TEXT);
+    setFontId(DEFAULT_NEON_FONT_ID);
+    setLetterSpacingPct(DEFAULT_LETTER_SPACING_PCT);
+    setRaster({ ...DEFAULT_RASTER_SETTINGS });
+    setSvgFile(null);
+    setImageFile(null);
+    setFileError(null);
+    return {
+      params: DEFAULT_NEON_PARAMS,
+      sourceType: "text",
+      text: DEFAULT_NEON_TEXT,
+      fontId: DEFAULT_NEON_FONT_ID,
+      letterSpacingPct: DEFAULT_LETTER_SPACING_PCT,
+      raster: { ...DEFAULT_RASTER_SETTINGS },
+      fileMeta: null,
+    };
+  }, []);
+  const library = useNeonProjects({ work, file, onLoad: handleLoadWork, onReset: handleResetWork });
 
   const geometry = result?.geometry ?? null;
   const errors = result?.errors ?? [];
   const canDownload = !!geometry && geometry.triangleCount > 0 && errors.length === 0 && fieldErrors.length === 0 && !inputError;
 
   const baseFileName =
-    sourceType === "svg"
+    sourceType === "image"
+      ? `neon-${imageFile?.fileName.replace(/\.[^.]+$/, "").toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "") || "imagen"}`
+      : sourceType === "svg"
       ? `neon-${svgFile?.fileName.replace(/\.[^.]+$/, "").toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "") || "diseno"}`
       : `neon-${text.trim().toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "") || "texto"}`;
 
@@ -102,6 +184,8 @@ export default function StampaMakerNeonPage() {
           <h1 className="text-lg font-bold text-white">Neon LED</h1>
         </div>
 
+        <MakerNeonProjectsPanel library={library} />
+
         <MakerNeonControls
           params={params}
           onChange={handleChange}
@@ -114,10 +198,24 @@ export default function StampaMakerNeonPage() {
           onFontChange={setFontId}
           letterSpacingPct={letterSpacingPct}
           onLetterSpacingChange={setLetterSpacingPct}
-          fileName={svgFile?.fileName ?? null}
+          fileName={sourceType === "image" ? (imageFile?.fileName ?? null) : (svgFile?.fileName ?? null)}
+          raster={
+            sourceType === "image" && imageFile
+              ? {
+                  fileName: imageFile.fileName,
+                  bytes: imageFile.bytes,
+                  kind: imageFile.kind,
+                  settings: raster,
+                  onChange: (patch) => setRaster((prev) => ({ ...prev, ...patch })),
+                  conversion: rasterConversion,
+                  analyzing: pending,
+                }
+              : null
+          }
           onFile={handleFile}
           onClearFile={() => {
-            setSvgFile(null);
+            if (sourceType === "image") setImageFile(null);
+            else setSvgFile(null);
             setFileError(null);
           }}
           fileError={fileError}

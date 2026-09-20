@@ -4,6 +4,7 @@ import { useEffect, useMemo, useState } from "react";
 import { buildNeonPaths, createNeonGeometry, type NeonGeometryResult } from "@/lib/maker/neon/createNeonGeometry";
 import { validateNeonParams, type NeonFieldError } from "@/lib/maker/neon/validation/validateNeonParams";
 import type { NeonParams, NeonSource } from "@/lib/maker/neon/types";
+import type { RasterConversion } from "@/lib/maker/neon/raster/types";
 
 const DEBOUNCE_MS = 200;
 
@@ -12,6 +13,8 @@ export interface UseNeonGeometryState {
   /** Error de entrada (texto vacío, SVG con formas rellenas, SVG inseguro...) con mensaje listo para la UI. */
   inputError: string | null;
   fieldErrors: NeonFieldError[];
+  /** Origen imagen: máscara + paths en px + estadísticas de la conversión (null si no aplica o falló). */
+  raster: Pick<RasterConversion, "preview" | "stats"> | null;
   /** true mientras el debounce no alcanzó los valores actuales. */
   pending: boolean;
 }
@@ -52,6 +55,7 @@ export function useNeonGeometry(source: NeonSource | null, params: NeonParams): 
     result,
     inputError: paths && !paths.ok ? paths.message : null,
     fieldErrors,
+    raster: paths && paths.ok ? (paths.result.raster ?? null) : null,
     pending: debounced.source !== source || debounced.params !== params,
   };
 }
