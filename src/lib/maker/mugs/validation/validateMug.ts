@@ -1,6 +1,8 @@
 import { planMugBody } from "@/lib/maker/mugs/body/createMugBody";
 import { planHandleAttachments } from "@/lib/maker/mugs/handle/createHandle";
-import type { MugDefinition, MugIssue } from "@/lib/maker/mugs/types";
+import type { Artwork } from "@/lib/maker/mugs/decorations/artwork";
+import { validateDecorationInputs, validateDecorationPlacement } from "@/lib/maker/mugs/decorations/validateDecorations";
+import type { MugDecoration, MugDefinition, MugIssue } from "@/lib/maker/mugs/types";
 import type { PrinterProfile } from "@/lib/maker/printBed/printerProfiles";
 
 export interface MugValidation {
@@ -16,7 +18,7 @@ const fin = (v: number) => Number.isFinite(v);
  * Valida una MugDefinition ANTES de generar geometría. Errores = combinaciones físicamente inválidas (no hay malla
  * posible); warnings = imprimibilidad simple (Stampa no es un slicer). Mensajes en español, listos para la UI.
  */
-export function validateMug(def: MugDefinition, printer?: PrinterProfile): MugValidation {
+export function validateMug(def: MugDefinition, printer?: PrinterProfile, artworkOf?: (d: MugDecoration) => Artwork | null): MugValidation {
   const errors: MugIssue[] = [];
   const warnings: MugIssue[] = [];
   const err = (code: string, message: string, field?: string) => errors.push({ code, message, field });
@@ -62,6 +64,7 @@ export function validateMug(def: MugDefinition, printer?: PrinterProfile): MugVa
     }
     if (fin(def.handle.thicknessMm) && def.handle.thicknessMm >= 3 && def.handle.thicknessMm < 6) warn("HANDLE_THIN", "El asa tiene una sección muy fina.", "handle.thicknessMm");
   }
+  errors.push(...validateDecorationInputs(def));
   if (errors.length > 0) return { errors, warnings };
 
   // Validaciones que necesitan el cuerpo resuelto.
@@ -74,6 +77,7 @@ export function validateMug(def: MugDefinition, printer?: PrinterProfile): MugVa
   if (def.wallThicknessMm < 1.2) warn("WALL_THIN", "Pared menor a 1.2mm.", "wallThicknessMm");
 
   let handleReach = 0;
+  let windows: { zTop: number; zBot: number; halfWidthMm: number; halfHeightMm: number } | null = null;
   if (def.handle.enabled) {
     const att = planHandleAttachments(def, plan);
     const h = att.handle;
@@ -84,6 +88,12 @@ export function validateMug(def: MugDefinition, printer?: PrinterProfile): MugVa
       err("HANDLE_OUT_OF_BODY", "El asa no cabe en la pared: reducí su altura o cambiá la posición vertical.", "handle.heightMm");
     else if (h.heightMm < 2 * att.windowHalfHeightMm + h.thicknessMm) err("HANDLE_TOO_SHORT", "El asa es demasiado corta para sus zonas de unión: aumentá la altura o reducí el espesor.", "handle.heightMm");
     handleReach = h.projectionMm + h.thicknessMm / 2;
+    windows = { zTop: att.rowTop * plan.dz, zBot: att.rowBot * plan.dz, halfWidthMm: att.windowHalfWidthMm, halfHeightMm: att.windowHalfHeightMm };
+  }
+  if (def.decorations.length > 0) {
+    const placement = validateDecorationPlacement(def, { heightMm: plan.heightMm, outerR: plan.outerR, handle: windows, artworkOf });
+    errors.push(...placement.errors);
+    warnings.push(...placement.warnings);
   }
 
   if (printer && errors.length === 0) {

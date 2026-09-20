@@ -487,11 +487,12 @@ test("STL: una sola pieza jarro.stl; preview y export coinciden en dimensiones y
   assert.ok(Math.abs(preview.metrics.capacityMl - exp.metrics.capacityMl) / exp.metrics.capacityMl < 0.01);
 });
 
-test("aislamiento: el motor de Jarros no importa la geometría de Carteles ni de Neon", () => {
+test("aislamiento: el motor de Jarros no importa la geometría de Carteles ni de Neon (salvo decorations/, ver su test)", () => {
   const files = [];
   const walk = (d) => fs.readdirSync(d, { withFileTypes: true }).forEach((e) => (e.isDirectory() ? walk(path.join(d, e.name)) : files.push(path.join(d, e.name))));
   walk(path.join(srcRoot, "lib/maker/mugs"));
   for (const f of files) {
+    if (f.includes(`${path.sep}decorations${path.sep}`)) continue; // decorations/ reutiliza texto/SVG/raster a propósito (ver maker-mug-decorations.test.mjs)
     const src = fs.readFileSync(f, "utf8");
     assert.ok(!/maker\/geometry\/|maker\/neon\//.test(src), `${path.relative(srcRoot, f)} importa geometría de Carteles/Neon`);
   }

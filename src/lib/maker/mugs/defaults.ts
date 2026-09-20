@@ -1,3 +1,4 @@
+import { normalizeDecorations } from "@/lib/maker/mugs/decorations/decorationDefaults";
 import type { MugBodyStyle, MugDefinition, MugHandleDef, MugHandleStyle, MugMode, MugRimStyle } from "@/lib/maker/mugs/types";
 
 /** Valores iniciales (configuración, no restricciones). */
@@ -88,6 +89,6 @@ export function normalizeMugDefinition(raw: unknown): MugDefinition {
       bottomDiameterMm: num(insert.bottomDiameterMm, D.insert.bottomDiameterMm),
       clearanceMm: num(insert.clearanceMm, D.insert.clearanceMm),
     },
-    decorations: [],
+    decorations: normalizeDecorations(r.decorations),
   };
 }

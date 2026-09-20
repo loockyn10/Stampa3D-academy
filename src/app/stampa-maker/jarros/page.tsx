@@ -5,16 +5,20 @@ import Link from "next/link";
 import { ArrowLeft } from "lucide-react";
 import { useAppFeedback } from "@/components/ui/app-feedback";
 import { MakerMugControls, MugExportCard } from "@/components/maker/MakerMugControls";
+import { MakerMugDecorationsPanel } from "@/components/maker/MakerMugDecorationsPanel";
 import { MakerNeonProjectsPanel } from "@/components/maker/MakerNeonProjectsPanel";
 import { MakerViewport, type MakerDisplayMode } from "@/components/maker/MakerViewport";
 import { BedLabel, BedWarnings, ViewportViewCard } from "@/components/maker/MakerViewportOverlays";
+import { useMugArtwork } from "@/hooks/maker/useMugArtwork";
 import { useMugGeometry } from "@/hooks/maker/useMugGeometry";
 import { useMugProjects } from "@/hooks/maker/useMugProjects";
 import { exportWord } from "@/lib/maker/exporters/exportWord";
 import { createMug } from "@/lib/maker/mugs/createMug";
 import { DEFAULT_MUG } from "@/lib/maker/mugs/defaults";
 import { applyMugRecipe, type MugSystemPreset } from "@/lib/maker/mugs/presets";
-import type { MugDefinition } from "@/lib/maker/mugs/types";
+import { bodyHeightOf } from "@/lib/maker/mugs/decorations/validateDecorations";
+import type { MugAsset } from "@/lib/maker/mugs/decorations/artworkProvider";
+import type { MugDecoration, MugDefinition } from "@/lib/maker/mugs/types";
 import { collectBedItems, computeBedLayout } from "@/lib/maker/printBed/bedLayout";
 import { DEFAULT_PRINTER_PROFILE_ID, getPrinterProfile } from "@/lib/maker/printBed/printerProfiles";
 
@@ -22,6 +26,9 @@ export default function StampaMakerMugsPage() {
   // La página solo guarda la MugDefinition: toda la geometría sale del motor (lib/maker/mugs).
   const [def, setDef] = useState<MugDefinition>(DEFAULT_MUG);
   const [showInsert, setShowInsert] = useState(true);
+  const [selectedDecoration, setSelectedDecoration] = useState<string | null>(null);
+  // Archivos originales de las decoraciones (SVG/PNG/JPG) + proveedor de arte cacheado por contenido.
+  const artwork = useMugArtwork();
   const [downloading, setDownloading] = useState(false);
   const { toast } = useAppFeedback();
 
@@ -29,24 +36,33 @@ export default function StampaMakerMugsPage() {
   const [displayMode, setDisplayMode] = useState<MakerDisplayMode>("model");
   const [plateIndex, setPlateIndex] = useState(1);
 
-  const { result } = useMugGeometry(def);
+  const { result } = useMugGeometry(def, artwork.provider);
   const geometry = result.geometry;
   const canDownload = !!geometry && geometry.triangleCount > 0 && result.errors.length === 0;
 
   const handleApplyPreset = useCallback((preset: MugSystemPreset) => setDef((prev) => applyMugRecipe(prev, preset.recipe)), []);
 
+  const { replaceAssets } = artwork;
+  const handleLoad = useCallback((loaded: MugDefinition, loadedAssets: MugAsset[]) => {
+    replaceAssets(loadedAssets);
+    setSelectedDecoration(null);
+    setDef(loaded);
+  }, [replaceAssets]);
   const handleReset = useCallback((): MugDefinition => {
+    replaceAssets([]);
+    setSelectedDecoration(null);
     setDef(DEFAULT_MUG);
     return DEFAULT_MUG;
-  }, []);
-  const library = useMugProjects({ def, onLoad: setDef, onReset: handleReset });
+  }, [replaceAssets]);
+  const library = useMugProjects({ def, assets: artwork.assets, onLoad: handleLoad, onReset: handleReset });
+  const setDecorations = useCallback((decorations: MugDecoration[]) => setDef((prev) => ({ ...prev, decorations })), []);
 
   // El STL se genera aparte en calidad export (no en cada movimiento de slider). El inserto nunca se exporta.
   const handleDownload = useCallback(() => {
     setDownloading(true);
     setTimeout(async () => {
       try {
-        const exported = createMug(def, { quality: "export" });
+        const exported = createMug(def, { quality: "export", artwork: artwork.provider });
         if (!exported.geometry || exported.errors.length > 0) throw new Error(exported.errors[0]?.message ?? "No se pudo generar el jarro.");
         await exportWord(exported.geometry, "jarro");
       } catch (err) {
@@ -55,7 +71,7 @@ export default function StampaMakerMugsPage() {
         setDownloading(false);
       }
     }, 30);
-  }, [def, toast]);
+  }, [def, artwork.provider, toast]);
 
   // Vista Cama: el jarro apoya sobre su base (identidad de orientación), mismo perfil y packing que Carteles/Neon.
   const profile = getPrinterProfile(DEFAULT_PRINTER_PROFILE_ID);
@@ -89,6 +105,21 @@ export default function StampaMakerMugsPage() {
           metrics={result.metrics}
           showInsert={showInsert}
           onShowInsertChange={setShowInsert}
+          decorationsPanel={
+            <MakerMugDecorationsPanel
+              decorations={def.decorations}
+              onChange={setDecorations}
+              heightMm={bodyHeightOf(def)}
+              issues={[...result.errors, ...result.warnings]}
+              provider={artwork.provider}
+              assets={artwork.assets}
+              addSvg={artwork.addSvg}
+              addRaster={artwork.addRaster}
+              onError={(message) => toast.error(message)}
+              selectedId={selectedDecoration}
+              onSelect={setSelectedDecoration}
+            />
+          }
         />
       </aside>
 

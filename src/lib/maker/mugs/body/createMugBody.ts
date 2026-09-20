@@ -2,6 +2,7 @@ import { bodyBulgeExtra, bodyRadius, type BodyShape } from "@/lib/maker/mugs/bod
 import { bandCenters, bandRelief } from "@/lib/maker/mugs/modifiers/bands";
 import { facetExtra, grooveCount, grooveExtra, grooveFade, surfaceSides } from "@/lib/maker/mugs/modifiers/ribs";
 import type { ProfilePoint } from "@/lib/maker/mugs/geometry/revolveProfile";
+import type { DecorationEvaluator, SurfaceProfile } from "@/lib/maker/mugs/decorations/evaluator";
 import type { MugDefinition, MugQuality } from "@/lib/maker/mugs/types";
 
 export interface QualitySettings {
@@ -70,8 +71,16 @@ export interface MugBodyPlan {
   interior: { bottomRadius: number; topRadius: number };
 }
 
-export function planMugBody(def: MugDefinition, quality: MugQuality): MugBodyPlan {
-  const q = MUG_QUALITY[quality];
+/** Opciones del plan: decoraciones (0.2) y paso de malla adaptativo. */
+export interface PlanOptions {
+  /** Paso máximo de la malla (mm) cuando hay decoraciones: filas y arcos no superan esto. */
+  detailStepMm?: number;
+  /** Fábrica del evaluador de decoraciones: recibe la superficie base y devuelve el desplazamiento radial. */
+  decorate?: (surface: SurfaceProfile) => DecorationEvaluator | null;
+}
+
+export function planMugBody(def: MugDefinition, quality: MugQuality, opts: PlanOptions = {}): MugBodyPlan {
+  const q = { ...MUG_QUALITY[quality] };
   const insert = def.mode === "insert-shell";
   const wall = def.wallThicknessMm;
   const reinforced = def.base === "reinforced" && !insert;
@@ -112,6 +121,14 @@ export function planMugBody(def: MugDefinition, quality: MugQuality): MugBodyPla
   const topThickness = outerR(H) - innerR(H);
   const rounded = def.rim === "rounded";
   const wallTopZ = rounded ? H - topThickness / 2 : H;
+  // Resolución adaptativa: con decoraciones la malla se afina hasta `detailStepMm` (filas y arco), con techo para
+  // acotar triángulos (<= 450 filas, <= 900 segmentos). Sin decoraciones: exactamente la malla de 0.1.
+  if (opts.detailStepMm) {
+    let rMax = 0;
+    for (let z = 0; z <= H; z += H / 40) rMax = Math.max(rMax, outerBase(z));
+    q.rowStepMm = Math.max(Math.min(q.rowStepMm, opts.detailStepMm), H / 450);
+    q.segments = Math.min(900, Math.max(q.segments, Math.ceil((2 * Math.PI * rMax) / opts.detailStepMm)));
+  }
   const outerRows = Math.max(4, Math.ceil(wallTopZ / q.rowStepMm));
   const dz = wallTopZ / outerRows;
 
@@ -150,12 +167,21 @@ export function planMugBody(def: MugDefinition, quality: MugQuality): MugBodyPla
   const sides = surfaceSides(def);
   const grooves = grooveCount(def);
   const centers = bandCenters(def.bands, H);
+  const decorate = opts.decorate?.({ heightMm: H, outerR }) ?? null;
+  // Radio local de la superficie ya modificada por bandas y facetas: base del mapeo tangencial de las decoraciones.
+  const facetMean = sides ? Math.tan(Math.PI / sides) / (Math.PI / sides) : 1;
   const radiusAt = (p: ProfilePoint, theta: number): number => {
     if (!p.mw) return p.r;
     let extra = 0;
     if (sides) extra += facetExtra(p.r, theta, sides);
     if (grooves) extra += grooveExtra(theta, grooves, def.grooves.depthMm) * grooveFade(p.z, H);
-    if (centers.length) extra += bandRelief(def.bands, centers, p.z);
+    let band = 0;
+    if (centers.length) {
+      band = bandRelief(def.bands, centers, p.z);
+      extra += band;
+    }
+    // Pipeline de radio exterior: perfil base -> facetas/ranuras/bandas -> decoraciones (siempre sobre la superficie ya modificada).
+    if (decorate) extra += decorate(p.z, theta, (p.r + band) * facetMean);
     return p.r + p.mw * extra;
   };
 

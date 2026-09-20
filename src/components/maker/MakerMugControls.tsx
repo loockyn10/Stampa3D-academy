@@ -76,10 +76,12 @@ export interface MakerMugControlsProps {
   metrics: MugMetrics | null;
   showInsert: boolean;
   onShowInsertChange: (show: boolean) => void;
+  /** Sección DECORACIONES (ver MakerMugDecorationsPanel), se muestra después de ASA. */
+  decorationsPanel?: React.ReactNode;
 }
 
 /** Panel izquierdo de /stampa-maker/jarros. Solo presentación: edita la MugDefinition y muestra métricas/avisos. */
-export function MakerMugControls({ def, onChange, onApplyPreset, errors, warnings, metrics, showInsert, onShowInsertChange }: MakerMugControlsProps) {
+export function MakerMugControls({ def, onChange, onApplyPreset, errors, warnings, metrics, showInsert, onShowInsertChange, decorationsPanel }: MakerMugControlsProps) {
   const err = (field: string) => errors.find((e) => e.field === field)?.message;
   const set = (patch: Partial<MugDefinition>) => onChange({ ...def, ...patch });
   const setHandle = (patch: Partial<MugHandleDef>) => onChange({ ...def, handle: { ...def.handle, ...patch } });
@@ -237,6 +239,8 @@ export function MakerMugControls({ def, onChange, onApplyPreset, errors, warning
           </>
         )}
       </section>
+
+      {decorationsPanel}
 
       <section className="flex flex-col gap-2">
         <SectionLabel>Información</SectionLabel>

@@ -254,3 +254,21 @@ export async function deleteProject(supabase: SupabaseClient, id: string, storag
   if (error) fail(error);
   if (storagePath) await supabase.storage.from(PROJECT_STORAGE_BUCKET).remove([storagePath]);
 }
+
+// ------------------------------ Assets de un proyecto (Jarros 0.2: varios archivos por proyecto) ------------------------------
+
+/**
+ * Sube UN asset de un proyecto al bucket privado (`{user}/{project}/assets/{assetId}.{ext}`; la primera carpeta es el
+ * dueño, que es lo único que exigen las policies de Storage: no hace falta migration nueva). Los assetId son
+ * inmutables (uuid), así que un asset ya subido no se vuelve a subir. Devuelve el storagePath.
+ */
+export async function uploadProjectAsset(supabase: SupabaseClient, path: string, blob: Blob): Promise<void> {
+  const { error } = await supabase.storage.from(PROJECT_STORAGE_BUCKET).upload(path, blob, { upsert: true, contentType: blob.type || undefined });
+  if (error) fail(error);
+}
+
+/** Borra assets de un proyecto (best-effort: un fallo de limpieza nunca invalida un guardado ya hecho). */
+export async function removeProjectAssets(supabase: SupabaseClient, paths: string[]): Promise<void> {
+  if (paths.length === 0) return;
+  await supabase.storage.from(PROJECT_STORAGE_BUCKET).remove(paths);
+}

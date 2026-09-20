@@ -58,6 +58,7 @@
 > Neon 0.1 (2026-09-19): segunda herramienta, **Neon LED** (`/stampa-maker/neon`, sección 25): canal en U imprimible para Neon Flex a partir de texto (fuente de trazos) o SVG de líneas. Motor geométrico propio, separado del de Carteles.
 > Neon 0.2 (2026-09-20): imágenes raster PNG/JPEG -> skeleton -> NeonPaths (sección 27).
 > Jarros 0.1 (2026-09-21): tercera herramienta, **Jarros 3D** (`/stampa-maker/jarros`, sección 28): motor paramétrico independiente `MugDefinition` -> perfil -> revolución -> asa por loft topológico -> malla única cerrada.
+> Jarros 0.2 (2026-09-21): personalización del cuerpo — texto, SVG, PNG/JPG como relieve, grabado o medallón envueltos sobre la superficie real, sin CSG (sección 29).
 > Neon 0.1.1 (2026-09-19): importador SVG corregido (cascada CSS real, `<text>`, mensajes diferenciados) y biblioteca de fuentes single-line reales: Mistral SingleLine y Relief SingleLine, OFL (sección 26).
 
 ## 1. Qué es
@@ -2451,7 +2452,7 @@ con el perfil A1. Exportar: `createMug(def, {quality: "export"})` -> `exportWord
 
 - **IA:** `prompt -> MugDesignProposal -> normalizeMugDefinition -> validateMug -> createMug`. Los tipos ya existen; no hay
   llamada a ningún modelo. La propuesta nunca arma geometría.
-- **Branding/texturas (0.2+):** `MugDefinition.decorations[]` está reservado; texto, SVG, logos, relieves, ruido, Voronoi y
+- **Branding/texturas (0.2+):** `MugDefinition.decorations[]` (implementado en 0.2, sección 29): texto, SVG, logos, relieves, ruido, Voronoi y
   heightmaps se sumarían como modificadores sobre `radiusAt`, sin cambiar el pipeline.
 
 ### 28.11 Limitaciones conocidas (0.1)
@@ -2461,3 +2462,158 @@ con el perfil A1. Exportar: `createMug(def, {quality: "export"})` -> `exportWord
 - El asa siempre está a +X y es plana (recorrido en el plano XZ); la sección siempre es oval. Ranuras atenuadas cerca del borde.
 - El STL de alta calidad (~185 k triángulos con asa) se genera de forma síncrona (~0.3 s) solo al descargar.
 - No hay editor de posiciones de bandas, ni tapa, ni múltiples piezas, ni peso estimado.
+
+## 29. Jarros 0.2 — Personalización (texto, SVG, PNG/JPG)
+
+Decoraciones sobre el cuerpo del jarro como **relieve**, **grabado** o **medallón**, que **siguen la superficie real** (se
+envuelven; no son una placa delante del jarro). Se integran *durante la construcción del cuerpo* como un desplazamiento
+radial de la misma superficie: **sin CSG**, una sola malla cerrada/manifold, mismo STL. Sin IA (0.3).
+
+```
+Texto / SVG / PNG-JPG -> Artwork (etapa 1, cacheada por contenido)
+  -> DecorationField (SDF 2D en mm, etapa 2, cacheado por contenido + tamaño + resolución)
+  -> mapeo superficial (ángulo, arco vertical, radio local, rotación)
+  -> desplazamiento radial con bevel -> radiusAt() del cuerpo -> malla -> STL
+```
+
+### 29.1 Modelo `MugDecoration` (serializable, sin React, apto para IA)
+
+`MugDefinition.decorations: MugDecoration[]` (máx. 10). Cada una: `id`, `name`, `enabled`, `source`, `mode`
+(`emboss|engrave|medallion`), `position {angleDeg, centerZMm}`, `size {widthMm, heightMm, lockAspectRatio}`,
+`rotationDeg`, `depthMm`, `edgeBevelMm`, `medallion {shape: oval|circle|rounded-rect, baseDepthMm, paddingMm, cornerRadiusMm}`.
+`source` es una unión: `text {text, fontId, align}`, `svg {assetId, fileName}`, `raster {assetId, fileName, format, detection,
+threshold, invert}` o `none` (solo medallón liso). **Los archivos nunca van dentro de la definición**: solo `assetId`.
+`normalizeDecorations` (lectura tolerante) se ejecuta dentro de `normalizeMugDefinition`: proyectos 0.1 (sin `decorations`)
+siguen abriendo. **Futura IA (0.3):** `prompt -> MugDesignProposal { definition, decorations } -> normalizeMugDefinition ->
+validateMug -> createMug`; un arte generado se registraría como un asset más. Cubierto por un test ("futura IA").
+
+### 29.2 Archivos
+
+```
+src/lib/maker/mugs/decorations/
+  decorationDefaults.ts    createDecoration, normalizeDecorations, límites (10 decoraciones, grabado: margen 1 mm)
+  artwork.ts               etapa 1: prepareTextArt / prepareSvgArt / prepareRasterArt -> Artwork (vector | máscara)
+  artworkProvider.ts       MugAsset, createArtworkProvider (cache por contenido), artworkKey
+  field.ts                 rasterizeArtwork, fieldFromMask, getDecorationField (cache LRU), sampleSd
+  evaluator.ts             ángulos semánticos, coverage/bevel, SDF del medallón, resolveDecorations, createDecorationEvaluator
+  validateDecorations.ts   fase 1 (rangos, grabado, texto/archivo) y fase 2 (ancho, margen seguro, asa)
+src/hooks/maker/useMugArtwork.ts (assets + fuentes + proveedor), useMugGeometry.ts (recibe el proveedor), useMugProjects.ts (assets en Storage)
+src/components/maker/MakerMugDecorationsPanel.tsx (lista + editor), MakerMugControls.tsx (slot `decorationsPanel`, después de ASA)
+tests/maker-mug-decorations.test.mjs (46 tests)
+```
+
+### 29.3 Representación 2D común: `DecorationField`
+
+Texto, SVG e imagen terminan en la misma cosa: un **campo de distancia con signo** (mm, positivo dentro de la silueta) en
+una grilla centrada en el origen local (x derecha, y arriba), evaluado con `sampleSd` (bilinear). Se reutiliza la
+`distanceTransform` exacta de Neon raster (Felzenszwalb, dos pasadas: dentro y fuera) — no hay un algoritmo duplicado. Un
+único motor de relieve/grabado evalúa cualquier fuente y el bevel sale de la distancia.
+
+- **Resolución:** `resolución de campo` = 0.5 mm/px (preview) y 0.25 mm/px (export), grilla acotada a 8–768 px por lado
+  (el costo depende del detalle, no del tamaño absoluto). Determinístico: misma entrada = mismo campo.
+- **Cache:** etapa 1 (`Artwork`) por contenido (texto+fuente+alineación, `assetId`, ajustes raster): mover, escalar, rotar o
+  cambiar profundidad **no** re-parsea el SVG ni re-decodifica la imagen. Etapa 2 (campo) por contenido + grilla + medidas
+  (LRU de 32): mover / profundidad / bevel / rotación reutilizan el campo; cambiar el tamaño lo reconstruye (ms).
+- Con proporción desbloqueada la distancia es isotrópica con la escala media (aproximación; el bevel puede diferir < 1 %).
+
+### 29.4 Pipelines de fuente
+
+- **Texto:** `opentype.js` + `textToOpentypePath` + `flattenOpentypePath` de Carteles y las fuentes normales de Maker
+  (Montserrat / Montserrat Bold; **no** las single-line de Neon). Siluetas rellenas (`nonzero`). Mayúsculas, minúsculas,
+  números, tildes, Ñ y símbolos comunes. **Multi-línea real** (hasta 4 líneas, 80 caracteres) con alineación
+  Izquierda/Centro/Derecha por ancho de tinta; vacío / demasiadas líneas se rechazan con mensaje; caracteres sin glifo se
+  omiten con aviso.
+- **SVG:** el importador **seguro** de Carteles (`extractSvgShapes`: parser XML propio sin DOM; `path/rect/circle/ellipse/
+  polygon/polyline` con fill, transforms anidados, viewBox, `<use>`, `fill-rule`; rechaza script, foreignObject, recursos
+  externos, handlers, `javascript:`). Cuentan los **rellenos**. **Stroke:** el importador ignora los trazos y **no** se
+  convierten a forma en 0.2 (no hay offsetting robusto en ese importador): un SVG solo de trazos falla con un mensaje claro;
+  hay que convertir el trazo a contorno en el editor vectorial.
+- **PNG/JPG/JPEG:** decoder y utilidades de Neon 0.2 (`decodeRasterImage`, EXIF, Otsu, `foregroundMask`). Detección
+  Automática (alpha si hay transparencia significativa, si no luminosidad) / Transparencia / Luminosidad, umbral (auto = Otsu
+  o 128 en alpha), invertir. **Silueta completa, sin skeleton**, recortada al contenido y acotada a 1024 px.
+  UI: vista previa «Original | Máscara».
+
+### 29.5 Sistema de coordenadas superficial
+
+Convención **semántica** (la única que ve la UI y la IA): **0° = frente, +90° = derecha (lado del asa), 180° = atrás,
+−90° = izquierda**. Internamente el asa vive en +X (θ = 0) y el frente mira a −Y, así que **θ = angleDeg − 90°**
+(`semanticToTheta` / `thetaToSemantic`). Crece en el mismo sentido en que se lee un texto visto de frente. Los accesos
+Frente / Atrás / Izquierda / Derecha solo cambian `angleDeg`. Vertical = `centerZMm` desde la base (rango 0–altura).
+
+### 29.6 Algoritmo de wrap y perfiles variables
+
+Para cada vértice de la pared exterior `(z, θ)`: `Δθ` se envuelve a (−π, π] (**sin costura en ±180°**);
+`u = Δθ · r_local(z)`; `v = arco(z) − arco(centro)`; rotación en el plano (u, v) **antes** del envolvimiento; se evalúa el
+campo en (x, y) locales.
+
+- `r_local(z)` es el radio de la **superficie ya modificada** (perfil + bandas + facetas), no el del perfil base: en
+  cónico, barril y abombado el mismo logo subtiende ángulos distintos según la altura (test de barril).
+- `v` es **longitud de arco del perfil** (no Δz) y el desplazamiento es `depth · √(1 + r′(z)²)`: profundidad **normal** a
+  la pared (misma regla que la pared interior). Aproximación: el desplazamiento es radial (no se corre en z); exacta en
+  paredes rectas y muy buena en las suaves. Se documenta el límite en pendientes extremas.
+- **Facetado:** se usa el radio angular medio del polígono (`tan(π/n)/(π/n)`) para el mapeo tangencial y el desplazamiento
+  se suma **sobre la superficie facetada real** (apotema + extra de faceta): el relieve no flota entre caras ni hay un
+  segundo sistema para facetas. Aproximación: `u` es lineal en Δθ (el arco real de una cara plana no es uniforme).
+
+### 29.7 Relieve, grabado, medallón y bevel
+
+- **Relieve:** `+depth` (default 1.5 mm) sobre la superficie exterior. El interior no cambia.
+- **Grabado:** `−depth` (default 1.0 mm). **Nunca atraviesa la pared:** `depth < pared − 1.0 mm` (`ENGRAVE_SAFETY_MM`); si no,
+  error «El grabado dejaría una pared demasiado fina.» (bloquea). Como todos los modificadores solo suman, la pared local
+  nunca es menor que `pared − depth`. Vale también en modo inserto.
+- **Bevel** (default 0.4 mm, 0 = recto): cobertura `smoothstep(sd / bevel)` dentro de la silueta (0 en el borde real, 1 a
+  `bevel` mm hacia adentro): la silueta no se agranda y la pared del relieve no es vertical.
+- **Medallón:** base envuelta (óvalo / círculo / rectángulo redondeado, SDF analítico, sin raster) con `baseDepthMm` (1.5 mm)
+  + arte encima (`depthMm`, 1 mm) ajustado dentro del medallón menos `paddingMm`. Modelo: `backingField + artworkField`;
+  también existe el medallón liso (`source: none`). `size` es el del medallón.
+- **Interior:** relieves y grabados **no** cambian la cavidad; en modo inserto la envolvente interior y el helper son
+  idénticos con/sin decoración (test).
+
+### 29.8 Múltiples decoraciones, superposición y orden de modificadores
+
+Pipeline del radio exterior: **perfil base → facetas/ranuras/bandas → decoraciones → radio final**. Una decoración que
+cruza una banda sigue la superficie ya modificada (test: banda 1.5 + logo 1 = R + 2.5).
+Superposición, determinística por orden de stack (primera = fondo): relieve+relieve = **máximo**; grabado+grabado = **el más
+profundo**; relieve/grabado = **la posterior gana** (se mezcla linealmente en su bevel). El orden se cambia con ↑/↓.
+
+### 29.9 Validación y avisos
+
+Errores (bloquean): >10 decoraciones, rangos (ancho/alto 3–300, profundidad 0.1–5, bevel 0–5, rotación ±180°, altura 0–H),
+texto vacío, falta de archivo, grabado demasiado profundo, más ancha que el contorno del jarro (95 % de la circunferencia).
+Warnings (no bloquean, la malla sigue válida): margen seguro de **5 mm** a la boca y a la base, y «Parte de la decoración se
+superpone con la zona del asa» (no se recorta automáticamente). Una decoración cuyo arte no está disponible (archivo o
+fuente sin cargar) se omite con aviso.
+
+### 29.10 Resolución de malla
+
+Sin decoraciones la malla es **exactamente la de 0.1** (test: mismos 21 600 triángulos). Con decoraciones se afina el cuerpo:
+paso máximo de filas y de arco de **1.2 mm (preview)** / **0.55 mm (export)**, con techo de 450 filas y 900 segmentos (los
+segmentos siguen siendo múltiplo de 2×lados y 2×ranuras; el helper del inserto conserva su resolución base). Medido en esta
+máquina: preview de regeneración ≈ 40 ms (~130 k triángulos) y export ≈ 190 ms (~640 k triángulos); no hizo falta Web Worker.
+
+### 29.11 Proyectos y assets
+
+`maker_projects.source_type = 'mug'`; `source_data = { definition (con decorations[]), assets: MugAssetRef[] }`. Cada asset
+(`assetId` uuid inmutable) se sube **una vez** al bucket privado `maker-projects` en
+`{user}/{project}/assets/{assetId}.{svg|png|jpg}` (`uploadProjectAsset`); las policies de Storage solo exigen la primera
+carpeta = dueño, así que **no hace falta migration nueva** (la de 0.1, `20260921120000_maker_mug_projects.sql`, sigue
+pendiente de aplicar). Guardar sube solo assets nuevos y limpia (best-effort) los que ya no usa ninguna decoración; abrir
+descarga los originales y **reconstruye el campo** con el motor vigente (nunca se guarda el raster/SDF procesado); eliminar
+el proyecto borra sus assets. Cualquier cambio de decoración (texto, profundidad, posición, tamaño, archivo, ajustes)
+cambia la firma y marca el proyecto como modificado. Carteles/Neon no se tocaron (`makerRepository` solo suma funciones).
+El texto se guarda como `text + fontId + align` (sin archivo).
+
+### 29.12 Exportación y Cama
+
+El STL es la misma malla única del preview en calidad export: cuerpo + asa + bandas + ranuras + relieves + medallones +
+grabados. No se exporta ni la imagen original ni el helper ni overlays. Vista Cama = geometría final decorada.
+
+### 29.13 Limitaciones conocidas (0.2)
+
+- La UI no se pudo validar visualmente en esta sesión (la ruta exige login): motor, tests, `tsc` y build sí están verificados.
+- SVG solo de trazos no se convierte (29.4). Sin dibujo de bordes de texto con contorno (solo relleno).
+- Desplazamiento radial (no normal exacto) y mapeo tangencial lineal en Δθ sobre facetas (29.6).
+- Unlock de proporción usa distancia isotrópica media (29.3). Una decoración más ancha que ~95 % del contorno se rechaza.
+- Con decoraciones la malla es densa (≈ 130 k tri preview / ≈ 640 k export); el STL export pesa ≈ 30 MB.
+- Sin presets decorativos (la arquitectura los permite: una receta podría incluir `decorations[]`), ni reordenar por
+  drag & drop (botones ↑/↓), ni texto en arco / sobre curvas.
