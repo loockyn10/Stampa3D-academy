@@ -2,6 +2,15 @@
 
 Este archivo contiene únicamente trabajo pendiente o próximo. Eliminar tareas terminadas en lugar de conservar un historial infinito.
 
+## Now — Explorar Modelos (implementado 2026-09-21, ver CURRENT_STATE.md y ARCHITECTURE.md §18)
+
+- [ ] Crear API key de MyMiniFactory y cargar `MYMINIFACTORY_API_KEY` en el entorno; hacer una búsqueda real y verificar campos, licencias y dominios de thumbnails.
+- [ ] Enviar mail a MyMiniFactory (uso en SaaS con plan pago, cache permitido, rate limits, costos) y al Developer Program de Thingiverse; no cargar `THINGIVERSE_ACCESS_TOKEN` en producción hasta tener respuesta.
+- [ ] Decidir dónde vive un rate limiter compartido si el hosting es serverless (hoy es en memoria por instancia).
+- [ ] Mobile: el menú radial (`mobile-radial-menu.tsx`) tiene 6 ángulos para 7 ítems y no hay lugar para Explorar Modelos; hoy se llega desde la Calculadora. Rediseñar el menú antes de sumarlo.
+- [ ] Bottom nav mobile de Free: sin acceso directo a Explorar Modelos (solo desde la Calculadora).
+- [ ] Prueba manual con usuarios Anonymous, Free y Paid (ver checklist del reporte de la tarea).
+
 ## Now — Clientes / cuenta corriente / pagos / ticket (implementado 2026-09-18, ver CURRENT_STATE.md y ARCHITECTURE.md §6/§9)
 
 - [ ] Aplicar en Supabase remoto `supabase/migrations/20260918120000_business_customer_accounts.sql` (ver reporte final de la tarea para el detalle completo del SQL y el orden).

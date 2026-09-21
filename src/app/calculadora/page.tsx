@@ -4,7 +4,7 @@ import React, { useState, useEffect, useMemo, useRef } from "react";
 import dynamic from "next/dynamic";
 import Link from "next/link";
 import { useSearchParams, useRouter } from "next/navigation";
-import { Zap, DollarSign, Loader2, AlertCircle, Settings, Save, X, PackagePlus, CheckCircle2, Calculator, Info, FileText, Plus, LockKeyhole } from "lucide-react";
+import { Zap, DollarSign, Loader2, AlertCircle, Compass, Settings, Save, X, PackagePlus, CheckCircle2, Calculator, Info, FileText, Plus, LockKeyhole } from "lucide-react";
 import { Card } from "@/components/ui/card";
 import { GhostButton } from "@/components/ui/button";
 import { SectionTitle } from "@/components/ui/section-title";
@@ -31,6 +31,7 @@ import { getCurrentUserAccess } from "@/lib/auth/user-access";
 import type { CalculatorCatalogResponse, CalculatorFilamentCatalogItem, CalculatorPrinterCatalogItem } from "@/lib/calculator/catalog-types";
 import { CALCULATOR_GUEST_DRAFT_KEY, parseCalculatorGuestDraft, type CalculatorGuestDraft } from "@/lib/calculator/guest-draft";
 import { CalculatorPersonalizationModal, CalculatorSignupModal } from "@/components/calculadora/calculator-access-modals";
+import { parseCalculatorPrefillName } from "@/lib/model-search/calculator-link";
 
 const PrinterCatalogModal = dynamic(() => import("@/components/calculadora/printer-catalog-modal").then((module) => module.PrinterCatalogModal));
 const FilamentCatalogModal = dynamic(() => import("@/components/calculadora/filament-catalog-modal").then((module) => module.FilamentCatalogModal));
@@ -166,6 +167,7 @@ function CalculadoraPageContent() {
   const [saveError, setSaveError] = useState<string | null>(null);
   const [showCatalogModal, setShowCatalogModal] = useState(false);
   const [showFilamentCatalogModal, setShowFilamentCatalogModal] = useState(false);
+  const [modelReferenceName, setModelReferenceName] = useState<string | null>(null);
   const [productForm, setProductForm] = useState({
     name: "",
     description: "",
@@ -417,6 +419,13 @@ function CalculadoraPageContent() {
         )));
       }
       if (normalizedHours) setHours(normalizedHours);
+
+      // Viene de "Explorar Modelos": solo se transfiere el nombre (no se asumen peso, tiempo ni material).
+      const modelName = parseCalculatorPrefillName(searchParams.get("name"));
+      if (modelName) {
+        setModelReferenceName(modelName);
+        setProductForm((current) => (current.name ? current : { ...current, name: modelName }));
+      }
 
       if (material || brand || color) {
         const match = findStampyFilamentMatch(filaments, { material, brand, color });
@@ -1022,9 +1031,32 @@ function CalculadoraPageContent() {
           </Link> : <button type="button" onClick={openCalculatorCustomization} className="inline-flex items-center gap-2 rounded-xl border border-stampa-border bg-white/5 px-6 py-3 text-sm font-semibold text-white transition-colors hover:bg-white/10">
             <Settings size={18} /> {isFree ? "Mis impresoras y filamentos" : "Personalizar cálculo"}
           </button>}
+          <Link href="/explorar-modelos" className="mt-3 flex items-center gap-2 text-sm font-semibold text-gray-400 transition-colors hover:text-white sm:ml-4 sm:mt-0 sm:inline-flex">
+            <Compass size={16} /> ¿Buscás un modelo para imprimir? Explorar Modelos
+          </Link>
         </div>
       </div>
     </div>
+
+    {modelReferenceName && (
+      <div className="flex items-start justify-between gap-3 rounded-xl border border-stampa-border bg-stampa-surface p-4">
+        <div className="min-w-0">
+          <p className="text-xs font-semibold uppercase tracking-wide text-gray-500">Modelo de referencia</p>
+          <p className="mt-1 break-words text-sm font-bold text-white">{modelReferenceName}</p>
+          <p className="mt-1 text-xs text-gray-400">
+            Cargá los gramos y las horas de impresión de tu laminador: no los tomamos de la plataforma de origen.
+          </p>
+        </div>
+        <button
+          type="button"
+          onClick={() => setModelReferenceName(null)}
+          aria-label="Quitar modelo de referencia"
+          className="shrink-0 rounded-lg p-1.5 text-gray-500 hover:bg-white/10 hover:text-white"
+        >
+          <X size={16} />
+        </button>
+      </div>
+    )}
 
     {isPaid && missingData && (
       <div className="space-y-3">

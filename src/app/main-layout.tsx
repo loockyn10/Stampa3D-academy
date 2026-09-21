@@ -24,6 +24,7 @@ export function MainLayout({ children }: { children: React.ReactNode }) {
   const [accessLoading, setAccessLoading] = useState(true);
   const pathname = usePathname();
   const isCalculatorRoute = pathname === "/calculadora";
+  const isExploreModelsRoute = pathname === "/explorar-modelos";
   const isPublicRoute = 
     pathname?.startsWith('/landing') ||
     pathname === '/tienda' ||
@@ -59,6 +60,11 @@ export function MainLayout({ children }: { children: React.ReactNode }) {
 
   if (isCalculatorRoute && !accessLoading && !userAccess?.authenticated) {
     return <StampyContextProvider><main className="min-h-screen">{children}</main></StampyContextProvider>;
+  }
+
+  // Explorar Modelos es público: anonymous ve la página sin shell; usuarios autenticados la ven dentro del shell.
+  if (isExploreModelsRoute && (accessLoading || !userAccess?.authenticated)) {
+    return <main className="min-h-screen bg-stampa-bg">{children}</main>;
   }
 
   if (isCalculatorRoute && accessLoading) {

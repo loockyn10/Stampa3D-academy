@@ -403,3 +403,16 @@ Reglas generales:
 - no resolver bugs de layout con hacks como offsets arbitrarios o `window.scrollTo`;
 - evitar redundancia de copy;
 - reutilizar flujos en vez de crear experiencias paralelas innecesarias.
+
+## 18. Explorar Modelos (2026-09-21)
+
+Herramienta pública (`/explorar-modelos`) para **descubrir modelos 3D alojados en plataformas externas** (V1: MyMiniFactory y Thingiverse, cada una activa solo si tiene credencial server-side). No es la **Librería STL** (`/libreria-stl` = contenido propio de Stampa); no se mezclan.
+
+Reglas:
+
+- Stampa es descubridor: muestra metadata mínima (título, creador, thumbnail, fuente, licencia, métricas) y **siempre** envía a la página original ("Ver modelo en {Fuente}"). No aloja, descarga ni redistribuye archivos; no crea mirror ni catálogo local; no copia descripciones.
+- La fuente es siempre visible. El usuario nunca debe creer que el modelo es de Stampa.
+- Licencia normalizada: `commercialUse` = permitido / no comercial / desconocido y `attributionRequired`. Solo se mapea lo que la fuente informa; ante duda es `desconocido` ("Verificá la licencia en la fuente"). **Gratis ≠ uso comercial permitido.**
+- Un resultado externo **no** es un producto de Mi Taller. "Guardar como producto" (futuro) será una acción explícita.
+- Acceso: Anonymous busca con límites (2 páginas, sin filtro de uso comercial ni orden); Free/Paid, búsqueda y filtros completos; solo Paid ve **"Calcular en Stampa"**, que abre la Calculadora existente con el nombre del modelo (no se asumen gramos, horas ni material).
+- Si una fuente falla o no responde, las demás siguen respondiendo y la UI avisa ("Thingiverse no respondió. Mostrando resultados de MyMiniFactory.").

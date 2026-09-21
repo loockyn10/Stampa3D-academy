@@ -26,6 +26,12 @@ El roadmap debe mantenerse corto. No agregar ideas hipotéticas sin prioridad de
 4. Confirmar consistencia de pricing, recetas, multifilamento y componentes.
 5. Mantener documentación alineada con cambios estructurales.
 
+## P1b — Explorar Modelos
+
+1. Conseguir credenciales (MyMiniFactory) y permiso de uso (MyMiniFactory y Thingiverse) antes de activar los providers en producción.
+2. Segunda fuente solo si tiene API oficial y términos compatibles (Cults3D pendiente de leer términos).
+3. Después: filtros por licencia refinados, guardar como producto (acción explícita) y tool `models.search` de Stampy.
+
 ## P2 — Operación y crecimiento
 
 1. Completar o validar ingreso de stock por scanner si sigue pendiente.

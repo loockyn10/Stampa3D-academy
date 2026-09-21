@@ -236,3 +236,18 @@ conocidas en `docs/STAMPA_MAKER.md`.
 - `node --test tests/*.test.mjs` → 474 tests, 473 pasan, 1 falla (ver `CURRENT_STATE.md`, es el fallo históricamente documentado, no uno nuevo).
 
 No hay `npm run lint` verificado en esta auditoría (fuera de foco; comando existe en scripts pero no se ejecutó).
+
+## 18. Explorar Modelos / búsqueda federada (2026-09-21)
+
+Módulo `src/lib/model-search/` (server) + `src/components/explorar-modelos/` (UI) + `GET /api/model-search` + página `/explorar-modelos`.
+
+- **Contrato** (`types.ts`): `ModelSearchProvider` (`id`, `isEnabled()`, `getCapabilities()`, `health()`, `search()`), DTO `ModelSearchResult` (campos no informados = `null`/`"unknown"`), cursor por provider.
+- **Providers** (`providers/`): `myminifactory.ts` (API v2 oficial, `GET /api/v2/search`, `MYMINIFACTORY_API_KEY`) y `thingiverse.ts` (API oficial `GET /search/{term}?type=things`, Bearer `THINGIVERSE_ACCESS_TOKEN`). Sin credencial → `disabled`. Hosts hardcodeados; nunca se hace fetch de URLs del usuario. Agregar una fuente = archivo nuevo + `sources.ts` + `registry.ts`.
+- **Orchestrator** (`service.ts` `searchModels`): `Promise.allSettled`, timeout individual (4,5 s, con `AbortController` + `Promise.race`), estado por fuente (`ok|timeout|error|disabled`), resultados parciales, filtros gratis/uso comercial sobre el DTO normalizado, merge round-robin (sin deduplicación). La UI y el futuro tool de Stampy (`models.search`) deben llamar a este servicio, no a los providers.
+- **Licencias** (`license.ts`): MMF por `licenses[]` (`commercial-use`, `mention`, `remix`, `store`); Thingiverse por tabla explícita de nombres de licencia; todo lo demás `unknown`.
+- **Seguridad** (`sanitize.ts`): URLs solo `https`, sin credenciales, dominio del provider (o subdominio); si `originalUrl` es inválido el resultado se descarta; thumbnail inválido → `null`. Texto plano acotado; sin `dangerouslySetInnerHTML`. Thumbnails con `<img>` directo a la CDN de la fuente (sin proxy ni storage de Stampa). Credenciales solo server (`process.env`), nunca `NEXT_PUBLIC_*`.
+- **Cache** (`cache.ts`): en memoria, por provider/página, TTL 10 min, máx. 300 entradas, solo respuestas OK. No hay DB, tabla ni crawler. Es por instancia del servidor (no compartido).
+- **Rate limit** (`rate-limit.ts`): ventana fija en memoria, 20 req/min por IP (anonymous) y 40/min por usuario. Best-effort por instancia; el resto de la infra de rate limit del repo usa tablas de logs por usuario autenticado y no sirve para anonymous.
+- **Acceso**: `/explorar-modelos` está en `isPublicRoute` de `src/utils/supabase/middleware.ts` y `/api/model-search` en `publicApiRoutes`; `MainLayout` muestra la página sin shell a anonymous y con shell a autenticados. La API resuelve el tier con `getCurrentUserAccess` (`authenticated` ⇒ búsqueda completa; `accessPlatform` solo distingue Paid para la UI). No se toca `has_platform_access()`.
+- **Calculadora**: `/calculadora?action=calculate&name=…` (reutiliza el prefill de Stampy). Solo transfiere `name`, mostrado como "Modelo de referencia" y precargado en el nombre del producto a guardar; `source`/`originalUrl` no se guardan porque el producto no tiene lugar para metadata externa.
+- No hay eventos/analytics en el repo: no se registran `model_search`/`model_result_open`/`model_calculate`.

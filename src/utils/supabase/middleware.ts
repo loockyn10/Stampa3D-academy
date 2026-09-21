@@ -47,6 +47,7 @@ export async function updateSession(request: NextRequest) {
     "/api/calculator/catalog",
     "/api/calculator/preferences",
     "/api/calculator/selections",
+    "/api/model-search",
   ];
 
   const isPublicApiRoute = publicApiRoutes.some((route) =>
@@ -61,6 +62,7 @@ export async function updateSession(request: NextRequest) {
   const isPublicRoute = 
     pathname.startsWith('/landing') ||
     pathname === '/calculadora' ||
+    pathname === '/explorar-modelos' ||
     pathname === '/tienda' ||
     pathname.startsWith('/tienda/') ||
     pathname.startsWith('/login') || 

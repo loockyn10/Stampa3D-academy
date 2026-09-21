@@ -8,6 +8,7 @@ import {
   Gift,
   Calculator,
   Boxes,
+  Compass,
   User,
   Settings,
   LogOut,
@@ -36,6 +37,7 @@ const NAV_GROUPS = [
       { path: "/stampa-maker", label: "Stampa Maker", icon: Type },
       { path: "/sorteos", label: "Sorteos", icon: Gift },
       { path: "/libreria-stl", label: "Librería STL", icon: Boxes },
+      { path: "/explorar-modelos", label: "Explorar Modelos", icon: Compass },
     ],
   },
   {
@@ -70,7 +72,10 @@ export function Sidebar({ access, loading }: SidebarProps) {
   const hasPlatformAccess = access?.capabilities.accessPlatform === true;
   const isFree = !loading && access?.authenticated === true && !hasPlatformAccess;
   const freeGroups = [
-    { group: "Gratis", items: [{ path: "/calculadora", label: "Calculadora", icon: Calculator }] },
+    { group: "Gratis", items: [
+      { path: "/calculadora", label: "Calculadora", icon: Calculator },
+      { path: "/explorar-modelos", label: "Explorar Modelos", icon: Compass },
+    ] },
     { group: "Descubrí Stampa", items: [
       { path: "/sin-acceso?feature=stampy", label: "Stampy IA", icon: Sparkles, locked: true },
       { path: "/sin-acceso?feature=academia", label: "Academia", icon: BookOpen, locked: true },
