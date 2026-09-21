@@ -39,8 +39,8 @@ export function normalizeThingiverseItem(raw: unknown): ModelSearchResult | null
     authorUrl: safeExternalUrl(creator?.public_url, ALLOWED_DOMAINS),
     thumbnailUrl: safeExternalUrl(item.thumbnail, ALLOWED_DOMAINS),
     originalUrl,
-    // La API de Thingiverse no expone precio; la descarga de Things es gratuita (los Tips son voluntarios).
-    isFree: true,
+    // La API no informa precio de forma confiable: no se infiere (un Thing puede tener Tips o condiciones propias).
+    isFree: null,
     license: normalizeThingiverseLicense(item.license, item.allows_derivatives),
     likes: nonNegativeInt(item.like_count),
     downloads: nonNegativeInt(item.download_count),
@@ -61,7 +61,8 @@ export function createThingiverseProvider(
     id: "thingiverse",
     label: "Thingiverse",
     isEnabled: () => Boolean(getToken()),
-    getCapabilities: () => ({ sorts: ["relevance", "popular", "newest"], maxPerPage: 30 }),
+    // La búsqueda de Thingiverse no filtra por precio y su parámetro `license` acepta un único valor: sin filtros propios.
+    getCapabilities: () => ({ sorts: ["relevance", "popular", "newest"], maxPerPage: 30, freeFilter: false, commercialFilters: [] }),
     async health() {
       return { status: getToken() ? "ok" : "disabled" };
     },

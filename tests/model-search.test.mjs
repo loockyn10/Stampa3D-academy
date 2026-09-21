@@ -108,12 +108,12 @@ function result(source, id, extra = {}) {
   };
 }
 
-function fakeProvider(id, behavior, { enabled = true } = {}) {
+function fakeProvider(id, behavior, { enabled = true, freeFilter = false, commercialFilters = [] } = {}) {
   return {
     id,
     label: id,
     isEnabled: () => enabled,
-    getCapabilities: () => ({ sorts: ["relevance", "popular", "newest"], maxPerPage: 30 }),
+    getCapabilities: () => ({ sorts: ["relevance", "popular", "newest"], maxPerPage: 30, freeFilter, commercialFilters }),
     health: async () => ({ status: enabled ? "ok" : "disabled" }),
     search: behavior,
   };
@@ -347,24 +347,95 @@ test("11. merge round-robin entre fuentes", async () => {
   ]);
 });
 
-test("filtros gratis/uso comercial se aplican sobre el DTO normalizado; sources limita providers", async () => {
+test("sources limita providers", async () => {
   const providers = [
-    fakeProvider("myminifactory", okPage([
-      result("myminifactory", 1, { isFree: false }),
-      result("myminifactory", 2, { license: { name: null, url: null, commercialUse: "allowed", attributionRequired: true, remixAllowed: null } }),
-      result("myminifactory", 3),
-    ])),
+    fakeProvider("myminifactory", okPage([result("myminifactory", 1)])),
     fakeProvider("thingiverse", okPage([result("thingiverse", 1)])),
   ];
-  const free = await service.searchModels(request({ filters: { ...filters, freeOnly: true } }), freshDeps(providers));
-  assert.ok(free.results.every((r) => r.isFree === true));
-  assert.equal(free.results.length, 3);
-
-  const allowed = await service.searchModels(request({ filters: { ...filters, commercial: "allowed" } }), freshDeps(providers));
-  assert.deepEqual(allowed.results.map((r) => r.externalId), ["2"]);
-
   const only = await service.searchModels(request({ sources: ["thingiverse"] }), freshDeps(providers));
   assert.deepEqual(only.sources.map((s) => s.id), ["thingiverse"]);
+});
+
+test("filtros: los aplica la fuente; Stampa no recorta la página después (sin paginación engañosa)", async () => {
+  // La fuente (que filtra server-side) devuelve 3 items; ninguno se descarta en Stampa aunque su licencia sea desconocida.
+  const seen = [];
+  const mmfLike = fakeProvider(
+    "myminifactory",
+    async (input) => {
+      seen.push(input.filters.commercial);
+      return { results: [result("myminifactory", 1), result("myminifactory", 2), result("myminifactory", 3)], total: 60, hasMore: true };
+    },
+    { commercialFilters: ["allowed"] },
+  );
+  const response = await service.searchModels(request({ filters: { ...filters, commercial: "allowed" } }), freshDeps([mmfLike]));
+  assert.deepEqual(seen, ["allowed"]);
+  assert.equal(response.results.length, 3);
+  assert.equal(response.sources[0].hasMore, true);
+  assert.ok(response.nextCursor);
+});
+
+test("filtro no soportado por un provider: queda fuera de la consulta (unsupported) y las demás fuentes responden", async () => {
+  let unsupportedCalled = false;
+  const providers = [
+    fakeProvider("myminifactory", okPage([result("myminifactory", 1)]), { commercialFilters: ["allowed"] }),
+    fakeProvider("thingiverse", async () => { unsupportedCalled = true; return { results: [], total: 0, hasMore: false }; }),
+  ];
+  const response = await service.searchModels(request({ filters: { ...filters, commercial: "allowed" } }), freshDeps(providers));
+  assert.equal(unsupportedCalled, false);
+  assert.equal(response.sources.find((s) => s.id === "thingiverse").status, "unsupported");
+  assert.equal(response.results.length, 1);
+
+  assert.equal(service.providerSupportsFilters(providers[0], { ...filters, commercial: "prohibited" }), false);
+  assert.equal(service.providerSupportsFilters(providers[0], { ...filters, commercial: "unknown" }), false);
+  assert.equal(service.providerSupportsFilters(providers[0], { ...filters, commercial: "allowed" }), true);
+  assert.equal(service.providerSupportsFilters(providers[0], { ...filters, freeOnly: true }), false);
+  assert.equal(service.providerSupportsFilters(providers[0], filters), true);
+});
+
+test("hasProviderForFilters: sin proveedor capaz no se devuelve una lista engañosa", () => {
+  const providers = [
+    fakeProvider("myminifactory", okPage([]), { commercialFilters: ["allowed"] }),
+    fakeProvider("thingiverse", okPage([])),
+  ];
+  assert.equal(service.hasProviderForFilters(providers, null, { ...filters, commercial: "allowed" }), true);
+  assert.equal(service.hasProviderForFilters(providers, ["thingiverse"], { ...filters, commercial: "allowed" }), false);
+  assert.equal(service.hasProviderForFilters(providers, null, { ...filters, freeOnly: true }), false);
+  const disabledOnly = [fakeProvider("myminifactory", okPage([]), { enabled: false, commercialFilters: ["allowed"] })];
+  assert.equal(service.hasProviderForFilters(disabledOnly, null, { ...filters, commercial: "allowed" }), false);
+});
+
+test("capacidades reales: MMF solo filtra uso comercial permitido; Thingiverse y MMF no filtran gratis; Thingiverse sin filtros propios", () => {
+  const mmfCaps = mmf.createMyMiniFactoryProvider({ apiKey: () => "k" }).getCapabilities();
+  assert.deepEqual(mmfCaps.commercialFilters, ["allowed"]);
+  assert.equal(mmfCaps.freeFilter, false);
+  const tvCaps = tv.createThingiverseProvider({ accessToken: () => "t" }).getCapabilities();
+  assert.deepEqual(tvCaps.commercialFilters, []);
+  assert.equal(tvCaps.freeFilter, false);
+});
+
+test("Thingiverse no informa precio de forma confiable: isFree es null (nunca se infiere)", () => {
+  assert.equal(tv.normalizeThingiverseItem(tvItem()).isFree, null);
+  assert.equal(tv.normalizeThingiverseItem(tvItem({ license: "Creative Commons - Attribution - Non-Commercial" })).isFree, null);
+});
+
+test("isFree null (desconocido) no es gratis: la UI no lo muestra como Gratis y el filtro exige un provider que lo soporte", () => {
+  const card = read("src/components/explorar-modelos/ModelResultCard.tsx");
+  assert.match(card, /isFree === true[\s\S]*Gratis/);
+  assert.match(card, /Precio no informado/);
+  const client = read("src/components/explorar-modelos/ExplorarModelosClient.tsx");
+  assert.match(client, /freeOffered \&\& \(/);
+  assert.match(client, /disabled=\{!freeEnabled\}/);
+  assert.match(client, /commercialOffered\.length > 0 \&\& \(/);
+  // No hay filtrado post-página en el orchestrator.
+  assert.doesNotMatch(read("src/lib/model-search/service.ts"), /passesFilters|\.filter\(\(result\)/);
+});
+
+test("navegación mobile: Explorar Modelos es descubrible sin pasar por la Calculadora", () => {
+  assert.match(read("src/components/layout/mobile-bottom-navigation.tsx"), /href: "\/explorar-modelos"/);
+  assert.match(read("src/app/page.tsx"), /href: "\/explorar-modelos"/);
+  assert.match(read("src/components/search/GlobalSearch.tsx"), /path: "\/explorar-modelos"/);
+  assert.match(read("src/components/layout/sidebar.tsx"), /path: "\/explorar-modelos"/);
+  assert.doesNotMatch(read("src/components/layout/mobile-navigation.ts"), /explorar-modelos/);
 });
 
 test("cache de páginas por provider: mismo query/filtros/página no repite request externa", async () => {
@@ -461,7 +532,15 @@ test("16. el secret no se expone: ni en la respuesta, ni en el cliente, ni en NE
   const response = await service.searchModels(request(), freshDeps([provider]));
   assert.doesNotMatch(JSON.stringify(response), /SECRET-MMF-KEY/);
   assert.deepEqual(service.describeProviders([provider]), [
-    { id: "myminifactory", label: "MyMiniFactory", enabled: true, sorts: ["relevance", "popular", "newest"] },
+    {
+      id: "myminifactory",
+      label: "MyMiniFactory",
+      enabled: true,
+      sorts: ["relevance", "popular", "newest"],
+      maxPerPage: 30,
+      freeFilter: false,
+      commercialFilters: ["allowed"],
+    },
   ]);
 
   for (const file of ["src/components/explorar-modelos/ExplorarModelosClient.tsx", "src/components/explorar-modelos/ModelResultCard.tsx"]) {

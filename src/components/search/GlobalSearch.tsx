@@ -30,6 +30,7 @@ const STATIC_TOOLS: SearchResult[] = [
   { id: "tool-stock", title: "Inventario", description: "Stock terminado", type: "tool", path: "/mi-taller/inventario", keywords: ["productos", "movimientos", "inventario", "producción"] },
   { id: "tool-filamentos", title: "Filamentos", description: "Stock de materiales", type: "tool", path: "/mi-taller/filamentos", keywords: ["filamento", "gramos", "bobinas", "material"] },
   { id: "tool-stl", title: "Librería STL", description: "Modelos 3D", type: "tool", path: "/libreria-stl", keywords: ["stl", "descargar", "modelos", "archivos"] },
+  { id: "tool-explorar-modelos", title: "Explorar Modelos", description: "Buscá modelos 3D en otras plataformas", type: "tool", path: "/explorar-modelos", keywords: ["modelos", "buscar", "thingiverse", "myminifactory", "stl", "descubrir"] },
   { id: "tool-sorteos", title: "Sorteos", description: "Participá por premios", type: "tool", path: "/sorteos", keywords: ["sorteos", "premios", "ganar"] },
   { id: "tool-perfil", title: "Perfil", description: "Tu cuenta", type: "tool", path: "/perfil", keywords: ["perfil", "cuenta", "usuario"] },
   { id: "tool-config", title: "Configuración", description: "Ajustes de cuenta", type: "tool", path: "/configuracion", keywords: ["configuracion", "ajustes", "preferencias"] },

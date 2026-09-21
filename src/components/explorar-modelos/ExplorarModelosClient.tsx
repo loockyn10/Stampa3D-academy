@@ -21,6 +21,8 @@ export interface ProviderInfo {
   label: string;
   enabled: boolean;
   sorts: readonly ModelSort[];
+  freeFilter: boolean;
+  commercialFilters: readonly Exclude<CommercialFilter, "any">[];
 }
 
 type Tier = "anonymous" | "free" | "paid";
@@ -46,8 +48,13 @@ const API_ERRORS: Record<string, string> = {
   query_too_long: `La búsqueda no puede superar ${MAX_QUERY_LENGTH} caracteres.`,
   rate_limited: "Hiciste muchas búsquedas seguidas. Esperá unos segundos y probá de nuevo.",
   account_required: "Creá tu cuenta gratis para usar esta opción.",
+  unsupported_filter: "Esa combinación de filtros no está disponible para la fuente elegida.",
   search_unavailable: "No pudimos completar la búsqueda. Probá de nuevo en un momento.",
 };
+
+function supportsCommercial(provider: ProviderInfo, value: CommercialFilter): boolean {
+  return value !== "any" && provider.commercialFilters.includes(value);
+}
 
 function chipClass(active: boolean) {
   return `shrink-0 rounded-full border px-3.5 py-2 text-sm font-semibold transition-colors ${
@@ -103,10 +110,26 @@ export function ExplorarModelosClient({ providers }: { providers: ProviderInfo[]
   }, []);
 
   const isMember = tier === "free" || tier === "paid";
+  const selectedProviders = useMemo(
+    () => (source === "all" ? enabledProviders : enabledProviders.filter((provider) => provider.id === source)),
+    [enabledProviders, source],
+  );
+  // Los filtros reflejan capacidades reales: se ofrecen solo si alguna fuente los soporta y se habilitan únicamente si
+  // TODAS las fuentes seleccionadas los soportan (si no, "Todas" descartaría resultados de alguna fuente en silencio).
+  const freeOffered = enabledProviders.some((provider) => provider.freeFilter);
+  const freeEnabled = selectedProviders.length > 0 && selectedProviders.every((provider) => provider.freeFilter);
+  const commercialOffered = COMMERCIAL_OPTIONS.filter(
+    (option) => option.value !== "any" && enabledProviders.some((provider) => supportsCommercial(provider, option.value)),
+  );
+  const commercialEnabled = (value: CommercialFilter) =>
+    value === "any" || (selectedProviders.length > 0 && selectedProviders.every((provider) => supportsCommercial(provider, value)));
+  const commercialHint = commercialOffered.some((option) => !commercialEnabled(option.value))
+    ? `Este filtro está disponible solo en ${enabledProviders.filter((provider) => provider.commercialFilters.length > 0).map((provider) => provider.label).join(" y ")}. Elegí esa fuente para usarlo.`
+    : null;
   const availableSorts = useMemo(() => {
-    const selected = source === "all" ? enabledProviders : enabledProviders.filter((provider) => provider.id === source);
+    const selected = selectedProviders;
     return (Object.keys(SORT_LABELS) as ModelSort[]).filter((option) => selected.every((provider) => provider.sorts.includes(option)));
-  }, [enabledProviders, source]);
+  }, [selectedProviders]);
 
   const runSearch = useCallback(
     async (params: { query: string; source: ModelSourceId | "all"; freeOnly: boolean; commercial: CommercialFilter; sort: ModelSort; cursor: string | null }) => {
@@ -176,12 +199,20 @@ export function ExplorarModelosClient({ providers }: { providers: ProviderInfo[]
     if (patch.freeOnly !== undefined) setFreeOnly(patch.freeOnly);
     if (patch.commercial !== undefined) setCommercial(patch.commercial);
     if (patch.sort !== undefined) setSort(patch.sort);
-    if (patch.source !== undefined && next.sort !== "relevance") {
-      // Si la nueva fuente no soporta el orden elegido, volver a relevancia (no fingir un filtro inexistente).
+    if (patch.source !== undefined) {
+      // Si la nueva fuente no soporta un filtro u orden elegido, volver al valor neutro (no fingir filtros inexistentes).
       const selected = next.source === "all" ? enabledProviders : enabledProviders.filter((provider) => provider.id === next.source);
-      if (!selected.every((provider) => provider.sorts.includes(next.sort))) {
+      if (next.sort !== "relevance" && !selected.every((provider) => provider.sorts.includes(next.sort))) {
         next.sort = "relevance";
         setSort("relevance");
+      }
+      if (next.freeOnly && !selected.every((provider) => provider.freeFilter)) {
+        next.freeOnly = false;
+        setFreeOnly(false);
+      }
+      if (next.commercial !== "any" && !selected.every((provider) => supportsCommercial(provider, next.commercial))) {
+        next.commercial = "any";
+        setCommercial("any");
       }
     }
     if (submitted) void runSearch({ query: submitted, ...next, cursor: null });
@@ -265,26 +296,42 @@ export function ExplorarModelosClient({ providers }: { providers: ProviderInfo[]
                 ))}
               </div>
 
-              <div className="flex flex-wrap items-center gap-2" role="group" aria-label="Precio">
-                <span className="shrink-0 text-xs font-semibold uppercase tracking-wide text-gray-500">Precio</span>
-                <button type="button" onClick={() => applyFilters({ freeOnly: !freeOnly })} className={chipClass(freeOnly)} aria-pressed={freeOnly}>Solo gratuitos</button>
-              </div>
-
-              <div className="flex flex-wrap items-center gap-2" role="group" aria-label="Uso comercial">
-                <span className="shrink-0 text-xs font-semibold uppercase tracking-wide text-gray-500">Uso comercial</span>
-                {COMMERCIAL_OPTIONS.map((option) => (
+              {freeOffered && (
+                <div className="flex flex-wrap items-center gap-2" role="group" aria-label="Precio">
+                  <span className="shrink-0 text-xs font-semibold uppercase tracking-wide text-gray-500">Precio</span>
                   <button
-                    key={option.value}
                     type="button"
-                    onClick={() => (isMember ? applyFilters({ commercial: option.value }) : option.value === "any" ? undefined : lockedFilterClick())}
-                    className={`${chipClass(commercial === option.value)} inline-flex items-center gap-1`}
-                    aria-pressed={commercial === option.value}
+                    disabled={!freeEnabled}
+                    onClick={() => applyFilters({ freeOnly: !freeOnly })}
+                    className={`${chipClass(freeOnly)} disabled:cursor-not-allowed disabled:opacity-40`}
+                    aria-pressed={freeOnly}
                   >
-                    {!isMember && option.value !== "any" && <Lock size={11} aria-hidden="true" />}
-                    {option.label}
+                    Solo gratuitos
                   </button>
-                ))}
-              </div>
+                </div>
+              )}
+
+              {commercialOffered.length > 0 && (
+                <div className="space-y-1.5">
+                  <div className="flex flex-wrap items-center gap-2" role="group" aria-label="Uso comercial">
+                    <span className="shrink-0 text-xs font-semibold uppercase tracking-wide text-gray-500">Uso comercial</span>
+                    {[COMMERCIAL_OPTIONS[0], ...commercialOffered].map((option) => (
+                      <button
+                        key={option.value}
+                        type="button"
+                        disabled={!commercialEnabled(option.value)}
+                        onClick={() => (isMember ? applyFilters({ commercial: option.value }) : option.value === "any" ? undefined : lockedFilterClick())}
+                        className={`${chipClass(commercial === option.value)} inline-flex items-center gap-1 disabled:cursor-not-allowed disabled:opacity-40`}
+                        aria-pressed={commercial === option.value}
+                      >
+                        {!isMember && option.value !== "any" && <Lock size={11} aria-hidden="true" />}
+                        {option.label}
+                      </button>
+                    ))}
+                  </div>
+                  {commercialHint && <p className="text-xs text-gray-500">{commercialHint}</p>}
+                </div>
+              )}
 
               {availableSorts.length > 1 && (
                 <div className="flex flex-wrap items-center gap-2" role="group" aria-label="Orden">

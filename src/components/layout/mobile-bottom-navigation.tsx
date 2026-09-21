@@ -3,7 +3,7 @@
 import { useEffect } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { BookOpen, Calculator, Lock, Plus, Printer, Store } from "lucide-react";
+import { BookOpen, Calculator, Compass, Lock, Plus, Printer, Store } from "lucide-react";
 import type { UserAccessSnapshot } from "@/lib/auth/user-access";
 import {
   isMobileNavigationItemActive,
@@ -47,6 +47,7 @@ export function MobileBottomNavigation({
   const isFree = !loading && access?.authenticated === true && !access.capabilities.accessPlatform;
   const freeItems = [
     { href: "/calculadora", label: "Calculadora", icon: Calculator, activePrefixes: ["/calculadora"] as const },
+    { href: "/explorar-modelos", label: "Explorar Modelos", shortLabel: "Explorar", icon: Compass, activePrefixes: ["/explorar-modelos"] as const },
     { href: "/sin-acceso?feature=academia", label: "Academia", icon: BookOpen, activePrefixes: [] as const, locked: true },
     { href: "/sin-acceso?feature=taller", label: "Taller", icon: Printer, activePrefixes: [] as const, locked: true },
     { href: "/sin-acceso?feature=negocio", label: "Negocio", icon: Store, activePrefixes: [] as const, locked: true },
@@ -76,7 +77,7 @@ export function MobileBottomNavigation({
   }, [toolsOpen, onToolsOpenChange]);
 
   if (isFree) {
-    return <div className="fixed inset-x-0 bottom-0 z-[60] lg:hidden"><nav aria-label="Navegación principal" className="border-t border-white/10 bg-stampa-bg/95 backdrop-blur-xl" style={{ height: "calc(var(--mobile-bottom-navigation-height) + env(safe-area-inset-bottom))", paddingBottom: "env(safe-area-inset-bottom)" }}><div className="grid h-[var(--mobile-bottom-navigation-height)] grid-cols-4 items-center px-1">{freeItems.map((item) => <NavigationLink key={item.href} item={item} pathname={pathname} />)}</div></nav></div>;
+    return <div className="fixed inset-x-0 bottom-0 z-[60] lg:hidden"><nav aria-label="Navegación principal" className="border-t border-white/10 bg-stampa-bg/95 backdrop-blur-xl" style={{ height: "calc(var(--mobile-bottom-navigation-height) + env(safe-area-inset-bottom))", paddingBottom: "env(safe-area-inset-bottom)" }}><div className="grid h-[var(--mobile-bottom-navigation-height)] grid-cols-5 items-center px-1">{freeItems.map((item) => <NavigationLink key={item.href} item={item} pathname={pathname} />)}</div></nav></div>;
   }
 
   return (

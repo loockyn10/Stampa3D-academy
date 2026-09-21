@@ -2,7 +2,7 @@
 
 import React, { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
-import { BookOpen, Download, FileText, Play, Calculator, ChevronRight, CalendarDays, Gift, Boxes, Loader2, Bot, ArrowRight, Tag, Layers } from "lucide-react";
+import { BookOpen, Download, FileText, Play, Calculator, ChevronRight, CalendarDays, Gift, Boxes, Loader2, Bot, ArrowRight, Tag, Layers, Compass } from "lucide-react";
 import { Card } from "@/components/ui/card";
 import { PrimaryButton, GhostButton } from "@/components/ui/button";
 import { ProgressBar } from "@/components/ui/progress-bar";
@@ -224,6 +224,13 @@ export default function InicioPage() {
       icon: Calculator,
       href: "/calculadora",
       color: "text-green-400"
+    },
+    {
+      title: "Explorar modelos",
+      desc: "Buscá modelos 3D en distintas plataformas y calculá cuánto costaría imprimirlos.",
+      icon: Compass,
+      href: "/explorar-modelos",
+      color: "text-cyan-400"
     },
     {
       title: "Crear presupuesto",

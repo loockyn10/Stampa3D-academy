@@ -75,10 +75,26 @@ function cacheKey(provider: ModelSearchProvider, request: ModelSearchRequest, pa
   ].join("|");
 }
 
-function passesFilters(result: ModelSearchResult, filters: ModelSearchFilters): boolean {
-  if (filters.freeOnly && result.isFree !== true) return false;
-  if (filters.commercial !== "any" && result.license.commercialUse !== filters.commercial) return false;
+/**
+ * Los filtros los aplica siempre la fuente (server-side). Si un provider no puede filtrar de forma confiable, no se le
+ * pide ni se filtra su página después: se declara en `getCapabilities()` y ese provider queda fuera de la consulta.
+ */
+export function providerSupportsFilters(provider: ModelSearchProvider, filters: ModelSearchFilters): boolean {
+  const capabilities = provider.getCapabilities();
+  if (filters.freeOnly && !capabilities.freeFilter) return false;
+  if (filters.commercial !== "any" && !capabilities.commercialFilters.includes(filters.commercial)) return false;
   return true;
+}
+
+/** true si al menos un provider habilitado y seleccionado puede atender los filtros pedidos. */
+export function hasProviderForFilters(
+  providers: ModelSearchProvider[],
+  sources: ModelSourceId[] | null,
+  filters: ModelSearchFilters,
+): boolean {
+  return providers.some(
+    (provider) => (!sources || sources.includes(provider.id)) && provider.isEnabled() && providerSupportsFilters(provider, filters),
+  );
 }
 
 /** Intercala resultados de cada fuente (round-robin) en vez de concatenar bloques por provider. */
@@ -106,8 +122,9 @@ export async function searchModels(request: ModelSearchRequest, deps: ModelSearc
   const selected = providers.filter((provider) => !request.sources || request.sources.includes(provider.id));
 
   const outcomes = await Promise.allSettled(
-    selected.map(async (provider): Promise<{ page: number; data: ProviderSearchPage } | "disabled"> => {
+    selected.map(async (provider): Promise<{ page: number; data: ProviderSearchPage } | "disabled" | "unsupported"> => {
       if (!provider.isEnabled()) return "disabled";
+      if (!providerSupportsFilters(provider, request.filters)) return "unsupported";
       const page = request.cursor[provider.id] ?? 1;
       const perPage = Math.min(perProvider, provider.getCapabilities().maxPerPage);
       const key = cacheKey(provider, request, page, perPage);
@@ -137,15 +154,14 @@ export async function searchModels(request: ModelSearchRequest, deps: ModelSearc
       sources.push({ id, status: classifyFailure(outcome.reason), count: 0, hasMore: false });
       return;
     }
-    if (outcome.value === "disabled") {
-      sources.push({ id, status: "disabled", count: 0, hasMore: false });
+    if (outcome.value === "disabled" || outcome.value === "unsupported") {
+      sources.push({ id, status: outcome.value, count: 0, hasMore: false });
       return;
     }
     const { page, data } = outcome.value;
-    const results = data.results.filter((result) => passesFilters(result, request.filters));
-    lists.push(results);
+    lists.push(data.results);
     if (data.hasMore) nextCursor[id] = page + 1;
-    sources.push({ id, status: "ok", count: results.length, hasMore: data.hasMore });
+    sources.push({ id, status: "ok", count: data.results.length, hasMore: data.hasMore });
   });
 
   return { results: interleaveResults(lists), sources, nextCursor: encodeCursor(nextCursor) };
@@ -157,6 +173,6 @@ export function describeProviders(providers: ModelSearchProvider[] = createDefau
     id: provider.id,
     label: provider.label,
     enabled: provider.isEnabled(),
-    sorts: provider.getCapabilities().sorts,
+    ...provider.getCapabilities(),
   }));
 }

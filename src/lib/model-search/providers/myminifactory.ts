@@ -74,7 +74,9 @@ export function createMyMiniFactoryProvider(
     id: "myminifactory",
     label: "MyMiniFactory",
     isEnabled: () => Boolean(getKey()),
-    getCapabilities: () => ({ sorts: ["relevance", "popular", "newest"], maxPerPage: 30 }),
+    // La API v2 solo documenta `commercial_use` (permitido). `store` no figura en los parámetros de /search y no existe
+    // un equivalente para "no permitido"/"desconocido": esos filtros no se ofrecen.
+    getCapabilities: () => ({ sorts: ["relevance", "popular", "newest"], maxPerPage: 30, freeFilter: false, commercialFilters: ["allowed"] }),
     async health() {
       return { status: getKey() ? "ok" : "disabled" };
     },

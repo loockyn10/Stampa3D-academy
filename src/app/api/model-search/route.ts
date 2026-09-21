@@ -3,7 +3,8 @@ import { createClient } from "@/utils/supabase/server";
 import { getCurrentUserAccess } from "@/lib/auth/user-access";
 import { cursorDepth, decodeCursor, MAX_PAGE, parseModelSearchParams } from "@/lib/model-search/params";
 import { createRateLimiter } from "@/lib/model-search/rate-limit";
-import { searchModels } from "@/lib/model-search/service";
+import { hasProviderForFilters, searchModels } from "@/lib/model-search/service";
+import { createDefaultProviders } from "@/lib/model-search/registry";
 
 export const dynamic = "force-dynamic";
 export const runtime = "nodejs";
@@ -46,8 +47,13 @@ export async function GET(request: NextRequest) {
     return jsonError("account_required", 403);
   }
 
+  // Sin ningún provider capaz de aplicar el filtro no se devuelve una lista engañosa: se rechaza explícitamente.
+  const providers = createDefaultProviders();
+  const hasFilters = filters.freeOnly || filters.commercial !== "any";
+  if (hasFilters && !hasProviderForFilters(providers, sources, filters)) return jsonError("unsupported_filter", 400);
+
   try {
-    const response = await searchModels({ query, sources, filters, cursor });
+    const response = await searchModels({ query, sources, filters, cursor }, { providers });
     // Si la próxima página supera el tope del viewer, no se ofrece cursor y la UI invita a crear cuenta.
     const next = decodeCursor(response.nextCursor);
     const gated = next !== null && cursorDepth(next) > maxPages;

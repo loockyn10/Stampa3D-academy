@@ -7,8 +7,9 @@ Este archivo contiene únicamente trabajo pendiente o próximo. Eliminar tareas 
 - [ ] Crear API key de MyMiniFactory y cargar `MYMINIFACTORY_API_KEY` en el entorno; hacer una búsqueda real y verificar campos, licencias y dominios de thumbnails.
 - [ ] Enviar mail a MyMiniFactory (uso en SaaS con plan pago, cache permitido, rate limits, costos) y al Developer Program de Thingiverse; no cargar `THINGIVERSE_ACCESS_TOKEN` en producción hasta tener respuesta.
 - [ ] Decidir dónde vive un rate limiter compartido si el hosting es serverless (hoy es en memoria por instancia).
-- [ ] Mobile: el menú radial (`mobile-radial-menu.tsx`) tiene 6 ángulos para 7 ítems y no hay lugar para Explorar Modelos; hoy se llega desde la Calculadora. Rediseñar el menú antes de sumarlo.
-- [ ] Bottom nav mobile de Free: sin acceso directo a Explorar Modelos (solo desde la Calculadora).
+- [ ] Menú radial mobile (`mobile-radial-menu.tsx`): 7 ítems y solo 6 ángulos definidos (Configuración queda sin posición). Bug preexistente sin resolver; por eso Explorar Modelos no se agregó ahí.
+- [ ] Con una API key real de MyMiniFactory: probar si `store=0` funciona en `/search` (figura como parámetro pero ningún endpoint lo referencia) y, si es confiable, activar `freeFilter`.
+- [ ] Verificar visualmente el 5.º ítem del bottom nav de Free (no se pudo iniciar sesión como Free en la verificación).
 - [ ] Prueba manual con usuarios Anonymous, Free y Paid (ver checklist del reporte de la tarea).
 
 ## Now — Clientes / cuenta corriente / pagos / ticket (implementado 2026-09-18, ver CURRENT_STATE.md y ARCHITECTURE.md §6/§9)

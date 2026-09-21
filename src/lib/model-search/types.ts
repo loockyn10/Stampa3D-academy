@@ -60,6 +60,13 @@ export interface ProviderCapabilities {
   sorts: readonly ModelSort[];
   /** Tamaño máximo de página que el provider acepta. */
   maxPerPage: number;
+  /**
+   * Filtro "solo gratuitos" aplicado por la propia fuente. Si es false el filtro no se ofrece para ese provider:
+   * filtrar después de traer la página produciría páginas vacías o paginación engañosa.
+   */
+  freeFilter: boolean;
+  /** Valores de uso comercial que la fuente puede filtrar de forma confiable (server-side). */
+  commercialFilters: readonly Exclude<CommercialFilter, "any">[];
 }
 
 export interface ProviderSearchInput {
@@ -92,7 +99,7 @@ export interface ModelSearchProvider {
   search(input: ProviderSearchInput): Promise<ProviderSearchPage>;
 }
 
-export type SourceStatusCode = "ok" | "timeout" | "error" | "disabled";
+export type SourceStatusCode = "ok" | "timeout" | "error" | "disabled" | "unsupported";
 
 export interface SourceStatus {
   id: ModelSourceId;
