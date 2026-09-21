@@ -278,10 +278,12 @@ export interface BackCutoutBaseResult {
   shelfGroups: ContourGroup[];
   /** Paredes del recorte entre Z=0 y Z=baseMm (el material queda afuera). */
   holeWalls: ExtrudedMeshData[];
+  /** Piezas extra (sistema de instalación: sockets, bosses, bahías...), ver installation/bodyFeatures.ts. Ausente = ninguna. */
+  extraPieces?: ExtrudedMeshData[];
 }
 
 /** Agrega `loops` como huecos del grupo que los contiene (test exacto de punto en polígono, sin pasar por Clipper: las coordenadas quedan idénticas en tapas y paredes). */
-function addHoles(groups: ContourGroup[], loops: Point2D[][]): ContourGroup[] {
+export function addHoles(groups: ContourGroup[], loops: Point2D[][]): ContourGroup[] {
   const out = groups.map((g) => ({ outer: g.outer, holes: [...g.holes] }));
   for (const loop of loops) {
     const target = out.find((g) => isPointInsideContourGroups([{ outer: g.outer, holes: g.holes }], loop[0]));

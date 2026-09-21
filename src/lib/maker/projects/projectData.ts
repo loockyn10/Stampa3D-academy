@@ -2,6 +2,8 @@ import { DEFAULT_LETTER_SIGN_PARAMS } from "@/lib/maker/defaults";
 import { DEFAULT_PNG_OPTIONS, type PngImportOptions, type PngSmoothing } from "@/lib/maker/import/types";
 import { applyPresetSettings, extractPresetSettings, type PresetSettings } from "@/lib/maker/presets/presetSettings";
 import type { BackCutout, LetterSignParams, MakerFontId } from "@/lib/maker/types";
+import { normalizeInstallationOverrides } from "@/lib/maker/installation/defaults";
+import type { InstallationOverrides } from "@/lib/maker/installation/types";
 
 /**
  * PROJECT = trabajo concreto (diseño + configuración) para retomarlo luego.
@@ -52,7 +54,7 @@ export interface ProjectPayload {
   source_type: ProjectSourceType;
   source_data: ProjectSourceData;
   /** Receta de fabricación + recortes traseros (posicionales: solo viajan en el proyecto, nunca en un preset). */
-  settings: PresetSettings & { backCutouts: BackCutout[] };
+  settings: PresetSettings & { backCutouts: BackCutout[]; installationOverrides: InstallationOverrides };
   preset_id: string | null;
   schema_version: number;
 }
@@ -86,7 +88,12 @@ export function projectSourcePath(userId: string, projectId: string, kind: "svg"
 }
 
 export function serializeProject(state: ProjectWorkState, opts: { storagePath?: string; presetId?: string | null } = {}): ProjectPayload {
-  const settings = { ...extractPresetSettings(state.params), backCutouts: (state.params.backCutouts ?? []).map((c) => ({ ...c })) };
+  const settings = {
+    ...extractPresetSettings(state.params),
+    backCutouts: (state.params.backCutouts ?? []).map((c) => ({ ...c })),
+    // Overrides por letra (posiciones manuales, cantidades): específicos del proyecto, nunca viajan en un preset.
+    installationOverrides: normalizeInstallationOverrides(state.params.installationOverrides ?? {}),
+  };
   const presetId = opts.presetId ?? null;
   if (state.sourceMode === "text") {
     return {
@@ -153,6 +160,7 @@ export function deserializeProject(row: ProjectRow): LoadedProject {
   const base: LetterSignParams = {
     ...applyPresetSettings(DEFAULT_LETTER_SIGN_PARAMS, row.settings, row.schema_version),
     backCutouts: normalizeBackCutouts(asRecord(row.settings).backCutouts),
+    installationOverrides: normalizeInstallationOverrides(asRecord(row.settings).installationOverrides),
   };
   const presetId = typeof row.preset_id === "string" ? row.preset_id : null;
 

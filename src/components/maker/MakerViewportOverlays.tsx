@@ -1,7 +1,7 @@
 "use client";
 
 import React from "react";
-import { AlertTriangle, ChevronLeft, ChevronRight, Download, FileArchive, Loader2 } from "lucide-react";
+import { AlertTriangle, ChevronLeft, ChevronRight, Download, FileArchive, FileText, Loader2, Package } from "lucide-react";
 import { SegmentedControl } from "@/components/maker/MakerTextControls";
 import type { MakerDisplayMode } from "@/components/maker/MakerViewport";
 import type { BedLayout } from "@/lib/maker/printBed/bedLayout";
@@ -21,10 +21,24 @@ interface ExportCardProps {
   lettersLoading: boolean;
   onDownloadWord: () => void;
   onDownloadLetters: () => void;
+  /** Exportación de INSTALACIÓN (separadores, plantilla, guía, kit). Ausente = el sistema de instalación no está activo. */
+  installation?: InstallationExportProps | null;
+}
+
+export interface InstallationExportProps {
+  canDownload: boolean;
+  /** Cantidad de separadores de pared (0 = sin montaje de separadores). */
+  spacerQuantity: number;
+  hasGuide: boolean;
+  loading: boolean;
+  onSpacers: () => void;
+  onTemplate: () => void;
+  onGuide: () => void;
+  onKit: () => void;
 }
 
 /** Tarjeta flotante TOP-RIGHT: exportación. La lógica real vive en la página (exportWord / downloadLettersZip). */
-export function ViewportExportCard({ fromFile, multiPart, canDownload, loading, lettersLoading, onDownloadWord, onDownloadLetters }: ExportCardProps) {
+export function ViewportExportCard({ fromFile, multiPart, canDownload, loading, lettersLoading, onDownloadWord, onDownloadLetters, installation }: ExportCardProps) {
   const fullLabel = `${fromFile ? "Diseño completo" : "Palabra completa"} (${multiPart ? ".zip" : ".stl"})`;
   const btn =
     "inline-flex h-8 w-full items-center justify-start gap-2 rounded-lg border px-3 text-xs font-semibold transition-colors disabled:cursor-not-allowed disabled:opacity-50";
@@ -50,6 +64,31 @@ export function ViewportExportCard({ fromFile, multiPart, canDownload, loading, 
           {lettersLoading ? <Loader2 size={14} className="animate-spin" /> : <FileArchive size={14} />}
           Letras individuales (.zip)
         </button>
+      )}
+      {installation && (
+        <>
+          <span className="mt-1 text-[11px] font-semibold uppercase tracking-wide text-gray-500">Instalación</span>
+          {installation.spacerQuantity > 0 && (
+            <button type="button" onClick={installation.onSpacers} disabled={!installation.canDownload || installation.loading} className={`${btn} border-stampa-border bg-stampa-surface-soft text-stampa-text-muted hover:bg-white/10 hover:text-white`}>
+              <Download size={14} />
+              Separadores ×{installation.spacerQuantity} (.stl)
+            </button>
+          )}
+          <button type="button" onClick={installation.onTemplate} disabled={!installation.canDownload || installation.loading} className={`${btn} border-stampa-border bg-stampa-surface-soft text-stampa-text-muted hover:bg-white/10 hover:text-white`}>
+            <FileText size={14} />
+            Plantilla 1:1 (PDF)
+          </button>
+          {installation.hasGuide && (
+            <button type="button" onClick={installation.onGuide} disabled={!installation.canDownload || installation.loading} className={`${btn} border-stampa-border bg-stampa-surface-soft text-stampa-text-muted hover:bg-white/10 hover:text-white`}>
+              <FileText size={14} />
+              Guía de conexión (PDF)
+            </button>
+          )}
+          <button type="button" onClick={installation.onKit} disabled={!installation.canDownload || installation.loading} className={`${btn} border-transparent bg-stampa-orange text-neutral-950 hover:bg-stampa-orange-hover`}>
+            {installation.loading ? <Loader2 size={14} className="animate-spin" /> : <Package size={14} />}
+            Kit completo (.zip)
+          </button>
+        </>
       )}
     </div>
   );
@@ -163,11 +202,15 @@ export function ViewportViewCard(props: ViewCardProps) {
 }
 
 /** Banner del modo Editar recortes (arriba a la izquierda): instrucciones y aviso de posición inválida. */
-export function CutoutEditingBanner({ invalidMessage }: { invalidMessage: string | null }) {
+export function CutoutEditingBanner({ invalidMessage, mounts = false }: { invalidMessage: string | null; mounts?: boolean }) {
   return (
     <div className={`${CARD} flex max-w-xs flex-col gap-1 text-xs`}>
-      <span className="font-semibold text-white">Editando recortes traseros</span>
-      <span className="text-gray-400">Vista trasera. Seleccioná un recorte y arrastralo. La X guardada se mide visto de frente.</span>
+      <span className="font-semibold text-white">{mounts ? "Editando puntos de montaje" : "Editando recortes traseros"}</span>
+      <span className="text-gray-400">
+        {mounts
+          ? "Vista trasera. Seleccioná un punto de montaje y arrastralo; en rojo, las posiciones inválidas (fuera del material o superpuestas)."
+          : "Vista trasera. Seleccioná un recorte y arrastralo. La X guardada se mide visto de frente."}
+      </span>
       {invalidMessage && (
         <span className="flex items-start gap-1.5 text-red-300">
           <AlertTriangle size={13} className="mt-0.5 shrink-0" />

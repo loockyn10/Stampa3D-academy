@@ -189,7 +189,7 @@ export function NumberField({
   );
 }
 
-function Toggle({ label, checked, onChange }: { label: string; checked: boolean; onChange: (checked: boolean) => void }) {
+export function Toggle({ label, checked, onChange }: { label: string; checked: boolean; onChange: (checked: boolean) => void }) {
   return (
     <label className="flex cursor-pointer select-none items-center gap-2 text-xs font-semibold text-gray-300">
       <input

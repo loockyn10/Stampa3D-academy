@@ -6,6 +6,12 @@ import { toTriangleSoupData } from "@/lib/maker/geometry/extrudePolygon";
 import { buildBody } from "@/lib/maker/geometry/body";
 import { computeDesignCenter, planBackCutouts } from "@/lib/maker/geometry/backCutouts";
 import { buildFrontParts } from "@/lib/maker/geometry/front";
+import { pointsToRawPath, unionRawPaths } from "@/lib/maker/geometry/offsets";
+import { buildLetterInstances } from "@/lib/maker/installation/letterInstances";
+import { planInstallation } from "@/lib/maker/installation/layout";
+import { buildBodyFeatures, installationThroughPolygons } from "@/lib/maker/installation/bodyFeatures";
+import { repairCollinearTriangles } from "@/lib/maker/installation/meshRepair";
+import { buildInstallationParts } from "@/lib/maker/installation/wallSpacer";
 
 /**
  * Pipeline completo: texto + parámetros -> mesh 3D triangulado, un carácter
@@ -116,10 +122,26 @@ export function createGeometryFromContourPieces(pieces: ContourPiece[], params: 
   const backCutoutPlan = planBackCutouts(pieces, params);
   errors.push(...backCutoutPlan.errors);
 
+  // Sistema de instalación (montaje/cableado): identidad física por letra + plan de
+  // posiciones. Los agujeros pasantes (ports, keyholes) se suman a la región de recortes;
+  // sockets/bahías/clips se pasan a cada cuerpo (ver installation/bodyFeatures.ts).
+  const instances = buildLetterInstances(pieces);
+  const installationPlan = planInstallation({ instances, params, origin: computeDesignCenter(pieces), cutouts: params.backCutouts ?? [] });
+  const cutoutRegion = installationPlan.active
+    ? unionRawPaths([...backCutoutPlan.region, ...installationThroughPolygons(installationPlan, params).map(pointsToRawPath)])
+    : backCutoutPlan.region;
+  for (const issue of installationPlan.errors) errors.push({ code: "INSTALLATION_INVALID", message: issue.message });
+  for (const issue of installationPlan.warnings) warnings.push({ code: "INSTALLATION_INVALID", message: issue.message });
+
   for (const { char, label, contourGroups, rawContours } of pieces) {
+    const instance = instances[letters.length];
     allRawContours.push(...(rawContours ?? contourGroups.flatMap((g) => [g.outer, ...g.holes])));
 
-    const bodyResult = buildBody(contourGroups, params, { channelDepthUsedMm, backCutoutRegion: backCutoutPlan.region });
+    const bodyResult = buildBody(contourGroups, params, {
+      channelDepthUsedMm,
+      backCutoutRegion: cutoutRegion,
+      installationFeatures: installationPlan.active ? buildBodyFeatures(installationPlan.letters.find((l) => l.instanceId === instance.id), installationPlan, params) : undefined,
+    });
     if (bodyResult.fullyEroded) anyFullyEroded = true;
 
     const index = letters.length + 1;
@@ -128,11 +150,11 @@ export function createGeometryFromContourPieces(pieces: ContourPiece[], params: 
     if (frontResult.collapseErrorCode) collapsedLetters.push({ char, index, code: frontResult.collapseErrorCode });
 
     const parts: SignPart[] = [
-      { kind: "body", filenameSuffix: "cuerpo", mesh: toTriangleSoupData(bodyResult.body) },
+      { kind: "body", filenameSuffix: "cuerpo", mesh: toTriangleSoupData(installationPlan.active ? repairCollinearTriangles(bodyResult.body) : bodyResult.body) },
       ...frontResult.parts,
     ];
 
-    letters.push({ char, index, parts });
+    letters.push({ char, index, parts, instance });
   }
 
   if (letters.length === 0) {
@@ -211,6 +233,8 @@ export function createGeometryFromContourPieces(pieces: ContourPiece[], params: 
     letters,
     designCenter: computeDesignCenter(pieces),
     backCutoutSafeZone: backCutoutPlan.safeZone,
+    installation: installationPlan.active ? installationPlan : null,
+    installationParts: buildInstallationParts(installationPlan, params),
   };
 }
 
@@ -280,6 +304,8 @@ function emptyResult(warnings: LetterGeometryWarning[]): LetterGeometryResult {
     letters: [],
     designCenter: { x: 0, y: 0 },
     backCutoutSafeZone: null,
+    installation: null,
+    installationParts: [],
   };
 }
 

@@ -1,5 +1,6 @@
 import type { ContourGroup, LetterSignParams } from "@/lib/maker/types";
 import { applyBackCutoutsToBase } from "@/lib/maker/geometry/backCutouts";
+import { applyInstallationToBase } from "@/lib/maker/installation/bodyFeatures";
 import type { BuildStandardBodyContext } from "@/lib/maker/geometry/body/standard";
 import { extrudeContourGroups, type ExtrudedMeshData } from "@/lib/maker/geometry/extrudePolygon";
 import { computeWallAndCore, subdivideRange, footprintAtOffset, buildOffsetProfileWallPieces, smoothstepRampProfile } from "@/lib/maker/geometry/body/shared";
@@ -75,7 +76,7 @@ function taperOffsetSmoothAt(z: number, depthMm: number, rearExpansionMm: number
 export function buildTaperedBodyPieces(
   contourGroups: ContourGroup[],
   params: LetterSignParams,
-  ctx?: Pick<BuildStandardBodyContext, "backCutoutRegion">,
+  ctx?: Pick<BuildStandardBodyContext, "backCutoutRegion" | "installationFeatures">,
 ): { body: ExtrudedMeshData; fullyEroded: boolean } {
   const fondoGroups: ContourGroup[] = [];
   const wallGroups: ContourGroup[] = [];
@@ -121,7 +122,12 @@ export function buildTaperedBodyPieces(
       ? fondoGroups.flatMap((g) => footprintAtOffset({ outer: g.outer, holes: g.holes }, params.rearExpansionMm))
       : fondoGroups;
     // Recortes traseros (2D), igual que en el cuerpo standard.
-    const cutouts = applyBackCutoutsToBase({ region: ctx?.backCutoutRegion, baseCapGroups: baseGroups, coreGroups, baseMm: params.baseMm });
+    const cutouts = applyInstallationToBase(
+      applyBackCutoutsToBase({ region: ctx?.backCutoutRegion, baseCapGroups: baseGroups, coreGroups, baseMm: params.baseMm }),
+      ctx?.installationFeatures,
+      params.baseMm,
+    );
+    pieces.push(...(cutouts.extraPieces ?? []));
     pieces.push(extrudeContourGroups(cutouts.baseCapGroups, 0, 0, { capStart: true, capEnd: false, sides: false }));
     pieces.push(...taperedWallPieces);
     pieces.push(...cutouts.holeWalls);

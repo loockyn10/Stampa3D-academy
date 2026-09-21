@@ -1,5 +1,6 @@
 import { DEFAULT_LETTER_SIGN_PARAMS } from "@/lib/maker/defaults";
 import type { LetterSignParams } from "@/lib/maker/types";
+import { normalizeInstallationRecipe } from "@/lib/maker/installation/defaults";
 
 /**
  * PRESET = RECETA de fabricación reutilizable (cuerpo, frente, unión,
@@ -10,7 +11,7 @@ import type { LetterSignParams } from "@/lib/maker/types";
 export const PRESET_SCHEMA_VERSION = 1;
 
 /** Campos de LetterSignParams que pertenecen al DISEÑO (incluye los recortes traseros, posicionales) y por lo tanto nunca viajan en un preset. */
-export const DESIGN_PARAM_KEYS = ["text", "fontId", "heightMm", "backCutouts"] as const satisfies readonly (keyof LetterSignParams)[];
+export const DESIGN_PARAM_KEYS = ["text", "fontId", "heightMm", "backCutouts", "installationOverrides"] as const satisfies readonly (keyof LetterSignParams)[];
 
 export type DesignParamKey = (typeof DESIGN_PARAM_KEYS)[number];
 
@@ -63,6 +64,7 @@ export const PRESET_SETTING_KEYS = [
   "channelDepthMm",
   "channelOffsetMm",
   "diffuserClearanceMm",
+  "installation",
 ] as const satisfies readonly (keyof PresetSettings)[];
 
 /** Valores permitidos de los campos enumerados (lectura tolerante: un valor desconocido cae al default). */
@@ -96,6 +98,11 @@ export function normalizePresetSettings(raw: unknown, schemaVersion?: number | n
   const source = raw && typeof raw === "object" && !Array.isArray(raw) ? (raw as Record<string, unknown>) : {};
   const out: Record<string, unknown> = {};
   for (const key of PRESET_SETTING_KEYS) {
+    if (key === "installation") {
+      // Receta de instalación (montaje/cableado/plantilla): objeto anidado, normalización propia (nunca trae posiciones por letra).
+      out[key] = normalizeInstallationRecipe(source[key]);
+      continue;
+    }
     const fallback = defaults[key];
     const value = source[key];
     const sameType = typeof value === typeof fallback && (typeof value !== "number" || Number.isFinite(value));
@@ -117,7 +124,7 @@ export function resolveInitialParams(defaultPresetSettings: unknown | null | und
 }
 
 export function presetSettingsEqual(a: PresetSettings, b: PresetSettings): boolean {
-  return PRESET_SETTING_KEYS.every((key) => a[key] === b[key]);
+  return PRESET_SETTING_KEYS.every((key) => (key === "installation" ? JSON.stringify(a[key]) === JSON.stringify(b[key]) : a[key] === b[key]));
 }
 
 /** ¿Los params actuales se apartan de la receta del preset cargado? Solo mira campos de receta (cambiar el texto no "modifica" el preset). */

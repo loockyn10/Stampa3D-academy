@@ -91,6 +91,8 @@ export function createMug(def: MugDefinition, opts: CreateMugOptions = {}): MugR
     letters: [],
     designCenter: { x: bb.width / 2, y: bb.depth / 2 },
     backCutoutSafeZone: null,
+    installation: null,
+    installationParts: [],
   };
   return { geometry, indexed: mesh, insertHelper, metrics, errors, warnings };
 }

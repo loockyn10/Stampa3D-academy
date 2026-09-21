@@ -265,6 +265,16 @@ export interface LetterSignParams {
    * en un preset.
    */
   backCutouts: BackCutout[];
+  /**
+   * Sistema de instalación (montaje + cableado + plantilla), configuración
+   * GLOBAL (receta): ver lib/maker/installation. Viaja en presets.
+   */
+  installation: import("@/lib/maker/installation/types").InstallationRecipe;
+  /**
+   * Overrides de instalación POR LETRA (posiciones manuales, cantidad de
+   * soportes, empalmes): específicos del proyecto, nunca viajan en un preset.
+   */
+  installationOverrides: import("@/lib/maker/installation/types").InstallationOverrides;
 }
 
 /** Punto 2D en milímetros, en el plano de la cara del texto (X = ancho, Y = alto). */
@@ -295,7 +305,8 @@ export interface LetterGeometryWarning {
     | "MASK_SIDE_DEPTH_CLAMPED"
     | "LID_BEVEL_COLLAPSED"
     | "LID_BEVEL_DEPTH_CLAMPED"
-    | "BACK_CUTOUT_INVALID";
+    | "BACK_CUTOUT_INVALID"
+    | "INSTALLATION_INVALID";
   message: string;
 }
 
@@ -332,6 +343,8 @@ export interface LetterPieceResult {
   index: number;
   /** Piezas físicas de este carácter. Siempre incluye una de kind "body"; las demás dependen de `frontType`. */
   parts: SignPart[];
+  /** Identidad física de esta letra (id, etiqueta A1/A2, caja, contornos). Ver lib/maker/installation/letterInstances.ts. */
+  instance: import("@/lib/maker/installation/types").LetterInstance;
 }
 
 export interface LetterGeometryResult {
@@ -367,4 +380,18 @@ export interface LetterGeometryResult {
   designCenter: { x: number; y: number };
   /** Zona segura de la base para recortes (paths crudos de Clipper); null si no hay recortes. Ver geometry/backCutouts.ts. */
   backCutoutSafeZone: import("clipper-lib").Paths | null;
+  /** Plan de instalación (montaje/cableado/plantilla); null si la instalación está desactivada. */
+  installation: import("@/lib/maker/installation/types").InstallationPlan | null;
+  /** Piezas auxiliares de instalación exportables (separadores de pared), agrupadas por geometría. */
+  installationParts: InstallationAuxPart[];
+}
+
+/** Pieza auxiliar de instalación (no pertenece a una letra): se exporta UNA vez con su cantidad. */
+export interface InstallationAuxPart {
+  kind: "wallSpacer";
+  filenameSuffix: string;
+  /** Nombre de archivo sugerido, p.ej. "wall-spacer-12x20". */
+  fileBaseName: string;
+  mesh: TriangleSoupData;
+  quantity: number;
 }

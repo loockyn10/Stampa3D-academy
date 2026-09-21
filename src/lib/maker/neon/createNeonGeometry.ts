@@ -125,6 +125,8 @@ export function createNeonGeometry(paths: NeonPath[], params: NeonParams, inputI
     letters: [],
     designCenter: { x: (b.minX + b.maxX) / 2, y: (b.minY + b.maxY) / 2 },
     backCutoutSafeZone: null,
+    installation: null,
+    installationParts: [],
   };
   return { geometry, metrics, errors: [], warnings };
 }

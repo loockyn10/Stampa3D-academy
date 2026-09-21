@@ -449,7 +449,8 @@ test("presets generales NO guardan recortes; el proyecto sí (round-trip circle/
   ];
   const params = { ...DEFAULT_LETTER_SIGN_PARAMS, backCutouts: cuts };
   assert.equal("backCutouts" in extractPresetSettings(params), false);
-  assert.equal(JSON.stringify(extractPresetSettings(params)).includes("keyhole"), false);
+  // (la receta de instalación tiene una clave "keyhole" propia: lo que no debe viajar es un RECORTE de tipo keyhole)
+  assert.equal(JSON.stringify(extractPresetSettings(params)).includes('"type":"keyhole"'), false);
   const state = { params, sourceMode: "text", designHeightMm: 100, pngOptions: { threshold: 128, invert: false, smoothing: "medium" }, fileMeta: null };
   const payload = projects.serializeProject(state);
   const loaded = projects.deserializeProject(JSON.parse(JSON.stringify(payload)));

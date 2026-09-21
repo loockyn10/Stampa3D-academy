@@ -15,6 +15,7 @@ import { computeWallAndCore, buildBandedOuterWallPieces, type ZBand } from "@/li
 // no conoce frontType") en vez de duplicar el cálculo de la huella del
 // canal.
 import { applyBackCutoutsToBase } from "@/lib/maker/geometry/backCutouts";
+import { applyInstallationToBase, type BodyInstallationFeatures } from "@/lib/maker/installation/bodyFeatures";
 import { computeChannelFootprint } from "@/lib/maker/geometry/front/lightChannel";
 
 /**
@@ -57,6 +58,8 @@ export interface BuildStandardBodyContext {
   channelDepthUsedMm: number;
   /** Región global de recortes traseros ya validada (ver geometry/backCutouts.ts). Vacía/ausente = sin recortes. */
   backCutoutRegion?: ClipperLib.Paths;
+  /** Features de instalación de ESTA letra (sockets, bahías, clips...), ver installation/bodyFeatures.ts. */
+  installationFeatures?: BodyInstallationFeatures;
 }
 
 export function buildStandardBodyPieces(
@@ -196,7 +199,12 @@ export function buildStandardBodyPieces(
     //    body/modifiers/ribs.ts — sin costillas, es la misma franja
     //    continua de siempre, mismo resultado byte a byte).
     // Recortes traseros (2D): huecos en la tapa de la base y en la repisa, más las paredes del recorte entre Z=0 y baseMm.
-    const cutouts = applyBackCutoutsToBase({ region: ctx.backCutoutRegion, baseCapGroups: fondoGroups, coreGroups, baseMm: params.baseMm });
+    const cutouts = applyInstallationToBase(
+      applyBackCutoutsToBase({ region: ctx.backCutoutRegion, baseCapGroups: fondoGroups, coreGroups, baseMm: params.baseMm }),
+      isLightChannel ? undefined : ctx.installationFeatures,
+      params.baseMm,
+    );
+    pieces.push(...(cutouts.extraPieces ?? []));
     pieces.push(extrudeContourGroups(cutouts.baseCapGroups, 0, 0, { capStart: true, capEnd: false, sides: false }));
     pieces.push(...bandedWallPieces);
     pieces.push(...cutouts.holeWalls);

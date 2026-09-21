@@ -1,5 +1,6 @@
 import { DEFAULT_MAKER_FONT_ID } from "@/lib/maker/fonts/registry";
 import type { LetterSignParams } from "@/lib/maker/types";
+import { DEFAULT_INSTALLATION_RECIPE } from "@/lib/maker/installation/defaults";
 
 /**
  * Valores iniciales de Stampa Maker (Creador de Carteles). Única fuente: la
@@ -50,4 +51,6 @@ export const DEFAULT_LETTER_SIGN_PARAMS: LetterSignParams = {
   channelOffsetMm: 2,
   diffuserClearanceMm: 0.2,
   backCutouts: [],
+  installation: DEFAULT_INSTALLATION_RECIPE,
+  installationOverrides: {},
 };

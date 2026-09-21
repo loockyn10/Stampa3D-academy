@@ -6,6 +6,7 @@ import { ArrowLeft } from "lucide-react";
 import { useAppFeedback } from "@/components/ui/app-feedback";
 import { MakerTextControls } from "@/components/maker/MakerTextControls";
 import { MakerBackCutoutsSection } from "@/components/maker/MakerBackCutoutsSection";
+import { MakerInstallationSection } from "@/components/maker/MakerInstallationSection";
 import { Card } from "@/components/ui/card";
 import { MakerLibraryPanel } from "@/components/maker/MakerLibraryPanel";
 import { MakerViewport, type MakerDisplayMode } from "@/components/maker/MakerViewport";
@@ -17,6 +18,9 @@ import { detectFileKind, type FileDesignSource } from "@/lib/maker/import/import
 import { DEFAULT_PNG_OPTIONS, IMPORT_LIMITS, type PngImportOptions } from "@/lib/maker/import/types";
 import { exportWord } from "@/lib/maker/exporters/exportWord";
 import { downloadLettersZip } from "@/lib/maker/exporters/exportLettersZip";
+import { downloadInstallKit, downloadSpacers, downloadTemplatePdf, downloadWiringGuidePdf } from "@/lib/maker/exporters/exportInstallKit";
+import { buildInstallationHelperMesh } from "@/lib/maker/installation/helper";
+import { invalidMountEditorIds, mountEditorCutouts, mountSafeZone, moveMountPoint } from "@/lib/maker/installation/editing";
 import { DEFAULT_LETTER_SIGN_PARAMS } from "@/lib/maker/defaults";
 import { DEFAULT_EXPLOSION_AMOUNT, effectiveExplosionAmount } from "@/lib/maker/geometry/explodeOrder";
 import { checkBackCutoutPlacement, findInvalidBackCutouts, updateBackCutoutPosition } from "@/lib/maker/backCutoutEditor";
@@ -49,6 +53,12 @@ export default function StampaMakerCartelesPage() {
   // Modo Editar recortes: solo sobre Model View. La selección es única y compartida entre lista y viewport.
   const [editingCutouts, setEditingCutouts] = useState(false);
   const [selectedBackCutoutId, setSelectedBackCutoutId] = useState<string | null>(null);
+  // Modo Editar montaje (misma arquitectura que Editar recortes; mutuamente excluyentes) y helpers visuales de instalación (no exportables).
+  const [editingMounts, setEditingMounts] = useState(false);
+  const [selectedMountId, setSelectedMountId] = useState<string | null>(null);
+  const [showWiring, setShowWiring] = useState(false);
+  const [showWall, setShowWall] = useState(false);
+  const [installLoading, setInstallLoading] = useState(false);
 
   const handleChange = useCallback((patch: Partial<LetterSignParams>) => {
     setParams((prev) => ({ ...prev, ...patch }));
@@ -134,15 +144,48 @@ export default function StampaMakerCartelesPage() {
     }
   }, [geometry, baseFileName, toast]);
 
-  // Drag: el handle se mueve por ref en el viewport; acá llega el commit throttled (X/Y) y el final exacto. Una única fuente: params.backCutouts.
-  const handleCutoutMove = useCallback((id: string, x: number, y: number) => {
-    setParams((prev) => ({ ...prev, backCutouts: updateBackCutoutPosition(prev.backCutouts, id, x, y) }));
-  }, []);
+  // Drag: el handle se mueve por ref en el viewport; acá llega el commit throttled (X/Y) y el final exacto. Una única fuente: params.backCutouts
+  // (recortes) o params.installationOverrides (puntos de montaje).
+  const installationPlan = geometry?.installation ?? null;
+  const handleCutoutMove = useCallback(
+    (id: string, x: number, y: number) => {
+      if (editingMounts) {
+        if (installationPlan) setParams((prev) => ({ ...prev, installationOverrides: moveMountPoint(prev.installationOverrides ?? {}, installationPlan, id, x, y) }));
+        return;
+      }
+      setParams((prev) => ({ ...prev, backCutouts: updateBackCutoutPosition(prev.backCutouts, id, x, y) }));
+    },
+    [editingMounts, installationPlan],
+  );
   const startCutoutEditing = useCallback(() => {
     setDisplayMode("model");
+    setEditingMounts(false);
     setEditingCutouts(true);
   }, []);
-  const finishCutoutEditing = useCallback(() => setEditingCutouts(false), []);
+  const finishCutoutEditing = useCallback(() => {
+    setEditingCutouts(false);
+    setEditingMounts(false);
+  }, []);
+  const toggleMountEditing = useCallback(() => {
+    setDisplayMode("model");
+    setEditingCutouts(false);
+    setEditingMounts((v) => !v);
+  }, []);
+
+  const installTitle = params.text.trim() || "Cartel";
+  const runInstall = useCallback(
+    async (fn: () => void | Promise<void>, failure: string) => {
+      setInstallLoading(true);
+      try {
+        await fn();
+      } catch (err) {
+        toast.error(err instanceof Error ? err.message : failure);
+      } finally {
+        setInstallLoading(false);
+      }
+    },
+    [toast],
+  );
 
   const canDownload =
     !loading && !designImport.loading && !error && !designImport.error && fieldErrors.length === 0 && !!geometry && geometry.triangleCount > 0 && geometry.errors.length === 0;
@@ -157,32 +200,66 @@ export default function StampaMakerCartelesPage() {
     const items = collectBedItems(shownGeometry);
     return { items, layout: computeBedLayout(items, profile) };
   }, [displayMode, shownGeometry, profile]);
-  const editing = editingCutouts && !!shownGeometry && shownGeometry.triangleCount > 0;
+  const hasGeometry = !!shownGeometry && shownGeometry.triangleCount > 0;
+  const editingCutoutsOn = editingCutouts && hasGeometry;
+  const editingMountsOn = editingMounts && hasGeometry && !!shownGeometry?.installation;
+  const editing = editingCutoutsOn || editingMountsOn;
   const selectedId = params.backCutouts.some((c) => c.id === selectedBackCutoutId) ? selectedBackCutoutId : null;
   const invalidIds = useMemo(
-    () => (editing && shownGeometry ? findInvalidBackCutouts(params.backCutouts, shownGeometry.designCenter, shownGeometry.backCutoutSafeZone) : new Set<string>()),
-    [editing, shownGeometry, params.backCutouts],
+    () => (editingCutoutsOn && shownGeometry ? findInvalidBackCutouts(params.backCutouts, shownGeometry.designCenter, shownGeometry.backCutoutSafeZone) : new Set<string>()),
+    [editingCutoutsOn, shownGeometry, params.backCutouts],
   );
   const selectedCutout = params.backCutouts.find((c) => c.id === selectedId) ?? null;
   const invalidMessage =
-    editing && shownGeometry && selectedCutout && invalidIds.has(selectedCutout.id)
+    editingCutoutsOn && shownGeometry && selectedCutout && invalidIds.has(selectedCutout.id)
       ? checkBackCutoutPlacement(selectedCutout, shownGeometry.designCenter, shownGeometry.backCutoutSafeZone).message
       : null;
+  // Puntos de montaje como "recortes" sintéticos para el MISMO editor de arrastre (ver lib/maker/installation/editing.ts).
+  const mountCutouts = useMemo(() => (editingMountsOn ? mountEditorCutouts(installationPlan, params) : []), [editingMountsOn, installationPlan, params]);
+  const mountZone = useMemo(() => (editingMountsOn && shownGeometry ? mountSafeZone(shownGeometry, params) : null), [editingMountsOn, shownGeometry, params]);
+  const mountInvalid = useMemo(() => (editingMountsOn ? invalidMountEditorIds(installationPlan) : new Set<string>()), [editingMountsOn, installationPlan]);
   const cutoutEditing = useMemo(
     () =>
-      editing && shownGeometry
+      editingMountsOn && shownGeometry
         ? {
-            cutouts: params.backCutouts,
-            selectedId,
+            cutouts: mountCutouts,
+            selectedId: selectedMountId,
             origin: shownGeometry.designCenter,
-            invalidIds,
-            safeZone: shownGeometry.backCutoutSafeZone,
-            onSelect: setSelectedBackCutoutId,
+            invalidIds: mountInvalid,
+            safeZone: mountZone,
+            onSelect: setSelectedMountId,
             onMove: handleCutoutMove,
           }
-        : null,
-    [editing, shownGeometry, params.backCutouts, selectedId, invalidIds, handleCutoutMove],
+        : editingCutoutsOn && shownGeometry
+          ? {
+              cutouts: params.backCutouts,
+              selectedId,
+              origin: shownGeometry.designCenter,
+              invalidIds,
+              safeZone: shownGeometry.backCutoutSafeZone,
+              onSelect: setSelectedBackCutoutId,
+              onMove: handleCutoutMove,
+            }
+          : null,
+    [editingMountsOn, editingCutoutsOn, shownGeometry, mountCutouts, selectedMountId, mountInvalid, mountZone, params.backCutouts, selectedId, invalidIds, handleCutoutMove],
   );
+  const helperMesh = useMemo(
+    () => (displayMode === "model" && !editing ? buildInstallationHelperMesh(installationPlan, params, { showWiring, showWall }) : null),
+    [displayMode, editing, installationPlan, params, showWiring, showWall],
+  );
+  const spacerQuantity = shownGeometry?.installationParts.reduce((n, p) => n + p.quantity, 0) ?? 0;
+  const installExport = installationPlan
+    ? {
+        canDownload,
+        spacerQuantity,
+        hasGuide: !!installationPlan.wiring,
+        loading: installLoading,
+        onSpacers: () => shownGeometry && runInstall(() => downloadSpacers(shownGeometry), "No se pudieron exportar los separadores."),
+        onTemplate: () => shownGeometry && runInstall(() => downloadTemplatePdf(shownGeometry, params, baseFileName, installTitle), "No se pudo generar la plantilla."),
+        onGuide: () => shownGeometry && runInstall(() => downloadWiringGuidePdf(shownGeometry, params, baseFileName, installTitle), "No se pudo generar la guía de conexión."),
+        onKit: () => shownGeometry && runInstall(() => downloadInstallKit(shownGeometry, params, baseFileName, installTitle), "No se pudo generar el kit de instalación."),
+      }
+    : null;
   const plateCount = bed?.layout.plates.length ?? 0;
   const currentPlate = Math.min(Math.max(plateIndex, 1), Math.max(plateCount, 1));
 
@@ -234,13 +311,27 @@ export default function StampaMakerCartelesPage() {
             onChange={(backCutouts) => handleChange({ backCutouts })}
             selectedId={selectedId}
             onSelect={setSelectedBackCutoutId}
-            editing={editing}
-            canEdit={!!shownGeometry && shownGeometry.triangleCount > 0}
-            onToggleEditing={editing ? finishCutoutEditing : startCutoutEditing}
+            editing={editingCutoutsOn}
+            canEdit={hasGeometry}
+            onToggleEditing={editingCutoutsOn ? finishCutoutEditing : startCutoutEditing}
             errors={[
               ...fieldErrors.filter((e) => e.field === "backCutouts").map((e) => e.message),
               ...(geometry?.errors ?? []).filter((e) => e.code === "BACK_CUTOUT_INVALID").map((e) => e.message),
             ]}
+          />
+        </Card>
+
+        <Card className="p-5">
+          <MakerInstallationSection
+            params={params}
+            onChange={handleChange}
+            geometry={shownGeometry}
+            editingMounts={editingMountsOn}
+            onToggleEditingMounts={toggleMountEditing}
+            showWiring={showWiring}
+            onShowWiring={setShowWiring}
+            showWall={showWall}
+            onShowWall={setShowWall}
           />
         </Card>
       </aside>
@@ -251,12 +342,13 @@ export default function StampaMakerCartelesPage() {
           displayMode={editing ? "model" : displayMode}
           explosionAmount={effectiveExplosionAmount(explosionAmount, editing)}
           cutoutEditing={cutoutEditing}
+          helperMesh={helperMesh}
           bed={bed ? { items: bed.items, layout: bed.layout, profile, plateIndex: currentPlate } : null}
         />
         <div className="pointer-events-none absolute inset-0 flex flex-col justify-between gap-3 p-3">
           <div className="flex items-start justify-between gap-3">
             <div>
-              {editing && <CutoutEditingBanner invalidMessage={invalidMessage} />}
+              {editing && <CutoutEditingBanner invalidMessage={invalidMessage} mounts={editingMountsOn} />}
               {!editing && displayMode === "bed" && bed && <BedWarnings layout={bed.layout} profile={profile} />}
             </div>
             <ViewportExportCard
@@ -267,6 +359,7 @@ export default function StampaMakerCartelesPage() {
               lettersLoading={lettersZipLoading}
               onDownloadWord={handleDownloadWord}
               onDownloadLetters={handleDownloadLetters}
+              installation={installExport}
             />
           </div>
           {/* Safe zone para el botón flotante de Stampy (fixed, 56px, a 24px del borde): la card se corre a la izquierda en desktop. */}
