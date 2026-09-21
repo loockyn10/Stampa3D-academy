@@ -46,10 +46,12 @@ function oneOf<T extends string>(v: unknown, allowed: readonly T[], fallback: T)
   return allowed.includes(v as T) ? (v as T) : fallback;
 }
 
-const MODES: readonly MugMode[] = ["printed", "insert-shell"];
-const BODIES: readonly MugBodyStyle[] = ["straight", "conical", "barrel", "bulged"];
-const RIMS: readonly MugRimStyle[] = ["simple", "thick", "rounded"];
-const HANDLES: readonly MugHandleStyle[] = ["classic", "square", "angular"];
+export const MUG_MODES: readonly MugMode[] = ["printed", "insert-shell"];
+export const MUG_BODY_STYLES: readonly MugBodyStyle[] = ["straight", "conical", "barrel", "bulged"];
+export const MUG_RIM_STYLES: readonly MugRimStyle[] = ["simple", "thick", "rounded"];
+export const MUG_HANDLE_STYLES: readonly MugHandleStyle[] = ["classic", "square", "angular"];
+export const MUG_BASE_STYLES = ["normal", "reinforced"] as const;
+export const MUG_SURFACE_STYLES = ["smooth", "faceted"] as const;
 
 /**
  * Lectura tolerante de una definición venida de afuera (proyecto guardado, o —a futuro— una propuesta de IA):
@@ -60,22 +62,22 @@ export function normalizeMugDefinition(raw: unknown): MugDefinition {
   const r = rec(raw), D = DEFAULT_MUG;
   const surface = rec(r.surface), grooves = rec(r.grooves), bands = rec(r.bands), handle = rec(r.handle), insert = rec(r.insert);
   return {
-    mode: oneOf(r.mode, MODES, D.mode),
+    mode: oneOf(r.mode, MUG_MODES, D.mode),
     heightMm: num(r.heightMm, D.heightMm),
     topDiameterMm: num(r.topDiameterMm, D.topDiameterMm),
     bottomDiameterMm: num(r.bottomDiameterMm, D.bottomDiameterMm),
     wallThicknessMm: num(r.wallThicknessMm, D.wallThicknessMm),
     bottomThicknessMm: num(r.bottomThicknessMm, D.bottomThicknessMm),
-    bodyStyle: oneOf(r.bodyStyle, BODIES, D.bodyStyle),
+    bodyStyle: oneOf(r.bodyStyle, MUG_BODY_STYLES, D.bodyStyle),
     bodyBulgePct: num(r.bodyBulgePct, D.bodyBulgePct),
-    rim: oneOf(r.rim, RIMS, D.rim),
-    base: oneOf(r.base, ["normal", "reinforced"] as const, D.base),
-    surface: { style: oneOf(surface.style, ["smooth", "faceted"] as const, D.surface.style), sides: Math.round(num(surface.sides, D.surface.sides)) },
+    rim: oneOf(r.rim, MUG_RIM_STYLES, D.rim),
+    base: oneOf(r.base, MUG_BASE_STYLES, D.base),
+    surface: { style: oneOf(surface.style, MUG_SURFACE_STYLES, D.surface.style), sides: Math.round(num(surface.sides, D.surface.sides)) },
     grooves: { enabled: bool(grooves.enabled, D.grooves.enabled), count: Math.round(num(grooves.count, D.grooves.count)), depthMm: num(grooves.depthMm, D.grooves.depthMm) },
     bands: { enabled: bool(bands.enabled, D.bands.enabled), count: Math.round(num(bands.count, D.bands.count)), heightMm: num(bands.heightMm, D.bands.heightMm), reliefMm: num(bands.reliefMm, D.bands.reliefMm) },
     handle: {
       enabled: bool(handle.enabled, D.handle.enabled),
-      style: oneOf(handle.style, HANDLES, D.handle.style),
+      style: oneOf(handle.style, MUG_HANDLE_STYLES, D.handle.style),
       auto: bool(handle.auto, D.handle.auto),
       heightMm: num(handle.heightMm, D.handle.heightMm),
       projectionMm: num(handle.projectionMm, D.handle.projectionMm),

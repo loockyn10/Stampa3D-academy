@@ -10,6 +10,11 @@ export const MAX_TEXT_LENGTH = 80;
 export const DEFAULT_MEDALLION: MugMedallionDef = { shape: "oval", baseDepthMm: 1.5, paddingMm: 3, cornerRadiusMm: 6 };
 
 const FONT_IDS: readonly MakerFontId[] = ["montserrat-regular", "montserrat-bold"];
+/** Enums de decoración expuestos al planificador de IA (fuente única con `normalizeDecorations`). */
+export const MUG_FONT_IDS = FONT_IDS;
+export const MUG_DECORATION_MODES: readonly MugDecorationMode[] = ["emboss", "engrave", "medallion"];
+export const MUG_TEXT_ALIGNS: readonly MugTextAlign[] = ["left", "center", "right"];
+export const MUG_MEDALLION_SHAPES: readonly MugMedallionDef["shape"][] = ["oval", "circle", "rounded-rect"];
 
 /** Profundidad por defecto: relieve 1.5 mm, grabado 1.0 mm, arte de medallón 1.0 mm. */
 export function defaultDepth(mode: MugDecorationMode): number {
@@ -53,7 +58,7 @@ function normalizeSource(raw: unknown): MugDecorationSource {
       kind: "text",
       text: str(s.text, "").slice(0, 400),
       fontId: FONT_IDS.includes(s.fontId as MakerFontId) ? (s.fontId as MakerFontId) : "montserrat-bold",
-      align: (["left", "center", "right"] as MugTextAlign[]).includes(s.align as MugTextAlign) ? (s.align as MugTextAlign) : "center",
+      align: MUG_TEXT_ALIGNS.includes(s.align as MugTextAlign) ? (s.align as MugTextAlign) : "center",
     };
   }
   if (s.kind === "svg") return { kind: "svg", assetId: str(s.assetId, ""), fileName: str(s.fileName, "diseno.svg") };
@@ -83,12 +88,12 @@ export function normalizeDecorations(raw: unknown): MugDecoration[] {
   for (const item of raw.slice(0, MAX_DECORATIONS)) {
     if (!item || typeof item !== "object") continue;
     const d = rec(item);
-    const mode = (["emboss", "engrave", "medallion"] as MugDecorationMode[]).includes(d.mode as MugDecorationMode) ? (d.mode as MugDecorationMode) : "emboss";
+    const mode = MUG_DECORATION_MODES.includes(d.mode as MugDecorationMode) ? (d.mode as MugDecorationMode) : "emboss";
     const position = rec(d.position), size = rec(d.size), med = rec(d.medallion);
     let id = str(d.id, "") || newDecorationId();
     if (seen.has(id)) id = newDecorationId();
     seen.add(id);
-    const shape = (["oval", "circle", "rounded-rect"] as const).includes(med.shape as never) ? (med.shape as MugMedallionDef["shape"]) : DEFAULT_MEDALLION.shape;
+    const shape = MUG_MEDALLION_SHAPES.includes(med.shape as MugMedallionDef["shape"]) ? (med.shape as MugMedallionDef["shape"]) : DEFAULT_MEDALLION.shape;
     out.push({
       id,
       name: str(d.name, "Decoración").slice(0, 60),

@@ -59,6 +59,7 @@
 > Neon 0.2 (2026-09-20): imágenes raster PNG/JPEG -> skeleton -> NeonPaths (sección 27).
 > Jarros 0.1 (2026-09-21): tercera herramienta, **Jarros 3D** (`/stampa-maker/jarros`, sección 28): motor paramétrico independiente `MugDefinition` -> perfil -> revolución -> asa por loft topológico -> malla única cerrada.
 > Jarros 0.2 (2026-09-21): personalización del cuerpo — texto, SVG, PNG/JPG como relieve, grabado o medallón envueltos sobre la superficie real, sin CSG (sección 29).
+> Jarros 0.3 (2026-09-21): Diseñar con IA — el modelo solo configura MugDefinition/decoraciones vía structured output + sanitización + preview + aplicar (sección 30).
 > Neon 0.1.1 (2026-09-19): importador SVG corregido (cascada CSS real, `<text>`, mensajes diferenciados) y biblioteca de fuentes single-line reales: Mistral SingleLine y Relief SingleLine, OFL (sección 26).
 
 ## 1. Qué es
@@ -2450,8 +2451,7 @@ con el perfil A1. Exportar: `createMug(def, {quality: "export"})` -> `exportWord
 
 ### 28.10 Futuro (NO implementado)
 
-- **IA:** `prompt -> MugDesignProposal -> normalizeMugDefinition -> validateMug -> createMug`. Los tipos ya existen; no hay
-  llamada a ningún modelo. La propuesta nunca arma geometría.
+- **IA:** implementada en 0.3 (sección 30): `prompt -> MugDesignProposal -> applyMugDesignProposal -> validateMug -> createMug`. La propuesta nunca arma geometría.
 - **Branding/texturas (0.2+):** `MugDefinition.decorations[]` (implementado en 0.2, sección 29): texto, SVG, logos, relieves, ruido, Voronoi y
   heightmaps se sumarían como modificadores sobre `radiusAt`, sin cambiar el pipeline.
 
@@ -2617,3 +2617,118 @@ grabados. No se exporta ni la imagen original ni el helper ni overlays. Vista Ca
 - Con decoraciones la malla es densa (≈ 130 k tri preview / ≈ 640 k export); el STL export pesa ≈ 30 MB.
 - Sin presets decorativos (la arquitectura los permite: una receta podría incluir `decorations[]`), ni reordenar por
   drag & drop (botones ↑/↓), ni texto en arco / sobre curvas.
+
+---
+
+## 30. Jarros 0.3 — AI Design Planner ("Diseñar con IA")
+
+El usuario describe el jarro en lenguaje natural y el modelo **configura el motor paramétrico existente**. La IA no genera
+STL, mallas ni geometría: solo propone parámetros de `MugDefinition` / `MugDecoration[]` dentro de un schema cerrado.
+
+```
+prompt -> [server action] planMugDesign -> modelo (structured output) -> sanitizeMugDesignProposal
+       -> MugDesignProposal -> diff + preview (sin dirty) -> el usuario acepta
+       -> applyMugDesignProposal -> MugDefinition -> validateMug -> createMug -> STL
+```
+
+### 30.1 Archivos
+
+```
+src/lib/maker/mugs/ai/
+  types.ts             MugDesignProposal, MugPatch, MugDecorationOp, MugDesignRequest/Result, MUG_AI_SCHEMA_VERSION (= 1)
+  schema.ts            FUENTE ÚNICA: enums (importados de defaults/decorationDefaults) + rangos -> JSON schema strict,
+                       bloque de límites del prompt y sanitizador
+  prompt.ts            system prompt (solo server), mensaje de usuario, normalizeMugAiPrompt
+  sanitizeProposal.ts  sanitizeMugDesignProposal (única puerta de entrada de la salida del modelo)
+  applyProposal.ts     applyMugDesignProposal (PURA), resolveAssetChoice, pendingAssetChoices
+  diff.ts              diffMugDefinitions -> [{group, label, before, after, kind}]
+  planner.ts           planMugDesign(request, complete) (retry, errores) — sin OpenAI/Supabase, testeable con mocks
+  rateLimit.ts         checkMugAiRateLimit
+src/app/stampa-maker/jarros/actions.ts   designMugWithAiAction (auth + membresía + rate limit + OpenAI + log)
+src/components/maker/MakerMugAiDesigner.tsx   UI (sin lógica geométrica)
+tests/maker-mug-ai.test.mjs                   28 tests, sin red
+```
+
+`defaults.ts` y `decorations/decorationDefaults.ts` ahora exportan sus arrays de enums (`MUG_BODY_STYLES`, `MUG_HANDLE_STYLES`,
+`MUG_DECORATION_MODES`, …) para no duplicarlos. El antiguo tipo placeholder `MugDesignProposal {prompt, definition: unknown}` de
+`types.ts` se reemplazó por el de `ai/types.ts`.
+
+### 30.2 Infra reutilizada
+
+- SDK `openai` ya instalado y `OPENAI_API_KEY` (la misma que Stampy). Modelo: `MUG_AI_MODEL` → `OPENAI_MODEL` → `gpt-4o-mini`.
+  Llamada `chat.completions.create` con `response_format: json_schema, strict: true`; timeout 45 s, `maxRetries: 0`.
+- Auth: `getCurrentUserAccess`; exige `capabilities.useStampy` (membresía/grant activos): `authenticated != paid`.
+- Rate limit: `stampy_usage_logs` (sin migration; la CHECK de `mode` solo admite `openai|error|blocked|direct`). Cada llamada deja una
+  fila con `model = "mug-designer:<modelo>"`; se cuentan por usuario, 15/h y 60/día (`MUG_AI_MAX_PER_HOUR`, `MUG_AI_MAX_PER_DAY`).
+  **Acople conocido:** el limitador de Stampy cuenta todas las filas del usuario, así que estas también consumen su cupo.
+- No se agregó ninguna dependencia (no hay Zod en el repo; el schema es propio y se valida en runtime en `sanitizeProposal.ts`).
+- No hay infraestructura de analytics en el proyecto: no se agregaron eventos.
+
+### 30.3 Contrato (structured output)
+
+Objeto plano con todos los campos requeridos y `null` = "no especificado": `mode` (`full|patch`, debe coincidir con el pedido),
+`name`, `description`, `mugMode`, grupos `dimensions | body | grooves | bands | handle | insert`, `replaceDecorations`,
+`decorations[]` (ops `add|update|remove` con `sourceKind: text|asset|none`), `warnings[]`, `unsupportedRequests[]`.
+El JSON schema se genera desde `MUG_PATCH_FIELDS`/`DECORATION_FIELDS`. Los rangos reflejan `validateMug` (un test comprueba que los
+extremos del schema nunca disparen errores `RANGE`); si se cambian los límites del validador hay que actualizar `schema.ts`.
+
+### 30.4 Sanitización (la IA nunca es trusted)
+
+- Campos desconocidos descartados; `mode` distinto al pedido, no-objeto o propuesta vacía (sin cambios ni unsupported) → inválida.
+- Enum desconocido (p. ej. asa `dragon-claw`) → el campo se **ignora con aviso** (nunca cae a otra geometría).
+- Números: NaN/Infinity/no numéricos se descartan; el resto se acota al rango y se avisa; enteros redondeados.
+- Ángulos: se envuelven a [-180, 180]; |ángulo| > 3600 se rechaza.
+- Strings sin caracteres de control; nombre ≤ 60, descripción ≤ 400, notas ≤ 200 (máx. 6), texto de decoración ≤ 80 y ≤ 4 líneas.
+- Máx. 10 operaciones de decoración; `update/remove` solo sobre ids existentes.
+- Prompt del usuario: 3–1500 caracteres, sin control, delimitado en `<pedido_del_usuario>` (tratado como dato).
+
+### 30.5 Full vs patch
+
+Unión discriminada por `mode`, elegida por el usuario en la UI (no se infiere). **patch**: parte de la definición actual y solo cambia
+lo propuesto. **full**: parte de `DEFAULT_MUG` pero conserva **modo (jarro/inserto), medidas del inserto y decoraciones actuales**;
+las decoraciones solo se reemplazan si `replaceDecorations = true` y el panel lo avisa explícitamente antes de aplicar.
+`applyMugDesignProposal` además reconcilia: pedir N bandas/ranuras las activa (0 bandas = desactivadas), bandas que no entran se reducen,
+tocar altura/proyección/posición del asa la pasa a manual derivando lo no dicho del tamaño del jarro, y cada decoración se acota
+(altura, profundidad de grabado < pared − 1 mm, ancho ≤ 85 % del contorno). La física final sigue siendo de `validateMug`; la UI
+deshabilita "Aplicar" si la propuesta genera errores.
+
+### 30.6 Decoraciones, logos y no soportado
+
+- "Que diga X" → `text`/`emboss`/`angleDeg 0` (determinístico). Fuente por defecto Montserrat Bold, centrado.
+- Assets (SVG/PNG/JPG ya cargados): el modelo solo recibe id/tipo/nombre (nunca el contenido). Un único asset → se usa; varios y sin
+  id válido → `needsAssetChoice` y la UI pide elegir (no se adivina); ninguno → aviso "cargá un logo". No se analiza el contenido de imágenes.
+- `unsupportedRequests` (texturas, escultura, tapas, etc.) se muestran en un bloque "Todavía no disponible"; una propuesta que solo
+  contiene eso es válida y no cambia nada.
+- Insert mode: la IA puede pedir `insert-shell`; si no da medidas del inserto se conservan las actuales.
+
+### 30.7 UX
+
+Botón "✨ Diseñar con IA" (arriba del panel lateral; en mobile el panel se apila, sin overflow) → panel expandible: modo (desde cero /
+modificar), textarea con contador, chips de ejemplo (solo rellenan el prompt), "Generar diseño" / "Modificar con IA". La propuesta se
+muestra como ANTES → DESPUÉS (`diffMugDefinitions`, sin JSON) con `Ver propuesta` (preview temporal), `Aplicar diseño`, `Regenerar`,
+`Cancelar`. **Preview = `previewDef` en la página**: solo cambia lo que se dibuja; `def`, el estado "modificado" del proyecto y la
+descarga STL no se tocan (la descarga se deshabilita mientras hay preview). Aplicar sí reemplaza `def` (dirty). Tras aplicar, el
+panel pasa a modo "¿Qué cambiarías?" (patch sobre la definición actual). Accesibilidad: labels, `role=status/alert`,
+`aria-expanded/pressed`, botones deshabilitados. La IA solo se llama en acciones explícitas (nunca al mover sliders). Doble submit
+bloqueado; "Cancelar" descarta la respuesta en curso (el server action no se puede abortar: la llamada termina y se ignora).
+
+### 30.8 Errores y persistencia
+
+Códigos: `auth`, `membership`, `rate_limit`, `prompt`, `unavailable` (proveedor/clave/429/5xx), `timeout`, `invalid`, `unknown`, con
+mensajes en español que no filtran detalles. Salida inválida → 1 reintento automático (informando el problema) y luego `invalid`. Ante
+cualquier error el diseño actual no se toca. **Persistencia:** solo la `MugDefinition` (`source_data.definition`); no se guarda prompt,
+propuesta ni historial (`aiDesignSchemaVersion` viaja en la respuesta/propuesta, no en el proyecto). Abrir un proyecto nunca llama a la IA.
+
+### 30.9 Preparado para el futuro (NO implementado)
+
+Jarros 0.4 (concept image → interpretación paramétrica) y decoración IA (prompt → imagen/SVG → `MugDecoration`) encajan como nuevas
+entradas del mismo pipeline: la propuesta ya referencia assets por id y `MugDecorationOp.add` acepta cualquier `MugDecorationSource`.
+Fuera de alcance: text/image-to-3D, visión, generación de SVG/PNG, historial conversacional persistente, formas escultóricas.
+
+### 30.10 Limitaciones conocidas (0.3)
+
+- UI no verificada visualmente ni contra el proveedor real (la ruta exige login/membresía y clave); lógica, tests, `tsc` y build sí.
+- Los rangos de `schema.ts` duplican los de `validateMug` (protegido por test, no derivado).
+- El rate limit comparte tabla/cupo con Stampy (30.2). Cancelar no aborta la llamada al proveedor.
+- Coste por generación con `gpt-4o-mini` (~3–4 k tokens de entrada incl. schema, ~0,5–1 k de salida): del orden de USD 0,001. Es una
+  estimación a partir de tarifas públicas, no medida con esta infraestructura.

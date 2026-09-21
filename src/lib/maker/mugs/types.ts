@@ -6,10 +6,9 @@ import type { MakerFontId } from "@/lib/maker/types";
  * `MugDefinition` es la ÚNICA fuente de verdad del motor: la UI, los presets del sistema, los proyectos guardados y
  * (más adelante) la IA producen SOLO este objeto; nunca arman geometría. 1 unidad = 1 mm, Z vertical, asa hacia +X.
  *
- * Dónde encajará la IA (NO implementada en 0.1):
- *   prompt -> `MugDesignProposal` (salida del modelo, parcial y no confiable)
- *          -> `normalizeMugDefinition()` (acota/completa, mismo camino que abrir un proyecto)
- *          -> `validateMug()` -> `createMug()`.
+ * Dónde encaja la IA (0.3, ver `mugs/ai/`): prompt -> salida estructurada del modelo (no confiable)
+ *   -> `sanitizeMugDesignProposal()` (enums cerrados, clamps) -> `MugDesignProposal` -> preview/diff -> el usuario acepta
+ *   -> `applyMugDesignProposal()` -> `MugDefinition` -> `validateMug()` -> `createMug()`. La IA nunca toca geometría.
  */
 export type MugMode = "printed" | "insert-shell";
 export type MugBodyStyle = "straight" | "conical" | "barrel" | "bulged";
@@ -76,13 +75,6 @@ export interface MugDefinition {
   /** Solo modo "insert-shell". */
   insert: MugInsert;
   decorations: MugDecoration[];
-}
-
-/** Salida futura de una IA: una propuesta no confiable que SIEMPRE pasa por normalizeMugDefinition antes de usarse. */
-export interface MugDesignProposal {
-  prompt: string;
-  definition: unknown;
-  rationale?: string;
 }
 
 /** Calidad de malla: "preview" para sliders, "export" para el STL. */

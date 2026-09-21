@@ -4,6 +4,7 @@ import { useCallback, useMemo, useState } from "react";
 import Link from "next/link";
 import { ArrowLeft } from "lucide-react";
 import { useAppFeedback } from "@/components/ui/app-feedback";
+import { MakerMugAiDesigner } from "@/components/maker/MakerMugAiDesigner";
 import { MakerMugControls, MugExportCard } from "@/components/maker/MakerMugControls";
 import { MakerMugDecorationsPanel } from "@/components/maker/MakerMugDecorationsPanel";
 import { MakerNeonProjectsPanel } from "@/components/maker/MakerNeonProjectsPanel";
@@ -29,6 +30,8 @@ export default function StampaMakerMugsPage() {
   const [selectedDecoration, setSelectedDecoration] = useState<string | null>(null);
   // Archivos originales de las decoraciones (SVG/PNG/JPG) + proveedor de arte cacheado por contenido.
   const artwork = useMugArtwork();
+  // Vista previa temporal de una propuesta de IA: solo cambia lo que se dibuja; `def` (proyecto, dirty, STL) no se toca.
+  const [previewDef, setPreviewDef] = useState<MugDefinition | null>(null);
   const [downloading, setDownloading] = useState(false);
   const { toast } = useAppFeedback();
 
@@ -36,9 +39,9 @@ export default function StampaMakerMugsPage() {
   const [displayMode, setDisplayMode] = useState<MakerDisplayMode>("model");
   const [plateIndex, setPlateIndex] = useState(1);
 
-  const { result } = useMugGeometry(def, artwork.provider);
+  const { result } = useMugGeometry(previewDef ?? def, artwork.provider);
   const geometry = result.geometry;
-  const canDownload = !!geometry && geometry.triangleCount > 0 && result.errors.length === 0;
+  const canDownload = !previewDef && !!geometry && geometry.triangleCount > 0 && result.errors.length === 0;
 
   const handleApplyPreset = useCallback((preset: MugSystemPreset) => setDef((prev) => applyMugRecipe(prev, preset.recipe)), []);
 
@@ -46,11 +49,13 @@ export default function StampaMakerMugsPage() {
   const handleLoad = useCallback((loaded: MugDefinition, loadedAssets: MugAsset[]) => {
     replaceAssets(loadedAssets);
     setSelectedDecoration(null);
+    setPreviewDef(null);
     setDef(loaded);
   }, [replaceAssets]);
   const handleReset = useCallback((): MugDefinition => {
     replaceAssets([]);
     setSelectedDecoration(null);
+    setPreviewDef(null);
     setDef(DEFAULT_MUG);
     return DEFAULT_MUG;
   }, [replaceAssets]);
@@ -93,6 +98,8 @@ export default function StampaMakerMugsPage() {
           </Link>
           <h1 className="text-lg font-bold text-white">Jarros 3D</h1>
         </div>
+
+        <MakerMugAiDesigner def={def} assets={artwork.assets} onPreview={setPreviewDef} onApply={setDef} />
 
         <MakerNeonProjectsPanel library={library} emptyText="Todavía no guardaste proyectos de Jarros." showType={false} />
 
