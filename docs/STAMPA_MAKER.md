@@ -60,6 +60,7 @@
 > Jarros 0.1 (2026-09-21): tercera herramienta, **Jarros 3D** (`/stampa-maker/jarros`, sección 28): motor paramétrico independiente `MugDefinition` -> perfil -> revolución -> asa por loft topológico -> malla única cerrada.
 > Jarros 0.2 (2026-09-21): personalización del cuerpo — texto, SVG, PNG/JPG como relieve, grabado o medallón envueltos sobre la superficie real, sin CSG (sección 29).
 > Jarros 0.3 (2026-09-21): Diseñar con IA — el modelo solo configura MugDefinition/decoraciones vía structured output + sanitización + preview + aplicar (sección 30).
+> **Jarros 3D — Status: Beta / Admin Only (2026-09-21).** Desarrollo temporalmente pausado; ver sección 31.
 > Neon 0.1.1 (2026-09-19): importador SVG corregido (cascada CSS real, `<text>`, mensajes diferenciados) y biblioteca de fuentes single-line reales: Mistral SingleLine y Relief SingleLine, OFL (sección 26).
 
 ## 1. Qué es
@@ -2732,3 +2733,18 @@ Fuera de alcance: text/image-to-3D, visión, generación de SVG/PNG, historial c
 - El rate limit comparte tabla/cupo con Stampy (30.2). Cancelar no aborta la llamada al proveedor.
 - Coste por generación con `gpt-4o-mini` (~3–4 k tokens de entrada incl. schema, ~0,5–1 k de salida): del orden de USD 0,001. Es una
   estimación a partir de tarifas públicas, no medida con esta infraestructura.
+
+---
+
+## 31. Jarros 3D — Status: Beta / Admin Only (desarrollo pausado)
+
+Jarros 3D queda **congelado temporalmente**: sigue funcionando completo (motor, decoraciones, IA, proyectos, STL) pero solo para
+administradores y marcado BETA. No se eliminó código, geometría, proyectos, tests ni documentación.
+
+- Política: `src/lib/maker/availability.ts` (`MAKER_TOOL_AVAILABILITY`, `canAccessMakerTool`, `visibleMakerTools`). Para reabrir la herramienta
+  basta quitar `adminOnly` (y `beta` al salir de beta) de la entrada de Jarros.
+- Rol: `getCurrentUserAccess(...).access.capabilities.accessAdmin` (misma infraestructura que `/admin`; no hay un segundo sistema de permisos).
+- Landing `/stampa-maker` (server component): usuarios normales no ven la card; el admin la ve con badge "Beta".
+- Ruta: `src/app/stampa-maker/jarros/layout.tsx` (server) redirige a `/stampa-maker` si el usuario no es admin.
+- `designMugWithAiAction` también exige admin, para que el endpoint no quede abierto a usuarios pagos no-admin.
+- Carteles y Neon no cambian. Tests: `tests/maker-availability.test.mjs`.

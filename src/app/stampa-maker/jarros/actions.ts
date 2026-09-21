@@ -1,6 +1,7 @@
 "use server";
 
 import { getCurrentUserAccess } from "@/lib/auth/user-access";
+import { canAccessMakerTool } from "@/lib/maker/availability";
 import { cleanString } from "@/lib/maker/mugs/ai/sanitizeProposal";
 import { buildMugDesignJsonSchema } from "@/lib/maker/mugs/ai/schema";
 import { mugAiError, planMugDesign, type CompleteFn } from "@/lib/maker/mugs/ai/planner";
@@ -44,6 +45,7 @@ export async function designMugWithAiAction(input: DesignMugInput): Promise<MugD
   const userId = access.userId;
   if (!access.authenticated || !userId) return mugAiError("auth");
   if (!access.capabilities.useStampy) return mugAiError("membership");
+  if (!canAccessMakerTool("/stampa-maker/jarros", access.capabilities.accessAdmin)) return mugAiError("membership"); // Jarros: Beta / solo admin
   if (input?.mode !== "full" && input?.mode !== "patch") return mugAiError("prompt", "Modo de diseño no válido.");
 
   const apiKey = process.env.OPENAI_API_KEY;
