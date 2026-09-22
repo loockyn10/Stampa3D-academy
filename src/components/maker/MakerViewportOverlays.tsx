@@ -29,9 +29,12 @@ export interface InstallationExportProps {
   canDownload: boolean;
   /** Cantidad de separadores de pared (0 = sin montaje de separadores). */
   spacerQuantity: number;
+  /** Cantidad de soportes de empalme externos (letras - 1; 0 = sin cableado encadenado). */
+  clipQuantity: number;
   hasGuide: boolean;
   loading: boolean;
   onSpacers: () => void;
+  onClips: () => void;
   onTemplate: () => void;
   onGuide: () => void;
   onKit: () => void;
@@ -72,6 +75,12 @@ export function ViewportExportCard({ fromFile, multiPart, canDownload, loading, 
             <button type="button" onClick={installation.onSpacers} disabled={!installation.canDownload || installation.loading} className={`${btn} border-stampa-border bg-stampa-surface-soft text-stampa-text-muted hover:bg-white/10 hover:text-white`}>
               <Download size={14} />
               Separadores ×{installation.spacerQuantity} (.stl)
+            </button>
+          )}
+          {installation.clipQuantity > 0 && (
+            <button type="button" onClick={installation.onClips} disabled={!installation.canDownload || installation.loading} className={`${btn} border-stampa-border bg-stampa-surface-soft text-stampa-text-muted hover:bg-white/10 hover:text-white`}>
+              <Download size={14} />
+              Soporte empalmes ×{installation.clipQuantity} (.stl)
             </button>
           )}
           <button type="button" onClick={installation.onTemplate} disabled={!installation.canDownload || installation.loading} className={`${btn} border-stampa-border bg-stampa-surface-soft text-stampa-text-muted hover:bg-white/10 hover:text-white`}>

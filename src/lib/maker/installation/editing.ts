@@ -101,15 +101,3 @@ export function setLetterMountCount(overrides: InstallationOverrides, letterId: 
   void _p;
   return { ...overrides, [letterId]: { ...rest, mountCount: Math.max(1, Math.min(12, Math.round(count))) } };
 }
-
-export function setLetterSplice(overrides: InstallationOverrides, letterId: string, enabled: boolean): InstallationOverrides {
-  if (enabled) {
-    const { spliceEnabled: _s, ...rest } = overrides[letterId] ?? {};
-    void _s;
-    const next = { ...overrides };
-    if (Object.keys(rest).length > 0) next[letterId] = rest;
-    else delete next[letterId];
-    return next;
-  }
-  return withOverride(overrides, letterId, { spliceEnabled: false });
-}

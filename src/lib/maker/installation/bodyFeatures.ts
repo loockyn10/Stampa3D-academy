@@ -1,11 +1,8 @@
-import type { LetterSignParams, Point2D } from "@/lib/maker/types";
-import { addHoles, circlePolygon, type BackCutoutBaseResult } from "@/lib/maker/geometry/backCutouts";
+import type { ContourGroup, LetterSignParams, Point2D } from "@/lib/maker/types";
+import { addHoles, type BackCutoutBaseResult } from "@/lib/maker/geometry/backCutouts";
 import type { ExtrudedMeshData } from "@/lib/maker/geometry/extrudePolygon";
 import { getInstallationSettings } from "@/lib/maker/installation/defaults";
 import {
-  BAY_LIP_OVERHANG_MM,
-  BAY_LIP_THICKNESS_MM,
-  BAY_RAIL_MM,
   CLIP_LIP_OVERHANG_MM,
   CLIP_LIP_THICKNESS_MM,
   CLIP_POST_MM,
@@ -13,7 +10,7 @@ import {
   SOCKET_ROOF_MM,
   clipHeightMm,
   keyholeMountPolygons,
-  portHoleDiameterMm,
+  portHolePolygons,
   standoffRadii,
 } from "@/lib/maker/installation/layout";
 import { glyphPolygons, LABEL_HEIGHT_MM } from "@/lib/maker/installation/labelFont";
@@ -25,13 +22,13 @@ import type { InstallationPlan, LetterInstallationPlan } from "@/lib/maker/insta
  * huellas 2D extruidas y soldadas por coordenadas compartidas (mismo mecanismo
  * que los recortes traseros y el tapered) — sin CSG 3D:
  *
- *  - PORTS y KEYHOLES: agujeros pasantes en la base (se suman a la región de
+ *  - PUERTOS BIPOLARES (dos agujeros por puerto) y KEYHOLES: agujeros pasantes en la base (se suman a la región de
  *    recortes traseros, ver `installationThroughPolygons`).
  *  - RECEPTOR (standoff): boca en la cara trasera (Z=0) con chaflán escalonado de
  *    entrada, pared del socket hasta `insertDepth` y techo; alrededor, un BOSS
  *    (cilindro macizo) que crece desde la repisa dentro de la cavidad para que el
  *    encastre no dependa de los 1.2 mm de base.
- *  - BAHÍAS de empalme (dos rieles con pestañas), CLIPS (dos postes con labio) y
+ *  - CLIPS de retención local (dos postes con labio, junto a cada puerto) y
  *    ETIQUETAS: prismas sobre la repisa (Z=baseMm), cada uno con su hueco en la
  *    repisa y su tapa superior.
  *
@@ -50,7 +47,7 @@ export interface SocketSpec {
 }
 
 export interface RaisedSpec {
-  kind: "bay" | "clip" | "label";
+  kind: "clip" | "label";
   id: string;
   /** Capas relativas a la repisa: z0/z1 medidos desde Z=baseMm. */
   layers: { dz0: number; dz1: number; polygons: Point2D[][] }[];
@@ -70,7 +67,8 @@ export function installationThroughPolygons(plan: InstallationPlan, params: Lett
       if (m.valid && m.kind === "keyhole") out.push(...keyholeMountPolygons(plan.origin.x + m.x, plan.origin.y + m.y, settings.mounting.keyhole));
     }
     for (const p of letter.ports) {
-      if (p.valid) out.push(circlePolygon(plan.origin.x + p.x, plan.origin.y + p.y, p.holeDiameterMm));
+      // Un puerto bipolar = DOS perforaciones circulares paralelas (+ y -), nunca una ranura ni un agujero único.
+      if (p.valid) out.push(...portHolePolygons(plan.origin.x + p.x, plan.origin.y + p.y, p.wireHoleDiameterMm, p.holeCenterSpacingMm));
     }
   }
   return out;
@@ -91,31 +89,6 @@ export function buildBodyFeatures(letter: LetterInstallationPlan | undefined, pl
       const [x, y] = g(m.x, m.y);
       sockets.push({ x, y, socketRadiusMm: socketR, bossRadiusMm: bossR, depthMm: s.insertDepthMm, chamferMm: Math.min(SOCKET_CHAMFER_MM, Math.max(0, params.baseMm - 0.4)) });
     }
-  }
-
-  for (const bay of letter.bays) {
-    if (!bay.valid) continue;
-    const [cx, cy] = g(bay.x, bay.y);
-    // Las pestañas quedan ESTRICTAMENTE dentro del riel salvo por el voladizo hacia el canal (nada de aristas colineales con el riel: evita
-    // vértices en T y triángulos degenerados en la tapa).
-    const rail = (side: 1 | -1, o: number, len: number, along = 0, outerInset = 0): Point2D[] => {
-      const v0 = side * (bay.innerWidthMm / 2 - o);
-      const v1 = side * (bay.innerWidthMm / 2 + BAY_RAIL_MM - outerInset);
-      const vc = (v0 + v1) / 2;
-      return rectPolygon(...localToGlobal(cx, cy, bay.rotationDeg, along, vc), len, Math.abs(v1 - v0), bay.rotationDeg);
-    };
-    const h1 = bay.heightMm - BAY_LIP_THICKNESS_MM;
-    const tabLen = Math.min(4, bay.outerLengthMm / 3);
-    const tabs: Point2D[][] = [];
-    for (const side of [1, -1] as const) for (const along of [-bay.outerLengthMm / 4, bay.outerLengthMm / 4]) tabs.push(rail(side, BAY_LIP_OVERHANG_MM, tabLen, along, 0.3));
-    raised.push({
-      kind: "bay",
-      id: bay.id,
-      layers: [
-        { dz0: 0, dz1: h1, polygons: [rail(1, 0, bay.outerLengthMm), rail(-1, 0, bay.outerLengthMm)] },
-        { dz0: h1, dz1: bay.heightMm, polygons: tabs },
-      ],
-    });
   }
 
   for (const clip of letter.clips) {
@@ -143,7 +116,6 @@ export function buildBodyFeatures(letter: LetterInstallationPlan | undefined, pl
     if (polys.length > 0) raised.push({ kind: "label", id: label.id, layers: [{ dz0: 0, dz1: LABEL_HEIGHT_MM, polygons: polys }] });
   }
 
-  void portHoleDiameterMm;
   void clipHeightMm;
   return sockets.length === 0 && raised.length === 0 ? undefined : { sockets, raised };
 }
@@ -162,6 +134,7 @@ export function applyInstallationToBase(base: BackCutoutBaseResult, features: Bo
   if (!features) return base;
   const capLoops: Point2D[][] = [];
   const shelfLoops: Point2D[][] = [];
+  const shelfIslands: ContourGroup[] = [];
   const pieces: ExtrudedMeshData[] = [];
 
   for (const s of features.sockets) {
@@ -188,13 +161,17 @@ export function applyInstallationToBase(base: BackCutoutBaseResult, features: Bo
     const layers: PrismLayer[] = r.layers.map((l) => ({ z0: baseMm + l.dz0, z1: baseMm + l.dz1, groups: normalizePolygons(l.polygons) }));
     if (layers.length === 0 || layers[0].groups.length === 0) continue;
     const stack = buildPrismStackDetailed(layers, { topCap: true });
-    for (const group of stack.layerGroups[0]) shelfLoops.push(group.outer);
+    for (const group of stack.layerGroups[0]) {
+      shelfLoops.push(group.outer);
+      // Un contorno con hueco (p.ej. la "O" de OUT) deja el piso de la repisa DENTRO del hueco: una isla de repisa que cierra las paredes del hueco.
+      for (const hole of group.holes) shelfIslands.push({ outer: hole, holes: [] });
+    }
     pieces.push(stack.mesh);
   }
 
   return {
     baseCapGroups: capLoops.length > 0 ? addHoles(base.baseCapGroups, capLoops) : base.baseCapGroups,
-    shelfGroups: shelfLoops.length > 0 ? addHoles(base.shelfGroups, shelfLoops) : base.shelfGroups,
+    shelfGroups: shelfLoops.length > 0 ? [...addHoles(base.shelfGroups, shelfLoops), ...shelfIslands] : base.shelfGroups,
     holeWalls: base.holeWalls,
     extraPieces: [...(base.extraPieces ?? []), ...pieces],
   };

@@ -3,14 +3,14 @@
 import React from "react";
 import { AlertTriangle, Cable, Move, RotateCcw } from "lucide-react";
 import { NumberField, SegmentedControl, Toggle } from "@/components/maker/MakerTextControls";
-import { resetMountOverrides, setLetterMountCount, setLetterSplice } from "@/lib/maker/installation/editing";
+import { resetMountOverrides, setLetterMountCount } from "@/lib/maker/installation/editing";
 import type {
   InstallationRecipe,
   KeyholeMountSettings,
   LedVoltage,
   MountingType,
   PaperFormat,
-  SpliceSettings,
+  SpliceClipSettings,
   StandoffMountSettings,
   WiringDirection,
   WiringMode,
@@ -67,7 +67,7 @@ export function MakerInstallationSection({ params, onChange, geometry, editingMo
   const setKeyhole = (patch: Partial<KeyholeMountSettings>) => setRecipe({ mounting: { ...recipe.mounting, keyhole: { ...recipe.mounting.keyhole, ...patch } } });
   const setStandoff = (patch: Partial<StandoffMountSettings>) => setRecipe({ mounting: { ...recipe.mounting, standoff: { ...recipe.mounting.standoff, ...patch } } });
   const setWiring = (patch: Partial<WiringSettings>) => setRecipe({ wiring: { ...recipe.wiring, ...patch } });
-  const setSplice = (patch: Partial<SpliceSettings>) => setWiring({ splice: { ...recipe.wiring.splice, ...patch } });
+  const setClip = (patch: Partial<SpliceClipSettings>) => setWiring({ spliceClip: { ...recipe.wiring.spliceClip, ...patch } });
   const setOverrides = (next: LetterSignParams["installationOverrides"]) => onChange({ installationOverrides: next });
 
   const { mounting, wiring } = recipe;
@@ -75,7 +75,8 @@ export function MakerInstallationSection({ params, onChange, geometry, editingMo
   const overrides = params.installationOverrides ?? {};
   const hasManual = Object.values(overrides).some((o) => o.mountPoints || o.mountCount);
   const issues = [...(plan?.errors ?? []).map((e) => ({ ...e, level: "error" as const })), ...(plan?.warnings ?? []).map((e) => ({ ...e, level: "warning" as const }))];
-  const spacerPart = geometry?.installationParts[0];
+  const spacerPart = geometry?.installationParts.find((p) => p.kind === "wallSpacer");
+  const clipPart = geometry?.installationParts.find((p) => p.kind === "bipolarSpliceClip");
   const letters = geometry?.letters ?? [];
 
   return (
@@ -157,14 +158,15 @@ export function MakerInstallationSection({ params, onChange, geometry, editingMo
         <SegmentedControl options={WIRING_OPTIONS} value={wiring.mode} onChange={(mode) => setWiring({ mode })} />
         {wiring.mode === "chained" && (
           <>
-            <p className="text-xs text-gray-500">Los cables recorren las letras en cadena, pero la conexión eléctrica es en <b>paralelo</b>: cada letra toma + y - de los mismos buses.</p>
+            <p className="text-xs text-gray-500">Cada conexión entre letras lleva <b>dos conductores (+ y -)</b>: cada entrada/salida son dos agujeros. Los cables recorren las letras en cadena, pero la conexión eléctrica es en <b>paralelo</b>. Los empalmes se hacen <b>fuera</b> de las letras.</p>
             <div>
               <span className="mb-1 block text-xs font-semibold text-gray-500">Dirección</span>
               <SegmentedControl compact options={DIRECTION_OPTIONS} value={wiring.direction} onChange={(direction) => setWiring({ direction })} />
             </div>
             <div className="grid grid-cols-2 gap-3">
-              <NumberField label="Ø cable" suffix="mm" value={wiring.wireDiameterMm} onChange={(v) => setWiring({ wireDiameterMm: v })} />
-              <NumberField label="Holgura del puerto" suffix="mm" value={wiring.portClearanceMm} onChange={(v) => setWiring({ portClearanceMm: v })} />
+              <NumberField label="Ø conductor" suffix="mm" value={wiring.wireDiameterMm} onChange={(v) => setWiring({ wireDiameterMm: v })} />
+              <NumberField label="Ø de cada agujero" suffix="mm" value={wiring.wireHoleDiameterMm} onChange={(v) => setWiring({ wireHoleDiameterMm: v })} />
+              <NumberField label="Separación entre agujeros" suffix="mm" value={wiring.holeCenterSpacingMm} onChange={(v) => setWiring({ holeCenterSpacingMm: v })} />
               <NumberField label="Margen de servicio" suffix="mm" value={wiring.serviceMarginMm} onChange={(v) => setWiring({ serviceMarginMm: v })} />
               <label className="block">
                 <span className="mb-1 block text-xs font-semibold text-gray-500">Entrada de alimentación</span>
@@ -177,12 +179,19 @@ export function MakerInstallationSection({ params, onChange, geometry, editingMo
                 <SegmentedControl compact options={VOLTAGE_OPTIONS} value={wiring.voltage ?? "none"} onChange={(v) => setWiring({ voltage: v === "none" ? null : v })} />
               </label>
             </div>
-            <Toggle label="Alojamiento de empalmes (+ y -)" checked={wiring.splice.enabled} onChange={(enabled) => setSplice({ enabled })} />
-            {wiring.splice.enabled && (
-              <div className="grid grid-cols-3 gap-3">
-                <NumberField label="Ø empalme" suffix="mm" value={wiring.splice.diameterMm} onChange={(v) => setSplice({ diameterMm: v })} />
-                <NumberField label="Largo" suffix="mm" value={wiring.splice.lengthMm} onChange={(v) => setSplice({ lengthMm: v })} />
-                <NumberField label="Holgura" suffix="mm" value={wiring.splice.clearanceMm} onChange={(v) => setSplice({ clearanceMm: v })} />
+            <Toggle label="Soporte de empalmes externo (pieza aparte)" checked={wiring.spliceClip.enabled} onChange={(enabled) => setClip({ enabled })} />
+            {wiring.spliceClip.enabled && (
+              <div className="grid grid-cols-2 gap-3">
+                <NumberField label="Ø máx. empalme" suffix="mm" value={wiring.spliceClip.diameterMm} onChange={(v) => setClip({ diameterMm: v })} />
+                <NumberField label="Largo empalme" suffix="mm" value={wiring.spliceClip.lengthMm} onChange={(v) => setClip({ lengthMm: v })} />
+                <NumberField label="Separación + / -" suffix="mm" value={wiring.spliceClip.spacingMm} onChange={(v) => setClip({ spacingMm: v })} />
+                <NumberField label="Holgura" suffix="mm" value={wiring.spliceClip.clearanceMm} onChange={(v) => setClip({ clearanceMm: v })} />
+                <p className="col-span-2 text-xs text-gray-500">Sostiene y ordena los dos empalmes ya aislados; no conduce corriente ni se fija a la pared. Se inserta después de empalmar.</p>
+                {clipPart && (
+                  <p className="col-span-2 rounded-lg border border-white/10 bg-white/[0.04] px-3 py-2 text-xs text-gray-300">
+                    Soporte de empalmes · cantidad necesaria: <b>{clipPart.quantity}</b> · {clipPart.fileBaseName}.stl
+                  </p>
+                )}
               </div>
             )}
             <Toggle label="Etiquetas impresas (+, -, IN, OUT)" checked={wiring.printLabels} onChange={(printLabels) => setWiring({ printLabels })} />
@@ -231,9 +240,6 @@ export function MakerInstallationSection({ params, onChange, geometry, editingMo
                         className="h-7 w-14 rounded-md border border-white/10 bg-white/[0.06] px-2 text-xs text-white"
                       />
                     </label>
-                  )}
-                  {wiring.mode === "chained" && wiring.splice.enabled && (
-                    <Toggle label="empalmes" checked={o?.spliceEnabled !== false} onChange={(v) => setOverrides(setLetterSplice(overrides, l.instance.id, v))} />
                   )}
                   {role && <span className="text-gray-500">{role.isFirst ? "alimentación" : role.hasIn ? "entrada" : ""}{role.hasOut ? (role.isFirst ? " + salida" : " + salida") : ""}</span>}
                 </div>

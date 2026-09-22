@@ -61,7 +61,7 @@
 > Jarros 0.2 (2026-09-21): personalización del cuerpo — texto, SVG, PNG/JPG como relieve, grabado o medallón envueltos sobre la superficie real, sin CSG (sección 29).
 > Jarros 0.3 (2026-09-21): Diseñar con IA — el modelo solo configura MugDefinition/decoraciones vía structured output + sanitización + preview + aplicar (sección 30).
 > **Jarros 3D — Status: Beta / Admin Only (2026-09-21).** Desarrollo temporalmente pausado; ver sección 31.
-> Instalación 0.1 (2026-09-21): sistema de instalación de Carteles — identidad física por letra, montaje (Keyhole / separadores impresos con receptor reforzado), cableado encadenado físico / paralelo eléctrico, puertos, bahías de empalme, clips, zonas reservadas, plantilla 1:1 (PDF vectorial con tiling), guía de conexión y kit ZIP (sección 32).
+> Instalación 0.1 (2026-09-21): sistema de instalación de Carteles — identidad física por letra, montaje (Keyhole / separadores impresos con receptor reforzado), cableado BIPOLAR encadenado físico / paralelo eléctrico (puertos de dos agujeros, soporte de empalmes EXTERNO imprimible), zonas reservadas, plantilla 1:1 (PDF vectorial con tiling), guía de conexión y kit ZIP (sección 32; corrección bipolar/externo en 32.7-32.8).
 > Neon 0.1.1 (2026-09-19): importador SVG corregido (cascada CSS real, `<text>`, mensajes diferenciados) y biblioteca de fuentes single-line reales: Mistral SingleLine y Relief SingleLine, OFL (sección 26).
 
 ## 1. Qué es
@@ -2783,7 +2783,7 @@ Un SVG/PNG importado es UNA instancia ("Diseño").
   **Viaja en presets** (clave `installation` en `PRESET_SETTING_KEYS`, normalización tolerante propia).
 - `InstallationOverrides` — por letra, indexada por `LetterInstance.id` (`LetterSignParams.installationOverrides`):
   posiciones manuales de montaje (`mountPoints`, mm relativos al centro del diseño como los
-  `BackCutout`), `mountCount`, `spliceEnabled`. **Específico del proyecto**: está en
+  `BackCutout`), `mountCount`. **Específico del proyecto**: está en
   `DESIGN_PARAM_KEYS`, NUNCA viaja en un preset; el proyecto lo guarda en `settings.installationOverrides`.
 - Proyectos viejos sin estos campos cargan con defaults (`normalizeInstallationRecipe/Overrides`).
 - Dirty state: `projectSignature` serializa todo el payload, así que cualquier cambio (montaje,
@@ -2801,16 +2801,16 @@ posiciones (test).
 
 Todo feature nace dentro del **núcleo de la cavidad** de la letra (la misma región que usan los
 recortes traseros, con margen de borde), es decir sobre material real y nunca en un counter, fuera
-de la letra ni en una pared. **`BackFeatureZone`** (`mount | cutout | splice-bay | cable-clip |
+de la letra ni en una pared. **`BackFeatureZone`** (`mount | cutout | cable-clip |
 cable-port | label`) reserva `footprint + margen`; el layout resta las zonas ya reservadas y los
 recortes traseros manuales (margen 1 mm) antes de buscar posición, y una validación posterior detecta
 solapes (auto o manuales) entre features y contra recortes manuales:
-`ZONES_OVERLAP`, `PORT_INVADES_MOUNT`, `MOUNT_INVALID`, `SPLICE_OUTSIDE_MATERIAL` (ERRORES: bloquean la
-exportación) y `MOUNT_NONE`, `MOUNT_FEWER_THAN_TWO`, `SPLICE_NO_SPACE`, `CLIP_NO_SPACE`, `PORT_NO_SPACE`,
+`ZONES_OVERLAP`, `PORT_INVADES_MOUNT`, `MOUNT_INVALID`, `PORT_INVALID`, `SPLICE_CLIP_INVALID` (ERRORES: bloquean la
+exportación) y `MOUNT_NONE`, `MOUNT_FEWER_THAN_TWO`, `CLIP_NO_SPACE`, `PORT_NO_SPACE`,
 `REAR_PORT_FLUSH`, `KEYHOLE_DEPTH` (avisos). Falta de espacio en una letra ⇒ aviso (no hay geometría
 inválida que bloquear); una `I` estrecha nunca bloquea el cartel.
 
-**Orden de reserva**: montaje → puertos → bahías → clips → etiquetas.
+**Orden de reserva**: montaje → puertos bipolares → etiquetas → retención local (clips).
 
 ### 32.5 Montaje
 
@@ -2863,105 +2863,122 @@ polaridad, nunca LED→LED). `computeElectricalBuses` (unión-búsqueda) verific
 «Cable directo + / -» (sin USB-C funcional). El voltaje LED (5/12/24/otro) es solo etiqueta de documentación: no
 dimensiona nada eléctrico.
 
-### 32.7 Puertos de cable — estrategia elegida y por qué
+### 32.7 Puerto de cable BIPOLAR — estrategia elegida y por qué
 
-`CablePortPlacement { kind, preferred, fallback, reason }`. **V1 usa `rear-edge`** (agujero pasante
-en la base, cerca del borde lateral, en la cavidad de la letra), con `preferred: "side-wall"` y
-`fallback: true`. **Por qué**: un puerto lateral exige perforar la pared vertical en dirección horizontal;
-esa geometría no es una extrusión 2D y obligaría a CSG 3D o a rehacer las paredes por bandas con las
-costillas/biseles/tapered — frágil y arriesgado para el motor estable. La abstracción está lista para
-sumar `side-wall` sin tocar el modelo eléctrico. Ø del agujero = cable + 2 × holgura (2 + 2×0.3 = 2.6 mm).
-Entradas a la izquierda y salidas a la derecha (invertido en R→L), sobre una línea de cable común al 30 % de
-la altura para que los tramos entre letras sean rectos. Con **montaje Keyhole** la letra apoya contra la
-pared y el cable sale hacia ella: aviso `REAR_PORT_FLUSH` (dejar un canal o usar separadores).
+> **Corrección conceptual (2026-09-21, 2ª iteración).** La primera versión del sprint modeló cada entrada/salida
+> como UN solo agujero y colocó "alojamientos de empalme" (splice bays) dentro de la parte trasera de cada letra.
+> Ambas cosas eran incorrectas para el producto: los carteles usan cableado **bipolar** (entre dos letras siempre
+> viajan `+` y `-` juntos) y el empalme ocurre **fuera** de las letras, en el espacio entre ellas. Se eliminaron los
+> bays internos, sus zonas reservadas, el ruteo interno, los clips que llevaban hacia ellos y sus ajustes; se
+> reemplazaron por el `BipolarCablePort` y el `ExternalSpliceClip` (32.8).
 
-### 32.8 Bahías de empalme, clips y alivio de tensión
+Cada IN / OUT / ALIM es un **`BipolarCablePort`**: una unidad con DOS agujeros circulares paralelos (`○ ○`, `+` arriba y `-`
+abajo, visto de frente). Se ubica, valida, reserva (una sola `BackFeatureZone` que cubre ambos agujeros + margen) y se
+muestra como un bloque; los agujeros nunca son features independientes. Defaults: **Ø 2.8 mm por agujero y 4.5 mm entre
+centros** (`wireHoleDiameterMm`, `holeCenterSpacingMm`, configurables; `wireDiameterMm` = 2 mm es el conductor,
+informativo: el agujero debe ser ≥ conductor y quedar ≥ 1.2 mm de pared entre agujeros, si no `PORT_INVALID`). Geometría: DOS
+perforaciones circulares pasantes en la base (nunca una ranura ni un agujero único), sumadas a la región de recortes
+traseros; el test mide el área quitada = 2 círculos de Ø2.8 por puerto.
 
-Todo va **dentro de la cavidad, sobre la repisa de la base** (no detrás de la letra): así funciona
-con Keyhole (apoyo plano contra la pared) y con separadores, imprime sin soportes y queda protegido.
-Se desvía de la palabra "trasera" del pedido por esa razón; el cable entra por los puertos traseros.
-No hay etiquetas/canales sobre la cara exterior.
+Placement: la búsqueda exige que los dos agujeros quepan juntos en la cavidad real con margen de 1 mm y sin tocar otras
+zonas. Roles (sin cambios): primera = ALIM + OUT; intermedias = IN + OUT; última = IN; entradas a la izquierda y salidas a
+la derecha (invertido en R→L), sobre una línea de cable común al 30 % de la altura.
 
-- **Bahía +** y **bahía -** (separadas por su margen, nunca solapadas): dos rieles de 1.2 mm con
-  pestañas de retención cortas (voladizo 0.4 mm, extremos abiertos: el empalme se retira con el dedo);
-  interior = Ø empalme + 2 × holgura por 25 mm + 2 × holgura (defaults 5 mm, 25 mm, 0.4 mm/lado). Cerca del centro
-  de la letra; prueba vertical y horizontal. Si no entran AMBAS: aviso "No hay espacio suficiente para el
-  alojamiento automático" y no se deja una sola. Se puede desactivar por letra.
-- **Clips (strain relief)**: dos por puerto, a 6 mm y 13 mm del puerto, dos postes con labio (cable Ø2 → abertura
-  2.3 mm, snap suave, sin tolerancias críticas). Se prueban direcciones alrededor de la recta puerto→bahías.
-  Orden garantizado `puerto → clip → clip → bahía` (`route`).
-- **Ruteo** (`route`): `port-in → clips → bahía+ → bahía- → clips → port-out`, sin canales cerrados.
-- **Etiquetas** en relieve de 0.6 mm (fuente de píxeles 3×5, `labelFont.ts`): `+`, `-`, `IN`, `OUT`,
-  solo si caben; desactivables. No se imprimen los ids de letra (aparecen en la plantilla/guía).
-- **Letras muy estrechas**: implementado A (bahías verticales, independientes entre sí) + aviso. No implementado
-  todavía: B (boss ampliado) ni C (alojamiento externo detrás de la letra).
-- Todos son prismas apilados soldados (sin CSG) con conformado de vértices en T y reparación de triángulos
-  colineales (`meshRepair.ts`, solo en cuerpos con instalación): watertight y sin degenerados (tests).
+`CablePortPlacement { kind, preferred, fallback, reason }`. La preferencia de producto sigue siendo la salida lateral
+(`side-wall`); **V1 usa el fallback `rear-edge`** (agujeros pasantes en la base, cerca del borde lateral), siempre con
+`preferred: "side-wall"` y `fallback: true`, y en ambos casos DOS agujeros y el footprint del par completo. **Por qué**: un
+puerto lateral exige perforar la pared vertical en dirección horizontal; no es una extrusión 2D y obligaría a CSG 3D o a
+rehacer las paredes por bandas con costillas/biseles/tapered — frágil para el motor estable. Con **montaje Keyhole** la
+letra apoya contra la pared y el cable sale hacia ella: aviso `REAR_PORT_FLUSH`.
 
-### 32.9 Editor de montaje, helpers y separación
+### 32.8 Soporte de empalmes EXTERNO (`ExternalSpliceClip`) y retención local
 
-- **Editar montaje**: reusa el editor visual de Back Cutouts en el mismo `MakerViewport` (vista trasera
-  ortográfica, arrastrar en mm reales). Los puntos se muestran como recortes sintéticos (círculo del refuerzo o
-  forma del keyhole); zona segura = núcleo − margen; posiciones inválidas en rojo; al soltar, la letra pasa a
-  posiciones manuales (`installationOverrides`). Un punto inválido no genera geometría y produce un error que bloquea
-  la exportación. «Restablecer automático» limpia posiciones/cantidades.
-- **Helpers visuales** (no exportables; `helper.ts`, se dibujan como `helperMesh`): «Mostrar cableado» — hilo + continuo /
-  hilo - discontinuo (no depende del color), flechas de dirección y recorrido interno; «Mostrar pared de referencia»
-  a la distancia de separación. No aparecen en STL, ZIP ni Vista Cama. No hay rótulos de texto 3D en el viewport
-  (las etiquetas A1/A2 están en el panel «Ajustes por letra», la plantilla y la guía).
-- **Longitudes** (`computeCableLengths`): distancia entre el puerto OUT de N y el IN de N+1 + margen de servicio
-  (default 30 mm): «Cable S → T: 76 mm». Métrica física, sin dimensionado eléctrico.
+**El empalme ocurre fuera de las letras.** Entre `A OUT (+/-)` y `P IN (+/-)` viajan dos cables, se hacen dos empalmes
+(uno + y uno -), y siguen dos cables. Para sostenerlos existe una **pieza auxiliar imprimible independiente**
+(`spliceClip.ts`, `bipolar-splice-clip.stl`): NO es un conector eléctrico, no conduce corriente y no reemplaza la
+soldadura ni el termocontraíble; solo **sostiene, ordena, separa y retiene suavemente** los dos empalmes ya terminados y
+aislados. Sin borneras, Wago, marcas ni diámetro fijo de termocontraíble.
+
+- **Geometría**: una placa base con DOS canales U abiertos y paralelos (`+` y `-`); cada canal tiene dos rieles de 1.2 mm y
+  cuatro pestañas de retención cortas (voladizo 0.4 mm, extremos abiertos: los cables salen y el empalme se retira con el dedo).
+  Abierto por arriba: se inserta DESPUÉS de empalmar (no hay que pasar el cable antes). Un solo sólido soldado por capas
+  (sin CSG, watertight, un único componente, sin piezas flotantes), impreso plano sobre la placa. Defaults:
+  Ø empalme 5 mm, largo 25 mm, separación entre ejes 12 mm, holgura 0.4 mm/lado (interior 5.8 × 25.8 mm); la separación debe dejar
+  ≥ 1.2 mm de pared entre canales (`SPLICE_CLIP_INVALID`). Ajustes en `wiring.spliceClip { enabled, diameterMm, lengthMm, spacingMm, clearanceMm }`.
+- **Pieza universal**: todas las conexiones usan los mismos ajustes ⇒ UN STL y la cantidad **letras − 1** (1 letra → 0, 2 → 1,
+  6 → 5); se muestra «cantidad necesaria: N» y nunca se generan N archivos idénticos.
+- **NO anclado a la pared** en esta versión (sin tornillo, adhesivo ni orejas): variante futura.
+- **Retención local (strain relief)**: la letra conserva UN clip sencillo junto a cada puerto que abraza los dos conductores
+  del par (`interior → clip → ○ ○ → cable exterior`), del lado interior de la letra. Se eliminaron los clips que conducían a bays
+  internos y toda ruta interna. Van dentro de la cavidad, sobre la repisa (prismas apilados soldados, sin CSG).
+- **Etiquetas** en relieve de 0.6 mm (`labelFont.ts`): `IN`/`OUT` sobre el par y `+`/`-` junto a cada agujero, si caben.
+
+### 32.9 Conexiones (datos de ruta), helpers y editor de montaje
+
+- **`WireConnection`** (uno por tramo, `plan.connections`): `fromLetter/fromPort/toLetter/toPort`, `positivePath` y `negativePath`
+  (de cada agujero de OUT al de IN) y `clipPosition` (punto medio y ángulo del recorrido). Es la única fuente del helper, la
+  plantilla y la guía. Longitud entre letras: distancia entre los centros de los pares OUT(N) → IN(N+1) + margen de servicio
+  (default 30 mm). Métrica física, sin dimensionado eléctrico.
+- **Helper de cableado** («Mostrar cableado», no exportable, `helper.ts`): DOS conductores paralelos por tramo — `+` continuo y
+  `-` discontinuo, con marcas `+` / `-` y flecha (no depende del color) — y un soporte de empalmes de referencia a mitad de
+  camino. «Mostrar pared de referencia» sigue igual. Nada de esto entra a STL, ZIP ni Vista Cama.
+- **Editar montaje**: reusa el editor de Back Cutouts (puntos de montaje como recortes sintéticos, zona segura, rojo si es
+  inválido). Los puertos NO tienen edición manual todavía; si se agrega, el `BipolarCablePort` deberá arrastrarse como una
+  única unidad (mueve ambos agujeros).
 
 ### 32.10 Plantilla de instalación 1:1 y PDF (`installation/pdf/`)
 
-- **Sin dependencias nuevas**: el proyecto solo tenía `@react-pdf/renderer` (documentos de flujo). Se escribió un
-  escritor PDF vectorial mínimo (`pdfWriter.ts`, base-14, sin rasterizar) porque hay que garantizar la escala y
-  testearla byte a byte: cada página declara su `MediaBox` real en puntos y una matriz fija `72/25.4`
-  (1 unidad = 1 mm); se prueba que 100 mm miden 283.46 pt.
-- **Una sola fuente de verdad**: la plantilla usa los `ContourGroup` reales de cada letra (no recalcula el texto) y las
-  posiciones salen del MISMO `InstallationPlan` que el 3D (test: la marca `M-S1` es el centro real del socket del
-  cuerpo; el punto de perforación del keyhole es el centro del extremo de su cuello).
-- Vista de frente. Contiene: contorno de cada letra, línea de nivel, ancho total y alto máximo, ids (A1/A2), marcas
-  (`○` perforación keyhole «M1-K1», `⊙` receptor/separador «M-S1» con Ø de perforación y huella del cuerpo, `●` paso
-  de cable «IN/OUT/ALIM», línea punteada con flecha = ruteo entre letras) con leyenda (no depende del color).
-  **No se inventan perforaciones en la pared**: el cableado solo aporta pasos por la letra y rutas de referencia.
-- **Papel** A4 / Carta / A3 (default A4; no se asume por locale, el repo no tenía preferencia). **Tiling** automático:
-  usa la orientación (vertical/apaisada) que requiera menos hojas; superposición 10 mm (configurable); «Página X / Y»
-  con columna/fila; marcas de corte en las esquinas del área útil; líneas de alineación punteadas en el centro de cada
-  franja de superposición (mismas coordenadas de plantilla en hojas vecinas). **Control de 100 mm** (línea con topes)
-  y el texto «Imprimir al 100% / Tamaño real. Verificar que esta referencia mida 100 mm.» en cada hoja.
+- **Sin dependencias nuevas**: el proyecto solo tenía `@react-pdf/renderer` (documentos de flujo). Se escribió un escritor PDF
+  vectorial mínimo (`pdfWriter.ts`, base-14, sin rasterizar) para garantizar y testear la escala: cada página declara su
+  `MediaBox` real y una matriz fija `72/25.4` (1 unidad = 1 mm); 100 mm miden 283.46 pt.
+- **Una sola fuente de verdad**: contornos = los `ContourGroup` reales; posiciones = las del `InstallationPlan` (test: la marca
+  `M-S1` es el centro real del socket; el punto del keyhole es el centro del extremo de su cuello; **cada puerto son dos marcas
+  `IN+`/`IN-`… en las mismas posiciones que los dos agujeros 3D**).
+- Contenido: contorno de cada letra, línea de nivel, ancho total y alto máximo, ids (A1/A2), `○` perforación keyhole «M1-K1»,
+  `⊙` receptor/separador «M-S1» (Ø de perforación y huella del cuerpo), **`● ●` paso de cable bipolar (+ / -)**, dos líneas
+  punteadas (+ trazo largo, - trazo corto) entre letras y el soporte de empalmes de referencia. Leyenda que no depende del color.
+  **No se inventan perforaciones en la pared**: el cableado solo aporta pasos por la letra y referencias.
+- Papel A4 / Carta / A3 (default A4), orientación con menos hojas, tiling con superposición (10 mm), «Página X / Y», marcas de
+  corte y alineación, control de 100 mm con «Imprimir al 100% / Tamaño real. Verificar que esta referencia mida 100 mm.».
 
 ### 32.11 Guía de conexión (PDF)
 
-`wiringGuide.ts`: orden físico `FUENTE → S → T → A1 → M → P → A2` (flechas reales, fuente Symbol),
-«CONEXIÓN ELÉCTRICA EN PARALELO», esquema de dos buses (+ línea llena, - punteada) con una derivación y un LED por
-letra (hasta 6 por fila), diagramas de letra intermedia (`IN+ ─┬─ OUT+ / LED+`) y última, tabla de roles con el
-largo de cada tramo, y los 6 pasos para principiantes (preparar cables, empalmar, aislar, colocar en bahías,
-verificar polaridad, probar antes del montaje final). Aclara baja tensión DC y que la fuente/red quedan fuera del cartel.
+`wiringGuide.ts`. Página 1: orden físico `FUENTE → S → T → A1 → M → P → A2` (flechas reales), «CONEXIÓN ELÉCTRICA EN PARALELO», esquema
+de dos buses (+ línea llena, - punteada), diagramas por letra (`IN+ ─┬─ OUT+`, `LED+`) y tabla de roles y longitudes. Página 2:
+**diagrama de conexión bipolar** `A OUT ○ ○ ── [empalme +] ── ○ ○ P IN` / `[empalme -]` con el **soporte impreso** dibujado alrededor de los
+dos empalmes como sujeción mecánica, NO eléctrica; la cantidad de soportes (letras − 1); el texto «Realizá y aislá los empalmes antes de
+colocarlos en el soporte impreso.» y los 7 pasos para principiantes (preparar cables, pasar los pares, empalmar fuera de las letras,
+aislar, colocar en el soporte, verificar polaridad, probar antes del montaje final). Baja tensión DC únicamente.
 
 ### 32.12 Exportación (`exporters/exportInstallKit.ts`)
 
-Panel «Exportar → Instalación» (visible con montaje o cableado): Separadores ×N (.stl), Plantilla 1:1 (PDF), Guía de
-conexión (PDF, si hay cableado) y **Kit completo (.zip)**:
+Panel «Exportar → Instalación»: Separadores ×N, **Soporte empalmes ×(letras−1)**, Plantilla 1:1 (PDF), Guía de conexión (PDF) y
+**Kit completo (.zip)**:
 
 ```
 <nombre>-kit.zip
-  STL/     01_S.stl 02_T.stl 03_A1.stl 04_M.stl 05_P.stl 06_A2.stl  wall-spacer-12x20.stl   (una sola pieza)
+  STL/     01_S.stl … 06_A2.stl   bipolar-splice-clip.stl (una sola pieza)   wall-spacer-12x20.stl (si hay separadores)
   INSTALL/ plantilla-instalacion.pdf  guia-conexion.pdf
-  LEEME.txt   (cantidad de separadores, orden físico, aviso de baja tensión)
+  LEEME.txt   (cantidades de cada pieza, «Cantidad de soportes de empalme: letras - 1», orden físico, baja tensión)
 ```
 
-Todo se bloquea mientras `result.errors` no esté vacío (mismo criterio que el resto). Los separadores no se mezclan
-con el packing de la Vista Cama (no se agregaron a Print Bed).
+Todo se bloquea mientras `result.errors` no esté vacío. Las piezas auxiliares no se mezclan con el packing de la Vista Cama.
 
-### 32.13 Limitaciones conocidas
+### 32.13 Persistencia y migración
 
-- Puertos laterales (side-wall) diferidos; solo `rear-edge` (ver 32.7). Letras muy estrechas: sin boss ampliado ni
-  alojamiento externo. Etiquetas impresas solo `+ - IN OUT`.
+`wiring` cambió respecto de la primera versión del sprint: se eliminaron `splice` (bays internos) y `portClearanceMm`, y por letra
+`spliceEnabled/splicePlus/spliceMinus`; se agregaron `wireHoleDiameterMm`, `holeCenterSpacingMm` y `spliceClip`. Todo sigue en el
+JSON `settings` (sin migration SQL, `PROJECT_SCHEMA_VERSION` sin cambios). **Compatibilidad**: `normalizeInstallationRecipe` lee los
+proyectos del sprint anterior — `wiring.splice` se migra a `wiring.spliceClip` (Ø, largo, holgura, interruptor), el resto de claves
+antiguas se descarta y el agujero/separación toman los defaults nuevos; los overrides antiguos de empalmes se ignoran.
+
+### 32.14 Limitaciones conocidas
+
+- Puertos laterales (side-wall) diferidos; solo `rear-edge` (ver 32.7). Los puertos aún no se editan a mano.
+- El soporte de empalmes no se ancla a la pared (sin tornillo/adhesivo/orejas) y su posición en Model View es solo visual.
 - Sin frente de canal luminoso (cuerpo macizo, sin cavidad): error explícito `NOT_SUPPORTED_FRONT`.
-- El separador y el receptor asumen el sistema de referencia de UN separador por punto (sin variantes por letra).
+- El separador y el receptor asumen UN separador por punto (sin variantes por letra). Etiquetas impresas solo `+ - IN OUT`.
 - Kit ZIP: los STL usan el mismo recentrado por letra que el ZIP de letras individuales.
-- Verificación visual del panel/viewport en navegador NO realizada (la ruta exige sesión con acceso a plataforma);
-  sí se verificó visualmente el render de los PDF y toda la geometría por tests (watertight, un shell por letra).
-- **Halo LED / retroiluminación NO implementado**; la separación de pared (20 mm) deja espacio para esa futura
-  iluminación trasera y por eso no se rellena el volumen posterior (nada sobresale por detrás de la letra).
+- Verificación visual del panel/viewport en navegador NO realizada (la ruta exige sesión con acceso a plataforma); sí se verificó
+  visualmente el render de los PDF y toda la geometría por tests (watertight, un shell por letra).
+- **Halo LED / retroiluminación y USB-C NO implementados**; la separación de pared (20 mm) deja espacio para esa futura iluminación trasera.

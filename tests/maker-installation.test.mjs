@@ -119,6 +119,7 @@ const chained = (extra = {}) => ({ wiring: { ...DEFAULT_LETTER_SIGN_PARAMS.insta
 
 
 const layout = loadMakerModule("lib/maker/installation/layout.ts");
+const spliceClip = loadMakerModule("lib/maker/installation/spliceClip.ts");
 const wiring = loadMakerModule("lib/maker/installation/wiring.ts");
 const offsets = loadMakerModule("lib/maker/geometry/offsets.ts");
 const spacer = loadMakerModule("lib/maker/installation/wallSpacer.ts");
@@ -354,9 +355,12 @@ test("69b posiciones manuales: válidas se respetan; inválidas => error control
 
 // ------------------------------------------------------------------- puertos
 
-test("70 puertos: entrada izquierda, salida derecha, agujero pasante válido; fallback trasero documentado", () => {
+test("70 puerto bipolar: cada IN/OUT = exactamente 2 agujeros (+ y -), diámetro y separación correctos, safe-zone cubre ambos", () => {
   const two = createLetterGeometry(font, paramsOf("TT", chained()));
   assert.deepEqual(two.errors, []);
+  const w = DEF.installation.wiring;
+  assert.equal(w.wireHoleDiameterMm, 2.8);
+  assert.equal(w.holeCenterSpacingMm, 4.5);
   const [first, second] = two.installation.letters;
   const out = first.ports.find((p) => p.role === "out");
   const inn = second.ports.find((p) => p.role === "in");
@@ -365,20 +369,48 @@ test("70 puertos: entrada izquierda, salida derecha, agujero pasante válido; fa
   const mid = (i) => two.letters[i].instance.boundsMm.minX + two.letters[i].instance.boundsMm.width / 2;
   assert.ok(abs(two, out)[0] > mid(0), "salida a la derecha");
   assert.ok(abs(two, inn)[0] < mid(1), "entrada a la izquierda");
-  assert.ok(abs(two, power)[0] < abs(two, out)[0]);
-  const hole = 2 + 2 * 0.3;
+  const core = coreOf(two, 0, paramsOf("TT", chained()));
   for (const p of [out, inn, power]) {
-    assert.ok(Math.abs(p.holeDiameterMm - hole) < 1e-9, "agujero = cable + 2 x holgura");
+    assert.equal(p.holes.length, 2, "exactamente 2 agujeros");
+    assert.deepEqual(p.holes.map((h) => h.polarity), ["+", "-"]);
+    assert.equal(p.wireHoleDiameterMm, 2.8);
+    assert.ok(Math.abs(Math.hypot(p.holes[0].x - p.holes[1].x, p.holes[0].y - p.holes[1].y) - 4.5) < 1e-6, "separación entre centros 4.5 mm");
+    assert.ok(Math.abs(p.holes[0].x - p.holes[1].x) < 1e-9 && p.holes[0].y > p.holes[1].y, "par vertical: + arriba, - abajo");
+    assert.ok(Math.abs((p.holes[0].y + p.holes[1].y) / 2 - p.y) < 1e-6 && Math.abs(p.holes[0].x - p.x) < 1e-9, "el par está centrado en x/y del puerto");
     assert.equal(p.placement.kind, "rear-edge");
     assert.equal(p.placement.preferred, "side-wall");
-    assert.equal(p.placement.fallback, true, "side-wall diferido => fallback trasero");
-    assert.ok(p.placement.reason);
+    assert.equal(p.placement.fallback, true);
   }
+  // La zona segura cubre AMBOS agujeros de cada puerto de la primera letra (cavidad real, con margen de 1 mm).
+  const safe = offsets.insetContourGroups(core, 1);
+  for (const p of first.ports) {
+    for (const h of p.holes) {
+      const poly = backCutoutPolygons({ id: "h", type: "circle", x: 0, y: 0, diameterMm: 2.8 }, { x: abs(two, h)[0], y: abs(two, h)[1] }).map(offsets.pointsToRawPath);
+      assert.ok(Math.abs(offsets.clipperPathsArea(offsets.differenceRawPaths(poly, safe))) < 1e-3, `${p.id} ${h.polarity} dentro de la zona segura`);
+    }
+  }
+  // Geometría: DOS perforaciones circulares en la base por puerto (no una ranura ni un agujero único).
   for (let i = 0; i < 2; i++) assert.ok(watertight(bodyOf(two, i)));
   const plain = gen("TT", {});
-  assert.ok(planarCapArea(bodyOf(two, 0), 0, -1) < planarCapArea(bodyOf(plain, 0), 0, -1) - 5, "agujero real en la base");
-  const withMount = createLetterGeometry(font, paramsOf("TT", { ...standoff, ...chained() }));
-  assert.deepEqual(withMount.errors, []);
+  const holeArea = Math.PI * 1.4 * 1.4;
+  const removed = planarCapArea(bodyOf(plain, 0), 0, -1) - planarCapArea(bodyOf(two, 0), 0, -1);
+  assert.ok(Math.abs(removed - first.ports.length * 2 * holeArea) < 0.6, `área quitada = ${first.ports.length * 2} círculos de Ø2.8 (${removed.toFixed(2)})`);
+  // Un puerto = UNA zona reservada que cubre ambos agujeros.
+  const zone = first.zones.find((z) => z.id === out.id);
+  assert.equal(first.zones.filter((z) => z.kind === "cable-port").length, first.ports.length);
+  const zonePaths = zone.footprint.map(offsets.pointsToRawPath);
+  for (const h of out.holes) {
+    const hp = backCutoutPolygons({ id: "h", type: "circle", x: 0, y: 0, diameterMm: 2.8 }, { x: abs(two, h)[0], y: abs(two, h)[1] }).map(offsets.pointsToRawPath);
+    assert.ok(Math.abs(offsets.clipperPathsArea(offsets.differenceRawPaths(hp, zonePaths))) < 0.05, "la zona cubre el agujero");
+  }
+  // Configurable.
+  const custom = createLetterGeometry(font, paramsOf("TT", chained({ wireHoleDiameterMm: 3.2, holeCenterSpacingMm: 5.5 })));
+  const cp = custom.installation.letters[0].ports[0];
+  assert.equal(cp.wireHoleDiameterMm, 3.2);
+  assert.ok(Math.abs(cp.holes[0].y - cp.holes[1].y - 5.5) < 1e-6);
+  // Parámetros inválidos: agujero menor al conductor / separación sin pared entre agujeros => error controlado.
+  assert.ok(gen("TT", chained({ wireHoleDiameterMm: 1.5 })).errors.some((e) => e.code === "INSTALLATION_INVALID"));
+  assert.ok(gen("TT", chained({ holeCenterSpacingMm: 3.5 })).errors.some((e) => e.code === "INSTALLATION_INVALID"));
 });
 
 test("70b letra estrecha (I): no bloquea el cartel; falta de espacio => warning, no error", () => {
@@ -387,66 +419,140 @@ test("70b letra estrecha (I): no bloquea el cartel; falta de espacio => warning,
   for (const l of r.letters) assert.ok(watertight(l.parts[0].mesh));
 });
 
-// ------------------------------------------------------------------- empalmes
-
-test("71 splice bays + y -: separadas, cabe empalme + holgura, dimensiones configurables", () => {
-  const r = gen("M", chained());
-  assert.deepEqual(r.errors, []);
-  const l = r.installation.letters[0];
-  const plus = l.bays.find((b) => b.polarity === "+");
-  const minus = l.bays.find((b) => b.polarity === "-");
-  assert.ok(plus && minus);
-  const s = DEF.installation.wiring.splice;
-  for (const bay of [plus, minus]) {
-    assert.ok(bay.innerWidthMm >= s.diameterMm + s.clearanceMm, "diámetro del empalme + holgura");
-    assert.ok(bay.innerLengthMm >= s.lengthMm + s.clearanceMm, "largo del empalme + holgura");
-    assert.ok(bay.valid);
+test("70c no quedan splice bays internos: sin bahías en el plan, sin geometría de bahía en el cuerpo, sin ajustes de empalme por letra", () => {
+  const r = gen("STAMPA", chained());
+  for (const l of r.installation.letters) {
+    assert.equal(l.bays, undefined);
+    assert.equal(l.route, undefined);
+    assert.ok(l.zones.every((z) => ["mount", "cable-port", "cable-clip", "label"].includes(z.kind)));
+    assert.ok(l.clips.length <= l.ports.length, "a lo sumo una retención local por puerto");
   }
-  const zones = l.zones.filter((z) => z.kind === "splice-bay");
-  assert.equal(zones.length, 2);
-  assert.ok(!layout.zonesConflict(zones[0], zones[1]), "bahías + y - separadas");
-  assert.ok(l.ports[0].holeDiameterMm >= 2, "el cable configurado entra por el puerto");
-  assert.ok(watertight(bodyOf(r, 0)));
-  const big = createLetterGeometry(font, paramsOf("M", { wiring: { ...DEF.installation.wiring, mode: "chained", splice: { ...s, diameterMm: 6, lengthMm: 30 } } }));
-  const bp = big.installation.letters[0].bays[0];
-  assert.ok(bp.innerWidthMm >= 6.4 && bp.innerLengthMm >= 30.4);
-  const off = createLetterGeometry(font, paramsOf("M", chained(), {}, { L1: { spliceEnabled: false } }));
-  assert.equal(off.installation.letters[0].bays.length, 0);
-  assert.equal(gen("M", chained({ splice: { ...s, enabled: false } })).installation.letters[0].bays.length, 0);
+  assert.equal(DEF.installation.wiring.splice, undefined);
+  assert.equal(DEF.installation.wiring.portClearanceMm, undefined);
+  // Cuerpo: solo puertos + clips locales + etiquetas (mucho menos que con bahías internas) y un solo shell.
+  for (let i = 0; i < 6; i++) assert.ok(watertight(bodyOf(r, i)));
+  assert.equal(r.installationParts.filter((p) => p.kind === "wallSpacer").length, 0);
 });
 
-test("71b letra sin espacio para las bahías: warning explícito y sin geometría inválida", () => {
-  const r = gen("I", chained(), { heightMm: 30 });
-  assert.equal(r.installation.letters[0].bays.length, 0);
-  assert.ok(r.warnings.some((w) => w.message.includes("No hay espacio suficiente para el alojamiento automático")));
-  assert.ok(watertight(bodyOf(r, 0)));
+test("71 clip externo: dos alojamientos paralelos, spacing, holgura, manifold, acceso abierto y sin piezas flotantes", () => {
+  const s = DEF.installation.wiring.spliceClip;
+  assert.deepEqual({ ...s }, { enabled: true, diameterMm: 5, lengthMm: 25, spacingMm: 12, clearanceMm: 0.4 });
+  const sizes = spliceClip.spliceClipSizes(s);
+  assert.ok(Math.abs(sizes.innerWidthMm - 5.8) < 1e-9 && Math.abs(sizes.innerLengthMm - 25.8) < 1e-9, "Ø + 2 x holgura; largo + 2 x holgura");
+  const mesh = spliceClip.buildSpliceClipMesh(s);
+  assert.ok(watertight(mesh), "manifold, watertight, un solo componente (sin piezas flotantes)");
+  const b = meshBounds3(mesh.positions);
+  assert.ok(Math.abs(b.minZ) < 1e-6, "apoya plano en Z=0");
+  assert.ok(Math.abs(b.maxX - b.minX - sizes.plateLengthMm) < 1e-3 && Math.abs(b.maxY - b.minY - sizes.plateWidthMm) < 1e-3);
+  // Superficies horizontales: el piso de cada canal está a Z = placa, en DOS bandas paralelas de ancho = interior.
+  const floorZ = spliceClip.CLIP_PLATE_MM;
+  const p = mesh.positions;
+  const upFloor = [];
+  for (let t = 0; t < mesh.triangleCount; t++) {
+    const o = t * 9;
+    if ([2, 5, 8].every((k) => Math.abs(p[o + k] - floorZ) < 1e-4) && mesh.normals[o + 2] > 0.9) upFloor.push([p[o], p[o + 1], p[o + 3], p[o + 4], p[o + 6], p[o + 7]]);
+  }
+  const ys = upFloor.flatMap((t) => [t[1], t[3], t[5]]);
+  const centers = [s.spacingMm / 2, -s.spacingMm / 2];
+  for (const cy of centers) {
+    const inChannel = ys.filter((y) => Math.abs(y - cy) <= sizes.innerWidthMm / 2 + 1e-3);
+    assert.ok(inChannel.length > 0, "hay piso en cada alojamiento");
+    assert.ok(Math.max(...inChannel) - Math.min(...inChannel) >= sizes.innerWidthMm - 1e-3, "el alojamiento mide el interior configurado");
+  }
+  // Separación entre alojamientos (centro a centro) = spacing y pared entre canales >= 1.2 mm.
+  assert.ok(Math.abs(centers[0] - centers[1] - 12) < 1e-9);
+  assert.ok(12 - sizes.outerWidthMm >= 1.2 - 1e-9);
+  // Acceso abierto: por arriba del canal, entre pestañas, no hay material (la abertura >= 80 % del Ø del empalme).
+  const opening = sizes.innerWidthMm - 2 * spliceClip.CLIP_TAB_OVERHANG_MM;
+  assert.ok(opening >= s.diameterMm * 0.8, "abertura de inserción");
+  for (let t = 0; t < mesh.triangleCount; t++) {
+    const o = t * 9;
+    const zAll = [p[o + 2], p[o + 5], p[o + 8]];
+    if (zAll.every((z) => z > floorZ + 1e-3)) {
+      for (const cy of centers) for (const k of [1, 4, 7]) assert.ok(Math.abs(p[o + k] - cy) >= opening / 2 - 1e-3, "nada cubre el centro del canal (inserción abierta por arriba)");
+    }
+  }
+  // Extremos abiertos: los rieles no tienen pared en los extremos del canal (los cables salen).
+  const railMaxX = Math.max(...[...Array(mesh.triangleCount * 3).keys()].filter((k) => p[k * 3 + 2] > floorZ + 0.5).map((k) => p[k * 3]));
+  assert.ok(Math.abs(railMaxX - sizes.innerLengthMm / 2) < 1e-3);
+  // Configurable y validado.
+  const big = spliceClip.buildSpliceClipMesh({ ...s, diameterMm: 6, lengthMm: 30, spacingMm: 14 });
+  assert.ok(watertight(big));
+  assert.ok(spliceClip.validateSpliceClip({ ...s, spacingMm: 8 }).length > 0, "alojamientos demasiado juntos");
+  assert.deepEqual(spliceClip.validateSpliceClip(s), []);
+  // Sin componentes eléctricos: es una pieza de solo plástico sin geometría de contacto (única forma cerrada, sin agujeros pasantes).
+  assert.equal(components(mesh.positions), 1);
 });
 
-test("72 strain relief: puerto -> clip -> clip -> bahía en orden y sin solapes", () => {
+test("71b cantidad de clips: 1 letra => 0, 2 letras => 1, 6 letras => 5; una sola pieza exportable", () => {
+  assert.equal(gen("M", chained()).installation.spliceClipCount, 0);
+  assert.equal(gen("M", chained()).installationParts.length, 0);
+  const two = gen("MM", chained());
+  assert.equal(two.installation.spliceClipCount, 1);
+  const six = gen("STAMPA", chained());
+  assert.equal(six.installation.spliceClipCount, 5);
+  const clips = six.installationParts.filter((p) => p.kind === "bipolarSpliceClip");
+  assert.equal(clips.length, 1, "UN solo STL");
+  assert.equal(clips[0].fileBaseName, "bipolar-splice-clip");
+  assert.equal(clips[0].quantity, 5);
+  assert.equal(gen("STAMPA", chained({ spliceClip: { ...DEF.installation.wiring.spliceClip, enabled: false } })).installationParts.length, 0);
+  assert.equal(gen("STAMPA", {}).installation, null);
+  assert.equal(gen("STAMPA", keyhole).installationParts.length, 0);
+  // Con separadores + cableado: ambas piezas, cada una una sola vez.
+  const both = gen("STAMPA", { ...standoff, ...chained() });
+  assert.deepEqual(both.installationParts.map((p) => [p.kind, p.quantity]).sort(), [["bipolarSpliceClip", 5], ["wallSpacer", both.installationParts.find((p) => p.kind === "wallSpacer").quantity]].sort());
+});
+
+test("72 retención local: un clip por puerto, junto al par y hacia el interior; sin rutas internas ni solapes", () => {
   const r = gen("STAMPA", chained());
   let checked = 0;
   for (const l of r.installation.letters) {
-    if (l.bays.length === 0) continue;
     for (const port of l.ports) {
-      const clips = l.clips.filter((c) => c.portId === port.id).sort((a, b) => a.distanceFromPortMm - b.distanceFromPortMm);
-      for (let i = 1; i < clips.length; i++) assert.ok(clips[i].distanceFromPortMm > clips[i - 1].distanceFromPortMm);
-      if (clips.length > 0) assert.ok(clips[0].distanceFromPortMm >= 5, "el primer clip está a distancia del puerto");
-      checked += clips.length;
+      const clips = l.clips.filter((c) => c.portId === port.id);
+      assert.ok(clips.length <= 1);
+      for (const c of clips) {
+        checked++;
+        assert.ok(c.distanceFromPortMm >= 5, "el clip está a distancia del puerto");
+        assert.ok(c.gapMm >= port.holeCenterSpacingMm + 2, "el clip abraza los dos conductores del par");
+        const interior = port.side === "left" ? c.x > port.x : c.x < port.x;
+        assert.ok(interior, "el clip queda del lado interior de la letra");
+        assert.ok(Math.abs(c.y - port.y) < 1e-6, "alineado con el par");
+      }
     }
-    const kinds = l.route.map((n) => n.kind);
-    assert.equal(kinds[0], "port-in");
-    const firstBay = kinds.findIndex((k) => k.startsWith("bay"));
-    assert.ok(firstBay > 0);
-    assert.ok(kinds.slice(1, firstBay).every((k) => k === "clip"));
-    const zones = l.zones;
-    for (let i = 0; i < zones.length; i++) for (let j = i + 1; j < zones.length; j++) assert.ok(!layout.zonesConflict(zones[i], zones[j]), `${zones[i].id} / ${zones[j].id}`);
-    for (const c of l.clips) assert.ok(c.gapMm >= 2, "el clip admite el cable de 2 mm");
+    for (let i = 0; i < l.zones.length; i++) for (let j = i + 1; j < l.zones.length; j++) assert.ok(!layout.zonesConflict(l.zones[i], l.zones[j]), `${l.zones[i].id} / ${l.zones[j].id}`);
   }
-  assert.ok(checked > 0);
+  assert.ok(checked >= 6);
   for (let i = 0; i < r.letters.length; i++) assert.ok(watertight(bodyOf(r, i)), `letra ${i} watertight`);
 });
 
-test("73 features traseras combinadas: 2 standoffs + IN + OUT + 2 bahías + recorte manual, sin solapes", () => {
+test("72b conexiones bipolares: datos de ruta visual completos por tramo (+ y - separados, posición del clip)", () => {
+  const r = gen("STAMPA", chained());
+  const cons = r.installation.connections;
+  assert.equal(cons.length, 5);
+  assert.deepEqual(cons.map((c) => `${c.fromLabel}>${c.toLabel}`), ["S>T", "T>A1", "A1>M", "M>P", "P>A2"]);
+  cons.forEach((c, i) => {
+    assert.equal(c.fromLetter, `L${i + 1}`);
+    assert.equal(c.toLetter, `L${i + 2}`);
+    const from = r.installation.letters[i].ports.find((p) => p.id === c.fromPort);
+    const to = r.installation.letters[i + 1].ports.find((p) => p.id === c.toPort);
+    assert.equal(from.role, "out");
+    assert.equal(to.role, "in");
+    assert.equal(c.positivePath.length, 2);
+    assert.equal(c.negativePath.length, 2);
+    assert.deepEqual(c.positivePath[0], { x: from.holes[0].x, y: from.holes[0].y });
+    assert.deepEqual(c.positivePath[1], { x: to.holes[0].x, y: to.holes[0].y });
+    assert.deepEqual(c.negativePath[0], { x: from.holes[1].x, y: from.holes[1].y });
+    assert.deepEqual(c.negativePath[1], { x: to.holes[1].x, y: to.holes[1].y });
+    assert.notDeepEqual(c.positivePath, c.negativePath, "no es una única línea genérica");
+    assert.ok(Math.abs(c.clipPosition.x - (from.x + to.x) / 2) < 1e-9 && Math.abs(c.clipPosition.y - (from.y + to.y) / 2) < 1e-9, "clip en el punto medio");
+    assert.ok(Math.abs(c.distanceMm - Math.hypot(to.x - from.x, to.y - from.y)) < 1e-9);
+  });
+  // R→L invierte el sentido, no los ids.
+  const rtl = gen("STAMPA", chained({ direction: "rtl" }));
+  assert.deepEqual(rtl.installation.connections.map((c) => `${c.fromLabel}>${c.toLabel}`), ["A2>P", "P>M", "M>A1", "A1>T", "T>S"]);
+});
+
+test("73 features traseras combinadas: 2 standoffs + IN + OUT (pares) + recorte manual, sin solapes", () => {
   const probe = gen("MM", {});
   const b0 = probe.letters[0].instance.boundsMm;
   const cut = { id: "usb", type: "capsule", x: b0.minX + 11 - probe.designCenter.x, y: (b0.minY + b0.maxY) / 2 - probe.designCenter.y, widthMm: 12, heightMm: 6, rotationDeg: 90 };
@@ -454,6 +560,7 @@ test("73 features traseras combinadas: 2 standoffs + IN + OUT + 2 bahías + reco
   assert.deepEqual(r.errors, []);
   for (const l of r.installation.letters) {
     assert.ok(l.mounts.length >= 2);
+    assert.ok(l.ports.length >= 1 && l.ports.every((p) => p.holes.length === 2));
     for (let i = 0; i < l.zones.length; i++) for (let j = i + 1; j < l.zones.length; j++) assert.ok(!layout.zonesConflict(l.zones[i], l.zones[j]));
   }
   const cutRaw = backCutoutPolygons(cut, r.designCenter).map(offsets.pointsToRawPath);
@@ -539,7 +646,7 @@ test("presets: la receta de instalación viaja; posiciones/overrides NUNCA", () 
 });
 
 test("proyecto: persiste instalación + overrides (round-trip), proyectos viejos cargan con defaults, cambios marcan dirty", () => {
-  const params = paramsOf("STAMPA", { ...keyhole, ...chained() }, {}, { L3: { mountPoints: [{ x: 4.5, y: -2 }], spliceEnabled: false, splicePlus: { x: 1, y: 1 } } });
+  const params = paramsOf("STAMPA", { ...keyhole, ...chained() }, {}, { L3: { mountPoints: [{ x: 4.5, y: -2 }], mountCount: 3 } });
   const state = { params, sourceMode: "text", designHeightMm: 100, pngOptions: {}, fileMeta: null };
   const payload = projects.serializeProject(state);
   const loaded = projects.deserializeProject({ ...payload });
@@ -555,7 +662,9 @@ test("proyecto: persiste instalación + overrides (round-trip), proyectos viejos
   assert.ok(dirty({ installation: inst({ mounting: { ...params.installation.mounting, standoff: { ...params.installation.mounting.standoff, wallSpacingMm: 25 } } }) }), "separación");
   assert.ok(dirty({ installation: inst({ wiring: { ...params.installation.wiring, direction: "rtl" } }) }), "dirección");
   assert.ok(dirty({ installation: inst({ wiring: { ...params.installation.wiring, wireDiameterMm: 3 } }) }), "cable");
-  assert.ok(dirty({ installation: inst({ wiring: { ...params.installation.wiring, splice: { ...params.installation.wiring.splice, diameterMm: 6 } } }) }), "empalme");
+  assert.ok(dirty({ installation: inst({ wiring: { ...params.installation.wiring, spliceClip: { ...params.installation.wiring.spliceClip, diameterMm: 6 } } }) }), "soporte de empalmes");
+  assert.ok(dirty({ installation: inst({ wiring: { ...params.installation.wiring, wireHoleDiameterMm: 3 } }) }), "agujero del puerto");
+  assert.ok(dirty({ installation: inst({ wiring: { ...params.installation.wiring, holeCenterSpacingMm: 5 } }) }), "separación de agujeros");
   assert.ok(dirty({ installationOverrides: { L3: { mountPoints: [{ x: 9, y: 9 }] } } }), "posiciones manuales");
 });
 
@@ -571,7 +680,7 @@ const latin1 = (bytes) => Buffer.from(bytes).toString("latin1");
 // Mismo redondeo que el escritor (4 decimales, sin ceros a la derecha).
 const fmt = (n) => (Math.round(n * 10000) / 10000).toFixed(4).replace(/\.?0+$/, "") || "0";
 const pages = (text) => text.split(/\d+ 0 obj\n<< \/Length \d+ >>\nstream\n/).slice(1).map((c) => c.split("\nendstream")[0]);
-const pdfTexts = (content) => [...content.matchAll(/\((.*?)\) Tj/g)].map((m) => m[1]);
+const pdfTexts = (content) => [...content.matchAll(/\((.*?)\) Tj/g)].map((m) => m[1].replace(/\\([()\\])/g, "$1"));
 const pdfScale = (content) => Number(content.split("\n")[0].split(" ")[0]);
 
 test("74 escala: 1 unidad = 1 mm (mm -> puntos PDF) con tolerancia mínima", () => {
@@ -679,11 +788,31 @@ test("76 posiciones de la plantilla = posiciones 3D (una sola fuente de verdad)"
   });
   // Puertos: mismas posiciones que los agujeros del plan.
   const ports = model.marks.filter((m) => m.kind === "cable-port");
-  assert.equal(ports.length, r.installation.letters.flatMap((l) => l.ports).length);
-  for (const port of ports) {
-    const plan = r.installation.letters.flatMap((l) => l.ports).find((p) => p.id === port.id);
-    assert.ok(Math.abs(port.x - abs(r, plan)[0]) < 1e-9 && Math.abs(port.y - abs(r, plan)[1]) < 1e-9);
+  const planPorts = r.installation.letters.flatMap((l) => l.ports);
+  assert.equal(ports.length, planPorts.length * 2, "DOS pasos de cable por puerto bipolar");
+  for (const pp of planPorts) {
+    const holes = ports.filter((m) => m.id.startsWith(`${pp.id}:`));
+    assert.deepEqual(holes.map((m) => m.label.slice(-1)), ["+", "-"]);
+    holes.forEach((mark, i) => {
+      // Misma posición que cada uno de los dos agujeros del 3D.
+      assert.ok(Math.abs(mark.x - abs(r, pp.holes[i])[0]) < 1e-9 && Math.abs(mark.y - abs(r, pp.holes[i])[1]) < 1e-9);
+      assert.equal(mark.diameterMm, pp.wireHoleDiameterMm);
+    });
   }
+  // ...y esas posiciones son agujeros reales de la base: círculos de Ø2.8 en el cuerpo.
+  const portLetter = r.installation.letters[1];
+  const pl = portLetter.ports[0];
+  const pb = bodyOf(r, 1).positions;
+  for (const h of pl.holes) {
+    const [hx, hy] = abs(r, h);
+    let ring = 0;
+    for (let k = 0; k < pb.length; k += 3) if (Math.abs(pb[k + 2]) < 1e-4 && Math.abs(Math.hypot(pb[k] - hx, pb[k + 1] - hy) - 1.4) < 0.02) ring++;
+    assert.ok(ring >= 24, `agujero ${h.polarity} del 3D en la posición de la plantilla`);
+  }
+  // Leyenda y dos círculos por puerto en el PDF.
+  const pdfText = latin1(tpl.buildInstallTemplatePdf(model));
+  assert.ok(pdfTexts(pages(pdfText)[0]).some((t) => t.includes("Paso de cable bipolar (+ / -)")));
+  assert.ok(pdfTexts(pages(pdfText).join("\n")).some((t) => t === "IN+") && pdfTexts(pages(pdfText).join("\n")).some((t) => t === "IN-"));
   // Las marcas están en el PDF (coordenadas relativas al diseño).
   const text = latin1(tpl.buildInstallTemplatePdf(model));
   const mark = stand[0];
@@ -706,7 +835,9 @@ test("76 posiciones de la plantilla = posiciones 3D (una sola fuente de verdad)"
   const cr = createLetterGeometry(font, paramsOf("STAMPA", chained()));
   const cm = tpl.buildTemplateModel(cr, paramsOf("STAMPA", chained()), "STAMPA");
   assert.ok(cm.marks.every((m) => m.kind === "cable-port"));
-  assert.equal(cm.routes.length, 5);
+  assert.equal(cm.routes.length, 10, "dos líneas (+ y -) por tramo");
+  assert.deepEqual([...new Set(cm.routes.map((x) => x.polarity))].sort(), ["+", "-"]);
+  assert.equal(cm.clips.length, 5, "soporte de empalmes de referencia por tramo (sin perforar la pared)");
 });
 
 test("77 guía de conexión: orden, roles, etiquetas y polaridad de STAMPA (paralelo)", () => {
@@ -756,13 +887,15 @@ test("kit completo: ZIP con /STL e /INSTALL, un solo separador + cantidad, A1/A2
   const zip = await JSZipLib.loadAsync(Buffer.from(await blob.arrayBuffer()));
   const names = Object.keys(zip.files).filter((n) => !zip.files[n].dir).sort();
   assert.deepEqual(names.filter((n) => n.startsWith("STL/")), [
-    "STL/01_S.stl", "STL/02_T.stl", "STL/03_A1.stl", "STL/04_M.stl", "STL/05_P.stl", "STL/06_A2.stl", "STL/wall-spacer-12x20.stl",
+    "STL/01_S.stl", "STL/02_T.stl", "STL/03_A1.stl", "STL/04_M.stl", "STL/05_P.stl", "STL/06_A2.stl", "STL/bipolar-splice-clip.stl", "STL/wall-spacer-12x20.stl",
   ]);
   assert.deepEqual(names.filter((n) => n.startsWith("INSTALL/")), ["INSTALL/guia-conexion.pdf", "INSTALL/plantilla-instalacion.pdf"]);
   assert.ok(names.includes("LEEME.txt"));
   const readme = await zip.file("LEEME.txt").async("string");
   assert.ok(readme.includes(`Imprimir ${r.installationParts[0].quantity} unidades`));
   assert.ok(readme.includes("S → T → A1 → M → P → A2"));
+  assert.ok(readme.includes("Cantidad de soportes de empalme: 5"), "letras - 1");
+  assert.ok(readme.includes("bipolar-splice-clip.stl") && readme.includes("Imprimir 5 unidades"));
   for (const n of ["INSTALL/guia-conexion.pdf", "INSTALL/plantilla-instalacion.pdf"]) {
     const bytes = await zip.file(n).async("uint8array");
     assert.equal(Buffer.from(bytes).toString("latin1", 0, 8), "%PDF-1.4");
@@ -825,12 +958,11 @@ test("editor de montaje: mover un punto pasa la letra a manual; inválido queda 
   assert.ok(watertight(bodyOf(r3, 0)));
   // Restablecer / cantidad / empalmes por letra.
   assert.deepEqual(editing.resetMountOverrides(moved), {});
-  assert.deepEqual(editing.resetMountOverrides({ L1: { mountPoints: [{ x: 1, y: 1 }], spliceEnabled: false } }), { L1: { spliceEnabled: false } });
+  assert.deepEqual(editing.resetMountOverrides({ L1: { mountPoints: [{ x: 1, y: 1 }] }, L2: { mountCount: 3 } }, "L1"), { L2: { mountCount: 3 } });
   assert.deepEqual(editing.setLetterMountCount({}, "L2", 3), { L2: { mountCount: 3 } });
   assert.deepEqual(editing.setLetterMountCount({ L2: { mountCount: 3, mountPoints: [{ x: 0, y: 0 }] } }, "L2", 4), { L2: { mountCount: 4 } });
   assert.deepEqual(editing.setLetterMountCount({ L2: { mountCount: 3 } }, "L2", null), {});
-  assert.deepEqual(editing.setLetterSplice({}, "L1", false), { L1: { spliceEnabled: false } });
-  assert.deepEqual(editing.setLetterSplice({ L1: { spliceEnabled: false } }, "L1", true), {});
+  assert.equal(editing.setLetterSplice, undefined, "ya no hay empalmes por letra");
   // Keyhole: el handle tiene la forma del keyhole a 180°.
   const kp = paramsOf("M", keyhole);
   const kc = editing.mountEditorCutouts(createLetterGeometry(font, kp).installation, kp);
@@ -864,6 +996,7 @@ test("etiquetas impresas: relieve simple (+, -, IN, OUT) sobre la repisa, desact
   const texts = withLabels.installation.letters.flatMap((l) => l.labels.map((x) => x.text));
   assert.ok(texts.length > 0);
   assert.ok(texts.every((t) => ["+", "-", "IN", "OUT"].includes(t)));
+  assert.ok(texts.includes("IN") || texts.includes("OUT") || texts.includes("+"));
   const noLabels = gen("STAMPA", chained({ printLabels: false }));
   assert.equal(noLabels.installation.letters.flatMap((l) => l.labels).length, 0);
   for (let i = 0; i < 6; i++) assert.ok(watertight(bodyOf(noLabels, i)));
@@ -880,10 +1013,10 @@ test("regresión: front lid / perforado / canal siguen generando con instalació
   assert.deepEqual(lid.errors, []);
   assert.ok(lid.letters.every((l) => l.parts.length === 2 && watertight(l.parts[0].mesh)));
 });
-test("invariantes del plan de STAMPA: bahías siempre en pares (+ y -), cada etiqueta pertenece a una feature existente", () => {
+test("invariantes del plan de STAMPA: puertos siempre en pares, cada etiqueta pertenece a un puerto existente", () => {
   const w = gen("STAMPA", chained());
   for (const l of w.installation.letters) {
-    assert.ok(l.bays.length === 0 || (l.bays.length === 2 && l.bays[0].polarity === "+" && l.bays[1].polarity === "-"), l.instanceId);
-    for (const label of l.labels) assert.ok([...l.bays, ...l.ports].some((f) => label.id.startsWith(f.id)), label.id);
+    for (const p of l.ports) assert.equal(p.holes.length, 2, p.id);
+    for (const label of l.labels) assert.ok(l.ports.some((f) => label.id.startsWith(f.id)), label.id);
   }
 });

@@ -29,8 +29,9 @@ export const DEFAULT_INSTALLATION_RECIPE: InstallationRecipe = {
     direction: "ltr",
     powerEntry: "direct-wire",
     wireDiameterMm: 2,
-    portClearanceMm: 0.3,
-    splice: { enabled: true, diameterMm: 5, lengthMm: 25, clearanceMm: 0.4 },
+    wireHoleDiameterMm: 2.8,
+    holeCenterSpacingMm: 4.5,
+    spliceClip: { enabled: true, diameterMm: 5, lengthMm: 25, spacingMm: 12, clearanceMm: 0.4 },
     serviceMarginMm: 30,
     voltage: null,
     printLabels: true,
@@ -73,7 +74,14 @@ const oneOf = <T extends string>(allowed: readonly T[], value: unknown, fallback
 
 /** Receta desde JSON persistido (posiblemente antiguo/parcial): completa faltantes y descarta valores inválidos. */
 export function normalizeInstallationRecipe(raw: unknown): InstallationRecipe {
-  const r = mergeKnown(DEFAULT_INSTALLATION_RECIPE, raw);
+  // Migración de proyectos del sprint anterior: `wiring.splice` (alojamientos internos, ya eliminados) pasa a
+  // `wiring.spliceClip` (soporte externo) conservando Ø, largo, holgura y el interruptor. Las demás claves antiguas
+  // (`portClearanceMm`) se descartan: mergeKnown solo conserva claves conocidas.
+  const rawRecord = isRecord(raw) ? raw : {};
+  const rawWiring = isRecord(rawRecord.wiring) ? rawRecord.wiring : {};
+  const legacy = isRecord(rawWiring.splice) ? rawWiring.splice : null;
+  const migrated = legacy && !isRecord(rawWiring.spliceClip) ? { ...rawRecord, wiring: { ...rawWiring, spliceClip: legacy } } : raw;
+  const r = mergeKnown(DEFAULT_INSTALLATION_RECIPE, migrated);
   const voltage = isRecord(raw) && isRecord(raw.wiring) ? raw.wiring.voltage : null;
   return {
     mounting: { ...r.mounting, type: oneOf(ENUMS.mountingType, r.mounting.type, "none") },
@@ -100,11 +108,6 @@ export function normalizeInstallationOverrides(raw: unknown): InstallationOverri
     const o: LetterInstallationOverride = {};
     if (Array.isArray(value.mountPoints)) o.mountPoints = value.mountPoints.map(normalizeRelPoint).filter((p): p is RelPoint => p !== null);
     if (finite(value.mountCount) && value.mountCount >= 1 && value.mountCount <= 12) o.mountCount = Math.round(value.mountCount);
-    if (typeof value.spliceEnabled === "boolean") o.spliceEnabled = value.spliceEnabled;
-    const plus = normalizeRelPoint(value.splicePlus);
-    const minus = normalizeRelPoint(value.spliceMinus);
-    if (plus) o.splicePlus = plus;
-    if (minus) o.spliceMinus = minus;
     if (Object.keys(o).length > 0) out[id] = o;
   }
   return out;

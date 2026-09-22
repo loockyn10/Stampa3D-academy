@@ -3,6 +3,7 @@ import { circlePolygon } from "@/lib/maker/geometry/backCutouts";
 import { contourGroupsToRawPaths, differenceContourGroups } from "@/lib/maker/geometry/offsets";
 import { toTriangleSoupData } from "@/lib/maker/geometry/extrudePolygon";
 import { getInstallationSettings } from "@/lib/maker/installation/defaults";
+import { buildSpliceClipPart } from "@/lib/maker/installation/spliceClip";
 import { buildPrismStack, normalizePolygons, type PrismLayer } from "@/lib/maker/installation/prismStack";
 import type { InstallationPlan, StandoffMountSettings } from "@/lib/maker/installation/types";
 
@@ -88,16 +89,18 @@ export function buildWallSpacerMesh(s: StandoffMountSettings) {
  */
 export function buildInstallationParts(plan: InstallationPlan | null, params: LetterSignParams): InstallationAuxPart[] {
   const settings = getInstallationSettings(params);
-  if (!plan || !plan.active || settings.mounting.type !== "standoff") return [];
+  if (!plan || !plan.active) return [];
+  const parts: InstallationAuxPart[] = [];
   const quantity = plan.letters.reduce((n, l) => n + l.mounts.filter((m) => m.valid && m.kind === "standoff").length, 0);
-  if (quantity === 0 || validateWallSpacer(settings.mounting.standoff).length > 0) return [];
-  return [
-    {
+  if (settings.mounting.type === "standoff" && quantity > 0 && validateWallSpacer(settings.mounting.standoff).length === 0) {
+    parts.push({
       kind: "wallSpacer",
       filenameSuffix: "separador_pared",
       fileBaseName: wallSpacerFileBaseName(settings.mounting.standoff),
       mesh: buildWallSpacerMesh(settings.mounting.standoff),
       quantity,
-    },
-  ];
+    });
+  }
+  parts.push(...buildSpliceClipPart(plan, settings.wiring.spliceClip));
+  return parts;
 }

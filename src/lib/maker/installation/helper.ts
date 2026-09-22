@@ -1,6 +1,7 @@
-import type { InstallationPlan, LetterInstallationPlan } from "@/lib/maker/installation/types";
+import type { InstallationPlan } from "@/lib/maker/installation/types";
 import type { LetterSignParams, TriangleSoupData } from "@/lib/maker/types";
 import { getInstallationSettings } from "@/lib/maker/installation/defaults";
+import { CLIP_PLATE_MM, spliceClipSizes } from "@/lib/maker/installation/spliceClip";
 
 /**
  * Helpers VISUALES de instalación (nunca exportables): cableado (+ / - / flechas) y pared de
@@ -83,10 +84,6 @@ export interface InstallationHelperOptions {
   showWall: boolean;
 }
 
-function routeOf(letter: LetterInstallationPlan, origin: { x: number; y: number }): { x: number; y: number }[] {
-  return letter.route.map((n) => ({ x: origin.x + n.x, y: origin.y + n.y }));
-}
-
 /** Malla auxiliar de instalación, o null si no hay nada que mostrar. */
 export function buildInstallationHelperMesh(plan: InstallationPlan | null, params: LetterSignParams, opts: InstallationHelperOptions): TriangleSoupData | null {
   if (!plan || !plan.active) return null;
@@ -96,22 +93,41 @@ export function buildInstallationHelperMesh(plan: InstallationPlan | null, param
   const zBehind = -Math.max(wire, 1.5);
 
   if (opts.showWiring && plan.wiring) {
-    // Tramos entre letras: dos hilos (+ continuo, - discontinuo) a ambos lados de la recta OUT -> IN, con flecha de dirección.
-    const portOf = (id: string, out: boolean) => plan.letters.find((l) => l.instanceId === id)?.ports.find((p) => (out ? p.role === "out" : p.role !== "out"));
-    for (const link of plan.wiring.links) {
-      const a = portOf(link.fromId, true), c = portOf(link.toId, false);
-      if (!a || !c) continue;
-      const x0 = plan.origin.x + a.x, y0 = plan.origin.y + a.y, x1 = plan.origin.x + c.x, y1 = plan.origin.y + c.y;
-      const len = Math.hypot(x1 - x0, y1 - y0) || 1;
-      const nx = (-(y1 - y0) / len) * (wire * 0.9), ny = ((x1 - x0) / len) * (wire * 0.9);
-      b.segments(x0 + nx, y0 + ny, x1 + nx, y1 + ny, wire * 0.9, wire * 0.9, zBehind, 0);
-      b.segments(x0 - nx, y0 - ny, x1 - nx, y1 - ny, wire * 0.9, wire * 0.9, zBehind, 5);
-      b.arrow((x0 + x1) / 2, (y0 + y1) / 2, Math.atan2(y1 - y0, x1 - x0), 5, zBehind);
-    }
-    // Recorrido interno de cada letra (puerto -> clips -> bahías -> clips -> puerto).
-    for (const letter of plan.letters) {
-      const pts = routeOf(letter, plan.origin);
-      for (let i = 0; i < pts.length - 1; i++) b.segments(pts[i].x, pts[i].y, pts[i + 1].x, pts[i + 1].y, wire * 0.6, wire * 0.6, params.baseMm + wire * 0.5, 0);
+    const o = plan.origin;
+    // Cada conexión son DOS conductores paralelos entre los agujeros OUT de la letra N e IN de la N+1:
+    // el + como barra continua y el - como barra discontinua (no dependen del color), con sus marcas + / -.
+    for (const c of plan.connections) {
+      const [p0, p1] = c.positivePath;
+      const [m0, m1] = c.negativePath;
+      b.segments(o.x + p0.x, o.y + p0.y, o.x + p1.x, o.y + p1.y, wire * 0.9, wire * 0.9, zBehind, 0);
+      b.segments(o.x + m0.x, o.y + m0.y, o.x + m1.x, o.y + m1.y, wire * 0.9, wire * 0.9, zBehind, 5);
+      // Extremos (los cuatro agujeros) como pequeños tacos.
+      for (const q of [p0, p1, m0, m1]) b.bar(o.x + q.x - 1.2, o.y + q.y, o.x + q.x + 1.2, o.y + q.y, 2.4, wire * 1.4, zBehind);
+      // Marcas de polaridad: "+" (cruz) sobre el conductor +, "-" (barra) bajo el conductor -.
+      const mx = o.x + (p0.x + p1.x) / 2, py = o.y + (p0.y + p1.y) / 2 + 3.2, ny = o.y + (m0.y + m1.y) / 2 - 3.2;
+      b.bar(mx - 1.8, py, mx + 1.8, py, 0.8, 0.8, zBehind);
+      b.bar(mx, py - 1.8, mx, py + 1.8, 0.8, 0.8, zBehind);
+      b.bar(mx - 1.8, ny, mx + 1.8, ny, 0.8, 0.8, zBehind);
+      // Dirección OUT -> IN.
+      b.arrow(o.x + p0.x + (p1.x - p0.x) * 0.3, o.y + (p0.y + m0.y) / 2 + (p1.y - p0.y) * 0.3, Math.atan2(p1.y - p0.y, p1.x - p0.x), 4, zBehind);
+      // Soporte de empalmes externo (solo visual, aprox. al centro del recorrido; la pieza real es un STL aparte).
+      const sc = settings.wiring.spliceClip;
+      if (sc.enabled) {
+        const z = spliceClipSizes(sc);
+        const ang = (c.clipPosition.angleDeg * Math.PI) / 180;
+        const ux = Math.cos(ang), uy = Math.sin(ang);
+        // Eje transversal con Y positivo: el canal + queda arriba.
+        const nxv = uy >= 0 ? -uy : uy, nyv = uy >= 0 ? ux : -ux;
+        const cx = o.x + c.clipPosition.x, cy = o.y + c.clipPosition.y;
+        b.bar(cx - (ux * z.plateLengthMm) / 2, cy - (uy * z.plateLengthMm) / 2, cx + (ux * z.plateLengthMm) / 2, cy + (uy * z.plateLengthMm) / 2, z.plateWidthMm, CLIP_PLATE_MM, zBehind);
+        for (const side of [1, -1]) {
+          const ox = cx + nxv * side * (sc.spacingMm / 2), oy = cy + nyv * side * (sc.spacingMm / 2);
+          for (const edge of [1, -1]) {
+            const rx = ox + nxv * edge * (z.innerWidthMm / 2 + 0.6), ry = oy + nyv * edge * (z.innerWidthMm / 2 + 0.6);
+            b.bar(rx - (ux * z.innerLengthMm) / 2, ry - (uy * z.innerLengthMm) / 2, rx + (ux * z.innerLengthMm) / 2, ry + (uy * z.innerLengthMm) / 2, 1.2, z.railHeightMm, zBehind + z.railHeightMm / 2);
+          }
+        }
+      }
     }
   }
 

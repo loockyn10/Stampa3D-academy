@@ -388,7 +388,7 @@ export interface LetterGeometryResult {
 
 /** Pieza auxiliar de instalación (no pertenece a una letra): se exporta UNA vez con su cantidad. */
 export interface InstallationAuxPart {
-  kind: "wallSpacer";
+  kind: "wallSpacer" | "bipolarSpliceClip";
   filenameSuffix: string;
   /** Nombre de archivo sugerido, p.ej. "wall-spacer-12x20". */
   fileBaseName: string;

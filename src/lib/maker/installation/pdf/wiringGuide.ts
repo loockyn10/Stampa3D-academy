@@ -31,11 +31,14 @@ export function roleDescription(l: LetterWiring): string {
   return "Entrada del anterior (última)";
 }
 
+export const SPLICE_FIRST_NOTE = "Realizá y aislá los empalmes antes de colocarlos en el soporte impreso.";
+
 export const GUIDE_STEPS = [
-  "Preparar los cables: cortar cada tramo con el largo indicado en la tabla (incluye margen) y pelar las puntas.",
-  "Realizar los empalmes: en cada letra unir juntos los cables + (entrada, LED y salida) y, por separado, los cables - (entrada, LED y salida).",
+  "Preparar los cables: cortar cada tramo con el largo indicado en la tabla (incluye margen) y pelar las puntas. Cada conexión entre letras lleva DOS conductores: + y -.",
+  "Pasar cada par de conductores por sus dos agujeros (+ arriba, - abajo) y unir las letras.",
+  "Realizar los empalmes FUERA de las letras, en el espacio entre una y la siguiente: + con + y - con -, cada uno por separado.",
   "Aislar cada empalme (por ejemplo con termocontraíble) para que + y - no se toquen jamás.",
-  "Colocar cada empalme terminado en su alojamiento (+ y - van en bahías distintas) y pasar el cable por los clips.",
+  SPLICE_FIRST_NOTE + " El soporte no conduce corriente: solo sostiene, ordena y separa los dos empalmes ya terminados.",
   "Verificar la polaridad: + con + y - con - en TODAS las letras. Nunca conectar la salida de un LED a la entrada del siguiente.",
   "Probar la iluminación con la fuente ANTES del montaje final y recién entonces fijar el cartel.",
 ];
@@ -137,6 +140,29 @@ function drawLetterDiagrams(page: PdfPage, x: number, top: number): number {
   return top - 34;
 }
 
+/** Conexión bipolar entre dos letras: dos conductores, dos empalmes externos y el soporte impreso (mecánico) alrededor. */
+function drawConnectionDiagram(page: PdfPage, x: number, top: number, width: number, fromLabel: string, toLabel: string): number {
+  const x0 = x + 22, x1 = x + width - 22;
+  const yPlus = top - 16, yMinus = top - 32;
+  page.text(`${fromLabel} OUT`, x, top - 3, 3.2, { font: "bold" });
+  page.text(`${toLabel} IN`, x + width, top - 3, 3.2, { font: "bold", align: "right" });
+  const mid = (x0 + x1) / 2;
+  for (const [y, sign, dashed] of [[yPlus, "+", false], [yMinus, "-", true]] as const) {
+    page.save().strokeColor(...INK).lineWidth(0.6).solid();
+    if (dashed) page.dash([2.5, 1.5]);
+    page.line(x0, y, x1, y).restore();
+    for (const px of [x0, x1]) page.save().strokeColor(...INK).lineWidth(0.4).circle(px, y, 1.6).stroke().restore();
+    page.text(sign, x0 - 8, y - 1.3, 4, { font: "bold" });
+    page.text(sign, x1 + 6, y - 1.3, 4, { font: "bold" });
+    page.save().fillColor(1, 1, 1).strokeColor(...INK).lineWidth(0.4).solid().rect(mid - 17, y - 3.5, 34, 7).fill().rect(mid - 17, y - 3.5, 34, 7).stroke().restore();
+    page.text(`empalme ${sign}`, mid, y - 1, 2.8, { align: "center", font: "bold" });
+  }
+  // Soporte impreso: solo sujeción mecánica alrededor de los dos empalmes ya terminados.
+  page.save().strokeColor(...GRAY).lineWidth(0.4).dash([1.5, 1]).rect(mid - 22, yMinus - 7, 44, yPlus - yMinus + 14).stroke().restore();
+  page.text("soporte impreso (mecánico, no eléctrico)", mid, yMinus - 11, 2.6, { align: "center" });
+  return yMinus - 16;
+}
+
 export function buildWiringGuidePdf(result: LetterGeometryResult, params: LetterSignParams, title = "Cartel"): Uint8Array {
   const settings = getInstallationSettings(params);
   const plan = result.installation;
@@ -157,7 +183,7 @@ export function buildWiringGuidePdf(result: LetterGeometryResult, params: Letter
 
   page1.text(WIRING_GUIDE_PARALLEL_NOTE.toUpperCase(), m, H - m - 15, 4.2, { font: "bold" });
   let y = H - m - 22;
-  for (const line of wrap("Los cables recorren las letras en cadena, pero cada letra se conecta a los dos buses (+ y -): todas reciben la misma tensión. Solo baja tensión continua (DC). La fuente AC/DC y toda conexión a red (110/220 V) quedan FUERA del cartel.", inner, 3)) {
+  for (const line of wrap("Los cables (siempre DOS conductores: + y -) recorren las letras en cadena, pero cada letra se conecta a los dos buses: todas reciben la misma tensión. Solo baja tensión continua (DC). La fuente AC/DC y toda conexión a red (110/220 V) quedan FUERA del cartel.", inner, 3)) {
     page1.text(line, m, y, 3);
     y -= 4.4;
   }
@@ -197,10 +223,19 @@ export function buildWiringGuidePdf(result: LetterGeometryResult, params: Letter
     y -= 4.2;
   }
 
-  // Página 2: pasos.
+  // Página 2: conexión entre letras + pasos.
   const page2 = doc.addPage(W, H);
-  page2.text("Paso a paso", m, H - m - 5, 6, { font: "bold" });
-  let y2 = H - m - 16;
+  page2.text("Conexión entre letras", m, H - m - 5, 6, { font: "bold" });
+  const first = model.links[0];
+  let y2 = drawConnectionDiagram(page2, m, H - m - 14, inner, first?.fromLabel ?? "A", first?.toLabel ?? "B");
+  const clipCount = plan?.spliceClipCount ?? 0;
+  y2 -= 5;
+  page2.text(SPLICE_FIRST_NOTE, m, y2, 3.4, { font: "bold" });
+  y2 -= 5;
+  if (settings.wiring.spliceClip.enabled) page2.text(`Soportes de empalme necesarios: ${clipCount} (letras - 1). Se imprime un único archivo: bipolar-splice-clip.stl.`, m, y2, 3);
+  y2 -= 12;
+  page2.text("Paso a paso", m, y2, 5, { font: "bold" });
+  y2 -= 9;
   GUIDE_STEPS.forEach((step, i) => {
     page2.save().strokeColor(...INK).lineWidth(0.4).circle(m + 3, y2 + 1, 3).stroke().restore();
     page2.text(String(i + 1), m + 3, y2 - 0.2, 3.6, { align: "center", font: "bold" });

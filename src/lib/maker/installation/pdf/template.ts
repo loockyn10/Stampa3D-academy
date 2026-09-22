@@ -2,6 +2,7 @@ import type { LetterGeometryResult, LetterSignParams, Point2D } from "@/lib/make
 import { getInstallationSettings } from "@/lib/maker/installation/defaults";
 import { PAPER_SIZES_MM, PdfDocument, type PdfPage } from "@/lib/maker/installation/pdf/pdfWriter";
 import type { PaperFormat } from "@/lib/maker/installation/types";
+import { spliceClipSizes } from "@/lib/maker/installation/spliceClip";
 
 /**
  * PLANTILLA DE INSTALACIÓN 1:1. Una sola fuente de verdad con el 3D: los contornos son
@@ -16,7 +17,7 @@ export interface TemplateMark {
   id: string;
   instanceId: string;
   kind: "keyhole-drill" | "standoff" | "cable-port";
-  /** Rótulo impreso: "M-S1", "M-K2", "IN", "OUT", "ALIM". */
+  /** Rótulo impreso: "M-S1", "M-K2", o para un puerto bipolar "OUT+", "OUT-", "IN+", "IN-", "ALIM+", "ALIM-" (DOS marcas por puerto). */
   label: string;
   /** Posición GLOBAL (mm, mismas coordenadas de los contornos): la misma del plan 3D. */
   x: number;
@@ -28,13 +29,26 @@ export interface TemplateMark {
   /** keyhole: centro de la cabeza (donde entra el tornillo); el tornillo queda arriba, en `x,y`. */
   headX?: number;
   headY?: number;
+  /** Puertos: lado del rótulo respecto del agujero (siempre hacia el interior de la letra, lejos de las líneas de cable). */
+  labelSide?: "left" | "right";
 }
 
 export interface TemplateRoute {
   fromId: string;
   toId: string;
+  polarity: "+" | "-";
   from: Point2D;
   to: Point2D;
+}
+
+/** Soporte de empalmes externo (solo referencia: es una pieza aparte, sin perforar la pared). */
+export interface TemplateClip {
+  id: string;
+  x: number;
+  y: number;
+  angleDeg: number;
+  lengthMm: number;
+  widthMm: number;
 }
 
 export interface TemplateLetter {
@@ -53,6 +67,7 @@ export interface TemplateModel {
   letters: TemplateLetter[];
   marks: TemplateMark[];
   routes: TemplateRoute[];
+  clips: TemplateClip[];
   mounting: "none" | "keyhole" | "standoff";
   summary: string[];
   paper: PaperFormat;
@@ -75,6 +90,7 @@ export function buildTemplateModel(result: LetterGeometryResult, params: LetterS
 
   const marks: TemplateMark[] = [];
   const routes: TemplateRoute[] = [];
+  const clips: TemplateClip[] = [];
   const summary: string[] = [];
   if (plan) {
     const labelOf = new Map(result.letters.map((l) => [l.instance.id, l.instance.label]));
@@ -96,14 +112,20 @@ export function buildTemplateModel(result: LetterGeometryResult, params: LetterS
       }
       for (const p of lp.ports) {
         if (!p.valid) continue;
-        marks.push({ id: p.id, instanceId: lp.instanceId, kind: "cable-port", label: p.role === "power-in" ? "ALIM" : p.role === "in" ? "IN" : "OUT", x: plan.origin.x + p.x, y: plan.origin.y + p.y, diameterMm: p.holeDiameterMm, footprintDiameterMm: 0 });
+        // Puerto bipolar: DOS pasos de cable (+ y -), en las mismas posiciones que los dos agujeros del 3D.
+        const base = p.role === "power-in" ? "ALIM" : p.role === "in" ? "IN" : "OUT";
+        for (const h of p.holes) {
+          marks.push({ id: `${p.id}:${h.polarity}`, instanceId: lp.instanceId, kind: "cable-port", label: `${base}${h.polarity}`, x: plan.origin.x + h.x, y: plan.origin.y + h.y, diameterMm: p.wireHoleDiameterMm, footprintDiameterMm: 0, labelSide: p.side === "left" ? "right" : "left" });
+        }
       }
     }
-    if (plan.wiring) {
-      const portOf = (id: string, role: "in" | "out") => plan.letters.find((l) => l.instanceId === id)?.ports.find((p) => (role === "out" ? p.role === "out" : p.role === "in"));
-      for (const link of plan.wiring.links) {
-        const a = portOf(link.fromId, "out"), b = portOf(link.toId, "in");
-        if (a && b) routes.push({ fromId: link.fromId, toId: link.toId, from: [plan.origin.x + a.x, plan.origin.y + a.y], to: [plan.origin.x + b.x, plan.origin.y + b.y] });
+    for (const c of plan.connections) {
+      const at = (r: { x: number; y: number }): Point2D => [plan.origin.x + r.x, plan.origin.y + r.y];
+      routes.push({ fromId: c.fromLetter, toId: c.toLetter, polarity: "+", from: at(c.positivePath[0]), to: at(c.positivePath[1]) });
+      routes.push({ fromId: c.fromLetter, toId: c.toLetter, polarity: "-", from: at(c.negativePath[0]), to: at(c.negativePath[1]) });
+      if (settings.wiring.spliceClip.enabled) {
+        const z = spliceClipSizes(settings.wiring.spliceClip);
+        clips.push({ id: c.id, x: plan.origin.x + c.clipPosition.x, y: plan.origin.y + c.clipPosition.y, angleDeg: c.clipPosition.angleDeg, lengthMm: z.plateLengthMm, widthMm: z.plateWidthMm });
       }
     }
     if (settings.mounting.type === "keyhole") {
@@ -112,7 +134,7 @@ export function buildTemplateModel(result: LetterGeometryResult, params: LetterS
       const s = settings.mounting.standoff;
       summary.push(`Separadores de ${s.wallSpacingMm} mm: perforar en el centro de cada marca (tornillo de ${s.screwHoleDiameterMm} mm; cuerpo del separador de ${s.bodyDiameterMm} mm).`);
     }
-    if (plan.wiring) summary.push("Cableado encadenado (conexión eléctrica en paralelo): la línea punteada es solo referencia del recorrido del cable; no requiere perforar la pared.");
+    if (plan.wiring) summary.push("Cableado bipolar (+ y -, conexión eléctrica en paralelo): cada puerto son dos agujeros; las líneas punteadas y el soporte de empalmes son solo referencia y no requieren perforar la pared.");
   }
 
   return {
@@ -123,6 +145,7 @@ export function buildTemplateModel(result: LetterGeometryResult, params: LetterS
     letters,
     marks,
     routes,
+    clips,
     mounting: settings.mounting.type,
     summary,
     paper: settings.template.paper,
@@ -244,12 +267,21 @@ function drawContent(page: PdfPage, model: TemplateModel): void {
   page.text(`Ancho total: ${W.toFixed(1)} mm`, W / 2, dimY - 3.5, 2.8, { align: "center" });
   page.text(`Alto máx.: ${H.toFixed(1)} mm`, dimX - 2, H / 2, 2.8, { align: "center", rotateDeg: 90 });
 
-  // Rutas de cable (solo referencia, punteadas con flecha).
+  // Rutas de cable bipolar (solo referencia): dos líneas punteadas (+ trazo largo, - trazo corto) con flecha, y el soporte de empalmes.
   page.save().strokeColor(...INK).fillColor(...INK).lineWidth(0.3);
   for (const r of model.routes) {
     const fx = r.from[0] - model.bounds.minX, fy = r.from[1] - model.bounds.minY, tx = r.to[0] - model.bounds.minX, ty = r.to[1] - model.bounds.minY;
-    page.dash([1.2, 0.9]).line(fx, fy, tx, ty).solid();
-    drawArrowHead(page, (fx + tx) / 2 + Math.cos(Math.atan2(ty - fy, tx - fx)) * 1.2, (fy + ty) / 2 + Math.sin(Math.atan2(ty - fy, tx - fx)) * 1.2, Math.atan2(ty - fy, tx - fx), 1.8);
+    const ang = Math.atan2(ty - fy, tx - fx);
+    page.dash(r.polarity === "+" ? [1.6, 0.8] : [0.5, 0.9]).line(fx, fy, tx, ty).solid();
+    if (r.polarity === "+") drawArrowHead(page, (fx + tx) / 2 + Math.cos(ang) * 1.2, (fy + ty) / 2 + Math.sin(ang) * 1.2, ang, 1.8);
+  }
+  for (const c of model.clips) {
+    const cx = c.x - model.bounds.minX, cy = c.y - model.bounds.minY, a = (c.angleDeg * Math.PI) / 180;
+    const ux = Math.cos(a), uy = Math.sin(a), nx = uy >= 0 ? -uy : uy, ny = uy >= 0 ? ux : -ux;
+    const hl = c.lengthMm / 2, hw = c.widthMm / 2;
+    const corner = (u: number, v: number): [number, number] => [cx + ux * u + nx * v, cy + uy * u + ny * v];
+    page.save().strokeColor(...GRAY).lineWidth(0.25).dash([1, 0.7]).polyline([corner(-hl, -hw), corner(hl, -hw), corner(hl, hw), corner(-hl, hw)], true).stroke().restore();
+    page.text("empalmes", cx, cy - hw - 3, 2.2, { align: "center" });
   }
   page.restore();
 
@@ -258,8 +290,10 @@ function drawContent(page: PdfPage, model: TemplateModel): void {
     const x = m.x - model.bounds.minX, y = m.y - model.bounds.minY;
     page.save().strokeColor(...INK).fillColor(...INK).lineWidth(0.3).solid();
     if (m.kind === "cable-port") {
+      // Un paso del par bipolar: círculo lleno (● ●) con su rótulo (IN+/IN-/OUT+/OUT-/ALIM+/ALIM-) a un costado.
       page.circle(x, y, Math.max(m.diameterMm / 2, 1.1)).fill();
-      page.text(m.label, x, y + 2.4, 2.4, { align: "center", font: "bold" });
+      if (m.labelSide === "left") page.text(m.label, x - m.diameterMm / 2 - 1.2, y - 0.8, 2.2, { font: "bold", align: "right" });
+      else page.text(m.label, x + m.diameterMm / 2 + 1.2, y - 0.8, 2.2, { font: "bold" });
     } else {
       if (m.footprintDiameterMm > 0) {
         const hx = (m.headX ?? m.x) - model.bounds.minX, hy = (m.headY ?? m.y) - model.bounds.minY;
@@ -324,7 +358,7 @@ function drawTile(page: PdfPage, model: TemplateModel, layout: TemplateLayout, t
   const legend: { kind: "ring" | "dot" | "target" | "arrow"; text: string }[] = [
     { kind: "ring", text: "Perforación de montaje (keyhole)" },
     { kind: "target", text: "Receptor / separador (perforar en el centro)" },
-    { kind: "dot", text: "Paso de cable (IN / OUT / ALIM)" },
+    { kind: "dot", text: "Paso de cable bipolar (+ / -)" },
     { kind: "arrow", text: "Dirección del cableado (referencia)" },
   ];
   legend.forEach((item, i) => {

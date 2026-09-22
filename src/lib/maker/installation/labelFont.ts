@@ -7,6 +7,7 @@ import type { Point2D } from "@/lib/maker/types";
  */
 export const LABEL_PIXEL_MM = 0.8;
 export const LABEL_HEIGHT_MM = 0.6;
+const PAD = 0.02;
 
 const GLYPHS: Record<string, string[]> = {
   "+": [".#.", ".#.", "###", ".#.", ".#."],
@@ -41,7 +42,9 @@ export function glyphPolygons(text: string, cx: number, cy: number): Point2D[][]
         if (cell !== "#") return;
         const x = x0 + (gi * 4 + c) * px;
         const y = y0 - (r + 1) * px;
-        polys.push([[x, y], [x + px, y], [x + px, y + px], [x, y + px]]);
+        // Cada píxel se agranda 0.02 mm: los vecinos se SOLAPAN y la unión los funde siempre en un único contorno (aristas exactamente
+        // compartidas pueden quedar como piezas separadas por un redondeo de Clipper).
+        polys.push([[x - PAD, y - PAD], [x + px + PAD, y - PAD], [x + px + PAD, y + px + PAD], [x - PAD, y + px + PAD]]);
       });
     });
   });

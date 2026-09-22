@@ -17,11 +17,12 @@ import { computeWallAndCore } from "@/lib/maker/geometry/body/shared";
 import { getInstallationSettings } from "@/lib/maker/installation/defaults";
 import { buildWiringModel, buildWiringRoles, computeCableLengths } from "@/lib/maker/installation/wiring";
 import { normalizePolygons, rectPolygon } from "@/lib/maker/installation/prismStack";
+import { validateSpliceClip } from "@/lib/maker/installation/spliceClip";
 import { glyphPolygons, textWidthMm, LABEL_PIXEL_MM } from "@/lib/maker/installation/labelFont";
 import type {
   BackFeatureZone,
+  BipolarCablePort,
   CableClip,
-  CablePort,
   InstallationIssue,
   InstallationPlan,
   LetterInstance,
@@ -30,9 +31,8 @@ import type {
   MountPoint,
   PortRole,
   RelPoint,
-  RouteNode,
   SignInstallationSettings,
-  SpliceBay,
+  WireConnection,
 } from "@/lib/maker/installation/types";
 
 /**
@@ -57,16 +57,14 @@ export const THROUGH_HOLE_EDGE_MARGIN_MM = 1;
 /** Techo/boss: material sobre el receptor por encima del fondo del socket. */
 export const SOCKET_ROOF_MM = 1.2;
 export const SOCKET_CHAMFER_MM = 0.6;
-export const BAY_RAIL_MM = 1.2;
-export const BAY_LIP_OVERHANG_MM = 0.4;
-export const BAY_LIP_THICKNESS_MM = 0.8;
 export const CLIP_POST_MM = 1.4;
 export const CLIP_LENGTH_MM = 3;
 export const CLIP_LIP_OVERHANG_MM = 0.4;
 export const CLIP_LIP_THICKNESS_MM = 0.8;
-/** Distancias (desde el puerto) del primer clip y separación entre clips. */
+/** Distancia (desde el centro del puerto) a la que se busca la retención local. */
 export const CLIP_FIRST_DISTANCE_MM = 6;
-export const CLIP_SPACING_MM = 7;
+/** Espacio libre entre los conductores y el clip a cada lado. */
+export const CLIP_WIRE_SLACK_MM = 0.3;
 const OVERLAP_EPS_MM2 = 1e-3;
 const KEYHOLE_ROTATION_DEG = 180;
 /** Fracción de la altura (desde abajo) a la que corre el cable entre letras. */
@@ -132,16 +130,24 @@ export function bossHeightAboveShelfMm(s: SignInstallationSettings["mounting"]["
   return s.insertDepthMm + SOCKET_ROOF_MM - baseMm;
 }
 
-export function bayHeightMm(spliceDiameterMm: number): number {
-  return Math.max(2, 0.65 * spliceDiameterMm) + BAY_LIP_THICKNESS_MM;
-}
-
 export function clipHeightMm(wireDiameterMm: number): number {
   return Math.max(1, 0.65 * wireDiameterMm) + CLIP_LIP_THICKNESS_MM;
 }
 
-export function portHoleDiameterMm(w: SignInstallationSettings["wiring"]): number {
-  return w.wireDiameterMm + 2 * w.portClearanceMm;
+/** Centros de los dos agujeros de un puerto bipolar: + arriba, - abajo (eje vertical, visto de frente). */
+export function portHoleCenters(cx: number, cy: number, spacingMm: number): { plus: Point2D; minus: Point2D } {
+  return { plus: [cx, cy + spacingMm / 2], minus: [cx, cy - spacingMm / 2] };
+}
+
+/** Los DOS agujeros circulares del puerto (polígonos en coordenadas globales). */
+export function portHolePolygons(cx: number, cy: number, holeDiameterMm: number, spacingMm: number): Point2D[][] {
+  const c = portHoleCenters(cx, cy, spacingMm);
+  return [circlePolygon(c.plus[0], c.plus[1], holeDiameterMm), circlePolygon(c.minus[0], c.minus[1], holeDiameterMm)];
+}
+
+/** Huella ÚNICA del par (para la zona reservada): rectángulo que cubre ambos agujeros. */
+export function portPairFootprint(cx: number, cy: number, holeDiameterMm: number, spacingMm: number): Point2D[] {
+  return rectPolygon(cx, cy, holeDiameterMm, spacingMm + holeDiameterMm, 0);
 }
 
 /** Cantidad AUTOMÁTICA de puntos de montaje, derivada del tamaño de la letra (no de su carácter). */
@@ -284,178 +290,89 @@ function placeMounts(state: LetterState, ctx: Ctx, out: LetterInstallationPlan):
 
 // ----------------------------------------------------------------- puertos
 
+/**
+ * Puertos BIPOLARES: cada IN/OUT/ALIM son DOS agujeros paralelos (+ y -) que se ubican, validan y reservan
+ * como UNA unidad. La preferencia de producto sigue siendo la salida lateral (side-wall), pero en V1 se usa el
+ * fallback trasero cerca del borde (ver docs); ambos generan los DOS agujeros y el footprint del par completo.
+ */
 function placePorts(state: LetterState, ctx: Ctx, out: LetterInstallationPlan, roles: ReturnType<typeof buildWiringRoles>): void {
   const w = ctx.settings.wiring;
   if (w.mode !== "chained") return;
   const role = roles.get(state.instance.id);
   if (!role) return;
   const { instance } = state;
-  const holeD = portHoleDiameterMm(w);
-  const r = holeD / 2;
+  const holeD = w.wireHoleDiameterMm;
+  const spacing = w.holeCenterSpacingMm;
   const wanted: { role: PortRole; side: "left" | "right" }[] = [];
   if (role.hasPowerIn) wanted.push({ role: "power-in", side: role.inSide });
   if (role.hasIn) wanted.push({ role: "in", side: role.inSide });
   if (role.hasOut) wanted.push({ role: "out", side: role.outSide });
 
   for (const want of wanted) {
-    const avail = available(state, ctx, r + THROUGH_HOLE_EDGE_MARGIN_MM);
+    const availM = available(state, ctx, THROUGH_HOLE_EDGE_MARGIN_MM);
     const b = instance.boundsMm;
     const sorted = candidateGrid(instance)
-      .filter((c) => isPointInsideContourGroups(avail.groups, c))
+      .filter((c) => isPointInsideContourGroups(availM.groups, c))
       .map((c) => ({ c, score: (want.side === "left" ? c[0] - b.minX : b.maxX - c[0]) + 1.5 * Math.abs(c[1] - ctx.cableLevelY) }))
       .sort((p, q) => p.score - q.score || byXY(p.c, q.c));
     const id = `${instance.id}:${want.role}`;
-    const pick = sorted[0]?.c;
+    // Ambos agujeros deben caber juntos (misma prueba exacta que el resto de las aberturas de la base).
+    const pick = sorted.slice(0, 600).find((cand) => insideAll(portHolePolygons(cand.c[0], cand.c[1], holeD, spacing), availM.paths))?.c;
     if (!pick) {
-      state.issues.push({ code: "PORT_NO_SPACE", letterId: instance.id, message: `No hay espacio para el puerto de cable (${want.role === "out" ? "salida" : "entrada"}) en ${instance.label}.` });
+      state.issues.push({ code: "PORT_NO_SPACE", letterId: instance.id, message: `No hay espacio para el puerto bipolar de cable (${want.role === "out" ? "salida" : "entrada"}) en ${instance.label}.` });
       continue;
     }
-    const port: CablePort = {
+    const centers = portHoleCenters(pick[0], pick[1], spacing);
+    const port: BipolarCablePort = {
       id,
       letterId: instance.id,
       role: want.role,
       side: want.side,
       ...rel(ctx, pick),
-      holeDiameterMm: holeD,
-      placement: { kind: "rear-edge", preferred: "side-wall", fallback: true, reason: "Salida lateral (side-wall) diferida en V1: exigiría perforar la pared en dirección horizontal (geometría frágil); se usa un puerto trasero cerca del borde." },
+      wireHoleDiameterMm: holeD,
+      holeCenterSpacingMm: spacing,
+      holes: [{ polarity: "+", ...rel(ctx, centers.plus) }, { polarity: "-", ...rel(ctx, centers.minus) }],
+      placement: { kind: "rear-edge", preferred: "side-wall", fallback: true, reason: "Salida lateral (side-wall) diferida en V1: exigiría perforar la pared en dirección horizontal (geometría frágil); se usa un puerto bipolar trasero cerca del borde." },
       valid: true,
     };
     out.ports.push(port);
-    state.recs.push(makeZone(id, "cable-port", instance.id, [circlePolygon(pick[0], pick[1], holeD)]));
+    state.recs.push(makeZone(id, "cable-port", instance.id, [portPairFootprint(pick[0], pick[1], holeD, spacing)]));
   }
-}
-
-// ------------------------------------------------------------ empalmes
-
-interface BayShape {
-  innerW: number;
-  innerL: number;
-  outerW: number;
-  outerL: number;
-  height: number;
-}
-
-export function baySizes(s: SignInstallationSettings["wiring"]["splice"]): BayShape {
-  const innerW = s.diameterMm + 2 * s.clearanceMm;
-  const innerL = s.lengthMm + 2 * s.clearanceMm;
-  return { innerW, innerL, outerW: innerW + 2 * BAY_RAIL_MM, outerL: innerL, height: bayHeightMm(s.diameterMm) };
-}
-
-/** Polígono exterior (envolvente) de una bahía: el rectángulo que reserva la zona. */
-export function bayFootprint(cx: number, cy: number, rot: 0 | 90, shape: BayShape): Point2D[] {
-  return rectPolygon(cx, cy, shape.outerL, shape.outerW, rot);
-}
-
-function placeBays(state: LetterState, ctx: Ctx, out: LetterInstallationPlan): void {
-  const w = ctx.settings.wiring;
-  const { instance } = state;
-  if (w.mode !== "chained" || !w.splice.enabled) return;
-  const override = ctx.settings.overrides[instance.id];
-  if (override?.spliceEnabled === false) return;
-  const shape = baySizes(w.splice);
-  const b = instance.boundsMm;
-  const centroid: Point2D = [(b.minX + b.maxX) / 2, (b.minY + b.maxY) / 2];
-  const preferredRot: 0 | 90 = b.height >= b.width ? 90 : 0;
-  const rotations: (0 | 90)[] = preferredRot === 90 ? [90, 0] : [0, 90];
-  const cands = candidateGrid(instance);
-
-  const placed: SpliceBay[] = [];
-  const tryPlace = (polarity: "+" | "-", manual: RelPoint | undefined, anchor: Point2D): boolean => {
-    const id = `${instance.id}:bay${polarity === "+" ? "P" : "N"}`;
-    const availM = available(state, ctx, FEATURE_EDGE_MARGIN_MM);
-    let best: { p: Point2D; rot: 0 | 90; score: number } | null = null;
-    if (manual) {
-      const p = glob(ctx, manual);
-      const rot = preferredRot;
-      const ok = insideAll([bayFootprint(p[0], p[1], rot, shape)], availM.paths);
-      placed.push({ id, letterId: instance.id, polarity, ...rel(ctx, p), rotationDeg: rot, innerWidthMm: shape.innerW, innerLengthMm: shape.innerL, outerWidthMm: shape.outerW, outerLengthMm: shape.outerL, heightMm: shape.height, valid: ok });
-      if (ok) state.recs.push(makeZone(id, "splice-bay", instance.id, [bayFootprint(p[0], p[1], rot, shape)]));
-      else state.issues.push({ code: "SPLICE_OUTSIDE_MATERIAL", letterId: instance.id, message: `El alojamiento de empalme ${polarity} de ${instance.label} queda fuera del material o se superpone con otra feature.` });
-      return true;
-    }
-    for (const rot of rotations) {
-      const halfMin = Math.min(shape.outerW, shape.outerL) / 2;
-      const avail = available(state, ctx, halfMin + FEATURE_EDGE_MARGIN_MM);
-      const pool = cands
-        .filter((c) => isPointInsideContourGroups(avail.groups, c))
-        .map((c) => ({ c, score: Math.hypot(c[0] - anchor[0], c[1] - anchor[1]) + (rot === preferredRot ? 0 : 0.5) }))
-        .sort((p, q) => p.score - q.score || byXY(p.c, q.c));
-      for (const cand of pool) {
-        if (best && cand.score >= best.score) break;
-        if (insideAll([bayFootprint(cand.c[0], cand.c[1], rot, shape)], availM.paths)) {
-          best = { p: cand.c, rot, score: cand.score };
-          break;
-        }
-      }
-    }
-    if (!best) return false;
-    const fp = bayFootprint(best.p[0], best.p[1], best.rot, shape);
-    placed.push({ id, letterId: instance.id, polarity, ...rel(ctx, best.p), rotationDeg: best.rot, innerWidthMm: shape.innerW, innerLengthMm: shape.innerL, outerWidthMm: shape.outerW, outerLengthMm: shape.outerL, heightMm: shape.height, valid: true });
-    state.recs.push(makeZone(id, "splice-bay", instance.id, [fp]));
-    return true;
-  };
-
-  const okPlus = tryPlace("+", override?.splicePlus, centroid);
-  const plusAnchor: Point2D = placed[0] ? glob(ctx, placed[0]) : centroid;
-  const okMinus = okPlus && tryPlace("-", override?.spliceMinus, plusAnchor);
-  if (!okPlus || !okMinus) {
-    // Sin espacio para AMBAS bahías: no se deja una sola (quedaría un empalme sin su par).
-    for (const bay of placed) state.recs = state.recs.filter((r) => r.zone.id !== bay.id);
-    state.cache.clear();
-    state.issues.push({ code: "SPLICE_NO_SPACE", letterId: instance.id, message: `No hay espacio suficiente para el alojamiento automático de empalmes en ${instance.label}. Podés desactivarlo para esta letra.` });
-    return;
-  }
-  out.bays.push(...placed);
 }
 
 // ------------------------------------------------------------------- clips
 
+/**
+ * Retención local sencilla (strain relief) junto a cada puerto: UN clip que abraza los dos conductores del par
+ * y evita que un tirón exterior llegue a la conexión interna. No hay rutas internas ni destinos intermedios.
+ */
 function placeClips(state: LetterState, ctx: Ctx, out: LetterInstallationPlan): void {
   const w = ctx.settings.wiring;
-  if (w.mode !== "chained" || out.bays.length === 0) return;
-  const gap = w.wireDiameterMm + 2 * 0.15;
+  if (w.mode !== "chained") return;
+  const gap = w.holeCenterSpacingMm + w.wireDiameterMm + 2 * CLIP_WIRE_SLACK_MM;
   const outerW = gap + 2 * CLIP_POST_MM;
-  const target: Point2D = [ctx.origin.x + (out.bays[0].x + out.bays[out.bays.length - 1].x) / 2, ctx.origin.y + (out.bays[0].y + out.bays[out.bays.length - 1].y) / 2];
-  const CLIPS_PER_PORT = 2;
-  const DEVIATIONS = [0, 15, -15, 30, -30, 45, -45, 60, -60, 90, -90, 120, -120, 150, -150, 180];
   for (const port of out.ports) {
-    const availM = available(state, ctx, FEATURE_EDGE_MARGIN_MM);
     const start = glob(ctx, port);
-    const baseAngle = Math.atan2(target[1] - start[1], target[0] - start[0]);
-    // Se prueban direcciones alrededor de la recta puerto -> bahías y se elige la primera que aloja ambos clips
-    // (o la que aloja más). Orden físico garantizado: distancia creciente desde el puerto.
-    let best: CableClip[] = [];
-    for (const dev of DEVIATIONS) {
-      const angle = baseAngle + (dev * Math.PI) / 180;
-      const angleDeg = (angle * 180) / Math.PI;
-      const trial: CableClip[] = [];
-      let previous = 0;
-      for (let n = 0; n < CLIPS_PER_PORT; n++) {
-        const from = n === 0 ? CLIP_FIRST_DISTANCE_MM : previous + CLIP_SPACING_MM;
-        let found: CableClip | null = null;
-        for (let d = from; d <= from + 24 && !found; d += 1) {
-          const cx = start[0] + Math.cos(angle) * d;
-          const cy = start[1] + Math.sin(angle) * d;
-          const fp = rectPolygon(cx, cy, CLIP_LENGTH_MM, outerW, angleDeg);
-          if (isPointInsideContourGroups(availM.groups, [cx, cy]) && insideAll([fp], availM.paths)) {
-            found = { id: `${port.id}:c${n + 1}`, letterId: state.instance.id, portId: port.id, ...rel(ctx, [cx, cy]), angleDeg, gapMm: gap, outerWidthMm: outerW, lengthMm: CLIP_LENGTH_MM, heightMm: clipHeightMm(w.wireDiameterMm), distanceFromPortMm: d };
-            previous = d;
-          }
-        }
-        if (!found) break;
-        trial.push(found);
+    // El cable entra al interior de la letra: hacia la derecha si el puerto está a la izquierda y viceversa.
+    const angleDeg = port.side === "left" ? 0 : 180;
+    const rad = (angleDeg * Math.PI) / 180;
+    const availM = available(state, ctx, FEATURE_EDGE_MARGIN_MM);
+    let found: CableClip | null = null;
+    for (let d = CLIP_FIRST_DISTANCE_MM; d <= CLIP_FIRST_DISTANCE_MM + 24 && !found; d += 1) {
+      const cx = start[0] + Math.cos(rad) * d;
+      const cy = start[1];
+      const fp = rectPolygon(cx, cy, CLIP_LENGTH_MM, outerW, angleDeg);
+      if (isPointInsideContourGroups(availM.groups, [cx, cy]) && insideAll([fp], availM.paths)) {
+        found = { id: `${port.id}:c1`, letterId: state.instance.id, portId: port.id, ...rel(ctx, [cx, cy]), angleDeg, gapMm: gap, outerWidthMm: outerW, lengthMm: CLIP_LENGTH_MM, heightMm: clipHeightMm(w.wireDiameterMm), distanceFromPortMm: d };
       }
-      if (trial.length > best.length) best = trial;
-      if (best.length === CLIPS_PER_PORT) break;
     }
-    for (const clip of best) {
-      const fp = rectPolygon(ctx.origin.x + clip.x, ctx.origin.y + clip.y, CLIP_LENGTH_MM, outerW, clip.angleDeg);
-      state.recs.push(makeZone(clip.id, "cable-clip", state.instance.id, [fp], 0.6));
-      out.clips.push(clip);
+    if (!found) {
+      state.issues.push({ code: "CLIP_NO_SPACE", letterId: state.instance.id, message: `No hay espacio para la retención local del cable del puerto ${port.role} de ${state.instance.label}.` });
+      continue;
     }
-    if (best.length < CLIPS_PER_PORT) {
-      state.issues.push({ code: "CLIP_NO_SPACE", letterId: state.instance.id, message: `No hay espacio para ${best.length === 0 ? "los clips" : "el segundo clip"} de alivio de tensión del puerto ${port.role} de ${state.instance.label}.` });
-    }
+    const fp = rectPolygon(ctx.origin.x + found.x, ctx.origin.y + found.y, CLIP_LENGTH_MM, outerW, found.angleDeg);
+    state.recs.push(makeZone(found.id, "cable-clip", state.instance.id, [fp], 0.6));
+    out.clips.push(found);
   }
 }
 
@@ -463,12 +380,12 @@ function placeClips(state: LetterState, ctx: Ctx, out: LetterInstallationPlan): 
 
 function placeLabels(state: LetterState, ctx: Ctx, out: LetterInstallationPlan): void {
   if (ctx.settings.wiring.mode !== "chained" || !ctx.settings.wiring.printLabels) return;
-  const tryLabel = (id: string, text: string, anchor: Point2D, candidates: { angleDeg: number; distance: number }[]) => {
+  const tryLabel = (id: string, text: string, anchor: Point2D, candidates: { angleDeg: number; distance: number; shiftX?: number }[]) => {
     const wMm = textWidthMm(text);
     const hMm = 5 * LABEL_PIXEL_MM;
-    for (const { angleDeg, distance } of candidates) {
+    for (const { angleDeg, distance, shiftX = 0 } of candidates) {
       const rad = (angleDeg * Math.PI) / 180;
-      const cx = anchor[0] + Math.cos(rad) * (distance + (Math.abs(Math.cos(rad)) * wMm) / 2);
+      const cx = anchor[0] + shiftX + Math.cos(rad) * (distance + (Math.abs(Math.cos(rad)) * wMm) / 2);
       const cy = anchor[1] + Math.sin(rad) * (distance + (Math.abs(Math.sin(rad)) * hMm) / 2);
       const polys = glyphPolygons(text, cx, cy);
       const availM = available(state, ctx, FEATURE_EDGE_MARGIN_MM);
@@ -480,39 +397,48 @@ function placeLabels(state: LetterState, ctx: Ctx, out: LetterInstallationPlan):
       }
     }
   };
-  for (const bay of out.bays) {
-    // Junto a la bahía: primero a los costados (compacto), luego más allá de sus extremos.
-    const lateral = bay.outerWidthMm / 2 + 1.4;
-    const axial = bay.outerLengthMm / 2 + 1.4;
-    const rot = bay.rotationDeg;
-    const near = [{ angleDeg: rot + 90, distance: lateral }, { angleDeg: rot + 270, distance: lateral }, { angleDeg: rot, distance: axial }, { angleDeg: rot + 180, distance: axial }];
-    tryLabel(`${bay.id}:label`, bay.polarity === "+" ? "+" : "-", glob(ctx, bay), [...near, ...near.map((c) => ({ ...c, distance: c.distance + 3 }))]);
-  }
   for (const port of out.ports) {
-    const d = port.holeDiameterMm / 2 + 1.5;
-    tryLabel(`${port.id}:label`, port.role === "out" ? "OUT" : "IN", glob(ctx, port), [90, 270, 0, 180].map((angleDeg) => ({ angleDeg, distance: d })));
+    const spacing = port.holeCenterSpacingMm;
+    const half = (spacing + port.wireHoleDiameterMm) / 2;
+    const inward = port.side === "left" ? 0 : 180;
+    // IN/OUT sobre o bajo el par; luego, polaridad (+ / -) junto a cada agujero, del lado interior.
+    // El rótulo se alinea con el borde exterior del par y crece hacia el interior de la letra (no se sale del material).
+    const text = port.role === "out" ? "OUT" : "IN";
+    const shiftX = (port.side === "left" ? 1 : -1) * (textWidthMm(text) / 2 - port.wireHoleDiameterMm / 2);
+    tryLabel(`${port.id}:label`, text, glob(ctx, port), [90, 270].map((angleDeg) => ({ angleDeg, distance: half + 2.6, shiftX })));
+    for (const hole of port.holes) {
+      tryLabel(`${port.id}:${hole.polarity}`, hole.polarity, glob(ctx, hole), [inward, inward + 180].map((angleDeg) => ({ angleDeg, distance: port.wireHoleDiameterMm / 2 + 2.9 })));
+    }
   }
 }
 
-// ---------------------------------------------------------------- ruteo
+// --------------------------------------------------------------- conexiones
 
-function buildRoute(out: LetterInstallationPlan, roles: ReturnType<typeof buildWiringRoles>): RouteNode[] {
-  const role = roles.get(out.instanceId);
-  if (!role) return [];
-  const route: RouteNode[] = [];
-  const portIn = out.ports.find((p) => p.role === "in" || p.role === "power-in");
-  const portOut = out.ports.find((p) => p.role === "out");
-  const clipsOf = (portId: string) => out.clips.filter((c) => c.portId === portId).sort((a, b) => a.distanceFromPortMm - b.distanceFromPortMm);
-  if (portIn) {
-    route.push({ kind: "port-in", x: portIn.x, y: portIn.y, refId: portIn.id });
-    for (const c of clipsOf(portIn.id)) route.push({ kind: "clip", x: c.x, y: c.y, refId: c.id });
+/** Conexiones bipolares entre letras consecutivas: dos recorridos (+ y -), punto medio para el soporte de empalmes y distancia. */
+function buildConnections(plan: InstallationPlan): WireConnection[] {
+  if (!plan.wiring) return [];
+  const out: WireConnection[] = [];
+  for (const link of plan.wiring.links) {
+    const from = plan.letters.find((l) => l.instanceId === link.fromId)?.ports.find((p) => p.role === "out");
+    const to = plan.letters.find((l) => l.instanceId === link.toId)?.ports.find((p) => p.role === "in");
+    if (!from || !to) continue;
+    const mid = { x: (from.x + to.x) / 2, y: (from.y + to.y) / 2 };
+    const angleDeg = (Math.atan2(to.y - from.y, to.x - from.x) * 180) / Math.PI;
+    out.push({
+      id: `${link.fromId}>${link.toId}`,
+      fromLetter: link.fromId,
+      toLetter: link.toId,
+      fromLabel: link.fromLabel,
+      toLabel: link.toLabel,
+      fromPort: from.id,
+      toPort: to.id,
+      positivePath: [{ x: from.holes[0].x, y: from.holes[0].y }, { x: to.holes[0].x, y: to.holes[0].y }],
+      negativePath: [{ x: from.holes[1].x, y: from.holes[1].y }, { x: to.holes[1].x, y: to.holes[1].y }],
+      clipPosition: { ...mid, angleDeg },
+      distanceMm: Math.hypot(to.x - from.x, to.y - from.y),
+    });
   }
-  for (const bay of out.bays) route.push({ kind: bay.polarity === "+" ? "bay+" : "bay-", x: bay.x, y: bay.y, refId: bay.id });
-  if (portOut) {
-    for (const c of [...clipsOf(portOut.id)].reverse()) route.push({ kind: "clip", x: c.x, y: c.y, refId: c.id });
-    route.push({ kind: "port-out", x: portOut.x, y: portOut.y, refId: portOut.id });
-  }
-  return route;
+  return out;
 }
 
 // ------------------------------------------------------------- planificar
@@ -532,7 +458,7 @@ export function planInstallation({ instances, params, origin, cutouts }: PlanInp
   const settings = getInstallationSettings(params);
   const errors: InstallationIssue[] = [];
   const warnings: InstallationIssue[] = [];
-  const plan: InstallationPlan = { active: isInstallationActive(settings), origin, instances, wiring: null, letters: [], cableLengths: [], errors, warnings };
+  const plan: InstallationPlan = { active: isInstallationActive(settings), origin, instances, wiring: null, letters: [], connections: [], spliceClipCount: 0, cableLengths: [], errors, warnings };
   if (!plan.active || instances.length === 0) return plan;
 
   if (params.frontType === "light-channel") {
@@ -564,13 +490,12 @@ export function planInstallation({ instances, params, origin, cutouts }: PlanInp
   for (const instance of instances) {
     const safe = letterSafeRegion(instance, params);
     const state: LetterState = { instance, safe, safePaths: contourGroupsToRawPaths(safe), recs: [], issues: [], cache: new Map() };
-    const out: LetterInstallationPlan = { instanceId: instance.id, mounts: [], ports: [], bays: [], clips: [], route: [], labels: [], zones: [] };
+    const out: LetterInstallationPlan = { instanceId: instance.id, mounts: [], ports: [], clips: [], labels: [], zones: [] };
     placeMounts(state, ctx, out);
     placePorts(state, ctx, out, roles);
-    placeBays(state, ctx, out);
-    placeClips(state, ctx, out);
+    // Etiquetas antes que los clips: quedan junto al par y el clip se acomoda más adentro.
     placeLabels(state, ctx, out);
-    out.route = wiringOn ? buildRoute(out, roles) : [];
+    placeClips(state, ctx, out);
     out.zones = state.recs.map((r) => r.zone);
 
     // Validación: solapes entre features (auto o manuales) y contra recortes manuales.
@@ -590,13 +515,15 @@ export function planInstallation({ instances, params, origin, cutouts }: PlanInp
       if (!mt.valid) state.issues.push({ code: "MOUNT_INVALID", letterId: instance.id, message: `Punto de montaje ${mt.id}: ${mt.message ?? "inválido"}` });
     });
     for (const issue of state.issues) {
-      const isError = issue.code === "ZONES_OVERLAP" || issue.code === "MOUNT_INVALID" || issue.code === "SPLICE_OUTSIDE_MATERIAL" || issue.code === "PORT_INVADES_MOUNT";
+      const isError = issue.code === "ZONES_OVERLAP" || issue.code === "MOUNT_INVALID" || issue.code === "PORT_INVALID" || issue.code === "SPLICE_CLIP_INVALID" || issue.code === "PORT_INVADES_MOUNT";
       (isError ? errors : warnings).push(issue);
     }
     plan.letters.push(out);
   }
 
   validateFit(plan, params, settings);
+  plan.connections = buildConnections(plan);
+  plan.spliceClipCount = wiringOn && settings.wiring.spliceClip.enabled && plan.wiring ? plan.wiring.links.length : 0;
 
   if (wiringOn && plan.wiring) {
     const outMap = new Map<string, { x: number; y: number }>();
@@ -636,8 +563,10 @@ function validateFit(plan: InstallationPlan, params: LetterSignParams, settings:
     push({ code: "KEYHOLE_DEPTH", letterId: null, message: "La cavidad no tiene profundidad suficiente para alojar la cabeza del tornillo del keyhole." }, false);
   }
   if (settings.wiring.mode === "chained") {
-    const wireCap = settings.wiring.splice.enabled ? bayHeightMm(settings.wiring.splice.diameterMm) : 0;
-    if (anyOf((l) => l.bays.length) && wireCap > usable) push({ code: "FEATURE_EXCEEDS_CAVITY", letterId: null, message: `El alojamiento de empalmes (${wireCap.toFixed(1)} mm) no cabe en la cavidad disponible (${usable.toFixed(1)} mm).` }, true);
+    const wr = settings.wiring;
+    if (!(wr.wireHoleDiameterMm >= wr.wireDiameterMm)) push({ code: "PORT_INVALID", letterId: null, message: "El agujero del puerto es más angosto que el conductor: aumentá el diámetro del agujero." }, true);
+    if (!(wr.holeCenterSpacingMm >= wr.wireHoleDiameterMm + 1.2)) push({ code: "PORT_INVALID", letterId: null, message: "La separación entre los dos agujeros del puerto es demasiado chica (queda menos de 1.2 mm de pared entre ellos)." }, true);
+    if (wr.spliceClip.enabled) for (const message of validateSpliceClip(wr.spliceClip)) push({ code: "SPLICE_CLIP_INVALID", letterId: null, message }, true);
     if (settings.mounting.type === "keyhole") {
       push({ code: "REAR_PORT_FLUSH", letterId: null, message: "Con montaje Keyhole la letra apoya contra la pared: los puertos traseros dejan salir el cable hacia la pared. Dejá un canal en la pared o usá separadores." }, false);
     }

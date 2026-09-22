@@ -5,7 +5,7 @@ import type { ContourGroup, Point2D } from "@/lib/maker/types";
  * Todas las unidades son milímetros. Ver docs/STAMPA_MAKER.md, sección
  * "Carteles — Sistema de instalación".
  *
- * Coordenadas: las posiciones de features (montaje, puertos, bahías...) son
+ * Coordenadas: las posiciones de features (montaje, puertos bipolares...) son
  * relativas al CENTRO de la caja del diseño (mismo origen que `BackCutout`), X a
  * la derecha visto DE FRENTE, Y arriba. Internamente el motor usa las
  * coordenadas globales del diseño (`origin + relativa`).
@@ -59,12 +59,19 @@ export type WiringDirection = "ltr" | "rtl";
 export type PowerEntryKind = "direct-wire" | "usb-c-5v" | "usb-c-pd";
 export type LedVoltage = "5V" | "12V" | "24V" | "other";
 
-export interface SpliceSettings {
+/**
+ * Soporte de empalmes EXTERNO (`ExternalSpliceClip`, pieza impresa aparte): sostiene, ordena, separa y retiene
+ * suavemente los DOS empalmes (+ y -) ya terminados y aislados entre una letra y la siguiente. NO conduce corriente.
+ */
+export interface SpliceClipSettings {
+  /** Genera la pieza `bipolar-splice-clip.stl` (una sola pieza + cantidad = letras - 1). */
   enabled: boolean;
   /** Diámetro máximo del empalme terminado (con aislación). */
   diameterMm: number;
   /** Largo del empalme terminado. */
   lengthMm: number;
+  /** Distancia entre los ejes de los dos alojamientos (+ y -). */
+  spacingMm: number;
   /** Holgura POR LADO. */
   clearanceMm: number;
 }
@@ -73,15 +80,18 @@ export interface WiringSettings {
   mode: WiringMode;
   direction: WiringDirection;
   powerEntry: PowerEntryKind;
+  /** Diámetro de cada conductor (informativo: el agujero debe ser >= a este valor). */
   wireDiameterMm: number;
-  /** Holgura POR LADO del agujero del puerto respecto del cable. */
-  portClearanceMm: number;
-  splice: SpliceSettings;
+  /** Diámetro de CADA uno de los dos agujeros de un puerto bipolar. */
+  wireHoleDiameterMm: number;
+  /** Distancia entre los centros de los dos agujeros (+ y -) de un puerto bipolar. */
+  holeCenterSpacingMm: number;
+  spliceClip: SpliceClipSettings;
   /** Cable extra por tramo (servicio) para la longitud estimada. */
   serviceMarginMm: number;
   /** Solo documentación/etiqueta: no dimensiona nada eléctrico. */
   voltage: LedVoltage | null;
-  /** Etiquetas impresas (+, -, IN, OUT) junto a los puertos y bahías. */
+  /** Etiquetas impresas (+, -, IN, OUT) junto a los puertos bipolares. */
   printLabels: boolean;
 }
 
@@ -113,10 +123,6 @@ export interface LetterInstallationOverride {
   mountPoints?: RelPoint[];
   /** Cantidad de soportes automáticos (si no hay `mountPoints`). */
   mountCount?: number;
-  /** false = sin alojamiento de empalmes en esta letra. */
-  spliceEnabled?: boolean;
-  splicePlus?: RelPoint;
-  spliceMinus?: RelPoint;
 }
 
 /** Indexado por `LetterInstance.id`. */
@@ -205,7 +211,7 @@ export interface WiringModel {
 
 // --------------------------------------------------------------- features
 
-export type BackFeatureKind = "mount" | "cutout" | "splice-bay" | "cable-clip" | "cable-port" | "label";
+export type BackFeatureKind = "mount" | "cutout" | "cable-clip" | "cable-port" | "label";
 
 /** Zona reservada de la cara trasera. `footprint` es la huella real; el keepout es la huella + `marginMm`. Coordenadas globales del diseño. */
 export interface BackFeatureZone {
@@ -242,32 +248,48 @@ export interface CablePortPlacement {
   reason: string | null;
 }
 
-export interface CablePort {
+/** Un agujero de un puerto bipolar (coordenadas relativas al centro del diseño). */
+export interface PortHole {
+  polarity: "+" | "-";
+  x: number;
+  y: number;
+}
+
+/**
+ * Puerto de cable BIPOLAR: una unidad (IN/OUT/ALIM) con DOS agujeros paralelos (+ y -). Se posiciona, valida y
+ * reserva como un único bloque; nunca como dos features independientes. `x/y` es el centro del par; el eje del
+ * par es vertical (+ arriba, - abajo, visto de frente).
+ */
+export interface BipolarCablePort {
   id: string;
   letterId: string;
   role: PortRole;
   side: WireSide;
   x: number;
   y: number;
-  holeDiameterMm: number;
+  wireHoleDiameterMm: number;
+  holeCenterSpacingMm: number;
+  holes: [PortHole, PortHole];
   placement: CablePortPlacement;
   valid: boolean;
 }
 
-export interface SpliceBay {
+/** Conexión bipolar entre OUT de la letra N e IN de la letra N+1 (datos del helper visual, plantilla y guía). */
+export interface WireConnection {
   id: string;
-  letterId: string;
-  polarity: "+" | "-";
-  x: number;
-  y: number;
-  /** 0 = largo a lo largo de X; 90 = vertical. */
-  rotationDeg: 0 | 90;
-  innerWidthMm: number;
-  innerLengthMm: number;
-  outerWidthMm: number;
-  outerLengthMm: number;
-  heightMm: number;
-  valid: boolean;
+  fromLetter: string;
+  toLetter: string;
+  fromLabel: string;
+  toLabel: string;
+  fromPort: string;
+  toPort: string;
+  /** Recorrido del conductor + (de su agujero en OUT al de IN) y del -; coordenadas relativas al centro del diseño. */
+  positivePath: RelPoint[];
+  negativePath: RelPoint[];
+  /** Posición inicial (visual) del soporte de empalmes: punto medio del recorrido; el eje sigue la dirección del cable. */
+  clipPosition: { x: number; y: number; angleDeg: number };
+  /** Distancia entre los centros de los dos puertos. */
+  distanceMm: number;
 }
 
 export interface CableClip {
@@ -286,13 +308,6 @@ export interface CableClip {
   distanceFromPortMm: number;
 }
 
-export interface RouteNode {
-  kind: "port-in" | "clip" | "bay+" | "bay-" | "port-out";
-  x: number;
-  y: number;
-  refId: string;
-}
-
 export interface LetterLabelMark {
   id: string;
   letterId: string;
@@ -306,14 +321,13 @@ export type InstallationIssueCode =
   | "MOUNT_FEWER_THAN_TWO"
   | "MOUNT_NONE"
   | "MOUNT_INVALID"
-  | "SPLICE_NO_SPACE"
-  | "SPLICE_OUTSIDE_MATERIAL"
   | "PORT_NO_SPACE"
-  | "PORT_TOO_LARGE"
+  | "PORT_INVALID"
   | "PORT_INVADES_MOUNT"
   | "CLIP_NO_SPACE"
   | "ZONES_OVERLAP"
   | "SPLICE_EXCEEDS_SPACING"
+  | "SPLICE_CLIP_INVALID"
   | "FEATURE_EXCEEDS_CAVITY"
   | "KEYHOLE_DEPTH"
   | "REAR_PORT_FLUSH"
@@ -329,10 +343,9 @@ export interface InstallationIssue {
 export interface LetterInstallationPlan {
   instanceId: string;
   mounts: MountPoint[];
-  ports: CablePort[];
-  bays: SpliceBay[];
+  ports: BipolarCablePort[];
+  /** Retención local (strain relief) cerca de cada puerto: un clip por puerto. */
   clips: CableClip[];
-  route: RouteNode[];
   labels: LetterLabelMark[];
   zones: BackFeatureZone[];
 }
@@ -352,6 +365,10 @@ export interface InstallationPlan {
   instances: LetterInstance[];
   wiring: WiringModel | null;
   letters: LetterInstallationPlan[];
+  /** Conexiones bipolares entre letras consecutivas (orden físico). */
+  connections: WireConnection[];
+  /** Cantidad de soportes de empalme externos = letras - 1 (0 sin cableado encadenado o con 1 letra). */
+  spliceClipCount: number;
   /** Longitudes estimadas de cable entre letras consecutivas (orden físico). */
   cableLengths: CableLength[];
   /** Errores: bloquean la exportación (geometría físicamente inválida). */

@@ -18,7 +18,7 @@ import { detectFileKind, type FileDesignSource } from "@/lib/maker/import/import
 import { DEFAULT_PNG_OPTIONS, IMPORT_LIMITS, type PngImportOptions } from "@/lib/maker/import/types";
 import { exportWord } from "@/lib/maker/exporters/exportWord";
 import { downloadLettersZip } from "@/lib/maker/exporters/exportLettersZip";
-import { downloadInstallKit, downloadSpacers, downloadTemplatePdf, downloadWiringGuidePdf } from "@/lib/maker/exporters/exportInstallKit";
+import { downloadAuxParts, downloadInstallKit, downloadTemplatePdf, downloadWiringGuidePdf } from "@/lib/maker/exporters/exportInstallKit";
 import { buildInstallationHelperMesh } from "@/lib/maker/installation/helper";
 import { invalidMountEditorIds, mountEditorCutouts, mountSafeZone, moveMountPoint } from "@/lib/maker/installation/editing";
 import { DEFAULT_LETTER_SIGN_PARAMS } from "@/lib/maker/defaults";
@@ -247,14 +247,17 @@ export default function StampaMakerCartelesPage() {
     () => (displayMode === "model" && !editing ? buildInstallationHelperMesh(installationPlan, params, { showWiring, showWall }) : null),
     [displayMode, editing, installationPlan, params, showWiring, showWall],
   );
-  const spacerQuantity = shownGeometry?.installationParts.reduce((n, p) => n + p.quantity, 0) ?? 0;
+  const spacerQuantity = shownGeometry?.installationParts.filter((p) => p.kind === "wallSpacer").reduce((n, p) => n + p.quantity, 0) ?? 0;
+  const clipQuantity = shownGeometry?.installationParts.filter((p) => p.kind === "bipolarSpliceClip").reduce((n, p) => n + p.quantity, 0) ?? 0;
   const installExport = installationPlan
     ? {
         canDownload,
         spacerQuantity,
+        clipQuantity,
         hasGuide: !!installationPlan.wiring,
         loading: installLoading,
-        onSpacers: () => shownGeometry && runInstall(() => downloadSpacers(shownGeometry), "No se pudieron exportar los separadores."),
+        onSpacers: () => shownGeometry && runInstall(() => downloadAuxParts(shownGeometry, "wallSpacer"), "No se pudieron exportar los separadores."),
+        onClips: () => shownGeometry && runInstall(() => downloadAuxParts(shownGeometry, "bipolarSpliceClip"), "No se pudo exportar el soporte de empalmes."),
         onTemplate: () => shownGeometry && runInstall(() => downloadTemplatePdf(shownGeometry, params, baseFileName, installTitle), "No se pudo generar la plantilla."),
         onGuide: () => shownGeometry && runInstall(() => downloadWiringGuidePdf(shownGeometry, params, baseFileName, installTitle), "No se pudo generar la guía de conexión."),
         onKit: () => shownGeometry && runInstall(() => downloadInstallKit(shownGeometry, params, baseFileName, installTitle), "No se pudo generar el kit de instalación."),
