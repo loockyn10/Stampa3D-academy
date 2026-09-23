@@ -23,9 +23,20 @@ import { DEFAULT_PRINTER_PROFILE_ID, getPrinterProfile } from "@/lib/maker/print
 import { DEFAULT_NEON_INSTALLATION_OVERRIDES, DEFAULT_NEON_INSTALLATION_RECIPE, type NeonInstallationOverrides, type NeonInstallationRecipe } from "@/lib/maker/neon/installation/types";
 import { emptyNeonInstallationResult } from "@/lib/maker/neon/installation/orchestrate";
 import { buildNeonInstallationHelperMesh } from "@/lib/maker/neon/installation/helperMesh";
-import { movePassThroughOverride, passThroughEditorCutouts, resetAllOverrides, setManualOrder, toggleInvertOverride } from "@/lib/maker/neon/installation/editing";
+import {
+  addManualBridge,
+  clearManualBridges,
+  movePassThroughOverride,
+  passThroughEditorCutouts,
+  removeManualBridge,
+  resetAllOverrides,
+  setManualOrder,
+  toggleInvertOverride,
+} from "@/lib/maker/neon/installation/editing";
+import { componentsOf, nearestPointPair, segmentOuterFootprint } from "@/lib/maker/neon/installation/bridges";
 import { findInvalidBackCutouts } from "@/lib/maker/backCutoutEditor";
 import type { NeonWiringPlan } from "@/lib/maker/neon/installation/wiring";
+import type { NeonSegment } from "@/lib/maker/neon/installation/segments";
 import { downloadNeonInstallKit, downloadNeonWallClipStl } from "@/lib/maker/neon/exporters/exportNeonInstallKit";
 
 export default function StampaMakerNeonPage() {
@@ -78,6 +89,24 @@ export default function StampaMakerNeonPage() {
     setInstallationOverrides((prev) => toggleInvertOverride(prev, segmentId, wasInverted));
   }, []);
   const handleResetOverrides = useCallback(() => setInstallationOverrides(resetAllOverrides()), []);
+
+  // Ref: mismo motivo que wiringRef — el handler necesita los segmentos VIGENTES (ya
+  // recalculados con el diseño actual), no un valor obsoleto capturado en el closure.
+  const segmentsRef = useRef<NeonSegment[]>([]);
+  const handleAddManualBridge = useCallback((fromSegmentId: string, toSegmentId: string) => {
+    const segmentsById = new Map(segmentsRef.current.map((s) => [s.id, s]));
+    const from = segmentsById.get(fromSegmentId);
+    const to = segmentsById.get(toSegmentId);
+    if (!from || !to) return;
+    const fa = segmentOuterFootprint(from, params);
+    const fb = segmentOuterFootprint(to, params);
+    if (fa.length === 0 || fb.length === 0) return;
+    const { a, b } = nearestPointPair(fa, fb);
+    setInstallationOverrides((prev) => addManualBridge(prev, fromSegmentId, toSegmentId, a, b));
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [params]);
+  const handleRemoveManualBridge = useCallback((id: string) => setInstallationOverrides((prev) => removeManualBridge(prev, id)), []);
+  const handleClearManualBridges = useCallback(() => setInstallationOverrides((prev) => clearManualBridges(prev)), []);
 
   const source = useMemo<NeonSource | null>(() => {
     // Fuera de rango se acota (el panel muestra el error de campo); NaN/vacío = espaciado recomendado.
@@ -191,6 +220,7 @@ export default function StampaMakerNeonPage() {
   // --- Instalación 0.3: derivados para el panel + helpers del viewport + editor manual. ---
   const installationResult = result?.installation ?? emptyNeonInstallationResult();
   wiringRef.current = installationResult.wiring;
+  segmentsRef.current = installationResult.segments;
   const clipCount = useMemo(
     () => [...installationResult.clipPositions.values()].reduce((sum, arr) => sum + arr.length, 0),
     [installationResult.clipPositions],
@@ -333,7 +363,14 @@ export default function StampaMakerNeonPage() {
             segmentCount: installationResult.segments.length,
             wiring: installationResult.wiring,
             passThroughCount: installationResult.passThroughs.length,
-            bridgeCount: installationResult.bridges.length,
+            passThroughs: installationResult.passThroughs,
+            bridges: installationResult.bridges,
+            manualBridges: installationOverrides.manualBridges,
+            segmentIds: installationResult.segments.map((s) => s.id),
+            connectivityOk: componentsOf(installationResult.segments, installationResult.bridges).length <= 1,
+            onAddManualBridge: handleAddManualBridge,
+            onRemoveManualBridge: handleRemoveManualBridge,
+            onClearManualBridges: handleClearManualBridges,
             clipCount,
             installationWarnings: inputError ? [] : installationResult.warnings,
             installationErrors: inputError ? [] : installationResult.errors,

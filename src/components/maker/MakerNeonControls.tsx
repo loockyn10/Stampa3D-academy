@@ -12,7 +12,9 @@ import type { RasterConversion, RasterKind, RasterSettings } from "@/lib/maker/n
 import type { NeonFieldError } from "@/lib/maker/neon/validation/validateNeonParams";
 import type { NeonFontId, NeonIssue, NeonMetrics, NeonParams, NeonSourceType } from "@/lib/maker/neon/types";
 import type { NeonWiringPlan } from "@/lib/maker/neon/installation/wiring";
-import type { NeonBridgeMode, NeonInstallationRecipe, NeonMountMode } from "@/lib/maker/neon/installation/types";
+import type { NeonPassThrough } from "@/lib/maker/neon/installation/passThrough";
+import type { BridgeInstance } from "@/lib/maker/neon/installation/bridges";
+import type { NeonBridgeMode, NeonInstallationRecipe, NeonManualBridgeInstance, NeonMountMode, NeonReinforcementLevel } from "@/lib/maker/neon/installation/types";
 
 /** Formatos aceptados por el selector de archivos (la validación real es por firma del archivo, no por esto). */
 export const IMAGE_ACCEPT = "image/png,image/jpeg,.png,.jpg,.jpeg";
@@ -37,6 +39,20 @@ function InfoRow({ label, value, strong = false }: { label: string; value: strin
       <span className={strong ? "font-bold text-stampa-orange" : "font-semibold text-gray-200"}>{value}</span>
     </div>
   );
+}
+
+/** POWER IN / IN / OUT / (END no genera agujero, Sección 5) — distinción clara pedida en las Secciones 10-11 del pedido de corrección de cableado. */
+function formatPassThroughRoles(passThroughs: NeonPassThrough[]): string {
+  const powerIn = passThroughs.filter((p) => p.role === "powerIn").length;
+  const out = passThroughs.filter((p) => p.role === "out").length;
+  const plainIn = passThroughs.filter((p) => p.role === "in").length;
+  const inOut = passThroughs.filter((p) => p.role === "inOut").length;
+  const parts: string[] = [];
+  if (powerIn > 0) parts.push(`${powerIn} POWER IN`);
+  if (plainIn > 0) parts.push(`${plainIn} IN`);
+  if (out > 0) parts.push(`${out} OUT`);
+  if (inOut > 0) parts.push(`${inOut} IN/OUT (loop)`);
+  return parts.join(" · ") || "—";
 }
 
 const previewCache = new Map<string, { d: string; w: number; h: number } | null>();
@@ -137,7 +153,15 @@ function FileDropZone({ onFile, disabled, accept, hint }: { onFile: (file: File)
 
 const BRIDGE_MODE_OPTIONS: { value: NeonBridgeMode; label: string }[] = [
   { value: "independent", label: "Independientes" },
-  { value: "bridged", label: "Puentes traseros" },
+  { value: "minimal", label: "Mínima" },
+  { value: "reinforced", label: "Reforzada" },
+  { value: "custom", label: "Personalizada" },
+];
+
+const REINFORCEMENT_LEVEL_OPTIONS: { value: NeonReinforcementLevel; label: string }[] = [
+  { value: "low", label: "Bajo" },
+  { value: "medium", label: "Medio" },
+  { value: "high", label: "Alto" },
 ];
 
 const MOUNT_MODE_OPTIONS: { value: NeonMountMode; label: string }[] = [
@@ -151,7 +175,19 @@ export interface MakerNeonInstallationProps {
   segmentCount: number;
   wiring: NeonWiringPlan | null;
   passThroughCount: number;
-  bridgeCount: number;
+  /** Con roles (Secciones 1-3, 10-11 del pedido de corrección de cableado): POWER IN / IN / OUT — cada agujero físico corresponde 1:1 a un rol. */
+  passThroughs: NeonPassThrough[];
+  /** Instancias físicas efectivas (primarias/refuerzo en modos automáticos, o solo las manuales VÁLIDAS en Personalizada — Sección 15 del pedido de corrección de puentes). */
+  bridges: BridgeInstance[];
+  /** Todo lo que el usuario agregó en modo Personalizada, válido o no (Sección 29: "durante edición: válido normal, inválido rojo") — cruzar con `bridges` (kind:"manual") para saber cuáles son válidos. */
+  manualBridges: NeonManualBridgeInstance[];
+  /** Ids de segmento disponibles para los selectores de par del editor manual (Sección 28). */
+  segmentIds: string[];
+  /** true si todos los segmentos quedan en un solo componente conectado (Sección 32: resumen "Conectividad"). */
+  connectivityOk: boolean;
+  onAddManualBridge: (fromSegmentId: string, toSegmentId: string) => void;
+  onRemoveManualBridge: (id: string) => void;
+  onClearManualBridges: () => void;
   clipCount: number;
   installationWarnings: NeonIssue[];
   installationErrors: NeonIssue[];
@@ -164,6 +200,76 @@ export interface MakerNeonInstallationProps {
   onMoveSegment: (segmentId: string, direction: -1 | 1) => void;
   onInvertSegment: (segmentId: string) => void;
   onResetOverrides: () => void;
+}
+
+/**
+ * Editor manual mínimo del modo Personalizada (Sección 28 del pedido de corrección de
+ * puentes: "como mínimo: agregar; eliminar; cantidad manual; selección de pair" — el
+ * drag completo de endpoints queda para una iteración futura). Selecciona un par de
+ * segmentos; la posición real (los dos puntos más cercanos entre sus huellas) la calcula
+ * la página al confirmar, no este componente puramente presentacional.
+ */
+function ManualBridgeEditor({ installation }: { installation: MakerNeonInstallationProps }) {
+  const ids = installation.segmentIds;
+  const [fromId, setFromId] = React.useState(ids[0] ?? "");
+  const [toId, setToId] = React.useState(ids[1] ?? ids[0] ?? "");
+  const validManualIds = new Set(installation.bridges.filter((b) => b.kind === "manual").map((b) => b.id));
+  return (
+    <div className="flex flex-col gap-1.5 rounded-lg border border-white/10 bg-black/20 p-2">
+      <span className="text-[11px] font-semibold uppercase tracking-wide text-gray-500">Puentes manuales</span>
+      <div className="flex items-center gap-1.5">
+        <select value={fromId} onChange={(e) => setFromId(e.target.value)} className="min-w-0 flex-1 rounded border border-white/10 bg-black/30 px-1.5 py-1 text-xs text-gray-200">
+          {ids.map((id) => (
+            <option key={id} value={id}>
+              {id}
+            </option>
+          ))}
+        </select>
+        <span className="shrink-0 text-gray-500">→</span>
+        <select value={toId} onChange={(e) => setToId(e.target.value)} className="min-w-0 flex-1 rounded border border-white/10 bg-black/30 px-1.5 py-1 text-xs text-gray-200">
+          {ids.map((id) => (
+            <option key={id} value={id}>
+              {id}
+            </option>
+          ))}
+        </select>
+        <GhostButton type="button" disabled={!fromId || !toId || fromId === toId} onClick={() => installation.onAddManualBridge(fromId, toId)}>
+          + Agregar
+        </GhostButton>
+      </div>
+      {installation.manualBridges.length === 0 ? (
+        <span className="text-xs text-gray-500">Sin puentes manuales todavía.</span>
+      ) : (
+        installation.manualBridges.map((mb) => {
+          const valid = validManualIds.has(mb.id);
+          return (
+            <div
+              key={mb.id}
+              className={`flex items-center justify-between gap-2 rounded-lg px-2 py-1.5 text-xs ${valid ? "bg-white/[0.03] text-gray-300" : "bg-red-500/10 text-red-300"}`}
+            >
+              <span className="truncate">
+                {mb.fromSegmentId} → {mb.toSegmentId}
+                {!valid ? " · inválido (no toca ambos segmentos)" : ""}
+              </span>
+              <button
+                type="button"
+                onClick={() => installation.onRemoveManualBridge(mb.id)}
+                aria-label="Eliminar puente"
+                className="shrink-0 rounded border border-white/10 px-1.5 py-0.5 text-gray-400 hover:text-white"
+              >
+                ✕
+              </button>
+            </div>
+          );
+        })
+      )}
+      {installation.manualBridges.length > 0 && (
+        <GhostButton type="button" onClick={installation.onClearManualBridges}>
+          Vaciar todos
+        </GhostButton>
+      )}
+    </div>
+  );
 }
 
 function MakerNeonInstallation({ installation }: { installation: MakerNeonInstallationProps }) {
@@ -187,6 +293,9 @@ function MakerNeonInstallation({ installation }: { installation: MakerNeonInstal
             </div>
             <NumberField label="Margen de servicio" value={recipe.serviceMarginMm} onChange={(v) => onRecipeChange({ serviceMarginMm: v })} suffix="mm" />
             <InfoRow label="Pass-through generados" value={String(installation.passThroughCount)} />
+            {installation.passThroughCount > 0 && (
+              <InfoRow label="Roles" value={formatPassThroughRoles(installation.passThroughs)} />
+            )}
             <InfoRow
               label="Cable auxiliar"
               value={installation.wiring ? `${installation.wiring.jumpers.length} jumper${installation.wiring.jumpers.length === 1 ? "" : "s"} · ${Math.round(installation.wiring.totalCableMm)} mm` : "—"}
@@ -253,10 +362,27 @@ function MakerNeonInstallation({ installation }: { installation: MakerNeonInstal
       <div className="flex flex-col gap-3 rounded-xl border border-white/10 bg-white/[0.02] p-3">
         <span className="text-xs font-semibold text-gray-300">Unión de segmentos</span>
         <SegmentedControl options={BRIDGE_MODE_OPTIONS} value={recipe.bridgeMode} onChange={(v) => onRecipeChange({ bridgeMode: v })} />
-        {recipe.bridgeMode === "bridged" && (
+        {recipe.bridgeMode !== "independent" && (
           <>
             <NumberField label="Ancho de puente" value={recipe.bridgeWidthMm} onChange={(v) => onRecipeChange({ bridgeWidthMm: v })} suffix="mm" />
-            <InfoRow label="Puentes generados" value={String(installation.bridgeCount)} strong />
+            {recipe.bridgeMode === "reinforced" && (
+              <div className="flex flex-col gap-1.5">
+                <span className="text-[11px] font-semibold uppercase tracking-wide text-gray-500">Refuerzo</span>
+                <SegmentedControl options={REINFORCEMENT_LEVEL_OPTIONS} value={recipe.reinforcementLevel} onChange={(v) => onRecipeChange({ reinforcementLevel: v })} />
+              </div>
+            )}
+            {recipe.bridgeMode === "custom" ? (
+              <ManualBridgeEditor installation={installation} />
+            ) : (
+              <>
+                <InfoRow label="Puentes mínimos" value={String(installation.bridges.filter((b) => b.kind === "primary").length)} />
+                {recipe.bridgeMode === "reinforced" && (
+                  <InfoRow label="Refuerzos" value={String(installation.bridges.filter((b) => b.kind === "reinforcement").length)} />
+                )}
+                <InfoRow label="Puentes totales" value={String(installation.bridges.length)} strong />
+              </>
+            )}
+            <InfoRow label="Conectividad" value={installation.connectivityOk ? "OK" : "Componentes desconectados"} strong={!installation.connectivityOk} />
           </>
         )}
       </div>

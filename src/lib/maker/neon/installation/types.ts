@@ -4,6 +4,9 @@
 // valor de `kind` que no les pertenece. `LetterGeometryResult.installationParts` sigue
 // vacío para Neon; el resultado Neon expone su propio `auxParts: NeonAuxPart[]`.
 import type { Point2D, TriangleSoupData } from "@/lib/maker/types";
+import type { NeonReinforcementLevel } from "@/lib/maker/neon/installation/bridges";
+
+export type { NeonReinforcementLevel };
 
 export type NeonAuxPartKind = "neonWallClip";
 
@@ -40,7 +43,15 @@ export const DEFAULT_NEON_WALL_CLIP_SETTINGS: NeonWallClipSettings = {
   screwHeadDiameterMm: 6.5,
 };
 
-export type NeonBridgeMode = "independent" | "bridged";
+/**
+ * Modos de UNIÓN (Sección 16 del pedido de corrección de puentes). Renombre respecto de
+ * Neon 0.3: `"bridged"` (MST puro, conectividad mínima) pasa a llamarse `"minimal"` —
+ * mismo comportamiento, nombre alineado con el mockup de UI del pedido
+ * (Independientes/Mínima/Reforzada/Personalizada). La lectura tolerante de la receta
+ * sigue aceptando el valor viejo `"bridged"` de proyectos guardados antes de esta
+ * corrección (ver `normalizeNeonInstallationRecipe`).
+ */
+export type NeonBridgeMode = "independent" | "minimal" | "reinforced" | "custom";
 export type NeonMountMode = "none" | "clips";
 
 /**
@@ -57,6 +68,8 @@ export interface NeonInstallationRecipe {
   bridgeMode: NeonBridgeMode;
   bridgeWidthMm: number;
   bridgeLengthWarningMm: number;
+  /** Solo aplica con `bridgeMode === "reinforced"` (Sección 17 del pedido de corrección de puentes). */
+  reinforcementLevel: NeonReinforcementLevel;
   mountMode: NeonMountMode;
   wallGapMm: number;
   clipSpacingMm: number;
@@ -76,6 +89,7 @@ export const DEFAULT_NEON_INSTALLATION_RECIPE: NeonInstallationRecipe = {
   bridgeMode: "independent",
   bridgeWidthMm: 6,
   bridgeLengthWarningMm: 250,
+  reinforcementLevel: "medium",
   mountMode: "none",
   wallGapMm: DEFAULT_NEON_WALL_CLIP_SETTINGS.wallGapMm,
   clipSpacingMm: 100,
@@ -95,13 +109,28 @@ export interface NeonSegmentOverride {
   passThroughEnd?: Point2D;
 }
 
+/**
+ * Puente manual (modo Personalizada, Secciones 16, 28 del pedido de corrección de
+ * puentes). `id` es estable dentro de la corrida (`mb1..mbN`, mismo esquema posicional
+ * que `NeonSegment.id`) — se usa para editar/eliminar sin ambigüedad.
+ */
+export interface NeonManualBridgeInstance {
+  id: string;
+  fromSegmentId: string;
+  toSegmentId: string;
+  a: Point2D;
+  b: Point2D;
+}
+
 export interface NeonInstallationOverrides {
   /** Orden manual completo de ids de segmento; null = automático (nearest-neighbor + 2-opt). */
   order: string[] | null;
   segments: Record<string, NeonSegmentOverride>;
+  /** Solo aplica con `bridgeMode === "custom"` (Sección 16: modo Personalizada). */
+  manualBridges: NeonManualBridgeInstance[];
 }
 
-export const DEFAULT_NEON_INSTALLATION_OVERRIDES: NeonInstallationOverrides = { order: null, segments: {} };
+export const DEFAULT_NEON_INSTALLATION_OVERRIDES: NeonInstallationOverrides = { order: null, segments: {}, manualBridges: [] };
 
 // -------------------------------------------------------------- persistencia (lectura tolerante)
 
@@ -127,9 +156,21 @@ export function normalizeNeonInstallationRecipe(raw: unknown): NeonInstallationR
     passThroughHeightMm: numIn(r.passThroughHeightMm, 1, 30, D.passThroughHeightMm),
     endpointInsetMm: numIn(r.endpointInsetMm, 0, 200, D.endpointInsetMm),
     serviceMarginMm: numIn(r.serviceMarginMm, 0, 500, D.serviceMarginMm),
-    bridgeMode: r.bridgeMode === "bridged" ? "bridged" : "independent",
+    // "bridged" es el nombre viejo (Neon 0.3) de lo que ahora es "minimal" — mismo
+    // comportamiento (MST puro), solo cambió el nombre (Sección 16 del pedido de
+    // corrección de puentes). Proyectos guardados antes de esta corrección siguen
+    // cargando con el mismo resultado.
+    bridgeMode:
+      r.bridgeMode === "minimal" || r.bridgeMode === "bridged"
+        ? "minimal"
+        : r.bridgeMode === "reinforced"
+          ? "reinforced"
+          : r.bridgeMode === "custom"
+            ? "custom"
+            : "independent",
     bridgeWidthMm: numIn(r.bridgeWidthMm, 1, 30, D.bridgeWidthMm),
     bridgeLengthWarningMm: numIn(r.bridgeLengthWarningMm, 1, 5000, D.bridgeLengthWarningMm),
+    reinforcementLevel: r.reinforcementLevel === "low" || r.reinforcementLevel === "high" ? r.reinforcementLevel : "medium",
     mountMode: r.mountMode === "clips" ? "clips" : "none",
     wallGapMm: numIn(r.wallGapMm, 0, 20, D.wallGapMm),
     clipSpacingMm: numIn(r.clipSpacingMm, 10, 1000, D.clipSpacingMm),
@@ -166,6 +207,16 @@ function normalizeSegmentOverride(raw: unknown): NeonSegmentOverride {
  * mismo criterio posicional ya usado por `LetterInstance.id` en Carteles alcanza para
  * persistencia (id inexistente en la corrida actual = override ignorado, sin crash).
  */
+function normalizeManualBridge(raw: unknown): NeonManualBridgeInstance | null {
+  const r = rec(raw);
+  const a = point2D(r.a);
+  const b = point2D(r.b);
+  if (typeof r.id !== "string" || !r.id || typeof r.fromSegmentId !== "string" || !r.fromSegmentId || typeof r.toSegmentId !== "string" || !r.toSegmentId || !a || !b) {
+    return null;
+  }
+  return { id: r.id, fromSegmentId: r.fromSegmentId, toSegmentId: r.toSegmentId, a, b };
+}
+
 export function normalizeNeonInstallationOverrides(raw: unknown): NeonInstallationOverrides {
   const r = rec(raw);
   const order = Array.isArray(r.order) && r.order.every((id) => typeof id === "string") ? (r.order as string[]) : null;
@@ -175,5 +226,6 @@ export function normalizeNeonInstallationOverrides(raw: unknown): NeonInstallati
     const normalized = normalizeSegmentOverride(value);
     if (Object.keys(normalized).length > 0) segments[id] = normalized;
   }
-  return { order, segments };
+  const manualBridges = Array.isArray(r.manualBridges) ? r.manualBridges.map(normalizeManualBridge).filter((mb): mb is NeonManualBridgeInstance => mb !== null) : [];
+  return { order, segments, manualBridges };
 }

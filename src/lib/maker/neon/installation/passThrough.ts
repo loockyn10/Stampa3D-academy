@@ -20,9 +20,20 @@ export interface NeonPassThroughSettings {
 
 export type NeonPassThroughSide = "start" | "end";
 
+/**
+ * Rol eléctrico del agujero (Secciones 1-3, 10-11 del pedido de corrección de
+ * cableado): `powerIn` es la entrada de alimentación (primer segmento de la cadena,
+ * sin jumper entrante); `in`/`out` son entrada/salida de un jumper en un segmento
+ * intermedio o el `in` final del último segmento (sin salida); `inOut` es el agujero
+ * único y compartido de un loop cerrado (Sección 9 — IN y OUT del cableado comparten
+ * el mismo agujero físico, documentado, no se generan dos agujeros próximos en V1).
+ */
+export type NeonPassThroughRole = "powerIn" | "in" | "out" | "inOut";
+
 export interface NeonPassThrough {
   segmentId: string;
   side: NeonPassThroughSide;
+  role: NeonPassThroughRole;
   center: Point2D;
   rotationDeg: number;
   widthMm: number;
@@ -59,8 +70,11 @@ export function passThroughPolygon(pt: Pick<NeonPassThrough, "center" | "rotatio
 export function planPassThrough(
   segment: NeonSegment,
   side: NeonPassThroughSide,
+  role: NeonPassThroughRole,
   settings: NeonPassThroughSettings,
   overrideCenter?: Point2D,
+  /** Distancia de inset (mm) a usar en vez de `settings.endpointInsetMm` — solo la usa `planValidPassThrough` para buscar una alternativa cercana SOBRE EL MISMO path (Sección 8: nunca cambia de lado/segmento). */
+  insetOverrideMm?: number,
 ): NeonPassThrough | null {
   if (segment.closed) {
     // Sin extremos: un único punto de conexión/corte sugerido (`connectionAnchorT`,
@@ -72,19 +86,62 @@ export function planPassThrough(
     const { point, tangent } = pointAtT(table, anchorMm);
     const tangentAngleDeg = (Math.atan2(tangent[1], tangent[0]) * 180) / Math.PI;
     const rotationDeg = settings.widthMm >= settings.heightMm ? tangentAngleDeg : tangentAngleDeg - 90;
-    return { segmentId: segment.id, side, center: overrideCenter ?? point, rotationDeg, widthMm: settings.widthMm, heightMm: settings.heightMm, arcMm: anchorMm };
+    return { segmentId: segment.id, side, role, center: overrideCenter ?? point, rotationDeg, widthMm: settings.widthMm, heightMm: settings.heightMm, arcMm: anchorMm };
   }
   const endpoint = side === "start" ? segment.start : segment.end;
   if (!endpoint) return null;
   const table = buildArclengthTable(segment.points, false);
-  const insetMm = Math.min(Math.max(0, settings.endpointInsetMm), Math.max(0, table.totalMm / 2 - 1e-6));
+  const requestedInsetMm = insetOverrideMm ?? settings.endpointInsetMm;
+  const insetMm = Math.min(Math.max(0, requestedInsetMm), Math.max(0, table.totalMm / 2 - 1e-6));
   const arcT = side === "start" ? insetMm : table.totalMm - insetMm;
   const { point, tangent } = pointAtT(table, arcT);
   const tangentAngleDeg = (Math.atan2(tangent[1], tangent[0]) * 180) / Math.PI;
   // capsulePolygon() ya nace con su eje largo en X si width>=height, o en Y si height>width:
   // hay que restar 90° en ese segundo caso para que el eje largo (no el corto) siga la tangente.
   const rotationDeg = settings.widthMm >= settings.heightMm ? tangentAngleDeg : tangentAngleDeg - 90;
-  return { segmentId: segment.id, side, center: overrideCenter ?? point, rotationDeg, widthMm: settings.widthMm, heightMm: settings.heightMm, arcMm: arcT };
+  return { segmentId: segment.id, side, role, center: overrideCenter ?? point, rotationDeg, widthMm: settings.widthMm, heightMm: settings.heightMm, arcMm: arcT };
+}
+
+const PASS_THROUGH_SEARCH_STEP_MM = 1;
+
+/**
+ * Como `planPassThrough`, pero si la posición por defecto (o el inset pedido) no
+ * entra en la cavidad, busca una distancia de inset cercana que sí sea válida —
+ * recorriendo EL MISMO path, sin cambiar de lado/segmento (Sección 8: "recorrer pocos
+ * mm sobre ESE MISMO path" conserva la semántica inicio/final). Corrige el
+ * under-generation real reportado: antes, un pass-through cuya posición por defecto
+ * caía fuera de la cavidad (trazo curvo/angosto cerca de la punta) se perdía en
+ * silencio con solo un warning, en vez de reintentar una posición cercana como ya
+ * hace `planClipPositionsForSegment` (Etapa 6) para los clips de pared. Un override
+ * manual (`overrideCenter`) nunca dispara la búsqueda: el usuario ya eligió esa
+ * posición a mano.
+ */
+export function planValidPassThrough(
+  segment: NeonSegment,
+  side: NeonPassThroughSide,
+  role: NeonPassThroughRole,
+  settings: NeonPassThroughSettings,
+  cavityGroups: ContourGroup[],
+  overrideCenter?: Point2D,
+): NeonPassThrough | null {
+  const base = planPassThrough(segment, side, role, settings, overrideCenter);
+  if (!base) return null;
+  if (overrideCenter || segment.closed || isPassThroughValid(base, cavityGroups)) return base;
+
+  const table = buildArclengthTable(segment.points, false);
+  const maxInset = Math.max(0, table.totalMm / 2 - 1e-6);
+  const baseInset = Math.min(Math.max(0, settings.endpointInsetMm), maxInset);
+  for (let d = PASS_THROUGH_SEARCH_STEP_MM; baseInset + d <= maxInset + 1e-9 || baseInset - d >= -1e-9; d += PASS_THROUGH_SEARCH_STEP_MM) {
+    if (baseInset + d <= maxInset + 1e-9) {
+      const candidate = planPassThrough(segment, side, role, settings, undefined, baseInset + d);
+      if (candidate && isPassThroughValid(candidate, cavityGroups)) return candidate;
+    }
+    if (baseInset - d >= -1e-9) {
+      const candidate = planPassThrough(segment, side, role, settings, undefined, Math.max(0, baseInset - d));
+      if (candidate && isPassThroughValid(candidate, cavityGroups)) return candidate;
+    }
+  }
+  return base;
 }
 
 /**

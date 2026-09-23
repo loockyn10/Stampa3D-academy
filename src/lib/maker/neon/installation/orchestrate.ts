@@ -4,12 +4,12 @@
 // solo lo invoca y combina su resultado con la malla del canal (ver comentario ahí sobre
 // por qué la validación de pass-through/puentes necesita el `cavityGroups` de una
 // primera pasada SIN instalación).
-import type { ContourGroup, Point2D } from "@/lib/maker/types";
+import type { ContourGroup } from "@/lib/maker/types";
 import type { NeonChannelParams, NeonIssue, NeonPath } from "@/lib/maker/neon/types";
 import { buildNeonSegments, type NeonSegment } from "@/lib/maker/neon/installation/segments";
 import { buildManualWiringPlan, computeNeonBuses, planNeonWiring, type NeonWiringPlan } from "@/lib/maker/neon/installation/wiring";
-import { isPassThroughValid, planPassThrough, type NeonPassThrough } from "@/lib/maker/neon/installation/passThrough";
-import { planBridges, type BridgeEdge } from "@/lib/maker/neon/installation/bridges";
+import { isPassThroughValid, passThroughPolygon, planValidPassThrough, type NeonPassThrough } from "@/lib/maker/neon/installation/passThrough";
+import { buildManualBridgeInstances, planBridges, planReinforcementBridges, type BridgeInstance } from "@/lib/maker/neon/installation/bridges";
 import { planClipPositions, type NeonClipPlacementSettings } from "@/lib/maker/neon/installation/clipPlacement";
 import { buildNeonWallClipPart } from "@/lib/maker/neon/installation/wallClip";
 import type { Interval } from "@/lib/maker/neon/installation/arclength";
@@ -20,7 +20,8 @@ export interface NeonInstallationResult {
   wiring: NeonWiringPlan | null;
   /** Pass-throughs ya VALIDADOS (dentro de la cavidad) — lo que efectivamente perfora el piso. */
   passThroughs: NeonPassThrough[];
-  bridges: (BridgeEdge & { footprint: Point2D[] })[];
+  /** Instancias físicas (primarias del MST + refuerzos + manuales según el modo — Sección 15 del pedido de corrección de puentes). */
+  bridges: BridgeInstance[];
   clipPositions: Map<string, number[]>;
   auxParts: NeonAuxPart[];
   warnings: NeonIssue[];
@@ -79,24 +80,28 @@ export function planNeonInstallation(
     if (buses.shorted) errors.push({ code: "NEON_WIRING_SHORTED", message: "El cableado quedó en corto (bus + y bus - conectados). Revisá el orden manual." });
 
     // --- Pass-through: uno en el lado IN (siempre hay un jumper o la alimentación entrando ahí), otro en OUT si hasOut. Loops: uno solo, en su punto de corte. ---
+    // Roles (Secciones 1-3 del pedido de corrección): el IN del primer segmento es
+    // POWER_IN (alimentación, sin jumper entrante); un loop siempre es inOut (agujero
+    // único compartido, Sección 9); el resto son in/out según el lado real.
     const passThroughSettings = { widthMm: recipe.passThroughWidthMm, heightMm: recipe.passThroughHeightMm, endpointInsetMm: recipe.endpointInsetMm };
     const rawPassThroughs: NeonPassThrough[] = [];
     for (const w of wiring.segments) {
       const seg = byId.get(w.segmentId)!;
       const ov = overrides.segments[w.segmentId];
       if (seg.closed) {
-        const pt = planPassThrough(seg, "start", passThroughSettings, ov?.passThroughStart);
+        const pt = planValidPassThrough(seg, "start", "inOut", passThroughSettings, baselineCavityGroups, ov?.passThroughStart);
         if (pt) rawPassThroughs.push(pt);
         continue;
       }
       const inSide = w.inverted ? "end" : "start";
       const outSide = w.inverted ? "start" : "end";
+      const inRole = w.hasPowerIn ? "powerIn" : "in";
       const inOverride = inSide === "start" ? ov?.passThroughStart : ov?.passThroughEnd;
-      const inPt = planPassThrough(seg, inSide, passThroughSettings, inOverride);
+      const inPt = planValidPassThrough(seg, inSide, inRole, passThroughSettings, baselineCavityGroups, inOverride);
       if (inPt) rawPassThroughs.push(inPt);
       if (w.hasOut) {
         const outOverride = outSide === "start" ? ov?.passThroughStart : ov?.passThroughEnd;
-        const outPt = planPassThrough(seg, outSide, passThroughSettings, outOverride);
+        const outPt = planValidPassThrough(seg, outSide, "out", passThroughSettings, baselineCavityGroups, outOverride);
         if (outPt) rawPassThroughs.push(outPt);
       }
     }
@@ -112,12 +117,42 @@ export function planNeonInstallation(
     }
   }
 
-  // --- Puentes traseros (independiente del cableado) ---
-  let bridges: (BridgeEdge & { footprint: Point2D[] })[] = [];
-  if (recipe.bridgeMode === "bridged" && segments.length > 1) {
-    const bridgePlan = planBridges(segments, channelParams, { widthMm: recipe.bridgeWidthMm, maxLengthBeforeWarningMm: recipe.bridgeLengthWarningMm }, baselineCavityGroups);
-    bridges = bridgePlan.bridges;
-    warnings.push(...bridgePlan.warnings);
+  // --- Puentes estructurales (independiente del cableado; Secciones 15-16 del pedido de
+  // corrección de puentes). El grafo MST sigue decidiendo qué PARES de componentes deben
+  // conectarse (conectividad); el modo decide cuántas instancias físicas usa cada
+  // relación: "minimal" se queda con la red mínima de siempre, "reinforced" agrega
+  // refuerzos encima, "custom" reemplaza todo por la lista manual del usuario. Evita
+  // pass-throughs ya perforados (+ margen, Sección 24) en los tres modos automáticos.
+  let bridges: BridgeInstance[] = [];
+  if (recipe.bridgeMode !== "independent" && segments.length > 1) {
+    const passThroughFootprints = passThroughs.map((pt) => passThroughPolygon(pt));
+    if (recipe.bridgeMode === "custom") {
+      const manual = buildManualBridgeInstances(overrides.manualBridges, segments, channelParams, baselineCavityGroups, passThroughFootprints, recipe.bridgeWidthMm);
+      bridges = manual.valid;
+      errors.push(...manual.errors);
+    } else {
+      const bridgePlan = planBridges(
+        segments,
+        channelParams,
+        { widthMm: recipe.bridgeWidthMm, maxLengthBeforeWarningMm: recipe.bridgeLengthWarningMm },
+        baselineCavityGroups,
+        passThroughFootprints,
+      );
+      bridges = bridgePlan.bridges;
+      warnings.push(...bridgePlan.warnings);
+      if (recipe.bridgeMode === "reinforced") {
+        const reinforcement = planReinforcementBridges(
+          segments,
+          channelParams,
+          { widthMm: recipe.bridgeWidthMm, level: recipe.reinforcementLevel },
+          baselineCavityGroups,
+          passThroughFootprints,
+          bridges,
+        );
+        bridges = [...bridges, ...reinforcement.bridges];
+        warnings.push(...reinforcement.warnings);
+      }
+    }
   }
 
   // --- Clips de pared: reservan la zona de cada pass-through (+ margen) para no superponerse. ---

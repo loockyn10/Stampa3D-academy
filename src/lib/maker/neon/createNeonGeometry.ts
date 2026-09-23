@@ -141,7 +141,7 @@ export function createNeonGeometry(
   let channel = baseline;
   let passThroughSafeZone: ClipperLib.Paths | null = null;
   const installationActive =
-    installation && (installation.recipe.wiringEnabled || installation.recipe.bridgeMode === "bridged" || installation.recipe.mountMode === "clips");
+    installation && (installation.recipe.wiringEnabled || installation.recipe.bridgeMode !== "independent" || installation.recipe.mountMode === "clips");
   if (installation && installationActive) {
     installationResult = planNeonInstallation(shifted, params, baseline.cavityGroups, installation.recipe, installation.overrides);
     passThroughSafeZone = computePassThroughSafeZone(baseline.cavityGroups);

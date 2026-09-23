@@ -48,10 +48,10 @@ const { svgToNeonPaths } = load("lib/maker/neon/paths/svgToNeonPaths.ts");
 const { buildNeonSegments } = load("lib/maker/neon/installation/segments.ts");
 const { reconcileSegments } = load("lib/maker/neon/installation/reconcileSegments.ts");
 const { planNeonWiring, invertSegmentOrientation, computeNeonBuses } = load("lib/maker/neon/installation/wiring.ts");
-const { planPassThrough, isPassThroughValid, passThroughPolygon, passThroughsToRawPaths } = load("lib/maker/neon/installation/passThrough.ts");
+const { planPassThrough, planValidPassThrough, isPassThroughValid, passThroughPolygon, passThroughsToRawPaths } = load("lib/maker/neon/installation/passThrough.ts");
 const { createChannelGeometry } = load("lib/maker/neon/geometry/createChannelGeometry.ts");
 const { DEFAULT_NEON_PARAMS } = load("lib/maker/neon/defaults.ts");
-const { segmentOuterFootprint, nearestPointPair, buildBridgeMST, componentsOf, bridgeFootprintPolygon, planBridges } = load(
+const { segmentOuterFootprint, nearestPointPair, buildBridgeMST, componentsOf, bridgeFootprintPolygon, planBridges, planReinforcementBridges, buildManualBridgeInstances, minBridgeSeparationMm } = load(
   "lib/maker/neon/installation/bridges.ts"
 );
 const { buildNeonWallClipMesh, validateNeonWallClip, neonWallClipWarnings, neonWallClipHeightMm, neonWallClipWallGapMm, buildNeonWallClipPart, NEON_WALL_CLIP_FILE_BASE_NAME } =
@@ -399,30 +399,30 @@ const PT_SETTINGS = { widthMm: 5, heightMm: 3, endpointInsetMm: 10 };
 
 test("planPassThrough: cerca de ambos extremos (no exactamente en la punta), null en segmentos cerrados", () => {
   const [seg] = buildNeonSegments([line(0, 0, 0, 200)]);
-  const ptStart = planPassThrough(seg, "start", PT_SETTINGS);
-  const ptEnd = planPassThrough(seg, "end", PT_SETTINGS);
+  const ptStart = planPassThrough(seg, "start", "in", PT_SETTINGS);
+  const ptEnd = planPassThrough(seg, "end", "out", PT_SETTINGS);
   approx(ptStart.center[1], 10, 1e-6, "10 mm desde la punta inicial");
   approx(ptEnd.center[1], 190, 1e-6, "10 mm desde la punta final");
   assert.notDeepEqual(ptStart.center, seg.start.point, "nunca exactamente en la punta");
   assert.notDeepEqual(ptEnd.center, seg.end.point, "nunca exactamente en la punta");
 
   const [closedSeg] = buildNeonSegments([circlePath(0, 0, 50)]);
-  const closedPt = planPassThrough(closedSeg, "start", PT_SETTINGS);
+  const closedPt = planPassThrough(closedSeg, "start", "inOut", PT_SETTINGS);
   assert.notEqual(closedPt, null, "un loop cerrado SÍ recibe pass-through, en su connectionAnchorT (Etapa 7)");
   approx(Math.hypot(closedPt.center[0], closedPt.center[1]), 50, 0.5, "el punto de conexión está sobre el propio loop");
 });
 
 test("planPassThrough: endpointInset se acota a la mitad del segmento en trazos cortos (los dos huecos nunca se cruzan)", () => {
   const [seg] = buildNeonSegments([line(0, 0, 0, 15)]); // más corto que 2 * endpointInsetMm (20)
-  const ptStart = planPassThrough(seg, "start", PT_SETTINGS);
-  const ptEnd = planPassThrough(seg, "end", PT_SETTINGS);
+  const ptStart = planPassThrough(seg, "start", "in", PT_SETTINGS);
+  const ptEnd = planPassThrough(seg, "end", "out", PT_SETTINGS);
   assert.ok(ptStart.center[1] <= ptEnd.center[1] + 1e-6, "el de start nunca queda después del de end");
 });
 
 test("isPassThroughValid: acepta una posición bien adentro de la cavidad, rechaza si sobresale de la pared", () => {
   const [seg] = buildNeonSegments([line(0, 0, 0, 200)]);
   const baseline = createChannelGeometry([{ points: seg.points, closed: false }], DEFAULT_NEON_PARAMS);
-  const ptStart = planPassThrough(seg, "start", PT_SETTINGS);
+  const ptStart = planPassThrough(seg, "start", "in", PT_SETTINGS);
   assert.equal(isPassThroughValid(ptStart, baseline.cavityGroups), true);
 
   const tooWide = { ...ptStart, widthMm: 5, heightMm: 30 }; // mucho más ancha que el corredor interior (~6.3 mm)
@@ -443,8 +443,8 @@ test("createChannelGeometry: SIN pass-throughs, malla idéntica (triangle count 
 test("createChannelGeometry: pass-through cerca de ambos extremos — perfora el piso, manifold/watertight, paredes intactas", () => {
   const [seg] = buildNeonSegments([line(0, 0, 0, 200)]);
   const baseline = createChannelGeometry([{ points: seg.points, closed: false }], DEFAULT_NEON_PARAMS);
-  const ptStart = planPassThrough(seg, "start", PT_SETTINGS);
-  const ptEnd = planPassThrough(seg, "end", PT_SETTINGS);
+  const ptStart = planPassThrough(seg, "start", "in", PT_SETTINGS);
+  const ptEnd = planPassThrough(seg, "end", "out", PT_SETTINGS);
   assert.equal(isPassThroughValid(ptStart, baseline.cavityGroups), true);
   assert.equal(isPassThroughValid(ptEnd, baseline.cavityGroups), true);
 
@@ -781,7 +781,9 @@ test("createNeonGeometry: instalación activada — plan de cableado + pass-thro
   assert.ok(result.installation.wiring);
   assert.equal(result.installation.wiring.order.length, 4);
   assert.equal(result.installation.wiring.jumpers.length, 3);
-  assert.ok(result.installation.passThroughs.length >= 4, `esperaba varios pass-through, obtuvo ${result.installation.passThroughs.length}`);
+  // Fórmula 2N-1 (Sección 1 del pedido de corrección de cableado): 4 segmentos abiertos
+  // en una única cadena -> 7 pass-throughs, nunca "1 segmento -> 1 pass-through".
+  assert.equal(result.installation.passThroughs.length, 7, `esperaba 2*4-1=7 pass-through, obtuvo ${result.installation.passThroughs.length}`);
   const audit = meshAudit(result.geometry.parts[0].mesh);
   assert.equal(audit.openOrNonManifold, 0);
   assert.equal(audit.degenerate, 0);
@@ -791,18 +793,251 @@ test("createNeonGeometry: instalación activada — plan de cableado + pass-thro
   assert.ok(audit.volume < baselineAudit.volume, "el volumen baja: hay agujeros de pass-through perforando el piso");
 });
 
-test("createNeonGeometry: modo Puentes traseros conecta los segmentos (vs Independientes)", () => {
+test("Sección 12 del pedido — 2 segmentos abiertos desconectados: Segmento 1 = POWER IN + OUT, Segmento 2 = IN, total 3 huecos", () => {
+  const paths = farLinesRaw([0, 150]);
+  const recipe = { ...DEFAULT_NEON_INSTALLATION_RECIPE, wiringEnabled: true };
+  const result = createNeonGeometry(paths, DEFAULT_NEON_PARAMS, [], { recipe, overrides: DEFAULT_NEON_INSTALLATION_OVERRIDES });
+  assert.deepEqual(result.errors, []);
+  const pts = result.installation.passThroughs;
+  assert.equal(pts.length, 3);
+  const [first, second] = result.installation.wiring.order;
+  const firstHoles = pts.filter((p) => p.segmentId === first);
+  const secondHoles = pts.filter((p) => p.segmentId === second);
+  assert.equal(firstHoles.length, 2, "Segmento 1: POWER IN + OUT");
+  assert.equal(firstHoles.filter((p) => p.role === "powerIn").length, 1);
+  assert.equal(firstHoles.filter((p) => p.role === "out").length, 1);
+  assert.equal(secondHoles.length, 1, "Segmento 2: solo IN");
+  assert.equal(secondHoles[0].role, "in");
+
+  const powerIn = firstHoles.find((p) => p.role === "powerIn");
+  const out = firstHoles.find((p) => p.role === "out");
+  assert.notEqual(powerIn.side, out.side, "OUT está asociado al endpoint OPUESTO al POWER IN — nunca al mismo extremo (Sección 2)");
+});
+
+test("Sección 13 del pedido — 4 segmentos abiertos: S1 IN/OUT, S2 IN/OUT, S3 IN/OUT, S4 IN, total 7 pass-throughs", () => {
+  const paths = farLinesRaw([0, 150, 300, 450]);
+  const recipe = { ...DEFAULT_NEON_INSTALLATION_RECIPE, wiringEnabled: true };
+  const result = createNeonGeometry(paths, DEFAULT_NEON_PARAMS, [], { recipe, overrides: DEFAULT_NEON_INSTALLATION_OVERRIDES });
+  assert.deepEqual(result.errors, []);
+  assert.equal(result.installation.passThroughs.length, 7);
+  const [s1, s2, s3, s4] = result.installation.wiring.order;
+  const holesOf = (id) => result.installation.passThroughs.filter((p) => p.segmentId === id);
+  assert.equal(holesOf(s1).length, 2);
+  assert.equal(holesOf(s2).length, 2);
+  assert.equal(holesOf(s3).length, 2);
+  assert.equal(holesOf(s4).length, 1);
+  assert.equal(holesOf(s1).some((p) => p.role === "powerIn"), true);
+  assert.equal(holesOf(s4)[0].role, "in");
+});
+
+test("Fórmula general 2N-1 (Sección 1) para cadenas de N segmentos abiertos desconectados, N=1..5", () => {
+  for (let n = 1; n <= 5; n++) {
+    const xs = Array.from({ length: n }, (_, i) => i * 150);
+    const paths = farLinesRaw(xs);
+    const recipe = { ...DEFAULT_NEON_INSTALLATION_RECIPE, wiringEnabled: true };
+    const result = createNeonGeometry(paths, DEFAULT_NEON_PARAMS, [], { recipe, overrides: DEFAULT_NEON_INSTALLATION_OVERRIDES });
+    assert.deepEqual(result.errors, [], `N=${n}`);
+    assert.equal(result.installation.passThroughs.length, 2 * n - 1, `N=${n}: esperaba 2N-1 pass-throughs`);
+  }
+});
+
+test("planValidPassThrough: si la posición por defecto no entra en la cavidad, busca una alternativa cercana sobre el MISMO path (nunca la pierde en silencio)", () => {
+  const [seg] = buildNeonSegments([line(0, 0, 0, 200)]);
+  // Fixture "hueso de perro": cavidad angosta (3mm, insuficiente con margen) entre y=7 y
+  // y=14, ancha (6mm) fuera de esa franja — simula una curva/corredor angosto real cerca
+  // de la punta que empuja al motor a probar otra distancia de inset.
+  const cavity = [
+    {
+      outer: [
+        [-3, 0], [-3, 7], [-1.5, 7], [-1.5, 14], [-3, 14], [-3, 200],
+        [3, 200], [3, 14], [1.5, 14], [1.5, 7], [3, 7], [3, 0],
+      ],
+      holes: [],
+    },
+  ];
+  const settings = { widthMm: 5.5, heightMm: 3.5, endpointInsetMm: 10 };
+  const naive = planPassThrough(seg, "start", "in", settings);
+  assert.equal(isPassThroughValid(naive, cavity), false, "fixture: la posición por defecto (inset=10) cae en el tramo angosto");
+
+  const found = planValidPassThrough(seg, "start", "in", settings, cavity);
+  assert.notEqual(found, null);
+  assert.equal(isPassThroughValid(found, cavity), true, "encontró una posición cercana válida en vez de perder el agujero");
+  assert.equal(found.role, "in");
+  assert.equal(found.segmentId, seg.id);
+  assert.equal(found.side, "start", "nunca cambia de lado/segmento — solo la distancia de inset sobre el mismo path (Sección 8)");
+});
+
+test("planValidPassThrough: un override manual nunca dispara la búsqueda (el usuario ya eligió la posición)", () => {
+  const [seg] = buildNeonSegments([line(0, 0, 0, 200)]);
+  const settings = { widthMm: 5.5, heightMm: 3.5, endpointInsetMm: 10 };
+  const manualCenter = [999, 999];
+  const result = planValidPassThrough(seg, "start", "in", settings, [], manualCenter);
+  assert.deepEqual(result.center, manualCenter);
+});
+
+test("createNeonGeometry: modo Mínima conecta los segmentos (vs Independientes)", () => {
   const paths = farLinesRaw([0, 150, 300, 450]);
   const independentRecipe = { ...DEFAULT_NEON_INSTALLATION_RECIPE, wiringEnabled: true, bridgeMode: "independent" };
-  const bridgedRecipe = { ...DEFAULT_NEON_INSTALLATION_RECIPE, wiringEnabled: true, bridgeMode: "bridged" };
+  const bridgedRecipe = { ...DEFAULT_NEON_INSTALLATION_RECIPE, wiringEnabled: true, bridgeMode: "minimal" };
   const independent = createNeonGeometry(paths, DEFAULT_NEON_PARAMS, [], { recipe: independentRecipe, overrides: DEFAULT_NEON_INSTALLATION_OVERRIDES });
   const bridged = createNeonGeometry(paths, DEFAULT_NEON_PARAMS, [], { recipe: bridgedRecipe, overrides: DEFAULT_NEON_INSTALLATION_OVERRIDES });
   assert.equal(independent.installation.bridges.length, 0);
   assert.equal(bridged.installation.bridges.length, 3);
+  assert.ok(bridged.installation.bridges.every((b) => b.kind === "primary"), "modo Mínima: todos los puentes son primarios (red MST)");
   assert.deepEqual(bridged.errors, []);
   const audit = meshAudit(bridged.geometry.parts[0].mesh);
   assert.equal(audit.openOrNonManifold, 0);
   assert.equal(audit.degenerate, 0);
+});
+
+// --------------------------------------------------------------------------
+// Puentes de refuerzo (corrección de puentes estructurales): BridgeConnection vs
+// BridgeInstance, modos Mínima/Reforzada/Personalizada.
+// --------------------------------------------------------------------------
+
+function parallelLinesRaw(gapMm, lengthMm = 300) {
+  return [line(0, 0, 0, lengthMm), line(gapMm, 0, gapMm, lengthMm)];
+}
+
+test("Sección 35 del pedido de corrección de puentes — 2 componentes: Mínima da 1 puente, Reforzada da > 1, con múltiples instancias para el MISMO par", () => {
+  const paths = parallelLinesRaw(30);
+  const minimal = createNeonGeometry(paths, DEFAULT_NEON_PARAMS, [], {
+    recipe: { ...DEFAULT_NEON_INSTALLATION_RECIPE, bridgeMode: "minimal" },
+    overrides: DEFAULT_NEON_INSTALLATION_OVERRIDES,
+  });
+  assert.equal(minimal.installation.bridges.length, 1, "Mínima: exactamente 1 puente (MST) para 2 componentes");
+
+  const reinforced = createNeonGeometry(paths, DEFAULT_NEON_PARAMS, [], {
+    recipe: { ...DEFAULT_NEON_INSTALLATION_RECIPE, bridgeMode: "reinforced", reinforcementLevel: "medium" },
+    overrides: DEFAULT_NEON_INSTALLATION_OVERRIDES,
+  });
+  assert.ok(reinforced.installation.bridges.length > 1, "Reforzada: más de 1 puente para el mismo par de componentes");
+  assert.deepEqual(reinforced.errors, []);
+  const pairs = new Set(reinforced.installation.bridges.map((b) => `${b.fromSegmentId}-${b.toSegmentId}`));
+  assert.equal(pairs.size, 1, "todas las instancias conectan el MISMO SegmentPair — no se inventaron pares nuevos (V1)");
+  assert.equal(reinforced.installation.bridges.filter((b) => b.kind === "primary").length, 1);
+  assert.ok(reinforced.installation.bridges.filter((b) => b.kind === "reinforcement").length >= 1);
+
+  const audit = meshAudit(reinforced.geometry.parts[0].mesh);
+  assert.equal(audit.openOrNonManifold, 0, "múltiples puentes entre el mismo par siguen dando una malla manifold");
+  assert.equal(audit.degenerate, 0);
+});
+
+test("Sección 36 del pedido de corrección de puentes — distribución: los puntos medios de los refuerzos no quedan todos amontonados", () => {
+  const paths = parallelLinesRaw(30, 300);
+  const result = createNeonGeometry(paths, DEFAULT_NEON_PARAMS, [], {
+    recipe: { ...DEFAULT_NEON_INSTALLATION_RECIPE, bridgeMode: "reinforced", reinforcementLevel: "medium" },
+    overrides: DEFAULT_NEON_INSTALLATION_OVERRIDES,
+  });
+  const reinforcement = result.installation.bridges.filter((b) => b.kind === "reinforcement");
+  assert.ok(reinforcement.length >= 3, `esperaba al menos 3 refuerzos para verificar distribución, obtuvo ${reinforcement.length}`);
+  const ys = reinforcement.map((b) => (b.a[1] + b.b[1]) / 2).sort((x, y) => x - y);
+  const spanMm = ys[ys.length - 1] - ys[0];
+  assert.ok(spanMm > 100, `los refuerzos deberían repartirse a lo largo de la adyacencia (300mm), no amontonarse — span real ${spanMm.toFixed(1)}mm`);
+  const minSeparation = minBridgeSeparationMm(DEFAULT_NEON_INSTALLATION_RECIPE.bridgeWidthMm);
+  for (let i = 1; i < ys.length; i++) {
+    assert.ok(ys[i] - ys[i - 1] >= minSeparation - 1e-6, `dos refuerzos consecutivos quedaron a ${(ys[i] - ys[i - 1]).toFixed(1)}mm, menos que la separación mínima ${minSeparation}mm`);
+  }
+});
+
+test("Sección 18/37 del pedido de corrección de puentes — cambiar el ancho de puente cambia el volumen real de la malla, no solo estado de UI", () => {
+  const paths = parallelLinesRaw(30, 60);
+  const narrow = createNeonGeometry(paths, DEFAULT_NEON_PARAMS, [], {
+    recipe: { ...DEFAULT_NEON_INSTALLATION_RECIPE, bridgeMode: "minimal", bridgeWidthMm: 4 },
+    overrides: DEFAULT_NEON_INSTALLATION_OVERRIDES,
+  });
+  const wide = createNeonGeometry(paths, DEFAULT_NEON_PARAMS, [], {
+    recipe: { ...DEFAULT_NEON_INSTALLATION_RECIPE, bridgeMode: "minimal", bridgeWidthMm: 12 },
+    overrides: DEFAULT_NEON_INSTALLATION_OVERRIDES,
+  });
+  assert.equal(narrow.installation.bridges.length, 1);
+  assert.equal(wide.installation.bridges.length, 1);
+  const narrowAudit = meshAudit(narrow.geometry.parts[0].mesh);
+  const wideAudit = meshAudit(wide.geometry.parts[0].mesh);
+  assert.ok(wideAudit.volume > narrowAudit.volume, "un puente más ancho ocupa más volumen real en la malla exportada");
+});
+
+test("Sección 24/38 del pedido de corrección de puentes — un candidato de puente que cruzaría un pass-through se rechaza", () => {
+  const paths = parallelLinesRaw(30, 300);
+  const withoutPassThrough = createNeonGeometry(paths, DEFAULT_NEON_PARAMS, [], {
+    recipe: { ...DEFAULT_NEON_INSTALLATION_RECIPE, bridgeMode: "reinforced", reinforcementLevel: "high" },
+    overrides: DEFAULT_NEON_INSTALLATION_OVERRIDES,
+  });
+  const withWiring = createNeonGeometry(paths, DEFAULT_NEON_PARAMS, [], {
+    recipe: { ...DEFAULT_NEON_INSTALLATION_RECIPE, wiringEnabled: true, bridgeMode: "reinforced", reinforcementLevel: "high" },
+    overrides: DEFAULT_NEON_INSTALLATION_OVERRIDES,
+  });
+  assert.ok(withWiring.installation.passThroughs.length > 0, "fixture: el cableado generó pass-throughs reales para chocar contra los puentes");
+  const passThroughRaw = passThroughsToRawPaths(withWiring.installation.passThroughs);
+  for (const bridge of withWiring.installation.bridges) {
+    const bridgeRaw = toRawPath2(bridge.footprint);
+    const overlap = Math.abs(clipperArea2(intersectRawPaths([bridgeRaw], passThroughRaw)));
+    assert.ok(overlap < 1e-3, `el puente ${bridge.id} (${bridge.fromSegmentId}-${bridge.toSegmentId}) no debería pisar ningún pass-through`);
+  }
+  // El cableado no debería reducir drásticamente la cantidad de puentes disponibles: si lo
+  // hiciera muy por debajo del caso sin pass-throughs, algo se está descartando de más.
+  assert.ok(withWiring.installation.bridges.length >= withoutPassThrough.installation.bridges.length - 2);
+});
+
+test("Sección 28-29 del pedido de corrección de puentes — puente manual: agregar, validar y eliminar", () => {
+  const paths = parallelLinesRaw(30, 60);
+  // Los overrides viajan en las MISMAS coordenadas que ve el orquestador (paths ya
+  // desplazados por createNeonGeometry, sección "origen en (0,0)") — se calculan sobre
+  // installation.segments de una corrida real, no sobre buildNeonSegments(paths) crudo.
+  const baseline = createNeonGeometry(paths, DEFAULT_NEON_PARAMS, [], {
+    recipe: { ...DEFAULT_NEON_INSTALLATION_RECIPE, bridgeMode: "minimal" },
+    overrides: DEFAULT_NEON_INSTALLATION_OVERRIDES,
+  });
+  const segments = baseline.installation.segments;
+  const [segA, segB] = segments;
+  const fa = segmentOuterFootprint(segA, DEFAULT_NEON_PARAMS);
+  const fb = segmentOuterFootprint(segB, DEFAULT_NEON_PARAMS);
+  const { a, b } = nearestPointPair(fa, fb);
+
+  const valid = buildManualBridgeInstances([{ id: "mb1", fromSegmentId: segA.id, toSegmentId: segB.id, a, b }], segments, DEFAULT_NEON_PARAMS, [], [], 6);
+  assert.equal(valid.errors.length, 0);
+  assert.equal(valid.valid.length, 1);
+  assert.equal(valid.valid[0].kind, "manual");
+  assert.equal(valid.valid[0].id, "mb1");
+
+  // Endpoint flotando (Sección 29: "no permitir endpoint flotando") -> inválido, error que bloquea export.
+  const floating = buildManualBridgeInstances([{ id: "mb2", fromSegmentId: segA.id, toSegmentId: segB.id, a: [9999, 9999], b }], segments, DEFAULT_NEON_PARAMS, [], [], 6);
+  assert.equal(floating.valid.length, 0);
+  assert.equal(floating.errors.length, 1);
+  assert.equal(floating.errors[0].code, "NEON_BRIDGE_MANUAL_INVALID");
+
+  // Round-trip completo vía el orquestador: modo Personalizada usa exactamente los overrides.manualBridges.
+  const withManual = createNeonGeometry(paths, DEFAULT_NEON_PARAMS, [], {
+    recipe: { ...DEFAULT_NEON_INSTALLATION_RECIPE, bridgeMode: "custom" },
+    overrides: { order: null, segments: {}, manualBridges: [{ id: "mb1", fromSegmentId: segA.id, toSegmentId: segB.id, a, b }] },
+  });
+  assert.deepEqual(withManual.errors, []);
+  assert.equal(withManual.installation.bridges.length, 1);
+  assert.equal(withManual.installation.bridges[0].kind, "manual");
+
+  const afterDelete = createNeonGeometry(paths, DEFAULT_NEON_PARAMS, [], {
+    recipe: { ...DEFAULT_NEON_INSTALLATION_RECIPE, bridgeMode: "custom" },
+    overrides: { order: null, segments: {}, manualBridges: [] },
+  });
+  assert.equal(afterDelete.installation.bridges.length, 0, "eliminar el puente manual lo saca de la malla");
+
+  const withInvalidManual = createNeonGeometry(paths, DEFAULT_NEON_PARAMS, [], {
+    recipe: { ...DEFAULT_NEON_INSTALLATION_RECIPE, bridgeMode: "custom" },
+    overrides: { order: null, segments: {}, manualBridges: [{ id: "mb2", fromSegmentId: segA.id, toSegmentId: segB.id, a: [9999, 9999], b }] },
+  });
+  assert.ok(withInvalidManual.errors.length > 0, "un puente manual con endpoint flotando bloquea el export (Sección 29)");
+});
+
+test("Sección 40 del pedido de corrección de puentes — un único NeonSegment continuo no genera puentes en ningún modo automático", () => {
+  const paths = [line(0, 0, 0, 200)];
+  for (const bridgeMode of ["minimal", "reinforced"]) {
+    const result = createNeonGeometry(paths, DEFAULT_NEON_PARAMS, [], {
+      recipe: { ...DEFAULT_NEON_INSTALLATION_RECIPE, bridgeMode, reinforcementLevel: "high" },
+      overrides: DEFAULT_NEON_INSTALLATION_OVERRIDES,
+    });
+    assert.equal(result.installation.bridges.length, 0, `bridgeMode=${bridgeMode}: 1 solo segmento -> 0 puentes`);
+    assert.deepEqual(result.errors, []);
+  }
 });
 
 test("createNeonGeometry: modo Clips genera auxParts con la cantidad correcta, nunca dentro del STL principal", () => {
@@ -842,7 +1077,7 @@ test("createNeonGeometry: orden/inversión manual (overrides) se refleja en el p
 
 test("createNeonGeometry: puentes y clips funcionan con el cableado APAGADO (tres toggles independientes)", () => {
   const paths = farLinesRaw([0, 150, 300, 450], 0, 200);
-  const recipe = { ...DEFAULT_NEON_INSTALLATION_RECIPE, wiringEnabled: false, bridgeMode: "bridged", mountMode: "clips" };
+  const recipe = { ...DEFAULT_NEON_INSTALLATION_RECIPE, wiringEnabled: false, bridgeMode: "minimal", mountMode: "clips" };
   const result = createNeonGeometry(paths, DEFAULT_NEON_PARAMS, [], { recipe, overrides: DEFAULT_NEON_INSTALLATION_OVERRIDES });
   assert.deepEqual(result.errors, []);
   assert.equal(result.installation.wiring, null, "sin cableado: no hay plan de wiring ni pass-through");
@@ -957,15 +1192,24 @@ test("normalizeNeonInstallationRecipe/Overrides: entrada basura -> defaults sano
   assert.deepEqual(normalizeNeonInstallationOverrides(null), DEFAULT_NEON_INSTALLATION_OVERRIDES);
 });
 
-test("serializeNeonProject/deserializeNeonProject: round-trip de instalación (receta + overrides)", () => {
+test("serializeNeonProject/deserializeNeonProject: round-trip de instalación (receta + overrides, incluye puentes de refuerzo/manuales)", () => {
   const work = baseWork({
-    installationRecipe: { ...DEFAULT_NEON_INSTALLATION_RECIPE, wiringEnabled: true, bridgeMode: "bridged", mountMode: "clips", wallGapMm: 7 },
-    installationOverrides: { order: ["N2", "N1"], segments: { N1: { invertedOrientation: true, passThroughStart: [12.5, -3] } } },
+    installationRecipe: { ...DEFAULT_NEON_INSTALLATION_RECIPE, wiringEnabled: true, bridgeMode: "reinforced", reinforcementLevel: "high", mountMode: "clips", wallGapMm: 7 },
+    installationOverrides: {
+      order: ["N2", "N1"],
+      segments: { N1: { invertedOrientation: true, passThroughStart: [12.5, -3] } },
+      manualBridges: [{ id: "mb1", fromSegmentId: "N1", toSegmentId: "N2", a: [1, 2], b: [3, 4] }],
+    },
   });
   const payload = serializeNeonProject(work);
   const loaded = deserializeNeonProject({ source_type: payload.source_type, source_data: payload.source_data, settings: payload.settings });
   assert.deepEqual(loaded.installationRecipe, work.installationRecipe);
   assert.deepEqual(loaded.installationOverrides, work.installationOverrides);
+});
+
+test("normalizeNeonInstallationRecipe: 'bridged' (nombre viejo de Neon 0.3) migra a 'minimal' — mismo comportamiento, proyectos guardados antes de la corrección siguen andando", () => {
+  const recipe = normalizeNeonInstallationRecipe({ ...DEFAULT_NEON_INSTALLATION_RECIPE, bridgeMode: "bridged" });
+  assert.equal(recipe.bridgeMode, "minimal");
 });
 
 test("deserializeNeonProject: proyecto viejo sin clave 'installation' -> defaults, sin throw", () => {

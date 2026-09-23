@@ -47,7 +47,10 @@ export function buildNeonInstallationSummary(result: NeonGeometryResult, title: 
   } else {
     lines.push("", "Cableado: desactivado.");
   }
-  lines.push("", `Puentes traseros: ${inst.bridges.length}`);
+  const primaryCount = inst.bridges.filter((b) => b.kind === "primary").length;
+  const reinforcementCount = inst.bridges.filter((b) => b.kind === "reinforcement").length;
+  lines.push("", `Puentes estructurales: ${inst.bridges.length}`);
+  if (reinforcementCount > 0) lines.push(`  Mínimos: ${primaryCount} · Refuerzos: ${reinforcementCount}`);
   const clipPart = inst.auxParts.find((p) => p.kind === "neonWallClip");
   lines.push(`Clips de pared: ${clipPart?.quantity ?? 0}`);
   lines.push("", "Los cables y empalmes los realiza el usuario; Stampa solo imprime las piezas que sostienen, separan y retienen el canal. Baja tensión DC únicamente.");

@@ -7,7 +7,7 @@
 // el mismo código, ya probado, de Carteles — "Reutilizar MakerViewport... No crear
 // canvas separado" (Sección 17).
 import type * as ClipperLib from "clipper-lib";
-import type { BackCutout, ContourGroup } from "@/lib/maker/types";
+import type { BackCutout, ContourGroup, Point2D } from "@/lib/maker/types";
 import { insetContourGroups } from "@/lib/maker/geometry/offsets";
 import { PASS_THROUGH_EDGE_MARGIN_MM, type NeonPassThrough } from "@/lib/maker/neon/installation/passThrough";
 import type { NeonInstallationOverrides } from "@/lib/maker/neon/installation/types";
@@ -77,7 +77,38 @@ export function setManualOrder(overrides: NeonInstallationOverrides, order: stri
   return { ...overrides, order };
 }
 
-/** Vuelve todo a automático: sin orden manual ni overrides por segmento. */
+/** Vuelve todo a automático: sin orden manual, overrides por segmento ni puentes manuales. */
 export function resetAllOverrides(): NeonInstallationOverrides {
-  return { order: null, segments: {} };
+  return { order: null, segments: {}, manualBridges: [] };
+}
+
+// ------------------------------------------------------------ puentes manuales (modo Personalizada)
+
+let manualBridgeCounter = 0;
+
+/** Id estable dentro de la corrida para un puente manual nuevo (Sección 28 del pedido de corrección de puentes). */
+export function nextManualBridgeId(existing: readonly { id: string }[]): string {
+  manualBridgeCounter = Math.max(manualBridgeCounter, existing.length);
+  let id: string;
+  do {
+    manualBridgeCounter++;
+    id = `mb${manualBridgeCounter}`;
+  } while (existing.some((b) => b.id === id));
+  return id;
+}
+
+/** Agrega un puente manual entre dos segmentos (Sección 28: "selección de pair" como mínimo aceptado). */
+export function addManualBridge(overrides: NeonInstallationOverrides, fromSegmentId: string, toSegmentId: string, a: Point2D, b: Point2D): NeonInstallationOverrides {
+  const id = nextManualBridgeId(overrides.manualBridges);
+  return { ...overrides, manualBridges: [...overrides.manualBridges, { id, fromSegmentId, toSegmentId, a, b }] };
+}
+
+/** Elimina un puente manual por id. */
+export function removeManualBridge(overrides: NeonInstallationOverrides, id: string): NeonInstallationOverrides {
+  return { ...overrides, manualBridges: overrides.manualBridges.filter((b) => b.id !== id) };
+}
+
+/** Vacía todos los puentes manuales (piso mínimo de la Sección 28: "eliminar"). */
+export function clearManualBridges(overrides: NeonInstallationOverrides): NeonInstallationOverrides {
+  return { ...overrides, manualBridges: [] };
 }

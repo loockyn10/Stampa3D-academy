@@ -64,6 +64,7 @@
 > Instalación 0.1 (2026-09-21): sistema de instalación de Carteles — identidad física por letra, montaje (Keyhole / separadores impresos con receptor reforzado), cableado BIPOLAR encadenado físico / paralelo eléctrico (puertos de dos agujeros, soporte de empalmes EXTERNO imprimible), zonas reservadas, plantilla 1:1 (PDF vectorial con tiling), guía de conexión y kit ZIP (sección 32; corrección bipolar/externo en 32.7-32.8).
 > Neon 0.1.1 (2026-09-19): importador SVG corregido (cascada CSS real, `<text>`, mensajes diferenciados) y biblioteca de fuentes single-line reales: Mistral SingleLine y Relief SingleLine, OFL (sección 26).
 > Neon 0.3 (2026-09-23): sistema de instalación de Neon LED (sección 33): `NeonSegment` (identidad física por recorrido, IDs posicionales + reconciliación best-effort por forma), `NeonWiringPlan` (nearest-neighbor + 2-opt acotado, IN/OUT por segmento), `NeonCablePassThrough` (cápsula bipolar única, perfora el piso sin tocar las paredes visibles — split de piso por bandas gateado, malla bit a bit idéntica sin pass-throughs), puentes traseros por MST (Kruskal, **sólidos independientes con overlap físico real, NO soldados por Clipper** — ver 33.4 para el porqué y la limitación aceptada), `NeonWallClip` paramétrico (deriva de la sección del canal, se regenera solo), posición automática de clips por longitud de arco, editor manual (reutiliza el editor de Back Cutouts existente, pass-through como `BackCutout` sintético — invertir/reordenar por lista), malla helper de cableado/montaje (nunca se exporta), export (Wall Clip STL + kit ZIP) y persistencia (receta+overrides anidados en el mismo `settings` jsonb, sin migration nueva). 53 tests nuevos en tests/maker-neon-installation.test.mjs (630 -> 683 tests Maker). No avanza a Neon 0.4.
+> Neon 0.3.2 (2026-09-23): corrección conceptual de cableado y puentes (sección 34), sin features nuevas. Cableado: se verificó que la fórmula 2N-1 de pass-throughs ya estaba bien implementada (no era "1 segmento -> 1 pass-through"); se agregó `NeonPassThroughRole` (POWER IN/IN/OUT/loop) y `planValidPassThrough()` (fallback de reposicionamiento cuando la posición por defecto no entra en la cavidad — antes se perdía en silencio). Puentes: reescritos de MST-only a modelo `BridgeConnection`/`BridgeInstance` con 4 modos (`independent`/`minimal`/`reinforced`/`custom`, antes solo `independent`/`bridged`), planificador de refuerzo con muestreo por longitud de arco + separación espacial mínima + evasión de pass-throughs, y editor manual mínimo (agregar/eliminar por par de segmentos, con validación de "toca ambos floors"). 12 tests nuevos en tests/maker-neon-installation.test.mjs (53 -> 65; 683 -> 696 tests Maker totales, 1 skip preexistente no relacionado). No avanza a Neon 0.4.
 
 ## 1. Qué es
 
@@ -3098,3 +3099,178 @@ Todo a Z negativo (detrás del piso, Z=0) para no colisionar visualmente con la 
 - Sin PDF de instalación para Neon (plantilla 1:1, guía de conexión) — explícitamente fuera de alcance de este sprint, ZIP estructurado para agregarlo después.
 - **Verificación visual completa en navegador NO realizada** (misma limitación documentada para Neon 0.1/0.2: la ruta exige sesión con acceso a plataforma, sin credenciales en este entorno). Se verificó: `npx tsc --noEmit` limpio, `npm run build` exitoso (85 páginas estáticas generadas incluyendo `/stampa-maker/neon`), 683/684 tests Maker (1 skip preexistente, no relacionado), y toda la geometría nueva por tests (manifold/watertight, volumen, raycast, solape de área).
 - USB-C, cálculo de fuente/potencia, AWG/caída de tensión, RGB/data line, halo, plantilla PDF mural compleja, wall anchors, generación de tornillos, slicing/G-code — explícitamente fuera de alcance (Sección 61 del pedido), no implementados.
+
+## 34. Neon LED — corrección de cableado y puentes de refuerzo (0.3.2)
+
+> Sprint 2026-09-23, sobre el estado de la sección 33. Pedido explícito: corregir dos
+> problemas conceptuales puntuales (topología de pass-throughs y rigidez de puentes),
+> **sin agregar features nuevas**. No se rehizo nada de 33.1-33.12; se auditó contra el
+> código real (no contra un reporte) antes de tocar nada.
+
+### 34.1 Causa real del "under-generation" de pass-throughs
+
+El pedido describía el bug como `"1 segmento → 1 pass-through"`. Auditado contra el
+código real de `orchestrate.ts` (no contra el reporte): la fórmula `2N-1` para cadenas
+de segmentos abiertos **ya estaba bien implementada** — se verificó con un probe directo
+(N=1..4, incluso con fuentes reales: "AMOR", "STAMPA", "H") y el resultado siempre dio
+exactamente `2N-1` pass-throughs, con IN/OUT correctamente asociados a los DOS endpoints
+reales del segmento (nunca al mismo extremo). El gap real, confirmado, era otro: cuando
+la posición por defecto de un pass-through (a `endpointInsetMm` de la punta) no entraba
+en la cavidad — trazo curvo o angosto cerca de la punta —, el agujero se descartaba EN
+SILENCIO con solo un warning, sin intentar una posición cercana (a diferencia de
+`planClipPositionsForSegment`, que sí busca una alternativa antes de rendirse). Esta es
+la explicación más plausible de pass-throughs "faltantes" en capturas reales con
+geometría curva.
+
+### 34.2 Nuevo role model
+
+`NeonPassThroughRole = "powerIn" | "in" | "out" | "inOut"` (`passThrough.ts`), calculado
+en `orchestrate.ts` a partir del `NeonWiringPlan` ya existente (`hasPowerIn`/`hasOut`):
+el `IN` del primer segmento es `powerIn` (alimentación, sin jumper entrante); los demás
+`IN` y `OUT` según el lado real; un loop cerrado siempre es `inOut` (agujero único
+compartido). "Cada agujero físico corresponde 1:1 a un rol" ya era cierto
+estructuralmente (cada `NeonPassThrough` tiene su propio `segmentId`+`side`); lo que
+faltaba era exponer el rol explícitamente para no tener que re-derivarlo en cada
+consumidor. Se muestra en la UI (`MakerNeonControls.tsx`, línea "Roles" bajo "Pass-through
+generados": `"1 POWER IN · 1 IN · 1 OUT"`).
+
+### 34.3 Fórmula/casos open segments (bloqueado con tests)
+
+`2N-1` para N segmentos abiertos en una única cadena, verificado con tests exactos
+(no `>= 4` como antes) para N=1..5 y los casos explícitos del pedido: 2 segmentos → 3
+huecos (`Segmento 1: POWER IN + OUT`, `Segmento 2: IN`); 4 segmentos → 7 huecos. Se
+verificó además que el `OUT` del primer segmento queda asociado al endpoint OPUESTO al
+`POWER IN` (nunca al mismo lado).
+
+### 34.4 Endpoint enforcement
+
+Ya estaba garantizado por construcción: `planPassThrough` solo puede posicionar un
+pass-through sobre `segment.start`/`segment.end` (offsetado por `insetMm` a lo largo del
+MISMO path) — no existe ningún camino que permita un anchor arbitrario a mitad de
+recorrido. El nuevo `planValidPassThrough` (34.1) mantiene esta invariante: la búsqueda
+de una posición alternativa SOLO varía la distancia de inset sobre el mismo lado/segmento,
+nunca cambia de endpoint ni de segmento.
+
+### 34.5 Closed loop handling
+
+Sin cambios de comportamiento (Sección 9 del pedido: "no romper los loops que ya
+funcionan"). Un loop sigue con UN agujero bipolar compartido en su `connectionAnchorT`,
+ahora con `role: "inOut"` explícito. `planValidPassThrough` no intenta reposicionar loops
+(no hay "otro lado" al que moverse — el único punto sugerido ya es el vértice más recto
+del loop).
+
+### 34.6 Cambios del manual editor
+
+El botón "Invertir segmento" (Sección 14 del pedido) ya existía en el editor de
+conexiones (`toggleInvertOverride`) — no requirió cambios. Se agregó una capa **PUENTES**
+nueva (Sección 28): selector de par de segmentos + "Agregar puente" + lista de puentes
+manuales con indicador visual válido/inválido (verde/rojo, Sección 29) + eliminar
+individual + "Vaciar todos". El drag completo de endpoints queda fuera de este sprint
+(el pedido acepta explícitamente ese piso mínimo cuando el editor visual completo no
+entra en el sprint).
+
+### 34.7 Causa real del "under-reinforcement" de puentes
+
+Confirmada, no era un malentendido: `bridges.ts` implementaba un MST puro (Kruskal) — por
+construcción, un `UnionFind` solo permite **una** arista entre cualquier par de
+componentes ya conectados (`if (uf.connected(...)) continue`), así que dos componentes
+nunca podían tener más de 1 puente entre sí. El pedido lo describe correctamente:
+"SegmentPair NO puede estar limitado a un único bridge".
+
+### 34.8 BridgeConnection vs BridgeInstance
+
+No se creó un tipo `BridgeConnection` separado (el par `fromSegmentId`/`toSegmentId` de
+cada `BridgeEdge` ya lo identifica) — sí se separó `BridgeInstance` (`bridges.ts`):
+`{ ...BridgeEdge, id, kind: "primary"|"reinforcement"|"manual", footprint }`. El grafo MST
+decide qué PARES deben conectarse (conectividad); el modo (`minimal`/`reinforced`/
+`custom`) decide cuántas instancias físicas usa cada relación.
+
+### 34.9 Reinforcement algorithm
+
+`planReinforcementBridges()`: por cada arista primaria del MST, candidatos generados
+muestreando el CENTRO de ambos segmentos cada 15mm de longitud de arco (no los vértices
+de la huella ya bufferizada — un tramo recto largo solo tiene 2 vértices reales en su
+huella, en las puntas, lo que amontonaba los candidatos en los extremos en vez de
+distribuirlos; ver 34.10 para el detalle del bug intermedio encontrado y corregido en
+este mismo sprint). Cada candidato se desplaza `outerRadiusMm` hacia el otro segmento
+(aproxima el borde real sin recalcular la huella completa por candidato). Selección
+greedy por distancia ascendente, aceptando solo los que (a) no cruzan cavidad ni
+pass-through (con margen) y (b) quedan a `minBridgeSeparationMm` (`= max(20,
+bridgeWidthMm*4)`, deriva del ancho — Sección 22) de CUALQUIER puente ya elegido, no solo
+los del mismo par. La cantidad deseada se deriva de `min(lengthMm de los dos segmentos) /
+50mm * factorDeNivel` (`low=0.5, medium=1, high=1.75`) — nunca un conteo fijo tipo "foto 1
+= 4" (Sección 25). Si la geometría no alcanza, se coloca lo que se pueda y se avisa
+(`NEON_BRIDGE_REINFORCEMENT_PARTIAL`, Sección 27) — no bloquea.
+
+### 34.10 Multi-bridge same pair / distribución espacial
+
+Verificado con test dedicado: 2 componentes grandes paralelos (300mm) en modo Reforzada
+dan varias instancias para el MISMO `SegmentPair` (nunca un pair nuevo inventado — V1
+solo refuerza relaciones que el MST ya decidió conectar, ver 34.13). Los puntos medios
+quedan repartidos a lo largo de toda la adyacencia (span > 100mm en el fixture de test,
+nunca amontonados en una zona chica), cada par consecutivo respetando
+`minBridgeSeparationMm`.
+
+### 34.11 Bridge width / manual bridges / pass-through avoidance
+
+**Ancho** (`bridgeWidthMm`): ya existía y ya afectaba la geometría correctamente
+(`bridgeFootprintPolygon` lo usa en los tres modos automáticos y en manuales) — verificado
+con test de volumen (ancho mayor → más volumen real en la malla exportada, no solo
+estado de UI). **Espesor**: sin cambios — decisión ya documentada en 33.4 (ocupa
+`0..zFloor`, igual o menor que el piso; no se agregó control nuevo porque no aporta
+sin una tercera banda Z, tal como el pedido permite explícitamente omitir si "no
+aporta"). **Puentes manuales** (`buildManualBridgeInstances`): valida que CADA extremo
+toque el floor material real de su propio segmento (`touchesSegmentFootprint`, cápsula de
+prueba de 6mm) antes de aceptarlo; un endpoint flotando produce
+`NEON_BRIDGE_MANUAL_INVALID` — error que bloquea el export (no solo warning), igual que
+pide la Sección 29. **Evasión de pass-through** (Sección 24, gap real confirmado: antes
+solo se validaba contra la cavidad): los tres modos automáticos y los manuales validan
+ahora también contra `passThroughFootprints` (expandidos `+1mm` de margen vía
+`outsetContourGroups`).
+
+### 34.12 Persistencia
+
+`NeonInstallationRecipe` gana `reinforcementLevel: "low"|"medium"|"high"` (default
+`"medium"`); `NeonInstallationOverrides` gana `manualBridges: NeonManualBridgeInstance[]`
+(default `[]`). Mismo campo jsonb `settings.installation`, sin migration nueva (mismo
+patrón que el resto de Instalación 0.3). **Compatibilidad**: `bridgeMode` pasa de
+`"independent"|"bridged"` a `"independent"|"minimal"|"reinforced"|"custom"` — el valor
+viejo `"bridged"` (proyectos guardados antes de esta corrección) migra a `"minimal"` en
+`normalizeNeonInstallationRecipe` (mismo comportamiento, solo cambió el nombre para
+alinearse con el mockup de UI del pedido). Test dedicado de migración.
+
+### 34.13 Tests
+
+12 tests nuevos en `tests/maker-neon-installation.test.mjs` (53 → 65; 683 → 696 tests
+Maker totales): fórmula `2N-1` exacta N=1..5, casos explícitos de 2 y 4 segmentos con
+roles, `planValidPassThrough` (fallback + override manual no dispara la búsqueda), 2
+componentes Mínima-vs-Reforzada con multi-instancia por par, distribución espacial,
+ancho de puente afecta volumen real, evasión de pass-through, puente manual
+agregar/validar/eliminar (incluye endpoint flotando → error), 1 solo segmento → 0
+puentes en todos los modos automáticos, y migración `"bridged"` → `"minimal"`.
+
+### 34.14 Totales y validación
+
+`npx tsc --noEmit` limpio. `npm run build` exitoso (todas las rutas compilan, incluida
+`/stampa-maker/neon`). `node --test tests/maker-*.test.mjs`: 696 tests, 695 pasan, 1 skip
+preexistente no relacionado (mismo skip documentado en `CURRENT_STATE.md`/sprints
+anteriores de Maker). `tests/maker-neon-installation.test.mjs`: 65/65.
+
+### 34.15 Limitaciones conocidas
+
+- **Refuerzo V1 solo agrega instancias sobre pares que el MST ya conectó** — no evalúa
+  "otros pairs cercanos" fuera de esas relaciones (Sección 16 lo permite como parte de
+  Reforzada, pero se acotó el alcance para mantener el sprint enfocado en la corrección
+  pedida). Ampliarlo es la mejora más clara para una iteración futura.
+- **Editor manual de puentes**: piso mínimo aceptado explícitamente por el pedido
+  (agregar por par + eliminar + lista), sin drag de endpoints ni "reset auto" desde
+  Reforzada (ese último requeriría exponer `baselineCavityGroups`/`shiftedPaths` fuera del
+  pipeline interno de `createNeonGeometry.ts`, evaluado y descartado por complejidad
+  desproporcionada para este sprint — "Vaciar todos" cubre el caso de uso real). IDs
+  posicionales `mb1..mbN` dentro de la corrida.
+- **`minBridgeSeparationMm` se deriva del ancho, sin control de UI propio** — el pedido
+  permite explícitamente "derivarlo automáticamente" como alternativa a exponer un
+  control nuevo.
+- Ningún cambio de esta corrección tocó `channel U`, `Text`, `SVG`, `PNG/JPG`, skeleton,
+  wall clips, Proyectos ni export de Carteles — verificado por la suite completa de Maker
+  en verde (696/696 salvo el skip preexistente).

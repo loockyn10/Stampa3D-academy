@@ -66,8 +66,12 @@ export type NeonIssueCode =
   | "NEON_PASS_THROUGH_INVALID"
   /** Aviso: la unión entre dos segmentos es larga y puede quedar visible. No bloquea. */
   | "NEON_BRIDGE_TOO_LONG"
-  /** Un candidato de puente cruzaría la cavidad del canal: se descarta y se busca otro. */
+  /** Un candidato de puente cruzaría la cavidad del canal (o un pass-through): se descarta y se busca otro. */
   | "NEON_BRIDGE_CROSSES_CAVITY"
+  /** Aviso: el modo Reforzada no pudo colocar todos los refuerzos deseados para un par (geometría insuficiente). No bloquea. */
+  | "NEON_BRIDGE_REINFORCEMENT_PARTIAL"
+  /** Un puente manual (modo Personalizada) no toca el floor material de ambos segmentos, o cruza cavidad/pass-through: bloquea el export. */
+  | "NEON_BRIDGE_MANUAL_INVALID"
   /** wallGap muy chico entra en conflicto con el espacio que necesita el cableado detrás. */
   | "NEON_WALL_GAP_CABLE_CONFLICT"
   /** No se encontró una posición válida para un clip de pared en este segmento. */
