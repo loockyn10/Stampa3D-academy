@@ -4,6 +4,14 @@ import { LETTER_SPACING_MAX_PCT, LETTER_SPACING_MIN_PCT } from "@/lib/maker/neon
 import { DEFAULT_RASTER_SETTINGS, type RasterCleaning, type RasterDetectionMode, type RasterSettings, type RasterSimplify } from "@/lib/maker/neon/raster/types";
 import type { NeonFontId, NeonParams, NeonSourceType } from "@/lib/maker/neon/types";
 import { MIME_BY_KIND } from "@/lib/maker/projects/projectData";
+import {
+  DEFAULT_NEON_INSTALLATION_OVERRIDES,
+  DEFAULT_NEON_INSTALLATION_RECIPE,
+  normalizeNeonInstallationOverrides,
+  normalizeNeonInstallationRecipe,
+  type NeonInstallationOverrides,
+  type NeonInstallationRecipe,
+} from "@/lib/maker/neon/installation/types";
 
 /**
  * PROJECT de Neon LED. Igual que en Carteles guarda el ORIGEN (texto, o referencia al archivo en Storage privado) y la
@@ -33,6 +41,9 @@ export interface NeonWorkState {
   letterSpacingPct: number;
   raster: RasterSettings;
   fileMeta: NeonProjectFileMeta | null;
+  /** Instalación 0.3: receta completa (Neon no tiene presets todavía, viaja entera en el proyecto) + overrides por segmento. */
+  installationRecipe: NeonInstallationRecipe;
+  installationOverrides: NeonInstallationOverrides;
 }
 
 export interface NeonProjectPayload {
@@ -59,6 +70,8 @@ export interface LoadedNeonProject {
   letterSpacingPct: number;
   raster: RasterSettings;
   fileRef: NeonFileRef | null;
+  installationRecipe: NeonInstallationRecipe;
+  installationOverrides: NeonInstallationOverrides;
 }
 
 export class NeonProjectDataError extends Error {}
@@ -66,8 +79,10 @@ export class NeonProjectDataError extends Error {}
 const CHANNEL_KEYS = ["neonWidthMm", "clearanceMm", "wallHeightMm", "wallThicknessMm", "floorThicknessMm", "minBendRadiusMm"] as const;
 
 export function serializeNeonProject(state: NeonWorkState, opts: { storagePath?: string } = {}): NeonProjectPayload {
-  const settings: Record<string, number> = {};
+  const settings: Record<string, unknown> = {};
   for (const k of CHANNEL_KEYS) settings[k] = state.params[k];
+  // Instalación 0.3: mismo campo jsonb `settings`, anidado (no rompe el whitelist plano de CHANNEL_KEYS ni obliga una migration nueva).
+  settings.installation = { recipe: state.installationRecipe, overrides: state.installationOverrides };
   const common = { designHeightMm: state.params.designHeightMm, fontId: state.fontId, letterSpacingPct: state.letterSpacingPct };
 
   if (state.sourceType === "text") {
@@ -138,7 +153,10 @@ export function deserializeNeonProject(row: { source_type: string; source_data: 
   };
   const fontId = NEON_FONTS.some((f) => f.id === src.fontId) ? (src.fontId as NeonFontId) : DEFAULT_NEON_FONT_ID;
   const letterSpacingPct = numIn(src.letterSpacingPct, LETTER_SPACING_MIN_PCT, LETTER_SPACING_MAX_PCT, DEFAULT_LETTER_SPACING_PCT);
-  const base = { params, fontId, letterSpacingPct, raster: normalizeRasterSettings(src.raster) };
+  const installationRaw = rec(set.installation);
+  const installationRecipe = "recipe" in installationRaw ? normalizeNeonInstallationRecipe(installationRaw.recipe) : DEFAULT_NEON_INSTALLATION_RECIPE;
+  const installationOverrides = "overrides" in installationRaw ? normalizeNeonInstallationOverrides(installationRaw.overrides) : DEFAULT_NEON_INSTALLATION_OVERRIDES;
+  const base = { params, fontId, letterSpacingPct, raster: normalizeRasterSettings(src.raster), installationRecipe, installationOverrides };
 
   if (row.source_type === "neon-text") {
     return { ...base, sourceType: "text", text: typeof src.text === "string" ? src.text : DEFAULT_NEON_TEXT, fileRef: null };

@@ -177,6 +177,8 @@ export function useNeonProjects({ work, file, onLoad, onReset }: Options) {
             letterSpacingPct: loaded.letterSpacingPct,
             raster: loaded.raster,
             fileMeta: loaded.fileRef ? { kind: loaded.fileRef.kind, fileName: loaded.fileRef.originalFilename, sizeBytes: loaded.fileRef.sizeBytes } : null,
+            installationRecipe: loaded.installationRecipe,
+            installationOverrides: loaded.installationOverrides,
           }),
         );
         return true;

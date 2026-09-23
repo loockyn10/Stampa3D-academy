@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useMemo, useState } from "react";
+import { useCallback, useMemo, useRef, useState } from "react";
 import Link from "next/link";
 import { ArrowLeft } from "lucide-react";
 import { useAppFeedback } from "@/components/ui/app-feedback";
@@ -20,6 +20,13 @@ import { DEFAULT_LETTER_SPACING_PCT, DEFAULT_NEON_FONT_ID, DEFAULT_NEON_PARAMS, 
 import type { NeonFontId, NeonParams, NeonSource, NeonSourceType } from "@/lib/maker/neon/types";
 import { collectBedItems, computeBedLayout } from "@/lib/maker/printBed/bedLayout";
 import { DEFAULT_PRINTER_PROFILE_ID, getPrinterProfile } from "@/lib/maker/printBed/printerProfiles";
+import { DEFAULT_NEON_INSTALLATION_OVERRIDES, DEFAULT_NEON_INSTALLATION_RECIPE, type NeonInstallationOverrides, type NeonInstallationRecipe } from "@/lib/maker/neon/installation/types";
+import { emptyNeonInstallationResult } from "@/lib/maker/neon/installation/orchestrate";
+import { buildNeonInstallationHelperMesh } from "@/lib/maker/neon/installation/helperMesh";
+import { movePassThroughOverride, passThroughEditorCutouts, resetAllOverrides, setManualOrder, toggleInvertOverride } from "@/lib/maker/neon/installation/editing";
+import { findInvalidBackCutouts } from "@/lib/maker/backCutoutEditor";
+import type { NeonWiringPlan } from "@/lib/maker/neon/installation/wiring";
+import { downloadNeonInstallKit, downloadNeonWallClipStl } from "@/lib/maker/neon/exporters/exportNeonInstallKit";
 
 export default function StampaMakerNeonPage() {
   const [params, setParams] = useState<NeonParams>(DEFAULT_NEON_PARAMS);
@@ -39,6 +46,39 @@ export default function StampaMakerNeonPage() {
   const [displayMode, setDisplayMode] = useState<MakerDisplayMode>("model");
   const [plateIndex, setPlateIndex] = useState(1);
 
+  // --- Instalación 0.3: receta (viaja al proyecto completa) + overrides por segmento. ---
+  const [installationRecipe, setInstallationRecipe] = useState<NeonInstallationRecipe>(DEFAULT_NEON_INSTALLATION_RECIPE);
+  const [installationOverrides, setInstallationOverrides] = useState<NeonInstallationOverrides>(DEFAULT_NEON_INSTALLATION_OVERRIDES);
+  const [editingConnections, setEditingConnections] = useState(false);
+  const [showWiringHelper, setShowWiringHelper] = useState(true);
+  const [showMountHelper, setShowMountHelper] = useState(true);
+  const [selectedCutoutId, setSelectedCutoutId] = useState<string | null>(null);
+  const handleInstallationRecipeChange = useCallback((patch: Partial<NeonInstallationRecipe>) => setInstallationRecipe((prev) => ({ ...prev, ...patch })), []);
+  const handleToggleEditConnections = useCallback(() => {
+    setEditingConnections((prev) => !prev);
+    setDisplayMode("model");
+  }, []);
+  // Ref: los handlers de abajo son estables (deps []) pero necesitan el plan de cableado
+  // VIGENTE (ya con overrides aplicados) para calcular el próximo swap/inversión sobre lo
+  // que el usuario está viendo, no sobre un valor obsoleto capturado en el closure.
+  const wiringRef = useRef<NeonWiringPlan | null>(null);
+  const handleMoveSegment = useCallback((segmentId: string, direction: -1 | 1) => {
+    const wiring = wiringRef.current;
+    if (!wiring) return;
+    const i = wiring.order.indexOf(segmentId);
+    const j = i + direction;
+    if (i < 0 || j < 0 || j >= wiring.order.length) return;
+    const next = [...wiring.order];
+    [next[i], next[j]] = [next[j], next[i]];
+    setInstallationOverrides((prev) => setManualOrder(prev, next));
+  }, []);
+  const handleInvertSegment = useCallback((segmentId: string) => {
+    const wiring = wiringRef.current;
+    const wasInverted = wiring?.segments.find((s) => s.segmentId === segmentId)?.inverted ?? false;
+    setInstallationOverrides((prev) => toggleInvertOverride(prev, segmentId, wasInverted));
+  }, []);
+  const handleResetOverrides = useCallback(() => setInstallationOverrides(resetAllOverrides()), []);
+
   const source = useMemo<NeonSource | null>(() => {
     // Fuera de rango se acota (el panel muestra el error de campo); NaN/vacío = espaciado recomendado.
     const spacing = Number.isFinite(letterSpacingPct) ? Math.min(Math.max(letterSpacingPct, LETTER_SPACING_MIN_PCT), LETTER_SPACING_MAX_PCT) : 0;
@@ -47,7 +87,9 @@ export default function StampaMakerNeonPage() {
     return svgFile ? { type: "svg", fileName: svgFile.fileName, content: svgFile.content, fontId, letterSpacingPct: spacing } : null;
   }, [sourceType, text, fontId, letterSpacingPct, svgFile, imageFile, raster]);
 
-  const { result, inputError, fieldErrors, raster: rasterConversion, pending } = useNeonGeometry(source, params);
+  const installationInput = useMemo(() => ({ recipe: installationRecipe, overrides: installationOverrides }), [installationRecipe, installationOverrides]);
+
+  const { result, inputError, fieldErrors, raster: rasterConversion, pending } = useNeonGeometry(source, params, installationInput);
 
   const handleChange = useCallback((patch: Partial<NeonParams>) => setParams((prev) => ({ ...prev, ...patch })), []);
 
@@ -94,8 +136,10 @@ export default function StampaMakerNeonPage() {
       fileMeta: file
         ? { kind: file.kind, fileName: file.fileName, sizeBytes: file.kind === "svg" ? new TextEncoder().encode(file.content).length : file.bytes.length }
         : null,
+      installationRecipe,
+      installationOverrides,
     }),
-    [params, sourceType, text, fontId, letterSpacingPct, raster, file],
+    [params, sourceType, text, fontId, letterSpacingPct, raster, file, installationRecipe, installationOverrides],
   );
   const handleLoadWork = useCallback((loaded: LoadedNeonProject, loadedFile: NeonFileSource | null) => {
     setParams(loaded.params);
@@ -105,6 +149,10 @@ export default function StampaMakerNeonPage() {
     setLetterSpacingPct(loaded.letterSpacingPct);
     setRaster(loaded.raster);
     setFileError(null);
+    setInstallationRecipe(loaded.installationRecipe);
+    setInstallationOverrides(loaded.installationOverrides);
+    setEditingConnections(false);
+    setSelectedCutoutId(null);
     if (loadedFile?.kind === "svg") setSvgFile(loadedFile);
     else if (loadedFile) setImageFile(loadedFile);
   }, []);
@@ -118,6 +166,10 @@ export default function StampaMakerNeonPage() {
     setSvgFile(null);
     setImageFile(null);
     setFileError(null);
+    setInstallationRecipe(DEFAULT_NEON_INSTALLATION_RECIPE);
+    setInstallationOverrides(DEFAULT_NEON_INSTALLATION_OVERRIDES);
+    setEditingConnections(false);
+    setSelectedCutoutId(null);
     return {
       params: DEFAULT_NEON_PARAMS,
       sourceType: "text",
@@ -126,6 +178,8 @@ export default function StampaMakerNeonPage() {
       letterSpacingPct: DEFAULT_LETTER_SPACING_PCT,
       raster: { ...DEFAULT_RASTER_SETTINGS },
       fileMeta: null,
+      installationRecipe: DEFAULT_NEON_INSTALLATION_RECIPE,
+      installationOverrides: DEFAULT_NEON_INSTALLATION_OVERRIDES,
     };
   }, []);
   const library = useNeonProjects({ work, file, onLoad: handleLoadWork, onReset: handleResetWork });
@@ -133,6 +187,40 @@ export default function StampaMakerNeonPage() {
   const geometry = result?.geometry ?? null;
   const errors = result?.errors ?? [];
   const canDownload = !!geometry && geometry.triangleCount > 0 && errors.length === 0 && fieldErrors.length === 0 && !inputError;
+
+  // --- Instalación 0.3: derivados para el panel + helpers del viewport + editor manual. ---
+  const installationResult = result?.installation ?? emptyNeonInstallationResult();
+  wiringRef.current = installationResult.wiring;
+  const clipCount = useMemo(
+    () => [...installationResult.clipPositions.values()].reduce((sum, arr) => sum + arr.length, 0),
+    [installationResult.clipPositions],
+  );
+  const helperMesh = useMemo(
+    () =>
+      buildNeonInstallationHelperMesh(installationResult, {
+        showWiring: showWiringHelper && installationRecipe.wiringEnabled,
+        showMount: showMountHelper && installationRecipe.mountMode === "clips",
+        wallGapMm: installationRecipe.wallGapMm,
+      }),
+    [installationResult, showWiringHelper, showMountHelper, installationRecipe.wiringEnabled, installationRecipe.mountMode, installationRecipe.wallGapMm],
+  );
+  const cutoutEditing = useMemo(() => {
+    if (!editingConnections || !geometry) return null;
+    const cutouts = passThroughEditorCutouts(installationResult.passThroughs);
+    const safeZone = result?.passThroughSafeZone ?? null;
+    const origin = { x: 0, y: 0 };
+    return {
+      cutouts,
+      selectedId: selectedCutoutId,
+      origin,
+      invalidIds: findInvalidBackCutouts(cutouts, origin, safeZone),
+      safeZone,
+      onSelect: setSelectedCutoutId,
+      onMove: (id: string, x: number, y: number, final: boolean) => {
+        if (final) setInstallationOverrides((prev) => movePassThroughOverride(prev, id, x, y));
+      },
+    };
+  }, [editingConnections, geometry, installationResult.passThroughs, result?.passThroughSafeZone, selectedCutoutId]);
 
   const baseFileName =
     sourceType === "image"
@@ -152,6 +240,31 @@ export default function StampaMakerNeonPage() {
       setDownloading(false);
     }
   }, [geometry, baseFileName, toast]);
+
+  const [downloadingClip, setDownloadingClip] = useState(false);
+  const [downloadingKit, setDownloadingKit] = useState(false);
+  const handleDownloadClip = useCallback(() => {
+    if (!result) return;
+    setDownloadingClip(true);
+    try {
+      downloadNeonWallClipStl(result);
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : "No se pudo exportar el Wall Clip.");
+    } finally {
+      setDownloadingClip(false);
+    }
+  }, [result, toast]);
+  const handleDownloadKit = useCallback(async () => {
+    if (!result) return;
+    setDownloadingKit(true);
+    try {
+      await downloadNeonInstallKit(result, baseFileName, baseFileName);
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : "No se pudo exportar el kit de instalación.");
+    } finally {
+      setDownloadingKit(false);
+    }
+  }, [result, baseFileName, toast]);
 
   // Vista Cama: mismo perfil, packing y orientación que Carteles (body = identidad: piso contra la cama, U hacia arriba).
   const profile = getPrinterProfile(DEFAULT_PRINTER_PROFILE_ID);
@@ -214,6 +327,26 @@ export default function StampaMakerNeonPage() {
           metrics={inputError ? null : (result?.metrics ?? null)}
           errors={inputError ? [] : errors}
           warnings={inputError ? [] : (result?.warnings ?? [])}
+          installation={{
+            recipe: installationRecipe,
+            onRecipeChange: handleInstallationRecipeChange,
+            segmentCount: installationResult.segments.length,
+            wiring: installationResult.wiring,
+            passThroughCount: installationResult.passThroughs.length,
+            bridgeCount: installationResult.bridges.length,
+            clipCount,
+            installationWarnings: inputError ? [] : installationResult.warnings,
+            installationErrors: inputError ? [] : installationResult.errors,
+            editingConnections,
+            onToggleEditConnections: handleToggleEditConnections,
+            showWiringHelper,
+            onShowWiringHelperChange: setShowWiringHelper,
+            showMountHelper,
+            onShowMountHelperChange: setShowMountHelper,
+            onMoveSegment: handleMoveSegment,
+            onInvertSegment: handleInvertSegment,
+            onResetOverrides: handleResetOverrides,
+          }}
         />
       </aside>
 
@@ -222,11 +355,18 @@ export default function StampaMakerNeonPage() {
           geometry={shownGeometry}
           displayMode={displayMode}
           bed={bed ? { items: bed.items, layout: bed.layout, profile, plateIndex: currentPlate } : null}
+          cutoutEditing={cutoutEditing}
+          helperMesh={helperMesh}
         />
         <div className="pointer-events-none absolute inset-0 flex flex-col justify-between gap-3 p-3">
           <div className="flex items-start justify-between gap-3">
             <div>{displayMode === "bed" && bed && <BedWarnings layout={bed.layout} profile={profile} />}</div>
-            <NeonExportCard canDownload={canDownload} loading={downloading} onDownload={handleDownload} />
+            <NeonExportCard
+              canDownload={canDownload}
+              loading={downloading}
+              onDownload={handleDownload}
+              installation={{ clipCount, onDownloadClip: handleDownloadClip, downloadingClip, onDownloadKit: handleDownloadKit, downloadingKit }}
+            />
           </div>
           {/* Safe zone para el botón flotante de Stampy (ver Carteles). */}
           <div className="flex items-end justify-between gap-3 lg:pr-[5.5rem]">

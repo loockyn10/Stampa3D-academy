@@ -27,6 +27,8 @@ export interface NeonPassThrough {
   rotationDeg: number;
   widthMm: number;
   heightMm: number;
+  /** Longitud de arco (mm) del centro sobre el propio segmento — para reservar la zona ante la colocación de clips (Etapa 6). */
+  arcMm: number;
 }
 
 /** Margen mínimo entre el borde de la cápsula y el borde de la cavidad: nunca toca la pared visible del canal (misma idea que `BACK_CUTOUT_EDGE_MARGIN_MM` de Carteles). */
@@ -54,8 +56,24 @@ export function passThroughPolygon(pt: Pick<NeonPassThrough, "center" | "rotatio
  * perpendicular. Elección determinística (Sección 8 del pedido). null en segmentos
  * cerrados (no tienen extremos).
  */
-export function planPassThrough(segment: NeonSegment, side: NeonPassThroughSide, settings: NeonPassThroughSettings): NeonPassThrough | null {
-  if (segment.closed) return null;
+export function planPassThrough(
+  segment: NeonSegment,
+  side: NeonPassThroughSide,
+  settings: NeonPassThroughSettings,
+  overrideCenter?: Point2D,
+): NeonPassThrough | null {
+  if (segment.closed) {
+    // Sin extremos: un único punto de conexión/corte sugerido (`connectionAnchorT`,
+    // Sección 13). `side` no distingue nada acá (IN y OUT del cableado comparten el
+    // mismo agujero físico bipolar), pero se conserva para que el llamador identifique
+    // este pass-through igual que los de un segmento abierto.
+    const table = buildArclengthTable(segment.points, true);
+    const anchorMm = (segment.connectionAnchorT ?? 0) * table.totalMm;
+    const { point, tangent } = pointAtT(table, anchorMm);
+    const tangentAngleDeg = (Math.atan2(tangent[1], tangent[0]) * 180) / Math.PI;
+    const rotationDeg = settings.widthMm >= settings.heightMm ? tangentAngleDeg : tangentAngleDeg - 90;
+    return { segmentId: segment.id, side, center: overrideCenter ?? point, rotationDeg, widthMm: settings.widthMm, heightMm: settings.heightMm, arcMm: anchorMm };
+  }
   const endpoint = side === "start" ? segment.start : segment.end;
   if (!endpoint) return null;
   const table = buildArclengthTable(segment.points, false);
@@ -66,7 +84,7 @@ export function planPassThrough(segment: NeonSegment, side: NeonPassThroughSide,
   // capsulePolygon() ya nace con su eje largo en X si width>=height, o en Y si height>width:
   // hay que restar 90° en ese segundo caso para que el eje largo (no el corto) siga la tangente.
   const rotationDeg = settings.widthMm >= settings.heightMm ? tangentAngleDeg : tangentAngleDeg - 90;
-  return { segmentId: segment.id, side, center: point, rotationDeg, widthMm: settings.widthMm, heightMm: settings.heightMm };
+  return { segmentId: segment.id, side, center: overrideCenter ?? point, rotationDeg, widthMm: settings.widthMm, heightMm: settings.heightMm, arcMm: arcT };
 }
 
 /**

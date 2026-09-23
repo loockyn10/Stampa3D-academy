@@ -1,3 +1,4 @@
+import type * as ClipperLib from "clipper-lib";
 import type { LetterGeometryResult } from "@/lib/maker/types";
 import { DesignImportError } from "@/lib/maker/import/types";
 import { meshBounds } from "@/lib/maker/printOrientation";
@@ -10,6 +11,10 @@ import { rasterToNeonPaths } from "@/lib/maker/neon/raster/rasterToNeonPaths";
 import { pathsBounds } from "@/lib/maker/neon/paths/flattenNeonPath";
 import { svgToNeonPaths } from "@/lib/maker/neon/paths/svgToNeonPaths";
 import { textToNeonPaths } from "@/lib/maker/neon/paths/textToNeonPaths";
+import { emptyNeonInstallationResult, planNeonInstallation, type NeonInstallationResult } from "@/lib/maker/neon/installation/orchestrate";
+import { passThroughPolygon } from "@/lib/maker/neon/installation/passThrough";
+import { computePassThroughSafeZone } from "@/lib/maker/neon/installation/editing";
+import type { NeonInstallationOverrides, NeonInstallationRecipe } from "@/lib/maker/neon/installation/types";
 import {
   NeonInputError,
   type NeonIssue,
@@ -60,6 +65,10 @@ export interface NeonGeometryResult {
   metrics: NeonMetrics;
   errors: NeonIssue[];
   warnings: NeonIssue[];
+  /** Instalación 0.3: vacío (wiring=null, todo []) cuando `installation` no se pasa o ningún toggle (cableado/puentes/montaje) está activo. */
+  installation: NeonInstallationResult;
+  /** Zona segura para el editor manual (Etapa 8): unión de cavidades de todos los segmentos, erosionada. null si Instalación no está activa. */
+  passThroughSafeZone: ClipperLib.Paths | null;
 }
 
 function formatMm(v: number): string {
@@ -71,7 +80,12 @@ function formatMm(v: number): string {
  * traslada para que su esquina mínima (incluido el canal) quede en (0, 0, 0):
  * apoyada en Z=0 y con coordenadas positivas en el STL.
  */
-export function createNeonGeometry(paths: NeonPath[], params: NeonParams, inputIssues: NeonIssue[] = []): NeonGeometryResult {
+export function createNeonGeometry(
+  paths: NeonPath[],
+  params: NeonParams,
+  inputIssues: NeonIssue[] = [],
+  installation?: { recipe: NeonInstallationRecipe; overrides: NeonInstallationOverrides },
+): NeonGeometryResult {
   const inner = channelInnerWidth(params);
   const outer = channelOuterWidth(params);
   const lengthMm = totalNeonLength(paths);
@@ -99,7 +113,14 @@ export function createNeonGeometry(paths: NeonPath[], params: NeonParams, inputI
   }
 
   if (!bounds) {
-    return { geometry: null, metrics, errors: [{ code: "NO_PATHS", message: "No hay recorridos para generar el canal." }], warnings };
+    return {
+      geometry: null,
+      metrics,
+      errors: [{ code: "NO_PATHS", message: "No hay recorridos para generar el canal." }],
+      warnings,
+      installation: emptyNeonInstallationResult(),
+      passThroughSafeZone: null,
+    };
   }
   // Origen: esquina mínima de la pieza impresa = (0, 0).
   const shifted: NeonPath[] = paths.map((p) => ({
@@ -107,10 +128,38 @@ export function createNeonGeometry(paths: NeonPath[], params: NeonParams, inputI
     points: p.points.map(([x, y]) => [x - bounds.minX + outer / 2, y - bounds.minY + outer / 2] as const),
   }));
 
-  const channel = createChannelGeometry(shifted, params);
-  warnings.push(...channel.warnings);
-  if (channel.errors.length > 0 || channel.mesh.triangleCount === 0) {
-    return { geometry: null, metrics, errors: channel.errors, warnings };
+  // Primera pasada SIN instalación: es contra este `cavityGroups` que se valida cada
+  // pass-through/puente (Sección 2/24 del pedido — nunca tocan la pared). Si Instalación
+  // está apagada esta es también la malla final: mismo resultado byte a byte que 0.1/0.2.
+  const baseline = createChannelGeometry(shifted, params);
+  warnings.push(...baseline.warnings);
+  if (baseline.errors.length > 0 || baseline.mesh.triangleCount === 0) {
+    return { geometry: null, metrics, errors: baseline.errors, warnings, installation: emptyNeonInstallationResult(), passThroughSafeZone: null };
+  }
+
+  let installationResult = emptyNeonInstallationResult();
+  let channel = baseline;
+  let passThroughSafeZone: ClipperLib.Paths | null = null;
+  const installationActive =
+    installation && (installation.recipe.wiringEnabled || installation.recipe.bridgeMode === "bridged" || installation.recipe.mountMode === "clips");
+  if (installation && installationActive) {
+    installationResult = planNeonInstallation(shifted, params, baseline.cavityGroups, installation.recipe, installation.overrides);
+    passThroughSafeZone = computePassThroughSafeZone(baseline.cavityGroups);
+    const passThroughFootprints = installationResult.passThroughs.map((pt) => passThroughPolygon(pt));
+    const bridgeFootprints = installationResult.bridges.map((b) => b.footprint);
+    if (passThroughFootprints.length > 0 || bridgeFootprints.length > 0) {
+      channel = createChannelGeometry(shifted, params, { passThroughFootprints, bridgeFootprints });
+      if (channel.errors.length > 0 || channel.mesh.triangleCount === 0) {
+        return {
+          geometry: null,
+          metrics,
+          errors: channel.errors,
+          warnings: [...warnings, ...installationResult.warnings],
+          installation: installationResult,
+          passThroughSafeZone,
+        };
+      }
+    }
   }
 
   const b = meshBounds(channel.mesh.positions);
@@ -128,5 +177,12 @@ export function createNeonGeometry(paths: NeonPath[], params: NeonParams, inputI
     installation: null,
     installationParts: [],
   };
-  return { geometry, metrics, errors: [], warnings };
+  return {
+    geometry,
+    metrics,
+    errors: [...installationResult.errors],
+    warnings: [...warnings, ...installationResult.warnings],
+    installation: installationResult,
+    passThroughSafeZone,
+  };
 }

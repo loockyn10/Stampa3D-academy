@@ -212,6 +212,17 @@ export function planNeonWiring(segments: NeonSegment[], serviceMarginMm: number)
   return buildPlanFromTour(byId, optimized, serviceMarginMm);
 }
 
+/**
+ * Arma un plan directamente a partir de un ORDEN + conjunto de INVERSIONES ya
+ * decididos (manual, editor de Etapa 8) — sin correr nearest-neighbor/2-opt. Ids fuera
+ * de `segments` en `order` se ignoran (reconciliación ya resuelta por el llamador).
+ */
+export function buildManualWiringPlan(segments: NeonSegment[], order: readonly string[], invertedIds: ReadonlySet<string>, serviceMarginMm: number): NeonWiringPlan {
+  const byId = new Map(segments.map((s) => [s.id, s]));
+  const tour: TourNode[] = order.filter((id) => byId.has(id)).map((id) => ({ segmentId: id, inverted: invertedIds.has(id) && !byId.get(id)!.closed }));
+  return buildPlanFromTour(byId, tour, serviceMarginMm);
+}
+
 /** Invierte IN/OUT de un segmento abierto a mano, conservando el orden del plan, y recalcula jumpers/cable total. No-op en segmentos cerrados (no tienen IN/OUT que invertir). */
 export function invertSegmentOrientation(segments: NeonSegment[], plan: NeonWiringPlan, segmentId: string, serviceMarginMm: number): NeonWiringPlan {
   const byId = new Map(segments.map((s) => [s.id, s]));

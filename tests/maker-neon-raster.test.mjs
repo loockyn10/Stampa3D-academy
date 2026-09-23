@@ -646,7 +646,8 @@ test("Proyectos Neon: un PNG se guarda como neon-png con la receta de conversió
   assert.equal(src.mimeType, "image/png");
   assert.equal(src.designHeightMm, 120);
   assert.deepEqual(src.raster, { detectionMode: "luminance", alphaThreshold: 128, threshold: 90, invert: true, contrast: 0, cleaning: 2, pruneMm: 3.5, simplify: "high", smoothing: 70 });
-  assert.deepEqual(Object.keys(payload.settings).sort(), ["clearanceMm", "floorThicknessMm", "minBendRadiusMm", "neonWidthMm", "wallHeightMm", "wallThicknessMm"]);
+  // "installation" (Instalación 0.3, sección 33): receta+overrides anidados en el mismo campo jsonb, sin migration nueva.
+  assert.deepEqual(Object.keys(payload.settings).sort(), ["clearanceMm", "floorThicknessMm", "installation", "minBendRadiusMm", "neonWidthMm", "wallHeightMm", "wallThicknessMm"]);
   assert.equal(payload.settings.neonWidthMm, 8);
   const json = JSON.stringify(payload);
   assert.ok(!/skeleton|pathsPx|"mask"/i.test(json), "no se persiste nada derivado");

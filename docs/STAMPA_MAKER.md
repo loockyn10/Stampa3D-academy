@@ -63,6 +63,7 @@
 > **Jarros 3D — Status: Beta / Admin Only (2026-09-21).** Desarrollo temporalmente pausado; ver sección 31.
 > Instalación 0.1 (2026-09-21): sistema de instalación de Carteles — identidad física por letra, montaje (Keyhole / separadores impresos con receptor reforzado), cableado BIPOLAR encadenado físico / paralelo eléctrico (puertos de dos agujeros, soporte de empalmes EXTERNO imprimible), zonas reservadas, plantilla 1:1 (PDF vectorial con tiling), guía de conexión y kit ZIP (sección 32; corrección bipolar/externo en 32.7-32.8).
 > Neon 0.1.1 (2026-09-19): importador SVG corregido (cascada CSS real, `<text>`, mensajes diferenciados) y biblioteca de fuentes single-line reales: Mistral SingleLine y Relief SingleLine, OFL (sección 26).
+> Neon 0.3 (2026-09-23): sistema de instalación de Neon LED (sección 33): `NeonSegment` (identidad física por recorrido, IDs posicionales + reconciliación best-effort por forma), `NeonWiringPlan` (nearest-neighbor + 2-opt acotado, IN/OUT por segmento), `NeonCablePassThrough` (cápsula bipolar única, perfora el piso sin tocar las paredes visibles — split de piso por bandas gateado, malla bit a bit idéntica sin pass-throughs), puentes traseros por MST (Kruskal, **sólidos independientes con overlap físico real, NO soldados por Clipper** — ver 33.4 para el porqué y la limitación aceptada), `NeonWallClip` paramétrico (deriva de la sección del canal, se regenera solo), posición automática de clips por longitud de arco, editor manual (reutiliza el editor de Back Cutouts existente, pass-through como `BackCutout` sintético — invertir/reordenar por lista), malla helper de cableado/montaje (nunca se exporta), export (Wall Clip STL + kit ZIP) y persistencia (receta+overrides anidados en el mismo `settings` jsonb, sin migration nueva). 53 tests nuevos en tests/maker-neon-installation.test.mjs (630 -> 683 tests Maker). No avanza a Neon 0.4.
 
 ## 1. Qué es
 
@@ -2982,3 +2983,118 @@ antiguas se descarta y el agujero/separación toman los defaults nuevos; los ove
 - Verificación visual del panel/viewport en navegador NO realizada (la ruta exige sesión con acceso a plataforma); sí se verificó
   visualmente el render de los PDF y toda la geometría por tests (watertight, un shell por letra).
 - **Halo LED / retroiluminación y USB-C NO implementados**; la separación de pared (20 mm) deja espacio para esa futura iluminación trasera.
+
+## 33. Neon LED 0.3 — Sistema de instalación
+
+> Sprint 2026-09-23. Módulo nuevo `src/lib/maker/neon/installation/` (+ `src/lib/maker/unionFind.ts`, compartido con Carteles). El motor geométrico del canal (`createChannelGeometry.ts`) solo recibe un contexto opcional (`passThroughFootprints`/`bridgeFootprints`); sin él, produce exactamente la misma malla que antes de este sprint. Tests: `tests/maker-neon-installation.test.mjs` (53). No avanza a Neon 0.4.
+
+### 33.1 `NeonSegment`: identidad física por recorrido
+
+Capa de metadata PURA sobre `NeonPath[]` (`installation/segments.ts`), calculada ANTES de cualquier buffer/unión Clipper — nunca toca `createChannelGeometry.ts`. `NeonSegment { id, pathIndex, closed, points, lengthMm, bounds, start, end, connectionAnchorT }`:
+
+- **Segmentos abiertos**: `start`/`end` con punto + tangente unitaria SALIENTE (apunta más allá de la punta). Un carácter puede aportar varios `NeonPath` (la "A" = 2 lados + travesaño) — ya llegan separados desde `textToNeonPaths.ts`/`svgToNeonPaths.ts`, así que `NeonSegment` es un wrapper casi 1:1, sin lógica nueva de separación de trazos.
+- **Loops cerrados**: sin extremos naturales, así que se elige determinísticamente un `connectionAnchorT` (fracción de longitud de arco `[0,1)`) — el vértice más RECTO del loop (menor ángulo de giro local, muestreado con el mismo criterio que `metrics/curvature.ts`), no una esquina viva. Empate → primer índice, nunca al azar.
+- **IDs**: posicionales (`N1..Nn`, índice en la corrida actual) — mismo esquema que `LetterInstance.id` de Carteles (único precedente real en el repo), NO content-hash.
+
+**`reconcileSegments.ts`**: al cambiar texto/SVG/PNG/fuente/alto los IDs pueden dejar de corresponder al mismo segmento físico. Se hace un match best-effort por SIMILITUD GEOMÉTRICA (distancia de centroide para loops, distancia de extremos —probando ambas orientaciones— para abiertos, más diferencia de longitud, todo normalizado por la media geométrica de ambas longitudes para no dejar que un trazo enorme "absorba" la distancia a uno diminuto), greedy por confianza descendente, cada ID usado una sola vez. Por debajo del umbral de confianza el match se descarta — **nunca se remapea una posición vieja a un segmento equivocado** (Sección 45/59 del pedido). Esta función existe y está probada (incluye un caso adversarial: mismo conteo, formas muy distintas → 0 matches), pero **todavía no está conectada al flujo de edición en vivo** — ver limitaciones (33.12): hoy la persistencia de overrides usa el criterio más simple de Carteles (ID debe existir en la corrida actual), con descarte controlado si no.
+
+### 33.2 `NeonWiringPlan`: orden + IN/OUT
+
+`installation/wiring.ts`. Corrección conceptual respecto de Carteles: Carteles cablea N letras como N redes eléctricas PARALELAS independientes (empalme en T por letra); Neon es UNA sola tira LED continua cortada en N segmentos — dentro de un segmento no hay empalme, las mismas dos vías corren IN→OUT en serie física, y el jumper extiende esas mismas vías. La condición de aceptación sigue siendo la misma (`computeNeonBuses`, unión-búsqueda: exactamente un bus + y un bus −, nunca en corto) pero con un modelo de terminales más simple (2 por segmento, no 6).
+
+Planificador: nearest-neighbor (arranca en el segmento de menor ID, agrega en cada paso el candidato — ID + orientación, cada segmento abierto aporta 2 orientaciones posibles = invertible — más cercano al punto de salida actual) + 2-opt first-improvement acotado a `min(200, N²)` evaluaciones de par. Determinístico, NO promete el óptimo (no hace falta TSP perfecto). Primer segmento = alimentación + salida; último = solo entrada; intermedios = entrada + salida. `buildManualWiringPlan` arma un plan directo desde un orden + conjunto de inversiones ya decididos (editor manual, sin correr NN/2-opt de nuevo). Se probó con un caso de 6 segmentos contra un orden manual artificialmente malo: el plan automático siempre da menos cable total (no exige el óptimo matemático).
+
+`src/lib/maker/unionFind.ts` es la unión-búsqueda genérica extraída de la implementación inline que ya tenía `installation/wiring.ts` de Carteles (refactor puro, sin cambio de comportamiento, Carteles pasa a importarla) — la reutilizan también el MST de puentes (33.4) y `computeNeonBuses`.
+
+### 33.3 `NeonCablePassThrough`: agujero bipolar único
+
+`installation/passThrough.ts`. UNA sola abertura tipo cápsula (no dos agujeros circulares como el puerto de Carteles). Por segmento abierto: uno en el lado IN (siempre hay alimentación o un jumper entrando ahí) y otro en el lado OUT si `hasOut`. Loops cerrados: uno solo, en su `connectionAnchorT` (IN y OUT del cableado comparten el mismo agujero físico).
+
+- **Posición**: a `endpointInsetMm` (default 10 mm) de la punta — nunca exactamente ahí —, acotado a la mitad del segmento en trazos cortos para que los dos huecos de un mismo segmento nunca se crucen.
+- **Orientación**: eje largo de la cápsula alineado con la TANGENTE LOCAL del recorrido (encaja con más margen dentro de un corredor angosto que perpendicular). `capsulePolygon()` no siempre nace con su eje largo en X (depende de si width>=height), así que la rotación aplicada compensa ese caso.
+- **Validez**: la cápsula debe caer ENTERA dentro de la cavidad, con margen (`PASS_THROUGH_EDGE_MARGIN_MM = 0.5`) — misma técnica que `isCutoutInsideSafeZone` de Carteles (diferencia de áreas exacta vía Clipper, no muestreo de puntos).
+
+**Geometría (split de piso por bandas, gateado)**: la única extrusión de `outerGroups` (piso+pared, `z:0→zTop`) se divide en dos SOLO cuando hay pass-throughs: banda 1a (`z:0→zFloor`, con el agujero restado) + banda 1b (`z:zFloor→zTop`, huella original sin cambios, continúa la pared exterior). Con la misma huella sale también el mismo agujero en la tapa de la cavidad (pieza 2, "techo del piso"), así el pass-through atraviesa de punta a punta — nunca queda como bolsillo ciego. Sin pass-throughs (`passThroughFootprints` vacío), la malla es BIT A BIT idéntica a antes de este sprint (test de regresión explícito). Verificado con manifold/watertight, volumen removido ≈ área de cada cápsula × espesor de piso (±10%), y un rayo vertical por el centro del pass-through que no encuentra material entre `z=0` y `z=zFloor` (mientras que lejos del agujero el piso sigue sólido).
+
+### 33.4 Puentes traseros (MST) — sólidos independientes, NO soldados por Clipper
+
+`installation/bridges.ts`. Grafo completo nodo=segmento, costo=distancia mínima entre huellas EXTERIORES por segmento (`segmentOuterFootprint`: buffer de un solo `NeonPath` a la vez, desechable, nunca toca el buffer fusionado real del canal). MST vía Kruskal (comparte `UnionFind` con 33.2), determinístico. Para N segmentos desconectados da ~N-1 puentes.
+
+**Decisión de arquitectura (con impacto en el resultado final, aprobada explícitamente por el usuario tras probarse en este sprint)**: el pedido original pide "unión 2D con el floor footprint antes de extrusión... evitar CSG 3D", lo que se intentó primero como una unión Clipper de la cápsula del puente contra `outerGroups`. **Se abandonó tras confirmarlo con debugging directo**: Clipper puede resamplear tramos del contorno lejos de cualquier intersección real al reconstruir la tapa de la protuberancia, dejando bordes no-manifold puntuales que el redondeo de grilla (0.0001 mm) no alcanza a compensar — no es un problema de precisión numérica, es que dos operaciones booleanas distintas sobre las mismas curvas no siempre teselan idéntico.
+
+En su lugar, cada puente se extruye como su PROPIO sólido cerrado independiente (`z:0→zFloor`, con sus dos tapas — misma técnica sin CSG que `wallSpacer.ts`/`spliceClip.ts` de Carteles), concatenado en la MISMA malla/STL. Su footprint (`bridgeFootprintPolygon`) se extiende `BRIDGE_OVERLAP_MM = 1` más allá de cada punto de conexión, hacia adentro de la huella del segmento correspondiente, para SOLAPAR de verdad en ÁREA (no solo tocar) — dos sólidos watertight independientes con volumen 3D genuinamente superpuesto imprimen como una sola pieza (el slicer no necesita que la malla esté soldada por vértices, solo que el volumen se toque). Mismo principio que ya usa este proyecto para tapa/cuerpo de Carteles (sección 11: "no es una soldadura... es la unión de dos sólidos independientes").
+
+Verificado: cada pieza (segmentos + puentes) es individualmente manifold/watertight (0 bordes no-manifold, 0 triángulos degenerados); la conectividad real se probó por SOLAPE DE ÁREA (unión-búsqueda sobre intersección Clipper > 0 entre las huellas de segmentos y puentes) — no por vértices compartidos, que no aplica a sólidos superpuestos-no-soldados. N=4 componentes desconectados → 3 puentes → 1 sola pieza imprimible (por solape); modo Independientes preserva el conteo de componentes original.
+
+**Validación por edge del MST**: si el candidato cruza la cavidad de CUALQUIER segmento (footprint del puente intersecta `cavityGroups`, área > tolerancia) se rechaza (`NEON_BRIDGE_CROSSES_CAVITY`) y Kruskal sigue con el siguiente candidato más barato — probado con un caso de 3 nodos donde el camino directo más corto está bloqueado por una cavidad sintética y el plan final igual conecta todo por el desvío. Puente por encima de `bridgeLengthWarningMm` (default 250 mm) avisa (`NEON_BRIDGE_TOO_LONG`) sin bloquear.
+
+Mechanical bridge y electrical jumper son conceptos DIFERENTES a propósito (Sección 26 del pedido): `bridges.ts` no sabe nada de `NeonWiringPlan`, aunque puedan coincidir visualmente.
+
+**Espesor del puente**: ocupa el MISMO rango Z que el piso (`0..zFloor`), nunca más grueso — satisface por construcción la preferencia del pedido ("igual o menor que floorThickness") sin necesitar una tercera banda Z independiente ni un parámetro `bridgeThicknessMm` separado.
+
+### 33.5 `NeonWallClip`: pieza auxiliar paramétrica
+
+`installation/wallClip.ts`. Independiente del STL principal (`installation/types.ts`: `NeonAuxPart`, tipo LOCAL de Neon — no se amplía el `InstallationAuxPart.kind` compartido de Carteles, evita forzar a `exportInstallKit.ts` de Carteles a lidiar con un valor que no le pertenece). Función PURA de `(NeonChannelParams, NeonWallClipSettings)`: se regenera sola al cambiar cualquiera de los dos, sin paso manual.
+
+Geometría (mismo mecanismo sin CSG que `wallSpacer.ts`/`spliceClip.ts`, huellas 2D apiladas y soldadas por capas vía `installation/prismStack.ts` reutilizado tal cual): eje Z local = "alejándose de la pared" (base apoyada en Z=0, mismo criterio que `wallSpacer.ts`).
+
+- **Placa base + poste**: la placa tiene una "oreja" que sobresale del poste en la dirección a lo largo del canal, con el agujero de tornillo centrado ahí — así nada queda por encima bloqueando el acceso del destornillador (probado con un rayo recto desde arriba que no encuentra ningún triángulo hasta la base). Rebaje de cabeza opcional (counterbore, `screwHeadDiameterMm=0` = sin rebaje).
+- **Poste**: alto = `wallGapMm` (separación de pared, default 5 mm, rango 0-20).
+- **Bolsillo/rieles**: ancho = `channelOuterWidth(params) + clipClearanceMm` (holgura TOTAL, misma convención que el resto de Neon). El canal se presiona hacia -Z (hacia la pared) dentro del bolsillo; los rieles lo abrazan por los costados en toda su altura (`channelHeight + clearance`).
+- **Retención SUAVE**: pestañas cortas con voladizo hacia adentro justo en la boca del bolsillo (`RAIL_TAB_OVERHANG_MM = 0.4`, mismo valor ya probado en `spliceClip.ts`) — nunca snap agresivo.
+
+Se exporta como UNA sola pieza STL + cantidad (todos los clips de un proyecto comparten sección de canal, son geométricamente idénticos).
+
+### 33.6 Posición automática de clips
+
+`installation/clipPlacement.ts`, extiende `installation/arclength.ts` (caminador de longitud de arco genérico, ya usado por 33.1/33.3: `buildArclengthTable`, `pointAtT`, reserva de intervalos 1D `Interval`/`intervalsOverlap`). Se prefirió un esquema 1D por longitud de arco en vez de portar el sistema de zonas 2D de Carteles (`layout.ts`, pensado para una cavidad 2D) — Neon es fundamentalmente un recorrido, no una cavidad.
+
+Candidatos cada `clipSpacingMm` (default 100, sugerido 80-120) + uno extra cerca de cada extremo si el último regular queda a más de `spacingMm/2` del borde. Se evita: zonas reservadas (pass-through, con margen — bordes de puentes NO se reservan explícitamente en V1, ver limitaciones) y curvas demasiado cerradas (radio local estimado por muestreo de 3 puntos, mismo criterio que `metrics/curvature.ts`, umbral = `minBendRadiusMm` del canal). Si el candidato en la posición objetivo no es válido, se busca el más cercano válido (`±2mm, ±4mm...` hasta `spacingMm/2`) antes de descartarlo. Sin ningún candidato válido en todo el segmento: `NEON_CLIP_NO_SPACE`, sin crash.
+
+Probado: tramo recto de 500 mm da varios clips cerca del spacing configurado + uno extra por extremo; ninguno cae sobre un pass-through reservado; ninguno cae en una curva cerrada sintética (fixture en "L", esquina de 90°).
+
+### 33.7 Orquestador (`installation/orchestrate.ts`) — tres toggles independientes
+
+`planNeonInstallation()` une segments → wiring → pass-through → bridges → clips en un solo resultado (`NeonInstallationResult`). **Cableado, puentes y montaje son TRES conceptos independientes** (no uno depende del otro): `bridgeMode: "bridged"` genera puentes aunque el cableado esté apagado; `mountMode: "clips"` genera clips igual. Solo los pass-through están atados al cableado (no tendría sentido un agujero de cable sin un plan de cableado que lo motive). Probado explícitamente: puentes y clips con `wiringEnabled: false`.
+
+`createNeonGeometry.ts` hace DOS pasadas de `createChannelGeometry`: una primera SIN instalación (da el `cavityGroups` "baseline" contra el que se valida cada pass-through/puente — nunca tocan la pared), y si hay algo que agregar, una segunda CON el contexto de instalación ya validado. Sin ningún toggle activo, es una sola pasada — mismo resultado byte a byte que antes de este sprint (test de regresión).
+
+### 33.8 UI: sección "Instalación"
+
+`MakerNeonControls.tsx`, insertada después de "Curvatura" y antes de "Información" (mismo patrón plano de `<section>`, sin acordeón, que el resto del panel). Tres bloques (Sección 60 del pedido): CABLEADO (toggle + tamaño de pass-through + margen de servicio + lista de orden con invertir/reordenar cuando se está editando + "Mostrar cableado"), UNIÓN (Independientes/Puentes traseros + ancho de puente) y PARED (Sin montaje/Clips + separación + distancia entre clips + holgura + "Mostrar montaje"). Resúmenes en vivo (segmentos, pass-through generados, cable auxiliar total, puentes, clips) directamente desde `NeonGeometryResult.installation`.
+
+`useNeonGeometry.ts` extendido con un tercer argumento opcional `{recipe, overrides}`, debounceado junto con `params` pero **fuera** de la dependencia de `buildNeonPaths`: cambiar cualquier ajuste de Instalación (incluido arrastrar un pass-through) NUNCA reprocesa el parseo de texto/SVG/imagen (Sección 59 del pedido) — solo el memo de `createNeonGeometry`.
+
+### 33.9 Malla helper (cableado + montaje) — nunca se exporta
+
+`installation/helperMesh.ts`. Reusa el mecanismo YA EXISTENTE de `MakerViewport`'s prop `helperMesh` (el mismo que usa el inserto de Jarros) — no hizo falta tocar el viewport. Combina, en una sola malla translúcida:
+
+- **Cableado** ("Mostrar cableado"): una barra (cápsula) + una flecha triangular por jumper, apuntando de OUT (from) a IN (to) — nunca depende solo del color.
+- **Montaje** ("Mostrar montaje"): un disco marcador en cada posición de clip calculada (convertida de longitud de arco a punto real vía `pointAtT`) + un plano de referencia de la pared a `z = -wallGapMm`.
+
+Todo a Z negativo (detrás del piso, Z=0) para no colisionar visualmente con la geometría real. Bar y flecha se extruyen POR SEPARADO (no como un contorno unido por Clipper): cerca de la punta se solapan, y unirlos ahí dejaba un triángulo degenerado ocasional (mismo tipo de problema que 33.4, resuelto con la misma estrategia de sólidos independientes en vez de forzar una unión).
+
+### 33.10 Editor manual — reutiliza el editor de Back Cutouts existente
+
+`installation/editing.ts`. Los pass-through se representan como `BackCutout` SINTÉTICOS de tipo `"capsule"` (mismo patrón que ya usa Carteles para sus puntos de montaje: `mountEditorCutouts()`) — se reutiliza `cutoutEditorScene.ts`/`MakerViewport`'s prop `cutoutEditing` TAL CUAL, sin escribir ni un componente nuevo ni un segundo canvas (Sección 17 del pedido: "Reutilizar MakerViewport... No crear canvas separado"). El arrastre (raycast a Z=0, cámara ortográfica trasera, throttle de 80 ms, validación en vivo roja/verde) es exactamente el mismo código ya probado de Carteles.
+
+- **Zona segura del editor** (`computePassThroughSafeZone`): unión de las cavidades de TODOS los segmentos, erosionada el mismo margen que usa el motor — expuesta en `NeonGeometryResult.passThroughSafeZone`, calculada solo cuando Instalación está activa.
+- **Mover pass-through**: el drag commitea un override `{passThroughStart|passThroughEnd: [x,y]}` por segmento — reemplaza el centro calculado automáticamente, conserva la rotación auto.
+- **Invertir IN/OUT**: lista de segmentos en orden de cableado (visible solo mientras se edita), cada uno con botones ↑/↓ (mover antes/después, reordenar sin drag-drop) e "invertir".
+- **Reset automático**: vuelve todos los overrides (orden + por segmento) a automático.
+
+### 33.11 Export y persistencia
+
+**Export** (`neon/exporters/exportNeonInstallKit.ts`, LOCAL a Neon — `exportInstallKit.ts` de Carteles itera `result.letters`, siempre vacío en Neon, no reutilizable tal cual): tarjeta flotante con NEON (Descargar STL Neon, sin cambios) + INSTALACIÓN (Wall Clip × N, Kit completo). Kit ZIP: `STL/` (canal + clip) + `INSTALL/installation-summary.txt` (segmentos, longitud total, jumpers con longitud, cable auxiliar total, puentes, clips — Sección 43). Sin PDF (Neon no tiene esa infraestructura todavía); el ZIP queda estructurado para agregarlo después sin cambiar el layout.
+
+**Persistencia** (`neon/projects/neonProjectData.ts`): `NeonWorkState` gana `installationRecipe`/`installationOverrides`. Se serializan anidados en el MISMO campo jsonb `settings` (`settings.installation = {recipe, overrides}`) — **sin migration nueva** (el jsonb no tiene schema que alterar). Neon no tiene presets todavía, así que la receta completa viaja en el proyecto (no hace falta el split preset-vs-proyecto de Carteles). Lectura tolerante (`normalizeNeonInstallationRecipe`/`normalizeNeonInstallationOverrides` en `installation/types.ts`): proyectos guardados antes de este sprint (sin la clave `installation`) cargan con todo en automático/apagado, sin throw. `neonProjectSignature` detecta cambios de instalación automáticamente (ya serializa todo `settings`).
+
+### 33.12 Limitaciones conocidas
+
+- **`reconcileSegments` (33.1) no está conectada al flujo de edición en vivo todavía** — existe y está probada, pero la aplicación de overrides sigue el criterio más simple de Carteles (ID debe existir en la corrida actual). Es el mismo nivel de robustez que Carteles ya tiene en producción, no una regresión — pero es la mejora más clara para una iteración futura.
+- **Los puentes traseros NO están soldados por Clipper al resto de la malla** (33.4): son sólidos independientes con overlap físico real. Imprimen como una sola pieza (verificado por solape de área real, Z compartido y ausencia de bordes no-manifold por pieza) pero esto **no se verificó contra un slicer real** (Bambu Studio/OrcaSlicer) — queda pendiente de que el usuario lo confirme.
+- La posición automática de clips (33.6) evita pass-throughs reservados y curvas cerradas, pero **no evita explícitamente una unión de puente** — el margen práctico entre features suele alcanzar, pero no hay una reserva de arco dedicada para bridge junctions en V1.
+- El editor manual (33.10) solo permite arrastrar PASS-THROUGH; los clips de pared se ven (helper mesh, 33.9) pero no se arrastran — coincide con el mínimo aceptado explícitamente por el pedido (Sección 38: "Como mínimo: auto placement + lista/visual helper").
+- Sin PDF de instalación para Neon (plantilla 1:1, guía de conexión) — explícitamente fuera de alcance de este sprint, ZIP estructurado para agregarlo después.
+- **Verificación visual completa en navegador NO realizada** (misma limitación documentada para Neon 0.1/0.2: la ruta exige sesión con acceso a plataforma, sin credenciales en este entorno). Se verificó: `npx tsc --noEmit` limpio, `npm run build` exitoso (85 páginas estáticas generadas incluyendo `/stampa-maker/neon`), 683/684 tests Maker (1 skip preexistente, no relacionado), y toda la geometría nueva por tests (manifold/watertight, volumen, raycast, solape de área).
+- USB-C, cálculo de fuente/potencia, AWG/caída de tensión, RGB/data line, halo, plantilla PDF mural compleja, wall anchors, generación de tornillos, slicing/G-code — explícitamente fuera de alcance (Sección 61 del pedido), no implementados.

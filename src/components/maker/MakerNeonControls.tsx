@@ -4,13 +4,15 @@ import React from "react";
 import { AlertTriangle, Download, Loader2, Upload, X } from "lucide-react";
 import { Card } from "@/components/ui/card";
 import { GhostButton } from "@/components/ui/button";
-import { NumberField, SegmentedControl } from "@/components/maker/MakerTextControls";
+import { NumberField, SegmentedControl, Toggle } from "@/components/maker/MakerTextControls";
 import { MakerRasterPanel } from "@/components/maker/MakerRasterPanel";
 import { NEON_FONTS, NEON_FONT_CATEGORY_LABELS, type NeonFontDefinition } from "@/lib/maker/neon/fonts/neonFonts";
 import { LETTER_SPACING_MAX_PCT, LETTER_SPACING_MIN_PCT, textToNeonPaths } from "@/lib/maker/neon/paths/textToNeonPaths";
 import type { RasterConversion, RasterKind, RasterSettings } from "@/lib/maker/neon/raster/types";
 import type { NeonFieldError } from "@/lib/maker/neon/validation/validateNeonParams";
 import type { NeonFontId, NeonIssue, NeonMetrics, NeonParams, NeonSourceType } from "@/lib/maker/neon/types";
+import type { NeonWiringPlan } from "@/lib/maker/neon/installation/wiring";
+import type { NeonBridgeMode, NeonInstallationRecipe, NeonMountMode } from "@/lib/maker/neon/installation/types";
 
 /** Formatos aceptados por el selector de archivos (la validación real es por firma del archivo, no por esto). */
 export const IMAGE_ACCEPT = "image/png,image/jpeg,.png,.jpg,.jpeg";
@@ -133,6 +135,171 @@ function FileDropZone({ onFile, disabled, accept, hint }: { onFile: (file: File)
   );
 }
 
+const BRIDGE_MODE_OPTIONS: { value: NeonBridgeMode; label: string }[] = [
+  { value: "independent", label: "Independientes" },
+  { value: "bridged", label: "Puentes traseros" },
+];
+
+const MOUNT_MODE_OPTIONS: { value: NeonMountMode; label: string }[] = [
+  { value: "none", label: "Sin montaje" },
+  { value: "clips", label: "Clips" },
+];
+
+export interface MakerNeonInstallationProps {
+  recipe: NeonInstallationRecipe;
+  onRecipeChange: (patch: Partial<NeonInstallationRecipe>) => void;
+  segmentCount: number;
+  wiring: NeonWiringPlan | null;
+  passThroughCount: number;
+  bridgeCount: number;
+  clipCount: number;
+  installationWarnings: NeonIssue[];
+  installationErrors: NeonIssue[];
+  editingConnections: boolean;
+  onToggleEditConnections: () => void;
+  showWiringHelper: boolean;
+  onShowWiringHelperChange: (v: boolean) => void;
+  showMountHelper: boolean;
+  onShowMountHelperChange: (v: boolean) => void;
+  onMoveSegment: (segmentId: string, direction: -1 | 1) => void;
+  onInvertSegment: (segmentId: string) => void;
+  onResetOverrides: () => void;
+}
+
+function MakerNeonInstallation({ installation }: { installation: MakerNeonInstallationProps }) {
+  const { recipe, onRecipeChange } = installation;
+  return (
+    <section className="flex flex-col gap-3">
+      <SectionLabel>Instalación</SectionLabel>
+
+      <div className="flex flex-col gap-3 rounded-xl border border-white/10 bg-white/[0.02] p-3">
+        <div className="flex items-center justify-between gap-2">
+          <span className="text-xs font-semibold text-gray-300">Cableado</span>
+          <Toggle label="Conectar segmentos" checked={recipe.wiringEnabled} onChange={(v) => onRecipeChange({ wiringEnabled: v })} />
+        </div>
+        <InfoRow label="Segmentos detectados" value={String(installation.segmentCount)} />
+        {recipe.wiringEnabled && (
+          <>
+            <InfoRow label="Entrada de alimentación" value={installation.wiring ? `Segmento ${installation.wiring.order[0] ?? "—"} (automático)` : "—"} />
+            <div className="grid grid-cols-2 gap-3">
+              <NumberField label="Pass-through ancho" value={recipe.passThroughWidthMm} onChange={(v) => onRecipeChange({ passThroughWidthMm: v })} suffix="mm" />
+              <NumberField label="Pass-through alto" value={recipe.passThroughHeightMm} onChange={(v) => onRecipeChange({ passThroughHeightMm: v })} suffix="mm" />
+            </div>
+            <NumberField label="Margen de servicio" value={recipe.serviceMarginMm} onChange={(v) => onRecipeChange({ serviceMarginMm: v })} suffix="mm" />
+            <InfoRow label="Pass-through generados" value={String(installation.passThroughCount)} />
+            <InfoRow
+              label="Cable auxiliar"
+              value={installation.wiring ? `${installation.wiring.jumpers.length} jumper${installation.wiring.jumpers.length === 1 ? "" : "s"} · ${Math.round(installation.wiring.totalCableMm)} mm` : "—"}
+              strong
+            />
+            <div className="flex items-center justify-between gap-2">
+              <GhostButton type="button" onClick={installation.onToggleEditConnections}>
+                {installation.editingConnections ? "Salir de edición" : "Editar conexiones"}
+              </GhostButton>
+              <Toggle label="Mostrar cableado" checked={installation.showWiringHelper} onChange={installation.onShowWiringHelperChange} />
+            </div>
+            {installation.editingConnections && installation.wiring && (
+              <div className="flex flex-col gap-1.5 rounded-lg border border-white/10 bg-black/20 p-2">
+                <span className="text-[11px] font-semibold uppercase tracking-wide text-gray-500">Orden de cableado</span>
+                {installation.wiring.order.map((segId, i) => {
+                  const w = installation.wiring!.segments.find((s) => s.segmentId === segId)!;
+                  const total = installation.wiring!.order.length;
+                  return (
+                    <div key={segId} className="flex items-center justify-between gap-2 rounded-lg bg-white/[0.03] px-2 py-1.5 text-xs text-gray-300">
+                      <span className="truncate">
+                        {i + 1}. {segId}
+                        {w.hasPowerIn ? " · ALIM" : ""}
+                        {!w.hasOut ? " · FIN" : ""}
+                      </span>
+                      <div className="flex shrink-0 items-center gap-1">
+                        <button
+                          type="button"
+                          disabled={i === 0}
+                          onClick={() => installation.onMoveSegment(segId, -1)}
+                          aria-label="Mover antes"
+                          className="rounded border border-white/10 px-1.5 py-0.5 text-gray-400 hover:text-white disabled:opacity-30"
+                        >
+                          ↑
+                        </button>
+                        <button
+                          type="button"
+                          disabled={i === total - 1}
+                          onClick={() => installation.onMoveSegment(segId, 1)}
+                          aria-label="Mover después"
+                          className="rounded border border-white/10 px-1.5 py-0.5 text-gray-400 hover:text-white disabled:opacity-30"
+                        >
+                          ↓
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => installation.onInvertSegment(segId)}
+                          className="rounded border border-white/10 px-1.5 py-0.5 text-[10px] font-semibold text-gray-400 hover:text-white"
+                        >
+                          {w.inverted ? "invertido" : "invertir"}
+                        </button>
+                      </div>
+                    </div>
+                  );
+                })}
+                <GhostButton type="button" onClick={installation.onResetOverrides}>
+                  Reset automático
+                </GhostButton>
+              </div>
+            )}
+          </>
+        )}
+      </div>
+
+      <div className="flex flex-col gap-3 rounded-xl border border-white/10 bg-white/[0.02] p-3">
+        <span className="text-xs font-semibold text-gray-300">Unión de segmentos</span>
+        <SegmentedControl options={BRIDGE_MODE_OPTIONS} value={recipe.bridgeMode} onChange={(v) => onRecipeChange({ bridgeMode: v })} />
+        {recipe.bridgeMode === "bridged" && (
+          <>
+            <NumberField label="Ancho de puente" value={recipe.bridgeWidthMm} onChange={(v) => onRecipeChange({ bridgeWidthMm: v })} suffix="mm" />
+            <InfoRow label="Puentes generados" value={String(installation.bridgeCount)} strong />
+          </>
+        )}
+      </div>
+
+      <div className="flex flex-col gap-3 rounded-xl border border-white/10 bg-white/[0.02] p-3">
+        <span className="text-xs font-semibold text-gray-300">Montaje a pared</span>
+        <SegmentedControl options={MOUNT_MODE_OPTIONS} value={recipe.mountMode} onChange={(v) => onRecipeChange({ mountMode: v })} />
+        {recipe.mountMode === "clips" && (
+          <>
+            <div className="grid grid-cols-2 gap-3">
+              <NumberField label="Separación pared" value={recipe.wallGapMm} onChange={(v) => onRecipeChange({ wallGapMm: v })} suffix="mm" />
+              <NumberField label="Distancia entre clips" value={recipe.clipSpacingMm} onChange={(v) => onRecipeChange({ clipSpacingMm: v })} suffix="mm" />
+            </div>
+            <NumberField label="Holgura clip" value={recipe.clipClearanceMm} onChange={(v) => onRecipeChange({ clipClearanceMm: v })} suffix="mm" />
+            <div className="flex items-center justify-between gap-2">
+              <InfoRow label="Clips de pared" value={String(installation.clipCount)} strong />
+              <Toggle label="Mostrar montaje" checked={installation.showMountHelper} onChange={installation.onShowMountHelperChange} />
+            </div>
+          </>
+        )}
+      </div>
+
+      {installation.installationErrors.length > 0 && (
+        <div className="flex flex-col gap-1 rounded-xl border border-red-500/30 bg-red-500/10 p-3 text-xs text-red-300">
+          {installation.installationErrors.map((e, i) => (
+            <span key={`${e.code}-${i}`}>{e.message}</span>
+          ))}
+        </div>
+      )}
+      {installation.installationWarnings.length > 0 && (
+        <div className="flex flex-col gap-1.5 rounded-xl border border-amber-500/30 bg-amber-500/10 p-3 text-xs text-amber-300">
+          {installation.installationWarnings.map((w, i) => (
+            <div key={`${w.code}-${i}`} className="flex items-start gap-2">
+              <AlertTriangle size={14} className="mt-0.5 shrink-0" />
+              <span>{w.message}</span>
+            </div>
+          ))}
+        </div>
+      )}
+    </section>
+  );
+}
+
 export interface MakerNeonControlsProps {
   params: NeonParams;
   onChange: (patch: Partial<NeonParams>) => void;
@@ -163,6 +330,7 @@ export interface MakerNeonControlsProps {
   metrics: NeonMetrics | null;
   errors: NeonIssue[];
   warnings: NeonIssue[];
+  installation: MakerNeonInstallationProps;
 }
 
 /** Panel izquierdo de /stampa-maker/neon. Solo presentación: el estado vive en la página. */
@@ -281,6 +449,8 @@ export function MakerNeonControls(props: MakerNeonControlsProps) {
         <NumberField label="Radio mínimo" value={params.minBendRadiusMm} onChange={(v) => onChange({ minBendRadiusMm: v })} suffix="mm" error={err("minBendRadiusMm")} />
       </section>
 
+      <MakerNeonInstallation installation={props.installation} />
+
       <section className="flex flex-col gap-2">
         <SectionLabel>Información</SectionLabel>
         <InfoRow label="Ancho total diseño" value={metrics && metrics.printedSize.width > 0 ? `${round1(metrics.printedSize.width)} mm` : "—"} />
@@ -311,11 +481,44 @@ export function MakerNeonControls(props: MakerNeonControlsProps) {
   );
 }
 
-/** Tarjeta flotante de exportación del Neon: una sola pieza, un solo .stl. */
-export function NeonExportCard({ canDownload, loading, onDownload }: { canDownload: boolean; loading: boolean; onDownload: () => void }) {
+/** Botón secundario compacto (mismo tamaño/forma que el de descarga, sin el color de acento). */
+function ExportSecondaryButton({ onClick, disabled, loading, label }: { onClick: () => void; disabled: boolean; loading: boolean; label: string }) {
   return (
-    <div className="pointer-events-auto flex w-52 flex-col gap-2 rounded-2xl border border-white/10 bg-stampa-surface/80 p-3 shadow-lg shadow-black/30 backdrop-blur-md">
-      <span className="text-[11px] font-semibold uppercase tracking-wide text-gray-500">Exportar</span>
+    <button
+      type="button"
+      onClick={onClick}
+      disabled={disabled}
+      className="inline-flex h-8 w-full items-center justify-start gap-2 rounded-lg border border-white/15 bg-white/[0.04] px-3 text-xs font-semibold text-gray-200 transition-colors hover:border-white/30 hover:bg-white/[0.08] disabled:cursor-not-allowed disabled:opacity-40"
+    >
+      {loading ? <Loader2 size={14} className="animate-spin" /> : <Download size={14} />}
+      {label}
+    </button>
+  );
+}
+
+export interface NeonExportInstallationProps {
+  clipCount: number;
+  onDownloadClip: () => void;
+  downloadingClip: boolean;
+  onDownloadKit: () => void;
+  downloadingKit: boolean;
+}
+
+/** Tarjeta flotante de exportación: STL del Neon (siempre) + Wall Clip / kit completo cuando Instalación está activa (Sección 41). */
+export function NeonExportCard({
+  canDownload,
+  loading,
+  onDownload,
+  installation,
+}: {
+  canDownload: boolean;
+  loading: boolean;
+  onDownload: () => void;
+  installation?: NeonExportInstallationProps;
+}) {
+  return (
+    <div className="pointer-events-auto flex w-56 flex-col gap-2 rounded-2xl border border-white/10 bg-stampa-surface/80 p-3 shadow-lg shadow-black/30 backdrop-blur-md">
+      <span className="text-[11px] font-semibold uppercase tracking-wide text-gray-500">Neon</span>
       <button
         type="button"
         onClick={onDownload}
@@ -323,8 +526,25 @@ export function NeonExportCard({ canDownload, loading, onDownload }: { canDownlo
         className="inline-flex h-8 w-full items-center justify-start gap-2 rounded-lg border border-transparent bg-stampa-orange px-3 text-xs font-semibold text-neutral-950 transition-colors hover:bg-stampa-orange-hover disabled:cursor-not-allowed disabled:opacity-50"
       >
         {loading ? <Loader2 size={14} className="animate-spin" /> : <Download size={14} />}
-        Descargar STL
+        Descargar STL Neon
       </button>
+      {installation && (
+        <>
+          <span className="mt-1 text-[11px] font-semibold uppercase tracking-wide text-gray-500">Instalación</span>
+          <ExportSecondaryButton
+            onClick={installation.onDownloadClip}
+            disabled={installation.clipCount === 0 || installation.downloadingClip}
+            loading={installation.downloadingClip}
+            label={installation.clipCount > 0 ? `Wall Clip × ${installation.clipCount}` : "Wall Clip"}
+          />
+          <ExportSecondaryButton
+            onClick={installation.onDownloadKit}
+            disabled={!canDownload || installation.downloadingKit}
+            loading={installation.downloadingKit}
+            label="Kit completo (.zip)"
+          />
+        </>
+      )}
     </div>
   );
 }

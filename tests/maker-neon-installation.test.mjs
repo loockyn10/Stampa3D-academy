@@ -4,6 +4,7 @@ import path from "node:path";
 import test from "node:test";
 import { createRequire } from "node:module";
 import ts from "typescript";
+import JSZip from "jszip";
 
 // Carga módulos TypeScript de src/lib/maker/** con el compilador de TypeScript
 // (mismo mecanismo que tests/maker-neon.test.mjs / tests/maker-letter-geometry.test.mjs).
@@ -58,6 +59,12 @@ const { buildNeonWallClipMesh, validateNeonWallClip, neonWallClipWarnings, neonW
 const { DEFAULT_NEON_WALL_CLIP_SETTINGS } = load("lib/maker/neon/installation/types.ts");
 const { channelOuterWidth: channelOuterWidth2 } = load("lib/maker/neon/defaults.ts");
 const { planClipPositionsForSegment, planClipPositions, DEFAULT_CLIP_PLACEMENT_SETTINGS } = load("lib/maker/neon/installation/clipPlacement.ts");
+const { createNeonGeometry } = load("lib/maker/neon/createNeonGeometry.ts");
+const { DEFAULT_NEON_INSTALLATION_RECIPE, DEFAULT_NEON_INSTALLATION_OVERRIDES } = load("lib/maker/neon/installation/types.ts");
+const { buildNeonInstallationHelperMesh } = load("lib/maker/neon/installation/helperMesh.ts");
+const { buildNeonWallClipExports, buildNeonInstallationSummary, buildNeonInstallKitZipBlob } = load("lib/maker/neon/exporters/exportNeonInstallKit.ts");
+const { normalizeNeonInstallationRecipe, normalizeNeonInstallationOverrides } = load("lib/maker/neon/installation/types.ts");
+const { serializeNeonProject, deserializeNeonProject, neonProjectSignature } = load("lib/maker/neon/projects/neonProjectData.ts");
 
 // --------------------------------------------------------------------------
 // Helpers (mismo estilo que tests/maker-neon.test.mjs)
@@ -400,7 +407,9 @@ test("planPassThrough: cerca de ambos extremos (no exactamente en la punta), nul
   assert.notDeepEqual(ptEnd.center, seg.end.point, "nunca exactamente en la punta");
 
   const [closedSeg] = buildNeonSegments([circlePath(0, 0, 50)]);
-  assert.equal(planPassThrough(closedSeg, "start", PT_SETTINGS), null);
+  const closedPt = planPassThrough(closedSeg, "start", PT_SETTINGS);
+  assert.notEqual(closedPt, null, "un loop cerrado SÍ recibe pass-through, en su connectionAnchorT (Etapa 7)");
+  approx(Math.hypot(closedPt.center[0], closedPt.center[1]), 50, 0.5, "el punto de conexión está sobre el propio loop");
 });
 
 test("planPassThrough: endpointInset se acota a la mitad del segmento en trazos cortos (los dos huecos nunca se cruzan)", () => {
@@ -744,4 +753,239 @@ test("planClipPositions: multi-segmento agrega posiciones e issues por cada uno"
   assert.deepEqual(positions.get(segs[1].id), []);
   assert.equal(issues.length, 1);
   assert.equal(issues[0].code, "NEON_CLIP_NO_SPACE");
+});
+
+// --------------------------------------------------------------------------
+// Etapa 7 — Orquestador (createNeonGeometry con instalación, extremo a extremo)
+// --------------------------------------------------------------------------
+
+function farLinesRaw(xs, y0 = 0, y1 = 30) {
+  return xs.map((x) => line(x, y0, x, y1));
+}
+
+test("createNeonGeometry: instalación desactivada -> malla idéntica a no pasar el argumento (regresión)", () => {
+  const paths = farLinesRaw([0, 150, 300, 450]);
+  assert.equal(DEFAULT_NEON_INSTALLATION_RECIPE.wiringEnabled, false);
+  const without = createNeonGeometry(paths, DEFAULT_NEON_PARAMS);
+  const withDisabled = createNeonGeometry(paths, DEFAULT_NEON_PARAMS, [], { recipe: DEFAULT_NEON_INSTALLATION_RECIPE, overrides: DEFAULT_NEON_INSTALLATION_OVERRIDES });
+  assert.equal(without.geometry.triangleCount, withDisabled.geometry.triangleCount);
+  assert.deepEqual(Array.from(without.geometry.parts[0].mesh.positions), Array.from(withDisabled.geometry.parts[0].mesh.positions));
+  assert.equal(withDisabled.installation.wiring, null);
+});
+
+test("createNeonGeometry: instalación activada — plan de cableado + pass-through holes en la malla final, manifold", () => {
+  const paths = farLinesRaw([0, 150, 300, 450]);
+  const recipe = { ...DEFAULT_NEON_INSTALLATION_RECIPE, wiringEnabled: true };
+  const result = createNeonGeometry(paths, DEFAULT_NEON_PARAMS, [], { recipe, overrides: DEFAULT_NEON_INSTALLATION_OVERRIDES });
+  assert.deepEqual(result.errors, []);
+  assert.ok(result.installation.wiring);
+  assert.equal(result.installation.wiring.order.length, 4);
+  assert.equal(result.installation.wiring.jumpers.length, 3);
+  assert.ok(result.installation.passThroughs.length >= 4, `esperaba varios pass-through, obtuvo ${result.installation.passThroughs.length}`);
+  const audit = meshAudit(result.geometry.parts[0].mesh);
+  assert.equal(audit.openOrNonManifold, 0);
+  assert.equal(audit.degenerate, 0);
+
+  const baseline = createNeonGeometry(paths, DEFAULT_NEON_PARAMS);
+  const baselineAudit = meshAudit(baseline.geometry.parts[0].mesh);
+  assert.ok(audit.volume < baselineAudit.volume, "el volumen baja: hay agujeros de pass-through perforando el piso");
+});
+
+test("createNeonGeometry: modo Puentes traseros conecta los segmentos (vs Independientes)", () => {
+  const paths = farLinesRaw([0, 150, 300, 450]);
+  const independentRecipe = { ...DEFAULT_NEON_INSTALLATION_RECIPE, wiringEnabled: true, bridgeMode: "independent" };
+  const bridgedRecipe = { ...DEFAULT_NEON_INSTALLATION_RECIPE, wiringEnabled: true, bridgeMode: "bridged" };
+  const independent = createNeonGeometry(paths, DEFAULT_NEON_PARAMS, [], { recipe: independentRecipe, overrides: DEFAULT_NEON_INSTALLATION_OVERRIDES });
+  const bridged = createNeonGeometry(paths, DEFAULT_NEON_PARAMS, [], { recipe: bridgedRecipe, overrides: DEFAULT_NEON_INSTALLATION_OVERRIDES });
+  assert.equal(independent.installation.bridges.length, 0);
+  assert.equal(bridged.installation.bridges.length, 3);
+  assert.deepEqual(bridged.errors, []);
+  const audit = meshAudit(bridged.geometry.parts[0].mesh);
+  assert.equal(audit.openOrNonManifold, 0);
+  assert.equal(audit.degenerate, 0);
+});
+
+test("createNeonGeometry: modo Clips genera auxParts con la cantidad correcta, nunca dentro del STL principal", () => {
+  const paths = farLinesRaw([0, 150, 300, 450], 0, 200);
+  const recipe = { ...DEFAULT_NEON_INSTALLATION_RECIPE, wiringEnabled: true, mountMode: "clips" };
+  const result = createNeonGeometry(paths, DEFAULT_NEON_PARAMS, [], { recipe, overrides: DEFAULT_NEON_INSTALLATION_OVERRIDES });
+  assert.deepEqual(result.errors, []);
+  assert.equal(result.installation.auxParts.length, 1);
+  assert.equal(result.installation.auxParts[0].kind, "neonWallClip");
+  const totalClips = [...result.installation.clipPositions.values()].reduce((s, arr) => s + arr.length, 0);
+  assert.equal(result.installation.auxParts[0].quantity, totalClips);
+  assert.ok(totalClips > 0);
+
+  const withoutClips = createNeonGeometry(paths, DEFAULT_NEON_PARAMS, [], { recipe: { ...recipe, mountMode: "none" }, overrides: DEFAULT_NEON_INSTALLATION_OVERRIDES });
+  assert.equal(result.geometry.triangleCount, withoutClips.geometry.triangleCount, "activar clips no cambia el STL principal");
+});
+
+test("createNeonGeometry: orden/inversión manual (overrides) se refleja en el plan final", () => {
+  const paths = farLinesRaw([0, 150, 300]);
+  const recipe = { ...DEFAULT_NEON_INSTALLATION_RECIPE, wiringEnabled: true };
+  const auto = createNeonGeometry(paths, DEFAULT_NEON_PARAMS, [], { recipe, overrides: DEFAULT_NEON_INSTALLATION_OVERRIDES });
+  const autoOrder = auto.installation.wiring.order;
+
+  const manualOrder = [...autoOrder].reverse();
+  const manual = createNeonGeometry(paths, DEFAULT_NEON_PARAMS, [], { recipe, overrides: { order: manualOrder, segments: {} } });
+  assert.deepEqual(manual.installation.wiring.order, manualOrder);
+
+  const targetId = autoOrder[0];
+  const beforeInverted = auto.installation.wiring.segments.find((s) => s.segmentId === targetId).inverted;
+  const invertedResult = createNeonGeometry(paths, DEFAULT_NEON_PARAMS, [], {
+    recipe,
+    overrides: { order: null, segments: { [targetId]: { invertedOrientation: !beforeInverted } } },
+  });
+  const afterInverted = invertedResult.installation.wiring.segments.find((s) => s.segmentId === targetId).inverted;
+  assert.equal(afterInverted, !beforeInverted);
+});
+
+test("createNeonGeometry: puentes y clips funcionan con el cableado APAGADO (tres toggles independientes)", () => {
+  const paths = farLinesRaw([0, 150, 300, 450], 0, 200);
+  const recipe = { ...DEFAULT_NEON_INSTALLATION_RECIPE, wiringEnabled: false, bridgeMode: "bridged", mountMode: "clips" };
+  const result = createNeonGeometry(paths, DEFAULT_NEON_PARAMS, [], { recipe, overrides: DEFAULT_NEON_INSTALLATION_OVERRIDES });
+  assert.deepEqual(result.errors, []);
+  assert.equal(result.installation.wiring, null, "sin cableado: no hay plan de wiring ni pass-through");
+  assert.deepEqual(result.installation.passThroughs, []);
+  assert.equal(result.installation.bridges.length, 3, "los puentes igual se generan");
+  assert.ok([...result.installation.clipPositions.values()].some((arr) => arr.length > 0), "los clips igual se generan");
+  const audit = meshAudit(result.geometry.parts[0].mesh);
+  assert.equal(audit.openOrNonManifold, 0);
+});
+
+test("buildNeonInstallationHelperMesh: cableado + montaje -> malla no nula, manifold, nunca en geometry.parts; ambos apagados -> null", () => {
+  const paths = farLinesRaw([0, 150, 300, 450], 0, 200);
+  const recipe = { ...DEFAULT_NEON_INSTALLATION_RECIPE, wiringEnabled: true, mountMode: "clips" };
+  const result = createNeonGeometry(paths, DEFAULT_NEON_PARAMS, [], { recipe, overrides: DEFAULT_NEON_INSTALLATION_OVERRIDES });
+  const mesh = buildNeonInstallationHelperMesh(result.installation, { showWiring: true, showMount: true, wallGapMm: recipe.wallGapMm });
+  assert.ok(mesh);
+  assert.ok(mesh.triangleCount > 0);
+  const audit = meshAudit(mesh);
+  assert.equal(audit.degenerate, 0);
+  // Nunca se mezcla con la malla principal exportable.
+  assert.equal(result.geometry.parts.length, 1);
+  assert.equal(result.geometry.parts[0].kind, "body");
+
+  const off = buildNeonInstallationHelperMesh(result.installation, { showWiring: false, showMount: false, wallGapMm: recipe.wallGapMm });
+  assert.equal(off, null);
+
+  const disabledInstallation = createNeonGeometry(paths, DEFAULT_NEON_PARAMS).installation;
+  assert.equal(buildNeonInstallationHelperMesh(disabledInstallation, { showWiring: true, showMount: true, wallGapMm: 5 }), null);
+});
+
+// --------------------------------------------------------------------------
+// Etapa 9 — Export (Wall Clip STL + kit ZIP)
+// --------------------------------------------------------------------------
+
+test("buildNeonWallClipExports: un STL + cantidad correcta, nunca N archivos; vacío sin clips", () => {
+  const paths = farLinesRaw([0, 150, 300, 450], 0, 200);
+  const recipe = { ...DEFAULT_NEON_INSTALLATION_RECIPE, mountMode: "clips" };
+  const result = createNeonGeometry(paths, DEFAULT_NEON_PARAMS, [], { recipe, overrides: DEFAULT_NEON_INSTALLATION_OVERRIDES });
+  const exports = buildNeonWallClipExports(result);
+  assert.equal(exports.length, 1);
+  assert.equal(exports[0].kind, "neonWallClip");
+  assert.ok(exports[0].quantity > 0);
+  assert.ok(exports[0].blob.size > 0, "el STL tiene contenido");
+
+  const withoutClips = createNeonGeometry(paths, DEFAULT_NEON_PARAMS);
+  assert.deepEqual(buildNeonWallClipExports(withoutClips), []);
+});
+
+test("buildNeonInstallationSummary: incluye segmentos, longitud, jumpers y clips", () => {
+  const paths = farLinesRaw([0, 150, 300, 450], 0, 200);
+  const recipe = { ...DEFAULT_NEON_INSTALLATION_RECIPE, wiringEnabled: true, mountMode: "clips" };
+  const result = createNeonGeometry(paths, DEFAULT_NEON_PARAMS, [], { recipe, overrides: DEFAULT_NEON_INSTALLATION_OVERRIDES });
+  const summary = buildNeonInstallationSummary(result, "STAMPA");
+  assert.match(summary, /Segmentos: 4/);
+  assert.match(summary, /Neon total: [\d.]+ m/);
+  assert.match(summary, /N1 -> N2/);
+  assert.match(summary, /Cable auxiliar total: \d+ mm/);
+  assert.match(summary, /Clips de pared: \d+/);
+});
+
+test("buildNeonInstallKitZipBlob: estructura STL/ + INSTALL/, bloquea si hay errores", async () => {
+  const paths = farLinesRaw([0, 150, 300, 450], 0, 200);
+  const recipe = { ...DEFAULT_NEON_INSTALLATION_RECIPE, wiringEnabled: true, mountMode: "clips" };
+  const result = createNeonGeometry(paths, DEFAULT_NEON_PARAMS, [], { recipe, overrides: DEFAULT_NEON_INSTALLATION_OVERRIDES });
+  const blob = await buildNeonInstallKitZipBlob(result, "neon-stampa", "STAMPA");
+  const zip = await JSZip.loadAsync(await blob.arrayBuffer());
+  const names = Object.keys(zip.files);
+  assert.ok(names.includes("STL/neon-stampa.stl"));
+  assert.ok(names.some((n) => n.startsWith("STL/") && n.endsWith(".stl") && n !== "STL/neon-stampa.stl"), "incluye el STL del wall clip");
+  assert.ok(names.includes("INSTALL/installation-summary.txt"));
+  const summaryText = await zip.file("INSTALL/installation-summary.txt").async("string");
+  assert.match(summaryText, /Segmentos: 4/);
+
+  const badResult = { ...result, errors: [{ code: "NEON_WIRING_SHORTED", message: "boom" }] };
+  await assert.rejects(() => buildNeonInstallKitZipBlob(badResult, "x", "x"), /boom/);
+});
+
+// --------------------------------------------------------------------------
+// Etapa 10 — Persistencia (proyectos) y dirty state
+// --------------------------------------------------------------------------
+
+function baseWork(overrides = {}) {
+  return {
+    params: DEFAULT_NEON_PARAMS,
+    sourceType: "text",
+    text: "STAMPA",
+    fontId: "neon-linea",
+    letterSpacingPct: 0,
+    raster: {
+      detectionMode: "auto", alphaThreshold: 128, threshold: null, invert: false, contrast: 0, cleaning: 1, pruneMm: 2, simplify: "medium", smoothing: 0,
+    },
+    fileMeta: null,
+    installationRecipe: DEFAULT_NEON_INSTALLATION_RECIPE,
+    installationOverrides: DEFAULT_NEON_INSTALLATION_OVERRIDES,
+    ...overrides,
+  };
+}
+
+test("normalizeNeonInstallationRecipe/Overrides: entrada basura -> defaults sanos, sin throw", () => {
+  const recipe = normalizeNeonInstallationRecipe({ wiringEnabled: "sí", passThroughWidthMm: -5, bridgeMode: "algo-random", wallGapMm: 999 });
+  assert.equal(recipe.wiringEnabled, DEFAULT_NEON_INSTALLATION_RECIPE.wiringEnabled);
+  assert.equal(recipe.passThroughWidthMm, DEFAULT_NEON_INSTALLATION_RECIPE.passThroughWidthMm);
+  assert.equal(recipe.bridgeMode, "independent");
+  assert.equal(recipe.wallGapMm, DEFAULT_NEON_INSTALLATION_RECIPE.wallGapMm);
+  assert.deepEqual(normalizeNeonInstallationRecipe(null), DEFAULT_NEON_INSTALLATION_RECIPE);
+  assert.deepEqual(normalizeNeonInstallationRecipe(undefined), DEFAULT_NEON_INSTALLATION_RECIPE);
+
+  const overrides = normalizeNeonInstallationOverrides({ order: "no-es-array", segments: { N1: { invertedOrientation: "sí" }, N2: { passThroughStart: [1, 2] } } });
+  assert.equal(overrides.order, null);
+  assert.equal(overrides.segments.N1, undefined, "invertedOrientation inválido -> override vacío -> se descarta");
+  assert.deepEqual(overrides.segments.N2, { passThroughStart: [1, 2] });
+  assert.deepEqual(normalizeNeonInstallationOverrides(null), DEFAULT_NEON_INSTALLATION_OVERRIDES);
+});
+
+test("serializeNeonProject/deserializeNeonProject: round-trip de instalación (receta + overrides)", () => {
+  const work = baseWork({
+    installationRecipe: { ...DEFAULT_NEON_INSTALLATION_RECIPE, wiringEnabled: true, bridgeMode: "bridged", mountMode: "clips", wallGapMm: 7 },
+    installationOverrides: { order: ["N2", "N1"], segments: { N1: { invertedOrientation: true, passThroughStart: [12.5, -3] } } },
+  });
+  const payload = serializeNeonProject(work);
+  const loaded = deserializeNeonProject({ source_type: payload.source_type, source_data: payload.source_data, settings: payload.settings });
+  assert.deepEqual(loaded.installationRecipe, work.installationRecipe);
+  assert.deepEqual(loaded.installationOverrides, work.installationOverrides);
+});
+
+test("deserializeNeonProject: proyecto viejo sin clave 'installation' -> defaults, sin throw", () => {
+  const loaded = deserializeNeonProject({
+    source_type: "neon-text",
+    source_data: { text: "HOLA", designHeightMm: 100, fontId: "neon-linea", letterSpacingPct: 0 },
+    settings: { neonWidthMm: 6, clearanceMm: 0.3, wallHeightMm: 8, wallThicknessMm: 1.2, floorThicknessMm: 1.6, minBendRadiusMm: 10 },
+  });
+  assert.deepEqual(loaded.installationRecipe, DEFAULT_NEON_INSTALLATION_RECIPE);
+  assert.deepEqual(loaded.installationOverrides, DEFAULT_NEON_INSTALLATION_OVERRIDES);
+});
+
+test("neonProjectSignature: cambiar la receta o los overrides de instalación marca 'Modificado'", () => {
+  const work = baseWork();
+  const sameSignature = neonProjectSignature(baseWork());
+  assert.equal(neonProjectSignature(work), sameSignature, "mismo estado -> misma firma");
+
+  const recipeChanged = baseWork({ installationRecipe: { ...DEFAULT_NEON_INSTALLATION_RECIPE, wiringEnabled: true } });
+  assert.notEqual(neonProjectSignature(recipeChanged), sameSignature);
+
+  const overridesChanged = baseWork({ installationOverrides: { order: null, segments: { N1: { invertedOrientation: true } } } });
+  assert.notEqual(neonProjectSignature(overridesChanged), sameSignature);
 });
