@@ -1,0 +1,88 @@
+// Cable pass-through (Secciones 6-9 del pedido de Instalación 0.3): UNA sola abertura
+// bipolar tipo cápsula (no dos agujeros circulares separados como el puerto de Carteles)
+// que perfora el PISO del canal cerca de un extremo de segmento abierto, sin tocar nunca
+// la pared visible del canal. Este módulo es geometría 2D pura (forma, posición,
+// validez); la extrusión real (el split de piso por bandas) vive en
+// createChannelGeometry.ts.
+import type * as ClipperLib from "clipper-lib";
+import type { ContourGroup, Point2D } from "@/lib/maker/types";
+import { capsulePolygon } from "@/lib/maker/geometry/backCutouts";
+import { clipperPathsArea, differenceRawPaths, insetContourGroups, pointsToRawPath } from "@/lib/maker/geometry/offsets";
+import type { NeonSegment } from "@/lib/maker/neon/installation/segments";
+import { buildArclengthTable, pointAtT } from "@/lib/maker/neon/installation/arclength";
+
+export interface NeonPassThroughSettings {
+  widthMm: number;
+  heightMm: number;
+  /** Distancia desde la punta del segmento al centro del pass-through (mm); nunca exactamente en la punta. */
+  endpointInsetMm: number;
+}
+
+export type NeonPassThroughSide = "start" | "end";
+
+export interface NeonPassThrough {
+  segmentId: string;
+  side: NeonPassThroughSide;
+  center: Point2D;
+  rotationDeg: number;
+  widthMm: number;
+  heightMm: number;
+}
+
+/** Margen mínimo entre el borde de la cápsula y el borde de la cavidad: nunca toca la pared visible del canal (misma idea que `BACK_CUTOUT_EDGE_MARGIN_MM` de Carteles). */
+export const PASS_THROUGH_EDGE_MARGIN_MM = 0.5;
+const AREA_TOLERANCE_MM2 = 1e-3;
+
+function rotate(points: Point2D[], rotationDeg: number, tx: number, ty: number): Point2D[] {
+  const rad = (rotationDeg * Math.PI) / 180;
+  const c = Math.cos(rad);
+  const s = Math.sin(rad);
+  return points.map(([x, y]) => [x * c - y * s + tx, x * s + y * c + ty] as Point2D);
+}
+
+/** Cápsula del pass-through en coordenadas globales del recorrido, ya rotada/posicionada. */
+export function passThroughPolygon(pt: Pick<NeonPassThrough, "center" | "rotationDeg" | "widthMm" | "heightMm">): Point2D[] {
+  return rotate(capsulePolygon(pt.widthMm, pt.heightMm), pt.rotationDeg, pt.center[0], pt.center[1]);
+}
+
+/**
+ * Posición/orientación por defecto cerca de un extremo abierto: centrada a
+ * `endpointInsetMm` de la punta (acotado a la mitad del segmento, para que los
+ * pass-through de ambos extremos nunca se crucen en un segmento corto), orientada según
+ * la TANGENTE LOCAL del recorrido — el eje largo de la cápsula corre a lo largo del
+ * trazo, así encaja con más margen dentro de un corredor angosto que si corriera
+ * perpendicular. Elección determinística (Sección 8 del pedido). null en segmentos
+ * cerrados (no tienen extremos).
+ */
+export function planPassThrough(segment: NeonSegment, side: NeonPassThroughSide, settings: NeonPassThroughSettings): NeonPassThrough | null {
+  if (segment.closed) return null;
+  const endpoint = side === "start" ? segment.start : segment.end;
+  if (!endpoint) return null;
+  const table = buildArclengthTable(segment.points, false);
+  const insetMm = Math.min(Math.max(0, settings.endpointInsetMm), Math.max(0, table.totalMm / 2 - 1e-6));
+  const arcT = side === "start" ? insetMm : table.totalMm - insetMm;
+  const { point, tangent } = pointAtT(table, arcT);
+  const tangentAngleDeg = (Math.atan2(tangent[1], tangent[0]) * 180) / Math.PI;
+  // capsulePolygon() ya nace con su eje largo en X si width>=height, o en Y si height>width:
+  // hay que restar 90° en ese segundo caso para que el eje largo (no el corto) siga la tangente.
+  const rotationDeg = settings.widthMm >= settings.heightMm ? tangentAngleDeg : tangentAngleDeg - 90;
+  return { segmentId: segment.id, side, center: point, rotationDeg, widthMm: settings.widthMm, heightMm: settings.heightMm };
+}
+
+/**
+ * ¿La cápsula (posición automática o arrastrada a mano) cae ENTERA dentro de la
+ * cavidad, con margen? Nunca toca la pared visible del canal. Misma técnica que
+ * `isCutoutInsideSafeZone` de Carteles: diferencia de áreas exacta, no muestreo de
+ * puntos — una cápsula que sobresale aunque sea un poco da área > 0 y se rechaza.
+ */
+export function isPassThroughValid(pt: Pick<NeonPassThrough, "center" | "rotationDeg" | "widthMm" | "heightMm">, cavityGroups: ContourGroup[]): boolean {
+  if (cavityGroups.length === 0) return false;
+  const allowed = insetContourGroups(cavityGroups, PASS_THROUGH_EDGE_MARGIN_MM);
+  const raw = pointsToRawPath(passThroughPolygon(pt));
+  return Math.abs(clipperPathsArea(differenceRawPaths([raw], allowed))) <= AREA_TOLERANCE_MM2;
+}
+
+/** Paths crudos de Clipper de un conjunto de pass-throughs, para restarlos del piso en `createChannelGeometry`. */
+export function passThroughsToRawPaths(passThroughs: Pick<NeonPassThrough, "center" | "rotationDeg" | "widthMm" | "heightMm">[]): ClipperLib.Paths {
+  return passThroughs.map((pt) => pointsToRawPath(passThroughPolygon(pt)));
+}

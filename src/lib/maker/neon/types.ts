@@ -58,7 +58,24 @@ export type NeonIssueCode =
   | "RASTER_JUNCTIONS"
   | "RASTER_COMPLEX"
   | "RASTER_HINT"
-  | "TOO_MANY_POINTS";
+  | "TOO_MANY_POINTS"
+  // — Instalación 0.3 (sección 33 de docs/STAMPA_MAKER.md) —
+  /** No hay espacio cerca de este extremo para el pass-through de cable. */
+  | "NEON_PASS_THROUGH_NO_SPACE"
+  /** La posición (automática o arrastrada a mano) del pass-through sale de la cavidad / toca la pared. */
+  | "NEON_PASS_THROUGH_INVALID"
+  /** Aviso: la unión entre dos segmentos es larga y puede quedar visible. No bloquea. */
+  | "NEON_BRIDGE_TOO_LONG"
+  /** Un candidato de puente cruzaría la cavidad del canal: se descarta y se busca otro. */
+  | "NEON_BRIDGE_CROSSES_CAVITY"
+  /** wallGap muy chico entra en conflicto con el espacio que necesita el cableado detrás. */
+  | "NEON_WALL_GAP_CABLE_CONFLICT"
+  /** No se encontró una posición válida para un clip de pared en este segmento. */
+  | "NEON_CLIP_NO_SPACE"
+  /** Defensivo: el bus + y el bus - quedaron en corto. No debería ser alcanzable vía el planificador automático. */
+  | "NEON_WIRING_SHORTED"
+  /** Informativo: un override manual se descartó al reconciliar segmentos tras un cambio de fuente. */
+  | "NEON_SEGMENT_OVERRIDE_DISCARDED";
 
 export interface NeonIssue {
   code: NeonIssueCode;

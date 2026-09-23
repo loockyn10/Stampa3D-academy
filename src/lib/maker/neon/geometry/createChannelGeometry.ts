@@ -2,10 +2,35 @@ import * as ClipperLib from "clipper-lib";
 import type { ContourGroup, Point2D, TriangleSoupData } from "@/lib/maker/types";
 import { buildContourHierarchy } from "@/lib/maker/geometry/contourHierarchy";
 import { extrudeContourGroups, toTriangleSoupData } from "@/lib/maker/geometry/extrudePolygon";
-import { clipperPathsArea, differenceRawPaths, isPointInsideContourGroups, regroupClipperSolution } from "@/lib/maker/geometry/offsets";
+import {
+  clipperPathsArea,
+  contourGroupsToRawPaths,
+  differenceRawPaths,
+  isPointInsideContourGroups,
+  pointsToRawPath,
+  regroupClipperSolution,
+} from "@/lib/maker/geometry/offsets";
 import { bufferNeonPaths } from "@/lib/maker/neon/geometry/bufferPath";
 import { channelInnerWidth, channelOuterWidth } from "@/lib/maker/neon/defaults";
 import type { NeonChannelParams, NeonIssue, NeonPath } from "@/lib/maker/neon/types";
+
+/**
+ * Contexto opcional de Instalación 0.3 para el motor de canal. Aditivo: sin
+ * `passThroughFootprints`, `createChannelGeometry` produce exactamente la misma malla
+ * que antes de esta sección (mismo único llamado a `extrudeContourGroups` para
+ * piso+pared, sin banda extra).
+ */
+export interface NeonChannelInstallationContext {
+  /** Cápsulas de pass-through YA VALIDADAS (contenidas en la cavidad, sin tocar la pared — ver `installation/passThrough.ts`), en las mismas coordenadas que `paths`. */
+  passThroughFootprints?: Point2D[][];
+  /**
+   * Cápsulas de puentes traseros YA VALIDADAS (no cruzan ninguna cavidad — ver
+   * `installation/bridges.ts`). Se UNEN (Clipper) a la huella del piso (mismo rango Z
+   * que el piso, 0->zFloor, nunca tocan zFloor->zTop ni la cavidad) — ver comentario en
+   * la función para el detalle de cómo se cierra la tapa donde el puente sobresale.
+   */
+  bridgeFootprints?: Point2D[][];
+}
 
 export interface ChannelGeometry {
   /** Sólido del canal U (piso + paredes): sin caras internas, soldado por vértices compartidos. */
@@ -89,7 +114,7 @@ function openedArea(paths: ClipperLib.Paths, radiusMm: number): number {
  *        - corona z=top                             (huella de pared)
  *      No queda ninguna cara interna: el piso no se dibuja bajo las paredes.
  */
-export function createChannelGeometry(paths: NeonPath[], params: NeonChannelParams): ChannelGeometry {
+export function createChannelGeometry(paths: NeonPath[], params: NeonChannelParams, installation?: NeonChannelInstallationContext): ChannelGeometry {
   if (paths.length === 0) return emptyResult([{ code: "NO_PATHS", message: "No hay recorridos para generar el canal." }]);
 
   const innerRadius = channelInnerWidth(params) / 2;
@@ -130,11 +155,48 @@ export function createChannelGeometry(paths: NeonPath[], params: NeonChannelPara
     return emptyResult([{ code: "CAVITY_COLLAPSED", message: "El canal colapsó: no quedó cavidad para alojar el Neon." }]);
   }
 
+  // Pass-through: perfora el PISO (piezas 1/2) sin tocar nunca las piezas 3/4 (paredes
+  // visibles del canal), que siguen usando `cavityGroups`/`wallGroups` sin modificar.
+  // Gateado: sin pass-throughs, `floorOuterGroups`/`floorCavityGroups` son las mismas
+  // referencias que `outerGroups`/`cavityGroups` y la pieza 1 extruye 0->zTop en una
+  // sola pasada — malla BIT A BIT idéntica a antes de esta sección.
+  const passThroughRaw: ClipperLib.Paths = (installation?.passThroughFootprints ?? []).map((polygon) => pointsToRawPath(polygon));
+  const hasPassThroughs = passThroughRaw.length > 0;
+  let floorOuterGroups = outerGroups;
+  let floorCavityGroups = cavityGroups;
+  if (hasPassThroughs) {
+    floorOuterGroups = regroupClipperSolution(differenceRawPaths(contourGroupsToRawPaths(outerGroups), passThroughRaw));
+    floorCavityGroups = regroupClipperSolution(differenceRawPaths(contourGroupsToRawPaths(cavityGroups), passThroughRaw));
+  }
+
+  // Puentes traseros: a diferencia del pass-through (una resta que solo agrega HUECOS
+  // interiores, nunca toca el borde exterior — por eso la pieza 1b suelda perfecto
+  // contra el mismo `outerGroups` de siempre), un puente AGRANDA el borde exterior con
+  // una protuberancia. Intentar re-soldar esa protuberancia por Clipper (unión +
+  // reconstrucción de una tapa/anillo nuevo) se probó y NO tesela idéntico entre sí en
+  // los bordes compartidos (el redondeo de grilla no alcanza a compensarlo: no es un
+  // problema de precisión numérica sino de que Clipper puede resamplear tramos del
+  // contorno lejos de cualquier intersección real). En cambio, cada puente se extruye
+  // como su PROPIO sólido cerrado independiente (0->zFloor, con sus dos tapas — misma
+  // técnica sin CSG que wallSpacer.ts/spliceClip.ts), concatenado en la MISMA malla/STL.
+  // Su footprint se construye para SOLAPAR de verdad en ÁREA (no solo tocar) la huella
+  // de los dos segmentos que une (`installation/bridges.ts`, `BRIDGE_OVERLAP_MM`): dos
+  // sólidos independientes con volumen 3D genuinamente superpuesto imprimen como una
+  // sola pieza — el slicer no necesita que la malla esté soldada por vértices, solo que
+  // el volumen se toque — mismo principio que ya usa este proyecto para tapa/cuerpo
+  // (sección 11 de docs/STAMPA_MAKER.md: "no es una soldadura... es la unión de dos
+  // sólidos independientes").
+  const bridgeParts = (installation?.bridgeFootprints ?? []).map((polygon) =>
+    extrudeContourGroups(buildContourHierarchy([polygon]), 0, zFloor, { capStart: true, capEnd: true, sides: true }),
+  );
+
   const parts = [
-    extrudeContourGroups(outerGroups, 0, zTop, { capStart: true, capEnd: false, sides: true }),
-    extrudeContourGroups(cavityGroups, zFloor, zFloor, { capStart: false, capEnd: true, sides: false }),
+    extrudeContourGroups(floorOuterGroups, 0, hasPassThroughs ? zFloor : zTop, { capStart: true, capEnd: false, sides: true }),
+    ...(hasPassThroughs ? [extrudeContourGroups(outerGroups, zFloor, zTop, { capStart: false, capEnd: false, sides: true })] : []),
+    extrudeContourGroups(floorCavityGroups, zFloor, zFloor, { capStart: false, capEnd: true, sides: false }),
     extrudeContourGroups(cavityGroups, zFloor, zTop, { capStart: false, capEnd: false, sides: true, flipSides: true }),
     extrudeContourGroups(wallGroups, zTop, zTop, { capStart: false, capEnd: true, sides: false }),
+    ...bridgeParts,
   ];
   const mesh = toTriangleSoupData({ positions: parts.flatMap((p) => p.positions), normals: parts.flatMap((p) => p.normals) });
 

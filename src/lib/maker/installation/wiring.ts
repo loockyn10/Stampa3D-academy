@@ -8,6 +8,7 @@ import type {
   WiringDirection,
   WiringModel,
 } from "@/lib/maker/installation/types";
+import { UnionFind } from "@/lib/maker/unionFind";
 
 /**
  * Modelo de cableado: ENCADENADO FÍSICO, PARALELO ELÉCTRICO.
@@ -85,26 +86,18 @@ export function buildWiringModel(instances: LetterInstance[], direction: WiringD
  * contiene todos los LED+ y el que contiene todos los LED-.
  */
 export function computeElectricalBuses(model: WiringModel): { plus: string[]; minus: string[]; shorted: boolean } {
-  const parent = new Map<string, string>();
-  const find = (a: string): string => {
-    if (!parent.has(a)) parent.set(a, a);
-    let root = a;
-    while (parent.get(root) !== root) root = parent.get(root)!;
-    parent.set(a, root);
-    return root;
-  };
-  const union = (a: string, b: string) => parent.set(find(a), find(b));
+  const uf = new UnionFind<string>();
   for (const letter of model.letters) {
     for (const net of letter.nets) {
       const [first, ...rest] = net.terminals;
-      for (const t of rest) union(`${letter.instanceId}.${first}`, `${letter.instanceId}.${t}`);
+      for (const t of rest) uf.union(`${letter.instanceId}.${first}`, `${letter.instanceId}.${t}`);
     }
   }
   for (const link of model.links) {
-    for (const [out, inn] of link.joins) union(`${link.fromId}.${out}`, `${link.toId}.${inn}`);
+    for (const [out, inn] of link.joins) uf.union(`${link.fromId}.${out}`, `${link.toId}.${inn}`);
   }
-  const plusRoots = new Set(model.letters.map((l) => find(`${l.instanceId}.LED+`)));
-  const minusRoots = new Set(model.letters.map((l) => find(`${l.instanceId}.LED-`)));
+  const plusRoots = new Set(model.letters.map((l) => uf.find(`${l.instanceId}.LED+`)));
+  const minusRoots = new Set(model.letters.map((l) => uf.find(`${l.instanceId}.LED-`)));
   const shorted = [...plusRoots].some((r) => minusRoots.has(r));
   return {
     plus: [...plusRoots],
