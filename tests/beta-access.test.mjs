@@ -421,7 +421,7 @@ test("email-confirmation flow: legacy callback is untouched and pending codes ar
 test("existing users can redeem from Perfil and from Sin acceso (manual fallback), only while they lack access", () => {
   assert.match(perfil, /<BetaCodeRedeemCard redirectTo="\/perfil" \/>/);
   assert.match(perfil, /canRedeemBetaCode = !isBetaTester && !isPaidMember && profile\?\.role !== "admin"/);
-  assert.match(sinAcceso, /<BetaCodeRedeemCard redirectTo="\/" \/>/);
+  assert.match(sinAcceso, /<BetaCodeRedeemCard[\s\S]*onRedeemed=\{handleBetaRedeemed\}/);
   assert.match(sinAcceso, /isAuthenticated && isEmailConfirmed/);
 });
 

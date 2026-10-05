@@ -14,10 +14,23 @@ import { clearPendingBetaCode } from "@/lib/beta-access/pending-code";
 interface BetaCodeRedeemCardProps {
   /** Where to go (full navigation, so access is re-evaluated) after a successful redemption. */
   redirectTo?: string;
+  /** When set, replaces the default full-navigation redirect after a successful redemption. */
+  onRedeemed?: () => void;
+  title?: string;
+  submitLabel?: string;
+  /** Helper line under the form; pass null to hide it. */
+  hint?: string | null;
   className?: string;
 }
 
-export function BetaCodeRedeemCard({ redirectTo = "/", className = "" }: BetaCodeRedeemCardProps) {
+export function BetaCodeRedeemCard({
+  redirectTo = "/",
+  onRedeemed,
+  title = "Canjear código de invitación",
+  submitLabel = "Canjear",
+  hint,
+  className = "",
+}: BetaCodeRedeemCardProps) {
   const [code, setCode] = useState("");
   const [loading, setLoading] = useState(false);
   const [result, setResult] = useState<BetaRedeemResult | null>(null);
@@ -41,7 +54,8 @@ export function BetaCodeRedeemCard({ redirectTo = "/", className = "" }: BetaCod
       setResult(outcome);
       if (outcome.status === "redeemed") {
         clearPendingBetaCode();
-        window.setTimeout(() => window.location.assign(redirectTo), 900);
+        if (onRedeemed) onRedeemed();
+        else window.setTimeout(() => window.location.assign(redirectTo), 900);
       }
     } finally {
       setLoading(false);
@@ -55,7 +69,7 @@ export function BetaCodeRedeemCard({ redirectTo = "/", className = "" }: BetaCod
     <section className={`min-w-0 rounded-2xl border border-cyan-500/20 bg-cyan-500/5 p-4 text-left ${className}`}>
       <div className="mb-3 flex items-center gap-2">
         <FlaskConical size={16} className="shrink-0 text-cyan-400" aria-hidden="true" />
-        <h3 className="text-sm font-bold text-white">Canjear código de invitación</h3>
+        <h3 className="text-sm font-bold text-white">{title}</h3>
       </div>
 
       <form onSubmit={handleSubmit} className="flex min-w-0 flex-col gap-2 sm:flex-row" noValidate>
@@ -85,7 +99,7 @@ export function BetaCodeRedeemCard({ redirectTo = "/", className = "" }: BetaCod
           className="flex shrink-0 items-center justify-center gap-2 rounded-xl bg-cyan-500/15 px-4 py-3 text-sm font-semibold text-cyan-200 transition-colors hover:bg-cyan-500/25 disabled:cursor-not-allowed disabled:opacity-60 motion-reduce:transition-none"
         >
           {loading && <Loader2 size={15} className="animate-spin" aria-hidden="true" />}
-          {loading ? "Canjeando..." : "Canjear"}
+          {loading ? "Canjeando..." : submitLabel}
         </button>
       </form>
 
@@ -103,9 +117,11 @@ export function BetaCodeRedeemCard({ redirectTo = "/", className = "" }: BetaCod
         )}
       </div>
 
-      <p className="mt-3 text-xs leading-relaxed text-gray-500">
-        Si sos Beta Tester, ingresá el código que te compartimos para activar el acceso completo.
-      </p>
+      {hint !== null && (
+        <p className="mt-3 text-xs leading-relaxed text-gray-500">
+          {hint ?? "Si sos Beta Tester, ingresá el código que te compartimos para activar el acceso completo."}
+        </p>
+      )}
     </section>
   );
 }

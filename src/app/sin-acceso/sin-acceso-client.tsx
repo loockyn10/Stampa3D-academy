@@ -1,10 +1,12 @@
 "use client";
 
-import { Building2, Loader2, AlertCircle } from "lucide-react";
-import { useState, useEffect } from "react";
+import { AlertCircle, CheckCircle2, Loader2, RefreshCw, Sparkles } from "lucide-react";
+import { useCallback, useEffect, useState } from "react";
+import { useRouter } from "next/navigation";
 import { createClient } from "@/utils/supabase/client";
 import { BetaCodeRedeemCard } from "@/components/beta-access/BetaCodeRedeemCard";
 import { readPendingBetaCode } from "@/lib/beta-access/pending-code";
+import { refreshAccessAction } from "./actions";
 
 const CHECKOUT_ATTEMPT_STORAGE_KEY = "stampa_membership_checkout_attempt";
 
@@ -29,9 +31,13 @@ const LOCKED_FEATURES: Record<string, { title: string; description: string }> = 
 
 export function SinAccesoClient({ feature }: { feature?: string | null }) {
   const supabase = createClient();
+  const router = useRouter();
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  
+  const [refreshing, setRefreshing] = useState(false);
+  const [activated, setActivated] = useState(false);
+  const [refreshNotice, setRefreshNotice] = useState<string | null>(null);
+
   const [price, setPrice] = useState<string | null>(null);
   const [loadingPrice, setLoadingPrice] = useState(true);
 
@@ -58,7 +64,7 @@ export function SinAccesoClient({ feature }: { feature?: string | null }) {
           .select("monthly_price")
           .eq("id", "default")
           .single();
-          
+
         if (data?.monthly_price) {
           setPrice(String(data.monthly_price));
         } else {
@@ -74,6 +80,43 @@ export function SinAccesoClient({ feature }: { feature?: string | null }) {
     checkEmailAndFetchPrice();
   }, [supabase]);
 
+  // Re-asks the server (canonical access policy) and continues if access is now active.
+  const revalidateAccess = useCallback(async (): Promise<boolean> => {
+    try {
+      const result = await refreshAccessAction();
+      if (result.hasAccess && result.destination) {
+        setActivated(true);
+        router.replace(result.destination);
+        router.refresh();
+        return true;
+      }
+    } catch {
+      // Treated as "not active yet".
+    }
+    return false;
+  }, [router]);
+
+  const handleRefreshAccess = async () => {
+    if (refreshing) return;
+    setRefreshing(true);
+    setRefreshNotice(null);
+    const ok = await revalidateAccess();
+    if (!ok) {
+      setRefreshNotice("Tu acceso todavía no está activo.");
+      setRefreshing(false);
+    }
+  };
+
+  const handleBetaRedeemed = () => {
+    setActivated(true);
+    void revalidateAccess().then((ok) => {
+      if (!ok) {
+        setActivated(false);
+        setRefreshNotice("Tu acceso todavía no está activo. Probá actualizar en unos segundos.");
+      }
+    });
+  };
+
   const handleLogout = async () => {
     await supabase.auth.signOut();
     window.location.href = "/login";
@@ -83,7 +126,7 @@ export function SinAccesoClient({ feature }: { feature?: string | null }) {
     if (e) {
       e.preventDefault();
     }
-    
+
     try {
       setLoading(true);
       setError(null);
@@ -153,109 +196,111 @@ export function SinAccesoClient({ feature }: { feature?: string | null }) {
   };
 
   return (
-    <div className="flex min-h-screen items-center justify-center bg-[#F7F7F9] px-4 py-12 sm:px-6 lg:px-8">
-      <div className="w-full max-w-md space-y-8 bg-stampa-surface p-8 rounded-2xl shadow-sm border border-stampa-border text-center">
-        <div className="flex flex-col items-center justify-center">
-          <div className="flex h-12 w-12 items-center justify-center rounded-xl bg-orange-100 mb-4">
-            <Building2 className="h-6 w-6 text-stampa-orange" />
+    <div className="flex min-h-dvh w-full items-start justify-center bg-stampa-bg px-4 py-10 text-stampa-text sm:items-center sm:px-6">
+      <div className="w-full min-w-0 max-w-md space-y-6">
+        <header className="flex flex-col items-center text-center">
+          <div className="mb-4 flex h-12 w-12 items-center justify-center rounded-2xl border border-stampa-orange-border bg-stampa-orange-muted">
+            <Sparkles className="h-6 w-6 text-stampa-orange" aria-hidden="true" />
           </div>
-          <h2 className="text-3xl font-bold tracking-tight text-white">
-            {lockedFeature ? `Desbloqueá ${lockedFeature.title}` : "Cuenta inactiva"}
-          </h2>
+          <p className="text-xs font-semibold uppercase tracking-[0.2em] text-stampa-orange">Universo Stampa</p>
+          <h1 className="mt-3 text-2xl font-bold tracking-tight text-stampa-text sm:text-3xl">
+            {lockedFeature ? `Desbloqueá ${lockedFeature.title}` : "Tu cuenta está lista"}
+          </h1>
           {checkingEmail ? (
-            <p className="mt-4 text-sm text-gray-400">Verificando estado de tu cuenta...</p>
+            <p className="mt-3 text-sm text-stampa-text-muted">Verificando estado de tu cuenta...</p>
           ) : !isEmailConfirmed ? (
-            <>
-              <p className="mt-4 text-sm text-gray-400">
-                Tenés que confirmar tu email para activar tu cuenta.
-              </p>
-              <div className="mt-4 p-4 bg-orange-50 rounded-lg border border-orange-100 min-h-[56px] flex items-center justify-center">
-                <p className="text-sm font-semibold text-orange-800">
-                  Revisá tu bandeja de entrada o spam.
-                </p>
-              </div>
-              {hasPendingBetaCode && (
-                <p className="mt-3 text-xs text-gray-400">
-                  Tu código de invitación se aplicará automáticamente cuando confirmes tu email.
-                </p>
-              )}
-            </>
+            <p className="mt-3 text-sm text-stampa-text-muted">
+              Confirmá tu email para activar tu cuenta. Revisá tu bandeja de entrada o spam.
+            </p>
           ) : (
-            <>
-              <p className="mt-4 text-sm text-gray-400">
-                {lockedFeature?.description || "Tu cuenta ha sido creada correctamente, pero tu membresía aún no se encuentra activa."}
-              </p>
-              <div className="mt-4 p-4 bg-orange-50 rounded-lg border border-orange-100 min-h-[56px] flex items-center justify-center">
-                {loadingPrice ? (
-                  <p className="text-sm font-semibold text-orange-800 flex items-center gap-2">
-                    <Loader2 size={16} className="animate-spin" /> Cargando precio...
-                  </p>
-                ) : price ? (
-                  <p className="text-sm font-semibold text-orange-800">
-                    Valor mensual: {formatPrice(price)} / mes
-                  </p>
-                ) : (
-                  <p className="text-sm font-semibold text-orange-800 opacity-70">
-                    Precio no disponible
-                  </p>
-                )}
-              </div>
-              <p className="mt-4 text-sm text-gray-400">
-                Si ya realizaste el pago, aguardá unos minutos mientras procesamos la información.
-              </p>
-            </>
+            <p className="mt-3 text-sm text-stampa-text-muted">
+              {lockedFeature?.description ?? "Para acceder a Universo necesitás una membresía o una invitación Beta."}
+            </p>
           )}
-        </div>
+        </header>
 
-        {error && (
-          <div className="flex items-center gap-2 p-3 text-sm text-red-600 bg-red-50 rounded-lg border border-red-100 text-left whitespace-pre-wrap">
-            <AlertCircle size={16} className="shrink-0" />
-            <p>{error}</p>
+        {activated && (
+          <div role="status" className="flex items-center gap-3 rounded-2xl border border-emerald-500/30 bg-emerald-500/10 p-4 text-left">
+            <CheckCircle2 size={20} className="shrink-0 text-emerald-400" aria-hidden="true" />
+            <div className="min-w-0">
+              <p className="text-sm font-semibold text-emerald-300">Acceso Beta activado</p>
+              <p className="text-xs text-stampa-text-muted">Preparando Universo…</p>
+            </div>
+            <Loader2 size={16} className="ml-auto shrink-0 animate-spin text-emerald-400" aria-hidden="true" />
           </div>
         )}
 
-        {!checkingEmail && isAuthenticated && isEmailConfirmed && <BetaCodeRedeemCard redirectTo="/" />}
+        {error && (
+          <div role="alert" className="flex items-start gap-2 whitespace-pre-wrap rounded-xl border border-red-500/30 bg-red-500/10 p-3 text-left text-sm text-red-300">
+            <AlertCircle size={16} className="mt-0.5 shrink-0" aria-hidden="true" />
+            <p className="min-w-0 break-words">{error}</p>
+          </div>
+        )}
 
-        <div className="mt-8 flex flex-col gap-3">
-          {!checkingEmail && !isEmailConfirmed ? (
-            <button
-              type="button"
-              onClick={() => window.location.reload()}
-              disabled={loading}
-              className="w-full rounded-lg bg-stampa-orange px-3 py-3 text-sm font-semibold text-white hover:bg-stampa-orange transition-colors flex items-center justify-center gap-2 disabled:opacity-70 disabled:cursor-not-allowed"
-            >
-              Ya confirmé mi email, volver a intentar
-            </button>
-          ) : (
-            <button
-              type="button"
-              onClick={handleCreateSubscription}
-              disabled={loading || checkingEmail}
-              className="w-full rounded-lg bg-stampa-orange px-3 py-3 text-sm font-semibold text-white hover:bg-stampa-orange transition-colors flex items-center justify-center gap-2 disabled:opacity-70 disabled:cursor-not-allowed"
-            >
-              {loading && <Loader2 size={16} className="animate-spin" />}
-              {loading ? "Generando link..." : "Activar membresía"}
-            </button>
-          )}
-          
+        {!checkingEmail && !isEmailConfirmed && hasPendingBetaCode && (
+          <p className="text-center text-xs text-stampa-text-muted">
+            Tu código de invitación se aplicará automáticamente cuando confirmes tu email.
+          </p>
+        )}
+
+        {!checkingEmail && isAuthenticated && isEmailConfirmed && !activated && (
+          <>
+            <BetaCodeRedeemCard
+              title="¿Tenés un código de invitación?"
+              submitLabel="Activar acceso"
+              hint={null}
+              onRedeemed={handleBetaRedeemed}
+            />
+
+            <section className="rounded-2xl border border-stampa-border bg-stampa-surface p-4 text-left">
+              <h2 className="text-sm font-bold text-stampa-text">Membresía</h2>
+              <p className="mt-1 text-sm text-stampa-text-muted">
+                {loadingPrice ? (
+                  <span className="inline-flex items-center gap-2">
+                    <Loader2 size={14} className="animate-spin" aria-hidden="true" /> Cargando precio...
+                  </span>
+                ) : price ? (
+                  <>Valor mensual: <span className="font-semibold text-stampa-text">{formatPrice(price)}</span> / mes</>
+                ) : (
+                  "Precio no disponible"
+                )}
+              </p>
+              <button
+                type="button"
+                onClick={handleCreateSubscription}
+                disabled={loading || checkingEmail}
+                className="mt-3 flex w-full items-center justify-center gap-2 rounded-xl bg-stampa-orange px-3 py-3 text-sm font-semibold text-white transition-colors hover:bg-stampa-orange-hover disabled:cursor-not-allowed disabled:opacity-70"
+              >
+                {loading && <Loader2 size={16} className="animate-spin" aria-hidden="true" />}
+                {loading ? "Generando link..." : "Activar membresía"}
+              </button>
+            </section>
+          </>
+        )}
+
+        <section className="space-y-3 border-t border-stampa-border pt-5 text-center">
+          <p className="text-sm text-stampa-text-muted">
+            {isEmailConfirmed ? "¿Ya activaste tu acceso?" : "¿Ya confirmaste tu email?"}
+          </p>
           <button
             type="button"
-            onClick={() => window.location.reload()}
-            disabled={loading}
-            className="w-full rounded-lg bg-stampa-surface px-3 py-3 text-sm font-semibold text-gray-300 border border-white/20 hover:bg-stampa-bg-soft transition-colors disabled:opacity-50"
+            onClick={handleRefreshAccess}
+            disabled={refreshing || loading || activated}
+            className="flex w-full items-center justify-center gap-2 rounded-xl border border-stampa-border bg-stampa-surface px-3 py-3 text-sm font-semibold text-stampa-text-soft transition-colors hover:bg-stampa-surface-soft disabled:cursor-not-allowed disabled:opacity-60"
           >
-            Actualizar página
+            <RefreshCw size={15} className={refreshing ? "animate-spin" : ""} aria-hidden="true" />
+            {refreshing ? "Verificando..." : "Actualizar acceso"}
           </button>
-          
+          <p aria-live="polite" className="min-h-5 text-sm text-stampa-text-muted">{refreshNotice}</p>
           <button
             type="button"
             onClick={handleLogout}
             disabled={loading}
-            className="w-full rounded-lg bg-stampa-surface px-3 py-3 text-sm font-semibold text-gray-500 hover:text-gray-300 transition-colors disabled:opacity-50"
+            className="text-sm font-medium text-stampa-text-muted underline-offset-4 transition-colors hover:text-stampa-text hover:underline disabled:opacity-50"
           >
             Cerrar sesión
           </button>
-        </div>
+        </section>
       </div>
     </div>
   );

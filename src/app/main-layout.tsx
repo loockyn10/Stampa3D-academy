@@ -52,7 +52,9 @@ export function MainLayout({ children }: { children: React.ReactNode }) {
     return () => {
       active = false;
     };
-  }, [supabase]);
+    // Re-resolve on navigation: the layout persists across client routing, so a grant redeemed
+    // on /sin-acceso must not leave a stale "no access" snapshot behind.
+  }, [supabase, pathname]);
 
   if (isPublicRoute) {
     return <main className="min-h-screen">{children}</main>;
