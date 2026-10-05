@@ -3,6 +3,8 @@
 import { Building2, Loader2, AlertCircle } from "lucide-react";
 import { useState, useEffect } from "react";
 import { createClient } from "@/utils/supabase/client";
+import { BetaCodeRedeemCard } from "@/components/beta-access/BetaCodeRedeemCard";
+import { readPendingBetaCode } from "@/lib/beta-access/pending-code";
 
 const CHECKOUT_ATTEMPT_STORAGE_KEY = "stampa_membership_checkout_attempt";
 
@@ -35,13 +37,17 @@ export function SinAccesoClient({ feature }: { feature?: string | null }) {
 
   const [isEmailConfirmed, setIsEmailConfirmed] = useState(true);
   const [checkingEmail, setCheckingEmail] = useState(true);
+  const [isAuthenticated, setIsAuthenticated] = useState(false);
+  const [hasPendingBetaCode, setHasPendingBetaCode] = useState(false);
   const lockedFeature = feature ? LOCKED_FEATURES[feature] : null;
 
   useEffect(() => {
     async function checkEmailAndFetchPrice() {
       try {
         const { data: { user } } = await supabase.auth.getUser();
+        setHasPendingBetaCode(readPendingBetaCode() !== null);
         if (user) {
+          setIsAuthenticated(true);
           // Si el proveedor no es email, asumimos que está confirmado (ej. Google) o si tiene email_confirmed_at
           const isConfirmed = user.app_metadata?.provider !== "email" || !!user.email_confirmed_at;
           setIsEmailConfirmed(isConfirmed);
@@ -168,6 +174,11 @@ export function SinAccesoClient({ feature }: { feature?: string | null }) {
                   Revisá tu bandeja de entrada o spam.
                 </p>
               </div>
+              {hasPendingBetaCode && (
+                <p className="mt-3 text-xs text-gray-400">
+                  Tu código de invitación se aplicará automáticamente cuando confirmes tu email.
+                </p>
+              )}
             </>
           ) : (
             <>
@@ -202,6 +213,8 @@ export function SinAccesoClient({ feature }: { feature?: string | null }) {
             <p>{error}</p>
           </div>
         )}
+
+        {!checkingEmail && isAuthenticated && isEmailConfirmed && <BetaCodeRedeemCard redirectTo="/" />}
 
         <div className="mt-8 flex flex-col gap-3">
           {!checkingEmail && !isEmailConfirmed ? (

@@ -189,3 +189,16 @@ Si trabajan sucesivamente sobre la misma feature, el segundo parte del código a
 **Estado:** Accepted (2026-09-21)
 
 `commercialUse` (`allowed|prohibited|unknown`) y `attributionRequired` (`true|false|unknown`) se mapean solo desde datos explícitos de la fuente; ante duda es `unknown`. `isFree` nunca implica `commercialUse = allowed`. Un resultado externo no crea productos de Mi Taller ni de Mi Negocio sin una acción explícita del usuario.
+
+## D023 — Beta Access es independiente de Paid; un código Beta no es una suscripción
+
+**Estado:** Accepted (2026-10-05)
+
+`acceso a plataforma = admin OR paid OR grant activo`. El canje de un código de invitación crea/extiende un grant `beta_tester` en `user_access_grants`; nunca modifica `profiles.membership_*` ni `subscriptions`, ni hace que `authenticated` implique acceso.
+
+- Códigos solo como digest SHA-256 (nunca plaintext en DB/repo/env/docs); validación 100 % server-side vía `redeem_beta_access_code` (identidad = `auth.uid()`, atómico con lock de fila, idempotente por `(code, user)`, con rate limit). El frontend solo envía el código tipeado.
+- `redeem_until` (cuándo se puede canjear) y `access_expires_at` (cuándo vence el acceso) son independientes. `max_uses` opcional → V1 código compartido; luego códigos individuales sin rediseño.
+- En UI se muestra "Beta Tester" / "Acceso Beta", nunca "Plan Premium"; no entra en billing ni métricas de clientes pagos.
+- El Beta temporal no es la futura insignia permanente Cofundador/Beta Tester.
+- Una migration nueva **nunca** sobrescribe lógica remota no versionada: `has_platform_access()` no se reemplaza automáticamente; la migration solo verifica compatibilidad y aborta si no puede (corrección manual y revisada aparte).
+- Los códigos plaintext legacy de `invite_codes` (tipos beta/manual) quedan desaconsejados; retirarlos es deuda (ver TASKS).

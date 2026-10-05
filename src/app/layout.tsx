@@ -3,6 +3,7 @@ import { Geist, Geist_Mono } from "next/font/google";
 import "./globals.css";
 import { MainLayout } from "./main-layout";
 import { AppFeedbackProvider } from "@/components/ui/app-feedback";
+import { PendingBetaCodeRedeemer } from "@/components/beta-access/PendingBetaCodeRedeemer";
 
 const geistSans = Geist({
   variable: "--font-geist-sans",
@@ -43,6 +44,7 @@ export default function RootLayout({
     >
       <body className="min-h-full flex flex-col bg-stampa-bg text-[#ededed] font-sans">
         <AppFeedbackProvider>
+          <PendingBetaCodeRedeemer />
           <MainLayout>{children}</MainLayout>
         </AppFeedbackProvider>
       </body>

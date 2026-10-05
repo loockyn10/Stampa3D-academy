@@ -12,6 +12,7 @@ import { getOrCreateReferralCode } from "@/lib/referral";
 import { usePublishStampyScreenContext } from "@/components/stampy/StampyContextProvider";
 import type { StampyScreenContext } from "@/lib/stampy/screen-context";
 import { XpProgressCard, type XpActivityItem } from "@/components/xp/XpProgressCard";
+import { BetaCodeRedeemCard } from "@/components/beta-access/BetaCodeRedeemCard";
 
 const APP_BASE_URL = process.env.NEXT_PUBLIC_APP_URL || "https://academia-stampa.com";
 
@@ -75,7 +76,10 @@ function PerfilContent() {
       .in("grant_type", ["beta_tester", "manual_free_access", "internal_tester"])
       .limit(1)
       .maybeSingle();
-    if (grantData) setBetaGrant(grantData);
+    // An expired grant no longer gives access, so it must not be shown as an active Beta.
+    if (grantData && (!grantData.expires_at || new Date(grantData.expires_at).getTime() > Date.now())) {
+      setBetaGrant(grantData);
+    }
 
     // Fetch founder status
     const { data: fData } = await supabase
@@ -173,7 +177,11 @@ function PerfilContent() {
   if (loading && !profile) return <div className="py-24 flex justify-center"><Loader2 className="animate-spin h-8 w-8 text-stampa-orange" /></div>;
 
   const displayName = profile?.display_name || profile?.full_name || profile?.company_name || "Usuario";
+  // Beta access is an independent grant, never a paid plan: it only exists while the grant is active and unexpired.
   const isBetaTester = !!betaGrant;
+  const isPaidMember = profile?.membership_status === "active";
+  const showBetaOnlyBadges = isBetaTester && !isPaidMember;
+  const canRedeemBetaCode = !isBetaTester && !isPaidMember && profile?.role !== "admin";
   const isFounder = !!founderData && founderData.status === "active";
 
   return (
@@ -200,15 +208,20 @@ function PerfilContent() {
                   <p className="truncate text-base font-bold text-white">{displayName}</p>
                   <p className="mb-1.5 truncate text-sm text-gray-400">{profile.email}</p>
                   <div className="flex flex-wrap gap-2">
-                    <Badge tone={profile.membership_status === "active" ? "green" : "gray"} className="capitalize">
-                      {profile.membership_status === "active" ? "Activo" : "Inactivo"}
-                    </Badge>
-                    <Badge tone="dark" className="capitalize">Nivel {profile.member_level || "member"}</Badge>
-                    <Badge tone="orange">{profile.active_months || calculateMonths(profile.membership_started_at || profile.created_at)} meses activo</Badge>
+                    {/* Beta access is not a plan: no "Activo / Nivel / meses" membership badges for beta-only users. */}
+                    {!showBetaOnlyBadges && (
+                      <>
+                        <Badge tone={isPaidMember ? "green" : "gray"} className="capitalize">
+                          {isPaidMember ? "Activo" : "Inactivo"}
+                        </Badge>
+                        <Badge tone="dark" className="capitalize">Nivel {profile.member_level || "member"}</Badge>
+                        <Badge tone="orange">{profile.active_months || calculateMonths(profile.membership_started_at || profile.created_at)} meses activo</Badge>
+                      </>
+                    )}
 
                     {isBetaTester && (
                       <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-semibold bg-cyan-500/10 text-cyan-300 border border-cyan-500/30">
-                        <Shield size={11} /> Beta Tester
+                        <span aria-hidden="true">🧪</span> Beta Tester
                       </span>
                     )}
 
@@ -337,12 +350,13 @@ function PerfilContent() {
                   <span className="font-semibold text-cyan-300">Acceso Beta Tester</span>
                 </div>
                 <p className="text-gray-400 text-xs">
-                  Tenés acceso anticipado a Academia Stampa como beta tester.
-                  {betaGrant.expires_at && ` Tu acceso vence el ${new Date(betaGrant.expires_at).toLocaleDateString("es-AR")}.`}
-                  {betaGrant.notes && <span className="block mt-1 italic">{betaGrant.notes}</span>}
+                  Tenés acceso completo a Academia Stampa como beta tester. No es una suscripción.
+                  {betaGrant.expires_at && ` Tu acceso Beta vence el ${new Date(betaGrant.expires_at).toLocaleDateString("es-AR")}.`}
                 </p>
               </div>
             )}
+
+            {canRedeemBetaCode && <BetaCodeRedeemCard redirectTo="/perfil" />}
           </Card>
 
           <AccountManager />

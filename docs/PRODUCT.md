@@ -47,9 +47,19 @@ El usuario Free puede ver que esas áreas existen, pero no debe recibir la inter
 
 Mantiene la experiencia completa de plataforma. La Calculadora debe reutilizar sus entidades reales cuando corresponda.
 
+### Beta Tester (acceso Beta)
+
+Acceso completo a la plataforma otorgado por un **código de invitación** (opcional en el registro, o canjeable luego desde Perfil / Sin acceso). Es una capa de acceso **independiente**: no es una suscripción Paid, no tiene billing, renovación ni estado de pago, y no cuenta en métricas de clientes pagos. Se muestra como "🧪 Beta Tester" / "Acceso Beta", nunca como "Plan Premium".
+
+- Sin código: flujo Free normal. Código inválido: no otorga Beta y no rompe el registro Free (la cuenta se crea igual).
+- Un código tiene `redeem_until` (hasta cuándo se puede canjear) y `access_expires_at` (hasta cuándo conserva acceso el tester), independientes; `max_uses` opcional (un código compartido V1, o individuales después).
+- Revocable por usuario. El Beta temporal **no** es la futura insignia permanente Cofundador/Beta Tester (conceptos separados).
+
 ### Admin
 
 Los permisos administrativos son independientes del estado Free/Paid y deben respetar la arquitectura real de acceso.
+
+Acceso a plataforma = `admin OR paid OR grant activo (beta_tester / manual_free_access / internal_tester)`.
 
 ## 3. Calculadora
 

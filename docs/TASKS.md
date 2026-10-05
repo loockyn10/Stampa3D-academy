@@ -2,6 +2,16 @@
 
 Este archivo contiene únicamente trabajo pendiente o próximo. Eliminar tareas terminadas en lugar de conservar un historial infinito.
 
+## Now — Acceso Beta por código (implementado 2026-10-05, ver ARCHITECTURE.md §19 y D023)
+
+- [x] ~~Diagnóstico remoto~~ ejecutado: compatible. Pendiente: aplicar la migration Beta (incluye el hardening de privilegios de `user_access_grants`) y volver a correr `supabase/diagnostics/20261005_beta_access_state.sql`: deben aparecer `0_VERDICT ... HARDENED` y `anon TRUNCATE = false` / `authenticated TRUNCATE = false`.
+- [ ] Verificar con la matriz `C_privileges` del diagnóstico (usa `has_table_privilege`, más fiable que `information_schema`) que `service_role` conserva SELECT/INSERT/UPDATE/DELETE sobre `user_access_grants`: el primer diagnóstico solo listó REFERENCES/TRIGGER/TRUNCATE para ese rol (el callback legacy escribe con service role y traga errores).
+- [ ] Aplicar `supabase/migrations/20261005120000_beta_access_codes.sql` en Supabase remoto y crear el primer código con `create_beta_access_code(...)` (el código real NO va al repo).
+- [ ] Prueba manual con cuenta real: registro con código (con y sin confirmación de email), cuenta Free existente canjeando desde Perfil, código vencido/agotado/inválido, revocación.
+- [ ] Verificar en Supabase Auth si "Confirm email" está activo (define si el canje ocurre en el signup o vía `PendingBetaCodeRedeemer`).
+- [ ] Deuda técnica (legacy, no tocado): `invite_codes` / `/admin/codigos` / `/auth/callback` (códigos en plaintext, canje no atómico; `user_access_grants.notes` legacy puede exponer el código al usuario). No usar para el Beta; migrar a `beta_access_codes` o retirar tras la Beta.
+- [ ] Opcional post-Beta: UI admin para codes/redemptions (hoy: RPC/SQL) y limitador por IP si hay abuso.
+
 ## Now — Explorar Modelos (implementado 2026-09-21, ver CURRENT_STATE.md y ARCHITECTURE.md §18)
 
 - [ ] Crear API key de MyMiniFactory y cargar `MYMINIFACTORY_API_KEY` en el entorno; hacer una búsqueda real y verificar campos, licencias y dominios de thumbnails.

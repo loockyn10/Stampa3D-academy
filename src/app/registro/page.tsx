@@ -5,8 +5,11 @@ import { useSearchParams } from "next/navigation";
 import { createClient } from "@/utils/supabase/client";
 import { normalizeRegistrationCode } from "@/lib/codes/resolve-code";
 import Link from "next/link";
-import { Layers, Mail, Lock, User, Eye, EyeOff, Tag, AlertCircle } from "lucide-react";
+import { Layers, Mail, Lock, User, Eye, EyeOff, Tag, AlertCircle, FlaskConical } from "lucide-react";
 import { sanitizeReturnTo } from "@/lib/auth/return-to";
+import { redeemBetaAccessCodeAction } from "@/app/beta-access/actions";
+import { BETA_CODE_MAX_INPUT_LENGTH, normalizeBetaAccessCode } from "@/lib/beta-access/code";
+import { savePendingBetaCode } from "@/lib/beta-access/pending-code";
 
 function RegistroForm() {
   const [email, setEmail] = useState("");
@@ -15,8 +18,11 @@ function RegistroForm() {
   const [name, setName] = useState("");
   const searchParams = useSearchParams();
   const [referralCode, setReferralCode] = useState(() => (searchParams.get("ref") || searchParams.get("invite") || "").toUpperCase().trim());
+  const [betaCode, setBetaCode] = useState("");
   const [error, setError] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(false);
+  // Account created as Free but the optional beta code could not be applied.
+  const [betaNotice, setBetaNotice] = useState<{ message: string; destination: string } | null>(null);
   const supabase = createClient();
   const returnTo = sanitizeReturnTo(searchParams.get("returnTo"));
 
@@ -37,7 +43,7 @@ function RegistroForm() {
     } catch {}
 
     try {
-      const { error: signUpError } = await supabase.auth.signUp({
+      const { data: signUpData, error: signUpError } = await supabase.auth.signUp({
         email,
         password,
         options: {
@@ -55,7 +61,25 @@ function RegistroForm() {
         return;
       }
 
-      window.location.assign(returnTo === "/" ? "/sin-acceso" : returnTo);
+      const destination = returnTo === "/" ? "/sin-acceso" : returnTo;
+      // The beta code is never stored in auth metadata: it is validated server-side once the account exists.
+      const normalizedBetaCode = normalizeBetaAccessCode(betaCode);
+
+      if (normalizedBetaCode) {
+        if (signUpData.session) {
+          const betaResult = await redeemBetaAccessCodeAction(normalizedBetaCode);
+          if (betaResult.ok) {
+            window.location.assign(returnTo);
+            return;
+          }
+          setBetaNotice({ message: betaResult.message, destination });
+          return;
+        }
+        // Email confirmation required: the redemption completes once the user is authenticated.
+        savePendingBetaCode(normalizedBetaCode);
+      }
+
+      window.location.assign(destination);
     } catch (caught) {
       console.error("[registro] signup connection failed", caught instanceof Error ? caught.name : "unknown_error");
       setError("No pudimos conectar con el servicio de registro. Revisá tu conexión e intentá nuevamente.");
@@ -81,6 +105,25 @@ function RegistroForm() {
             </p>
           </div>
 
+          {betaNotice ? (
+            <div className="space-y-5" role="alert">
+              <div className="flex items-start gap-2 rounded-xl border border-amber-500/30 bg-amber-500/10 p-4 text-sm text-amber-200">
+                <AlertCircle size={15} className="mt-0.5 shrink-0" />
+                <div className="min-w-0 space-y-1.5">
+                  <p className="font-semibold">Tu cuenta fue creada.</p>
+                  <p className="break-words">{betaNotice.message}</p>
+                  <p className="text-amber-200/80">Podés canjear tu código más tarde desde tu Perfil.</p>
+                </div>
+              </div>
+              <button
+                type="button"
+                onClick={() => window.location.assign(betaNotice.destination)}
+                className="flex w-full justify-center rounded-xl bg-stampa-orange hover:bg-orange-400 px-4 py-3 text-sm font-semibold text-white shadow-lg shadow-stampa-orange/20 transition-all active:scale-[0.98]"
+              >
+                Continuar
+              </button>
+            </div>
+          ) : (
           <form className="space-y-6" onSubmit={handleRegister}>
             {error && (
               <div className="rounded-xl bg-red-500/10 border border-red-500/30 p-4 text-sm text-red-300 flex items-center gap-2">
@@ -161,6 +204,27 @@ function RegistroForm() {
                 </div>
                 <p className="mt-1.5 text-xs text-gray-500">Si alguien te invitó a Academia Stampa, ingresá su código acá.</p>
               </div>
+
+              {/* Beta invitation code (optional) */}
+              <div>
+                <label htmlFor="beta-code" className="block text-xs font-semibold text-gray-400 uppercase tracking-wider mb-2">
+                  ¿Tenés un código de invitación? <span className="text-gray-600 font-normal normal-case">(opcional)</span>
+                </label>
+                <div className="relative">
+                  <div className="pointer-events-none absolute inset-y-0 left-0 flex items-center pl-3">
+                    <FlaskConical className="h-5 w-5 text-neutral-500" />
+                  </div>
+                  <input
+                    id="beta-code" name="beta-code" type="text"
+                    autoComplete="off" autoCapitalize="characters" autoCorrect="off" spellCheck={false}
+                    value={betaCode} onChange={e => setBetaCode(e.target.value)}
+                    className="block w-full min-w-0 rounded-xl border border-stampa-border pl-10 focus:border-cyan-500/60 focus:ring-cyan-500/20 focus:ring-2 sm:text-sm py-3 text-neutral-100 placeholder-neutral-500 bg-white/5 outline-none transition-all font-mono tracking-wider"
+                    placeholder="UNIVERSO-BETA-XXXX"
+                    maxLength={BETA_CODE_MAX_INPUT_LENGTH}
+                  />
+                </div>
+                <p className="mt-1.5 text-xs text-gray-500">Si sos Beta Tester, ingresá tu código para activar el acceso completo.</p>
+              </div>
             </div>
 
             <button
@@ -178,6 +242,7 @@ function RegistroForm() {
               ) : "Crear cuenta"}
             </button>
           </form>
+          )}
 
           <div className="text-center pt-2 border-t border-stampa-border">
             <p className="text-sm text-gray-400">
