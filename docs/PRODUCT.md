@@ -238,6 +238,8 @@ Mi Negocio → Catálogo contiene la capa de venta:
 
 Eliminar un artículo del catálogo debe preservar historial cuando corresponda. Preferir archivado/soft-delete y reactivación sobre duplicación de registros.
 
+Archivar (acción "Eliminar" del catálogo) conserva el código de barras, el historial y las relaciones del artículo: no libera el barcode. El catálogo tiene filtro Activos / Archivados / Todos (default Activos) y los archivados se **reactivan** (mismo ID, `is_active=true`). Si al crear/asignar un barcode pertenece a un artículo archivado, el backend devuelve `archived_barcode_conflict` y la UI ofrece reactivar ese mismo registro en lugar de crear un duplicado; si pertenece a uno activo, es un conflicto normal. Reactivar un ítem del catálogo comercial no crea ni altera bobinas/stock físico de Mi Taller.
+
 ## 9. Showroom y Depósito
 
 La separación interna de ubicaciones es opcional.

@@ -4,7 +4,7 @@ import { Suspense, useCallback, useEffect, useMemo, useRef, useState } from "rea
 import { useRouter, useSearchParams } from "next/navigation";
 import Link from "next/link";
 import Image from "next/image";
-import { ArrowLeft, Barcode, Boxes, Eye, EyeOff, Factory, History, Loader2, Minus, PackagePlus, Pencil, Plus, Search, ShoppingBag, Trash2, X } from "lucide-react";
+import { Archive, ArchiveRestore, ArrowLeft, Barcode, Boxes, Eye, EyeOff, Factory, History, Loader2, Minus, PackagePlus, Pencil, Plus, Search, ShoppingBag, Trash2, X } from "lucide-react";
 import { useBarcodeScanHandler } from "@/components/barcode/BarcodeScannerProvider";
 import { StockReceiptDialog } from "@/components/business/StockReceiptDialog";
 import { FileUploadDropzone } from "@/components/ui/file-upload-dropzone";
@@ -18,9 +18,11 @@ import { normalizeBarcode } from "@/lib/barcode/hid-scanner";
 import type { BusinessBarcodeType } from "@/lib/business/stock-receipt";
 import { matchesBusinessSearch } from "@/lib/business/search";
 import {
+  filterBusinessCatalogByStatus,
   getBusinessProductDisplayName,
   resolveBusinessCatalogStock,
   type BusinessCatalogItem,
+  type BusinessCatalogStatusFilter,
   type BusinessInventoryMovement,
   type WorkshopProductSummary,
 } from "@/lib/business/catalog";
@@ -29,15 +31,24 @@ import {
   archiveBusinessCatalogItemAction,
   createResaleCatalogItemAction,
   linkManufacturedProductAction,
+  loadArchivedBusinessCatalogItemsAction,
   loadBusinessStockReceiptSetupAction,
   loadBusinessOperationsAction,
+  restoreBusinessCatalogItemAction,
   saveBusinessCatalogBarcodesAction,
   setBusinessCatalogPublicationAction,
   updateBusinessCatalogItemAction,
+  type BusinessBarcodeConflictInfo,
 } from "../actions";
 
 const inputClass = "w-full rounded-xl border border-stampa-border bg-stampa-bg-soft px-3 py-2.5 text-sm text-white outline-none transition-colors placeholder:text-gray-600 focus:border-stampa-orange/60";
 const movementDate = new Intl.DateTimeFormat("es-AR", { dateStyle: "short", timeStyle: "short" });
+
+const STATUS_FILTERS: Array<{ value: BusinessCatalogStatusFilter; label: string }> = [
+  { value: "active", label: "Activos" },
+  { value: "archived", label: "Archivados" },
+  { value: "all", label: "Todos" },
+];
 
 const emptyResaleForm = {
   name: "",
@@ -55,11 +66,20 @@ const emptyResaleForm = {
   isActive: true,
 };
 
+function getArchivedBarcodeConflict(result: object): BusinessBarcodeConflictInfo | null {
+  const conflict = (result as { conflict?: BusinessBarcodeConflictInfo }).conflict;
+  return conflict?.code === "archived_barcode_conflict" ? conflict : null;
+}
+
 function CatalogoContent() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const { toast } = useAppFeedback();
   const [items, setItems] = useState<BusinessCatalogItem[]>([]);
+  const [archivedItems, setArchivedItems] = useState<BusinessCatalogItem[]>([]);
+  const [statusFilter, setStatusFilter] = useState<BusinessCatalogStatusFilter>("active");
+  const [barcodeConflict, setBarcodeConflict] = useState<BusinessBarcodeConflictInfo | null>(null);
+  const [restoringId, setRestoringId] = useState<string | null>(null);
   const [catalogSearch, setCatalogSearch] = useState("");
   const [products, setProducts] = useState<WorkshopProductSummary[]>([]);
   const [movements, setMovements] = useState<BusinessInventoryMovement[]>([]);
@@ -146,14 +166,23 @@ function CatalogoContent() {
   }, [router, searchParams]);
 
   const loadWorkspace = useCallback(async () => {
-    const result = await loadBusinessOperationsAction();
+    const [result, archived] = await Promise.all([
+      loadBusinessOperationsAction(),
+      loadArchivedBusinessCatalogItemsAction(),
+    ]);
+    setArchivedItems(archived.success ? archived.items : []);
     applyWorkspaceResult(result);
   }, [applyWorkspaceResult]);
 
   useEffect(() => {
     let active = true;
-    void loadBusinessOperationsAction().then((result) => {
-      if (active) applyWorkspaceResult(result);
+    void Promise.all([
+      loadBusinessOperationsAction(),
+      loadArchivedBusinessCatalogItemsAction(),
+    ]).then(([result, archived]) => {
+      if (!active) return;
+      setArchivedItems(archived.success ? archived.items : []);
+      applyWorkspaceResult(result);
     });
     return () => { active = false; };
   }, [applyWorkspaceResult]);
@@ -167,9 +196,13 @@ function CatalogoContent() {
     [linkedProductIds, products],
   );
   const scannedCatalogItem = items.find((item) => item.id === scannedCatalogItemId) ?? null;
+  const statusItems = useMemo(
+    () => filterBusinessCatalogByStatus([...items, ...archivedItems], statusFilter),
+    [archivedItems, items, statusFilter],
+  );
   const filteredItems = useMemo(
-    () => items.filter((item) => matchesBusinessSearch(item, catalogSearch)),
-    [catalogSearch, items],
+    () => statusItems.filter((item) => matchesBusinessSearch(item, catalogSearch)),
+    [catalogSearch, statusItems],
   );
 
   const handleCatalogBarcode = useCallback(async (rawBarcode: string) => {
@@ -183,7 +216,12 @@ function CatalogoContent() {
       }
       const presentation = setup.presentations.find((candidate) => candidate.barcode.toLocaleLowerCase("es-AR") === barcode.toLocaleLowerCase("es-AR"));
       if (presentation && !presentation.isActive) {
-        toast.info(`${presentation.displayName} está archivado.`);
+        setBarcodeConflict({
+          code: "archived_barcode_conflict",
+          itemId: presentation.catalogItemId,
+          displayName: presentation.displayName,
+          sourceType: "resale",
+        });
         return;
       }
       found = presentation ? items.find((item) => item.id === presentation.catalogItemId) : undefined;
@@ -314,6 +352,11 @@ function CatalogoContent() {
     });
     if (!result.success) {
       setSaving(false);
+      const archivedConflict = getArchivedBarcodeConflict(result);
+      if (archivedConflict) {
+        setBarcodeConflict(archivedConflict);
+        return;
+      }
       return toast.error(result.error);
     }
     if (resaleForm.caseBarcode.trim()) {
@@ -356,7 +399,14 @@ function CatalogoContent() {
       salePrice: Number(manufacturedForm.salePrice),
     });
     setSaving(false);
-    if (!result.success) return toast.error(result.error);
+    if (!result.success) {
+      const archivedConflict = getArchivedBarcodeConflict(result);
+      if (archivedConflict) {
+        setBarcodeConflict(archivedConflict);
+        return;
+      }
+      return toast.error(result.error);
+    }
     toast.success(result.restored ? "Producto restaurado en Mi Negocio." : "Producto del taller agregado a Mi Negocio.");
     closeManufactured();
     setLoading(true);
@@ -381,8 +431,52 @@ function CatalogoContent() {
     setDeleting(false);
     if (!result.success) return toast.error(result.error);
     setItems((current) => current.filter((item) => item.id !== deleteItem.id));
+    setArchivedItems((current) => [...current, { ...deleteItem, is_active: false, is_published: false }]);
     setDeleteItem(null);
-    toast.success("Producto eliminado de Mi Negocio.");
+    toast.success("Producto archivado. Podés reactivarlo desde Archivados.");
+  };
+
+  const reactivateItem = async (itemId: string) => {
+    if (restoringId) return false;
+    setRestoringId(itemId);
+    const result = await restoreBusinessCatalogItemAction({ catalogItemId: itemId });
+    setRestoringId(null);
+    if (!result.success) {
+      toast.error(result.error);
+      return false;
+    }
+    toast.success("Producto reactivado. Conserva su código de barras e historial.");
+    setStatusFilter("active");
+    setCatalogSearch("");
+    setLoading(true);
+    await loadWorkspace();
+    setScannedCatalogItemId(itemId);
+    return true;
+  };
+
+  const reactivateFromConflict = async () => {
+    if (!barcodeConflict) return;
+    const restored = await reactivateItem(barcodeConflict.itemId);
+    if (!restored) return;
+    setBarcodeConflict(null);
+    setResaleOpen(false);
+    setResaleForm(emptyResaleForm);
+    closeManufactured();
+    setEditItem(null);
+    setStockProductPrefill(null);
+  };
+
+  const viewArchivedFromConflict = () => {
+    if (!barcodeConflict) return;
+    setStatusFilter("archived");
+    setCatalogSearch("");
+    setScannedCatalogItemId(barcodeConflict.itemId);
+    setBarcodeConflict(null);
+    setResaleOpen(false);
+    setResaleForm(emptyResaleForm);
+    closeManufactured();
+    setEditItem(null);
+    setStockProductPrefill(null);
   };
 
   const openEdit = async (item: BusinessCatalogItem) => {
@@ -426,6 +520,11 @@ function CatalogoContent() {
     });
     if (!barcodeResult.success) {
       setEditing(false);
+      const archivedConflict = getArchivedBarcodeConflict(barcodeResult);
+      if (archivedConflict) {
+        setBarcodeConflict(archivedConflict);
+        return;
+      }
       return toast.error(barcodeResult.error);
     }
     const result = await updateBusinessCatalogItemAction({
@@ -564,6 +663,25 @@ function CatalogoContent() {
         />
       </label>
 
+      <div role="tablist" aria-label="Estado del catálogo" className="mb-5 grid max-w-md grid-cols-3 gap-1 rounded-xl border border-stampa-border bg-stampa-surface p-1">
+        {STATUS_FILTERS.map((filter) => {
+          const count = filter.value === "active" ? items.length : filter.value === "archived" ? archivedItems.length : items.length + archivedItems.length;
+          const selected = statusFilter === filter.value;
+          return (
+            <button
+              key={filter.value}
+              type="button"
+              role="tab"
+              aria-selected={selected}
+              onClick={() => setStatusFilter(filter.value)}
+              className={`min-h-10 rounded-lg px-1.5 text-xs font-bold transition-colors ${selected ? "bg-stampa-orange text-white" : "text-gray-400 hover:bg-white/5 hover:text-white"}`}
+            >
+              {filter.label} <span className={selected ? "text-white/80" : "text-gray-600"}>({count})</span>
+            </button>
+          );
+        })}
+      </div>
+
       {error && (
         <Card className="mb-5 border-red-500/25 p-4 text-sm text-red-300">
           No se pudo cargar el catálogo: {error}
@@ -572,7 +690,13 @@ function CatalogoContent() {
 
       {loading ? (
         <div className="flex min-h-48 items-center justify-center text-gray-500"><Loader2 className="animate-spin" /></div>
-      ) : items.length === 0 && !error ? (
+      ) : statusFilter === "archived" && archivedItems.length === 0 && !error ? (
+        <Card className="flex flex-col items-center p-8 text-center">
+          <Archive size={26} className="text-gray-600" />
+          <p className="mt-3 text-sm font-bold text-gray-300">No tenés productos archivados.</p>
+          <p className="mt-1 max-w-sm text-xs leading-5 text-gray-500">Cuando archives un producto lo vas a encontrar acá para reactivarlo.</p>
+        </Card>
+      ) : statusFilter !== "archived" && items.length === 0 && archivedItems.length === 0 && !error ? (
         <Card className="flex flex-col items-center p-10 text-center">
           <ShoppingBag size={30} className="text-stampa-orange" />
           <h2 className="mt-4 text-lg font-bold text-white">Tu catálogo comercial está vacío</h2>
@@ -596,7 +720,7 @@ function CatalogoContent() {
                 tabIndex={-1}
                 className="rounded-2xl outline-none"
               >
-              <Card className={`overflow-hidden p-4 transition-all ${item.is_active ? "" : "opacity-60"} ${scannedCatalogItemId === item.id ? "border-stampa-orange ring-2 ring-stampa-orange/25" : ""}`}>
+              <Card className={`overflow-hidden p-4 transition-all ${item.is_active ? "" : "border-dashed opacity-60"} ${scannedCatalogItemId === item.id ? "border-stampa-orange ring-2 ring-stampa-orange/25" : ""}`}>
                 <div className="flex gap-3">
                   {image ? (
                     <Image unoptimized src={image} alt="" width={64} height={64} className="h-16 w-16 shrink-0 rounded-xl border border-stampa-border object-cover" />
@@ -606,6 +730,7 @@ function CatalogoContent() {
                   <div className="min-w-0 flex-1">
                     <div className="flex items-start justify-between gap-2">
                       <h2 className="truncate text-sm font-bold text-white">{getBusinessProductDisplayName(item)}</h2>
+                      {!item.is_active && <span className="shrink-0 rounded-full bg-gray-500/20 px-2 py-0.5 text-[9px] font-black uppercase tracking-wide text-gray-300">Archivado</span>}
                       <span className={`shrink-0 rounded-full px-2 py-0.5 text-[9px] font-black uppercase tracking-wide ${item.source_type === "manufactured" ? "bg-cyan-500/10 text-cyan-300" : "bg-violet-500/10 text-violet-300"}`}>
                         {item.source_type === "manufactured" ? "Fabricado" : "Reventa"}
                       </span>
@@ -620,12 +745,19 @@ function CatalogoContent() {
                   <div className="col-span-2"><p className="text-gray-500">Código de barras</p><p className="mt-0.5 truncate font-semibold text-gray-300">{item.barcode || "Sin código"}</p></div>
                 </div>
                 <div className="mt-3 flex items-center justify-between gap-3">
-                  <span className="text-[10px] text-gray-500">{item.is_active ? "Activo" : "Inactivo"}</span>
+                  <span className="text-[10px] text-gray-500">{item.is_active ? "Activo" : "Archivado"}</span>
                   <button type="button" disabled={!item.is_active || publishingId === item.id} onClick={() => void togglePublication(item)} className={`inline-flex min-h-9 items-center gap-1.5 rounded-lg border px-3 text-[11px] font-bold disabled:opacity-40 ${item.is_published ? "border-emerald-500/30 bg-emerald-500/10 text-emerald-300" : "border-stampa-border text-gray-400 hover:bg-white/5"}`}>
                     {publishingId === item.id ? <Loader2 size={13} className="animate-spin" /> : item.is_published ? <Eye size={13} /> : <EyeOff size={13} />}
                     {item.is_published ? "Publicado" : "No publicado"}
                   </button>
                 </div>
+                {!item.is_active ? (
+                  <div className="mt-3 border-t border-stampa-border pt-3">
+                    <button type="button" disabled={restoringId !== null} onClick={() => void reactivateItem(item.id)} className="inline-flex min-h-11 w-full items-center justify-center gap-2 rounded-lg border border-emerald-500/35 bg-emerald-500/10 px-3 text-xs font-bold text-emerald-200 hover:bg-emerald-500/15 disabled:opacity-50">
+                      {restoringId === item.id ? <Loader2 size={14} className="animate-spin" /> : <ArchiveRestore size={14} />} Reactivar
+                    </button>
+                  </div>
+                ) : (
                 <div className="mt-3 border-t border-stampa-border pt-3">
                   {item.source_type === "manufactured" ? (
                     <Link href="/mi-taller/inventario" className="inline-flex min-h-10 w-full items-center justify-center gap-2 rounded-lg border border-cyan-500/30 bg-cyan-500/10 px-3 text-xs font-bold text-cyan-200 hover:bg-cyan-500/15">
@@ -642,6 +774,7 @@ function CatalogoContent() {
                     <button type="button" onClick={() => setDeleteItem(item)} className="inline-flex min-h-10 items-center justify-center gap-2 rounded-lg border border-red-500/25 bg-red-500/5 px-3 text-xs font-bold text-red-300 hover:bg-red-500/10"><Trash2 size={14} /> Eliminar</button>
                   </div>
                 </div>
+                )}
               </Card>
               </div>
             );
@@ -700,6 +833,7 @@ function CatalogoContent() {
             <div>
               <h2 id="catalog-delete-title" className="text-lg font-bold text-white">¿Eliminar “{getBusinessProductDisplayName(deleteItem)}”?</h2>
               <p className="mt-1 text-sm leading-6 text-gray-400">Esta acción lo quitará de Mi Negocio.</p>
+              <p className="mt-2 text-xs leading-5 text-gray-500">Queda archivado: conserva su código de barras e historial y podés reactivarlo desde Archivados. No se borra.</p>
               {deleteItem.source_type === "manufactured" && <p className="mt-2 text-xs leading-5 text-cyan-200">El producto seguirá existiendo en Mi Taller con su receta, costos y stock.</p>}
             </div>
             <button type="button" disabled={deleting} onClick={() => setDeleteItem(null)} aria-label="Cerrar" className="shrink-0 rounded-lg p-2 text-gray-500 hover:bg-white/5 hover:text-white disabled:opacity-40"><X size={18} /></button>
@@ -711,7 +845,7 @@ function CatalogoContent() {
         </>}
       </Dialog>
 
-      <Dialog open={editItem !== null} onClose={() => { if (!editing) setEditItem(null); }} labelledBy="catalog-edit-title" panelClassName="max-w-2xl rounded-2xl border border-stampa-border bg-stampa-surface">
+      <Dialog open={editItem !== null} onClose={() => { if (!editing && !barcodeConflict) setEditItem(null); }} labelledBy="catalog-edit-title" panelClassName="max-w-2xl rounded-2xl border border-stampa-border bg-stampa-surface">
         {editItem && <>
           <div className="flex items-start justify-between gap-4 border-b border-stampa-border p-5">
             <div>
@@ -752,7 +886,7 @@ function CatalogoContent() {
         </>}
       </Dialog>
 
-      <Dialog open={manufacturedOpen} onClose={closeManufactured} labelledBy="manufactured-dialog-title" panelClassName="max-w-xl rounded-2xl border border-stampa-border bg-stampa-surface">
+      <Dialog open={manufacturedOpen} onClose={() => { if (!barcodeConflict) closeManufactured(); }} labelledBy="manufactured-dialog-title" panelClassName="max-w-xl rounded-2xl border border-stampa-border bg-stampa-surface">
         <div className="flex items-center justify-between border-b border-stampa-border p-5">
           <div><h2 id="manufactured-dialog-title" className="font-bold text-white">Agregar producto fabricado</h2><p className="mt-1 text-xs text-gray-500">Se crea un vínculo; no se copian receta ni stock.</p></div>
           <button onClick={closeManufactured} className="p-2 text-gray-500 hover:text-white"><X size={18} /></button>
@@ -780,7 +914,7 @@ function CatalogoContent() {
         </div>
       </Dialog>
 
-      <Dialog open={resaleOpen} onClose={closeResale} labelledBy="resale-dialog-title" panelClassName="max-w-2xl rounded-2xl border border-stampa-border bg-stampa-surface">
+      <Dialog open={resaleOpen} onClose={() => { if (!barcodeConflict) closeResale(); }} labelledBy="resale-dialog-title" panelClassName="max-w-2xl rounded-2xl border border-stampa-border bg-stampa-surface">
         <div className="flex items-center justify-between border-b border-stampa-border p-5">
           <div><h2 id="resale-dialog-title" className="font-bold text-white">Nuevo producto de reventa</h2><p className="mt-1 text-xs text-gray-500">Producto comercial sin receta de fabricación.</p></div>
           <button onClick={closeResale} className="p-2 text-gray-500 hover:text-white"><X size={18} /></button>
@@ -804,6 +938,25 @@ function CatalogoContent() {
           <button onClick={closeResale} className="min-h-11 rounded-xl px-4 text-sm font-semibold text-gray-400 hover:bg-white/5">Cancelar</button>
           <button disabled={saving} onClick={() => void saveResale()} className="inline-flex min-h-11 items-center justify-center gap-2 rounded-xl bg-stampa-orange px-5 text-sm font-bold text-white disabled:opacity-50">{saving && <Loader2 size={15} className="animate-spin" />} Guardar producto</button>
         </div>
+      </Dialog>
+
+      <Dialog open={barcodeConflict !== null} onClose={() => { if (!restoringId) setBarcodeConflict(null); }} labelledBy="catalog-barcode-conflict-title" panelClassName="max-w-md rounded-2xl border border-stampa-border bg-stampa-surface">
+        {barcodeConflict && <>
+          <div className="flex items-start justify-between gap-4 border-b border-stampa-border p-5">
+            <div className="min-w-0">
+              <h2 id="catalog-barcode-conflict-title" className="text-lg font-bold text-white">Código de barras de un producto archivado</h2>
+              <p className="mt-2 text-sm leading-6 text-gray-400">Este código de barras pertenece a un producto archivado:</p>
+              <p className="mt-2 break-words rounded-xl border border-stampa-border bg-white/5 px-3 py-2 text-sm font-bold text-white">{barcodeConflict.displayName}</p>
+              <p className="mt-2 text-sm leading-6 text-gray-400">Podés reactivarlo en lugar de crear un duplicado.</p>
+            </div>
+            <button type="button" disabled={restoringId !== null} onClick={() => setBarcodeConflict(null)} aria-label="Cerrar" className="shrink-0 rounded-lg p-2 text-gray-500 hover:bg-white/5 hover:text-white disabled:opacity-40"><X size={18} /></button>
+          </div>
+          <div className="flex flex-col gap-2 p-5">
+            <button type="button" disabled={restoringId !== null} onClick={() => void reactivateFromConflict()} className="inline-flex min-h-11 w-full items-center justify-center gap-2 rounded-xl bg-stampa-orange px-5 text-sm font-black text-white hover:bg-orange-500 disabled:opacity-50">{restoringId ? <Loader2 size={16} className="animate-spin" /> : <ArchiveRestore size={16} />} Reactivar producto</button>
+            <button type="button" disabled={restoringId !== null} onClick={viewArchivedFromConflict} className="min-h-11 w-full rounded-xl border border-stampa-border px-4 text-sm font-bold text-white hover:bg-white/5 disabled:opacity-50">Ver archivado</button>
+            <button type="button" disabled={restoringId !== null} onClick={() => setBarcodeConflict(null)} className="min-h-11 w-full rounded-xl px-4 text-sm font-semibold text-gray-400 hover:bg-white/5 disabled:opacity-40">Cancelar</button>
+          </div>
+        </>}
       </Dialog>
     </div>
   );

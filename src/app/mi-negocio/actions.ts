@@ -6,10 +6,13 @@ import {
   type BusinessMetrics,
 } from "@/lib/business/metrics";
 import {
+  classifyBusinessBarcodeConflict,
   getBusinessProductDisplayName,
   normalizeBusinessMoney,
   normalizeBusinessStock,
   normalizeOptionalBusinessText,
+  type BusinessBarcodeConflict,
+  type BusinessBarcodeOwner,
   type BusinessCatalogItem,
   type BusinessClientSummary,
   type BusinessInventoryMovement,
@@ -58,6 +61,8 @@ export interface ResaleCatalogInput {
   initialStock: number;
   sku?: string;
   barcode?: string;
+  /** Only used to pre-check conflicts; the case code itself is saved via saveBusinessCatalogBarcodesAction. */
+  caseBarcode?: string;
   supplier?: string;
   isActive: boolean;
 }
@@ -162,6 +167,104 @@ function friendlyMutationError(error: { code?: string; message: string } | null)
   return error?.message || "No se pudo guardar el producto comercial.";
 }
 
+type SupabaseServerClient = Awaited<ReturnType<typeof createClient>>;
+
+export interface BusinessBarcodeConflictInfo {
+  code: BusinessBarcodeConflict["code"];
+  itemId: string;
+  displayName: string;
+  sourceType: BusinessBarcodeOwner["source_type"];
+}
+
+function escapeLikePattern(value: string): string {
+  return value.replace(/[\\%_]/g, (char) => `\\${char}`);
+}
+
+/**
+ * Finds which of the caller's catalog items already owns any of the barcodes
+ * (item unit code or any unit/case presentation). Archived rows are included on
+ * purpose: archiving keeps reserving the code. Always scoped to the user.
+ */
+async function findBarcodeConflict(
+  supabase: SupabaseServerClient,
+  userId: string,
+  barcodes: Array<string | null | undefined>,
+  excludeItemId?: string,
+): Promise<{ conflict: BusinessBarcodeConflict | null; error?: string }> {
+  const codes = [...new Set(barcodes.flatMap((code) => {
+    const normalized = normalizeOptionalBusinessText(code, 120);
+    return normalized ? [normalized] : [];
+  }))];
+  const owners = new Map<string, BusinessBarcodeOwner>();
+  const itemColumns = "id, name, brand, source_type, is_active";
+  for (const code of codes) {
+    const pattern = escapeLikePattern(code);
+    const [direct, presentations] = await Promise.all([
+      supabase.from("business_catalog_items").select(itemColumns)
+        .eq("user_id", userId).ilike("barcode", pattern),
+      supabase.from("business_catalog_barcodes").select("catalog_item_id")
+        .eq("user_id", userId).ilike("barcode", pattern),
+    ]);
+    const lookupError = direct.error || presentations.error;
+    if (lookupError) return { conflict: null, error: lookupError.message };
+    for (const row of (direct.data || []) as BusinessBarcodeOwner[]) owners.set(row.id, row);
+    const missingIds = (presentations.data || [])
+      .map((row) => row.catalog_item_id as string)
+      .filter((id) => !owners.has(id));
+    if (missingIds.length > 0) {
+      const { data, error } = await supabase.from("business_catalog_items").select(itemColumns)
+        .eq("user_id", userId).in("id", missingIds);
+      if (error) return { conflict: null, error: error.message };
+      for (const row of (data || []) as BusinessBarcodeOwner[]) owners.set(row.id, row);
+    }
+  }
+  if (excludeItemId) owners.delete(excludeItemId);
+  return { conflict: classifyBusinessBarcodeConflict([...owners.values()]) };
+}
+
+function barcodeConflictFailure(conflict: BusinessBarcodeConflict) {
+  const displayName = getBusinessProductDisplayName(conflict.owner);
+  const info: BusinessBarcodeConflictInfo = {
+    code: conflict.code,
+    itemId: conflict.owner.id,
+    displayName,
+    sourceType: conflict.owner.source_type,
+  };
+  return {
+    success: false as const,
+    error: conflict.code === "archived_barcode_conflict"
+      ? `Este código de barras pertenece a un producto archivado: ${displayName}. Podés reactivarlo en lugar de crear un duplicado.`
+      : `Este código de barras ya está asignado a ${displayName}.`,
+    conflict: info,
+  };
+}
+
+async function barcodeConflictOrNull(
+  supabase: SupabaseServerClient,
+  userId: string,
+  barcodes: Array<string | null | undefined>,
+  excludeItemId?: string,
+) {
+  const { conflict, error } = await findBarcodeConflict(supabase, userId, barcodes, excludeItemId);
+  if (error) return { success: false as const, error };
+  return conflict ? barcodeConflictFailure(conflict) : null;
+}
+
+/** After a unique violation (race with the pre-check) re-resolve the owner so the UI gets the same conflict shape. */
+async function mutationFailure(
+  supabase: SupabaseServerClient,
+  userId: string,
+  error: { code?: string; message: string } | null,
+  barcodes: Array<string | null | undefined>,
+  excludeItemId?: string,
+) {
+  if (error?.code === "23505") {
+    const conflict = await barcodeConflictOrNull(supabase, userId, barcodes, excludeItemId);
+    if (conflict) return conflict;
+  }
+  return { success: false as const, error: friendlyMutationError(error) };
+}
+
 function revalidateBusinessPages() {
   revalidatePath("/mi-negocio");
   revalidatePath("/mi-negocio/catalogo");
@@ -226,6 +329,12 @@ export async function createResaleCatalogItemAction(input: ResaleCatalogInput) {
     return { success: false as const, error: "Costo, precio y stock deben ser valores válidos y no negativos." };
   }
 
+  // Barcode ownership is checked first (archived rows included) so a code held by an
+  // archived item surfaces a reactivation choice instead of a silent restore or a SQL error.
+  const caseBarcode = normalizeOptionalBusinessText(input.caseBarcode, 120);
+  const barcodeConflict = await barcodeConflictOrNull(authorized.supabase, authorized.userId, [barcode, caseBarcode]);
+  if (barcodeConflict) return barcodeConflict;
+
   const { data: existingRows, error: existingError } = await authorized.supabase
     .from("business_catalog_items")
     .select("id, name, brand, sku, barcode, is_active")
@@ -288,7 +397,7 @@ export async function createResaleCatalogItemAction(input: ResaleCatalogInput) {
     .select("id")
     .single();
 
-  if (error || !data) return { success: false as const, error: friendlyMutationError(error) };
+  if (error || !data) return mutationFailure(authorized.supabase, authorized.userId, error, [barcode, caseBarcode]);
   revalidateBusinessPages();
   return { success: true as const, itemId: data.id, restored: false as const };
 }
@@ -345,6 +454,10 @@ export async function linkManufacturedProductAction(input: ManufacturedCatalogIn
     return { success: false as const, error: "Completá una categoría y un precio de venta válidos." };
   }
 
+  const manufacturedBarcode = normalizeOptionalBusinessText(input.barcode, 120);
+  const barcodeConflict = await barcodeConflictOrNull(authorized.supabase, authorized.userId, [manufacturedBarcode]);
+  if (barcodeConflict) return barcodeConflict;
+
   const { data, error } = await authorized.supabase
     .from("business_catalog_items")
     .insert({
@@ -359,7 +472,7 @@ export async function linkManufacturedProductAction(input: ManufacturedCatalogIn
       sale_price: salePrice,
       resale_stock_quantity: 0,
       sku: normalizeOptionalBusinessText(input.sku, 80),
-      barcode: normalizeOptionalBusinessText(input.barcode, 120),
+      barcode: manufacturedBarcode,
       supplier: null,
       image_urls: product.image_url ? [product.image_url] : [],
       is_active: input.isActive === true,
@@ -368,7 +481,7 @@ export async function linkManufacturedProductAction(input: ManufacturedCatalogIn
     .select("id")
     .single();
 
-  if (error || !data) return { success: false as const, error: friendlyMutationError(error) };
+  if (error || !data) return mutationFailure(authorized.supabase, authorized.userId, error, [manufacturedBarcode]);
   revalidateBusinessPages();
   return { success: true as const, itemId: data.id, restored: false as const };
 }
@@ -553,6 +666,14 @@ export async function saveBusinessCatalogBarcodesAction(input: BusinessCatalogBa
     return { success: false as const, error: "Indicá cuántas unidades contiene cada caja." };
   }
 
+  const barcodeConflict = await barcodeConflictOrNull(
+    authorized.supabase,
+    authorized.userId,
+    [unitBarcode, caseBarcode],
+    input.catalogItemId,
+  );
+  if (barcodeConflict) return barcodeConflict;
+
   const { data, error } = await authorized.supabase.rpc("save_business_catalog_barcodes", {
     p_catalog_item_id: input.catalogItemId,
     p_unit_barcode: unitBarcode || null,
@@ -560,8 +681,11 @@ export async function saveBusinessCatalogBarcodesAction(input: BusinessCatalogBa
     p_case_units_per_scan: caseUnits,
   });
   const row = Array.isArray(data) ? data[0] : data;
-  if (error || !row?.success) {
-    return { success: false as const, error: row?.message || friendlyMutationError(error) };
+  if (error) {
+    return mutationFailure(authorized.supabase, authorized.userId, error, [unitBarcode, caseBarcode], input.catalogItemId);
+  }
+  if (!row?.success) {
+    return { success: false as const, error: row?.message || friendlyMutationError(null) };
   }
   revalidateBusinessPages();
   return {
@@ -590,7 +714,25 @@ export async function restoreBusinessCatalogItemAction(input: { catalogItemId: s
     return { success: false as const, error: error?.message || "El producto no existe, ya está activo o no te pertenece." };
   }
   revalidateBusinessPages();
-  return { success: true as const };
+  revalidatePath("/mi-negocio/venta-rapida");
+  return { success: true as const, itemId: data.id as string };
+}
+
+export async function loadArchivedBusinessCatalogItemsAction(): Promise<
+  | { success: true; items: BusinessCatalogItem[] }
+  | { success: false; error: string; items: [] }
+> {
+  const authorized = await authorizeBusinessAccess();
+  if (!authorized.success) return { ...authorized, items: [] };
+
+  const { data, error } = await authorized.supabase
+    .from("business_catalog_items")
+    .select("id, user_id, source_type, source_product_id, name, category, brand, description, purchase_cost, sale_price, resale_stock_quantity, sku, barcode, supplier, image_urls, is_active, is_published, public_slug, created_at, updated_at")
+    .eq("user_id", authorized.userId)
+    .eq("is_active", false)
+    .order("name", { ascending: true });
+  if (error) return { success: false, error: error.message, items: [] };
+  return { success: true, items: (data || []) as BusinessCatalogItem[] };
 }
 
 export async function confirmBusinessStockReceiptAction(input: BusinessStockReceiptInput) {

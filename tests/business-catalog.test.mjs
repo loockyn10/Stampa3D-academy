@@ -148,3 +148,79 @@ test("archived catalog items disappear from operational loaders and historical r
   assert.doesNotMatch(archiveBlock, /business_sale_items/);
   assert.match(migration, /business_catalog_items_user_barcode_uidx[\s\S]*where barcode is not null/i);
 });
+
+test("catalog status filter defaults to active and separates archived items", () => {
+  const rows = [
+    { id: "a", is_active: true },
+    { id: "b", is_active: false },
+    { id: "c", is_active: true },
+  ];
+  assert.deepEqual(catalog.filterBusinessCatalogByStatus(rows, "active").map((row) => row.id), ["a", "c"]);
+  assert.deepEqual(catalog.filterBusinessCatalogByStatus(rows, "archived").map((row) => row.id), ["b"]);
+  assert.deepEqual(catalog.filterBusinessCatalogByStatus(rows, "all").map((row) => row.id), ["a", "b", "c"]);
+  assert.match(catalogPage, /useState<BusinessCatalogStatusFilter>\("active"\)/);
+  assert.match(catalogPage, /Activos[\s\S]*Archivados[\s\S]*Todos/);
+});
+
+test("catalog page shows archived badge, discreet empty state and a Reactivar action", () => {
+  assert.match(catalogPage, /Archivado<\/span>/);
+  assert.match(catalogPage, /No tenés productos archivados\./);
+  assert.match(catalogPage, /<ArchiveRestore size=\{14\} \/>\} Reactivar/);
+  assert.match(catalogPage, /loadArchivedBusinessCatalogItemsAction/);
+  assert.doesNotMatch(catalogPage, /\.delete\(|hardDelete/);
+});
+
+test("barcode conflict classification prefers active owners and flags archived ones", () => {
+  const archived = { id: "arch", name: "PLA Negro", brand: null, source_type: "resale", is_active: false };
+  const active = { id: "act", name: "PLA Blanco", brand: null, source_type: "resale", is_active: true };
+  assert.equal(catalog.classifyBusinessBarcodeConflict([]), null);
+  assert.deepEqual(catalog.classifyBusinessBarcodeConflict([archived]), { code: "archived_barcode_conflict", owner: archived });
+  assert.deepEqual(catalog.classifyBusinessBarcodeConflict([archived, active]), { code: "barcode_conflict", owner: active });
+});
+
+test("barcode conflicts are resolved by an owner-scoped backend lookup, archived rows included", () => {
+  const start = actions.indexOf("async function findBarcodeConflict");
+  const end = actions.indexOf("function barcodeConflictFailure", start);
+  const block = actions.slice(start, end);
+  assert.match(block, /\.from\("business_catalog_items"\)[\s\S]*\.eq\("user_id", userId\)/);
+  assert.match(block, /\.from\("business_catalog_barcodes"\)[\s\S]*\.eq\("user_id", userId\)/);
+  assert.doesNotMatch(block, /\.eq\("is_active"/);
+  assert.match(actions, /archived_barcode_conflict/);
+  assert.match(actions, /Este código de barras ya está asignado a/);
+  assert.match(actions, /Este código de barras pertenece a un producto archivado/);
+  for (const name of ["createResaleCatalogItemAction", "linkManufacturedProductAction", "saveBusinessCatalogBarcodesAction"]) {
+    const fnStart = actions.indexOf(`export async function ${name}`);
+    const fnEnd = actions.indexOf("\nexport async function", fnStart + 1);
+    assert.match(actions.slice(fnStart, fnEnd), /barcodeConflictOrNull\(/, name);
+  }
+  // Race with the pre-check: a unique violation is re-resolved into the same conflict shape.
+  assert.match(actions, /error\?\.code === "23505"[\s\S]*barcodeConflictOrNull/);
+});
+
+test("reactivating keeps the same row: owned update of is_active only, no insert or barcode change", () => {
+  const start = actions.indexOf("export async function restoreBusinessCatalogItemAction");
+  const end = actions.indexOf("export async function loadArchivedBusinessCatalogItemsAction", start);
+  const block = actions.slice(start, end);
+  assert.match(block, /authorizeBusinessAccess\(\)/);
+  assert.match(block, /\.update\(\{ is_active: true \}\)[\s\S]*\.eq\("id", input\.catalogItemId\)[\s\S]*\.eq\("user_id", authorized\.userId\)[\s\S]*\.eq\("is_active", false\)/);
+  assert.doesNotMatch(block, /\.insert\(|\.delete\(|barcode|business_sale|business_inventory_movements|resale_stock_quantity/);
+  assert.match(block, /itemId: data\.id/);
+});
+
+test("archived listing is owner-scoped and the conflict dialog reuses the canonical restore action", () => {
+  const start = actions.indexOf("export async function loadArchivedBusinessCatalogItemsAction");
+  const block = actions.slice(start, actions.indexOf("\nexport async function", start + 1));
+  assert.match(block, /\.eq\("user_id", authorized\.userId\)[\s\S]*\.eq\("is_active", false\)/);
+  assert.match(catalogPage, /Este código de barras pertenece a un producto archivado:/);
+  assert.match(catalogPage, /Reactivar producto[\s\S]*Ver archivado[\s\S]*Cancelar/);
+  const restoreCalls = catalogPage.match(/restoreBusinessCatalogItemAction\(/g) ?? [];
+  assert.equal(restoreCalls.length, 1, "restore logic must live in a single UI function");
+  assert.match(catalogPage, /reactivateFromConflict[\s\S]*reactivateItem\(barcodeConflict\.itemId\)/);
+});
+
+test("archived barcodes are never released: no migration frees them and archive keeps the barcode", () => {
+  const start = actions.indexOf("export async function archiveBusinessCatalogItemAction");
+  const block = actions.slice(start, actions.indexOf("\nexport async function", start + 1));
+  assert.doesNotMatch(block, /barcode/);
+  assert.match(catalogPage, /conserva su código de barras e historial/);
+});

@@ -132,3 +132,35 @@ export function normalizeBusinessStock(value: unknown): number | null {
   if (!Number.isFinite(parsed) || parsed < 0 || !Number.isInteger(parsed)) return null;
   return parsed;
 }
+
+export type BusinessCatalogStatusFilter = "active" | "archived" | "all";
+
+export function filterBusinessCatalogByStatus<T extends { is_active: boolean }>(
+  items: readonly T[],
+  status: BusinessCatalogStatusFilter,
+): T[] {
+  if (status === "all") return [...items];
+  return items.filter((item) => item.is_active === (status === "active"));
+}
+
+export interface BusinessBarcodeOwner {
+  id: string;
+  name: string;
+  brand: string | null;
+  source_type: BusinessCatalogSourceType;
+  is_active: boolean;
+}
+
+export type BusinessBarcodeConflict =
+  | { code: "barcode_conflict"; owner: BusinessBarcodeOwner }
+  | { code: "archived_barcode_conflict"; owner: BusinessBarcodeOwner };
+
+/** Active owners take precedence: an archived row only matters when no active item holds the code. */
+export function classifyBusinessBarcodeConflict(
+  owners: readonly BusinessBarcodeOwner[],
+): BusinessBarcodeConflict | null {
+  const active = owners.find((owner) => owner.is_active);
+  if (active) return { code: "barcode_conflict", owner: active };
+  const archived = owners[0];
+  return archived ? { code: "archived_barcode_conflict", owner: archived } : null;
+}
