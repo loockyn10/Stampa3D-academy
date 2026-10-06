@@ -303,10 +303,10 @@ test("technical identifiers may only be revealed after an explicit user request"
     page: { section: "products", route: "/productos", title: "Productos" },
     selectedEntity: { type: "product", id: "product-123", name: "Jarro Honda HRC" },
   });
-  const actionSource = fs.readFileSync(path.join(root, "src/app/stampy/actions.ts"), "utf8");
+  const basePrompt = fs.readFileSync(path.join(root, "src/lib/stampy/system-prompt.ts"), "utf8");
 
   assert.match(prompt, /Sólo podés mostrar una ruta o un identificador si el usuario pide explícitamente/);
-  assert.match(actionSource, /Sólo revelá una ruta o un identificador cuando el usuario pida explícitamente/);
+  assert.match(basePrompt, /Sólo revelá una ruta o un identificador cuando el usuario pida explícitamente/);
 });
 
 test("edit mode gets a human activity description while its raw key stays internal", () => {

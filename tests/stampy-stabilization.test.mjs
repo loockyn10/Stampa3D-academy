@@ -844,6 +844,7 @@ function makeHistorySupabase(rows) {
     from(table) {
       assert.equal(table, "stampy_messages");
       const filters = {};
+      const orders = [];
       const query = {
         select() {
           return this;
@@ -853,17 +854,23 @@ function makeHistorySupabase(rows) {
           return this;
         },
         order(column, options) {
-          assert.equal(column, "created_at");
-          assert.deepEqual(options, { ascending: false });
+          orders.push({ column, ...options });
           return this;
         },
         async limit(limit) {
+          assert.deepEqual(orders, [
+            { column: "created_at", ascending: false },
+            { column: "role", ascending: true },
+          ]);
           queries.push({ filters: { ...filters }, limit });
           const data = rows
             .filter((row) =>
               Object.entries(filters).every(([column, value]) => row[column] === value)
             )
-            .sort((left, right) => right.created_at.localeCompare(left.created_at))
+            .sort((left, right) =>
+              right.created_at.localeCompare(left.created_at) ||
+              left.role.localeCompare(right.role)
+            )
             .slice(0, limit)
             .map(({ role, content, created_at }) => ({ role, content, created_at }));
           return { data, error: null };
@@ -912,8 +919,59 @@ test("recent history is isolated by both conversation and current user", async (
   assert.doesNotMatch(JSON.stringify(previousMessages), /Lucas|jarros|100g|presupuesto/i);
   assert.deepEqual(supabase.queries[0], {
     filters: { conversation_id: "conversation-b", user_id: "user-1" },
-    limit: 8
+    limit: 12
   });
+});
+
+test("recent history keeps user before assistant when a turn shares created_at", async () => {
+  const history = loadHistoryModule();
+  const sameInstant = "2026-08-26T10:00:00.000Z";
+  const supabase = makeHistorySupabase([
+    {
+      conversation_id: "conversation-tie",
+      user_id: "user-1",
+      role: "assistant",
+      content: "Probá secar el filamento y bajar 5 °C.",
+      created_at: sameInstant
+    },
+    {
+      conversation_id: "conversation-tie",
+      user_id: "user-1",
+      role: "user",
+      content: "Tengo stringing con PETG.",
+      created_at: sameInstant
+    }
+  ]);
+
+  assert.deepEqual(
+    await history.getRecentHistory(supabase, "conversation-tie", "user-1"),
+    [
+      { role: "user", content: "Tengo stringing con PETG." },
+      { role: "assistant", content: "Probá secar el filamento y bajar 5 °C." }
+    ]
+  );
+});
+
+test("recent history drops the oldest messages first when the total budget is exceeded", async () => {
+  const history = loadHistoryModule();
+  const rows = Array.from({ length: 8 }, (_, index) => ({
+    conversation_id: "conversation-long",
+    user_id: "user-1",
+    role: index % 2 === 0 ? "user" : "assistant",
+    content: `${index}:${"x".repeat(3000)}`,
+    created_at: `2026-08-26T10:0${index}:00.000Z`
+  }));
+  const previousMessages = await history.getRecentHistory(
+    makeHistorySupabase(rows),
+    "conversation-long",
+    "user-1"
+  );
+
+  const totalChars = previousMessages.reduce((total, message) => total + message.content.length, 0);
+  assert.ok(totalChars <= 14000, `history had ${totalChars} chars`);
+  assert.ok(previousMessages.every((message) => message.content.length <= 2400));
+  assert.match(previousMessages.at(-1).content, /^7:/);
+  assert.doesNotMatch(JSON.stringify(previousMessages), /"0:/);
 });
 
 test("recent history remains chronological inside the same conversation", async () => {

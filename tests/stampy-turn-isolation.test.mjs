@@ -86,7 +86,7 @@ test("all Stampy clients append one response value into a unique message bubble"
 
 test("the server cleans the raw model reply before persistence and return", () => {
   const source = fs.readFileSync(path.join(root, "src/app/stampy/actions.ts"), "utf8");
-  const rawIndex = source.indexOf("const rawAnswerText =");
+  const rawIndex = source.indexOf("rawAnswerText = extractStampyResponseText(");
   const isolateIndex = source.indexOf("isolateCurrentStampyReply", rawIndex);
   const saveIndex = source.indexOf("const saved = await saveMessages", isolateIndex);
   const returnIndex = source.indexOf("answer: answerText", saveIndex);
@@ -95,5 +95,6 @@ test("the server cleans the raw model reply before persistence and return", () =
   assert.ok(isolateIndex > rawIndex);
   assert.ok(saveIndex > isolateIndex);
   assert.ok(returnIndex > saveIndex);
-  assert.match(source, /El historial es contexto interno para comprender referencias/);
+  const prompt = fs.readFileSync(path.join(root, "src/lib/stampy/system-prompt.ts"), "utf8");
+  assert.match(prompt, /El historial es contexto interno para comprender referencias/);
 });

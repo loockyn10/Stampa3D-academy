@@ -1,6 +1,11 @@
 import { SupabaseClient } from "@supabase/supabase-js";
 import { StampyConversation, StampyMessage } from "./types";
 
+// Ventana de la conversación activa que recibe el modelo (6 turnos).
+export const STAMPY_HISTORY_MAX_MESSAGES = 12;
+export const STAMPY_HISTORY_MESSAGE_MAX_CHARS = 2400;
+export const STAMPY_HISTORY_TOTAL_MAX_CHARS = 14000;
+
 interface EnsureConversationParams {
   supabase: SupabaseClient;
   userId: string;
@@ -64,24 +69,35 @@ export async function getRecentHistory(
   userId: string
 ): Promise<{ role: "user" | "assistant"; content: string }[]> {
   try {
+    // saveMessages inserta usuario y asistente del mismo turno en un solo
+    // INSERT, así que comparten created_at: el rol desempata el orden.
     const { data: recentMessages, error } = await supabase
       .from("stampy_messages")
       .select("role, content, created_at")
       .eq("conversation_id", conversationId)
       .eq("user_id", userId)
       .order("created_at", { ascending: false })
-      .limit(8);
+      .order("role", { ascending: true })
+      .limit(STAMPY_HISTORY_MAX_MESSAGES);
 
     if (error) {
       console.error("[Stampy] recent history failed", error);
       return [];
     }
 
-    // Reverse to chronological order and truncate
-    const history = (recentMessages ?? []).reverse().map((m: any) => ({
-      role: m.role as "user" | "assistant",
-      content: m.content.substring(0, 1200),
-    }));
+    // Newest first: keep whole messages while the total budget allows it.
+    const newestFirst: { role: "user" | "assistant"; content: string }[] = [];
+    let totalChars = 0;
+    for (const m of (recentMessages ?? []) as Array<{ role: string; content: string | null }>) {
+      if (m.role !== "user" && m.role !== "assistant") continue;
+      const content = (m.content ?? "").substring(0, STAMPY_HISTORY_MESSAGE_MAX_CHARS);
+      if (!content.trim()) continue;
+      if (totalChars + content.length > STAMPY_HISTORY_TOTAL_MAX_CHARS) break;
+      newestFirst.push({ role: m.role, content });
+      totalChars += content.length;
+    }
+
+    const history = newestFirst.reverse();
 
     if (process.env.NODE_ENV !== "production") {
       console.log("[Stampy History]", {

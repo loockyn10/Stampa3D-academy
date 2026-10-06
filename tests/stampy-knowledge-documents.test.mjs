@@ -351,13 +351,13 @@ test("admin actions reauthorize and Stampy prompt treats documents separately fr
     path.join(root, "src/app/admin/stampy/documentos/actions.ts"),
     "utf8",
   );
-  const stampyActions = fs.readFileSync(
-    path.join(root, "src/app/stampy/actions.ts"),
+  const stampyPrompt = fs.readFileSync(
+    path.join(root, "src/lib/stampy/system-prompt.ts"),
     "utf8",
   );
 
   assert.match(actions, /getCurrentUserAccess\(supabase\)/);
   assert.match(actions, /access\.capabilities\.accessAdmin/);
-  assert.match(stampyActions, /Un documento nunca demuestra que exista una clase o video/);
-  assert.match(stampyActions, /No menciones embeddings, chunks, RAG, SQL ni Storage/);
+  assert.match(stampyPrompt, /Un documento nunca demuestra que exista una clase o video/);
+  assert.match(stampyPrompt, /Nunca nombres SQL, RPC.*ni embeddings, chunks, RAG o Storage/);
 });

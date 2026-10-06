@@ -43,6 +43,7 @@ const actionIntents = loadTypeScriptModule(
 const lessonRecommendations = loadTypeScriptModule(
   "src/lib/stampy/lesson-recommendations.ts"
 );
+const systemPrompt = loadTypeScriptModule("src/lib/stampy/system-prompt.ts");
 
 function candidate(overrides = {}) {
   return {
@@ -252,17 +253,26 @@ test("a ready transcript is real content but still needs a clear topical match",
   );
 });
 
-test("recommendation copy never invents a class when ranking returns no match", () => {
-  const intent = knowledgeIntent.classifyStampyKnowledgeIntent(
-    "tenés un video sobre soportes?"
-  );
-  assert.equal(
-    lessonRecommendations.buildStampyLessonRecommendationText({
-      recommendations: [],
-      intent,
-    }),
-    "No encontré una clase específica que coincida con esta consulta."
-  );
+test("an empty recommendation search never claims Academia lacks the content", () => {
+  const prompt = systemPrompt.formatStampyLessonRecommendationsForPrompt([]);
+
+  assert.match(prompt, /no significa que Academia no tenga contenido sobre el tema/);
+  assert.match(prompt, /no afirmes que no existe una clase y no nombres clases/);
+  assert.equal(lessonRecommendations.buildStampyLessonRecommendationText, undefined);
+});
+
+test("retrieved lessons are low-confidence, exact-title suggestions for the model", () => {
+  const prompt = systemPrompt.formatStampyLessonRecommendationsForPrompt([
+    { title: "Primera capa sin fallas", courseTitle: "Fundamentos de impresión 3D", ai_summary: "Adherencia y offset Z." },
+    { title: "Offset Z paso a paso", courseTitle: "Fundamentos de impresión 3D", ai_summary: null },
+    { title: "Tercera clase", courseTitle: "Otro curso", ai_summary: null },
+  ]);
+
+  assert.match(prompt, /sugerencias de baja confianza/);
+  assert.match(prompt, /"Primera capa sin fallas" del curso "Fundamentos de impresión 3D": Adherencia y offset Z\./);
+  assert.match(prompt, /Si no encaja, no la menciones/);
+  assert.match(prompt, /No escribas links/);
+  assert.doesNotMatch(prompt, /Tercera clase/);
 });
 
 test("retrieval is skipped for vague or navigation turns and kept for grounded knowledge intents", () => {
@@ -306,11 +316,16 @@ test("askStampyAction delegates recommendations to the strict helper", () => {
     "utf8"
   );
 
-  assert.match(source, /classifyStampyKnowledgeIntent\(userMessage\)/);
+  assert.match(source, /classifyStampyKnowledgeIntent\(contextQuery\)/);
   assert.match(source, /findStampyLessonRecommendations/);
   assert.match(source, /knowledgeIntent\?\.type === "course_recommendation"/);
-  assert.match(source, /const recommendationText = shouldRecommendLessons/);
+  assert.match(source, /formatStampyLessonRecommendationsForPrompt\(recommendations\)/);
   assert.match(source, /limit: 2/);
+  assert.doesNotMatch(source, /recommendationText/);
   assert.doesNotMatch(source, /búsqueda textual simple/);
   assert.doesNotMatch(source, /slice\(0, 3\)/);
+
+  const recommendationIndex = source.indexOf("findStampyLessonRecommendations({");
+  const modelIndex = source.indexOf("openai.responses.create(");
+  assert.ok(recommendationIndex > 0 && recommendationIndex < modelIndex);
 });

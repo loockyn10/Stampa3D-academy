@@ -7,6 +7,7 @@ const root = process.cwd();
 const messageRendererPath = path.join(root, "src/components/stampy/StampyMessageContent.tsx");
 const messageRendererSource = fs.readFileSync(messageRendererPath, "utf8");
 const actionSource = fs.readFileSync(path.join(root, "src/app/stampy/actions.ts"), "utf8");
+const promptSource = fs.readFileSync(path.join(root, "src/lib/stampy/system-prompt.ts"), "utf8");
 
 test("every Stampy client uses the shared message renderer", () => {
   const clients = [
@@ -49,12 +50,12 @@ test("message typography supports compact mobile-safe paragraphs, lists, code an
 });
 
 test("the prompt chooses formatting by intent without forcing Markdown everywhere", () => {
-  assert.match(actionSource, /Una respuesta simple sigue siendo una frase o un párrafo breve/);
-  assert.match(actionSource, /procedimientos secuenciales usá una lista numerada/);
-  assert.match(actionSource, /opciones independientes usá entre 2 y 4 bullets/);
-  assert.match(actionSource, /preferí bloques breves; usá una tabla Markdown sólo si es corta/);
-  assert.match(actionSource, /No anuncies el formato/);
-  assert.match(actionSource, /Sólo crees un enlace Markdown hacia una página interna real y verificada de Stampa/);
+  assert.match(promptSource, /Párrafos cortos\. Un título breve sólo si hay dos o más temas/);
+  assert.match(promptSource, /Lista numerada para pasos secuenciales; bullets para opciones independientes/);
+  assert.match(promptSource, /preferí bloques breves; usá una tabla Markdown sólo si es corta/);
+  assert.match(promptSource, /No anuncies el formato/);
+  assert.match(promptSource, /Sólo crees un enlace Markdown hacia una página interna real y verificada de Stampa/);
+  assert.match(promptSource, /No uses HTML/);
 });
 
 test("existing real recommendation, tool and action controls remain separate from model Markdown", () => {
@@ -66,6 +67,9 @@ test("existing real recommendation, tool and action controls remain separate fro
 });
 
 test("Stampy still waits for the complete model response instead of rendering partial Markdown", () => {
-  assert.match(actionSource, /openai\.chat\.completions\.create\(/);
+  const responsesSource = fs.readFileSync(path.join(root, "src/lib/stampy/responses.ts"), "utf8");
+  assert.match(actionSource, /openai\.responses\.create\(/);
+  assert.doesNotMatch(actionSource, /chat\.completions/);
   assert.doesNotMatch(actionSource, /stream:\s*true/);
+  assert.doesNotMatch(responsesSource, /stream:\s*true/);
 });

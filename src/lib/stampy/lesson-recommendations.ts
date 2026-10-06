@@ -1,8 +1,5 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
-import type {
-  StampyKnowledgeIntent,
-  StampyKnowledgeIntentType,
-} from "./knowledge-intent";
+import type { StampyKnowledgeIntent } from "./knowledge-intent";
 
 type UnknownRecord = Record<string, unknown>;
 
@@ -392,41 +389,4 @@ export async function findStampyLessonRecommendations({
     );
     return [];
   }
-}
-
-const RECOMMENDATION_INTENTS = new Set<StampyKnowledgeIntentType>([
-  "technical_troubleshooting",
-  "slicer_help",
-  "material_help",
-  "printer_calibration",
-  "business_help",
-  "course_recommendation",
-  "general_3d_question",
-]);
-
-export function buildStampyLessonRecommendationText({
-  recommendations,
-  intent,
-}: {
-  recommendations: StampyLessonRecommendation[];
-  intent: StampyKnowledgeIntent | null;
-}): string {
-  if (!intent || !RECOMMENDATION_INTENTS.has(intent.type)) return "";
-
-  if (recommendations.length === 0) {
-    return "No encontré una clase específica que coincida con esta consulta.";
-  }
-
-  if (recommendations.length === 1) {
-    const recommendation = recommendations[0];
-    return `Te recomiendo ver: ${recommendation.title} dentro de ${recommendation.courseTitle}.`;
-  }
-
-  return `También te pueden servir:\n${recommendations
-    .slice(0, 2)
-    .map(
-      (recommendation) =>
-        `- ${recommendation.title} dentro de ${recommendation.courseTitle}`
-    )
-    .join("\n")}`;
 }

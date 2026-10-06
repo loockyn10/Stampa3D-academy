@@ -202,3 +202,12 @@ Si trabajan sucesivamente sobre la misma feature, el segundo parte del código a
 - El Beta temporal no es la futura insignia permanente Cofundador/Beta Tester.
 - Una migration nueva **nunca** sobrescribe lógica remota no versionada: `has_platform_access()` no se reemplaza automáticamente; la migration solo verifica compatibilidad y aborta si no puede (corrección manual y revisada aparte).
 - Los códigos plaintext legacy de `invite_codes` (tipos beta/manual) quedan desaconsejados; retirarlos es deuda (ver TASKS).
+
+## D024 — Stampy conversa con Responses API y el historial lo administra la app
+
+**Estado:** Accepted (2026-10-06)
+
+- Stampy usa `openai.responses.create` (no Chat Completions) con `store: false`. El modelo es `OPENAI_MODEL` (default `gpt-5.6-terra`) con razonamiento configurable (`STAMPY_REASONING_EFFORT`, default `low`).
+- La conversación multi-turn se arma con el historial de `stampy_messages` (roles nativos user/assistant), no con `previous_response_id` ni Conversations API: los turnos resueltos sin modelo (acciones, herramientas directas) también son parte de la conversación, Supabase sigue siendo la única fuente de verdad y no se retiene estado del usuario en OpenAI.
+- Responder primero, derivar después: Stampy ayuda con conocimiento general y ofrece herramientas/clases de Stampa como complemento. Que el ranking no encuentre clases no implica que Academia no tenga contenido; sólo se nombran clases recuperadas por el backend.
+- Si el modelo falla o no devuelve texto, se muestra un fallback explícito (no se guarda como respuesta) y se loguea server-side sin secretos.

@@ -45,6 +45,11 @@ const actionValidator = loadTypeScriptModule("src/lib/stampy/action-validator.ts
   "./types": {},
 });
 const replyPolicy = loadTypeScriptModule("src/lib/stampy/reply-policy.ts");
+const responses = loadTypeScriptModule("src/lib/stampy/responses.ts");
+const systemPrompt = loadTypeScriptModule("src/lib/stampy/system-prompt.ts");
+const knowledgeSearch = loadTypeScriptModule("src/lib/stampy/knowledge-search.ts", {
+  "./app-knowledge": loadTypeScriptModule("src/lib/stampy/app-knowledge.ts"),
+});
 
 function makeMemory(overrides = {}) {
   return {
@@ -65,16 +70,19 @@ function loadMemoryAwareAskStampyAction({
   loadMemory,
   saveMemory,
   openAiAnswer = "Respuesta normal",
+  openAiError = null,
   recentHistory = [],
   retrieveKnowledge,
   findRecommendations,
-  buildRecommendationText,
+  findKnowledge = () => [],
 } = {}) {
   const events = [];
   const assistantMetadata = [];
   const metadataUpdates = [];
   const rpcCalls = [];
   const completionPayloads = [];
+  const responsePayloads = [];
+  const usageLogs = [];
   const savedTurns = [];
   const retrievalCalls = [];
   const recommendationCalls = [];
@@ -116,13 +124,17 @@ function loadMemoryAwareAskStampyAction({
 
   class MockOpenAI {
     constructor() {
-      this.chat = {
-        completions: {
-          create: async (payload) => {
-            events.push("openai");
-            completionPayloads.push(payload);
-            return { choices: [{ message: { content: openAiAnswer } }] };
-          },
+      this.responses = {
+        create: async (payload) => {
+          events.push("openai");
+          responsePayloads.push(payload);
+          // Vista compatible: [instrucciones, ...input con roles].
+          completionPayloads.push({
+            ...payload,
+            messages: [{ role: "system", content: payload.instructions }, ...payload.input],
+          });
+          if (openAiError) throw openAiError;
+          return { status: "completed", output_text: openAiAnswer };
         },
       };
     }
@@ -229,7 +241,12 @@ function loadMemoryAwareAskStampyAction({
       getStampyRelevantContexts: async () => ({ contextsCount: 0, text: "" }),
     },
     "@/lib/stampy/user-context": { getStampyUserContext: async () => null },
-    "@/lib/stampy/knowledge-search": { findRelevantKnowledge: () => [] },
+    "@/lib/stampy/knowledge-search": { findRelevantKnowledge: findKnowledge },
+    "@/lib/stampy/lesson-transcripts": {
+      getLessonTranscriptContext: async () => ({ text: "", transcriptFound: false }),
+    },
+    "@/lib/stampy/responses": responses,
+    "@/lib/stampy/system-prompt": systemPrompt,
     "@/lib/stampy/retrieval": {
       retrieveStampyKnowledge: async (params) => {
         retrievalCalls.push(params);
@@ -242,10 +259,12 @@ function loadMemoryAwareAskStampyAction({
         recommendationCalls.push(params);
         return findRecommendations ? findRecommendations(params) : [];
       },
-      buildStampyLessonRecommendationText:
-        buildRecommendationText ?? (() => ""),
     },
-    "@/lib/stampy/usage-log": { logStampyUsage: async () => undefined },
+    "@/lib/stampy/usage-log": {
+      logStampyUsage: async (entry) => {
+        usageLogs.push(entry);
+      },
+    },
     openai: { OpenAI: MockOpenAI },
   });
 
@@ -256,6 +275,8 @@ function loadMemoryAwareAskStampyAction({
     metadataUpdates,
     rpcCalls,
     completionPayloads,
+    responsePayloads,
+    usageLogs,
     savedTurns,
     retrievalCalls,
     recommendationCalls,
@@ -558,20 +579,19 @@ test("askStampyAction injects a sanitized current UI snapshot before history", a
   assert.equal(messages[1].content, "Mensaje histórico");
 });
 
-test("askStampyAction prioritizes the exact intent and a minimum sufficient response", async () => {
+test("askStampyAction answers concisely by default and in depth when needed", async () => {
   const harness = loadMemoryAwareAskStampyAction();
 
   await harness.actions.askStampyAction("¿Cuánto es el total?");
   const prompt = harness.completionPayloads[0].messages[0].content;
 
-  assert.match(prompt, /Resolver la intención actual del usuario/);
-  assert.match(prompt, /respuesta mínima suficiente/i);
-  assert.match(prompt, /Consulta simple: respondé en 1 a 3 frases/);
-  assert.match(prompt, /Si el usuario pide el motivo, un desglose o más detalle, recién entonces ampliá/);
-  assert.match(prompt, /No enumeres ni menciones datos sólo porque están disponibles/);
+  assert.ok(prompt.startsWith(systemPrompt.STAMPY_SYSTEM_PROMPT));
+  assert.match(prompt, /Por defecto, conciso/);
+  assert.match(prompt, /Si la persona pide detalle, una explicación a fondo o "explicame mejor", respondé en detalle/);
+  assert.match(prompt, /mencioná un dato sólo cuando aporte a la respuesta/);
   assert.match(prompt, /Si pregunta sólo por un total visible, respondé sólo ese total/);
+  assert.doesNotMatch(prompt, /Consulta simple: respondé en 1 a 3 frases/);
   assert.doesNotMatch(prompt, /hasta 3 viñetas si ayudan y un próximo paso claro/);
-  assert.doesNotMatch(prompt, /Para negocio, proponé una acción concreta/);
 });
 
 test("askStampyAction does not invent UI or promise unsupported actions", async () => {
@@ -614,8 +634,8 @@ test("grounding A: a Cursos versus Talleres answer starts with content, not resp
   assert.equal(result.answer, directAnswer);
   assert.equal(harness.retrievalCalls.length, 0);
   assert.equal(harness.recommendationCalls.length, 0);
-  assert.match(prompt, /APERTURA DIRECTA/);
-  assert.match(prompt, /No anuncies cómo vas a responder/);
+  assert.match(prompt, /Empezá por el contenido/);
+  assert.match(prompt, /no anuncies cómo vas a responder/i);
   assert.doesNotMatch(prompt, /Respuestas MUY breves y prácticas/);
 });
 
@@ -679,7 +699,7 @@ test("grounding D: an absent course exercise cannot be presented as official con
 
   assert.equal(result.answer, safeAnswer);
   assert.equal(harness.recommendationCalls.length, 0);
-  assert.match(prompt, /GROUNDING DE CONTENIDO DE ACADEMIA/);
+  assert.match(prompt, /ACADEMIA: CLASES Y CURSOS/);
   assert.match(prompt, /un título de curso no prueba que tenga determinado primer ejercicio/i);
   assert.match(prompt, /sugerencia de Stampy.*nunca como parte oficial/i);
 });
@@ -814,6 +834,185 @@ test("memory load and save failures never replace a valid Stampy response", asyn
     loadedCount: 0,
     savedCount: 0,
   });
+});
+
+test("askStampyAction calls the Responses API with native multi-turn input and no stored state", async () => {
+  const harness = loadMemoryAwareAskStampyAction({
+    recentHistory: [
+      { role: "user", content: "Se me despega la primera capa con PLA." },
+      { role: "assistant", content: "Limpiá la cama y revisá el offset Z." },
+    ],
+  });
+
+  await harness.actions.askStampyAction("¿y con PETG?");
+  const payload = harness.responsePayloads[0];
+
+  assert.equal(payload.model, process.env.OPENAI_MODEL || "gpt-5.6-terra");
+  assert.equal(payload.store, false);
+  assert.ok(payload.instructions.startsWith(systemPrompt.STAMPY_SYSTEM_PROMPT));
+  assert.deepEqual(payload.input, [
+    { role: "user", content: "Se me despega la primera capa con PLA." },
+    { role: "assistant", content: "Limpiá la cama y revisá el offset Z." },
+    { role: "user", content: "¿y con PETG?" },
+  ]);
+  assert.equal("messages" in payload, false);
+  assert.equal(harness.assistantMetadata[0].followUp, true);
+});
+
+test("a short follow-up keeps the topic for intent, retrieval and memory lookups", async () => {
+  const harness = loadMemoryAwareAskStampyAction({
+    recentHistory: [
+      { role: "user", content: "Se me despega la primera capa con PLA." },
+      { role: "assistant", content: "Limpiá la cama y revisá el offset Z." },
+    ],
+  });
+
+  await harness.actions.askStampyAction("¿y con PETG?");
+  const prompt = harness.completionPayloads[0].messages[0].content;
+
+  assert.match(prompt, /diagnóstico técnico/);
+  assert.doesNotMatch(prompt, /ORIENTACIÓN SEGÚN EL TIPO DE CONSULTA[^\n]*: materiales/);
+  assert.match(harness.retrievalCalls[0].query, /primera capa con PLA[\s\S]*¿y con PETG\?/);
+});
+
+test("a new topic is not mixed with the previous turn", async () => {
+  const harness = loadMemoryAwareAskStampyAction({
+    recentHistory: [
+      { role: "user", content: "Se me despega la primera capa con PLA." },
+      { role: "assistant", content: "Limpiá la cama y revisá el offset Z." },
+    ],
+  });
+
+  await harness.actions.askStampyAction("¿Qué temperatura de cama conviene para imprimir TPU flexible?");
+
+  assert.equal(
+    harness.retrievalCalls[0].query,
+    "¿Qué temperatura de cama conviene para imprimir TPU flexible?"
+  );
+  assert.equal(harness.assistantMetadata[0].followUp, false);
+});
+
+test("a model failure returns an explicit fallback and never persists it as an answer", async () => {
+  const apiError = Object.assign(new Error("Incorrect API key provided: sk-proj-abcdefghijklmnop"), {
+    status: 401,
+    code: "invalid_api_key",
+    headers: { authorization: "Bearer sk-proj-abcdefghijklmnop" },
+  });
+  const harness = loadMemoryAwareAskStampyAction({ openAiError: apiError });
+  const logged = [];
+  const originalConsoleError = console.error;
+  console.error = (...args) => logged.push(JSON.stringify(args));
+  let result;
+  try {
+    result = await harness.actions.askStampyAction("¿Qué es el infill?");
+  } finally {
+    console.error = originalConsoleError;
+  }
+
+  assert.equal(result.answer, responses.STAMPY_MODEL_UNAVAILABLE_MESSAGE);
+  assert.equal(result.error, responses.STAMPY_MODEL_UNAVAILABLE_MESSAGE);
+  assert.equal(result.errorCode, "model_unavailable");
+  assert.equal(result.assistantMessageId, null);
+  assert.deepEqual(harness.savedTurns, []);
+  assert.equal(harness.usageLogs.at(-1).mode, "error");
+  assert.ok(logged.length > 0);
+  assert.doesNotMatch(logged.join("\n"), /sk-proj-abcdefghijklmnop|authorization|Bearer/);
+  assert.doesNotMatch(JSON.stringify(harness.usageLogs), /sk-proj-abcdefghijklmnop/);
+});
+
+test("an empty model output is treated as unavailable instead of a fake answer", async () => {
+  const harness = loadMemoryAwareAskStampyAction({ openAiAnswer: "   " });
+  const originalConsoleError = console.error;
+  console.error = () => undefined;
+  let result;
+  try {
+    result = await harness.actions.askStampyAction("¿Qué es el infill?");
+  } finally {
+    console.error = originalConsoleError;
+  }
+
+  assert.equal(result.errorCode, "model_unavailable");
+  assert.deepEqual(harness.savedTurns, []);
+});
+
+test("the current lesson is the first turn context and frames follow-ups", async () => {
+  const harness = loadMemoryAwareAskStampyAction({
+    recentHistory: [
+      { role: "user", content: "¿Por qué baja la velocidad en la primera capa?" },
+      { role: "assistant", content: "Para que el plástico se aplaste y pegue mejor." },
+    ],
+  });
+
+  await harness.actions.askStampyAction("explicame mejor", null, {
+    source: "lesson",
+    pathname: "/cursos/fundamentos",
+    courseTitle: "Fundamentos de impresión 3D",
+    moduleTitle: "Primeros pasos",
+    lessonId: "lesson-1",
+    lessonTitle: "Primera capa sin fallas",
+    lessonSummary: "Cómo lograr adherencia en la primera capa.",
+    lessonTopics: ["primera capa", "offset Z"],
+  });
+  const payload = harness.responsePayloads[0];
+  const turnContext = payload.instructions.split("# CONTEXTO DE ESTE TURNO")[1];
+
+  assert.match(turnContext, /^[\s\S]*?CLASE QUE LA PERSONA ESTÁ VIENDO/);
+  assert.ok(
+    turnContext.indexOf("CLASE QUE LA PERSONA ESTÁ VIENDO") < turnContext.indexOf("DATOS DEL USUARIO Y TALLER:")
+  );
+  assert.match(turnContext, /- Clase: Primera capa sin fallas/);
+  assert.match(turnContext, /- Curso: Fundamentos de impresión 3D/);
+  assert.equal(payload.input.length, 3);
+  assert.equal(harness.retrievalCalls[0].lessonId, "lesson-1");
+});
+
+test("a pricing question gets the related tool as optional context, not as the answer", async () => {
+  const harness = loadMemoryAwareAskStampyAction({
+    findKnowledge: knowledgeSearch.findRelevantKnowledge,
+  });
+
+  const result = await harness.actions.askStampyAction("¿Cómo calculo cuánto cobrar una impresión?");
+  const prompt = harness.completionPayloads[0].messages[0].content;
+
+  assert.match(prompt, /HERRAMIENTAS DE STAMPA RELACIONADAS CON LA CONSULTA/);
+  assert.match(prompt, /Calculadora avanzada/);
+  assert.match(prompt, /ofrecelas sólo después de responder/);
+  assert.match(prompt, /explicá los factores principales/);
+  assert.ok(result.knowledgeTools.some((tool) => tool.id === "calculator-advanced"));
+});
+
+test("a class request with no ranked lessons does not append a negative claim", async () => {
+  const harness = loadMemoryAwareAskStampyAction({
+    openAiAnswer: "Para soportes fáciles de sacar, probá interfaz y distancia Z de 0,2 mm.",
+  });
+
+  const result = await harness.actions.askStampyAction("¿tenés un video sobre soportes?");
+  const prompt = harness.completionPayloads[0].messages[0].content;
+
+  assert.equal(harness.recommendationCalls.length, 1);
+  assert.match(prompt, /CLASES RECUPERADAS: ninguna en esta búsqueda/);
+  assert.equal(result.answer, "Para soportes fáciles de sacar, probá interfaz y distancia Z de 0,2 mm.");
+  assert.doesNotMatch(result.answer, /No encontré una clase/);
+  assert.deepEqual(result.recommendations, []);
+});
+
+test("ranked lessons are given to the model before answering and returned as cards", async () => {
+  const lesson = {
+    id: "lesson-9",
+    title: "Soportes fáciles de retirar",
+    courseTitle: "Slicer práctico",
+    ai_summary: "Interfaz y distancia Z de soportes.",
+    href: "/cursos/slicer-practico",
+  };
+  const harness = loadMemoryAwareAskStampyAction({ findRecommendations: () => [lesson] });
+
+  const result = await harness.actions.askStampyAction("¿tenés un video sobre soportes?");
+  const prompt = harness.completionPayloads[0].messages[0].content;
+
+  assert.ok(harness.events.indexOf("openai") > 0);
+  assert.match(prompt, /"Soportes fáciles de retirar" del curso "Slicer práctico"/);
+  assert.deepEqual(result.recommendations, [lesson]);
+  assert.equal(result.answer, "Respuesta normal");
 });
 
 test("direct intents keep the fast path without loading or saving memory", async () => {

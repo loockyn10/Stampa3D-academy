@@ -264,45 +264,49 @@ export function classifyStampyKnowledgeIntent(
   return null;
 }
 
+const INTENT_HINT_HEADER =
+  "ORIENTACIÓN SEGÚN EL TIPO DE CONSULTA (detectado automáticamente; si no encaja con lo que se pide ahora o con el tema de la conversación, ignorala)";
+
 export function formatStampyKnowledgeIntentForPrompt(
   intent: StampyKnowledgeIntent | null
 ): string {
   if (!intent) return "";
 
   const focusText = intent.focus.length > 0
-    ? `\nPuntos que conviene revisar: ${intent.focus.join(", ")}.`
+    ? `
+Puntos que suele convenir revisar: ${intent.focus.join(", ")}.`
     : "";
 
   if (intent.type === "technical_troubleshooting") {
-    return `TIPO DE CONSULTA: diagnóstico técnico.${focusText}
+    return `${INTENT_HINT_HEADER}: diagnóstico técnico.${focusText}
 Explicá primero la causa probable con palabras cotidianas. Después indicá hasta 5 pruebas o ajustes concretos, en orden, de a uno por vez. Explicá brevemente cualquier término técnico que sea importante y pedí sólo el dato necesario si el problema continúa.`;
   }
   if (intent.type === "slicer_help") {
-    return `TIPO DE CONSULTA: ayuda de slicer.${focusText}
-Indicá dónde revisar el ajuste, qué cambiar primero y cómo validar el resultado. Si el término del slicer puede no ser conocido, explicalo brevemente. Evitá listar parámetros que no sean relevantes.`;
+    return `${INTENT_HINT_HEADER}: ayuda de slicer.${focusText}
+Indicá qué ajuste mirar, qué cambiar primero y cómo validar el resultado. Si el término del slicer puede no ser conocido, explicalo brevemente. Evitá listar parámetros que no sean relevantes.`;
   }
   if (intent.type === "material_help") {
-    return `TIPO DE CONSULTA: material de impresión.${focusText}
-Dá un rango práctico como punto de partida, aclarando que debe validarse con la marca, la impresora y la velocidad usadas.`;
+    return `${INTENT_HINT_HEADER}: materiales.${focusText}
+Si piden valores, dá un rango práctico como punto de partida, aclarando que debe validarse con la marca, la impresora y la velocidad usadas.`;
   }
   if (intent.type === "printer_calibration") {
-    return `TIPO DE CONSULTA: calibración de impresora.${focusText}
+    return `${INTENT_HINT_HEADER}: calibración de impresora.${focusText}
 Si la pregunta pide detalle técnico, usá el vocabulario preciso sin rebajarlo. En los demás casos, explicá la causa en lenguaje cotidiano y ordená la calibración en pasos seguros, de a un cambio por vez, indicando cómo comprobar si mejoró.`;
   }
   if (intent.type === "business_help") {
-    return `TIPO DE CONSULTA: negocio de impresión 3D.${focusText}
-Proponé como máximo 3 líneas concretas y una validación rápida. No des una lista larga ni inventes demanda o rentabilidad.`;
+    return `${INTENT_HINT_HEADER}: negocio de impresión 3D.${focusText}
+Preferí pocas propuestas concretas (como máximo 3 líneas concretas) y una validación rápida antes que una lista larga. No inventes demanda o rentabilidad.`;
   }
   if (intent.type === "platform_navigation") {
-    return "TIPO DE CONSULTA: navegación de Academia Stampa. Respondé sólo con la sección o ubicación respaldada por el contexto actual. No agregues configuración técnica ni contenido lateral.";
+    return `${INTENT_HINT_HEADER}: navegación de Academia Stampa. Respondé sólo con la sección o ubicación respaldada por el contexto actual. No agregues configuración técnica ni contenido lateral.`;
   }
   if (intent.type === "course_recommendation") {
-    return "TIPO DE CONSULTA: búsqueda de clase o video. Respondé la duda si podés, pero no nombres una clase concreta: el servidor agregará sólo recomendaciones verificadas del catálogo.";
+    return `${INTENT_HINT_HEADER}: búsqueda de clase o video. Ayudá con la duda de fondo y nombrá sólo clases que aparezcan como recuperadas en este turno.`;
   }
   if (intent.type === "course_content_question") {
-    return "TIPO DE CONSULTA: pregunta sobre contenido educativo existente. Usá sólo contenido oficial recuperado o visible; si no respalda el dato pedido, decí que no lo encontrás definido y no completes la estructura del curso por inferencia.";
+    return `${INTENT_HINT_HEADER}: pregunta que menciona contenido educativo. Para afirmar qué contiene un curso o una clase usá sólo contenido oficial recuperado o visible y no completes la estructura del curso por inferencia. Si ese contenido no está, decilo en una frase y, si sirve, ayudá con conocimiento general aclarando que no sale de la clase.`;
   }
-  return "TIPO DE CONSULTA: consulta general de impresión 3D. Respondé primero con una explicación cotidiana y breve. Si un término técnico es central, definilo en una frase; ampliá sólo cuando la pregunta lo pida.";
+  return `${INTENT_HINT_HEADER}: consulta general de impresión 3D. Si un término técnico es central, definilo en una frase.`;
 }
 
 export function shouldRetrieveStampyKnowledge(

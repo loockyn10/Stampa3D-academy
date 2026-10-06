@@ -5,7 +5,7 @@ import { getCurrentUserAccess } from "@/lib/auth/user-access";
 import { validateStampyMessage } from "@/lib/stampy/message-policy";
 import type { StampyActionIntent } from "@/lib/stampy/types";
 import type { StampyActionValidationResult } from "@/lib/stampy/action-validator";
-import type { ChatCompletionMessageParam } from "openai/resources/chat/completions";
+import type { StampyLessonRecommendation } from "@/lib/stampy/lesson-recommendations";
 import type { StampyScreenContext } from "@/lib/stampy/screen-context";
 
 type StampyRequestScreenContext = {
@@ -1447,12 +1447,32 @@ export async function askStampyAction(
       };
     }
 
+    // Historial de la conversación activa, con roles. Se carga antes de
+    // clasificar para que los seguimientos cortos ("¿y con PETG?") hereden
+    // el tema del turno anterior.
+    const recentHistory = actualConversationId
+      ? await getRecentHistory(supabase, actualConversationId, userId)
+      : [];
+    const {
+      STAMPY_MODEL_UNAVAILABLE_MESSAGE,
+      buildStampyContextQuery,
+      buildStampyResponseRequest,
+      describeStampyModelError,
+      extractStampyResponseText,
+      getStampyModelConfig,
+      isStampyFollowUpMessage,
+    } = await import("@/lib/stampy/responses");
+    const contextQuery = buildStampyContextQuery({
+      userMessage,
+      history: recentHistory,
+    });
+
     const {
       classifyStampyKnowledgeIntent,
       formatStampyKnowledgeIntentForPrompt,
       shouldRetrieveStampyKnowledge,
     } = await import("@/lib/stampy/knowledge-intent");
-    const knowledgeIntent = classifyStampyKnowledgeIntent(userMessage);
+    const knowledgeIntent = classifyStampyKnowledgeIntent(contextQuery);
 
     let loadedMemoryCount = 0;
     let memoryPromptText = "";
@@ -1461,7 +1481,7 @@ export async function askStampyAction(
       const relevantMemory = await loadRelevantMemory({
         supabase,
         userId,
-        query: userMessage,
+        query: contextQuery,
         limit: 10,
       });
 
@@ -1480,18 +1500,18 @@ export async function askStampyAction(
 
     const { formatStampyScreenContextForPrompt } = await import("@/lib/stampy/screen-context");
     const screenContextPrompt = formatStampyScreenContextForPrompt(screenContext);
-    
+
     // 0. Contexto del taller del usuario (Solo Lectura)
     const { getStampyWorkshopContext } = await import("@/lib/stampy/workshop-context");
     const workshopContext = await getStampyWorkshopContext({
       supabase,
       userId,
-      message: userMessage
+      message: contextQuery
     });
 
     if (userMessage === "/debug taller" && process.env.NODE_ENV !== "production") {
       const debugText = `DEBUG CONTEXTO TALLER\n\nuserId: ${userId}\n\nprintersCount: ${workshopContext.printersCount}\nactiveFilamentsCount: ${workshopContext.filamentsCount}\nactiveFilamentsError: ${workshopContext.activeFilamentsErrorMsg}\nproductsCount: ${workshopContext.productsCount}\n\nFilamentos activos sample:\n${workshopContext.sampleFilaments}\n\nContexto final:\n${workshopContext.text}`;
-      
+
       return {
         answer: debugText,
         recommendations: [],
@@ -1505,14 +1525,10 @@ export async function askStampyAction(
     const { getStampyRelevantContexts } = await import("@/lib/stampy/context-search");
     const dynamicContextData = await getStampyRelevantContexts({
       supabase,
-      message: userMessage,
+      message: contextQuery,
       currentPath: pathname,
       lessonId: context?.source === "lesson" ? context.lessonId : undefined,
     });
-
-    if (dynamicContextData.contextsCount > 0) {
-      // (context logs removed)
-    }
 
     // 3. Buscar contexto estático de forma segura (ignorar si falla y usar solo si no hay match dinámico exacto de mayor prioridad)
     let staticContext = null;
@@ -1525,106 +1541,44 @@ export async function askStampyAction(
       }
     }
 
-    // 4. Preparar system prompt
-    let systemPrompt = `Sos Stampy, el asistente experto de Academia Stampa para impresión 3D, taller y negocio.
-Hablá en español argentino neutro y empezá directamente por el contenido que responde al usuario.
+    // 4. System prompt: base fija + contexto de este turno.
+    const {
+      STAMPY_SYSTEM_PROMPT,
+      STAMPY_TURN_CONTEXT_HEADER,
+      formatStampyLessonContextForPrompt,
+      formatStampyLessonRecommendationsForPrompt,
+      formatStampyToolsForPrompt,
+    } = await import("@/lib/stampy/system-prompt");
+    const turnContext: string[] = [];
 
-PRIORIDAD DE RESPUESTA:
-1. Exactitud.
-2. Resolver la intención actual del usuario.
-3. Relevancia.
-4. Concisión.
-5. Contexto adicional sólo cuando aporte.
-6. Profundidad bajo demanda.
-
-VOZ PEDAGÓGICA ADAPTATIVA:
-- Explicá como una persona con mucha experiencia en impresión 3D que ayuda a alguien común: cercana, tranquila, competente y directa.
-- Preferí palabras cotidianas antes que una definición de manual. En vez de "procedé" o "se recomienda realizar", usá naturalmente "elegí", "probá", "fijate" o "te conviene".
-- Usá español rioplatense natural —podés, tenés, elegí, probá— sin exagerar modismos ni usar lunfardo innecesario.
-- Respondé primero la pregunta. Enseñá sólo lo necesario para que la respuesta se entienda y sirva; no conviertas una duda simple en una clase.
-- Elegí la profundidad combinando el nivel conocido del usuario, cómo formuló la pregunta y el detalle que pidió. No anuncies esa adaptación ni digas "como sos principiante".
-- Con alguien que recién empieza, explicá una idea por vez, con palabras claras, y definí brevemente el primer término técnico importante.
-- Con nivel intermedio, usá el vocabulario habitual de impresión 3D y explicá sólo los conceptos menos comunes.
-- Con nivel avanzado, o si la propia pregunta usa conceptos avanzados con precisión, podés responder técnicamente y sin explicar bases que no pidió.
-- No evites términos reales como slicer, G-code, retracción, infill, flow, seam, bridging, overhang, layer height, nozzle u hotend. Si podrían no ser conocidos y son importantes para la respuesta, explicalos en una frase cotidiana la primera vez.
-- Usá un ejemplo corto de una impresión real —por ejemplo un mate, llavero, maceta, soporte, organizador o repuesto— sólo cuando vuelva más claro un concepto abstracto. No inventes que ese ejemplo pertenece al usuario.
-- Usá una analogía sólo si simplifica de verdad y sigue siendo técnicamente correcta. No agregues analogías a respuestas obvias, de navegación o ya suficientemente claras.
-- Simplificar no significa afirmar valores universales: si algo depende del material, marca, impresora, boquilla, perfil o velocidad, presentalo como punto de partida y aclaralo brevemente.
-- No suenes infantil, condescendiente, excesivamente académico, vendedor ni exageradamente entusiasta.
-
-Aplicá siempre el principio de respuesta mínima suficiente: incluí la menor cantidad de información que resuelva bien la consulta, sin sacrificar exactitud.
-- Consulta simple: respondé en 1 a 3 frases.
-- Consulta normal: respuesta directa y, sólo si aporta, una explicación breve.
-- Consulta compleja: desarrollá y estructurá únicamente lo necesario.
-- Si el usuario pide el motivo, un desglose o más detalle, recién entonces ampliá.
-- Respondé primero a la intención exacta. No anticipes explicaciones, listas ni próximos pasos que no fueron pedidos.
-- Usá todo el contexto disponible silenciosamente para resolver referencias, evitar preguntas redundantes y personalizar la decisión. No enumeres ni menciones datos sólo porque están disponibles.
-- Mencioná un dato contextual únicamente cuando sea necesario para responder o evite una conclusión incorrecta.
-- No agregues automáticamente “también podrías”, recordatorios, recomendaciones laterales ni preguntas de seguimiento. Si la consulta quedó resuelta, terminá.
-- Agregá una alternativa o continuación sólo si el usuario la pidió o si es imprescindible para completar la respuesta actual.
-
-FORMATO VISUAL, SÓLO CUANDO APORTE:
-- Una respuesta simple sigue siendo una frase o un párrafo breve; podés destacar el dato principal en negrita, sin agregar títulos.
-- Separá explicaciones normales en párrafos cortos. Usá un título breve sólo si ayuda a distinguir dos o más temas.
-- Para procedimientos secuenciales usá una lista numerada. Para opciones independientes usá entre 2 y 4 bullets por defecto.
-- En una recomendación clara, destacá primero la recomendación principal y explicala brevemente después. No listes alternativas que no fueron pedidas.
-- Para comparar pocos elementos, preferí bloques breves; usá una tabla Markdown sólo si es corta, tiene pocas columnas y seguirá siendo legible en mobile.
-- Usá negrita con moderación para nombres, totales, alertas o conclusiones. No uses HTML ni bloques de código salvo que el contenido técnico lo necesite.
-- Sólo crees un enlace Markdown hacia una página interna real y verificada de Stampa; usá un nombre humano como texto, nunca la ruta técnica.
-- No anuncies el formato con frases como "te lo organizo en pasos" o "te lo resumo en una lista": presentá directamente el contenido.
-
-APERTURA DIRECTA:
-- No anuncies cómo vas a responder, que entendiste, que vas a explicar ni que la respuesta será simple, breve, clara o práctica.
-- Evitá muletillas de asentimiento o entusiasmo sin contenido como "Perfecto", "Excelente", "Buenísimo", "Claro" o "Te explico". Empezá por la respuesta.
-
-No suenes corporativo ni conviertas cada respuesta en una clase. No uses frases como "Como IA" o "Según mi conocimiento".
-No menciones detalles internos de implementación. Nunca nombres SQL, RPC, action_request, can_execute, metadata ni Supabase.
-PRESENTACIÓN DE METADATOS INTERNOS:
-- Las rutas técnicas, IDs/UUIDs, claves internas, nombres de campos o tablas, tipos de entidad y valores de modo existen sólo para razonar y usar herramientas.
-- No muestres espontáneamente rutas como /productos, identificadores como "id 1", claves como product_id ni expresiones como mode=edit, selectedEntity, visibleEntities, pageData o formState.
-- Si el usuario pregunta dónde está o qué está haciendo, respondé con el nombre humano de la pantalla o actividad: por ejemplo, "Estás en Productos" o "Estás editando un presupuesto".
-- Sólo revelá una ruta o un identificador cuando el usuario pida explícitamente esa ruta o ese identificador, sea pertinente y esté respaldado por el contexto actual.
-- Si dos elementos tienen el mismo nombre, distinguilos por orden y por datos humanos ya visibles —precio, stock, variante o categoría—, nunca por su ID.
-- Si varias entidades comparten un mismo estado, resumilo una vez y destacá únicamente las excepciones; no repitas metadata idéntica en cada ítem.
-No inventes datos ni afirmes que una acción se ejecutó si solo quedó preparada para confirmar.
-Si hay datos concretos, respondé con seguridad. Si faltan, decí exactamente qué necesitás.
-Para problemas de impresión 3D, priorizá un diagnóstico concreto y pruebas en orden. Para negocio, respondé sobre la decisión puntual; proponé una acción sólo si hace falta para resolverla. Para usar la plataforma, indicá la sección correcta sólo cuando sea relevante.
-No conviertas un dato contextual en una funcionalidad: no supongas que existe un selector, una pantalla, contenido adaptado ni una operación porque el contexto mencione una impresora, preferencia o entidad.
-Sólo ofrecé abrir, modificar, crear, eliminar, recalcular, configurar o guardar cuando una herramienta o capacidad real incluida en este prompt confirme que podés hacerlo. Si no existe esa capacidad, ofrecé explicar, indicar, ayudar a decidir o guiar.
-Si el usuario pide una clase o un curso, podés recomendar contenido verificado sin forzarlo.
-No nombres clases o videos concretos por tu cuenta. El servidor agregará después sólo recomendaciones verificadas del catálogo.
-`;
-
-    const knowledgeIntentPrompt = formatStampyKnowledgeIntentForPrompt(
-      knowledgeIntent
-    );
-    if (knowledgeIntentPrompt) {
-      systemPrompt += `\n${knowledgeIntentPrompt}\n`;
+    // La clase actual va primero: es el marco principal de la conversación.
+    const lessonId = context?.source === "lesson" ? context.lessonId : undefined;
+    if (context?.source === "lesson") {
+      turnContext.push(formatStampyLessonContextForPrompt(context));
     }
-    
-    if (dynamicContextData.text) {
-      systemPrompt += `\n${dynamicContextData.text}\n`;
+    if (lessonId) {
+      const { getLessonTranscriptContext } = await import("@/lib/stampy/lesson-transcripts");
+      const transcriptData = await getLessonTranscriptContext({
+        supabase,
+        lessonId,
+        message: contextQuery,
+      });
+
+      if (transcriptData.transcriptFound) {
+        turnContext.push(`${transcriptData.text}\n\nUsá esta transcripción como fuente principal sobre lo que dice la clase. No digas que viste el video; hablá de "la clase". Si no contiene la respuesta, aclaralo y orientá con conocimiento general.`);
+      }
     }
+
+    turnContext.push(formatStampyKnowledgeIntentForPrompt(knowledgeIntent));
+    turnContext.push(dynamicContextData.text);
 
     if (staticContext) {
-      systemPrompt += `\nContexto de la pantalla actual:
-- Sección: ${staticContext.title}
-- ${staticContext.context}
-Usá este contexto para responder mejor, pero no lo menciones explícitamente.
-
-Reglas:
-- No digas "según el contexto de la ruta".
-- Si el usuario pregunta algo fuera de esta sección, respondé normal orientando a la ruta correcta.\n`;
+      turnContext.push(`PANTALLA ACTUAL: ${staticContext.title}
+${staticContext.context}
+Usalo para entender dónde está la persona; no lo menciones ni digas "según el contexto de la ruta". Si pregunta por algo de otra sección, respondé igual y, si hace falta, indicá la sección correcta.`);
     }
 
-    systemPrompt += `\nGROUNDING DE CONTENIDO DE ACADEMIA:
-- Sólo afirmes que un curso, taller, módulo, clase, ejercicio, STL, archivo, material descargable o actividad existe en Stampa cuando aparezca en el contexto oficial actual, la pantalla visible, una transcripción, retrieval relevante o una recomendación verificada del servidor.
-- Un nombre o una capacidad mencionados por una respuesta anterior del asistente no prueban que existan.
-- No completes estructuras educativas por inferencia: un título de curso no prueba que tenga determinado primer ejercicio, clase o archivo.
-- Si el usuario pregunta por contenido oficial que no está respaldado por las fuentes actuales, decí que no encontrás ese contenido definido. No ofrezcas una alternativa salvo que la pida.
-- Podés proponer un ejemplo o ejercicio pedagógico propio cuando sea relevante, pero presentalo explícitamente como una sugerencia de Stampy y nunca como parte oficial de un curso o taller.\n`;
-
-    // 4. Buscar contexto del usuario de forma segura
+    // Contexto del usuario
     let userContext = null;
     try {
       const { getStampyUserContext } = await import("@/lib/stampy/user-context");
@@ -1634,7 +1588,7 @@ Reglas:
     }
 
     if (userContext) {
-      systemPrompt += `\nDatos del usuario:
+      let userContextText = `Datos del usuario:
 - Nombre: ${userContext.displayName || 'No especificado'}
 - Experiencia de impresión: ${userContext.experienceLevelLabel || 'No especificada'}
 - Impresora principal: ${userContext.printerLabel || 'No especificada'}
@@ -1645,21 +1599,16 @@ Reglas:
 - Estado de membresía: ${userContext.membershipStatusLabel || 'No activa'}
 - Progresión: Nivel ${userContext.xpLevel}, ${userContext.totalXp} XP totales, ${userContext.xpToNextLevel} XP para el próximo nivel`;
       if (userContext.memberLevelLabel) {
-         systemPrompt += ` (${userContext.memberLevelLabel})`;
+         userContextText += ` (${userContext.memberLevelLabel})`;
       }
       if (/\b(xp|nivel(?:es)?|puntos?|recompensas?)\b/i.test(userMessage)) {
         const { formatPublicXpRulesForStampy } = await import("@/lib/xp/config");
-        systemPrompt += `\n\nREGLAS REALES DE XP:\n${formatPublicXpRulesForStampy()}\nExplicá solo estas reglas. No podés otorgar XP, cambiar niveles ni prometer recompensas no listadas.`;
+        userContextText += `\n\nREGLAS REALES DE XP:\n${formatPublicXpRulesForStampy()}\nExplicá solo estas reglas. No podés otorgar XP, cambiar niveles ni prometer recompensas no listadas.`;
       }
-      
-      systemPrompt += `
 
-Reglas del usuario:
-- Usá estos datos solo para adaptar la respuesta.
-- No los repitas todos salvo que el usuario pregunte.
-- No digas "según tu perfil" en cada respuesta.
-- Si falta onboarding, podés sugerir completar el perfil/configuración.
-- No menciones datos internos.\n`;
+      userContextText += `
+Usá estos datos para adaptar la respuesta (nivel técnico, impresora, slicer) sin recitarlos ni decir "según tu perfil". Si falta un dato del perfil que cambiaría la respuesta, podés sugerir completarlo.`;
+      turnContext.push(userContextText);
     }
 
     if (pathname && pathname.startsWith("/sorteos")) {
@@ -1672,7 +1621,7 @@ Reglas del usuario:
       }
 
       if (rafflesContext) {
-        systemPrompt += `\n\nContexto real de sorteos del usuario:
+        turnContext.push(`Contexto real de sorteos del usuario:
 - Código de referido: ${rafflesContext.referralCode || 'No tiene'}
 - Participaciones base: ${rafflesContext.baseEntries}
 - Participaciones extra: ${rafflesContext.bonusEntries}
@@ -1686,7 +1635,7 @@ Reglas:
 - No recites todos los números si no hace falta.
 - Si pregunta cómo sumar chances, mencioná su código de referido.
 - No prometas premios ni resultados.
-- No digas que ganó si no hay dato real.\n`;
+- No digas que ganó si no hay dato real.`);
       }
     }
 
@@ -1702,7 +1651,7 @@ Reglas:
       if (stockContext) {
         if (stockContext.specificFilamentQuery) {
           const q = stockContext.specificFilamentQuery;
-          systemPrompt += `\n\nConsulta específica de filamento detectada:
+          turnContext.push(`Consulta específica de filamento detectada:
 - Material detectado: ${q.detectedMaterial || 'Cualquiera'}
 - Color detectado: ${q.detectedColor || 'Cualquiera'}
 - Filamentos encontrados:
@@ -1715,12 +1664,12 @@ Reglas:
 - Si no hay coincidencias, decir que no encontraste filamentos que coincidan con ese material/color.
 - No responder solo con resumen de stock bajo si hay una consulta específica.
 - No mencionar HEX.
-- Si el usuario quiere modificar stock, explicale dónde hacerlo.\n`;
+- Si el usuario quiere modificar stock, explicale dónde hacerlo.`);
         } else if (stockContext.totalFilaments === 0 && stockContext.totalProducts === 0) {
-          systemPrompt += `\n\nContexto real de stock del usuario:
-El usuario todavía no tiene filamentos ni productos cargados en su stock.`;
+          turnContext.push(`Contexto real de stock del usuario:
+El usuario todavía no tiene filamentos ni productos cargados en su stock.`);
         } else {
-          systemPrompt += `\n\nContexto real de stock del usuario:
+          let stockText = `Contexto real de stock del usuario:
 - Filamentos activos: ${stockContext.totalFilaments}
 - Filamentos bajos: ${stockContext.lowStockFilaments.length > 0 ? stockContext.lowStockFilaments.map(f => f.name).join(', ') : 'Ninguno'}
 - Filamentos vacíos: ${stockContext.emptyFilaments.length > 0 ? stockContext.emptyFilaments.map(f => f.name).join(', ') : 'Ninguno'}
@@ -1729,87 +1678,39 @@ El usuario todavía no tiene filamentos ni productos cargados en su stock.`;
 - Productos con stock bajo: ${stockContext.lowStockProducts.length > 0 ? stockContext.lowStockProducts.map(p => p.name).join(', ') : 'Ninguno'}`;
 
           if (stockContext.lowMarginProducts && stockContext.lowMarginProducts.length > 0) {
-            systemPrompt += `\n- Productos con margen bajo: ${stockContext.lowMarginProducts.map(p => p.name).join(', ')}`;
+            stockText += `\n- Productos con margen bajo: ${stockContext.lowMarginProducts.map(p => p.name).join(', ')}`;
           }
           if (stockContext.recentMovements && stockContext.recentMovements.length > 0) {
-            systemPrompt += `\n- Últimos movimientos: ${stockContext.recentMovements.map(m => m.label).join(' | ')}`;
+            stockText += `\n- Últimos movimientos: ${stockContext.recentMovements.map(m => m.label).join(' | ')}`;
           }
-          
-          systemPrompt += `\n\nReglas:
+
+          stockText += `\n\nReglas:
 - Usá estos datos solo si el usuario pregunta por stock, filamentos, productos, faltantes, reposición o movimientos.
 - No recites todos los datos si no hace falta.
 - Priorizá alertas accionables.
 - No digas que descontaste stock.
 - Si el usuario quiere modificar stock, explicale dónde hacerlo.
-- Si no hay datos, sugerí cargarlos.\n`;
+- Si no hay datos, sugerí cargarlos.`;
+          turnContext.push(stockText);
         }
       }
     }
 
-    systemPrompt += `\n\nDATOS DEL USUARIO Y TALLER:
+    turnContext.push(`DATOS DEL USUARIO Y TALLER:
 ${workshopContext.text}
 
 Reglas del taller:
 - No digas "no tengo acceso" si el dato está en este bloque.
 - Si el dato no está disponible, decilo naturalmente.
 - No inventes stock, impresoras ni productos fuera del contexto.
-- Podés usar este contexto para responder preguntas sobre impresoras cargadas, filamentos disponibles, stock aproximado, productos cargados y configuración general.
-- Las acciones seguras se detectan y preparan fuera de este prompt. En una respuesta normal, no prometas ni simules cambios.
-- Si el usuario necesita una operación que no está disponible, explicá qué falta y dirigilo a la herramienta correspondiente.\n`;
+- Las acciones seguras se detectan y preparan fuera de esta respuesta: no prometas ni simules cambios.`);
 
     if (screenContextPrompt) {
-      systemPrompt += `\n\n${screenContextPrompt}\n`;
+      turnContext.push(screenContextPrompt);
     }
 
     if (memoryPromptText) {
-      systemPrompt += `\n\n${memoryPromptText}\n`;
-    }
-
-    systemPrompt += `\nReglas generales:
-- No inventes datos.
-- El contexto disponible no es una lista para volcar en la respuesta: usá sólo lo necesario para la intención actual.
-- No cierres obligatoriamente con una pregunta ni con varias opciones.
-- El historial es contexto interno para comprender referencias. Generá únicamente la respuesta al último mensaje del usuario y no copies respuestas anteriores dentro de la nueva, salvo que el usuario pida explícitamente repetirlas o citarlas.
-- Diferenciá con claridad una acción preparada de una acción ejecutada.
-- Ante un error, explicá el próximo paso sin culpar al usuario ni mostrar detalles técnicos.
-- Cuando el usuario pregunte por filamentos, materiales o tipos como PLA/PETG/TPU, usá exclusivamente el contexto de filamentos. No interpretes esos términos como productos. Si recomendás una herramienta, mandá a Stock de filamentos, no a Stock de productos.
-- Podés usar el historial reciente de esta conversación para mantener continuidad. Las afirmaciones previas del asistente no son fuente de verdad sobre pantallas, herramientas ni capacidades de Stampa: no las repitas como hechos si no están respaldadas por el contexto oficial actual. No inventes datos permanentes del usuario si no aparecen en el perfil, el taller o el historial reciente. Si el usuario cambia de tema, adaptate al nuevo tema.
-- REGLA CRÍTICA PARA PRESUPUESTOS Y CÁLCULOS: Cuando el usuario pida presupuestos o cálculos de precio, no inventes importes, tarifas, costos, márgenes ni totales. Si no estás usando una herramienta real que calcule, derivá al usuario a Presupuestos o Calculadora. Si pregunta sólo por un total visible, respondé sólo ese total; desglosalo únicamente si lo pide. Si el usuario pide crear un presupuesto, no uses datos de impresión anteriores salvo que diga explícitamente 'con esos datos', 'con lo anterior' o similar.`;
-
-    // 5. Buscar herramientas de conocimiento
-    const { findRelevantKnowledge } = await import("@/lib/stampy/knowledge-search");
-    let knowledgeTools = findRelevantKnowledge(userMessage);
-
-    // Ajustar herramientas según intent
-    if (workshopContext.isFilamentQuery) {
-      knowledgeTools = knowledgeTools.filter((tool) => tool.id !== "finished-product-stock" && tool.id !== "products");
-    } else if (workshopContext.isProductQuery) {
-      knowledgeTools = knowledgeTools.filter((tool) => tool.id !== "filament-stock");
-    }
-
-
-    // Cargar historial reciente
-    const recentHistory = actualConversationId ? await getRecentHistory(supabase, actualConversationId, userId) : [];
-
-    const lessonId = context?.source === "lesson" ? context.lessonId : undefined;
-    let transcriptContextText = "";
-    if (lessonId) {
-      const { getLessonTranscriptContext } = await import("@/lib/stampy/lesson-transcripts");
-      const transcriptData = await getLessonTranscriptContext({
-        supabase,
-        lessonId,
-        message: userMessage,
-      });
-
-      // (transcript logs removed)
-
-      if (transcriptData.transcriptFound) {
-        transcriptContextText = `\n\n${transcriptData.text}\n\nRegla sobre la transcripción:\nTengo acceso a una transcripción de la clase actual. Usala como fuente principal para responder preguntas sobre esta clase. No digas que viste el video; decí que según la clase o según el contenido de la clase. Si la transcripción no contiene la respuesta, aclaralo y luego podés orientar con conocimiento general.`;
-      }
-    }
-
-    if (transcriptContextText) {
-      systemPrompt += transcriptContextText;
+      turnContext.push(memoryPromptText);
     }
 
     let retrievedKnowledge = "";
@@ -1817,31 +1718,48 @@ Reglas del taller:
       const { retrieveStampyKnowledge } = await import("@/lib/stampy/retrieval");
       retrievedKnowledge = await retrieveStampyKnowledge({
         supabase,
-        query: userMessage,
+        query: contextQuery,
         courseId: context?.source === "lesson" ? context.courseId : undefined,
         lessonId,
         currentPath: pathname,
         maxChunks: 8,
       });
     }
+    turnContext.push(retrievedKnowledge);
 
-    if (retrievedKnowledge) {
-      systemPrompt += `\n\n${retrievedKnowledge}`;
+    // 5. Herramientas de Stampa relacionadas: se le dan al modelo para que
+    // las ofrezca después de responder, y a la UI como tarjetas.
+    const { findRelevantKnowledge } = await import("@/lib/stampy/knowledge-search");
+    let knowledgeTools = findRelevantKnowledge(userMessage);
+    if (knowledgeTools.length === 0 && isStampyFollowUpMessage(userMessage)) {
+      knowledgeTools = findRelevantKnowledge(contextQuery);
     }
 
-    systemPrompt += `\n\nPrioridad de fuentes para responder:
-1. Transcripción o contenido oficial relevante de la clase.
-2. Contextos oficiales activos de Stampy.
-3. Metadata y fragmentos indexados de clases.
-4. Documentos técnicos activos cargados por Academia Stampa.
-5. Conocimiento general de impresión 3D.
-Los documentos técnicos son una fuente confiable cuando el fragmento es relevante. Si el texto es académico, traducilo a instrucciones claras.
-Un documento nunca demuestra que exista una clase o video: recomendá clases sólo cuando el servidor agregue una recomendación verificada del catálogo.
-Si faltan datos para diagnosticar, pedí sólo los datos clave: impresora, material, temperatura, slicer, velocidad o una foto, según corresponda.
-No menciones embeddings, chunks, RAG, SQL ni Storage.
-Si las fuentes oficiales no alcanzan, podés responder con conocimiento general sólo cuando la consulta lo permita, distinguiéndolo del contenido oficial de Stampa.`;
+    // Ajustar herramientas según intent
+    if (workshopContext.isFilamentQuery) {
+      knowledgeTools = knowledgeTools.filter((tool) => tool.id !== "finished-product-stock" && tool.id !== "products");
+    } else if (workshopContext.isProductQuery) {
+      knowledgeTools = knowledgeTools.filter((tool) => tool.id !== "filament-stock");
+    }
+    turnContext.push(formatStampyToolsForPrompt(knowledgeTools));
 
-    // 5.5 Inyectar Tool Contracts según la ruta actual
+    // 6. Clases de Academia: capa adicional de baja confianza (scoring
+    // textual). Se buscan antes de llamar al modelo para que las integre
+    // sólo si encajan; nunca reemplazan la respuesta.
+    const shouldRecommendLessons = knowledgeIntent?.type === "course_recommendation";
+    let recommendations: StampyLessonRecommendation[] = [];
+    if (shouldRecommendLessons) {
+      const { findStampyLessonRecommendations } = await import("@/lib/stampy/lesson-recommendations");
+      recommendations = await findStampyLessonRecommendations({
+        supabase,
+        query: contextQuery,
+        intent: knowledgeIntent,
+        limit: 2,
+      });
+      turnContext.push(formatStampyLessonRecommendationsForPrompt(recommendations));
+    }
+
+    // 7. Acciones disponibles y contratos de herramientas según la ruta actual
     let promptToolContractIds: string[] = [];
     const {
       formatStampyAvailableActionsForPrompt,
@@ -1850,12 +1768,17 @@ Si las fuentes oficiales no alcanzan, podés responder con conocimiento general 
     } = await import("@/lib/stampy/tool-registry");
     const relevantContracts = pathname ? getRelevantContractsForPath(pathname) : [];
     promptToolContractIds = relevantContracts.map((contract) => contract.id);
-    systemPrompt += `\n\n${formatStampyAvailableActionsForPrompt(relevantContracts)}`;
+    turnContext.push(formatStampyAvailableActionsForPrompt(relevantContracts));
     if (relevantContracts.length > 0) {
-      systemPrompt += `\n\nCONTRATOS DE HERRAMIENTAS (REGLAS ESTRICTAS):
-Al estar en esta ruta, debés respetar cómo funcionan estas herramientas reales. Si el usuario te pide hacer algo relacionado a esto, seguí estas reglas:
-${relevantContracts.map(formatToolContractForPrompt).join("\n\n")}\n`;
+      turnContext.push(`CONTRATOS DE HERRAMIENTAS DE ESTA PANTALLA (REGLAS ESTRICTAS):
+${relevantContracts.map(formatToolContractForPrompt).join("\n\n")}`);
     }
+
+    const systemPrompt = [
+      STAMPY_SYSTEM_PROMPT,
+      STAMPY_TURN_CONTEXT_HEADER,
+      ...turnContext.map((section) => section?.trim()).filter(Boolean),
+    ].join("\n\n");
 
     logStampyPromptAudit({
       pathname,
@@ -1872,50 +1795,71 @@ ${relevantContracts.map(formatToolContractForPrompt).join("\n\n")}\n`;
       systemPromptChars: systemPrompt.length,
     });
 
-    const messagesPayload: ChatCompletionMessageParam[] = [
-      { role: "system", content: systemPrompt },
-      ...recentHistory,
-      { role: "user", content: userMessage }
-    ];
+    // 8. Responses API: instrucciones + conversación multi-turn con roles.
+    const modelConfig = getStampyModelConfig();
+    const modelName = modelConfig.model;
+    let rawAnswerText = "";
+    let modelFailure: Record<string, unknown> | null = null;
+    try {
+      const response = await openai.responses.create(
+        buildStampyResponseRequest({
+          config: modelConfig,
+          instructions: systemPrompt,
+          history: recentHistory,
+          userMessage,
+        })
+      );
+      rawAnswerText = extractStampyResponseText(response);
+      if (!rawAnswerText) {
+        modelFailure = {
+          name: "EmptyResponse",
+          status: response.status ?? null,
+          incompleteReason: response.incomplete_details?.reason ?? null,
+        };
+      }
+    } catch (error) {
+      modelFailure = describeStampyModelError(error);
+    }
 
-    const modelName = process.env.OPENAI_MODEL || "gpt-4o-mini";
+    if (!rawAnswerText) {
+      // Fallback explícito: no se presenta como respuesta del modelo ni se
+      // guarda en el historial de la conversación.
+      console.error("[Stampy] model unavailable", { model: modelName, ...modelFailure });
+      const { logStampyUsage } = await import("@/lib/stampy/usage-log");
+      await logStampyUsage({
+        supabase,
+        userId,
+        conversationId: actualConversationId,
+        model: modelName,
+        mode: "error",
+        status: "error",
+        messageChars: userMessage.length,
+        errorMessage: JSON.stringify(modelFailure).substring(0, 500),
+        latencyMs: Date.now() - startTime,
+      });
 
-    const completion = await openai.chat.completions.create({
-      model: modelName,
-      messages: messagesPayload
-    });
+      return {
+        error: STAMPY_MODEL_UNAVAILABLE_MESSAGE,
+        errorCode: "model_unavailable",
+        answer: STAMPY_MODEL_UNAVAILABLE_MESSAGE,
+        recommendations: [],
+        knowledgeTools: [],
+        relatedTools: [],
+        suggestedQuestions: [],
+        conversationId: actualConversationId,
+        assistantMessageId: null,
+        actionRequestId: null,
+        actionIntent: null,
+      };
+    }
 
-    const rawAnswerText = completion.choices[0]?.message?.content || "No pude responder esta vez. Probá de nuevo.";
     const { isolateCurrentStampyReply } = await import("@/lib/stampy/reply-policy");
     const isolatedReply = isolateCurrentStampyReply({
       answer: rawAnswerText,
       history: recentHistory,
       userMessage,
     });
-    answerText = isolatedReply.content || "No pude responder esta vez. Probá de nuevo.";
-
-    const {
-      buildStampyLessonRecommendationText,
-      findStampyLessonRecommendations,
-    } = await import("@/lib/stampy/lesson-recommendations");
-    const shouldRecommendLessons = knowledgeIntent?.type === "course_recommendation";
-    const recommendations = shouldRecommendLessons
-      ? await findStampyLessonRecommendations({
-          supabase,
-          query: userMessage,
-          intent: knowledgeIntent,
-          limit: 2,
-        })
-      : [];
-    const recommendationText = shouldRecommendLessons
-      ? buildStampyLessonRecommendationText({
-          recommendations,
-          intent: knowledgeIntent,
-        })
-      : "";
-    if (recommendationText) {
-      answerText = `${answerText.trim()}\n\n${recommendationText}`;
-    }
+    answerText = isolatedReply.content || rawAnswerText;
 
     let assistantMessageId: string | null = null;
     let savedMemoryCount = 0;
@@ -1923,6 +1867,8 @@ ${relevantContracts.map(formatToolContractForPrompt).join("\n\n")}\n`;
       const assistantMetadata = {
         mode: requestMode,
         model: modelName,
+        reasoningEffort: modelConfig.reasoningEffort,
+        followUp: contextQuery !== userMessage,
         relatedToolsCount: knowledgeTools.length,
         recommendationsCount: recommendations.length,
         knowledgeIntent: knowledgeIntent?.type ?? null,
@@ -2027,9 +1973,10 @@ ${relevantContracts.map(formatToolContractForPrompt).join("\n\n")}\n`;
       knowledgeIntent: knowledgeIntent?.type ?? null,
     };
   } catch (error) {
-    console.error("[Stampy] OpenAI request failed", {
-      model: process.env.OPENAI_MODEL || "gpt-4o-mini",
-      error
+    // Fallo interno fuera de la llamada al modelo (datos, contexto, etc.).
+    console.error("[Stampy] request failed", {
+      name: error instanceof Error ? error.name : "Error",
+      message: String(error instanceof Error ? error.message : error).substring(0, 300),
     });
 
     if (actualConversationId && currentUserId) {
@@ -2038,7 +1985,7 @@ ${relevantContracts.map(formatToolContractForPrompt).join("\n\n")}\n`;
         supabase,
         userId: currentUserId,
         conversationId: actualConversationId,
-        model: process.env.OPENAI_MODEL || "gpt-4o-mini",
+        model: null,
         mode: "error",
         status: "error",
         messageChars: message.length,

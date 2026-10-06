@@ -64,7 +64,7 @@ test("direct calculator, budget and client paths run before memory, retrieval an
   const clientTool = source.indexOf("const shouldCheckClientTools =");
   const memory = source.indexOf("loadRelevantMemory");
   const retrieval = source.indexOf("retrieveStampyKnowledge");
-  const openAi = source.indexOf("openai.chat.completions.create");
+  const openAi = source.indexOf("openai.responses.create");
 
   assert.ok(screenAnalysis > 0 && screenAnalysis < memory);
   assert.ok(clientTool > 0 && clientTool < memory);
@@ -81,8 +81,10 @@ test("prompt sources keep explicit bounded inputs", () => {
 
   assert.match(screenContext, /visibleEntities: 20/);
   assert.match(screenContext, /promptChars: 4_000/);
-  assert.match(history, /\.limit\(8\)/);
-  assert.match(history, /substring\(0, 1200\)/);
+  assert.match(history, /STAMPY_HISTORY_MAX_MESSAGES = 12/);
+  assert.match(history, /STAMPY_HISTORY_MESSAGE_MAX_CHARS = 2400/);
+  assert.match(history, /STAMPY_HISTORY_TOTAL_MAX_CHARS = 14000/);
+  assert.match(history, /\.limit\(STAMPY_HISTORY_MAX_MESSAGES\)/);
   assert.match(memory, /maxPromptChars = 1200/);
   assert.match(retrieval, /maxChunks = 8/);
   assert.match(retrieval, /MAX_CHARS = 7000/);

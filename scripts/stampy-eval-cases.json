@@ -1,0 +1,162 @@
+[
+  {
+    "id": "simple-infill",
+    "category": "pregunta simple",
+    "message": "¿Qué es el infill?",
+    "expect": [
+      "Define el infill en 2-4 frases, con lenguaje cotidiano",
+      "Puede mencionar un rango típico (15-20 %) como punto de partida",
+      "No deriva a ninguna herramienta ni hace preguntas"
+    ],
+    "avoid": ["Respuesta tipo manual o lista larga", "Pregunta de cierre innecesaria"]
+  },
+  {
+    "id": "technical-first-layer",
+    "category": "problema técnico",
+    "message": "Se me despega la primera capa con PLA en una Ender 3",
+    "expect": [
+      "Da primero las causas más probables en orden (limpieza de cama, offset Z/nivelación, temperatura y velocidad de primera capa)",
+      "Propone cambios de a uno y cómo comprobar si mejoró",
+      "Si pide un dato, pide uno solo y después de orientar"
+    ],
+    "avoid": ["Cuestionario antes de ayudar", "Valores presentados como universales"]
+  },
+  {
+    "id": "followup-why",
+    "category": "follow-up corto",
+    "history": [
+      { "role": "user", "content": "Tengo stringing con PETG" },
+      { "role": "assistant", "content": "Lo primero que probaría es secar el filamento: el PETG absorbe humedad muy rápido. Después bajá la temperatura de a 5 °C y subí un poco la retracción." }
+    ],
+    "message": "¿por qué?",
+    "expect": [
+      "Explica por qué la humedad y la temperatura generan stringing en PETG",
+      "Mantiene el tema (stringing con PETG) sin repetir la respuesta anterior"
+    ],
+    "avoid": ["Preguntar '¿por qué qué?'", "Cambiar de tema"]
+  },
+  {
+    "id": "material-switch",
+    "category": "cambio de material",
+    "history": [
+      { "role": "user", "content": "Se me despega la primera capa con PLA" },
+      { "role": "assistant", "content": "Limpiá la cama con alcohol isopropílico, revisá el offset Z para que la primera capa quede bien aplastada y bajá la velocidad de la primera capa." }
+    ],
+    "message": "¿y con PETG?",
+    "expect": [
+      "Responde sobre adherencia de primera capa con PETG (temperaturas de cama/boquilla, offset Z algo más alto que con PLA, superficie/adhesivo)",
+      "No da una ficha general del PETG desconectada del problema"
+    ],
+    "avoid": ["Ignorar el contexto de primera capa", "Repetir los consejos de PLA sin adaptar"]
+  },
+  {
+    "id": "ambiguous-buy",
+    "category": "pregunta ambigua",
+    "message": "¿Qué me conviene comprar?",
+    "expect": [
+      "Reconoce que depende de qué quiere comprar (impresora, filamento, accesorio) y hace una sola pregunta clara",
+      "Puede ofrecer una orientación breve si hay una interpretación razonable"
+    ],
+    "avoid": ["Cuestionario de varias preguntas", "Respuesta larga sobre todo a la vez"]
+  },
+  {
+    "id": "tool-pricing",
+    "category": "herramienta de Stampa3D",
+    "message": "¿Cómo calculo cuánto cobrar una impresión?",
+    "expect": [
+      "Explica los factores principales (material, tiempo de máquina, energía, desgaste, mano de obra/postproceso, fallas, margen, costos de venta)",
+      "Después ofrece la Calculadora avanzada para hacer el cálculo con sus números"
+    ],
+    "avoid": ["Responder sólo 'usá la Calculadora'", "Inventar tarifas o un precio final"]
+  },
+  {
+    "id": "tool-pricing-numbers",
+    "category": "herramienta de Stampa3D",
+    "message": "¿Cuánto cobro una pieza de 80 gramos y 5 horas?",
+    "expect": [
+      "Explica cómo se arma el precio con esos datos; si usa números, los presenta como ilustrativos",
+      "Ofrece la Calculadora avanzada para el cálculo real"
+    ],
+    "avoid": ["Presentar un precio final como cálculo oficial", "Negarse a ayudar"]
+  },
+  {
+    "id": "class-recommended",
+    "category": "clase recomendada",
+    "message": "¿Tenés un video sobre soportes?",
+    "recommendations": [
+      {
+        "title": "Soportes fáciles de retirar",
+        "courseTitle": "Slicer práctico",
+        "ai_summary": "Interfaz, distancia Z y tipo de soporte para que salgan limpios."
+      }
+    ],
+    "expect": [
+      "Ayuda brevemente con soportes y menciona 'Soportes fáciles de retirar' (curso Slicer práctico) con su título exacto",
+      "No escribe links ni inventa otras clases"
+    ],
+    "avoid": ["Inventar títulos", "Escribir rutas o URLs"],
+    "note": "La clase es un fixture del eval: en producción viene del ranking textual del backend."
+  },
+  {
+    "id": "class-not-found",
+    "category": "sin clase recomendada",
+    "message": "¿Tenés un video sobre soportes?",
+    "recommendations": [],
+    "expect": [
+      "Ayuda igual con soportes (interfaz, distancia Z, orientación)",
+      "Dice que no pudo ubicar una clase puntual desde acá y sugiere revisar Cursos, sin afirmar que no existe"
+    ],
+    "avoid": ["'No tenemos una clase sobre esto'", "Inventar una clase"]
+  },
+  {
+    "id": "detailed-retraction",
+    "category": "pedido de explicación detallada",
+    "message": "Explicame en detalle cómo funciona la retracción y cómo calibrarla",
+    "expect": [
+      "Respuesta desarrollada y estructurada: qué es, distancia vs velocidad, diferencias bowden/direct drive, cómo calibrar (torre o prueba), qué observar",
+      "Sin relleno ni repeticiones"
+    ],
+    "avoid": ["Recortar a 3 frases", "Derivar a una clase en lugar de explicar"]
+  },
+  {
+    "id": "continuity-the-other",
+    "category": "continuidad de conversación",
+    "history": [
+      { "role": "user", "content": "¿Qué uso para que una pieza chica no se despegue?" },
+      { "role": "assistant", "content": "Tenés dos opciones: un brim, que es un borde fino alrededor de la pieza, o una raft, que es una base completa debajo." },
+      { "role": "user", "content": "¿El brim deja marca?" },
+      { "role": "assistant", "content": "Un poco en el borde inferior, pero se limpia fácil con un cúter." }
+    ],
+    "message": "¿y la otra?",
+    "expect": ["Entiende que 'la otra' es la raft y explica si deja marca / cuándo conviene"],
+    "avoid": ["Preguntar a qué se refiere", "Volver a explicar el brim"]
+  },
+  {
+    "id": "lesson-followup",
+    "category": "continuidad de conversación (clase)",
+    "lesson": {
+      "courseTitle": "Fundamentos de impresión 3D",
+      "moduleTitle": "Primeros pasos",
+      "lessonTitle": "Primera capa sin fallas",
+      "lessonSummary": "Cómo lograr una primera capa pareja y bien adherida: limpieza, offset Z y velocidad.",
+      "lessonTopics": ["primera capa", "offset Z", "adherencia"]
+    },
+    "history": [
+      { "role": "user", "content": "¿Por qué hay que bajar la velocidad en la primera capa?" },
+      { "role": "assistant", "content": "Porque a menor velocidad el plástico tiene más tiempo para aplastarse contra la cama y pegarse." }
+    ],
+    "message": "explicame mejor",
+    "expect": [
+      "Amplía desde otro ángulo la relación velocidad/adherencia de la primera capa, en el marco de la clase",
+      "No repite literalmente la respuesta anterior"
+    ],
+    "avoid": ["Perder el contexto de la clase", "Decir que vio el video"]
+  },
+  {
+    "id": "identity",
+    "category": "identidad",
+    "message": "¿Sos ChatGPT?",
+    "expect": ["Se presenta como Stampy, el asistente de Academia Stampa, sin detalles del proveedor"],
+    "avoid": ["Decir que es ChatGPT"]
+  }
+]

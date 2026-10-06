@@ -4,43 +4,59 @@ import { readFileSync } from "node:fs";
 
 const read = (path) => readFileSync(new URL(`../${path}`, import.meta.url), "utf8");
 
-test("the base prompt enforces concise Stampa tone without obsolete capability claims", () => {
-  const source = read("src/app/stampy/actions.ts");
+test("the base prompt keeps Stampa identity and safety limits without obsolete capability claims", () => {
+  const prompt = read("src/lib/stampy/system-prompt.ts");
+  const actions = read("src/app/stampy/actions.ts");
 
-  assert.match(source, /asistente experto de Academia Stampa/);
-  assert.match(source, /principio de respuesta mínima suficiente/);
-  assert.match(source, /Consulta simple: respondé en 1 a 3 frases/);
-  assert.match(source, /No cierres obligatoriamente con una pregunta ni con varias opciones/);
-  assert.match(source, /Nunca nombres SQL, RPC, action_request, can_execute, metadata ni Supabase/);
-  assert.doesNotMatch(source, /No podés todavía:\s*\n- crear datos/);
-  assert.doesNotMatch(source, /Revisá la configuración de OpenAI/);
-  assert.match(source, /Llegaste al límite de mensajes por ahora/);
+  assert.match(prompt, /Sos Stampy, el asistente de Academia Stampa/);
+  assert.match(prompt, /No digas que sos ChatGPT/);
+  assert.match(prompt, /No cierres obligatoriamente con una pregunta ni con varias opciones/);
+  assert.match(prompt, /Nunca nombres SQL, RPC, action_request, can_execute, metadata ni Supabase/);
+  assert.doesNotMatch(prompt, /No podés todavía:\s*\n- crear datos/);
+  assert.doesNotMatch(actions, /Revisá la configuración de OpenAI/);
+  assert.match(actions, /Llegaste al límite de mensajes por ahora/);
+  assert.match(actions, /STAMPY_SYSTEM_PROMPT/);
 });
 
-test("the base prompt defines a pedagogical everyday voice with progressive depth", () => {
-  const source = read("src/app/stampy/actions.ts");
+test("the base prompt defines a natural, competent rioplatense voice", () => {
+  const prompt = read("src/lib/stampy/system-prompt.ts");
 
-  assert.match(source, /VOZ PEDAGÓGICA ADAPTATIVA/);
-  assert.match(source, /persona con mucha experiencia en impresión 3D que ayuda a alguien común/);
-  assert.match(source, /Respondé primero la pregunta/);
-  assert.match(source, /nivel conocido del usuario, cómo formuló la pregunta y el detalle que pidió/);
-  assert.match(source, /Con alguien que recién empieza, explicá una idea por vez/);
-  assert.match(source, /Con nivel intermedio, usá el vocabulario habitual/);
-  assert.match(source, /Con nivel avanzado, o si la propia pregunta usa conceptos avanzados con precisión/);
-  assert.match(source, /slicer, G-code, retracción, infill/);
-  assert.match(source, /ejemplo corto de una impresión real/);
-  assert.match(source, /analogía sólo si simplifica de verdad y sigue siendo técnicamente correcta/);
-  assert.match(source, /No suenes infantil, condescendiente, excesivamente académico/);
-  assert.match(source, /"Perfecto", "Excelente", "Buenísimo", "Claro" o "Te explico"/);
+  assert.match(prompt, /Cercano, competente, directo y natural/);
+  assert.match(prompt, /Español rioplatense suave/);
+  assert.match(prompt, /No infantil, no condescendiente/);
+  assert.match(prompt, /No sonás como un manual ni como un formulario/);
+  assert.match(prompt, /slicer, G-code, retracción, infill/);
+  assert.match(prompt, /Ajustá el nivel técnico a cómo pregunta la persona/);
+  assert.match(prompt, /analogía sólo si aclaran de verdad y siguen siendo técnicamente correctos/);
+  assert.match(prompt, /"Perfecto", "Excelente", "Buenísimo", "Claro" o "Te explico"/);
+  assert.match(prompt, /ayudar de verdad con lo que la persona necesita ahora, no derivarla/);
 });
 
-test("pedagogical guidance keeps answers short when teaching or analogy would not help", () => {
-  const source = read("src/app/stampy/actions.ts");
+test("length policy is concise by default, deep on demand and has no hard word cap", () => {
+  const prompt = read("src/lib/stampy/system-prompt.ts");
 
-  assert.match(source, /No agregues analogías a respuestas obvias, de navegación/);
-  assert.match(source, /Consulta simple: respondé en 1 a 3 frases/);
-  assert.match(source, /Si la consulta quedó resuelta, terminá/);
-  assert.doesNotMatch(source, /Siempre (?:usá|incluí|agregá) (?:un )?(?:ejemplo|analogía)/i);
+  assert.match(prompt, /Por defecto, conciso/);
+  assert.match(prompt, /desarrollala sin recortarla artificialmente/);
+  assert.match(prompt, /Si la persona pide detalle, una explicación a fondo o "explicame mejor", respondé en detalle/);
+  assert.match(prompt, /Sin relleno/);
+  assert.match(prompt, /Si la consulta quedó resuelta, terminá/);
+  assert.doesNotMatch(prompt, /Consulta simple: respondé en 1 a 3 frases/);
+  assert.doesNotMatch(prompt, /respuesta mínima suficiente/);
+  assert.doesNotMatch(prompt, /1[25]0 palabras/);
+  assert.doesNotMatch(prompt, /Siempre (?:usá|incluí|agregá) (?:un )?(?:ejemplo|analogía)/i);
+});
+
+test("tools are offered after helping and clarifying questions are only asked when material", () => {
+  const prompt = read("src/lib/stampy/system-prompt.ts");
+
+  assert.match(prompt, /primero respondé la consulta y después, si de verdad ayuda/);
+  assert.match(prompt, /Nunca respondas sólo "usá tal herramienta"/);
+  assert.match(prompt, /ofrecé la Calculadora avanzada para hacer el cálculo con sus números/);
+  assert.match(prompt, /No inventes herramientas, secciones ni rutas/);
+  assert.match(prompt, /No preguntes por preguntar/);
+  assert.match(prompt, /falta un dato que cambia materialmente la respuesta/);
+  assert.match(prompt, /Dá primero una orientación útil/);
+  assert.doesNotMatch(prompt, /derivá al usuario a Presupuestos o Calculadora/);
 });
 
 test("beta quick suggestions are focused and capped for each UI", () => {

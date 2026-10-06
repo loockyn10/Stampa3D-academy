@@ -49,6 +49,13 @@ La auditoría de código local está hecha. Lo que queda es exclusivamente lo qu
 - [ ] Deuda menor: eliminar la columna huérfana `location_breakdown` de `business_inventory_movements` en una migration futura (ya no se usa).
 - [ ] Agregar un script `test` a `package.json` (los 48 archivos de test existen pero se ejecutan manualmente con `node --test tests/*.test.mjs`).
 
+## Now — Stampy conversacional (implementado 2026-10-06, ver D024 y ARCHITECTURE.md §11)
+
+- [ ] Definir `OPENAI_MODEL` en cada entorno: vacío = `gpt-5.6-terra`; `.env.local` hoy lo fija en `gpt-5-mini`. Cambiarlo también afecta a Stampa Maker (jarros), que lo usa como fallback de `MUG_AI_MODEL`.
+- [ ] QA manual en la app real con la batería de `docs/STAMPY_EVALS.md` (widget, página `/stampy` y `StampyLessonChat`), incluyendo una clase con transcripción.
+- [ ] Siguiente sprint: streaming (ver "Streaming" en `docs/STAMPY_EVALS.md`); una respuesta detallada tarda ~20-25 s sin streaming.
+- [ ] Revisar contenido de `stampy_page_contexts` en Supabase remoto: puede contener reglas de longitud o de "derivar a la herramienta" que contradigan el prompt nuevo (no está en el repo).
+
 ## Next
 
 - [ ] Auditar Academia, Presupuestos y Mi Tienda en profundidad (no cubiertos en esta pasada, foco fue acceso/RLS/pricing/ventas).
