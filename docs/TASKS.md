@@ -54,6 +54,7 @@ La auditoría de código local está hecha. Lo que queda es exclusivamente lo qu
 - [ ] Definir `OPENAI_MODEL` en cada entorno: vacío = `gpt-5.6-terra`; `.env.local` hoy lo fija en `gpt-5-mini`. Cambiarlo también afecta a Stampa Maker (jarros), que lo usa como fallback de `MUG_AI_MODEL`.
 - [ ] QA manual en la app real con la batería de `docs/STAMPY_EVALS.md` (widget, página `/stampy` y `StampyLessonChat`), incluyendo una clase con transcripción.
 - [ ] Siguiente sprint: streaming (ver "Streaming" en `docs/STAMPY_EVALS.md`); una respuesta detallada tarda ~20-25 s sin streaming.
+- [ ] Correr `supabase/diagnostics/20261006_stampy_knowledge_state.sql` y `20261006_stampy_retrieval_probe.sql` (read-only) y decidir con esos datos los puntos de "Qué convendría mejorar primero" de `docs/STAMPY_KNOWLEDGE_AUDIT.md` (umbral 0.72, activación del RAG por keywords, memoria sin tabla, chunks obsoletos, `lessons.is_published`).
 - [ ] Revisar contenido de `stampy_page_contexts` en Supabase remoto: puede contener reglas de longitud o de "derivar a la herramienta" que contradigan el prompt nuevo (no está en el repo).
 
 ## Next
