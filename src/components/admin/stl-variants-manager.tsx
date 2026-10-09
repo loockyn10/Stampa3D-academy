@@ -55,7 +55,6 @@ export function StlVariantsManager({ modelId }: { modelId: string }) {
     }
     setError(null);
     const payload = {
-      name: varForm.title,
       title: varForm.title,
       description: varForm.description || null,
       thumbnail_url: varForm.thumbnail_url || null,

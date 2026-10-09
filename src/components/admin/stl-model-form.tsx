@@ -6,7 +6,8 @@ import { createClient } from "@/utils/supabase/client";
 import { Loader2, AlertCircle, Save, CheckCircle2 } from "lucide-react";
 import { FileUploadDropzone } from "@/components/ui/file-upload-dropzone";
 import { Combobox } from "@/components/ui/combobox";
-import { buildStlModelPayload, buildStlVariantPayload, stlModelDisplayName } from "@/lib/stl/model-payload";
+import { stlModelDisplayName } from "@/lib/stl/model-payload";
+import { saveStlModel } from "@/lib/stl/save-model";
 
 export function StlModelForm({ modelId }: { modelId?: string }) {
   const router = useRouter();
@@ -99,60 +100,23 @@ export function StlModelForm({ modelId }: { modelId?: string }) {
     setError(null);
     setSuccess(null);
 
-    let payload: ReturnType<typeof buildStlModelPayload>;
-    try {
-      payload = buildStlModelPayload(formData);
-    } catch (err) {
-      setSaving(false);
-      setError(err instanceof Error ? err.message : "Datos inválidos.");
+    const result = await saveStlModel(supabase, {
+      modelId: isEditing ? modelId : null,
+      values: formData,
+      fileUrl: formData.file_url,
+      variantId,
+    });
+    setSaving(false);
+
+    if (!result.ok) {
+      setError(result.message);
+      if (result.stage === "variant" && !isEditing) router.push(`/admin/stl/modelos/${result.modelId}`);
       return;
     }
 
-    let opError = null;
-    let newId = null;
-
-    if (isEditing) {
-      const { error: updateError } = await supabase
-        .from("stl_models")
-        .update(payload)
-        .eq("id", modelId);
-      opError = updateError;
-    } else {
-      const { data: insertedData, error: insertError } = await supabase
-        .from("stl_models")
-        .insert([payload])
-        .select()
-        .single();
-      opError = insertError;
-      if (insertedData) newId = insertedData.id;
-    }
-
-    setSaving(false);
-
-    if (opError) {
-      setError(opError.message);
-    } else {
-      const finalModelId = isEditing ? modelId : newId;
-
-      if (finalModelId && formData.file_url) {
-        const variantPayload = buildStlVariantPayload(finalModelId, formData, formData.file_url);
-
-        const variantResult = variantId
-          ? await supabase.from("stl_variants").update(variantPayload).eq("id", variantId).select("id").single()
-          : await supabase.from("stl_variants").insert([variantPayload]).select("id").single();
-        if (variantResult.error) {
-          setError(`El modelo se guardó, pero no pude asociar el archivo: ${variantResult.error.message}`);
-          if (!isEditing && finalModelId) router.push(`/admin/stl/modelos/${finalModelId}`);
-          return;
-        }
-        if (variantResult.data) setVariantId(variantResult.data.id);
-      }
-
-      setSuccess(isEditing ? "Archivo STL actualizado correctamente." : "Archivo STL creado correctamente.");
-      if (!isEditing && finalModelId && finalModelId !== "undefined") {
-        router.push(`/admin/stl/modelos/${finalModelId}`);
-      }
-    }
+    setVariantId(result.variantId);
+    setSuccess(isEditing ? "Archivo STL actualizado correctamente." : "Archivo STL creado correctamente.");
+    if (!isEditing) router.push(`/admin/stl/modelos/${result.modelId}`);
   };
 
   if (loadingData) {

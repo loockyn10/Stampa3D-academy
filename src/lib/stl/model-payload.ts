@@ -36,12 +36,11 @@ export function buildStlModelPayload(values: StlModelFormValues) {
   };
 }
 
-/** Variante descargable del formulario de modelo (mismo criterio name+title que el modelo). */
+/** Variante descargable. Mismas columnas que siempre usó el Admin (sin `name`: no confirmado en el schema real). */
 export function buildStlVariantPayload(modelId: string, values: StlModelFormValues, fileUrl: string) {
   const title = values.title.trim();
   return {
     model_id: modelId,
-    name: title,
     title,
     description: values.description || null,
     file_url: fileUrl,

@@ -144,16 +144,12 @@ test("crear modelo: título vacío se rechaza antes de llegar a la DB", () => {
   assert.throws(() => payloadMod.buildStlModelPayload(formValues({ title: "   " })));
 });
 
-test("el formulario usa los builders en insert/update y reporta el error de la variante", () => {
+test("la variante no envía columnas no confirmadas (name) y el form guarda vía saveStlModel", () => {
   const variant = payloadMod.buildStlVariantPayload("m1", formValues(), "storage://stl-files/x.3mf");
-  assert.equal(variant.name, "PIKACHU FLEXIBLE");
+  assert.equal("name" in variant, false);
   assert.equal(variant.model_id, "m1");
-  const form = read("src/components/admin/stl-model-form.tsx");
-  assert.match(form, /buildStlModelPayload\(formData\)/);
-  assert.match(form, /buildStlVariantPayload\(/);
-  assert.match(form, /\.insert\(\[payload\]\)/);
-  assert.match(form, /\.update\(payload\)/);
-  assert.match(form, /variantResult\.error/);
+  assert.match(read("src/components/admin/stl-model-form.tsx"), /saveStlModel\(/);
+  assert.match(read("src/lib/stl/save-model.ts"), /variantResult\.error/);
 });
 
 test("nombre para mostrar: title, y si falta, name", () => {
