@@ -27,7 +27,7 @@ function load(relativePath, deps = {}) {
 
 const lib = load("src/lib/stl/library.ts");
 const parseMod = load("src/lib/stl/parse-model.ts", { "@/lib/stl/library": lib });
-const payloadMod = load("src/lib/stl/model-payload.ts");
+const payloadMod = load("src/lib/stl/model-payload.ts", { "@/lib/stl/library": lib });
 
 const fakeGeometry = (count) => ({ getAttribute: () => ({ count }) });
 const fakeGroup = (meshCounts) => ({
@@ -144,9 +144,9 @@ test("crear modelo: título vacío se rechaza antes de llegar a la DB", () => {
   assert.throws(() => payloadMod.buildStlModelPayload(formValues({ title: "   " })));
 });
 
-test("la variante no envía columnas no confirmadas (name) y el form guarda vía saveStlModel", () => {
+test("la variante envía name (NOT NULL) y el form guarda vía saveStlModel", () => {
   const variant = payloadMod.buildStlVariantPayload("m1", formValues(), "storage://stl-files/x.3mf");
-  assert.equal("name" in variant, false);
+  assert.equal(variant.name, "PIKACHU FLEXIBLE");
   assert.equal(variant.model_id, "m1");
   assert.match(read("src/components/admin/stl-model-form.tsx"), /saveStlModel\(/);
   assert.match(read("src/lib/stl/save-model.ts"), /variantResult\.error/);

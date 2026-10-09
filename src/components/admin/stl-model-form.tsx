@@ -110,7 +110,6 @@ export function StlModelForm({ modelId }: { modelId?: string }) {
 
     if (!result.ok) {
       setError(result.message);
-      if (result.stage === "variant" && !isEditing) router.push(`/admin/stl/modelos/${result.modelId}`);
       return;
     }
 

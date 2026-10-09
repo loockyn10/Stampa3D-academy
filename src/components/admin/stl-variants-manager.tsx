@@ -1,5 +1,6 @@
 "use client";
 
+import { buildStlVariantManagerPayload } from "@/lib/stl/model-payload";
 import React, { useState, useEffect } from "react";
 import { createClient } from "@/utils/supabase/client";
 import { Loader2, AlertCircle, Plus, Edit2, Save, X } from "lucide-react";
@@ -49,22 +50,14 @@ export function StlVariantsManager({ modelId }: { modelId: string }) {
   };
 
   const handleSaveVariant = async () => {
-    if (!modelId || modelId === "undefined") {
-      setError("No se puede guardar una variante sin un ID de modelo válido.");
+    let payload: ReturnType<typeof buildStlVariantManagerPayload>;
+    try {
+      payload = buildStlVariantManagerPayload(String(modelId), varForm);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Datos inválidos.");
       return;
     }
     setError(null);
-    const payload = {
-      title: varForm.title,
-      description: varForm.description || null,
-      thumbnail_url: varForm.thumbnail_url || null,
-      file_url: varForm.file_url,
-      material_type: varForm.material_type || null,
-      color: varForm.color || null,
-      print_settings: varForm.print_settings || null,
-      is_active: varForm.is_active,
-      model_id: modelId,
-    };
 
     if (editingVarId === "new") {
       const { data, error: err } = await supabase.from("stl_variants").insert([payload]).select().single();

@@ -1,3 +1,5 @@
+import { slugifyGroupName } from "@/lib/stl/library";
+
 export interface StlModelFormValues {
   title: string;
   description: string;
@@ -36,11 +38,32 @@ export function buildStlModelPayload(values: StlModelFormValues) {
   };
 }
 
-/** Variante descargable. Mismas columnas que siempre usó el Admin (sin `name`: no confirmado en el schema real). */
+/** Slug base del modelo (reutiliza el slugify de la Librería STL; fallback si el título no tiene caracteres válidos). */
+export function buildStlModelSlug(title: string): string {
+  return slugifyGroupName(title) || "modelo";
+}
+
+/** Primer slug libre: base, base-2, base-3… dado el conjunto de slugs ya usados. */
+export function pickAvailableSlug(base: string, taken: Iterable<string>): string {
+  const used = new Set(taken);
+  if (!used.has(base)) return base;
+  let n = 2;
+  while (used.has(`${base}-${n}`)) n += 1;
+  return `${base}-${n}`;
+}
+
+/**
+ * Variante descargable. Columnas NOT NULL reales: model_id, name, file_url.
+ * El formulario no pide un nombre de variante: la primera variante hereda el título del modelo.
+ */
 export function buildStlVariantPayload(modelId: string, values: StlModelFormValues, fileUrl: string) {
   const title = values.title.trim();
+  if (!modelId) throw new Error("Falta el modelo de la variante.");
+  if (!title) throw new Error("La variante necesita un nombre.");
+  if (!fileUrl) throw new Error("La variante necesita un archivo.");
   return {
     model_id: modelId,
+    name: title,
     title,
     description: values.description || null,
     file_url: fileUrl,
@@ -48,5 +71,36 @@ export function buildStlVariantPayload(modelId: string, values: StlModelFormValu
     material_type: values.material_type || null,
     is_active: true,
     sort_order: 0,
+  };
+}
+
+export interface StlVariantManagerValues {
+  title: string;
+  description?: string | null;
+  thumbnail_url?: string | null;
+  file_url: string;
+  material_type?: string | null;
+  color?: string | null;
+  print_settings?: string | null;
+  is_active: boolean;
+}
+
+/** Payload del editor de variantes: el campo "título" de la UI es el `name` obligatorio (y `title`). */
+export function buildStlVariantManagerPayload(modelId: string, values: StlVariantManagerValues) {
+  const name = (values.title ?? "").trim();
+  if (!modelId || modelId === "undefined") throw new Error("No se puede guardar una variante sin un ID de modelo válido.");
+  if (!name) throw new Error("La variante necesita un nombre.");
+  if (!values.file_url?.trim()) throw new Error("La variante necesita un archivo (subí uno o pegá una URL).");
+  return {
+    model_id: modelId,
+    name,
+    title: name,
+    description: values.description || null,
+    thumbnail_url: values.thumbnail_url || null,
+    file_url: values.file_url.trim(),
+    material_type: values.material_type || null,
+    color: values.color || null,
+    print_settings: values.print_settings || null,
+    is_active: values.is_active,
   };
 }
