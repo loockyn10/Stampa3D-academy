@@ -211,3 +211,14 @@ Si trabajan sucesivamente sobre la misma feature, el segundo parte del código a
 - La conversación multi-turn se arma con el historial de `stampy_messages` (roles nativos user/assistant), no con `previous_response_id` ni Conversations API: los turnos resueltos sin modelo (acciones, herramientas directas) también son parte de la conversación, Supabase sigue siendo la única fuente de verdad y no se retiene estado del usuario en OpenAI.
 - Responder primero, derivar después: Stampy ayuda con conocimiento general y ofrece herramientas/clases de Stampa como complemento. Que el ranking no encuentre clases no implica que Academia no tenga contenido; sólo se nombran clases recuperadas por el backend.
 - Si el modelo falla o no devuelve texto, se muestra un fallback explícito (no se guarda como respuesta) y se loguea server-side sin secretos.
+
+## D025 — Librería STL: Grupo → Modelos; el viewer 3D solo vive en el detalle y respeta la autorización de la descarga
+
+**Estado:** Accepted (2026-10-09)
+
+- La jerarquía pública es **Grupo → Modelo STL** (un solo nivel). "Grupo" **es** `stl_categories` (ya tenía slug, descripción, portada, `sort_order`, `is_active`); `stl_models.category_id` es la relación. No existe `stl_groups` ni `group_id`: una segunda entidad duplicaría la fuente de verdad. Los modelos sin categoría se muestran en el grupo virtual "Otros modelos" (slug reservado `otros-modelos`, sin filas en DB).
+- Publicación: grupo y modelo deben estar `is_active`. Un modelo activo dentro de un grupo no publicado NO es visible (no cae en "Otros modelos"). Los grupos sin modelos publicados no se listan.
+- El viewer (three + `STLLoader` + `OrbitControls`, carga dinámica) se monta solo en el detalle del modelo; las cards usan thumbnail estático.
+- El viewer nunca recibe paths ni buckets: pide una URL firmada de 5 min a `POST /api/stl/preview`, que aplica la misma regla que la descarga (`getCurrentUserAccess` + `capabilities.downloadStl`) y además exige modelo/grupo publicados (salvo Admin). Solo `.stl` en storage; `.3mf`/`.zip`/URL externa → sin preview, solo descarga. Límite del viewer: 60 MB.
+- Dimensiones: bounding box del STL mostrada como "unidades del archivo". STL no declara unidades; no se afirma "mm".
+- No se calculan gramos/tiempo/costo desde el STL.

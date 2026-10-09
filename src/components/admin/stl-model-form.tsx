@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import { createClient } from "@/utils/supabase/client";
 import { Loader2, AlertCircle, Save, CheckCircle2 } from "lucide-react";
 import { FileUploadDropzone } from "@/components/ui/file-upload-dropzone";
+import { Combobox } from "@/components/ui/combobox";
 
 export function StlModelForm({ modelId }: { modelId?: string }) {
   const router = useRouter();
@@ -34,7 +35,7 @@ export function StlModelForm({ modelId }: { modelId?: string }) {
 
   useEffect(() => {
     const fetchData = async () => {
-      const { data: catsData } = await supabase.from("stl_categories").select("id, name").order("sort_order");
+      const { data: catsData } = await supabase.from("stl_categories").select("id, name, is_active").order("sort_order");
       if (catsData) setCategories(catsData);
 
       if (isEditing) {
@@ -199,20 +200,17 @@ export function StlModelForm({ modelId }: { modelId?: string }) {
         </div>
 
         <div className="space-y-2">
-          <label className="text-sm font-semibold text-gray-300">Categoría</label>
-          <select
-            name="category_id"
+          <label className="text-sm font-semibold text-gray-300">Grupo</label>
+          <Combobox
+            options={[
+              { id: "", label: "Sin grupo (se muestra en «Otros modelos»)" },
+              ...categories.map((c) => ({ id: c.id, label: c.is_active ? c.name : `${c.name} (no publicado)` })),
+            ]}
             value={formData.category_id}
-            onChange={handleChange}
-            className="w-full text-sm border-stampa-border rounded-md text-neutral-100 bg-stampa-surface border focus:border-[#ff6a00] focus:ring-[#ff6a00]/20 focus:ring-2 placeholder:text-neutral-500 disabled:bg-neutral-800 disabled:text-neutral-500"
-          >
-            <option value="">-- Sin categoría --</option>
-            {categories.map((c) => (
-              <option key={c.id} value={c.id}>
-                {c.name}
-              </option>
-            ))}
-          </select>
+            onChange={(value) => setFormData((prev) => ({ ...prev, category_id: String(value) }))}
+            placeholder="Elegí un grupo"
+            emptyText="No hay grupos"
+          />
         </div>
 
         <div className="space-y-2 md:col-span-2">

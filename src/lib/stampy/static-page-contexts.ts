@@ -155,7 +155,7 @@ export function getStaticStampyPageContext(pathname: string): StampyStaticPageCo
     },
     {
       pattern: "/libreria-stl",
-      match: "exact",
+      match: "prefix",
       title: "Librería STL",
       context:
         "El usuario está en la librería STL. Ayudalo a buscar modelos, entender dificultad, uso recomendado y descarga de archivos.",

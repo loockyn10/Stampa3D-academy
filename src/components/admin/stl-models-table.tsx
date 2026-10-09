@@ -61,7 +61,7 @@ export function StlModelsTable() {
               <tr className="bg-stampa-bg-soft border-b border-stampa-border text-sm font-medium text-gray-500">
                 <th className="px-4 py-3">Miniatura</th>
                 <th className="px-4 py-3">Título</th>
-                <th className="px-4 py-3">Categoría</th>
+                <th className="px-4 py-3">Grupo</th>
                 <th className="px-4 py-3">Estado</th>
                 <th className="px-4 py-3">Fecha</th>
                 <th className="px-4 py-3 text-right">Acciones</th>
@@ -81,7 +81,7 @@ export function StlModelsTable() {
                     {model.title}
                   </td>
                   <td className="px-4 py-3 text-gray-400">
-                    {model.stl_categories?.name || "Sin categoría"}
+                    {model.stl_categories?.name || "Sin grupo"}
                   </td>
                   <td className="px-4 py-3">
                     <Badge tone={model.is_active ? "green" : "dark"}>

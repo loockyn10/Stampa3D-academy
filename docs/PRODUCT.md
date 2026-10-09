@@ -416,6 +416,10 @@ Reglas generales:
 - evitar redundancia de copy;
 - reutilizar flujos en vez de crear experiencias paralelas innecesarias.
 
+## 17b. Librería STL por grupos (2026-10-09)
+
+`/libreria-stl` muestra **grupos** (portada, descripción, cantidad de modelos publicados); cada grupo lista sus modelos y cada modelo tiene detalle con visor 3D interactivo, metadata, dimensiones del archivo y botón Descargar STL. Un nivel de agrupación (sin subgrupos). Los modelos sin grupo aparecen en "Otros modelos" hasta que Admin los asigne. Grupo y modelo no publicados no se ven. El visor usa la misma autorización que la descarga. Las dimensiones se muestran como "unidades del archivo"; no se calculan gramos, tiempo ni costo desde el STL (integración futura con Calculadora).
+
 ## 18. Explorar Modelos (2026-09-21)
 
 Herramienta pública (`/explorar-modelos`) para **descubrir modelos 3D alojados en plataformas externas** (V1: MyMiniFactory y Thingiverse, cada una activa solo si tiene credencial server-side). No es la **Librería STL** (`/libreria-stl` = contenido propio de Stampa); no se mezclan.

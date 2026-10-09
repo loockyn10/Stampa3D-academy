@@ -265,6 +265,15 @@ Módulo `src/lib/model-search/` (server) + `src/components/explorar-modelos/` (U
 - **Navegación**: sidebar desktop (Plataforma y grupo Gratis), bottom nav mobile de Free (5.º ítem "Explorar"), acceso rápido en Inicio (paid) y entrada en la búsqueda global. El menú radial mobile de paid no se modificó: tiene 7 ítems para 6 ángulos definidos.
 - No hay eventos/analytics en el repo: no se registran `model_search`/`model_result_open`/`model_calculate`.
 
+## 18b. Librería STL: Grupos + detalle + viewer 3D (2026-10-09)
+
+Rutas: `/libreria-stl` (grupos + búsqueda de modelos) → `/libreria-stl/[group]` (slug o id; `otros-modelos` virtual) → `/libreria-stl/[group]/[model]` (id del modelo; si el grupo de la URL no coincide, redirige al canónico). Todas bajo el gate de plataforma del middleware. Datos: `stl_categories` (= grupo) / `stl_models` / `stl_variants` leídos con el cliente Supabase + RLS (`src/lib/stl/queries.ts`); lógica pura en `src/lib/stl/library.ts` (agrupado, contadores, resolución de slug, soporte del viewer, formato de dimensiones). Ver D025.
+
+- Viewer: `src/components/stl/StlViewer.tsx` (Three.js directo, render on-demand, sin drei/fiber). Flujo: `POST /api/stl/preview {variantId}` → URL firmada (300 s, sin `download`) → `fetch` con progreso y tope de 60 MB → `STLLoader` → validación de geometría → `OrbitControls` (drag/rueda/pinch). Cleanup: `dispose` de geometry/material/controls/renderer + `forceContextLoss` + abort del fetch. Errores con estado propio: sin acceso, archivo faltante, red, muy pesado, STL dañado, WebGL no disponible, contexto perdido.
+- `/api/stl/download` y `stl_downloads` no cambiaron; `StlDownloadButton` reutiliza el mismo flujo.
+- Admin: `/admin/stl/categorias` = **Grupos** (alta/edición, portada vía `FileUploadDropzone` en `stl-thumbnails`, orden, publicado; sin hard delete: se despublica); el formulario de modelo asigna grupo con `Combobox` (o "Sin grupo").
+- Sin migration: el schema `stl_*` no está versionado en `supabase/migrations` (viene de antes); RLS/bucket `stl-files` privado no se tocaron.
+
 ## 19. Acceso Beta por código de invitación (2026-10-05)
 
 Migration `20261005120000_beta_access_codes.sql` (no aplicada en remoto; ver TASKS.md). Diagnóstico read-only: `supabase/diagnostics/20261005_beta_access_state.sql`.

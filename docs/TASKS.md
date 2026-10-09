@@ -2,6 +2,13 @@
 
 Este archivo contiene únicamente trabajo pendiente o próximo. Eliminar tareas terminadas en lugar de conservar un historial infinito.
 
+## Now — Librería STL: Grupos + viewer 3D (implementado 2026-10-09, ver ARCHITECTURE §18b y D025)
+
+- [ ] Prueba manual con sesión real (checklist del reporte): crear grupo con portada, asignar STL, abrir viewer en desktop y mobile (320–430 px), rotar/zoom/pinch, descargar, usuario sin acceso, STL grande/corrupto.
+- [ ] Verificar en Supabase que las policies de `stl_categories`/`stl_models`/`stl_variants` ocultan filas no publicadas a usuarios no-admin (el schema `stl_*` no está versionado en `supabase/migrations`; hoy el filtro `is_active` está en las queries y en `/api/stl/preview`).
+- [ ] Verificar que el bucket `stl-files` sea privado y permita CORS de lectura por URL firmada desde el dominio de la app (el viewer hace `fetch` directo a la URL firmada).
+- [ ] Opcional: versionar en una migration el schema/RLS de `stl_*` y agregar un índice único de `slug` en `stl_categories` si no existe (hoy el admin valida unicidad en cliente).
+
 ## Now — Acceso Beta por código (implementado 2026-10-05, ver ARCHITECTURE.md §19 y D023)
 
 - [x] ~~Diagnóstico remoto~~ ejecutado: compatible. Pendiente: aplicar la migration Beta (incluye el hardening de privilegios de `user_access_grants`) y volver a correr `supabase/diagnostics/20261005_beta_access_state.sql`: deben aparecer `0_VERDICT ... HARDENED` y `anon TRUNCATE = false` / `authenticated TRUNCATE = false`.

@@ -18,7 +18,7 @@ export default function AdminStlDashboardPage() {
           Administración de Librería STL
         </h1>
         <p className="text-sm text-gray-500 mt-1">
-          Gestiona las categorías, modelos 3D y variantes disponibles en la plataforma.
+          Gestiona los grupos, modelos 3D y variantes disponibles en la plataforma.
         </p>
       </div>
 
@@ -29,10 +29,10 @@ export default function AdminStlDashboardPage() {
               <div className="p-3 bg-indigo-50 text-indigo-600 rounded-lg">
                 <Tags size={24} />
               </div>
-              <h2 className="text-lg font-semibold text-white">Categorías</h2>
+              <h2 className="text-lg font-semibold text-white">Grupos</h2>
             </div>
             <p className="text-sm text-gray-400">
-              Administra las categorías principales de la librería STL (ej. Funcionales, Macetas).
+              Administra los grupos de la librería STL (ej. Dragones articulados, Navidad), su portada y orden.
             </p>
           </div>
         </Link>

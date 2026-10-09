@@ -15,10 +15,10 @@ export default function AdminStlCategoriesPage() {
         </Link>
         <h1 className="text-2xl font-bold text-white flex items-center gap-2">
           <Tags className="text-indigo-600" />
-          Categorías STL
+          Grupos STL
         </h1>
         <p className="text-sm text-gray-500 mt-1">
-          Administra las categorías de la librería STL.
+          Administra los grupos que organizan la Librería STL: nombre, portada, orden y publicación.
         </p>
       </div>
 

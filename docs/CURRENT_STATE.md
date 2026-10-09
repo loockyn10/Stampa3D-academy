@@ -116,3 +116,7 @@ No asumir desde esta documentación:
 - que el working tree está limpio.
 
 La primera tarea de cualquier agente que dependa de uno de estos puntos es inspeccionar el repositorio.
+
+## 7. Librería STL — Grupos + viewer 3D (2026-10-09)
+
+Implementado en código: grupos (= `stl_categories`), página de grupo, detalle de modelo con viewer Three.js, `POST /api/stl/preview`, Admin de grupos y selector de grupo en modelos (ver ARCHITECTURE §18b, D025). Verificado: 25 tests nuevos (`tests/stl-library.test.mjs`), typecheck y build; `STLLoader` probado en Node con STL válido e inválido. **No verificado:** render real del viewer en navegador, gestos touch, anchos 320–430 px y comportamiento con RLS/bucket reales (requiere sesión y datos). Sin migration.
