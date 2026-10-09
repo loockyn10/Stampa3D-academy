@@ -108,9 +108,9 @@ test("slugify", () => {
 });
 
 // ---------------------------------------------------------------- VIEWER (helpers)
-test("el viewer solo soporta .stl alojados en storage", () => {
-  assert.equal(lib.getStlViewerSupport("storage://stl-files/a/b.STL").supported, true);
-  assert.equal(lib.getStlViewerSupport("storage://stl-files/a/b.3mf").supported, false);
+test("el viewer soporta .stl y .3mf alojados en storage; zip y otros no", () => {
+  assert.deepEqual(lib.getStlViewerSupport("storage://stl-files/a/b.STL"), { supported: true, format: "stl" });
+  assert.deepEqual(lib.getStlViewerSupport("storage://stl-files/a/b.3MF"), { supported: true, format: "3mf" });
   assert.equal(lib.getStlViewerSupport("storage://stl-files/a/b.zip").supported, false);
   assert.equal(lib.getStlViewerSupport("https://drive.google.com/file/d/1/view").supported, false);
   assert.equal(lib.getStlViewerSupport(null).supported, false);
@@ -176,7 +176,7 @@ test("preview: usuario autorizado recibe URL firmada corta, sin path interno", a
   const { POST, signCalls } = loadPreviewRoute({ access: member, rows: baseRows() });
   const res = await POST(req({ variantId: "v1" }));
   assert.equal(res.status, 200);
-  assert.deepEqual(Object.keys(res.body), ["url"]);
+  assert.deepEqual(Object.keys(res.body).sort(), ["format", "url"]);
   assert.equal(signCalls[0].ttl <= 300, true);
   assert.equal(signCalls[0].bucket, "stl-files");
   assert.doesNotMatch(JSON.stringify(res.body), /stl-files|service-role-secret/);
@@ -206,11 +206,39 @@ test("preview: modelo o grupo no publicado no sirve archivo a miembros, sí a Ad
   assert.equal((await r.POST(req({ variantId: "vhidden" }))).status, 200);
 });
 
-test("preview: formatos no soportados y URLs externas -> 422 sin firmar", async () => {
+test("preview: STL y 3MF permitidos; el formato lo decide el servidor", async () => {
   const { POST, signCalls } = loadPreviewRoute({ access: member, rows: baseRows() });
-  assert.equal((await POST(req({ variantId: "v3mf" }))).status, 422);
-  assert.equal((await POST(req({ variantId: "vext" }))).status, 422);
+  const stl = await POST(req({ variantId: "v1", format: "3mf" })); // el cliente no decide el formato
+  assert.equal(stl.status, 200);
+  assert.equal(stl.body.format, "stl");
+  const threeMf = await POST(req({ variantId: "v3mf", format: "stl" }));
+  assert.equal(threeMf.status, 200);
+  assert.equal(threeMf.body.format, "3mf");
+  assert.deepEqual(Object.keys(threeMf.body).sort(), ["format", "url"]);
+  assert.equal(signCalls.length, 2);
+  assert.equal(signCalls[1].p, "stl/m1/a.3mf");
+  assert.ok(signCalls[1].ttl <= 300);
+});
+
+test("preview: ZIP, otros formatos y URLs externas -> 422 sin firmar", async () => {
+  const rows = baseRows();
+  rows.stl_variants.push({ id: "vzip", model_id: "m1", file_url: "storage://stl-files/stl/m1/a.zip", is_active: true });
+  rows.stl_variants.push({ id: "vobj", model_id: "m1", file_url: "storage://stl-files/stl/m1/a.obj", is_active: true });
+  const { POST, signCalls } = loadPreviewRoute({ access: member, rows });
+  for (const id of ["vzip", "vobj", "vext"]) assert.equal((await POST(req({ variantId: id }))).status, 422, id);
   assert.equal(signCalls.length, 0);
+});
+
+test("preview 3MF mantiene auth y publicación", async () => {
+  const rows = baseRows();
+  rows.stl_variants.push({ id: "v3hidden", model_id: "m2", file_url: "storage://stl-files/stl/m2/a.3mf", is_active: true });
+  let r = loadPreviewRoute({ access: { authenticated: false, userId: null, capabilities: {} }, rows });
+  assert.equal((await r.POST(req({ variantId: "v3mf" }))).status, 401);
+  r = loadPreviewRoute({ access: { ...member, capabilities: { downloadStl: false } }, rows });
+  assert.equal((await r.POST(req({ variantId: "v3mf" }))).status, 403);
+  r = loadPreviewRoute({ access: member, rows });
+  assert.equal((await r.POST(req({ variantId: "v3hidden" }))).status, 404);
+  assert.equal(r.signCalls.length, 0);
 });
 
 test("preview: fallo al firmar (archivo faltante) -> 404 con code missing", async () => {
@@ -228,7 +256,7 @@ test("service role solo en rutas de servidor, nunca en componentes ni páginas d
     "src/app/libreria-stl/page.tsx",
     "src/app/libreria-stl/[group]/page.tsx",
     "src/app/libreria-stl/[group]/[model]/page.tsx",
-    "src/components/stl/StlViewer.tsx",
+    "src/components/stl/Model3DViewer.tsx",
     "src/components/stl/StlDownloadButton.tsx",
     "src/components/stl/StlModelCard.tsx",
     "src/components/stl/StlGroupCard.tsx",
@@ -246,22 +274,22 @@ test("el viewer 3D vive solo en el detalle: ni cards ni listados lo importan", (
     "src/app/libreria-stl/page.tsx",
     "src/app/libreria-stl/[group]/page.tsx",
   ]) {
-    assert.doesNotMatch(read(f), /StlViewer|from "three|import\("three/, f);
+    assert.doesNotMatch(read(f), /Model3DViewer|from "three|import\("three/, f);
   }
   const detail = read("src/app/libreria-stl/[group]/[model]/page.tsx");
-  assert.match(detail, /dynamic\(\(\) => import\("@\/components\/stl\/StlViewer"\)/);
+  assert.match(detail, /dynamic\(\(\) => import\("@\/components\/stl\/Model3DViewer"\)/);
   assert.match(detail, /ssr: false/);
 });
 
 test("viewer: obtiene el archivo solo vía /api/stl/preview y maneja errores y cleanup", () => {
-  const v = read("src/components/stl/StlViewer.tsx");
+  const v = read("src/components/stl/Model3DViewer.tsx");
   assert.match(v, /fetch\("\/api\/stl\/preview"/);
   assert.doesNotMatch(v, /createSignedUrl|getPublicUrl|storage:\/\//);
   assert.match(v, /Archivo no encontrado/);
-  assert.match(v, /Archivo dañado/);
+  assert.match(read("src/lib/stl/parse-model.ts"), /Archivo dañado/);
   assert.match(v, /Modelo muy pesado/);
   assert.match(v, /Visor no compatible/);
-  for (const call of ["geometry.dispose()", "material.dispose()", "renderer.dispose()", "controls.dispose()", "forceContextLoss()", "abort.abort()"]) {
+  for (const call of ["disposeModel()", "(object as Mesh).geometry?.dispose()", "material.dispose()", "renderer.dispose()", "controls.dispose()", "forceContextLoss()", "abort.abort()"]) {
     assert.ok(v.includes(call), `cleanup ${call}`);
   }
 });
@@ -280,7 +308,7 @@ test("admin: el modelo se asigna a un grupo con Combobox (sin select nativo) y p
   const f = read("src/components/admin/stl-model-form.tsx");
   assert.match(f, /<Combobox/);
   assert.doesNotMatch(f, /name="category_id"/);
-  assert.match(f, /category_id: formData\.category_id[\s\S]*: null/);
+  assert.match(read("src/lib/stl/model-payload.ts"), /category_id: categoryId/);
   assert.match(f, /Sin grupo/);
   assert.match(read("src/components/admin/stl-models-table.tsx"), /Sin grupo/);
 });

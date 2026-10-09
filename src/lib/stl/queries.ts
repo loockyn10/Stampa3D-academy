@@ -1,8 +1,10 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
 import type { StlGroupRow, StlModelRow } from "@/lib/stl/library";
+import { stlModelDisplayName } from "@/lib/stl/model-payload";
 
 export interface StlLibraryModel extends StlModelRow {
   title: string;
+  name?: string | null;
   description: string | null;
   difficulty: string | null;
   material_type: string | null;
@@ -20,7 +22,7 @@ export interface StlLibraryVariant {
 
 const GROUP_COLUMNS = "id, name, slug, description, thumbnail_url, sort_order, is_active";
 const MODEL_COLUMNS =
-  "id, title, description, difficulty, material_type, estimated_print_time, thumbnail_url, category_id, is_active, created_at";
+  "id, name, title, description, difficulty, material_type, estimated_print_time, thumbnail_url, category_id, is_active, created_at";
 const VARIANT_COLUMNS = "id, model_id, file_url, is_active";
 
 /**
@@ -37,7 +39,7 @@ export async function fetchStlLibrary(supabase: SupabaseClient) {
   const error = groupsRes.error ?? modelsRes.error ?? variantsRes.error ?? null;
   return {
     groups: (groupsRes.data ?? []) as StlGroupRow[],
-    models: (modelsRes.data ?? []) as StlLibraryModel[],
+    models: ((modelsRes.data ?? []) as StlLibraryModel[]).map(normalizeModel),
     variants: (variantsRes.data ?? []) as StlLibraryVariant[],
     error,
   };
@@ -45,4 +47,9 @@ export async function fetchStlLibrary(supabase: SupabaseClient) {
 
 export function firstDownloadableVariant(variants: StlLibraryVariant[], modelId: string) {
   return variants.find((variant) => variant.model_id === modelId && variant.is_active && variant.file_url) ?? null;
+}
+
+/** `title` puede venir vacío en filas creadas con `name` solamente. */
+export function normalizeModel<T extends { title?: string | null; name?: string | null }>(row: T): T & { title: string } {
+  return { ...row, title: stlModelDisplayName(row) };
 }

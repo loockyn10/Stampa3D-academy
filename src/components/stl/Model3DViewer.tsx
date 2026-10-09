@@ -1,14 +1,21 @@
 "use client";
 
 import React, { useCallback, useEffect, useRef, useState } from "react";
-import type { BufferGeometry, NormalBufferAttributes } from "three";
+import type { Mesh, Object3D } from "three";
 import { AlertCircle, Loader2, RotateCcw } from "lucide-react";
-import { STL_VIEWER_MAX_BYTES, type StlDimensions } from "@/lib/stl/library";
+import { STL_VIEWER_MAX_BYTES, type Model3DFormat, type StlDimensions } from "@/lib/stl/library";
+import {
+  describeModel3DLoadError,
+  Model3DLoadError,
+  parseModel3D,
+  type ParsedGeometry,
+  type ParsedObject,
+} from "@/lib/stl/parse-model";
 
 type ViewerError = { title: string; detail: string };
 
-interface StlViewerProps {
-  /** Variante a previsualizar; la URL firmada se pide a /api/stl/preview (misma autorización que la descarga). */
+interface Model3DViewerProps {
+  /** Variante a previsualizar; la URL firmada se pide a /api/stl/preview (misma autorización que la descarga; el servidor decide el formato). */
   variantId: string;
   onDimensions?: (dimensions: StlDimensions | null) => void;
 }
@@ -51,7 +58,7 @@ async function readWithLimit(
   return out.buffer;
 }
 
-export function StlViewer({ variantId, onDimensions }: StlViewerProps) {
+export function Model3DViewer({ variantId, onDimensions }: Model3DViewerProps) {
   const containerRef = useRef<HTMLDivElement>(null);
   const resetRef = useRef<(() => void) | null>(null);
   const onDimensionsRef = useRef(onDimensions);
@@ -88,6 +95,7 @@ export function StlViewer({ variantId, onDimensions }: StlViewerProps) {
     (async () => {
       // 1. URL firmada (valida sesión, membresía y publicación en el servidor).
       let signedUrl: string;
+      let format: Model3DFormat;
       try {
         const res = await fetch("/api/stl/preview", {
           method: "POST",
@@ -97,18 +105,20 @@ export function StlViewer({ variantId, onDimensions }: StlViewerProps) {
         });
         const data = await res.json().catch(() => ({}));
         if (!res.ok || !data.url) {
-          if (res.status === 422) return fail("Sin vista previa", data.error || "Este archivo no tiene vista previa 3D.");
+          if (res.status === 422) return fail("Formato no soportado", data.error || "Este archivo no tiene vista previa 3D.");
           if (res.status === 401 || res.status === 403) return fail("Sin acceso", "Tu cuenta no tiene acceso a este archivo.");
           if (res.status === 404) return fail("Archivo no encontrado", "El archivo ya no está disponible.");
           return fail("No se pudo cargar", "Probá de nuevo en unos segundos.");
         }
+        if (data.format !== "stl" && data.format !== "3mf") return fail("Formato no soportado", "La vista previa 3D solo admite archivos STL y 3MF.");
         signedUrl = data.url as string;
+        format = data.format;
       } catch (err) {
         if ((err as Error)?.name === "AbortError") return;
         return fail("No se pudo cargar", "Revisá tu conexión e intentá otra vez.");
       }
 
-      // 2. Descarga del STL (solo ahora, al abrir el detalle).
+      // 2. Descarga del archivo 3D (solo ahora, al abrir el detalle).
       let buffer: ArrayBuffer;
       try {
         const fileRes = await fetch(signedUrl, { signal: abort.signal });
@@ -133,35 +143,71 @@ export function StlViewer({ variantId, onDimensions }: StlViewerProps) {
       // 3. Escena Three.js (se carga bajo demanda para no inflar el bundle de la Librería).
       try {
         const THREE = await import("three");
-        const [{ STLLoader }, { OrbitControls }] = await Promise.all([
+        const [{ STLLoader }, { ThreeMFLoader }, { OrbitControls }] = await Promise.all([
           import("three/examples/jsm/loaders/STLLoader.js"),
+          format === "3mf"
+            ? import("three/examples/jsm/loaders/3MFLoader.js")
+            : Promise.resolve({ ThreeMFLoader: null }),
           import("three/examples/jsm/controls/OrbitControls.js"),
         ]);
         if (disposed) return;
 
-        let geometry: BufferGeometry<NormalBufferAttributes>;
+        // STL -> una geometría; 3MF -> Group con una o más mallas (cada formato con su loader).
+        let model: Object3D;
         try {
-          geometry = new STLLoader().parse(buffer) as unknown as BufferGeometry<NormalBufferAttributes>;
-        } catch {
-          return fail("Archivo dañado", "No pude leer la geometría de este STL.");
-        }
-        const position = geometry.getAttribute("position");
-        geometry.computeBoundingBox();
-        const box = geometry.boundingBox;
-        if (!position || position.count < 3 || !box || ![box.min.x, box.max.x, box.min.y, box.max.y, box.min.z, box.max.z].every(Number.isFinite)) {
-          geometry.dispose();
-          return fail("Archivo dañado", "El STL no tiene geometría válida.");
+          const parsed = parseModel3D(format, buffer, {
+            stl: () => new STLLoader(),
+            "3mf": () => {
+              if (!ThreeMFLoader) throw new Error("3MF loader no cargado");
+              return new ThreeMFLoader();
+            },
+          });
+          if (parsed.format === "stl") {
+            model = new THREE.Mesh(parsed.geometry as ParsedGeometry as never, new THREE.MeshBasicMaterial());
+          } else {
+            model = parsed.group as ParsedObject as unknown as Object3D;
+          }
+        } catch (err) {
+          if (err instanceof Model3DLoadError) {
+            const copy = describeModel3DLoadError(err);
+            return fail(copy.title, copy.detail);
+          }
+          throw err;
         }
 
+        // Material neutro único para todas las mallas (3MF trae materiales propios que se descartan).
+        const material = new THREE.MeshStandardMaterial({ color: 0xc8ccd4, roughness: 0.55, metalness: 0.05 });
+        const disposeModel = () => {
+          model.traverse((object) => {
+            (object as Mesh).geometry?.dispose();
+          });
+        };
+        model.traverse((object) => {
+          const mesh = object as Mesh;
+          if (!mesh.isMesh) return;
+          const previous = mesh.material;
+          mesh.material = material;
+          (Array.isArray(previous) ? previous : [previous]).forEach((item) => item?.dispose?.());
+        });
+
+        const box = new THREE.Box3().setFromObject(model);
         const size = box.getSize(new THREE.Vector3());
+        if (box.isEmpty() || ![size.x, size.y, size.z].every(Number.isFinite) || size.lengthSq() === 0) {
+          disposeModel();
+          material.dispose();
+          const copy = describeModel3DLoadError(new Model3DLoadError("empty", format, "Sin volumen"));
+          return fail(copy.title, copy.detail);
+        }
         onDimensionsRef.current?.({ x: size.x, y: size.y, z: size.z });
-        geometry.center();
+        model.position.sub(box.getCenter(new THREE.Vector3()));
+        model.updateMatrixWorld(true);
 
         let renderer: InstanceType<typeof THREE.WebGLRenderer>;
         try {
           renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true });
         } catch {
-          geometry.dispose();
+          disposeModel();
+          material.dispose();
           return fail("Visor no compatible", "Tu navegador no soporta WebGL. Podés descargar el archivo igual.");
         }
         renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
@@ -172,10 +218,10 @@ export function StlViewer({ variantId, onDimensions }: StlViewerProps) {
 
         const scene = new THREE.Scene();
         const camera = new THREE.PerspectiveCamera(40, 1, 0.1, 10000);
-        const material = new THREE.MeshStandardMaterial({ color: 0xc8ccd4, roughness: 0.55, metalness: 0.05 });
-        const mesh = new THREE.Mesh(geometry, material);
-        mesh.rotation.x = -Math.PI / 2; // STL es Z-up; la escena es Y-up.
-        scene.add(mesh);
+        const pivot = new THREE.Group();
+        pivot.rotation.x = -Math.PI / 2; // STL y 3MF son Z-up; la escena es Y-up.
+        pivot.add(model);
+        scene.add(pivot);
         scene.add(new THREE.HemisphereLight(0xffffff, 0x444455, 1.1));
         const keyLight = new THREE.DirectionalLight(0xffffff, 1.6);
         camera.add(keyLight);
@@ -229,14 +275,14 @@ export function StlViewer({ variantId, onDimensions }: StlViewerProps) {
           renderer.domElement.removeEventListener("webglcontextlost", onContextLost);
           controls.removeEventListener("change", render);
           controls.dispose();
-          geometry.dispose();
+          disposeModel();
           material.dispose();
           renderer.dispose();
           renderer.forceContextLoss();
           renderer.domElement.remove();
         };
       } catch (err) {
-        console.error("[StlViewer]", err);
+        console.error("[Model3DViewer]", err);
         fail("Visor no disponible", "No pude iniciar la vista previa 3D. Podés descargar el archivo igual.");
       }
     })();

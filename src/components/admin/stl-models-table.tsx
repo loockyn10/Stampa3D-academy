@@ -5,6 +5,7 @@ import { createClient } from "@/utils/supabase/client";
 import { Loader2, AlertCircle, Edit2 } from "lucide-react";
 import Link from "next/link";
 import { Badge } from "@/components/ui/badge";
+import { stlModelDisplayName } from "@/lib/stl/model-payload";
 
 export function StlModelsTable() {
   const [models, setModels] = useState<any[]>([]);
@@ -72,13 +73,13 @@ export function StlModelsTable() {
                 <tr key={model.id} className="text-sm hover:bg-stampa-bg-soft transition-colors">
                   <td className="px-4 py-3">
                     {model.thumbnail_url ? (
-                      <img src={model.thumbnail_url} alt={model.title} className="w-10 h-10 rounded object-cover" />
+                      <img src={model.thumbnail_url} alt={stlModelDisplayName(model)} className="w-10 h-10 rounded object-cover" />
                     ) : (
                       <div className="w-10 h-10 bg-white/5 rounded flex items-center justify-center text-gray-400 text-xs">Sin img</div>
                     )}
                   </td>
                   <td className="px-4 py-3 font-medium text-white">
-                    {model.title}
+                    {stlModelDisplayName(model)}
                   </td>
                   <td className="px-4 py-3 text-gray-400">
                     {model.stl_categories?.name || "Sin grupo"}

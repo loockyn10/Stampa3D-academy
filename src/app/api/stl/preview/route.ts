@@ -11,6 +11,7 @@ const PREVIEW_URL_TTL_SECONDS = 300;
  * URL firmada de corta vida para que el viewer 3D lea un STL.
  * Mismas reglas de acceso que /api/stl/download (sesión + capability downloadStl) y,
  * además, exige que modelo y grupo estén publicados (salvo Admin).
+ * El formato (stl | 3mf) se deduce del archivo guardado en DB, no de lo que envíe el cliente.
  * Nunca devuelve el path interno ni URLs externas.
  */
 export async function POST(req: NextRequest) {
@@ -91,7 +92,7 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: "No se pudo acceder al archivo", code: "missing" }, { status: 404 });
     }
 
-    return NextResponse.json({ url: data.signedUrl }, { headers: { "Cache-Control": "no-store" } });
+    return NextResponse.json({ url: data.signedUrl, format: support.format }, { headers: { "Cache-Control": "no-store" } });
   } catch (error: unknown) {
     console.error("API stl/preview error:", error);
     return NextResponse.json({ error: "Error interno del servidor" }, { status: 500 });

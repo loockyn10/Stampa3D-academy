@@ -6,6 +6,7 @@ import { createClient } from "@/utils/supabase/client";
 import { Loader2, AlertCircle, Save, CheckCircle2 } from "lucide-react";
 import { FileUploadDropzone } from "@/components/ui/file-upload-dropzone";
 import { Combobox } from "@/components/ui/combobox";
+import { buildStlModelPayload, buildStlVariantPayload, stlModelDisplayName } from "@/lib/stl/model-payload";
 
 export function StlModelForm({ modelId }: { modelId?: string }) {
   const router = useRouter();
@@ -49,7 +50,7 @@ export function StlModelForm({ modelId }: { modelId?: string }) {
           setError("Error cargando el modelo STL.");
         } else if (modelData) {
           setFormData({
-            title: modelData.title || "",
+            title: stlModelDisplayName(modelData) === "Sin título" ? "" : stlModelDisplayName(modelData),
             description: modelData.description || "",
             difficulty: modelData.difficulty || "beginner",
             estimated_print_time: modelData.estimated_print_time || "",
@@ -98,16 +99,14 @@ export function StlModelForm({ modelId }: { modelId?: string }) {
     setError(null);
     setSuccess(null);
 
-    const payload = {
-      title: formData.title,
-      description: formData.description || null,
-      difficulty: formData.difficulty || null,
-      estimated_print_time: formData.estimated_print_time || null,
-      material_type: formData.material_type || null,
-      thumbnail_url: formData.thumbnail_url || null,
-      is_active: formData.is_active,
-      category_id: formData.category_id && formData.category_id !== "undefined" && formData.category_id !== "" ? formData.category_id : null,
-    };
+    let payload: ReturnType<typeof buildStlModelPayload>;
+    try {
+      payload = buildStlModelPayload(formData);
+    } catch (err) {
+      setSaving(false);
+      setError(err instanceof Error ? err.message : "Datos inválidos.");
+      return;
+    }
 
     let opError = null;
     let newId = null;
@@ -136,23 +135,17 @@ export function StlModelForm({ modelId }: { modelId?: string }) {
       const finalModelId = isEditing ? modelId : newId;
 
       if (finalModelId && formData.file_url) {
-        const variantPayload = {
-          model_id: finalModelId,
-          title: formData.title,
-          description: formData.description || null,
-          file_url: formData.file_url,
-          thumbnail_url: formData.thumbnail_url || null,
-          material_type: formData.material_type || null,
-          is_active: true,
-          sort_order: 0,
-        };
+        const variantPayload = buildStlVariantPayload(finalModelId, formData, formData.file_url);
 
-        if (variantId) {
-          await supabase.from("stl_variants").update(variantPayload).eq("id", variantId);
-        } else {
-          const { data: newVar } = await supabase.from("stl_variants").insert([variantPayload]).select().single();
-          if (newVar) setVariantId(newVar.id);
+        const variantResult = variantId
+          ? await supabase.from("stl_variants").update(variantPayload).eq("id", variantId).select("id").single()
+          : await supabase.from("stl_variants").insert([variantPayload]).select("id").single();
+        if (variantResult.error) {
+          setError(`El modelo se guardó, pero no pude asociar el archivo: ${variantResult.error.message}`);
+          if (!isEditing && finalModelId) router.push(`/admin/stl/modelos/${finalModelId}`);
+          return;
         }
+        if (variantResult.data) setVariantId(variantResult.data.id);
       }
 
       setSuccess(isEditing ? "Archivo STL actualizado correctamente." : "Archivo STL creado correctamente.");

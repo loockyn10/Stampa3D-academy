@@ -10,7 +10,7 @@
 export const UNGROUPED_GROUP_SLUG = "otros-modelos";
 export const UNGROUPED_GROUP_NAME = "Otros modelos";
 
-/** Límite del viewer 3D: por encima se ofrece solo la descarga. */
+/** Límite del viewer 3D (aplica a STL y 3MF): por encima se ofrece solo la descarga. */
 export const STL_VIEWER_MAX_BYTES = 60 * 1024 * 1024;
 
 export interface StlGroupRow {
@@ -152,9 +152,17 @@ export function resolveGroupSegment(
   return null;
 }
 
-export type StlViewerSupport = { supported: true } | { supported: false; reason: string };
+export type Model3DFormat = "stl" | "3mf";
 
-/** El viewer solo abre `.stl`; .3mf/.zip/URLs externas se descargan sin preview. */
+export type StlViewerSupport =
+  | { supported: true; format: Model3DFormat }
+  | { supported: false; reason: string };
+
+/**
+ * Formato del archivo según la referencia guardada en DB (nunca según lo que envíe el frontend).
+ * El viewer abre `.stl` y `.3mf` alojados en storage; `.zip`, otros formatos y URLs externas
+ * se descargan sin preview.
+ */
 export function getStlViewerSupport(fileReference: string | null | undefined): StlViewerSupport {
   const ref = (fileReference ?? "").trim();
   if (!ref) return { supported: false, reason: "Este modelo todavía no tiene archivo." };
@@ -162,10 +170,9 @@ export function getStlViewerSupport(fileReference: string | null | undefined): S
     return { supported: false, reason: "El archivo está alojado fuera de la plataforma: no hay vista previa 3D." };
   }
   const clean = ref.split("?")[0].toLowerCase();
-  if (!clean.endsWith(".stl")) {
-    return { supported: false, reason: "La vista previa 3D solo está disponible para archivos .stl." };
-  }
-  return { supported: true };
+  if (clean.endsWith(".stl")) return { supported: true, format: "stl" };
+  if (clean.endsWith(".3mf")) return { supported: true, format: "3mf" };
+  return { supported: false, reason: "La vista previa 3D solo está disponible para archivos .stl y .3mf." };
 }
 
 export interface StlDimensions {

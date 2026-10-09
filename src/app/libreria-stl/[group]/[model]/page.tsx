@@ -20,10 +20,10 @@ import {
   type StlDimensions,
   type StlGroupRow,
 } from "@/lib/stl/library";
-import type { StlLibraryModel, StlLibraryVariant } from "@/lib/stl/queries";
+import { normalizeModel, type StlLibraryModel, type StlLibraryVariant } from "@/lib/stl/queries";
 
 // El viewer (three + STLLoader) solo se carga en el detalle, nunca en las cards.
-const StlViewer = dynamic(() => import("@/components/stl/StlViewer").then((mod) => mod.StlViewer), {
+const Model3DViewer = dynamic(() => import("@/components/stl/Model3DViewer").then((mod) => mod.Model3DViewer), {
   ssr: false,
   loading: () => (
     <div className="flex aspect-[4/3] w-full items-center justify-center rounded-2xl border border-stampa-border bg-stampa-bg-soft sm:aspect-video">
@@ -37,7 +37,7 @@ interface PageProps {
 }
 
 const MODEL_COLUMNS =
-  "id, title, description, difficulty, material_type, estimated_print_time, thumbnail_url, category_id, is_active, created_at";
+  "id, name, title, description, difficulty, material_type, estimated_print_time, thumbnail_url, category_id, is_active, created_at";
 
 export default function LibreriaStlModelPage({ params }: PageProps) {
   const { group: groupSegment, model: modelSegment } = use(params);
@@ -66,7 +66,7 @@ export default function LibreriaStlModelPage({ params }: PageProps) {
         if (cancelled) return;
         setGroups((groupsRes.data ?? []) as StlGroupRow[]);
 
-        const loadedModel = (modelRes.data ?? null) as StlLibraryModel | null;
+        const loadedModel = modelRes.data ? normalizeModel(modelRes.data as StlLibraryModel) : null;
         setModel(loadedModel);
 
         if (loadedModel) {
@@ -174,7 +174,7 @@ export default function LibreriaStlModelPage({ params }: PageProps) {
       <div className="grid min-w-0 grid-cols-1 gap-6 lg:grid-cols-[minmax(0,1fr)_22rem]">
         <div className="min-w-0">
           {variant && viewerSupport.supported ? (
-            <StlViewer key={variant.id} variantId={variant.id} onDimensions={setDimensions} />
+            <Model3DViewer key={variant.id} variantId={variant.id} onDimensions={setDimensions} />
           ) : (
             <div className="relative flex aspect-[4/3] w-full flex-col items-center justify-center gap-3 overflow-hidden rounded-2xl border border-stampa-border bg-stampa-bg-soft px-6 text-center sm:aspect-video">
               {model.thumbnail_url ? (
