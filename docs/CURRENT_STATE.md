@@ -119,4 +119,6 @@ La primera tarea de cualquier agente que dependa de uno de estos puntos es inspe
 
 ## 7. Librería STL — Grupos + viewer 3D (2026-10-09)
 
+**Previews 360° (2026-10-11):** implementado en código (cards con WebM prerenderizado, generación client-side en Admin, fallback a thumbnail); requiere aplicar la migration `20261011120000_stl_model_preview_360.sql` y prueba manual en navegador (WebGL + MediaRecorder reales no se prueban en Node). Ver ARCHITECTURE §18c.
+
 Implementado en código: grupos (= `stl_categories`), página de grupo, detalle de modelo con viewer Three.js, `POST /api/stl/preview`, Admin de grupos y selector de grupo en modelos (ver ARCHITECTURE §18b, D025). Verificado: 25 tests nuevos (`tests/stl-library.test.mjs`), typecheck y build; `STLLoader` probado en Node con STL válido e inválido. **No verificado:** render real del viewer en navegador, gestos touch, anchos 320–430 px y comportamiento con RLS/bucket reales (requiere sesión y datos). Sin migration.

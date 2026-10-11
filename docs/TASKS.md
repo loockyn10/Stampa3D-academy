@@ -7,6 +7,7 @@ Este archivo contiene únicamente trabajo pendiente o próximo. Eliminar tareas 
 - [ ] Prueba manual con sesión real (checklist del reporte): crear grupo con portada, asignar STL, abrir viewer en desktop y mobile (320–430 px), rotar/zoom/pinch, descargar, usuario sin acceso, STL grande/corrupto.
 - [ ] Verificar en Supabase que las policies de `stl_categories`/`stl_models`/`stl_variants` ocultan filas no publicadas a usuarios no-admin (el schema `stl_*` no está versionado en `supabase/migrations`; hoy el filtro `is_active` está en las queries y en `/api/stl/preview`).
 - [ ] Verificar que el bucket `stl-files` sea privado y permita CORS de lectura por URL firmada desde el dominio de la app (el viewer hace `fetch` directo a la URL firmada).
+- [ ] **Previews 360° (2026-10-11, ARCHITECTURE §18c / D026):** aplicar `supabase/migrations/20261011120000_stl_model_preview_360.sql` (columna `stl_models.preview_url` + bucket público `stl-previews` + policies Admin); luego, en Admin → Modelos → editar, "Generar vista 360°" por cada modelo existente (no hay regeneración masiva). Probar en Chrome/Edge: generación STL y 3MF, tamaño del WebM, hover en desktop, autoplay en mobile (320–430 px), reduced-motion, preview borrado de Storage.
 - [ ] Opcional: versionar en una migration el schema/RLS de `stl_*` y agregar un índice único de `slug` en `stl_categories` si no existe (hoy el admin valida unicidad en cliente).
 
 ## Now — Acceso Beta por código (implementado 2026-10-05, ver ARCHITECTURE.md §19 y D023)

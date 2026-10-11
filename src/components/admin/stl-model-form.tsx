@@ -8,6 +8,9 @@ import { FileUploadDropzone } from "@/components/ui/file-upload-dropzone";
 import { Combobox } from "@/components/ui/combobox";
 import { stlModelDisplayName } from "@/lib/stl/model-payload";
 import { saveStlModel } from "@/lib/stl/save-model";
+import { StlPreviewPanel } from "@/components/admin/stl-preview-panel";
+import { generateAndStorePreview } from "@/lib/stl/preview-service";
+import { PREVIEW_FAILURE_NOTICE, canGeneratePreview, type PreviewGenerationStatus } from "@/lib/stl/preview-media";
 
 export function StlModelForm({ modelId }: { modelId?: string }) {
   const router = useRouter();
@@ -35,6 +38,12 @@ export function StlModelForm({ modelId }: { modelId?: string }) {
 
   const [variantId, setVariantId] = useState<string | null>(null);
 
+  // Vista 360°: archivo guardado en DB (para detectar reemplazos) + estado de generación.
+  const [savedFileUrl, setSavedFileUrl] = useState("");
+  const [previewUrl, setPreviewUrl] = useState<string | null>(null);
+  const [previewStatus, setPreviewStatus] = useState<PreviewGenerationStatus>("idle");
+  const [previewNotice, setPreviewNotice] = useState<string | null>(null);
+
   useEffect(() => {
     const fetchData = async () => {
       const { data: catsData } = await supabase.from("stl_categories").select("id, name, is_active").order("sort_order");
@@ -50,6 +59,7 @@ export function StlModelForm({ modelId }: { modelId?: string }) {
         if (modelError) {
           setError("Error cargando el modelo STL.");
         } else if (modelData) {
+          setPreviewUrl(typeof modelData.preview_url === "string" && modelData.preview_url ? modelData.preview_url : null);
           setFormData({
             title: stlModelDisplayName(modelData) === "Sin título" ? "" : stlModelDisplayName(modelData),
             description: modelData.description || "",
@@ -75,6 +85,7 @@ export function StlModelForm({ modelId }: { modelId?: string }) {
 
           if (varData) {
             setVariantId(varData.id);
+            setSavedFileUrl(varData.file_url);
             setFormData(prev => ({ ...prev, file_url: varData.file_url }));
           }
         }
@@ -94,29 +105,66 @@ export function StlModelForm({ modelId }: { modelId?: string }) {
     }
   };
 
+  /** Genera y publica la vista 360°. Nunca lanza ni toca el estado de guardado del modelo. */
+  const runPreviewGeneration = async (targetModelId: string, targetVariantId: string | null, fileUrl: string) => {
+    setPreviewStatus("generating");
+    setPreviewNotice(null);
+    const result = await generateAndStorePreview({ supabase, modelId: targetModelId, variantId: targetVariantId, fileUrl });
+    if (result.ok) {
+      setPreviewUrl(result.previewUrl);
+      setPreviewStatus("ready");
+    } else {
+      console.warn("[stl-preview] generación fallida:", result.reason);
+      setPreviewStatus("failed");
+      setPreviewNotice(PREVIEW_FAILURE_NOTICE);
+    }
+    return result.ok;
+  };
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setSaving(true);
     setError(null);
     setSuccess(null);
+    setPreviewNotice(null);
 
+    const fileChanged = formData.file_url !== savedFileUrl;
     const result = await saveStlModel(supabase, {
       modelId: isEditing ? modelId : null,
       values: formData,
       fileUrl: formData.file_url,
       variantId,
+      fileChanged,
     });
-    setSaving(false);
 
     if (!result.ok) {
+      setSaving(false);
       setError(result.message);
       return;
     }
 
     setVariantId(result.variantId);
+    setSavedFileUrl(formData.file_url);
     setSuccess(isEditing ? "Archivo STL actualizado correctamente." : "Archivo STL creado correctamente.");
+    // Archivo nuevo: el preview anterior ya no corresponde (se invalidó en DB) y no se muestra.
+    if (fileChanged) setPreviewUrl(null);
+
+    // La vista 360° es una mejora visual: se genera DESPUÉS de guardar y su fallo no revierte nada.
+    if (fileChanged && canGeneratePreview(formData.file_url)) {
+      await runPreviewGeneration(result.modelId, result.variantId, formData.file_url);
+    }
+    setSaving(false);
     if (!isEditing) router.push(`/admin/stl/modelos/${result.modelId}`);
   };
+
+  const unsavedFile = formData.file_url !== savedFileUrl;
+  const previewDisabledReason = !isEditing
+    ? "Guardá el modelo para generar la vista 360°."
+    : !variantId || !canGeneratePreview(savedFileUrl)
+      ? "La vista 360° requiere un archivo .stl o .3mf guardado."
+      : unsavedFile
+        ? "Guardá los cambios del archivo antes de generar la vista 360°."
+        : null;
 
   if (loadingData) {
     return (
@@ -258,6 +306,17 @@ export function StlModelForm({ modelId }: { modelId?: string }) {
             label={formData.file_url ? "Reemplazar archivo" : "Subir archivo"}
           />
         </div>
+
+        <StlPreviewPanel
+          status={previewStatus}
+          previewUrl={previewUrl}
+          notice={previewNotice}
+          canGenerate={previewDisabledReason === null && !saving}
+          disabledReason={previewDisabledReason}
+          onGenerate={() => {
+            if (modelId) void runPreviewGeneration(modelId, variantId, savedFileUrl);
+          }}
+        />
 
         <div className="space-y-2 flex items-center pt-8 md:col-span-2">
           <label className="flex items-center gap-2 cursor-pointer text-sm font-semibold text-gray-300">

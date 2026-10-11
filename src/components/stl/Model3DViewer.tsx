@@ -1,15 +1,23 @@
 "use client";
 
 import React, { useCallback, useEffect, useRef, useState } from "react";
-import type { Mesh, Object3D } from "three";
+import type { Object3D } from "three";
 import { AlertCircle, Loader2, RotateCcw } from "lucide-react";
 import { STL_VIEWER_MAX_BYTES, type Model3DFormat, type StlDimensions } from "@/lib/stl/library";
+import {
+  addStandardLights,
+  applyNeutralMaterial,
+  boundingRadius,
+  createZUpPivot,
+  disposeModelGeometry,
+  fitDistance,
+  measureAndCenter,
+  toObject3D,
+} from "@/lib/stl/model-display";
 import {
   describeModel3DLoadError,
   Model3DLoadError,
   parseModel3D,
-  type ParsedGeometry,
-  type ParsedObject,
 } from "@/lib/stl/parse-model";
 
 type ViewerError = { title: string; detail: string };
@@ -162,11 +170,7 @@ export function Model3DViewer({ variantId, onDimensions }: Model3DViewerProps) {
               return new ThreeMFLoader();
             },
           });
-          if (parsed.format === "stl") {
-            model = new THREE.Mesh(parsed.geometry as ParsedGeometry as never, new THREE.MeshBasicMaterial());
-          } else {
-            model = parsed.group as ParsedObject as unknown as Object3D;
-          }
+          model = toObject3D(THREE, parsed);
         } catch (err) {
           if (err instanceof Model3DLoadError) {
             const copy = describeModel3DLoadError(err);
@@ -176,31 +180,18 @@ export function Model3DViewer({ variantId, onDimensions }: Model3DViewerProps) {
         }
 
         // Material neutro único para todas las mallas (3MF trae materiales propios que se descartan).
-        const material = new THREE.MeshStandardMaterial({ color: 0xc8ccd4, roughness: 0.55, metalness: 0.05 });
-        const disposeModel = () => {
-          model.traverse((object) => {
-            (object as Mesh).geometry?.dispose();
-          });
-        };
-        model.traverse((object) => {
-          const mesh = object as Mesh;
-          if (!mesh.isMesh) return;
-          const previous = mesh.material;
-          mesh.material = material;
-          (Array.isArray(previous) ? previous : [previous]).forEach((item) => item?.dispose?.());
-        });
+        const material = applyNeutralMaterial(THREE, model);
+        const disposeModel = () => disposeModelGeometry(model);
 
-        const box = new THREE.Box3().setFromObject(model);
-        const size = box.getSize(new THREE.Vector3());
-        if (box.isEmpty() || ![size.x, size.y, size.z].every(Number.isFinite) || size.lengthSq() === 0) {
+        const measured = measureAndCenter(THREE, model);
+        if (!measured) {
           disposeModel();
           material.dispose();
           const copy = describeModel3DLoadError(new Model3DLoadError("empty", format, "Sin volumen"));
           return fail(copy.title, copy.detail);
         }
+        const { size } = measured;
         onDimensionsRef.current?.({ x: size.x, y: size.y, z: size.z });
-        model.position.sub(box.getCenter(new THREE.Vector3()));
-        model.updateMatrixWorld(true);
 
         let renderer: InstanceType<typeof THREE.WebGLRenderer>;
         try {
@@ -218,16 +209,10 @@ export function Model3DViewer({ variantId, onDimensions }: Model3DViewerProps) {
 
         const scene = new THREE.Scene();
         const camera = new THREE.PerspectiveCamera(40, 1, 0.1, 10000);
-        const pivot = new THREE.Group();
-        pivot.rotation.x = -Math.PI / 2; // STL y 3MF son Z-up; la escena es Y-up.
-        pivot.add(model);
-        scene.add(pivot);
-        scene.add(new THREE.HemisphereLight(0xffffff, 0x444455, 1.1));
-        const keyLight = new THREE.DirectionalLight(0xffffff, 1.6);
-        camera.add(keyLight);
-        scene.add(camera);
+        scene.add(createZUpPivot(THREE, model)); // STL y 3MF son Z-up; la escena es Y-up.
+        addStandardLights(THREE, scene, camera);
 
-        const radius = Math.max(size.length() / 2, 1e-6);
+        const radius = boundingRadius(size);
         const controls = new OrbitControls(camera, renderer.domElement);
         controls.enablePan = false;
         controls.enableDamping = false;
@@ -236,7 +221,7 @@ export function Model3DViewer({ variantId, onDimensions }: Model3DViewerProps) {
 
         const render = () => renderer.render(scene, camera);
         const resetView = () => {
-          const distance = radius / Math.sin((camera.fov * Math.PI) / 360) * 1.05;
+          const distance = fitDistance(radius, camera.fov);
           camera.position.set(distance * 0.7, distance * 0.55, distance * 0.7);
           camera.near = distance / 100;
           camera.far = distance * 20;

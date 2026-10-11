@@ -274,6 +274,15 @@ Rutas: `/libreria-stl` (grupos + búsqueda de modelos) → `/libreria-stl/[group
 - Admin: `/admin/stl/categorias` = **Grupos** (alta/edición, portada vía `FileUploadDropzone` en `stl-thumbnails`, orden, publicado; sin hard delete: se despublica); el formulario de modelo asigna grupo con `Combobox` (o "Sin grupo").
 - Sin migration: el schema `stl_*` no está versionado en `supabase/migrations` (viene de antes); RLS/bucket `stl-files` privado no se tocaron.
 
+### 18c. Librería STL: previews 360° en cards (2026-10-11)
+
+- Las cards **no** montan Three.js: usan un WebM 360° prerenderizado (`stl_models.preview_url`, nullable; una vez por modelo, no por variante). El viewer real sigue solo en el detalle.
+- Generación **client-side desde el Admin** (`src/lib/stl/generate-preview.ts` + `record-turntable.ts`): descarga el archivo por `POST /api/stl/preview` (misma autorización que el viewer; `stl-files` sigue privado), parsea con `parseModel3D` (STL o 3MF), usa los helpers compartidos de `model-display.ts` (material neutro, centrado, Z-up, luces, encuadre; también los usa el viewer), gira 360° en un canvas offscreen 512×512, 4 s, 24 fps y graba con `captureStream` + `MediaRecorder` (VP9 → VP8 → webm). Requiere Chromium.
+- Storage: bucket público `stl-previews` (solo `video/webm`, escritura solo Admin), path determinístico `{modelId}/preview.webm` (upsert: regenerar reemplaza). `preview_url` = URL pública + `?v=timestamp` (anti-cache). Orquesta `preview-service.ts` (`generateAndStorePreview`, nunca lanza).
+- El fallo del preview **no** bloquea el alta/edición: el modelo se guarda primero; el Admin muestra "No pudimos generar la vista 360°. El modelo fue guardado correctamente." y la card usa el thumbnail. Reemplazar el archivo principal invalida `preview_url` (`saveStlModel({ fileChanged })`) y se regenera.
+- Card: `ModelPreviewCardMedia` (thumbnail → video). Desktop: reproduce en hover/foco; touch: autoplay muted al estar ≥60 % visible (máx. 2 simultáneos). `preload="none"` y `src` solo cuando corresponde; sin autoplay con `prefers-reduced-motion`; error de video → thumbnail/placeholder. Lógica pura en `preview-media.ts`.
+- Compat: `fetchStlLibrary` reintenta sin `preview_url` si la migration aún no está aplicada. Migration: `20261011120000_stl_model_preview_360.sql`.
+
 ## 19. Acceso Beta por código de invitación (2026-10-05)
 
 Migration `20261005120000_beta_access_codes.sql` (no aplicada en remoto; ver TASKS.md). Diagnóstico read-only: `supabase/diagnostics/20261005_beta_access_state.sql`.

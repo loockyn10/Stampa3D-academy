@@ -222,3 +222,7 @@ Si trabajan sucesivamente sobre la misma feature, el segundo parte del código a
 - El viewer nunca recibe paths ni buckets: pide una URL firmada de 5 min a `POST /api/stl/preview`, que aplica la misma regla que la descarga (`getCurrentUserAccess` + `capabilities.downloadStl`) y además exige modelo/grupo publicados (salvo Admin). Solo `.stl` y `.3mf` en storage (formato deducido en el servidor del archivo guardado); `.zip`, otros y URL externa → sin preview, solo descarga. Límite del viewer: 60 MB para ambos.
 - Dimensiones: bounding box del STL mostrada como "unidades del archivo". STL no declara unidades; no se afirma "mm".
 - No se calculan gramos/tiempo/costo desde el STL.
+
+## D026 — Previews 360° de la Librería STL: WebM prerenderizado en el Admin, nunca un viewer por card
+
+Las cards usan un asset de video (`stl_models.preview_url`) generado client-side en el Admin; el viewer Three.js interactivo sigue solo en el detalle (refuerza D025). Bucket público propio `stl-previews` (solo `video/webm`, escritura Admin) en lugar de reutilizar `stl-thumbnails`, cuya configuración de MIME no está versionada; `stl-files` permanece privado. Falla de generación = no destructiva (thumbnail). Sin regeneración masiva automática. Detalle: ARCHITECTURE §18c.

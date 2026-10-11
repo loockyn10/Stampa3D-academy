@@ -14,10 +14,15 @@ export interface SaveStlModelInput {
   fileUrl: string;
   /** Variante existente a actualizar (si no, se crea una). */
   variantId?: string | null;
+  /**
+   * El archivo principal cambió respecto del guardado: el preview 360° anterior queda obsoleto
+   * y se invalida (preview_url = null) para no mostrar un preview viejo sobre un archivo nuevo.
+   */
+  fileChanged?: boolean;
 }
 
 export type SaveStlModelResult =
-  | { ok: true; modelId: string; variantId: string | null }
+  | { ok: true; modelId: string; variantId: string | null; previewInvalidated?: boolean }
   | {
       ok: false;
       stage: "validation" | "model" | "variant";
@@ -99,7 +104,21 @@ export async function saveStlModel(supabase: SupabaseClient, input: SaveStlModel
     : await supabase.from("stl_variants").insert([variantPayload]).select("id").single();
   if (variantResult.error) return variantFailure(supabase, modelId, isCreate, variantResult.error.message);
 
-  return { ok: true, modelId, variantId: variantResult.data?.id ?? input.variantId ?? null };
+  const previewInvalidated = input.fileChanged ? await invalidatePreview(supabase, modelId) : undefined;
+  return { ok: true, modelId, variantId: variantResult.data?.id ?? input.variantId ?? null, previewInvalidated };
+}
+
+/**
+ * Best-effort y no bloqueante: si la columna `preview_url` aún no existe (migration pendiente)
+ * o el update falla, el guardado del modelo igual es exitoso.
+ */
+async function invalidatePreview(supabase: SupabaseClient, modelId: string): Promise<boolean> {
+  try {
+    const { error } = await supabase.from("stl_models").update({ preview_url: null }).eq("id", modelId);
+    return !error;
+  } catch {
+    return false;
+  }
 }
 
 async function variantFailure(

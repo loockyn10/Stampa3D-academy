@@ -85,9 +85,12 @@ export function StlModelsTable() {
                     {model.stl_categories?.name || "Sin grupo"}
                   </td>
                   <td className="px-4 py-3">
-                    <Badge tone={model.is_active ? "green" : "dark"}>
-                      {model.is_active ? "Activo" : "Inactivo"}
-                    </Badge>
+                    <div className="flex flex-wrap gap-1.5">
+                      <Badge tone={model.is_active ? "green" : "dark"}>
+                        {model.is_active ? "Activo" : "Inactivo"}
+                      </Badge>
+                      {model.preview_url && <Badge tone="dark">360°</Badge>}
+                    </div>
                   </td>
                   <td className="px-4 py-3 text-gray-400">
                     {new Intl.DateTimeFormat("es-AR", { dateStyle: "short" }).format(new Date(model.created_at))}
