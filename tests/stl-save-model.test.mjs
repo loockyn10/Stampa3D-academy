@@ -240,8 +240,8 @@ test("todos los writes de stl_models / stl_variants en src pasan por los payload
     }
   };
   walk(path.join(root, "src"));
-  // preview-service.ts solo escribe `preview_url` (vista 360° generada en el Admin); no toca name/slug/etc.
+  // preview-service.ts solo escribe `preview_url` / `thumbnail_url` (assets generados en el Admin); no toca name/slug/etc.
   assert.deepEqual(writes.sort(), ["src/components/admin/stl-variants-manager.tsx", "src/lib/stl/preview-service.ts", "src/lib/stl/save-model.ts"]);
   const previewWrite = read("src/lib/stl/preview-service.ts");
-  assert.match(previewWrite, /update\(\{ preview_url: previewUrl \}\)/);
+  assert.match(previewWrite, /const update: \{ preview_url\?: string; thumbnail_url\?: string \} = \{\};[\s\S]*update\(update\)/);
 });

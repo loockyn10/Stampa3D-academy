@@ -13,10 +13,14 @@ interface StlPreviewPanelProps {
   canGenerate: boolean;
   disabledReason: string | null;
   onGenerate: () => void;
+  /** Miniatura actual del modelo (manual o generada). */
+  thumbnailUrl?: string | null;
+  /** Acción explícita: reemplaza la miniatura, incluso una cargada a mano. */
+  onRegenerateThumbnail?: () => void;
 }
 
 /** Estado + acción de la vista 360° de un modelo (Admin). Nunca bloquea el guardado del modelo. */
-export function StlPreviewPanel({ status, previewUrl, notice, canGenerate, disabledReason, onGenerate }: StlPreviewPanelProps) {
+export function StlPreviewPanel({ status, previewUrl, notice, canGenerate, disabledReason, onGenerate, thumbnailUrl, onRegenerateThumbnail }: StlPreviewPanelProps) {
   const busy = status === "generating";
   const hasPreview = Boolean(previewUrl);
   return (
@@ -45,6 +49,26 @@ export function StlPreviewPanel({ status, previewUrl, notice, canGenerate, disab
           {hasPreview ? "Regenerar vista 360°" : "Generar vista 360°"}
         </button>
       </div>
+
+      {onRegenerateThumbnail && (
+        <div className="flex flex-wrap items-center justify-between gap-3 border-t border-stampa-border pt-3">
+          <div className="flex items-center gap-3 text-xs text-gray-400">
+            {thumbnailUrl ? (
+              // eslint-disable-next-line @next/next/no-img-element
+              <img src={thumbnailUrl} alt="Miniatura actual" className="h-12 w-12 rounded-md border border-stampa-border object-cover" />
+            ) : null}
+            <span>{thumbnailUrl ? "Miniatura cargada" : "Sin miniatura: se genera sola con la vista 360°"}</span>
+          </div>
+          <button
+            type="button"
+            onClick={onRegenerateThumbnail}
+            disabled={!canGenerate || busy}
+            className="inline-flex items-center gap-1.5 rounded-lg border border-stampa-border bg-stampa-surface px-3 py-1.5 text-xs font-bold text-gray-200 transition-colors hover:border-stampa-orange/50 disabled:cursor-not-allowed disabled:opacity-50"
+          >
+            Regenerar miniatura
+          </button>
+        </div>
+      )}
 
       {notice && <p className="rounded-lg border border-amber-500/20 bg-amber-500/10 px-3 py-2 text-xs text-amber-300">{notice}</p>}
       {!canGenerate && disabledReason && <p className="text-xs text-gray-500">{disabledReason}</p>}

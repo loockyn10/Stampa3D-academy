@@ -8,6 +8,20 @@
  */
 
 export const STL_PREVIEW_BUCKET = "stl-previews";
+/** Bucket público ya existente de miniaturas (WebP generadas conviven con las cargadas a mano). */
+export const STL_THUMBNAIL_BUCKET = "stl-thumbnails";
+
+/**
+ * Miniatura automática: mismo render/escena/material/fondo que el WebM, pero en vista 3/4
+ * (yaw 40° sobre el eje vertical del modelo; la elevación es la misma de la cámara del preview).
+ */
+export const THUMBNAIL_SPEC = {
+  size: 512,
+  mimeType: "image/webp",
+  quality: 0.85,
+  /** Giro del modelo para la vista 3/4 (rad). */
+  yaw: (40 * Math.PI) / 180,
+} as const;
 
 export const PREVIEW_SPEC = {
   size: 512,
@@ -42,6 +56,29 @@ export function buildPreviewPath(modelId: string): string {
   return `${modelId}/preview.webm`;
 }
 
+/** Path determinístico de la miniatura generada: regenerar reemplaza el objeto (upsert). */
+export function buildThumbnailPath(modelId: string): string {
+  if (!modelId || modelId.includes("/") || modelId.includes("..")) throw new Error("Id de modelo inválido para la miniatura.");
+  return `${modelId}/thumbnail.webp`;
+}
+
+/**
+ * ¿La miniatura actual la generó el sistema (y por lo tanto se puede reemplazar sin pedir permiso)?
+ * Sin columna de origen: se distingue por el path determinístico `{modelId}/thumbnail.webp` en `stl-thumbnails`.
+ * Una miniatura cargada a mano (otra URL/path) nunca coincide.
+ */
+export function isGeneratedThumbnailUrl(url: string | null | undefined, modelId: string): boolean {
+  if (!url || !modelId) return false;
+  return url.split("?")[0].endsWith(`/${STL_THUMBNAIL_BUCKET}/${modelId}/thumbnail.webp`);
+}
+
+/** Regla de no-sobrescritura: genera si falta o si la actual es generada; una manual solo se pisa con `force`. */
+export function shouldGenerateThumbnail(input: { currentUrl: string | null | undefined; modelId: string; force?: boolean }): boolean {
+  if (input.force) return true;
+  if (!input.currentUrl || !input.currentUrl.trim()) return true;
+  return isGeneratedThumbnailUrl(input.currentUrl, input.modelId);
+}
+
 /** URL guardada en DB: URL pública + `?v=` para evitar el cache viejo tras regenerar. */
 export function buildPreviewUrl(publicUrl: string, version: number): string {
   return `${publicUrl.split("?")[0]}?v=${version}`;
@@ -65,6 +102,8 @@ export const PREVIEW_STATUS_LABEL: Record<PreviewGenerationStatus, string> = {
 
 export const PREVIEW_FAILURE_NOTICE = "No pudimos generar la vista 360°. El modelo fue guardado correctamente.";
 
+export const THUMBNAIL_FAILURE_NOTICE = "No pudimos generar la miniatura automática. El modelo y la vista 360° se guardaron igual.";
+
 /** Solo STL y 3MF generan preview; ZIP, URLs externas y otros no. */
 export function canGeneratePreview(fileUrl: string | null | undefined): boolean {
   if (!fileUrl || !fileUrl.startsWith("storage://")) return false;
@@ -72,56 +111,19 @@ export function canGeneratePreview(fileUrl: string | null | undefined): boolean 
   return lower.endsWith(".stl") || lower.endsWith(".3mf");
 }
 
-/* ---------------------------- Reproducción en cards ---------------------------- */
+/* ---------------------------- Ciclo ambiental en cards ---------------------------- */
 
-export interface PreviewPlaybackState {
-  previewUrl: string | null | undefined;
-  /** Video falló (error de red, formato, archivo borrado). */
-  failed: boolean;
-  reducedMotion: boolean;
-  /** Dispositivo con hover real (desktop). En touch se reproduce por visibilidad. */
-  canHover: boolean;
-  hovering: boolean;
-  /** La card está suficientemente visible en el viewport. */
-  inView: boolean;
-}
-
-/** ¿Debe estar reproduciéndose el preview ahora? */
-export function shouldPlayPreview(state: PreviewPlaybackState): boolean {
-  if (!state.previewUrl || state.failed || state.reducedMotion) return false;
-  return state.canHover ? state.hovering && state.inView : state.inView;
-}
-
-/**
- * ¿Debe el <video> tener `src` asignado? Antes de la primera activación no se pide nada.
- * Desktop: tras activarse se conserva el src (pausado) para reanudar sin nuevo request.
- * Touch: el src se libera al salir del viewport.
- */
-export function shouldAttachPreviewSrc(state: PreviewPlaybackState & { hasActivated: boolean }): boolean {
-  if (!state.previewUrl || state.failed || state.reducedMotion) return false;
-  if (shouldPlayPreview(state)) return true;
-  return state.canHover && state.hasActivated && state.inView;
-}
-
-/**
- * Registro de slots de reproducción simultánea: evita decenas de videos corriendo a la vez
- * en mobile. Al superar el máximo se desaloja al más antiguo.
- */
-export function createPlaybackSlots(max: number) {
-  const active: { id: string; release: () => void }[] = [];
-  return {
-    acquire(id: string, release: () => void): void {
-      const existing = active.findIndex((slot) => slot.id === id);
-      if (existing !== -1) active.splice(existing, 1);
-      active.push({ id, release });
-      while (active.length > max) active.shift()?.release();
-    },
-    release(id: string): void {
-      const index = active.findIndex((slot) => slot.id === id);
-      if (index !== -1) active.splice(index, 1);
-    },
-    size: () => active.length,
-  };
-}
-
-export const MAX_SIMULTANEOUS_PREVIEWS = 2;
+export const AMBIENT_TIMING = {
+  /** Espera antes de arrancar el primer preview ambiental (evita autoplay en el primer paint). */
+  startDelayMs: 700,
+  /** Pausa entre un preview que termina y el siguiente. */
+  betweenDelayMs: 350,
+  /** Pausa cuando solo hay una card candidata antes de repetirla. */
+  soloDelayMs: 2500,
+  /** Espera tras salir de hover/focus antes de volver al ciclo. */
+  resumeDelayMs: 1000,
+  /** Espera tras perder la card activa (scroll/error) antes de seguir con otra. */
+  recoverDelayMs: 150,
+  /** Umbral de IntersectionObserver para considerar una card "visible". */
+  visibleThreshold: 0.5,
+} as const;

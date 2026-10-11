@@ -36,11 +36,10 @@ const payloadMod = load("src/lib/stl/model-payload.ts", { "@/lib/stl/library": l
 const saveMod = load("src/lib/stl/save-model.ts", { "@/lib/stl/model-payload": payloadMod });
 const recorder = load("src/lib/stl/record-turntable.ts", { "@/lib/stl/preview-media": media });
 const service = load("src/lib/stl/preview-service.ts", { "@/lib/stl/library": lib, "@/lib/stl/preview-media": media });
-const cardMedia = load("src/components/stl/ModelPreviewCardMedia.tsx", { "@/lib/stl/preview-media": media });
+const cycleMod = load("src/lib/stl/preview-cycle.ts", { "@/lib/stl/preview-media": media });
+const cardMedia = load("src/components/stl/ModelPreviewCardMedia.tsx", { "@/lib/stl/preview-media": media, "@/lib/stl/preview-cycle": cycleMod });
 const { renderToStaticMarkup } = nodeRequire("react-dom/server");
 const React = nodeRequire("react");
-
-const base = { previewUrl: "https://x/p.webm", failed: false, reducedMotion: false, canHover: true, hovering: false, inView: true };
 
 // ---------------------------------------------------------------- CARDS (1, 2, 3, 9)
 const render = (props) => renderToStaticMarkup(React.createElement(cardMedia.ModelPreviewCardMedia, { id: "m1", title: "Dragón", ...props }));
@@ -70,68 +69,13 @@ test("con preview_url -> hay <video> muted/playsInline/preload none, pero SIN sr
   assert.match(html, /<img/, "el thumbnail está presente");
 });
 
-// ---------------------------------------------------------------- DECISIÓN DE REPRODUCCIÓN (4, 5, 6, 7, 8)
-test("desktop: reproduce solo con hover; sin hover no", () => {
-  assert.equal(media.shouldPlayPreview({ ...base, hovering: false }), false);
-  assert.equal(media.shouldPlayPreview({ ...base, hovering: true }), true);
-});
-
-test("desktop: fuera de viewport o mouseleave pausa", () => {
-  assert.equal(media.shouldPlayPreview({ ...base, hovering: true, inView: false }), false);
-  assert.equal(media.shouldPlayPreview({ ...base, hovering: false }), false);
-});
-
-test("mobile (sin hover): autoplay al entrar en viewport, pausa al salir; sin depender de hover", () => {
-  const touch = { ...base, canHover: false };
-  assert.equal(media.shouldPlayPreview({ ...touch, inView: true }), true);
-  assert.equal(media.shouldPlayPreview({ ...touch, inView: false }), false);
-});
-
-test("src: no se asigna antes de activarse; touch lo libera al salir; desktop lo conserva", () => {
-  assert.equal(media.shouldAttachPreviewSrc({ ...base, hasActivated: false }), false);
-  assert.equal(media.shouldAttachPreviewSrc({ ...base, hovering: true, hasActivated: false }), true);
-  assert.equal(media.shouldAttachPreviewSrc({ ...base, hovering: false, hasActivated: true }), true, "desktop pausado conserva src");
-  const touchOut = { ...base, canHover: false, inView: false, hasActivated: true };
-  assert.equal(media.shouldAttachPreviewSrc(touchOut), false, "touch fuera de viewport descarga el src");
-});
-
-test("prefers-reduced-motion: nunca autoplay ni src", () => {
-  for (const canHover of [true, false]) {
-    const s = { ...base, canHover, hovering: true, inView: true, reducedMotion: true, hasActivated: true };
-    assert.equal(media.shouldPlayPreview(s), false);
-    assert.equal(media.shouldAttachPreviewSrc(s), false);
-  }
-});
-
-test("error de video -> vuelve al thumbnail (no reproduce ni adjunta)", () => {
-  const s = { ...base, hovering: true, failed: true, hasActivated: true };
-  assert.equal(media.shouldPlayPreview(s), false);
-  assert.equal(media.shouldAttachPreviewSrc(s), false);
-});
-
-test("sin preview_url nunca se reproduce", () => {
-  for (const previewUrl of [null, undefined, ""]) {
-    assert.equal(media.shouldPlayPreview({ ...base, previewUrl, hovering: true }), false);
-  }
-});
-
-test("slots: nunca más de MAX previews simultáneos (el más viejo se desaloja)", () => {
-  const slots = media.createPlaybackSlots(2);
-  const evicted = [];
-  slots.acquire("a", () => evicted.push("a"));
-  slots.acquire("b", () => evicted.push("b"));
-  slots.acquire("c", () => evicted.push("c"));
-  assert.deepEqual(evicted, ["a"]);
-  assert.equal(slots.size(), 2);
-  slots.release("b");
-  assert.equal(slots.size(), 1);
-});
-
 test("componente: IntersectionObserver, matchMedia reduced-motion, onError y sin Three.js", () => {
   const src = read("src/components/stl/ModelPreviewCardMedia.tsx");
   assert.match(src, /new IntersectionObserver/);
   assert.match(src, /prefers-reduced-motion: reduce/);
   assert.match(src, /hover: hover\) and \(pointer: fine/);
+  assert.match(src, /onEnded=\{onVideoEnded\}/);
+  assert.doesNotMatch(src, /^\s+loop\s*$/m, "el ambiental no usa loop infinito: avanza con ended");
   assert.match(src, /onError=\{onVideoError\}/);
   assert.match(src, /\bmuted\b/);
   assert.match(src, /playsInline/);
@@ -313,7 +257,7 @@ const okFetch = (status = 200) => async (url) =>
     ? { ok: status === 200, status, json: async () => ({ url: "https://signed/file", format: "stl" }) }
     : { ok: true, status: 200, arrayBuffer: async () => new ArrayBuffer(8) };
 const input = (supabase, extra = {}) => ({ supabase, modelId: "model-1", variantId: "var-1", fileUrl: "storage://stl-files/stl/m/1-a.stl", ...extra });
-const goodGenerate = async () => ({ blob: new Blob(["x"]), mimeType: "video/webm", bytes: 321, frames: 97 });
+const goodGenerate = async () => ({ thumbnail: null, thumbnailError: "n/a", preview: { blob: new Blob(["x"]), mimeType: "video/webm", bytes: 321, frames: 97 }, previewError: null });
 
 test("servicio: sube a stl-previews/{modelId}/preview.webm con upsert y guarda preview_url", async () => {
   const sb = fakeStorageSupabase();

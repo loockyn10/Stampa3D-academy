@@ -10,7 +10,7 @@ import {
   toObject3D,
 } from "@/lib/stl/model-display";
 import { parseModel3D } from "@/lib/stl/parse-model";
-import { PREVIEW_SPEC } from "@/lib/stl/preview-media";
+import { PREVIEW_SPEC, THUMBNAIL_SPEC } from "@/lib/stl/preview-media";
 import { PreviewUnsupportedError, recordTurntable } from "@/lib/stl/record-turntable";
 
 export interface GeneratedPreview {
@@ -20,13 +20,57 @@ export interface GeneratedPreview {
   frames: number;
 }
 
+export interface GeneratedThumbnail {
+  blob: Blob;
+  mimeType: string;
+  bytes: number;
+}
+
+export interface GeneratedAssets {
+  thumbnail: GeneratedThumbnail | null;
+  thumbnailError: string | null;
+  preview: GeneratedPreview | null;
+  previewError: string | null;
+}
+
+export interface GenerateAssetsOptions {
+  /** Capturar la miniatura WebP (vista 3/4). */
+  thumbnail: boolean;
+  /** Grabar el WebM 360°. */
+  preview: boolean;
+}
+
+function errorMessage(err: unknown): string {
+  return err instanceof Error ? err.message : "error-desconocido";
+}
+
+function canvasToBlob(canvas: HTMLCanvasElement, mimeType: string, quality: number): Promise<Blob> {
+  return new Promise((resolve, reject) => {
+    canvas.toBlob(
+      (blob) => {
+        if (!blob || blob.size === 0) reject(new Error("No se pudo capturar la miniatura."));
+        else if (blob.type !== mimeType) reject(new Error("El navegador no exporta WebP."));
+        else resolve(blob);
+      },
+      mimeType,
+      quality,
+    );
+  });
+}
+
 /**
  * Genera el preview 360° (WebM) de un STL/3MF ya descargado, 100% en el navegador.
  * Renderer offscreen propio (un único WebGLRenderer temporal, liberado al terminar): las cards
  * nunca montan Three.js. Requiere Chromium (captureStream + MediaRecorder + WebM).
  * Reutiliza parse-model.ts y los helpers de model-display.ts del viewer.
+ * Parsea y arma la escena UNA vez; con ella captura la miniatura (vista 3/4) y luego graba la vuelta.
+ * Los dos assets fallan de forma independiente: el error de uno no invalida al otro.
  */
-export async function generateModelPreview(format: Model3DFormat, buffer: ArrayBuffer): Promise<GeneratedPreview> {
+export async function generateModelAssets(
+  format: Model3DFormat,
+  buffer: ArrayBuffer,
+  options: GenerateAssetsOptions = { thumbnail: true, preview: true },
+): Promise<GeneratedAssets> {
   if (typeof document === "undefined") throw new PreviewUnsupportedError("La generación solo corre en el navegador.");
 
   const THREE = await import("three");
@@ -83,20 +127,39 @@ export async function generateModelPreview(format: Model3DFormat, buffer: ArrayB
     camera.lookAt(0, 0, 0);
 
     const activeRenderer = renderer;
-    const result = await recordTurntable({
-      canvas,
-      MediaRecorderCtor: typeof MediaRecorder === "undefined" ? null : (MediaRecorder as never),
-      now: () => performance.now(),
-      sleep: (ms) => new Promise((resolve) => setTimeout(resolve, ms)),
-      renderFrame: (angle) => {
-        pivot.rotation.z = angle; // gira sobre el eje vertical del modelo (Z-up del archivo).
-        activeRenderer.render(scene, camera);
-      },
-    });
+    const result: GeneratedAssets = { thumbnail: null, thumbnailError: null, preview: null, previewError: null };
 
-    const blob = new Blob(result.chunks as BlobPart[], { type: "video/webm" });
-    if (blob.size === 0) throw new Error("El preview generado está vacío.");
-    return { blob, mimeType: result.mimeType, bytes: blob.size, frames: result.frames };
+    if (options.thumbnail) {
+      try {
+        pivot.rotation.z = THUMBNAIL_SPEC.yaw;
+        activeRenderer.render(scene, camera);
+        const blob = await canvasToBlob(canvas, THUMBNAIL_SPEC.mimeType, THUMBNAIL_SPEC.quality);
+        result.thumbnail = { blob, mimeType: blob.type, bytes: blob.size };
+      } catch (err) {
+        result.thumbnailError = errorMessage(err);
+      }
+    }
+
+    if (options.preview) {
+      try {
+        const recorded = await recordTurntable({
+          canvas,
+          MediaRecorderCtor: typeof MediaRecorder === "undefined" ? null : (MediaRecorder as never),
+          now: () => performance.now(),
+          sleep: (ms) => new Promise((resolve) => setTimeout(resolve, ms)),
+          renderFrame: (angle) => {
+            pivot.rotation.z = angle; // gira sobre el eje vertical del modelo (Z-up del archivo).
+            activeRenderer.render(scene, camera);
+          },
+        });
+        const blob = new Blob(recorded.chunks as BlobPart[], { type: "video/webm" });
+        if (blob.size === 0) throw new Error("El preview generado está vacío.");
+        result.preview = { blob, mimeType: recorded.mimeType, bytes: blob.size, frames: recorded.frames };
+      } catch (err) {
+        result.previewError = errorMessage(err);
+      }
+    }
+    return result;
   } finally {
     disposeModelGeometry(model);
     material.dispose();

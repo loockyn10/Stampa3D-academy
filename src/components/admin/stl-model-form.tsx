@@ -10,7 +10,7 @@ import { stlModelDisplayName } from "@/lib/stl/model-payload";
 import { saveStlModel } from "@/lib/stl/save-model";
 import { StlPreviewPanel } from "@/components/admin/stl-preview-panel";
 import { generateAndStorePreview } from "@/lib/stl/preview-service";
-import { PREVIEW_FAILURE_NOTICE, canGeneratePreview, type PreviewGenerationStatus } from "@/lib/stl/preview-media";
+import { canGeneratePreview, type PreviewGenerationStatus } from "@/lib/stl/preview-media";
 
 export function StlModelForm({ modelId }: { modelId?: string }) {
   const router = useRouter();
@@ -106,17 +106,33 @@ export function StlModelForm({ modelId }: { modelId?: string }) {
   };
 
   /** Genera y publica la vista 360°. Nunca lanza ni toca el estado de guardado del modelo. */
-  const runPreviewGeneration = async (targetModelId: string, targetVariantId: string | null, fileUrl: string) => {
+  const runPreviewGeneration = async (
+    targetModelId: string,
+    targetVariantId: string | null,
+    fileUrl: string,
+    options: { forceThumbnail?: boolean; thumbnailOnly?: boolean; currentThumbnailUrl?: string } = {},
+  ) => {
     setPreviewStatus("generating");
     setPreviewNotice(null);
-    const result = await generateAndStorePreview({ supabase, modelId: targetModelId, variantId: targetVariantId, fileUrl });
+    const result = await generateAndStorePreview({
+      supabase,
+      modelId: targetModelId,
+      variantId: targetVariantId,
+      fileUrl,
+      currentThumbnailUrl: options.currentThumbnailUrl ?? formData.thumbnail_url,
+      forceThumbnail: options.forceThumbnail,
+      thumbnailOnly: options.thumbnailOnly,
+    });
+    // La miniatura generada ya quedó en DB: se refleja en el form para que un guardado posterior no la pise.
+    if (result.thumbnailUrl) setFormData((prev) => ({ ...prev, thumbnail_url: result.thumbnailUrl as string }));
     if (result.ok) {
-      setPreviewUrl(result.previewUrl);
+      if (result.previewUrl) setPreviewUrl(result.previewUrl);
       setPreviewStatus("ready");
+      setPreviewNotice(result.notice);
     } else {
       console.warn("[stl-preview] generación fallida:", result.reason);
       setPreviewStatus("failed");
-      setPreviewNotice(PREVIEW_FAILURE_NOTICE);
+      setPreviewNotice(result.message);
     }
     return result.ok;
   };
@@ -313,8 +329,12 @@ export function StlModelForm({ modelId }: { modelId?: string }) {
           notice={previewNotice}
           canGenerate={previewDisabledReason === null && !saving}
           disabledReason={previewDisabledReason}
+          thumbnailUrl={formData.thumbnail_url || null}
           onGenerate={() => {
             if (modelId) void runPreviewGeneration(modelId, variantId, savedFileUrl);
+          }}
+          onRegenerateThumbnail={() => {
+            if (modelId) void runPreviewGeneration(modelId, variantId, savedFileUrl, { forceThumbnail: true, thumbnailOnly: true });
           }}
         />
 
