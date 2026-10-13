@@ -261,7 +261,7 @@ test("fallan ambos -> ok:false, sin escribir DB y sin lanzar", async () => {
 
 test("generador: parsea/arma la escena una vez, captura WebP desde el canvas (no desde el WebM) y reutiliza helpers", () => {
   const src = read("src/lib/stl/generate-preview.ts");
-  assert.equal(src.match(/parseModel3D\(/g).length, 1, "un solo parse");
+  assert.equal(src.match(/prepareModelForDisplay\(/g).length, 1, "una sola preparación (parse + cama + colores)");
   assert.equal(src.match(/new THREE\.WebGLRenderer/g).length, 1, "un solo renderer");
   assert.match(src, /canvas\.toBlob/);
   assert.match(src, /THUMBNAIL_SPEC\.mimeType/);
@@ -512,7 +512,7 @@ test("regresión: viewer del detalle, descarga y endpoints /api/stl intactos", (
   assert.match(viewer, /OrbitControls/);
   assert.match(viewer, /\/api\/stl\/preview/);
   const diff = execSync(
-    "git diff --name-only HEAD -- src/app/api/stl src/components/stl/StlDownloadButton.tsx src/components/stl/Model3DViewer.tsx",
+    "git diff --name-only HEAD -- src/app/api/stl src/components/stl/StlDownloadButton.tsx",
     { cwd: root },
   ).toString().trim();
   assert.equal(diff, "");

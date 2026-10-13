@@ -61,11 +61,13 @@ test("selecciona el loader de STL para stl y el de 3MF para 3mf", () => {
   assert.deepEqual(spy.calls, ["3mf"]);
 });
 
-test("el viewer importa ambos loaders oficiales de Three.js y delega en parseModel3D", () => {
+test("el viewer delega en prepareModelForDisplay, que importa ambos loaders oficiales y delega en parseModel3D", () => {
   const v = read("src/components/stl/Model3DViewer.tsx");
-  assert.match(v, /loaders\/STLLoader\.js/);
-  assert.match(v, /loaders\/3MFLoader\.js/);
-  assert.match(v, /parseModel3D\(format,/);
+  assert.match(v, /prepareModelForDisplay\(THREE, format, buffer\)/);
+  const p = read("src/lib/stl/prepare-model.ts");
+  assert.match(p, /loaders\/STLLoader\.js/);
+  assert.match(p, /loaders\/3MFLoader\.js/);
+  assert.match(p, /parseModel3D\(format,/);
   assert.match(v, /data\.format/, "el formato viene de la respuesta del servidor");
 });
 

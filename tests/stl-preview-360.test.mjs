@@ -132,7 +132,7 @@ test("STL: parseModel3D + helpers compartidos -> material neutro, centrado y rad
   assert.ok(display.fitDistance(radius, 40, 1.15) > radius, "la cámara queda fuera de la esfera");
 });
 
-test("3MF: Group con varias mallas (forma que devuelve ThreeMFLoader) usa el mismo pipeline", () => {
+test("3MF: applyNeutralMaterial (helper del fallback) unifica un Group con varias mallas", () => {
   const group = new THREE.Group();
   const geo = () => new THREE.BoxGeometry(5, 5, 5);
   const a = new THREE.Mesh(geo(), new THREE.MeshBasicMaterial({ color: 0xff0000 }));
@@ -152,16 +152,18 @@ test("modelo sin volumen -> measureAndCenter devuelve null (la generación falla
   assert.equal(display.measureAndCenter(THREE, new THREE.Group()), null);
 });
 
-test("generador: reutiliza parse-model.ts y model-display.ts (sin duplicar parsing/material/centrado)", () => {
+test("generador: reutiliza prepare-model.ts y model-display.ts (sin duplicar parsing/material/centrado)", () => {
   const src = read("src/lib/stl/generate-preview.ts");
-  assert.match(src, /parseModel3D/);
-  assert.match(src, /applyNeutralMaterial/);
+  assert.match(src, /prepareModelForDisplay/);
   assert.match(src, /measureAndCenter/);
-  assert.match(src, /3MFLoader\.js/);
-  assert.match(src, /STLLoader\.js/);
   assert.doesNotMatch(src, /MeshStandardMaterial/);
+  const prepare = read("src/lib/stl/prepare-model.ts");
+  assert.match(prepare, /parseModel3D/);
+  assert.match(prepare, /applyNeutralMaterial/);
+  assert.match(prepare, /3MFLoader\.js/);
+  assert.match(prepare, /STLLoader\.js/);
   const viewer = read("src/components/stl/Model3DViewer.tsx");
-  assert.match(viewer, /applyNeutralMaterial/, "el viewer de detalle comparte los helpers");
+  assert.match(viewer, /prepareModelForDisplay/, "el viewer de detalle comparte la preparación");
   assert.match(viewer, /OrbitControls/, "el viewer interactivo del detalle sigue intacto");
   assert.match(viewer, /\/api\/stl\/preview/);
 });

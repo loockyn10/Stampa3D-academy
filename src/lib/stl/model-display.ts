@@ -3,6 +3,7 @@ import type { ParsedGeometry, ParsedModel, ParsedObject } from "@/lib/stl/parse-
 
 /**
  * Presentación común del modelo 3D (material neutro, centrado, Z-up, luces, encuadre).
+ * La selección de cama y los colores del 3MF se resuelven antes, en prepare-model.ts.
  * La usan el viewer interactivo del detalle y el generador de previews 360° del Admin,
  * así ambos se ven igual. `THREE` se inyecta: no se importa three acá para no inflar bundles.
  */
@@ -18,7 +19,7 @@ export function toObject3D(THREE: ThreeNamespace, parsed: ParsedModel): Object3D
   return parsed.group as ParsedObject as unknown as Object3D;
 }
 
-/** Reemplaza todos los materiales por uno neutro único (3MF trae materiales propios que se descartan). */
+/** Reemplaza todos los materiales por uno neutro único. Lo usa el STL; el 3MF conserva sus colores vía prepare-model.ts. */
 export function applyNeutralMaterial(THREE: ThreeNamespace, model: Object3D): Material {
   const material = new THREE.MeshStandardMaterial({ ...NEUTRAL_MATERIAL_PARAMS });
   model.traverse((object) => {

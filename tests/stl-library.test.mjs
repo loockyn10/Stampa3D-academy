@@ -291,7 +291,9 @@ test("viewer: obtiene el archivo solo vía /api/stl/preview y maneja errores y c
   assert.match(v, /Visor no compatible/);
   // El dispose de geometrías vive en el helper compartido con el generador de previews 360°.
   assert.match(read("src/lib/stl/model-display.ts"), /\(object as Mesh\)\.geometry\?\.dispose\(\)/);
-  for (const call of ["disposeModel()", "disposeModelGeometry(model)", "material.dispose()", "renderer.dispose()", "controls.dispose()", "forceContextLoss()", "abort.abort()"]) {
+  assert.match(read("src/lib/stl/prepare-model.ts"), /geometry\.dispose\(\)/);
+  assert.match(read("src/lib/stl/prepare-model.ts"), /material\.dispose\(\)/);
+  for (const call of ["disposeModel()", "prepared.dispose()", "renderer.dispose()", "controls.dispose()", "forceContextLoss()", "abort.abort()"]) {
     assert.ok(v.includes(call), `cleanup ${call}`);
   }
 });

@@ -1,15 +1,12 @@
 import type { Model3DFormat } from "@/lib/stl/library";
 import {
   addStandardLights,
-  applyNeutralMaterial,
   boundingRadius,
   createZUpPivot,
-  disposeModelGeometry,
   fitDistance,
   measureAndCenter,
-  toObject3D,
 } from "@/lib/stl/model-display";
-import { parseModel3D } from "@/lib/stl/parse-model";
+import { prepareModelForDisplay } from "@/lib/stl/prepare-model";
 import { PREVIEW_SPEC, THUMBNAIL_SPEC } from "@/lib/stl/preview-media";
 import { PreviewUnsupportedError, recordTurntable } from "@/lib/stl/record-turntable";
 
@@ -62,8 +59,8 @@ function canvasToBlob(canvas: HTMLCanvasElement, mimeType: string, quality: numb
  * Genera el preview 360° (WebM) de un STL/3MF ya descargado, 100% en el navegador.
  * Renderer offscreen propio (un único WebGLRenderer temporal, liberado al terminar): las cards
  * nunca montan Three.js. Requiere Chromium (captureStream + MediaRecorder + WebM).
- * Reutiliza parse-model.ts y los helpers de model-display.ts del viewer.
- * Parsea y arma la escena UNA vez; con ella captura la miniatura (vista 3/4) y luego graba la vuelta.
+ * Reutiliza prepareModelForDisplay (cama 1 + colores del 3MF) y los helpers de model-display.ts del viewer.
+ * Parsea, selecciona cama, aplica colores y arma la escena UNA vez; con ella captura la miniatura (vista 3/4) y luego graba la vuelta.
  * Los dos assets fallan de forma independiente: el error de uno no invalida al otro.
  */
 export async function generateModelAssets(
@@ -74,24 +71,11 @@ export async function generateModelAssets(
   if (typeof document === "undefined") throw new PreviewUnsupportedError("La generación solo corre en el navegador.");
 
   const THREE = await import("three");
-  const [{ STLLoader }, threeMf] = await Promise.all([
-    import("three/examples/jsm/loaders/STLLoader.js"),
-    format === "3mf" ? import("three/examples/jsm/loaders/3MFLoader.js") : Promise.resolve(null),
-  ]);
-
-  const parsed = parseModel3D(format, buffer, {
-    stl: () => new STLLoader(),
-    "3mf": () => {
-      if (!threeMf) throw new Error("3MF loader no cargado");
-      return new threeMf.ThreeMFLoader();
-    },
-  });
-  const model = toObject3D(THREE, parsed);
-  const material = applyNeutralMaterial(THREE, model);
+  const prepared = await prepareModelForDisplay(THREE, format, buffer);
+  const model = prepared.object3d;
   const measured = measureAndCenter(THREE, model);
   if (!measured) {
-    disposeModelGeometry(model);
-    material.dispose();
+    prepared.dispose();
     throw new Error("El modelo no tiene volumen.");
   }
 
@@ -161,8 +145,7 @@ export async function generateModelAssets(
     }
     return result;
   } finally {
-    disposeModelGeometry(model);
-    material.dispose();
+    prepared.dispose();
     renderer?.dispose();
     renderer?.forceContextLoss();
   }

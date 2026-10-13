@@ -1,24 +1,17 @@
 "use client";
 
 import React, { useCallback, useEffect, useRef, useState } from "react";
-import type { Object3D } from "three";
 import { AlertCircle, Loader2, RotateCcw } from "lucide-react";
 import { STL_VIEWER_MAX_BYTES, type Model3DFormat, type StlDimensions } from "@/lib/stl/library";
 import {
   addStandardLights,
-  applyNeutralMaterial,
   boundingRadius,
   createZUpPivot,
-  disposeModelGeometry,
   fitDistance,
   measureAndCenter,
-  toObject3D,
 } from "@/lib/stl/model-display";
-import {
-  describeModel3DLoadError,
-  Model3DLoadError,
-  parseModel3D,
-} from "@/lib/stl/parse-model";
+import { describeModel3DLoadError, Model3DLoadError } from "@/lib/stl/parse-model";
+import { prepareModelForDisplay, type PreparedModel } from "@/lib/stl/prepare-model";
 
 type ViewerError = { title: string; detail: string };
 
@@ -78,6 +71,7 @@ export function Model3DViewer({ variantId, onDimensions }: Model3DViewerProps) {
   const [progress, setProgress] = useState<number | null>(null);
   const [error, setError] = useState<ViewerError | null>(null);
   const [attempt, setAttempt] = useState(0);
+  const [plateInfo, setPlateInfo] = useState<{ shown: number; total: number } | null>(null);
 
   const retry = useCallback(() => setAttempt((value) => value + 1), []);
 
@@ -99,6 +93,7 @@ export function Model3DViewer({ variantId, onDimensions }: Model3DViewerProps) {
     setStatus("loading");
     setProgress(null);
     setError(null);
+    setPlateInfo(null);
 
     (async () => {
       // 1. URL firmada (valida sesión, membresía y publicación en el servidor).
@@ -151,26 +146,13 @@ export function Model3DViewer({ variantId, onDimensions }: Model3DViewerProps) {
       // 3. Escena Three.js (se carga bajo demanda para no inflar el bundle de la Librería).
       try {
         const THREE = await import("three");
-        const [{ STLLoader }, { ThreeMFLoader }, { OrbitControls }] = await Promise.all([
-          import("three/examples/jsm/loaders/STLLoader.js"),
-          format === "3mf"
-            ? import("three/examples/jsm/loaders/3MFLoader.js")
-            : Promise.resolve({ ThreeMFLoader: null }),
-          import("three/examples/jsm/controls/OrbitControls.js"),
-        ]);
+        const { OrbitControls } = await import("three/examples/jsm/controls/OrbitControls.js");
         if (disposed) return;
 
-        // STL -> una geometría; 3MF -> Group con una o más mallas (cada formato con su loader).
-        let model: Object3D;
+        // Misma preparación que la miniatura y el WebM: cama 1 (3MF Bambu/Orca) + colores del archivo.
+        let prepared: PreparedModel;
         try {
-          const parsed = parseModel3D(format, buffer, {
-            stl: () => new STLLoader(),
-            "3mf": () => {
-              if (!ThreeMFLoader) throw new Error("3MF loader no cargado");
-              return new ThreeMFLoader();
-            },
-          });
-          model = toObject3D(THREE, parsed);
+          prepared = await prepareModelForDisplay(THREE, format, buffer);
         } catch (err) {
           if (err instanceof Model3DLoadError) {
             const copy = describeModel3DLoadError(err);
@@ -178,15 +160,16 @@ export function Model3DViewer({ variantId, onDimensions }: Model3DViewerProps) {
           }
           throw err;
         }
-
-        // Material neutro único para todas las mallas (3MF trae materiales propios que se descartan).
-        const material = applyNeutralMaterial(THREE, model);
-        const disposeModel = () => disposeModelGeometry(model);
+        if (disposed) {
+          prepared.dispose();
+          return;
+        }
+        const model = prepared.object3d;
+        const disposeModel = () => prepared.dispose();
 
         const measured = measureAndCenter(THREE, model);
         if (!measured) {
           disposeModel();
-          material.dispose();
           const copy = describeModel3DLoadError(new Model3DLoadError("empty", format, "Sin volumen"));
           return fail(copy.title, copy.detail);
         }
@@ -198,7 +181,6 @@ export function Model3DViewer({ variantId, onDimensions }: Model3DViewerProps) {
           renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true });
         } catch {
           disposeModel();
-          material.dispose();
           return fail("Visor no compatible", "Tu navegador no soporta WebGL. Podés descargar el archivo igual.");
         }
         renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
@@ -252,6 +234,9 @@ export function Model3DViewer({ variantId, onDimensions }: Model3DViewerProps) {
 
         resize();
         resetView();
+        if (prepared.selectedPlate !== null && prepared.plateCount !== null && prepared.plateCount > 1) {
+          setPlateInfo({ shown: prepared.selectedPlate + 1, total: prepared.plateCount });
+        }
         setStatus("ready");
 
         cleanup = () => {
@@ -261,7 +246,6 @@ export function Model3DViewer({ variantId, onDimensions }: Model3DViewerProps) {
           controls.removeEventListener("change", render);
           controls.dispose();
           disposeModel();
-          material.dispose();
           renderer.dispose();
           renderer.forceContextLoss();
           renderer.domElement.remove();
@@ -317,7 +301,7 @@ export function Model3DViewer({ variantId, onDimensions }: Model3DViewerProps) {
             <RotateCcw size={13} /> Restablecer
           </button>
           <p className="pointer-events-none absolute bottom-2 left-3 right-3 truncate text-[10px] text-stampa-text-muted">
-            Arrastrá para rotar · rueda o pellizco para zoom
+            {plateInfo ? `Mostrando cama ${plateInfo.shown} de ${plateInfo.total} · ` : ""}Arrastrá para rotar · rueda o pellizco para zoom
           </p>
         </>
       )}
