@@ -3,7 +3,7 @@
 import React, { useEffect, useRef, useState } from "react";
 import { Boxes } from "lucide-react";
 import { getPreviewCycle } from "@/lib/stl/preview-cycle";
-import { AMBIENT_TIMING } from "@/lib/stl/preview-media";
+import { AMBIENT_TIMING, isGeneratedThumbnailUrl } from "@/lib/stl/preview-media";
 
 interface ModelPreviewCardMediaProps {
   /** Identifica la card en el coordinador del ciclo ambiental. */
@@ -22,6 +22,10 @@ interface ModelPreviewCardMediaProps {
  *  - nunca con prefers-reduced-motion, nunca si el video falló.
  * El `src` no se asigna hasta que la card se activa (preload="none"). Sin `loop`: el fin de la
  * vuelta (`ended`) le avisa al coordinador. Cualquier fallo vuelve al thumbnail/placeholder.
+ * Thumbnail, video y placeholder llenan el MISMO marco (el padre fija la proporción 4:3), así que
+ * activar/desactivar el preview nunca cambia el tamaño de la card. Los assets generados son cuadrados
+ * con el mismo fondo que la card y el modelo ya encuadrado: se muestran enteros (`contain`) para no
+ * recortar los extremos en 4:3; las portadas cargadas a mano usan `cover`.
  */
 export function ModelPreviewCardMedia({ id, title, thumbnailUrl, previewUrl }: ModelPreviewCardMediaProps) {
   const rootRef = useRef<HTMLDivElement>(null);
@@ -35,6 +39,7 @@ export function ModelPreviewCardMedia({ id, title, thumbnailUrl, previewUrl }: M
   const [failed, setFailed] = useState(false);
   const [videoReady, setVideoReady] = useState(false);
 
+  const generatedThumbnail = isGeneratedThumbnailUrl(thumbnailUrl, id);
   const hasPreview = Boolean(previewUrl) && !failed;
   const eligible = hasPreview && !reducedMotion;
 
@@ -147,7 +152,9 @@ export function ModelPreviewCardMedia({ id, title, thumbnailUrl, previewUrl }: M
           src={thumbnailUrl}
           alt={title}
           loading="lazy"
-          className="h-full w-full object-cover transition-transform duration-500 group-hover:scale-105"
+          className={`h-full w-full transition-transform duration-500 group-hover:scale-105 ${
+            generatedThumbnail ? "object-contain" : "object-cover"
+          }`}
         />
       ) : (
         <div className="flex h-full w-full items-center justify-center">
@@ -170,7 +177,7 @@ export function ModelPreviewCardMedia({ id, title, thumbnailUrl, previewUrl }: M
           onEmptied={() => setVideoReady(false)}
           onEnded={onVideoEnded}
           onError={onVideoError}
-          className={`pointer-events-none absolute inset-0 h-full w-full object-cover transition-opacity duration-300 ${
+          className={`pointer-events-none absolute inset-0 h-full w-full object-contain transition-opacity duration-300 ${
             videoReady && playing ? "opacity-100" : "opacity-0"
           }`}
         />
