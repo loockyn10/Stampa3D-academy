@@ -282,15 +282,44 @@ export function StlModelForm({ modelId }: { modelId?: string }) {
           />
         </div>
 
-        <div className="space-y-2 md:col-span-2">
+        <div className="space-y-3 md:col-span-2">
           <label className="text-sm font-semibold text-gray-300">Miniatura (Opcional)</label>
+          <FileUploadDropzone
+            bucket="stl-thumbnails"
+            pathPrefix={`stl-thumbnails/${modelId || "new"}`}
+            accept=".jpg,.jpeg,.png,.webp"
+            publicBucket={true}
+            maxSizeMb={5}
+            helperText="Arrastrá una imagen o hacé click para subir. PNG, JPG o WEBP, máximo 5 MB."
+            imageEditor={{ aspectRatio: 4 / 3, outputWidth: 1200, outputHeight: 900, quality: 0.9, outputType: "preserve" }}
+            onUploaded={(url) => setFormData((prev) => ({ ...prev, thumbnail_url: url }))}
+            label={formData.thumbnail_url ? "Reemplazar miniatura" : "Subir miniatura"}
+          />
+          {formData.thumbnail_url && (
+            <div className="flex items-center gap-3">
+              {/* eslint-disable-next-line @next/next/no-img-element */}
+              <img src={formData.thumbnail_url} alt="Vista previa de la miniatura" className="h-24 w-32 rounded-lg border border-stampa-border bg-white/5 object-cover" />
+              <button
+                type="button"
+                onClick={() => setFormData((prev) => ({ ...prev, thumbnail_url: "" }))}
+                className="text-xs font-semibold text-gray-400 underline hover:text-white"
+              >
+                Quitar miniatura
+              </button>
+            </div>
+          )}
+          <div className="flex items-center gap-2">
+            <hr className="flex-1 border-stampa-border" />
+            <span className="text-[10px] font-semibold uppercase text-gray-400">o URL de imagen (opcional)</span>
+            <hr className="flex-1 border-stampa-border" />
+          </div>
           <input
             type="text"
             name="thumbnail_url"
             value={formData.thumbnail_url}
             onChange={handleChange}
             className="w-full text-sm border-stampa-border rounded-md text-neutral-100 bg-stampa-surface border focus:border-[#ff6a00] focus:ring-[#ff6a00]/20 focus:ring-2 placeholder:text-neutral-500 disabled:bg-neutral-800 disabled:text-neutral-500"
-            placeholder="https://ejemplo.com/imagen.jpg o usa un Dropzone en otra sección"
+            placeholder="https://ejemplo.com/imagen.jpg"
           />
         </div>
 

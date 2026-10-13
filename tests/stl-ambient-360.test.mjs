@@ -534,3 +534,67 @@ test("sin migration nueva: solo existe la de preview_url", () => {
   const files = fs.readdirSync(path.join(root, "supabase/migrations")).filter((f) => /stl/i.test(f) && f >= "20261011");
   assert.deepEqual(files, ["20261011120000_stl_model_preview_360.sql"]);
 });
+
+// ---------------------------------------------------------------- ADMIN: dropzone de miniatura manual
+const crop = load("src/lib/images/crop.ts", {});
+const imgFile = (name, type, size = 1024) => ({ name, type, size });
+const form = read("src/components/admin/stl-model-form.tsx");
+const dropzone = read("src/components/ui/file-upload-dropzone.tsx");
+
+test("miniatura manual: PNG, JPG/JPEG y WEBP se aceptan", () => {
+  for (const [name, type] of [["a.png", "image/png"], ["a.jpg", "image/jpeg"], ["a.jpeg", "image/jpeg"], ["a.webp", "image/webp"]]) {
+    assert.equal(crop.validateRasterImageFile(imgFile(name, type), 5), null, name);
+  }
+});
+
+test("miniatura manual: formato inválido y archivo pesado se rechazan antes de subir", () => {
+  assert.match(crop.validateRasterImageFile(imgFile("a.gif", "image/gif"), 5), /JPG, PNG o WEBP/);
+  assert.match(crop.validateRasterImageFile(imgFile("a.svg", "image/svg+xml"), 5), /JPG, PNG o WEBP/);
+  assert.match(crop.validateRasterImageFile(imgFile("a.png", "image/png", 6 * 1024 * 1024), 5), /pesada/);
+  // el dropzone valida (tipo/tamaño) y corta antes de subir
+  const handle = dropzone.slice(dropzone.indexOf("const handleSelectedFile"), dropzone.indexOf("const handleUpload"));
+  assert.match(handle, /validationError[\s\S]*return;/);
+});
+
+test("form: el dropzone sube a stl-thumbnails (público, 5 MB, solo imágenes) con path basado en modelId", () => {
+  assert.match(form, /bucket="stl-thumbnails"/);
+  assert.match(form, /pathPrefix=\{`stl-thumbnails\/\$\{modelId \|\| "new"\}`\}/);
+  assert.match(form, /accept="\.jpg,\.jpeg,\.png,\.webp"/);
+  assert.match(form, /publicBucket=\{true\}/);
+  assert.match(form, /maxSizeMb=\{5\}/);
+  assert.doesNotMatch(form, /otra sección/);
+  assert.doesNotMatch(form, /SERVICE_ROLE/);
+});
+
+test("form: la URL subida va a thumbnail_url y se persiste con el guardado (payload canónico)", () => {
+  assert.match(form, /onUploaded=\{\(url\) => setFormData\(\(prev\) => \(\{ \.\.\.prev, thumbnail_url: url \}\)\)\}/);
+  const payload = load("src/lib/stl/model-payload.ts", { "@/lib/stl/library": lib });
+  const v = { title: "X", description: "", difficulty: "beginner", estimated_print_time: "", material_type: "", thumbnail_url: "https://sb/public/stl-thumbnails/m1/9-a.png", is_active: true, category_id: "" };
+  assert.equal(payload.buildStlModelPayload(v).thumbnail_url, v.thumbnail_url);
+  assert.equal(payload.buildStlModelPayload({ ...v, thumbnail_url: "" }).thumbnail_url, null, "Quitar -> null");
+});
+
+test("form: en edición se carga y muestra la miniatura actual, con Reemplazar y Quitar", () => {
+  assert.match(form, /thumbnail_url: modelData\.thumbnail_url \|\| ""/);
+  assert.match(form, /formData\.thumbnail_url && \(/);
+  assert.match(form, /Reemplazar miniatura/);
+  assert.match(form, /Quitar miniatura/);
+  assert.match(form, /alt="Vista previa de la miniatura"/);
+});
+
+test("error de upload: el dropzone muestra el error y NO llama onUploaded; el form no depende del upload para guardar", () => {
+  const upload = dropzone.slice(dropzone.indexOf("if (uploadError)"), dropzone.indexOf("onUploadComplete(filePath);\n      }"));
+  assert.match(upload, /setError\(uploadError\.message/);
+  assert.doesNotMatch(upload, /onUploaded/);
+  assert.match(dropzone, /\{error &&/);
+  const submit = form.slice(form.indexOf("const handleSubmit"));
+  assert.doesNotMatch(submit, /thumbnail.*upload|storage\./);
+});
+
+test("miniatura manual subida por el Admin no es sobrescrita por 'Generar vista 360°'; sin miniatura sí se genera", () => {
+  const uploaded = "https://sb/storage/v1/object/public/stl-thumbnails/stl-thumbnails/m1/1700-portada.png";
+  assert.equal(media.isGeneratedThumbnailUrl(uploaded, "m1"), false);
+  assert.equal(media.shouldGenerateThumbnail({ currentUrl: uploaded, modelId: "m1" }), false);
+  assert.equal(media.shouldGenerateThumbnail({ currentUrl: "", modelId: "m1" }), true);
+  assert.match(form, /currentThumbnailUrl: options\.currentThumbnailUrl \?\? formData\.thumbnail_url/);
+});
