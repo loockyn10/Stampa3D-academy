@@ -6,7 +6,11 @@
     "dev": "next dev",
     "build": "next build",
     "start": "next start",
-    "lint": "eslint"
+    "lint": "eslint",
+    "test": "node --test tests/*.test.mjs",
+    "test:e2e": "playwright test",
+    "test:e2e:smoke": "playwright test tests/e2e/specs/00-smoke.spec.ts",
+    "test:e2e:report": "playwright show-report"
   },
   "dependencies": {
     "@fontsource/montserrat": "^5.3.0",
@@ -31,6 +35,8 @@
     "upng-js": "^2.1.0"
   },
   "devDependencies": {
+    "@axe-core/playwright": "^4.13.0",
+    "@playwright/test": "^1.64.0",
     "@tailwindcss/postcss": "^4",
     "@types/clipper-lib": "^6.4.0",
     "@types/node": "^20",

@@ -1,9 +1,10 @@
 import type { ModelSourceId } from "./types";
 
 /** Metadata de fuentes segura para el cliente (no importa providers ni credenciales). */
-export const MODEL_SOURCE_IDS: readonly ModelSourceId[] = ["myminifactory", "thingiverse"];
+export const MODEL_SOURCE_IDS: readonly ModelSourceId[] = ["cults", "thingiverse", "myminifactory"];
 
 export const MODEL_SOURCE_LABELS: Record<ModelSourceId, string> = {
+  cults: "Cults3D",
   myminifactory: "MyMiniFactory",
   thingiverse: "Thingiverse",
 };

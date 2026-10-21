@@ -69,7 +69,7 @@ function cacheKey(provider: ModelSearchProvider, request: ModelSearchRequest, pa
     request.query.toLowerCase(),
     filters.sort,
     filters.commercial,
-    filters.freeOnly ? "free" : "any",
+    filters.price,
     page,
     perPage,
   ].join("|");
@@ -81,9 +81,14 @@ function cacheKey(provider: ModelSearchProvider, request: ModelSearchRequest, pa
  */
 export function providerSupportsFilters(provider: ModelSearchProvider, filters: ModelSearchFilters): boolean {
   const capabilities = provider.getCapabilities();
-  if (filters.freeOnly && !capabilities.freeFilter) return false;
+  if (filters.price !== "any" && !capabilities.supportsPriceFilter) return false;
   if (filters.commercial !== "any" && !capabilities.commercialFilters.includes(filters.commercial)) return false;
   return true;
+}
+
+function applyReliablePriceFilter(data: ProviderSearchPage, filters: ModelSearchFilters): ProviderSearchPage {
+  if (filters.price === "any") return data;
+  return { ...data, results: data.results.filter((result) => result.priceType === filters.price) };
 }
 
 /** true si al menos un provider habilitado y seleccionado puede atender los filtros pedidos. */
@@ -122,18 +127,20 @@ export async function searchModels(request: ModelSearchRequest, deps: ModelSearc
   const selected = providers.filter((provider) => !request.sources || request.sources.includes(provider.id));
 
   const outcomes = await Promise.allSettled(
-    selected.map(async (provider): Promise<{ page: number; data: ProviderSearchPage } | "disabled" | "unsupported"> => {
+    selected.map(async (provider): Promise<{ page: number; data: ProviderSearchPage } | "disabled" | "unsupported" | "exhausted"> => {
       if (!provider.isEnabled()) return "disabled";
       if (!providerSupportsFilters(provider, request.filters)) return "unsupported";
+      if (Object.hasOwn(request.cursor, provider.id) && request.cursor[provider.id] === null) return "exhausted";
       const page = request.cursor[provider.id] ?? 1;
       const perPage = Math.min(perProvider, provider.getCapabilities().maxPerPage);
       const key = cacheKey(provider, request, page, perPage);
       const cached = cache.get(key);
       if (cached) return { page, data: cached };
-      const data = await withTimeout(
+      const providerData = await withTimeout(
         (signal) => provider.search({ query: request.query, filters: request.filters, page, perPage, signal }),
         timeoutMs,
       );
+      const data = applyReliablePriceFilter(providerData, request.filters);
       cache.set(key, data);
       return { page, data };
     }),
@@ -158,9 +165,13 @@ export async function searchModels(request: ModelSearchRequest, deps: ModelSearc
       sources.push({ id, status: outcome.value, count: 0, hasMore: false });
       return;
     }
+    if (outcome.value === "exhausted") {
+      sources.push({ id, status: "ok", count: 0, hasMore: false });
+      return;
+    }
     const { page, data } = outcome.value;
     lists.push(data.results);
-    if (data.hasMore) nextCursor[id] = page + 1;
+    nextCursor[id] = data.hasMore ? page + 1 : null;
     sources.push({ id, status: "ok", count: data.results.length, hasMore: data.hasMore });
   });
 

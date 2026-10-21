@@ -2,6 +2,15 @@
 
 Este archivo contiene únicamente trabajo pendiente o próximo. Eliminar tareas terminadas en lugar de conservar un historial infinito.
 
+## Now — QA integral (2026-10-14, ver docs/QA_REPORT.md)
+
+- [ ] Confirmar la URL real de la beta: `stampa3-d-academy-beta.vercel.app` responde `402 DEPLOYMENT_DISABLED` (QA-001).
+- [ ] Correr `supabase/diagnostics/20261014_qa_rls_audit.sql` (solo lectura) y decidir sobre RLS de `profiles` (RIESGO-01), policies premium (RIESGO-02), migrations aplicadas (RIESGO-04) y consistencia de datos.
+- [ ] Crear un Supabase de test (o branch) con el schema completo + 4 cuentas (Free, Beta, Paid, Admin) + seed mínimo y definir las variables `E2E_*` (ver `tests/e2e/README.md`) para activar los ~1.300 escenarios que hoy quedan skipped.
+- [ ] Triage de bugs P2: QA-009 (firma del webhook de membresías), QA-010 (menú radial), QA-014 (editores: `if (!error)`, doble submit, validación), QA-016 (confirmación en Admin → Usuarios), QA-019 (saldo de cliente truncado), QA-022 (Ventas limitadas a 50).
+- [ ] Versionar el schema base (RIESGO-03) para poder reproducir entornos y auditar RLS.
+- [ ] Automatizar en E2E (necesitan seed): Registrar producción / Ajustar inventario, Showroom↔Depósito, scanner, previews 360°/3MF, checkout de membresía.
+
 ## Now — Librería STL: Grupos + viewer 3D (implementado 2026-10-09, ver ARCHITECTURE §18b y D025)
 
 - [ ] Prueba manual con sesión real (checklist del reporte): crear grupo con portada, asignar STL, abrir viewer en desktop y mobile (320–430 px), rotar/zoom/pinch, descargar, usuario sin acceso, STL grande/corrupto.
@@ -23,11 +32,12 @@ Este archivo contiene únicamente trabajo pendiente o próximo. Eliminar tareas 
 
 ## Now — Explorar Modelos (implementado 2026-09-21, ver CURRENT_STATE.md y ARCHITECTURE.md §18)
 
+- [ ] Crear credenciales de Cults3D (`CULTS_USERNAME` + `CULTS_API_KEY`), ejecutar una búsqueda real y confirmar por introspección/GraphiQL el contrato de `creationsSearchBatch` con `onlyFree`/`onlyPriced`, `price(currency: USD) { cents }`, métricas y dominios de imágenes.
 - [ ] Crear API key de MyMiniFactory y cargar `MYMINIFACTORY_API_KEY` en el entorno; hacer una búsqueda real y verificar campos, licencias y dominios de thumbnails.
 - [ ] Enviar mail a MyMiniFactory (uso en SaaS con plan pago, cache permitido, rate limits, costos) y al Developer Program de Thingiverse; no cargar `THINGIVERSE_ACCESS_TOKEN` en producción hasta tener respuesta.
 - [ ] Decidir dónde vive un rate limiter compartido si el hosting es serverless (hoy es en memoria por instancia).
 - [ ] Menú radial mobile (`mobile-radial-menu.tsx`): 7 ítems y solo 6 ángulos definidos (Configuración queda sin posición). Bug preexistente sin resolver; por eso Explorar Modelos no se agregó ahí.
-- [ ] Con una API key real de MyMiniFactory: probar si `store=0` funciona en `/search` (figura como parámetro pero ningún endpoint lo referencia) y, si es confiable, activar `freeFilter`.
+- [ ] Con una API key real de MyMiniFactory: probar si `store=0/1` funciona en `/search` (figura como parámetro global pero `/search` no lo referencia). Hasta entonces se mantiene el post-filtro por `licenses[].store` y no se envía el parámetro.
 - [ ] Verificar visualmente el 5.º ítem del bottom nav de Free (no se pudo iniciar sesión como Free en la verificación).
 - [ ] Prueba manual con usuarios Anonymous, Free y Paid (ver checklist del reporte de la tarea).
 

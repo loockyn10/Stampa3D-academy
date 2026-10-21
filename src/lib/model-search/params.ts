@@ -1,4 +1,4 @@
-import type { CommercialFilter, ModelSearchCursor, ModelSearchFilters, ModelSort, ModelSourceId } from "./types";
+import type { CommercialFilter, ModelSearchCursor, ModelSearchFilters, ModelSort, ModelSourceId, PriceFilter } from "./types";
 import { isModelSourceId, MAX_QUERY_LENGTH, MIN_QUERY_LENGTH, MODEL_SOURCE_IDS } from "./sources";
 import { CONTROL_CHARS } from "./sanitize";
 
@@ -27,14 +27,15 @@ export type ParseResult =
 
 const SORTS: readonly ModelSort[] = ["relevance", "popular", "newest"];
 const COMMERCIAL: readonly CommercialFilter[] = ["any", "allowed", "prohibited", "unknown"];
+const PRICES: readonly PriceFilter[] = ["any", "free", "paid"];
 
 export function normalizeQuery(raw: string): string {
   return raw.replace(CONTROL_CHARS, " ").replace(/\s+/g, " ").trim();
 }
 
 export function encodeCursor(cursor: ModelSearchCursor): string | null {
-  const entries = Object.entries(cursor).filter(([, page]) => typeof page === "number");
-  if (!entries.length) return null;
+  const entries = Object.entries(cursor).filter(([, page]) => page === null || typeof page === "number");
+  if (!entries.some(([, page]) => typeof page === "number")) return null;
   return Buffer.from(JSON.stringify(Object.fromEntries(entries)), "utf8").toString("base64url");
 }
 
@@ -47,6 +48,10 @@ export function decodeCursor(raw: string | null): ModelSearchCursor | null {
     const cursor: ModelSearchCursor = {};
     for (const [key, value] of Object.entries(parsed)) {
       if (!isModelSourceId(key)) return null;
+      if (value === null) {
+        cursor[key] = null;
+        continue;
+      }
       if (typeof value !== "number" || !Number.isInteger(value) || value < 1 || value > MAX_PAGE) return null;
       cursor[key] = value;
     }
@@ -81,8 +86,10 @@ export function parseModelSearchParams(searchParams: URLSearchParams): ParseResu
     sources = parts as ModelSourceId[];
   }
 
-  const freeOnly = parseBoolean(searchParams.get("free"));
-  if (freeOnly === null) return { ok: false, error: "invalid_filter" };
+  const legacyFree = parseBoolean(searchParams.get("free"));
+  if (legacyFree === null) return { ok: false, error: "invalid_filter" };
+  const price = (searchParams.get("price") ?? (legacyFree ? "free" : "any")) as PriceFilter;
+  if (!PRICES.includes(price)) return { ok: false, error: "invalid_filter" };
 
   const commercial = (searchParams.get("commercial") ?? "any") as CommercialFilter;
   if (!COMMERCIAL.includes(commercial)) return { ok: false, error: "invalid_filter" };
@@ -93,7 +100,7 @@ export function parseModelSearchParams(searchParams: URLSearchParams): ParseResu
   const cursor = decodeCursor(searchParams.get("cursor"));
   if (cursor === null) return { ok: false, error: "invalid_cursor" };
 
-  return { ok: true, value: { query, sources, filters: { freeOnly, commercial, sort }, cursor } };
+  return { ok: true, value: { query, sources, filters: { price, commercial, sort }, cursor } };
 }
 
 /** Profundidad de la paginación pedida (página más alta entre providers). */

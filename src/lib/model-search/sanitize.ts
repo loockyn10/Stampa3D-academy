@@ -38,7 +38,8 @@ export function isoDate(value: unknown): string | null {
 
 export function externalId(value: unknown): string | null {
   if (typeof value === "number" && Number.isFinite(value)) return String(value);
-  if (typeof value === "string" && /^[A-Za-z0-9_-]{1,64}$/.test(value)) return value;
+  // IDs opacos GraphQL pueden ser base64 y contener `=`; nunca se usan como URL ni HTML.
+  if (typeof value === "string" && /^[A-Za-z0-9_.:=-]{1,128}$/.test(value)) return value;
   return null;
 }
 

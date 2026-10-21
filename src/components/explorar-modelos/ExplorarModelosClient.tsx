@@ -7,11 +7,13 @@ import { AlertTriangle, Loader2, Lock, Search, SearchX } from "lucide-react";
 import { createClient } from "@/utils/supabase/client";
 import { getCurrentUserAccess } from "@/lib/auth/user-access";
 import { MAX_QUERY_LENGTH, MIN_QUERY_LENGTH, MODEL_SOURCE_LABELS } from "@/lib/model-search/sources";
+import { mergeUniqueResults } from "@/lib/model-search/results";
 import type {
   CommercialFilter,
   ModelSearchResult,
   ModelSort,
   ModelSourceId,
+  PriceFilter,
   SourceStatus,
 } from "@/lib/model-search/types";
 import { ModelResultCard } from "./ModelResultCard";
@@ -21,7 +23,9 @@ export interface ProviderInfo {
   label: string;
   enabled: boolean;
   sorts: readonly ModelSort[];
-  freeFilter: boolean;
+  supportsPriceFilter: boolean;
+  reportsPrice: boolean;
+  priceFilterMode: "native" | "post" | "none";
   commercialFilters: readonly Exclude<CommercialFilter, "any">[];
 }
 
@@ -41,6 +45,11 @@ const COMMERCIAL_OPTIONS: { value: CommercialFilter; label: string }[] = [
   { value: "allowed", label: "Permitido" },
   { value: "prohibited", label: "No permitido" },
   { value: "unknown", label: "Desconocido" },
+];
+const PRICE_OPTIONS: { value: PriceFilter; label: string }[] = [
+  { value: "any", label: "Todos" },
+  { value: "free", label: "Gratis" },
+  { value: "paid", label: "De pago" },
 ];
 
 const API_ERRORS: Record<string, string> = {
@@ -82,7 +91,7 @@ export function ExplorarModelosClient({ providers }: { providers: ProviderInfo[]
   const [tier, setTier] = useState<Tier | null>(null);
   const [input, setInput] = useState("");
   const [source, setSource] = useState<ModelSourceId | "all">("all");
-  const [freeOnly, setFreeOnly] = useState(false);
+  const [price, setPrice] = useState<PriceFilter>("any");
   const [commercial, setCommercial] = useState<CommercialFilter>("any");
   const [sort, setSort] = useState<ModelSort>("relevance");
   const [submitted, setSubmitted] = useState<string | null>(null);
@@ -114,10 +123,8 @@ export function ExplorarModelosClient({ providers }: { providers: ProviderInfo[]
     () => (source === "all" ? enabledProviders : enabledProviders.filter((provider) => provider.id === source)),
     [enabledProviders, source],
   );
-  // Los filtros reflejan capacidades reales: se ofrecen solo si alguna fuente los soporta y se habilitan únicamente si
-  // TODAS las fuentes seleccionadas los soportan (si no, "Todas" descartaría resultados de alguna fuente en silencio).
-  const freeOffered = enabledProviders.some((provider) => provider.freeFilter);
-  const freeEnabled = selectedProviders.length > 0 && selectedProviders.every((provider) => provider.freeFilter);
+  // Gratis/De pago consulta solo providers con metadata confiable; resultados `unknown` quedan afuera.
+  const priceEnabled = selectedProviders.some((provider) => provider.supportsPriceFilter);
   const commercialOffered = COMMERCIAL_OPTIONS.filter(
     (option) => option.value !== "any" && enabledProviders.some((provider) => supportsCommercial(provider, option.value)),
   );
@@ -132,7 +139,7 @@ export function ExplorarModelosClient({ providers }: { providers: ProviderInfo[]
   }, [selectedProviders]);
 
   const runSearch = useCallback(
-    async (params: { query: string; source: ModelSourceId | "all"; freeOnly: boolean; commercial: CommercialFilter; sort: ModelSort; cursor: string | null }) => {
+    async (params: { query: string; source: ModelSourceId | "all"; price: PriceFilter; commercial: CommercialFilter; sort: ModelSort; cursor: string | null }) => {
       const id = ++requestId.current;
       abortRef.current?.abort();
       const controller = new AbortController();
@@ -149,7 +156,7 @@ export function ExplorarModelosClient({ providers }: { providers: ProviderInfo[]
 
       const query = new URLSearchParams({ q: params.query });
       if (params.source !== "all") query.set("sources", params.source);
-      if (params.freeOnly) query.set("free", "1");
+      if (params.price !== "any") query.set("price", params.price);
       if (params.commercial !== "any") query.set("commercial", params.commercial);
       if (params.sort !== "relevance") query.set("sort", params.sort);
       if (params.cursor) query.set("cursor", params.cursor);
@@ -166,7 +173,7 @@ export function ExplorarModelosClient({ providers }: { providers: ProviderInfo[]
         }
         const data = (await response.json()) as ApiResponse;
         if (id !== requestId.current) return;
-        setResults((current) => (append ? [...current, ...data.results] : data.results));
+        setResults((current) => (append ? mergeUniqueResults(current, data.results) : data.results));
         setSources(data.sources);
         setNextCursor(data.nextCursor);
         setGated(data.viewer.gated);
@@ -180,7 +187,7 @@ export function ExplorarModelosClient({ providers }: { providers: ProviderInfo[]
     [],
   );
 
-  const current = { source, freeOnly, commercial, sort };
+  const current = { source, price, commercial, sort };
 
   const submit = (event?: React.FormEvent) => {
     event?.preventDefault();
@@ -196,7 +203,7 @@ export function ExplorarModelosClient({ providers }: { providers: ProviderInfo[]
   const applyFilters = (patch: Partial<typeof current>) => {
     const next = { ...current, ...patch };
     if (patch.source !== undefined) setSource(patch.source);
-    if (patch.freeOnly !== undefined) setFreeOnly(patch.freeOnly);
+    if (patch.price !== undefined) setPrice(patch.price);
     if (patch.commercial !== undefined) setCommercial(patch.commercial);
     if (patch.sort !== undefined) setSort(patch.sort);
     if (patch.source !== undefined) {
@@ -206,9 +213,9 @@ export function ExplorarModelosClient({ providers }: { providers: ProviderInfo[]
         next.sort = "relevance";
         setSort("relevance");
       }
-      if (next.freeOnly && !selected.every((provider) => provider.freeFilter)) {
-        next.freeOnly = false;
-        setFreeOnly(false);
+      if (next.price !== "any" && !selected.some((provider) => provider.supportsPriceFilter)) {
+        next.price = "any";
+        setPrice("any");
       }
       if (next.commercial !== "any" && !selected.every((provider) => supportsCommercial(provider, next.commercial))) {
         next.commercial = "any";
@@ -296,20 +303,26 @@ export function ExplorarModelosClient({ providers }: { providers: ProviderInfo[]
                 ))}
               </div>
 
-              {freeOffered && (
+              <div className="space-y-1.5">
                 <div className="flex flex-wrap items-center gap-2" role="group" aria-label="Precio">
                   <span className="shrink-0 text-xs font-semibold uppercase tracking-wide text-gray-500">Precio</span>
-                  <button
-                    type="button"
-                    disabled={!freeEnabled}
-                    onClick={() => applyFilters({ freeOnly: !freeOnly })}
-                    className={`${chipClass(freeOnly)} disabled:cursor-not-allowed disabled:opacity-40`}
-                    aria-pressed={freeOnly}
-                  >
-                    Solo gratuitos
-                  </button>
+                  {PRICE_OPTIONS.map((option) => (
+                    <button
+                      key={option.value}
+                      type="button"
+                      disabled={option.value !== "any" && !priceEnabled}
+                      onClick={() => applyFilters({ price: option.value })}
+                      className={`${chipClass(price === option.value)} disabled:cursor-not-allowed disabled:opacity-40`}
+                      aria-pressed={price === option.value}
+                    >
+                      {option.label}
+                    </button>
+                  ))}
                 </div>
-              )}
+                {price !== "any" && (
+                  <p className="text-xs text-gray-500">Los modelos con precio no informado quedan fuera de este filtro.</p>
+                )}
+              </div>
 
               {commercialOffered.length > 0 && (
                 <div className="space-y-1.5">

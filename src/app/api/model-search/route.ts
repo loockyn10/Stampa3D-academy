@@ -49,7 +49,7 @@ export async function GET(request: NextRequest) {
 
   // Sin ningún provider capaz de aplicar el filtro no se devuelve una lista engañosa: se rechaza explícitamente.
   const providers = createDefaultProviders();
-  const hasFilters = filters.freeOnly || filters.commercial !== "any";
+  const hasFilters = filters.price !== "any" || filters.commercial !== "any";
   if (hasFilters && !hasProviderForFilters(providers, sources, filters)) return jsonError("unsupported_filter", 400);
 
   try {

@@ -422,12 +422,13 @@ Reglas generales:
 
 ## 18. Explorar Modelos (2026-09-21)
 
-Herramienta pública (`/explorar-modelos`) para **descubrir modelos 3D alojados en plataformas externas** (V1: MyMiniFactory y Thingiverse, cada una activa solo si tiene credencial server-side). No es la **Librería STL** (`/libreria-stl` = contenido propio de Stampa); no se mezclan.
+Herramienta pública (`/explorar-modelos`) para **descubrir modelos 3D alojados en plataformas externas** (Cults3D, Thingiverse y MyMiniFactory; cada una se muestra solo si tiene su credencial server-side completa). No es la **Librería STL** (`/libreria-stl` = contenido propio de Stampa); no se mezclan.
 
 Reglas:
 
 - Stampa es descubridor: muestra metadata mínima (título, creador, thumbnail, fuente, licencia, métricas) y **siempre** envía a la página original ("Ver modelo en {Fuente}"). No aloja, descarga ni redistribuye archivos; no crea mirror ni catálogo local; no copia descripciones.
 - La fuente es siempre visible. El usuario nunca debe creer que el modelo es de Stampa.
+- Precio normalizado: `priceType = free|paid|unknown`. Solo se marca Gratis/De pago con metadata explícita del provider; `unknown` aparece como "Precio no informado" y queda fuera de ambos filtros. Cults aplica el filtro en origen; MyMiniFactory se post-filtra con su flag `licenses[].store`; Thingiverse queda fuera de los filtros de precio porque no informa una señal confiable.
 - Licencia normalizada: `commercialUse` = permitido / no comercial / desconocido y `attributionRequired`. Solo se mapea lo que la fuente informa; ante duda es `desconocido` ("Verificá la licencia en la fuente"). **Gratis ≠ uso comercial permitido.**
 - Un resultado externo **no** es un producto de Mi Taller. "Guardar como producto" (futuro) será una acción explícita.
 - Acceso: Anonymous busca con límites (2 páginas, sin filtro de uso comercial ni orden); Free/Paid, búsqueda y filtros completos; solo Paid ve **"Calcular en Stampa"**, que abre la Calculadora existente con el nombre del modelo (no se asumen gramos, horas ni material).

@@ -180,7 +180,7 @@ Si trabajan sucesivamente sobre la misma feature, el segundo parte del código a
 
 - No se almacena ni redistribuye ningún archivo de terceros; no hay mirror ni catálogo local; solo cache temporal de queries (minutos).
 - Atribución obligatoria: la fuente es visible en cada resultado y "Ver modelo" abre la URL original.
-- Solo se integran fuentes con API oficial. MakerWorld (términos prohíben automatización), Printables (sin API pública) y Thangs no se implementan; no se usan endpoints internos ni scraping.
+- Solo se integran fuentes con API oficial. Cults3D usa su GraphQL público; MyMiniFactory y Thingiverse sus APIs oficiales. MakerWorld (términos prohíben automatización), Printables (sin API pública) y Thangs no se implementan; no se usan endpoints internos ni scraping.
 - Cada provider es independiente: si uno falla o no responde, el resto responde igual (resultados parciales).
 - **Thingiverse:** el provider existe pero se deja **sin credencial** en producción hasta obtener respuesta de su Developer Program (los términos de la API restringen cache, comercialización y apps competidoras; ver spike). MyMiniFactory: sus guidelines piden enlazar la fuente y el creador; confirmar por mail uso en SaaS pago, cache y rate limits.
 
@@ -188,7 +188,7 @@ Si trabajan sucesivamente sobre la misma feature, el segundo parte del código a
 
 **Estado:** Accepted (2026-09-21)
 
-`commercialUse` (`allowed|prohibited|unknown`) y `attributionRequired` (`true|false|unknown`) se mapean solo desde datos explícitos de la fuente; ante duda es `unknown`. `isFree` nunca implica `commercialUse = allowed`. Un resultado externo no crea productos de Mi Taller ni de Mi Negocio sin una acción explícita del usuario.
+`commercialUse` (`allowed|prohibited|unknown`) y `attributionRequired` (`true|false|unknown`) se mapean solo desde datos explícitos de la fuente; ante duda es `unknown`. `priceType` (`free|paid|unknown`) también requiere señal explícita: `unknown` no entra en filtros Gratis/De pago. Gratis nunca implica `commercialUse = allowed`. Un resultado externo no crea productos de Mi Taller ni de Mi Negocio sin una acción explícita del usuario.
 
 ## D023 — Beta Access es independiente de Paid; un código Beta no es una suscripción
 

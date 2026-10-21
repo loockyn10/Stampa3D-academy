@@ -9,12 +9,21 @@ import type { ModelSearchResult } from "@/lib/model-search/types";
 
 const compactNumber = new Intl.NumberFormat("es-AR", { notation: "compact", maximumFractionDigits: 1 });
 
-function PriceBadge({ isFree }: { isFree: boolean | null }) {
-  if (isFree === true) {
+function formatPrice(price: number, currency: string): string | null {
+  try {
+    return new Intl.NumberFormat("es-AR", { style: "currency", currency, maximumFractionDigits: 2 }).format(price);
+  } catch {
+    return null;
+  }
+}
+
+function PriceBadge({ result }: { result: ModelSearchResult }) {
+  if (result.priceType === "free") {
     return <span className="rounded-full border border-emerald-500/20 bg-emerald-500/10 px-2 py-0.5 text-[11px] font-semibold text-emerald-400">Gratis</span>;
   }
-  if (isFree === false) {
-    return <span className="rounded-full border border-stampa-orange/20 bg-stampa-orange/10 px-2 py-0.5 text-[11px] font-semibold text-stampa-orange">De pago</span>;
+  if (result.priceType === "paid") {
+    const formatted = result.price !== null && result.currency ? formatPrice(result.price, result.currency) : null;
+    return <span className="rounded-full border border-stampa-orange/20 bg-stampa-orange/10 px-2 py-0.5 text-[11px] font-semibold text-stampa-orange">{formatted ?? "De pago"}</span>;
   }
   return <span className="rounded-full border border-stampa-border bg-white/5 px-2 py-0.5 text-[11px] font-semibold text-gray-400">Precio no informado</span>;
 }
@@ -88,7 +97,7 @@ export function ModelResultCard({ result, canCalculate }: ModelResultCardProps) 
         </div>
 
         <div className="flex flex-wrap gap-1.5">
-          <PriceBadge isFree={result.isFree} />
+          <PriceBadge result={result} />
           <CommercialBadge value={result.license.commercialUse} />
         </div>
 

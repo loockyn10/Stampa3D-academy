@@ -45,6 +45,7 @@ export function normalizeMyMiniFactoryItem(raw: unknown): ModelSearchResult | nu
   if (!id || !title || !originalUrl) return null;
 
   const designer = asRecord(item.designer);
+  const isFree = myMiniFactoryIsFree(item.licenses);
   return {
     source: "myminifactory",
     externalId: id,
@@ -53,7 +54,9 @@ export function normalizeMyMiniFactoryItem(raw: unknown): ModelSearchResult | nu
     authorUrl: safeExternalUrl(designer?.profile_url, ALLOWED_DOMAINS),
     thumbnailUrl: thumbnail(item.images),
     originalUrl,
-    isFree: myMiniFactoryIsFree(item.licenses),
+    priceType: isFree === null ? "unknown" : isFree ? "free" : "paid",
+    price: null,
+    currency: null,
     license: normalizeMyMiniFactoryLicense(item.licenses, item.license),
     likes: nonNegativeInt(item.likes),
     downloads: null,
@@ -74,9 +77,16 @@ export function createMyMiniFactoryProvider(
     id: "myminifactory",
     label: "MyMiniFactory",
     isEnabled: () => Boolean(getKey()),
-    // La API v2 solo documenta `commercial_use` (permitido). `store` no figura en los parámetros de /search y no existe
-    // un equivalente para "no permitido"/"desconocido": esos filtros no se ofrecen.
-    getCapabilities: () => ({ sorts: ["relevance", "popular", "newest"], maxPerPage: 30, freeFilter: false, commercialFilters: ["allowed"] }),
+    // `licenses[].store` informa gratis/de pago de forma confiable. Aunque el schema define un parámetro `store`,
+    // /search no lo referencia: se aplica post-filtro y nunca se inventa un precio numérico.
+    getCapabilities: () => ({
+      sorts: ["relevance", "popular", "newest"],
+      maxPerPage: 30,
+      supportsPriceFilter: true,
+      reportsPrice: true,
+      priceFilterMode: "post",
+      commercialFilters: ["allowed"],
+    }),
     async health() {
       return { status: getKey() ? "ok" : "disabled" };
     },

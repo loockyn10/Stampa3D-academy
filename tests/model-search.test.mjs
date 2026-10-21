@@ -30,15 +30,16 @@ function createLoader() {
 }
 
 const load = createLoader();
+const cults = load("src/lib/model-search/providers/cults.ts");
 const mmf = load("src/lib/model-search/providers/myminifactory.ts");
 const tv = load("src/lib/model-search/providers/thingiverse.ts");
 const sanitize = load("src/lib/model-search/sanitize.ts");
-const license = load("src/lib/model-search/license.ts");
 const params = load("src/lib/model-search/params.ts");
 const service = load("src/lib/model-search/service.ts");
 const cache = load("src/lib/model-search/cache.ts");
 const rateLimit = load("src/lib/model-search/rate-limit.ts");
 const calculatorLink = load("src/lib/model-search/calculator-link.ts");
+const modelResults = load("src/lib/model-search/results.ts");
 
 const read = (relative) => fs.readFileSync(path.join(root, relative), "utf8");
 
@@ -85,7 +86,24 @@ function tvItem(overrides = {}) {
   };
 }
 
-const filters = { freeOnly: false, commercial: "any", sort: "relevance" };
+function cultsItem(overrides = {}) {
+  return {
+    id: "Q3JlYXRpb24vNDI=",
+    name: "Pikachu articulado",
+    url: "https://cults3d.com/en/3d-model/game/pikachu-articulado",
+    illustrationImageUrl: "https://images.cults3d.com/pikachu.png",
+    price: { cents: 450 },
+    creator: { nick: "CultsMaker", shortUrl: "https://cults3d.com/en/users/CultsMaker/3d-models" },
+    license: { name: "Cults - Private Use", url: "https://cults3d.com/en/licenses" },
+    likesCount: 15,
+    downloadsCount: 30,
+    viewsCount: 90,
+    publishedAt: "2026-01-10T10:00:00Z",
+    ...overrides,
+  };
+}
+
+const filters = { price: "any", commercial: "any", sort: "relevance" };
 
 function result(source, id, extra = {}) {
   return {
@@ -96,7 +114,9 @@ function result(source, id, extra = {}) {
     authorUrl: null,
     thumbnailUrl: null,
     originalUrl: `https://www.${source}.com/${id}`,
-    isFree: true,
+    priceType: "free",
+    price: 0,
+    currency: "USD",
     license: { name: null, url: null, commercialUse: "unknown", attributionRequired: "unknown", remixAllowed: null },
     likes: null,
     downloads: null,
@@ -108,12 +128,12 @@ function result(source, id, extra = {}) {
   };
 }
 
-function fakeProvider(id, behavior, { enabled = true, freeFilter = false, commercialFilters = [] } = {}) {
+function fakeProvider(id, behavior, { enabled = true, supportsPriceFilter = false, reportsPrice = false, priceFilterMode = "none", commercialFilters = [] } = {}) {
   return {
     id,
     label: id,
     isEnabled: () => enabled,
-    getCapabilities: () => ({ sorts: ["relevance", "popular", "newest"], maxPerPage: 30, freeFilter, commercialFilters }),
+    getCapabilities: () => ({ sorts: ["relevance", "popular", "newest"], maxPerPage: 30, supportsPriceFilter, reportsPrice, priceFilterMode, commercialFilters }),
     health: async () => ({ status: enabled ? "ok" : "disabled" }),
     search: behavior,
   };
@@ -125,6 +145,63 @@ const freshDeps = (providers, extra = {}) => ({ providers, cache: cache.createTt
 
 // ---------- PROVIDER CORE ----------
 
+test("Cults3D normaliza URL, creador, imagen, métricas y precio", () => {
+  const dto = cults.normalizeCultsCreation(cultsItem());
+  assert.equal(dto.source, "cults");
+  assert.equal(dto.externalId, "Q3JlYXRpb24vNDI=");
+  assert.equal(dto.title, "Pikachu articulado");
+  assert.equal(dto.originalUrl, "https://cults3d.com/en/3d-model/game/pikachu-articulado");
+  assert.equal(dto.authorName, "CultsMaker");
+  assert.equal(dto.thumbnailUrl, "https://images.cults3d.com/pikachu.png");
+  assert.equal(dto.priceType, "paid");
+  assert.equal(dto.price, 4.5);
+  assert.equal(dto.currency, "USD");
+  assert.equal(dto.likes, 15);
+  assert.equal(dto.downloads, 30);
+  assert.equal(dto.views, 90);
+
+  const free = cults.normalizeCultsCreation(cultsItem({ price: { cents: 0 } }));
+  assert.equal(free.priceType, "free");
+  assert.equal(free.price, 0);
+  assert.equal(cults.normalizeCultsCreation(cultsItem({ url: "https://evil.example/model" })), null);
+  assert.equal(cults.normalizeCultsCreation(cultsItem({ illustrationImageUrl: "https://evil.example/image.png" })).thumbnailUrl, null);
+});
+
+test("Cults3D usa GraphQL oficial, Basic Auth server-side, offset y filtros nativos", async () => {
+  let calledUrl = "";
+  let calledInit;
+  const provider = cults.createCultsProvider({
+    username: () => "fede",
+    apiKey: () => "SECRET-CULTS-KEY",
+    fetch: async (url, init) => {
+      calledUrl = url;
+      calledInit = init;
+      return new Response(JSON.stringify({ data: { creationsSearchBatch: { total: 30, results: [cultsItem()] } } }), { status: 200 });
+    },
+  });
+  const page = await provider.search({
+    query: "pikachu",
+    filters: { ...filters, price: "paid" },
+    page: 2,
+    perPage: 12,
+    signal: new AbortController().signal,
+  });
+  assert.equal(calledUrl, "https://cults3d.com/graphql");
+  assert.equal(calledInit.method, "POST");
+  assert.equal(calledInit.headers.Authorization, `Basic ${Buffer.from("fede:SECRET-CULTS-KEY").toString("base64")}`);
+  const body = JSON.parse(calledInit.body);
+  assert.match(body.query, /creationsSearchBatch/);
+  assert.deepEqual(body.variables, { query: "pikachu", limit: 12, offset: 12, onlyFree: false, onlyPriced: true });
+  assert.equal(page.results.length, 1);
+  assert.equal(page.hasMore, true);
+  assert.doesNotMatch(JSON.stringify(page), /SECRET-CULTS-KEY/);
+
+  const missingUsername = cults.createCultsProvider({ username: () => undefined, apiKey: () => "k" });
+  const missingKey = cults.createCultsProvider({ username: () => "u", apiKey: () => undefined });
+  assert.equal(missingUsername.isEnabled(), false);
+  assert.equal(missingKey.isEnabled(), false);
+});
+
 test("1. MyMiniFactory item se normaliza al DTO común", () => {
   const dto = mmf.normalizeMyMiniFactoryItem(mmfItem());
   assert.equal(dto.source, "myminifactory");
@@ -134,7 +211,9 @@ test("1. MyMiniFactory item se normaliza al DTO común", () => {
   assert.equal(dto.authorUrl, "https://www.myminifactory.com/users/dragonmaker");
   assert.equal(dto.thumbnailUrl, "https://cdn.myminifactory.com/thumb.jpg");
   assert.equal(dto.originalUrl, "https://www.myminifactory.com/object/3d-print-dragon-4242");
-  assert.equal(dto.isFree, true);
+  assert.equal(dto.priceType, "free");
+  assert.equal(dto.price, null);
+  assert.equal(dto.currency, null);
   assert.equal(dto.likes, 120);
   assert.equal(dto.views, 3400);
   assert.equal(dto.downloads, null);
@@ -162,16 +241,16 @@ test("4. sin metadata de licencia => unknown (gratis no implica uso comercial)",
   const dto = mmf.normalizeMyMiniFactoryItem(mmfItem({ licenses: undefined, license: undefined }));
   assert.equal(dto.license.commercialUse, "unknown");
   assert.equal(dto.license.attributionRequired, "unknown");
-  assert.equal(dto.isFree, null);
+  assert.equal(dto.priceType, "unknown");
 
   const freeButNonCommercial = mmf.normalizeMyMiniFactoryItem(
     mmfItem({ licenses: [{ type: "store", value: false }, { type: "commercial-use", value: false }] }),
   );
-  assert.equal(freeButNonCommercial.isFree, true);
+  assert.equal(freeButNonCommercial.priceType, "free");
   assert.equal(freeButNonCommercial.license.commercialUse, "prohibited");
 
   const paid = mmf.normalizeMyMiniFactoryItem(mmfItem({ licenses: [{ type: "store", value: true }] }));
-  assert.equal(paid.isFree, false);
+  assert.equal(paid.priceType, "paid");
   assert.equal(paid.license.commercialUse, "unknown");
 });
 
@@ -199,7 +278,7 @@ test("MMF provider: pide /api/v2/search con API key server-side y filtros nativo
   });
   const page = await provider.search({
     query: "dragon",
-    filters: { freeOnly: false, commercial: "allowed", sort: "popular" },
+    filters: { price: "any", commercial: "allowed", sort: "popular" },
     page: 2,
     perPage: 12,
     signal: new AbortController().signal,
@@ -348,15 +427,30 @@ test("11. merge round-robin entre fuentes", async () => {
 });
 
 test("sources limita providers", async () => {
+  const calls = { cults: 0, myminifactory: 0, thingiverse: 0 };
   const providers = [
-    fakeProvider("myminifactory", okPage([result("myminifactory", 1)])),
-    fakeProvider("thingiverse", okPage([result("thingiverse", 1)])),
+    fakeProvider("cults", async () => { calls.cults += 1; return { results: [result("cults", 1)], total: 1, hasMore: false }; }),
+    fakeProvider("myminifactory", async () => { calls.myminifactory += 1; return { results: [result("myminifactory", 1)], total: 1, hasMore: false }; }),
+    fakeProvider("thingiverse", async () => { calls.thingiverse += 1; return { results: [result("thingiverse", 1)], total: 1, hasMore: false }; }),
   ];
+  const all = await service.searchModels(request(), freshDeps(providers));
+  assert.deepEqual(all.sources.map((s) => s.id), ["cults", "myminifactory", "thingiverse"]);
   const only = await service.searchModels(request({ sources: ["thingiverse"] }), freshDeps(providers));
   assert.deepEqual(only.sources.map((s) => s.id), ["thingiverse"]);
+  const cultsOnly = await service.searchModels(request({ sources: ["cults"] }), freshDeps(providers));
+  assert.deepEqual(cultsOnly.sources.map((s) => s.id), ["cults"]);
+  const mmfOnly = await service.searchModels(request({ sources: ["myminifactory"] }), freshDeps(providers));
+  assert.deepEqual(mmfOnly.sources.map((s) => s.id), ["myminifactory"]);
+  assert.deepEqual(calls, { cults: 2, myminifactory: 2, thingiverse: 2 });
 });
 
-test("filtros: los aplica la fuente; Stampa no recorta la página después (sin paginación engañosa)", async () => {
+test("al anexar páginas no repite modelos ya mostrados", () => {
+  const first = [result("cults", 1), result("thingiverse", 1)];
+  const merged = modelResults.mergeUniqueResults(first, [result("cults", 1), result("cults", 2), result("cults", 2)]);
+  assert.deepEqual(merged.map((item) => `${item.source}:${item.externalId}`), ["cults:1", "thingiverse:1", "cults:2"]);
+});
+
+test("filtro comercial nativo: lo aplica la fuente sin recortar la página", async () => {
   // La fuente (que filtra server-side) devuelve 3 items; ninguno se descarta en Stampa aunque su licencia sea desconocida.
   const seen = [];
   const mmfLike = fakeProvider(
@@ -388,7 +482,7 @@ test("filtro no soportado por un provider: queda fuera de la consulta (unsupport
   assert.equal(service.providerSupportsFilters(providers[0], { ...filters, commercial: "prohibited" }), false);
   assert.equal(service.providerSupportsFilters(providers[0], { ...filters, commercial: "unknown" }), false);
   assert.equal(service.providerSupportsFilters(providers[0], { ...filters, commercial: "allowed" }), true);
-  assert.equal(service.providerSupportsFilters(providers[0], { ...filters, freeOnly: true }), false);
+  assert.equal(service.providerSupportsFilters(providers[0], { ...filters, price: "free" }), false);
   assert.equal(service.providerSupportsFilters(providers[0], filters), true);
 });
 
@@ -399,35 +493,60 @@ test("hasProviderForFilters: sin proveedor capaz no se devuelve una lista engañ
   ];
   assert.equal(service.hasProviderForFilters(providers, null, { ...filters, commercial: "allowed" }), true);
   assert.equal(service.hasProviderForFilters(providers, ["thingiverse"], { ...filters, commercial: "allowed" }), false);
-  assert.equal(service.hasProviderForFilters(providers, null, { ...filters, freeOnly: true }), false);
+  assert.equal(service.hasProviderForFilters(providers, null, { ...filters, price: "free" }), false);
   const disabledOnly = [fakeProvider("myminifactory", okPage([]), { enabled: false, commercialFilters: ["allowed"] })];
   assert.equal(service.hasProviderForFilters(disabledOnly, null, { ...filters, commercial: "allowed" }), false);
 });
 
-test("capacidades reales: MMF solo filtra uso comercial permitido; Thingiverse y MMF no filtran gratis; Thingiverse sin filtros propios", () => {
+test("capacidades reales: Cults filtra precio nativo, MMF post-filtra y Thingiverse no informa precio", () => {
+  const cultsCaps = cults.createCultsProvider({ username: () => "u", apiKey: () => "k" }).getCapabilities();
+  assert.equal(cultsCaps.supportsPriceFilter, true);
+  assert.equal(cultsCaps.reportsPrice, true);
+  assert.equal(cultsCaps.priceFilterMode, "native");
   const mmfCaps = mmf.createMyMiniFactoryProvider({ apiKey: () => "k" }).getCapabilities();
   assert.deepEqual(mmfCaps.commercialFilters, ["allowed"]);
-  assert.equal(mmfCaps.freeFilter, false);
+  assert.equal(mmfCaps.supportsPriceFilter, true);
+  assert.equal(mmfCaps.reportsPrice, true);
+  assert.equal(mmfCaps.priceFilterMode, "post");
   const tvCaps = tv.createThingiverseProvider({ accessToken: () => "t" }).getCapabilities();
   assert.deepEqual(tvCaps.commercialFilters, []);
-  assert.equal(tvCaps.freeFilter, false);
+  assert.equal(tvCaps.supportsPriceFilter, false);
+  assert.equal(tvCaps.reportsPrice, false);
+  assert.equal(tvCaps.priceFilterMode, "none");
 });
 
-test("Thingiverse no informa precio de forma confiable: isFree es null (nunca se infiere)", () => {
-  assert.equal(tv.normalizeThingiverseItem(tvItem()).isFree, null);
-  assert.equal(tv.normalizeThingiverseItem(tvItem({ license: "Creative Commons - Attribution - Non-Commercial" })).isFree, null);
+test("Thingiverse no informa precio de forma confiable: priceType unknown (nunca se infiere)", () => {
+  assert.equal(tv.normalizeThingiverseItem(tvItem()).priceType, "unknown");
+  assert.equal(tv.normalizeThingiverseItem(tvItem({ license: "Creative Commons - Attribution - Non-Commercial" })).priceType, "unknown");
 });
 
-test("isFree null (desconocido) no es gratis: la UI no lo muestra como Gratis y el filtro exige un provider que lo soporte", () => {
+test("priceType unknown no es gratis ni pago y la UI mantiene los tres estados", () => {
   const card = read("src/components/explorar-modelos/ModelResultCard.tsx");
-  assert.match(card, /isFree === true[\s\S]*Gratis/);
+  assert.match(card, /priceType === "free"[\s\S]*Gratis/);
+  assert.match(card, /priceType === "paid"[\s\S]*De pago/);
   assert.match(card, /Precio no informado/);
   const client = read("src/components/explorar-modelos/ExplorarModelosClient.tsx");
-  assert.match(client, /freeOffered \&\& \(/);
-  assert.match(client, /disabled=\{!freeEnabled\}/);
+  assert.match(client, /value: "any", label: "Todos"/);
+  assert.match(client, /value: "free", label: "Gratis"/);
+  assert.match(client, /value: "paid", label: "De pago"/);
   assert.match(client, /commercialOffered\.length > 0 \&\& \(/);
-  // No hay filtrado post-página en el orchestrator.
-  assert.doesNotMatch(read("src/lib/model-search/service.ts"), /passesFilters|\.filter\(\(result\)/);
+  assert.match(read("src/lib/model-search/service.ts"), /result\.priceType === filters\.price/);
+});
+
+test("Gratis/Pago post-filtra solo metadata confiable; unknown siempre queda afuera", async () => {
+  const provider = fakeProvider(
+    "myminifactory",
+    okPage([
+      result("myminifactory", 1, { priceType: "free" }),
+      result("myminifactory", 2, { priceType: "paid", price: null, currency: null }),
+      result("myminifactory", 3, { priceType: "unknown", price: null, currency: null }),
+    ]),
+    { supportsPriceFilter: true, reportsPrice: true, priceFilterMode: "post" },
+  );
+  const free = await service.searchModels(request({ filters: { ...filters, price: "free" } }), freshDeps([provider]));
+  assert.deepEqual(free.results.map((item) => item.externalId), ["1"]);
+  const paid = await service.searchModels(request({ filters: { ...filters, price: "paid" } }), freshDeps([provider]));
+  assert.deepEqual(paid.results.map((item) => item.externalId), ["2"]);
 });
 
 test("navegación mobile: Explorar Modelos es descubrible sin pasar por la Calculadora", () => {
@@ -478,9 +597,9 @@ test("cursor por provider: continúa solo los que tienen más páginas", async (
     fakeProvider("thingiverse", async (input) => { seen.push(["tv", input.page]); return { results: [result("thingiverse", input.page)], total: 1, hasMore: false }; }),
   ];
   const first = await service.searchModels(request(), freshDeps(providers));
-  assert.deepEqual(params.decodeCursor(first.nextCursor), { myminifactory: 2 });
+  assert.deepEqual(params.decodeCursor(first.nextCursor), { myminifactory: 2, thingiverse: null });
   await service.searchModels(request({ cursor: params.decodeCursor(first.nextCursor) }), freshDeps(providers));
-  assert.deepEqual(seen.slice(2), [["mmf", 2], ["tv", 1]]);
+  assert.deepEqual(seen.slice(2), [["mmf", 2]]);
 });
 
 // ---------- API (validación de parámetros) ----------
@@ -508,16 +627,18 @@ test("14. source inválida => invalid_source (no se aceptan providers ni URLs ar
 });
 
 test("15. filtros válidos se aceptan; inválidos se rechazan", () => {
-  const ok = parse("q=dragon&sources=thingiverse,myminifactory&free=1&commercial=allowed&sort=popular");
+  const ok = parse("q=dragon&sources=cults,thingiverse,myminifactory&price=paid&commercial=allowed&sort=popular");
   assert.equal(ok.ok, true);
-  assert.deepEqual(ok.value.sources, ["thingiverse", "myminifactory"]);
-  assert.deepEqual(ok.value.filters, { freeOnly: true, commercial: "allowed", sort: "popular" });
+  assert.deepEqual(ok.value.sources, ["cults", "thingiverse", "myminifactory"]);
+  assert.deepEqual(ok.value.filters, { price: "paid", commercial: "allowed", sort: "popular" });
+  assert.equal(parse("q=dragon&free=1").value.filters.price, "free");
   assert.deepEqual(parse("q=dragon&free=maybe"), { ok: false, error: "invalid_filter" });
+  assert.deepEqual(parse("q=dragon&price=unknown"), { ok: false, error: "invalid_filter" });
   assert.deepEqual(parse("q=dragon&commercial=si"), { ok: false, error: "invalid_filter" });
   assert.deepEqual(parse("q=dragon&sort=random"), { ok: false, error: "invalid_filter" });
   assert.deepEqual(parse("q=dragon&cursor=@@@"), { ok: false, error: "invalid_cursor" });
-  const cursor = params.encodeCursor({ myminifactory: 3, thingiverse: 2 });
-  assert.deepEqual(parse(`q=dragon&cursor=${cursor}`).value.cursor, { myminifactory: 3, thingiverse: 2 });
+  const cursor = params.encodeCursor({ cults: null, myminifactory: 3, thingiverse: 2 });
+  assert.deepEqual(parse(`q=dragon&cursor=${cursor}`).value.cursor, { cults: null, myminifactory: 3, thingiverse: 2 });
   const forged = Buffer.from(JSON.stringify({ evil: 1 })).toString("base64url");
   assert.deepEqual(parse(`q=dragon&cursor=${forged}`), { ok: false, error: "invalid_cursor" });
   const huge = Buffer.from(JSON.stringify({ myminifactory: 9999 })).toString("base64url");
@@ -538,18 +659,20 @@ test("16. el secret no se expone: ni en la respuesta, ni en el cliente, ni en NE
       enabled: true,
       sorts: ["relevance", "popular", "newest"],
       maxPerPage: 30,
-      freeFilter: false,
+      supportsPriceFilter: true,
+      reportsPrice: true,
+      priceFilterMode: "post",
       commercialFilters: ["allowed"],
     },
   ]);
 
   for (const file of ["src/components/explorar-modelos/ExplorarModelosClient.tsx", "src/components/explorar-modelos/ModelResultCard.tsx"]) {
     const source = read(file);
-    assert.doesNotMatch(source, /process\.env|MYMINIFACTORY_API_KEY|THINGIVERSE_ACCESS_TOKEN/);
+    assert.doesNotMatch(source, /process\.env|CULTS_API_KEY|MYMINIFACTORY_API_KEY|THINGIVERSE_ACCESS_TOKEN/);
     assert.doesNotMatch(source, /model-search\/(providers|registry|service)/);
   }
-  const allSources = ["src/lib/model-search/providers/myminifactory.ts", "src/lib/model-search/providers/thingiverse.ts", "src/app/api/model-search/route.ts"].map(read).join("\n");
-  assert.doesNotMatch(allSources, /NEXT_PUBLIC_(MYMINIFACTORY|THINGIVERSE)/);
+  const allSources = ["src/lib/model-search/providers/cults.ts", "src/lib/model-search/providers/myminifactory.ts", "src/lib/model-search/providers/thingiverse.ts", "src/app/api/model-search/route.ts"].map(read).join("\n");
+  assert.doesNotMatch(allSources, /NEXT_PUBLIC_(CULTS|MYMINIFACTORY|THINGIVERSE)/);
 });
 
 test("rate limiter: excede el máximo por ventana y se libera", () => {
@@ -641,6 +764,7 @@ test("23. Librería STL no se mezcla con Explorar Modelos", () => {
   const files = [
     "src/lib/model-search/service.ts",
     "src/lib/model-search/registry.ts",
+    "src/lib/model-search/providers/cults.ts",
     "src/lib/model-search/providers/myminifactory.ts",
     "src/lib/model-search/providers/thingiverse.ts",
     "src/app/api/model-search/route.ts",
