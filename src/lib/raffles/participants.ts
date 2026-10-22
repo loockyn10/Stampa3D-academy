@@ -12,6 +12,11 @@ export interface RaffleParticipantProfile {
   member_level: string | null;
 }
 
+/** Chances base de un participante: 2 para nivel Gold/Elite, 1 para el resto. Única fuente de esta regla. */
+export function getBaseRaffleChances(memberLevel: string | null | undefined): number {
+  return memberLevel === "gold" || memberLevel === "elite" ? 2 : 1;
+}
+
 export function getRaffleParticipantChances(input: {
   profile: RaffleParticipantProfile;
   grants: AccessGrantFact[];
@@ -31,9 +36,7 @@ export function getRaffleParticipantChances(input: {
 
   if (!access.capabilities.accessPlatform) return null;
 
-  const baseChances = input.profile.member_level === "gold" || input.profile.member_level === "elite"
-    ? 2
-    : 1;
+  const baseChances = getBaseRaffleChances(input.profile.member_level);
 
   return baseChances
     + Math.max(0, input.bonusEntries)

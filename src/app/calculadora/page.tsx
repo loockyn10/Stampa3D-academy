@@ -558,7 +558,7 @@ function CalculadoraPageContent() {
 
   // Modal "Configurar valores": refresca solo lo que cambió, sin reiniciar filamentos, gramos ni tiempo.
   const handleSettingsSaved = (values: CalculatorSettingsValues) => {
-    setSettings((current: any) => ({ ...(current ?? {}), ...values }));
+    setSettings((current: Record<string, unknown> | null) => ({ ...(current ?? {}), ...values }));
     setManualErrorPercent(String(values.default_error_percent || ""));
     setManualKwhPrice(String(values.electricity_price_kwh || ""));
     setManualPlatformCommission(String(values.platform_commission_percent || ""));

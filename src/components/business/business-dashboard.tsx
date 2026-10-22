@@ -118,11 +118,11 @@ export function BusinessDashboard() {
   }, []);
 
   useEffect(() => {
-    void loadMetrics(period);
+    void Promise.resolve().then(() => loadMetrics(period));
   }, [loadMetrics, period]);
 
   useEffect(() => {
-    void loadActivity();
+    void Promise.resolve().then(loadActivity);
   }, [loadActivity]);
 
   const metricsData = metrics.status === "ready" ? metrics.data : null;

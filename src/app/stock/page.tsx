@@ -257,9 +257,11 @@ export function StockPageContent({ workshopSection }: { workshopSection?: Worksh
   useEffect(() => {
     if (loading || workshopSection !== "inventory") return;
     if (searchParams.get("action") !== WORKSHOP_REGISTER_PRODUCTION_ACTION) return;
-    setConsumeAddStock(true);
-    setConsumeModalOpen(true);
-    router.replace("/mi-taller/inventario", { scroll: false });
+    void Promise.resolve().then(() => {
+      setConsumeAddStock(true);
+      setConsumeModalOpen(true);
+      router.replace("/mi-taller/inventario", { scroll: false });
+    });
   }, [loading, workshopSection, searchParams, router]);
 
   // Filtro de destino del Dashboard ("Productos sin stock"): vive en la URL para poder compartirlo y limpiarlo.

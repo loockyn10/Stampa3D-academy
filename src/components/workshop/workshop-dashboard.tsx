@@ -45,7 +45,7 @@ export function WorkshopDashboard() {
   }, [supabase]);
 
   useEffect(() => {
-    void load();
+    void Promise.resolve().then(load);
   }, [load]);
 
   const summary = state.status === "ready" ? state.summary : null;

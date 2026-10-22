@@ -101,10 +101,7 @@ export default function StampyPage() {
   }, []);
 
   useEffect(() => {
-    if (!loading) {
-      setSlowResponse(false);
-      return;
-    }
+    if (!loading) return;
     const timer = window.setTimeout(() => setSlowResponse(true), SLOW_RESPONSE_HINT_MS);
     return () => window.clearTimeout(timer);
   }, [loading]);
@@ -190,6 +187,7 @@ export default function StampyPage() {
       }]);
     } finally {
       requestInFlightRef.current = false;
+      setSlowResponse(false);
       setLoading(false);
     }
   };

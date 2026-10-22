@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useEffect, useState } from "react";
+import React, { useState } from "react";
 import Link from "next/link";
 import { Loader2, Save, Settings, X } from "lucide-react";
 import { Dialog } from "@/components/ui/dialog";
@@ -51,11 +51,8 @@ export function CalculatorSettingsModal({
   onPrinterSaved,
   onProductTypesChanged,
 }: CalculatorSettingsModalProps) {
+  // El modal se monta al abrirse, así que la pestaña inicial se toma de las props.
   const [tab, setTab] = useState<CalculatorSettingsTab>(initialTab);
-
-  useEffect(() => {
-    if (open) setTab(initialTab);
-  }, [open, initialTab]);
 
   const activeTab = TABS.find((item) => item.id === tab) ?? TABS[0];
 
@@ -135,20 +132,21 @@ function PrinterCostsForm({
   onSaved: CalculatorSettingsModalProps["onPrinterSaved"];
 }) {
   const [supabase] = useState(() => createClient());
-  const [printerId, setPrinterId] = useState(initialPrinterId || printers[0]?.id || "");
-  const printer = printers.find((item) => item.id === printerId) ?? null;
-  const [power, setPower] = useState("");
-  const [maintenance, setMaintenance] = useState("");
+  const initialPrinter = printers.find((item) => item.id === initialPrinterId) ?? printers[0] ?? null;
+  const [printerId, setPrinterId] = useState(initialPrinter?.id ?? "");
+  const [power, setPower] = useState(String(initialPrinter?.power_watts ?? ""));
+  const [maintenance, setMaintenance] = useState(String(initialPrinter?.maintenance_cost_per_hour ?? ""));
   const [saving, setSaving] = useState(false);
   const [message, setMessage] = useState<{ tone: "ok" | "error"; text: string } | null>(null);
 
-  useEffect(() => {
-    setPower(String(printer?.power_watts ?? ""));
-    setMaintenance(String(printer?.maintenance_cost_per_hour ?? ""));
+  // Al cambiar de impresora se cargan sus valores guardados (no se pisa lo escrito en la misma impresora).
+  const selectPrinter = (nextId: string) => {
+    const next = printers.find((item) => item.id === nextId) ?? null;
+    setPrinterId(nextId);
+    setPower(String(next?.power_watts ?? ""));
+    setMaintenance(String(next?.maintenance_cost_per_hour ?? ""));
     setMessage(null);
-    // Solo al cambiar de impresora: no pisar lo que el usuario está escribiendo.
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [printerId]);
+  };
 
   if (printers.length === 0) {
     return (
@@ -188,7 +186,7 @@ function PrinterCostsForm({
         <CalculatorSelect
           options={printers.map((item) => ({ value: item.id, label: item.display_name || item.name || "Impresora" }))}
           value={printerId}
-          onChange={setPrinterId}
+          onChange={selectPrinter}
           searchable={printers.length > 6}
         />
       </div>

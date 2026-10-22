@@ -69,10 +69,9 @@ test("public query filters both fields, has no limit, and the page renders every
     path.join(root, "src/lib/raffles/public-raffles.ts"),
     "utf8",
   );
-  const pageSource = fs.readFileSync(
-    path.join(root, "src/app/sorteos/page.tsx"),
-    "utf8",
-  );
+  // La página resuelve los datos y delega el render en RafflesView (UX V2).
+  const pageSource = fs.readFileSync(path.join(root, "src/app/sorteos/page.tsx"), "utf8")
+    + fs.readFileSync(path.join(root, "src/components/raffles/raffles-view.tsx"), "utf8");
 
   assert.match(helperSource, /\.eq\("status", PUBLIC_RAFFLE_STATUS\)/);
   assert.match(helperSource, /\.eq\("is_active", true\)/);
