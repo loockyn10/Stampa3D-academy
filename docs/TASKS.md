@@ -2,6 +2,14 @@
 
 Este archivo contiene únicamente trabajo pendiente o próximo. Eliminar tareas terminadas en lugar de conservar un historial infinito.
 
+## Now — UX V2 (2026-10-22, rama `feature/universo-stampa-ux-v2`, ver ARCHITECTURE §20 / D028)
+
+- [ ] QA manual con cuenta Paid (desktop y 320–430 px): Inicio, Mi Taller (Dashboard + filtros `?estado=`), Mi Negocio, Stampy (respuesta larga, acción con confirmación, historial), modal de Calculadora (guardar costos, impresora y tipos sin perder el cálculo), Sorteos (copiar enlace, modal).
+- [ ] Decidir si el precio Mercado Libre debe "despejar" la comisión (`(sugerido + cargos) / (1 − comisión)`) en lugar de sumarla sobre el sugerido (fórmula actual, conservada sin cambios).
+- [ ] Actividad reciente de Mi Taller: versionar/verificar el schema de `product_stock_movements` y `filament_stock_movements` (la UI lee `quantity_delta`/`grams_delta`, el contexto de Stampy `quantity`/`amount`/`type`) antes de construir el panel.
+- [ ] Revisar inconsistencias de Sorteos no tocadas: el contexto de Stampy calcula la chance base solo con `membership_status = active` (la página y el registro de ganadores usan acceso a la plataforma, incl. Beta) y lee `referrals.referrer_id` mientras el callback escribe `referrer_user_id`. No hay código en el repo que acredite `user_raffle_bonus_entries` por referidos.
+- [ ] Merge de la rama a `main` y deploy (no realizados).
+
 ## Now — QA integral (2026-10-14, ver docs/QA_REPORT.md)
 
 - [ ] Confirmar la URL real de la beta: `stampa3-d-academy-beta.vercel.app` responde `402 DEPLOYMENT_DISABLED` (QA-001).

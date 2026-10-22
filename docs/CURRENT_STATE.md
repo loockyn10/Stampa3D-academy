@@ -126,3 +126,9 @@ Implementado en código: grupos (= `stl_categories`), página de grupo, detalle 
 ## 8. QA integral (2026-10-14)
 
 Primera auditoría QA + suite E2E Playwright (`tests/e2e/`). **Solo se ejecutó lo anónimo** (no hay cuentas de test ni un Supabase que no sea el real). Resultado completo, bugs QA-001…QA-028 y riesgos RIESGO-01…08 en `docs/QA_REPORT.md`; cobertura por feature/rol en `docs/QA_MATRIX.md`. Lo más importante: deployment beta `402 DEPLOYMENT_DISABLED` (confirmar URL), RLS de `profiles` y del schema no versionado sin verificar (SQL de diagnóstico en `supabase/diagnostics/20261014_qa_rls_audit.sql`, no ejecutado), y 6 bugs P2 de producto. No se cambió código de producto ni se aplicó SQL.
+
+## 9. UX V2 (2026-10-22, rama `feature/universo-stampa-ux-v2`, sin merge)
+
+Implementado en código: Inicio personalizado, Dashboard de Mi Taller (nueva navegación), portada comercial de Mi Negocio, rediseño del chat de Stampy, Calculadora (encabezado compacto, modal "Configurar valores", tarjeta Precio Mercado Libre en ambos modos, guía rápida), Sorteos (panel de chances con enlace, modal de reglas, tarjetas compactas, finalizados) y portadas 4:3 en la Librería STL. Ver ARCHITECTURE §20 y D028. Sin migrations ni cambios de RLS.
+
+**Verificado:** typecheck, tests unitarios (`tests/ux-v2-*.test.mjs` + suites existentes), build de producción y revisión visual en navegador (desktop 1366 px y mobile 375 px) de la Calculadora anónima y de las vistas presentacionales con datos de ejemplo. **No verificado:** las pantallas autenticadas con datos reales (no hay cuentas de prueba en este entorno); falta QA manual con una cuenta Paid.

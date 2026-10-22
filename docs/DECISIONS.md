@@ -230,3 +230,14 @@ Las cards usan un asset de video (`stl_models.preview_url`) generado client-side
 ## D027 — Librería STL: 3MF multiplate de Bambu/Orca muestra Plate 1; colores se preservan solo si son interpretables
 
 3MF con metadata reconocible de Bambu Studio/OrcaSlicer y varias plates → viewer, miniatura y WebM muestran **solo la primera cama** (por `model_settings.config`, nunca por posición). 3MF genérico o metadata incompleta → build completo. Los colores del archivo se conservan cuando son interpretables (materiales estándar; filamento configurado por pieza en Bambu/Orca) y el resto queda neutro; no se decodifica `paint_color`. Las tres superficies comparten `prepareModelForDisplay`. Sin selector de camas ni DB/migration. Detalle: ARCHITECTURE §18d.
+
+## D028 — UX V2: dashboards de solo lectura que reutilizan las fuentes existentes
+
+**Estado:** Accepted (2026-10-22)
+
+- `/mi-taller` deja de redirigir a Impresoras: muestra un Dashboard. Orden de pestañas: Dashboard, Inventario, Productos, Filamentos, Impresoras. Las subrutas y deep links de Stampy no cambian.
+- Los dashboards de Inicio, Mi Taller y Mi Negocio **no escriben datos** y no crean consultas paralelas: Mi Taller usa `loadWorkshopSummary` (mismas lecturas que Productos/Inventario) + `getProductPricingStatus`; Mi Negocio y el resumen comercial de Inicio usan las server actions existentes (`get_business_metrics`, ventas, pedidos). Un pedido online pendiente nunca cuenta como venta.
+- Sin umbrales inventados: "productos sin stock" = activos con `stock_quantity <= 0`; las unidades armables con piezas se muestran aparte de las terminadas.
+- "Actividad reciente" de Mi Taller queda **omitida**: `product_stock_movements`/`filament_stock_movements` no están versionadas y el código las lee con columnas distintas (UI: `quantity_delta`/`grams_delta`; contexto de Stampy: `quantity`/`amount`/`type`).
+- Precio Mercado Libre: misma fórmula previa (precio sugerido + cargo fijo + comisión sobre el sugerido + envío), centralizada en `calculateMarketplacePrice`. Sin comisión configurada no se muestra cifra. No se asumen porcentajes oficiales.
+- "Configurar valores" de la Calculadora abre un modal que reutiliza `SettingsManager`/`ProductTypesManager` y la misma escritura de `printers`; no hay configuración duplicada.

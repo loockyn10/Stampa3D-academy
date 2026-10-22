@@ -311,3 +311,16 @@ Migration `20261005120000_beta_access_codes.sql` (no aplicada en remoto; ver TAS
 - **Tests:** `tests/beta-access.test.mjs` (lógica, política de acceso, análisis estático) y `tests/beta-access-db.test.mjs` (opt-in: Postgres embebido real con concurrencia; `npm i --no-save embedded-postgres pg`).
 
 **Nota STL admin (2026-10-09):** `stl_models.name` es NOT NULL en el schema real (también existe `title`). El formulario arma el payload con `buildStlModelPayload` (`src/lib/stl/model-payload.ts`): el título del form se escribe en `name` **y** `title`; lo mismo la variante. La Librería muestra `title || name`.
+
+## 20. UX V2 — dashboards y rediseño (2026-10-22)
+
+Rama `feature/universo-stampa-ux-v2`. Ver D028.
+
+- **Componentes compartidos:** `src/components/ui/dashboard.tsx` (`PageHeader`, `StatCard`, `Panel`, `PanelEmpty`). Los dashboards separan contenedor (datos) y vista (`*View`, sin acceso a datos).
+- **Mi Taller:** `src/lib/workshop/routes.ts` (pestañas, rutas y filtros de destino), `dashboard.ts` (`buildWorkshopSummary`, puro), `load-summary.ts` (lecturas RLS compartidas con Inicio), `src/components/workshop/workshop-dashboard.tsx`. Filtros de destino nuevos: `/mi-taller/inventario?estado=sin-stock`, `/mi-taller/productos?estado=recalcular`; `/mi-taller/inventario?action=registrar-produccion` abre el modal existente de Registrar producción.
+- **Mi Negocio:** `src/components/business/business-dashboard.tsx` + `src/lib/business/dashboard.ts` (pedidos pendientes = `awaiting_payment` vigente + `payment_review`; alertas). Conserva las nueve herramientas agrupadas. `/mi-negocio/pedidos?estado=…` preselecciona el filtro.
+- **Inicio:** `src/components/home/home-dashboard.tsx`; cada bloque carga y falla por separado. "Continuar aprendiendo" = curso con la `lesson_progress.completed_at` más reciente (`src/lib/academy/continue-learning.ts`); sin cursos, el primer curso publicado.
+- **Calculadora:** `calculateMarketplacePrice` en `src/lib/calculator/pricing.ts`; `MarketplacePriceCard` y `CalculatorSettingsModal` en `src/components/calculadora/`. Los diálogos de confirmación/toasts de `app-feedback` quedan por encima de `Dialog` (z 160/170 vs 150).
+- **Stampy:** solo UI en `src/app/stampy/page.tsx` (estado de bienvenida, composer auto-expandible, scroll dentro del contenedor, indicador de respuesta lenta). Backend, historial, herramientas y acciones sin cambios. Sin streaming (sigue pendiente).
+- **Sorteos:** `src/components/raffles/raffles-view.tsx` + `src/lib/raffles/status.ts` (estado por fecha real y finalizados agrupados desde `raffle_winners`). La chance base vive en `getBaseRaffleChances` (`participants.ts`), usada también por el registro de ganadores. No se tocó la selección de ganadores.
+- **Librería STL:** portadas de grupo en 4:3 (`StlGroupCard`).
