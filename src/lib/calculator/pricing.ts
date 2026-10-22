@@ -193,3 +193,51 @@ export function calculateCalculatorPricing(
     profit: salePrice - baseCost,
   };
 }
+
+export interface MarketplacePriceInput {
+  /** Precio sugerido del motor (`calculateCalculatorPricing().salePrice`). */
+  salePrice: number;
+  /** Comisión configurada por el usuario, en porcentaje (15 = 15 %). */
+  commissionPercent: number;
+  /** Cargo fijo por venta configurado por el usuario. */
+  fixedFee: number;
+  /** Envío a cargo del vendedor. */
+  shippingCost: number;
+}
+
+export interface MarketplacePriceResult {
+  price: number;
+  commissionAmount: number;
+  fixedFee: number;
+  shippingCost: number;
+  commissionPercent: number;
+  /** Sin comisión configurada no se presenta una estimación (no hay porcentaje "oficial" asumido). */
+  isConfigured: boolean;
+}
+
+/**
+ * Precio para Mercado Libre: misma fórmula que la Calculadora usaba inline
+ * (precio sugerido + cargo fijo + comisión sobre el precio sugerido + envío).
+ * No incorpora porcentajes oficiales: todos los parámetros vienen de la configuración del usuario.
+ */
+export function calculateMarketplacePrice({
+  salePrice,
+  commissionPercent,
+  fixedFee,
+  shippingCost,
+}: MarketplacePriceInput): MarketplacePriceResult {
+  const base = nonNegativeFiniteOrZero(salePrice);
+  const percent = nonNegativeFiniteOrZero(commissionPercent);
+  const fee = nonNegativeFiniteOrZero(fixedFee);
+  const shipping = nonNegativeFiniteOrZero(shippingCost);
+  const commissionAmount = (base * percent) / 100;
+
+  return {
+    price: base + fee + commissionAmount + shipping,
+    commissionAmount,
+    fixedFee: fee,
+    shippingCost: shipping,
+    commissionPercent: percent,
+    isConfigured: percent > 0,
+  };
+}

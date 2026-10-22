@@ -6,7 +6,21 @@ import { Save, Loader2, AlertCircle } from "lucide-react";
 import { FormSkeleton } from "@/components/ui/page-skeletons";
 import { Card } from "@/components/ui/card";
 
-export function SettingsManager() {
+export interface CalculatorSettingsValues {
+  electricity_price_kwh: number;
+  mercado_libre_extra_amount: number;
+  platform_commission_percent: number;
+  default_error_percent: number;
+}
+
+interface SettingsManagerProps {
+  /** Se llama después de guardar con éxito (p. ej. para refrescar la Calculadora sin recargar). */
+  onSaved?: (values: CalculatorSettingsValues) => void;
+  /** Dentro de un modal: sin título propio ni ancho máximo. */
+  embedded?: boolean;
+}
+
+export function SettingsManager({ onSaved, embedded = false }: SettingsManagerProps = {}) {
   const supabase = createClient();
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
@@ -85,15 +99,18 @@ export function SettingsManager() {
 
     const { error } = await supabase.from("calculator_settings").update(payload).eq("id", settingId);
     if (error) setError(error.message);
-    else setSuccess("Ajustes guardados correctamente.");
-    
+    else {
+      setSuccess("Ajustes guardados correctamente.");
+      onSaved?.(payload);
+    }
+
     setSaving(false);
   };
 
   if (loading) return <FormSkeleton fields={6} />;
 
   return (
-    <div className="space-y-4 max-w-2xl">
+    <div className={`space-y-4 ${embedded ? "" : "max-w-2xl"}`}>
       {error && (
         <div className="bg-red-500/10 text-red-400 p-4 rounded-lg flex items-center gap-2 text-sm border border-red-500/20">
           <AlertCircle className="h-4 w-4" /> {error}
@@ -106,9 +123,9 @@ export function SettingsManager() {
         </div>
       )}
 
-      <h3 className="text-lg font-semibold text-white mb-4">Ajustes Globales de Calculadora</h3>
+      {!embedded && <h3 className="text-lg font-semibold text-white mb-4">Ajustes Globales de Calculadora</h3>}
 
-      <Card className="p-6 border-stampa-border shadow-lg shadow-black/20 space-y-4">
+      <Card className={`${embedded ? "p-4" : "p-6"} border-stampa-border shadow-lg shadow-black/20 space-y-4`}>
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
           <div>
             <label className="block text-sm font-semibold text-gray-300 mb-1">Precio kWh de Electricidad ($)</label>

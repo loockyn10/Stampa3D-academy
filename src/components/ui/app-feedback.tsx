@@ -162,7 +162,7 @@ export function AppFeedbackProvider({ children }: { children: React.ReactNode })
       {children}
 
       <div
-        className="pointer-events-none fixed inset-x-3 top-[calc(env(safe-area-inset-top)+4.5rem)] z-[120] flex flex-col items-stretch gap-2 sm:inset-x-auto sm:right-5 sm:top-5 sm:w-[min(24rem,calc(100vw-2.5rem))]"
+        className="pointer-events-none fixed inset-x-3 top-[calc(env(safe-area-inset-top)+4.5rem)] z-[170] flex flex-col items-stretch gap-2 sm:inset-x-auto sm:right-5 sm:top-5 sm:w-[min(24rem,calc(100vw-2.5rem))]"
         aria-live="polite"
         aria-atomic="false"
       >
@@ -191,7 +191,7 @@ export function AppFeedbackProvider({ children }: { children: React.ReactNode })
       </div>
 
       {confirmRequest && (
-        <div className="fixed inset-0 z-[130] flex items-center justify-center bg-stampa-bg/75 p-4 backdrop-blur-sm">
+        <div className="fixed inset-0 z-[160] flex items-center justify-center bg-stampa-bg/75 p-4 backdrop-blur-sm">
           <div onKeyDown={trapDialogFocus} role="alertdialog" aria-modal="true" aria-labelledby="app-confirm-title" aria-describedby="app-confirm-description" className="w-full max-w-md overflow-hidden rounded-2xl border border-stampa-border bg-stampa-surface shadow-2xl">
             <div className="p-5 sm:p-6">
               <h2 id="app-confirm-title" className="text-lg font-bold text-white">{confirmRequest.title}</h2>
@@ -210,7 +210,7 @@ export function AppFeedbackProvider({ children }: { children: React.ReactNode })
       )}
 
       {promptRequest && (
-        <div className="fixed inset-0 z-[130] flex items-center justify-center bg-stampa-bg/75 p-4 backdrop-blur-sm">
+        <div className="fixed inset-0 z-[160] flex items-center justify-center bg-stampa-bg/75 p-4 backdrop-blur-sm">
           <div onKeyDown={trapDialogFocus} role="dialog" aria-modal="true" aria-labelledby="app-prompt-title" className="flex max-h-[calc(100dvh-2rem)] w-full max-w-md flex-col overflow-hidden rounded-2xl border border-stampa-border bg-stampa-surface shadow-2xl">
             <form
               onSubmit={(event) => {

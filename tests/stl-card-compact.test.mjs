@@ -146,3 +146,24 @@ test("alcance: la lógica de preview 360 y el aislamiento de Three.js no cambiar
   assert.match(mediaSrc, /preload="none"/);
   assert.doesNotMatch(mediaSrc + read("src/components/stl/StlModelCard.tsx"), /from "three|Model3DViewer|WebGLRenderer/);
 });
+
+test("cards de grupo: portada 4:3 (sin altura fija h-40/h-44) y sin deformar (object-cover)", () => {
+  const groupCard = load("src/components/stl/StlGroupCard.tsx", {
+    "next/link": { __esModule: true, default: (p) => React.createElement("a", { href: p.href, className: p.className }, p.children) },
+    "@/components/ui/card": load("src/components/ui/card.tsx"),
+    "@/lib/stl/library": { groupHref: (g) => `/libreria-stl/${g.slug ?? g.id}` },
+  });
+  const renderGroup = (thumbnailUrl) =>
+    renderToStaticMarkup(
+      React.createElement(groupCard.StlGroupCard, {
+        group: { id: "g1", slug: "llaveros", name: "Llaveros", description: "Flexis", thumbnailUrl, modelCount: 3, isVirtual: false },
+      }),
+    );
+  const html = renderGroup("https://cdn.x/portada.jpg");
+  assert.match(html, /relative flex aspect-\[4\/3\] w-full items-center justify-center overflow-hidden/);
+  assert.doesNotMatch(html, /\bh-40\b|\bsm:h-44\b/);
+  assert.match(html, /<img[^>]*class="h-full w-full object-cover/);
+  assert.match(html, /href="\/libreria-stl\/llaveros"/);
+  assert.match(html, /3 modelos/);
+  assert.match(renderGroup(null), /aspect-\[4\/3\]/, "sin portada mantiene el mismo marco");
+});

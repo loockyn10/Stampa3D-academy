@@ -170,7 +170,7 @@ export default function LibreriaStlPage() {
       ) : summaries.length === 0 ? (
         <EmptyBlock title="Todavía no hay grupos publicados" text="Cuando se carguen modelos, van a aparecer acá organizados por grupo." />
       ) : (
-        <div className="grid grid-cols-1 gap-5 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
+        <div className="grid grid-cols-1 gap-4 min-[480px]:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
           {summaries.map((group) => (
             <StlGroupCard key={group.id ?? group.slug} group={group} />
           ))}

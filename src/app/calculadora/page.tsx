@@ -4,7 +4,7 @@ import React, { useState, useEffect, useMemo, useRef } from "react";
 import dynamic from "next/dynamic";
 import Link from "next/link";
 import { useSearchParams, useRouter } from "next/navigation";
-import { Zap, DollarSign, Loader2, AlertCircle, Compass, Settings, Save, X, PackagePlus, CheckCircle2, Calculator, Info, FileText, Plus, LockKeyhole } from "lucide-react";
+import { Zap, DollarSign, Loader2, AlertCircle, Compass, Settings, Save, X, PackagePlus, CheckCircle2, Calculator, Info, FileText, Plus, LockKeyhole, HelpCircle } from "lucide-react";
 import { Card } from "@/components/ui/card";
 import { GhostButton } from "@/components/ui/button";
 import { SectionTitle } from "@/components/ui/section-title";
@@ -17,7 +17,11 @@ import {
   aggregateCalculatorRecipeLines,
   calculateCalculatorFilamentPricing,
   calculateCalculatorPricing,
+  calculateMarketplacePrice,
 } from "@/lib/calculator/pricing";
+import { MarketplacePriceCard } from "@/components/calculadora/marketplace-price-card";
+import type { CalculatorSettingsTab } from "@/components/calculadora/calculator-settings-modal";
+import type { CalculatorSettingsValues } from "@/components/configuracion/settings-manager";
 import {
   findStampyFilamentMatch,
   findStampyNamedMatch,
@@ -35,6 +39,7 @@ import { parseCalculatorPrefillName } from "@/lib/model-search/calculator-link";
 
 const PrinterCatalogModal = dynamic(() => import("@/components/calculadora/printer-catalog-modal").then((module) => module.PrinterCatalogModal));
 const FilamentCatalogModal = dynamic(() => import("@/components/calculadora/filament-catalog-modal").then((module) => module.FilamentCatalogModal));
+const CalculatorSettingsModal = dynamic(() => import("@/components/calculadora/calculator-settings-modal").then((module) => module.CalculatorSettingsModal));
 interface NumberFieldProps {
   label: string;
   value: string;
@@ -167,6 +172,7 @@ function CalculadoraPageContent() {
   const [saveError, setSaveError] = useState<string | null>(null);
   const [showCatalogModal, setShowCatalogModal] = useState(false);
   const [showFilamentCatalogModal, setShowFilamentCatalogModal] = useState(false);
+  const [settingsModalTab, setSettingsModalTab] = useState<CalculatorSettingsTab | null>(null);
   const [modelReferenceName, setModelReferenceName] = useState<string | null>(null);
   const [productForm, setProductForm] = useState({
     name: "",
@@ -550,6 +556,37 @@ function CalculadoraPageContent() {
     ));
   };
 
+  // Modal "Configurar valores": refresca solo lo que cambió, sin reiniciar filamentos, gramos ni tiempo.
+  const handleSettingsSaved = (values: CalculatorSettingsValues) => {
+    setSettings((current: any) => ({ ...(current ?? {}), ...values }));
+    setManualErrorPercent(String(values.default_error_percent || ""));
+    setManualKwhPrice(String(values.electricity_price_kwh || ""));
+    setManualPlatformCommission(String(values.platform_commission_percent || ""));
+    setManualPlatformExtra(String(values.mercado_libre_extra_amount || ""));
+  };
+
+  const handlePrinterCostsSaved = (printerId: string, values: { power_watts: number; maintenance_cost_per_hour: number }) => {
+    setPrinters((current) => current.map((printer) => (printer.id === printerId ? { ...printer, ...values } : printer)));
+  };
+
+  const handleProductTypesChanged = async () => {
+    if (!userId) return;
+    const { data } = await supabase
+      .from("calculator_product_types")
+      .select("*")
+      .eq("user_id", userId)
+      .eq("is_active", true)
+      .order("sort_order");
+    if (!data) return;
+    setMultipliers(data);
+    setSelectedMultiplierId((current) => (data.some((type) => type.id === current) ? current : data[0]?.id || ""));
+  };
+
+  const openMarketplaceConfiguration = () => {
+    if (accessMode === "paid") setSettingsModalTab("costs");
+    else setAdvanced(true);
+  };
+
   const calc = useMemo(() => {
     const numManualErrorPercent = Number(manualErrorPercent) || 0;
     const numManualPricePerKg = manualPricePerKg.trim()
@@ -612,13 +649,19 @@ function CalculadoraPageContent() {
     const baseCost = pricing.baseCost;
     const normalPrice = pricing.salePrice;
 
-    // Precio Mercado Libre
-    const mlPrice = normalPrice + numManualPlatformExtra + (normalPrice * numManualPlatformCommission / 100) + numShippingCost;
+    // Precio Mercado Libre (misma fórmula de siempre, centralizada en el motor)
+    const marketplace = calculateMarketplacePrice({
+      salePrice: normalPrice,
+      commissionPercent: numManualPlatformCommission,
+      fixedFee: numManualPlatformExtra,
+      shippingCost: numShippingCost,
+    });
+    const mlPrice = marketplace.price;
 
     const profit = pricing.profit;
 
     return {
-      materialCost, energyCost, printerCost, fixedCost: numFixedCost, baseCost, normalPrice, mlPrice, profit,
+      materialCost, energyCost, printerCost, fixedCost: numFixedCost, baseCost, normalPrice, mlPrice, marketplace, profit,
       fixedCostOverheadRate: pricing.fixedCostOverheadRate,
       fixedCostOverheadAmount: pricing.fixedCostOverheadAmount,
       fixedCostAdjusted: pricing.fixedCostAdjusted,
@@ -1008,35 +1051,31 @@ function CalculadoraPageContent() {
   const isFree = accessMode === "free";
   const isDemo = !isPaid && !calculatorPersonalized;
 
-  return <div className={`${accessMode === "anonymous" ? "min-h-screen bg-stampa-bg px-4 py-6 sm:px-6 lg:px-8 lg:py-8" : ""} space-y-8 pb-10`}>
-    {/* 1. Header Premium */}
-    <div className="relative overflow-hidden rounded-3xl bg-stampa-surface border border-stampa-border p-8 sm:p-10 shadow-2xl">
-      <div className="absolute inset-0 bg-gradient-to-br from-[#ff6a00]/20 to-transparent pointer-events-none" />
-      <div className="relative z-10 max-w-3xl">
-        <div className="flex items-center gap-2 mb-3 justify-between">
-          <span className="rounded-full bg-stampa-orange/10 text-stampa-orange text-xs font-bold px-3 py-1 uppercase tracking-wider border border-[#ff6a00]/20">
-            Herramienta de taller
-          </span>
-
+  return <div className={`${accessMode === "anonymous" ? "min-h-screen bg-stampa-bg px-4 py-6 sm:px-6 lg:px-8 lg:py-8" : ""} space-y-5 pb-10`}>
+    {/* 1. Encabezado compacto */}
+    <header className="relative overflow-hidden rounded-2xl border border-stampa-border bg-stampa-surface px-4 py-4 shadow-lg shadow-black/20 sm:px-6 sm:py-5">
+      <div className="pointer-events-none absolute inset-0 bg-gradient-to-r from-[#ff6a00]/15 via-transparent to-transparent" />
+      <div className="relative z-10 flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
+        <div className="min-w-0">
+          <h1 className="flex items-center gap-2 text-xl font-bold text-white sm:text-2xl">
+            <Calculator size={24} className="shrink-0 text-stampa-orange" aria-hidden="true" /> Calculadora de precios
+          </h1>
+          <p className="mt-1 text-sm text-gray-400">
+            Calculá cuánto cobrar una impresión usando material, tiempo, margen y costos extra.
+          </p>
         </div>
-        <h1 className="text-3xl font-bold text-white sm:text-4xl flex items-center gap-3">
-          <Calculator size={32} className="text-stampa-orange" /> Calculadora de precios
-        </h1>
-        <p className="mt-3 text-base text-gray-400">
-          Calculá cuánto cobrar una impresión usando material, tiempo, margen y costos extra.
-        </p>
-        <div className="mt-8">
-          {isPaid ? <Link href="/configuracion?tab=calculadora" className="inline-flex items-center gap-2 px-6 py-3 text-sm font-semibold bg-white/5 border border-stampa-border text-white rounded-xl hover:bg-white/10 transition-colors">
-            <Settings size={18} /> Configurar valores
-          </Link> : <button type="button" onClick={openCalculatorCustomization} className="inline-flex items-center gap-2 rounded-xl border border-stampa-border bg-white/5 px-6 py-3 text-sm font-semibold text-white transition-colors hover:bg-white/10">
-            <Settings size={18} /> {isFree ? "Mis impresoras y filamentos" : "Personalizar cálculo"}
+        <div className="flex flex-wrap items-center gap-2">
+          {isPaid ? <button type="button" onClick={() => setSettingsModalTab("costs")} className="inline-flex min-h-10 items-center gap-1.5 rounded-xl border border-stampa-border bg-white/5 px-2.5 text-xs font-semibold text-white sm:px-4 sm:text-sm transition-colors hover:bg-white/10 focus:outline-none focus-visible:ring-2 focus-visible:ring-stampa-orange">
+            <Settings size={16} aria-hidden="true" /> Configurar valores
+          </button> : <button type="button" onClick={openCalculatorCustomization} className="inline-flex min-h-10 items-center gap-1.5 rounded-xl border border-stampa-border bg-white/5 px-2.5 text-xs font-semibold text-white sm:px-4 sm:text-sm transition-colors hover:bg-white/10 focus:outline-none focus-visible:ring-2 focus-visible:ring-stampa-orange">
+            <Settings size={16} aria-hidden="true" /> {isFree ? "Mis impresoras y filamentos" : "Personalizar cálculo"}
           </button>}
-          <Link href="/explorar-modelos" className="mt-3 flex items-center gap-2 text-sm font-semibold text-gray-400 transition-colors hover:text-white sm:ml-4 sm:mt-0 sm:inline-flex">
-            <Compass size={16} /> ¿Buscás un modelo para imprimir? Explorar Modelos
+          <Link href="/explorar-modelos" className="inline-flex min-h-10 items-center gap-1.5 rounded-xl px-2 text-xs font-semibold text-gray-400 sm:px-3 sm:text-sm transition-colors hover:bg-white/5 hover:text-white focus:outline-none focus-visible:ring-2 focus-visible:ring-stampa-orange">
+            <Compass size={16} aria-hidden="true" /> Explorar Modelos
           </Link>
         </div>
       </div>
-    </div>
+    </header>
 
     {modelReferenceName && (
       <div className="flex items-start justify-between gap-3 rounded-xl border border-stampa-border bg-stampa-surface p-4">
@@ -1096,9 +1135,15 @@ function CalculadoraPageContent() {
                     Elegir filamento del catálogo
                   </button>
                 )}
-                <Link href="/mi-taller/impresoras" className="text-center inline-block bg-stampa-orange text-white text-xs font-semibold px-3 py-1.5 rounded-lg hover:bg-stampa-orange-hover transition-colors shadow-sm shadow-[#ff6a00]/20 w-full sm:w-auto">
-                  Ir a Configuración
-                </Link>
+                {multipliers.length === 0 && (
+                  <button
+                    type="button"
+                    onClick={() => setSettingsModalTab("types")}
+                    className="text-center inline-block bg-stampa-orange text-white text-xs font-semibold px-3 py-1.5 rounded-lg hover:bg-stampa-orange-hover transition-colors shadow-sm shadow-[#ff6a00]/20 w-full sm:w-auto"
+                  >
+                    Configurar tipos de producto
+                  </button>
+                )}
               </div>
             </div>
           </div>
@@ -1124,13 +1169,27 @@ function CalculadoraPageContent() {
       </button>
     </div>
 
-    <div className="grid grid-cols-1 lg:grid-cols-3 gap-8 items-start">
+    <details className="group rounded-xl border border-stampa-border bg-stampa-surface/60 px-4 py-3 text-sm">
+      <summary className="flex cursor-pointer list-none items-center gap-2 font-semibold text-gray-300 marker:hidden focus:outline-none focus-visible:ring-2 focus-visible:ring-stampa-orange">
+        <HelpCircle size={16} className="text-stampa-orange" aria-hidden="true" /> ¿Cómo usar la calculadora?
+        <span className="ml-auto text-xs font-normal text-gray-500 group-open:hidden">Ver guía rápida</span>
+      </summary>
+      <ul className="mt-3 grid gap-2 text-xs leading-relaxed text-gray-400 sm:grid-cols-2">
+        <li><strong className="text-gray-200">Modo Básico:</strong> filamento, gramos, tiempo, tipo de producto e impresora. Alcanza para una estimación rápida.</li>
+        <li><strong className="text-gray-200">Modo Avanzado:</strong> suma desperdicio, electricidad, mantenimiento, mano de obra, otros costos y los datos de venta en plataformas.</li>
+        <li><strong className="text-gray-200">Precio sugerido:</strong> lo que conviene cobrar en una venta directa. Aplica el multiplicador del tipo de producto al material y suma el resto de los costos.</li>
+        <li><strong className="text-gray-200">Precio Mercado Libre:</strong> el precio sugerido más la comisión, el cargo fijo y el envío que vos configurás. No usamos porcentajes oficiales.</li>
+        <li className="sm:col-span-2"><strong className="text-gray-200">Configuración:</strong> {isPaid ? "\"Configurar valores\" guarda tus costos de electricidad, desperdicio, impresoras, tipos de producto y Mercado Libre; cambia todos tus cálculos sin perder el actual." : "los valores de ejemplo se pueden ajustar en Modo Avanzado para este cálculo."}</li>
+      </ul>
+    </details>
+
+    <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 items-start">
       {/* Columna Formularios */}
       <div className="lg:col-span-2 space-y-6">
 
         {/* Bloque Básico */}
-        <Card className="p-6 sm:p-8 bg-stampa-surface border-stampa-border shadow-lg">
-          <div className="mb-6">
+        <Card className="p-4 sm:p-6 bg-stampa-surface border-stampa-border shadow-lg">
+          <div className="mb-5">
             <h2 className="text-lg font-bold text-white flex items-center gap-2">Datos principales</h2>
             <p className="text-sm text-gray-400 mt-1">Estos datos alcanzan para una estimación rápida.</p>
           </div>
@@ -1292,7 +1351,7 @@ function CalculadoraPageContent() {
 
         {/* Bloque Avanzado */}
         {advanced && (
-          <Card className="p-6 sm:p-8 bg-stampa-surface border-indigo-500/30 shadow-lg relative overflow-hidden animate-in fade-in-50 duration-300">
+          <Card className="p-4 sm:p-6 bg-stampa-surface border-indigo-500/30 shadow-lg relative overflow-hidden animate-in fade-in-50 duration-300">
             <div className="absolute top-0 right-0 bg-indigo-500/20 text-indigo-400 text-[10px] font-bold px-3 py-1 rounded-bl-xl border-b border-l border-indigo-500/30">
               MODO AVANZADO
             </div>
@@ -1398,13 +1457,15 @@ function CalculadoraPageContent() {
             </div>
           </div>
 
-          {advanced && (
-            <div className="mt-4 bg-indigo-500/10 border border-indigo-500/20 rounded-xl p-4">
-              <p className="text-[10px] font-bold text-indigo-400/80 uppercase tracking-wider mb-1">Precio p/ Mercado Libre</p>
-              <p className="text-xl font-black text-indigo-400">${calc.mlPrice.toFixed(2)}</p>
-              <p className="text-[10px] text-indigo-400/60 mt-1 leading-tight">Incluye comisiones, extras y envíos.</p>
-            </div>
-          )}
+          <div className="mt-4">
+            <MarketplacePriceCard
+              result={calc.marketplace}
+              hasValidCalc={hasValidCalc}
+              source={isPaid ? "user" : "reference"}
+              onConfigure={openMarketplaceConfiguration}
+              configureLabel={isPaid ? "Configurar" : "Ajustar"}
+            />
+          </div>
         </Card>
 
         {/* Acciones */}
@@ -1568,6 +1629,19 @@ function CalculadoraPageContent() {
     )}
 
     {/* MODAL: CATÁLOGO DE IMPRESORAS */}
+    {isPaid && settingsModalTab && (
+      <CalculatorSettingsModal
+        open
+        onClose={() => setSettingsModalTab(null)}
+        initialTab={settingsModalTab}
+        printers={printers}
+        selectedPrinterId={selectedPrinterId}
+        onSettingsSaved={handleSettingsSaved}
+        onPrinterSaved={handlePrinterCostsSaved}
+        onProductTypesChanged={handleProductTypesChanged}
+      />
+    )}
+
     {accessMode !== "anonymous" && showCatalogModal && userId && (
       <PrinterCatalogModal 
         userId={userId} 

@@ -7,7 +7,12 @@ import { TableSkeleton } from "@/components/ui/page-skeletons";
 import { Card } from "@/components/ui/card";
 import { useAppFeedback } from "@/components/ui/app-feedback";
 
-export function ProductTypesManager() {
+interface ProductTypesManagerProps {
+  /** Se llama después de cada cambio guardado (alta, edición, activar/desactivar o baja). */
+  onChanged?: () => void;
+}
+
+export function ProductTypesManager({ onChanged }: ProductTypesManagerProps = {}) {
   const supabase = createClient();
   const { confirmAction } = useAppFeedback();
   const [types, setTypes] = useState<any[]>([]);
@@ -62,11 +67,17 @@ export function ProductTypesManager() {
     if (editingId === "new") {
       const { data, error } = await supabase.from("calculator_product_types").insert([payload]).select().single();
       if (error) setError(error.message);
-      else setTypes([...types, data]);
+      else {
+        setTypes([...types, data]);
+        onChanged?.();
+      }
     } else {
       const { error } = await supabase.from("calculator_product_types").update(payload).eq("id", editingId);
       if (error) setError(error.message);
-      else setTypes(types.map(t => t.id === editingId ? { ...t, ...payload } : t));
+      else {
+        setTypes(types.map(t => t.id === editingId ? { ...t, ...payload } : t));
+        onChanged?.();
+      }
     }
     
     if (!error) setEditingId(null);
@@ -82,6 +93,7 @@ export function ProductTypesManager() {
       setError(error.message);
     } else {
       setTypes(types.map(t => t.id === typeId ? { ...t, is_active: !currentStatus } : t));
+      onChanged?.();
     }
   };
 
@@ -108,6 +120,7 @@ export function ProductTypesManager() {
       }
     } else {
       setTypes(types.filter(t => t.id !== typeId));
+      onChanged?.();
     }
   };
 
