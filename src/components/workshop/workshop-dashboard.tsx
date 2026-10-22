@@ -19,7 +19,8 @@ import { createClient } from "@/utils/supabase/client";
 import { PageHeader, Panel, PanelEmpty, StatCard } from "@/components/ui/dashboard";
 import { usePublishStampyScreenContext } from "@/components/stampy/StampyContextProvider";
 import type { StampyScreenContext } from "@/lib/stampy/screen-context";
-import { buildWorkshopSummary, formatGrams, type WorkshopSummary } from "@/lib/workshop/dashboard";
+import { formatGrams, type WorkshopSummary } from "@/lib/workshop/dashboard";
+import { loadWorkshopSummary } from "@/lib/workshop/load-summary";
 import { WORKSHOP_ROUTES } from "@/lib/workshop/routes";
 
 type LoadState = { status: "loading" } | { status: "error" } | { status: "ready"; summary: WorkshopSummary };
@@ -39,28 +40,8 @@ export function WorkshopDashboard() {
       setState({ status: "error" });
       return;
     }
-    // Mismas consultas (columnas y filtros) que Mi Taller → Productos e Inventario.
-    const [productsRes, componentsRes, filamentsRes, printersRes, typesRes] = await Promise.all([
-      supabase.from("products").select("*").eq("user_id", user.id).eq("is_active", true),
-      supabase.from("product_components").select("id, product_id, name, stock_quantity, quantity_per_product, is_active").eq("user_id", user.id).eq("is_active", true),
-      supabase.from("filaments").select("*, filament_templates(brand)").eq("user_id", user.id),
-      supabase.from("printers").select("*").eq("user_id", user.id).eq("is_active", true),
-      supabase.from("calculator_product_types").select("*").eq("user_id", user.id).eq("is_active", true),
-    ]);
-    if (productsRes.error || filamentsRes.error || printersRes.error) {
-      setState({ status: "error" });
-      return;
-    }
-    setState({
-      status: "ready",
-      summary: buildWorkshopSummary({
-        products: productsRes.data ?? [],
-        components: componentsRes.error ? [] : componentsRes.data ?? [],
-        filaments: filamentsRes.data ?? [],
-        printers: printersRes.data ?? [],
-        productTypes: typesRes.error ? [] : typesRes.data ?? [],
-      }),
-    });
+    const summary = await loadWorkshopSummary(supabase, user.id);
+    setState(summary ? { status: "ready", summary } : { status: "error" });
   }, [supabase]);
 
   useEffect(() => {

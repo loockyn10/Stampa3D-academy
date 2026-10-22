@@ -551,7 +551,8 @@ test("Gratis/Pago post-filtra solo metadata confiable; unknown siempre queda afu
 
 test("navegación mobile: Explorar Modelos es descubrible sin pasar por la Calculadora", () => {
   assert.match(read("src/components/layout/mobile-bottom-navigation.tsx"), /href: "\/explorar-modelos"/);
-  assert.match(read("src/app/page.tsx"), /href: "\/explorar-modelos"/);
+  // Inicio V2: los accesos rápidos viven en el dashboard de Inicio.
+  assert.match(read("src/components/home/home-dashboard.tsx"), /href: "\/explorar-modelos"/);
   assert.match(read("src/components/search/GlobalSearch.tsx"), /path: "\/explorar-modelos"/);
   assert.match(read("src/components/layout/sidebar.tsx"), /path: "\/explorar-modelos"/);
   assert.doesNotMatch(read("src/components/layout/mobile-navigation.ts"), /explorar-modelos/);

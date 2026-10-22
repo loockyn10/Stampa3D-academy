@@ -192,7 +192,7 @@ test("remaining high-value user pages publish lightweight dynamic screen context
     ["src/app/sorteos/page.tsx", /section: "raffles"/, /Chances totales visibles/],
     ["src/app/perfil/page.tsx", /section: "profile"/, /Código de referido disponible en pantalla/],
     ["src/app/configuracion/page.tsx", /section: "configuration"/, /activeTab/],
-    ["src/app/page.tsx", /section: "dashboard"/, /Cursos iniciados/],
+    ["src/components/home/home-dashboard.tsx", /section: "dashboard"/, /Cursos iniciados/],
     ["src/app/libreria-stl/page.tsx", /section: "stl_library"/, /type: "stl_model"/],
     ["src/app/onboarding/page.tsx", /section: "onboarding"/, /Preferencias iniciales sin guardar/],
   ];
