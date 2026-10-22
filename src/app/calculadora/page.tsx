@@ -649,14 +649,15 @@ function CalculadoraPageContent() {
     const baseCost = pricing.baseCost;
     const normalPrice = pricing.salePrice;
 
-    // Precio Mercado Libre (misma fórmula de siempre, centralizada en el motor)
+    // Precio Mercado Libre: comisión sobre el precio final (ver calculateMarketplacePrice).
     const marketplace = calculateMarketplacePrice({
       salePrice: normalPrice,
       commissionPercent: numManualPlatformCommission,
       fixedFee: numManualPlatformExtra,
       shippingCost: numShippingCost,
     });
-    const mlPrice = marketplace.price;
+    // Sin comisión válida no hay precio ML (no se guarda ni se informa a Stampy una estimación engañosa).
+    const mlPrice = marketplace.status === "ok" ? marketplace.price : null;
 
     const profit = pricing.profit;
 
@@ -1178,7 +1179,7 @@ function CalculadoraPageContent() {
         <li><strong className="text-gray-200">Modo Básico:</strong> filamento, gramos, tiempo, tipo de producto e impresora. Alcanza para una estimación rápida.</li>
         <li><strong className="text-gray-200">Modo Avanzado:</strong> suma desperdicio, electricidad, mantenimiento, mano de obra, otros costos y los datos de venta en plataformas.</li>
         <li><strong className="text-gray-200">Precio sugerido:</strong> lo que conviene cobrar en una venta directa. Aplica el multiplicador del tipo de producto al material y suma el resto de los costos.</li>
-        <li><strong className="text-gray-200">Precio Mercado Libre:</strong> el precio sugerido más la comisión, el cargo fijo y el envío que vos configurás. No usamos porcentajes oficiales.</li>
+        <li><strong className="text-gray-200">Precio Mercado Libre:</strong> el precio a publicar para que, después de la comisión (sobre el precio final), el cargo fijo y el envío que vos configurás, recibas el precio sugerido. No usamos porcentajes oficiales.</li>
         <li className="sm:col-span-2"><strong className="text-gray-200">Configuración:</strong> {isPaid ? "\"Configurar valores\" guarda tus costos de electricidad, desperdicio, impresoras, tipos de producto y Mercado Libre; cambia todos tus cálculos sin perder el actual." : "los valores de ejemplo se pueden ajustar en Modo Avanzado para este cálculo."}</li>
       </ul>
     </details>

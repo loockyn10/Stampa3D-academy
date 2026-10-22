@@ -195,49 +195,91 @@ export function calculateCalculatorPricing(
 }
 
 export interface MarketplacePriceInput {
-  /** Precio sugerido del motor (`calculateCalculatorPricing().salePrice`). */
+  /** Monto que el vendedor quiere recibir: el precio sugerido del motor (`calculateCalculatorPricing().salePrice`). */
   salePrice: number;
-  /** Comisión configurada por el usuario, en porcentaje (15 = 15 %). */
+  /** Comisión porcentual que la plataforma cobra sobre el precio FINAL publicado (15 = 15 %). */
   commissionPercent: number;
   /** Cargo fijo por venta configurado por el usuario. */
   fixedFee: number;
   /** Envío a cargo del vendedor. */
   shippingCost: number;
+  /** Otros costos de venta a recuperar (opcional). */
+  otherSellingCosts?: number;
 }
 
+export type MarketplacePriceStatus = "ok" | "not_configured" | "invalid_commission";
+
 export interface MarketplacePriceResult {
+  status: MarketplacePriceStatus;
+  /** Precio a publicar, redondeado hacia arriba al centavo (0 si no hay estimación válida). */
   price: number;
+  /** Comisión estimada sobre el precio publicado. */
   commissionAmount: number;
   fixedFee: number;
   shippingCost: number;
+  otherSellingCosts: number;
   commissionPercent: number;
-  /** Sin comisión configurada no se presenta una estimación (no hay porcentaje "oficial" asumido). */
+  /** Lo que queda después de comisión y cargos (≈ precio sugerido, nunca menos). */
+  netReceived: number;
+  /** Compatibilidad: true solo cuando `status === "ok"`. */
   isConfigured: boolean;
 }
 
+const roundMoney = (value: number) => Math.round(value * 100) / 100;
+/** Redondeo hacia arriba al centavo: garantiza que el neto no quede por debajo del objetivo. */
+const ceilMoney = (value: number) => Math.ceil(value * 100 - 1e-6) / 100;
+
 /**
- * Precio para Mercado Libre: misma fórmula que la Calculadora usaba inline
- * (precio sugerido + cargo fijo + comisión sobre el precio sugerido + envío).
- * No incorpora porcentajes oficiales: todos los parámetros vienen de la configuración del usuario.
+ * Precio para Mercado Libre cuando la comisión se cobra sobre el precio final:
+ *
+ *   precio ML = (precio sugerido + cargo fijo + envío + otros costos de venta) / (1 − comisión)
+ *
+ * Así, después de descontar la comisión y los cargos, se recibe el precio sugerido.
+ * No incorpora tarifas oficiales: todos los parámetros vienen de la configuración del usuario.
+ * - comisión ausente o 0 → `not_configured` (no se presenta una estimación);
+ * - comisión negativa, no numérica o ≥ 100 % → `invalid_commission`.
  */
 export function calculateMarketplacePrice({
   salePrice,
   commissionPercent,
   fixedFee,
   shippingCost,
+  otherSellingCosts = 0,
 }: MarketplacePriceInput): MarketplacePriceResult {
   const base = nonNegativeFiniteOrZero(salePrice);
-  const percent = nonNegativeFiniteOrZero(commissionPercent);
   const fee = nonNegativeFiniteOrZero(fixedFee);
   const shipping = nonNegativeFiniteOrZero(shippingCost);
-  const commissionAmount = (base * percent) / 100;
+  const other = nonNegativeFiniteOrZero(otherSellingCosts);
+  const rawPercent = Number(commissionPercent);
+  const empty = {
+    price: 0,
+    commissionAmount: 0,
+    fixedFee: fee,
+    shippingCost: shipping,
+    otherSellingCosts: other,
+    netReceived: 0,
+    isConfigured: false,
+  };
 
+  if (!Number.isFinite(rawPercent) || rawPercent < 0 || rawPercent >= 100) {
+    return { ...empty, status: "invalid_commission", commissionPercent: Number.isFinite(rawPercent) ? rawPercent : 0 };
+  }
+  if (rawPercent === 0) {
+    return { ...empty, status: "not_configured", commissionPercent: 0 };
+  }
+
+  const rate = rawPercent / 100;
+  const price = ceilMoney((base + fee + shipping + other) / (1 - rate));
+  const commissionAmount = roundMoney(price * rate);
   return {
-    price: base + fee + commissionAmount + shipping,
+    status: "ok",
+    price,
     commissionAmount,
     fixedFee: fee,
     shippingCost: shipping,
-    commissionPercent: percent,
-    isConfigured: percent > 0,
+    otherSellingCosts: other,
+    commissionPercent: rawPercent,
+    netReceived: roundMoney(price - commissionAmount - fee - shipping - other),
+    isConfigured: true,
   };
 }

@@ -20,6 +20,20 @@ interface SettingsManagerProps {
   embedded?: boolean;
 }
 
+/** Validación de rangos antes de guardar (la comisión se aplica sobre el precio final: debe ser < 100 %). */
+export function validateCalculatorSettings(values: CalculatorSettingsValues): string | null {
+  if (values.platform_commission_percent < 0 || values.platform_commission_percent >= 100) {
+    return "La comisión de Mercado Libre tiene que estar entre 0 % y menos de 100 %.";
+  }
+  if (values.default_error_percent < 0 || values.default_error_percent >= 100) {
+    return "El margen de error tiene que estar entre 0 % y menos de 100 %.";
+  }
+  if (values.electricity_price_kwh < 0 || values.mercado_libre_extra_amount < 0) {
+    return "Los montos no pueden ser negativos.";
+  }
+  return null;
+}
+
 export function SettingsManager({ onSaved, embedded = false }: SettingsManagerProps = {}) {
   const supabase = createClient();
   const [loading, setLoading] = useState(true);
@@ -97,6 +111,13 @@ export function SettingsManager({ onSaved, embedded = false }: SettingsManagerPr
       default_error_percent: parseFloat(String(formData.default_error_percent)) || 0,
     };
 
+    const validationError = validateCalculatorSettings(payload);
+    if (validationError) {
+      setError(validationError);
+      setSaving(false);
+      return;
+    }
+
     const { error } = await supabase.from("calculator_settings").update(payload).eq("id", settingId);
     if (error) setError(error.message);
     else {
@@ -140,12 +161,12 @@ export function SettingsManager({ onSaved, embedded = false }: SettingsManagerPr
           <div>
             <label className="block text-sm font-semibold text-gray-300 mb-1">Extra Mercado Libre ($ Fijo)</label>
             <input type="number" name="mercado_libre_extra_amount" value={formData.mercado_libre_extra_amount} onChange={handleChange} className="w-full text-sm border-stampa-border rounded-md text-neutral-100 bg-stampa-surface border focus:border-[#ff6a00] focus:ring-[#ff6a00]/20 focus:ring-2 placeholder:text-neutral-500 disabled:bg-neutral-800 disabled:text-neutral-500" />
-            <p className="text-xs text-gray-500 mt-1">Monto fijo extra que se suma al precio en ML.</p>
+            <p className="text-xs text-gray-500 mt-1">Cargo fijo por venta que querés recuperar en el precio de ML.</p>
           </div>
           <div>
             <label className="block text-sm font-semibold text-gray-300 mb-1">Comisión ML (%)</label>
             <input type="number" name="platform_commission_percent" value={formData.platform_commission_percent} onChange={handleChange} className="w-full text-sm border-stampa-border rounded-md text-neutral-100 bg-stampa-surface border focus:border-[#ff6a00] focus:ring-[#ff6a00]/20 focus:ring-2 placeholder:text-neutral-500 disabled:bg-neutral-800 disabled:text-neutral-500" />
-            <p className="text-xs text-gray-500 mt-1">Porcentaje de retención de la plataforma.</p>
+            <p className="text-xs text-gray-500 mt-1">Porcentaje que la plataforma retiene sobre el precio final (0 a 99).</p>
           </div>
         </div>
 

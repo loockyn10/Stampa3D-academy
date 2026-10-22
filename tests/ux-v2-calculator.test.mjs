@@ -21,24 +21,57 @@ function loadPricing() {
 const { calculateMarketplacePrice } = loadPricing();
 const calculator = read("src/app/calculadora/page.tsx");
 
-test("precio Mercado Libre: misma fórmula histórica (sugerido + fijo + comisión sobre sugerido + envío)", () => {
+test("precio Mercado Libre: comisión sobre el precio final conserva el ingreso neto", () => {
+  // (1000 + 200 + 300) / (1 - 0.15) = 1764.705… → 1764.71 (redondeo hacia arriba al centavo)
   const result = calculateMarketplacePrice({ salePrice: 1000, commissionPercent: 15, fixedFee: 200, shippingCost: 300 });
-  assert.equal(result.commissionAmount, 150);
-  assert.equal(result.price, 1000 + 200 + 150 + 300);
+  assert.equal(result.status, "ok");
+  assert.equal(result.price, 1764.71);
+  assert.equal(result.commissionAmount, 264.71);
+  assert.equal(result.netReceived, 1000);
   assert.equal(result.isConfigured, true);
+  // Antes se sumaba la comisión sobre el sugerido (1650): el neto quedaba por debajo del sugerido.
+  assert.ok(result.price > 1650);
 });
 
-test("precio Mercado Libre: sin comisión configurada no se presenta como estimación", () => {
-  const result = calculateMarketplacePrice({ salePrice: 1000, commissionPercent: 0, fixedFee: 0, shippingCost: 0 });
-  assert.equal(result.isConfigured, false);
-  const negative = calculateMarketplacePrice({ salePrice: -5, commissionPercent: -10, fixedFee: Number.NaN, shippingCost: -1 });
-  assert.equal(negative.price, 0);
-  assert.equal(negative.isConfigured, false);
+test("precio Mercado Libre: el neto nunca queda por debajo del precio sugerido por redondeo", () => {
+  for (const [sale, pct, fee, ship] of [[999.99, 13, 0, 0], [1234.56, 16.5, 99.9, 1500], [1, 99.9, 0, 0], [7182, 15, 0, 0]]) {
+    const r = calculateMarketplacePrice({ salePrice: sale, commissionPercent: pct, fixedFee: fee, shippingCost: ship });
+    const net = r.price * (1 - pct / 100) - fee - ship;
+    assert.ok(net >= sale - 1e-6, `${sale}/${pct}: neto ${net}`);
+    assert.equal(Math.round(r.price * 100) / 100, r.price, "redondeado al centavo");
+  }
+});
+
+test("precio Mercado Libre: otros costos de venta se recuperan y los negativos se ignoran", () => {
+  const r = calculateMarketplacePrice({ salePrice: 900, commissionPercent: 10, fixedFee: -50, shippingCost: 0, otherSellingCosts: 90 });
+  assert.equal(r.price, 1100);
+  assert.equal(r.fixedFee, 0);
+  assert.equal(r.netReceived, 900);
+});
+
+test("precio Mercado Libre: sin comisión o con comisión inválida no se presenta estimación", () => {
+  const none = calculateMarketplacePrice({ salePrice: 1000, commissionPercent: 0, fixedFee: 0, shippingCost: 0 });
+  assert.equal(none.status, "not_configured");
+  assert.equal(none.price, 0);
+  assert.equal(none.isConfigured, false);
+  for (const pct of [100, 150, -5, Number.NaN]) {
+    const r = calculateMarketplacePrice({ salePrice: 1000, commissionPercent: pct, fixedFee: 0, shippingCost: 0 });
+    assert.equal(r.status, "invalid_commission", String(pct));
+    assert.equal(r.price, 0);
+  }
+});
+
+test("configuración: la comisión se valida en [0, 100) antes de guardar", () => {
+  const settings = read("src/components/configuracion/settings-manager.tsx");
+  assert.match(settings, /export function validateCalculatorSettings/);
+  assert.match(settings, /platform_commission_percent >= 100/);
+  assert.match(settings, /const validationError = validateCalculatorSettings\(payload\)/);
 });
 
 test("la Calculadora usa el helper del motor y muestra la tarjeta ML en ambos modos", () => {
   assert.match(calculator, /calculateMarketplacePrice\(\{/);
   assert.doesNotMatch(calculator, /normalPrice \* numManualPlatformCommission/, "la fórmula no se duplica inline");
+  assert.match(calculator, /const mlPrice = marketplace\.status === "ok" \? marketplace\.price : null/);
   assert.match(calculator, /<MarketplacePriceCard/);
   // La tarjeta no está dentro de un `advanced &&`.
   const cardIndex = calculator.indexOf("<MarketplacePriceCard");
@@ -52,7 +85,9 @@ test("tarjeta ML: componente amarillo propio, pide configurar si falta la comisi
   assert.match(card, /Precio Mercado Libre/);
   assert.match(card, /border-yellow-400/);
   assert.match(card, /bg-gradient-to-br from-yellow-400/);
-  assert.match(card, /!result\.isConfigured/);
+  assert.match(card, /result\.status === "not_configured"/);
+  assert.match(card, /result\.status === "invalid_commission"/);
+  assert.match(card, />Recibís</);
   assert.match(card, /No usamos porcentajes oficiales/);
 });
 

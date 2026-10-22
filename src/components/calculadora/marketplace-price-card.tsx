@@ -42,36 +42,52 @@ export function MarketplacePriceCard({ result, hasValidCalc, source, onConfigure
         </button>
       </div>
 
-      {!result.isConfigured ? (
+      {result.status === "not_configured" ? (
         <p className="mt-3 text-xs leading-relaxed text-yellow-100/85" data-testid="marketplace-price-missing">
           Configurá la comisión de venta de tu publicación para estimar este precio. No usamos porcentajes oficiales por defecto.
+        </p>
+      ) : result.status === "invalid_commission" ? (
+        <p className="mt-3 text-xs leading-relaxed text-red-200" role="alert" data-testid="marketplace-price-invalid">
+          La comisión tiene que ser mayor a 0 % y menor a 100 %. Revisá el valor configurado.
         </p>
       ) : (
         <>
           <p className="mt-3 text-2xl font-black tabular-nums text-yellow-300" data-testid="marketplace-price-value">
             {hasValidCalc ? money(result.price) : "—"}
           </p>
-          <dl className="mt-3 space-y-1 border-t border-yellow-400/20 pt-2 text-[11px] text-yellow-100/80">
-            <div className="flex justify-between gap-2">
-              <dt>Comisión ({result.commissionPercent}%)</dt>
-              <dd className="tabular-nums">{money(result.commissionAmount)}</dd>
-            </div>
-            {result.fixedFee > 0 && (
+          {hasValidCalc && (
+            <dl className="mt-3 space-y-1 border-t border-yellow-400/20 pt-2 text-[11px] text-yellow-100/80">
               <div className="flex justify-between gap-2">
-                <dt>Cargo fijo</dt>
-                <dd className="tabular-nums">{money(result.fixedFee)}</dd>
+                <dt>Comisión ({result.commissionPercent}% del precio final)</dt>
+                <dd className="tabular-nums">−{money(result.commissionAmount)}</dd>
               </div>
-            )}
-            {result.shippingCost > 0 && (
-              <div className="flex justify-between gap-2">
-                <dt>Envío a tu cargo</dt>
-                <dd className="tabular-nums">{money(result.shippingCost)}</dd>
+              {result.fixedFee > 0 && (
+                <div className="flex justify-between gap-2">
+                  <dt>Cargo fijo</dt>
+                  <dd className="tabular-nums">−{money(result.fixedFee)}</dd>
+                </div>
+              )}
+              {result.shippingCost > 0 && (
+                <div className="flex justify-between gap-2">
+                  <dt>Envío a tu cargo</dt>
+                  <dd className="tabular-nums">−{money(result.shippingCost)}</dd>
+                </div>
+              )}
+              {result.otherSellingCosts > 0 && (
+                <div className="flex justify-between gap-2">
+                  <dt>Otros costos de venta</dt>
+                  <dd className="tabular-nums">−{money(result.otherSellingCosts)}</dd>
+                </div>
+              )}
+              <div className="flex justify-between gap-2 border-t border-yellow-400/15 pt-1 font-semibold text-yellow-100">
+                <dt>Recibís</dt>
+                <dd className="tabular-nums">{money(result.netReceived)}</dd>
               </div>
-            )}
-          </dl>
+            </dl>
+          )}
           <p className="mt-2 text-[10px] leading-snug text-yellow-100/60">
             {source === "user"
-              ? "Usa la comisión y los cargos de tu configuración. Verificá los valores vigentes de tu publicación."
+              ? "Calculado para recibir el precio sugerido con tu comisión y cargos. Verificá los valores vigentes de tu publicación."
               : "Comisión de ejemplo, no oficial. Ajustala en Modo Avanzado según tu publicación."}
           </p>
         </>
