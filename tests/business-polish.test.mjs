@@ -34,7 +34,8 @@ const catalogPage = fs.readFileSync(path.join(root, "src/app/mi-negocio/catalogo
 const replenishmentPage = fs.readFileSync(path.join(root, "src/app/mi-negocio/reposicion/page.tsx"), "utf8");
 const salesPage = fs.readFileSync(path.join(root, "src/app/mi-negocio/ventas/page.tsx"), "utf8");
 const metricsPage = fs.readFileSync(path.join(root, "src/app/mi-negocio/metricas/page.tsx"), "utf8");
-const businessHub = fs.readFileSync(path.join(root, "src/app/mi-negocio/page.tsx"), "utf8");
+// La portada de Mi Negocio delega en el dashboard V2, que conserva las nueve herramientas.
+const businessHub = fs.readFileSync(path.join(root, "src/components/business/business-dashboard.tsx"), "utf8");
 const stampyContext = fs.readFileSync(path.join(root, "src/lib/stampy/static-page-contexts.ts"), "utf8");
 
 const w3d = {

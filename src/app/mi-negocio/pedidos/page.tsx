@@ -27,6 +27,11 @@ export default function BusinessOrdersPage() {
     setLoading(false);
   }, []);
   useEffect(() => { void Promise.resolve().then(load); }, [load]);
+  // Filtro de destino desde la portada de Mi Negocio (?estado=awaiting_payment|payment_review).
+  useEffect(() => {
+    const requested = new URLSearchParams(window.location.search).get("estado");
+    if (requested && requested in labels) setFilter(requested);
+  }, []);
   const stampyContext = useMemo<StampyScreenContext>(() => ({
     page: { section: "business", route: "/mi-negocio/pedidos", title: "Pedidos online" }, mode: selected ? "order_detail" : "orders",
     selectedEntity: selected ? { type: "business_order", id: selected.id, name: `Pedido ${selected.order_number}`, facts: [{ label: "Estado", value: labels[selected.status] || selected.status }, { label: "Total", value: selected.total }] } : null,
