@@ -119,7 +119,7 @@ export function WorkshopDashboardView({
               href={WORKSHOP_ROUTES.registerProduction}
               className="inline-flex min-h-10 flex-1 items-center justify-center gap-1.5 rounded-xl border border-stampa-border bg-white/5 px-2.5 text-[13px] font-semibold text-white sm:flex-none sm:px-3 sm:text-sm transition-colors hover:bg-white/10 focus:outline-none focus-visible:ring-2 focus-visible:ring-stampa-orange"
             >
-              <ClipboardList size={15} aria-hidden="true" /> Registrar movimiento
+              <ClipboardList size={15} aria-hidden="true" className="hidden min-[400px]:block" /> Registrar movimiento
             </Link>
             <Link
               href={WORKSHOP_ROUTES.newProduct}
@@ -220,7 +220,7 @@ export function WorkshopDashboardView({
                     </div>
                     <Link
                       href={product.needsRecalculation && !product.outOfStock ? WORKSHOP_ROUTES.editProduct(product.id) : WORKSHOP_ROUTES.inventory}
-                      className="shrink-0 rounded-lg px-2 py-1.5 text-xs font-semibold text-gray-400 hover:bg-white/5 hover:text-white focus:outline-none focus-visible:ring-2 focus-visible:ring-stampa-orange"
+                      className="inline-flex min-h-9 shrink-0 items-center rounded-lg px-2 text-xs font-semibold text-gray-400 hover:bg-white/5 hover:text-white focus:outline-none focus-visible:ring-2 focus-visible:ring-stampa-orange"
                       aria-label={`${product.needsRecalculation && !product.outOfStock ? "Revisar costo de" : "Ver stock de"} ${product.name}`}
                     >
                       {product.needsRecalculation && !product.outOfStock ? "Revisar" : "Ver stock"}
@@ -234,9 +234,9 @@ export function WorkshopDashboardView({
                     </span>
                     <p className="min-w-0 flex-1 text-sm text-gray-300">
                       <strong className="text-white">{summary.emptySpools} {summary.emptySpools === 1 ? "bobina agotada" : "bobinas agotadas"}</strong>
-                      <span className="block truncate text-xs text-gray-500">{summary.emptySpoolList.map((spool) => spool.name).join(", ")}</span>
+                      <span className="block truncate text-xs text-gray-400">{summary.emptySpoolList.map((spool) => spool.name).join(", ")}</span>
                     </p>
-                    <Link href={WORKSHOP_ROUTES.filaments} className="shrink-0 rounded-lg px-2 py-1.5 text-xs font-semibold text-gray-400 hover:bg-white/5 hover:text-white">
+                    <Link href={WORKSHOP_ROUTES.filaments} className="inline-flex min-h-9 shrink-0 items-center rounded-lg px-2 text-xs font-semibold text-gray-400 hover:bg-white/5 hover:text-white">
                       Ver bobinas
                     </Link>
                   </li>
@@ -266,7 +266,7 @@ export function WorkshopDashboardView({
                       <li key={material.material}>
                         <div className="flex items-center justify-between text-xs">
                           <span className="font-semibold text-gray-300">{material.material}</span>
-                          <span className="tabular-nums text-gray-500">{formatGrams(material.grams)} · {material.spools} {material.spools === 1 ? "bobina" : "bobinas"}</span>
+                          <span className="tabular-nums text-gray-400">{formatGrams(material.grams)} · {material.spools} {material.spools === 1 ? "bobina" : "bobinas"}</span>
                         </div>
                         <div className="mt-1 h-1.5 overflow-hidden rounded-full bg-white/5" aria-hidden="true">
                           <div className="h-full rounded-full bg-stampa-orange/70" style={{ width: `${share}%` }} />
@@ -355,7 +355,7 @@ function WorkshopOnboarding() {
 function ProductThumb({ url }: { url: string | null }) {
   if (!url) {
     return (
-      <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg border border-stampa-border bg-white/5 text-gray-500" aria-hidden="true">
+      <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg border border-stampa-border bg-white/5 text-gray-400" aria-hidden="true">
         <Package size={15} />
       </span>
     );
@@ -367,7 +367,7 @@ function ProductThumb({ url }: { url: string | null }) {
 function MiniFact({ label, value, tone }: { label: string; value: React.ReactNode; tone?: "red" }) {
   return (
     <div className="rounded-lg bg-white/[0.03] px-2 py-2">
-      <dt className="text-[10px] font-semibold uppercase tracking-wide text-gray-500">{label}</dt>
+      <dt className="text-[10px] font-semibold uppercase tracking-wide text-gray-400">{label}</dt>
       <dd className={`mt-0.5 text-sm font-bold tabular-nums ${tone === "red" ? "text-red-300" : "text-white"}`}>{value}</dd>
     </div>
   );
@@ -378,7 +378,7 @@ function InventoryFact({ label, value, hint, tone }: { label: string; value: num
     <div className="min-w-0 rounded-xl bg-white/[0.03] px-3 py-3">
       <p className="truncate text-xs font-semibold text-gray-400">{label}</p>
       <p className={`mt-0.5 text-xl font-bold tabular-nums ${tone === "red" ? "text-red-300" : "text-white"}`}>{value}</p>
-      <p className="hidden text-[11px] leading-snug text-gray-500 sm:block">{hint}</p>
+      <p className="hidden text-[11px] leading-snug text-gray-400 sm:block">{hint}</p>
     </div>
   );
 }

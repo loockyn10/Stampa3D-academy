@@ -1071,8 +1071,8 @@ function CalculadoraPageContent() {
           </button> : <button type="button" onClick={openCalculatorCustomization} className="inline-flex min-h-10 items-center gap-1.5 rounded-xl border border-stampa-border bg-white/5 px-2.5 text-xs font-semibold text-white sm:px-4 sm:text-sm transition-colors hover:bg-white/10 focus:outline-none focus-visible:ring-2 focus-visible:ring-stampa-orange">
             <Settings size={16} aria-hidden="true" /> {isFree ? "Mis impresoras y filamentos" : "Personalizar cálculo"}
           </button>}
-          <Link href="/explorar-modelos" className="inline-flex min-h-10 items-center gap-1.5 rounded-xl px-2 text-xs font-semibold text-gray-400 sm:px-3 sm:text-sm transition-colors hover:bg-white/5 hover:text-white focus:outline-none focus-visible:ring-2 focus-visible:ring-stampa-orange">
-            <Compass size={16} aria-hidden="true" /> Explorar Modelos
+          <Link href="/explorar-modelos" title="Explorar Modelos" className="inline-flex min-h-10 min-w-10 items-center justify-center gap-1.5 rounded-xl px-2 text-xs font-semibold text-gray-400 sm:px-3 sm:text-sm transition-colors hover:bg-white/5 hover:text-white focus:outline-none focus-visible:ring-2 focus-visible:ring-stampa-orange">
+            <Compass size={16} aria-hidden="true" /> <span className="sr-only min-[400px]:not-sr-only">Explorar Modelos</span>
           </Link>
         </div>
       </div>

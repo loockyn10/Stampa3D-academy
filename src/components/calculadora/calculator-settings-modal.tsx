@@ -31,7 +31,7 @@ interface CalculatorSettingsModalProps {
 }
 
 const TABS: { id: CalculatorSettingsTab; label: string; hint: string }[] = [
-  { id: "costs", label: "Costos y Mercado Libre", hint: "Electricidad, desperdicio, comisión y cargo fijo de Mercado Libre." },
+  { id: "costs", label: "Costos y ML", hint: "Electricidad, desperdicio, comisión y cargo fijo de Mercado Libre." },
   { id: "printer", label: "Impresora", hint: "Consumo y mantenimiento por hora de la impresora que usás para calcular." },
   { id: "types", label: "Tipos de producto", hint: "Multiplicador e insumos extra de cada tipo de producto." },
 ];
@@ -92,8 +92,8 @@ export function CalculatorSettingsModal({
                 aria-selected={active}
                 aria-controls="calc-settings-panel"
                 onClick={() => setTab(item.id)}
-                className={`min-h-10 whitespace-nowrap border-b-2 px-3 text-xs font-semibold transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-stampa-orange ${
-                  active ? "border-stampa-orange text-stampa-orange" : "border-transparent text-gray-500 hover:text-gray-300"
+                className={`min-h-10 whitespace-nowrap border-b-2 px-2 text-xs font-semibold sm:px-3 transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-stampa-orange ${
+                  active ? "border-stampa-orange text-stampa-orange" : "border-transparent text-gray-400 hover:text-gray-300"
                 }`}
               >
                 {item.label}
@@ -104,7 +104,7 @@ export function CalculatorSettingsModal({
       </div>
 
       <div id="calc-settings-panel" role="tabpanel" aria-labelledby={`calc-settings-tab-${tab}`} className="space-y-3 px-4 py-4 sm:px-5">
-        <p className="text-xs text-gray-500">{activeTab.hint}</p>
+        <p className="text-xs text-gray-400">{activeTab.hint}</p>
         {tab === "costs" && <SettingsManager embedded onSaved={onSettingsSaved} />}
         {tab === "printer" && (
           <PrinterCostsForm printers={printers} initialPrinterId={selectedPrinterId} onSaved={onPrinterSaved} />
@@ -182,7 +182,7 @@ function PrinterCostsForm({
   return (
     <div className="space-y-4 rounded-xl border border-stampa-border p-4">
       <div>
-        <span className="mb-1 block text-xs font-semibold text-gray-500">Impresora</span>
+        <span className="mb-1 block text-xs font-semibold text-gray-400">Impresora</span>
         <CalculatorSelect
           options={printers.map((item) => ({ value: item.id, label: item.display_name || item.name || "Impresora" }))}
           value={printerId}
@@ -192,11 +192,11 @@ function PrinterCostsForm({
       </div>
       <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
         <label className="block">
-          <span className="mb-1 block text-xs font-semibold text-gray-500">Consumo (W)</span>
+          <span className="mb-1 block text-xs font-semibold text-gray-400">Consumo (W)</span>
           <input type="text" inputMode="decimal" value={power} onChange={(event) => setPower(event.target.value)} className={inputClass} />
         </label>
         <label className="block">
-          <span className="mb-1 block text-xs font-semibold text-gray-500">Mantenimiento por hora ($)</span>
+          <span className="mb-1 block text-xs font-semibold text-gray-400">Mantenimiento por hora ($)</span>
           <input type="text" inputMode="decimal" value={maintenance} onChange={(event) => setMaintenance(event.target.value)} className={inputClass} />
         </label>
       </div>
@@ -204,7 +204,7 @@ function PrinterCostsForm({
         <p role="status" className={`text-xs ${message.tone === "ok" ? "text-emerald-400" : "text-red-400"}`}>{message.text}</p>
       )}
       <div className="flex flex-col-reverse gap-2 sm:flex-row sm:items-center sm:justify-between">
-        <Link href="/mi-taller/impresoras" className="text-xs font-semibold text-gray-400 hover:text-white">
+        <Link href="/mi-taller/impresoras" className="inline-flex min-h-9 items-center text-xs font-semibold text-gray-400 hover:text-white">
           Agregar o quitar impresoras en Mi Taller →
         </Link>
         <button

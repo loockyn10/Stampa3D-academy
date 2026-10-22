@@ -4,10 +4,18 @@ Este archivo contiene únicamente trabajo pendiente o próximo. Eliminar tareas 
 
 ## Now — UX V2 (2026-10-22, rama `feature/universo-stampa-ux-v2`, ver ARCHITECTURE §20 / D028)
 
-- [ ] QA manual con cuenta Paid (desktop y 320–430 px): Inicio, Mi Taller (Dashboard + filtros `?estado=`), Mi Negocio, Stampy (respuesta larga, acción con confirmación, historial), modal de Calculadora (guardar costos, impresora y tipos sin perder el cálculo), Sorteos (copiar enlace, modal).
-- [ ] Decidir si el precio Mercado Libre debe "despejar" la comisión (`(sugerido + cargos) / (1 − comisión)`) en lugar de sumarla sobre el sugerido (fórmula actual, conservada sin cambios).
+- [ ] QA manual con sesión (no hay cuentas de prueba ni Supabase de test; usar una cuenta Paid y otra Beta, en desktop y 320–430 px, dentro del shell real con header y navegación inferior):
+  - Inicio: datos reales de curso (último con actividad), resumen de Mi Taller/Mi Negocio, usuario nuevo sin actividad, enlaces de accesos rápidos.
+  - Mi Taller: KPIs contra Productos/Inventario, `?estado=sin-stock` y `?estado=recalcular`, "Registrar movimiento" abre Registrar producción, producto por partes (armables), estado vacío.
+  - Mi Negocio: facturación/ventas vs Métricas, Semana/Mes, venta anulada tachada, pedidos `awaiting_payment`/`payment_review` y `?estado=` en Pedidos, nueve herramientas.
+  - Stampy: respuesta larga con Markdown, scroll al llegar la respuesta, historial (conversación persistida), acción con confirmación (`ActionIntentCard`), error del modelo, mobile con teclado abierto.
+  - Calculadora (Paid): modal "Configurar valores" (guardar costos/ML, impresora y tipos de producto sin perder gramos/tiempo), validación de comisión ≥ 100 %, precio ML en Básico y Avanzado.
+  - Sorteos: chances de un usuario Beta (base 1), copiar enlace, modal, estados con sorteos reales.
+  - Librería STL: portadas reales de grupos en 4:3.
 - [ ] Actividad reciente de Mi Taller: versionar/verificar el schema de `product_stock_movements` y `filament_stock_movements` (la UI lee `quantity_delta`/`grams_delta`, el contexto de Stampy `quantity`/`amount`/`type`) antes de construir el panel.
-- [ ] Revisar inconsistencias de Sorteos no tocadas: el contexto de Stampy calcula la chance base solo con `membership_status = active` (la página y el registro de ganadores usan acceso a la plataforma, incl. Beta) y lee `referrals.referrer_id` mientras el callback escribe `referrer_user_id`. No hay código en el repo que acredite `user_raffle_bonus_entries` por referidos.
+- [ ] **Decisión de producto + contrato de DB (D029):** acreditación de chances por invitaciones. Falta definir: qué evento convierte una invitación (registro, onboarding, primer pago, pago aprobado), cuántas chances otorga, si vencen, límites/antifraude (auto-referido, cuentas múltiples) y quién la ejecuta (webhook de pago con `service_role`, idempotente por `referred_user_id`). Además versionar `referrals` y `user_raffle_bonus_entries` (columnas, RLS, unique) en una migration. Hasta entonces la UI no promete chances por invitar.
+- [ ] Verificar en Supabase remoto (solo lectura) si existe algún trigger/función no versionada que ya acredite `user_raffle_bonus_entries` o actualice `referrals.status`.
+- [ ] Revisar el contenido remoto de `stampy_page_contexts` para `/sorteos`: podría prometer beneficios por referidos (no está en el repo).
 - [ ] Merge de la rama a `main` y deploy (no realizados).
 
 ## Now — QA integral (2026-10-14, ver docs/QA_REPORT.md)

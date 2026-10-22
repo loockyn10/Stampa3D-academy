@@ -114,11 +114,17 @@ export default function StampyPage() {
     const pending = pendingScrollRef.current;
     if (!container || !pending) return;
     pendingScrollRef.current = null;
+    // Suave solo en tramos cortos; saltos largos (o prefers-reduced-motion) son instantáneos y siempre llegan.
+    const reduceMotion = window.matchMedia?.("(prefers-reduced-motion: reduce)").matches === true;
+    const scrollToTop = (top: number) => {
+      const target = Math.max(0, Math.min(top, container.scrollHeight - container.clientHeight));
+      const far = Math.abs(target - container.scrollTop) > container.clientHeight;
+      container.scrollTo({ top: target, behavior: reduceMotion || far ? "auto" : "smooth" });
+    };
     if (pending === "lastUser" && lastUserMessageRef.current) {
-      const top = lastUserMessageRef.current.getBoundingClientRect().top - container.getBoundingClientRect().top + container.scrollTop - 12;
-      container.scrollTo({ top: Math.max(0, top), behavior: "smooth" });
+      scrollToTop(lastUserMessageRef.current.getBoundingClientRect().top - container.getBoundingClientRect().top + container.scrollTop - 12);
     } else if (stickToBottomRef.current || pending === "bottom") {
-      container.scrollTo({ top: container.scrollHeight, behavior: "smooth" });
+      scrollToTop(container.scrollHeight);
     }
   }, [messages, loading]);
 
@@ -212,7 +218,7 @@ export default function StampyPage() {
           </span>
           <p className="truncate text-sm font-bold">
             <span className="bg-gradient-to-r from-cyan-300 via-sky-300 to-violet-400 bg-clip-text text-transparent">Stampy</span>
-            <span className="ml-2 hidden text-xs font-medium text-gray-500 sm:inline">Asistente de Universo Stampa</span>
+            <span className="ml-2 hidden text-xs font-medium text-gray-400 sm:inline">Asistente de Universo Stampa</span>
           </p>
         </div>
         {(hasMessages || conversationId) && (
@@ -247,7 +253,7 @@ export default function StampyPage() {
             />
 
             {conversationResolved && conversationId && (
-              <p className="mt-3 text-center text-xs text-gray-500">
+              <p className="mt-3 text-center text-xs text-gray-400">
                 Seguís en tu conversación anterior: Stampy recuerda su contexto.{" "}
                 <button type="button" onClick={startNewConversation} className="font-semibold text-cyan-300 hover:underline">
                   Empezar de cero
@@ -272,7 +278,7 @@ export default function StampyPage() {
                     </span>
                     <span className="min-w-0">
                       <span className="block text-sm font-semibold text-gray-100">{card.title}</span>
-                      <span className="block truncate text-xs text-gray-500">{card.prompt}</span>
+                      <span className="block truncate text-xs text-gray-400">{card.prompt}</span>
                     </span>
                   </button>
                 );
@@ -280,7 +286,7 @@ export default function StampyPage() {
             </div>
 
             <div className="mt-4">
-              <p className="mb-2 text-center text-[11px] font-semibold uppercase tracking-wide text-gray-500">Acciones en tu taller</p>
+              <p className="mb-2 text-center text-[11px] font-semibold uppercase tracking-wide text-gray-400">Acciones en tu taller</p>
               <div className="flex flex-wrap justify-center gap-2">
                 {QUICK_SUGGESTIONS.map((suggestion) => (
                   <button
@@ -345,10 +351,10 @@ export default function StampyPage() {
                                       {rec.ai_level === "advanced" ? "Avanzado" : rec.ai_level === "intermediate" ? "Intermedio" : "Principiante"}
                                     </Badge>
                                   )}
-                                  <span className="truncate text-[10px] font-bold uppercase tracking-wider text-gray-500">{rec.course_modules?.courses?.title}</span>
+                                  <span className="truncate text-[10px] font-bold uppercase tracking-wider text-gray-400">{rec.course_modules?.courses?.title}</span>
                                 </div>
                                 <p className="text-sm font-semibold text-white transition-colors group-hover:text-stampa-orange">{rec.title}</p>
-                                {rec.ai_summary && <p className="mt-1 line-clamp-2 text-xs text-gray-500">{rec.ai_summary}</p>}
+                                {rec.ai_summary && <p className="mt-1 line-clamp-2 text-xs text-gray-400">{rec.ai_summary}</p>}
                               </div>
                               <Link
                                 href={courseHref}
@@ -404,7 +410,7 @@ export default function StampyPage() {
                       if (filteredTools.length === 0) return null;
                       return (
                         <div className="mt-4 border-t border-stampa-border pt-3">
-                          <p className="mb-2 text-[11px] font-bold uppercase tracking-wider text-gray-500">También te puede servir:</p>
+                          <p className="mb-2 text-[11px] font-bold uppercase tracking-wider text-gray-400">También te puede servir:</p>
                           <div className="flex flex-wrap gap-2">
                             {filteredTools.map((t: string) => {
                               const tool = TOOL_MAP[t];
@@ -463,7 +469,7 @@ export default function StampyPage() {
               loading={loading}
               variant="dock"
             />
-            <p className="mt-1.5 text-center text-[10px] text-gray-500">Stampy es un asistente virtual experimental. Revisá los datos importantes.</p>
+            <p className="mt-1.5 text-center text-[10px] text-gray-400">Stampy es un asistente virtual experimental. Revisá los datos importantes.</p>
           </div>
         </>
       )}
@@ -522,11 +528,11 @@ function StampyComposer({
         placeholder={variant === "hero" ? "Contale a Stampy qué necesitás…" : "Escribí tu mensaje…"}
         rows={variant === "hero" ? 3 : 1}
         autoFocus={variant === "hero"}
-        className="block w-full resize-none bg-transparent px-2 py-1.5 pr-12 text-[15px] leading-6 text-white placeholder:text-gray-500 focus:outline-none"
+        className="block w-full resize-none bg-transparent! border-transparent! shadow-none! focus:border-transparent! focus:shadow-none! px-2 py-1.5 pr-12 text-[15px] leading-6 text-white placeholder:text-gray-400 focus:outline-none"
         style={{ maxHeight }}
       />
       <div className="flex items-center justify-between gap-2 pl-2">
-        <p className="hidden text-[11px] text-gray-500 sm:block">Enter para enviar · Shift + Enter para nueva línea</p>
+        <p className="hidden text-[11px] text-gray-400 sm:block">Enter para enviar · Shift + Enter para nueva línea</p>
         <button
           type="submit"
           disabled={!canSend}

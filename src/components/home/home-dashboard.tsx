@@ -301,7 +301,7 @@ export function HomeDashboardView({ data }: { data: HomeData }) {
                     <Metric label="Productos" value={workshop.activeProducts} icon={Package} />
                   </div>
                   {workshop.outOfStockProducts > 0 || workshop.needsRecalculationProducts > 0 || workshop.emptySpools > 0 ? (
-                    <ul className="mt-3 space-y-1.5 text-xs">
+                    <ul className="mt-2 text-xs">
                       {workshop.outOfStockProducts > 0 && (
                         <AttentionLink href={WORKSHOP_ROUTES.inventoryOutOfStock} icon={PackageX} tone="red">
                           {workshop.outOfStockProducts} {workshop.outOfStockProducts === 1 ? "producto sin stock" : "productos sin stock"}
@@ -338,7 +338,7 @@ export function HomeDashboardView({ data }: { data: HomeData }) {
                     <Metric label="Facturación del mes" value={money.format(business.revenue)} icon={Store} />
                     <Metric label="Ventas del mes" value={business.salesCount} icon={Briefcase} />
                   </div>
-                  <p className="mt-3 text-xs text-gray-500">
+                  <p className="mt-3 text-xs text-gray-400">
                     Ticket promedio {money.format(business.averageTicket)}
                     {business.outstandingReceivables > 0 && <> · <Link href="/mi-negocio/clientes" className="text-yellow-300 hover:underline">saldo a cobrar {money.format(business.outstandingReceivables)}</Link></>}
                   </p>
@@ -394,7 +394,7 @@ function ContinueLearning({ section, learning }: { section: HomeData["learning"]
             // eslint-disable-next-line @next/next/no-img-element
             <img src={thumb} alt="" className="h-full w-full object-cover" />
           ) : (
-            <div className="flex h-full w-full items-center justify-center text-gray-500"><BookOpen size={28} aria-hidden="true" /></div>
+            <div className="flex h-full w-full items-center justify-center text-gray-400"><BookOpen size={28} aria-hidden="true" /></div>
           )}
         </div>
         <div className="min-w-0 flex-1">
@@ -448,7 +448,7 @@ function RaffleCard({ section }: { section: HomeData["raffle"] }) {
               // eslint-disable-next-line @next/next/no-img-element
               <img src={image} alt="" className="h-full w-full object-cover transition-transform duration-500 group-hover:scale-105" />
             ) : (
-              <div className="flex h-full w-full items-center justify-center text-gray-500"><Gift size={22} aria-hidden="true" /></div>
+              <div className="flex h-full w-full items-center justify-center text-gray-400"><Gift size={22} aria-hidden="true" /></div>
             )}
           </div>
           <div className="min-w-0">
@@ -501,7 +501,7 @@ function HomePanel({ title, icon: Icon, href, linkLabel, children }: { title: st
         <h2 className="flex items-center gap-2 text-sm font-bold text-white">
           <Icon size={16} className="text-stampa-orange" aria-hidden="true" /> {title}
         </h2>
-        <Link href={href} className="rounded-md text-xs font-semibold text-stampa-orange hover:text-orange-300 focus:outline-none focus-visible:ring-2 focus-visible:ring-stampa-orange">
+        <Link href={href} className="inline-flex min-h-8 items-center gap-1 rounded-md px-1 text-xs font-semibold text-stampa-orange hover:text-orange-300 focus:outline-none focus-visible:ring-2 focus-visible:ring-stampa-orange">
           {linkLabel} <span aria-hidden="true">→</span>
         </Link>
       </div>
@@ -513,7 +513,7 @@ function HomePanel({ title, icon: Icon, href, linkLabel, children }: { title: st
 function Metric({ label, value, icon: Icon }: { label: string; value: React.ReactNode; icon: LucideIcon }) {
   return (
     <div className="min-w-0 rounded-lg bg-white/[0.03] px-3 py-2">
-      <p className="flex items-center gap-1 truncate text-[11px] font-semibold text-gray-500">
+      <p className="flex items-center gap-1 truncate text-[11px] font-semibold text-gray-400">
         <Icon size={12} aria-hidden="true" /> {label}
       </p>
       <p className="mt-0.5 truncate text-lg font-bold tabular-nums text-white">{value}</p>
@@ -524,7 +524,7 @@ function Metric({ label, value, icon: Icon }: { label: string; value: React.Reac
 function AttentionLink({ href, icon: Icon, tone, children }: { href: string; icon: LucideIcon; tone: "red" | "yellow"; children: React.ReactNode }) {
   return (
     <li>
-      <Link href={href} className={`flex items-center gap-2 rounded-md py-0.5 font-semibold hover:underline ${tone === "red" ? "text-red-300" : "text-yellow-300"}`}>
+      <Link href={href} className={`flex min-h-8 items-center gap-2 rounded-md font-semibold hover:underline ${tone === "red" ? "text-red-300" : "text-yellow-300"}`}>
         <Icon size={13} aria-hidden="true" /> {children}
       </Link>
     </li>
@@ -543,7 +543,7 @@ function StartCta({ text, href, label }: { text: string; href: string; label: st
 }
 
 function SectionUnavailable() {
-  return <p className="text-sm text-gray-500">No pudimos cargar este resumen ahora.</p>;
+  return <p className="text-sm text-gray-400">No pudimos cargar este resumen ahora.</p>;
 }
 
 function MiniSkeleton() {

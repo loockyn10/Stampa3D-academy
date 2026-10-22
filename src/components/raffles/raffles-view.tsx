@@ -72,7 +72,7 @@ export function RafflesView({
               <div>
                 <h2 id="my-chances-title" className="text-xs font-bold uppercase tracking-wide text-gray-400">Tus chances</h2>
                 {eligible ? (
-                <p className="mt-0.5 text-[11px] text-gray-500">
+                <p className="mt-0.5 text-[11px] text-gray-400">
                     <span className="text-cyan-300/80">{baseChances} base</span>
                     <span className="mx-1.5 text-gray-600">·</span>
                     <span className="text-violet-300/80">{bonusEntries} {bonusEntries === 1 ? "extra acreditada" : "extra acreditadas"}</span>
@@ -94,7 +94,7 @@ export function RafflesView({
                   {referralLink ? (
                     <span className="truncate font-mono text-xs font-bold text-violet-300" title={referralLink}>{referralLink}</span>
                   ) : (
-                    <span className="truncate text-xs italic text-gray-500">Tu enlace se está preparando…</span>
+                    <span className="truncate text-xs italic text-gray-400">Tu enlace se está preparando…</span>
                   )}
                 </div>
                 <button
@@ -108,7 +108,7 @@ export function RafflesView({
                   {copyState === "copied" ? "Copiado" : "Copiar"}
                 </button>
               </div>
-              <p className="mt-1.5 min-h-4 text-[11px] text-gray-500" role="status">
+              <p className="mt-1.5 min-h-4 text-[11px] text-gray-400" role="status">
                 {copyState === "failed" ? "No pudimos copiar automáticamente: seleccioná el enlace y copialo." : ""}
               </p>
             </div>
@@ -172,7 +172,7 @@ export function RafflesView({
 
                   {activePrizes.length > 0 && (
                     <div className="border-t border-white/5 px-3 pb-3 pt-2.5 sm:px-4 sm:pb-4">
-                      <h4 className="mb-1.5 text-[10px] font-bold uppercase tracking-[0.14em] text-gray-500">
+                      <h4 className="mb-1.5 text-[10px] font-bold uppercase tracking-[0.14em] text-gray-400">
                         {activePrizes.length === 1 ? "Premio" : `${activePrizes.length} premios`}
                       </h4>
                       <ul className="space-y-1.5">
@@ -183,7 +183,7 @@ export function RafflesView({
                               alt=""
                               className="h-8 w-8 shrink-0 rounded-md border border-white/10 bg-white/[0.03] object-contain"
                               fallback={(
-                                <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-md border border-white/10 bg-white/[0.03] text-gray-500">
+                                <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-md border border-white/10 bg-white/[0.03] text-gray-400">
                                   <Gift size={14} aria-hidden="true" />
                                 </span>
                               )}
@@ -191,7 +191,7 @@ export function RafflesView({
                             <p className="min-w-0 flex-1 truncate text-sm font-semibold text-white">
                               <span className={`mr-1 ${PRIZE_POSITION_TONES[Math.min(idx, PRIZE_POSITION_TONES.length - 1)]}`}>{idx + 1}º</span>
                               {prize.name}
-                              {prize.description && <span className="ml-1.5 text-xs font-normal text-gray-500">{prize.description}</span>}
+                              {prize.description && <span className="ml-1.5 text-xs font-normal text-gray-400">{prize.description}</span>}
                             </p>
                           </li>
                         ))}
@@ -205,7 +205,7 @@ export function RafflesView({
         </section>
       ) : (
         <div className="flex flex-col items-center justify-center rounded-2xl border border-stampa-border bg-stampa-surface px-5 py-8 text-center">
-          <div className="mb-3 flex h-11 w-11 items-center justify-center rounded-xl border border-stampa-border bg-stampa-bg-soft text-gray-500">
+          <div className="mb-3 flex h-11 w-11 items-center justify-center rounded-xl border border-stampa-border bg-stampa-bg-soft text-gray-400">
             <Ticket size={20} />
           </div>
           <h2 className="text-base font-bold text-white">Todavía no hay sorteos activos.</h2>
@@ -227,14 +227,14 @@ export function RafflesView({
                   <h3 className="line-clamp-2 text-sm font-bold text-white">{raffle.title}</h3>
                   <StatusPill kind="finished" label="Finalizado" />
                 </div>
-                <p className="mt-0.5 text-[11px] text-gray-500">{raffle.date ? longDate.format(new Date(raffle.date)) : ""}</p>
+                <p className="mt-0.5 text-[11px] text-gray-400">{raffle.date ? longDate.format(new Date(raffle.date)) : ""}</p>
                 <ul className="mt-2.5 space-y-1.5">
                   {raffle.winners.map((winner) => (
                     <li key={winner.id} className="flex min-w-0 items-center gap-2 text-xs">
                       <Trophy size={13} className="shrink-0 text-stampa-orange" aria-hidden="true" />
                       <span className="min-w-0 truncate">
                         <strong className="text-gray-100">{winner.winner}</strong>
-                        <span className="text-gray-500"> · {winner.prize}</span>
+                        <span className="text-gray-400"> · {winner.prize}</span>
                       </span>
                     </li>
                   ))}

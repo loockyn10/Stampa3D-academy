@@ -882,6 +882,9 @@ export function StockPageContent({ workshopSection }: { workshopSection?: Worksh
           >
             <X size={13} aria-hidden="true" /> Ver todos
           </button>
+          {!products.some((p) => p.is_active !== false && (p.stock_quantity || 0) <= 0) && (
+            <p className="w-full text-sm text-emerald-300" role="status">No hay productos activos sin stock.</p>
+          )}
         </div>
       )}
 

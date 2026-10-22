@@ -71,7 +71,7 @@ export function StatCard({
       ) : (
         <p className={`mt-1 text-2xl font-bold tabular-nums leading-tight ${colors.value}`}>{value}</p>
       )}
-      {hint && <p className="mt-1 line-clamp-2 text-[11px] leading-snug text-gray-500">{hint}</p>}
+      {hint && <p className="mt-1 line-clamp-2 text-[11px] leading-snug text-gray-400">{hint}</p>}
     </>
   );
   const className =
@@ -109,7 +109,7 @@ export function Panel({
           <span className="truncate">{title}</span>
         </h2>
         {action && (
-          <Link href={action.href} className="shrink-0 rounded-md text-xs font-semibold text-stampa-orange hover:text-orange-300 focus:outline-none focus-visible:ring-2 focus-visible:ring-stampa-orange">
+          <Link href={action.href} className="inline-flex min-h-8 shrink-0 items-center gap-1 rounded-md px-1 text-xs font-semibold text-stampa-orange hover:text-orange-300 focus:outline-none focus-visible:ring-2 focus-visible:ring-stampa-orange">
             {action.label} <span aria-hidden="true">→</span>
           </Link>
         )}

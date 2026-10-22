@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useCallback, useEffect, useMemo, useState } from "react";
+import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import Link from "next/link";
 import {
   AlertTriangle,
@@ -99,9 +99,13 @@ export function BusinessDashboard() {
   const [sales, setSales] = useState<Loadable<BusinessSaleSummary[]>>({ status: "loading" });
   const [pending, setPending] = useState<Loadable<PendingOrdersSummary>>({ status: "loading" });
 
+  // Solo se aplica la respuesta del último período pedido (cambios rápidos Semana/Mes).
+  const metricsRequestRef = useRef(0);
   const loadMetrics = useCallback(async (selected: BusinessInventoryPeriod) => {
+    const requestId = ++metricsRequestRef.current;
     setMetrics({ status: "loading" });
     const result = await loadBusinessMetricsAction(selected);
+    if (requestId !== metricsRequestRef.current) return;
     setMetrics(result.success ? { status: "ready", data: result.metrics } : { status: "error", message: result.error });
   }, []);
 
@@ -274,7 +278,7 @@ export function BusinessDashboardView({
             {data.sales.status === "loading" ? (
               <RowsSkeleton rows={4} />
             ) : data.sales.status === "error" ? (
-              <p className="text-sm text-gray-500">No pudimos cargar las ventas.</p>
+              <p className="text-sm text-gray-400">No pudimos cargar las ventas.</p>
             ) : latestSales.length === 0 ? (
               <PanelEmpty action={{ href: "/mi-negocio/venta-rapida", label: "Registrar una venta" }}>Todavía no hay ventas registradas.</PanelEmpty>
             ) : (
@@ -286,19 +290,19 @@ export function BusinessDashboardView({
                   return (
                     <li key={sale.id} className="flex items-center gap-3 py-2.5 first:pt-0 last:pb-0">
                       <div className="min-w-0 flex-1">
-                        <p className={`truncate text-sm font-semibold ${voided ? "text-gray-500 line-through" : "text-white"}`}>
+                        <p className={`truncate text-sm font-semibold ${voided ? "text-gray-400 line-through" : "text-white"}`}>
                           #{sale.sale_number} · {firstItem ? `${firstItem}${more}` : "Venta"}
                         </p>
-                        <p className="truncate text-xs text-gray-500">
+                        <p className="truncate text-xs text-gray-400">
                           {shortDate.format(new Date(sale.created_at))}
                           {sale.client_name ? ` · ${sale.client_name}` : ""}
                           {sale.is_online_sale ? " · Online" : ""}
                         </p>
                       </div>
                       <div className="shrink-0 text-right">
-                        <p className={`text-sm font-bold tabular-nums ${voided ? "text-gray-500 line-through" : "text-white"}`}>{moneyPrecise.format(sale.total)}</p>
+                        <p className={`text-sm font-bold tabular-nums ${voided ? "text-gray-400 line-through" : "text-white"}`}>{moneyPrecise.format(sale.total)}</p>
                         {voided ? (
-                          <span className="text-[10px] font-bold uppercase text-gray-500">Anulada</span>
+                          <span className="text-[10px] font-bold uppercase text-gray-400">Anulada</span>
                         ) : sale.debtAmount > 0 ? (
                           <span className="text-[10px] font-bold uppercase text-yellow-300">A cuenta {money.format(sale.debtAmount)}</span>
                         ) : null}
@@ -326,7 +330,7 @@ export function BusinessDashboardView({
                       }`}
                     >
                       <p className={`text-sm font-semibold ${alert.tone === "red" ? "text-red-200" : alert.tone === "yellow" ? "text-yellow-200" : "text-white"}`}>{alert.title}</p>
-                      <p className="mt-0.5 text-xs leading-snug text-gray-500">{alert.description}</p>
+                      <p className="mt-0.5 text-xs leading-snug text-gray-400">{alert.description}</p>
                     </Link>
                   </li>
                 ))}
@@ -348,14 +352,14 @@ export function BusinessDashboardView({
             {metricsLoading ? (
               <RowsSkeleton rows={3} />
             ) : !metrics || metrics.topProducts.length === 0 ? (
-              <p className="text-sm text-gray-500">Sin ventas confirmadas {periodLabel}.</p>
+              <p className="text-sm text-gray-400">Sin ventas confirmadas {periodLabel}.</p>
             ) : (
               <ol className="space-y-2">
                 {metrics.topProducts.slice(0, 5).map((product, index) => (
                   <li key={product.catalogItemId} className="flex items-center gap-3">
                     <span className="flex h-6 w-6 shrink-0 items-center justify-center rounded-md bg-white/5 text-[11px] font-bold text-gray-400">{index + 1}</span>
                     <span className="min-w-0 flex-1 truncate text-sm text-gray-200">{product.name}</span>
-                    <span className="shrink-0 text-xs tabular-nums text-gray-500">{product.units} u.</span>
+                    <span className="shrink-0 text-xs tabular-nums text-gray-400">{product.units} u.</span>
                   </li>
                 ))}
               </ol>
@@ -378,7 +382,7 @@ function ToolsPanel({ className = "" }: { className?: string }) {
       <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
         {BUSINESS_TOOL_GROUPS.map((group) => (
           <div key={group.title} className="min-w-0">
-            <h3 className="mb-1.5 text-[11px] font-bold uppercase tracking-wide text-gray-500">{group.title}</h3>
+            <h3 className="mb-1.5 text-[11px] font-bold uppercase tracking-wide text-gray-400">{group.title}</h3>
             <ul className="space-y-1">
               {group.tools.map((tool) => {
                 const Icon = tool.icon;
@@ -390,7 +394,7 @@ function ToolsPanel({ className = "" }: { className?: string }) {
                       </span>
                       <span className="min-w-0">
                         <span className="block text-sm font-semibold text-white">{tool.title}</span>
-                        <span className="block truncate text-xs text-gray-500">{tool.description}</span>
+                        <span className="block truncate text-xs text-gray-400">{tool.description}</span>
                       </span>
                     </Link>
                   </li>
