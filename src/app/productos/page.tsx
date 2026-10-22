@@ -20,6 +20,7 @@ import {
 import { useAppFeedback } from "@/components/ui/app-feedback";
 import { calculateProductPrice } from "@/lib/products/pricing";
 import { getProductPricingStatus } from "@/lib/products/pricing-status";
+import { WORKSHOP_PRODUCTS_NEEDS_RECALCULATION } from "@/lib/workshop/routes";
 import { getFilamentDisplayName, getFilamentSearchText } from "@/lib/filaments/utils";
 import { usePublishStampyScreenContext } from "@/components/stampy/StampyContextProvider";
 import type { StampyScreenContext } from "@/lib/stampy/screen-context";
@@ -829,6 +830,12 @@ function ProductosPageContent() {
 
   if (loading) return <ProductsPageSkeleton />;
 
+  // Filtro de destino del Dashboard ("Costos desactualizados"); misma regla que el aviso "Requiere Recalcular".
+  const needsRecalculationOnly = searchParams.get("estado") === WORKSHOP_PRODUCTS_NEEDS_RECALCULATION;
+  const visibleProducts = needsRecalculationOnly
+    ? products.filter((product) => getProductPricingStatus(product, filaments, printers, productTypes).needsRecalculation)
+    : products;
+
   return (
     <div className="pb-24">
       <SectionTitle
@@ -851,6 +858,21 @@ function ProductosPageContent() {
           </div>
         }
       />
+
+      {needsRecalculationOnly && (
+        <div className="mb-4 flex flex-wrap items-center gap-2">
+          <span className="inline-flex items-center gap-2 rounded-full border border-yellow-500/30 bg-yellow-500/10 px-3 py-1 text-xs font-semibold text-yellow-200">
+            Mostrando {visibleProducts.length} {visibleProducts.length === 1 ? "producto que requiere" : "productos que requieren"} recalcular
+          </span>
+          <button
+            type="button"
+            onClick={() => router.replace("/mi-taller/productos", { scroll: false })}
+            className="inline-flex min-h-8 items-center gap-1 rounded-full px-2 text-xs font-semibold text-gray-400 hover:bg-white/5 hover:text-white"
+          >
+            <X size={13} aria-hidden="true" /> Ver todos
+          </button>
+        </div>
+      )}
 
       {error && (
         <div className="mb-6 bg-red-50 border border-red-100 p-4 rounded-lg flex items-center gap-2 text-sm text-red-600">
@@ -1184,7 +1206,7 @@ function ProductosPageContent() {
       )}
 
       <div className="grid grid-cols-1 gap-5 sm:grid-cols-2 lg:grid-cols-3">
-        {products.map((p) => {
+        {visibleProducts.map((p) => {
           const filament = p.filaments;
           const profit = (p.sale_price || 0) - (p.base_cost || 0);
           const marginPct = p.sale_price > 0 ? ((profit / p.sale_price) * 100) : 0;

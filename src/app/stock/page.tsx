@@ -4,6 +4,7 @@ import React, { useState, useEffect, useMemo, useRef, Suspense } from "react";
 import dynamic from "next/dynamic";
 import Link from "next/link";
 import { useSearchParams, useRouter } from "next/navigation";
+import { WORKSHOP_INVENTORY_OUT_OF_STOCK, WORKSHOP_REGISTER_PRODUCTION_ACTION } from "@/lib/workshop/routes";
 import { AlertTriangle, Plus, Minus, Loader2, Package, Box, History, X, Edit2, Search, ChevronDown, ChevronUp } from "lucide-react";
 import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -251,6 +252,18 @@ export function StockPageContent({ workshopSection }: { workshopSection?: Worksh
   useEffect(() => {
     fetchData();
   }, []);
+
+  // Dashboard de Mi Taller → "Registrar movimiento": abre el flujo existente de Registrar producción.
+  useEffect(() => {
+    if (loading || workshopSection !== "inventory") return;
+    if (searchParams.get("action") !== WORKSHOP_REGISTER_PRODUCTION_ACTION) return;
+    setConsumeAddStock(true);
+    setConsumeModalOpen(true);
+    router.replace("/mi-taller/inventario", { scroll: false });
+  }, [loading, workshopSection, searchParams, router]);
+
+  // Filtro de destino del Dashboard ("Productos sin stock"): vive en la URL para poder compartirlo y limpiarlo.
+  const outOfStockOnly = workshopSection === "inventory" && searchParams.get("estado") === WORKSHOP_INVENTORY_OUT_OF_STOCK;
 
   const fetchData = async () => {
     setLoading(true);
@@ -855,6 +868,21 @@ export function StockPageContent({ workshopSection }: { workshopSection?: Worksh
         </p>
       )}
 
+      {outOfStockOnly && (
+        <div className="mb-4 flex flex-wrap items-center gap-2 text-sm text-gray-300">
+          <span className="inline-flex items-center gap-2 rounded-full border border-red-500/30 bg-red-500/10 px-3 py-1 text-xs font-semibold text-red-200">
+            Mostrando productos activos sin stock
+          </span>
+          <button
+            type="button"
+            onClick={() => router.replace("/mi-taller/inventario", { scroll: false })}
+            className="inline-flex min-h-8 items-center gap-1 rounded-full px-2 text-xs font-semibold text-gray-400 hover:bg-white/5 hover:text-white"
+          >
+            <X size={13} aria-hidden="true" /> Ver todos
+          </button>
+        </div>
+      )}
+
       {error && (
         <div className="mb-6 bg-red-50 border border-red-100 p-4 rounded-lg text-sm text-red-600">
           {error}
@@ -1150,6 +1178,7 @@ export function StockPageContent({ workshopSection }: { workshopSection?: Worksh
             </thead>
             <tbody className="divide-y divide-gray-100">
               {tab === "productos" && products.filter(p => {
+                if (outOfStockOnly && (p.is_active === false || (p.stock_quantity || 0) > 0)) return false;
                 if (!searchProduct) return true;
                 const term = searchProduct.toLowerCase();
                 const pComps = productComponents.filter(c => c.product_id === p.id && c.is_active);

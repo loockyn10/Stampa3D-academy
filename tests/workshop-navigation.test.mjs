@@ -6,17 +6,22 @@ import test from "node:test";
 const root = process.cwd();
 const read = (file) => fs.readFileSync(path.join(root, file), "utf8");
 
-test("Mi Taller exposes four canonical, URL-backed sections", () => {
+test("Mi Taller exposes a dashboard plus four canonical, URL-backed sections", () => {
   for (const section of ["impresoras", "filamentos", "productos", "inventario"]) {
     assert.equal(fs.existsSync(path.join(root, `src/app/mi-taller/${section}/page.tsx`)), true);
   }
 
+  const routes = read("src/lib/workshop/routes.ts");
+  assert.match(routes, /\/mi-taller\/impresoras/);
+  assert.match(routes, /\/mi-taller\/filamentos/);
+  assert.match(routes, /\/mi-taller\/productos/);
+  assert.match(routes, /\/mi-taller\/inventario/);
   const navigation = read("src/components/workshop/workshop-navigation.tsx");
-  assert.match(navigation, /\/mi-taller\/impresoras/);
-  assert.match(navigation, /\/mi-taller\/filamentos/);
-  assert.match(navigation, /\/mi-taller\/productos/);
-  assert.match(navigation, /\/mi-taller\/inventario/);
+  assert.match(navigation, /WORKSHOP_SECTIONS\.map/);
   assert.match(navigation, /overflow-x-auto/);
+  const page = read("src/app/mi-taller/page.tsx");
+  assert.doesNotMatch(page, /redirect\(/, "/mi-taller muestra el Dashboard, no redirige");
+  assert.match(page, /<WorkshopDashboard \/>/);
 });
 
 test("desktop and mobile navigation use one Mi Taller entry", () => {

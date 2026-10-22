@@ -52,6 +52,14 @@ export function getStaticStampyPageContext(pathname: string): StampyStaticPageCo
     },
     {
       pattern: "/mi-taller",
+      match: "exact",
+      title: "Mi Taller · Resumen",
+      context:
+        "El usuario está en el resumen de Mi Taller: productos activos, unidades terminadas, productos sin stock, costos que requieren recalcular y estado de sus bobinas. Son lecturas; registrar producción o ajustar stock se hace en Inventario.",
+      suggestedQuestions: ["¿Qué productos tengo agotados?", "¿Qué costos tengo que recalcular?", "¿Cuánto material me queda?"],
+    },
+    {
+      pattern: "/mi-taller",
       match: "prefix",
       title: "Mi Taller",
       context:

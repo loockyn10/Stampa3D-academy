@@ -1,5 +1,5 @@
-import { redirect } from "next/navigation";
+import { WorkshopDashboard } from "@/components/workshop/workshop-dashboard";
 
 export default function WorkshopPage() {
-  redirect("/mi-taller/impresoras");
+  return <WorkshopDashboard />;
 }
