@@ -17,6 +17,8 @@ export interface RafflesViewProps {
   finishedRaffles: FinishedRaffle[];
   baseChances: number;
   bonusEntries: number;
+  /** false = sin acceso vigente a la plataforma (no participa). */
+  eligible?: boolean;
   referralLink: string | null;
   copyState: "idle" | "copied" | "failed";
   onCopy: () => void;
@@ -31,6 +33,7 @@ export function RafflesView({
   finishedRaffles,
   baseChances,
   bonusEntries,
+  eligible = true,
   referralLink,
   copyState,
   onCopy,
@@ -53,7 +56,7 @@ export function RafflesView({
               <h1 className="text-2xl font-black tracking-tight text-white sm:text-3xl">Sorteos</h1>
             </div>
             <p className="mt-2 max-w-xl text-sm text-gray-400">
-              Participá de los sorteos de Stampa con tu cuenta y sumá chances invitando amigos.
+              Participá de los sorteos de Stampa con tu cuenta e invitá amigos con tu enlace.
             </p>
             <button
               type="button"
@@ -68,11 +71,15 @@ export function RafflesView({
             <div className="flex items-center justify-between gap-3">
               <div>
                 <h2 id="my-chances-title" className="text-xs font-bold uppercase tracking-wide text-gray-400">Tus chances</h2>
+                {eligible ? (
                 <p className="mt-0.5 text-[11px] text-gray-500">
-                  <span className="text-cyan-300/80">{baseChances} base</span>
-                  <span className="mx-1.5 text-gray-600">·</span>
-                  <span className="text-violet-300/80">{bonusEntries} por invitaciones</span>
-                </p>
+                    <span className="text-cyan-300/80">{baseChances} base</span>
+                    <span className="mx-1.5 text-gray-600">·</span>
+                    <span className="text-violet-300/80">{bonusEntries} {bonusEntries === 1 ? "extra acreditada" : "extra acreditadas"}</span>
+                  </p>
+                ) : (
+                  <p className="mt-0.5 text-[11px] text-yellow-200/80">Necesitás acceso activo a la plataforma para participar.</p>
+                )}
               </div>
               <p className="bg-gradient-to-br from-cyan-300 to-violet-400 bg-clip-text text-4xl font-black tabular-nums text-transparent" aria-label={`${totalChances} chances`}>
                 {totalChances}
@@ -273,11 +280,11 @@ function RafflesHelpDialog({ open, onClose, baseChances }: { open: boolean; onCl
     },
     {
       title: "¿Cómo funcionan las invitaciones?",
-      text: "Compartí tu enlace personal. Cuando alguien crea su cuenta con ese enlace, la invitación queda registrada a tu nombre como pendiente.",
+      text: "Compartí tu enlace personal. Cuando alguien crea su cuenta con ese enlace, la invitación queda registrada a tu nombre. Registrar una invitación no suma chances automáticamente.",
     },
     {
       title: "¿Qué son las chances adicionales?",
-      text: "Son participaciones extra que se acreditan a tu cuenta, por ejemplo por invitaciones confirmadas. Se suman a tu base y las ves en \"Tus chances\" apenas se acreditan.",
+      text: "Son participaciones extra acreditadas a tu cuenta. Se suman a tu base y las ves en \"Tus chances\" apenas se acreditan.",
     },
     {
       title: "¿Cómo se usan en los sorteos?",

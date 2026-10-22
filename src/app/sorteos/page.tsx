@@ -9,7 +9,8 @@ import {
   type PublicRaffle,
 } from "@/lib/raffles/public-raffles";
 import { resolveRaffleImageUrl } from "@/lib/raffles/images";
-import { getBaseRaffleChances } from "@/lib/raffles/participants";
+import { getUserRaffleChances, sumActiveBonusEntries } from "@/lib/raffles/participants";
+import { getCurrentUserAccess } from "@/lib/auth/user-access";
 import { getRaffleTimeStatus, groupWinnersByRaffle, type RaffleWinnerRow } from "@/lib/raffles/status";
 import { RafflesPageSkeleton } from "@/components/ui/page-skeletons";
 import { usePublishStampyScreenContext } from "@/components/stampy/StampyContextProvider";
@@ -20,6 +21,7 @@ export default function SorteosPage() {
   const [activeRaffles, setActiveRaffles] = useState<PublicRaffle[]>([]);
   const [pastWinners, setPastWinners] = useState<RaffleWinnerRow[]>([]);
   const [memberLevel, setMemberLevel] = useState<string>("member");
+  const [hasPlatformAccess, setHasPlatformAccess] = useState(true);
   const [referralCode, setReferralCode] = useState<string | null>(null);
   const [bonusEntries, setBonusEntries] = useState<number>(0);
   const [copyState, setCopyState] = useState<"idle" | "copied" | "failed">("idle");
@@ -39,7 +41,8 @@ export default function SorteosPage() {
         return;
       }
 
-      const [profileResult, bonusResult, rafflesResult, winnersResult] = await Promise.all([
+      const [{ access }, profileResult, bonusResult, rafflesResult, winnersResult] = await Promise.all([
+        getCurrentUserAccess(supabase),
         supabase
           .from("profiles")
           .select("member_level, referral_code, display_name, full_name, email")
@@ -58,6 +61,8 @@ export default function SorteosPage() {
       ]);
 
       if (!active) return;
+      // Misma elegibilidad que el registro de ganadores: acceso vigente a la plataforma.
+      setHasPlatformAccess(access.capabilities.accessPlatform);
       const profile = profileResult.data;
       if (profile) {
         setMemberLevel(profile.member_level || "member");
@@ -67,7 +72,7 @@ export default function SorteosPage() {
       }
 
       if (bonusResult.data && !bonusResult.error) {
-        setBonusEntries(bonusResult.data.reduce((sum, row) => sum + (row.entries_count || 0), 0));
+        setBonusEntries(sumActiveBonusEntries(bonusResult.data));
       }
       if (rafflesResult.error) {
         console.error(rafflesResult.error);
@@ -93,8 +98,9 @@ export default function SorteosPage() {
   // referralCode solo existe después de cargar en el cliente: no hay desajuste de hidratación.
   const referralLink = referralCode && typeof window !== "undefined" ? `${window.location.origin}/registro?ref=${referralCode}` : null;
 
-  const baseChances = getBaseRaffleChances(memberLevel);
-  const totalChances = baseChances + bonusEntries;
+  const chances = getUserRaffleChances({ hasPlatformAccess, memberLevel, bonusEntries });
+  const baseChances = chances?.base ?? 0;
+  const totalChances = chances?.total ?? 0;
   const finishedRaffles = useMemo(() => groupWinnersByRaffle(pastWinners), [pastWinners]);
 
   const stampyScreenContext = useMemo<StampyScreenContext>(() => ({
@@ -118,7 +124,7 @@ export default function SorteosPage() {
       facts: [
         { label: "Sorteos activos visibles", value: activeRaffles.length },
         { label: "Chances base visibles", value: baseChances },
-        { label: "Chances por referidos visibles", value: bonusEntries },
+        { label: "Chances extra acreditadas visibles", value: bonusEntries },
         { label: "Chances totales visibles", value: totalChances },
         { label: "Sorteos anteriores visibles", value: finishedRaffles.length },
         { label: "Código de referido disponible en pantalla", value: Boolean(referralCode) },
@@ -149,7 +155,8 @@ export default function SorteosPage() {
       activeRaffles={activeRaffles}
       finishedRaffles={finishedRaffles}
       baseChances={baseChances}
-      bonusEntries={bonusEntries}
+      bonusEntries={chances?.bonus ?? 0}
+      eligible={chances !== null}
       referralLink={referralLink}
       copyState={copyState}
       onCopy={() => void copyLink()}

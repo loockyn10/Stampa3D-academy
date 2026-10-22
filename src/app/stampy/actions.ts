@@ -1622,18 +1622,20 @@ Usá estos datos para adaptar la respuesta (nivel técnico, impresora, slicer) s
 
       if (rafflesContext) {
         turnContext.push(`Contexto real de sorteos del usuario:
+- Participa de los sorteos: ${rafflesContext.eligible ? 'Sí (tiene acceso vigente a la plataforma)' : 'No (sin acceso vigente a la plataforma)'}
 - Código de referido: ${rafflesContext.referralCode || 'No tiene'}
 - Participaciones base: ${rafflesContext.baseEntries}
-- Participaciones extra: ${rafflesContext.bonusEntries}
+- Participaciones extra acreditadas: ${rafflesContext.bonusEntries}
 - Participaciones totales: ${rafflesContext.totalEntries}
-- Referidos pendientes: ${rafflesContext.pendingReferrals}
-- Referidos convertidos: ${rafflesContext.convertedReferrals}
+- Invitaciones pendientes: ${rafflesContext.pendingReferrals}
+- Invitaciones convertidas: ${rafflesContext.convertedReferrals}
 - Sorteo activo: ${rafflesContext.activeRaffle?.title || 'Ninguno'}
 
 Reglas:
 - Usá estos datos solo si el usuario pregunta por sorteos, chances, participaciones o referidos.
 - No recites todos los números si no hace falta.
-- Si pregunta cómo sumar chances, mencioná su código de referido.
+- Chances base: 1 para todos los miembros con acceso, 2 para nivel Gold o Elite. Las participaciones extra son las ya acreditadas a su cuenta.
+- Las invitaciones con su enlace quedan registradas como pendientes, pero no suman chances automáticamente: no prometas chances por invitar ni por suscripciones de referidos.
 - No prometas premios ni resultados.
 - No digas que ganó si no hay dato real.`);
       }

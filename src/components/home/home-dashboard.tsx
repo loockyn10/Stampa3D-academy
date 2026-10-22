@@ -462,7 +462,7 @@ function RaffleCard({ section }: { section: HomeData["raffle"] }) {
           </div>
         </Link>
       ) : (
-        <p className="text-sm text-gray-400">{section.status === "error" ? "No pudimos cargar los sorteos." : "No hay sorteos próximos por ahora. Invitá amigos para sumar chances en los próximos."}</p>
+        <p className="text-sm text-gray-400">{section.status === "error" ? "No pudimos cargar los sorteos." : "No hay sorteos próximos por ahora."}</p>
       )}
     </HomePanel>
   );

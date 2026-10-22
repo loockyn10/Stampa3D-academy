@@ -1,8 +1,13 @@
 import { createClient } from "@/utils/supabase/server";
+import { getCurrentUserAccess } from "@/lib/auth/user-access";
+import { getUserRaffleChances, sumActiveBonusEntries } from "@/lib/raffles/participants";
+import { getVisibleRaffles } from "@/lib/raffles/public-raffles";
 
 export type StampyRafflesContext = {
   referralCode?: string;
   referralLink?: string;
+  /** false = sin acceso vigente a la plataforma: no participa (mismo criterio que el registro de ganadores). */
+  eligible: boolean;
   baseEntries: number;
   bonusEntries: number;
   totalEntries: number;
@@ -14,86 +19,55 @@ export type StampyRafflesContext = {
   };
 };
 
+/**
+ * Contexto de sorteos para Stampy. Usa la misma interpretación de chances que la página de Sorteos
+ * y el registro de ganadores (`getUserRaffleChances`): acceso a la plataforma + nivel + extras acreditadas.
+ * Las invitaciones se leen con la columna real `referrals.referrer_user_id`.
+ */
 export async function getStampyRafflesContext(userId: string): Promise<StampyRafflesContext | null> {
   try {
     const supabase = await createClient();
+    const [{ access }, profileResult, bonusResult, referralsResult, rafflesResult] = await Promise.all([
+      getCurrentUserAccess(supabase),
+      supabase.from("profiles").select("referral_code").eq("id", userId).single(),
+      supabase.from("user_raffle_bonus_entries").select("entries_count").eq("user_id", userId).eq("is_active", true),
+      supabase.from("referrals").select("status").eq("referrer_user_id", userId),
+      getVisibleRaffles(supabase),
+    ]);
 
-    // 1. Profile
-    const { data: profile, error: profileError } = await supabase
-      .from("profiles")
-      .select("referral_code, membership_status, member_level")
-      .eq("id", userId)
-      .single();
-
-    if (profileError || !profile) {
-      console.error("[Stampy] raffles context profile error", profileError);
+    if (profileResult.error || !profileResult.data || access.userId !== userId) {
+      console.error("[Stampy] raffles context profile error", profileResult.error);
       return null;
     }
 
-    // 2. Bonus entries
-    const { data: bonusData } = await supabase
-      .from("user_raffle_bonus_entries")
-      .select("entries_count")
-      .eq("user_id", userId)
-      .eq("is_active", true);
+    const chances = getUserRaffleChances({
+      hasPlatformAccess: access.capabilities.accessPlatform,
+      memberLevel: access.identity.memberLevel,
+      bonusEntries: bonusResult.error ? 0 : sumActiveBonusEntries(bonusResult.data),
+    });
 
-    let bonusEntries = 0;
-    if (bonusData) {
-      bonusEntries = bonusData.reduce((acc, curr) => acc + (curr.entries_count || 0), 0);
-    }
+    const referrals = referralsResult.error ? [] : referralsResult.data ?? [];
+    const now = Date.now();
+    const activeRaffle = rafflesResult.error
+      ? undefined
+      : rafflesResult.data.find((raffle) => !raffle.draw_date || Date.parse(raffle.draw_date) >= now) ?? rafflesResult.data[0];
 
-    // 3. Base entries
-    let baseEntries = 0;
-    if (profile.membership_status === "active") {
-      baseEntries = (profile.member_level === "gold" || profile.member_level === "elite") ? 2 : 1;
-    }
-
-    // 4. Total
-    const totalEntries = baseEntries + bonusEntries;
-
-    // 5. Referrals
-    const { data: referrals } = await supabase
-      .from("referrals")
-      .select("status")
-      .eq("referrer_id", userId);
-
-    let pendingReferrals = 0;
-    let convertedReferrals = 0;
-
-    if (referrals) {
-      pendingReferrals = referrals.filter(r => r.status === "pending").length;
-      convertedReferrals = referrals.filter(r => r.status === "converted" || r.status === "rewarded").length;
-    }
-
-    // 6. Sorteo activo
-    const { data: activeRaffle } = await supabase
-      .from("raffles")
-      .select("title, description, draw_date, is_active")
-      .eq("is_active", true)
-      .order("draw_date", { ascending: true })
-      .limit(1)
-      .single();
-
-    let referralLink = undefined;
-    if (profile.referral_code) {
-      const baseUrl = process.env.NEXT_PUBLIC_APP_URL || "https://academiastampa.com";
-      referralLink = `${baseUrl}/registro?ref=${profile.referral_code}`;
-    }
+    const referralCode = profileResult.data.referral_code || undefined;
+    const baseUrl = process.env.NEXT_PUBLIC_APP_URL || "https://academiastampa.com";
 
     return {
-      referralCode: profile.referral_code || undefined,
-      referralLink,
-      baseEntries,
-      bonusEntries,
-      totalEntries,
-      pendingReferrals,
-      convertedReferrals,
-      activeRaffle: activeRaffle ? {
-        title: activeRaffle.title,
-        drawDate: activeRaffle.draw_date
-      } : undefined
+      referralCode,
+      referralLink: referralCode ? `${baseUrl}/registro?ref=${referralCode}` : undefined,
+      eligible: chances !== null,
+      baseEntries: chances?.base ?? 0,
+      bonusEntries: chances?.bonus ?? 0,
+      totalEntries: chances?.total ?? 0,
+      pendingReferrals: referrals.filter((referral) => referral.status === "pending").length,
+      convertedReferrals: referrals.filter((referral) => referral.status === "converted" || referral.status === "rewarded").length,
+      activeRaffle: activeRaffle
+        ? { title: activeRaffle.title, drawDate: activeRaffle.draw_date ?? undefined }
+        : undefined,
     };
-
   } catch (error) {
     console.error("[Stampy] raffles context failed", error);
     return null;

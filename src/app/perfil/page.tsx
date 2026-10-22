@@ -263,7 +263,7 @@ function PerfilContent() {
                   </div>
 
                   <p className="mt-3 text-xs leading-relaxed text-gray-500">
-                    Cada suscripción con tu código suma una participación extra en sorteos.
+                    Quien se registra con tu enlace queda vinculado como invitación. Las participaciones extra en sorteos se ven en Sorteos cuando se acreditan a tu cuenta.
                   </p>
 
                   {(referralStats.pending > 0 || referralStats.converted > 0) && (

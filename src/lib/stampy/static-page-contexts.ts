@@ -94,11 +94,11 @@ export function getStaticStampyPageContext(pathname: string): StampyStaticPageCo
       match: "exact",
       title: "Sorteos",
       context:
-        "El usuario está en la sección de sorteos. Ayudalo a entender participaciones, código de referido y beneficios por invitar amigos. No des instrucciones largas.",
+        "El usuario está en la sección de sorteos. Ayudalo a entender sus participaciones (base según su nivel más las extra ya acreditadas) y su enlace de invitación. Las invitaciones quedan registradas pero no suman chances automáticamente: no prometas beneficios por invitar. No des instrucciones largas.",
       suggestedQuestions: [
         "¿Cómo sumo participaciones?",
         "¿Dónde comparto mi código?",
-        "¿Qué pasa si alguien se suscribe con mi referido?"
+        "¿Qué pasa cuando alguien se registra con mi enlace?"
       ]
     },
     {

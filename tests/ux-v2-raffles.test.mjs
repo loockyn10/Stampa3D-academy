@@ -29,8 +29,7 @@ test("chance base: una sola regla compartida por la página y el registro de gan
   assert.equal(participants.getBaseRaffleChances("elite"), 2);
   assert.equal(participants.getBaseRaffleChances("member"), 1);
   assert.equal(participants.getBaseRaffleChances(null), 1);
-  assert.match(read("src/lib/raffles/participants.ts"), /const baseChances = getBaseRaffleChances\(input\.profile\.member_level\)/);
-  assert.match(read("src/app/sorteos/page.tsx"), /getBaseRaffleChances\(memberLevel\)/);
+  assert.match(read("src/lib/raffles/participants.ts"), /const base = getBaseRaffleChances\(input\.memberLevel\)/);
 });
 
 test("Sorteos V2: panel de chances con enlace y copiar, modal de reglas y tarjetas compactas", () => {
@@ -45,4 +44,45 @@ test("Sorteos V2: panel de chances con enlace y copiar, modal de reglas y tarjet
   assert.doesNotMatch(view, /\bh-40\b|sm:h-44/, "sin imágenes de alto fijo grande");
   assert.match(view, /aspect-\[4\/3\] w-28/);
   assert.doesNotMatch(read("src/app/sorteos/page.tsx"), /raffle_winners"\)\.(insert|update|delete)|\.rpc\(/, "no toca ganadores ni chances");
+});
+
+test("chances: una sola interpretación (acceso + base por nivel + extras acreditadas)", () => {
+  assert.equal(participants.getUserRaffleChances({ hasPlatformAccess: false, memberLevel: "gold", bonusEntries: 5 }), null);
+  assert.deepEqual(participants.getUserRaffleChances({ hasPlatformAccess: true, memberLevel: "gold", bonusEntries: 3 }), { base: 2, bonus: 3, xp: 0, total: 5 });
+  assert.deepEqual(participants.getUserRaffleChances({ hasPlatformAccess: true, memberLevel: null, bonusEntries: -2 }), { base: 1, bonus: 0, xp: 0, total: 1 });
+  assert.equal(participants.sumActiveBonusEntries([{ entries_count: 2 }, { entries_count: "1" }, { entries_count: null }, { entries_count: -4 }]), 3);
+  // Beta (grant activo) participa igual que Paid: misma regla que el registro de ganadores.
+  const beta = participants.getRaffleParticipantChances({
+    profile: { role: null, membership_status: null, membership_expires_at: null, onboarding_completed: true, member_level: null },
+    grants: [{ grantType: "beta_tester", status: "active", expiresAt: null }],
+    bonusEntries: 1,
+  });
+  assert.equal(beta, 2);
+});
+
+test("página de Sorteos, registro de ganadores y Stampy usan el mismo cálculo", () => {
+  assert.match(read("src/app/sorteos/page.tsx"), /getUserRaffleChances\(\{ hasPlatformAccess, memberLevel, bonusEntries \}\)/);
+  assert.match(read("src/lib/raffles/participants.ts"), /return getUserRaffleChances\(\{/);
+  const stampy = read("src/lib/stampy/tool-contexts/raffles-context.ts");
+  assert.match(stampy, /getUserRaffleChances\(\{/);
+  assert.match(stampy, /hasPlatformAccess: access\.capabilities\.accessPlatform/);
+  assert.doesNotMatch(stampy, /membership_status === "active"/, "la base ya no depende solo de la membresía");
+  assert.match(stampy, /\.eq\("referrer_user_id", userId\)/, "columna real escrita por /auth/callback");
+  assert.doesNotMatch(stampy, /referrer_id"/);
+  assert.match(read("src/app/auth/callback/route.ts"), /referrer_user_id: referrerProfile\.id/);
+});
+
+test("la UI no promete chances por invitaciones (la acreditación no está implementada en el repo)", () => {
+  const sources = {
+    view: read("src/components/raffles/raffles-view.tsx"),
+    perfil: read("src/app/perfil/page.tsx"),
+    home: read("src/components/home/home-dashboard.tsx"),
+    stampyStatic: read("src/lib/stampy/static-page-contexts.ts"),
+    stampyAction: read("src/app/stampy/actions.ts"),
+  };
+  for (const [name, source] of Object.entries(sources)) {
+    assert.doesNotMatch(source, /suma una participación extra|sumá chances invitando|para sumar chances|código de referido y beneficios por invitar|se suscribe con mi referido|por invitaciones confirmadas|mencioná su código de referido/, name);
+  }
+  assert.match(sources.view, /Registrar una invitación no suma chances automáticamente/);
+  assert.match(sources.stampyAction, /no suman chances automáticamente: no prometas chances por invitar/);
 });
