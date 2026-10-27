@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { createClient as createAdminClient } from "@supabase/supabase-js";
 import { createClient } from "@/utils/supabase/server";
+import { featureGuardResponse } from "@/lib/features/server";
 
 const UUID_PATTERN = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
 
@@ -14,6 +15,8 @@ export async function PUT(request: Request) {
   const supabase = await createClient();
   const { data: { user } } = await supabase.auth.getUser();
   if (!user) return NextResponse.json({ error: "Necesitás iniciar sesión." }, { status: 401 });
+  const featureBlocked = await featureGuardResponse(supabase, "calculadora");
+  if (featureBlocked) return featureBlocked;
 
   let body: PreferenceBody;
   try {

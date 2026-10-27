@@ -2,6 +2,7 @@ import assert from "node:assert/strict";
 import fs from "node:fs";
 import path from "node:path";
 import test from "node:test";
+import { featureServerDeps, stampyFeatureGateDeps } from "./helpers/feature-flag-deps.mjs";
 import ts from "typescript";
 
 const root = process.cwd();
@@ -139,6 +140,8 @@ function loadAutomationHarness({
   };
 
   const actions = loadTypeScriptModule("src/app/stampy/actions.ts", {
+    ...stampyFeatureGateDeps(),
+    ...featureServerDeps(),
     "@/utils/supabase/server": { createClient: async () => supabase },
     "@/lib/auth/user-access": {
       getCurrentUserAccess: async () => ({

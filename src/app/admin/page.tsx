@@ -1,6 +1,6 @@
 import React from 'react'
 import Link from 'next/link'
-import { Users, Settings, ShieldAlert, GraduationCap, Boxes, Gift, Trophy, MonitorSmartphone, DollarSign, Map, Calculator, Tag, Bot, FileText, BookOpen } from 'lucide-react'
+import { ToggleRight, Users, Settings, ShieldAlert, GraduationCap, Boxes, Gift, Trophy, MonitorSmartphone, DollarSign, Map, Calculator, Tag, Bot, FileText, BookOpen } from 'lucide-react'
 import { SectionTitle } from "@/components/ui/section-title";
 
 export default function AdminDashboardPage() {
@@ -12,6 +12,21 @@ export default function AdminDashboardPage() {
       </p>
 
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5">
+        <Link href="/admin/funcionalidades" className="block group">
+          <div className="bg-stampa-surface p-6 rounded-2xl border border-stampa-orange/30 shadow-lg shadow-black/20 hover:border-stampa-orange/60 transition-all h-full relative overflow-hidden">
+            <div className="absolute top-0 right-0 w-24 h-24 bg-stampa-orange/10 rounded-full blur-2xl group-hover:bg-stampa-orange/20 transition-colors -translate-y-1/2 translate-x-1/2"></div>
+            <div className="flex items-center gap-4 mb-4 relative z-10">
+              <div className="p-3 bg-stampa-bg-soft border border-stampa-border text-stampa-orange rounded-xl shadow-inner">
+                <ToggleRight size={24} />
+              </div>
+              <h2 className="text-lg font-bold text-white group-hover:text-orange-400 transition-colors">Gestión de funcionalidades</h2>
+            </div>
+            <p className="text-sm text-gray-400 font-medium relative z-10">
+              Activá o desactivá herramientas para los usuarios y lanzá Universo Stampa de forma progresiva.
+            </p>
+          </div>
+        </Link>
+
         <Link href="/admin/usuarios" className="block group">
           <div className="bg-stampa-surface p-6 rounded-2xl border border-stampa-border shadow-lg shadow-black/20 hover:border-stampa-orange/30 transition-all h-full relative overflow-hidden">
             <div className="absolute top-0 right-0 w-24 h-24 bg-blue-500/5 rounded-full blur-2xl group-hover:bg-blue-500/10 transition-colors -translate-y-1/2 translate-x-1/2"></div>

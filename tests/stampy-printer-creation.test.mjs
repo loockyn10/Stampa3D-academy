@@ -2,6 +2,7 @@ import assert from "node:assert/strict";
 import fs from "node:fs";
 import path from "node:path";
 import test from "node:test";
+import { featureServerDeps, stampyFeatureGateDeps } from "./helpers/feature-flag-deps.mjs";
 import ts from "typescript";
 
 const root = process.cwd();
@@ -230,6 +231,8 @@ test("the printer Server Action authenticates and sends only the action request 
   const calls = [];
   const supabase = {};
   const actionRequests = loadTypeScriptModule("src/lib/stampy/action-requests.ts", {
+    ...stampyFeatureGateDeps(),
+    ...featureServerDeps(),
     "@/utils/supabase/server": { createClient: async () => supabase },
     "@/lib/auth/user-access": {
       getCurrentUserAccess: async () => ({

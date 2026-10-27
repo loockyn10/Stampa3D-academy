@@ -2,6 +2,7 @@ import assert from "node:assert/strict";
 import fs from "node:fs";
 import path from "node:path";
 import test from "node:test";
+import { featureServerDeps, stampyFeatureGateDeps } from "./helpers/feature-flag-deps.mjs";
 import ts from "typescript";
 
 const root = process.cwd();
@@ -379,6 +380,8 @@ function loadAskHarness() {
     warnings: ["No baja el stock de productos terminados todavía."],
   };
   const actions = loadTypeScriptModule("src/app/stampy/actions.ts", {
+    ...stampyFeatureGateDeps(),
+    ...featureServerDeps(),
     "@/utils/supabase/server": { createClient: async () => supabase },
     "@/lib/auth/user-access": {
       getCurrentUserAccess: async () => ({
@@ -523,6 +526,8 @@ test("Server Action authenticates and sends only actionRequestId", async () => {
   const actionRequests = loadTypeScriptModule(
     "src/lib/stampy/action-requests.ts",
     {
+    ...stampyFeatureGateDeps(),
+    ...featureServerDeps(),
       "@/utils/supabase/server": { createClient: async () => supabase },
       "@/lib/auth/user-access": {
         getCurrentUserAccess: async () => ({
@@ -580,6 +585,8 @@ test("a selected-product confirmation is cancelled when the current entity chang
   const actionRequests = loadTypeScriptModule(
     "src/lib/stampy/action-requests.ts",
     {
+    ...stampyFeatureGateDeps(),
+    ...featureServerDeps(),
       "@/utils/supabase/server": { createClient: async () => supabase },
       "@/lib/auth/user-access": {
         getCurrentUserAccess: async () => ({ access: { authenticated: true, userId: "user-1", capabilities: { useStampy: true } } }),
@@ -628,6 +635,8 @@ test("an expired product consumption confirmation never reaches the stock RPC", 
   const actionRequests = loadTypeScriptModule(
     "src/lib/stampy/action-requests.ts",
     {
+    ...stampyFeatureGateDeps(),
+    ...featureServerDeps(),
       "@/utils/supabase/server": { createClient: async () => supabase },
       "@/lib/auth/user-access": {
         getCurrentUserAccess: async () => ({ access: { authenticated: true, userId: "user-1", capabilities: { useStampy: true } } }),

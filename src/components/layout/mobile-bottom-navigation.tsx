@@ -3,8 +3,10 @@
 import { useEffect } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { BookOpen, Calculator, Compass, Lock, Plus, Printer, Store } from "lucide-react";
+import { BookOpen, Calculator, Compass, Lock, Plus, Printer, Store, User } from "lucide-react";
 import type { UserAccessSnapshot } from "@/lib/auth/user-access";
+import type { FeatureId } from "@/lib/features/registry";
+import { useFeatureVisibility } from "@/components/features/feature-flags-provider";
 import {
   isMobileNavigationItemActive,
   mainMobileNavigation,
@@ -44,16 +46,29 @@ export function MobileBottomNavigation({
   onToolsOpenChange,
 }: MobileBottomNavigationProps) {
   const pathname = usePathname();
+  const visibility = useFeatureVisibility();
   const isFree = !loading && access?.authenticated === true && !access.capabilities.accessPlatform;
-  const freeItems = [
-    { href: "/calculadora", label: "Calculadora", icon: Calculator, activePrefixes: ["/calculadora"] as const },
-    { href: "/explorar-modelos", label: "Explorar Modelos", shortLabel: "Explorar", icon: Compass, activePrefixes: ["/explorar-modelos"] as const },
-    { href: "/sin-acceso?feature=academia", label: "Academia", icon: BookOpen, activePrefixes: [] as const, locked: true },
-    { href: "/sin-acceso?feature=taller", label: "Taller", icon: Printer, activePrefixes: [] as const, locked: true },
-    { href: "/sin-acceso?feature=negocio", label: "Negocio", icon: Store, activePrefixes: [] as const, locked: true },
+  const allFreeItems: (MobileNavigationItem & { locked?: boolean; feature?: FeatureId })[] = [
+    { href: "/calculadora", label: "Calculadora", icon: Calculator, activePrefixes: ["/calculadora"] },
+    { href: "/explorar-modelos", label: "Explorar Modelos", shortLabel: "Explorar", icon: Compass, activePrefixes: ["/explorar-modelos"] },
+    { href: "/sin-acceso?feature=academia", label: "Academia", icon: BookOpen, activePrefixes: [], locked: true, feature: "academia" },
+    { href: "/sin-acceso?feature=taller", label: "Taller", icon: Printer, activePrefixes: [], locked: true, feature: "mi_taller" },
+    { href: "/sin-acceso?feature=negocio", label: "Negocio", icon: Store, activePrefixes: [], locked: true, feature: "mi_negocio" },
   ];
-  const leftItems = mainMobileNavigation.slice(0, 2);
-  const rightItems = mainMobileNavigation.slice(2);
+  // Funcionalidades deshabilitadas públicamente no se ofrecen; si no queda ninguna, el perfil evita una barra vacía.
+  const visibleFreeItems = allFreeItems.filter((item) =>
+    item.feature ? visibility.isFeatureVisible(item.feature) : visibility.isPathVisible(item.href),
+  );
+  const freeItems = visibleFreeItems.length > 0
+    ? visibleFreeItems
+    : [{ href: "/perfil", label: "Mi perfil", shortLabel: "Perfil", icon: User, activePrefixes: ["/perfil"] } as MobileNavigationItem];
+  // Navegación principal (Inicio siempre presente): se reparte a ambos lados del botón central.
+  const visibleMainItems = mainMobileNavigation.filter((item) => visibility.isPathVisible(item.href));
+  const leftCount = Math.ceil(visibleMainItems.length / 2);
+  const leftItems = visibleMainItems.slice(0, leftCount);
+  const rightItems = visibleMainItems.slice(leftCount);
+  const sideColumns = Math.max(leftItems.length, rightItems.length);
+  const mainGridTemplate = `repeat(${sideColumns}, minmax(0, 1fr)) 4.5rem repeat(${sideColumns}, minmax(0, 1fr))`;
 
   useEffect(() => {
     onToolsOpenChange(false);
@@ -77,7 +92,7 @@ export function MobileBottomNavigation({
   }, [toolsOpen, onToolsOpenChange]);
 
   if (isFree) {
-    return <div className="fixed inset-x-0 bottom-0 z-[60] lg:hidden"><nav aria-label="Navegación principal" className="border-t border-white/10 bg-stampa-bg/95 backdrop-blur-xl" style={{ height: "calc(var(--mobile-bottom-navigation-height) + env(safe-area-inset-bottom))", paddingBottom: "env(safe-area-inset-bottom)" }}><div className="grid h-[var(--mobile-bottom-navigation-height)] grid-cols-5 items-center px-1">{freeItems.map((item) => <NavigationLink key={item.href} item={item} pathname={pathname} />)}</div></nav></div>;
+    return <div className="fixed inset-x-0 bottom-0 z-[60] lg:hidden"><nav aria-label="Navegación principal" className="border-t border-white/10 bg-stampa-bg/95 backdrop-blur-xl" style={{ height: "calc(var(--mobile-bottom-navigation-height) + env(safe-area-inset-bottom))", paddingBottom: "env(safe-area-inset-bottom)" }}><div className="grid h-[var(--mobile-bottom-navigation-height)] items-center px-1" style={{ gridTemplateColumns: `repeat(${freeItems.length}, minmax(0, 1fr))` }}>{freeItems.map((item) => <NavigationLink key={item.href} item={item} pathname={pathname} />)}</div></nav></div>;
   }
 
   return (
@@ -92,15 +107,24 @@ export function MobileBottomNavigation({
           paddingBottom: "env(safe-area-inset-bottom)",
         }}
       >
-        <div className="grid h-[var(--mobile-bottom-navigation-height)] grid-cols-[minmax(0,1fr)_minmax(0,1fr)_4.5rem_minmax(0,1fr)_minmax(0,1fr)] items-center px-1">
+        <div
+          className="grid h-[var(--mobile-bottom-navigation-height)] items-center px-1"
+          style={{ gridTemplateColumns: mainGridTemplate }}
+        >
           {leftItems.map((item) => (
             <NavigationLink key={item.href} item={item} pathname={pathname} />
+          ))}
+          {Array.from({ length: sideColumns - leftItems.length }, (_, index) => (
+            <span key={`left-gap-${index}`} aria-hidden="true" />
           ))}
 
           <span aria-hidden="true" />
 
           {rightItems.map((item) => (
             <NavigationLink key={item.href} item={item} pathname={pathname} />
+          ))}
+          {Array.from({ length: sideColumns - rightItems.length }, (_, index) => (
+            <span key={`right-gap-${index}`} aria-hidden="true" />
           ))}
         </div>
 

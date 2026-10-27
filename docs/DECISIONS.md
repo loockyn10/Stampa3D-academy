@@ -248,3 +248,14 @@ Las cards usan un asset de video (`stl_models.preview_url`) generado client-side
 
 - Chances = sin acceso vigente a la plataforma → no participa; con acceso → base (1, o 2 para `member_level` gold/elite) + entradas activas de `user_raffle_bonus_entries` (+ XP solo si `XP_RAFFLE_BONUSES_ENABLED=true`). Implementado una vez en `getUserRaffleChances` (`src/lib/raffles/participants.ts`) y usado por la página de Sorteos, el registro de ganadores (`assignRaffleWinner`) y el contexto de Stampy. Las chances no se almacenan: se calculan al mostrarlas y al registrar un ganador.
 - Invitaciones: `/registro?ref=CÓDIGO` → `/auth/callback` inserta `referrals` (`referrer_user_id`, `referred_user_id`, `status = 'pending'`) y `profiles.referred_by_user_id`. **No existe en el repo** código ni migration que pase una invitación a `converted`/`rewarded` ni que inserte `user_raffle_bonus_entries`; las tablas `referrals` y `user_raffle_bonus_entries` tampoco están versionadas. Hasta definir ese contrato, la UI y Stampy no prometen chances por invitar o por suscripciones de referidos.
+
+## D030 — Feature flags: disponibilidad pública por funcionalidad, administrable sin deploy
+
+**Estado:** Accepted (2026-10-24), pendiente de aplicar la migration y de QA.
+
+- El registro de funcionalidades vive en código (`src/lib/features/registry.ts`); la base solo guarda el estado que decide el Admin (`platform_feature_flags`). Una sola fuente: proxy, acciones, APIs, navegación, buscador y Stampy consultan el mismo módulo; no se hardcodean rutas ni ids en otro lugar.
+- **Sin fila = sin configurar = habilitada** (default del registro). La migration no siembra filas: aplicarla no restringe nada. Cada herramienta se deshabilita explícitamente desde `/admin/funcionalidades`.
+- **Administradores** (`profiles.role = admin` vía `getCurrentUserAccess`) conservan acceso a todo; el bypass es solo de flags. Se evalúa antes del gate de membresía: un Free ante una herramienta deshabilitada ve "no disponible", no una invitación a pagar.
+- **Falla cerrada acotada:** tabla inexistente → no restringe (despliegue seguro antes de la migration); otro error de lectura → último estado conocido; sin él, los no-admin no acceden a lo controlado (administradores y rutas esenciales sí).
+- **No se gatean** webhooks/callbacks/expiración de pedidos de pagos ni rutas esenciales (auth, perfil, configuración, admin, pagos de membresía). La tienda pública es una funcionalidad aparte (`tienda_online`) para no cortar ventas al deshabilitar Mi Negocio por accidente.
+- No se modifican roles, membresías, RLS de otras tablas ni datos de usuarios. Las lecturas directas del navegador contra Supabase siguen gobernadas solo por RLS (ver ARCHITECTURE §21).

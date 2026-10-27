@@ -21,14 +21,32 @@ import {
   Lock,
   Type,
 } from "lucide-react";
+import type { LucideIcon } from "lucide-react";
 import type { UserAccessSnapshot } from "@/lib/auth/user-access";
+import type { FeatureId } from "@/lib/features/registry";
+import { pruneEmptyGroups } from "@/lib/features/visibility";
+import { useFeatureVisibility } from "@/components/features/feature-flags-provider";
 
 interface SidebarProps {
   access: UserAccessSnapshot | null;
   loading: boolean;
 }
 
-const NAV_GROUPS = [
+interface NavItem {
+  path: string;
+  label: string;
+  icon: LucideIcon;
+  locked?: boolean;
+  /** Funcionalidad que controla la entrada cuando la ruta no la identifica (promos bloqueadas de usuarios Free). */
+  feature?: FeatureId;
+}
+
+interface NavGroup {
+  group: string;
+  items: NavItem[];
+}
+
+const NAV_GROUPS: NavGroup[] = [
   {
     group: "Plataforma",
     items: [
@@ -68,19 +86,20 @@ const NAV_GROUPS = [
 export function Sidebar({ access, loading }: SidebarProps) {
   const pathname = usePathname();
   const searchParams = useSearchParams();
+  const visibility = useFeatureVisibility();
   const isAdmin = access?.capabilities.accessAdmin === true;
   const hasPlatformAccess = access?.capabilities.accessPlatform === true;
   const isFree = !loading && access?.authenticated === true && !hasPlatformAccess;
-  const freeGroups = [
+  const freeGroups: NavGroup[] = [
     { group: "Gratis", items: [
       { path: "/calculadora", label: "Calculadora", icon: Calculator },
       { path: "/explorar-modelos", label: "Explorar Modelos", icon: Compass },
     ] },
     { group: "Descubrí Stampa", items: [
-      { path: "/sin-acceso?feature=stampy", label: "Stampy IA", icon: Sparkles, locked: true },
-      { path: "/sin-acceso?feature=academia", label: "Academia", icon: BookOpen, locked: true },
-      { path: "/sin-acceso?feature=taller", label: "Mi Taller", icon: Printer, locked: true },
-      { path: "/sin-acceso?feature=negocio", label: "Mi Negocio", icon: Store, locked: true },
+      { path: "/sin-acceso?feature=stampy", label: "Stampy IA", icon: Sparkles, locked: true, feature: "stampy" },
+      { path: "/sin-acceso?feature=academia", label: "Academia", icon: BookOpen, locked: true, feature: "academia" },
+      { path: "/sin-acceso?feature=taller", label: "Mi Taller", icon: Printer, locked: true, feature: "mi_taller" },
+      { path: "/sin-acceso?feature=negocio", label: "Mi Negocio", icon: Store, locked: true, feature: "mi_negocio" },
     ] },
     { group: "Cuenta", items: [
       { path: "/perfil", label: "Mi perfil", icon: User },
@@ -107,7 +126,7 @@ export function Sidebar({ access, loading }: SidebarProps) {
       <aside className="hidden w-64 shrink-0 flex-col border-r border-stampa-border bg-stampa-bg lg:flex">
         {/* Brand logo header */}
         <div className="flex items-center px-5 py-5">
-          <Link href={isFree ? "/calculadora" : "/"} className="flex items-center gap-2">
+          <Link href={isFree && visibility.isFeatureVisible("calculadora") ? "/calculadora" : "/"} className="flex items-center gap-2">
             <Image
               src="/favicon.svg"
               alt="Stampa"
@@ -136,7 +155,7 @@ export function Sidebar({ access, loading }: SidebarProps) {
         {/* Navigation Groups */}
         <nav className="flex-1 overflow-y-auto stampa-scrollbar px-3 pb-4">
           {(() => {
-            const groupsToRender = isFree ? freeGroups : [...NAV_GROUPS];
+            const groupsToRender: NavGroup[] = isFree ? freeGroups : [...NAV_GROUPS];
             if (isAdmin) {
               const userGroupIndex = groupsToRender.findIndex(g => g.group === "Usuario");
               const adminGroup = {
@@ -151,7 +170,16 @@ export function Sidebar({ access, loading }: SidebarProps) {
                 groupsToRender.push(adminGroup);
               }
             }
-            return groupsToRender.map((group) => (
+            // Funcionalidades deshabilitadas públicamente: se quitan las entradas y los grupos que queden vacíos.
+            const visibleGroups = pruneEmptyGroups(
+              groupsToRender.map((group) => ({
+                ...group,
+                items: group.items.filter((item) =>
+                  item.feature ? visibility.isFeatureVisible(item.feature) : visibility.isPathVisible(item.path),
+                ),
+              })),
+            );
+            return visibleGroups.map((group) => (
               <div key={group.group} className="mb-5">
                 <p className="mb-1.5 px-3 text-[11px] font-bold uppercase tracking-wider text-gray-500">
                   {group.group}
@@ -190,7 +218,7 @@ export function Sidebar({ access, loading }: SidebarProps) {
                           }
                         />
                         <span className="flex-1 text-left">{item.label}</span>
-                        {"locked" in item && item.locked && <Lock size={13} className="text-gray-600" />}
+                        {item.locked && <Lock size={13} className="text-gray-600" />}
                         {active && <span className={`h-1.5 w-1.5 rounded-full ${isStampy ? 'bg-cyan-400' : 'bg-stampa-orange'}`} />}
                       </Link>
                     );

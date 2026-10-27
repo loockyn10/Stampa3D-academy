@@ -4,11 +4,12 @@ import React, { useState, useEffect, useRef, useMemo } from "react";
 import { useRouter } from "next/navigation";
 import { Search, GraduationCap, Wrench, PenTool } from "lucide-react";
 import { createClient } from "@/utils/supabase/client";
+import { useFeatureVisibility } from "@/components/features/feature-flags-provider";
 
 // Tipos para los resultados de búsqueda
 type SearchResultType = "tool" | "course" | "workshop";
 
-interface SearchResult {
+export interface SearchResult {
   id: string;
   title: string;
   description: string;
@@ -19,7 +20,7 @@ interface SearchResult {
 }
 
 // Lista estática de herramientas
-const STATIC_TOOLS: SearchResult[] = [
+export const STATIC_TOOLS: SearchResult[] = [
   { id: "tool-academia", title: "Academia", description: "Cursos, talleres y rutas", type: "tool", path: "/academia", keywords: ["cursos", "talleres", "aprender", "clases"] },
   { id: "tool-cursos", title: "Cursos", description: "Aprende de forma estructurada", type: "tool", path: "/cursos", keywords: ["cursos", "aprender", "rutas"] },
   { id: "tool-talleres", title: "Talleres", description: "Proyectos prácticos", type: "tool", path: "/talleres", keywords: ["talleres", "proyectos", "práctica"] },
@@ -38,19 +39,52 @@ const STATIC_TOOLS: SearchResult[] = [
   { id: "tool-canales", title: "Canales", description: "Comunidades", type: "tool", path: "/canales", keywords: ["canales", "comunidad", "telegram", "whatsapp"] },
 ];
 
+// Helper para normalizar texto (sacar acentos y pasar a lowercase)
+function normalize(text: string) {
+  return text
+    .toLowerCase()
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "");
+}
+
+/**
+ * Filtra herramientas y cursos por el texto buscado. Lo que pertenece a una funcionalidad deshabilitada
+ * públicamente (según `isPathVisible`) nunca se sugiere. Máximo 8 resultados.
+ */
+export function filterGlobalSearchItems(
+  items: readonly SearchResult[],
+  searchTerm: string,
+  isPathVisible: (path: string) => boolean,
+): SearchResult[] {
+  if (!searchTerm.trim()) return [];
+
+  const term = normalize(searchTerm);
+  return items
+    .filter((item) => isPathVisible(item.path))
+    .filter((item) => {
+      if (normalize(item.title).includes(term)) return true;
+      if (normalize(item.description).includes(term)) return true;
+      if (item.keywords && item.keywords.some((k) => normalize(k).includes(term))) return true;
+      return false;
+    })
+    .slice(0, 8);
+}
+
 export function GlobalSearch() {
   const [searchTerm, setSearchTerm] = useState("");
   const [isOpen, setIsOpen] = useState(false);
   const [courses, setCourses] = useState<SearchResult[]>([]);
   const [supabase] = useState(() => createClient());
   const router = useRouter();
+  const visibility = useFeatureVisibility();
+  const academiaVisible = visibility.isPathVisible("/cursos");
   const searchRef = useRef<HTMLDivElement>(null);
   const coursesRequestRef = useRef<Promise<void> | null>(null);
   const coursesLoadedRef = useRef(false);
 
   // La navegación global no necesita cargar el catálogo hasta que el usuario busca.
   const ensureCoursesLoaded = () => {
-    if (coursesLoadedRef.current || coursesRequestRef.current) return;
+    if (!academiaVisible || coursesLoadedRef.current || coursesRequestRef.current) return;
 
     coursesRequestRef.current = (async () => {
       const { data } = await supabase
@@ -97,30 +131,11 @@ export function GlobalSearch() {
     return () => document.removeEventListener("keydown", handleKeyDown);
   }, []);
 
-  // Helper para normalizar texto (sacar acentos y pasar a lowercase)
-  const normalize = (text: string) => {
-    return text
-      .toLowerCase()
-      .normalize("NFD")
-      .replace(/[\u0300-\u036f]/g, "");
-  };
-
-  // Filtrado de resultados
-  const filteredResults = useMemo(() => {
-    if (!searchTerm.trim()) return [];
-
-    const term = normalize(searchTerm);
-    const allItems = [...STATIC_TOOLS, ...courses];
-
-    const results = allItems.filter((item) => {
-      if (normalize(item.title).includes(term)) return true;
-      if (normalize(item.description).includes(term)) return true;
-      if (item.keywords && item.keywords.some((k) => normalize(k).includes(term))) return true;
-      return false;
-    });
-
-    return results.slice(0, 8); // Máximo 8 resultados
-  }, [searchTerm, courses]);
+  // Herramientas y cursos de funcionalidades deshabilitadas públicamente no se sugieren.
+  const filteredResults = useMemo(
+    () => filterGlobalSearchItems([...STATIC_TOOLS, ...courses], searchTerm, visibility.isPathVisible),
+    [searchTerm, courses, visibility],
+  );
 
   // Manejar click en un resultado
   const handleSelectResult = (path: string) => {

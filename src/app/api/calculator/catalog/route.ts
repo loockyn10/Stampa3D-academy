@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { createClient as createAdminClient } from "@supabase/supabase-js";
 import { createClient } from "@/utils/supabase/server";
+import { featureGuardResponse } from "@/lib/features/server";
 import { CALCULATOR_DEMO_CONFIG } from "@/lib/calculator/demo-config";
 import {
   getCalculatorFilamentDisplayName,
@@ -50,6 +51,8 @@ export async function GET() {
   }
 
   const supabase = await createClient();
+  const featureBlocked = await featureGuardResponse(supabase, "calculadora");
+  if (featureBlocked) return featureBlocked;
   const { data: { user }, error: authError } = await supabase.auth.getUser();
   if (authError) {
     console.warn("[calculator/catalog] session unavailable; serving anonymous DTO", {

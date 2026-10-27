@@ -5,6 +5,8 @@ import { getValidMercadoPagoSellerToken } from "@/lib/business/mercado-pago-acco
 import { normalizeMarketplaceFeePercent } from "@/lib/business/orders";
 import { businessLiveModeAllowed, createBusinessAdminClient, requireBusinessAppUrl } from "@/lib/business/server";
 import { normalizeStorefrontSlug } from "@/lib/business/storefront";
+import { featureGuardResponse } from "@/lib/features/server";
+import { createClient } from "@/utils/supabase/server";
 
 export const runtime = "nodejs";
 
@@ -34,6 +36,9 @@ function isUuid(value: unknown): value is string {
 export async function POST(request: NextRequest, { params }: { params: Promise<{ slug: string }> }) {
   let orderId: string | null = null;
   try {
+    // Tienda online pública: el visitante anónimo no es administrador; si quien compra es un admin logueado conserva el acceso.
+    const featureBlocked = await featureGuardResponse(await createClient(), "tienda_online");
+    if (featureBlocked) return featureBlocked;
     const { slug: rawSlug } = await params;
     const slug = normalizeStorefrontSlug(rawSlug);
     let body: CheckoutBody;

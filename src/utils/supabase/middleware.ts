@@ -2,6 +2,9 @@ import { createServerClient } from '@supabase/ssr'
 import { NextResponse, type NextRequest } from 'next/server'
 import { resolveUserAccess } from '@/lib/auth/user-access'
 import { sanitizeReturnTo } from '@/lib/auth/return-to'
+import { FEATURE_UNAVAILABLE_ROUTE, findFeatureForPath } from '@/lib/features/registry'
+import { loadFeatureFlagSnapshot } from '@/lib/features/loader'
+import { resolveFeatureAccess } from '@/lib/features/resolve'
 
 export async function updateSession(request: NextRequest) {
   let supabaseResponse = NextResponse.next({
@@ -71,8 +74,9 @@ export async function updateSession(request: NextRequest) {
     pathname.startsWith('/actualizar-password') || 
     pathname.startsWith('/verificar-email') || 
     pathname.startsWith('/auth') || 
-    pathname.startsWith('/sin-acceso') || 
-    pathname.startsWith('/pago/estado') || 
+    pathname.startsWith('/sin-acceso') ||
+    pathname === '/no-disponible' ||
+    pathname.startsWith('/pago/estado') ||
     pathname.startsWith('/api/mercadopago/webhook')
 
   // Helper to redirect while preserving refreshed cookies
@@ -96,8 +100,24 @@ export async function updateSession(request: NextRequest) {
     return response
   }
 
+  // Feature flags: solo páginas (las API routes validan su flag dentro de cada handler). Las rutas esenciales
+  // (auth, perfil, admin, pagos de membresía…) no pertenecen a ninguna funcionalidad.
+  const gatedFeature = pathname.startsWith('/api/') ? null : findFeatureForPath(pathname)
+  const redirectIfFeatureUnavailable = async (isAdmin: boolean) => {
+    if (!gatedFeature) return null
+    const snapshot = await loadFeatureFlagSnapshot(supabase)
+    if (resolveFeatureAccess(snapshot, gatedFeature.id, { isAdmin }).allowed) return null
+    return redirectWithCookies(`${FEATURE_UNAVAILABLE_ROUTE}?herramienta=${gatedFeature.id}`)
+  }
+
   if (!user && !isPublicRoute && !pathname.startsWith('/api/mercadopago')) {
     return redirectWithCookies('/login')
+  }
+
+  if (!user) {
+    // Rutas públicas controladas (Calculadora, Explorar Modelos, tiendas): un visitante nunca es administrador.
+    const unavailable = await redirectIfFeatureUnavailable(false)
+    if (unavailable) return unavailable
   }
 
   if (user) {
@@ -110,6 +130,11 @@ export async function updateSession(request: NextRequest) {
     if (pathname.startsWith('/admin') && !access.capabilities.accessAdmin) {
       return redirectWithCookies('/')
     }
+
+    // Funcionalidad deshabilitada: se evalúa antes del gate de membresía para que un usuario Free no reciba una
+    // invitación a pagar por algo que nadie puede usar todavía. Los administradores conservan el acceso.
+    const unavailable = await redirectIfFeatureUnavailable(access.capabilities.accessAdmin)
+    if (unavailable) return unavailable
 
     const isMpApiRoute = pathname.startsWith('/api/mercadopago')
 

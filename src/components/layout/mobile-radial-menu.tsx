@@ -2,7 +2,8 @@
 
 import type { CSSProperties } from "react";
 import Link from "next/link";
-import { secondaryMobileNavigation } from "./mobile-navigation";
+import { useFeatureVisibility } from "@/components/features/feature-flags-provider";
+import { getRadialArcAngles, secondaryMobileNavigation } from "./mobile-navigation";
 
 interface MobileRadialMenuProps {
   open: boolean;
@@ -15,10 +16,13 @@ type RadialItemStyle = CSSProperties & {
   "--radial-radius": string;
 };
 
-const RADIAL_ARC_ANGLES = [210, 232, 254, 286, 308, 330] as const;
 const RADIAL_RADIUS = "clamp(8.25rem, 42vw, 10.75rem)";
 
 export function MobileRadialMenu({ open, onClose }: MobileRadialMenuProps) {
+  const visibility = useFeatureVisibility();
+  const items = secondaryMobileNavigation.filter((item) => visibility.isPathVisible(item.href));
+  const angles = getRadialArcAngles(items.length);
+
   return (
     <>
       <button
@@ -40,10 +44,10 @@ export function MobileRadialMenu({ open, onClose }: MobileRadialMenuProps) {
         aria-label="Herramientas secundarias"
         className="mobile-radial-menu pointer-events-none absolute left-1/2 top-3.5 z-10 lg:hidden"
       >
-        {secondaryMobileNavigation.map((item, index) => {
+        {items.map((item, index) => {
           const Icon = item.icon;
-          const angle = RADIAL_ARC_ANGLES[index];
-          const delay = open ? 40 + index * 50 : (secondaryMobileNavigation.length - index - 1) * 24;
+          const angle = angles[index];
+          const delay = open ? 40 + index * 50 : (items.length - index - 1) * 24;
           const style: RadialItemStyle = {
             "--radial-angle": `${angle}deg`,
             "--radial-counter-angle": `${-angle}deg`,

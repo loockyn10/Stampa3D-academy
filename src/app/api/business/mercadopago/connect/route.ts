@@ -5,6 +5,7 @@ import { getCurrentUserAccess } from "@/lib/auth/user-access";
 import { createPkcePair, encryptBusinessSecret, sha256 } from "@/lib/business/payment-crypto";
 import { createBusinessAdminClient, requireBusinessAppUrl } from "@/lib/business/server";
 import { createClient } from "@/utils/supabase/server";
+import { featureGuardResponse } from "@/lib/features/server";
 
 export const runtime = "nodejs";
 
@@ -13,6 +14,8 @@ export async function GET() {
     const supabase = await createClient();
     const { access } = await getCurrentUserAccess(supabase);
     if (!access.userId || !access.capabilities.accessPlatform) return NextResponse.redirect(`${requireBusinessAppUrl()}/login`);
+    const featureBlocked = await featureGuardResponse(supabase, "mi_negocio", access);
+    if (featureBlocked) return featureBlocked;
     const clientId = process.env.MERCADO_PAGO_MARKETPLACE_CLIENT_ID;
     const redirectUri = process.env.MERCADO_PAGO_MARKETPLACE_REDIRECT_URI;
     if (!clientId || !redirectUri) throw new Error("OAuth de Mercado Pago no configurado");

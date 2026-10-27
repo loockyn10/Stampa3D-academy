@@ -3,6 +3,7 @@ import { createClient } from "@/utils/supabase/server";
 import { createClient as createSupabaseClient } from "@supabase/supabase-js";
 import { parseStorageReference } from "@/lib/storage";
 import { getCurrentUserAccess } from "@/lib/auth/user-access";
+import { featureGuardResponse } from "@/lib/features/server";
 import { getStlViewerSupport } from "@/lib/stl/library";
 
 const PREVIEW_URL_TTL_SECONDS = 300;
@@ -25,6 +26,9 @@ export async function POST(req: NextRequest) {
     if (!access.capabilities.downloadStl) {
       return NextResponse.json({ error: "Membresía inactiva o expirada" }, { status: 403 });
     }
+
+    const featureBlocked = await featureGuardResponse(supabaseServer, "libreria_stl", access);
+    if (featureBlocked) return featureBlocked;
 
     const body = await req.json().catch(() => null);
     const variantId = typeof body?.variantId === "string" ? body.variantId : "";

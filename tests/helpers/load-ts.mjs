@@ -21,8 +21,10 @@ export function loadTs(relativePath, mocks = {}, cache = new Map()) {
   cache.set(absolute, m);
   const localRequire = (specifier) => {
     if (specifier in mocks) return mocks[specifier];
-    if (specifier.startsWith("@/")) {
-      const base = path.join("src", specifier.slice(2));
+    if (specifier.startsWith("@/") || specifier.startsWith("./") || specifier.startsWith("../")) {
+      const base = specifier.startsWith("@/")
+        ? path.join("src", specifier.slice(2))
+        : path.join(path.dirname(relativePath), specifier);
       for (const candidate of [`${base}.ts`, `${base}.tsx`, path.join(base, "index.ts")]) {
         if (fs.existsSync(path.join(root, candidate))) return loadTs(candidate, mocks, cache);
       }

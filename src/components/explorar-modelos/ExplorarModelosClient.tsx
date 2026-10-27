@@ -17,6 +17,8 @@ import type {
   SourceStatus,
 } from "@/lib/model-search/types";
 import { ModelResultCard } from "./ModelResultCard";
+import { FeatureLink } from "@/components/features/feature-link";
+import { useFeatureVisibility } from "@/components/features/feature-flags-provider";
 
 export interface ProviderInfo {
   id: ModelSourceId;
@@ -87,6 +89,7 @@ function ResultSkeleton() {
 }
 
 export function ExplorarModelosClient({ providers }: { providers: ProviderInfo[] }) {
+  const calculatorVisible = useFeatureVisibility().isFeatureVisible("calculadora");
   const enabledProviders = useMemo(() => providers.filter((provider) => provider.enabled), [providers]);
   const [tier, setTier] = useState<Tier | null>(null);
   const [input, setInput] = useState("");
@@ -240,12 +243,12 @@ export function ExplorarModelosClient({ providers }: { providers: ProviderInfo[]
       {tier === "anonymous" && (
         <header className="sticky top-0 z-20 border-b border-stampa-border bg-stampa-bg/95 backdrop-blur">
           <div className="mx-auto flex max-w-6xl items-center justify-between gap-3 px-4 py-3">
-            <Link href="/calculadora" className="flex items-center gap-2">
+            <Link href={calculatorVisible ? "/calculadora" : "/login"} className="flex items-center gap-2">
               <Image src="/favicon.svg" alt="Stampa" width={28} height={28} className="h-7 w-7" />
               <span className="text-sm font-bold text-white">Stampa</span>
             </Link>
             <nav className="flex items-center gap-1 text-sm font-semibold whitespace-nowrap">
-              <Link href="/calculadora" className="hidden rounded-lg px-3 py-2 text-gray-300 hover:text-white sm:inline-block">Calculadora</Link>
+              <FeatureLink href="/calculadora" className="hidden rounded-lg px-3 py-2 text-gray-300 hover:text-white sm:inline-block">Calculadora</FeatureLink>
               <Link href="/login" className="rounded-lg px-3 py-2 text-gray-300 hover:text-white">Ingresar</Link>
               <Link href="/registro" className="rounded-lg bg-stampa-orange px-3 py-2 text-neutral-950 hover:bg-stampa-orange-hover">Crear cuenta</Link>
             </nav>

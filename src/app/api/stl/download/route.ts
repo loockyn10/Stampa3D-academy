@@ -3,6 +3,7 @@ import { createClient } from "@/utils/supabase/server";
 import { createClient as createSupabaseClient } from "@supabase/supabase-js";
 import { isExternalUrl, parseStorageReference } from "@/lib/storage";
 import { getCurrentUserAccess } from "@/lib/auth/user-access";
+import { featureGuardResponse } from "@/lib/features/server";
 
 export async function POST(req: NextRequest) {
   try {
@@ -17,6 +18,9 @@ export async function POST(req: NextRequest) {
     if (!access.capabilities.downloadStl) {
       return NextResponse.json({ error: "Membresía inactiva o expirada" }, { status: 403 });
     }
+
+    const featureBlocked = await featureGuardResponse(supabaseServer, "libreria_stl", access);
+    if (featureBlocked) return featureBlocked;
 
     // 2. Obtener payload (variantId o modelId)
     const body = await req.json();

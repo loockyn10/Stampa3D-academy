@@ -650,6 +650,21 @@ export async function askStampyAction(
       };
     }
 
+    // Lanzamiento progresivo: Stampy deja de operar si está deshabilitado y, si no, evita recomendar o ejecutar
+    // acciones de herramientas deshabilitadas (los administradores conservan todo).
+    const { loadStampyFeatureGate, STAMPY_FEATURE_UNAVAILABLE_ANSWER } = await import("@/lib/stampy/feature-gate");
+    const featureGate = await loadStampyFeatureGate(supabase, access);
+    if (!featureGate.isFeatureAvailable("stampy")) {
+      return {
+        answer: STAMPY_FEATURE_UNAVAILABLE_ANSWER,
+        recommendations: [],
+        knowledgeTools: [],
+        relatedTools: [],
+        suggestedQuestions: [],
+        conversationId: actualConversationId
+      };
+    }
+
     const messageValidation = validateStampyMessage(message);
     if (!messageValidation.valid) {
       return {
@@ -719,7 +734,7 @@ export async function askStampyAction(
       || /(?:recalcul|cu[aá]nto gano|ganancia|margen|por qu[eé].*(?:cuesta|amarill)|qu[eé] filamentos? usa|receta|me alcanza|cu[aá]ntos puedo|por terminarse|stock bajo|bobina|agreg.*al stock)/i.test(userMessage);
     let productStockIntent = null;
     let actionDetectionMessage = userMessage;
-    if (shouldCheckProductStockTools) {
+    if (shouldCheckProductStockTools && featureGate.isFeatureAvailable("mi_taller")) {
       const {
         bindSelectedProductToConsumptionMessage,
         detectStampyProductStockToolIntent,
@@ -807,7 +822,7 @@ export async function askStampyAction(
 
     const hasClientScreenContext = screenContext?.selectedEntity?.type === "client"
       || screenContext?.visibleEntities?.some((entity) => entity.type === "client") === true;
-    const shouldCheckClientTools = hasClientScreenContext
+    const shouldCheckClientTools = featureGate.isFeatureAvailable("mi_negocio") && hasClientScreenContext
       && /(?:presupuestos?|[uú]ltimo|[uú]ltima|datos?|falta|incomplet|email|correo|informaci[oó]n|resumen)/i.test(userMessage);
     const clientIntent = shouldCheckClientTools
       ? (await import("@/lib/stampy/client-tool-intents")).detectStampyClientToolIntent({
@@ -938,10 +953,14 @@ export async function askStampyAction(
 
     const consumptionUsesSelectedProduct = actionDetectionMessage !== userMessage;
     const { detectStampyActionIntent, buildActionIntentResponse } = await import("@/lib/stampy/action-intents");
-    const actionIntent = detectStampyActionIntent({
+    const detectedActionIntent = detectStampyActionIntent({
       message: actionDetectionMessage,
       currentPath: pathname
     });
+    // Una acción cuya herramienta destino está deshabilitada no se propone ni se ejecuta.
+    const actionIntent = detectedActionIntent && featureGate.isRouteAvailable(detectedActionIntent.toolHref)
+      ? detectedActionIntent
+      : null;
 
     if (actionIntent) {
       const { getStampyToolContractsForIntent } = await import("@/lib/stampy/tool-registry");
@@ -1743,12 +1762,14 @@ Reglas del taller:
     } else if (workshopContext.isProductQuery) {
       knowledgeTools = knowledgeTools.filter((tool) => tool.id !== "filament-stock");
     }
+    knowledgeTools = featureGate.filterByRoute(knowledgeTools, (tool) => tool.route);
     turnContext.push(formatStampyToolsForPrompt(knowledgeTools));
 
     // 6. Clases de Academia: capa adicional de baja confianza (scoring
     // textual). Se buscan antes de llamar al modelo para que las integre
     // sólo si encajan; nunca reemplazan la respuesta.
-    const shouldRecommendLessons = knowledgeIntent?.type === "course_recommendation";
+    const shouldRecommendLessons = knowledgeIntent?.type === "course_recommendation"
+      && featureGate.isFeatureAvailable("academia");
     let recommendations: StampyLessonRecommendation[] = [];
     if (shouldRecommendLessons) {
       const { findStampyLessonRecommendations } = await import("@/lib/stampy/lesson-recommendations");
@@ -1768,13 +1789,18 @@ Reglas del taller:
       formatToolContractForPrompt,
       getRelevantContractsForPath,
     } = await import("@/lib/stampy/tool-registry");
-    const relevantContracts = pathname ? getRelevantContractsForPath(pathname) : [];
+    const relevantContracts = pathname
+      ? featureGate.filterByRoute(getRelevantContractsForPath(pathname), (contract) => contract.route)
+      : [];
     promptToolContractIds = relevantContracts.map((contract) => contract.id);
     turnContext.push(formatStampyAvailableActionsForPrompt(relevantContracts));
     if (relevantContracts.length > 0) {
       turnContext.push(`CONTRATOS DE HERRAMIENTAS DE ESTA PANTALLA (REGLAS ESTRICTAS):
 ${relevantContracts.map(formatToolContractForPrompt).join("\n\n")}`);
     }
+
+    const featureNotice = featureGate.buildPromptNotice();
+    if (featureNotice) turnContext.push(featureNotice);
 
     const systemPrompt = [
       STAMPY_SYSTEM_PROMPT,

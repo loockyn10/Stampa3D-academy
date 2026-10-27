@@ -98,6 +98,20 @@ export const secondaryMobileNavigation: readonly MobileNavigationItem[] = [
   },
 ];
 
+/**
+ * Ángulos (grados, 180 = izquierda, 270 = arriba, 360 = derecha) del arco del menú radial según cuántas
+ * herramientas quedan visibles. Con 6 se conserva el reparto original (deja libre el 270, sobre el botón central).
+ */
+export function getRadialArcAngles(count: number): number[] {
+  if (count <= 0) return [];
+  if (count === 1) return [270];
+  if (count === 2) return [240, 300];
+  if (count === 6) return [210, 232, 254, 286, 308, 330];
+  const start = count > 6 ? 200 : 210;
+  const step = (540 - 2 * start) / (count - 1); // simétrico alrededor de 270 (arriba del botón central)
+  return Array.from({ length: count }, (_, index) => Math.round(start + step * index));
+}
+
 export function isMobileNavigationItemActive(
   pathname: string,
   item: MobileNavigationItem,

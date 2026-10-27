@@ -11,6 +11,7 @@ import { User } from "lucide-react";
 import { FormSkeleton, SettingsPageSkeleton } from "@/components/ui/page-skeletons";
 import { usePublishStampyScreenContext } from "@/components/stampy/StampyContextProvider";
 import type { StampyScreenContext } from "@/lib/stampy/screen-context";
+import { useFeatureVisibility } from "@/components/features/feature-flags-provider";
 
 const managerLoading = () => (
   <FormSkeleton fields={4} />
@@ -34,7 +35,18 @@ const CONFIGURATION_AREAS: { id: Tab; name: string; visibleContent: string }[] =
 function ConfiguracionContent() {
   const searchParams = useSearchParams();
   const router = useRouter();
-  const [activeTab, setActiveTab] = useState<Tab>("cuenta");
+  const visibility = useFeatureVisibility();
+  // Las pestañas de ajustes de herramientas deshabilitadas públicamente no se ofrecen (Cuenta siempre está).
+  const showBusinessTab = visibility.isFeatureVisible("mi_negocio");
+  const showCalculatorTab = visibility.isFeatureVisible("calculadora");
+  const showStampyTab = visibility.isFeatureVisible("stampy");
+  const [requestedTab, setActiveTab] = useState<Tab>("cuenta");
+  const activeTab: Tab =
+    (requestedTab === "negocio" && !showBusinessTab) ||
+    (requestedTab === "calculadora" && !showCalculatorTab) ||
+    (requestedTab === "stampy" && !showStampyTab)
+      ? "cuenta"
+      : requestedTab;
 
   useEffect(() => {
     const t = searchParams.get("tab") as Tab;
@@ -100,7 +112,7 @@ function ConfiguracionContent() {
             Cuenta
           </button>
 
-          <button
+          {showBusinessTab && <button
             onClick={() => handleTabChange("negocio")}
             className={`whitespace-nowrap flex items-center gap-2 border-b-2 py-4 px-1 text-sm font-medium transition-colors ${
               activeTab === "negocio"
@@ -110,9 +122,9 @@ function ConfiguracionContent() {
           >
             <Building2 size={18} />
             Negocio
-          </button>
+          </button>}
 
-          <button
+          {showCalculatorTab && <button
             onClick={() => handleTabChange("calculadora")}
             className={`whitespace-nowrap flex items-center gap-2 border-b-2 py-4 px-1 text-sm font-medium transition-colors ${
               activeTab === "calculadora"
@@ -122,9 +134,9 @@ function ConfiguracionContent() {
           >
             <Calculator size={18} />
             Calculadora
-          </button>
+          </button>}
 
-          <button
+          {showStampyTab && <button
             onClick={() => handleTabChange("stampy")}
             className={`whitespace-nowrap flex items-center gap-2 border-b-2 py-4 px-1 text-sm font-medium transition-colors ${
               activeTab === "stampy"
@@ -134,7 +146,7 @@ function ConfiguracionContent() {
           >
             <Bot size={18} />
             Stampy
-          </button>
+          </button>}
         </nav>
       </div>
 

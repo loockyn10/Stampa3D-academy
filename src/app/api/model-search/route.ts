@@ -1,6 +1,7 @@
 import { NextResponse, type NextRequest } from "next/server";
 import { createClient } from "@/utils/supabase/server";
 import { getCurrentUserAccess } from "@/lib/auth/user-access";
+import { featureGuardResponse } from "@/lib/features/server";
 import { cursorDepth, decodeCursor, MAX_PAGE, parseModelSearchParams } from "@/lib/model-search/params";
 import { createRateLimiter } from "@/lib/model-search/rate-limit";
 import { hasProviderForFilters, searchModels } from "@/lib/model-search/service";
@@ -31,6 +32,8 @@ export async function GET(request: NextRequest) {
 
   const supabase = await createClient();
   const { access } = await getCurrentUserAccess(supabase);
+  const featureBlocked = await featureGuardResponse(supabase, "explorar_modelos", access);
+  if (featureBlocked) return featureBlocked;
   const isMember = access.authenticated === true;
   const tier = access.capabilities.accessPlatform ? "paid" : isMember ? "free" : "anonymous";
 

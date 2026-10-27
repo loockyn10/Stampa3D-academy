@@ -747,7 +747,7 @@ test("21. free puede buscar: authenticated (no paid) obtiene búsqueda completa"
 
 test("22. solo paid ve “Calcular en Stampa” y usa el único motor de la Calculadora", () => {
   const card = read("src/components/explorar-modelos/ModelResultCard.tsx");
-  assert.match(card, /\{canCalculate && \(/);
+  assert.match(card, /\{canCalculate && calculatorVisible && \(/);
   const client = read("src/components/explorar-modelos/ExplorarModelosClient.tsx");
   assert.match(client, /canCalculate=\{tier === "paid"\}/);
   const link = calculatorLink.buildCalculatorLink({ title: "Soporte auriculares" });

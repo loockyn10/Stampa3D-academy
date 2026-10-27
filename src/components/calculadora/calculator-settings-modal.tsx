@@ -1,13 +1,13 @@
 "use client";
 
 import React, { useState } from "react";
-import Link from "next/link";
 import { Loader2, Save, Settings, X } from "lucide-react";
 import { Dialog } from "@/components/ui/dialog";
 import { CalculatorSelect } from "@/components/ui/calculator-select";
 import { SettingsManager, type CalculatorSettingsValues } from "@/components/configuracion/settings-manager";
 import { ProductTypesManager } from "@/components/configuracion/product-types-manager";
 import { createClient } from "@/utils/supabase/client";
+import { FeatureLink } from "@/components/features/feature-link";
 
 export type CalculatorSettingsTab = "costs" | "printer" | "types";
 
@@ -151,7 +151,7 @@ function PrinterCostsForm({
   if (printers.length === 0) {
     return (
       <div className="rounded-xl border border-dashed border-stampa-border p-4 text-sm text-gray-400">
-        Todavía no tenés impresoras. <Link href="/mi-taller/impresoras" className="font-semibold text-stampa-orange hover:underline">Agregá una en Mi Taller</Link>.
+        Todavía no tenés impresoras. <FeatureLink href="/mi-taller/impresoras" className="font-semibold text-stampa-orange hover:underline">Agregá una en Mi Taller.</FeatureLink>
       </div>
     );
   }
@@ -204,9 +204,9 @@ function PrinterCostsForm({
         <p role="status" className={`text-xs ${message.tone === "ok" ? "text-emerald-400" : "text-red-400"}`}>{message.text}</p>
       )}
       <div className="flex flex-col-reverse gap-2 sm:flex-row sm:items-center sm:justify-between">
-        <Link href="/mi-taller/impresoras" className="inline-flex min-h-9 items-center text-xs font-semibold text-gray-400 hover:text-white">
+        <FeatureLink href="/mi-taller/impresoras" className="inline-flex min-h-9 items-center text-xs font-semibold text-gray-400 hover:text-white" fallback={<span aria-hidden="true" />}>
           Agregar o quitar impresoras en Mi Taller →
-        </Link>
+        </FeatureLink>
         <button
           type="button"
           onClick={save}

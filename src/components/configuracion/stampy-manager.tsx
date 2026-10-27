@@ -7,6 +7,7 @@ import { FormSkeleton } from "@/components/ui/page-skeletons";
 import { Card } from "@/components/ui/card";
 import { GhostButton } from "@/components/ui/button";
 import { createClient } from "@/utils/supabase/client";
+import { useFeatureVisibility } from "@/components/features/feature-flags-provider";
 import {
   loadStampyActionSettingsAction,
   saveStampyActionSettingsAction,
@@ -58,6 +59,9 @@ function SettingToggle({
 
 export function StampyManager({ setTab }: { setTab: (tab: any) => void }) {
   const router = useRouter();
+  const visibility = useFeatureVisibility();
+  const workshopVisible = visibility.isFeatureVisible("mi_taller");
+  const businessVisible = visibility.isFeatureVisible("mi_negocio");
   const supabase = createClient();
   const [loading, setLoading] = useState(true);
   
@@ -206,7 +210,7 @@ export function StampyManager({ setTab }: { setTab: (tab: any) => void }) {
               {hasPrinters ? <CheckCircle2 className="text-green-500" size={20} /> : <Circle className="text-gray-600" size={20} />}
               <span className={`text-sm ${hasPrinters ? "text-white font-medium" : "text-gray-500"}`}>Cargar impresoras</span>
             </div>
-            {!hasPrinters && (
+            {!hasPrinters && workshopVisible && (
               <GhostButton onClick={() => router.push("/mi-taller/impresoras")} className="text-xs">
                 Ir a Taller
               </GhostButton>
@@ -218,7 +222,7 @@ export function StampyManager({ setTab }: { setTab: (tab: any) => void }) {
               {hasFilaments ? <CheckCircle2 className="text-green-500" size={20} /> : <Circle className="text-gray-600" size={20} />}
               <span className={`text-sm ${hasFilaments ? "text-white font-medium" : "text-gray-500"}`}>Cargar filamentos</span>
             </div>
-            {!hasFilaments && (
+            {!hasFilaments && workshopVisible && (
               <GhostButton onClick={() => router.push("/mi-taller/filamentos")} className="text-xs">
                 Ir a Taller
               </GhostButton>
@@ -230,7 +234,7 @@ export function StampyManager({ setTab }: { setTab: (tab: any) => void }) {
               {hasBusinessData ? <CheckCircle2 className="text-green-500" size={20} /> : <Circle className="text-gray-600" size={20} />}
               <span className={`text-sm ${hasBusinessData ? "text-white font-medium" : "text-gray-500"}`}>Completar datos del negocio</span>
             </div>
-            {!hasBusinessData && (
+            {!hasBusinessData && businessVisible && (
               <GhostButton onClick={() => setTab("negocio")} className="text-xs">
                 Ir a Negocio
               </GhostButton>

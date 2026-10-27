@@ -1,6 +1,8 @@
 "use server";
 
 import { createClient } from "@/utils/supabase/server";
+import { getCurrentUserAccess } from "@/lib/auth/user-access";
+import { FEATURE_UNAVAILABLE_MESSAGE, isFeatureAvailable } from "@/lib/features/server";
 import { StampyFeedbackReason, StampyMessageFeedback } from "@/lib/stampy/types";
 
 export interface SubmitFeedbackPayload {
@@ -27,6 +29,11 @@ export async function submitStampyFeedbackAction({
 
     if (!user) {
       return { error: "No autorizado" };
+    }
+
+    const { access } = await getCurrentUserAccess(supabase);
+    if (!(await isFeatureAvailable(supabase, "stampy", access))) {
+      return { error: FEATURE_UNAVAILABLE_MESSAGE };
     }
 
     if (!messageId || !conversationId) {

@@ -5,6 +5,7 @@ import { createRequire } from "node:module";
 import { execSync } from "node:child_process";
 import test from "node:test";
 import ts from "typescript";
+import { nonFeatureGuardDiff } from "./helpers/feature-flag-deps.mjs";
 
 const root = process.cwd();
 const nodeRequire = createRequire(path.join(root, "package.json"));
@@ -426,8 +427,8 @@ test("storage.ts: stl-files sigue privado; sin service role en código cliente n
 });
 
 test("descarga y endpoints sin cambios: /api/stl/* y StlDownloadButton intactos", () => {
-  const diff = execSync("git diff --name-only HEAD -- src/app/api/stl src/components/stl/StlDownloadButton.tsx", { cwd: root }).toString().trim();
-  assert.equal(diff, "");
+  // Único cambio permitido en estos endpoints: el guard de feature flags (Librería STL).
+  assert.deepEqual(nonFeatureGuardDiff(root, ["src/app/api/stl", "src/components/stl/StlDownloadButton.tsx"]), []);
 });
 
 test("estados y copy del Admin", () => {

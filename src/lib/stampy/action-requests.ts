@@ -1,7 +1,8 @@
 "use server";
 
 import { createClient } from "@/utils/supabase/server";
-import { getCurrentUserAccess } from "@/lib/auth/user-access";
+import { getCurrentUserAccess, type UserAccessSnapshot } from "@/lib/auth/user-access";
+import { FEATURE_UNAVAILABLE_ERROR_CODE, FEATURE_UNAVAILABLE_MESSAGE, isFeatureAvailable } from "@/lib/features/server";
 import { StampyActionIntent, StampyActionRequest } from "./types";
 import {
   executeCreateFilament,
@@ -10,6 +11,26 @@ import {
   executeFilamentStockMovement,
   executeProductFilamentDiscount,
 } from "./action-executor";
+
+/**
+ * Las acciones confirmables de Stampy crean/modifican datos de Mi Taller: requieren que Stampy y Mi Taller estén
+ * disponibles para el usuario (los administradores conservan el acceso). Se suma a la validación de membresía.
+ */
+async function ensureStampyActionFeatures(
+  supabase: Awaited<ReturnType<typeof createClient>>,
+  access: UserAccessSnapshot,
+) {
+  for (const featureId of ["stampy", "mi_taller"] as const) {
+    if (!(await isFeatureAvailable(supabase, featureId, access))) {
+      return {
+        success: false as const,
+        errorCode: FEATURE_UNAVAILABLE_ERROR_CODE,
+        message: FEATURE_UNAVAILABLE_MESSAGE,
+      };
+    }
+  }
+  return null;
+}
 
 interface CreateStampyActionRequestParams {
   userId: string;
@@ -150,6 +171,9 @@ export async function confirmStampyActionRequest({
     };
   }
 
+  const featureUnavailable = await ensureStampyActionFeatures(supabase, access);
+  if (featureUnavailable) return featureUnavailable;
+
   return executeFilamentStockMovement({ supabase, actionRequestId });
 }
 
@@ -179,6 +203,9 @@ export async function confirmStampyCreateFilamentAction(actionRequestId: string)
       message: "No tenés acceso habilitado para usar Stampy.",
     };
   }
+
+  const featureUnavailable = await ensureStampyActionFeatures(supabase, access);
+  if (featureUnavailable) return featureUnavailable;
 
   return executeCreateFilament({ supabase, actionRequestId });
 }
@@ -210,6 +237,9 @@ export async function confirmStampyCreatePrinterAction(actionRequestId: string) 
     };
   }
 
+  const featureUnavailable = await ensureStampyActionFeatures(supabase, access);
+  if (featureUnavailable) return featureUnavailable;
+
   return executeCreatePrinter({ supabase, actionRequestId });
 }
 
@@ -239,6 +269,9 @@ export async function confirmStampyCreateProductAction(actionRequestId: string) 
       message: "No tenés acceso habilitado para usar Stampy.",
     };
   }
+
+  const featureUnavailable = await ensureStampyActionFeatures(supabase, access);
+  if (featureUnavailable) return featureUnavailable;
 
   return executeCreateProduct({ supabase, actionRequestId });
 }
@@ -272,6 +305,9 @@ export async function confirmStampyDiscountProductFilamentsAction(
       message: "No tenés acceso habilitado para usar Stampy.",
     };
   }
+
+  const featureUnavailable = await ensureStampyActionFeatures(supabase, access);
+  if (featureUnavailable) return featureUnavailable;
 
   const { data: actionRequest, error: actionRequestError } = await supabase
     .from("stampy_action_requests")

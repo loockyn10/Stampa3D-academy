@@ -147,6 +147,7 @@ function loadPreviewRoute({ access, rows, signed = { data: { signedUrl: "https:/
     "@/lib/storage": { parseStorageReference: (v) => { if (!v?.startsWith("storage://")) return null; const r = v.slice(10); const i = r.indexOf("/"); return { bucket: r.slice(0, i), path: r.slice(i + 1) }; } },
     "@/lib/auth/user-access": { getCurrentUserAccess: async () => ({ access }) },
     "@/lib/stl/library": lib,
+    "@/lib/features/server": { featureGuardResponse: async () => null },
   });
   return { POST: route.POST, signCalls };
 }

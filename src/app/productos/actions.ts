@@ -2,6 +2,7 @@
 
 import { revalidatePath } from "next/cache";
 import { getCurrentUserAccess } from "@/lib/auth/user-access";
+import { FEATURE_UNAVAILABLE_MESSAGE, isFeatureAvailable } from "@/lib/features/server";
 import {
   calculateProductPrice,
   type ProductCalculationSnapshot,
@@ -265,6 +266,9 @@ async function getAuthorizedRecalculationClient() {
   if (error || !access.userId || !access.capabilities.accessPlatform) {
     return { success: false as const, error: "No tenés permiso para recalcular productos." };
   }
+  if (!(await isFeatureAvailable(supabase, "mi_taller", access))) {
+    return { success: false as const, error: FEATURE_UNAVAILABLE_MESSAGE };
+  }
   return { success: true as const, supabase, userId: access.userId };
 }
 
@@ -352,6 +356,9 @@ export async function deleteProductAction(productId: string) {
   const { access, error: accessError } = await getCurrentUserAccess(supabase);
   if (accessError || !access.userId || !access.capabilities.accessPlatform) {
     return { success: false as const, error: "No tenés permiso para eliminar productos." };
+  }
+  if (!(await isFeatureAvailable(supabase, "mi_taller", access))) {
+    return { success: false as const, error: FEATURE_UNAVAILABLE_MESSAGE };
   }
 
   const { data: product, error: productError } = await supabase

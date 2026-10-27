@@ -5,6 +5,7 @@ import Link from "next/link";
 import { Shield } from "lucide-react";
 import { GlobalSearch } from "@/components/search/GlobalSearch";
 import type { UserAccessSnapshot } from "@/lib/auth/user-access";
+import { useFeatureVisibility } from "@/components/features/feature-flags-provider";
 
 interface MobileHeaderProps {
   access: UserAccessSnapshot | null;
@@ -27,12 +28,14 @@ export function MobileHeader({ access, loading }: MobileHeaderProps) {
   const identity = access?.identity;
   const isAdmin = !loading && access?.role === "admin";
   const isFree = !loading && access?.authenticated === true && !access.capabilities.accessPlatform;
+  const visibility = useFeatureVisibility();
+  const freeHome = visibility.isFeatureVisible("calculadora") ? "/calculadora" : "/";
 
   return (
     <header className="sticky top-0 z-30 border-b border-stampa-border bg-stampa-bg/95 backdrop-blur-xl lg:hidden">
       <div className="flex h-14 items-center justify-between px-3">
         <Link
-          href={isFree ? "/calculadora" : "/"}
+          href={isFree ? freeHome : "/"}
           aria-label="Ir al inicio"
           className="flex h-11 min-w-11 items-center gap-2 rounded-xl px-1 transition-colors active:bg-white/5"
         >

@@ -2,12 +2,15 @@ import { NextResponse } from "next/server";
 import { getCurrentUserAccess } from "@/lib/auth/user-access";
 import { createBusinessAdminClient } from "@/lib/business/server";
 import { createClient } from "@/utils/supabase/server";
+import { featureGuardResponse } from "@/lib/features/server";
 
 export async function POST() {
   const supabase = await createClient();
   const { access } = await getCurrentUserAccess(supabase);
   if (!access.userId) return NextResponse.json({ error: "Necesitás iniciar sesión." }, { status: 401 });
   if (!access.capabilities.accessPlatform) return NextResponse.json({ error: "No tenés acceso a esta operación." }, { status: 403 });
+  const featureBlocked = await featureGuardResponse(supabase, "mi_negocio", access);
+  if (featureBlocked) return featureBlocked;
   try {
     const { error } = await createBusinessAdminClient().from("business_payment_accounts").upsert({
       user_id: access.userId, provider: "mercado_pago", status: "disconnected",

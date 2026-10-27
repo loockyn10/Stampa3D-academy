@@ -36,6 +36,7 @@ import {
   type BusinessStorefront,
 } from "@/lib/business/storefront";
 import { getCurrentUserAccess } from "@/lib/auth/user-access";
+import { FEATURE_UNAVAILABLE_MESSAGE, isFeatureAvailable } from "@/lib/features/server";
 import { isValidBarcode, normalizeBarcode } from "@/lib/barcode/hid-scanner";
 import type { BusinessOrderItemSummary, BusinessOrderSummary, BusinessPaymentConnection } from "@/lib/business/orders";
 import {
@@ -152,6 +153,10 @@ async function authorizeBusinessAccess() {
   const { access, error } = await getCurrentUserAccess(supabase);
   if (error || !access.userId || !access.capabilities.accessPlatform) {
     return { success: false as const, error: "No tenés permiso para administrar Mi Negocio." };
+  }
+  // Feature flag de Mi Negocio (los administradores conservan el acceso); se suma a la validación de membresía.
+  if (!(await isFeatureAvailable(supabase, "mi_negocio", access))) {
+    return { success: false as const, error: FEATURE_UNAVAILABLE_MESSAGE };
   }
   return { success: true as const, supabase, userId: access.userId };
 }

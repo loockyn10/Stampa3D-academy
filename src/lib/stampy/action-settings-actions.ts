@@ -2,6 +2,7 @@
 
 import { getCurrentUserAccess } from "@/lib/auth/user-access";
 import { createClient } from "@/utils/supabase/server";
+import { FEATURE_UNAVAILABLE_MESSAGE, isFeatureAvailable } from "@/lib/features/server";
 import {
   DEFAULT_STAMPY_ACTION_SETTINGS,
   getStampyActionSettings,
@@ -29,6 +30,10 @@ async function getAuthorizedSettingsContext() {
       userId: null,
       error: "No tenés acceso habilitado para usar Stampy.",
     };
+  }
+
+  if (!(await isFeatureAvailable(supabase, "stampy", access))) {
+    return { supabase, userId: null, error: FEATURE_UNAVAILABLE_MESSAGE };
   }
 
   return { supabase, userId: access.userId, error: null };

@@ -34,6 +34,8 @@ import { getVisibleRaffles, type PublicRaffle } from "@/lib/raffles/public-raffl
 import { modelHref } from "@/lib/stl/library";
 import type { BusinessMetrics } from "@/lib/business/metrics";
 import { loadBusinessMetricsAction } from "@/app/mi-negocio/actions";
+import { useFeatureVisibility } from "@/components/features/feature-flags-provider";
+import { PERMISSIVE_FEATURE_VISIBILITY, type FeatureVisibility } from "@/lib/features/visibility";
 
 const money = new Intl.NumberFormat("es-AR", { style: "currency", currency: "ARS", maximumFractionDigits: 0 });
 const dayFormat = new Intl.DateTimeFormat("es-AR", { day: "numeric", month: "long" });
@@ -80,6 +82,7 @@ export const HOME_QUICK_ACTIONS: { href: string; label: string; icon: LucideIcon
 ];
 
 export function HomeDashboard() {
+  const visibility = useFeatureVisibility();
   const [supabase] = useState(() => createClient());
   const [data, setData] = useState<HomeData>({
     firstName: "",
@@ -242,10 +245,25 @@ export function HomeDashboard() {
   }, [data]);
   usePublishStampyScreenContext(stampyContext);
 
-  return <HomeDashboardView data={data} />;
+  return <HomeDashboardView data={data} visibility={visibility} />;
 }
 
-export function HomeDashboardView({ data }: { data: HomeData }) {
+export function HomeDashboardView({
+  data,
+  visibility = PERMISSIVE_FEATURE_VISIBILITY,
+}: {
+  data: HomeData;
+  /** Funcionalidades habilitadas para este usuario; lo deshabilitado no se muestra (ni deja huecos). */
+  visibility?: FeatureVisibility;
+}) {
+  const quickActions = HOME_QUICK_ACTIONS.filter((action) => visibility.isPathVisible(action.href));
+  const showLearning = visibility.isPathVisible("/academia");
+  const showWorkshop = visibility.isPathVisible("/mi-taller");
+  const showBusiness = visibility.isPathVisible("/mi-negocio");
+  const showRaffle = visibility.isPathVisible("/sorteos");
+  const showStl = visibility.isPathVisible("/libreria-stl");
+  const showMainColumn = showLearning || showWorkshop || showBusiness;
+  const showAside = showRaffle || showStl;
   const learning = data.learning.status === "ready" ? data.learning.data : null;
   const workshop = data.workshop.status === "ready" ? data.workshop.data : null;
   const business = data.business.status === "ready" ? data.business.data : null;
@@ -257,13 +275,15 @@ export function HomeDashboardView({ data }: { data: HomeData }) {
           <h1 className="text-2xl font-bold tracking-tight text-white sm:text-3xl">
             {data.firstName ? `Hola, ${data.firstName}` : "Hola"}
           </h1>
-          <p className="mt-1 text-sm text-gray-400">¿Qué querés resolver hoy? Seguí donde lo dejaste o pedile ayuda a Stampy.</p>
+          <p className="mt-1 text-sm text-gray-400">
+            ¿Qué querés resolver hoy?{visibility.isFeatureVisible("stampy") ? " Seguí donde lo dejaste o pedile ayuda a Stampy." : ""}
+          </p>
         </div>
         {data.xp && <XpBadge xp={data.xp} />}
       </header>
 
-      <nav aria-label="Accesos rápidos" className="grid grid-cols-3 gap-2 sm:grid-cols-6">
-        {HOME_QUICK_ACTIONS.map((action) => {
+      {quickActions.length > 0 && <nav aria-label="Accesos rápidos" className="grid grid-cols-3 gap-2 sm:grid-cols-6">
+        {quickActions.map((action) => {
           const Icon = action.icon;
           return (
             <Link
@@ -280,14 +300,14 @@ export function HomeDashboardView({ data }: { data: HomeData }) {
             </Link>
           );
         })}
-      </nav>
+      </nav>}
 
       <div className="grid grid-cols-1 gap-4 lg:grid-cols-3">
-        <div className="space-y-4 lg:col-span-2">
-          <ContinueLearning section={data.learning} learning={learning} />
+        {showMainColumn && <div className="space-y-4 lg:col-span-2">
+          {showLearning && <ContinueLearning section={data.learning} learning={learning} />}
 
-          <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
-            <HomePanel title="Mi Taller" icon={Wrench} href="/mi-taller" linkLabel="Abrir">
+          {(showWorkshop || showBusiness) && <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+            {showWorkshop && <HomePanel title="Mi Taller" icon={Wrench} href="/mi-taller" linkLabel="Abrir">
               {data.workshop.status === "loading" ? (
                 <MiniSkeleton />
               ) : !workshop ? (
@@ -323,9 +343,9 @@ export function HomeDashboardView({ data }: { data: HomeData }) {
                   )}
                 </>
               )}
-            </HomePanel>
+            </HomePanel>}
 
-            <HomePanel title="Mi Negocio" icon={Briefcase} href="/mi-negocio" linkLabel="Abrir">
+            {showBusiness && <HomePanel title="Mi Negocio" icon={Briefcase} href="/mi-negocio" linkLabel="Abrir">
               {data.business.status === "loading" ? (
                 <MiniSkeleton />
               ) : !business ? (
@@ -344,14 +364,14 @@ export function HomeDashboardView({ data }: { data: HomeData }) {
                   </p>
                 </>
               )}
-            </HomePanel>
-          </div>
-        </div>
+            </HomePanel>}
+          </div>}
+        </div>}
 
-        <aside className="space-y-4" aria-label="Novedades">
-          <RaffleCard section={data.raffle} />
-          <LatestStl section={data.stl} />
-        </aside>
+        {showAside && <aside className={showMainColumn ? "space-y-4" : "space-y-4 lg:col-span-3 lg:grid lg:grid-cols-2 lg:gap-4 lg:space-y-0"} aria-label="Novedades">
+          {showRaffle && <RaffleCard section={data.raffle} />}
+          {showStl && <LatestStl section={data.stl} />}
+        </aside>}
       </div>
     </div>
   );

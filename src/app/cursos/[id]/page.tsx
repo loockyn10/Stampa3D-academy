@@ -10,6 +10,7 @@ import { createClient } from "@/utils/supabase/client";
 import { getCourseLevelLabel, getCourseLevelClasses } from "@/lib/course-style";
 import { getFileAccessUrl } from "@/lib/storage";
 import { StampyLessonChat } from "@/components/stampy/StampyLessonChat";
+import { useFeatureVisibility } from "@/components/features/feature-flags-provider";
 import { getCourseKindUi } from "@/lib/academy/course-kind";
 import { usePublishStampyScreenContext } from "@/components/stampy/StampyContextProvider";
 import type { StampyScreenContext } from "@/lib/stampy/screen-context";
@@ -19,6 +20,7 @@ interface PageProps {
 }
 
 export default function CursoDetailPage({ params }: PageProps) {
+  const stampyVisible = useFeatureVisibility().isFeatureVisible("stampy");
   const { id } = use(params);
   const [course, setCourse] = useState<any>(null);
   const [modules, setModules] = useState<any[]>([]);
@@ -665,7 +667,7 @@ export default function CursoDetailPage({ params }: PageProps) {
           </div>
 
           {/* Stampy Promo Card */}
-          <Link href="/stampy" className="block relative overflow-hidden bg-gradient-to-br from-cyan-950/40 via-violet-950/40 to-neutral-900 border border-cyan-500/20 rounded-2xl p-6 shadow-xl shadow-cyan-500/5 hover:-translate-y-1 transition-transform group">
+          {stampyVisible && <Link href="/stampy" className="block relative overflow-hidden bg-gradient-to-br from-cyan-950/40 via-violet-950/40 to-neutral-900 border border-cyan-500/20 rounded-2xl p-6 shadow-xl shadow-cyan-500/5 hover:-translate-y-1 transition-transform group">
             <div className="absolute top-0 right-0 -mt-4 -mr-4 opacity-15 text-cyan-400">
               <Sparkles size={120} />
             </div>
@@ -682,11 +684,11 @@ export default function CursoDetailPage({ params }: PageProps) {
                 Preguntar a Stampy <ArrowLeft size={16} className="ml-2 rotate-180" />
               </div>
             </div>
-          </Link>
+          </Link>}
 
         </div>
       </div>
-      {activeLesson && (
+      {activeLesson && stampyVisible && (
         <StampyLessonChat
           key={activeLesson.id}
           courseTitle={course.title}

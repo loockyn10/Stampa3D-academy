@@ -2,6 +2,14 @@
 
 Este archivo contiene únicamente trabajo pendiente o próximo. Eliminar tareas terminadas en lugar de conservar un historial infinito.
 
+## Now — Feature flags / lanzamiento progresivo (implementado 2026-10-24, rama `feature/universo-stampa-feature-flags`, ver ARCHITECTURE §21 y D030)
+
+- [ ] Aplicar `supabase/migrations/20261024120000_platform_feature_flags.sql` en Supabase remoto (requiere autorización). Antes: confirmar que `public.is_admin(uuid)` existe. Después: abrir `/admin/funcionalidades` y verificar que las 12 herramientas figuran "Sin configurar · habilitada" (comportamiento idéntico al actual).
+- [ ] QA manual con 3 cuentas (Free, Paid/Beta, Admin) en desktop y 320–430 px: deshabilitar UNA herramienta (p. ej. Redes), comprobar que el usuario común no la ve en sidebar/barra inferior/menú radial/Inicio/buscador, que la URL directa y sus subrutas llevan a `/no-disponible`, que Stampy no la recomienda, y que el admin la sigue viendo; volver a habilitarla y confirmar que los datos siguen intactos.
+- [ ] Estrategia de activación sugerida: deshabilitar de a una herramienta (empezando por las menos críticas), probar con la cuenta común, seguir con la siguiente. Evitar deshabilitar Calculadora (puerta de entrada gratuita) y Tienda online pública (corta compras de clientes finales) sin decisión comercial.
+- [ ] Decisión pendiente (no implementada): llevar la flag a RLS/RPC para bloquear también lecturas directas del navegador contra Supabase; hoy esas lecturas siguen protegidas solo por membresía/ownership.
+- [ ] Opcional: historial de cambios (quién/cuándo deshabilitó qué) más allá de `updated_by/updated_at`; botón para volver una funcionalidad a "sin configurar" (hoy solo por SQL).
+
 ## Now — UX V2 (2026-10-22, rama `feature/universo-stampa-ux-v2`, ver ARCHITECTURE §20 / D028)
 
 - [ ] QA manual con sesión (no hay cuentas de prueba ni Supabase de test; usar una cuenta Paid y otra Beta, en desktop y 320–430 px, dentro del shell real con header y navegación inferior):

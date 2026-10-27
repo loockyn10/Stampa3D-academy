@@ -6,6 +6,7 @@ import { Calculator, Download, ExternalLink, Eye, Heart, ImageOff } from "lucide
 import { MODEL_SOURCE_LABELS } from "@/lib/model-search/sources";
 import { buildCalculatorLink } from "@/lib/model-search/calculator-link";
 import type { ModelSearchResult } from "@/lib/model-search/types";
+import { useFeatureVisibility } from "@/components/features/feature-flags-provider";
 
 const compactNumber = new Intl.NumberFormat("es-AR", { notation: "compact", maximumFractionDigits: 1 });
 
@@ -46,6 +47,7 @@ interface ModelResultCardProps {
 
 export function ModelResultCard({ result, canCalculate }: ModelResultCardProps) {
   const [imageFailed, setImageFailed] = useState(false);
+  const calculatorVisible = useFeatureVisibility().isFeatureVisible("calculadora");
   const sourceLabel = MODEL_SOURCE_LABELS[result.source];
   const showImage = result.thumbnailUrl && !imageFailed;
   const metrics = [
@@ -130,7 +132,7 @@ export function ModelResultCard({ result, canCalculate }: ModelResultCardProps) 
             Ver modelo en {sourceLabel}
             <ExternalLink size={14} aria-hidden="true" />
           </a>
-          {canCalculate && (
+          {canCalculate && calculatorVisible && (
             <Link
               href={buildCalculatorLink(result)}
               className="inline-flex items-center justify-center gap-2 rounded-xl border border-stampa-border bg-stampa-surface-soft px-4 py-2.5 text-sm font-semibold text-stampa-text-muted transition-colors hover:bg-white/10 hover:text-white"
