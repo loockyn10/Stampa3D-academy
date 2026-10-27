@@ -5,6 +5,8 @@ import Link from "next/link";
 import { GraduationCap, ArrowRight, BookOpen, PenTool } from "lucide-react";
 import { createClient } from "@/utils/supabase/client";
 import { RecommendedPathSection, resolveRecommendedPathView } from "@/components/academy/RecommendedPathSection";
+import { ComingSoonSection } from "@/components/academy/coming-soon";
+import { CATALOG_STATUSES, splitCatalogCourses } from "@/lib/academy/catalog";
 import { UserProfile } from "@/lib/learning-roadmaps";
 import { GridSkeleton } from "@/components/ui/page-skeletons";
 import { usePublishStampyScreenContext } from "@/components/stampy/StampyContextProvider";
@@ -43,7 +45,7 @@ export default function AcademiaPage() {
             lessons ( id, duration_minutes )
           )
         `)
-          .eq("status", "published")
+          .in("status", [...CATALOG_STATUSES])
           .eq("course_kind", "course")
           .order("sort_order", { ascending: true }),
         supabase
@@ -76,9 +78,11 @@ export default function AcademiaPage() {
     fetchData();
   }, [supabase]);
 
+  // Las rutas recomendadas solo usan cursos publicados: uno «en preparación» nunca se recomienda como disponible.
+  const catalog = useMemo(() => splitCatalogCourses(courses), [courses]);
   const recommendation = useMemo(
-    () => resolveRecommendedPathView(profile, learningPaths, courses),
-    [profile, learningPaths, courses],
+    () => resolveRecommendedPathView(profile, learningPaths, catalog.published),
+    [profile, learningPaths, catalog.published],
   );
   const screenContext = useMemo<StampyScreenContext>(() => ({
     page: {
@@ -189,13 +193,15 @@ export default function AcademiaPage() {
         <GridSkeleton count={3} media />
       ) : (
         <>
-          {courses.length > 0 && (
+          {catalog.published.length > 0 && (
             <RecommendedPathSection
               profile={profile}
               learningPaths={learningPaths}
-              courses={courses}
+              courses={catalog.published}
             />
           )}
+
+          <ComingSoonSection courses={catalog.comingSoon.slice(0, 3)} />
 
           {/* CTA discreto */}
           <div className="mt-8">

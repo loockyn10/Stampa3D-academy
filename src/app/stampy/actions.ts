@@ -1571,8 +1571,14 @@ export async function askStampyAction(
     const turnContext: string[] = [];
 
     // La clase actual va primero: es el marco principal de la conversación.
-    const lessonId = context?.source === "lesson" ? context.lessonId : undefined;
-    if (context?.source === "lesson") {
+    // El contexto de clase llega del cliente (contexto ≠ autorización): solo se usa si la clase pertenece a un
+    // curso publicado (o es administrador) y Academia está habilitada.
+    let lessonId = context?.source === "lesson" ? context.lessonId : undefined;
+    if (lessonId) {
+      const { loadLessonGate } = await import("@/lib/academy/access");
+      if (!(await loadLessonGate(supabase, lessonId)).allowed) lessonId = undefined;
+    }
+    if (context?.source === "lesson" && (lessonId || !context.lessonId)) {
       turnContext.push(formatStampyLessonContextForPrompt(context));
     }
     if (lessonId) {

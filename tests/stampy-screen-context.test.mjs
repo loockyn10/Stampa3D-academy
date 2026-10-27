@@ -185,7 +185,7 @@ test("remaining high-value user pages publish lightweight dynamic screen context
   const routes = [
     ["src/app/cursos/page.tsx", /section: "courses"/, /type: "course"/],
     ["src/app/talleres/page.tsx", /section: "workshops"/, /type: "workshop"/],
-    ["src/app/cursos/[id]/page.tsx", /mode: activeLesson \? "lesson" : "overview"/, /type: "lesson"/],
+    ["src/app/cursos/[id]/course-detail-client.tsx", /mode: activeLesson \? "lesson" : "overview"/, /type: "lesson"/],
     ["src/app/productos/page.tsx", /section: "workshop"/, /Estado de precio/],
     ["src/app/stock/page.tsx", /section: workshopSection \? "workshop" : "stock"/, /Gramos restantes visibles/],
     ["src/app/calculadora/page.tsx", /section: "calculator"/, /kind: "calculatorDraft"/],

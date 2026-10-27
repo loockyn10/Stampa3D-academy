@@ -31,6 +31,7 @@ function loadTypeScriptModule(relativePath, dependencies = {}) {
 }
 
 const courseKind = loadTypeScriptModule("src/lib/academy/course-kind.ts");
+const courseVisibility = loadTypeScriptModule("src/lib/academy/visibility.ts");
 
 function loadDeleteAction({ admin = true, deleteError = null, deleted = true } = {}) {
   const calls = [];
@@ -81,6 +82,8 @@ function loadDeleteAction({ admin = true, deleteError = null, deleted = true } =
       }),
     },
     "@/lib/academy/course-kind": courseKind,
+    "@/lib/academy/visibility": courseVisibility,
+    "@supabase/supabase-js": { createClient: () => { throw new Error("service role no esperado"); } },
     "@/utils/supabase/server": { createClient: async () => supabase },
   });
 
@@ -101,7 +104,7 @@ test("course kind determines the public back destination", () => {
 });
 
 test("shared detail derives its back link from course_kind", () => {
-  const source = fs.readFileSync(path.join(root, "src/app/cursos/[id]/page.tsx"), "utf8");
+  const source = fs.readFileSync(path.join(root, "src/app/cursos/[id]/course-detail-client.tsx"), "utf8");
   assert.match(source, /getCourseKindUi\(course\.course_kind\)/);
   assert.match(source, /href=\{courseKindUi\.publicListHref\}/);
   assert.match(source, /Volver a \{courseKindUi\.plural\}/);

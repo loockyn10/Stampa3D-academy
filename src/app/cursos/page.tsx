@@ -3,6 +3,8 @@
 import React, { useEffect, useMemo, useState } from "react";
 import { createClient } from "@/utils/supabase/client";
 import { CourseCard } from "@/components/cards/course-card";
+import { ComingSoonSection } from "@/components/academy/coming-soon";
+import { CATALOG_STATUSES, splitCatalogCourses } from "@/lib/academy/catalog";
 import { GraduationCap } from "lucide-react";
 import Link from "next/link";
 import { GridSkeleton } from "@/components/ui/page-skeletons";
@@ -30,7 +32,7 @@ export default function CursosPage() {
             lessons ( id, duration_minutes )
           )
         `)
-        .eq("status", "published")
+        .in("status", [...CATALOG_STATUSES])
         .eq("course_kind", "course")
         .order("sort_order", { ascending: true });
 
@@ -47,7 +49,9 @@ export default function CursosPage() {
     fetchData();
   }, [supabase]);
 
-  const filteredCourses = useMemo(() => courses.filter((c) => {
+  // Cada curso aparece una sola vez: disponibles en el listado, «en preparación» en su propia sección.
+  const catalog = useMemo(() => splitCatalogCourses(courses), [courses]);
+  const matchesSearch = (c: any) => {
     const term = searchTerm.toLowerCase();
     return (
       (c.title || "").toLowerCase().includes(term) ||
@@ -56,7 +60,9 @@ export default function CursosPage() {
       (c.slug || "").toLowerCase().includes(term) ||
       (c.instructors?.name || "").toLowerCase().includes(term)
     );
-  }), [courses, searchTerm]);
+  };
+  const filteredCourses = useMemo(() => catalog.published.filter(matchesSearch), [catalog.published, searchTerm]); // eslint-disable-line react-hooks/exhaustive-deps
+  const filteredComingSoon = useMemo(() => catalog.comingSoon.filter(matchesSearch), [catalog.comingSoon, searchTerm]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const stampyScreenContext = useMemo<StampyScreenContext>(() => ({
     page: { section: "courses", route: "/cursos", title: "Cursos" },
@@ -71,7 +77,7 @@ export default function CursosPage() {
     pageData: {
       kind: "pageFacts",
       facts: [
-        { label: "Cursos publicados", value: courses.length },
+        { label: "Cursos publicados", value: catalog.published.length },
         { label: "Cursos visibles con el filtro actual", value: filteredCourses.length },
       ],
     },
@@ -79,7 +85,7 @@ export default function CursosPage() {
       loading,
       ...(searchTerm ? { searchQuery: searchTerm } : {}),
     },
-  }), [courses.length, filteredCourses, loading, searchTerm]);
+  }), [catalog.published.length, filteredCourses, loading, searchTerm]);
 
   usePublishStampyScreenContext(stampyScreenContext);
 
@@ -139,8 +145,10 @@ export default function CursosPage() {
 
       {loading ? (
         <GridSkeleton count={6} media />
-      ) : courses.length > 0 ? (
-        <div>
+      ) : catalog.published.length > 0 || catalog.comingSoon.length > 0 ? (
+        <div className="space-y-10">
+          {catalog.published.length > 0 && (
+          <div>
           <h2 className="text-2xl font-bold text-white mb-6">Todos los cursos</h2>
           {filteredCourses.length > 0 ? (
             <div className="grid grid-cols-1 gap-6 sm:grid-cols-2 lg:grid-cols-3">
@@ -159,6 +167,9 @@ export default function CursosPage() {
               </button>
             </div>
           )}
+          </div>
+          )}
+          <ComingSoonSection courses={filteredComingSoon} />
         </div>
       ) : (
         <div className="max-w-xl mx-auto mt-12 text-center">

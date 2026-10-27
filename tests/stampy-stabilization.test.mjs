@@ -1115,7 +1115,7 @@ test("Stampy clients use separate conversation storage keys and reset controls",
     "utf8"
   );
   const courseSource = fs.readFileSync(
-    path.join(root, "src/app/cursos/[id]/page.tsx"),
+    path.join(root, "src/app/cursos/[id]/course-detail-client.tsx"),
     "utf8"
   );
 

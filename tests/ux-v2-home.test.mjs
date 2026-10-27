@@ -3,9 +3,9 @@ import test from "node:test";
 import { loadTs, readRepoFile as read } from "./helpers/load-ts.mjs";
 
 const learning = loadTs("src/lib/academy/continue-learning.ts");
-const row = (courseId, completedAt, title = courseId) => ({
+const row = (courseId, completedAt, title = courseId, status = "published") => ({
   completed_at: completedAt,
-  lessons: { course_modules: { courses: { id: courseId, title, slug: `${courseId}-slug`, thumbnail_url: null } } },
+  lessons: { course_modules: { courses: { id: courseId, title, slug: `${courseId}-slug`, thumbnail_url: null, status } } },
 });
 
 test("continuar aprendiendo: elige el curso con actividad más reciente, no el primero", () => {

@@ -259,3 +259,13 @@ Las cards usan un asset de video (`stl_models.preview_url`) generado client-side
 - **Falla cerrada acotada:** tabla inexistente → no restringe (despliegue seguro antes de la migration); otro error de lectura → último estado conocido; sin él, los no-admin no acceden a lo controlado (administradores y rutas esenciales sí).
 - **No se gatean** webhooks/callbacks/expiración de pedidos de pagos ni rutas esenciales (auth, perfil, configuración, admin, pagos de membresía). La tienda pública es una funcionalidad aparte (`tienda_online`) para no cortar ventas al deshabilitar Mi Negocio por accidente.
 - No se modifican roles, membresías, RLS de otras tablas ni datos de usuarios. Las lecturas directas del navegador contra Supabase siguen gobernadas solo por RLS (ver ARCHITECTURE §21).
+
+## D031 — Visibilidad de cursos: tres estados sobre `courses.status`
+
+**Estado:** Accepted (2026-10-26), pendiente de aplicar la migration y de QA.
+
+- Se reutiliza `courses.status` en lugar de una columna nueva: `published`, `coming_soon`, `hidden`. `draft` y `archived` históricos significan `hidden` en código (nunca publicado); la migration no reescribe filas.
+- «Oculto» persiste el valor `hidden`; el formulario de un curso nuevo lo crea oculto.
+- Defensa en capas: página/acción de servidor + policies RESTRICTIVE (solo recortan). No se reemplazan ni debilitan las policies existentes; si el schema remoto difiere, la migration aborta por dependencias o queda en no-op parcial documentado.
+- «En preparación» no se enlaza ni se recomienda: no hay a dónde entrar, y Stampy/buscador/rutas solo ofrecen cursos `published`.
+- El progreso se escribe desde una Server Action (sesión → feature flag → membresía → visibilidad); la RLS de `lesson_progress` cubre además el acceso directo a Supabase.

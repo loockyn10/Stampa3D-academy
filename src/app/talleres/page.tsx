@@ -3,6 +3,8 @@
 import React, { useEffect, useMemo, useState } from "react";
 import { createClient } from "@/utils/supabase/client";
 import { CourseCard } from "@/components/cards/course-card";
+import { ComingSoonSection } from "@/components/academy/coming-soon";
+import { CATALOG_STATUSES, splitCatalogCourses } from "@/lib/academy/catalog";
 import { Loader2, PenTool } from "lucide-react";
 import Link from "next/link";
 import { usePublishStampyScreenContext } from "@/components/stampy/StampyContextProvider";
@@ -29,7 +31,7 @@ export default function TalleresPage() {
             lessons ( id, duration_minutes )
           )
         `)
-        .eq("status", "published")
+        .in("status", [...CATALOG_STATUSES])
         .eq("course_kind", "workshop")
         .order("sort_order", { ascending: true });
 
@@ -46,7 +48,9 @@ export default function TalleresPage() {
     fetchData();
   }, [supabase]);
 
-  const filteredCourses = useMemo(() => courses.filter((c) => {
+  // Cada taller aparece una sola vez: disponibles en el listado, «en preparación» en su propia sección.
+  const catalog = useMemo(() => splitCatalogCourses(courses), [courses]);
+  const matchesSearch = (c: any) => {
     const term = searchTerm.toLowerCase();
     return (
       (c.title || "").toLowerCase().includes(term) ||
@@ -55,7 +59,9 @@ export default function TalleresPage() {
       (c.slug || "").toLowerCase().includes(term) ||
       (c.instructors?.name || "").toLowerCase().includes(term)
     );
-  }), [courses, searchTerm]);
+  };
+  const filteredCourses = useMemo(() => catalog.published.filter(matchesSearch), [catalog.published, searchTerm]); // eslint-disable-line react-hooks/exhaustive-deps
+  const filteredComingSoon = useMemo(() => catalog.comingSoon.filter(matchesSearch), [catalog.comingSoon, searchTerm]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const stampyScreenContext = useMemo<StampyScreenContext>(() => ({
     page: { section: "workshops", route: "/talleres", title: "Talleres" },
@@ -70,7 +76,7 @@ export default function TalleresPage() {
     pageData: {
       kind: "pageFacts",
       facts: [
-        { label: "Talleres publicados", value: courses.length },
+        { label: "Talleres publicados", value: catalog.published.length },
         { label: "Talleres visibles con el filtro actual", value: filteredCourses.length },
       ],
     },
@@ -78,7 +84,7 @@ export default function TalleresPage() {
       loading,
       ...(searchTerm ? { searchQuery: searchTerm } : {}),
     },
-  }), [courses.length, filteredCourses, loading, searchTerm]);
+  }), [catalog.published.length, filteredCourses, loading, searchTerm]);
 
   usePublishStampyScreenContext(stampyScreenContext);
 
@@ -140,8 +146,10 @@ export default function TalleresPage() {
         <div className="flex justify-center py-20">
           <Loader2 className="animate-spin text-blue-500 h-10 w-10" />
         </div>
-      ) : courses.length > 0 ? (
-        <div>
+      ) : catalog.published.length > 0 || catalog.comingSoon.length > 0 ? (
+        <div className="space-y-10">
+          {catalog.published.length > 0 && (
+          <div>
           {filteredCourses.length > 0 ? (
             <div className="grid grid-cols-1 gap-6 sm:grid-cols-2 lg:grid-cols-3">
               {filteredCourses.map((c) => (
@@ -159,6 +167,9 @@ export default function TalleresPage() {
               </button>
             </div>
           )}
+          </div>
+          )}
+          <ComingSoonSection courses={filteredComingSoon} title="Próximamente en talleres" subtitle="Proyectos que estamos preparando. Se habilitan cuando estén listos." />
         </div>
       ) : (
         <div className="max-w-xl mx-auto mt-12 text-center">

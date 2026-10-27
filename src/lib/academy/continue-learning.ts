@@ -1,7 +1,12 @@
 /**
  * "Continuar aprendiendo" de Inicio: el curso con la lección completada más reciente
  * (`lesson_progress.completed_at`). Antes se tomaba el primer curso encontrado, no el último iniciado.
+ *
+ * Solo cuentan los cursos publicados: uno «en preparación» u oculto conserva su progreso en la base pero no se
+ * ofrece para continuar (un enlace llevaría a una pantalla bloqueada o a un 404).
  */
+
+import { normalizeCourseVisibility } from "./visibility";
 
 export interface LessonProgressCourseRow {
   completed_at?: string | null;
@@ -12,6 +17,7 @@ export interface LessonProgressCourseRow {
         title?: string | null;
         slug?: string | null;
         thumbnail_url?: string | null;
+        status?: string | null;
       } | null;
     } | null;
   } | null;
@@ -34,6 +40,7 @@ export function pickContinueLearningCourse(rows: LessonProgressCourseRow[]): Con
   for (const row of rows) {
     const course = row.lessons?.course_modules?.courses;
     if (!course?.id) continue;
+    if (normalizeCourseVisibility(course.status) !== "published") continue;
     const at = row.completed_at ? Date.parse(row.completed_at) : Number.NaN;
     const entry = byCourse.get(course.id) ?? { course, completed: 0, last: Number.NEGATIVE_INFINITY, lastIso: null };
     entry.completed += 1;

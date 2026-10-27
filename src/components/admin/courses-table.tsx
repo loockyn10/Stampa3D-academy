@@ -5,6 +5,7 @@ import { createClient } from "@/utils/supabase/client";
 import { AlertCircle, Edit2 } from "lucide-react";
 import Link from "next/link";
 import { Badge } from "@/components/ui/badge";
+import { CourseVisibilityBadge } from "@/components/admin/course-visibility";
 import { TableSkeleton } from "@/components/ui/page-skeletons";
 
 export function CoursesTable() {
@@ -63,7 +64,7 @@ export function CoursesTable() {
                 <th className="px-4 py-3">Instructor</th>
                 <th className="px-4 py-3">Nivel</th>
                 <th className="px-4 py-3">Tipo</th>
-                <th className="px-4 py-3">Estado</th>
+                <th className="px-4 py-3">Visibilidad</th>
                 <th className="px-4 py-3">Orden</th>
                 <th className="px-4 py-3 text-right">Acciones</th>
               </tr>
@@ -89,9 +90,7 @@ export function CoursesTable() {
                     </Badge>
                   </td>
                   <td className="px-4 py-3">
-                    <Badge tone={course.status === "published" ? "green" : course.status === "archived" ? "dark" : "dark"}>
-                      {course.status === "published" ? "Publicado" : course.status === "archived" ? "Archivado" : "Borrador"}
-                    </Badge>
+                    <CourseVisibilityBadge status={course.status} />
                   </td>
                   <td className="px-4 py-3 text-gray-400">
                     {course.sort_order}

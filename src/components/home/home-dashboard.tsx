@@ -117,7 +117,7 @@ export function HomeDashboard() {
       void (async () => {
         const { data: progressRows, error } = await supabase
           .from("lesson_progress")
-          .select("completed_at, lessons ( id, course_modules ( id, course_id, courses ( id, title, thumbnail_url, slug ) ) )")
+          .select("completed_at, lessons ( id, course_modules ( id, course_id, courses ( id, title, thumbnail_url, slug, status ) ) )")
           .eq("user_id", user.id);
         if (error) return patch({ learning: { status: "error" } });
         const latest = pickContinueLearningCourse((progressRows ?? []) as never);

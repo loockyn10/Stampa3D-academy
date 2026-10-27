@@ -8,7 +8,18 @@ import { ImageCropEditor } from "@/components/ui/image-crop-editor";
 import { validateRasterImageFile } from "@/lib/images/crop";
 import { getCourseCoverImageEditorConfig } from "@/lib/images/presets";
 import { getCourseKindUi } from "@/lib/academy/course-kind";
-import { deleteCourseAction } from "@/app/admin/cursos/actions";
+import {
+  deleteCourseAction,
+  getCourseVisibilityImpactAction,
+  updateCourseVisibilityAction,
+} from "@/app/admin/cursos/actions";
+import { CourseVisibilitySelector } from "@/components/admin/course-visibility";
+import {
+  describeVisibilityImpact,
+  isBlockedVisibility,
+  normalizeCourseVisibility,
+  type CourseVisibility,
+} from "@/lib/academy/visibility";
 import { useAppFeedback } from "@/components/ui/app-feedback";
 
 export function CourseForm({ courseId }: { courseId?: string }) {
@@ -31,6 +42,8 @@ export function CourseForm({ courseId }: { courseId?: string }) {
   const [thumbnailPreview, setThumbnailPreview] = useState<string | null>(null);
   const [pendingThumbnailFile, setPendingThumbnailFile] = useState<File | null>(null);
   const [persistedCourseKind, setPersistedCourseKind] = useState("course");
+  // Visibilidad guardada en la base (null = curso nuevo): decide si hay que avisar y si hace falta guardarla.
+  const [persistedVisibility, setPersistedVisibility] = useState<CourseVisibility | null>(null);
 
   const [formData, setFormData] = useState({
     title: "",
@@ -38,7 +51,8 @@ export function CourseForm({ courseId }: { courseId?: string }) {
     description: "",
     thumbnail_url: "",
     level: "beginner",
-    status: "draft",
+    // Un curso nuevo nace oculto: nunca se publica sin una decisión explícita del administrador.
+    visibility: "hidden" as CourseVisibility,
     sort_order: 0,
     category_id: "",
     instructor_id: "",
@@ -66,13 +80,14 @@ export function CourseForm({ courseId }: { courseId?: string }) {
           setError("Error cargando el curso.");
         } else if (courseData) {
           setPersistedCourseKind(courseData.course_kind || "course");
+          setPersistedVisibility(normalizeCourseVisibility(courseData.status));
           setFormData({
             title: courseData.title || "",
             slug: courseData.slug || "",
             description: courseData.description || "",
             thumbnail_url: courseData.thumbnail_url || "",
             level: courseData.level || "beginner",
-            status: courseData.status || "draft",
+            visibility: normalizeCourseVisibility(courseData.status),
             sort_order: courseData.sort_order || 0,
             category_id: courseData.category_id || "",
             instructor_id: courseData.instructor_id || "",
@@ -136,11 +151,31 @@ export function CourseForm({ courseId }: { courseId?: string }) {
     setError(null);
     setSuccess(null);
 
+    const { visibility, ...courseFields } = formData;
     const payload = {
-      ...formData,
+      ...courseFields,
       category_id: formData.category_id || null,
       instructor_id: formData.instructor_id || null,
     };
+
+    // Bloquear un curso con alumnos: se avisa antes de guardar (no se borra inscripción ni progreso).
+    if (isEditing && courseId && persistedVisibility === "published" && isBlockedVisibility(visibility)) {
+      const impact = await getCourseVisibilityImpactAction(courseId);
+      const warning = impact.success ? describeVisibilityImpact(impact.learnerCount, visibility) : null;
+      if (warning) {
+        const confirmed = await confirmAction({
+          title: "Hay alumnos con progreso en este curso",
+          description: warning,
+          confirmLabel: "Cambiar visibilidad",
+          cancelLabel: "Cancelar",
+          destructive: true,
+        });
+        if (!confirmed) {
+          setSaving(false);
+          return;
+        }
+      }
+    }
 
     let opError = null;
     let finalId = courseId;
@@ -154,7 +189,7 @@ export function CourseForm({ courseId }: { courseId?: string }) {
     } else {
       const { data, error: insertError } = await supabase
         .from("courses")
-        .insert([payload])
+        .insert([{ ...payload, status: "hidden" }])
         .select()
         .single();
       opError = insertError;
@@ -165,6 +200,18 @@ export function CourseForm({ courseId }: { courseId?: string }) {
       setError(opError.message);
       setSaving(false);
       return;
+    }
+
+    // La visibilidad se guarda en el servidor (autorización de admin + invalidación de cachés), no desde el cliente.
+    if (finalId && visibility !== (isEditing ? persistedVisibility : "hidden")) {
+      const visibilityResult = await updateCourseVisibilityAction(finalId, visibility);
+      if (!visibilityResult.success) {
+        setError(`Curso guardado, pero no se pudo cambiar la visibilidad: ${visibilityResult.error}`);
+        setSaving(false);
+        return;
+      }
+      setPersistedVisibility(visibilityResult.visibility);
+      toast.success(`Visibilidad actualizada: ${visibilityResult.label}.`);
     }
 
     if (thumbnailFile && finalId) {
@@ -466,19 +513,11 @@ export function CourseForm({ courseId }: { courseId?: string }) {
           />
         </div>
 
-        <div className="space-y-2">
-          <label className="text-sm font-medium text-gray-300">Estado</label>
-          <select
-            name="status"
-            value={formData.status}
-            onChange={handleChange}
-            className="w-full text-sm bg-stampa-surface text-neutral-100 border-stampa-border rounded-md shadow-sm border focus:border-[#ff6a00] focus:ring-[#ff6a00]/20 focus:ring-2 placeholder:text-neutral-500 disabled:bg-neutral-800 disabled:text-neutral-500"
-          >
-            <option value="draft" className="text-white bg-stampa-surface">Borrador</option>
-            <option value="published" className="text-white bg-stampa-surface">Publicado</option>
-            <option value="archived" className="text-white bg-stampa-surface">Archivado</option>
-          </select>
-        </div>
+        <CourseVisibilitySelector
+          value={formData.visibility}
+          onChange={(visibility) => setFormData((prev) => ({ ...prev, visibility }))}
+          disabled={saving}
+        />
       </div>
 
       <div className="flex justify-end pt-4 border-t border-stampa-border">

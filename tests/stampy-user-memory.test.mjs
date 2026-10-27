@@ -245,6 +245,7 @@ function loadMemoryAwareAskStampyAction({
     },
     "@/lib/stampy/user-context": { getStampyUserContext: async () => null },
     "@/lib/stampy/knowledge-search": { findRelevantKnowledge: findKnowledge },
+    "@/lib/academy/access": { loadLessonGate: async () => ({ allowed: true, courseId: "course-1", visibility: "published" }) },
     "@/lib/stampy/lesson-transcripts": {
       getLessonTranscriptContext: async () => ({ text: "", transcriptFound: false }),
     },
