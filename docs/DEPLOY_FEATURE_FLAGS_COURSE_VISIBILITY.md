@@ -7,6 +7,7 @@ Rama: `feature/universo-stampa-feature-flags`. **Nada de esto se ejecutó**: no 
 | Pieza | Migration | Efecto al aplicarla |
 |---|---|---|
 | Feature flags | `20261024120000_platform_feature_flags.sql` | Crea `platform_feature_flags`. No inserta filas: todo sigue habilitado. |
+| Stampy: conocimiento restringido | `20261027120000_stampy_knowledge_course_visibility.sql` | Regla única `academy_chunk_is_visible`; protege la sobrecarga de 5 argumentos de `match_stampy_knowledge_chunks` (revoca `PUBLIC`/`anon`), alinea la de 3 y la policy de chunks. No toca chunks, embeddings, cursos ni clases. |
 | Visibilidad de cursos | `20261026120000_academy_course_visibility.sql` | Amplía el CHECK de `courses.status`, crea helpers, policies RESTRICTIVE, un trigger y reemplaza `match_stampy_knowledge_chunks`. **No cambia el estado de ningún curso.** |
 
 Dependencias no versionadas en el repo (la migration aborta con `Missing dependency` si faltan): `courses`, `course_modules`, `lessons`, `lesson_progress`, `public.is_admin(uuid)`, `public.has_platform_access(uuid)`.
@@ -15,7 +16,7 @@ Dependencias no versionadas en el repo (la migration aborta con `Missing depende
 
 1. **Backup / punto de restauración** de Supabase (o export de `courses`, `lesson_progress`).
 2. **Diagnóstico read-only** en el SQL Editor (ver §3) y revisar resultados.
-3. **Aplicar las migrations** en orden: `20261024120000` → `20261026120000`.
+3. **Aplicar las migrations** en orden estricto: `20261024120000` → `20261026120000` → `20261027120000` (la tercera falla con `Missing dependency` si falta la segunda).
 4. **Desplegar el código** (merge a `main` → deploy). Orden recomendado: migrations antes del código.
    - Código nuevo + migration sin aplicar: Academia funciona como hoy; guardar «En preparación»/«Oculto» falla con un mensaje claro (CHECK) o, si no hay CHECK, funciona pero la RLS restrictiva aún no protege. No lo uses hasta aplicar la migration.
    - Migration aplicada + código viejo: seguro. Los cursos `published` siguen igual; el código viejo solo pide `published`.
@@ -118,9 +119,35 @@ Feature flags: `delete from public.platform_feature_flags;` (o dejar la tabla va
 
 ## 7. Riesgos conocidos
 
-- **Stampy, sobrecarga no versionada.** La base remota tiene además `match_stampy_knowledge_chunks(query_embedding, match_count, filter_source_type, filter_course_id, filter_lesson_id)` (SECURITY DEFINER, ejecutable por `anon` y `authenticated`) que no está en el repo y que esta migration **no** modifica ni elimina; solo avisa con un `WARNING` al aplicarla. Hasta filtrarla puede devolver chunks de cursos no publicados. Obtener su definición con `supabase/diagnostics/20261027_stampy_match_overloads.sql` (solo lectura) y resolverla en una migration aparte.
+- **Stampy, sobrecarga de 5 argumentos.** Cubierta por `20261027120000`. Su cuerpo remoto no está en el repo: la migration lo reconstruye a partir de la definición real (firma, defaults, columnas, filtros, `is_active`, embedding no nulo, `1 - (embedding <=> query)`, orden por distancia). Comparar con `pg_get_functiondef` antes de aplicar si hay dudas sobre el operador de distancia. Ahora exige acceso a la plataforma (como la de 3 argumentos); antes cualquiera, incluso `anon`, podía llamarla.
+- Las reglas de Feature Flags (Academia deshabilitada) se aplican en la app, no en la base: la función no consulta `platform_feature_flags`.
+- Los tests de las migraciones son estáticos; ninguna se ejecutó contra PostgreSQL.
 
 - La RLS base de Academia no está versionada: las policies restrictivas se diseñaron para no depender de ella, pero conviene correr el diagnóstico (§3) antes.
 - La migration no fue ejecutada contra un Postgres real; se validó por revisión y tests estáticos. El test opt-in con `embedded-postgres` (ver `tests/beta-access-db.test.mjs`) no se corrió porque requiere descargar paquetes.
 - Escribir progreso y consultar el impacto de alumnos: el conteo usa `SUPABASE_SERVICE_ROLE_KEY` (solo lectura, tras verificar admin); sin esa variable el conteo puede ser parcial y el diálogo puede no aparecer.
 - Cursos en preparación visibles para todo usuario con acceso a la plataforma: ficha (título, descripción, portada, instructor), nada más.
+
+## 8. Verificación posterior de Stampy (read-only)
+
+```sql
+-- Permisos finales de las dos sobrecargas (esperado: anon=false en ambas de 5 args; authenticated=true; PUBLIC sin EXECUTE)
+select p.oid::regprocedure::text as signature,
+       has_function_privilege('anon', p.oid, 'execute') as anon,
+       has_function_privilege('authenticated', p.oid, 'execute') as authenticated,
+       has_function_privilege('service_role', p.oid, 'execute') as service_role,
+       p.proacl
+from pg_proc p join pg_namespace n on n.oid = p.pronamespace
+where n.nspname = 'public' and p.proname in ('match_stampy_knowledge_chunks', 'academy_chunk_is_visible');
+
+-- Chunks que un usuario común ya no recibe (por estado de curso / sin curso verificable)
+select coalesce(c.status::text, '(sin curso)') as course_status, k.source_type, count(*) as chunks
+from public.stampy_knowledge_chunks k
+left join public.courses c on c.id = k.course_id
+where k.is_active = true
+  and not public.academy_chunk_is_visible(k.source_type, k.course_id, k.module_id, k.lesson_id)
+group by 1, 2 order by 1, 2;
+
+-- Conteos sin cambios respecto del diagnóstico previo
+select count(*) as chunks, count(embedding) as with_embedding from public.stampy_knowledge_chunks;
+```
