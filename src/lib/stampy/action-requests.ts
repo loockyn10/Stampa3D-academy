@@ -2,7 +2,12 @@
 
 import { createClient } from "@/utils/supabase/server";
 import { getCurrentUserAccess, type UserAccessSnapshot } from "@/lib/auth/user-access";
-import { FEATURE_UNAVAILABLE_ERROR_CODE, FEATURE_UNAVAILABLE_MESSAGE, isFeatureAvailable } from "@/lib/features/server";
+import {
+  FEATURE_UNAVAILABLE_ERROR_CODE,
+  FEATURE_UNAVAILABLE_MESSAGE,
+  isFeatureAvailable,
+  isPathAvailable,
+} from "@/lib/features/server";
 import { StampyActionIntent, StampyActionRequest } from "./types";
 import {
   executeCreateFilament,
@@ -49,6 +54,15 @@ export async function createStampyActionRequest({
 }: CreateStampyActionRequestParams): Promise<{ actionRequestId: string | null; error: string | null }> {
   try {
     const supabase = await createClient();
+
+    // No se registra una solicitud de acción si Stampy o la herramienta destino están deshabilitadas (admins exceptuados).
+    const { access } = await getCurrentUserAccess(supabase);
+    if (
+      !(await isFeatureAvailable(supabase, "stampy", access)) ||
+      !(await isPathAvailable(supabase, actionIntent.toolHref, access))
+    ) {
+      return { actionRequestId: null, error: FEATURE_UNAVAILABLE_MESSAGE };
+    }
 
     const { getStampyToolContractsForIntent } = await import("./tool-registry");
     const contracts = getStampyToolContractsForIntent(actionIntent.type);

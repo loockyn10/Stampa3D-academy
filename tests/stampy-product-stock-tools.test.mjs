@@ -31,8 +31,12 @@ function loadTypeScriptModule(filename, dependencies = {}) {
 const intents = loadTypeScriptModule(
   path.join(root, "src/lib/stampy/product-stock-tool-intents.ts"),
 );
+const filamentUtils = loadTypeScriptModule(
+  path.join(root, "src/lib/filaments/utils.ts"),
+);
 const pricingStatus = loadTypeScriptModule(
   path.join(root, "src/lib/products/pricing-status.ts"),
+  { "@/lib/filaments/utils": filamentUtils },
 );
 const registry = loadTypeScriptModule(
   path.join(root, "src/lib/stampy/tool-registry.ts"),

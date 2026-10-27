@@ -810,3 +810,144 @@ test("PWA: sin service worker, así que el estado de las flags solo depende de l
   // La navegación se vuelve a consultar en cada cambio de ruta.
   assert.match(read("src/components/features/feature-flags-provider.tsx"), /\[supabase, pathname\]/);
 });
+
+// ---------------------------------------------------------------------------------------------------------------
+// Estabilización: Stampy (solicitudes de acción, contexto de página) y funcionalidades compartidas
+// ---------------------------------------------------------------------------------------------------------------
+
+function stampyServerHarness({ access, flags = [], flagsError = null, contexts = [] }) {
+  const calls = { inserts: 0 };
+  const supabase = {
+    from(table) {
+      if (table === "platform_feature_flags") {
+        return { select: () => Promise.resolve(flagsError ? { data: null, error: flagsError } : { data: flags, error: null }) };
+      }
+      const rows = table === "stampy_page_contexts" ? contexts : [];
+      const query = {
+        insert: () => { calls.inserts += 1; return query; },
+        select: () => query,
+        eq: () => query,
+        order: () => query,
+        single: () => Promise.resolve({ data: { id: "req-1" }, error: null }),
+        then: (resolveFn, rejectFn) => Promise.resolve({ data: rows, error: null }).then(resolveFn, rejectFn),
+      };
+      return query;
+    },
+  };
+  const cache = new Map();
+  const mocks = {
+    "next/server": { NextResponse: { json: (body, init) => ({ body, status: init?.status ?? 200 }) } },
+    "@/utils/supabase/server": { createClient: async () => supabase },
+    "@/lib/auth/user-access": { getCurrentUserAccess: async () => ({ access, error: null }) },
+    "./action-executor": {},
+    "./tool-registry": loadTs("src/lib/stampy/tool-registry.ts", {}, cache),
+  };
+  return { calls, load: (file) => loadTs(file, mocks, cache) };
+}
+
+const quoteIntent = { type: "create_quote", confidence: 0.9, extracted: {}, toolHref: "/presupuestos?action=new", toolLabel: "Presupuestos" };
+const filamentIntent = { type: "add_filament", confidence: 0.9, extracted: {}, toolHref: "/mi-taller/filamentos", toolLabel: "Filamentos" };
+const requestParams = (actionIntent) => ({ userId: "user-1", conversationId: "c1", messageId: "m1", actionIntent, source: "test" });
+
+async function createRequest(flagsOrError, access, intent) {
+  const harness = stampyServerHarness({
+    access,
+    flags: Array.isArray(flagsOrError) ? flagsOrError : [],
+    flagsError: Array.isArray(flagsOrError) ? null : flagsOrError,
+  });
+  const result = await harness.load("src/lib/stampy/action-requests.ts").createStampyActionRequest(requestParams(intent));
+  return { result, harness };
+}
+
+test("Stampy: no registra solicitudes de acción de herramientas o de Stampy deshabilitados", async () => {
+  // Herramienta destino deshabilitada (Presupuestos pertenece a Mi Negocio): no se inserta nada.
+  const quote = await createRequest(OFF("mi_negocio"), PAID(), quoteIntent);
+  assert.equal(quote.result.actionRequestId, null);
+  assert.equal(quote.result.error, "Esta herramienta todavía no está disponible.");
+  assert.equal(quote.harness.calls.inserts, 0);
+
+  // Stampy deshabilitado: tampoco.
+  assert.equal((await createRequest(OFF("stampy"), PAID(), filamentIntent)).harness.calls.inserts, 0);
+
+  // Funcionalidades compartidas: Mi Taller sigue funcionando aunque Mi Negocio esté deshabilitado.
+  const shared = await createRequest(OFF("mi_negocio"), PAID(), filamentIntent);
+  assert.deepEqual(shared.result, { actionRequestId: "req-1", error: null });
+  assert.equal(shared.harness.calls.inserts, 1);
+
+  // El administrador conserva Stampy completo aunque todo esté deshabilitado.
+  const admin = await createRequest(OFF(...ALL_IDS), ADMIN(), quoteIntent);
+  assert.deepEqual(admin.result, { actionRequestId: "req-1", error: null });
+
+  // Sin la migration (tabla ausente) nada se restringe.
+  const open = await createRequest({ code: "42P01" }, PAID(), quoteIntent);
+  assert.equal(open.result.actionRequestId, "req-1");
+});
+
+test("Stampy: abrir y cancelar solicitudes siguen disponibles porque solo tocan una solicitud propia pendiente", () => {
+  const source = read("src/lib/stampy/action-requests.ts");
+  for (const name of ["markStampyActionRequestOpened", "cancelStampyActionRequest"]) {
+    const start = source.indexOf(`export async function ${name}`);
+    assert.ok(start > 0, name);
+    const next = source.indexOf("\nexport async function", start + 10);
+    const body = source.slice(start, next > 0 ? next : undefined);
+    assert.match(body, /user_id/, `${name} filtra por usuario`);
+    assert.doesNotMatch(body, /executeCreate|executeFilament|executeProduct/, `${name} no ejecuta acciones`);
+  }
+});
+
+test("Stampy: el contexto de página de una herramienta deshabilitada es genérico y el admin recibe el real", async () => {
+  const contexts = [{
+    is_active: true, priority: 1, match_type: "prefix", route_pattern: "/mi-negocio", title: "Mi Negocio",
+    context: "Texto interno de Mi Negocio", suggested_questions: ["¿Cómo vendo?"], related_tools: ["/calculadora", "/presupuestos", "ventas"],
+  }];
+  const fetchContext = (access, flags, pathname) =>
+    stampyServerHarness({ access, flags, contexts }).load("src/lib/stampy/page-context.ts").fetchStampyPageContext(pathname);
+
+  const hidden = await fetchContext(PAID(), OFF("mi_negocio"), "/mi-negocio/ventas");
+  assert.equal(hidden.pageTitle, "Academia Stampa");
+  assert.equal(hidden.dbContext, undefined);
+  assert.equal((await fetchContext(PAID(), OFF("stampy"), "/mi-negocio")).dbContext, undefined);
+
+  const visible = await fetchContext(PAID(), OFF("calculadora"), "/mi-negocio/ventas");
+  assert.equal(visible.dbContext, "Texto interno de Mi Negocio");
+  assert.deepEqual(visible.relatedRoutes, ["/presupuestos", "ventas"], "la ruta relacionada deshabilitada se descarta; las claves no-ruta se conservan");
+
+  const admin = await fetchContext(ADMIN(), OFF(...ALL_IDS), "/mi-negocio/ventas");
+  assert.equal(admin.dbContext, "Texto interno de Mi Negocio");
+  assert.deepEqual(admin.relatedRoutes, ["/calculadora", "/presupuestos", "ventas"]);
+});
+
+test("funcionalidades compartidas: deshabilitar una herramienta no afecta a las que siguen habilitadas ni a lo esencial", async () => {
+  for (const [who, path] of [["paid", "/calculadora"], ["paid", "/mi-negocio/catalogo"], ["paid", "/stampy"], ["paid", "/configuracion?tab=calculadora"], ["paid", "/perfil"], ["free", "/calculadora"], ["anon", "/calculadora"], ["anon", "/tienda/mi-tienda"]]) {
+    assert.equal(await runProxy(path, { who, flags: OFF("mi_taller") }), "next", `${who} ${path}`);
+  }
+  for (const path of ["/mi-taller/productos", "/mi-negocio/ventas", "/stampy"]) {
+    assert.equal(await runProxy(path, { who: "paid", flags: OFF("calculadora") }), "next", path);
+  }
+  assert.equal(resolve.resolvePathAccess(disabled("mi_taller"), "/api/calculator/catalog", { isAdmin: false }).allowed, true);
+  assert.equal(resolve.resolvePathAccess(disabled("mi_taller"), "/api/stl/preview", { isAdmin: false }).allowed, true);
+  assert.equal(resolve.resolvePathAccess(disabled("calculadora"), "/api/calculator/catalog", { isAdmin: false }).allowed, false);
+});
+
+test("administrador entra por URL directa a todo lo deshabilitado; los usuarios comunes no, y la membresía sigue vigente", async () => {
+  const flags = OFF(...ALL_IDS);
+  for (const path of ["/stampy", "/academia", "/mi-taller/filamentos", "/mi-negocio/ventas", "/sorteos", "/libreria-stl", "/stampa-maker/carteles", "/redes", "/canales", "/calculadora", "/explorar-modelos", "/tienda/mi-tienda"]) {
+    assert.equal(await runProxy(path, { who: "admin", flags }), "next", `admin ${path}`);
+    assert.match(await runProxy(path, { who: "paid", flags }), /^\/no-disponible\?herramienta=/, `paid ${path}`);
+  }
+  for (const path of ["/stampy", "/mi-taller", "/mi-negocio", "/academia"]) {
+    assert.equal(await runProxy(path, { who: "free", flags: [] }), "/sin-acceso", path);
+  }
+});
+
+test("migration: falla antes de crear nada si falta is_admin, es idempotente y deja la tabla vacía", () => {
+  const sql = read("supabase/migrations/20261024120000_platform_feature_flags.sql").replace(/\r\n/g, "\n");
+  assert.ok(sql.indexOf("Missing dependency: public.is_admin(uuid)") < sql.indexOf("create table"), "la verificación de dependencia va primero");
+  assert.match(sql, /create table if not exists/);
+  assert.equal((sql.match(/drop policy if exists/g) ?? []).length, 3);
+  assert.equal((sql.match(/create policy/g) ?? []).length, 3);
+  assert.match(sql, /drop trigger if exists platform_feature_flags_stamp/);
+  // Solo toca su propia tabla (y auth.users como referencia de FK).
+  const touched = new Set([...sql.matchAll(/(?:create table(?: if not exists)?|alter table|on table|[ ]on) +(public\.[a-z_]+)/gi)].map((m) => m[1]));
+  assert.deepEqual([...touched], ["public.platform_feature_flags"]);
+});

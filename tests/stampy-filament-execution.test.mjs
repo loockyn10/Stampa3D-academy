@@ -319,7 +319,7 @@ test("the migration is RPC-only and keeps movement plus executed status atomic",
       "supabase/migrations/20260826225118_confirm_stampy_filament_movement.sql"
     ),
     "utf8"
-  );
+  ).replace(/\r?\n/g, "\n");
   const normalized = sql.replace(/\s+/g, " ");
 
   assert.doesNotMatch(sql, /create\s+table|alter\s+table|add\s+column/i);

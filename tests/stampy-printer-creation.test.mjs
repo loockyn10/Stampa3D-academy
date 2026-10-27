@@ -269,7 +269,7 @@ test("the printer migration is RPC-only and keeps insert plus execution atomic",
       "supabase/migrations/20260827004108_confirm_stampy_create_printer.sql"
     ),
     "utf8"
-  );
+  ).replace(/\r?\n/g, "\n");
 
   assert.doesNotMatch(sql, /create\s+table|alter\s+table|add\s+column/i);
   assert.match(sql, /security invoker/i);

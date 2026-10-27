@@ -342,3 +342,27 @@ Rama `feature/universo-stampa-feature-flags`. Ver D030. Controla la **disponibil
 - **Admin:** `/admin/funcionalidades` (`FeatureFlagsManager` + `actions.ts` con `requireAdmin` server-side, validación contra el registro y confirmación al deshabilitar).
 - **PWA:** no hay service worker (solo manifest sin shortcuts): no hay caché de navegación que invalidar; el cambio se ve en la siguiente navegación (TTL ≤ 5 s por instancia).
 - **Agregar una funcionalidad:** sumar id a `FEATURE_IDS` + entrada en `FEATURE_REGISTRY` (rutas), usar `featureGuardResponse`/`isFeatureAvailable` en sus handlers y, si tiene entrada de navegación, nada más (el filtrado es por ruta). No requiere migration.
+
+### 21.1 Cobertura de escrituras directas del navegador (estabilización, 2026-10-26)
+
+Las páginas están bloqueadas por el proxy, pero estas operaciones se ejecutan desde el navegador con la sesión del usuario (`utils/supabase/client`) y **no pasan por el servidor**: la flag no las impide si alguien las invoca a mano. Siguen protegidas por RLS, `has_platform_access` y propiedad (`user_id`). Riesgo = impacto de que la herramienta siga operando con la flag apagada.
+
+| Herramienta | Operaciones directas | Riesgo |
+| --- | --- | --- |
+| Mi Taller | RPC `adjust_product_stock`, `adjust_component_stock`, `adjust_filament_stock`, `assemble_product_from_components`, `record_production_with_xp`; `products`, `product_components`, `product_component_filaments`, `filaments` (insert/update/delete) | **Alto** (mueve stock/XP) |
+| Mi Negocio | `/presupuestos`: `budgets`, `budget_items`, `clients`, `products` (insert/update/delete). Ventas, catálogo, pedidos, clientes: solo vía Server Actions (protegidas) | Medio (presupuestos) |
+| Stampa Maker | `useMugProjects`, `useNeonProjects`, `useMakerLibrary`: tablas de proyectos + Storage del propio usuario | Bajo (datos propios, sin efecto en otros) |
+| Academia | `lesson_progress` (insert/update) | Bajo |
+| Calculadora | `calculator_settings`, `calculator_product_types` (`product-types-manager`), RPC `record_calculator_xp`, `ensure_default_calculator_product_types` | Bajo (configuración propia; XP con topes en servidor) |
+| Librería STL | `stl_downloads` (upsert; registro de descarga). La descarga y el visor pasan por `/api/stl/*` (protegidas) | Bajo |
+| Tutoriales | `tool_tutorials`, `user_tool_tutorial_views` | Bajo |
+| Configuración | `printers`, `filaments`, `business`, `settings` | Esencial y **compartida** (Calculadora, Mi Taller, Stampy): no se condiciona a una flag |
+
+**No se protegieron** por flag: el navegador no es una frontera de confianza, así que un chequeo en el cliente no aporta seguridad, y moverlas al servidor sería una refactorización masiva fuera de alcance. Para cerrarlas de verdad hace falta SQL nuevo y revisado, **no aplicado**:
+
+1. Helper `public.platform_feature_enabled(p_feature text) returns boolean` (`stable`, `security definer`, `search_path` fijo): `true` si no hay fila (default habilitada) o `enabled`; `true` para `is_admin(auth.uid())`.
+2. Mi Taller (prioridad): agregar el chequeo al inicio de cada RPC de stock/producción. Las `adjust_*` y `assemble_product_from_components` **no están versionadas** en `supabase/migrations`: primero hay que volcar su definición remota. `record_production_with_xp` y `record_calculator_xp` sí están versionadas.
+3. Tablas: policies `AS RESTRICTIVE` por herramienta solo donde la tabla no sea compartida. `products`, `filaments`, `printers` y `clients` son compartidas entre Calculadora, Mi Taller, Mi Negocio y Stampy (restringirlas por Mi Taller rompería "guardar como producto" y el catálogo comercial); `budgets`/`budget_items` sí serían exclusivas de Mi Negocio. El `CREATE TABLE` y el RLS base de estas tablas tampoco están versionados (RIESGO-03 de QA_REPORT).
+4. Revisar `has_platform_access()` (definición remota desconocida) y probar con cuentas Free/Paid/Admin en un Supabase de test antes de aplicar.
+
+Stampy: `createStampyActionRequest` y `fetchStampyPageContext` ahora validan la flag (Stampy + herramienta destino). `markStampyActionRequestOpened` y `cancelStampyActionRequest` **no** se gatean a propósito: solo cambian el estado de una solicitud propia pendiente y no ejecutan nada; gatear la cancelación dejaría tarjetas sin poder descartarse.

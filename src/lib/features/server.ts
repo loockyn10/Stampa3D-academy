@@ -3,7 +3,7 @@ import { NextResponse } from "next/server";
 import { getCurrentUserAccess, type UserAccessSnapshot } from "@/lib/auth/user-access";
 import { loadFeatureFlagSnapshot } from "./loader";
 import type { FeatureId } from "./registry";
-import { resolveFeatureAccess, type FeatureAccessDecision } from "./resolve";
+import { resolveFeatureAccess, resolvePathAccess, type FeatureAccessDecision } from "./resolve";
 
 type AdminCapable = Pick<UserAccessSnapshot, "capabilities">;
 
@@ -30,6 +30,17 @@ export async function isFeatureAvailable(
   access: AdminCapable,
 ): Promise<boolean> {
   return (await getFeatureAccess(supabase, featureId, access)).allowed;
+}
+
+/** Igual que `isFeatureAvailable` pero por ruta; las rutas sin funcionalidad dueña (o vacías) están permitidas. */
+export async function isPathAvailable(
+  supabase: SupabaseClient,
+  path: string | null | undefined,
+  access: AdminCapable,
+): Promise<boolean> {
+  if (!path) return true;
+  const snapshot = await loadFeatureFlagSnapshot(supabase);
+  return resolvePathAccess(snapshot, path, { isAdmin: access.capabilities.accessAdmin === true }).allowed;
 }
 
 /**

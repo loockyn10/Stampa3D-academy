@@ -698,7 +698,7 @@ test("migration reuses the real recipe model and keeps creation transactional", 
       "supabase/migrations/20260827023352_confirm_stampy_create_product.sql"
     ),
     "utf8"
-  );
+  ).replace(/\r?\n/g, "\n");
 
   assert.doesNotMatch(sql, /create table[^;]*product_filament_components/i);
   assert.match(sql, /alter table public\.product_component_filaments/i);
@@ -735,7 +735,7 @@ test("economics patch maps extracted fields to the existing product columns", ()
       "supabase/migrations/20260827033559_patch_stampy_create_product_economics.sql"
     ),
     "utf8"
-  );
+  ).replace(/\r?\n/g, "\n");
 
   assert.match(sql, /create or replace function public\.confirm_stampy_create_product/i);
   assert.equal(

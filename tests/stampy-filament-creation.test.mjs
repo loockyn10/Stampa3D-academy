@@ -250,7 +250,7 @@ test("the migration is RPC-only, serializes duplicates and keeps insert plus exe
       "supabase/migrations/20260826231723_confirm_stampy_create_filament.sql"
     ),
     "utf8"
-  );
+  ).replace(/\r?\n/g, "\n");
 
   assert.doesNotMatch(sql, /create\s+table|alter\s+table|add\s+column/i);
   assert.match(sql, /security invoker/i);

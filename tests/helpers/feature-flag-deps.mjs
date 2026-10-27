@@ -26,6 +26,7 @@ export function featureServerDeps() {
       FEATURE_UNAVAILABLE_ERROR_CODE: "feature_unavailable",
       FEATURE_UNAVAILABLE_MESSAGE: "Esta herramienta todavía no está disponible.",
       isFeatureAvailable: async () => true,
+      isPathAvailable: async () => true,
       featureGuardResponse: async () => null,
     },
   };
