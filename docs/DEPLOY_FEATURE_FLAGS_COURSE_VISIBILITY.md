@@ -118,6 +118,8 @@ Feature flags: `delete from public.platform_feature_flags;` (o dejar la tabla va
 
 ## 7. Riesgos conocidos
 
+- **Stampy, sobrecarga no versionada.** La base remota tiene además `match_stampy_knowledge_chunks(query_embedding, match_count, filter_source_type, filter_course_id, filter_lesson_id)` (SECURITY DEFINER, ejecutable por `anon` y `authenticated`) que no está en el repo y que esta migration **no** modifica ni elimina; solo avisa con un `WARNING` al aplicarla. Hasta filtrarla puede devolver chunks de cursos no publicados. Obtener su definición con `supabase/diagnostics/20261027_stampy_match_overloads.sql` (solo lectura) y resolverla en una migration aparte.
+
 - La RLS base de Academia no está versionada: las policies restrictivas se diseñaron para no depender de ella, pero conviene correr el diagnóstico (§3) antes.
 - La migration no fue ejecutada contra un Postgres real; se validó por revisión y tests estáticos. El test opt-in con `embedded-postgres` (ver `tests/beta-access-db.test.mjs`) no se corrió porque requiere descargar paquetes.
 - Escribir progreso y consultar el impacto de alumnos: el conteo usa `SUPABASE_SERVICE_ROLE_KEY` (solo lectura, tras verificar admin); sin esa variable el conteo puede ser parcial y el diálogo puede no aparecer.

@@ -57,12 +57,16 @@ begin
     execute format('alter type %I.%I add value if not exists %L', v_udt_schema, v_udt_name, 'hidden');
   end if;
 
+  -- Solo se reemplazan los CHECK que dependen exclusivamente de la columna status (p. ej. courses_status_check).
+  -- Los CHECK de otras columnas (course_kind, level) o de varias columnas no se tocan.
   for v_constraint in
     select con.conname
     from pg_constraint con
+    join pg_attribute att
+      on att.attrelid = con.conrelid and att.attname = 'status' and not att.attisdropped
     where con.conrelid = 'public.courses'::regclass
       and con.contype = 'c'
-      and pg_get_constraintdef(con.oid) ilike '%status%'
+      and con.conkey = array[att.attnum]
       and con.conname <> 'courses_status_visibility_check'
   loop
     execute format('alter table public.courses drop constraint %I', v_constraint.conname);
@@ -135,13 +139,18 @@ as $$
   end;
 $$;
 
-revoke all on function public.academy_course_is_open(uuid) from public, anon;
-revoke all on function public.academy_module_is_open(uuid) from public, anon;
-revoke all on function public.academy_lesson_is_open(uuid) from public, anon;
+-- Las policies RESTRICTIVE de courses/course_modules/lessons/lesson_resources/transcripts aplican también a `anon`,
+-- y Postgres evalúa sus expresiones con los privilegios del rol que consulta: sin EXECUTE para anon, una consulta
+-- anónima fallaría con "permission denied for function" en vez de devolver 0 filas. Los tres helpers de
+-- curso/módulo/clase solo responden si un id pertenece a un curso publicado (dato ya visible para cualquiera),
+-- no exponen filas ni datos privados. El helper de chunks de Stampy solo lo usa una policy `to authenticated`.
+revoke all on function public.academy_course_is_open(uuid) from public;
+revoke all on function public.academy_module_is_open(uuid) from public;
+revoke all on function public.academy_lesson_is_open(uuid) from public;
 revoke all on function public.academy_chunk_is_open(uuid, uuid) from public, anon;
-grant execute on function public.academy_course_is_open(uuid) to authenticated, service_role;
-grant execute on function public.academy_module_is_open(uuid) to authenticated, service_role;
-grant execute on function public.academy_lesson_is_open(uuid) to authenticated, service_role;
+grant execute on function public.academy_course_is_open(uuid) to anon, authenticated, service_role;
+grant execute on function public.academy_module_is_open(uuid) to anon, authenticated, service_role;
+grant execute on function public.academy_lesson_is_open(uuid) to anon, authenticated, service_role;
 grant execute on function public.academy_chunk_is_open(uuid, uuid) to authenticated, service_role;
 
 -- 3. courses: ficha de «Próximamente» + los ocultos nunca se leen -----------------------------------------------
@@ -321,5 +330,25 @@ $fn$;
     to authenticated, service_role;
 end;
 $academy_visibility_match$;
+
+-- Otras sobrecargas de match_stampy_knowledge_chunks (p. ej. la de filtros por curso/clase presente en la base
+-- remota pero NO versionada en este repo) no se reemplazan: se desconoce su definición y otras herramientas pueden
+-- usarlas. Proteger una sobrecarga no protege a las demás, así que se deja constancia al aplicar.
+do $academy_visibility_overloads$
+declare
+  v_other record;
+begin
+  for v_other in
+    select p.oid::regprocedure::text as signature
+    from pg_proc p
+    join pg_namespace n on n.oid = p.pronamespace
+    where n.nspname = 'public'
+      and p.proname = 'match_stampy_knowledge_chunks'
+      and p.pronargs <> 3
+  loop
+    raise warning 'Sobrecarga % NO filtra por visibilidad de curso: revisar su definicion (supabase/diagnostics/20261027_stampy_match_overloads.sql)', v_other.signature;
+  end loop;
+end;
+$academy_visibility_overloads$;
 
 notify pgrst, 'reload schema';

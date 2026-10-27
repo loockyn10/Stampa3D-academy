@@ -502,6 +502,28 @@ test("migration de visibilidad: aditiva, restrictiva, sin tocar datos ni debilit
   assert.match(code, /drop trigger if exists courses_status_admin_guard/);
 });
 
+test("migration de visibilidad: CHECK acotado a status, helpers ejecutables por anon solo donde las policies lo exigen", () => {
+  const sql = read("supabase/migrations/20261026120000_academy_course_visibility.sql").replace(/\r\n/g, "\n");
+  const code = sql.replace(/--.*$/gm, "");
+
+  // Solo reemplaza CHECK de la columna status (no course_kind, level ni CHECK multi-columna).
+  assert.match(code, /con\.conkey = array\[att\.attnum\]/);
+  assert.doesNotMatch(code, /ilike\s+'%status%'/);
+
+  // Las policies que aplican a anon usan helpers con EXECUTE para anon; el de chunks (policy solo authenticated) no.
+  for (const helper of ["academy_course_is_open(uuid)", "academy_module_is_open(uuid)", "academy_lesson_is_open(uuid)"]) {
+    const escaped = helper.replace(/[()]/g, "\\$&");
+    assert.match(code, new RegExp(`grant execute on function public\\.${escaped} to anon, authenticated, service_role`), helper);
+  }
+  assert.match(code, /grant execute on function public\.academy_chunk_is_open\(uuid, uuid\) to authenticated, service_role/);
+  assert.match(code, /revoke all on function public\.academy_chunk_is_open\(uuid, uuid\) from public, anon/);
+  assert.doesNotMatch(code, /grant execute on function public\.is_admin|grant execute on function public\.has_platform_access/);
+
+  // No elimina ni renombra sobrecargas de Stampy; las no cubiertas se avisan.
+  assert.doesNotMatch(code, /drop function[^;]*match_stampy_knowledge_chunks/i);
+  assert.match(code, /p\.pronargs <> 3/);
+});
+
 test("feature flags: la migration original sigue sin insertar filas ni restringir nada", () => {
   const sql = read("supabase/migrations/20261024120000_platform_feature_flags.sql").replace(/--.*$/gm, "");
   assert.doesNotMatch(sql, /\binsert\s+into\b/i);
