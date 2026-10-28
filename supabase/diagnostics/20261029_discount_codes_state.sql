@@ -35,7 +35,15 @@ dyn as (
       select 'completed attempts whose subscription is still pending (they are replaced when the user applies a code)=' || count(*)::text as line
       from public.checkout_attempts a
       join public.subscriptions s on s.id = a.subscription_id
-      where a.state = 'completed' and lower(coalesce(s.status, '')) = 'pending'$q$, false, true, '') end as pending_checkouts
+      where a.state = 'completed' and lower(coalesce(s.status, '')) = 'pending'$q$, false, true, '') end as pending_checkouts,
+    -- Needs 20261030120000 (column over_limit): guarded through information_schema so this file runs before it too.
+    case when exists (select 1 from information_schema.columns
+                      where table_schema = 'public' and table_name = 'discount_code_reservations' and column_name = 'over_limit') then query_to_xml($q$
+      select 'over_limit=' || count(*) filter (where over_limit)::text
+        || ', confirmed=' || count(*) filter (where status = 'confirmed')::text
+        || ', seats_held_by_open_checkouts=' || count(*) filter (where status = 'reserved' and checkout_attempt_id is not null)::text
+        || ', of_which_older_than_30_min=' || count(*) filter (where status = 'reserved' and checkout_attempt_id is not null and created_at < now() - interval '30 minutes')::text as line
+      from public.discount_code_reservations$q$, false, true, '') end as seats
 ),
 rows_all as (
 
@@ -48,6 +56,13 @@ rows_all as (
         then 'PARTIAL: function exists but discount_code_reservations is missing'
       else 'applied'
     end as detail
+  union all
+  select '0_VERDICT', 'Seat accounting migration (20261030120000)',
+    case
+      when to_regclass('public.discount_code_reservations') is null then 'n/a (apply 20261029120000 first)'
+      when to_regprocedure('public.discount_reservation_holds_seat(text,uuid,timestamptz,timestamptz)') is not null then 'applied: an open checkout keeps its seat; late authorizations cannot exceed the limit'
+      else 'NOT APPLIED: a checkout that outlives the 30-minute reservation loses its seat and a late authorization can exceed max_uses. Do NOT enable DISCOUNT_CODES_ENABLED.'
+    end
   union all
   select '0_VERDICT', 'dependencies',
     'invite_codes=' || (to_regclass('public.invite_codes') is not null)::text
@@ -97,6 +112,8 @@ rows_all as (
   select 'D_counts', 'unsupported codes', regexp_split_to_table((xpath('//row/line/text()', once_codes))[1]::text, E'\n') from dyn where once_codes is not null
   union all
   select 'D_counts', 'reservations by status', regexp_split_to_table((xpath('//row/line/text()', reservations))[1]::text, E'\n') from dyn where reservations is not null
+  union all
+  select 'D_counts', 'seat accounting', regexp_split_to_table((xpath('//row/line/text()', seats))[1]::text, E'\n') from dyn where seats is not null
   union all
   select 'D_counts', 'pending checkouts', regexp_split_to_table((xpath('//row/line/text()', pending_checkouts))[1]::text, E'\n') from dyn where pending_checkouts is not null
 )

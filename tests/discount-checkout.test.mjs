@@ -4,7 +4,7 @@ import assert from "node:assert/strict";
 import test from "node:test";
 import { loadTs, readRepoFile } from "./helpers/load-ts.mjs";
 
-const { executeDiscountedCheckout } = loadTs("src/lib/mercadopago/discount-checkout.ts");
+const { executeDiscountedCheckout, executePlainCheckout, sameAmount } = loadTs("src/lib/mercadopago/discount-checkout.ts");
 const discounts = loadTs("src/lib/discounts/discount-codes.ts");
 
 const USER = "10000000-0000-4000-8000-000000000001";
@@ -192,6 +192,238 @@ test("the replacement never loops: a second amount mismatch ends in a conflict",
   assert.equal(deps.calls.filter((c) => c.startsWith("cancel")).length, 1);
 });
 
+test("a reservation that no longer holds its seat is reported, never silently kept (no discounted checkout without a seat)", async () => {
+  for (const attached of ["not_reservable", "not_found"]) {
+    const deps = makeDeps({ attach: async () => { deps.calls.push("attach"); return attached; } });
+    const out = await executeDiscountedCheckout(input, deps);
+    assert.deepEqual(out, { kind: "checkout_conflict", reason: "reservation_lost" }, attached);
+    assert.equal(deps.calls.at(-1), "release:r1");
+    assert.equal(deps.calls.some((c) => c.startsWith("cancel") || c.startsWith("close")), false);
+  }
+});
+
+// ---------------------------------------------------------------------------
+// A tiny model of "begin_membership_checkout + Mercado Pago": ONE open attempt per user, handed back whatever the key
+// is (exactly what the database does), plus the cancel / close semantics of the real flow.
+// ---------------------------------------------------------------------------
+
+function world({ openAmount = null, subscriptionStatus = "pending", cancelOk = true, closeOk = true, describeThrows = false } = {}) {
+  const calls = [];
+  const attempts = [];
+  if (openAmount !== null) attempts.push({ id: "a1", amount: openAmount, state: "completed", sub: subscriptionStatus, pre: "pre_a1", open: true });
+  const open = () => attempts.find((a) => a.open);
+  const deps = {
+    calls,
+    attempts,
+    cancelled: [],
+    checkout: async (checkoutInput) => {
+      calls.push(`checkout:${checkoutInput.amount}:${checkoutInput.idempotencyKey.slice(-2)}`);
+      const current = open();
+      if (current) return { kind: "ready", attemptId: current.id, preapprovalId: current.pre, initPoint: `https://mp.test/${current.id}`, reused: true };
+      const id = `a${attempts.length + 1}`;
+      attempts.push({ id, amount: checkoutInput.amount, state: "completed", sub: "pending", pre: `pre_${id}`, open: true });
+      return { kind: "ready", attemptId: id, preapprovalId: `pre_${id}`, initPoint: `https://mp.test/${id}`, reused: false };
+    },
+    describeOpenCheckout: async () => {
+      calls.push("describe");
+      if (describeThrows) throw new Error("rpc missing");
+      const current = open();
+      return current ? { attemptId: current.id, state: current.state, amount: current.amount, preapprovalId: current.pre, subscriptionStatus: current.sub } : null;
+    },
+    cancelPreapproval: async (id) => {
+      calls.push(`cancel:${id}`);
+      if (cancelOk) deps.cancelled.push(id);
+      return cancelOk;
+    },
+    closePendingCheckout: async (id) => {
+      calls.push(`close:${id}`);
+      const attempt = attempts.find((a) => a.id === id);
+      if (!closeOk || !attempt || !attempt.open) return false;
+      attempt.open = false;
+      return true;
+    },
+    newIdempotencyKey: (() => { let n = 0; return () => `40000000-0000-4000-8000-0000000000${String(++n).padStart(2, "0")}`; })(),
+    openAttempts: () => attempts.filter((a) => a.open),
+  };
+  return deps;
+}
+
+test("code removed: the checkout that carried the discount is replaced by one at the list price (no reuse of the old link)", async () => {
+  const w = world({ openAmount: 15920 });
+  const out = await executePlainCheckout(input, w);
+  assert.equal(out.kind, "checkout");
+  assert.equal(out.result.kind, "ready");
+  assert.equal(out.result.attemptId, "a2");
+  assert.equal(out.result.initPoint, "https://mp.test/a2");
+  assert.deepEqual(w.calls, ["checkout:19900:01", "describe", "cancel:pre_a1", "close:a1", "checkout:19900:01", "describe"]);
+  // Exactly one live checkout, at the list price; the old preapproval was cancelled before anything new was created.
+  assert.deepEqual(w.openAttempts().map((a) => [a.id, a.amount]), [["a2", 19900]]);
+  assert.deepEqual(w.cancelled, ["pre_a1"]);
+  assert.ok(w.calls.indexOf("cancel:pre_a1") < w.calls.lastIndexOf("checkout:19900:01"));
+});
+
+test("retries after the replacement are idempotent: same checkout, no second cancellation, no duplicate charge", async () => {
+  const w = world({ openAmount: 15920 });
+  await executePlainCheckout(input, w);
+  w.calls.length = 0;
+  for (let i = 0; i < 3; i++) {
+    const out = await executePlainCheckout(input, w);
+    assert.equal(out.result.attemptId, "a2");
+    assert.equal(out.result.reused, true);
+  }
+  assert.equal(w.calls.some((c) => c.startsWith("cancel") || c.startsWith("close")), false);
+  assert.equal(w.openAttempts().length, 1);
+  assert.equal(w.cancelled.length, 1);
+});
+
+test("a double click while replacing yields one live checkout at the list price for both requests", async () => {
+  const w = world({ openAmount: 15920 });
+  const [a, b] = await Promise.all([executePlainCheckout(input, w), executePlainCheckout(input, w)]);
+  for (const out of [a, b]) {
+    assert.equal(out.kind, "checkout");
+    assert.equal(out.result.kind, "ready");
+    assert.equal(w.attempts.find((x) => x.id === out.result.attemptId).amount, 19900);
+  }
+  assert.equal(a.result.attemptId, b.result.attemptId);
+  assert.equal(w.openAttempts().length, 1);
+  assert.equal(w.attempts.length, 2, "only one replacement was created");
+});
+
+test("checkout without discount and nothing stale is the unchanged flow: one lookup, no cancellation", async () => {
+  const w = world({ openAmount: 19900 });
+  const out = await executePlainCheckout(input, w);
+  assert.equal(out.result.attemptId, "a1");
+  assert.deepEqual(w.calls, ["checkout:19900:01", "describe"]);
+  assert.equal(w.attempts.length, 1);
+});
+
+test("a brand-new checkout (nothing reused) never needs the extra lookup", async () => {
+  const w = world();
+  const out = await executePlainCheckout(input, w);
+  assert.equal(out.result.reused, false);
+  assert.deepEqual(w.calls, ["checkout:19900:01"]);
+});
+
+test("without the discount migration (lookup unavailable) the plain checkout behaves exactly as before", async () => {
+  const w = world({ openAmount: 15920, describeThrows: true });
+  const out = await executePlainCheckout(input, w);
+  assert.equal(out.kind, "checkout");
+  assert.equal(out.result.attemptId, "a1");
+  assert.equal(w.calls.some((c) => c.startsWith("cancel") || c.startsWith("close")), false);
+});
+
+test("an authorized / active / paused subscription is never rewritten, even when its amount differs", async () => {
+  for (const subscriptionStatus of ["authorized", "active", "paused", null]) {
+    const w = world({ openAmount: 15920, subscriptionStatus });
+    const out = await executePlainCheckout(input, w);
+    assert.equal(out.kind, "checkout");
+    assert.equal(out.result.attemptId, "a1");
+    assert.equal(w.calls.some((c) => c.startsWith("cancel") || c.startsWith("close")), false, String(subscriptionStatus));
+    assert.equal(w.openAttempts().length, 1);
+  }
+});
+
+test("attempts still being created or reconciled are never touched", async () => {
+  const w = world({ openAmount: 15920 });
+  w.checkout = async () => { w.calls.push("checkout"); return { kind: "reconciliation_pending", attemptId: "a1", message: "m" }; };
+  const out = await executePlainCheckout(input, w);
+  assert.equal(out.result.kind, "reconciliation_pending");
+  assert.deepEqual(w.calls, ["checkout"]);
+
+  const creating = world({ openAmount: 15920 });
+  creating.attempts[0].state = "creating";
+  const outCreating = await executePlainCheckout(input, creating);
+  assert.deepEqual(outCreating, { kind: "checkout_conflict", reason: "in_progress" });
+  assert.equal(creating.calls.some((c) => c.startsWith("cancel") || c.startsWith("close")), false);
+});
+
+test("if Mercado Pago does not confirm the cancellation nothing changes and no new checkout is created", async () => {
+  const w = world({ openAmount: 15920, cancelOk: false });
+  const out = await executePlainCheckout(input, w);
+  assert.deepEqual(out, { kind: "checkout_conflict", reason: "supersede_failed" });
+  assert.equal(w.calls.some((c) => c.startsWith("close")), false);
+  assert.equal(w.attempts.length, 1);
+  assert.equal(w.openAttempts().length, 1);
+  assert.equal(w.calls.filter((c) => c.startsWith("checkout")).length, 1);
+});
+
+test("if the old attempt cannot be closed and is still open, no second checkout is created", async () => {
+  const w = world({ openAmount: 15920, closeOk: false });
+  const out = await executePlainCheckout(input, w);
+  assert.deepEqual(out, { kind: "checkout_conflict", reason: "supersede_failed" });
+  assert.equal(w.attempts.length, 1);
+  assert.equal(w.calls.filter((c) => c.startsWith("checkout")).length, 1);
+});
+
+test("a replacement that cannot be created reports the provider outcome and leaves no live checkout behind", async () => {
+  const w = world({ openAmount: 15920 });
+  const original = w.checkout;
+  w.checkout = async (checkoutInput) => {
+    if (!w.openAttempts().length) { w.calls.push("checkout:fail"); return { kind: "provider_error", code: "mp_http_400", message: "x" }; }
+    return original(checkoutInput);
+  };
+  const out = await executePlainCheckout(input, w);
+  assert.equal(out.kind, "checkout");
+  assert.equal(out.result.kind, "provider_error");
+  assert.equal(w.openAttempts().length, 0);
+});
+
+test("whatever answers after a replacement must really carry the list price", async () => {
+  const w = world({ openAmount: 15920 });
+  const describe = w.describeOpenCheckout;
+  let lookups = 0;
+  w.describeOpenCheckout = async () => {
+    lookups += 1;
+    const answer = await describe();
+    return lookups >= 2 && answer ? { ...answer, amount: 15920 } : answer;
+  };
+  const out = await executePlainCheckout(input, w);
+  assert.deepEqual(out, { kind: "checkout_conflict", reason: "amount_mismatch" });
+});
+
+test("apply code → remove code → apply again: one live checkout at a time, always matching what the user confirmed", async () => {
+  const w = world();
+  let reservations = 0;
+  const discountDeps = () => ({
+    ...w,
+    reserve: async () => { reservations += 1; return reserved({ reservationId: `r${reservations}` }); },
+    attach: async ({ attemptId }) => (w.attempts.find((a) => a.id === attemptId).amount === 15920 ? "attached" : "amount_mismatch"),
+    release: async () => {},
+  });
+  const liveAmount = () => w.openAttempts().map((a) => a.amount);
+
+  const plain = await executePlainCheckout(input, w);
+  assert.equal(plain.result.reused, false);
+  assert.deepEqual(liveAmount(), [19900]);
+
+  const withCode = await executeDiscountedCheckout(input, discountDeps());
+  assert.equal(withCode.kind, "checkout");
+  assert.deepEqual(withCode.discount, { baseAmount: 19900, finalAmount: 15920 });
+  assert.deepEqual(liveAmount(), [15920]);
+
+  const removed = await executePlainCheckout(input, w);
+  assert.equal(removed.kind, "checkout");
+  assert.deepEqual(liveAmount(), [19900]);
+
+  const again = await executeDiscountedCheckout(input, discountDeps());
+  assert.equal(again.kind, "checkout");
+  assert.deepEqual(liveAmount(), [15920]);
+
+  // Two replacements = two cancellations of never-authorized preapprovals; never more than one live preapproval.
+  assert.equal(w.cancelled.length, 3);
+  assert.equal(new Set(w.cancelled).size, 3);
+  assert.equal(w.openAttempts().length, 1);
+});
+
+test("amounts are compared to the cent", () => {
+  assert.equal(sameAmount(19900, 19900), true);
+  assert.equal(sameAmount(15920, 15920.0), true);
+  assert.equal(sameAmount(19900.001, 19900), true);
+  assert.equal(sameAmount(15920, 19900), false);
+  assert.equal(sameAmount(19900, 19900.01), false);
+  assert.equal(sameAmount(Number.NaN, 19900), false);
+});
+
 // ---------------------------------------------------------------------------
 // DTOs and switches
 // ---------------------------------------------------------------------------
@@ -268,7 +500,8 @@ test("checkout: the list price comes only from membership_settings / the env fal
 });
 
 test("checkout without a code is the unchanged flow (same input, same result mapping)", () => {
-  assert.match(route, /if \(!body\.discountCode\) \{\s*return respondToCheckoutResult\(await executeCheckout\(checkoutInput, dependencies\)\);/);
+  assert.match(route, /if \(!body\.discountCode\) \{[\s\S]*?executePlainCheckout\(checkoutInput, replacementDependencies\)[\s\S]*?respondToCheckoutResult\(plain\.result\)/);
+  assert.match(route, /checkout: \(input: typeof checkoutInput\) => executeCheckout\(input, dependencies\)/);
   assert.match(route, /amount: price,/);
   for (const code of ["checkout_reconciliation_pending", "existing_subscription", "checkout_attempt_closed", "checkout_persistence_pending", "checkout_storage_unavailable"]) {
     assert.ok(route.includes(code), code);
@@ -355,4 +588,48 @@ test("admin panel: first-month-only codes cannot be saved and the 100% / invalid
   assert.match(admin, /<option value="once" disabled>/);
   assert.match(admin, /codeType === "discount_percent" && val >= 100/);
   assert.match(admin, /DISCOUNT_CODES_ENABLED=true/);
+});
+
+// ---------------------------------------------------------------------------
+// Seat accounting migration (20261030120000) and wiring of the review fixes
+// ---------------------------------------------------------------------------
+
+const consistency = readRepoFile("supabase/migrations/20261030120000_discount_checkout_consistency.sql").replace(/--.*$/gm, "");
+
+test("seat accounting migration: requires the base migration, additive, service_role only, previous migration untouched", () => {
+  assert.match(consistency, /Apply 20261029120000_discount_code_checkout\.sql first/);
+  assert.match(consistency, /add column if not exists over_limit boolean not null default false/);
+  const withoutStrings = consistency.replace(/'(?:[^']|'')*'/g, "''");
+  assert.doesNotMatch(withoutStrings, /\b(drop\s+(table|function|policy|index|column)|truncate\s|create\s+policy|alter\s+table\s+public\.(invite_codes|checkout_attempts|subscriptions|profiles))/i);
+  assert.doesNotMatch(withoutStrings, /delete\s+from\s+public\.(invite_codes|invite_code_redemptions|checkout_attempts|subscriptions|discount_code_reservations)/i);
+  assert.doesNotMatch(consistency, /grant execute on function[^;]*\bto\b[^;]*\b(anon|authenticated|public)\b/i);
+  assert.match(consistency, /revoke all on function public\.discount_reservation_holds_seat\(text, uuid, timestamptz, timestamptz\) from public, anon, authenticated/);
+  // The already-delivered migration is not edited: the fix ships as a new file.
+  assert.doesNotMatch(migration, /discount_reservation_holds_seat|over_limit/);
+});
+
+test("seat accounting: one definition of 'holds its seat' shared by reserve and confirm; the clock only applies to unattached reservations", () => {
+  assert.match(consistency, /when p_attempt_id is null then p_expires_at > p_now/);
+  assert.match(consistency, /a\.state in \('creating', 'reconciliation_required', 'completed'\)/);
+  const uses = consistency.match(/discount_reservation_holds_seat\(/g) ?? [];
+  assert.ok(uses.length >= 5, "used by capacity, sweep, own-reservation reuse and confirm");
+  // Lock order: the code row first, then the reservation (same as reserve).
+  assert.ok(consistency.indexOf("from public.invite_codes where id = v_res.invite_code_id for update") < consistency.indexOf("from public.discount_code_reservations where id = v_res.id for update"));
+  // A late authorization is never refused or cancelled: it is recorded, flagged when the limit was reached.
+  assert.match(consistency, /confirmed_over_limit/);
+  assert.match(consistency, /over_limit = v_over/);
+  assert.doesNotMatch(consistency, /raise exception[^;]*(limit|exhaust)/i);
+});
+
+test("late authorizations over the limit are logged for the commercial decision, never swallowed or turned into an error", () => {
+  assert.match(repository, /confirmed_over_limit/);
+  assert.match(repository, /console\.warn\("\[discount\] authorization confirmed beyond the code limit"/);
+});
+
+test("route: plain checkout goes through the stale-price guard and conflicts never charge anything", () => {
+  assert.match(route, /executePlainCheckout/);
+  assert.match(route, /conflictResponse\(plain\.reason, false\)/);
+  assert.match(route, /No se cambió nada ni se cobró/);
+  assert.match(route, /reservation_lost/);
+  assert.match(orchestrator, /return \{ kind: "checkout", result \};\s*\n\s*\n\s*let open/);
 });

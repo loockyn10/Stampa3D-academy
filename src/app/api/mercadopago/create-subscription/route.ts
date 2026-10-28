@@ -6,7 +6,7 @@ import { SupabaseCheckoutAttemptRepository } from "@/lib/mercadopago/checkout-at
 import { executeCheckout, type CheckoutFlowResult } from "@/lib/mercadopago/checkout-flow";
 import { MercadoPagoPreapprovalClient } from "@/lib/mercadopago/preapproval-client";
 import { loadMembershipPrice } from "@/lib/mercadopago/membership-price";
-import { executeDiscountedCheckout } from "@/lib/mercadopago/discount-checkout";
+import { executeDiscountedCheckout, executePlainCheckout } from "@/lib/mercadopago/discount-checkout";
 import {
   DISCOUNT_CODE_MAX_INPUT_LENGTH,
   DISCOUNT_MESSAGES,
@@ -260,21 +260,29 @@ export async function POST(request: Request) {
     backUrl: checkoutBackUrl(appUrl),
   };
 
+  const replacementDependencies = {
+    checkout: (input: typeof checkoutInput) => executeCheckout(input, dependencies),
+    describeOpenCheckout: () => describeOpenCheckout(supabaseAdmin, user.id),
+    cancelPreapproval: (preapprovalId: string) => provider.cancel(preapprovalId),
+    closePendingCheckout: (attemptId: string) => closePendingCheckout(supabaseAdmin, { userId: user.id, attemptId }),
+    newIdempotencyKey: () => randomUUID(),
+  };
+
   if (!body.discountCode) {
-    return respondToCheckoutResult(await executeCheckout(checkoutInput, dependencies));
+    // Same flow as always, except that a still-pending checkout created with another amount (e.g. with a discount the
+    // user has since removed) is replaced instead of being handed back.
+    const plain = await executePlainCheckout(checkoutInput, replacementDependencies);
+    if (plain.kind === "checkout") return respondToCheckoutResult(plain.result);
+    return conflictResponse(plain.reason, false);
   }
 
   const code = body.discountCode;
   const outcome = await executeDiscountedCheckout(checkoutInput, {
+    ...replacementDependencies,
     reserve: () => reserveDiscountCode(supabaseAdmin, { userId: user.id, code, baseAmount: price, currency }),
-    checkout: (input) => executeCheckout(input, dependencies),
     attach: ({ reservationId, attemptId }) =>
       attachDiscountReservation(supabaseAdmin, { userId: user.id, reservationId, attemptId }),
     release: (reservationId) => releaseDiscountReservation(supabaseAdmin, { userId: user.id, reservationId }),
-    describeOpenCheckout: () => describeOpenCheckout(supabaseAdmin, user.id),
-    cancelPreapproval: (preapprovalId) => provider.cancel(preapprovalId),
-    closePendingCheckout: (attemptId) => closePendingCheckout(supabaseAdmin, { userId: user.id, attemptId }),
-    newIdempotencyKey: () => randomUUID(),
   });
 
   if (outcome.kind === "checkout") {
@@ -317,15 +325,21 @@ export async function POST(request: Request) {
     );
   }
 
-  return response(
-    {
-      code: `checkout_${outcome.reason}`,
-      error:
-        outcome.reason === "in_progress"
-          ? "Tenés un checkout en verificación. Esperá unos instantes y volvé a intentar."
-          : "No pudimos reemplazar tu checkout pendiente para aplicar el descuento. No se cambió nada. Probá de nuevo o continuá sin código.",
-      new_attempt_required: false,
-    },
-    409,
-  );
+  return conflictResponse(outcome.reason, true);
+}
+
+function conflictResponse(
+  reason: "amount_mismatch" | "in_progress" | "supersede_failed" | "reservation_lost",
+  withDiscount: boolean,
+) {
+  const message =
+    reason === "in_progress"
+      ? "Tenés un checkout en verificación. Esperá unos instantes y volvé a intentar."
+      : reason === "reservation_lost"
+        ? "El descuento ya no está disponible. Volvé a aplicar el código o continuá sin descuento."
+        : withDiscount
+          ? "No pudimos reemplazar tu checkout pendiente para aplicar el descuento. No se cambió nada ni se cobró. Probá de nuevo o continuá sin código."
+          : "No pudimos actualizar tu checkout pendiente al precio actual. No se cambió nada ni se cobró. Probá de nuevo en unos minutos.";
+
+  return response({ code: `checkout_${reason}`, error: message, new_attempt_required: false }, 409);
 }

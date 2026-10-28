@@ -291,3 +291,12 @@ Las cards usan un asset de video (`stl_models.preview_url`) generado client-side
 - La regla de precio vive solo en la base (`discount_code_final_amount`): no se duplica pricing en la app y el cliente nunca envía un monto. No se acumula con el precio fundador (inactivo).
 - Un checkout pendiente (nunca autorizado) al que se aplica un código se reemplaza cancelando antes la preapproval en Mercado Pago; si no se puede, no se cambia nada.
 - No se migran ni modifican códigos, usos, fechas ni límites existentes; los códigos `once` quedan guardados pero el checkout los rechaza como no soportados hasta una decisión posterior.
+
+## D034 — Descuentos: el asiento lo retiene el checkout abierto; el pago ya hecho nunca se rechaza
+
+**Estado:** Accepted (2026-10-30), pendiente de aplicar `20261030120000_discount_checkout_consistency.sql` y de QA con usuarios de prueba de Mercado Pago. Corrige hallazgos de la revisión de D033.
+
+- **Quitar el código no reutiliza el checkout con descuento:** el checkout que se entrega corresponde siempre al precio de esa compra; si el pendiente lleva otro monto se cancela en Mercado Pago y se crea uno nuevo (una sola preapproval viva, idempotente). Un subscription `authorized`/`active`/`paused` nunca se reescribe.
+- **El reloj de 30 min solo vence reservas sin checkout.** Una reserva con checkout abierto conserva el asiento hasta autorizar, cancelar, reemplazar o cerrar. Por eso `max_uses` no se supera por pagos tardíos en los flujos normales.
+- **Un pago válido no se pierde ni se perjudica:** si una autorización llega para una reserva que ya no retenía asiento y el código está lleno (solo por intervención manual o datos anómalos) se honra al pagador y se marca `over_limit`. Alternativa descartada: cambiar el monto de la preapproval (`PUT`) para quitarle el descuento, porque no está verificado que Mercado Pago lo acepte sin reautorización del pagador.
+- **Decisiones comerciales abiertas antes de habilitar** (documentadas en `docs/DEPLOY_DISCOUNT_CODES.md` §5): checkouts abandonados que retienen asientos, qué hacer con un `over_limit`, y el reemplazo de checkouts con precio de lista viejo.

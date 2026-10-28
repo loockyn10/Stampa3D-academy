@@ -86,7 +86,12 @@ export async function closePendingCheckout(client: SupabaseClient, input: { user
 /** Mercado Pago authorized the preapproval: turns its reservation into a consumed use. Idempotent. */
 export async function confirmDiscountReservation(client: SupabaseClient, preapprovalId: string): Promise<string> {
   const payload = await call(client, "confirm_discount_reservation", { p_preapproval_id: preapprovalId });
-  return typeof payload.status === "string" ? payload.status : "none";
+  const status = typeof payload.status === "string" ? payload.status : "none";
+  if (status === "confirmed_over_limit") {
+    // The payer is honoured; the excess is recorded (discount_code_reservations.over_limit) for the commercial decision.
+    console.warn("[discount] authorization confirmed beyond the code limit", preapprovalId);
+  }
+  return status;
 }
 
 /** The preapproval was cancelled before being authorized: frees the reserved use. */
