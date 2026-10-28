@@ -9,8 +9,15 @@
 
 export const BETA_CODE_MAX_INPUT_LENGTH = 100;
 
-/** Same shape the database enforces (8-64 chars: letters, digits, "-" or "_"). */
+/** Shape of the hashed Beta codes the database enforces (8-64 chars: letters, digits, "-" or "_"). */
 export const BETA_CODE_SHAPE = /^[A-Z0-9][A-Z0-9_-]{7,63}$/;
+
+/**
+ * Shape accepted by the redemption RPC. Codes created by hand in /admin/codigos can be shorter than a hashed Beta
+ * code, so the pre-check only discards what can never match anything. Same rule as redeem_beta_access_code:
+ * 3-64 characters without whitespace.
+ */
+export const REDEEMABLE_CODE_SHAPE = /^\S{3,64}$/;
 
 export type BetaRedeemStatus =
   | "redeemed"

@@ -11,6 +11,7 @@ import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
 import test from "node:test";
+import { acquireEmbeddedPgLock } from "./helpers/embedded-pg-lock.mjs";
 
 let EmbeddedPostgres;
 let pg;
@@ -111,6 +112,7 @@ const redeem = async (c, uid, code) => {
 const hasAccess = async (c, uid) => (await c.query(`select public.has_platform_access($1) as v`, [uid])).rows[0].v;
 
 async function main() {
+  const releaseLock = await acquireEmbeddedPgLock();
   server = new EmbeddedPostgres({ databaseDir: dataDir, user: "postgres", password: "pw", port: PORT, persistent: false });
   await server.initialise();
   await server.start();
@@ -517,6 +519,7 @@ async function main() {
   } finally {
     await server.stop();
     fs.rmSync(dataDir, { recursive: true, force: true });
+    releaseLock();
   }
 }
 

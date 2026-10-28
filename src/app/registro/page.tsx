@@ -77,6 +77,15 @@ function RegistroForm() {
         }
         // Email confirmation required: the redemption completes once the user is authenticated.
         savePendingBetaCode(normalizedBetaCode);
+      } else if (signUpData.session && normalizedCode) {
+        // Codes created in /admin/codigos are often typed in the referral field. With an immediate session the
+        // email callback (the only other place that reads that field) never runs, so give the same code one silent
+        // redemption attempt. A plain referral code simply answers "invalid" here and is ignored; the account is Free either way.
+        const fromReferralField = await redeemBetaAccessCodeAction(normalizeBetaAccessCode(normalizedCode));
+        if (fromReferralField.ok) {
+          window.location.assign(returnTo);
+          return;
+        }
       }
 
       window.location.assign(destination);

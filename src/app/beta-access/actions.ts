@@ -2,7 +2,7 @@
 
 import {
   BETA_CODE_MAX_INPUT_LENGTH,
-  BETA_CODE_SHAPE,
+  REDEEMABLE_CODE_SHAPE,
   normalizeBetaAccessCode,
   toBetaRedeemResult,
   type BetaRedeemResult,
@@ -12,7 +12,8 @@ import { createClient } from "@/utils/supabase/server";
 /**
  * Redeems a beta invitation code for the CURRENT session user. The user id is never taken from the
  * client: the database function uses auth.uid(). Validation, expiry, max uses, idempotency and
- * rate limiting all live in public.redeem_beta_access_code. RPC/technical errors are never returned.
+ * rate limiting all live in public.redeem_beta_access_code (it also honours the beta codes created from
+ * /admin/codigos: see 20261028120000_beta_redeem_legacy_invite_codes.sql). RPC/technical errors are never returned.
  */
 export async function redeemBetaAccessCodeAction(rawCode: unknown): Promise<BetaRedeemResult> {
   if (typeof rawCode !== "string" || rawCode.length > BETA_CODE_MAX_INPUT_LENGTH) {
@@ -21,7 +22,7 @@ export async function redeemBetaAccessCodeAction(rawCode: unknown): Promise<Beta
 
   const code = normalizeBetaAccessCode(rawCode);
   // Obvious typos / wrong shape never reach the database (and do not burn a guess attempt).
-  if (!BETA_CODE_SHAPE.test(code)) return toBetaRedeemResult({ status: "invalid" });
+  if (!REDEEMABLE_CODE_SHAPE.test(code)) return toBetaRedeemResult({ status: "invalid" });
 
   try {
     const supabase = await createClient();

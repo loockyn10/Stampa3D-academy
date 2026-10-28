@@ -63,24 +63,28 @@ export async function GET(request: Request) {
                 .single()
 
               if (!existingRedemption) {
-                await supabaseAdmin.from('invite_code_redemptions').insert({
-                  invite_code_id: invite.id,
-                  user_id: userId,
-                  redeemed_at: now,
-                })
-
-                await supabaseAdmin
-                  .from('invite_codes')
-                  .update({ used_count: invite.used_count + 1 })
-                  .eq('id', invite.id)
-
-                await supabaseAdmin.from('user_access_grants').insert({
-                  user_id: userId,
-                  grant_type: resolution.type,
-                  status: 'active',
-                  expires_at: invite.access_expires_at || null,
-                  notes: `Acceso gratuito por código ${submittedCode}`,
-                })
+                const writes = [
+                  await supabaseAdmin.from('invite_code_redemptions').insert({
+                    invite_code_id: invite.id,
+                    user_id: userId,
+                    redeemed_at: now,
+                  }),
+                  await supabaseAdmin
+                    .from('invite_codes')
+                    .update({ used_count: invite.used_count + 1 })
+                    .eq('id', invite.id),
+                  await supabaseAdmin.from('user_access_grants').insert({
+                    user_id: userId,
+                    grant_type: resolution.type,
+                    status: 'active',
+                    expires_at: invite.access_expires_at || null,
+                    notes: `Acceso gratuito por código ${submittedCode}`,
+                  }),
+                ]
+                // Supabase returns errors instead of throwing: without this a failed grant looked like a success.
+                for (const result of writes) {
+                  if (result.error) console.error('[auth/callback] Legacy code write failed', result.error.code ?? 'unknown')
+                }
               }
             }
             

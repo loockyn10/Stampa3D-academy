@@ -375,6 +375,16 @@ export default function AdminCodigosPage() {
               </select>
             </div>
 
+            {!(codeType === "beta_tester" || codeType === "manual_free_access") && (
+              <div role="note" className="sm:col-span-2 flex items-start gap-2 rounded-xl border border-amber-500/30 bg-amber-500/10 p-3 text-xs text-amber-200">
+                <AlertCircle size={14} className="mt-0.5 shrink-0" />
+                <p>
+                  Los descuentos y precios especiales se guardan, pero todavía <strong>no se aplican en el checkout</strong>:
+                  la membresía se cobra al precio normal. No los publiques como beneficio hasta que esa conexión esté activa.
+                </p>
+              </div>
+            )}
+
             {/* Benefit fields based on type */}
             {(codeType === "beta_tester" || codeType === "manual_free_access") ? (
               <div className="sm:col-span-2">

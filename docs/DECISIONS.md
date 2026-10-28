@@ -203,6 +203,8 @@ Si trabajan sucesivamente sobre la misma feature, el segundo parte del código a
 - Una migration nueva **nunca** sobrescribe lógica remota no versionada: `has_platform_access()` no se reemplaza automáticamente; la migration solo verifica compatibilidad y aborta si no puede (corrección manual y revisada aparte).
 - Los códigos plaintext legacy de `invite_codes` (tipos beta/manual) quedan desaconsejados; retirarlos es deuda (ver TASKS).
 
+> **Actualizado por D032 (2026-10-28):** el punto sobre `invite_codes` legacy cambió: el canje Beta ahora también honra los códigos Beta creados en `/admin/codigos`.
+
 ## D024 — Stampy conversa con Responses API y el historial lo administra la app
 
 **Estado:** Accepted (2026-10-06)
@@ -269,3 +271,13 @@ Las cards usan un asset de video (`stl_models.preview_url`) generado client-side
 - Defensa en capas: página/acción de servidor + policies RESTRICTIVE (solo recortan). No se reemplazan ni debilitan las policies existentes; si el schema remoto difiere, la migration aborta por dependencias o queda en no-op parcial documentado.
 - «En preparación» no se enlaza ni se recomienda: no hay a dónde entrar, y Stampy/buscador/rutas solo ofrecen cursos `published`.
 - El progreso se escribe desde una Server Action (sesión → feature flag → membresía → visibilidad); la RLS de `lesson_progress` cubre además el acceso directo a Supabase.
+
+## D032 — Códigos Beta: un solo punto de canje; los descuentos todavía no se aplican en el checkout
+
+**Estado:** Accepted (2026-10-28), pendiente de aplicar la migration `20261028120000_beta_redeem_legacy_invite_codes.sql` y de QA con cuentas reales.
+
+- **Diagnóstico:** había dos arquitecturas sin conexión. `/admin/codigos` crea códigos en `invite_codes` (legacy, texto plano), pero el campo "¿Tenés un código de invitación?", Perfil, Sin acceso y `PendingBetaCodeRedeemer` solo llamaban `redeem_beta_access_code`, que solo conocía `beta_access_codes` (hash). Todo código creado desde el panel respondía «Código inválido». El campo "Código de referido" sí lo leía, pero solo `/auth/callback` (camino de confirmación de email); con sesión inmediata nadie lo procesaba.
+- **Decisión:** `redeem_beta_access_code` es el único punto de canje. Si el código no es un código hash, busca en `invite_codes` (solo `beta_tester` / `manual_free_access`) dentro de la misma función `security definer`: identidad `auth.uid()`, fila bloqueada `FOR UPDATE`, mismo rate limit por usuario, idempotente por `(código, usuario)`, `max_uses` contra el mayor entre `used_count` y las redemptions reales, nunca acorta un acceso existente, el código en claro no se copia a `user_access_grants.notes`. Los códigos de descuento / precio fijo **nunca** otorgan acceso.
+- **Se revierte parcialmente D023** (aislamiento total con `invite_codes`): no se migran ni borran datos legacy; los códigos existentes, sus usos, fechas y límites se respetan tal cual. `beta_access_codes` sigue siendo el camino recomendado para códigos nuevos.
+- Para los códigos hechos a mano, la forma aceptada baja de 8 a 3–64 caracteres sin espacios (los hash siguen exigiendo 8–64). El límite de 5 intentos inválidos / 15 min por usuario sigue protegiendo la adivinanza.
+- **Descuentos:** `discount_percent`, `discount_fixed_amount` y `fixed_price` se guardan en `invite_codes` pero **nunca se aplicaron en el checkout** (historial de git: ningún commit los consume; el cobro usa solo `membership_settings.monthly_price`). No es una regresión. Conectarlos exige decisiones de producto (ver TASKS) y mientras tanto `/admin/codigos` lo avisa.
