@@ -280,4 +280,14 @@ Las cards usan un asset de video (`stl_models.preview_url`) generado client-side
 - **Decisión:** `redeem_beta_access_code` es el único punto de canje. Si el código no es un código hash, busca en `invite_codes` (solo `beta_tester` / `manual_free_access`) dentro de la misma función `security definer`: identidad `auth.uid()`, fila bloqueada `FOR UPDATE`, mismo rate limit por usuario, idempotente por `(código, usuario)`, `max_uses` contra el mayor entre `used_count` y las redemptions reales, nunca acorta un acceso existente, el código en claro no se copia a `user_access_grants.notes`. Los códigos de descuento / precio fijo **nunca** otorgan acceso.
 - **Se revierte parcialmente D023** (aislamiento total con `invite_codes`): no se migran ni borran datos legacy; los códigos existentes, sus usos, fechas y límites se respetan tal cual. `beta_access_codes` sigue siendo el camino recomendado para códigos nuevos.
 - Para los códigos hechos a mano, la forma aceptada baja de 8 a 3–64 caracteres sin espacios (los hash siguen exigiendo 8–64). El límite de 5 intentos inválidos / 15 min por usuario sigue protegiendo la adivinanza.
-- **Descuentos:** `discount_percent`, `discount_fixed_amount` y `fixed_price` se guardan en `invite_codes` pero **nunca se aplicaron en el checkout** (historial de git: ningún commit los consume; el cobro usa solo `membership_settings.monthly_price`). No es una regresión. Conectarlos exige decisiones de producto (ver TASKS) y mientras tanto `/admin/codigos` lo avisa.
+- **Descuentos:** hasta 2026-10-28 se guardaban en `invite_codes` sin que ninguna ruta los aplicara (no era regresión). Se conectaron en D033.
+
+## D033 — Descuentos en el checkout: reserva al crear, consumo al autorizar, solo "para siempre"
+
+**Estado:** Accepted (2026-10-29), pendiente de aplicar la migration, de activar `DISCOUNT_CODES_ENABLED` y de QA con usuarios de prueba de Mercado Pago.
+
+- Aprobado por el producto: (1) empezar solo con duración "para siempre"; el "primer mes" no está soportado porque la preapproval de Mercado Pago tiene un único monto recurrente y subirlo después no está verificado; (2) reserva de 30 minutos; (3) entra antes del lanzamiento, **apagado por defecto** tras un interruptor de servidor.
+- Un uso se reserva al crear el checkout (bloquea el monto enviado a Mercado Pago), se consume cuando la suscripción queda `authorized` y se libera si el checkout falla, se cancela o se reemplaza. Un checkout abandonado no consume un uso.
+- La regla de precio vive solo en la base (`discount_code_final_amount`): no se duplica pricing en la app y el cliente nunca envía un monto. No se acumula con el precio fundador (inactivo).
+- Un checkout pendiente (nunca autorizado) al que se aplica un código se reemplaza cancelando antes la preapproval en Mercado Pago; si no se puede, no se cambia nada.
+- No se migran ni modifican códigos, usos, fechas ni límites existentes; los códigos `once` quedan guardados pero el checkout los rechaza como no soportados hasta una decisión posterior.

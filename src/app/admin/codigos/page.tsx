@@ -167,8 +167,13 @@ export default function AdminCodigosPage() {
     
     if (["discount_percent", "discount_fixed_amount", "fixed_price"].includes(codeType)) {
       const val = parseFloat(discountValue);
-      if (!discountValue || isNaN(val) || val <= 0 || (codeType === "discount_percent" && val > 100)) {
-        showMsg("Debe ingresar un valor válido para el descuento/precio.", "error");
+      if (!discountValue || isNaN(val) || val <= 0 || (codeType === "discount_percent" && val >= 100)) {
+        showMsg("Debe ingresar un valor válido para el descuento/precio (el porcentaje debe ser menor a 100).", "error");
+        setCreating(false);
+        return;
+      }
+      if (discountDuration === "once") {
+        showMsg("El descuento solo del primer mes todavía no está disponible. Elegí «Para siempre».", "error");
         setCreating(false);
         return;
       }
@@ -379,8 +384,10 @@ export default function AdminCodigosPage() {
               <div role="note" className="sm:col-span-2 flex items-start gap-2 rounded-xl border border-amber-500/30 bg-amber-500/10 p-3 text-xs text-amber-200">
                 <AlertCircle size={14} className="mt-0.5 shrink-0" />
                 <p>
-                  Los descuentos y precios especiales se guardan, pero todavía <strong>no se aplican en el checkout</strong>:
-                  la membresía se cobra al precio normal. No los publiques como beneficio hasta que esa conexión esté activa.
+                  Los descuentos y precios especiales se aplican en el checkout de la membresía solo con duración <strong>«Para siempre»</strong>,
+                  y únicamente cuando el interruptor <code className="font-mono">DISCOUNT_CODES_ENABLED=true</code> está activo en el servidor.
+                  Con el interruptor apagado el checkout rechaza el código y no cobra el precio normal por error. Un uso se consume cuando
+                  Mercado Pago autoriza la suscripción.
                 </p>
               </div>
             )}
@@ -407,7 +414,7 @@ export default function AdminCodigosPage() {
                   <label className="block text-xs font-semibold text-gray-400 uppercase tracking-wider mb-1.5">Duración del descuento</label>
                   <select value={discountDuration} onChange={e => setDiscountDuration(e.target.value)}
                     className="w-full rounded-xl border border-stampa-border px-3 py-2.5 text-sm text-white bg-stampa-surface focus:outline-none focus:border-stampa-orange/50">
-                    <option value="once">Un solo uso (primer mes)</option>
+                    <option value="once" disabled>Solo el primer mes (no disponible todavía)</option>
                     <option value="forever">Para siempre (recurrente)</option>
                   </select>
                 </div>

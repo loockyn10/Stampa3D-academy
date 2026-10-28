@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server';
 import { createClient } from '@/utils/supabase/server';
 import { createClient as createSupabaseClient } from '@supabase/supabase-js';
+import { confirmDiscountReservation, releaseDiscountForPreapproval } from '@/lib/discounts/repository';
 
 export async function POST(request: Request) {
   try {
@@ -155,6 +156,17 @@ export async function POST(request: Request) {
           console.error("Error actualizando profile", updateProfileError);
         }
       }
+    }
+
+    // Discount code: same idempotent, non-critical update as the webhook (whichever sees the authorization first wins).
+    try {
+      if (mpStatus === "authorized") {
+        await confirmDiscountReservation(supabaseAdmin, String(preapprovalId));
+      } else if (mpStatus === "cancelled" || mpStatus === "canceled") {
+        await releaseDiscountForPreapproval(supabaseAdmin, String(preapprovalId));
+      }
+    } catch (discountError) {
+      console.error("Error actualizando reserva de descuento", discountError instanceof Error ? discountError.message : "unknown");
     }
 
     return NextResponse.json({

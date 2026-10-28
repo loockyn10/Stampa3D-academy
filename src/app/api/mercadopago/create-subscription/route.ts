@@ -3,8 +3,23 @@ import { NextResponse } from "next/server";
 import { createClient as createSupabaseClient } from "@supabase/supabase-js";
 import { createClient } from "@/utils/supabase/server";
 import { SupabaseCheckoutAttemptRepository } from "@/lib/mercadopago/checkout-attempt-repository";
-import { executeCheckout } from "@/lib/mercadopago/checkout-flow";
+import { executeCheckout, type CheckoutFlowResult } from "@/lib/mercadopago/checkout-flow";
 import { MercadoPagoPreapprovalClient } from "@/lib/mercadopago/preapproval-client";
+import { loadMembershipPrice } from "@/lib/mercadopago/membership-price";
+import { executeDiscountedCheckout } from "@/lib/mercadopago/discount-checkout";
+import {
+  DISCOUNT_CODE_MAX_INPUT_LENGTH,
+  DISCOUNT_MESSAGES,
+  discountCodesEnabled,
+  normalizeDiscountCode,
+} from "@/lib/discounts/discount-codes";
+import {
+  attachDiscountReservation,
+  closePendingCheckout,
+  describeOpenCheckout,
+  releaseDiscountReservation,
+  reserveDiscountCode,
+} from "@/lib/discounts/repository";
 
 export const runtime = "nodejs";
 
@@ -19,13 +34,22 @@ function response(body: Record<string, unknown>, status = 200) {
   });
 }
 
-async function readIdempotencyKey(request: Request): Promise<string> {
+interface CheckoutRequestBody {
+  idempotencyKey: string;
+  discountCode: string | null;
+}
+
+/**
+ * The body only carries the idempotency key and, optionally, the TEXT of a discount code. A price, a percentage or any
+ * other amount sent by the client is never read: the discounted amount comes from the database.
+ */
+async function readCheckoutBody(request: Request): Promise<CheckoutRequestBody> {
   const rawBody = await request.text();
 
   // Temporary compatibility for an already-open tab running the previous UI.
   // Per-user serialization in PostgreSQL still protects this generated key.
   if (!rawBody) {
-    return randomUUID();
+    return { idempotencyKey: randomUUID(), discountCode: null };
   }
 
   let body: unknown;
@@ -44,7 +68,16 @@ async function readIdempotencyKey(request: Request): Promise<string> {
     throw new Error("invalid_idempotency_key");
   }
 
-  return key;
+  const rawCode = (body as Record<string, unknown>).discount_code;
+  let discountCode: string | null = null;
+  if (rawCode !== undefined && rawCode !== null && rawCode !== "") {
+    if (typeof rawCode !== "string" || rawCode.length > DISCOUNT_CODE_MAX_INPUT_LENGTH * 2) {
+      throw new Error("invalid_discount_code");
+    }
+    discountCode = normalizeDiscountCode(rawCode) || null;
+  }
+
+  return { idempotencyKey: key, discountCode };
 }
 
 function checkoutBackUrl(appUrl: string): string {
@@ -58,109 +91,17 @@ function checkoutBackUrl(appUrl: string): string {
   }
 }
 
-export async function POST(request: Request) {
-  let idempotencyKey: string;
-
-  try {
-    idempotencyKey = await readIdempotencyKey(request);
-  } catch (error) {
-    const code = error instanceof Error ? error.message : "invalid_request";
-    return response(
-      {
-        error:
-          code === "invalid_json"
-            ? "El cuerpo del request no es JSON válido."
-            : "idempotency_key debe ser un UUID válido.",
-      },
-      400,
-    );
-  }
-
-  const supabase = await createClient();
-  const {
-    data: { user },
-    error: userError,
-  } = await supabase.auth.getUser();
-
-  if (userError || !user) {
-    return response({ error: "Unauthorized" }, 401);
-  }
-
-  if (!user.email) {
-    return response({ error: "Usuario sin email configurado" }, 400);
-  }
-
-  const fallbackPrice = process.env.MEMBERSHIP_MONTHLY_PRICE;
-  const appUrl = process.env.NEXT_PUBLIC_APP_URL;
-  const accessToken = process.env.MERCADO_PAGO_ACCESS_TOKEN;
-  const serviceRoleKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
-  const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
-
-  if (!accessToken) {
-    return response({ error: "Falta configurar Mercado Pago." }, 500);
-  }
-  if (!appUrl) {
-    return response({ error: "NEXT_PUBLIC_APP_URL no configurado" }, 500);
-  }
-  if (!serviceRoleKey || !supabaseUrl) {
-    return response({ error: "Configuración de Supabase incompleta" }, 500);
-  }
-
-  const supabaseAdmin = createSupabaseClient(supabaseUrl, serviceRoleKey, {
-    auth: {
-      autoRefreshToken: false,
-      persistSession: false,
-    },
-  });
-
-  const { data: settings, error: settingsError } = await supabaseAdmin
-    .from("membership_settings")
-    .select("monthly_price, currency")
-    .eq("id", "default")
-    .single();
-
-  if (settingsError && !fallbackPrice) {
-    console.error(
-      "[MP create-subscription] membership settings unavailable",
-      settingsError.message,
-    );
-    return response({ error: "No se pudo obtener el precio de membresía." }, 503);
-  }
-
-  const price = settings?.monthly_price
-    ? Number(settings.monthly_price)
-    : Number(fallbackPrice);
-  const currency = String(settings?.currency || "ARS").toUpperCase();
-
-  if (!Number.isFinite(price) || price <= 0 || !/^[A-Z]{3}$/.test(currency)) {
-    return response(
-      { error: "Precio o moneda de membresía inválidos o no configurados" },
-      500,
-    );
-  }
-
-  const checkoutResult = await executeCheckout(
-    {
-      userId: user.id,
-      idempotencyKey,
-      amount: price,
-      currency,
-      payerEmail: user.email,
-      reason: CHECKOUT_REASON,
-      backUrl: checkoutBackUrl(appUrl),
-    },
-    {
-      repository: new SupabaseCheckoutAttemptRepository(supabaseAdmin),
-      provider: new MercadoPagoPreapprovalClient(accessToken),
-    },
-  );
-
+function respondToCheckoutResult(
+  checkoutResult: CheckoutFlowResult,
+  extra: Record<string, unknown> = {},
+) {
   if (checkoutResult.kind === "ready") {
     return response({
       attempt_id: checkoutResult.attemptId,
       init_point: checkoutResult.initPoint,
       preapproval_id: checkoutResult.preapprovalId,
       reused: checkoutResult.reused,
+      ...extra,
     });
   }
 
@@ -230,5 +171,161 @@ export async function POST(request: Request) {
           : "checkout_storage_unavailable",
     },
     503,
+  );
+}
+
+export async function POST(request: Request) {
+  let body: CheckoutRequestBody;
+
+  try {
+    body = await readCheckoutBody(request);
+  } catch (error) {
+    const code = error instanceof Error ? error.message : "invalid_request";
+    return response(
+      {
+        error:
+          code === "invalid_json"
+            ? "El cuerpo del request no es JSON válido."
+            : code === "invalid_discount_code"
+              ? "El código de descuento no es válido."
+              : "idempotency_key debe ser un UUID válido.",
+      },
+      400,
+    );
+  }
+
+  const supabase = await createClient();
+  const {
+    data: { user },
+    error: userError,
+  } = await supabase.auth.getUser();
+
+  if (userError || !user) {
+    return response({ error: "Unauthorized" }, 401);
+  }
+
+  if (!user.email) {
+    return response({ error: "Usuario sin email configurado" }, 400);
+  }
+
+  const appUrl = process.env.NEXT_PUBLIC_APP_URL;
+  const accessToken = process.env.MERCADO_PAGO_ACCESS_TOKEN;
+  const serviceRoleKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
+  const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
+
+  if (!accessToken) {
+    return response({ error: "Falta configurar Mercado Pago." }, 500);
+  }
+  if (!appUrl) {
+    return response({ error: "NEXT_PUBLIC_APP_URL no configurado" }, 500);
+  }
+  if (!serviceRoleKey || !supabaseUrl) {
+    return response({ error: "Configuración de Supabase incompleta" }, 500);
+  }
+
+  // A code is never ignored silently: with the kill switch off the request is refused, not charged at full price.
+  if (body.discountCode && !discountCodesEnabled()) {
+    return response(
+      { code: "discount_codes_disabled", error: DISCOUNT_MESSAGES.disabled },
+      409,
+    );
+  }
+
+  const supabaseAdmin = createSupabaseClient(supabaseUrl, serviceRoleKey, {
+    auth: {
+      autoRefreshToken: false,
+      persistSession: false,
+    },
+  });
+
+  const membershipPrice = await loadMembershipPrice(supabaseAdmin);
+
+  if (!membershipPrice.ok) {
+    return response({ error: membershipPrice.error }, membershipPrice.status);
+  }
+
+  const { price, currency } = membershipPrice;
+  const provider = new MercadoPagoPreapprovalClient(accessToken);
+  const dependencies = {
+    repository: new SupabaseCheckoutAttemptRepository(supabaseAdmin),
+    provider,
+  };
+  const checkoutInput = {
+    userId: user.id,
+    idempotencyKey: body.idempotencyKey,
+    amount: price,
+    currency,
+    payerEmail: user.email,
+    reason: CHECKOUT_REASON,
+    backUrl: checkoutBackUrl(appUrl),
+  };
+
+  if (!body.discountCode) {
+    return respondToCheckoutResult(await executeCheckout(checkoutInput, dependencies));
+  }
+
+  const code = body.discountCode;
+  const outcome = await executeDiscountedCheckout(checkoutInput, {
+    reserve: () => reserveDiscountCode(supabaseAdmin, { userId: user.id, code, baseAmount: price, currency }),
+    checkout: (input) => executeCheckout(input, dependencies),
+    attach: ({ reservationId, attemptId }) =>
+      attachDiscountReservation(supabaseAdmin, { userId: user.id, reservationId, attemptId }),
+    release: (reservationId) => releaseDiscountReservation(supabaseAdmin, { userId: user.id, reservationId }),
+    describeOpenCheckout: () => describeOpenCheckout(supabaseAdmin, user.id),
+    cancelPreapproval: (preapprovalId) => provider.cancel(preapprovalId),
+    closePendingCheckout: (attemptId) => closePendingCheckout(supabaseAdmin, { userId: user.id, attemptId }),
+    newIdempotencyKey: () => randomUUID(),
+  });
+
+  if (outcome.kind === "checkout") {
+    return respondToCheckoutResult(
+      outcome.result,
+      outcome.discount
+        ? {
+            discount: {
+              base_amount: outcome.discount.baseAmount,
+              final_amount: outcome.discount.finalAmount,
+            },
+          }
+        : {},
+    );
+  }
+
+  if (outcome.kind === "discount_rejected") {
+    return response(
+      { code: `discount_${outcome.status}`, error: outcome.message },
+      outcome.status === "rate_limited" ? 429 : 422,
+    );
+  }
+
+  if (outcome.kind === "discount_unavailable") {
+    return response(
+      { code: "discount_unavailable", error: DISCOUNT_MESSAGES.error },
+      503,
+    );
+  }
+
+  if (outcome.kind === "discount_persistence_pending") {
+    return response(
+      {
+        code: "discount_persistence_pending",
+        error:
+          "Tu checkout quedó creado pero el descuento todavía no se registró. Volvé a intentar: no se cobrará dos veces.",
+        retryable: true,
+      },
+      503,
+    );
+  }
+
+  return response(
+    {
+      code: `checkout_${outcome.reason}`,
+      error:
+        outcome.reason === "in_progress"
+          ? "Tenés un checkout en verificación. Esperá unos instantes y volvé a intentar."
+          : "No pudimos reemplazar tu checkout pendiente para aplicar el descuento. No se cambió nada. Probá de nuevo o continuá sin código.",
+      new_attempt_required: false,
+    },
+    409,
   );
 }

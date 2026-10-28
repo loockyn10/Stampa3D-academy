@@ -140,6 +140,31 @@ export class MercadoPagoPreapprovalClient implements PreapprovalProvider {
     return preapproval;
   }
 
+  /**
+   * Cancels a preapproval that was never authorized (used only when a pending checkout is replaced by a discounted
+   * one). Returns true only when Mercado Pago confirms the cancellation.
+   */
+  async cancel(preapprovalId: string): Promise<boolean> {
+    try {
+      const response = await fetch(`${MERCADO_PAGO_API_URL}/preapproval/${encodeURIComponent(preapprovalId)}`, {
+        method: "PUT",
+        headers: {
+          Authorization: `Bearer ${this.accessToken}`,
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({ status: "cancelled" }),
+        signal: AbortSignal.timeout(REQUEST_TIMEOUT_MS),
+      });
+
+      const raw = await readJsonRecord(response);
+      const status = typeof raw?.status === "string" ? raw.status : null;
+
+      return response.ok && (status === "cancelled" || status === "canceled");
+    } catch {
+      return false;
+    }
+  }
+
   async findByExternalReference(input: {
     externalReference: string;
     payerEmail: string;

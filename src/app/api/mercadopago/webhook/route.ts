@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server';
 import crypto from 'crypto';
 import { createClient } from '@supabase/supabase-js';
+import { confirmDiscountReservation, releaseDiscountForPreapproval } from '@/lib/discounts/repository';
 
 export async function POST(request: Request) {
   let webhookEventId: string | null = null;
@@ -224,6 +225,18 @@ export async function POST(request: Request) {
               console.error('[webhook] Founder confirmation error:', founderErr.message)
             }
           }
+        }
+
+        // ── Discount code: authorized consumes the reserved use, cancelled before that frees it ──
+        // Idempotent and non-critical: it never blocks the membership update above.
+        try {
+          if (status === "authorized") {
+            await confirmDiscountReservation(supabaseAdmin, String(preapproval.id))
+          } else if (status === "cancelled" || status === "canceled") {
+            await releaseDiscountForPreapproval(supabaseAdmin, String(preapproval.id))
+          }
+        } catch (discountErr: any) {
+          console.error('[webhook] Discount reservation update error:', discountErr.message)
         }
 
       } else {

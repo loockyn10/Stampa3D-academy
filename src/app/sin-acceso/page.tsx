@@ -4,6 +4,7 @@ import { SinAccesoClient } from "./sin-acceso-client";
 import { getCurrentUserAccess } from "@/lib/auth/user-access";
 import { resolvePostAccessDestination } from "@/lib/auth/access-destination";
 import { createClient } from "@/utils/supabase/server";
+import { discountCodesEnabled } from "@/lib/discounts/discount-codes";
 
 export const dynamic = "force-dynamic";
 
@@ -16,5 +17,10 @@ export default async function SinAccesoPage({ searchParams }: PageProps<"/sin-ac
   const destination = resolvePostAccessDestination(access);
   if (destination) redirect(destination);
 
-  return <SinAccesoClient feature={typeof feature === "string" ? feature : null} />;
+  return (
+    <SinAccesoClient
+      feature={typeof feature === "string" ? feature : null}
+      discountCodesEnabled={discountCodesEnabled()}
+    />
+  );
 }

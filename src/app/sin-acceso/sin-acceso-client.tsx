@@ -6,19 +6,29 @@ import { useRouter } from "next/navigation";
 import { createClient } from "@/utils/supabase/client";
 import { BetaCodeRedeemCard } from "@/components/beta-access/BetaCodeRedeemCard";
 import { readPendingBetaCode } from "@/lib/beta-access/pending-code";
+import { DiscountCodeField, type AppliedDiscount } from "@/components/membership/DiscountCodeField";
 import { refreshAccessAction } from "./actions";
 
 const CHECKOUT_ATTEMPT_STORAGE_KEY = "stampa_membership_checkout_attempt";
 
-function getCheckoutIdempotencyKey(): string {
-  const existing = window.sessionStorage.getItem(CHECKOUT_ATTEMPT_STORAGE_KEY);
-
-  if (existing) {
-    return existing;
+/**
+ * One idempotency key per checkout attempt AND per discount code: applying, changing or removing a code starts a new
+ * attempt (a preapproval's amount cannot change), while a retry with the same code reuses the same key.
+ */
+function getCheckoutIdempotencyKey(discountCode: string | null): string {
+  try {
+    const stored = JSON.parse(window.sessionStorage.getItem(CHECKOUT_ATTEMPT_STORAGE_KEY) ?? "null") as
+      | { key?: unknown; code?: unknown }
+      | null;
+    if (stored && typeof stored.key === "string" && (stored.code ?? null) === discountCode) {
+      return stored.key;
+    }
+  } catch {
+    // A legacy plain-UUID value or unreadable storage: start a fresh attempt below.
   }
 
   const idempotencyKey = window.crypto.randomUUID();
-  window.sessionStorage.setItem(CHECKOUT_ATTEMPT_STORAGE_KEY, idempotencyKey);
+  window.sessionStorage.setItem(CHECKOUT_ATTEMPT_STORAGE_KEY, JSON.stringify({ key: idempotencyKey, code: discountCode }));
   return idempotencyKey;
 }
 
@@ -29,8 +39,16 @@ const LOCKED_FEATURES: Record<string, { title: string; description: string }> = 
   negocio: { title: "Mi Negocio", description: "Gestioná catálogo, ventas, reposición y métricas desde un mismo lugar." },
 };
 
-export function SinAccesoClient({ feature }: { feature?: string | null }) {
+export function SinAccesoClient({
+  feature,
+  discountCodesEnabled = false,
+}: {
+  feature?: string | null;
+  /** Server-side kill switch (DISCOUNT_CODES_ENABLED): the code field is only shown when it is on. */
+  discountCodesEnabled?: boolean;
+}) {
   const supabase = createClient();
+  const [discount, setDiscount] = useState<AppliedDiscount | null>(null);
   const router = useRouter();
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -131,14 +149,16 @@ export function SinAccesoClient({ feature }: { feature?: string | null }) {
       setLoading(true);
       setError(null);
       console.log("Creando suscripción Mercado Pago");
-      const idempotencyKey = getCheckoutIdempotencyKey();
+      const discountCode = discountCodesEnabled && discount ? discount.code : null;
+      const idempotencyKey = getCheckoutIdempotencyKey(discountCode);
 
       const response = await fetch("/api/mercadopago/create-subscription", {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
         },
-        body: JSON.stringify({ idempotency_key: idempotencyKey }),
+        // Only the code TEXT travels: the discounted amount is decided by the server.
+        body: JSON.stringify(discountCode ? { idempotency_key: idempotencyKey, discount_code: discountCode } : { idempotency_key: idempotencyKey }),
       });
 
       const text = await response.text();
@@ -155,6 +175,11 @@ export function SinAccesoClient({ feature }: { feature?: string | null }) {
 
       if (data?.new_attempt_required) {
         window.sessionStorage.removeItem(CHECKOUT_ATTEMPT_STORAGE_KEY);
+      }
+
+      // The server rejected the code (expired, exhausted...) or the switch is off: drop it so the user can continue at full price.
+      if (typeof data?.code === "string" && data.code.startsWith("discount_") && data.code !== "discount_persistence_pending") {
+        setDiscount(null);
       }
 
       if (response.status === 202) {
@@ -194,6 +219,11 @@ export function SinAccesoClient({ feature }: { feature?: string | null }) {
     if (isNaN(num)) return amount;
     return new Intl.NumberFormat("es-AR", { style: "currency", currency: "ARS" }).format(num);
   };
+
+  const formatMoney = (amount: number) =>
+    new Intl.NumberFormat("es-AR", { style: "currency", currency: "ARS", minimumFractionDigits: 0, maximumFractionDigits: 2 }).format(amount);
+
+  const discountedPrice = discountCodesEnabled && discount?.preview.finalAmount ? discount.preview.finalAmount : null;
 
   return (
     <div className="flex min-h-dvh w-full items-start justify-center bg-stampa-bg px-4 py-10 text-stampa-text sm:items-center sm:px-6">
@@ -259,12 +289,21 @@ export function SinAccesoClient({ feature }: { feature?: string | null }) {
                   <span className="inline-flex items-center gap-2">
                     <Loader2 size={14} className="animate-spin" aria-hidden="true" /> Cargando precio...
                   </span>
+                ) : price && discountedPrice !== null ? (
+                  <>
+                    Valor mensual:{" "}
+                    <span className="text-stampa-text-muted line-through">{formatPrice(price)}</span>{" "}
+                    <span className="font-semibold text-stampa-text">{formatMoney(discountedPrice)}</span> / mes
+                  </>
                 ) : price ? (
                   <>Valor mensual: <span className="font-semibold text-stampa-text">{formatPrice(price)}</span> / mes</>
                 ) : (
                   "Precio no disponible"
                 )}
               </p>
+              {discountCodesEnabled && !loadingPrice && price && (
+                <DiscountCodeField applied={discount} onApplied={setDiscount} disabled={loading} />
+              )}
               <button
                 type="button"
                 onClick={handleCreateSubscription}

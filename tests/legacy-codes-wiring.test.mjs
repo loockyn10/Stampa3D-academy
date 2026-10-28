@@ -101,14 +101,16 @@ test("legacy callback no longer hides failed writes", () => {
   assert.doesNotMatch(callback, /console\.error\([^)]*(submittedCode|userId|invite\.code)/);
 });
 
-test("discount codes: checkout price is server-side only and discount codes are not (yet) applied", () => {
-  // The only price sources are membership_settings / MEMBERSHIP_MONTHLY_PRICE; the request body only carries the idempotency key.
-  assert.match(checkout, /from\("membership_settings"\)\s*\.select\("monthly_price, currency"\)/);
+test("discount codes: the list price is server-side only; the redeem RPC for Beta never grants a discount code", () => {
+  // The only price sources are membership_settings / MEMBERSHIP_MONTHLY_PRICE (see tests/discount-checkout.test.mjs).
+  assert.match(read("src/lib/mercadopago/membership-price.ts"), /from\("membership_settings"\)\s*\.select\("monthly_price, currency"\)/);
   assert.match(checkout, /amount: price,/);
   assert.match(checkout, /\(body as Record<string, unknown>\)\.idempotency_key/);
-  assert.doesNotMatch(checkout, /body\.(price|amount|discount|code|coupon|promo)|invite_codes|discount_value|discount_type/i);
-  // Honest admin UI while that is true.
-  assert.match(adminCodes, /no se aplican en el checkout/);
+  assert.doesNotMatch(checkout, /invite_codes|discount_value|discount_type/i);
+  // Beta redemption only honours beta / free-access legacy codes: discount types stay "invalid" there.
+  assert.match(sql, /v_type not in \('beta_tester', 'manual_free_access'\)/);
+  // The admin UI documents how discounts are applied (and the switch that controls it).
+  assert.match(adminCodes, /DISCOUNT_CODES_ENABLED=true/);
 });
 
 test("codes diagnostic is a single read-only SELECT that never reads code values", () => {
