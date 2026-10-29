@@ -90,9 +90,9 @@ Confirmado en código: modo de ingreso (`StockReceiptDialog.tsx`), barcode tipo 
 
 `get_business_metrics` (`20260910053553_business_polish.sql`) calcula facturación, cantidad de ventas, ticket promedio, unidades, kg (con peso real configurable por producto, no asume 1kg), top 5 productos y comparación contra período anterior, excluyendo ventas anuladas.
 
-### Sistema de ayuda/onboarding global — no auditado en esta pasada
+### Sistema de ayuda/onboarding global — reemplazado (2026-10-29)
 
-Fuera del foco de riesgo de esta auditoría (no es un tema de seguridad/consistencia de datos). Estado: **no verificado, pendiente si se prioriza**.
+Tutoriales gráficos + video opcional, ver sección 12 y `docs/TUTORIALS.md`. Lo que había (modal con video pendiente por sección) ya no existe.
 
 ## 5. Deuda técnica conocida (verificada 2026-09-15)
 
@@ -148,3 +148,11 @@ Implementado en código (ARCHITECTURE §22, D031): estados `published | coming_s
 **Agregado 2026-10-29 — Descuentos en el checkout (implementado en código; migration NO aplicada en remoto; interruptor `DISCOUNT_CODES_ENABLED` apagado por defecto):** reserva atómica al crear el checkout, consumo al autorizar Mercado Pago, solo duración "para siempre", reemplazo del checkout pendiente cancelando antes la preapproval. Verificado: 29 tests contra Postgres real (incluye carrera de 12 compradores y flujo reserva → checkout → autorizar → confirmar) y 25 de orquestación/estáticos. **No verificado:** ningún pago real ni usuarios de prueba de Mercado Pago (la cancelación `PUT /preapproval/{id}` y los montos con descuento solo se ejercitaron con fakes), estado real de Supabase ni UI en navegador con sesión.
 
 **Agregado 2026-10-30 — Corrección de descuentos tras revisión (D034; migration `20261030120000_discount_checkout_consistency.sql` NO aplicada en remoto):** (1) quitar el código ya no reutiliza el checkout con descuento: el checkout pendiente con otro monto se cancela en Mercado Pago y se reemplaza (idempotente, una sola preapproval viva); (2) una reserva con checkout abierto conserva su asiento aunque pasen los 30 min, así que un pago tardío no supera `max_uses`; un pago que llega sobre un código lleno por una anomalía se honra y se marca `over_limit`. Verificado: 20 tests nuevos contra Postgres real (incluye control que reproduce el bug con la migration anterior, carrera de 8 compradores, 10 notificaciones simultáneas y 10 carreras confirmación/reserva) y 44 de orquestación/estáticos. **No verificado:** pagos reales ni usuarios de prueba de Mercado Pago; las decisiones comerciales de `docs/DEPLOY_DISCOUNT_CODES.md` §5 siguen abiertas, por eso `DISCOUNT_CODES_ENABLED` debe seguir apagado.
+
+## 12. Tutoriales gráficos (2026-10-29, sin migration aplicada en remoto)
+
+Implementado en código (ARCHITECTURE §24, D036, `docs/TUTORIALS.md`): 15 tutoriales de 3–4 pasos (Inicio, Academia, Stampy, Calculadora, Explorar Modelos, Librería STL, Stampa Maker, Mi Taller, Impresoras, Filamentos/Inventario, Productos, Mi Negocio, Presupuestos, Sorteos, Configuración) con modal único, primer acceso automático por versión, botón "¿Cómo funciona?" y modalidad de video preparada (ninguna sección tiene video todavía; no se agregó ninguno).
+
+- **No verificado:** pantallas autenticadas (no hay cuenta de prueba): auto-apertura real, lectura/escritura de `user_tool_tutorial_views` con RLS y el botón flotante en el shell. Verificado en navegador con un harness público temporal (eliminado): modal en claro/oscuro, móvil 375 px y 520×640, navegación, Escape + restauración de foco, modo video.
+- **No verificable desde el repo:** qué filas hay hoy en `tool_tutorials` y si el RLS de `user_tool_tutorial_views` permite escribir `seen_version` (la tabla no tiene migration en el repo; la migration nueva solo agrega la columna si la tabla existe).
+- **Comportamiento nuevo a conocer:** secciones que antes no tenían tutorial en la base (o cuya fila no existía) ahora muestran la guía una vez.

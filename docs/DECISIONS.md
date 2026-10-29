@@ -311,3 +311,15 @@ Las cards usan un asset de video (`stl_models.preview_url`) generado client-side
 - **Default:** `system` (Automático), decidido por producto el 2026-10-29: quien no eligió sigue su dispositivo. Los usuarios con SO claro verán el modo claro sin haberlo pedido, por lo que el QA manual en claro (TASKS) es prerrequisito del despliegue. Volver a oscuro por defecto es cambiar `DEFAULT_THEME_PREFERENCE` en `src/lib/theme/theme.ts`.
 - **Siempre oscuros por diseño (de momento):** landing de marketing (`/landing`, `/landing-old`), tienda pública (`/tienda/*`) y los viewers 3D (Stampa Maker, visor de Librería STL). Decisión pendiente de producto si se quieren versiones claras.
 - **Alternativa descartada:** librería `next-themes` (no hace falta: el script de inicialización y el provider son ~150 líneas y evitan una dependencia).
+
+
+## D036 — Tutoriales: contenido en código, una sola UI, estado versionado por usuario
+
+**Estado:** Accepted (2026-10-29), pendiente de aplicar `20261031090000_tool_tutorial_versions.sql` y QA manual autenticado.
+
+- **Contenido en el repo (no en `tool_tutorials`):** pasos e ilustraciones son datos tipados en `src/lib/tutorials/definitions`. Se versionan con git, se revisan en PR y se validan con tests; la tabla no podía expresar ilustraciones ni pasos. `tool_tutorials` queda como interruptor (`is_active = false`) y override opcional de `video_url`.
+- **Un solo modal reutilizable** con ilustraciones declarativas (`flow`, `cards`, `breakdown`, `chat`, `filters`) hechas con tokens del tema, en lugar de capturas (se desactualizan, no pueden mostrar funciones inexistentes) o un modal por sección.
+- **Los `tool_key` existentes se conservan** como ids: así el estado "ya visto" de usuarios actuales se respeta. `workshop`, `business`, `maker` y `model_search` son tutoriales nuevos (secciones que antes no tenían modal) y se abren solos una vez; si producto prefiere que sean solo manuales hay que sacarles el auto-open (hoy no existe esa opción: se resolvería quitando su ruta de `TUTORIAL_ROUTES`).
+- **Versión por tutorial** (`seen_version`): reaparece solo para quien vio una versión anterior; correcciones menores y videos no reabren nada.
+- **Alternativa descartada:** `localStorage` como única persistencia (no sigue al usuario entre dispositivos y mezcla cuentas en navegadores compartidos). Se mantiene solo como espejo por `userId`.
+- **Sin dependencias nuevas.**

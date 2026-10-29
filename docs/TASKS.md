@@ -2,11 +2,17 @@
 
 Este archivo contiene únicamente trabajo pendiente o próximo. Eliminar tareas terminadas en lugar de conservar un historial infinito.
 
+## Now — Tutoriales gráficos (implementado 2026-10-29, ver ARCHITECTURE §24, D036 y `docs/TUTORIALS.md`)
+
+- [ ] Aplicar `supabase/migrations/20261031090000_tool_tutorial_versions.sql` en Supabase remoto (requiere autorización). Sin aplicarla todo funciona (el versionado queda respaldado por `localStorage` por usuario).
+- [ ] QA manual autenticado (cuenta con acceso a plataforma): (1) cuenta nueva: cada sección abre su guía una sola vez y no vuelve al recargar; (2) cuenta que ya había cerrado el tutorial anterior: NO reaparece en las secciones que ya tenía; (3) botón "¿Cómo funciona?" reabre; (4) claro, oscuro y automático; (5) 320–430 px con el menú móvil, el teclado de Stampy abierto y el botón flotante sin tapar controles; (6) Escape, Tab y lector de pantalla.
+- [ ] Revisar con producto el texto de cada tutorial (explican solo lo verificado en código) y decidir si `workshop`, `business`, `maker` y `model_search` (nuevos) deben abrirse solos o quedar solo manuales (D036).
+- [ ] Videos: cuando estén grabados, agregar `video: { url }` a la definición (o `tool_tutorials.video_url`). No hace falta cambiar versión.
+
 ## Now — Temas claro/oscuro (implementado 2026-10-29, ver ARCHITECTURE §23 y D035)
 
 - [ ] QA visual manual en modo claro con cuentas reales (Free, Paid/Beta, Admin) en desktop y 320–430 px: Inicio, Academia, Stampy, Mi Taller, Mi Negocio (con datos: tablas, modales, tickets), Calculadora, Stampa Maker (paneles), Sorteos, Presupuestos, Administración (formularios, tablas) y los estados cargando/error/vacío/deshabilitado. La verificación automática solo pudo recorrer pantallas sin sesión (datos vacíos).
 - [ ] Decidir si landing y tienda pública deben tener versión clara (hoy fijas en oscuro). El default ya es Automático (`DEFAULT_THEME_PREFERENCE = "system"`): hacer el QA en claro antes de desplegar.
-- [ ] Sprint de tutoriales: construir los componentes con tokens (`text-fg`, `bg-stampa-*`) o `theme-force-dark`; no usar colores literales para neutros.
 
 ## Now — Feature flags / lanzamiento progresivo (implementado 2026-10-24, rama `feature/universo-stampa-feature-flags`, ver ARCHITECTURE §21 y D030)
 

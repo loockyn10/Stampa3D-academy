@@ -1,3 +1,5 @@
+// Filas de `tool_tutorials` / `user_tool_tutorial_views`. El contenido de los tutoriales vive en `src/lib/tutorials`.
+// `seen_version` lo agrega la migration 20261031090000 (filas anteriores = versión 1).
 export interface ToolTutorial {
   id: string;
   tool_key: string;
@@ -16,42 +18,6 @@ export interface UserToolTutorialView {
   tool_key: string;
   viewed_at: string;
   dismissed_at: string | null;
+  seen_version?: number;
   created_at: string;
-}
-
-export function isPendingTutorialUrl(url: string | null | undefined): boolean {
-  if (!url) return false;
-  return url.startsWith("PENDIENTE_");
-}
-
-export function isBunnyEmbedUrl(url: string | null | undefined): boolean {
-  if (!url) return false;
-  return url.includes("player.mediadelivery.net");
-}
-
-export function getYoutubeEmbedUrl(url: string | null | undefined): string | null {
-  if (!url) return null;
-  try {
-    const parsed = new URL(url);
-
-    if (parsed.hostname.includes("youtube.com")) {
-      if (parsed.pathname === "/watch") {
-        const id = parsed.searchParams.get("v");
-        return id ? `https://www.youtube.com/embed/${id}` : null;
-      }
-
-      if (parsed.pathname.startsWith("/embed/")) {
-        return url;
-      }
-    }
-
-    if (parsed.hostname === "youtu.be") {
-      const id = parsed.pathname.replace("/", "");
-      return id ? `https://www.youtube.com/embed/${id}` : null;
-    }
-
-    return null;
-  } catch {
-    return null;
-  }
 }

@@ -357,7 +357,7 @@ Las páginas están bloqueadas por el proxy, pero estas operaciones se ejecutan 
 | Academia | `lesson_progress` (insert/update) | Bajo |
 | Calculadora | `calculator_settings`, `calculator_product_types` (`product-types-manager`), RPC `record_calculator_xp`, `ensure_default_calculator_product_types` | Bajo (configuración propia; XP con topes en servidor) |
 | Librería STL | `stl_downloads` (upsert; registro de descarga). La descarga y el visor pasan por `/api/stl/*` (protegidas) | Bajo |
-| Tutoriales | `tool_tutorials`, `user_tool_tutorial_views` | Bajo |
+| Tutoriales | `tool_tutorials` (solo lectura: interruptor y video opcional), `user_tool_tutorial_views` (upsert de la propia fila) | Bajo |
 | Configuración | `printers`, `filaments`, `business`, `settings` | Esencial y **compartida** (Calculadora, Mi Taller, Stampy): no se condiciona a una flag |
 
 **No se protegieron** por flag: el navegador no es una frontera de confianza, así que un chequeo en el cliente no aporta seguridad, y moverlas al servidor sería una refactorización masiva fuera de alcance. Para cerrarlas de verdad hace falta SQL nuevo y revisado, **no aplicado**:
@@ -429,5 +429,17 @@ Sistema global de apariencia: **Claro**, **Oscuro** (aspecto original) y **Autom
 - Texto/superficies/bordes neutros: tokens (`text-fg`, `bg-fg/5`, `border-fg/10`, `bg-stampa-surface`, `text-stampa-text-muted`, `bg-shade/20`). **No** usar `text-white`/`bg-white/N`/`bg-black/N` para neutros: el blanco/negro literal queda reservado para texto sobre fondos saturados (botón naranja, badges de color, overlays sobre imagen).
 - Naranja: `bg-stampa-orange`/bordes/anillos son marca y no cambian; para texto o iconos usar `text-stampa-accent`.
 - No usar hex ni `rgba()` arbitrarios para superficies de UI.
-- Zonas que deben verse oscuras en ambos temas (viewers 3D, landing de marketing, tienda pública): envolver con la clase **`theme-force-dark`** (redefine los tokens para ese subárbol). `theme-force-light` hace lo inverso. Los tutoriales gráficos del próximo sprint deben usar tokens o estos scopes para adaptarse a ambos temas.
+- Zonas que deben verse oscuras en ambos temas (viewers 3D, landing de marketing, tienda pública): envolver con la clase **`theme-force-dark`** (redefine los tokens para ese subárbol). `theme-force-light` hace lo inverso. Los tutoriales gráficos (§24) usan solo tokens.
 - Excepciones documentadas: PDF de presupuestos y ticket de venta (papel, no dependen del tema).
+
+
+## 24. Tutoriales gráficos y video (2026-10-29)
+
+Sistema único de ayuda por sección. Guía completa en `docs/TUTORIALS.md`; decisión en D036.
+
+- **Contenido como dato:** `src/lib/tutorials/definitions/*.ts` (un `TutorialDefinition` por sección: id, título, descripción, `version`, 3–5 pasos con ilustración declarativa y `video?` opcional). `registry.ts` lista los tutoriales y mapea rutas → id (`TUTORIAL_ROUTES`, `resolveTutorialId`). Agregar un tutorial no requiere tocar componentes.
+- **UI única:** `GlobalToolTutorial` (montado en `main-layout` solo con `accessPlatform`, igual que antes) → `TutorialModal` (`Dialog` compartido) → `TutorialPanel` + `TutorialIllustration`. Reemplaza el modal video-only y el componente `ToolTutorial` (sin usos), eliminado.
+- **Persistencia:** `user_tool_tutorial_views` sigue siendo la fuente de verdad, con `seen_version` (migration `20261031090000`, no aplicada en remoto; las filas existentes valen versión 1, nadie ve de nuevo lo que ya cerró). Espejo `localStorage` por `userId` como respaldo. Sin la migration el código reintenta sin la columna.
+- **`tool_tutorials`** deja de ser fuente del contenido: solo aporta `is_active = false` (apagar un tutorial sin deploy) y un `video_url` si el tutorial no define uno en el código. Los textos de esa tabla ya no se usan.
+- **Video:** `resolveTutorialVideo` (solo `https`; YouTube vía `youtube-nocookie`, Bunny, o enlace externo). El `iframe` se monta recién al elegir "Ver video", sin autoplay; sin video no se muestra nada de video.
+- **Tests:** `tests/tutorials.test.mjs`.
