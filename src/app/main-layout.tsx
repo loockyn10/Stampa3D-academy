@@ -111,7 +111,8 @@ export function MainLayout({ children }: { children: React.ReactNode }) {
         <div className="flex min-h-screen min-w-0 flex-1 flex-col lg:pl-0">
           <MobileHeader access={userAccess} loading={accessLoading} />
           <Header access={userAccess} loading={accessLoading} />
-          <main className="mobile-shell-content relative min-w-0 flex-1 animate-page-in px-4 py-6 sm:px-6 lg:px-8 lg:py-8">
+          {/* Explorar Modelos pone el buscador al comienzo: el shell le deja menos aire vertical que a las demás pantallas. */}
+          <main className={`mobile-shell-content relative min-w-0 flex-1 animate-page-in px-4 sm:px-6 lg:px-8 ${isExploreModelsRoute ? "py-2 lg:py-3" : "py-6 lg:py-8"}`}>
             {children}
           </main>
         </div>

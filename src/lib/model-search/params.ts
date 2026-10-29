@@ -1,4 +1,5 @@
-import type { CommercialFilter, ModelSearchCursor, ModelSearchFilters, ModelSort, ModelSourceId, PriceFilter } from "./types";
+import type { CommercialFilter, CursorKey, ModelSearchCursor, ModelSearchFilters, ModelSort, ModelSourceId, PriceFilter } from "./types";
+import { MAX_QUERY_VARIANTS } from "./query-variants";
 import { isModelSourceId, MAX_QUERY_LENGTH, MIN_QUERY_LENGTH, MODEL_SOURCE_IDS } from "./sources";
 import { CONTROL_CHARS } from "./sanitize";
 
@@ -39,15 +40,23 @@ export function encodeCursor(cursor: ModelSearchCursor): string | null {
   return Buffer.from(JSON.stringify(Object.fromEntries(entries)), "utf8").toString("base64url");
 }
 
+/** "cults" (consulta original) o "cults~1" (primera variante). */
+function isCursorKey(key: string): key is CursorKey {
+  const [source, variant, ...rest] = key.split("~");
+  if (rest.length > 0 || !isModelSourceId(source)) return false;
+  if (variant === undefined) return true;
+  return /^[1-9]$/.test(variant) && Number(variant) <= MAX_QUERY_VARIANTS;
+}
+
 export function decodeCursor(raw: string | null): ModelSearchCursor | null {
   if (!raw) return {};
-  if (raw.length > 200 || !/^[A-Za-z0-9_-]+$/.test(raw)) return null;
+  if (raw.length > 400 || !/^[A-Za-z0-9_-]+$/.test(raw)) return null;
   try {
     const parsed: unknown = JSON.parse(Buffer.from(raw, "base64url").toString("utf8"));
     if (!parsed || typeof parsed !== "object" || Array.isArray(parsed)) return null;
     const cursor: ModelSearchCursor = {};
     for (const [key, value] of Object.entries(parsed)) {
-      if (!isModelSourceId(key)) return null;
+      if (!isCursorKey(key)) return null;
       if (value === null) {
         cursor[key] = null;
         continue;

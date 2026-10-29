@@ -1,6 +1,12 @@
 // Verificación REAL de Explorar Modelos: consulta cada fuente configurada y compara contra el contrato.
 //
 //   node scripts/verify-model-search.mjs "soporte auriculares"
+//   node scripts/verify-model-search.mjs --multilingual ["soporte notebook" "laptop stand" …] [--pages]
+//
+// --multilingual compara, contra las APIs REALES, la búsqueda sin ampliar y la ampliada (variantes en el otro idioma)
+// y muestra qué aporta cada variante por fuente. Sin consultas usa los casos de referencia. --pages suma la segunda
+// página para comprobar que paginar no repite ni pierde modelos. Cada caso gasta unas pocas requests: Cults3D permite
+// 60 por minuto en toda la API key, por eso hay una pausa entre casos.
 //
 // Lee las credenciales de .env.local (o del entorno) y hace requests reales, una por fuente. Nunca imprime claves.
 // Una fuente sin credencial se informa como "disabled" (no verificada). Sale con código 1 si alguna fuente habilitada
@@ -41,12 +47,18 @@ function load(filename) {
 
 const { createDefaultProviders } = load(path.join(root, "src/lib/model-search/registry.ts"));
 const { searchModels, PROVIDER_TIMEOUT_MS } = load(path.join(root, "src/lib/model-search/service.ts"));
+const { createTtlCache } = load(path.join(root, "src/lib/model-search/cache.ts"));
+const { decodeCursor } = load(path.join(root, "src/lib/model-search/params.ts"));
 
-const query = process.argv.slice(2).join(" ").trim() || "headphone stand";
+const args = process.argv.slice(2);
+const multilingual = args.includes("--multilingual");
+const withPages = args.includes("--pages");
+const positional = args.filter((arg) => !arg.startsWith("--"));
+const query = (multilingual ? "" : positional.join(" ").trim()) || "headphone stand";
 const providers = createDefaultProviders();
 const enabled = providers.filter((provider) => provider.isEnabled());
 
-console.log(`Consulta: "${query}"  (timeout por fuente: ${PROVIDER_TIMEOUT_MS} ms)\n`);
+console.log(multilingual ? `Timeout por fuente: ${PROVIDER_TIMEOUT_MS} ms\n` : `Consulta: "${query}"  (timeout por fuente: ${PROVIDER_TIMEOUT_MS} ms)\n`);
 for (const provider of providers) {
   if (!provider.isEnabled()) console.log(`- ${provider.label}: DISABLED (falta credencial) → NO verificada contra el servicio real`);
 }
@@ -57,6 +69,10 @@ if (enabled.length === 0) {
 
 let failed = false;
 const problems = [];
+if (multilingual) {
+  await runMultilingual();
+  process.exit(failed ? 1 : 0);
+}
 for (const provider of enabled) {
   const started = Date.now();
   const filters = { price: "any", commercial: "any", sort: "relevance" };
@@ -88,3 +104,62 @@ for (const provider of enabled) {
 if (problems.length) console.log(`\nA revisar:\n${problems.map((problem) => `  ! ${problem}`).join("\n")}`);
 console.log(failed ? "\nRESULTADO: hay fuentes con fallas." : "\nRESULTADO: las fuentes habilitadas respondieron. Revisá las advertencias antes de darlas por verificadas.");
 process.exit(failed ? 1 : 0);
+
+// ── Modo multilingüe ─────────────────────────────────────────────────────────────────────────────────────────────
+async function runMultilingual() {
+  const cases = positional.length
+    ? positional
+    : ["soporte notebook", "laptop stand", "soporte celular", "phone holder", "dragón articulado", "articulated dragon"];
+  const filters = { price: "any", commercial: "any", sort: "relevance" };
+  const idOf = (result) => `${result.source}:${result.externalId}`;
+  const bySource = (results) => {
+    const map = new Map();
+    for (const result of results) map.set(result.source, [...(map.get(result.source) ?? []), result]);
+    return map;
+  };
+  console.log("PRUEBA REAL multilingüe (sin mocks): una búsqueda sin ampliar y otra ampliada por caso.\n");
+
+  for (const [index, text] of cases.entries()) {
+    if (index > 0) await new Promise((resolve) => setTimeout(resolve, 1500));
+    const base = { query: text, sources: null, filters, cursor: {} };
+    const started = Date.now();
+    const plain = await searchModels(base, { providers, cache: createTtlCache(60_000, 100), expandQuery: () => [] });
+    const plainMs = Date.now() - started;
+    const startedExpanded = Date.now();
+    const expandedDeps = { providers, cache: createTtlCache(60_000, 100), variantLimiters: new Map() };
+    const expanded = await searchModels(base, expandedDeps);
+    const expandedMs = Date.now() - startedExpanded;
+
+    console.log(`■ "${text}"  → variantes usadas: ${expanded.queryVariants.length ? expanded.queryVariants.map((v) => `"${v}"`).join(", ") : "ninguna"}`);
+    console.log(`  tiempo: sin ampliar ${plainMs} ms · ampliada ${expandedMs} ms`);
+    const plainIds = new Set(plain.results.map(idOf));
+    const plainBySource = bySource(plain.results);
+    const expandedBySource = bySource(expanded.results);
+    for (const status of expanded.sources) {
+      if (status.status === "disabled") continue; // sin credencial: no se verificó (ya se avisó arriba)
+      if (status.status !== "ok") {
+        failed = true;
+        problems.push(`"${text}": ${status.id} respondió ${status.status} en la búsqueda ampliada`);
+      }
+      const before = plainBySource.get(status.id)?.length ?? 0;
+      const after = expandedBySource.get(status.id)?.length ?? 0;
+      const added = (expandedBySource.get(status.id) ?? []).filter((result) => !plainIds.has(idOf(result)));
+      console.log(`  - ${status.id}: ${before} → ${after} resultados (${added.length} nuevos por la variante) · estado ${status.status}`);
+      for (const result of added.slice(0, 3)) console.log(`      + ${result.title.slice(0, 60)} | ${result.originalUrl}`);
+    }
+    const ids = expanded.results.map(idOf);
+    if (new Set(ids).size !== ids.length) {
+      failed = true;
+      problems.push(`"${text}": la lista ampliada contiene modelos repetidos`);
+    }
+    if (withPages && expanded.nextCursor) {
+      const cursor = decodeCursor(expanded.nextCursor);
+      const second = await searchModels({ ...base, cursor }, expandedDeps);
+      const repeated = second.results.filter((result) => ids.includes(idOf(result))).length;
+      console.log(`  página 2: ${second.results.length} resultados, ${repeated} ya vistos en la página 1 (el cliente los descarta)`);
+    }
+    console.log("");
+  }
+  if (problems.length) console.log(`A revisar:\n${problems.map((problem) => `  ! ${problem}`).join("\n")}`);
+  console.log(failed ? "RESULTADO: hay fuentes con fallas." : "RESULTADO: todas las fuentes habilitadas respondieron en los casos probados.");
+}

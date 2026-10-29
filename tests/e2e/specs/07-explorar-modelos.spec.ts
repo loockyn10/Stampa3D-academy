@@ -158,11 +158,15 @@ test.describe("[anonymous] Explorar Modelos (API mockeada)", () => {
   test("Anonymous: un filtro bloqueado muestra el upsell en vez de aplicarse en silencio", async ({ page }) => {
     await mockSearch(page, (route) => route.fulfill({ json: ok() }));
     await gotoSettled(page, "/explorar-modelos");
-    const locked = page.getByRole("group", { name: "Uso comercial" }).getByRole("button", { name: "Permitido" });
-    test.skip((await locked.count()) === 0, "sin filtros comerciales en este entorno");
+    // Los filtros son desplegables compactos: se abre "Uso comercial" y se elige la opción bloqueada.
+    const trigger = page.getByRole("button", { name: /^Uso comercial:/ });
+    test.skip((await trigger.count()) === 0, "sin filtros comerciales en este entorno");
+    await trigger.click();
+    const locked = page.getByRole("listbox", { name: "Uso comercial" }).getByRole("option", { name: /Permitido/ });
+    test.skip(await locked.isDisabled(), "ninguna fuente elegida admite el filtro comercial");
     await locked.click();
     await expect(page.getByText("Creá tu cuenta gratis para usar todos los filtros")).toBeVisible();
-    await expect(locked).toHaveAttribute("aria-pressed", "false");
+    await expect(trigger).toContainText("Todos");
   });
 
   test("una segunda búsqueda descarta la respuesta tardía de la primera (race)", async ({ page }) => {

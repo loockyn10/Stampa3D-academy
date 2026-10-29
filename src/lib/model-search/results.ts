@@ -15,10 +15,17 @@ export function crossSourceKey(result: ModelSearchResult): string | null {
   return title && author ? `${title}|${author}` : null;
 }
 
-/** Quita el mismo modelo republicado en otra plataforma por el mismo autor. Conserva la primera aparición. */
+/**
+ * Quita lo repetido y conserva la primera aparición: el mismo modelo devuelto por la consulta original y por una
+ * variante de la misma fuente (`source:externalId`) y el mismo modelo republicado en otra plataforma por el mismo autor.
+ */
 export function dedupeAcrossSources(results: ModelSearchResult[]): ModelSearchResult[] {
   const seen = new Set<string>();
+  const seenIds = new Set<string>();
   return results.filter((result) => {
+    const id = `${result.source}:${result.externalId}`;
+    if (seenIds.has(id)) return false;
+    seenIds.add(id);
     const key = crossSourceKey(result);
     if (key === null) return true;
     if (seen.has(key)) return false;

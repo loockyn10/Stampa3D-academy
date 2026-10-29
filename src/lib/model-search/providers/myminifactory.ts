@@ -86,6 +86,9 @@ export function createMyMiniFactoryProvider(
       reportsPrice: true,
       priceFilterMode: "post",
       commercialFilters: ["allowed"],
+      // La búsqueda en español devuelve poco o nada en MMF (los modelos están en inglés): la variante es clave aquí.
+      maxQueryVariants: 1,
+      variantsPerMinute: 30,
     }),
     async health() {
       return { status: getKey() ? "ok" : "disabled" };

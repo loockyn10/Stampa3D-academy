@@ -74,17 +74,17 @@ export const modelSearchTutorial: TutorialDefinition = {
     {
       id: "buscar",
       title: "Buscá por nombre",
-      text: "Escribí lo que necesitás y apretá Enter. Explorar Modelos consulta las plataformas disponibles y, si alguna no responde, seguís viendo los resultados de las demás. Tus últimas búsquedas quedan a mano.",
+      text: "Escribí lo que necesitás, en español o en inglés, y apretá Enter. Buscamos también en el otro idioma: “soporte notebook” encuentra modelos publicados como “laptop stand”, y lo ves indicado como búsqueda ampliada. Si una plataforma no responde, seguís viendo las demás. Tus últimas búsquedas quedan a mano.",
       illustration: {
         kind: "filters",
-        search: "dragón articulado",
-        groups: [{ label: "Fuente", options: ["Cults3D", "Thingiverse", "MyMiniFactory"] }],
+        search: "soporte notebook",
+        groups: [{ label: "Fuente", options: ["Todas", "Cults3D", "MyMiniFactory"], active: "Todas" }],
       },
     },
     {
       id: "filtros",
       title: "Filtrá lo que importa",
-      text: "Combiná fuente, precio y uso comercial, y ordená los resultados. Cada filtro solo aparece si las plataformas elegidas lo admiten; en el celular están en el botón Filtros.",
+      text: "Combiná fuente, precio y uso comercial, y ordená los resultados desde los desplegables. Cada filtro solo aparece si las plataformas elegidas lo admiten y, si una opción no está disponible, el desplegable te explica por qué. En el celular están en el botón Filtros.",
       illustration: {
         kind: "filters",
         search: "soporte auriculares",

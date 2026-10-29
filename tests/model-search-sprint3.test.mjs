@@ -44,7 +44,9 @@ const read = (relative) => fs.readFileSync(path.join(root, relative), "utf8");
 
 const filters = { price: "any", commercial: "any", sort: "relevance" };
 const request = (extra = {}) => ({ query: "soporte auriculares", sources: null, filters, cursor: {}, ...extra });
-const freshDeps = (providers, extra = {}) => ({ providers, cache: cache.createTtlCache(60_000, 50), timeoutMs: 200, ...extra });
+// Estos tests prueban providers/paginación/errores con la consulta original: la ampliación multilingüe tiene su suite
+// (tests/model-search-multilingual.test.mjs) y acá se desactiva para no mezclar los conteos de requests.
+const freshDeps = (providers, extra = {}) => ({ providers, cache: cache.createTtlCache(60_000, 50), timeoutMs: 200, expandQuery: () => [], ...extra });
 const json = (body, status = 200) => new Response(JSON.stringify(body), { status, headers: { "Content-Type": "application/json" } });
 
 // Providers REALES (código de producción) con fetch simulado y credenciales falsas.
@@ -343,7 +345,7 @@ test("UI: sin fuentes disponibles se ve la interfaz completa con un aviso honest
   assert.match(client, /Las plataformas de modelos no están disponibles por ahora/);
   assert.match(client, /No mostramos resultados de ejemplo/);
   // Las fuentes no disponibles se muestran como tales en el filtro Fuente.
-  assert.match(client, /no disponible<\/span>/);
+  assert.match(client, /note: provider\.enabled \? undefined : "no disponible"/);
   // Estados: inicial, buscando, sin resultados, error parcial, error total.
   for (const text of ["Buscá un modelo para empezar", "No encontramos modelos para", "Ninguna plataforma pudo responder ahora", "Mostrando resultados de"]) {
     assert.ok(client.includes(text), text);

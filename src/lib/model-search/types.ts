@@ -74,6 +74,10 @@ export interface ProviderCapabilities {
   priceFilterMode: "native" | "post" | "none";
   /** Valores de uso comercial que la fuente puede filtrar de forma confiable (server-side). */
   commercialFilters: readonly Exclude<CommercialFilter, "any">[];
+  /** Consultas adicionales (variantes en otro idioma) por página que tolera esta fuente. Ausente o 0 = solo la consulta original. */
+  maxQueryVariants?: number;
+  /** Tope de consultas de variante por minuto y por instancia, para que ampliar nunca agote la cuota de la consulta original. */
+  variantsPerMinute?: number;
 }
 
 export interface ProviderSearchInput {
@@ -116,14 +120,20 @@ export interface SourceStatus {
   hasMore: boolean;
 }
 
-/** Cursor por provider: próxima página (1-based) a pedir. Opaco para el cliente. */
-/** null marca un provider agotado para no volver a pedir su página 1 al paginar otra fuente. */
-export type ModelSearchCursor = Partial<Record<ModelSourceId, number | null>>;
+/**
+ * Cada provider pagina por separado su consulta original ("cults") y cada variante ("cults~1"): próxima página
+ * (1-based) a pedir. Opaco para el cliente.
+ */
+export type CursorKey = ModelSourceId | `${ModelSourceId}~${number}`;
+/** null marca una consulta agotada para no volver a pedir su página 1 al paginar otra fuente. */
+export type ModelSearchCursor = Partial<Record<CursorKey, number | null>>;
 
 export interface ModelSearchResponse {
   results: ModelSearchResult[];
   sources: SourceStatus[];
   nextCursor: string | null;
+  /** Variantes en otro idioma que se consultaron efectivamente (vacío si la búsqueda no se amplió). */
+  queryVariants: string[];
 }
 
 export class ProviderHttpError extends Error {

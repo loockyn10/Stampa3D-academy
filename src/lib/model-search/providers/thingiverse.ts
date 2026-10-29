@@ -71,6 +71,8 @@ export function createThingiverseProvider(
       reportsPrice: false,
       priceFilterMode: "none",
       commercialFilters: [],
+      maxQueryVariants: 1,
+      variantsPerMinute: 30,
     }),
     async health() {
       return { status: getToken() ? "ok" : "disabled" };

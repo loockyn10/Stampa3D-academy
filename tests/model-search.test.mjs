@@ -529,7 +529,8 @@ test("priceType unknown no es gratis ni pago y la UI mantiene los tres estados",
   assert.match(client, /value: "any", label: "Todos"/);
   assert.match(client, /value: "free", label: "Gratis"/);
   assert.match(client, /value: "paid", label: "De pago"/);
-  assert.match(client, /commercialOffered\.length > 0 \&\& \(/);
+  // Uso comercial solo se ofrece si alguna fuente habilitada lo admite.
+  assert.match(client, /commercialOffered\.length > 0 \? \[commercialGroup\] : \[\]/);
   assert.match(read("src/lib/model-search/service.ts"), /result\.priceType === filters\.price/);
 });
 
@@ -664,6 +665,8 @@ test("16. el secret no se expone: ni en la respuesta, ni en el cliente, ni en NE
       reportsPrice: true,
       priceFilterMode: "post",
       commercialFilters: ["allowed"],
+      maxQueryVariants: 1,
+      variantsPerMinute: 30,
     },
   ]);
 

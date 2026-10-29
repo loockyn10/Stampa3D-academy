@@ -102,6 +102,9 @@ export function createCultsProvider(
       reportsPrice: true,
       priceFilterMode: "native",
       commercialFilters: [],
+      // Cults informa x-ratelimit-limit: 60 por minuto para toda la API key: las variantes usan como mucho un tercio.
+      maxQueryVariants: 1,
+      variantsPerMinute: 20,
     }),
     async health() {
       return { status: configured() ? "ok" : "disabled" };

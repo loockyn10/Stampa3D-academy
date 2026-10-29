@@ -324,6 +324,12 @@ Las cards usan un asset de video (`stl_models.preview_url`) generado client-side
 - **Alternativa descartada:** `localStorage` como única persistencia (no sigue al usuario entre dispositivos y mezcla cuentas en navegadores compartidos). Se mantiene solo como espejo por `userId`.
 - **Sin dependencias nuevas.**
 
+## D038 — Búsqueda ampliada: léxico determinista, 1 variante por fuente, IA solo como enganche opcional
+
+**Estado:** Accepted (2026-10-29)
+
+Medido contra las APIs reales: MyMiniFactory devuelve 0 resultados para consultas en español que en inglés dan cientos, y Cults3D limita a 60 requests/min por API key. Decisión: variantes en el otro idioma generadas por un léxico/gramática local (sin costo, sin latencia, sin llamadas de red), **1 variante por fuente** con presupuesto propio por minuto, y la consulta original siempre primero y sin degradarse. No se activa IA generativa: el endpoint es público y no hace falta para los casos medidos; queda el parámetro `expandQuery` como punto de enganche (ver ARCHITECTURE §18.4). Subir `maxQueryVariants` o activar IA requiere revisar cuotas de cada fuente y costo.
+
 ## D037 — Explorar Modelos: solo fuentes con API oficial verificable; "funciona" requiere verificación real
 
 **Estado:** Accepted (2026-10-29)

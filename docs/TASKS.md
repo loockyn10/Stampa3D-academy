@@ -73,6 +73,10 @@ Este archivo contiene únicamente trabajo pendiente o próximo. Eliminar tareas 
 ## Now — Explorar Modelos (implementado 2026-09-21, ver CURRENT_STATE.md y ARCHITECTURE.md §18)
 
 - [ ] **Bloqueante para lanzar:** cargar al menos una credencial (`CULTS_USERNAME`+`CULTS_API_KEY`, `MYMINIFACTORY_API_KEY` o `THINGIVERSE_ACCESS_TOKEN`), correr `node scripts/verify-model-search.mjs "soporte auriculares"` y recién entonces habilitar `explorar_modelos` en `/admin/funcionalidades` (hoy apagada). Ninguna fuente está verificada contra el servicio real.
+- [x] Búsqueda ampliada español↔inglés y UI compacta (2026-10-29, D038). Verificada contra Cults3D y MyMiniFactory reales con `--multilingual`.
+- [ ] Ampliar el léxico (`src/lib/model-search/lexicon.ts`) con las búsquedas reales que no generen variante; no hay analytics de búsquedas (a propósito: no se registran consultas).
+- [ ] Decidir si se activa interpretación con IA para consultas que el léxico no resuelve (costo, sesión obligatoria, caché persistente; ver ARCHITECTURE §18.4).
+- [ ] Actualizar la matriz `QA_MATRIX.md`: Explorar Modelos con providers reales ya no está ⛔ en Cults3D/MyMiniFactory (requiere correr e2e con credenciales).
 - [ ] Mejora futura: favoritos de modelos externos (no hay infraestructura; requiere tabla con RLS por usuario y acción explícita, ver D022).
 - [ ] Mejora futura: limitador de tasa y caché compartidos si el hosting es serverless (hoy en memoria por instancia).
 - [ ] Crear credenciales de Cults3D (`CULTS_USERNAME` + `CULTS_API_KEY`), ejecutar una búsqueda real y confirmar por introspección/GraphiQL el contrato de `creationsSearchBatch` con `onlyFree`/`onlyPriced`, `price(currency: USD) { cents }`, métricas y dominios de imágenes.
