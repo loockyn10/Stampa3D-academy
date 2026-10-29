@@ -122,22 +122,22 @@ export function BarcodeScanner({ onDetected }: BarcodeScannerProps) {
   };
 
   return (
-    <div className="overflow-hidden rounded-2xl border border-stampa-border bg-black/20">
+    <div className="overflow-hidden rounded-2xl border border-stampa-border bg-shade/20">
       <div className={`relative aspect-[4/3] bg-black ${scanning ? "block" : "hidden"}`}>
         <video ref={videoRef} muted playsInline className="h-full w-full object-cover" />
         <div className="pointer-events-none absolute inset-[18%] rounded-xl border-2 border-stampa-orange/80 shadow-[0_0_0_999px_rgba(0,0,0,0.25)]" />
       </div>
       {!scanning && (
         <div className="flex min-h-44 flex-col items-center justify-center p-5 text-center">
-          <Camera size={28} className="text-stampa-orange" />
-          <p className="mt-3 text-sm font-bold text-white">Escanear EAN, UPC o Code 128</p>
+          <Camera size={28} className="text-stampa-accent" />
+          <p className="mt-3 text-sm font-bold text-fg">Escanear EAN, UPC o Code 128</p>
           <p className="mt-1 text-xs leading-5 text-gray-500">La cámara se usa sólo mientras este panel está abierto.</p>
         </div>
       )}
       {error && <p className="border-t border-red-500/20 bg-red-500/10 px-4 py-3 text-xs leading-5 text-red-200">{error}</p>}
       <div className="border-t border-stampa-border p-3">
         {scanning ? (
-          <button onClick={stop} className="flex min-h-11 w-full items-center justify-center gap-2 rounded-xl border border-stampa-border bg-white/5 text-sm font-bold text-white"><CameraOff size={17} /> Detener cámara</button>
+          <button onClick={stop} className="flex min-h-11 w-full items-center justify-center gap-2 rounded-xl border border-stampa-border bg-fg/5 text-sm font-bold text-fg"><CameraOff size={17} /> Detener cámara</button>
         ) : (
           <button onClick={() => void start()} disabled={starting} className="flex min-h-11 w-full items-center justify-center gap-2 rounded-xl bg-stampa-orange text-sm font-bold text-white disabled:opacity-60">
             {starting ? <Loader2 size={17} className="animate-spin" /> : <Camera size={17} />} Iniciar cámara

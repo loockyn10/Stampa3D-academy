@@ -71,7 +71,7 @@ function FileDropZone({ onFile, disabled }: { onFile: (file: File) => void; disa
         if (file && !disabled) onFile(file);
       }}
       className={`flex flex-col items-center gap-2 rounded-xl border border-dashed px-4 py-5 text-center transition-colors ${
-        dragging ? "border-stampa-orange/70 bg-stampa-orange/10" : "border-white/15 bg-white/[0.03]"
+        dragging ? "border-stampa-orange/70 bg-stampa-orange/10" : "border-fg/15 bg-fg/[0.03]"
       }`}
     >
       <Upload size={20} className="text-gray-500" />
@@ -108,7 +108,7 @@ export function SegmentedControl<T extends string>({
   return (
     <div
       role="tablist"
-      className="grid gap-1 rounded-xl border border-white/10 bg-white/[0.04] p-1"
+      className="grid gap-1 rounded-xl border border-fg/10 bg-fg/[0.04] p-1"
       style={{ gridTemplateColumns: `repeat(${options.length}, minmax(0, 1fr))` }}
     >
       {options.map((option) => {
@@ -121,7 +121,7 @@ export function SegmentedControl<T extends string>({
             aria-selected={active}
             onClick={() => onChange(option.value)}
             className={`${compact ? "h-7" : "h-9"} rounded-lg text-xs font-semibold transition-colors ${
-              active ? "bg-stampa-orange/15 text-stampa-orange" : "text-gray-400 hover:text-white"
+              active ? "bg-stampa-orange/15 text-stampa-accent" : "text-gray-400 hover:text-fg"
             }`}
           >
             {option.label}
@@ -175,7 +175,7 @@ export function NumberField({
           }}
           placeholder="0"
           className={`h-11 w-full rounded-xl border bg-white/[0.06] px-4 pr-12 text-sm text-white placeholder:text-neutral-500 outline-none transition focus:border-stampa-orange/60 focus:bg-white/[0.08] focus:ring-2 focus:ring-stampa-orange/10 ${
-            error ? "border-red-500/50" : "border-white/10"
+            error ? "border-red-500/50" : "border-fg/10"
           }`}
         />
         {suffix && (
@@ -196,7 +196,7 @@ export function Toggle({ label, checked, onChange }: { label: string; checked: b
         type="checkbox"
         checked={checked}
         onChange={(e) => onChange(e.target.checked)}
-        className="h-4 w-4 rounded border-white/20 bg-white/[0.06] text-stampa-orange focus:ring-2 focus:ring-stampa-orange/40 focus:ring-offset-0"
+        className="h-4 w-4 rounded border-fg/20 bg-fg/[0.06] text-stampa-accent focus:ring-2 focus:ring-stampa-orange/40 focus:ring-offset-0"
       />
       {label}
     </label>
@@ -257,16 +257,16 @@ export function MakerTextControls({
       {fromFile && (
         <div className="flex flex-col gap-3">
           {source.fileName ? (
-            <div className="flex items-center justify-between gap-2 rounded-xl border border-white/10 bg-white/[0.04] px-3 py-2">
+            <div className="flex items-center justify-between gap-2 rounded-xl border border-fg/10 bg-fg/[0.04] px-3 py-2">
               <div className="min-w-0">
                 <span className="block text-[11px] font-semibold text-gray-500">Archivo</span>
-                <span className="block truncate text-sm text-white">{source.fileName}</span>
+                <span className="block truncate text-sm text-fg">{source.fileName}</span>
               </div>
               <button
                 type="button"
                 onClick={source.onClear}
                 aria-label="Quitar archivo"
-                className="rounded-lg p-1.5 text-gray-400 transition-colors hover:bg-white/10 hover:text-white"
+                className="rounded-lg p-1.5 text-gray-400 transition-colors hover:bg-fg/10 hover:text-fg"
               >
                 <X size={16} />
               </button>
@@ -285,7 +285,7 @@ export function MakerTextControls({
           )}
 
           {source.fileKind === "png" && source.pngMode !== "alpha" && (
-            <div className="flex flex-col gap-3 rounded-xl border border-white/10 bg-white/[0.03] p-3">
+            <div className="flex flex-col gap-3 rounded-xl border border-fg/10 bg-fg/[0.03] p-3">
               <label className="block">
                 <span className="mb-1 flex justify-between text-xs font-semibold text-gray-500">
                   <span>Umbral</span>
@@ -345,7 +345,7 @@ export function MakerTextControls({
           onChange={(e) => onChange({ text: e.target.value })}
           placeholder="STAMPA"
           className={`h-11 w-full rounded-xl border bg-white/[0.06] px-4 text-sm text-white placeholder:text-neutral-500 outline-none transition focus:border-stampa-orange/60 focus:bg-white/[0.08] focus:ring-2 focus:ring-stampa-orange/10 ${
-            fieldError(fieldErrors, "text") ? "border-red-500/50" : "border-white/10"
+            fieldError(fieldErrors, "text") ? "border-red-500/50" : "border-fg/10"
           }`}
         />
         {fieldError(fieldErrors, "text") && (
@@ -400,7 +400,7 @@ export function MakerTextControls({
       </div>
 
       {/* CUERPO */}
-      <div className="flex flex-col gap-3 border-t border-white/10 pt-4">
+      <div className="flex flex-col gap-3 border-t border-fg/10 pt-4">
         <label className="block">
           <span className="mb-1 block text-xs font-semibold text-gray-500">Cuerpo</span>
           <CalculatorSelect
@@ -429,7 +429,7 @@ export function MakerTextControls({
         <div className="flex flex-col gap-3">
           <span className="text-xs font-semibold text-gray-500">Modificadores</span>
 
-          <div className="flex flex-col gap-2 rounded-xl border border-white/10 bg-white/[0.03] p-3">
+          <div className="flex flex-col gap-2 rounded-xl border border-fg/10 bg-fg/[0.03] p-3">
             <Toggle
               label="Costillas laterales"
               checked={params.ribsCount > 0}
@@ -462,7 +462,7 @@ export function MakerTextControls({
             )}
           </div>
 
-          <div className="flex flex-col gap-2 rounded-xl border border-white/10 bg-white/[0.03] p-3">
+          <div className="flex flex-col gap-2 rounded-xl border border-fg/10 bg-fg/[0.03] p-3">
             <Toggle
               label="Bisel frontal"
               checked={params.bevelEnabled}
@@ -488,7 +488,7 @@ export function MakerTextControls({
             )}
           </div>
 
-          <div className="flex flex-col gap-2 rounded-xl border border-white/10 bg-white/[0.03] p-3">
+          <div className="flex flex-col gap-2 rounded-xl border border-fg/10 bg-fg/[0.03] p-3">
             <Toggle
               label="Bisel lateral luminoso"
               checked={params.grooveEnabled}
@@ -521,7 +521,7 @@ export function MakerTextControls({
             )}
           </div>
 
-          <div className="flex flex-col gap-2 rounded-xl border border-white/10 bg-white/[0.03] p-3">
+          <div className="flex flex-col gap-2 rounded-xl border border-fg/10 bg-fg/[0.03] p-3">
             <Toggle
               label="Bisel posterior"
               checked={params.rearBevelEnabled}
@@ -550,7 +550,7 @@ export function MakerTextControls({
       </div>
 
       {/* FRENTE */}
-      <div className="flex flex-col gap-3 border-t border-white/10 pt-4">
+      <div className="flex flex-col gap-3 border-t border-fg/10 pt-4">
         <label className="block">
           <span className="mb-1 block text-xs font-semibold text-gray-500">Frente</span>
           <CalculatorSelect
@@ -561,7 +561,7 @@ export function MakerTextControls({
         </label>
 
         {(params.frontType === "lid" || params.frontType === "perforated") && (
-          <div className="flex flex-col gap-2 rounded-xl border border-white/10 bg-white/[0.03] p-3">
+          <div className="flex flex-col gap-2 rounded-xl border border-fg/10 bg-fg/[0.03] p-3">
             <Toggle
               label="Bisel de tapa"
               checked={params.lidBevelEnabled}

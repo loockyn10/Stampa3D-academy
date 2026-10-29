@@ -78,7 +78,7 @@ test("4-5. nombre corto y largo: line-clamp-2, sin forzar altura", () => {
   const long = "Soporte articulado para auriculares con base de carga inalámbrica y organizador de cables XL edición especial ".repeat(2);
   for (const title of ["Pikachu", long]) {
     const html = render({ title });
-    assert.match(html, /<h3 class="line-clamp-2 break-words text-\[15px\] font-bold leading-snug text-white">/);
+    assert.match(html, /<h3 class="line-clamp-2 break-words text-\[15px\] font-bold leading-snug text-fg">/);
     assert.ok(html.includes(title));
   }
   assert.doesNotMatch(read("src/components/stl/StlModelCard.tsx"), /min-h-|\bh-\[/);
@@ -115,7 +115,7 @@ test("6-7. sin material o sin tiempo: se oculta el dato ausente, sin huecos ni g
 
 test("CTA compacto a la derecha en la misma fila; 'Ver detalle' si no hay archivo", () => {
   const html = render({ material_type: "PLA" });
-  assert.match(html, /ml-auto py-0\.5 text-xs font-bold text-stampa-orange">Ver modelo 3D <span aria-hidden="true">→<\/span>/);
+  assert.match(html, /ml-auto py-0\.5 text-xs font-bold text-stampa-accent">Ver modelo 3D <span aria-hidden="true">→<\/span>/);
   assert.match(render({ hasFile: false }), /Ver detalle/);
   assert.match(html, /<a [^>]*class="group block h-full/, "toda la card es el área clickeable");
 });

@@ -7,7 +7,7 @@ export function LandingMembershipHero() {
   return (
     <section
       id="inicio"
-      className="relative flex min-h-[95vh] scroll-mt-24 items-center overflow-hidden bg-stampa-bg pb-16 pt-28 text-white"
+      className="relative flex min-h-[95vh] scroll-mt-24 items-center overflow-hidden bg-stampa-bg pb-16 pt-28 text-fg"
     >
       <div className="absolute inset-0" aria-hidden="true">
         <div className="absolute left-1/2 top-1/2 h-[1000px] w-[1000px] -translate-x-1/2 -translate-y-1/2 rounded-full bg-stampa-orange/15 opacity-70 blur-[150px] motion-safe:animate-pulse" />
@@ -54,9 +54,9 @@ export function LandingMembershipHero() {
             </Link>
             <Link
               href="#plataforma"
-              className="group inline-flex w-full items-center justify-center gap-3 rounded-xl border border-stampa-border bg-white/5 px-8 py-4 font-medium text-white transition-all hover:border-stampa-orange/40 hover:bg-white/10 focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-orange-400 sm:w-auto"
+              className="group inline-flex w-full items-center justify-center gap-3 rounded-xl border border-stampa-border bg-fg/5 px-8 py-4 font-medium text-fg transition-all hover:border-stampa-orange/40 hover:bg-fg/10 focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-orange-400 sm:w-auto"
             >
-              <span className="flex h-8 w-8 items-center justify-center rounded-full bg-white/10 text-orange-400">
+              <span className="flex h-8 w-8 items-center justify-center rounded-full bg-fg/10 text-orange-400">
                 <Play className="h-4 w-4 translate-x-px" />
               </span>
               Ver cómo funciona
@@ -65,7 +65,7 @@ export function LandingMembershipHero() {
 
           <Link
             href="/login"
-            className="mt-5 inline-flex items-center gap-2 rounded text-sm text-zinc-400 transition-colors hover:text-white focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-orange-400"
+            className="mt-5 inline-flex items-center gap-2 rounded text-sm text-zinc-400 transition-colors hover:text-fg focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-orange-400"
           >
             <LogIn className="h-4 w-4" />
             Ya soy miembro

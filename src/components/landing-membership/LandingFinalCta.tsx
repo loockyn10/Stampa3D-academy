@@ -21,7 +21,7 @@ export function LandingFinalCta() {
         <p className="text-xs font-bold uppercase tracking-[0.24em] text-orange-400">
           Tu próximo paso
         </p>
-        <h2 className="mx-auto mt-5 max-w-4xl text-4xl font-bold leading-tight text-white md:text-6xl">
+        <h2 className="mx-auto mt-5 max-w-4xl text-4xl font-bold leading-tight text-fg md:text-6xl">
           Tu impresora ya puede producir. Ahora tu negocio tiene que estar a la altura.
         </h2>
         <p className="mx-auto mt-6 max-w-2xl text-lg leading-relaxed text-zinc-400">

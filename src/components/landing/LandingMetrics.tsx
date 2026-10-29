@@ -28,7 +28,7 @@ export function LandingMetrics() {
               <h3 className="text-3xl md:text-4xl font-black text-transparent bg-clip-text bg-gradient-to-r from-orange-400 to-orange-600 mb-2">
                 {metric.value}
               </h3>
-              <p className="text-white font-medium text-lg mb-1">{metric.label}</p>
+              <p className="text-fg font-medium text-lg mb-1">{metric.label}</p>
               <p className="text-gray-500 text-sm">{metric.desc}</p>
             </div>
           ))}

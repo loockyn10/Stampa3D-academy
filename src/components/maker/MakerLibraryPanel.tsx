@@ -31,8 +31,8 @@ function IconButton({
       disabled={disabled}
       className={`flex h-8 w-8 items-center justify-center rounded-lg border transition-colors disabled:cursor-not-allowed disabled:opacity-40 ${
         active
-          ? "border-stampa-orange/40 bg-stampa-orange/15 text-stampa-orange"
-          : "border-white/10 bg-white/[0.04] text-gray-400 hover:bg-white/10 hover:text-white"
+          ? "border-stampa-orange/40 bg-stampa-orange/15 text-stampa-accent"
+          : "border-fg/10 bg-fg/[0.04] text-gray-400 hover:bg-fg/10 hover:text-fg"
       }`}
     >
       {children}
@@ -112,12 +112,12 @@ export function MakerLibraryPanel({ library }: { library: Library }) {
         </div>
       </div>
 
-      <div className="flex flex-col gap-2 border-t border-white/10 pt-3">
+      <div className="flex flex-col gap-2 border-t border-fg/10 pt-3">
         <div className="flex items-center justify-between">
           <span className="text-xs font-semibold text-gray-500">Proyecto</span>
           {library.busy === "project" && <Loader2 size={13} className="animate-spin text-gray-500" />}
         </div>
-        <div className="truncate text-sm text-white">
+        <div className="truncate text-sm text-fg">
           {project ? project.name : <span className="text-gray-500">Sin guardar</span>}
           {library.dirty && <span className="ml-1.5 text-xs text-amber-300">• Modificado</span>}
         </div>
@@ -149,7 +149,7 @@ export function MakerLibraryPanel({ library }: { library: Library }) {
 
       <Dialog open={openDialog} onClose={() => setOpenDialog(false)} labelledBy="maker-open-project-title" panelClassName="max-w-md rounded-2xl border border-stampa-border bg-stampa-surface">
         <div className="p-5">
-          <h2 id="maker-open-project-title" className="text-lg font-bold text-white">
+          <h2 id="maker-open-project-title" className="text-lg font-bold text-fg">
             Abrir proyecto
           </h2>
           <div className="mt-3 flex max-h-80 flex-col gap-1.5 overflow-y-auto">
@@ -172,16 +172,16 @@ export function MakerLibraryPanel({ library }: { library: Library }) {
                   await library.openProject(p.id);
                 }}
                 className={`flex items-center justify-between gap-3 rounded-xl border px-3 py-2 text-left transition-colors hover:bg-white/10 disabled:opacity-50 ${
-                  p.id === project?.id ? "border-stampa-orange/40 bg-stampa-orange/10" : "border-white/10 bg-white/[0.04]"
+                  p.id === project?.id ? "border-stampa-orange/40 bg-stampa-orange/10" : "border-fg/10 bg-fg/[0.04]"
                 }`}
               >
-                <span className="truncate text-sm font-semibold text-white">{p.name}</span>
+                <span className="truncate text-sm font-semibold text-fg">{p.name}</span>
                 <span className="shrink-0 text-[11px] uppercase text-gray-500">{p.sourceType}</span>
               </button>
             ))}
           </div>
           <div className="mt-4 flex justify-end">
-            <button type="button" onClick={() => setOpenDialog(false)} className="rounded-xl border border-stampa-border px-4 py-2 text-sm font-semibold text-gray-300 hover:bg-white/10">
+            <button type="button" onClick={() => setOpenDialog(false)} className="rounded-xl border border-stampa-border px-4 py-2 text-sm font-semibold text-gray-300 hover:bg-fg/10">
               Cerrar
             </button>
           </div>

@@ -64,7 +64,7 @@ export function RoadmapsTable() {
       <div className="overflow-x-auto">
         <table className="w-full min-w-[800px] text-left border-collapse">
           <thead>
-            <tr className="bg-[#1a1a1a] border-b border-stampa-border text-xs uppercase tracking-wider text-gray-500">
+            <tr className="bg-stampa-raised border-b border-stampa-border text-xs uppercase tracking-wider text-gray-500">
               <th className="px-6 py-4 font-bold">Roadmap</th>
               <th className="px-6 py-4 font-bold">Filtros</th>
               <th className="px-6 py-4 font-bold">Cursos</th>
@@ -72,30 +72,30 @@ export function RoadmapsTable() {
               <th className="px-6 py-4 font-bold text-right">Acciones</th>
             </tr>
           </thead>
-          <tbody className="divide-y divide-white/5">
+          <tbody className="divide-y divide-fg/5">
             {roadmaps.map((r) => (
-              <tr key={r.id} className="hover:bg-white/[0.02] transition-colors group">
+              <tr key={r.id} className="hover:bg-fg/[0.02] transition-colors group">
                 <td className="px-6 py-4">
                   <div className="flex items-center gap-2">
                     {r.is_default && (
                       <Star className="text-amber-500" size={16} fill="currentColor" />
                     )}
-                    <span className="font-bold text-white block">{r.name}</span>
+                    <span className="font-bold text-fg block">{r.name}</span>
                   </div>
                   <span className="text-xs text-gray-500 block truncate max-w-xs">{r.description}</span>
                 </td>
                 <td className="px-6 py-4">
                   <div className="flex flex-col gap-1">
-                    <span className="text-xs px-2 py-0.5 bg-white/5 rounded text-gray-300 w-fit">
+                    <span className="text-xs px-2 py-0.5 bg-fg/5 rounded text-gray-300 w-fit">
                       <span className="text-gray-500 mr-1">Marca:</span> {formatPrinterBrandLabel(r.printer_brand)}
                     </span>
-                    <span className="text-xs px-2 py-0.5 bg-white/5 rounded text-gray-300 w-fit">
+                    <span className="text-xs px-2 py-0.5 bg-fg/5 rounded text-gray-300 w-fit">
                       <span className="text-gray-500 mr-1">Nivel:</span> {formatExperienceLevelLabel(r.experience_level)}
                     </span>
-                    <span className="text-xs px-2 py-0.5 bg-white/5 rounded text-gray-300 w-fit">
+                    <span className="text-xs px-2 py-0.5 bg-fg/5 rounded text-gray-300 w-fit">
                       <span className="text-gray-500 mr-1">Objetivo:</span> {formatMainGoalLabel(r.main_goal)}
                     </span>
-                    <span className="text-xs px-2 py-0.5 bg-white/5 rounded text-gray-300 w-fit">
+                    <span className="text-xs px-2 py-0.5 bg-fg/5 rounded text-gray-300 w-fit">
                       <span className="text-gray-500 mr-1">Etapa:</span> {formatCommercialStageLabel(r.commercial_stage)}
                     </span>
                   </div>
@@ -117,7 +117,7 @@ export function RoadmapsTable() {
                 <td className="px-6 py-4 text-right">
                   <Link 
                     href={`/admin/roadmaps/${r.id}`}
-                    className="inline-flex items-center justify-center w-8 h-8 rounded-lg bg-white/5 hover:bg-white/10 text-gray-400 hover:text-white transition-colors"
+                    className="inline-flex items-center justify-center w-8 h-8 rounded-lg bg-fg/5 hover:bg-fg/10 text-gray-400 hover:text-fg transition-colors"
                   >
                     <Edit size={16} />
                   </Link>

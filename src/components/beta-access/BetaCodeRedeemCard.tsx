@@ -69,7 +69,7 @@ export function BetaCodeRedeemCard({
     <section className={`min-w-0 rounded-2xl border border-cyan-500/20 bg-cyan-500/5 p-4 text-left ${className}`}>
       <div className="mb-3 flex items-center gap-2">
         <FlaskConical size={16} className="shrink-0 text-cyan-400" aria-hidden="true" />
-        <h3 className="text-sm font-bold text-white">{title}</h3>
+        <h3 className="text-sm font-bold text-fg">{title}</h3>
       </div>
 
       <form onSubmit={handleSubmit} className="flex min-w-0 flex-col gap-2 sm:flex-row" noValidate>
@@ -91,7 +91,7 @@ export function BetaCodeRedeemCard({
           }}
           placeholder="UNIVERSO-BETA-XXXX"
           aria-describedby="beta-redeem-message"
-          className="block min-w-0 flex-1 rounded-xl border border-stampa-border bg-white/5 px-3 py-3 font-mono text-base tracking-wider text-neutral-100 placeholder-neutral-600 outline-none transition-all focus:border-cyan-500/60 focus:ring-2 focus:ring-cyan-500/20 sm:text-sm"
+          className="block min-w-0 flex-1 rounded-xl border border-stampa-border bg-fg/5 px-3 py-3 font-mono text-base tracking-wider text-neutral-100 placeholder-neutral-600 outline-none transition-all focus:border-cyan-500/60 focus:ring-2 focus:ring-cyan-500/20 sm:text-sm"
         />
         <button
           type="submit"

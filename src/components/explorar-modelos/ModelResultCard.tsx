@@ -24,9 +24,9 @@ function PriceBadge({ result }: { result: ModelSearchResult }) {
   }
   if (result.priceType === "paid") {
     const formatted = result.price !== null && result.currency ? formatPrice(result.price, result.currency) : null;
-    return <span className="rounded-full border border-stampa-orange/20 bg-stampa-orange/10 px-2 py-0.5 text-[11px] font-semibold text-stampa-orange">{formatted ?? "De pago"}</span>;
+    return <span className="rounded-full border border-stampa-orange/20 bg-stampa-orange/10 px-2 py-0.5 text-[11px] font-semibold text-stampa-accent">{formatted ?? "De pago"}</span>;
   }
-  return <span className="rounded-full border border-stampa-border bg-white/5 px-2 py-0.5 text-[11px] font-semibold text-gray-400">Precio no informado</span>;
+  return <span className="rounded-full border border-stampa-border bg-fg/5 px-2 py-0.5 text-[11px] font-semibold text-gray-400">Precio no informado</span>;
 }
 
 function CommercialBadge({ value }: { value: ModelSearchResult["license"]["commercialUse"] }) {
@@ -36,7 +36,7 @@ function CommercialBadge({ value }: { value: ModelSearchResult["license"]["comme
   if (value === "prohibited") {
     return <span className="rounded-full border border-red-500/20 bg-red-500/10 px-2 py-0.5 text-[11px] font-semibold text-red-400">🚫 No comercial</span>;
   }
-  return <span className="rounded-full border border-stampa-border bg-white/5 px-2 py-0.5 text-[11px] font-semibold text-gray-300">? Revisar licencia</span>;
+  return <span className="rounded-full border border-stampa-border bg-fg/5 px-2 py-0.5 text-[11px] font-semibold text-gray-300">? Revisar licencia</span>;
 }
 
 interface ModelResultCardProps {
@@ -57,7 +57,7 @@ export function ModelResultCard({ result, canCalculate }: ModelResultCardProps) 
   ].filter((metric) => metric.value !== null);
 
   return (
-    <article className="flex min-w-0 flex-col overflow-hidden rounded-2xl border border-stampa-border bg-stampa-surface shadow-lg shadow-black/20">
+    <article className="flex min-w-0 flex-col overflow-hidden rounded-2xl border border-stampa-border bg-stampa-surface shadow-lg shadow-shade/20">
       <div className="relative aspect-[4/3] w-full bg-stampa-bg-soft">
         {showImage ? (
           // Imagen servida directamente por la fuente (sin proxy ni copia en storage de Stampa).
@@ -83,7 +83,7 @@ export function ModelResultCard({ result, canCalculate }: ModelResultCardProps) 
 
       <div className="flex flex-1 flex-col gap-3 p-4">
         <div className="min-w-0">
-          <h3 className="line-clamp-2 break-words text-sm font-bold leading-snug text-white">{result.title}</h3>
+          <h3 className="line-clamp-2 break-words text-sm font-bold leading-snug text-fg">{result.title}</h3>
           {result.authorName && (
             <p className="mt-1 truncate text-xs text-gray-400">
               por{" "}
@@ -135,7 +135,7 @@ export function ModelResultCard({ result, canCalculate }: ModelResultCardProps) 
           {canCalculate && calculatorVisible && (
             <Link
               href={buildCalculatorLink(result)}
-              className="inline-flex items-center justify-center gap-2 rounded-xl border border-stampa-border bg-stampa-surface-soft px-4 py-2.5 text-sm font-semibold text-stampa-text-muted transition-colors hover:bg-white/10 hover:text-white"
+              className="inline-flex items-center justify-center gap-2 rounded-xl border border-stampa-border bg-stampa-surface-soft px-4 py-2.5 text-sm font-semibold text-stampa-text-muted transition-colors hover:bg-fg/10 hover:text-fg"
             >
               <Calculator size={14} aria-hidden="true" />
               Calcular en Stampa

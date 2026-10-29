@@ -16,7 +16,7 @@ export function LandingTools() {
   const [ref, isIntersecting] = useIntersection<HTMLDivElement>({ threshold: 0.1 });
 
   return (
-    <section className="py-24 bg-stampa-bg text-white border-t border-stampa-border relative overflow-hidden">
+    <section className="py-24 bg-stampa-bg text-fg border-t border-stampa-border relative overflow-hidden">
       {/* Background flare */}
       <div className="absolute bottom-0 left-0 w-96 h-96 bg-stampa-orange/5 blur-[100px] rounded-full pointer-events-none" />
 
@@ -37,7 +37,7 @@ export function LandingTools() {
                   <div className="w-8 h-8 rounded-full bg-stampa-orange/10 flex items-center justify-center text-orange-400 shrink-0 group-hover:bg-stampa-orange/20 group-hover:scale-110 transition-all duration-300">
                     <tool.icon className="w-4 h-4" />
                   </div>
-                  <span className="text-gray-300 font-medium group-hover:text-white transition-colors">{tool.name}</span>
+                  <span className="text-gray-300 font-medium group-hover:text-fg transition-colors">{tool.name}</span>
                 </div>
               ))}
             </div>

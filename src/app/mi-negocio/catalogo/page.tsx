@@ -41,7 +41,7 @@ import {
   type BusinessBarcodeConflictInfo,
 } from "../actions";
 
-const inputClass = "w-full rounded-xl border border-stampa-border bg-stampa-bg-soft px-3 py-2.5 text-sm text-white outline-none transition-colors placeholder:text-gray-600 focus:border-stampa-orange/60";
+const inputClass = "w-full rounded-xl border border-stampa-border bg-stampa-bg-soft px-3 py-2.5 text-sm text-fg outline-none transition-colors placeholder:text-gray-600 focus:border-stampa-orange/60";
 const movementDate = new Intl.DateTimeFormat("es-AR", { dateStyle: "short", timeStyle: "short" });
 
 const STATUS_FILTERS: Array<{ value: BusinessCatalogStatusFilter; label: string }> = [
@@ -628,7 +628,7 @@ function CatalogoContent() {
 
   return (
     <div className="pb-24">
-      <Link href="/mi-negocio" className="mb-4 inline-flex items-center gap-1.5 text-xs font-semibold text-gray-500 hover:text-white">
+      <Link href="/mi-negocio" className="mb-4 inline-flex items-center gap-1.5 text-xs font-semibold text-gray-500 hover:text-fg">
         <ArrowLeft size={14} /> Mi Negocio
       </Link>
       <SectionTitle
@@ -639,7 +639,7 @@ function CatalogoContent() {
             <button onClick={() => setStockReceiptOpen(true)} className="inline-flex min-h-11 items-center justify-center gap-2 rounded-xl border border-emerald-500/35 bg-emerald-500/10 px-4 text-xs font-bold text-emerald-200 hover:bg-emerald-500/15 min-[390px]:col-span-2 sm:order-last sm:col-span-1">
               <PackagePlus size={16} /> Cargar stock
             </button>
-            <button onClick={() => setManufacturedOpen(true)} className="inline-flex min-h-11 items-center justify-center gap-2 rounded-xl border border-stampa-border bg-white/5 px-4 text-xs font-bold text-white hover:bg-white/10">
+            <button onClick={() => setManufacturedOpen(true)} className="inline-flex min-h-11 items-center justify-center gap-2 rounded-xl border border-stampa-border bg-fg/5 px-4 text-xs font-bold text-fg hover:bg-fg/10">
               <Factory size={16} /> Del taller
             </button>
             <button onClick={() => setResaleOpen(true)} className="inline-flex min-h-11 items-center justify-center gap-2 rounded-xl bg-stampa-orange px-4 text-xs font-bold text-white hover:bg-orange-500">
@@ -659,7 +659,7 @@ function CatalogoContent() {
           value={catalogSearch}
           onChange={(event) => setCatalogSearch(event.target.value)}
           placeholder="Buscar por producto, marca, categoría, SKU o código"
-          className="min-h-11 w-full rounded-xl border border-stampa-border bg-stampa-surface pl-10 pr-4 text-sm text-white outline-none placeholder:text-gray-600 focus:border-stampa-orange/60"
+          className="min-h-11 w-full rounded-xl border border-stampa-border bg-stampa-surface pl-10 pr-4 text-sm text-fg outline-none placeholder:text-gray-600 focus:border-stampa-orange/60"
         />
       </label>
 
@@ -674,9 +674,9 @@ function CatalogoContent() {
               role="tab"
               aria-selected={selected}
               onClick={() => setStatusFilter(filter.value)}
-              className={`min-h-10 rounded-lg px-1.5 text-xs font-bold transition-colors ${selected ? "bg-stampa-orange text-white" : "text-gray-400 hover:bg-white/5 hover:text-white"}`}
+              className={`min-h-10 rounded-lg px-1.5 text-xs font-bold transition-colors ${selected ? "bg-stampa-orange text-white" : "text-gray-400 hover:bg-fg/5 hover:text-fg"}`}
             >
-              {filter.label} <span className={selected ? "text-white/80" : "text-gray-600"}>({count})</span>
+              {filter.label} <span className={selected ? "text-fg/80" : "text-gray-600"}>({count})</span>
             </button>
           );
         })}
@@ -698,14 +698,14 @@ function CatalogoContent() {
         </Card>
       ) : statusFilter !== "archived" && items.length === 0 && archivedItems.length === 0 && !error ? (
         <Card className="flex flex-col items-center p-10 text-center">
-          <ShoppingBag size={30} className="text-stampa-orange" />
-          <h2 className="mt-4 text-lg font-bold text-white">Tu catálogo comercial está vacío</h2>
+          <ShoppingBag size={30} className="text-stampa-accent" />
+          <h2 className="mt-4 text-lg font-bold text-fg">Tu catálogo comercial está vacío</h2>
           <p className="mt-2 max-w-md text-sm text-gray-400">Agregá un producto que ya fabricás o cargá uno de reventa.</p>
         </Card>
       ) : filteredItems.length === 0 ? (
         <Card className="p-8 text-center">
           <Search className="mx-auto text-gray-600" size={28} />
-          <p className="mt-3 font-bold text-white">No encontramos productos</p>
+          <p className="mt-3 font-bold text-fg">No encontramos productos</p>
           <p className="mt-1 text-sm text-gray-500">Probá con otro nombre, marca, categoría, SKU o código.</p>
         </Card>
       ) : (
@@ -725,28 +725,28 @@ function CatalogoContent() {
                   {image ? (
                     <Image unoptimized src={image} alt="" width={64} height={64} className="h-16 w-16 shrink-0 rounded-xl border border-stampa-border object-cover" />
                   ) : (
-                    <span className="flex h-16 w-16 shrink-0 items-center justify-center rounded-xl border border-stampa-border bg-white/5 text-gray-500"><Boxes size={23} /></span>
+                    <span className="flex h-16 w-16 shrink-0 items-center justify-center rounded-xl border border-stampa-border bg-fg/5 text-gray-500"><Boxes size={23} /></span>
                   )}
                   <div className="min-w-0 flex-1">
                     <div className="flex items-start justify-between gap-2">
-                      <h2 className="truncate text-sm font-bold text-white">{getBusinessProductDisplayName(item)}</h2>
+                      <h2 className="truncate text-sm font-bold text-fg">{getBusinessProductDisplayName(item)}</h2>
                       {!item.is_active && <span className="shrink-0 rounded-full bg-gray-500/20 px-2 py-0.5 text-[9px] font-black uppercase tracking-wide text-gray-300">Archivado</span>}
                       <span className={`shrink-0 rounded-full px-2 py-0.5 text-[9px] font-black uppercase tracking-wide ${item.source_type === "manufactured" ? "bg-cyan-500/10 text-cyan-300" : "bg-violet-500/10 text-violet-300"}`}>
                         {item.source_type === "manufactured" ? "Fabricado" : "Reventa"}
                       </span>
                     </div>
                     <p className="mt-1 truncate text-xs text-gray-500">{item.category}{item.brand ? ` · ${item.brand}` : ""}</p>
-                    <p className="mt-2 text-base font-black text-stampa-orange">${Number(item.sale_price || 0).toLocaleString("es-AR")}</p>
+                    <p className="mt-2 text-base font-black text-stampa-accent">${Number(item.sale_price || 0).toLocaleString("es-AR")}</p>
                   </div>
                 </div>
-                <div className="mt-4 grid grid-cols-2 gap-2 rounded-xl border border-white/5 bg-black/10 p-3 text-xs">
-                  <div><p className="text-gray-500">Stock</p><p className="mt-0.5 font-bold text-white">{stock === null ? "Sin fuente" : `${stock} u.`}</p></div>
+                <div className="mt-4 grid grid-cols-2 gap-2 rounded-xl border border-fg/5 bg-shade/10 p-3 text-xs">
+                  <div><p className="text-gray-500">Stock</p><p className="mt-0.5 font-bold text-fg">{stock === null ? "Sin fuente" : `${stock} u.`}</p></div>
                   <div><p className="text-gray-500">SKU</p><p className="mt-0.5 truncate font-semibold text-gray-300">{item.sku || "Sin SKU"}</p></div>
                   <div className="col-span-2"><p className="text-gray-500">Código de barras</p><p className="mt-0.5 truncate font-semibold text-gray-300">{item.barcode || "Sin código"}</p></div>
                 </div>
                 <div className="mt-3 flex items-center justify-between gap-3">
                   <span className="text-[10px] text-gray-500">{item.is_active ? "Activo" : "Archivado"}</span>
-                  <button type="button" disabled={!item.is_active || publishingId === item.id} onClick={() => void togglePublication(item)} className={`inline-flex min-h-9 items-center gap-1.5 rounded-lg border px-3 text-[11px] font-bold disabled:opacity-40 ${item.is_published ? "border-emerald-500/30 bg-emerald-500/10 text-emerald-300" : "border-stampa-border text-gray-400 hover:bg-white/5"}`}>
+                  <button type="button" disabled={!item.is_active || publishingId === item.id} onClick={() => void togglePublication(item)} className={`inline-flex min-h-9 items-center gap-1.5 rounded-lg border px-3 text-[11px] font-bold disabled:opacity-40 ${item.is_published ? "border-emerald-500/30 bg-emerald-500/10 text-emerald-300" : "border-stampa-border text-gray-400 hover:bg-fg/5"}`}>
                     {publishingId === item.id ? <Loader2 size={13} className="animate-spin" /> : item.is_published ? <Eye size={13} /> : <EyeOff size={13} />}
                     {item.is_published ? "Publicado" : "No publicado"}
                   </button>
@@ -764,13 +764,13 @@ function CatalogoContent() {
                       <Factory size={14} /> Gestionar stock en Mi Taller
                     </Link>
                   ) : (
-                    <button type="button" onClick={() => openAdjustment(item)} disabled={!item.is_active} className="inline-flex min-h-10 w-full items-center justify-center gap-2 rounded-lg border border-stampa-border bg-white/5 px-3 text-xs font-bold text-white hover:bg-white/10 disabled:opacity-40">
+                    <button type="button" onClick={() => openAdjustment(item)} disabled={!item.is_active} className="inline-flex min-h-10 w-full items-center justify-center gap-2 rounded-lg border border-stampa-border bg-fg/5 px-3 text-xs font-bold text-fg hover:bg-fg/10 disabled:opacity-40">
                       <Boxes size={14} /> Ajustar stock de reventa
                     </button>
                   )}
-                  {locationsEnabled && <Link href="/mi-negocio/reposicion" className="mt-2 inline-flex min-h-9 w-full items-center justify-center rounded-lg text-[11px] font-bold text-gray-500 hover:bg-white/5 hover:text-gray-300">Configurar showroom y mínimo</Link>}
+                  {locationsEnabled && <Link href="/mi-negocio/reposicion" className="mt-2 inline-flex min-h-9 w-full items-center justify-center rounded-lg text-[11px] font-bold text-gray-500 hover:bg-fg/5 hover:text-gray-300">Configurar showroom y mínimo</Link>}
                   <div className="mt-2 grid grid-cols-2 gap-2">
-                    <button type="button" disabled={loadingEditId !== null} onClick={() => void openEdit(item)} className="inline-flex min-h-10 items-center justify-center gap-2 rounded-lg border border-stampa-border bg-white/5 px-3 text-xs font-bold text-white hover:bg-white/10 disabled:opacity-50">{loadingEditId === item.id ? <Loader2 size={14} className="animate-spin" /> : <Pencil size={14} />} Editar</button>
+                    <button type="button" disabled={loadingEditId !== null} onClick={() => void openEdit(item)} className="inline-flex min-h-10 items-center justify-center gap-2 rounded-lg border border-stampa-border bg-fg/5 px-3 text-xs font-bold text-fg hover:bg-fg/10 disabled:opacity-50">{loadingEditId === item.id ? <Loader2 size={14} className="animate-spin" /> : <Pencil size={14} />} Editar</button>
                     <button type="button" onClick={() => setDeleteItem(item)} className="inline-flex min-h-10 items-center justify-center gap-2 rounded-lg border border-red-500/25 bg-red-500/5 px-3 text-xs font-bold text-red-300 hover:bg-red-500/10"><Trash2 size={14} /> Eliminar</button>
                   </div>
                 </div>
@@ -795,18 +795,18 @@ function CatalogoContent() {
         {adjustmentItem && <>
           <div className="flex items-start justify-between border-b border-stampa-border p-5">
             <div>
-              <h2 id="catalog-adjustment-title" className="text-lg font-bold text-white">Ajustar {getBusinessProductDisplayName(adjustmentItem)}</h2>
+              <h2 id="catalog-adjustment-title" className="text-lg font-bold text-fg">Ajustar {getBusinessProductDisplayName(adjustmentItem)}</h2>
               <p className="mt-1 text-sm text-gray-500">Stock actual: {resolveBusinessCatalogStock(adjustmentItem, products) ?? "no disponible"} unidades</p>
             </div>
-            <button type="button" onClick={closeAdjustment} className="rounded-lg p-2 text-gray-500 hover:text-white"><X size={18} /></button>
+            <button type="button" onClick={closeAdjustment} className="rounded-lg p-2 text-gray-500 hover:text-fg"><X size={18} /></button>
           </div>
           <div className="space-y-4 p-5">
             <div className="grid grid-cols-2 gap-2">
               <button type="button" onClick={() => { setAdjustmentDirection("add"); adjustmentAttemptRef.current = null; }} className={`flex min-h-11 items-center justify-center gap-2 rounded-xl border text-sm font-bold ${adjustmentDirection === "add" ? "border-emerald-400/50 bg-emerald-400/10 text-emerald-200" : "border-stampa-border text-gray-400"}`}><Plus size={16} /> Sumar</button>
               <button type="button" onClick={() => { setAdjustmentDirection("subtract"); adjustmentAttemptRef.current = null; }} className={`flex min-h-11 items-center justify-center gap-2 rounded-xl border text-sm font-bold ${adjustmentDirection === "subtract" ? "border-red-400/50 bg-red-400/10 text-red-200" : "border-stampa-border text-gray-400"}`}><Minus size={16} /> Restar</button>
             </div>
-            <label className="block text-xs font-semibold text-gray-300">Cantidad<input type="number" inputMode="numeric" min="1" step="1" value={adjustmentQuantity} onChange={(event) => { setAdjustmentQuantity(event.target.value); adjustmentAttemptRef.current = null; }} className="mt-1.5 min-h-11 w-full rounded-xl border border-stampa-border bg-stampa-bg-soft px-3 text-sm text-white" /></label>
-            <label className="block text-xs font-semibold text-gray-300">Motivo<textarea value={adjustmentReason} onChange={(event) => { setAdjustmentReason(event.target.value); adjustmentAttemptRef.current = null; }} maxLength={300} rows={3} placeholder="Ej.: reposición, conteo físico, unidad dañada" className="mt-1.5 w-full resize-none rounded-xl border border-stampa-border bg-stampa-bg-soft p-3 text-sm text-white" /></label>
+            <label className="block text-xs font-semibold text-gray-300">Cantidad<input type="number" inputMode="numeric" min="1" step="1" value={adjustmentQuantity} onChange={(event) => { setAdjustmentQuantity(event.target.value); adjustmentAttemptRef.current = null; }} className="mt-1.5 min-h-11 w-full rounded-xl border border-stampa-border bg-stampa-bg-soft px-3 text-sm text-fg" /></label>
+            <label className="block text-xs font-semibold text-gray-300">Motivo<textarea value={adjustmentReason} onChange={(event) => { setAdjustmentReason(event.target.value); adjustmentAttemptRef.current = null; }} maxLength={300} rows={3} placeholder="Ej.: reposición, conteo físico, unidad dañada" className="mt-1.5 w-full resize-none rounded-xl border border-stampa-border bg-stampa-bg-soft p-3 text-sm text-fg" /></label>
             <button type="button" disabled={adjusting} onClick={() => void saveAdjustment()} className="inline-flex min-h-12 w-full items-center justify-center gap-2 rounded-xl bg-stampa-orange text-sm font-black text-white disabled:opacity-50">{adjusting && <Loader2 size={16} className="animate-spin" />} Confirmar ajuste</button>
           </div>
           <div className="border-t border-stampa-border p-5">
@@ -816,7 +816,7 @@ function CatalogoContent() {
             ) : (
               <div className="mt-3 max-h-44 space-y-2 overflow-y-auto">
                 {movements.filter((movement) => movement.catalog_item_id === adjustmentItem.id).slice(0, 12).map((movement) => (
-                  <div key={movement.id} className="flex items-start justify-between gap-3 rounded-xl bg-white/[0.03] p-3">
+                  <div key={movement.id} className="flex items-start justify-between gap-3 rounded-xl bg-fg/[0.03] p-3">
                     <div><p className="text-xs font-semibold text-gray-300">{movement.reason || "Movimiento de inventario"}</p><p className="mt-1 text-[11px] text-gray-500">{movementDate.format(new Date(movement.created_at))}</p></div>
                     <p className={`text-sm font-black ${movement.quantity_delta > 0 ? "text-emerald-300" : "text-red-300"}`}>{movement.quantity_delta > 0 ? "+" : ""}{movement.quantity_delta}</p>
                   </div>
@@ -831,15 +831,15 @@ function CatalogoContent() {
         {deleteItem && <>
           <div className="flex items-start justify-between gap-4 border-b border-stampa-border p-5">
             <div>
-              <h2 id="catalog-delete-title" className="text-lg font-bold text-white">¿Eliminar “{getBusinessProductDisplayName(deleteItem)}”?</h2>
+              <h2 id="catalog-delete-title" className="text-lg font-bold text-fg">¿Eliminar “{getBusinessProductDisplayName(deleteItem)}”?</h2>
               <p className="mt-1 text-sm leading-6 text-gray-400">Esta acción lo quitará de Mi Negocio.</p>
               <p className="mt-2 text-xs leading-5 text-gray-500">Queda archivado: conserva su código de barras e historial y podés reactivarlo desde Archivados. No se borra.</p>
               {deleteItem.source_type === "manufactured" && <p className="mt-2 text-xs leading-5 text-cyan-200">El producto seguirá existiendo en Mi Taller con su receta, costos y stock.</p>}
             </div>
-            <button type="button" disabled={deleting} onClick={() => setDeleteItem(null)} aria-label="Cerrar" className="shrink-0 rounded-lg p-2 text-gray-500 hover:bg-white/5 hover:text-white disabled:opacity-40"><X size={18} /></button>
+            <button type="button" disabled={deleting} onClick={() => setDeleteItem(null)} aria-label="Cerrar" className="shrink-0 rounded-lg p-2 text-gray-500 hover:bg-fg/5 hover:text-fg disabled:opacity-40"><X size={18} /></button>
           </div>
           <div className="flex flex-col-reverse gap-2 p-5 min-[390px]:flex-row min-[390px]:justify-end">
-            <button type="button" disabled={deleting} onClick={() => setDeleteItem(null)} className="min-h-11 rounded-xl px-4 text-sm font-semibold text-gray-400 hover:bg-white/5 disabled:opacity-40">Cancelar</button>
+            <button type="button" disabled={deleting} onClick={() => setDeleteItem(null)} className="min-h-11 rounded-xl px-4 text-sm font-semibold text-gray-400 hover:bg-fg/5 disabled:opacity-40">Cancelar</button>
             <button type="button" disabled={deleting} onClick={() => void archiveCatalogItem()} className="inline-flex min-h-11 items-center justify-center gap-2 rounded-xl bg-red-500 px-5 text-sm font-black text-white hover:bg-red-400 disabled:opacity-50">{deleting && <Loader2 size={16} className="animate-spin" />} Eliminar</button>
           </div>
         </>}
@@ -849,11 +849,11 @@ function CatalogoContent() {
         {editItem && <>
           <div className="flex items-start justify-between gap-4 border-b border-stampa-border p-5">
             <div>
-              <h2 id="catalog-edit-title" className="text-lg font-bold text-white">Editar producto comercial</h2>
+              <h2 id="catalog-edit-title" className="text-lg font-bold text-fg">Editar producto comercial</h2>
               <p className="mt-1 text-xs leading-5 text-gray-500">Estos cambios no modifican el stock ni sus movimientos.</p>
               {editItem.source_type === "manufactured" && <p className="mt-1 text-xs leading-5 text-cyan-200">Receta, componentes y costos productivos se administran desde Mi Taller.</p>}
             </div>
-            <button type="button" disabled={editing} onClick={() => setEditItem(null)} aria-label="Cerrar" className="shrink-0 rounded-lg p-2 text-gray-500 hover:bg-white/5 hover:text-white disabled:opacity-40"><X size={18} /></button>
+            <button type="button" disabled={editing} onClick={() => setEditItem(null)} aria-label="Cerrar" className="shrink-0 rounded-lg p-2 text-gray-500 hover:bg-fg/5 hover:text-fg disabled:opacity-40"><X size={18} /></button>
           </div>
           <div className="grid gap-4 p-5 sm:grid-cols-2">
             <label className="text-xs font-semibold text-gray-300">Nombre comercial<input value={editForm.name} onChange={(event) => setEditForm({ ...editForm, name: event.target.value })} className={`${inputClass} mt-1.5`} /></label>
@@ -880,7 +880,7 @@ function CatalogoContent() {
             </div>
           </div>
           <div className="flex flex-col-reverse gap-2 border-t border-stampa-border p-5 min-[390px]:flex-row min-[390px]:justify-end">
-            <button type="button" disabled={editing} onClick={() => setEditItem(null)} className="min-h-11 rounded-xl px-4 text-sm font-semibold text-gray-400 hover:bg-white/5 disabled:opacity-40">Cancelar</button>
+            <button type="button" disabled={editing} onClick={() => setEditItem(null)} className="min-h-11 rounded-xl px-4 text-sm font-semibold text-gray-400 hover:bg-fg/5 disabled:opacity-40">Cancelar</button>
             <button type="button" disabled={editing} onClick={() => void saveEdit()} className="inline-flex min-h-11 items-center justify-center gap-2 rounded-xl bg-stampa-orange px-5 text-sm font-black text-white disabled:opacity-50">{editing && <Loader2 size={16} className="animate-spin" />} Guardar cambios</button>
           </div>
         </>}
@@ -888,8 +888,8 @@ function CatalogoContent() {
 
       <Dialog open={manufacturedOpen} onClose={() => { if (!barcodeConflict) closeManufactured(); }} labelledBy="manufactured-dialog-title" panelClassName="max-w-xl rounded-2xl border border-stampa-border bg-stampa-surface">
         <div className="flex items-center justify-between border-b border-stampa-border p-5">
-          <div><h2 id="manufactured-dialog-title" className="font-bold text-white">Agregar producto fabricado</h2><p className="mt-1 text-xs text-gray-500">Se crea un vínculo; no se copian receta ni stock.</p></div>
-          <button onClick={closeManufactured} className="p-2 text-gray-500 hover:text-white"><X size={18} /></button>
+          <div><h2 id="manufactured-dialog-title" className="font-bold text-fg">Agregar producto fabricado</h2><p className="mt-1 text-xs text-gray-500">Se crea un vínculo; no se copian receta ni stock.</p></div>
+          <button onClick={closeManufactured} className="p-2 text-gray-500 hover:text-fg"><X size={18} /></button>
         </div>
         <div className="space-y-4 p-5">
           <label className="block text-xs font-semibold text-gray-300">Producto del taller
@@ -898,7 +898,7 @@ function CatalogoContent() {
               {availableProducts.map((product) => <option key={product.id} value={product.id}>{product.name}</option>)}
             </select>
           </label>
-          {availableProducts.length === 0 && <p className="rounded-xl bg-white/5 p-3 text-xs text-gray-400">Todos tus productos activos ya están vinculados o todavía no cargaste ninguno.</p>}
+          {availableProducts.length === 0 && <p className="rounded-xl bg-fg/5 p-3 text-xs text-gray-400">Todos tus productos activos ya están vinculados o todavía no cargaste ninguno.</p>}
           <div className="grid gap-4 sm:grid-cols-2">
             <label className="text-xs font-semibold text-gray-300">Categoría<input value={manufacturedForm.category} onChange={(e) => setManufacturedForm({ ...manufacturedForm, category: e.target.value })} className={`${inputClass} mt-1.5`} /></label>
             <label className="text-xs font-semibold text-gray-300">Precio comercial<input type="number" min="0" value={manufacturedForm.salePrice} onChange={(e) => setManufacturedForm({ ...manufacturedForm, salePrice: e.target.value })} className={`${inputClass} mt-1.5`} /></label>
@@ -909,15 +909,15 @@ function CatalogoContent() {
           <label className="flex items-center gap-2 text-sm text-gray-300"><input type="checkbox" checked={manufacturedForm.isActive} onChange={(e) => setManufacturedForm({ ...manufacturedForm, isActive: e.target.checked })} /> Activo en el catálogo</label>
         </div>
         <div className="flex flex-col-reverse gap-2 border-t border-stampa-border p-5 sm:flex-row sm:justify-end">
-          <button onClick={closeManufactured} className="min-h-11 rounded-xl px-4 text-sm font-semibold text-gray-400 hover:bg-white/5">Cancelar</button>
+          <button onClick={closeManufactured} className="min-h-11 rounded-xl px-4 text-sm font-semibold text-gray-400 hover:bg-fg/5">Cancelar</button>
           <button disabled={saving || !manufacturedForm.sourceProductId} onClick={() => void saveManufactured()} className="inline-flex min-h-11 items-center justify-center gap-2 rounded-xl bg-stampa-orange px-5 text-sm font-bold text-white disabled:opacity-50">{saving && <Loader2 size={15} className="animate-spin" />} Agregar</button>
         </div>
       </Dialog>
 
       <Dialog open={resaleOpen} onClose={() => { if (!barcodeConflict) closeResale(); }} labelledBy="resale-dialog-title" panelClassName="max-w-2xl rounded-2xl border border-stampa-border bg-stampa-surface">
         <div className="flex items-center justify-between border-b border-stampa-border p-5">
-          <div><h2 id="resale-dialog-title" className="font-bold text-white">Nuevo producto de reventa</h2><p className="mt-1 text-xs text-gray-500">Producto comercial sin receta de fabricación.</p></div>
-          <button onClick={closeResale} className="p-2 text-gray-500 hover:text-white"><X size={18} /></button>
+          <div><h2 id="resale-dialog-title" className="font-bold text-fg">Nuevo producto de reventa</h2><p className="mt-1 text-xs text-gray-500">Producto comercial sin receta de fabricación.</p></div>
+          <button onClick={closeResale} className="p-2 text-gray-500 hover:text-fg"><X size={18} /></button>
         </div>
         <div className="grid gap-4 p-5 sm:grid-cols-2">
           <label className="text-xs font-semibold text-gray-300">Nombre<input value={resaleForm.name} onChange={(e) => setResaleForm({ ...resaleForm, name: e.target.value })} className={`${inputClass} mt-1.5`} /></label>
@@ -935,7 +935,7 @@ function CatalogoContent() {
           <label className="flex items-center gap-2 text-sm text-gray-300 sm:col-span-2"><input type="checkbox" checked={resaleForm.isActive} onChange={(e) => setResaleForm({ ...resaleForm, isActive: e.target.checked })} /> Activo en el catálogo</label>
         </div>
         <div className="flex flex-col-reverse gap-2 border-t border-stampa-border p-5 sm:flex-row sm:justify-end">
-          <button onClick={closeResale} className="min-h-11 rounded-xl px-4 text-sm font-semibold text-gray-400 hover:bg-white/5">Cancelar</button>
+          <button onClick={closeResale} className="min-h-11 rounded-xl px-4 text-sm font-semibold text-gray-400 hover:bg-fg/5">Cancelar</button>
           <button disabled={saving} onClick={() => void saveResale()} className="inline-flex min-h-11 items-center justify-center gap-2 rounded-xl bg-stampa-orange px-5 text-sm font-bold text-white disabled:opacity-50">{saving && <Loader2 size={15} className="animate-spin" />} Guardar producto</button>
         </div>
       </Dialog>
@@ -944,17 +944,17 @@ function CatalogoContent() {
         {barcodeConflict && <>
           <div className="flex items-start justify-between gap-4 border-b border-stampa-border p-5">
             <div className="min-w-0">
-              <h2 id="catalog-barcode-conflict-title" className="text-lg font-bold text-white">Código de barras de un producto archivado</h2>
+              <h2 id="catalog-barcode-conflict-title" className="text-lg font-bold text-fg">Código de barras de un producto archivado</h2>
               <p className="mt-2 text-sm leading-6 text-gray-400">Este código de barras pertenece a un producto archivado:</p>
-              <p className="mt-2 break-words rounded-xl border border-stampa-border bg-white/5 px-3 py-2 text-sm font-bold text-white">{barcodeConflict.displayName}</p>
+              <p className="mt-2 break-words rounded-xl border border-stampa-border bg-fg/5 px-3 py-2 text-sm font-bold text-fg">{barcodeConflict.displayName}</p>
               <p className="mt-2 text-sm leading-6 text-gray-400">Podés reactivarlo en lugar de crear un duplicado.</p>
             </div>
-            <button type="button" disabled={restoringId !== null} onClick={() => setBarcodeConflict(null)} aria-label="Cerrar" className="shrink-0 rounded-lg p-2 text-gray-500 hover:bg-white/5 hover:text-white disabled:opacity-40"><X size={18} /></button>
+            <button type="button" disabled={restoringId !== null} onClick={() => setBarcodeConflict(null)} aria-label="Cerrar" className="shrink-0 rounded-lg p-2 text-gray-500 hover:bg-fg/5 hover:text-fg disabled:opacity-40"><X size={18} /></button>
           </div>
           <div className="flex flex-col gap-2 p-5">
             <button type="button" disabled={restoringId !== null} onClick={() => void reactivateFromConflict()} className="inline-flex min-h-11 w-full items-center justify-center gap-2 rounded-xl bg-stampa-orange px-5 text-sm font-black text-white hover:bg-orange-500 disabled:opacity-50">{restoringId ? <Loader2 size={16} className="animate-spin" /> : <ArchiveRestore size={16} />} Reactivar producto</button>
-            <button type="button" disabled={restoringId !== null} onClick={viewArchivedFromConflict} className="min-h-11 w-full rounded-xl border border-stampa-border px-4 text-sm font-bold text-white hover:bg-white/5 disabled:opacity-50">Ver archivado</button>
-            <button type="button" disabled={restoringId !== null} onClick={() => setBarcodeConflict(null)} className="min-h-11 w-full rounded-xl px-4 text-sm font-semibold text-gray-400 hover:bg-white/5 disabled:opacity-40">Cancelar</button>
+            <button type="button" disabled={restoringId !== null} onClick={viewArchivedFromConflict} className="min-h-11 w-full rounded-xl border border-stampa-border px-4 text-sm font-bold text-fg hover:bg-fg/5 disabled:opacity-50">Ver archivado</button>
+            <button type="button" disabled={restoringId !== null} onClick={() => setBarcodeConflict(null)} className="min-h-11 w-full rounded-xl px-4 text-sm font-semibold text-gray-400 hover:bg-fg/5 disabled:opacity-40">Cancelar</button>
           </div>
         </>}
       </Dialog>

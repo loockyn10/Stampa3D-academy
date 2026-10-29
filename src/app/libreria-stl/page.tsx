@@ -108,7 +108,7 @@ export default function LibreriaStlPage() {
   if (loading) {
     return (
       <div className="flex items-center justify-center py-24">
-        <Loader2 className="h-8 w-8 animate-spin text-stampa-orange" />
+        <Loader2 className="h-8 w-8 animate-spin text-stampa-accent" />
       </div>
     );
   }
@@ -122,7 +122,7 @@ export default function LibreriaStlPage() {
             <div className="mb-4 inline-flex items-center gap-2 rounded-full border border-stampa-orange/20 bg-stampa-orange/10 px-3 py-1 text-[10px] font-bold uppercase tracking-wider text-orange-400">
               <span className="text-[10px]">✨</span> Recursos para miembros
             </div>
-            <h1 className="mb-2 text-3xl font-black tracking-tight text-white md:text-4xl">Librería STL</h1>
+            <h1 className="mb-2 text-3xl font-black tracking-tight text-fg md:text-4xl">Librería STL</h1>
             <p className="text-sm text-gray-400">
               Elegí un grupo, mirá el modelo en 3D y descargalo listo para imprimir.
             </p>
@@ -135,7 +135,7 @@ export default function LibreriaStlPage() {
                 value={query}
                 onChange={(e) => setQuery(e.target.value)}
                 placeholder="Buscar modelos o grupos..."
-                className="w-full rounded-xl border border-stampa-border bg-stampa-bg-soft py-3 pl-10 pr-4 text-sm text-white transition-all focus:border-stampa-orange focus:outline-none focus:ring-1 focus:ring-stampa-orange"
+                className="w-full rounded-xl border border-stampa-border bg-stampa-bg-soft py-3 pl-10 pr-4 text-sm text-fg transition-all focus:border-stampa-orange focus:outline-none focus:ring-1 focus:ring-stampa-orange"
               />
             </div>
           </div>
@@ -183,7 +183,7 @@ export default function LibreriaStlPage() {
             <span className="text-2xl">💡</span>
           </div>
           <div>
-            <h4 className="mb-1 font-bold text-white">Usá estos archivos como punto de partida</h4>
+            <h4 className="mb-1 font-bold text-fg">Usá estos archivos como punto de partida</h4>
             <p className="text-sm text-gray-400">
               Descargá el archivo, revisá la configuración recomendada y adaptalo a tu impresora y material.
             </p>
@@ -191,7 +191,7 @@ export default function LibreriaStlPage() {
         </div>
         <a
           href="/stampy"
-          className="w-full shrink-0 rounded-xl border border-stampa-border bg-stampa-bg-soft px-6 py-2.5 text-center text-sm font-bold text-white transition-colors hover:bg-white/5 md:w-auto"
+          className="w-full shrink-0 rounded-xl border border-stampa-border bg-stampa-bg-soft px-6 py-2.5 text-center text-sm font-bold text-fg transition-colors hover:bg-fg/5 md:w-auto"
         >
           Preguntarle a Stampy
         </a>
@@ -206,7 +206,7 @@ function EmptyBlock({ title, text, onReset }: { title: string; text: string; onR
       <div className="mb-4 flex h-16 w-16 items-center justify-center rounded-2xl border border-stampa-border bg-stampa-bg-soft">
         <span className="text-3xl opacity-50 grayscale">📁</span>
       </div>
-      <h3 className="mb-2 text-center text-xl font-bold text-white">{title}</h3>
+      <h3 className="mb-2 text-center text-xl font-bold text-fg">{title}</h3>
       <p className="mb-6 max-w-sm text-center text-sm font-medium text-gray-400">{text}</p>
       {onReset && (
         <button onClick={onReset} className="rounded-lg bg-stampa-orange px-6 py-2.5 text-sm font-bold text-white transition-colors hover:bg-stampa-orange-hover">

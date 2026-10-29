@@ -63,7 +63,7 @@ export function MakerBackCutoutsSection({ cutouts, onChange, errors, selectedId,
             onSelect(created.id);
           }}
           disabled={cutouts.length >= MAX_BACK_CUTOUTS}
-          className="inline-flex h-8 items-center gap-1.5 rounded-lg border border-white/10 bg-white/[0.04] px-3 text-xs font-semibold text-gray-300 transition-colors hover:bg-white/10 hover:text-white disabled:cursor-not-allowed disabled:opacity-40"
+          className="inline-flex h-8 items-center gap-1.5 rounded-lg border border-fg/10 bg-fg/[0.04] px-3 text-xs font-semibold text-gray-300 transition-colors hover:bg-fg/10 hover:text-fg disabled:cursor-not-allowed disabled:opacity-40"
         >
           <Plus size={14} /> Agregar
         </button>
@@ -75,7 +75,7 @@ export function MakerBackCutoutsSection({ cutouts, onChange, errors, selectedId,
         disabled={!editing && (!canEdit || cutouts.length === 0)}
         title={cutouts.length === 0 ? "Agregá un recorte primero" : undefined}
         className={`h-9 rounded-xl border text-xs font-semibold transition-colors disabled:cursor-not-allowed disabled:opacity-40 ${
-          editing ? "border-transparent bg-stampa-orange text-neutral-950 hover:bg-stampa-orange-hover" : "border-white/10 bg-white/[0.04] text-gray-300 hover:bg-white/10 hover:text-white"
+          editing ? "border-transparent bg-stampa-orange text-neutral-950 hover:bg-stampa-orange-hover" : "border-fg/10 bg-fg/[0.04] text-gray-300 hover:bg-fg/10 hover:text-fg"
         }`}
       >
         {editing ? "Terminar edición" : "Editar posiciones"}
@@ -96,11 +96,11 @@ export function MakerBackCutoutsSection({ cutouts, onChange, errors, selectedId,
             key={c.id}
             onClick={() => onSelect(c.id)}
             className={`flex flex-col gap-3 rounded-xl border bg-white/[0.03] p-3 ${
-              cardErrors.length ? "border-red-500/40" : c.id === selectedId ? "border-stampa-orange/60 bg-stampa-orange/[0.06]" : "border-white/10"
+              cardErrors.length ? "border-red-500/40" : c.id === selectedId ? "border-stampa-orange/60 bg-stampa-orange/[0.06]" : "border-fg/10"
             }`}
           >
             <div className="flex items-center justify-between">
-              <span className="text-xs font-semibold text-white">Recorte {i + 1}</span>
+              <span className="text-xs font-semibold text-fg">Recorte {i + 1}</span>
               <div className="flex gap-1">
                 <button
                   type="button"
@@ -112,7 +112,7 @@ export function MakerBackCutoutsSection({ cutouts, onChange, errors, selectedId,
                     onChange([...cutouts.slice(0, i + 1), copy, ...cutouts.slice(i + 1)]);
                     onSelect(copy.id);
                   }}
-                  className="rounded-lg p-1.5 text-gray-400 transition-colors hover:bg-white/10 hover:text-white disabled:opacity-40"
+                  className="rounded-lg p-1.5 text-gray-400 transition-colors hover:bg-fg/10 hover:text-fg disabled:opacity-40"
                 >
                   <Copy size={14} />
                 </button>
@@ -121,7 +121,7 @@ export function MakerBackCutoutsSection({ cutouts, onChange, errors, selectedId,
                   title="Eliminar recorte"
                   aria-label={`Eliminar recorte ${i + 1}`}
                   onClick={() => onChange(cutouts.filter((_, k) => k !== i))}
-                  className="rounded-lg p-1.5 text-gray-400 transition-colors hover:bg-white/10 hover:text-red-300"
+                  className="rounded-lg p-1.5 text-gray-400 transition-colors hover:bg-fg/10 hover:text-red-300"
                 >
                   <Trash2 size={14} />
                 </button>

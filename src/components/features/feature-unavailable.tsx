@@ -17,13 +17,13 @@ export function FeatureUnavailable({ featureName, homeHref = "/" }: FeatureUnava
       aria-labelledby="feature-unavailable-title"
       className="mx-auto flex min-h-[60vh] w-full max-w-md flex-col items-center justify-center px-4 py-12 text-center"
     >
-      <div className="mb-5 flex h-16 w-16 items-center justify-center rounded-2xl border border-stampa-orange/25 bg-stampa-orange/10 text-stampa-orange">
+      <div className="mb-5 flex h-16 w-16 items-center justify-center rounded-2xl border border-stampa-orange/25 bg-stampa-orange/10 text-stampa-accent">
         <Hammer size={28} aria-hidden="true" />
       </div>
       {featureName && (
-        <p className="mb-2 text-xs font-bold uppercase tracking-wider text-stampa-orange">{featureName}</p>
+        <p className="mb-2 text-xs font-bold uppercase tracking-wider text-stampa-accent">{featureName}</p>
       )}
-      <h1 id="feature-unavailable-title" className="text-xl font-bold text-white sm:text-2xl">
+      <h1 id="feature-unavailable-title" className="text-xl font-bold text-fg sm:text-2xl">
         {FEATURE_UNAVAILABLE_TITLE}
       </h1>
       <p className="mt-3 text-sm text-gray-400">{FEATURE_UNAVAILABLE_DESCRIPTION}</p>

@@ -72,7 +72,7 @@ export function CoursesTable() {
             <tbody className="divide-y divide-gray-100">
               {courses.map((course) => (
                 <tr key={course.id} className="text-sm hover:bg-stampa-bg-soft transition-colors">
-                  <td className="px-4 py-3 font-medium text-white">
+                  <td className="px-4 py-3 font-medium text-fg">
                     {course.title}
                   </td>
                   <td className="px-4 py-3 text-gray-400">

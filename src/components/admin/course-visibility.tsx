@@ -64,10 +64,10 @@ export function CourseVisibilitySelector({
                 onChange={() => onChange(option)}
                 className="sr-only"
               />
-              <span className="flex items-center gap-2 text-sm font-bold text-white">
-                <Icon size={16} className={selected ? "text-stampa-orange" : "text-gray-400"} aria-hidden={true} />
+              <span className="flex items-center gap-2 text-sm font-bold text-fg">
+                <Icon size={16} className={selected ? "text-stampa-accent" : "text-gray-400"} aria-hidden={true} />
                 {meta.label}
-                {selected && <CheckCircle2 size={14} className="ml-auto text-stampa-orange" aria-hidden={true} />}
+                {selected && <CheckCircle2 size={14} className="ml-auto text-stampa-accent" aria-hidden={true} />}
               </span>
               <span className="text-xs leading-relaxed text-gray-300">{meta.description}</span>
               <span className="text-xs leading-relaxed text-gray-400">{meta.adminHint}</span>

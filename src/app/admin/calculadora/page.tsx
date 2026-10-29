@@ -116,13 +116,13 @@ export default function AdminCalculadoraPage() {
     }
   };
 
-  if (loading) return <div className="py-12 flex justify-center"><Loader2 className="animate-spin text-stampa-orange" /></div>;
+  if (loading) return <div className="py-12 flex justify-center"><Loader2 className="animate-spin text-stampa-accent" /></div>;
 
   return (
     <div className="max-w-6xl mx-auto space-y-6">
       <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
         <div>
-          <h1 className="text-2xl font-bold text-white tracking-tight">Tipos de producto por defecto</h1>
+          <h1 className="text-2xl font-bold text-fg tracking-tight">Tipos de producto por defecto</h1>
           <p className="text-gray-400 text-sm mt-1">
             Estas plantillas se copiarán automáticamente a los usuarios nuevos que usen la calculadora.
           </p>
@@ -157,9 +157,9 @@ export default function AdminCalculadoraPage() {
           ) : (
             <Card key={t.id} className="p-5 flex flex-col bg-stampa-surface border-stampa-border hover:border-stampa-orange/30 transition-colors rounded-2xl group">
               <div className="flex justify-between items-start mb-3">
-                <h4 className="font-bold text-white text-lg leading-tight">{t.name}</h4>
+                <h4 className="font-bold text-fg text-lg leading-tight">{t.name}</h4>
                 <div className="flex gap-1.5 opacity-100 lg:opacity-0 lg:group-hover:opacity-100 transition-opacity">
-                  <button onClick={() => { setFormData(t); setEditingId(t.id); }} className="p-1.5 text-gray-400 bg-white/5 rounded-md hover:text-white hover:bg-white/10 transition-colors">
+                  <button onClick={() => { setFormData(t); setEditingId(t.id); }} className="p-1.5 text-gray-400 bg-fg/5 rounded-md hover:text-fg hover:bg-fg/10 transition-colors">
                     <Edit2 size={15} />
                   </button>
                   <button onClick={() => handleDelete(t.id)} className="p-1.5 text-red-400/70 bg-red-500/5 rounded-md hover:text-red-400 hover:bg-red-500/10 transition-colors">
@@ -183,7 +183,7 @@ export default function AdminCalculadoraPage() {
                   className={`text-xs px-2.5 py-1 rounded-md font-semibold transition-colors border ${
                     t.is_active 
                       ? 'bg-green-500/10 text-green-400 border-green-500/20 hover:bg-green-500/20' 
-                      : 'bg-white/5 text-gray-400 border-white/10 hover:bg-white/10'
+                      : 'bg-fg/5 text-gray-400 border-fg/10 hover:bg-fg/10'
                   }`}
                 >
                   {t.is_active ? 'Activo' : 'Inactivo'}
@@ -194,11 +194,11 @@ export default function AdminCalculadoraPage() {
           )
         ))}
         {templates.length === 0 && editingId !== "new" && (
-          <div className="col-span-full py-16 flex flex-col items-center justify-center text-center bg-stampa-surface/50 rounded-2xl border border-dashed border-white/10">
-            <div className="bg-white/5 p-4 rounded-full mb-3">
+          <div className="col-span-full py-16 flex flex-col items-center justify-center text-center bg-stampa-surface/50 rounded-2xl border border-dashed border-fg/10">
+            <div className="bg-fg/5 p-4 rounded-full mb-3">
               <Plus size={24} className="text-gray-500" />
             </div>
-            <h3 className="text-white font-medium mb-1">Sin templates</h3>
+            <h3 className="text-fg font-medium mb-1">Sin templates</h3>
             <p className="text-sm text-gray-400 max-w-sm">Añade tu primer tipo de producto por defecto para que los nuevos usuarios tengan una base al iniciar.</p>
           </div>
         )}
@@ -241,14 +241,14 @@ function TypeEditor({ formData, setFormData, onSave, onCancel }: any) {
           </div>
           <div className="flex flex-col justify-end pb-2">
             <div className="flex items-center gap-2">
-              <input type="checkbox" id="is_active" name="is_active" checked={formData.is_active} onChange={handleChange} className="rounded text-stampa-orange focus:ring-stampa-orange/30 w-4 h-4 bg-stampa-bg border-stampa-border" />
+              <input type="checkbox" id="is_active" name="is_active" checked={formData.is_active} onChange={handleChange} className="rounded text-stampa-accent focus:ring-stampa-orange/30 w-4 h-4 bg-stampa-bg border-stampa-border" />
               <label htmlFor="is_active" className="text-sm font-medium text-gray-300 cursor-pointer">Activo</label>
             </div>
           </div>
         </div>
       </div>
       <div className="mt-5 flex gap-2 justify-end">
-        <button onClick={onCancel} className="px-4 py-2 text-sm font-semibold text-gray-400 hover:text-white bg-white/5 hover:bg-white/10 rounded-xl transition-colors">Cancelar</button>
+        <button onClick={onCancel} className="px-4 py-2 text-sm font-semibold text-gray-400 hover:text-fg bg-fg/5 hover:bg-fg/10 rounded-xl transition-colors">Cancelar</button>
         <button onClick={onSave} className="flex items-center gap-1.5 px-4 py-2 text-sm font-semibold bg-stampa-orange hover:bg-stampa-orange/90 text-white rounded-xl transition-colors shadow-sm">
           <Save size={16} /> Guardar
         </button>

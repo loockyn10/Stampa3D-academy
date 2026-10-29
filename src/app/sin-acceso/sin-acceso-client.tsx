@@ -230,9 +230,9 @@ export function SinAccesoClient({
       <div className="w-full min-w-0 max-w-md space-y-6">
         <header className="flex flex-col items-center text-center">
           <div className="mb-4 flex h-12 w-12 items-center justify-center rounded-2xl border border-stampa-orange-border bg-stampa-orange-muted">
-            <Sparkles className="h-6 w-6 text-stampa-orange" aria-hidden="true" />
+            <Sparkles className="h-6 w-6 text-stampa-accent" aria-hidden="true" />
           </div>
-          <p className="text-xs font-semibold uppercase tracking-[0.2em] text-stampa-orange">Universo Stampa</p>
+          <p className="text-xs font-semibold uppercase tracking-[0.2em] text-stampa-accent">Universo Stampa</p>
           <h1 className="mt-3 text-2xl font-bold tracking-tight text-stampa-text sm:text-3xl">
             {lockedFeature ? `Desbloqueá ${lockedFeature.title}` : "Tu cuenta está lista"}
           </h1>

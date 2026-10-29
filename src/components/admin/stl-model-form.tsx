@@ -298,11 +298,11 @@ export function StlModelForm({ modelId }: { modelId?: string }) {
           {formData.thumbnail_url && (
             <div className="flex items-center gap-3">
               {/* eslint-disable-next-line @next/next/no-img-element */}
-              <img src={formData.thumbnail_url} alt="Vista previa de la miniatura" className="h-24 w-32 rounded-lg border border-stampa-border bg-white/5 object-cover" />
+              <img src={formData.thumbnail_url} alt="Vista previa de la miniatura" className="h-24 w-32 rounded-lg border border-stampa-border bg-fg/5 object-cover" />
               <button
                 type="button"
                 onClick={() => setFormData((prev) => ({ ...prev, thumbnail_url: "" }))}
-                className="text-xs font-semibold text-gray-400 underline hover:text-white"
+                className="text-xs font-semibold text-gray-400 underline hover:text-fg"
               >
                 Quitar miniatura
               </button>
@@ -374,7 +374,7 @@ export function StlModelForm({ modelId }: { modelId?: string }) {
               name="is_active"
               checked={formData.is_active}
               onChange={handleChange}
-              className="rounded text-stampa-orange focus:ring-[#ff6a00]/20"
+              className="rounded text-stampa-accent focus:ring-[#ff6a00]/20"
             />
             Archivo Activo (Visible)
           </label>

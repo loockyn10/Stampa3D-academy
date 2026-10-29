@@ -29,7 +29,7 @@ export function LandingCTA() {
              <div className="text-gray-400 text-xs md:text-sm">Acceso a cursos, herramientas, recursos, comunidad y actualizaciones.</div>
           </div>
           
-          <h2 className="text-3xl md:text-5xl font-bold text-white mb-6 leading-tight">
+          <h2 className="text-3xl md:text-5xl font-bold text-fg mb-6 leading-tight">
             Tu impresora ya puede producir.<br />
             <span className="text-transparent bg-clip-text bg-gradient-to-r from-orange-400 to-orange-600">
               Ahora tu negocio tiene que estar a la altura.
@@ -41,7 +41,7 @@ export function LandingCTA() {
               href="/login"
               className="w-full sm:w-auto inline-flex items-center justify-center gap-2 px-10 py-4 md:py-5 rounded-xl bg-gradient-to-r from-orange-600 to-orange-500 hover:from-orange-500 hover:to-orange-400 text-white font-bold text-lg transition-all duration-300 md:hover:scale-105 md:hover:shadow-[0_0_30px_rgba(234,88,12,0.5)] group relative overflow-hidden"
             >
-              <div className="absolute inset-0 bg-white/20 w-12 skew-x-[-20deg] hidden md:block" style={{ animation: 'stampa-shine 3s ease-in-out infinite', animationDelay: '1s' }} />
+              <div className="absolute inset-0 bg-fg/20 w-12 skew-x-[-20deg] hidden md:block" style={{ animation: 'stampa-shine 3s ease-in-out infinite', animationDelay: '1s' }} />
               <span className="relative z-10 flex items-center gap-2">
                 Activar membresía
                 <ChevronRight className="w-5 h-5 group-hover:translate-x-1 transition-transform" />
@@ -50,7 +50,7 @@ export function LandingCTA() {
 
             <Link 
               href="#plataforma"
-              className="w-full sm:w-auto inline-flex items-center justify-center gap-2 px-10 py-4 md:py-5 rounded-xl bg-white/5 hover:bg-white/10 border border-stampa-border text-white font-medium text-lg transition-all duration-300 md:hover:border-stampa-orange/30 group"
+              className="w-full sm:w-auto inline-flex items-center justify-center gap-2 px-10 py-4 md:py-5 rounded-xl bg-fg/5 hover:bg-fg/10 border border-stampa-border text-fg font-medium text-lg transition-all duration-300 md:hover:border-stampa-orange/30 group"
             >
               <LayoutDashboard className="w-5 h-5 group-hover:text-orange-400 transition-colors" />
               Ver plataforma

@@ -118,7 +118,7 @@ export function DiscountCodeField({ applied, onApplied, disabled = false }: Disc
           }}
           placeholder="PROMO-XXXXXX"
           aria-describedby="discount-code-message"
-          className="block min-w-0 flex-1 rounded-xl border border-stampa-border bg-white/5 px-3 py-3 font-mono text-base tracking-wider text-neutral-100 placeholder-neutral-600 outline-none transition-all focus:border-violet-500/60 focus:ring-2 focus:ring-violet-500/20 sm:text-sm"
+          className="block min-w-0 flex-1 rounded-xl border border-stampa-border bg-fg/5 px-3 py-3 font-mono text-base tracking-wider text-neutral-100 placeholder-neutral-600 outline-none transition-all focus:border-violet-500/60 focus:ring-2 focus:ring-violet-500/20 sm:text-sm"
         />
         <button
           type="submit"

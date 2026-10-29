@@ -311,11 +311,11 @@ export default function StampaMakerNeonPage() {
     <div className="flex flex-col gap-4 lg:-mx-8 lg:-my-8 lg:h-[calc(100dvh-4rem)] lg:flex-row lg:gap-0 lg:overflow-hidden">
       <aside className="flex min-h-0 flex-col gap-4 lg:w-[380px] lg:shrink-0 lg:overflow-y-auto lg:border-r lg:border-stampa-border lg:p-4">
         <div className="flex flex-col gap-1">
-          <Link href="/stampa-maker" className="inline-flex w-fit items-center gap-1.5 text-xs font-semibold text-gray-500 hover:text-white">
+          <Link href="/stampa-maker" className="inline-flex w-fit items-center gap-1.5 text-xs font-semibold text-gray-500 hover:text-fg">
             <ArrowLeft size={14} />
             Stampa Maker
           </Link>
-          <h1 className="text-lg font-bold text-white">Neon LED</h1>
+          <h1 className="text-lg font-bold text-fg">Neon LED</h1>
         </div>
 
         <MakerNeonProjectsPanel library={library} />
@@ -387,7 +387,7 @@ export default function StampaMakerNeonPage() {
         />
       </aside>
 
-      <section className="relative h-[70dvh] min-h-[420px] overflow-hidden rounded-2xl border border-stampa-border bg-stampa-surface lg:h-auto lg:min-h-0 lg:flex-1 lg:rounded-none lg:border-0">
+      <section className="theme-force-dark relative h-[70dvh] min-h-[420px] overflow-hidden rounded-2xl border border-stampa-border bg-stampa-surface lg:h-auto lg:min-h-0 lg:flex-1 lg:rounded-none lg:border-0">
         <MakerViewport
           geometry={shownGeometry}
           displayMode={displayMode}

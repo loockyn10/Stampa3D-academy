@@ -38,7 +38,7 @@ interface UnknownBarcodeState {
   archivedPresentation?: BusinessStockReceiptPresentation;
 }
 
-const inputClass = "min-h-11 w-full rounded-xl border border-stampa-border bg-stampa-bg-soft px-3 text-sm text-white outline-none focus:border-stampa-orange/60";
+const inputClass = "min-h-11 w-full rounded-xl border border-stampa-border bg-stampa-bg-soft px-3 text-sm text-fg outline-none focus:border-stampa-orange/60";
 
 export function StockReceiptDialog({ open, onClose, onConfirmed, onCreateProduct, resumeBarcode, onResumeConsumed }: StockReceiptDialogProps) {
   const { toast } = useAppFeedback();
@@ -266,21 +266,21 @@ export function StockReceiptDialog({ open, onClose, onConfirmed, onCreateProduct
     <Dialog open={open} onClose={closeAndReset} labelledBy="stock-receipt-title" panelClassName="max-w-2xl rounded-2xl border border-stampa-border bg-stampa-surface">
       <div className="flex items-start justify-between gap-4 border-b border-stampa-border p-5">
         <div>
-          <h2 id="stock-receipt-title" className="flex items-center gap-2 text-lg font-black text-white"><PackagePlus size={20} className="text-stampa-orange" /> Ingreso de stock</h2>
+          <h2 id="stock-receipt-title" className="flex items-center gap-2 text-lg font-black text-fg"><PackagePlus size={20} className="text-stampa-accent" /> Ingreso de stock</h2>
           <p className="mt-1 text-sm text-gray-400">Escaneá productos o cajas. El stock cambia recién cuando confirmás.</p>
         </div>
-        <button type="button" disabled={confirming || assigning} onClick={closeAndReset} aria-label="Cerrar" className="rounded-lg p-2 text-gray-500 hover:bg-white/5 hover:text-white disabled:opacity-40"><X size={18} /></button>
+        <button type="button" disabled={confirming || assigning} onClick={closeAndReset} aria-label="Cerrar" className="rounded-lg p-2 text-gray-500 hover:bg-fg/5 hover:text-fg disabled:opacity-40"><X size={18} /></button>
       </div>
 
       <div className="space-y-4 p-5">
         <div className="rounded-2xl border border-dashed border-stampa-orange/40 bg-stampa-orange/5 p-4 text-center">
-          <Barcode className="mx-auto text-stampa-orange" size={26} />
-          <p className="mt-2 text-sm font-black text-white">{loading ? "Cargando códigos..." : setupError ? "No se pudieron cargar los códigos" : "Esperando scanner..."}</p>
+          <Barcode className="mx-auto text-stampa-accent" size={26} />
+          <p className="mt-2 text-sm font-black text-fg">{loading ? "Cargando códigos..." : setupError ? "No se pudieron cargar los códigos" : "Esperando scanner..."}</p>
           <p className="mt-1 text-xs text-gray-500">No necesitás seleccionar ningún campo.</p>
           {setupError && <button type="button" onClick={() => void loadSetup()} className="mt-3 min-h-10 rounded-xl border border-amber-500/30 px-4 text-xs font-bold text-amber-200">Reintentar</button>}
           <div className="mx-auto mt-3 flex max-w-md gap-2">
             <input disabled={Boolean(setupError)} value={manualBarcode} onChange={(event) => setManualBarcode(event.target.value)} onKeyDown={(event) => { if (event.key === "Enter") { event.preventDefault(); submitManualBarcode(); } }} placeholder="Escribir o pegar código" className={`${inputClass} disabled:opacity-40`} />
-            <button type="button" disabled={Boolean(setupError) || !manualBarcode.trim()} onClick={submitManualBarcode} className="min-h-11 shrink-0 rounded-xl border border-stampa-border px-3 text-xs font-bold text-white disabled:opacity-40">Agregar</button>
+            <button type="button" disabled={Boolean(setupError) || !manualBarcode.trim()} onClick={submitManualBarcode} className="min-h-11 shrink-0 rounded-xl border border-stampa-border px-3 text-xs font-bold text-fg disabled:opacity-40">Agregar</button>
           </div>
         </div>
 
@@ -288,7 +288,7 @@ export function StockReceiptDialog({ open, onClose, onConfirmed, onCreateProduct
 
         {unknown && (
           <div className="rounded-2xl border border-amber-500/30 bg-amber-500/5 p-4">
-            <p className="text-sm font-black text-white">{unknown.archivedPresentation ? "Este producto está archivado" : "Código no reconocido"}</p>
+            <p className="text-sm font-black text-fg">{unknown.archivedPresentation ? "Este producto está archivado" : "Código no reconocido"}</p>
             <p className="mt-1 break-all font-mono text-xs text-amber-200">{unknown.barcode}</p>
             {unknown.archivedPresentation ? (
               <div className="mt-3 flex flex-wrap gap-2">
@@ -308,7 +308,7 @@ export function StockReceiptDialog({ open, onClose, onConfirmed, onCreateProduct
                 {assignmentType === "case" && <label className="block text-xs font-bold text-gray-300">Unidades por caja<input type="number" min="2" step="1" value={assignmentUnits} onChange={(event) => setAssignmentUnits(event.target.value)} className={`${inputClass} mt-1.5`} /></label>}
                 <div className="flex flex-wrap gap-2">
                   <button type="button" disabled={!assignmentItemId || !assignmentIsValid || assigning} onClick={() => void assignUnknownBarcode()} className="min-h-10 rounded-xl bg-stampa-orange px-4 text-xs font-black text-white disabled:opacity-40">Asignar y sumar</button>
-                  <button type="button" disabled={!assignmentIsValid} onClick={() => { setLoading(true); onCreateProduct({ barcode: unknown.barcode, barcodeType: assignmentType, unitsPerScan: assignmentType === "case" ? assignmentUnitsNumber : 1 }); }} className="min-h-10 rounded-xl border border-stampa-border px-4 text-xs font-bold text-white disabled:opacity-40">Crear producto</button>
+                  <button type="button" disabled={!assignmentIsValid} onClick={() => { setLoading(true); onCreateProduct({ barcode: unknown.barcode, barcodeType: assignmentType, unitsPerScan: assignmentType === "case" ? assignmentUnitsNumber : 1 }); }} className="min-h-10 rounded-xl border border-stampa-border px-4 text-xs font-bold text-fg disabled:opacity-40">Crear producto</button>
                   <button type="button" onClick={() => setUnknown(null)} className="min-h-10 rounded-xl px-3 text-xs font-bold text-gray-500">Cancelar</button>
                 </div>
               </div>
@@ -318,26 +318,26 @@ export function StockReceiptDialog({ open, onClose, onConfirmed, onCreateProduct
 
         <div className="space-y-3">
           {pending.length === 0 ? (
-            <div className="rounded-2xl border border-stampa-border bg-black/10 p-6 text-center text-sm text-gray-500">Todavía no escaneaste mercadería.</div>
+            <div className="rounded-2xl border border-stampa-border bg-shade/10 p-6 text-center text-sm text-gray-500">Todavía no escaneaste mercadería.</div>
           ) : pending.map((scan) => {
             const units = getBusinessStockScanUnits(scan);
             const weightKg = /filament/i.test(scan.category)
               ? getBusinessStockReceiptWeightKg(units, scan.unitWeightGrams)
               : null;
             return (
-              <div key={scan.id} className="rounded-2xl border border-stampa-border bg-black/10 p-4">
+              <div key={scan.id} className="rounded-2xl border border-stampa-border bg-shade/10 p-4">
                 <div className="flex items-start justify-between gap-3">
                   <div className="min-w-0">
-                    <p className="truncate text-sm font-black text-white">{scan.displayName}</p>
+                    <p className="truncate text-sm font-black text-fg">{scan.displayName}</p>
                     <p className="mt-1 text-xs text-gray-400">{scan.barcodeType === "case" ? `${scan.scanCount} cajas × ${scan.unitsPerScan} u.` : `${scan.scanCount} unidades escaneadas`}</p>
-                    <p className="mt-1 text-sm font-bold text-stampa-orange">{units} unidades{weightKg === null ? "" : ` · ${weightKg.toLocaleString("es-AR")} kg`}</p>
+                    <p className="mt-1 text-sm font-bold text-stampa-accent">{units} unidades{weightKg === null ? "" : ` · ${weightKg.toLocaleString("es-AR")} kg`}</p>
                   </div>
-                  <span className="inline-flex shrink-0 items-center gap-1 rounded-lg bg-white/5 px-2 py-1 text-[10px] font-black uppercase text-gray-400"><Box size={12} /> {scan.barcodeType === "case" ? "Caja" : "Unidad"}</span>
+                  <span className="inline-flex shrink-0 items-center gap-1 rounded-lg bg-fg/5 px-2 py-1 text-[10px] font-black uppercase text-gray-400"><Box size={12} /> {scan.barcodeType === "case" ? "Caja" : "Unidad"}</span>
                 </div>
                 <div className="mt-3 flex items-center justify-between">
                   <div className="flex items-center rounded-xl border border-stampa-border">
                     <button type="button" onClick={() => { replacePending(setBusinessStockScanCount(pendingRef.current, scan.id, scan.scanCount - 1)); operationKeyRef.current = null; }} className="flex h-10 w-10 items-center justify-center"><Minus size={15} /></button>
-                    <span className="w-10 text-center text-sm font-bold text-white">{scan.scanCount}</span>
+                    <span className="w-10 text-center text-sm font-bold text-fg">{scan.scanCount}</span>
                     <button type="button" onClick={() => { replacePending(setBusinessStockScanCount(pendingRef.current, scan.id, scan.scanCount + 1)); operationKeyRef.current = null; }} className="flex h-10 w-10 items-center justify-center"><Plus size={15} /></button>
                   </div>
                   <button type="button" onClick={() => { replacePending(pendingRef.current.filter((candidate) => candidate.id !== scan.id)); operationKeyRef.current = null; }} aria-label={`Quitar ${scan.displayName}`} className="rounded-lg p-2 text-gray-500 hover:bg-red-500/10 hover:text-red-300"><Trash2 size={17} /></button>
@@ -349,7 +349,7 @@ export function StockReceiptDialog({ open, onClose, onConfirmed, onCreateProduct
       </div>
 
       <div className="sticky bottom-0 border-t border-stampa-border bg-stampa-surface/95 p-5 backdrop-blur">
-        <div className="mb-4 flex items-end justify-between gap-4"><div><p className="text-xs text-gray-500">Total pendiente</p><p className="text-2xl font-black text-white">{totalUnits} unidades</p></div><CheckCircle2 className={pending.length ? "text-emerald-300" : "text-gray-700"} /></div>
+        <div className="mb-4 flex items-end justify-between gap-4"><div><p className="text-xs text-gray-500">Total pendiente</p><p className="text-2xl font-black text-fg">{totalUnits} unidades</p></div><CheckCircle2 className={pending.length ? "text-emerald-300" : "text-gray-700"} /></div>
         <div className="grid grid-cols-2 gap-2">
           <button type="button" disabled={confirming || assigning} onClick={closeAndReset} className="min-h-11 rounded-xl border border-stampa-border text-sm font-bold text-gray-300 disabled:opacity-40">Cancelar</button>
           <button type="button" disabled={pending.length === 0 || confirming || assigning} onClick={() => void confirmReceipt()} className="inline-flex min-h-11 items-center justify-center gap-2 rounded-xl bg-stampa-orange text-sm font-black text-white disabled:opacity-40">{confirming && <Loader2 size={16} className="animate-spin" />} Confirmar ingreso</button>

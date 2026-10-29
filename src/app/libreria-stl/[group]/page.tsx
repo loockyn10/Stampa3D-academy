@@ -78,7 +78,7 @@ export default function LibreriaStlGroupPage({ params }: PageProps) {
   if (loading) {
     return (
       <div className="flex items-center justify-center py-24">
-        <Loader2 className="h-8 w-8 animate-spin text-stampa-orange" />
+        <Loader2 className="h-8 w-8 animate-spin text-stampa-accent" />
       </div>
     );
   }
@@ -86,7 +86,7 @@ export default function LibreriaStlGroupPage({ params }: PageProps) {
   if (!group || groupModels.length === 0) {
     return (
       <div className="flex flex-col items-center gap-4 py-24 text-center">
-        <h1 className="text-xl font-bold text-white">
+        <h1 className="text-xl font-bold text-fg">
           {group ? "Este grupo todavía no tiene modelos" : "No encontramos ese grupo"}
         </h1>
         <p className="max-w-sm text-sm text-gray-400">
@@ -103,14 +103,14 @@ export default function LibreriaStlGroupPage({ params }: PageProps) {
     <div className="flex flex-col gap-6 pb-12">
       <div className="flex flex-col gap-3">
         <StlBreadcrumb items={[{ label: "Librería STL", href: "/libreria-stl" }, { label: group.name }]} />
-        <Link href="/libreria-stl" className="inline-flex w-fit items-center gap-1.5 text-xs font-semibold text-gray-500 transition-colors hover:text-stampa-orange">
+        <Link href="/libreria-stl" className="inline-flex w-fit items-center gap-1.5 text-xs font-semibold text-gray-500 transition-colors hover:text-stampa-accent">
           <ArrowLeft size={14} /> Librería STL
         </Link>
       </div>
 
       <div className="rounded-2xl border border-stampa-border bg-stampa-surface p-6 sm:p-8">
-        <h1 className="mb-1 break-words text-2xl font-black tracking-tight text-white sm:text-3xl">{group.name}</h1>
-        <p className="text-xs font-semibold text-stampa-orange">
+        <h1 className="mb-1 break-words text-2xl font-black tracking-tight text-fg sm:text-3xl">{group.name}</h1>
+        <p className="text-xs font-semibold text-stampa-accent">
           {groupModels.length} {groupModels.length === 1 ? "modelo" : "modelos"}
         </p>
         {group.description && <p className="mt-3 max-w-2xl text-sm text-gray-400">{group.description}</p>}

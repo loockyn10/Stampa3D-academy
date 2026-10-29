@@ -27,7 +27,7 @@ interface GroupRow {
 
 const EMPTY_FORM: GroupForm = { name: "", slug: "", description: "", thumbnail_url: "", sort_order: 0, is_active: true };
 const INPUT_CLASS =
-  "w-full text-sm border-white/20 rounded-md focus:border-stampa-orange focus:ring-stampa-orange text-white bg-stampa-surface";
+  "w-full text-sm border-fg/20 rounded-md focus:border-stampa-orange focus:ring-stampa-orange text-fg bg-stampa-surface";
 
 /**
  * Admin de Grupos de la Librería STL. Un "grupo" es una fila de `stl_categories`.
@@ -149,23 +149,23 @@ export function StlCategoriesManager() {
       <div className="flex flex-wrap items-center gap-4">
         <label className="flex items-center gap-2 text-sm text-gray-300">
           Orden
-          <input type="number" value={form.sort_order} onChange={(e) => setForm({ ...form, sort_order: parseInt(e.target.value) || 0 })} className="w-24 text-sm border-white/20 rounded-md focus:border-stampa-orange focus:ring-stampa-orange text-white bg-stampa-surface" />
+          <input type="number" value={form.sort_order} onChange={(e) => setForm({ ...form, sort_order: parseInt(e.target.value) || 0 })} className="w-24 text-sm border-fg/20 rounded-md focus:border-stampa-orange focus:ring-stampa-orange text-fg bg-stampa-surface" />
         </label>
         <label className="flex items-center gap-2 text-sm text-gray-300">
-          <input type="checkbox" checked={form.is_active} onChange={(e) => setForm({ ...form, is_active: e.target.checked })} className="rounded text-stampa-orange focus:ring-stampa-orange" />
+          <input type="checkbox" checked={form.is_active} onChange={(e) => setForm({ ...form, is_active: e.target.checked })} className="rounded text-stampa-accent focus:ring-stampa-orange" />
           Publicado
         </label>
       </div>
       <div className="flex justify-end gap-2 pt-2">
-        <button type="button" onClick={() => setEditingId(null)} aria-label="Cancelar" className="rounded-md p-1.5 text-gray-400 hover:bg-white/10"><X size={16} /></button>
-        <button type="button" disabled={saving} onClick={handleSave} aria-label="Guardar grupo" className="rounded-md p-1.5 text-stampa-orange hover:bg-stampa-orange/10 disabled:opacity-50">
+        <button type="button" onClick={() => setEditingId(null)} aria-label="Cancelar" className="rounded-md p-1.5 text-gray-400 hover:bg-fg/10"><X size={16} /></button>
+        <button type="button" disabled={saving} onClick={handleSave} aria-label="Guardar grupo" className="rounded-md p-1.5 text-stampa-accent hover:bg-stampa-orange/10 disabled:opacity-50">
           {saving ? <Loader2 size={16} className="animate-spin" /> : <Save size={16} />}
         </button>
       </div>
     </div>
   );
 
-  if (loading) return <div className="py-12 flex justify-center"><Loader2 className="animate-spin text-stampa-orange" /></div>;
+  if (loading) return <div className="py-12 flex justify-center"><Loader2 className="animate-spin text-stampa-accent" /></div>;
 
   return (
     <div className="max-w-3xl">
@@ -177,11 +177,11 @@ export function StlCategoriesManager() {
 
       <div className="rounded-xl border border-stampa-border bg-stampa-surface p-6 shadow-sm">
         <div className="mb-4 flex items-center justify-between gap-3">
-          <h2 className="font-semibold text-white">Grupos</h2>
+          <h2 className="font-semibold text-fg">Grupos</h2>
           <button
             type="button"
             onClick={() => startEdit("new", { ...EMPTY_FORM, sort_order: groups.length + 1 })}
-            className="flex items-center gap-1 rounded-md px-2 py-1 text-sm text-stampa-orange transition-colors hover:bg-stampa-orange/10"
+            className="flex items-center gap-1 rounded-md px-2 py-1 text-sm text-stampa-accent transition-colors hover:bg-stampa-orange/10"
           >
             <Plus size={16} /> Nuevo
           </button>
@@ -200,17 +200,17 @@ export function StlCategoriesManager() {
                     // eslint-disable-next-line @next/next/no-img-element
                     <img src={group.thumbnail_url} alt={group.name} className="h-10 w-10 shrink-0 rounded object-cover" />
                   ) : (
-                    <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded bg-white/5 text-gray-400">?</div>
+                    <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded bg-fg/5 text-gray-400">?</div>
                   )}
                   <div className="min-w-0">
-                    <p className="truncate text-sm font-semibold text-white">{group.name}</p>
+                    <p className="truncate text-sm font-semibold text-fg">{group.name}</p>
                     <p className="truncate text-xs text-gray-500">
                       Orden: {group.sort_order} • /{group.slug} • {counts[group.id] || 0} modelos
                     </p>
                   </div>
                 </div>
                 <div className="flex shrink-0 items-center gap-2">
-                  {!group.is_active && <span className="rounded bg-white/5 px-2 py-0.5 text-xs text-gray-400">No publicado</span>}
+                  {!group.is_active && <span className="rounded bg-fg/5 px-2 py-0.5 text-xs text-gray-400">No publicado</span>}
                   <button
                     type="button"
                     aria-label={`Editar ${group.name}`}
@@ -224,7 +224,7 @@ export function StlCategoriesManager() {
                         is_active: group.is_active ?? true,
                       })
                     }
-                    className="rounded-md p-1.5 text-gray-400 hover:bg-stampa-orange/10 hover:text-stampa-orange"
+                    className="rounded-md p-1.5 text-gray-400 hover:bg-stampa-orange/10 hover:text-stampa-accent"
                   >
                     <Edit2 size={16} />
                   </button>

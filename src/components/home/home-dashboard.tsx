@@ -272,7 +272,7 @@ export function HomeDashboardView({
     <div className="space-y-5 pb-10">
       <header className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
         <div className="min-w-0">
-          <h1 className="text-2xl font-bold tracking-tight text-white sm:text-3xl">
+          <h1 className="text-2xl font-bold tracking-tight text-fg sm:text-3xl">
             {data.firstName ? `Hola, ${data.firstName}` : "Hola"}
           </h1>
           <p className="mt-1 text-sm text-gray-400">
@@ -292,10 +292,10 @@ export function HomeDashboardView({
               className={`flex min-h-[4.5rem] flex-col items-center justify-center gap-1.5 rounded-xl border px-2 py-2 text-center text-xs font-semibold leading-tight transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-stampa-orange sm:text-sm ${
                 action.highlight
                   ? "border-stampa-orange/40 bg-stampa-orange/10 text-orange-100 hover:bg-stampa-orange/15"
-                  : "border-stampa-border bg-stampa-surface text-gray-200 hover:border-stampa-orange/30 hover:bg-white/[0.03]"
+                  : "border-stampa-border bg-stampa-surface text-gray-200 hover:border-stampa-orange/30 hover:bg-fg/[0.03]"
               }`}
             >
-              <Icon size={20} className={action.highlight ? "text-stampa-orange" : "text-gray-400"} aria-hidden="true" />
+              <Icon size={20} className={action.highlight ? "text-stampa-accent" : "text-gray-400"} aria-hidden="true" />
               {action.label}
             </Link>
           );
@@ -387,7 +387,7 @@ function XpBadge({ xp }: { xp: XpProgress }) {
         <span className="text-sm font-bold text-orange-100">Nivel {xp.level}</span>
         <span className="text-xs tabular-nums text-orange-200/80">{xp.totalXp.toLocaleString("es-AR")} XP</span>
       </div>
-      <div className="mt-2 h-1.5 overflow-hidden rounded-full bg-white/10" role="progressbar" aria-label="Progreso al próximo nivel" aria-valuemin={0} aria-valuemax={100} aria-valuenow={Math.round(xp.progressPercent)}>
+      <div className="mt-2 h-1.5 overflow-hidden rounded-full bg-fg/10" role="progressbar" aria-label="Progreso al próximo nivel" aria-valuemin={0} aria-valuemax={100} aria-valuenow={Math.round(xp.progressPercent)}>
         <div className="h-full rounded-full bg-stampa-orange" style={{ width: `${Math.min(100, Math.max(0, xp.progressPercent))}%` }} />
       </div>
       <p className="mt-1.5 text-[11px] text-gray-400">Faltan {xp.xpToNextLevel.toLocaleString("es-AR")} XP para el nivel {xp.level + 1}</p>
@@ -409,7 +409,7 @@ function ContinueLearning({ section, learning }: { section: HomeData["learning"]
   return (
     <section aria-labelledby="home-learning-title" className="overflow-hidden rounded-2xl border border-stampa-border bg-gradient-to-br from-stampa-orange/[0.09] via-stampa-surface to-stampa-surface">
       <div className="flex items-start gap-3 p-4 sm:items-center sm:gap-4 sm:p-5">
-        <div className="relative aspect-[4/3] w-20 shrink-0 overflow-hidden rounded-xl border border-stampa-border bg-white/5 sm:aspect-video sm:w-44">
+        <div className="relative aspect-[4/3] w-20 shrink-0 overflow-hidden rounded-xl border border-stampa-border bg-fg/5 sm:aspect-video sm:w-44">
           {thumb ? (
             // eslint-disable-next-line @next/next/no-img-element
             <img src={thumb} alt="" className="h-full w-full object-cover" />
@@ -418,10 +418,10 @@ function ContinueLearning({ section, learning }: { section: HomeData["learning"]
           )}
         </div>
         <div className="min-w-0 flex-1">
-          <p className="text-[11px] font-bold uppercase tracking-wide text-stampa-orange">
+          <p className="text-[11px] font-bold uppercase tracking-wide text-stampa-accent">
             {course ? (finished ? "Curso completado" : "Continuar aprendiendo") : recommended ? "Recomendado para empezar" : "Aprendé impresión 3D"}
           </p>
-          <h2 id="home-learning-title" className="mt-1 line-clamp-2 text-lg font-bold leading-snug text-white">{title}</h2>
+          <h2 id="home-learning-title" className="mt-1 line-clamp-2 text-lg font-bold leading-snug text-fg">{title}</h2>
           {course ? (
             <>
               <p className="mt-1 text-xs text-gray-400">
@@ -429,7 +429,7 @@ function ContinueLearning({ section, learning }: { section: HomeData["learning"]
                 {course.startedCourses > 1 && ` · ${course.startedCourses} cursos iniciados`}
               </p>
               <div className="mt-2 flex items-center gap-2">
-                <div className="h-1.5 flex-1 overflow-hidden rounded-full bg-white/10" role="progressbar" aria-label={`Progreso de ${course.title}`} aria-valuemin={0} aria-valuemax={100} aria-valuenow={course.progress}>
+                <div className="h-1.5 flex-1 overflow-hidden rounded-full bg-fg/10" role="progressbar" aria-label={`Progreso de ${course.title}`} aria-valuemin={0} aria-valuemax={100} aria-valuenow={course.progress}>
                   <div className="h-full rounded-full bg-stampa-orange" style={{ width: `${course.progress}%` }} />
                 </div>
                 <span className="text-xs font-bold tabular-nums text-gray-300">{course.progress}%</span>
@@ -444,7 +444,7 @@ function ContinueLearning({ section, learning }: { section: HomeData["learning"]
             <Link href={finished ? "/academia" : href} className="inline-flex min-h-10 items-center gap-2 rounded-xl bg-stampa-orange px-4 text-sm font-bold text-neutral-950 transition-colors hover:bg-stampa-orange-hover focus:outline-none focus-visible:ring-2 focus-visible:ring-stampa-orange">
               {course && !finished ? <><Play size={15} aria-hidden="true" /> Continuar</> : finished ? <>Elegir otro curso</> : <><BookOpen size={15} aria-hidden="true" /> {recommended ? "Empezar curso" : "Ir a la Academia"}</>}
             </Link>
-            <Link href="/academia" className="inline-flex min-h-10 items-center gap-1 rounded-xl px-3 text-sm font-semibold text-gray-400 hover:bg-white/5 hover:text-white">
+            <Link href="/academia" className="inline-flex min-h-10 items-center gap-1 rounded-xl px-3 text-sm font-semibold text-gray-400 hover:bg-fg/5 hover:text-fg">
               Ver Academia <ArrowRight size={14} aria-hidden="true" />
             </Link>
           </div>
@@ -463,7 +463,7 @@ function RaffleCard({ section }: { section: HomeData["raffle"] }) {
     <HomePanel title="Sorteos" icon={Gift} href="/sorteos" linkLabel="Ver sorteos">
       {raffle ? (
         <Link href="/sorteos" className="group flex gap-3 rounded-xl focus:outline-none focus-visible:ring-2 focus-visible:ring-stampa-orange">
-          <div className="relative aspect-[4/3] w-24 shrink-0 overflow-hidden rounded-lg border border-stampa-border bg-white/5">
+          <div className="relative aspect-[4/3] w-24 shrink-0 overflow-hidden rounded-lg border border-stampa-border bg-fg/5">
             {image ? (
               // eslint-disable-next-line @next/next/no-img-element
               <img src={image} alt="" className="h-full w-full object-cover transition-transform duration-500 group-hover:scale-105" />
@@ -472,13 +472,13 @@ function RaffleCard({ section }: { section: HomeData["raffle"] }) {
             )}
           </div>
           <div className="min-w-0">
-            <p className="line-clamp-2 text-sm font-semibold text-white">{prize?.name || raffle.title}</p>
+            <p className="line-clamp-2 text-sm font-semibold text-fg">{prize?.name || raffle.title}</p>
             {raffle.draw_date && (
               <p className="mt-1 flex items-center gap-1 text-xs text-gray-400">
                 <CalendarDays size={12} aria-hidden="true" /> Sorteo el {dayFormat.format(new Date(raffle.draw_date))}
               </p>
             )}
-            <p className="mt-1 text-xs font-semibold text-stampa-orange">Ver tus chances →</p>
+            <p className="mt-1 text-xs font-semibold text-stampa-accent">Ver tus chances →</p>
           </div>
         </Link>
       ) : (
@@ -505,7 +505,7 @@ function LatestStl({ section }: { section: HomeData["stl"] }) {
                   <div className="flex h-full w-full items-center justify-center text-gray-600"><Package size={20} aria-hidden="true" /></div>
                 )}
               </div>
-              <p className="mt-1 truncate text-xs font-medium text-gray-300 group-hover:text-white">{model.title}</p>
+              <p className="mt-1 truncate text-xs font-medium text-gray-300 group-hover:text-fg">{model.title}</p>
             </Link>
           </li>
         ))}
@@ -518,10 +518,10 @@ function HomePanel({ title, icon: Icon, href, linkLabel, children }: { title: st
   return (
     <section className="min-w-0 rounded-2xl border border-stampa-border bg-stampa-surface p-4">
       <div className="mb-3 flex items-center justify-between gap-2">
-        <h2 className="flex items-center gap-2 text-sm font-bold text-white">
-          <Icon size={16} className="text-stampa-orange" aria-hidden="true" /> {title}
+        <h2 className="flex items-center gap-2 text-sm font-bold text-fg">
+          <Icon size={16} className="text-stampa-accent" aria-hidden="true" /> {title}
         </h2>
-        <Link href={href} className="inline-flex min-h-8 items-center gap-1 rounded-md px-1 text-xs font-semibold text-stampa-orange hover:text-orange-300 focus:outline-none focus-visible:ring-2 focus-visible:ring-stampa-orange">
+        <Link href={href} className="inline-flex min-h-8 items-center gap-1 rounded-md px-1 text-xs font-semibold text-stampa-accent hover:text-orange-300 focus:outline-none focus-visible:ring-2 focus-visible:ring-stampa-orange">
           {linkLabel} <span aria-hidden="true">→</span>
         </Link>
       </div>
@@ -532,11 +532,11 @@ function HomePanel({ title, icon: Icon, href, linkLabel, children }: { title: st
 
 function Metric({ label, value, icon: Icon }: { label: string; value: React.ReactNode; icon: LucideIcon }) {
   return (
-    <div className="min-w-0 rounded-lg bg-white/[0.03] px-3 py-2">
+    <div className="min-w-0 rounded-lg bg-fg/[0.03] px-3 py-2">
       <p className="flex items-center gap-1 truncate text-[11px] font-semibold text-gray-400">
         <Icon size={12} aria-hidden="true" /> {label}
       </p>
-      <p className="mt-0.5 truncate text-lg font-bold tabular-nums text-white">{value}</p>
+      <p className="mt-0.5 truncate text-lg font-bold tabular-nums text-fg">{value}</p>
     </div>
   );
 }
@@ -555,7 +555,7 @@ function StartCta({ text, href, label }: { text: string; href: string; label: st
   return (
     <div>
       <p className="text-sm text-gray-400">{text}</p>
-      <Link href={href} className="mt-3 inline-flex min-h-9 items-center rounded-lg bg-stampa-orange/10 px-3 text-xs font-bold text-stampa-orange hover:bg-stampa-orange/20 focus:outline-none focus-visible:ring-2 focus-visible:ring-stampa-orange">
+      <Link href={href} className="mt-3 inline-flex min-h-9 items-center rounded-lg bg-stampa-orange/10 px-3 text-xs font-bold text-stampa-accent hover:bg-stampa-orange/20 focus:outline-none focus-visible:ring-2 focus-visible:ring-stampa-orange">
         {label}
       </Link>
     </div>
@@ -569,8 +569,8 @@ function SectionUnavailable() {
 function MiniSkeleton() {
   return (
     <div className="grid grid-cols-2 gap-2" aria-hidden="true">
-      <div className="h-14 animate-pulse rounded-lg bg-white/5" />
-      <div className="h-14 animate-pulse rounded-lg bg-white/5" />
+      <div className="h-14 animate-pulse rounded-lg bg-fg/5" />
+      <div className="h-14 animate-pulse rounded-lg bg-fg/5" />
     </div>
   );
 }

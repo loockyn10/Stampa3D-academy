@@ -29,8 +29,8 @@ export function LandingComparison() {
 
       <div className="container mx-auto px-6 relative z-10" ref={ref}>
         <div className={`text-center max-w-3xl mx-auto mb-16 stampa-reveal-hidden ${isIntersecting ? 'stampa-reveal-visible' : ''}`}>
-          <h2 className="text-3xl md:text-5xl font-bold text-white mb-6">
-            La diferencia entre <span className="text-gray-500">un hobby</span> y <span className="text-stampa-orange">un negocio</span>
+          <h2 className="text-3xl md:text-5xl font-bold text-fg mb-6">
+            La diferencia entre <span className="text-gray-500">un hobby</span> y <span className="text-stampa-accent">un negocio</span>
           </h2>
         </div>
 
@@ -61,7 +61,7 @@ export function LandingComparison() {
           <div className={`w-full lg:w-1/2 bg-zinc-900/60 border border-stampa-orange/40 rounded-3xl p-8 md:p-12 relative overflow-hidden group stampa-reveal-hidden ${isIntersecting ? 'stampa-reveal-visible' : ''}`} style={{ animationDelay: '0.3s' }}>
             <div className="absolute top-0 right-0 w-64 h-64 bg-stampa-orange/10 blur-3xl rounded-full transition-opacity duration-700 opacity-50 group-hover:opacity-100 hidden md:block" />
             
-            <h3 className="text-2xl font-bold text-white mb-8 flex items-center gap-3 relative z-10">
+            <h3 className="text-2xl font-bold text-fg mb-8 flex items-center gap-3 relative z-10">
               <div className="w-8 h-8 rounded-full bg-stampa-orange/20 border border-stampa-orange/50 flex items-center justify-center">
                 <Check className="w-4 h-4 text-orange-400" />
               </div>

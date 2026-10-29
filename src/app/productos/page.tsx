@@ -867,7 +867,7 @@ function ProductosPageContent() {
           <button
             type="button"
             onClick={() => router.replace("/mi-taller/productos", { scroll: false })}
-            className="inline-flex min-h-8 items-center gap-1 rounded-full px-2 text-xs font-semibold text-gray-400 hover:bg-white/5 hover:text-white"
+            className="inline-flex min-h-8 items-center gap-1 rounded-full px-2 text-xs font-semibold text-gray-400 hover:bg-fg/5 hover:text-fg"
           >
             <X size={13} aria-hidden="true" /> Ver todos
           </button>
@@ -889,7 +889,7 @@ function ProductosPageContent() {
       {editingId && (
         <Card className="mb-8 p-5 bg-stampa-surface border border-stampa-orange/30 shadow-md ring-1 ring-stampa-orange/20">
           <div className="flex justify-between items-center mb-4">
-            <h3 className="text-lg font-bold text-white">{editingId === "new" ? "Nuevo Producto" : "Editar Producto"}</h3>
+            <h3 className="text-lg font-bold text-fg">{editingId === "new" ? "Nuevo Producto" : "Editar Producto"}</h3>
             <button onClick={() => setEditingId(null)} className="text-gray-400 hover:text-gray-300"><X size={20} /></button>
           </div>
 
@@ -918,7 +918,7 @@ function ProductosPageContent() {
                   value="simple"
                   checked={formData.mode === "simple"}
                   onChange={handleChange}
-                  className="text-stampa-orange focus:ring-[#ff6a00]/20"
+                  className="text-stampa-accent focus:ring-[#ff6a00]/20"
                 />
                 <span className="text-sm text-gray-300">Producto simple</span>
               </label>
@@ -929,7 +929,7 @@ function ProductosPageContent() {
                   value="parts"
                   checked={formData.mode === "parts"}
                   onChange={handleChange}
-                  className="text-stampa-orange focus:ring-[#ff6a00]/20"
+                  className="text-stampa-accent focus:ring-[#ff6a00]/20"
                 />
                 <span className="text-sm text-gray-300">Producto por partes</span>
               </label>
@@ -939,11 +939,11 @@ function ProductosPageContent() {
           {/* Materiales y Partes del Producto */}
           <div className="mb-4 bg-stampa-bg-soft/50 p-4 rounded-xl border border-stampa-border shadow-sm">
             <div className="flex items-center justify-between mb-3">
-              <h4 className="text-sm font-bold text-white">
+              <h4 className="text-sm font-bold text-fg">
                 {formData.mode === "simple" ? "Materiales del producto" : "Partes del producto"}
               </h4>
               {formData.mode === "parts" && (
-                <button type="button" onClick={addComponent} className="text-xs font-bold text-stampa-orange hover:text-orange-700 flex items-center gap-1">
+                <button type="button" onClick={addComponent} className="text-xs font-bold text-stampa-accent hover:text-orange-700 flex items-center gap-1">
                   <Plus size={14} /> Agregar parte
                 </button>
               )}
@@ -961,7 +961,7 @@ function ProductosPageContent() {
                           value={comp.name}
                           onChange={(e) => handleComponentChange(compIndex, "name", e.target.value)}
                           placeholder="Nombre de la parte (ej. Cuerpo)"
-                          className="w-full text-sm font-medium border-white/20 rounded-md focus:border-stampa-orange focus:ring-stampa-orange"
+                          className="w-full text-sm font-medium border-fg/20 rounded-md focus:border-stampa-orange focus:ring-stampa-orange"
                         />
                         <div className="flex gap-2">
                           <label className="flex items-center gap-2 text-xs text-gray-400">
@@ -970,7 +970,7 @@ function ProductosPageContent() {
                               type="number" min="1"
                               value={comp.quantity_per_product}
                               onChange={(e) => handleComponentChange(compIndex, "quantity_per_product", Math.max(1, parseInt(e.target.value) || 1))}
-                              className="w-16 text-xs border-white/20 rounded-md p-1"
+                              className="w-16 text-xs border-fg/20 rounded-md p-1"
                             />
                           </label>
                           <label className="flex items-center gap-2 text-xs text-gray-400">
@@ -979,7 +979,7 @@ function ProductosPageContent() {
                               type="number" min="0"
                               value={comp.stock_quantity}
                               onChange={(e) => handleComponentChange(compIndex, "stock_quantity", Math.max(0, parseInt(e.target.value) || 0))}
-                              className="w-16 text-xs border-white/20 rounded-md p-1"
+                              className="w-16 text-xs border-fg/20 rounded-md p-1"
                             />
                           </label>
                         </div>
@@ -1012,7 +1012,7 @@ function ProductosPageContent() {
                             min="0" step="0.1"
                             value={mat.grams}
                             onChange={(e) => handleComponentMaterialChange(compIndex, matIndex, "grams", parseFloat(e.target.value) || 0)}
-                            className="h-11 min-w-0 w-full rounded-xl border border-white/20 bg-stampa-surface px-2 text-xs text-white focus:border-stampa-orange focus:ring-stampa-orange"
+                            className="h-11 min-w-0 w-full rounded-xl border border-fg/20 bg-stampa-surface px-2 text-xs text-fg focus:border-stampa-orange focus:ring-stampa-orange"
                             placeholder="Gramos"
                           />
                           <span className="text-xs text-gray-500">g</span>
@@ -1023,7 +1023,7 @@ function ProductosPageContent() {
                       </div>
                     ))}
 
-                    <button type="button" onClick={() => addComponentMaterial(compIndex)} className="text-xs font-bold text-stampa-orange hover:text-orange-700 flex items-center gap-1 mt-1">
+                    <button type="button" onClick={() => addComponentMaterial(compIndex)} className="text-xs font-bold text-stampa-accent hover:text-orange-700 flex items-center gap-1 mt-1">
                       <Plus size={12} /> Agregar material {formData.mode === "parts" && "a esta parte"}
                     </button>
 
@@ -1036,8 +1036,8 @@ function ProductosPageContent() {
           {/* Embedded Calculator */}
           <div className="mb-4 bg-stampa-bg-soft/50 p-4 rounded-xl border border-stampa-border shadow-sm">
             <div className="flex items-center gap-2 mb-3">
-              <RefreshCw size={16} className="text-stampa-orange" />
-              <h4 className="text-sm font-bold text-white">Cálculo Rápido</h4>
+              <RefreshCw size={16} className="text-stampa-accent" />
+              <h4 className="text-sm font-bold text-fg">Cálculo Rápido</h4>
               <p className="text-xs text-gray-500 ml-2 font-medium hidden sm:block">Calculá automáticamente usando tus costos.</p>
             </div>
 
@@ -1075,7 +1075,7 @@ function ProductosPageContent() {
               <button
                 type="button"
                 onClick={handleEditorCalculate}
-                className="bg-stampa-surface border border-orange-200 text-stampa-orange px-4 py-2 rounded-lg text-xs font-bold hover:bg-orange-50 transition-colors"
+                className="bg-stampa-surface border border-orange-200 text-stampa-accent px-4 py-2 rounded-lg text-xs font-bold hover:bg-orange-50 transition-colors"
               >
                 Calcular precio
               </button>
@@ -1100,7 +1100,7 @@ function ProductosPageContent() {
                     <p className="text-xs font-bold text-gray-300">${(calcPreview.maintenanceCost + calcPreview.fixedCost).toFixed(2)}</p>
                   </div>
                   <div className="bg-orange-50 p-2 rounded border border-orange-100 text-center">
-                    <p className="text-[10px] text-stampa-orange font-bold">Venta Sugerida (x{calcPreview.multiplier})</p>
+                    <p className="text-[10px] text-stampa-accent font-bold">Venta Sugerida (x{calcPreview.multiplier})</p>
                     <p className="text-sm font-black text-orange-700">${calcPreview.salePrice.toFixed(2)}</p>
                   </div>
                 </div>
@@ -1157,7 +1157,7 @@ function ProductosPageContent() {
               <div className="flex gap-4 items-center">
                 <input type="text" name="image_url" value={formData.image_url} onChange={handleChange} className="flex-1 text-sm border-stampa-border rounded-lg px-3 py-2 text-neutral-100 bg-stampa-surface border focus:border-[#ff6a00] focus:ring-[#ff6a00]/20 focus:ring-2 placeholder:text-neutral-500 disabled:bg-neutral-800 disabled:text-neutral-500" placeholder="https://..." />
                 {formData.image_url && (
-                  <div className="h-12 w-12 shrink-0 rounded-lg bg-white/5 overflow-hidden border border-stampa-border">
+                  <div className="h-12 w-12 shrink-0 rounded-lg bg-fg/5 overflow-hidden border border-stampa-border">
                     <img src={formData.image_url} alt="Producto" className="w-full h-full object-cover" />
                   </div>
                 )}
@@ -1192,11 +1192,11 @@ function ProductosPageContent() {
 
           <div className="flex flex-col sm:flex-row sm:items-center justify-between border-t border-stampa-border pt-4 gap-4">
             <div className="flex items-center gap-2">
-              <input type="checkbox" name="is_active" checked={formData.is_active} onChange={handleChange} className="rounded text-stampa-orange focus:ring-[#ff6a00]/20" />
+              <input type="checkbox" name="is_active" checked={formData.is_active} onChange={handleChange} className="rounded text-stampa-accent focus:ring-[#ff6a00]/20" />
               <label className="text-sm font-medium text-gray-300">Producto Activo</label>
             </div>
             <div className="flex flex-col-reverse sm:flex-row gap-2 w-full sm:w-auto">
-              <button onClick={() => setEditingId(null)} className="w-full sm:w-auto px-4 py-2 text-sm font-bold text-gray-400 hover:bg-white/5 rounded-lg transition-colors text-center">Cancelar</button>
+              <button onClick={() => setEditingId(null)} className="w-full sm:w-auto px-4 py-2 text-sm font-bold text-gray-400 hover:bg-fg/5 rounded-lg transition-colors text-center">Cancelar</button>
               <button onClick={handleSave} className="w-full sm:w-auto flex items-center justify-center gap-2 px-4 py-2 text-sm font-bold bg-stampa-orange hover:bg-stampa-orange text-white rounded-lg transition-colors">
                 <Save size={16} /> Guardar
               </button>
@@ -1234,7 +1234,7 @@ function ProductosPageContent() {
                 )}
                 <div className="min-w-0 flex-1">
                   <div className="flex items-start justify-between gap-2 mb-1">
-                    <p className="truncate text-base font-bold text-white leading-tight">{p.name}</p>
+                    <p className="truncate text-base font-bold text-fg leading-tight">{p.name}</p>
                     {p.product_components?.length > 1 ? (
                       <span className="px-1.5 py-0.5 bg-blue-500/10 text-blue-400 text-[10px] font-bold uppercase rounded-md border border-blue-500/20 shrink-0">Armable</span>
                     ) : (
@@ -1246,18 +1246,18 @@ function ProductosPageContent() {
                   <div className="flex items-end gap-4 mt-2">
                     <div>
                       <p className="text-[10px] text-gray-500 uppercase font-semibold">Venta</p>
-                      <p className="text-sm font-black text-stampa-orange">${p.sale_price?.toFixed(2) || "0.00"}</p>
+                      <p className="text-sm font-black text-stampa-accent">${p.sale_price?.toFixed(2) || "0.00"}</p>
                     </div>
                     <div>
                       <p className="text-[10px] text-gray-500 uppercase font-semibold">Stock</p>
-                      <p className={`text-sm font-bold ${p.stock_quantity > 0 ? 'text-white' : 'text-red-500'}`}>{p.stock_quantity || 0}</p>
+                      <p className={`text-sm font-bold ${p.stock_quantity > 0 ? 'text-fg' : 'text-red-500'}`}>{p.stock_quantity || 0}</p>
                     </div>
                   </div>
                 </div>
               </div>
 
               <div className="mt-auto flex gap-2 pt-4">
-                <button onClick={() => setDetailProduct(p)} className="min-h-11 flex-1 rounded-lg border border-stampa-border bg-white/5 px-2 py-2 text-xs font-bold text-gray-300 transition-colors hover:bg-white/10 hover:text-white">
+                <button onClick={() => setDetailProduct(p)} className="min-h-11 flex-1 rounded-lg border border-stampa-border bg-fg/5 px-2 py-2 text-xs font-bold text-gray-300 transition-colors hover:bg-fg/10 hover:text-fg">
                   Ver detalle
                 </button>
                 <button onClick={(e) => { e.stopPropagation(); handleEdit(p); }} className="min-h-11 flex-1 rounded-lg border border-stampa-orange bg-stampa-orange px-2 py-2 text-xs font-bold text-white transition-colors hover:bg-stampa-orange flex items-center justify-center gap-1.5">
@@ -1308,7 +1308,7 @@ function ProductosPageContent() {
           <div className="w-16 h-16 bg-stampa-bg-soft rounded-2xl flex items-center justify-center mb-4 border border-stampa-border shadow-inner">
             <span className="text-3xl grayscale opacity-50">📦</span>
           </div>
-          <h3 className="text-xl font-bold text-white mb-2">Todavía no cargaste productos</h3>
+          <h3 className="text-xl font-bold text-fg mb-2">Todavía no cargaste productos</h3>
           <p className="text-sm text-gray-400 font-medium mb-6 max-w-md text-center">
             Guardá las piezas que vendés seguido para reutilizarlas en presupuestos y controlar mejor tus costos.
           </p>
@@ -1316,7 +1316,7 @@ function ProductosPageContent() {
             <PrimaryButton onClick={handleCreateNew} className="bg-stampa-orange hover:bg-stampa-orange text-white">
               Crear producto
             </PrimaryButton>
-            <Link href="/calculadora" className="px-4 py-2 bg-stampa-bg-soft border border-stampa-border text-white text-sm font-bold rounded-lg hover:bg-white/5 transition-colors">
+            <Link href="/calculadora" className="px-4 py-2 bg-stampa-bg-soft border border-stampa-border text-fg text-sm font-bold rounded-lg hover:bg-fg/5 transition-colors">
               Calcular precio primero
             </Link>
           </div>
@@ -1337,7 +1337,7 @@ function ProductosPageContent() {
                 <Trash2 size={19} />
               </div>
               <div className="min-w-0">
-                <h2 id="delete-product-title" className="text-lg font-bold text-white">¿Eliminar producto?</h2>
+                <h2 id="delete-product-title" className="text-lg font-bold text-fg">¿Eliminar producto?</h2>
                 <p className="mt-1 text-sm text-gray-400">
                   Esta acción eliminará <span className="font-semibold text-gray-200">{deleteTarget.name}</span> y su receta asociada. No se puede deshacer desde la plataforma.
                 </p>
@@ -1360,7 +1360,7 @@ function ProductosPageContent() {
                     setDeleteError(null);
                   }}
                   disabled={deleteLoading}
-                  className="min-h-11 rounded-xl border border-stampa-border px-4 py-2.5 text-sm font-bold text-gray-300 transition-colors hover:bg-white/5 disabled:opacity-50 sm:min-w-28"
+                  className="min-h-11 rounded-xl border border-stampa-border px-4 py-2.5 text-sm font-bold text-gray-300 transition-colors hover:bg-fg/5 disabled:opacity-50 sm:min-w-28"
                 >
                   Cancelar
                 </button>
@@ -1384,10 +1384,10 @@ function ProductosPageContent() {
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-stampa-bg/60 backdrop-blur-sm p-4 overflow-y-auto">
           <div className="bg-stampa-bg-soft w-full max-w-2xl rounded-2xl shadow-2xl overflow-hidden border border-stampa-border my-8 flex flex-col max-h-[90vh]">
             <div className="flex items-center justify-between px-6 py-4 border-b border-stampa-border shrink-0 bg-stampa-surface">
-              <h3 className="font-bold text-white text-lg flex items-center gap-2">
+              <h3 className="font-bold text-fg text-lg flex items-center gap-2">
                 Detalle del Producto
               </h3>
-              <button onClick={() => setDetailProduct(null)} className="text-gray-400 hover:text-white transition-colors">
+              <button onClick={() => setDetailProduct(null)} className="text-gray-400 hover:text-fg transition-colors">
                 <X size={20} />
               </button>
             </div>
@@ -1403,7 +1403,7 @@ function ProductosPageContent() {
                 )}
                 <div className="flex-1">
                   <div className="flex items-start justify-between gap-4 mb-2">
-                    <h2 className="text-2xl font-black text-white leading-tight">{detailProduct.name}</h2>
+                    <h2 className="text-2xl font-black text-fg leading-tight">{detailProduct.name}</h2>
                     {detailProduct.product_components?.length > 1 ? (
                       <span className="px-2 py-1 bg-blue-500/10 text-blue-400 text-xs font-bold uppercase rounded-md border border-blue-500/20 shrink-0">Armable</span>
                     ) : (
@@ -1415,7 +1415,7 @@ function ProductosPageContent() {
                   <div className="flex flex-wrap gap-4">
                     <div className="bg-stampa-surface px-4 py-2 rounded-xl border border-stampa-border">
                       <p className="text-[10px] text-gray-500 uppercase font-semibold mb-0.5">Stock Disponible</p>
-                      <p className={`text-lg font-black ${detailProduct.stock_quantity > 0 ? 'text-white' : 'text-red-500'}`}>{detailProduct.stock_quantity || 0} u.</p>
+                      <p className={`text-lg font-black ${detailProduct.stock_quantity > 0 ? 'text-fg' : 'text-red-500'}`}>{detailProduct.stock_quantity || 0} u.</p>
                     </div>
                   </div>
                 </div>
@@ -1428,11 +1428,11 @@ function ProductosPageContent() {
                   <div className="space-y-3">
                     <div className="flex justify-between items-center">
                       <span className="text-xs text-gray-400">Costo Base</span>
-                      <span className="text-sm font-bold text-white">${detailProduct.base_cost?.toFixed(2) || "0.00"}</span>
+                      <span className="text-sm font-bold text-fg">${detailProduct.base_cost?.toFixed(2) || "0.00"}</span>
                     </div>
                     <div className="flex justify-between items-center">
                       <span className="text-xs text-gray-400">Venta Sugerida/Actual</span>
-                      <span className="text-sm font-black text-stampa-orange">${detailProduct.sale_price?.toFixed(2) || "0.00"}</span>
+                      <span className="text-sm font-black text-stampa-accent">${detailProduct.sale_price?.toFixed(2) || "0.00"}</span>
                     </div>
                     <hr className="border-stampa-border" />
                     <div className="flex justify-between items-center">
@@ -1467,11 +1467,11 @@ function ProductosPageContent() {
                   <div className="space-y-3">
                     <div className="flex justify-between items-center">
                       <span className="text-xs text-gray-400">Material total</span>
-                      <span className="text-sm font-bold text-white">{detailProduct.grams || 0}g</span>
+                      <span className="text-sm font-bold text-fg">{detailProduct.grams || 0}g</span>
                     </div>
                     <div className="flex justify-between items-center">
                       <span className="text-xs text-gray-400">Tiempo de impresión</span>
-                      <span className="text-sm font-bold text-white">{formatTime(detailProduct.print_time_minutes)}</span>
+                      <span className="text-sm font-bold text-fg">{formatTime(detailProduct.print_time_minutes)}</span>
                     </div>
                     <hr className="border-stampa-border" />
                     <div className="flex flex-col gap-1">
@@ -1481,7 +1481,7 @@ function ProductosPageContent() {
                           const snapMats = detailProduct.calculation_snapshot?.materials;
                           if (snapMats && Array.isArray(snapMats) && snapMats.length > 0) {
                             return snapMats.map((m: any, i: number) => (
-                              <span key={i} className="text-[10px] bg-white/5 border border-stampa-border px-2 py-1 rounded text-gray-300 truncate max-w-full">
+                              <span key={i} className="text-[10px] bg-fg/5 border border-stampa-border px-2 py-1 rounded text-gray-300 truncate max-w-full">
                                 {m.filament_name} ({m.grams}g)
                               </span>
                             ));
@@ -1517,9 +1517,9 @@ function ProductosPageContent() {
                           <div className="flex items-center gap-3">
                             <div className="text-right">
                               <p className="text-[10px] text-gray-500 uppercase">Req.</p>
-                              <p className="text-sm font-bold text-white">x{needed}</p>
+                              <p className="text-sm font-bold text-fg">x{needed}</p>
                             </div>
-                            <div className="h-6 w-px bg-white/10 mx-1"></div>
+                            <div className="h-6 w-px bg-fg/10 mx-1"></div>
                             <div className="text-right">
                               <p className="text-[10px] text-gray-500 uppercase">Stock</p>
                               <p className={`text-sm font-bold ${hasStock ? 'text-emerald-500' : 'text-red-500'}`}>{c.stock_quantity || 0}</p>
@@ -1534,7 +1534,7 @@ function ProductosPageContent() {
             </div>
 
             <div className="px-6 py-4 border-t border-stampa-border shrink-0 bg-stampa-surface flex justify-end gap-3">
-              <button onClick={() => setDetailProduct(null)} className="px-4 py-2 text-sm font-bold text-gray-400 hover:text-white hover:bg-white/5 rounded-lg transition-colors">
+              <button onClick={() => setDetailProduct(null)} className="px-4 py-2 text-sm font-bold text-gray-400 hover:text-fg hover:bg-fg/5 rounded-lg transition-colors">
                 Cerrar
               </button>
               <button 

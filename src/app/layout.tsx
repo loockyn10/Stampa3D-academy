@@ -4,6 +4,8 @@ import "./globals.css";
 import { MainLayout } from "./main-layout";
 import { AppFeedbackProvider } from "@/components/ui/app-feedback";
 import { PendingBetaCodeRedeemer } from "@/components/beta-access/PendingBetaCodeRedeemer";
+import { ThemeProvider } from "@/components/theme/theme-provider";
+import { THEME_COLORS, THEME_INIT_SCRIPT } from "@/lib/theme/theme";
 
 const geistSans = Geist({
   variable: "--font-geist-sans",
@@ -28,8 +30,9 @@ export const metadata: Metadata = {
 };
 
 export const viewport: Viewport = {
-  themeColor: "#171717",
-  colorScheme: "dark",
+  // El script de tema ajusta este valor segun el tema resuelto; el valor inicial corresponde al tema por defecto.
+  themeColor: THEME_COLORS.dark,
+  colorScheme: "light dark",
 };
 
 export default function RootLayout({
@@ -38,15 +41,22 @@ export default function RootLayout({
   children: React.ReactNode;
 }>) {
   return (
+    // suppressHydrationWarning: el script de tema fija data-theme/color-scheme en <html> antes de hidratar.
     <html
       lang="es"
+      suppressHydrationWarning
       className={`${geistSans.variable} ${geistMono.variable} h-full antialiased`}
     >
-      <body className="min-h-full flex flex-col bg-stampa-bg text-[#ededed] font-sans">
-        <AppFeedbackProvider>
-          <PendingBetaCodeRedeemer />
-          <MainLayout>{children}</MainLayout>
-        </AppFeedbackProvider>
+      <head>
+        <script dangerouslySetInnerHTML={{ __html: THEME_INIT_SCRIPT }} />
+      </head>
+      <body className="min-h-full flex flex-col bg-stampa-bg text-stampa-body font-sans">
+        <ThemeProvider>
+          <AppFeedbackProvider>
+            <PendingBetaCodeRedeemer />
+            <MainLayout>{children}</MainLayout>
+          </AppFeedbackProvider>
+        </ThemeProvider>
       </body>
     </html>
   );

@@ -33,7 +33,7 @@ function SettingToggle({
   return (
     <div className={`flex items-center justify-between gap-4 rounded-lg border border-stampa-border bg-stampa-surface p-3 ${disabled ? "opacity-50" : ""}`}>
       <div>
-        <p className="text-sm font-medium text-white">{label}</p>
+        <p className="text-sm font-medium text-fg">{label}</p>
         <p className="mt-0.5 text-xs text-gray-500">{description}</p>
       </div>
       <button
@@ -44,7 +44,7 @@ function SettingToggle({
         disabled={disabled}
         onClick={() => onChange(!checked)}
         className={`relative h-6 w-11 shrink-0 rounded-full transition-colors disabled:cursor-not-allowed ${
-          checked ? "bg-stampa-orange" : "bg-white/15"
+          checked ? "bg-stampa-orange" : "bg-fg/15"
         }`}
       >
         <span
@@ -127,22 +127,22 @@ export function StampyManager({ setTab }: { setTab: (tab: any) => void }) {
   return (
     <Card className="max-w-2xl p-6 bg-stampa-surface border-stampa-border space-y-6 animate-slide-up">
       <div className="flex items-center gap-4 border-b border-stampa-border pb-5">
-        <div className="p-3 bg-stampa-orange/10 text-stampa-orange rounded-xl border border-stampa-orange/20 shadow-inner animate-soft-pulse">
+        <div className="p-3 bg-stampa-orange/10 text-stampa-accent rounded-xl border border-stampa-orange/20 shadow-inner animate-soft-pulse">
           <Bot size={24} />
         </div>
         <div>
-          <h3 className="text-lg font-bold text-white">Configuración de Stampy</h3>
+          <h3 className="text-lg font-bold text-fg">Configuración de Stampy</h3>
           <p className="text-sm text-gray-500 mt-1">
             Más adelante, Stampy va a poder usar datos de tu taller para darte respuestas más precisas.
           </p>
         </div>
       </div>
 
-      <div className="space-y-4 rounded-xl border border-stampa-border bg-black/20 p-5">
+      <div className="space-y-4 rounded-xl border border-stampa-border bg-shade/20 p-5">
         <div className="flex items-start gap-3">
-          <ShieldCheck className="mt-0.5 shrink-0 text-stampa-orange" size={20} />
+          <ShieldCheck className="mt-0.5 shrink-0 text-stampa-accent" size={20} />
           <div>
-            <h4 className="font-semibold text-white">Automatización de Stampy</h4>
+            <h4 className="font-semibold text-fg">Automatización de Stampy</h4>
             <p className="mt-1 text-sm text-gray-400">
               Permití que Stampy ejecute algunas acciones simples sin pedir confirmación cuando los datos sean claros y no haya ambigüedad.
             </p>
@@ -208,7 +208,7 @@ export function StampyManager({ setTab }: { setTab: (tab: any) => void }) {
           <div className="flex items-center justify-between p-3 bg-stampa-surface rounded-lg border border-stampa-border">
             <div className="flex items-center gap-3">
               {hasPrinters ? <CheckCircle2 className="text-green-500" size={20} /> : <Circle className="text-gray-600" size={20} />}
-              <span className={`text-sm ${hasPrinters ? "text-white font-medium" : "text-gray-500"}`}>Cargar impresoras</span>
+              <span className={`text-sm ${hasPrinters ? "text-fg font-medium" : "text-gray-500"}`}>Cargar impresoras</span>
             </div>
             {!hasPrinters && workshopVisible && (
               <GhostButton onClick={() => router.push("/mi-taller/impresoras")} className="text-xs">
@@ -220,7 +220,7 @@ export function StampyManager({ setTab }: { setTab: (tab: any) => void }) {
           <div className="flex items-center justify-between p-3 bg-stampa-surface rounded-lg border border-stampa-border">
             <div className="flex items-center gap-3">
               {hasFilaments ? <CheckCircle2 className="text-green-500" size={20} /> : <Circle className="text-gray-600" size={20} />}
-              <span className={`text-sm ${hasFilaments ? "text-white font-medium" : "text-gray-500"}`}>Cargar filamentos</span>
+              <span className={`text-sm ${hasFilaments ? "text-fg font-medium" : "text-gray-500"}`}>Cargar filamentos</span>
             </div>
             {!hasFilaments && workshopVisible && (
               <GhostButton onClick={() => router.push("/mi-taller/filamentos")} className="text-xs">
@@ -232,7 +232,7 @@ export function StampyManager({ setTab }: { setTab: (tab: any) => void }) {
           <div className="flex items-center justify-between p-3 bg-stampa-surface rounded-lg border border-stampa-border">
             <div className="flex items-center gap-3">
               {hasBusinessData ? <CheckCircle2 className="text-green-500" size={20} /> : <Circle className="text-gray-600" size={20} />}
-              <span className={`text-sm ${hasBusinessData ? "text-white font-medium" : "text-gray-500"}`}>Completar datos del negocio</span>
+              <span className={`text-sm ${hasBusinessData ? "text-fg font-medium" : "text-gray-500"}`}>Completar datos del negocio</span>
             </div>
             {!hasBusinessData && businessVisible && (
               <GhostButton onClick={() => setTab("negocio")} className="text-xs">

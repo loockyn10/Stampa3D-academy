@@ -3,7 +3,7 @@ import { legalLinks, socialLinks } from "./landing-content";
 
 export function LandingFooter() {
   return (
-    <footer className="border-t border-stampa-border bg-[#09090b] py-12 text-sm">
+    <footer className="border-t border-stampa-border bg-stampa-sunken py-12 text-sm">
       <div className="container mx-auto grid gap-10 px-5 md:grid-cols-[1.2fr_0.8fr_0.8fr] md:px-6">
         <div>
           <Link
@@ -13,7 +13,7 @@ export function LandingFooter() {
             <span className="flex h-9 w-9 items-center justify-center rounded-lg bg-gradient-to-br from-orange-500 to-orange-600 text-lg font-bold text-white">
               S
             </span>
-            <span className="text-lg font-bold text-white">
+            <span className="text-lg font-bold text-fg">
               Academia <span className="text-orange-400">Stampa</span>
             </span>
           </Link>
@@ -29,7 +29,7 @@ export function LandingFooter() {
         </div>
 
         <div>
-          <h2 className="font-bold text-white">Comunidad y soporte</h2>
+          <h2 className="font-bold text-fg">Comunidad y soporte</h2>
           <ul className="mt-4 space-y-3">
             {socialLinks.map((link) => (
               <li key={link.label}>
@@ -47,7 +47,7 @@ export function LandingFooter() {
         </div>
 
         <div>
-          <h2 className="font-bold text-white">Información legal</h2>
+          <h2 className="font-bold text-fg">Información legal</h2>
           <ul className="mt-4 space-y-3">
             {legalLinks.map((link) => (
               <li key={link.label}>
@@ -65,7 +65,7 @@ export function LandingFooter() {
           </ul>
         </div>
       </div>
-      <div className="container mx-auto mt-10 border-t border-white/8 px-5 pt-6 text-xs text-zinc-600 md:px-6">
+      <div className="container mx-auto mt-10 border-t border-fg/8 px-5 pt-6 text-xs text-zinc-600 md:px-6">
         © {new Date().getFullYear()} Academia Stampa.
       </div>
     </footer>

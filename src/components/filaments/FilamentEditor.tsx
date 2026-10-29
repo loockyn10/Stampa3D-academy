@@ -87,7 +87,7 @@ export function FilamentEditor({ formData, setFormData, onSave, onCancel }: any)
           <input type="number" name="purchase_price" value={formData.purchase_price !== undefined ? formData.purchase_price : ""} onChange={handleChange} className="w-full text-sm border-stampa-border rounded-md text-neutral-100 bg-stampa-surface border focus:border-[#ff6a00] focus:ring-[#ff6a00]/20 focus:ring-2 placeholder:text-neutral-500 disabled:bg-neutral-800 disabled:text-neutral-500" />
         </div>
         <div className="flex items-center gap-2 pt-1">
-          <input type="checkbox" name="is_active" checked={formData.is_active !== undefined ? formData.is_active : true} onChange={handleChange} className="rounded text-stampa-orange focus:ring-[#ff6a00]/20" />
+          <input type="checkbox" name="is_active" checked={formData.is_active !== undefined ? formData.is_active : true} onChange={handleChange} className="rounded text-stampa-accent focus:ring-[#ff6a00]/20" />
           <label className="text-sm font-medium text-gray-300">Filamento Activo</label>
         </div>
       </div>

@@ -28,7 +28,7 @@ export function StlPreviewPanel({ status, previewUrl, notice, canGenerate, disab
       <div className="flex flex-wrap items-center justify-between gap-3">
         <div className="flex items-center gap-2 text-sm font-semibold text-gray-300">
           {busy ? (
-            <Loader2 className="h-4 w-4 animate-spin text-stampa-orange" />
+            <Loader2 className="h-4 w-4 animate-spin text-stampa-accent" />
           ) : status === "failed" ? (
             <AlertCircle className="h-4 w-4 text-amber-400" />
           ) : hasPreview || status === "ready" ? (

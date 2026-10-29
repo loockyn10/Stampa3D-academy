@@ -112,7 +112,7 @@ export function FeatureFlagsManager({ initial }: { initial: FeatureFlagsAdminRes
   return (
     <div className="space-y-6">
       <div className="flex items-start gap-3 rounded-2xl border border-stampa-orange/25 bg-stampa-orange/[0.07] p-4 text-sm text-orange-100">
-        <ShieldCheck size={20} className="mt-0.5 shrink-0 text-stampa-orange" aria-hidden="true" />
+        <ShieldCheck size={20} className="mt-0.5 shrink-0 text-stampa-accent" aria-hidden="true" />
         <p>
           Los <strong>administradores siempre tienen acceso</strong> a todas las herramientas, estén habilitadas o no. Los cambios
           se aplican en segundos, sin nuevo despliegue, y no modifican los datos de los usuarios. Para probar la vista pública usá una
@@ -142,13 +142,13 @@ export function FeatureFlagsManager({ initial }: { initial: FeatureFlagsAdminRes
 
       <div className="flex items-center justify-between gap-3">
         <p className="text-sm text-gray-400" aria-live="polite">
-          <span className="font-bold text-white">{enabledCount}</span> de {FEATURE_REGISTRY.length} herramientas habilitadas para los usuarios
+          <span className="font-bold text-fg">{enabledCount}</span> de {FEATURE_REGISTRY.length} herramientas habilitadas para los usuarios
         </p>
         <button
           type="button"
           onClick={refresh}
           disabled={refreshing}
-          className="inline-flex min-h-10 items-center gap-2 rounded-xl border border-stampa-border px-3 text-xs font-semibold text-gray-300 hover:bg-white/5 disabled:opacity-60"
+          className="inline-flex min-h-10 items-center gap-2 rounded-xl border border-stampa-border px-3 text-xs font-semibold text-gray-300 hover:bg-fg/5 disabled:opacity-60"
         >
           {refreshing ? <Loader2 size={14} className="animate-spin" /> : <RefreshCw size={14} />}
           Actualizar
@@ -172,14 +172,14 @@ export function FeatureFlagsManager({ initial }: { initial: FeatureFlagsAdminRes
                 <li key={feature.id} className="flex items-start gap-4 p-4 sm:items-center">
                   <div className="min-w-0 flex-1">
                     <div className="flex flex-wrap items-center gap-2">
-                      <h3 id={labelId} className="text-sm font-bold text-white">{feature.name}</h3>
+                      <h3 id={labelId} className="text-sm font-bold text-fg">{feature.name}</h3>
                       <span
                         className={`rounded-full border px-2 py-0.5 text-[11px] font-semibold ${
                           !enabled
                             ? "border-red-500/30 bg-red-500/10 text-red-300"
                             : configured
                               ? "border-emerald-500/30 bg-emerald-500/10 text-emerald-300"
-                              : "border-stampa-border bg-white/5 text-gray-400"
+                              : "border-stampa-border bg-fg/5 text-gray-400"
                         }`}
                       >
                         {!enabled ? "Deshabilitada" : configured ? "Habilitada" : "Sin configurar · habilitada"}
@@ -208,7 +208,7 @@ export function FeatureFlagsManager({ initial }: { initial: FeatureFlagsAdminRes
                     disabled={!editable || isSaving || (saving !== null && !isSaving)}
                     onClick={() => toggle(feature)}
                     className={`relative inline-flex h-7 w-12 shrink-0 items-center rounded-full border transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-stampa-orange focus-visible:ring-offset-2 focus-visible:ring-offset-stampa-surface disabled:cursor-not-allowed disabled:opacity-50 ${
-                      enabled ? "border-stampa-orange bg-stampa-orange" : "border-stampa-border bg-white/10"
+                      enabled ? "border-stampa-orange bg-stampa-orange" : "border-stampa-border bg-fg/10"
                     }`}
                   >
                     <span
@@ -216,7 +216,7 @@ export function FeatureFlagsManager({ initial }: { initial: FeatureFlagsAdminRes
                         enabled ? "translate-x-6" : "translate-x-1"
                       }`}
                     >
-                      {isSaving && <Loader2 size={12} className="animate-spin text-stampa-orange" aria-hidden="true" />}
+                      {isSaving && <Loader2 size={12} className="animate-spin text-stampa-accent" aria-hidden="true" />}
                     </span>
                     <span className="sr-only">{isSaving ? "Guardando" : enabled ? "Habilitada" : "Deshabilitada"}</span>
                   </button>

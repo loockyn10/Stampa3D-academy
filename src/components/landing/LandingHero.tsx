@@ -6,7 +6,7 @@ import { LandingHeroMockup } from "./LandingHeroMockup";
 
 export function LandingHero() {
   return (
-    <section className="relative min-h-[95vh] flex items-center justify-center overflow-hidden bg-stampa-bg text-white pt-24 pb-16">
+    <section className="relative min-h-[95vh] flex items-center justify-center overflow-hidden bg-stampa-bg text-fg pt-24 pb-16">
       {/* Background Effects */}
       <div className="absolute inset-0 z-0">
         <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[1000px] h-[1000px] bg-stampa-orange/15 rounded-full blur-[150px] opacity-70 animate-pulse" />
@@ -54,7 +54,7 @@ export function LandingHero() {
               href="/login"
               className="w-full sm:w-auto px-8 py-4 rounded-xl bg-gradient-to-r from-orange-600 to-orange-500 hover:from-orange-500 hover:to-orange-400 text-white font-semibold transition-all duration-300 flex items-center justify-center gap-2 shadow-[0_0_20px_rgba(234,88,12,0.4)] hover:shadow-[0_0_30px_rgba(234,88,12,0.6)] hover:scale-105 group relative overflow-hidden"
             >
-              <div className="absolute inset-0 bg-white/20 w-12 skew-x-[-20deg]" style={{ animation: 'stampa-shine 3s ease-in-out infinite', animationDelay: '1s' }} />
+              <div className="absolute inset-0 bg-fg/20 w-12 skew-x-[-20deg]" style={{ animation: 'stampa-shine 3s ease-in-out infinite', animationDelay: '1s' }} />
               <span className="relative z-10 flex items-center gap-2">
                 Entrar a la academia
                 <ChevronRight className="w-5 h-5 group-hover:translate-x-1 transition-transform" />
@@ -63,9 +63,9 @@ export function LandingHero() {
             
             <Link 
               href="#contenido"
-              className="w-full sm:w-auto px-8 py-4 rounded-xl bg-white/5 hover:bg-white/10 border border-stampa-border text-white font-medium transition-all duration-300 flex items-center justify-center gap-2 hover:border-stampa-orange/30 group"
+              className="w-full sm:w-auto px-8 py-4 rounded-xl bg-fg/5 hover:bg-fg/10 border border-stampa-border text-fg font-medium transition-all duration-300 flex items-center justify-center gap-2 hover:border-stampa-orange/30 group"
             >
-              <div className="w-8 h-8 rounded-full bg-white/10 flex items-center justify-center group-hover:bg-stampa-orange/20 group-hover:text-orange-400 transition-colors">
+              <div className="w-8 h-8 rounded-full bg-fg/10 flex items-center justify-center group-hover:bg-stampa-orange/20 group-hover:text-orange-400 transition-colors">
                 <Play className="w-4 h-4 ml-0.5" />
               </div>
               Ver qué incluye

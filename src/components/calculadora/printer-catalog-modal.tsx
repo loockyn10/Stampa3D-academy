@@ -181,17 +181,17 @@ export function PrinterCatalogModal({ onClose, onSelect, userId, calculatorSelec
     <div className="fixed inset-0 z-[9999] bg-black/70 backdrop-blur-sm" onClick={onClose}>
       <div className="flex min-h-dvh items-start justify-center overflow-y-auto px-4 py-[5dvh]">
         <div
-          className="bg-stampa-surface w-full max-w-2xl overflow-hidden rounded-2xl border border-white/10 shadow-2xl flex flex-col max-h-[90dvh] animate-in zoom-in-95 duration-200"
+          className="bg-stampa-surface w-full max-w-2xl overflow-hidden rounded-2xl border border-fg/10 shadow-2xl flex flex-col max-h-[90dvh] animate-in zoom-in-95 duration-200"
           onClick={(e) => e.stopPropagation()}
         >
 
           {/* Header */}
-          <div className="sticky top-0 z-10 flex flex-col gap-3 px-6 py-5 border-b border-white/10 bg-stampa-bg-soft shrink-0">
+          <div className="sticky top-0 z-10 flex flex-col gap-3 px-6 py-5 border-b border-fg/10 bg-stampa-bg-soft shrink-0">
             <div className="flex items-center justify-between">
-              <h3 className="text-lg font-bold text-white flex items-center gap-2">
-                <Printer size={20} className="text-stampa-orange" /> Catálogo de Impresoras
+              <h3 className="text-lg font-bold text-fg flex items-center gap-2">
+                <Printer size={20} className="text-stampa-accent" /> Catálogo de Impresoras
               </h3>
-              <button onClick={onClose} className="text-gray-400 hover:text-white transition-colors p-1" disabled={!!importingId}>
+              <button onClick={onClose} className="text-gray-400 hover:text-fg transition-colors p-1" disabled={!!importingId}>
                 <X size={20} />
               </button>
             </div>
@@ -203,7 +203,7 @@ export function PrinterCatalogModal({ onClose, onSelect, userId, calculatorSelec
                 placeholder="Buscar por marca o modelo..."
                 value={search}
                 onChange={(e) => setSearch(e.target.value)}
-                className="w-full bg-stampa-surface border border-stampa-border rounded-xl pl-9 pr-4 py-2.5 text-sm text-white outline-none focus:border-stampa-orange focus:ring-1 focus:ring-stampa-orange/50 transition-all"
+                className="w-full bg-stampa-surface border border-stampa-border rounded-xl pl-9 pr-4 py-2.5 text-sm text-fg outline-none focus:border-stampa-orange focus:ring-1 focus:ring-stampa-orange/50 transition-all"
               />
             </div>
           </div>
@@ -218,13 +218,13 @@ export function PrinterCatalogModal({ onClose, onSelect, userId, calculatorSelec
 
             {loading ? (
               <div className="py-16 flex flex-col items-center justify-center gap-3">
-                <Loader2 className="animate-spin text-stampa-orange h-8 w-8" />
+                <Loader2 className="animate-spin text-stampa-accent h-8 w-8" />
                 <p className="text-sm text-gray-400">Cargando catálogo...</p>
               </div>
             ) : templates.length === 0 ? (
               <div className="py-16 flex flex-col items-center justify-center text-center">
                 <Printer size={48} className="text-gray-600 mb-4 opacity-50" />
-                <p className="text-white font-medium mb-1">No hay impresoras disponibles en el catálogo por ahora.</p>
+                <p className="text-fg font-medium mb-1">No hay impresoras disponibles en el catálogo por ahora.</p>
                 <p className="text-sm text-gray-500">Puedes cerrar este panel y cargar una manualmente en Configuración.</p>
               </div>
             ) : filteredTemplates.length === 0 ? (
@@ -247,9 +247,9 @@ export function PrinterCatalogModal({ onClose, onSelect, userId, calculatorSelec
                       <div>
                         <PrinterCatalogImage imagePath={t.image_path} alt={displayName} className="mb-3 aspect-[4/3] w-full rounded-lg border border-stampa-border" />
                         <div className="flex justify-between items-start mb-1">
-                          <h4 className="font-bold text-white text-base leading-tight pr-2">{displayName}</h4>
+                          <h4 className="font-bold text-fg text-base leading-tight pr-2">{displayName}</h4>
                           {isAdded && (
-                            <span className="inline-flex shrink-0 items-center gap-1 rounded-full border border-stampa-orange/30 bg-stampa-orange/20 px-2 py-0.5 text-[10px] font-bold text-stampa-orange">
+                            <span className="inline-flex shrink-0 items-center gap-1 rounded-full border border-stampa-orange/30 bg-stampa-orange/20 px-2 py-0.5 text-[10px] font-bold text-stampa-accent">
                               <Check size={11} /> Agregada
                             </span>
                           )}
@@ -259,7 +259,7 @@ export function PrinterCatalogModal({ onClose, onSelect, userId, calculatorSelec
                             </span>
                           )}
                         </div>
-                        <p className="text-xs text-stampa-orange font-medium mb-3">{[t.brand, t.model].filter(Boolean).join(" · ")}</p>
+                        <p className="text-xs text-stampa-accent font-medium mb-3">{[t.brand, t.model].filter(Boolean).join(" · ")}</p>
 
                         <div className="space-y-1 mb-4">
                           <p className="text-xs text-gray-400 flex justify-between">
@@ -301,7 +301,7 @@ export function PrinterCatalogModal({ onClose, onSelect, userId, calculatorSelec
                         <button
                           onClick={() => handleSelect(t)}
                           disabled={!!importingId}
-                          className="w-full py-2 bg-white/5 hover:bg-stampa-orange text-white text-xs font-bold rounded-lg border border-stampa-border hover:border-transparent transition-all flex items-center justify-center gap-2"
+                          className="w-full py-2 bg-fg/5 hover:bg-stampa-orange text-fg hover:text-white text-xs font-bold rounded-lg border border-stampa-border hover:border-transparent transition-all flex items-center justify-center gap-2"
                         >
                           {importingId === t.id ? (
                             <Loader2 size={14} className="animate-spin" />

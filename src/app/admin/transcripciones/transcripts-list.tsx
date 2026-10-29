@@ -115,15 +115,15 @@ export function TranscriptsList({ lessons }: { lessons: any[] }) {
             <button
               key={course.id}
               onClick={() => setSelectedCourseId(course.id)}
-              className="text-left bg-stampa-surface border border-stampa-border p-5 rounded-2xl hover:border-stampa-orange/50 hover:bg-white/[0.02] transition-all group"
+              className="text-left bg-stampa-surface border border-stampa-border p-5 rounded-2xl hover:border-stampa-orange/50 hover:bg-fg/[0.02] transition-all group"
             >
               <div className="flex items-start justify-between">
                 <div className="flex items-center gap-3">
-                  <div className="p-2.5 bg-white/5 border border-stampa-border rounded-xl text-gray-400 group-hover:text-stampa-orange transition-colors">
+                  <div className="p-2.5 bg-fg/5 border border-stampa-border rounded-xl text-gray-400 group-hover:text-stampa-accent transition-colors">
                     <BookOpen size={20} />
                   </div>
                   <div>
-                    <h3 className="font-bold text-white group-hover:text-stampa-orange transition-colors">{course.title}</h3>
+                    <h3 className="font-bold text-fg group-hover:text-stampa-accent transition-colors">{course.title}</h3>
                     <p className="text-xs text-gray-500 mt-1 capitalize">{course.kind || 'Curso'}</p>
                   </div>
                 </div>
@@ -132,7 +132,7 @@ export function TranscriptsList({ lessons }: { lessons: any[] }) {
                 <div className="text-xs text-gray-400">
                   <span className="text-emerald-400 font-bold">{course.transcriptsReady}</span> de {course.totalLessons} listas
                 </div>
-                <ChevronRight size={16} className="text-gray-500 group-hover:text-stampa-orange transition-colors" />
+                <ChevronRight size={16} className="text-gray-500 group-hover:text-stampa-accent transition-colors" />
               </div>
             </button>
           ))}
@@ -143,7 +143,7 @@ export function TranscriptsList({ lessons }: { lessons: any[] }) {
             <div className="flex items-center gap-3">
               <button 
                 onClick={() => setSelectedCourseId(null)}
-                className="text-gray-400 hover:text-white text-sm font-medium transition-colors"
+                className="text-gray-400 hover:text-fg text-sm font-medium transition-colors"
               >
                 Cursos
               </button>
@@ -151,10 +151,10 @@ export function TranscriptsList({ lessons }: { lessons: any[] }) {
               <select
                 value={selectedCourseId}
                 onChange={e => setSelectedCourseId(e.target.value)}
-                className="bg-transparent text-white font-bold text-base focus:outline-none focus:ring-0 max-w-[250px] sm:max-w-md truncate"
+                className="bg-transparent text-fg font-bold text-base focus:outline-none focus:ring-0 max-w-[250px] sm:max-w-md truncate"
               >
                 {courses.map(c => (
-                  <option key={c.id} value={c.id} className="bg-[#1a1a1a] text-sm font-normal">
+                  <option key={c.id} value={c.id} className="bg-stampa-raised text-sm font-normal">
                     {c.title}
                   </option>
                 ))}
@@ -169,7 +169,7 @@ export function TranscriptsList({ lessons }: { lessons: any[] }) {
                 placeholder="Buscar clase..."
                 value={searchTerm}
                 onChange={e => setSearchTerm(e.target.value)}
-                className="w-full sm:w-64 bg-black/20 border border-stampa-border rounded-xl pl-9 pr-4 py-2 text-sm text-gray-300 focus:outline-none focus:border-cyan-500/50"
+                className="w-full sm:w-64 bg-shade/20 border border-stampa-border rounded-xl pl-9 pr-4 py-2 text-sm text-gray-300 focus:outline-none focus:border-cyan-500/50"
               />
             </div>
           </div>
@@ -182,12 +182,12 @@ export function TranscriptsList({ lessons }: { lessons: any[] }) {
             ) : (
               modulesGrouped.map(mod => (
                 <div key={mod.id} className="bg-stampa-surface border border-stampa-border rounded-2xl overflow-hidden">
-                  <div className="bg-black/20 border-b border-stampa-border px-4 py-3">
+                  <div className="bg-shade/20 border-b border-stampa-border px-4 py-3">
                     <h3 className="text-sm font-bold text-gray-300">{mod.title}</h3>
                   </div>
                   <div className="divide-y divide-stampa-border">
                     {mod.lessons.map(lesson => (
-                      <div key={lesson.id} className="flex flex-col sm:flex-row sm:items-center justify-between p-4 hover:bg-white/[0.02] transition-colors gap-4">
+                      <div key={lesson.id} className="flex flex-col sm:flex-row sm:items-center justify-between p-4 hover:bg-fg/[0.02] transition-colors gap-4">
                         <div className="flex items-center gap-3 flex-1 min-w-0">
                           <FileText size={16} className="text-gray-500 shrink-0" />
                           <div className="min-w-0">
@@ -205,7 +205,7 @@ export function TranscriptsList({ lessons }: { lessons: any[] }) {
                         <div className="shrink-0">
                           <Link
                             href={`/admin/transcripciones/${lesson.id}`}
-                            className="inline-flex items-center justify-center h-8 px-3 rounded-lg bg-white/5 border border-stampa-border text-xs font-medium text-gray-300 hover:bg-white/10 hover:text-white transition-colors"
+                            className="inline-flex items-center justify-center h-8 px-3 rounded-lg bg-fg/5 border border-stampa-border text-xs font-medium text-gray-300 hover:bg-fg/10 hover:text-fg transition-colors"
                           >
                             {lesson.transcript ? (
                               <>

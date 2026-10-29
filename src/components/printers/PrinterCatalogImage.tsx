@@ -46,7 +46,7 @@ export function PrinterCatalogImage({
           role="img"
           aria-label={`${alt}, sin imagen de catálogo`}
         >
-          <Printer className="h-8 w-8 text-stampa-orange/70" aria-hidden="true" />
+          <Printer className="h-8 w-8 text-stampa-accent/70" aria-hidden="true" />
           <span className="text-[10px] font-semibold uppercase tracking-[0.16em]">Sin imagen</span>
         </div>
       )}

@@ -16,7 +16,7 @@ export const metadata: Metadata = {
 
 export default function LandingOldPage() {
   return (
-    <div className="min-h-screen bg-stampa-bg font-sans selection:bg-stampa-orange/30 selection:text-orange-200">
+    <div className="theme-force-dark min-h-screen bg-stampa-bg font-sans selection:bg-stampa-orange/30 selection:text-orange-200">
       <LandingNavbar />
       
       {/* Custom styles for animations not included in standard Tailwind */}

@@ -42,7 +42,7 @@ const ColorOptionLabel = ({ name, colorHex }: { name: string, colorHex?: string 
   return (
     <span className="inline-flex items-center gap-2 min-w-0 w-full">
       <span
-        className="h-3 w-3 shrink-0 rounded-full border border-white/20 shadow-sm"
+        className="h-3 w-3 shrink-0 rounded-full border border-fg/20 shadow-sm"
         style={{ backgroundColor: resolvedHex }}
         aria-hidden="true"
       />
@@ -878,7 +878,7 @@ export function StockPageContent({ workshopSection }: { workshopSection?: Worksh
           <button
             type="button"
             onClick={() => router.replace("/mi-taller/inventario", { scroll: false })}
-            className="inline-flex min-h-8 items-center gap-1 rounded-full px-2 text-xs font-semibold text-gray-400 hover:bg-white/5 hover:text-white"
+            className="inline-flex min-h-8 items-center gap-1 rounded-full px-2 text-xs font-semibold text-gray-400 hover:bg-fg/5 hover:text-fg"
           >
             <X size={13} aria-hidden="true" /> Ver todos
           </button>
@@ -896,7 +896,7 @@ export function StockPageContent({ workshopSection }: { workshopSection?: Worksh
 
       {totalLowCount > 0 && (
         <div className="mb-5 flex items-center gap-2.5 rounded-xl border border-orange-200 bg-orange-50 px-4 py-3 text-sm text-orange-700">
-          <AlertTriangle size={16} className="text-stampa-orange shrink-0" />
+          <AlertTriangle size={16} className="text-stampa-accent shrink-0" />
           <p>
             {(() => {
               const prodText = lowProductsCount > 0 
@@ -937,13 +937,13 @@ export function StockPageContent({ workshopSection }: { workshopSection?: Worksh
             onClick={() => setTab("productos")}
             className={`flex items-center gap-2 border-b-2 px-4 py-3 text-sm font-semibold transition-colors whitespace-nowrap ${
               tab === "productos"
-                ? "border-stampa-orange text-stampa-orange"
-                : "border-transparent text-gray-400 hover:text-gray-300 hover:border-white/20"
+                ? "border-stampa-orange text-stampa-accent"
+                : "border-transparent text-gray-400 hover:text-gray-300 hover:border-fg/20"
             }`}
           >
             <Package size={16} /> Productos
             {lowProductsCount > 0 && (
-              <span className="flex h-5 w-5 items-center justify-center rounded-full bg-orange-100 text-[10px] text-stampa-orange shrink-0">
+              <span className="flex h-5 w-5 items-center justify-center rounded-full bg-orange-100 text-[10px] text-stampa-accent shrink-0">
                 {lowProductsCount}
               </span>
             )}
@@ -952,13 +952,13 @@ export function StockPageContent({ workshopSection }: { workshopSection?: Worksh
             onClick={() => setTab("filamentos")}
             className={`flex items-center gap-2 border-b-2 px-4 py-3 text-sm font-semibold transition-colors whitespace-nowrap ${
               tab === "filamentos"
-                ? "border-stampa-orange text-stampa-orange"
-                : "border-transparent text-gray-400 hover:text-gray-300 hover:border-white/20"
+                ? "border-stampa-orange text-stampa-accent"
+                : "border-transparent text-gray-400 hover:text-gray-300 hover:border-fg/20"
             }`}
           >
             <Box size={16} /> Filamentos
             {lowFilamentsCount > 0 && (
-              <span className="flex h-5 w-5 items-center justify-center rounded-full bg-orange-100 text-[10px] text-stampa-orange shrink-0">
+              <span className="flex h-5 w-5 items-center justify-center rounded-full bg-orange-100 text-[10px] text-stampa-accent shrink-0">
                 {lowFilamentsCount}
               </span>
             )}
@@ -975,7 +975,7 @@ export function StockPageContent({ workshopSection }: { workshopSection?: Worksh
               </button>
               <button
                 onClick={() => setShowFilamentCatalogModal(true)}
-                className="flex items-center justify-center gap-2 text-sm font-bold text-stampa-orange bg-stampa-orange/10 hover:bg-stampa-orange/20 px-4 py-2 rounded-lg transition-colors border border-stampa-orange/20 w-full sm:w-auto"
+                className="flex items-center justify-center gap-2 text-sm font-bold text-stampa-accent bg-stampa-orange/10 hover:bg-stampa-orange/20 px-4 py-2 rounded-lg transition-colors border border-stampa-orange/20 w-full sm:w-auto"
               >
                 <Package size={15} /> Importar desde catálogo
               </button>
@@ -1001,10 +1001,10 @@ export function StockPageContent({ workshopSection }: { workshopSection?: Worksh
                   placeholder="Buscar filamentos..." 
                   value={filamentSearch}
                   onChange={(e) => setFilamentSearch(e.target.value)}
-                  className="w-full pl-10 pr-10 h-11 bg-white/[0.06] border border-white/10 rounded-xl text-sm text-white focus:outline-none focus:border-orange-500/60 focus:ring-2 focus:ring-orange-500/10 transition-all"
+                  className="w-full pl-10 pr-10 h-11 bg-fg/[0.06] border border-fg/10 rounded-xl text-sm text-fg focus:outline-none focus:border-orange-500/60 focus:ring-2 focus:ring-orange-500/10 transition-all"
                 />
                 {filamentSearch && (
-                  <button onClick={() => setFilamentSearch("")} className="absolute right-3 text-gray-400 hover:text-white">
+                  <button onClick={() => setFilamentSearch("")} className="absolute right-3 text-gray-400 hover:text-fg">
                     <X size={16} />
                   </button>
                 )}
@@ -1025,7 +1025,7 @@ export function StockPageContent({ workshopSection }: { workshopSection?: Worksh
                 <div className="min-w-[150px]">
                   <CalculatorSelect
                     options={[
-                      { value: "all", label: "Todos los colores", element: <span className="flex items-center gap-2"><span className="w-3 h-3 rounded-full border border-white/20 bg-transparent flex items-center justify-center"><span className="w-1.5 h-1.5 rounded-full bg-white/50"></span></span> Todos los colores</span> },
+                      { value: "all", label: "Todos los colores", element: <span className="flex items-center gap-2"><span className="w-3 h-3 rounded-full border border-fg/20 bg-transparent flex items-center justify-center"><span className="w-1.5 h-1.5 rounded-full bg-fg/50"></span></span> Todos los colores</span> },
                       ...uniqueColors.map((c: any) => ({
                         value: c.color,
                         label: c.color,
@@ -1044,7 +1044,7 @@ export function StockPageContent({ workshopSection }: { workshopSection?: Worksh
                       setSelectedMaterial("all");
                       setSelectedColor("all");
                     }}
-                    className="w-full sm:w-auto px-4 py-2.5 bg-stampa-surface border border-stampa-border rounded-xl text-sm text-gray-400 hover:text-white hover:bg-white/5 transition-colors shrink-0"
+                    className="w-full sm:w-auto px-4 py-2.5 bg-stampa-surface border border-stampa-border rounded-xl text-sm text-gray-400 hover:text-fg hover:bg-fg/5 transition-colors shrink-0"
                     title="Limpiar filtros"
                   >
                     Limpiar
@@ -1067,7 +1067,7 @@ export function StockPageContent({ workshopSection }: { workshopSection?: Worksh
             </button>
             <button
               onClick={() => setShowFilamentCatalogModal(true)}
-              className="flex items-center justify-center gap-2 rounded-lg border border-stampa-orange/20 bg-stampa-orange/10 px-4 py-2 text-sm font-bold text-stampa-orange transition-colors hover:bg-stampa-orange/20"
+              className="flex items-center justify-center gap-2 rounded-lg border border-stampa-orange/20 bg-stampa-orange/10 px-4 py-2 text-sm font-bold text-stampa-accent transition-colors hover:bg-stampa-orange/20"
             >
               <Package size={15} /> Importar desde catálogo
             </button>
@@ -1093,9 +1093,9 @@ export function StockPageContent({ workshopSection }: { workshopSection?: Worksh
                 placeholder="Buscar filamentos..."
                 value={filamentSearch}
                 onChange={(event) => setFilamentSearch(event.target.value)}
-                className="h-11 w-full rounded-xl border border-white/10 bg-white/[0.06] pl-10 pr-10 text-sm text-white outline-none transition-all focus:border-orange-500/60 focus:ring-2 focus:ring-orange-500/10"
+                className="h-11 w-full rounded-xl border border-fg/10 bg-fg/[0.06] pl-10 pr-10 text-sm text-fg outline-none transition-all focus:border-orange-500/60 focus:ring-2 focus:ring-orange-500/10"
               />
-              {filamentSearch && <button onClick={() => setFilamentSearch("")} className="absolute right-3 text-gray-400 hover:text-white"><X size={16} /></button>}
+              {filamentSearch && <button onClick={() => setFilamentSearch("")} className="absolute right-3 text-gray-400 hover:text-fg"><X size={16} /></button>}
             </div>
             <div className="grid w-full grid-cols-1 gap-3 sm:grid-cols-2 lg:w-auto">
               <div className="min-w-[150px]">
@@ -1126,10 +1126,10 @@ export function StockPageContent({ workshopSection }: { workshopSection?: Worksh
               placeholder="Buscar productos..." 
               value={searchProduct}
               onChange={(e) => setSearchProduct(e.target.value)}
-              className="w-full pl-10 pr-10 py-2.5 bg-white/5 border border-stampa-border rounded-xl text-sm text-white focus:outline-none focus:border-stampa-orange/50"
+              className="w-full pl-10 pr-10 py-2.5 bg-fg/5 border border-stampa-border rounded-xl text-sm text-fg focus:outline-none focus:border-stampa-orange/50"
             />
             {searchProduct && (
-              <button onClick={() => setSearchProduct("")} className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-white">
+              <button onClick={() => setSearchProduct("")} className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-fg">
                 <X size={16} />
               </button>
             )}
@@ -1200,12 +1200,12 @@ export function StockPageContent({ workshopSection }: { workshopSection?: Worksh
                 return (
                   <React.Fragment key={p.id}>
                     <tr className="hover:bg-stampa-bg-soft transition-colors">
-                      <td className="px-5 py-3.5 font-semibold text-white">
+                      <td className="px-5 py-3.5 font-semibold text-fg">
                         <div className="flex items-center gap-3">
                           {p.image_url ? (
-                            <img src={p.image_url} alt="" className="w-8 h-8 rounded bg-white/5 object-cover border border-stampa-border" />
+                            <img src={p.image_url} alt="" className="w-8 h-8 rounded bg-fg/5 object-cover border border-stampa-border" />
                           ) : (
-                            <div className="w-8 h-8 rounded bg-white/5 flex items-center justify-center border border-stampa-border text-gray-400 text-xs">📦</div>
+                            <div className="w-8 h-8 rounded bg-fg/5 flex items-center justify-center border border-stampa-border text-gray-400 text-xs">📦</div>
                           )}
                           <div className="flex flex-col">
                             <span>{p.name}</span>
@@ -1218,7 +1218,7 @@ export function StockPageContent({ workshopSection }: { workshopSection?: Worksh
                       <td className="px-5 py-3.5 text-gray-400 font-medium">${p.sale_price?.toFixed(2) || "0.00"}</td>
                       <td className="px-5 py-3.5">
                         <div className="flex items-center gap-2">
-                          <span className={`font-bold text-lg ${isLow ? "text-red-600" : "text-white"}`}>
+                          <span className={`font-bold text-lg ${isLow ? "text-red-600" : "text-fg"}`}>
                             {p.stock_quantity || 0}
                           </span>
                           {isLow && p.is_active && (
@@ -1227,7 +1227,7 @@ export function StockPageContent({ workshopSection }: { workshopSection?: Worksh
                         </div>
                       </td>
                       <td className="px-5 py-3.5">
-                        <span className={`text-xs px-2 py-1 rounded-md font-medium ${p.is_active ? 'bg-green-500/10 text-green-400 border border-green-500/20' : 'bg-white/5 text-gray-400'}`}>
+                        <span className={`text-xs px-2 py-1 rounded-md font-medium ${p.is_active ? 'bg-green-500/10 text-green-400 border border-green-500/20' : 'bg-fg/5 text-gray-400'}`}>
                           {p.is_active ? 'Activo' : 'Inactivo'}
                         </span>
                       </td>
@@ -1255,7 +1255,7 @@ export function StockPageContent({ workshopSection }: { workshopSection?: Worksh
                               placeholder="Cant."
                               value={productAdjustAmounts[p.id] || ""}
                               onChange={(e) => setProductAdjustAmounts(prev => ({...prev, [p.id]: e.target.value}))}
-                              className="w-16 h-8 text-xs border border-stampa-border rounded-md px-2 bg-stampa-bg-soft text-white focus:border-stampa-orange focus:ring-stampa-orange outline-none"
+                              className="w-16 h-8 text-xs border border-stampa-border rounded-md px-2 bg-stampa-bg-soft text-fg focus:border-stampa-orange focus:ring-stampa-orange outline-none"
                               disabled={adjustingProduct === p.id}
                             />
                             <button
@@ -1286,7 +1286,7 @@ export function StockPageContent({ workshopSection }: { workshopSection?: Worksh
                             <History size={16} />
                           </button>
                           <Link href={`/mi-taller/productos?edit=${p.id}`}>
-                            <button className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-bold rounded-lg border border-stampa-border text-gray-400 hover:bg-white/5 hover:text-white transition-colors" title="Editar">
+                            <button className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-bold rounded-lg border border-stampa-border text-gray-400 hover:bg-fg/5 hover:text-fg transition-colors" title="Editar">
                               <Edit2 size={14} /> Editar
                             </button>
                           </Link>
@@ -1295,7 +1295,7 @@ export function StockPageContent({ workshopSection }: { workshopSection?: Worksh
                             {isParts ? (
                               <button 
                                 onClick={() => toggleExpand(p.id)}
-                                className="flex h-full w-full items-center justify-center text-gray-400 hover:text-white hover:bg-white/5 rounded-lg transition-colors"
+                                className="flex h-full w-full items-center justify-center text-gray-400 hover:text-fg hover:bg-fg/5 rounded-lg transition-colors"
                               >
                                 {expandedProducts.includes(p.id) ? <ChevronUp size={16} /> : <ChevronDown size={16} />}
                               </button>
@@ -1379,7 +1379,7 @@ export function StockPageContent({ workshopSection }: { workshopSection?: Worksh
               <p className="text-gray-400 text-sm mb-4">No encontramos productos con esa búsqueda.</p>
               <button
                 onClick={() => setSearchProduct("")}
-                className="px-4 py-2 bg-white/5 hover:bg-white/10 border border-stampa-border rounded-lg text-sm text-white transition-colors"
+                className="px-4 py-2 bg-fg/5 hover:bg-fg/10 border border-stampa-border rounded-lg text-sm text-fg transition-colors"
               >
                 Limpiar búsqueda
               </button>
@@ -1395,7 +1395,7 @@ export function StockPageContent({ workshopSection }: { workshopSection?: Worksh
           <div className="bg-stampa-surface rounded-xl shadow-xl max-w-lg w-full max-h-[90vh] flex flex-col overflow-hidden border border-stampa-border">
             <div className="p-4 border-b border-stampa-border flex justify-between items-center bg-stampa-bg-soft">
               <div>
-                <h3 className="text-lg font-bold text-white">Historial de Movimientos</h3>
+                <h3 className="text-lg font-bold text-fg">Historial de Movimientos</h3>
                 <p className="text-xs text-gray-400">Últimos 10 cambios en este filamento.</p>
               </div>
               <button onClick={() => setHistoryModalOpen(false)} className="text-gray-400 hover:text-gray-300">
@@ -1404,7 +1404,7 @@ export function StockPageContent({ workshopSection }: { workshopSection?: Worksh
             </div>
             <div className="p-4 overflow-y-auto stampa-scrollbar flex-1">
               {historyLoading ? (
-                <div className="py-8 flex justify-center"><Loader2 className="animate-spin text-stampa-orange" /></div>
+                <div className="py-8 flex justify-center"><Loader2 className="animate-spin text-stampa-accent" /></div>
               ) : historyMovements.length === 0 ? (
                 <div className="text-center py-8 text-sm text-gray-400">No hay movimientos registrados.</div>
               ) : (
@@ -1421,7 +1421,7 @@ export function StockPageContent({ workshopSection }: { workshopSection?: Worksh
                         </div>
                         <div className="flex justify-between text-xs text-gray-400">
                           <span>{m.reason}</span>
-                          <span className="font-medium bg-white/5 px-1.5 py-0.5 rounded text-[10px]">
+                          <span className="font-medium bg-fg/5 px-1.5 py-0.5 rounded text-[10px]">
                             {m.previous_grams}g → {m.new_grams}g
                           </span>
                         </div>
@@ -1441,7 +1441,7 @@ export function StockPageContent({ workshopSection }: { workshopSection?: Worksh
           <div className="bg-stampa-surface rounded-xl shadow-xl max-w-lg w-full max-h-[90vh] flex flex-col overflow-hidden border border-stampa-border">
             <div className="p-4 border-b border-stampa-border flex justify-between items-center bg-stampa-bg-soft">
               <div>
-                <h3 className="text-lg font-bold text-white">Historial de Movimientos</h3>
+                <h3 className="text-lg font-bold text-fg">Historial de Movimientos</h3>
                 <p className="text-xs text-gray-400">Últimos 10 cambios en este producto.</p>
               </div>
               <button onClick={() => setHistoryProductModalOpen(false)} className="text-gray-400 hover:text-gray-300">
@@ -1450,7 +1450,7 @@ export function StockPageContent({ workshopSection }: { workshopSection?: Worksh
             </div>
             <div className="p-4 overflow-y-auto stampa-scrollbar flex-1">
               {historyProductLoading ? (
-                <div className="py-8 flex justify-center"><Loader2 className="animate-spin text-stampa-orange" /></div>
+                <div className="py-8 flex justify-center"><Loader2 className="animate-spin text-stampa-accent" /></div>
               ) : historyProductMovements.length === 0 ? (
                 <div className="text-center py-8 text-sm text-gray-400">No hay movimientos registrados.</div>
               ) : (
@@ -1467,7 +1467,7 @@ export function StockPageContent({ workshopSection }: { workshopSection?: Worksh
                         </div>
                         <div className="flex justify-between text-xs text-gray-400">
                           <span>{m.reason}</span>
-                          <span className="font-medium bg-white/5 px-1.5 py-0.5 rounded text-[10px]">
+                          <span className="font-medium bg-fg/5 px-1.5 py-0.5 rounded text-[10px]">
                             {m.previous_quantity} → {m.new_quantity}
                           </span>
                         </div>
@@ -1486,8 +1486,8 @@ export function StockPageContent({ workshopSection }: { workshopSection?: Worksh
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-stampa-bg/40 p-4">
           <div className="bg-stampa-surface w-full max-w-2xl rounded-2xl shadow-2xl overflow-hidden flex flex-col max-h-[90vh] border border-stampa-border">
             <div className="flex items-center justify-between px-6 py-4 border-b border-stampa-border">
-              <h3 className="font-bold text-white flex items-center gap-2">
-                <Package size={18} className="text-stampa-orange" /> {consumeAddStock ? "Registrar producción" : "Descontar por producto"}
+              <h3 className="font-bold text-fg flex items-center gap-2">
+                <Package size={18} className="text-stampa-accent" /> {consumeAddStock ? "Registrar producción" : "Descontar por producto"}
               </h3>
               <button onClick={() => setConsumeModalOpen(false)} className="text-gray-400 hover:text-gray-300">
                 <X size={20} />
@@ -1541,7 +1541,7 @@ export function StockPageContent({ workshopSection }: { workshopSection?: Worksh
               {/* Cart */}
               {consumeCart.length > 0 && (
                 <div>
-                  <h4 className="text-sm font-semibold text-white mb-3">Productos a descontar</h4>
+                  <h4 className="text-sm font-semibold text-fg mb-3">Productos a descontar</h4>
                   <div className="space-y-3">
                     {consumeCart.map((item, idx) => (
                       <div key={idx} className="flex items-center justify-between bg-stampa-bg-soft border border-stampa-border p-3 rounded-lg">
@@ -1554,7 +1554,7 @@ export function StockPageContent({ workshopSection }: { workshopSection?: Worksh
                             </div>
                           )}
                           <div className="flex flex-col">
-                            <span className="font-semibold text-sm text-white truncate">
+                            <span className="font-semibold text-sm text-fg truncate">
                               {item.type === "component" ? item.component?.name : item.product?.name}
                             </span>
                             {item.type === "component" && (
@@ -1584,7 +1584,7 @@ export function StockPageContent({ workshopSection }: { workshopSection?: Worksh
                                   setConsumeCart(prev => prev.map((p, i) => i === idx ? { ...p, quantity: 1 } : p));
                                 }
                               }}
-                              className="h-9 w-16 text-center text-sm rounded-lg border border-white/10 bg-white/[0.06] text-white focus:border-stampa-orange/60 focus:ring-2 focus:ring-stampa-orange/10 transition-all outline-none [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
+                              className="h-9 w-16 text-center text-sm rounded-lg border border-fg/10 bg-fg/[0.06] text-fg focus:border-stampa-orange/60 focus:ring-2 focus:ring-stampa-orange/10 transition-all outline-none [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
                             />
                           </div>
                           <button onClick={() => setConsumeCart(prev => prev.filter((_, i) => i !== idx))} className="text-red-400 hover:text-red-600 p-1">
@@ -1600,7 +1600,7 @@ export function StockPageContent({ workshopSection }: { workshopSection?: Worksh
               {/* Preview */}
               {consumeCart.length > 0 && (
                 <div>
-                  <h4 className="text-sm font-semibold text-white mb-3">Se descontará de tu stock:</h4>
+                  <h4 className="text-sm font-semibold text-fg mb-3">Se descontará de tu stock:</h4>
                   <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                     {calculateConsumePreview().preview.map(p => (
                       <div key={p.filament_id} className={`p-3 rounded-xl border ${p.needed > p.available ? 'bg-red-50 border border-red-500/20' : 'bg-orange-50 border-orange-100'}`}>
@@ -1645,10 +1645,10 @@ export function StockPageContent({ workshopSection }: { workshopSection?: Worksh
                     id="consumeAddStock" 
                     checked={consumeAddStock} 
                     onChange={(e) => setConsumeAddStock(e.target.checked)} 
-                    className="mt-1 rounded text-stampa-orange focus:ring-stampa-orange" 
+                    className="mt-1 rounded text-stampa-accent focus:ring-stampa-orange" 
                   />
                   <div>
-                    <label htmlFor="consumeAddStock" className="block text-sm font-bold text-white cursor-pointer">
+                    <label htmlFor="consumeAddStock" className="block text-sm font-bold text-fg cursor-pointer">
                       Sumar al stock de productos terminados
                     </label>
                     <p className="text-xs text-gray-400 mt-1">
@@ -1684,8 +1684,8 @@ export function StockPageContent({ workshopSection }: { workshopSection?: Worksh
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-stampa-bg/60 backdrop-blur-sm p-4">
           <div className="w-full max-w-2xl bg-stampa-bg-soft rounded-xl shadow-2xl border border-stampa-border overflow-hidden flex flex-col max-h-[90vh]">
             <div className="flex justify-between items-center p-4 border-b border-stampa-border">
-              <h3 className="text-lg font-bold text-white flex items-center gap-2">
-                <Box size={20} className="text-stampa-orange" />
+              <h3 className="text-lg font-bold text-fg flex items-center gap-2">
+                <Box size={20} className="text-stampa-accent" />
                 {editingFilamentId === "new" ? "Nuevo Filamento" : "Editar Filamento"}
               </h3>
               <button 
@@ -1693,7 +1693,7 @@ export function StockPageContent({ workshopSection }: { workshopSection?: Worksh
                   setFilamentModalOpen(false);
                   setEditingFilamentId(null);
                 }}
-                className="text-gray-400 hover:text-white transition-colors"
+                className="text-gray-400 hover:text-fg transition-colors"
               >
                 <X size={20} />
               </button>
@@ -1734,11 +1734,11 @@ export function StockPageContent({ workshopSection }: { workshopSection?: Worksh
       {stampyDiscountModalOpen && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/80 px-4 backdrop-blur-sm">
           <div className="w-full max-w-md rounded-2xl border border-stampa-border bg-stampa-bg p-6 shadow-2xl relative overflow-hidden">
-            <button onClick={() => setStampyDiscountModalOpen(false)} className="absolute right-4 top-4 rounded-full p-2 text-gray-400 hover:bg-white/10 hover:text-white transition-colors">
+            <button onClick={() => setStampyDiscountModalOpen(false)} className="absolute right-4 top-4 rounded-full p-2 text-gray-400 hover:bg-fg/10 hover:text-fg transition-colors">
               <X size={18} />
             </button>
             
-            <h3 className="text-xl font-bold text-white mb-2">Descontar Filamento</h3>
+            <h3 className="text-xl font-bold text-fg mb-2">Descontar Filamento</h3>
             
             {stampyActionError ? (
               <div className="mb-6 rounded-lg bg-orange-500/10 border border-orange-500/30 p-4 text-orange-400 text-sm">
@@ -1750,16 +1750,16 @@ export function StockPageContent({ workshopSection }: { workshopSection?: Worksh
                 <p className="text-sm text-gray-300">
                   Stampy detectó que querés registrar la siguiente salida:
                 </p>
-                <div className="rounded-lg bg-[#1a1a1a] p-4 border border-white/5 space-y-2">
+                <div className="rounded-lg bg-stampa-raised p-4 border border-fg/5 space-y-2">
                   <div className="flex justify-between items-center">
                     <span className="text-gray-400 text-sm">Filamento:</span>
-                    <span className="font-bold text-white">
+                    <span className="font-bold text-fg">
                       {filaments.find(f => f.id === stampyActionData.filamentId)?.name || 'Seleccionado'}
                     </span>
                   </div>
                   <div className="flex justify-between items-center">
                     <span className="text-gray-400 text-sm">Cantidad a descontar:</span>
-                    <span className="font-bold text-stampa-orange">{stampyActionData.grams} g</span>
+                    <span className="font-bold text-stampa-accent">{stampyActionData.grams} g</span>
                   </div>
                 </div>
               </div>
@@ -1768,7 +1768,7 @@ export function StockPageContent({ workshopSection }: { workshopSection?: Worksh
             <div className="mt-8 flex justify-end gap-3">
               <button 
                 onClick={() => setStampyDiscountModalOpen(false)}
-                className="rounded-lg px-4 py-2.5 text-sm font-semibold text-gray-400 hover:text-white transition-colors"
+                className="rounded-lg px-4 py-2.5 text-sm font-semibold text-gray-400 hover:text-fg transition-colors"
               >
                 Cerrar
               </button>
@@ -1791,11 +1791,11 @@ export function StockPageContent({ workshopSection }: { workshopSection?: Worksh
       {stampyIncreaseModalOpen && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/80 px-4 backdrop-blur-sm">
           <div className="w-full max-w-md rounded-2xl border border-stampa-border bg-stampa-bg p-6 shadow-2xl relative overflow-hidden">
-            <button onClick={() => setStampyIncreaseModalOpen(false)} className="absolute right-4 top-4 rounded-full p-2 text-gray-400 hover:bg-white/10 hover:text-white transition-colors">
+            <button onClick={() => setStampyIncreaseModalOpen(false)} className="absolute right-4 top-4 rounded-full p-2 text-gray-400 hover:bg-fg/10 hover:text-fg transition-colors">
               <X size={18} />
             </button>
             
-            <h3 className="text-xl font-bold text-white mb-2">Aumentar Stock de Filamento</h3>
+            <h3 className="text-xl font-bold text-fg mb-2">Aumentar Stock de Filamento</h3>
             
             {stampyActionError ? (
               <div className="mb-6 rounded-lg bg-orange-500/10 border border-orange-500/30 p-4 text-orange-400 text-sm">
@@ -1807,10 +1807,10 @@ export function StockPageContent({ workshopSection }: { workshopSection?: Worksh
                 <p className="text-sm text-gray-300">
                   Stampy detectó que querés registrar el siguiente ingreso:
                 </p>
-                <div className="rounded-lg bg-[#1a1a1a] p-4 border border-white/5 space-y-2">
+                <div className="rounded-lg bg-stampa-raised p-4 border border-fg/5 space-y-2">
                   <div className="flex justify-between items-center">
                     <span className="text-gray-400 text-sm">Filamento:</span>
-                    <span className="font-bold text-white">
+                    <span className="font-bold text-fg">
                       {filaments.find(f => f.id === stampyActionData.filamentId)?.name || 'Seleccionado'}
                     </span>
                   </div>
@@ -1825,7 +1825,7 @@ export function StockPageContent({ workshopSection }: { workshopSection?: Worksh
             <div className="mt-8 flex justify-end gap-3">
               <button 
                 onClick={() => setStampyIncreaseModalOpen(false)}
-                className="rounded-lg px-4 py-2.5 text-sm font-semibold text-gray-400 hover:text-white transition-colors"
+                className="rounded-lg px-4 py-2.5 text-sm font-semibold text-gray-400 hover:text-fg transition-colors"
               >
                 Cerrar
               </button>

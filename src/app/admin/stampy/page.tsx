@@ -108,7 +108,7 @@ export default async function AdminStampyDashboardPage() {
           <span className="text-gray-400">/</span>
           <span className="text-sm text-gray-500">Stampy</span>
         </div>
-        <h1 className="text-2xl font-bold text-white flex items-center gap-2">
+        <h1 className="text-2xl font-bold text-fg flex items-center gap-2">
           <Bot className="text-cyan-400" />
           Observabilidad Stampy
         </h1>
@@ -118,69 +118,69 @@ export default async function AdminStampyDashboardPage() {
       </div>
 
       <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
-        <div className="bg-[#1a1a1a] border border-stampa-border rounded-xl p-4 flex flex-col gap-2">
+        <div className="bg-stampa-raised border border-stampa-border rounded-xl p-4 flex flex-col gap-2">
           <div className="flex items-center gap-2 text-gray-400">
             <MessageSquare size={16} />
             <span className="text-sm font-medium">Mensajes (30d)</span>
           </div>
-          <span className="text-2xl font-bold text-white">{msgsCount || 0}</span>
+          <span className="text-2xl font-bold text-fg">{msgsCount || 0}</span>
         </div>
-        <div className="bg-[#1a1a1a] border border-stampa-border rounded-xl p-4 flex flex-col gap-2">
+        <div className="bg-stampa-raised border border-stampa-border rounded-xl p-4 flex flex-col gap-2">
           <div className="flex items-center gap-2 text-gray-400">
             <BarChart3 size={16} />
             <span className="text-sm font-medium">Conversaciones (30d)</span>
           </div>
-          <span className="text-2xl font-bold text-white">{convsCount || 0}</span>
+          <span className="text-2xl font-bold text-fg">{convsCount || 0}</span>
         </div>
-        <div className="bg-[#1a1a1a] border border-stampa-border rounded-xl p-4 flex flex-col gap-2">
+        <div className="bg-stampa-raised border border-stampa-border rounded-xl p-4 flex flex-col gap-2">
           <div className="flex items-center gap-2 text-red-400">
             <AlertCircle size={16} />
             <span className="text-sm font-medium">Errores/Bloqueos (30d)</span>
           </div>
-          <span className="text-2xl font-bold text-white">{errsCount || 0}</span>
+          <span className="text-2xl font-bold text-fg">{errsCount || 0}</span>
         </div>
-        <div className="bg-[#1a1a1a] border border-stampa-border rounded-xl p-4 flex flex-col gap-2">
+        <div className="bg-stampa-raised border border-stampa-border rounded-xl p-4 flex flex-col gap-2">
           <div className="flex items-center gap-2 text-emerald-400">
             <ThumbsUp size={16} />
             <span className="text-sm font-medium">Ratio Feedback (24h)</span>
           </div>
-          <span className="text-2xl font-bold text-white">{ratio24h}% <span className="text-xs text-gray-500 font-normal">({pos24h} 👍 / {neg24h} 👎)</span></span>
+          <span className="text-2xl font-bold text-fg">{ratio24h}% <span className="text-xs text-gray-500 font-normal">({pos24h} 👍 / {neg24h} 👎)</span></span>
         </div>
       </div>
 
       <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-        <div className="bg-[#1a1a1a] border border-stampa-border rounded-xl p-4 flex flex-col gap-2">
-          <div className="flex items-center gap-2 text-stampa-orange">
+        <div className="bg-stampa-raised border border-stampa-border rounded-xl p-4 flex flex-col gap-2">
+          <div className="flex items-center gap-2 text-stampa-accent">
             <Activity size={16} />
             <span className="text-sm font-medium">Acciones (24h)</span>
           </div>
-          <span className="text-2xl font-bold text-white">{actionsCount}</span>
+          <span className="text-2xl font-bold text-fg">{actionsCount}</span>
         </div>
-        <div className="bg-[#1a1a1a] border border-stampa-border rounded-xl p-4 flex flex-col gap-2">
+        <div className="bg-stampa-raised border border-stampa-border rounded-xl p-4 flex flex-col gap-2">
           <div className="flex items-center gap-2 text-blue-400">
             <Activity size={16} />
             <span className="text-sm font-medium">Tools Abiertos (24h)</span>
           </div>
-          <span className="text-2xl font-bold text-white">{openedCount}</span>
+          <span className="text-2xl font-bold text-fg">{openedCount}</span>
         </div>
-        <div className="bg-[#1a1a1a] border border-stampa-border rounded-xl p-4 flex flex-col gap-2">
+        <div className="bg-stampa-raised border border-stampa-border rounded-xl p-4 flex flex-col gap-2">
           <div className="flex items-center gap-2 text-red-400">
             <AlertCircle size={16} />
             <span className="text-sm font-medium">Canceladas (24h)</span>
           </div>
-          <span className="text-2xl font-bold text-white">{cancelledCount}</span>
+          <span className="text-2xl font-bold text-fg">{cancelledCount}</span>
         </div>
       </div>
 
       <IndexationPanel stats={chunkStats} />
 
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mt-6">
-        <div className="bg-[#1a1a1a] border border-stampa-border rounded-xl p-5 shadow-sm">
-          <h2 className="text-lg font-bold text-white mb-4">Conversaciones Recientes</h2>
+        <div className="bg-stampa-raised border border-stampa-border rounded-xl p-5 shadow-sm">
+          <h2 className="text-lg font-bold text-fg mb-4">Conversaciones Recientes</h2>
           <div className="space-y-3">
             {recentConvs && recentConvs.length > 0 ? (
               recentConvs.map((conv: any) => (
-                <div key={conv.id} className="flex flex-col gap-1 p-3 bg-white/5 border border-stampa-border rounded-lg">
+                <div key={conv.id} className="flex flex-col gap-1 p-3 bg-fg/5 border border-stampa-border rounded-lg">
                   <div className="flex items-center justify-between">
                     <span className="text-sm font-semibold text-gray-200 truncate">{conv.title || "Conversación sin título"}</span>
                     <span className="text-xs text-gray-500">{new Date(conv.last_message_at).toLocaleString('es-AR')}</span>
@@ -202,12 +202,12 @@ export default async function AdminStampyDashboardPage() {
           </div>
         </div>
 
-        <div className="bg-[#1a1a1a] border border-stampa-border rounded-xl p-5 shadow-sm">
-          <h2 className="text-lg font-bold text-white mb-4">Feedback Reciente</h2>
+        <div className="bg-stampa-raised border border-stampa-border rounded-xl p-5 shadow-sm">
+          <h2 className="text-lg font-bold text-fg mb-4">Feedback Reciente</h2>
           <div className="space-y-3">
             {recentFeedback && recentFeedback.length > 0 ? (
               recentFeedback.map((fb: any) => (
-                <div key={fb.id} className="flex flex-col gap-2 p-3 bg-white/5 border border-stampa-border rounded-lg">
+                <div key={fb.id} className="flex flex-col gap-2 p-3 bg-fg/5 border border-stampa-border rounded-lg">
                   <div className="flex items-center justify-between">
                     <div className="flex items-center gap-2">
                       {fb.rating === "positive" ? (
@@ -232,7 +232,7 @@ export default async function AdminStampyDashboardPage() {
                     <span className="font-semibold text-gray-300">Usuario:</span> {(fb.profiles as any)?.email || "Desconocido"}
                   </div>
                   {fb.rating === "negative" && (
-                    <div className="text-xs bg-black/20 p-2 rounded border border-white/5">
+                    <div className="text-xs bg-shade/20 p-2 rounded border border-fg/5">
                       {fb.reason && <div className="font-semibold text-red-300 mb-1">Motivo: {fb.reason}</div>}
                       {fb.comment && <div className="text-gray-300 italic">"{fb.comment}"</div>}
                     </div>
@@ -246,15 +246,15 @@ export default async function AdminStampyDashboardPage() {
           </div>
         </div>
 
-        <div className="bg-[#1a1a1a] border border-stampa-border rounded-xl p-5 shadow-sm lg:col-span-2">
-          <h2 className="text-lg font-bold text-white mb-4">Solicitudes de Acción Recientes</h2>
+        <div className="bg-stampa-raised border border-stampa-border rounded-xl p-5 shadow-sm lg:col-span-2">
+          <h2 className="text-lg font-bold text-fg mb-4">Solicitudes de Acción Recientes</h2>
           <div className="space-y-3">
             {recentActions && recentActions.length > 0 ? (
               recentActions.map((action: any) => (
-                <div key={action.id} className="flex flex-col gap-2 p-3 bg-white/5 border border-stampa-border rounded-lg">
+                <div key={action.id} className="flex flex-col gap-2 p-3 bg-fg/5 border border-stampa-border rounded-lg">
                   <div className="flex items-center justify-between">
                     <div className="flex items-center gap-2">
-                      <span className="font-bold text-sm text-white">{action.action_type}</span>
+                      <span className="font-bold text-sm text-fg">{action.action_type}</span>
                       <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full uppercase ${
                         action.status === 'opened_tool' ? 'bg-blue-500/20 text-blue-400' :
                         action.status === 'cancelled' ? 'bg-red-500/20 text-red-400' :

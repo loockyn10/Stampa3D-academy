@@ -29,7 +29,7 @@ export function LandingProblem() {
         />
 
         <div className="mx-auto mt-14 flex max-w-5xl flex-col gap-6 lg:flex-row">
-          <article className="w-full rounded-3xl border border-zinc-800 bg-black/20 p-7 md:p-10 lg:w-1/2">
+          <article className="w-full rounded-3xl border border-zinc-800 bg-shade/20 p-7 md:p-10 lg:w-1/2">
             <h3 className="flex items-center gap-3 text-2xl font-bold text-zinc-300">
               <span className="flex h-9 w-9 items-center justify-center rounded-full border border-zinc-700 bg-zinc-900">
                 <X className="h-4 w-4 text-zinc-500" />
@@ -50,7 +50,7 @@ export function LandingProblem() {
 
           <article className="relative w-full overflow-hidden rounded-3xl border border-stampa-orange/40 bg-zinc-900/65 p-7 md:p-10 lg:w-1/2">
             <div className="absolute right-0 top-0 h-64 w-64 rounded-full bg-stampa-orange/10 blur-3xl" aria-hidden="true" />
-            <h3 className="relative flex items-center gap-3 text-2xl font-bold text-white">
+            <h3 className="relative flex items-center gap-3 text-2xl font-bold text-fg">
               <span className="flex h-9 w-9 items-center justify-center rounded-full border border-stampa-orange/50 bg-stampa-orange/20">
                 <Check className="h-4 w-4 text-orange-400" />
               </span>

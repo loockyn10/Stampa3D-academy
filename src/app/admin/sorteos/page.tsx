@@ -48,7 +48,7 @@ export default function AdminSorteosPage() {
     <div className="space-y-6">
       <div className="flex justify-between items-center">
         <div>
-          <h1 className="text-2xl font-black text-white">Gestión de Sorteos</h1>
+          <h1 className="text-2xl font-black text-fg">Gestión de Sorteos</h1>
           <p className="text-sm text-gray-500 mt-1">Administra los sorteos y premios de la comunidad.</p>
         </div>
         <Link href="/admin/sorteos/nuevo">
@@ -73,9 +73,9 @@ export default function AdminSorteosPage() {
             <tbody className="divide-y divide-gray-100">
               {raffles.map((r) => (
                 <tr key={r.id} className="hover:bg-stampa-bg-soft transition-colors">
-                  <td className="px-5 py-3.5 font-semibold text-white">
+                  <td className="px-5 py-3.5 font-semibold text-fg">
                     <div className="flex items-center gap-3">
-                      <div className="w-8 h-8 rounded bg-stampa-orange/10 flex items-center justify-center text-stampa-orange">
+                      <div className="w-8 h-8 rounded bg-stampa-orange/10 flex items-center justify-center text-stampa-accent">
                         <Gift size={16} />
                       </div>
                       {r.title}

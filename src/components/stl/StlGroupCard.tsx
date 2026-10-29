@@ -21,7 +21,7 @@ export function StlGroupCard({ group }: { group: StlGroupSummary }) {
           )}
         </div>
         <div className="flex flex-1 flex-col p-4">
-          <h3 className="mb-1 line-clamp-2 text-base font-bold leading-snug text-white transition-colors group-hover:text-orange-100">
+          <h3 className="mb-1 line-clamp-2 text-base font-bold leading-snug text-fg transition-colors group-hover:text-orange-100">
             {group.name}
           </h3>
           {group.description && (
@@ -32,7 +32,7 @@ export function StlGroupCard({ group }: { group: StlGroupSummary }) {
               <Boxes size={14} />
               {group.modelCount} {group.modelCount === 1 ? "modelo" : "modelos"}
             </span>
-            <span className="text-xs font-bold text-stampa-orange">Ver grupo →</span>
+            <span className="text-xs font-bold text-stampa-accent">Ver grupo →</span>
           </div>
         </div>
       </Card>

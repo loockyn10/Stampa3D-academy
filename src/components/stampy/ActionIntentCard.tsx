@@ -377,16 +377,16 @@ export function ActionIntentCard({ actionIntent, actionRequestId, initialStatus 
   return (
     <div className={`mt-4 rounded-xl border p-4 ${isCancelled ? 'border-gray-800 bg-gray-900/50 opacity-60' : 'border-stampa-orange/30 bg-stampa-orange/5'}`}>
       <div className="flex items-start gap-3">
-        <div className={`mt-0.5 rounded-full p-1.5 ${isCancelled ? 'bg-gray-800 text-gray-500' : 'bg-stampa-orange/20 text-stampa-orange'}`}>
+        <div className={`mt-0.5 rounded-full p-1.5 ${isCancelled ? 'bg-gray-800 text-gray-500' : 'bg-stampa-orange/20 text-stampa-accent'}`}>
           <AlertCircle size={16} />
         </div>
         <div className="flex-1 space-y-3">
           <div>
-            <h4 className={`text-sm font-bold ${isCancelled ? 'text-gray-500' : 'text-white'}`}>Acción detectada: {actionIntent.title}</h4>
+            <h4 className={`text-sm font-bold ${isCancelled ? 'text-gray-500' : 'text-fg'}`}>Acción detectada: {actionIntent.title}</h4>
             <p className="text-xs text-gray-400 mt-1">{actionIntent.summary}</p>
           </div>
 
-          <div className="rounded-lg bg-black/40 p-3 border border-white/5 space-y-1.5">
+          <div className="rounded-lg bg-shade/40 p-3 border border-fg/5 space-y-1.5">
             {visibleExtracted.map(([key, val]) => (
               <div key={key} className="flex justify-between text-xs">
                 <span className="text-gray-500 capitalize">{key}:</span>
@@ -535,7 +535,7 @@ export function ActionIntentCard({ actionIntent, actionRequestId, initialStatus 
           )}
 
           {!isCancelled && !isExecuted && (
-            <p className="text-xs text-stampa-orange flex items-center gap-1.5">
+            <p className="text-xs text-stampa-accent flex items-center gap-1.5">
               <CheckCircle2 size={12} />
               {canConfirmMovement
                 ? "Movimiento preparado. Revisalo y confirmá para aplicarlo."
@@ -608,7 +608,7 @@ export function ActionIntentCard({ actionIntent, actionRequestId, initialStatus 
                   <button
                     onClick={() => handleOpenRelatedTool("/mi-taller/productos")}
                     disabled={isProcessing}
-                    className="flex-1 flex items-center justify-center gap-2 rounded-lg bg-white/10 hover:bg-white/20 px-3 py-2 text-xs font-semibold text-white transition-colors disabled:opacity-50"
+                    className="flex-1 flex items-center justify-center gap-2 rounded-lg bg-fg/10 hover:bg-fg/20 px-3 py-2 text-xs font-semibold text-fg transition-colors disabled:opacity-50"
                   >
                     <ExternalLink size={14} />
                     Abrir Productos
@@ -616,7 +616,7 @@ export function ActionIntentCard({ actionIntent, actionRequestId, initialStatus 
                   <button
                     onClick={() => handleOpenRelatedTool("/mi-taller/filamentos")}
                     disabled={isProcessing}
-                    className="flex-1 flex items-center justify-center gap-2 rounded-lg bg-white/10 hover:bg-white/20 px-3 py-2 text-xs font-semibold text-white transition-colors disabled:opacity-50"
+                    className="flex-1 flex items-center justify-center gap-2 rounded-lg bg-fg/10 hover:bg-fg/20 px-3 py-2 text-xs font-semibold text-fg transition-colors disabled:opacity-50"
                   >
                     <ExternalLink size={14} />
                     Abrir Filamentos
@@ -626,7 +626,7 @@ export function ActionIntentCard({ actionIntent, actionRequestId, initialStatus 
               {!isProductFilamentDiscount && <button
                 onClick={handleOpenTool}
                 disabled={isProcessing}
-                className="flex-1 flex items-center justify-center gap-2 rounded-lg bg-white/10 hover:bg-white/20 px-3 py-2 text-xs font-semibold text-white transition-colors disabled:opacity-50"
+                className="flex-1 flex items-center justify-center gap-2 rounded-lg bg-fg/10 hover:bg-fg/20 px-3 py-2 text-xs font-semibold text-fg transition-colors disabled:opacity-50"
               >
                 <ExternalLink size={14} />
                 Abrir {actionIntent.toolLabel || "herramienta"}

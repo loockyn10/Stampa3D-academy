@@ -173,7 +173,7 @@ export function UsersTable() {
   if (loading) {
     return (
       <div className="flex items-center justify-center py-12">
-        <Loader2 className="h-8 w-8 animate-spin text-stampa-orange" />
+        <Loader2 className="h-8 w-8 animate-spin text-stampa-accent" />
       </div>
     );
   }
@@ -210,10 +210,10 @@ export function UsersTable() {
                 <th className="px-4 py-3">Registro</th>
               </tr>
             </thead>
-            <tbody className="divide-y divide-white/5">
+            <tbody className="divide-y divide-fg/5">
               {users.map((user) => (
                 <tr key={user.id} className="text-sm hover:bg-stampa-bg-soft transition-colors">
-                  <td className="px-4 py-3 font-medium text-white">
+                  <td className="px-4 py-3 font-medium text-fg">
                     <div>
                       {user.display_name || user.full_name || user.email || "Usuario sin nombre"}
                       {user.email && (user.display_name || user.full_name) && (
@@ -251,7 +251,7 @@ export function UsersTable() {
                       value={user.role}
                       onChange={(e) => handleUpdate(user.id, "role", e.target.value)}
                       disabled={updatingId === user.id}
-                      className="text-sm border-white/20 rounded-md focus:ring-stampa-orange focus:border-stampa-orange bg-stampa-surface shadow-sm disabled:opacity-50"
+                      className="text-sm border-fg/20 rounded-md focus:ring-stampa-orange focus:border-stampa-orange bg-stampa-surface shadow-sm disabled:opacity-50"
                     >
                       <option value="member">Member</option>
                       <option value="admin">Admin</option>
@@ -277,7 +277,7 @@ export function UsersTable() {
                       value={user.member_level}
                       onChange={(e) => handleUpdate(user.id, "member_level", e.target.value)}
                       disabled={updatingId === user.id}
-                      className="text-sm border-white/20 rounded-md focus:ring-stampa-orange focus:border-stampa-orange bg-stampa-surface shadow-sm disabled:opacity-50"
+                      className="text-sm border-fg/20 rounded-md focus:ring-stampa-orange focus:border-stampa-orange bg-stampa-surface shadow-sm disabled:opacity-50"
                     >
                       <option value="bronze">Bronze</option>
                       <option value="silver">Silver</option>
@@ -292,7 +292,7 @@ export function UsersTable() {
                           ? "bg-green-500/10 text-green-300"
                           : user.subscriptions[0].status === "cancelled"
                             ? "bg-red-500/10 text-red-300"
-                            : "bg-white/5 text-gray-300"
+                            : "bg-fg/5 text-gray-300"
                       }`}>
                         {user.subscriptions[0].status}
                       </span>
@@ -307,7 +307,7 @@ export function UsersTable() {
                       value={user.active_months}
                       onChange={(e) => handleUpdate(user.id, "active_months", parseInt(e.target.value) || 0)}
                       disabled={updatingId === user.id}
-                      className="w-16 text-sm border-white/20 rounded-md focus:ring-stampa-orange focus:border-stampa-orange bg-stampa-surface shadow-sm disabled:opacity-50"
+                      className="w-16 text-sm border-fg/20 rounded-md focus:ring-stampa-orange focus:border-stampa-orange bg-stampa-surface shadow-sm disabled:opacity-50"
                     />
                   </td>
                   <td className="px-4 py-3">
@@ -337,7 +337,7 @@ export function UsersTable() {
                           onClick={() => handleMarkFounder(user.id, user.display_name || user.full_name || user.email || "Usuario")}
                           disabled={updatingId === user.id}
                           title="Override manual. El flujo normal es automático al pagar."
-                          className="flex items-center gap-1 px-2 py-1 rounded-lg text-[10px] font-semibold bg-white/5 text-gray-500 border border-stampa-border hover:bg-amber-500/10 hover:text-amber-400 hover:border-amber-500/30 transition-colors disabled:opacity-50"
+                          className="flex items-center gap-1 px-2 py-1 rounded-lg text-[10px] font-semibold bg-fg/5 text-gray-500 border border-stampa-border hover:bg-amber-500/10 hover:text-amber-400 hover:border-amber-500/30 transition-colors disabled:opacity-50"
                         >
                           <Star size={9} /> Override Fundador
                         </button>
@@ -363,11 +363,11 @@ export function UsersTable() {
       {betaModal && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-stampa-bg/60 backdrop-blur-sm">
           <div className="bg-stampa-surface border border-stampa-border rounded-2xl shadow-2xl p-6 w-full max-w-md mx-4">
-            <h3 className="text-lg font-bold text-white mb-1 flex items-center gap-2">
+            <h3 className="text-lg font-bold text-fg mb-1 flex items-center gap-2">
               <Shield size={16} className="text-cyan-400" />
               Dar acceso Beta
             </h3>
-            <p className="text-sm text-gray-400 mb-5">Para: <span className="font-semibold text-white">{betaModal.name}</span></p>
+            <p className="text-sm text-gray-400 mb-5">Para: <span className="font-semibold text-fg">{betaModal.name}</span></p>
 
             <div className="space-y-4">
               <div>
@@ -378,7 +378,7 @@ export function UsersTable() {
                   type="date"
                   value={betaExpires}
                   onChange={(e) => setBetaExpires(e.target.value)}
-                  className="w-full rounded-xl border border-stampa-border px-3 py-2.5 text-sm text-white bg-white/5 focus:outline-none focus:border-stampa-orange/50"
+                  className="w-full rounded-xl border border-stampa-border px-3 py-2.5 text-sm text-fg bg-fg/5 focus:outline-none focus:border-stampa-orange/50"
                 />
               </div>
               <div>
@@ -390,7 +390,7 @@ export function UsersTable() {
                   onChange={(e) => setBetaNotes(e.target.value)}
                   rows={2}
                   placeholder="Ej. Acceso para testear módulo de sorteos..."
-                  className="w-full rounded-xl border border-stampa-border px-3 py-2.5 text-sm text-white bg-white/5 focus:outline-none focus:border-stampa-orange/50 resize-none"
+                  className="w-full rounded-xl border border-stampa-border px-3 py-2.5 text-sm text-fg bg-fg/5 focus:outline-none focus:border-stampa-orange/50 resize-none"
                 />
               </div>
             </div>
@@ -398,7 +398,7 @@ export function UsersTable() {
             <div className="flex gap-2 mt-6">
               <button
                 onClick={() => { setBetaModal(null); setBetaNotes(""); setBetaExpires(""); }}
-                className="flex-1 px-4 py-2.5 rounded-xl text-sm font-semibold text-gray-400 bg-white/5 border border-stampa-border hover:bg-white/10 transition-colors"
+                className="flex-1 px-4 py-2.5 rounded-xl text-sm font-semibold text-gray-400 bg-fg/5 border border-stampa-border hover:bg-fg/10 transition-colors"
               >
                 Cancelar
               </button>

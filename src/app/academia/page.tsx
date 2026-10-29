@@ -126,12 +126,12 @@ export default function AcademiaPage() {
         <div className="absolute inset-0 bg-gradient-to-br from-[#ff6a00]/20 to-transparent pointer-events-none" />
         <div className="relative z-10 max-w-3xl">
           <div className="flex items-center gap-2 mb-3">
-            <span className="rounded-full bg-stampa-orange/10 text-stampa-orange text-xs font-bold px-3 py-1 uppercase tracking-wider border border-[#ff6a00]/20">
+            <span className="rounded-full bg-stampa-orange/10 text-stampa-accent text-xs font-bold px-3 py-1 uppercase tracking-wider border border-[#ff6a00]/20">
               Academia Stampa
             </span>
           </div>
-          <h1 className="text-3xl font-bold text-white sm:text-4xl flex items-center gap-3">
-            <GraduationCap size={36} className="text-stampa-orange" /> Academia
+          <h1 className="text-3xl font-bold text-fg sm:text-4xl flex items-center gap-3">
+            <GraduationCap size={36} className="text-stampa-accent" /> Academia
           </h1>
           <p className="mt-3 text-base text-gray-400 leading-relaxed">
             Seguí tu ruta recomendada o explorá cursos y talleres prácticos.
@@ -144,17 +144,17 @@ export default function AcademiaPage() {
         <Link href="/cursos" className="group block h-full">
           <div className="relative overflow-hidden rounded-3xl bg-stampa-surface border border-stampa-border p-8 shadow-xl transition-all hover:-translate-y-1 hover:border-[#ff6a00]/50 hover:shadow-[0_8px_30px_rgb(255,106,0,0.12)] h-full flex flex-col justify-between min-h-[220px]">
             <div className="absolute top-0 right-0 p-8 opacity-10 transition-transform group-hover:scale-110 group-hover:opacity-20">
-              <BookOpen size={100} className="text-stampa-orange" />
+              <BookOpen size={100} className="text-stampa-accent" />
             </div>
 
             <div className="relative z-10">
-              <h2 className="text-2xl font-bold text-white mb-3">Cursos</h2>
+              <h2 className="text-2xl font-bold text-fg mb-3">Cursos</h2>
               <p className="text-gray-400 max-w-[85%]">
                 Aprendé de forma estructurada, desde fundamentos hasta herramientas avanzadas.
               </p>
             </div>
 
-            <div className="relative z-10 mt-8 flex items-center text-stampa-orange font-bold text-sm uppercase tracking-wider">
+            <div className="relative z-10 mt-8 flex items-center text-stampa-accent font-bold text-sm uppercase tracking-wider">
               Explorar cursos
               <ArrowRight className="ml-2 w-4 h-4 transition-transform group-hover:translate-x-1" />
             </div>
@@ -169,7 +169,7 @@ export default function AcademiaPage() {
             </div>
 
             <div className="relative z-10">
-              <h2 className="text-2xl font-bold text-white mb-3">Talleres</h2>
+              <h2 className="text-2xl font-bold text-fg mb-3">Talleres</h2>
               <p className="text-gray-400 max-w-[85%]">
                 Construí proyectos reales paso a paso y aplicá lo aprendido en productos concretos.
               </p>
@@ -208,10 +208,10 @@ export default function AcademiaPage() {
             <Link href="/configuracion?tab=cuenta" className="group block">
               <div className="bg-stampa-bg-soft border border-stampa-border rounded-2xl p-6 flex flex-col sm:flex-row sm:items-center justify-between gap-4 transition-all hover:bg-stampa-surface hover:border-stampa-border">
                 <div>
-                  <h3 className="text-white font-bold text-lg mb-1">¿Querés ajustar tus recomendaciones?</h3>
+                  <h3 className="text-fg font-bold text-lg mb-1">¿Querés ajustar tus recomendaciones?</h3>
                   <p className="text-gray-400 text-sm">Podés cambiar tu impresora, objetivo o nivel desde Configuración para recalcular tu ruta.</p>
                 </div>
-                <div className="flex justify-center items-center gap-2 bg-white/5 group-hover:bg-stampa-orange group-hover:text-white px-4 py-2 rounded-lg text-sm text-gray-300 font-medium transition-colors whitespace-nowrap w-full sm:w-auto">
+                <div className="flex justify-center items-center gap-2 bg-fg/5 group-hover:bg-stampa-orange group-hover:text-white px-4 py-2 rounded-lg text-sm text-gray-300 font-medium transition-colors whitespace-nowrap w-full sm:w-auto">
                   Ajustar perfil
                   <ArrowRight className="w-4 h-4" />
                 </div>

@@ -5,10 +5,10 @@ import { GraduationCap } from "lucide-react";
 export default function CursoNotFound() {
   return (
     <div className="flex min-h-[60vh] flex-col items-center justify-center text-center">
-      <div className="mb-6 flex h-20 w-20 items-center justify-center rounded-full bg-white/5">
+      <div className="mb-6 flex h-20 w-20 items-center justify-center rounded-full bg-fg/5">
         <GraduationCap size={40} className="text-gray-500" aria-hidden="true" />
       </div>
-      <h2 className="mb-3 text-2xl font-bold text-white">Curso no encontrado</h2>
+      <h2 className="mb-3 text-2xl font-bold text-fg">Curso no encontrado</h2>
       <p className="text-gray-400">El curso que estás buscando no existe o no está disponible.</p>
       <Link
         href="/academia"

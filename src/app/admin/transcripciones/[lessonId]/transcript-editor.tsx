@@ -225,11 +225,11 @@ export function TranscriptEditor({
       {/* Header */}
       <div className="flex items-start justify-between bg-stampa-surface border border-stampa-border p-6 rounded-2xl">
         <div className="flex items-start gap-4">
-          <Link href="/admin/transcripciones" className="mt-1 p-2 rounded-lg bg-white/5 hover:bg-white/10 text-gray-400 hover:text-white transition-colors">
+          <Link href="/admin/transcripciones" className="mt-1 p-2 rounded-lg bg-fg/5 hover:bg-fg/10 text-gray-400 hover:text-fg transition-colors">
             <ArrowLeft size={18} />
           </Link>
           <div>
-            <h1 className="text-xl font-bold text-white flex items-center gap-3">
+            <h1 className="text-xl font-bold text-fg flex items-center gap-3">
               {lessonTitle}
               <span className={`text-xs px-2.5 py-1 rounded-full font-medium ${
                 status === 'ready' ? 'bg-emerald-500/10 text-emerald-400 border border-emerald-500/20' : 
@@ -258,7 +258,7 @@ export function TranscriptEditor({
           <button 
             onClick={() => handleSave("draft")}
             disabled={isSaving}
-            className="flex items-center gap-2 px-4 py-2 rounded-xl bg-white/5 text-gray-300 border border-stampa-border hover:bg-white/10 font-medium text-sm transition-colors"
+            className="flex items-center gap-2 px-4 py-2 rounded-xl bg-fg/5 text-gray-300 border border-stampa-border hover:bg-fg/10 font-medium text-sm transition-colors"
           >
             Guardar Borrador
           </button>
@@ -288,14 +288,14 @@ export function TranscriptEditor({
         {/* Left Column: Form & Transcript */}
         <div className="lg:col-span-2 space-y-6">
           <div className="bg-stampa-surface border border-stampa-border rounded-2xl p-6">
-            <h2 className="text-lg font-bold text-white mb-4">Metadatos</h2>
+            <h2 className="text-lg font-bold text-fg mb-4">Metadatos</h2>
             <div className="grid grid-cols-2 gap-4">
               <div>
                 <label className="block text-xs font-medium text-gray-400 mb-1">Source Type</label>
                 <select 
                   value={sourceType}
                   onChange={e => setSourceType(e.target.value)}
-                  className="w-full bg-black/20 border border-stampa-border text-white rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-cyan-500/50"
+                  className="w-full bg-shade/20 border border-stampa-border text-fg rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-cyan-500/50"
                 >
                   <option value="manual">Manual</option>
                   <option value="bunny">Bunny AI</option>
@@ -309,7 +309,7 @@ export function TranscriptEditor({
                   type="text"
                   value={language}
                   onChange={e => setLanguage(e.target.value)}
-                  className="w-full bg-black/20 border border-stampa-border text-white rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-cyan-500/50"
+                  className="w-full bg-shade/20 border border-stampa-border text-fg rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-cyan-500/50"
                 />
               </div>
             </div>
@@ -317,7 +317,7 @@ export function TranscriptEditor({
 
           <div className="bg-stampa-surface border border-stampa-border rounded-2xl p-6">
             <div className="flex items-center justify-between mb-4">
-              <h2 className="text-lg font-bold text-white flex items-center gap-2">
+              <h2 className="text-lg font-bold text-fg flex items-center gap-2">
                 <FileText size={18} className="text-cyan-400" />
                 Texto Completo
               </h2>
@@ -334,7 +334,7 @@ export function TranscriptEditor({
               value={transcriptText}
               onChange={e => setTranscriptText(e.target.value)}
               placeholder="Pegá acá la transcripción completa de la clase..."
-              className="w-full h-[400px] bg-black/20 border border-stampa-border rounded-xl p-4 text-sm text-gray-300 focus:outline-none focus:border-cyan-500/50 font-mono resize-y"
+              className="w-full h-[400px] bg-shade/20 border border-stampa-border rounded-xl p-4 text-sm text-gray-300 focus:outline-none focus:border-cyan-500/50 font-mono resize-y"
             />
             <div className="flex justify-end mt-2">
               <span className="text-xs text-gray-500">{transcriptText.length} caracteres</span>
@@ -343,13 +343,13 @@ export function TranscriptEditor({
 
           <div className="bg-stampa-surface border border-stampa-border rounded-2xl p-6">
             <div className="flex items-center justify-between mb-4">
-              <h2 className="text-lg font-bold text-white flex items-center gap-2">
+              <h2 className="text-lg font-bold text-fg flex items-center gap-2">
                 <Clock size={18} className="text-purple-400" />
                 Segmentos ({segments.length})
               </h2>
               <button 
                 onClick={addEmptySegment}
-                className="flex items-center gap-2 px-3 py-1.5 rounded-lg bg-white/5 hover:bg-white/10 text-gray-300 text-xs font-medium transition-colors border border-stampa-border"
+                className="flex items-center gap-2 px-3 py-1.5 rounded-lg bg-fg/5 hover:bg-fg/10 text-gray-300 text-xs font-medium transition-colors border border-stampa-border"
               >
                 <Plus size={14} />
                 Agregar Manual
@@ -363,7 +363,7 @@ export function TranscriptEditor({
             ) : (
               <div className="space-y-3">
                 {segments.map((seg, i) => (
-                  <div key={i} className="flex items-start gap-3 p-3 bg-black/10 border border-stampa-border rounded-xl group relative">
+                  <div key={i} className="flex items-start gap-3 p-3 bg-shade/10 border border-stampa-border rounded-xl group relative">
                     <div className="flex flex-col gap-2 w-24 shrink-0">
                       <div>
                         <label className="text-[10px] text-gray-500 font-medium">Inicio (s)</label>
@@ -371,7 +371,7 @@ export function TranscriptEditor({
                           type="number"
                           value={seg.start_seconds !== null ? seg.start_seconds : ""}
                           onChange={e => updateSegment(i, "start_seconds", e.target.value ? parseInt(e.target.value) : null)}
-                          className="w-full bg-white/5 border border-stampa-border rounded md p-1.5 text-xs text-white"
+                          className="w-full bg-fg/5 border border-stampa-border rounded md p-1.5 text-xs text-fg"
                         />
                         <div className="text-[10px] text-cyan-400 mt-1">{formatSeconds(seg.start_seconds)}</div>
                       </div>
@@ -382,13 +382,13 @@ export function TranscriptEditor({
                        <textarea 
                          value={seg.text}
                          onChange={e => updateSegment(i, "text", e.target.value)}
-                         className="w-full bg-white/5 border border-stampa-border rounded md p-2 text-sm text-gray-300 min-h-[60px]"
+                         className="w-full bg-fg/5 border border-stampa-border rounded md p-2 text-sm text-gray-300 min-h-[60px]"
                        />
                     </div>
 
                     <button 
                       onClick={() => removeSegment(i)}
-                      className="absolute top-2 right-2 p-1.5 text-gray-500 hover:text-red-400 bg-white/5 hover:bg-red-500/10 rounded-md opacity-0 group-hover:opacity-100 transition-all"
+                      className="absolute top-2 right-2 p-1.5 text-gray-500 hover:text-red-400 bg-fg/5 hover:bg-red-500/10 rounded-md opacity-0 group-hover:opacity-100 transition-all"
                     >
                       <Trash2 size={14} />
                     </button>
@@ -402,11 +402,11 @@ export function TranscriptEditor({
         {/* Right Column: Preview */}
         <div className="space-y-6">
           <div className="bg-stampa-surface border border-stampa-border rounded-2xl p-6 sticky top-6">
-            <h2 className="text-lg font-bold text-white mb-4">Preview Stampy</h2>
+            <h2 className="text-lg font-bold text-fg mb-4">Preview Stampy</h2>
             <p className="text-xs text-gray-400 mb-4">
               Así es como Stampy leerá esta transcripción para responder preguntas.
             </p>
-            <div className="bg-black/30 border border-stampa-border rounded-xl p-4 overflow-y-auto max-h-[600px] text-xs text-gray-300 font-mono whitespace-pre-wrap">
+            <div className="bg-shade/30 border border-stampa-border rounded-xl p-4 overflow-y-auto max-h-[600px] text-xs text-gray-300 font-mono whitespace-pre-wrap">
               {segments.length > 0 ? (
                 <>
                   TRANSCRIPCIÓN DE LA CLASE ACTUAL:<br/>

@@ -105,7 +105,7 @@ export function LessonResourcesManager({ lessonId }: LessonResourcesManagerProps
             setFormData({ title: "", resource_type: "pdf", url: "", sort_order: resources.length + 1, is_active: true });
             setEditingId("new");
           }}
-          className="text-[10px] bg-white/5 hover:bg-gray-200 text-gray-300 px-2 py-1 rounded flex items-center gap-1 font-medium"
+          className="text-[10px] bg-fg/5 hover:bg-gray-200 text-gray-300 px-2 py-1 rounded flex items-center gap-1 font-medium"
         >
           <Plus size={10} /> Añadir Recurso
         </button>
@@ -121,16 +121,16 @@ export function LessonResourcesManager({ lessonId }: LessonResourcesManagerProps
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                   <div>
                     <label className="block text-[10px] font-semibold text-gray-400 uppercase mb-1">Título</label>
-                    <input type="text" placeholder="Ej. Guía PDF" value={formData.title} onChange={e => setFormData({ ...formData, title: e.target.value })} className="w-full text-xs bg-stampa-surface text-white placeholder-gray-400 border-white/20 rounded focus:ring-stampa-orange focus:border-stampa-orange" />
+                    <input type="text" placeholder="Ej. Guía PDF" value={formData.title} onChange={e => setFormData({ ...formData, title: e.target.value })} className="w-full text-xs bg-stampa-surface text-fg placeholder-gray-400 border-fg/20 rounded focus:ring-stampa-orange focus:border-stampa-orange" />
                   </div>
                   <div>
                     <label className="block text-[10px] font-semibold text-gray-400 uppercase mb-1">Tipo de recurso</label>
-                    <select value={formData.resource_type} onChange={e => setFormData({ ...formData, resource_type: e.target.value })} className="w-full text-xs bg-stampa-surface text-white placeholder-gray-500 border-white/20 rounded focus:ring-stampa-orange focus:border-stampa-orange">
-                      <option value="pdf" className="text-white bg-stampa-surface">PDF</option>
-                      <option value="stl" className="text-white bg-stampa-surface">STL</option>
-                      <option value="zip" className="text-white bg-stampa-surface">ZIP</option>
-                      <option value="link" className="text-white bg-stampa-surface">Link</option>
-                      <option value="other" className="text-white bg-stampa-surface">Otro</option>
+                    <select value={formData.resource_type} onChange={e => setFormData({ ...formData, resource_type: e.target.value })} className="w-full text-xs bg-stampa-surface text-fg placeholder-gray-500 border-fg/20 rounded focus:ring-stampa-orange focus:border-stampa-orange">
+                      <option value="pdf" className="text-fg bg-stampa-surface">PDF</option>
+                      <option value="stl" className="text-fg bg-stampa-surface">STL</option>
+                      <option value="zip" className="text-fg bg-stampa-surface">ZIP</option>
+                      <option value="link" className="text-fg bg-stampa-surface">Link</option>
+                      <option value="other" className="text-fg bg-stampa-surface">Otro</option>
                     </select>
                   </div>
                   <div className="sm:col-span-2">
@@ -147,29 +147,29 @@ export function LessonResourcesManager({ lessonId }: LessonResourcesManagerProps
                         <span className="text-[10px] text-gray-400 font-semibold uppercase">O URL</span>
                         <hr className="flex-1 border-blue-100" />
                       </div>
-                      <input type="text" placeholder="https://..." value={formData.url} onChange={e => setFormData({ ...formData, url: e.target.value })} className="w-full text-xs bg-stampa-surface text-white placeholder-gray-400 border-white/20 rounded focus:ring-stampa-orange focus:border-stampa-orange" />
+                      <input type="text" placeholder="https://..." value={formData.url} onChange={e => setFormData({ ...formData, url: e.target.value })} className="w-full text-xs bg-stampa-surface text-fg placeholder-gray-400 border-fg/20 rounded focus:ring-stampa-orange focus:border-stampa-orange" />
                     </div>
                   </div>
                   <div className="sm:col-span-2 flex items-center gap-4 border-t border-blue-100 pt-3 mt-1">
                     <div className="flex items-center gap-2">
                       <label className="text-[10px] font-semibold text-gray-400 uppercase">Orden:</label>
-                      <input type="number" placeholder="1" value={formData.sort_order} onChange={e => setFormData({ ...formData, sort_order: parseInt(e.target.value) || 0 })} className="w-16 text-xs bg-stampa-surface text-white placeholder-gray-500 border-white/20 rounded focus:ring-stampa-orange focus:border-stampa-orange py-1" />
+                      <input type="number" placeholder="1" value={formData.sort_order} onChange={e => setFormData({ ...formData, sort_order: parseInt(e.target.value) || 0 })} className="w-16 text-xs bg-stampa-surface text-fg placeholder-gray-500 border-fg/20 rounded focus:ring-stampa-orange focus:border-stampa-orange py-1" />
                     </div>
                     <label className="text-xs flex items-center gap-1.5 text-gray-300 font-medium bg-stampa-surface px-2 py-1 rounded border border-stampa-border">
-                      <input type="checkbox" checked={formData.is_active} onChange={e => setFormData({ ...formData, is_active: e.target.checked })} className="rounded border-white/20 text-blue-600 w-3.5 h-3.5 focus:ring-stampa-orange" />
+                      <input type="checkbox" checked={formData.is_active} onChange={e => setFormData({ ...formData, is_active: e.target.checked })} className="rounded border-fg/20 text-blue-600 w-3.5 h-3.5 focus:ring-stampa-orange" />
                       Activo
                     </label>
                   </div>
                 </div>
                 <div className="flex justify-end gap-2 pt-1">
-                  <button onClick={() => setEditingId(null)} className="text-[10px] font-semibold px-3 py-1.5 text-gray-400 hover:bg-gray-200 bg-white/5 rounded transition-colors">Cancelar</button>
+                  <button onClick={() => setEditingId(null)} className="text-[10px] font-semibold px-3 py-1.5 text-gray-400 hover:bg-gray-200 bg-fg/5 rounded transition-colors">Cancelar</button>
                   <button onClick={handleSave} className="text-[10px] font-semibold px-3 py-1.5 bg-blue-600 text-white rounded hover:bg-blue-700 transition-colors">Guardar</button>
                 </div>
               </div>
             ) : (
               <>
                 <div className="flex items-center gap-2 overflow-hidden">
-                  {res.resource_type === 'link' ? <LinkIcon size={12} className="text-blue-500 shrink-0" /> : <File size={12} className="text-stampa-orange shrink-0" />}
+                  {res.resource_type === 'link' ? <LinkIcon size={12} className="text-blue-500 shrink-0" /> : <File size={12} className="text-stampa-accent shrink-0" />}
                   <span className="font-medium text-gray-300 text-xs truncate">{res.title}</span>
                   {!res.is_active && <span className="text-[9px] bg-red-50 text-red-700 px-1.5 rounded-full font-medium">Inactivo</span>}
                 </div>
@@ -188,16 +188,16 @@ export function LessonResourcesManager({ lessonId }: LessonResourcesManagerProps
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
               <div>
                 <label className="block text-[10px] font-semibold text-gray-400 uppercase mb-1">Título</label>
-                <input type="text" placeholder="Ej. Guía PDF" value={formData.title} onChange={e => setFormData({ ...formData, title: e.target.value })} className="w-full text-xs bg-stampa-surface text-white placeholder-gray-400 border-white/20 rounded focus:ring-stampa-orange focus:border-stampa-orange" />
+                <input type="text" placeholder="Ej. Guía PDF" value={formData.title} onChange={e => setFormData({ ...formData, title: e.target.value })} className="w-full text-xs bg-stampa-surface text-fg placeholder-gray-400 border-fg/20 rounded focus:ring-stampa-orange focus:border-stampa-orange" />
               </div>
               <div>
                 <label className="block text-[10px] font-semibold text-gray-400 uppercase mb-1">Tipo de recurso</label>
-                <select value={formData.resource_type} onChange={e => setFormData({ ...formData, resource_type: e.target.value })} className="w-full text-xs bg-stampa-surface text-white placeholder-gray-500 border-white/20 rounded focus:ring-stampa-orange focus:border-stampa-orange">
-                  <option value="pdf" className="text-white bg-stampa-surface">PDF</option>
-                  <option value="stl" className="text-white bg-stampa-surface">STL</option>
-                  <option value="zip" className="text-white bg-stampa-surface">ZIP</option>
-                  <option value="link" className="text-white bg-stampa-surface">Link</option>
-                  <option value="other" className="text-white bg-stampa-surface">Otro</option>
+                <select value={formData.resource_type} onChange={e => setFormData({ ...formData, resource_type: e.target.value })} className="w-full text-xs bg-stampa-surface text-fg placeholder-gray-500 border-fg/20 rounded focus:ring-stampa-orange focus:border-stampa-orange">
+                  <option value="pdf" className="text-fg bg-stampa-surface">PDF</option>
+                  <option value="stl" className="text-fg bg-stampa-surface">STL</option>
+                  <option value="zip" className="text-fg bg-stampa-surface">ZIP</option>
+                  <option value="link" className="text-fg bg-stampa-surface">Link</option>
+                  <option value="other" className="text-fg bg-stampa-surface">Otro</option>
                 </select>
               </div>
               <div className="sm:col-span-2">
@@ -214,22 +214,22 @@ export function LessonResourcesManager({ lessonId }: LessonResourcesManagerProps
                     <span className="text-[10px] text-gray-400 font-semibold uppercase">O URL</span>
                     <hr className="flex-1 border-blue-100" />
                   </div>
-                  <input type="text" placeholder="https://..." value={formData.url} onChange={e => setFormData({ ...formData, url: e.target.value })} className="w-full text-xs bg-stampa-surface text-white placeholder-gray-400 border-white/20 rounded focus:ring-stampa-orange focus:border-stampa-orange" />
+                  <input type="text" placeholder="https://..." value={formData.url} onChange={e => setFormData({ ...formData, url: e.target.value })} className="w-full text-xs bg-stampa-surface text-fg placeholder-gray-400 border-fg/20 rounded focus:ring-stampa-orange focus:border-stampa-orange" />
                 </div>
               </div>
               <div className="sm:col-span-2 flex items-center gap-4 border-t border-blue-100 pt-3 mt-1">
                 <div className="flex items-center gap-2">
                   <label className="text-[10px] font-semibold text-gray-400 uppercase">Orden:</label>
-                  <input type="number" placeholder="1" value={formData.sort_order} onChange={e => setFormData({ ...formData, sort_order: parseInt(e.target.value) || 0 })} className="w-16 text-xs bg-stampa-surface text-white placeholder-gray-500 border-white/20 rounded focus:ring-stampa-orange focus:border-stampa-orange py-1" />
+                  <input type="number" placeholder="1" value={formData.sort_order} onChange={e => setFormData({ ...formData, sort_order: parseInt(e.target.value) || 0 })} className="w-16 text-xs bg-stampa-surface text-fg placeholder-gray-500 border-fg/20 rounded focus:ring-stampa-orange focus:border-stampa-orange py-1" />
                 </div>
                 <label className="text-xs flex items-center gap-1.5 text-gray-300 font-medium bg-stampa-surface px-2 py-1 rounded border border-stampa-border">
-                  <input type="checkbox" checked={formData.is_active} onChange={e => setFormData({ ...formData, is_active: e.target.checked })} className="rounded border-white/20 text-blue-600 w-3.5 h-3.5 focus:ring-stampa-orange" />
+                  <input type="checkbox" checked={formData.is_active} onChange={e => setFormData({ ...formData, is_active: e.target.checked })} className="rounded border-fg/20 text-blue-600 w-3.5 h-3.5 focus:ring-stampa-orange" />
                   Activo
                 </label>
               </div>
             </div>
             <div className="flex justify-end gap-2 pt-1">
-              <button onClick={() => setEditingId(null)} className="text-[10px] font-semibold px-3 py-1.5 text-gray-400 hover:bg-gray-200 bg-white/5 rounded transition-colors">Cancelar</button>
+              <button onClick={() => setEditingId(null)} className="text-[10px] font-semibold px-3 py-1.5 text-gray-400 hover:bg-gray-200 bg-fg/5 rounded transition-colors">Cancelar</button>
               <button onClick={handleSave} className="text-[10px] font-semibold px-3 py-1.5 bg-blue-600 text-white rounded hover:bg-blue-700 transition-colors">Guardar</button>
             </div>
           </div>

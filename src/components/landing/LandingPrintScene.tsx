@@ -83,7 +83,7 @@ export function LandingPrintScene() {
         {/* Holographic Cards */}
         <div className="absolute top-10 -left-10 md:top-20 md:-left-20 bg-zinc-900/60 backdrop-blur-md border border-stampa-border rounded-xl p-4 shadow-[0_0_20px_rgba(234,88,12,0.1)] stampa-float" style={{ animationDelay: '0s', zIndex: 30 }}>
           <div className="text-xs text-gray-400 mb-1">Precio calculado</div>
-          <div className="text-lg font-bold text-white">$18.700</div>
+          <div className="text-lg font-bold text-fg">$18.700</div>
         </div>
         
         <div className="absolute bottom-32 -right-10 md:bottom-40 md:-right-20 bg-zinc-900/60 backdrop-blur-md border border-stampa-border rounded-xl p-4 shadow-[0_0_20px_rgba(234,88,12,0.1)] stampa-float" style={{ animationDelay: '2s', zIndex: 30 }}>
@@ -93,7 +93,7 @@ export function LandingPrintScene() {
         
         <div className="absolute -top-4 right-10 md:-top-10 md:right-20 bg-zinc-900/60 backdrop-blur-md border border-stampa-border rounded-xl p-4 shadow-[0_0_20px_rgba(234,88,12,0.1)] stampa-float" style={{ animationDelay: '4s', zIndex: 30 }}>
           <div className="text-xs text-gray-400 mb-1">Curso activo</div>
-          <div className="text-lg font-bold text-white">68% completado</div>
+          <div className="text-lg font-bold text-fg">68% completado</div>
         </div>
 
         {/* Printer Structure (X-Axis Rail) */}

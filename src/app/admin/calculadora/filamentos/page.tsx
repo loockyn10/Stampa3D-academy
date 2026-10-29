@@ -137,13 +137,13 @@ export default function AdminFilamentosPage() {
     }
   };
 
-  if (loading) return <div className="py-12 flex justify-center"><Loader2 className="animate-spin text-stampa-orange" /></div>;
+  if (loading) return <div className="py-12 flex justify-center"><Loader2 className="animate-spin text-stampa-accent" /></div>;
 
   return (
     <div className="max-w-6xl mx-auto space-y-6 p-4">
       <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
         <div>
-          <h1 className="text-2xl font-bold text-white tracking-tight">Catálogo de filamentos</h1>
+          <h1 className="text-2xl font-bold text-fg tracking-tight">Catálogo de filamentos</h1>
           <p className="text-gray-400 text-sm mt-1">
             Administra los filamentos globales que los usuarios podrán seleccionar en la calculadora.
           </p>
@@ -180,16 +180,16 @@ export default function AdminFilamentosPage() {
             <Card key={t.id} className="p-5 flex flex-col bg-stampa-surface border-stampa-border hover:border-stampa-orange/30 transition-colors rounded-2xl group">
               <div className="flex justify-between items-start mb-3">
                 <div>
-                  <h4 className="font-bold text-white text-lg leading-tight flex items-center gap-2">
+                  <h4 className="font-bold text-fg text-lg leading-tight flex items-center gap-2">
                     {t.color_hex && (
-                      <span className="w-3 h-3 rounded-full border border-white/20" style={{ backgroundColor: t.color_hex }} title={t.color_hex} />
+                      <span className="w-3 h-3 rounded-full border border-fg/20" style={{ backgroundColor: t.color_hex }} title={t.color_hex} />
                     )}
                     {getFilamentLabel(t)}
                   </h4>
 
                 </div>
                 <div className="flex gap-1.5 opacity-100 lg:opacity-0 lg:group-hover:opacity-100 transition-opacity">
-                  <button onClick={() => { setFormData({ ...t, color_hex: t.color_hex || "", brand: t.brand || "", color: t.color || "", notes: t.notes || "", name: t.name || "" }); setEditingId(t.id); }} className="p-1.5 text-gray-400 bg-white/5 rounded-md hover:text-white hover:bg-white/10 transition-colors">
+                  <button onClick={() => { setFormData({ ...t, color_hex: t.color_hex || "", brand: t.brand || "", color: t.color || "", notes: t.notes || "", name: t.name || "" }); setEditingId(t.id); }} className="p-1.5 text-gray-400 bg-fg/5 rounded-md hover:text-fg hover:bg-fg/10 transition-colors">
                     <Edit2 size={15} />
                   </button>
                   <button onClick={() => handleDelete(t.id)} className="p-1.5 text-red-400/70 bg-red-500/5 rounded-md hover:text-red-400 hover:bg-red-500/10 transition-colors">
@@ -217,7 +217,7 @@ export default function AdminFilamentosPage() {
                   className={`text-xs px-2.5 py-1 rounded-md font-semibold transition-colors border ${
                     t.is_active 
                       ? 'bg-green-500/10 text-green-400 border-green-500/20 hover:bg-green-500/20' 
-                      : 'bg-white/5 text-gray-400 border-white/10 hover:bg-white/10'
+                      : 'bg-fg/5 text-gray-400 border-fg/10 hover:bg-fg/10'
                   }`}
                 >
                   {t.is_active ? 'Activo' : 'Inactivo'}
@@ -228,11 +228,11 @@ export default function AdminFilamentosPage() {
           )
         ))}
         {templates.length === 0 && editingId !== "new" && (
-          <div className="col-span-full py-16 flex flex-col items-center justify-center text-center bg-stampa-surface/50 rounded-2xl border border-dashed border-white/10">
-            <div className="bg-white/5 p-4 rounded-full mb-3">
+          <div className="col-span-full py-16 flex flex-col items-center justify-center text-center bg-stampa-surface/50 rounded-2xl border border-dashed border-fg/10">
+            <div className="bg-fg/5 p-4 rounded-full mb-3">
               <Plus size={24} className="text-gray-500" />
             </div>
-            <h3 className="text-white font-medium mb-1">Sin filamentos</h3>
+            <h3 className="text-fg font-medium mb-1">Sin filamentos</h3>
             <p className="text-sm text-gray-400 max-w-sm">Añade tu primer filamento al catálogo para que los usuarios puedan seleccionarlo en la calculadora.</p>
           </div>
         )}
@@ -276,7 +276,7 @@ function FilamentEditor({ formData, setFormData, onSave, onCancel }: any) {
           <label className="block text-xs font-semibold text-gray-400 mb-1.5 uppercase tracking-wider flex justify-between">
             <span>Color visual (Hex)</span>
             {formData.color_hex && /^#[0-9A-Fa-f]{6}$/.test(formData.color_hex) && (
-              <span className="w-4 h-4 rounded-full border border-white/20 inline-block" style={{ backgroundColor: formData.color_hex }} />
+              <span className="w-4 h-4 rounded-full border border-fg/20 inline-block" style={{ backgroundColor: formData.color_hex }} />
             )}
           </label>
           <input type="text" name="color_hex" value={formData.color_hex} onChange={handleChange} className="w-full text-sm border-stampa-border rounded-xl text-neutral-100 bg-stampa-bg border focus:border-stampa-orange focus:ring-stampa-orange/20 focus:ring-4 transition-all px-3 py-2" placeholder="#000000" />
@@ -299,7 +299,7 @@ function FilamentEditor({ formData, setFormData, onSave, onCancel }: any) {
           </div>
           <div className="flex flex-col justify-end pb-2">
             <div className="flex items-center gap-2">
-              <input type="checkbox" id="is_active" name="is_active" checked={formData.is_active} onChange={handleChange} className="rounded text-stampa-orange focus:ring-stampa-orange/30 w-4 h-4 bg-stampa-bg border-stampa-border" />
+              <input type="checkbox" id="is_active" name="is_active" checked={formData.is_active} onChange={handleChange} className="rounded text-stampa-accent focus:ring-stampa-orange/30 w-4 h-4 bg-stampa-bg border-stampa-border" />
               <label htmlFor="is_active" className="text-sm font-medium text-gray-300 cursor-pointer">Activo</label>
             </div>
           </div>
@@ -311,7 +311,7 @@ function FilamentEditor({ formData, setFormData, onSave, onCancel }: any) {
         </div>
       </div>
       <div className="mt-5 flex gap-2 justify-end pt-4 border-t border-stampa-border">
-        <button onClick={onCancel} className="px-4 py-2 text-sm font-semibold text-gray-400 hover:text-white bg-white/5 hover:bg-white/10 rounded-xl transition-colors">Cancelar</button>
+        <button onClick={onCancel} className="px-4 py-2 text-sm font-semibold text-gray-400 hover:text-fg bg-fg/5 hover:bg-fg/10 rounded-xl transition-colors">Cancelar</button>
         <button onClick={onSave} className="flex items-center gap-1.5 px-4 py-2 text-sm font-semibold bg-stampa-orange hover:bg-stampa-orange/90 text-white rounded-xl transition-colors shadow-sm">
           <Save size={16} /> Guardar
         </button>

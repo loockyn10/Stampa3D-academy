@@ -14,7 +14,7 @@ import { LandingTestimonials } from "./LandingTestimonials";
 
 export function LandingMembershipPage() {
   return (
-    <div className="min-h-screen overflow-x-clip bg-stampa-bg font-sans text-stampa-text selection:bg-stampa-orange/30 selection:text-orange-100">
+    <div className="theme-force-dark min-h-screen overflow-x-clip bg-stampa-bg font-sans text-stampa-text selection:bg-stampa-orange/30 selection:text-orange-100">
       <LandingMembershipNavbar />
 
       <style>{`

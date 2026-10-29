@@ -325,7 +325,7 @@ export function CourseDetailClient({ courseId, routeId: id, previewVisibility = 
   if (loading) {
     return (
       <div className="flex justify-center items-center min-h-[60vh]">
-        <Loader2 className="animate-spin text-stampa-orange h-12 w-12" />
+        <Loader2 className="animate-spin text-stampa-accent h-12 w-12" />
       </div>
     );
   }
@@ -333,10 +333,10 @@ export function CourseDetailClient({ courseId, routeId: id, previewVisibility = 
   if (!course) {
     return (
       <div className="flex flex-col items-center justify-center min-h-[60vh] text-center">
-        <div className="w-20 h-20 bg-white/5 rounded-full flex items-center justify-center mb-6">
+        <div className="w-20 h-20 bg-fg/5 rounded-full flex items-center justify-center mb-6">
           <GraduationCap size={40} className="text-gray-500" />
         </div>
-        <h2 className="text-2xl font-bold text-white mb-3">Curso no encontrado</h2>
+        <h2 className="text-2xl font-bold text-fg mb-3">Curso no encontrado</h2>
         <p className="text-gray-400">El curso que estás buscando no existe o no está disponible.</p>
         <Link href="/academia" className="mt-6 px-6 py-3 bg-stampa-orange text-white rounded-xl font-bold hover:bg-[#e65c00] transition-colors shadow-lg shadow-[#ff6a00]/20">
           Volver a Academia
@@ -365,7 +365,7 @@ export function CourseDetailClient({ courseId, routeId: id, previewVisibility = 
   const renderVideo = () => {
     if (!activeLesson || !activeLesson.video_url || !activeLesson.video_url.trim()) {
       return (
-        <div className="flex aspect-video items-center justify-center rounded-2xl bg-stampa-bg-soft border border-stampa-border text-6xl text-white">
+        <div className="flex aspect-video items-center justify-center rounded-2xl bg-stampa-bg-soft border border-stampa-border text-6xl text-fg">
           <Play size={44} className="opacity-20 text-gray-500" />
           <span className="absolute text-sm mt-20 text-gray-500 font-medium">Esta clase todavía no tiene video cargado.</span>
         </div>
@@ -443,7 +443,7 @@ export function CourseDetailClient({ courseId, routeId: id, previewVisibility = 
     <div className="pb-12 space-y-6">
       <Link
         href={courseKindUi.publicListHref}
-        className="inline-flex items-center gap-2 text-sm font-semibold text-gray-400 hover:text-white transition-colors"
+        className="inline-flex items-center gap-2 text-sm font-semibold text-gray-400 hover:text-fg transition-colors"
       >
         <ArrowLeft size={16} /> Volver a {courseKindUi.plural}
       </Link>
@@ -470,14 +470,14 @@ export function CourseDetailClient({ courseId, routeId: id, previewVisibility = 
             <span className={`${getCourseLevelClasses(course)} shadow-sm`}>
               {getCourseLevelLabel(course)}
             </span>
-            <span className="flex items-center gap-1.5 bg-white/5 text-gray-300 text-xs font-bold px-3 py-1 rounded-full border border-stampa-border">
-              <Layers size={14} className="text-stampa-orange" /> {totalLessons} lecciones
+            <span className="flex items-center gap-1.5 bg-fg/5 text-gray-300 text-xs font-bold px-3 py-1 rounded-full border border-stampa-border">
+              <Layers size={14} className="text-stampa-accent" /> {totalLessons} lecciones
             </span>
-            <span className="flex items-center gap-1.5 bg-white/5 text-gray-300 text-xs font-bold px-3 py-1 rounded-full border border-stampa-border">
+            <span className="flex items-center gap-1.5 bg-fg/5 text-gray-300 text-xs font-bold px-3 py-1 rounded-full border border-stampa-border">
               <Clock size={14} className="text-blue-400" /> {formatDuration(totalDuration)}
             </span>
           </div>
-          <h1 className="text-3xl font-bold text-white md:text-4xl">{course.title}</h1>
+          <h1 className="text-3xl font-bold text-fg md:text-4xl">{course.title}</h1>
           <p className="mt-3 text-base text-gray-400 leading-relaxed max-w-3xl">{course.description}</p>
         </div>
       </div>
@@ -490,8 +490,8 @@ export function CourseDetailClient({ courseId, routeId: id, previewVisibility = 
 
           <div className="flex flex-col gap-4">
             <div className="flex flex-col sm:flex-row sm:items-start justify-between gap-4">
-              <h2 className="text-xl font-bold text-white flex items-center gap-2">
-                <Video className="text-stampa-orange" size={24} />
+              <h2 className="text-xl font-bold text-fg flex items-center gap-2">
+                <Video className="text-stampa-accent" size={24} />
                 {activeLesson ? activeLesson.title : "Selecciona una clase"}
               </h2>
               {user && activeLesson && (
@@ -501,7 +501,7 @@ export function CourseDetailClient({ courseId, routeId: id, previewVisibility = 
                     disabled={markingProgress}
                     className={`inline-flex items-center justify-center gap-2 px-4 py-2 rounded-xl text-sm font-bold transition-all ${progress[activeLesson.id]
                         ? "bg-green-500/10 text-green-400 border border-green-500/20 hover:bg-green-500/20"
-                        : "bg-stampa-surface text-gray-300 border border-stampa-border hover:border-white/20 hover:bg-white/5"
+                        : "bg-stampa-surface text-gray-300 border border-stampa-border hover:border-fg/20 hover:bg-fg/5"
                       }`}
                   >
                     {markingProgress ? <Loader2 className="animate-spin h-4 w-4" /> : <CheckCircle2 className="h-4 w-4" />}
@@ -530,7 +530,7 @@ export function CourseDetailClient({ courseId, routeId: id, previewVisibility = 
 
             {activeLesson?.description && (
               <div className="bg-stampa-surface p-6 rounded-2xl border border-stampa-border shadow-sm">
-                <h3 className="text-sm font-bold text-white mb-2">Acerca de esta clase</h3>
+                <h3 className="text-sm font-bold text-fg mb-2">Acerca de esta clase</h3>
                 <p className="text-sm text-gray-400 leading-relaxed whitespace-pre-wrap">
                   {activeLesson.description}
                 </p>
@@ -541,23 +541,23 @@ export function CourseDetailClient({ courseId, routeId: id, previewVisibility = 
           {resources[activeLesson?.id] && resources[activeLesson?.id].length > 0 && (
             <div className="border border-stampa-border rounded-2xl overflow-hidden shadow-sm">
               <div className="bg-stampa-surface px-5 py-4 border-b border-stampa-border">
-                <h3 className="text-sm font-bold text-white flex items-center gap-2">
+                <h3 className="text-sm font-bold text-fg flex items-center gap-2">
                   <File className="text-blue-400" size={18} /> Recursos de la clase
                 </h3>
               </div>
-              <div className="divide-y divide-white/5 bg-stampa-bg-soft">
+              <div className="divide-y divide-fg/5 bg-stampa-bg-soft">
                 {resources[activeLesson.id].map(res => (
-                  <div key={res.id} className="flex items-center justify-between p-5 hover:bg-white/5 transition-colors">
+                  <div key={res.id} className="flex items-center justify-between p-5 hover:bg-fg/5 transition-colors">
                     <div className="flex items-center gap-4">
                       <div className="p-2.5 bg-blue-500/10 text-blue-400 rounded-xl border border-blue-500/20">
                         <File size={20} />
                       </div>
                       <div>
-                        <p className="text-sm font-bold text-white mb-0.5">{res.title}</p>
+                        <p className="text-sm font-bold text-fg mb-0.5">{res.title}</p>
                         <p className="text-[11px] font-semibold text-gray-500 uppercase tracking-wider">{res.resource_type}</p>
                       </div>
                     </div>
-                    <button onClick={() => handleOpenResource(res.url)} className="px-4 py-2 text-xs font-bold text-white bg-white/5 hover:bg-white/10 border border-stampa-border rounded-xl transition-colors">
+                    <button onClick={() => handleOpenResource(res.url)} className="px-4 py-2 text-xs font-bold text-fg bg-fg/5 hover:bg-fg/10 border border-stampa-border rounded-xl transition-colors">
                       Descargar
                     </button>
                   </div>
@@ -577,7 +577,7 @@ export function CourseDetailClient({ courseId, routeId: id, previewVisibility = 
               <div className="relative z-10">
                 <div className="flex justify-between items-end mb-3">
                   <span className="text-sm font-bold text-gray-300">Tu progreso</span>
-                  <span className="text-2xl font-black text-stampa-orange leading-none">{progressPercent}%</span>
+                  <span className="text-2xl font-black text-stampa-accent leading-none">{progressPercent}%</span>
                 </div>
                 <ProgressBar value={progressPercent} className="h-2.5" />
               </div>
@@ -586,11 +586,11 @@ export function CourseDetailClient({ courseId, routeId: id, previewVisibility = 
 
           <div className="bg-stampa-surface rounded-2xl border border-stampa-border shadow-lg overflow-hidden flex flex-col max-h-[800px]">
             <div className="p-5 bg-stampa-surface border-b border-stampa-border flex items-center justify-between z-10 shrink-0">
-              <h3 className="text-sm font-bold text-white">Contenido del curso</h3>
+              <h3 className="text-sm font-bold text-fg">Contenido del curso</h3>
               <span className="text-xs font-semibold text-gray-500">{completedCount} de {totalLessons}</span>
             </div>
 
-            <div className="divide-y divide-white/5 overflow-y-auto overflow-x-hidden flex-1 scrollbar-thin scrollbar-thumb-white/10 scrollbar-track-transparent">
+            <div className="divide-y divide-fg/5 overflow-y-auto overflow-x-hidden flex-1 scrollbar-thin scrollbar-thumb-white/10 scrollbar-track-transparent">
               {modules.map((m) => {
                 const isOpen = !!openModules[m.id];
                 const modProg = getModuleProgress(m.id);
@@ -598,10 +598,10 @@ export function CourseDetailClient({ courseId, routeId: id, previewVisibility = 
                   <div key={m.id} className="border-b border-stampa-border last:border-0">
                     <button
                       onClick={() => setOpenModules(prev => ({ ...prev, [m.id]: !prev[m.id] }))}
-                      className={`w-full flex items-center justify-between p-4 transition-colors text-left ${isOpen ? 'bg-white/5' : 'hover:bg-white/5'}`}
+                      className={`w-full flex items-center justify-between p-4 transition-colors text-left ${isOpen ? 'bg-fg/5' : 'hover:bg-fg/5'}`}
                     >
                       <div className="flex-1 min-w-0 pr-4">
-                        <h4 className="font-bold text-sm text-white truncate group-hover:text-stampa-orange transition-colors">
+                        <h4 className="font-bold text-sm text-fg truncate group-hover:text-stampa-accent transition-colors">
                           Módulo {m.sort_order}: {m.title}
                         </h4>
                         {modProg && (
@@ -611,7 +611,7 @@ export function CourseDetailClient({ courseId, routeId: id, previewVisibility = 
                           </p>
                         )}
                       </div>
-                      <div className="text-gray-500 shrink-0 p-1 bg-white/5 rounded-full">
+                      <div className="text-gray-500 shrink-0 p-1 bg-fg/5 rounded-full">
                         {isOpen ? <ChevronDown size={14} /> : <ChevronRight size={14} />}
                       </div>
                     </button>
@@ -626,24 +626,24 @@ export function CourseDetailClient({ courseId, routeId: id, previewVisibility = 
                               key={lesson.id}
                               onClick={() => setActiveLesson(lesson)}
                               className={`group flex w-full items-center gap-3 rounded-xl px-3 py-3 text-left transition-all ${isActive
-                                  ? "bg-stampa-orange/10 border border-[#ff6a00]/20 text-stampa-orange"
-                                  : "border border-transparent hover:bg-white/5 hover:border-stampa-border text-gray-400"
+                                  ? "bg-stampa-orange/10 border border-[#ff6a00]/20 text-stampa-accent"
+                                  : "border border-transparent hover:bg-fg/5 hover:border-stampa-border text-gray-400"
                                 }`}
                             >
                               <div className="shrink-0 flex items-center justify-center w-6 h-6">
                                 {isCompleted ? (
                                   <CheckCircle2 size={16} className="text-green-500" />
                                 ) : isActive ? (
-                                  <Play size={16} className="text-stampa-orange fill-current" />
+                                  <Play size={16} className="text-stampa-accent fill-current" />
                                 ) : (
                                   <Circle size={16} className="text-gray-600 group-hover:text-gray-400 transition-colors" />
                                 )}
                               </div>
-                              <span className={`flex-1 text-sm truncate font-medium ${isActive ? 'text-white' : 'group-hover:text-gray-300'}`}>
+                              <span className={`flex-1 text-sm truncate font-medium ${isActive ? 'text-fg' : 'group-hover:text-gray-300'}`}>
                                 {lesson.sort_order}. {lesson.title}
                               </span>
                               {lesson.duration_minutes && (
-                                <span className={`text-[10px] font-bold shrink-0 px-2 py-1 rounded-md ${isActive ? 'bg-stampa-orange/20 text-stampa-orange' : 'bg-white/5 text-gray-500 group-hover:bg-white/10'}`}>
+                                <span className={`text-[10px] font-bold shrink-0 px-2 py-1 rounded-md ${isActive ? 'bg-stampa-orange/20 text-stampa-accent' : 'bg-fg/5 text-gray-500 group-hover:bg-fg/10'}`}>
                                   {lesson.duration_minutes}m
                                 </span>
                               )}
@@ -680,8 +680,8 @@ export function CourseDetailClient({ courseId, routeId: id, previewVisibility = 
                 <Sparkles size={16} />
                 <span className="text-xs font-bold uppercase tracking-wider">Asistente IA</span>
               </div>
-              <h3 className="text-lg font-bold text-white mb-2 leading-tight">¿Te trabaste con la clase?</h3>
-              <p className="text-white/80 text-sm mb-4 leading-relaxed">
+              <h3 className="text-lg font-bold text-fg mb-2 leading-tight">¿Te trabaste con la clase?</h3>
+              <p className="text-fg/80 text-sm mb-4 leading-relaxed">
                 Pregúntale a Stampy y te ayudará a resolver cualquier duda sobre impresión 3D al instante.
               </p>
               <div className="inline-flex items-center justify-center bg-gradient-to-r from-cyan-500 to-violet-600 text-white px-4 py-2 rounded-xl text-sm font-bold hover:brightness-110 transition-all">

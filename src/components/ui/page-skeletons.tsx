@@ -13,7 +13,7 @@ export function SkeletonBlock({ className = "" }: { className?: string }) {
   return (
     <div
       aria-hidden="true"
-      className={`animate-pulse rounded-xl bg-white/[0.06] motion-reduce:animate-none ${className}`}
+      className={`animate-pulse rounded-xl bg-fg/[0.06] motion-reduce:animate-none ${className}`}
     />
   );
 }
@@ -55,10 +55,10 @@ export function GridSkeleton({ count = 6, media = false }: { count?: number; med
 export function TableSkeleton({ rows = 6, columns = 5 }: { rows?: number; columns?: number }) {
   return (
     <div className="overflow-hidden rounded-2xl border border-stampa-border bg-stampa-surface">
-      <div className="grid gap-4 border-b border-stampa-border bg-white/[0.025] px-5 py-4" style={{ gridTemplateColumns: `repeat(${columns}, minmax(0, 1fr))` }}>
+      <div className="grid gap-4 border-b border-stampa-border bg-fg/[0.025] px-5 py-4" style={{ gridTemplateColumns: `repeat(${columns}, minmax(0, 1fr))` }}>
         {Array.from({ length: columns }, (_, index) => <SkeletonBlock key={index} className="h-3" />)}
       </div>
-      <div className="divide-y divide-white/5">
+      <div className="divide-y divide-fg/5">
         {Array.from({ length: rows }, (_, row) => (
           <div key={row} className="grid gap-4 px-5 py-4" style={{ gridTemplateColumns: `repeat(${columns}, minmax(0, 1fr))` }}>
             {Array.from({ length: columns }, (_, column) => (

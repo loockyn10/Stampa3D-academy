@@ -14,11 +14,11 @@ export function LandingHeroMockup() {
         {/* Mockup Header */}
         <div className="flex items-center gap-3 mb-6 pb-4 border-b border-stampa-border">
           <div className="w-10 h-10 rounded-lg bg-gradient-to-br from-orange-500 to-orange-600 flex items-center justify-center shadow-[0_0_15px_rgba(234,88,12,0.5)]">
-            <span className="font-bold text-white text-lg">S</span>
+            <span className="font-bold text-fg text-lg">S</span>
           </div>
           <div>
-            <h3 className="font-semibold text-white/90">Stampa3D Dashboard</h3>
-            <p className="text-xs text-white/50">Plan Profesional</p>
+            <h3 className="font-semibold text-fg/90">Stampa3D Dashboard</h3>
+            <p className="text-xs text-fg/50">Plan Profesional</p>
           </div>
         </div>
 
@@ -26,53 +26,53 @@ export function LandingHeroMockup() {
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
           
           {/* Card 1: Curso Activo */}
-          <div className="bg-white/5 border border-stampa-border rounded-xl p-4 hover:bg-white/10 transition-colors duration-300 transform md:hover:-translate-y-1">
+          <div className="bg-fg/5 border border-stampa-border rounded-xl p-4 hover:bg-fg/10 transition-colors duration-300 transform md:hover:-translate-y-1">
             <div className="flex items-center justify-between mb-3">
-              <div className="flex items-center gap-2 text-white/80">
+              <div className="flex items-center gap-2 text-fg/80">
                 <PlayCircle className="w-5 h-5 text-orange-400" />
                 <span className="text-sm font-medium">Curso Activo</span>
               </div>
               <span className="text-xs font-bold text-orange-400">68%</span>
             </div>
-            <p className="text-sm text-white mb-2">Impresión 3D Inicial</p>
-            <div className="w-full bg-white/10 rounded-full h-1.5 overflow-hidden">
+            <p className="text-sm text-fg mb-2">Impresión 3D Inicial</p>
+            <div className="w-full bg-fg/10 rounded-full h-1.5 overflow-hidden">
               <div className="bg-gradient-to-r from-orange-600 to-orange-400 h-1.5 rounded-full w-[0%] animate-[grow_1.5s_ease-out_forwards]" style={{ "--grow-target": "68%" } as React.CSSProperties} />
             </div>
           </div>
 
           {/* Card 2: Precio Sugerido */}
-          <div className="bg-white/5 border border-stampa-border rounded-xl p-4 hover:bg-white/10 transition-colors duration-300 transform md:hover:-translate-y-1">
+          <div className="bg-fg/5 border border-stampa-border rounded-xl p-4 hover:bg-fg/10 transition-colors duration-300 transform md:hover:-translate-y-1">
             <div className="flex items-center justify-between mb-3">
-              <div className="flex items-center gap-2 text-white/80">
+              <div className="flex items-center gap-2 text-fg/80">
                 <Calculator className="w-5 h-5 text-green-400" />
                 <span className="text-sm font-medium">Calculadora</span>
               </div>
             </div>
-            <p className="text-xs text-white/50 mb-1">Precio sugerido (Soporte Joystick)</p>
-            <p className="text-xl font-bold text-white">$18.700</p>
+            <p className="text-xs text-fg/50 mb-1">Precio sugerido (Soporte Joystick)</p>
+            <p className="text-xl font-bold text-fg">$18.700</p>
           </div>
 
           {/* Card 3: Stock */}
-          <div className="bg-white/5 border border-stampa-border rounded-xl p-4 hover:bg-white/10 transition-colors duration-300 transform md:hover:-translate-y-1">
+          <div className="bg-fg/5 border border-stampa-border rounded-xl p-4 hover:bg-fg/10 transition-colors duration-300 transform md:hover:-translate-y-1">
             <div className="flex items-center justify-between mb-3">
-              <div className="flex items-center gap-2 text-white/80">
+              <div className="flex items-center gap-2 text-fg/80">
                 <Box className="w-5 h-5 text-blue-400" />
                 <span className="text-sm font-medium">Stock Actual</span>
               </div>
             </div>
-            <p className="text-sm text-white mb-1">PLA Negro - Grilon3</p>
+            <p className="text-sm text-fg mb-1">PLA Negro - Grilon3</p>
             <div className="flex items-center justify-between mt-2">
-              <span className="text-lg font-bold text-white">742 g</span>
+              <span className="text-lg font-bold text-fg">742 g</span>
               <span className="text-xs px-2 py-1 bg-blue-500/20 text-blue-300 rounded-md">Restante</span>
             </div>
           </div>
 
           {/* Card 4: Presupuesto & Sorteo */}
           <div className="flex flex-col gap-4">
-            <div className="bg-white/5 border border-stampa-border rounded-xl p-3 flex items-center justify-between hover:bg-white/10 transition-colors duration-300 md:hover:-translate-y-1">
+            <div className="bg-fg/5 border border-stampa-border rounded-xl p-3 flex items-center justify-between hover:bg-fg/10 transition-colors duration-300 md:hover:-translate-y-1">
               <div className="flex items-center gap-2">
                 <CheckCircle2 className="w-5 h-5 text-emerald-400" />
-                <span className="text-sm font-medium text-white/80">Presupuesto #142</span>
+                <span className="text-sm font-medium text-fg/80">Presupuesto #142</span>
               </div>
               <span className="text-xs text-emerald-400 bg-emerald-500/10 px-2 py-1 rounded-full">Enviado</span>
             </div>

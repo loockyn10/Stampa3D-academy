@@ -13,13 +13,13 @@ export default function AdminDashboardPage() {
 
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5">
         <Link href="/admin/funcionalidades" className="block group">
-          <div className="bg-stampa-surface p-6 rounded-2xl border border-stampa-orange/30 shadow-lg shadow-black/20 hover:border-stampa-orange/60 transition-all h-full relative overflow-hidden">
+          <div className="bg-stampa-surface p-6 rounded-2xl border border-stampa-orange/30 shadow-lg shadow-shade/20 hover:border-stampa-orange/60 transition-all h-full relative overflow-hidden">
             <div className="absolute top-0 right-0 w-24 h-24 bg-stampa-orange/10 rounded-full blur-2xl group-hover:bg-stampa-orange/20 transition-colors -translate-y-1/2 translate-x-1/2"></div>
             <div className="flex items-center gap-4 mb-4 relative z-10">
-              <div className="p-3 bg-stampa-bg-soft border border-stampa-border text-stampa-orange rounded-xl shadow-inner">
+              <div className="p-3 bg-stampa-bg-soft border border-stampa-border text-stampa-accent rounded-xl shadow-inner">
                 <ToggleRight size={24} />
               </div>
-              <h2 className="text-lg font-bold text-white group-hover:text-orange-400 transition-colors">Gestión de funcionalidades</h2>
+              <h2 className="text-lg font-bold text-fg group-hover:text-orange-400 transition-colors">Gestión de funcionalidades</h2>
             </div>
             <p className="text-sm text-gray-400 font-medium relative z-10">
               Activá o desactivá herramientas para los usuarios y lanzá Universo Stampa de forma progresiva.
@@ -28,13 +28,13 @@ export default function AdminDashboardPage() {
         </Link>
 
         <Link href="/admin/usuarios" className="block group">
-          <div className="bg-stampa-surface p-6 rounded-2xl border border-stampa-border shadow-lg shadow-black/20 hover:border-stampa-orange/30 transition-all h-full relative overflow-hidden">
+          <div className="bg-stampa-surface p-6 rounded-2xl border border-stampa-border shadow-lg shadow-shade/20 hover:border-stampa-orange/30 transition-all h-full relative overflow-hidden">
             <div className="absolute top-0 right-0 w-24 h-24 bg-blue-500/5 rounded-full blur-2xl group-hover:bg-blue-500/10 transition-colors -translate-y-1/2 translate-x-1/2"></div>
             <div className="flex items-center gap-4 mb-4 relative z-10">
               <div className="p-3 bg-stampa-bg-soft border border-stampa-border text-blue-500 rounded-xl shadow-inner">
                 <Users size={24} />
               </div>
-              <h2 className="text-lg font-bold text-white group-hover:text-blue-400 transition-colors">Usuarios</h2>
+              <h2 className="text-lg font-bold text-fg group-hover:text-blue-400 transition-colors">Usuarios</h2>
             </div>
             <p className="text-sm text-gray-400 font-medium relative z-10">
               Gestioná miembros, roles, insignias y estados de membresía de toda la comunidad.
@@ -43,13 +43,13 @@ export default function AdminDashboardPage() {
         </Link>
         
         <Link href="/admin/cursos" className="block group">
-          <div className="bg-stampa-surface p-6 rounded-2xl border border-stampa-border shadow-lg shadow-black/20 hover:border-stampa-orange/30 transition-all h-full relative overflow-hidden">
+          <div className="bg-stampa-surface p-6 rounded-2xl border border-stampa-border shadow-lg shadow-shade/20 hover:border-stampa-orange/30 transition-all h-full relative overflow-hidden">
             <div className="absolute top-0 right-0 w-24 h-24 bg-stampa-orange/5 rounded-full blur-2xl group-hover:bg-stampa-orange/10 transition-colors -translate-y-1/2 translate-x-1/2"></div>
             <div className="flex items-center gap-4 mb-4 relative z-10">
-              <div className="p-3 bg-stampa-bg-soft border border-stampa-border text-stampa-orange rounded-xl shadow-inner">
+              <div className="p-3 bg-stampa-bg-soft border border-stampa-border text-stampa-accent rounded-xl shadow-inner">
                 <GraduationCap size={24} />
               </div>
-              <h2 className="text-lg font-bold text-white group-hover:text-orange-400 transition-colors">Cursos</h2>
+              <h2 className="text-lg font-bold text-fg group-hover:text-orange-400 transition-colors">Cursos</h2>
             </div>
             <p className="text-sm text-gray-400 font-medium relative z-10">
               Creá cursos, módulos, clases, recursos y ajustá los metadatos educativos.
@@ -58,13 +58,13 @@ export default function AdminDashboardPage() {
         </Link>
         
         <Link href="/admin/stl" className="block group">
-          <div className="bg-stampa-surface p-6 rounded-2xl border border-stampa-border shadow-lg shadow-black/20 hover:border-stampa-orange/30 transition-all h-full relative overflow-hidden">
+          <div className="bg-stampa-surface p-6 rounded-2xl border border-stampa-border shadow-lg shadow-shade/20 hover:border-stampa-orange/30 transition-all h-full relative overflow-hidden">
             <div className="absolute top-0 right-0 w-24 h-24 bg-emerald-500/5 rounded-full blur-2xl group-hover:bg-emerald-500/10 transition-colors -translate-y-1/2 translate-x-1/2"></div>
             <div className="flex items-center gap-4 mb-4 relative z-10">
               <div className="p-3 bg-stampa-bg-soft border border-stampa-border text-emerald-500 rounded-xl shadow-inner">
                 <Boxes size={24} />
               </div>
-              <h2 className="text-lg font-bold text-white group-hover:text-emerald-400 transition-colors">Librería STL</h2>
+              <h2 className="text-lg font-bold text-fg group-hover:text-emerald-400 transition-colors">Librería STL</h2>
             </div>
             <p className="text-sm text-gray-400 font-medium relative z-10">
               Administrá categorías y archivos 3D descargables para los usuarios.
@@ -73,13 +73,13 @@ export default function AdminDashboardPage() {
         </Link>
 
         <Link href="/admin/sorteos" className="block group">
-          <div className="bg-stampa-surface p-6 rounded-2xl border border-stampa-border shadow-lg shadow-black/20 hover:border-stampa-orange/30 transition-all h-full relative overflow-hidden">
+          <div className="bg-stampa-surface p-6 rounded-2xl border border-stampa-border shadow-lg shadow-shade/20 hover:border-stampa-orange/30 transition-all h-full relative overflow-hidden">
             <div className="absolute top-0 right-0 w-24 h-24 bg-indigo-500/5 rounded-full blur-2xl group-hover:bg-indigo-500/10 transition-colors -translate-y-1/2 translate-x-1/2"></div>
             <div className="flex items-center gap-4 mb-4 relative z-10">
               <div className="p-3 bg-stampa-bg-soft border border-stampa-border text-indigo-500 rounded-xl shadow-inner">
                 <Gift size={24} />
               </div>
-              <h2 className="text-lg font-bold text-white group-hover:text-indigo-400 transition-colors">Sorteos</h2>
+              <h2 className="text-lg font-bold text-fg group-hover:text-indigo-400 transition-colors">Sorteos</h2>
             </div>
             <p className="text-sm text-gray-400 font-medium relative z-10">
               Creá sorteos exclusivos para miembros, configurá premios y elegí ganadores.
@@ -88,13 +88,13 @@ export default function AdminDashboardPage() {
         </Link>
 
         <Link href="/admin/insignias" className="block group">
-          <div className="bg-stampa-surface p-6 rounded-2xl border border-stampa-border shadow-lg shadow-black/20 hover:border-stampa-orange/30 transition-all h-full relative overflow-hidden">
+          <div className="bg-stampa-surface p-6 rounded-2xl border border-stampa-border shadow-lg shadow-shade/20 hover:border-stampa-orange/30 transition-all h-full relative overflow-hidden">
             <div className="absolute top-0 right-0 w-24 h-24 bg-amber-500/5 rounded-full blur-2xl group-hover:bg-amber-500/10 transition-colors -translate-y-1/2 translate-x-1/2"></div>
             <div className="flex items-center gap-4 mb-4 relative z-10">
               <div className="p-3 bg-stampa-bg-soft border border-stampa-border text-amber-500 rounded-xl shadow-inner">
                 <Trophy size={24} />
               </div>
-              <h2 className="text-lg font-bold text-white group-hover:text-amber-400 transition-colors">Insignias</h2>
+              <h2 className="text-lg font-bold text-fg group-hover:text-amber-400 transition-colors">Insignias</h2>
             </div>
             <p className="text-sm text-gray-400 font-medium relative z-10">
               Gestioná reconocimientos y badges para la gamificación de la comunidad.
@@ -103,13 +103,13 @@ export default function AdminDashboardPage() {
         </Link>
         
         <Link href="/admin/cursos/configuracion" className="block group">
-          <div className="bg-stampa-surface p-6 rounded-2xl border border-stampa-border shadow-lg shadow-black/20 hover:border-stampa-orange/30 transition-all h-full relative overflow-hidden">
+          <div className="bg-stampa-surface p-6 rounded-2xl border border-stampa-border shadow-lg shadow-shade/20 hover:border-stampa-orange/30 transition-all h-full relative overflow-hidden">
             <div className="absolute top-0 right-0 w-24 h-24 bg-purple-500/5 rounded-full blur-2xl group-hover:bg-purple-500/10 transition-colors -translate-y-1/2 translate-x-1/2"></div>
             <div className="flex items-center gap-4 mb-4 relative z-10">
               <div className="p-3 bg-stampa-bg-soft border border-stampa-border text-purple-500 rounded-xl shadow-inner">
                 <Settings size={24} />
               </div>
-              <h2 className="text-lg font-bold text-white group-hover:text-purple-400 transition-colors">Config. Educativa</h2>
+              <h2 className="text-lg font-bold text-fg group-hover:text-purple-400 transition-colors">Config. Educativa</h2>
             </div>
             <p className="text-sm text-gray-400 font-medium relative z-10">
               Administrá categorías, instructores y datos auxiliares de los cursos.
@@ -118,13 +118,13 @@ export default function AdminDashboardPage() {
         </Link>
         
         <Link href="/admin/impresoras" className="block group">
-          <div className="bg-stampa-surface p-6 rounded-2xl border border-stampa-border shadow-lg shadow-black/20 hover:border-stampa-orange/30 transition-all h-full relative overflow-hidden">
+          <div className="bg-stampa-surface p-6 rounded-2xl border border-stampa-border shadow-lg shadow-shade/20 hover:border-stampa-orange/30 transition-all h-full relative overflow-hidden">
             <div className="absolute top-0 right-0 w-24 h-24 bg-teal-500/5 rounded-full blur-2xl group-hover:bg-teal-500/10 transition-colors -translate-y-1/2 translate-x-1/2"></div>
             <div className="flex items-center gap-4 mb-4 relative z-10">
               <div className="p-3 bg-stampa-bg-soft border border-stampa-border text-teal-500 rounded-xl shadow-inner">
                 <MonitorSmartphone size={24} />
               </div>
-              <h2 className="text-lg font-bold text-white group-hover:text-teal-400 transition-colors">Catálogo de Impresoras</h2>
+              <h2 className="text-lg font-bold text-fg group-hover:text-teal-400 transition-colors">Catálogo de Impresoras</h2>
             </div>
             <p className="text-sm text-gray-400 font-medium relative z-10">
               Plantillas globales que los usuarios pueden importar a sus talleres.
@@ -133,13 +133,13 @@ export default function AdminDashboardPage() {
         </Link>
         
         <Link href="/admin/membresia" className="block group">
-          <div className="bg-stampa-surface p-6 rounded-2xl border border-stampa-border shadow-lg shadow-black/20 hover:border-stampa-orange/30 transition-all h-full relative overflow-hidden">
+          <div className="bg-stampa-surface p-6 rounded-2xl border border-stampa-border shadow-lg shadow-shade/20 hover:border-stampa-orange/30 transition-all h-full relative overflow-hidden">
             <div className="absolute top-0 right-0 w-24 h-24 bg-red-500/5 rounded-full blur-2xl group-hover:bg-red-500/10 transition-colors -translate-y-1/2 translate-x-1/2"></div>
             <div className="flex items-center gap-4 mb-4 relative z-10">
               <div className="p-3 bg-stampa-bg-soft border border-stampa-border text-red-500 rounded-xl shadow-inner">
                 <DollarSign size={24} />
               </div>
-              <h2 className="text-lg font-bold text-white group-hover:text-red-400 transition-colors">Cobros y Membresía</h2>
+              <h2 className="text-lg font-bold text-fg group-hover:text-red-400 transition-colors">Cobros y Membresía</h2>
             </div>
             <p className="text-sm text-gray-400 font-medium relative z-10">
               Configurá precios y forzá actualizaciones de suscripciones.
@@ -147,13 +147,13 @@ export default function AdminDashboardPage() {
           </div>
         </Link>
         <Link href="/admin/roadmaps" className="block group">
-          <div className="bg-stampa-surface p-6 rounded-2xl border border-stampa-border shadow-lg shadow-black/20 hover:border-stampa-orange/30 transition-all h-full relative overflow-hidden">
+          <div className="bg-stampa-surface p-6 rounded-2xl border border-stampa-border shadow-lg shadow-shade/20 hover:border-stampa-orange/30 transition-all h-full relative overflow-hidden">
             <div className="absolute top-0 right-0 w-24 h-24 bg-pink-500/5 rounded-full blur-2xl group-hover:bg-pink-500/10 transition-colors -translate-y-1/2 translate-x-1/2"></div>
             <div className="flex items-center gap-4 mb-4 relative z-10">
               <div className="p-3 bg-stampa-bg-soft border border-stampa-border text-pink-500 rounded-xl shadow-inner">
                 <Map size={24} />
               </div>
-              <h2 className="text-lg font-bold text-white group-hover:text-pink-400 transition-colors">Roadmaps</h2>
+              <h2 className="text-lg font-bold text-fg group-hover:text-pink-400 transition-colors">Roadmaps</h2>
             </div>
             <p className="text-sm text-gray-400 font-medium relative z-10">
               Configurá rutas recomendadas según impresora, nivel y objetivo.
@@ -162,13 +162,13 @@ export default function AdminDashboardPage() {
         </Link>
         
         <Link href="/admin/calculadora" className="block group">
-          <div className="bg-stampa-surface p-6 rounded-2xl border border-stampa-border shadow-lg shadow-black/20 hover:border-stampa-orange/30 transition-all h-full relative overflow-hidden">
+          <div className="bg-stampa-surface p-6 rounded-2xl border border-stampa-border shadow-lg shadow-shade/20 hover:border-stampa-orange/30 transition-all h-full relative overflow-hidden">
             <div className="absolute top-0 right-0 w-24 h-24 bg-[#ff6a00]/5 rounded-full blur-2xl group-hover:bg-[#ff6a00]/10 transition-colors -translate-y-1/2 translate-x-1/2"></div>
             <div className="flex items-center gap-4 mb-4 relative z-10">
-              <div className="p-3 bg-stampa-bg-soft border border-stampa-border text-[#ff6a00] rounded-xl shadow-inner">
+              <div className="p-3 bg-stampa-bg-soft border border-stampa-border text-stampa-accent rounded-xl shadow-inner">
                 <Calculator size={24} />
               </div>
-              <h2 className="text-lg font-bold text-white group-hover:text-[#ff6a00] transition-colors">Tipos Calculadora</h2>
+              <h2 className="text-lg font-bold text-fg group-hover:text-stampa-accent transition-colors">Tipos Calculadora</h2>
             </div>
             <p className="text-sm text-gray-400 font-medium relative z-10">
               Administrá los tipos de producto y multiplicadores base para la calculadora.
@@ -177,13 +177,13 @@ export default function AdminDashboardPage() {
         </Link>
 
         <Link href="/admin/calculadora/filamentos" className="block group">
-          <div className="bg-stampa-surface p-6 rounded-2xl border border-stampa-border shadow-lg shadow-black/20 hover:border-stampa-orange/30 transition-all h-full relative overflow-hidden">
+          <div className="bg-stampa-surface p-6 rounded-2xl border border-stampa-border shadow-lg shadow-shade/20 hover:border-stampa-orange/30 transition-all h-full relative overflow-hidden">
             <div className="absolute top-0 right-0 w-24 h-24 bg-cyan-500/5 rounded-full blur-2xl group-hover:bg-cyan-500/10 transition-colors -translate-y-1/2 translate-x-1/2"></div>
             <div className="flex items-center gap-4 mb-4 relative z-10">
               <div className="p-3 bg-stampa-bg-soft border border-stampa-border text-cyan-500 rounded-xl shadow-inner">
                 <Calculator size={24} />
               </div>
-              <h2 className="text-lg font-bold text-white group-hover:text-cyan-400 transition-colors">Catálogo de Filamentos</h2>
+              <h2 className="text-lg font-bold text-fg group-hover:text-cyan-400 transition-colors">Catálogo de Filamentos</h2>
             </div>
             <p className="text-sm text-gray-400 font-medium relative z-10">
               Administrá el catálogo global de filamentos para la calculadora.
@@ -192,13 +192,13 @@ export default function AdminDashboardPage() {
         </Link>
         
         <Link href="/admin/codigos" className="block group">
-          <div className="bg-stampa-surface p-6 rounded-2xl border border-stampa-border shadow-lg shadow-black/20 hover:border-stampa-orange/30 transition-all h-full relative overflow-hidden">
+          <div className="bg-stampa-surface p-6 rounded-2xl border border-stampa-border shadow-lg shadow-shade/20 hover:border-stampa-orange/30 transition-all h-full relative overflow-hidden">
             <div className="absolute top-0 right-0 w-24 h-24 bg-yellow-500/5 rounded-full blur-2xl group-hover:bg-yellow-500/10 transition-colors -translate-y-1/2 translate-x-1/2"></div>
             <div className="flex items-center gap-4 mb-4 relative z-10">
               <div className="p-3 bg-stampa-bg-soft border border-stampa-border text-yellow-500 rounded-xl shadow-inner">
                 <Tag size={24} />
               </div>
-              <h2 className="text-lg font-bold text-white group-hover:text-yellow-400 transition-colors">Códigos</h2>
+              <h2 className="text-lg font-bold text-fg group-hover:text-yellow-400 transition-colors">Códigos</h2>
             </div>
             <p className="text-sm text-gray-400 font-medium relative z-10">
               Gestión de códigos de descuento, referidos y acceso.
@@ -207,13 +207,13 @@ export default function AdminDashboardPage() {
         </Link>
 
         <Link href="/admin/stampy" className="block group">
-          <div className="bg-stampa-surface p-6 rounded-2xl border border-stampa-border shadow-lg shadow-black/20 hover:border-stampa-orange/30 transition-all h-full relative overflow-hidden">
+          <div className="bg-stampa-surface p-6 rounded-2xl border border-stampa-border shadow-lg shadow-shade/20 hover:border-stampa-orange/30 transition-all h-full relative overflow-hidden">
             <div className="absolute top-0 right-0 w-24 h-24 bg-cyan-400/5 rounded-full blur-2xl group-hover:bg-cyan-400/10 transition-colors -translate-y-1/2 translate-x-1/2"></div>
             <div className="flex items-center gap-4 mb-4 relative z-10">
               <div className="p-3 bg-stampa-bg-soft border border-stampa-border text-cyan-400 rounded-xl shadow-inner">
                 <Bot size={24} />
               </div>
-              <h2 className="text-lg font-bold text-white group-hover:text-cyan-300 transition-colors">Stampy</h2>
+              <h2 className="text-lg font-bold text-fg group-hover:text-cyan-300 transition-colors">Stampy</h2>
             </div>
             <p className="text-sm text-gray-400 font-medium relative z-10">
               Observabilidad, conversaciones, feedback e índice de conocimiento.
@@ -222,13 +222,13 @@ export default function AdminDashboardPage() {
         </Link>
 
         <Link href="/admin/stampy/contextos" className="block group">
-          <div className="bg-stampa-surface p-6 rounded-2xl border border-stampa-border shadow-lg shadow-black/20 hover:border-stampa-orange/30 transition-all h-full relative overflow-hidden">
+          <div className="bg-stampa-surface p-6 rounded-2xl border border-stampa-border shadow-lg shadow-shade/20 hover:border-stampa-orange/30 transition-all h-full relative overflow-hidden">
             <div className="absolute top-0 right-0 w-24 h-24 bg-cyan-400/5 rounded-full blur-2xl group-hover:bg-cyan-400/10 transition-colors -translate-y-1/2 translate-x-1/2"></div>
             <div className="flex items-center gap-4 mb-4 relative z-10">
               <div className="p-3 bg-stampa-bg-soft border border-stampa-border text-cyan-400 rounded-xl shadow-inner">
                 <Bot size={24} />
               </div>
-              <h2 className="text-lg font-bold text-white group-hover:text-cyan-300 transition-colors">Contextos Stampy</h2>
+              <h2 className="text-lg font-bold text-fg group-hover:text-cyan-300 transition-colors">Contextos Stampy</h2>
             </div>
             <p className="text-sm text-gray-400 font-medium relative z-10">
               Administración de información de contexto para el asistente Stampy IA.
@@ -237,13 +237,13 @@ export default function AdminDashboardPage() {
         </Link>
 
         <Link href="/admin/stampy/documentos" className="block group">
-          <div className="bg-stampa-surface p-6 rounded-2xl border border-stampa-border shadow-lg shadow-black/20 hover:border-stampa-orange/30 transition-all h-full relative overflow-hidden">
+          <div className="bg-stampa-surface p-6 rounded-2xl border border-stampa-border shadow-lg shadow-shade/20 hover:border-stampa-orange/30 transition-all h-full relative overflow-hidden">
             <div className="absolute top-0 right-0 w-24 h-24 bg-cyan-400/5 rounded-full blur-2xl group-hover:bg-cyan-400/10 transition-colors -translate-y-1/2 translate-x-1/2"></div>
             <div className="flex items-center gap-4 mb-4 relative z-10">
               <div className="p-3 bg-stampa-bg-soft border border-stampa-border text-cyan-400 rounded-xl shadow-inner">
                 <BookOpen size={24} />
               </div>
-              <h2 className="text-lg font-bold text-white group-hover:text-cyan-300 transition-colors">Documentos Stampy</h2>
+              <h2 className="text-lg font-bold text-fg group-hover:text-cyan-300 transition-colors">Documentos Stampy</h2>
             </div>
             <p className="text-sm text-gray-400 font-medium relative z-10">
               Subí, procesá y administrá PDFs privados de conocimiento técnico.
@@ -252,13 +252,13 @@ export default function AdminDashboardPage() {
         </Link>
 
         <Link href="/admin/transcripciones" className="block group">
-          <div className="bg-stampa-surface p-6 rounded-2xl border border-stampa-border shadow-lg shadow-black/20 hover:border-stampa-orange/30 transition-all h-full relative overflow-hidden">
+          <div className="bg-stampa-surface p-6 rounded-2xl border border-stampa-border shadow-lg shadow-shade/20 hover:border-stampa-orange/30 transition-all h-full relative overflow-hidden">
             <div className="absolute top-0 right-0 w-24 h-24 bg-gray-400/5 rounded-full blur-2xl group-hover:bg-gray-400/10 transition-colors -translate-y-1/2 translate-x-1/2"></div>
             <div className="flex items-center gap-4 mb-4 relative z-10">
               <div className="p-3 bg-stampa-bg-soft border border-stampa-border text-gray-400 rounded-xl shadow-inner">
                 <FileText size={24} />
               </div>
-              <h2 className="text-lg font-bold text-white group-hover:text-gray-300 transition-colors">Transcripciones</h2>
+              <h2 className="text-lg font-bold text-fg group-hover:text-gray-300 transition-colors">Transcripciones</h2>
             </div>
             <p className="text-sm text-gray-400 font-medium relative z-10">
               Gestionar transcripciones de clases para Stampy IA.

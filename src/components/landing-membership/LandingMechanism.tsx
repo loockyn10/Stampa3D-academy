@@ -32,7 +32,7 @@ export function LandingMechanism() {
                       <Icon className="h-6 w-6" />
                     </span>
                   </div>
-                  <h3 className="mt-8 text-2xl font-bold text-white">{step.title}</h3>
+                  <h3 className="mt-8 text-2xl font-bold text-fg">{step.title}</h3>
                   <p className="mt-4 leading-relaxed text-zinc-400">{step.description}</p>
                 </article>
                 {index < mechanismSteps.length - 1 ? (

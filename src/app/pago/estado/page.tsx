@@ -48,13 +48,13 @@ export default function PagoEstadoPage() {
   }, [checkStatus]);
 
   return (
-    <div className="flex min-h-screen items-center justify-center bg-[#F7F7F9] px-4 py-12 sm:px-6 lg:px-8">
+    <div className="flex min-h-screen items-center justify-center bg-stampa-bg px-4 py-12 sm:px-6 lg:px-8">
       <div className="w-full max-w-md space-y-8 bg-stampa-surface p-8 rounded-2xl shadow-sm border border-stampa-border text-center">
         
         {loading && (
           <div className="flex flex-col items-center justify-center">
-            <Loader2 className="h-12 w-12 text-stampa-orange animate-spin mb-4" />
-            <h2 className="text-2xl font-bold tracking-tight text-white">
+            <Loader2 className="h-12 w-12 text-stampa-accent animate-spin mb-4" />
+            <h2 className="text-2xl font-bold tracking-tight text-fg">
               Estamos verificando tu membresía...
             </h2>
             <p className="mt-2 text-sm text-gray-400">
@@ -66,7 +66,7 @@ export default function PagoEstadoPage() {
         {!loading && error && (
           <div className="flex flex-col items-center justify-center">
             <AlertCircle className="h-12 w-12 text-red-500 mb-4" />
-            <h2 className="text-2xl font-bold tracking-tight text-white">
+            <h2 className="text-2xl font-bold tracking-tight text-fg">
               Error de verificación
             </h2>
             <p className="mt-2 text-sm text-red-600 mb-6">
@@ -86,7 +86,7 @@ export default function PagoEstadoPage() {
             {statusData.active ? (
               <>
                 <CheckCircle2 className="h-12 w-12 text-green-500 mb-4" />
-                <h2 className="text-2xl font-bold tracking-tight text-white">
+                <h2 className="text-2xl font-bold tracking-tight text-fg">
                   {(statusData.status === "cancelled" || statusData.status === "canceled") 
                     ? "Suscripción cancelada"
                     : "Membresía activada correctamente"}
@@ -100,7 +100,7 @@ export default function PagoEstadoPage() {
             ) : statusData.status === "pending" ? (
               <>
                 <Clock className="h-12 w-12 text-yellow-500 mb-4" />
-                <h2 className="text-2xl font-bold tracking-tight text-white">
+                <h2 className="text-2xl font-bold tracking-tight text-fg">
                   Suscripción pendiente
                 </h2>
                 <p className="mt-2 text-sm text-gray-400 mb-6">
@@ -115,7 +115,7 @@ export default function PagoEstadoPage() {
                   </button>
                   <button
                     onClick={() => router.push("/")}
-                    className="w-full rounded-lg bg-stampa-surface border border-white/20 px-3 py-3 text-sm font-semibold text-gray-300 hover:bg-stampa-bg-soft transition-colors"
+                    className="w-full rounded-lg bg-stampa-surface border border-fg/20 px-3 py-3 text-sm font-semibold text-gray-300 hover:bg-stampa-bg-soft transition-colors"
                   >
                     Volver al inicio
                   </button>
@@ -124,7 +124,7 @@ export default function PagoEstadoPage() {
             ) : statusData.status === "not_found" ? (
               <>
                 <XCircle className="h-12 w-12 text-gray-400 mb-4" />
-                <h2 className="text-2xl font-bold tracking-tight text-white">
+                <h2 className="text-2xl font-bold tracking-tight text-fg">
                   Suscripción no encontrada
                 </h2>
                 <p className="mt-2 text-sm text-gray-400 mb-6">
@@ -140,7 +140,7 @@ export default function PagoEstadoPage() {
             ) : (
               <>
                 <AlertCircle className="h-12 w-12 text-red-500 mb-4" />
-                <h2 className="text-2xl font-bold tracking-tight text-white">
+                <h2 className="text-2xl font-bold tracking-tight text-fg">
                   Estado desconocido
                 </h2>
                 <p className="mt-2 text-sm text-gray-400 mb-6">
@@ -155,7 +155,7 @@ export default function PagoEstadoPage() {
                   </button>
                   <button
                     onClick={() => router.push("/")}
-                    className="w-full rounded-lg bg-stampa-surface border border-white/20 px-3 py-3 text-sm font-semibold text-gray-300 hover:bg-stampa-bg-soft transition-colors"
+                    className="w-full rounded-lg bg-stampa-surface border border-fg/20 px-3 py-3 text-sm font-semibold text-gray-300 hover:bg-stampa-bg-soft transition-colors"
                   >
                     Volver al inicio
                   </button>

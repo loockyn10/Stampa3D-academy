@@ -174,7 +174,7 @@ function PerfilContent() {
 
   usePublishStampyScreenContext(stampyScreenContext);
 
-  if (loading && !profile) return <div className="py-24 flex justify-center"><Loader2 className="animate-spin h-8 w-8 text-stampa-orange" /></div>;
+  if (loading && !profile) return <div className="py-24 flex justify-center"><Loader2 className="animate-spin h-8 w-8 text-stampa-accent" /></div>;
 
   const displayName = profile?.display_name || profile?.full_name || profile?.company_name || "Usuario";
   // Beta access is an independent grant, never a paid plan: it only exists while the grant is active and unexpired.
@@ -201,11 +201,11 @@ function PerfilContent() {
           <Card className="max-w-4xl p-5 sm:p-6">
             <div className={`grid gap-5 border-b border-stampa-border pb-5 mb-5 ${referralCode ? "md:grid-cols-[minmax(0,1fr)_minmax(17rem,0.8fr)]" : ""}`}>
               <div className="flex min-w-0 items-center gap-4 sm:items-start">
-                <div className="flex h-14 w-14 shrink-0 items-center justify-center rounded-full bg-orange-100 text-lg font-bold text-stampa-orange select-none uppercase sm:h-16 sm:w-16 sm:text-xl">
+                <div className="flex h-14 w-14 shrink-0 items-center justify-center rounded-full bg-orange-100 text-lg font-bold text-stampa-accent select-none uppercase sm:h-16 sm:w-16 sm:text-xl">
                   {displayName.substring(0, 2) || "US"}
                 </div>
                 <div className="min-w-0 flex-1">
-                  <p className="truncate text-base font-bold text-white">{displayName}</p>
+                  <p className="truncate text-base font-bold text-fg">{displayName}</p>
                   <p className="mb-1.5 truncate text-sm text-gray-400">{profile.email}</p>
                   <div className="flex flex-wrap gap-2">
                     {/* Beta access is not a plan: no "Activo / Nivel / meses" membership badges for beta-only users. */}
@@ -239,7 +239,7 @@ function PerfilContent() {
                   <div className="mb-3 flex items-center justify-between gap-3">
                     <div className="flex min-w-0 items-center gap-2">
                       <Users size={16} className="shrink-0 text-violet-400" />
-                      <h3 className="truncate text-sm font-bold text-white">Tu código de referido</h3>
+                      <h3 className="truncate text-sm font-bold text-fg">Tu código de referido</h3>
                     </div>
                     <span className="shrink-0 font-mono text-base font-bold tracking-wider text-violet-200 select-all">
                       {referralCode}
@@ -268,7 +268,7 @@ function PerfilContent() {
 
                   {(referralStats.pending > 0 || referralStats.converted > 0) && (
                     <div className="mt-3 flex flex-wrap gap-x-4 gap-y-1 border-t border-stampa-border pt-3 text-xs text-gray-500">
-                      {referralStats.pending > 0 && <span><strong className="text-white">{referralStats.pending}</strong> pendientes</span>}
+                      {referralStats.pending > 0 && <span><strong className="text-fg">{referralStats.pending}</strong> pendientes</span>}
                       {referralStats.converted > 0 && <span><strong className="text-green-400">{referralStats.converted}</strong> convertidos</span>}
                     </div>
                   )}
@@ -283,9 +283,9 @@ function PerfilContent() {
                   onClick={() => setMembershipOpen((current) => !current)}
                   aria-expanded={membershipOpen}
                   aria-controls="profile-membership-details"
-                  className="flex w-full items-center justify-between gap-4 px-4 py-3.5 text-left transition-colors hover:bg-white/[0.03] motion-reduce:transition-none"
+                  className="flex w-full items-center justify-between gap-4 px-4 py-3.5 text-left transition-colors hover:bg-fg/[0.03] motion-reduce:transition-none"
                 >
-                  <span className="font-bold text-white">Membresía</span>
+                  <span className="font-bold text-fg">Membresía</span>
                   <span className="flex items-center gap-2">
                     <span className="text-xs font-semibold text-gray-400">
                       {profile.membership_status === "active" ? "Activa" : "Inactiva"}
@@ -307,7 +307,7 @@ function PerfilContent() {
                     <div className="border-t border-stampa-border px-4 pb-4 pt-3">
                       <div className="flex justify-between gap-4">
                         <span className="text-gray-500 font-semibold">Estado de membresía</span>
-                        <span className="text-right font-bold text-white">
+                        <span className="text-right font-bold text-fg">
                           {profile.membership_status === "active" && (subscription.status === "cancelled" || subscription.status === "canceled")
                             ? "Cancelada (Acceso temporal)"
                             : profile.membership_status === "active"
@@ -327,13 +327,13 @@ function PerfilContent() {
                       {subscription.amount && (
                         <div className="flex justify-between gap-4 mt-3 pt-3 border-t border-stampa-border">
                           <span className="text-gray-500 font-semibold">Monto mensual (Suscripción {subscription.status})</span>
-                          <span className="shrink-0 font-bold text-white">${subscription.amount}</span>
+                          <span className="shrink-0 font-bold text-fg">${subscription.amount}</span>
                         </div>
                       )}
                       {subscription.next_payment_at && profile.membership_status === "active" && subscription.status !== "cancelled" && subscription.status !== "canceled" && (
                         <div className="flex justify-between gap-4 mt-1">
                           <span className="text-gray-500 font-semibold">Próximo cobro</span>
-                          <span className="shrink-0 font-bold text-white">{new Date(subscription.next_payment_at).toLocaleDateString("es-AR")}</span>
+                          <span className="shrink-0 font-bold text-fg">{new Date(subscription.next_payment_at).toLocaleDateString("es-AR")}</span>
                         </div>
                       )}
                     </div>
@@ -363,9 +363,9 @@ function PerfilContent() {
 
           {/* BADGES SECTION */}
           <div className="max-w-xl">
-            <h3 className="text-lg font-bold text-white mb-3">Tus Insignias</h3>
+            <h3 className="text-lg font-bold text-fg mb-3">Tus Insignias</h3>
             {badges.length === 0 ? (
-              <Card className="p-6 text-center border-dashed border-white/20">
+              <Card className="p-6 text-center border-dashed border-fg/20">
                 <p className="text-sm text-gray-500">Aún no has ganado insignias. ¡Participa en la comunidad para conseguir la primera!</p>
               </Card>
             ) : (
@@ -376,7 +376,7 @@ function PerfilContent() {
                       {b.icon}
                     </div>
                     <div>
-                      <p className="text-sm font-bold text-white">{b.name}</p>
+                      <p className="text-sm font-bold text-fg">{b.name}</p>
                       <p className="text-[11px] text-gray-400 leading-tight mt-0.5">{b.description}</p>
                     </div>
                   </Card>
@@ -392,7 +392,7 @@ function PerfilContent() {
 
 export default function PerfilPage() {
   return (
-    <Suspense fallback={<div className="py-24 flex justify-center"><Loader2 className="animate-spin h-8 w-8 text-stampa-orange" /></div>}>
+    <Suspense fallback={<div className="py-24 flex justify-center"><Loader2 className="animate-spin h-8 w-8 text-stampa-accent" /></div>}>
       <PerfilContent />
     </Suspense>
   );

@@ -45,13 +45,13 @@ export function Combobox({ options, value, onChange, placeholder = "Seleccionar.
     <div className={`relative ${className}`} ref={wrapperRef}>
       <button
         type="button"
-        className="w-full bg-stampa-surface text-left text-sm border border-white/20 rounded-md shadow-sm px-3 py-2 focus:outline-none focus:ring-1 focus:ring-stampa-orange focus:border-stampa-orange flex justify-between items-center"
+        className="w-full bg-stampa-surface text-left text-sm border border-fg/20 rounded-md shadow-sm px-3 py-2 focus:outline-none focus:ring-1 focus:ring-stampa-orange focus:border-stampa-orange flex justify-between items-center"
         onClick={() => {
           setIsOpen(!isOpen);
           setQuery("");
         }}
       >
-        <span className={selectedOption ? "text-white truncate block w-full pr-2" : "text-gray-500 truncate block w-full pr-2"}>
+        <span className={selectedOption ? "text-fg truncate block w-full pr-2" : "text-gray-500 truncate block w-full pr-2"}>
           {selectedOption ? (selectedOption.element || selectedOption.label) : placeholder}
         </span>
         <ChevronDown size={16} className="text-gray-400 ml-2 shrink-0" />
@@ -84,7 +84,7 @@ export function Combobox({ options, value, onChange, placeholder = "Seleccionar.
                 <li
                   key={option.id}
                   className={`cursor-pointer select-none relative py-2 pl-3 pr-9 text-sm hover:bg-orange-50 ${
-                    String(value) === String(option.id) ? "text-orange-900 font-medium" : "text-white hover:text-gray-900"
+                    String(value) === String(option.id) ? "text-orange-900 font-medium" : "text-fg hover:text-gray-900"
                   }`}
                   onClick={() => {
                     onChange(option.id);
@@ -94,7 +94,7 @@ export function Combobox({ options, value, onChange, placeholder = "Seleccionar.
                 >
                   <span className="block truncate">{option.element || option.label}</span>
                   {String(value) === String(option.id) && (
-                    <span className="absolute inset-y-0 right-0 flex items-center pr-4 text-stampa-orange">
+                    <span className="absolute inset-y-0 right-0 flex items-center pr-4 text-stampa-accent">
                       <Check size={16} />
                     </span>
                   )}

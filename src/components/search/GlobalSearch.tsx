@@ -155,9 +155,9 @@ export function GlobalSearch() {
         };
       case "course":
         return {
-          icon: <GraduationCap size={12} className="text-stampa-orange" />,
+          icon: <GraduationCap size={12} className="text-stampa-accent" />,
           label: "Curso",
-          className: "bg-stampa-orange/10 text-stampa-orange border-[#ff6a00]/20"
+          className: "bg-stampa-orange/10 text-stampa-accent border-[#ff6a00]/20"
         };
       case "workshop":
         return {
@@ -199,11 +199,11 @@ export function GlobalSearch() {
                   <li key={result.id}>
                     <button
                       onClick={() => handleSelectResult(result.path)}
-                      className="w-full text-left px-4 py-3 hover:bg-white/5 transition-colors flex items-start gap-3 group"
+                      className="w-full text-left px-4 py-3 hover:bg-fg/5 transition-colors flex items-start gap-3 group"
                     >
                       <div className="flex-1 min-w-0">
                         <div className="flex items-center gap-2 mb-1">
-                          <h4 className="text-sm font-bold text-white truncate group-hover:text-stampa-orange transition-colors">
+                          <h4 className="text-sm font-bold text-fg truncate group-hover:text-stampa-accent transition-colors">
                             {result.title}
                           </h4>
                           <span className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full border text-[10px] font-medium whitespace-nowrap ${badgeUI.className}`}>

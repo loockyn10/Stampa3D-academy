@@ -27,7 +27,7 @@ const Model3DViewer = dynamic(() => import("@/components/stl/Model3DViewer").the
   ssr: false,
   loading: () => (
     <div className="flex aspect-[4/3] w-full items-center justify-center rounded-2xl border border-stampa-border bg-stampa-bg-soft sm:aspect-video">
-      <Loader2 className="h-7 w-7 animate-spin text-stampa-orange" />
+      <Loader2 className="h-7 w-7 animate-spin text-stampa-accent" />
     </div>
   ),
 });
@@ -137,7 +137,7 @@ export default function LibreriaStlModelPage({ params }: PageProps) {
   if (loading) {
     return (
       <div className="flex items-center justify-center py-24">
-        <Loader2 className="h-8 w-8 animate-spin text-stampa-orange" />
+        <Loader2 className="h-8 w-8 animate-spin text-stampa-accent" />
       </div>
     );
   }
@@ -145,7 +145,7 @@ export default function LibreriaStlModelPage({ params }: PageProps) {
   if (!model || !modelGroup) {
     return (
       <div className="flex flex-col items-center gap-4 py-24 text-center">
-        <h1 className="text-xl font-bold text-white">No encontramos ese modelo</h1>
+        <h1 className="text-xl font-bold text-fg">No encontramos ese modelo</h1>
         <p className="max-w-sm text-sm text-gray-400">Puede que el link esté desactualizado o que el modelo ya no esté disponible.</p>
         <Link href="/libreria-stl" className="inline-flex items-center gap-2 rounded-xl bg-stampa-orange px-5 py-2.5 text-sm font-bold text-white hover:bg-stampa-orange-hover">
           <ArrowLeft size={16} /> Volver a la Librería STL
@@ -166,7 +166,7 @@ export default function LibreriaStlModelPage({ params }: PageProps) {
             { label: model.title },
           ]}
         />
-        <Link href={backHref} className="inline-flex w-fit items-center gap-1.5 text-xs font-semibold text-gray-500 transition-colors hover:text-stampa-orange">
+        <Link href={backHref} className="inline-flex w-fit items-center gap-1.5 text-xs font-semibold text-gray-500 transition-colors hover:text-stampa-accent">
           <ArrowLeft size={14} /> {modelGroup.name}
         </Link>
       </div>
@@ -191,8 +191,8 @@ export default function LibreriaStlModelPage({ params }: PageProps) {
 
         <aside className="flex min-w-0 flex-col gap-5 rounded-2xl border border-stampa-border bg-stampa-surface p-5 sm:p-6">
           <div>
-            <p className="mb-1.5 truncate text-[10px] font-bold uppercase tracking-wider text-stampa-orange">{modelGroup.name}</p>
-            <h1 className="break-words text-2xl font-black leading-tight tracking-tight text-white">{model.title}</h1>
+            <p className="mb-1.5 truncate text-[10px] font-bold uppercase tracking-wider text-stampa-accent">{modelGroup.name}</p>
+            <h1 className="break-words text-2xl font-black leading-tight tracking-tight text-fg">{model.title}</h1>
             <div className="mt-3">
               <StlDifficultyBadge difficulty={model.difficulty} />
             </div>
@@ -206,7 +206,7 @@ export default function LibreriaStlModelPage({ params }: PageProps) {
             {dimensions && (
               <div className="col-span-2 rounded-lg border border-stampa-border bg-stampa-bg-soft p-2.5">
                 <dt className="mb-0.5 text-[10px] font-medium text-gray-500">Dimensiones (X × Y × Z)</dt>
-                <dd className="text-xs font-bold text-white">
+                <dd className="text-xs font-bold text-fg">
                   {formatStlDimensions(dimensions)} <span className="font-medium text-gray-500">· unidades del archivo</span>
                 </dd>
               </div>
@@ -224,7 +224,7 @@ function Fact({ label, value }: { label: string; value: string | null }) {
   return (
     <div className="min-w-0 rounded-lg border border-stampa-border bg-stampa-bg-soft p-2.5">
       <dt className="mb-0.5 text-[10px] font-medium text-gray-500">{label}</dt>
-      <dd className="truncate text-xs font-bold text-white">{value || "-"}</dd>
+      <dd className="truncate text-xs font-bold text-fg">{value || "-"}</dd>
     </div>
   );
 }

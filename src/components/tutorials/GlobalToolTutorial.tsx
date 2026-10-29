@@ -278,13 +278,13 @@ export function GlobalToolTutorial({
             
             {/* Header */}
             <div className="flex items-center justify-between px-6 py-4 border-b border-stampa-border">
-              <h3 className="font-bold text-white flex items-center gap-2">
-                <HelpCircle size={18} className="text-stampa-orange" /> 
+              <h3 className="font-bold text-fg flex items-center gap-2">
+                <HelpCircle size={18} className="text-stampa-accent" /> 
                 {tutorial.title || "Tutorial de la herramienta"}
               </h3>
               <button 
                 onClick={handleClose} 
-                className="text-gray-400 hover:text-white transition-colors bg-white/5 hover:bg-white/10 p-2 rounded-full"
+                className="text-gray-400 hover:text-fg transition-colors bg-fg/5 hover:bg-fg/10 p-2 rounded-full"
               >
                 <X size={20} />
               </button>
@@ -301,8 +301,8 @@ export function GlobalToolTutorial({
               <div className="rounded-xl overflow-hidden bg-stampa-bg/50 border border-stampa-border aspect-video w-full flex items-center justify-center relative shadow-inner">
                 {isPendingTutorialUrl(tutorial.video_url) || !tutorial.video_url ? (
                   <div className="flex flex-col items-center justify-center p-8 text-center">
-                    <AlertCircle size={40} className="text-stampa-orange/60 mb-3 animate-pulse" />
-                    <h4 className="text-white font-bold text-lg mb-1">Tutorial pendiente de cargar</h4>
+                    <AlertCircle size={40} className="text-stampa-accent/60 mb-3 animate-pulse" />
+                    <h4 className="text-fg font-bold text-lg mb-1">Tutorial pendiente de cargar</h4>
                     <p className="text-gray-400 text-sm max-w-sm">
                       Cuando el video esté disponible, vas a poder verlo acá.
                     </p>
@@ -342,7 +342,7 @@ export function GlobalToolTutorial({
             <div className="p-4 border-t border-stampa-border flex justify-end">
               <button
                 onClick={handleClose}
-                className="px-6 py-2.5 bg-white/10 hover:bg-white/20 text-white text-sm font-bold rounded-xl transition-colors"
+                className="px-6 py-2.5 bg-fg/10 hover:bg-fg/20 text-fg text-sm font-bold rounded-xl transition-colors"
               >
                 Entendido
               </button>

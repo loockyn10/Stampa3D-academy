@@ -14,7 +14,7 @@ export default function AdminUsuariosPage() {
           <span className="text-gray-400">/</span>
           <span className="text-sm text-gray-500">Usuarios</span>
         </div>
-        <h1 className="text-2xl font-bold text-white flex items-center gap-2">
+        <h1 className="text-2xl font-bold text-fg flex items-center gap-2">
           <Users className="text-blue-400" />
           Gestión de Usuarios
         </h1>

@@ -33,8 +33,8 @@ export function WorkshopNavigation() {
               aria-current={active ? "page" : undefined}
               className={`flex min-h-12 items-center gap-2 whitespace-nowrap border-b-2 px-3 text-sm font-semibold transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-stampa-orange sm:px-5 ${
                 active
-                  ? "border-stampa-orange text-stampa-orange"
-                  : "border-transparent text-gray-500 hover:border-white/20 hover:text-gray-300"
+                  ? "border-stampa-orange text-stampa-accent"
+                  : "border-transparent text-gray-500 hover:border-fg/20 hover:text-gray-300"
               }`}
             >
               <Icon size={16} aria-hidden="true" />

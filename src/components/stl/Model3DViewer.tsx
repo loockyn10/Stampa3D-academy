@@ -264,12 +264,12 @@ export function Model3DViewer({ variantId, onDimensions }: Model3DViewerProps) {
   }, [variantId, attempt]);
 
   return (
-    <div className="relative aspect-[4/3] max-h-[70vh] w-full overflow-hidden rounded-2xl border border-stampa-border bg-stampa-bg-soft sm:aspect-video">
+    <div className="theme-force-dark relative aspect-[4/3] max-h-[70vh] w-full overflow-hidden rounded-2xl border border-stampa-border bg-stampa-bg-soft sm:aspect-video">
       <div ref={containerRef} className="absolute inset-0 touch-none" aria-label="Vista previa 3D del modelo" role="img" />
 
       {status === "loading" && (
         <div className="absolute inset-0 flex flex-col items-center justify-center gap-2 text-stampa-text-muted">
-          <Loader2 className="h-7 w-7 animate-spin text-stampa-orange" />
+          <Loader2 className="h-7 w-7 animate-spin text-stampa-accent" />
           <span className="text-xs font-medium">
             {progress !== null ? `Cargando modelo… ${Math.round(progress * 100)}%` : "Cargando modelo…"}
           </span>

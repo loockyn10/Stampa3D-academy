@@ -37,7 +37,7 @@ interface StampyMessageContentProps {
 export function StampyMessageContent({ content, role }: StampyMessageContentProps) {
   if (role === "user") {
     return (
-      <p className="whitespace-pre-wrap break-words text-sm leading-5 text-white [overflow-wrap:anywhere]">
+      <p className="whitespace-pre-wrap break-words text-sm leading-5 text-fg [overflow-wrap:anywhere]">
         {content}
       </p>
     );
@@ -77,29 +77,29 @@ export function StampyMessageContent({ content, role }: StampyMessageContentProp
         urlTransform={(url) => (isAllowedInternalHref(url) ? url : "")}
         components={{
           p: ({ children }) => <p className="mb-2 last:mb-0">{children}</p>,
-          h1: ({ children }) => <h3 className="mb-1.5 mt-3 text-[15px] font-semibold leading-5 text-white first:mt-0">{children}</h3>,
-          h2: ({ children }) => <h3 className="mb-1.5 mt-3 text-[15px] font-semibold leading-5 text-white first:mt-0">{children}</h3>,
-          h3: ({ children }) => <h3 className="mb-1.5 mt-3 text-sm font-semibold leading-5 text-white first:mt-0">{children}</h3>,
-          h4: ({ children }) => <h4 className="mb-1.5 mt-3 text-sm font-semibold leading-5 text-white first:mt-0">{children}</h4>,
+          h1: ({ children }) => <h3 className="mb-1.5 mt-3 text-[15px] font-semibold leading-5 text-fg first:mt-0">{children}</h3>,
+          h2: ({ children }) => <h3 className="mb-1.5 mt-3 text-[15px] font-semibold leading-5 text-fg first:mt-0">{children}</h3>,
+          h3: ({ children }) => <h3 className="mb-1.5 mt-3 text-sm font-semibold leading-5 text-fg first:mt-0">{children}</h3>,
+          h4: ({ children }) => <h4 className="mb-1.5 mt-3 text-sm font-semibold leading-5 text-fg first:mt-0">{children}</h4>,
           strong: ({ children }) => <strong className="font-semibold text-gray-100">{children}</strong>,
-          ul: ({ children }) => <ul className="my-2 ml-5 list-disc space-y-1 pl-0 marker:text-stampa-orange">{children}</ul>,
-          ol: ({ children }) => <ol className="my-2 ml-5 list-decimal space-y-1 pl-0 marker:font-semibold marker:text-stampa-orange">{children}</ol>,
+          ul: ({ children }) => <ul className="my-2 ml-5 list-disc space-y-1 pl-0 marker:text-stampa-accent">{children}</ul>,
+          ol: ({ children }) => <ol className="my-2 ml-5 list-decimal space-y-1 pl-0 marker:font-semibold marker:text-stampa-accent">{children}</ol>,
           li: ({ children }) => <li className="pl-1">{children}</li>,
           a: ({ href, children }) => isAllowedInternalHref(href) ? (
             <Link
               href={href}
-              className="font-medium text-stampa-orange underline decoration-stampa-orange/40 underline-offset-2 transition-colors hover:text-orange-300"
+              className="font-medium text-stampa-accent underline decoration-stampa-orange/40 underline-offset-2 transition-colors hover:text-orange-300"
             >
               {children}
             </Link>
           ) : <span>{children}</span>,
           code: ({ children }) => (
-            <code className="break-words rounded bg-black/40 px-1 py-0.5 font-mono text-[0.85em] text-cyan-200">
+            <code className="break-words rounded bg-shade/40 px-1 py-0.5 font-mono text-[0.85em] text-cyan-200">
               {children}
             </code>
           ),
           pre: ({ children }) => (
-            <pre className="my-2 max-w-full overflow-x-auto rounded-lg border border-white/10 bg-black/40 p-3 text-xs leading-5 [&_code]:bg-transparent [&_code]:p-0">
+            <pre className="my-2 max-w-full overflow-x-auto rounded-lg border border-fg/10 bg-shade/40 p-3 text-xs leading-5 [&_code]:bg-transparent [&_code]:p-0">
               {children}
             </pre>
           ),
@@ -114,7 +114,7 @@ export function StampyMessageContent({ content, role }: StampyMessageContentProp
               <table className="w-full table-fixed border-collapse text-left text-xs">{children}</table>
             </div>
           ),
-          th: ({ children }) => <th className="break-words border-b border-stampa-border bg-black/20 px-2 py-1.5 font-semibold text-gray-100">{children}</th>,
+          th: ({ children }) => <th className="break-words border-b border-stampa-border bg-shade/20 px-2 py-1.5 font-semibold text-gray-100">{children}</th>,
           td: ({ children }) => <td className="break-words border-b border-stampa-border/60 px-2 py-1.5 align-top last:border-b-0">{children}</td>,
         }}
       >

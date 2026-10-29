@@ -8,7 +8,7 @@ import { Dialog } from "@/components/ui/dialog";
 import type { PublicRaffle } from "@/lib/raffles/public-raffles";
 import { getRaffleTimeStatus, type FinishedRaffle } from "@/lib/raffles/status";
 
-const PRIZE_POSITION_TONES = ["text-stampa-orange", "text-cyan-300", "text-violet-300"] as const;
+const PRIZE_POSITION_TONES = ["text-stampa-accent", "text-cyan-300", "text-violet-300"] as const;
 const longDate = new Intl.DateTimeFormat("es-AR", { day: "numeric", month: "long", year: "numeric" });
 const shortDate = new Intl.DateTimeFormat("es-AR", { day: "numeric", month: "short", year: "numeric" });
 
@@ -50,10 +50,10 @@ export function RafflesView({
         <div className="relative grid grid-cols-1 gap-4 lg:grid-cols-[minmax(0,1fr)_minmax(0,26rem)] lg:items-center">
           <div className="min-w-0">
             <div className="flex items-center gap-3">
-              <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl border border-stampa-orange/25 bg-stampa-orange/10 text-stampa-orange" aria-hidden="true">
+              <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl border border-stampa-orange/25 bg-stampa-orange/10 text-stampa-accent" aria-hidden="true">
                 <Gift size={20} />
               </span>
-              <h1 className="text-2xl font-black tracking-tight text-white sm:text-3xl">Sorteos</h1>
+              <h1 className="text-2xl font-black tracking-tight text-fg sm:text-3xl">Sorteos</h1>
             </div>
             <p className="mt-2 max-w-xl text-sm text-gray-400">
               Participá de los sorteos de Stampa con tu cuenta e invitá amigos con tu enlace.
@@ -61,7 +61,7 @@ export function RafflesView({
             <button
               type="button"
               onClick={() => onHelpOpenChange(true)}
-              className="mt-3 inline-flex min-h-9 items-center gap-1.5 rounded-lg border border-stampa-border bg-white/5 px-3 text-xs font-semibold text-gray-200 transition-colors hover:bg-white/10 focus:outline-none focus-visible:ring-2 focus-visible:ring-stampa-orange"
+              className="mt-3 inline-flex min-h-9 items-center gap-1.5 rounded-lg border border-stampa-border bg-fg/5 px-3 text-xs font-semibold text-gray-200 transition-colors hover:bg-fg/10 focus:outline-none focus-visible:ring-2 focus-visible:ring-stampa-orange"
             >
               <HelpCircle size={14} aria-hidden="true" /> ¿Cómo funcionan los sorteos?
             </button>
@@ -85,7 +85,7 @@ export function RafflesView({
                 {totalChances}
               </p>
             </div>
-            <div className="mt-3 border-t border-white/5 pt-3">
+            <div className="mt-3 border-t border-fg/5 pt-3">
               <p className="mb-1.5 flex items-center gap-1.5 text-xs font-semibold text-gray-300">
                 <UserPlus size={13} className="text-violet-300" aria-hidden="true" /> Tu enlace de invitación
               </p>
@@ -125,7 +125,7 @@ export function RafflesView({
       {/* 2. Sorteos activos */}
       {!error && (activeRaffles.length > 0 ? (
         <section aria-labelledby="active-raffles-title">
-          <h2 id="active-raffles-title" className="mb-3 text-base font-bold text-white">Sorteos activos</h2>
+          <h2 id="active-raffles-title" className="mb-3 text-base font-bold text-fg">Sorteos activos</h2>
           <div className="grid grid-cols-1 gap-4 xl:grid-cols-2">
             {activeRaffles.map((activeRaffle) => {
               const activePrizes = activeRaffle.raffle_prizes;
@@ -135,7 +135,7 @@ export function RafflesView({
               return (
                 <article
                   key={activeRaffle.id}
-                  className="group relative overflow-hidden rounded-2xl border border-stampa-orange/20 bg-gradient-to-br from-stampa-orange/[0.06] via-stampa-surface to-violet-500/[0.05] shadow-lg shadow-black/30 transition-colors hover:border-stampa-orange/35"
+                  className="group relative overflow-hidden rounded-2xl border border-stampa-orange/20 bg-gradient-to-br from-stampa-orange/[0.06] via-stampa-surface to-violet-500/[0.05] shadow-lg shadow-shade/30 transition-colors hover:border-stampa-orange/35"
                 >
                   <div className="pointer-events-none absolute inset-x-0 top-0 z-10 h-px bg-gradient-to-r from-transparent via-stampa-orange/60 to-transparent" />
                   <div className="flex gap-3 p-3 sm:gap-4 sm:p-4">
@@ -145,7 +145,7 @@ export function RafflesView({
                         alt={activeRaffle.title}
                         className="h-full w-full object-cover transition-transform duration-500 group-hover:scale-[1.03]"
                         fallback={(
-                          <div className="flex h-full items-center justify-center text-stampa-orange/70">
+                          <div className="flex h-full items-center justify-center text-stampa-accent/70">
                             <Gift size={26} aria-hidden="true" />
                           </div>
                         )}
@@ -156,9 +156,9 @@ export function RafflesView({
                         <StatusPill kind={status.kind} label={status.kind === "open" ? "Activo" : status.label} />
                         {status.kind === "open" && <span className="text-[11px] font-semibold text-gray-400">{status.label}</span>}
                       </div>
-                      <h3 className="mt-1.5 line-clamp-2 text-base font-black leading-tight text-white sm:text-lg">{activeRaffle.title}</h3>
+                      <h3 className="mt-1.5 line-clamp-2 text-base font-black leading-tight text-fg sm:text-lg">{activeRaffle.title}</h3>
                       <div className="mt-2 flex flex-wrap items-center gap-1.5 text-[11px] font-semibold">
-                        <span className="inline-flex items-center gap-1 rounded-md border border-stampa-orange/25 bg-stampa-orange/10 px-2 py-1 text-stampa-orange">
+                        <span className="inline-flex items-center gap-1 rounded-md border border-stampa-orange/25 bg-stampa-orange/10 px-2 py-1 text-stampa-accent">
                           <CalendarDays size={12} aria-hidden="true" />
                           {activeRaffle.draw_date ? shortDate.format(new Date(activeRaffle.draw_date)) : "Fecha a confirmar"}
                         </span>
@@ -171,7 +171,7 @@ export function RafflesView({
                   </div>
 
                   {activePrizes.length > 0 && (
-                    <div className="border-t border-white/5 px-3 pb-3 pt-2.5 sm:px-4 sm:pb-4">
+                    <div className="border-t border-fg/5 px-3 pb-3 pt-2.5 sm:px-4 sm:pb-4">
                       <h4 className="mb-1.5 text-[10px] font-bold uppercase tracking-[0.14em] text-gray-400">
                         {activePrizes.length === 1 ? "Premio" : `${activePrizes.length} premios`}
                       </h4>
@@ -181,14 +181,14 @@ export function RafflesView({
                             <RaffleImage
                               src={prize.image_url}
                               alt=""
-                              className="h-8 w-8 shrink-0 rounded-md border border-white/10 bg-white/[0.03] object-contain"
+                              className="h-8 w-8 shrink-0 rounded-md border border-fg/10 bg-fg/[0.03] object-contain"
                               fallback={(
-                                <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-md border border-white/10 bg-white/[0.03] text-gray-400">
+                                <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-md border border-fg/10 bg-fg/[0.03] text-gray-400">
                                   <Gift size={14} aria-hidden="true" />
                                 </span>
                               )}
                             />
-                            <p className="min-w-0 flex-1 truncate text-sm font-semibold text-white">
+                            <p className="min-w-0 flex-1 truncate text-sm font-semibold text-fg">
                               <span className={`mr-1 ${PRIZE_POSITION_TONES[Math.min(idx, PRIZE_POSITION_TONES.length - 1)]}`}>{idx + 1}º</span>
                               {prize.name}
                               {prize.description && <span className="ml-1.5 text-xs font-normal text-gray-400">{prize.description}</span>}
@@ -208,9 +208,9 @@ export function RafflesView({
           <div className="mb-3 flex h-11 w-11 items-center justify-center rounded-xl border border-stampa-border bg-stampa-bg-soft text-gray-400">
             <Ticket size={20} />
           </div>
-          <h2 className="text-base font-bold text-white">Todavía no hay sorteos activos.</h2>
+          <h2 className="text-base font-bold text-fg">Todavía no hay sorteos activos.</h2>
           <p className="mt-1 max-w-sm text-sm text-gray-400">Tus chances se mantienen para los próximos. Mientras tanto, compartí tu enlace de invitación.</p>
-          <Link href="/canales" className="mt-4 rounded-xl border border-stampa-border bg-stampa-bg-soft px-5 py-2 text-sm font-bold text-white transition-colors hover:bg-white/5">
+          <Link href="/canales" className="mt-4 rounded-xl border border-stampa-border bg-stampa-bg-soft px-5 py-2 text-sm font-bold text-fg transition-colors hover:bg-fg/5">
             Ir a la Comunidad
           </Link>
         </div>
@@ -219,19 +219,19 @@ export function RafflesView({
       {/* 3. Finalizados */}
       {finishedRaffles.length > 0 && (
         <section aria-labelledby="finished-raffles-title">
-          <h2 id="finished-raffles-title" className="mb-3 text-base font-bold text-white">Sorteos finalizados</h2>
+          <h2 id="finished-raffles-title" className="mb-3 text-base font-bold text-fg">Sorteos finalizados</h2>
           <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3">
             {finishedRaffles.map((raffle) => (
               <article key={raffle.key} className="rounded-xl border border-stampa-border bg-stampa-surface p-3.5">
                 <div className="flex items-start justify-between gap-2">
-                  <h3 className="line-clamp-2 text-sm font-bold text-white">{raffle.title}</h3>
+                  <h3 className="line-clamp-2 text-sm font-bold text-fg">{raffle.title}</h3>
                   <StatusPill kind="finished" label="Finalizado" />
                 </div>
                 <p className="mt-0.5 text-[11px] text-gray-400">{raffle.date ? longDate.format(new Date(raffle.date)) : ""}</p>
                 <ul className="mt-2.5 space-y-1.5">
                   {raffle.winners.map((winner) => (
                     <li key={winner.id} className="flex min-w-0 items-center gap-2 text-xs">
-                      <Trophy size={13} className="shrink-0 text-stampa-orange" aria-hidden="true" />
+                      <Trophy size={13} className="shrink-0 text-stampa-accent" aria-hidden="true" />
                       <span className="min-w-0 truncate">
                         <strong className="text-gray-100">{winner.winner}</strong>
                         <span className="text-gray-400"> · {winner.prize}</span>
@@ -255,7 +255,7 @@ function StatusPill({ kind, label }: { kind: "open" | "no_date" | "awaiting_resu
     open: "border-emerald-500/30 bg-emerald-500/10 text-emerald-300",
     no_date: "border-cyan-400/25 bg-cyan-500/10 text-cyan-200",
     awaiting_result: "border-yellow-500/30 bg-yellow-500/10 text-yellow-200",
-    finished: "border-white/10 bg-white/5 text-gray-400",
+    finished: "border-fg/10 bg-fg/5 text-gray-400",
   }[kind];
   return (
     <span className={`inline-flex shrink-0 items-center rounded-full border px-2 py-0.5 text-[10px] font-bold uppercase tracking-wide ${tone}`}>
@@ -298,14 +298,14 @@ function RafflesHelpDialog({ open, onClose, baseChances }: { open: boolean; onCl
   return (
     <Dialog open={open} onClose={onClose} labelledBy="raffles-help-title" panelClassName="max-w-lg rounded-2xl border border-stampa-border bg-stampa-surface">
       <div className="flex items-start justify-between gap-3 border-b border-stampa-border px-4 py-3.5 sm:px-5">
-        <h2 id="raffles-help-title" className="flex items-center gap-2 text-base font-bold text-white">
-          <HelpCircle size={17} className="text-stampa-orange" aria-hidden="true" /> ¿Cómo funcionan los sorteos?
+        <h2 id="raffles-help-title" className="flex items-center gap-2 text-base font-bold text-fg">
+          <HelpCircle size={17} className="text-stampa-accent" aria-hidden="true" /> ¿Cómo funcionan los sorteos?
         </h2>
         <button
           type="button"
           onClick={onClose}
           aria-label="Cerrar"
-          className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg text-gray-400 hover:bg-white/10 hover:text-white focus:outline-none focus-visible:ring-2 focus-visible:ring-stampa-orange"
+          className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg text-gray-400 hover:bg-fg/10 hover:text-fg focus:outline-none focus-visible:ring-2 focus-visible:ring-stampa-orange"
         >
           <X size={18} />
         </button>
@@ -313,7 +313,7 @@ function RafflesHelpDialog({ open, onClose, baseChances }: { open: boolean; onCl
       <dl className="space-y-3.5 px-4 py-4 sm:px-5">
         {sections.map((section) => (
           <div key={section.title}>
-            <dt className="text-sm font-semibold text-white">{section.title}</dt>
+            <dt className="text-sm font-semibold text-fg">{section.title}</dt>
             <dd className="mt-0.5 text-sm leading-relaxed text-gray-400">{section.text}</dd>
           </div>
         ))}

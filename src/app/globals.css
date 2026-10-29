@@ -1,8 +1,18 @@
 @import "tailwindcss";
+@import "./theme-palette.css";
 
+/* Temas: ver docs/ARCHITECTURE.md > Temas. `data-theme` ("light" | "dark") lo fija el script de
+   inicializacion en <head> antes del primer render. Sin atributo se asume el oscuro (diseno original). */
 :root {
   --mobile-app-header-height: 6.625rem;
   --mobile-bottom-navigation-height: 4.75rem;
+}
+
+/* Tokens del tema oscuro (valores originales de Universo Stampa). */
+:root,
+.theme-force-dark {
+  color-scheme: dark;
+
   --stampa-bg: #171717;
   --stampa-bg-soft: #212126;
   --stampa-surface: #212121;
@@ -13,10 +23,57 @@
   --stampa-orange-hover: #ff8826;
   --stampa-orange-muted: rgba(251, 146, 60, 0.12);
   --stampa-orange-border: rgba(213, 60, 251, 0.28);
+  /* Naranja para texto/iconos sobre superficies (en claro se oscurece para cumplir contraste). */
+  --stampa-accent: #ff780a;
 
   --stampa-text: #f4f4f5;
   --stampa-text-muted: #a1a1aa;
   --stampa-text-soft: #d4d4d8;
+  --stampa-body-text: #ededed;
+
+  /* Tinta de primer plano: base de textos fuertes y de overlays/bordes translucidos (bg-fg/5). */
+  --stampa-fg: #ffffff;
+  /* Sombreado/hundido translucido (bg-shade/20). */
+  --stampa-shade: #000000;
+  /* Superficies elevadas/hundidas fijas (menus, popovers, mockups, viewers). */
+  --stampa-raised: #1a1a1a;
+  --stampa-deep: #111111;
+  --stampa-sunken: #09090b;
+  --stampa-scrollbar-track: #050505;
+
+  --background: var(--stampa-bg);
+  --foreground: var(--stampa-text);
+}
+
+/* Tokens del tema claro: paleta calida de papel con el mismo naranja de marca. */
+:root[data-theme="light"],
+.theme-force-light {
+  color-scheme: light;
+
+  --stampa-bg: #f5f3ef;
+  --stampa-bg-soft: #ebe8e2;
+  --stampa-surface: #ffffff;
+  --stampa-surface-soft: #f2efe9;
+  --stampa-border: rgba(40, 32, 22, 0.15);
+
+  --stampa-orange: #ff780a;
+  --stampa-orange-hover: #ea6700;
+  --stampa-orange-muted: rgba(255, 120, 10, 0.12);
+  --stampa-orange-border: rgba(234, 103, 0, 0.35);
+  --stampa-accent: #bc4600;
+
+  --stampa-text: #1b1a18;
+  --stampa-text-muted: #66615a;
+  --stampa-text-soft: #3d3934;
+  --stampa-body-text: #1b1a18;
+
+  --stampa-fg: #1b1a18;
+  /* La tinta lleva alfa propio: bg-shade/20 se lee como ~6% de tinta sobre papel. */
+  --stampa-shade: rgba(27, 26, 24, 0.3);
+  --stampa-raised: #ffffff;
+  --stampa-deep: #ffffff;
+  --stampa-sunken: #ebe8e2;
+  --stampa-scrollbar-track: #e6e2da;
 
   --background: var(--stampa-bg);
   --foreground: var(--stampa-text);
@@ -38,9 +95,18 @@
   --color-stampa-orange-hover: var(--stampa-orange-hover);
   --color-stampa-orange-muted: var(--stampa-orange-muted);
   --color-stampa-orange-border: var(--stampa-orange-border);
+  --color-stampa-accent: var(--stampa-accent);
   --color-stampa-text: var(--stampa-text);
   --color-stampa-text-muted: var(--stampa-text-muted);
   --color-stampa-text-soft: var(--stampa-text-soft);
+  --color-stampa-body: var(--stampa-body-text);
+  --color-stampa-raised: var(--stampa-raised);
+  --color-stampa-deep: var(--stampa-deep);
+  --color-stampa-sunken: var(--stampa-sunken);
+
+  /* Primer plano / sombreado adaptables al tema (usar en lugar de white/black para neutros). */
+  --color-fg: var(--stampa-fg);
+  --color-shade: var(--stampa-shade);
 }
 
 body {
@@ -294,7 +360,7 @@ option {
 
 .stampa-scrollbar {
   scrollbar-width: thin;
-  scrollbar-color: rgba(255, 106, 0, 0.65) rgba(255, 255, 255, 0.06);
+  scrollbar-color: rgba(255, 106, 0, 0.65) color-mix(in srgb, var(--stampa-fg) 6%, transparent);
 }
 
 .stampa-scrollbar::-webkit-scrollbar {
@@ -303,14 +369,14 @@ option {
 }
 
 .stampa-scrollbar::-webkit-scrollbar-track {
-  background: rgba(255, 255, 255, 0.06);
+  background: color-mix(in srgb, var(--stampa-fg) 6%, transparent);
   border-radius: 999px;
 }
 
 .stampa-scrollbar::-webkit-scrollbar-thumb {
   background: rgba(255, 106, 0, 0.65);
   border-radius: 999px;
-  border: 2px solid rgba(17, 17, 17, 1);
+  border: 2px solid var(--stampa-deep);
 }
 
 .stampa-scrollbar::-webkit-scrollbar-thumb:hover {
@@ -320,7 +386,7 @@ option {
 html,
 body {
   scrollbar-width: thin;
-  scrollbar-color: rgba(255, 106, 0, 0.65) #050505;
+  scrollbar-color: rgba(255, 106, 0, 0.65) var(--stampa-scrollbar-track);
 }
 
 html::-webkit-scrollbar,
@@ -331,14 +397,14 @@ body::-webkit-scrollbar {
 
 html::-webkit-scrollbar-track,
 body::-webkit-scrollbar-track {
-  background: #050505;
+  background: var(--stampa-scrollbar-track);
 }
 
 html::-webkit-scrollbar-thumb,
 body::-webkit-scrollbar-thumb {
   background: rgba(255, 106, 0, 0.65);
   border-radius: 999px;
-  border: 2px solid #050505;
+  border: 2px solid var(--stampa-scrollbar-track);
 }
 
 html::-webkit-scrollbar-thumb:hover,

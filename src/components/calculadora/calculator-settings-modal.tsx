@@ -66,8 +66,8 @@ export function CalculatorSettingsModal({
       <div className="sticky top-0 z-10 border-b border-stampa-border bg-stampa-surface px-4 pt-4 sm:px-5">
         <div className="flex items-start justify-between gap-3">
           <div className="min-w-0">
-            <h2 id="calculator-settings-title" className="flex items-center gap-2 text-base font-bold text-white">
-              <Settings size={17} className="text-stampa-orange" aria-hidden="true" /> Configurar valores
+            <h2 id="calculator-settings-title" className="flex items-center gap-2 text-base font-bold text-fg">
+              <Settings size={17} className="text-stampa-accent" aria-hidden="true" /> Configurar valores
             </h2>
             <p className="mt-0.5 text-xs text-gray-400">Los cambios se guardan en tu cuenta y tu cálculo actual se conserva.</p>
           </div>
@@ -75,7 +75,7 @@ export function CalculatorSettingsModal({
             type="button"
             onClick={onClose}
             aria-label="Cerrar configuración"
-            className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg text-gray-400 transition-colors hover:bg-white/10 hover:text-white focus:outline-none focus-visible:ring-2 focus-visible:ring-stampa-orange"
+            className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg text-gray-400 transition-colors hover:bg-fg/10 hover:text-fg focus:outline-none focus-visible:ring-2 focus-visible:ring-stampa-orange"
           >
             <X size={18} />
           </button>
@@ -93,7 +93,7 @@ export function CalculatorSettingsModal({
                 aria-controls="calc-settings-panel"
                 onClick={() => setTab(item.id)}
                 className={`min-h-10 whitespace-nowrap border-b-2 px-2 text-xs font-semibold sm:px-3 transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-stampa-orange ${
-                  active ? "border-stampa-orange text-stampa-orange" : "border-transparent text-gray-400 hover:text-gray-300"
+                  active ? "border-stampa-orange text-stampa-accent" : "border-transparent text-gray-400 hover:text-gray-300"
                 }`}
               >
                 {item.label}
@@ -151,7 +151,7 @@ function PrinterCostsForm({
   if (printers.length === 0) {
     return (
       <div className="rounded-xl border border-dashed border-stampa-border p-4 text-sm text-gray-400">
-        Todavía no tenés impresoras. <FeatureLink href="/mi-taller/impresoras" className="font-semibold text-stampa-orange hover:underline">Agregá una en Mi Taller.</FeatureLink>
+        Todavía no tenés impresoras. <FeatureLink href="/mi-taller/impresoras" className="font-semibold text-stampa-accent hover:underline">Agregá una en Mi Taller.</FeatureLink>
       </div>
     );
   }
@@ -177,7 +177,7 @@ function PrinterCostsForm({
   };
 
   const inputClass =
-    "h-11 w-full rounded-xl border border-white/10 bg-white/[0.06] px-3 text-sm text-white outline-none transition focus:border-[#ff6a00]/60 focus:ring-2 focus:ring-[#ff6a00]/10";
+    "h-11 w-full rounded-xl border border-fg/10 bg-fg/[0.06] px-3 text-sm text-fg outline-none transition focus:border-[#ff6a00]/60 focus:ring-2 focus:ring-[#ff6a00]/10";
 
   return (
     <div className="space-y-4 rounded-xl border border-stampa-border p-4">
@@ -204,7 +204,7 @@ function PrinterCostsForm({
         <p role="status" className={`text-xs ${message.tone === "ok" ? "text-emerald-400" : "text-red-400"}`}>{message.text}</p>
       )}
       <div className="flex flex-col-reverse gap-2 sm:flex-row sm:items-center sm:justify-between">
-        <FeatureLink href="/mi-taller/impresoras" className="inline-flex min-h-9 items-center text-xs font-semibold text-gray-400 hover:text-white" fallback={<span aria-hidden="true" />}>
+        <FeatureLink href="/mi-taller/impresoras" className="inline-flex min-h-9 items-center text-xs font-semibold text-gray-400 hover:text-fg" fallback={<span aria-hidden="true" />}>
           Agregar o quitar impresoras en Mi Taller →
         </FeatureLink>
         <button

@@ -75,10 +75,10 @@ export function StlModelsTable() {
                     {model.thumbnail_url ? (
                       <img src={model.thumbnail_url} alt={stlModelDisplayName(model)} className="w-10 h-10 rounded object-cover" />
                     ) : (
-                      <div className="w-10 h-10 bg-white/5 rounded flex items-center justify-center text-gray-400 text-xs">Sin img</div>
+                      <div className="w-10 h-10 bg-fg/5 rounded flex items-center justify-center text-gray-400 text-xs">Sin img</div>
                     )}
                   </td>
-                  <td className="px-4 py-3 font-medium text-white">
+                  <td className="px-4 py-3 font-medium text-fg">
                     {stlModelDisplayName(model)}
                   </td>
                   <td className="px-4 py-3 text-gray-400">

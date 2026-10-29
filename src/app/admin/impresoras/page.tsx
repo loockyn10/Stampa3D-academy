@@ -218,13 +218,13 @@ export default function AdminPrintersPage() {
     setFormData((prev) => ({ ...prev, [name]: val }));
   };
 
-  if (loading) return <div className="py-24 flex justify-center"><Loader2 className="animate-spin h-8 w-8 text-stampa-orange" /></div>;
+  if (loading) return <div className="py-24 flex justify-center"><Loader2 className="animate-spin h-8 w-8 text-stampa-accent" /></div>;
 
   return (
     <div className="max-w-5xl mx-auto space-y-6">
       <div className="flex justify-between items-center">
         <div>
-          <h1 className="text-2xl font-bold text-white">Catálogo Global de Impresoras</h1>
+          <h1 className="text-2xl font-bold text-fg">Catálogo Global de Impresoras</h1>
           <p className="text-sm text-gray-500 mt-1">Administra las plantillas que los usuarios pueden importar.</p>
         </div>
         <button
@@ -245,7 +245,7 @@ export default function AdminPrintersPage() {
       {editingId && (
         <div className="bg-stampa-surface p-6 rounded-xl border border-stampa-orange/30 shadow-sm ring-1 ring-orange-100 mb-6">
           <div className="flex justify-between items-center mb-4">
-            <h3 className="text-lg font-bold text-white">{editingId === "new" ? "Nueva Plantilla" : "Editar Plantilla"}</h3>
+            <h3 className="text-lg font-bold text-fg">{editingId === "new" ? "Nueva Plantilla" : "Editar Plantilla"}</h3>
             <button onClick={() => void closeEditor()} className="text-gray-400 hover:text-gray-300" disabled={saving}>
               <X size={20} />
             </button>
@@ -334,7 +334,7 @@ export default function AdminPrintersPage() {
 
             <div className="flex items-center gap-4 mt-2">
               <label className="flex items-center gap-2 text-sm text-gray-300 cursor-pointer">
-                <input type="checkbox" name="is_active" checked={formData.is_active} onChange={handleChange} className="rounded text-stampa-orange focus:ring-[#ff6a00]/20 border-white/20" />
+                <input type="checkbox" name="is_active" checked={formData.is_active} onChange={handleChange} className="rounded text-stampa-accent focus:ring-[#ff6a00]/20 border-fg/20" />
                 <span>Plantilla Activa</span>
               </label>
               <div>
@@ -365,7 +365,7 @@ export default function AdminPrintersPage() {
                 <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">Acciones</th>
               </tr>
             </thead>
-            <tbody className="divide-y divide-white/10">
+            <tbody className="divide-y divide-fg/10">
               {templates.length === 0 ? (
                 <tr>
                   <td colSpan={5} className="px-6 py-8 text-center text-sm text-gray-500">
@@ -379,7 +379,7 @@ export default function AdminPrintersPage() {
                       <PrinterCatalogImage imagePath={t.image_path} alt={t.name} className="h-16 w-20 rounded-lg border border-stampa-border" />
                     </td>
                     <td className="px-6 py-4">
-                      <div className="font-semibold text-white">{t.name}</div>
+                      <div className="font-semibold text-fg">{t.name}</div>
                       <div className="text-xs text-gray-500">{t.brand} {t.model}</div>
                     </td>
                     <td className="px-6 py-4">
@@ -396,7 +396,7 @@ export default function AdminPrintersPage() {
                     <td className="px-6 py-4 text-right">
                       <button
                         onClick={() => handleEdit(t)}
-                        className="p-2 text-gray-400 hover:text-stampa-orange hover:bg-stampa-orange/10 rounded-lg transition-colors"
+                        className="p-2 text-gray-400 hover:text-stampa-accent hover:bg-stampa-orange/10 rounded-lg transition-colors"
                       >
                         <Edit2 size={16} />
                       </button>

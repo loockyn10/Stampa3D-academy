@@ -81,7 +81,7 @@ const FilamentOptionLabel = ({ filament }: { filament: any }) => {
   return (
     <span className="inline-flex items-center gap-2 min-w-0 w-full">
       <span
-        className="h-3 w-3 shrink-0 rounded-full border border-white/20 shadow-sm"
+        className="h-3 w-3 shrink-0 rounded-full border border-fg/20 shadow-sm"
         style={{ backgroundColor: resolvedHex }}
         aria-hidden="true"
       />
@@ -101,7 +101,7 @@ function NumberField({ label, value, onChange, suffix, step = 1, disabled = fals
           value={value}
           onChange={(e) => onChange(normalizeNumericInput(e.target.value))}
           placeholder="0"
-          className="h-11 w-full rounded-xl border border-white/10 bg-white/[0.06] px-4 pr-10 text-sm text-white placeholder:text-neutral-500 outline-none transition focus:border-[#ff6a00]/60 focus:bg-white/[0.08] focus:ring-2 focus:ring-[#ff6a00]/10 disabled:opacity-50"
+          className="h-11 w-full rounded-xl border border-fg/10 bg-fg/[0.06] px-4 pr-10 text-sm text-fg placeholder:text-neutral-500 outline-none transition focus:border-[#ff6a00]/60 focus:bg-fg/[0.08] focus:ring-2 focus:ring-[#ff6a00]/10 disabled:opacity-50"
           disabled={disabled}
         />
         {suffix && (
@@ -1029,7 +1029,7 @@ function CalculadoraPageContent() {
       <div className={`${accessMode === "anonymous" ? "min-h-screen bg-stampa-bg px-4 py-6 sm:px-6 lg:px-8 lg:py-8" : ""} flex items-center justify-center`}>
         <Card className="w-full max-w-lg border-red-500/20 bg-stampa-surface p-6 text-center shadow-xl sm:p-8">
           <AlertCircle className="mx-auto h-9 w-9 text-red-400" aria-hidden="true" />
-          <h1 className="mt-4 text-lg font-bold text-white">No pudimos cargar la configuración de cálculo.</h1>
+          <h1 className="mt-4 text-lg font-bold text-fg">No pudimos cargar la configuración de cálculo.</h1>
           <p className="mt-2 text-sm text-gray-400">Reintentá en unos segundos. No vamos a mostrar valores incompletos ni calcular con una configuración inválida.</p>
           <button
             type="button"
@@ -1054,24 +1054,24 @@ function CalculadoraPageContent() {
 
   return <div className={`${accessMode === "anonymous" ? "min-h-screen bg-stampa-bg px-4 py-6 sm:px-6 lg:px-8 lg:py-8" : ""} space-y-5 pb-10`}>
     {/* 1. Encabezado compacto */}
-    <header className="relative overflow-hidden rounded-2xl border border-stampa-border bg-stampa-surface px-4 py-4 shadow-lg shadow-black/20 sm:px-6 sm:py-5">
+    <header className="relative overflow-hidden rounded-2xl border border-stampa-border bg-stampa-surface px-4 py-4 shadow-lg shadow-shade/20 sm:px-6 sm:py-5">
       <div className="pointer-events-none absolute inset-0 bg-gradient-to-r from-[#ff6a00]/15 via-transparent to-transparent" />
       <div className="relative z-10 flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
         <div className="min-w-0">
-          <h1 className="flex items-center gap-2 text-xl font-bold text-white sm:text-2xl">
-            <Calculator size={24} className="shrink-0 text-stampa-orange" aria-hidden="true" /> Calculadora de precios
+          <h1 className="flex items-center gap-2 text-xl font-bold text-fg sm:text-2xl">
+            <Calculator size={24} className="shrink-0 text-stampa-accent" aria-hidden="true" /> Calculadora de precios
           </h1>
           <p className="mt-1 text-sm text-gray-400">
             Calculá cuánto cobrar una impresión usando material, tiempo, margen y costos extra.
           </p>
         </div>
         <div className="flex flex-wrap items-center gap-2">
-          {isPaid ? <button type="button" onClick={() => setSettingsModalTab("costs")} className="inline-flex min-h-10 items-center gap-1.5 rounded-xl border border-stampa-border bg-white/5 px-2.5 text-xs font-semibold text-white sm:px-4 sm:text-sm transition-colors hover:bg-white/10 focus:outline-none focus-visible:ring-2 focus-visible:ring-stampa-orange">
+          {isPaid ? <button type="button" onClick={() => setSettingsModalTab("costs")} className="inline-flex min-h-10 items-center gap-1.5 rounded-xl border border-stampa-border bg-fg/5 px-2.5 text-xs font-semibold text-fg sm:px-4 sm:text-sm transition-colors hover:bg-fg/10 focus:outline-none focus-visible:ring-2 focus-visible:ring-stampa-orange">
             <Settings size={16} aria-hidden="true" /> Configurar valores
-          </button> : <button type="button" onClick={openCalculatorCustomization} className="inline-flex min-h-10 items-center gap-1.5 rounded-xl border border-stampa-border bg-white/5 px-2.5 text-xs font-semibold text-white sm:px-4 sm:text-sm transition-colors hover:bg-white/10 focus:outline-none focus-visible:ring-2 focus-visible:ring-stampa-orange">
+          </button> : <button type="button" onClick={openCalculatorCustomization} className="inline-flex min-h-10 items-center gap-1.5 rounded-xl border border-stampa-border bg-fg/5 px-2.5 text-xs font-semibold text-fg sm:px-4 sm:text-sm transition-colors hover:bg-fg/10 focus:outline-none focus-visible:ring-2 focus-visible:ring-stampa-orange">
             <Settings size={16} aria-hidden="true" /> {isFree ? "Mis impresoras y filamentos" : "Personalizar cálculo"}
           </button>}
-          <Link href="/explorar-modelos" title="Explorar Modelos" className="inline-flex min-h-10 min-w-10 items-center justify-center gap-1.5 rounded-xl px-2 text-xs font-semibold text-gray-400 sm:px-3 sm:text-sm transition-colors hover:bg-white/5 hover:text-white focus:outline-none focus-visible:ring-2 focus-visible:ring-stampa-orange">
+          <Link href="/explorar-modelos" title="Explorar Modelos" className="inline-flex min-h-10 min-w-10 items-center justify-center gap-1.5 rounded-xl px-2 text-xs font-semibold text-gray-400 sm:px-3 sm:text-sm transition-colors hover:bg-fg/5 hover:text-fg focus:outline-none focus-visible:ring-2 focus-visible:ring-stampa-orange">
             <Compass size={16} aria-hidden="true" /> <span className="sr-only min-[400px]:not-sr-only">Explorar Modelos</span>
           </Link>
         </div>
@@ -1082,7 +1082,7 @@ function CalculadoraPageContent() {
       <div className="flex items-start justify-between gap-3 rounded-xl border border-stampa-border bg-stampa-surface p-4">
         <div className="min-w-0">
           <p className="text-xs font-semibold uppercase tracking-wide text-gray-500">Modelo de referencia</p>
-          <p className="mt-1 break-words text-sm font-bold text-white">{modelReferenceName}</p>
+          <p className="mt-1 break-words text-sm font-bold text-fg">{modelReferenceName}</p>
           <p className="mt-1 text-xs text-gray-400">
             Cargá los gramos y las horas de impresión de tu laminador: no los tomamos de la plataforma de origen.
           </p>
@@ -1091,7 +1091,7 @@ function CalculadoraPageContent() {
           type="button"
           onClick={() => setModelReferenceName(null)}
           aria-label="Quitar modelo de referencia"
-          className="shrink-0 rounded-lg p-1.5 text-gray-500 hover:bg-white/10 hover:text-white"
+          className="shrink-0 rounded-lg p-1.5 text-gray-500 hover:bg-fg/10 hover:text-fg"
         >
           <X size={16} />
         </button>
@@ -1102,10 +1102,10 @@ function CalculadoraPageContent() {
       <div className="space-y-3">
         {printers.length === 0 && (
           <div className="bg-stampa-orange/10 border border-[#ff6a00]/20 p-4 rounded-xl flex items-start gap-3">
-            <AlertCircle className="text-stampa-orange mt-0.5" size={20} />
+            <AlertCircle className="text-stampa-accent mt-0.5" size={20} />
             <div>
-              <h4 className="text-sm font-bold text-stampa-orange">No tenés impresoras cargadas</h4>
-              <p className="text-xs text-stampa-orange/80 mt-1">
+              <h4 className="text-sm font-bold text-stampa-accent">No tenés impresoras cargadas</h4>
+              <p className="text-xs text-stampa-accent/80 mt-1">
                 Elegí una impresora del catálogo de Stampa para empezar.
               </p>
               <div className="flex flex-col sm:flex-row gap-2 mt-3">
@@ -1121,10 +1121,10 @@ function CalculadoraPageContent() {
         )}
         {(filaments.length === 0 || multipliers.length === 0) && (
           <div className="bg-stampa-orange/10 border border-[#ff6a00]/20 p-4 rounded-xl flex items-start gap-3">
-            <AlertCircle className="text-stampa-orange mt-0.5" size={20} />
+            <AlertCircle className="text-stampa-accent mt-0.5" size={20} />
             <div>
-              <h4 className="text-sm font-bold text-stampa-orange">Faltan datos de configuración</h4>
-              <p className="text-xs text-stampa-orange/80 mt-1">
+              <h4 className="text-sm font-bold text-stampa-accent">Faltan datos de configuración</h4>
+              <p className="text-xs text-stampa-accent/80 mt-1">
                 Para usar la calculadora necesitas tener al menos un filamento y un tipo de producto configurados.
               </p>
               <div className="flex flex-col sm:flex-row gap-2 mt-3">
@@ -1156,7 +1156,7 @@ function CalculadoraPageContent() {
     <div className="flex p-1 bg-stampa-surface border border-stampa-border rounded-xl w-full sm:w-fit mx-auto sm:mx-0">
       <button
         onClick={() => setAdvanced(false)}
-        className={`flex-1 sm:w-64 px-4 py-2.5 rounded-lg text-sm font-bold transition-all flex flex-col items-center justify-center gap-0.5 ${!advanced ? 'bg-white/10 text-white shadow-sm' : 'text-gray-500 hover:text-gray-300'}`}
+        className={`flex-1 sm:w-64 px-4 py-2.5 rounded-lg text-sm font-bold transition-all flex flex-col items-center justify-center gap-0.5 ${!advanced ? 'bg-fg/10 text-fg shadow-sm' : 'text-gray-500 hover:text-gray-300'}`}
       >
         <span>Modo Básico</span>
         <span className={`text-[10px] font-normal ${!advanced ? 'text-gray-300' : 'text-gray-600'}`}>Para estimaciones rápidas</span>
@@ -1172,7 +1172,7 @@ function CalculadoraPageContent() {
 
     <details className="group rounded-xl border border-stampa-border bg-stampa-surface/60 px-4 py-3 text-sm">
       <summary className="flex cursor-pointer list-none items-center gap-2 font-semibold text-gray-300 marker:hidden focus:outline-none focus-visible:ring-2 focus-visible:ring-stampa-orange">
-        <HelpCircle size={16} className="text-stampa-orange" aria-hidden="true" /> ¿Cómo usar la calculadora?
+        <HelpCircle size={16} className="text-stampa-accent" aria-hidden="true" /> ¿Cómo usar la calculadora?
         <span className="ml-auto text-xs font-normal text-gray-500 group-open:hidden">Ver guía rápida</span>
       </summary>
       <ul className="mt-3 grid gap-2 text-xs leading-relaxed text-gray-400 sm:grid-cols-2">
@@ -1191,7 +1191,7 @@ function CalculadoraPageContent() {
         {/* Bloque Básico */}
         <Card className="p-4 sm:p-6 bg-stampa-surface border-stampa-border shadow-lg">
           <div className="mb-5">
-            <h2 className="text-lg font-bold text-white flex items-center gap-2">Datos principales</h2>
+            <h2 className="text-lg font-bold text-fg flex items-center gap-2">Datos principales</h2>
             <p className="text-sm text-gray-400 mt-1">Estos datos alcanzan para una estimación rápida.</p>
           </div>
 
@@ -1202,7 +1202,7 @@ function CalculadoraPageContent() {
                 <button
                   type="button"
                   onClick={openFilamentCatalog}
-                  className="inline-flex h-8 items-center gap-1.5 rounded-lg border border-stampa-border bg-white/5 px-2.5 text-[11px] font-semibold text-gray-300 transition-colors hover:bg-white/10 hover:text-white"
+                  className="inline-flex h-8 items-center gap-1.5 rounded-lg border border-stampa-border bg-fg/5 px-2.5 text-[11px] font-semibold text-gray-300 transition-colors hover:bg-fg/10 hover:text-fg"
                 >
                   <Plus size={13} /> Catálogo
                 </button>
@@ -1259,14 +1259,14 @@ function CalculadoraPageContent() {
                       <X size={16} />
                     </button>
                   )}
-                  {isDemo && index === 0 && <span className={`-mt-1 block text-[10px] font-semibold uppercase tracking-wider text-stampa-orange/75 ${filamentLines.length > 1 ? "sm:col-span-3" : "sm:col-span-2"}`}>Configuración demo</span>}
+                  {isDemo && index === 0 && <span className={`-mt-1 block text-[10px] font-semibold uppercase tracking-wider text-stampa-accent/75 ${filamentLines.length > 1 ? "sm:col-span-3" : "sm:col-span-2"}`}>Configuración demo</span>}
                 </div>
               ))}
 
               {accessMode !== "anonymous" && <button
                 type="button"
                 onClick={addFilamentLine}
-                className="flex h-9 w-full items-center justify-center gap-2 rounded-xl border border-dashed border-white/15 bg-white/[0.03] text-xs font-semibold text-gray-400 transition-colors hover:border-[#ff6a00]/40 hover:bg-[#ff6a00]/5 hover:text-stampa-orange"
+                className="flex h-9 w-full items-center justify-center gap-2 rounded-xl border border-dashed border-fg/15 bg-fg/[0.03] text-xs font-semibold text-gray-400 transition-colors hover:border-[#ff6a00]/40 hover:bg-[#ff6a00]/5 hover:text-stampa-accent"
               >
                 <Plus size={14} /> Agregar otro filamento
               </button>}
@@ -1337,14 +1337,14 @@ function CalculadoraPageContent() {
                   <button
                     type="button" 
                     onClick={openPrinterCatalog}
-                    className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl border border-stampa-border bg-white/5 text-white transition-colors hover:bg-white/10"
+                    className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl border border-stampa-border bg-fg/5 text-fg transition-colors hover:bg-fg/10"
                     title="Elegir del catálogo"
                     aria-label="Elegir impresora del catálogo"
                   >
                     <Plus size={16} />
                   </button>
                 </div>
-                {isDemo && <span className="mt-1 block text-[10px] font-semibold uppercase tracking-wider text-stampa-orange/75">Configuración demo</span>}
+                {isDemo && <span className="mt-1 block text-[10px] font-semibold uppercase tracking-wider text-stampa-accent/75">Configuración demo</span>}
               </div>
             </div>
           </div>
@@ -1357,7 +1357,7 @@ function CalculadoraPageContent() {
               MODO AVANZADO
             </div>
             <div className="mb-6 pr-24">
-              <h2 className="text-lg font-bold text-white">Costos Avanzados</h2>
+              <h2 className="text-lg font-bold text-fg">Costos Avanzados</h2>
               <p className="text-sm text-gray-400 mt-1">Sumá costos extra para calcular un precio más real.</p>
             </div>
 
@@ -1410,8 +1410,8 @@ function CalculadoraPageContent() {
         <Card className="p-6 bg-stampa-bg-soft border-[#ff6a00]/30 shadow-xl overflow-hidden relative">
           <div className="absolute top-0 inset-x-0 h-1 bg-gradient-to-r from-transparent via-[#ff6a00] to-transparent opacity-50" />
 
-          <h3 className="text-sm font-bold text-white flex items-center gap-2 border-b border-stampa-border pb-3 mb-4">
-            <DollarSign size={18} className="text-stampa-orange" /> Resumen del cálculo
+          <h3 className="text-sm font-bold text-fg flex items-center gap-2 border-b border-stampa-border pb-3 mb-4">
+            <DollarSign size={18} className="text-stampa-accent" /> Resumen del cálculo
           </h3>
 
           <div className="space-y-3 mb-6">
@@ -1446,7 +1446,7 @@ function CalculadoraPageContent() {
           <div className="bg-stampa-surface border border-stampa-border rounded-xl p-4 space-y-3">
             <div className="flex items-center justify-between border-b border-stampa-border pb-3">
               <p className="text-xs font-bold text-gray-500 uppercase tracking-wider">Costo Base</p>
-              <p className="text-base font-bold text-white">${calc.baseCost.toFixed(2)}</p>
+              <p className="text-base font-bold text-fg">${calc.baseCost.toFixed(2)}</p>
             </div>
             <div className="flex items-center justify-between">
               <p className="text-xs font-bold text-emerald-500/80 uppercase tracking-wider">Precio Sugerido</p>
@@ -1480,7 +1480,7 @@ function CalculadoraPageContent() {
           </button>
           <Link
             href="/presupuestos"
-            className="w-full flex items-center justify-center gap-2 px-4 py-3.5 rounded-xl bg-stampa-surface hover:bg-white/5 border border-stampa-border text-white text-sm font-bold transition-all"
+            className="w-full flex items-center justify-center gap-2 px-4 py-3.5 rounded-xl bg-stampa-surface hover:bg-fg/5 border border-stampa-border text-fg text-sm font-bold transition-all"
           >
             <FileText size={18} /> Crear presupuesto
           </Link>
@@ -1488,9 +1488,9 @@ function CalculadoraPageContent() {
             Después de calcular, podés guardar la pieza para reutilizarla en presupuestos.
           </p>
           </> : <div className="rounded-2xl border border-stampa-orange/20 bg-stampa-orange/5 p-5">
-            <p className="text-sm font-bold text-white">¿Fabricás este producto habitualmente?</p>
+            <p className="text-sm font-bold text-fg">¿Fabricás este producto habitualmente?</p>
             <p className="mt-2 text-xs leading-relaxed text-gray-400">Con Mi Taller podés guardar su receta, costos y stock.</p>
-            <Link href="/sin-acceso?feature=taller" className="mt-4 inline-flex items-center gap-2 text-xs font-bold text-stampa-orange hover:text-orange-300">Conocer Mi Taller <span aria-hidden="true">→</span></Link>
+            <Link href="/sin-acceso?feature=taller" className="mt-4 inline-flex items-center gap-2 text-xs font-bold text-stampa-accent hover:text-orange-300">Conocer Mi Taller <span aria-hidden="true">→</span></Link>
           </div>}
         </div>
       </div>
@@ -1501,10 +1501,10 @@ function CalculadoraPageContent() {
       <div className="fixed inset-0 z-50 flex items-center justify-center bg-stampa-bg/60 backdrop-blur-sm p-4">
         <div className="bg-stampa-surface w-full max-w-md rounded-2xl border border-stampa-border shadow-2xl overflow-hidden animate-in zoom-in-95 duration-200">
           <div className="flex items-center justify-between px-6 py-4 border-b border-stampa-border bg-stampa-bg-soft">
-            <h3 className="font-bold text-white flex items-center gap-2">
-              <PackagePlus size={18} className="text-stampa-orange" /> Guardar como producto
+            <h3 className="font-bold text-fg flex items-center gap-2">
+              <PackagePlus size={18} className="text-stampa-accent" /> Guardar como producto
             </h3>
-            <button onClick={() => setShowSaveModal(false)} className="text-gray-400 hover:text-white transition-colors">
+            <button onClick={() => setShowSaveModal(false)} className="text-gray-400 hover:text-fg transition-colors">
               <X size={20} />
             </button>
           </div>
@@ -1514,13 +1514,13 @@ function CalculadoraPageContent() {
               <div className="mx-auto w-16 h-16 bg-emerald-500/10 rounded-full flex items-center justify-center mb-4 border border-emerald-500/20">
                 <CheckCircle2 size={32} className="text-emerald-400" />
               </div>
-              <p className="font-bold text-white text-lg mb-1">¡Producto guardado!</p>
+              <p className="font-bold text-fg text-lg mb-1">¡Producto guardado!</p>
               <p className="text-sm text-gray-400 mb-8">El producto fue agregado a tu catálogo.</p>
               <div className="flex gap-3 justify-center">
                 <Link href="/mi-taller/productos" className="px-5 py-2.5 bg-stampa-orange text-white rounded-xl text-sm font-bold hover:bg-stampa-orange-hover transition-colors shadow-lg shadow-[#ff6a00]/20">
                   Ver catálogo
                 </Link>
-                <button onClick={() => setShowSaveModal(false)} className="px-5 py-2.5 bg-[#1a1a1a] border border-stampa-border text-white rounded-xl text-sm font-bold hover:bg-white/5 transition-colors">
+                <button onClick={() => setShowSaveModal(false)} className="px-5 py-2.5 bg-stampa-raised border border-stampa-border text-fg rounded-xl text-sm font-bold hover:bg-fg/5 transition-colors">
                   Seguir calculando
                 </button>
               </div>
@@ -1530,11 +1530,11 @@ function CalculadoraPageContent() {
               {/* Resumen del cálculo */}
               <div className="bg-stampa-bg-soft p-3 rounded-xl border border-stampa-border grid grid-cols-3 gap-2 text-center">
                 <div>
-                  <p className="font-bold text-white text-sm">${calc.baseCost.toFixed(2)}</p>
+                  <p className="font-bold text-fg text-sm">${calc.baseCost.toFixed(2)}</p>
                   <p className="text-[10px] text-gray-500 uppercase tracking-wider">Costo Base</p>
                 </div>
                 <div className="border-x border-stampa-border">
-                  <p className="font-bold text-stampa-orange text-sm">${calc.normalPrice.toFixed(2)}</p>
+                  <p className="font-bold text-stampa-accent text-sm">${calc.normalPrice.toFixed(2)}</p>
                   <p className="text-[10px] text-gray-500 uppercase tracking-wider">Precio</p>
                 </div>
                 <div>
@@ -1550,7 +1550,7 @@ function CalculadoraPageContent() {
                     type="text"
                     value={productForm.name}
                     onChange={(e) => setProductForm(prev => ({ ...prev, name: e.target.value }))}
-                    className="w-full text-sm rounded-xl border border-stampa-border bg-stampa-bg-soft px-3 py-2.5 text-white outline-none focus:border-[#ff6a00] focus:ring-1 focus:ring-[#ff6a00]"
+                    className="w-full text-sm rounded-xl border border-stampa-border bg-stampa-bg-soft px-3 py-2.5 text-fg outline-none focus:border-[#ff6a00] focus:ring-1 focus:ring-[#ff6a00]"
                     placeholder="Ej. Maceta geométrica 15cm"
                   />
                 </label>
@@ -1561,7 +1561,7 @@ function CalculadoraPageContent() {
                     value={productForm.description}
                     onChange={(e) => setProductForm(prev => ({ ...prev, description: e.target.value }))}
                     rows={2}
-                    className="w-full text-sm rounded-xl border border-stampa-border bg-stampa-bg-soft px-3 py-2.5 text-white outline-none focus:border-[#ff6a00] focus:ring-1 focus:ring-[#ff6a00]"
+                    className="w-full text-sm rounded-xl border border-stampa-border bg-stampa-bg-soft px-3 py-2.5 text-fg outline-none focus:border-[#ff6a00] focus:ring-1 focus:ring-[#ff6a00]"
                   />
                 </label>
 
@@ -1572,7 +1572,7 @@ function CalculadoraPageContent() {
                     min="0"
                     value={productForm.stock_quantity}
                     onChange={(e) => setProductForm(prev => ({ ...prev, stock_quantity: parseInt(e.target.value) || 0 }))}
-                    className="w-full text-sm rounded-xl border border-stampa-border bg-stampa-bg-soft px-3 py-2.5 text-white outline-none focus:border-[#ff6a00] focus:ring-1 focus:ring-[#ff6a00]"
+                    className="w-full text-sm rounded-xl border border-stampa-border bg-stampa-bg-soft px-3 py-2.5 text-fg outline-none focus:border-[#ff6a00] focus:ring-1 focus:ring-[#ff6a00]"
                   />
                 </label>
 
@@ -1596,7 +1596,7 @@ function CalculadoraPageContent() {
                     />
                   </div>
                   {productForm.image_url && (
-                    <div className="mt-2 flex items-center gap-2 p-2 rounded-lg bg-white/5 border border-stampa-border">
+                    <div className="mt-2 flex items-center gap-2 p-2 rounded-lg bg-fg/5 border border-stampa-border">
                       <img src={productForm.image_url} alt="Preview" className="h-10 w-10 rounded object-cover" />
                       <span className="text-xs text-gray-400 truncate pr-2">{productForm.image_url}</span>
                     </div>
@@ -1611,7 +1611,7 @@ function CalculadoraPageContent() {
               )}
 
               <div className="flex justify-end gap-3 pt-4 border-t border-stampa-border mt-2">
-                <button onClick={() => setShowSaveModal(false)} className="px-5 py-2.5 text-sm font-bold text-gray-400 hover:text-white transition-colors">
+                <button onClick={() => setShowSaveModal(false)} className="px-5 py-2.5 text-sm font-bold text-gray-400 hover:text-fg transition-colors">
                   Cancelar
                 </button>
                 <button

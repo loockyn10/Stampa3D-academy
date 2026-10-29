@@ -248,8 +248,8 @@ export default function VentaRapidaPage() {
 
   return (
     <div className="pb-32">
-      <Link href="/mi-negocio" className="mb-4 inline-flex items-center gap-1.5 text-xs font-semibold text-gray-500 hover:text-white"><ArrowLeft size={14} /> Mi Negocio</Link>
-      <SectionTitle eyebrow="Mi Negocio" title="Venta rápida" action={<Link href="/mi-negocio/ventas" className="inline-flex min-h-11 w-full items-center justify-center rounded-xl border border-stampa-border px-4 text-xs font-bold text-gray-300 hover:bg-white/5 sm:w-auto">Ver ventas</Link>} />
+      <Link href="/mi-negocio" className="mb-4 inline-flex items-center gap-1.5 text-xs font-semibold text-gray-500 hover:text-fg"><ArrowLeft size={14} /> Mi Negocio</Link>
+      <SectionTitle eyebrow="Mi Negocio" title="Venta rápida" action={<Link href="/mi-negocio/ventas" className="inline-flex min-h-11 w-full items-center justify-center rounded-xl border border-stampa-border px-4 text-xs font-bold text-gray-300 hover:bg-fg/5 sm:w-auto">Ver ventas</Link>} />
       <p className="mb-6 max-w-2xl text-sm leading-6 text-gray-400">Escaneá o buscá productos, armá el carrito y confirmá. El precio y el stock se validan otra vez al registrar la venta.{locationsEnabled ? " Podés vender las unidades disponibles entre showroom y depósito." : ""}</p>
       {error && <Card className="mb-5 border-red-500/25 p-4 text-sm text-red-300">No se pudo cargar la operación: {error}</Card>}
       <div className="min-h-10" aria-live="polite" aria-atomic="true">
@@ -262,12 +262,12 @@ export default function VentaRapidaPage() {
 
       {unknownBarcode && (
         <Card className="mb-4 border-amber-500/25 p-4">
-          <p className="text-sm font-bold text-white">Código no encontrado</p>
+          <p className="text-sm font-bold text-fg">Código no encontrado</p>
           <p className="mt-1 break-all font-mono text-xs text-amber-200">{unknownBarcode}</p>
           <div className="mt-3 flex flex-wrap gap-2">
-            <button type="button" onClick={() => { setUnknownBarcode(null); setSearch(""); searchInputRef.current?.focus(); }} className="min-h-9 rounded-lg border border-stampa-border px-3 text-xs font-bold text-gray-300 hover:bg-white/5">Buscar producto</button>
+            <button type="button" onClick={() => { setUnknownBarcode(null); setSearch(""); searchInputRef.current?.focus(); }} className="min-h-9 rounded-lg border border-stampa-border px-3 text-xs font-bold text-gray-300 hover:bg-fg/5">Buscar producto</button>
             <button type="button" onClick={() => router.push(`/mi-negocio/catalogo?crear=reventa&barcode=${encodeURIComponent(unknownBarcode)}`)} className="min-h-9 rounded-lg bg-stampa-orange px-3 text-xs font-bold text-white">Crear producto</button>
-            <button type="button" onClick={() => setUnknownBarcode(null)} className="min-h-9 rounded-lg px-3 text-xs font-bold text-gray-500 hover:text-white">Cerrar</button>
+            <button type="button" onClick={() => setUnknownBarcode(null)} className="min-h-9 rounded-lg px-3 text-xs font-bold text-gray-500 hover:text-fg">Cerrar</button>
           </div>
         </Card>
       )}
@@ -281,15 +281,15 @@ export default function VentaRapidaPage() {
               const exactBarcodeItem = findCatalogItemByBarcode(items, search);
               if (exactBarcodeItem) handleBarcode(search);
               else if (results.length === 1) { addToCart(results[0]); setSearch(""); }
-            }} placeholder="Producto, SKU o código" className="min-h-11 w-full rounded-xl border border-stampa-border bg-stampa-surface pl-10 pr-3 text-sm text-white outline-none focus:border-stampa-orange" /></label>
+            }} placeholder="Producto, SKU o código" className="min-h-11 w-full rounded-xl border border-stampa-border bg-stampa-surface pl-10 pr-3 text-sm text-fg outline-none focus:border-stampa-orange" /></label>
             <button type="button" onClick={() => setScannerOpen(true)} className="inline-flex min-h-11 shrink-0 items-center justify-center gap-2 rounded-xl bg-stampa-orange px-3 text-sm font-bold text-white min-[390px]:px-4"><Barcode size={18} /><span className="hidden min-[390px]:inline">Escanear</span></button>
           </div>
           {loading ? <div className="flex min-h-48 items-center justify-center text-gray-500"><Loader2 className="animate-spin" /></div> : search.trim() ? (
             <div className="mt-3 grid gap-2">
               {results.length === 0 ? <Card className="p-5 text-sm text-gray-400">No encontramos productos disponibles.</Card> : results.map((item) => (
                 <button key={item.catalogItemId} type="button" onClick={() => addToCart(item)} className="flex min-h-16 items-center justify-between gap-3 rounded-xl border border-stampa-border bg-stampa-surface px-4 text-left hover:border-stampa-orange/40">
-                  <span className="min-w-0"><span className="block truncate text-sm font-bold text-white">{item.name}</span><span className="block truncate text-xs text-gray-500">{item.sku || item.barcode || "Sin código"} · {item.availableStock} u.</span></span>
-                  <span className="shrink-0 text-sm font-black text-stampa-orange">{money.format(item.unitPrice)}</span>
+                  <span className="min-w-0"><span className="block truncate text-sm font-bold text-fg">{item.name}</span><span className="block truncate text-xs text-gray-500">{item.sku || item.barcode || "Sin código"} · {item.availableStock} u.</span></span>
+                  <span className="shrink-0 text-sm font-black text-stampa-accent">{money.format(item.unitPrice)}</span>
                 </button>
               ))}
             </div>
@@ -297,12 +297,12 @@ export default function VentaRapidaPage() {
         </section>
 
         <Card className="h-fit overflow-hidden">
-          <div className="flex items-center justify-between border-b border-stampa-border p-4"><h2 className="flex items-center gap-2 text-sm font-bold text-white"><ShoppingCart size={18} className="text-stampa-orange" /> Carrito</h2><span className="text-xs text-gray-500">{cart.reduce((sum, item) => sum + item.quantity, 0)} u.</span></div>
+          <div className="flex items-center justify-between border-b border-stampa-border p-4"><h2 className="flex items-center gap-2 text-sm font-bold text-fg"><ShoppingCart size={18} className="text-stampa-accent" /> Carrito</h2><span className="text-xs text-gray-500">{cart.reduce((sum, item) => sum + item.quantity, 0)} u.</span></div>
           <div className="max-h-[42dvh] divide-y divide-stampa-border overflow-y-auto">
             {cart.length === 0 ? <p className="p-8 text-center text-sm text-gray-500">Todavía no agregaste productos.</p> : cart.map((item) => (
               <div key={item.catalogItemId} className="p-4">
-                <div className="flex items-start justify-between gap-3"><div className="min-w-0"><p className="truncate text-sm font-bold text-white">{item.name}</p><p className="mt-1 text-xs text-gray-500">{money.format(item.unitPrice)} c/u · {item.availableStock} disponibles</p>{locationsEnabled && <p className="mt-1 text-[11px] text-gray-600">Showroom {item.showroomStock ?? 0} · Depósito {item.warehouseStock ?? 0}</p>}</div><button type="button" onClick={() => replaceCart(cartRef.current.filter((candidate) => candidate.catalogItemId !== item.catalogItemId))} aria-label={`Quitar ${item.name}`} className="rounded-lg p-2 text-gray-500 hover:bg-red-500/10 hover:text-red-300"><Trash2 size={16} /></button></div>
-                <div className="mt-3 flex items-center justify-between"><div className="flex items-center rounded-xl border border-stampa-border"><button type="button" disabled={item.quantity <= 1} onClick={() => changeQuantity(item.catalogItemId, item.quantity - 1)} className="flex h-10 w-10 items-center justify-center disabled:opacity-30"><Minus size={15} /></button><span className="w-9 text-center text-sm font-bold text-white">{item.quantity}</span><button type="button" disabled={item.quantity >= item.availableStock} onClick={() => changeQuantity(item.catalogItemId, item.quantity + 1)} className="flex h-10 w-10 items-center justify-center disabled:opacity-30"><Plus size={15} /></button></div><p className="text-sm font-black text-white">{money.format(item.unitPrice * item.quantity)}</p></div>
+                <div className="flex items-start justify-between gap-3"><div className="min-w-0"><p className="truncate text-sm font-bold text-fg">{item.name}</p><p className="mt-1 text-xs text-gray-500">{money.format(item.unitPrice)} c/u · {item.availableStock} disponibles</p>{locationsEnabled && <p className="mt-1 text-[11px] text-gray-600">Showroom {item.showroomStock ?? 0} · Depósito {item.warehouseStock ?? 0}</p>}</div><button type="button" onClick={() => replaceCart(cartRef.current.filter((candidate) => candidate.catalogItemId !== item.catalogItemId))} aria-label={`Quitar ${item.name}`} className="rounded-lg p-2 text-gray-500 hover:bg-red-500/10 hover:text-red-300"><Trash2 size={16} /></button></div>
+                <div className="mt-3 flex items-center justify-between"><div className="flex items-center rounded-xl border border-stampa-border"><button type="button" disabled={item.quantity <= 1} onClick={() => changeQuantity(item.catalogItemId, item.quantity - 1)} className="flex h-10 w-10 items-center justify-center disabled:opacity-30"><Minus size={15} /></button><span className="w-9 text-center text-sm font-bold text-fg">{item.quantity}</span><button type="button" disabled={item.quantity >= item.availableStock} onClick={() => changeQuantity(item.catalogItemId, item.quantity + 1)} className="flex h-10 w-10 items-center justify-center disabled:opacity-30"><Plus size={15} /></button></div><p className="text-sm font-black text-fg">{money.format(item.unitPrice * item.quantity)}</p></div>
               </div>
             ))}
           </div>
@@ -318,7 +318,7 @@ export default function VentaRapidaPage() {
                   placeholder="Sin cliente"
                   emptyText="No se encontraron clientes."
                 />
-                <button type="button" onClick={() => setQuickCreateOpen(true)} aria-label="Nuevo cliente" className="flex min-h-11 shrink-0 items-center justify-center gap-1.5 rounded-xl border border-stampa-border px-3 text-xs font-bold text-gray-300 hover:bg-white/5"><UserPlus size={15} /> <span className="hidden min-[390px]:inline">Nuevo</span></button>
+                <button type="button" onClick={() => setQuickCreateOpen(true)} aria-label="Nuevo cliente" className="flex min-h-11 shrink-0 items-center justify-center gap-1.5 rounded-xl border border-stampa-border px-3 text-xs font-bold text-gray-300 hover:bg-fg/5"><UserPlus size={15} /> <span className="hidden min-[390px]:inline">Nuevo</span></button>
               </div>
             </div>
 
@@ -326,7 +326,7 @@ export default function VentaRapidaPage() {
               <span className="block text-xs font-semibold text-gray-400">Método de pago</span>
               <div className="mt-1.5 grid grid-cols-3 gap-1.5">
                 {(["cash", "transfer", "debt"] as const).map((mode) => (
-                  <button key={mode} type="button" onClick={() => { setPaymentMode(mode); if (mode === "debt") setSplitDebt(false); }} className={`min-h-10 rounded-xl border px-2 text-xs font-bold ${paymentMode === mode ? "border-stampa-orange bg-stampa-orange/10 text-stampa-orange" : "border-stampa-border text-gray-400"}`}>
+                  <button key={mode} type="button" onClick={() => { setPaymentMode(mode); if (mode === "debt") setSplitDebt(false); }} className={`min-h-10 rounded-xl border px-2 text-xs font-bold ${paymentMode === mode ? "border-stampa-orange bg-stampa-orange/10 text-stampa-accent" : "border-stampa-border text-gray-400"}`}>
                     {mode === "cash" ? "Efectivo" : mode === "transfer" ? "Transferencia" : "Cuenta corriente"}
                   </button>
                 ))}
@@ -339,24 +339,24 @@ export default function VentaRapidaPage() {
               )}
               {paymentMode !== "debt" && splitDebt && (
                 <label className="mt-2 block text-xs font-semibold text-gray-400">Paga ahora (vacío = deuda total)
-                  <input type="number" min={0} step="0.01" placeholder={money.format(total)} value={immediateAmountInput} onChange={(event) => setImmediateAmountInput(event.target.value)} className="mt-1.5 min-h-11 w-full rounded-xl border border-stampa-border bg-stampa-bg-soft px-3 text-sm text-white" />
+                  <input type="number" min={0} step="0.01" placeholder={money.format(total)} value={immediateAmountInput} onChange={(event) => setImmediateAmountInput(event.target.value)} className="mt-1.5 min-h-11 w-full rounded-xl border border-stampa-border bg-stampa-bg-soft px-3 text-sm text-fg" />
                 </label>
               )}
               {paymentSplit.debt > 0 && <p className="mt-2 text-xs font-bold text-amber-300">Queda a cuenta corriente: {money.format(paymentSplit.debt)}</p>}
             </div>
 
-            <div className="flex items-end justify-between"><span className="text-sm text-gray-400">Total</span><span className="text-2xl font-black text-white">{money.format(total)}</span></div>
+            <div className="flex items-end justify-between"><span className="text-sm text-gray-400">Total</span><span className="text-2xl font-black text-fg">{money.format(total)}</span></div>
             {!paymentValidation.valid && cart.length > 0 && <p className="text-xs font-bold text-red-300">{paymentValidation.error}</p>}
             <button type="button" disabled={cart.length === 0 || submitting || !paymentValidation.valid} onClick={() => void confirmSale()} className="inline-flex min-h-12 w-full items-center justify-center gap-2 rounded-xl bg-stampa-orange px-4 text-sm font-black text-white disabled:opacity-45">{submitting && <Loader2 size={17} className="animate-spin" />} {submitting ? "Procesando..." : "Confirmar venta"}</button>
             {lastSale && (
-              <Link href={`/mi-negocio/ticket/${lastSale.saleId}`} target="_blank" className="inline-flex min-h-11 w-full items-center justify-center gap-2 rounded-xl border border-stampa-border text-sm font-bold text-gray-200 hover:bg-white/5"><Printer size={16} /> Imprimir ticket N.º {lastSale.saleNumber}</Link>
+              <Link href={`/mi-negocio/ticket/${lastSale.saleId}`} target="_blank" className="inline-flex min-h-11 w-full items-center justify-center gap-2 rounded-xl border border-stampa-border text-sm font-bold text-gray-200 hover:bg-fg/5"><Printer size={16} /> Imprimir ticket N.º {lastSale.saleNumber}</Link>
             )}
           </div>
         </Card>
       </div>
 
       <Dialog open={scannerOpen} onClose={() => setScannerOpen(false)} labelledBy="barcode-scanner-title" panelClassName="max-w-lg rounded-2xl border border-stampa-border bg-stampa-surface">
-        <div className="p-5"><h2 id="barcode-scanner-title" className="text-lg font-bold text-white">Escanear producto</h2><p className="mt-1 text-sm text-gray-400">Cada lectura agrega una unidad, sin superar el stock disponible.</p></div>
+        <div className="p-5"><h2 id="barcode-scanner-title" className="text-lg font-bold text-fg">Escanear producto</h2><p className="mt-1 text-sm text-gray-400">Cada lectura agrega una unidad, sin superar el stock disponible.</p></div>
         <div className="px-4 pb-4 sm:px-5"><BarcodeScanner onDetected={handleBarcode} /></div>
         <div className="border-t border-stampa-border p-4"><button type="button" onClick={() => setScannerOpen(false)} className="min-h-11 w-full rounded-xl border border-stampa-border text-sm font-bold text-gray-300">Cerrar</button></div>
       </Dialog>

@@ -83,11 +83,11 @@ export function BusinessManager() {
   return (
     <Card className="max-w-2xl p-6 space-y-6">
       <div className="flex items-center gap-3 border-b border-stampa-border pb-4">
-        <div className="p-2 bg-orange-100 text-stampa-orange rounded-xl">
+        <div className="p-2 bg-orange-100 text-stampa-accent rounded-xl">
           <Building2 size={24} />
         </div>
         <div>
-          <h3 className="text-lg font-bold text-white">Datos de tu Negocio</h3>
+          <h3 className="text-lg font-bold text-fg">Datos de tu Negocio</h3>
           <p className="text-sm text-gray-500 mt-1">
             Estos datos pueden aparecer en tus presupuestos y ayudarte a presentar mejor tu taller.
           </p>
@@ -106,24 +106,24 @@ export function BusinessManager() {
           <input
             value={companyName}
             onChange={(e) => setCompanyName(e.target.value)}
-            className="w-full rounded-xl border border-white/20 bg-stampa-surface text-white px-3 py-2.5 text-sm outline-none focus:border-stampa-orange focus:ring-2 focus:ring-orange-100"
+            className="w-full rounded-xl border border-fg/20 bg-stampa-surface text-fg px-3 py-2.5 text-sm outline-none focus:border-stampa-orange focus:ring-2 focus:ring-orange-100"
             placeholder="Ej. Stampa3D Academy"
           />
         </label>
 
         <label className="block sm:col-span-2">
           <span className="mb-1 block text-xs font-semibold text-gray-500">Razón social</span>
-          <input value={companyLegalName} onChange={(e) => setCompanyLegalName(e.target.value)} className="w-full rounded-xl border border-white/20 bg-stampa-surface text-white px-3 py-2.5 text-sm outline-none focus:border-stampa-orange focus:ring-2 focus:ring-orange-100" placeholder="Nombre legal opcional" />
+          <input value={companyLegalName} onChange={(e) => setCompanyLegalName(e.target.value)} className="w-full rounded-xl border border-fg/20 bg-stampa-surface text-fg px-3 py-2.5 text-sm outline-none focus:border-stampa-orange focus:ring-2 focus:ring-orange-100" placeholder="Nombre legal opcional" />
         </label>
 
         <label className="block">
           <span className="mb-1 block text-xs font-semibold text-gray-500">CUIT</span>
-          <input value={companyCuit} onChange={(e) => setCompanyCuit(e.target.value)} className="w-full rounded-xl border border-white/20 bg-stampa-surface text-white px-3 py-2.5 text-sm outline-none focus:border-stampa-orange focus:ring-2 focus:ring-orange-100" placeholder="20-12345678-9" />
+          <input value={companyCuit} onChange={(e) => setCompanyCuit(e.target.value)} className="w-full rounded-xl border border-fg/20 bg-stampa-surface text-fg px-3 py-2.5 text-sm outline-none focus:border-stampa-orange focus:ring-2 focus:ring-orange-100" placeholder="20-12345678-9" />
         </label>
 
         <label className="block">
           <span className="mb-1 block text-xs font-semibold text-gray-500">Email comercial</span>
-          <input type="email" value={companyEmail} onChange={(e) => setCompanyEmail(e.target.value)} className="w-full rounded-xl border border-white/20 bg-stampa-surface text-white px-3 py-2.5 text-sm outline-none focus:border-stampa-orange focus:ring-2 focus:ring-orange-100" placeholder="ventas@empresa.com" />
+          <input type="email" value={companyEmail} onChange={(e) => setCompanyEmail(e.target.value)} className="w-full rounded-xl border border-fg/20 bg-stampa-surface text-fg px-3 py-2.5 text-sm outline-none focus:border-stampa-orange focus:ring-2 focus:ring-orange-100" placeholder="ventas@empresa.com" />
         </label>
         
         <div className="block sm:col-span-2">
@@ -154,10 +154,10 @@ export function BusinessManager() {
                 placeholder="https://..."
                 value={companyLogoUrl}
                 onChange={(e) => setCompanyLogoUrl(e.target.value)}
-                className="flex-1 rounded-xl border border-white/20 bg-stampa-surface text-white px-3 py-2.5 text-sm outline-none focus:border-stampa-orange focus:ring-2 focus:ring-orange-100"
+                className="flex-1 rounded-xl border border-fg/20 bg-stampa-surface text-fg px-3 py-2.5 text-sm outline-none focus:border-stampa-orange focus:ring-2 focus:ring-orange-100"
               />
               {companyLogoUrl && (
-                <div className="h-12 w-12 shrink-0 rounded-lg bg-white/5 overflow-hidden border border-stampa-border">
+                <div className="h-12 w-12 shrink-0 rounded-lg bg-fg/5 overflow-hidden border border-stampa-border">
                   <img src={companyLogoUrl} alt="Logo" className="w-full h-full object-cover" />
                 </div>
               )}
@@ -170,14 +170,14 @@ export function BusinessManager() {
           <input
             value={companyPhone}
             onChange={(e) => setCompanyPhone(e.target.value)}
-            className="w-full rounded-xl border border-white/20 bg-stampa-surface text-white px-3 py-2.5 text-sm outline-none focus:border-stampa-orange focus:ring-2 focus:ring-orange-100"
+            className="w-full rounded-xl border border-fg/20 bg-stampa-surface text-fg px-3 py-2.5 text-sm outline-none focus:border-stampa-orange focus:ring-2 focus:ring-orange-100"
             placeholder="Ej. +54 9 11 1234-5678"
           />
         </label>
 
         <label className="block">
           <span className="mb-1 block text-xs font-semibold text-gray-500">Provincia</span>
-          <input value={companyProvince} onChange={(e) => setCompanyProvince(e.target.value)} className="w-full rounded-xl border border-white/20 bg-stampa-surface text-white px-3 py-2.5 text-sm outline-none focus:border-stampa-orange focus:ring-2 focus:ring-orange-100" placeholder="Ej. Buenos Aires" />
+          <input value={companyProvince} onChange={(e) => setCompanyProvince(e.target.value)} className="w-full rounded-xl border border-fg/20 bg-stampa-surface text-fg px-3 py-2.5 text-sm outline-none focus:border-stampa-orange focus:ring-2 focus:ring-orange-100" placeholder="Ej. Buenos Aires" />
         </label>
         
         <label className="block">
@@ -185,7 +185,7 @@ export function BusinessManager() {
           <input
             value={companyCity}
             onChange={(e) => setCompanyCity(e.target.value)}
-            className="w-full rounded-xl border border-white/20 bg-stampa-surface text-white px-3 py-2.5 text-sm outline-none focus:border-stampa-orange focus:ring-2 focus:ring-orange-100"
+            className="w-full rounded-xl border border-fg/20 bg-stampa-surface text-fg px-3 py-2.5 text-sm outline-none focus:border-stampa-orange focus:ring-2 focus:ring-orange-100"
             placeholder="Ej. Buenos Aires"
           />
         </label>
@@ -195,7 +195,7 @@ export function BusinessManager() {
           <input
             value={companyAddress}
             onChange={(e) => setCompanyAddress(e.target.value)}
-            className="w-full rounded-xl border border-white/20 bg-stampa-surface text-white px-3 py-2.5 text-sm outline-none focus:border-stampa-orange focus:ring-2 focus:ring-orange-100"
+            className="w-full rounded-xl border border-fg/20 bg-stampa-surface text-fg px-3 py-2.5 text-sm outline-none focus:border-stampa-orange focus:ring-2 focus:ring-orange-100"
             placeholder="Ej. Calle Falsa 123"
           />
         </label>

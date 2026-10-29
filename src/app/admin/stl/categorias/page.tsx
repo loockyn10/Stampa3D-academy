@@ -13,7 +13,7 @@ export default function AdminStlCategoriesPage() {
         >
           <ArrowLeft size={14} /> Volver al panel STL
         </Link>
-        <h1 className="text-2xl font-bold text-white flex items-center gap-2">
+        <h1 className="text-2xl font-bold text-fg flex items-center gap-2">
           <Tags className="text-indigo-600" />
           Grupos STL
         </h1>

@@ -49,26 +49,26 @@ export function FilamentStockCard({
   const costPerKg = total > 0 ? (Number(filament.purchase_price) || 0) / total * 1000 : 0;
 
   return (
-    <article className="overflow-hidden rounded-2xl border border-stampa-border bg-stampa-surface p-4 shadow-lg shadow-black/15">
+    <article className="overflow-hidden rounded-2xl border border-stampa-border bg-stampa-surface p-4 shadow-lg shadow-shade/15">
       <div className="flex min-w-0 gap-4">
         <div className="relative flex h-24 w-24 shrink-0 items-center justify-center" aria-hidden="true">
           <div className="absolute h-[5.15rem] w-[5.15rem] rounded-full border-[7px] border-neutral-700 bg-neutral-900 shadow-[inset_0_0_0_1px_rgba(255,255,255,0.08),0_8px_18px_rgba(0,0,0,0.3)]" />
           <div className="absolute h-[3.75rem] w-[3.75rem] rounded-full border-[9px] shadow-[inset_0_0_12px_rgba(0,0,0,0.4)]" style={{ borderColor: colorHex }} />
           <div className="absolute h-6 w-6 rounded-full border-4 border-neutral-600 bg-stampa-bg" />
-          <span className="absolute bottom-0 rounded-full border border-white/10 bg-stampa-bg/95 px-2 py-0.5 text-[9px] font-black text-gray-300">{percentage}%</span>
+          <span className="absolute bottom-0 rounded-full border border-fg/10 bg-stampa-bg/95 px-2 py-0.5 text-[9px] font-black text-gray-300">{percentage}%</span>
         </div>
 
         <div className="min-w-0 flex-1">
           <div className="flex items-start justify-between gap-2">
             <div className="min-w-0">
               <p className="truncate text-[10px] font-bold uppercase tracking-wider text-gray-500">{brand}</p>
-              <h3 className="mt-0.5 truncate text-base font-black text-white">{filament.filament_type || "Material"}</h3>
+              <h3 className="mt-0.5 truncate text-base font-black text-fg">{filament.filament_type || "Material"}</h3>
               <p className="mt-0.5 truncate text-xs text-gray-400">{filament.name || "Sin subtipo"}</p>
             </div>
             {isLow && <span className="shrink-0 rounded-full border border-red-500/25 bg-red-500/10 px-2 py-1 text-[9px] font-black uppercase text-red-300">Bajo</span>}
           </div>
           <div className="mt-3 flex items-center gap-2 text-xs text-gray-400">
-            <span className="h-3 w-3 shrink-0 rounded-full border border-white/20" style={{ backgroundColor: colorHex }} />
+            <span className="h-3 w-3 shrink-0 rounded-full border border-fg/20" style={{ backgroundColor: colorHex }} />
             <span className="truncate">{filament.color || "Sin color"}</span>
           </div>
           <p className="mt-2 text-xs text-gray-500">Costo/kg <strong className="text-gray-300">${costPerKg.toLocaleString("es-AR", { maximumFractionDigits: 0 })}</strong></p>
@@ -78,9 +78,9 @@ export function FilamentStockCard({
       <div className="mt-4">
         <div className="flex items-end justify-between gap-2">
           <p className="text-xs font-semibold text-gray-500">Disponible</p>
-          <p className={`text-sm font-black ${isLow ? "text-red-300" : "text-white"}`}>{remaining.toLocaleString("es-AR")}g <span className="font-medium text-gray-500">/ {total.toLocaleString("es-AR")}g</span></p>
+          <p className={`text-sm font-black ${isLow ? "text-red-300" : "text-fg"}`}>{remaining.toLocaleString("es-AR")}g <span className="font-medium text-gray-500">/ {total.toLocaleString("es-AR")}g</span></p>
         </div>
-        <div className="mt-2 h-2 overflow-hidden rounded-full bg-white/5">
+        <div className="mt-2 h-2 overflow-hidden rounded-full bg-fg/5">
           <div className={`h-full rounded-full transition-[width] ${isLow ? "bg-red-400" : "bg-stampa-orange"}`} style={{ width: `${percentage}%` }} />
         </div>
       </div>
@@ -96,7 +96,7 @@ export function FilamentStockCard({
             onChange={(event) => onAdjustAmountChange(event.target.value)}
             disabled={adjusting}
             aria-label={`Gramos para ajustar ${filament.name || filament.filament_type}`}
-            className="h-10 min-w-0 flex-1 rounded-lg border border-stampa-border bg-stampa-bg-soft px-3 text-xs text-white outline-none focus:border-stampa-orange min-[390px]:w-24 min-[390px]:flex-none"
+            className="h-10 min-w-0 flex-1 rounded-lg border border-stampa-border bg-stampa-bg-soft px-3 text-xs text-fg outline-none focus:border-stampa-orange min-[390px]:w-24 min-[390px]:flex-none"
           />
           <button onClick={() => onAdjust("subtract")} disabled={adjusting} className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg border border-red-500/20 bg-red-500/10 text-red-300 disabled:opacity-50" aria-label="Restar gramos">
             {adjusting ? <Loader2 size={15} className="animate-spin" /> : <Minus size={15} />}
@@ -107,8 +107,8 @@ export function FilamentStockCard({
         </div>
 
         <div className="flex items-center justify-end gap-1">
-          <button onClick={onHistory} className="flex h-10 w-10 items-center justify-center rounded-lg text-gray-500 hover:bg-white/5 hover:text-white" aria-label="Ver historial"><History size={16} /></button>
-          <button onClick={onEdit} className="flex h-10 w-10 items-center justify-center rounded-lg text-gray-500 hover:bg-stampa-orange/10 hover:text-stampa-orange" aria-label="Editar filamento"><Edit2 size={16} /></button>
+          <button onClick={onHistory} className="flex h-10 w-10 items-center justify-center rounded-lg text-gray-500 hover:bg-fg/5 hover:text-fg" aria-label="Ver historial"><History size={16} /></button>
+          <button onClick={onEdit} className="flex h-10 w-10 items-center justify-center rounded-lg text-gray-500 hover:bg-stampa-orange/10 hover:text-stampa-accent" aria-label="Editar filamento"><Edit2 size={16} /></button>
           <button onClick={onRemove} className="flex h-10 w-10 items-center justify-center rounded-lg text-gray-500 hover:bg-red-500/10 hover:text-red-300" aria-label="Quitar filamento"><Trash2 size={16} /></button>
         </div>
       </div>

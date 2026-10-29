@@ -8,9 +8,9 @@ interface BadgeProps {
 
 export function Badge({ children, tone = "orange", className = "" }: BadgeProps) {
   const tones = {
-    orange: "bg-stampa-orange/10 text-stampa-orange border-[#ff6a00]/20",
-    dark: "bg-white/5 text-white border-stampa-border",
-    gray: "bg-white/5 text-gray-400 border-stampa-border",
+    orange: "bg-stampa-orange/10 text-stampa-accent border-[#ff6a00]/20",
+    dark: "bg-fg/5 text-fg border-stampa-border",
+    gray: "bg-fg/5 text-gray-400 border-stampa-border",
     green: "bg-emerald-500/10 text-emerald-400 border-emerald-500/20",
   };
   return (

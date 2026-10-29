@@ -70,19 +70,19 @@ function supportsCommercial(provider: ProviderInfo, value: CommercialFilter): bo
 function chipClass(active: boolean) {
   return `shrink-0 rounded-full border px-3.5 py-2 text-sm font-semibold transition-colors ${
     active
-      ? "border-stampa-orange bg-stampa-orange/10 text-stampa-orange"
-      : "border-stampa-border bg-stampa-surface text-gray-300 hover:bg-white/10 hover:text-white"
+      ? "border-stampa-orange bg-stampa-orange/10 text-stampa-accent"
+      : "border-stampa-border bg-stampa-surface text-gray-300 hover:bg-fg/10 hover:text-fg"
   }`;
 }
 
 function ResultSkeleton() {
   return (
     <div className="overflow-hidden rounded-2xl border border-stampa-border bg-stampa-surface" aria-hidden="true">
-      <div className="aspect-[4/3] animate-pulse bg-white/5" />
+      <div className="aspect-[4/3] animate-pulse bg-fg/5" />
       <div className="space-y-3 p-4">
-        <div className="h-4 w-4/5 animate-pulse rounded bg-white/10" />
-        <div className="h-3 w-2/5 animate-pulse rounded bg-white/5" />
-        <div className="h-9 animate-pulse rounded-xl bg-white/5" />
+        <div className="h-4 w-4/5 animate-pulse rounded bg-fg/10" />
+        <div className="h-3 w-2/5 animate-pulse rounded bg-fg/5" />
+        <div className="h-9 animate-pulse rounded-xl bg-fg/5" />
       </div>
     </div>
   );
@@ -239,17 +239,17 @@ export function ExplorarModelosClient({ providers }: { providers: ProviderInfo[]
   const busy = phase === "loading";
 
   return (
-    <div className="min-h-screen bg-stampa-bg text-[#ededed]">
+    <div className="min-h-screen bg-stampa-bg text-stampa-body">
       {tier === "anonymous" && (
         <header className="sticky top-0 z-20 border-b border-stampa-border bg-stampa-bg/95 backdrop-blur">
           <div className="mx-auto flex max-w-6xl items-center justify-between gap-3 px-4 py-3">
             <Link href={calculatorVisible ? "/calculadora" : "/login"} className="flex items-center gap-2">
               <Image src="/favicon.svg" alt="Stampa" width={28} height={28} className="h-7 w-7" />
-              <span className="text-sm font-bold text-white">Stampa</span>
+              <span className="text-sm font-bold text-fg">Stampa</span>
             </Link>
             <nav className="flex items-center gap-1 text-sm font-semibold whitespace-nowrap">
-              <FeatureLink href="/calculadora" className="hidden rounded-lg px-3 py-2 text-gray-300 hover:text-white sm:inline-block">Calculadora</FeatureLink>
-              <Link href="/login" className="rounded-lg px-3 py-2 text-gray-300 hover:text-white">Ingresar</Link>
+              <FeatureLink href="/calculadora" className="hidden rounded-lg px-3 py-2 text-gray-300 hover:text-fg sm:inline-block">Calculadora</FeatureLink>
+              <Link href="/login" className="rounded-lg px-3 py-2 text-gray-300 hover:text-fg">Ingresar</Link>
               <Link href="/registro" className="rounded-lg bg-stampa-orange px-3 py-2 text-neutral-950 hover:bg-stampa-orange-hover">Crear cuenta</Link>
             </nav>
           </div>
@@ -258,14 +258,14 @@ export function ExplorarModelosClient({ providers }: { providers: ProviderInfo[]
 
       <div className="mx-auto w-full max-w-6xl px-4 py-6 sm:py-10">
         <div className="mb-6">
-          <h1 className="text-2xl font-extrabold text-white sm:text-3xl">Explorar Modelos</h1>
+          <h1 className="text-2xl font-extrabold text-fg sm:text-3xl">Explorar Modelos</h1>
           <p className="mt-1.5 text-sm text-gray-400 sm:text-base">Encontrá modelos 3D en distintas plataformas desde un solo lugar.</p>
         </div>
 
         {enabledProviders.length === 0 ? (
           <div className="rounded-2xl border border-dashed border-stampa-border p-8 text-center">
-            <AlertTriangle className="mx-auto mb-3 text-stampa-orange" size={24} />
-            <p className="text-sm font-semibold text-white">El buscador todavía no tiene fuentes disponibles.</p>
+            <AlertTriangle className="mx-auto mb-3 text-stampa-accent" size={24} />
+            <p className="text-sm font-semibold text-fg">El buscador todavía no tiene fuentes disponibles.</p>
             <p className="mt-1 text-xs text-gray-500">Volvé a intentar más tarde.</p>
           </div>
         ) : (
@@ -282,7 +282,7 @@ export function ExplorarModelosClient({ providers }: { providers: ProviderInfo[]
                   aria-label="Buscar modelos 3D"
                   enterKeyHint="search"
                   autoComplete="off"
-                  className="w-full rounded-xl border border-stampa-border bg-stampa-bg-soft py-3.5 pl-11 pr-4 text-base text-white outline-none placeholder:text-gray-500 focus:border-[#ff6a00] focus:ring-1 focus:ring-[#ff6a00]"
+                  className="w-full rounded-xl border border-stampa-border bg-stampa-bg-soft py-3.5 pl-11 pr-4 text-base text-fg outline-none placeholder:text-gray-500 focus:border-[#ff6a00] focus:ring-1 focus:ring-[#ff6a00]"
                 />
               </div>
               <button
@@ -387,7 +387,7 @@ export function ExplorarModelosClient({ providers }: { providers: ProviderInfo[]
               {phase === "idle" && (
                 <div className="rounded-2xl border border-dashed border-stampa-border px-6 py-14 text-center">
                   <Search className="mx-auto mb-3 text-gray-600" size={28} aria-hidden="true" />
-                  <p className="text-sm font-semibold text-white">Buscá un modelo para empezar</p>
+                  <p className="text-sm font-semibold text-fg">Buscá un modelo para empezar</p>
                   <p className="mx-auto mt-1 max-w-sm text-xs text-gray-500">
                     Vas a ver resultados de {enabledProviders.map((provider) => provider.label).join(" y ")}. Cada modelo te lleva a su página original.
                   </p>
@@ -403,14 +403,14 @@ export function ExplorarModelosClient({ providers }: { providers: ProviderInfo[]
               {phase === "error" && (
                 <div className="rounded-2xl border border-red-500/30 bg-red-500/5 p-6 text-center">
                   <AlertTriangle className="mx-auto mb-2 text-red-400" size={24} aria-hidden="true" />
-                  <p className="text-sm font-semibold text-white">{message ?? "Ninguna fuente respondió."}</p>
+                  <p className="text-sm font-semibold text-fg">{message ?? "Ninguna fuente respondió."}</p>
                   {sources.length > 0 && (
                     <p className="mt-1 text-xs text-gray-400">
                       {sources.map((entry) => `${MODEL_SOURCE_LABELS[entry.id]}: ${entry.status === "timeout" ? "sin respuesta a tiempo" : entry.status === "disabled" ? "no disponible" : "con error"}`).join(" · ")}
                     </p>
                   )}
                   {submitted && (
-                    <button type="button" onClick={() => void runSearch({ query: submitted, ...current, cursor: null })} className="mt-4 rounded-xl border border-stampa-border px-4 py-2 text-sm font-semibold text-gray-200 hover:bg-white/10">
+                    <button type="button" onClick={() => void runSearch({ query: submitted, ...current, cursor: null })} className="mt-4 rounded-xl border border-stampa-border px-4 py-2 text-sm font-semibold text-gray-200 hover:bg-fg/10">
                       Reintentar
                     </button>
                   )}
@@ -420,7 +420,7 @@ export function ExplorarModelosClient({ providers }: { providers: ProviderInfo[]
               {(phase === "done" || phase === "loadingMore") && results.length === 0 && (
                 <div className="rounded-2xl border border-dashed border-stampa-border px-6 py-14 text-center">
                   <SearchX className="mx-auto mb-3 text-gray-600" size={28} aria-hidden="true" />
-                  <p className="text-sm font-semibold text-white">No encontramos modelos para “{submitted}”</p>
+                  <p className="text-sm font-semibold text-fg">No encontramos modelos para “{submitted}”</p>
                   <p className="mx-auto mt-1 max-w-sm text-xs text-gray-500">Probá con otras palabras, quitá algún filtro o elegí otra fuente.</p>
                 </div>
               )}
@@ -440,7 +440,7 @@ export function ExplorarModelosClient({ providers }: { providers: ProviderInfo[]
                       type="button"
                       disabled={phase === "loadingMore"}
                       onClick={() => submitted && void runSearch({ query: submitted, ...current, cursor: nextCursor })}
-                      className="inline-flex items-center gap-2 rounded-xl border border-stampa-border bg-stampa-surface px-6 py-3 text-sm font-semibold text-white hover:bg-white/10 disabled:opacity-60"
+                      className="inline-flex items-center gap-2 rounded-xl border border-stampa-border bg-stampa-surface px-6 py-3 text-sm font-semibold text-fg hover:bg-fg/10 disabled:opacity-60"
                     >
                       {phase === "loadingMore" && <Loader2 size={16} className="animate-spin" aria-hidden="true" />}
                       Ver más resultados

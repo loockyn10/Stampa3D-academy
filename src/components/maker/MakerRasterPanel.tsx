@@ -152,7 +152,7 @@ export function MakerRasterPanel({ fileName, bytes, kind, settings, onChange, co
 
   return (
     <div className="flex flex-col gap-3">
-      <div className="relative aspect-[4/3] w-full overflow-hidden rounded-xl border border-white/10 bg-[radial-gradient(ellipse_at_center,#23262c_0%,#15171b_75%)]">
+      <div className="relative aspect-[4/3] w-full overflow-hidden rounded-xl border border-fg/10 bg-[radial-gradient(ellipse_at_center,#23262c_0%,#15171b_75%)]">
         {tab === "original" && <OriginalCanvas bytes={bytes} kind={kind} label={fileName} />}
         {tab === "mask" && conversion && <MaskCanvas mask={conversion.preview.mask} />}
         {tab === "path" && conversion && <PathPreview preview={conversion.preview} />}
@@ -169,7 +169,7 @@ export function MakerRasterPanel({ fileName, bytes, kind, settings, onChange, co
       <div className="flex flex-col gap-1">
         <span className="text-xs font-semibold text-gray-500">Modo de detección</span>
         {kind === "jpg" ? (
-          <p className="rounded-xl border border-white/10 bg-white/[0.04] px-3 py-2 text-xs text-gray-300">Luminosidad (el JPEG no tiene transparencia).</p>
+          <p className="rounded-xl border border-fg/10 bg-fg/[0.04] px-3 py-2 text-xs text-gray-300">Luminosidad (el JPEG no tiene transparencia).</p>
         ) : (
           <SegmentedControl compact options={MODES} value={settings.detectionMode} onChange={(detectionMode) => onChange({ detectionMode })} />
         )}
@@ -192,7 +192,7 @@ export function MakerRasterPanel({ fileName, bytes, kind, settings, onChange, co
               type="checkbox"
               checked={settings.threshold === null}
               onChange={(e) => onChange({ threshold: e.target.checked ? null : (detected ?? 128) })}
-              className="h-4 w-4 rounded border-white/20 bg-white/[0.06] text-stampa-orange"
+              className="h-4 w-4 rounded border-fg/20 bg-fg/[0.06] text-stampa-accent"
             />
             Automático (Otsu){settings.threshold === null && detected !== null ? ` · detectado ${detected}` : ""}
           </label>
@@ -204,7 +204,7 @@ export function MakerRasterPanel({ fileName, bytes, kind, settings, onChange, co
       {modeLuminance && <Slider label="Contraste" value={settings.contrast} min={-100} max={100} onChange={(contrast) => onChange({ contrast })} />}
 
       <label className="flex cursor-pointer select-none items-center gap-2 text-xs font-semibold text-gray-300">
-        <input type="checkbox" checked={settings.invert} onChange={(e) => onChange({ invert: e.target.checked })} className="h-4 w-4 rounded border-white/20 bg-white/[0.06] text-stampa-orange" />
+        <input type="checkbox" checked={settings.invert} onChange={(e) => onChange({ invert: e.target.checked })} className="h-4 w-4 rounded border-fg/20 bg-fg/[0.06] text-stampa-accent" />
         Invertir
       </label>
 
@@ -220,7 +220,7 @@ export function MakerRasterPanel({ fileName, bytes, kind, settings, onChange, co
       <Slider label="Suavizado" value={settings.smoothing} min={0} max={100} onChange={(smoothing) => onChange({ smoothing })} />
 
       {stats && (
-        <dl className="grid grid-cols-2 gap-x-3 gap-y-1 rounded-xl border border-white/10 bg-white/[0.04] p-3 text-xs">
+        <dl className="grid grid-cols-2 gap-x-3 gap-y-1 rounded-xl border border-fg/10 bg-fg/[0.04] p-3 text-xs">
           <dt className="text-gray-500">Recorridos</dt>
           <dd className="text-right font-semibold text-gray-200">{stats.paths}</dd>
           <dt className="text-gray-500">Bifurcaciones</dt>
@@ -232,7 +232,7 @@ export function MakerRasterPanel({ fileName, bytes, kind, settings, onChange, co
               <dt className="text-gray-500">Longitud Neon</dt>
               <dd className="text-right font-semibold text-gray-200">{(metrics.lengthMm / 1000).toFixed(2)} m</dd>
               <dt className="text-gray-500">Neon recomendado (+{Math.round(NEON_LENGTH_MARGIN * 100)}%)</dt>
-              <dd className="text-right font-bold text-stampa-orange">{(metrics.recommendedLengthMm / 1000).toFixed(2)} m</dd>
+              <dd className="text-right font-bold text-stampa-accent">{(metrics.recommendedLengthMm / 1000).toFixed(2)} m</dd>
             </>
           )}
         </dl>

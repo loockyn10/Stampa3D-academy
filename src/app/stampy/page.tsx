@@ -226,7 +226,7 @@ export default function StampyPage() {
             type="button"
             onClick={startNewConversation}
             disabled={loading}
-            className="inline-flex min-h-9 shrink-0 items-center gap-1.5 rounded-lg border border-stampa-border bg-stampa-surface px-3 text-xs font-semibold text-gray-300 transition-colors hover:bg-white/5 hover:text-white focus:outline-none focus-visible:ring-2 focus-visible:ring-cyan-400 disabled:opacity-50"
+            className="inline-flex min-h-9 shrink-0 items-center gap-1.5 rounded-lg border border-stampa-border bg-stampa-surface px-3 text-xs font-semibold text-gray-300 transition-colors hover:bg-fg/5 hover:text-fg focus:outline-none focus-visible:ring-2 focus-visible:ring-cyan-400 disabled:opacity-50"
           >
             <Plus size={14} aria-hidden="true" /> Nuevo chat
           </button>
@@ -240,7 +240,7 @@ export default function StampyPage() {
               <span className="mx-auto mb-3 flex h-12 w-12 items-center justify-center rounded-2xl border border-cyan-400/25 bg-gradient-to-br from-cyan-500/15 to-violet-500/15 text-cyan-300" aria-hidden="true">
                 <Bot size={24} />
               </span>
-              <h1 className="text-2xl font-bold tracking-tight text-white sm:text-3xl">¿En qué puedo ayudarte hoy?</h1>
+              <h1 className="text-2xl font-bold tracking-tight text-fg sm:text-3xl">¿En qué puedo ayudarte hoy?</h1>
               <p className="mt-2 text-sm text-gray-400">Impresión 3D, costos, tu taller y tus cursos. Si preparo un cambio, vos lo confirmás.</p>
             </div>
 
@@ -273,7 +273,7 @@ export default function StampyPage() {
                     disabled={loading}
                     className="group flex min-h-14 items-center gap-3 rounded-xl border border-stampa-border bg-stampa-surface px-3 py-2.5 text-left transition-colors hover:border-cyan-400/35 hover:bg-cyan-500/5 focus:outline-none focus-visible:ring-2 focus-visible:ring-cyan-400 disabled:opacity-50"
                   >
-                    <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-white/5 text-cyan-300 group-hover:bg-cyan-500/10" aria-hidden="true">
+                    <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-fg/5 text-cyan-300 group-hover:bg-cyan-500/10" aria-hidden="true">
                       <Icon size={16} />
                     </span>
                     <span className="min-w-0">
@@ -339,7 +339,7 @@ export default function StampyPage() {
                           const courseId = rec.course_modules?.courses?.slug || rec.course_modules?.courses?.id || "";
                           const courseHref = rec.href || (courseId ? `/cursos/${courseId}` : "/cursos");
                           return (
-                            <div key={idx} className="group flex flex-col justify-between gap-3 rounded-xl border border-stampa-border bg-white/[0.03] p-3 sm:flex-row sm:items-center">
+                            <div key={idx} className="group flex flex-col justify-between gap-3 rounded-xl border border-stampa-border bg-fg/[0.03] p-3 sm:flex-row sm:items-center">
                               <div className="min-w-0">
                                 <div className="mb-1 flex items-center gap-2">
                                   {rec.courseKind === "workshop" ? (
@@ -347,18 +347,18 @@ export default function StampyPage() {
                                       Taller
                                     </Badge>
                                   ) : (
-                                    <Badge className="border-none bg-white/10 text-gray-300">
+                                    <Badge className="border-none bg-fg/10 text-gray-300">
                                       {rec.ai_level === "advanced" ? "Avanzado" : rec.ai_level === "intermediate" ? "Intermedio" : "Principiante"}
                                     </Badge>
                                   )}
                                   <span className="truncate text-[10px] font-bold uppercase tracking-wider text-gray-400">{rec.course_modules?.courses?.title}</span>
                                 </div>
-                                <p className="text-sm font-semibold text-white transition-colors group-hover:text-stampa-orange">{rec.title}</p>
+                                <p className="text-sm font-semibold text-fg transition-colors group-hover:text-stampa-accent">{rec.title}</p>
                                 {rec.ai_summary && <p className="mt-1 line-clamp-2 text-xs text-gray-400">{rec.ai_summary}</p>}
                               </div>
                               <Link
                                 href={courseHref}
-                                className="flex min-h-9 shrink-0 items-center justify-center gap-1 rounded-lg border border-stampa-border bg-[#1a1a1a] px-3 text-xs font-semibold text-gray-300 shadow-sm transition-colors hover:border-[#ff6a00]/30 hover:text-stampa-orange"
+                                className="flex min-h-9 shrink-0 items-center justify-center gap-1 rounded-lg border border-stampa-border bg-stampa-raised px-3 text-xs font-semibold text-gray-300 shadow-sm transition-colors hover:border-[#ff6a00]/30 hover:text-stampa-accent"
                               >
                                 Abrir curso <ChevronRight size={14} />
                               </Link>
@@ -388,7 +388,7 @@ export default function StampyPage() {
                             {kt.route && (
                               <Link
                                 href={kt.route}
-                                className="flex min-h-9 shrink-0 items-center justify-center gap-1 rounded-lg border border-indigo-500/30 bg-[#1a1a1a] px-3 text-xs font-bold text-indigo-400 shadow-sm transition-colors hover:bg-indigo-500/10 hover:text-indigo-300"
+                                className="flex min-h-9 shrink-0 items-center justify-center gap-1 rounded-lg border border-indigo-500/30 bg-stampa-raised px-3 text-xs font-bold text-indigo-400 shadow-sm transition-colors hover:bg-indigo-500/10 hover:text-indigo-300"
                               >
                                 Abrir <ChevronRight size={14} />
                               </Link>
@@ -416,7 +416,7 @@ export default function StampyPage() {
                               const tool = TOOL_MAP[t];
                               const Icon = tool.icon;
                               return (
-                                <Link key={t} href={tool.href} className="flex min-h-9 items-center gap-2 rounded-lg border border-stampa-border bg-[#1a1a1a] px-3 text-xs font-bold text-gray-300 shadow-sm transition-colors hover:bg-white/5 hover:text-white">
+                                <Link key={t} href={tool.href} className="flex min-h-9 items-center gap-2 rounded-lg border border-stampa-border bg-stampa-raised px-3 text-xs font-bold text-gray-300 shadow-sm transition-colors hover:bg-fg/5 hover:text-fg">
                                   <Icon size={14} />
                                   {tool.label}
                                 </Link>
@@ -509,7 +509,7 @@ function StampyComposer({
         event.preventDefault();
         if (canSend) onSubmit();
       }}
-      className={`relative rounded-2xl border border-stampa-border bg-stampa-surface shadow-lg shadow-black/30 transition-colors focus-within:border-cyan-400/50 focus-within:ring-2 focus-within:ring-cyan-400/15 ${
+      className={`relative rounded-2xl border border-stampa-border bg-stampa-surface shadow-lg shadow-shade/30 transition-colors focus-within:border-cyan-400/50 focus-within:ring-2 focus-within:ring-cyan-400/15 ${
         variant === "hero" ? "p-3" : "p-2"
       }`}
     >
@@ -528,7 +528,7 @@ function StampyComposer({
         placeholder={variant === "hero" ? "Contale a Stampy qué necesitás…" : "Escribí tu mensaje…"}
         rows={variant === "hero" ? 3 : 1}
         autoFocus={variant === "hero"}
-        className="block w-full resize-none bg-transparent! border-transparent! shadow-none! focus:border-transparent! focus:shadow-none! px-2 py-1.5 pr-12 text-[15px] leading-6 text-white placeholder:text-gray-400 focus:outline-none"
+        className="block w-full resize-none bg-transparent! border-transparent! shadow-none! focus:border-transparent! focus:shadow-none! px-2 py-1.5 pr-12 text-[15px] leading-6 text-fg placeholder:text-gray-400 focus:outline-none"
         style={{ maxHeight }}
       />
       <div className="flex items-center justify-between gap-2 pl-2">

@@ -66,7 +66,7 @@ export function MobileRadialMenu({ open, onClose }: MobileRadialMenuProps) {
               style={style}
               className="mobile-radial-item absolute flex w-[4.5rem] flex-col items-center gap-1.5 text-center"
             >
-              <span className="flex h-12 w-12 items-center justify-center rounded-full border border-white/15 bg-stampa-surface text-gray-100 shadow-xl shadow-black/35 transition-colors hover:border-stampa-orange/50 hover:text-stampa-orange">
+              <span className="flex h-12 w-12 items-center justify-center rounded-full border border-fg/15 bg-stampa-surface text-gray-100 shadow-xl shadow-black/35 transition-colors hover:border-stampa-orange/50 hover:text-stampa-accent">
                 <Icon size={20} />
               </span>
               <span className="max-w-[4.5rem] rounded-md bg-stampa-bg/90 px-1.5 py-0.5 text-[10px] font-semibold leading-tight text-gray-200 shadow-sm">

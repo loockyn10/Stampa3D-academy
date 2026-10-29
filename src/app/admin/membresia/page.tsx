@@ -106,7 +106,7 @@ export default function AdminMembresiaPage() {
   };
 
   if (loading && !currentSettings) {
-    return <div className="py-24 flex justify-center"><Loader2 className="animate-spin h-8 w-8 text-stampa-orange" /></div>;
+    return <div className="py-24 flex justify-center"><Loader2 className="animate-spin h-8 w-8 text-stampa-accent" /></div>;
   }
 
   return (
@@ -138,14 +138,14 @@ export default function AdminMembresiaPage() {
       <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
         <Card className="p-6 space-y-6">
           <div>
-            <h3 className="text-lg font-bold text-white">Estado Actual</h3>
+            <h3 className="text-lg font-bold text-fg">Estado Actual</h3>
             <p className="text-sm text-gray-500">Configuración vigente de la membresía.</p>
           </div>
           
           <div className="bg-stampa-orange/10 border border-orange-100 p-4 rounded-xl flex items-center justify-between">
             <div>
-              <p className="text-xs font-semibold text-stampa-orange uppercase mb-1">Precio Mensual</p>
-              <p className="text-3xl font-black text-white">
+              <p className="text-xs font-semibold text-stampa-accent uppercase mb-1">Precio Mensual</p>
+              <p className="text-3xl font-black text-fg">
                 {currentSettings?.monthly_price ? formatPrice(currentSettings.monthly_price) : "No definido"}
               </p>
             </div>
@@ -164,7 +164,7 @@ export default function AdminMembresiaPage() {
 
         <Card className="p-6 space-y-6 border-stampa-orange/30">
           <div>
-            <h3 className="text-lg font-bold text-white">Actualizar Precio</h3>
+            <h3 className="text-lg font-bold text-fg">Actualizar Precio</h3>
             <p className="text-sm text-gray-500">Los nuevos usuarios pagarán este monto.</p>
           </div>
 
@@ -177,7 +177,7 @@ export default function AdminMembresiaPage() {
                 placeholder="Ej. 15000"
                 value={newPrice}
                 onChange={(e) => setNewPrice(e.target.value)}
-                className="w-full rounded-xl border border-white/20 bg-stampa-surface px-3 py-2.5 text-sm outline-none focus:border-stampa-orange focus:ring-2 focus:ring-orange-100"
+                className="w-full rounded-xl border border-fg/20 bg-stampa-surface px-3 py-2.5 text-sm outline-none focus:border-stampa-orange focus:ring-2 focus:ring-orange-100"
               />
             </label>
 
@@ -188,7 +188,7 @@ export default function AdminMembresiaPage() {
                 placeholder="Motivo del cambio..."
                 value={notes}
                 onChange={(e) => setNotes(e.target.value)}
-                className="w-full rounded-xl border border-white/20 bg-stampa-surface px-3 py-2.5 text-sm outline-none focus:border-stampa-orange focus:ring-2 focus:ring-orange-100"
+                className="w-full rounded-xl border border-fg/20 bg-stampa-surface px-3 py-2.5 text-sm outline-none focus:border-stampa-orange focus:ring-2 focus:ring-orange-100"
               />
             </label>
 
@@ -197,10 +197,10 @@ export default function AdminMembresiaPage() {
                 type="checkbox"
                 checked={applyToExisting}
                 onChange={(e) => setApplyToExisting(e.target.checked)}
-                className="mt-0.5 rounded text-stampa-orange focus:ring-stampa-orange"
+                className="mt-0.5 rounded text-stampa-accent focus:ring-stampa-orange"
               />
               <div className="flex-1">
-                <span className="block text-sm font-semibold text-white">Aplicar también a suscripciones activas existentes</span>
+                <span className="block text-sm font-semibold text-fg">Aplicar también a suscripciones activas existentes</span>
                 <span className="block text-xs text-gray-500 mt-1">Si está activado, Mercado Pago actualizará el monto del próximo cobro para todos los usuarios actuales.</span>
               </div>
             </label>
@@ -218,7 +218,7 @@ export default function AdminMembresiaPage() {
       </div>
 
       <div className="mt-8">
-        <h3 className="text-lg font-bold text-white mb-4">Historial de Cambios</h3>
+        <h3 className="text-lg font-bold text-fg mb-4">Historial de Cambios</h3>
         <Card className="overflow-hidden">
           {history.length === 0 ? (
             <div className="p-6 text-center text-sm text-gray-500">No hay cambios registrados.</div>
@@ -239,7 +239,7 @@ export default function AdminMembresiaPage() {
                     <tr key={h.id} className="hover:bg-stampa-bg-soft">
                       <td className="px-4 py-3 whitespace-nowrap">{formatDate(h.created_at)}</td>
                       <td className="px-4 py-3">{formatPrice(h.previous_price)}</td>
-                      <td className="px-4 py-3 font-semibold text-white">{formatPrice(h.new_price)}</td>
+                      <td className="px-4 py-3 font-semibold text-fg">{formatPrice(h.new_price)}</td>
                       <td className="px-4 py-3">
                         {h.apply_to_existing ? (
                           <span className="inline-flex items-center rounded-full bg-blue-500/10 px-2 py-1 text-xs font-medium text-blue-700">Sí</span>

@@ -36,7 +36,7 @@ function InfoRow({ label, value, strong = false }: { label: string; value: strin
   return (
     <div className="flex items-baseline justify-between gap-3 text-xs">
       <span className="text-gray-500">{label}</span>
-      <span className={strong ? "font-bold text-stampa-orange" : "font-semibold text-gray-200"}>{value}</span>
+      <span className={strong ? "font-bold text-stampa-accent" : "font-semibold text-gray-200"}>{value}</span>
     </div>
   );
 }
@@ -90,12 +90,12 @@ function NeonFontPicker({ value, onChange }: { value: NeonFontId; onChange: (id:
             aria-checked={active}
             onClick={() => onChange(font.id)}
             className={`flex items-center gap-3 rounded-xl border px-3 py-2 text-left transition-colors ${
-              active ? "border-stampa-orange/60 bg-stampa-orange/10" : "border-white/10 bg-white/[0.04] hover:border-white/25"
+              active ? "border-stampa-orange/60 bg-stampa-orange/10" : "border-fg/10 bg-fg/[0.04] hover:border-fg/25"
             }`}
           >
             <span className="flex h-9 w-28 shrink-0 items-center">
               {preview && (
-                <svg viewBox={`-2 -2 ${preview.w + 4} ${preview.h + 4}`} className={`h-full w-full ${active ? "text-stampa-orange" : "text-gray-300"}`} preserveAspectRatio="xMinYMid meet" aria-hidden>
+                <svg viewBox={`-2 -2 ${preview.w + 4} ${preview.h + 4}`} className={`h-full w-full ${active ? "text-stampa-accent" : "text-gray-300"}`} preserveAspectRatio="xMinYMid meet" aria-hidden>
                   <path d={preview.d} fill="none" stroke="currentColor" strokeWidth={1.4} strokeLinecap="round" strokeLinejoin="round" vectorEffect="non-scaling-stroke" />
                 </svg>
               )}
@@ -128,7 +128,7 @@ function FileDropZone({ onFile, disabled, accept, hint }: { onFile: (file: File)
         if (file && !disabled) onFile(file);
       }}
       className={`flex flex-col items-center gap-2 rounded-xl border border-dashed px-4 py-5 text-center transition-colors ${
-        dragging ? "border-stampa-orange/70 bg-stampa-orange/10" : "border-white/15 bg-white/[0.03]"
+        dragging ? "border-stampa-orange/70 bg-stampa-orange/10" : "border-fg/15 bg-fg/[0.03]"
       }`}
     >
       <Upload size={20} className="text-gray-500" />
@@ -215,10 +215,10 @@ function ManualBridgeEditor({ installation }: { installation: MakerNeonInstallat
   const [toId, setToId] = React.useState(ids[1] ?? ids[0] ?? "");
   const validManualIds = new Set(installation.bridges.filter((b) => b.kind === "manual").map((b) => b.id));
   return (
-    <div className="flex flex-col gap-1.5 rounded-lg border border-white/10 bg-black/20 p-2">
+    <div className="flex flex-col gap-1.5 rounded-lg border border-fg/10 bg-shade/20 p-2">
       <span className="text-[11px] font-semibold uppercase tracking-wide text-gray-500">Puentes manuales</span>
       <div className="flex items-center gap-1.5">
-        <select value={fromId} onChange={(e) => setFromId(e.target.value)} className="min-w-0 flex-1 rounded border border-white/10 bg-black/30 px-1.5 py-1 text-xs text-gray-200">
+        <select value={fromId} onChange={(e) => setFromId(e.target.value)} className="min-w-0 flex-1 rounded border border-fg/10 bg-shade/30 px-1.5 py-1 text-xs text-gray-200">
           {ids.map((id) => (
             <option key={id} value={id}>
               {id}
@@ -226,7 +226,7 @@ function ManualBridgeEditor({ installation }: { installation: MakerNeonInstallat
           ))}
         </select>
         <span className="shrink-0 text-gray-500">→</span>
-        <select value={toId} onChange={(e) => setToId(e.target.value)} className="min-w-0 flex-1 rounded border border-white/10 bg-black/30 px-1.5 py-1 text-xs text-gray-200">
+        <select value={toId} onChange={(e) => setToId(e.target.value)} className="min-w-0 flex-1 rounded border border-fg/10 bg-shade/30 px-1.5 py-1 text-xs text-gray-200">
           {ids.map((id) => (
             <option key={id} value={id}>
               {id}
@@ -245,7 +245,7 @@ function ManualBridgeEditor({ installation }: { installation: MakerNeonInstallat
           return (
             <div
               key={mb.id}
-              className={`flex items-center justify-between gap-2 rounded-lg px-2 py-1.5 text-xs ${valid ? "bg-white/[0.03] text-gray-300" : "bg-red-500/10 text-red-300"}`}
+              className={`flex items-center justify-between gap-2 rounded-lg px-2 py-1.5 text-xs ${valid ? "bg-fg/[0.03] text-gray-300" : "bg-red-500/10 text-red-300"}`}
             >
               <span className="truncate">
                 {mb.fromSegmentId} → {mb.toSegmentId}
@@ -255,7 +255,7 @@ function ManualBridgeEditor({ installation }: { installation: MakerNeonInstallat
                 type="button"
                 onClick={() => installation.onRemoveManualBridge(mb.id)}
                 aria-label="Eliminar puente"
-                className="shrink-0 rounded border border-white/10 px-1.5 py-0.5 text-gray-400 hover:text-white"
+                className="shrink-0 rounded border border-fg/10 px-1.5 py-0.5 text-gray-400 hover:text-fg"
               >
                 ✕
               </button>
@@ -278,7 +278,7 @@ function MakerNeonInstallation({ installation }: { installation: MakerNeonInstal
     <section className="flex flex-col gap-3">
       <SectionLabel>Instalación</SectionLabel>
 
-      <div className="flex flex-col gap-3 rounded-xl border border-white/10 bg-white/[0.02] p-3">
+      <div className="flex flex-col gap-3 rounded-xl border border-fg/10 bg-fg/[0.02] p-3">
         <div className="flex items-center justify-between gap-2">
           <span className="text-xs font-semibold text-gray-300">Cableado</span>
           <Toggle label="Conectar segmentos" checked={recipe.wiringEnabled} onChange={(v) => onRecipeChange({ wiringEnabled: v })} />
@@ -308,13 +308,13 @@ function MakerNeonInstallation({ installation }: { installation: MakerNeonInstal
               <Toggle label="Mostrar cableado" checked={installation.showWiringHelper} onChange={installation.onShowWiringHelperChange} />
             </div>
             {installation.editingConnections && installation.wiring && (
-              <div className="flex flex-col gap-1.5 rounded-lg border border-white/10 bg-black/20 p-2">
+              <div className="flex flex-col gap-1.5 rounded-lg border border-fg/10 bg-shade/20 p-2">
                 <span className="text-[11px] font-semibold uppercase tracking-wide text-gray-500">Orden de cableado</span>
                 {installation.wiring.order.map((segId, i) => {
                   const w = installation.wiring!.segments.find((s) => s.segmentId === segId)!;
                   const total = installation.wiring!.order.length;
                   return (
-                    <div key={segId} className="flex items-center justify-between gap-2 rounded-lg bg-white/[0.03] px-2 py-1.5 text-xs text-gray-300">
+                    <div key={segId} className="flex items-center justify-between gap-2 rounded-lg bg-fg/[0.03] px-2 py-1.5 text-xs text-gray-300">
                       <span className="truncate">
                         {i + 1}. {segId}
                         {w.hasPowerIn ? " · ALIM" : ""}
@@ -326,7 +326,7 @@ function MakerNeonInstallation({ installation }: { installation: MakerNeonInstal
                           disabled={i === 0}
                           onClick={() => installation.onMoveSegment(segId, -1)}
                           aria-label="Mover antes"
-                          className="rounded border border-white/10 px-1.5 py-0.5 text-gray-400 hover:text-white disabled:opacity-30"
+                          className="rounded border border-fg/10 px-1.5 py-0.5 text-gray-400 hover:text-fg disabled:opacity-30"
                         >
                           ↑
                         </button>
@@ -335,14 +335,14 @@ function MakerNeonInstallation({ installation }: { installation: MakerNeonInstal
                           disabled={i === total - 1}
                           onClick={() => installation.onMoveSegment(segId, 1)}
                           aria-label="Mover después"
-                          className="rounded border border-white/10 px-1.5 py-0.5 text-gray-400 hover:text-white disabled:opacity-30"
+                          className="rounded border border-fg/10 px-1.5 py-0.5 text-gray-400 hover:text-fg disabled:opacity-30"
                         >
                           ↓
                         </button>
                         <button
                           type="button"
                           onClick={() => installation.onInvertSegment(segId)}
-                          className="rounded border border-white/10 px-1.5 py-0.5 text-[10px] font-semibold text-gray-400 hover:text-white"
+                          className="rounded border border-fg/10 px-1.5 py-0.5 text-[10px] font-semibold text-gray-400 hover:text-fg"
                         >
                           {w.inverted ? "invertido" : "invertir"}
                         </button>
@@ -359,7 +359,7 @@ function MakerNeonInstallation({ installation }: { installation: MakerNeonInstal
         )}
       </div>
 
-      <div className="flex flex-col gap-3 rounded-xl border border-white/10 bg-white/[0.02] p-3">
+      <div className="flex flex-col gap-3 rounded-xl border border-fg/10 bg-fg/[0.02] p-3">
         <span className="text-xs font-semibold text-gray-300">Unión de segmentos</span>
         <SegmentedControl options={BRIDGE_MODE_OPTIONS} value={recipe.bridgeMode} onChange={(v) => onRecipeChange({ bridgeMode: v })} />
         {recipe.bridgeMode !== "independent" && (
@@ -387,7 +387,7 @@ function MakerNeonInstallation({ installation }: { installation: MakerNeonInstal
         )}
       </div>
 
-      <div className="flex flex-col gap-3 rounded-xl border border-white/10 bg-white/[0.02] p-3">
+      <div className="flex flex-col gap-3 rounded-xl border border-fg/10 bg-fg/[0.02] p-3">
         <span className="text-xs font-semibold text-gray-300">Montaje a pared</span>
         <SegmentedControl options={MOUNT_MODE_OPTIONS} value={recipe.mountMode} onChange={(v) => onRecipeChange({ mountMode: v })} />
         {recipe.mountMode === "clips" && (
@@ -482,14 +482,14 @@ export function MakerNeonControls(props: MakerNeonControlsProps) {
                 maxLength={40}
                 onChange={(e) => props.onTextChange(e.target.value)}
                 placeholder="STAMPA"
-                className="h-11 w-full rounded-xl border border-white/10 bg-white/[0.06] px-4 text-sm text-white placeholder:text-neutral-500 outline-none transition focus:border-stampa-orange/60 focus:bg-white/[0.08] focus:ring-2 focus:ring-stampa-orange/10"
+                className="h-11 w-full rounded-xl border border-fg/10 bg-fg/[0.06] px-4 text-sm text-fg placeholder:text-neutral-500 outline-none transition focus:border-stampa-orange/60 focus:bg-fg/[0.08] focus:ring-2 focus:ring-stampa-orange/10"
               />
             </label>
           </>
         ) : props.fileName ? (
-          <div className="flex items-center justify-between gap-2 rounded-xl border border-white/10 bg-white/[0.04] px-3 py-2">
+          <div className="flex items-center justify-between gap-2 rounded-xl border border-fg/10 bg-fg/[0.04] px-3 py-2">
             <span className="truncate text-xs font-semibold text-gray-200">{props.fileName}</span>
-            <button type="button" onClick={props.onClearFile} aria-label="Quitar archivo" className="text-gray-500 hover:text-white">
+            <button type="button" onClick={props.onClearFile} aria-label="Quitar archivo" className="text-gray-500 hover:text-fg">
               <X size={14} />
             </button>
           </div>
@@ -614,7 +614,7 @@ function ExportSecondaryButton({ onClick, disabled, loading, label }: { onClick:
       type="button"
       onClick={onClick}
       disabled={disabled}
-      className="inline-flex h-8 w-full items-center justify-start gap-2 rounded-lg border border-white/15 bg-white/[0.04] px-3 text-xs font-semibold text-gray-200 transition-colors hover:border-white/30 hover:bg-white/[0.08] disabled:cursor-not-allowed disabled:opacity-40"
+      className="inline-flex h-8 w-full items-center justify-start gap-2 rounded-lg border border-fg/15 bg-fg/[0.04] px-3 text-xs font-semibold text-gray-200 transition-colors hover:border-fg/30 hover:bg-fg/[0.08] disabled:cursor-not-allowed disabled:opacity-40"
     >
       {loading ? <Loader2 size={14} className="animate-spin" /> : <Download size={14} />}
       {label}
@@ -643,7 +643,7 @@ export function NeonExportCard({
   installation?: NeonExportInstallationProps;
 }) {
   return (
-    <div className="pointer-events-auto flex w-56 flex-col gap-2 rounded-2xl border border-white/10 bg-stampa-surface/80 p-3 shadow-lg shadow-black/30 backdrop-blur-md">
+    <div className="pointer-events-auto flex w-56 flex-col gap-2 rounded-2xl border border-fg/10 bg-stampa-surface/80 p-3 shadow-lg shadow-shade/30 backdrop-blur-md">
       <span className="text-[11px] font-semibold uppercase tracking-wide text-gray-500">Neon</span>
       <button
         type="button"

@@ -380,7 +380,7 @@ export function CourseForm({ courseId }: { courseId?: string }) {
                   <button
                     type="button"
                     onClick={() => fileInputRef.current?.click()}
-                    className="p-2 bg-white/10 hover:bg-white/20 text-white rounded-full backdrop-blur-md transition-colors"
+                    className="p-2 bg-fg/10 hover:bg-fg/20 text-fg rounded-full backdrop-blur-md transition-colors"
                     title="Cambiar imagen"
                   >
                     <Upload size={18} />
@@ -400,7 +400,7 @@ export function CourseForm({ courseId }: { courseId?: string }) {
             ) : (
               <div 
                 onClick={() => fileInputRef.current?.click()}
-                className="w-full max-w-sm aspect-video border-2 border-dashed border-stampa-border hover:border-stampa-orange/40 bg-white/5 rounded-xl flex flex-col items-center justify-center cursor-pointer transition-colors text-neutral-400 hover:text-neutral-200"
+                className="w-full max-w-sm aspect-video border-2 border-dashed border-stampa-border hover:border-stampa-orange/40 bg-fg/5 rounded-xl flex flex-col items-center justify-center cursor-pointer transition-colors text-neutral-400 hover:text-neutral-200"
               >
                 <ImageIcon className="mb-2 h-8 w-8 opacity-50" />
                 <span className="text-sm font-medium">Subir imagen</span>
@@ -448,9 +448,9 @@ export function CourseForm({ courseId }: { courseId?: string }) {
             onChange={handleChange}
             className="w-full text-sm bg-stampa-surface text-neutral-100 border-stampa-border rounded-md shadow-sm border focus:border-[#ff6a00] focus:ring-[#ff6a00]/20 focus:ring-2 placeholder:text-neutral-500 disabled:bg-neutral-800 disabled:text-neutral-500"
           >
-            <option value="" className="text-white bg-stampa-surface">Selecciona una categoría</option>
+            <option value="" className="text-fg bg-stampa-surface">Selecciona una categoría</option>
             {categories.map((c) => (
-              <option key={c.id} value={c.id} className="text-white bg-stampa-surface">{c.name}</option>
+              <option key={c.id} value={c.id} className="text-fg bg-stampa-surface">{c.name}</option>
             ))}
           </select>
         </div>
@@ -463,9 +463,9 @@ export function CourseForm({ courseId }: { courseId?: string }) {
             onChange={handleChange}
             className="w-full text-sm bg-stampa-surface text-neutral-100 border-stampa-border rounded-md shadow-sm border focus:border-[#ff6a00] focus:ring-[#ff6a00]/20 focus:ring-2 placeholder:text-neutral-500 disabled:bg-neutral-800 disabled:text-neutral-500"
           >
-            <option value="" className="text-white bg-stampa-surface">Selecciona un instructor</option>
+            <option value="" className="text-fg bg-stampa-surface">Selecciona un instructor</option>
             {instructors.map((i) => (
-              <option key={i.id} value={i.id} className="text-white bg-stampa-surface">{i.name}</option>
+              <option key={i.id} value={i.id} className="text-fg bg-stampa-surface">{i.name}</option>
             ))}
           </select>
         </div>
@@ -479,9 +479,9 @@ export function CourseForm({ courseId }: { courseId?: string }) {
             onChange={handleChange}
             className="w-full text-sm bg-stampa-surface text-neutral-100 border-stampa-border rounded-md shadow-sm border focus:border-[#ff6a00] focus:ring-[#ff6a00]/20 focus:ring-2 placeholder:text-neutral-500 disabled:bg-neutral-800 disabled:text-neutral-500"
           >
-            <option value="beginner" className="text-white bg-stampa-surface">Principiante</option>
-            <option value="intermediate" className="text-white bg-stampa-surface">Intermedio</option>
-            <option value="advanced" className="text-white bg-stampa-surface">Avanzado</option>
+            <option value="beginner" className="text-fg bg-stampa-surface">Principiante</option>
+            <option value="intermediate" className="text-fg bg-stampa-surface">Intermedio</option>
+            <option value="advanced" className="text-fg bg-stampa-surface">Avanzado</option>
           </select>
         </div>
 
@@ -495,8 +495,8 @@ export function CourseForm({ courseId }: { courseId?: string }) {
             onChange={handleChange}
             className="w-full text-sm bg-stampa-surface text-neutral-100 border-stampa-border rounded-md shadow-sm border focus:border-[#ff6a00] focus:ring-[#ff6a00]/20 focus:ring-2 placeholder:text-neutral-500 disabled:bg-neutral-800 disabled:text-neutral-500"
           >
-            <option value="course" className="text-white bg-stampa-surface">Curso</option>
-            <option value="workshop" className="text-white bg-stampa-surface">Taller</option>
+            <option value="course" className="text-fg bg-stampa-surface">Curso</option>
+            <option value="workshop" className="text-fg bg-stampa-surface">Taller</option>
           </select>
           <p className="text-xs text-gray-500">Usá Curso para rutas estructuradas y Taller para proyectos prácticos.</p>
         </div>

@@ -405,3 +405,29 @@ Migration `20261030120000_discount_checkout_consistency.sql` (no aplicada en rem
 ### 22.2 Checkout siempre coherente con el precio confirmado (2026-10-30)
 
 `executePlainCheckout` / `executeDiscountedCheckout` (`src/lib/mercadopago/discount-checkout.ts`). La base devuelve el único intento abierto del usuario sea cual sea la clave de idempotencia; si ese intento lleva otro monto que el de esta compra se reemplaza (ver arriba) y el resultado se **verifica** (`describe_open_checkout`) antes de devolver el link. Sin el descuento deployado en la base (RPC inexistente) el checkout sin código se comporta exactamente como antes. Cambio de comportamiento para todos los usuarios: un checkout pendiente con un precio de lista viejo (el admin cambió `membership_settings`) también se reemplaza. Doble click / reintentos: una sola preapproval viva, mismo link, una sola cancelación.
+
+
+## 23. Temas claro / oscuro (2026-10-29)
+
+Sistema global de apariencia: **Claro**, **Oscuro** (aspecto original) y **Automático** (sigue el sistema operativo en vivo). Decisión y alternativas en D035.
+
+**Cómo funciona**
+
+- `src/lib/theme/theme.ts`: constantes, resolución y persistencia. La preferencia (`light` | `dark` | `system`) vive en `localStorage["stampa-theme"]`; el tema resuelto se publica como `data-theme="light|dark"` (y `color-scheme`) en `<html>`. `DEFAULT_THEME_PREFERENCE = "dark"` (sin elección previa se ve el aspecto original; cambiar a `"system"` hace que la plataforma arranque en claro en dispositivos con SO claro).
+- `THEME_INIT_SCRIPT` se inyecta inline en `<head>` del layout raíz (renderizado en el servidor, bloqueante): fija el tema **antes del primer render**, sin parpadeo ni dependencia de cookies (no vuelve dinámico el layout). `<html>` lleva `suppressHydrationWarning` porque el script modifica atributos antes de hidratar.
+- `src/components/theme/theme-provider.tsx`: `ThemeProvider` + `useTheme()` (`preference`, `resolvedTheme`, `setPreference`) sobre `useSyncExternalStore` (sincroniza pestañas por `storage` y el SO por `matchMedia`).
+- `src/components/theme/theme-switcher.tsx`: `ThemeMenu` (botón en header desktop y móvil) y `ThemeSwitcher` (Configuración → Cuenta → Apariencia).
+
+**Tokens y paletas (CSS)**
+
+- `src/app/globals.css`: variables semánticas `--stampa-*` para oscuro (`:root`) y claro (`:root[data-theme="light"]`), expuestas a Tailwind (`bg-stampa-surface`, `border-stampa-border`, `text-stampa-text`…). Nuevos: `fg` (tinta de primer plano: blanco en oscuro, tinta cálida en claro), `shade` (sombreado translúcido), `stampa-accent` (naranja para **texto/iconos**; en claro se oscurece para contraste), `stampa-raised`/`stampa-deep`/`stampa-sunken`/`stampa-body`.
+- `src/app/theme-palette.css` (**generado** con `node scripts/generate-theme-css.mjs`, volver a correrlo si se agregan clases `text-{color}-100/500`): en claro espeja las escalas neutras de Tailwind (gray/zinc/neutral/slate/stone 50–900; **950 no se toca**: es la tinta fija de los botones naranjas) y oscurece los tonos 200–400 de los colores cromáticos. El modo oscuro no redefine nada: usa los valores por defecto de Tailwind, por lo que es equivalente al diseño anterior por construcción.
+- Sin filtros ni inversiones globales de color.
+
+**Convenciones para código nuevo (y futuros tutoriales)**
+
+- Texto/superficies/bordes neutros: tokens (`text-fg`, `bg-fg/5`, `border-fg/10`, `bg-stampa-surface`, `text-stampa-text-muted`, `bg-shade/20`). **No** usar `text-white`/`bg-white/N`/`bg-black/N` para neutros: el blanco/negro literal queda reservado para texto sobre fondos saturados (botón naranja, badges de color, overlays sobre imagen).
+- Naranja: `bg-stampa-orange`/bordes/anillos son marca y no cambian; para texto o iconos usar `text-stampa-accent`.
+- No usar hex ni `rgba()` arbitrarios para superficies de UI.
+- Zonas que deben verse oscuras en ambos temas (viewers 3D, landing de marketing, tienda pública): envolver con la clase **`theme-force-dark`** (redefine los tokens para ese subárbol). `theme-force-light` hace lo inverso. Los tutoriales gráficos del próximo sprint deben usar tokens o estos scopes para adaptarse a ambos temas.
+- Excepciones documentadas: PDF de presupuestos y ticket de venta (papel, no dependen del tema).

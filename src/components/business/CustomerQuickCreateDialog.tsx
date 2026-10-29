@@ -6,7 +6,7 @@ import { Dialog } from "@/components/ui/dialog";
 import { useAppFeedback } from "@/components/ui/app-feedback";
 import { createBusinessClientAction } from "@/app/mi-negocio/actions";
 
-const INPUT_CLASS = "w-full text-sm rounded-xl border border-stampa-border bg-stampa-surface px-3 py-2.5 text-white outline-none focus:border-stampa-orange focus:ring-1 focus:ring-stampa-orange";
+const INPUT_CLASS = "w-full text-sm rounded-xl border border-stampa-border bg-stampa-surface px-3 py-2.5 text-fg outline-none focus:border-stampa-orange focus:ring-1 focus:ring-stampa-orange";
 
 interface CustomerQuickCreateDialogProps {
   open: boolean;
@@ -49,8 +49,8 @@ export function CustomerQuickCreateDialog({ open, onClose, onCreated }: Customer
   return (
     <Dialog open={open} onClose={handleClose} labelledBy="quick-create-client-title" panelClassName="max-w-md rounded-2xl border border-stampa-border bg-stampa-surface">
       <div className="p-5">
-        <span className="flex h-10 w-10 items-center justify-center rounded-xl bg-stampa-orange/10 text-stampa-orange"><UserPlus size={18} /></span>
-        <h2 id="quick-create-client-title" className="mt-3 text-lg font-black text-white">Nuevo cliente</h2>
+        <span className="flex h-10 w-10 items-center justify-center rounded-xl bg-stampa-orange/10 text-stampa-accent"><UserPlus size={18} /></span>
+        <h2 id="quick-create-client-title" className="mt-3 text-lg font-black text-fg">Nuevo cliente</h2>
         <p className="mt-1 text-sm text-gray-400">Solo el nombre es obligatorio. Podés completar el resto después desde la ficha del cliente.</p>
         <div className="mt-4 grid gap-3">
           <label className="block text-xs font-semibold text-gray-400">Nombre *

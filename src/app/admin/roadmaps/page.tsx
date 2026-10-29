@@ -15,7 +15,7 @@ export default function AdminRoadmapsPage() {
             <span className="text-gray-400">/</span>
             <span className="text-sm text-gray-500">Roadmaps</span>
           </div>
-          <h1 className="text-2xl font-bold text-white flex items-center gap-2">
+          <h1 className="text-2xl font-bold text-fg flex items-center gap-2">
             <Map className="text-pink-500" />
             Gestión de Roadmaps
           </h1>

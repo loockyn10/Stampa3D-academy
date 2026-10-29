@@ -30,7 +30,7 @@ function NavigationLink({ item, pathname }: { item: MobileNavigationItem; pathna
       href={item.href}
       aria-current={active ? "page" : undefined}
       className={`flex min-h-11 min-w-0 flex-col items-center justify-center gap-0.5 px-1 text-[10px] font-semibold transition-colors ${
-        active ? "text-stampa-orange" : "text-gray-500 hover:text-gray-200"
+        active ? "text-stampa-accent" : "text-gray-500 hover:text-gray-200"
       }`}
     >
       <Icon size={20} strokeWidth={active ? 2.4 : 2} />
@@ -92,7 +92,7 @@ export function MobileBottomNavigation({
   }, [toolsOpen, onToolsOpenChange]);
 
   if (isFree) {
-    return <div className="fixed inset-x-0 bottom-0 z-[60] lg:hidden"><nav aria-label="Navegación principal" className="border-t border-white/10 bg-stampa-bg/95 backdrop-blur-xl" style={{ height: "calc(var(--mobile-bottom-navigation-height) + env(safe-area-inset-bottom))", paddingBottom: "env(safe-area-inset-bottom)" }}><div className="grid h-[var(--mobile-bottom-navigation-height)] items-center px-1" style={{ gridTemplateColumns: `repeat(${freeItems.length}, minmax(0, 1fr))` }}>{freeItems.map((item) => <NavigationLink key={item.href} item={item} pathname={pathname} />)}</div></nav></div>;
+    return <div className="fixed inset-x-0 bottom-0 z-[60] lg:hidden"><nav aria-label="Navegación principal" className="border-t border-fg/10 bg-stampa-bg/95 backdrop-blur-xl" style={{ height: "calc(var(--mobile-bottom-navigation-height) + env(safe-area-inset-bottom))", paddingBottom: "env(safe-area-inset-bottom)" }}><div className="grid h-[var(--mobile-bottom-navigation-height)] items-center px-1" style={{ gridTemplateColumns: `repeat(${freeItems.length}, minmax(0, 1fr))` }}>{freeItems.map((item) => <NavigationLink key={item.href} item={item} pathname={pathname} />)}</div></nav></div>;
   }
 
   return (
@@ -101,7 +101,7 @@ export function MobileBottomNavigation({
 
       <nav
         aria-label="Navegación principal"
-        className="relative border-t border-white/10 bg-stampa-bg/95 shadow-[0_-12px_35px_rgba(0,0,0,0.3)] backdrop-blur-xl"
+        className="relative border-t border-fg/10 bg-stampa-bg/95 shadow-[0_-12px_35px_rgba(0,0,0,0.3)] backdrop-blur-xl"
         style={{
           height: "calc(var(--mobile-bottom-navigation-height) + env(safe-area-inset-bottom))",
           paddingBottom: "env(safe-area-inset-bottom)",

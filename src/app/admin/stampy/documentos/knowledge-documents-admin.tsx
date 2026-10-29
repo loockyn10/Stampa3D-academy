@@ -234,7 +234,7 @@ export function KnowledgeDocumentsAdmin({
           <span className="text-gray-600">/</span>
           <span className="text-gray-500">Documentos</span>
         </div>
-        <h1 className="flex items-center gap-2 text-2xl font-bold text-white">
+        <h1 className="flex items-center gap-2 text-2xl font-bold text-fg">
           <FileText className="text-cyan-400" /> Documentos de conocimiento
         </h1>
         <p className="mt-1 text-sm text-gray-500">PDFs privados que Stampy puede consultar mediante retrieval semántico.</p>
@@ -248,16 +248,16 @@ export function KnowledgeDocumentsAdmin({
 
       <section className="space-y-4 rounded-2xl border border-stampa-border bg-stampa-surface p-5">
         <div>
-          <h2 className="font-bold text-white">Subir PDF</h2>
+          <h2 className="font-bold text-fg">Subir PDF</h2>
           <p className="text-xs text-gray-500">Sólo PDF con texto seleccionable. Máximo 20 MB. OCR no está habilitado.</p>
         </div>
         <div className="grid gap-3 md:grid-cols-2">
-          <input value={title} onChange={(event) => setTitle(event.target.value)} placeholder="Título" maxLength={180} className="rounded-xl border border-stampa-border bg-white/5 px-3 py-2 text-sm text-white outline-none focus:border-cyan-500/50" />
-          <input type="file" accept="application/pdf,.pdf" onChange={(event) => setFile(event.target.files?.[0] ?? null)} className="rounded-xl border border-stampa-border bg-white/5 px-3 py-2 text-sm text-gray-300" />
-          <textarea value={description} onChange={(event) => setDescription(event.target.value)} placeholder="Descripción opcional" maxLength={1000} rows={3} className="rounded-xl border border-stampa-border bg-white/5 px-3 py-2 text-sm text-white outline-none focus:border-cyan-500/50 md:col-span-2" />
+          <input value={title} onChange={(event) => setTitle(event.target.value)} placeholder="Título" maxLength={180} className="rounded-xl border border-stampa-border bg-fg/5 px-3 py-2 text-sm text-fg outline-none focus:border-cyan-500/50" />
+          <input type="file" accept="application/pdf,.pdf" onChange={(event) => setFile(event.target.files?.[0] ?? null)} className="rounded-xl border border-stampa-border bg-fg/5 px-3 py-2 text-sm text-gray-300" />
+          <textarea value={description} onChange={(event) => setDescription(event.target.value)} placeholder="Descripción opcional" maxLength={1000} rows={3} className="rounded-xl border border-stampa-border bg-fg/5 px-3 py-2 text-sm text-fg outline-none focus:border-cyan-500/50 md:col-span-2" />
         </div>
         {uploading && (
-          <div className="h-2 overflow-hidden rounded-full bg-white/10">
+          <div className="h-2 overflow-hidden rounded-full bg-fg/10">
             <div className="h-full bg-cyan-500 transition-all" style={{ width: `${Math.max(progress, 5)}%` }} />
           </div>
         )}
@@ -277,7 +277,7 @@ export function KnowledgeDocumentsAdmin({
               <div className="flex flex-col justify-between gap-4 md:flex-row md:items-start">
                 <div className="min-w-0">
                   <div className="flex flex-wrap items-center gap-2">
-                    <h2 className="truncate font-bold text-white">{document.title}</h2>
+                    <h2 className="truncate font-bold text-fg">{document.title}</h2>
                     <span className={`rounded-full px-2 py-0.5 text-[10px] font-bold uppercase ${statusStyle(document.status)}`}>{document.status}</span>
                     {!document.is_active && <span className="rounded-full bg-gray-500/10 px-2 py-0.5 text-[10px] font-bold uppercase text-gray-400">inactivo</span>}
                   </div>
@@ -286,7 +286,7 @@ export function KnowledgeDocumentsAdmin({
                   {document.processed_at && <p className="mt-1 text-xs text-gray-600">Procesado: {new Date(document.processed_at).toLocaleString("es-AR")}</p>}
                 </div>
                 <div className="flex flex-wrap gap-2">
-                  <button disabled={busy} onClick={() => void handleEdit(document)} className="rounded-lg border border-stampa-border p-2 text-gray-400 hover:text-white" title="Editar"><Pencil size={15} /></button>
+                  <button disabled={busy} onClick={() => void handleEdit(document)} className="rounded-lg border border-stampa-border p-2 text-gray-400 hover:text-fg" title="Editar"><Pencil size={15} /></button>
                   <button disabled={busy || document.status === "processing"} onClick={() => void runAction(document.id, () => processStampyKnowledgeDocument(document.id))} className="flex items-center gap-1 rounded-lg border border-stampa-border px-3 py-2 text-xs text-cyan-300" title="Reindexar">{busy ? <Loader2 size={14} className="animate-spin" /> : <RefreshCw size={14} />} Reindexar</button>
                   <button disabled={busy || document.status === "archived"} onClick={() => void runAction(document.id, () => setStampyKnowledgeDocumentActive(document.id, !document.is_active))} className="rounded-lg border border-stampa-border px-3 py-2 text-xs text-gray-300">{document.is_active ? "Desactivar" : "Activar"}</button>
                   <button disabled={busy || document.status === "archived"} onClick={() => void runAction(document.id, () => archiveStampyKnowledgeDocument(document.id))} className="rounded-lg border border-stampa-border p-2 text-amber-300" title="Archivar"><Archive size={15} /></button>
@@ -303,17 +303,17 @@ export function KnowledgeDocumentsAdmin({
               )}
 
               {document.chunks_count > 0 && (
-                <div className="mt-4 rounded-xl border border-white/5 bg-black/20 p-3">
+                <div className="mt-4 rounded-xl border border-fg/5 bg-shade/20 p-3">
                   <button
                     type="button"
                     onClick={() => void handlePreview(document.id)}
-                    className="flex items-center gap-2 text-sm font-semibold text-gray-300 hover:text-white"
+                    className="flex items-center gap-2 text-sm font-semibold text-gray-300 hover:text-fg"
                   >
                     {previewLoadingId === document.id && <Loader2 size={14} className="animate-spin" />}
                     {openPreviewId === document.id ? "Ocultar vista previa" : "Ver vista previa del índice"}
                   </button>
                   {openPreviewId === document.id && (previewByDocument[document.id] ?? []).map((chunk) => (
-                    <div key={chunk.id} className="mt-3 border-t border-white/5 pt-3">
+                    <div key={chunk.id} className="mt-3 border-t border-fg/5 pt-3">
                       <p className="text-xs font-semibold text-cyan-300">{chunk.title}</p>
                       <p className="mt-1 line-clamp-6 whitespace-pre-wrap text-xs text-gray-500">{chunk.content.slice(0, 1_500)}</p>
                     </div>

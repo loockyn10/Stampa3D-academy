@@ -117,7 +117,7 @@ export function CalculatorSelect({
         type="button"
         disabled={disabled}
         aria-expanded={isOpen}
-        className="h-11 w-full rounded-xl border border-white/10 bg-white/[0.06] px-4 text-sm text-white outline-none transition hover:bg-white/[0.08] focus:border-[#ff6a00]/60 focus:ring-2 focus:ring-[#ff6a00]/10 disabled:opacity-50 flex justify-between items-center text-left"
+        className="h-11 w-full rounded-xl border border-fg/10 bg-fg/[0.06] px-4 text-sm text-fg outline-none transition hover:bg-fg/[0.08] focus:border-[#ff6a00]/60 focus:ring-2 focus:ring-[#ff6a00]/10 disabled:opacity-50 flex justify-between items-center text-left"
         onClick={() => {
           if (onReadOnlyClick) {
             onReadOnlyClick();
@@ -132,7 +132,7 @@ export function CalculatorSelect({
           }
         }}
       >
-        <span className={selectedOption ? "text-white truncate block w-full pr-2" : "text-neutral-500 truncate block w-full pr-2"}>
+        <span className={selectedOption ? "text-fg truncate block w-full pr-2" : "text-neutral-500 truncate block w-full pr-2"}>
           {selectedOption ? (selectedOption.element || selectedOption.label) : placeholder}
         </span>
         {onReadOnlyClick && <LockKeyhole size={14} className="ml-2 shrink-0 text-gray-500" aria-hidden="true" />}
@@ -143,17 +143,17 @@ export function CalculatorSelect({
         usePortal ? createPortal(
           <div
             ref={dropdownRef}
-            className="bg-[#111] border border-white/10 rounded-xl shadow-2xl overflow-hidden focus:outline-none flex flex-col"
+            className="bg-stampa-deep border border-fg/10 rounded-xl shadow-2xl overflow-hidden focus:outline-none flex flex-col"
             style={dropdownStyle}
           >
             {searchable && (
-              <div className="px-3 py-2.5 border-b border-white/10 shrink-0">
+              <div className="px-3 py-2.5 border-b border-fg/10 shrink-0">
                 <div className="relative">
                   <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-500" />
                   <input
                     ref={searchInputRef}
                     type="text"
-                    className="w-full bg-white/[0.04] pl-9 pr-3 py-2 text-xs border border-white/10 rounded-lg text-white placeholder:text-neutral-600 focus:outline-none focus:border-[#ff6a00] focus:ring-1 focus:ring-[#ff6a00]/50"
+                    className="w-full bg-fg/[0.04] pl-9 pr-3 py-2 text-xs border border-fg/10 rounded-lg text-fg placeholder:text-neutral-600 focus:outline-none focus:border-[#ff6a00] focus:ring-1 focus:ring-[#ff6a00]/50"
                     placeholder="Buscar..."
                     value={query}
                     onChange={(e) => setQuery(e.target.value)}
@@ -180,9 +180,9 @@ export function CalculatorSelect({
                       className={`select-none relative py-2.5 pl-4 pr-10 text-xs transition-colors ${
                         option.disabled
                           ? "cursor-not-allowed text-neutral-500"
-                          : "cursor-pointer text-neutral-300 hover:bg-white/5"
+                          : "cursor-pointer text-neutral-300 hover:bg-fg/5"
                       } ${
-                        isSelected ? "font-semibold text-white" : ""
+                        isSelected ? "font-semibold text-fg" : ""
                       }`}
                       onClick={() => {
                         if (option.disabled) return;
@@ -193,7 +193,7 @@ export function CalculatorSelect({
                     >
                       <span className="block truncate">{option.element || option.label}</span>
                       {isSelected && (
-                        <span className="absolute inset-y-0 right-3 flex items-center text-stampa-orange">
+                        <span className="absolute inset-y-0 right-3 flex items-center text-stampa-accent">
                           <Check size={16} />
                         </span>
                       )}
@@ -205,15 +205,15 @@ export function CalculatorSelect({
           </div>,
           document.body
         ) : (
-          <div className="absolute z-50 mt-1 w-full bg-[#111] border border-white/10 rounded-xl shadow-2xl overflow-hidden focus:outline-none">
+          <div className="absolute z-50 mt-1 w-full bg-stampa-deep border border-fg/10 rounded-xl shadow-2xl overflow-hidden focus:outline-none">
             {searchable && (
-              <div className="px-3 py-2.5 border-b border-white/10 shrink-0">
+              <div className="px-3 py-2.5 border-b border-fg/10 shrink-0">
                 <div className="relative">
                   <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-500" />
                   <input
                     ref={searchInputRef}
                     type="text"
-                    className="w-full bg-white/[0.04] pl-9 pr-3 py-2 text-xs border border-white/10 rounded-lg text-white placeholder:text-neutral-600 focus:outline-none focus:border-[#ff6a00] focus:ring-1 focus:ring-[#ff6a00]/50"
+                    className="w-full bg-fg/[0.04] pl-9 pr-3 py-2 text-xs border border-fg/10 rounded-lg text-fg placeholder:text-neutral-600 focus:outline-none focus:border-[#ff6a00] focus:ring-1 focus:ring-[#ff6a00]/50"
                     placeholder="Buscar..."
                     value={query}
                     onChange={(e) => setQuery(e.target.value)}
@@ -240,9 +240,9 @@ export function CalculatorSelect({
                       className={`select-none relative py-2.5 pl-4 pr-10 text-xs transition-colors ${
                         option.disabled
                           ? "cursor-not-allowed text-neutral-500"
-                          : "cursor-pointer text-neutral-300 hover:bg-white/5"
+                          : "cursor-pointer text-neutral-300 hover:bg-fg/5"
                       } ${
-                        isSelected ? "font-semibold text-white" : ""
+                        isSelected ? "font-semibold text-fg" : ""
                       }`}
                       onClick={() => {
                         if (option.disabled) return;
@@ -253,7 +253,7 @@ export function CalculatorSelect({
                     >
                       <span className="block truncate">{option.element || option.label}</span>
                       {isSelected && (
-                        <span className="absolute inset-y-0 right-3 flex items-center text-stampa-orange">
+                        <span className="absolute inset-y-0 right-3 flex items-center text-stampa-accent">
                           <Check size={16} />
                         </span>
                       )}

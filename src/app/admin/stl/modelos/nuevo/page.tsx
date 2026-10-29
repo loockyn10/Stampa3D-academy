@@ -13,7 +13,7 @@ export default function NuevoStlModelPage() {
         >
           <ArrowLeft size={14} /> Volver a Modelos
         </Link>
-        <h1 className="text-2xl font-bold text-white flex items-center gap-2">
+        <h1 className="text-2xl font-bold text-fg flex items-center gap-2">
           <Box className="text-emerald-600" />
           Nuevo Archivo STL
         </h1>

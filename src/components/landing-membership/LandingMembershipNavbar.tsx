@@ -37,8 +37,8 @@ export function LandingMembershipNavbar() {
           <span className="flex h-8 w-8 items-center justify-center rounded bg-gradient-to-br from-orange-500 to-orange-600 text-lg font-bold text-white shadow-[0_0_15px_rgba(234,88,12,0.4)] transition-shadow group-hover:shadow-[0_0_20px_rgba(234,88,12,0.6)]">
             S
           </span>
-          <span className="hidden text-lg font-bold tracking-tight text-white sm:block md:text-xl">
-            Academia <span className="text-stampa-orange">Stampa</span>
+          <span className="hidden text-lg font-bold tracking-tight text-fg sm:block md:text-xl">
+            Academia <span className="text-stampa-accent">Stampa</span>
           </span>
         </Link>
 
@@ -47,7 +47,7 @@ export function LandingMembershipNavbar() {
             <Link
               key={item.href}
               href={item.href}
-              className="rounded text-zinc-300 transition-colors hover:text-white focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-orange-400"
+              className="rounded text-zinc-300 transition-colors hover:text-fg focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-orange-400"
             >
               {item.label}
             </Link>
@@ -56,7 +56,7 @@ export function LandingMembershipNavbar() {
 
         <Link
           href="/login"
-          className="rounded-lg border border-stampa-border bg-white/10 px-4 py-2 text-sm font-medium text-white transition-all hover:border-orange-400 hover:bg-stampa-orange focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-orange-400 sm:px-5"
+          className="rounded-lg border border-stampa-border bg-fg/10 px-4 py-2 text-sm font-medium text-fg transition-all hover:border-orange-400 hover:bg-stampa-orange hover:text-white focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-orange-400 sm:px-5"
         >
           Ingresar
         </Link>

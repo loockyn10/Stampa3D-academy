@@ -133,7 +133,7 @@ export default function NuevoSorteoPage() {
                 name="is_active" 
                 checked={formData.is_active} 
                 onChange={handleChange} 
-                className="rounded text-stampa-orange focus:ring-[#ff6a00]/20" 
+                className="rounded text-stampa-accent focus:ring-[#ff6a00]/20" 
               />
               <span className="text-sm font-semibold text-gray-300">Sorteo Activo en la plataforma (Sólo puede haber uno activo visible a la vez preferentemente)</span>
             </label>

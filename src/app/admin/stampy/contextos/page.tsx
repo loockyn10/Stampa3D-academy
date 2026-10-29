@@ -141,7 +141,7 @@ export default function AdminStampyContextosPage() {
         </div>
         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
           <div>
-            <h1 className="text-2xl font-bold text-white flex items-center gap-2">
+            <h1 className="text-2xl font-bold text-fg flex items-center gap-2">
               <Bot className="text-cyan-400" size={24} />
               Contextos de Stampy
             </h1>
@@ -166,7 +166,7 @@ export default function AdminStampyContextosPage() {
 
       {showForm && (
         <Card className="p-6 border-cyan-500/30 bg-cyan-500/5">
-          <h3 className="font-bold text-white mb-4 flex items-center gap-2">
+          <h3 className="font-bold text-fg mb-4 flex items-center gap-2">
             {editingId ? <Edit size={16} className="text-cyan-400" /> : <Plus size={16} className="text-cyan-400" />}
             {editingId ? "Editar contexto" : "Nuevo contexto"}
           </h3>
@@ -175,12 +175,12 @@ export default function AdminStampyContextosPage() {
             <div>
               <label className="block text-xs font-semibold text-gray-400 uppercase tracking-wider mb-1.5">Ruta</label>
               <input type="text" value={routePattern} onChange={e => setRoutePattern(e.target.value)}
-                placeholder="/calculadora" className="w-full rounded-xl border border-stampa-border px-3 py-2 text-sm text-white bg-white/5 focus:border-cyan-500/50 outline-none" />
+                placeholder="/calculadora" className="w-full rounded-xl border border-stampa-border px-3 py-2 text-sm text-fg bg-fg/5 focus:border-cyan-500/50 outline-none" />
             </div>
             <div>
               <label className="block text-xs font-semibold text-gray-400 uppercase tracking-wider mb-1.5">Tipo de Match</label>
               <select value={matchType} onChange={e => setMatchType(e.target.value)}
-                className="w-full rounded-xl border border-stampa-border px-3 py-2 text-sm text-white bg-stampa-surface focus:border-cyan-500/50 outline-none">
+                className="w-full rounded-xl border border-stampa-border px-3 py-2 text-sm text-fg bg-stampa-surface focus:border-cyan-500/50 outline-none">
                 <option value="exact">Exacto (ej: /calculadora)</option>
                 <option value="prefix">Prefijo (ej: /cursos engloba todo adentro)</option>
               </select>
@@ -189,36 +189,36 @@ export default function AdminStampyContextosPage() {
             <div className="md:col-span-2">
               <label className="block text-xs font-semibold text-gray-400 uppercase tracking-wider mb-1.5">Título de la pantalla</label>
               <input type="text" value={title} onChange={e => setTitle(e.target.value)}
-                placeholder="Calculadora" className="w-full rounded-xl border border-stampa-border px-3 py-2 text-sm text-white bg-white/5 focus:border-cyan-500/50 outline-none" />
+                placeholder="Calculadora" className="w-full rounded-xl border border-stampa-border px-3 py-2 text-sm text-fg bg-fg/5 focus:border-cyan-500/50 outline-none" />
             </div>
 
             <div className="md:col-span-2">
               <label className="block text-xs font-semibold text-gray-400 uppercase tracking-wider mb-1.5">Contexto para Stampy</label>
               <textarea value={contextText} onChange={e => setContextText(e.target.value)} rows={3}
-                placeholder="Herramienta para calcular precios de impresión 3D..." className="w-full rounded-xl border border-stampa-border px-3 py-2 text-sm text-white bg-white/5 focus:border-cyan-500/50 outline-none resize-none" />
+                placeholder="Herramienta para calcular precios de impresión 3D..." className="w-full rounded-xl border border-stampa-border px-3 py-2 text-sm text-fg bg-fg/5 focus:border-cyan-500/50 outline-none resize-none" />
             </div>
 
             <div>
               <label className="block text-xs font-semibold text-gray-400 uppercase tracking-wider mb-1.5">Preguntas Sugeridas (Una por línea)</label>
               <textarea value={suggested} onChange={e => setSuggested(e.target.value)} rows={3}
-                placeholder="¿Cómo calculo el costo de luz?&#10;¿Qué margen me conviene?" className="w-full rounded-xl border border-stampa-border px-3 py-2 text-sm text-white bg-white/5 focus:border-cyan-500/50 outline-none resize-none" />
+                placeholder="¿Cómo calculo el costo de luz?&#10;¿Qué margen me conviene?" className="w-full rounded-xl border border-stampa-border px-3 py-2 text-sm text-fg bg-fg/5 focus:border-cyan-500/50 outline-none resize-none" />
             </div>
 
             <div>
               <label className="block text-xs font-semibold text-gray-400 uppercase tracking-wider mb-1.5">Herramientas Relacionadas (Una por línea)</label>
               <textarea value={related} onChange={e => setRelated(e.target.value)} rows={3}
-                placeholder="presupuestos&#10;productos" className="w-full rounded-xl border border-stampa-border px-3 py-2 text-sm text-white bg-white/5 focus:border-cyan-500/50 outline-none resize-none" />
+                placeholder="presupuestos&#10;productos" className="w-full rounded-xl border border-stampa-border px-3 py-2 text-sm text-fg bg-fg/5 focus:border-cyan-500/50 outline-none resize-none" />
             </div>
 
             <div>
               <label className="block text-xs font-semibold text-gray-400 uppercase tracking-wider mb-1.5">Prioridad (Mayor número gana)</label>
               <input type="number" value={priority} onChange={e => setPriority(e.target.value)}
-                className="w-full rounded-xl border border-stampa-border px-3 py-2 text-sm text-white bg-white/5 focus:border-cyan-500/50 outline-none" />
+                className="w-full rounded-xl border border-stampa-border px-3 py-2 text-sm text-fg bg-fg/5 focus:border-cyan-500/50 outline-none" />
             </div>
           </div>
 
           <div className="flex gap-2 mt-5">
-            <button onClick={() => setShowForm(false)} className="px-4 py-2 rounded-xl text-sm font-semibold text-gray-400 hover:text-white bg-white/5 border border-stampa-border">Cancelar</button>
+            <button onClick={() => setShowForm(false)} className="px-4 py-2 rounded-xl text-sm font-semibold text-gray-400 hover:text-fg bg-fg/5 border border-stampa-border">Cancelar</button>
             <button onClick={handleSave} disabled={saving} className="px-4 py-2 flex items-center gap-2 rounded-xl text-sm font-semibold text-white bg-cyan-600 hover:bg-cyan-500 disabled:opacity-50">
               {saving ? <Loader2 size={16} className="animate-spin" /> : <Check size={16} />}
               Guardar
@@ -248,7 +248,7 @@ export default function AdminStampyContextosPage() {
                   <th className="px-4 py-3 text-right">Acciones</th>
                 </tr>
               </thead>
-              <tbody className="divide-y divide-white/5">
+              <tbody className="divide-y divide-fg/5">
                 {contexts.map(c => (
                   <tr key={c.id} className="text-sm hover:bg-stampa-bg-soft transition-colors">
                     <td className="px-4 py-3">
@@ -264,7 +264,7 @@ export default function AdminStampyContextosPage() {
                     </td>
                     <td className="px-4 py-3">
                       <div className="flex items-center justify-end gap-2">
-                        <button onClick={() => openEdit(c)} className="p-1.5 text-gray-400 hover:text-white hover:bg-white/10 rounded-lg">
+                        <button onClick={() => openEdit(c)} className="p-1.5 text-gray-400 hover:text-fg hover:bg-fg/10 rounded-lg">
                           <Edit size={16} />
                         </button>
                         <button onClick={() => toggleStatus(c.id, c.is_active)} className={`p-1.5 rounded-lg ${c.is_active ? 'text-red-400 hover:bg-red-500/10' : 'text-green-400 hover:bg-green-500/10'}`}>

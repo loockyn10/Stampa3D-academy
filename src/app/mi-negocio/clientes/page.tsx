@@ -21,7 +21,7 @@ import {
 
 const money = new Intl.NumberFormat("es-AR", { style: "currency", currency: "ARS", maximumFractionDigits: 2 });
 const dateTime = new Intl.DateTimeFormat("es-AR", { dateStyle: "short", timeStyle: "short" });
-const INPUT_CLASS = "min-h-11 w-full rounded-xl border border-stampa-border bg-stampa-surface px-3 text-sm text-white outline-none focus:border-stampa-orange";
+const INPUT_CLASS = "min-h-11 w-full rounded-xl border border-stampa-border bg-stampa-surface px-3 text-sm text-fg outline-none focus:border-stampa-orange";
 
 const MOVEMENT_LABEL: Record<BusinessCustomerLedgerMovement["movement_type"], string> = {
   sale_debt: "Venta a cuenta corriente",
@@ -63,7 +63,7 @@ export default function ClientesPage() {
   usePublishStampyScreenContext(stampyContext);
 
   return <div className="pb-24">
-    <Link href="/mi-negocio" className="mb-4 inline-flex items-center gap-1.5 text-xs font-semibold text-gray-500 hover:text-white"><ArrowLeft size={14} /> Mi Negocio</Link>
+    <Link href="/mi-negocio" className="mb-4 inline-flex items-center gap-1.5 text-xs font-semibold text-gray-500 hover:text-fg"><ArrowLeft size={14} /> Mi Negocio</Link>
     <SectionTitle eyebrow="Mi Negocio" title="Clientes" />
     <p className="mb-6 max-w-2xl text-sm leading-6 text-gray-400">Historial de compras y cuenta corriente por cliente.</p>
 
@@ -71,14 +71,14 @@ export default function ClientesPage() {
 
     {error && <Card className="mb-5 border-red-500/25 p-4 text-sm text-red-300">No se pudieron cargar los clientes: {error}</Card>}
     {loading ? <div className="flex min-h-48 items-center justify-center text-gray-500"><Loader2 className="animate-spin" /></div> : clients.length === 0 ? (
-      <Card className="p-10 text-center"><Users size={30} className="mx-auto text-stampa-orange" /><h2 className="mt-4 text-lg font-bold text-white">{search ? "No encontramos clientes" : "Todavía no cargaste clientes"}</h2><p className="mt-2 text-sm text-gray-500">Podés crear uno rápido desde Venta rápida.</p></Card>
+      <Card className="p-10 text-center"><Users size={30} className="mx-auto text-stampa-accent" /><h2 className="mt-4 text-lg font-bold text-fg">{search ? "No encontramos clientes" : "Todavía no cargaste clientes"}</h2><p className="mt-2 text-sm text-gray-500">Podés crear uno rápido desde Venta rápida.</p></Card>
     ) : (
       <div className="grid gap-3">
         {clients.map((client) => (
           <button key={client.clientId} type="button" onClick={() => setSelectedId(client.clientId)} className="grid gap-2 rounded-2xl border border-stampa-border bg-stampa-surface p-4 text-left hover:border-stampa-orange/35 sm:grid-cols-[1.2fr_1fr_0.8fr_0.8fr] sm:items-center">
-            <span><span className="block text-sm font-bold text-white">{client.name}</span>{client.phone && <span className="block text-xs text-gray-500">{client.phone}</span>}</span>
+            <span><span className="block text-sm font-bold text-fg">{client.name}</span>{client.phone && <span className="block text-xs text-gray-500">{client.phone}</span>}</span>
             <span><span className="block text-xs text-gray-500">Última compra</span><span className="text-sm text-gray-300">{client.lastSaleAt ? dateTime.format(new Date(client.lastSaleAt)) : "Sin compras"}</span></span>
-            <span><span className="block text-xs text-gray-500">Total comprado</span><span className="text-sm font-bold text-white">{money.format(client.totalPurchased)}</span></span>
+            <span><span className="block text-xs text-gray-500">Total comprado</span><span className="text-sm font-bold text-fg">{money.format(client.totalPurchased)}</span></span>
             <span><span className="block text-xs text-gray-500">Saldo pendiente</span><span className={`text-sm font-black ${client.balance > 0 ? "text-amber-300" : "text-emerald-300"}`}>{money.format(client.balance)}</span></span>
           </button>
         ))}
@@ -148,10 +148,10 @@ function ClientDetailDialog({ clientId, onClose, onChanged }: { clientId: string
         <>
           <div className="flex items-start justify-between gap-4 border-b border-stampa-border p-5">
             <div>
-              <h2 id="client-detail-title" className="text-lg font-bold text-white">{client.name}</h2>
+              <h2 id="client-detail-title" className="text-lg font-bold text-fg">{client.name}</h2>
               <p className="mt-1 text-sm text-gray-500">{client.phone || "Sin teléfono"} {client.email ? `· ${client.email}` : ""}</p>
             </div>
-            <button type="button" onClick={() => setEditing((value) => !value)} className="inline-flex min-h-9 items-center gap-1.5 rounded-lg border border-stampa-border px-3 text-xs font-bold text-gray-300 hover:bg-white/5"><Pencil size={13} /> {editing ? "Cancelar" : "Editar"}</button>
+            <button type="button" onClick={() => setEditing((value) => !value)} className="inline-flex min-h-9 items-center gap-1.5 rounded-lg border border-stampa-border px-3 text-xs font-bold text-gray-300 hover:bg-fg/5"><Pencil size={13} /> {editing ? "Cancelar" : "Editar"}</button>
           </div>
 
           {editing ? (
@@ -164,7 +164,7 @@ function ClientDetailDialog({ clientId, onClose, onChanged }: { clientId: string
             </div>
           ) : (
             <div className="grid grid-cols-3 gap-3 border-b border-stampa-border p-5 text-center">
-              <div><p className="text-xs text-gray-500">Total comprado</p><p className="mt-1 text-sm font-black text-white">{money.format(totalPurchased)}</p></div>
+              <div><p className="text-xs text-gray-500">Total comprado</p><p className="mt-1 text-sm font-black text-fg">{money.format(totalPurchased)}</p></div>
               <div><p className="text-xs text-gray-500">Última compra</p><p className="mt-1 text-sm font-bold text-gray-300">{lastSaleAt ? dateTime.format(new Date(lastSaleAt)) : "—"}</p></div>
               <div><p className="text-xs text-gray-500">Saldo pendiente</p><p className={`mt-1 text-sm font-black ${balance > 0 ? "text-amber-300" : "text-emerald-300"}`}>{money.format(balance)}</p></div>
             </div>
@@ -176,7 +176,7 @@ function ClientDetailDialog({ clientId, onClose, onChanged }: { clientId: string
 
           <div className="max-h-80 overflow-y-auto">
             <div className="p-5">
-              <h3 className="text-sm font-bold text-white">Movimientos de cuenta corriente</h3>
+              <h3 className="text-sm font-bold text-fg">Movimientos de cuenta corriente</h3>
               {movements.length === 0 ? <p className="mt-2 text-sm text-gray-500">Sin movimientos todavía.</p> : (
                 <div className="mt-2 divide-y divide-stampa-border">
                   {movements.map((movement) => (
@@ -189,13 +189,13 @@ function ClientDetailDialog({ clientId, onClose, onChanged }: { clientId: string
               )}
             </div>
             <div className="border-t border-stampa-border p-5">
-              <h3 className="text-sm font-bold text-white">Historial de ventas</h3>
+              <h3 className="text-sm font-bold text-fg">Historial de ventas</h3>
               {sales.length === 0 ? <p className="mt-2 text-sm text-gray-500">Sin ventas todavía.</p> : (
                 <div className="mt-2 divide-y divide-stampa-border">
                   {sales.map((sale) => (
                     <div key={sale.id} className="flex items-center justify-between gap-3 py-2 text-sm">
                       <div className="min-w-0"><p className="text-gray-300">Venta N.º {sale.sale_number}{sale.status === "voided" ? " · Anulada" : ""}</p><p className="text-xs text-gray-500">{dateTime.format(new Date(sale.created_at))}</p></div>
-                      <span className="shrink-0 font-bold text-white">{money.format(sale.total)}</span>
+                      <span className="shrink-0 font-bold text-fg">{money.format(sale.total)}</span>
                     </div>
                   ))}
                 </div>
@@ -250,7 +250,7 @@ function RegisterPaymentDialog({ open, clientId, balance, onClose, onRegistered 
     <Dialog open={open} onClose={onClose} labelledBy="register-payment-title" panelClassName="max-w-sm rounded-2xl border border-stampa-border bg-stampa-surface">
       <div className="p-5">
         <span className="flex h-10 w-10 items-center justify-center rounded-xl bg-emerald-500/10 text-emerald-300"><Wallet size={18} /></span>
-        <h2 id="register-payment-title" className="mt-3 text-lg font-black text-white">Registrar cobro</h2>
+        <h2 id="register-payment-title" className="mt-3 text-lg font-black text-fg">Registrar cobro</h2>
         <p className="mt-1 text-sm text-gray-400">Saldo pendiente: {money.format(balance)}</p>
         <div className="mt-4 grid gap-3">
           <label className="block text-xs font-semibold text-gray-400">Monto<input type="number" min={0} step="0.01" max={balance} value={amount} onChange={(event) => setAmount(event.target.value)} className={`mt-1.5 ${INPUT_CLASS}`} /></label>
@@ -258,7 +258,7 @@ function RegisterPaymentDialog({ open, clientId, balance, onClose, onRegistered 
             <span className="block text-xs font-semibold text-gray-400">Método</span>
             <div className="mt-1.5 grid grid-cols-2 gap-1.5">
               {(["cash", "transfer"] as const).map((option) => (
-                <button key={option} type="button" onClick={() => setMethod(option)} className={`min-h-10 rounded-xl border px-2 text-xs font-bold ${method === option ? "border-stampa-orange bg-stampa-orange/10 text-stampa-orange" : "border-stampa-border text-gray-400"}`}>{option === "cash" ? "Efectivo" : "Transferencia"}</button>
+                <button key={option} type="button" onClick={() => setMethod(option)} className={`min-h-10 rounded-xl border px-2 text-xs font-bold ${method === option ? "border-stampa-orange bg-stampa-orange/10 text-stampa-accent" : "border-stampa-border text-gray-400"}`}>{option === "cash" ? "Efectivo" : "Transferencia"}</button>
               ))}
             </div>
           </div>

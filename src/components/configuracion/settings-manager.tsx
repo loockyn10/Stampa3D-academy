@@ -144,9 +144,9 @@ export function SettingsManager({ onSaved, embedded = false }: SettingsManagerPr
         </div>
       )}
 
-      {!embedded && <h3 className="text-lg font-semibold text-white mb-4">Ajustes Globales de Calculadora</h3>}
+      {!embedded && <h3 className="text-lg font-semibold text-fg mb-4">Ajustes Globales de Calculadora</h3>}
 
-      <Card className={`${embedded ? "p-4" : "p-6"} border-stampa-border shadow-lg shadow-black/20 space-y-4`}>
+      <Card className={`${embedded ? "p-4" : "p-6"} border-stampa-border shadow-lg shadow-shade/20 space-y-4`}>
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
           <div>
             <label className="block text-sm font-semibold text-gray-300 mb-1">Precio kWh de Electricidad ($)</label>

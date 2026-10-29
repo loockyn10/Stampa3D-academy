@@ -169,7 +169,7 @@ export default function OnboardingPage() {
   if (loading) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-stampa-bg">
-        <Loader2 className="animate-spin text-stampa-orange h-8 w-8" />
+        <Loader2 className="animate-spin text-stampa-accent h-8 w-8" />
       </div>
     );
   }
@@ -177,8 +177,8 @@ export default function OnboardingPage() {
   if (saving) {
     return (
       <div className="min-h-screen flex flex-col items-center justify-center bg-stampa-bg">
-        <Loader2 className="animate-spin text-stampa-orange h-12 w-12 mb-4" />
-        <p className="text-white font-medium">Preparando tu experiencia...</p>
+        <Loader2 className="animate-spin text-stampa-accent h-12 w-12 mb-4" />
+        <p className="text-fg font-medium">Preparando tu experiencia...</p>
 
         {showFallback && (
           <div className="mt-8 flex flex-col items-center animate-in fade-in">
@@ -187,7 +187,7 @@ export default function OnboardingPage() {
               onClick={() => {
                 window.location.href = "/";
               }}
-              className="px-6 py-2 bg-white/10 hover:bg-white/20 text-white rounded-xl font-medium transition-colors"
+              className="px-6 py-2 bg-fg/10 hover:bg-fg/20 text-fg rounded-xl font-medium transition-colors"
             >
               Entrar al inicio
             </button>
@@ -198,10 +198,10 @@ export default function OnboardingPage() {
   }
 
   return (
-    <div className="min-h-screen bg-stampa-bg text-[#ededed] font-sans flex flex-col items-center justify-center p-4 py-12">
+    <div className="min-h-screen bg-stampa-bg text-stampa-body font-sans flex flex-col items-center justify-center p-4 py-12">
       <div className="max-w-2xl w-full">
         <div className="text-center mb-10">
-          <h1 className="text-3xl md:text-4xl font-black text-white tracking-tight mb-3">
+          <h1 className="text-3xl md:text-4xl font-black text-fg tracking-tight mb-3">
             Configuremos tu experiencia
           </h1>
           <p className="text-gray-400 max-w-lg mx-auto">
@@ -219,7 +219,7 @@ export default function OnboardingPage() {
 
           {/* SECCIÓN 1: Datos básicos */}
           <div className="space-y-4">
-            <h2 className="text-xl font-bold text-white border-b border-stampa-border pb-2">1. Datos básicos</h2>
+            <h2 className="text-xl font-bold text-fg border-b border-stampa-border pb-2">1. Datos básicos</h2>
 
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <div>
@@ -228,7 +228,7 @@ export default function OnboardingPage() {
                   type="text"
                   value={fullName}
                   onChange={(e) => setFullName(e.target.value)}
-                  className="w-full bg-stampa-surface border border-stampa-border rounded-xl px-4 py-2.5 text-white focus:outline-none focus:border-[#ff6a00] transition-colors"
+                  className="w-full bg-stampa-surface border border-stampa-border rounded-xl px-4 py-2.5 text-fg focus:outline-none focus:border-[#ff6a00] transition-colors"
                   required
                 />
               </div>
@@ -238,7 +238,7 @@ export default function OnboardingPage() {
                   type="text"
                   value={displayName}
                   onChange={(e) => setDisplayName(e.target.value)}
-                  className="w-full bg-stampa-surface border border-stampa-border rounded-xl px-4 py-2.5 text-white focus:outline-none focus:border-[#ff6a00] transition-colors"
+                  className="w-full bg-stampa-surface border border-stampa-border rounded-xl px-4 py-2.5 text-fg focus:outline-none focus:border-[#ff6a00] transition-colors"
                 />
               </div>
             </div>
@@ -248,14 +248,14 @@ export default function OnboardingPage() {
                 type="tel"
                 value={phone}
                 onChange={(e) => setPhone(e.target.value)}
-                className="w-full bg-stampa-surface border border-stampa-border rounded-xl px-4 py-2.5 text-white focus:outline-none focus:border-[#ff6a00] transition-colors"
+                className="w-full bg-stampa-surface border border-stampa-border rounded-xl px-4 py-2.5 text-fg focus:outline-none focus:border-[#ff6a00] transition-colors"
               />
             </div>
           </div>
 
           {/* SECCIÓN 2: Impresora principal */}
           <div className="space-y-4">
-            <h2 className="text-xl font-bold text-white border-b border-stampa-border pb-2">2. Tu impresora principal</h2>
+            <h2 className="text-xl font-bold text-fg border-b border-stampa-border pb-2">2. Tu impresora principal</h2>
 
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <div>
@@ -263,7 +263,7 @@ export default function OnboardingPage() {
                 <select
                   value={brand}
                   onChange={(e) => setBrand(e.target.value)}
-                  className="w-full bg-stampa-surface border border-stampa-border rounded-xl px-4 py-3 text-white focus:outline-none focus:border-[#ff6a00] transition-colors appearance-none"
+                  className="w-full bg-stampa-surface border border-stampa-border rounded-xl px-4 py-3 text-fg focus:outline-none focus:border-[#ff6a00] transition-colors appearance-none"
                   required
                 >
                   <option value="" disabled>Seleccioná una marca...</option>
@@ -281,7 +281,7 @@ export default function OnboardingPage() {
                     value={model}
                     onChange={(e) => setModel(e.target.value)}
                     placeholder="Ej: A1 Mini, K1, Ender 3, Adventurer 5M, Centauri Carbon, Saturn 4..."
-                    className="w-full bg-stampa-surface border border-stampa-border rounded-xl px-4 py-2.5 text-white focus:outline-none focus:border-[#ff6a00] transition-colors"
+                    className="w-full bg-stampa-surface border border-stampa-border rounded-xl px-4 py-2.5 text-fg focus:outline-none focus:border-[#ff6a00] transition-colors"
                     required={brand !== "none_yet"}
                   />
                 </div>
@@ -296,13 +296,13 @@ export default function OnboardingPage() {
 
           {/* SECCIÓN 3: Nivel de experiencia */}
           <div className="space-y-4">
-            <h2 className="text-xl font-bold text-white border-b border-stampa-border pb-2">3. Nivel de experiencia</h2>
+            <h2 className="text-xl font-bold text-fg border-b border-stampa-border pb-2">3. Nivel de experiencia</h2>
 
             <div>
               <select
                 value={experience}
                 onChange={(e) => setExperience(e.target.value)}
-                className="w-full bg-stampa-surface border border-stampa-border rounded-xl px-4 py-3 text-white focus:outline-none focus:border-[#ff6a00] transition-colors appearance-none"
+                className="w-full bg-stampa-surface border border-stampa-border rounded-xl px-4 py-3 text-fg focus:outline-none focus:border-[#ff6a00] transition-colors appearance-none"
                 required
               >
                 <option value="" disabled>¿Cómo te describirías?</option>
@@ -315,13 +315,13 @@ export default function OnboardingPage() {
 
           {/* SECCIÓN 4: Objetivo principal */}
           <div className="space-y-4">
-            <h2 className="text-xl font-bold text-white border-b border-stampa-border pb-2">4. Objetivo principal</h2>
+            <h2 className="text-xl font-bold text-fg border-b border-stampa-border pb-2">4. Objetivo principal</h2>
 
             <div>
               <select
                 value={goal}
                 onChange={(e) => setGoal(e.target.value)}
-                className="w-full bg-stampa-surface border border-stampa-border rounded-xl px-4 py-3 text-white focus:outline-none focus:border-[#ff6a00] transition-colors appearance-none"
+                className="w-full bg-stampa-surface border border-stampa-border rounded-xl px-4 py-3 text-fg focus:outline-none focus:border-[#ff6a00] transition-colors appearance-none"
                 required
               >
                 <option value="" disabled>¿Qué buscás lograr?</option>
@@ -334,14 +334,14 @@ export default function OnboardingPage() {
 
           {/* SECCIÓN 5: Estado comercial */}
           <div className="space-y-4">
-            <h2 className="text-xl font-bold text-white border-b border-stampa-border pb-2">5. Estado comercial</h2>
+            <h2 className="text-xl font-bold text-fg border-b border-stampa-border pb-2">5. Estado comercial</h2>
 
             <div>
               <label className="block text-sm font-medium text-gray-400 mb-1">¿En qué etapa estás?</label>
               <select
                 value={stage}
                 onChange={(e) => setStage(e.target.value)}
-                className="w-full bg-stampa-surface border border-stampa-border rounded-xl px-4 py-3 text-white focus:outline-none focus:border-[#ff6a00] transition-colors appearance-none"
+                className="w-full bg-stampa-surface border border-stampa-border rounded-xl px-4 py-3 text-fg focus:outline-none focus:border-[#ff6a00] transition-colors appearance-none"
               >
                 <option value="" disabled>Seleccioná tu etapa...</option>
                 {COMMERCIAL_STAGE_OPTIONS.map(opt => (

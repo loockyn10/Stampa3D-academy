@@ -135,7 +135,7 @@ export function Sidebar({ access, loading }: SidebarProps) {
               className="h-9 w-9 shrink-0 object-contain"
             />
             <div>
-              <p className="text-sm font-bold leading-none text-white">Stampa</p>
+              <p className="text-sm font-bold leading-none text-fg">Stampa</p>
               <p className="mt-0.5 text-[11px] leading-none text-gray-500">Academia 3D</p>
             </div>
           </Link>
@@ -145,7 +145,7 @@ export function Sidebar({ access, loading }: SidebarProps) {
         {!isFree && <Link
           href="/"
           className={`mx-3 mb-2 flex items-center gap-3 rounded-xl px-3 py-2.5 text-sm font-semibold transition-colors ${
-            pathname === "/" ? "bg-stampa-orange/10 text-stampa-orange" : "text-gray-400 hover:bg-white/5 hover:text-white"
+            pathname === "/" ? "bg-stampa-orange/10 text-stampa-accent" : "text-gray-400 hover:bg-fg/5 hover:text-fg"
           }`}
         >
           <div className="flex h-5 w-5 items-center justify-center">🏠</div>
@@ -197,10 +197,10 @@ export function Sidebar({ access, loading }: SidebarProps) {
                           active
                             ? isStampy
                               ? "bg-cyan-500/10 text-cyan-400"
-                              : "bg-stampa-orange/10 text-stampa-orange"
+                              : "bg-stampa-orange/10 text-stampa-accent"
                             : item.path === "/salir"
                             ? "text-gray-500 hover:bg-red-500/10 hover:text-red-400"
-                            : "text-gray-400 hover:bg-white/5 hover:text-white"
+                            : "text-gray-400 hover:bg-fg/5 hover:text-fg"
                         }`}
                       >
                         <Icon
@@ -209,7 +209,7 @@ export function Sidebar({ access, loading }: SidebarProps) {
                             active
                               ? isStampy
                                 ? "text-cyan-400"
-                                : "text-stampa-orange"
+                                : "text-stampa-accent"
                               : item.path === "/salir"
                               ? "text-gray-500 group-hover:text-red-400"
                               : isStampy
@@ -231,12 +231,12 @@ export function Sidebar({ access, loading }: SidebarProps) {
 
         {/* Membership CTA banner */}
         {!loading && !hasPlatformAccess && (
-          <div className="mx-3 mb-4 rounded-2xl bg-white/5 border border-stampa-border p-4 text-white">
-            <p className="text-xs font-semibold text-stampa-orange">Activar membresía</p>
+          <div className="mx-3 mb-4 rounded-2xl bg-fg/5 border border-stampa-border p-4 text-fg">
+            <p className="text-xs font-semibold text-stampa-accent">Activar membresía</p>
             <p className="mt-1 text-xs text-gray-400">Desbloqueá todos los cursos y STL exclusivos de la academia.</p>
             <Link 
               href="/sin-acceso"
-              className="mt-3 block w-full text-center rounded-lg bg-white/10 py-2 text-xs font-semibold hover:bg-white/20 transition-colors"
+              className="mt-3 block w-full text-center rounded-lg bg-fg/10 py-2 text-xs font-semibold hover:bg-fg/20 transition-colors"
             >
               Ver planes
             </Link>

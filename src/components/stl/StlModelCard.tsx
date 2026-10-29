@@ -33,28 +33,28 @@ export function StlModelCard({ model, href, groupLabel }: { model: StlModelCardD
         </div>
         <div className="flex flex-1 flex-col gap-2 px-3.5 py-3">
           {groupLabel && (
-            <p className="-mb-1 truncate text-[10px] font-bold uppercase tracking-wider text-stampa-orange">{groupLabel}</p>
+            <p className="-mb-1 truncate text-[10px] font-bold uppercase tracking-wider text-stampa-accent">{groupLabel}</p>
           )}
-          <h3 className="line-clamp-2 break-words text-[15px] font-bold leading-snug text-white">{model.title}</h3>
+          <h3 className="line-clamp-2 break-words text-[15px] font-bold leading-snug text-fg">{model.title}</h3>
           <div className="mt-auto flex flex-wrap items-center justify-between gap-x-3 gap-y-1">
             {(material || time) && (
               <p className="flex min-w-0 items-center gap-1.5 text-xs text-gray-400">
                 {material && (
                   <span className="truncate" title="Material">
                     <span className="sr-only">Material: </span>
-                    <span className="font-bold text-white">{material}</span>
+                    <span className="font-bold text-fg">{material}</span>
                   </span>
                 )}
                 {material && time && <span aria-hidden="true">·</span>}
                 {time && (
                   <span className="truncate" title="Tiempo de impresión">
                     <span className="sr-only">Tiempo de impresión: </span>
-                    <span className="font-bold text-white">{time}</span>
+                    <span className="font-bold text-fg">{time}</span>
                   </span>
                 )}
               </p>
             )}
-            <span className="ml-auto py-0.5 text-xs font-bold text-stampa-orange">
+            <span className="ml-auto py-0.5 text-xs font-bold text-stampa-accent">
               {model.hasFile ? "Ver modelo 3D" : "Ver detalle"} <span aria-hidden="true">→</span>
             </span>
           </div>

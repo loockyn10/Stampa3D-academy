@@ -82,7 +82,7 @@ export function StlVariantsManager({ modelId }: { modelId: string }) {
       )}
 
       <div className="flex justify-between items-center mb-4">
-        <h3 className="text-lg font-semibold text-white">Archivos y Variantes</h3>
+        <h3 className="text-lg font-semibold text-fg">Archivos y Variantes</h3>
         <button
           onClick={() => {
             setVarForm({
@@ -114,14 +114,14 @@ export function StlVariantsManager({ modelId }: { modelId: string }) {
                     <Save size={20} />
                   </div>
                   <div>
-                    <h4 className="text-sm font-bold text-white">{v.title}</h4>
+                    <h4 className="text-sm font-bold text-fg">{v.title}</h4>
                     <p className="text-xs text-gray-500 mt-0.5">
                       Material: {v.material_type || "N/A"} • Color: {v.color || "N/A"}
                     </p>
                   </div>
                 </div>
                 <div className="flex items-center gap-3">
-                  {!v.is_active && <span className="text-xs px-2 py-0.5 bg-white/5 text-gray-400 rounded">Inactivo</span>}
+                  {!v.is_active && <span className="text-xs px-2 py-0.5 bg-fg/5 text-gray-400 rounded">Inactivo</span>}
                   <button
                     onClick={() => { setVarForm(v); setEditingVarId(v.id); }}
                     className="p-1.5 text-gray-400 hover:text-emerald-600 hover:bg-emerald-50 rounded-md transition-colors"
@@ -135,7 +135,7 @@ export function StlVariantsManager({ modelId }: { modelId: string }) {
         ))}
 
         {variants.length === 0 && editingVarId !== "new" && (
-          <div className="text-center py-8 bg-stampa-bg-soft rounded-xl border border-dashed border-white/20">
+          <div className="text-center py-8 bg-stampa-bg-soft rounded-xl border border-dashed border-fg/20">
             <p className="text-sm text-gray-500">No hay variantes cargadas para este modelo.</p>
           </div>
         )}
@@ -204,7 +204,7 @@ function VariantFormEditor({ varForm, setVarForm, onSave, onCancel, modelId }: a
             <div className="flex flex-col justify-end space-y-2">
               <input type="text" name="thumbnail_url" value={varForm.thumbnail_url} onChange={handleChange} className="w-full text-sm border-stampa-border rounded-md text-neutral-100 bg-stampa-surface border focus:border-[#ff6a00] focus:ring-[#ff6a00]/20 focus:ring-2 placeholder:text-neutral-500 disabled:bg-neutral-800 disabled:text-neutral-500" placeholder="URL Pública (https://...)" />
               {varForm.thumbnail_url && (
-                <div className="h-24 w-24 rounded-lg bg-white/5 overflow-hidden border border-stampa-border">
+                <div className="h-24 w-24 rounded-lg bg-fg/5 overflow-hidden border border-stampa-border">
                   <img src={varForm.thumbnail_url} alt="Miniatura" className="w-full h-full object-cover" />
                 </div>
               )}
@@ -229,7 +229,7 @@ function VariantFormEditor({ varForm, setVarForm, onSave, onCancel, modelId }: a
         </div>
         <div className="space-y-1 flex items-end pb-2">
           <label className="flex items-center gap-2 cursor-pointer text-sm text-gray-300">
-            <input type="checkbox" name="is_active" checked={varForm.is_active} onChange={handleChange} className="rounded text-stampa-orange focus:ring-[#ff6a00]/20" />
+            <input type="checkbox" name="is_active" checked={varForm.is_active} onChange={handleChange} className="rounded text-stampa-accent focus:ring-[#ff6a00]/20" />
             Activa
           </label>
         </div>

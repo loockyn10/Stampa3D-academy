@@ -26,7 +26,7 @@ export function LandingTestimonials() {
                     {testimonial.verifiedResult}
                   </p>
                 ) : null}
-                <figcaption className="mt-7 flex items-center gap-3 border-t border-white/8 pt-5">
+                <figcaption className="mt-7 flex items-center gap-3 border-t border-fg/8 pt-5">
                   <Image
                     src={testimonial.photoUrl}
                     alt={`Foto de ${testimonial.name}`}
@@ -35,7 +35,7 @@ export function LandingTestimonials() {
                     className="h-11 w-11 rounded-full object-cover"
                   />
                   <span>
-                    <strong className="block text-sm text-white">{testimonial.name}</strong>
+                    <strong className="block text-sm text-fg">{testimonial.name}</strong>
                     <span className="text-xs text-zinc-500">{testimonial.workshop}</span>
                   </span>
                 </figcaption>

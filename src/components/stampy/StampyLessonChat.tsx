@@ -182,13 +182,13 @@ export function StampyLessonChat({ courseTitle, moduleTitle, lesson }: StampyLes
         >
           <div className="flex h-full min-h-0 flex-col">
             {/* Cabecera */}
-            <div className="flex items-center justify-between p-4 border-b border-stampa-border bg-white/[0.03] shrink-0">
+            <div className="flex items-center justify-between p-4 border-b border-stampa-border bg-fg/[0.03] shrink-0">
               <div className="flex items-center gap-3">
                 <div className="p-2 bg-cyan-500/10 text-cyan-400 rounded-xl border border-cyan-400/25">
                   <Bot size={20} />
                 </div>
                 <div>
-                  <h3 className="text-sm font-bold text-white flex items-center gap-2">
+                  <h3 className="text-sm font-bold text-fg flex items-center gap-2">
                     Stampy <span className="text-[10px] font-bold bg-gradient-to-r from-cyan-500/20 to-violet-500/20 text-cyan-300 px-1.5 py-0.5 rounded-md uppercase tracking-wider border border-cyan-400/20 animate-soft-pulse">IA</span>
                   </h3>
                   <p className="text-xs text-gray-400 max-w-[200px] truncate">Contexto: {lesson.title}</p>
@@ -199,13 +199,13 @@ export function StampyLessonChat({ courseTitle, moduleTitle, lesson }: StampyLes
                   type="button"
                   onClick={startNewConversation}
                   disabled={isLoading}
-                  className="rounded-lg border border-stampa-border bg-white/5 px-2.5 py-1.5 text-[11px] font-semibold text-gray-300 transition-colors hover:bg-white/10 disabled:opacity-50"
+                  className="rounded-lg border border-stampa-border bg-fg/5 px-2.5 py-1.5 text-[11px] font-semibold text-gray-300 transition-colors hover:bg-fg/10 disabled:opacity-50"
                 >
                   Nueva conversación
                 </button>
                 <button
                   onClick={() => setIsOpen(false)}
-                  className="text-gray-400 hover:text-white transition-colors p-2 bg-white/5 border border-stampa-border rounded-full hover:bg-white/10 hover:border-cyan-400/40"
+                  className="text-gray-400 hover:text-fg transition-colors p-2 bg-fg/5 border border-stampa-border rounded-full hover:bg-fg/10 hover:border-cyan-400/40"
                 >
                   <X size={18} />
                 </button>
@@ -220,7 +220,7 @@ export function StampyLessonChat({ courseTitle, moduleTitle, lesson }: StampyLes
                     className={`max-w-[85%] rounded-2xl p-3 text-sm ${
                       m.role === 'user' 
                         ? 'bg-gradient-to-r from-cyan-500 to-violet-600 text-white rounded-tr-sm shadow-sm' 
-                        : 'bg-[#1a1a1a] border border-stampa-border text-gray-200 rounded-tl-sm'
+                        : 'bg-stampa-raised border border-stampa-border text-gray-200 rounded-tl-sm'
                     }`}
                   >
                     <StampyMessageContent content={m.content} role={m.role} />
@@ -265,7 +265,7 @@ export function StampyLessonChat({ courseTitle, moduleTitle, lesson }: StampyLes
               ))}
               {isLoading && (
                 <div className="flex justify-start animate-slide-up">
-                  <div className="bg-[#1a1a1a] border border-stampa-border text-gray-400 rounded-2xl rounded-tl-sm p-3 text-sm flex items-center gap-2">
+                  <div className="bg-stampa-raised border border-stampa-border text-gray-400 rounded-2xl rounded-tl-sm p-3 text-sm flex items-center gap-2">
                     <Loader2 size={14} className="animate-spin text-cyan-400" />
                     <span>Stampy está revisando la clase...</span>
                   </div>
@@ -283,7 +283,7 @@ export function StampyLessonChat({ courseTitle, moduleTitle, lesson }: StampyLes
                   onChange={e => setInput(e.target.value)}
                   onKeyDown={e => e.key === 'Enter' && handleSend()}
                   placeholder="Preguntale algo sobre esta clase..."
-                  className="w-full bg-white/5 border border-stampa-border text-neutral-100 text-sm rounded-xl py-3 pl-4 pr-12 focus:outline-none focus:border-cyan-400/60 focus:ring-2 focus:ring-cyan-400/20 transition-all duration-200 placeholder:text-gray-500"
+                  className="w-full bg-fg/5 border border-stampa-border text-neutral-100 text-sm rounded-xl py-3 pl-4 pr-12 focus:outline-none focus:border-cyan-400/60 focus:ring-2 focus:ring-cyan-400/20 transition-all duration-200 placeholder:text-gray-500"
                   disabled={isLoading}
                 />
                 <button

@@ -2,6 +2,12 @@
 
 Este archivo contiene únicamente trabajo pendiente o próximo. Eliminar tareas terminadas en lugar de conservar un historial infinito.
 
+## Now — Temas claro/oscuro (implementado 2026-10-29, ver ARCHITECTURE §23 y D035)
+
+- [ ] QA visual manual en modo claro con cuentas reales (Free, Paid/Beta, Admin) en desktop y 320–430 px: Inicio, Academia, Stampy, Mi Taller, Mi Negocio (con datos: tablas, modales, tickets), Calculadora, Stampa Maker (paneles), Sorteos, Presupuestos, Administración (formularios, tablas) y los estados cargando/error/vacío/deshabilitado. La verificación automática solo pudo recorrer pantallas sin sesión (datos vacíos).
+- [ ] Decidir el default (`DEFAULT_THEME_PREFERENCE`: hoy `dark`; `system` lo activaría por defecto) y si landing/tienda pública deben tener versión clara.
+- [ ] Sprint de tutoriales: construir los componentes con tokens (`text-fg`, `bg-stampa-*`) o `theme-force-dark`; no usar colores literales para neutros.
+
 ## Now — Feature flags / lanzamiento progresivo (implementado 2026-10-24, rama `feature/universo-stampa-feature-flags`, ver ARCHITECTURE §21 y D030)
 
 - [ ] Aplicar `supabase/migrations/20261024120000_platform_feature_flags.sql` en Supabase remoto (requiere autorización). Antes: confirmar que `public.is_admin(uuid)` existe. Después: abrir `/admin/funcionalidades` y verificar que las 12 herramientas figuran "Sin configurar · habilitada" (comportamiento idéntico al actual).

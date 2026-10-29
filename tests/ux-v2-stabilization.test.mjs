@@ -17,8 +17,8 @@ test("contraste: los componentes V2 no usan text-gray-500 (≈3.4:1) para texto 
 });
 
 test("áreas táctiles: enlaces de panel y acciones de fila con alto mínimo", () => {
-  assert.match(read("src/components/ui/dashboard.tsx"), /inline-flex min-h-8 shrink-0 items-center gap-1 rounded-md px-1 text-xs font-semibold text-stampa-orange/);
-  assert.match(read("src/components/home/home-dashboard.tsx"), /inline-flex min-h-8 items-center gap-1 rounded-md px-1 text-xs font-semibold text-stampa-orange/);
+  assert.match(read("src/components/ui/dashboard.tsx"), /inline-flex min-h-8 shrink-0 items-center gap-1 rounded-md px-1 text-xs font-semibold text-stampa-accent/);
+  assert.match(read("src/components/home/home-dashboard.tsx"), /inline-flex min-h-8 items-center gap-1 rounded-md px-1 text-xs font-semibold text-stampa-accent/);
   assert.equal((read("src/components/workshop/workshop-dashboard.tsx").match(/inline-flex min-h-9 shrink-0 items-center rounded-lg px-2/g) ?? []).length, 2);
 });
 

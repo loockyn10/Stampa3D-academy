@@ -100,7 +100,7 @@ export function FilamentsManager() {
       )}
 
       <div className="flex justify-between items-center mb-4">
-        <h3 className="text-lg font-semibold text-white">Mis Filamentos</h3>
+        <h3 className="text-lg font-semibold text-fg">Mis Filamentos</h3>
         <button
           onClick={() => {
             setFormData({
@@ -126,10 +126,10 @@ export function FilamentsManager() {
             <Card key={f.id} className="p-4 flex flex-col hover:border-stampa-orange/30 transition-colors">
               <div className="flex justify-between items-start mb-2">
                 <div className="flex items-center gap-2">
-                  <h4 className="font-bold text-white">{f.name}</h4>
+                  <h4 className="font-bold text-fg">{f.name}</h4>
                 </div>
                 <div className="flex gap-2">
-                  <button onClick={() => { setFormData(f); setEditingId(f.id); }} className="text-gray-400 hover:text-stampa-orange transition-colors">
+                  <button onClick={() => { setFormData(f); setEditingId(f.id); }} className="text-gray-400 hover:text-stampa-accent transition-colors">
                     <Edit2 size={16} />
                   </button>
                   <button onClick={() => handleDelete(f)} className="text-red-400 hover:text-red-300 hover:bg-red-500/10 p-1 rounded transition-colors" title="Eliminar filamento">
@@ -155,7 +155,7 @@ export function FilamentsManager() {
           )
         ))}
         {filaments.length === 0 && editingId !== "new" && (
-          <div className="col-span-full py-12 text-center bg-stampa-bg-soft rounded-xl border border-dashed border-white/20">
+          <div className="col-span-full py-12 text-center bg-stampa-bg-soft rounded-xl border border-dashed border-fg/20">
             <p className="text-sm text-gray-500">No tienes filamentos registrados.</p>
           </div>
         )}

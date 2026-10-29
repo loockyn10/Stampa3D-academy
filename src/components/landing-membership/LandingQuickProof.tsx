@@ -13,7 +13,7 @@ export function LandingQuickProof() {
             <p className="text-xs font-bold uppercase tracking-[0.22em] text-orange-400">
               Todo conectado
             </p>
-            <h2 id="quick-proof-title" className="mt-2 text-xl font-bold text-white md:text-2xl">
+            <h2 id="quick-proof-title" className="mt-2 text-xl font-bold text-fg md:text-2xl">
               Una membresía para aprender y gestionar
             </h2>
           </div>
@@ -30,7 +30,7 @@ export function LandingQuickProof() {
               className="stampa-card-interactive rounded-2xl border border-stampa-border bg-zinc-900/55 p-6"
             >
               <h3 className="text-xl font-black text-orange-400">{item.value}</h3>
-              <p className="mt-1 font-medium text-white">{item.label}</p>
+              <p className="mt-1 font-medium text-fg">{item.label}</p>
               <p className="mt-3 text-sm leading-relaxed text-zinc-400">
                 {item.description}
               </p>

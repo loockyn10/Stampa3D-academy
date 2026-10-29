@@ -99,9 +99,9 @@ export function AccountManager() {
 
   return (
     <div className="space-y-6">
-      <div className="p-4 bg-white/5 border border-stampa-border rounded-xl mb-6">
+      <div className="p-4 bg-fg/5 border border-stampa-border rounded-xl mb-6">
         <p className="text-sm text-gray-400">
-          <strong className="text-white">Preferencias Iniciales.</strong> Estos datos los cargaste al ingresar por primera vez. Nos sirven para recomendarte contenido, pero podés actualizarlos cuando quieras.
+          <strong className="text-fg">Preferencias Iniciales.</strong> Estos datos los cargaste al ingresar por primera vez. Nos sirven para recomendarte contenido, pero podés actualizarlos cuando quieras.
         </p>
       </div>
 
@@ -120,7 +120,7 @@ export function AccountManager() {
         )}
 
         <div className="space-y-4">
-          <h3 className="text-lg font-bold text-white border-b border-stampa-border pb-2">Datos personales</h3>
+          <h3 className="text-lg font-bold text-fg border-b border-stampa-border pb-2">Datos personales</h3>
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             <div>
               <label className="block text-sm font-medium text-gray-400 mb-1">Nombre completo</label>
@@ -128,7 +128,7 @@ export function AccountManager() {
                 type="text" 
                 value={fullName}
                 onChange={(e) => setFullName(e.target.value)}
-                className="w-full bg-stampa-surface border border-stampa-border rounded-xl px-4 py-2.5 text-white focus:outline-none focus:border-[#ff6a00] transition-colors"
+                className="w-full bg-stampa-surface border border-stampa-border rounded-xl px-4 py-2.5 text-fg focus:outline-none focus:border-[#ff6a00] transition-colors"
                 required
               />
             </div>
@@ -138,7 +138,7 @@ export function AccountManager() {
                 type="text" 
                 value={displayName}
                 onChange={(e) => setDisplayName(e.target.value)}
-                className="w-full bg-stampa-surface border border-stampa-border rounded-xl px-4 py-2.5 text-white focus:outline-none focus:border-[#ff6a00] transition-colors"
+                className="w-full bg-stampa-surface border border-stampa-border rounded-xl px-4 py-2.5 text-fg focus:outline-none focus:border-[#ff6a00] transition-colors"
               />
             </div>
           </div>
@@ -148,20 +148,20 @@ export function AccountManager() {
               type="tel" 
               value={phone}
               onChange={(e) => setPhone(e.target.value)}
-              className="w-full bg-stampa-surface border border-stampa-border rounded-xl px-4 py-2.5 text-white focus:outline-none focus:border-[#ff6a00] transition-colors"
+              className="w-full bg-stampa-surface border border-stampa-border rounded-xl px-4 py-2.5 text-fg focus:outline-none focus:border-[#ff6a00] transition-colors"
             />
           </div>
         </div>
 
         <div className="space-y-4">
-          <h3 className="text-lg font-bold text-white border-b border-stampa-border pb-2">Tu impresora principal</h3>
+          <h3 className="text-lg font-bold text-fg border-b border-stampa-border pb-2">Tu impresora principal</h3>
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             <div>
               <label className="block text-sm font-medium text-gray-400 mb-1">Marca</label>
               <select 
                 value={brand}
                 onChange={(e) => setBrand(e.target.value)}
-                className="w-full bg-stampa-surface border border-stampa-border rounded-xl px-4 py-3 text-white focus:outline-none focus:border-[#ff6a00] transition-colors appearance-none"
+                className="w-full bg-stampa-surface border border-stampa-border rounded-xl px-4 py-3 text-fg focus:outline-none focus:border-[#ff6a00] transition-colors appearance-none"
               >
                 <option value="" disabled>Seleccioná una marca...</option>
                 {PRINTER_BRAND_OPTIONS.map(opt => (
@@ -178,7 +178,7 @@ export function AccountManager() {
                   value={model}
                   onChange={(e) => setModel(e.target.value)}
                   placeholder="Ej: A1 Mini, K1..."
-                  className="w-full bg-stampa-surface border border-stampa-border rounded-xl px-4 py-2.5 text-white focus:outline-none focus:border-[#ff6a00] transition-colors"
+                  className="w-full bg-stampa-surface border border-stampa-border rounded-xl px-4 py-2.5 text-fg focus:outline-none focus:border-[#ff6a00] transition-colors"
                 />
               </div>
             )}
@@ -186,14 +186,14 @@ export function AccountManager() {
         </div>
 
         <div className="space-y-4">
-          <h3 className="text-lg font-bold text-white border-b border-stampa-border pb-2">Experiencia y Objetivos</h3>
+          <h3 className="text-lg font-bold text-fg border-b border-stampa-border pb-2">Experiencia y Objetivos</h3>
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             <div>
               <label className="block text-sm font-medium text-gray-400 mb-1">Nivel de experiencia</label>
               <select 
                 value={experience}
                 onChange={(e) => setExperience(e.target.value)}
-                className="w-full bg-stampa-surface border border-stampa-border rounded-xl px-4 py-3 text-white focus:outline-none focus:border-[#ff6a00] transition-colors appearance-none"
+                className="w-full bg-stampa-surface border border-stampa-border rounded-xl px-4 py-3 text-fg focus:outline-none focus:border-[#ff6a00] transition-colors appearance-none"
               >
                 <option value="" disabled>Seleccioná tu nivel...</option>
                 {EXPERIENCE_LEVEL_OPTIONS.map(opt => (
@@ -207,7 +207,7 @@ export function AccountManager() {
               <select 
                 value={goal}
                 onChange={(e) => setGoal(e.target.value)}
-                className="w-full bg-stampa-surface border border-stampa-border rounded-xl px-4 py-3 text-white focus:outline-none focus:border-[#ff6a00] transition-colors appearance-none"
+                className="w-full bg-stampa-surface border border-stampa-border rounded-xl px-4 py-3 text-fg focus:outline-none focus:border-[#ff6a00] transition-colors appearance-none"
               >
                 <option value="" disabled>Seleccioná un objetivo...</option>
                 {MAIN_GOAL_OPTIONS.map(opt => (
@@ -223,7 +223,7 @@ export function AccountManager() {
               <select 
                 value={stage}
                 onChange={(e) => setStage(e.target.value)}
-                className="w-full bg-stampa-surface border border-stampa-border rounded-xl px-4 py-3 text-white focus:outline-none focus:border-[#ff6a00] transition-colors appearance-none"
+                className="w-full bg-stampa-surface border border-stampa-border rounded-xl px-4 py-3 text-fg focus:outline-none focus:border-[#ff6a00] transition-colors appearance-none"
               >
                 <option value="" disabled>Seleccioná tu etapa...</option>
                 {COMMERCIAL_STAGE_OPTIONS.map(opt => (

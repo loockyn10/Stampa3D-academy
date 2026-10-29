@@ -50,13 +50,13 @@ function LoginForm() {
               <Layers className="h-6 w-6" />
             </div>
             <div>
-              <h1 className="text-2xl font-bold tracking-tight text-white leading-none">Stampa</h1>
-              <p className="text-xs text-stampa-orange mt-1 font-semibold tracking-wider uppercase">Academia 3D</p>
+              <h1 className="text-2xl font-bold tracking-tight text-fg leading-none">Stampa</h1>
+              <p className="text-xs text-stampa-accent mt-1 font-semibold tracking-wider uppercase">Academia 3D</p>
             </div>
           </div>
 
           <div className="space-y-4">
-            <h2 className="text-4xl font-extrabold tracking-tight text-white leading-tight">
+            <h2 className="text-4xl font-extrabold tracking-tight text-fg leading-tight">
               Entrá a tu taller digital de impresión 3D.
             </h2>
             <p className="text-lg text-gray-400">
@@ -88,7 +88,7 @@ function LoginForm() {
               <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-stampa-orange text-white mb-4 lg:hidden shadow-lg shadow-stampa-orange/20">
                 <Layers className="h-6 w-6" />
               </div>
-              <h2 className="text-3xl font-bold tracking-tight text-white">
+              <h2 className="text-3xl font-bold tracking-tight text-fg">
                 Iniciar sesión
               </h2>
               <p className="mt-2 text-sm text-gray-400">
@@ -119,7 +119,7 @@ function LoginForm() {
                       required
                       value={email}
                       onChange={(e) => setEmail(e.target.value)}
-                      className="block w-full rounded-xl border border-stampa-border pl-10 focus:border-stampa-orange/60 focus:ring-stampa-orange/20 focus:ring-2 sm:text-sm py-3 text-neutral-100 placeholder-neutral-500 bg-white/5 outline-none transition-all"
+                      className="block w-full rounded-xl border border-stampa-border pl-10 focus:border-stampa-orange/60 focus:ring-stampa-orange/20 focus:ring-2 sm:text-sm py-3 text-neutral-100 placeholder-neutral-500 bg-fg/5 outline-none transition-all"
                       placeholder="tu@email.com"
                     />
                   </div>
@@ -140,7 +140,7 @@ function LoginForm() {
                       required
                       value={password}
                       onChange={(e) => setPassword(e.target.value)}
-                      className="block w-full rounded-xl border border-stampa-border pl-10 pr-10 focus:border-stampa-orange/60 focus:ring-stampa-orange/20 focus:ring-2 sm:text-sm py-3 text-neutral-100 placeholder-neutral-500 bg-white/5 outline-none transition-all"
+                      className="block w-full rounded-xl border border-stampa-border pl-10 pr-10 focus:border-stampa-orange/60 focus:ring-stampa-orange/20 focus:ring-2 sm:text-sm py-3 text-neutral-100 placeholder-neutral-500 bg-fg/5 outline-none transition-all"
                       placeholder="••••••••"
                     />
                     <button
@@ -167,7 +167,7 @@ function LoginForm() {
                 >
                   {isLoading ? (
                     <span className="flex items-center gap-2 justify-center">
-                      <svg className="animate-spin h-5 w-5 text-white" fill="none" viewBox="0 0 24 24">
+                      <svg className="animate-spin h-5 w-5 text-fg" fill="none" viewBox="0 0 24 24">
                         <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
                         <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z" />
                       </svg>

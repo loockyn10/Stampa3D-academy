@@ -117,7 +117,7 @@ export function WorkshopDashboardView({
           <>
             <Link
               href={WORKSHOP_ROUTES.registerProduction}
-              className="inline-flex min-h-10 flex-1 items-center justify-center gap-1.5 rounded-xl border border-stampa-border bg-white/5 px-2.5 text-[13px] font-semibold text-white sm:flex-none sm:px-3 sm:text-sm transition-colors hover:bg-white/10 focus:outline-none focus-visible:ring-2 focus-visible:ring-stampa-orange"
+              className="inline-flex min-h-10 flex-1 items-center justify-center gap-1.5 rounded-xl border border-stampa-border bg-fg/5 px-2.5 text-[13px] font-semibold text-fg sm:flex-none sm:px-3 sm:text-sm transition-colors hover:bg-fg/10 focus:outline-none focus-visible:ring-2 focus-visible:ring-stampa-orange"
             >
               <ClipboardList size={15} aria-hidden="true" className="hidden min-[400px]:block" /> Registrar movimiento
             </Link>
@@ -201,7 +201,7 @@ export function WorkshopDashboardView({
                   <li key={product.id} className="flex items-center gap-3 py-2.5 first:pt-0 last:pb-0">
                     <ProductThumb url={product.imageUrl} />
                     <div className="min-w-0 flex-1">
-                      <p className="truncate text-sm font-semibold text-white">{product.name}</p>
+                      <p className="truncate text-sm font-semibold text-fg">{product.name}</p>
                       <div className="mt-0.5 flex flex-wrap gap-1.5">
                         {product.outOfStock && (
                           <span className="rounded-md bg-red-500/10 px-1.5 py-0.5 text-[10px] font-bold uppercase text-red-300">Agotado</span>
@@ -220,7 +220,7 @@ export function WorkshopDashboardView({
                     </div>
                     <Link
                       href={product.needsRecalculation && !product.outOfStock ? WORKSHOP_ROUTES.editProduct(product.id) : WORKSHOP_ROUTES.inventory}
-                      className="inline-flex min-h-9 shrink-0 items-center rounded-lg px-2 text-xs font-semibold text-gray-400 hover:bg-white/5 hover:text-white focus:outline-none focus-visible:ring-2 focus-visible:ring-stampa-orange"
+                      className="inline-flex min-h-9 shrink-0 items-center rounded-lg px-2 text-xs font-semibold text-gray-400 hover:bg-fg/5 hover:text-fg focus:outline-none focus-visible:ring-2 focus-visible:ring-stampa-orange"
                       aria-label={`${product.needsRecalculation && !product.outOfStock ? "Revisar costo de" : "Ver stock de"} ${product.name}`}
                     >
                       {product.needsRecalculation && !product.outOfStock ? "Revisar" : "Ver stock"}
@@ -233,10 +233,10 @@ export function WorkshopDashboardView({
                       <Boxes size={16} />
                     </span>
                     <p className="min-w-0 flex-1 text-sm text-gray-300">
-                      <strong className="text-white">{summary.emptySpools} {summary.emptySpools === 1 ? "bobina agotada" : "bobinas agotadas"}</strong>
+                      <strong className="text-fg">{summary.emptySpools} {summary.emptySpools === 1 ? "bobina agotada" : "bobinas agotadas"}</strong>
                       <span className="block truncate text-xs text-gray-400">{summary.emptySpoolList.map((spool) => spool.name).join(", ")}</span>
                     </p>
-                    <Link href={WORKSHOP_ROUTES.filaments} className="inline-flex min-h-9 shrink-0 items-center rounded-lg px-2 text-xs font-semibold text-gray-400 hover:bg-white/5 hover:text-white">
+                    <Link href={WORKSHOP_ROUTES.filaments} className="inline-flex min-h-9 shrink-0 items-center rounded-lg px-2 text-xs font-semibold text-gray-400 hover:bg-fg/5 hover:text-fg">
                       Ver bobinas
                     </Link>
                   </li>
@@ -268,7 +268,7 @@ export function WorkshopDashboardView({
                           <span className="font-semibold text-gray-300">{material.material}</span>
                           <span className="tabular-nums text-gray-400">{formatGrams(material.grams)} · {material.spools} {material.spools === 1 ? "bobina" : "bobinas"}</span>
                         </div>
-                        <div className="mt-1 h-1.5 overflow-hidden rounded-full bg-white/5" aria-hidden="true">
+                        <div className="mt-1 h-1.5 overflow-hidden rounded-full bg-fg/5" aria-hidden="true">
                           <div className="h-full rounded-full bg-stampa-orange/70" style={{ width: `${share}%` }} />
                         </div>
                       </li>
@@ -308,7 +308,7 @@ export function WorkshopDashboardView({
               </PanelEmpty>
             ) : (
               <p className="text-sm text-gray-400">
-                <strong className="text-2xl font-bold tabular-nums text-white">{summary.printers}</strong>{" "}
+                <strong className="text-2xl font-bold tabular-nums text-fg">{summary.printers}</strong>{" "}
                 {summary.printers === 1 ? "impresora activa" : "impresoras activas"} para calcular costos de producción.
               </p>
             )}
@@ -328,7 +328,7 @@ function WorkshopOnboarding() {
   ];
   return (
     <section className="mt-5 rounded-2xl border border-stampa-orange/20 bg-gradient-to-br from-stampa-orange/10 to-transparent p-4 sm:p-5" aria-labelledby="workshop-onboarding-title">
-      <h2 id="workshop-onboarding-title" className="text-base font-bold text-white">Armá tu taller en 4 pasos</h2>
+      <h2 id="workshop-onboarding-title" className="text-base font-bold text-fg">Armá tu taller en 4 pasos</h2>
       <p className="mt-1 text-sm text-gray-400">Con estos datos Stampa calcula costos reales y controla tu stock.</p>
       <ol className="mt-4 grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-4">
         {steps.map((step, index) => {
@@ -336,11 +336,11 @@ function WorkshopOnboarding() {
           return (
             <li key={step.title}>
               <Link href={step.href} className="flex h-full gap-3 rounded-xl border border-stampa-border bg-stampa-surface p-3 transition-colors hover:border-stampa-orange/40 focus:outline-none focus-visible:ring-2 focus-visible:ring-stampa-orange">
-                <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-stampa-orange/10 text-stampa-orange" aria-hidden="true">
+                <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-stampa-orange/10 text-stampa-accent" aria-hidden="true">
                   <Icon size={17} />
                 </span>
                 <span className="min-w-0">
-                  <span className="block text-sm font-semibold text-white">{index + 1}. {step.title}</span>
+                  <span className="block text-sm font-semibold text-fg">{index + 1}. {step.title}</span>
                   <span className="mt-0.5 block text-xs leading-snug text-gray-400">{step.text}</span>
                 </span>
               </Link>
@@ -355,7 +355,7 @@ function WorkshopOnboarding() {
 function ProductThumb({ url }: { url: string | null }) {
   if (!url) {
     return (
-      <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg border border-stampa-border bg-white/5 text-gray-400" aria-hidden="true">
+      <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg border border-stampa-border bg-fg/5 text-gray-400" aria-hidden="true">
         <Package size={15} />
       </span>
     );
@@ -366,18 +366,18 @@ function ProductThumb({ url }: { url: string | null }) {
 
 function MiniFact({ label, value, tone }: { label: string; value: React.ReactNode; tone?: "red" }) {
   return (
-    <div className="rounded-lg bg-white/[0.03] px-2 py-2">
+    <div className="rounded-lg bg-fg/[0.03] px-2 py-2">
       <dt className="text-[10px] font-semibold uppercase tracking-wide text-gray-400">{label}</dt>
-      <dd className={`mt-0.5 text-sm font-bold tabular-nums ${tone === "red" ? "text-red-300" : "text-white"}`}>{value}</dd>
+      <dd className={`mt-0.5 text-sm font-bold tabular-nums ${tone === "red" ? "text-red-300" : "text-fg"}`}>{value}</dd>
     </div>
   );
 }
 
 function InventoryFact({ label, value, hint, tone }: { label: string; value: number; hint: string; tone?: "red" }) {
   return (
-    <div className="min-w-0 rounded-xl bg-white/[0.03] px-3 py-3">
+    <div className="min-w-0 rounded-xl bg-fg/[0.03] px-3 py-3">
       <p className="truncate text-xs font-semibold text-gray-400">{label}</p>
-      <p className={`mt-0.5 text-xl font-bold tabular-nums ${tone === "red" ? "text-red-300" : "text-white"}`}>{value}</p>
+      <p className={`mt-0.5 text-xl font-bold tabular-nums ${tone === "red" ? "text-red-300" : "text-fg"}`}>{value}</p>
       <p className="hidden text-[11px] leading-snug text-gray-400 sm:block">{hint}</p>
     </div>
   );
@@ -387,7 +387,7 @@ function ListSkeleton({ rows }: { rows: number }) {
   return (
     <div className="space-y-2" aria-hidden="true">
       {Array.from({ length: rows }).map((_, index) => (
-        <div key={index} className="h-10 animate-pulse rounded-lg bg-white/5" />
+        <div key={index} className="h-10 animate-pulse rounded-lg bg-fg/5" />
       ))}
     </div>
   );

@@ -51,13 +51,13 @@ export default function RecuperarPasswordPage() {
   };
 
   return (
-    <div className="flex min-h-screen items-center justify-center bg-[#F7F7F9] px-4 py-12 sm:px-6 lg:px-8">
+    <div className="flex min-h-screen items-center justify-center bg-stampa-bg px-4 py-12 sm:px-6 lg:px-8">
       <div className="w-full max-w-md space-y-8 bg-stampa-surface p-8 rounded-2xl shadow-sm border border-stampa-border">
         <div className="flex flex-col items-center justify-center">
           <div className="flex h-12 w-12 items-center justify-center rounded-xl bg-stampa-orange mb-4 shadow-sm">
-            <Building2 className="h-6 w-6 text-white" />
+            <Building2 className="h-6 w-6 text-fg" />
           </div>
-          <h2 className="text-center text-3xl font-bold tracking-tight text-white">
+          <h2 className="text-center text-3xl font-bold tracking-tight text-fg">
             Recuperar contraseña
           </h2>
           <p className="mt-2 text-center text-sm text-gray-400">
@@ -73,7 +73,7 @@ export default function RecuperarPasswordPage() {
             <div className="text-center">
               <Link
                 href="/login"
-                className="inline-flex items-center gap-2 text-sm font-medium text-stampa-orange hover:text-stampa-orange transition-colors"
+                className="inline-flex items-center gap-2 text-sm font-medium text-stampa-accent hover:text-stampa-accent transition-colors"
               >
                 <ArrowLeft className="h-4 w-4" />
                 Volver al inicio de sesión
@@ -107,7 +107,7 @@ export default function RecuperarPasswordPage() {
                     required
                     value={email}
                     onChange={(e) => setEmail(e.target.value)}
-                    className="block w-full rounded-lg border-white/20 pl-10 focus:border-stampa-orange focus:ring-stampa-orange sm:text-sm py-3 text-white placeholder-gray-500 bg-stampa-surface"
+                    className="block w-full rounded-lg border-fg/20 pl-10 focus:border-stampa-orange focus:ring-stampa-orange sm:text-sm py-3 text-fg placeholder-gray-500 bg-stampa-surface"
                     placeholder="tu@email.com"
                   />
                 </div>
@@ -127,7 +127,7 @@ export default function RecuperarPasswordPage() {
             <div className="text-center">
               <Link
                 href="/login"
-                className="inline-flex items-center gap-2 text-sm font-medium text-gray-400 hover:text-white transition-colors"
+                className="inline-flex items-center gap-2 text-sm font-medium text-gray-400 hover:text-fg transition-colors"
               >
                 <ArrowLeft className="h-4 w-4" />
                 Volver al inicio de sesión

@@ -5,6 +5,7 @@ import { useSearchParams, useRouter } from "next/navigation";
 import dynamic from "next/dynamic";
 import { Building2, Calculator, Bot } from "lucide-react";
 import { SectionTitle } from "@/components/ui/section-title";
+import { ThemeSwitcher } from "@/components/theme/theme-switcher";
 
 
 import { User } from "lucide-react";
@@ -104,8 +105,8 @@ function ConfiguracionContent() {
             onClick={() => handleTabChange("cuenta")}
             className={`whitespace-nowrap flex items-center gap-2 border-b-2 py-4 px-1 text-sm font-medium transition-colors ${
               activeTab === "cuenta"
-                ? "border-[#ff6a00] text-stampa-orange"
-                : "border-transparent text-gray-500 hover:border-white/20 hover:text-gray-300"
+                ? "border-[#ff6a00] text-stampa-accent"
+                : "border-transparent text-gray-500 hover:border-fg/20 hover:text-gray-300"
             }`}
           >
             <User size={18} />
@@ -116,8 +117,8 @@ function ConfiguracionContent() {
             onClick={() => handleTabChange("negocio")}
             className={`whitespace-nowrap flex items-center gap-2 border-b-2 py-4 px-1 text-sm font-medium transition-colors ${
               activeTab === "negocio"
-                ? "border-[#ff6a00] text-stampa-orange"
-                : "border-transparent text-gray-500 hover:border-white/20 hover:text-gray-300"
+                ? "border-[#ff6a00] text-stampa-accent"
+                : "border-transparent text-gray-500 hover:border-fg/20 hover:text-gray-300"
             }`}
           >
             <Building2 size={18} />
@@ -128,8 +129,8 @@ function ConfiguracionContent() {
             onClick={() => handleTabChange("calculadora")}
             className={`whitespace-nowrap flex items-center gap-2 border-b-2 py-4 px-1 text-sm font-medium transition-colors ${
               activeTab === "calculadora"
-                ? "border-[#ff6a00] text-stampa-orange"
-                : "border-transparent text-gray-500 hover:border-white/20 hover:text-gray-300"
+                ? "border-[#ff6a00] text-stampa-accent"
+                : "border-transparent text-gray-500 hover:border-fg/20 hover:text-gray-300"
             }`}
           >
             <Calculator size={18} />
@@ -140,8 +141,8 @@ function ConfiguracionContent() {
             onClick={() => handleTabChange("stampy")}
             className={`whitespace-nowrap flex items-center gap-2 border-b-2 py-4 px-1 text-sm font-medium transition-colors ${
               activeTab === "stampy"
-                ? "border-[#ff6a00] text-stampa-orange"
-                : "border-transparent text-gray-500 hover:border-white/20 hover:text-gray-300"
+                ? "border-[#ff6a00] text-stampa-accent"
+                : "border-transparent text-gray-500 hover:border-fg/20 hover:text-gray-300"
             }`}
           >
             <Bot size={18} />
@@ -152,15 +153,24 @@ function ConfiguracionContent() {
 
       <div className="mt-6 space-y-8 animate-slide-up">
         
-        {activeTab === "cuenta" && <AccountManager />}
+        {activeTab === "cuenta" && (
+          <>
+            <section className="max-w-4xl rounded-2xl border border-stampa-border bg-stampa-surface p-5 sm:p-6" aria-labelledby="appearance-title">
+              <h2 id="appearance-title" className="text-lg font-bold text-fg">Apariencia</h2>
+              <p className="mb-4 mt-1 text-sm text-gray-400">Elegí cómo se ve Universo Stampa en este dispositivo.</p>
+              <ThemeSwitcher />
+            </section>
+            <AccountManager />
+          </>
+        )}
 
         {activeTab === "negocio" && <BusinessManager />}
         
         {activeTab === "calculadora" && (
           <div className="space-y-8 max-w-4xl">
-            <div className="p-4 bg-white/5 border border-stampa-border rounded-xl mb-6">
+            <div className="p-4 bg-fg/5 border border-stampa-border rounded-xl mb-6">
               <p className="text-sm text-gray-400">
-                <strong className="text-white">Ajustes de cotización.</strong> Estos valores se usan centralmente en la calculadora para establecer precios más realistas.
+                <strong className="text-fg">Ajustes de cotización.</strong> Estos valores se usan centralmente en la calculadora para establecer precios más realistas.
               </p>
             </div>
             <SettingsManager />

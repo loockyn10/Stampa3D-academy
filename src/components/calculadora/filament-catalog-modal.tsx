@@ -288,17 +288,17 @@ export function FilamentCatalogModal({ onClose, onSelect, onImported, mode = "si
     <div className="fixed inset-0 z-[9999] bg-black/70 backdrop-blur-sm" onClick={onClose}>
       <div className="flex min-h-dvh items-start justify-center overflow-y-auto px-4 py-[5dvh]">
         <div
-          className="bg-stampa-surface w-full max-w-2xl overflow-hidden rounded-2xl border border-white/10 shadow-2xl flex flex-col max-h-[90dvh] animate-in zoom-in-95 duration-200"
+          className="bg-stampa-surface w-full max-w-2xl overflow-hidden rounded-2xl border border-fg/10 shadow-2xl flex flex-col max-h-[90dvh] animate-in zoom-in-95 duration-200"
           onClick={(e) => e.stopPropagation()}
         >
 
           {/* Header */}
-          <div className="sticky top-0 z-10 flex flex-col gap-3 px-6 py-5 border-b border-white/10 bg-stampa-bg-soft shrink-0">
+          <div className="sticky top-0 z-10 flex flex-col gap-3 px-6 py-5 border-b border-fg/10 bg-stampa-bg-soft shrink-0">
             <div className="flex items-center justify-between">
-              <h3 className="text-lg font-bold text-white flex items-center gap-2">
-                <Package size={20} className="text-stampa-orange" /> Catálogo de Filamentos
+              <h3 className="text-lg font-bold text-fg flex items-center gap-2">
+                <Package size={20} className="text-stampa-accent" /> Catálogo de Filamentos
               </h3>
-              <button onClick={onClose} className="text-gray-400 hover:text-white transition-colors p-1" disabled={!!importingId || isBulkImporting}>
+              <button onClick={onClose} className="text-gray-400 hover:text-fg transition-colors p-1" disabled={!!importingId || isBulkImporting}>
                 <X size={20} />
               </button>
             </div>
@@ -310,7 +310,7 @@ export function FilamentCatalogModal({ onClose, onSelect, onImported, mode = "si
                 placeholder="Buscar por marca, nombre, color o material..."
                 value={search}
                 onChange={(e) => setSearch(e.target.value)}
-                className="w-full bg-stampa-surface border border-stampa-border rounded-xl pl-9 pr-4 py-2.5 text-sm text-white outline-none focus:border-stampa-orange focus:ring-1 focus:ring-stampa-orange/50 transition-all"
+                className="w-full bg-stampa-surface border border-stampa-border rounded-xl pl-9 pr-4 py-2.5 text-sm text-fg outline-none focus:border-stampa-orange focus:ring-1 focus:ring-stampa-orange/50 transition-all"
               />
             </div>
           </div>
@@ -325,13 +325,13 @@ export function FilamentCatalogModal({ onClose, onSelect, onImported, mode = "si
 
             {loading ? (
               <div className="py-16 flex flex-col items-center justify-center gap-3">
-                <Loader2 className="animate-spin text-stampa-orange h-8 w-8" />
+                <Loader2 className="animate-spin text-stampa-accent h-8 w-8" />
                 <p className="text-sm text-gray-400">Cargando catálogo...</p>
               </div>
             ) : templates.length === 0 ? (
               <div className="py-16 flex flex-col items-center justify-center text-center">
                 <Package size={48} className="text-gray-600 mb-4 opacity-50" />
-                <p className="text-white font-medium mb-1">No hay filamentos disponibles en el catálogo por ahora.</p>
+                <p className="text-fg font-medium mb-1">No hay filamentos disponibles en el catálogo por ahora.</p>
                 <p className="text-sm text-gray-500">Puedes cerrar este panel y cargar uno manualmente en Configuración.</p>
               </div>
             ) : filteredTemplates.length === 0 ? (
@@ -373,16 +373,16 @@ export function FilamentCatalogModal({ onClose, onSelect, onImported, mode = "si
                                 </div>
                               )}
                               {t.color_hex && (
-                                <span className="shrink-0 h-3 w-3 rounded-full border border-white/20" style={{ backgroundColor: t.color_hex }} />
+                                <span className="shrink-0 h-3 w-3 rounded-full border border-fg/20" style={{ backgroundColor: t.color_hex }} />
                               )}
                               
-                              <span className="truncate text-sm font-medium text-white">{displayName}</span>
+                              <span className="truncate text-sm font-medium text-fg">{displayName}</span>
                             </div>
                           </div>
 
                           <div className="shrink-0 flex flex-col gap-1 items-end pl-2">
                             {isAdded && (
-                            <span className="inline-flex items-center gap-1 rounded-full border border-stampa-orange/30 bg-stampa-orange/20 px-2 py-0.5 text-[10px] font-bold text-stampa-orange">
+                            <span className="inline-flex items-center gap-1 rounded-full border border-stampa-orange/30 bg-stampa-orange/20 px-2 py-0.5 text-[10px] font-bold text-stampa-accent">
                                 <Check size={11} /> Agregado
                               </span>
                             )}
@@ -433,7 +433,7 @@ export function FilamentCatalogModal({ onClose, onSelect, onImported, mode = "si
                               handleSelect(t);
                             }}
                             disabled={!!importingId}
-                            className="w-full py-2 bg-white/5 hover:bg-stampa-orange text-white text-xs font-bold rounded-lg border border-stampa-border hover:border-transparent transition-all flex items-center justify-center gap-2"
+                            className="w-full py-2 bg-fg/5 hover:bg-stampa-orange text-fg hover:text-white text-xs font-bold rounded-lg border border-stampa-border hover:border-transparent transition-all flex items-center justify-center gap-2"
                           >
                             {importingId === t.id ? (
                               <Loader2 size={14} className="animate-spin" />
@@ -452,7 +452,7 @@ export function FilamentCatalogModal({ onClose, onSelect, onImported, mode = "si
           
           {/* Footer for multiple selection */}
           {mode === "multiple" && !loading && (
-            <div className="shrink-0 border-t border-white/10 bg-stampa-bg-soft p-4 backdrop-blur-md">
+            <div className="shrink-0 border-t border-fg/10 bg-stampa-bg-soft p-4 backdrop-blur-md">
               <button
                 onClick={handleBulkImport}
                 disabled={selectedTemplateIds.length === 0 || isBulkImporting}

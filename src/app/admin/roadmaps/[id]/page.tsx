@@ -61,12 +61,12 @@ export default function EditarRoadmapPage({ params }: PageProps) {
       <div className="flex items-center gap-4 mb-6">
         <Link 
           href="/admin/roadmaps"
-          className="p-2 bg-stampa-surface border border-stampa-border rounded-xl text-gray-400 hover:text-white hover:bg-white/5 transition-all"
+          className="p-2 bg-stampa-surface border border-stampa-border rounded-xl text-gray-400 hover:text-fg hover:bg-fg/5 transition-all"
         >
           <ArrowLeft size={20} />
         </Link>
         <div>
-          <h1 className="text-2xl font-bold text-white flex items-center gap-2">
+          <h1 className="text-2xl font-bold text-fg flex items-center gap-2">
             <Map className="text-pink-500" /> Editar Roadmap
           </h1>
           <p className="text-sm text-gray-400 mt-1">

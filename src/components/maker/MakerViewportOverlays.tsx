@@ -7,7 +7,7 @@ import type { MakerDisplayMode } from "@/components/maker/MakerViewport";
 import type { BedLayout } from "@/lib/maker/printBed/bedLayout";
 import type { PrinterProfile } from "@/lib/maker/printBed/printerProfiles";
 
-const CARD = "pointer-events-auto rounded-2xl border border-white/10 bg-stampa-surface/80 p-3 shadow-lg shadow-black/30 backdrop-blur-md";
+const CARD = "pointer-events-auto rounded-2xl border border-fg/10 bg-stampa-surface/80 p-3 shadow-lg shadow-shade/30 backdrop-blur-md";
 
 const round = (n: number) => Math.round(n * 10) / 10;
 
@@ -62,7 +62,7 @@ export function ViewportExportCard({ fromFile, multiPart, canDownload, loading, 
           type="button"
           onClick={onDownloadLetters}
           disabled={!canDownload || loading || lettersLoading}
-          className={`${btn} border-stampa-border bg-stampa-surface-soft text-stampa-text-muted hover:bg-white/10 hover:text-white`}
+          className={`${btn} border-stampa-border bg-stampa-surface-soft text-stampa-text-muted hover:bg-fg/10 hover:text-fg`}
         >
           {lettersLoading ? <Loader2 size={14} className="animate-spin" /> : <FileArchive size={14} />}
           Letras individuales (.zip)
@@ -72,23 +72,23 @@ export function ViewportExportCard({ fromFile, multiPart, canDownload, loading, 
         <>
           <span className="mt-1 text-[11px] font-semibold uppercase tracking-wide text-gray-500">Instalación</span>
           {installation.spacerQuantity > 0 && (
-            <button type="button" onClick={installation.onSpacers} disabled={!installation.canDownload || installation.loading} className={`${btn} border-stampa-border bg-stampa-surface-soft text-stampa-text-muted hover:bg-white/10 hover:text-white`}>
+            <button type="button" onClick={installation.onSpacers} disabled={!installation.canDownload || installation.loading} className={`${btn} border-stampa-border bg-stampa-surface-soft text-stampa-text-muted hover:bg-fg/10 hover:text-fg`}>
               <Download size={14} />
               Separadores ×{installation.spacerQuantity} (.stl)
             </button>
           )}
           {installation.clipQuantity > 0 && (
-            <button type="button" onClick={installation.onClips} disabled={!installation.canDownload || installation.loading} className={`${btn} border-stampa-border bg-stampa-surface-soft text-stampa-text-muted hover:bg-white/10 hover:text-white`}>
+            <button type="button" onClick={installation.onClips} disabled={!installation.canDownload || installation.loading} className={`${btn} border-stampa-border bg-stampa-surface-soft text-stampa-text-muted hover:bg-fg/10 hover:text-fg`}>
               <Download size={14} />
               Soporte empalmes ×{installation.clipQuantity} (.stl)
             </button>
           )}
-          <button type="button" onClick={installation.onTemplate} disabled={!installation.canDownload || installation.loading} className={`${btn} border-stampa-border bg-stampa-surface-soft text-stampa-text-muted hover:bg-white/10 hover:text-white`}>
+          <button type="button" onClick={installation.onTemplate} disabled={!installation.canDownload || installation.loading} className={`${btn} border-stampa-border bg-stampa-surface-soft text-stampa-text-muted hover:bg-fg/10 hover:text-fg`}>
             <FileText size={14} />
             Plantilla 1:1 (PDF)
           </button>
           {installation.hasGuide && (
-            <button type="button" onClick={installation.onGuide} disabled={!installation.canDownload || installation.loading} className={`${btn} border-stampa-border bg-stampa-surface-soft text-stampa-text-muted hover:bg-white/10 hover:text-white`}>
+            <button type="button" onClick={installation.onGuide} disabled={!installation.canDownload || installation.loading} className={`${btn} border-stampa-border bg-stampa-surface-soft text-stampa-text-muted hover:bg-fg/10 hover:text-fg`}>
               <FileText size={14} />
               Guía de conexión (PDF)
             </button>
@@ -171,7 +171,7 @@ export function ViewportViewCard(props: ViewCardProps) {
       {displayMode === "bed" && (
         <div className="flex flex-col gap-2">
           <div className="text-xs text-gray-400">
-            <span className="font-semibold text-white">{profile.name}</span>
+            <span className="font-semibold text-fg">{profile.name}</span>
             <span className="ml-1.5">
               {profile.widthMm}×{profile.depthMm}×{profile.heightMm}
             </span>
@@ -185,11 +185,11 @@ export function ViewportViewCard(props: ViewCardProps) {
                   aria-label="Placa anterior"
                   disabled={plateIndex <= 1}
                   onClick={() => props.onPlateChange(plateIndex - 1)}
-                  className="rounded-lg p-1 text-gray-400 hover:bg-white/10 hover:text-white disabled:opacity-40"
+                  className="rounded-lg p-1 text-gray-400 hover:bg-fg/10 hover:text-fg disabled:opacity-40"
                 >
                   <ChevronLeft size={16} />
                 </button>
-                <span className="min-w-12 text-center text-xs font-semibold text-white">
+                <span className="min-w-12 text-center text-xs font-semibold text-fg">
                   {plateIndex} / {plateCount}
                 </span>
                 <button
@@ -197,7 +197,7 @@ export function ViewportViewCard(props: ViewCardProps) {
                   aria-label="Placa siguiente"
                   disabled={plateIndex >= plateCount}
                   onClick={() => props.onPlateChange(plateIndex + 1)}
-                  className="rounded-lg p-1 text-gray-400 hover:bg-white/10 hover:text-white disabled:opacity-40"
+                  className="rounded-lg p-1 text-gray-400 hover:bg-fg/10 hover:text-fg disabled:opacity-40"
                 >
                   <ChevronRight size={16} />
                 </button>
@@ -214,7 +214,7 @@ export function ViewportViewCard(props: ViewCardProps) {
 export function CutoutEditingBanner({ invalidMessage, mounts = false }: { invalidMessage: string | null; mounts?: boolean }) {
   return (
     <div className={`${CARD} flex max-w-xs flex-col gap-1 text-xs`}>
-      <span className="font-semibold text-white">{mounts ? "Editando puntos de montaje" : "Editando recortes traseros"}</span>
+      <span className="font-semibold text-fg">{mounts ? "Editando puntos de montaje" : "Editando recortes traseros"}</span>
       <span className="text-gray-400">
         {mounts
           ? "Vista trasera. Seleccioná un punto de montaje y arrastralo; en rojo, las posiciones inválidas (fuera del material o superpuestas)."
@@ -233,12 +233,12 @@ export function CutoutEditingBanner({ invalidMessage, mounts = false }: { invali
 /** Etiqueta de la cama (perfil, medidas, placa) — esquina inferior izquierda, solo en Vista Cama. */
 export function BedLabel({ profile, plateIndex, plateCount }: { profile: PrinterProfile; plateIndex: number; plateCount: number }) {
   return (
-    <div className="pointer-events-none rounded-xl border border-white/10 bg-stampa-surface/70 px-3 py-2 text-xs backdrop-blur-md">
-      <div className="font-semibold text-white">{profile.name}</div>
+    <div className="pointer-events-none rounded-xl border border-fg/10 bg-stampa-surface/70 px-3 py-2 text-xs backdrop-blur-md">
+      <div className="font-semibold text-fg">{profile.name}</div>
       <div className="text-gray-400">
         {profile.widthMm} × {profile.depthMm} mm
       </div>
-      <div className="text-stampa-orange">
+      <div className="text-stampa-accent">
         Placa {plateIndex}
         {plateCount > 1 ? ` de ${plateCount}` : ""}
       </div>

@@ -11,11 +11,11 @@ export function SectionTitle({ eyebrow, title, action }: SectionTitleProps) {
     <div className="mb-4 flex flex-col items-start gap-3 sm:flex-row sm:items-end sm:justify-between">
       <div className="min-w-0 w-full sm:w-auto">
         {eyebrow && (
-          <p className="mb-1 text-xs font-semibold uppercase tracking-wide text-stampa-orange truncate">
+          <p className="mb-1 text-xs font-semibold uppercase tracking-wide text-stampa-accent truncate">
             {eyebrow}
           </p>
         )}
-        <h2 className="text-lg font-bold text-white truncate">{title}</h2>
+        <h2 className="text-lg font-bold text-fg truncate">{title}</h2>
       </div>
       <div className="w-full sm:w-auto">
         {action}

@@ -46,17 +46,17 @@ export default async function StampaMakerPage() {
           return (
             <Link key={tool.href} href={tool.href}>
               <Card className="stampa-card-interactive group flex h-full cursor-pointer flex-col gap-3 p-5">
-                <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-stampa-orange/10 text-stampa-orange">
+                <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-stampa-orange/10 text-stampa-accent">
                   <Icon size={20} />
                 </div>
                 <div>
-                  <h3 className="flex items-center gap-2 text-sm font-bold text-white">
+                  <h3 className="flex items-center gap-2 text-sm font-bold text-fg">
                     {tool.title}
-                    {tool.beta && <span className="rounded-full bg-stampa-orange/15 px-2 py-0.5 text-[10px] font-bold uppercase tracking-wide text-stampa-orange">Beta</span>}
+                    {tool.beta && <span className="rounded-full bg-stampa-orange/15 px-2 py-0.5 text-[10px] font-bold uppercase tracking-wide text-stampa-accent">Beta</span>}
                   </h3>
                   <p className="mt-1 text-xs text-gray-400">{tool.description}</p>
                 </div>
-                <span className="mt-auto inline-flex items-center gap-1 text-xs font-semibold text-stampa-orange">
+                <span className="mt-auto inline-flex items-center gap-1 text-xs font-semibold text-stampa-accent">
                   Abrir <ArrowRight size={13} />
                 </span>
               </Card>

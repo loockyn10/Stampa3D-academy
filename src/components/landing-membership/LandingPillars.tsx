@@ -6,7 +6,7 @@ const pillarIcons = [BookOpenCheck, LineChart, Factory, Bot] as const;
 
 export function LandingPillars() {
   return (
-    <section id="pilares" className="scroll-mt-24 bg-stampa-bg py-24 text-white">
+    <section id="pilares" className="scroll-mt-24 bg-stampa-bg py-24 text-fg">
       <div className="container mx-auto px-5 md:px-6">
         <LandingSectionHeading
           eyebrow="Cuatro pilares"
@@ -29,7 +29,7 @@ export function LandingPillars() {
                   </span>
                   <div>
                     <p className="text-sm font-semibold text-orange-400">{pillar.result}</p>
-                    <h3 className="mt-1 text-3xl font-bold text-white">{pillar.name}</h3>
+                    <h3 className="mt-1 text-3xl font-bold text-fg">{pillar.name}</h3>
                   </div>
                 </div>
 
@@ -47,7 +47,7 @@ export function LandingPillars() {
                 </ul>
 
                 {"roadmap" in pillar ? (
-                  <div className="relative mt-8 rounded-2xl border border-white/8 bg-black/20 p-5">
+                  <div className="relative mt-8 rounded-2xl border border-fg/8 bg-shade/20 p-5">
                     <div className="mb-4 flex items-center gap-2 text-xs font-bold uppercase tracking-[0.18em] text-zinc-500">
                       <Boxes className="h-4 w-4 text-orange-400" />
                       Ruta formativa

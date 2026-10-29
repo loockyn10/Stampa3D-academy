@@ -26,7 +26,7 @@ export function MakerNeonProjectsPanel({
       <div className="flex items-center justify-between gap-2">
         <div className="min-w-0">
           <span className="block text-[11px] font-semibold uppercase tracking-wide text-gray-500">Proyecto</span>
-          <span className="block truncate text-sm font-semibold text-white">
+          <span className="block truncate text-sm font-semibold text-fg">
             {project ? project.name : "Sin guardar"}
             {dirty && <span className="ml-1.5 text-xs font-normal text-amber-300">· cambios sin guardar</span>}
           </span>
@@ -58,7 +58,7 @@ export function MakerNeonProjectsPanel({
         </GhostButton>
       </div>
       {listOpen && (
-        <div className="flex max-h-48 flex-col gap-1 overflow-y-auto rounded-xl border border-white/10 bg-white/[0.03] p-1.5">
+        <div className="flex max-h-48 flex-col gap-1 overflow-y-auto rounded-xl border border-fg/10 bg-fg/[0.03] p-1.5">
           {projectsLoading && <span className="px-2 py-1 text-xs text-gray-500">Cargando…</span>}
           {!projectsLoading && projects.length === 0 && <span className="px-2 py-1 text-xs text-gray-500">{emptyText}</span>}
           {projects.map((p) => (
@@ -69,12 +69,12 @@ export function MakerNeonProjectsPanel({
                 onClick={async () => {
                   if (await library.open(p.id)) setListOpen(false);
                 }}
-                className="min-w-0 flex-1 truncate rounded-lg px-2 py-1.5 text-left text-xs font-semibold text-gray-200 hover:bg-white/10"
+                className="min-w-0 flex-1 truncate rounded-lg px-2 py-1.5 text-left text-xs font-semibold text-gray-200 hover:bg-fg/10"
               >
                 {p.name}
                 {showType && <span className="ml-2 font-normal text-gray-500">{p.sourceType.replace("neon-", "")}</span>}
               </button>
-              <button type="button" disabled={busy} onClick={() => library.remove(p)} aria-label={`Eliminar ${p.name}`} className="rounded-lg p-1.5 text-gray-500 hover:bg-white/10 hover:text-red-400">
+              <button type="button" disabled={busy} onClick={() => library.remove(p)} aria-label={`Eliminar ${p.name}`} className="rounded-lg p-1.5 text-gray-500 hover:bg-fg/10 hover:text-red-400">
                 <Trash2 size={13} />
               </button>
             </div>

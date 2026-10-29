@@ -217,14 +217,14 @@ export function ImageCropEditor({ file, config, onCancel, onConfirm }: ImageCrop
       >
         <div className="flex items-center justify-between border-b border-stampa-border px-4 py-3 sm:px-5">
           <div className="min-w-0">
-            <h2 id="image-crop-title" className="text-base font-bold text-white sm:text-lg">Ajustar imagen</h2>
+            <h2 id="image-crop-title" className="text-base font-bold text-fg sm:text-lg">Ajustar imagen</h2>
             <p id="image-crop-help" className="mt-0.5 text-xs text-gray-400">Arrastrá la imagen y ajustá el zoom hasta lograr el encuadre.</p>
           </div>
           <button
             type="button"
             onClick={onCancel}
             disabled={processing}
-            className="ml-3 flex h-11 w-11 shrink-0 items-center justify-center rounded-xl text-gray-400 transition-colors hover:bg-white/5 hover:text-white disabled:opacity-50"
+            className="ml-3 flex h-11 w-11 shrink-0 items-center justify-center rounded-xl text-gray-400 transition-colors hover:bg-fg/5 hover:text-fg disabled:opacity-50"
             aria-label="Cerrar editor de imagen"
           >
             <X size={20} />
@@ -270,13 +270,13 @@ export function ImageCropEditor({ file, config, onCancel, onConfirm }: ImageCrop
             />
             {config.showGrid && (
               <div aria-hidden="true" className="pointer-events-none absolute inset-0">
-                <span className="absolute inset-y-0 left-1/3 w-px bg-white/25" />
-                <span className="absolute inset-y-0 left-2/3 w-px bg-white/25" />
-                <span className="absolute inset-x-0 top-1/3 h-px bg-white/25" />
-                <span className="absolute inset-x-0 top-2/3 h-px bg-white/25" />
+                <span className="absolute inset-y-0 left-1/3 w-px bg-fg/25" />
+                <span className="absolute inset-y-0 left-2/3 w-px bg-fg/25" />
+                <span className="absolute inset-x-0 top-1/3 h-px bg-fg/25" />
+                <span className="absolute inset-x-0 top-2/3 h-px bg-fg/25" />
               </div>
             )}
-            <div className="pointer-events-none absolute inset-0 ring-1 ring-inset ring-white/30" />
+            <div className="pointer-events-none absolute inset-0 ring-1 ring-inset ring-fg/30" />
           </div>
 
           {config.preview && (
@@ -301,8 +301,8 @@ export function ImageCropEditor({ file, config, onCancel, onConfirm }: ImageCrop
                     />
                   )}
                 </div>
-                <div className="border-t border-stampa-border bg-gradient-to-t from-neutral-950 to-neutral-900 px-4 py-3">
-                  <p className="truncate text-sm font-bold text-white">{config.preview.title}</p>
+                <div className="border-t border-stampa-border bg-gradient-to-t from-stampa-sunken to-stampa-bg px-4 py-3">
+                  <p className="truncate text-sm font-bold text-fg">{config.preview.title}</p>
                   <p className="mt-2 text-xs text-gray-400">Vista en Academia</p>
                 </div>
               </div>
@@ -315,7 +315,7 @@ export function ImageCropEditor({ file, config, onCancel, onConfirm }: ImageCrop
                 type="button"
                 onClick={() => updateZoom(zoom - 0.1)}
                 disabled={processing || zoom <= 1}
-                className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl border border-stampa-border text-gray-300 hover:bg-white/5 disabled:opacity-40"
+                className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl border border-stampa-border text-gray-300 hover:bg-fg/5 disabled:opacity-40"
                 aria-label="Alejar imagen"
               >
                 <Minus size={18} />
@@ -339,7 +339,7 @@ export function ImageCropEditor({ file, config, onCancel, onConfirm }: ImageCrop
                 type="button"
                 onClick={() => updateZoom(zoom + 0.1)}
                 disabled={processing || zoom >= maxZoom}
-                className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl border border-stampa-border text-gray-300 hover:bg-white/5 disabled:opacity-40"
+                className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl border border-stampa-border text-gray-300 hover:bg-fg/5 disabled:opacity-40"
                 aria-label="Acercar imagen"
               >
                 <Plus size={18} />
@@ -350,7 +350,7 @@ export function ImageCropEditor({ file, config, onCancel, onConfirm }: ImageCrop
               type="button"
               onClick={reset}
               disabled={processing}
-              className="mt-2 inline-flex min-h-11 items-center gap-2 rounded-xl px-3 text-sm font-semibold text-gray-300 hover:bg-white/5 disabled:opacity-50"
+              className="mt-2 inline-flex min-h-11 items-center gap-2 rounded-xl px-3 text-sm font-semibold text-gray-300 hover:bg-fg/5 disabled:opacity-50"
             >
               <RotateCcw size={16} /> Restablecer
             </button>
@@ -365,7 +365,7 @@ export function ImageCropEditor({ file, config, onCancel, onConfirm }: ImageCrop
             type="button"
             onClick={onCancel}
             disabled={processing}
-            className="min-h-11 rounded-xl border border-stampa-border px-5 text-sm font-bold text-gray-300 hover:bg-white/5 disabled:opacity-50 sm:min-w-28"
+            className="min-h-11 rounded-xl border border-stampa-border px-5 text-sm font-bold text-gray-300 hover:bg-fg/5 disabled:opacity-50 sm:min-w-28"
           >
             Cancelar
           </button>

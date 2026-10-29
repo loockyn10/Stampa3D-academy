@@ -20,7 +20,7 @@ export function LandingSectionHeading({
           {eyebrow}
         </p>
       ) : null}
-      <h2 className="text-3xl font-bold leading-tight text-white md:text-5xl">
+      <h2 className="text-3xl font-bold leading-tight text-fg md:text-5xl">
         {title}
       </h2>
       {description ? (

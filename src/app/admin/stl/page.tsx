@@ -13,7 +13,7 @@ export default function AdminStlDashboardPage() {
           <span className="text-gray-400">/</span>
           <span className="text-sm text-gray-500">STL</span>
         </div>
-        <h1 className="text-2xl font-bold text-white flex items-center gap-2">
+        <h1 className="text-2xl font-bold text-fg flex items-center gap-2">
           <Boxes className="text-emerald-600" />
           Administración de Librería STL
         </h1>
@@ -29,7 +29,7 @@ export default function AdminStlDashboardPage() {
               <div className="p-3 bg-indigo-50 text-indigo-600 rounded-lg">
                 <Tags size={24} />
               </div>
-              <h2 className="text-lg font-semibold text-white">Grupos</h2>
+              <h2 className="text-lg font-semibold text-fg">Grupos</h2>
             </div>
             <p className="text-sm text-gray-400">
               Administra los grupos de la librería STL (ej. Dragones articulados, Navidad), su portada y orden.
@@ -43,7 +43,7 @@ export default function AdminStlDashboardPage() {
               <div className="p-3 bg-emerald-50 text-emerald-600 rounded-lg">
                 <Box size={24} /> {/* Placeholder icon */}
               </div>
-              <h2 className="text-lg font-semibold text-white">Modelos y Variantes</h2>
+              <h2 className="text-lg font-semibold text-fg">Modelos y Variantes</h2>
             </div>
             <p className="text-sm text-gray-400">
               Crea nuevos modelos 3D y gestiona las distintas variantes o archivos asociados a cada uno.

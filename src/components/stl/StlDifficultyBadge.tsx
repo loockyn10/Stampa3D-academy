@@ -12,7 +12,7 @@ function normalizeDifficulty(value?: string | null) {
   if (["dificil", "hard", "advanced", "avanzado"].includes(normalized)) {
     return { label: "Difícil", stars: 3, className: "border-red-500/30 bg-red-500/10 text-red-300" };
   }
-  return { label: value as string, stars: 0, className: "border-stampa-border bg-white/5 text-neutral-300" };
+  return { label: value as string, stars: 0, className: "border-stampa-border bg-fg/5 text-neutral-300" };
 }
 
 export function StlDifficultyBadge({ difficulty }: { difficulty?: string | null }) {

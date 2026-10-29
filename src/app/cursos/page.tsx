@@ -99,13 +99,13 @@ export default function CursosPage() {
             <div className="flex items-center gap-2 mb-4 justify-between">
               <Link 
                 href="/academia"
-                className="inline-flex items-center gap-2 px-3 py-1 bg-stampa-orange/10 border border-[#ff6a00]/20 text-stampa-orange text-[10px] font-bold uppercase tracking-wider rounded-full transition-colors hover:bg-stampa-orange/20"
+                className="inline-flex items-center gap-2 px-3 py-1 bg-stampa-orange/10 border border-[#ff6a00]/20 text-stampa-accent text-[10px] font-bold uppercase tracking-wider rounded-full transition-colors hover:bg-stampa-orange/20"
               >
                 ← Academia
               </Link>
             </div>
-            <h1 className="text-3xl md:text-4xl font-black text-white tracking-tight mb-2 flex items-center gap-3">
-              <GraduationCap size={36} className="text-stampa-orange" /> Cursos
+            <h1 className="text-3xl md:text-4xl font-black text-fg tracking-tight mb-2 flex items-center gap-3">
+              <GraduationCap size={36} className="text-stampa-accent" /> Cursos
             </h1>
             <p className="text-sm text-gray-400">
               Explorá cursos estructurados por nivel, impresora y objetivo.
@@ -122,12 +122,12 @@ export default function CursosPage() {
                 value={searchTerm}
                 onChange={(e) => setSearchTerm(e.target.value)}
                 placeholder="Buscar cursos..."
-                className="w-full bg-stampa-bg-soft border border-stampa-border text-white text-sm rounded-xl py-3 pl-10 pr-4 focus:outline-none focus:border-[#ff6a00] focus:ring-1 focus:ring-[#ff6a00] transition-all"
+                className="w-full bg-stampa-bg-soft border border-stampa-border text-fg text-sm rounded-xl py-3 pl-10 pr-4 focus:outline-none focus:border-[#ff6a00] focus:ring-1 focus:ring-[#ff6a00] transition-all"
               />
               {searchTerm && (
                 <button
                   onClick={() => setSearchTerm("")}
-                  className="absolute right-3 top-1/2 -translate-y-1/2 text-neutral-500 hover:text-white text-xs font-semibold"
+                  className="absolute right-3 top-1/2 -translate-y-1/2 text-neutral-500 hover:text-fg text-xs font-semibold"
                 >
                   Limpiar
                 </button>
@@ -149,7 +149,7 @@ export default function CursosPage() {
         <div className="space-y-10">
           {catalog.published.length > 0 && (
           <div>
-          <h2 className="text-2xl font-bold text-white mb-6">Todos los cursos</h2>
+          <h2 className="text-2xl font-bold text-fg mb-6">Todos los cursos</h2>
           {filteredCourses.length > 0 ? (
             <div className="grid grid-cols-1 gap-6 sm:grid-cols-2 lg:grid-cols-3">
               {filteredCourses.map((c) => (
@@ -161,7 +161,7 @@ export default function CursosPage() {
               <p className="text-gray-400 mb-4">No encontramos cursos con esa búsqueda.</p>
               <button
                 onClick={() => setSearchTerm("")}
-                className="px-4 py-2 bg-white/5 hover:bg-white/10 border border-stampa-border rounded-lg text-sm text-white transition-colors"
+                className="px-4 py-2 bg-fg/5 hover:bg-fg/10 border border-stampa-border rounded-lg text-sm text-fg transition-colors"
               >
                 Limpiar búsqueda
               </button>
@@ -174,10 +174,10 @@ export default function CursosPage() {
       ) : (
         <div className="max-w-xl mx-auto mt-12 text-center">
           <div className="bg-stampa-surface rounded-3xl p-10 border border-stampa-border shadow-xl">
-            <div className="w-20 h-20 bg-white/5 rounded-full flex items-center justify-center mx-auto mb-6">
+            <div className="w-20 h-20 bg-fg/5 rounded-full flex items-center justify-center mx-auto mb-6">
               <GraduationCap size={40} className="text-gray-500" />
             </div>
-            <h2 className="text-2xl font-bold text-white mb-3">Todavía no hay cursos publicados</h2>
+            <h2 className="text-2xl font-bold text-fg mb-3">Todavía no hay cursos publicados</h2>
             <p className="text-gray-400">
               Estamos preparando contenido increíble para ti. ¡Vuelve pronto para comenzar tu ruta de aprendizaje!
             </p>

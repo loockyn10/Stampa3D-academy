@@ -40,9 +40,9 @@ export function CourseCard({ course }: CourseCardProps) {
               className="w-full h-full object-cover"
             />
           ) : (
-            <div className="w-full h-full flex flex-col items-center justify-center bg-gradient-to-br from-neutral-900 to-neutral-950 relative overflow-hidden">
+            <div className="w-full h-full flex flex-col items-center justify-center bg-gradient-to-br from-stampa-bg to-stampa-sunken relative overflow-hidden">
               <div className="absolute inset-0 bg-stampa-orange/5 opacity-50" />
-              <div className="w-12 h-12 rounded-2xl bg-white/5 border border-stampa-border flex items-center justify-center mb-2 shadow-inner">
+              <div className="w-12 h-12 rounded-2xl bg-fg/5 border border-stampa-border flex items-center justify-center mb-2 shadow-inner">
                 <ImageIcon size={20} className="text-gray-500" />
               </div>
               <span className="text-xs font-bold text-gray-600 tracking-widest uppercase">Academia Stampa</span>
@@ -68,7 +68,7 @@ export function CourseCard({ course }: CourseCardProps) {
             )}
             {/* Badge Estado Especial (solo si no es published) */}
             {course.status && course.status !== "published" && (
-              <span className="inline-flex items-center rounded-full bg-stampa-bg/60 backdrop-blur-md border border-white/20 px-2.5 py-1 text-[10px] font-bold text-white uppercase tracking-wider">
+              <span className="inline-flex items-center rounded-full bg-stampa-bg/60 backdrop-blur-md border border-fg/20 px-2.5 py-1 text-[10px] font-bold text-fg uppercase tracking-wider">
                 {course.status === "draft" ? "En desarrollo" : course.status}
               </span>
             )}
@@ -83,15 +83,15 @@ export function CourseCard({ course }: CourseCardProps) {
         )}
         
         {/* Información compacta */}
-        <div className={`flex min-h-24 flex-1 flex-col justify-center px-4 py-3 bg-gradient-to-t from-neutral-950 to-neutral-900 relative z-20 ${levelStyle ? "" : "border-t border-stampa-border"}`}>
-          <h3 className="text-sm sm:text-base font-bold leading-tight text-white line-clamp-1 group-hover:text-stampa-orange transition-colors">
+        <div className={`flex min-h-24 flex-1 flex-col justify-center px-4 py-3 bg-gradient-to-t from-stampa-sunken to-stampa-bg relative z-20 ${levelStyle ? "" : "border-t border-stampa-border"}`}>
+          <h3 className="text-sm sm:text-base font-bold leading-tight text-fg line-clamp-1 group-hover:text-stampa-accent transition-colors">
             {title}
           </h3>
           
           <div className="mt-2 flex items-center justify-between text-xs font-medium">
             <div className="flex items-center gap-3 text-gray-400">
               <span className="flex items-center gap-1.5">
-                <Layers size={13} className="text-stampa-orange" /> {lessonsCount} clases
+                <Layers size={13} className="text-stampa-accent" /> {lessonsCount} clases
               </span>
               {totalDuration > 0 && (
                 <span className="flex items-center gap-1.5">

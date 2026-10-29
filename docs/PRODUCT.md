@@ -405,7 +405,7 @@ Estado técnico actual **REQUIERE VERIFICACIÓN EN REPO**.
 
 Reglas generales:
 
-- dark UI moderna y neutra;
+- UI moderna y neutra con modo oscuro (aspecto original), modo claro y automático (ver ARCHITECTURE §23);
 - prioridad mobile;
 - dialogs propios, no `alert`, `confirm` o `prompt` nativos;
 - selects/popovers propios cuando la UI nativa rompa consistencia;

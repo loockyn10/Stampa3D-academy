@@ -14,7 +14,7 @@ export default function AdminStlModelsPage() {
           >
             <ArrowLeft size={14} /> Volver al panel STL
           </Link>
-          <h1 className="text-2xl font-bold text-white flex items-center gap-2">
+          <h1 className="text-2xl font-bold text-fg flex items-center gap-2">
             <Box className="text-emerald-600" />
             Archivos STL
           </h1>

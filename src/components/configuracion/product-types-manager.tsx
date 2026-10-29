@@ -135,7 +135,7 @@ export function ProductTypesManager({ onChanged }: ProductTypesManagerProps = {}
       )}
 
       <div className="flex justify-between items-center mb-4">
-        <h3 className="text-lg font-semibold text-white">Tipos de producto / markupes</h3>
+        <h3 className="text-lg font-semibold text-fg">Tipos de producto / markupes</h3>
         <button
           onClick={() => {
             setFormData({
@@ -160,8 +160,8 @@ export function ProductTypesManager({ onChanged }: ProductTypesManagerProps = {}
           ) : (
             <Card key={t.id} className="p-4 flex flex-col hover:border-stampa-orange/30 transition-colors">
               <div className="flex justify-between items-start mb-2">
-                <h4 className="font-bold text-white">{t.name}</h4>
-                <button onClick={() => { setFormData(t); setEditingId(t.id); }} className="text-gray-400 hover:text-stampa-orange transition-colors">
+                <h4 className="font-bold text-fg">{t.name}</h4>
+                <button onClick={() => { setFormData(t); setEditingId(t.id); }} className="text-gray-400 hover:text-stampa-accent transition-colors">
                   <Edit2 size={16} />
                 </button>
               </div>
@@ -172,7 +172,7 @@ export function ProductTypesManager({ onChanged }: ProductTypesManagerProps = {}
               <div className="flex items-center justify-between pt-3 border-t border-stampa-border">
                 <button 
                   onClick={() => toggleStatus(t.id, t.is_active)}
-                  className={`text-xs px-2.5 py-1 rounded-md font-semibold transition-colors border ${t.is_active ? 'bg-green-500/10 text-green-400 border-green-500/20 hover:bg-green-500/20' : 'bg-white/5 text-gray-400 border-white/10 hover:bg-white/10'}`}
+                  className={`text-xs px-2.5 py-1 rounded-md font-semibold transition-colors border ${t.is_active ? 'bg-green-500/10 text-green-400 border-green-500/20 hover:bg-green-500/20' : 'bg-fg/5 text-gray-400 border-fg/10 hover:bg-fg/10'}`}
                 >
                   {t.is_active ? 'Activo' : 'Inactivo'}
                 </button>
@@ -186,7 +186,7 @@ export function ProductTypesManager({ onChanged }: ProductTypesManagerProps = {}
           )
         ))}
         {types.length === 0 && editingId !== "new" && (
-          <div className="col-span-full py-12 text-center bg-stampa-bg-soft rounded-xl border border-dashed border-white/20">
+          <div className="col-span-full py-12 text-center bg-stampa-bg-soft rounded-xl border border-dashed border-fg/20">
             <p className="text-sm text-gray-500">No tienes tipos de producto registrados.</p>
           </div>
         )}
@@ -224,7 +224,7 @@ function TypeEditor({ formData, setFormData, onSave, onCancel }: any) {
           </div>
         </div>
         <div className="flex items-center gap-2 pt-1">
-          <input type="checkbox" name="is_active" checked={formData.is_active} onChange={handleChange} className="rounded text-stampa-orange focus:ring-[#ff6a00]/20" />
+          <input type="checkbox" name="is_active" checked={formData.is_active} onChange={handleChange} className="rounded text-stampa-accent focus:ring-[#ff6a00]/20" />
           <label className="text-sm font-medium text-gray-300">Tipo Activo</label>
         </div>
       </div>

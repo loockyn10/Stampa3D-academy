@@ -22,9 +22,9 @@ export function IndexationPanel({ stats }: { stats: any[] }) {
   };
 
   return (
-    <div className="bg-[#1a1a1a] border border-stampa-border rounded-xl p-5 shadow-sm mt-6">
+    <div className="bg-stampa-raised border border-stampa-border rounded-xl p-5 shadow-sm mt-6">
       <div className="flex items-center justify-between mb-4">
-        <h2 className="text-lg font-bold text-white flex items-center gap-2">
+        <h2 className="text-lg font-bold text-fg flex items-center gap-2">
           <Database className="text-cyan-400" size={20} />
           Índice de Conocimiento Stampy
         </h2>
@@ -44,9 +44,9 @@ export function IndexationPanel({ stats }: { stats: any[] }) {
 
       <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-4">
         {stats.length > 0 ? stats.map((s, i) => (
-          <div key={i} className="bg-white/5 p-3 rounded-lg border border-white/10">
+          <div key={i} className="bg-fg/5 p-3 rounded-lg border border-fg/10">
             <div className="text-xs text-gray-400 uppercase tracking-wider">{s.source_type}</div>
-            <div className="text-xl font-bold text-white mt-1">{s.count}</div>
+            <div className="text-xl font-bold text-fg mt-1">{s.count}</div>
           </div>
         )) : (
           <p className="text-sm text-gray-500">No hay chunks indexados todavía.</p>
@@ -59,7 +59,7 @@ export function IndexationPanel({ stats }: { stats: any[] }) {
             <p>Error: {result.error}</p>
           ) : (
              <div className="space-y-3">
-               <p className="font-bold border-b border-white/10 pb-2">Indexación completada en {result.result?.durationMs}ms</p>
+               <p className="font-bold border-b border-fg/10 pb-2">Indexación completada en {result.result?.durationMs}ms</p>
                
                <div className="grid grid-cols-2 gap-4">
                  <div>
@@ -84,7 +84,7 @@ export function IndexationPanel({ stats }: { stats: any[] }) {
                  </div>
                </div>
 
-               <p className="pt-2 border-t border-white/10">
+               <p className="pt-2 border-t border-fg/10">
                  Chunks generados: {result.result?.chunksBuilt} (Creados: {result.result?.chunksCreated}, Actualizados: {result.result?.chunksUpdated})
                </p>
                {result.result?.errorsCount > 0 && (

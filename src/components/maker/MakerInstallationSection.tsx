@@ -119,7 +119,7 @@ export function MakerInstallationSection({ params, onChange, geometry, editingMo
               Distribución automática según el tamaño de cada letra. El receptor con refuerzo va dentro de la cavidad; nada sobresale por detrás de la letra.
             </p>
             {spacerPart && (
-              <p className="col-span-2 rounded-lg border border-white/10 bg-white/[0.04] px-3 py-2 text-xs text-gray-300">
+              <p className="col-span-2 rounded-lg border border-fg/10 bg-fg/[0.04] px-3 py-2 text-xs text-gray-300">
                 Separador de pared · cantidad: <b>{spacerPart.quantity}</b> · {spacerPart.fileBaseName}.stl
               </p>
             )}
@@ -133,7 +133,7 @@ export function MakerInstallationSection({ params, onChange, geometry, editingMo
               type="button"
               disabled={!geometry || geometry.triangleCount === 0}
               onClick={onToggleEditingMounts}
-              className="inline-flex h-8 items-center gap-1.5 rounded-lg border border-stampa-border bg-stampa-surface-soft px-3 text-xs font-semibold text-stampa-text-muted hover:bg-white/10 hover:text-white disabled:opacity-50"
+              className="inline-flex h-8 items-center gap-1.5 rounded-lg border border-stampa-border bg-stampa-surface-soft px-3 text-xs font-semibold text-stampa-text-muted hover:bg-fg/10 hover:text-fg disabled:opacity-50"
             >
               <Move size={13} />
               {editingMounts ? "Terminar edición" : "Editar montaje"}
@@ -142,7 +142,7 @@ export function MakerInstallationSection({ params, onChange, geometry, editingMo
               <button
                 type="button"
                 onClick={() => setOverrides(resetMountOverrides(overrides))}
-                className="inline-flex h-8 items-center gap-1.5 rounded-lg border border-stampa-border bg-stampa-surface-soft px-3 text-xs font-semibold text-stampa-text-muted hover:bg-white/10 hover:text-white"
+                className="inline-flex h-8 items-center gap-1.5 rounded-lg border border-stampa-border bg-stampa-surface-soft px-3 text-xs font-semibold text-stampa-text-muted hover:bg-fg/10 hover:text-fg"
               >
                 <RotateCcw size={13} />
                 Restablecer automático
@@ -170,7 +170,7 @@ export function MakerInstallationSection({ params, onChange, geometry, editingMo
               <NumberField label="Margen de servicio" suffix="mm" value={wiring.serviceMarginMm} onChange={(v) => setWiring({ serviceMarginMm: v })} />
               <label className="block">
                 <span className="mb-1 block text-xs font-semibold text-gray-500">Entrada de alimentación</span>
-                <select disabled value="direct-wire" className="h-11 w-full rounded-xl border border-white/10 bg-white/[0.06] px-3 text-sm text-white">
+                <select disabled value="direct-wire" className="h-11 w-full rounded-xl border border-fg/10 bg-fg/[0.06] px-3 text-sm text-fg">
                   <option value="direct-wire">Cable directo + / -</option>
                 </select>
               </label>
@@ -188,7 +188,7 @@ export function MakerInstallationSection({ params, onChange, geometry, editingMo
                 <NumberField label="Holgura" suffix="mm" value={wiring.spliceClip.clearanceMm} onChange={(v) => setClip({ clearanceMm: v })} />
                 <p className="col-span-2 text-xs text-gray-500">Sostiene y ordena los dos empalmes ya aislados; no conduce corriente ni se fija a la pared. Se inserta después de empalmar.</p>
                 {clipPart && (
-                  <p className="col-span-2 rounded-lg border border-white/10 bg-white/[0.04] px-3 py-2 text-xs text-gray-300">
+                  <p className="col-span-2 rounded-lg border border-fg/10 bg-fg/[0.04] px-3 py-2 text-xs text-gray-300">
                     Soporte de empalmes · cantidad necesaria: <b>{clipPart.quantity}</b> · {clipPart.fileBaseName}.stl
                   </p>
                 )}
@@ -198,7 +198,7 @@ export function MakerInstallationSection({ params, onChange, geometry, editingMo
             <Toggle label="Mostrar cableado" checked={showWiring} onChange={onShowWiring} />
 
             {plan && plan.cableLengths.length > 0 && (
-              <div className="rounded-xl border border-white/10 bg-white/[0.04] p-3">
+              <div className="rounded-xl border border-fg/10 bg-fg/[0.04] p-3">
                 <span className="mb-1 flex items-center gap-1.5 text-xs font-semibold text-gray-300">
                   <Cable size={13} /> Longitud de cable entre letras
                 </span>
@@ -218,7 +218,7 @@ export function MakerInstallationSection({ params, onChange, geometry, editingMo
 
       {/* ------------------------------------------------------ POR LETRA (avanzado) */}
       {letters.length > 0 && (mounting.type !== "none" || wiring.mode === "chained") && (
-        <details className="rounded-xl border border-white/10 bg-white/[0.03] p-3">
+        <details className="rounded-xl border border-fg/10 bg-fg/[0.03] p-3">
           <summary className="cursor-pointer text-xs font-semibold text-gray-300">Ajustes por letra</summary>
           <div className="mt-2 flex flex-col gap-2">
             {letters.map((l) => {
@@ -227,7 +227,7 @@ export function MakerInstallationSection({ params, onChange, geometry, editingMo
               const role = plan?.wiring?.letters.find((w) => w.instanceId === l.instance.id)?.role;
               return (
                 <div key={l.instance.id} className="flex flex-wrap items-center gap-x-3 gap-y-1 text-xs text-gray-300">
-                  <b className="w-8 text-white">{l.instance.label}</b>
+                  <b className="w-8 text-fg">{l.instance.label}</b>
                   {mounting.type !== "none" && (
                     <label className="flex items-center gap-1">
                       soportes
@@ -237,7 +237,7 @@ export function MakerInstallationSection({ params, onChange, geometry, editingMo
                         max={12}
                         value={o?.mountCount ?? lp?.mounts.length ?? 0}
                         onChange={(e) => setOverrides(setLetterMountCount(overrides, l.instance.id, Number(e.target.value) || null))}
-                        className="h-7 w-14 rounded-md border border-white/10 bg-white/[0.06] px-2 text-xs text-white"
+                        className="h-7 w-14 rounded-md border border-fg/10 bg-fg/[0.06] px-2 text-xs text-fg"
                       />
                     </label>
                   )}

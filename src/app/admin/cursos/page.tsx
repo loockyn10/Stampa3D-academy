@@ -15,7 +15,7 @@ export default function AdminCursosPage() {
             <span className="text-gray-400">/</span>
             <span className="text-sm text-gray-500">Cursos</span>
           </div>
-          <h1 className="text-2xl font-bold text-white flex items-center gap-2">
+          <h1 className="text-2xl font-bold text-fg flex items-center gap-2">
             <BookOpen className="text-blue-400" />
             Gestión de Cursos
           </h1>

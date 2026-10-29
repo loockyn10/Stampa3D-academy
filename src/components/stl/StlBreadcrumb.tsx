@@ -16,7 +16,7 @@ export function StlBreadcrumb({ items }: { items: StlCrumb[] }) {
           return (
             <li key={`${item.label}-${index}`} className="flex min-w-0 items-center gap-1.5">
               {item.href && !isLast ? (
-                <Link href={item.href} className="truncate transition-colors hover:text-stampa-orange">
+                <Link href={item.href} className="truncate transition-colors hover:text-stampa-accent">
                   {item.label}
                 </Link>
               ) : (

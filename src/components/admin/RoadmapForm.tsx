@@ -153,7 +153,7 @@ export function RoadmapForm({ initialData = null }: { initialData?: any }) {
   return (
     <form onSubmit={handleSubmit} className="space-y-8">
       <div className="bg-stampa-surface p-6 rounded-2xl border border-stampa-border shadow-lg space-y-6">
-        <h2 className="text-xl font-bold text-white mb-4">Detalles del Roadmap</h2>
+        <h2 className="text-xl font-bold text-fg mb-4">Detalles del Roadmap</h2>
         
         <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
           <div className="space-y-2">
@@ -164,7 +164,7 @@ export function RoadmapForm({ initialData = null }: { initialData?: any }) {
               required
               value={formData.name}
               onChange={handleChange}
-              className="w-full bg-[#1a1a1a] border border-stampa-border rounded-xl px-4 py-2.5 text-white focus:border-pink-500 focus:ring-1 focus:ring-pink-500 outline-none transition-all"
+              className="w-full bg-stampa-raised border border-stampa-border rounded-xl px-4 py-2.5 text-fg focus:border-pink-500 focus:ring-1 focus:ring-pink-500 outline-none transition-all"
               placeholder="Ej: Principiante Bambu"
             />
           </div>
@@ -176,7 +176,7 @@ export function RoadmapForm({ initialData = null }: { initialData?: any }) {
               name="sort_order"
               value={formData.sort_order}
               onChange={handleChange}
-              className="w-full bg-[#1a1a1a] border border-stampa-border rounded-xl px-4 py-2.5 text-white focus:border-pink-500 focus:ring-1 focus:ring-pink-500 outline-none transition-all"
+              className="w-full bg-stampa-raised border border-stampa-border rounded-xl px-4 py-2.5 text-fg focus:border-pink-500 focus:ring-1 focus:ring-pink-500 outline-none transition-all"
             />
           </div>
 
@@ -187,14 +187,14 @@ export function RoadmapForm({ initialData = null }: { initialData?: any }) {
               value={formData.description}
               onChange={handleChange}
               rows={2}
-              className="w-full bg-[#1a1a1a] border border-stampa-border rounded-xl px-4 py-2.5 text-white focus:border-pink-500 focus:ring-1 focus:ring-pink-500 outline-none transition-all resize-none"
+              className="w-full bg-stampa-raised border border-stampa-border rounded-xl px-4 py-2.5 text-fg focus:border-pink-500 focus:ring-1 focus:ring-pink-500 outline-none transition-all resize-none"
             />
           </div>
         </div>
       </div>
 
       <div className="bg-stampa-surface p-6 rounded-2xl border border-stampa-border shadow-lg space-y-6">
-        <h2 className="text-xl font-bold text-white mb-4">Criterios de Matching (Filtros)</h2>
+        <h2 className="text-xl font-bold text-fg mb-4">Criterios de Matching (Filtros)</h2>
         
         <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
           <div className="space-y-2">
@@ -203,7 +203,7 @@ export function RoadmapForm({ initialData = null }: { initialData?: any }) {
               name="printer_brand"
               value={formData.printer_brand || ""}
               onChange={handleChange}
-              className="w-full bg-[#1a1a1a] border border-stampa-border rounded-xl px-4 py-2.5 text-white focus:border-pink-500 focus:ring-1 focus:ring-pink-500 outline-none transition-all"
+              className="w-full bg-stampa-raised border border-stampa-border rounded-xl px-4 py-2.5 text-fg focus:border-pink-500 focus:ring-1 focus:ring-pink-500 outline-none transition-all"
             >
               <option value="">Cualquier marca</option>
               {PRINTER_BRAND_OPTIONS.map(opt => (
@@ -218,7 +218,7 @@ export function RoadmapForm({ initialData = null }: { initialData?: any }) {
               name="experience_level"
               value={formData.experience_level || ""}
               onChange={handleChange}
-              className="w-full bg-[#1a1a1a] border border-stampa-border rounded-xl px-4 py-2.5 text-white focus:border-pink-500 focus:ring-1 focus:ring-pink-500 outline-none transition-all"
+              className="w-full bg-stampa-raised border border-stampa-border rounded-xl px-4 py-2.5 text-fg focus:border-pink-500 focus:ring-1 focus:ring-pink-500 outline-none transition-all"
             >
               <option value="">Cualquier nivel</option>
               {EXPERIENCE_LEVEL_OPTIONS.map(opt => (
@@ -233,7 +233,7 @@ export function RoadmapForm({ initialData = null }: { initialData?: any }) {
               name="main_goal"
               value={formData.main_goal || ""}
               onChange={handleChange}
-              className="w-full bg-[#1a1a1a] border border-stampa-border rounded-xl px-4 py-2.5 text-white focus:border-pink-500 focus:ring-1 focus:ring-pink-500 outline-none transition-all"
+              className="w-full bg-stampa-raised border border-stampa-border rounded-xl px-4 py-2.5 text-fg focus:border-pink-500 focus:ring-1 focus:ring-pink-500 outline-none transition-all"
             >
               <option value="">Cualquier objetivo</option>
               {MAIN_GOAL_OPTIONS.map(opt => (
@@ -248,7 +248,7 @@ export function RoadmapForm({ initialData = null }: { initialData?: any }) {
               name="commercial_stage"
               value={formData.commercial_stage || ""}
               onChange={handleChange}
-              className="w-full bg-[#1a1a1a] border border-stampa-border rounded-xl px-4 py-2.5 text-white focus:border-pink-500 focus:ring-1 focus:ring-pink-500 outline-none transition-all"
+              className="w-full bg-stampa-raised border border-stampa-border rounded-xl px-4 py-2.5 text-fg focus:border-pink-500 focus:ring-1 focus:ring-pink-500 outline-none transition-all"
             >
               <option value="">Cualquier etapa</option>
               {COMMERCIAL_STAGE_OPTIONS.map(opt => (
@@ -265,7 +265,7 @@ export function RoadmapForm({ initialData = null }: { initialData?: any }) {
               name="is_default"
               checked={formData.is_default}
               onChange={handleChange}
-              className="w-4 h-4 rounded bg-[#1a1a1a] border-white/20 text-pink-500 focus:ring-pink-500 focus:ring-offset-0"
+              className="w-4 h-4 rounded bg-stampa-raised border-fg/20 text-pink-500 focus:ring-pink-500 focus:ring-offset-0"
             />
             Roadmap por defecto (Fallback)
           </label>
@@ -276,7 +276,7 @@ export function RoadmapForm({ initialData = null }: { initialData?: any }) {
               name="is_active"
               checked={formData.is_active}
               onChange={handleChange}
-              className="w-4 h-4 rounded bg-[#1a1a1a] border-white/20 text-pink-500 focus:ring-pink-500 focus:ring-offset-0"
+              className="w-4 h-4 rounded bg-stampa-raised border-fg/20 text-pink-500 focus:ring-pink-500 focus:ring-offset-0"
             />
             Activo
           </label>
@@ -285,11 +285,11 @@ export function RoadmapForm({ initialData = null }: { initialData?: any }) {
 
       <div className="bg-stampa-surface p-6 rounded-2xl border border-stampa-border shadow-lg space-y-6">
         <div className="flex items-center justify-between mb-4">
-          <h2 className="text-xl font-bold text-white">Cursos del Roadmap</h2>
+          <h2 className="text-xl font-bold text-fg">Cursos del Roadmap</h2>
           <button
             type="button"
             onClick={handleAddCourse}
-            className="flex items-center gap-2 bg-white/5 hover:bg-white/10 text-white px-3 py-1.5 rounded-lg text-sm font-medium transition-colors border border-stampa-border"
+            className="flex items-center gap-2 bg-fg/5 hover:bg-fg/10 text-fg px-3 py-1.5 rounded-lg text-sm font-medium transition-colors border border-stampa-border"
           >
             <Plus size={16} /> Añadir Curso
           </button>
@@ -300,12 +300,12 @@ export function RoadmapForm({ initialData = null }: { initialData?: any }) {
             <p className="text-sm text-gray-500 italic">No hay cursos en este roadmap.</p>
           ) : (
             pathCourses.map((pc, idx) => (
-              <div key={idx} className="flex gap-4 items-start bg-[#1a1a1a] p-4 rounded-xl border border-stampa-border">
+              <div key={idx} className="flex gap-4 items-start bg-stampa-raised p-4 rounded-xl border border-stampa-border">
                 <div className="flex flex-col gap-1">
-                  <button type="button" onClick={() => moveCourse(idx, 'up')} disabled={idx === 0} className="text-gray-500 hover:text-white disabled:opacity-30 disabled:cursor-not-allowed">
+                  <button type="button" onClick={() => moveCourse(idx, 'up')} disabled={idx === 0} className="text-gray-500 hover:text-fg disabled:opacity-30 disabled:cursor-not-allowed">
                     <ArrowUp size={16} />
                   </button>
-                  <button type="button" onClick={() => moveCourse(idx, 'down')} disabled={idx === pathCourses.length - 1} className="text-gray-500 hover:text-white disabled:opacity-30 disabled:cursor-not-allowed">
+                  <button type="button" onClick={() => moveCourse(idx, 'down')} disabled={idx === pathCourses.length - 1} className="text-gray-500 hover:text-fg disabled:opacity-30 disabled:cursor-not-allowed">
                     <ArrowDown size={16} />
                   </button>
                 </div>
@@ -314,7 +314,7 @@ export function RoadmapForm({ initialData = null }: { initialData?: any }) {
                   <select
                     value={pc.course_id}
                     onChange={(e) => handleCourseChange(idx, "course_id", e.target.value)}
-                    className="w-full bg-stampa-surface border border-stampa-border rounded-lg px-3 py-2 text-white focus:border-pink-500 outline-none"
+                    className="w-full bg-stampa-surface border border-stampa-border rounded-lg px-3 py-2 text-fg focus:border-pink-500 outline-none"
                   >
                     {courses.map(c => (
                       <option key={c.id} value={c.id}>{c.title}</option>
@@ -326,7 +326,7 @@ export function RoadmapForm({ initialData = null }: { initialData?: any }) {
                     value={pc.reason}
                     onChange={(e) => handleCourseChange(idx, "reason", e.target.value)}
                     placeholder="Motivo sugerido (Ej: 'Base necesaria antes de avanzar')"
-                    className="w-full bg-stampa-surface border border-stampa-border rounded-lg px-3 py-2 text-white focus:border-pink-500 outline-none text-sm"
+                    className="w-full bg-stampa-surface border border-stampa-border rounded-lg px-3 py-2 text-fg focus:border-pink-500 outline-none text-sm"
                   />
                 </div>
 
@@ -347,7 +347,7 @@ export function RoadmapForm({ initialData = null }: { initialData?: any }) {
         <button
           type="button"
           onClick={() => router.push("/admin/roadmaps")}
-          className="flex items-center gap-2 bg-white/5 hover:bg-white/10 text-white px-6 py-2.5 rounded-xl font-medium transition-colors"
+          className="flex items-center gap-2 bg-fg/5 hover:bg-fg/10 text-fg px-6 py-2.5 rounded-xl font-medium transition-colors"
         >
           <X size={18} /> Cancelar
         </button>

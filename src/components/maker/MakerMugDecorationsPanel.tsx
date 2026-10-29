@@ -49,7 +49,7 @@ function SubLabel({ children }: { children: React.ReactNode }) {
 function Check({ label, checked, onChange }: { label: string; checked: boolean; onChange: (v: boolean) => void }) {
   return (
     <label className="flex cursor-pointer select-none items-center gap-2 text-xs font-semibold text-gray-300">
-      <input type="checkbox" checked={checked} onChange={(e) => onChange(e.target.checked)} className="h-4 w-4 rounded border-white/20 bg-white/[0.06] text-stampa-orange focus:ring-2 focus:ring-stampa-orange/40 focus:ring-offset-0" />
+      <input type="checkbox" checked={checked} onChange={(e) => onChange(e.target.checked)} className="h-4 w-4 rounded border-fg/20 bg-fg/[0.06] text-stampa-accent focus:ring-2 focus:ring-stampa-orange/40 focus:ring-offset-0" />
       {label}
     </label>
   );
@@ -59,7 +59,7 @@ function FileButton({ label, icon, accept, onFile, disabled }: { label: string; 
   const ref = React.useRef<HTMLInputElement>(null);
   return (
     <>
-      <button type="button" disabled={disabled} onClick={() => ref.current?.click()} className="inline-flex h-8 items-center gap-1.5 rounded-lg border border-white/10 bg-white/[0.04] px-2.5 text-xs font-semibold text-gray-200 transition-colors hover:border-stampa-orange/50 hover:text-white disabled:cursor-not-allowed disabled:opacity-40">
+      <button type="button" disabled={disabled} onClick={() => ref.current?.click()} className="inline-flex h-8 items-center gap-1.5 rounded-lg border border-fg/10 bg-fg/[0.04] px-2.5 text-xs font-semibold text-gray-200 transition-colors hover:border-stampa-orange/50 hover:text-fg disabled:cursor-not-allowed disabled:opacity-40">
         {icon}
         {label}
       </button>
@@ -111,7 +111,7 @@ function SourcePreview({ asset, art }: { asset: MugAsset | undefined; art: Artwo
       {(["Original", "Máscara"] as const).map((label) => (
         <div key={label} className="flex flex-col gap-1">
           <span className="text-[11px] font-semibold text-gray-500">{label}</span>
-          <div className="flex h-24 items-center justify-center overflow-hidden rounded-lg border border-white/10 bg-white">
+          <div className="flex h-24 items-center justify-center overflow-hidden rounded-lg border border-fg/10 bg-white">
             {label === "Original" ? (
               // eslint-disable-next-line @next/next/no-img-element
               url ? <img src={url} alt="Original" className="max-h-full max-w-full object-contain" /> : null
@@ -190,7 +190,7 @@ export function MakerMugDecorationsPanel(p: MakerMugDecorationsPanelProps) {
         <span className="text-[11px] text-gray-500">{decorations.length}/{MAX_DECORATIONS}</span>
       </div>
       <div className="flex flex-wrap gap-1.5">
-        <button type="button" disabled={full} onClick={addText} className="inline-flex h-8 items-center gap-1.5 rounded-lg border border-white/10 bg-white/[0.04] px-2.5 text-xs font-semibold text-gray-200 transition-colors hover:border-stampa-orange/50 hover:text-white disabled:cursor-not-allowed disabled:opacity-40">
+        <button type="button" disabled={full} onClick={addText} className="inline-flex h-8 items-center gap-1.5 rounded-lg border border-fg/10 bg-fg/[0.04] px-2.5 text-xs font-semibold text-gray-200 transition-colors hover:border-stampa-orange/50 hover:text-fg disabled:cursor-not-allowed disabled:opacity-40">
           <Type size={13} /> + Texto
         </button>
         <FileButton label="+ SVG" icon={<Shapes size={13} />} accept=".svg,image/svg+xml" onFile={(f) => addFile("svg", f)} disabled={full} />
@@ -203,17 +203,17 @@ export function MakerMugDecorationsPanel(p: MakerMugDecorationsPanelProps) {
           const active = d.id === p.selectedId;
           const bad = issuesOf(d).some((x) => !x.code.startsWith("DECO_NEAR") && x.code !== "DECO_OVER_HANDLE" && x.code !== "DECO_ART_MISSING");
           return (
-            <div key={d.id} className={`flex items-center gap-1 rounded-xl border px-2 py-1.5 ${active ? "border-stampa-orange/60 bg-stampa-orange/10" : "border-white/10 bg-white/[0.03]"}`}>
-              <button type="button" aria-label={d.enabled ? "Ocultar decoración" : "Mostrar decoración"} onClick={() => setOne(d.id, { enabled: !d.enabled })} className="rounded-md p-1 text-gray-400 hover:text-white">
+            <div key={d.id} className={`flex items-center gap-1 rounded-xl border px-2 py-1.5 ${active ? "border-stampa-orange/60 bg-stampa-orange/10" : "border-fg/10 bg-fg/[0.03]"}`}>
+              <button type="button" aria-label={d.enabled ? "Ocultar decoración" : "Mostrar decoración"} onClick={() => setOne(d.id, { enabled: !d.enabled })} className="rounded-md p-1 text-gray-400 hover:text-fg">
                 {d.enabled ? <Eye size={14} /> : <EyeOff size={14} />}
               </button>
               <button type="button" onClick={() => p.onSelect(active ? null : d.id)} className={`min-w-0 flex-1 text-left ${d.enabled ? "" : "opacity-50"}`}>
                 <span className="block truncate text-xs font-semibold text-gray-100">{d.name || "Decoración"}{bad && <span className="ml-1 text-red-400">●</span>}</span>
                 <span className="block truncate text-[11px] text-gray-500">{kindLabel(d)} · {MODE_LABEL[d.mode]}</span>
               </button>
-              <button type="button" aria-label="Subir" disabled={i === 0} onClick={() => move(d.id, -1)} className="rounded-md p-1 text-gray-500 hover:text-white disabled:opacity-30"><ArrowUp size={13} /></button>
-              <button type="button" aria-label="Bajar" disabled={i === decorations.length - 1} onClick={() => move(d.id, 1)} className="rounded-md p-1 text-gray-500 hover:text-white disabled:opacity-30"><ArrowDown size={13} /></button>
-              <button type="button" aria-label="Duplicar" disabled={full} onClick={() => duplicate(d)} className="rounded-md p-1 text-gray-500 hover:text-white disabled:opacity-30"><Copy size={13} /></button>
+              <button type="button" aria-label="Subir" disabled={i === 0} onClick={() => move(d.id, -1)} className="rounded-md p-1 text-gray-500 hover:text-fg disabled:opacity-30"><ArrowUp size={13} /></button>
+              <button type="button" aria-label="Bajar" disabled={i === decorations.length - 1} onClick={() => move(d.id, 1)} className="rounded-md p-1 text-gray-500 hover:text-fg disabled:opacity-30"><ArrowDown size={13} /></button>
+              <button type="button" aria-label="Duplicar" disabled={full} onClick={() => duplicate(d)} className="rounded-md p-1 text-gray-500 hover:text-fg disabled:opacity-30"><Copy size={13} /></button>
               <button type="button" aria-label="Eliminar" onClick={() => remove(d.id)} className="rounded-md p-1 text-gray-500 hover:text-red-400"><Trash2 size={13} /></button>
             </div>
           );
@@ -237,10 +237,10 @@ function DecorationEditor({ d, set, heightMm, issues, provider, asset, onReplace
   const depthLabel = d.mode === "engrave" ? "Profundidad del grabado" : d.mode === "emboss" ? "Altura del relieve" : "Altura del arte";
 
   return (
-    <div className="flex flex-col gap-4 rounded-xl border border-white/10 bg-white/[0.03] p-3">
+    <div className="flex flex-col gap-4 rounded-xl border border-fg/10 bg-fg/[0.03] p-3">
       <label className="block">
         <SubLabel>Nombre</SubLabel>
-        <input type="text" value={d.name} maxLength={60} onChange={(e) => set({ name: e.target.value })} className="mt-1 h-9 w-full rounded-lg border border-white/10 bg-white/[0.06] px-3 text-xs text-white outline-none focus:border-stampa-orange/60" />
+        <input type="text" value={d.name} maxLength={60} onChange={(e) => set({ name: e.target.value })} className="mt-1 h-9 w-full rounded-lg border border-fg/10 bg-fg/[0.06] px-3 text-xs text-fg outline-none focus:border-stampa-orange/60" />
       </label>
 
       <div className="flex flex-col gap-2">
@@ -263,7 +263,7 @@ function DecorationEditor({ d, set, heightMm, issues, provider, asset, onReplace
         {isMed && <Check label="Medallón liso (sin arte)" checked={src.kind === "none"} onChange={(plain) => set({ source: plain ? { kind: "none" } : { kind: "text", text: "STAMPA", fontId: "montserrat-bold", align: "center" } })} />}
         {src.kind === "text" && (
           <>
-            <textarea value={src.text} rows={2} maxLength={MAX_TEXT_LENGTH} onChange={(e) => set({ source: { ...src, text: e.target.value } })} placeholder="STAMPA" className="w-full rounded-lg border border-white/10 bg-white/[0.06] px-3 py-2 text-sm text-white outline-none focus:border-stampa-orange/60" />
+            <textarea value={src.text} rows={2} maxLength={MAX_TEXT_LENGTH} onChange={(e) => set({ source: { ...src, text: e.target.value } })} placeholder="STAMPA" className="w-full rounded-lg border border-fg/10 bg-fg/[0.06] px-3 py-2 text-sm text-fg outline-none focus:border-stampa-orange/60" />
             <span className="text-[11px] text-gray-500">Hasta 4 líneas. Mayúsculas, minúsculas, números, tildes, Ñ y símbolos comunes.</span>
             <SegmentedControl options={MAKER_FONTS.map((f) => ({ value: f.id, label: f.label }))} value={src.fontId} compact onChange={(fontId) => set({ source: { ...src, fontId } })} />
             <span className="text-xs font-semibold text-gray-500">Alineación</span>
@@ -285,7 +285,7 @@ function DecorationEditor({ d, set, heightMm, issues, provider, asset, onReplace
                   <NumberField label={src.threshold === null ? "Umbral (auto)" : "Umbral (0–255)"} value={src.threshold ?? 128} onChange={(v) => set({ source: { ...src, threshold: Math.min(255, Math.max(0, Math.round(v))) } })} />
                   <div className="flex items-end pb-2"><Check label="Invertir" checked={src.invert} onChange={(invert) => set({ source: { ...src, invert } })} /></div>
                 </div>
-                {src.threshold !== null && <button type="button" onClick={() => set({ source: { ...src, threshold: null } })} className="w-fit text-[11px] font-semibold text-stampa-orange hover:underline">Volver al umbral automático</button>}
+                {src.threshold !== null && <button type="button" onClick={() => set({ source: { ...src, threshold: null } })} className="w-fit text-[11px] font-semibold text-stampa-accent hover:underline">Volver al umbral automático</button>}
               </>
             )}
             <SourcePreview asset={asset} art={art} />
@@ -300,7 +300,7 @@ function DecorationEditor({ d, set, heightMm, issues, provider, asset, onReplace
         <SubLabel>Posición</SubLabel>
         <div className="flex flex-wrap gap-1.5">
           {ANGLE_PRESETS.map((a) => (
-            <button key={a.label} type="button" onClick={() => set({ position: { ...d.position, angleDeg: a.angleDeg } })} className={`rounded-lg border px-2 py-1 text-xs font-semibold transition-colors ${d.position.angleDeg === a.angleDeg ? "border-stampa-orange/60 bg-stampa-orange/10 text-stampa-orange" : "border-white/10 bg-white/[0.04] text-gray-300 hover:text-white"}`}>
+            <button key={a.label} type="button" onClick={() => set({ position: { ...d.position, angleDeg: a.angleDeg } })} className={`rounded-lg border px-2 py-1 text-xs font-semibold transition-colors ${d.position.angleDeg === a.angleDeg ? "border-stampa-orange/60 bg-stampa-orange/10 text-stampa-accent" : "border-fg/10 bg-fg/[0.04] text-gray-300 hover:text-fg"}`}>
               {a.label}
             </button>
           ))}
@@ -323,7 +323,7 @@ function DecorationEditor({ d, set, heightMm, issues, provider, asset, onReplace
             <NumberField label="Alto" value={d.size.heightMm} onChange={(v) => set({ size: { ...d.size, heightMm: v } })} suffix="mm" error={err("heightMm")} />
           )}
         </div>
-        <button type="button" onClick={() => set({ size: { ...d.size, lockAspectRatio: !d.size.lockAspectRatio, heightMm: round1(eff.heightMm) } })} className="inline-flex w-fit items-center gap-1.5 text-xs font-semibold text-gray-300 hover:text-white">
+        <button type="button" onClick={() => set({ size: { ...d.size, lockAspectRatio: !d.size.lockAspectRatio, heightMm: round1(eff.heightMm) } })} className="inline-flex w-fit items-center gap-1.5 text-xs font-semibold text-gray-300 hover:text-fg">
           {d.size.lockAspectRatio ? <Lock size={13} /> : <LockOpen size={13} />} Mantener proporción
         </button>
         {isMed && <span className="text-[11px] text-gray-500">{src.kind === "none" ? "Medallón liso." : "El arte se ajusta dentro del medallón (menos el margen)."}</span>}

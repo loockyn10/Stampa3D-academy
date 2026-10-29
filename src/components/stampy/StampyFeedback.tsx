@@ -75,7 +75,7 @@ export function StampyFeedback({ messageId, conversationId, source = "stampy" }:
           className={`flex items-center gap-1.5 px-2 py-1 rounded-md text-xs font-medium transition-colors ${
             rating === "positive"
               ? "bg-emerald-500/20 text-emerald-400 border border-emerald-500/30"
-              : "bg-white/5 text-gray-400 hover:bg-white/10 hover:text-gray-300 border border-transparent"
+              : "bg-fg/5 text-gray-400 hover:bg-fg/10 hover:text-gray-300 border border-transparent"
           }`}
         >
           <ThumbsUp size={14} className={rating === "positive" ? "fill-current" : ""} />
@@ -87,7 +87,7 @@ export function StampyFeedback({ messageId, conversationId, source = "stampy" }:
           className={`flex items-center gap-1.5 px-2 py-1 rounded-md text-xs font-medium transition-colors ${
             rating === "negative"
               ? "bg-red-500/20 text-red-400 border border-red-500/30"
-              : "bg-white/5 text-gray-400 hover:bg-white/10 hover:text-gray-300 border border-transparent"
+              : "bg-fg/5 text-gray-400 hover:bg-fg/10 hover:text-gray-300 border border-transparent"
           }`}
         >
           <ThumbsDown size={14} className={rating === "negative" ? "fill-current" : ""} />
@@ -96,7 +96,7 @@ export function StampyFeedback({ messageId, conversationId, source = "stampy" }:
       </div>
 
       {showNegativeForm && (
-        <div className="bg-[#1a1a1a] border border-stampa-border rounded-xl p-4 mt-2 w-full max-w-sm relative shadow-xl">
+        <div className="bg-stampa-raised border border-stampa-border rounded-xl p-4 mt-2 w-full max-w-sm relative shadow-xl">
           <button 
             onClick={() => setShowNegativeForm(false)}
             className="absolute top-2 right-2 text-gray-500 hover:text-gray-300 p-1"

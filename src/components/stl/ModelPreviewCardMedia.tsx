@@ -186,7 +186,7 @@ export function ModelPreviewCardMedia({ id, title, thumbnailUrl, previewUrl }: M
       {hasPreview && (
         <span
           data-testid="preview-360-badge"
-          className="pointer-events-none absolute bottom-2 left-2 z-10 rounded-full border border-stampa-border bg-stampa-bg-soft/80 px-2 py-0.5 text-[10px] font-bold tracking-wide text-stampa-orange backdrop-blur-sm"
+          className="pointer-events-none absolute bottom-2 left-2 z-10 rounded-full border border-stampa-border bg-stampa-bg-soft/80 px-2 py-0.5 text-[10px] font-bold tracking-wide text-stampa-accent backdrop-blur-sm"
         >
           360°
         </span>

@@ -21,9 +21,9 @@ export function LandingPricing() {
             </p>
             <div className="mt-7">
               {membershipOffer.price ? (
-                <p className="text-5xl font-black text-white">{membershipOffer.price}</p>
+                <p className="text-5xl font-black text-fg">{membershipOffer.price}</p>
               ) : (
-                <p className="max-w-sm text-3xl font-black leading-tight text-white md:text-4xl">
+                <p className="max-w-sm text-3xl font-black leading-tight text-fg md:text-4xl">
                   {membershipOffer.priceFallback}
                 </p>
               )}
@@ -49,7 +49,7 @@ export function LandingPricing() {
           </div>
 
           <div className="p-7 md:p-10">
-            <h3 className="text-xl font-bold text-white">Tu acceso incluye</h3>
+            <h3 className="text-xl font-bold text-fg">Tu acceso incluye</h3>
             <ul className="mt-6 grid gap-4 sm:grid-cols-2">
               {membershipOffer.included.map((item) => (
                 <li key={item} className="flex items-start gap-3 text-sm leading-relaxed text-zinc-300">

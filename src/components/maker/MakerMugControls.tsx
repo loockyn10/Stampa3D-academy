@@ -47,7 +47,7 @@ function InfoRow({ label, value, strong = false }: { label: string; value: strin
   return (
     <div className="flex items-baseline justify-between gap-3 text-xs">
       <span className="text-gray-500">{label}</span>
-      <span className={strong ? "font-bold text-stampa-orange" : "font-semibold text-gray-200"}>{value}</span>
+      <span className={strong ? "font-bold text-stampa-accent" : "font-semibold text-gray-200"}>{value}</span>
     </div>
   );
 }
@@ -59,7 +59,7 @@ function Toggle({ label, checked, onChange }: { label: string; checked: boolean;
         type="checkbox"
         checked={checked}
         onChange={(e) => onChange(e.target.checked)}
-        className="h-4 w-4 rounded border-white/20 bg-white/[0.06] text-stampa-orange focus:ring-2 focus:ring-stampa-orange/40 focus:ring-offset-0"
+        className="h-4 w-4 rounded border-fg/20 bg-fg/[0.06] text-stampa-accent focus:ring-2 focus:ring-stampa-orange/40 focus:ring-offset-0"
       />
       {label}
     </label>
@@ -110,7 +110,7 @@ export function MakerMugControls({ def, onChange, onApplyPreset, errors, warning
               type="button"
               title={preset.description}
               onClick={() => onApplyPreset(preset)}
-              className="rounded-lg border border-white/10 bg-white/[0.04] px-2.5 py-1.5 text-xs font-semibold text-gray-300 transition-colors hover:border-stampa-orange/50 hover:text-white"
+              className="rounded-lg border border-fg/10 bg-fg/[0.04] px-2.5 py-1.5 text-xs font-semibold text-gray-300 transition-colors hover:border-stampa-orange/50 hover:text-fg"
             >
               {preset.label}
             </button>
@@ -218,7 +218,7 @@ export function MakerMugControls({ def, onChange, onApplyPreset, errors, warning
             <SegmentedControl options={HANDLE_OPTIONS} value={def.handle.style} onChange={(style) => setHandle({ style })} compact />
             <Toggle label="Medidas automáticas (según el jarro)" checked={def.handle.auto} onChange={(auto) => setHandle(auto ? { auto } : { auto, heightMm: derived.heightMm, projectionMm: derived.projectionMm, verticalPositionPct: derived.verticalPositionPct })} />
             {def.handle.auto ? (
-              <div className="flex flex-col gap-1.5 rounded-xl border border-white/10 bg-white/[0.03] p-3">
+              <div className="flex flex-col gap-1.5 rounded-xl border border-fg/10 bg-fg/[0.03] p-3">
                 <InfoRow label="Altura" value={`${derived.heightMm} mm`} />
                 <InfoRow label="Proyección" value={`${derived.projectionMm} mm`} />
                 <InfoRow label="Posición vertical" value={`${derived.verticalPositionPct} %`} />
@@ -276,7 +276,7 @@ export function MakerMugControls({ def, onChange, onApplyPreset, errors, warning
 /** Tarjeta flotante de exportación: una sola pieza, un solo .stl (el inserto nunca se exporta). */
 export function MugExportCard({ canDownload, loading, onDownload }: { canDownload: boolean; loading: boolean; onDownload: () => void }) {
   return (
-    <div className="pointer-events-auto flex w-52 flex-col gap-2 rounded-2xl border border-white/10 bg-stampa-surface/80 p-3 shadow-lg shadow-black/30 backdrop-blur-md">
+    <div className="pointer-events-auto flex w-52 flex-col gap-2 rounded-2xl border border-fg/10 bg-stampa-surface/80 p-3 shadow-lg shadow-shade/30 backdrop-blur-md">
       <span className="text-[11px] font-semibold uppercase tracking-wide text-gray-500">Exportar</span>
       <button
         type="button"

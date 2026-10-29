@@ -185,11 +185,11 @@ export function PrintersManager() {
       )}
 
       <div className="flex justify-between items-center mb-4">
-        <h3 className="text-lg font-semibold text-white">Mis Impresoras</h3>
+        <h3 className="text-lg font-semibold text-fg">Mis Impresoras</h3>
         <div className="flex gap-2">
           <button
             onClick={openCatalog}
-            className="flex items-center gap-1.5 bg-stampa-surface border border-stampa-orange/30 text-stampa-orange hover:bg-stampa-orange/10 px-3 py-1.5 rounded-lg text-sm font-medium transition-colors"
+            className="flex items-center gap-1.5 bg-stampa-surface border border-stampa-orange/30 text-stampa-accent hover:bg-stampa-orange/10 px-3 py-1.5 rounded-lg text-sm font-medium transition-colors"
           >
             Importar desde catálogo Stampa
           </button>
@@ -227,11 +227,11 @@ export function PrintersManager() {
                 <div className="min-w-0 flex-1">
                   <div className="flex items-start justify-between gap-2">
                     <div className="min-w-0">
-                      <h4 className="truncate font-bold text-white">{p.name}</h4>
+                      <h4 className="truncate font-bold text-fg">{p.name}</h4>
                       {template && <p className="mt-1 truncate text-xs text-gray-500">{template.brand || "Catálogo Stampa"}{template.model ? ` · ${template.model}` : ""}</p>}
                     </div>
                     <div className="flex shrink-0 gap-1">
-                      <button onClick={() => { setFormData(p); setEditingId(p.id); }} className="rounded p-1 text-gray-400 transition-colors hover:bg-white/5 hover:text-stampa-orange" aria-label={`Editar ${p.name}`}>
+                      <button onClick={() => { setFormData(p); setEditingId(p.id); }} className="rounded p-1 text-gray-400 transition-colors hover:bg-fg/5 hover:text-stampa-accent" aria-label={`Editar ${p.name}`}>
                         <Edit2 size={16} />
                       </button>
                       <button onClick={() => handleDelete(p)} className="rounded p-1 text-red-400 transition-colors hover:bg-red-500/10 hover:text-red-300" title="Eliminar impresora" aria-label={`Eliminar ${p.name}`}>
@@ -255,7 +255,7 @@ export function PrintersManager() {
           )
         })}
         {printers.length === 0 && editingId !== "new" && (
-          <div className="col-span-full py-12 text-center bg-stampa-bg-soft rounded-xl border border-dashed border-white/20">
+          <div className="col-span-full py-12 text-center bg-stampa-bg-soft rounded-xl border border-dashed border-fg/20">
             <p className="text-sm text-gray-500">No tienes impresoras registradas.</p>
           </div>
         )}
@@ -266,7 +266,7 @@ export function PrintersManager() {
           <div className="bg-stampa-surface rounded-xl shadow-xl max-w-3xl w-full max-h-[90vh] flex flex-col overflow-hidden">
             <div className="p-4 border-b border-stampa-border flex justify-between items-center bg-stampa-bg-soft">
               <div>
-                <h3 className="text-lg font-bold text-white">Catálogo de Impresoras Stampa</h3>
+                <h3 className="text-lg font-bold text-fg">Catálogo de Impresoras Stampa</h3>
                 <p className="text-xs text-gray-500">Importá modelos precargados a tus impresoras.</p>
               </div>
               <button onClick={() => setShowCatalog(false)} className="text-gray-400 hover:text-gray-300">
@@ -280,13 +280,13 @@ export function PrintersManager() {
                 placeholder="Buscar por marca, modelo o nombre..." 
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
-                className="w-full text-sm border-white/20 rounded-md focus:border-stampa-orange focus:ring-stampa-orange"
+                className="w-full text-sm border-fg/20 rounded-md focus:border-stampa-orange focus:ring-stampa-orange"
               />
             </div>
 
             <div className="p-4 overflow-y-auto flex-1 bg-stampa-bg-soft/50">
               {loadingTemplates ? (
-                <div className="py-8 flex justify-center"><Loader2 className="animate-spin text-stampa-orange" /></div>
+                <div className="py-8 flex justify-center"><Loader2 className="animate-spin text-stampa-accent" /></div>
               ) : (
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                   {templates
@@ -301,7 +301,7 @@ export function PrintersManager() {
                         <Card key={t.id} className="p-4 flex flex-col hover:border-stampa-orange/30 transition-colors bg-stampa-surface">
                           <PrinterCatalogImage imagePath={t.image_path} alt={t.name} className="mb-3 aspect-[4/3] w-full rounded-lg border border-stampa-border" />
                           <div className="flex-1">
-                            <h4 className="font-bold text-white text-sm">{t.name}</h4>
+                            <h4 className="font-bold text-fg text-sm">{t.name}</h4>
                             <p className="text-xs text-gray-500 mb-2">{t.brand} {t.model}</p>
                             <div className="text-[11px] text-gray-400 bg-stampa-bg-soft p-2 rounded-md mb-3">
                               <div className="flex justify-between mb-1"><span>Consumo:</span> <strong>{t.power_watts}W</strong></div>
@@ -371,7 +371,7 @@ function PrinterEditor({ formData, setFormData, onSave, onCancel }: any) {
           </div>
         </div>
         <div className="flex items-center gap-2 pt-1">
-          <input type="checkbox" name="is_active" checked={formData.is_active} onChange={handleChange} className="rounded text-stampa-orange focus:ring-[#ff6a00]/20" />
+          <input type="checkbox" name="is_active" checked={formData.is_active} onChange={handleChange} className="rounded text-stampa-accent focus:ring-[#ff6a00]/20" />
           <label className="text-sm font-medium text-gray-300">Impresora Activa</label>
         </div>
       </div>

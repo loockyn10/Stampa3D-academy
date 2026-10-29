@@ -208,7 +208,7 @@ export function BusinessDashboardView({
                 aria-pressed={period === value}
                 onClick={() => onPeriodChange(value)}
                 className={`min-h-9 rounded-lg px-4 text-xs font-bold transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-stampa-orange ${
-                  period === value ? "bg-stampa-orange text-neutral-950" : "text-gray-400 hover:text-white"
+                  period === value ? "bg-stampa-orange text-neutral-950" : "text-gray-400 hover:text-fg"
                 }`}
               >
                 {value === "week" ? "Semana" : "Mes"}
@@ -264,7 +264,7 @@ export function BusinessDashboardView({
 
       {hasNoActivity ? (
         <section className="mt-5 rounded-2xl border border-stampa-orange/20 bg-gradient-to-br from-stampa-orange/10 to-transparent p-4 sm:p-5" aria-labelledby="business-onboarding-title">
-          <h2 id="business-onboarding-title" className="text-base font-bold text-white">Empezá a vender con Stampa</h2>
+          <h2 id="business-onboarding-title" className="text-base font-bold text-fg">Empezá a vender con Stampa</h2>
           <p className="mt-1 text-sm text-gray-400">Todavía no registraste ventas. Estos son los primeros pasos:</p>
           <ol className="mt-3 grid grid-cols-1 gap-2 sm:grid-cols-3">
             <OnboardingStep n={1} href="/mi-negocio/catalogo" title="Armá tu catálogo" text="Vinculá productos de Mi Taller o cargá artículos de reventa." />
@@ -290,7 +290,7 @@ export function BusinessDashboardView({
                   return (
                     <li key={sale.id} className="flex items-center gap-3 py-2.5 first:pt-0 last:pb-0">
                       <div className="min-w-0 flex-1">
-                        <p className={`truncate text-sm font-semibold ${voided ? "text-gray-400 line-through" : "text-white"}`}>
+                        <p className={`truncate text-sm font-semibold ${voided ? "text-gray-400 line-through" : "text-fg"}`}>
                           #{sale.sale_number} · {firstItem ? `${firstItem}${more}` : "Venta"}
                         </p>
                         <p className="truncate text-xs text-gray-400">
@@ -300,7 +300,7 @@ export function BusinessDashboardView({
                         </p>
                       </div>
                       <div className="shrink-0 text-right">
-                        <p className={`text-sm font-bold tabular-nums ${voided ? "text-gray-400 line-through" : "text-white"}`}>{moneyPrecise.format(sale.total)}</p>
+                        <p className={`text-sm font-bold tabular-nums ${voided ? "text-gray-400 line-through" : "text-fg"}`}>{moneyPrecise.format(sale.total)}</p>
                         {voided ? (
                           <span className="text-[10px] font-bold uppercase text-gray-400">Anulada</span>
                         ) : sale.debtAmount > 0 ? (
@@ -329,7 +329,7 @@ export function BusinessDashboardView({
                         alert.tone === "red" ? "border-red-500/25" : alert.tone === "yellow" ? "border-yellow-500/25" : "border-stampa-border"
                       }`}
                     >
-                      <p className={`text-sm font-semibold ${alert.tone === "red" ? "text-red-200" : alert.tone === "yellow" ? "text-yellow-200" : "text-white"}`}>{alert.title}</p>
+                      <p className={`text-sm font-semibold ${alert.tone === "red" ? "text-red-200" : alert.tone === "yellow" ? "text-yellow-200" : "text-fg"}`}>{alert.title}</p>
                       <p className="mt-0.5 text-xs leading-snug text-gray-400">{alert.description}</p>
                     </Link>
                   </li>
@@ -357,7 +357,7 @@ export function BusinessDashboardView({
               <ol className="space-y-2">
                 {metrics.topProducts.slice(0, 5).map((product, index) => (
                   <li key={product.catalogItemId} className="flex items-center gap-3">
-                    <span className="flex h-6 w-6 shrink-0 items-center justify-center rounded-md bg-white/5 text-[11px] font-bold text-gray-400">{index + 1}</span>
+                    <span className="flex h-6 w-6 shrink-0 items-center justify-center rounded-md bg-fg/5 text-[11px] font-bold text-gray-400">{index + 1}</span>
                     <span className="min-w-0 flex-1 truncate text-sm text-gray-200">{product.name}</span>
                     <span className="shrink-0 text-xs tabular-nums text-gray-400">{product.units} u.</span>
                   </li>
@@ -378,7 +378,7 @@ export function BusinessDashboardView({
 function ToolsPanel({ className = "" }: { className?: string }) {
   return (
     <section aria-labelledby="business-tools-title" className={`min-w-0 rounded-2xl border border-stampa-border bg-stampa-surface p-4 sm:p-5 ${className}`}>
-      <h2 id="business-tools-title" className="mb-3 text-sm font-bold text-white">Herramientas</h2>
+      <h2 id="business-tools-title" className="mb-3 text-sm font-bold text-fg">Herramientas</h2>
       <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
         {BUSINESS_TOOL_GROUPS.map((group) => (
           <div key={group.title} className="min-w-0">
@@ -388,12 +388,12 @@ function ToolsPanel({ className = "" }: { className?: string }) {
                 const Icon = tool.icon;
                 return (
                   <li key={tool.href}>
-                    <Link href={tool.href} className="flex min-h-11 items-center gap-3 rounded-lg px-2 py-1.5 transition-colors hover:bg-white/[0.04] focus:outline-none focus-visible:ring-2 focus-visible:ring-stampa-orange">
-                      <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-stampa-orange/10 text-stampa-orange" aria-hidden="true">
+                    <Link href={tool.href} className="flex min-h-11 items-center gap-3 rounded-lg px-2 py-1.5 transition-colors hover:bg-fg/[0.04] focus:outline-none focus-visible:ring-2 focus-visible:ring-stampa-orange">
+                      <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-stampa-orange/10 text-stampa-accent" aria-hidden="true">
                         <Icon size={16} />
                       </span>
                       <span className="min-w-0">
-                        <span className="block text-sm font-semibold text-white">{tool.title}</span>
+                        <span className="block text-sm font-semibold text-fg">{tool.title}</span>
                         <span className="block truncate text-xs text-gray-400">{tool.description}</span>
                       </span>
                     </Link>
@@ -413,7 +413,7 @@ function QuickAction({ href, icon: Icon, label, primary = false }: { href: strin
     <Link
       href={href}
       className={`flex min-h-14 flex-col items-center justify-center gap-1 rounded-xl px-2 text-center text-xs font-bold leading-tight transition-colors sm:min-h-11 sm:flex-row sm:gap-2 sm:px-3 sm:text-sm focus:outline-none focus-visible:ring-2 focus-visible:ring-stampa-orange ${
-        primary ? "bg-stampa-orange text-neutral-950 hover:bg-stampa-orange-hover" : "border border-stampa-border bg-stampa-surface text-white hover:bg-white/5"
+        primary ? "bg-stampa-orange text-neutral-950 hover:bg-stampa-orange-hover" : "border border-stampa-border bg-stampa-surface text-fg hover:bg-fg/5"
       }`}
     >
       <Icon size={16} aria-hidden="true" /> {label}
@@ -425,7 +425,7 @@ function OnboardingStep({ n, href, title, text }: { n: number; href: string; tit
   return (
     <li>
       <Link href={href} className="block h-full rounded-xl border border-stampa-border bg-stampa-surface p-3 transition-colors hover:border-stampa-orange/40 focus:outline-none focus-visible:ring-2 focus-visible:ring-stampa-orange">
-        <span className="block text-sm font-semibold text-white">{n}. {title}</span>
+        <span className="block text-sm font-semibold text-fg">{n}. {title}</span>
         <span className="mt-0.5 block text-xs leading-snug text-gray-400">{text}</span>
       </Link>
     </li>
@@ -436,7 +436,7 @@ function RowsSkeleton({ rows }: { rows: number }) {
   return (
     <div className="space-y-2" aria-hidden="true">
       {Array.from({ length: rows }).map((_, index) => (
-        <div key={index} className="h-9 animate-pulse rounded-lg bg-white/5" />
+        <div key={index} className="h-9 animate-pulse rounded-lg bg-fg/5" />
       ))}
     </div>
   );

@@ -5,6 +5,7 @@ import { usePathname } from "next/navigation";
 import { Bell, ChevronDown } from "lucide-react";
 import Link from "next/link";
 import { GlobalSearch } from "@/components/search/GlobalSearch";
+import { ThemeMenu } from "@/components/theme/theme-switcher";
 import type { UserAccessSnapshot } from "@/lib/auth/user-access";
 
 interface HeaderProps {
@@ -110,7 +111,7 @@ export function Header({ access, loading }: HeaderProps) {
     <header className="sticky top-0 z-20 hidden h-16 items-center border-b border-stampa-border bg-stampa-bg/80 px-8 backdrop-blur lg:flex">
       {/* 1. Izquierda: Título */}
       <div className="flex flex-1 items-center gap-3 min-w-0">
-        <h1 className="truncate text-base font-bold text-white">{title}</h1>
+        <h1 className="truncate text-base font-bold text-fg">{title}</h1>
       </div>
 
       {/* 2. Centro: Buscador global */}
@@ -120,21 +121,22 @@ export function Header({ access, loading }: HeaderProps) {
 
       {/* 3. Derecha: Iconos y perfil */}
       <div className="flex flex-1 items-center justify-end gap-3">
-        <button className="relative flex h-9 w-9 items-center justify-center rounded-xl text-gray-400 hover:bg-white/5 hover:text-white transition-colors">
+        <ThemeMenu />
+        <button className="relative flex h-9 w-9 items-center justify-center rounded-xl text-gray-400 hover:bg-fg/5 hover:text-fg transition-colors">
           <Bell size={18} />
           <span className="absolute right-2 top-2 h-1.5 w-1.5 rounded-full bg-stampa-orange" />
         </button>
 
-        <Link href="/perfil" className="flex items-center gap-2 rounded-xl py-1 pl-1 pr-2 hover:bg-white/5 transition-colors">
+        <Link href="/perfil" className="flex items-center gap-2 rounded-xl py-1 pl-1 pr-2 hover:bg-fg/5 transition-colors">
           {identity?.avatarUrl ? (
             <img src={identity.avatarUrl} alt="Avatar" className="h-8 w-8 rounded-full object-cover shrink-0" />
           ) : (
-            <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-orange-100 text-sm font-bold text-stampa-orange">
+            <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-orange-100 text-sm font-bold text-stampa-accent">
               {getInitials()}
             </div>
           )}
           <div className="hidden text-left sm:block min-w-max">
-            <p className="text-xs font-semibold leading-none text-white truncate max-w-[120px]">
+            <p className="text-xs font-semibold leading-none text-fg truncate max-w-[120px]">
               {identity?.fullName || identity?.displayName || identity?.email || "Mi perfil"}
             </p>
             <p className="mt-0.5 text-[11px] leading-none text-gray-400 truncate max-w-[120px]">

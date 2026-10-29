@@ -13,7 +13,7 @@ export default function AdminConfigCursosPage() {
         >
           <ArrowLeft size={14} /> Volver al admin
         </Link>
-        <h1 className="text-2xl font-bold text-white flex items-center gap-2">
+        <h1 className="text-2xl font-bold text-fg flex items-center gap-2">
           <Settings2 className="text-blue-400" />
           Configuración de Cursos
         </h1>

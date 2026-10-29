@@ -30,7 +30,7 @@ const MODE_OPTIONS: { value: MugAiMode; label: string }[] = [
 
 const btnBase = "inline-flex h-8 items-center justify-center gap-1.5 rounded-lg px-3 text-xs font-semibold transition-colors disabled:cursor-not-allowed disabled:opacity-50";
 const btnPrimary = `${btnBase} border border-transparent bg-stampa-orange text-neutral-950 hover:bg-stampa-orange-hover`;
-const btnGhost = `${btnBase} border border-white/10 bg-white/[0.04] text-gray-300 hover:border-stampa-orange/50 hover:text-white`;
+const btnGhost = `${btnBase} border border-fg/10 bg-fg/[0.04] text-gray-300 hover:border-stampa-orange/50 hover:text-fg`;
 
 function assetInfos(assets: ReadonlyMap<string, MugAsset>): MugAiAssetInfo[] {
   return [...assets.values()].map((a) => ({ id: a.id, kind: a.kind === "svg" ? "svg" : a.format, fileName: a.fileName }));
@@ -192,7 +192,7 @@ export function MakerMugAiDesigner({ def, assets, onPreview, onApply }: Props) {
                 rows={4}
                 disabled={loading}
                 placeholder={mode === "full" ? "Quiero un jarro medieval robusto, tipo barril…" : "Quiero el asa más grande y el cuerpo menos gordo."}
-                className="w-full resize-y rounded-lg border border-white/10 bg-white/[0.04] px-2.5 py-2 text-xs text-gray-100 placeholder:text-gray-600 focus:border-stampa-orange/60 focus:outline-none disabled:opacity-60"
+                className="w-full resize-y rounded-lg border border-fg/10 bg-fg/[0.04] px-2.5 py-2 text-xs text-gray-100 placeholder:text-gray-600 focus:border-stampa-orange/60 focus:outline-none disabled:opacity-60"
               />
               <span className="self-end text-[10px] text-gray-600">{prompt.length}/{MUG_AI_LIMITS.promptMax}</span>
             </div>
@@ -207,7 +207,7 @@ export function MakerMugAiDesigner({ def, assets, onPreview, onApply }: Props) {
                     setPrompt(ex.prompt);
                     setMode("full");
                   }}
-                  className="rounded-full border border-white/10 bg-white/[0.04] px-2.5 py-1 text-[11px] font-semibold text-gray-300 transition-colors hover:border-stampa-orange/50 hover:text-white disabled:opacity-50"
+                  className="rounded-full border border-fg/10 bg-fg/[0.04] px-2.5 py-1 text-[11px] font-semibold text-gray-300 transition-colors hover:border-stampa-orange/50 hover:text-fg disabled:opacity-50"
                 >
                   {ex.label}
                 </button>
@@ -241,8 +241,8 @@ export function MakerMugAiDesigner({ def, assets, onPreview, onApply }: Props) {
 
             {effective && next && validation && (
               <section aria-label="Propuesta de la IA" className="flex flex-col gap-2 rounded-xl border border-stampa-orange/30 bg-stampa-orange/[0.06] p-3">
-                <h3 className="text-[11px] font-semibold uppercase tracking-wide text-stampa-orange">Propuesta IA</h3>
-                <p className="text-sm font-bold text-white">{effective.name}</p>
+                <h3 className="text-[11px] font-semibold uppercase tracking-wide text-stampa-accent">Propuesta IA</h3>
+                <p className="text-sm font-bold text-fg">{effective.name}</p>
                 {effective.description && <p className="text-xs text-gray-300">{effective.description}</p>}
 
                 {diff.length > 0 ? (
@@ -252,7 +252,7 @@ export function MakerMugAiDesigner({ def, assets, onPreview, onApply }: Props) {
                         <span className="text-gray-400">{d.label}: </span>
                         {d.kind === "added" ? <span className="font-semibold text-emerald-300">+ {d.after}</span> : d.kind === "removed" ? <span className="font-semibold text-red-300">− {d.before}</span> : (
                           <>
-                            <span className="text-gray-400">{d.before}</span> → <span className="font-semibold text-white">{d.after}</span>
+                            <span className="text-gray-400">{d.before}</span> → <span className="font-semibold text-fg">{d.after}</span>
                           </>
                         )}
                       </li>
@@ -267,13 +267,13 @@ export function MakerMugAiDesigner({ def, assets, onPreview, onApply }: Props) {
                 )}
 
                 {pending.map((idx) => (
-                  <div key={idx} className="flex flex-col gap-1 rounded-lg border border-white/10 bg-white/[0.04] p-2">
+                  <div key={idx} className="flex flex-col gap-1 rounded-lg border border-fg/10 bg-fg/[0.04] p-2">
                     <label htmlFor={`${uid}-asset-${idx}`} className="text-xs font-semibold text-gray-200">¿Qué archivo querés usar en la decoración?</label>
                     <select
                       id={`${uid}-asset-${idx}`}
                       value={choices[idx] ?? ""}
                       onChange={(e) => setChoices((c) => ({ ...c, [idx]: e.target.value }))}
-                      className="rounded-md border border-white/10 bg-stampa-surface px-2 py-1 text-xs text-gray-100"
+                      className="rounded-md border border-fg/10 bg-stampa-surface px-2 py-1 text-xs text-gray-100"
                     >
                       <option value="">Elegí un archivo…</option>
                       {assetList.map((a) => <option key={a.id} value={a.id}>{a.fileName}</option>)}

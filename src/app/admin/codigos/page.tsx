@@ -292,7 +292,7 @@ export default function AdminCodigosPage() {
         </div>
         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
           <div>
-            <h1 className="text-2xl font-bold text-white flex items-center gap-2">
+            <h1 className="text-2xl font-bold text-fg flex items-center gap-2">
               <Gift className="text-orange-400" size={24} />
               Gestión de Códigos
             </h1>
@@ -312,11 +312,11 @@ export default function AdminCodigosPage() {
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
         <Card className="p-4 border-stampa-border bg-stampa-surface flex flex-col items-center justify-center text-center">
           <p className="text-gray-400 text-xs font-semibold uppercase tracking-wider mb-1">Activos</p>
-          <p className="text-2xl font-bold text-white">{stats.totalActive}</p>
+          <p className="text-2xl font-bold text-fg">{stats.totalActive}</p>
         </Card>
         <Card className="p-4 border-stampa-border bg-stampa-surface flex flex-col items-center justify-center text-center">
           <p className="text-gray-400 text-xs font-semibold uppercase tracking-wider mb-1">Usos Totales</p>
-          <p className="text-2xl font-bold text-white">{stats.totalUses}</p>
+          <p className="text-2xl font-bold text-fg">{stats.totalUses}</p>
         </Card>
         <Card className="p-4 border-stampa-border bg-stampa-surface flex flex-col items-center justify-center text-center">
           <p className="text-gray-400 text-xs font-semibold uppercase tracking-wider mb-1">Betas</p>
@@ -342,7 +342,7 @@ export default function AdminCodigosPage() {
       {/* Form */}
       {showForm && (
         <Card className="p-6 border-stampa-orange/30 bg-stampa-orange/5">
-          <h3 className="font-bold text-white text-base mb-4 flex items-center gap-2">
+          <h3 className="font-bold text-fg text-base mb-4 flex items-center gap-2">
             {editingId ? <Edit size={16} className="text-orange-400" /> : <Plus size={16} className="text-orange-400" />}
             {editingId ? "Editar código" : "Nuevo código"}
           </h3>
@@ -351,8 +351,8 @@ export default function AdminCodigosPage() {
               <label className="block text-xs font-semibold text-gray-400 uppercase tracking-wider mb-1.5">Código</label>
               <div className="flex gap-2">
                 <input type="text" value={newCode} onChange={e => setNewCode(e.target.value.toUpperCase().trim())}
-                  placeholder="EJ: PROMO50" className="w-full rounded-xl border border-stampa-border px-3 py-2.5 text-sm text-white bg-white/5 focus:outline-none focus:border-stampa-orange/50 font-mono" />
-                <button type="button" onClick={() => handleGenerateCode(codeType)} className="px-3 rounded-xl bg-white/10 hover:bg-white/20 text-gray-300 text-xs font-semibold border border-stampa-border transition-colors">
+                  placeholder="EJ: PROMO50" className="w-full rounded-xl border border-stampa-border px-3 py-2.5 text-sm text-fg bg-fg/5 focus:outline-none focus:border-stampa-orange/50 font-mono" />
+                <button type="button" onClick={() => handleGenerateCode(codeType)} className="px-3 rounded-xl bg-fg/10 hover:bg-fg/20 text-gray-300 text-xs font-semibold border border-stampa-border transition-colors">
                   Generar
                 </button>
               </div>
@@ -360,7 +360,7 @@ export default function AdminCodigosPage() {
             <div>
               <label className="block text-xs font-semibold text-gray-400 uppercase tracking-wider mb-1.5">Título (Opcional)</label>
               <input type="text" value={title} onChange={e => setTitle(e.target.value)}
-                placeholder="Ej: Beta testers agosto" className="w-full rounded-xl border border-stampa-border px-3 py-2.5 text-sm text-white bg-white/5 focus:outline-none focus:border-stampa-orange/50" />
+                placeholder="Ej: Beta testers agosto" className="w-full rounded-xl border border-stampa-border px-3 py-2.5 text-sm text-fg bg-fg/5 focus:outline-none focus:border-stampa-orange/50" />
             </div>
 
             <div className="sm:col-span-2 border-t border-stampa-border pt-4 mt-2">
@@ -371,7 +371,7 @@ export default function AdminCodigosPage() {
                 setDiscountDuration("forever");
                 setAccessExpiresAt("");
               }}
-                className="w-full rounded-xl border border-stampa-border px-3 py-2.5 text-sm text-white bg-stampa-surface focus:outline-none focus:border-stampa-orange/50">
+                className="w-full rounded-xl border border-stampa-border px-3 py-2.5 text-sm text-fg bg-stampa-surface focus:outline-none focus:border-stampa-orange/50">
                 <option value="beta_tester">Beta Tester (Acceso a la app)</option>
                 <option value="manual_free_access">Acceso Gratis Temporal (Membresía bonificada)</option>
                 <option value="discount_percent">Descuento Porcentual (%)</option>
@@ -397,7 +397,7 @@ export default function AdminCodigosPage() {
               <div className="sm:col-span-2">
                 <label className="block text-xs font-semibold text-gray-400 uppercase tracking-wider mb-1.5">Acceso caduca el (Opcional)</label>
                 <input type="date" value={accessExpiresAt} onChange={e => setAccessExpiresAt(e.target.value)}
-                  className="w-full rounded-xl border border-stampa-border px-3 py-2.5 text-sm text-white bg-white/5 focus:outline-none focus:border-stampa-orange/50" />
+                  className="w-full rounded-xl border border-stampa-border px-3 py-2.5 text-sm text-fg bg-fg/5 focus:outline-none focus:border-stampa-orange/50" />
                 <p className="text-xs text-gray-500 mt-1">Si queda vacío, el acceso no tiene fecha de vencimiento.</p>
               </div>
             ) : (
@@ -408,12 +408,12 @@ export default function AdminCodigosPage() {
                   </label>
                   <input type="number" value={discountValue} onChange={e => setDiscountValue(e.target.value)}
                     placeholder={codeType === "discount_percent" ? "50" : "19900"}
-                    className="w-full rounded-xl border border-stampa-border px-3 py-2.5 text-sm text-white bg-white/5 focus:outline-none focus:border-stampa-orange/50" />
+                    className="w-full rounded-xl border border-stampa-border px-3 py-2.5 text-sm text-fg bg-fg/5 focus:outline-none focus:border-stampa-orange/50" />
                 </div>
                 <div>
                   <label className="block text-xs font-semibold text-gray-400 uppercase tracking-wider mb-1.5">Duración del descuento</label>
                   <select value={discountDuration} onChange={e => setDiscountDuration(e.target.value)}
-                    className="w-full rounded-xl border border-stampa-border px-3 py-2.5 text-sm text-white bg-stampa-surface focus:outline-none focus:border-stampa-orange/50">
+                    className="w-full rounded-xl border border-stampa-border px-3 py-2.5 text-sm text-fg bg-stampa-surface focus:outline-none focus:border-stampa-orange/50">
                     <option value="once" disabled>Solo el primer mes (no disponible todavía)</option>
                     <option value="forever">Para siempre (recurrente)</option>
                   </select>
@@ -427,22 +427,22 @@ export default function AdminCodigosPage() {
               <label className="block text-xs font-semibold text-gray-400 uppercase tracking-wider mb-1.5">Límite de usos</label>
               <input type="number" value={maxUses} onChange={e => setMaxUses(e.target.value)}
                 placeholder="Ej: 50 (vacío = sin límite)" min="1"
-                className="w-full rounded-xl border border-stampa-border px-3 py-2.5 text-sm text-white bg-white/5 focus:outline-none focus:border-stampa-orange/50" />
+                className="w-full rounded-xl border border-stampa-border px-3 py-2.5 text-sm text-fg bg-fg/5 focus:outline-none focus:border-stampa-orange/50" />
             </div>
             <div>
               <label className="block text-xs font-semibold text-gray-400 uppercase tracking-wider mb-1.5">Vencimiento del código (No del acceso)</label>
               <input type="date" value={expiresAt} onChange={e => setExpiresAt(e.target.value)}
-                className="w-full rounded-xl border border-stampa-border px-3 py-2.5 text-sm text-white bg-white/5 focus:outline-none focus:border-stampa-orange/50" />
+                className="w-full rounded-xl border border-stampa-border px-3 py-2.5 text-sm text-fg bg-fg/5 focus:outline-none focus:border-stampa-orange/50" />
             </div>
             
             <div className="sm:col-span-2">
               <label className="block text-xs font-semibold text-gray-400 uppercase tracking-wider mb-1.5">Notas internas</label>
               <textarea value={notes} onChange={e => setNotes(e.target.value)} rows={2}
-                placeholder="Opcional..." className="w-full rounded-xl border border-stampa-border px-3 py-2.5 text-sm text-white bg-white/5 focus:outline-none focus:border-stampa-orange/50 resize-none" />
+                placeholder="Opcional..." className="w-full rounded-xl border border-stampa-border px-3 py-2.5 text-sm text-fg bg-fg/5 focus:outline-none focus:border-stampa-orange/50 resize-none" />
             </div>
           </div>
           <div className="flex gap-2 mt-5">
-            <button onClick={() => setShowForm(false)} className="flex-1 px-4 py-2.5 rounded-xl text-sm font-semibold text-gray-400 bg-white/5 border border-stampa-border hover:bg-white/10 transition-colors">
+            <button onClick={() => setShowForm(false)} className="flex-1 px-4 py-2.5 rounded-xl text-sm font-semibold text-gray-400 bg-fg/5 border border-stampa-border hover:bg-fg/10 transition-colors">
               Cancelar
             </button>
             <button onClick={handleSave} disabled={creating} className="flex-1 flex justify-center items-center gap-2 px-4 py-2.5 rounded-xl text-sm font-semibold text-white bg-stampa-orange hover:bg-stampa-orange transition-colors disabled:opacity-60">
@@ -459,7 +459,7 @@ export default function AdminCodigosPage() {
           <Loader2 className="animate-spin h-8 w-8 text-orange-400" />
         </div>
       ) : codes.length === 0 ? (
-        <Card className="p-10 text-center border-dashed border-white/20 bg-stampa-surface">
+        <Card className="p-10 text-center border-dashed border-fg/20 bg-stampa-surface">
           <Tag size={32} className="text-gray-600 mx-auto mb-3" />
           <p className="text-gray-400 font-semibold">No hay códigos creados.</p>
         </Card>
@@ -478,7 +478,7 @@ export default function AdminCodigosPage() {
                   <th className="px-5 py-3 text-right">Acciones</th>
                 </tr>
               </thead>
-              <tbody className="divide-y divide-white/5">
+              <tbody className="divide-y divide-fg/5">
                 {codes.map(c => {
                   const isActive = c.status === "active";
                   const isExpired = c.expires_at && new Date(c.expires_at) < new Date();
@@ -489,7 +489,7 @@ export default function AdminCodigosPage() {
                     <tr key={c.id} className="text-sm hover:bg-stampa-bg-soft transition-colors">
                       <td className="px-5 py-3">
                         <div className="flex flex-col">
-                          <span className="font-mono font-bold text-white tracking-widest">{c.code}</span>
+                          <span className="font-mono font-bold text-fg tracking-widest">{c.code}</span>
                           {c.title && <span className="text-[11px] text-gray-500">{c.title}</span>}
                         </div>
                       </td>
@@ -512,17 +512,17 @@ export default function AdminCodigosPage() {
                         <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-semibold ${
                           effectiveStatus === "active" ? "bg-green-500/10 text-green-300 border border-green-500/30" :
                           effectiveStatus === "expired" || effectiveStatus === "depleted" ? "bg-red-500/10 text-red-300 border border-red-500/30" :
-                          "bg-white/5 text-gray-400 border border-stampa-border"
+                          "bg-fg/5 text-gray-400 border border-stampa-border"
                         }`}>
                           {effectiveStatus === "active" ? "Activo" : effectiveStatus === "inactive" ? "Inactivo" : effectiveStatus === "expired" ? "Vencido" : "Agotado"}
                         </span>
                       </td>
                       <td className="px-5 py-3">
                         <div className="flex items-center justify-end gap-2">
-                          <button onClick={() => handleCopy(c.code, c.id)} title="Copiar link" className={`flex items-center gap-1 p-1.5 rounded-lg text-xs font-semibold transition-colors ${copiedId === c.id ? "bg-green-500/10 text-green-400" : "text-gray-400 hover:bg-white/10 hover:text-white"}`}>
+                          <button onClick={() => handleCopy(c.code, c.id)} title="Copiar link" className={`flex items-center gap-1 p-1.5 rounded-lg text-xs font-semibold transition-colors ${copiedId === c.id ? "bg-green-500/10 text-green-400" : "text-gray-400 hover:bg-fg/10 hover:text-fg"}`}>
                             {copiedId === c.id ? <Check size={14} /> : <Link2 size={14} />}
                           </button>
-                          <button onClick={() => openEditForm(c)} title="Editar" className="p-1.5 rounded-lg text-gray-400 hover:bg-white/10 hover:text-white transition-colors">
+                          <button onClick={() => openEditForm(c)} title="Editar" className="p-1.5 rounded-lg text-gray-400 hover:bg-fg/10 hover:text-fg transition-colors">
                             <Edit size={14} />
                           </button>
                           <button onClick={() => handleToggleStatus(c.id, c.status)} title={isActive ? "Desactivar" : "Activar"} className={`p-1.5 rounded-lg transition-colors ${isActive ? "text-red-400 hover:bg-red-500/10" : "text-green-400 hover:bg-green-500/10"}`}>

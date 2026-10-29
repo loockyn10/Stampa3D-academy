@@ -6,6 +6,7 @@ import { Shield } from "lucide-react";
 import { GlobalSearch } from "@/components/search/GlobalSearch";
 import type { UserAccessSnapshot } from "@/lib/auth/user-access";
 import { useFeatureVisibility } from "@/components/features/feature-flags-provider";
+import { ThemeMenu } from "@/components/theme/theme-switcher";
 
 interface MobileHeaderProps {
   access: UserAccessSnapshot | null;
@@ -37,7 +38,7 @@ export function MobileHeader({ access, loading }: MobileHeaderProps) {
         <Link
           href={isFree ? freeHome : "/"}
           aria-label="Ir al inicio"
-          className="flex h-11 min-w-11 items-center gap-2 rounded-xl px-1 transition-colors active:bg-white/5"
+          className="flex h-11 min-w-11 items-center gap-2 rounded-xl px-1 transition-colors active:bg-fg/5"
         >
           <Image
             src="/favicon.svg"
@@ -47,10 +48,11 @@ export function MobileHeader({ access, loading }: MobileHeaderProps) {
             priority
             className="h-[34px] w-[34px] shrink-0 object-contain"
           />
-          <span className="text-sm font-bold text-white">Stampa</span>
+          <span className="text-sm font-bold text-fg">Stampa</span>
         </Link>
 
         <div className="flex items-center gap-1">
+          <ThemeMenu />
           {isAdmin && (
             <Link
               href="/admin"
@@ -65,16 +67,16 @@ export function MobileHeader({ access, loading }: MobileHeaderProps) {
           <Link
             href="/perfil"
             aria-label="Abrir mi perfil"
-            className="flex h-11 w-11 items-center justify-center rounded-xl transition-colors active:bg-white/5"
+            className="flex h-11 w-11 items-center justify-center rounded-xl transition-colors active:bg-fg/5"
           >
             {identity?.avatarUrl ? (
               <img
                 src={identity.avatarUrl}
                 alt="Avatar"
-                className="h-9 w-9 rounded-full border border-white/10 object-cover"
+                className="h-9 w-9 rounded-full border border-fg/10 object-cover"
               />
             ) : (
-              <span className="flex h-9 w-9 items-center justify-center rounded-full border border-stampa-orange/25 bg-stampa-orange/10 text-xs font-bold text-stampa-orange">
+              <span className="flex h-9 w-9 items-center justify-center rounded-full border border-stampa-orange/25 bg-stampa-orange/10 text-xs font-bold text-stampa-accent">
                 {getInitials(access)}
               </span>
             )}
