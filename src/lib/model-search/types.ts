@@ -106,7 +106,8 @@ export interface ModelSearchProvider {
   search(input: ProviderSearchInput): Promise<ProviderSearchPage>;
 }
 
-export type SourceStatusCode = "ok" | "timeout" | "error" | "disabled" | "unsupported";
+/** `rate_limited`: la fuente respondió 429. `disabled`: sin credencial configurada. `unsupported`: no puede aplicar el filtro pedido. */
+export type SourceStatusCode = "ok" | "timeout" | "error" | "rate_limited" | "disabled" | "unsupported";
 
 export interface SourceStatus {
   id: ModelSourceId;

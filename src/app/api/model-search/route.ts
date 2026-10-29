@@ -56,7 +56,7 @@ export async function GET(request: NextRequest) {
   if (hasFilters && !hasProviderForFilters(providers, sources, filters)) return jsonError("unsupported_filter", 400);
 
   try {
-    const response = await searchModels({ query, sources, filters, cursor }, { providers });
+    const response = await searchModels({ query, sources, filters, cursor, signal: request.signal }, { providers });
     // Si la próxima página supera el tope del viewer, no se ofrece cursor y la UI invita a crear cuenta.
     const next = decodeCursor(response.nextCursor);
     const gated = next !== null && cursorDepth(next) > maxPages;

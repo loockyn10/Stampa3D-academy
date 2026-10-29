@@ -12,6 +12,7 @@ import type {
 import { ProviderHttpError } from "./types";
 import { createTtlCache, type TtlCache } from "./cache";
 import { encodeCursor } from "./params";
+import { dedupeAcrossSources } from "./results";
 import { createDefaultProviders } from "./registry";
 
 export const PROVIDER_TIMEOUT_MS = 4500;
@@ -27,6 +28,8 @@ export interface ModelSearchRequest {
   sources: ModelSourceId[] | null;
   filters: ModelSearchFilters;
   cursor: ModelSearchCursor;
+  /** Cancelación del llamador (p. ej. el navegador cerró la request): aborta también los pedidos a las fuentes. */
+  signal?: AbortSignal;
 }
 
 export interface ModelSearchDeps {
@@ -43,7 +46,7 @@ class ProviderTimeoutError extends Error {
   }
 }
 
-function withTimeout<T>(run: (signal: AbortSignal) => Promise<T>, timeoutMs: number): Promise<T> {
+function withTimeout<T>(run: (signal: AbortSignal) => Promise<T>, timeoutMs: number, outer?: AbortSignal): Promise<T> {
   const controller = new AbortController();
   let timer: ReturnType<typeof setTimeout> | undefined;
   const timeout = new Promise<never>((_, reject) => {
@@ -52,13 +55,20 @@ function withTimeout<T>(run: (signal: AbortSignal) => Promise<T>, timeoutMs: num
       reject(new ProviderTimeoutError());
     }, timeoutMs);
   });
+  const onOuterAbort = () => controller.abort();
+  if (outer?.aborted) controller.abort();
+  else outer?.addEventListener("abort", onOuterAbort, { once: true });
   // Promise.race también corta providers que ignoren la señal de aborto.
-  return Promise.race([run(controller.signal), timeout]).finally(() => clearTimeout(timer));
+  return Promise.race([run(controller.signal), timeout]).finally(() => {
+    clearTimeout(timer);
+    outer?.removeEventListener("abort", onOuterAbort);
+  });
 }
 
 function classifyFailure(error: unknown): SourceStatusCode {
   if (error instanceof ProviderTimeoutError) return "timeout";
   if (error instanceof Error && error.name === "AbortError") return "timeout";
+  if (error instanceof ProviderHttpError && error.status === 429) return "rate_limited";
   return "error";
 }
 
@@ -139,6 +149,7 @@ export async function searchModels(request: ModelSearchRequest, deps: ModelSearc
       const providerData = await withTimeout(
         (signal) => provider.search({ query: request.query, filters: request.filters, page, perPage, signal }),
         timeoutMs,
+        request.signal,
       );
       const data = applyReliablePriceFilter(providerData, request.filters);
       cache.set(key, data);
@@ -175,7 +186,7 @@ export async function searchModels(request: ModelSearchRequest, deps: ModelSearc
     sources.push({ id, status: "ok", count: data.results.length, hasMore: data.hasMore });
   });
 
-  return { results: interleaveResults(lists), sources, nextCursor: encodeCursor(nextCursor) };
+  return { results: dedupeAcrossSources(interleaveResults(lists)), sources, nextCursor: encodeCursor(nextCursor) };
 }
 
 /** Providers habilitados y sus capacidades, para que la UI no ofrezca filtros u opciones que no existen. */

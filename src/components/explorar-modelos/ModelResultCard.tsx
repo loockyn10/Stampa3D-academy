@@ -83,7 +83,7 @@ export function ModelResultCard({ result, canCalculate }: ModelResultCardProps) 
 
       <div className="flex flex-1 flex-col gap-3 p-4">
         <div className="min-w-0">
-          <h3 className="line-clamp-2 break-words text-sm font-bold leading-snug text-fg">{result.title}</h3>
+          <h3 title={result.title} className="line-clamp-2 min-h-[2.5rem] break-words text-sm font-bold leading-snug text-fg">{result.title}</h3>
           {result.authorName && (
             <p className="mt-1 truncate text-xs text-gray-400">
               por{" "}
@@ -102,6 +102,12 @@ export function ModelResultCard({ result, canCalculate }: ModelResultCardProps) 
           <PriceBadge result={result} />
           <CommercialBadge value={result.license.commercialUse} />
         </div>
+
+        {result.fileFormats && result.fileFormats.length > 0 && (
+          <p className="text-[11px] text-gray-400">
+            Formatos: <span className="font-semibold uppercase text-gray-300">{result.fileFormats.join(" · ")}</span>
+          </p>
+        )}
 
         {(result.license.name || result.license.commercialUse === "unknown") && (
           <p className="text-[11px] leading-snug text-gray-500">

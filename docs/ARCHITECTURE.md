@@ -265,6 +265,42 @@ Módulo `src/lib/model-search/` (server) + `src/components/explorar-modelos/` (U
 - **Navegación**: sidebar desktop (Plataforma y grupo Gratis), bottom nav mobile de Free (5.º ítem "Explorar"), acceso rápido en Inicio (paid) y entrada en la búsqueda global. El menú radial mobile de paid no se modificó: tiene 7 ítems para 6 ángulos definidos.
 - No hay eventos/analytics en el repo: no se registran `model_search`/`model_result_open`/`model_calculate`.
 
+### 18.1 Estado real de las integraciones (Sprint 3, 2026-10-29)
+
+Tres niveles, sin mezclarlos: **implementada** (código + contrato), **probada con mocks** (tests con `fetch` simulado) y **verificada contra el servicio real** (request real con credencial). Hoy **ninguna fuente está verificada contra el servicio real**: no hay credenciales en el entorno (comprobado en vivo: sin credencial Cults3D responde 401, MyMiniFactory 401 y Thingiverse 403).
+
+| Plataforma | Implementada | Probada con mocks | Verificada real | Requisito |
+|---|---|---|---|---|
+| Cults3D | sí (GraphQL `creationsSearchBatch`) | sí | **no** | `CULTS_USERNAME` + `CULTS_API_KEY` |
+| MyMiniFactory | sí (API v2 `/search`; campos, `key`, `sort` y `commercial_use` contrastados con su OpenAPI oficial) | sí | **no** | `MYMINIFACTORY_API_KEY` |
+| Thingiverse | sí (`/search/{term}?type=things`, Bearer) | sí | **no** | `THINGIVERSE_ACCESS_TOKEN` (app token del Developer Program; ver D021: no cargar en producción hasta aprobar términos) |
+| Printables | no | — | — | Sin API pública: su GraphQL es interno y no documentado. No se usa. |
+| MakerWorld | no | — | — | Sin API pública y sus términos no habilitan automatización. No se usa. |
+| Thangs | no | — | — | No se encontró API pública documentada. No se usa. |
+| Sketchfab | no | — | — | Evaluada: su Data API v3 busca sin credencial, pero es un repositorio de 3D para visualización (glTF/GLB, descarga con login), no de modelos imprimibles, y Epic lo está migrando a Fab. Los resultados no serían útiles para imprimir. |
+
+Las páginas de documentación de Cults3D y Thingiverse bloquean lectura automatizada (Cloudflare 403); sus contratos se implementaron contra la documentación citada en los providers y siguen sin contrastarse con una respuesta real.
+
+**Cómo verificar contra el servicio real** (cuando haya credenciales en `.env.local`): `node scripts/verify-model-search.mjs "soporte auriculares"`. Hace una request real por fuente habilitada, imprime estado, latencia, primeros resultados y cobertura (imagen/precio/licencia) sin mostrar claves, y sale con código 1 si una fuente falla o 2 si no hay ninguna habilitada. Hasta correrlo con éxito, la documentación no debe afirmar que una plataforma "funciona".
+
+**Estado de la herramienta en el entorno configurado:** la funcionalidad `explorar_modelos` está **apagada** para no-admins en el Supabase al que apunta `.env.local` (panel `/admin/funcionalidades`; `/explorar-modelos` redirige a `/no-disponible` y `/api/model-search` responde 403 `feature_unavailable`). Para lanzarla: cargar al menos una credencial, correr el script de verificación y recién entonces habilitar el flag.
+
+### 18.2 Comportamiento de búsqueda (Sprint 3)
+
+- **Estados por fuente** (`SourceStatusCode`): `ok`, `timeout`, `error`, `rate_limited` (HTTP 429 de la fuente), `disabled` (sin credencial), `unsupported` (no puede aplicar el filtro pedido). El log del servidor registra solo proveedor, motivo y código HTTP; nunca cuerpos ni credenciales.
+- **Cancelación**: el cliente aborta la request anterior (`AbortController`) y la route pasa `request.signal` a `searchModels`, que aborta también los pedidos a las fuentes; una búsqueda cancelada no se cachea.
+- **Deduplicación**: por `source:externalId` entre páginas y entre plataformas por título + autor normalizados (sin acentos ni símbolos); sin autor nunca se considera duplicado. Se conserva la primera aparición.
+- **Sin debounce a propósito**: la búsqueda es explícita (Enter / botón / chip del historial) y no hay autocompletado, para no gastar cuota de las fuentes; cambiar un filtro relanza la búsqueda y cancela la anterior.
+- **UI**: la interfaz completa se ve aunque no haya fuentes (aviso honesto, fuentes marcadas "no disponible", búsqueda deshabilitada; nunca resultados de ejemplo). Historial de búsquedas recientes en `localStorage` (6 máx., `src/lib/model-search/recent.ts`, solo en el navegador), botón para borrar el texto, filtros plegables en mobile (botón "Filtros" con contador), aviso de fuentes parciales / límite de consultas / filtros no admitidos y botón "Limpiar filtros". Cada filtro aparece solo si alguna fuente seleccionada lo admite.
+- **Favoritos**: no existe infraestructura de favoritos de modelos externos en el repo (sin tabla, RLS ni UI). No se construyó; queda como mejora futura (ver `TASKS.md`).
+
+### 18.3 Cómo agregar un proveedor
+
+1. Confirmar API oficial, términos (cache, SaaS, atribución), límites y que se puedan mostrar imágenes y metadatos. Sin API oficial: no se implementa.
+2. Crear `src/lib/model-search/providers/<id>.ts` con `createXProvider({ fetch, <credencial> })` que implemente `ModelSearchProvider` (`isEnabled` por credencial server-side, `getCapabilities` honestas, `search` normalizando con `sanitize.ts` y `safeExternalUrl` con el dominio de la fuente; lo que la fuente no informa = `null`/`"unknown"`).
+3. Sumar el id y la etiqueta en `sources.ts` y registrarlo en `registry.ts`.
+4. Tests con `fetch` simulado (normalización, items malformados, 429/timeout/conexión) siguiendo `tests/model-search-sprint3.test.mjs`, documentar la variable en `.env.example` y verificarlo con `scripts/verify-model-search.mjs`.
+
 ## 18b. Librería STL: Grupos + detalle + viewer 3D (2026-10-09)
 
 Rutas: `/libreria-stl` (grupos + búsqueda de modelos) → `/libreria-stl/[group]` (slug o id; `otros-modelos` virtual) → `/libreria-stl/[group]/[model]` (id del modelo; si el grupo de la URL no coincide, redirige al canónico). Todas bajo el gate de plataforma del middleware. Datos: `stl_categories` (= grupo) / `stl_models` / `stl_variants` leídos con el cliente Supabase + RLS (`src/lib/stl/queries.ts`); lógica pura en `src/lib/stl/library.ts` (agrupado, contadores, resolución de slug, soporte del viewer, formato de dimensiones). Ver D025.

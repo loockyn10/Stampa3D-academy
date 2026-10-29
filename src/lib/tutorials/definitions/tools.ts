@@ -74,7 +74,7 @@ export const modelSearchTutorial: TutorialDefinition = {
     {
       id: "buscar",
       title: "Buscá por nombre",
-      text: "Escribí lo que necesitás y Explorar Modelos consulta las plataformas disponibles.",
+      text: "Escribí lo que necesitás y apretá Enter. Explorar Modelos consulta las plataformas disponibles y, si alguna no responde, seguís viendo los resultados de las demás. Tus últimas búsquedas quedan a mano.",
       illustration: {
         kind: "filters",
         search: "dragón articulado",
@@ -84,7 +84,7 @@ export const modelSearchTutorial: TutorialDefinition = {
     {
       id: "filtros",
       title: "Filtrá lo que importa",
-      text: "Combiná fuente, precio y uso comercial, y ordená los resultados.",
+      text: "Combiná fuente, precio y uso comercial, y ordená los resultados. Cada filtro solo aparece si las plataformas elegidas lo admiten; en el celular están en el botón Filtros.",
       illustration: {
         kind: "filters",
         search: "soporte auriculares",

@@ -432,4 +432,5 @@ Reglas:
 - Licencia normalizada: `commercialUse` = permitido / no comercial / desconocido y `attributionRequired`. Solo se mapea lo que la fuente informa; ante duda es `desconocido` ("Verificá la licencia en la fuente"). **Gratis ≠ uso comercial permitido.**
 - Un resultado externo **no** es un producto de Mi Taller. "Guardar como producto" (futuro) será una acción explícita.
 - Acceso: Anonymous busca con límites (2 páginas, sin filtro de uso comercial ni orden); Free/Paid, búsqueda y filtros completos; solo Paid ve **"Calcular en Stampa"**, que abre la Calculadora existente con el nombre del modelo (no se asumen gramos, horas ni material).
+- Sin fuentes disponibles la UI lo dice con claridad (no hay resultados de ejemplo) y las fuentes no conectadas se ven como "no disponible". Cada filtro se ofrece solo si alguna fuente seleccionada lo admite. El mismo modelo republicado por el mismo autor en varias plataformas se muestra una vez.
 - Si una fuente falla o no responde, las demás siguen respondiendo y la UI avisa ("Thingiverse no respondió. Mostrando resultados de MyMiniFactory.").

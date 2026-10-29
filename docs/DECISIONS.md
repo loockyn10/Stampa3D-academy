@@ -323,3 +323,9 @@ Las cards usan un asset de video (`stl_models.preview_url`) generado client-side
 - **Versión por tutorial** (`seen_version`): reaparece solo para quien vio una versión anterior; correcciones menores y videos no reabren nada.
 - **Alternativa descartada:** `localStorage` como única persistencia (no sigue al usuario entre dispositivos y mezcla cuentas en navegadores compartidos). Se mantiene solo como espejo por `userId`.
 - **Sin dependencias nuevas.**
+
+## D037 — Explorar Modelos: solo fuentes con API oficial verificable; "funciona" requiere verificación real
+
+**Estado:** Accepted (2026-10-29)
+
+Se mantienen Cults3D, MyMiniFactory y Thingiverse (APIs oficiales con credencial). Printables (GraphQL interno no documentado), MakerWorld (sin API, términos restrictivos), Thangs (sin API pública) y Sketchfab (no orientada a impresión, en migración a Fab) no se integran. Una plataforma solo se documenta como "funcionando" tras correr `scripts/verify-model-search.mjs` con credenciales reales; con mocks queda "implementada y probada con mocks". La UI nunca muestra resultados de ejemplo ni oculta la interfaz por falta de fuentes: informa el estado real.

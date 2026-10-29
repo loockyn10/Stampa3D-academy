@@ -1,13 +1,14 @@
 "use client";
 
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState, useSyncExternalStore } from "react";
 import Image from "next/image";
 import Link from "next/link";
-import { AlertTriangle, Loader2, Lock, Search, SearchX } from "lucide-react";
+import { AlertTriangle, History, Loader2, Lock, Search, SearchX, SlidersHorizontal, X } from "lucide-react";
 import { createClient } from "@/utils/supabase/client";
 import { getCurrentUserAccess } from "@/lib/auth/user-access";
 import { MAX_QUERY_LENGTH, MIN_QUERY_LENGTH, MODEL_SOURCE_LABELS } from "@/lib/model-search/sources";
 import { mergeUniqueResults } from "@/lib/model-search/results";
+import { addRecentSearch, parseRecentSearches, RECENT_SEARCHES_KEY } from "@/lib/model-search/recent";
 import type {
   CommercialFilter,
   ModelSearchResult,
@@ -15,6 +16,7 @@ import type {
   ModelSourceId,
   PriceFilter,
   SourceStatus,
+  SourceStatusCode,
 } from "@/lib/model-search/types";
 import { ModelResultCard } from "./ModelResultCard";
 import { FeatureLink } from "@/components/features/feature-link";
@@ -63,6 +65,38 @@ const API_ERRORS: Record<string, string> = {
   search_unavailable: "No pudimos completar la búsqueda. Probá de nuevo en un momento.",
 };
 
+/** Qué le decimos al usuario por cada estado de una fuente (sin detalles técnicos). */
+const SOURCE_PROBLEM_TEXT: Partial<Record<SourceStatusCode, string>> = {
+  timeout: "no respondió a tiempo",
+  error: "tuvo un problema",
+  rate_limited: "alcanzó su límite de consultas (probá en un minuto)",
+};
+
+const recentListeners = new Set<() => void>();
+const readRecentRaw = () => {
+  try {
+    return window.localStorage.getItem(RECENT_SEARCHES_KEY) ?? "[]";
+  } catch {
+    return "[]";
+  }
+};
+const writeRecent = (list: string[]) => {
+  try {
+    window.localStorage.setItem(RECENT_SEARCHES_KEY, JSON.stringify(list));
+  } catch {
+    // Almacenamiento bloqueado (modo privado, etc.): el historial es solo una comodidad.
+  }
+  recentListeners.forEach((listener) => listener());
+};
+const subscribeRecent = (listener: () => void) => {
+  recentListeners.add(listener);
+  window.addEventListener("storage", listener);
+  return () => {
+    recentListeners.delete(listener);
+    window.removeEventListener("storage", listener);
+  };
+};
+
 function supportsCommercial(provider: ProviderInfo, value: CommercialFilter): boolean {
   return value !== "any" && provider.commercialFilters.includes(value);
 }
@@ -106,6 +140,9 @@ export function ExplorarModelosClient({ providers }: { providers: ProviderInfo[]
   const [gated, setGated] = useState(false);
   const [message, setMessage] = useState<string | null>(null);
   const [upsell, setUpsell] = useState(false);
+  const [filtersOpen, setFiltersOpen] = useState(false);
+  const recentRaw = useSyncExternalStore(subscribeRecent, readRecentRaw, () => "[]");
+  const recent = useMemo(() => parseRecentSearches(recentRaw), [recentRaw]);
   const requestId = useRef(0);
   const abortRef = useRef<AbortController | null>(null);
 
@@ -192,16 +229,27 @@ export function ExplorarModelosClient({ providers }: { providers: ProviderInfo[]
 
   const current = { source, price, commercial, sort };
 
-  const submit = (event?: React.FormEvent) => {
+  const submit = (event?: React.FormEvent, override?: string) => {
     event?.preventDefault();
-    const query = input.replace(/\s+/g, " ").trim();
+    if (enabledProviders.length === 0) return;
+    const query = (override ?? input).replace(/\s+/g, " ").trim();
     if (query.length < MIN_QUERY_LENGTH) {
       setMessage(API_ERRORS.query_too_short);
       return;
     }
+    setInput(query);
     setSubmitted(query);
+    writeRecent(addRecentSearch(recent, query));
     void runSearch({ query, ...current, cursor: null });
   };
+
+  const clearInput = () => {
+    setInput("");
+    setMessage(null);
+  };
+
+  const activeFilterCount = [source !== "all", price !== "any", commercial !== "any", sort !== "relevance"].filter(Boolean).length;
+  const resetFilters = () => applyFilters({ source: "all", price: "any", commercial: "any", sort: "relevance" });
 
   const applyFilters = (patch: Partial<typeof current>) => {
     const next = { ...current, ...patch };
@@ -230,12 +278,21 @@ export function ExplorarModelosClient({ providers }: { providers: ProviderInfo[]
 
   const lockedFilterClick = () => setUpsell(true);
 
-  const failedSources = sources.filter((entry) => entry.status === "timeout" || entry.status === "error");
+  const failedSources = sources.filter((entry) => entry.status in SOURCE_PROBLEM_TEXT);
   const okSources = sources.filter((entry) => entry.status === "ok");
+  const unsupportedSources = sources.filter((entry) => entry.status === "unsupported");
+  const labels = (entries: SourceStatus[]) => entries.map((entry) => MODEL_SOURCE_LABELS[entry.id]).join(" y ");
   const partialNotice =
     failedSources.length > 0 && okSources.length > 0
-      ? `${failedSources.map((entry) => MODEL_SOURCE_LABELS[entry.id]).join(" y ")} no ${failedSources.length > 1 ? "respondieron" : "respondió"}. Mostrando resultados de ${okSources.map((entry) => MODEL_SOURCE_LABELS[entry.id]).join(" y ")}.`
+      ? failedSources.map((entry) => `${MODEL_SOURCE_LABELS[entry.id]} ${SOURCE_PROBLEM_TEXT[entry.status]}`).join("; ") + `. Mostrando resultados de ${labels(okSources)}.`
       : null;
+  const unsupportedNotice =
+    unsupportedSources.length > 0 && okSources.length > 0
+      ? `${labels(unsupportedSources)} no ${unsupportedSources.length > 1 ? "admiten" : "admite"} estos filtros y quedó fuera de la búsqueda.`
+      : null;
+  const allUnsupported = sources.length > 0 && sources.every((entry) => entry.status === "unsupported" || entry.status === "disabled");
+  const noProviders = enabledProviders.length === 0;
+  const contributingSources = okSources.filter((entry) => results.some((result) => result.source === entry.id));
   const busy = phase === "loading";
 
   return (
@@ -262,50 +319,109 @@ export function ExplorarModelosClient({ providers }: { providers: ProviderInfo[]
           <p className="mt-1.5 text-sm text-gray-400 sm:text-base">Encontrá modelos 3D en distintas plataformas desde un solo lugar.</p>
         </div>
 
-        {enabledProviders.length === 0 ? (
-          <div className="rounded-2xl border border-dashed border-stampa-border p-8 text-center">
-            <AlertTriangle className="mx-auto mb-3 text-stampa-accent" size={24} />
-            <p className="text-sm font-semibold text-fg">El buscador todavía no tiene fuentes disponibles.</p>
-            <p className="mt-1 text-xs text-gray-500">Volvé a intentar más tarde.</p>
+        {noProviders && (
+          <div role="status" className="mb-4 flex items-start gap-3 rounded-2xl border border-amber-500/30 bg-amber-500/10 p-4">
+            <AlertTriangle className="mt-0.5 shrink-0 text-amber-300" size={20} aria-hidden="true" />
+            <div className="min-w-0">
+              <p className="text-sm font-semibold text-fg">Las plataformas de modelos no están disponibles por ahora.</p>
+              <p className="mt-1 text-xs text-gray-300">
+                No mostramos resultados de ejemplo: la búsqueda se habilita apenas haya al menos una plataforma conectada.
+              </p>
+            </div>
           </div>
-        ) : (
-          <>
-            <form onSubmit={submit} className="flex flex-col gap-2 sm:flex-row" role="search">
-              <div className="relative min-w-0 flex-1">
-                <Search className="pointer-events-none absolute left-3.5 top-1/2 -translate-y-1/2 text-gray-500" size={18} aria-hidden="true" />
-                <input
-                  type="search"
-                  value={input}
-                  onChange={(event) => setInput(event.target.value)}
-                  maxLength={MAX_QUERY_LENGTH}
-                  placeholder="Buscá dragón articulado, soporte auriculares…"
-                  aria-label="Buscar modelos 3D"
-                  enterKeyHint="search"
-                  autoComplete="off"
-                  className="w-full rounded-xl border border-stampa-border bg-stampa-bg-soft py-3.5 pl-11 pr-4 text-base text-fg outline-none placeholder:text-gray-500 focus:border-[#ff6a00] focus:ring-1 focus:ring-[#ff6a00]"
-                />
-              </div>
+        )}
+
+        <form onSubmit={submit} className="flex flex-col gap-2 sm:flex-row" role="search">
+          <div className="relative min-w-0 flex-1">
+            <Search className="pointer-events-none absolute left-3.5 top-1/2 -translate-y-1/2 text-gray-500" size={18} aria-hidden="true" />
+            <input
+              type="search"
+              value={input}
+              onChange={(event) => setInput(event.target.value)}
+              maxLength={MAX_QUERY_LENGTH}
+              disabled={noProviders}
+              placeholder="Buscá dragón articulado, soporte auriculares…"
+              aria-label="Buscar modelos 3D"
+              enterKeyHint="search"
+              autoComplete="off"
+              className="w-full rounded-xl border border-stampa-border bg-stampa-bg-soft py-3.5 pl-11 pr-11 text-base text-fg outline-none placeholder:text-gray-500 focus:border-[#ff6a00] focus:ring-1 focus:ring-[#ff6a00] disabled:cursor-not-allowed disabled:opacity-60 [&::-webkit-search-cancel-button]:hidden"
+            />
+            {input && !noProviders && (
               <button
-                type="submit"
-                disabled={busy}
-                className="inline-flex items-center justify-center gap-2 rounded-xl bg-stampa-orange px-6 py-3.5 text-sm font-bold text-neutral-950 transition-colors hover:bg-stampa-orange-hover disabled:opacity-60"
+                type="button"
+                onClick={clearInput}
+                aria-label="Borrar búsqueda"
+                className="absolute right-2 top-1/2 flex h-8 w-8 -translate-y-1/2 items-center justify-center rounded-lg text-gray-400 hover:bg-fg/10 hover:text-fg"
               >
-                {busy ? <Loader2 size={16} className="animate-spin" aria-hidden="true" /> : <Search size={16} aria-hidden="true" />}
-                Buscar
+                <X size={16} aria-hidden="true" />
               </button>
-            </form>
+            )}
+          </div>
+          <button
+            type="submit"
+            disabled={busy || noProviders}
+            className="inline-flex items-center justify-center gap-2 rounded-xl bg-stampa-orange px-6 py-3.5 text-sm font-bold text-neutral-950 transition-colors hover:bg-stampa-orange-hover disabled:opacity-60"
+          >
+            {busy ? <Loader2 size={16} className="animate-spin" aria-hidden="true" /> : <Search size={16} aria-hidden="true" />}
+            {busy ? "Buscando…" : "Buscar"}
+          </button>
+        </form>
 
-            <div className="mt-4 space-y-3">
-              <div className="flex flex-wrap items-center gap-2" role="group" aria-label="Fuente">
-                <span className="shrink-0 text-xs font-semibold uppercase tracking-wide text-gray-500">Fuente</span>
-                <button type="button" onClick={() => applyFilters({ source: "all" })} className={chipClass(source === "all")} aria-pressed={source === "all"}>Todas</button>
-                {enabledProviders.map((provider) => (
-                  <button key={provider.id} type="button" onClick={() => applyFilters({ source: provider.id })} className={chipClass(source === provider.id)} aria-pressed={source === provider.id}>
-                    {provider.label}
-                  </button>
-                ))}
-              </div>
+        {recent.length > 0 && !noProviders && (
+          <div className="mt-3 flex items-start gap-2" aria-label="Búsquedas recientes" role="group">
+            <History size={14} className="mt-1.5 shrink-0 text-gray-500" aria-hidden="true" />
+            <div className="flex min-w-0 flex-wrap gap-1.5">
+              {recent.map((entry) => (
+                <button
+                  key={entry}
+                  type="button"
+                  onClick={() => submit(undefined, entry)}
+                  className="max-w-full truncate rounded-full border border-stampa-border bg-stampa-surface px-3 py-1 text-xs font-medium text-gray-300 hover:bg-fg/10 hover:text-fg"
+                >
+                  {entry}
+                </button>
+              ))}
+              <button type="button" onClick={() => writeRecent([])} className="px-1 py-1 text-xs text-gray-500 underline-offset-2 hover:text-fg hover:underline">
+                Borrar historial
+              </button>
+            </div>
+          </div>
+        )}
 
+        <button
+          type="button"
+          onClick={() => setFiltersOpen((open) => !open)}
+          aria-expanded={filtersOpen}
+          aria-controls="model-search-filters"
+          className="mt-4 inline-flex items-center gap-2 rounded-xl border border-stampa-border bg-stampa-surface px-4 py-2.5 text-sm font-semibold text-fg sm:hidden"
+        >
+          <SlidersHorizontal size={16} aria-hidden="true" />
+          Filtros
+          {activeFilterCount > 0 && <span className="rounded-full bg-stampa-orange px-2 py-0.5 text-[11px] font-bold text-neutral-950">{activeFilterCount}</span>}
+        </button>
+
+        <div id="model-search-filters" className={`mt-4 space-y-3 ${filtersOpen ? "block" : "hidden sm:block"}`}>
+          <div className="flex flex-wrap items-center gap-2" role="group" aria-label="Fuente">
+            <span className="shrink-0 text-xs font-semibold uppercase tracking-wide text-gray-500">Fuente</span>
+            <button type="button" disabled={noProviders} onClick={() => applyFilters({ source: "all" })} className={`${chipClass(source === "all")} disabled:cursor-not-allowed disabled:opacity-40`} aria-pressed={source === "all"}>Todas</button>
+            {providers.map((provider) => (
+              <button
+                key={provider.id}
+                type="button"
+                disabled={!provider.enabled}
+                onClick={() => applyFilters({ source: provider.id })}
+                className={`${chipClass(source === provider.id)} disabled:cursor-not-allowed disabled:opacity-50`}
+                aria-pressed={source === provider.id}
+                title={provider.enabled ? undefined : `${provider.label} no está disponible por ahora`}
+              >
+                {provider.label}
+                {!provider.enabled && <span className="ml-1.5 text-[11px] font-medium text-gray-500">· no disponible</span>}
+              </button>
+            ))}
+          </div>
+
+          {!noProviders && (
+            <>
               <div className="space-y-1.5">
                 <div className="flex flex-wrap items-center gap-2" role="group" aria-label="Precio">
                   <span className="shrink-0 text-xs font-semibold uppercase tracking-wide text-gray-500">Precio</span>
@@ -322,8 +438,10 @@ export function ExplorarModelosClient({ providers }: { providers: ProviderInfo[]
                     </button>
                   ))}
                 </div>
-                {price !== "any" && (
+                {price !== "any" ? (
                   <p className="text-xs text-gray-500">Los modelos con precio no informado quedan fuera de este filtro.</p>
+                ) : (
+                  !priceEnabled && <p className="text-xs text-gray-500">Las fuentes seleccionadas no informan precio, por eso no se puede filtrar.</p>
                 )}
               </div>
 
@@ -349,7 +467,7 @@ export function ExplorarModelosClient({ providers }: { providers: ProviderInfo[]
                 </div>
               )}
 
-              {availableSorts.length > 1 && (
+              {availableSorts.length > 1 ? (
                 <div className="flex flex-wrap items-center gap-2" role="group" aria-label="Orden">
                   <span className="shrink-0 text-xs font-semibold uppercase tracking-wide text-gray-500">Orden</span>
                   {availableSorts.map((option) => (
@@ -365,103 +483,127 @@ export function ExplorarModelosClient({ providers }: { providers: ProviderInfo[]
                     </button>
                   ))}
                 </div>
+              ) : (
+                selectedProviders.length > 0 && (
+                  <p className="text-xs text-gray-500">{selectedProviders.map((provider) => provider.label).join(" y ")} solo ordena por relevancia.</p>
+                )
               )}
+
+              {activeFilterCount > 0 && (
+                <button type="button" onClick={resetFilters} className="text-xs font-semibold text-stampa-accent underline-offset-2 hover:underline">
+                  Limpiar filtros
+                </button>
+              )}
+            </>
+          )}
+        </div>
+
+        {upsell && !isMember && (
+          <div className="mt-4 flex flex-col gap-2 rounded-xl border border-stampa-orange/30 bg-stampa-orange/5 p-4 text-sm sm:flex-row sm:items-center sm:justify-between">
+            <p className="text-gray-200">Creá tu cuenta gratis para usar todos los filtros y ver más resultados.</p>
+            <Link href="/registro" className="shrink-0 rounded-lg bg-stampa-orange px-4 py-2 text-center font-semibold text-neutral-950 hover:bg-stampa-orange-hover">Crear cuenta gratis</Link>
+          </div>
+        )}
+
+        <div className="mt-6" aria-live="polite">
+          {message && phase !== "error" && <p className="mb-4 rounded-xl border border-stampa-border bg-stampa-surface p-3 text-sm text-gray-300">{message}</p>}
+          {partialNotice && (
+            <p className="mb-4 flex items-start gap-2 rounded-xl border border-amber-500/30 bg-amber-500/10 p-3 text-sm text-amber-200">
+              <AlertTriangle size={16} className="mt-0.5 shrink-0" aria-hidden="true" />
+              {partialNotice}
+            </p>
+          )}
+          {unsupportedNotice && <p className="mb-4 rounded-xl border border-stampa-border bg-stampa-surface p-3 text-xs text-gray-400">{unsupportedNotice}</p>}
+
+          {phase === "idle" && !noProviders && (
+            <div className="rounded-2xl border border-dashed border-stampa-border px-6 py-14 text-center">
+              <Search className="mx-auto mb-3 text-gray-600" size={28} aria-hidden="true" />
+              <p className="text-sm font-semibold text-fg">Buscá un modelo para empezar</p>
+              <p className="mx-auto mt-1 max-w-sm text-xs text-gray-500">
+                Vas a ver resultados de {enabledProviders.map((provider) => provider.label).join(" y ")}. Cada modelo te lleva a su página original.
+              </p>
             </div>
+          )}
 
-            {upsell && !isMember && (
-              <div className="mt-4 flex flex-col gap-2 rounded-xl border border-stampa-orange/30 bg-stampa-orange/5 p-4 text-sm sm:flex-row sm:items-center sm:justify-between">
-                <p className="text-gray-200">Creá tu cuenta gratis para usar todos los filtros y ver más resultados.</p>
-                <Link href="/registro" className="shrink-0 rounded-lg bg-stampa-orange px-4 py-2 text-center font-semibold text-neutral-950 hover:bg-stampa-orange-hover">Crear cuenta gratis</Link>
-              </div>
-            )}
+          {busy && (
+            <div className="grid grid-cols-1 gap-4 min-[480px]:grid-cols-2 lg:grid-cols-3">
+              {Array.from({ length: 6 }, (_, index) => <ResultSkeleton key={index} />)}
+            </div>
+          )}
 
-            <div className="mt-6" aria-live="polite">
-              {message && phase !== "error" && <p className="mb-4 rounded-xl border border-stampa-border bg-stampa-surface p-3 text-sm text-gray-300">{message}</p>}
-              {partialNotice && (
-                <p className="mb-4 flex items-start gap-2 rounded-xl border border-amber-500/30 bg-amber-500/10 p-3 text-sm text-amber-200">
-                  <AlertTriangle size={16} className="mt-0.5 shrink-0" aria-hidden="true" />
-                  {partialNotice}
+          {phase === "error" && (
+            <div className="rounded-2xl border border-red-500/30 bg-red-500/5 p-6 text-center">
+              <AlertTriangle className="mx-auto mb-2 text-red-400" size={24} aria-hidden="true" />
+              <p className="text-sm font-semibold text-fg">
+                {message ?? (allUnsupported ? "Ninguna de las fuentes elegidas admite esos filtros." : "Ninguna plataforma pudo responder ahora.")}
+              </p>
+              {!message && !allUnsupported && <p className="mx-auto mt-1 max-w-sm text-xs text-gray-400">No es un problema de tu búsqueda. Probá de nuevo en unos segundos.</p>}
+              {sources.length > 0 && !allUnsupported && (
+                <p className="mt-1 text-xs text-gray-400">
+                  {sources.map((entry) => `${MODEL_SOURCE_LABELS[entry.id]}: ${entry.status === "disabled" ? "no disponible" : SOURCE_PROBLEM_TEXT[entry.status] ?? "sin respuesta"}`).join(" · ")}
                 </p>
               )}
-
-              {phase === "idle" && (
-                <div className="rounded-2xl border border-dashed border-stampa-border px-6 py-14 text-center">
-                  <Search className="mx-auto mb-3 text-gray-600" size={28} aria-hidden="true" />
-                  <p className="text-sm font-semibold text-fg">Buscá un modelo para empezar</p>
-                  <p className="mx-auto mt-1 max-w-sm text-xs text-gray-500">
-                    Vas a ver resultados de {enabledProviders.map((provider) => provider.label).join(" y ")}. Cada modelo te lleva a su página original.
-                  </p>
-                </div>
+              {submitted && !allUnsupported && (
+                <button type="button" onClick={() => void runSearch({ query: submitted, ...current, cursor: null })} className="mt-4 rounded-xl border border-stampa-border px-4 py-2 text-sm font-semibold text-gray-200 hover:bg-fg/10">
+                  Reintentar
+                </button>
               )}
-
-              {busy && (
-                <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-3">
-                  {Array.from({ length: 6 }, (_, index) => <ResultSkeleton key={index} />)}
-                </div>
+              {allUnsupported && activeFilterCount > 0 && (
+                <button type="button" onClick={resetFilters} className="mt-4 rounded-xl border border-stampa-border px-4 py-2 text-sm font-semibold text-gray-200 hover:bg-fg/10">
+                  Limpiar filtros
+                </button>
               )}
+            </div>
+          )}
 
-              {phase === "error" && (
-                <div className="rounded-2xl border border-red-500/30 bg-red-500/5 p-6 text-center">
-                  <AlertTriangle className="mx-auto mb-2 text-red-400" size={24} aria-hidden="true" />
-                  <p className="text-sm font-semibold text-fg">{message ?? "Ninguna fuente respondió."}</p>
-                  {sources.length > 0 && (
-                    <p className="mt-1 text-xs text-gray-400">
-                      {sources.map((entry) => `${MODEL_SOURCE_LABELS[entry.id]}: ${entry.status === "timeout" ? "sin respuesta a tiempo" : entry.status === "disabled" ? "no disponible" : "con error"}`).join(" · ")}
-                    </p>
-                  )}
-                  {submitted && (
-                    <button type="button" onClick={() => void runSearch({ query: submitted, ...current, cursor: null })} className="mt-4 rounded-xl border border-stampa-border px-4 py-2 text-sm font-semibold text-gray-200 hover:bg-fg/10">
-                      Reintentar
-                    </button>
-                  )}
-                </div>
+          {(phase === "done" || phase === "loadingMore") && results.length === 0 && (
+            <div className="rounded-2xl border border-dashed border-stampa-border px-6 py-14 text-center">
+              <SearchX className="mx-auto mb-3 text-gray-600" size={28} aria-hidden="true" />
+              <p className="text-sm font-semibold text-fg">No encontramos modelos para “{submitted}”</p>
+              <p className="mx-auto mt-1 max-w-sm text-xs text-gray-500">Probá con otras palabras (en inglés suele haber más resultados), quitá algún filtro o elegí otra fuente.</p>
+            </div>
+          )}
+
+          {results.length > 0 && (
+            <>
+              <p className="mb-3 text-xs text-gray-500">
+                {results.length} {results.length === 1 ? "modelo" : "modelos"} de {labels(contributingSources)}
+              </p>
+              <div className="grid grid-cols-1 gap-4 min-[480px]:grid-cols-2 lg:grid-cols-3">
+                {results.map((result) => (
+                  <ModelResultCard key={`${result.source}:${result.externalId}`} result={result} canCalculate={tier === "paid"} />
+                ))}
+              </div>
+            </>
+          )}
+
+          {results.length > 0 && (
+            <div className="mt-6 flex flex-col items-center gap-3">
+              {nextCursor && (
+                <button
+                  type="button"
+                  disabled={phase === "loadingMore"}
+                  onClick={() => submitted && void runSearch({ query: submitted, ...current, cursor: nextCursor })}
+                  className="inline-flex items-center gap-2 rounded-xl border border-stampa-border bg-stampa-surface px-6 py-3 text-sm font-semibold text-fg hover:bg-fg/10 disabled:opacity-60"
+                >
+                  {phase === "loadingMore" && <Loader2 size={16} className="animate-spin" aria-hidden="true" />}
+                  {phase === "loadingMore" ? "Cargando…" : "Ver más resultados"}
+                </button>
               )}
-
-              {(phase === "done" || phase === "loadingMore") && results.length === 0 && (
-                <div className="rounded-2xl border border-dashed border-stampa-border px-6 py-14 text-center">
-                  <SearchX className="mx-auto mb-3 text-gray-600" size={28} aria-hidden="true" />
-                  <p className="text-sm font-semibold text-fg">No encontramos modelos para “{submitted}”</p>
-                  <p className="mx-auto mt-1 max-w-sm text-xs text-gray-500">Probá con otras palabras, quitá algún filtro o elegí otra fuente.</p>
-                </div>
-              )}
-
-              {results.length > 0 && (
-                <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-3">
-                  {results.map((result) => (
-                    <ModelResultCard key={`${result.source}:${result.externalId}`} result={result} canCalculate={tier === "paid"} />
-                  ))}
-                </div>
-              )}
-
-              {results.length > 0 && (
-                <div className="mt-6 flex flex-col items-center gap-3">
-                  {nextCursor && (
-                    <button
-                      type="button"
-                      disabled={phase === "loadingMore"}
-                      onClick={() => submitted && void runSearch({ query: submitted, ...current, cursor: nextCursor })}
-                      className="inline-flex items-center gap-2 rounded-xl border border-stampa-border bg-stampa-surface px-6 py-3 text-sm font-semibold text-fg hover:bg-fg/10 disabled:opacity-60"
-                    >
-                      {phase === "loadingMore" && <Loader2 size={16} className="animate-spin" aria-hidden="true" />}
-                      Ver más resultados
-                    </button>
-                  )}
-                  {gated && !isMember && (
-                    <div className="flex w-full flex-col items-center gap-2 rounded-xl border border-stampa-orange/30 bg-stampa-orange/5 p-4 text-center text-sm">
-                      <p className="text-gray-200">Creá tu cuenta gratis para seguir viendo más resultados.</p>
-                      <Link href="/registro" className="rounded-lg bg-stampa-orange px-4 py-2 font-semibold text-neutral-950 hover:bg-stampa-orange-hover">Crear cuenta gratis</Link>
-                    </div>
-                  )}
+              {gated && !isMember && (
+                <div className="flex w-full flex-col items-center gap-2 rounded-xl border border-stampa-orange/30 bg-stampa-orange/5 p-4 text-center text-sm">
+                  <p className="text-gray-200">Creá tu cuenta gratis para seguir viendo más resultados.</p>
+                  <Link href="/registro" className="rounded-lg bg-stampa-orange px-4 py-2 font-semibold text-neutral-950 hover:bg-stampa-orange-hover">Crear cuenta gratis</Link>
                 </div>
               )}
             </div>
+          )}
+        </div>
 
-            <p className="mt-10 border-t border-stampa-border pt-4 text-xs leading-relaxed text-gray-500">
-              Los modelos pertenecen a sus creadores y a las plataformas donde están alojados; Stampa solo te ayuda a encontrarlos y no aloja ni distribuye sus archivos.
-              Verificá siempre la licencia en la fuente antes de usar un modelo, especialmente para venderlo.
-            </p>
-          </>
-        )}
+        <p className="mt-10 border-t border-stampa-border pt-4 text-xs leading-relaxed text-gray-500">
+          Los modelos pertenecen a sus creadores y a las plataformas donde están alojados; Stampa solo te ayuda a encontrarlos y no aloja ni distribuye sus archivos.
+          Verificá siempre la licencia en la fuente antes de usar un modelo, especialmente para venderlo.
+        </p>
       </div>
     </div>
   );
