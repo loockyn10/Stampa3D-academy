@@ -41,13 +41,17 @@ function runInitScript({ stored, systemLight = false, throwOnStorage = false }) 
   return { dataset: root.dataset, colorScheme: root.style.colorScheme, metaColor: meta.content, attrs };
 }
 
-test("el tema por defecto conserva el aspecto oscuro original", () => {
-  assert.equal(theme.DEFAULT_THEME_PREFERENCE, "dark");
-  const result = runInitScript({ stored: null, systemLight: true });
-  assert.equal(result.dataset.theme, "dark");
-  assert.equal(result.dataset.themePreference, "dark");
-  assert.equal(result.colorScheme, "dark");
-  assert.equal(result.metaColor, theme.THEME_COLORS.dark);
+test("sin preferencia guardada el tema por defecto sigue al dispositivo", () => {
+  assert.equal(theme.DEFAULT_THEME_PREFERENCE, "system");
+  const onDark = runInitScript({ stored: null, systemLight: false });
+  assert.equal(onDark.dataset.theme, "dark");
+  assert.equal(onDark.dataset.themePreference, "system");
+  assert.equal(onDark.colorScheme, "dark");
+  assert.equal(onDark.metaColor, theme.THEME_COLORS.dark);
+
+  const onLight = runInitScript({ stored: null, systemLight: true });
+  assert.equal(onLight.dataset.theme, "light");
+  assert.equal(onLight.metaColor, theme.THEME_COLORS.light);
 });
 
 test("el script de inicializacion respeta la preferencia guardada antes del primer render", () => {
@@ -67,8 +71,9 @@ test("el modo automatico sigue al sistema operativo", () => {
 });
 
 test("valores guardados invalidos o storage bloqueado caen al valor por defecto", () => {
-  assert.equal(runInitScript({ stored: "rosa" }).dataset.theme, "dark");
-  assert.equal(runInitScript({ throwOnStorage: true }).dataset.theme, "dark");
+  assert.equal(runInitScript({ stored: "rosa", systemLight: true }).dataset.theme, "light");
+  assert.equal(runInitScript({ throwOnStorage: true, systemLight: true }).dataset.theme, "light");
+  assert.equal(runInitScript({ stored: "rosa", systemLight: false }).dataset.theme, "dark");
 });
 
 test("isThemePreference solo acepta las tres preferencias", () => {

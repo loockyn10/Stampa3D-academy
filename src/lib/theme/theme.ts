@@ -13,10 +13,10 @@ export const THEME_CHANGE_EVENT = "stampa-theme-change";
 export const THEME_PREFERENCES: readonly ThemePreference[] = ["light", "dark", "system"];
 
 /**
- * Preferencia cuando el usuario todavia no eligio. Se mantiene "dark" para conservar el aspecto original
- * de la plataforma; cambiar a "system" hace que los visitantes con SO claro vean el modo claro por defecto.
+ * Preferencia cuando el usuario todavia no eligio: sigue la apariencia del dispositivo. Los visitantes con SO
+ * oscuro ven el aspecto original; con SO claro ven el modo claro.
  */
-export const DEFAULT_THEME_PREFERENCE: ThemePreference = "dark";
+export const DEFAULT_THEME_PREFERENCE: ThemePreference = "system";
 
 /** Valores de <meta name="theme-color"> (barra del navegador en mobile). */
 export const THEME_COLORS: Record<ResolvedTheme, string> = {
@@ -98,9 +98,9 @@ export function subscribeThemeChanges(onChange: () => void) {
  * Script bloqueante que se inyecta en <head>. Debe ser autocontenido (no puede importar nada) y
  * resolver el tema exactamente igual que `applyTheme`.
  */
-export const THEME_INIT_SCRIPT = `(function(){var d=document.documentElement;try{var p=localStorage.getItem(${JSON.stringify(
+export const THEME_INIT_SCRIPT = `(function(){var d=document.documentElement;try{var p=null;try{p=localStorage.getItem(${JSON.stringify(
   THEME_STORAGE_KEY,
-)});if(p!=="light"&&p!=="dark"&&p!=="system")p=${JSON.stringify(
+)})}catch(e){}if(p!=="light"&&p!=="dark"&&p!=="system")p=${JSON.stringify(
   DEFAULT_THEME_PREFERENCE,
 )};var t=p==="system"?(matchMedia("(prefers-color-scheme: light)").matches?"light":"dark"):p;d.dataset.theme=t;d.dataset.themePreference=p;d.style.colorScheme=t;var m=document.querySelector('meta[name="theme-color"]');if(m)m.setAttribute("content",t==="light"?${JSON.stringify(
   THEME_COLORS.light,

@@ -413,7 +413,7 @@ Sistema global de apariencia: **Claro**, **Oscuro** (aspecto original) y **Autom
 
 **Cómo funciona**
 
-- `src/lib/theme/theme.ts`: constantes, resolución y persistencia. La preferencia (`light` | `dark` | `system`) vive en `localStorage["stampa-theme"]`; el tema resuelto se publica como `data-theme="light|dark"` (y `color-scheme`) en `<html>`. `DEFAULT_THEME_PREFERENCE = "dark"` (sin elección previa se ve el aspecto original; cambiar a `"system"` hace que la plataforma arranque en claro en dispositivos con SO claro).
+- `src/lib/theme/theme.ts`: constantes, resolución y persistencia. La preferencia (`light` | `dark` | `system`) vive en `localStorage["stampa-theme"]`; el tema resuelto se publica como `data-theme="light|dark"` (y `color-scheme`) en `<html>`. `DEFAULT_THEME_PREFERENCE = "system"` (sin elección previa se sigue la apariencia del dispositivo: SO oscuro = aspecto original, SO claro = modo claro). Landing, tienda pública y viewers 3D siguen oscuros.
 - `THEME_INIT_SCRIPT` se inyecta inline en `<head>` del layout raíz (renderizado en el servidor, bloqueante): fija el tema **antes del primer render**, sin parpadeo ni dependencia de cookies (no vuelve dinámico el layout). `<html>` lleva `suppressHydrationWarning` porque el script modifica atributos antes de hidratar.
 - `src/components/theme/theme-provider.tsx`: `ThemeProvider` + `useTheme()` (`preference`, `resolvedTheme`, `setPreference`) sobre `useSyncExternalStore` (sincroniza pestañas por `storage` y el SO por `matchMedia`).
 - `src/components/theme/theme-switcher.tsx`: `ThemeMenu` (botón en header desktop y móvil) y `ThemeSwitcher` (Configuración → Cuenta → Apariencia).

@@ -302,12 +302,12 @@ Las cards usan un asset de video (`stl_models.preview_url`) generado client-side
 - **Decisiones comerciales abiertas antes de habilitar** (documentadas en `docs/DEPLOY_DISCOUNT_CODES.md` §5): checkouts abandonados que retienen asientos, qué hacer con un `over_limit`, y el reemplazo de checkouts con precio de lista viejo.
 
 
-## D035 — Temas claro/oscuro: variables CSS semánticas, preferencia local y default oscuro
+## D035 — Temas claro/oscuro: variables CSS semánticas, preferencia local y default automático
 
 **Estado:** Accepted (2026-10-29).
 
 - **Mecanismo:** atributo `data-theme` en `<html>` + variables CSS (`--stampa-*` y remapeo de las paletas de Tailwind) en lugar de `dark:` por clase. Con ~46 mil líneas de TSX escritas con clases neutras del tema oscuro, remapear la paleta por variable evita reescribir pantallas y garantiza que el modo oscuro sea idéntico al previo (usa los valores por defecto). Una migración mecánica llevó `text-white`, `bg-white/N`, `border-white/N`, `text-stampa-orange` y los hex de superficie a tokens; el blanco literal se conserva sobre fondos saturados.
 - **Persistencia:** `localStorage` por dispositivo; no se guarda en el perfil (evita migration y cambia de dispositivo sin sincronizar). Si se quiere sincronizar entre dispositivos habría que sumar una columna de preferencia en `profiles` (decisión de producto + migration, no hecha).
-- **Default:** `dark` (aspecto original) hasta que el producto confirme el modo claro tras QA manual; pasar a `system` es cambiar `DEFAULT_THEME_PREFERENCE` en `src/lib/theme/theme.ts`.
+- **Default:** `system` (Automático), decidido por producto el 2026-10-29: quien no eligió sigue su dispositivo. Los usuarios con SO claro verán el modo claro sin haberlo pedido, por lo que el QA manual en claro (TASKS) es prerrequisito del despliegue. Volver a oscuro por defecto es cambiar `DEFAULT_THEME_PREFERENCE` en `src/lib/theme/theme.ts`.
 - **Siempre oscuros por diseño (de momento):** landing de marketing (`/landing`, `/landing-old`), tienda pública (`/tienda/*`) y los viewers 3D (Stampa Maker, visor de Librería STL). Decisión pendiente de producto si se quieren versiones claras.
 - **Alternativa descartada:** librería `next-themes` (no hace falta: el script de inicialización y el provider son ~150 líneas y evitan una dependencia).
