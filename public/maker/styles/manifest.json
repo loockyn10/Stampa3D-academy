@@ -1,0 +1,128 @@
+{
+  "generator": "scripts/generate-maker-style-thumbnails.mjs",
+  "sampleText": "Sol",
+  "sampleHeightMm": 100,
+  "fontId": "montserrat-bold",
+  "width": 400,
+  "height": 300,
+  "styles": [
+    {
+      "id": "minimal",
+      "version": 1,
+      "signature": "bf61b73c",
+      "file": "minimal.png",
+      "triangles": 5896,
+      "parts": [
+        "body"
+      ],
+      "bytes": 10615
+    },
+    {
+      "id": "clasico",
+      "version": 1,
+      "signature": "9f1d56bb",
+      "file": "clasico.png",
+      "triangles": 5912,
+      "parts": [
+        "body"
+      ],
+      "bytes": 12736
+    },
+    {
+      "id": "liso",
+      "version": 1,
+      "signature": "228890d5",
+      "file": "liso.png",
+      "triangles": 8844,
+      "parts": [
+        "body",
+        "lid"
+      ],
+      "bytes": 8043
+    },
+    {
+      "id": "suave",
+      "version": 1,
+      "signature": "8f0985dd",
+      "file": "suave.png",
+      "triangles": 114866,
+      "parts": [
+        "body",
+        "lid"
+      ],
+      "bytes": 12631
+    },
+    {
+      "id": "bold",
+      "version": 1,
+      "signature": "5ea9d71e",
+      "file": "bold.png",
+      "triangles": 101428,
+      "parts": [
+        "body",
+        "lid"
+      ],
+      "bytes": 10394
+    },
+    {
+      "id": "retro",
+      "version": 1,
+      "signature": "97a9f88f",
+      "file": "retro.png",
+      "triangles": 157146,
+      "parts": [
+        "body",
+        "lid"
+      ],
+      "bytes": 11056
+    },
+    {
+      "id": "capas",
+      "version": 1,
+      "signature": "cf8344e8",
+      "file": "capas.png",
+      "triangles": 72914,
+      "parts": [
+        "body",
+        "lid"
+      ],
+      "bytes": 16017
+    },
+    {
+      "id": "industrial",
+      "version": 1,
+      "signature": "0673c0a0",
+      "file": "industrial.png",
+      "triangles": 136564,
+      "parts": [
+        "body",
+        "diffuser",
+        "mask"
+      ],
+      "bytes": 16198
+    },
+    {
+      "id": "luminoso",
+      "version": 1,
+      "signature": "fa75ae71",
+      "file": "luminoso.png",
+      "triangles": 15748,
+      "parts": [
+        "body",
+        "channelDiffuser"
+      ],
+      "bytes": 12040
+    },
+    {
+      "id": "moderno",
+      "version": 1,
+      "signature": "25256740",
+      "file": "moderno.png",
+      "triangles": 150168,
+      "parts": [
+        "body"
+      ],
+      "bytes": 17126
+    }
+  ]
+}

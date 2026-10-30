@@ -122,6 +122,7 @@ export function MakerViewport({ geometry, displayMode = "model", explosionAmount
   const activeModeRef = useRef<MakerDisplayMode>(displayMode);
   const editorRef = useRef<CutoutEditor | null>(null);
   const geometryRef = useRef<LetterGeometryResult | null>(geometry);
+  const hadModelRef = useRef(false);
 
   const fitTo = (center: THREE.Vector3, maxDim: number, dir: THREE.Vector3) => {
     const camera = cameraRef.current;
@@ -136,7 +137,8 @@ export function MakerViewport({ geometry, displayMode = "model", explosionAmount
     controls.update();
   };
 
-  const fitModel = () => {
+  // `keepView`: reencuadra (centro y distancia) pero conserva la DIRECCIÓN de la cámara actual, para que cambiar texto/estilo no deshaga la rotación del usuario.
+  const fitModel = (keepView = false) => {
     const group = modelGroupRef.current;
     if (!group) return;
     const box = new THREE.Box3();
@@ -147,8 +149,15 @@ export function MakerViewport({ geometry, displayMode = "model", explosionAmount
     if (box.isEmpty()) return;
     const center = box.getCenter(new THREE.Vector3());
     const size = box.getSize(new THREE.Vector3());
-    // Perspectiva 3/4. El encuadre se calcula sobre la posición ensamblada.
-    fitTo(center, Math.max(size.x, size.y, size.z, 1), new THREE.Vector3(0.55, 0.55, 0.75));
+    // Perspectiva 3/4 (o la dirección actual con `keepView`). El encuadre se calcula sobre la posición ensamblada.
+    const dir = new THREE.Vector3(0.55, 0.55, 0.75);
+    const camera = cameraRef.current;
+    const controls = controlsRef.current;
+    if (keepView && camera && controls) {
+      const current = camera.position.clone().sub(controls.target);
+      if (current.lengthSq() > 1e-6) dir.copy(current.normalize());
+    }
+    fitTo(center, Math.max(size.x, size.y, size.z, 1), dir);
   };
 
   const fitBed = () => {
@@ -266,7 +275,10 @@ export function MakerViewport({ geometry, displayMode = "model", explosionAmount
     }
 
     camStoreRef.current.model = null;
-    if (activeModeRef.current === "model") fitModel();
+    // Primera geometría: encuadre 3/4 inicial. Las siguientes (texto, estilo, parámetros) conservan la rotación que eligió el usuario.
+    const keepView = hadModelRef.current;
+    hadModelRef.current = true;
+    if (activeModeRef.current === "model") fitModel(keepView);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [geometry]);
 

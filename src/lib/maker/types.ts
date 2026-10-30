@@ -306,7 +306,8 @@ export interface LetterGeometryWarning {
     | "LID_BEVEL_COLLAPSED"
     | "LID_BEVEL_DEPTH_CLAMPED"
     | "BACK_CUTOUT_INVALID"
-    | "INSTALLATION_INVALID";
+    | "INSTALLATION_INVALID"
+    | "UNSUPPORTED_GLYPH";
   message: string;
 }
 

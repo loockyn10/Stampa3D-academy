@@ -65,6 +65,7 @@
 > Neon 0.1.1 (2026-09-19): importador SVG corregido (cascada CSS real, `<text>`, mensajes diferenciados) y biblioteca de fuentes single-line reales: Mistral SingleLine y Relief SingleLine, OFL (sección 26).
 > Neon 0.3 (2026-09-23): sistema de instalación de Neon LED (sección 33): `NeonSegment` (identidad física por recorrido, IDs posicionales + reconciliación best-effort por forma), `NeonWiringPlan` (nearest-neighbor + 2-opt acotado, IN/OUT por segmento), `NeonCablePassThrough` (cápsula bipolar única, perfora el piso sin tocar las paredes visibles — split de piso por bandas gateado, malla bit a bit idéntica sin pass-throughs), puentes traseros por MST (Kruskal, **sólidos independientes con overlap físico real, NO soldados por Clipper** — ver 33.4 para el porqué y la limitación aceptada), `NeonWallClip` paramétrico (deriva de la sección del canal, se regenera solo), posición automática de clips por longitud de arco, editor manual (reutiliza el editor de Back Cutouts existente, pass-through como `BackCutout` sintético — invertir/reordenar por lista), malla helper de cableado/montaje (nunca se exporta), export (Wall Clip STL + kit ZIP) y persistencia (receta+overrides anidados en el mismo `settings` jsonb, sin migration nueva). 53 tests nuevos en tests/maker-neon-installation.test.mjs (630 -> 683 tests Maker). No avanza a Neon 0.4.
 > Neon 0.3.2 (2026-09-23): corrección conceptual de cableado y puentes (sección 34), sin features nuevas. Cableado: se verificó que la fórmula 2N-1 de pass-throughs ya estaba bien implementada (no era "1 segmento -> 1 pass-through"); se agregó `NeonPassThroughRole` (POWER IN/IN/OUT/loop) y `planValidPassThrough()` (fallback de reposicionamiento cuando la posición por defecto no entra en la cavidad — antes se perdía en silencio). Puentes: reescritos de MST-only a modelo `BridgeConnection`/`BridgeInstance` con 4 modos (`independent`/`minimal`/`reinforced`/`custom`, antes solo `independent`/`bridged`), planificador de refuerzo con muestreo por longitud de arco + separación espacial mínima + evasión de pass-throughs, y editor manual mínimo (agregar/eliminar por par de segmentos, con validación de "toca ambos floors"). 12 tests nuevos en tests/maker-neon-installation.test.mjs (53 -> 65; 683 -> 696 tests Maker totales, 1 skip preexistente no relacionado). No avanza a Neon 0.4.
+> Carteles 0.7 (2026-10-30): estilos y creación rápida — 10 estilos con miniaturas generadas por el motor real, flujo texto → estilo → visor → descarga y Personalización avanzada plegable con todos los controles existentes (sección 35). Motor geométrico sin cambios; aviso `UNSUPPORTED_GLYPH` y reencuadre del visor que conserva la rotación.
 
 ## 1. Qué es
 
@@ -3274,3 +3275,119 @@ anteriores de Maker). `tests/maker-neon-installation.test.mjs`: 65/65.
 - Ningún cambio de esta corrección tocó `channel U`, `Text`, `SVG`, `PNG/JPG`, skeleton,
   wall clips, Proyectos ni export de Carteles — verificado por la suite completa de Maker
   en verde (696/696 salvo el skip preexistente).
+
+## 35. Carteles 0.7 — Estilos y creación rápida
+
+> Sprint de UX sobre el Creador de Carteles convencional. **El motor geométrico no se reconstruyó** (cuerpo/frente/biseles/export intactos). Neon LED y Jarros no se tocaron. Cambios fuera de la UI: aviso `UNSUPPORTED_GLYPH` en `createLetterGeometry.ts` (35.9) y reencuadre del visor que conserva la rotación (35.8).
+
+### 35.1 Qué es el generador (y por qué los estilos no son "placas")
+
+`/stampa-maker/carteles` genera **letras corpóreas huecas, una pieza por carácter** (secciones 3, 11-16): cuerpo soldado + frente opcional (tapa, perforado, canal luminoso) + modificadores (costillas, biseles, cintura, tapered). **No existe una placa de fondo** ni siluetas contenedoras (rectángulo, esquinas redondeadas, cápsula, marco): cada letra sigue su propio contorno.
+
+La propuesta de diez nombres del pedido (Minimal, Rounded, Outline, Classic, Bold, Retro, Industrial, Capsule, Layered, Modern) asumía una placa. Se contrastó con lo que el motor realmente puede generar:
+
+| Propuesta | Resultado |
+|---|---|
+| Minimal, Classic, Bold, Retro, Industrial, Layered, Modern | Implementados con capacidades reales (ver 35.3). Layered = cuerpo tapered escalonado ("Capas"); Retro = cintura hundida; Modern = bisel amplio. |
+| Outline ("geometría que sigue el contorno del texto") | Es lo que el motor ya hace en TODOS los estilos; no es un estilo aparte. Minimal es el más cercano. |
+| Rounded | Una placa de esquinas redondeadas **no existe**. Alternativa implementada: "Suave" (bisel de pared y tapa). No simula placas. |
+| Capsule | Requiere placa: **no implementado**. Reemplazado por "Luminoso" (canal con difusor). |
+| (nuevos) | "Liso" (tapa plana) y "Luminoso" (canal luminoso) se agregaron para llegar a 10 estilos visualmente distintos con el motor actual. |
+
+**Extensión evaluada y no hecha:** una pieza `plate` (placa de fondo con contorno rectangular/redondeado/cápsula detrás de las letras) tocaría `PartKind`, el orden explosionado, la Vista Cama, la orientación de impresión, el export (otro STL), la instalación (soportes, cableado, plantilla), los recortes traseros y las letras individuales. No es "pequeña y segura": es un sprint propio. Si se decide, los estilos Rounded/Capsule/Classic-con-marco se agregarían al registro sin cambiar la arquitectura de abajo.
+
+### 35.2 Arquitectura
+
+```
+src/lib/maker/presets/stylePresets.ts       registro central de estilos + funciones puras
+src/components/maker/MakerStyleGallery.tsx  galería de miniaturas (radiogroup)
+src/components/maker/MakerQuickText.tsx     paso 1: texto + medidas + aviso de cama
+src/components/maker/MakerAdvancedPanel.tsx "Personalización avanzada" (plegable)
+scripts/generate-maker-style-thumbnails.mjs miniaturas con el motor real
+scripts/lib/maker-engine-node.mjs           carga el motor TS en Node (tests + miniaturas)
+scripts/lib/maker-thumbnail-render.mjs      rasterizador z-buffer de las mallas reales
+public/maker/styles/<id>.png + manifest.json
+tests/maker-style-presets.test.mjs
+```
+
+- **Un solo estado de configuración.** `page.tsx` sigue teniendo UN `useState<LetterSignParams>` (`params`), el mismo que editan todos los controles avanzados. Elegir un estilo = `applyStylePreset(params, preset)`; el estilo elegido es solo una etiqueta (`styleId`). **"Personalizado" se deduce** (`!matchesStylePreset(params, preset)`), nunca se guarda una segunda copia que pueda desincronizarse.
+- **Qué define un estilo.** `STYLE_PARAM_KEYS` = `PRESET_SETTING_KEYS` (la receta de los presets del usuario, sección 18) **sin `installation`**. Nunca incluye texto, fuente, alto, recortes traseros ni la receta/overrides de instalación: cambiar de estilo los conserva. Un estilo solo declara `overrides` sobre `DEFAULT_LETTER_SIGN_PARAMS`; `resolveStyleSettings` completa el resto, así que aplicar un estilo es **determinístico** (no deja restos del estilo anterior; Clásico restituye exactamente los valores base).
+- **Dimensiones.** El estilo nunca toca `heightMm` (el alto que pidió el usuario) ni el ancho (sale del texto). Sí fija `depthMm` y el espesor de pared/fondo/tapa, que son parte de la forma del estilo y se ven y editan en Personalización avanzada.
+- **Comportamiento.** Elegir estilo: aplica parámetros, conserva texto, regenera (si ya estaba aplicado no cambia nada → no regenera). Editar un parámetro avanzado: se mantiene, no se restaura, la UI muestra "Personalizado" + "Restablecer estilo". Cambiar de estilo: aplica el nuevo, conserva el texto. Cargar un proyecto o un preset del usuario: `detectStylePreset` reconoce el estilo si coincide; si no, queda "Configuración propia / Personalizado".
+- **Relación con los presets del usuario (`maker_presets`, sección 18).** Son cosas distintas y conviven: los estilos son fijos, viven en código, versionados, sin base de datos ni migración; los presets del usuario son recetas guardadas por cada uno (siguen en Personalización avanzada, junto a Proyectos).
+- **Preparado para** (no implementado): nuevos estilos (sumar una entrada), categorías (`category` ya existe como metadato; falta UI de filtro), favoritos y estilos del usuario (el `id` es estable y `STYLE_PARAM_KEYS`/`resolveStyleSettings` sirven igual para una receta guardada).
+
+### 35.3 Los diez estilos
+
+Todos parten de los valores base (frente abierto, profundidad 40, pared 1.6, fondo 1.2) y solo declaran lo que cambian. Triángulos: texto "Sol", alto 100 mm.
+
+| id | Nombre | Parámetros (overrides) | Aspecto | Piezas | Tri. |
+|---|---|---|---|---|---|
+| `minimal` | Minimal | `depthMm 12, wallMm 1.2` | contorno bajo y liviano, frente abierto | cuerpo | 5.9 k |
+| `clasico` | Clásico | — (valores base) | letra hueca profunda, frente abierto | cuerpo | 5.9 k |
+| `liso` | Liso | `frontType lid, lidMm 1.2, depthMm 25` | tapa plana, letra maciza | cuerpo + tapa | 8.8 k |
+| `suave` | Suave | `lid, lidMm 2, depthMm 30, wallMm 3, bevel 6/2.4, lidBevel 1/0.8` | borde biselado en pared y tapa | cuerpo + tapa | 115 k |
+| `bold` | Bold | `lid, lidMm 2.4, depthMm 70, wallMm 2.4, baseMm 2, ribs 1 (2 mm x 6 mm)` | muy profundo, pared/tapa gruesas, costilla marcada | cuerpo + tapa | 101 k |
+| `retro` | Retro | `lid, lidMm 1.2, depthMm 40, groove inset 2.2 / ancho 10 / pos 20` | cintura hundida en el lateral | cuerpo + tapa | 157 k |
+| `capas` | Capas | `lid, lidMm 1.2, depthMm 40, tapered stepped, rearExpansion 8` | cuerpo escalonado que se ensancha hacia la base | cuerpo + tapa | 73 k |
+| `industrial` | Industrial | `frontType perforated, depthMm 40, wallMm 2, ribs 2` | máscara oscura perforada + costillas | cuerpo + difusor + máscara | 137 k |
+| `luminoso` | Luminoso | `frontType light-channel, depthMm 35` | canal interior con difusor | cuerpo + difusor de canal | 16 k |
+| `moderno` | Moderno | `depthMm 22, wallMm 3.2, bevel 10/2.8` | frente abierto con bisel amplio, poco profundo | cuerpo | 150 k |
+
+Revisión visual honesta: Minimal/Clásico/Moderno (frente abierto), Liso, Capas, Industrial y Luminoso se distinguen de un vistazo. **Suave, Retro y Bold se parecen entre sí** a tamaño miniatura (los tres son tapa cerrada; difieren en bisel, cintura y profundidad/costilla): son diferencias reales de geometría, pero más sutiles. `tests/maker-style-presets.test.mjs` exige además que ningún par de miniaturas renderizadas sea prácticamente igual.
+
+### 35.4 Flujo de la interfaz
+
+Orden en pantalla: **1 texto → visor → 2 estilo → Personalización avanzada**. Desktop (`lg`): columna izquierda de 380 px (texto, galería de 2 columnas, panel avanzado) + visor a la derecha con la exportación existente (`ViewportExportCard`: palabra completa .stl/.zip y letras individuales .zip). Mobile: el `<aside>` pasa a `display: contents` y los bloques se ordenan con el visor en el medio (visor 58 dvh), galería de 2 columnas (miniaturas ~166 px, objetivo táctil de toda la tarjeta), panel avanzado plegado, sin scroll horizontal (verificado a 375 px, también con el panel abierto). Al elegir un estilo en mobile, si el visor quedó fuera de pantalla se lo trae a la vista.
+
+`MakerQuickText` muestra las medidas del modelo (ancho × alto × profundidad) y, si la palabra completa no entra en la cama de la Bambu Lab A1 (256 mm), un aviso que sugiere letras individuales o reducir el alto: **el tamaño nunca se cambia solo**. Los errores y avisos del motor (`MakerStatusNotices`) se muestran siempre en la creación rápida (antes vivían dentro del panel de controles, que ahora está plegado). Si el diseño viene de un archivo SVG/PNG, el paso 1 lo indica y ofrece volver al texto (el origen sigue eligiéndose en Personalización avanzada). Tema claro/oscuro/automático: tarjetas con los tokens compartidos; las miniaturas van siempre sobre fondo oscuro, como el visor (`theme-force-dark`).
+
+### 35.5 Miniaturas
+
+Son **recursos estáticos generados con el motor real**: `scripts/generate-maker-style-thumbnails.mjs` llama a `createLetterGeometry` con el texto de ejemplo "Sol" (alto 100 mm, Montserrat Bold) para cada estilo, y proyecta las mallas resultantes (`SignPart.mesh`, mismos colores por pieza que el visor) con un rasterizador z-buffer mínimo (cámara 3/4, 400×300, supersampling 3×, PNG de 256 colores con alfa, 8-17 KB). No hay un segundo motor ni imágenes decorativas.
+
+```bash
+node scripts/generate-maker-style-thumbnails.mjs
+```
+
+Escribe `public/maker/styles/<id>.png` y `manifest.json` (firma de cada estilo, triángulos y piezas). Un test falla si cambia un estilo (o el motor, vía triángulos/piezas) sin regenerar las miniaturas. Los colores de la miniatura son solo de vista previa y la galería lo aclara.
+
+### 35.6 Cómo agregar un estilo
+
+1. Sumar una entrada a `STYLE_PRESETS` (`id` estable y único, `version`, `name`, `description`, `category`, `overrides` solo con lo que se aparta de los valores base).
+2. Respetar la regla de calidad: si usa bisel frontal/posterior, `bevelInsetMm < wallMm` (35.9); probarlo con texto corto, largo y acentos.
+3. `node scripts/generate-maker-style-thumbnails.mjs` y mirar la miniatura.
+4. Actualizar `EXPECTED_IDS` del test y la tabla de 35.3; `node --test tests/maker-style-presets.test.mjs`.
+
+Para cambiar un estilo existente: subir `version` y regenerar.
+
+### 35.7 Exportación (sin cambios)
+
+La exportación es la de siempre y sale de la misma geometría que el visor: un `.stl` si el estilo es de una pieza (Minimal, Clásico, Moderno), un `.zip` con un STL por pieza si tiene varias (`_cuerpo`/`_tapa`, `_cuerpo`/`_difusor`/`_mascara`, `_cuerpo`/`_difusor_canal`), y "Letras individuales (.zip)". **No se promete impresión multicolor**: ningún archivo lleva color; los colores del visor y de las miniaturas son solo de vista previa.
+
+### 35.8 Visor
+
+`MakerViewport` reencuadra (centro y distancia) pero **conserva la dirección de la cámara** cuando cambia la geometría después de la primera (antes volvía siempre a la vista 3/4 y deshacía la rotación del usuario al escribir o cambiar de estilo). La primera geometría sigue usando el encuadre 3/4 inicial. Mientras se regenera se muestra "Actualizando…" (visor y paso 1). El hook `useLetterGeometry` no cambió: debounce 200 ms y comparación por valor de `params`, así que no se regenera si no cambió ningún parámetro.
+
+### 35.9 Calidad de los modelos: hallazgos y reglas
+
+- **Bisel mayor que la pared → malla abierta, sin error.** Con `bevelInsetMm >= wallMm` el frente biselado queda dentro de la cavidad y la malla deja de cerrarse (cientos de aristas abiertas en la "S"); el motor ni la validación lo detectan. No se cambió el motor ni la validación (afectaría proyectos existentes); los estilos con bisel cumplen `bevelInsetMm < wallMm` (Suave y Moderno usan pared 3-3.2 mm por eso) y un test lo exige. Pendiente sugerido: validar esta regla en `validateLetterSignParams`.
+- **Alto mínimo.** Todos los estilos generan sin errores desde 30 mm de alto; por debajo, **Suave** (bisel de tapa) y **Luminoso** (canal) pueden reportar errores bloqueantes (`LID_BEVEL_COLLAPSED`, `CHANNEL_COLLAPSED`), que se muestran al usuario; Bold/Industrial muestran el warning `WALL_TOO_THICK` (letra maciza). Los valores de los estilos son en mm fijos, no proporcionales al alto.
+- **Aviso nuevo `UNSUPPORTED_GLYPH`** (`createLetterGeometry.ts`, `findUnsupportedChars`): un carácter que la fuente no tiene (emoji, kanji) se dibujaba en silencio como el recuadro `.notdef`. Ahora se informa (warning, no bloquea) listando los caracteres. Acentos, eñes, `¿ ¡ & / €` y dígitos están en Montserrat y se generan sin avisos.
+- **Limitación preexistente del motor (no de los estilos):** "R" y "6" a 100 mm dejan un lazo de área cero (5-6 aristas alineadas) en la cara frontal, con cualquier estilo; invisible y sin consecuencias para el slicer, pero técnicamente la malla no es 100 % cerrada. Un test limita el hallazgo a ese caso (ningún estilo agrega agujeros reales).
+- **Luminoso:** el difusor del canal es una tira por contorno (sección 14.6): una letra con counter ("o", "S") da dos anillos separados dentro del mismo STL. Es diseño del motor, no pieza accidental.
+- **Rendimiento:** el pipeline sigue en el hilo principal. Los estilos con modificadores de pared (Suave, Bold, Retro, Industrial, Moderno) generan 100-160 k triángulos por 3 letras a 100 mm (≈ 0.7-1.2 s en Node); con texto largo se nota la latencia mientras se actualiza. Un Web Worker sigue siendo la mejora pendiente (secciones 4 y 10).
+
+### 35.10 Tests y validación
+
+`tests/maker-style-presets.test.mjs` (39 tests, ~40 s): registro (ids estables, metadatos, solo claves de estilo, Clásico = valores base, configuraciones distintas, parámetros válidos), selección/cambio/idempotencia, conservación de texto/fuente/alto/recortes/instalación, estado Personalizado y restablecer, compatibilidad con presets/proyectos guardados antes (campos faltantes, ida y vuelta), geometría real de los 10 estilos (malla cerrada, sin triángulos degenerados, 1 solo sólido por pieza y letra, alto respetado, mallas y renders distintos), textos cortos/largos/acentos/símbolos/vacío/carácter sin glifo, exportación (STL binario, ZIP por piezas, letras individuales, errores que bloquean), miniaturas (manifiesto al día, PNG, geometría vigente), render real de los componentes y regla de no tocar Neon/Jarros.
+
+Revisión visual: visor real (three.js) de los 10 estilos con "Sol", desktop y mobile 375 px, modo claro; sin sesión, mediante una ruta pública temporal (eliminada), porque el Creador de Carteles exige cuenta con acceso Paid. Al cierre del sprint: `npx tsc --noEmit` limpio; `npm run build` OK; `node --test tests/maker-*.test.mjs` = 735 tests, 734 pasan, 1 skip preexistente (696 → 735: +39 de estilos); ESLint sin hallazgos en los archivos tocados (hay 4 errores preexistentes en archivos no tocados, p. ej. `useLetterGeometry.ts`); `git diff --check` limpio.
+
+### 35.11 Limitaciones y pendientes
+
+- Placas, esquinas redondeadas, cápsulas y marcos (35.1): requieren una pieza nueva en el motor.
+- Valores en mm fijos: por debajo de 30 mm de alto algunos estilos pueden reportar errores (35.9).
+- Sin selector de fuente por estilo (la fuente sigue siendo elección del usuario; solo hay Montserrat Regular/Bold).
+- Sin QA manual con cuentas reales (Paid/Beta/Admin) ni prueba en dispositivos físicos; sin favoritos, categorías visibles ni estilos del usuario.
+- Los presets guardados del usuario siguen requiriendo la migración de la sección 21 (no se ejecutó contra el remoto).

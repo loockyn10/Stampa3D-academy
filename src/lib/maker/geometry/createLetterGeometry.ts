@@ -42,7 +42,26 @@ export function createLetterGeometry(font: opentype.Font, params: LetterSignPara
     const index = pieces.length + 1;
     pieces.push({ char, label: `la letra "${char}" (posición ${index})`, contourGroups: buildContourHierarchy(rawContours), rawContours });
   }
-  return createGeometryFromContourPieces(pieces, params);
+  const result = createGeometryFromContourPieces(pieces, params);
+  const missing = findUnsupportedChars(font, params.text);
+  if (missing.length > 0) {
+    // No bloquea la exportación: el recuadro es visible en el preview y el usuario decide (quitar el carácter o aceptar el recuadro).
+    result.warnings.push({
+      code: "UNSUPPORTED_GLYPH",
+      message: `La fuente no tiene los caracteres: ${missing.join(" ")}. Se dibujan como un recuadro; quitalos o reemplazalos para evitar piezas no deseadas.`,
+    });
+  }
+  return result;
+}
+
+/** Caracteres (sin espacios) que la fuente no puede dibujar: opentype los resuelve al glifo ".notdef" (un recuadro), nunca falla en silencio con otra forma. Únicos y en orden de aparición. */
+export function findUnsupportedChars(font: opentype.Font, text: string): string[] {
+  const missing: string[] = [];
+  for (const char of Array.from(text)) {
+    if (/s/.test(char) || missing.includes(char)) continue;
+    if (font.charToGlyphIndex(char) === 0) missing.push(char);
+  }
+  return missing;
 }
 
 /**

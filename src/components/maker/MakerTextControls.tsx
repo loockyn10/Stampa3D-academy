@@ -41,6 +41,10 @@ interface MakerTextControlsProps {
   warnings: LetterGeometryWarning[];
   error: string | null;
   source: MakerSourceControls;
+  /** El campo de texto vive en la creación rápida (un único input de texto en pantalla): acá se oculta. */
+  hideTextField?: boolean;
+  /** Los avisos de error/warning del motor se muestran fuera del panel (siempre visibles, aunque este esté plegado). */
+  hideNotices?: boolean;
 }
 
 const SOURCE_MODE_OPTIONS: { value: "text" | "file"; label: string }[] = [
@@ -237,6 +241,50 @@ const JOINT_OPTIONS: { value: LetterSignParams["lidJoint"]; label: string }[] = 
   { value: "interior-lip", label: "Labio interior" },
 ];
 
+/** Errores y avisos del motor geométrico (mismo contenido que siempre mostró el panel de controles). */
+export function MakerStatusNotices({
+  error,
+  geometryErrors,
+  warnings,
+}: {
+  error: string | null;
+  geometryErrors: LetterGeometryWarning[];
+  warnings: LetterGeometryWarning[];
+}) {
+  return (
+    <>
+      {error && (
+        <div className="flex items-start gap-2 rounded-xl border border-red-500/30 bg-red-500/10 p-3 text-xs text-red-300">
+          <AlertTriangle size={15} className="mt-0.5 shrink-0" />
+          <span>{error}</span>
+        </div>
+      )}
+
+      {geometryErrors.length > 0 && (
+        <div className="flex flex-col gap-2 rounded-xl border border-red-500/30 bg-red-500/10 p-3 text-xs text-red-300">
+          <span className="font-semibold uppercase tracking-wide text-red-200">Diseño no listo para exportar</span>
+          {geometryErrors.map((err, i) => (
+            <div key={`${err.code}-${i}`} className="flex items-start gap-2">
+              <AlertTriangle size={15} className="mt-0.5 shrink-0" />
+              <span>{err.message}</span>
+            </div>
+          ))}
+        </div>
+      )}
+
+      {warnings.map((warning, i) => (
+        <div
+          key={`${warning.code}-${i}`}
+          className="flex items-start gap-2 rounded-xl border border-amber-500/30 bg-amber-500/10 p-3 text-xs text-amber-300"
+        >
+          <AlertTriangle size={15} className="mt-0.5 shrink-0" />
+          <span>{warning.message}</span>
+        </div>
+      ))}
+    </>
+  );
+}
+
 export function MakerTextControls({
   params,
   onChange,
@@ -245,6 +293,8 @@ export function MakerTextControls({
   warnings,
   error,
   source,
+  hideTextField = false,
+  hideNotices = false,
 }: MakerTextControlsProps) {
   const fromFile = source.mode === "file";
   return (
@@ -336,7 +386,7 @@ export function MakerTextControls({
         </div>
       )}
 
-      {!fromFile && (
+      {!fromFile && !hideTextField && (
       <label className="block">
         <span className="mb-1 block text-xs font-semibold text-gray-500">Texto</span>
         <input
@@ -738,35 +788,7 @@ export function MakerTextControls({
 
       </div>
 
-      {error && (
-        <div className="flex items-start gap-2 rounded-xl border border-red-500/30 bg-red-500/10 p-3 text-xs text-red-300">
-          <AlertTriangle size={15} className="mt-0.5 shrink-0" />
-          <span>{error}</span>
-        </div>
-      )}
-
-      {geometryErrors.length > 0 && (
-        <div className="flex flex-col gap-2 rounded-xl border border-red-500/30 bg-red-500/10 p-3 text-xs text-red-300">
-          <span className="font-semibold uppercase tracking-wide text-red-200">Diseño no listo para exportar</span>
-          {geometryErrors.map((err, i) => (
-            <div key={`${err.code}-${i}`} className="flex items-start gap-2">
-              <AlertTriangle size={15} className="mt-0.5 shrink-0" />
-              <span>{err.message}</span>
-            </div>
-          ))}
-        </div>
-      )}
-
-      {warnings.map((warning, i) => (
-        <div
-          key={`${warning.code}-${i}`}
-          className="flex items-start gap-2 rounded-xl border border-amber-500/30 bg-amber-500/10 p-3 text-xs text-amber-300"
-        >
-          <AlertTriangle size={15} className="mt-0.5 shrink-0" />
-          <span>{warning.message}</span>
-        </div>
-      ))}
-
+      {!hideNotices && <MakerStatusNotices error={error} geometryErrors={geometryErrors} warnings={warnings} />}
     </Card>
   );
 }

@@ -1,10 +1,13 @@
 "use client";
 
-import { useCallback, useMemo, useState } from "react";
+import { useCallback, useMemo, useRef, useState } from "react";
 import Link from "next/link";
-import { ArrowLeft } from "lucide-react";
+import { ArrowLeft, Loader2 } from "lucide-react";
 import { useAppFeedback } from "@/components/ui/app-feedback";
-import { MakerTextControls } from "@/components/maker/MakerTextControls";
+import { MakerStatusNotices, MakerTextControls } from "@/components/maker/MakerTextControls";
+import { MakerAdvancedPanel } from "@/components/maker/MakerAdvancedPanel";
+import { MakerQuickText } from "@/components/maker/MakerQuickText";
+import { MakerStyleGallery } from "@/components/maker/MakerStyleGallery";
 import { MakerBackCutoutsSection } from "@/components/maker/MakerBackCutoutsSection";
 import { MakerInstallationSection } from "@/components/maker/MakerInstallationSection";
 import { Card } from "@/components/ui/card";
@@ -26,11 +29,16 @@ import { DEFAULT_EXPLOSION_AMOUNT, effectiveExplosionAmount } from "@/lib/maker/
 import { checkBackCutoutPlacement, findInvalidBackCutouts, updateBackCutoutPosition } from "@/lib/maker/backCutoutEditor";
 import { collectBedItems, computeBedLayout } from "@/lib/maker/printBed/bedLayout";
 import { DEFAULT_PRINTER_PROFILE_ID, getPrinterProfile } from "@/lib/maker/printBed/printerProfiles";
+import { DEFAULT_STYLE_ID, STYLE_PRESETS, applyStylePreset, detectStylePreset, getStylePreset, matchesStylePreset } from "@/lib/maker/presets/stylePresets";
 import type { LoadedProject, ProjectWorkState } from "@/lib/maker/projects/projectData";
 import type { LetterSignParams } from "@/lib/maker/types";
 
 export default function StampaMakerCartelesPage() {
+  // Única fuente de la configuración: `params` (lo que edita Personalización avanzada). El estilo elegido es solo una etiqueta
+  // (`styleId`): "Personalizado" se deduce comparando `params` con la receta del estilo, nunca se guarda una segunda copia.
   const [params, setParams] = useState<LetterSignParams>(DEFAULT_LETTER_SIGN_PARAMS);
+  const [styleId, setStyleId] = useState<string | null>(DEFAULT_STYLE_ID);
+  const viewerRef = useRef<HTMLElement>(null);
   // Origen del diseño (0.5): texto, o archivo SVG/PNG -> ContourGroups (lib/maker/import).
   const [sourceMode, setSourceMode] = useState<"text" | "file">("text");
   const [file, setFile] = useState<FileDesignSource | null>(null);
@@ -60,9 +68,36 @@ export default function StampaMakerCartelesPage() {
   const [showWall, setShowWall] = useState(false);
   const [installLoading, setInstallLoading] = useState(false);
 
+  // Edición manual: se aplica tal cual, sin restaurar nada del estilo (el estilo pasa a "Personalizado" si deja de coincidir).
   const handleChange = useCallback((patch: Partial<LetterSignParams>) => {
     setParams((prev) => ({ ...prev, ...patch }));
   }, []);
+
+  // Params que llegan de afuera (preset del usuario, proyecto, "nuevo"): se reconoce el estilo si coinciden, si no queda "Personalizado".
+  const handleExternalParams = useCallback((next: LetterSignParams) => {
+    setParams(next);
+    setStyleId(detectStylePreset(next)?.id ?? null);
+  }, []);
+
+  const handleSelectStyle = useCallback(
+    (id: string) => {
+      const preset = getStylePreset(id);
+      if (!preset) return;
+      setStyleId(id);
+      if (matchesStylePreset(params, preset)) return; // ya está aplicado: sin regenerar el modelo
+      setParams((prev) => applyStylePreset(prev, preset));
+      // En mobile el visor queda arriba de la galería: si no se ve, se lo trae a la vista para que el cambio no pase desapercibido.
+      const viewer = viewerRef.current;
+      if (viewer && window.matchMedia("(max-width: 1023px)").matches) {
+        const rect = viewer.getBoundingClientRect();
+        const visible = Math.min(rect.bottom, window.innerHeight) - Math.max(rect.top, 0);
+        if (visible < rect.height * 0.35) viewer.scrollIntoView({ behavior: window.matchMedia("(prefers-reduced-motion: reduce)").matches ? "auto" : "smooth", block: "start" });
+      }
+    },
+    [params],
+  );
+  const selectedStyle = getStylePreset(styleId);
+  const styleCustom = !selectedStyle || !matchesStylePreset(params, selectedStyle);
 
   const handleFile = useCallback(async (picked: File) => {
     setFileError(null);
@@ -99,22 +134,22 @@ export default function StampaMakerCartelesPage() {
     [params, sourceMode, designHeightMm, pngOptions, file, fileSize],
   );
   const handleLoadWork = useCallback((loaded: LoadedProject, loadedFile: FileDesignSource | null) => {
-    setParams(loaded.params);
+    handleExternalParams(loaded.params);
     setSourceMode(loaded.sourceMode);
     setDesignHeightMm(loaded.designHeightMm);
     setPngOptions(loaded.pngOptions);
     setFile(loadedFile);
     setFileError(null);
-  }, []);
+  }, [handleExternalParams]);
   const handleResetWork = useCallback((next: LetterSignParams) => {
-    setParams(next);
+    handleExternalParams(next);
     setSourceMode("text");
     setFile(null);
     setFileError(null);
     setDesignHeightMm(DEFAULT_LETTER_SIGN_PARAMS.heightMm);
     setPngOptions({ ...DEFAULT_PNG_OPTIONS });
-  }, []);
-  const library = useMakerLibrary({ work, file, onParams: setParams, onLoadWork: handleLoadWork, onResetWork: handleResetWork });
+  }, [handleExternalParams]);
+  const library = useMakerLibrary({ work, file, onParams: handleExternalParams, onLoadWork: handleLoadWork, onResetWork: handleResetWork });
 
   const baseFileName = fromFile
     ? (file?.fileName.replace(/\.[^.]+$/, "").toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "") || "diseno")
@@ -266,10 +301,13 @@ export default function StampaMakerCartelesPage() {
   const plateCount = bed?.layout.plates.length ?? 0;
   const currentPlate = Math.min(Math.max(plateIndex, 1), Math.max(plateCount, 1));
 
+  const textError = fieldErrors.find((e) => e.field === "text")?.message;
+
   return (
     <div className="flex flex-col gap-4 lg:-mx-8 lg:-my-8 lg:h-[calc(100dvh-4rem)] lg:flex-row lg:gap-0 lg:overflow-hidden">
-      <aside className="flex min-h-0 flex-col gap-4 lg:w-[380px] lg:shrink-0 lg:overflow-y-auto lg:border-r lg:border-stampa-border lg:p-4">
-        <div className="flex flex-col gap-1">
+      {/* Mobile: el <aside> se disuelve (contents) y sus bloques se ordenan con el visor en el medio: texto -> visor -> estilos -> avanzada. Desktop: columna izquierda con scroll propio. */}
+      <aside className="contents lg:order-1 lg:flex lg:min-h-0 lg:w-[380px] lg:shrink-0 lg:flex-col lg:gap-4 lg:overflow-y-auto lg:border-r lg:border-stampa-border lg:p-4">
+        <div className="order-1 flex flex-col gap-1">
           <Link href="/stampa-maker" className="inline-flex w-fit items-center gap-1.5 text-xs font-semibold text-gray-500 hover:text-fg">
             <ArrowLeft size={14} />
             Stampa Maker
@@ -277,69 +315,104 @@ export default function StampaMakerCartelesPage() {
           <h1 className="text-lg font-bold text-fg">Creador de Carteles</h1>
         </div>
 
-        <MakerLibraryPanel library={library} />
-
-        <MakerTextControls
-          params={params}
-          onChange={handleChange}
-          fieldErrors={fieldErrors}
-          geometryErrors={geometry?.errors ?? []}
-          warnings={geometry?.warnings ?? []}
-          error={error}
-          source={{
-            mode: sourceMode,
-            onModeChange: setSourceMode,
-            fileName: file?.fileName ?? null,
-            fileKind: file?.type ?? null,
-            importing: designImport.loading,
-            importError: fileError ?? designImport.error,
-            importWarnings: designImport.design?.warnings ?? [],
-            onFile: handleFile,
-            onClear: () => {
-              setFile(null);
-              setFileError(null);
-            },
-            heightMm: designHeightMm,
-            onHeightChange: setDesignHeightMm,
-            widthMm: designImport.design?.widthMm ?? null,
-            pngMode: designImport.design?.pngMode ?? null,
-            pngOptions,
-            onPngOptionsChange: (patch) => setPngOptions((prev) => ({ ...prev, ...patch })),
-          }}
-        />
-
-        <Card className="p-5">
-          <MakerBackCutoutsSection
-            cutouts={params.backCutouts}
-            onChange={(backCutouts) => handleChange({ backCutouts })}
-            selectedId={selectedId}
-            onSelect={setSelectedBackCutoutId}
-            editing={editingCutoutsOn}
-            canEdit={hasGeometry}
-            onToggleEditing={editingCutoutsOn ? finishCutoutEditing : startCutoutEditing}
-            errors={[
-              ...fieldErrors.filter((e) => e.field === "backCutouts").map((e) => e.message),
-              ...(geometry?.errors ?? []).filter((e) => e.code === "BACK_CUTOUT_INVALID").map((e) => e.message),
-            ]}
+        <div className="order-2 flex flex-col gap-3">
+          <MakerQuickText
+            value={params.text}
+            onChange={(text) => handleChange({ text })}
+            error={textError}
+            fromFile={fromFile}
+            onUseText={() => setSourceMode("text")}
+            updating={loading || designImport.loading}
+            size={shownGeometry && shownGeometry.triangleCount > 0 ? shownGeometry.boundingBox : null}
+            bedWidthMm={profile.widthMm}
+            bedName={profile.name}
           />
-        </Card>
+          <MakerStatusNotices error={error} geometryErrors={geometry?.errors ?? []} warnings={geometry?.warnings ?? []} />
+        </div>
 
-        <Card className="p-5">
-          <MakerInstallationSection
-            params={params}
-            onChange={handleChange}
-            geometry={shownGeometry}
-            editingMounts={editingMountsOn}
-            onToggleEditingMounts={toggleMountEditing}
-            showWiring={showWiring}
-            onShowWiring={setShowWiring}
-            showWall={showWall}
-            onShowWall={setShowWall}
+        <div className="order-4">
+          <MakerStyleGallery
+            styles={STYLE_PRESETS}
+            selectedId={styleId}
+            custom={styleCustom}
+            onSelect={handleSelectStyle}
+            onReset={() => styleId && handleSelectStyle(styleId)}
           />
-        </Card>
+        </div>
+
+        <div className="order-5 flex flex-col gap-3">
+          <MakerAdvancedPanel custom={styleCustom}>
+            <MakerLibraryPanel library={library} />
+
+            <MakerTextControls
+              params={params}
+              onChange={handleChange}
+              fieldErrors={fieldErrors}
+              geometryErrors={geometry?.errors ?? []}
+              warnings={geometry?.warnings ?? []}
+              error={error}
+              hideTextField
+              hideNotices
+              source={{
+                mode: sourceMode,
+                onModeChange: setSourceMode,
+                fileName: file?.fileName ?? null,
+                fileKind: file?.type ?? null,
+                importing: designImport.loading,
+                importError: fileError ?? designImport.error,
+                importWarnings: designImport.design?.warnings ?? [],
+                onFile: handleFile,
+                onClear: () => {
+                  setFile(null);
+                  setFileError(null);
+                },
+                heightMm: designHeightMm,
+                onHeightChange: setDesignHeightMm,
+                widthMm: designImport.design?.widthMm ?? null,
+                pngMode: designImport.design?.pngMode ?? null,
+                pngOptions,
+                onPngOptionsChange: (patch) => setPngOptions((prev) => ({ ...prev, ...patch })),
+              }}
+            />
+
+            <Card className="p-5">
+              <MakerBackCutoutsSection
+                cutouts={params.backCutouts}
+                onChange={(backCutouts) => handleChange({ backCutouts })}
+                selectedId={selectedId}
+                onSelect={setSelectedBackCutoutId}
+                editing={editingCutoutsOn}
+                canEdit={hasGeometry}
+                onToggleEditing={editingCutoutsOn ? finishCutoutEditing : startCutoutEditing}
+                errors={[
+                  ...fieldErrors.filter((e) => e.field === "backCutouts").map((e) => e.message),
+                  ...(geometry?.errors ?? []).filter((e) => e.code === "BACK_CUTOUT_INVALID").map((e) => e.message),
+                ]}
+              />
+            </Card>
+
+            <Card className="p-5">
+              <MakerInstallationSection
+                params={params}
+                onChange={handleChange}
+                geometry={shownGeometry}
+                editingMounts={editingMountsOn}
+                onToggleEditingMounts={toggleMountEditing}
+                showWiring={showWiring}
+                onShowWiring={setShowWiring}
+                showWall={showWall}
+                onShowWall={setShowWall}
+              />
+            </Card>
+          </MakerAdvancedPanel>
+        </div>
       </aside>
 
-      <section className="theme-force-dark relative h-[70dvh] min-h-[420px] overflow-hidden rounded-2xl border border-stampa-border bg-stampa-surface lg:h-auto lg:min-h-0 lg:flex-1 lg:rounded-none lg:border-0">
+      <section
+        ref={viewerRef}
+        aria-label="Visor 3D del cartel"
+        className="theme-force-dark relative order-3 h-[58dvh] min-h-[380px] scroll-mt-16 overflow-hidden rounded-2xl border border-stampa-border bg-stampa-surface lg:order-2 lg:h-auto lg:min-h-0 lg:flex-1 lg:rounded-none lg:border-0"
+      >
         <MakerViewport
           geometry={shownGeometry}
           displayMode={editing ? "model" : displayMode}
@@ -353,6 +426,12 @@ export default function StampaMakerCartelesPage() {
             <div>
               {editing && <CutoutEditingBanner invalidMessage={invalidMessage} mounts={editingMountsOn} />}
               {!editing && displayMode === "bed" && bed && <BedWarnings layout={bed.layout} profile={profile} />}
+              {(loading || designImport.loading) && !editing && (
+                <span role="status" className="inline-flex items-center gap-1.5 rounded-full border border-fg/15 bg-black/50 px-2.5 py-1 text-[11px] font-semibold text-white backdrop-blur">
+                  <Loader2 size={12} className="animate-spin" />
+                  Actualizando…
+                </span>
+              )}
             </div>
             <ViewportExportCard
               fromFile={fromFile}
