@@ -2,6 +2,13 @@
 
 Este archivo contiene únicamente trabajo pendiente o próximo. Eliminar tareas terminadas en lugar de conservar un historial infinito.
 
+## Now — Carteles 0.7.1: bisel superior y resistencia (implementado 2026-10-30, ver docs/STAMPA_MAKER.md §36)
+
+- [ ] Validar en Bambu Studio (no hay slicer en el entorno de desarrollo): exportar Normal (1,2 mm) y Reforzado (2,4 mm) con bisel (estilo Moderno), revisar pared vertical + espesor dentro del bisel en vista de capas y los perímetros reales (Reforzado necesita ≥ 1,68 mm para 4 perímetros de 0,42 mm). Lista completa en §36.10.
+- [ ] Bisel posterior (`rearBevel*`) y costillas todavía no acompañan a la cavidad (§36.9); decidir si se extiende el mismo mecanismo.
+- [ ] Decidir si el valor inicial 1,2 mm (Normal, antes 1,6 mm) es el deseado.
+- [ ] QA visual manual del selector de resistencia en la app con cuenta Paid (desktop y 375 px, claro/oscuro): la verificación automática es de render estático.
+
 ## Now — Tutoriales gráficos (implementado 2026-10-29, ver ARCHITECTURE §24, D036 y `docs/TUTORIALS.md`)
 
 - [ ] Aplicar `supabase/migrations/20261031090000_tool_tutorial_versions.sql` en Supabase remoto (requiere autorización). Sin aplicarla todo funciona (el versionado queda respaldado por `localStorage` por usuario).

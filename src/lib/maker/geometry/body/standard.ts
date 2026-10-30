@@ -6,7 +6,8 @@ import { computeRibBands, ribBandsToZBands } from "@/lib/maker/geometry/body/mod
 import { computeBevelBand, bevelBandToZBand, beveledFrontFootprint } from "@/lib/maker/geometry/body/modifiers/bevel";
 import { computeGrooveBand, grooveBandToZBand } from "@/lib/maker/geometry/body/modifiers/groove";
 import { computeRearBevelBand, rearBevelBandToZBand, beveledRearFootprint } from "@/lib/maker/geometry/body/modifiers/rearBevel";
-import { computeWallAndCore, buildBandedOuterWallPieces, type ZBand } from "@/lib/maker/geometry/body/shared";
+import { computeWallAndCore, buildBandedOuterWallPieces, buildBandedCavityWallPieces, type ZBand } from "@/lib/maker/geometry/body/shared";
+import { computeInwardBands } from "@/lib/maker/geometry/body/cavity";
 // El canal luminoso (0.4 Etapa 6) es, conceptualmente, un FRONT SYSTEM —
 // pero a diferencia de la tapa/máscara/difusor (piezas separadas que se
 // apoyan encima), el canal está tallado DENTRO del propio "frente" del
@@ -71,6 +72,7 @@ export function buildStandardBodyPieces(
   const wallGroups: ContourGroup[] = [];
   const coreGroups: ContourGroup[] = [];
   const bandedWallPieces: ExtrudedMeshData[] = [];
+  const cavityWallPieces: ExtrudedMeshData[] = [];
   const channelFrontPieces: ExtrudedMeshData[] = [];
   const isLightChannel = params.frontType === "light-channel";
   let fullyEroded = false;
@@ -123,6 +125,13 @@ export function buildStandardBodyPieces(
     ...(rearBevelBand ? [rearBevelBandToZBand(rearBevelBand, params.rearBevelInsetMm)] : []),
   ];
 
+  // Bandas que angostan la silueta hacia adentro (bisel superior, cintura
+  // lateral): la cavidad las acompaña para conservar el espesor de pared
+  // (ver body/cavity.ts). Vacío = cavidad vertical de siempre, mismo
+  // resultado byte a byte que antes.
+  const inwardBands = computeInwardBands(params);
+  const cavityFollows = inwardBands.length > 0;
+
   for (const group of contourGroups) {
     // 0.4.2: el fondo usa el footprint erosionado por el bisel posterior en
     // su extremo (Z=0) en vez del contorno original, cuando está activo —
@@ -147,11 +156,21 @@ export function buildStandardBodyPieces(
       const wac = computeWallAndCore(group, params.wallMm);
       if (wac.fullyEroded) fullyEroded = true;
       coreGroups.push(...wac.coreGroups);
+      // Cavidad que acompaña al bisel/cintura: pared interior escalonada
+      // desde baseMm hasta el frente, y la huella de la cavidad EN el frente
+      // (la tapa del frente se recorta contra ella, no contra el núcleo
+      // vertical).
+      let coreRawPaths: ClipperLib.Paths | null = null;
+      if (cavityFollows) {
+        const cavity = buildBandedCavityWallPieces(group, wac.coreGroups, params.wallMm, params.baseMm, params.depthMm, inwardBands);
+        cavityWallPieces.push(...cavity.pieces);
+        coreRawPaths = contourGroupsToRawPaths(cavity.frontFootprint);
+      }
       if (bevelBand) {
         // El frente ya no usa la silueta original: el bisel es visible
         // justo en el borde, así que el frente empalma con el inset
         // completo que deja la pared biselada ahí (ver bevel.ts).
-        const coreRawPaths = insetContourGroups([group], params.wallMm);
+        coreRawPaths = coreRawPaths ?? insetContourGroups([group], params.wallMm);
         groupWallGroups = differenceContourGroups(beveledFrontFootprint(group, bevelBand, params.bevelInsetMm), coreRawPaths);
       } else {
         groupWallGroups = wac.wallGroups;
@@ -224,7 +243,8 @@ export function buildStandardBodyPieces(
       //    propio interior — pero acá el núcleo representa la cavidad
       //    (vacía) y el material real está afuera de él (huella de pared),
       //    así que la normal debe apuntar hacia adentro del núcleo.
-      pieces.push(extrudeContourGroups(coreGroups, params.baseMm, params.depthMm, { capStart: false, capEnd: false, sides: true, flipSides: true }));
+      if (cavityFollows) pieces.push(...cavityWallPieces);
+      else pieces.push(extrudeContourGroups(coreGroups, params.baseMm, params.depthMm, { capStart: false, capEnd: false, sides: true, flipSides: true }));
     }
 
     // 4) Frente: tapa de la huella de pared en z=depthMm (mirando hacia

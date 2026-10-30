@@ -1635,19 +1635,20 @@ for (const text of ["O", "B", "8"]) {
 test('bisel frontal "I": el desplazamiento (bevelInsetMm) y la banda son medibles', () => {
   const text = "I";
   const groups = contourGroupsFor(text);
-  // Sonda a 0.4x el inset máximo: estrictamente entre dos escalones de la
-  // aproximación (n=4 tramos para bevelDepthMm=2), sin ambigüedad de borde.
-  const probeInset = regroupClipperSolution(insetContourGroups(groups, BEVEL_PARAMS.bevelInsetMm * 0.4));
+  // Sonda a 0.45x el inset máximo: estrictamente entre dos escalones de la
+  // aproximación (10 tramos de 0.2mm para bevelDepthMm=2), sin ambigüedad de borde.
+  const probeInset = regroupClipperSolution(insetContourGroups(groups, BEVEL_PARAMS.bevelInsetMm * 0.45));
   const [px, py] = probeInset[0].outer[0];
 
   const result = createLetterGeometry(montserratBold, { ...BEVEL_PARAMS, text });
   const hits = raycastZHits(bodyOf(result).positions, px, py).sort((a, b) => a - b);
 
+  // Chaflán recto: el inset 0.45x se alcanza a 0.45x de la altura de la banda (± un escalón de 0.2mm).
   const bandZ0 = BEVEL_PARAMS.depthMm - BEVEL_PARAMS.bevelDepthMm;
-  const expectedTop = bandZ0 + BEVEL_PARAMS.bevelDepthMm * 0.5;
+  const expectedTop = bandZ0 + BEVEL_PARAMS.bevelDepthMm * 0.45;
   assert.equal(hits.length, 2, `se esperaban 2 impactos (piso en z=0, techo donde el bisel angosta), se encontraron ${hits.length}: [${hits.join(", ")}]`);
   assert.ok(Math.abs(hits[0] - 0) < 1e-3, `se esperaba el piso en z=0, fue ${hits[0]}`);
-  assert.ok(Math.abs(hits[1] - expectedTop) < 1e-3, `se esperaba el techo en ~${expectedTop.toFixed(2)}mm, fue ${hits[1].toFixed(2)}mm`);
+  assert.ok(Math.abs(hits[1] - expectedTop) <= 0.2 + 1e-3, `se esperaba el techo en ~${expectedTop.toFixed(2)}mm (± un escalón), fue ${hits[1].toFixed(2)}mm`);
 });
 
 test('bisel frontal "I": la pared lateral no llega más allá de bevelInsetMm dentro de la banda (el frente conserva el resto del espesor como tapa)', () => {
@@ -1708,7 +1709,7 @@ test('costillas + bisel combinados "O": no se superponen (las costillas ceden lu
 // angostada (geometry/lid.ts#bevelPlateInsetMm), en vez de una tapa de
 // tamaño nominal sobresaliendo del cuerpo biselado.
 
-test('bisel frontal "I": progresión suave — el inset a t=0.5 cruza cerca de lo que predice smoothstep, sin escalón grande', () => {
+test('bisel frontal "I": chaflán recto — el inset a t=0.5 cruza a mitad de banda, sin escalón grande', () => {
   const text = "I";
   const groups = contourGroupsFor(text);
   const band = { z0: BEVEL_PARAMS.depthMm - BEVEL_PARAMS.bevelDepthMm, z1: BEVEL_PARAMS.depthMm };
@@ -1716,8 +1717,7 @@ test('bisel frontal "I": progresión suave — el inset a t=0.5 cruza cerca de l
   const result = createLetterGeometry(montserratBold, { ...BEVEL_PARAMS, text });
   const bodyPositions = bodyOf(result).positions;
 
-  // smoothstep(t) = 3t²-2t³; a t=0.5 da exactamente 0.5 (mismo destino que
-  // el lineal en el punto medio), pero con pendiente 0 en los bordes.
+  // Perfil lineal (desde 0.7.1; antes smoothstep): a t=0.5 el inset es la mitad.
   const halfInset = regroupClipperSolution(insetContourGroups(groups, BEVEL_PARAMS.bevelInsetMm * 0.5));
   const [px, py] = halfInset[0].outer[0];
   const hits = raycastZHits(bodyPositions, px, py).sort((a, b) => a - b);

@@ -98,7 +98,7 @@ export function footprintAtOffset(group: ContourGroup, offsetMm: number): Contou
 // vacío (`differenceContourGroups(X, X)`), en vez de un anillo casi-nulo.
 const OFFSET_QUANTUM_MM = 0.01;
 
-function quantizeOffset(offsetMm: number): number {
+export function quantizeOffset(offsetMm: number): number {
   return Math.round(offsetMm / OFFSET_QUANTUM_MM) * OFFSET_QUANTUM_MM;
 }
 
@@ -146,9 +146,9 @@ export interface ZBand {
   offsetAt: (z: number) => number;
 }
 
-const MODIFIER_RESOLUTION_MM = 0.2;
-const MODIFIER_MIN_STEPS = 8;
-const MODIFIER_MAX_STEPS = 150;
+export const MODIFIER_RESOLUTION_MM = 0.2;
+export const MODIFIER_MIN_STEPS = 8;
+export const MODIFIER_MAX_STEPS = 150;
 
 /**
  * Pared exterior/hueco de UN contorno con CUALQUIER combinación de bandas de
@@ -192,6 +192,132 @@ export function buildBandedOuterWallPieces(group: ContourGroup, z0: number, z1: 
     pieces.push(...buildOffsetProfileWallPieces(group, zPoints, band.offsetAt));
   }
   return pieces;
+}
+
+/**
+ * Huella de la cavidad de UN contorno cuando la pared exterior se desplazó
+ * `inwardMm` hacia adentro (bisel superior, cintura lateral): la cavidad se
+ * corre ese mismo desplazamiento además del espesor de pared, así el espesor
+ * HORIZONTAL de la pared es `wallMm` sin importar cuánto se angoste la
+ * silueta. `inwardMm` se cuantiza igual que el offset de la pared exterior
+ * (ver `quantizeOffset`), de modo que `inwardMm = 0` es EXACTAMENTE el núcleo
+ * de `computeWallAndCore` (mismos vértices: la costura se suelda sin huecos).
+ */
+export function coreFootprintAtInward(group: ContourGroup, wallMm: number, inwardMm: number): ContourGroup[] {
+  return footprintAtOffset(group, -(wallMm + quantizeOffset(Math.max(0, inwardMm))));
+}
+
+/**
+ * Pared interior (cavidad) de UN contorno, de `z0` a `z1`, cuando la
+ * silueta exterior se angosta en algunas bandas de Z (`bands`, con signo: sólo
+ * cuentan los desplazamientos hacia adentro, o sea `offsetAt(z) < 0`). Fuera de
+ * las bandas la cavidad es el núcleo normal (`coreGroups`, pared vertical); dentro
+ * de cada banda sigue el mismo perfil que la pared exterior, desplazado el
+ * espesor de pared, aproximada con las mismas sub-bandas que usa
+ * `buildBandedOuterWallPieces` (mismo mecanismo de escalones soldados por
+ * coordenadas compartidas, sin CSG).
+ *
+ * Cada sub-banda usa el extremo más ANGOSTO de la cavidad (mayor
+ * desplazamiento): la pared real nunca queda más fina que `wallMm`. Entre dos
+ * huellas distintas se cierra el escalón: un techo (mirando -Z, hacia el
+ * vacío) donde la cavidad se achica al subir, un piso (mirando +Z) donde se
+ * agranda. Un trazo que se angosta tanto que ya no admite cavidad queda macizo
+ * desde ese nivel hacia arriba (techo completo, sin pared).
+ *
+ * Devuelve además la huella de la cavidad en `z1` (la del frente), que el
+ * llamador necesita para recortar la tapa del frente exactamente contra ella.
+ */
+export function buildBandedCavityWallPieces(
+  group: ContourGroup,
+  coreGroups: ContourGroup[],
+  wallMm: number,
+  z0: number,
+  z1: number,
+  bands: ZBand[],
+): { pieces: ExtrudedMeshData[]; frontFootprint: ContourGroup[] } {
+  const pieces: ExtrudedMeshData[] = [];
+  const footprintCache = new Map<number, ContourGroup[]>();
+  const footprintFor = (inwardMm: number): ContourGroup[] => {
+    if (inwardMm === 0) return coreGroups;
+    let cached = footprintCache.get(inwardMm);
+    if (!cached) {
+      cached = coreFootprintAtInward(group, wallMm, inwardMm);
+      footprintCache.set(inwardMm, cached);
+    }
+    return cached;
+  };
+
+  let currentInward = 0;
+  let current = footprintFor(0);
+
+  // Cambia la huella de la cavidad en el nivel `z`, cerrando el escalón entre la anterior y la nueva.
+  const stepTo = (inwardMm: number, z: number) => {
+    if (inwardMm === currentInward) return;
+    const next = footprintFor(inwardMm);
+    // Un mayor desplazamiento hacia adentro es siempre una cavidad contenida en la anterior (erosión
+    // monótona): sólo hay techo; con uno menor, sólo piso. Evita una diferencia booleana vacía por escalón.
+    const narrowing = inwardMm > currentInward;
+    const ceiling = narrowing ? differenceContourGroups(current, contourGroupsToRawPaths(next)) : [];
+    const floor = narrowing ? [] : differenceContourGroups(next, contourGroupsToRawPaths(current));
+    if (ceiling.length > 0) pieces.push(extrudeContourGroups(ceiling, z, z, { capStart: true, capEnd: false, sides: false }));
+    if (floor.length > 0) pieces.push(extrudeContourGroups(floor, z, z, { capStart: false, capEnd: true, sides: false }));
+    current = next;
+    currentInward = inwardMm;
+  };
+
+  const wallBetween = (za: number, zb: number) => {
+    if (zb - za < 1e-9 || current.length === 0) return;
+    pieces.push(extrudeContourGroups(current, za, zb, { capStart: false, capEnd: false, sides: true, flipSides: true }));
+  };
+
+  let cursor = z0;
+  for (const band of [...bands].sort((a, b) => a.z0 - b.z0)) {
+    const bandStart = Math.max(band.z0, z0);
+    const bandEnd = Math.min(band.z1, z1);
+    if (bandEnd - bandStart < 1e-9) continue;
+    if (bandStart - cursor > 1e-9) {
+      stepTo(0, cursor);
+      wallBetween(cursor, bandStart);
+    }
+    const inwardAt = (z: number) => Math.max(0, -band.offsetAt(z));
+    const zPoints = subdivideRange(bandStart, bandEnd, MODIFIER_RESOLUTION_MM, MODIFIER_MIN_STEPS, MODIFIER_MAX_STEPS);
+    for (let i = 0; i < zPoints.length - 1; i++) {
+      const za = zPoints[i];
+      const zb = zPoints[i + 1];
+      if (zb - za < 1e-9) continue;
+      stepTo(quantizeOffset(Math.max(inwardAt(za), inwardAt(zb))), za);
+      wallBetween(za, zb);
+    }
+    cursor = bandEnd;
+  }
+  if (z1 - cursor > 1e-9) {
+    stepTo(0, cursor);
+    wallBetween(cursor, z1);
+  }
+
+  return { pieces, frontFootprint: current };
+}
+
+/**
+ * Máximo desplazamiento hacia adentro (mm, ya cuantizado como lo usa la
+ * cavidad) que alcanzan las `bands` dentro de `[z0, z1]`. Es lo que angosta la
+ * cavidad en ese rango de Z: una pieza que se aloja ahí dentro (el labio de la
+ * tapa encastrable) tiene que entrar en la cavidad MÁS angosta del rango.
+ * Recorre exactamente las mismas sub-bandas que `buildBandedCavityWallPieces`.
+ */
+export function maxInwardMmInRange(bands: ZBand[], z0: number, z1: number): number {
+  let max = 0;
+  for (const band of bands) {
+    if (Math.min(band.z1, z1) - Math.max(band.z0, z0) < 1e-9) continue;
+    const inwardAt = (z: number) => Math.max(0, -band.offsetAt(z));
+    // Se subdivide la banda COMPLETA (igual que la pared) y se toman las sub-bandas que tocan el rango.
+    const zPoints = subdivideRange(band.z0, band.z1, MODIFIER_RESOLUTION_MM, MODIFIER_MIN_STEPS, MODIFIER_MAX_STEPS);
+    for (let i = 0; i < zPoints.length - 1; i++) {
+      if (zPoints[i + 1] <= z0 + 1e-9 || zPoints[i] >= z1 - 1e-9) continue;
+      max = Math.max(max, quantizeOffset(Math.max(inwardAt(zPoints[i]), inwardAt(zPoints[i + 1]))));
+    }
+  }
+  return max;
 }
 
 /**

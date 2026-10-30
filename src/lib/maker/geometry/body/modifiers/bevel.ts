@@ -1,5 +1,5 @@
 import type { ContourGroup } from "@/lib/maker/types";
-import { footprintAtOffset, smoothstepRampProfile, type ZBand } from "@/lib/maker/geometry/body/shared";
+import { footprintAtOffset, type ZBand } from "@/lib/maker/geometry/body/shared";
 
 export interface BevelBand {
   z0: number;
@@ -19,10 +19,20 @@ export function computeBevelBand(baseMm: number, depthMm: number, bevelEnabled: 
   return { z0, z1 };
 }
 
-/** Inset (mm) en una coordenada Z de la banda: 0 en `band.z0` (pendiente 0, empalma sin quiebre con la pared normal), `bevelInsetMm` en `band.z1 = depthMm` (pendiente 0 también, empalma sin quiebre con el frente/la tapa — ver geometry/lid.ts). */
+/**
+ * Inset (mm) en una coordenada Z de la banda: chaflán RECTO, 0 en `band.z0`
+ * (donde termina la pared vertical) hasta `bevelInsetMm` en `band.z1 =
+ * depthMm` (el borde del frente; la tapa lo continúa, ver geometry/lid.ts).
+ * Hasta 0.6 el perfil era un smoothstep (pendiente 0 en ambos extremos): la
+ * pared volvía a ser vertical justo en el borde del frente, así que el
+ * "bisel" era una S larga que adelgazaba la letra en toda la banda en vez de
+ * un corte inclinado cerca de la cara superior. Con el perfil recto la pared
+ * es vertical hasta `band.z0` y el ángulo respecto de la vertical es
+ * constante: `atan(bevelInsetMm / altura de la banda)`.
+ */
 function insetAt(z: number, band: BevelBand, bevelInsetMm: number): number {
-  const t = (z - band.z0) / (band.z1 - band.z0);
-  return smoothstepRampProfile(t, bevelInsetMm);
+  const t = Math.min(1, Math.max(0, (z - band.z0) / (band.z1 - band.z0)));
+  return bevelInsetMm * t;
 }
 
 /**
@@ -43,12 +53,10 @@ export function beveledFrontFootprint(group: ContourGroup, band: BevelBand | nul
 /**
  * Convierte la banda de bisel en un descriptor de banda genérico (ver
  * body/shared.ts#buildBandedOuterWallPieces, usado por body/standard.ts
- * junto con las bandas de costillas/doble bisel). 0.4.1 corrección 3A:
- * perfil smoothstep (`insetAt`, pendiente 0 en ambos extremos, resolución
- * ~0.2mm vía `MODIFIER_RESOLUTION_MM` en shared.ts) en vez del anterior
- * (sub-bandas de 0.5mm, interpolación LINEAL — se percibía "demasiado
- * segmentado", con un quiebre anguloso justo donde la banda empalmaba con
- * la pared normal).
+ * junto con las bandas de costillas/doble bisel). Perfil recto (`insetAt`)
+ * aproximado con sub-bandas de ~0.2mm (`MODIFIER_RESOLUTION_MM` en
+ * shared.ts). La pared interior (cavidad) acompaña este mismo perfil para
+ * conservar el espesor de pared, ver body/cavity.ts.
  */
 export function bevelBandToZBand(band: BevelBand, bevelInsetMm: number): ZBand {
   return { z0: band.z0, z1: band.z1, offsetAt: (z: number) => -insetAt(z, band, bevelInsetMm) };

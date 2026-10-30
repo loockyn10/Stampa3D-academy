@@ -294,6 +294,8 @@ export interface ContourGroup {
 export interface LetterGeometryWarning {
   code:
     | "WALL_TOO_THICK"
+    | "BEVEL_CLAMPED"
+    | "GROOVE_CLAMPED"
     | "EMPTY_TEXT"
     | "NO_GLYPHS"
     | "LIP_COLLAPSED"

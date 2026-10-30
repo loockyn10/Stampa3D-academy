@@ -202,8 +202,9 @@ test("personalización: editar un parámetro avanzado deja el estilo como Person
   const edited2 = { ...edited, wallMm: 2.2 };
   assert.equal(edited2.depthMm, applied.depthMm + 5);
   assert.equal(edited2.wallMm, 2.2);
-  // Cada clave de estilo, tocada por separado, rompe la coincidencia.
-  for (const key of STYLE_PARAM_KEYS) {
+  // Cada clave de estilo, tocada por separado, rompe la coincidencia — salvo la pared: es la resistencia (Normal / Reforzado), un eje aparte.
+  assert.equal(styles.matchesStylePreset({ ...applied, wallMm: applied.wallMm + 1 }, preset), true, "cambiar la pared no saca al cartel de su estilo");
+  for (const key of STYLE_PARAM_KEYS.filter((k) => k !== "wallMm")) {
     const value = applied[key];
     const changed = typeof value === "number" ? value + 1 : typeof value === "boolean" ? !value : value === "open" ? "lid" : "x";
     assert.equal(styles.matchesStylePreset({ ...applied, [key]: changed }, preset), false, key);
@@ -237,7 +238,9 @@ test("restablecer: volver a aplicar el estilo recupera su configuración y conse
 test("detección: una configuración de usuario que coincide con un estilo se reconoce; si no, ninguno", () => {
   const userPreset = presetSettings.applyPresetSettings(SAMPLE, presetSettings.extractPresetSettings(styles.applyStylePreset(SAMPLE, byId("moderno"))));
   assert.equal(styles.detectStylePreset(userPreset)?.id, "moderno");
-  assert.equal(styles.detectStylePreset({ ...userPreset, wallMm: 3.3 }), null);
+  assert.equal(styles.detectStylePreset({ ...userPreset, depthMm: userPreset.depthMm + 3 }), null);
+  // La pared se elige aparte (resistencia Normal / Reforzado): otro espesor no cambia el estilo reconocido.
+  assert.equal(styles.detectStylePreset({ ...userPreset, wallMm: 3.3 })?.id, "moderno");
 });
 
 // ---------------------------------------------------------------- compatibilidad con configuraciones anteriores
@@ -296,16 +299,19 @@ test("geometría: sin piezas accidentales desconectadas — cada pieza de cada l
   }
 });
 
-test("geometría: regla de los estilos con bisel — el desplazamiento del bisel es menor que la pared (si no, el motor deja de cerrar la malla)", () => {
-  for (const s of STYLE_PRESETS) {
-    const st = styles.resolveStyleSettings(s);
-    if (st.bevelEnabled) assert.ok(st.bevelInsetMm < st.wallMm, `${s.id}: bevelInsetMm ${st.bevelInsetMm} >= wallMm ${st.wallMm}`);
-    if (st.rearBevelEnabled) assert.ok(st.rearBevelInsetMm < st.wallMm, s.id);
-    if (st.grooveEnabled) assert.ok(st.grooveInsetMm < st.wallMm + 1e-9 || st.grooveInsetMm <= st.wallMm * 2, s.id);
+test("geometría: el bisel y la cintura de los estilos no dependen de la pared — malla cerrada con pared Normal y Reforzado", () => {
+  // Hasta 0.7.1 un bisel/cintura mayor que la pared dejaba la malla abierta (y sin error), por eso los estilos
+  // tenían que cumplir bevelInsetMm < wallMm. La cavidad ahora acompaña a la silueta (geometry/body/cavity.ts).
+  for (const s of STYLE_PRESETS.filter((p) => styles.resolveStyleSettings(p).bevelEnabled || styles.resolveStyleSettings(p).grooveEnabled)) {
+    for (const wallMm of [1.2, 2.4]) {
+      const g = createLetterGeometry(font, paramsFor(s, { text: "Sol", wallMm }));
+      assert.equal(g.errors.length, 0, `${s.id}/${wallMm}`);
+      for (const part of g.parts) assert.equal(topology(part.mesh.positions).open, 0, `${s.id}/${wallMm}/${part.kind}: aristas abiertas`);
+    }
   }
-  // Documenta la causa: con un bisel mayor que la pared el motor entrega una malla NO cerrada (y sin error), por eso la regla.
-  const broken = createLetterGeometry(font, { ...SAMPLE, text: "S", depthMm: 30, wallMm: 1.6, bevelEnabled: true, bevelDepthMm: 4, bevelInsetMm: 2 });
-  assert.ok(topology(broken.parts[0].mesh.positions).open > 0);
+  // El caso que antes se documentaba como roto (bisel 2 mm sobre pared 1,6 mm) ahora es una malla cerrada.
+  const formerlyBroken = createLetterGeometry(font, { ...SAMPLE, text: "S", depthMm: 30, wallMm: 1.6, bevelEnabled: true, bevelDepthMm: 4, bevelInsetMm: 2 });
+  assert.equal(topology(formerlyBroken.parts[0].mesh.positions).open, 0);
 });
 
 test("geometría (limitación conocida del motor, no de los estilos): R y 6 dejan un lazo de área cero en el frente; ningún estilo agrega agujeros reales", () => {

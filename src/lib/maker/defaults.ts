@@ -1,6 +1,7 @@
 import { DEFAULT_MAKER_FONT_ID } from "@/lib/maker/fonts/registry";
 import type { LetterSignParams } from "@/lib/maker/types";
 import { DEFAULT_INSTALLATION_RECIPE } from "@/lib/maker/installation/defaults";
+import { NORMAL_WALL_MM } from "@/lib/maker/wallStrength";
 
 /**
  * Valores iniciales de Stampa Maker (Creador de Carteles). Única fuente: la
@@ -11,7 +12,8 @@ export const DEFAULT_LETTER_SIGN_PARAMS: LetterSignParams = {
   fontId: DEFAULT_MAKER_FONT_ID,
   heightMm: 100,
   depthMm: 40,
-  wallMm: 1.6,
+  // Resistencia "Normal" (ver wallStrength.ts). Antes 1,6 mm; los proyectos y presets guardados conservan su valor.
+  wallMm: NORMAL_WALL_MM,
   baseMm: 1.2,
   bodyType: "standard",
   rearExpansionMm: 2,

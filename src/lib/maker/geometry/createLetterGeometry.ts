@@ -4,6 +4,9 @@ import { textToPerCharacterPaths, flattenOpentypePath } from "@/lib/maker/geomet
 import { buildContourHierarchy } from "@/lib/maker/geometry/contourHierarchy";
 import { toTriangleSoupData } from "@/lib/maker/geometry/extrudePolygon";
 import { buildBody } from "@/lib/maker/geometry/body";
+import { resolveInwardModifiers } from "@/lib/maker/geometry/body/cavity";
+import { minStrokeHalfWidthMm } from "@/lib/maker/geometry/strokeLimits";
+import { NORMAL_WALL_MM } from "@/lib/maker/wallStrength";
 import { computeDesignCenter, planBackCutouts } from "@/lib/maker/geometry/backCutouts";
 import { buildFrontParts } from "@/lib/maker/geometry/front";
 import { pointsToRawPath, unionRawPaths } from "@/lib/maker/geometry/offsets";
@@ -81,9 +84,18 @@ export interface ContourPiece {
 }
 
 /** Motor compartido: ContourPiece[] + parámetros -> partes (cuerpo/frente/exportación). No sabe si la forma vino de texto, SVG o PNG. */
-export function createGeometryFromContourPieces(pieces: ContourPiece[], params: LetterSignParams): LetterGeometryResult {
+export function createGeometryFromContourPieces(pieces: ContourPiece[], requestedParams: LetterSignParams): LetterGeometryResult {
   const warnings: LetterGeometryWarning[] = [];
   const errors: LetterGeometryWarning[] = [];
+
+  // Bisel superior / cintura lateral: se acotan a lo que el diseño admite sin
+  // perder paredes verticales ni partir trazos finos (body/cavity.ts). Todo lo
+  // que sigue —cuerpo, tapa, vista previa, exportación— usa los parámetros
+  // EFECTIVOS, así que el visor y los archivos nunca difieren; cada ajuste
+  // queda avisado.
+  const inward = resolveInwardModifiers(pieces.flatMap((p) => p.contourGroups), requestedParams);
+  const params = inward.params;
+  warnings.push(...inward.warnings);
 
   const letters: LetterPieceResult[] = [];
   const allRawContours: Point2D[][] = [];
@@ -181,10 +193,19 @@ export function createGeometryFromContourPieces(pieces: ContourPiece[], params: 
     return emptyResult(warnings);
   }
 
-  if (anyFullyEroded) {
+  // Trazos más finos que 2x la pared no admiten cavidad: quedan macizos (el
+  // espesor real ahí es el ancho del trazo). No es un error —el modelo es
+  // válido—, pero el usuario tiene que saberlo, sobre todo con pared reforzada.
+  const thinWallLabels = params.frontType === "light-channel"
+    ? []
+    : pieces.filter((p) => minStrokeHalfWidthMm(p.contourGroups, params.wallMm) < params.wallMm - 1e-6).map((p) => p.label);
+  if (anyFullyEroded || thinWallLabels.length > 0) {
+    const where = thinWallLabels.length > 0
+      ? ` en ${thinWallLabels.slice(0, 3).join(", ")}${thinWallLabels.length > 3 ? ` y ${thinWallLabels.length - 3} más` : ""}`
+      : "";
     warnings.push({
       code: "WALL_TOO_THICK",
-      message: "El espesor de pared es demasiado grande para el tamaño del texto: algunos trazos quedaron macizos en vez de huecos.",
+      message: `El espesor de pared de ${formatMm(params.wallMm)} mm no entra en los trazos más finos${where}: esas zonas quedan macizas en vez de huecas (el espesor ahí es el ancho del trazo). ${params.wallMm > NORMAL_WALL_MM + 1e-6 ? "Probá con pared Normal, un tamaño mayor o una fuente más gruesa." : "Probá con un tamaño mayor o una fuente más gruesa."}`,
     });
   }
 

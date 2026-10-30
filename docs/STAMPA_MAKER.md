@@ -65,6 +65,7 @@
 > Neon 0.1.1 (2026-09-19): importador SVG corregido (cascada CSS real, `<text>`, mensajes diferenciados) y biblioteca de fuentes single-line reales: Mistral SingleLine y Relief SingleLine, OFL (sección 26).
 > Neon 0.3 (2026-09-23): sistema de instalación de Neon LED (sección 33): `NeonSegment` (identidad física por recorrido, IDs posicionales + reconciliación best-effort por forma), `NeonWiringPlan` (nearest-neighbor + 2-opt acotado, IN/OUT por segmento), `NeonCablePassThrough` (cápsula bipolar única, perfora el piso sin tocar las paredes visibles — split de piso por bandas gateado, malla bit a bit idéntica sin pass-throughs), puentes traseros por MST (Kruskal, **sólidos independientes con overlap físico real, NO soldados por Clipper** — ver 33.4 para el porqué y la limitación aceptada), `NeonWallClip` paramétrico (deriva de la sección del canal, se regenera solo), posición automática de clips por longitud de arco, editor manual (reutiliza el editor de Back Cutouts existente, pass-through como `BackCutout` sintético — invertir/reordenar por lista), malla helper de cableado/montaje (nunca se exporta), export (Wall Clip STL + kit ZIP) y persistencia (receta+overrides anidados en el mismo `settings` jsonb, sin migration nueva). 53 tests nuevos en tests/maker-neon-installation.test.mjs (630 -> 683 tests Maker). No avanza a Neon 0.4.
 > Neon 0.3.2 (2026-09-23): corrección conceptual de cableado y puentes (sección 34), sin features nuevas. Cableado: se verificó que la fórmula 2N-1 de pass-throughs ya estaba bien implementada (no era "1 segmento -> 1 pass-through"); se agregó `NeonPassThroughRole` (POWER IN/IN/OUT/loop) y `planValidPassThrough()` (fallback de reposicionamiento cuando la posición por defecto no entra en la cavidad — antes se perdía en silencio). Puentes: reescritos de MST-only a modelo `BridgeConnection`/`BridgeInstance` con 4 modos (`independent`/`minimal`/`reinforced`/`custom`, antes solo `independent`/`bridged`), planificador de refuerzo con muestreo por longitud de arco + separación espacial mínima + evasión de pass-throughs, y editor manual mínimo (agregar/eliminar por par de segmentos, con validación de "toca ambos floors"). 12 tests nuevos en tests/maker-neon-installation.test.mjs (53 -> 65; 683 -> 696 tests Maker totales, 1 skip preexistente no relacionado). No avanza a Neon 0.4.
+> Carteles 0.7.1 (2026-10-30): corrección del bisel superior (la cavidad acompaña a la silueta, chaflán recto, protecciones) y selector de resistencia Normal / Reforzado (sección 36).
 > Carteles 0.7 (2026-10-30): estilos y creación rápida — 10 estilos con miniaturas generadas por el motor real, flujo texto → estilo → visor → descarga y Personalización avanzada plegable con todos los controles existentes (sección 35). Motor geométrico sin cambios; aviso `UNSUPPORTED_GLYPH` y reencuadre del visor que conserva la rotación.
 
 ## 1. Qué es
@@ -3319,7 +3320,7 @@ tests/maker-style-presets.test.mjs
 
 ### 35.3 Los diez estilos
 
-Todos parten de los valores base (frente abierto, profundidad 40, pared 1.6, fondo 1.2) y solo declaran lo que cambian. Triángulos: texto "Sol", alto 100 mm.
+Todos parten de los valores base (frente abierto, profundidad 40, pared 1.2 desde 0.7.1 —antes 1.6—, fondo 1.2; la tabla conserva los overrides de 0.7: ver 36.6 para los cambios de pared de Suave, Moderno e Industrial y 36.7 para los triángulos actuales) y solo declaran lo que cambian. Triángulos: texto "Sol", alto 100 mm.
 
 | id | Nombre | Parámetros (overrides) | Aspecto | Piezas | Tri. |
 |---|---|---|---|---|---|
@@ -3355,7 +3356,7 @@ Escribe `public/maker/styles/<id>.png` y `manifest.json` (firma de cada estilo, 
 ### 35.6 Cómo agregar un estilo
 
 1. Sumar una entrada a `STYLE_PRESETS` (`id` estable y único, `version`, `name`, `description`, `category`, `overrides` solo con lo que se aparta de los valores base).
-2. Respetar la regla de calidad: si usa bisel frontal/posterior, `bevelInsetMm < wallMm` (35.9); probarlo con texto corto, largo y acentos.
+2. Probarlo con texto corto, largo y acentos y con pared Normal y Reforzado. (Desde 0.7.1 el bisel superior y la cintura ya no dependen de la pared, sección 36; la regla `bevelInsetMm < wallMm` quedó obsoleta.)
 3. `node scripts/generate-maker-style-thumbnails.mjs` y mirar la miniatura.
 4. Actualizar `EXPECTED_IDS` del test y la tabla de 35.3; `node --test tests/maker-style-presets.test.mjs`.
 
@@ -3371,7 +3372,7 @@ La exportación es la de siempre y sale de la misma geometría que el visor: un 
 
 ### 35.9 Calidad de los modelos: hallazgos y reglas
 
-- **Bisel mayor que la pared → malla abierta, sin error.** Con `bevelInsetMm >= wallMm` el frente biselado queda dentro de la cavidad y la malla deja de cerrarse (cientos de aristas abiertas en la "S"); el motor ni la validación lo detectan. No se cambió el motor ni la validación (afectaría proyectos existentes); los estilos con bisel cumplen `bevelInsetMm < wallMm` (Suave y Moderno usan pared 3-3.2 mm por eso) y un test lo exige. Pendiente sugerido: validar esta regla en `validateLetterSignParams`.
+- **(Superado en 0.7.1, sección 36)** **Bisel mayor que la pared → malla abierta, sin error.** Con `bevelInsetMm >= wallMm` el frente biselado queda dentro de la cavidad y la malla deja de cerrarse (cientos de aristas abiertas en la "S"); el motor ni la validación lo detectan. No se cambió el motor ni la validación (afectaría proyectos existentes); los estilos con bisel cumplen `bevelInsetMm < wallMm` (Suave y Moderno usan pared 3-3.2 mm por eso) y un test lo exige. Pendiente sugerido: validar esta regla en `validateLetterSignParams`.
 - **Alto mínimo.** Todos los estilos generan sin errores desde 30 mm de alto; por debajo, **Suave** (bisel de tapa) y **Luminoso** (canal) pueden reportar errores bloqueantes (`LID_BEVEL_COLLAPSED`, `CHANNEL_COLLAPSED`), que se muestran al usuario; Bold/Industrial muestran el warning `WALL_TOO_THICK` (letra maciza). Los valores de los estilos son en mm fijos, no proporcionales al alto.
 - **Aviso nuevo `UNSUPPORTED_GLYPH`** (`createLetterGeometry.ts`, `findUnsupportedChars`): un carácter que la fuente no tiene (emoji, kanji) se dibujaba en silencio como el recuadro `.notdef`. Ahora se informa (warning, no bloquea) listando los caracteres. Acentos, eñes, `¿ ¡ & / €` y dígitos están en Montserrat y se generan sin avisos.
 - **Limitación preexistente del motor (no de los estilos):** "R" y "6" a 100 mm dejan un lazo de área cero (5-6 aristas alineadas) en la cara frontal, con cualquier estilo; invisible y sin consecuencias para el slicer, pero técnicamente la malla no es 100 % cerrada. Un test limita el hallazgo a ese caso (ningún estilo agrega agujeros reales).
@@ -3391,3 +3392,87 @@ Revisión visual: visor real (three.js) de los 10 estilos con "Sol", desktop y m
 - Sin selector de fuente por estilo (la fuente sigue siendo elección del usuario; solo hay Montserrat Regular/Bold).
 - Sin QA manual con cuentas reales (Paid/Beta/Admin) ni prueba en dispositivos físicos; sin favoritos, categorías visibles ni estilos del usuario.
 - Los presets guardados del usuario siguen requiriendo la migración de la sección 21 (no se ejecutó contra el remoto).
+
+## 36. Carteles 0.7.1 — Bisel superior y resistencia de pared
+
+> Corrección geométrica del bisel superior (la pared se afinaba hasta ~0.4 mm en el borde) y selector **Normal / Reforzado** (1,2 / 2,4 mm). Neon LED y Jarros no se tocaron. Sin migraciones ni cambios de esquema.
+
+### 36.1 Cómo están hechas las letras (investigación)
+
+Cada carácter es un **único sólido soldado** que combina tres geometrías (secciones 3 y 14): (a) **fondo macizo** de `baseMm` en Z=0; (b) **carcasa hueca**: pared exterior vertical desde Z=0 hasta `depthMm` y pared interior (cavidad) = silueta erosionada `wallMm`, con una "repisa" en Z=`baseMm`; (c) **frente**: abierto, o una pieza aparte (tapa, máscara perforada, difusor). El frente luminoso (`light-channel`) es la excepción: cuerpo macizo con un canal tallado. Los trazos más finos que 2·`wallMm` no admiten cavidad y quedan **macizos** (ya existía el warning `WALL_TOO_THICK`). El espesor de pared es `wallMm` medido en horizontal; la cantidad de perímetros del laminador es otra cosa.
+
+### 36.2 Causa exacta del problema del bisel
+
+La silueta exterior se desplazaba hacia adentro en la banda del bisel, pero **la cavidad se quedaba fija a `wallMm` del contorno ORIGINAL**. Dentro de la banda el espesor de pared pasaba a ser `wallMm − inset(z)`: no había "paredes verticales con un bisel arriba", había una pared que se consumía. Medido con la malla real (letra "I", corte horizontal a distintas alturas):
+
+| Estilo | Pared | Espesor de pared (antes) |
+|---|---|---|
+| Moderno (bisel 10/2,8, profundidad 22) | 3,2 mm | 3,20 hasta z=11,4; 3,05 (z=13,5); 1,55 (z=17,7); 0,75 (z=19,8); **0,40** (z=21,9) |
+| Suave (bisel 6/2,4, profundidad 30) | 3,0 mm | 3,0 hasta z=24; 2,38 (z=26,1); **1,22** (z=28,2) |
+
+Agravantes del perfil y de la falta de límites:
+
+- **Perfil smoothstep:** la pared volvía a ser vertical justo en el borde del frente; el "bisel" era una S larga que adelgazaba toda la banda (hasta 20 mm permitidos por la validación) en vez de un corte inclinado cerca de la cara superior.
+- **Sin protección:** con `bevelInsetMm ≥ wallMm` la superficie exterior cruzaba la cavidad y la malla quedaba **abierta sin ningún error** (el test de estilos lo documentaba como "regla": inset < pared). Eso obligaba a Suave/Moderno a usar paredes de 3-3,2 mm: el bisel dependía del espesor.
+- **Misma causa en la cintura lateral** (`grooveEnabled`, estilo Retro): con la pared por defecto 1,6 mm y desplazamiento 2,2 mm la sección de la "I" a z=20 mostraba una pared invertida (0,6 mm "de material" que en realidad es la superficie autointersectada); con pared 2,4 mm quedaban 0,2 mm. Se corrigió con el mismo mecanismo.
+
+### 36.3 Cómo se generaba antes
+
+`bevelBandToZBand` (body/modifiers/bevel.ts): banda `[depthMm − bevelDepthMm, depthMm]`, perfil **smoothstep** `3t²−2t³`; la pared exterior se aproximaba con sub-bandas de 0,2 mm; la cavidad era `extrude(núcleo, baseMm → depthMm)` fija; el frente se recortaba contra el núcleo vertical. La tapa continuaba el desplazamiento (`bevelPlateInsetMm`).
+
+### 36.4 Qué cambió
+
+1. **La cavidad acompaña a la silueta** (`buildBandedCavityWallPieces`, body/shared.ts): dentro de las bandas que angostan la silueta (bisel superior y cintura lateral) la cavidad se corre el mismo desplazamiento. Mismo mecanismo de sub-bandas escalonadas y costura por coordenadas compartidas que ya usaba la pared exterior (sin CSG); cada sub-banda toma el extremo más angosto de la cavidad, así la pared **nunca baja de `wallMm`** (sube a lo sumo `pendiente × 0,2 mm` por la aproximación). Entre dos huellas se cierra el escalón con un techo (la cavidad se achica al subir) o un piso. El frente se recorta contra la huella de la cavidad en el borde.
+2. **Perfil recto (chaflán):** pared vertical hasta `z0 = depthMm − bevelDepthMm`, luego inclinación constante hasta `bevelInsetMm` en el borde del frente.
+3. **Protecciones** (`resolveInwardModifiers`, body/cavity.ts; se aplican antes de generar, de modo que visor, tapa y exportación usan los mismos parámetros efectivos y cada ajuste produce un warning):
+   - la zona biselada no supera **la mitad de la altura de pared** (`MAX_BEVEL_WALL_FRACTION`);
+   - la inclinación no pasa de **45°** (desplazamiento ≤ altura de la banda): la cavidad queda como voladizo interior imprimible;
+   - el desplazamiento deja al **trazo más fino** del diseño al menos **1,2 mm** de ancho en su cara más angosta (`strokeLimits.ts`: primer evento topológico al erosionar, o sea la mitad del trazo más fino); si no queda margen útil, el modificador se desactiva con aviso;
+   - valores redondeados a 0,01 mm (la grilla del motor).
+4. **Tapa encastrable:** el labio se calcula sobre la cavidad MÁS angosta de la zona que ocupa (`maxInwardMmInRange`).
+5. **Sin cambios** cuando no hay bisel/cintura: el cuerpo es byte a byte el mismo (test). Bisel posterior, costillas, tapered, canal luminoso y máscara: sin cambios (ver 36.9).
+
+### 36.5 Parámetros del bisel superior
+
+| Parámetro | Significado | Límites efectivos |
+|---|---|---|
+| `bevelDepthMm` | **Altura** de la zona biselada, medida desde el frente hacia abajo (pared vertical por debajo) | ≤ 50 % de `depthMm − baseMm` |
+| `bevelInsetMm` | **Profundidad** del chaflán: cuánto entra el borde del frente respecto de la pared | ≤ `bevelDepthMm` (45°) y ≤ mitad del trazo más fino − 0,6 mm |
+| `wallMm` | Espesor horizontal de pared (Normal 1,2 / Reforzado 2,4) | **independiente** del bisel |
+
+Warnings nuevos: `BEVEL_CLAMPED` (bisel superior ajustado o desactivado) y `GROOVE_CLAMPED` (cintura lateral), con la causa y los valores pedidos/efectivos. `WALL_TOO_THICK` ahora nombra el espesor elegido y las letras afectadas.
+
+### 36.6 Resistencia Normal / Reforzado
+
+Selector de la creación rápida (paso 3, `MakerStrengthSelector`): **Normal 1,2 mm** (menos material, carteles decorativos) y **Reforzado 2,4 mm** (carteles grandes o con más exigencia). Decisión de diseño: **no hay un campo nuevo**. Es un atajo para `wallMm` (el campo "Pared" de Personalización avanzada); la opción marcada se **deduce** de `wallMm` (`detectWallStrength`, src/lib/maker/wallStrength.ts), igual que "Personalizado" se deduce de los parámetros. Por eso no pueden existir estados contradictorios con el campo avanzado, no hay nada nuevo que persistir en presets/proyectos y los guardados antes siguen funcionando (1,6 mm = "Personalizado").
+
+- Cambiar la opción **no pierde texto ni estilo**: `matchesStylePreset` ignora `wallMm` (la pared se elige aparte). Elegir un estilo sí aplica su receta completa, incluida la pared (Bold e Industrial son Reforzado; el resto, Normal).
+- El valor inicial pasa de 1,6 a **1,2 mm (Normal)**. Presets y proyectos guardados conservan el suyo.
+- Una región que no admite el espesor (trazo < 2·pared) queda maciza —no se crean huecos artificiales ni se achica la pared— y se advierte con `WALL_TOO_THICK`.
+- Los estilos Suave, Moderno e Industrial dejaron de tener paredes de 3 / 3,2 / 2 mm (existían para cumplir inset < pared); sus miniaturas se regeneraron.
+- La UI aclara que es espesor físico y da una orientación de perímetros (con líneas de 0,4–0,45 mm: ~3 y ~5–6), no una promesa.
+
+### 36.7 Costos conocidos
+
+Triángulos (texto "Sol", 100 mm): Suave 115 k → 205 k, Moderno 150 k → 305 k, Retro 157 k → 309 k (la cavidad ahora también se escalona); el resto no cambia. STL de ~15 MB para esos estilos con 3 letras. Tiempo de generación ≈ 2-3× en esos estilos (sigue en el hilo principal; ver 35.9).
+
+### 36.8 Tests
+
+`tests/maker-bevel-wall.test.mjs` (103 tests): corta la malla con planos horizontales y mide el espesor a distintas alturas (Normal y Reforzado, con y sin bisel, "I", "O", "H"), verticalidad hasta el bisel, chaflán recto, bisel > pared, matriz de mallas (letras anchas, estrechas, esquinas, contornos internos, textos completos × 2 espesores × 2 biseles: cerradas, manifold, sin degenerados, un componente por sólido), protecciones y avisos, pared que no entra, cintura (Retro), tapa encastrable sobre cuerpo biselado (holgura medida), compatibilidad (sin bisel idéntico), exportación STL = malla del visor, y render de la UI. Se actualizaron los tests de perfil del bisel (smoothstep → recto), la "regla inset < pared" (ahora el caso que antes se documentaba roto es una malla cerrada) y el matching de estilos.
+
+### 36.9 Limitaciones y pendientes
+
+- **Validación de laminado: PENDIENTE.** No hay Bambu Studio ni otro slicer en el entorno de desarrollo; todo lo anterior es geometría de malla, no una prueba de perímetros. Ver 36.10.
+- Trazos entre 2·pared y 2·(pared + bisel) quedan con la cavidad **cerrada por un techo**: la malla pasa a tener un vacío sellado (2 componentes) en esa letra. Es geometría válida (el slicer lo trata como interior), pero ese hueco queda sellado.
+- El bisel **posterior** (`rearBevel*`) y las costillas no acompañan a la cavidad (el posterior puede adelgazar la pared por encima de `baseMm` si su profundidad supera el fondo). Pendiente.
+- El bisel superior/cintura no se acotan con el canal luminoso (macizo) ni con el cuerpo tapered (no los usa); la combinación bisel + canal luminoso sigue siendo "fuera de alcance".
+- Preexistentes sin cambios: "R"/"6" dejan un lazo de área cero en el frente; la máscara perforada tiene 8 triángulos degenerados.
+- La protección por trazo fino mide el trazo más fino de TODO el diseño (un texto con una letra muy fina acota el bisel de todas, para que el borde sea uniforme y la tapa coincida).
+
+### 36.10 Qué comprobar en Bambu Studio
+
+1. Exportar un cartel Normal (1,2 mm) y uno Reforzado (2,4 mm) con bisel (p. ej. estilo Moderno) y ver en **vista de capas** que la pared es vertical hasta el bisel y que dentro del bisel conserva su espesor (sin afinarse en el borde).
+2. Con línea de pared 0,42 mm, anotar los perímetros que genera: Normal ≈ 3 y Reforzado ≈ 5–6 en zona vertical y dentro del bisel. El objetivo de "4 perímetros" requiere ≥ 1,68 mm: lo cumple Reforzado, no Normal.
+3. Revisar que no aparezcan soportes dentro de la cavidad (el techo interior sigue una inclinación ≤ 45°) ni advertencias de malla (autointersección, aristas abiertas).
+4. Revisar la cara frontal: ancho de la corona superior ≥ 1,2 mm en los trazos finos y ausencia de filos.
+5. Si la app muestra `BEVEL_CLAMPED`, comparar el bisel efectivo con el pedido.

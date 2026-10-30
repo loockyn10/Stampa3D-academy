@@ -1,6 +1,7 @@
 import { DEFAULT_LETTER_SIGN_PARAMS } from "@/lib/maker/defaults";
 import type { LetterSignParams } from "@/lib/maker/types";
 import { PRESET_SETTING_KEYS, type PresetSettings } from "@/lib/maker/presets/presetSettings";
+import { REINFORCED_WALL_MM } from "@/lib/maker/wallStrength";
 
 /**
  * ESTILOS del Creador de Carteles (creación rápida): registro central de
@@ -14,10 +15,11 @@ import { PRESET_SETTING_KEYS, type PresetSettings } from "@/lib/maker/presets/pr
  * presets/presetSettings.ts): esos son recetas guardadas por cada usuario;
  * los estilos son fijos, versionados en código y no tocan la base de datos.
  *
- * Regla de diseño de los estilos con bisel frontal: `bevelInsetMm` debe ser
- * MENOR que `wallMm`. Con un desplazamiento mayor que la pared el motor deja
- * de cerrar la malla (el frente biselado queda por dentro de la cavidad); el
- * motor no lo valida, así que lo garantiza un test sobre este registro.
+ * Pared y estilo son independientes: el espesor de pared (resistencia Normal /
+ * Reforzado, ver wallStrength.ts) lo elige el usuario sin perder el estilo, por
+ * eso `matchesStylePreset` ignora `wallMm`. Un estilo sólo define `wallMm` si
+ * su identidad lo pide (hoy Bold e Industrial, Reforzado). El bisel y la cintura
+ * ya no dependen de la pared: la cavidad los acompaña (geometry/body/cavity.ts).
  *
  * Ver docs/STAMPA_MAKER.md (sección "Estilos del Creador de Carteles").
  */
@@ -56,11 +58,11 @@ export const STYLE_THUMBNAIL_SAMPLE_HEIGHT_MM = DEFAULT_LETTER_SIGN_PARAMS.heigh
 export const STYLE_PRESETS: readonly StylePreset[] = [
   {
     id: "minimal",
-    version: 1,
+    version: 2,
     name: "Minimal",
     description: "Contorno bajo y liviano, frente abierto: poco material y rápido de imprimir.",
     category: "esencial",
-    overrides: { depthMm: 12, wallMm: 1.2 },
+    overrides: { depthMm: 12 },
   },
   {
     id: "clasico",
@@ -80,23 +82,23 @@ export const STYLE_PRESETS: readonly StylePreset[] = [
   },
   {
     id: "suave",
-    version: 1,
+    version: 2,
     name: "Suave",
-    description: "Pared gruesa con bisel y tapa de borde suavizado: bordes inclinados en lugar de cantos vivos.",
+    description: "Bisel superior y tapa de borde suavizado: bordes inclinados en lugar de cantos vivos.",
     category: "volumen",
-    overrides: { frontType: "lid", lidMm: 2, depthMm: 30, wallMm: 3, bevelEnabled: true, bevelDepthMm: 6, bevelInsetMm: 2.4, lidBevelEnabled: true, lidBevelDepthMm: 1, lidBevelInsetMm: 0.8 },
+    overrides: { frontType: "lid", lidMm: 2, depthMm: 30, bevelEnabled: true, bevelDepthMm: 6, bevelInsetMm: 2.4, lidBevelEnabled: true, lidBevelDepthMm: 1, lidBevelInsetMm: 0.8 },
   },
   {
     id: "bold",
-    version: 1,
+    version: 2,
     name: "Bold",
     description: "Letras muy profundas, con pared y tapa gruesas y una costilla lateral marcada: presencia máxima.",
     category: "volumen",
-    overrides: { frontType: "lid", lidMm: 2.4, depthMm: 70, wallMm: 2.4, baseMm: 2, ribsCount: 1, ribProtrusionMm: 2, ribWidthMm: 6 },
+    overrides: { frontType: "lid", lidMm: 2.4, depthMm: 70, wallMm: REINFORCED_WALL_MM, baseMm: 2, ribsCount: 1, ribProtrusionMm: 2, ribWidthMm: 6 },
   },
   {
     id: "retro",
-    version: 1,
+    version: 2,
     name: "Retro",
     description: "Tapa cerrada y una cintura hundida en el lateral, como los carteles de marquesina.",
     category: "volumen",
@@ -112,11 +114,11 @@ export const STYLE_PRESETS: readonly StylePreset[] = [
   },
   {
     id: "industrial",
-    version: 1,
+    version: 2,
     name: "Industrial",
     description: "Frente perforado con máscara oscura y costillas laterales, de aspecto técnico.",
     category: "tecnico",
-    overrides: { frontType: "perforated", depthMm: 40, wallMm: 2, ribsCount: 2 },
+    overrides: { frontType: "perforated", depthMm: 40, wallMm: REINFORCED_WALL_MM, ribsCount: 2 },
   },
   {
     id: "luminoso",
@@ -128,11 +130,11 @@ export const STYLE_PRESETS: readonly StylePreset[] = [
   },
   {
     id: "moderno",
-    version: 1,
+    version: 2,
     name: "Moderno",
     description: "Frente abierto con un bisel amplio en el borde y poca profundidad: líneas limpias.",
     category: "esencial",
-    overrides: { depthMm: 22, wallMm: 3.2, bevelEnabled: true, bevelDepthMm: 10, bevelInsetMm: 2.8 },
+    overrides: { depthMm: 22, bevelEnabled: true, bevelDepthMm: 10, bevelInsetMm: 2.8 },
   },
 ];
 
@@ -162,10 +164,10 @@ export function applyStylePreset(current: LetterSignParams, preset: StylePreset)
   return { ...current, ...resolveStyleSettings(preset) };
 }
 
-/** ¿Los params actuales coinciden exactamente con la configuración del estilo? (false = "Personalizado"). */
+/** ¿Los params actuales coinciden exactamente con la configuración del estilo? (false = "Personalizado"). El espesor de pared no cuenta: se elige aparte (resistencia) y cambiarlo no saca al cartel de su estilo. */
 export function matchesStylePreset(params: LetterSignParams, preset: StylePreset): boolean {
   const target = resolveStyleSettings(preset);
-  return STYLE_PARAM_KEYS.every((key) => params[key] === target[key]);
+  return STYLE_PARAM_KEYS.every((key) => key === "wallMm" || params[key] === target[key]);
 }
 
 /** Estilo cuya configuración coincide con los params (p.ej. al abrir un proyecto o un preset del usuario); null si ninguno. */

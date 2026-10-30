@@ -8,6 +8,7 @@ import { MakerStatusNotices, MakerTextControls } from "@/components/maker/MakerT
 import { MakerAdvancedPanel } from "@/components/maker/MakerAdvancedPanel";
 import { MakerQuickText } from "@/components/maker/MakerQuickText";
 import { MakerStyleGallery } from "@/components/maker/MakerStyleGallery";
+import { MakerStrengthSelector } from "@/components/maker/MakerStrengthSelector";
 import { MakerBackCutoutsSection } from "@/components/maker/MakerBackCutoutsSection";
 import { MakerInstallationSection } from "@/components/maker/MakerInstallationSection";
 import { Card } from "@/components/ui/card";
@@ -32,6 +33,7 @@ import { DEFAULT_PRINTER_PROFILE_ID, getPrinterProfile } from "@/lib/maker/print
 import { DEFAULT_STYLE_ID, STYLE_PRESETS, applyStylePreset, detectStylePreset, getStylePreset, matchesStylePreset } from "@/lib/maker/presets/stylePresets";
 import type { LoadedProject, ProjectWorkState } from "@/lib/maker/projects/projectData";
 import type { LetterSignParams } from "@/lib/maker/types";
+import { applyWallStrength, type WallStrength } from "@/lib/maker/wallStrength";
 
 export default function StampaMakerCartelesPage() {
   // Única fuente de la configuración: `params` (lo que edita Personalización avanzada). El estilo elegido es solo una etiqueta
@@ -96,6 +98,8 @@ export default function StampaMakerCartelesPage() {
     },
     [params],
   );
+  // Resistencia (Normal / Reforzado): atajo para wallMm. No toca el texto ni el estilo (matchesStylePreset ignora la pared).
+  const handleSelectStrength = useCallback((strength: WallStrength) => setParams((prev) => applyWallStrength(prev, strength)), []);
   const selectedStyle = getStylePreset(styleId);
   const styleCustom = !selectedStyle || !matchesStylePreset(params, selectedStyle);
 
@@ -330,7 +334,7 @@ export default function StampaMakerCartelesPage() {
           <MakerStatusNotices error={error} geometryErrors={geometry?.errors ?? []} warnings={geometry?.warnings ?? []} />
         </div>
 
-        <div className="order-4">
+        <div className="order-4 flex flex-col gap-3">
           <MakerStyleGallery
             styles={STYLE_PRESETS}
             selectedId={styleId}
@@ -338,6 +342,7 @@ export default function StampaMakerCartelesPage() {
             onSelect={handleSelectStyle}
             onReset={() => styleId && handleSelectStyle(styleId)}
           />
+          <MakerStrengthSelector wallMm={params.wallMm} onSelect={handleSelectStrength} />
         </div>
 
         <div className="order-5 flex flex-col gap-3">

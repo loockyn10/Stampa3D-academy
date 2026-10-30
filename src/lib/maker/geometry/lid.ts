@@ -1,7 +1,8 @@
 import type { ContourGroup, LetterSignParams } from "@/lib/maker/types";
 import { extrudeContourGroups, type ExtrudedMeshData } from "@/lib/maker/geometry/extrudePolygon";
 import { differenceContourGroups, clipperPathsArea, contourGroupsToRawPaths } from "@/lib/maker/geometry/offsets";
-import { footprintAtOffset } from "@/lib/maker/geometry/body/shared";
+import { footprintAtOffset, maxInwardMmInRange } from "@/lib/maker/geometry/body/shared";
+import { computeInwardBands } from "@/lib/maker/geometry/body/cavity";
 import { computeBevelBand } from "@/lib/maker/geometry/body/modifiers/bevel";
 import { fitInteriorLip } from "@/lib/maker/geometry/joints/interiorLip";
 import { computePlateBevelBand, plateBevelTopFootprint, buildBeveledPlateWallAndTopCap, type PlateBevelBand } from "@/lib/maker/geometry/plateBevel";
@@ -131,9 +132,10 @@ function isTopCollapsed(topGroups: ContourGroup[], insetMm: number): boolean {
  *    exterior e interior), sin tapa en ninguno de los dos extremos acá — la
  *    punta se tapa aparte, el extremo superior se suelda contra la cara
  *    inferior de la placa. El labio se posiciona sobre la CAVIDAD real del
- *    cuerpo (`wallMm`, ajena al bisel — el bisel solo angosta la silueta
- *    VISIBLE cerca del frente, nunca la cavidad oculta, ver
- *    body/standard.ts), así que no cambia con `plateInsetMm`.
+ *    cuerpo en la zona que ocupa (`wallMm` + lo que la cavidad se corre
+ *    hacia adentro para acompañar el bisel superior/la cintura lateral, ver
+ *    body/cavity.ts): entra en la parte MÁS angosta de la cavidad dentro de
+ *    `insertDepthMm`. No cambia con `plateInsetMm`.
  *  - z = depthMm-insertDepth (tapa de la punta del labio): cierra el
  *    extremo que entra en la cavidad, mirando hacia -Z.
  *
@@ -171,6 +173,9 @@ function buildInteriorLipLid(
 
   const plateZ0 = params.depthMm;
   const plateZ1 = params.depthMm + params.lidMm;
+  // Distancia de la cavidad al borde exterior ORIGINAL en la zona del labio
+  // (`wallMm` si la pared es vertical ahí): ver el bloque de arriba.
+  const lipCavityInsetMm = params.wallMm + maxInwardMmInRange(computeInwardBands(params), params.depthMm - insertDepthUsedMm, params.depthMm);
 
   for (const group of contourGroups) {
     const plateFootprint = footprintAtOffset(group, -plateInsetMm);
@@ -184,7 +189,7 @@ function buildInteriorLipLid(
       topGroups.push(...plateBevelTopFootprint(pg, lidBevelBand, params.lidBevelInsetMm));
     }
 
-    const fit = fitInteriorLip(group, params.wallMm, params.clearanceMm, params.lipWallMm, insertDepthUsedMm);
+    const fit = fitInteriorLip(group, lipCavityInsetMm, params.clearanceMm, params.lipWallMm, insertDepthUsedMm);
     if (fit.collapsed) {
       lipCollapsed = true;
       // Sin labio para este contorno: la placa queda maciza en esa zona
