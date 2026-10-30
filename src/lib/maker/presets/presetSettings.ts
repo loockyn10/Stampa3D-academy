@@ -26,6 +26,7 @@ export type PresetSettings = Omit<LetterSignParams, DesignParamKey>;
 export const PRESET_SETTING_KEYS = [
   "depthMm",
   "wallMm",
+  "material",
   "baseMm",
   "bodyType",
   "rearExpansionMm",
@@ -74,6 +75,8 @@ const ENUM_VALUES: Partial<Record<keyof PresetSettings, readonly (string | numbe
   ribsCount: [0, 1, 2],
   frontType: ["open", "lid", "perforated", "light-channel"],
   lidJoint: ["glue", "interior-lip"],
+  // Presets y proyectos anteriores no tienen material: caen al default (PETG) sin tocar su wallMm.
+  material: ["pla", "petg"],
 };
 
 export function defaultPresetSettings(): PresetSettings {

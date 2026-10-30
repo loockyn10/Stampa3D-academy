@@ -9,31 +9,31 @@
     {
       "id": "minimal",
       "version": 2,
-      "signature": "6fcbdef9",
+      "signature": "65c23be8",
       "file": "minimal.png",
-      "triangles": 5896,
+      "triangles": 5900,
       "parts": [
         "body"
       ],
-      "bytes": 10615
+      "bytes": 10718
     },
     {
       "id": "clasico",
       "version": 1,
-      "signature": "98ff5bf7",
+      "signature": "2bfe2642",
       "file": "clasico.png",
-      "triangles": 5896,
+      "triangles": 5900,
       "parts": [
         "body"
       ],
-      "bytes": 12734
+      "bytes": 12814
     },
     {
       "id": "liso",
       "version": 1,
-      "signature": "f099b3d1",
+      "signature": "77bf491c",
       "file": "liso.png",
-      "triangles": 8828,
+      "triangles": 8832,
       "parts": [
         "body",
         "lid"
@@ -43,21 +43,21 @@
     {
       "id": "suave",
       "version": 2,
-      "signature": "6ebfadbc",
+      "signature": "0e90da2b",
       "file": "suave.png",
-      "triangles": 205334,
+      "triangles": 205838,
       "parts": [
         "body",
         "lid"
       ],
-      "bytes": 12296
+      "bytes": 12295
     },
     {
       "id": "bold",
-      "version": 2,
-      "signature": "b6c55bdd",
+      "version": 3,
+      "signature": "31f5f1b2",
       "file": "bold.png",
-      "triangles": 101428,
+      "triangles": 101424,
       "parts": [
         "body",
         "lid"
@@ -67,9 +67,9 @@
     {
       "id": "retro",
       "version": 2,
-      "signature": "7be83374",
+      "signature": "e63e57ad",
       "file": "retro.png",
-      "triangles": 309140,
+      "triangles": 309938,
       "parts": [
         "body",
         "lid"
@@ -79,9 +79,9 @@
     {
       "id": "capas",
       "version": 1,
-      "signature": "a618471c",
+      "signature": "6756f0a1",
       "file": "capas.png",
-      "triangles": 72898,
+      "triangles": 72902,
       "parts": [
         "body",
         "lid"
@@ -90,10 +90,10 @@
     },
     {
       "id": "industrial",
-      "version": 2,
-      "signature": "769ddcbb",
+      "version": 3,
+      "signature": "73906eb8",
       "file": "industrial.png",
-      "triangles": 136568,
+      "triangles": 136564,
       "parts": [
         "body",
         "diffuser",
@@ -104,7 +104,7 @@
     {
       "id": "luminoso",
       "version": 1,
-      "signature": "2cdfdd85",
+      "signature": "c8e144be",
       "file": "luminoso.png",
       "triangles": 15748,
       "parts": [
@@ -116,13 +116,13 @@
     {
       "id": "moderno",
       "version": 2,
-      "signature": "37c05df3",
+      "signature": "9483221c",
       "file": "moderno.png",
-      "triangles": 305496,
+      "triangles": 306320,
       "parts": [
         "body"
       ],
-      "bytes": 16456
+      "bytes": 16471
     }
   ]
 }

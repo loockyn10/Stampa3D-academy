@@ -5,7 +5,7 @@ import { createElement } from "react";
 import { loadMakerModule, loadMakerFontFile } from "../scripts/lib/maker-engine-node.mjs";
 import { loadTs } from "./helpers/load-ts.mjs";
 
-// Bisel superior + resistencia de pared (Normal 1,2 mm / Reforzado 2,4 mm) del Creador de Carteles.
+// Bisel superior + resistencia de pared (material PLA/PETG x Ligero/Normal/Reforzado) del Creador de Carteles.
 //
 // Estos tests miden la MALLA GENERADA (la misma que ve el visor y exporta el STL): cortan el sólido con planos
 // horizontales a distintas alturas y miden el espesor horizontal de la pared. Son tests de geometría; NO sustituyen
@@ -19,7 +19,11 @@ const { firstTopologyEventMm, minStrokeHalfWidthMm } = loadMakerModule("lib/make
 const { resolveInwardModifiers, computeInwardBands } = loadMakerModule("lib/maker/geometry/body/cavity.ts");
 const { textToPerCharacterPaths, flattenOpentypePath } = loadMakerModule("lib/maker/geometry/textToPaths.ts");
 const { buildContourHierarchy } = loadMakerModule("lib/maker/geometry/contourHierarchy.ts");
-const { applyWallStrength, detectWallStrength, WALL_STRENGTH_OPTIONS, NORMAL_WALL_MM, REINFORCED_WALL_MM } = loadMakerModule("lib/maker/wallStrength.ts");
+const { applyWallStrength, detectWallStrength, WALL_PROFILES, DEFAULT_WALL_MM } = loadMakerModule("lib/maker/wallStrength.ts");
+
+// Los seis perfiles (material, resistencia, espesor) y los cuatro espesores distintos que generan (PETG Normal y PLA Ligero comparten 1,35 mm).
+const PROFILES = Object.entries(WALL_PROFILES).flatMap(([material, byStrength]) => Object.entries(byStrength).map(([strength, wallMm]) => ({ material, strength, wallMm })));
+const WALLS = [...new Set(PROFILES.map((p) => p.wallMm))].sort((a, b) => a - b);
 const styles = loadMakerModule("lib/maker/presets/stylePresets.ts");
 const presetSettings = loadMakerModule("lib/maker/presets/presetSettings.ts");
 const { validateLetterSignParams } = loadMakerModule("lib/maker/validation.ts");
@@ -131,10 +135,10 @@ function assertClosed(mesh, label, { allowOpen = 0, allowDegenerate = 0 } = {}) 
   assert.ok(t.open <= allowOpen, `${label}: aristas abiertas (${t.open}), la malla no está cerrada`);
 }
 
-// ---------------------------------------------------------------- Normal y Reforzado: espesor real de la pared
+// ---------------------------------------------------------------- perfiles: espesor real de la pared
 
-for (const [name, wallMm] of [["Normal", NORMAL_WALL_MM], ["Reforzado", REINFORCED_WALL_MM]]) {
-  test(`resistencia ${name} (${wallMm} mm): la pared mide ${wallMm} mm a todas las alturas del cuerpo, sin bisel`, () => {
+for (const wallMm of WALLS) {
+  test(`pared de ${wallMm} mm (perfiles ${PROFILES.filter((p) => p.wallMm === wallMm).map((p) => `${p.material} ${p.strength}`).join(" / ")}): la pared mide ${wallMm} mm a todas las alturas del cuerpo, sin bisel`, () => {
     for (const text of ["I", "O", "H"]) {
       const result = generate({ text, wallMm });
       assert.equal(result.errors.length, 0);
@@ -154,43 +158,47 @@ for (const [name, wallMm] of [["Normal", NORMAL_WALL_MM], ["Reforzado", REINFORC
   });
 }
 
-test("el selector de resistencia es sólo wallMm: Normal y Reforzado son exactamente 1,2 y 2,4 mm y el espesor deducido nunca contradice al campo Pared", () => {
-  assert.deepEqual(WALL_STRENGTH_OPTIONS.map((o) => [o.id, o.wallMm]), [["normal", 1.2], ["reinforced", 2.4]]);
-  assert.equal(DEFAULT_LETTER_SIGN_PARAMS.wallMm, NORMAL_WALL_MM, "el valor inicial es Normal");
-  assert.equal(detectWallStrength(1.2), "normal");
-  assert.equal(detectWallStrength(2.4), "reinforced");
-  assert.equal(detectWallStrength(1.6), null, "un proyecto anterior con 1,6 mm es 'personalizado', no se reinterpreta");
-  assert.equal(detectWallStrength(1.2000000000000002), "normal");
+test("el selector es sólo wallMm: la tabla de perfiles es exactamente la pedida y el espesor deducido nunca contradice al campo Pared", () => {
+  assert.deepEqual(WALL_PROFILES, { petg: { light: 0.9, normal: 1.35, reinforced: 1.8 }, pla: { light: 1.35, normal: 1.8, reinforced: 2.25 } });
+  assert.equal(DEFAULT_LETTER_SIGN_PARAMS.wallMm, DEFAULT_WALL_MM);
+  assert.equal(DEFAULT_LETTER_SIGN_PARAMS.wallMm, 1.35, "proyectos nuevos: PETG + Normal");
+  assert.equal(DEFAULT_LETTER_SIGN_PARAMS.material, "petg");
+  assert.equal(detectWallStrength("petg", 1.35), "normal");
+  assert.equal(detectWallStrength("pla", 1.35), "light", "el mismo espesor es otra resistencia según el material");
+  assert.equal(detectWallStrength("petg", 1.6), null, "un proyecto anterior con 1,6 mm es 'personalizado', no se reinterpreta");
+  assert.equal(detectWallStrength("petg", 1.2), null, "el 1,2 mm de la versión anterior es 'personalizado'");
+  assert.equal(detectWallStrength("pla", 1.8 + 1e-12), "normal");
   // Editar el campo Pared a mano y elegir una opción convergen en el mismo estado: no hay una segunda copia que pueda contradecirse.
-  const edited = { ...BASE, text: "Hola", wallMm: 2.4 };
-  assert.equal(detectWallStrength(edited.wallMm), "reinforced");
+  const edited = { ...BASE, text: "Hola", wallMm: 1.8 };
+  assert.equal(detectWallStrength(edited.material, edited.wallMm), "reinforced");
   assert.deepEqual(applyWallStrength({ ...edited, wallMm: 1.7 }, "reinforced"), edited);
 });
 
-test("cambiar entre Normal y Reforzado conserva texto, estilo y demás ajustes, y regenera la geometría con el espesor nuevo", () => {
+test("cambiar de resistencia conserva texto, estilo, material y demás ajustes, y regenera la geometría con el espesor nuevo", () => {
   for (const style of styles.STYLE_PRESETS) {
     const start = { ...styles.applyStylePreset({ ...DEFAULT_LETTER_SIGN_PARAMS, text: "Mi cartel", heightMm: 61 }, style) };
     const reinforced = applyWallStrength(start, "reinforced");
     const back = applyWallStrength(reinforced, "normal");
-    assert.equal(reinforced.wallMm, 2.4);
+    assert.equal(reinforced.wallMm, 1.8);
+    assert.equal(reinforced.material, "petg");
     assert.equal(reinforced.text, "Mi cartel");
     assert.equal(reinforced.heightMm, 61);
     assert.equal(styles.matchesStylePreset(reinforced, style), true, `${style.id}: sigue siendo el mismo estilo`);
     assert.equal(styles.detectStylePreset(reinforced)?.id, styles.detectStylePreset(start)?.id);
-    assert.equal(back.wallMm, 1.2);
-    assert.deepEqual(Object.fromEntries(Object.entries(back).filter(([k]) => k !== "wallMm")), Object.fromEntries(Object.entries(start).filter(([k]) => k !== "wallMm")));
-    // Round-trip por presets guardados: el espesor viaja con la receta.
+    assert.deepEqual(back, start);
+    // Round-trip por presets guardados: el espesor y el material viajan con la receta.
     const restored = presetSettings.applyPresetSettings(start, JSON.parse(JSON.stringify(presetSettings.extractPresetSettings(reinforced))));
-    assert.equal(restored.wallMm, 2.4);
+    assert.equal(restored.wallMm, 1.8);
+    assert.equal(restored.material, "petg");
     assert.deepEqual(validateLetterSignParams(reinforced), []);
   }
-  // La geometría cambia de verdad con la opción: más material en Reforzado.
-  const normal = generate({ text: "I", wallMm: 1.2 });
-  const reinf = generate({ text: "I", wallMm: 2.4 });
+  // La geometría cambia de verdad con la opción: más material con más pared.
+  const normal = generate({ text: "I", wallMm: 1.35 });
+  const reinf = generate({ text: "I", wallMm: 2.25 });
   assert.ok(reinf.triangleCount > 0 && normal.triangleCount > 0);
   const area = (positions, z, y) => sectionIntervals(positions, z, y).reduce((s, [a, c]) => s + (c - a), 0);
   const y0 = (bounds(bodyOf(normal)).minY + bounds(bodyOf(normal)).maxY) / 2;
-  assert.ok(area(bodyOf(reinf), 20, y0) > area(bodyOf(normal), 20, y0) + 2);
+  assert.ok(area(bodyOf(reinf), 20, y0) > area(bodyOf(normal), 20, y0) + 1.5);
 });
 
 // ---------------------------------------------------------------- bisel superior: paredes verticales + chaflán + espesor
@@ -202,7 +210,8 @@ const BEVELS = [
   { name: "45° 4/4", bevelDepthMm: 4, bevelInsetMm: 4 },
 ];
 
-for (const [strength, wallMm] of [["Normal", 1.2], ["Reforzado", 2.4]]) {
+for (const wallMm of WALLS) {
+  const strength = `pared ${wallMm}`;
   for (const bevel of BEVELS) {
     test(`bisel superior ${bevel.name} + ${strength}: pared vertical y de espesor constante hasta el bisel; dentro del bisel conserva ${wallMm} mm y el exterior sigue el chaflán`, () => {
       const result = generate({ text: "I", wallMm, bevelEnabled: true, bevelDepthMm: bevel.bevelDepthMm, bevelInsetMm: bevel.bevelInsetMm });
@@ -248,7 +257,7 @@ for (const [strength, wallMm] of [["Normal", 1.2], ["Reforzado", 2.4]]) {
 }
 
 test("bisel independiente del espesor de pared: un bisel mayor que la pared (antes: malla abierta/pared negativa) ahora conserva la pared", () => {
-  for (const wallMm of [1.2, 2.4]) {
+  for (const wallMm of [0.9, 2.25]) {
     const result = generate({ text: "O", wallMm, bevelEnabled: true, bevelDepthMm: 8, bevelInsetMm: 5 });
     assert.equal(result.errors.length, 0);
     const body = bodyOf(result);
@@ -269,7 +278,7 @@ const MESH_CASES = [
   ["texto", "STAMPA"], ["texto", "Hola 3D"],
 ];
 
-for (const wallMm of [1.2, 2.4]) {
+for (const wallMm of [0.9, 2.25]) {
   for (const [kind, text] of MESH_CASES) {
     for (const bevel of [BEVELS[0], BEVELS[2]]) {
       test(`malla válida: ${kind} "${text}" · pared ${wallMm} · bisel ${bevel.name} (cerrada, manifold, 1 componente por letra)`, () => {
@@ -394,9 +403,10 @@ test("pared que no entra en trazos finos: el trazo queda macizo (modelo válido)
   assertClosed(bodyOf(reinforced), "I maciza");
 });
 
-test("sin huecos artificiales: una letra maciza por su tamaño sigue maciza con Normal y Reforzado", () => {
-  for (const wallMm of [1.2, 2.4]) {
-    const result = generate({ text: "I", heightMm: 8, depthMm: 10, wallMm });
+test("sin huecos artificiales: una letra maciza por su tamaño (tronco < 2 x pared) sigue maciza con la pared mínima y la máxima", () => {
+  for (const wallMm of [0.9, 2.25]) {
+    // 6 mm de alto => tronco ~1,4 mm, menor que 2 x 0,9 mm: no admite cavidad con ninguno de los perfiles.
+    const result = generate({ text: "I", heightMm: 6, depthMm: 10, wallMm });
     const body = bodyOf(result);
     const b = bounds(body);
     for (const z of sampleHeights(BASE.baseMm + 0.3, 10 - 0.3, 6)) assert.equal(sectionIntervals(body, z, (b.minY + b.maxY) / 2).length, 1, `z=${z.toFixed(2)}: debería ser un único bloque macizo`);
@@ -405,7 +415,7 @@ test("sin huecos artificiales: una letra maciza por su tamaño sigue maciza con 
 
 // ---------------------------------------------------------------- cintura lateral (Retro): misma causa, mismo arreglo
 
-for (const wallMm of [1.2, 2.4]) {
+for (const wallMm of [0.9, 2.25]) {
   test(`cintura lateral (estilo Retro) + pared ${wallMm}: ya no se autointersecta — la pared conserva ${wallMm} mm en la cintura`, () => {
     const retro = styles.getStylePreset("retro");
     const params = { ...styles.applyStylePreset({ ...DEFAULT_LETTER_SIGN_PARAMS, text: "I", fontId: "montserrat-bold" }, retro), wallMm };
@@ -431,7 +441,7 @@ for (const wallMm of [1.2, 2.4]) {
 // ---------------------------------------------------------------- tapa encastrable sobre cuerpo biselado
 
 test("bisel + tapa encastrable: el labio entra en la cavidad (ya angostada) con la holgura pedida, sin interferir con la pared del cuerpo", () => {
-  for (const wallMm of [1.2, 2.4]) {
+  for (const wallMm of [0.9, 2.25]) {
     const params = { text: "O", wallMm, depthMm: 40, bevelEnabled: true, bevelDepthMm: 6, bevelInsetMm: 2.4, frontType: "lid", lidJoint: "interior-lip", insertDepthMm: 3, clearanceMm: 0.2, lipWallMm: 0.8, lidMm: 1.2 };
     const result = generate(params);
     assert.equal(result.errors.length, 0, result.errors.map((e) => e.message).join("; "));
@@ -524,7 +534,7 @@ test("cambiar la resistencia regenera el modelo Y el archivo: el STL refleja la 
     const b = bounds(stl.positions);
     return sectionIntervals(stl.positions, 12, (b.minY + b.maxY) / 2);
   };
-  for (const wallMm of [1.2, 2.4]) {
+  for (const wallMm of [0.9, 2.25]) {
     const intervals = await sectionOfStl(wallMm);
     assert.equal(intervals.length, 2);
     assert.ok(Math.abs(intervals[0][1] - intervals[0][0] - wallMm) < 2e-3);
@@ -533,26 +543,36 @@ test("cambiar la resistencia regenera el modelo Y el archivo: el STL refleja la 
 
 // ---------------------------------------------------------------- UI
 
-test("UI: el selector de resistencia ofrece Normal y Reforzado como radiogroup y marca la opción deducida del espesor", () => {
+test("UI: material (PLA/PETG) y resistencia (Ligero/Normal/Reforzado) son dos radiogroups; marcan lo elegido y deducen la resistencia del espesor", () => {
   const { MakerStrengthSelector } = loadTs("src/components/maker/MakerStrengthSelector.tsx", {});
-  const render = (wallMm) => renderToStaticMarkup(createElement(MakerStrengthSelector, { wallMm, onSelect() {} }));
+  const render = (material, wallMm) => renderToStaticMarkup(createElement(MakerStrengthSelector, { material, wallMm, onMaterialChange() {}, onStrengthChange() {} }));
 
-  const normal = render(1.2);
-  assert.equal((normal.match(/role="radio"/g) ?? []).length, 2);
-  assert.match(normal, /role="radiogroup"/);
-  assert.equal((normal.match(/aria-checked="true"/g) ?? []).length, 1);
-  assert.match(normal, /Normal/);
-  assert.match(normal, /Reforzado/);
-  assert.match(normal, /1,2 mm/);
-  assert.match(normal, /2,4 mm/);
-  assert.doesNotMatch(normal, /Personalizado/);
-  assert.match(normal, /no la cantidad de perímetros/);
+  const petgNormal = render("petg", 1.35);
+  assert.equal((petgNormal.match(/role="radiogroup"/g) ?? []).length, 2);
+  assert.equal((petgNormal.match(/role="radio"/g) ?? []).length, 5);
+  assert.equal((petgNormal.match(/aria-checked="true"/g) ?? []).length, 2, "una opción de material y una de resistencia");
+  for (const label of ["PLA", "PETG", "Ligero", "Normal", "Reforzado"]) assert.match(petgNormal, new RegExp(label));
+  assert.match(petgNormal, /PETG · Normal/);
+  assert.match(petgNormal, /Espesor de pared: 1,35 mm\./);
+  assert.match(petgNormal, /Aproximadamente 3 líneas de extrusión de 0,45 mm, sujeto a la configuración del laminador/);
+  assert.match(petgNormal, /0,9 mm/);
+  assert.match(petgNormal, /1,8 mm/);
+  assert.doesNotMatch(petgNormal, /Personalizado/);
 
-  const reinforced = render(2.4);
-  assert.match(reinforced, /aria-checked="true"[^>]*>(?:(?!<button).)*Reforzado/s);
+  // El mismo espesor con otro material es otra resistencia: el material nunca se deduce de wallMm.
+  const plaLight = render("pla", 1.35);
+  assert.match(plaLight, /PLA · Ligero/);
+  assert.match(plaLight, /2,25 mm/);
+  assert.match(plaLight, /Espesor de pared: 1,35 mm\./);
 
-  const custom = render(1.6);
-  assert.equal((custom.match(/aria-checked="true"/g) ?? []).length, 0);
+  assert.match(render("pla", 2.25), /PLA · Reforzado/);
+  assert.match(render("petg", 0.9), /PETG · Ligero/);
+  assert.match(render("petg", 0.9), /Aproximadamente 2 líneas/);
+
+  const custom = render("petg", 1.5);
+  assert.equal((custom.match(/aria-checked="true"/g) ?? []).length, 1, "sólo el material: ninguna resistencia marcada");
   assert.match(custom, /Personalizado/);
-  assert.match(custom, /Pared de 1,6 mm/);
+  assert.match(custom, /PETG · Personalizado/);
+  assert.match(custom, /Espesor de pared: 1,5 mm\./);
+  assert.match(petgNormal, /no una garantía de resistencia/);
 });

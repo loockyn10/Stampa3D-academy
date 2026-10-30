@@ -45,7 +45,8 @@ export function useLetterGeometry(params: LetterSignParams, importedDesign: Impo
   // silencio para ese campo). `params` cambia de identidad en cada patch
   // (ver page.tsx#handleChange), así que comparar por valor es necesario
   // para no reiniciar el timer en cada render sin cambios reales.
-  const paramsKey = JSON.stringify(params);
+  // El material es un perfil de fabricación sin efecto geométrico (el espesor ya viaja en wallMm): cambiarlo solo no regenera el modelo.
+  const paramsKey = JSON.stringify({ ...params, material: undefined });
   useEffect(() => {
     const timer = setTimeout(() => setDebounced(params), DEBOUNCE_MS);
     return () => clearTimeout(timer);

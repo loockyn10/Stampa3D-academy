@@ -1,7 +1,6 @@
 import { DEFAULT_LETTER_SIGN_PARAMS } from "@/lib/maker/defaults";
 import type { LetterSignParams } from "@/lib/maker/types";
 import { PRESET_SETTING_KEYS, type PresetSettings } from "@/lib/maker/presets/presetSettings";
-import { REINFORCED_WALL_MM } from "@/lib/maker/wallStrength";
 
 /**
  * ESTILOS del Creador de Carteles (creación rápida): registro central de
@@ -15,11 +14,11 @@ import { REINFORCED_WALL_MM } from "@/lib/maker/wallStrength";
  * presets/presetSettings.ts): esos son recetas guardadas por cada usuario;
  * los estilos son fijos, versionados en código y no tocan la base de datos.
  *
- * Pared y estilo son independientes: el espesor de pared (resistencia Normal /
- * Reforzado, ver wallStrength.ts) lo elige el usuario sin perder el estilo, por
- * eso `matchesStylePreset` ignora `wallMm`. Un estilo sólo define `wallMm` si
- * su identidad lo pide (hoy Bold e Industrial, Reforzado). El bisel y la cintura
- * ya no dependen de la pared: la cavidad los acompaña (geometry/body/cavity.ts).
+ * Estilo (aspecto) y fabricación (material + resistencia, ver wallStrength.ts)
+ * son independientes: `material` y `wallMm` NO son claves de estilo, así que
+ * elegir un estilo nunca los modifica ni los restaura, y ningún estilo puede
+ * definirlos. El bisel y la cintura tampoco dependen de la pared: la cavidad
+ * los acompaña (geometry/body/cavity.ts).
  *
  * Ver docs/STAMPA_MAKER.md (sección "Estilos del Creador de Carteles").
  */
@@ -27,12 +26,16 @@ import { REINFORCED_WALL_MM } from "@/lib/maker/wallStrength";
 /**
  * Claves de LetterSignParams que define un estilo: la receta de cuerpo/frente
  * (PRESET_SETTING_KEYS) SIN la receta de instalación (montaje/cableado/
- * plantilla), que es independiente del aspecto del cartel y se conserva al
+ * plantilla) y SIN la configuración estructural de fabricación (`material`,
+ * `wallMm`): ambas son independientes del aspecto del cartel y se conservan al
  * cambiar de estilo. Nunca incluye el diseño (texto, fuente, alto, recortes).
  */
-export const STYLE_PARAM_KEYS = PRESET_SETTING_KEYS.filter((k) => k !== "installation") as readonly Exclude<(typeof PRESET_SETTING_KEYS)[number], "installation">[];
+export const NON_STYLE_KEYS = ["installation", "material", "wallMm"] as const;
+type NonStyleKey = (typeof NON_STYLE_KEYS)[number];
 
-export type StyleSettings = Omit<PresetSettings, "installation">;
+export const STYLE_PARAM_KEYS = PRESET_SETTING_KEYS.filter((k) => !(NON_STYLE_KEYS as readonly string[]).includes(k)) as readonly Exclude<(typeof PRESET_SETTING_KEYS)[number], NonStyleKey>[];
+
+export type StyleSettings = Omit<PresetSettings, NonStyleKey>;
 
 /** Categorías de estilo (preparado para filtrar la galería cuando haya más estilos; hoy solo se usa como metadato). */
 export type StyleCategory = "esencial" | "volumen" | "tecnico" | "luminoso";
@@ -90,11 +93,11 @@ export const STYLE_PRESETS: readonly StylePreset[] = [
   },
   {
     id: "bold",
-    version: 2,
+    version: 3,
     name: "Bold",
-    description: "Letras muy profundas, con pared y tapa gruesas y una costilla lateral marcada: presencia máxima.",
+    description: "Letras muy profundas, con tapa gruesa y una costilla lateral marcada: presencia máxima.",
     category: "volumen",
-    overrides: { frontType: "lid", lidMm: 2.4, depthMm: 70, wallMm: REINFORCED_WALL_MM, baseMm: 2, ribsCount: 1, ribProtrusionMm: 2, ribWidthMm: 6 },
+    overrides: { frontType: "lid", lidMm: 2.4, depthMm: 70, baseMm: 2, ribsCount: 1, ribProtrusionMm: 2, ribWidthMm: 6 },
   },
   {
     id: "retro",
@@ -114,11 +117,11 @@ export const STYLE_PRESETS: readonly StylePreset[] = [
   },
   {
     id: "industrial",
-    version: 2,
+    version: 3,
     name: "Industrial",
     description: "Frente perforado con máscara oscura y costillas laterales, de aspecto técnico.",
     category: "tecnico",
-    overrides: { frontType: "perforated", depthMm: 40, wallMm: REINFORCED_WALL_MM, ribsCount: 2 },
+    overrides: { frontType: "perforated", depthMm: 40, ribsCount: 2 },
   },
   {
     id: "luminoso",
@@ -164,10 +167,10 @@ export function applyStylePreset(current: LetterSignParams, preset: StylePreset)
   return { ...current, ...resolveStyleSettings(preset) };
 }
 
-/** ¿Los params actuales coinciden exactamente con la configuración del estilo? (false = "Personalizado"). El espesor de pared no cuenta: se elige aparte (resistencia) y cambiarlo no saca al cartel de su estilo. */
+/** ¿Los params actuales coinciden exactamente con la configuración del estilo? (false = "Personalizado"). Material y pared no son claves de estilo: se eligen aparte y cambiarlos no saca al cartel de su estilo. */
 export function matchesStylePreset(params: LetterSignParams, preset: StylePreset): boolean {
   const target = resolveStyleSettings(preset);
-  return STYLE_PARAM_KEYS.every((key) => key === "wallMm" || params[key] === target[key]);
+  return STYLE_PARAM_KEYS.every((key) => params[key] === target[key]);
 }
 
 /** Estilo cuya configuración coincide con los params (p.ej. al abrir un proyecto o un preset del usuario); null si ninguno. */

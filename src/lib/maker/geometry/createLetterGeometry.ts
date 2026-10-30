@@ -6,7 +6,6 @@ import { toTriangleSoupData } from "@/lib/maker/geometry/extrudePolygon";
 import { buildBody } from "@/lib/maker/geometry/body";
 import { resolveInwardModifiers } from "@/lib/maker/geometry/body/cavity";
 import { minStrokeHalfWidthMm } from "@/lib/maker/geometry/strokeLimits";
-import { NORMAL_WALL_MM } from "@/lib/maker/wallStrength";
 import { computeDesignCenter, planBackCutouts } from "@/lib/maker/geometry/backCutouts";
 import { buildFrontParts } from "@/lib/maker/geometry/front";
 import { pointsToRawPath, unionRawPaths } from "@/lib/maker/geometry/offsets";
@@ -205,7 +204,7 @@ export function createGeometryFromContourPieces(pieces: ContourPiece[], requeste
       : "";
     warnings.push({
       code: "WALL_TOO_THICK",
-      message: `El espesor de pared de ${formatMm(params.wallMm)} mm no entra en los trazos más finos${where}: esas zonas quedan macizas en vez de huecas (el espesor ahí es el ancho del trazo). ${params.wallMm > NORMAL_WALL_MM + 1e-6 ? "Probá con pared Normal, un tamaño mayor o una fuente más gruesa." : "Probá con un tamaño mayor o una fuente más gruesa."}`,
+      message: `El espesor de pared de ${formatMm(params.wallMm)} mm no entra en los trazos más finos${where}: esas zonas quedan macizas en vez de huecas (el espesor ahí es el ancho del trazo). Probá con una resistencia menor, un tamaño mayor o una fuente más gruesa.`,
     });
   }
 
@@ -279,7 +278,8 @@ export function createGeometryFromContourPieces(pieces: ContourPiece[], requeste
 }
 
 function formatMm(value: number): string {
-  return (Math.round(value * 10) / 10).toString();
+  // Dos decimales: los perfiles de pared (0,9 / 1,35 / 2,25 mm) no se pueden redondear a uno sin cambiar el valor que ve el usuario.
+  return (Math.round(value * 100) / 100).toString();
 }
 
 /** Profundidad extra que suma el sistema de frente activo, solo para el bounding box aproximado (no afecta la geometría real, cada front/* ya coloca sus piezas en su propio rango Z). */

@@ -105,7 +105,7 @@ test("registro: 10 estilos con ids estables, nombres únicos y metadatos complet
 });
 
 test("registro: un estilo solo define claves de estilo (nunca texto, fuente, alto, recortes ni instalación)", () => {
-  const forbidden = new Set(["text", "fontId", "heightMm", "backCutouts", "installationOverrides", "installation"]);
+  const forbidden = new Set(["text", "fontId", "heightMm", "backCutouts", "installationOverrides", "installation", "wallMm", "material"]);
   for (const s of STYLE_PRESETS) {
     for (const key of Object.keys(s.overrides)) {
       assert.ok(STYLE_PARAM_KEYS.includes(key), `${s.id}: "${key}" no es una clave de estilo`);
@@ -115,8 +115,8 @@ test("registro: un estilo solo define claves de estilo (nunca texto, fuente, alt
   for (const key of forbidden) assert.ok(!STYLE_PARAM_KEYS.includes(key), `${key} no debe ser clave de estilo`);
 });
 
-test("registro: las claves de estilo son la receta de presets del usuario sin la instalación (mismos parámetros, un solo vocabulario)", () => {
-  assert.deepEqual([...STYLE_PARAM_KEYS], presetSettings.PRESET_SETTING_KEYS.filter((k) => k !== "installation"));
+test("registro: las claves de estilo son la receta de presets del usuario sin instalación ni fabricación (material y pared): un solo vocabulario", () => {
+  assert.deepEqual([...STYLE_PARAM_KEYS], presetSettings.PRESET_SETTING_KEYS.filter((k) => !["installation", "wallMm", "material"].includes(k)));
   for (const key of STYLE_PARAM_KEYS) assert.ok(key in DEFAULT_LETTER_SIGN_PARAMS, key);
 });
 
@@ -202,9 +202,10 @@ test("personalización: editar un parámetro avanzado deja el estilo como Person
   const edited2 = { ...edited, wallMm: 2.2 };
   assert.equal(edited2.depthMm, applied.depthMm + 5);
   assert.equal(edited2.wallMm, 2.2);
-  // Cada clave de estilo, tocada por separado, rompe la coincidencia — salvo la pared: es la resistencia (Normal / Reforzado), un eje aparte.
+  // Cada clave de estilo, tocada por separado, rompe la coincidencia — salvo material y pared: son la fabricación (material + resistencia), un eje aparte.
   assert.equal(styles.matchesStylePreset({ ...applied, wallMm: applied.wallMm + 1 }, preset), true, "cambiar la pared no saca al cartel de su estilo");
-  for (const key of STYLE_PARAM_KEYS.filter((k) => k !== "wallMm")) {
+  assert.equal(styles.matchesStylePreset({ ...applied, material: "pla" }, preset), true, "cambiar el material no saca al cartel de su estilo");
+  for (const key of STYLE_PARAM_KEYS) {
     const value = applied[key];
     const changed = typeof value === "number" ? value + 1 : typeof value === "boolean" ? !value : value === "open" ? "lid" : "x";
     assert.equal(styles.matchesStylePreset({ ...applied, [key]: changed }, preset), false, key);
@@ -239,7 +240,7 @@ test("detección: una configuración de usuario que coincide con un estilo se re
   const userPreset = presetSettings.applyPresetSettings(SAMPLE, presetSettings.extractPresetSettings(styles.applyStylePreset(SAMPLE, byId("moderno"))));
   assert.equal(styles.detectStylePreset(userPreset)?.id, "moderno");
   assert.equal(styles.detectStylePreset({ ...userPreset, depthMm: userPreset.depthMm + 3 }), null);
-  // La pared se elige aparte (resistencia Normal / Reforzado): otro espesor no cambia el estilo reconocido.
+  // La pared se elige aparte (material + resistencia): otro espesor no cambia el estilo reconocido.
   assert.equal(styles.detectStylePreset({ ...userPreset, wallMm: 3.3 })?.id, "moderno");
 });
 
@@ -303,7 +304,7 @@ test("geometría: el bisel y la cintura de los estilos no dependen de la pared �
   // Hasta 0.7.1 un bisel/cintura mayor que la pared dejaba la malla abierta (y sin error), por eso los estilos
   // tenían que cumplir bevelInsetMm < wallMm. La cavidad ahora acompaña a la silueta (geometry/body/cavity.ts).
   for (const s of STYLE_PRESETS.filter((p) => styles.resolveStyleSettings(p).bevelEnabled || styles.resolveStyleSettings(p).grooveEnabled)) {
-    for (const wallMm of [1.2, 2.4]) {
+    for (const wallMm of [0.9, 2.25]) {
       const g = createLetterGeometry(font, paramsFor(s, { text: "Sol", wallMm }));
       assert.equal(g.errors.length, 0, `${s.id}/${wallMm}`);
       for (const part of g.parts) assert.equal(topology(part.mesh.positions).open, 0, `${s.id}/${wallMm}/${part.kind}: aristas abiertas`);

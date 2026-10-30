@@ -7,11 +7,18 @@ Este archivo contiene únicamente trabajo pendiente o próximo. Eliminar tareas 
 - [ ] Aplicar `20261101120000_product_categories.sql` en Supabase (no aplicada). Hasta entonces la pantalla no muestra categorías.
 - [ ] QA manual con cuenta Paid (desktop y 375 px, claro/oscuro): crear «Lámparas», asignar productos, filtrar, renombrar, eliminar y comprobar que los productos quedan sin categoría. Las pantallas autenticadas no se probaron en el entorno de desarrollo (solo los componentes aislados y la base real vía Postgres embebido).
 
-## Now — Carteles 0.7.1: bisel superior y resistencia (implementado 2026-10-30, ver docs/STAMPA_MAKER.md §36)
+## Now — Carteles 0.7.2: material y tres niveles de resistencia (implementado 2026-10-30, ver docs/STAMPA_MAKER.md §37)
+
+- [ ] Validar en Bambu Studio los seis perfiles (PETG/PLA × Ligero/Normal/Reforzado = 0,9 / 1,35 / 1,8 / 2,25 mm): perímetros reales, PETG Ligero (0,9 mm) sin huecos, tapa encastrable con la holgura de 0,2 mm en material real. Lista en §37.8. Los espesores son perfiles de diseño, no una garantía de resistencia.
+- [ ] QA visual manual de los selectores Material + Resistencia en la app con cuenta Paid (desktop y 375 px, claro/oscuro, teclado): la verificación automática es de render estático y de geometría.
+- [ ] Decidir si se corrige el triángulo de área cero que aparece con "OB" a 0,9 mm (§37.7); hoy es inocuo (malla cerrada).
+- Sin migración SQL: `material` viaja en el JSON de la receta con lectura tolerante (ausente → PETG).
+
+## Now — Carteles 0.7.1: bisel superior y resistencia (implementado 2026-10-30, ver docs/STAMPA_MAKER.md §36; el selector Normal / Reforzado fue reemplazado por el 0.7.2)
 
 - [ ] Validar en Bambu Studio (no hay slicer en el entorno de desarrollo): exportar Normal (1,2 mm) y Reforzado (2,4 mm) con bisel (estilo Moderno), revisar pared vertical + espesor dentro del bisel en vista de capas y los perímetros reales (Reforzado necesita ≥ 1,68 mm para 4 perímetros de 0,42 mm). Lista completa en §36.10.
 - [ ] Bisel posterior (`rearBevel*`) y costillas todavía no acompañan a la cavidad (§36.9); decidir si se extiende el mismo mecanismo.
-- [ ] Decidir si el valor inicial 1,2 mm (Normal, antes 1,6 mm) es el deseado.
+- [x] Valor inicial: reemplazado por PETG + Normal = 1,35 mm en 0.7.2.
 - [ ] QA visual manual del selector de resistencia en la app con cuenta Paid (desktop y 375 px, claro/oscuro): la verificación automática es de render estático.
 
 ## Now — Tutoriales gráficos (implementado 2026-10-29, ver ARCHITECTURE §24, D036 y `docs/TUTORIALS.md`)

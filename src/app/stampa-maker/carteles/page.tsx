@@ -33,7 +33,7 @@ import { DEFAULT_PRINTER_PROFILE_ID, getPrinterProfile } from "@/lib/maker/print
 import { DEFAULT_STYLE_ID, STYLE_PRESETS, applyStylePreset, detectStylePreset, getStylePreset, matchesStylePreset } from "@/lib/maker/presets/stylePresets";
 import type { LoadedProject, ProjectWorkState } from "@/lib/maker/projects/projectData";
 import type { LetterSignParams } from "@/lib/maker/types";
-import { applyWallStrength, type WallStrength } from "@/lib/maker/wallStrength";
+import { applyMaterial, applyWallStrength, type MakerMaterial, type WallStrength } from "@/lib/maker/wallStrength";
 
 export default function StampaMakerCartelesPage() {
   // Única fuente de la configuración: `params` (lo que edita Personalización avanzada). El estilo elegido es solo una etiqueta
@@ -98,8 +98,9 @@ export default function StampaMakerCartelesPage() {
     },
     [params],
   );
-  // Resistencia (Normal / Reforzado): atajo para wallMm. No toca el texto ni el estilo (matchesStylePreset ignora la pared).
+  // Resistencia (Ligero / Normal / Reforzado) y material (PLA / PETG): atajos para wallMm. No tocan el texto ni el estilo (material y pared no son claves de estilo).
   const handleSelectStrength = useCallback((strength: WallStrength) => setParams((prev) => applyWallStrength(prev, strength)), []);
+  const handleSelectMaterial = useCallback((material: MakerMaterial) => setParams((prev) => applyMaterial(prev, material)), []);
   const selectedStyle = getStylePreset(styleId);
   const styleCustom = !selectedStyle || !matchesStylePreset(params, selectedStyle);
 
@@ -342,7 +343,7 @@ export default function StampaMakerCartelesPage() {
             onSelect={handleSelectStyle}
             onReset={() => styleId && handleSelectStyle(styleId)}
           />
-          <MakerStrengthSelector wallMm={params.wallMm} onSelect={handleSelectStrength} />
+          <MakerStrengthSelector material={params.material} wallMm={params.wallMm} onMaterialChange={handleSelectMaterial} onStrengthChange={handleSelectStrength} />
         </div>
 
         <div className="order-5 flex flex-col gap-3">

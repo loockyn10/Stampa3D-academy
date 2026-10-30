@@ -100,6 +100,14 @@ export interface KeyholeCutout extends BackCutoutBase {
   rotationDeg: number;
 }
 
+/**
+ * Material del perfil de fabricación (PLA o PETG). Selección explícita e
+ * independiente de `wallMm` (el mismo espesor existe en ambos materiales). Es
+ * sólo un perfil: no cambia la geometría ni las propiedades físicas del modelo.
+ * Ver wallStrength.ts.
+ */
+export type MakerMaterial = "pla" | "petg";
+
 /** Parámetros configurables por el usuario para el Creador de Carteles. */
 export interface LetterSignParams {
   text: string;
@@ -110,6 +118,11 @@ export interface LetterSignParams {
   depthMm: number;
   /** Espesor de las paredes laterales, en mm. */
   wallMm: number;
+  /**
+   * Material del perfil de fabricación. Junto con la resistencia (deducida de
+   * `wallMm`) elige el espesor de pared; no interviene en la geometría.
+   */
+  material: MakerMaterial;
   /** Espesor del fondo cerrado, en mm. */
   baseMm: number;
   /** Tipo de cuerpo (ver BodyType). */

@@ -65,6 +65,7 @@
 > Neon 0.1.1 (2026-09-19): importador SVG corregido (cascada CSS real, `<text>`, mensajes diferenciados) y biblioteca de fuentes single-line reales: Mistral SingleLine y Relief SingleLine, OFL (sección 26).
 > Neon 0.3 (2026-09-23): sistema de instalación de Neon LED (sección 33): `NeonSegment` (identidad física por recorrido, IDs posicionales + reconciliación best-effort por forma), `NeonWiringPlan` (nearest-neighbor + 2-opt acotado, IN/OUT por segmento), `NeonCablePassThrough` (cápsula bipolar única, perfora el piso sin tocar las paredes visibles — split de piso por bandas gateado, malla bit a bit idéntica sin pass-throughs), puentes traseros por MST (Kruskal, **sólidos independientes con overlap físico real, NO soldados por Clipper** — ver 33.4 para el porqué y la limitación aceptada), `NeonWallClip` paramétrico (deriva de la sección del canal, se regenera solo), posición automática de clips por longitud de arco, editor manual (reutiliza el editor de Back Cutouts existente, pass-through como `BackCutout` sintético — invertir/reordenar por lista), malla helper de cableado/montaje (nunca se exporta), export (Wall Clip STL + kit ZIP) y persistencia (receta+overrides anidados en el mismo `settings` jsonb, sin migration nueva). 53 tests nuevos en tests/maker-neon-installation.test.mjs (630 -> 683 tests Maker). No avanza a Neon 0.4.
 > Neon 0.3.2 (2026-09-23): corrección conceptual de cableado y puentes (sección 34), sin features nuevas. Cableado: se verificó que la fórmula 2N-1 de pass-throughs ya estaba bien implementada (no era "1 segmento -> 1 pass-through"); se agregó `NeonPassThroughRole` (POWER IN/IN/OUT/loop) y `planValidPassThrough()` (fallback de reposicionamiento cuando la posición por defecto no entra en la cavidad — antes se perdía en silencio). Puentes: reescritos de MST-only a modelo `BridgeConnection`/`BridgeInstance` con 4 modos (`independent`/`minimal`/`reinforced`/`custom`, antes solo `independent`/`bridged`), planificador de refuerzo con muestreo por longitud de arco + separación espacial mínima + evasión de pass-throughs, y editor manual mínimo (agregar/eliminar por par de segmentos, con validación de "toca ambos floors"). 12 tests nuevos en tests/maker-neon-installation.test.mjs (53 -> 65; 683 -> 696 tests Maker totales, 1 skip preexistente no relacionado). No avanza a Neon 0.4.
+> Carteles 0.7.2 (2026-10-30): selectores de Material (PLA / PETG) y Resistencia (Ligero / Normal / Reforzado) que eligen `wallMm` (sección 37); reemplazan a Normal / Reforzado. Los estilos ya no definen pared ni material.
 > Carteles 0.7.1 (2026-10-30): corrección del bisel superior (la cavidad acompaña a la silueta, chaflán recto, protecciones) y selector de resistencia Normal / Reforzado (sección 36).
 > Carteles 0.7 (2026-10-30): estilos y creación rápida — 10 estilos con miniaturas generadas por el motor real, flujo texto → estilo → visor → descarga y Personalización avanzada plegable con todos los controles existentes (sección 35). Motor geométrico sin cambios; aviso `UNSUPPORTED_GLYPH` y reencuadre del visor que conserva la rotación.
 
@@ -3444,6 +3445,8 @@ Warnings nuevos: `BEVEL_CLAMPED` (bisel superior ajustado o desactivado) y `GROO
 
 ### 36.6 Resistencia Normal / Reforzado
 
+> **Reemplazado en 0.7.2 (sección 37):** hoy son dos selectores (material + tres niveles) con otros espesores; lo siguiente describe el diseño original.
+
 Selector de la creación rápida (paso 3, `MakerStrengthSelector`): **Normal 1,2 mm** (menos material, carteles decorativos) y **Reforzado 2,4 mm** (carteles grandes o con más exigencia). Decisión de diseño: **no hay un campo nuevo**. Es un atajo para `wallMm` (el campo "Pared" de Personalización avanzada); la opción marcada se **deduce** de `wallMm` (`detectWallStrength`, src/lib/maker/wallStrength.ts), igual que "Personalizado" se deduce de los parámetros. Por eso no pueden existir estados contradictorios con el campo avanzado, no hay nada nuevo que persistir en presets/proyectos y los guardados antes siguen funcionando (1,6 mm = "Personalizado").
 
 - Cambiar la opción **no pierde texto ni estilo**: `matchesStylePreset` ignora `wallMm` (la pared se elige aparte). Elegir un estilo sí aplica su receta completa, incluida la pared (Bold e Industrial son Reforzado; el resto, Normal).
@@ -3476,3 +3479,75 @@ Triángulos (texto "Sol", 100 mm): Suave 115 k → 205 k, Moderno 150 k → 305 
 3. Revisar que no aparezcan soportes dentro de la cavidad (el techo interior sigue una inclinación ≤ 45°) ni advertencias de malla (autointersección, aristas abiertas).
 4. Revisar la cara frontal: ancho de la corona superior ≥ 1,2 mm en los trazos finos y ausencia de filos.
 5. Si la app muestra `BEVEL_CLAMPED`, comparar el bisel efectivo con el pedido.
+
+
+## 37. Carteles 0.7.2 — Material (PLA / PETG) y tres niveles de resistencia
+
+> Reemplaza el selector Normal / Reforzado (§36.6) por **dos selectores**: Material (PLA, PETG) y Resistencia (Ligero, Normal, Reforzado). Solo el Creador de Carteles convencional: Neón y Jarros no se tocaron. Sin migraciones SQL ni cambios de esquema de base de datos.
+
+### 37.1 Tabla de espesores
+
+| Resistencia | PETG | PLA |
+|---|---|---|
+| Ligero | 0,90 mm | 1,35 mm |
+| Normal | 1,35 mm | 1,80 mm |
+| Reforzado | 1,80 mm | 2,25 mm |
+
+Una única tabla (`WALL_PROFILES`, `src/lib/maker/wallStrength.ts`). Son **perfiles iniciales de diseño**, pensados para boquilla de 0,4 mm y una línea nominal de 0,45 mm. **No son una garantía de resistencia mecánica ni un número exacto de perímetros**: el laminador decide las trayectorias finales. La interfaz dice "aproximadamente N líneas de extrusión de 0,45 mm, sujeto a la configuración del laminador" (N = `round(pared / 0,45)`).
+
+El material es un **perfil de fabricación**: elegir PLA o PETG no cambia propiedades físicas del modelo ni simula nada; solo selecciona qué columna de la tabla se usa.
+
+### 37.2 Modelo de estado (sin un segundo espesor)
+
+- `LetterSignParams.wallMm` sigue siendo la **única fuente geométrica** (es el parámetro que ya consumía el motor; no se creó otro sistema de espesores). El campo "Pared" de Personalización avanzada se conserva.
+- `LetterSignParams.material` (`"pla" | "petg"`) es una **selección explícita**, independiente del espesor. No se deduce de `wallMm` porque el mismo valor aparece en dos perfiles (PETG Normal = PLA Ligero = 1,35 mm; PETG Reforzado = PLA Normal = 1,8 mm). No interviene en la geometría.
+- La **resistencia se deduce** de (`material`, `wallMm`) con `detectWallStrength`, igual que "Personalizado" en los estilos. No hay un estado de resistencia que pueda contradecirse con el campo Pared.
+- Valores iniciales de proyectos nuevos: **PETG + Normal = 1,35 mm** (`DEFAULT_LETTER_SIGN_PARAMS`). Antes 1,2 mm (y 1,6 mm antes). Los proyectos y presets guardados conservan su espesor.
+
+### 37.3 Comportamiento de los selectores (`MakerStrengthSelector`)
+
+- **Material** `[PLA] [PETG]` y **Resistencia** `[Ligero] [Normal] [Reforzado]` (cada botón muestra su espesor para el material elegido), debajo una descripción dinámica: "PETG · Normal / Espesor de pared: 1,35 mm. / Aproximadamente 3 líneas…". Dos `radiogroup` accesibles (flechas del teclado, objetivos táctiles de 44 px, temas claro/oscuro).
+- **Cambiar de resistencia** (`applyWallStrength`): aplica el espesor del perfil del material actual. Solo cambia `wallMm`.
+- **Cambiar de material** (`applyMaterial`): **conserva el nivel** (PETG Normal → PLA Normal = 1,8 mm; PLA Ligero → PETG Ligero = 0,9 mm). Si la pared es "Personalizada", el espesor propio se respeta y solo cambia el material. Elegir el material ya activo no cambia nada.
+- **Personalizado**: si el usuario edita la pared a mano (p. ej. 1,5 mm) y no coincide con un perfil del material, la resistencia pasa a "Personalizado" (ningún botón marcado, insignia visible) y **no se fuerza de vuelta a 1,35 mm**. Elegir un nivel aplica el valor de su perfil. Es un estado derivado: un espesor manual que coincide con un perfil pasa a mostrarse como ese perfil.
+- **Rendimiento**: el cambio reutiliza el pipeline existente (debounce de 200 ms). Cambiar **solo** el material (con espesor propio) no regenera el modelo: `useLetterGeometry` excluye `material` de la clave de dependencia porque no afecta la geometría. No aumenta la cantidad de triángulos (el espesor no multiplica la malla).
+
+### 37.4 Presets visuales vs. configuración estructural
+
+- **Estética** (estilo: cuerpo, frente, biseles, tapa…) y **fabricación** (material + pared) están separadas: `NON_STYLE_KEYS = ["installation", "material", "wallMm"]` quedan fuera de `STYLE_PARAM_KEYS`. Elegir un estilo **nunca** modifica material, resistencia ni espesor (tampoco los restaura a un valor base, como hacía antes con la pared), y ningún estilo puede definirlos.
+- **Cambio de comportamiento**: **Bold** e **Industrial** ya no fuerzan pared Reforzado (2,4 mm); usan la que haya elegido el usuario. Subieron a `version: 3` y todas las miniaturas se regeneraron con el motor real (pared por defecto 1,35 mm; `public/maker/styles/manifest.json`).
+- `matchesStylePreset` ya no necesita ignorar `wallMm` a mano: no es una clave de estilo.
+- Los **presets del usuario** (`maker_presets`, "receta de fabricación") sí incluyen `material` junto a `wallMm` (están en `PRESET_SETTING_KEYS`), así que una receta guardada restaura el par completo.
+
+### 37.5 Compatibilidad con proyectos y presets guardados
+
+- Sin migración destructiva ni SQL. `material` se agrega a la receta serializada (`settings` JSON) con lectura tolerante: ausente o inválido (`"abs"`, número) → **`"petg"`**, el **valor de compatibilidad** (el mismo que usan los proyectos nuevos).
+- Un proyecto/preset anterior **conserva su espesor original**: 1,2 / 1,6 / 2,4 mm u otro propio se cargan sin cambios y se muestran como **Personalizado** (PETG no tiene esos valores). Si casualmente coincide con un perfil (p. ej. 1,8 mm → "PETG · Reforzado") se muestra como tal, sin tocar el valor.
+- Guardar y reabrir un proyecto anterior no altera `wallMm`. No se subió `PROJECT_SCHEMA_VERSION` ni `PRESET_SCHEMA_VERSION`.
+
+### 37.6 Validaciones geométricas
+
+Tests (`tests/maker-material-strength.test.mjs`, 21; `tests/maker-bevel-wall.test.mjs` actualizado a los cuatro espesores distintos 0,9 / 1,35 / 1,8 / 2,25): corte de la **malla real** con planos horizontales.
+
+- Espesor medido en paredes verticales de "I", "O", "H" para los seis perfiles (armados como lo hace la interfaz) a todas las alturas del cuerpo; fondo macizo.
+- Zona del bisel (4 biseles × 4 espesores): vertical hasta el bisel; dentro conserva el espesor (sube a lo sumo un escalón de la aproximación, nunca baja).
+- Tapa encastrable (labio) y plana, con y sin bisel, con los cuatro espesores: sin errores, mallas cerradas, labio sin pisar la pared y holgura ≥ 0,2 mm medida.
+- Letras con agujeros internos ("B", "8", "A"), estrechas ("i", "I") y texto largo ("MI CASA LINDA 3D") con 0,9 y 2,25 mm.
+- Trazo que no admite el espesor: comportamiento seguro del motor (trazo macizo, sin hueco artificial) y `WALL_TOO_THICK` con el espesor elegido. Los avisos geométricos existentes se conservan.
+- Exportación STL = malla del visor, con cada perfil. El material no cambia la malla (mismo espesor ⇒ misma geometría).
+- Corrección menor en esta pasada: `WALL_TOO_THICK` (y otros avisos con milímetros) redondeaban a **un** decimal ("2.3 mm" para 2,25); ahora usan dos. El mensaje ya no menciona "pared Normal" (sugiere "una resistencia menor").
+
+### 37.7 Limitaciones y observaciones
+
+- **Triángulo degenerado a 0,9 mm**: "OB" con tapa plana y pared de 0,9 mm deja **1 triángulo de área cero** en el cuerpo (no participa de ninguna arista: la malla sigue cerrada y sin aristas abiertas ni no-manifold; los laminadores lo descartan). No ocurre con las otras paredes en las pruebas hechas. No se tocó el motor por esto; queda documentado y tolerado en los tests (`allowDegenerate: 2`).
+- Preexistente, sin relación con el espesor: la letra "R" deja 6 aristas abiertas con la tolerancia de soldadura de los tests (con cualquier pared), coherente con el lazo de área cero ya anotado en §36.9. Los tests usan textos sin "R".
+- Con pared 0,9 mm el cuerpo es muy delgado para formas grandes y altas: la rigidez depende del material, el relleno y el laminador. **Ligero no es "más resistente"**; es el perfil de menos material.
+- El espesor sigue siendo geométrico: no se simulan perímetros, relleno ni resistencia mecánica.
+
+### 37.8 Qué comprobar en Bambu Studio (PENDIENTE: no hay slicer en el entorno de desarrollo)
+
+1. Exportar el mismo cartel con los seis perfiles y, en vista de capas con línea de pared 0,45 mm, contar los perímetros reales de la pared (referencia: 2 / 3 / 4 / 5 líneas para 0,9 / 1,35 / 1,8 / 2,25 mm) y anotar las diferencias de tu perfil de impresión.
+2. PETG Ligero (0,9 mm): confirmar que la pared se imprime sin huecos entre líneas ni zonas vacías en curvas cerradas y esquinas.
+3. Con bisel (p. ej. estilo Moderno) y con tapa encastrable: revisar que el espesor se mantiene dentro del bisel y que el labio encastra con la holgura de 0,2 mm en el material real (PLA y PETG tienen contracciones distintas).
+4. Confirmar que no aparecen advertencias de malla (autointersección, aristas abiertas) y revisar el caso "OB" 0,9 mm (§37.7).
+5. Validar físicamente la rigidez de un cartel grande en cada perfil antes de ofrecerlo como recomendación de uso.
