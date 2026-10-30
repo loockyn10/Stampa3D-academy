@@ -22,6 +22,19 @@ import { calculateProductPrice } from "@/lib/products/pricing";
 import { getProductPricingStatus } from "@/lib/products/pricing-status";
 import { WORKSHOP_PRODUCTS_NEEDS_RECALCULATION } from "@/lib/workshop/routes";
 import { getFilamentDisplayName, getFilamentSearchText } from "@/lib/filaments/utils";
+import {
+  ProductCategoryBadge,
+  ProductCategoryBar,
+  ProductCategoryField,
+} from "@/components/products/product-categories";
+import {
+  PRODUCT_CATEGORY_FILTER_ALL,
+  countProductsByCategory,
+  filterProductsByCategory,
+  resolveProductCategoryFilter,
+  sortProductCategories,
+  type ProductCategory,
+} from "@/lib/products/categories";
 import { usePublishStampyScreenContext } from "@/components/stampy/StampyContextProvider";
 import type { StampyScreenContext } from "@/lib/stampy/screen-context";
 
@@ -68,6 +81,10 @@ function ProductosPageContent() {
   const [error, setError] = useState<string | null>(null);
   const [userId, setUserId] = useState<string | null>(null);
   const [businessLinkedProductIds, setBusinessLinkedProductIds] = useState<Set<string>>(new Set());
+  const [categories, setCategories] = useState<ProductCategory[]>([]);
+  // false mientras la tabla de categorías no exista (migration sin aplicar): la UI de categorías se oculta y no se escribe category_id.
+  const [categoriesAvailable, setCategoriesAvailable] = useState(false);
+  const [categoryFilter, setCategoryFilter] = useState(PRODUCT_CATEGORY_FILTER_ALL);
 
   const [editingId, setEditingId] = useState<string | null>(null);
   const [detailProduct, setDetailProduct] = useState<any>(null);
@@ -81,6 +98,7 @@ function ProductosPageContent() {
     image_url: "",
     printer_id: "",
     product_type_id: "",
+    category_id: "",
     mode: "simple" as "simple" | "parts",
     components: [] as { id?: string, name: string, quantity_per_product: number, stock_quantity: number, materials: { filament_id: string, grams: number }[] }[],
     print_time_hours: 0,
@@ -130,7 +148,7 @@ function ProductosPageContent() {
     if (!user) return;
     setUserId(user.id);
 
-    const [prodRes, filRes, priRes, printerTemplatesRes, ptRes, setRes, compsRes, businessRes] = await Promise.all([
+    const [prodRes, filRes, priRes, printerTemplatesRes, ptRes, setRes, compsRes, businessRes, categoriesRes] = await Promise.all([
       supabase.from("products").select("*, filaments(name, color)").eq("user_id", user.id).eq("is_active", true).order("created_at", { ascending: false }),
       supabase.from("filaments").select("*, filament_templates(brand)").eq("user_id", user.id),
       supabase.from("printers").select("*").eq("user_id", user.id).eq("is_active", true),
@@ -139,6 +157,7 @@ function ProductosPageContent() {
       supabase.from("calculator_settings").select("*").eq("user_id", user.id).single(),
       supabase.from("product_components").select("*").eq("user_id", user.id).eq("is_active", true),
       supabase.from("business_catalog_items").select("source_product_id").eq("user_id", user.id).not("source_product_id", "is", null),
+      supabase.from("product_categories").select("id, name").eq("user_id", user.id),
     ]);
 
     if (prodRes.error) setError(prodRes.error.message);
@@ -167,6 +186,8 @@ function ProductosPageContent() {
     }
     if (!ptRes.error) setProductTypes(ptRes.data || []);
     if (!setRes.error) setCalculatorSettings(setRes.data || null);
+    setCategoriesAvailable(!categoriesRes.error);
+    if (!categoriesRes.error) setCategories(sortProductCategories(categoriesRes.data || []));
     if (!businessRes.error) {
       setBusinessLinkedProductIds(new Set((businessRes.data || []).flatMap((item) => item.source_product_id ? [item.source_product_id] : [])));
     }
@@ -191,6 +212,8 @@ function ProductosPageContent() {
     setFormData({
       name: "", description: "", image_url: "",
       printer_id: printers.length > 0 ? printers[0].id : "", product_type_id: productTypes.length > 0 ? productTypes[0].id : "",
+      // Con un filtro de categoría activo, el producto nuevo nace en esa categoría.
+      category_id: categories.some((category) => category.id === categoryFilter) ? categoryFilter : "",
       mode: "simple",
       components: [{ name: "Producto completo", quantity_per_product: 1, stock_quantity: 0, materials: [{ filament_id: firstActiveFilament?.id || "", grams: 0 }] }],
       print_time_hours: 0, print_time_remaining_minutes: 0, base_cost: 0, sale_price: 0, stock_quantity: 0, is_active: true
@@ -250,6 +273,7 @@ function ProductosPageContent() {
       name: p.name, description: p.description || "", image_url: p.image_url || "",
       printer_id: p.printer_id || snap.printer_id || "",
       product_type_id: p.product_type_id || snap.product_type_id || "",
+      category_id: p.category_id || "",
       mode,
       components: loadedComponents,
       print_time_hours: hours, print_time_remaining_minutes: mins, base_cost: p.base_cost || 0,
@@ -294,6 +318,7 @@ function ProductosPageContent() {
     const payload = {
       user_id: user.id, name: p.name + " (Copia)", description: p.description, image_url: p.image_url,
       filament_id: p.filament_id, printer_id: p.printer_id, product_type_id: p.product_type_id,
+      ...(categoriesAvailable ? { category_id: p.category_id ?? null } : {}),
       grams: p.grams, print_time_minutes: p.print_time_minutes,
       base_cost: p.base_cost, sale_price: p.sale_price, stock_quantity: 0,
       calculation_snapshot: p.calculation_snapshot, is_active: p.is_active
@@ -367,6 +392,8 @@ function ProductosPageContent() {
       is_active: formData.is_active,
       user_id: user.id
     };
+    // category_id null = sin categoría. La base valida que la categoría sea del mismo usuario (FK compuesta).
+    if (categoriesAvailable) payload.category_id = formData.category_id || null;
 
     if (snapshotToSave) {
       payload.calculation_snapshot = snapshotToSave;
@@ -778,6 +805,18 @@ function ProductosPageContent() {
 
   usePublishStampyScreenContext(stampyScreenContext);
 
+  const categoryHandlers = {
+    onCreated: (category: ProductCategory) => setCategories((current) => sortProductCategories([...current, category])),
+    onRenamed: (category: ProductCategory) => setCategories((current) => sortProductCategories(current.map((item) => item.id === category.id ? category : item))),
+    // La base deja los productos sin categoría (FK ON DELETE SET NULL); acá solo se refleja en pantalla.
+    onDeleted: (categoryId: string) => {
+      setCategories((current) => current.filter((item) => item.id !== categoryId));
+      setProducts((current) => current.map((product) => product.category_id === categoryId ? { ...product, category_id: null } : product));
+      setFormData((current) => current.category_id === categoryId ? { ...current, category_id: "" } : current);
+      setCategoryFilter((current) => current === categoryId ? PRODUCT_CATEGORY_FILTER_ALL : current);
+    },
+  };
+
   const printerOptions: CalculatorSelectOption[] = printers.map((printer) => ({
     value: printer.id,
     label: getPrinterDisplayName(printer),
@@ -832,9 +871,14 @@ function ProductosPageContent() {
 
   // Filtro de destino del Dashboard ("Costos desactualizados"); misma regla que el aviso "Requiere Recalcular".
   const needsRecalculationOnly = searchParams.get("estado") === WORKSHOP_PRODUCTS_NEEDS_RECALCULATION;
-  const visibleProducts = needsRecalculationOnly
+  const recalculationScoped = needsRecalculationOnly
     ? products.filter((product) => getProductPricingStatus(product, filaments, printers, productTypes).needsRecalculation)
     : products;
+  // Las categorías se combinan con el filtro del Dashboard; los contadores respetan ese mismo alcance.
+  const categoryCounts = countProductsByCategory(recalculationScoped);
+  const activeCategoryFilter = categoriesAvailable ? resolveProductCategoryFilter(categoryFilter, categories) : PRODUCT_CATEGORY_FILTER_ALL;
+  const visibleProducts = filterProductsByCategory(recalculationScoped, activeCategoryFilter);
+  const categoryNameById = new Map(categories.map((category) => [category.id, category.name]));
 
   return (
     <div className="pb-24">
@@ -874,6 +918,16 @@ function ProductosPageContent() {
         </div>
       )}
 
+      {categoriesAvailable && !editingId && (
+        <ProductCategoryBar
+          categories={categories}
+          counts={categoryCounts}
+          filter={activeCategoryFilter}
+          onFilterChange={setCategoryFilter}
+          {...categoryHandlers}
+        />
+      )}
+
       {error && (
         <div className="mb-6 bg-red-50 border border-red-100 p-4 rounded-lg flex items-center gap-2 text-sm text-red-600">
           <AlertCircle size={16} /> {error}
@@ -906,6 +960,17 @@ function ProductosPageContent() {
               </div>
             </div>
           </div>
+
+          {categoriesAvailable && (
+            <div className="mb-4 grid grid-cols-1 gap-4 md:grid-cols-2">
+              <ProductCategoryField
+                categories={categories}
+                value={formData.category_id}
+                onChange={(categoryId) => setFormData((current) => ({ ...current, category_id: categoryId }))}
+                {...categoryHandlers}
+              />
+            </div>
+          )}
 
           {/* Mode selector */}
           <div className="mb-4">
@@ -1241,6 +1306,9 @@ function ProductosPageContent() {
                       <span className="px-1.5 py-0.5 bg-gray-800 text-gray-400 text-[10px] font-bold uppercase rounded-md border border-gray-700 shrink-0">Simple</span>
                     )}
                   </div>
+                  {p.category_id && categoryNameById.has(p.category_id) && (
+                    <div className="mb-1.5 flex"><ProductCategoryBadge name={categoryNameById.get(p.category_id)!} /></div>
+                  )}
                   <p className="text-xs text-gray-400 truncate mb-2">{p.description || "Sin descripción"}</p>
                   
                   <div className="flex items-end gap-4 mt-2">
@@ -1302,6 +1370,22 @@ function ProductosPageContent() {
           );
         })}
       </div>
+
+      {products.length > 0 && visibleProducts.length === 0 && !editingId && (
+        <div className="rounded-2xl border border-stampa-border bg-stampa-surface px-4 py-12 text-center">
+          <h3 className="text-base font-bold text-fg">No hay productos en esta vista</h3>
+          <p className="mx-auto mt-1 max-w-md text-sm text-gray-400">
+            {activeCategoryFilter === PRODUCT_CATEGORY_FILTER_ALL
+              ? "Ningún producto coincide con el filtro actual."
+              : "Asigná productos a esta categoría desde «Editar» en cada producto."}
+          </p>
+          {activeCategoryFilter !== PRODUCT_CATEGORY_FILTER_ALL && (
+            <button type="button" onClick={() => setCategoryFilter(PRODUCT_CATEGORY_FILTER_ALL)} className="mt-4 min-h-11 rounded-xl border border-stampa-border px-4 py-2 text-sm font-bold text-gray-300 hover:bg-fg/5">
+              Ver todas
+            </button>
+          )}
+        </div>
+      )}
 
       {products.length === 0 && !editingId && (
         <div className="py-20 flex flex-col items-center justify-center bg-stampa-surface rounded-2xl border border-stampa-border shadow-xl">

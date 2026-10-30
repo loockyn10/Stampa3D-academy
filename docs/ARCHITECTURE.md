@@ -492,3 +492,13 @@ Sistema único de ayuda por sección. Guía completa en `docs/TUTORIALS.md`; dec
 - **`tool_tutorials`** deja de ser fuente del contenido: solo aporta `is_active = false` (apagar un tutorial sin deploy) y un `video_url` si el tutorial no define uno en el código. Los textos de esa tabla ya no se usan.
 - **Video:** `resolveTutorialVideo` (solo `https`; YouTube vía `youtube-nocookie`, Bunny, o enlace externo). El `iframe` se monta recién al elegir "Ver video", sin autoplay; sin video no se muestra nada de video.
 - **Tests:** `tests/tutorials.test.mjs`.
+
+
+## 25. Mi Taller → Productos: categorías personalizadas (2026-10-30, D039)
+
+- **Modelo:** tabla `product_categories` (`user_id`, `name`, `name_key` generada = `lower` + espacios colapsados, `UNIQUE (user_id, name_key)`, `UNIQUE (id, user_id)`) y `products.category_id` nullable. Migration `20261101120000_product_categories.sql` (aditiva, **no aplicada en remoto**; no toca filas existentes: todos los productos actuales quedan sin categoría). Requiere PostgreSQL 15+.
+- **Pertenencia:** FK compuesta `products (category_id, user_id) → product_categories (id, user_id) ON DELETE SET NULL (category_id)`. Un producto solo puede apuntar a una categoría de su mismo dueño sin depender del `user_id` del frontend ni de la RLS de `products` (que es schema no versionado); al borrar la categoría los productos se conservan y quedan sin categoría.
+- **RLS:** `product_categories` con select/insert/update/delete propios (`user_id = auth.uid() AND has_platform_access`) + `admin_all`; sin acceso para `anon`; `authenticated` solo puede actualizar la columna `name`.
+- **Código:** helpers puros en `src/lib/products/categories.ts`; Server Actions `src/app/productos/category-actions.ts` (crear/renombrar/eliminar: sesión del servidor, `accessPlatform`, feature flag `mi_taller`, `user_id` desde la sesión); UI en `src/components/products/product-categories.tsx` (barra de filtro con chips y contadores, administrador con confirmación, selector + «Nueva» en el formulario, insignia en la tarjeta). La asignación viaja en el mismo `insert/update` de `products` que ya hacía la pantalla.
+- **Compatibilidad:** si la tabla no existe (migration sin aplicar) la pantalla oculta toda la UI de categorías y no escribe `category_id`. No se confunde con `calculator_product_types` (tipo de producto para precios) ni con `business_catalog_items.category` (texto libre de Mi Negocio): ninguno se modificó.
+- **Tests:** `tests/product-categories.test.mjs` (helpers + wiring) y `tests/product-categories-db.test.mjs` (opt-in, Postgres embebido: aislamiento entre usuarios, FK compuesta, borrado sin pérdida de productos, duplicados, privilegios).

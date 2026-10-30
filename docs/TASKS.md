@@ -2,6 +2,11 @@
 
 Este archivo contiene únicamente trabajo pendiente o próximo. Eliminar tareas terminadas en lugar de conservar un historial infinito.
 
+## Now — Categorías de productos en Mi Taller (implementado 2026-10-30, ver ARCHITECTURE §25 y D039)
+
+- [ ] Aplicar `20261101120000_product_categories.sql` en Supabase (no aplicada). Hasta entonces la pantalla no muestra categorías.
+- [ ] QA manual con cuenta Paid (desktop y 375 px, claro/oscuro): crear «Lámparas», asignar productos, filtrar, renombrar, eliminar y comprobar que los productos quedan sin categoría. Las pantallas autenticadas no se probaron en el entorno de desarrollo (solo los componentes aislados y la base real vía Postgres embebido).
+
 ## Now — Carteles 0.7.1: bisel superior y resistencia (implementado 2026-10-30, ver docs/STAMPA_MAKER.md §36)
 
 - [ ] Validar en Bambu Studio (no hay slicer en el entorno de desarrollo): exportar Normal (1,2 mm) y Reforzado (2,4 mm) con bisel (estilo Moderno), revisar pared vertical + espesor dentro del bisel en vista de capas y los perímetros reales (Reforzado necesita ≥ 1,68 mm para 4 perímetros de 0,42 mm). Lista completa en §36.10.

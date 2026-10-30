@@ -335,3 +335,10 @@ Medido contra las APIs reales: MyMiniFactory devuelve 0 resultados para consulta
 **Estado:** Accepted (2026-10-29)
 
 Se mantienen Cults3D, MyMiniFactory y Thingiverse (APIs oficiales con credencial). Printables (GraphQL interno no documentado), MakerWorld (sin API, términos restrictivos), Thangs (sin API pública) y Sketchfab (no orientada a impresión, en migración a Fab) no se integran. Una plataforma solo se documenta como "funcionando" tras correr `scripts/verify-model-search.mjs` con credenciales reales; con mocks queda "implementada y probada con mocks". La UI nunca muestra resultados de ejemplo ni oculta la interfaz por falta de fuentes: informa el estado real.
+
+
+## D039 — Categorías de productos: tabla propia por usuario con FK compuesta, no un texto libre ni `calculator_product_types`
+
+**Estado:** Accepted (2026-10-30)
+
+`products` no tenía categoría. Se descartó reutilizar `calculator_product_types` (es un multiplicador/costo fijo del motor de precios, otro concepto) y copiar el texto libre de `business_catalog_items.category` (sin unicidad ni administración). Se creó `product_categories` por usuario con unicidad insensible a mayúsculas/espacios y una FK compuesta `(category_id, user_id)` con `ON DELETE SET NULL (category_id)` que garantiza en la base la pertenencia al mismo dueño y que borrar una categoría nunca borra productos. Consecuencia: requiere PostgreSQL 15+ y aplicar la migration antes de usar la UI (hasta entonces se oculta sola). Ver ARCHITECTURE §25.
