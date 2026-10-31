@@ -42,19 +42,21 @@ export interface LampShadeDef {
 
 export interface LampInsertDef {
   enabled: boolean;
-  /** null = automático: el mayor diámetro exterior que entra en la pantalla con la holgura elegida. */
+  /** Diámetro EXTERIOR nominal del cilindro (referencia impresa: Ø65). null = automático: el más angosto que respeta `minBulbGapMm`. */
   diameterMm: number | null;
   /** Altura del inserto como % de la altura disponible (desde el asiento de la base hasta el borde de la pantalla). */
   heightPct: number;
   thicknessMm: number;
-  /** Holgura de montaje por lado (mm) entre inserto y pantalla / ranura de la base / cuello roscado. */
+  /** Holgura de montaje por lado (mm) entre el cilindro y su ranura de la base / el cuello roscado y la pantalla. */
   clearanceMm: number;
-  /** Separación radial MÍNIMA de diseño entre la bombilla (o el cuerpo del portalámparas) y el inserto/pantalla. No es una distancia segura. */
+  /** Profundidad de la ranura anular de la base donde apoya el borde inferior del cilindro (referencia: 10 mm). */
+  seatDepthMm: number;
+  /** Separación radial MÍNIMA exigida entre la bombilla (o el cuerpo del portalámparas) y el cilindro: evita el contacto previsto con las medidas cargadas. NO es una distancia térmicamente segura. */
   minBulbGapMm: number;
   /** Dos lengüetas exteriores en el borde superior (para extraer el inserto). Obliga a impresión convencional. */
   tabs: boolean;
-  /** Muescas de ventilación en el borde inferior (0 = sin muescas). Obliga a impresión convencional. */
-  ventNotches: number;
+  /** Ventanas de ventilación en la pared del cilindro, justo sobre la torre de la base (0 = sin ventanas). Obliga a impresión convencional. */
+  ventWindows: number;
   /** Color de la VISTA PREVIA (#rrggbb). No es geometría ni simula la luz real. */
   previewColor: string;
 }
@@ -89,28 +91,28 @@ export interface LampBaseDef {
 }
 
 /**
- * Medidas del portalámparas E27 comercial. E27 describe la rosca de la bombilla, NO las dimensiones exteriores del
- * portalámparas: estos valores son marcadores de posición hasta que se midan en el componente real (`measured`).
+ * Medidas del portalámparas E27 comercial de CUERPO ROSCADO Y DOS ANILLOS DE SUJECIÓN (el tipo que usa la lámpara de
+ * referencia). E27 describe la rosca de la bombilla, NO las dimensiones exteriores del portalámparas: los valores salen de
+ * las medidas dadas por el usuario y del STL de referencia `bottom.stl`, y siguen pendientes de validación física
+ * (`measured`). La posición axial de los anillos y el lado por el que se montan son datos del STL, no verificados.
  */
 export interface LampHolderDef {
-  /** true = el usuario cargó medidas de su portalámparas real. false = geometría PRELIMINAR NO VALIDADA. */
+  /** true = el usuario verificó estas medidas con su portalámparas real. false = geometría PRELIMINAR NO VALIDADA. */
   measured: boolean;
-  /** "stem": espiga hueca roscada con tuerca. "screws": brida con dos tornillos. */
-  mount: "stem" | "screws";
-  /** Diámetro MÁXIMO (circunscripto) del faldón/brida que apoya sobre la base. */
+  /** Diámetro del agujero central pasante de la torre (nominal del usuario: Ø42; el STL de referencia mide Ø40,9). */
+  boreDiameterMm: number;
+  /** Diámetro máximo de los anillos de sujeción (nominal: Ø58). El rebaje superior de la torre = este diámetro + 2 × holgura. */
+  ringsDiameterMm: number;
+  /** Holgura radial del rebaje respecto de los anillos (STL: 0,9 mm por lado). */
+  ringsClearanceMm: number;
+  /** Profundidad del rebaje de los anillos (STL: 5,15 mm). */
+  ringsRecessDepthMm: number;
+  /** Altura, desde la mesa, del piso del rebaje donde apoyan los anillos / el collar del portalámparas (STL: 31,4 mm). */
+  seatHeightMm: number;
+  /** Diámetro del cuerpo del portalámparas por encima de la base (dato a medir; se usa para separaciones). */
   bodyDiameterMm: number;
-  /** Desde la cara de apoyo hasta el borde superior del portalámparas (donde entra la bombilla). */
+  /** Desde el apoyo hasta el borde superior del portalámparas (donde entra la bombilla). */
   heightMm: number;
-  /** Diámetro de la espiga roscada (p.ej. M10 = 10) o del tornillo (p.ej. M4 = 4). */
-  fixingDiameterMm: number;
-  /** Cuánto sobresale la espiga (o el tornillo) por debajo de la cara de apoyo. */
-  fixingLengthMm: number;
-  /** Tuerca: medida entre caras planas (M10 ≈ 17, M4 = 7). */
-  nutAcrossFlatsMm: number;
-  /** Tuerca: espesor. */
-  nutThicknessMm: number;
-  /** Solo "screws": distancia entre los ejes de los dos tornillos. */
-  screwSpacingMm: number;
 }
 
 export interface LampBulbDef {
@@ -201,6 +203,30 @@ export interface LampClearanceCheck {
   status: "ok" | "warn" | "fail" | "info";
 }
 
+/** Torre central de la base (alojamiento del portalámparas y del cilindro), todo ya resuelto desde la definición. */
+export interface LampTowerReport {
+  boreDiameterMm: number;
+  ringsRecessDiameterMm: number;
+  ringsRecessDepthMm: number;
+  /** Altura (desde la mesa) del piso del rebaje y de la cara superior de la torre. */
+  seatZ: number;
+  topZ: number;
+  /** Material macizo bajo el piso del rebaje (donde se aprietan los anillos). */
+  seatMaterialMm: number;
+  towerDiameterMm: number;
+  /** Ranura anular del cilindro: diámetros interior y exterior y profundidad. */
+  slotInnerDiameterMm: number;
+  slotOuterDiameterMm: number;
+  slotDepthMm: number;
+  /** Paredes de la torre: entre el rebaje y la ranura, y entre la ranura y el exterior. */
+  innerWallMm: number;
+  outerWallMm: number;
+  /** Radial, entre los anillos y el interior del cilindro. */
+  ringsToInsertGapMm: number | null;
+  /** Radial, entre la torre y el orificio del cuello roscado (cavidad anular de ventilación). */
+  towerToNeckGapMm: number;
+}
+
 export interface LampFitReport {
   /** Z (ensamblado, base en 0) del tope de la rosca, de la parte decorativa, del inserto y del borde superior. */
   shadeBottomZ: number;
@@ -226,10 +252,9 @@ export interface LampFitReport {
   /** Diámetro de la base (efectivo) y su altura total. */
   baseDiameterMm: number;
   baseHeightMm: number;
-  /** Piso de la base y recorrido de la espiga hasta la tuerca. */
+  /** Cara superior del piso de la base (la cavidad anular empieza acá). */
   floorTopZ: number;
-  /** Espesor de material entre la cara de apoyo del portalámparas y el techo del alojamiento de la tuerca. */
-  fixingWebMm: number;
+  tower: LampTowerReport;
   thread: LampThreadReport;
   clearances: LampClearanceCheck[];
 }
@@ -289,16 +314,17 @@ export const LAMP_LIMITS = {
   "insert.heightPct": { min: 30, max: 95, label: "Altura del inserto" },
   "insert.thicknessMm": { min: 0.4, max: 3, label: "Espesor del inserto" },
   "insert.clearanceMm": { min: 0.3, max: 2, label: "Holgura de montaje" },
-  "insert.minBulbGapMm": { min: 5, max: 40, label: "Separación mínima a la bombilla" },
-  "insert.ventNotches": { min: 0, max: 12, integer: true, label: "Muescas de ventilación" },
+  "insert.seatDepthMm": { min: 3, max: 20, label: "Profundidad de la ranura del cilindro" },
+  "insert.minBulbGapMm": { min: 0.5, max: 40, label: "Separación mínima a la bombilla" },
+  "insert.ventWindows": { min: 0, max: 12, integer: true, label: "Ventanas de ventilación del cilindro" },
   "base.ventSlots": { min: 0, max: 12, integer: true, label: "Ventanas de ventilación de la base" },
-  "holder.bodyDiameterMm": { min: 20, max: 80, label: "Diámetro del portalámparas" },
+  "holder.boreDiameterMm": { min: 30, max: 60, label: "Agujero central del portalámparas" },
+  "holder.ringsDiameterMm": { min: 40, max: 75, label: "Diámetro de los anillos de sujeción" },
+  "holder.ringsClearanceMm": { min: 0.3, max: 2, label: "Holgura del rebaje de los anillos" },
+  "holder.ringsRecessDepthMm": { min: 2, max: 15, label: "Profundidad del rebaje de los anillos" },
+  "holder.seatHeightMm": { min: 12, max: 80, label: "Altura del apoyo de los anillos" },
+  "holder.bodyDiameterMm": { min: 20, max: 80, label: "Diámetro del cuerpo del portalámparas" },
   "holder.heightMm": { min: 20, max: 120, label: "Altura del portalámparas" },
-  "holder.fixingDiameterMm": { min: 3, max: 20, label: "Diámetro de la espiga o del tornillo" },
-  "holder.fixingLengthMm": { min: 4, max: 40, label: "Largo de la espiga o del tornillo bajo la cara de apoyo" },
-  "holder.nutAcrossFlatsMm": { min: 5, max: 30, label: "Tuerca (entre caras)" },
-  "holder.nutThicknessMm": { min: 2, max: 15, label: "Espesor de la tuerca" },
-  "holder.screwSpacingMm": { min: 20, max: 70, label: "Separación entre tornillos" },
   "bulb.diameterMm": { min: 30, max: 120, label: "Diámetro de la bombilla" },
   "bulb.heightAboveHolderMm": { min: 40, max: 200, label: "Alto de la bombilla sobre el portalámparas" },
   "cable.diameterMm": { min: 3, max: 12, label: "Diámetro del cable" },
@@ -308,20 +334,16 @@ export type LampLimitKey = keyof typeof LAMP_LIMITS;
 
 /** Constantes geométricas fijas del sistema de encastre (no son parámetros del usuario). */
 export const LAMP_GEOMETRY = {
-  /** Profundidad de la ranura de la base donde apoya el borde inferior del inserto. */
-  grooveDepthMm: 3,
-  /** Profundidad del asiento del portalámparas en la cara superior del piso de la base. */
-  holderSeatDepthMm: 2,
-  /** Holgura radial (por lado) del asiento respecto del faldón del portalámparas. */
-  holderFitClearanceMm: 0.5,
-  /** Holgura radial extra de los agujeros de espiga/tornillo y del alojamiento hexagonal de la tuerca. */
-  fixingHoleClearanceMm: 0.3,
-  nutPocketClearanceMm: 0.3,
-  /** La punta de la espiga queda este margen por encima de la mesa. */
-  fixingTipMarginMm: 1.5,
-  /** Espesor de material entre el apoyo del portalámparas y el techo del alojamiento de la tuerca (mín./máx.). */
-  fixingWebMinMm: 2.5,
-  fixingWebMaxMm: 6,
+  /** Torre central de la base (STL de referencia): pared exterior entre la ranura del cilindro y el exterior de la torre. */
+  towerOuterWallMm: 2,
+  /** Pared mínima (error) y recomendada (aviso) entre el rebaje de los anillos y la ranura del cilindro, y bajo la ranura. */
+  towerMinWallMm: 1.2,
+  towerWarnWallMm: 1.6,
+  towerFloorBelowSlotMm: 3,
+  /** Holgura mínima entre los anillos del portalámparas y el interior del cilindro. */
+  ringsToInsertMinMm: 1,
+  /** Por debajo de esta separación radial a la bombilla no hay datos para afirmar ventilación ni temperatura: aviso de validación física. */
+  bulbGapAdvisoryMm: 5,
 
   // ---- Rosca de la interfaz pantalla–base
   /** Profundidad del filete como fracción del paso (flancos a 45°: el tramo axial de cada flanco = la profundidad). */
@@ -368,10 +390,9 @@ export const LAMP_GEOMETRY = {
   tabLengthMm: 7,
   tabThicknessMm: 2.4,
   tabArcMm: 18,
-  /** Altura libre de las muescas de ventilación sobre la cubierta de la base. */
-  notchWindowMm: 6,
-  /** Piso GEOMÉTRICO anti-contacto entre inserto/pantalla y la bombilla. No es una distancia térmicamente segura. */
-  bulbGapFloorMm: 5,
+  /** Ventanas de ventilación del cilindro: altura y distancia sobre la cara superior de la torre. */
+  ventWindowHeightMm: 8,
+  ventWindowOffsetMm: 1,
   /** Distancia mínima del borde superior del inserto al de la pantalla. */
   insertTopMarginMm: 4,
   /** Pendiente máxima (grados respecto de la vertical) para declarar la pantalla compatible con modo vaso. */

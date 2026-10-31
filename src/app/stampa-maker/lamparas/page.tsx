@@ -20,7 +20,7 @@ import { DEFAULT_PRINTER_PROFILE_ID, getPrinterProfile } from "@/lib/maker/print
 const PART_LABELS: Partial<Record<PartKind, string>> = {
   lampShade: "Pantalla",
   lampCollar: "Collar",
-  lampInsert: "Inserto",
+  lampInsert: "Cilindro",
   body: "Base",
 };
 
@@ -102,6 +102,11 @@ export default function StampaMakerLampsPage() {
   const showAll = () => {
     setHidden([]);
     setSection(false);
+  };
+  const only = (kind: PartKind) => {
+    setHidden(presentKinds.filter((k) => k !== kind));
+    setSection(false);
+    setExplosion(0);
   };
   // Para examinar la rosca: sin el inserto (tapa la vista de la unión) y en sección longitudinal.
   const inspectThread = () => {
@@ -193,8 +198,16 @@ export default function StampaMakerLampsPage() {
                     <button type="button" onClick={inspectThread} className="h-7 rounded-lg px-2 text-xs font-semibold text-gray-400 transition-colors hover:text-fg">
                       Ver rosca
                     </button>
-                    <button type="button" onClick={showAll} className="h-7 rounded-lg px-2 text-xs font-semibold text-gray-400 transition-colors hover:text-fg">
-                      Todo
+                    <button type="button" onClick={() => setExplosion((v) => (v > 0 ? 0 : 60))} aria-pressed={explosion > 0} className={`h-7 rounded-lg px-2 text-xs font-semibold transition-colors ${explosion > 0 ? "bg-stampa-orange/15 text-stampa-accent" : "text-gray-400 hover:text-fg"}`}>
+                      Piezas separadas
+                    </button>
+                    {presentKinds.map((kind) => (
+                      <button key={`only-${kind}`} type="button" onClick={() => only(kind)} className="h-7 rounded-lg px-2 text-xs font-semibold text-gray-400 transition-colors hover:text-fg">
+                        Solo {PART_LABELS[kind]?.toLowerCase()}
+                      </button>
+                    ))}
+                    <button type="button" onClick={() => { showAll(); setExplosion(0); }} className="h-7 rounded-lg px-2 text-xs font-semibold text-gray-400 transition-colors hover:text-fg">
+                      Completa
                     </button>
                   </div>
                   <label className="block max-lg:hidden">

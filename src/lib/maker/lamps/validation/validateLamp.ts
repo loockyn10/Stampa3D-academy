@@ -57,7 +57,6 @@ function checkRanges(def: LampDefinition, errors: LampIssue[]): void {
     if (typeof v !== "number" || !Number.isFinite(v) || v < o.min || v > o.max) errors.push({ code: "OUT_OF_RANGE", field: o.key, message: `${o.label}: debe estar entre ${o.min} y ${o.max} (o automático).` });
   }
   if (def.thread.connection !== "integrated" && def.thread.connection !== "collar") errors.push({ code: "OUT_OF_RANGE", field: "thread.connection", message: "Unión pantalla–base: elegí rosca integrada o collar roscado." });
-  if (def.holder.mount !== "stem" && def.holder.mount !== "screws") errors.push({ code: "OUT_OF_RANGE", field: "holder.mount", message: "Fijación del portalámparas: elegí espiga con tuerca o tornillos." });
 }
 
 /**
@@ -83,8 +82,8 @@ export function validateLamp(def: LampDefinition, printer?: PrinterProfile): Lam
   const vase = vaseReportForShade(field, def.thread.connection);
   const { shade, insert, base, holder, cable, thread } = def;
   const spec = layout.spec;
-  const fx = layout.fixing;
-  const requiredGap = Math.max(insert.minBulbGapMm, g.bulbGapFloorMm);
+  const tower = layout.tower;
+  const requiredGap = insert.minBulbGapMm;
 
   /** Radio interior mínimo de la parte decorativa entre dos z de ensamblado (Infinity si no la alcanza). */
   const decorInner = (zLo: number, zHi: number) => (zHi <= layout.decorZ0 ? Infinity : minInnerRadiusBetween(field, Math.max(0, zLo - layout.decorZ0), zHi - layout.decorZ0));
@@ -119,7 +118,7 @@ export function validateLamp(def: LampDefinition, printer?: PrinterProfile): Lam
 
   // ---- Bombilla y portalámparas contra el cuello y la pantalla (sin inserto, el cuello y la pantalla mismos deben respetar la separación de diseño)
   if (!insert.enabled) {
-    const envelopeR = Math.max(layout.bulbR, layout.holderR);
+    const envelopeR = Math.max(layout.bulbR, layout.bodyR);
     const nearHolder = Math.min(spec.boreR, decorInner(layout.decorZ0, layout.holderTopZ));
     const nearBulb = Math.min(spec.boreR, decorInner(layout.holderTopZ, layout.bulbTopZ));
     if (nearHolder - envelopeR < requiredGap || nearBulb - layout.bulbR < requiredGap) {
@@ -128,26 +127,29 @@ export function validateLamp(def: LampDefinition, printer?: PrinterProfile): Lam
   }
   if (layout.bulbTopZ > layout.shadeTopZ) warnings.push({ code: "BULB_EXPOSED", message: "La bombilla sobresale por encima de la pantalla: queda a la vista y puede deslumbrar. Subí la altura de la pantalla." });
 
-  // ---- Portalámparas y alojamiento
-  if (layout.holderR + 1.5 > spec.boreR) errors.push({ code: "HOLDER_WIDER_THAN_CAVITY", field: "holder.bodyDiameterMm", message: `El portalámparas (Ø ${fmt(holder.bodyDiameterMm)} mm) no entra con holgura en la cavidad de la base (Ø ${fmt(2 * spec.boreR)} mm). Aumentá el diámetro de la rosca o reducí el espesor del cuello.` });
-  if (fx.webMm < g.fixingWebMinMm) {
-    errors.push({ code: "FIXING_TOO_SHORT", field: "holder.fixingLengthMm", message: `La ${holder.mount === "stem" ? "espiga" : "tornillería"} (${fmt(holder.fixingLengthMm)} mm bajo la cara de apoyo) no llega a atravesar ${fmt(g.fixingWebMinMm)} mm de base más la tuerca (${fmt(holder.nutThicknessMm)} mm) y ${fmt(g.fixingTipMarginMm)} mm de sobrante. Con esas medidas no hay forma de sujetar el portalámparas: medí de nuevo o usá una espiga más larga.` });
-  }
-  if (holder.nutAcrossFlatsMm < holder.fixingDiameterMm + 1) errors.push({ code: "NUT_SMALLER_THAN_FIXING", field: "holder.nutAcrossFlatsMm", message: "La tuerca (entre caras) debe ser más grande que la espiga o el tornillo." });
-  if (holder.mount === "stem" && fx.nutPocketCircumR + 2 > layout.seatR) warnings.push({ code: "NUT_POCKET_WIDE", field: "holder.nutAcrossFlatsMm", message: "El alojamiento de la tuerca queda casi tan ancho como el asiento del portalámparas: el apoyo del faldón sobre la base queda angosto." });
-  if (holder.mount === "screws") {
-    const half = holder.screwSpacingMm / 2;
-    if (half + fx.holeR > holder.bodyDiameterMm / 2) errors.push({ code: "SCREWS_OUTSIDE_BODY", field: "holder.screwSpacingMm", message: "Los tornillos quedan fuera del faldón del portalámparas: revisá la separación entre ejes." });
-    if (fx.cableHoleR !== null && half - fx.nutPocketCircumR < fx.cableHoleR + 1.2) errors.push({ code: "SCREWS_OVERLAP", field: "holder.screwSpacingMm", message: "Los alojamientos de las tuercas se superponen con el paso del cable: aumentá la separación entre tornillos o usá una tuerca más chica." });
-  }
-  if (cable.tieAnchor && !layout.tie) warnings.push({ code: "TIE_ANCHOR_NO_ROOM", field: "cable.tieAnchor", message: "No hay lugar entre el asiento del portalámparas y el inserto para las ranuras del precinto de alivio de tensión: usá otro método de sujeción del cable." });
+  // ---- Portalámparas de doble anillo y torre de la base
+  if (holder.bodyDiameterMm > holder.boreDiameterMm - 1) errors.push({ code: "HOLDER_BODY_WIDER_THAN_BORE", field: "holder.bodyDiameterMm", message: `El cuerpo del portalámparas (Ø ${fmt(holder.bodyDiameterMm)} mm) no pasa por el agujero central (Ø ${fmt(holder.boreDiameterMm)} mm): hace falta al menos 1 mm de holgura diametral.` });
+  if (tower.recessR < tower.boreR + 2) errors.push({ code: "RINGS_RECESS_TOO_SMALL", field: "holder.ringsDiameterMm", message: `El rebaje de los anillos (Ø ${fmt(2 * tower.recessR)} mm) debe superar el agujero central (Ø ${fmt(holder.boreDiameterMm)} mm) en al menos 4 mm: no queda apoyo para los anillos.` });
+  if (tower.seatZ < layout.floorTopZ + 3) errors.push({ code: "HOLDER_SEAT_TOO_LOW", field: "holder.seatHeightMm", message: `El apoyo de los anillos (${fmt(tower.seatZ)} mm sobre la mesa) queda a menos de 3 mm del piso de la base (${fmt(layout.floorTopZ)} mm): no hay material bajo el apoyo. Subí la altura del apoyo.` });
+  if (tower.topZ > layout.baseTopZ) errors.push({ code: "TOWER_ABOVE_BASE", field: "holder.seatHeightMm", message: `La cara superior de la torre (${fmt(tower.topZ)} mm) supera la cara superior de la base (${fmt(layout.baseTopZ)} mm): bajá el apoyo de los anillos o alargá la rosca.` });
+  if (tower.towerR + 3 > spec.boreR) errors.push({ code: "TOWER_TOO_WIDE_FOR_THREAD", field: "thread.majorDiameterMm", message: `La torre (Ø ${fmt(2 * tower.towerR)} mm) no deja 3 mm de aire radial hasta el orificio del cuello roscado (Ø ${fmt(2 * spec.boreR)} mm). Aumentá el diámetro de la rosca o usá un cilindro más angosto.` });
+  if (cable.tieAnchor && !layout.tie) warnings.push({ code: "TIE_ANCHOR_NO_ROOM", field: "cable.tieAnchor", message: "No hay lugar entre la torre y la pared de la cavidad para las ranuras del precinto de alivio de tensión: usá otro método de sujeción del cable." });
 
-  // ---- Inserto
+  // ---- Cilindro de color
   const ins = layout.insert;
-  if (ins) {
-    if (ins.heightMm < 30) errors.push({ code: "INSERT_TOO_SHORT", field: "insert.heightPct", message: "El inserto resulta demasiado bajo (menos de 30 mm) para alojar muescas, lengüetas y la pared." });
-    if (layout.shadeTopZ - ins.z1 < g.insertTopMarginMm) errors.push({ code: "INSERT_TOO_TALL", field: "insert.heightPct", message: `El inserto llegaría a menos de ${g.insertTopMarginMm} mm del borde de la pantalla.` });
-    if (ins.innerR <= 0) errors.push({ code: "INSERT_DEGENERATE", field: "insert.thicknessMm", message: "El espesor del inserto es mayor que su radio." });
+  if (ins && tower.slot) {
+    if (ins.heightMm < 30) errors.push({ code: "INSERT_TOO_SHORT", field: "insert.heightPct", message: "El cilindro resulta demasiado bajo (menos de 30 mm) para alojar ventanas, lengüetas y la pared." });
+    if (layout.shadeTopZ - ins.z1 < g.insertTopMarginMm) errors.push({ code: "INSERT_TOO_TALL", field: "insert.heightPct", message: `El cilindro llegaría a menos de ${g.insertTopMarginMm} mm del borde de la pantalla.` });
+    if (ins.innerR <= 0) errors.push({ code: "INSERT_DEGENERATE", field: "insert.thicknessMm", message: "El espesor del cilindro es mayor que su radio." });
+    if (tower.slot.bottomZ < layout.floorTopZ + g.towerFloorBelowSlotMm) errors.push({ code: "INSERT_SEAT_TOO_DEEP", field: "insert.seatDepthMm", message: `La ranura del cilindro (${fmt(insert.seatDepthMm)} mm de profundidad) deja menos de ${g.towerFloorBelowSlotMm} mm de material sobre el piso de la base. Reducí la profundidad o subí el apoyo de los anillos.` });
+    const innerWall = tower.slot.innerR - tower.recessR;
+    if (innerWall < g.towerMinWallMm) {
+      errors.push({ code: "TOWER_INNER_WALL_THIN", field: "insert.diameterMm", message: `Entre el rebaje de los anillos (Ø ${fmt(2 * tower.recessR)} mm) y la ranura del cilindro (interior Ø ${fmt(2 * tower.slot.innerR)} mm) queda una pared de ${fmt(innerWall)} mm: menos de ${fmt(g.towerMinWallMm)} mm no sostiene. Usá un cilindro más ancho o anillos más chicos; no se achica nada automáticamente.` });
+    } else if (innerWall < g.towerWarnWallMm) {
+      warnings.push({ code: "TOWER_INNER_WALL_THIN", field: "insert.diameterMm", message: `La pared entre el rebaje de los anillos y la ranura del cilindro mide ${fmt(innerWall)} mm (menos de ${fmt(g.towerWarnWallMm)} mm): es delgada y depende de los perímetros de tu laminador. La lámpara de referencia impresa tiene 1,7 mm. Pendiente de validación física.` });
+    }
+    const ringsGap = ins.innerR - layout.ringsR;
+    if (ringsGap < g.ringsToInsertMinMm) errors.push({ code: "INSERT_TOO_CLOSE_TO_RINGS", field: "insert.diameterMm", message: `El interior del cilindro (Ø ${fmt(2 * ins.innerR)} mm) queda a ${fmt(ringsGap)} mm de los anillos del portalámparas (Ø ${fmt(holder.ringsDiameterMm)} mm): hace falta al menos ${fmt(g.ringsToInsertMinMm)} mm.` });
 
     const bothDiameters = `Ø ${fmt(2 * ins.outerR)} mm`;
     const available = layout.fit.shadeClearRadiusMm ?? 0;
@@ -156,18 +158,21 @@ export function validateLamp(def: LampDefinition, printer?: PrinterProfile): Lam
         errors.push({
           code: "INSERT_DOES_NOT_FIT",
           field: "insert.minBulbGapMm",
-          message: `El inserto no entra: para respetar ${fmt(requiredGap)} mm a la bombilla/portalámparas hace falta un inserto de ${bothDiameters} (interior Ø ${fmt(2 * ins.innerR)} mm) y el cuello o la pantalla dejan como máximo Ø ${fmt(2 * available)} mm. Ensanchá la rosca o la pantalla, o reducí las ondas; no se achica la separación automáticamente.`,
+          message: `El cilindro no entra: para respetar ${fmt(requiredGap)} mm a la bombilla/portalámparas hace falta un cilindro de ${bothDiameters} (interior Ø ${fmt(2 * ins.innerR)} mm) y el cuello o la pantalla dejan como máximo Ø ${fmt(2 * available)} mm. Ensanchá la rosca o la pantalla, o reducí las ondas; no se achica la separación automáticamente.`,
         });
       }
     } else {
-      if (ins.outerR > available + 1e-6) errors.push({ code: "INSERT_TOUCHES_SHADE", field: "insert.diameterMm", message: `El inserto de ${bothDiameters} tocaría o atravesaría el cuello o la pantalla: el espacio libre máximo (con la holgura y las lengüetas) es Ø ${fmt(2 * available)} mm.` });
-      if (ins.innerR < layout.fit.requiredInsertInnerRadiusMm) errors.push({ code: "INSERT_TOO_CLOSE_TO_BULB", field: "insert.diameterMm", message: `El interior del inserto (Ø ${fmt(2 * ins.innerR)} mm) queda a menos de ${fmt(requiredGap)} mm de la bombilla/portalámparas (hace falta Ø ${fmt(2 * layout.fit.requiredInsertInnerRadiusMm)} mm como mínimo).` });
+      if (ins.outerR > available + 1e-6) errors.push({ code: "INSERT_TOUCHES_SHADE", field: "insert.diameterMm", message: `El cilindro de ${bothDiameters} tocaría o atravesaría el cuello o la pantalla: el espacio libre máximo (con la holgura y las lengüetas) es Ø ${fmt(2 * available)} mm.` });
+      if (ins.innerR < layout.fit.requiredInsertInnerRadiusMm - 1e-9) errors.push({ code: "INSERT_TOO_CLOSE_TO_BULB", field: "insert.diameterMm", message: `El interior del cilindro (Ø ${fmt(2 * ins.innerR)} mm) queda a menos de ${fmt(requiredGap)} mm de la bombilla/portalámparas (hace falta Ø ${fmt(2 * layout.fit.requiredInsertInnerRadiusMm)} mm como mínimo, con los anillos y el cuerpo cargados).` });
     }
-    if (ins.innerR - insert.clearanceMm < layout.seatR + 1.5) errors.push({ code: "HOLDER_COLLIDES_INSERT_SEAT", field: "holder.bodyDiameterMm", message: "El asiento del portalámparas se superpone con la ranura del inserto. Usá un inserto más ancho o un portalámparas más angosto." });
-    if (insert.thicknessMm < 0.6) warnings.push({ code: "INSERT_THIN", field: "insert.thicknessMm", message: "Inserto de menos de 0,6 mm: frágil al manipularlo; considerá un espesor mayor salvo que lo imprimas en modo vaso." });
-    if (insert.clearanceMm > 1.5) warnings.push({ code: "INSERT_LOOSE", field: "insert.clearanceMm", message: "Holgura mayor a 1,5 mm: el inserto queda flojo en la ranura." });
-    if (layout.bulbTopZ > ins.z1) warnings.push({ code: "INSERT_SHORTER_THAN_BULB", message: "El inserto es más bajo que la bombilla: la parte superior de la bombilla no queda cubierta por el color." });
-    if (layout.fit.insertRemovableFromTop === false) warnings.push({ code: "INSERT_NOT_REMOVABLE_FROM_TOP", message: "El inserto no sale por la abertura superior de la pantalla: para cambiarlo hay que desenroscar la pantalla." });
+    const gap = layout.fit.insertBulbGapMm ?? 0;
+    if (gap < g.bulbGapAdvisoryMm && gap >= requiredGap - 1e-9) {
+      warnings.push({ code: "INSERT_GAP_UNVALIDATED", field: "insert.diameterMm", message: `Separación radial de ${fmt(gap)} mm entre la bombilla (Ø ${fmt(def.bulb.diameterMm)} mm) y el cilindro: no hay datos para afirmar que la ventilación y la temperatura sean aceptables con esa separación. Combinación PENDIENTE DE VALIDACIÓN FÍSICA con tu bombilla y tu filamento.` });
+    }
+    if (insert.thicknessMm < 0.6) warnings.push({ code: "INSERT_THIN", field: "insert.thicknessMm", message: "Cilindro de menos de 0,6 mm: frágil al manipularlo; considerá un espesor mayor salvo que lo imprimas en modo vaso." });
+    if (insert.clearanceMm > 1.5) warnings.push({ code: "INSERT_LOOSE", field: "insert.clearanceMm", message: "Holgura mayor a 1,5 mm: el cilindro queda flojo en la ranura." });
+    if (layout.bulbTopZ > ins.z1) warnings.push({ code: "INSERT_SHORTER_THAN_BULB", message: "El cilindro es más bajo que la bombilla: la parte superior de la bombilla no queda cubierta por el color." });
+    if (layout.fit.insertRemovableFromTop === false) warnings.push({ code: "INSERT_NOT_REMOVABLE_FROM_TOP", message: "El cilindro no sale por la abertura superior de la pantalla: para cambiarlo hay que desenroscar la pantalla." });
   }
 
   // ---- Base

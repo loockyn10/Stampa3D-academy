@@ -25,13 +25,14 @@ export const DEFAULT_SHADE: LampShadeDef = {
 
 export const DEFAULT_INSERT: LampInsertDef = {
   enabled: true,
-  diameterMm: null,
+  diameterMm: 65,
   heightPct: 85,
   thicknessMm: 0.8,
-  clearanceMm: 0.8,
-  minBulbGapMm: 8,
+  clearanceMm: 0.35,
+  seatDepthMm: 10,
+  minBulbGapMm: 1,
   tabs: true,
-  ventNotches: 6,
+  ventWindows: 6,
   previewColor: "#e5483b",
 };
 
@@ -52,14 +53,13 @@ export const DEFAULT_BASE: LampBaseDef = {
 
 export const DEFAULT_HOLDER: LampHolderDef = {
   measured: false,
-  mount: "stem",
-  bodyDiameterMm: 45,
+  boreDiameterMm: 42,
+  ringsDiameterMm: 58,
+  ringsClearanceMm: 0.9,
+  ringsRecessDepthMm: 5.15,
+  seatHeightMm: 31.4,
+  bodyDiameterMm: 40,
   heightMm: 55,
-  fixingDiameterMm: 10,
-  fixingLengthMm: 14,
-  nutAcrossFlatsMm: 17,
-  nutThicknessMm: 8,
-  screwSpacingMm: 40,
 };
 
 export const DEFAULT_BULB: LampBulbDef = { diameterMm: 60, heightAboveHolderMm: 85 };
@@ -150,7 +150,8 @@ export function normalizeLampDefinition(input: unknown): LampDefinition {
       clearanceMm: num(i.clearanceMm, DEFAULT_INSERT.clearanceMm),
       minBulbGapMm: num(i.minBulbGapMm, DEFAULT_INSERT.minBulbGapMm),
       tabs: bool(i.tabs, DEFAULT_INSERT.tabs),
-      ventNotches: num(i.ventNotches, DEFAULT_INSERT.ventNotches),
+      seatDepthMm: num(i.seatDepthMm, DEFAULT_INSERT.seatDepthMm),
+      ventWindows: num(i.ventWindows, num(i.ventNotches, DEFAULT_INSERT.ventWindows)),
       previewColor: color(i.previewColor, DEFAULT_INSERT.previewColor),
     },
     base: {
@@ -159,15 +160,13 @@ export function normalizeLampDefinition(input: unknown): LampDefinition {
     },
     holder: {
       measured: bool(h.measured, DEFAULT_HOLDER.measured),
-      mount: h.mount === "screws" ? "screws" : "stem",
+      boreDiameterMm: num(h.boreDiameterMm, DEFAULT_HOLDER.boreDiameterMm),
+      ringsDiameterMm: num(h.ringsDiameterMm, DEFAULT_HOLDER.ringsDiameterMm),
+      ringsClearanceMm: num(h.ringsClearanceMm, DEFAULT_HOLDER.ringsClearanceMm),
+      ringsRecessDepthMm: num(h.ringsRecessDepthMm, DEFAULT_HOLDER.ringsRecessDepthMm),
+      seatHeightMm: num(h.seatHeightMm, DEFAULT_HOLDER.seatHeightMm),
       bodyDiameterMm: num(h.bodyDiameterMm, DEFAULT_HOLDER.bodyDiameterMm),
       heightMm: num(h.heightMm, DEFAULT_HOLDER.heightMm),
-      // Códigos de la primera versión usaban threadDiameterMm para la espiga.
-      fixingDiameterMm: num(h.fixingDiameterMm, num(h.threadDiameterMm, DEFAULT_HOLDER.fixingDiameterMm)),
-      fixingLengthMm: num(h.fixingLengthMm, DEFAULT_HOLDER.fixingLengthMm),
-      nutAcrossFlatsMm: num(h.nutAcrossFlatsMm, DEFAULT_HOLDER.nutAcrossFlatsMm),
-      nutThicknessMm: num(h.nutThicknessMm, DEFAULT_HOLDER.nutThicknessMm),
-      screwSpacingMm: num(h.screwSpacingMm, DEFAULT_HOLDER.screwSpacingMm),
     },
     bulb: {
       diameterMm: num(bu.diameterMm, DEFAULT_BULB.diameterMm),

@@ -138,9 +138,10 @@ function measureGaps(maleMesh, femaleMesh, layout, samples, { psi = 0, rise = 0,
     const theta = 2 * Math.PI * golden(k + 1);
     const z = lo + (hi - lo) * golden(k * 3 + 2);
     const m = male.hits(theta - psi, z - rise);
-    const f = female.hits(theta, z);
-    if (!m.length || !f.length) continue;
-    gaps.push(f[0] - m[m.length - 1]);
+    // el primer cruce de la base MÁS ALLÁ de la torre central (radio < orificio del cuello) es el borde del vacío de la rosca hembra
+    const f = female.hits(theta, z).find((x) => x > spec.boreR);
+    if (!m.length || f === undefined) continue;
+    gaps.push(f - m[m.length - 1]);
   }
   return gaps;
 }
@@ -235,10 +236,11 @@ test("rosca hembra: el vacío de la base sigue la rosca macho + holgura (nunca m
     const theta = 2 * Math.PI * golden(k + 1);
     const z = layout.ledgeZ + 0.2 + (spec.femaleDepth - 0.4) * golden(k * 3 + 2);
     const hits = base.hits(theta, z);
-    assert.ok(hits.length >= 1);
+    const first = hits.find((x) => x > spec.boreR);
+    assert.ok(first !== undefined);
     const analytic = femaleVoidRadius(spec, theta, z, layout.ledgeZ);
-    minOver = Math.min(minOver, hits[0] - analytic);
-    maxOver = Math.max(maxOver, hits[0] - analytic);
+    minOver = Math.min(minOver, first - analytic);
+    maxOver = Math.max(maxOver, first - analytic);
     // el material de la base llega hasta el borde exterior
     assert.ok(Math.abs(hits[hits.length - 1] - layout.baseDiameterMm / 2) < 0.1);
   }
@@ -249,8 +251,8 @@ test("rosca hembra: el vacío de la base sigue la rosca macho + holgura (nunca m
   assert.ok(wall >= LAMP_GEOMETRY.baseMinOuterWallMm);
   assert.ok(Math.abs(wall - r.metrics.fit.thread.baseWallMm) < 0.1);
   // avellanado de entrada: el vacío se ensancha en el borde superior (guía el arranque)
-  const topHits = base.hits(0.123, layout.baseTopZ - 0.05);
-  const deepHits = base.hits(0.123, layout.baseTopZ - 3);
+  const topHits = base.hits(0.123, layout.baseTopZ - 0.05).filter((x) => x > spec.boreR);
+  const deepHits = base.hits(0.123, layout.baseTopZ - 3).filter((x) => x > spec.boreR);
   assert.ok(topHits[0] > deepHits[0] - 0.01 + 0.9 || topHits[0] > deepHits[0], "avellanado en el borde superior");
   // el tope (escalón) deja un apoyo plano de al menos el ancho de la cara del cuello
   const ledgeWidth = spec.rootR + spec.clearance - spec.boreR;
@@ -305,12 +307,14 @@ test("holguras de montaje: la separación medida sigue la holgura configurada, e
     assert.ok(Math.abs(r.metrics.fit.thread.axialPlayMm - 2 * clearanceMm) < 1e-9);
   }
   // holguras del inserto: ranura de la base y pantalla
-  for (const clearanceMm of [0.3, 0.8, 1.6]) assert.equal(createLamp(lamp({}, { insert: { ...DEFAULT_LAMP.insert, clearanceMm } })).errors.length, 0);
+  for (const clearanceMm of [0.3, 0.35, 0.5]) assert.equal(createLamp(lamp({}, { insert: { ...DEFAULT_LAMP.insert, clearanceMm } })).errors.length, 0);
   for (const bad of [0.1, 0.9]) assert.ok(createLamp(lamp({}, { thread: { ...DEFAULT_LAMP.thread, clearanceMm: bad } })).errors.some((e) => e.field === "thread.clearanceMm"));
   // la lista de holguras del ensamblaje sale de la misma geometría y marca fallas
   const checks = build(lamp()).metrics.fit.clearances;
   assert.ok(checks.length >= 7 && checks.every((c) => ["ok", "warn", "fail", "info"].includes(c.status)));
-  assert.ok(checks.filter((c) => c.minMm !== null).every((c) => c.status === "ok"));
+  assert.ok(checks.every((c) => c.status !== "fail"), "ninguna holgura del diseño por defecto falla");
+  // las dos que quedan en aviso son justamente las que dependen de datos físicos: pared delgada de la torre y separación radial a la bombilla
+  assert.deepEqual(checks.filter((c) => c.status === "warn").map((c) => c.id).sort(), ["insertBulb", "towerInnerWall"]);
 });
 
 // ------------------------------------------------------------------ 4. espesores mínimos
@@ -433,22 +437,28 @@ test("collar roscado + pantalla lisa: el borde de la pantalla entra a presión (
 });
 
 // ------------------------------------------------------------------ 6. inserto reducido, fijación y extracción
-test("inserto reducido: el automático es el MÁS ANGOSTO que respeta la separación a la bombilla y al portalámparas, no el más ancho que cabe", () => {
-  const def = lamp();
+test("cilindro reducido: el automático es el MÁS ANGOSTO que respeta la bombilla, el cuerpo, los anillos y una pared sana de la torre, no el más ancho que cabe", () => {
+  const auto = { ...DEFAULT_LAMP.insert, diameterMm: null };
+  const def = lamp({}, { insert: auto });
   const r = build(def);
   const fit = r.metrics.fit;
-  const bulbR = def.bulb.diameterMm / 2, holderR = def.holder.bodyDiameterMm / 2;
-  const minOuter = 2 * (Math.max(bulbR, holderR) + def.insert.minBulbGapMm + def.insert.thicknessMm);
+  const bulbR = def.bulb.diameterMm / 2, bodyR = def.holder.bodyDiameterMm / 2, ringsR = def.holder.ringsDiameterMm / 2;
+  const recessR = ringsR + def.holder.ringsClearanceMm;
+  const innerNeeded = Math.max(Math.max(bulbR, bodyR) + def.insert.minBulbGapMm, ringsR + LAMP_GEOMETRY.ringsToInsertMinMm, recessR + def.insert.clearanceMm + LAMP_GEOMETRY.towerWarnWallMm);
+  const minOuter = 2 * (innerNeeded + def.insert.thicknessMm);
   assert.ok(fit.insertOuterDiameterMm >= minOuter - 1e-9 && fit.insertOuterDiameterMm <= minOuter + 0.5 + 1e-9, `Ø ${fit.insertOuterDiameterMm} vs mínimo ${minOuter}`);
+  assert.ok(Math.abs(fit.insertOuterDiameterMm - 65) <= 1, "el automático cae en la referencia de Ø65 de la lámpara impresa");
   assert.ok(fit.insertOuterDiameterMm < 0.7 * def.shade.bottomDiameterMm, "mucho más angosto que la pantalla");
+  // el diámetro nominal de referencia (Ø65 exterior) es el valor por defecto
+  assert.equal(DEFAULT_LAMP.insert.diameterMm, 65);
+  assert.equal(build(lamp()).metrics.fit.insertOuterDiameterMm, 65);
   assert.ok(fit.insertOuterDiameterMm < fit.thread.boreDiameterMm - 2 * def.insert.clearanceMm, "entra en el orificio del cuello con holgura");
   // sigue el tamaño de la bombilla / del portalámparas / de la separación pedida (no asume que todas las E27 son iguales)
   const od = (d) => build(d).metrics.fit.insertOuterDiameterMm;
-  assert.ok(od(lamp({}, { bulb: { ...DEFAULT_LAMP.bulb, diameterMm: 50 } })) < fit.insertOuterDiameterMm);
-  assert.ok(od(lamp({}, { bulb: { ...DEFAULT_LAMP.bulb, diameterMm: 64 } })) > fit.insertOuterDiameterMm);
-  assert.ok(od(lamp({}, { insert: { ...DEFAULT_LAMP.insert, minBulbGapMm: 6 } })) < fit.insertOuterDiameterMm);
-  assert.ok(od(lamp({}, { insert: { ...DEFAULT_LAMP.insert, thicknessMm: 1.6 } })) > fit.insertOuterDiameterMm);
-  assert.ok(od(lamp({}, { holder: { ...DEFAULT_LAMP.holder, bodyDiameterMm: 62 } })) > fit.insertOuterDiameterMm);
+  assert.ok(od(lamp({}, { insert: auto, bulb: { ...DEFAULT_LAMP.bulb, diameterMm: 64 } })) > fit.insertOuterDiameterMm);
+  assert.ok(od(lamp({}, { insert: { ...auto, minBulbGapMm: 6 } })) > fit.insertOuterDiameterMm);
+  assert.ok(od(lamp({}, { insert: { ...auto, thicknessMm: 1.6 } })) > fit.insertOuterDiameterMm);
+  assert.ok(od(lamp({}, { insert: { ...auto, clearanceMm: 0.6 } })) > fit.insertOuterDiameterMm, "una ranura más holgada pide una pared de torre más ancha");
   // medido en la malla: el tubo está a >= la separación de diseño de la bombilla y del portalámparas
   const p = r.indexed.insert.positions;
   let minR = Infinity;
@@ -461,14 +471,14 @@ test("inserto reducido: el automático es el MÁS ANGOSTO que respeta la separac
   }
   assert.ok(createLamp(lamp({}, { insert: { ...DEFAULT_LAMP.insert, heightPct: 99 } })).errors.some((e) => e.field === "insert.heightPct"));
   // diámetro manual: se respeta (si cabe) y no se corrige en silencio
-  assert.equal(build(lamp({}, { insert: { ...DEFAULT_LAMP.insert, diameterMm: 82 } })).metrics.fit.insertOuterDiameterMm, 82);
+  assert.equal(build(lamp({}, { insert: { ...DEFAULT_LAMP.insert, diameterMm: 70 } })).metrics.fit.insertOuterDiameterMm, 70);
 });
 
 test("inserto intercambiable: varios insertos de espesor y color distintos comparten la misma pantalla y la misma base; se saca por arriba sin desmontar", () => {
   const first = build(lamp());
   const ref = first.geometry.parts;
   const baseMesh = ref[0].mesh, shadeMesh = ref[2].mesh;
-  for (const insert of [{ thicknessMm: 0.6, previewColor: "#3b7be5" }, { thicknessMm: 1.2, previewColor: "#3fae5a" }, { thicknessMm: 1.0, previewColor: "#f2c230", tabs: false, ventNotches: 0 }]) {
+  for (const insert of [{ thicknessMm: 0.6, previewColor: "#3b7be5" }, { thicknessMm: 0.9, previewColor: "#3fae5a" }, { thicknessMm: 1.0, previewColor: "#f2c230", tabs: false, ventWindows: 0 }]) {
     const d = lamp({}, { insert: { ...DEFAULT_LAMP.insert, ...insert } });
     const r = build(d);
     assert.equal(r.indexed.insert === first.indexed.insert, false);
@@ -486,9 +496,9 @@ test("inserto intercambiable: varios insertos de espesor y color distintos compa
   // abertura superior demasiado angosta para sacar el inserto con sus lengüetas: se informa, no se oculta
   const narrow = createLamp(lamp({ profile: "waist", profileAmountPct: 0, topDiameterMm: 90, amplitudeMm: 0 }));
   if (narrow.errors.length === 0) assert.ok(narrow.warnings.some((w) => w.code === "INSERT_NOT_REMOVABLE_FROM_TOP") || narrow.metrics.fit.insertRemovableFromTop === true);
-  // el inserto no lleva rosca propia: encastra en una ranura del piso de la base (apoyo sencillo)
+  // el cilindro no lleva rosca propia: encastra en la ranura anular de la torre de la base (apoyo sencillo)
   const bounds = indexedBounds(first.indexed.insert);
-  assert.ok(Math.abs(bounds.minZ - (first.metrics.fit.floorTopZ - LAMP_GEOMETRY.grooveDepthMm)) < 1e-6);
+  assert.ok(Math.abs(bounds.minZ - (first.metrics.fit.tower.topZ - DEFAULT_LAMP.insert.seatDepthMm)) < 1e-6);
 });
 
 // ------------------------------------------------------------------ 7. tamaños, independencia de la interfaz y geometrías extremas
@@ -595,10 +605,15 @@ test("piezas de prueba de la rosca y del portalámparas: cerradas, chicas, encas
   assert.ok(Math.min(...gaps) >= def.thread.clearanceMm - 0.05, `separación en las piezas de prueba ${Math.min(...gaps).toFixed(3)}`);
   // disco del portalámparas: mismos agujeros que la base (espiga y asiento)
   const hf = rayIndex(pieces.holderFit);
-  const seatZ = layout.floorTopZ - LAMP_GEOMETRY.holderSeatDepthMm;
-  assert.ok(Math.abs(hf.hits(0.9, seatZ + 1)[0] - layout.seatR) < 0.1, "asiento del faldón");
-  assert.ok(Math.abs(hf.hits(0.9, seatZ - 1)[0] - layout.fixing.holeR) < 0.1, "agujero pasante de la espiga");
-  assert.ok(Math.abs(indexedBounds(pieces.holderFit).maxZ - layout.floorTopZ) < 1e-6, "mismo espesor de piso que la base");
+  const t = layout.tower;
+  const zFloor = t.seatZ - 8; // el tramo se apoya en Z = 0: sus alturas son las de la torre menos 8 mm de material bajo el apoyo
+  const local = (z) => z - zFloor;
+  assert.ok(Math.abs(hf.hits(0.9, local(t.seatZ) + 1)[0] - t.recessR) < 0.1, "rebaje de los anillos");
+  assert.ok(Math.abs(hf.hits(0.9, local(t.seatZ) - 1)[0] - t.boreR) < 0.1, "agujero central pasante");
+  const nearTop = hf.hits(0.9, local(t.topZ) - 1);
+  assert.ok(nearTop.some((x) => Math.abs(x - t.slot.innerR) < 0.1) && nearTop.some((x) => Math.abs(x - t.slot.outerR) < 0.1), "ranura del cilindro");
+  assert.ok(Math.abs(indexedBounds(pieces.holderFit).maxZ - (t.topZ - zFloor)) < 1e-6, "misma altura de torre que la base");
+  assert.ok(Math.abs(indexedBounds(pieces.holderFit).maxX - t.towerR) < 0.05, "mismo diámetro de torre que la base");
   // ZIP de prueba: tres STL + LÉEME que dice qué comprobar y qué NO prueba
   return (async () => {
     const entries = lampTestPieceEntries(def);
@@ -611,7 +626,7 @@ test("piezas de prueba de la rosca y del portalámparas: cerradas, chicas, encas
     assert.match(readme, /EJEMPLO/);
     assert.ok(lampTestReadmeText({ threadDiameterMm: 96, pitchMm: 5, starts: 1, clearanceMm: 0.4, holderMeasured: true }).includes("1 entrada,"));
     // con una rosca o un portalámparas inválidos no hay piezas de prueba; con la pantalla inválida SÍ (no la usan)
-    assert.throws(() => lampTestPieceEntries(lamp({}, { holder: { ...DEFAULT_LAMP.holder, fixingLengthMm: 6 } })), /espiga|tuerca/i);
+    assert.throws(() => lampTestPieceEntries(lamp({}, { holder: { ...DEFAULT_LAMP.holder, ringsDiameterMm: 44 } })), /rebaje|anillos/i);
     assert.doesNotThrow(() => lampTestPieceEntries(lamp({ waves: 32, amplitudeMm: 25 })));
     assert.equal(isTestPieceBlocker({ code: "X", message: "m", field: "thread.pitchMm" }), true);
     assert.equal(isTestPieceBlocker({ code: "X", message: "m", field: "shade.waves" }), false);
@@ -622,7 +637,7 @@ test("exportación del conjunto con collar: cuatro STL con exactamente las malla
   const def = lampCollar();
   const r = build(def);
   const entries = lampPartEntries(r);
-  assert.deepEqual(entries.map((e) => e.fileName), ["lampara_base_PRELIMINAR.stl", "lampara_inserto.stl", "lampara_collar.stl", "lampara_pantalla.stl"]);
+  assert.deepEqual(entries.map((e) => e.fileName), ["lampara_base_PRELIMINAR.stl", "lampara_cilindro.stl", "lampara_collar.stl", "lampara_pantalla.stl"]);
   for (const [i, entry] of entries.entries()) {
     const blob = buildSTLBlob(entry.mesh);
     const buf = Buffer.from(await blob.arrayBuffer());
@@ -659,11 +674,12 @@ test("visor = exportación para el collar: orientación de impresión, orden de 
   for (const part of r.geometry.parts) assert.ok(part.mesh.triangleCount > 0);
 });
 
-test("datos a medir y pruebas físicas: la lista pide lo que decide el alojamiento (largo de la espiga) y las pruebas dejan explícitos Bambu Studio, el montaje real y la bombilla LED", () => {
+test("datos a medir y pruebas físicas: la lista pide lo que decide el alojamiento (agujero, anillos, posición axial, cilindro) y las pruebas dejan explícitos Bambu Studio, el montaje real y la bombilla LED", () => {
   const needed = LAMP_MEASUREMENTS_NEEDED.join("\n");
-  assert.match(needed, /sobresale la espiga/);
-  assert.match(needed, /circunscripto/);
-  assert.match(needed, /Tuerca/);
+  assert.match(needed, /Agujero central/);
+  assert.match(needed, /Anillos de sujeción/);
+  assert.match(needed, /Posición axial/);
+  assert.match(needed, /Ø65 es el diámetro EXTERIOR o el interior/);
   const tests = LAMP_PHYSICAL_TESTS.join("\n");
   assert.match(tests, /piezas de prueba/i);
   assert.match(tests, /Bambu Studio/);

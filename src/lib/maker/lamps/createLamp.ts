@@ -87,8 +87,7 @@ function basePart(def: LampDefinition, layout: LampLayout): BuiltPart {
     layout.baseDiameterMm,
     layout.floorTopZ,
     layout.tie,
-    layout.insert && { i: layout.insert.innerR, o: layout.insert.outerR },
-    def.insert.clearanceMm,
+    layout.tower, // incluye la ranura del cilindro (diámetro, espesor, holgura y profundidad)
   ]);
   return cached(`base|${key}`, () => finishPart(createBaseMesh(def, layout)));
 }
@@ -108,14 +107,14 @@ export function createLamp(def: LampDefinition, opts: CreateLampOptions = {}): L
   const collar = layout.collar ? collarPart(def, layout) : null;
   const base = basePart(def, layout);
 
-  for (const [name, part] of [["la pantalla", shade], ["el inserto", insert], ["el collar", collar], ["la base", base]] as const) {
+  for (const [name, part] of [["la pantalla", shade], ["el cilindro", insert], ["el collar", collar], ["la base", base]] as const) {
     if (part && !part.metrics.watertight) errors.push({ code: "MESH_NOT_WATERTIGHT", message: `La malla de ${name} no quedó cerrada: no se exporta. Cambiá levemente los parámetros.` });
   }
   if (errors.length > 0) return { geometry: null, indexed: null, metrics: null, errors, warnings };
 
   const baseKind = "body" as const; // la base es la pieza ancla del ensamblado (capa 0), igual que el cuerpo de un cartel
   const parts: SignPart[] = [{ kind: baseKind, filenameSuffix: def.holder.measured ? "base" : "base_PRELIMINAR", mesh: base.soup }];
-  if (insert) parts.push({ kind: "lampInsert", filenameSuffix: "inserto", mesh: insert.soup });
+  if (insert) parts.push({ kind: "lampInsert", filenameSuffix: "cilindro", mesh: insert.soup });
   if (collar) parts.push({ kind: "lampCollar", filenameSuffix: "collar", mesh: collar.soup });
   parts.push({ kind: "lampShade", filenameSuffix: "pantalla", mesh: shade.soup });
 
@@ -147,7 +146,7 @@ export function createLamp(def: LampDefinition, opts: CreateLampOptions = {}): L
     totalHeightMm: bb.height,
     maxDiameterMm: Math.max(bb.width, bb.depth),
     shade: { ...shade.metrics, vase, maxTiltDeg: field.maxTiltDeg, minRidgeRadiusMm: field.minRidgeRadiusMm },
-    insert: insert ? { ...insert.metrics, vaseCapable: !def.insert.tabs && Math.round(def.insert.ventNotches) === 0 } : null,
+    insert: insert ? { ...insert.metrics, vaseCapable: !def.insert.tabs && Math.round(def.insert.ventWindows) === 0 } : null,
     collar: collar ? collar.metrics : null,
     base: base.metrics,
     totalTriangles,

@@ -54,6 +54,8 @@ export interface SolidFeature {
   add?: Point2D[][];
   /** Vacío que se RESTA en este rango. */
   cut?: Point2D[][];
+  /** Zona que NO se vacía por el `cut` de ESTA característica (no afecta a los demás vacíos): p.ej. la torre central dentro del vacío de la rosca. */
+  protect?: Point2D[][];
 }
 
 const EPS = 1e-6;
@@ -74,9 +76,13 @@ export function buildFeatureLayers(body: { z0: number; z1: number; polygons: Poi
     for (const f of features) if (f.add && mid > f.z0 && mid < f.z1) material.push(...f.add);
     if (material.length === 0) continue;
     let groups = normalizePolygons(material);
-    const voids: Point2D[][] = [];
-    for (const f of features) if (f.cut && mid > f.z0 && mid < f.z1) voids.push(...f.cut);
-    if (voids.length > 0) groups = differenceContourGroups(groups, contourGroupsToRawPaths(normalizePolygons(voids)));
+    // Cada vacío se resta por separado (equivale a restar su unión); `protect` solo recorta el vacío de SU característica.
+    for (const f of features) {
+      if (!f.cut || !(mid > f.z0 && mid < f.z1)) continue;
+      let voidGroups = normalizePolygons(f.cut);
+      if (f.protect && f.protect.length > 0) voidGroups = differenceContourGroups(voidGroups, contourGroupsToRawPaths(normalizePolygons(f.protect)));
+      if (voidGroups.length > 0) groups = differenceContourGroups(groups, contourGroupsToRawPaths(voidGroups));
+    }
     if (groups.length > 0) layers.push({ z0, z1, groups });
   }
   return layers;

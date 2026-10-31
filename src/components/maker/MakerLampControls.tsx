@@ -19,10 +19,6 @@ const CONNECTION_OPTIONS: { value: LampThreadDef["connection"]; label: string }[
   { value: "integrated", label: "Rosca en la pantalla" },
   { value: "collar", label: "Collar (modo vaso)" },
 ];
-const MOUNT_OPTIONS: { value: LampHolderDef["mount"]; label: string }[] = [
-  { value: "stem", label: "Espiga con tuerca" },
-  { value: "screws", label: "Dos tornillos" },
-];
 const PROFILE_OPTIONS: { value: LampProfile; label: string }[] = [
   { value: "straight", label: "Recto" },
   { value: "barrel", label: "Barril" },
@@ -31,7 +27,7 @@ const PROFILE_OPTIONS: { value: LampProfile; label: string }[] = [
   { value: "tulip", label: "Tulipán" },
 ];
 
-/** Colores de referencia del inserto. Son una aproximación visual del filamento, no una simulación de la luz. */
+/** Colores de referencia del cilindro. Son una aproximación visual del filamento, no una simulación de la luz. */
 export const LAMP_INSERT_SWATCHES: { value: string; label: string }[] = [
   { value: "#e5483b", label: "Rojo" },
   { value: "#f08a24", label: "Naranja" },
@@ -183,8 +179,9 @@ export function MakerLampControls({ def, onChange, onApplyPreset, onGenerateVari
 
   return (
     <Card className="flex flex-col gap-5 p-5">
+      {/* ------------------------------------------------------------------ DISEÑO */}
       <section className="flex flex-col gap-3">
-        <SectionLabel>1 · Diseño inicial</SectionLabel>
+        <SectionLabel>1 · Diseño</SectionLabel>
         <div className="grid grid-cols-3 gap-2">
           {LAMP_PRESETS.map((preset) => (
             <PresetThumb key={preset.id} preset={preset} def={def} active={isPresetActive(def, preset)} onApply={onApplyPreset} />
@@ -199,34 +196,42 @@ export function MakerLampControls({ def, onChange, onApplyPreset, onGenerateVari
           Generar variación
         </button>
         <p className="text-xs text-gray-500">
-          Semilla <span className="font-semibold text-gray-300">{def.shade.seed}</span>: la misma semilla y los mismos datos vuelven a dar exactamente este diseño. Después podés seguir ajustando todo.
+          Semilla <span className="font-semibold text-gray-300">{def.shade.seed}</span>: la misma semilla y los mismos datos vuelven a dar exactamente este diseño. El diseño solo controla la apariencia: no cambia la rosca, la base ni el cilindro.
         </p>
-      </section>
-
-      <section className="flex flex-col gap-3">
-        <SectionLabel>2 · Altura y diámetro</SectionLabel>
-        <SliderField label="Altura de la pantalla" value={def.shade.heightMm} min={80} max={320} step={5} suffix=" mm" onChange={(v) => setShade({ heightMm: v })} error={err("shade.heightMm")} />
+        <span className="text-xs font-semibold text-gray-500">Familia de patrón</span>
+        <SegmentedControl options={FAMILY_OPTIONS} value={def.shade.family} onChange={(family) => setShade({ family })} compact />
+        <SliderField label="Altura de la pantalla (parte decorativa)" value={def.shade.heightMm} min={80} max={320} step={5} suffix=" mm" onChange={(v) => setShade({ heightMm: v })} error={err("shade.heightMm")} />
         <SliderField label="Diámetro inferior" value={def.shade.bottomDiameterMm} min={100} max={260} step={5} suffix=" mm" onChange={(v) => setShade({ bottomDiameterMm: v })} error={err("shade.bottomDiameterMm")} />
         <SliderField label="Diámetro superior" value={def.shade.topDiameterMm} min={80} max={280} step={5} suffix=" mm" onChange={(v) => setShade({ topDiameterMm: v })} error={err("shade.topDiameterMm")} />
         <span className="text-xs font-semibold text-gray-500">Perfil</span>
         <SegmentedControl options={PROFILE_OPTIONS} value={def.shade.profile} onChange={(profile) => setShade({ profile })} compact />
-      </section>
-
-      <section className="flex flex-col gap-3">
-        <SectionLabel>3 · Ondas y torsión</SectionLabel>
-        <SegmentedControl options={FAMILY_OPTIONS} value={def.shade.family} onChange={(family) => setShade({ family })} compact />
         <SliderField label="Cantidad de ondas" value={def.shade.waves} min={L["shade.waves"].min} max={L["shade.waves"].max} step={1} onChange={(v) => setShade({ waves: Math.round(v) })} error={err("shade.waves")} />
         <SliderField label="Amplitud" value={def.shade.amplitudeMm} min={0} max={20} step={0.5} suffix=" mm" onChange={(v) => setShade({ amplitudeMm: v })} error={err("shade.amplitudeMm")} />
         <SliderField label="Torsión" value={def.shade.twistDeg} min={-720} max={720} step={5} suffix="°" onChange={(v) => setShade({ twistDeg: v })} error={err("shade.twistDeg")} />
+        <Details title="Variaciones y opciones del diseño">
+          <SliderField label="Variación vertical (ciclos)" value={def.shade.verticalFrequency} min={0} max={6} step={0.5} onChange={(v) => setShade({ verticalFrequency: v })} error={err("shade.verticalFrequency")} />
+          <SliderField label="Intensidad del patrón" value={def.shade.patternIntensityPct} min={0} max={100} step={5} suffix="%" onChange={(v) => setShade({ patternIntensityPct: v })} error={err("shade.patternIntensityPct")} />
+          {def.shade.family === "organic" && <SliderField label="Variación orgánica" value={def.shade.organicPct} min={0} max={100} step={5} suffix="%" onChange={(v) => setShade({ organicPct: v })} error={err("shade.organicPct")} />}
+          {def.shade.profile !== "straight" && <SliderField label="Intensidad del perfil" value={def.shade.profileAmountPct} min={0} max={100} step={5} suffix="%" onChange={(v) => setShade({ profileAmountPct: v })} error={err("shade.profileAmountPct")} />}
+          <div className="grid grid-cols-2 gap-3">
+            <NumberField label="Espesor de pared" value={def.shade.wallMm} onChange={(v) => setShade({ wallMm: v })} suffix="mm" error={err("shade.wallMm")} />
+            <NumberField label="Tramo recto inferior" value={def.shade.collarHeightMm} onChange={(v) => setShade({ collarHeightMm: v })} suffix="mm" error={err("shade.collarHeightMm")} />
+          </div>
+          <NumberField label="Semilla" value={def.shade.seed} onChange={(v) => setShade({ seed: Math.max(0, Math.round(v)) })} error={err("shade.seed")} />
+        </Details>
+        {issuesFor((i) => !!i.field?.startsWith("shade.") || i.code.startsWith("SHADE_")).map((i, k) => (
+          <p key={`${i.code}-${k}`} className={`text-xs ${errors.includes(i) ? "text-red-400" : "text-amber-300"}`}>{i.message}</p>
+        ))}
       </section>
 
+      {/* ------------------------------------------------------------------ ILUMINACIÓN */}
       <section className="flex flex-col gap-3">
-        <SectionLabel>4 · Inserto de color</SectionLabel>
-        <Toggle label="Usar inserto de color" checked={def.insert.enabled} onChange={(enabled) => setInsert({ enabled })} />
-        <p className="text-xs text-gray-500">Un tubo angosto aparte, de filamento translúcido, que rodea la bombilla y se apoya en la ranura de la base, sin tocar la pantalla. Imprimí varios y cambiá el color sin tocar nada más.</p>
+        <SectionLabel>2 · Iluminación</SectionLabel>
+        <Toggle label="Usar cilindro de color" checked={def.insert.enabled} onChange={(enabled) => setInsert({ enabled })} />
+        <p className="text-xs text-gray-500">Un cilindro independiente de filamento translúcido que rodea la bombilla LED blanca y apoya en una ranura de la base. Imprimí varios y cambiá el color sin desmontar el portalámparas.</p>
         {def.insert.enabled && (
           <>
-            <div role="radiogroup" aria-label="Color del inserto" className="flex flex-wrap gap-2">
+            <div role="radiogroup" aria-label="Color del cilindro" className="flex flex-wrap gap-2">
               {LAMP_INSERT_SWATCHES.map((c) => (
                 <button
                   key={c.value}
@@ -246,30 +251,89 @@ export function MakerLampControls({ def, onChange, onApplyPreset, onGenerateVari
                 <span aria-hidden className="flex h-full w-full items-center justify-center text-sm text-gray-400">+</span>
               </label>
             </div>
-            <p className="text-xs text-gray-500">El color es una referencia visual. La luz real depende del filamento, su espesor y la bombilla.</p>
-            <SliderField label="Espesor del inserto" value={def.insert.thicknessMm} min={0.4} max={2.4} step={0.1} suffix=" mm" onChange={(v) => setInsert({ thicknessMm: v })} error={err("insert.thicknessMm")} />
-            <SliderField label="Holgura de montaje (por lado)" value={def.insert.clearanceMm} min={L["insert.clearanceMm"].min} max={L["insert.clearanceMm"].max} step={0.1} suffix=" mm" onChange={(v) => setInsert({ clearanceMm: v })} error={err("insert.clearanceMm")} />
+            <p className="text-xs text-gray-500">El color del visor es una aproximación visual, no una simulación fotométrica. La luz real depende del filamento, su espesor y la bombilla.</p>
+            <div className="grid grid-cols-2 gap-3">
+              <NumberField label="Ø exterior del cilindro" value={def.insert.diameterMm ?? fit?.insertOuterDiameterMm ?? 65} onChange={(v) => setInsert({ diameterMm: v })} suffix="mm" error={err("insert.diameterMm")} />
+              <NumberField label="Espesor" value={def.insert.thicknessMm} onChange={(v) => setInsert({ thicknessMm: v })} suffix="mm" error={err("insert.thicknessMm")} />
+            </div>
             <div className="flex flex-col gap-1.5 rounded-xl border border-fg/10 bg-fg/[0.03] p-3">
               <InfoRow label={fit?.insertAuto ? "Diámetro exterior (el más angosto)" : "Diámetro exterior"} value={fit?.insertOuterDiameterMm != null ? `Ø ${fmt(fit.insertOuterDiameterMm)} mm` : "—"} strong />
+              <InfoRow label="Diámetro interior" value={fit?.insertInnerDiameterMm != null ? `Ø ${fmt(fit.insertInnerDiameterMm)} mm` : "—"} />
               <InfoRow label="Separación radial a la bombilla" value={fit?.insertBulbGapMm != null ? `${fmt(fit.insertBulbGapMm)} mm` : "—"} />
-              <InfoRow label="Separación mínima de diseño" value={`${fmt(def.insert.minBulbGapMm)} mm`} />
-              <InfoRow label="Se saca por arriba" value={fit?.insertRemovableFromTop == null ? "—" : fit.insertRemovableFromTop ? "Sí, sin desmontar" : "No: hay que desenroscar la pantalla"} />
+              <InfoRow label="Separación radial a los anillos" value={fit?.tower.ringsToInsertGapMm != null ? `${fmt(fit.tower.ringsToInsertGapMm)} mm` : "—"} />
+              <InfoRow label="Se saca por arriba" value={fit?.insertRemovableFromTop == null ? "—" : fit.insertRemovableFromTop ? "Sí, sin desmontar nada" : "No: hay que desenroscar la pantalla"} />
             </div>
-            {[...errors, ...warnings].filter((i) => i.field?.startsWith("insert.") || i.code.startsWith("INSERT_") || i.code === "HOLDER_COLLIDES_INSERT_SEAT").map((i, k) => (
+            <Details title="Dimensiones y ventilación del cilindro">
+              <SliderField label="Holgura en la ranura (por lado)" value={def.insert.clearanceMm} min={L["insert.clearanceMm"].min} max={L["insert.clearanceMm"].max} step={0.05} suffix=" mm" onChange={(v) => setInsert({ clearanceMm: v })} error={err("insert.clearanceMm")} />
+              <SliderField label="Altura del cilindro" value={def.insert.heightPct} min={L["insert.heightPct"].min} max={L["insert.heightPct"].max} step={1} suffix="%" onChange={(v) => setInsert({ heightPct: v })} error={err("insert.heightPct")} />
+              <div className="grid grid-cols-2 gap-3">
+                <NumberField label="Profundidad de la ranura" value={def.insert.seatDepthMm} onChange={(v) => setInsert({ seatDepthMm: v })} suffix="mm" error={err("insert.seatDepthMm")} />
+                <NumberField label="Separación mínima a la bombilla" value={def.insert.minBulbGapMm} onChange={(v) => setInsert({ minBulbGapMm: v })} suffix="mm" error={err("insert.minBulbGapMm")} />
+              </div>
+              <Toggle label="Diámetro automático (el más angosto posible)" checked={def.insert.diameterMm === null} onChange={(auto) => setInsert({ diameterMm: auto ? null : (fit?.insertOuterDiameterMm ?? 65) })} />
+              <Toggle label="Lengüetas para extraerlo (impresión convencional)" checked={def.insert.tabs} onChange={(tabs) => setInsert({ tabs })} />
+              <NumberField label="Ventanas de ventilación (0–12)" value={def.insert.ventWindows} onChange={(v) => setInsert({ ventWindows: Math.round(v) })} error={err("insert.ventWindows")} />
+              <p className="text-xs text-gray-500">La separación mínima solo evita el contacto previsto con las medidas cargadas: no es una distancia térmicamente segura.</p>
+            </Details>
+            {issuesFor((i) => !!i.field?.startsWith("insert.") || i.code.startsWith("INSERT_") || i.code.startsWith("TOWER_")).map((i, k) => (
               <p key={`${i.code}-${k}`} className={`text-xs ${errors.includes(i) ? "text-red-400" : "text-amber-300"}`}>{i.message}</p>
             ))}
           </>
         )}
       </section>
 
+      {/* ------------------------------------------------------------------ FABRICACIÓN */}
       <section className="flex flex-col gap-3">
-        <SectionLabel>5 · Unión pantalla–base (rosca)</SectionLabel>
+        <SectionLabel>3 · Fabricación</SectionLabel>
+
+        <span className="text-xs font-semibold text-gray-500">Perfil de base E27</span>
+        <div className="rounded-xl border border-fg/10 bg-fg/[0.03] p-3 text-xs text-gray-300">
+          <span className="font-semibold text-stampa-accent">Doble anillo · referencia «bottom.stl»</span> — portalámparas E27 de cuerpo roscado con dos anillos de sujeción, que entra por un agujero central y se fija con sus propios anillos en un rebaje. Es el único perfil disponible; no es una base universal.
+        </div>
+        {holderNotValidated ? (
+          <p className="rounded-lg border border-amber-500/30 bg-amber-500/10 p-2.5 text-xs text-amber-300">Base PRELIMINAR - NO VALIDADA. Las medidas salen de los datos de referencia (Ø42, Ø58) y del STL, no de tu portalámparas: medilo, cargalo e imprimí la pieza de prueba antes de fabricar la base.</p>
+        ) : (
+          <p className="rounded-lg border border-fg/10 bg-fg/[0.03] p-2.5 text-xs text-gray-400">Medidas verificadas por vos. El conjunto sigue pendiente de validación física.</p>
+        )}
+        <Toggle label="Estas medidas son de mi portalámparas real" checked={def.holder.measured} onChange={(measured) => setHolder({ measured })} />
+        <Details title="Portalámparas, bombilla y cable" defaultOpen>
+          <div className="grid grid-cols-2 gap-3">
+            <NumberField label="Ø agujero central" value={def.holder.boreDiameterMm} onChange={(v) => setHolder({ boreDiameterMm: v })} suffix="mm" error={err("holder.boreDiameterMm")} />
+            <NumberField label="Ø anillos (máx.)" value={def.holder.ringsDiameterMm} onChange={(v) => setHolder({ ringsDiameterMm: v })} suffix="mm" error={err("holder.ringsDiameterMm")} />
+            <NumberField label="Holgura del rebaje" value={def.holder.ringsClearanceMm} onChange={(v) => setHolder({ ringsClearanceMm: v })} suffix="mm" error={err("holder.ringsClearanceMm")} />
+            <NumberField label="Prof. del rebaje" value={def.holder.ringsRecessDepthMm} onChange={(v) => setHolder({ ringsRecessDepthMm: v })} suffix="mm" error={err("holder.ringsRecessDepthMm")} />
+            <NumberField label="Altura del apoyo" value={def.holder.seatHeightMm} onChange={(v) => setHolder({ seatHeightMm: v })} suffix="mm" error={err("holder.seatHeightMm")} />
+            <NumberField label="Ø cuerpo s/ base" value={def.holder.bodyDiameterMm} onChange={(v) => setHolder({ bodyDiameterMm: v })} suffix="mm" error={err("holder.bodyDiameterMm")} />
+            <NumberField label="Alto portalámparas" value={def.holder.heightMm} onChange={(v) => setHolder({ heightMm: v })} suffix="mm" error={err("holder.heightMm")} />
+            <NumberField label="Ø bombilla" value={def.bulb.diameterMm} onChange={(v) => setBulb({ diameterMm: v })} suffix="mm" error={err("bulb.diameterMm")} />
+            <NumberField label="Alto bombilla s/ portalámp." value={def.bulb.heightAboveHolderMm} onChange={(v) => setBulb({ heightAboveHolderMm: v })} suffix="mm" error={err("bulb.heightAboveHolderMm")} />
+            <NumberField label="Ø cable" value={def.cable.diameterMm} onChange={(v) => setCable({ diameterMm: v })} suffix="mm" error={err("cable.diameterMm")} />
+          </div>
+          <Toggle label="Ranuras para precinto (alivio de tensión del cable)" checked={def.cable.tieAnchor} onChange={(tieAnchor) => setCable({ tieAnchor })} />
+          <p className="text-xs text-gray-500">El cable baja por el agujero central y sale por un canal inferior. Para sujetarlo usá un precinto plástico comercial (o un prensacable); no se imprime ningún componente eléctrico.</p>
+          <Toggle label="Diámetro de la base automático" checked={def.base.diameterMm === null} onChange={(auto) => setBase({ diameterMm: auto ? null : (fit?.baseDiameterMm ?? 120) })} />
+          {def.base.diameterMm !== null && <NumberField label="Diámetro de la base" value={def.base.diameterMm} onChange={(v) => setBase({ diameterMm: v })} suffix="mm" error={err("base.diameterMm")} />}
+          <NumberField label="Ventanas de ventilación de la base (0–12)" value={def.base.ventSlots} onChange={(v) => setBase({ ventSlots: Math.round(v) })} error={err("base.ventSlots")} />
+        </Details>
+        <div className="flex flex-col gap-1.5 rounded-xl border border-fg/10 bg-fg/[0.03] p-3">
+          <InfoRow label="Agujero central" value={fit ? `Ø ${fmt(fit.tower.boreDiameterMm)} mm` : "—"} strong />
+          <InfoRow label="Rebaje de los anillos" value={fit ? `Ø ${fmt(fit.tower.ringsRecessDiameterMm)} × ${fmt(fit.tower.ringsRecessDepthMm)} mm` : "—"} />
+          <InfoRow label="Material bajo el apoyo de los anillos" value={fit ? `${fmt(fit.tower.seatMaterialMm)} mm` : "—"} />
+          <InfoRow label="Torre / ranura del cilindro" value={fit && def.insert.enabled ? `Ø ${fmt(fit.tower.towerDiameterMm)} / Ø ${fmt(fit.tower.slotInnerDiameterMm)}–${fmt(fit.tower.slotOuterDiameterMm)}` : "—"} />
+          <InfoRow label="Pared entre rebaje y ranura" value={fit && def.insert.enabled ? `${fmt(fit.tower.innerWallMm)} mm` : "—"} />
+          <InfoRow label="Altura / diámetro de la base" value={fit ? `${fmt(fit.baseHeightMm)} mm / Ø ${fmt(fit.baseDiameterMm)} mm` : "—"} />
+        </div>
+        {issuesFor((i) => (!!i.field?.startsWith("holder.") && i.code !== "HOLDER_NOT_VALIDATED") || !!i.field?.startsWith("cable.") || !!i.field?.startsWith("base.") || i.code.startsWith("HOLDER_") || i.code.startsWith("RINGS_") || i.code === "TOWER_ABOVE_BASE" || i.code === "TOWER_TOO_WIDE_FOR_THREAD" || i.code === "TIE_ANCHOR_NO_ROOM" || i.code === "BASE_STABILITY").map((i, k) => (
+          <p key={`${i.code}-${k}`} className={`text-xs ${errors.includes(i) ? "text-red-400" : "text-amber-300"}`}>{i.message}</p>
+        ))}
+
+        <span className="mt-1 text-xs font-semibold text-gray-500">Rosca de unión pantalla–base</span>
         <SegmentedControl options={CONNECTION_OPTIONS} value={def.thread.connection} onChange={(connection) => setThread({ connection })} compact />
         <p className="text-xs text-gray-500">
           {def.thread.connection === "integrated"
             ? "La pantalla lleva un cuello roscado macho que se enrosca en la base hasta un tope plano. Se imprime de forma convencional."
             : "La pantalla queda lisa (candidata a modo vaso) y un collar roscado aparte la une a la base: el borde de la pantalla entra a presión en el pozo del collar."}{" "}
-          La rosca es propia de StampaMaker (no la eléctrica E27) y es la misma para cualquier pantalla: cambiar ondas o torsión no la modifica.
+          La rosca es propia de StampaMaker (no la eléctrica E27), no depende del portalámparas y es la misma para cualquier pantalla: cambiar el diseño no la modifica.
         </p>
         <div className="flex flex-col gap-1.5 rounded-xl border border-fg/10 bg-fg/[0.03] p-3">
           <InfoRow label="Rosca" value={fit ? `Ø ${fmt(fit.thread.majorDiameterMm)} · paso ${fmt(fit.thread.pitchMm)} · ${fit.thread.starts} entrada${fit.thread.starts === 1 ? "" : "s"}` : "—"} strong />
@@ -278,7 +342,7 @@ export function MakerLampControls({ def, onChange, onApplyPreset, onGenerateVari
           <InfoRow label="Juego axial" value={fit ? `${fmt(fit.thread.axialPlayMm)} mm` : "—"} />
           <InfoRow label="Transición a la pantalla (45°)" value={fit ? `${fmt(fit.thread.flareHeightMm)} mm de alto` : "—"} />
         </div>
-        <Details title="Parámetros de la rosca">
+        <Details title="Parámetros de la rosca y holguras">
           <div className="grid grid-cols-2 gap-3">
             <NumberField label="Ø rosca" value={def.thread.majorDiameterMm} onChange={(v) => setThread({ majorDiameterMm: v })} suffix="mm" error={err("thread.majorDiameterMm")} />
             <NumberField label="Paso" value={def.thread.pitchMm} onChange={(v) => setThread({ pitchMm: v })} suffix="mm" error={err("thread.pitchMm")} />
@@ -287,94 +351,27 @@ export function MakerLampControls({ def, onChange, onApplyPreset, onGenerateVari
             <NumberField label="Holgura radial" value={def.thread.clearanceMm} onChange={(v) => setThread({ clearanceMm: v })} suffix="mm" error={err("thread.clearanceMm")} />
             <NumberField label="Espesor del cuello" value={def.thread.coreWallMm} onChange={(v) => setThread({ coreWallMm: v })} suffix="mm" error={err("thread.coreWallMm")} />
           </div>
-          <p className="text-xs text-gray-500">Más entradas = menos vueltas para cerrar. La holgura depende de tu impresora y filamento: ajustala con las piezas de prueba, no a ojo.</p>
+          <p className="text-xs text-gray-500">Más entradas = menos vueltas para cerrar. La holgura depende de tu impresora, material y perfil: ajustala con las piezas de prueba, no a ojo.</p>
         </Details>
         {issuesFor((i) => !!i.field?.startsWith("thread.") || i.code.startsWith("THREAD_") || i.code === "SHADE_NARROWER_THAN_THREAD" || i.code === "FLARE_TALL" || i.code === "COLLAR_UNVERIFIED").map((i, k) => (
           <p key={`${i.code}-${k}`} className={`text-xs ${errors.includes(i) ? "text-red-400" : "text-amber-300"}`}>{i.message}</p>
         ))}
-      </section>
 
-      <section className="flex flex-col gap-3">
-        <SectionLabel>6 · Base y portalámparas E27</SectionLabel>
-        {holderNotValidated ? (
-          <p className="rounded-lg border border-amber-500/30 bg-amber-500/10 p-2.5 text-xs text-amber-300">Base PRELIMINAR - NO VALIDADA. E27 es la rosca de la bombilla, no las medidas del portalámparas: los valores de abajo son de ejemplo. Medí tu portalámparas real, cargalos e imprimí la pieza de prueba de ajuste.</p>
-        ) : (
-          <p className="rounded-lg border border-fg/10 bg-fg/[0.03] p-2.5 text-xs text-gray-400">Medidas cargadas por vos. El conjunto sigue pendiente de validación física.</p>
-        )}
-        <Toggle label="Estas medidas son de mi portalámparas real" checked={def.holder.measured} onChange={(measured) => setHolder({ measured })} />
-        <span className="text-xs font-semibold text-gray-500">Fijación del portalámparas</span>
-        <SegmentedControl options={MOUNT_OPTIONS} value={def.holder.mount} onChange={(mount) => setHolder({ mount })} compact />
-        <div className="grid grid-cols-2 gap-3">
-          <NumberField label="Ø faldón (máx.)" value={def.holder.bodyDiameterMm} onChange={(v) => setHolder({ bodyDiameterMm: v })} suffix="mm" error={err("holder.bodyDiameterMm")} />
-          <NumberField label="Altura" value={def.holder.heightMm} onChange={(v) => setHolder({ heightMm: v })} suffix="mm" error={err("holder.heightMm")} />
-          <NumberField label={def.holder.mount === "stem" ? "Ø espiga" : "Ø tornillo"} value={def.holder.fixingDiameterMm} onChange={(v) => setHolder({ fixingDiameterMm: v })} suffix="mm" error={err("holder.fixingDiameterMm")} />
-          <NumberField label="Largo bajo el apoyo" value={def.holder.fixingLengthMm} onChange={(v) => setHolder({ fixingLengthMm: v })} suffix="mm" error={err("holder.fixingLengthMm")} />
-          <NumberField label="Tuerca (entre caras)" value={def.holder.nutAcrossFlatsMm} onChange={(v) => setHolder({ nutAcrossFlatsMm: v })} suffix="mm" error={err("holder.nutAcrossFlatsMm")} />
-          <NumberField label="Espesor tuerca" value={def.holder.nutThicknessMm} onChange={(v) => setHolder({ nutThicknessMm: v })} suffix="mm" error={err("holder.nutThicknessMm")} />
-          {def.holder.mount === "screws" && <NumberField label="Entre tornillos" value={def.holder.screwSpacingMm} onChange={(v) => setHolder({ screwSpacingMm: v })} suffix="mm" error={err("holder.screwSpacingMm")} />}
-          <NumberField label="Ø cable" value={def.cable.diameterMm} onChange={(v) => setCable({ diameterMm: v })} suffix="mm" error={err("cable.diameterMm")} />
-          <NumberField label="Ø bombilla" value={def.bulb.diameterMm} onChange={(v) => setBulb({ diameterMm: v })} suffix="mm" error={err("bulb.diameterMm")} />
-          <NumberField label="Alto s/ portalámp." value={def.bulb.heightAboveHolderMm} onChange={(v) => setBulb({ heightAboveHolderMm: v })} suffix="mm" error={err("bulb.heightAboveHolderMm")} />
-        </div>
-        <Toggle label="Ranuras para precinto (alivio de tensión del cable)" checked={def.cable.tieAnchor} onChange={(tieAnchor) => setCable({ tieAnchor })} />
-        <p className="text-xs text-gray-500">El cable sale por un canal inferior. Para sujetarlo usá un precinto plástico comercial (o un prensacable); no se imprime ningún componente eléctrico.</p>
+        <span className="mt-1 text-xs font-semibold text-gray-500">Modo de impresión</span>
         <div className="flex flex-col gap-1.5 rounded-xl border border-fg/10 bg-fg/[0.03] p-3">
-          <InfoRow label="Altura de la base" value={fit ? `${fmt(fit.baseHeightMm)} mm` : "—"} />
-          <InfoRow label="Diámetro de la base" value={fit ? `Ø ${fmt(fit.baseDiameterMm)} mm` : "—"} />
-          <InfoRow label="Apoyo de la espiga hasta la tuerca" value={fit ? `${fmt(fit.fixingWebMm)} mm de material` : "—"} />
+          <InfoRow label="Pantalla" value={metrics ? (def.thread.connection === "integrated" ? "Impresión convencional (rosca integrada)" : metrics.shade.vase.ready ? "Apta para modo vaso*" : `No apta para modo vaso (${fmt(metrics.shade.vase.maxOverhangDeg)}°)`) : "—"} strong={metrics?.shade.vase.ready && def.thread.connection === "collar"} />
+          {def.thread.connection === "collar" && <InfoRow label="Collar roscado" value={metrics?.collar ? "Impresión convencional" : "—"} />}
+          <InfoRow label="Cilindro" value={metrics?.insert ? (metrics.insert.vaseCapable ? "Modo vaso posible" : "Impresión convencional") : "—"} />
+          <InfoRow label="Base" value={metrics ? "Impresión convencional" : "—"} />
         </div>
-        {issuesFor((i) => (!!i.field?.startsWith("holder.") && i.code !== "HOLDER_NOT_VALIDATED") || !!i.field?.startsWith("cable.") || i.code === "HOLDER_WIDER_THAN_CAVITY" || i.code === "FIXING_TOO_SHORT" || i.code === "TIE_ANCHOR_NO_ROOM").map((i, k) => (
-          <p key={`${i.code}-${k}`} className={`text-xs ${errors.includes(i) ? "text-red-400" : "text-amber-300"}`}>{i.message}</p>
-        ))}
+        <p className="text-xs text-gray-500">* Cumple los prerrequisitos geométricos del modo vaso (contorno continuo por capa, pendiente máxima y conexión por collar). Confirmalo en tu laminador: no es una garantía de laminado.</p>
       </section>
 
-      <Details title="Opciones avanzadas">
-        <SectionLabel>Pantalla</SectionLabel>
-        <SliderField label="Variación vertical (ciclos)" value={def.shade.verticalFrequency} min={0} max={6} step={0.5} onChange={(v) => setShade({ verticalFrequency: v })} error={err("shade.verticalFrequency")} />
-        <SliderField label="Intensidad del patrón" value={def.shade.patternIntensityPct} min={0} max={100} step={5} suffix="%" onChange={(v) => setShade({ patternIntensityPct: v })} error={err("shade.patternIntensityPct")} />
-        {def.shade.family === "organic" && <SliderField label="Variación orgánica" value={def.shade.organicPct} min={0} max={100} step={5} suffix="%" onChange={(v) => setShade({ organicPct: v })} error={err("shade.organicPct")} />}
-        {def.shade.profile !== "straight" && <SliderField label="Intensidad del perfil" value={def.shade.profileAmountPct} min={0} max={100} step={5} suffix="%" onChange={(v) => setShade({ profileAmountPct: v })} error={err("shade.profileAmountPct")} />}
-        <div className="grid grid-cols-2 gap-3">
-          <NumberField label="Espesor de pared" value={def.shade.wallMm} onChange={(v) => setShade({ wallMm: v })} suffix="mm" error={err("shade.wallMm")} />
-          <NumberField label="Collar recto" value={def.shade.collarHeightMm} onChange={(v) => setShade({ collarHeightMm: v })} suffix="mm" error={err("shade.collarHeightMm")} />
-        </div>
-        <NumberField label="Semilla" value={def.shade.seed} onChange={(v) => setShade({ seed: Math.max(0, Math.round(v)) })} error={err("shade.seed")} />
-
-        <SectionLabel>Inserto</SectionLabel>
-        <SliderField label="Altura del inserto" value={def.insert.heightPct} min={L["insert.heightPct"].min} max={L["insert.heightPct"].max} step={1} suffix="%" onChange={(v) => setInsert({ heightPct: v })} error={err("insert.heightPct")} />
-        <Toggle label="Diámetro automático" checked={def.insert.diameterMm === null} onChange={(auto) => setInsert({ diameterMm: auto ? null : (fit?.insertOuterDiameterMm ?? 100) })} />
-        {def.insert.diameterMm !== null && <NumberField label="Diámetro exterior del inserto" value={def.insert.diameterMm} onChange={(v) => setInsert({ diameterMm: v })} suffix="mm" error={err("insert.diameterMm")} />}
-        <NumberField label="Separación mínima a la bombilla (de diseño)" value={def.insert.minBulbGapMm} onChange={(v) => setInsert({ minBulbGapMm: v })} suffix="mm" error={err("insert.minBulbGapMm")} />
-        <Toggle label="Lengüetas para extraerlo (impresión convencional)" checked={def.insert.tabs} onChange={(tabs) => setInsert({ tabs })} />
-        <NumberField label="Muescas de ventilación (0–12)" value={def.insert.ventNotches} onChange={(v) => setInsert({ ventNotches: Math.round(v) })} error={err("insert.ventNotches")} />
-
-        <SectionLabel>Base</SectionLabel>
-        <Toggle label="Diámetro automático" checked={def.base.diameterMm === null} onChange={(auto) => setBase({ diameterMm: auto ? null : (fit?.baseDiameterMm ?? 150) })} />
-        {def.base.diameterMm !== null && <NumberField label="Diámetro de la base" value={def.base.diameterMm} onChange={(v) => setBase({ diameterMm: v })} suffix="mm" error={err("base.diameterMm")} />}
-        <NumberField label="Ventanas de ventilación (0–12)" value={def.base.ventSlots} onChange={(v) => setBase({ ventSlots: Math.round(v) })} error={err("base.ventSlots")} />
-
-        <SectionLabel>Código del diseño</SectionLabel>
-        <p className="text-xs text-gray-500">Guarda todo el diseño (incluida la semilla) en un texto. Pegalo acá para reconstruirlo exactamente.</p>
-        <div className="flex items-start gap-2">
-          <textarea readOnly value={code} rows={2} onFocus={(e) => e.currentTarget.select()} className="min-h-12 w-full resize-none rounded-lg border border-fg/10 bg-fg/[0.04] p-2 font-mono text-[11px] text-gray-300" aria-label="Código del diseño" />
-          <button type="button" onClick={copyCode} aria-label="Copiar código" className="inline-flex h-9 w-9 shrink-0 items-center justify-center rounded-lg border border-fg/10 text-gray-300 hover:text-fg">
-            {copied ? <Check size={15} /> : <Copy size={15} />}
-          </button>
-        </div>
-        <div className="flex items-center gap-2">
-          <input value={pasted} onChange={(e) => setPasted(e.target.value)} placeholder="Pegá un código SL1:…" aria-label="Pegar un código de diseño" className="h-9 w-full rounded-lg border border-fg/10 bg-fg/[0.04] px-2 text-xs text-white placeholder:text-neutral-500" />
-          <button type="button" onClick={loadCode} disabled={!pasted.trim()} className="h-9 shrink-0 rounded-lg border border-fg/10 px-3 text-xs font-semibold text-gray-200 hover:text-fg disabled:opacity-40">Cargar</button>
-        </div>
-      </Details>
-
+      {/* ------------------------------------------------------------------ INFORMACIÓN */}
       <section className="flex flex-col gap-2">
         <SectionLabel>Información</SectionLabel>
         <InfoRow label="Altura total ensamblada" value={metrics ? `${fmt(metrics.totalHeightMm)} mm` : "—"} />
         <InfoRow label="Diámetro máximo" value={metrics ? `Ø ${fmt(metrics.maxDiameterMm)} mm` : "—"} />
-        <InfoRow label="Pantalla" value={metrics ? (def.thread.connection === "integrated" ? "Impresión convencional (rosca integrada)" : metrics.shade.vase.ready ? "Apta para modo vaso*" : `No apta para modo vaso (${fmt(metrics.shade.vase.maxOverhangDeg)}°)`) : "—"} strong={metrics?.shade.vase.ready && def.thread.connection === "collar"} />
-        {def.thread.connection === "collar" && <InfoRow label="Collar roscado" value={metrics?.collar ? "Impresión convencional" : "—"} />}
-        <InfoRow label="Inserto" value={metrics?.insert ? (metrics.insert.vaseCapable ? "Modo vaso posible" : "Impresión convencional") : "—"} />
-        <InfoRow label="Base" value={metrics ? "Impresión convencional" : "—"} />
         <InfoRow label="Triángulos (todas las piezas)" value={metrics ? String(metrics.totalTriangles) : "—"} />
         {fit && (
           <div className="mt-1 flex flex-col gap-1 rounded-xl border border-fg/10 bg-fg/[0.03] p-3" aria-label="Holguras del ensamblaje">
@@ -389,7 +386,19 @@ export function MakerLampControls({ def, onChange, onApplyPreset, onGenerateVari
             ))}
           </div>
         )}
-        <p className="text-xs text-gray-500">* Cumple los prerrequisitos geométricos del modo vaso (contorno continuo por capa y pendiente máxima). Confirmalo en tu laminador: no es una garantía de laminado.</p>
+        <Details title="Código del diseño">
+          <p className="text-xs text-gray-500">Guarda todo el diseño (incluida la semilla) en un texto. Pegalo acá para reconstruirlo exactamente.</p>
+          <div className="flex items-start gap-2">
+            <textarea readOnly value={code} rows={2} onFocus={(e) => e.currentTarget.select()} className="min-h-12 w-full resize-none rounded-lg border border-fg/10 bg-fg/[0.04] p-2 font-mono text-[11px] text-gray-300" aria-label="Código del diseño" />
+            <button type="button" onClick={copyCode} aria-label="Copiar código" className="inline-flex h-9 w-9 shrink-0 items-center justify-center rounded-lg border border-fg/10 text-gray-300 hover:text-fg">
+              {copied ? <Check size={15} /> : <Copy size={15} />}
+            </button>
+          </div>
+          <div className="flex items-center gap-2">
+            <input value={pasted} onChange={(e) => setPasted(e.target.value)} placeholder="Pegá un código SL1:…" aria-label="Pegar un código de diseño" className="h-9 w-full rounded-lg border border-fg/10 bg-fg/[0.04] px-2 text-xs text-white placeholder:text-neutral-500" />
+            <button type="button" onClick={loadCode} disabled={!pasted.trim()} className="h-9 shrink-0 rounded-lg border border-fg/10 px-3 text-xs font-semibold text-gray-200 hover:text-fg disabled:opacity-40">Cargar</button>
+          </div>
+        </Details>
       </section>
 
       {errors.length > 0 && (
@@ -432,7 +441,7 @@ export function MakerLampControls({ def, onChange, onApplyPreset, onGenerateVari
       </section>
 
       <section className="flex flex-col gap-3 lg:hidden">
-        <SectionLabel>5 · Descargar</SectionLabel>
+        <SectionLabel>Descargar</SectionLabel>
         {exportButtons}
       </section>
     </Card>
@@ -475,7 +484,7 @@ export function LampExportButtons({
       )}
       {hasInsert && (
         <button type="button" disabled={!canDownload || busy !== null} onClick={() => onDownloadPart("lampInsert")} className={`${button} border-fg/10 bg-fg/[0.05] text-gray-200 hover:text-fg`}>
-          {icon("lampInsert")} Inserto (STL)
+          {icon("lampInsert")} Cilindro (STL)
         </button>
       )}
       <button type="button" disabled={!canDownload || busy !== null} onClick={() => onDownloadPart("body")} className={`${button} border-fg/10 bg-fg/[0.05] text-gray-200 hover:text-fg`}>

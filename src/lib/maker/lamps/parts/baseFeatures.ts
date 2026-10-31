@@ -11,29 +11,12 @@ export function ringSectors(rIn: number, rOut: number): Point2D[][] {
   return Array.from({ length: 8 }, (_, k) => sectorPoly(rIn, rOut, k * 45, (k + 1) * 45));
 }
 
-/** Hexágono regular con un vértice sobre +X (alojamiento anti-giro de la tuerca). */
-export function hexPoly(circumR: number, cx = 0, cy = 0): Point2D[] {
-  return Array.from({ length: 6 }, (_, k) => {
-    const a = (Math.PI / 3) * k;
-    return [cx + circumR * Math.cos(a), cy + circumR * Math.sin(a)] as Point2D;
-  });
-}
-
 /**
- * Alojamiento del portalámparas en el PISO de la base: asiento de la cara de apoyo, agujeros pasantes de la espiga (o
- * de los dos tornillos), alojamiento hexagonal de la tuerca desde abajo, agujero de paso del cable (montaje con
- * tornillos), canal de cable que sale por +X y las dos ranuras del precinto (alivio de tensión). Lo usan la base y la
- * pieza de prueba de ajuste: lo que se prueba es exactamente lo que se imprime.
+ * Canal de cable inferior (sale por +X desde el agujero central hasta el borde) y las dos ranuras del precinto (alivio de
+ * tensión), en el PISO de la base. Lo usa la base; el cable baja por el agujero de la torre y sale por este canal.
  */
 export function floorFeatures(layout: LampLayout, outerR: number): SolidFeature[] {
-  const fx = layout.fixing;
   const features: SolidFeature[] = [];
-  features.push({ z0: layout.holderSeatZ, z1: layout.floorTopZ, cut: [circlePoly(layout.seatR, segmentsFor(layout.seatR))] });
-  for (const c of fx.centers) {
-    features.push({ z0: fx.pocketCeilingZ, z1: layout.holderSeatZ, cut: [circlePoly(fx.holeR, segmentsFor(fx.holeR), c.x, c.y)] });
-    features.push({ z0: 0, z1: fx.pocketCeilingZ, cut: [hexPoly(fx.nutPocketCircumR, c.x, c.y)] });
-  }
-  if (fx.cableHoleR !== null) features.push({ z0: 0, z1: layout.holderSeatZ, cut: [circlePoly(fx.cableHoleR, segmentsFor(fx.cableHoleR))] });
   features.push({ z0: 0, z1: layout.channelHeight, cut: [rectPoly(0, -layout.channelHalf, outerR + 2, layout.channelHalf)] });
   if (layout.tie) {
     const t = layout.tie;
@@ -46,27 +29,48 @@ export function floorFeatures(layout: LampLayout, outerR: number): SolidFeature[
   return features;
 }
 
+/**
+ * Alojamiento del portalámparas de doble anillo y del cilindro de color en la TORRE central (geometría de referencia
+ * `bottom.stl`): agujero central pasante, rebaje superior de los anillos (piso = apoyo) y ranura anular donde apoya el
+ * borde inferior del cilindro. `zFloor` recorta todo por debajo de esa altura (la pieza de prueba usa solo el tramo alto).
+ */
+export function towerFeatures(layout: LampLayout, zFloor = 0): SolidFeature[] {
+  const t = layout.tower;
+  const features: SolidFeature[] = [];
+  features.push({ z0: zFloor, z1: t.topZ, cut: [circlePoly(t.boreR, segmentsFor(t.boreR))] });
+  features.push({ z0: t.seatZ, z1: t.topZ, cut: [circlePoly(t.recessR, segmentsFor(t.recessR))] });
+  if (t.slot) features.push({ z0: Math.max(t.slot.bottomZ, zFloor), z1: t.topZ, cut: ringSectors(t.slot.innerR, t.slot.outerR) });
+  return features;
+}
+
 /** Capas de la rosca hembra: un vacío por capa, con el radio MÁS GRANDE del tramo (nunca más angosto que la superficie real). */
-export function threadVoidFeatures(layout: LampLayout): SolidFeature[] {
+export function threadVoidFeatures(layout: LampLayout, protectTower = true): SolidFeature[] {
   const g = LAMP_GEOMETRY;
   const spec = layout.spec;
   const layers = Math.max(2, Math.ceil((spec.femaleDepth / spec.pitch) * g.threadFemaleLayersPerPitch));
-  const features: SolidFeature[] = [];
   const segs = g.femaleSegments;
-  for (let k = 0; k < layers; k++) {
-    const z0 = layout.ledgeZ + (spec.femaleDepth * k) / layers;
-    const z1 = layout.ledgeZ + (spec.femaleDepth * (k + 1)) / layers;
+  // La torre central atraviesa la zona roscada: el vacío de la rosca no la toca por debajo de su cara superior (hay una capa que parte justo ahí).
+  const towerTop = layout.tower.topZ;
+  const tower = protectTower ? [circlePoly(layout.tower.towerR, segmentsFor(layout.tower.towerR))] : undefined;
+  const bounds: number[] = [];
+  for (let k = 0; k <= layers; k++) bounds.push(layout.ledgeZ + (spec.femaleDepth * k) / layers);
+  if (protectTower && towerTop > layout.ledgeZ + 1e-3 && towerTop < layout.baseTopZ - 1e-3) bounds.push(towerTop);
+  bounds.sort((a, b) => a - b);
+  const features: SolidFeature[] = [];
+  for (let k = 0; k < bounds.length - 1; k++) {
+    const z0 = bounds[k], z1 = bounds[k + 1];
+    if (z1 - z0 < 1e-4) continue;
     const samples = [z0, (2 * z0 + z1) / 3, (z0 + z1) / 2, (z0 + 2 * z1) / 3, z1].map((z) => femaleVoidPolygon(spec, z, layout.ledgeZ, segs));
     const polygon: Point2D[] = samples[0].map((_, j) => {
       let best = samples[0][j];
       let bestR = -1;
-      for (const s of samples) {
-        const r = Math.hypot(s[j][0], s[j][1]);
-        if (r > bestR) { bestR = r; best = s[j]; }
+      for (const sm of samples) {
+        const r = Math.hypot(sm[j][0], sm[j][1]);
+        if (r > bestR) { bestR = r; best = sm[j]; }
       }
       return best;
     });
-    features.push({ z0, z1, cut: [polygon] });
+    features.push({ z0, z1, cut: [polygon], protect: tower && z1 <= towerTop + 1e-6 ? tower : undefined });
   }
   return features;
 }
