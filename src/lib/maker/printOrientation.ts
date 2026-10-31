@@ -31,10 +31,12 @@ export const PRINT_TRANSFORM_BY_KIND: Record<PartKind, PrintTransform> = {
   mask: FLIP_Y,
   diffuser: NONE,
   channelDiffuser: NONE,
-  // Lámparas E27 (la base es la pieza ancla: kind "body"). La pantalla se imprime parada sobre su collar (modo vaso
-  // posible); el inserto va dado vuelta para que las lengüetas del borde superior apoyen en la cama sin voladizos.
+  // Lámparas E27 (la base es la pieza ancla: kind "body"). La pantalla se imprime parada sobre su extremo inferior
+  // (cuello roscado macho, o tramo recto en modo vaso); el inserto va dado vuelta para que las lengüetas del borde superior apoyen en la cama sin voladizos.
   lampShade: NONE,
   lampInsert: FLIP_Y,
+  // El collar roscado se imprime con el cuello roscado sobre la cama: la transición de 45° y el pozo suben sin soportes.
+  lampCollar: NONE,
 };
 
 export function getPrintTransform(kind: PartKind): PrintTransform {

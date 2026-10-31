@@ -37,6 +37,8 @@ const srcRoot = path.join(process.cwd(), "src");
 const read = (rel) => fs.readFileSync(path.join(srcRoot, rel), "utf8");
 
 const lamp = (shade = {}, rest = {}) => ({ ...DEFAULT_LAMP, ...rest, shade: { ...DEFAULT_LAMP.shade, ...shade } });
+// Variante con unión por collar roscado: la pantalla queda lisa y es la única candidata a modo vaso.
+const lampCollar = (shade = {}, rest = {}) => lamp(shade, { ...rest, thread: { ...DEFAULT_LAMP.thread, ...(rest.thread ?? {}), connection: "collar" } });
 const build = (def) => {
   const r = createLamp(def);
   assert.equal(r.errors.length, 0, `errores: ${JSON.stringify(r.errors.map((e) => e.code))}`);
@@ -234,7 +236,9 @@ const CASES = {
   "por defecto": lamp(),
   "pantalla chica": lamp({ heightMm: 100, bottomDiameterMm: 130, topDiameterMm: 130, amplitudeMm: 3 }),
   "pantalla grande": lamp({ heightMm: 300, bottomDiameterMm: 240, topDiameterMm: 260, amplitudeMm: 10 }),
-  "diámetro inferior mínimo útil": lamp({ bottomDiameterMm: 112, topDiameterMm: 112, amplitudeMm: 3, waves: 6 }),
+  "diámetro inferior mínimo útil": lamp({ bottomDiameterMm: 100, topDiameterMm: 100, amplitudeMm: 3, waves: 6 }),
+  "collar roscado (modo vaso)": lampCollar(),
+  "collar con perfil orgánico": lampCollar({ family: "organic", organicPct: 70, waves: 7, amplitudeMm: 6, seed: 77 }),
   "ondulaciones extremas permitidas": lamp({ waves: 12, amplitudeMm: 12, twistDeg: 0, family: "wavy" }),
   "muchas ondas": lamp({ waves: 28, amplitudeMm: 4 }),
   "torsión extrema permitida": lamp({ twistDeg: 1100, amplitudeMm: 5, waves: 6 }),
@@ -246,7 +250,8 @@ const CASES = {
 for (const [name, def] of Object.entries(CASES)) {
   test(`malla de las tres piezas (${name}): cerrada, manifold, orientada, sin triángulos degenerados, una sola pieza conexa`, () => {
     const r = build(def);
-    for (const [part, mesh] of [["pantalla", r.indexed.shade], ["inserto", r.indexed.insert], ["base", r.indexed.base]]) {
+    for (const [part, mesh] of [["pantalla", r.indexed.shade], ["inserto", r.indexed.insert], ["base", r.indexed.base], ["collar", r.indexed.collar]]) {
+      if (!mesh) continue;
       assertWatertight(mesh, `${name}/${part}`);
       assert.equal(components(mesh), 1, `${name}/${part}: más de una componente conexa`);
     }
@@ -353,14 +358,14 @@ test("inserto compatible: queda dentro de la pantalla con la holgura pedida a TO
     let worst = Infinity;
     for (let i = 0; i < ins.length; i += 3) {
       const z = ins[i + 2];
-      if (z < sb.minZ) continue;
+      if (z < sb.minZ + 1) continue; // por debajo del cuello roscado el inserto está dentro de la base
       worst = Math.min(worst, nearest(z) - Math.hypot(ins[i], ins[i + 1]));
     }
     assert.ok(worst >= c - 0.05, `holgura mínima ${worst.toFixed(3)} < ${c}`);
     // nunca sobresale del borde superior de la pantalla
     assert.ok(indexedBounds(r.indexed.insert).maxZ <= sb.maxZ - LAMP_GEOMETRY.insertTopMarginMm + 1e-6);
-    // y apoya en la ranura de la base (3 mm por debajo de la cubierta)
-    assert.ok(Math.abs(indexedBounds(r.indexed.insert).minZ - (def.base.heightMm - LAMP_GEOMETRY.grooveDepthMm)) < 1e-6);
+    // y apoya en la ranura del piso de la base (3 mm por debajo de la cara del piso)
+    assert.ok(Math.abs(indexedBounds(r.indexed.insert).minZ - (r.metrics.fit.floorTopZ - LAMP_GEOMETRY.grooveDepthMm)) < 1e-6);
   }
 });
 
@@ -375,13 +380,14 @@ test("inserto: separado de la bombilla y del portalámparas (radio interior − 
   // medido en la malla: radio mínimo de las paredes del inserto
   let minR = Infinity;
   const p = r.indexed.insert.positions;
-  for (let i = 0; i < p.length; i += 3) if (p[i + 2] > def.base.heightMm) minR = Math.min(minR, Math.hypot(p[i], p[i + 1]));
+  for (let i = 0; i < p.length; i += 3) if (p[i + 2] > r.metrics.fit.floorTopZ) minR = Math.min(minR, Math.hypot(p[i], p[i + 1]));
   assert.ok(minR - def.bulb.diameterMm / 2 >= LAMP_GEOMETRY.bulbGapFloorMm);
   assert.ok(minR - def.holder.bodyDiameterMm / 2 >= LAMP_GEOMETRY.bulbGapFloorMm);
 });
 
 test("inserto incompatible: se informa el motivo con las cifras y NO se achica ninguna separación automáticamente", () => {
-  const tight = lamp({ heightMm: 80, bottomDiameterMm: 100, topDiameterMm: 100, amplitudeMm: 4 });
+  // separación de diseño de 30 mm: el inserto necesario (Ø 128) no cabe ni en el cuello roscado ni en la pantalla
+  const tight = lamp({}, { insert: { ...DEFAULT_LAMP.insert, minBulbGapMm: 30 } });
   const snapshot = JSON.stringify(tight);
   const r = createLamp(tight);
   assert.ok(r.geometry === null);
@@ -390,12 +396,12 @@ test("inserto incompatible: se informa el motivo con las cifras y NO se achica n
   assert.match(e.message, /no entra/);
   assert.match(e.message, /\d+(,\d)? mm/);
   assert.equal(JSON.stringify(tight), snapshot, "la definición no se modifica");
-  assert.equal(tight.insert.minBulbGapMm, DEFAULT_LAMP.insert.minBulbGapMm);
+  assert.equal(tight.insert.minBulbGapMm, 30);
   // diámetro manual que atraviesa la pantalla
   const touch = createLamp(lamp({}, { insert: { ...DEFAULT_LAMP.insert, diameterMm: 200 } }));
   assert.ok(touch.errors.some((x) => x.code === "INSERT_TOUCHES_SHADE"));
   // inserto demasiado cerca de la bombilla (diámetro manual chico)
-  const near = createLamp(lamp({}, { insert: { ...DEFAULT_LAMP.insert, diameterMm: 80 } }));
+  const near = createLamp(lamp({}, { insert: { ...DEFAULT_LAMP.insert, diameterMm: 74 } }));
   assert.ok(near.errors.some((x) => x.code === "INSERT_TOO_CLOSE_TO_BULB"));
   // separación mínima exagerada -> no entra, no se recorta
   const gap = createLamp(lamp({}, { insert: { ...DEFAULT_LAMP.insert, minBulbGapMm: 40 } }));
@@ -408,7 +414,8 @@ test("sin inserto: dos piezas, la pantalla respeta igualmente la separación a l
   assert.equal(ok.geometry.parts.length, 2);
   assert.equal(ok.indexed.insert, null);
   assert.equal(ok.metrics.insert, null);
-  const near = createLamp(lamp({ bottomDiameterMm: 80, topDiameterMm: 80, amplitudeMm: 2 }, { insert: { ...DEFAULT_LAMP.insert, enabled: false } }));
+  // sin inserto, el cuello roscado mismo debe respetar la separación de diseño a la bombilla
+  const near = createLamp(lamp({}, { insert: { ...DEFAULT_LAMP.insert, enabled: false, minBulbGapMm: 15 } }));
   assert.ok(near.errors.some((e) => e.code === "SHADE_TOO_CLOSE_TO_BULB"));
 });
 
@@ -417,10 +424,10 @@ test("holgura de montaje configurable dentro de límites validados: la ranura de
     const def = lamp({}, { insert: { ...DEFAULT_LAMP.insert, clearanceMm: clearance } });
     const r = build(def);
     const ro = r.metrics.fit.insertOuterDiameterMm / 2, rn = r.metrics.fit.insertInnerDiameterMm / 2;
-    // radios de la ranura en el piso de la ranura (z = cubierta − 3) de la malla de la base
+    // radios de la ranura en el fondo de la ranura (z = cara del piso − 3) de la malla de la base
     const radii = new Set();
     const p = r.indexed.base.positions;
-    for (let i = 0; i < p.length; i += 3) if (Math.abs(p[i + 2] - (def.base.heightMm - LAMP_GEOMETRY.grooveDepthMm)) < 1e-3) radii.add(Math.round(Math.hypot(p[i], p[i + 1]) * 100) / 100);
+    for (let i = 0; i < p.length; i += 3) if (Math.abs(p[i + 2] - (r.metrics.fit.floorTopZ - LAMP_GEOMETRY.grooveDepthMm)) < 1e-3) radii.add(Math.round(Math.hypot(p[i], p[i + 1]) * 100) / 100);
     const near = (target) => [...radii].some((x) => Math.abs(x - target) < 0.05);
     assert.ok(near(ro + clearance), `pared exterior de la ranura (${ro + clearance})`);
     assert.ok(near(rn - clearance), `pared interior de la ranura (${rn - clearance})`);
@@ -459,71 +466,126 @@ test("inserto: ventilación y extracción — muescas inferiores libres y dos le
 });
 
 // ------------------------------------------------------------------ base E27
-test("base: asiento del portalámparas y agujero de espiga siguen las medidas cargadas (geometría paramétrica, no fija)", () => {
-  for (const [bodyD, thread] of [[40, 8], [52, 10], [60, 13]]) {
-    const def = lamp({}, { holder: { ...DEFAULT_LAMP.holder, bodyDiameterMm: bodyD, threadDiameterMm: thread, measured: true } });
+test("base: asiento del portalámparas, agujero de espiga y alojamiento de la tuerca siguen las medidas cargadas (geometría paramétrica, no fija)", () => {
+  for (const [bodyD, fixingD, nutAF] of [[40, 8, 13], [52, 10, 17], [60, 13, 19]]) {
+    const def = lamp({}, { holder: { ...DEFAULT_LAMP.holder, bodyDiameterMm: bodyD, fixingDiameterMm: fixingD, nutAcrossFlatsMm: nutAF, measured: true } });
     const r = build(def);
-    const top = def.base.heightMm;
+    const seatZ = r.metrics.fit.floorTopZ - LAMP_GEOMETRY.holderSeatDepthMm;
     const radiiAt = (z) => { const s = new Set(); const p = r.indexed.base.positions; for (let i = 0; i < p.length; i += 3) if (Math.abs(p[i + 2] - z) < 1e-3) s.add(Math.round(Math.hypot(p[i], p[i + 1]) * 100) / 100); return s; };
-    assert.ok([...radiiAt(top - 2)].some((x) => Math.abs(x - (bodyD / 2 + 0.5)) < 0.05), `asiento Ø${bodyD}`);
-    assert.ok([...radiiAt(top - 3)].some((x) => Math.abs(x - (thread / 2 + 0.6)) < 0.05), `agujero Ø${thread}`);
+    assert.ok([...radiiAt(seatZ)].some((x) => Math.abs(x - (bodyD / 2 + LAMP_GEOMETRY.holderFitClearanceMm)) < 0.05), `asiento Ø${bodyD}`);
+    assert.ok([...radiiAt(seatZ)].some((x) => Math.abs(x - (fixingD / 2 + LAMP_GEOMETRY.fixingHoleClearanceMm)) < 0.05), `agujero Ø${fixingD}`);
+    // alojamiento hexagonal de la tuerca: sus vértices están a (entre caras + holgura)/2 / cos 30°
+    const ceiling = seatZ - r.metrics.fit.fixingWebMm;
+    const corner = (nutAF + 2 * LAMP_GEOMETRY.nutPocketClearanceMm) / 2 / Math.cos(Math.PI / 6);
+    assert.ok([...radiiAt(ceiling)].some((x) => Math.abs(x - corner) < 0.05), `alojamiento hexagonal de la tuerca ${nutAF}`);
   }
 });
 
-test("base: espacio para el cableado — canal inferior libre hacia el borde (+X) y pared maciza del lado opuesto", () => {
+test("base: la espiga llega a la tuerca — el techo del alojamiento deja espesor suficiente y la punta no toca la mesa (causa del fallo de la base anterior)", () => {
+  const g = LAMP_GEOMETRY;
+  for (const fixingLengthMm of [12, 14, 22, 30]) {
+    const def = lamp({}, { holder: { ...DEFAULT_LAMP.holder, fixingLengthMm } });
+    const r = build(def);
+    const web = r.metrics.fit.fixingWebMm;
+    const seatZ = r.metrics.fit.floorTopZ - g.holderSeatDepthMm;
+    assert.ok(web >= g.fixingWebMinMm - 1e-9 && web <= g.fixingWebMaxMm + 1e-9, `espesor de apoyo ${web}`);
+    // la espiga atraviesa el apoyo y la tuerca entera y todavía sobra el margen
+    assert.ok(fixingLengthMm - web - def.holder.nutThicknessMm >= g.fixingTipMarginMm - 1e-9, `largo ${fixingLengthMm}: la tuerca no agarra la espiga completa`);
+    // la punta (a `fixingLengthMm` bajo la cara de apoyo) queda sobre la mesa
+    assert.ok(seatZ - fixingLengthMm >= g.fixingTipMarginMm - 1e-9);
+  }
+  // espiga demasiado corta para la tuerca: NO se inventa un piso más fino, se informa
+  const short = createLamp(lamp({}, { holder: { ...DEFAULT_LAMP.holder, fixingLengthMm: 8 } }));
+  assert.ok(short.geometry === null);
+  assert.ok(short.errors.some((e) => e.code === "FIXING_TOO_SHORT" && /espiga/.test(e.message)));
+});
+
+test("base: montaje con dos tornillos — agujeros, tuercas hexagonales y paso central de cable", () => {
+  const def = lamp({}, { holder: { ...DEFAULT_LAMP.holder, mount: "screws", fixingDiameterMm: 4, fixingLengthMm: 14, nutAcrossFlatsMm: 7, nutThicknessMm: 3.2, screwSpacingMm: 40, measured: true } });
+  const r = build(def);
+  assertWatertight(r.indexed.base, "base con tornillos");
+  const seatZ = r.metrics.fit.floorTopZ - LAMP_GEOMETRY.holderSeatDepthMm;
+  // dos agujeros a ±20 mm del eje sobre Y: un rayo vertical que sube por ellos no cruza el piso entre el techo del alojamiento y el asiento
+  for (const y of [-20, 20]) assert.equal(rayCrossings(r.indexed.base, [0, y, -1], [0, 0, 1], seatZ + 0.5), 0, `agujero del tornillo en y=${y}`);
+  // y entre ambos agujeros (y = 10) el piso es macizo
+  assert.ok(rayCrossings(r.indexed.base, [8, 12, -1], [0, 0, 1], seatZ) >= 1);
+  // se rechaza una separación que deja los tornillos fuera del faldón o encima del paso del cable
+  assert.ok(createLamp({ ...def, holder: { ...def.holder, screwSpacingMm: 60 } }).errors.some((e) => e.code === "SCREWS_OUTSIDE_BODY"));
+  assert.ok(createLamp({ ...def, holder: { ...def.holder, screwSpacingMm: 20, nutAcrossFlatsMm: 12 } }).errors.some((e) => e.code === "SCREWS_OVERLAP"));
+});
+
+test("base: espacio para el cableado — canal inferior libre hacia el borde (+X), ranuras del precinto y pared maciza del lado opuesto", () => {
   const def = lamp();
   const r = build(def);
   const R = r.metrics.fit.baseDiameterMm / 2;
   const z = 3;
   assert.equal(rayCrossings(r.indexed.base, [0, 0, z], [1, 0, 0]), 0, "el canal debería estar libre hasta el borde");
   assert.ok(rayCrossings(r.indexed.base, [0, 0, z], [-1, 0, 0]) >= 1, "del lado opuesto hay pared");
-  // agujero pasante central: un rayo vertical desde abajo atraviesa solo el asiento superior si está en el eje
-  assert.equal(rayCrossings(r.indexed.base, [0, 0, -1], [0, 0, 1], R), 0, "el eje queda libre de lado a lado");
+  // agujero pasante central de la espiga: un rayo vertical desde abajo por el eje atraviesa solo el alojamiento y el agujero hasta la cavidad
+  assert.equal(rayCrossings(r.indexed.base, [0, 0, -1], [0, 0, 1], r.metrics.fit.baseHeightMm), 0, "el eje queda libre de lado a lado");
   // alojamiento de la tuerca más ancho que el agujero
   assert.ok(rayCrossings(r.indexed.base, [0, 0, 2], [0, 1, 0]) >= 1);
+  // precinto: las ranuras laterales atraviesan el piso a ambos lados del canal
+  const layout = validateLamp(def).layout;
+  assert.ok(layout.tie, "hay lugar para las ranuras del precinto");
+  for (const sign of [-1, 1]) assert.equal(rayCrossings(r.indexed.base, [layout.tie.x, sign * (layout.tie.y0 + 0.9), -1], [0, 0, 1], layout.floorTopZ), 0, "ranura libre de lado a lado");
+  const noTie = build(lamp({}, { cable: { ...DEFAULT_LAMP.cable, tieAnchor: false } }));
+  assert.equal(rayCrossings(noTie.indexed.base, [layout.tie.x, layout.tie.y0 + 0.9, -1], [0, 0, 1], layout.floorTopZ) >= 1, true, "sin precinto no hay ranura");
+  assert.ok(R > 50);
 });
 
-test("base: apoyos y ventilación — la pantalla queda elevada y entre apoyo y apoyo hay paso de aire", () => {
+test("base: ventilación — ventanas al nivel del piso que dejan pasar el aire de afuera hacia la cavidad", () => {
   const def = lamp();
   const r = build(def);
   const fit = r.metrics.fit;
-  assert.ok(Math.abs(fit.shadeBottomZ - (def.base.heightMm + def.base.ventGapMm)) < 1e-9);
-  const zMid = def.base.heightMm + def.base.ventGapMm / 2;
-  const ro = fit.insertOuterDiameterMm / 2;
+  const z = fit.floorTopZ + 3;
   const dir = (deg) => [Math.cos((deg * Math.PI) / 180), Math.sin((deg * Math.PI) / 180), 0];
-  const start = (deg) => [(ro + def.insert.clearanceMm + 0.1) * dir(deg)[0], (ro + def.insert.clearanceMm + 0.1) * dir(deg)[1], zMid];
-  assert.equal(rayCrossings(r.indexed.base, start(60), dir(60)), 0, "entre apoyos hay luz");
-  assert.ok(rayCrossings(r.indexed.base, start(30), dir(30)) >= 2, "en el apoyo el aire no pasa");
+  const n = def.base.ventSlots;
+  for (let k = 0; k < n; k++) assert.equal(rayCrossings(r.indexed.base, [0, 0, z], dir((360 / n) * (k + 0.5))), 0, `ventana ${k} libre hasta el exterior`);
+  for (let k = 0; k < n; k++) assert.ok(rayCrossings(r.indexed.base, [0, 0, z], dir((360 / n) * k)) >= 1, `entre ventanas (${k}) hay pared`);
+  // sin ventanas: pared continua
+  const none = build(lamp({}, { base: { ...DEFAULT_LAMP.base, ventSlots: 0 } }));
+  for (const deg of [0, 30, 77, 200]) assert.ok(rayCrossings(none.indexed.base, [0, 0, z], dir(deg)) >= 1);
+  assert.ok(createLamp(lamp({}, { base: { ...DEFAULT_LAMP.base, ventSlots: 13 } })).errors.some((e) => e.field === "base.ventSlots"));
 });
 
-test("unión pantalla–base: la pantalla apoya por su diámetro EXTERIOR (centrado independiente del espesor real del modo vaso) con holgura fija", () => {
+test("tope de enroscado: la cara plana del cuello apoya en un escalón plano de la base (sin pasar de largo) y no invade la rosca hembra", () => {
   const def = lamp();
   const r = build(def);
-  const R0 = def.shade.bottomDiameterMm / 2;
-  const top = def.base.heightMm + def.base.ventGapMm;
-  const lipRadii = new Set();
-  const p = r.indexed.base.positions;
-  for (let i = 0; i < p.length; i += 3) if (p[i + 2] > top + 1 && p[i + 2] <= top + LAMP_GEOMETRY.lipHeightMm) lipRadii.add(Math.round(Math.hypot(p[i], p[i + 1]) * 1000) / 1000);
-  const minLip = Math.min(...lipRadii);
-  assert.ok(Math.abs(minLip - (R0 + LAMP_GEOMETRY.shadeFitClearanceMm)) < 0.02, `aro de centrado ${minLip} vs ${R0 + 0.4}`);
-  // el borde inferior de la pantalla es plano y circular (collar recto): todos los vértices del borde a z de la pantalla tienen radio R0 o R0 - pared
+  const layout = validateLamp(def).layout;
+  const spec = layout.spec;
+  const sb = indexedBounds(r.indexed.shade);
+  assert.ok(Math.abs(sb.minZ - layout.ledgeZ) < 1e-6, "el cuello apoya a la altura del tope");
+  // el anillo inferior del cuello: radio interior = orificio de la cavidad, exterior = raíz de la rosca
+  const bottomRadii = new Set();
   const sp = r.indexed.shade.positions;
-  const radii = new Set();
-  for (let i = 0; i < sp.length; i += 3) if (Math.abs(sp[i + 2] - top) < 1e-6) radii.add(Math.round(Math.hypot(sp[i], sp[i + 1]) * 100) / 100);
-  assert.deepEqual([...radii].sort(), [R0 - def.shade.wallMm, R0].sort());
-  // la base es más ancha que el aro de centrado
-  assert.ok(r.metrics.fit.baseDiameterMm / 2 > R0 + LAMP_GEOMETRY.shadeFitClearanceMm + LAMP_GEOMETRY.lipWidthMm + 3);
+  for (let i = 0; i < sp.length; i += 3) if (Math.abs(sp[i + 2] - layout.ledgeZ) < 1e-6) bottomRadii.add(Math.round(Math.hypot(sp[i], sp[i + 1]) * 100) / 100);
+  assert.deepEqual([...bottomRadii].sort((a, b) => a - b), [Math.round(spec.boreR * 100) / 100, Math.round(spec.rootR * 100) / 100]);
+  // la base: el escalón del tope tiene la cavidad (boreR) hacia adentro y el vacío roscado (>= raíz + holgura) hacia afuera
+  const baseRadii = new Set();
+  const bp = r.indexed.base.positions;
+  for (let i = 0; i < bp.length; i += 3) if (Math.abs(bp[i + 2] - layout.ledgeZ) < 1e-6) baseRadii.add(Math.hypot(bp[i], bp[i + 1]));
+  assert.ok([...baseRadii].some((x) => Math.abs(x - spec.boreR) < 0.02));
+  assert.ok(Math.min(...[...baseRadii].filter((x) => x > spec.boreR + 0.5)) >= spec.rootR + spec.clearance - 0.02);
+  // la cara inferior del cuello cabe entera sobre el escalón (apoyo parejo)
+  assert.ok(spec.rootR < Math.min(...[...baseRadii].filter((x) => x > spec.boreR + 0.5)));
+  // y la pantalla no puede bajar más: sobre el escalón hay base debajo
+  assert.ok(rayCrossings(r.indexed.base, [(spec.boreR + spec.rootR) / 2, 0.3, layout.ledgeZ - 5], [0, 0, 1], 10) >= 1);
 });
 
-test("base demasiado chica, baja o con portalámparas que choca con el inserto: errores claros", () => {
-  assert.ok(createLamp(lamp({}, { base: { ...DEFAULT_LAMP.base, diameterMm: 130 } })).errors.some((e) => e.code === "BASE_TOO_SMALL"));
-  assert.ok(createLamp(lamp({}, { base: { ...DEFAULT_LAMP.base, heightMm: 25 }, holder: { ...DEFAULT_LAMP.holder, nutRecessDepthMm: 18 } })).errors.some((e) => e.code === "BASE_TOO_LOW"));
-  // portalámparas ancho + inserto manual angosto: el inserto quedaría a menos de la separación de diseño del cuerpo del portalámparas
-  assert.ok(createLamp(lamp({}, { holder: { ...DEFAULT_LAMP.holder, bodyDiameterMm: 80 }, insert: { ...DEFAULT_LAMP.insert, diameterMm: 100 } })).errors.some((e) => e.code === "INSERT_TOO_CLOSE_TO_BULB"));
-  // un portalámparas ancho pero con inserto automático grande SÍ entra (el motor no inventa errores)
-  assert.equal(createLamp(lamp({}, { holder: { ...DEFAULT_LAMP.holder, bodyDiameterMm: 80 } })).errors.length, 0);
-  const unstable = createLamp(lamp({ topDiameterMm: 300, amplitudeMm: 3, profile: "straight" }, { base: { ...DEFAULT_LAMP.base, diameterMm: 150 } }));
-  assert.equal(unstable.errors.length, 0);
+test("base demasiado chica, ancha de más o inestable: errores y avisos claros", () => {
+  assert.ok(createLamp(lamp({}, { base: { ...DEFAULT_LAMP.base, diameterMm: 100 } })).errors.some((e) => e.code === "BASE_TOO_SMALL"));
+  // portalámparas ancho con una rosca angosta: no entra con holgura en la cavidad -> se informa, no se agranda nada en silencio
+  const tightThread = createLamp(lamp({}, { thread: { ...DEFAULT_LAMP.thread, majorDiameterMm: 80 }, holder: { ...DEFAULT_LAMP.holder, bodyDiameterMm: 80 } }));
+  assert.ok(tightThread.errors.some((e) => e.code === "HOLDER_WIDER_THAN_CAVITY"));
+  // con la rosca estándar el mismo portalámparas entra, pero el inserto que respeta la separación ya no cabe en el cuello: se informa con cifras
+  const wideHolder = createLamp(lamp({}, { holder: { ...DEFAULT_LAMP.holder, bodyDiameterMm: 80 } }));
+  assert.ok(wideHolder.errors.some((e) => e.code === "INSERT_DOES_NOT_FIT" && /\d+(,\d)? mm/.test(e.message)));
+  // con una rosca más ancha (y una pantalla acorde) el mismo portalámparas SÍ entra: el motor no inventa errores
+  const wide = createLamp(lamp({ bottomDiameterMm: 170, topDiameterMm: 170 }, { thread: { ...DEFAULT_LAMP.thread, majorDiameterMm: 130 }, holder: { ...DEFAULT_LAMP.holder, bodyDiameterMm: 80 } }));
+  assert.equal(wide.errors.length, 0, JSON.stringify(wide.errors.map((e) => e.code)));
+  const unstable = createLamp(lamp({ topDiameterMm: 300, amplitudeMm: 3, profile: "straight" }, { base: { ...DEFAULT_LAMP.base, diameterMm: 140 } }));
+  assert.equal(unstable.errors.length, 0, JSON.stringify(unstable.errors.map((e) => e.code)));
   assert.ok(unstable.warnings.some((w) => w.code === "BASE_STABILITY"));
 });
 
@@ -541,7 +603,7 @@ test("base E27 preliminar: sin medidas reales se identifica como NO VALIDADA en 
 
 // ------------------------------------------------------------------ modo vaso
 test("modo vaso: el informe usa la pendiente REAL de la pared (campo ≈ malla) y no se declara apta por tener pared fina", () => {
-  for (const def of [lamp(), lamp({ twistDeg: 700, waves: 6, amplitudeMm: 8 }), CASES["perfil orgánico"]]) {
+  for (const def of [lampCollar(), lampCollar({ twistDeg: 700, waves: 6, amplitudeMm: 8 }), lampCollar({ family: "organic", organicPct: 90, waves: 6, amplitudeMm: 8, seed: 31337, profile: "tulip", profileAmountPct: 70, topDiameterMm: 200 })]) {
     const r = build(def);
     let meshTilt = 0;
     for (const [a, b, c] of triangles(r.indexed.shade)) {
@@ -557,11 +619,16 @@ test("modo vaso: el informe usa la pendiente REAL de la pared (campo ≈ malla) 
     assert.ok(Math.abs(meshTilt - r.metrics.shade.vase.maxOverhangDeg) < 3, `malla ${meshTilt.toFixed(1)}° vs informe ${r.metrics.shade.vase.maxOverhangDeg}°`);
     assert.equal(r.metrics.shade.vase.ready, r.metrics.shade.vase.maxOverhangDeg <= LAMP_GEOMETRY.vaseMaxOverhangDeg);
   }
-  const thin = lamp({ twistDeg: 1440, amplitudeMm: 12, wallMm: 0.8 });
+  const thin = lampCollar({ twistDeg: 1440, amplitudeMm: 12, wallMm: 0.8 });
   const r = build(thin);
   assert.equal(r.metrics.shade.vase.ready, false, "pared fina pero pendiente excesiva: NO es modo vaso");
   assert.ok(r.warnings.some((w) => w.code === "SHADE_NOT_VASE"));
-  assert.ok(build(lamp()).metrics.shade.vase.ready);
+  assert.ok(build(lampCollar()).metrics.shade.vase.ready);
+  // con la rosca integrada la pantalla lleva paredes macizas: NO se declara apta para modo vaso, aunque su pendiente sea suave
+  const integrated = build(lamp());
+  assert.equal(integrated.metrics.shade.vase.ready, false);
+  assert.match(integrated.metrics.shade.vase.reasons[0], /collar/);
+  assert.ok(!integrated.warnings.some((w) => w.code === "SHADE_NOT_VASE"), "no se avisa algo que el usuario no pidió");
 });
 
 // ------------------------------------------------------------------ presets y variaciones
@@ -570,18 +637,19 @@ test("presets: nueve diseños iniciales válidos, distintos entre sí, aptos par
   const sigs = new Set();
   for (const preset of LAMP_PRESETS) {
     for (const size of [{ heightMm: 160, bottomDiameterMm: 130 }, {}, { heightMm: 260, bottomDiameterMm: 170 }]) {
-      const def = applyLampPreset(lamp(size), preset);
+      const def = applyLampPreset(lampCollar(size), preset);
       assert.equal(def.shade.heightMm, lamp(size).shade.heightMm);
       assert.equal(def.shade.bottomDiameterMm, lamp(size).shade.bottomDiameterMm);
       assert.deepEqual(def.insert, DEFAULT_LAMP.insert);
       assert.deepEqual(def.base, DEFAULT_LAMP.base);
+      assert.deepEqual(def.thread, { ...DEFAULT_LAMP.thread, connection: "collar" }, "un diseño inicial no toca la interfaz roscada");
       const r = createLamp(def);
       assert.equal(r.errors.length, 0, `${preset.id} ${JSON.stringify(size)}: ${JSON.stringify(r.errors.map((e) => e.code))}`);
       assert.ok(r.metrics.shade.vase.ready, `${preset.id}: no apto para modo vaso (${r.metrics.shade.vase.maxOverhangDeg}°)`);
     }
     sigs.add(JSON.stringify(applyLampPreset(lamp(), preset).shade));
     // con un diámetro inferior chico un diseño puede no alojar el inserto: se informa, pero nunca hay un error de geometría
-    const small = createLamp(applyLampPreset(lamp({ bottomDiameterMm: 112 }), preset));
+    const small = createLamp(applyLampPreset(lamp({ bottomDiameterMm: 100 }), preset));
     assert.ok(small.errors.every((e) => e.code === "INSERT_DOES_NOT_FIT"), `${preset.id}: ${JSON.stringify(small.errors.map((e) => e.code))}`);
   }
   assert.equal(sigs.size, LAMP_PRESETS.length);
@@ -616,10 +684,11 @@ test("variación: reproducible (misma semilla y base = mismo diseño y mismas ma
 
 test("variaciones aleatorias (24): mallas cerradas, sin degenerados, pendiente imprimible, inserto compatible, y editables después", () => {
   for (let i = 0; i < 24; i++) {
-    const { def } = generateLampVariation(DEFAULT_LAMP, 424242 + i * 104729);
+    const { def } = generateLampVariation(lampCollar(), 424242 + i * 104729);
     const r = createLamp(def);
     assert.equal(r.errors.length, 0, `variación ${i}: ${JSON.stringify(r.errors.map((e) => e.code))}`);
-    for (const m of [r.indexed.shade, r.indexed.insert, r.indexed.base]) assertWatertight(m, `variación ${i}`);
+    for (const m of [r.indexed.shade, r.indexed.insert, r.indexed.base, r.indexed.collar]) assertWatertight(m, `variación ${i}`);
+    assert.deepEqual(def.thread, lampCollar().thread, "la variación no toca la interfaz roscada");
     assert.ok(r.metrics.shade.maxTiltDeg <= LAMP_GEOMETRY.vaseMaxOverhangDeg - 5 + 1e-9);
     assert.ok(r.metrics.shade.vase.ready);
     // el usuario puede seguir editando: un ajuste posterior sigue siendo una definición válida
@@ -644,15 +713,16 @@ test("rendimiento: tiempo de generación y tamaño de malla medidos; el cache ev
   const first = build(lamp());
   const cold = performance.now() - t0;
   console.log(`[lamparas] defecto: ${first.metrics.totalTriangles} triángulos (pantalla ${first.metrics.shade.triangleCount}, inserto ${first.metrics.insert.triangleCount}, base ${first.metrics.base.triangleCount}), ${cold.toFixed(0)} ms en frío`);
-  assert.ok(first.metrics.totalTriangles < 140_000);
-  assert.ok(first.metrics.shade.triangleCount <= LAMP_GEOMETRY.maxShadeTriangles + 2 * 4 * 384);
+  assert.ok(first.metrics.totalTriangles < 180_000);
+  // presupuesto de la parte decorativa + el cuello roscado (≈ 2 × nTheta × filas de rosca, ≈ 4 × nTheta × 120 con margen)
+  assert.ok(first.metrics.shade.triangleCount <= LAMP_GEOMETRY.maxShadeTriangles + 4 * 384 * 120);
   assert.ok(cold < 8000, `generación en frío ${cold} ms`);
   const sizes = [];
   for (const [name, def] of Object.entries(CASES)) {
     const t = performance.now();
     const r = build(def);
     sizes.push(`${name}: ${r.metrics.totalTriangles} tri, ${(performance.now() - t).toFixed(0)} ms`);
-    assert.ok(r.metrics.totalTriangles < 160_000, `${name}: malla demasiado densa`);
+    assert.ok(r.metrics.totalTriangles < 330_000, `${name}: malla demasiado densa`);
   }
   console.log("[lamparas] " + sizes.join(" | "));
 
@@ -668,7 +738,7 @@ test("rendimiento: tiempo de generación y tamaño de malla medidos; el cache ev
   assert.ok(thick.geometry.parts[2].mesh === first2.geometry.parts[2].mesh, "pantalla reutilizada al cambiar el inserto");
   assert.ok(thick.geometry.parts[1].mesh !== first2.geometry.parts[1].mesh);
   // solo la pantalla: el inserto se regenera porque su diámetro depende de la pantalla (automático), la base no si el diámetro no cambia
-  const manual = { ...DEFAULT_LAMP, insert: { ...DEFAULT_LAMP.insert, diameterMm: 110 } };
+  const manual = { ...DEFAULT_LAMP, insert: { ...DEFAULT_LAMP.insert, diameterMm: 80 } };
   const m1 = build(manual);
   const m2 = build({ ...manual, shade: { ...manual.shade, amplitudeMm: 5 } });
   assert.ok(m2.geometry.parts[1].mesh === m1.geometry.parts[1].mesh, "inserto manual no se regenera");
@@ -710,7 +780,8 @@ test("exportación STL: tres archivos con exactamente las mallas del visor (mism
   assert.ok(Math.abs(minZ) < 1e-5 && Math.abs(maxZ - (vb.maxZ - vb.minZ)) < 1e-4);
   // dimensiones reales: la pantalla exportada mide lo que dice el diseño
   const shadeB = r.metrics.shade.boundingBox;
-  assert.ok(Math.abs(shadeB.height - def.shade.heightMm) < 1e-6);
+  assert.ok(Math.abs(shadeB.height - (r.metrics.fit.shadeTopZ - r.metrics.fit.shadeBottomZ)) < 1e-6, "la pantalla mide cuello + transición + altura del diseño");
+  assert.ok(Math.abs(r.metrics.fit.shadeTopZ - r.metrics.fit.decorBottomZ - def.shade.heightMm) < 1e-9, "la parte decorativa mide la altura pedida");
   assert.ok(shadeB.width >= def.shade.bottomDiameterMm && shadeB.width <= def.shade.bottomDiameterMm * 1.6);
   assert.equal(lampEntryForKind(r, "lampShade").fileName, "lampara_pantalla.stl");
 });
@@ -748,8 +819,9 @@ test("visor = exportación: orientación de impresión, explosión y Vista Cama 
   assert.ok("lampShade" in PRINT_TRANSFORM_BY_KIND && "lampInsert" in PRINT_TRANSFORM_BY_KIND);
   assert.equal(PRINT_TRANSFORM_BY_KIND.lampInsert.rotationYDeg, 180);
   assert.equal(PRINT_TRANSFORM_BY_KIND.lampShade.rotationYDeg, 0);
-  // orden de armado: base (ancla) -> inserto -> pantalla
-  assert.deepEqual([PART_ASSEMBLY_LAYER.body, PART_ASSEMBLY_LAYER.lampInsert, PART_ASSEMBLY_LAYER.lampShade], [0, 1, 2]);
+  // orden de armado: base (ancla) -> inserto -> collar -> pantalla
+  assert.deepEqual([PART_ASSEMBLY_LAYER.body, PART_ASSEMBLY_LAYER.lampInsert, PART_ASSEMBLY_LAYER.lampCollar, PART_ASSEMBLY_LAYER.lampShade], [0, 1, 2, 3]);
+  assert.equal(PRINT_TRANSFORM_BY_KIND.lampCollar.rotationYDeg, 0, "el collar se imprime con el cuello roscado sobre la cama");
   const ranks = computeExplodeRanks(r.geometry.parts.map((p) => p.kind));
   assert.equal(ranks.get("lampInsert"), 1);
   assert.equal(ranks.get("lampShade"), 2);
@@ -779,7 +851,12 @@ test("código del diseño: ida y vuelta exacta (incluida la semilla), tolerante 
   assert.equal(tolerant.shade.heightMm, 9999);
   assert.equal(tolerant.insert.previewColor, DEFAULT_LAMP.insert.previewColor);
   assert.ok(createLamp(tolerant).errors.some((e) => e.field === "shade.heightMm"));
-  assert.equal(normalizeLampDefinition(null).version, 1);
+  assert.equal(normalizeLampDefinition(null).version, 2);
+  // códigos de la primera versión (sin interfaz roscada, con espiga en threadDiameterMm) se leen completando lo que falta
+  const legacy = normalizeLampDefinition({ version: 1, shade: { heightMm: 150 }, holder: { threadDiameterMm: 13, bodyDiameterMm: 50 }, base: { heightMm: 36, ventGapMm: 3 } });
+  assert.equal(legacy.holder.fixingDiameterMm, 13);
+  assert.deepEqual(legacy.thread, DEFAULT_LAMP.thread);
+  assert.equal(legacy.base.ventSlots, DEFAULT_LAMP.base.ventSlots);
 });
 
 test("límites: cada campo numérico fuera de rango se rechaza con su propio campo, sin tocar geometría", () => {
@@ -799,6 +876,7 @@ test("seguridad: avisos siempre presentes, sin contactos eléctricos ni cableado
   assert.ok(r.warnings.some((w) => w.code === "PHYSICAL_VALIDATION_PENDING"));
   // el engine no genera ninguna pieza eléctrica: solo pantalla, inserto y base
   assert.deepEqual(r.geometry.parts.map((p) => p.kind), ["body", "lampInsert", "lampShade"]);
+  assert.deepEqual(build(lampCollar()).geometry.parts.map((p) => p.kind), ["body", "lampInsert", "lampCollar", "lampShade"]);
   const safety = read("lib/maker/lamps/safety.ts");
   assert.match(safety, /No hay datos verificados de temperatura/);
   assert.match(safety, /NO una distancia térmicamente segura/);
@@ -824,16 +902,16 @@ test("disponibilidad: Lámparas es Beta / solo administradores y la ruta se prot
 });
 
 // ------------------------------------------------------------------ UI
-test("UI: panel con las seis etapas, botón Generar variación, selector de color, avisos de seguridad y descargas por pieza", () => {
+test("UI: panel con las seis etapas (inserto, rosca, base), botón Generar variación, selector de color, avisos de seguridad y descargas por pieza", () => {
   const { MakerLampControls, LampExportButtons } = loadTs("src/components/maker/MakerLampControls.tsx", { "next/link": { __esModule: true, default: (props) => createElement("a", props) }, "opentype.js": {} });
   const r = createLamp(DEFAULT_LAMP);
   const html = renderToStaticMarkup(
     createElement(MakerLampControls, {
       def: DEFAULT_LAMP, onChange() {}, onApplyPreset() {}, onGenerateVariation() {}, onLoadDesign() {}, onError() {},
-      errors: r.errors, warnings: r.warnings, metrics: r.metrics, exportButtons: createElement(LampExportButtons, { hasInsert: true, canDownload: true, busy: null, onDownloadPart() {}, onDownloadZip() {}, holderMeasured: false }),
+      errors: r.errors, warnings: r.warnings, metrics: r.metrics, exportButtons: createElement(LampExportButtons, { hasInsert: true, hasCollar: true, canDownload: true, canDownloadTests: true, busy: null, onDownloadPart() {}, onDownloadZip() {}, onDownloadTests() {}, holderMeasured: false }),
     }),
   );
-  for (const text of ["1 · Diseño inicial", "Generar variación", "2 · Altura y diámetro", "3 · Ondas y torsión", "4 · Inserto de color", "Opciones avanzadas", "Pendiente de validación física", "NO VALIDADA", "Medidas que tenés que verificar", "Pruebas físicas antes de usarla", "Pantalla (STL)", "Inserto (STL)", "Base preliminar (STL)", "Todo en un ZIP", "Código del diseño"]) {
+  for (const text of ["1 · Diseño inicial", "Generar variación", "2 · Altura y diámetro", "3 · Ondas y torsión", "4 · Inserto de color", "Opciones avanzadas", "Pendiente de validación física", "NO VALIDADA", "Medidas que tenés que verificar", "Pruebas físicas antes de usarla", "Pantalla (STL)", "Collar roscado (STL)", "Inserto (STL)", "Base preliminar (STL)", "Todo en un ZIP", "Piezas de prueba (ZIP)", "Código del diseño", "5 · Unión pantalla–base (rosca)", "6 · Base y portalámparas E27", "Holguras del ensamblaje", "Parámetros de la rosca", "Ranuras para precinto"]) {
     assert.ok(html.includes(text), `falta "${text}"`);
   }
   assert.equal((html.match(/role="radio"/g) ?? []).length, 9, "nueve colores de referencia (el selector libre no es un radio)");
@@ -854,9 +932,10 @@ test("visor: props opcionales zUp / hiddenKinds / partColors, sin tocar el compo
   const viewport = read("components/maker/MakerViewport.tsx");
   assert.match(viewport, /zUp\?: boolean/);
   assert.match(viewport, /hiddenKinds\?:/);
+  assert.match(viewport, /sectionView\?: boolean/);
   assert.match(viewport, /partColors\?:/);
   // los valores por defecto conservan el comportamiento previo
-  assert.match(viewport, /zUp = false, hiddenKinds = null, partColors = null/);
+  assert.match(viewport, /zUp = false, hiddenKinds = null, partColors = null, sectionView = false/);
   for (const rel of ["app/stampa-maker/carteles/page.tsx", "app/stampa-maker/neon/page.tsx", "app/stampa-maker/jarros/page.tsx"]) assert.doesNotMatch(read(rel), /zUp|hiddenKinds|partColors/);
   const page = read("app/stampa-maker/lamparas/page.tsx");
   assert.match(page, /zUp/);

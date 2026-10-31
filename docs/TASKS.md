@@ -2,10 +2,13 @@
 
 Este archivo contiene únicamente trabajo pendiente o próximo. Eliminar tareas terminadas en lugar de conservar un historial infinito.
 
-## Now — Lámparas E27 0.1 (implementado 2026-10-30, Beta / solo admin, ver docs/STAMPA_MAKER.md §38)
+## Now — Lámparas E27 V1.1 (implementado 2026-10-31, Beta / solo admin, ver docs/STAMPA_MAKER.md §38.6–38.13)
 
-- [ ] **Medir el portalámparas E27 real** y cargar las medidas (diámetro del cuerpo, altura hasta el borde superior, sistema de fijación y su diámetro, tuerca/bornes, cable, bombilla): la base es PRELIMINAR - NO VALIDADA y solo contempla espiga roscada pasante con tuerca. Lista exacta en §38.7. Si el portalámparas no usa ese sistema, rediseñar la base.
-- [ ] Pruebas físicas antes de abrir la herramienta a todos los usuarios (§38.12): montaje en seco, encaje con el filamento real, prueba térmica con bombilla encendida (PLA/PETG, medida con instrumento), estabilidad, laminado real en modo vaso, revisión por persona calificada. Hasta entonces sigue `adminOnly` + Beta en `src/lib/maker/availability.ts`.
+- [ ] **Imprimir las piezas de prueba** («Piezas de prueba (ZIP)»: rosca macho + hembra y disco del portalámparas) con el filamento y la impresora reales y ajustar `thread.clearanceMm`. Es lo primero: valida el encastre sin imprimir la lámpara entera.
+- [ ] **Medir el portalámparas E27 real** y cargar las medidas (§38.8: diámetro máximo del faldón, altura, sistema de fijación y su diámetro, **cuánto sobresale la espiga o el tornillo**, tuerca entre caras y espesor, separación entre tornillos, cable, bombilla); marcar «mis medidas». La base sigue PRELIMINAR - NO VALIDADA y solo contempla espiga con tuerca o dos tornillos: otro sistema de fijación requiere ampliar `floorFeatures`.
+- [ ] **Laminar en Bambu Studio** cada pieza (orientación, sin soportes en la rosca y la transición de 45°, collar) y confirmar el modo vaso de la pantalla lisa (cómo trata el laminador la cara inferior en anillo). Nada del STL afirma compatibilidad con el laminador.
+- [ ] **Probar el collar** (pozo con 6 nervios de 0,6 mm): apriete, centrado y tirón con una pared real de modo vaso; decidir si hace falta adhesivo.
+- [ ] Montaje real en seco, prueba térmica con **bombilla LED** (PLA/PETG: no asumir seguridad), estabilidad y revisión por persona calificada antes de abrir la herramienta (§38.13). Hasta entonces sigue `adminOnly` + Beta en `src/lib/maker/availability.ts`.
 - [ ] QA manual con cuenta admin (escritorio y 375 px, claro/oscuro/automático): la ruta se probó solo con un arnés temporal.
 - [ ] Decidir si las lámparas se guardan como proyectos (hoy solo "código del diseño"): requeriría una migration que amplíe el CHECK de `maker_projects.source_type`; no incluida.
 

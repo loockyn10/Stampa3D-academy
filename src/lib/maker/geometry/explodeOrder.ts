@@ -34,9 +34,10 @@ export const PART_ASSEMBLY_LAYER: Record<PartKind, number> = {
   diffuser: 1,
   channelDiffuser: 1,
   mask: 2,
-  // Lámparas: base ("body", anclada) -> inserto -> pantalla.
+  // Lámparas: base ("body", anclada) -> inserto (sale por arriba) -> collar roscado -> pantalla.
   lampInsert: 1,
-  lampShade: 2,
+  lampCollar: 2,
+  lampShade: 3,
 };
 
 /**

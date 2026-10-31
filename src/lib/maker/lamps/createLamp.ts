@@ -1,9 +1,11 @@
 import type { LetterGeometryResult, SignPart, TriangleSoupData } from "@/lib/maker/types";
 import type { LampLayout } from "@/lib/maker/lamps/layout";
 import { createBaseMesh } from "@/lib/maker/lamps/parts/createBase";
+import { createCollarMesh } from "@/lib/maker/lamps/parts/createCollar";
 import { createInsertMesh } from "@/lib/maker/lamps/parts/createInsert";
 import { createShadeMesh } from "@/lib/maker/lamps/parts/createShade";
 import type { ShadeField } from "@/lib/maker/lamps/shade/surface";
+import { LAMP_GEOMETRY } from "@/lib/maker/lamps/types";
 import type { LampDefinition, LampMetrics, LampPartMetrics, LampResult } from "@/lib/maker/lamps/types";
 import { validateLamp } from "@/lib/maker/lamps/validation/validateLamp";
 import { analyzeMesh, indexedBounds, meshToSoup, type IndexedMesh } from "@/lib/maker/mugs/geometry/mesh";
@@ -23,7 +25,7 @@ interface BuiltPart {
  * Cache por pieza (LRU chico): cambiar el espesor del inserto no regenera la pantalla; cambiar el color no regenera
  * nada (el color no es geometría). Las claves incluyen todo lo que la pieza realmente usa, y nada más.
  */
-const MAX_CACHED_PARTS = 6;
+const MAX_CACHED_PARTS = 8;
 const partCache = new Map<string, BuiltPart>();
 
 function cached(key: string, build: () => BuiltPart): BuiltPart {
@@ -60,8 +62,13 @@ function finishPart(indexed: IndexedMesh): BuiltPart {
   };
 }
 
+/** La pantalla depende de su superficie, de la interfaz roscada y de su posición de ensamblado (la fase de la rosca sale de la z). */
 function shadePart(def: LampDefinition, field: ShadeField, layout: LampLayout): BuiltPart {
-  return cached(`shade|${JSON.stringify([def.shade, layout.shadeZ0])}`, () => finishPart(createShadeMesh(field, layout.shadeZ0)));
+  return cached(`shade|${JSON.stringify([def.shade, def.thread, layout.ledgeZ, layout.decorZ0])}`, () => finishPart(createShadeMesh(def, field, layout)));
+}
+
+function collarPart(def: LampDefinition, layout: LampLayout): BuiltPart {
+  return cached(`collar|${JSON.stringify([def.thread, def.shade.bottomDiameterMm, layout.ledgeZ])}`, () => finishPart(createCollarMesh(layout, LAMP_GEOMETRY.femaleSegments)));
 }
 
 function insertPart(def: LampDefinition, layout: LampLayout): BuiltPart {
@@ -74,15 +81,14 @@ function insertPart(def: LampDefinition, layout: LampLayout): BuiltPart {
 function basePart(def: LampDefinition, layout: LampLayout): BuiltPart {
   const key = JSON.stringify([
     def.base,
+    { ...def.thread, connection: "" }, // la base es la misma para la rosca integrada y para el collar
     def.holder,
     def.cable,
     layout.baseDiameterMm,
-    layout.collarOuterR,
-    layout.lipOuterR,
-    layout.holderR,
+    layout.floorTopZ,
+    layout.tie,
     layout.insert && { i: layout.insert.innerR, o: layout.insert.outerR },
     def.insert.clearanceMm,
-    def.shade.wallMm,
   ]);
   return cached(`base|${key}`, () => finishPart(createBaseMesh(def, layout)));
 }
@@ -99,9 +105,10 @@ export function createLamp(def: LampDefinition, opts: CreateLampOptions = {}): L
 
   const shade = shadePart(def, field, layout);
   const insert = layout.insert ? insertPart(def, layout) : null;
+  const collar = layout.collar ? collarPart(def, layout) : null;
   const base = basePart(def, layout);
 
-  for (const [name, part] of [["la pantalla", shade], ["el inserto", insert], ["la base", base]] as const) {
+  for (const [name, part] of [["la pantalla", shade], ["el inserto", insert], ["el collar", collar], ["la base", base]] as const) {
     if (part && !part.metrics.watertight) errors.push({ code: "MESH_NOT_WATERTIGHT", message: `La malla de ${name} no quedó cerrada: no se exporta. Cambiá levemente los parámetros.` });
   }
   if (errors.length > 0) return { geometry: null, indexed: null, metrics: null, errors, warnings };
@@ -109,9 +116,10 @@ export function createLamp(def: LampDefinition, opts: CreateLampOptions = {}): L
   const baseKind = "body" as const; // la base es la pieza ancla del ensamblado (capa 0), igual que el cuerpo de un cartel
   const parts: SignPart[] = [{ kind: baseKind, filenameSuffix: def.holder.measured ? "base" : "base_PRELIMINAR", mesh: base.soup }];
   if (insert) parts.push({ kind: "lampInsert", filenameSuffix: "inserto", mesh: insert.soup });
+  if (collar) parts.push({ kind: "lampCollar", filenameSuffix: "collar", mesh: collar.soup });
   parts.push({ kind: "lampShade", filenameSuffix: "pantalla", mesh: shade.soup });
 
-  const all = [base, insert, shade].filter((p): p is BuiltPart => p !== null);
+  const all = [base, insert, collar, shade].filter((p): p is BuiltPart => p !== null);
   let minX = Infinity, maxX = -Infinity, minY = Infinity, maxY = -Infinity, minZ = Infinity, maxZ = -Infinity;
   for (const p of all) {
     const b = indexedBounds(p.indexed);
@@ -140,12 +148,13 @@ export function createLamp(def: LampDefinition, opts: CreateLampOptions = {}): L
     maxDiameterMm: Math.max(bb.width, bb.depth),
     shade: { ...shade.metrics, vase, maxTiltDeg: field.maxTiltDeg, minRidgeRadiusMm: field.minRidgeRadiusMm },
     insert: insert ? { ...insert.metrics, vaseCapable: !def.insert.tabs && Math.round(def.insert.ventNotches) === 0 } : null,
+    collar: collar ? collar.metrics : null,
     base: base.metrics,
     totalTriangles,
     generationMs: (typeof performance !== "undefined" ? performance.now() : Date.now()) - started,
     fit: layout.fit,
   };
-  return { geometry, indexed: { base: base.indexed, insert: insert?.indexed ?? null, shade: shade.indexed }, metrics, errors, warnings };
+  return { geometry, indexed: { base: base.indexed, insert: insert?.indexed ?? null, collar: collar?.indexed ?? null, shade: shade.indexed }, metrics, errors, warnings };
 }
 
 /** Clave de la GEOMETRÍA de un diseño: el color de la vista previa no es geometría, así que no regenera mallas. */

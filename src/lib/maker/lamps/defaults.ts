@@ -1,14 +1,15 @@
-import type { LampBaseDef, LampBulbDef, LampCableDef, LampDefinition, LampHolderDef, LampInsertDef, LampShadeDef } from "@/lib/maker/lamps/types";
+import type { LampBaseDef, LampBulbDef, LampCableDef, LampDefinition, LampHolderDef, LampInsertDef, LampShadeDef, LampThreadDef } from "@/lib/maker/lamps/types";
 
 /**
  * Valores iniciales. Las medidas del portalámparas y de la bombilla son MARCADORES DE POSICIÓN (`holder.measured =
  * false`): no corresponden a ningún componente verificado. Hay que medir el portalámparas real antes de imprimir.
+ * La interfaz roscada (`DEFAULT_THREAD`) es propia de StampaMaker y es la misma para cualquier pantalla.
  */
 export const DEFAULT_SHADE: LampShadeDef = {
   family: "spiral",
-  heightMm: 200,
-  bottomDiameterMm: 130,
-  topDiameterMm: 150,
+  heightMm: 180,
+  bottomDiameterMm: 120,
+  topDiameterMm: 140,
   profile: "barrel",
   profileAmountPct: 30,
   waves: 9,
@@ -28,33 +29,46 @@ export const DEFAULT_INSERT: LampInsertDef = {
   heightPct: 85,
   thicknessMm: 0.8,
   clearanceMm: 0.8,
-  minBulbGapMm: 12,
+  minBulbGapMm: 8,
   tabs: true,
   ventNotches: 6,
   previewColor: "#e5483b",
 };
 
+export const DEFAULT_THREAD: LampThreadDef = {
+  connection: "integrated",
+  majorDiameterMm: 96,
+  pitchMm: 5,
+  starts: 2,
+  engagementMm: 15,
+  clearanceMm: 0.4,
+  coreWallMm: 3,
+};
+
 export const DEFAULT_BASE: LampBaseDef = {
   diameterMm: null,
-  heightMm: 36,
-  ventGapMm: 3,
+  ventSlots: 6,
 };
 
 export const DEFAULT_HOLDER: LampHolderDef = {
   measured: false,
+  mount: "stem",
   bodyDiameterMm: 45,
   heightMm: 55,
-  threadDiameterMm: 10,
-  nutRecessDiameterMm: 24,
-  nutRecessDepthMm: 9,
+  fixingDiameterMm: 10,
+  fixingLengthMm: 14,
+  nutAcrossFlatsMm: 17,
+  nutThicknessMm: 8,
+  screwSpacingMm: 40,
 };
 
 export const DEFAULT_BULB: LampBulbDef = { diameterMm: 60, heightAboveHolderMm: 85 };
-export const DEFAULT_CABLE: LampCableDef = { diameterMm: 7 };
+export const DEFAULT_CABLE: LampCableDef = { diameterMm: 7, tieAnchor: true };
 
 export const DEFAULT_LAMP: LampDefinition = {
-  version: 1,
+  version: 2,
   shade: DEFAULT_SHADE,
+  thread: DEFAULT_THREAD,
   insert: DEFAULT_INSERT,
   base: DEFAULT_BASE,
   holder: DEFAULT_HOLDER,
@@ -95,12 +109,13 @@ export function normalizeLampDefinition(input: unknown): LampDefinition {
   const root = isRecord(input) ? input : {};
   const s = isRecord(root.shade) ? root.shade : {};
   const i = isRecord(root.insert) ? root.insert : {};
+  const t = isRecord(root.thread) ? root.thread : {};
   const b = isRecord(root.base) ? root.base : {};
   const h = isRecord(root.holder) ? root.holder : {};
   const bu = isRecord(root.bulb) ? root.bulb : {};
   const c = isRecord(root.cable) ? root.cable : {};
   return {
-    version: 1,
+    version: 2,
     shade: {
       family: typeof s.family === "string" && FAMILIES.has(s.family) ? (s.family as LampShadeDef["family"]) : DEFAULT_SHADE.family,
       heightMm: num(s.heightMm, DEFAULT_SHADE.heightMm),
@@ -118,6 +133,15 @@ export function normalizeLampDefinition(input: unknown): LampDefinition {
       wallMm: num(s.wallMm, DEFAULT_SHADE.wallMm),
       collarHeightMm: num(s.collarHeightMm, DEFAULT_SHADE.collarHeightMm),
     },
+    thread: {
+      connection: t.connection === "collar" ? "collar" : "integrated",
+      majorDiameterMm: num(t.majorDiameterMm, DEFAULT_THREAD.majorDiameterMm),
+      pitchMm: num(t.pitchMm, DEFAULT_THREAD.pitchMm),
+      starts: num(t.starts, DEFAULT_THREAD.starts),
+      engagementMm: num(t.engagementMm, DEFAULT_THREAD.engagementMm),
+      clearanceMm: num(t.clearanceMm, DEFAULT_THREAD.clearanceMm),
+      coreWallMm: num(t.coreWallMm, DEFAULT_THREAD.coreWallMm),
+    },
     insert: {
       enabled: bool(i.enabled, DEFAULT_INSERT.enabled),
       diameterMm: numOrNull(i.diameterMm, DEFAULT_INSERT.diameterMm),
@@ -131,21 +155,24 @@ export function normalizeLampDefinition(input: unknown): LampDefinition {
     },
     base: {
       diameterMm: numOrNull(b.diameterMm, DEFAULT_BASE.diameterMm),
-      heightMm: num(b.heightMm, DEFAULT_BASE.heightMm),
-      ventGapMm: num(b.ventGapMm, DEFAULT_BASE.ventGapMm),
+      ventSlots: num(b.ventSlots, DEFAULT_BASE.ventSlots),
     },
     holder: {
       measured: bool(h.measured, DEFAULT_HOLDER.measured),
+      mount: h.mount === "screws" ? "screws" : "stem",
       bodyDiameterMm: num(h.bodyDiameterMm, DEFAULT_HOLDER.bodyDiameterMm),
       heightMm: num(h.heightMm, DEFAULT_HOLDER.heightMm),
-      threadDiameterMm: num(h.threadDiameterMm, DEFAULT_HOLDER.threadDiameterMm),
-      nutRecessDiameterMm: num(h.nutRecessDiameterMm, DEFAULT_HOLDER.nutRecessDiameterMm),
-      nutRecessDepthMm: num(h.nutRecessDepthMm, DEFAULT_HOLDER.nutRecessDepthMm),
+      // Códigos de la primera versión usaban threadDiameterMm para la espiga.
+      fixingDiameterMm: num(h.fixingDiameterMm, num(h.threadDiameterMm, DEFAULT_HOLDER.fixingDiameterMm)),
+      fixingLengthMm: num(h.fixingLengthMm, DEFAULT_HOLDER.fixingLengthMm),
+      nutAcrossFlatsMm: num(h.nutAcrossFlatsMm, DEFAULT_HOLDER.nutAcrossFlatsMm),
+      nutThicknessMm: num(h.nutThicknessMm, DEFAULT_HOLDER.nutThicknessMm),
+      screwSpacingMm: num(h.screwSpacingMm, DEFAULT_HOLDER.screwSpacingMm),
     },
     bulb: {
       diameterMm: num(bu.diameterMm, DEFAULT_BULB.diameterMm),
       heightAboveHolderMm: num(bu.heightAboveHolderMm, DEFAULT_BULB.heightAboveHolderMm),
     },
-    cable: { diameterMm: num(c.diameterMm, DEFAULT_CABLE.diameterMm) },
+    cable: { diameterMm: num(c.diameterMm, DEFAULT_CABLE.diameterMm), tieAnchor: bool(c.tieAnchor, DEFAULT_CABLE.tieAnchor) },
   };
 }

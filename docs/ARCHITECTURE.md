@@ -244,6 +244,10 @@ compartido solo de forma aditiva: `PartKind` suma `lampInsert`/`lampShade`, el v
 `revolveProfile` gana `closed`. Sin migraciones ni Supabase: el diseño viaja como "código del diseño". Todo es geométrico; la validación física
 (portalámparas real, temperatura, estabilidad) está pendiente y la herramienta no se abre a usuarios normales hasta completarla.
 
+**Lámparas V1.1 (2026-10-31):** la unión pantalla–base pasa a ser **mecánica y roscada** (interfaz `thread` propia, independiente de la decoración: `lamps/threads/lampThread.ts` es la única definición analítica del macho, la hembra y las verificaciones), con collar roscado
+independiente para modo vaso (`PartKind` suma `lampCollar`, aditivo), alojamiento del portalámparas parametrizado e inserto automático reducido. La base y las piezas de prueba usan `lamps/geometry/prismStackFast.ts` (misma construcción por capas que Carteles pero con el conformado indexado, porque la rosca hembra son decenas de capas) sin modificar
+el código compartido de Carteles; la pantalla, el collar y el macho de prueba usan `lamps/geometry/ringLoop.ts` (revolución cerrada con relieve helicoidal, reutiliza `revolveProfile`). Visor: prop opcional `sectionView`. Sin migraciones ni Supabase. Detalle en `docs/STAMPA_MAKER.md` §38.6–38.13.
+
 ## 17. Validación técnica
 
 **Verificado (2026-09-15):** `package.json` no tiene script `test`. Comandos reales que funcionan:

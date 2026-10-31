@@ -8,12 +8,20 @@ import { decodeLampDesign, encodeLampDesign } from "@/lib/maker/lamps/designCode
 import { LAMP_PRESETS, type LampPreset } from "@/lib/maker/lamps/presets";
 import { LAMP_MEASUREMENTS_NEEDED, LAMP_NOTICE_CODES, LAMP_PHYSICAL_TESTS, LAMP_SAFETY_NOTICES } from "@/lib/maker/lamps/safety";
 import { lampSilhouette } from "@/lib/maker/lamps/silhouette";
-import { LAMP_LIMITS, type LampDefinition, type LampFamily, type LampInsertDef, type LampIssue, type LampMetrics, type LampProfile, type LampShadeDef } from "@/lib/maker/lamps/types";
+import { LAMP_LIMITS, type LampBaseDef, type LampBulbDef, type LampCableDef, type LampDefinition, type LampFamily, type LampHolderDef, type LampInsertDef, type LampIssue, type LampMetrics, type LampProfile, type LampShadeDef, type LampThreadDef } from "@/lib/maker/lamps/types";
 
 const FAMILY_OPTIONS: { value: LampFamily; label: string }[] = [
   { value: "wavy", label: "Ondulada" },
   { value: "spiral", label: "Espiral" },
   { value: "organic", label: "Orgánica" },
+];
+const CONNECTION_OPTIONS: { value: LampThreadDef["connection"]; label: string }[] = [
+  { value: "integrated", label: "Rosca en la pantalla" },
+  { value: "collar", label: "Collar (modo vaso)" },
+];
+const MOUNT_OPTIONS: { value: LampHolderDef["mount"]; label: string }[] = [
+  { value: "stem", label: "Espiga con tuerca" },
+  { value: "screws", label: "Dos tornillos" },
 ];
 const PROFILE_OPTIONS: { value: LampProfile; label: string }[] = [
   { value: "straight", label: "Recto" },
@@ -140,6 +148,12 @@ export function MakerLampControls({ def, onChange, onApplyPreset, onGenerateVari
   const err = (field: string) => errors.find((e) => e.field === field)?.message;
   const setShade = (patch: Partial<LampShadeDef>) => onChange({ ...def, shade: { ...def.shade, ...patch } });
   const setInsert = (patch: Partial<LampInsertDef>) => onChange({ ...def, insert: { ...def.insert, ...patch } });
+  const setThread = (patch: Partial<LampThreadDef>) => onChange({ ...def, thread: { ...def.thread, ...patch } });
+  const setBase = (patch: Partial<LampBaseDef>) => onChange({ ...def, base: { ...def.base, ...patch } });
+  const setHolder = (patch: Partial<LampHolderDef>) => onChange({ ...def, holder: { ...def.holder, ...patch } });
+  const setBulb = (patch: Partial<LampBulbDef>) => onChange({ ...def, bulb: { ...def.bulb, ...patch } });
+  const setCable = (patch: Partial<LampCableDef>) => onChange({ ...def, cable: { ...def.cable, ...patch } });
+  const issuesFor = (match: (i: LampIssue) => boolean) => [...errors, ...warnings].filter(match);
   const L = LAMP_LIMITS;
   const fit = metrics?.fit ?? null;
   const [copied, setCopied] = React.useState(false);
@@ -209,7 +223,7 @@ export function MakerLampControls({ def, onChange, onApplyPreset, onGenerateVari
       <section className="flex flex-col gap-3">
         <SectionLabel>4 · Inserto de color</SectionLabel>
         <Toggle label="Usar inserto de color" checked={def.insert.enabled} onChange={(enabled) => setInsert({ enabled })} />
-        <p className="text-xs text-gray-500">Un tubo aparte, de filamento translúcido, que se apoya en la base dentro de la pantalla. Imprimí varios y cambiá el color sin tocar la pantalla.</p>
+        <p className="text-xs text-gray-500">Un tubo angosto aparte, de filamento translúcido, que rodea la bombilla y se apoya en la ranura de la base, sin tocar la pantalla. Imprimí varios y cambiá el color sin tocar nada más.</p>
         {def.insert.enabled && (
           <>
             <div role="radiogroup" aria-label="Color del inserto" className="flex flex-wrap gap-2">
@@ -236,15 +250,82 @@ export function MakerLampControls({ def, onChange, onApplyPreset, onGenerateVari
             <SliderField label="Espesor del inserto" value={def.insert.thicknessMm} min={0.4} max={2.4} step={0.1} suffix=" mm" onChange={(v) => setInsert({ thicknessMm: v })} error={err("insert.thicknessMm")} />
             <SliderField label="Holgura de montaje (por lado)" value={def.insert.clearanceMm} min={L["insert.clearanceMm"].min} max={L["insert.clearanceMm"].max} step={0.1} suffix=" mm" onChange={(v) => setInsert({ clearanceMm: v })} error={err("insert.clearanceMm")} />
             <div className="flex flex-col gap-1.5 rounded-xl border border-fg/10 bg-fg/[0.03] p-3">
-              <InfoRow label={fit?.insertAuto ? "Diámetro exterior (automático)" : "Diámetro exterior"} value={fit?.insertOuterDiameterMm != null ? `Ø ${fmt(fit.insertOuterDiameterMm)} mm` : "—"} strong />
+              <InfoRow label={fit?.insertAuto ? "Diámetro exterior (el más angosto)" : "Diámetro exterior"} value={fit?.insertOuterDiameterMm != null ? `Ø ${fmt(fit.insertOuterDiameterMm)} mm` : "—"} strong />
               <InfoRow label="Separación radial a la bombilla" value={fit?.insertBulbGapMm != null ? `${fmt(fit.insertBulbGapMm)} mm` : "—"} />
               <InfoRow label="Separación mínima de diseño" value={`${fmt(def.insert.minBulbGapMm)} mm`} />
+              <InfoRow label="Se saca por arriba" value={fit?.insertRemovableFromTop == null ? "—" : fit.insertRemovableFromTop ? "Sí, sin desmontar" : "No: hay que desenroscar la pantalla"} />
             </div>
             {[...errors, ...warnings].filter((i) => i.field?.startsWith("insert.") || i.code.startsWith("INSERT_") || i.code === "HOLDER_COLLIDES_INSERT_SEAT").map((i, k) => (
               <p key={`${i.code}-${k}`} className={`text-xs ${errors.includes(i) ? "text-red-400" : "text-amber-300"}`}>{i.message}</p>
             ))}
           </>
         )}
+      </section>
+
+      <section className="flex flex-col gap-3">
+        <SectionLabel>5 · Unión pantalla–base (rosca)</SectionLabel>
+        <SegmentedControl options={CONNECTION_OPTIONS} value={def.thread.connection} onChange={(connection) => setThread({ connection })} compact />
+        <p className="text-xs text-gray-500">
+          {def.thread.connection === "integrated"
+            ? "La pantalla lleva un cuello roscado macho que se enrosca en la base hasta un tope plano. Se imprime de forma convencional."
+            : "La pantalla queda lisa (candidata a modo vaso) y un collar roscado aparte la une a la base: el borde de la pantalla entra a presión en el pozo del collar."}{" "}
+          La rosca es propia de StampaMaker (no la eléctrica E27) y es la misma para cualquier pantalla: cambiar ondas o torsión no la modifica.
+        </p>
+        <div className="flex flex-col gap-1.5 rounded-xl border border-fg/10 bg-fg/[0.03] p-3">
+          <InfoRow label="Rosca" value={fit ? `Ø ${fmt(fit.thread.majorDiameterMm)} · paso ${fmt(fit.thread.pitchMm)} · ${fit.thread.starts} entrada${fit.thread.starts === 1 ? "" : "s"}` : "—"} strong />
+          <InfoRow label="Vueltas hasta el tope" value={fit ? fmt(fit.thread.turnsToSeat) : "—"} />
+          <InfoRow label="Holgura radial / normal al flanco" value={fit ? `${fmt(fit.thread.radialClearanceMm)} / ${String(fit.thread.normalClearanceMm).replace(".", ",")} mm` : "—"} />
+          <InfoRow label="Juego axial" value={fit ? `${fmt(fit.thread.axialPlayMm)} mm` : "—"} />
+          <InfoRow label="Transición a la pantalla (45°)" value={fit ? `${fmt(fit.thread.flareHeightMm)} mm de alto` : "—"} />
+        </div>
+        <Details title="Parámetros de la rosca">
+          <div className="grid grid-cols-2 gap-3">
+            <NumberField label="Ø rosca" value={def.thread.majorDiameterMm} onChange={(v) => setThread({ majorDiameterMm: v })} suffix="mm" error={err("thread.majorDiameterMm")} />
+            <NumberField label="Paso" value={def.thread.pitchMm} onChange={(v) => setThread({ pitchMm: v })} suffix="mm" error={err("thread.pitchMm")} />
+            <NumberField label="Entradas" value={def.thread.starts} onChange={(v) => setThread({ starts: Math.round(v) })} error={err("thread.starts")} />
+            <NumberField label="Longitud roscada" value={def.thread.engagementMm} onChange={(v) => setThread({ engagementMm: v })} suffix="mm" error={err("thread.engagementMm")} />
+            <NumberField label="Holgura radial" value={def.thread.clearanceMm} onChange={(v) => setThread({ clearanceMm: v })} suffix="mm" error={err("thread.clearanceMm")} />
+            <NumberField label="Espesor del cuello" value={def.thread.coreWallMm} onChange={(v) => setThread({ coreWallMm: v })} suffix="mm" error={err("thread.coreWallMm")} />
+          </div>
+          <p className="text-xs text-gray-500">Más entradas = menos vueltas para cerrar. La holgura depende de tu impresora y filamento: ajustala con las piezas de prueba, no a ojo.</p>
+        </Details>
+        {issuesFor((i) => !!i.field?.startsWith("thread.") || i.code.startsWith("THREAD_") || i.code === "SHADE_NARROWER_THAN_THREAD" || i.code === "FLARE_TALL" || i.code === "COLLAR_UNVERIFIED").map((i, k) => (
+          <p key={`${i.code}-${k}`} className={`text-xs ${errors.includes(i) ? "text-red-400" : "text-amber-300"}`}>{i.message}</p>
+        ))}
+      </section>
+
+      <section className="flex flex-col gap-3">
+        <SectionLabel>6 · Base y portalámparas E27</SectionLabel>
+        {holderNotValidated ? (
+          <p className="rounded-lg border border-amber-500/30 bg-amber-500/10 p-2.5 text-xs text-amber-300">Base PRELIMINAR - NO VALIDADA. E27 es la rosca de la bombilla, no las medidas del portalámparas: los valores de abajo son de ejemplo. Medí tu portalámparas real, cargalos e imprimí la pieza de prueba de ajuste.</p>
+        ) : (
+          <p className="rounded-lg border border-fg/10 bg-fg/[0.03] p-2.5 text-xs text-gray-400">Medidas cargadas por vos. El conjunto sigue pendiente de validación física.</p>
+        )}
+        <Toggle label="Estas medidas son de mi portalámparas real" checked={def.holder.measured} onChange={(measured) => setHolder({ measured })} />
+        <span className="text-xs font-semibold text-gray-500">Fijación del portalámparas</span>
+        <SegmentedControl options={MOUNT_OPTIONS} value={def.holder.mount} onChange={(mount) => setHolder({ mount })} compact />
+        <div className="grid grid-cols-2 gap-3">
+          <NumberField label="Ø faldón (máx.)" value={def.holder.bodyDiameterMm} onChange={(v) => setHolder({ bodyDiameterMm: v })} suffix="mm" error={err("holder.bodyDiameterMm")} />
+          <NumberField label="Altura" value={def.holder.heightMm} onChange={(v) => setHolder({ heightMm: v })} suffix="mm" error={err("holder.heightMm")} />
+          <NumberField label={def.holder.mount === "stem" ? "Ø espiga" : "Ø tornillo"} value={def.holder.fixingDiameterMm} onChange={(v) => setHolder({ fixingDiameterMm: v })} suffix="mm" error={err("holder.fixingDiameterMm")} />
+          <NumberField label="Largo bajo el apoyo" value={def.holder.fixingLengthMm} onChange={(v) => setHolder({ fixingLengthMm: v })} suffix="mm" error={err("holder.fixingLengthMm")} />
+          <NumberField label="Tuerca (entre caras)" value={def.holder.nutAcrossFlatsMm} onChange={(v) => setHolder({ nutAcrossFlatsMm: v })} suffix="mm" error={err("holder.nutAcrossFlatsMm")} />
+          <NumberField label="Espesor tuerca" value={def.holder.nutThicknessMm} onChange={(v) => setHolder({ nutThicknessMm: v })} suffix="mm" error={err("holder.nutThicknessMm")} />
+          {def.holder.mount === "screws" && <NumberField label="Entre tornillos" value={def.holder.screwSpacingMm} onChange={(v) => setHolder({ screwSpacingMm: v })} suffix="mm" error={err("holder.screwSpacingMm")} />}
+          <NumberField label="Ø cable" value={def.cable.diameterMm} onChange={(v) => setCable({ diameterMm: v })} suffix="mm" error={err("cable.diameterMm")} />
+          <NumberField label="Ø bombilla" value={def.bulb.diameterMm} onChange={(v) => setBulb({ diameterMm: v })} suffix="mm" error={err("bulb.diameterMm")} />
+          <NumberField label="Alto s/ portalámp." value={def.bulb.heightAboveHolderMm} onChange={(v) => setBulb({ heightAboveHolderMm: v })} suffix="mm" error={err("bulb.heightAboveHolderMm")} />
+        </div>
+        <Toggle label="Ranuras para precinto (alivio de tensión del cable)" checked={def.cable.tieAnchor} onChange={(tieAnchor) => setCable({ tieAnchor })} />
+        <p className="text-xs text-gray-500">El cable sale por un canal inferior. Para sujetarlo usá un precinto plástico comercial (o un prensacable); no se imprime ningún componente eléctrico.</p>
+        <div className="flex flex-col gap-1.5 rounded-xl border border-fg/10 bg-fg/[0.03] p-3">
+          <InfoRow label="Altura de la base" value={fit ? `${fmt(fit.baseHeightMm)} mm` : "—"} />
+          <InfoRow label="Diámetro de la base" value={fit ? `Ø ${fmt(fit.baseDiameterMm)} mm` : "—"} />
+          <InfoRow label="Apoyo de la espiga hasta la tuerca" value={fit ? `${fmt(fit.fixingWebMm)} mm de material` : "—"} />
+        </div>
+        {issuesFor((i) => (!!i.field?.startsWith("holder.") && i.code !== "HOLDER_NOT_VALIDATED") || !!i.field?.startsWith("cable.") || i.code === "HOLDER_WIDER_THAN_CAVITY" || i.code === "FIXING_TOO_SHORT" || i.code === "TIE_ANCHOR_NO_ROOM").map((i, k) => (
+          <p key={`${i.code}-${k}`} className={`text-xs ${errors.includes(i) ? "text-red-400" : "text-amber-300"}`}>{i.message}</p>
+        ))}
       </section>
 
       <Details title="Opciones avanzadas">
@@ -268,30 +349,9 @@ export function MakerLampControls({ def, onChange, onApplyPreset, onGenerateVari
         <NumberField label="Muescas de ventilación (0–12)" value={def.insert.ventNotches} onChange={(v) => setInsert({ ventNotches: Math.round(v) })} error={err("insert.ventNotches")} />
 
         <SectionLabel>Base</SectionLabel>
-        <Toggle label="Diámetro automático" checked={def.base.diameterMm === null} onChange={(auto) => onChange({ ...def, base: { ...def.base, diameterMm: auto ? null : (fit?.baseDiameterMm ?? 150) } })} />
-        {def.base.diameterMm !== null && <NumberField label="Diámetro de la base" value={def.base.diameterMm} onChange={(v) => onChange({ ...def, base: { ...def.base, diameterMm: v } })} suffix="mm" error={err("base.diameterMm")} />}
-        <div className="grid grid-cols-2 gap-3">
-          <NumberField label="Altura de la base" value={def.base.heightMm} onChange={(v) => onChange({ ...def, base: { ...def.base, heightMm: v } })} suffix="mm" error={err("base.heightMm")} />
-          <NumberField label="Luz de ventilación" value={def.base.ventGapMm} onChange={(v) => onChange({ ...def, base: { ...def.base, ventGapMm: v } })} suffix="mm" error={err("base.ventGapMm")} />
-        </div>
-
-        <SectionLabel>Portalámparas E27, bombilla y cable</SectionLabel>
-        {holderNotValidated ? (
-          <p className="rounded-lg border border-amber-500/30 bg-amber-500/10 p-2.5 text-xs text-amber-300">Base PRELIMINAR - NO VALIDADA. Los valores de abajo son de ejemplo: medí tu portalámparas real y cargalos.</p>
-        ) : (
-          <p className="rounded-lg border border-fg/10 bg-fg/[0.03] p-2.5 text-xs text-gray-400">Medidas cargadas por vos. El conjunto sigue pendiente de validación física.</p>
-        )}
-        <Toggle label="Estas medidas son de mi portalámparas real" checked={def.holder.measured} onChange={(measured) => onChange({ ...def, holder: { ...def.holder, measured } })} />
-        <div className="grid grid-cols-2 gap-3">
-          <NumberField label="Ø cuerpo" value={def.holder.bodyDiameterMm} onChange={(v) => onChange({ ...def, holder: { ...def.holder, bodyDiameterMm: v } })} suffix="mm" error={err("holder.bodyDiameterMm")} />
-          <NumberField label="Altura" value={def.holder.heightMm} onChange={(v) => onChange({ ...def, holder: { ...def.holder, heightMm: v } })} suffix="mm" error={err("holder.heightMm")} />
-          <NumberField label="Ø espiga" value={def.holder.threadDiameterMm} onChange={(v) => onChange({ ...def, holder: { ...def.holder, threadDiameterMm: v } })} suffix="mm" error={err("holder.threadDiameterMm")} />
-          <NumberField label="Ø alojam. tuerca" value={def.holder.nutRecessDiameterMm} onChange={(v) => onChange({ ...def, holder: { ...def.holder, nutRecessDiameterMm: v } })} suffix="mm" error={err("holder.nutRecessDiameterMm")} />
-          <NumberField label="Prof. alojam." value={def.holder.nutRecessDepthMm} onChange={(v) => onChange({ ...def, holder: { ...def.holder, nutRecessDepthMm: v } })} suffix="mm" error={err("holder.nutRecessDepthMm")} />
-          <NumberField label="Ø cable" value={def.cable.diameterMm} onChange={(v) => onChange({ ...def, cable: { diameterMm: v } })} suffix="mm" error={err("cable.diameterMm")} />
-          <NumberField label="Ø bombilla" value={def.bulb.diameterMm} onChange={(v) => onChange({ ...def, bulb: { ...def.bulb, diameterMm: v } })} suffix="mm" error={err("bulb.diameterMm")} />
-          <NumberField label="Alto s/ portalámp." value={def.bulb.heightAboveHolderMm} onChange={(v) => onChange({ ...def, bulb: { ...def.bulb, heightAboveHolderMm: v } })} suffix="mm" error={err("bulb.heightAboveHolderMm")} />
-        </div>
+        <Toggle label="Diámetro automático" checked={def.base.diameterMm === null} onChange={(auto) => setBase({ diameterMm: auto ? null : (fit?.baseDiameterMm ?? 150) })} />
+        {def.base.diameterMm !== null && <NumberField label="Diámetro de la base" value={def.base.diameterMm} onChange={(v) => setBase({ diameterMm: v })} suffix="mm" error={err("base.diameterMm")} />}
+        <NumberField label="Ventanas de ventilación (0–12)" value={def.base.ventSlots} onChange={(v) => setBase({ ventSlots: Math.round(v) })} error={err("base.ventSlots")} />
 
         <SectionLabel>Código del diseño</SectionLabel>
         <p className="text-xs text-gray-500">Guarda todo el diseño (incluida la semilla) en un texto. Pegalo acá para reconstruirlo exactamente.</p>
@@ -311,10 +371,24 @@ export function MakerLampControls({ def, onChange, onApplyPreset, onGenerateVari
         <SectionLabel>Información</SectionLabel>
         <InfoRow label="Altura total ensamblada" value={metrics ? `${fmt(metrics.totalHeightMm)} mm` : "—"} />
         <InfoRow label="Diámetro máximo" value={metrics ? `Ø ${fmt(metrics.maxDiameterMm)} mm` : "—"} />
-        <InfoRow label="Pantalla" value={metrics ? (metrics.shade.vase.ready ? "Apta para modo vaso*" : `No apta para modo vaso (${fmt(metrics.shade.vase.maxOverhangDeg)}°)`) : "—"} strong={metrics?.shade.vase.ready} />
+        <InfoRow label="Pantalla" value={metrics ? (def.thread.connection === "integrated" ? "Impresión convencional (rosca integrada)" : metrics.shade.vase.ready ? "Apta para modo vaso*" : `No apta para modo vaso (${fmt(metrics.shade.vase.maxOverhangDeg)}°)`) : "—"} strong={metrics?.shade.vase.ready && def.thread.connection === "collar"} />
+        {def.thread.connection === "collar" && <InfoRow label="Collar roscado" value={metrics?.collar ? "Impresión convencional" : "—"} />}
         <InfoRow label="Inserto" value={metrics?.insert ? (metrics.insert.vaseCapable ? "Modo vaso posible" : "Impresión convencional") : "—"} />
         <InfoRow label="Base" value={metrics ? "Impresión convencional" : "—"} />
-        <InfoRow label="Triángulos (las 3 piezas)" value={metrics ? String(metrics.totalTriangles) : "—"} />
+        <InfoRow label="Triángulos (todas las piezas)" value={metrics ? String(metrics.totalTriangles) : "—"} />
+        {fit && (
+          <div className="mt-1 flex flex-col gap-1 rounded-xl border border-fg/10 bg-fg/[0.03] p-3" aria-label="Holguras del ensamblaje">
+            <span className="text-[11px] font-semibold uppercase tracking-wide text-gray-500">Holguras del ensamblaje (geométricas)</span>
+            {fit.clearances.map((c) => (
+              <div key={c.id} className="flex items-baseline justify-between gap-3 text-xs">
+                <span className="text-gray-500">{c.label}</span>
+                <span className={c.status === "fail" ? "font-bold text-red-400" : c.status === "warn" ? "font-semibold text-amber-300" : "font-semibold text-gray-200"}>
+                  {fmt(c.valueMm)} mm{c.minMm !== null ? ` (mín. ${fmt(c.minMm)})` : ""}
+                </span>
+              </div>
+            ))}
+          </div>
+        )}
         <p className="text-xs text-gray-500">* Cumple los prerrequisitos geométricos del modo vaso (contorno continuo por capa y pendiente máxima). Confirmalo en tu laminador: no es una garantía de laminado.</p>
       </section>
 
@@ -368,17 +442,23 @@ export function MakerLampControls({ def, onChange, onApplyPreset, onGenerateVari
 /** Botones de descarga (pieza por pieza y ZIP): los comparten el panel móvil y la tarjeta flotante de escritorio. */
 export function LampExportButtons({
   hasInsert,
+  hasCollar,
   canDownload,
+  canDownloadTests,
   busy,
   onDownloadPart,
   onDownloadZip,
+  onDownloadTests,
   holderMeasured,
 }: {
   hasInsert: boolean;
+  hasCollar: boolean;
   canDownload: boolean;
+  canDownloadTests: boolean;
   busy: string | null;
-  onDownloadPart: (kind: "lampShade" | "lampInsert" | "body") => void;
+  onDownloadPart: (kind: "lampShade" | "lampInsert" | "lampCollar" | "body") => void;
   onDownloadZip: () => void;
+  onDownloadTests: () => void;
   holderMeasured: boolean;
 }) {
   const button = "inline-flex h-8 w-full items-center justify-start gap-2 rounded-lg border px-3 text-xs font-semibold transition-colors disabled:cursor-not-allowed disabled:opacity-50";
@@ -388,6 +468,11 @@ export function LampExportButtons({
       <button type="button" disabled={!canDownload || busy !== null} onClick={() => onDownloadPart("lampShade")} className={`${button} border-fg/10 bg-fg/[0.05] text-gray-200 hover:text-fg`}>
         {icon("lampShade")} Pantalla (STL)
       </button>
+      {hasCollar && (
+        <button type="button" disabled={!canDownload || busy !== null} onClick={() => onDownloadPart("lampCollar")} className={`${button} border-fg/10 bg-fg/[0.05] text-gray-200 hover:text-fg`}>
+          {icon("lampCollar")} Collar roscado (STL)
+        </button>
+      )}
       {hasInsert && (
         <button type="button" disabled={!canDownload || busy !== null} onClick={() => onDownloadPart("lampInsert")} className={`${button} border-fg/10 bg-fg/[0.05] text-gray-200 hover:text-fg`}>
           {icon("lampInsert")} Inserto (STL)
@@ -398,6 +483,9 @@ export function LampExportButtons({
       </button>
       <button type="button" disabled={!canDownload || busy !== null} onClick={onDownloadZip} className={`${button} border-transparent bg-stampa-orange text-neutral-950 hover:bg-stampa-orange-hover`}>
         {icon("zip")} Todo en un ZIP
+      </button>
+      <button type="button" disabled={!canDownloadTests || busy !== null} onClick={onDownloadTests} className={`${button} border-fg/10 bg-fg/[0.05] text-gray-200 hover:text-fg`} title="Rosca macho y hembra + disco de ajuste del portalámparas: para validar el encastre sin imprimir la lámpara entera">
+        {icon("tests")} Piezas de prueba (ZIP)
       </button>
     </div>
   );

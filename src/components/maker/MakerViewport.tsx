@@ -37,6 +37,8 @@ interface MakerViewportProps {
   hiddenKinds?: readonly PartKind[] | null;
   /** Color de vista previa por pieza (#rrggbb), aplicado sin reconstruir mallas. No simula la luz real. */
   partColors?: Partial<Record<PartKind, string>> | null;
+  /** Corte longitudinal por el eje (se oculta la mitad +X) para inspeccionar roscas, encastres y holguras. Solo visual. */
+  sectionView?: boolean;
 }
 
 /** Color por tipo de pieza, solo para diferenciarlas visualmente en el preview (no es el color real de impresión). */
@@ -48,6 +50,7 @@ const PART_COLORS: Record<PartKind, number> = {
   channelDiffuser: 0xfff3d6,
   lampInsert: 0xe5483b,
   lampShade: 0xf4efe6,
+  lampCollar: 0xaab4c2,
 };
 
 type CameraState = { position: THREE.Vector3; target: THREE.Vector3 };
@@ -132,7 +135,7 @@ function buildBedPlate(profile: PrinterProfile): THREE.Object3D {
  *    printBed/bedLayout.ts) apoyadas en Z=0 sobre el perfil de impresora.
  * Cada modo conserva su propia cámara.
  */
-export function MakerViewport({ geometry, displayMode = "model", explosionAmount = DEFAULT_EXPLOSION_AMOUNT, bed = null, cutoutEditing = null, helperMesh = null, zUp = false, hiddenKinds = null, partColors = null }: MakerViewportProps) {
+export function MakerViewport({ geometry, displayMode = "model", explosionAmount = DEFAULT_EXPLOSION_AMOUNT, bed = null, cutoutEditing = null, helperMesh = null, zUp = false, hiddenKinds = null, partColors = null, sectionView = false }: MakerViewportProps) {
   const containerRef = useRef<HTMLDivElement>(null);
   const sceneRef = useRef<THREE.Scene | null>(null);
   const cameraRef = useRef<THREE.PerspectiveCamera | null>(null);
@@ -217,6 +220,7 @@ export function MakerViewport({ geometry, displayMode = "model", explosionAmount
     const renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true });
     renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
     renderer.setSize(container.clientWidth, container.clientHeight);
+    renderer.localClippingEnabled = true;
     container.appendChild(renderer.domElement);
 
     const controls = new OrbitControls(camera, renderer.domElement);
@@ -335,6 +339,16 @@ export function MakerViewport({ geometry, displayMode = "model", explosionAmount
       setPartAppearance(mesh, !hidden.has(kind), colors[kind], kind === "lampInsert");
     }
   }, [geometry, hiddenKey, colorsKey]);
+
+  // Sección longitudinal: solo asigna el plano de recorte a los materiales de las piezas (no toca la geometría ni lo exportado).
+  useEffect(() => {
+    const planes = sectionView ? [new THREE.Plane(new THREE.Vector3(-1, 0, 0), 0)] : null;
+    for (const mesh of partMeshesRef.current.values()) {
+      const material = mesh.material as THREE.MeshStandardMaterial;
+      material.clippingPlanes = planes;
+      material.needsUpdate = true;
+    }
+  }, [geometry, sectionView]);
 
   // Malla auxiliar (helper) visual: se agrega al grupo Modelo DESPUÉS de las piezas (el efecto de arriba limpia el
   // grupo al cambiar la geometría), sin tocar `partMeshesRef` (no se explota ni entra en el auto-fit ni en la cama).

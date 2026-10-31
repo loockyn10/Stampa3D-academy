@@ -2,13 +2,13 @@
 
 import { useCallback, useMemo, useState } from "react";
 import Link from "next/link";
-import { ArrowLeft } from "lucide-react";
+import { ArrowLeft, Eye, EyeOff, Scissors } from "lucide-react";
 import { useAppFeedback } from "@/components/ui/app-feedback";
 import { LampExportButtons, MakerLampControls } from "@/components/maker/MakerLampControls";
 import { MakerViewport, type MakerDisplayMode } from "@/components/maker/MakerViewport";
 import { BedLabel, BedWarnings, ViewportViewCard } from "@/components/maker/MakerViewportOverlays";
 import { useLampGeometry } from "@/hooks/maker/useLampGeometry";
-import { downloadLampPart, downloadLampZip } from "@/lib/maker/lamps/exporters/lampFiles";
+import { downloadLampPart, downloadLampTestZip, downloadLampZip, isTestPieceBlocker } from "@/lib/maker/lamps/exporters/lampFiles";
 import { DEFAULT_LAMP } from "@/lib/maker/lamps/defaults";
 import { applyLampPreset, type LampPreset } from "@/lib/maker/lamps/presets";
 import { generateLampVariation } from "@/lib/maker/lamps/variation";
@@ -17,22 +17,11 @@ import type { PartKind } from "@/lib/maker/types";
 import { collectBedItems, computeBedLayout } from "@/lib/maker/printBed/bedLayout";
 import { DEFAULT_PRINTER_PROFILE_ID, getPrinterProfile } from "@/lib/maker/printBed/printerProfiles";
 
-type PartView = "all" | "noShade" | "shade" | "insert" | "base";
-
-const VIEW_OPTIONS: { value: PartView; label: string }[] = [
-  { value: "all", label: "Todo" },
-  { value: "noShade", label: "Sin pantalla" },
-  { value: "shade", label: "Pantalla" },
-  { value: "insert", label: "Inserto" },
-  { value: "base", label: "Base" },
-];
-
-const HIDDEN_BY_VIEW: Record<PartView, PartKind[]> = {
-  all: [],
-  noShade: ["lampShade"],
-  shade: ["body", "lampInsert"],
-  insert: ["body", "lampShade"],
-  base: ["lampShade", "lampInsert"],
+const PART_LABELS: Partial<Record<PartKind, string>> = {
+  lampShade: "Pantalla",
+  lampCollar: "Collar",
+  lampInsert: "Inserto",
+  body: "Base",
 };
 
 function newSeed(): number {
@@ -45,7 +34,8 @@ function newSeed(): number {
 export default function StampaMakerLampsPage() {
   // La página solo guarda la LampDefinition: toda la geometría sale del motor (lib/maker/lamps).
   const [def, setDef] = useState<LampDefinition>(DEFAULT_LAMP);
-  const [view, setView] = useState<PartView>("all");
+  const [hidden, setHidden] = useState<PartKind[]>([]);
+  const [section, setSection] = useState(false);
   const [explosion, setExplosion] = useState(0);
   const [displayMode, setDisplayMode] = useState<MakerDisplayMode>("model");
   const [plateIndex, setPlateIndex] = useState(1);
@@ -55,6 +45,7 @@ export default function StampaMakerLampsPage() {
   const { result, pending } = useLampGeometry(def);
   const geometry = result.geometry;
   const canDownload = !pending && !!geometry && geometry.triangleCount > 0 && result.errors.length === 0;
+  const canDownloadTests = !pending && !result.errors.some(isTestPieceBlocker);
 
   const handlePreset = useCallback((preset: LampPreset) => setDef((prev) => applyLampPreset(prev, preset)), []);
   const handleVariation = useCallback(() => {
@@ -79,14 +70,18 @@ export default function StampaMakerLampsPage() {
   );
   const onDownloadPart = useCallback((kind: PartKind) => void run(kind, () => downloadLampPart(result, kind)), [run, result]);
   const onDownloadZip = useCallback(() => void run("zip", () => downloadLampZip(result, def)), [run, result, def]);
+  const onDownloadTests = useCallback(() => void run("tests", () => downloadLampTestZip(def)), [run, def]);
 
   const exportButtons = (
     <LampExportButtons
       hasInsert={def.insert.enabled}
+      hasCollar={def.thread.connection === "collar"}
       canDownload={canDownload}
+      canDownloadTests={canDownloadTests}
       busy={busy}
       onDownloadPart={onDownloadPart}
       onDownloadZip={onDownloadZip}
+      onDownloadTests={onDownloadTests}
       holderMeasured={def.holder.measured}
     />
   );
@@ -102,7 +97,18 @@ export default function StampaMakerLampsPage() {
   const currentPlate = Math.min(Math.max(plateIndex, 1), Math.max(plateCount, 1));
 
   const partColors = useMemo(() => ({ lampInsert: def.insert.previewColor }), [def.insert.previewColor]);
-  const hiddenKinds = HIDDEN_BY_VIEW[view];
+  const presentKinds: PartKind[] = ["lampShade", ...(def.thread.connection === "collar" ? (["lampCollar"] as const) : []), ...(def.insert.enabled ? (["lampInsert"] as const) : []), "body"];
+  const toggleKind = (kind: PartKind) => setHidden((prev) => (prev.includes(kind) ? prev.filter((k) => k !== kind) : [...prev, kind]));
+  const showAll = () => {
+    setHidden([]);
+    setSection(false);
+  };
+  // Para examinar la rosca: sin el inserto (tapa la vista de la unión) y en sección longitudinal.
+  const inspectThread = () => {
+    setHidden(["lampInsert"]);
+    setSection(true);
+    setExplosion(0);
+  };
 
   return (
     <div className="flex flex-col gap-4 lg:-mx-8 lg:-my-8 lg:h-[calc(100dvh-4rem)] lg:flex-row lg:gap-0 lg:overflow-hidden">
@@ -138,7 +144,8 @@ export default function StampaMakerLampsPage() {
           explosionAmount={explosion}
           bed={bed ? { items: bed.items, layout: bed.layout, profile, plateIndex: currentPlate } : null}
           zUp
-          hiddenKinds={hiddenKinds}
+          hiddenKinds={hidden}
+          sectionView={section}
           partColors={partColors}
         />
         <div className="pointer-events-none absolute inset-0 flex flex-col justify-between gap-3 p-3">
@@ -160,19 +167,35 @@ export default function StampaMakerLampsPage() {
               {displayMode === "model" && (
                 <div className="pointer-events-auto flex w-60 flex-col gap-2 rounded-2xl border border-fg/10 bg-stampa-surface/80 p-2 shadow-lg shadow-shade/30 backdrop-blur-md lg:w-64 lg:p-2.5">
                   <span className="hidden text-[11px] font-semibold uppercase tracking-wide text-gray-500 lg:block">Ver piezas</span>
-                  <div className="flex flex-wrap gap-1" role="radiogroup" aria-label="Piezas visibles">
-                    {VIEW_OPTIONS.filter((o) => def.insert.enabled || o.value !== "insert").map((o) => (
-                      <button
-                        key={o.value}
-                        type="button"
-                        role="radio"
-                        aria-checked={view === o.value}
-                        onClick={() => setView(o.value)}
-                        className={`h-7 rounded-lg px-2 text-xs font-semibold transition-colors ${view === o.value ? "bg-stampa-orange/15 text-stampa-accent" : "text-gray-400 hover:text-fg"}`}
-                      >
-                        {o.label}
-                      </button>
-                    ))}
+                  <div className="flex flex-wrap gap-1" role="group" aria-label="Piezas visibles">
+                    {presentKinds.map((kind) => {
+                      const visible = !hidden.includes(kind);
+                      return (
+                        <button
+                          key={kind}
+                          type="button"
+                          aria-pressed={visible}
+                          title={visible ? `Ocultar ${PART_LABELS[kind]?.toLowerCase()}` : `Mostrar ${PART_LABELS[kind]?.toLowerCase()}`}
+                          onClick={() => toggleKind(kind)}
+                          className={`inline-flex h-7 items-center gap-1 rounded-lg px-2 text-xs font-semibold transition-colors ${visible ? "bg-stampa-orange/15 text-stampa-accent" : "text-gray-500 hover:text-fg"}`}
+                        >
+                          {visible ? <Eye size={12} /> : <EyeOff size={12} />}
+                          {PART_LABELS[kind]}
+                        </button>
+                      );
+                    })}
+                  </div>
+                  <div className="flex flex-wrap gap-1">
+                    <button type="button" aria-pressed={section} onClick={() => setSection((v) => !v)} className={`inline-flex h-7 items-center gap-1 rounded-lg px-2 text-xs font-semibold transition-colors ${section ? "bg-stampa-orange/15 text-stampa-accent" : "text-gray-400 hover:text-fg"}`} title="Corte longitudinal por el eje: se ven roscas, tope, encastres y holguras por dentro">
+                      <Scissors size={12} />
+                      Sección
+                    </button>
+                    <button type="button" onClick={inspectThread} className="h-7 rounded-lg px-2 text-xs font-semibold text-gray-400 transition-colors hover:text-fg">
+                      Ver rosca
+                    </button>
+                    <button type="button" onClick={showAll} className="h-7 rounded-lg px-2 text-xs font-semibold text-gray-400 transition-colors hover:text-fg">
+                      Todo
+                    </button>
                   </div>
                   <label className="block max-lg:hidden">
                     <span className="mb-1 flex justify-between text-xs font-semibold text-gray-500">

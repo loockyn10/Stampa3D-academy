@@ -1,14 +1,16 @@
 import type { ContourGroup, Point2D } from "@/lib/maker/types";
 import type { ExtrudedMeshData } from "@/lib/maker/geometry/extrudePolygon";
 import { contourGroupsToRawPaths, differenceContourGroups } from "@/lib/maker/geometry/offsets";
-import { repairCollinearTriangles } from "@/lib/maker/installation/meshRepair";
-import { buildPrismStack, normalizePolygons, type PrismLayer } from "@/lib/maker/installation/prismStack";
+import { normalizePolygons, type PrismLayer } from "@/lib/maker/installation/prismStack";
+import { buildPrismStackFast } from "@/lib/maker/lamps/geometry/prismStackFast";
+import { repairCollinearIndexed } from "@/lib/maker/lamps/geometry/repairIndexed";
 import { addTri, addVertex, newMesh, type IndexedMesh } from "@/lib/maker/mugs/geometry/mesh";
 
 /**
- * Base e inserto son sólidos de capas apiladas (huellas 2D de Clipper extruidas y soldadas por coordenadas
- * compartidas, SIN CSG 3D): el mismo mecanismo que usan los soportes de instalación de Carteles. Acá se arma la
- * lista de capas a partir de "características" (material que se suma y vacíos que se restan en un rango de Z).
+ * Base, inserto y piezas de prueba son sólidos de capas apiladas (huellas 2D de Clipper extruidas y soldadas por
+ * coordenadas compartidas, SIN CSG 3D): el mismo mecanismo que usan los soportes de instalación de Carteles, con el
+ * conformado de vértices indexado (`prismStackFast`). Acá se arma la lista de capas a partir de "características"
+ * (material que se suma y vacíos que se restan en un rango de Z).
  */
 
 export function circlePoly(radius: number, segments: number, cx = 0, cy = 0): Point2D[] {
@@ -104,8 +106,8 @@ export function weldToIndexed(positions: number[]): IndexedMesh {
   return mesh;
 }
 
-/** Capas -> malla indexada cerrada (soldadura por capas + reparación de colineales + soldado de vértices). */
+/** Capas -> malla indexada cerrada (soldadura por capas + soldado de vértices + reparación de colineales sobre la malla indexada). */
 export function layersToIndexed(layers: PrismLayer[]): IndexedMesh {
-  const extruded: ExtrudedMeshData = repairCollinearTriangles(buildPrismStack(layers, { bottomCap: true, topCap: true }));
-  return weldToIndexed(extruded.positions);
+  const extruded: ExtrudedMeshData = buildPrismStackFast(layers, { bottomCap: true, topCap: true });
+  return repairCollinearIndexed(weldToIndexed(extruded.positions));
 }

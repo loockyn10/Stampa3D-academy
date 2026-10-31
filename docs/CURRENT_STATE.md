@@ -22,6 +22,10 @@ Next.js 16 (App Router)/TypeScript/Tailwind 4/Supabase confirmados. Autenticaci�
 
 Rutas confirmadas (`/academia`, `/cursos`, `/talleres`), contenido interno no revisado en detalle — fuera del foco de riesgo de esta auditoría (acceso/RLS/pricing/ventas). **REQUIERE revisión dedicada si se prioriza.**
 
+### Stampa Maker — Lámparas E27 V1.1 (corrección del ensamblaje, 2026-10-31, Beta / solo admin)
+
+Unión pantalla–base roscada (rosca macho en la pantalla o collar roscado aparte para modo vaso + rosca hembra con tope en la base), alojamiento del portalámparas parametrizado (espiga con tuerca o dos tornillos, largo de la espiga, precinto, ventanas), inserto reducido, sección en el visor, STL del collar y piezas de prueba (docs/STAMPA_MAKER.md §38.6–38.13). **Verificado:** typecheck, lint, 81 tests geométricos propios (mallas, rosca macho/hembra, separación medida sobre las mallas, movimiento helicoidal, interferencias, espesores, STL), revisión visual en navegador (escritorio y 375 px, sección, collar). **No verificado:** impresión de las roscas (hay piezas de prueba para eso), laminado en Bambu Studio, retención del collar con una pared real de modo vaso, montaje con un portalámparas real, temperatura, estabilidad; la base sigue PRELIMINAR - NO VALIDADA. Sin migraciones.
+
 ### Stampa Maker — Lámparas E27 (agregado 2026-10-30, Beta / solo admin)
 
 Cuarta herramienta (`/stampa-maker/lamparas`, docs/STAMPA_MAKER.md §38): pantalla paramétrica (ondulada, espiral, orgánica) + inserto de color intercambiable + base para portalámparas E27 comercial. **Verificado:** typecheck, lint de los archivos nuevos, 49 tests geométricos propios, build y revisión visual en navegador con un arnés temporal (escritorio y 375 px). **No verificado:** impresión, laminado en modo vaso, montaje con un portalámparas real, temperatura y estabilidad; la base es PRELIMINAR - NO VALIDADA. Sin migraciones ni cambios en Carteles, Neón y Jarros (solo props/entradas aditivas en el visor y tablas por `PartKind`).
