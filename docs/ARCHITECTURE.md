@@ -238,6 +238,12 @@ CSG/boolean 3D). Pipeline geométrico propio en `src/lib/maker/geometry/*`
 pricing ni stock existentes. Detalle completo, dependencias y limitaciones
 conocidas en `docs/STAMPA_MAKER.md`.
 
+**Lámparas E27 (2026-10-30, Beta / solo admin):** cuarta herramienta, `/stampa-maker/lamparas` (`docs/STAMPA_MAKER.md` §38). Motor propio en
+`src/lib/maker/lamps/` que reutiliza la revolución y las mallas indexadas de Jarros y las capas apiladas de Carteles (sin CSG). Toca código
+compartido solo de forma aditiva: `PartKind` suma `lampInsert`/`lampShade`, el visor gana props opcionales (`zUp`, `hiddenKinds`, `partColors`) y
+`revolveProfile` gana `closed`. Sin migraciones ni Supabase: el diseño viaja como "código del diseño". Todo es geométrico; la validación física
+(portalámparas real, temperatura, estabilidad) está pendiente y la herramienta no se abre a usuarios normales hasta completarla.
+
 ## 17. Validación técnica
 
 **Verificado (2026-09-15):** `package.json` no tiene script `test`. Comandos reales que funcionan:

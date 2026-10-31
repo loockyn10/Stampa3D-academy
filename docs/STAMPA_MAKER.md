@@ -65,6 +65,7 @@
 > Neon 0.1.1 (2026-09-19): importador SVG corregido (cascada CSS real, `<text>`, mensajes diferenciados) y biblioteca de fuentes single-line reales: Mistral SingleLine y Relief SingleLine, OFL (sección 26).
 > Neon 0.3 (2026-09-23): sistema de instalación de Neon LED (sección 33): `NeonSegment` (identidad física por recorrido, IDs posicionales + reconciliación best-effort por forma), `NeonWiringPlan` (nearest-neighbor + 2-opt acotado, IN/OUT por segmento), `NeonCablePassThrough` (cápsula bipolar única, perfora el piso sin tocar las paredes visibles — split de piso por bandas gateado, malla bit a bit idéntica sin pass-throughs), puentes traseros por MST (Kruskal, **sólidos independientes con overlap físico real, NO soldados por Clipper** — ver 33.4 para el porqué y la limitación aceptada), `NeonWallClip` paramétrico (deriva de la sección del canal, se regenera solo), posición automática de clips por longitud de arco, editor manual (reutiliza el editor de Back Cutouts existente, pass-through como `BackCutout` sintético — invertir/reordenar por lista), malla helper de cableado/montaje (nunca se exporta), export (Wall Clip STL + kit ZIP) y persistencia (receta+overrides anidados en el mismo `settings` jsonb, sin migration nueva). 53 tests nuevos en tests/maker-neon-installation.test.mjs (630 -> 683 tests Maker). No avanza a Neon 0.4.
 > Neon 0.3.2 (2026-09-23): corrección conceptual de cableado y puentes (sección 34), sin features nuevas. Cableado: se verificó que la fórmula 2N-1 de pass-throughs ya estaba bien implementada (no era "1 segmento -> 1 pass-through"); se agregó `NeonPassThroughRole` (POWER IN/IN/OUT/loop) y `planValidPassThrough()` (fallback de reposicionamiento cuando la posición por defecto no entra en la cavidad — antes se perdía en silencio). Puentes: reescritos de MST-only a modelo `BridgeConnection`/`BridgeInstance` con 4 modos (`independent`/`minimal`/`reinforced`/`custom`, antes solo `independent`/`bridged`), planificador de refuerzo con muestreo por longitud de arco + separación espacial mínima + evasión de pass-throughs, y editor manual mínimo (agregar/eliminar por par de segmentos, con validación de "toca ambos floors"). 12 tests nuevos en tests/maker-neon-installation.test.mjs (53 -> 65; 683 -> 696 tests Maker totales, 1 skip preexistente no relacionado). No avanza a Neon 0.4.
+> Lámparas E27 0.1 (2026-10-30): cuarta herramienta, **Lámparas E27** (`/stampa-maker/lamparas`, sección 38), **Beta / solo administradores**: pantalla paramétrica (ondulada, espiral, orgánica) + inserto de color intercambiable + base para portalámparas E27 comercial (PRELIMINAR - NO VALIDADA). **Diseño pendiente de validación física** (montaje, temperatura, estabilidad).
 > Carteles 0.7.2 (2026-10-30): selectores de Material (PLA / PETG) y Resistencia (Ligero / Normal / Reforzado) que eligen `wallMm` (sección 37); reemplazan a Normal / Reforzado. Los estilos ya no definen pared ni material.
 > Carteles 0.7.1 (2026-10-30): corrección del bisel superior (la cavidad acompaña a la silueta, chaflán recto, protecciones) y selector de resistencia Normal / Reforzado (sección 36).
 > Carteles 0.7 (2026-10-30): estilos y creación rápida — 10 estilos con miniaturas generadas por el motor real, flujo texto → estilo → visor → descarga y Personalización avanzada plegable con todos los controles existentes (sección 35). Motor geométrico sin cambios; aviso `UNSUPPORTED_GLYPH` y reencuadre del visor que conserva la rotación.
@@ -3551,3 +3552,155 @@ Tests (`tests/maker-material-strength.test.mjs`, 21; `tests/maker-bevel-wall.tes
 3. Con bisel (p. ej. estilo Moderno) y con tapa encastrable: revisar que el espesor se mantiene dentro del bisel y que el labio encastra con la holgura de 0,2 mm en el material real (PLA y PETG tienen contracciones distintas).
 4. Confirmar que no aparecen advertencias de malla (autointersección, aristas abiertas) y revisar el caso "OB" 0,9 mm (§37.7).
 5. Validar físicamente la rigidez de un cartel grande en cada perfil antes de ofrecerlo como recomendación de uso.
+
+## 38. Lámparas E27 (0.1) — `/stampa-maker/lamparas` (Beta / solo administradores)
+
+Cuarta herramienta de Stampa Maker. Genera **tres piezas independientes**: pantalla exterior, inserto cilíndrico de color
+intercambiable y base para un portalámparas E27 **comercial** (que nunca se imprime). Motor paramétrico propio en
+`src/lib/maker/lamps/` (no importa la geometría de Carteles, Neón ni Jarros; un test lo verifica).
+
+> **Estado de seguridad.** Las piezas se usan cerca de una bombilla conectada a la red. Todo lo que valida esta herramienta es
+> **geométrico**; ninguna cifra es una distancia o temperatura "segura". La base es **PRELIMINAR - NO VALIDADA** hasta que se carguen
+> las medidas del portalámparas real, y el conjunto sigue **pendiente de validación física** aunque se carguen. Por eso la herramienta
+> es Beta / solo administradores (`availability.ts`, mismo mecanismo que Jarros 3D; reabrirla es quitar `adminOnly`). No se tocó
+> Carteles, Neón ni Jarros: no hay migración ni SQL (el diseño se guarda como "código del diseño", ver 38.5).
+
+```
+LampDefinition -> validateLamp (rangos -> campo de la pantalla -> encaje -> seguridad)
+              -> pantalla: campo (θ,z) -> revolveProfile(closed) | inserto y base: capas apiladas (buildPrismStack)
+              -> 3 mallas indexadas cerradas -> soup + métricas -> visor / cama / STL (misma malla)
+```
+
+### 38.1 Código existente reutilizado
+
+| Reutilizado | De | Para |
+|---|---|---|
+| `revolveProfile` (+ opción **aditiva** `closed`, 6 líneas) | Jarros | malla de la pantalla (lazo de tubo: piel exterior, borde, piel interior, borde) |
+| `IndexedMesh`, `analyzeMesh`, `meshToSoup`, `signedVolume` | Jarros | mallas cerradas/manifold, normales suaves, volumen |
+| `buildPrismStack` + `repairCollinearTriangles` + Clipper | Carteles (instalación) | base e inserto: capas con vacíos/aditivos soldadas por coordenadas compartidas, **sin CSG** |
+| `MakerViewport` (+ props opcionales `zUp`, `hiddenKinds`, `partColors`) | compartido | visor, rotar/zoom, ocultar piezas, color por pieza **sin reconstruir mallas** |
+| `ViewportViewCard`, `BedLabel`, `BedWarnings`, `collectBedItems`, `computeBedLayout` | compartido | Vista Cama (A1 256³) |
+| `partFileEntries` + `PRINT_TRANSFORM_BY_KIND` + `computeExplodeRanks` | compartido | STL por pieza en su orientación de impresión; separación de piezas |
+| `buildSTLBlob` / `downloadBlob`, JSZip | compartido | exportación |
+| `NumberField`, `SegmentedControl`, `Card`, `useAppFeedback` | compartido | UI |
+
+Cambios en código compartido (todos aditivos y de comportamiento neutro para las otras herramientas): `PartKind` suma `lampInsert` y
+`lampShade` (la **base es `body`**, la pieza ancla, capa 0 de armado); `PRINT_TRANSFORM_BY_KIND` y `PART_ASSEMBLY_LAYER` ganan sus entradas
+(inserto 180° en Y, capa 1; pantalla identidad, capa 2); `MakerViewport` gana tres props opcionales con default que conserva el comportamiento anterior.
+No hay un segundo sistema de tutoriales: la herramienta, al ser Beta/admin, no está en el hub del tutorial de Maker (igual que Jarros) y hereda
+`resolveTutorialId` por prefijo `/stampa-maker/`.
+
+### 38.2 `LampDefinition` (única fuente de verdad) y parámetros
+
+`shade`: `family` (`wavy|spiral|organic`), `heightMm`, `bottomDiameterMm`, `topDiameterMm`, `profile` (`straight|barrel|waist|bell|tulip`),
+`profileAmountPct`, `waves`, `amplitudeMm`, `twistDeg`, `verticalFrequency`, `patternIntensityPct`, `organicPct`, `seed`, `wallMm`, `collarHeightMm`.
+`insert`: `enabled`, `diameterMm` (null = automático), `heightPct`, `thicknessMm`, `clearanceMm` (holgura de montaje por lado, 0,3–2 mm),
+`minBulbGapMm`, `tabs`, `ventNotches`, `previewColor` (solo vista previa). `base`: `diameterMm` (null = auto), `heightMm`, `ventGapMm`.
+`holder` (`measured`, `bodyDiameterMm`, `heightMm`, `threadDiameterMm`, `nutRecessDiameterMm`, `nutRecessDepthMm`), `bulb`, `cable`.
+Los límites de cada campo están en `LAMP_LIMITS` (`types.ts`); fuera de rango = error con su campo, nunca recorte silencioso.
+La UI principal expone: diseño inicial, altura, diámetros, perfil, familia, ondas, amplitud, torsión, inserto (color, espesor, holgura);
+el resto está en "Opciones avanzadas". El motor acepta todos y es extensible (agregar un término a `createShadeRowEvaluator`).
+
+### 38.3 Motor paramétrico (pantalla)
+
+Una sola función continua para las tres familias: `r(θ,z) = R(z) + A·E(z)·M(z)·cos(n·θ + φ(z))` (`shade/surface.ts`).
+`R(z)` perfil (recta, barril, cintura, campana, tulipán) + deriva orgánica; `E(z)` envolvente (0 en el collar, suave); `M(z)` variación vertical
+(`verticalFrequency` × `patternIntensityPct`); `φ(z)` torsión lineal (+ ondulación orgánica). La **familia solo decide qué términos están activos**:
+*ondulada* (sin torsión ni orgánica), *espiral* (torsión), *orgánica* (cambios de diámetro, amplitud y fase con ruido suave **reproducible** por `seed`).
+El **collar** inferior es un círculo recto exacto (`collarHeightMm`) donde la pantalla encastra con la base.
+
+Como `r` es función de (θ,z) con `r > 0`, cada corte horizontal es **una curva cerrada simple**: no hay autointersecciones por construcción
+y el contorno por capa es continuo. La piel interior es **otra función** `r_in = r − wall·√(1 + (r_θ/r)² + r_z²)`: la pared mide `wallMm` en la dirección
+**normal**, no la radial. Se validan: pendiente máxima de la pared (límite duro 70°), radio de las crestas > espesor (si no la pared se plegaría), degenerados.
+Resolución adaptativa (`planShadeResolution`): ≥ 12 muestras por onda (valles/crestas caen en vértices), filas según torsión/variación vertical, tope de
+110 k triángulos para la pantalla.
+
+### 38.4 Presets y "Generar variación"
+
+9 presets (ondas suaves/marcadas, espiral suave/torsionada, orgánica y orgánica fluida, tulipán, reloj de arena, campana): solo **recetas** de la
+pantalla (no pisan altura, diámetro inferior, espesor, inserto ni base) y se pueden seguir editando. **Generar variación** (`variation.ts`) sortea familia,
+perfil, diámetro superior, ondas, amplitud, torsión, variación vertical y orgánica con un PRNG por **semilla**; cada candidato pasa por la validación completa
+(inserto incluido) y por una pendiente ≤ 40° (apto para modo vaso); si no pasa se descarta y se sortea otro. **Misma base + misma semilla = mismo diseño**
+(la semilla se muestra y se edita). Con la reserva (nunca vista en los tests) se carga un preset.
+
+### 38.5 Código del diseño (sin migración)
+
+`encodeLampDesign` / `decodeLampDesign` (`designCode.ts`): la `LampDefinition` completa (con semilla) en un texto `SL1:…` para copiar/pegar; también va en el LÉEME del
+ZIP. Se normaliza al leer (tolerante, sin recortar rangos) y pasa por la validación. No se usó `maker_projects` porque exigiría ampliar el CHECK de `source_type`
+(migración). Si más adelante se quieren proyectos guardados: nueva migration `source_type = 'lamp'`, **no incluida**.
+
+### 38.6 Tres piezas y cómo se unen (cotas de ensamblado, Z hacia arriba, base en Z = 0)
+
+- **Base** (`parts/createBase.ts`, impresión convencional, apoyada en Z = 0): sólido (el laminador lo rellena) con **asiento** superior del cuerpo del portalámparas
+  (2 mm de profundidad, holgura 0,5 mm por lado) + **agujero pasante** de la espiga (Ø espiga + 1,2 mm); **alojamiento inferior** para tuerca/bornes y **canal de cable**
+  abierto por debajo hacia el borde (+X); **ranura anular** de 3 mm donde encastra el inserto; **6 apoyos** que elevan la pantalla `ventGapMm` (luz de ventilación)
+  y un **aro exterior de centrado** (3 × 8 mm) por **fuera** del collar: la pantalla apoya y se centra por su diámetro **exterior**, así el encaje no depende del espesor real
+  que imprima el modo vaso.
+- **Inserto** (`parts/createInsert.ts`): tubo liso de pared fina, abierto arriba. El borde inferior apoya en la ranura (posición de montaje única, se centra solo).
+  **Colocación**: se apoya desde arriba. **Extracción**: dos lengüetas **exteriores** en el borde superior (agarre con dedos; no se acercan a la bombilla).
+  **Ventilación**: muescas en el borde inferior (por defecto 6, 6 mm de luz sobre la cubierta) + boca abierta arriba. Con lengüetas o muescas se imprime convencionalmente
+  (su geometría real no es modo vaso); sin ellas es un tubo liso candidato a modo vaso.
+- **Pantalla**: apoya sobre los 6 apoyos, entre los apoyos queda el paso de aire hacia el inserto. No hay roscas, bayonetas ni tornillos que rompan la continuidad.
+
+**Orden de montaje de las piezas impresas** (el cableado del portalámparas no forma parte de esta herramienta): base -> inserto (cae en la ranura) -> pantalla (se baja por encima y apoya en los apoyos). Para **cambiar de color**: levantar la pantalla y extraer el inserto por las lengüetas; la pantalla no se reemplaza. Esto es posible porque el espacio libre de la pantalla a todas las alturas es >= el inserto + holgura (se valida).
+
+El inserto **se adapta** a las dimensiones disponibles: diámetro exterior automático = el mayor que cabe (`min(radio libre − holgura − lengüeta)` sobre toda su altura, en pasos de
+0,5 mm); o manual. Si no cabe, o toca la pantalla, o queda a menos de la separación de diseño de la bombilla/portalámparas, **se bloquea el STL con el motivo y las cifras**
+(`INSERT_DOES_NOT_FIT`, `INSERT_TOUCHES_SHADE`, `INSERT_TOO_CLOSE_TO_BULB`...). **Nunca se reduce una distancia crítica automáticamente.**
+
+### 38.7 Base E27: qué es preliminar y qué hay que medir
+
+E27 describe la **rosca de la bombilla**, no las medidas exteriores del portalámparas. La geometría preliminar contempla **un solo sistema de fijación**: portalámparas con
+**espiga roscada pasante y tuerca** (valores por defecto de ejemplo: cuerpo Ø45, alto 55, espiga Ø10, alojamiento de tuerca Ø24 × 9 mm, cable Ø7, bombilla Ø60 con 85 mm sobre el
+portalámparas). **Ninguno de esos valores corresponde a un componente verificado** (`holder.measured = false` => avisos `HOLDER_NOT_VALIDATED`, etiqueta "NO VALIDADA" en el visor y el panel,
+archivo `lampara_base_PRELIMINAR.stl`, ZIP con LÉEME). Al marcar "estas medidas son de mi portalámparas real" la etiqueta pasa a "base" pero el diseño sigue pendiente de validación física.
+
+**Dimensiones a proporcionar (portalámparas real):** diámetro del cuerpo/faldón que apoya; altura desde la cara de apoyo hasta el borde superior; sistema de fijación real (espiga
+roscada M10/M13, tornillos, presión…) y su diámetro exacto; alto y diámetro de la tuerca o bornes bajo la base; diámetro del cable y del pasacables; diámetro de la bombilla y cuánto sobresale
+del portalámparas. Si el portalámparas **no** usa espiga roscada con tuerca, la base debe rediseñarse.
+No se imprimen contactos, roscas energizadas ni conexiones a la red, y la herramienta **no da instrucciones de cableado**.
+
+### 38.8 Modo vaso
+
+`vase` (en `metrics.shade`) verifica **prerrequisitos geométricos**: tubo abierto con contorno continuo por capa (por construcción), sin horizontales salvo el borde, y **pendiente máxima de la pared ≤ 45°** respecto de la
+vertical (pendiente real de la superficie, no el espesor: una pared fina con 48° NO se declara apta; hay un test). La torsión por sí sola no empina un cilindro, pero las ondas torcidas sí. Si no se cumple: aviso `SHADE_NOT_VASE`
+(impresión convencional, posibles soportes). La unión con la base no compromete la continuidad (collar recto liso, sin geometría de fijación en la pantalla). Prerrequisitos del laminador (a confirmar en el slicer, **no verificado**
+en este entorno: no hay laminador): modo espiral/vaso activo, 0 capas inferiores (tubo abierto), 1 perímetro, ancho de extrusión ≥ 0,4 mm, brim recomendable (el borde inicial es una sola línea). La base se imprime convencional;
+el inserto, convencional salvo que sea un tubo liso.
+
+### 38.9 Visor y exportación
+
+Visor: rotar/zoom, ensamblada o separada (slider), **Todo / Sin pantalla / Pantalla / Inserto / Base** (solo cambia `visible`, no regenera), color del inserto (9 referencias + libre; material translúcido con un poco de brillo propio:
+**referencia visual, no simulación de la luz** ni del filamento), Vista Cama. En móvil el visor queda fijo arriba y los controles se desplazan debajo. **Un solo nivel de calidad:** el visor y el STL leen **exactamente la misma malla**
+(la descarga no regenera nada y se deshabilita mientras el debounce no alcanzó la definición). Cache por pieza (`createLamp`): cambiar el color no regenera nada; cambiar el inserto no rehace la pantalla.
+
+Exporta: `lampara_pantalla.stl`, `lampara_inserto.stl`, `lampara_base_PRELIMINAR.stl` (o `lampara_base.stl` con medidas cargadas), cada uno en su orientación de impresión, **o un ZIP** con los tres + `LEEME.txt` (avisos de seguridad, medidas a
+verificar, pruebas físicas y código del diseño). Nunca exporta geometrías vacías ni con errores. Sin 3MF.
+
+### 38.10 Validaciones geométricas (`tests/maker-lamps.test.mjs`, 49 tests)
+
+Mallas de las tres piezas cerradas, manifold, orientadas, sin degenerados y de una componente conexa en: defecto, pantalla chica y grande, diámetro inferior mínimo útil, ondulaciones y torsiones extremas permitidas, muchas ondas, perfil orgánico, campana con variación vertical,
+cintura y 24 variaciones aleatorias; **autointersecciones** (cada rayo horizontal cruza la pantalla exactamente 2 veces); **espesor real** (distancia punto–superficie >= 0,75 × el pedido, con ondas, torsión y orgánica); **continuidad por capa** (cada corte horizontal = 2 lazos cerrados);
+inserto compatible (holgura medida sobre las mallas a todas las alturas, no sobresale, apoya en la ranura) e **incompatible** (motivo con cifras, la definición no se modifica); separación a la bombilla/portalámparas; **encajes** (ranura sigue al inserto y la holgura; aro de centrado a R+0,4;
+asiento y agujero siguen las medidas del portalámparas; canal de cable libre; luz de ventilación entre apoyos); pendiente de la malla ≈ informe de modo vaso; presets válidos y aptos a varios tamaños; variación reproducible y diversa; **exportación STL = visor** (triángulos, vértices, orientación) y ZIP;
+código del diseño; límites de cada campo; textos de seguridad; disponibilidad; UI.
+
+**Medido en este entorno (Node, sin GPU):** diseño por defecto 66 044 triángulos (pantalla 58 176, inserto 2 308, base 5 560), 140–270 ms en frío; los casos de la suite 37–117 k triángulos y 105–280 ms; con cache, cambiar solo el inserto ≈ 100 ms y solo el color 0 ms.
+200 variaciones: ninguna cayó en la reserva ni dio error de geometría. **Los tests geométricos no reemplazan pruebas de impresión, temperatura o montaje.**
+
+### 38.11 Limitaciones conocidas
+
+- Solo se contempla portalámparas con espiga roscada pasante y tuerca; las medidas por defecto son de ejemplo (sección 38.7). No hay lastre ni pies; la estabilidad es una regla práctica (`BASE_STABILITY`), no un cálculo.
+- La pendiente máxima depende de la altura: con pantallas bajas (< ~160 mm) los diseños de ondas fuertes pueden dejar de ser aptos para modo vaso (el aviso lo indica). Con diámetro inferior < ~120 mm muchos diseños no alojan el inserto con la bombilla de ejemplo.
+- La pantalla es una "estrella" radial: no hay perfiles con saltos, aberturas ni calados. Tampoco proyectos guardados (solo código del diseño).
+- El color del visor no simula la luz; la transmisión depende del filamento, del espesor y de la bombilla.
+- La interfaz se verificó en el navegador con un arnés temporal (la ruta exige admin): escritorio y móvil 375 px; el tema claro/automático del shell y el flujo con cuenta real **no** se probaron.
+
+### 38.12 Pruebas físicas necesarias antes de usar la lámpara encendida
+
+1. Montaje en seco con el portalámparas real (asiento, espiga, tuerca, cable, holguras) y corrección de la base con las medidas reales.
+2. Encaje de pantalla e inserto con el filamento/impresora reales (la holgura depende del material y la calibración).
+3. Prueba térmica con la bombilla encendida varias horas en posición de uso, midiendo con instrumento la temperatura del inserto, la pantalla y la base. PLA/PETG: **no asumir** seguridad.
+4. Estabilidad: inclinación y golpe suave con la lámpara montada.
+5. Laminado: confirmar en el slicer que la pantalla entra en modo vaso (38.8) y que el inserto/base laminan sin soportes inesperados.
+6. Revisión final por una persona calificada en instalaciones eléctricas.

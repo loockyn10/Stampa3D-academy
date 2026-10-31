@@ -31,6 +31,10 @@ export const PRINT_TRANSFORM_BY_KIND: Record<PartKind, PrintTransform> = {
   mask: FLIP_Y,
   diffuser: NONE,
   channelDiffuser: NONE,
+  // Lámparas E27 (la base es la pieza ancla: kind "body"). La pantalla se imprime parada sobre su collar (modo vaso
+  // posible); el inserto va dado vuelta para que las lengüetas del borde superior apoyen en la cama sin voladizos.
+  lampShade: NONE,
+  lampInsert: FLIP_Y,
 };
 
 export function getPrintTransform(kind: PartKind): PrintTransform {

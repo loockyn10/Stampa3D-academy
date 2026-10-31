@@ -22,6 +22,10 @@ Next.js 16 (App Router)/TypeScript/Tailwind 4/Supabase confirmados. Autenticaci�
 
 Rutas confirmadas (`/academia`, `/cursos`, `/talleres`), contenido interno no revisado en detalle — fuera del foco de riesgo de esta auditoría (acceso/RLS/pricing/ventas). **REQUIERE revisión dedicada si se prioriza.**
 
+### Stampa Maker — Lámparas E27 (agregado 2026-10-30, Beta / solo admin)
+
+Cuarta herramienta (`/stampa-maker/lamparas`, docs/STAMPA_MAKER.md §38): pantalla paramétrica (ondulada, espiral, orgánica) + inserto de color intercambiable + base para portalámparas E27 comercial. **Verificado:** typecheck, lint de los archivos nuevos, 49 tests geométricos propios, build y revisión visual en navegador con un arnés temporal (escritorio y 375 px). **No verificado:** impresión, laminado en modo vaso, montaje con un portalámparas real, temperatura y estabilidad; la base es PRELIMINAR - NO VALIDADA. Sin migraciones ni cambios en Carteles, Neón y Jarros (solo props/entradas aditivas en el visor y tablas por `PartKind`).
+
 ### Mi Taller — Verificado
 
 Impresoras/filamentos físicos, catálogos, productos/recetas/componentes, inventario, producción confirmados con nombres reales de tabla (ver `ARCHITECTURE.md` §6). "Una bobina = una card" confirmado. "Registrar producción" vs "Ajustar inventario" confirmados como paths distintos. **Hallazgo nuevo:** riesgo real de doble conteo de material si se agrega a un mismo lote de producción un producto completo y, por separado, uno de sus propios componentes — ni la UI ni la RPC de consumo deduplican ese caso (`src/app/stock/page.tsx`, RPC `consume_filaments_for_production_targets`). No corregido (fuera de alcance de esta auditoría).

@@ -12,6 +12,8 @@ export const MAKER_TOOL_AVAILABILITY: readonly MakerToolAvailability[] = [
   { href: "/stampa-maker/carteles" },
   { href: "/stampa-maker/neon" },
   { href: "/stampa-maker/jarros", beta: true, adminOnly: true },
+  // Lámparas E27: Beta / solo administradores hasta validar físicamente el conjunto (portalámparas, temperatura, estabilidad).
+  { href: "/stampa-maker/lamparas", beta: true, adminOnly: true },
 ];
 
 export function canAccessMakerTool(href: string, isAdmin: boolean): boolean {

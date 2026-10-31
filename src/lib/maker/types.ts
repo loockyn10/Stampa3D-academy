@@ -342,7 +342,7 @@ export interface TriangleSoupData {
  * `frontType` en cada exportador/el viewport — ver
  * geometry/front/index.ts#buildFrontParts y exporters/parts.ts.
  */
-export type PartKind = "body" | "lid" | "mask" | "diffuser" | "channelDiffuser";
+export type PartKind = "body" | "lid" | "mask" | "diffuser" | "channelDiffuser" | "lampInsert" | "lampShade";
 
 /** Una pieza física imprimible (mesh + cómo nombrarla al exportar). */
 export interface SignPart {

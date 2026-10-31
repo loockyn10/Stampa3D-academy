@@ -31,6 +31,12 @@ interface MakerViewportProps {
   cutoutEditing?: CutoutEditorState | null;
   /** Malla auxiliar SOLO visual (p.ej. el inserto de Jarros): semitransparente, solo en Modelo, nunca forma parte del resultado exportable. */
   helperMesh?: TriangleSoupData | null;
+  /** Lámparas: el modelo tiene Z hacia arriba (se gira -90° en X para encajar en la escena Y-up) y el encuadre inicial es lateral. */
+  zUp?: boolean;
+  /** Piezas ocultas SOLO en pantalla (no regenera nada ni toca la geometría exportada). */
+  hiddenKinds?: readonly PartKind[] | null;
+  /** Color de vista previa por pieza (#rrggbb), aplicado sin reconstruir mallas. No simula la luz real. */
+  partColors?: Partial<Record<PartKind, string>> | null;
 }
 
 /** Color por tipo de pieza, solo para diferenciarlas visualmente en el preview (no es el color real de impresión). */
@@ -40,17 +46,37 @@ const PART_COLORS: Record<PartKind, number> = {
   mask: 0x6b6f76,
   diffuser: 0xfff3d6,
   channelDiffuser: 0xfff3d6,
+  lampInsert: 0xe5483b,
+  lampShade: 0xf4efe6,
 };
 
 type CameraState = { position: THREE.Vector3; target: THREE.Vector3 };
 
 function makeMaterial(kind: PartKind): THREE.MeshStandardMaterial {
+  // Lámparas: la pantalla y el inserto son de filamento translúcido; se dibujan semitransparentes para ver el inserto adentro.
+  if (kind === "lampShade") {
+    return new THREE.MeshStandardMaterial({ color: PART_COLORS[kind], roughness: 0.35, metalness: 0, transparent: true, opacity: 0.5, depthWrite: false, side: THREE.DoubleSide });
+  }
+  if (kind === "lampInsert") {
+    // Un poco de brillo propio: el filamento translúcido iluminado se ve más saturado que uno apagado (solo vista previa).
+    return new THREE.MeshStandardMaterial({ color: PART_COLORS[kind], emissive: PART_COLORS[kind], emissiveIntensity: 0.3, roughness: 0.45, metalness: 0, transparent: true, opacity: 0.88, side: THREE.DoubleSide });
+  }
   return new THREE.MeshStandardMaterial({
     color: PART_COLORS[kind],
     roughness: kind === "body" ? 0.65 : 0.55,
     metalness: 0.05,
     side: THREE.DoubleSide,
   });
+}
+
+/** Visibilidad de una pieza: helper fuera del componente (los efectos solo llaman métodos, como el resto de este visor). */
+function setPartAppearance(mesh: THREE.Mesh, visible: boolean, color?: string, glow = false) {
+  mesh.visible = visible;
+  if (color) {
+    const material = mesh.material as THREE.MeshStandardMaterial;
+    material.color.set(color);
+    if (glow) material.emissive.set(color);
+  }
 }
 
 function clearGroup(group: THREE.Group) {
@@ -106,7 +132,7 @@ function buildBedPlate(profile: PrinterProfile): THREE.Object3D {
  *    printBed/bedLayout.ts) apoyadas en Z=0 sobre el perfil de impresora.
  * Cada modo conserva su propia cámara.
  */
-export function MakerViewport({ geometry, displayMode = "model", explosionAmount = DEFAULT_EXPLOSION_AMOUNT, bed = null, cutoutEditing = null, helperMesh = null }: MakerViewportProps) {
+export function MakerViewport({ geometry, displayMode = "model", explosionAmount = DEFAULT_EXPLOSION_AMOUNT, bed = null, cutoutEditing = null, helperMesh = null, zUp = false, hiddenKinds = null, partColors = null }: MakerViewportProps) {
   const containerRef = useRef<HTMLDivElement>(null);
   const sceneRef = useRef<THREE.Scene | null>(null);
   const cameraRef = useRef<THREE.PerspectiveCamera | null>(null);
@@ -124,11 +150,11 @@ export function MakerViewport({ geometry, displayMode = "model", explosionAmount
   const geometryRef = useRef<LetterGeometryResult | null>(geometry);
   const hadModelRef = useRef(false);
 
-  const fitTo = (center: THREE.Vector3, maxDim: number, dir: THREE.Vector3) => {
+  const fitTo = (center: THREE.Vector3, maxDim: number, dir: THREE.Vector3, margin = 1.8) => {
     const camera = cameraRef.current;
     const controls = controlsRef.current;
     if (!camera || !controls) return;
-    const distance = maxDim * 1.8;
+    const distance = maxDim * margin;
     controls.target.copy(center);
     camera.position.copy(center).addScaledVector(dir, distance);
     camera.near = Math.max(distance / 100, 0.1);
@@ -147,17 +173,23 @@ export function MakerViewport({ geometry, displayMode = "model", explosionAmount
       if (mesh.geometry.boundingBox) box.union(mesh.geometry.boundingBox);
     }
     if (box.isEmpty()) return;
+    // Con Z hacia arriba (lámparas) el grupo está girado: el encuadre se calcula en coordenadas de escena.
+    if (zUp) {
+      group.updateMatrixWorld(true);
+      box.applyMatrix4(group.matrixWorld);
+    }
     const center = box.getCenter(new THREE.Vector3());
     const size = box.getSize(new THREE.Vector3());
     // Perspectiva 3/4 (o la dirección actual con `keepView`). El encuadre se calcula sobre la posición ensamblada.
-    const dir = new THREE.Vector3(0.55, 0.55, 0.75);
+    const dir = zUp ? new THREE.Vector3(0.85, 0.42, 0.95) : new THREE.Vector3(0.55, 0.55, 0.75);
     const camera = cameraRef.current;
     const controls = controlsRef.current;
     if (keepView && camera && controls) {
       const current = camera.position.clone().sub(controls.target);
       if (current.lengthSq() > 1e-6) dir.copy(current.normalize());
     }
-    fitTo(center, Math.max(size.x, size.y, size.z, 1), dir);
+    // Lámparas: más aire alrededor (los paneles flotantes tapan parte del visor).
+    fitTo(center, Math.max(size.x, size.y, size.z, 1), dir, zUp ? 2.5 : 1.8);
   };
 
   const fitBed = () => {
@@ -256,6 +288,14 @@ export function MakerViewport({ geometry, displayMode = "model", explosionAmount
     };
   }, []);
 
+  // Orientación del modelo (antes del efecto de geometría, que encuadra con la matriz ya aplicada).
+  useEffect(() => {
+    const group = modelGroupRef.current;
+    if (!group) return;
+    group.rotation.x = zUp ? -Math.PI / 2 : 0;
+    group.updateMatrixWorld(true);
+  }, [zUp]);
+
   // Escena Modelo: una malla por pieza combinada.
   useEffect(() => {
     const group = modelGroupRef.current;
@@ -270,6 +310,9 @@ export function MakerViewport({ geometry, displayMode = "model", explosionAmount
     for (const part of geometry.parts) {
       if (part.mesh.triangleCount === 0) continue;
       const mesh = new THREE.Mesh(letterGeometryToBufferGeometry(part.mesh), makeMaterial(part.kind));
+      // Translúcidos: el inserto se dibuja antes que la pantalla para que se vea a través de ella.
+      if (part.kind === "lampInsert") mesh.renderOrder = 2;
+      if (part.kind === "lampShade") mesh.renderOrder = 3;
       group.add(mesh);
       partMeshesRef.current.set(part.kind, mesh);
     }
@@ -281,6 +324,17 @@ export function MakerViewport({ geometry, displayMode = "model", explosionAmount
     if (activeModeRef.current === "model") fitModel(keepView);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [geometry]);
+
+  // Visibilidad y color por pieza: solo cambian propiedades del material/objeto, sin reconstruir geometría.
+  const hiddenKey = hiddenKinds?.join(",") ?? "";
+  const colorsKey = partColors ? JSON.stringify(partColors) : "";
+  useEffect(() => {
+    const hidden = new Set(hiddenKey ? hiddenKey.split(",") : []);
+    const colors = colorsKey ? (JSON.parse(colorsKey) as Partial<Record<PartKind, string>>) : {};
+    for (const [kind, mesh] of partMeshesRef.current) {
+      setPartAppearance(mesh, !hidden.has(kind), colors[kind], kind === "lampInsert");
+    }
+  }, [geometry, hiddenKey, colorsKey]);
 
   // Malla auxiliar (helper) visual: se agrega al grupo Modelo DESPUÉS de las piezas (el efecto de arriba limpia el
   // grupo al cambiar la geometría), sin tocar `partMeshesRef` (no se explota ni entra en el auto-fit ni en la cama).

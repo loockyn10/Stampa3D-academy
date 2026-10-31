@@ -2,6 +2,13 @@
 
 Este archivo contiene únicamente trabajo pendiente o próximo. Eliminar tareas terminadas en lugar de conservar un historial infinito.
 
+## Now — Lámparas E27 0.1 (implementado 2026-10-30, Beta / solo admin, ver docs/STAMPA_MAKER.md §38)
+
+- [ ] **Medir el portalámparas E27 real** y cargar las medidas (diámetro del cuerpo, altura hasta el borde superior, sistema de fijación y su diámetro, tuerca/bornes, cable, bombilla): la base es PRELIMINAR - NO VALIDADA y solo contempla espiga roscada pasante con tuerca. Lista exacta en §38.7. Si el portalámparas no usa ese sistema, rediseñar la base.
+- [ ] Pruebas físicas antes de abrir la herramienta a todos los usuarios (§38.12): montaje en seco, encaje con el filamento real, prueba térmica con bombilla encendida (PLA/PETG, medida con instrumento), estabilidad, laminado real en modo vaso, revisión por persona calificada. Hasta entonces sigue `adminOnly` + Beta en `src/lib/maker/availability.ts`.
+- [ ] QA manual con cuenta admin (escritorio y 375 px, claro/oscuro/automático): la ruta se probó solo con un arnés temporal.
+- [ ] Decidir si las lámparas se guardan como proyectos (hoy solo "código del diseño"): requeriría una migration que amplíe el CHECK de `maker_projects.source_type`; no incluida.
+
 ## Now — Categorías de productos en Mi Taller (implementado 2026-10-30, ver ARCHITECTURE §25 y D039)
 
 - [ ] Aplicar `20261101120000_product_categories.sql` en Supabase (no aplicada). Hasta entonces la pantalla no muestra categorías.

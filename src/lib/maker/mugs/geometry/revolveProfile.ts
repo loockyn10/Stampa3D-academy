@@ -17,6 +17,11 @@ export interface RevolveOptions {
   radiusAt?: (p: ProfilePoint, theta: number, i: number) => number;
   /** true = no generar el cuadrilátero entre las filas i,i+1 y las columnas j,j+1 (hueco para la unión del asa). */
   skipQuad?: (i: number, j: number) => boolean;
+  /**
+   * true = el perfil es un LAZO cerrado (tubo de pared fina: piel exterior hacia arriba, borde, piel interior hacia
+   * abajo, borde) y la última fila se conecta con la primera. Sin polos. Lo usan las pantallas/insertos de Lámparas.
+   */
+  closed?: boolean;
 }
 
 export interface RevolveResult {
@@ -53,10 +58,12 @@ export function revolveProfile(mesh: IndexedMesh, profile: ProfilePoint[], opts:
     grid.push(row);
   }
   const vertex = (i: number, j: number) => grid[i][((j % seg) + seg) % seg];
-  for (let i = 0; i < rows - 1; i++) {
+  const bands = opts.closed ? rows : rows - 1;
+  for (let i = 0; i < bands; i++) {
+    const next = (i + 1) % rows;
     for (let j = 0; j < seg; j++) {
       if (opts.skipQuad?.(i, j)) continue;
-      const a = vertex(i, j), b = vertex(i, j + 1), c = vertex(i + 1, j + 1), d = vertex(i + 1, j);
+      const a = vertex(i, j), b = vertex(i, j + 1), c = vertex(next, j + 1), d = vertex(next, j);
       // Normal = (b - a) x (d - a): con el perfil creciendo en +z apunta a +radio (afuera).
       addTri(mesh, a, b, c);
       addTri(mesh, a, c, d);

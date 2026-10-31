@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { Type, Zap, Coffee, ArrowRight } from "lucide-react";
+import { Type, Zap, Coffee, Lightbulb, ArrowRight } from "lucide-react";
 import { Card } from "@/components/ui/card";
 import { SectionTitle } from "@/components/ui/section-title";
 import { getCurrentUserAccess } from "@/lib/auth/user-access";
@@ -26,6 +26,12 @@ const MAKER_TOOLS = [
     icon: Coffee,
     title: "JARROS 3D",
     description: "Creá jarros únicos y listos para imprimir con cuerpos, asas y estilos paramétricos.",
+  },
+  {
+    href: "/stampa-maker/lamparas",
+    icon: Lightbulb,
+    title: "Lámparas E27",
+    description: "Pantallas paramétricas con inserto de color intercambiable y base para portalámparas E27.",
   },
 ] as const;
 
