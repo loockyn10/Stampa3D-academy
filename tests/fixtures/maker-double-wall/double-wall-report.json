@@ -1,0 +1,295 @@
+{
+  "params": {
+    "heightMm": 120,
+    "wallMm": 1.2,
+    "minGapMm": 20,
+    "outer": {
+      "maxDiameterMm": 140,
+      "endDiameterMm": 110,
+      "bulgePositionPct": 50,
+      "curvaturePct": 40,
+      "flutes": 24,
+      "fluteAmplitudeMm": 3,
+      "twistDeg": 0
+    },
+    "inner": {
+      "endDiameterMm": 60,
+      "waistPct": 60,
+      "waistPositionPct": 50,
+      "curvaturePct": 30
+    },
+    "slitMm": 2,
+    "ribs": 4,
+    "ribMm": 1.2,
+    "samplesPerFlute": 12,
+    "innerSegments": 120,
+    "rowMm": 2
+  },
+  "note": "Medidas sobre las mallas generadas. NO son resultados de laminado: ningún laminador se ejecutó.",
+  "prototypes": {
+    "vase-c": {
+      "file": "double-wall-vase-test.stl",
+      "fileBytes": 5002084,
+      "strategy": "vase-c",
+      "triangles": 100040,
+      "stlBytes": 5002084,
+      "components": 1,
+      "watertight": true,
+      "volumeCm3": 92.25418428270808,
+      "boundingBoxMm": {
+        "width": 139.90532234299712,
+        "depth": 139.95233383695586,
+        "height": 120
+      },
+      "gap": {
+        "minGapMm": 20.7999998458969,
+        "atZ": 0,
+        "minRadialGapMm": 20.7999998458969,
+        "minInnerVoidRadiusMm": 17.1
+      },
+      "layers": [
+        {
+          "z": 0.11,
+          "outerContours": 1,
+          "holes": 1,
+          "outerLengthMm": 599.8,
+          "totalLengthMm": 1188.9
+        },
+        {
+          "z": 10.11,
+          "outerContours": 1,
+          "holes": 1,
+          "outerLengthMm": 601,
+          "totalLengthMm": 1191.4
+        },
+        {
+          "z": 20.11,
+          "outerContours": 1,
+          "holes": 1,
+          "outerLengthMm": 609.1,
+          "totalLengthMm": 1207.3
+        },
+        {
+          "z": 30.11,
+          "outerContours": 1,
+          "holes": 1,
+          "outerLengthMm": 625,
+          "totalLengthMm": 1239.1
+        },
+        {
+          "z": 40.11,
+          "outerContours": 1,
+          "holes": 1,
+          "outerLengthMm": 644.7,
+          "totalLengthMm": 1278.7
+        },
+        {
+          "z": 50.11,
+          "outerContours": 1,
+          "holes": 1,
+          "outerLengthMm": 661,
+          "totalLengthMm": 1311.6
+        },
+        {
+          "z": 60.11,
+          "outerContours": 1,
+          "holes": 1,
+          "outerLengthMm": 667.2,
+          "totalLengthMm": 1324.2
+        },
+        {
+          "z": 70.11,
+          "outerContours": 1,
+          "holes": 1,
+          "outerLengthMm": 660.7,
+          "totalLengthMm": 1311
+        },
+        {
+          "z": 80.11,
+          "outerContours": 1,
+          "holes": 1,
+          "outerLengthMm": 644.3,
+          "totalLengthMm": 1277.8
+        },
+        {
+          "z": 90.11,
+          "outerContours": 1,
+          "holes": 1,
+          "outerLengthMm": 624.6,
+          "totalLengthMm": 1238.2
+        },
+        {
+          "z": 100.11,
+          "outerContours": 1,
+          "holes": 1,
+          "outerLengthMm": 608.8,
+          "totalLengthMm": 1206.8
+        },
+        {
+          "z": 110.11,
+          "outerContours": 1,
+          "holes": 1,
+          "outerLengthMm": 600.9,
+          "totalLengthMm": 1191.2
+        }
+      ],
+      "layerStats": {
+        "layers": 600,
+        "outerContours": [
+          1,
+          1
+        ],
+        "holes": [
+          1,
+          1
+        ],
+        "outerLengthMm": [
+          599.8,
+          667.2
+        ],
+        "maxLengthJumpPct": 0.06
+      },
+      "estimate": {
+        "layerHeightMm": 0.2,
+        "lineWidthMm": 0.42,
+        "vasePathVolumeCm3": 31.69781940422104,
+        "onePerimeterVolumeCm3": 62.85764351110821,
+        "solidVolumeCm3": 92.25418428270808,
+        "meanOuterContourMm": 628.9249881789889
+      },
+      "warnings": []
+    },
+    "conventional": {
+      "file": "double-wall-conventional-test.stl",
+      "fileBytes": 5076084,
+      "strategy": "conventional",
+      "triangles": 101520,
+      "stlBytes": 5076084,
+      "components": 1,
+      "watertight": true,
+      "volumeCm3": 103.37085748305915,
+      "boundingBoxMm": {
+        "width": 139.93154211625506,
+        "depth": 139.93154211625506,
+        "height": 120
+      },
+      "gap": {
+        "minGapMm": 20.7999998458969,
+        "atZ": 0,
+        "minRadialGapMm": 20.7999998458969,
+        "minInnerVoidRadiusMm": 17.1
+      },
+      "layers": [
+        {
+          "z": 0.11,
+          "outerContours": 1,
+          "holes": 5,
+          "outerLengthMm": 370.7,
+          "totalLengthMm": 1284.3
+        },
+        {
+          "z": 10.11,
+          "outerContours": 1,
+          "holes": 5,
+          "outerLengthMm": 373.7,
+          "totalLengthMm": 1291.2
+        },
+        {
+          "z": 20.11,
+          "outerContours": 1,
+          "holes": 5,
+          "outerLengthMm": 386,
+          "totalLengthMm": 1323.1
+        },
+        {
+          "z": 30.11,
+          "outerContours": 1,
+          "holes": 5,
+          "outerLengthMm": 407.1,
+          "totalLengthMm": 1380.6
+        },
+        {
+          "z": 40.11,
+          "outerContours": 1,
+          "holes": 5,
+          "outerLengthMm": 431.5,
+          "totalLengthMm": 1448.9
+        },
+        {
+          "z": 50.11,
+          "outerContours": 1,
+          "holes": 5,
+          "outerLengthMm": 450.9,
+          "totalLengthMm": 1504.4
+        },
+        {
+          "z": 60.11,
+          "outerContours": 1,
+          "holes": 5,
+          "outerLengthMm": 458.1,
+          "totalLengthMm": 1525.5
+        },
+        {
+          "z": 70.11,
+          "outerContours": 1,
+          "holes": 5,
+          "outerLengthMm": 450.5,
+          "totalLengthMm": 1503.5
+        },
+        {
+          "z": 80.11,
+          "outerContours": 1,
+          "holes": 5,
+          "outerLengthMm": 431,
+          "totalLengthMm": 1447.4
+        },
+        {
+          "z": 90.11,
+          "outerContours": 1,
+          "holes": 5,
+          "outerLengthMm": 406.6,
+          "totalLengthMm": 1379.1
+        },
+        {
+          "z": 100.11,
+          "outerContours": 1,
+          "holes": 5,
+          "outerLengthMm": 385.6,
+          "totalLengthMm": 1322
+        },
+        {
+          "z": 110.11,
+          "outerContours": 1,
+          "holes": 5,
+          "outerLengthMm": 373.5,
+          "totalLengthMm": 1290.9
+        }
+      ],
+      "layerStats": {
+        "layers": 600,
+        "outerContours": [
+          1,
+          1
+        ],
+        "holes": [
+          5,
+          5
+        ],
+        "outerLengthMm": [
+          370.7,
+          458.1
+        ],
+        "maxLengthJumpPct": 0.12
+      },
+      "estimate": {
+        "layerHeightMm": 0.2,
+        "lineWidthMm": 0.42,
+        "vasePathVolumeCm3": 20.68572730580003,
+        "onePerimeterVolumeCm3": 70.1431438322262,
+        "solidVolumeCm3": 103.37085748305915,
+        "meanOuterContourMm": 410.43109733730216
+      },
+      "warnings": []
+    }
+  }
+}

@@ -22,6 +22,10 @@ Next.js 16 (App Router)/TypeScript/Tailwind 4/Supabase confirmados. Autenticaci�
 
 Rutas confirmadas (`/academia`, `/cursos`, `/talleres`), contenido interno no revisado en detalle — fuera del foco de riesgo de esta auditoría (acceso/RLS/pricing/ventas). **REQUIERE revisión dedicada si se prioriza.**
 
+### Stampa Maker — Lámparas V4 (experimento de doble pared, 2026-11-01, sin UI)
+
+Núcleo experimental aislado (`lamps/experiments/doubleWall/`): dos perfiles independientes (exterior abombada con estrías, interior en reloj de arena), separación mínima medida sobre las superficies reales (20,8 mm) y dos estrategias de fabricación con la misma geometría visual: A `double-wall-vase-test.stl` (sección en C con abertura posterior de 2 mm, un contorno + un hueco por capa) y B `double-wall-conventional-test.stl` (anillos cerrados + 4 nervios). STL en `tests/fixtures/maker-double-wall/`, informe en `docs/STAMPA_MAKER_DOUBLE_WALL.md`. **Verificado:** geometría y análisis de capas propio sobre las mallas. **No verificado:** laminado en Bambu Studio (no había laminador), tiempo, material, calidad, resistencia: no se declara ganador. No es una herramienta del catálogo; sin migraciones.
+
 ### Stampa Maker — Lámparas E27 V3 (pantallas calada diamante/espiral, 2026-11-01, Beta / solo admin)
 
 Selector «Tipo de pantalla» Sólida | Calada. La calada genera una estructura de tiras con **aberturas reales en la malla** (marching squares sobre un campo de distancia: las tiras forman un solo sólido), patrones Diamante y Espiral, motor de siluetas compartido (cilíndrica, abombada, reloj de arena, orgánica), anillo inferior/superior, misma interfaz E27/rosca/base/reborde e insertos, seis diseños con miniaturas leídas del mismo campo, aviso de voladizos/soportes y de `OPENWORK_NOT_THERMAL`. **Verificado:** typecheck, lint, tests sobre las mallas (docs/STAMPA_MAKER.md §38.17), build, vista de las mallas en el navegador (render propio de las mallas reales). **No verificado:** laminado/impresión de ninguna pantalla calada, la pantalla completa del visor con las nuevas tarjetas (la ruta exige admin), temperatura con LED. Sin migraciones; otras herramientas intactas.
