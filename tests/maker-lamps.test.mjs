@@ -464,7 +464,7 @@ test("cilindro: pared continua sin ventanas ni cortes laterales, dos lengüetas 
   const heights = [b.minZ + 0.3, b.minZ + def.insert.seatDepthMm / 2, fit.tower.topZ + 0.2, fit.tower.topZ + 1.5, fit.tower.topZ + 5, fit.tower.topZ + 9, (b.minZ + zTop) / 2, zTop - 10, zTop];
   for (const z of heights) for (let deg = 0; deg < 360; deg += 15) assert.equal(rayCrossings(ins, [0, 0, z], dir(deg + 3.7)), 2, `pared cortada a z=${z.toFixed(1)} ángulo ${deg + 3.7}`);
   // las lengüetas se suman sobre la pared, en +Y y -Y, solo en el borde superior
-  for (const deg of [90, 270]) assert.equal(rayCrossings(ins, [0, 0, b.maxZ - 1], dir(deg)), 2, "las lengüetas son macizas: dos caras");
+  for (const deg of [91.1, 268.9]) assert.equal(rayCrossings(ins, [0, 0, b.maxZ - 1], dir(deg)), 2, "las lengüetas son macizas: dos caras");
   // radios interior/exterior constantes a todas las alturas (sin escalones ni restos de perforaciones)
   for (const z of heights) {
     const x = planeCrossings(ins, 0, 0.37, z);
@@ -651,7 +651,13 @@ test("tope de enroscado: la cara plana del cuello apoya en un escalón plano de 
   const bottomRadii = new Set();
   const sp = r.indexed.shade.positions;
   for (let i = 0; i < sp.length; i += 3) if (Math.abs(sp[i + 2] - layout.ledgeZ) < 1e-6) bottomRadii.add(Math.round(Math.hypot(sp[i], sp[i + 1]) * 100) / 100);
-  assert.deepEqual([...bottomRadii].sort((a, b) => a - b), [Math.round(spec.boreR * 100) / 100, Math.round(spec.rootR * 100) / 100]);
+  // con el reborde interno de adhesión (por defecto) el borde interior del anillo inferior es boreR − ancho; sin él, el orificio llega al borde
+  assert.deepEqual([...bottomRadii].sort((a, b) => a - b), [Math.round(layout.adhesion.innerR * 100) / 100, Math.round(spec.rootR * 100) / 100]);
+  const plainDef = lamp({}, { adhesion: { ...DEFAULT_LAMP.adhesion, enabled: false } });
+  const plainShade = build(plainDef).indexed.shade;
+  const plainRadii = new Set();
+  for (let i = 0; i < plainShade.positions.length; i += 3) if (Math.abs(plainShade.positions[i + 2] - layout.ledgeZ) < 1e-6) plainRadii.add(Math.round(Math.hypot(plainShade.positions[i], plainShade.positions[i + 1]) * 100) / 100);
+  assert.deepEqual([...plainRadii].sort((a, b) => a - b), [Math.round(spec.boreR * 100) / 100, Math.round(spec.rootR * 100) / 100]);
   // la base: el escalón del tope tiene la cavidad (boreR) hacia adentro y el vacío roscado (>= raíz + holgura) hacia afuera
   const baseRadii = new Set();
   const bp = r.indexed.base.positions;
@@ -844,7 +850,7 @@ test("exportación STL: tres archivos con exactamente las mallas del visor (mism
   const def = lamp();
   const r = build(def);
   const entries = lampPartEntries(r);
-  assert.deepEqual(entries.map((e) => e.fileName), ["lampara_base_PRELIMINAR.stl", "lampara_cilindro.stl", "lampara_pantalla.stl"]);
+  assert.deepEqual(entries.map((e) => e.fileName), ["lampara_base_PRELIMINAR.stl", "lampara_inserto_ondulado.stl", "lampara_pantalla.stl"]);
   for (const [i, entry] of entries.entries()) {
     const viewer = r.geometry.parts[i].mesh;
     const stl = await readStl(buildSTLBlob(entry.mesh));
@@ -875,7 +881,7 @@ test("exportación: ZIP con las tres piezas + LEEME con avisos de seguridad y el
   const def = lamp();
   const r = build(def);
   const zip = await JSZip.loadAsync(Buffer.from(await (await buildLampZipBlob(r, def)).arrayBuffer()));
-  assert.deepEqual(Object.keys(zip.files).sort(), ["LEEME.txt", "lampara_base_PRELIMINAR.stl", "lampara_cilindro.stl", "lampara_pantalla.stl"]);
+  assert.deepEqual(Object.keys(zip.files).sort(), ["LEEME.txt", "lampara_base_PRELIMINAR.stl", "lampara_inserto_ondulado.stl", "lampara_pantalla.stl"]);
   const readme = await zip.file("LEEME.txt").async("string");
   assert.match(readme, /PENDIENTE DE VALIDACIÓN FÍSICA/);
   assert.match(readme, /NO VALIDADA/);
@@ -995,13 +1001,13 @@ test("UI: panel en tres secciones (diseño, iluminación, fabricación), botón 
   const html = renderToStaticMarkup(
     createElement(MakerLampControls, {
       def: DEFAULT_LAMP, onChange() {}, onApplyPreset() {}, onGenerateVariation() {}, onLoadDesign() {}, onError() {},
-      errors: r.errors, warnings: r.warnings, metrics: r.metrics, exportButtons: createElement(LampExportButtons, { hasInsert: true, hasCollar: true, canDownload: true, canDownloadTests: true, busy: null, onDownloadPart() {}, onDownloadZip() {}, onDownloadTests() {}, holderMeasured: false }),
+      errors: r.errors, warnings: r.warnings, metrics: r.metrics, exportButtons: createElement(LampExportButtons, { hasInsert: true, insertStyle: "wavy", hasCollar: true, canDownload: true, canDownloadTests: true, busy: null, onDownloadPart() {}, onDownloadZip() {}, onDownloadTests() {}, holderMeasured: false }),
     }),
   );
-  for (const text of ["1 · Diseño", "Generar variación", "2 · Iluminación", "3 · Fabricación", "Perfil de base E27", "Doble anillo", "Pendiente de validación física", "NO VALIDADA", "Medidas que tenés que verificar", "Pruebas físicas antes de usarla", "Pantalla (STL)", "Collar roscado (STL)", "Cilindro (STL)", "Base preliminar (STL)", "Todo en un ZIP", "Piezas de prueba (ZIP)", "Código del diseño", "Rosca de unión pantalla–base", "Holguras del ensamblaje", "Parámetros de la rosca", "Ranuras para precinto", "Modo de impresión", "Ø agujero central", "Rebaje de los anillos"]) {
+  for (const text of ["1 · Pantalla exterior", "Generar variación", "2 · Inserto de color", "Estilo del inserto", "Plano", "Gota", "Ondulado", "Adhesión interna", "Activada", "Desactivada", "3 · Fabricación", "Perfil de base E27", "Doble anillo", "Pendiente de validación física", "NO VALIDADA", "Medidas que tenés que verificar", "Pruebas físicas antes de usarla", "Pantalla (STL)", "Collar roscado (STL)", "Inserto ondulado (STL)", "Base preliminar (STL)", "Todo en un ZIP", "Piezas de prueba (ZIP)", "Código del diseño", "Rosca de unión pantalla–base", "Holguras del ensamblaje", "Parámetros de la rosca", "Ranuras para precinto", "Modo de impresión", "Ø agujero central", "Rebaje de los anillos"]) {
     assert.ok(html.includes(text), `falta "${text}"`);
   }
-  assert.equal((html.match(/role="radio"/g) ?? []).length, 9, "nueve colores de referencia (el selector libre no es un radio)");
+  assert.equal((html.match(/role="radio"/g) ?? []).length, 12, "nueve colores de referencia (el selector libre no es un radio) + tres tarjetas de estilo");
   assert.ok(html.includes("Rojo") && html.includes("Azul") && html.includes("Verde"));
   // el color es solo una referencia visual
   assert.ok(html.includes("aproximación visual"));

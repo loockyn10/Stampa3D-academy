@@ -36,6 +36,7 @@ export const PART_ASSEMBLY_LAYER: Record<PartKind, number> = {
   mask: 2,
   // Lámparas: base ("body", anclada) -> inserto (sale por arriba) -> collar roscado -> pantalla.
   lampInsert: 1,
+  lampInsertDrop: 1,
   lampCollar: 2,
   lampShade: 3,
 };

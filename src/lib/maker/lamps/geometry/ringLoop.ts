@@ -52,3 +52,18 @@ export function femaleVoidPolygon(spec: LampThreadSpec, z: number, zLedge: numbe
   }
   return pts;
 }
+
+/**
+ * Últimos anillos de la piel interior de una pieza roscada (de arriba hacia abajo), desde el orificio del cuello hasta su
+ * borde inferior en `zBottom`. Con reborde de adhesión: sube `heightMm` por el orificio, entra `widthMm` hacia el eje y baja
+ * al plano de apoyo (un anillo plano interno; el exterior no cambia). Sin reborde: el orificio llega recto al borde.
+ */
+export function flangeInnerRings(layout: { adhesion: { enabled: boolean; heightMm: number; outerR: number; innerR: number } }, zBottom: number): Ring[] {
+  const a = layout.adhesion;
+  if (!a.enabled) return [{ z: zBottom, r: a.outerR }];
+  return [
+    { z: zBottom + a.heightMm, r: a.outerR },
+    { z: zBottom + a.heightMm, r: a.innerR },
+    { z: zBottom, r: a.innerR },
+  ];
+}

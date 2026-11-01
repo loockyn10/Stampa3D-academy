@@ -67,7 +67,7 @@ export async function buildLampTestZipBlob(def: LampDefinition): Promise<Blob> {
   for (const entry of entries) zip.file(entry.fileName, buildSTLBlob(entry.mesh));
   zip.file(
     "LEEME_PRUEBAS.txt",
-    lampTestReadmeText({ threadDiameterMm: def.thread.majorDiameterMm, pitchMm: def.thread.pitchMm, starts: def.thread.starts, clearanceMm: def.thread.clearanceMm, holderMeasured: def.holder.measured }),
+    lampTestReadmeText({ threadDiameterMm: def.thread.majorDiameterMm, pitchMm: def.thread.pitchMm, starts: def.thread.starts, clearanceMm: def.thread.clearanceMm, holderMeasured: def.holder.measured, adhesion: def.adhesion }),
   );
   return zip.generateAsync({ type: "blob" });
 }

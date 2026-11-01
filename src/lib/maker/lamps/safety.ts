@@ -16,6 +16,12 @@ export const LAMP_HOLDER_NOT_VALIDATED_MESSAGE =
 export const LAMP_COLLAR_UNVERIFIED_MESSAGE =
   "Unión por collar roscado: el pozo con nervios que recibe el borde de la pantalla NO está validado con un laminador ni con una pared real de modo vaso. Imprimí el collar y la pantalla y probá el apriete, el centrado y el tirón antes de confiar en la unión.";
 
+export const LAMP_CLOSED_INSERT_MESSAGE =
+  "Inserto CERRADO (tapa plana o cierre en gota): rodea la bombilla y puede retener más calor que un cilindro abierto. Geométricamente respeta la separación de diseño, pero eso NO es una validación térmica: PENDIENTE DE VALIDACIÓN TÉRMICA con tu portalámparas, tu bombilla LED y tu filamento antes de usarlo encendido. No lo presentes como seguro para uso eléctrico.";
+
+export const LAMP_ADHESION_UNVERIFIED_MESSAGE =
+  "Reborde interno de adhesión: aumenta la superficie de contacto con la cama y NO garantiza imprimir sin brim ni balsa con cualquier geometría o material. Pendiente de probar en tu impresora y laminador (hay una pieza de prueba en «Piezas de prueba»).";
+
 export const LAMP_SAFETY_NOTICES: readonly string[] = [
   "Usá un portalámparas E27 comercial certificado y una bombilla LED compatible con él. Nada eléctrico se imprime en 3D: ni contactos, ni roscas energizadas, ni conexiones a la red.",
   "Esta herramienta no da instrucciones de cableado de red. El cableado lo debe hacer una persona calificada, siguiendo las instrucciones del fabricante del portalámparas y la normativa vigente.",
@@ -30,7 +36,7 @@ export const LAMP_MEASUREMENTS_NEEDED: readonly string[] = [
   "Anillos de sujeción: diámetro exterior MÁXIMO (nominal Ø58), espesor de cada anillo y cuántos hay: de eso salen el diámetro y la profundidad del rebaje.",
   "Posición axial: a qué altura sobre la mesa apoyan los anillos o el collar del portalámparas y por qué lado se montan (el STL de referencia los apoya a 31,4 mm con el rebaje por arriba: no está verificado con tu portalámparas).",
   "Altura desde el apoyo hasta el borde superior del portalámparas (donde entra la bombilla).",
-  "Cilindro de color: si Ø65 es el diámetro EXTERIOR o el interior, y su espesor real de pared (la ranura de la referencia mide 1,25 mm de ancho).",
+  "Inserto de color: si Ø65 es el diámetro EXTERIOR o el interior, y su espesor real de pared (la ranura de la referencia mide 1,25 mm de ancho). Para los insertos cerrados (tapa plana o gota) y el ondulado: forma real de tu bombilla (la herramienta la modela como un cilindro, más conservador que una bombilla redondeada).",
   "Diámetro del cable de alimentación y, si el portalámparas trae pasacables o prensacable propio, su diámetro.",
   "Diámetro de la bombilla y alto que sobresale del portalámparas (la A60 típica es un valor de referencia, no una medida).",
 ];
@@ -41,6 +47,9 @@ export const LAMP_PHYSICAL_TESTS: readonly string[] = [
   "Laminado en Bambu Studio (o tu laminador) de cada pieza: orientación, soportes, relleno y, si usás el collar, si la pantalla en modo vaso se corta como un solo contorno.",
   "Montaje en seco con el portalámparas real: agujero central, rebaje y anillos (¿se aprietan sin forzar la pared de la torre?), paso y salida del cable, precinto, holguras.",
   "Encaje de la pantalla, del cilindro y de la rosca con el filamento y la impresora reales (la holgura depende del material y de la calibración).",
+  "Reborde interno de adhesión: imprimí la pieza de prueba «rosca macho» (lleva el mismo reborde) y comprobá que se adhiere a tu cama con tu laminador sin brim; luego apoyala alrededor de la pieza de prueba del portalámparas para verificar la holgura con la torre. Que se adhiera una vez no valida cualquier geometría o material.",
+  "Insertos: laminar en Bambu Studio el plano (invertido, tapa sobre la cama), la gota (parada, con brim del laminador si hace falta; revisá la punta y la pendiente del cierre) y el ondulado (revisá torsión y pendiente). Ninguna geometría de inserto está validada físicamente hasta imprimirla y probarla.",
+  "Insertos CERRADOS (plano y gota) y ondulado con tapa: prueba térmica específica (rodean la bombilla y pueden retener más calor). Una lámpara de referencia con cilindro sin ranuras visibles funcionando no demuestra que todas las combinaciones sean térmicamente seguras.",
   "Prueba térmica con una bombilla LED encendida durante varias horas y la lámpara en su posición de uso: temperatura del cilindro, de la pantalla, de la rosca y de la base medida con instrumento, sin dejarla funcionando sola. No uses bombillas incandescentes ni halógenas para validar estos prototipos.",
   "Prueba de estabilidad: inclinación y golpe suave con la lámpara montada; verificá que no vuelque ni quede tensionada por el cable.",
   "Revisión del conjunto por una persona calificada en instalaciones eléctricas antes del uso habitual.",
@@ -61,11 +70,12 @@ export function lampReadmeText(extra: { designCode?: string; holderMeasured: boo
     "",
     "ORDEN DE MONTAJE DE LAS PIEZAS IMPRESAS (el cableado del portalámparas no forma parte de esta herramienta)",
     "- Base: pasá el portalámparas comercial por el agujero central, fijalo con sus anillos en el rebaje superior y llevá el cable por el canal inferior; sujetalo con el precinto.",
-    "- Cilindro de color: apoyá su borde inferior en la ranura anular de la torre, alrededor del portalámparas.",
+    "- Inserto de color: apoyá su borde inferior (tubo liso de montaje, igual en los tres estilos) en la ranura anular de la torre, alrededor del portalámparas.",
+    "- Orientación de impresión de los insertos: plano y ondulado invertidos (extremo superior sobre la cama, ya vienen así en el STL); gota parada (abertura inferior sobre la cama, brim del laminador si hace falta).",
     extra.collar
       ? "- Collar: apoyá el borde inferior de la pantalla en el pozo del collar (entra a presión) y enroscá el collar en la base hasta el tope."
       : "- Pantalla: enroscala en la base hasta el tope; el cuello roscado es parte de la pantalla.",
-    "- Para cambiar el color: sacá el cilindro tirando de las lengüetas por la abertura superior; si no sale, desenroscá la pantalla (giro antihorario visto desde arriba).",
+    "- Para cambiar el color: sacá el inserto por la abertura superior (con lengüetas si las tiene; los insertos cerrados se agarran de la tapa o la punta); si no sale, desenroscá la pantalla (giro antihorario visto desde arriba).",
     "",
     "SEGURIDAD",
     ...LAMP_SAFETY_NOTICES.map((s) => "- " + s),
@@ -81,7 +91,7 @@ export function lampReadmeText(extra: { designCode?: string; holderMeasured: boo
 }
 
 /** LÉEME de las piezas de prueba (rosca y ajuste del portalámparas): qué imprimir, qué comprobar y qué NO prueban. */
-export function lampTestReadmeText(extra: { threadDiameterMm: number; pitchMm: number; starts: number; clearanceMm: number; holderMeasured: boolean }): string {
+export function lampTestReadmeText(extra: { threadDiameterMm: number; pitchMm: number; starts: number; clearanceMm: number; holderMeasured: boolean; adhesion?: { enabled: boolean; widthMm: number; heightMm: number } }): string {
   const lines = [
     "PIEZAS DE PRUEBA - LÁMPARA E27 - Stampa Maker (BETA)",
     "",
@@ -93,6 +103,12 @@ export function lampTestReadmeText(extra: { threadDiameterMm: number; pitchMm: n
     "   - Enroscá el macho en la hembra a mano, en sentido horario visto desde arriba, hasta el tope plano. Desenroscá y repetí varias veces.",
     "   - Si traba o hay que forzar: subí la holgura de la rosca en la herramienta (de a 0,1 mm) y volvé a imprimir. Si queda muy suelta o baila: bajala.",
     "   - Mirá que el tope apoye parejo (sin rendijas) y que no queden hilos de filamento en los flancos.",
+    ...(extra.adhesion?.enabled
+      ? [
+          `   - REBORDE INTERNO DE ADHESIÓN: el macho trae el reborde de la lámpara (${extra.adhesion.widthMm} mm de ancho × ${extra.adhesion.heightMm} mm de alto) en su borde inferior. Imprimilo SIN brim ni balsa y mirá si se adhiere y si se despega con la pieza entera (esto no prueba otras geometrías ni otros materiales).`,
+          "   - Holgura con la torre: apoyá el macho (con su reborde) alrededor de la pieza de prueba del portalámparas; el borde interior del reborde no debe tocarla.",
+        ]
+      : []),
     "",
     "2) lampara_prueba_portalamparas.stl",
     "   Tramo alto de la torre de la base: agujero central, rebaje de los anillos con su apoyo y ranura del cilindro, con las mismas medidas.",

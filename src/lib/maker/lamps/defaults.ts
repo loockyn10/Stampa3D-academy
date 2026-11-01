@@ -1,4 +1,4 @@
-import type { LampBaseDef, LampBulbDef, LampCableDef, LampDefinition, LampHolderDef, LampInsertDef, LampShadeDef, LampThreadDef } from "@/lib/maker/lamps/types";
+import type { LampAdhesionDef, LampBaseDef, LampBulbDef, LampCableDef, LampDefinition, LampHolderDef, LampInsertDef, LampInsertStyle, LampShadeDef, LampThreadDef } from "@/lib/maker/lamps/types";
 
 /**
  * Valores iniciales. Las medidas del portalámparas y de la bombilla son MARCADORES DE POSICIÓN (`holder.measured =
@@ -23,17 +23,49 @@ export const DEFAULT_SHADE: LampShadeDef = {
   collarHeightMm: 12,
 };
 
+/**
+ * Inserto inicial: familia «ondulado» con amplitud 0 = el cilindro liso abierto Ø65 de la lámpara de referencia (con
+ * lengüetas). Los parámetros de las otras familias quedan en sus valores iniciales para que cambiar de estilo parta de
+ * valores razonables (`INSERT_STYLE_INITIAL`).
+ */
 export const DEFAULT_INSERT: LampInsertDef = {
   enabled: true,
+  style: "wavy",
   diameterMm: 65,
+  heightMm: null,
   heightPct: 85,
   thicknessMm: 0.8,
   clearanceMm: 0.35,
   seatDepthMm: 10,
   minBulbGapMm: 1,
   tabs: true,
+  capThicknessMm: 1.6,
+  dropClosureMm: 50,
+  dropCurvaturePct: 70,
+  dropTipRadiusMm: 10,
+  waves: 12,
+  amplitudeMm: 0,
+  twistDeg: 0,
+  verticalFrequency: 0,
+  wavyTop: "open",
   previewColor: "#e5483b",
 };
+
+/** Parámetros iniciales propios de cada familia: se aplican al elegir el estilo (no tocan color, diámetro, espesor, holgura ni altura). */
+export const INSERT_STYLE_INITIAL: Record<LampInsertStyle, Partial<LampInsertDef>> = {
+  flat: { capThicknessMm: 1.6, tabs: false },
+  drop: { dropClosureMm: 50, dropCurvaturePct: 70, dropTipRadiusMm: 10, tabs: false },
+  wavy: { waves: 12, amplitudeMm: 2.5, twistDeg: 90, verticalFrequency: 0, wavyTop: "open", tabs: true },
+};
+
+export const INSERT_STYLE_LABELS: Record<LampInsertStyle, string> = { flat: "Plano", drop: "Gota", wavy: "Ondulado" };
+
+/** Cambia la familia del inserto conservando el color, el diámetro, el espesor y la altura; la pantalla exterior no se toca. */
+export function applyInsertStyle(def: LampDefinition, style: LampInsertStyle): LampDefinition {
+  return { ...def, insert: { ...def.insert, ...INSERT_STYLE_INITIAL[style], style } };
+}
+
+export const DEFAULT_ADHESION: LampAdhesionDef = { enabled: true, widthMm: 3, heightMm: 0.4 };
 
 export const DEFAULT_THREAD: LampThreadDef = {
   connection: "integrated",
@@ -69,12 +101,14 @@ export const DEFAULT_LAMP: LampDefinition = {
   thread: DEFAULT_THREAD,
   insert: DEFAULT_INSERT,
   base: DEFAULT_BASE,
+  adhesion: DEFAULT_ADHESION,
   holder: DEFAULT_HOLDER,
   bulb: DEFAULT_BULB,
   cable: DEFAULT_CABLE,
 };
 
 const FAMILIES = new Set(["wavy", "spiral", "organic"]);
+const INSERT_STYLES = new Set(["flat", "drop", "wavy"]);
 const PROFILES = new Set(["straight", "barrel", "waist", "bell", "tulip"]);
 
 function isRecord(v: unknown): v is Record<string, unknown> {
@@ -109,6 +143,7 @@ export function normalizeLampDefinition(input: unknown): LampDefinition {
   const i = isRecord(root.insert) ? root.insert : {};
   const t = isRecord(root.thread) ? root.thread : {};
   const b = isRecord(root.base) ? root.base : {};
+  const ad = isRecord(root.adhesion) ? root.adhesion : {};
   const h = isRecord(root.holder) ? root.holder : {};
   const bu = isRecord(root.bulb) ? root.bulb : {};
   const c = isRecord(root.cable) ? root.cable : {};
@@ -142,17 +177,33 @@ export function normalizeLampDefinition(input: unknown): LampDefinition {
     },
     insert: {
       enabled: bool(i.enabled, DEFAULT_INSERT.enabled),
+      style: typeof i.style === "string" && INSERT_STYLES.has(i.style) ? (i.style as LampInsertStyle) : DEFAULT_INSERT.style,
       diameterMm: numOrNull(i.diameterMm, DEFAULT_INSERT.diameterMm),
+      heightMm: numOrNull(i.heightMm, DEFAULT_INSERT.heightMm),
       heightPct: num(i.heightPct, DEFAULT_INSERT.heightPct),
       thicknessMm: num(i.thicknessMm, DEFAULT_INSERT.thicknessMm),
       clearanceMm: num(i.clearanceMm, DEFAULT_INSERT.clearanceMm),
       minBulbGapMm: num(i.minBulbGapMm, DEFAULT_INSERT.minBulbGapMm),
       tabs: bool(i.tabs, DEFAULT_INSERT.tabs),
       seatDepthMm: num(i.seatDepthMm, DEFAULT_INSERT.seatDepthMm),
+      capThicknessMm: num(i.capThicknessMm, DEFAULT_INSERT.capThicknessMm),
+      dropClosureMm: num(i.dropClosureMm, DEFAULT_INSERT.dropClosureMm),
+      dropCurvaturePct: num(i.dropCurvaturePct, DEFAULT_INSERT.dropCurvaturePct),
+      dropTipRadiusMm: num(i.dropTipRadiusMm, DEFAULT_INSERT.dropTipRadiusMm),
+      waves: num(i.waves, DEFAULT_INSERT.waves),
+      amplitudeMm: num(i.amplitudeMm, DEFAULT_INSERT.amplitudeMm),
+      twistDeg: num(i.twistDeg, DEFAULT_INSERT.twistDeg),
+      verticalFrequency: num(i.verticalFrequency, DEFAULT_INSERT.verticalFrequency),
+      wavyTop: i.wavyTop === "flat" ? "flat" : "open",
       previewColor: color(i.previewColor, DEFAULT_INSERT.previewColor),
     },
     base: {
       diameterMm: numOrNull(b.diameterMm, DEFAULT_BASE.diameterMm),
+    },
+    adhesion: {
+      enabled: bool(ad.enabled, DEFAULT_ADHESION.enabled),
+      widthMm: num(ad.widthMm, DEFAULT_ADHESION.widthMm),
+      heightMm: num(ad.heightMm, DEFAULT_ADHESION.heightMm),
     },
     holder: {
       measured: bool(h.measured, DEFAULT_HOLDER.measured),

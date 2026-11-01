@@ -11,6 +11,14 @@ import { validateLamp } from "@/lib/maker/lamps/validation/validateLamp";
 import { analyzeMesh, indexedBounds, meshToSoup, type IndexedMesh } from "@/lib/maker/mugs/geometry/mesh";
 import type { PrinterProfile } from "@/lib/maker/printBed/printerProfiles";
 
+/** Un archivo por familia de inserto: el plano y el ondulado se imprimen invertidos; la gota, parada (ver printOrientation.ts). */
+const INSERT_FILE_SUFFIX = { flat: "inserto_plano", drop: "inserto_gota", wavy: "inserto_ondulado" } as const;
+
+/** Tipo de pieza del inserto: la gota se imprime parada (otra orientación de impresión), las otras dos invertidas. */
+export function insertKind(def: LampDefinition): "lampInsert" | "lampInsertDrop" {
+  return def.insert.style === "drop" ? "lampInsertDrop" : "lampInsert";
+}
+
 export interface CreateLampOptions {
   printer?: PrinterProfile;
 }
@@ -64,18 +72,18 @@ function finishPart(indexed: IndexedMesh): BuiltPart {
 
 /** La pantalla depende de su superficie, de la interfaz roscada y de su posición de ensamblado (la fase de la rosca sale de la z). */
 function shadePart(def: LampDefinition, field: ShadeField, layout: LampLayout): BuiltPart {
-  return cached(`shade|${JSON.stringify([def.shade, def.thread, layout.ledgeZ, layout.decorZ0])}`, () => finishPart(createShadeMesh(def, field, layout)));
+  return cached(`shade|${JSON.stringify([def.shade, def.thread, layout.ledgeZ, layout.decorZ0, layout.adhesion])}`, () => finishPart(createShadeMesh(def, field, layout)));
 }
 
 function collarPart(def: LampDefinition, layout: LampLayout): BuiltPart {
-  return cached(`collar|${JSON.stringify([def.thread, def.shade.bottomDiameterMm, layout.ledgeZ])}`, () => finishPart(createCollarMesh(layout, LAMP_GEOMETRY.femaleSegments)));
+  return cached(`collar|${JSON.stringify([def.thread, def.shade.bottomDiameterMm, layout.ledgeZ, layout.adhesion])}`, () => finishPart(createCollarMesh(layout, LAMP_GEOMETRY.femaleSegments)));
 }
 
 function insertPart(def: LampDefinition, layout: LampLayout): BuiltPart {
   const { previewColor: _color, enabled: _enabled, ...geometryFields } = def.insert;
   void _color;
   void _enabled;
-  return cached(`insert|${JSON.stringify([geometryFields, layout.insert])}`, () => finishPart(createInsertMesh(def, layout)));
+  return cached(`insert|${JSON.stringify([geometryFields, { ...layout.insert, surface: undefined }])}`, () => finishPart(createInsertMesh(def, layout)));
 }
 
 function basePart(def: LampDefinition, layout: LampLayout): BuiltPart {
@@ -114,7 +122,7 @@ export function createLamp(def: LampDefinition, opts: CreateLampOptions = {}): L
 
   const baseKind = "body" as const; // la base es la pieza ancla del ensamblado (capa 0), igual que el cuerpo de un cartel
   const parts: SignPart[] = [{ kind: baseKind, filenameSuffix: def.holder.measured ? "base" : "base_PRELIMINAR", mesh: base.soup }];
-  if (insert) parts.push({ kind: "lampInsert", filenameSuffix: "cilindro", mesh: insert.soup });
+  if (insert) parts.push({ kind: insertKind(def), filenameSuffix: INSERT_FILE_SUFFIX[def.insert.style], mesh: insert.soup });
   if (collar) parts.push({ kind: "lampCollar", filenameSuffix: "collar", mesh: collar.soup });
   parts.push({ kind: "lampShade", filenameSuffix: "pantalla", mesh: shade.soup });
 
@@ -146,7 +154,7 @@ export function createLamp(def: LampDefinition, opts: CreateLampOptions = {}): L
     totalHeightMm: bb.height,
     maxDiameterMm: Math.max(bb.width, bb.depth),
     shade: { ...shade.metrics, vase, maxTiltDeg: field.maxTiltDeg, minRidgeRadiusMm: field.minRidgeRadiusMm },
-    insert: insert ? { ...insert.metrics, vaseCapable: !def.insert.tabs } : null,
+    insert: insert ? { ...insert.metrics, vaseCapable: !layout.insert!.closedTop && !def.insert.tabs && layout.insert!.surface.maxLeanDeg <= LAMP_GEOMETRY.vaseMaxOverhangDeg } : null,
     collar: collar ? collar.metrics : null,
     base: base.metrics,
     totalTriangles,

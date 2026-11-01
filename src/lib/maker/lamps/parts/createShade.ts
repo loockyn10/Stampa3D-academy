@@ -1,4 +1,4 @@
-import { maleThreadRings, ringLoopMesh, type Ring } from "@/lib/maker/lamps/geometry/ringLoop";
+import { flangeInnerRings, maleThreadRings, ringLoopMesh, type Ring } from "@/lib/maker/lamps/geometry/ringLoop";
 import type { LampLayout } from "@/lib/maker/lamps/layout";
 import type { ShadeField } from "@/lib/maker/lamps/shade/surface";
 import { LAMP_GEOMETRY, type LampDefinition } from "@/lib/maker/lamps/types";
@@ -24,6 +24,10 @@ function decorRings(field: ShadeField, zOffset: number, skin: "outer" | "inner")
  * helicoidal de la interfaz estándar, cuello liso y una transición cónica de 45° hasta el diámetro inferior de la
  * pantalla). El cuello no depende de las ondas ni del perfil: cambiar la decoración no cambia la unión. Con la unión
  * "collar" la pantalla es solo la parte decorativa y la rosca vive en el collar independiente.
+ *
+ * REBORDE de adhesión (opcional, `layout.adhesion`): un anillo plano interno de `heightMm` en el borde inferior, que se extiende
+ * `widthMm` hacia el eje desde el orificio del cuello. Aumenta la superficie contra la cama sin tocar el exterior ni la rosca;
+ * su ancho se valida contra la torre y el inserto (nunca se achica en silencio).
  *
  * Todo en coordenadas de ensamblado: el borde inferior del cuello apoya en el tope de la base (`layout.ledgeZ`).
  */
@@ -51,7 +55,7 @@ export function createShadeMesh(def: LampDefinition, field: ShadeField, layout: 
     ...decorRings(field, layout.decorZ0, "inner"),
     { z: layout.decorZ0, r: innerFlareTopR },
     { z: innerConeBottomZ, r: spec.boreR },
-    { z: zBottom, r: spec.boreR },
+    ...flangeInnerRings(layout, zBottom),
   ];
   return ringLoopMesh([...outer, ...inner], nTheta);
 }

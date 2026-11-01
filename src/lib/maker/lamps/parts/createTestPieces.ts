@@ -1,4 +1,4 @@
-import { maleThreadRings, ringLoopMesh } from "@/lib/maker/lamps/geometry/ringLoop";
+import { flangeInnerRings, maleThreadRings, ringLoopMesh } from "@/lib/maker/lamps/geometry/ringLoop";
 import { buildFeatureLayers, circlePoly, layersToIndexed } from "@/lib/maker/lamps/geometry/solid";
 import type { LampLayout } from "@/lib/maker/lamps/layout";
 import { segmentsFor, threadVoidFeatures, towerFeatures } from "@/lib/maker/lamps/parts/baseFeatures";
@@ -11,7 +11,7 @@ import { indexedBounds, translateMesh, type IndexedMesh } from "@/lib/maker/mugs
  * la prueba es lo que encaja en la pieza real. Cada malla se apoya en Z = 0.
  */
 export interface LampTestPieces {
-  /** Tramo macho: el mismo cuello roscado que la pantalla (o el collar), cortado a la longitud de la rosca + 3 mm. */
+  /** Tramo macho: el mismo cuello roscado que la pantalla (o el collar), cortado a la longitud de la rosca + 3 mm, con el mismo reborde interno de adhesión si está activado (prueba de adhesión y de holgura con la torre: apoyalo sobre `holderFit`). */
   threadMale: IndexedMesh;
   /** Tramo hembra: un anillo con la rosca hembra completa y el mismo tope plano de la base. */
   threadFemale: IndexedMesh;
@@ -37,7 +37,7 @@ export function createLampTestPieces(layout: LampLayout): LampTestPieces {
       ...maleThreadRings(spec, zBottom, segments, g.threadRowsPerPitch),
       { z: topZ, r: spec.rootR },
       { z: topZ, r: spec.boreR },
-      { z: zBottom, r: spec.boreR },
+      ...flangeInnerRings(layout, zBottom),
     ],
     segments,
   );

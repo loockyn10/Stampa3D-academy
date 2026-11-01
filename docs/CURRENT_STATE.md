@@ -22,6 +22,10 @@ Next.js 16 (App Router)/TypeScript/Tailwind 4/Supabase confirmados. Autenticaci�
 
 Rutas confirmadas (`/academia`, `/cursos`, `/talleres`), contenido interno no revisado en detalle — fuera del foco de riesgo de esta auditoría (acceso/RLS/pricing/ventas). **REQUIERE revisión dedicada si se prioriza.**
 
+### Stampa Maker — Lámparas E27 V2.2 (reborde interno e insertos, 2026-11-01, Beta / solo admin)
+
+Reborde interno de adhesión (3 × 0,4 mm, validado contra la torre y el inserto con el ensamblaje real) y generador de insertos de color con tres familias (plano con tapa, gota con punta redondeada, ondulado), selector visual con miniaturas generadas desde la misma superficie, «Comparar estilos», exportación por estilo. **Verificado:** typecheck, lint, tests geométricos sobre las mallas (docs/STAMPA_MAKER.md §38.16), build, sección de las mallas en el navegador. **No verificado:** impresión y laminado (adhesión sin brim, plano invertido, punta de la gota, torsión del ondulado), la pantalla completa del visor 3D con las tarjetas (la ruta exige admin; no se probó con sesión), temperatura con insertos cerrados (pendiente de validación térmica). Sin migraciones.
+
 ### Stampa Maker — Lámparas E27 V2.1 (sin ventanas, 2026-10-31, Beta / solo admin)
 
 Se eliminaron las ventanas rectangulares de la base (laterales) y del cilindro de color; ambas superficies son lisas y continuas. Se conservan canal de cable, ranuras del precinto, cavidad anular, torre, rosca y motor de pantallas. **Verificado:** tests geométricos sobre las mallas (pared continua, radios constantes, volumen del cilindro, una sola pieza cerrada, apoyo en la ranura), exportación STL = visor. **No verificado:** impresión, ventilación y temperatura con la geometría cerrada (la entrada de aire es solo el canal de cable y la holgura del portalámparas; prueba térmica pendiente con portalámparas y bombilla reales). Sin migraciones.

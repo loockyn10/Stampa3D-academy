@@ -1,6 +1,7 @@
+import { buildInsertSurface, insertEnvelopeGap, type InsertSurface } from "@/lib/maker/lamps/insert/surface";
 import { threadFacts, threadSpec, type LampThreadSpec } from "@/lib/maker/lamps/threads/lampThread";
 import { minInnerRadiusBetween, type ShadeField } from "@/lib/maker/lamps/shade/surface";
-import { LAMP_GEOMETRY, type LampClearanceCheck, type LampDefinition, type LampFitReport, type LampThreadReport, type LampTowerReport } from "@/lib/maker/lamps/types";
+import { LAMP_GEOMETRY, type LampClearanceCheck, type LampDefinition, type LampFitReport, type LampInsertStyle, type LampThreadReport, type LampTowerReport } from "@/lib/maker/lamps/types";
 
 /** Torre central de la base (radios en mm, alturas en Z de ensamblado): la leen la base, el cilindro y la pieza de prueba del portalámparas. */
 export interface TowerLayout {
@@ -22,6 +23,22 @@ export interface TieLayout {
   halfX: number;
   y0: number;
   y1: number;
+}
+
+/** Reborde anular interno de adhesión, ya resuelto contra el resto del ensamblaje (torre, inserto). */
+export interface AdhesionLayout {
+  enabled: boolean;
+  widthMm: number;
+  heightMm: number;
+  /** Radio exterior (= orificio del cuello) e interior del reborde, y z de su cara inferior (el tope) y superior. */
+  outerR: number;
+  innerR: number;
+  z0: number;
+  z1: number;
+  /** Ancho máximo sin interferencia (con la holgura de diseño) y holgura radial real que deja el ancho pedido. */
+  availableWidthMm: number;
+  clearanceMm: number;
+  limitedBy: "tower" | "insert";
 }
 
 export interface CollarLayout {
@@ -56,6 +73,8 @@ export interface LampLayout {
   channelHalf: number;
   channelHeight: number;
   tie: TieLayout | null;
+  /** Reborde interno de adhesión de la pieza roscada (pantalla o collar). */
+  adhesion: AdhesionLayout;
 
   // ---- Pantalla / collar
   neckTopZ: number;
@@ -71,13 +90,19 @@ export interface LampLayout {
   holderTopZ: number;
   bulbTopZ: number;
   insert: null | {
+    style: LampInsertStyle;
+    /** Radio exterior / interior NOMINALES (zona de montaje, tubo liso). */
     outerR: number;
     innerR: number;
+    /** Radio exterior máximo del cuerpo (con ondas, sin lengüetas). */
+    bodyMaxR: number;
     heightMm: number;
     z0: number;
     z1: number;
     auto: boolean;
     tabLengthMm: number;
+    closedTop: boolean;
+    surface: InsertSurface;
   };
   fit: LampFitReport;
 }
@@ -150,15 +175,36 @@ export function computeLampLayout(def: LampDefinition, field: ShadeField): LampL
   let insertLayout: LampLayout["insert"] = null;
   if (slot) {
     const z0 = slot.bottomZ;
-    const heightMm = round1((insert.heightPct / 100) * (shadeTopZ - z0));
+    // Altura automática: el % de lo disponible; en los estilos CERRADOS, además, la mínima que deja la tapa (plano) o el arranque
+    // del cierre (gota) por encima de la envolvente de la bombilla más la separación de diseño (la bombilla se modela como cilindro).
+    let autoHeight = round1((insert.heightPct / 100) * (shadeTopZ - z0));
+    if (insert.style === "flat") autoHeight = Math.max(autoHeight, round1(bulbTopZ + insert.minBulbGapMm + insert.capThicknessMm + 0.5 - z0));
+    if (insert.style === "drop") autoHeight = round1(bulbTopZ + insert.minBulbGapMm + insert.dropClosureMm + 0.5 - z0);
+    const heightMm = insert.heightMm ?? autoHeight;
+    const surface = buildInsertSurface({
+      style: insert.style,
+      outerR: cylOuterR,
+      thicknessMm: insert.thicknessMm,
+      z0,
+      heightMm,
+      seatDepthMm: insert.seatDepthMm,
+      capThicknessMm: insert.capThicknessMm,
+      drop: { closureMm: insert.dropClosureMm, curvaturePct: insert.dropCurvaturePct, tipRadiusMm: insert.dropTipRadiusMm },
+      wavy: { waves: insert.waves, amplitudeMm: insert.amplitudeMm, twistDeg: insert.twistDeg, verticalFrequency: insert.verticalFrequency, top: insert.wavyTop },
+      tabs: insert.tabs,
+    });
     insertLayout = {
+      style: insert.style,
       outerR: cylOuterR,
       innerR: cylOuterR - insert.thicknessMm,
+      bodyMaxR: surface.bodyMaxR,
       heightMm,
       z0,
       z1: z0 + heightMm,
       auto: insert.diameterMm === null,
-      tabLengthMm: insert.tabs ? g.tabLengthMm : 0,
+      tabLengthMm: surface.tabLengthMm,
+      closedTop: surface.closedTop,
+      surface,
     };
   }
 
@@ -176,7 +222,7 @@ export function computeLampLayout(def: LampDefinition, field: ShadeField): LampL
       clearTop = spec.boreR - insert.clearanceMm - insertLayout.tabLengthMm; // cilindro corto: sus lengüetas quedan dentro del cuello
     }
     shadeClear = Math.min(clearAll, clearTop);
-    removableFromTop = localTop >= shade.heightMm ? true : minInnerRadiusBetween(field, Math.max(localTop, 0), shade.heightMm) >= insertLayout.outerR + insertLayout.tabLengthMm + insert.clearanceMm;
+    removableFromTop = localTop >= shade.heightMm ? true : minInnerRadiusBetween(field, Math.max(localTop, 0), shade.heightMm) >= insertLayout.bodyMaxR + insertLayout.tabLengthMm + insert.clearanceMm;
   }
 
   // ---- Anclaje del precinto: entre la torre y la pared de la cavidad
@@ -186,7 +232,25 @@ export function computeLampLayout(def: LampDefinition, field: ShadeField): LampL
       ? { x: (towerR + spec.boreR) / 2, halfX: g.tieStrapWidthMm / 2, y0: channelHalf - 0.5, y1: channelHalf + g.tieStrapThicknessMm }
       : null;
 
-  const gapActual = insertLayout ? insertLayout.innerR - envelopeR : null;
+  // ---- Reborde interno de adhesión: vive en el orificio del cuello, justo sobre el tope. Lo que lo limita es lo que cruza ese plano
+  // dentro del orificio: la torre central (siempre) y el inserto si su borde inferior llega hasta ahí (ranura muy profunda).
+  const adh = def.adhesion;
+  const insertAtFlange = insertLayout && insertLayout.z0 < ledgeZ + adh.heightMm && insertLayout.z1 > ledgeZ ? insertLayout.bodyMaxR : 0;
+  const nearestR = Math.max(towerR, insertAtFlange);
+  const adhesion: AdhesionLayout = {
+    enabled: adh.enabled,
+    widthMm: adh.widthMm,
+    heightMm: adh.heightMm,
+    outerR: spec.boreR,
+    innerR: spec.boreR - adh.widthMm,
+    z0: ledgeZ,
+    z1: ledgeZ + adh.heightMm,
+    availableWidthMm: round2(spec.boreR - nearestR - g.adhesionClearanceMm),
+    clearanceMm: round2(spec.boreR - adh.widthMm - nearestR),
+    limitedBy: insertAtFlange > towerR ? "insert" : "tower",
+  };
+
+  const gapActual = insertLayout ? (insertLayout.surface.valid ? insertEnvelopeGap(insertLayout.surface, { bodyR, holderTopZ, bulbR, bulbTopZ }) : insertLayout.innerR - envelopeR) : null;
   const ringsGap = insertLayout ? insertLayout.innerR - ringsR : null;
   const facts = threadFacts(spec);
   const threadReport: LampThreadReport = {
@@ -241,16 +305,31 @@ export function computeLampLayout(def: LampDefinition, field: ShadeField): LampL
     add("towerOuterWall", "Torre: pared exterior de la ranura", g.towerOuterWallMm, g.towerMinWallMm);
   }
   if (insertLayout) {
-    add("ringsToInsert", "Anillos – interior del cilindro (radial)", ringsGap ?? 0, g.ringsToInsertMinMm);
-    add("insertShade", "Cilindro – cuello/pantalla (radial, con lengüetas)", (shadeClear ?? 0) - insertLayout.outerR + insert.clearanceMm, insert.clearanceMm);
+    add("ringsToInsert", "Anillos – interior del inserto (radial)", ringsGap ?? 0, g.ringsToInsertMinMm);
+    add("insertShade", "Inserto – cuello/pantalla (radial, con ondas y lengüetas)", (shadeClear ?? 0) - insertLayout.bodyMaxR + insert.clearanceMm, insert.clearanceMm);
     clearances.push({
       id: "insertBulb",
-      label: "Cilindro – bombilla/portalámparas (radial)",
+      label: "Inserto – bombilla/portalámparas (mínima, cierre incluido)",
       valueMm: round2(gapActual ?? 0),
       minMm: insert.minBulbGapMm,
       status: (gapActual ?? 0) + 1e-6 < insert.minBulbGapMm ? "fail" : (gapActual ?? 0) < g.bulbGapAdvisoryMm ? "warn" : "ok",
     });
   }
+
+  if (adh.enabled) add("adhesionClearance", "Reborde de adhesión – torre/inserto (radial)", adhesion.clearanceMm, g.adhesionClearanceMm);
+
+  const adhesionReport = {
+    enabled: adh.enabled,
+    widthMm: adh.widthMm,
+    heightMm: adh.heightMm,
+    outerRadiusMm: round2(spec.boreR),
+    innerRadiusMm: round2(adhesion.innerR),
+    availableWidthMm: adhesion.availableWidthMm,
+    clearanceMm: adhesion.clearanceMm,
+    limitedBy: adhesion.limitedBy,
+    contactAreaWithoutMm2: round1(Math.PI * (spec.rootR ** 2 - spec.boreR ** 2)),
+    contactAreaMm2: round1(Math.PI * (spec.rootR ** 2 - (adh.enabled ? adhesion.innerR : spec.boreR) ** 2)),
+  };
 
   const fit: LampFitReport = {
     shadeBottomZ: ledgeZ,
@@ -263,6 +342,12 @@ export function computeLampLayout(def: LampDefinition, field: ShadeField): LampL
     insertOuterDiameterMm: insertLayout ? round1(2 * insertLayout.outerR) : null,
     insertInnerDiameterMm: insertLayout ? round1(2 * insertLayout.innerR) : null,
     insertAuto: insertLayout?.auto ?? false,
+    insertStyle: insertLayout?.style ?? null,
+    insertMaxDiameterMm: insertLayout ? round1(2 * insertLayout.bodyMaxR) : null,
+    insertHeightMm: insertLayout ? round1(insertLayout.heightMm) : null,
+    insertClosed: insertLayout?.closedTop ?? false,
+    insertEnvelopeGapMm: gapActual === null ? null : round1(gapActual),
+    adhesion: adhesionReport,
     shadeClearRadiusMm: shadeClear === null ? null : round1(shadeClear),
     requiredInsertInnerRadiusMm: round1(requiredInnerR),
     insertBulbGapMm: gapActual === null ? null : round1(gapActual),
@@ -287,6 +372,7 @@ export function computeLampLayout(def: LampDefinition, field: ShadeField): LampL
     channelHalf,
     channelHeight,
     tie,
+    adhesion,
     neckTopZ,
     flareH,
     decorZ0,

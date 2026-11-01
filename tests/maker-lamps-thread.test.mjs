@@ -637,7 +637,7 @@ test("exportación del conjunto con collar: cuatro STL con exactamente las malla
   const def = lampCollar();
   const r = build(def);
   const entries = lampPartEntries(r);
-  assert.deepEqual(entries.map((e) => e.fileName), ["lampara_base_PRELIMINAR.stl", "lampara_cilindro.stl", "lampara_collar.stl", "lampara_pantalla.stl"]);
+  assert.deepEqual(entries.map((e) => e.fileName), ["lampara_base_PRELIMINAR.stl", "lampara_inserto_ondulado.stl", "lampara_collar.stl", "lampara_pantalla.stl"]);
   for (const [i, entry] of entries.entries()) {
     const blob = buildSTLBlob(entry.mesh);
     const buf = Buffer.from(await blob.arrayBuffer());

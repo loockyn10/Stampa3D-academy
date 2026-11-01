@@ -1,35 +1,36 @@
-import type { Point2D } from "@/lib/maker/types";
-import { buildFeatureLayers, layersToIndexed, sectorPoly, type SolidFeature } from "@/lib/maker/lamps/geometry/solid";
 import type { LampLayout } from "@/lib/maker/lamps/layout";
-import { LAMP_GEOMETRY, type LampDefinition } from "@/lib/maker/lamps/types";
-import { translateMesh, type IndexedMesh } from "@/lib/maker/mugs/geometry/mesh";
+import type { LampDefinition } from "@/lib/maker/lamps/types";
+import { newMesh, type IndexedMesh } from "@/lib/maker/mugs/geometry/mesh";
+import { revolveProfile } from "@/lib/maker/mugs/geometry/revolveProfile";
 
 /**
- * CILINDRO de color (inserto): tubo de pared fina, pieza independiente e intercambiable.
- *   - Su borde inferior apoya en la ranura anular de la torre de la base (profundidad `seatDepthMm`): se coloca y se saca por
- *     arriba, se centra solo y no toca el portalámparas. Sin rosca propia.
- *   - Pared CONTINUA de borde a borde: sin ventanas ni cortes laterales.
- *   - Dos lengüetas EXTERIORES en el borde superior (para extraerlo con los dedos); no se acercan a la bombilla.
- *   - Abierto arriba; sin tapa ni contacto con la bombilla (la separación radial se valida aparte).
- * Con lengüetas se imprime de forma convencional (con su geometría real no es modo vaso); un tubo liso (sin lengüetas) sí
- * es candidato a modo vaso. Se genera con el origen en el eje, en coordenadas de ensamblado.
+ * INSERTO de color: pieza independiente e intercambiable, en tres familias (plano, gota, ondulado) que comparten la misma
+ * interfaz de montaje: su borde inferior apoya en la ranura anular de la torre de la base (profundidad `seatDepthMm`) con un
+ * tubo liso de Ø exterior nominal; se coloca y se saca por arriba sin tocar el portalámparas. Sin rosca propia.
+ *
+ * La malla sale del perfil de `insert/surface.ts` (el mismo que usan la validación y las miniaturas), revolucionado por
+ * `revolveProfile`: sin CSG, sin polos más que los de una tapa/ápice, sin triángulos degenerados. Se genera con el origen en
+ * el eje, en coordenadas de ensamblado.
+ *   - plano / ondulado con tapa: perfil con polos (cerrado arriba, abierto abajo).
+ *   - ondulado abierto: lazo de anillos con dos lengüetas exteriores en el borde (extracción con los dedos).
  */
 export function createInsertMesh(def: LampDefinition, layout: LampLayout): IndexedMesh {
+  void def;
   const ins = layout.insert;
   if (!ins) throw new Error("createInsertMesh: el inserto está desactivado.");
-  const g = LAMP_GEOMETRY;
-  const { insert } = def;
-  const { outerR: Ro, innerR: Rn, heightMm: h } = ins;
-  const body: Point2D[][] = Array.from({ length: 8 }, (_, k) => sectorPoly(Rn, Ro, k * 45, (k + 1) * 45));
-  const features: SolidFeature[] = [];
-
-  if (insert.tabs) {
-    const half = ((g.tabArcMm / 2 / Ro) * 180) / Math.PI;
-    const add: Point2D[][] = [90, 270].map((center) => sectorPoly(Rn + insert.thicknessMm / 2, Ro + g.tabLengthMm, center - half, center + half));
-    features.push({ z0: h - g.tabThicknessMm, z1: h, add });
-  }
-
-  const mesh = layersToIndexed(buildFeatureLayers({ z0: 0, z1: h, polygons: body }, features));
-  translateMesh(mesh, 0, 0, ins.z0);
+  const surface = ins.surface;
+  if (!surface.valid) throw new Error("createInsertMesh: la superficie del inserto no es válida.");
+  const { rows, segments } = surface;
+  const mesh = newMesh();
+  const profile = rows.map((row) => ({ r: typeof row.r === "number" && row.r === 0 ? 0 : 1, z: row.z }));
+  revolveProfile(mesh, profile, {
+    segments,
+    closed: surface.mode === "closed",
+    radiusAt: (_p, theta, i) => {
+      const r = rows[i].r;
+      if (typeof r === "number") return r;
+      return r[Math.round((theta * segments) / (2 * Math.PI)) % segments];
+    },
+  });
   return mesh;
 }

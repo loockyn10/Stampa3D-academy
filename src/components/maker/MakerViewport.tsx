@@ -49,6 +49,7 @@ const PART_COLORS: Record<PartKind, number> = {
   diffuser: 0xfff3d6,
   channelDiffuser: 0xfff3d6,
   lampInsert: 0xe5483b,
+  lampInsertDrop: 0xe5483b,
   lampShade: 0xf4efe6,
   lampCollar: 0xaab4c2,
 };
@@ -60,7 +61,7 @@ function makeMaterial(kind: PartKind): THREE.MeshStandardMaterial {
   if (kind === "lampShade") {
     return new THREE.MeshStandardMaterial({ color: PART_COLORS[kind], roughness: 0.35, metalness: 0, transparent: true, opacity: 0.5, depthWrite: false, side: THREE.DoubleSide });
   }
-  if (kind === "lampInsert") {
+  if (kind === "lampInsert" || kind === "lampInsertDrop") {
     // Un poco de brillo propio: el filamento translúcido iluminado se ve más saturado que uno apagado (solo vista previa).
     return new THREE.MeshStandardMaterial({ color: PART_COLORS[kind], emissive: PART_COLORS[kind], emissiveIntensity: 0.3, roughness: 0.45, metalness: 0, transparent: true, opacity: 0.88, side: THREE.DoubleSide });
   }
@@ -144,6 +145,8 @@ export function MakerViewport({ geometry, displayMode = "model", explosionAmount
   const bedRootRef = useRef<THREE.Group | null>(null);
   const bedContentRef = useRef<THREE.Group | null>(null);
   const partMeshesRef = useRef<Map<PartKind, THREE.Mesh>>(new Map());
+  // Piezas repetidas de la misma clase (comparación de insertos lado a lado): solo comparten visibilidad, color y sección.
+  const extraMeshesRef = useRef<THREE.Mesh[]>([]);
   // Rango de explosión por pieza (capa de armado SEMÁNTICA, geometry/explodeOrder.ts;
   // nunca el orden de `geometry.parts` ni la posición Z real de la malla).
   const explodeRankRef = useRef<Map<PartKind, number>>(new Map());
@@ -171,7 +174,7 @@ export function MakerViewport({ geometry, displayMode = "model", explosionAmount
     const group = modelGroupRef.current;
     if (!group) return;
     const box = new THREE.Box3();
-    for (const mesh of partMeshesRef.current.values()) {
+    for (const mesh of [...partMeshesRef.current.values(), ...extraMeshesRef.current]) {
       mesh.geometry.computeBoundingBox();
       if (mesh.geometry.boundingBox) box.union(mesh.geometry.boundingBox);
     }
@@ -306,6 +309,7 @@ export function MakerViewport({ geometry, displayMode = "model", explosionAmount
     if (!group) return;
     clearGroup(group);
     partMeshesRef.current = new Map();
+    extraMeshesRef.current = [];
     if (!geometry || geometry.triangleCount === 0) return;
 
     const presentKinds = geometry.parts.filter((p) => p.mesh.triangleCount > 0).map((p) => p.kind);
@@ -315,10 +319,13 @@ export function MakerViewport({ geometry, displayMode = "model", explosionAmount
       if (part.mesh.triangleCount === 0) continue;
       const mesh = new THREE.Mesh(letterGeometryToBufferGeometry(part.mesh), makeMaterial(part.kind));
       // Translúcidos: el inserto se dibuja antes que la pantalla para que se vea a través de ella.
-      if (part.kind === "lampInsert") mesh.renderOrder = 2;
+      if (part.kind === "lampInsert" || part.kind === "lampInsertDrop") mesh.renderOrder = 2;
       if (part.kind === "lampShade") mesh.renderOrder = 3;
       group.add(mesh);
-      partMeshesRef.current.set(part.kind, mesh);
+      if (partMeshesRef.current.has(part.kind)) {
+        mesh.userData.kind = part.kind;
+        extraMeshesRef.current.push(mesh);
+      } else partMeshesRef.current.set(part.kind, mesh);
     }
 
     camStoreRef.current.model = null;
@@ -336,14 +343,18 @@ export function MakerViewport({ geometry, displayMode = "model", explosionAmount
     const hidden = new Set(hiddenKey ? hiddenKey.split(",") : []);
     const colors = colorsKey ? (JSON.parse(colorsKey) as Partial<Record<PartKind, string>>) : {};
     for (const [kind, mesh] of partMeshesRef.current) {
-      setPartAppearance(mesh, !hidden.has(kind), colors[kind], kind === "lampInsert");
+      setPartAppearance(mesh, !hidden.has(kind), colors[kind], kind === "lampInsert" || kind === "lampInsertDrop");
+    }
+    for (const mesh of extraMeshesRef.current) {
+      const kind = mesh.userData.kind as PartKind;
+      setPartAppearance(mesh, !hidden.has(kind), colors[kind], kind === "lampInsert" || kind === "lampInsertDrop");
     }
   }, [geometry, hiddenKey, colorsKey]);
 
   // Sección longitudinal: solo asigna el plano de recorte a los materiales de las piezas (no toca la geometría ni lo exportado).
   useEffect(() => {
     const planes = sectionView ? [new THREE.Plane(new THREE.Vector3(-1, 0, 0), 0)] : null;
-    for (const mesh of partMeshesRef.current.values()) {
+    for (const mesh of [...partMeshesRef.current.values(), ...extraMeshesRef.current]) {
       const material = mesh.material as THREE.MeshStandardMaterial;
       material.clippingPlanes = planes;
       material.needsUpdate = true;

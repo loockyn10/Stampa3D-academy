@@ -40,11 +40,19 @@ export interface LampShadeDef {
   collarHeightMm: number;
 }
 
+/** Familias de inserto: tapa plana (cerrado, se imprime invertido), gota (cierre ojival, se imprime parado) y ondulado (superficie lateral ondulada, abierto o con tapa). */
+export type LampInsertStyle = "flat" | "drop" | "wavy";
+export type LampInsertTop = "open" | "flat";
+
 export interface LampInsertDef {
   enabled: boolean;
+  /** Familia del inserto. La interfaz de montaje inferior (tubo liso Ø exterior que apoya en la ranura de la torre) es la MISMA en las tres. */
+  style: LampInsertStyle;
   /** Diámetro EXTERIOR nominal del cilindro (referencia impresa: Ø65). null = automático: el más angosto que respeta `minBulbGapMm`. */
   diameterMm: number | null;
-  /** Altura del inserto como % de la altura disponible (desde el asiento de la base hasta el borde de la pantalla). */
+  /** Altura TOTAL del inserto en mm, contada desde su borde inferior (dentro de la ranura) hasta su extremo superior. null = automática (`heightPct` de la altura disponible). */
+  heightMm: number | null;
+  /** Altura automática como % de la altura disponible (desde el asiento de la base hasta el borde de la pantalla). Solo se usa con `heightMm = null`. */
   heightPct: number;
   thicknessMm: number;
   /** Holgura de montaje por lado (mm) entre el cilindro y su ranura de la base / el cuello roscado y la pantalla. */
@@ -53,8 +61,20 @@ export interface LampInsertDef {
   seatDepthMm: number;
   /** Separación radial MÍNIMA exigida entre la bombilla (o el cuerpo del portalámparas) y el cilindro: evita el contacto previsto con las medidas cargadas. NO es una distancia térmicamente segura. */
   minBulbGapMm: number;
-  /** Dos lengüetas exteriores en el borde superior (para extraer el inserto). Obliga a impresión convencional. */
+  /** Dos lengüetas exteriores en el borde superior (para extraer el inserto). Solo con extremo superior abierto (ondulado abierto). Obliga a impresión convencional. */
   tabs: boolean;
+  /** Plano y ondulado con tapa: espesor de la tapa plana (unión a 90° con la pared). */
+  capThicknessMm: number;
+  /** Gota: altura del cierre (la sección cilíndrica es la altura total menos esta), curvatura (0 = cono recto, 100 = ojiva tangente al cilindro) y radio de la punta redondeada. */
+  dropClosureMm: number;
+  dropCurvaturePct: number;
+  dropTipRadiusMm: number;
+  /** Ondulado: ondas alrededor, amplitud (la onda SOLO suma hacia afuera: el interior nunca se acerca más a la bombilla que el tubo liso), torsión total (grados), frecuencia vertical y terminación superior. */
+  waves: number;
+  amplitudeMm: number;
+  twistDeg: number;
+  verticalFrequency: number;
+  wavyTop: LampInsertTop;
   /** Color de la VISTA PREVIA (#rrggbb). No es geometría ni simula la luz real. */
   previewColor: string;
 }
@@ -79,6 +99,15 @@ export interface LampThreadDef {
   clearanceMm: number;
   /** Espesor del cuello macho por debajo de la raíz de la rosca (mm). */
   coreWallMm: number;
+}
+
+/** Reborde anular INTERNO de adhesión en el extremo inferior de la pieza roscada (pantalla, o collar): más superficie contra la cama sin balsa. Permanente, forma parte del STL. */
+export interface LampAdhesionDef {
+  enabled: boolean;
+  /** Extensión radial hacia el eje desde el orificio del cuello (mm). */
+  widthMm: number;
+  /** Espesor del reborde (mm): normalmente 1-2 capas. */
+  heightMm: number;
 }
 
 export interface LampBaseDef {
@@ -129,6 +158,7 @@ export interface LampDefinition {
   thread: LampThreadDef;
   insert: LampInsertDef;
   base: LampBaseDef;
+  adhesion: LampAdhesionDef;
   holder: LampHolderDef;
   bulb: LampBulbDef;
   cable: LampCableDef;
@@ -223,6 +253,23 @@ export interface LampTowerReport {
   towerToNeckGapMm: number;
 }
 
+export interface LampAdhesionReport {
+  enabled: boolean;
+  widthMm: number;
+  heightMm: number;
+  /** Radio exterior (= orificio del cuello) e interior del reborde. */
+  outerRadiusMm: number;
+  innerRadiusMm: number;
+  /** Ancho máximo que no interfiere con el resto del ensamblaje, con la holgura de diseño. */
+  availableWidthMm: number;
+  /** Radial, entre el borde interior del reborde y lo que queda más cerca (torre o inserto). */
+  clearanceMm: number;
+  limitedBy: "tower" | "insert";
+  /** Anillo plano que apoya en la cama sin / con reborde (mm²), calculado del mismo layout. */
+  contactAreaMm2: number;
+  contactAreaWithoutMm2: number;
+}
+
 export interface LampFitReport {
   /** Z (ensamblado, base en 0) del tope de la rosca, de la parte decorativa, del inserto y del borde superior. */
   shadeBottomZ: number;
@@ -245,6 +292,15 @@ export interface LampFitReport {
   insertBulbGapMm: number | null;
   /** El inserto sale por la abertura superior sin desmontar la pantalla. */
   insertRemovableFromTop: boolean | null;
+  /** Familia del inserto, diámetro MÁXIMO (con ondas y sin lengüetas), altura total efectiva y si el extremo superior está cerrado. */
+  insertStyle: LampInsertStyle | null;
+  insertMaxDiameterMm: number | null;
+  insertHeightMm: number | null;
+  insertClosed: boolean;
+  /** Distancia GEOMÉTRICA mínima entre la cara interior del inserto (cierre incluido) y la envolvente de la bombilla/portalámparas. */
+  insertEnvelopeGapMm: number | null;
+  /** Reborde interno de adhesión ya resuelto. */
+  adhesion: LampAdhesionReport;
   /** Diámetro de la base (efectivo) y su altura total. */
   baseDiameterMm: number;
   baseHeightMm: number;
@@ -307,8 +363,18 @@ export const LAMP_LIMITS = {
   "thread.engagementMm": { min: 8, max: 30, label: "Longitud roscada" },
   "thread.clearanceMm": { min: 0.2, max: 0.8, label: "Holgura de la rosca" },
   "thread.coreWallMm": { min: 2, max: 8, label: "Espesor del cuello" },
-  "insert.heightPct": { min: 30, max: 95, label: "Altura del inserto" },
+  "insert.heightPct": { min: 30, max: 95, label: "Altura automática del inserto" },
   "insert.thicknessMm": { min: 0.4, max: 3, label: "Espesor del inserto" },
+  "insert.capThicknessMm": { min: 0.8, max: 5, label: "Espesor de la tapa" },
+  "insert.dropClosureMm": { min: 10, max: 160, label: "Altura del cierre" },
+  "insert.dropCurvaturePct": { min: 0, max: 100, label: "Curvatura del cierre" },
+  "insert.dropTipRadiusMm": { min: 1.5, max: 30, label: "Redondeo de la punta" },
+  "insert.waves": { min: 2, max: 32, integer: true, label: "Ondas del inserto" },
+  "insert.amplitudeMm": { min: 0, max: 12, label: "Amplitud del inserto" },
+  "insert.twistDeg": { min: -720, max: 720, label: "Torsión del inserto" },
+  "insert.verticalFrequency": { min: 0, max: 6, label: "Frecuencia vertical del inserto" },
+  "adhesion.widthMm": { min: 1, max: 10, label: "Ancho del reborde" },
+  "adhesion.heightMm": { min: 0.2, max: 1.2, label: "Altura del reborde" },
   "insert.clearanceMm": { min: 0.3, max: 2, label: "Holgura de montaje" },
   "insert.seatDepthMm": { min: 3, max: 20, label: "Profundidad de la ranura del cilindro" },
   "insert.minBulbGapMm": { min: 0.5, max: 40, label: "Separación mínima a la bombilla" },
@@ -382,6 +448,18 @@ export const LAMP_GEOMETRY = {
   tabLengthMm: 7,
   tabThicknessMm: 2.4,
   tabArcMm: 18,
+  /** Holgura radial mínima de DISEÑO entre el borde interior del reborde de adhesión y la torre / el inserto. */
+  adhesionClearanceMm: 1,
+  /** Zona de montaje del inserto: tubo liso Ø exterior sobre la cara superior de la torre antes de que empiecen las ondas, y rampa de la envolvente de la onda. */
+  insertMountExtraMm: 3,
+  insertWaveRampMm: 12,
+  /** Radio de curvatura mínimo de las crestas del inserto ondulado, en múltiplos del espesor. */
+  insertCrestRadiusFactor: 1.5,
+  /** Cierre de la gota: altura mínima y pendiente (respecto de la vertical) sobre la cual se avisa de la imprimibilidad. */
+  dropMinClosureMm: 10,
+  dropLeanWarnDeg: 45,
+  /** Tolerancia de ancho de lengüeta del inserto abierto: cuña inferior que sostiene la lengüeta (mm). */
+  tabGussetMm: 1.5,
   /** Distancia mínima del borde superior del inserto al de la pantalla. */
   insertTopMarginMm: 4,
   /** Pendiente máxima (grados respecto de la vertical) para declarar la pantalla compatible con modo vaso. */

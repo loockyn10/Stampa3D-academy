@@ -1,4 +1,4 @@
-import { maleThreadRings, ringLoopMesh, type Ring } from "@/lib/maker/lamps/geometry/ringLoop";
+import { flangeInnerRings, maleThreadRings, ringLoopMesh, type Ring } from "@/lib/maker/lamps/geometry/ringLoop";
 import type { LampLayout } from "@/lib/maker/lamps/layout";
 import { LAMP_GEOMETRY } from "@/lib/maker/lamps/types";
 import type { IndexedMesh } from "@/lib/maker/mugs/geometry/mesh";
@@ -21,7 +21,8 @@ export function socketRibHeight(column: number, segments: number): number {
  *   - arriba, un POZO anular cuyo radio sale del diámetro EXTERIOR de la pantalla (en modo vaso el exterior es exacto
  *     y el espesor lo decide el laminador), con 6 nervios de apriete de 0,6 mm: el borde inferior de la pantalla entra a
  *     presión sobre el piso del pozo, queda centrado, apoyado y se puede sacar tirando.
- * El interior del collar es el mismo orificio del cuello (el inserto lo atraviesa) y nunca queda más angosto.
+ * El interior del collar es el mismo orificio del cuello (el inserto lo atraviesa) y nunca queda más angosto, salvo por el reborde
+ * interno de adhesión opcional del borde inferior (`layout.adhesion`), que se valida contra la torre y el inserto.
  */
 export function createCollarMesh(layout: LampLayout, segments: number): IndexedMesh {
   const g = LAMP_GEOMETRY;
@@ -46,7 +47,7 @@ export function createCollarMesh(layout: LampLayout, segments: number): IndexedM
     { z: c.floorZ, r: c.socketR },
     { z: c.floorZ, r: c.floorInnerR },
     { z: innerConeBottomZ, r: spec.boreR },
-    { z: zBottom, r: spec.boreR },
+    ...flangeInnerRings(layout, zBottom),
   ];
   return ringLoopMesh([...outer, ...inner], segments);
 }

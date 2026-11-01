@@ -35,6 +35,8 @@ export const PRINT_TRANSFORM_BY_KIND: Record<PartKind, PrintTransform> = {
   // (cuello roscado macho, o tramo recto en modo vaso); el inserto va dado vuelta para que las lengüetas del borde superior apoyen en la cama sin voladizos.
   lampShade: NONE,
   lampInsert: FLIP_Y,
+  // Inserto tipo gota: se imprime parado, con la abertura inferior (la interfaz de montaje) sobre la cama y el cierre apuntando hacia arriba.
+  lampInsertDrop: NONE,
   // El collar roscado se imprime con el cuello roscado sobre la cama: la transición de 45° y el pozo suben sin soportes.
   lampCollar: NONE,
 };
