@@ -7,10 +7,13 @@ import { NumberField, SegmentedControl } from "@/components/maker/MakerTextContr
 import { applyInsertStyle, INSERT_STYLE_LABELS } from "@/lib/maker/lamps/defaults";
 import { decodeLampDesign, encodeLampDesign } from "@/lib/maker/lamps/designCode";
 import { insertSilhouette, referenceInsertSurface } from "@/lib/maker/lamps/insert/silhouette";
+import { OPENWORK_PRESETS, applyOpenworkPreset, applyShadeType, applySilhouette, openworkPresetMatches, type OpenworkPreset } from "@/lib/maker/lamps/openwork/presets";
+import { SILHOUETTE_LABELS, type SilhouetteKind } from "@/lib/maker/lamps/openwork/silhouette";
+import { renderOpenworkThumbnail } from "@/lib/maker/lamps/openwork/thumbnail";
 import { LAMP_PRESETS, type LampPreset } from "@/lib/maker/lamps/presets";
 import { LAMP_MEASUREMENTS_NEEDED, LAMP_NOTICE_CODES, LAMP_PHYSICAL_TESTS, LAMP_SAFETY_NOTICES } from "@/lib/maker/lamps/safety";
 import { lampSilhouette } from "@/lib/maker/lamps/silhouette";
-import { LAMP_LIMITS, type LampAdhesionDef, type LampBaseDef, type LampBulbDef, type LampCableDef, type LampDefinition, type LampFamily, type LampHolderDef, type LampInsertDef, type LampInsertStyle, type LampIssue, type LampMetrics, type LampProfile, type LampShadeDef, type LampThreadDef } from "@/lib/maker/lamps/types";
+import { LAMP_LIMITS, type LampAdhesionDef, type LampOpenworkDef, type LampShadeType, type LampBaseDef, type LampBulbDef, type LampCableDef, type LampDefinition, type LampFamily, type LampHolderDef, type LampInsertDef, type LampInsertStyle, type LampIssue, type LampMetrics, type LampProfile, type LampShadeDef, type LampThreadDef } from "@/lib/maker/lamps/types";
 
 const FAMILY_OPTIONS: { value: LampFamily; label: string }[] = [
   { value: "wavy", label: "Ondulada" },
@@ -155,9 +158,143 @@ function InsertStyleCard({ style, def, active, onSelect }: { style: LampInsertSt
   );
 }
 
+/** Miniatura calada: máscara leída del mismo campo de aberturas que la malla (ver `renderOpenworkThumbnail`), pintada con el color de acento. */
+function OpenworkThumb({ preset, def, active, onApply }: { preset: OpenworkPreset; def: LampDefinition; active: boolean; onApply: (p: OpenworkPreset) => void }) {
+  const canvasRef = React.useRef<HTMLCanvasElement | null>(null);
+  const applied = React.useMemo(() => applyOpenworkPreset(def, preset), [def.shade.heightMm, def.shade.bottomDiameterMm, def.openwork, preset]); // eslint-disable-line react-hooks/exhaustive-deps
+  const thumb = React.useMemo(() => {
+    try {
+      return renderOpenworkThumbnail(applied.shade, applied.openwork, 112);
+    } catch {
+      return null;
+    }
+  }, [applied]);
+  React.useEffect(() => {
+    const canvas = canvasRef.current;
+    if (!canvas || !thumb) return;
+    const ctx = canvas.getContext("2d");
+    if (!ctx) return;
+    canvas.width = thumb.width;
+    canvas.height = thumb.height;
+    ctx.putImageData(new ImageData(thumb.pixels as unknown as Uint8ClampedArray<ArrayBuffer>, thumb.width, thumb.height), 0, 0);
+    ctx.globalCompositeOperation = "source-in";
+    ctx.fillStyle = getComputedStyle(canvas).color;
+    ctx.fillRect(0, 0, thumb.width, thumb.height);
+  }, [thumb]);
+  return (
+    <button
+      type="button"
+      title={preset.description}
+      aria-pressed={active}
+      onClick={() => onApply(preset)}
+      className={`flex flex-col items-center gap-1 rounded-xl border px-1.5 pb-1.5 pt-2 transition-colors ${active ? "border-stampa-orange/60 bg-stampa-orange/10" : "border-fg/10 bg-fg/[0.04] hover:border-stampa-orange/40"}`}
+    >
+      <canvas ref={canvasRef} aria-hidden className="h-14 max-w-full text-stampa-accent" />
+      <span className="text-center text-[11px] font-semibold leading-tight text-gray-300">{preset.label}</span>
+    </button>
+  );
+}
+
+const SHADE_TYPE_OPTIONS: { value: LampShadeType; label: string }[] = [
+  { value: "solid", label: "Sólida" },
+  { value: "openwork", label: "Calada" },
+];
+const PATTERN_OPTIONS: { value: LampOpenworkDef["pattern"]; label: string }[] = [
+  { value: "diamond", label: "Diamante" },
+  { value: "spiral", label: "Espiral" },
+];
+const TOP_OPTIONS: { value: LampOpenworkDef["topFinish"]; label: string }[] = [
+  { value: "ring", label: "Con anillo" },
+  { value: "open", label: "Abierta" },
+];
+const SILHOUETTE_OPTIONS: { value: SilhouetteKind; label: string }[] = (Object.keys(SILHOUETTE_LABELS) as SilhouetteKind[]).map((value) => ({ value, label: SILHOUETTE_LABELS[value] }));
+
 function isPresetActive(def: LampDefinition, preset: LampPreset): boolean {
   const { topRatio, ...r } = preset.recipe;
   return (Object.keys(r) as (keyof typeof r)[]).every((k) => def.shade[k] === r[k]) && def.shade.topDiameterMm === Math.round(def.shade.bottomDiameterMm * topRatio);
+}
+
+/** Controles de la pantalla CALADA (sección Diseño / Calado). Edita `def.openwork`; las dimensiones compartidas viven en `def.shade`. */
+function OpenworkSection({ def, onChange, err, issues, errors, metrics }: { def: LampDefinition; onChange: (next: LampDefinition) => void; err: (field: string) => string | undefined; issues: LampIssue[]; errors: LampIssue[]; metrics: LampMetrics | null }) {
+  const ow = def.openwork;
+  const set = (patch: Partial<LampOpenworkDef>) => onChange({ ...def, openwork: { ...ow, ...patch } });
+  const setShade = (patch: Partial<LampShadeDef>) => onChange({ ...def, shade: { ...def.shade, ...patch } });
+  const L = LAMP_LIMITS;
+  const rep = metrics?.openwork ?? null;
+  const diamond = ow.pattern === "diamond";
+  return (
+    <>
+      <div className="grid grid-cols-3 gap-2">
+        {OPENWORK_PRESETS.map((preset) => (
+          <OpenworkThumb key={preset.id} preset={preset} def={def} active={openworkPresetMatches(def, preset)} onApply={(p) => onChange(applyOpenworkPreset(def, p))} />
+        ))}
+      </div>
+      <p className="text-xs text-gray-500">Cada diseño es una combinación real de parámetros del mismo motor: elegilo y ajustá cualquier valor. Las aberturas son huecos reales en la malla (no una textura), así que el visor y el STL son la misma geometría.</p>
+      <span className="text-xs font-semibold text-gray-500">Patrón</span>
+      <SegmentedControl options={PATTERN_OPTIONS} value={ow.pattern} onChange={(pattern) => set({ pattern })} compact />
+
+      <span className="text-xs font-semibold uppercase tracking-wide text-gray-500">Diseño · silueta</span>
+      <SegmentedControl options={SILHOUETTE_OPTIONS} value={"" as SilhouetteKind} onChange={(kind) => onChange(applySilhouette(def, kind))} compact />
+      <SliderField label="Altura de la pantalla" value={def.shade.heightMm} min={80} max={320} step={5} suffix=" mm" onChange={(v) => setShade({ heightMm: v })} error={err("shade.heightMm")} />
+      <SliderField label="Diámetro inferior" value={def.shade.bottomDiameterMm} min={100} max={260} step={5} suffix=" mm" onChange={(v) => setShade({ bottomDiameterMm: v })} error={err("shade.bottomDiameterMm")} />
+      <SliderField label="Diámetro superior" value={def.shade.topDiameterMm} min={80} max={280} step={5} suffix=" mm" onChange={(v) => setShade({ topDiameterMm: v })} error={err("shade.topDiameterMm")} />
+      <SliderField label="Diámetro máximo (abombado)" value={ow.maxDiameterMm} min={80} max={300} step={5} suffix=" mm" onChange={(v) => set({ maxDiameterMm: v })} error={err("openwork.maxDiameterMm")} />
+      <SliderField label="Intensidad de cintura" value={ow.waistPct} min={0} max={100} step={5} suffix="%" onChange={(v) => set({ waistPct: v })} error={err("openwork.waistPct")} />
+      <SliderField label="Torsión" value={ow.twistDeg} min={-720} max={720} step={5} suffix="°" onChange={(v) => set({ twistDeg: v })} error={err("openwork.twistDeg")} />
+
+      <span className="text-xs font-semibold uppercase tracking-wide text-gray-500">Calado</span>
+      {diamond ? (
+        <>
+          <SliderField label="Densidad (rombos alrededor)" value={ow.divisions} min={L["openwork.divisions"].min} max={L["openwork.divisions"].max} step={1} onChange={(v) => set({ divisions: Math.round(v) })} error={err("openwork.divisions")} />
+          <SliderField label="Inclinación de las diagonales" value={ow.inclinationDeg} min={L["openwork.inclinationDeg"].min} max={L["openwork.inclinationDeg"].max} step={1} suffix="°" onChange={(v) => set({ inclinationDeg: v })} error={err("openwork.inclinationDeg")} />
+        </>
+      ) : (
+        <>
+          <SliderField label="Cantidad de bandas" value={ow.bands} min={L["openwork.bands"].min} max={L["openwork.bands"].max} step={1} onChange={(v) => set({ bands: Math.round(v) })} error={err("openwork.bands")} />
+          <SliderField label="Vueltas" value={ow.turns} min={L["openwork.turns"].min} max={L["openwork.turns"].max} step={0.05} onChange={(v) => set({ turns: v })} error={err("openwork.turns")} />
+        </>
+      )}
+      <SliderField label="Grosor (ancho de las tiras)" value={ow.stripWidthMm} min={1} max={14} step={0.2} suffix=" mm" onChange={(v) => set({ stripWidthMm: v })} error={err("openwork.stripWidthMm")} />
+      <SliderField label="Profundidad de las tiras" value={ow.depthMm} min={1} max={6} step={0.1} suffix=" mm" onChange={(v) => set({ depthMm: v })} error={err("openwork.depthMm")} />
+      {!diamond && rep?.bandGapMm != null && <p className="text-xs text-gray-500">Separación libre entre bandas: <span className="font-semibold text-gray-300">{fmt(rep.bandGapMm)} mm</span> (sale de bandas, vueltas y grosor).</p>}
+
+      <Details title="Opciones avanzadas del calado">
+        <SliderField label="Posición del ensanchamiento / cintura" value={ow.bulgePositionPct} min={10} max={90} step={5} suffix="%" onChange={(v) => set({ bulgePositionPct: v })} error={err("openwork.bulgePositionPct")} />
+        <SliderField label="Curvatura" value={ow.curvaturePct} min={0} max={100} step={5} suffix="%" onChange={(v) => set({ curvaturePct: v })} error={err("openwork.curvaturePct")} />
+        <SliderField label="Variación orgánica" value={ow.organicPct} min={0} max={100} step={5} suffix="%" onChange={(v) => set({ organicPct: v })} error={err("openwork.organicPct")} />
+        {diamond && <SliderField label="Desplazamiento de fase" value={ow.phaseDeg} min={0} max={360} step={5} suffix="°" onChange={(v) => set({ phaseDeg: v })} error={err("openwork.phaseDeg")} />}
+        <SliderField label={diamond ? "Variación vertical de la inclinación" : "Variación de inclinación"} value={ow.variationPct} min={0} max={70} step={5} suffix="%" onChange={(v) => set({ variationPct: v })} error={err("openwork.variationPct")} />
+        <SliderField label="Ciclos de la variación" value={ow.variationCycles} min={0} max={6} step={0.5} onChange={(v) => set({ variationCycles: v })} error={err("openwork.variationCycles")} />
+        {!diamond && (
+          <div className="grid grid-cols-2 gap-3">
+            <NumberField label="Anillos de unión" value={ow.connectors} onChange={(v) => set({ connectors: Math.max(0, Math.round(v)) })} error={err("openwork.connectors")} />
+            <NumberField label="Ancho de los anillos" value={ow.connectorWidthMm} onChange={(v) => set({ connectorWidthMm: v })} suffix="mm" error={err("openwork.connectorWidthMm")} />
+          </div>
+        )}
+        <div className="grid grid-cols-2 gap-3">
+          <NumberField label="Anillo inferior" value={ow.bottomRingMm} onChange={(v) => set({ bottomRingMm: v })} suffix="mm" error={err("openwork.bottomRingMm")} />
+          <NumberField label="Anillo superior" value={ow.topRingMm} onChange={(v) => set({ topRingMm: v })} suffix="mm" error={err("openwork.topRingMm")} />
+        </div>
+        <span className="text-xs font-semibold text-gray-500">Terminación superior</span>
+        <SegmentedControl options={TOP_OPTIONS} value={ow.topFinish} onChange={(topFinish) => set({ topFinish })} compact />
+        <NumberField label="Semilla (silueta orgánica)" value={ow.seed} onChange={(v) => set({ seed: Math.max(0, Math.round(v)) })} error={err("openwork.seed")} />
+      </Details>
+
+      {rep && (
+        <div className="flex flex-col gap-1 rounded-xl border border-fg/10 bg-fg/[0.03] p-3">
+          <InfoRow label="Aberturas" value={`${fmt(rep.aperturePct)} % de la zona calada`} />
+          <InfoRow label="Abertura mínima" value={`${fmt(rep.minOpeningMm)} mm`} />
+          <InfoRow label="Inclinación máx. de una tira" value={`${fmt(rep.maxStripLeanDeg)}° de la vertical`} />
+          {rep.diamondsAround !== null && <InfoRow label="Rombos" value={`${rep.diamondsAround} alrededor · ${rep.diamondRows ?? 0} filas`} />}
+          <InfoRow label="Pieza" value={rep.components === 1 ? "Una sola pieza conectada" : `${rep.components} piezas sueltas`} strong={rep.components !== 1} />
+          <InfoRow label="Triángulos de la pantalla" value={metrics ? metrics.shade.triangleCount.toLocaleString("es-AR") : "—"} />
+        </div>
+      )}
+      {issues.map((i, k) => (
+        <p key={`${i.code}-${k}`} className={`text-xs ${errors.includes(i) ? "text-red-400" : "text-amber-300"}`}>{i.message}</p>
+      ))}
+    </>
+  );
 }
 
 export interface MakerLampControlsProps {
@@ -218,6 +355,12 @@ export function MakerLampControls({ def, onChange, onApplyPreset, onGenerateVari
       {/* ------------------------------------------------------------------ DISEÑO */}
       <section className="flex flex-col gap-3">
         <SectionLabel>1 · Pantalla exterior</SectionLabel>
+        <span className="text-xs font-semibold text-gray-500">Tipo de pantalla</span>
+        <SegmentedControl options={SHADE_TYPE_OPTIONS} value={def.shadeType} onChange={(type) => onChange(applyShadeType(def, type))} compact />
+        {def.shadeType === "openwork" ? (
+          <OpenworkSection def={def} onChange={onChange} err={err} issues={issuesFor((i) => !!i.field?.startsWith("openwork.") || i.code.startsWith("OPENWORK_"))} errors={errors} metrics={metrics} />
+        ) : (
+        <>
         <div className="grid grid-cols-3 gap-2">
           {LAMP_PRESETS.map((preset) => (
             <PresetThumb key={preset.id} preset={preset} def={def} active={isPresetActive(def, preset)} onApply={onApplyPreset} />
@@ -256,6 +399,11 @@ export function MakerLampControls({ def, onChange, onApplyPreset, onGenerateVari
           <NumberField label="Semilla" value={def.shade.seed} onChange={(v) => setShade({ seed: Math.max(0, Math.round(v)) })} error={err("shade.seed")} />
         </Details>
         {issuesFor((i) => !!i.field?.startsWith("shade.") || i.code.startsWith("SHADE_")).map((i, k) => (
+          <p key={`${i.code}-${k}`} className={`text-xs ${errors.includes(i) ? "text-red-400" : "text-amber-300"}`}>{i.message}</p>
+        ))}
+        </>
+        )}
+        {def.shadeType === "openwork" && issuesFor((i) => i.code.startsWith("SHADE_")).map((i, k) => (
           <p key={`${i.code}-${k}`} className={`text-xs ${errors.includes(i) ? "text-red-400" : "text-amber-300"}`}>{i.message}</p>
         ))}
       </section>
@@ -459,7 +607,7 @@ export function MakerLampControls({ def, onChange, onApplyPreset, onGenerateVari
 
         <span className="mt-1 text-xs font-semibold text-gray-500">Modo de impresión</span>
         <div className="flex flex-col gap-1.5 rounded-xl border border-fg/10 bg-fg/[0.03] p-3">
-          <InfoRow label="Pantalla" value={metrics ? (def.thread.connection === "integrated" ? "Impresión convencional (rosca integrada)" : metrics.shade.vase.ready ? "Apta para modo vaso*" : `No apta para modo vaso (${fmt(metrics.shade.vase.maxOverhangDeg)}°)`) : "—"} strong={metrics?.shade.vase.ready && def.thread.connection === "collar"} />
+          <InfoRow label="Pantalla" value={metrics ? (def.shadeType === "openwork" ? "Impresión convencional (calada)" : def.thread.connection === "integrated" ? "Impresión convencional (rosca integrada)" : metrics.shade.vase.ready ? "Apta para modo vaso*" : `No apta para modo vaso (${fmt(metrics.shade.vase.maxOverhangDeg)}°)`) : "—"} strong={metrics?.shade.vase.ready && def.thread.connection === "collar"} />
           {def.thread.connection === "collar" && <InfoRow label="Collar roscado" value={metrics?.collar ? "Impresión convencional" : "—"} />}
           <InfoRow label={`Inserto ${INSERT_STYLE_LABELS[def.insert.style].toLowerCase()}`} value={metrics?.insert ? (metrics.insert.vaseCapable ? "Modo vaso posible" : def.insert.style === "drop" ? "Convencional, parado (brim si hace falta)" : "Convencional, invertido") : "—"} />
           <InfoRow label="Base" value={metrics ? "Impresión convencional" : "—"} />

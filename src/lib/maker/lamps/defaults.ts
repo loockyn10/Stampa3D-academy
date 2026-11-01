@@ -1,4 +1,4 @@
-import type { LampAdhesionDef, LampBaseDef, LampBulbDef, LampCableDef, LampDefinition, LampHolderDef, LampInsertDef, LampInsertStyle, LampShadeDef, LampThreadDef } from "@/lib/maker/lamps/types";
+import type { LampAdhesionDef, LampBaseDef, LampBulbDef, LampCableDef, LampDefinition, LampHolderDef, LampInsertDef, LampInsertStyle, LampOpenworkDef, LampShadeDef, LampThreadDef } from "@/lib/maker/lamps/types";
 
 /**
  * Valores iniciales. Las medidas del portalámparas y de la bombilla son MARCADORES DE POSICIÓN (`holder.measured =
@@ -21,6 +21,35 @@ export const DEFAULT_SHADE: LampShadeDef = {
   seed: 1,
   wallMm: 1.2,
   collarHeightMm: 12,
+};
+
+/**
+ * Pantalla calada inicial: diamante clásico. La altura y los diámetros inferior/superior NO están acá: se comparten con la
+ * pantalla sólida (`DEFAULT_SHADE`), así alternar entre tipos conserva las dimensiones.
+ */
+export const DEFAULT_OPENWORK: LampOpenworkDef = {
+  pattern: "diamond",
+  maxDiameterMm: 140,
+  bulgePositionPct: 50,
+  curvaturePct: 40,
+  waistPct: 0,
+  organicPct: 0,
+  seed: 1,
+  twistDeg: 0,
+  stripWidthMm: 4,
+  depthMm: 2.4,
+  bottomRingMm: 10,
+  topRingMm: 8,
+  topFinish: "ring",
+  variationPct: 0,
+  variationCycles: 1,
+  divisions: 12,
+  inclinationDeg: 55,
+  phaseDeg: 0,
+  bands: 6,
+  turns: 1.5,
+  connectors: 0,
+  connectorWidthMm: 3,
 };
 
 /**
@@ -97,7 +126,9 @@ export const DEFAULT_CABLE: LampCableDef = { diameterMm: 7, tieAnchor: true };
 
 export const DEFAULT_LAMP: LampDefinition = {
   version: 2,
+  shadeType: "solid",
   shade: DEFAULT_SHADE,
+  openwork: DEFAULT_OPENWORK,
   thread: DEFAULT_THREAD,
   insert: DEFAULT_INSERT,
   base: DEFAULT_BASE,
@@ -109,6 +140,7 @@ export const DEFAULT_LAMP: LampDefinition = {
 
 const FAMILIES = new Set(["wavy", "spiral", "organic"]);
 const INSERT_STYLES = new Set(["flat", "drop", "wavy"]);
+const PATTERNS = new Set(["diamond", "spiral"]);
 const PROFILES = new Set(["straight", "barrel", "waist", "bell", "tulip"]);
 
 function isRecord(v: unknown): v is Record<string, unknown> {
@@ -140,6 +172,7 @@ function color(v: unknown, fallback: string): string {
 export function normalizeLampDefinition(input: unknown): LampDefinition {
   const root = isRecord(input) ? input : {};
   const s = isRecord(root.shade) ? root.shade : {};
+  const o = isRecord(root.openwork) ? root.openwork : {};
   const i = isRecord(root.insert) ? root.insert : {};
   const t = isRecord(root.thread) ? root.thread : {};
   const b = isRecord(root.base) ? root.base : {};
@@ -149,6 +182,31 @@ export function normalizeLampDefinition(input: unknown): LampDefinition {
   const c = isRecord(root.cable) ? root.cable : {};
   return {
     version: 2,
+    shadeType: root.shadeType === "openwork" ? "openwork" : "solid",
+    openwork: {
+      pattern: typeof o.pattern === "string" && PATTERNS.has(o.pattern) ? (o.pattern as LampOpenworkDef["pattern"]) : DEFAULT_OPENWORK.pattern,
+      maxDiameterMm: num(o.maxDiameterMm, DEFAULT_OPENWORK.maxDiameterMm),
+      bulgePositionPct: num(o.bulgePositionPct, DEFAULT_OPENWORK.bulgePositionPct),
+      curvaturePct: num(o.curvaturePct, DEFAULT_OPENWORK.curvaturePct),
+      waistPct: num(o.waistPct, DEFAULT_OPENWORK.waistPct),
+      organicPct: num(o.organicPct, DEFAULT_OPENWORK.organicPct),
+      seed: num(o.seed, DEFAULT_OPENWORK.seed),
+      twistDeg: num(o.twistDeg, DEFAULT_OPENWORK.twistDeg),
+      stripWidthMm: num(o.stripWidthMm, DEFAULT_OPENWORK.stripWidthMm),
+      depthMm: num(o.depthMm, DEFAULT_OPENWORK.depthMm),
+      bottomRingMm: num(o.bottomRingMm, DEFAULT_OPENWORK.bottomRingMm),
+      topRingMm: num(o.topRingMm, DEFAULT_OPENWORK.topRingMm),
+      topFinish: o.topFinish === "open" ? "open" : "ring",
+      variationPct: num(o.variationPct, DEFAULT_OPENWORK.variationPct),
+      variationCycles: num(o.variationCycles, DEFAULT_OPENWORK.variationCycles),
+      divisions: num(o.divisions, DEFAULT_OPENWORK.divisions),
+      inclinationDeg: num(o.inclinationDeg, DEFAULT_OPENWORK.inclinationDeg),
+      phaseDeg: num(o.phaseDeg, DEFAULT_OPENWORK.phaseDeg),
+      bands: num(o.bands, DEFAULT_OPENWORK.bands),
+      turns: num(o.turns, DEFAULT_OPENWORK.turns),
+      connectors: num(o.connectors, DEFAULT_OPENWORK.connectors),
+      connectorWidthMm: num(o.connectorWidthMm, DEFAULT_OPENWORK.connectorWidthMm),
+    },
     shade: {
       family: typeof s.family === "string" && FAMILIES.has(s.family) ? (s.family as LampShadeDef["family"]) : DEFAULT_SHADE.family,
       heightMm: num(s.heightMm, DEFAULT_SHADE.heightMm),

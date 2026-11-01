@@ -1,6 +1,8 @@
 import { computeLampLayout, type LampLayout } from "@/lib/maker/lamps/layout";
 import { LAMP_ADHESION_UNVERIFIED_MESSAGE, LAMP_CLOSED_INSERT_MESSAGE, LAMP_COLLAR_UNVERIFIED_MESSAGE, LAMP_HOLDER_NOT_VALIDATED_MESSAGE, LAMP_PHYSICAL_VALIDATION_MESSAGE } from "@/lib/maker/lamps/safety";
-import { getShadeField } from "@/lib/maker/lamps/shade/cache";
+import { openworkIssues } from "@/lib/maker/lamps/openwork/validate";
+import type { OpenworkField } from "@/lib/maker/lamps/openwork/field";
+import { getLampField } from "@/lib/maker/lamps/shade/cache";
 import { minInnerRadiusBetween, type ShadeField } from "@/lib/maker/lamps/shade/surface";
 import { LAMP_GEOMETRY, LAMP_LIMITS, type LampDefinition, type LampIssue, type LampLimitKey, type LampVaseReport } from "@/lib/maker/lamps/types";
 import type { PrinterProfile } from "@/lib/maker/printBed/printerProfiles";
@@ -24,8 +26,9 @@ const fmt = (n: number) => String(Math.round(n * 10) / 10).replace(".", ",");
  * Prerrequisitos GEOMÉTRICOS del modo vaso. Cumplirlos no garantiza el laminado: hay que abrir el STL en el laminador.
  * La rosca integrada exige paredes macizas, así que solo la unión por collar deja la pantalla lisa y apta para modo vaso.
  */
-export function vaseReportForShade(field: ShadeField, connection: "integrated" | "collar" = "collar"): LampVaseReport {
+export function vaseReportForShade(field: ShadeField, connection: "integrated" | "collar" = "collar", openwork = false): LampVaseReport {
   const reasons: string[] = [];
+  if (openwork) reasons.push("La pantalla calada es una estructura de tiras con aberturas: no se imprime en modo vaso (impresión convencional).");
   const max = LAMP_GEOMETRY.vaseMaxOverhangDeg;
   if (connection === "integrated") reasons.push("La rosca integrada necesita paredes macizas: para modo vaso usá la unión por collar roscado independiente.");
   if (field.maxTiltDeg > max) {
@@ -37,6 +40,8 @@ export function vaseReportForShade(field: ShadeField, connection: "integrated" |
 
 function checkRanges(def: LampDefinition, errors: LampIssue[]): void {
   for (const key of Object.keys(LAMP_LIMITS) as LampLimitKey[]) {
+    // Los parámetros de la pantalla calada solo se exigen cuando esa pantalla está activa (los del otro tipo se conservan sin validarse).
+    if (key.startsWith("openwork.") && def.shadeType !== "openwork") continue;
     const limit = LAMP_LIMITS[key] as { min: number; max: number; integer?: boolean; label: string };
     const v = valueAt(def, key);
     if (typeof v !== "number" || !Number.isFinite(v)) {
@@ -73,16 +78,22 @@ export function validateLamp(def: LampDefinition, printer?: PrinterProfile): Lam
   const g = LAMP_GEOMETRY;
 
   checkRanges(def, errors);
-  if (errors.length === 0 && def.shade.collarHeightMm > def.shade.heightMm * 0.5) {
+  if (def.shadeType !== "solid" && def.shadeType !== "openwork") errors.push({ code: "OUT_OF_RANGE", field: "shadeType", message: "Tipo de pantalla: elegí sólida o calada." });
+  if (def.shadeType === "openwork") {
+    if (def.openwork.pattern !== "diamond" && def.openwork.pattern !== "spiral") errors.push({ code: "OUT_OF_RANGE", field: "openwork.pattern", message: "Patrón calado: elegí diamante o espiral." });
+    if (def.openwork.topFinish !== "ring" && def.openwork.topFinish !== "open") errors.push({ code: "OUT_OF_RANGE", field: "openwork.topFinish", message: "Terminación superior: anillo o abierta." });
+  }
+  if (errors.length === 0 && def.shadeType === "solid" && def.shade.collarHeightMm > def.shade.heightMm * 0.5) {
     errors.push({ code: "COLLAR_TOO_TALL", field: "shade.collarHeightMm", message: "El tramo recto inferior no puede superar la mitad de la altura de la pantalla." });
   }
   warnings.push({ code: "PHYSICAL_VALIDATION_PENDING", message: LAMP_PHYSICAL_VALIDATION_MESSAGE });
   if (!def.holder.measured) warnings.push({ code: "HOLDER_NOT_VALIDATED", field: "holder.measured", message: LAMP_HOLDER_NOT_VALIDATED_MESSAGE });
   if (errors.length > 0) return { errors, warnings, field: null, layout: null, vase: null };
 
-  const field = getShadeField(def.shade);
+  const openworkActive = def.shadeType === "openwork";
+  const field = getLampField(def);
   const layout = computeLampLayout(def, field);
-  const vase = vaseReportForShade(field, def.thread.connection);
+  const vase = vaseReportForShade(field, def.thread.connection, openworkActive);
   const { shade, insert, base, holder, cable, thread } = def;
   const spec = layout.spec;
   const tower = layout.tower;
@@ -103,14 +114,20 @@ export function validateLamp(def: LampDefinition, printer?: PrinterProfile): Lam
   }
   if (thread.connection === "collar") warnings.push({ code: "COLLAR_UNVERIFIED", field: "thread.connection", message: LAMP_COLLAR_UNVERIFIED_MESSAGE });
 
+  // ---- Pantalla calada: estructura, aberturas, imprimibilidad y empalme con la interfaz E27
+  if (openworkActive) {
+    for (const issue of openworkIssues(def, field as OpenworkField, layout)) (issue.severity === "error" ? errors : warnings).push({ code: issue.code, field: issue.field, message: issue.message });
+  }
+
   // ---- Pantalla
-  if (field.degenerate) errors.push({ code: "SHADE_DEGENERATE", field: "shade.amplitudeMm", message: "Con estos valores la pantalla se vuelve degenerada (la ondulación se acerca al eje o la pared se pliega). Reducí la amplitud, las ondas o la torsión." });
+  if (!openworkActive && field.degenerate) errors.push({ code: "SHADE_DEGENERATE", field: "shade.amplitudeMm", message: "Con estos valores la pantalla se vuelve degenerada (la ondulación se acerca al eje o la pared se pliega). Reducí la amplitud, las ondas o la torsión." });
+  if (openworkActive && field.degenerate) errors.push({ code: "SHADE_DEGENERATE", field: "openwork.depthMm", message: "Con estos valores la pantalla calada se vuelve degenerada (la silueta se acerca al eje o la profundidad de las tiras supera el radio). Reducí la profundidad o la cintura." });
   if (field.maxTiltDeg > g.hardMaxTiltDeg) errors.push({ code: "SHADE_TOO_STEEP", field: "shade.twistDeg", message: `La pared se inclina ${fmt(field.maxTiltDeg)}° respecto de la vertical: no es imprimible (máximo ${g.hardMaxTiltDeg}°). Reducí la torsión, la amplitud o el cambio de diámetro.` });
-  if (field.minRidgeRadiusMm !== null && field.minRidgeRadiusMm < shade.wallMm) errors.push({ code: "SHADE_RIDGE_TOO_SHARP", field: "shade.waves", message: `Las crestas son demasiado agudas (radio ${fmt(field.minRidgeRadiusMm)} mm < espesor ${fmt(shade.wallMm)} mm): la pared se plegaría sobre sí misma. Reducí las ondas o la amplitud.` });
-  if (thread.connection === "collar" && !errors.some((e) => e.code === "SHADE_TOO_STEEP") && !vase.ready) warnings.push({ code: "SHADE_NOT_VASE", message: `Pantalla NO apta para modo vaso: ${vase.reasons[0]} Se imprime de forma convencional y puede necesitar soportes.` });
-  if (field.twistCellsPerRow > 4) warnings.push({ code: "SHADE_TWIST_COARSE", field: "shade.twistDeg", message: "La torsión es muy fuerte para la resolución de la malla: las ondas pueden verse facetadas. Reducí la torsión o la cantidad de ondas." });
-  if (shade.wallMm < 0.8) warnings.push({ code: "SHADE_WALL_THIN", field: "shade.wallMm", message: "Espesor menor a 0,8 mm: solo apto para modo vaso con un perímetro; en impresión convencional puede quedar frágil." });
-  if (thread.connection === "integrated" && shade.wallMm < 1) warnings.push({ code: "SHADE_WALL_THIN_INTEGRATED", field: "shade.wallMm", message: "Con la rosca integrada la pantalla se imprime de forma convencional: una pared de menos de 1 mm es frágil en la transición de 45°." });
+  if (!openworkActive && field.minRidgeRadiusMm !== null && field.minRidgeRadiusMm < shade.wallMm) errors.push({ code: "SHADE_RIDGE_TOO_SHARP", field: "shade.waves", message: `Las crestas son demasiado agudas (radio ${fmt(field.minRidgeRadiusMm)} mm < espesor ${fmt(shade.wallMm)} mm): la pared se plegaría sobre sí misma. Reducí las ondas o la amplitud.` });
+  if (!openworkActive && thread.connection === "collar" && !errors.some((e) => e.code === "SHADE_TOO_STEEP") && !vase.ready) warnings.push({ code: "SHADE_NOT_VASE", message: `Pantalla NO apta para modo vaso: ${vase.reasons[0]} Se imprime de forma convencional y puede necesitar soportes.` });
+  if (!openworkActive && field.twistCellsPerRow > 4) warnings.push({ code: "SHADE_TWIST_COARSE", field: "shade.twistDeg", message: "La torsión es muy fuerte para la resolución de la malla: las ondas pueden verse facetadas. Reducí la torsión o la cantidad de ondas." });
+  if (!openworkActive && shade.wallMm < 0.8) warnings.push({ code: "SHADE_WALL_THIN", field: "shade.wallMm", message: "Espesor menor a 0,8 mm: solo apto para modo vaso con un perímetro; en impresión convencional puede quedar frágil." });
+  if (!openworkActive && thread.connection === "integrated" && shade.wallMm < 1) warnings.push({ code: "SHADE_WALL_THIN_INTEGRATED", field: "shade.wallMm", message: "Con la rosca integrada la pantalla se imprime de forma convencional: una pared de menos de 1 mm es frágil en la transición de 45°." });
   if (printer) {
     const printHeight = thread.connection === "collar" ? shade.heightMm : layout.shadeTopZ - layout.ledgeZ;
     if (printHeight > printer.heightMm) warnings.push({ code: "SHADE_TOO_TALL_FOR_PRINTER", message: `La pantalla (${fmt(printHeight)} mm) supera la altura de impresión de ${printer.name} (${printer.heightMm} mm).` });

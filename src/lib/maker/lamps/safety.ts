@@ -22,6 +22,9 @@ export const LAMP_CLOSED_INSERT_MESSAGE =
 export const LAMP_ADHESION_UNVERIFIED_MESSAGE =
   "Reborde interno de adhesión: aumenta la superficie de contacto con la cama y NO garantiza imprimir sin brim ni balsa con cualquier geometría o material. Pendiente de probar en tu impresora y laminador (hay una pieza de prueba en «Piezas de prueba»).";
 
+export const LAMP_OPENWORK_MESSAGE =
+  "Pantalla CALADA: las aberturas dejan pasar luz y aire, pero eso NO es una validación térmica ni eléctrica. Una pantalla calada no vuelve segura ninguna combinación de bombilla, portalámparas y filamento: la temperatura, la estabilidad y el ensamblaje siguen PENDIENTES DE VALIDACIÓN FÍSICA con el conjunto impreso.";
+
 export const LAMP_SAFETY_NOTICES: readonly string[] = [
   "Usá un portalámparas E27 comercial certificado y una bombilla LED compatible con él. Nada eléctrico se imprime en 3D: ni contactos, ni roscas energizadas, ni conexiones a la red.",
   "Esta herramienta no da instrucciones de cableado de red. El cableado lo debe hacer una persona calificada, siguiendo las instrucciones del fabricante del portalámparas y la normativa vigente.",
@@ -49,13 +52,14 @@ export const LAMP_PHYSICAL_TESTS: readonly string[] = [
   "Encaje de la pantalla, del cilindro y de la rosca con el filamento y la impresora reales (la holgura depende del material y de la calibración).",
   "Reborde interno de adhesión: imprimí la pieza de prueba «rosca macho» (lleva el mismo reborde) y comprobá que se adhiere a tu cama con tu laminador sin brim; luego apoyala alrededor de la pieza de prueba del portalámparas para verificar la holgura con la torre. Que se adhiera una vez no valida cualquier geometría o material.",
   "Insertos: laminar en Bambu Studio el plano (invertido, tapa sobre la cama), la gota (parada, con brim del laminador si hace falta; revisá la punta y la pendiente del cierre) y el ondulado (revisá torsión y pendiente). Ninguna geometría de inserto está validada físicamente hasta imprimirla y probarla.",
+  "Pantalla CALADA: laminar en Bambu Studio y revisar voladizos de las tiras inclinadas, puentes sobre las aberturas, puntas finas (terminación abierta), estabilidad durante la impresión y si hacen falta soportes o brim. Imprimir una tira de prueba antes de la pantalla completa. Las aberturas NO validan la temperatura: el conjunto sigue pendiente de prueba térmica.",
   "Insertos CERRADOS (plano y gota) y ondulado con tapa: prueba térmica específica (rodean la bombilla y pueden retener más calor). Una lámpara de referencia con cilindro sin ranuras visibles funcionando no demuestra que todas las combinaciones sean térmicamente seguras.",
   "Prueba térmica con una bombilla LED encendida durante varias horas y la lámpara en su posición de uso: temperatura del cilindro, de la pantalla, de la rosca y de la base medida con instrumento, sin dejarla funcionando sola. No uses bombillas incandescentes ni halógenas para validar estos prototipos.",
   "Prueba de estabilidad: inclinación y golpe suave con la lámpara montada; verificá que no vuelque ni quede tensionada por el cable.",
   "Revisión del conjunto por una persona calificada en instalaciones eléctricas antes del uso habitual.",
 ];
 
-export function lampReadmeText(extra: { designCode?: string; holderMeasured: boolean; partNames: string[]; collar?: boolean }): string {
+export function lampReadmeText(extra: { designCode?: string; holderMeasured: boolean; partNames: string[]; collar?: boolean; openwork?: boolean }): string {
   const lines = [
     "LÁMPARA E27 - Stampa Maker (BETA)",
     "",
@@ -75,6 +79,7 @@ export function lampReadmeText(extra: { designCode?: string; holderMeasured: boo
     extra.collar
       ? "- Collar: apoyá el borde inferior de la pantalla en el pozo del collar (entra a presión) y enroscá el collar en la base hasta el tope."
       : "- Pantalla: enroscala en la base hasta el tope; el cuello roscado es parte de la pantalla.",
+    ...(extra.openwork ? ["- Pantalla CALADA: es una sola pieza conectada (anillo inferior, tiras y anillo superior) que se imprime de forma convencional, NO en modo vaso. " + LAMP_OPENWORK_MESSAGE] : []),
     "- Para cambiar el color: sacá el inserto por la abertura superior (con lengüetas si las tiene; los insertos cerrados se agarran de la tapa o la punta); si no sale, desenroscá la pantalla (giro antihorario visto desde arriba).",
     "",
     "SEGURIDAD",

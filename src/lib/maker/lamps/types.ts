@@ -40,6 +40,61 @@ export interface LampShadeDef {
   collarHeightMm: number;
 }
 
+/** Tipo de pantalla exterior: sólida (ondas, motor de superficie) o calada (estructura abierta de tiras: aberturas reales en la malla). */
+export type LampShadeType = "solid" | "openwork";
+export type OpenworkPattern = "diamond" | "spiral";
+/** Terminación superior: anillo continuo (recomendado) o tiras cortadas a ras del borde (puntas sin soporte). */
+export type OpenworkTop = "ring" | "open";
+
+/**
+ * Pantalla CALADA. La altura total, el diámetro inferior y el superior se comparten con la pantalla sólida (`LampShadeDef`):
+ * así alternar entre tipos conserva las dimensiones. La sección horizontal es siempre un círculo; la silueta (motor compartido
+ * por todos los patrones) solo decide el radio a cada altura y el patrón decide qué parte de esa superficie es material.
+ */
+export interface LampOpenworkDef {
+  pattern: OpenworkPattern;
+  // ---- Silueta (compartida por todos los patrones)
+  /** Diámetro máximo del abombado (si es menor que el mayor de los extremos, no hay abombado). */
+  maxDiameterMm: number;
+  /** Altura relativa (0-100 %) del ensanchamiento y de la cintura. */
+  bulgePositionPct: number;
+  /** 0-100: cuán angosto/pronunciado es el abombado y la cintura (0 = amplio y suave). */
+  curvaturePct: number;
+  /** 0-100: intensidad de la cintura (estrechamiento en la posición indicada). */
+  waistPct: number;
+  /** 0-100: cambios suaves de diámetro a distintas alturas (silueta orgánica) y su semilla. */
+  organicPct: number;
+  seed: number;
+  /** Torsión general (grados, con signo): giro del patrón entre la base y el borde superior. */
+  twistDeg: number;
+  // ---- Estructura (comunes)
+  /** Ancho de las tiras sobre la superficie (mm), medido perpendicular a su eje. */
+  stripWidthMm: number;
+  /** Profundidad radial de las tiras (espesor de la pantalla en la dirección normal a la superficie, mm). */
+  depthMm: number;
+  /** Altura del anillo inferior continuo (de la unión al arranque de las tiras) y del superior (mm). */
+  bottomRingMm: number;
+  topRingMm: number;
+  topFinish: OpenworkTop;
+  /** Variación de la inclinación a lo alto: intensidad (0-70 %) y ciclos. */
+  variationPct: number;
+  variationCycles: number;
+  // ---- Diamante
+  /** Rombos alrededor (densidad horizontal). */
+  divisions: number;
+  /** Inclinación de las diagonales respecto de la horizontal (grados): 45° = rombos casi cuadrados, más = alargados. */
+  inclinationDeg: number;
+  /** Desplazamiento de fase del patrón (grados, 0-360). */
+  phaseDeg: number;
+  // ---- Espiral
+  /** Bandas helicoidales en paralelo y vueltas que da cada una entre la base y el borde (con signo = sentido). */
+  bands: number;
+  turns: number;
+  /** Anillos intermedios de unión entre bandas (0 = sin conexiones) y su ancho (mm). */
+  connectors: number;
+  connectorWidthMm: number;
+}
+
 /** Familias de inserto: tapa plana (cerrado, se imprime invertido), gota (cierre ojival, se imprime parado) y ondulado (superficie lateral ondulada, abierto o con tapa). */
 export type LampInsertStyle = "flat" | "drop" | "wavy";
 export type LampInsertTop = "open" | "flat";
@@ -154,7 +209,10 @@ export interface LampCableDef {
 
 export interface LampDefinition {
   version: 2;
+  /** Tipo de pantalla activo. `shade` y `openwork` conviven en la definición: alternar entre tipos no pierde los parámetros del otro. */
+  shadeType: LampShadeType;
   shade: LampShadeDef;
+  openwork: LampOpenworkDef;
   thread: LampThreadDef;
   insert: LampInsertDef;
   base: LampBaseDef;
@@ -311,10 +369,39 @@ export interface LampFitReport {
   clearances: LampClearanceCheck[];
 }
 
+/** Cifras de la pantalla calada, medidas sobre la MISMA grilla que se malla (no sobre los parámetros). */
+export interface OpenworkReport {
+  pattern: OpenworkPattern;
+  /** Columnas y filas de la grilla, tamaño de celda y si la grilla quedó más gruesa que lo recomendado por el presupuesto de malla. */
+  columns: number;
+  rows: number;
+  cellMm: number;
+  coarse: boolean;
+  /** % de la zona de tiras que es abertura real. */
+  aperturePct: number;
+  /** Abertura mínima (diámetro del mayor círculo que cabe) y máxima, entre tiras vecinas. */
+  minOpeningMm: number;
+  maxOpeningMm: number;
+  /** Ángulo máximo de una tira respecto de la vertical (inclinación de su cara inferior) y de la pared de la silueta. */
+  maxStripLeanDeg: number;
+  maxSurfaceTiltDeg: number;
+  /** Diámetro mínimo y máximo de la silueta. */
+  minDiameterMm: number;
+  maxDiameterMm: number;
+  /** Diamante: rombos alrededor y filas de rombos a lo alto. Espiral: bandas, vueltas y paso entre bandas. */
+  diamondsAround: number | null;
+  diamondRows: number | null;
+  bandGapMm: number | null;
+  /** Triángulos EXACTOS de la parte calada (anillos y tiras, pieles y paredes de corte), contados sobre la misma grilla antes de mallar. El cuello roscado suma aparte. */
+  latticeTriangles: number;
+}
+
 export interface LampMetrics {
   totalHeightMm: number;
   maxDiameterMm: number;
   shade: LampPartMetrics & { vase: LampVaseReport; maxTiltDeg: number; minRidgeRadiusMm: number | null };
+  /** Solo con pantalla calada: cifras de la estructura y componentes conexas de la malla de la pantalla (1 = pieza única conectada). */
+  openwork: (OpenworkReport & { components: number }) | null;
   insert: (LampPartMetrics & { vaseCapable: boolean }) | null;
   /** Collar roscado independiente (solo con conexión "collar"). */
   collar: LampPartMetrics | null;
@@ -373,6 +460,26 @@ export const LAMP_LIMITS = {
   "insert.amplitudeMm": { min: 0, max: 12, label: "Amplitud del inserto" },
   "insert.twistDeg": { min: -720, max: 720, label: "Torsión del inserto" },
   "insert.verticalFrequency": { min: 0, max: 6, label: "Frecuencia vertical del inserto" },
+  "openwork.maxDiameterMm": { min: 60, max: 320, label: "Diámetro máximo" },
+  "openwork.bulgePositionPct": { min: 10, max: 90, label: "Posición del ensanchamiento" },
+  "openwork.curvaturePct": { min: 0, max: 100, label: "Curvatura" },
+  "openwork.waistPct": { min: 0, max: 100, label: "Intensidad de la cintura" },
+  "openwork.organicPct": { min: 0, max: 100, label: "Variación orgánica" },
+  "openwork.seed": { min: 0, max: 4294967295, integer: true, label: "Semilla" },
+  "openwork.twistDeg": { min: -1440, max: 1440, label: "Torsión" },
+  "openwork.stripWidthMm": { min: 0.8, max: 14, label: "Ancho de las tiras" },
+  "openwork.depthMm": { min: 0.8, max: 8, label: "Profundidad de las tiras" },
+  "openwork.bottomRingMm": { min: 4, max: 40, label: "Anillo inferior" },
+  "openwork.topRingMm": { min: 3, max: 40, label: "Anillo superior" },
+  "openwork.variationPct": { min: 0, max: 70, label: "Variación de inclinación" },
+  "openwork.variationCycles": { min: 0, max: 6, label: "Ciclos de la variación" },
+  "openwork.divisions": { min: 3, max: 48, integer: true, label: "Divisiones alrededor" },
+  "openwork.inclinationDeg": { min: 20, max: 75, label: "Inclinación de las diagonales" },
+  "openwork.phaseDeg": { min: 0, max: 360, label: "Desplazamiento de fase" },
+  "openwork.bands": { min: 1, max: 24, integer: true, label: "Cantidad de bandas" },
+  "openwork.turns": { min: -8, max: 8, label: "Vueltas" },
+  "openwork.connectors": { min: 0, max: 8, integer: true, label: "Anillos de unión" },
+  "openwork.connectorWidthMm": { min: 1, max: 10, label: "Ancho de los anillos de unión" },
   "adhesion.widthMm": { min: 1, max: 10, label: "Ancho del reborde" },
   "adhesion.heightMm": { min: 0.2, max: 1.2, label: "Altura del reborde" },
   "insert.clearanceMm": { min: 0.3, max: 2, label: "Holgura de montaje" },
@@ -468,4 +575,31 @@ export const LAMP_GEOMETRY = {
   hardMaxTiltDeg: 70,
   /** Triángulos máximos de la parte decorativa de la pantalla (presupuesto de malla; el cuello roscado suma aparte). */
   maxShadeTriangles: 110_000,
+
+  // ---- Pantalla calada
+  /** Ancho de tira por debajo del cual no hay forma de imprimirla (error) y por debajo del cual es frágil (aviso): 2 y 3 perímetros de boquilla 0,4. */
+  openworkMinStripMm: 0.8,
+  openworkWarnStripMm: 1.2,
+  /** Profundidad radial mínima (error) y recomendada (aviso). */
+  openworkMinDepthMm: 1,
+  openworkWarnDepthMm: 1.6,
+  /** Abertura (círculo inscripto) mínima: por debajo no es una abertura real imprimible (error); por debajo de la recomendada, aviso. */
+  openworkMinOpeningMm: 0.8,
+  openworkWarnOpeningMm: 3,
+  /** Abertura mínima de la zona de tiras: por debajo de este % la pantalla es casi sólida. */
+  openworkWarnAperturePct: 8,
+  /** Inclinación de una tira respecto de la vertical a partir de la cual hay voladizo (aviso: puede pedir soportes) y a partir de la cual no se imprime (error). */
+  openworkLeanWarnDeg: 45,
+  openworkLeanHardDeg: 68,
+  /** Radio máximo del empalme (mm) entre tiras que se cruzan: redondea los rincones de las aberturas. */
+  openworkFilletMm: 0.7,
+  /** Celda de la grilla (mm): objetivo en fracción del ancho de tira, y límites. Presupuesto de celdas y de triángulos. */
+  openworkCellMinMm: 1,
+  openworkCellMaxMm: 2,
+  openworkCellsPerStrip: 2.5,
+  openworkMaxCells: 90_000,
+  openworkWarnTriangles: 170_000,
+  openworkMaxTriangles: 330_000,
+  /** Mínimo de columnas: la rosca del cuello se muestrea en la misma grilla angular. */
+  openworkMinColumns: 180,
 } as const;

@@ -169,6 +169,7 @@ export default function StampaMakerLampsPage() {
           hiddenKinds={hidden}
           sectionView={section}
           partColors={partColors}
+          shadeOpacity={def.shadeType === "openwork" ? 0.95 : null}
         />
         <div className="pointer-events-none absolute inset-0 flex flex-col justify-between gap-3 p-3">
           <div className="flex items-start justify-between gap-3">

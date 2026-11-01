@@ -3,12 +3,13 @@ import type { LampLayout } from "@/lib/maker/lamps/layout";
 import { createBaseMesh } from "@/lib/maker/lamps/parts/createBase";
 import { createCollarMesh } from "@/lib/maker/lamps/parts/createCollar";
 import { createInsertMesh } from "@/lib/maker/lamps/parts/createInsert";
-import { createShadeMesh } from "@/lib/maker/lamps/parts/createShade";
+import { createShadeMesh, isOpenworkField } from "@/lib/maker/lamps/parts/createShade";
 import type { ShadeField } from "@/lib/maker/lamps/shade/surface";
 import { LAMP_GEOMETRY } from "@/lib/maker/lamps/types";
 import type { LampDefinition, LampMetrics, LampPartMetrics, LampResult } from "@/lib/maker/lamps/types";
 import { validateLamp } from "@/lib/maker/lamps/validation/validateLamp";
-import { analyzeMesh, indexedBounds, meshToSoup, type IndexedMesh } from "@/lib/maker/mugs/geometry/mesh";
+import { analyzeMeshFast } from "@/lib/maker/lamps/geometry/fastAnalyze";
+import { indexedBounds, meshToSoup, type IndexedMesh } from "@/lib/maker/mugs/geometry/mesh";
 import type { PrinterProfile } from "@/lib/maker/printBed/printerProfiles";
 
 /** Un archivo por familia de inserto: el plano y el ondulado se imprimen invertidos; la gota, parada (ver printOrientation.ts). */
@@ -27,6 +28,32 @@ interface BuiltPart {
   indexed: IndexedMesh;
   soup: TriangleSoupData;
   metrics: LampPartMetrics;
+  /** Componentes conexas de la malla (1 = pieza única). Solo se calcula para la pantalla calada. */
+  components?: number;
+}
+
+/** Componentes conexas de una malla indexada (unión-búsqueda sobre los vértices realmente usados). */
+export function meshComponents(mesh: IndexedMesh): number {
+  const n = mesh.positions.length / 3;
+  const parent = new Int32Array(n);
+  for (let i = 0; i < n; i++) parent[i] = i;
+  const find = (x: number) => {
+    while (parent[x] !== x) {
+      parent[x] = parent[parent[x]];
+      x = parent[x];
+    }
+    return x;
+  };
+  const used = new Uint8Array(n);
+  for (let i = 0; i < mesh.tris.length; i += 3) {
+    const a = mesh.tris[i], b = mesh.tris[i + 1], c = mesh.tris[i + 2];
+    used[a] = used[b] = used[c] = 1;
+    parent[find(a)] = find(b);
+    parent[find(b)] = find(c);
+  }
+  const roots = new Set<number>();
+  for (let i = 0; i < n; i++) if (used[i]) roots.add(find(i));
+  return roots.size;
 }
 
 /**
@@ -55,7 +82,7 @@ export function clearLampCaches(): void {
 }
 
 function finishPart(indexed: IndexedMesh): BuiltPart {
-  const report = analyzeMesh(indexed);
+  const report = analyzeMeshFast(indexed);
   const b = indexedBounds(indexed);
   const soup = meshToSoup(indexed, 45);
   return {
@@ -72,7 +99,14 @@ function finishPart(indexed: IndexedMesh): BuiltPart {
 
 /** La pantalla depende de su superficie, de la interfaz roscada y de su posición de ensamblado (la fase de la rosca sale de la z). */
 function shadePart(def: LampDefinition, field: ShadeField, layout: LampLayout): BuiltPart {
-  return cached(`shade|${JSON.stringify([def.shade, def.thread, layout.ledgeZ, layout.decorZ0, layout.adhesion])}`, () => finishPart(createShadeMesh(def, field, layout)));
+  const openwork = def.shadeType === "openwork";
+  // La superficie de la pantalla calada depende de las dimensiones compartidas y de `openwork`; la sólida, de `shade`. Lo del otro tipo no entra en la clave.
+  const surface = openwork ? [def.shade.heightMm, def.shade.bottomDiameterMm, def.shade.topDiameterMm, def.openwork] : def.shade;
+  return cached(`shade|${openwork ? "ow" : "solid"}|${JSON.stringify([surface, def.thread, layout.ledgeZ, layout.decorZ0, layout.adhesion])}`, () => {
+    const built = finishPart(createShadeMesh(def, field, layout));
+    if (openwork) built.components = meshComponents(built.indexed);
+    return built;
+  });
 }
 
 function collarPart(def: LampDefinition, layout: LampLayout): BuiltPart {
@@ -115,6 +149,9 @@ export function createLamp(def: LampDefinition, opts: CreateLampOptions = {}): L
   const collar = layout.collar ? collarPart(def, layout) : null;
   const base = basePart(def, layout);
 
+  if (def.shadeType === "openwork" && shade.components !== undefined && shade.components !== 1) {
+    errors.push({ code: "OPENWORK_DISCONNECTED", message: `La pantalla calada quedó en ${shade.components} piezas sueltas: la estructura no está conectada y no se exporta. Reducí el ancho de las aberturas o aumentá el ancho de las tiras / los anillos de unión.` });
+  }
   for (const [name, part] of [["la pantalla", shade], ["el cilindro", insert], ["el collar", collar], ["la base", base]] as const) {
     if (part && !part.metrics.watertight) errors.push({ code: "MESH_NOT_WATERTIGHT", message: `La malla de ${name} no quedó cerrada: no se exporta. Cambiá levemente los parámetros.` });
   }
@@ -154,6 +191,7 @@ export function createLamp(def: LampDefinition, opts: CreateLampOptions = {}): L
     totalHeightMm: bb.height,
     maxDiameterMm: Math.max(bb.width, bb.depth),
     shade: { ...shade.metrics, vase, maxTiltDeg: field.maxTiltDeg, minRidgeRadiusMm: field.minRidgeRadiusMm },
+    openwork: def.shadeType === "openwork" && isOpenworkField(field) ? { ...field.report, components: shade.components ?? 1 } : null,
     insert: insert ? { ...insert.metrics, vaseCapable: !layout.insert!.closedTop && !def.insert.tabs && layout.insert!.surface.maxLeanDeg <= LAMP_GEOMETRY.vaseMaxOverhangDeg } : null,
     collar: collar ? collar.metrics : null,
     base: base.metrics,

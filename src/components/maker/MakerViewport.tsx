@@ -37,6 +37,8 @@ interface MakerViewportProps {
   hiddenKinds?: readonly PartKind[] | null;
   /** Color de vista previa por pieza (#rrggbb), aplicado sin reconstruir mallas. No simula la luz real. */
   partColors?: Partial<Record<PartKind, string>> | null;
+  /** Lámparas: opacidad de la pantalla (0-1). La calada tiene huecos reales, así que se dibuja casi opaca (null = la translúcida de la pantalla sólida). Solo visual. */
+  shadeOpacity?: number | null;
   /** Corte longitudinal por el eje (se oculta la mitad +X) para inspeccionar roscas, encastres y holguras. Solo visual. */
   sectionView?: boolean;
 }
@@ -136,7 +138,7 @@ function buildBedPlate(profile: PrinterProfile): THREE.Object3D {
  *    printBed/bedLayout.ts) apoyadas en Z=0 sobre el perfil de impresora.
  * Cada modo conserva su propia cámara.
  */
-export function MakerViewport({ geometry, displayMode = "model", explosionAmount = DEFAULT_EXPLOSION_AMOUNT, bed = null, cutoutEditing = null, helperMesh = null, zUp = false, hiddenKinds = null, partColors = null, sectionView = false }: MakerViewportProps) {
+export function MakerViewport({ geometry, displayMode = "model", explosionAmount = DEFAULT_EXPLOSION_AMOUNT, bed = null, cutoutEditing = null, helperMesh = null, zUp = false, hiddenKinds = null, partColors = null, sectionView = false, shadeOpacity = null }: MakerViewportProps) {
   const containerRef = useRef<HTMLDivElement>(null);
   const sceneRef = useRef<THREE.Scene | null>(null);
   const cameraRef = useRef<THREE.PerspectiveCamera | null>(null);
@@ -350,6 +352,16 @@ export function MakerViewport({ geometry, displayMode = "model", explosionAmount
       setPartAppearance(mesh, !hidden.has(kind), colors[kind], kind === "lampInsert" || kind === "lampInsertDrop");
     }
   }, [geometry, hiddenKey, colorsKey]);
+
+  // Opacidad de la pantalla: la sólida es translúcida (se ve el inserto a través de ella); la calada se dibuja casi opaca para que los huecos reales se lean como huecos.
+  useEffect(() => {
+    const mesh = partMeshesRef.current.get("lampShade");
+    if (!mesh) return;
+    const material = mesh.material as THREE.MeshStandardMaterial;
+    material.opacity = shadeOpacity ?? 0.5;
+    material.depthWrite = shadeOpacity !== null;
+    material.needsUpdate = true;
+  }, [geometry, shadeOpacity]);
 
   // Sección longitudinal: solo asigna el plano de recorte a los materiales de las piezas (no toca la geometría ni lo exportado).
   useEffect(() => {

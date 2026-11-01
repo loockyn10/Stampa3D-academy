@@ -30,7 +30,7 @@ export async function buildLampZipBlob(result: LampResult, def: LampDefinition):
   const entries = lampPartEntries(result);
   const zip = new JSZip();
   for (const entry of entries) zip.file(entry.fileName, buildSTLBlob(entry.mesh));
-  zip.file("LEEME.txt", lampReadmeText({ designCode: encodeLampDesign(def), holderMeasured: def.holder.measured, partNames: entries.map((e) => e.fileName), collar: def.thread.connection === "collar" }));
+  zip.file("LEEME.txt", lampReadmeText({ designCode: encodeLampDesign(def), holderMeasured: def.holder.measured, partNames: entries.map((e) => e.fileName), collar: def.thread.connection === "collar", openwork: def.shadeType === "openwork" }));
   return zip.generateAsync({ type: "blob" });
 }
 

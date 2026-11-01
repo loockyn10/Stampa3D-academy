@@ -22,6 +22,10 @@ Next.js 16 (App Router)/TypeScript/Tailwind 4/Supabase confirmados. Autenticaci�
 
 Rutas confirmadas (`/academia`, `/cursos`, `/talleres`), contenido interno no revisado en detalle — fuera del foco de riesgo de esta auditoría (acceso/RLS/pricing/ventas). **REQUIERE revisión dedicada si se prioriza.**
 
+### Stampa Maker — Lámparas E27 V3 (pantallas calada diamante/espiral, 2026-11-01, Beta / solo admin)
+
+Selector «Tipo de pantalla» Sólida | Calada. La calada genera una estructura de tiras con **aberturas reales en la malla** (marching squares sobre un campo de distancia: las tiras forman un solo sólido), patrones Diamante y Espiral, motor de siluetas compartido (cilíndrica, abombada, reloj de arena, orgánica), anillo inferior/superior, misma interfaz E27/rosca/base/reborde e insertos, seis diseños con miniaturas leídas del mismo campo, aviso de voladizos/soportes y de `OPENWORK_NOT_THERMAL`. **Verificado:** typecheck, lint, tests sobre las mallas (docs/STAMPA_MAKER.md §38.17), build, vista de las mallas en el navegador (render propio de las mallas reales). **No verificado:** laminado/impresión de ninguna pantalla calada, la pantalla completa del visor con las nuevas tarjetas (la ruta exige admin), temperatura con LED. Sin migraciones; otras herramientas intactas.
+
 ### Stampa Maker — Lámparas E27 V2.2 (reborde interno e insertos, 2026-11-01, Beta / solo admin)
 
 Reborde interno de adhesión (3 × 0,4 mm, validado contra la torre y el inserto con el ensamblaje real) y generador de insertos de color con tres familias (plano con tapa, gota con punta redondeada, ondulado), selector visual con miniaturas generadas desde la misma superficie, «Comparar estilos», exportación por estilo. **Verificado:** typecheck, lint, tests geométricos sobre las mallas (docs/STAMPA_MAKER.md §38.16), build, sección de las mallas en el navegador. **No verificado:** impresión y laminado (adhesión sin brim, plano invertido, punta de la gota, torsión del ondulado), la pantalla completa del visor 3D con las tarjetas (la ruta exige admin; no se probó con sesión), temperatura con insertos cerrados (pendiente de validación térmica). Sin migraciones.
