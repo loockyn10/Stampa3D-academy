@@ -32,7 +32,6 @@ export const DEFAULT_INSERT: LampInsertDef = {
   seatDepthMm: 10,
   minBulbGapMm: 1,
   tabs: true,
-  ventWindows: 6,
   previewColor: "#e5483b",
 };
 
@@ -48,7 +47,6 @@ export const DEFAULT_THREAD: LampThreadDef = {
 
 export const DEFAULT_BASE: LampBaseDef = {
   diameterMm: null,
-  ventSlots: 6,
 };
 
 export const DEFAULT_HOLDER: LampHolderDef = {
@@ -151,12 +149,10 @@ export function normalizeLampDefinition(input: unknown): LampDefinition {
       minBulbGapMm: num(i.minBulbGapMm, DEFAULT_INSERT.minBulbGapMm),
       tabs: bool(i.tabs, DEFAULT_INSERT.tabs),
       seatDepthMm: num(i.seatDepthMm, DEFAULT_INSERT.seatDepthMm),
-      ventWindows: num(i.ventWindows, num(i.ventNotches, DEFAULT_INSERT.ventWindows)),
       previewColor: color(i.previewColor, DEFAULT_INSERT.previewColor),
     },
     base: {
       diameterMm: numOrNull(b.diameterMm, DEFAULT_BASE.diameterMm),
-      ventSlots: num(b.ventSlots, DEFAULT_BASE.ventSlots),
     },
     holder: {
       measured: bool(h.measured, DEFAULT_HOLDER.measured),

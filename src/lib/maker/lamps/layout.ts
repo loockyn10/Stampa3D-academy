@@ -56,7 +56,6 @@ export interface LampLayout {
   channelHalf: number;
   channelHeight: number;
   tie: TieLayout | null;
-  ventSlots: number;
 
   // ---- Pantalla / collar
   neckTopZ: number;
@@ -112,7 +111,7 @@ export function computeLampLayout(def: LampDefinition, field: ShadeField): LampL
   const channelHalf = (cable.diameterMm + 1.5) / 2;
   const channelHeight = cable.diameterMm + 1 + (cable.tieAnchor ? g.tieStrapThicknessMm : 0);
   const floorTopZ = Math.max(8.6, channelHeight + 3);
-  const ledgeZ = floorTopZ + g.ventSlotHeightMm + g.baseLedgeRoofMm;
+  const ledgeZ = floorTopZ + g.baseCavityHeightMm;
   const baseTopZ = ledgeZ + spec.femaleDepth;
   const neckTopZ = ledgeZ + spec.neckLength;
 
@@ -288,7 +287,6 @@ export function computeLampLayout(def: LampDefinition, field: ShadeField): LampL
     channelHalf,
     channelHeight,
     tie,
-    ventSlots: Math.round(base.ventSlots),
     neckTopZ,
     flareH,
     decorZ0,

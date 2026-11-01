@@ -1,6 +1,6 @@
 import { buildFeatureLayers, circlePoly, layersToIndexed, type SolidFeature } from "@/lib/maker/lamps/geometry/solid";
 import type { LampLayout } from "@/lib/maker/lamps/layout";
-import { floorFeatures, ringSectors, segmentsFor, threadVoidFeatures, towerFeatures, ventSlotFeatures } from "@/lib/maker/lamps/parts/baseFeatures";
+import { floorFeatures, ringSectors, segmentsFor, threadVoidFeatures, towerFeatures } from "@/lib/maker/lamps/parts/baseFeatures";
 import type { LampDefinition } from "@/lib/maker/lamps/types";
 import type { IndexedMesh } from "@/lib/maker/mugs/geometry/mesh";
 
@@ -12,8 +12,9 @@ import type { IndexedMesh } from "@/lib/maker/mugs/geometry/mesh";
  *     apoya el borde inferior del cilindro de color (10 mm de profundidad): el cilindro se coloca y se retira por arriba
  *     sin tocar el portalámparas;
  *   - PISO con el canal de cable inferior (sale por +X) y las ranuras de un precinto (alivio de tensión);
- *   - CAVIDAD anular entre la torre y la pared, ventanas de ventilación al nivel del piso y, hasta el TOPE, un escalón plano
- *     donde apoya la cara inferior del cuello roscado (tope de enroscado);
+ *   - CAVIDAD anular entre la torre y la pared roscada, cerrada hacia afuera, y, hasta el TOPE, un escalón plano donde apoya
+ *     la cara inferior del cuello roscado (tope de enroscado). La pared exterior de la base es LISA: sin ventanas ni ranuras
+ *     decorativas; las únicas aberturas son el canal de cable y las ranuras del precinto del piso;
  *   - ROSCA HEMBRA: vacío helicoidal complementario del cuello de la pantalla (holgura configurable) con avellanado de
  *     entrada, hasta la cara superior de la base. La torre atraviesa la zona roscada.
  *
@@ -30,7 +31,6 @@ export function createBaseMesh(def: LampDefinition, layout: LampLayout): Indexed
   features.push(...towerFeatures(layout));
   features.push(...floorFeatures(layout, R));
   features.push({ z0: layout.floorTopZ, z1: layout.ledgeZ, cut: ringSectors(t.towerR, spec.boreR) });
-  features.push(...ventSlotFeatures(def, layout, R));
   features.push(...threadVoidFeatures(layout));
 
   const layers = buildFeatureLayers({ z0: 0, z1: layout.baseTopZ, polygons: [circlePoly(R, segmentsFor(R))] }, features);

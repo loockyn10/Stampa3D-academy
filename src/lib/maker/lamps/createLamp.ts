@@ -146,7 +146,7 @@ export function createLamp(def: LampDefinition, opts: CreateLampOptions = {}): L
     totalHeightMm: bb.height,
     maxDiameterMm: Math.max(bb.width, bb.depth),
     shade: { ...shade.metrics, vase, maxTiltDeg: field.maxTiltDeg, minRidgeRadiusMm: field.minRidgeRadiusMm },
-    insert: insert ? { ...insert.metrics, vaseCapable: !def.insert.tabs && Math.round(def.insert.ventWindows) === 0 } : null,
+    insert: insert ? { ...insert.metrics, vaseCapable: !def.insert.tabs } : null,
     collar: collar ? collar.metrics : null,
     base: base.metrics,
     totalTriangles,

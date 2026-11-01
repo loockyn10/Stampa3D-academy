@@ -2,7 +2,7 @@ import type { Point2D } from "@/lib/maker/types";
 import { circlePoly, rectPoly, sectorPoly, type SolidFeature } from "@/lib/maker/lamps/geometry/solid";
 import type { LampLayout } from "@/lib/maker/lamps/layout";
 import { femaleVoidPolygon } from "@/lib/maker/lamps/geometry/ringLoop";
-import { LAMP_GEOMETRY, type LampDefinition } from "@/lib/maker/lamps/types";
+import { LAMP_GEOMETRY } from "@/lib/maker/lamps/types";
 
 export const segmentsFor = (radius: number) => Math.min(144, Math.max(24, Math.round((radius * 3) / 4) * 4));
 
@@ -73,20 +73,4 @@ export function threadVoidFeatures(layout: LampLayout, protectTower = true): Sol
     features.push({ z0, z1, cut: [polygon], protect: tower && z1 <= towerTop + 1e-6 ? tower : undefined });
   }
   return features;
-}
-
-/** Ventanas de ventilación al nivel del piso: sectores que atraviesan la pared de la base, de la cavidad hacia afuera. */
-export function ventSlotFeatures(def: LampDefinition, layout: LampLayout, outerR: number): SolidFeature[] {
-  const g = LAMP_GEOMETRY;
-  if (layout.ventSlots <= 0) return [];
-  const rIn = layout.spec.boreR - 1;
-  const half = (g.ventSlotWidthMm / 2 / layout.spec.boreR) * (180 / Math.PI);
-  const pitch = 360 / layout.ventSlots;
-  const cut: Point2D[][] = [];
-  for (let k = 0; k < layout.ventSlots; k++) {
-    const center = pitch * (k + 0.5);
-    cut.push(sectorPoly(rIn, outerR + 1, center - half, center + half));
-  }
-  void def;
-  return [{ z0: layout.floorTopZ, z1: layout.floorTopZ + g.ventSlotHeightMm, cut }];
 }

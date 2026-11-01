@@ -8,12 +8,11 @@ import { translateMesh, type IndexedMesh } from "@/lib/maker/mugs/geometry/mesh"
  * CILINDRO de color (inserto): tubo de pared fina, pieza independiente e intercambiable.
  *   - Su borde inferior apoya en la ranura anular de la torre de la base (profundidad `seatDepthMm`): se coloca y se saca por
  *     arriba, se centra solo y no toca el portalámparas. Sin rosca propia.
- *   - Ventanas de ventilación en la pared, justo sobre la cara superior de la torre (la parte enterrada en la ranura queda
- *     entera): dejan pasar el aire de la cavidad anular al interior, donde está la bombilla.
+ *   - Pared CONTINUA de borde a borde: sin ventanas ni cortes laterales.
  *   - Dos lengüetas EXTERIORES en el borde superior (para extraerlo con los dedos); no se acercan a la bombilla.
  *   - Abierto arriba; sin tapa ni contacto con la bombilla (la separación radial se valida aparte).
- * Con lengüetas o ventanas se imprime de forma convencional (con su geometría real no es modo vaso); un tubo liso
- * (sin lengüetas ni ventanas) sí es candidato a modo vaso. Se genera con el origen en el eje, en coordenadas de ensamblado.
+ * Con lengüetas se imprime de forma convencional (con su geometría real no es modo vaso); un tubo liso (sin lengüetas) sí
+ * es candidato a modo vaso. Se genera con el origen en el eje, en coordenadas de ensamblado.
  */
 export function createInsertMesh(def: LampDefinition, layout: LampLayout): IndexedMesh {
   const ins = layout.insert;
@@ -23,18 +22,6 @@ export function createInsertMesh(def: LampDefinition, layout: LampLayout): Index
   const { outerR: Ro, innerR: Rn, heightMm: h } = ins;
   const body: Point2D[][] = Array.from({ length: 8 }, (_, k) => sectorPoly(Rn, Ro, k * 45, (k + 1) * 45));
   const features: SolidFeature[] = [];
-
-  const windows = Math.round(insert.ventWindows);
-  if (windows > 0) {
-    const pitch = 360 / windows;
-    const cut: Point2D[][] = [];
-    for (let k = 0; k < windows; k++) {
-      const center = pitch * (k + 0.5);
-      cut.push(sectorPoly(Rn - 1, Ro + 1, center - pitch * 0.21, center + pitch * 0.21));
-    }
-    const z0 = insert.seatDepthMm + g.ventWindowOffsetMm;
-    features.push({ z0, z1: Math.min(z0 + g.ventWindowHeightMm, h - 3 * g.tabThicknessMm), cut });
-  }
 
   if (insert.tabs) {
     const half = ((g.tabArcMm / 2 / Ro) * 180) / Math.PI;

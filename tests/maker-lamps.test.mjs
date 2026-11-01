@@ -441,12 +441,13 @@ test("holgura de montaje configurable dentro de límites validados: la ranura de
   assert.ok(createLamp(lamp({}, { insert: { ...DEFAULT_LAMP.insert, clearanceMm: 0.8 } })).errors.some((e) => e.code === "TOWER_INNER_WALL_THIN"));
 });
 
-test("cilindro: ventanas de ventilación sobre la torre y dos lengüetas superiores exteriores; la parte enterrada en la ranura queda entera", () => {
+test("cilindro: pared continua sin ventanas ni cortes laterales, dos lengüetas superiores exteriores y apoyo en el fondo de la ranura", () => {
   const def = lamp();
   const r = build(def);
   const ins = r.indexed.insert;
   const b = indexedBounds(ins);
-  const ro = r.metrics.fit.insertOuterDiameterMm / 2;
+  const fit = r.metrics.fit;
+  const ro = fit.insertOuterDiameterMm / 2;
   // lengüetas: en el borde superior el radio máximo supera al del tubo en la longitud de lengüeta; en el resto no
   let tabR = 0, bodyR = 0;
   for (let i = 0; i < ins.positions.length; i += 3) {
@@ -457,24 +458,38 @@ test("cilindro: ventanas de ventilación sobre la torre y dos lengüetas superio
   assert.ok(Math.abs(bodyR - ro) < 0.05);
   assert.ok(Math.abs(tabR - (ro + LAMP_GEOMETRY.tabLengthMm)) < 0.1);
   const dir = (deg) => [Math.cos((deg * Math.PI) / 180), Math.sin((deg * Math.PI) / 180), 0];
-  const n = def.insert.ventWindows;
-  // ventanas: un rayo horizontal a media altura de la ventana (sobre la cara superior de la torre) cruza la pared SOLO entre ventanas
-  const zWindow = b.minZ + def.insert.seatDepthMm + LAMP_GEOMETRY.ventWindowOffsetMm + LAMP_GEOMETRY.ventWindowHeightMm / 2;
-  for (let k = 0; k < n; k++) {
-    assert.equal(rayCrossings(ins, [0, 0, zWindow], dir((360 / n) * (k + 0.5))), 0, `ventana ${k} abierta`);
-    assert.equal(rayCrossings(ins, [0, 0, zWindow], dir((360 / n) * k)), 2, `pared entre ventanas (${k})`);
+  // pared CONTINUA: desde el eje, a todas las alturas (enterrada en la ranura, justo sobre la torre y a media altura) y en todos los
+  // ángulos, un rayo horizontal cruza la pared exactamente 2 veces (cara interior y exterior): no hay ventanas.
+  const zTop = b.maxZ - LAMP_GEOMETRY.tabThicknessMm - 0.5; // por debajo de las lengüetas
+  const heights = [b.minZ + 0.3, b.minZ + def.insert.seatDepthMm / 2, fit.tower.topZ + 0.2, fit.tower.topZ + 1.5, fit.tower.topZ + 5, fit.tower.topZ + 9, (b.minZ + zTop) / 2, zTop - 10, zTop];
+  for (const z of heights) for (let deg = 0; deg < 360; deg += 15) assert.equal(rayCrossings(ins, [0, 0, z], dir(deg + 3.7)), 2, `pared cortada a z=${z.toFixed(1)} ángulo ${deg + 3.7}`);
+  // las lengüetas se suman sobre la pared, en +Y y -Y, solo en el borde superior
+  for (const deg of [90, 270]) assert.equal(rayCrossings(ins, [0, 0, b.maxZ - 1], dir(deg)), 2, "las lengüetas son macizas: dos caras");
+  // radios interior/exterior constantes a todas las alturas (sin escalones ni restos de perforaciones)
+  for (const z of heights) {
+    const x = planeCrossings(ins, 0, 0.37, z);
+    assert.equal(x.length, 2, `z=${z.toFixed(1)}`);
+    assert.ok(Math.abs(x[1] - ro) < 0.05 && Math.abs(x[0] - fit.insertInnerDiameterMm / 2) < 0.05, `radios a z=${z.toFixed(1)}: ${x}`);
   }
-  // la parte enterrada en la ranura es pared entera (no se abre dentro de la torre) y a media altura todos los rayos cruzan 2 veces
-  const zBuried = b.minZ + def.insert.seatDepthMm / 2;
-  for (const deg of [0, 30, 100, 200, 300]) assert.equal(rayCrossings(ins, [0, 0, zBuried], dir(deg)), 2);
-  for (const deg of [0, 45, 100, 200, 300]) assert.equal(rayCrossings(ins, [0, 0, (b.minZ + b.maxZ) / 2 + 20], dir(deg)), 2);
-  // las ventanas quedan por encima de la cara superior de la torre: el aire entra por la cavidad anular
-  assert.ok(b.minZ + def.insert.seatDepthMm <= r.metrics.fit.tower.topZ + 1e-9);
-  // sin ventanas ni lengüetas: tubo liso, candidato a modo vaso
-  const plain = build(lamp({}, { insert: { ...DEFAULT_LAMP.insert, tabs: false, ventWindows: 0 } }));
+  // el cilindro apoya en el fondo de la ranura: su borde inferior coincide con el fondo y no sobresale por debajo; lo enterrado es seatDepthMm
+  assert.ok(Math.abs(b.minZ - (fit.tower.topZ - def.insert.seatDepthMm)) < 1e-9, "borde inferior = cara superior de la torre − profundidad de la ranura");
+  assert.ok(Math.abs(b.minZ - fit.insertBottomZ) < 1e-9);
+  assert.ok(b.minZ >= fit.floorTopZ + LAMP_GEOMETRY.towerFloorBelowSlotMm - 1e-9, "queda material de la torre bajo el fondo de la ranura");
+  assert.ok(fit.insertBottomZ > fit.floorTopZ && fit.insertBottomZ < fit.tower.topZ, "no sobresale por debajo de la torre");
+  // volumen = anillo analítico (sin restos de cortes): tubo liso sin lengüetas
+  const plain = build(lamp({}, { insert: { ...DEFAULT_LAMP.insert, tabs: false } }));
+  const pb = indexedBounds(plain.indexed.insert);
+  const ri = plain.metrics.fit.insertInnerDiameterMm / 2;
+  const analytic = Math.PI * (ro * ro - ri * ri) * (pb.maxZ - pb.minZ);
+  const plainVol = assertWatertight(plain.indexed.insert, "cilindro liso").volume;
+  assert.ok(Math.abs(plainVol - analytic) / analytic < 0.01, `volumen ${plainVol.toFixed(1)} vs anillo ${analytic.toFixed(1)}`);
+  assert.equal(components(plain.indexed.insert), 1);
+  // sin lengüetas: tubo liso, candidato a modo vaso
   assert.equal(plain.metrics.insert.vaseCapable, true);
   assert.equal(r.metrics.insert.vaseCapable, false);
-  assertWatertight(plain.indexed.insert, "cilindro liso");
+  // el diseño ya no tiene parámetros de ventanas
+  assert.equal("ventWindows" in DEFAULT_LAMP.insert, false);
+  assert.equal("ventSlots" in DEFAULT_LAMP.base, false);
 });
 
 // ------------------------------------------------------------------ base E27
@@ -589,21 +604,40 @@ test("base: espacio para el cableado — canal inferior libre hacia el borde (+X
   assert.ok(R > 50);
 });
 
-test("base: ventilación — ventanas al nivel del piso que dejan pasar el aire de afuera hacia la cavidad anular", () => {
+test("base: superficie exterior lisa — sin ventanas laterales; las únicas aberturas son el canal de cable y las ranuras del precinto del piso", () => {
   const def = lamp();
   const r = build(def);
+  const base = r.indexed.base;
+  const layout = validateLamp(def).layout;
   const fit = r.metrics.fit;
-  const z = fit.floorTopZ + 3;
-  const out = validateLamp(def).layout.tower.towerR + 1; // dentro de la cavidad anular, fuera de la torre
-  const from = (deg) => [out * Math.cos((deg * Math.PI) / 180), out * Math.sin((deg * Math.PI) / 180), z];
+  const R = fit.baseDiameterMm / 2;
   const dir = (deg) => [Math.cos((deg * Math.PI) / 180), Math.sin((deg * Math.PI) / 180), 0];
-  const n = def.base.ventSlots;
-  for (let k = 0; k < n; k++) assert.equal(rayCrossings(r.indexed.base, from((360 / n) * (k + 0.5)), dir((360 / n) * (k + 0.5))), 0, `ventana ${k} libre hasta el exterior`);
-  for (let k = 0; k < n; k++) assert.ok(rayCrossings(r.indexed.base, from((360 / n) * k), dir((360 / n) * k)) >= 1, `entre ventanas (${k}) hay pared`);
-  // sin ventanas: pared continua
-  const none = build(lamp({}, { base: { ...DEFAULT_LAMP.base, ventSlots: 0 } }));
-  for (const deg of [0, 30, 77, 200]) assert.ok(rayCrossings(none.indexed.base, from(deg), dir(deg)) >= 1);
-  assert.ok(createLamp(lamp({}, { base: { ...DEFAULT_LAMP.base, ventSlots: 13 } })).errors.some((e) => e.field === "base.ventSlots"));
+  const out = layout.tower.towerR + 1; // dentro de la cavidad anular, fuera de la torre
+  const from = (deg, z) => [out * Math.cos((deg * Math.PI) / 180), out * Math.sin((deg * Math.PI) / 180), z];
+  // cavidad anular: a todas las alturas entre el piso y el tope de la rosca y en todos los ángulos el rayo hacia el exterior cruza la pared maciza (entra en la cara de la cavidad y sale por la exterior: 2 cruces; una ventana daría 0)
+  for (const z of [fit.floorTopZ + 0.3, fit.floorTopZ + 3, fit.floorTopZ + 6, fit.floorTopZ + 8, layout.ledgeZ - 0.3])
+    for (let deg = 0; deg < 360; deg += 10) assert.equal(rayCrossings(base, from(deg + 2.3, z), dir(deg + 2.3)), 2, `abertura lateral a z=${z.toFixed(1)} ángulo ${deg + 2.3}`);
+  // a todas las alturas por encima del canal de cable la pared exterior es un cilindro liso de radio R (sin escalones ni cortes)
+  for (let z = layout.channelHeight + 1; z < fit.baseHeightMm - 0.5; z += 4) {
+    const x = planeCrossings(base, 0, 0.37, z);
+    assert.ok(Math.abs(x[x.length - 1] - R) < 0.05, `pared exterior a z=${z.toFixed(1)}: ${x[x.length - 1]} vs ${R}`);
+  }
+  // la cavidad anular termina en el tope de la rosca, a la misma altura de siempre
+  assert.ok(Math.abs(layout.ledgeZ - (fit.floorTopZ + LAMP_GEOMETRY.baseCavityHeightMm)) < 1e-9);
+  // lo que SÍ se conserva: canal de cable libre hasta el borde (+X) con techo, y el resto de los ángulos con pared a esa altura
+  const zc = layout.channelHeight / 2;
+  assert.equal(rayCrossings(base, [0, 0, zc], dir(0)), 0, "el canal de cable sigue libre hasta el exterior");
+  for (const deg of [30, 90, 180, 270, 330]) assert.ok(rayCrossings(base, [0, 0, zc], dir(deg)) >= 1, `pared a ${deg}°`);
+  assert.ok(fit.floorTopZ - layout.channelHeight >= 3, "techo del canal");
+  assert.ok(layout.tie, "las ranuras del precinto siguen");
+  // sin restos de cortes: una sola pieza cerrada
+  assertWatertight(base, "base");
+  assert.equal(components(base), 1);
+  // los parámetros de ventanas ya no existen: un código viejo que los traía se lee igual, ignorándolos
+  const legacy = normalizeLampDefinition({ version: 2, insert: { ventWindows: 6, ventNotches: 4 }, base: { ventSlots: 6 } });
+  assert.equal("ventWindows" in legacy.insert, false);
+  assert.equal("ventSlots" in legacy.base, false);
+  assert.deepEqual(legacy, DEFAULT_LAMP);
 });
 
 test("tope de enroscado: la cara plana del cuello apoya en un escalón plano de la base (sin pasar de largo) y no invade la rosca hembra", () => {
@@ -907,9 +941,9 @@ test("código del diseño: ida y vuelta exacta (incluida la semilla), tolerante 
   const legacy = normalizeLampDefinition({ version: 1, shade: { heightMm: 150 }, holder: { threadDiameterMm: 13, bodyDiameterMm: 50, mount: "screws" }, insert: { ventNotches: 4 }, base: { heightMm: 36, ventGapMm: 3 } });
   assert.equal(legacy.holder.bodyDiameterMm, 50);
   assert.equal(legacy.holder.boreDiameterMm, DEFAULT_LAMP.holder.boreDiameterMm, "el alojamiento nuevo toma los valores de referencia");
-  assert.equal(legacy.insert.ventWindows, 4, "las muescas viejas pasan a ser ventanas");
+  assert.equal("ventWindows" in legacy.insert, false, "las muescas/ventanas viejas se ignoran: el cilindro ya no tiene aberturas");
   assert.deepEqual(legacy.thread, DEFAULT_LAMP.thread);
-  assert.equal(legacy.base.ventSlots, DEFAULT_LAMP.base.ventSlots);
+  assert.equal("ventSlots" in legacy.base, false);
 });
 
 test("límites: cada campo numérico fuera de rango se rechaza con su propio campo, sin tocar geometría", () => {

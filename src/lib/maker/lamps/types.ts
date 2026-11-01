@@ -55,8 +55,6 @@ export interface LampInsertDef {
   minBulbGapMm: number;
   /** Dos lengüetas exteriores en el borde superior (para extraer el inserto). Obliga a impresión convencional. */
   tabs: boolean;
-  /** Ventanas de ventilación en la pared del cilindro, justo sobre la torre de la base (0 = sin ventanas). Obliga a impresión convencional. */
-  ventWindows: number;
   /** Color de la VISTA PREVIA (#rrggbb). No es geometría ni simula la luz real. */
   previewColor: string;
 }
@@ -86,8 +84,6 @@ export interface LampThreadDef {
 export interface LampBaseDef {
   /** null = automático (rosca + pared). */
   diameterMm: number | null;
-  /** Ventanas de ventilación al nivel del piso de la base (0 = sin ventanas). */
-  ventSlots: number;
 }
 
 /**
@@ -316,8 +312,6 @@ export const LAMP_LIMITS = {
   "insert.clearanceMm": { min: 0.3, max: 2, label: "Holgura de montaje" },
   "insert.seatDepthMm": { min: 3, max: 20, label: "Profundidad de la ranura del cilindro" },
   "insert.minBulbGapMm": { min: 0.5, max: 40, label: "Separación mínima a la bombilla" },
-  "insert.ventWindows": { min: 0, max: 12, integer: true, label: "Ventanas de ventilación del cilindro" },
-  "base.ventSlots": { min: 0, max: 12, integer: true, label: "Ventanas de ventilación de la base" },
   "holder.boreDiameterMm": { min: 30, max: 60, label: "Agujero central del portalámparas" },
   "holder.ringsDiameterMm": { min: 40, max: 75, label: "Diámetro de los anillos de sujeción" },
   "holder.ringsClearanceMm": { min: 0.3, max: 2, label: "Holgura del rebaje de los anillos" },
@@ -369,10 +363,8 @@ export const LAMP_GEOMETRY = {
   // ---- Base
   baseOuterWallMm: 10,
   baseMinOuterWallMm: 6,
-  /** Techo de material sobre las ventanas de ventilación (sostiene el tope de la rosca). */
-  baseLedgeRoofMm: 5,
-  ventSlotHeightMm: 6,
-  ventSlotWidthMm: 14,
+  /** Altura de la cavidad anular entre el piso y el tope de la rosca (cara de apoyo del cuello). Sin ventanas laterales: la pared exterior de la base es lisa. */
+  baseCavityHeightMm: 11,
   /** Anclaje del precinto: ancho del fleje, espesor del fleje. */
   tieStrapWidthMm: 4.4,
   tieStrapThicknessMm: 1.8,
@@ -390,9 +382,6 @@ export const LAMP_GEOMETRY = {
   tabLengthMm: 7,
   tabThicknessMm: 2.4,
   tabArcMm: 18,
-  /** Ventanas de ventilación del cilindro: altura y distancia sobre la cara superior de la torre. */
-  ventWindowHeightMm: 8,
-  ventWindowOffsetMm: 1,
   /** Distancia mínima del borde superior del inserto al de la pantalla. */
   insertTopMarginMm: 4,
   /** Pendiente máxima (grados respecto de la vertical) para declarar la pantalla compatible con modo vaso. */

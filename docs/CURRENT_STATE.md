@@ -22,6 +22,10 @@ Next.js 16 (App Router)/TypeScript/Tailwind 4/Supabase confirmados. Autenticaci�
 
 Rutas confirmadas (`/academia`, `/cursos`, `/talleres`), contenido interno no revisado en detalle — fuera del foco de riesgo de esta auditoría (acceso/RLS/pricing/ventas). **REQUIERE revisión dedicada si se prioriza.**
 
+### Stampa Maker — Lámparas E27 V2.1 (sin ventanas, 2026-10-31, Beta / solo admin)
+
+Se eliminaron las ventanas rectangulares de la base (laterales) y del cilindro de color; ambas superficies son lisas y continuas. Se conservan canal de cable, ranuras del precinto, cavidad anular, torre, rosca y motor de pantallas. **Verificado:** tests geométricos sobre las mallas (pared continua, radios constantes, volumen del cilindro, una sola pieza cerrada, apoyo en la ranura), exportación STL = visor. **No verificado:** impresión, ventilación y temperatura con la geometría cerrada (la entrada de aire es solo el canal de cable y la holgura del portalámparas; prueba térmica pendiente con portalámparas y bombilla reales). Sin migraciones.
+
 ### Stampa Maker — Lámparas E27 V2 (base de doble anillo, 2026-10-31, Beta / solo admin)
 
 Base rediseñada con torre central (agujero Ø42 nominal, rebaje de anillos Ø59,8 × 5,15, ranura de Ø63,2–65,7 × 10 mm) a partir del análisis real de `bottom.stl` (docs/STAMPA_MAKER.md §38.14), cilindro de color Ø65 exterior intercambiable, UI en tres secciones, visor con vistas rápidas. **Verificado:** typecheck, lint, 86 tests geométricos propios (incluida la comparación con `bottom.stl`), build, revisión en navegador. **No verificado:** impresión, laminado en Bambu Studio, ajuste del portalámparas real (anillos, lado de montaje, Ø42 vs Ø40,9), pared de 1,45 mm de la torre bajo el apriete, separación radial de 1,7 mm a la bombilla (ventilación y temperatura sin datos), modo vaso, estabilidad. Sin migraciones.

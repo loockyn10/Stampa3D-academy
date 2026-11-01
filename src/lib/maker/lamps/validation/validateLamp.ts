@@ -138,7 +138,7 @@ export function validateLamp(def: LampDefinition, printer?: PrinterProfile): Lam
   // ---- Cilindro de color
   const ins = layout.insert;
   if (ins && tower.slot) {
-    if (ins.heightMm < 30) errors.push({ code: "INSERT_TOO_SHORT", field: "insert.heightPct", message: "El cilindro resulta demasiado bajo (menos de 30 mm) para alojar ventanas, lengüetas y la pared." });
+    if (ins.heightMm < 30) errors.push({ code: "INSERT_TOO_SHORT", field: "insert.heightPct", message: "El cilindro resulta demasiado bajo (menos de 30 mm) para alojar la ranura de la torre, las lengüetas y la pared." });
     if (layout.shadeTopZ - ins.z1 < g.insertTopMarginMm) errors.push({ code: "INSERT_TOO_TALL", field: "insert.heightPct", message: `El cilindro llegaría a menos de ${g.insertTopMarginMm} mm del borde de la pantalla.` });
     if (ins.innerR <= 0) errors.push({ code: "INSERT_DEGENERATE", field: "insert.thicknessMm", message: "El espesor del cilindro es mayor que su radio." });
     if (tower.slot.bottomZ < layout.floorTopZ + g.towerFloorBelowSlotMm) errors.push({ code: "INSERT_SEAT_TOO_DEEP", field: "insert.seatDepthMm", message: `La ranura del cilindro (${fmt(insert.seatDepthMm)} mm de profundidad) deja menos de ${g.towerFloorBelowSlotMm} mm de material sobre el piso de la base. Reducí la profundidad o subí el apoyo de los anillos.` });

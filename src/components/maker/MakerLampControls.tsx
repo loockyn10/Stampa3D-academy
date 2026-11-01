@@ -263,7 +263,7 @@ export function MakerLampControls({ def, onChange, onApplyPreset, onGenerateVari
               <InfoRow label="Separación radial a los anillos" value={fit?.tower.ringsToInsertGapMm != null ? `${fmt(fit.tower.ringsToInsertGapMm)} mm` : "—"} />
               <InfoRow label="Se saca por arriba" value={fit?.insertRemovableFromTop == null ? "—" : fit.insertRemovableFromTop ? "Sí, sin desmontar nada" : "No: hay que desenroscar la pantalla"} />
             </div>
-            <Details title="Dimensiones y ventilación del cilindro">
+            <Details title="Dimensiones del cilindro">
               <SliderField label="Holgura en la ranura (por lado)" value={def.insert.clearanceMm} min={L["insert.clearanceMm"].min} max={L["insert.clearanceMm"].max} step={0.05} suffix=" mm" onChange={(v) => setInsert({ clearanceMm: v })} error={err("insert.clearanceMm")} />
               <SliderField label="Altura del cilindro" value={def.insert.heightPct} min={L["insert.heightPct"].min} max={L["insert.heightPct"].max} step={1} suffix="%" onChange={(v) => setInsert({ heightPct: v })} error={err("insert.heightPct")} />
               <div className="grid grid-cols-2 gap-3">
@@ -272,7 +272,6 @@ export function MakerLampControls({ def, onChange, onApplyPreset, onGenerateVari
               </div>
               <Toggle label="Diámetro automático (el más angosto posible)" checked={def.insert.diameterMm === null} onChange={(auto) => setInsert({ diameterMm: auto ? null : (fit?.insertOuterDiameterMm ?? 65) })} />
               <Toggle label="Lengüetas para extraerlo (impresión convencional)" checked={def.insert.tabs} onChange={(tabs) => setInsert({ tabs })} />
-              <NumberField label="Ventanas de ventilación (0–12)" value={def.insert.ventWindows} onChange={(v) => setInsert({ ventWindows: Math.round(v) })} error={err("insert.ventWindows")} />
               <p className="text-xs text-gray-500">La separación mínima solo evita el contacto previsto con las medidas cargadas: no es una distancia térmicamente segura.</p>
             </Details>
             {issuesFor((i) => !!i.field?.startsWith("insert.") || i.code.startsWith("INSERT_") || i.code.startsWith("TOWER_")).map((i, k) => (
@@ -313,7 +312,6 @@ export function MakerLampControls({ def, onChange, onApplyPreset, onGenerateVari
           <p className="text-xs text-gray-500">El cable baja por el agujero central y sale por un canal inferior. Para sujetarlo usá un precinto plástico comercial (o un prensacable); no se imprime ningún componente eléctrico.</p>
           <Toggle label="Diámetro de la base automático" checked={def.base.diameterMm === null} onChange={(auto) => setBase({ diameterMm: auto ? null : (fit?.baseDiameterMm ?? 120) })} />
           {def.base.diameterMm !== null && <NumberField label="Diámetro de la base" value={def.base.diameterMm} onChange={(v) => setBase({ diameterMm: v })} suffix="mm" error={err("base.diameterMm")} />}
-          <NumberField label="Ventanas de ventilación de la base (0–12)" value={def.base.ventSlots} onChange={(v) => setBase({ ventSlots: Math.round(v) })} error={err("base.ventSlots")} />
         </Details>
         <div className="flex flex-col gap-1.5 rounded-xl border border-fg/10 bg-fg/[0.03] p-3">
           <InfoRow label="Agujero central" value={fit ? `Ø ${fmt(fit.tower.boreDiameterMm)} mm` : "—"} strong />

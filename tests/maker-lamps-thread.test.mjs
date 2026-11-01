@@ -357,10 +357,10 @@ test("espesores mínimos: cuello bajo la raíz, pared de la transición, pozo de
   assert.ok(thinnest >= g.socketWallMm - 0.02, `pared del pozo ${thinnest}`);
   assert.ok(Math.abs(lc.collar.socketR - c.shade.bottomDiameterMm / 2 - g.socketClearanceMm) < 1e-9);
   assert.ok(lc.collar.socketR - lc.collar.floorInnerR >= g.socketFloorWidthMm, "ancho del piso del pozo");
-  // piso de la base: techo sobre el canal de cable y sobre las ventanas, tope y pared exterior
+  // piso de la base: techo sobre el canal de cable, cavidad anular hasta el tope y pared exterior
   const f = r.metrics.fit;
   assert.ok(f.floorTopZ - layout.channelHeight >= 3, `techo del canal ${f.floorTopZ - layout.channelHeight}`);
-  assert.ok(layout.ledgeZ - (f.floorTopZ + g.ventSlotHeightMm) >= g.baseLedgeRoofMm - 1e-9);
+  assert.ok(Math.abs(layout.ledgeZ - (f.floorTopZ + g.baseCavityHeightMm)) < 1e-9);
   assert.ok(f.thread.baseWallMm >= g.baseMinOuterWallMm && f.thread.stopFaceWidthMm >= 3);
   // y lo que queda por debajo del mínimo se rechaza con el motivo
   assert.ok(createLamp(lamp({}, { thread: { ...DEFAULT_LAMP.thread, engagementMm: 8, pitchMm: 8 } })).errors.some((e) => e.code === "THREAD_ENGAGEMENT_SHORT"));
@@ -478,7 +478,7 @@ test("inserto intercambiable: varios insertos de espesor y color distintos compa
   const first = build(lamp());
   const ref = first.geometry.parts;
   const baseMesh = ref[0].mesh, shadeMesh = ref[2].mesh;
-  for (const insert of [{ thicknessMm: 0.6, previewColor: "#3b7be5" }, { thicknessMm: 0.9, previewColor: "#3fae5a" }, { thicknessMm: 1.0, previewColor: "#f2c230", tabs: false, ventWindows: 0 }]) {
+  for (const insert of [{ thicknessMm: 0.6, previewColor: "#3b7be5" }, { thicknessMm: 0.9, previewColor: "#3fae5a" }, { thicknessMm: 1.0, previewColor: "#f2c230", tabs: false }]) {
     const d = lamp({}, { insert: { ...DEFAULT_LAMP.insert, ...insert } });
     const r = build(d);
     assert.equal(r.indexed.insert === first.indexed.insert, false);
