@@ -1,12 +1,20 @@
 import { createSilhouette } from "@/lib/maker/lamps/openwork/silhouette";
 
 /**
- * EXPERIMENTO V4 — pantalla de DOBLE PARED (aislado: no forma parte de `LampDefinition`, de la UI ni del catálogo).
+ * EXPERIMENTO V4/V4.1 — pantalla de DOBLE PARED (aislado: no forma parte de `LampDefinition`, de la UI ni del catálogo).
  *
  * Dos superficies independientes, concéntricas y de siluetas distintas:
  *  - pared EXTERIOR: abombada (silueta del motor compartido `createSilhouette`) con estrías verticales;
  *  - pared INTERIOR: de revolución, en reloj de arena (misma función de silueta con cintura).
  * Entre ambas queda una cámara de aire cuya separación mínima se MIDE sobre las superficies reales (estrías incluidas).
+ *
+ * V4.1 cierra los extremos (sin tapar la abertura central):
+ *  - PISO: una unión anular maciza de `floorMm` conecta las dos paredes por abajo (apoya en la cama: sin voladizos).
+ *  - TECHO: en los últimos `roofHeightMm` las dos paredes se inclinan una hacia la otra (la cara exterior hacia adentro, la interior
+ *    hacia afuera) hasta que la cámara queda en `topGapMm`; no hay puente horizontal de 20 mm, solo caras inclinadas. En la
+ *    estrategia convencional un cielorraso de `roofCapMm` cierra la cámara; en la de modo jarrón la ranura queda abierta (un cielorraso
+ *    sería una superficie horizontal que rompe la espiral).
+ * La abertura central (el vacío de la pared interior) nunca se reduce: el techo solo la ensancha.
  */
 export type DoubleWallStrategy = "vase-c" | "conventional";
 
@@ -34,17 +42,20 @@ export interface InnerWallParams {
 
 export interface DoubleWallParams {
   heightMm: number;
-  /** Espesor del MODELO de cada pared (y de los flancos de unión). En modo jarrón el laminador imprime una sola línea sobre el contorno. */
+  /** Espesor del MODELO de cada pared. En modo jarrón el laminador imprime una sola línea sobre el contorno. */
   wallMm: number;
-  /** Separación mínima exigida entre la cara de la pared exterior que mira a la cámara y la de la interior (mm). */
+  /** Separación mínima exigida entre la cara de la pared exterior que mira a la cámara y la de la interior, en la zona de paredes rectas (mm). */
   minGapMm: number;
   outer: OuterWallParams;
   inner: InnerWallParams;
   /** Prototipo A: ancho de la abertura vertical posterior (mm). */
   slitMm: number;
-  /** Prototipo B: cantidad y espesor de los nervios radiales de unión. */
-  ribs: number;
-  ribMm: number;
+  /** Unión inferior: espesor del piso anular que conecta ambas paredes (mm). */
+  floorMm: number;
+  /** Unión superior: altura de la zona donde las paredes se inclinan una hacia la otra, grosor del cielorraso (solo convencional) y ancho final de la cámara (mm). */
+  roofHeightMm: number;
+  roofCapMm: number;
+  topGapMm: number;
   /** Resolución: muestras por estría, segmentos de la pared interior y altura de cada fila (mm). */
   samplesPerFlute: number;
   innerSegments: number;
@@ -52,8 +63,8 @@ export interface DoubleWallParams {
 }
 
 /**
- * Valores de referencia del sprint. Dos de ellos NO estaban en el pedido y se eligieron para que la separación de 20 mm sea
- * alcanzable (documentado en el informe): diámetro de los bordes de la pared exterior (110 mm) y de la interior (56 mm).
+ * Valores de referencia. Tres no estaban en el pedido original y se eligieron para que la separación de 20 mm sea alcanzable
+ * (documentado en el informe): diámetro de los bordes de la pared exterior (110 mm) y de la interior (60 mm), y la zona de techo.
  */
 export const DEFAULT_DOUBLE_WALL: DoubleWallParams = {
   heightMm: 120,
@@ -62,14 +73,22 @@ export const DEFAULT_DOUBLE_WALL: DoubleWallParams = {
   outer: { maxDiameterMm: 140, endDiameterMm: 110, bulgePositionPct: 50, curvaturePct: 40, flutes: 24, fluteAmplitudeMm: 3, twistDeg: 0 },
   inner: { endDiameterMm: 60, waistPct: 60, waistPositionPct: 50, curvaturePct: 30 },
   slitMm: 2,
-  ribs: 4,
-  ribMm: 1.2,
+  floorMm: 2.4,
+  roofHeightMm: 24,
+  roofCapMm: 2.4,
+  topGapMm: 1.2,
   samplesPerFlute: 12,
   innerSegments: 120,
   rowMm: 2,
 };
 
 const TAU = Math.PI * 2;
+
+/** Alturas (mm) donde cambia la sección: tope del piso, arranque de las inclinaciones y cielorraso (= base de la tapa superior). */
+export function doubleWallZones(p: DoubleWallParams): { floorTop: number; roofStart: number; ceiling: number } {
+  const ceiling = p.heightMm - p.roofCapMm;
+  return { floorTop: p.floorMm, roofStart: ceiling - p.roofHeightMm, ceiling };
+}
 
 /** Superficies de ambas paredes a una altura z (0..H). Todos los radios en mm. */
 export interface WallSurfaces {
@@ -80,8 +99,10 @@ export interface WallSurfaces {
   /** Cara de la pared interior que mira a la cámara (radio) y la que mira al vacío central. */
   rio: number;
   rii: number;
-  /** Radio de las crestas a esta altura (silueta). */
+  /** Radio de las crestas a esta altura (silueta, sin el techo). */
   crest: number;
+  /** 0 en las paredes rectas, 1 donde el techo terminó de inclinarse. */
+  roof: number;
 }
 
 export function createDoubleWallSurfaces(p: DoubleWallParams): (z: number) => WallSurfaces {
@@ -95,26 +116,49 @@ export function createDoubleWallSurfaces(p: DoubleWallParams): (z: number) => Wa
   const twist = (o.twistDeg * Math.PI) / 180;
   const A = o.fluteAmplitudeMm;
   const n = o.flutes;
-  return (z: number): WallSurfaces => {
+  const zones = doubleWallZones(p);
+
+  const rawAt = (z: number) => {
     const u = Math.min(1, Math.max(0, z / H));
     const crest = outerSil(u);
-    const crestZ = (outerSil(Math.min(1, u + h / H)) - outerSil(Math.max(0, u - h / H))) / (Math.min(1, u + h / H) * H - Math.max(0, u - h / H) * H);
-    const tau = twist * u;
-    const tauZ = twist / H;
-    // r = crest − A/2 + (A/2)·cos(n(θ − τ))
-    const ro = (theta: number) => crest - A / 2 + (A / 2) * Math.cos(n * (theta - tau));
-    const roi = (theta: number) => {
-      const phi = n * (theta - tau);
-      const r = crest - A / 2 + (A / 2) * Math.cos(phi);
-      const rTheta = -(A / 2) * n * Math.sin(phi);
-      const rZ = crestZ + (A / 2) * n * tauZ * Math.sin(phi);
-      const S = Math.sqrt(1 + (rTheta / r) ** 2 + rZ * rZ);
-      return r - t * S;
-    };
+    const lo = Math.max(0, u - h / H), hi = Math.min(1, u + h / H);
+    const crestZ = (outerSil(hi) - outerSil(lo)) / ((hi - lo) * H);
     const rio = innerSil(u);
-    const rioZ = (innerSil(Math.min(1, u + h / H)) - innerSil(Math.max(0, u - h / H))) / (Math.min(1, u + h / H) * H - Math.max(0, u - h / H) * H);
-    const rii = rio - t * Math.sqrt(1 + rioZ * rioZ);
-    return { z, ro, roi, rio, rii, crest };
+    const rioZ = (innerSil(hi) - innerSil(lo)) / ((hi - lo) * H);
+    return { u, crest, crestZ, rio, rioZ };
+  };
+  const ro0 = (crest: number, theta: number, u: number) => crest - A / 2 + (A / 2) * Math.cos(n * (theta - twist * u));
+  const roi0 = (crest: number, crestZ: number, theta: number, u: number) => {
+    const phi = n * (theta - twist * u);
+    const r = crest - A / 2 + (A / 2) * Math.cos(phi);
+    const rTheta = -(A / 2) * n * Math.sin(phi);
+    const rZ = crestZ + (A / 2) * n * (twist / H) * Math.sin(phi);
+    return r - t * Math.sqrt(1 + (rTheta / r) ** 2 + rZ * rZ);
+  };
+
+  // Radio de encuentro del techo: punto medio entre la cara de la cámara de la pared exterior (a media estría) y la de la interior, donde arrancan las inclinaciones.
+  const r0 = rawAt(zones.roofStart);
+  const rm = (r0.crest - A / 2 - t + r0.rio) / 2;
+  const hg = p.topGapMm / 2;
+  const smooth = (x: number) => {
+    const s = Math.min(1, Math.max(0, x));
+    return s * s * (3 - 2 * s);
+  };
+
+  return (z: number): WallSurfaces => {
+    const { u, crest, crestZ, rio, rioZ } = rawAt(z);
+    const e = p.roofHeightMm > 0 ? smooth((z - zones.roofStart) / p.roofHeightMm) : 0;
+    const rii0 = rio - t * Math.sqrt(1 + rioZ * rioZ);
+    const lerp = (a: number, b: number) => a + (b - a) * e;
+    return {
+      z,
+      crest,
+      roof: e,
+      ro: (theta) => lerp(ro0(crest, theta, u), rm + hg + t),
+      roi: (theta) => lerp(roi0(crest, crestZ, theta, u), rm + hg),
+      rio: lerp(rio, rm - hg),
+      rii: lerp(rii0, rm - hg - t),
+    };
   };
 }
 
@@ -126,13 +170,14 @@ export function planeAngle(r: (theta: number) => number, alpha: number, d: numbe
 }
 
 export interface GapReport {
-  /** Separación MÍNIMA medida entre la cara interior de la pared exterior (estrías incluidas) y la cara exterior de la interior (distancia euclídea 3D). */
+  /** Separación MÍNIMA medida entre la cara interior de la pared exterior (estrías incluidas) y la cara exterior de la interior (distancia euclídea 3D), en la zona de paredes rectas (entre el piso y el arranque del techo). */
   minGapMm: number;
   atZ: number;
   /** Separación radial mínima (horizontal), para comparar con la euclídea. */
   minRadialGapMm: number;
-  /** Radio interior mínimo del vacío central (cara que mira al eje) y radio de la cintura. */
+  /** Radio interior mínimo del vacío central en TODA la altura (la abertura que debe conservarse), y el radio en el borde superior. */
   minInnerVoidRadiusMm: number;
+  topInnerVoidRadiusMm: number;
 }
 
 /** Distancia de un punto (r, z) a una polilínea (r, z): exacta para una superficie de revolución. */
@@ -151,25 +196,26 @@ function distanceToPolyline(r: number, z: number, poly: Float64Array): number {
 
 /**
  * Separación entre paredes sobre las superficies reales: para cada punto de la cara que mira a la cámara de la pared exterior
- * (todas las alturas y todo el ángulo, estrías incluidas) se mide la distancia euclídea a la cara de la interior. El mínimo
- * sobre todos los puntos de una superficie es la distancia mínima entre las dos superficies.
+ * (entre el piso y el arranque del techo, todo el ángulo, estrías incluidas) se mide la distancia euclídea 3D a la cara de la
+ * interior. El mínimo sobre todos los puntos de una superficie es la distancia mínima entre las dos superficies. En el techo la
+ * cámara se cierra a propósito: esa zona no se mide como separación.
  */
 export function measureChamberGap(p: DoubleWallParams, rows = 241): GapReport {
   const surf = createDoubleWallSurfaces(p);
+  const zones = doubleWallZones(p);
+  const z0 = zones.floorTop, z1 = zones.roofStart;
   const poly = new Float64Array(rows * 2);
   for (let k = 0; k < rows; k++) {
-    const z = (p.heightMm * k) / (rows - 1);
+    const z = z0 + ((z1 - z0) * k) / (rows - 1);
     poly[k * 2] = surf(z).rio;
     poly[k * 2 + 1] = z;
   }
-  let min = Infinity, atZ = 0, minRadial = Infinity, minVoid = Infinity;
+  let min = Infinity, atZ = 0, minRadial = Infinity;
   const per = Math.max(24, p.outer.flutes * 8);
   for (let k = 0; k < rows; k++) {
-    const z = (p.heightMm * k) / (rows - 1);
+    const z = z0 + ((z1 - z0) * k) / (rows - 1);
     const s = surf(z);
-    minVoid = Math.min(minVoid, s.rii);
     for (let j = 0; j < per; j++) {
-      // un período de la estría alcanza si no hay torsión; con torsión la fase cambia con z, así que se recorre toda la vuelta
       const theta = (TAU * j) / per;
       const r = s.roi(theta);
       minRadial = Math.min(minRadial, r - s.rio);
@@ -180,15 +226,19 @@ export function measureChamberGap(p: DoubleWallParams, rows = 241): GapReport {
       }
     }
   }
-  return { minGapMm: min, atZ, minRadialGapMm: minRadial, minInnerVoidRadiusMm: minVoid };
+  let minVoid = Infinity;
+  for (let k = 0; k <= 480; k++) minVoid = Math.min(minVoid, surf((p.heightMm * k) / 480).rii);
+  return { minGapMm: min, atZ, minRadialGapMm: minRadial, minInnerVoidRadiusMm: minVoid, topInnerVoidRadiusMm: surf(p.heightMm).rii };
 }
 
-/** Radio de curvatura mínimo de las crestas/valles de la pared exterior (mm). Debe superar el espesor para que el desfase interior no se pliegue. */
+/** Radio de curvatura mínimo de las crestas de la pared exterior (mm). Debe superar el espesor para que el desfase interior no se pliegue. */
 export function minFluteCurvatureRadius(p: DoubleWallParams): number {
   const n = p.outer.flutes, A = p.outer.fluteAmplitudeMm;
   let min = Infinity;
-  for (const z of [0, p.heightMm / 2, p.heightMm]) {
-    const crest = createDoubleWallSurfaces(p)(z).crest;
+  const surf = createDoubleWallSurfaces(p);
+  const top = doubleWallZones(p).roofStart;
+  for (const z of [0, p.heightMm / 2, top]) {
+    const crest = surf(Math.min(z, top)).crest;
     for (const phi of [0, Math.PI]) {
       const r = crest - A / 2 + (A / 2) * Math.cos(phi);
       const rThetaTheta = -(A / 2) * n * n * Math.cos(phi);
@@ -197,4 +247,46 @@ export function minFluteCurvatureRadius(p: DoubleWallParams): number {
     }
   }
   return min;
+}
+
+export interface LeanReport {
+  /** Mayor inclinación (grados respecto de la vertical) de la cara exterior de la pared exterior, de la cara interior de la pared interior y de las caras de la cámara. */
+  outerFaceDeg: number;
+  innerFaceDeg: number;
+  chamberFacesDeg: number;
+  /** Mayor de todas. */
+  maxDeg: number;
+  /** Altura a la que ocurre. */
+  atZ: number;
+}
+
+/**
+ * Inclinaciones respecto de la vertical de todas las caras, muestreadas cada 0,25 mm de altura y 96 ángulos. Es el dato de los
+ * voladizos: 0° = vertical; 45° es el límite orientativo de impresión sin soportes. NO es una garantía de impresión.
+ */
+export function measureLean(p: DoubleWallParams): LeanReport {
+  const surf = createDoubleWallSurfaces(p);
+  const dz = 0.25;
+  const n = Math.round(p.heightMm / dz);
+  const per = Math.max(96, p.outer.flutes * 4);
+  let outer = 0, inner = 0, chamber = 0, at = 0;
+  let prev = surf(0);
+  for (let k = 1; k <= n; k++) {
+    const z = k * dz;
+    const s = surf(z);
+    inner = Math.max(inner, Math.atan(Math.abs(s.rii - prev.rii) / dz));
+    for (let j = 0; j < per; j++) {
+      const th = (TAU * j) / per;
+      const a = Math.atan(Math.abs(s.ro(th) - prev.ro(th)) / dz);
+      if (a > outer) {
+        outer = a;
+        at = z;
+      }
+      chamber = Math.max(chamber, Math.atan(Math.abs(s.roi(th) - prev.roi(th)) / dz), Math.atan(Math.abs(s.rio - prev.rio) / dz));
+    }
+    prev = s;
+  }
+  const deg = (r: number) => (r * 180) / Math.PI;
+  const maxRad = Math.max(outer, inner, chamber);
+  return { outerFaceDeg: deg(outer), innerFaceDeg: deg(inner), chamberFacesDeg: deg(chamber), maxDeg: deg(maxRad), atZ: at };
 }

@@ -50,6 +50,8 @@ export const DEFAULT_OPENWORK: LampOpenworkDef = {
   turns: 1.5,
   connectors: 0,
   connectorWidthMm: 3,
+  diffuserFit: "rings",
+  diffuserClearanceMm: 1,
 };
 
 /**
@@ -206,6 +208,8 @@ export function normalizeLampDefinition(input: unknown): LampDefinition {
       turns: num(o.turns, DEFAULT_OPENWORK.turns),
       connectors: num(o.connectors, DEFAULT_OPENWORK.connectors),
       connectorWidthMm: num(o.connectorWidthMm, DEFAULT_OPENWORK.connectorWidthMm),
+      diffuserFit: o.diffuserFit === "manual" ? "manual" : "rings",
+      diffuserClearanceMm: num(o.diffuserClearanceMm, DEFAULT_OPENWORK.diffuserClearanceMm),
     },
     shade: {
       family: typeof s.family === "string" && FAMILIES.has(s.family) ? (s.family as LampShadeDef["family"]) : DEFAULT_SHADE.family,

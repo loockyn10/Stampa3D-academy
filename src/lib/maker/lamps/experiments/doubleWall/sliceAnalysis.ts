@@ -13,28 +13,40 @@ export interface SliceLoop {
   length: number;
 }
 
+/** Corte horizontal (plano z = const). Los puntos son (x, y). */
 export function sliceMesh(mesh: IndexedMesh, z: number): SliceLoop[] {
+  return sliceMeshAxis(mesh, 2, z);
+}
+
+/**
+ * Corte por un plano perpendicular al eje `axis` (0 = x, 1 = y, 2 = z) en `value`. Los puntos son las otras dos coordenadas en orden
+ * cíclico derecho (eje x → (y, z); eje y → (z, x); eje z → (x, y)), de modo que el sólido queda a la izquierda y el área con signo
+ * sigue el mismo criterio: positivo = contorno exterior, negativo = hueco. Sirve para las secciones VERTICALES.
+ */
+export function sliceMeshAxis(mesh: IndexedMesh, axis: 0 | 1 | 2, value: number): SliceLoop[] {
   const p = mesh.positions;
+  const au = (axis + 1) % 3, av = (axis + 2) % 3;
+  const z = value;
   const nV = p.length / 3;
   const segs = new Map<number, { end: number; pt: [number, number] }>();
   const edgePoint = (a: number, b: number): [number, number, number] => {
-    const t = (z - p[a * 3 + 2]) / (p[b * 3 + 2] - p[a * 3 + 2]);
-    return [p[a * 3] + (p[b * 3] - p[a * 3]) * t, p[a * 3 + 1] + (p[b * 3 + 1] - p[a * 3 + 1]) * t, a < b ? a * nV + b : b * nV + a];
+    const t = (z - p[a * 3 + axis]) / (p[b * 3 + axis] - p[a * 3 + axis]);
+    return [p[a * 3 + au] + (p[b * 3 + au] - p[a * 3 + au]) * t, p[a * 3 + av] + (p[b * 3 + av] - p[a * 3 + av]) * t, a < b ? a * nV + b : b * nV + a];
   };
   for (let i = 0; i < mesh.tris.length; i += 3) {
     const v = [mesh.tris[i], mesh.tris[i + 1], mesh.tris[i + 2]];
     const crossing: [number, number, number][] = [];
     for (let k = 0; k < 3; k++) {
       const a = v[k], b = v[(k + 1) % 3];
-      if ((p[a * 3 + 2] - z) * (p[b * 3 + 2] - z) < 0) crossing.push(edgePoint(a, b));
+      if ((p[a * 3 + axis] - z) * (p[b * 3 + axis] - z) < 0) crossing.push(edgePoint(a, b));
     }
     if (crossing.length !== 2) continue;
     const a0 = v[0] * 3, a1 = v[1] * 3, a2 = v[2] * 3;
     const ux = p[a1] - p[a0], uy = p[a1 + 1] - p[a0 + 1], uz = p[a1 + 2] - p[a0 + 2];
     const wx = p[a2] - p[a0], wy = p[a2 + 1] - p[a0 + 1], wz = p[a2 + 2] - p[a0 + 2];
-    const nx = uy * wz - uz * wy, ny = uz * wx - ux * wz;
-    // dirección con el sólido a la izquierda: ẑ × n
-    const dx = -ny, dy = nx;
+    const nv = [uy * wz - uz * wy, uz * wx - ux * wz, ux * wy - uy * wx];
+    // dirección con el sólido a la izquierda: e_axis × n  =>  (d_u, d_v) = (−n_v, n_u)
+    const dx = -nv[av], dy = nv[au];
     let [p0, p1] = crossing;
     if ((p1[0] - p0[0]) * dx + (p1[1] - p0[1]) * dy < 0) [p0, p1] = [p1, p0];
     segs.set(p0[2], { end: p1[2], pt: [p0[0], p0[1]] });
@@ -141,4 +153,44 @@ export function countComponents(mesh: IndexedMesh): number {
   const roots = new Set<number>();
   for (let i = 0; i < n; i++) if (used[i]) roots.add(find(i));
   return roots.size;
+}
+
+export interface ShellReport {
+  /** Superficies cerradas conexas de la malla. */
+  shells: number;
+  /** Cuerpos sólidos (superficies con volumen positivo) y cavidades internas (volumen negativo: normales hacia adentro de la cavidad). */
+  solidBodies: number;
+  cavities: number;
+  volumes: number[];
+}
+
+/**
+ * Clasifica las superficies conexas por el signo de su volumen. Una cámara cerrada es una cavidad: otra superficie dentro del
+ * sólido, con volumen negativo. Es UN solo sólido con un hueco interno, no dos piezas.
+ */
+export function shellReport(mesh: IndexedMesh): ShellReport {
+  const n = mesh.positions.length / 3;
+  const parent = new Int32Array(n);
+  for (let i = 0; i < n; i++) parent[i] = i;
+  const find = (x: number) => {
+    while (parent[x] !== x) {
+      parent[x] = parent[parent[x]];
+      x = parent[x];
+    }
+    return x;
+  };
+  for (let i = 0; i < mesh.tris.length; i += 3) {
+    parent[find(mesh.tris[i])] = find(mesh.tris[i + 1]);
+    parent[find(mesh.tris[i + 1])] = find(mesh.tris[i + 2]);
+  }
+  const p = mesh.positions;
+  const vol = new Map<number, number>();
+  for (let i = 0; i < mesh.tris.length; i += 3) {
+    const a = mesh.tris[i] * 3, b = mesh.tris[i + 1] * 3, c = mesh.tris[i + 2] * 3;
+    const v = (p[a] * (p[b + 1] * p[c + 2] - p[b + 2] * p[c + 1]) - p[a + 1] * (p[b] * p[c + 2] - p[b + 2] * p[c]) + p[a + 2] * (p[b] * p[c + 1] - p[b + 1] * p[c])) / 6;
+    const root = find(mesh.tris[i]);
+    vol.set(root, (vol.get(root) ?? 0) + v);
+  }
+  const volumes = [...vol.values()];
+  return { shells: volumes.length, solidBodies: volumes.filter((v) => v > 0).length, cavities: volumes.filter((v) => v < 0).length, volumes };
 }

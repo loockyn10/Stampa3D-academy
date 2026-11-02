@@ -93,6 +93,11 @@ export interface LampOpenworkDef {
   /** Anillos intermedios de unión entre bandas (0 = sin conexiones) y su ancho (mm). */
   connectors: number;
   connectorWidthMm: number;
+  // ---- Difusor (inserto) de la pantalla calada
+  /** "rings": el difusor cilíndrico se dimensiona por el diámetro INTERIOR LIBRE de los anillos (no por el decorativo máximo). "manual": se usa `insert.diameterMm` como en la sólida. */
+  diffuserFit: "rings" | "manual";
+  /** Holgura DIAMETRAL inicial entre el difusor y el anillo más angosto (mm). Se valida físicamente: no es un valor probado. */
+  diffuserClearanceMm: number;
 }
 
 /** Familias de inserto: tapa plana (cerrado, se imprime invertido), gota (cierre ojival, se imprime parado) y ondulado (superficie lateral ondulada, abierto o con tapa). */
@@ -311,6 +316,24 @@ export interface LampTowerReport {
   towerToNeckGapMm: number;
 }
 
+/** Cómo se dimensionó el difusor de una pantalla calada (todo sale del mismo cálculo que genera la malla). */
+export interface LampDiffuserFitReport {
+  source: "rings" | "manual";
+  /** Diámetros interiores LIBRES (cara interior de la estructura, no el exterior) de los anillos inferior y superior de la pantalla. */
+  ringBottomFreeDiameterMm: number;
+  ringTopFreeDiameterMm: number;
+  /** Diámetro interior libre mínimo de TODA la pantalla (la estructura decorativa incluida). */
+  structureMinFreeDiameterMm: number;
+  /** Máximo diámetro de difusor que admite la base: torre central + 3 mm de aire hasta el orificio del cuello roscado. */
+  baseLimitDiameterMm: number;
+  diffuserDiameterMm: number;
+  /** Holgura diametral pedida y holguras radiales reales del difusor en cada anillo. */
+  diametralClearanceMm: number;
+  radialClearanceBottomMm: number;
+  radialClearanceTopMm: number;
+  limitedBy: "bottomRing" | "topRing" | "base" | "manual";
+}
+
 export interface LampAdhesionReport {
   enabled: boolean;
   widthMm: number;
@@ -359,6 +382,8 @@ export interface LampFitReport {
   insertEnvelopeGapMm: number | null;
   /** Reborde interno de adhesión ya resuelto. */
   adhesion: LampAdhesionReport;
+  /** Solo con pantalla calada: dimensionado del difusor según los anillos. */
+  diffuser: LampDiffuserFitReport | null;
   /** Diámetro de la base (efectivo) y su altura total. */
   baseDiameterMm: number;
   baseHeightMm: number;
@@ -480,6 +505,7 @@ export const LAMP_LIMITS = {
   "openwork.turns": { min: -8, max: 8, label: "Vueltas" },
   "openwork.connectors": { min: 0, max: 8, integer: true, label: "Anillos de unión" },
   "openwork.connectorWidthMm": { min: 1, max: 10, label: "Ancho de los anillos de unión" },
+  "openwork.diffuserClearanceMm": { min: 0.7, max: 10, label: "Holgura diametral del difusor" },
   "adhesion.widthMm": { min: 1, max: 10, label: "Ancho del reborde" },
   "adhesion.heightMm": { min: 0.2, max: 1.2, label: "Altura del reborde" },
   "insert.clearanceMm": { min: 0.3, max: 2, label: "Holgura de montaje" },

@@ -443,8 +443,34 @@ export function MakerLampControls({ def, onChange, onApplyPreset, onGenerateVari
               </label>
             </div>
             <p className="text-xs text-gray-500">El color del visor es una aproximación visual, no una simulación fotométrica ni de la distribución de la luz. La luz real depende del filamento, su espesor y la bombilla.</p>
+            {def.shadeType === "openwork" && (
+              <div className="flex flex-col gap-2 rounded-xl border border-fg/10 bg-fg/[0.03] p-3">
+                <span className="text-xs font-semibold text-gray-500">Diámetro del difusor (pantalla calada)</span>
+                <SegmentedControl
+                  options={[{ value: "rings" as const, label: "Según los anillos" }, { value: "manual" as const, label: "Manual" }]}
+                  value={def.openwork.diffuserFit}
+                  onChange={(diffuserFit) => onChange({ ...def, openwork: { ...def.openwork, diffuserFit } })}
+                  compact
+                />
+                {def.openwork.diffuserFit === "rings" && (
+                  <SliderField label="Holgura diametral" value={def.openwork.diffuserClearanceMm} min={L["openwork.diffuserClearanceMm"].min} max={L["openwork.diffuserClearanceMm"].max} step={0.1} suffix=" mm" onChange={(v) => onChange({ ...def, openwork: { ...def.openwork, diffuserClearanceMm: v } })} error={err("openwork.diffuserClearanceMm")} />
+                )}
+                {fit?.diffuser && (
+                  <div className="flex flex-col gap-1">
+                    <InfoRow label="Ø libre anillo inferior / superior" value={`${fmt(fit.diffuser.ringBottomFreeDiameterMm)} / ${fmt(fit.diffuser.ringTopFreeDiameterMm)} mm`} />
+                    <InfoRow label="Ø máximo que admite la base" value={`${fmt(fit.diffuser.baseLimitDiameterMm)} mm`} />
+                    <InfoRow label="Ø exterior del difusor" value={`${fmt(fit.diffuser.diffuserDiameterMm)} mm`} strong />
+                    <InfoRow label="Holgura radial inferior / superior" value={`${fmt(fit.diffuser.radialClearanceBottomMm)} / ${fmt(fit.diffuser.radialClearanceTopMm)} mm`} />
+                    <InfoRow label="Lo limita" value={{ bottomRing: "el anillo inferior", topRing: "el anillo superior", base: "la base y la rosca", manual: "el valor manual" }[fit.diffuser.limitedBy]} />
+                  </div>
+                )}
+                <p className="text-xs text-gray-500">El difusor es un cilindro: no sigue la silueta abombada. Su diámetro sale del interior LIBRE de los anillos (la cara interior, no la exterior) menos la holgura diametral, que es un valor inicial pendiente de validación física. Las lengüetas de extracción no se usan con este ajuste.</p>
+              </div>
+            )}
             <div className="grid grid-cols-2 gap-3">
-              <NumberField label="Ø exterior (montaje)" value={def.insert.diameterMm ?? fit?.insertOuterDiameterMm ?? 65} onChange={(v) => setInsert({ diameterMm: v })} suffix="mm" error={err("insert.diameterMm")} />
+              {(def.shadeType !== "openwork" || def.openwork.diffuserFit === "manual") && (
+                <NumberField label="Ø exterior (montaje)" value={def.insert.diameterMm ?? fit?.insertOuterDiameterMm ?? 65} onChange={(v) => setInsert({ diameterMm: v })} suffix="mm" error={err("insert.diameterMm")} />
+              )}
               <NumberField label="Espesor de pared" value={def.insert.thicknessMm} onChange={(v) => setInsert({ thicknessMm: v })} suffix="mm" error={err("insert.thicknessMm")} />
             </div>
             <Toggle label="Altura automática" checked={def.insert.heightMm === null} onChange={(auto) => setInsert({ heightMm: auto ? null : (fit?.insertHeightMm ?? 180) })} />
@@ -501,7 +527,7 @@ export function MakerLampControls({ def, onChange, onApplyPreset, onGenerateVari
               <Toggle label="Diámetro automático (el más angosto posible)" checked={def.insert.diameterMm === null} onChange={(auto) => setInsert({ diameterMm: auto ? null : (fit?.insertOuterDiameterMm ?? 65) })} />
               <p className="text-xs text-gray-500">La separación mínima solo evita el contacto previsto con las medidas cargadas (la bombilla se modela como un cilindro): no es una distancia térmicamente segura. La zona de montaje inferior es idéntica en los tres estilos.</p>
             </Details>
-            {issuesFor((i) => !!i.field?.startsWith("insert.") || i.code.startsWith("INSERT_") || i.code.startsWith("TOWER_")).map((i, k) => (
+            {issuesFor((i) => !!i.field?.startsWith("insert.") || i.code.startsWith("INSERT_") || i.code.startsWith("TOWER_") || i.code.startsWith("DIFFUSER_")).map((i, k) => (
               <p key={`${i.code}-${k}`} className={`text-xs ${errors.includes(i) ? "text-red-400" : "text-amber-300"}`}>{i.message}</p>
             ))}
           </>

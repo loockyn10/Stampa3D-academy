@@ -25,7 +25,8 @@ const { buildSTLBlob } = loadMakerModule("lib/maker/exporters/exportSTL.ts");
 const { encodeLampDesign, decodeLampDesign } = loadMakerModule("lib/maker/lamps/designCode.ts");
 
 // ------------------------------------------------------------------ utilidades
-const BASE = { ...DEFAULT_LAMP, shadeType: "openwork", base: { diameterMm: 130 } };
+// Estas pruebas son de la estructura calada y la silueta (V3): usan el difusor manual de Ø65 de siempre. El difusor según los anillos (V4.1) se prueba en maker-lamps-v41-diffuser.test.mjs.
+const BASE = { ...DEFAULT_LAMP, shadeType: "openwork", base: { diameterMm: 130 }, openwork: { ...DEFAULT_LAMP.openwork, diffuserFit: "manual" } };
 const ow = (patch = {}, rest = {}) => ({ ...BASE, ...rest, openwork: { ...BASE.openwork, ...patch } });
 const shadeDims = (patch) => ({ shade: { ...BASE.shade, ...patch } });
 const build = (def) => {

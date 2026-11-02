@@ -182,7 +182,9 @@ export function validateLamp(def: LampDefinition, printer?: PrinterProfile): Lam
         });
       }
     } else {
-      if (ins.bodyMaxR > available + 1e-6) errors.push({ code: "INSERT_TOUCHES_SHADE", field: "insert.diameterMm", message: `El cilindro de ${bothDiameters} tocaría o atravesaría el cuello o la pantalla: el espacio libre máximo (con la holgura y las lengüetas) es Ø ${fmt(2 * available)} mm.` });
+      if (ins.bodyMaxR > available + 1e-6 && layout.fit.diffuser?.source === "rings") {
+        errors.push({ code: "DIFFUSER_STRUCTURE_INTRUDES", field: "openwork.diffuserClearanceMm", message: `La estructura calada invade el volumen del difusor: queda libre como máximo Ø ${fmt(2 * available)} mm (con la holgura de montaje) en algún punto del alto del difusor (la cintura o el cuello son más angostos que los anillos) y el difusor mide Ø ${fmt(2 * ins.bodyMaxR)} mm. Ensanchá la cintura de la silueta o aumentá la holgura diametral; no se achica nada automáticamente.` });
+      } else if (ins.bodyMaxR > available + 1e-6) errors.push({ code: "INSERT_TOUCHES_SHADE", field: "insert.diameterMm", message: `El cilindro de ${bothDiameters} tocaría o atravesaría el cuello o la pantalla: el espacio libre máximo (con la holgura y las lengüetas) es Ø ${fmt(2 * available)} mm.` });
       if (ins.innerR < layout.fit.requiredInsertInnerRadiusMm - 1e-9) errors.push({ code: "INSERT_TOO_CLOSE_TO_BULB", field: "insert.diameterMm", message: `El interior del cilindro (Ø ${fmt(2 * ins.innerR)} mm) queda a menos de ${fmt(requiredGap)} mm de la bombilla/portalámparas (hace falta Ø ${fmt(2 * layout.fit.requiredInsertInnerRadiusMm)} mm como mínimo, con los anillos y el cuerpo cargados).` });
     }
     const gap = layout.fit.insertBulbGapMm ?? 0;
@@ -204,6 +206,26 @@ export function validateLamp(def: LampDefinition, printer?: PrinterProfile): Lam
       warnings.push({ code: "INSERT_CLOSED_THERMAL_PENDING", field: "insert.style", message: LAMP_CLOSED_INSERT_MESSAGE });
     }
     if (!ins.closedTop && layout.bulbTopZ > ins.z1) warnings.push({ code: "INSERT_SHORTER_THAN_BULB", message: "El cilindro es más bajo que la bombilla: la parte superior de la bombilla no queda cubierta por el color." });
+    const dif = layout.fit.diffuser;
+    if (dif) {
+      const half = def.openwork.diffuserClearanceMm / 2;
+      if (def.openwork.diffuserFit === "rings") {
+        if (dif.limitedBy === "base") {
+          warnings.push({ code: "DIFFUSER_LIMITED_BY_BASE", field: "thread.majorDiameterMm", message: `El difusor queda en Ø ${fmt(dif.diffuserDiameterMm)} mm limitado por la base y la rosca (la torre que lo aloja necesita al menos 3 mm de aire hasta el orificio del cuello, o el ancho del reborde de adhesión más 1 mm si es mayor: máximo Ø ${fmt(dif.baseLimitDiameterMm)} mm), no por los anillos (Ø ${fmt(dif.ringBottomFreeDiameterMm)} mm abajo, Ø ${fmt(dif.ringTopFreeDiameterMm)} mm arriba). Para un difusor más ancho aumentá el diámetro de la rosca; la base no se modifica sola.` });
+        }
+        if (Math.abs(dif.ringBottomFreeDiameterMm - dif.ringTopFreeDiameterMm) > 4) {
+          const wide = dif.ringBottomFreeDiameterMm > dif.ringTopFreeDiameterMm ? "inferior" : "superior";
+          warnings.push({ code: "DIFFUSER_RINGS_MISMATCH", field: "openwork.diffuserFit", message: `Los anillos tienen diámetros interiores libres distintos (inferior Ø ${fmt(dif.ringBottomFreeDiameterMm)} mm, superior Ø ${fmt(dif.ringTopFreeDiameterMm)} mm): el difusor es un cilindro rígido y se dimensiona por el más angosto, así que en el anillo ${wide} queda ${fmt(Math.max(dif.radialClearanceBottomMm, dif.radialClearanceTopMm))} mm de holgura radial y no lo centra. Igualá los diámetros de los extremos si querés que ambos anillos lo guíen.` });
+        } else if (Math.max(dif.radialClearanceBottomMm, dif.radialClearanceTopMm) > half + 1.5) {
+          warnings.push({ code: "DIFFUSER_LOOSE_IN_RING", field: "openwork.diffuserClearanceMm", message: `El difusor queda con ${fmt(Math.max(dif.radialClearanceBottomMm, dif.radialClearanceTopMm))} mm de holgura radial en los anillos (pedido: ${fmt(half)} mm): no los aprovecha y puede bailar. Es una consecuencia de que lo limita la base.` });
+        }
+        if (def.insert.tabs) warnings.push({ code: "DIFFUSER_TABS_NOT_APPLICABLE", field: "insert.tabs", message: "Las lengüetas de extracción no caben entre el difusor y el anillo: se ignoran. El difusor se retira por la abertura superior agarrándolo del borde." });
+      }
+      // Se pueda introducir y sacar: el anillo superior debe dejar pasar el cuerpo del difusor con la holgura de montaje
+      if (dif.ringTopFreeDiameterMm / 2 - ins.bodyMaxR < insert.clearanceMm - 1e-6) {
+        errors.push({ code: "DIFFUSER_CANNOT_PASS_TOP", field: "openwork.diffuserClearanceMm", message: `El difusor (Ø ${fmt(2 * ins.bodyMaxR)} mm) no pasa por el anillo superior (Ø ${fmt(dif.ringTopFreeDiameterMm)} mm libres): no se podría introducir ni retirar. Reducí el difusor o ensanchá el anillo superior.` });
+      }
+    }
     if (layout.fit.insertRemovableFromTop === false) warnings.push({ code: "INSERT_NOT_REMOVABLE_FROM_TOP", message: "El cilindro no sale por la abertura superior de la pantalla: para cambiarlo hay que desenroscar la pantalla." });
   }
 

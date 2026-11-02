@@ -19,8 +19,10 @@
       "curvaturePct": 30
     },
     "slitMm": 2,
-    "ribs": 4,
-    "ribMm": 1.2,
+    "floorMm": 2.4,
+    "roofHeightMm": 24,
+    "roofCapMm": 2.4,
+    "topGapMm": 1.2,
     "samplesPerFlute": 12,
     "innerSegments": 120,
     "rowMm": 2
@@ -29,31 +31,76 @@
   "prototypes": {
     "vase-c": {
       "file": "double-wall-vase-test.stl",
-      "fileBytes": 5002084,
+      "fileBytes": 5165884,
       "strategy": "vase-c",
-      "triangles": 100040,
-      "stlBytes": 5002084,
+      "triangles": 103316,
+      "stlBytes": 5165884,
       "components": 1,
+      "solidBodies": 1,
+      "cavities": 0,
       "watertight": true,
-      "volumeCm3": 92.25418428270808,
+      "volumeCm3": 104.32508795440265,
       "boundingBoxMm": {
         "width": 139.90532234299712,
         "depth": 139.95233383695586,
         "height": 120
       },
       "gap": {
-        "minGapMm": 20.7999998458969,
-        "atZ": 0,
-        "minRadialGapMm": 20.7999998458969,
-        "minInnerVoidRadiusMm": 17.1
+        "minGapMm": 20.841153160081504,
+        "atZ": 2.4,
+        "minRadialGapMm": 20.841153160081504,
+        "minInnerVoidRadiusMm": 17.1,
+        "topInnerVoidRadiusMm": 39.57913458673828
+      },
+      "lean": {
+        "outerFaceDeg": 44.4,
+        "innerFaceDeg": 42.1,
+        "chamberFacesDeg": 44.2,
+        "maxDeg": 44.4,
+        "atZ": 102.25
+      },
+      "zones": {
+        "floorTop": 2.4,
+        "roofStart": 93.6,
+        "ceiling": 117.6
+      },
+      "horizontalFaces": [
+        {
+          "z": 0,
+          "normal": "-z",
+          "areaMm2": 6337.5
+        },
+        {
+          "z": 2.4,
+          "normal": "+z",
+          "areaMm2": 5634.2
+        },
+        {
+          "z": 120,
+          "normal": "+z",
+          "areaMm2": 622
+        }
+      ],
+      "solidLayers": {
+        "bottom": 12,
+        "top": 0
+      },
+      "chamberClosed": false,
+      "vase": {
+        "validClosedMesh": true,
+        "singleOuterContourPerLayer": true,
+        "noTopSolidLayers": true,
+        "noInternalCeiling": true,
+        "requiredBottomShellLayers": 12,
+        "geometricPreconditionsMet": true
       },
       "layers": [
         {
           "z": 0.11,
           "outerContours": 1,
-          "holes": 1,
+          "holes": 0,
           "outerLengthMm": 599.8,
-          "totalLengthMm": 1188.9
+          "totalLengthMm": 599.8
         },
         {
           "z": 10.11,
@@ -122,15 +169,15 @@
           "z": 100.11,
           "outerContours": 1,
           "holes": 1,
-          "outerLengthMm": 608.8,
-          "totalLengthMm": 1206.8
+          "outerLengthMm": 589.7,
+          "totalLengthMm": 1168.6
         },
         {
           "z": 110.11,
           "outerContours": 1,
           "holes": 1,
-          "outerLengthMm": 600.9,
-          "totalLengthMm": 1191.2
+          "outerLengthMm": 535.6,
+          "totalLengthMm": 1061
         }
       ],
       "layerStats": {
@@ -140,154 +187,204 @@
           1
         ],
         "holes": [
-          1,
+          0,
           1
         ],
         "outerLengthMm": [
-          599.8,
+          523.2,
           667.2
         ],
-        "maxLengthJumpPct": 0.06
+        "maxLengthJumpPct": 0.22
       },
       "estimate": {
         "layerHeightMm": 0.2,
         "lineWidthMm": 0.42,
-        "vasePathVolumeCm3": 31.69781940422104,
-        "onePerimeterVolumeCm3": 62.85764351110821,
-        "solidVolumeCm3": 92.25418428270808,
-        "meanOuterContourMm": 628.9249881789889
+        "vasePathVolumeCm3": 31.18755445375672,
+        "onePerimeterVolumeCm3": 61.24791345635262,
+        "solidVolumeCm3": 104.32508795440265,
+        "meanOuterContourMm": 618.8006836062841
       },
       "warnings": []
     },
     "conventional": {
       "file": "double-wall-conventional-test.stl",
-      "fileBytes": 5076084,
+      "fileBytes": 5059284,
       "strategy": "conventional",
-      "triangles": 101520,
-      "stlBytes": 5076084,
-      "components": 1,
+      "triangles": 101184,
+      "stlBytes": 5059284,
+      "components": 2,
+      "solidBodies": 1,
+      "cavities": 1,
       "watertight": true,
-      "volumeCm3": 103.37085748305915,
+      "volumeCm3": 96.40032034949522,
       "boundingBoxMm": {
-        "width": 139.93154211625506,
-        "depth": 139.93154211625506,
+        "width": 140,
+        "depth": 140,
         "height": 120
       },
       "gap": {
-        "minGapMm": 20.7999998458969,
-        "atZ": 0,
-        "minRadialGapMm": 20.7999998458969,
-        "minInnerVoidRadiusMm": 17.1
+        "minGapMm": 20.841153160081504,
+        "atZ": 2.4,
+        "minRadialGapMm": 20.841153160081504,
+        "minInnerVoidRadiusMm": 17.1,
+        "topInnerVoidRadiusMm": 39.57913458673828
+      },
+      "lean": {
+        "outerFaceDeg": 44.4,
+        "innerFaceDeg": 42.1,
+        "chamberFacesDeg": 44.2,
+        "maxDeg": 44.4,
+        "atZ": 102.25
+      },
+      "zones": {
+        "floorTop": 2.4,
+        "roofStart": 93.6,
+        "ceiling": 117.6
+      },
+      "horizontalFaces": [
+        {
+          "z": 0,
+          "normal": "-z",
+          "areaMm2": 6389.8
+        },
+        {
+          "z": 2.4,
+          "normal": "+z",
+          "areaMm2": 5737.7
+        },
+        {
+          "z": 117.6,
+          "normal": "-z",
+          "areaMm2": 313.9
+        },
+        {
+          "z": 120,
+          "normal": "+z",
+          "areaMm2": 937.8
+        }
+      ],
+      "solidLayers": {
+        "bottom": 12,
+        "top": 12
+      },
+      "chamberClosed": true,
+      "vase": {
+        "validClosedMesh": true,
+        "singleOuterContourPerLayer": false,
+        "noTopSolidLayers": false,
+        "noInternalCeiling": false,
+        "requiredBottomShellLayers": 12,
+        "geometricPreconditionsMet": false
       },
       "layers": [
         {
           "z": 0.11,
           "outerContours": 1,
-          "holes": 5,
+          "holes": 1,
           "outerLengthMm": 370.7,
-          "totalLengthMm": 1284.3
+          "totalLengthMm": 551.6
         },
         {
           "z": 10.11,
-          "outerContours": 1,
-          "holes": 5,
-          "outerLengthMm": 373.7,
-          "totalLengthMm": 1291.2
+          "outerContours": 2,
+          "holes": 2,
+          "outerLengthMm": 558.2,
+          "totalLengthMm": 1101.9
         },
         {
           "z": 20.11,
-          "outerContours": 1,
-          "holes": 5,
-          "outerLengthMm": 386,
-          "totalLengthMm": 1323.1
+          "outerContours": 2,
+          "holes": 2,
+          "outerLengthMm": 558.1,
+          "totalLengthMm": 1101.2
         },
         {
           "z": 30.11,
-          "outerContours": 1,
-          "holes": 5,
-          "outerLengthMm": 407.1,
-          "totalLengthMm": 1380.6
+          "outerContours": 2,
+          "holes": 2,
+          "outerLengthMm": 561,
+          "totalLengthMm": 1106.3
         },
         {
           "z": 40.11,
-          "outerContours": 1,
-          "holes": 5,
-          "outerLengthMm": 431.5,
-          "totalLengthMm": 1448.9
+          "outerContours": 2,
+          "holes": 2,
+          "outerLengthMm": 566.1,
+          "totalLengthMm": 1116.7
         },
         {
           "z": 50.11,
-          "outerContours": 1,
-          "holes": 5,
-          "outerLengthMm": 450.9,
-          "totalLengthMm": 1504.4
+          "outerContours": 2,
+          "holes": 2,
+          "outerLengthMm": 571.1,
+          "totalLengthMm": 1127
         },
         {
           "z": 60.11,
-          "outerContours": 1,
-          "holes": 5,
-          "outerLengthMm": 458.1,
-          "totalLengthMm": 1525.5
+          "outerContours": 2,
+          "holes": 2,
+          "outerLengthMm": 573.1,
+          "totalLengthMm": 1131.3
         },
         {
           "z": 70.11,
-          "outerContours": 1,
-          "holes": 5,
-          "outerLengthMm": 450.5,
-          "totalLengthMm": 1503.5
+          "outerContours": 2,
+          "holes": 2,
+          "outerLengthMm": 571,
+          "totalLengthMm": 1126.9
         },
         {
           "z": 80.11,
-          "outerContours": 1,
-          "holes": 5,
-          "outerLengthMm": 431,
-          "totalLengthMm": 1447.4
+          "outerContours": 2,
+          "holes": 2,
+          "outerLengthMm": 566,
+          "totalLengthMm": 1116.4
         },
         {
           "z": 90.11,
-          "outerContours": 1,
-          "holes": 5,
-          "outerLengthMm": 406.6,
-          "totalLengthMm": 1379.1
+          "outerContours": 2,
+          "holes": 2,
+          "outerLengthMm": 560.9,
+          "totalLengthMm": 1106.2
         },
         {
           "z": 100.11,
-          "outerContours": 1,
-          "holes": 5,
-          "outerLengthMm": 385.6,
-          "totalLengthMm": 1322
+          "outerContours": 2,
+          "holes": 2,
+          "outerLengthMm": 549,
+          "totalLengthMm": 1082.8
         },
         {
           "z": 110.11,
-          "outerContours": 1,
-          "holes": 5,
-          "outerLengthMm": 373.5,
-          "totalLengthMm": 1290.9
+          "outerContours": 2,
+          "holes": 2,
+          "outerLengthMm": 529,
+          "totalLengthMm": 1042.9
         }
       ],
       "layerStats": {
         "layers": 600,
         "outerContours": [
           1,
-          1
+          2
         ],
         "holes": [
-          5,
-          5
+          1,
+          2
         ],
         "outerLengthMm": [
-          370.7,
-          458.1
+          271.3,
+          573.1
         ],
-        "maxLengthJumpPct": 0.12
+        "maxLengthJumpPct": 50.78
       },
       "estimate": {
         "layerHeightMm": 0.2,
         "lineWidthMm": 0.42,
-        "vasePathVolumeCm3": 20.68572730580003,
-        "onePerimeterVolumeCm3": 70.1431438322262,
-        "solidVolumeCm3": 103.37085748305915,
-        "meanOuterContourMm": 410.43109733730216
+        "vasePathVolumeCm3": 27.723510781886826,
+        "onePerimeterVolumeCm3": 54.49841835123463,
+        "solidVolumeCm3": 96.40032034949522,
+        "meanOuterContourMm": 550.0696583707703
       },
       "warnings": []
     }

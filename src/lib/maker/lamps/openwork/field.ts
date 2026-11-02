@@ -34,6 +34,11 @@ export interface OpenworkField extends ShadeField {
   cellMm: number;
   coarse: boolean;
   report: OpenworkReport;
+  /**
+   * Radios interiores LIBRES de los anillos (cara interior de la estructura, no el exterior): el mínimo sobre las filas del anillo
+   * inferior y del superior (con terminación abierta, la última fila) y el mínimo de TODA la pantalla. Es lo que dimensiona el difusor.
+   */
+  ringFree: { bottomR: number; topR: number; structureMinR: number };
   /** Clave y números de la grilla para el mallador. */
   columnsPerPeriod: number;
 }
@@ -286,6 +291,14 @@ export function sampleOpenworkField(shade: LampShadeDef, ow: LampOpenworkDef, op
     latticeTriangles,
   };
 
+  let bottomFree = Infinity, topFree = Infinity;
+  for (let i = 0; i < nRows; i++) {
+    if (arc[i] <= bottomEnd + 1e-9) bottomFree = Math.min(bottomFree, rowRin[i]);
+    if (hasTop ? arc[i] >= topStart - 1e-9 : i === nRows - 1) topFree = Math.min(topFree, rowRin[i]);
+  }
+  if (!Number.isFinite(bottomFree)) bottomFree = rowRin[0];
+  if (!Number.isFinite(topFree)) topFree = rowRin[nRows - 1];
+
   return {
     nTheta,
     nRows,
@@ -311,6 +324,7 @@ export function sampleOpenworkField(shade: LampShadeDef, ow: LampOpenworkDef, op
     cellMm: cell,
     coarse,
     report,
+    ringFree: { bottomR: bottomFree, topR: topFree, structureMinR: minInner },
     columnsPerPeriod: nTheta / period,
   };
 }
