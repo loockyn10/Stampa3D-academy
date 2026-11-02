@@ -1,5 +1,5 @@
 import { addTri, addVertex, newMesh, type IndexedMesh } from "@/lib/maker/mugs/geometry/mesh";
-import { createDoubleWallSurfaces, doubleWallZones, planeAngle, type DoubleWallParams, type DoubleWallStrategy } from "@/lib/maker/lamps/experiments/doubleWall/profiles";
+import { createDoubleWallSurfaces, doubleWallZones, planeAngle, type DoubleWallParams, type DoubleWallStrategy } from "@/lib/maker/lamps/doublewall/profiles";
 
 /**
  * Mallador de las dos estrategias. Ambas son un LOFT de una sección horizontal a lo largo de z (sin CSG): en cada fila se

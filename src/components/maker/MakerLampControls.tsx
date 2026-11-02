@@ -8,12 +8,14 @@ import { applyInsertStyle, INSERT_STYLE_LABELS } from "@/lib/maker/lamps/default
 import { decodeLampDesign, encodeLampDesign } from "@/lib/maker/lamps/designCode";
 import { insertSilhouette, referenceInsertSurface } from "@/lib/maker/lamps/insert/silhouette";
 import { OPENWORK_PRESETS, applyOpenworkPreset, applyShadeType, applySilhouette, openworkPresetMatches, type OpenworkPreset } from "@/lib/maker/lamps/openwork/presets";
+import { setRingFreeDiameter, suggestThreadMajorForDiffuser } from "@/lib/maker/lamps/diffuserFit";
+import { applyDoubleInnerShape, applyDoubleOuterShape, DOUBLE_INNER_LABELS, DOUBLE_OUTER_LABELS, type DoubleInnerKind, type DoubleOuterKind } from "@/lib/maker/lamps/doublewall/shapes";
 import { SILHOUETTE_LABELS, type SilhouetteKind } from "@/lib/maker/lamps/openwork/silhouette";
 import { renderOpenworkThumbnail } from "@/lib/maker/lamps/openwork/thumbnail";
 import { LAMP_PRESETS, type LampPreset } from "@/lib/maker/lamps/presets";
 import { LAMP_MEASUREMENTS_NEEDED, LAMP_NOTICE_CODES, LAMP_PHYSICAL_TESTS, LAMP_SAFETY_NOTICES } from "@/lib/maker/lamps/safety";
 import { lampSilhouette } from "@/lib/maker/lamps/silhouette";
-import { LAMP_LIMITS, type LampAdhesionDef, type LampOpenworkDef, type LampShadeType, type LampBaseDef, type LampBulbDef, type LampCableDef, type LampDefinition, type LampFamily, type LampHolderDef, type LampInsertDef, type LampInsertStyle, type LampIssue, type LampMetrics, type LampProfile, type LampShadeDef, type LampThreadDef } from "@/lib/maker/lamps/types";
+import { LAMP_LIMITS, type LampDoubleWallDef, type LampAdhesionDef, type LampOpenworkDef, type LampShadeType, type LampBaseDef, type LampBulbDef, type LampCableDef, type LampDefinition, type LampFamily, type LampHolderDef, type LampInsertDef, type LampInsertStyle, type LampIssue, type LampMetrics, type LampProfile, type LampShadeDef, type LampThreadDef } from "@/lib/maker/lamps/types";
 
 const FAMILY_OPTIONS: { value: LampFamily; label: string }[] = [
   { value: "wavy", label: "Ondulada" },
@@ -198,6 +200,13 @@ function OpenworkThumb({ preset, def, active, onApply }: { preset: OpenworkPrese
 const SHADE_TYPE_OPTIONS: { value: LampShadeType; label: string }[] = [
   { value: "solid", label: "Sólida" },
   { value: "openwork", label: "Calada" },
+  { value: "double", label: "Doble pared" },
+];
+const DOUBLE_OUTER_OPTIONS: { value: DoubleOuterKind; label: string }[] = (Object.keys(DOUBLE_OUTER_LABELS) as DoubleOuterKind[]).map((value) => ({ value, label: DOUBLE_OUTER_LABELS[value] }));
+const DOUBLE_INNER_OPTIONS: { value: DoubleInnerKind; label: string }[] = (Object.keys(DOUBLE_INNER_LABELS) as DoubleInnerKind[]).map((value) => ({ value, label: DOUBLE_INNER_LABELS[value] }));
+const CHAMBER_OPTIONS: { value: LampDoubleWallDef["chamber"]; label: string }[] = [
+  { value: "closed", label: "Cerrada" },
+  { value: "open", label: "Abierta arriba" },
 ];
 const PATTERN_OPTIONS: { value: LampOpenworkDef["pattern"]; label: string }[] = [
   { value: "diamond", label: "Diamante" },
@@ -214,6 +223,58 @@ function isPresetActive(def: LampDefinition, preset: LampPreset): boolean {
   return (Object.keys(r) as (keyof typeof r)[]).every((k) => def.shade[k] === r[k]) && def.shade.topDiameterMm === Math.round(def.shade.bottomDiameterMm * topRatio);
 }
 
+/** Resumen del difusor + ayuda para subir la rosca cuando lo limita la base. Compartido por «Calada» y «Doble pared». */
+function DiffuserPanel({ def, onChange, err, fit, onError }: { def: LampDefinition; onChange: (next: LampDefinition) => void; err: (field: string) => string | undefined; fit: LampMetrics["fit"] | null; onError: (message: string) => void }) {
+  const double = def.shadeType === "double";
+  const cfg = double ? def.doubleWall : def.openwork;
+  const L = LAMP_LIMITS;
+  const setCfg = (patch: { diffuserFit?: "rings" | "manual"; diffuserClearanceMm?: number }) => onChange(double ? { ...def, doubleWall: { ...def.doubleWall, ...patch } } : { ...def, openwork: { ...def.openwork, ...patch } });
+  const clearanceKey = double ? "doubleWall.diffuserClearanceMm" : "openwork.diffuserClearanceMm";
+  const dif = fit?.diffuser ?? null;
+  const raiseThread = () => {
+    const major = suggestThreadMajorForDiffuser(def);
+    if (major === null) onError("No hay un diámetro de rosca de hasta Ø200 mm con el que el difusor deje de estar limitado por la base.");
+    else onChange({ ...def, thread: { ...def.thread, majorDiameterMm: major } });
+  };
+  return (
+    <div className="flex flex-col gap-2 rounded-xl border border-fg/10 bg-fg/[0.03] p-3">
+      <span className="text-xs font-semibold text-gray-500">{double ? "Diámetro del difusor (doble pared)" : "Diámetro del difusor (pantalla calada)"}</span>
+      <SegmentedControl
+        options={[{ value: "rings" as const, label: double ? "Según la abertura" : "Según los anillos" }, { value: "manual" as const, label: "Manual" }]}
+        value={cfg.diffuserFit}
+        onChange={(diffuserFit) => setCfg({ diffuserFit })}
+        compact
+      />
+      {cfg.diffuserFit === "rings" ? (
+        <SliderField label="Holgura diametral" value={cfg.diffuserClearanceMm} min={L[clearanceKey].min} max={L[clearanceKey].max} step={0.1} suffix=" mm" onChange={(v) => setCfg({ diffuserClearanceMm: v })} error={err(clearanceKey)} />
+      ) : (
+        <NumberField label="Ø exterior (montaje)" value={def.insert.diameterMm ?? fit?.insertOuterDiameterMm ?? 65} onChange={(v) => onChange({ ...def, insert: { ...def.insert, diameterMm: v } })} suffix="mm" error={err("insert.diameterMm")} />
+      )}
+      {dif && (
+        <div className="flex flex-col gap-1">
+          {double ? (
+            <InfoRow label="Ø libre de la abertura central (mín. / abajo / arriba)" value={`${fmt(dif.structureMinFreeDiameterMm)} / ${fmt(dif.ringBottomFreeDiameterMm)} / ${fmt(dif.ringTopFreeDiameterMm)} mm`} />
+          ) : (
+            <InfoRow label="Ø libre anillo inferior / superior" value={`${fmt(dif.ringBottomFreeDiameterMm)} / ${fmt(dif.ringTopFreeDiameterMm)} mm`} />
+          )}
+          <InfoRow label="Ø máximo que admite la base" value={`${fmt(dif.baseLimitDiameterMm)} mm`} />
+          <InfoRow label="Ø exterior del difusor" value={`${fmt(dif.diffuserDiameterMm)} mm`} strong />
+          <InfoRow label="Holgura radial inferior / superior" value={`${fmt(dif.radialClearanceBottomMm)} / ${fmt(dif.radialClearanceTopMm)} mm`} />
+          <InfoRow label="Lo limita" value={{ bottomRing: "el anillo inferior", topRing: "el anillo superior", opening: "la abertura central", base: "la base y la rosca", manual: "el valor manual" }[dif.limitedBy]} />
+        </div>
+      )}
+      {dif?.limitedBy === "base" && cfg.diffuserFit === "rings" && (
+        <button type="button" onClick={raiseThread} className="inline-flex h-9 items-center justify-center rounded-xl border border-stampa-orange/40 bg-stampa-orange/10 px-3 text-xs font-semibold text-stampa-accent transition-colors hover:bg-stampa-orange/20">
+          Subir la rosca hasta que el difusor use {double ? "la abertura" : "los anillos"}
+        </button>
+      )}
+      <p className="text-xs text-gray-500">
+        El difusor es un cilindro: no sigue la silueta decorativa. Su diámetro sale del interior LIBRE de {double ? "la abertura central (su punto más angosto)" : "los anillos (la cara interior, no la exterior)"} menos la holgura diametral, que es un valor inicial pendiente de validación física, y nunca supera lo que admite la base. Cambiar solo la forma decorativa no lo modifica. Las lengüetas de extracción no se usan con este ajuste.
+      </p>
+    </div>
+  );
+}
+
 /** Controles de la pantalla CALADA (sección Diseño / Calado). Edita `def.openwork`; las dimensiones compartidas viven en `def.shade`. */
 function OpenworkSection({ def, onChange, err, issues, errors, metrics }: { def: LampDefinition; onChange: (next: LampDefinition) => void; err: (field: string) => string | undefined; issues: LampIssue[]; errors: LampIssue[]; metrics: LampMetrics | null }) {
   const ow = def.openwork;
@@ -221,6 +282,7 @@ function OpenworkSection({ def, onChange, err, issues, errors, metrics }: { def:
   const setShade = (patch: Partial<LampShadeDef>) => onChange({ ...def, shade: { ...def.shade, ...patch } });
   const L = LAMP_LIMITS;
   const rep = metrics?.openwork ?? null;
+  const fitInfo = metrics?.fit.diffuser ?? null;
   const diamond = ow.pattern === "diamond";
   return (
     <>
@@ -236,11 +298,23 @@ function OpenworkSection({ def, onChange, err, issues, errors, metrics }: { def:
       <span className="text-xs font-semibold uppercase tracking-wide text-gray-500">Diseño · silueta</span>
       <SegmentedControl options={SILHOUETTE_OPTIONS} value={"" as SilhouetteKind} onChange={(kind) => onChange(applySilhouette(def, kind))} compact />
       <SliderField label="Altura de la pantalla" value={def.shade.heightMm} min={80} max={320} step={5} suffix=" mm" onChange={(v) => setShade({ heightMm: v })} error={err("shade.heightMm")} />
-      <SliderField label="Diámetro inferior" value={def.shade.bottomDiameterMm} min={100} max={260} step={5} suffix=" mm" onChange={(v) => setShade({ bottomDiameterMm: v })} error={err("shade.bottomDiameterMm")} />
-      <SliderField label="Diámetro superior" value={def.shade.topDiameterMm} min={80} max={280} step={5} suffix=" mm" onChange={(v) => setShade({ topDiameterMm: v })} error={err("shade.topDiameterMm")} />
+      <SliderField label="Diámetro inferior (exterior del anillo)" value={def.shade.bottomDiameterMm} min={60} max={260} step={1} suffix=" mm" onChange={(v) => setShade({ bottomDiameterMm: v })} error={err("shade.bottomDiameterMm")} />
+      <SliderField label="Diámetro superior (exterior del anillo)" value={def.shade.topDiameterMm} min={60} max={280} step={1} suffix=" mm" onChange={(v) => setShade({ topDiameterMm: v })} error={err("shade.topDiameterMm")} />
       <SliderField label="Diámetro máximo (abombado)" value={ow.maxDiameterMm} min={80} max={300} step={5} suffix=" mm" onChange={(v) => set({ maxDiameterMm: v })} error={err("openwork.maxDiameterMm")} />
       <SliderField label="Intensidad de cintura" value={ow.waistPct} min={0} max={100} step={5} suffix="%" onChange={(v) => set({ waistPct: v })} error={err("openwork.waistPct")} />
       <SliderField label="Torsión" value={ow.twistDeg} min={-720} max={720} step={5} suffix="°" onChange={(v) => set({ twistDeg: v })} error={err("openwork.twistDeg")} />
+
+      <span className="text-xs font-semibold uppercase tracking-wide text-gray-500">Anillos y montaje</span>
+      <div className="grid grid-cols-2 gap-3">
+        <NumberField label="Ø interior libre anillo inferior" value={rep && fitInfo ? fitInfo.ringBottomFreeDiameterMm : 0} onChange={(v) => onChange(setRingFreeDiameter(def, "bottom", v))} suffix="mm" error={err("shade.bottomDiameterMm")} />
+        <NumberField label="Ø interior libre anillo superior" value={rep && fitInfo ? fitInfo.ringTopFreeDiameterMm : 0} onChange={(v) => onChange(setRingFreeDiameter(def, "top", v))} suffix="mm" error={err("shade.topDiameterMm")} />
+      </div>
+      <SliderField label="Diámetro de montaje (rosca)" value={def.thread.majorDiameterMm} min={L["thread.majorDiameterMm"].min} max={L["thread.majorDiameterMm"].max} step={1} suffix=" mm" onChange={(v) => onChange({ ...def, thread: { ...def.thread, majorDiameterMm: v } })} error={err("thread.majorDiameterMm")} />
+      {fitInfo && (
+        <p className="text-xs text-gray-500">
+          Difusor compatible: <span className="font-semibold text-gray-300">Ø {fmt(fitInfo.diffuserDiameterMm)} mm</span> (holgura diametral {fmt(fitInfo.diametralClearanceMm)} mm; lo limita {{ bottomRing: "el anillo inferior", topRing: "el anillo superior", opening: "la abertura central", base: "la base y la rosca", manual: "el valor manual" }[fitInfo.limitedBy]}). Se ajusta en «2 · Inserto de color». El difusor no cambia con el Ø máximo decorativo.
+        </p>
+      )}
 
       <span className="text-xs font-semibold uppercase tracking-wide text-gray-500">Calado</span>
       {diamond ? (
@@ -287,6 +361,78 @@ function OpenworkSection({ def, onChange, err, issues, errors, metrics }: { def:
           <InfoRow label="Inclinación máx. de una tira" value={`${fmt(rep.maxStripLeanDeg)}° de la vertical`} />
           {rep.diamondsAround !== null && <InfoRow label="Rombos" value={`${rep.diamondsAround} alrededor · ${rep.diamondRows ?? 0} filas`} />}
           <InfoRow label="Pieza" value={rep.components === 1 ? "Una sola pieza conectada" : `${rep.components} piezas sueltas`} strong={rep.components !== 1} />
+          <InfoRow label="Triángulos de la pantalla" value={metrics ? metrics.shade.triangleCount.toLocaleString("es-AR") : "—"} />
+        </div>
+      )}
+      {issues.map((i, k) => (
+        <p key={`${i.code}-${k}`} className={`text-xs ${errors.includes(i) ? "text-red-400" : "text-amber-300"}`}>{i.message}</p>
+      ))}
+    </>
+  );
+}
+
+/** Controles de la pantalla de DOBLE PARED (sección Diseño). Edita `def.doubleWall`; altura y diámetros de la pared exterior viven en `def.shade`. */
+function DoubleWallSection({ def, onChange, err, issues, errors, metrics }: { def: LampDefinition; onChange: (next: LampDefinition) => void; err: (field: string) => string | undefined; issues: LampIssue[]; errors: LampIssue[]; metrics: LampMetrics | null }) {
+  const d = def.doubleWall;
+  const set = (patch: Partial<LampDoubleWallDef>) => onChange({ ...def, doubleWall: { ...d, ...patch } });
+  const setShade = (patch: Partial<LampShadeDef>) => onChange({ ...def, shade: { ...def.shade, ...patch } });
+  const rep = metrics?.doubleWall ?? null;
+  const L = LAMP_LIMITS;
+  return (
+    <>
+      <p className="text-xs text-gray-500">
+        Dos paredes concéntricas con siluetas distintas y una cámara de aire entre ellas, unidas abajo por un piso macizo y arriba por un techo inclinado. La abertura central (bombilla, portalámparas y difusor) queda libre. Al elegir este tipo, los diámetros de los extremos de la pared exterior se llevan al mínimo que respeta la separación pedida.
+      </p>
+      <span className="text-xs font-semibold text-gray-500">Fabricación</span>
+      <SegmentedControl options={[{ value: "conventional" as const, label: "Convencional" }]} value={d.fabrication} onChange={() => set({ fabrication: "conventional" })} compact />
+      <p className="text-xs text-gray-500">Modo jarrón: experimental y todavía no disponible (no se verificó con un laminador que una trayectoria espiral recorra ambas paredes; ver docs/STAMPA_MAKER_DOUBLE_WALL.md).</p>
+
+      <span className="text-xs font-semibold uppercase tracking-wide text-gray-500">Pared exterior</span>
+      <SegmentedControl options={DOUBLE_OUTER_OPTIONS} value={"" as DoubleOuterKind} onChange={(kind) => onChange(applyDoubleOuterShape(def, kind))} compact />
+      <SliderField label="Altura" value={def.shade.heightMm} min={80} max={320} step={5} suffix=" mm" onChange={(v) => setShade({ heightMm: v })} error={err("shade.heightMm")} />
+      <SliderField label="Diámetro inferior" value={def.shade.bottomDiameterMm} min={100} max={300} step={1} suffix=" mm" onChange={(v) => setShade({ bottomDiameterMm: v })} error={err("shade.bottomDiameterMm")} />
+      <SliderField label="Diámetro superior" value={def.shade.topDiameterMm} min={100} max={300} step={1} suffix=" mm" onChange={(v) => setShade({ topDiameterMm: v })} error={err("shade.topDiameterMm")} />
+      <SliderField label="Diámetro máximo (abombado)" value={d.maxDiameterMm} min={100} max={340} step={5} suffix=" mm" onChange={(v) => set({ maxDiameterMm: v })} error={err("doubleWall.maxDiameterMm")} />
+      <SliderField label="Estrías / ondulaciones (cantidad)" value={d.flutes} min={L["doubleWall.flutes"].min} max={L["doubleWall.flutes"].max} step={1} onChange={(v) => set({ flutes: Math.round(v) })} error={err("doubleWall.flutes")} />
+      <SliderField label="Profundidad de las estrías" value={d.fluteAmplitudeMm} min={0} max={L["doubleWall.fluteAmplitudeMm"].max} step={0.5} suffix=" mm" onChange={(v) => set({ fluteAmplitudeMm: v })} error={err("doubleWall.fluteAmplitudeMm")} />
+      <SliderField label="Torsión" value={d.twistDeg} min={-720} max={720} step={5} suffix="°" onChange={(v) => set({ twistDeg: v })} error={err("doubleWall.twistDeg")} />
+
+      <span className="text-xs font-semibold uppercase tracking-wide text-gray-500">Pared interior</span>
+      <SegmentedControl options={DOUBLE_INNER_OPTIONS} value={"" as DoubleInnerKind} onChange={(kind) => onChange(applyDoubleInnerShape(def, kind))} compact />
+      <SliderField label="Diámetro inferior" value={d.innerBottomDiameterMm} min={L["doubleWall.innerBottomDiameterMm"].min} max={L["doubleWall.innerBottomDiameterMm"].max} step={1} suffix=" mm" onChange={(v) => set({ innerBottomDiameterMm: v })} error={err("doubleWall.innerBottomDiameterMm")} />
+      <SliderField label="Diámetro superior" value={d.innerTopDiameterMm} min={L["doubleWall.innerTopDiameterMm"].min} max={L["doubleWall.innerTopDiameterMm"].max} step={1} suffix=" mm" onChange={(v) => set({ innerTopDiameterMm: v })} error={err("doubleWall.innerTopDiameterMm")} />
+      <SliderField label="Intensidad de cintura" value={d.innerWaistPct} min={0} max={100} step={5} suffix="%" onChange={(v) => set({ innerWaistPct: v })} error={err("doubleWall.innerWaistPct")} />
+      <SliderField label="Separación mínima entre paredes" value={d.minGapMm} min={L["doubleWall.minGapMm"].min} max={60} step={1} suffix=" mm" onChange={(v) => set({ minGapMm: v })} error={err("doubleWall.minGapMm")} />
+      {rep && (
+        <p className="text-xs text-gray-500">
+          Separación medida sobre las superficies reales (estrías incluidas): <span className="font-semibold text-gray-300">{fmt(rep.minGapMm)} mm</span> a {fmt(rep.minGapAtZ)} mm de altura (exigida {fmt(rep.requiredGapMm)} mm).
+        </p>
+      )}
+
+      <Details title="Opciones avanzadas de la doble pared">
+        <SliderField label="Posición del ensanchamiento" value={d.bulgePositionPct} min={10} max={90} step={5} suffix="%" onChange={(v) => set({ bulgePositionPct: v })} error={err("doubleWall.bulgePositionPct")} />
+        <SliderField label="Curvatura de la pared exterior" value={d.curvaturePct} min={0} max={100} step={5} suffix="%" onChange={(v) => set({ curvaturePct: v })} error={err("doubleWall.curvaturePct")} />
+        <SliderField label="Posición de la cintura interior" value={d.innerWaistPositionPct} min={10} max={90} step={5} suffix="%" onChange={(v) => set({ innerWaistPositionPct: v })} error={err("doubleWall.innerWaistPositionPct")} />
+        <SliderField label="Curvatura de la pared interior" value={d.innerCurvaturePct} min={0} max={100} step={5} suffix="%" onChange={(v) => set({ innerCurvaturePct: v })} error={err("doubleWall.innerCurvaturePct")} />
+        <SliderField label="Variación orgánica interior" value={d.innerOrganicPct} min={0} max={100} step={5} suffix="%" onChange={(v) => set({ innerOrganicPct: v })} error={err("doubleWall.innerOrganicPct")} />
+        <span className="text-xs font-semibold text-gray-500">Cámara entre las paredes</span>
+        <SegmentedControl options={CHAMBER_OPTIONS} value={d.chamber} onChange={(chamber) => set({ chamber })} compact />
+        <div className="grid grid-cols-2 gap-3">
+          <NumberField label="Espesor de las paredes" value={d.wallMm} onChange={(v) => set({ wallMm: v })} suffix="mm" error={err("doubleWall.wallMm")} />
+          <NumberField label="Piso (unión inferior)" value={d.floorMm} onChange={(v) => set({ floorMm: v })} suffix="mm" error={err("doubleWall.floorMm")} />
+          <NumberField label="Altura del techo inclinado" value={d.roofHeightMm} onChange={(v) => set({ roofHeightMm: v })} suffix="mm" error={err("doubleWall.roofHeightMm")} />
+          <NumberField label="Rim superior" value={d.roofCapMm} onChange={(v) => set({ roofCapMm: v })} suffix="mm" error={err("doubleWall.roofCapMm")} />
+          <NumberField label="Ancho final de la cámara" value={d.topGapMm} onChange={(v) => set({ topGapMm: v })} suffix="mm" error={err("doubleWall.topGapMm")} />
+        </div>
+      </Details>
+
+      {rep && (
+        <div className="flex flex-col gap-1 rounded-xl border border-fg/10 bg-fg/[0.03] p-3">
+          <InfoRow label="Abertura central (mín. / abajo / arriba)" value={`${fmt(rep.openingMinDiameterMm)} / ${fmt(rep.openingBottomDiameterMm)} / ${fmt(rep.openingTopDiameterMm)} mm`} />
+          <InfoRow label="Unión inferior (piso)" value={`${fmt(rep.floorTopMm)} mm macizos`} />
+          <InfoRow label="Unión superior" value={rep.chamberClosed ? `techo inclinado + cielorraso (${fmt(d.roofCapMm)} mm)` : "techo inclinado, ranura abierta"} />
+          <InfoRow label="Inclinación máx. de una cara" value={`${fmt(rep.maxLeanDeg)}° de la vertical`} />
+          <InfoRow label="Cuerpos / cavidades cerradas" value={`${rep.solidBodies} / ${rep.cavities}`} strong={rep.solidBodies !== 1} />
           <InfoRow label="Triángulos de la pantalla" value={metrics ? metrics.shade.triangleCount.toLocaleString("es-AR") : "—"} />
         </div>
       )}
@@ -357,8 +503,10 @@ export function MakerLampControls({ def, onChange, onApplyPreset, onGenerateVari
         <SectionLabel>1 · Pantalla exterior</SectionLabel>
         <span className="text-xs font-semibold text-gray-500">Tipo de pantalla</span>
         <SegmentedControl options={SHADE_TYPE_OPTIONS} value={def.shadeType} onChange={(type) => onChange(applyShadeType(def, type))} compact />
-        {def.shadeType === "openwork" ? (
-          <OpenworkSection def={def} onChange={onChange} err={err} issues={issuesFor((i) => !!i.field?.startsWith("openwork.") || i.code.startsWith("OPENWORK_"))} errors={errors} metrics={metrics} />
+        {def.shadeType === "double" ? (
+          <DoubleWallSection def={def} onChange={onChange} err={err} issues={issuesFor((i) => !!i.field?.startsWith("doubleWall.") || i.code.startsWith("DW_") || i.code.startsWith("DOUBLE_WALL_"))} errors={errors} metrics={metrics} />
+        ) : def.shadeType === "openwork" ? (
+          <OpenworkSection def={def} onChange={onChange} err={err} issues={issuesFor((i) => !!i.field?.startsWith("openwork.") || i.code.startsWith("OPENWORK_") || i.code === "FLARE_INWARD")} errors={errors} metrics={metrics} />
         ) : (
         <>
         <div className="grid grid-cols-3 gap-2">
@@ -403,7 +551,7 @@ export function MakerLampControls({ def, onChange, onApplyPreset, onGenerateVari
         ))}
         </>
         )}
-        {def.shadeType === "openwork" && issuesFor((i) => i.code.startsWith("SHADE_")).map((i, k) => (
+        {def.shadeType !== "solid" && issuesFor((i) => i.code.startsWith("SHADE_")).map((i, k) => (
           <p key={`${i.code}-${k}`} className={`text-xs ${errors.includes(i) ? "text-red-400" : "text-amber-300"}`}>{i.message}</p>
         ))}
       </section>
@@ -443,32 +591,9 @@ export function MakerLampControls({ def, onChange, onApplyPreset, onGenerateVari
               </label>
             </div>
             <p className="text-xs text-gray-500">El color del visor es una aproximación visual, no una simulación fotométrica ni de la distribución de la luz. La luz real depende del filamento, su espesor y la bombilla.</p>
-            {def.shadeType === "openwork" && (
-              <div className="flex flex-col gap-2 rounded-xl border border-fg/10 bg-fg/[0.03] p-3">
-                <span className="text-xs font-semibold text-gray-500">Diámetro del difusor (pantalla calada)</span>
-                <SegmentedControl
-                  options={[{ value: "rings" as const, label: "Según los anillos" }, { value: "manual" as const, label: "Manual" }]}
-                  value={def.openwork.diffuserFit}
-                  onChange={(diffuserFit) => onChange({ ...def, openwork: { ...def.openwork, diffuserFit } })}
-                  compact
-                />
-                {def.openwork.diffuserFit === "rings" && (
-                  <SliderField label="Holgura diametral" value={def.openwork.diffuserClearanceMm} min={L["openwork.diffuserClearanceMm"].min} max={L["openwork.diffuserClearanceMm"].max} step={0.1} suffix=" mm" onChange={(v) => onChange({ ...def, openwork: { ...def.openwork, diffuserClearanceMm: v } })} error={err("openwork.diffuserClearanceMm")} />
-                )}
-                {fit?.diffuser && (
-                  <div className="flex flex-col gap-1">
-                    <InfoRow label="Ø libre anillo inferior / superior" value={`${fmt(fit.diffuser.ringBottomFreeDiameterMm)} / ${fmt(fit.diffuser.ringTopFreeDiameterMm)} mm`} />
-                    <InfoRow label="Ø máximo que admite la base" value={`${fmt(fit.diffuser.baseLimitDiameterMm)} mm`} />
-                    <InfoRow label="Ø exterior del difusor" value={`${fmt(fit.diffuser.diffuserDiameterMm)} mm`} strong />
-                    <InfoRow label="Holgura radial inferior / superior" value={`${fmt(fit.diffuser.radialClearanceBottomMm)} / ${fmt(fit.diffuser.radialClearanceTopMm)} mm`} />
-                    <InfoRow label="Lo limita" value={{ bottomRing: "el anillo inferior", topRing: "el anillo superior", base: "la base y la rosca", manual: "el valor manual" }[fit.diffuser.limitedBy]} />
-                  </div>
-                )}
-                <p className="text-xs text-gray-500">El difusor es un cilindro: no sigue la silueta abombada. Su diámetro sale del interior LIBRE de los anillos (la cara interior, no la exterior) menos la holgura diametral, que es un valor inicial pendiente de validación física. Las lengüetas de extracción no se usan con este ajuste.</p>
-              </div>
-            )}
+            {def.shadeType !== "solid" && <DiffuserPanel def={def} onChange={onChange} err={err} fit={fit} onError={onError} />}
             <div className="grid grid-cols-2 gap-3">
-              {(def.shadeType !== "openwork" || def.openwork.diffuserFit === "manual") && (
+              {def.shadeType === "solid" && (
                 <NumberField label="Ø exterior (montaje)" value={def.insert.diameterMm ?? fit?.insertOuterDiameterMm ?? 65} onChange={(v) => setInsert({ diameterMm: v })} suffix="mm" error={err("insert.diameterMm")} />
               )}
               <NumberField label="Espesor de pared" value={def.insert.thicknessMm} onChange={(v) => setInsert({ thicknessMm: v })} suffix="mm" error={err("insert.thicknessMm")} />
@@ -633,7 +758,7 @@ export function MakerLampControls({ def, onChange, onApplyPreset, onGenerateVari
 
         <span className="mt-1 text-xs font-semibold text-gray-500">Modo de impresión</span>
         <div className="flex flex-col gap-1.5 rounded-xl border border-fg/10 bg-fg/[0.03] p-3">
-          <InfoRow label="Pantalla" value={metrics ? (def.shadeType === "openwork" ? "Impresión convencional (calada)" : def.thread.connection === "integrated" ? "Impresión convencional (rosca integrada)" : metrics.shade.vase.ready ? "Apta para modo vaso*" : `No apta para modo vaso (${fmt(metrics.shade.vase.maxOverhangDeg)}°)`) : "—"} strong={metrics?.shade.vase.ready && def.thread.connection === "collar"} />
+          <InfoRow label="Pantalla" value={metrics ? (def.shadeType === "double" ? "Impresión convencional (doble pared)" : def.shadeType === "openwork" ? "Impresión convencional (calada)" : def.thread.connection === "integrated" ? "Impresión convencional (rosca integrada)" : metrics.shade.vase.ready ? "Apta para modo vaso*" : `No apta para modo vaso (${fmt(metrics.shade.vase.maxOverhangDeg)}°)`) : "—"} strong={metrics?.shade.vase.ready && def.thread.connection === "collar"} />
           {def.thread.connection === "collar" && <InfoRow label="Collar roscado" value={metrics?.collar ? "Impresión convencional" : "—"} />}
           <InfoRow label={`Inserto ${INSERT_STYLE_LABELS[def.insert.style].toLowerCase()}`} value={metrics?.insert ? (metrics.insert.vaseCapable ? "Modo vaso posible" : def.insert.style === "drop" ? "Convencional, parado (brim si hace falta)" : "Convencional, invertido") : "—"} />
           <InfoRow label="Base" value={metrics ? "Impresión convencional" : "—"} />

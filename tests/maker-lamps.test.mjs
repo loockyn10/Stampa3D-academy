@@ -956,7 +956,7 @@ test("límites: cada campo numérico fuera de rango se rechaza con su propio cam
   for (const [key, limit] of Object.entries(LAMP_LIMITS)) {
     const [group, name] = key.split(".");
     for (const value of [limit.min - 1, limit.max + 1]) {
-      const def = { ...DEFAULT_LAMP, ...(group === "openwork" ? { shadeType: "openwork" } : {}), [group]: { ...DEFAULT_LAMP[group], [name]: value } };
+      const def = { ...DEFAULT_LAMP, ...(group === "openwork" ? { shadeType: "openwork" } : group === "doubleWall" ? { shadeType: "double" } : {}), [group]: { ...DEFAULT_LAMP[group], [name]: value } };
       const v = validateLamp(def);
       assert.ok(v.errors.some((e) => e.field === key && e.code === "OUT_OF_RANGE"), `${key}=${value}`);
       assert.equal(v.field, null);

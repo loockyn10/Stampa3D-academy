@@ -1,5 +1,7 @@
 import { flangeInnerRings, maleThreadRings, ringLoopMesh, type Ring } from "@/lib/maker/lamps/geometry/ringLoop";
 import type { LampLayout } from "@/lib/maker/lamps/layout";
+import { createDoubleWallShadeMesh } from "@/lib/maker/lamps/doublewall/buildShade";
+import type { DoubleWallField } from "@/lib/maker/lamps/doublewall/field";
 import { cutShellMesh, type CutRing } from "@/lib/maker/lamps/openwork/cutShell";
 import type { OpenworkField } from "@/lib/maker/lamps/openwork/field";
 import type { ShadeField } from "@/lib/maker/lamps/shade/surface";
@@ -20,6 +22,10 @@ function decorRings(field: ShadeField, zOffset: number, skin: "outer" | "inner")
 
 export function isOpenworkField(field: ShadeField): field is OpenworkField {
   return "f" in field && "latticeRowFrom" in field;
+}
+
+export function isDoubleWallField(field: ShadeField): field is DoubleWallField {
+  return "params" in field && "ringFree" in field && "gap" in field;
 }
 
 /** Anillos de la parte decorativa CALADA: una fila por altura, con el campo de corte de esa fila (vista del mismo arreglo en las dos pieles). */
@@ -50,6 +56,13 @@ function createOpenworkShadeMesh(def: LampDefinition, field: OpenworkField, layo
   const zBottom = layout.ledgeZ;
   const innerFlareTopR = bottomR - wallRad;
   const innerConeBottomZ = layout.decorZ0 - (innerFlareTopR - spec.boreR) * Math.tan((g.flareDeg * Math.PI) / 180);
+  // Transición hacia ADENTRO (anillos más angostos que la raíz de la rosca): la cara exterior se inclina 45° hacia el eje; la interior es la
+  // exterior desplazada `wallRad` y se corta recta contra el orificio del cuello (abajo) y contra la cara interior del anillo (arriba),
+  // así el libre del anillo no tiene escalón y el difusor pasa de punta a punta.
+  const inward = bottomR < spec.rootR;
+  const ringInnerR = field.rowRin[0];
+  const coneTopZ = layout.neckTopZ + spec.rootR - wallRad - ringInnerR;
+  const coneBottomZ = layout.neckTopZ + spec.rootR - wallRad - spec.boreR;
 
   const outer: CutRing[] = [
     ...maleThreadRings(spec, zBottom, nTheta, g.threadRowsPerPitch),
@@ -58,8 +71,9 @@ function createOpenworkShadeMesh(def: LampDefinition, field: OpenworkField, layo
   ];
   const inner: CutRing[] = [
     ...openworkDecorRings(field, layout.decorZ0, "inner"),
-    { z: layout.decorZ0, r: innerFlareTopR },
-    { z: innerConeBottomZ, r: spec.boreR },
+    ...(inward
+      ? [{ z: coneTopZ, r: ringInnerR }, { z: coneBottomZ, r: spec.boreR }]
+      : [{ z: layout.decorZ0, r: innerFlareTopR }, { z: innerConeBottomZ, r: spec.boreR }]),
     ...flangeInnerRings(layout, zBottom),
   ];
   return cutShellMesh(outer, inner, nTheta);
@@ -83,6 +97,10 @@ function createOpenworkShadeMesh(def: LampDefinition, field: OpenworkField, layo
  * Todo en coordenadas de ensamblado: el borde inferior del cuello apoya en el tope de la base (`layout.ledgeZ`).
  */
 export function createShadeMesh(def: LampDefinition, field: ShadeField, layout: LampLayout): IndexedMesh {
+  if (def.shadeType === "double") {
+    if (!isDoubleWallField(field)) throw new Error("createShadeMesh: la doble pared necesita su campo.");
+    return createDoubleWallShadeMesh(def, field, layout);
+  }
   if (def.shadeType === "openwork") {
     if (!isOpenworkField(field)) throw new Error("createShadeMesh: la pantalla calada necesita el campo de aberturas.");
     return createOpenworkShadeMesh(def, field, layout);

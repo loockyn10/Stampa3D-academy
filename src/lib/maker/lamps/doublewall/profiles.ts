@@ -21,8 +21,11 @@ export type DoubleWallStrategy = "vase-c" | "conventional";
 export interface OuterWallParams {
   /** Diámetro máximo de las crestas de las estrías (mm). */
   maxDiameterMm: number;
-  /** Diámetro de las crestas en el borde inferior y superior (mm). */
+  /** Diámetro de las crestas en el borde inferior (mm) y en el superior (`topDiameterMm`; por defecto el mismo). */
   endDiameterMm: number;
+  topDiameterMm?: number;
+  /** Las estrías nacen desde 0 a esta altura (mm) para que la cara exterior arranque circular y empalme con la transición de la rosca. 0 = estrías desde el borde. */
+  fluteFadeMm?: number;
   bulgePositionPct: number;
   curvaturePct: number;
   /** Cantidad de estrías, profundidad cresta–valle (mm) y torsión total (grados). */
@@ -32,8 +35,12 @@ export interface OuterWallParams {
 }
 
 export interface InnerWallParams {
-  /** Diámetro (cara que mira a la cámara) en los bordes inferior y superior (mm). */
+  /** Diámetro (cara que mira a la cámara) en el borde inferior (mm) y en el superior (`topDiameterMm`; por defecto el mismo: cilíndrica; distinto: cónica). */
   endDiameterMm: number;
+  topDiameterMm?: number;
+  /** 0-100: cambios suaves de diámetro a distintas alturas (silueta orgánica) y su semilla. */
+  organicPct?: number;
+  seed?: number;
   /** 0-100: intensidad de la cintura y posición relativa de la cintura. */
   waistPct: number;
   waistPositionPct: number;
@@ -109,14 +116,30 @@ export function createDoubleWallSurfaces(p: DoubleWallParams): (z: number) => Wa
   const H = p.heightMm;
   const t = p.wallMm;
   const o = p.outer;
-  const outerSil = createSilhouette({ bottomDiameterMm: o.endDiameterMm, topDiameterMm: o.endDiameterMm, maxDiameterMm: o.maxDiameterMm, bulgePositionPct: o.bulgePositionPct, curvaturePct: o.curvaturePct, waistPct: 0, organicPct: 0, seed: 0 });
+  const outerSil = createSilhouette({ bottomDiameterMm: o.endDiameterMm, topDiameterMm: o.topDiameterMm ?? o.endDiameterMm, maxDiameterMm: o.maxDiameterMm, bulgePositionPct: o.bulgePositionPct, curvaturePct: o.curvaturePct, waistPct: 0, organicPct: 0, seed: 0 });
   const i = p.inner;
-  const innerSil = createSilhouette({ bottomDiameterMm: i.endDiameterMm, topDiameterMm: i.endDiameterMm, maxDiameterMm: i.endDiameterMm, bulgePositionPct: i.waistPositionPct, curvaturePct: i.curvaturePct, waistPct: i.waistPct, organicPct: 0, seed: 0 });
+  // sin abombado: el diámetro máximo es el de la recta entre los dos bordes en la posición de la cintura (cilindro si son iguales, cono si no)
+  const iBottom = i.endDiameterMm, iTop = i.topDiameterMm ?? i.endDiameterMm;
+  const iUp = Math.min(0.95, Math.max(0.05, i.waistPositionPct / 100));
+  const innerSil = createSilhouette({ bottomDiameterMm: iBottom, topDiameterMm: iTop, maxDiameterMm: iBottom + (iTop - iBottom) * iUp, bulgePositionPct: i.waistPositionPct, curvaturePct: i.curvaturePct, waistPct: i.waistPct, organicPct: i.organicPct ?? 0, seed: i.seed ?? 0 });
+  const fade = o.fluteFadeMm ?? 0;
+  const smooth01 = (x: number) => {
+    const t = Math.min(1, Math.max(0, x));
+    return t * t * (3 - 2 * t);
+  };
   const h = H * 0.004;
   const twist = (o.twistDeg * Math.PI) / 180;
-  const A = o.fluteAmplitudeMm;
+  const A0 = o.fluteAmplitudeMm;
   const n = o.flutes;
   const zones = doubleWallZones(p);
+  /** Amplitud de las estrías a la altura z y su derivada (nacen suavemente desde el borde inferior si hay `fluteFadeMm`). */
+  const ampAt = (z: number): [number, number] => {
+    if (fade <= 0) return [A0, 0];
+    const x = z / fade;
+    if (x >= 1) return [A0, 0];
+    if (x <= 0) return [0, 0];
+    return [A0 * smooth01(x), (A0 * 6 * x * (1 - x)) / fade];
+  };
 
   const rawAt = (z: number) => {
     const u = Math.min(1, Math.max(0, z / H));
@@ -127,18 +150,22 @@ export function createDoubleWallSurfaces(p: DoubleWallParams): (z: number) => Wa
     const rioZ = (innerSil(hi) - innerSil(lo)) / ((hi - lo) * H);
     return { u, crest, crestZ, rio, rioZ };
   };
-  const ro0 = (crest: number, theta: number, u: number) => crest - A / 2 + (A / 2) * Math.cos(n * (theta - twist * u));
-  const roi0 = (crest: number, crestZ: number, theta: number, u: number) => {
+  const ro0 = (crest: number, theta: number, u: number, z: number) => {
+    const [A] = ampAt(z);
+    return crest - A / 2 + (A / 2) * Math.cos(n * (theta - twist * u));
+  };
+  const roi0 = (crest: number, crestZ: number, theta: number, u: number, z: number) => {
+    const [A, dA] = ampAt(z);
     const phi = n * (theta - twist * u);
     const r = crest - A / 2 + (A / 2) * Math.cos(phi);
     const rTheta = -(A / 2) * n * Math.sin(phi);
-    const rZ = crestZ + (A / 2) * n * (twist / H) * Math.sin(phi);
+    const rZ = crestZ - dA / 2 + (dA / 2) * Math.cos(phi) + (A / 2) * n * (twist / H) * Math.sin(phi);
     return r - t * Math.sqrt(1 + (rTheta / r) ** 2 + rZ * rZ);
   };
 
   // Radio de encuentro del techo: punto medio entre la cara de la cámara de la pared exterior (a media estría) y la de la interior, donde arrancan las inclinaciones.
   const r0 = rawAt(zones.roofStart);
-  const rm = (r0.crest - A / 2 - t + r0.rio) / 2;
+  const rm = (r0.crest - ampAt(zones.roofStart)[0] / 2 - t + r0.rio) / 2;
   const hg = p.topGapMm / 2;
   const smooth = (x: number) => {
     const s = Math.min(1, Math.max(0, x));
@@ -154,8 +181,8 @@ export function createDoubleWallSurfaces(p: DoubleWallParams): (z: number) => Wa
       z,
       crest,
       roof: e,
-      ro: (theta) => lerp(ro0(crest, theta, u), rm + hg + t),
-      roi: (theta) => lerp(roi0(crest, crestZ, theta, u), rm + hg),
+      ro: (theta) => lerp(ro0(crest, theta, u, z), rm + hg + t),
+      roi: (theta) => lerp(roi0(crest, crestZ, theta, u, z), rm + hg),
       rio: lerp(rio, rm - hg),
       rii: lerp(rii0, rm - hg - t),
     };

@@ -25,6 +25,9 @@ export const LAMP_ADHESION_UNVERIFIED_MESSAGE =
 export const LAMP_OPENWORK_MESSAGE =
   "Pantalla CALADA: las aberturas dejan pasar luz y aire, pero eso NO es una validación térmica ni eléctrica. Una pantalla calada no vuelve segura ninguna combinación de bombilla, portalámparas y filamento: la temperatura, la estabilidad y el ensamblaje siguen PENDIENTES DE VALIDACIÓN FÍSICA con el conjunto impreso.";
 
+export const LAMP_DOUBLE_WALL_CLOSED_MESSAGE =
+  "Cámara CERRADA: queda una cavidad interna de aire sin acceso (el piso la cierra abajo y el cielorraso arriba). Es imprimible sin soportes solo si el laminador acepta el techo inclinado y el cielorraso de pocos milímetros: confirmalo en el laminador antes de imprimir; no está validado.";
+
 export const LAMP_SAFETY_NOTICES: readonly string[] = [
   "Usá un portalámparas E27 comercial certificado y una bombilla LED compatible con él. Nada eléctrico se imprime en 3D: ni contactos, ni roscas energizadas, ni conexiones a la red.",
   "Esta herramienta no da instrucciones de cableado de red. El cableado lo debe hacer una persona calificada, siguiendo las instrucciones del fabricante del portalámparas y la normativa vigente.",

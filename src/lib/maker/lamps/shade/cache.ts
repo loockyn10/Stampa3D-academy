@@ -1,3 +1,4 @@
+import { doubleWallKey, sampleDoubleWallField } from "@/lib/maker/lamps/doublewall/field";
 import { openworkKey, sampleOpenworkField } from "@/lib/maker/lamps/openwork/field";
 import { sampleShadeField, shadeKey, type ShadeField } from "@/lib/maker/lamps/shade/surface";
 import type { LampDefinition, LampShadeDef } from "@/lib/maker/lamps/types";
@@ -25,6 +26,7 @@ export function getShadeField(shade: LampShadeDef): ShadeField {
 
 /** Campo de la pantalla activa de la definición (sólida u calada). Solo depende de lo que cambia la superficie. */
 export function getLampField(def: LampDefinition): ShadeField {
+  if (def.shadeType === "double") return remember(`double|${doubleWallKey(def)}`, () => sampleDoubleWallField(def));
   if (def.shadeType === "openwork") return remember(`openwork|${openworkKey(def.shade, def.openwork)}`, () => sampleOpenworkField(def.shade, def.openwork));
   return getShadeField(def.shade);
 }

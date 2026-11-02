@@ -3,7 +3,8 @@ import type { LampLayout } from "@/lib/maker/lamps/layout";
 import { createBaseMesh } from "@/lib/maker/lamps/parts/createBase";
 import { createCollarMesh } from "@/lib/maker/lamps/parts/createCollar";
 import { createInsertMesh } from "@/lib/maker/lamps/parts/createInsert";
-import { createShadeMesh, isOpenworkField } from "@/lib/maker/lamps/parts/createShade";
+import { shellReport } from "@/lib/maker/lamps/doublewall/sliceAnalysis";
+import { createShadeMesh, isDoubleWallField, isOpenworkField } from "@/lib/maker/lamps/parts/createShade";
 import type { ShadeField } from "@/lib/maker/lamps/shade/surface";
 import { LAMP_GEOMETRY } from "@/lib/maker/lamps/types";
 import type { LampDefinition, LampMetrics, LampPartMetrics, LampResult } from "@/lib/maker/lamps/types";
@@ -30,6 +31,8 @@ interface BuiltPart {
   metrics: LampPartMetrics;
   /** Componentes conexas de la malla (1 = pieza única). Solo se calcula para la pantalla calada. */
   components?: number;
+  /** Cuerpos sólidos y cavidades internas (superficies con volumen negativo). Solo para la doble pared. */
+  shells?: { solidBodies: number; cavities: number };
 }
 
 /** Componentes conexas de una malla indexada (unión-búsqueda sobre los vértices realmente usados). */
@@ -100,11 +103,14 @@ function finishPart(indexed: IndexedMesh): BuiltPart {
 /** La pantalla depende de su superficie, de la interfaz roscada y de su posición de ensamblado (la fase de la rosca sale de la z). */
 function shadePart(def: LampDefinition, field: ShadeField, layout: LampLayout): BuiltPart {
   const openwork = def.shadeType === "openwork";
-  // La superficie de la pantalla calada depende de las dimensiones compartidas y de `openwork`; la sólida, de `shade`. Lo del otro tipo no entra en la clave.
-  const surface = openwork ? [def.shade.heightMm, def.shade.bottomDiameterMm, def.shade.topDiameterMm, def.openwork] : def.shade;
-  return cached(`shade|${openwork ? "ow" : "solid"}|${JSON.stringify([surface, def.thread, layout.ledgeZ, layout.decorZ0, layout.adhesion])}`, () => {
+  const double = def.shadeType === "double";
+  // La superficie de cada tipo de pantalla depende de las dimensiones compartidas y de SUS parámetros; lo del otro tipo no entra en la clave.
+  const dims = [def.shade.heightMm, def.shade.bottomDiameterMm, def.shade.topDiameterMm];
+  const surface = double ? [...dims, def.doubleWall] : openwork ? [...dims, def.openwork] : def.shade;
+  return cached(`shade|${double ? "dw" : openwork ? "ow" : "solid"}|${JSON.stringify([surface, def.thread, layout.ledgeZ, layout.decorZ0, layout.adhesion])}`, () => {
     const built = finishPart(createShadeMesh(def, field, layout));
     if (openwork) built.components = meshComponents(built.indexed);
+    if (double) built.shells = shellReport(built.indexed);
     return built;
   });
 }
@@ -152,6 +158,12 @@ export function createLamp(def: LampDefinition, opts: CreateLampOptions = {}): L
   if (def.shadeType === "openwork" && shade.components !== undefined && shade.components !== 1) {
     errors.push({ code: "OPENWORK_DISCONNECTED", message: `La pantalla calada quedó en ${shade.components} piezas sueltas: la estructura no está conectada y no se exporta. Reducí el ancho de las aberturas o aumentá el ancho de las tiras / los anillos de unión.` });
   }
+  if (def.shadeType === "double" && shade.shells) {
+    const expectedCavities = def.doubleWall.chamber === "closed" ? 1 : 0;
+    if (shade.shells.solidBodies !== 1 || shade.shells.cavities !== expectedCavities) {
+      errors.push({ code: "DOUBLE_WALL_TOPOLOGY", message: `La pantalla de doble pared quedó con ${shade.shells.solidBodies} cuerpo(s) y ${shade.shells.cavities} cavidad(es) (se esperaba 1 y ${expectedCavities}): las uniones no son una única geometría y no se exporta.` });
+    }
+  }
   for (const [name, part] of [["la pantalla", shade], ["el cilindro", insert], ["el collar", collar], ["la base", base]] as const) {
     if (part && !part.metrics.watertight) errors.push({ code: "MESH_NOT_WATERTIGHT", message: `La malla de ${name} no quedó cerrada: no se exporta. Cambiá levemente los parámetros.` });
   }
@@ -192,6 +204,25 @@ export function createLamp(def: LampDefinition, opts: CreateLampOptions = {}): L
     maxDiameterMm: Math.max(bb.width, bb.depth),
     shade: { ...shade.metrics, vase, maxTiltDeg: field.maxTiltDeg, minRidgeRadiusMm: field.minRidgeRadiusMm },
     openwork: def.shadeType === "openwork" && isOpenworkField(field) ? { ...field.report, components: shade.components ?? 1 } : null,
+    doubleWall:
+      def.shadeType === "double" && isDoubleWallField(field)
+        ? {
+            minGapMm: Math.round(field.gap.minGapMm * 100) / 100,
+            minGapAtZ: Math.round(field.gap.atZ * 10) / 10,
+            requiredGapMm: def.doubleWall.minGapMm,
+            maxLeanDeg: Math.round(field.lean.maxDeg * 10) / 10,
+            maxLeanAtZ: Math.round(field.lean.atZ * 10) / 10,
+            floorTopMm: field.params.floorMm,
+            roofStartMm: field.params.heightMm - field.params.roofCapMm - field.params.roofHeightMm,
+            ceilingMm: field.params.heightMm - field.params.roofCapMm,
+            openingMinDiameterMm: Math.round(2 * field.ringFree.structureMinR * 10) / 10,
+            openingBottomDiameterMm: Math.round(2 * field.ringFree.bottomR * 10) / 10,
+            openingTopDiameterMm: Math.round(2 * field.ringFree.topR * 10) / 10,
+            chamberClosed: def.doubleWall.chamber === "closed",
+            solidBodies: shade.shells?.solidBodies ?? 1,
+            cavities: shade.shells?.cavities ?? 0,
+          }
+        : null,
     insert: insert ? { ...insert.metrics, vaseCapable: !layout.insert!.closedTop && !def.insert.tabs && layout.insert!.surface.maxLeanDeg <= LAMP_GEOMETRY.vaseMaxOverhangDeg } : null,
     collar: collar ? collar.metrics : null,
     base: base.metrics,

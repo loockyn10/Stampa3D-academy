@@ -1,3 +1,4 @@
+import { fitDoubleWallEnds } from "@/lib/maker/lamps/doublewall/params";
 import { silhouetteRecipe, type SilhouetteKind } from "@/lib/maker/lamps/openwork/silhouette";
 import type { LampDefinition, LampOpenworkDef, LampShadeType } from "@/lib/maker/lamps/types";
 
@@ -86,9 +87,15 @@ export function openworkPresetMatches(def: LampDefinition, preset: OpenworkPrese
   return Object.keys(r).every((k) => o[k] === r[k]) && def.shade.topDiameterMm === Math.round(def.shade.bottomDiameterMm * preset.topRatio) && def.openwork.maxDiameterMm === Math.round(def.shade.bottomDiameterMm * preset.maxRatio);
 }
 
-/** Alterna entre pantalla sólida y calada: conserva dimensiones, difusor, color, rosca y base; cada tipo guarda sus propios parámetros. */
+/**
+ * Alterna entre pantalla sólida, calada y doble pared: conserva dimensiones, difusor, color, rosca y base; cada tipo guarda sus propios
+ * parámetros. Al elegir «Doble pared», los diámetros de los extremos de la pared exterior (compartidos) se llevan, de a 5 mm, al mínimo
+ * que respeta la separación pedida con la pared interior (`fitDoubleWallEnds`); es una acción del usuario y se informa en el panel.
+ */
 export function applyShadeType(def: LampDefinition, shadeType: LampShadeType): LampDefinition {
-  return def.shadeType === shadeType ? def : { ...def, shadeType };
+  if (def.shadeType === shadeType) return def;
+  const next = { ...def, shadeType };
+  return shadeType === "double" ? fitDoubleWallEnds(next) : next;
 }
 
 /** Aplica una silueta de partida (recetas de los mismos parámetros) sobre la pantalla calada. */

@@ -1,4 +1,4 @@
-import type { LampAdhesionDef, LampBaseDef, LampBulbDef, LampCableDef, LampDefinition, LampHolderDef, LampInsertDef, LampInsertStyle, LampOpenworkDef, LampShadeDef, LampThreadDef } from "@/lib/maker/lamps/types";
+import type { LampAdhesionDef, LampBaseDef, LampBulbDef, LampCableDef, LampDefinition, LampDoubleWallDef, LampHolderDef, LampInsertDef, LampInsertStyle, LampOpenworkDef, LampShadeDef, LampThreadDef } from "@/lib/maker/lamps/types";
 
 /**
  * Valores iniciales. Las medidas del portalámparas y de la bombilla son MARCADORES DE POSICIÓN (`holder.measured =
@@ -50,6 +50,37 @@ export const DEFAULT_OPENWORK: LampOpenworkDef = {
   turns: 1.5,
   connectors: 0,
   connectorWidthMm: 3,
+  diffuserFit: "rings",
+  diffuserClearanceMm: 1,
+};
+
+/**
+ * Pantalla de doble pared inicial. Los diámetros de los extremos de la pared exterior y la altura se comparten con las otras pantallas
+ * (`DEFAULT_SHADE`): al elegir «Doble pared» se llevan al mínimo que respeta la separación (`fitDoubleWallEnds`). Valores de partida
+ * pensados para la base E27 de referencia: la abertura central deja pasar un difusor de ≈ Ø72 mm.
+ */
+export const DEFAULT_DOUBLE_WALL_LAMP: LampDoubleWallDef = {
+  maxDiameterMm: 170,
+  bulgePositionPct: 50,
+  curvaturePct: 40,
+  flutes: 24,
+  fluteAmplitudeMm: 3,
+  twistDeg: 0,
+  innerBottomDiameterMm: 90,
+  innerTopDiameterMm: 90,
+  innerWaistPct: 25,
+  innerWaistPositionPct: 50,
+  innerCurvaturePct: 30,
+  innerOrganicPct: 0,
+  innerSeed: 1,
+  minGapMm: 20,
+  wallMm: 1.2,
+  floorMm: 2.4,
+  roofHeightMm: 24,
+  roofCapMm: 2.4,
+  topGapMm: 1.2,
+  chamber: "closed",
+  fabrication: "conventional",
   diffuserFit: "rings",
   diffuserClearanceMm: 1,
 };
@@ -131,6 +162,7 @@ export const DEFAULT_LAMP: LampDefinition = {
   shadeType: "solid",
   shade: DEFAULT_SHADE,
   openwork: DEFAULT_OPENWORK,
+  doubleWall: DEFAULT_DOUBLE_WALL_LAMP,
   thread: DEFAULT_THREAD,
   insert: DEFAULT_INSERT,
   base: DEFAULT_BASE,
@@ -175,6 +207,7 @@ export function normalizeLampDefinition(input: unknown): LampDefinition {
   const root = isRecord(input) ? input : {};
   const s = isRecord(root.shade) ? root.shade : {};
   const o = isRecord(root.openwork) ? root.openwork : {};
+  const dw = isRecord(root.doubleWall) ? root.doubleWall : {};
   const i = isRecord(root.insert) ? root.insert : {};
   const t = isRecord(root.thread) ? root.thread : {};
   const b = isRecord(root.base) ? root.base : {};
@@ -184,7 +217,32 @@ export function normalizeLampDefinition(input: unknown): LampDefinition {
   const c = isRecord(root.cable) ? root.cable : {};
   return {
     version: 2,
-    shadeType: root.shadeType === "openwork" ? "openwork" : "solid",
+    shadeType: root.shadeType === "openwork" ? "openwork" : root.shadeType === "double" ? "double" : "solid",
+    doubleWall: {
+      maxDiameterMm: num(dw.maxDiameterMm, DEFAULT_DOUBLE_WALL_LAMP.maxDiameterMm),
+      bulgePositionPct: num(dw.bulgePositionPct, DEFAULT_DOUBLE_WALL_LAMP.bulgePositionPct),
+      curvaturePct: num(dw.curvaturePct, DEFAULT_DOUBLE_WALL_LAMP.curvaturePct),
+      flutes: num(dw.flutes, DEFAULT_DOUBLE_WALL_LAMP.flutes),
+      fluteAmplitudeMm: num(dw.fluteAmplitudeMm, DEFAULT_DOUBLE_WALL_LAMP.fluteAmplitudeMm),
+      twistDeg: num(dw.twistDeg, DEFAULT_DOUBLE_WALL_LAMP.twistDeg),
+      innerBottomDiameterMm: num(dw.innerBottomDiameterMm, DEFAULT_DOUBLE_WALL_LAMP.innerBottomDiameterMm),
+      innerTopDiameterMm: num(dw.innerTopDiameterMm, DEFAULT_DOUBLE_WALL_LAMP.innerTopDiameterMm),
+      innerWaistPct: num(dw.innerWaistPct, DEFAULT_DOUBLE_WALL_LAMP.innerWaistPct),
+      innerWaistPositionPct: num(dw.innerWaistPositionPct, DEFAULT_DOUBLE_WALL_LAMP.innerWaistPositionPct),
+      innerCurvaturePct: num(dw.innerCurvaturePct, DEFAULT_DOUBLE_WALL_LAMP.innerCurvaturePct),
+      innerOrganicPct: num(dw.innerOrganicPct, DEFAULT_DOUBLE_WALL_LAMP.innerOrganicPct),
+      innerSeed: num(dw.innerSeed, DEFAULT_DOUBLE_WALL_LAMP.innerSeed),
+      minGapMm: num(dw.minGapMm, DEFAULT_DOUBLE_WALL_LAMP.minGapMm),
+      wallMm: num(dw.wallMm, DEFAULT_DOUBLE_WALL_LAMP.wallMm),
+      floorMm: num(dw.floorMm, DEFAULT_DOUBLE_WALL_LAMP.floorMm),
+      roofHeightMm: num(dw.roofHeightMm, DEFAULT_DOUBLE_WALL_LAMP.roofHeightMm),
+      roofCapMm: num(dw.roofCapMm, DEFAULT_DOUBLE_WALL_LAMP.roofCapMm),
+      topGapMm: num(dw.topGapMm, DEFAULT_DOUBLE_WALL_LAMP.topGapMm),
+      chamber: dw.chamber === "open" ? "open" : "closed",
+      fabrication: "conventional",
+      diffuserFit: dw.diffuserFit === "manual" ? "manual" : "rings",
+      diffuserClearanceMm: num(dw.diffuserClearanceMm, DEFAULT_DOUBLE_WALL_LAMP.diffuserClearanceMm),
+    },
     openwork: {
       pattern: typeof o.pattern === "string" && PATTERNS.has(o.pattern) ? (o.pattern as LampOpenworkDef["pattern"]) : DEFAULT_OPENWORK.pattern,
       maxDiameterMm: num(o.maxDiameterMm, DEFAULT_OPENWORK.maxDiameterMm),

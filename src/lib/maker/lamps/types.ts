@@ -41,7 +41,7 @@ export interface LampShadeDef {
 }
 
 /** Tipo de pantalla exterior: sólida (ondas, motor de superficie) o calada (estructura abierta de tiras: aberturas reales en la malla). */
-export type LampShadeType = "solid" | "openwork";
+export type LampShadeType = "solid" | "openwork" | "double";
 export type OpenworkPattern = "diamond" | "spiral";
 /** Terminación superior: anillo continuo (recomendado) o tiras cortadas a ras del borde (puntas sin soporte). */
 export type OpenworkTop = "ring" | "open";
@@ -97,6 +97,48 @@ export interface LampOpenworkDef {
   /** "rings": el difusor cilíndrico se dimensiona por el diámetro INTERIOR LIBRE de los anillos (no por el decorativo máximo). "manual": se usa `insert.diameterMm` como en la sólida. */
   diffuserFit: "rings" | "manual";
   /** Holgura DIAMETRAL inicial entre el difusor y el anillo más angosto (mm). Se valida físicamente: no es un valor probado. */
+  diffuserClearanceMm: number;
+}
+
+/**
+ * Pantalla de DOBLE PARED (impresión convencional): dos paredes concéntricas de siluetas independientes, unidas abajo por un piso
+ * macizo y arriba por un techo inclinado, con la abertura central (bombilla, portalámparas y difusor) libre. La altura y los
+ * diámetros inferior y superior de la pared EXTERIOR se comparten con las otras pantallas (`LampShadeDef`); acá van el resto.
+ */
+export interface LampDoubleWallDef {
+  // ---- Pared exterior (silueta abombada + estrías/ondulaciones + torsión)
+  /** Diámetro máximo de las crestas (si es menor o igual que el de los extremos, la pared es cilíndrica/cónica). */
+  maxDiameterMm: number;
+  bulgePositionPct: number;
+  curvaturePct: number;
+  /** Estrías u ondulaciones (cantidad entera), profundidad cresta–valle (mm) y torsión total (grados). */
+  flutes: number;
+  fluteAmplitudeMm: number;
+  twistDeg: number;
+  // ---- Pared interior (cilíndrica si los dos diámetros coinciden, cónica si no, reloj de arena con cintura, orgánica)
+  innerBottomDiameterMm: number;
+  innerTopDiameterMm: number;
+  innerWaistPct: number;
+  innerWaistPositionPct: number;
+  innerCurvaturePct: number;
+  innerOrganicPct: number;
+  innerSeed: number;
+  // ---- Cámara y uniones
+  /** Separación mínima exigida entre las caras de la cámara de las dos paredes (mm), medida sobre las superficies reales. */
+  minGapMm: number;
+  /** Espesor de las dos paredes (mm). */
+  wallMm: number;
+  /** Piso que une las paredes abajo, zona donde se inclinan una hacia la otra arriba, rim superior y ancho final de la cámara (mm). */
+  floorMm: number;
+  roofHeightMm: number;
+  roofCapMm: number;
+  topGapMm: number;
+  /** "closed": un cielorraso cierra la cámara (cavidad interna de aire); "open": la cámara termina arriba en una ranura de `topGapMm`. */
+  chamber: "closed" | "open";
+  /** Modalidad de fabricación. Solo "conventional": el modo jarrón sigue experimental y no se ofrece (ver docs/STAMPA_MAKER_DOUBLE_WALL.md). */
+  fabrication: "conventional";
+  // ---- Difusor (inserto)
+  diffuserFit: "rings" | "manual";
   diffuserClearanceMm: number;
 }
 
@@ -218,6 +260,8 @@ export interface LampDefinition {
   shadeType: LampShadeType;
   shade: LampShadeDef;
   openwork: LampOpenworkDef;
+  /** Parámetros de la pantalla de doble pared (conviven con los de las otras: alternar de tipo no los pierde). */
+  doubleWall: LampDoubleWallDef;
   thread: LampThreadDef;
   insert: LampInsertDef;
   base: LampBaseDef;
@@ -331,8 +375,33 @@ export interface LampDiffuserFitReport {
   diametralClearanceMm: number;
   radialClearanceBottomMm: number;
   radialClearanceTopMm: number;
-  limitedBy: "bottomRing" | "topRing" | "base" | "manual";
+  limitedBy: "bottomRing" | "topRing" | "opening" | "base" | "manual";
 }
+
+/** Cifras de la pantalla de doble pared, medidas sobre las mismas superficies que se mallan. */
+export interface LampDoubleWallReport {
+  /** Separación mínima entre las caras de la cámara (3D, estrías incluidas) y su altura; la exigida. */
+  minGapMm: number;
+  minGapAtZ: number;
+  requiredGapMm: number;
+  /** Inclinación máxima de las caras (grados desde la vertical) y su altura. */
+  maxLeanDeg: number;
+  maxLeanAtZ: number;
+  /** Alturas locales (desde el borde inferior de la parte decorativa): tope del piso, arranque del techo y cielorraso. */
+  floorTopMm: number;
+  roofStartMm: number;
+  ceilingMm: number;
+  /** Abertura central: diámetro libre mínimo (cintura), en el borde inferior y en el superior. */
+  openingMinDiameterMm: number;
+  openingBottomDiameterMm: number;
+  openingTopDiameterMm: number;
+  /** Cámara cerrada = cavidad interna. `cavities` y `solidBodies` se miden sobre la malla (1 cuerpo; 1 cavidad si está cerrada). */
+  chamberClosed: boolean;
+  solidBodies: number;
+  cavities: number;
+}
+
+
 
 export interface LampAdhesionReport {
   enabled: boolean;
@@ -422,6 +491,8 @@ export interface OpenworkReport {
 }
 
 export interface LampMetrics {
+  /** Solo con pantalla de doble pared. */
+  doubleWall: LampDoubleWallReport | null;
   totalHeightMm: number;
   maxDiameterMm: number;
   shade: LampPartMetrics & { vase: LampVaseReport; maxTiltDeg: number; minRidgeRadiusMm: number | null };
@@ -457,7 +528,7 @@ export interface FieldLimit {
 
 export const LAMP_LIMITS = {
   "shade.heightMm": { min: 60, max: 400, label: "Altura de la pantalla" },
-  "shade.bottomDiameterMm": { min: 90, max: 300, label: "Diámetro inferior" },
+  "shade.bottomDiameterMm": { min: 60, max: 300, label: "Diámetro inferior" },
   "shade.topDiameterMm": { min: 40, max: 300, label: "Diámetro superior" },
   "shade.profileAmountPct": { min: 0, max: 100, label: "Intensidad del perfil" },
   "shade.waves": { min: 2, max: 32, integer: true, label: "Ondas" },
@@ -506,6 +577,26 @@ export const LAMP_LIMITS = {
   "openwork.connectors": { min: 0, max: 8, integer: true, label: "Anillos de unión" },
   "openwork.connectorWidthMm": { min: 1, max: 10, label: "Ancho de los anillos de unión" },
   "openwork.diffuserClearanceMm": { min: 0.7, max: 10, label: "Holgura diametral del difusor" },
+  "doubleWall.maxDiameterMm": { min: 60, max: 340, label: "Diámetro máximo de la pared exterior" },
+  "doubleWall.bulgePositionPct": { min: 10, max: 90, label: "Posición del ensanchamiento" },
+  "doubleWall.curvaturePct": { min: 0, max: 100, label: "Curvatura de la pared exterior" },
+  "doubleWall.flutes": { min: 3, max: 48, integer: true, label: "Estrías" },
+  "doubleWall.fluteAmplitudeMm": { min: 0, max: 12, label: "Profundidad de las estrías" },
+  "doubleWall.twistDeg": { min: -1440, max: 1440, label: "Torsión" },
+  "doubleWall.innerBottomDiameterMm": { min: 40, max: 300, label: "Diámetro inferior de la pared interior" },
+  "doubleWall.innerTopDiameterMm": { min: 40, max: 300, label: "Diámetro superior de la pared interior" },
+  "doubleWall.innerWaistPct": { min: 0, max: 100, label: "Intensidad de la cintura" },
+  "doubleWall.innerWaistPositionPct": { min: 10, max: 90, label: "Posición de la cintura" },
+  "doubleWall.innerCurvaturePct": { min: 0, max: 100, label: "Curvatura de la pared interior" },
+  "doubleWall.innerOrganicPct": { min: 0, max: 100, label: "Variación orgánica de la pared interior" },
+  "doubleWall.innerSeed": { min: 0, max: 4294967295, integer: true, label: "Semilla de la pared interior" },
+  "doubleWall.minGapMm": { min: 5, max: 100, label: "Separación mínima entre paredes" },
+  "doubleWall.wallMm": { min: 0.8, max: 4, label: "Espesor de las paredes" },
+  "doubleWall.floorMm": { min: 1.2, max: 10, label: "Espesor del piso" },
+  "doubleWall.roofHeightMm": { min: 8, max: 80, label: "Altura del techo inclinado" },
+  "doubleWall.roofCapMm": { min: 1.2, max: 10, label: "Rim superior" },
+  "doubleWall.topGapMm": { min: 0.8, max: 10, label: "Ancho final de la cámara" },
+  "doubleWall.diffuserClearanceMm": { min: 0.7, max: 10, label: "Holgura diametral del difusor" },
   "adhesion.widthMm": { min: 1, max: 10, label: "Ancho del reborde" },
   "adhesion.heightMm": { min: 0.2, max: 1.2, label: "Altura del reborde" },
   "insert.clearanceMm": { min: 0.3, max: 2, label: "Holgura de montaje" },

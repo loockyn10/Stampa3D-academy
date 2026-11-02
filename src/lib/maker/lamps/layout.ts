@@ -1,4 +1,5 @@
 import { buildInsertSurface, insertEnvelopeGap, type InsertSurface } from "@/lib/maker/lamps/insert/surface";
+import type { DoubleWallField } from "@/lib/maker/lamps/doublewall/field";
 import type { OpenworkField } from "@/lib/maker/lamps/openwork/field";
 import { threadFacts, threadSpec, type LampThreadSpec } from "@/lib/maker/lamps/threads/lampThread";
 import { minInnerRadiusBetween, type ShadeField } from "@/lib/maker/lamps/shade/surface";
@@ -145,25 +146,32 @@ export function computeLampLayout(def: LampDefinition, field: ShadeField): LampL
   // Pantalla CALADA con difusor "según anillos": el cilindro ocupa el diámetro INTERIOR LIBRE de los anillos (menos la holgura diametral),
   // sin depender del diámetro decorativo máximo. Lo limita el anillo más angosto o, si fuera menor, la base (la torre que lo aloja necesita
   // 3 mm de aire hasta el orificio del cuello roscado). Con la sólida o con "manual" rige el diámetro de `insert.diameterMm` como siempre.
-  const owField = def.shadeType === "openwork" && "ringFree" in field ? (field as OpenworkField) : null;
-  const ringsMode = !!owField && def.openwork.diffuserFit === "rings";
+  // Pantallas calada y de doble pared: el difusor se dimensiona por el interior LIBRE (anillos, o la abertura central de la doble pared).
+  const isDouble = def.shadeType === "double";
+  const owField = (def.shadeType === "openwork" || isDouble) && "ringFree" in field ? (field as OpenworkField | DoubleWallField) : null;
+  const diffuserCfg = isDouble ? def.doubleWall : def.openwork;
+  const ringsMode = !!owField && diffuserCfg.diffuserFit === "rings";
   // Aire mínimo entre la torre y el orificio del cuello: 3 mm, o el ancho del reborde de adhesión más su holgura de diseño si es mayor (el reborde vive en ese espacio).
   const towerAirMm = Math.max(3, def.adhesion.enabled ? def.adhesion.widthMm + g.adhesionClearanceMm : 3);
   const baseLimitR = spec.boreR - towerAirMm - g.towerOuterWallMm - insert.clearanceMm;
   // Radio libre real del anillo inferior: con la rosca integrada, el escalón de la transición de 45° (cara interior del anillo menos el espesor sobre el cono) es más angosto que el propio anillo.
-  const ledgeR = owField && connection === "integrated" ? R_b - def.openwork.depthMm * Math.SQRT2 : Infinity;
+  // (solo la calada con transición hacia afuera: hacia adentro la cara interior del anillo sigue recta hasta el cono, sin escalón; la doble pared tiene su propio cono interior)
+  const ledgeR = owField && def.shadeType === "openwork" && connection === "integrated" && R_b >= spec.rootR ? R_b - def.openwork.depthMm * Math.SQRT2 : Infinity;
   const bottomFreeR = owField ? Math.min(owField.ringFree.bottomR, ledgeR) : 0;
   let diffuserLimit: LampDiffuserFitReport["limitedBy"] = "manual";
   let cylOuterR = 0;
   let slot: TowerLayout["slot"] = null;
   if (insert.enabled) {
     if (ringsMode && owField) {
-      const half = def.openwork.diffuserClearanceMm / 2;
+      const half = diffuserCfg.diffuserClearanceMm / 2;
       // El tubo de montaje es el mismo para los tres estilos (los insertos son intercambiables): un ondulado cuyas ondas no caben en el anillo se rechaza (DIFFUSER_CANNOT_PASS_TOP), no se achica el tubo.
-      const candidates: [LampDiffuserFitReport["limitedBy"], number][] = [["bottomRing", bottomFreeR - half], ["topRing", owField.ringFree.topR - half], ["base", baseLimitR]];
+      const candidates: [LampDiffuserFitReport["limitedBy"], number][] = isDouble
+        ? [["opening", owField.ringFree.structureMinR - half], ["base", baseLimitR]]
+        : [["bottomRing", bottomFreeR - half], ["topRing", owField.ringFree.topR - half], ["base", baseLimitR]];
       candidates.sort((a, b) => a[1] - b[1]);
       diffuserLimit = candidates[0][0];
-      cylOuterR = Math.floor((candidates[0][1] + 1e-9) * 20) / 20; // al 0,05 mm hacia abajo: nunca más grande que lo permitido
+      // al 0,05 mm hacia abajo, con 2,5 µm de tolerancia de redondeo (un libre de 79,999 mm con 1 mm de holgura da exactamente Ø79 mm, no Ø78,9)
+      cylOuterR = Math.floor((candidates[0][1] + 0.0025) * 20) / 20;
     } else cylOuterR = insert.diameterMm === null ? ceilTo(autoInnerR + insert.thicknessMm, 0.25) : insert.diameterMm / 2;
     slot = { innerR: cylOuterR - insert.thicknessMm - insert.clearanceMm, outerR: cylOuterR + insert.clearanceMm, bottomZ: topZ - insert.seatDepthMm };
   }
@@ -181,7 +189,8 @@ export function computeLampLayout(def: LampDefinition, field: ShadeField): LampL
     collar = { outerWallR, socketR: R_b + g.socketClearanceMm, floorInnerR: R_b - g.socketFloorWidthMm, flareH, floorZ, topZ: floorZ + shade.collarHeightMm };
     decorZ0 = floorZ;
   } else {
-    flareH = R_b - spec.rootR;
+    // Calada: la transición de 45° puede ir hacia afuera o hacia ADENTRO (anillos más angostos que la raíz de la rosca); solida y doble pared, solo hacia afuera.
+    flareH = def.shadeType === "openwork" ? Math.abs(R_b - spec.rootR) : R_b - spec.rootR;
     decorZ0 = neckTopZ + flareH;
   }
   const shadeTopZ = decorZ0 + shade.heightMm;
@@ -283,7 +292,7 @@ export function computeLampLayout(def: LampDefinition, field: ShadeField): LampL
       structureMinFreeDiameterMm: round2(2 * owField.ringFree.structureMinR),
       baseLimitDiameterMm: round2(2 * baseLimitR),
       diffuserDiameterMm: round2(2 * insertLayout.bodyMaxR),
-      diametralClearanceMm: def.openwork.diffuserClearanceMm,
+      diametralClearanceMm: diffuserCfg.diffuserClearanceMm,
       radialClearanceBottomMm: round2(bottomFreeR - insertLayout.bodyMaxR),
       radialClearanceTopMm: round2(owField.ringFree.topR - insertLayout.bodyMaxR),
       limitedBy: ringsMode ? diffuserLimit : "manual",
