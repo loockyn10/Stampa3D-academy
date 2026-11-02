@@ -2,6 +2,12 @@
 
 Este archivo contiene únicamente trabajo pendiente o próximo. Eliminar tareas terminadas en lugar de conservar un historial infinito.
 
+## Now — Redes y canales administrables (implementado 2026-11-02, ver ARCHITECTURE §26 y D040)
+
+- [ ] Aplicar `20261102120000_community_links.sql` en Supabase (no aplicada). Hasta entonces el panel muestra «falta la migración» y las pantallas usan el respaldo en código. La migration carga 4 enlaces públicos (los que estaban fijos); **revisar en `/admin/redes-canales` que `extruye` sean las URLs reales** (WhatsApp y Telegram parecen placeholders) y cargar TikTok / tienda, que antes eran «Próximamente».
+- [ ] QA manual con cuenta admin (escritorio y 375 px, claro/oscuro): alta, edición, activar/desactivar, subir/bajar, eliminar, vista previa por audiencia y recarga; luego con cuenta Paid (`/canales`) y sin sesión (pie de `/landing`).
+- [ ] Decidir si los canales bloqueados (Premium) deben mostrarse a usuarios Free en alguna pantalla accesible para ellos (hoy `/redes` y `/canales` exigen membresía por el proxy, así que solo se ven en la vista previa del Admin).
+
 ## Now — Lámparas E27 V2 (implementado 2026-10-31, Beta / solo admin, ver docs/STAMPA_MAKER.md §38.8–38.15)
 
 - [ ] **Imprimir las piezas de prueba** («Piezas de prueba (ZIP)»: rosca macho + hembra y tramo de la torre) con el filamento y la impresora reales; ajustar `thread.clearanceMm` e `insert.clearanceMm` (§38.15). Es lo primero: valida el encastre sin imprimir la lámpara entera.

@@ -1,7 +1,12 @@
 import Link from "next/link";
-import { legalLinks, socialLinks } from "./landing-content";
+import { loadPublicCommunityLinks } from "@/lib/community/public";
+import { legalLinks } from "./landing-content";
 
-export function LandingFooter() {
+export async function LandingFooter() {
+  // Enlaces administrados en /admin/redes-canales (solo los de nivel público llegan a un visitante).
+  const { links } = await loadPublicCommunityLinks();
+  const communityLinks = links.filter((link) => link.url !== null);
+
   return (
     <footer className="border-t border-stampa-border bg-stampa-sunken py-12 text-sm">
       <div className="container mx-auto grid gap-10 px-5 md:grid-cols-[1.2fr_0.8fr_0.8fr] md:px-6">
@@ -30,20 +35,22 @@ export function LandingFooter() {
 
         <div>
           <h2 className="font-bold text-fg">Comunidad y soporte</h2>
-          <ul className="mt-4 space-y-3">
-            {socialLinks.map((link) => (
-              <li key={link.label}>
-                <a
-                  href={link.href}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="rounded text-zinc-500 transition-colors hover:text-orange-400 focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-orange-400"
-                >
-                  {link.label}
-                </a>
-              </li>
-            ))}
-          </ul>
+          {communityLinks.length > 0 && (
+            <ul className="mt-4 space-y-3">
+              {communityLinks.map((link) => (
+                <li key={link.id}>
+                  <a
+                    href={link.url ?? undefined}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="rounded text-zinc-500 transition-colors hover:text-orange-400 focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-orange-400"
+                  >
+                    {link.name}
+                  </a>
+                </li>
+              ))}
+            </ul>
+          )}
         </div>
 
         <div>

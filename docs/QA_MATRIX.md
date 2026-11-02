@@ -78,7 +78,7 @@ Roles: **Anon** anónimo · **Free** autenticado sin acceso · **Beta** grant `b
 | Feature | Anon | Free | Beta/Paid | Admin | Tests / notas |
 |---|---|---|---|---|---|
 | Acceso a `/admin/*` (18 rutas) | ✅ → `/login` | ⏸ → `/sin-acceso` | ⏸ → `/` | ⏸ | `01`, `10`, `14` |
-| Hub y 16 secciones sin 404/5xx | — | — | — | ⏸ | `14` |
+| Hub y 17 secciones sin 404/5xx | — | — | — | ⏸ | `14` |
 | Usuarios: cambio de rol/membresía | — | — | — | 🔎 QA-016/017 | PATCH interceptado (no escribe) |
 | Usuarios: otorgar Beta (action) | — | — | — | ⛔ | |
 | STL: categorías, modelos, variantes, preview 360° | — | — | — | ⏸ (lectura) | escritura ⛔ |

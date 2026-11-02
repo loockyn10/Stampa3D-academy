@@ -202,3 +202,7 @@ Implementado en código (ARCHITECTURE §24, D036, `docs/TUTORIALS.md`): 15 tutor
 - **No verificado:** pantallas autenticadas (no hay cuenta de prueba): auto-apertura real, lectura/escritura de `user_tool_tutorial_views` con RLS y el botón flotante en el shell. Verificado en navegador con un harness público temporal (eliminado): modal en claro/oscuro, móvil 375 px y 520×640, navegación, Escape + restauración de foco, modo video.
 - **No verificable desde el repo:** qué filas hay hoy en `tool_tutorials` y si el RLS de `user_tool_tutorial_views` permite escribir `seen_version` (la tabla no tiene migration en el repo; la migration nueva solo agrega la columna si la tabla existe).
 - **Comportamiento nuevo a conocer:** secciones que antes no tenían tutorial en la base (o cuya fila no existía) ahora muestran la guía una vez.
+
+## 13. Redes y canales administrables (2026-11-02, migration NO aplicada en remoto)
+
+Implementado en código (ARCHITECTURE §26, D040): `/admin/redes-canales`, tabla `community_links` con RLS + RPC `list_community_links`, y `/redes`, `/canales`, `/instagram`, `/youtube`, `/whatsapp`, `/telegram` y el footer de la landing leyendo de ahí (ya no hay URLs fijas salvo el respaldo previo a la migration). Verificado: `tsc`, tests unitarios y 8 pruebas contra Postgres embebido (RLS por nivel, URL Premium no expuesta, constraints, escritura solo admin, reorden). **No verificado:** la migration contra el Supabase remoto (`is_admin`/`has_platform_access` no están versionadas) ni las pantallas autenticadas en navegador (no hay cuenta de prueba).

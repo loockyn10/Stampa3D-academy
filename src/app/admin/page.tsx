@@ -1,6 +1,6 @@
 import React from 'react'
 import Link from 'next/link'
-import { ToggleRight, Users, Settings, ShieldAlert, GraduationCap, Boxes, Gift, Trophy, MonitorSmartphone, DollarSign, Map, Calculator, Tag, Bot, FileText, BookOpen } from 'lucide-react'
+import { ToggleRight, Users, Settings, ShieldAlert, GraduationCap, Boxes, Gift, Trophy, MonitorSmartphone, DollarSign, Map, Calculator, Tag, Bot, FileText, BookOpen, Share2 } from 'lucide-react'
 import { SectionTitle } from "@/components/ui/section-title";
 
 export default function AdminDashboardPage() {
@@ -202,6 +202,21 @@ export default function AdminDashboardPage() {
             </div>
             <p className="text-sm text-gray-400 font-medium relative z-10">
               Gestión de códigos de descuento, referidos y acceso.
+            </p>
+          </div>
+        </Link>
+
+        <Link href="/admin/redes-canales" className="block group">
+          <div className="bg-stampa-surface p-6 rounded-2xl border border-stampa-border shadow-lg shadow-shade/20 hover:border-stampa-orange/30 transition-all h-full relative overflow-hidden">
+            <div className="absolute top-0 right-0 w-24 h-24 bg-fuchsia-500/5 rounded-full blur-2xl group-hover:bg-fuchsia-500/10 transition-colors -translate-y-1/2 translate-x-1/2"></div>
+            <div className="flex items-center gap-4 mb-4 relative z-10">
+              <div className="p-3 bg-stampa-bg-soft border border-stampa-border text-fuchsia-500 rounded-xl shadow-inner">
+                <Share2 size={24} />
+              </div>
+              <h2 className="text-lg font-bold text-fg group-hover:text-fuchsia-400 transition-colors">Redes y canales</h2>
+            </div>
+            <p className="text-sm text-gray-400 font-medium relative z-10">
+              Administrá las redes sociales y los canales de comunidad, su orden y quién accede a cada uno.
             </p>
           </div>
         </Link>

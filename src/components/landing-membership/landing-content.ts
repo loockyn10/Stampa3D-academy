@@ -203,13 +203,6 @@ export const faqItems = [
   },
 ] as const;
 
-export const socialLinks = [
-  { label: "Instagram", href: "https://instagram.com/extruye" },
-  { label: "YouTube", href: "https://youtube.com/extruye" },
-  { label: "WhatsApp", href: "https://chat.whatsapp.com/extruye" },
-  { label: "Telegram", href: "https://t.me/extruye" },
-] as const;
-
 // TODO: reemplazar los estados pendientes por enlaces públicos cuando existan.
 export const legalLinks = [
   { label: "Términos y condiciones", href: null },

@@ -3,7 +3,7 @@ import { test, expect, describeAsRole, gotoSettled } from "../support/fixtures";
 const HUB_LINKS = [
   "/admin/usuarios", "/admin/cursos", "/admin/stl", "/admin/sorteos", "/admin/insignias", "/admin/cursos/configuracion",
   "/admin/impresoras", "/admin/membresia", "/admin/roadmaps", "/admin/calculadora", "/admin/calculadora/filamentos",
-  "/admin/codigos", "/admin/stampy", "/admin/stampy/contextos", "/admin/stampy/documentos", "/admin/transcripciones",
+  "/admin/codigos", "/admin/redes-canales", "/admin/stampy", "/admin/stampy/contextos", "/admin/stampy/documentos", "/admin/transcripciones",
 ];
 
 describeAsRole("admin", "Admin: navegación y consistencia", () => {
