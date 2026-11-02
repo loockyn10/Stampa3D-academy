@@ -4,12 +4,15 @@ import { doubleWallIssues } from "@/lib/maker/lamps/doublewall/validate";
 import type { DoubleWallField } from "@/lib/maker/lamps/doublewall/field";
 import { openworkIssues } from "@/lib/maker/lamps/openwork/validate";
 import type { OpenworkField } from "@/lib/maker/lamps/openwork/field";
+import { openingFreeDiameters, resolveLampDef } from "@/lib/maker/lamps/resolve";
 import { getLampField } from "@/lib/maker/lamps/shade/cache";
 import { minInnerRadiusBetween, type ShadeField } from "@/lib/maker/lamps/shade/surface";
 import { LAMP_GEOMETRY, LAMP_LIMITS, type LampDefinition, type LampIssue, type LampLimitKey, type LampVaseReport } from "@/lib/maker/lamps/types";
 import type { PrinterProfile } from "@/lib/maker/printBed/printerProfiles";
 
 export interface LampValidation {
+  /** Definición con lo derivado ya resuelto (p. ej. diámetros de los extremos de la calada en modo "diameter"): es la que usa el resto del motor. */
+  resolved: LampDefinition;
   errors: LampIssue[];
   warnings: LampIssue[];
   /** Solo si los parámetros están en rango (sin errores de rango). */
@@ -75,7 +78,8 @@ function checkRanges(def: LampDefinition, errors: LampIssue[]): void {
  * Nada acá reduce automáticamente una distancia crítica para que una combinación entre: si no cabe, se informa por qué.
  * Todo es GEOMÉTRICO: ningún valor de acá es una distancia o una temperatura segura.
  */
-export function validateLamp(def: LampDefinition, printer?: PrinterProfile): LampValidation {
+export function validateLamp(input: LampDefinition, printer?: PrinterProfile, opts: { fast?: boolean } = {}): LampValidation {
+  const def = resolveLampDef(input);
   const errors: LampIssue[] = [];
   const warnings: LampIssue[] = [];
   const g = LAMP_GEOMETRY;
@@ -87,6 +91,7 @@ export function validateLamp(def: LampDefinition, printer?: PrinterProfile): Lam
     if (def.doubleWall.fabrication !== "conventional") errors.push({ code: "DW_FABRICATION_UNAVAILABLE", field: "doubleWall.fabrication", message: "El modo jarrón de la doble pared es experimental y no está disponible: solo impresión convencional (docs/STAMPA_MAKER_DOUBLE_WALL.md)." });
   }
   if (def.shadeType === "openwork") {
+    if (!["diameter", "rings", "manual"].includes(def.openwork.diffuserFit)) errors.push({ code: "OUT_OF_RANGE", field: "openwork.diffuserFit", message: "Ajuste del difusor: según su diámetro, según los anillos o manual." });
     if (def.openwork.pattern !== "diamond" && def.openwork.pattern !== "spiral") errors.push({ code: "OUT_OF_RANGE", field: "openwork.pattern", message: "Patrón calado: elegí diamante o espiral." });
     if (def.openwork.topFinish !== "ring" && def.openwork.topFinish !== "open") errors.push({ code: "OUT_OF_RANGE", field: "openwork.topFinish", message: "Terminación superior: anillo o abierta." });
   }
@@ -95,12 +100,12 @@ export function validateLamp(def: LampDefinition, printer?: PrinterProfile): Lam
   }
   warnings.push({ code: "PHYSICAL_VALIDATION_PENDING", message: LAMP_PHYSICAL_VALIDATION_MESSAGE });
   if (!def.holder.measured) warnings.push({ code: "HOLDER_NOT_VALIDATED", field: "holder.measured", message: LAMP_HOLDER_NOT_VALIDATED_MESSAGE });
-  if (errors.length > 0) return { errors, warnings, field: null, layout: null, vase: null };
+  if (errors.length > 0) return { resolved: def, errors, warnings, field: null, layout: null, vase: null };
 
   const openworkActive = def.shadeType === "openwork";
   const doubleActive = def.shadeType === "double";
   const solidActive = def.shadeType === "solid";
-  const field = getLampField(def);
+  const field = getLampField(def, opts.fast);
   const layout = computeLampLayout(def, field);
   const vase = vaseReportForShade(
     field,
@@ -178,6 +183,10 @@ export function validateLamp(def: LampDefinition, printer?: PrinterProfile): Lam
 
   // ---- Cilindro de color
   const ins = layout.insert;
+  const dif = layout.fit.diffuser;
+  const diameterMode = dif?.source === "diameter";
+  /** Campo que el usuario debe mover cuando el cilindro no cabe: con el difusor como dato, su diámetro; si no, el Ø del inserto. */
+  const insField = diameterMode ? "openwork.diffuserDiameterMm" : "insert.diameterMm";
   if (ins && tower.slot) {
     if (ins.heightMm < 30) errors.push({ code: "INSERT_TOO_SHORT", field: insert.heightMm === null ? "insert.heightPct" : "insert.heightMm", message: "El cilindro resulta demasiado bajo (menos de 30 mm) para alojar la ranura de la torre, las lengüetas y la pared." });
     if (layout.shadeTopZ - ins.z1 < g.insertTopMarginMm) errors.push({ code: "INSERT_TOO_TALL", field: insert.heightMm === null ? "insert.heightPct" : "insert.heightMm", message: `El cilindro llegaría a menos de ${g.insertTopMarginMm} mm del borde de la pantalla.` });
@@ -185,12 +194,12 @@ export function validateLamp(def: LampDefinition, printer?: PrinterProfile): Lam
     if (tower.slot.bottomZ < layout.floorTopZ + g.towerFloorBelowSlotMm) errors.push({ code: "INSERT_SEAT_TOO_DEEP", field: "insert.seatDepthMm", message: `La ranura del cilindro (${fmt(insert.seatDepthMm)} mm de profundidad) deja menos de ${g.towerFloorBelowSlotMm} mm de material sobre el piso de la base. Reducí la profundidad o subí el apoyo de los anillos.` });
     const innerWall = tower.slot.innerR - tower.recessR;
     if (innerWall < g.towerMinWallMm) {
-      errors.push({ code: "TOWER_INNER_WALL_THIN", field: "insert.diameterMm", message: `Entre el rebaje de los anillos (Ø ${fmt(2 * tower.recessR)} mm) y la ranura del cilindro (interior Ø ${fmt(2 * tower.slot.innerR)} mm) queda una pared de ${fmt(innerWall)} mm: menos de ${fmt(g.towerMinWallMm)} mm no sostiene. Usá un cilindro más ancho o anillos más chicos; no se achica nada automáticamente.` });
+      errors.push({ code: "TOWER_INNER_WALL_THIN", field: insField, message: `Entre el rebaje de los anillos (Ø ${fmt(2 * tower.recessR)} mm) y la ranura del cilindro (interior Ø ${fmt(2 * tower.slot.innerR)} mm) queda una pared de ${fmt(innerWall)} mm: menos de ${fmt(g.towerMinWallMm)} mm no sostiene. Usá un cilindro más ancho o anillos más chicos; no se achica nada automáticamente.` });
     } else if (innerWall < g.towerWarnWallMm) {
       warnings.push({ code: "TOWER_INNER_WALL_THIN", field: "insert.diameterMm", message: `La pared entre el rebaje de los anillos y la ranura del cilindro mide ${fmt(innerWall)} mm (menos de ${fmt(g.towerWarnWallMm)} mm): es delgada y depende de los perímetros de tu laminador. La lámpara de referencia impresa tiene 1,7 mm. Pendiente de validación física.` });
     }
     const ringsGap = ins.innerR - layout.ringsR;
-    if (ringsGap < g.ringsToInsertMinMm) errors.push({ code: "INSERT_TOO_CLOSE_TO_RINGS", field: "insert.diameterMm", message: `El interior del cilindro (Ø ${fmt(2 * ins.innerR)} mm) queda a ${fmt(ringsGap)} mm de los anillos del portalámparas (Ø ${fmt(holder.ringsDiameterMm)} mm): hace falta al menos ${fmt(g.ringsToInsertMinMm)} mm.` });
+    if (ringsGap < g.ringsToInsertMinMm) errors.push({ code: "INSERT_TOO_CLOSE_TO_RINGS", field: insField, message: `El interior del cilindro (Ø ${fmt(2 * ins.innerR)} mm) queda a ${fmt(ringsGap)} mm de los anillos del portalámparas (Ø ${fmt(holder.ringsDiameterMm)} mm): hace falta al menos ${fmt(g.ringsToInsertMinMm)} mm.` });
 
     const bothDiameters = `Ø ${fmt(2 * ins.bodyMaxR)} mm`;
     const available = layout.fit.shadeClearRadiusMm ?? 0;
@@ -203,10 +212,10 @@ export function validateLamp(def: LampDefinition, printer?: PrinterProfile): Lam
         });
       }
     } else {
-      if (ins.bodyMaxR > available + 1e-6 && layout.fit.diffuser?.source === "rings") {
+      if (ins.bodyMaxR > available + 1e-6 && (dif?.source === "rings" || diameterMode)) {
         errors.push({ code: "DIFFUSER_STRUCTURE_INTRUDES", field: "openwork.diffuserClearanceMm", message: `La estructura calada invade el volumen del difusor: queda libre como máximo Ø ${fmt(2 * available)} mm (con la holgura de montaje) en algún punto del alto del difusor (la cintura o el cuello son más angostos que los anillos) y el difusor mide Ø ${fmt(2 * ins.bodyMaxR)} mm. Ensanchá la cintura de la silueta o aumentá la holgura diametral; no se achica nada automáticamente.` });
-      } else if (ins.bodyMaxR > available + 1e-6) errors.push({ code: "INSERT_TOUCHES_SHADE", field: "insert.diameterMm", message: `El cilindro de ${bothDiameters} tocaría o atravesaría el cuello o la pantalla: el espacio libre máximo (con la holgura y las lengüetas) es Ø ${fmt(2 * available)} mm.` });
-      if (ins.innerR < layout.fit.requiredInsertInnerRadiusMm - 1e-9) errors.push({ code: "INSERT_TOO_CLOSE_TO_BULB", field: "insert.diameterMm", message: `El interior del cilindro (Ø ${fmt(2 * ins.innerR)} mm) queda a menos de ${fmt(requiredGap)} mm de la bombilla/portalámparas (hace falta Ø ${fmt(2 * layout.fit.requiredInsertInnerRadiusMm)} mm como mínimo, con los anillos y el cuerpo cargados).` });
+      } else if (ins.bodyMaxR > available + 1e-6) errors.push({ code: "INSERT_TOUCHES_SHADE", field: insField, message: `El cilindro de ${bothDiameters} tocaría o atravesaría el cuello o la pantalla: el espacio libre máximo (con la holgura y las lengüetas) es Ø ${fmt(2 * available)} mm.` });
+      if (ins.innerR < layout.fit.requiredInsertInnerRadiusMm - 1e-9) errors.push({ code: "INSERT_TOO_CLOSE_TO_BULB", field: insField, message: `El interior del cilindro (Ø ${fmt(2 * ins.innerR)} mm) queda a menos de ${fmt(requiredGap)} mm de la bombilla/portalámparas (hace falta Ø ${fmt(2 * layout.fit.requiredInsertInnerRadiusMm)} mm como mínimo, con los anillos y el cuerpo cargados).` });
     }
     const gap = layout.fit.insertBulbGapMm ?? 0;
     if (gap < g.bulbGapAdvisoryMm && gap >= requiredGap - 1e-9) {
@@ -227,16 +236,33 @@ export function validateLamp(def: LampDefinition, printer?: PrinterProfile): Lam
       warnings.push({ code: "INSERT_CLOSED_THERMAL_PENDING", field: "insert.style", message: LAMP_CLOSED_INSERT_MESSAGE });
     }
     if (!ins.closedTop && layout.bulbTopZ > ins.z1) warnings.push({ code: "INSERT_SHORTER_THAN_BULB", message: "El cilindro es más bajo que la bombilla: la parte superior de la bombilla no queda cubierta por el color." });
-    const dif = layout.fit.diffuser;
     if (dif) {
       const dcfg = doubleActive ? def.doubleWall : def.openwork;
       const half = dcfg.diffuserClearanceMm / 2;
-      if (dcfg.diffuserFit === "rings") {
+      if (diameterMode) {
+        // La base debe alojar el Ø pedido: no se achica el difusor en silencio ni se toca la rosca; se informa la causa y la rosca mínima.
+        const towerLimit = spec.boreR - 3 - g.towerOuterWallMm - insert.clearanceMm;
+        if (ins.outerR > towerLimit + 1e-9) {
+          const need = dif.minThreadMajorMm;
+          errors.push({
+            code: "DIFFUSER_EXCEEDS_BASE",
+            field: "openwork.diffuserDiameterMm",
+            message: `La base no aloja un difusor de Ø ${fmt(2 * ins.outerR)} mm: la torre que lo recibe (ranura de ${fmt(insert.clearanceMm)} mm de holgura y ${fmt(g.towerOuterWallMm)} mm de pared) necesita 3 mm de aire hasta el orificio del cuello roscado (Ø ${fmt(2 * spec.boreR)} mm con una rosca Ø ${fmt(thread.majorDiameterMm)} mm), y eso limita el difusor a Ø ${fmt(2 * towerLimit)} mm${dif.baseLimitDiameterMm < 2 * towerLimit - 1e-6 ? ` (Ø ${fmt(dif.baseLimitDiameterMm)} mm si además se respeta el reborde de adhesión de ${fmt(def.adhesion.widthMm)} mm con 1 mm de holgura)` : ""}. ${need === null ? "Ninguna rosca de hasta Ø200 mm lo aloja: reducí el difusor." : `Subí el diámetro de la rosca de montaje a Ø ${fmt(need)} mm o más${def.adhesion.enabled ? " (con el reborde de adhesión actual)" : ""}, o reducí el difusor.`} No se modifica nada automáticamente.`,
+          });
+        }
+        // La relación pedida: Ø interior libre de CADA anillo = Ø difusor + holgura diametral. Si el motor no la pudo resolver, no se exporta.
+        const wanted = def.openwork.diffuserDiameterMm + def.openwork.diffuserClearanceMm;
+        const open = openingFreeDiameters(def);
+        if (Math.abs(open.bottomMm - wanted) > 0.01 || Math.abs(open.topMm - wanted) > 0.01) {
+          errors.push({ code: "DIFFUSER_FIT_UNSOLVED", field: "openwork.diffuserClearanceMm", message: `No se pudo ajustar la abertura de los anillos a Ø ${fmt(wanted)} mm (difusor Ø ${fmt(def.openwork.diffuserDiameterMm)} mm + holgura ${fmt(dcfg.diffuserClearanceMm)} mm): quedan en Ø ${fmt(open.bottomMm)} mm abajo y Ø ${fmt(open.topMm)} mm arriba. Cambiá la profundidad de las tiras, la rosca o el diámetro del difusor.` });
+        }
+      }
+      if (dcfg.diffuserFit === "rings" || diameterMode) {
         if (dif.limitedBy === "base") {
           warnings.push({ code: "DIFFUSER_LIMITED_BY_BASE", field: "thread.majorDiameterMm", message: `El difusor queda en Ø ${fmt(dif.diffuserDiameterMm)} mm limitado por la base y la rosca (la torre que lo aloja necesita al menos 3 mm de aire hasta el orificio del cuello, o el ancho del reborde de adhesión más 1 mm si es mayor: máximo Ø ${fmt(dif.baseLimitDiameterMm)} mm), no por los anillos (Ø ${fmt(dif.ringBottomFreeDiameterMm)} mm abajo, Ø ${fmt(dif.ringTopFreeDiameterMm)} mm arriba). Para un difusor más ancho aumentá el diámetro de la rosca; la base no se modifica sola.` });
         }
-        if (doubleActive) {
-          // la abertura central ya es el límite: sin anillos que comparar
+        if (doubleActive || diameterMode) {
+          // la abertura central ya es el límite (doble pared), o los dos anillos se resuelven al mismo diámetro (modo "diameter"): sin anillos que comparar
         } else if (Math.abs(dif.ringBottomFreeDiameterMm - dif.ringTopFreeDiameterMm) > 4) {
           const wide = dif.ringBottomFreeDiameterMm > dif.ringTopFreeDiameterMm ? "inferior" : "superior";
           warnings.push({ code: "DIFFUSER_RINGS_MISMATCH", field: "openwork.diffuserFit", message: `Los anillos tienen diámetros interiores libres distintos (inferior Ø ${fmt(dif.ringBottomFreeDiameterMm)} mm, superior Ø ${fmt(dif.ringTopFreeDiameterMm)} mm): el difusor es un cilindro rígido y se dimensiona por el más angosto, así que en el anillo ${wide} queda ${fmt(Math.max(dif.radialClearanceBottomMm, dif.radialClearanceTopMm))} mm de holgura radial y no lo centra. Igualá los diámetros de los extremos si querés que ambos anillos lo guíen.` });
@@ -245,7 +271,10 @@ export function validateLamp(def: LampDefinition, printer?: PrinterProfile): Lam
         }
         if (def.insert.tabs) warnings.push({ code: "DIFFUSER_TABS_NOT_APPLICABLE", field: "insert.tabs", message: "Las lengüetas de extracción no caben entre el difusor y el anillo: se ignoran. El difusor se retira por la abertura superior agarrándolo del borde." });
       }
-      // Se pueda introducir y sacar: el anillo superior debe dejar pasar el cuerpo del difusor con la holgura de montaje
+      // Recorrido de inserción y extracción: el difusor baja por la abertura superior hasta su asiento y vuelve a salir; debe pasar con la holgura de montaje en TODO el trayecto
+      if (!doubleActive && (dif.source === "rings" || diameterMode) && !dif.insertable && dif.ringTopFreeDiameterMm / 2 - ins.bodyMaxR >= insert.clearanceMm - 1e-6 && !errors.some((e) => e.code === "DIFFUSER_STRUCTURE_INTRUDES" || e.code === "INSERT_TOUCHES_SHADE")) {
+        errors.push({ code: "DIFFUSER_PATH_BLOCKED", field: doubleActive ? "doubleWall.diffuserClearanceMm" : "openwork.diffuserClearanceMm", message: `El difusor (Ø ${fmt(2 * ins.bodyMaxR)} mm) no podría introducirse ni retirarse: en algún punto del recorrido por la abertura superior la estructura o el cuello roscado dejan libre apenas Ø ${fmt(dif.pathMinFreeDiameterMm)} mm (${fmt(dif.pathClearanceMm)} mm de holgura radial; se exigen ${fmt(insert.clearanceMm)} mm). Ensanchá la cintura o los anillos, o reducí el difusor.` });
+      }
       if (dif.ringTopFreeDiameterMm / 2 - ins.bodyMaxR < insert.clearanceMm - 1e-6) {
         errors.push({ code: "DIFFUSER_CANNOT_PASS_TOP", field: doubleActive ? "doubleWall.diffuserClearanceMm" : "openwork.diffuserClearanceMm", message: `El difusor (Ø ${fmt(2 * ins.bodyMaxR)} mm) no pasa por el anillo superior (Ø ${fmt(dif.ringTopFreeDiameterMm)} mm libres): no se podría introducir ni retirar. Reducí el difusor o ensanchá el anillo superior.` });
       }
@@ -275,5 +304,10 @@ export function validateLamp(def: LampDefinition, printer?: PrinterProfile): Lam
     warnings.push({ code: "BASE_STABILITY", field: "base.diameterMm", message: "La base es angosta respecto de la pantalla y la altura total: la lámpara puede volcar. Es una regla práctica, no un cálculo: verificá la estabilidad con la lámpara montada." });
   }
 
-  return { errors, warnings, field, layout, vase };
+  // Con el difusor como dato, que la torre no entre en el cuello (y el reborde de adhesión que queda sin lugar) es CONSECUENCIA de un solo hecho que ya se informó con su remedio.
+  if (errors.some((e) => e.code === "DIFFUSER_EXCEEDS_BASE")) {
+    for (let i = errors.length - 1; i >= 0; i--) if (errors[i].code === "TOWER_TOO_WIDE_FOR_THREAD" || errors[i].code === "ADHESION_INTERFERES") errors.splice(i, 1);
+  }
+
+  return { resolved: def, errors, warnings, field, layout, vase };
 }

@@ -46,11 +46,30 @@ function solveRing(def: LampDefinition, which: "bottom" | "top", freeMm: number)
  */
 export function suggestThreadMajorForDiffuser(def: LampDefinition): number | null {
   const first = validateLamp(def).layout?.fit.diffuser;
+  if (first?.source === "diameter") return minThreadMajorForDiffuserDiameter(def);
   if (!first || first.limitedBy !== "base") return null;
   for (let major = Math.ceil(def.thread.majorDiameterMm) + 1; major <= 200; major++) {
     const probe = { ...def, thread: { ...def.thread, majorDiameterMm: major } };
     const fit = validateLamp(probe).layout?.fit.diffuser;
     if (fit && fit.limitedBy !== "base") return major;
+  }
+  return null;
+}
+
+/** Errores de montaje que una rosca más ancha puede resolver: ninguno de estos puede quedar para que la rosca sea una solución. */
+const MOUNT_CODES = new Set(["DIFFUSER_EXCEEDS_BASE", "TOWER_TOO_WIDE_FOR_THREAD", "SHADE_NARROWER_THAN_THREAD", "ADHESION_INTERFERES", "TOWER_INNER_WALL_THIN", "DIFFUSER_FIT_UNSOLVED"]);
+
+/**
+ * Rosca de montaje (Ø mayor, enteros) más chica desde la cual la base aloja el difusor del modo «por su diámetro» SIN errores de montaje: el mínimo
+ * de la torre (`fit.diffuser.minThreadMajorMm`) puede caer en un intervalo donde la transición de 45° con la rosca no cabe, así que se verifica
+ * cada candidato con la validación completa. null si no hay ninguna hasta Ø200 mm. No modifica nada: es la propuesta que la persona decide aplicar.
+ */
+export function minThreadMajorForDiffuserDiameter(def: LampDefinition): number | null {
+  const start = validateLamp(def).layout?.fit.diffuser?.minThreadMajorMm;
+  if (start === undefined || start === null) return null;
+  for (let major = Math.ceil(start); major <= 200; major++) {
+    const errors = validateLamp({ ...def, thread: { ...def.thread, majorDiameterMm: major } }).errors;
+    if (!errors.some((e) => MOUNT_CODES.has(e.code))) return major;
   }
   return null;
 }

@@ -7,6 +7,7 @@ import { useAppFeedback } from "@/components/ui/app-feedback";
 import { LampExportButtons, MakerLampControls } from "@/components/maker/MakerLampControls";
 import { MakerViewport, type MakerDisplayMode } from "@/components/maker/MakerViewport";
 import { BedLabel, BedWarnings, ViewportViewCard } from "@/components/maker/MakerViewportOverlays";
+import { useLampConstraints } from "@/hooks/maker/useLampConstraints";
 import { useLampGeometry } from "@/hooks/maker/useLampGeometry";
 import { downloadLampPart, downloadLampTestZip, downloadLampZip, isTestPieceBlocker } from "@/lib/maker/lamps/exporters/lampFiles";
 import { DEFAULT_LAMP } from "@/lib/maker/lamps/defaults";
@@ -46,9 +47,12 @@ export default function StampaMakerLampsPage() {
   const [compare, setCompare] = useState(false);
   const { toast } = useAppFeedback();
 
-  const { result, pending } = useLampGeometry(def);
+  const [advancedOpen, setAdvancedOpen] = useState(false);
+  const { result, pending, outdated, outdatedReason } = useLampGeometry(def);
+  const { ranges, stale } = useLampConstraints(def, advancedOpen);
   const geometry = result.geometry;
-  const canDownload = !pending && !!geometry && geometry.triangleCount > 0 && result.errors.length === 0;
+  // Se exporta solo la lámpara que corresponde a los controles: sin cambios pendientes, sin errores y sin que el visor esté mostrando una vista anterior.
+  const canDownload = !pending && !outdated && !!geometry && geometry.triangleCount > 0 && result.errors.length === 0;
   const canDownloadTests = !pending && !result.errors.some(isTestPieceBlocker);
 
   const handlePreset = useCallback((preset: LampPreset) => setDef((prev) => applyLampPreset(prev, preset)), []);
@@ -72,8 +76,11 @@ export default function StampaMakerLampsPage() {
     },
     [toast],
   );
-  const onDownloadPart = useCallback((kind: PartKind) => void run(kind, () => downloadLampPart(result, kind)), [run, result]);
-  const onDownloadZip = useCallback(() => void run("zip", () => downloadLampZip(result, def)), [run, result, def]);
+  const guard = useCallback(() => {
+    if (!canDownload) throw new Error("La lámpara del visor no corresponde a los valores actuales: resolvé los errores antes de descargar.");
+  }, [canDownload]);
+  const onDownloadPart = useCallback((kind: PartKind) => void run(kind, () => { guard(); return downloadLampPart(result, kind); }), [run, result, guard]);
+  const onDownloadZip = useCallback(() => void run("zip", () => { guard(); return downloadLampZip(result, def); }), [run, result, def, guard]);
   const onDownloadTests = useCallback(() => void run("tests", () => downloadLampTestZip(def)), [run, def]);
 
   const exportButtons = (
@@ -156,10 +163,14 @@ export default function StampaMakerLampsPage() {
           warnings={result.warnings}
           metrics={result.metrics}
           exportButtons={exportButtons}
+          ranges={ranges}
+          stale={stale}
+          outdated={outdated}
+          onAdvancedToggle={setAdvancedOpen}
         />
       </aside>
 
-      <section className="theme-force-dark relative order-1 h-[52dvh] min-h-[340px] overflow-hidden rounded-2xl border border-stampa-border bg-stampa-surface max-lg:sticky max-lg:top-2 max-lg:z-20 lg:order-none lg:h-auto lg:min-h-0 lg:flex-1 lg:rounded-none lg:border-0">
+      <section className={"theme-force-dark relative order-1 " + (outdated ? "[&_canvas]:opacity-40 " : "") + " h-[52dvh] min-h-[340px] overflow-hidden rounded-2xl border border-stampa-border bg-stampa-surface max-lg:sticky max-lg:top-2 max-lg:z-20 lg:order-none lg:h-auto lg:min-h-0 lg:flex-1 lg:rounded-none lg:border-0"}>
         <MakerViewport
           geometry={viewGeometry}
           displayMode={displayMode}
@@ -174,6 +185,11 @@ export default function StampaMakerLampsPage() {
         <div className="pointer-events-none absolute inset-0 flex flex-col justify-between gap-3 p-3">
           <div className="flex items-start justify-between gap-3">
             <div className="flex flex-col gap-2">
+              {outdated && (
+                <span role="alert" className="pointer-events-auto max-w-sm rounded-lg border border-red-500/50 bg-stampa-surface/90 px-2.5 py-1.5 text-[11px] font-semibold text-red-300 backdrop-blur-md">
+                  Vista anterior: los valores actuales no se pueden aplicar{outdatedReason ? ` — ${outdatedReason}` : ""} Esta lámpara NO corresponde a los controles y no se puede descargar.
+                </span>
+              )}
               {displayMode === "bed" && bed && <BedWarnings layout={bed.layout} profile={profile} />}
               {comparison && (
                 <span className="pointer-events-auto max-w-sm rounded-lg border border-fg/10 bg-stampa-surface/80 px-2.5 py-1 text-[11px] font-semibold text-gray-300 backdrop-blur-md">

@@ -71,6 +71,7 @@
 >
 > Lámparas V2 (2026-10-31): base rediseñada a partir de la lámpara de referencia `bottom.stl` (38.14): **torre central** con agujero Ø42 nominal, rebaje de anillos Ø59,8 × 5,15 mm y ranura anular de Ø63,2–65,7 × 10 mm para el **cilindro de color de Ø65 exterior**; interfaz y rosca de la V1.1 intactas; UI en tres secciones (Diseño / Iluminación / Fabricación) y vistas rápidas en el visor. Dimensiones y pared de la torre pendientes de validación física.
 > Lámparas V2.1 (2026-10-31): se eliminan las **ventanas rectangulares** de la base (laterales, al nivel del piso) y del cilindro de color (sobre la torre): ambas superficies quedan lisas y continuas (38.8, 38.9). Se conservan el canal de cable, las ranuras del precinto, la cavidad anular, la torre, la rosca macho/hembra y el motor paramétrico de las pantallas. **No es una validación térmica:** la ventilación con la geometría cerrada sigue pendiente de prueba con portalámparas y bombilla reales (38.9).
+> Lámparas V6 (2026-11-02): **estabilización** (sin funciones nuevas): rangos de los controles calculados con la misma validación que bloquea la exportación (restricciones dinámicas: nada se ofrece si rompe el modelo y nada se corrige en silencio), **difusor de la calada por su diámetro** (Ø interior libre de los anillos = Ø difusor + holgura; Ø80 → abertura Ø81 con 0,5 mm por lado, medido en malla y STL; la rosca debe ser ≥ Ø102 y el botón la propone), recorrido de inserción verificado, altura del difusor que sigue a la pantalla, controles principales vs. «Personalización avanzada», diseños y formas solo si son válidos, y vista previa anterior marcada como tal (38.20). **Pendiente de laminado, de la ruta real con sesión admin y de validación física/térmica.**
 > Lámparas V5 (2026-11-02): **integración real**: selector «Sólida | Calada | Doble pared» en la herramienta, doble pared convencional en el motor (piso, techo, abertura central libre, separación medida), anillos con Ø interior libre configurable y difusor calado según los anillos, transición de 45° hacia adentro en la calada (38.19). Modo jarrón de la doble pared NO disponible. **Pendiente de laminado y de verificación en la ruta real (admin).**
 > Lámparas V4.1 (2026-11-01): (A) el difusor de las pantallas **calada** se dimensiona por el diámetro interior LIBRE de los anillos (menos una holgura diametral configurable, 1 mm inicial) y no por el decorativo; la sólida conserva Ø65 (38.18). (B) la doble pared (experimento aislado) gana piso y techo que unen las paredes sin tapar la abertura central; el modo jarrón solo es compatible con el piso, no con un cierre superior (informe en `docs/STAMPA_MAKER_DOUBLE_WALL.md`). **Sin resultados de laminado.**
 > Lámparas V4 (2026-11-01, **experimento aislado**): dos prototipos STL de una pantalla de **doble pared** (sección en C para modo jarrón y anillos cerrados con nervios para impresión convencional) en `src/lib/maker/lamps/experiments/doubleWall/`, sin UI ni integración. Informe: `docs/STAMPA_MAKER_DOUBLE_WALL.md`. **Sin resultados de laminado** (no había laminador): el modo jarrón NO está validado.
@@ -3869,6 +3870,131 @@ Medido con `scripts/lamp-stl-profile.mjs` (corte por un plano cercano al eje de 
 - Se introduce y se retira por arriba: se verifica que en todo el recorrido (anillo superior, estructura, cuello) el libre de la malla exportada supera al difusor + la holgura de montaje; `DIFFUSER_CANNOT_PASS_TOP` si no.
 
 **Limitaciones y pendiente.** La ruta real requiere sesión de administrador: los tests de integración (`tests/maker-lamps-v5-integration.test.mjs`) ejercitan el componente REAL con sus controles, el estado, el motor, la conversión que usa el visor y los STL exportados (medidos), pero **no reemplazan abrir la ruta en el navegador con un admin**. Nada de lo nuevo está laminado ni validado físicamente: la cámara cerrada (cavidad), el techo hasta ~39° y la transición hacia adentro de la calada (voladizo de 45°) hay que revisarlos en Bambu Studio. La doble pared es una pieza maciza en el cuello y el piso (más material): conviene revisar el tiempo y el relleno. Térmica pendiente (`DW_NOT_THERMAL`, `OPENWORK_NOT_THERMAL`).
+
+### 38.20 V6 — estabilización: restricciones dinámicas de los controles, difusor calado Ø80 / Ø81 e interfaz simplificada
+
+Sin estilos, patrones ni funciones decorativas nuevas: solo se estabilizó lo existente. Código: `lamps/constraints.ts` (restricciones), `lamps/resolve.ts` (difusor como dato), `lamps/availability.ts` (diseños ofrecidos), `lamps/view.ts` (vista previa), `hooks/maker/useLampConstraints.ts`, `MakerLampControls.tsx`, `tests/maker-lamps-v6-stability.test.mjs` (25 tests).
+
+**Causa de los controles que ofrecían valores rotos (investigado con barridos sobre el motor real).** (1) Cada slider tenía un rango FIJO escrito en el JSX (p. ej. torsión ±720°, cintura 0–100 %, ondas 2–32) mientras que la validez depende de TODO el resto: la torsión máxima sale del radio, la altura y la inclinación de los rombos (`OPENWORK_STRIP_TOO_FLAT`: ±260° con rombos a 55° y no ±720°; las vueltas de la espiral, ±1 y no ±8); la cintura máxima, del difusor (`DIFFUSER_STRUCTURE_INTRUDES`: 70 %); la amplitud, de las ondas y el diámetro (`SHADE_RIDGE_TOO_SHARP`: 32 ondas con 6 mm); la profundidad de las estrías y el diámetro de la pared interior, de la separación entre paredes (`DW_GAP`: 4 mm de estría); el diámetro superior de la sólida, del difusor de Ø65 (`INSERT_TOUCHES_SHADE`: < 85 mm). (2) El slider mostraba `Math.min(max, Math.max(min, value))`: un valor fuera de rango se dibujaba como si estuviera dentro. (3) Los diseños (presets) y las siluetas se aplicaban sin comprobar si la combinación era válida (la doble pared «Ondulada» y «Cónica» daban `DW_GAP` con los valores iniciales; «Reloj de arena calado» invade el difusor). (4) El visor conservaba la última lámpara válida con los errores nuevos, pero sin decir que esa vista no correspondía a los controles. Nada de esto era un fallo del mallador: las mallas inválidas ya se bloqueaban; el problema era la interfaz ofreciendo lo que el motor rechaza.
+
+**Restricciones dinámicas (`constraints.ts`).** `LAMP_CONTROL_SPECS` es la matriz de parámetros: ruta, envolvente fija (siempre dentro de `LAMP_LIMITS`, lo verifica un test), paso y cuándo existe el control (patrón, ajuste del difusor, altura manual). El rango VÁLIDO de un control para el estado actual se calcula con la MISMA validación que bloquea la exportación (`validateLamp`), no con una fórmula aparte (la geometría es un campo muestreado y no hay forma cerrada fiable): se evalúa el control en ~25 valores de su envolvente y en el valor actual; «válido» = ningún error que el control pueda evitar (los errores que aparecen en TODOS los valores los causa otro control y no se le atribuyen); se toma el tramo contiguo que contiene al valor actual (o el más cercano) y sus bordes se afinan por bisección sobre la grilla del control. En la doble pared el muestreo es grueso (`fast`: 61 filas de separación, 1 mm de paso en las inclinaciones) y los bordes limitados por la separación o la inclinación se confirman con la validación completa. Cada borde que no es el de la envolvente lleva su razón (`SHORT` en `constraints.ts`: «las tiras quedarían casi horizontales», «la estructura invadiría el volumen del difusor»...). Verificado por test sobre las cuatro configuraciones iniciales: todo valor ofrecido es válido y el paso siguiente fuera del rango deja de serlo (no se reducen rangos de más).
+- La interfaz (`useLampConstraints`) recalcula en tandas cuando la definición queda quieta 280 ms (los principales primero; los avanzados al abrir «Personalización avanzada»); mientras tanto el control muestra el último rango conocido atenuado y, si aún no hay ninguno, «Calculando el rango válido…». El rango del propio control no depende de su valor: arrastrarlo no lo recalcula.
+- Un valor que queda fuera de rango (porque otro control cambió, un preset, un código de diseño o un campo numérico escrito) **no se corrige en silencio**: se ve en rojo con la razón, el error bloquea la exportación y hay un botón explícito «Llevar a …» al valor válido más cercano.
+- Los campos numéricos escritos conservan sus límites estáticos de `LAMP_LIMITS`; el difusor y la altura manual del difusor muestran su rango dinámico («Válido: a–b»).
+
+**Rangos válidos y dependencias (diseño inicial de cada tipo; cambian con el resto de los valores).**
+
+**Sólida (diseño inicial)**
+
+| Control | Envolvente fija | Rango válido ahora | Qué lo limita |
+|---|---|---|---|
+| Altura (`shade.heightMm`) | 80–320 mm | 80–320 mm | — |
+| Diámetro inferior (`shade.bottomDiameterMm`) | 100–260 mm | 100–260 mm | — |
+| Amplitud (`shade.amplitudeMm`) | 0–20 mm | 0–20 mm | — |
+| Diámetro superior (`shade.topDiameterMm`) | 80–280 mm | 85–280 mm | mín.: el difusor tocaría la pantalla |
+| Cantidad de ondas (`shade.waves`) | 2–32  | 2–26  | máx.: las crestas se plegarían sobre sí mismas |
+| Torsión (`shade.twistDeg`) | -720–720 ° | -720–720 ° | — |
+| Variación vertical (ciclos) (`shade.verticalFrequency`) | 0–6  | 0–6  | — |
+| Intensidad de la variación vertical (`shade.patternIntensityPct`) | 0–100 % | 0–100 % | — |
+| Intensidad del perfil (`shade.profileAmountPct`) | 0–100 % | 0–100 % | — |
+| Diámetro de montaje (rosca) (`thread.majorDiameterMm`) | 80–200 mm | 87–117 mm | mín.: el reborde de adhesión interferiría; máx.: no queda lugar para la transición de 45° con la rosca |
+
+**Calada diamante (difusor Ø70, rosca Ø96)**
+
+| Control | Envolvente fija | Rango válido ahora | Qué lo limita |
+|---|---|---|---|
+| Altura (`shade.heightMm`) | 80–320 mm | 80–320 mm | — |
+| Ø exterior del difusor (`openwork.diffuserDiameterMm`) | 60–200 mm | 65–74 mm | mín.: la pared de la torre de la base quedaría muy delgada; máx.: el reborde de adhesión interferiría |
+| Diámetro máximo decorativo (`openwork.maxDiameterMm`) | 80–300 mm | 80–280 mm | máx.: las tiras quedarían casi horizontales (no imprimibles) |
+| Densidad (rombos alrededor) (`openwork.divisions`) | 3–48  | 3–41  | máx.: las aberturas entre tiras se cerrarían |
+| Intensidad de cintura (`openwork.waistPct`) | 0–100 % | 0–70 % | máx.: la estructura invadiría el volumen del difusor |
+| Torsión (`openwork.twistDeg`) | -720–720 ° | -260–260 ° | mín.: las tiras quedarían casi horizontales (no imprimibles); máx.: las tiras quedarían casi horizontales (no imprimibles) |
+| Inclinación de las diagonales (`openwork.inclinationDeg`) | 20–75 ° | 26–75 ° | mín.: las tiras quedarían casi horizontales (no imprimibles) |
+| Grosor (ancho de las tiras) (`openwork.stripWidthMm`) | 1–14 mm | 1–14 mm | — |
+| Profundidad de las tiras (`openwork.depthMm`) | 1–6 mm | 1–6 mm | — |
+| Posición del ensanchamiento / cintura (`openwork.bulgePositionPct`) | 10–90 % | 20–80 % | mín.: las tiras quedarían casi horizontales (no imprimibles); máx.: las tiras quedarían casi horizontales (no imprimibles) |
+| Curvatura (`openwork.curvaturePct`) | 0–100 % | 0–100 % | — |
+| Variación orgánica (`openwork.organicPct`) | 0–100 % | 0–100 % | — |
+| Variación de inclinación (`openwork.variationPct`) | 0–70 % | 0–65 % | máx.: las tiras quedarían casi horizontales (no imprimibles) |
+| Ciclos de la variación (`openwork.variationCycles`) | 0–6  | 0–6  | — |
+| Holgura diametral del difusor (`openwork.diffuserClearanceMm`) | 0,7–10 mm | 0,7–10 mm | — |
+| Holgura vertical del difusor (`openwork.diffuserTopGapMm`) | 4–60 mm | 4–60 mm | — |
+| Diámetro de montaje (rosca) (`thread.majorDiameterMm`) | 80–200 mm | 92–200 mm | mín.: el reborde de adhesión interferiría |
+
+**Calada espiral (6 bandas, 0,4 vueltas)**
+
+| Control | Envolvente fija | Rango válido ahora | Qué lo limita |
+|---|---|---|---|
+| Altura (`shade.heightMm`) | 80–320 mm | 80–320 mm | — |
+| Ø exterior del difusor (`openwork.diffuserDiameterMm`) | 60–200 mm | 65–74 mm | mín.: la pared de la torre de la base quedaría muy delgada; máx.: el reborde de adhesión interferiría |
+| Diámetro máximo decorativo (`openwork.maxDiameterMm`) | 80–300 mm | 80–290 mm | máx.: las tiras quedarían casi horizontales (no imprimibles) |
+| Cantidad de bandas (`openwork.bands`) | 1–24  | 1–24  | — |
+| Intensidad de cintura (`openwork.waistPct`) | 0–100 % | 0–70 % | máx.: la estructura invadiría el volumen del difusor |
+| Torsión (`openwork.twistDeg`) | -720–720 ° | -505–220 ° | mín.: las tiras quedarían casi horizontales (no imprimibles); máx.: las tiras quedarían casi horizontales (no imprimibles) |
+| Vueltas (`openwork.turns`) | -8–8  | -1–1  | mín.: las tiras quedarían casi horizontales (no imprimibles); máx.: las tiras quedarían casi horizontales (no imprimibles) |
+| Grosor (ancho de las tiras) (`openwork.stripWidthMm`) | 1–14 mm | 1–14 mm | — |
+| Profundidad de las tiras (`openwork.depthMm`) | 1–6 mm | 1–6 mm | — |
+| Posición del ensanchamiento / cintura (`openwork.bulgePositionPct`) | 10–90 % | 15–85 % | mín.: las tiras quedarían casi horizontales (no imprimibles); máx.: las tiras quedarían casi horizontales (no imprimibles) |
+| Curvatura (`openwork.curvaturePct`) | 0–100 % | 0–100 % | — |
+| Variación orgánica (`openwork.organicPct`) | 0–100 % | 0–100 % | — |
+| Variación de inclinación (`openwork.variationPct`) | 0–70 % | 0–70 % | — |
+| Ciclos de la variación (`openwork.variationCycles`) | 0–6  | 0–6  | — |
+| Holgura diametral del difusor (`openwork.diffuserClearanceMm`) | 0,7–10 mm | 0,7–10 mm | — |
+| Holgura vertical del difusor (`openwork.diffuserTopGapMm`) | 4–60 mm | 4–60 mm | — |
+| Diámetro de montaje (rosca) (`thread.majorDiameterMm`) | 80–200 mm | 92–200 mm | mín.: el reborde de adhesión interferiría |
+
+**Doble pared (diseño inicial)**
+
+| Control | Envolvente fija | Rango válido ahora | Qué lo limita |
+|---|---|---|---|
+| Altura (`shade.heightMm`) | 80–320 mm | 80–315 mm | máx.: la malla sería demasiado pesada |
+| Diámetro máximo (abombado) (`doubleWall.maxDiameterMm`) | 100–340 mm | 100–340 mm | — |
+| Profundidad de las estrías (`doubleWall.fluteAmplitudeMm`) | 0–12 mm | 0–4 mm | máx.: las paredes quedarían demasiado cerca |
+| Diámetro inferior (`shade.bottomDiameterMm`) | 100–300 mm | 138–300 mm | mín.: las paredes quedarían demasiado cerca |
+| Diámetro superior (`shade.topDiameterMm`) | 100–300 mm | 130–258 mm | mín.: las paredes quedarían demasiado cerca; máx.: una cara se inclinaría demasiado |
+| Estrías / ondulaciones (cantidad) (`doubleWall.flutes`) | 3–48  | 3–39  | máx.: la malla sería demasiado pesada |
+| Torsión (`doubleWall.twistDeg`) | -720–720 ° | -425–425 ° | mín.: una cara se inclinaría demasiado; máx.: una cara se inclinaría demasiado |
+| Diámetro inferior de la pared interior (`doubleWall.innerBottomDiameterMm`) | 40–300 mm | 74–92 mm | mín.: la pared de la torre de la base quedaría muy delgada; máx.: las paredes quedarían demasiado cerca |
+| Diámetro superior de la pared interior (`doubleWall.innerTopDiameterMm`) | 40–300 mm | 74–99 mm | mín.: la pared de la torre de la base quedaría muy delgada; máx.: las paredes quedarían demasiado cerca |
+| Intensidad de cintura (`doubleWall.innerWaistPct`) | 0–100 % | 0–35 % | máx.: la pared de la torre de la base quedaría muy delgada |
+| Separación mínima entre paredes (`doubleWall.minGapMm`) | 5–60 mm | 5–21 mm | máx.: las paredes quedarían demasiado cerca |
+| Posición del ensanchamiento (`doubleWall.bulgePositionPct`) | 10–90 % | 10–90 % | — |
+| Curvatura de la pared exterior (`doubleWall.curvaturePct`) | 0–100 % | 0–100 % | — |
+| Posición de la cintura interior (`doubleWall.innerWaistPositionPct`) | 10–90 % | 10–90 % | — |
+| Curvatura de la pared interior (`doubleWall.innerCurvaturePct`) | 0–100 % | 0–100 % | — |
+| Variación orgánica interior (`doubleWall.innerOrganicPct`) | 0–100 % | 0–100 % | — |
+| Diámetro de montaje (rosca) (`thread.majorDiameterMm`) | 80–200 mm | 87–137 mm | mín.: la pared de la torre de la base quedaría muy delgada; máx.: no queda lugar para la transición de 45° con la rosca |
+
+**Combinaciones que siguen siendo problemáticas / limitaciones conocidas.**
+- El rango de un control es el tramo contiguo alrededor del valor actual: si hay un intervalo inválido en el medio (p. ej. un diámetro de rosca que deja la transición de 45° sin lugar, `SHADE_NARROWER_THAN_THREAD`, ±6 mm alrededor del diámetro de los extremos) el slider no cruza el hueco; el campo numérico sí lo permite y el motor informa el error.
+- Dos controles en conflicto simultáneo (el valor actual de uno hace que ningún valor del otro sea válido) devuelven `conflict`: el rango es la envolvente completa y la causa se muestra en la lista de errores, no en el slider.
+- La validación es GEOMÉTRICA: una malla válida puede necesitar soportes (avisos `OPENWORK_NEEDS_SUPPORT`, `FLARE_INWARD`, `DW_OVERHANG`) o superar la cama de la impresora (avisos); eso no bloquea y requiere laminar en Bambu Studio.
+- Los rangos de la doble pared con muestreo grueso solo se confirman con la validación completa en los bordes limitados por la separación o la inclinación; un borde no limitado (extremo de la envolvente) se valida con el muestreo fino cuando se genera la lámpara, y un error ahí se informa como cualquier otro.
+- Geometrías NO soportadas: modo jarrón de la doble pared; collar roscado con doble pared; hourglass (cintura más angosta que el difusor) con el difusor como dato (no se ofrece; sí con «Según los anillos» o «Manual»); pantalla calada con anillos más angostos que la raíz de la rosca menos 3 mm o más anchos que ella más 3 mm (transición de 45° sin lugar).
+- No hay prueba de laminado ni validación térmica: nada de lo medido acá lo es.
+
+**Difusor de la calada: reglas dimensionales (`resolve.ts`, `layout.ts`, `validateLamp.ts`).** Modo nuevo «Por su diámetro» (`openwork.diffuserFit = "diameter"`, el inicial; «Según los anillos» y «Manual» siguen disponibles):
+
+    Ø interior LIBRE de cada anillo = Ø exterior del difusor + holgura diametral        (los dos puntos de montaje, inferior y superior)
+
+- El difusor es el dato (`diffuserDiameterMm`, 70 mm inicial, 60–200; `diffuserClearanceMm`, 1 mm inicial, 0,7–10, valor inicial pendiente de validación física). Los diámetros EXTERIORES de los extremos (`shade.bottomDiameterMm/topDiameterMm`) se resuelven numéricamente (`resolveLampDef`, sobre las mismas filas que usa el campo: `openworkGrid` / `openworkRingFree`; incluye el escalón de la transición de 45° del anillo inferior) hasta que el libre medido es exacto (tolerancia 1 nm); `createLamp` y `validateLamp` trabajan con esa definición resuelta, así que lo validado es lo mallado. Si no se pudiera resolver: `DIFFUSER_FIT_UNSOLVED`, no se exporta.
+- La silueta decorativa (Ø máximo, cintura, torsión, patrón) solo puede EXPANDIRSE hacia afuera de los extremos y no invade el volumen reservado: lo exige `DIFFUSER_STRUCTURE_INTRUDES` / `DIFFUSER_PATH_BLOCKED`. El difusor no copia las ondulaciones exteriores (cilindro de tubo liso; ondulado solo si sus ondas caben).
+- **Recorrido de inserción y extracción** (no basta la posición final): el difusor entra y sale por la abertura superior; se verifica el radio libre mínimo de TODO el trayecto (anillo superior, estructura, cuello roscado, escalón de 45°) contra el cuerpo del difusor + la holgura de montaje (`fit.diffuser.pathMinFreeDiameterMm`, `pathClearanceMm`, `insertable`; errores `DIFFUSER_PATH_BLOCKED` y `DIFFUSER_CANNOT_PASS_TOP`).
+- **Altura**: con altura automática, el difusor acompaña la altura útil de la pantalla: su borde superior queda `diffuserTopGapMm` (6 mm inicial, 4–60) bajo el borde de la pantalla (holgura vertical de ensamblaje, redondeo hacia abajo a 0,1 mm: nunca más cerca); si la pantalla crece, el difusor la sigue. Con altura manual (`insert.heightMm`) se mantiene `INSERT_TOO_TALL` (≥ 4 mm bajo el borde) y el rango dinámico. Plano, gota y ondulado siguen siendo intercambiables con la misma interfaz de montaje.
+- **La base**: la torre que aloja el difusor necesita 3 mm de aire hasta el orificio del cuello roscado (o el ancho del reborde de adhesión + 1 mm si es mayor): con la rosca Ø96 inicial admite hasta Ø74,1. Un difusor mayor se RECHAZA (`DIFFUSER_EXCEEDS_BASE`: dice qué interferencia es, con qué rosca, y la rosca mínima) y el botón «Subir la rosca de montaje hasta que la base aloje el difusor» aplica la propuesta (`minThreadMajorForDiffuserDiameter`, verificada con la validación completa) solo cuando la persona lo pide. Para Ø80 hace falta rosca ≥ Ø102 con el reborde de adhesión de 3 mm (≥ Ø100 sin él).
+- La sólida no cambia (inserto Ø65, `insert.diameterMm`, sin informe de difusor). Los códigos de diseño calados anteriores se leen como eran («Según los anillos»); `normalizeLampDefinition` solo parte del modo recomendado cuando el código no trae parte calada. El motor de bases y roscas no se tocó.
+
+**Configuración verificada (CASO 1, medido sobre las mallas y sobre el STL exportado).** Calada, difusor Ø80, holgura 1 mm, decorativo Ø150, rosca Ø102 (propuesta por el botón), diseño inicial de diamante: difusor Ø80,000 mm; abertura libre mínima de TODA la pantalla (distancia plana del eje a cada tramo de cada triángulo) Ø80,996 mm (Ø81 nominal menos 4 µm de flecha de la polilínea facetada de la malla); separación radial 0,498 mm (0,5 nominal); pantalla Ø149,98 mm; extremos exteriores resueltos Ø85,8; holgura vertical 6,05 mm; recorrido libre Ø81 (0,5 mm de holgura) y `insertable`; el STL de `lampara_inserto_ondulado.stl` y `lampara_pantalla.stl` da exactamente las mismas cifras, y visor y STL tienen la misma cantidad de vértices. Variar el Ø decorativo (100/150/200/280 mm) o la altura de la pantalla (120/200/300 mm) no cambia 80/81 ni la separación; la altura del difusor sigue a la de la pantalla.
+
+**Interfaz.** Principal (siempre visible): tipo de pantalla, diseños, altura, diámetro (sólida: inferior; calada: Ø máximo decorativo; doble pared: Ø máximo), forma (perfil / silueta / forma de la pared exterior) e «Intensidad del patrón» (sólida: amplitud; calada: densidad de rombos o cantidad de bandas; doble pared: profundidad de las estrías). Todo lo demás (torsión, familia, ondas, ancho y profundidad de las tiras, cintura, anillos, semilla, pared interior, cámara, rosca...) sigue disponible en «Personalización avanzada» (plegada). Sin capacidades eliminadas ni controles duplicados (un test comprueba que ningún rótulo de slider se repite). El difusor y su montaje se configuran en «2 · Inserto de color». La doble pared nombra «(pared exterior)» / «(pared interior)» en los diámetros.
+
+**Diseños (presets) y siluetas.** `availability.ts` aplica cada diseño sobre la definición actual y lo pasa por la validación: solo se ofrecen los que no introducen errores, y la lista dice cuántos no se ofrecen y por qué (p. ej. «Reloj de arena calado: la estructura invadiría el volumen del difusor» con el difusor como dato; la doble pared «Ondulada» y «Cónica»: paredes demasiado cerca). En modo «Por su diámetro» los diseños calados expresan el Ø decorativo respecto del montaje (`mountMaxRatio`) y no tocan ni los extremos ni la rosca ni el difusor. Los diseños y siluetas ofrecidos se validan con la definición completa en los tests, y movidos por altura, diámetro, forma e intensidad dentro de los rangos siguen válidos.
+
+**Vista previa y exportación.** `useLampGeometry` devuelve `outdated` y la razón (`lamps/view.ts: selectLampView`): si los valores actuales tienen errores, el visor muestra la última lámpara válida MARCADA («Vista anterior: los valores actuales no se pueden aplicar — …», visor atenuado, aviso en el panel) con los errores ACTUALES; `canDownload = !pending && !outdated && sin errores`, los handlers de descarga repiten la guarda y `lampPartEntries` lanza si hay errores. Visor, controles, estado y STL salen de la misma `LampDefinition` y de las mismas mallas.
+
+**Verificación.** Tests: `tests/maker-lamps-v6-stability.test.mjs` (matriz y envolventes; rangos de las cuatro configuraciones con el paso siguiente inválido; dependencias entre controles; valor fuera de rango no corregido en silencio; caminata de extremos simultáneos; extremos de los controles principales con mallas cerradas; relación Ø difusor + holgura en 14 combinaciones; CASO 1 medido en malla y STL; CASO 2 recorriendo los controles principales por la interfaz real; CASO 3 con los diseños de cada tipo; interfaz principal/avanzada; base y rosca; recorrido de inserción; vista previa; exportación; miniaturas). Los 176 tests anteriores de lámparas se conservaron: los de V3/V4.1/V5 que dependían del modo anterior fijan `diffuserFit` y se adaptaron a la interfaz nueva (rótulos). Además se recorrió la herramienta real en el navegador integrado (la ruta `/stampa-maker/lamparas` requiere sesión de administrador, así que se montó el mismo componente de página en una ruta pública TEMPORAL, ya eliminada): Calada → difusor Ø80 → error de la base con la rosca mínima Ø102 → botón → sin errores, abertura «Ø 81 mm = 80 + 1», rangos dinámicos en los tres tipos (torsión ±240°, cintura 0–65 %, inclinación 26–75°, rosca ≥ 102), sin errores de consola.
+
+**Qué revisar en Bambu Studio / pendiente.** Nada de esta versión está laminado ni probado con la bombilla real. En el laminador: (1) el reborde y la transición de 45° HACIA ADENTRO del anillo inferior con los anillos Ø85,8 sobre la rosca Ø102 (voladizo de 45°, 6,5 mm); (2) las tiras que superan 45° de la vertical (`OPENWORK_NEEDS_SUPPORT`) y los anillos superior e inferior; (3) que el difusor Ø80 entre por la abertura Ø81 con 0,5 mm por lado con TU impresora (la holgura de 1 mm diametral es un valor inicial, no probado; con la tolerancia típica de impresión de ±0,1–0,2 mm puede quedar justo o flojo: probar con una pieza); (4) la torre Ø84,7 de la base y su pared; (5) todo lo térmico y eléctrico sigue PENDIENTE: que el conjunto encaje no es una validación de seguridad.
 
 ### 38.15 Roscas: calibración de tolerancias y pieza de prueba
 

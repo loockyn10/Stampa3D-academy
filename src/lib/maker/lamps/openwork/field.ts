@@ -62,7 +62,29 @@ export interface OpenworkSampleOptions {
   minCellMm?: number;
 }
 
-export function sampleOpenworkField(shade: LampShadeDef, ow: LampOpenworkDef, opts: OpenworkSampleOptions = {}): OpenworkField {
+/** Filas, radios y tamaño de celda de la pantalla calada: lo comparten el muestreo completo y el cálculo barato de los radios libres de los anillos. */
+export interface OpenworkGrid {
+  period: number;
+  cell: number;
+  coarse: boolean;
+  nTheta: number;
+  nRows: number;
+  dz: number;
+  z: Float64Array;
+  rowR: Float64Array;
+  rowRin: Float64Array;
+  rowS: Float64Array;
+  slope: Float64Array;
+  arc: Float64Array;
+  degenerate: boolean;
+  maxTilt: number;
+  worstZ: number;
+  minOuter: number;
+  maxOuter: number;
+  minInner: number;
+}
+
+export function openworkGrid(shade: LampShadeDef, ow: LampOpenworkDef, opts: OpenworkSampleOptions = {}): OpenworkGrid {
   const g = LAMP_GEOMETRY;
   const H = shade.heightMm;
   const R = createSilhouette(silhouetteInput(shade, ow));
@@ -89,7 +111,6 @@ export function sampleOpenworkField(shade: LampShadeDef, ow: LampOpenworkDef, op
   }
   if (cell > ow.stripWidthMm / 2) coarse = true;
   const { nTheta, nRows } = dims;
-  const dTheta = TAU / nTheta;
   const dz = H / (nRows - 1);
 
   // ---- Filas: radio, pendiente, arco, espesor normal
@@ -119,6 +140,30 @@ export function sampleOpenworkField(shade: LampShadeDef, ow: LampOpenworkDef, op
     minInner = Math.min(minInner, rowRin[i]);
     if (i > 0) arc[i] = arc[i - 1] + dz * 0.5 * (rowS[i] + rowS[i - 1]);
   }
+  return { period, cell, coarse, nTheta, nRows, dz, z, rowR, rowRin, rowS, slope, arc, degenerate, maxTilt, worstZ, minOuter, maxOuter, minInner };
+}
+
+/** Radios interiores LIBRES de los anillos (inferior, superior) y mínimo de toda la pantalla, leídos de las filas de la grilla (sin muestrear el campo de aberturas). */
+export function openworkRingFree(grid: OpenworkGrid, ow: LampOpenworkDef): { bottomR: number; topR: number; structureMinR: number } {
+  const { nRows, arc, rowRin } = grid;
+  const topStart = arc[nRows - 1] - ow.topRingMm;
+  let bottomFree = Infinity, topFree = Infinity;
+  for (let i = 0; i < nRows; i++) {
+    if (arc[i] <= ow.bottomRingMm + 1e-9) bottomFree = Math.min(bottomFree, rowRin[i]);
+    if (ow.topFinish === "ring" ? arc[i] >= topStart - 1e-9 : i === nRows - 1) topFree = Math.min(topFree, rowRin[i]);
+  }
+  if (!Number.isFinite(bottomFree)) bottomFree = rowRin[0];
+  if (!Number.isFinite(topFree)) topFree = rowRin[nRows - 1];
+  return { bottomR: bottomFree, topR: topFree, structureMinR: grid.minInner };
+}
+
+export function sampleOpenworkField(shade: LampShadeDef, ow: LampOpenworkDef, opts: OpenworkSampleOptions = {}): OpenworkField {
+  const g = LAMP_GEOMETRY;
+  const H = shade.heightMm;
+  const grid = openworkGrid(shade, ow, opts);
+  const { period, cell, coarse, nTheta, nRows, z, rowR, rowRin, rowS, arc, slope, degenerate, maxTilt, worstZ, minOuter, maxOuter, minInner } = grid;
+  const dTheta = TAU / nTheta;
+  const dz = grid.dz;
 
   // ---- Fase: torsión general y patrón
   const twist = (ow.twistDeg * Math.PI) / 180;
@@ -291,13 +336,7 @@ export function sampleOpenworkField(shade: LampShadeDef, ow: LampOpenworkDef, op
     latticeTriangles,
   };
 
-  let bottomFree = Infinity, topFree = Infinity;
-  for (let i = 0; i < nRows; i++) {
-    if (arc[i] <= bottomEnd + 1e-9) bottomFree = Math.min(bottomFree, rowRin[i]);
-    if (hasTop ? arc[i] >= topStart - 1e-9 : i === nRows - 1) topFree = Math.min(topFree, rowRin[i]);
-  }
-  if (!Number.isFinite(bottomFree)) bottomFree = rowRin[0];
-  if (!Number.isFinite(topFree)) topFree = rowRin[nRows - 1];
+  const ringFree = openworkRingFree(grid, ow);
 
   return {
     nTheta,
@@ -324,7 +363,7 @@ export function sampleOpenworkField(shade: LampShadeDef, ow: LampOpenworkDef, op
     cellMm: cell,
     coarse,
     report,
-    ringFree: { bottomR: bottomFree, topR: topFree, structureMinR: minInner },
+    ringFree,
     columnsPerPeriod: nTheta / period,
   };
 }

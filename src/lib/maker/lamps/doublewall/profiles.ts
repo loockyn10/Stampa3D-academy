@@ -291,9 +291,8 @@ export interface LeanReport {
  * Inclinaciones respecto de la vertical de todas las caras, muestreadas cada 0,25 mm de altura y 96 ángulos. Es el dato de los
  * voladizos: 0° = vertical; 45° es el límite orientativo de impresión sin soportes. NO es una garantía de impresión.
  */
-export function measureLean(p: DoubleWallParams): LeanReport {
+export function measureLean(p: DoubleWallParams, dz = 0.25): LeanReport {
   const surf = createDoubleWallSurfaces(p);
-  const dz = 0.25;
   const n = Math.round(p.heightMm / dz);
   const per = Math.max(96, p.outer.flutes * 4);
   let outer = 0, inner = 0, chamber = 0, at = 0;

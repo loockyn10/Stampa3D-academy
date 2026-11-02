@@ -25,8 +25,8 @@ export function getShadeField(shade: LampShadeDef): ShadeField {
 }
 
 /** Campo de la pantalla activa de la definición (sólida u calada). Solo depende de lo que cambia la superficie. */
-export function getLampField(def: LampDefinition): ShadeField {
-  if (def.shadeType === "double") return remember(`double|${doubleWallKey(def)}`, () => sampleDoubleWallField(def));
+export function getLampField(def: LampDefinition, fast = false): ShadeField {
+  if (def.shadeType === "double") return remember(`double${fast ? "-fast" : ""}|${doubleWallKey(def)}`, () => sampleDoubleWallField(def, fast));
   if (def.shadeType === "openwork") return remember(`openwork|${openworkKey(def.shade, def.openwork)}`, () => sampleOpenworkField(def.shade, def.openwork));
   return getShadeField(def.shade);
 }

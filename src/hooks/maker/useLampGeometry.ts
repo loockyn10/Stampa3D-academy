@@ -2,6 +2,7 @@
 
 import { useEffect, useMemo, useState } from "react";
 import { createLamp, lampGeometryKey } from "@/lib/maker/lamps/createLamp";
+import { selectLampView } from "@/lib/maker/lamps/view";
 import type { LampDefinition, LampResult } from "@/lib/maker/lamps/types";
 import { DEFAULT_PRINTER_PROFILE_ID, getPrinterProfile } from "@/lib/maker/printBed/printerProfiles";
 
@@ -11,6 +12,12 @@ export interface UseLampGeometryState {
   result: LampResult;
   /** true mientras el debounce no alcanzó la definición actual: no se debe exportar (el STL no coincidiría con lo que se ve). */
   pending: boolean;
+  /**
+   * true cuando el visor muestra la ÚLTIMA lámpara válida porque los valores actuales no se pueden aplicar (tienen errores): esa vista NO corresponde a
+   * los controles. `outdatedReason` es el primer error. Con `outdated` no se exporta nada (`result.errors` no está vacío).
+   */
+  outdated: boolean;
+  outdatedReason: string | null;
 }
 
 /**
@@ -33,6 +40,5 @@ export function useLampGeometry(def: LampDefinition): UseLampGeometryState {
   const [lastValid, setLastValid] = useState<LampResult | null>(null);
   if (computed.geometry && computed !== lastValid) setLastValid(computed);
 
-  const result: LampResult = computed.geometry || !lastValid ? computed : { ...lastValid, errors: computed.errors, warnings: computed.warnings };
-  return { result, pending: lampGeometryKey(def) !== key };
+  return { ...selectLampView(computed, lastValid), pending: lampGeometryKey(def) !== key };
 }

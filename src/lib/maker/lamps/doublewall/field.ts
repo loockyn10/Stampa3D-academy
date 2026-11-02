@@ -25,7 +25,11 @@ export function doubleWallKey(def: LampDefinition): string {
   return JSON.stringify([def.shade.heightMm, def.shade.bottomDiameterMm, def.shade.topDiameterMm, def.doubleWall]);
 }
 
-export function sampleDoubleWallField(def: LampDefinition): DoubleWallField {
+/**
+ * `fast`: muestreo grueso (61 filas de separación y 1 mm de paso en las inclinaciones) SOLO para explorar rangos de los controles
+ * (`constraints.ts`): ordena de magnitud más barato que el normal y nunca se usa para generar ni para exportar.
+ */
+export function sampleDoubleWallField(def: LampDefinition, fast = false): DoubleWallField {
   const p = doubleWallParams(def);
   const H = p.heightMm;
   const surf = createDoubleWallSurfaces(p);
@@ -48,8 +52,8 @@ export function sampleDoubleWallField(def: LampDefinition): DoubleWallField {
       if (!Number.isFinite(r) || r <= s.rii) degenerate = true;
     }
   }
-  const gap = measureChamberGap(p);
-  const lean = measureLean(p);
+  const gap = measureChamberGap(p, fast ? 61 : 241);
+  const lean = measureLean(p, fast ? 1 : 0.25);
   return {
     nTheta: p.outer.flutes * p.samplesPerFlute,
     nRows,

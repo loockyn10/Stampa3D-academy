@@ -439,7 +439,7 @@ test("seis diseños calados: cada uno es una combinación real de parámetros qu
   assert.deepEqual(OPENWORK_PRESETS.map((p) => p.label), ["Diamante clásico", "Diamante fino", "Diamante con torsión", "Espiral suave", "Espiral intensa", "Reloj de arena calado"]);
   const sigs = new Set();
   for (const preset of OPENWORK_PRESETS) {
-    const def = applyOpenworkPreset({ ...DEFAULT_LAMP }, preset);
+    const def = applyOpenworkPreset({ ...BASE }, preset);
     assert.equal(def.shadeType, "openwork");
     const r = build(def);
     assertClean(r.indexed.shade, preset.id);
@@ -461,7 +461,7 @@ test("seis diseños calados: cada uno es una combinación real de parámetros qu
 test("las miniaturas salen del campo real: coinciden con la malla exportada píxel a píxel (rayo de cámara) y se distinguen entre sí", () => {
   const masks = new Set();
   for (const preset of OPENWORK_PRESETS) {
-    const def = applyOpenworkPreset({ ...DEFAULT_LAMP }, preset);
+    const def = applyOpenworkPreset({ ...BASE }, preset);
     const r = build(def);
     const thumb = renderOpenworkThumbnail(def.shade, def.openwork, 96);
     assert.ok(thumb.width > 20 && thumb.height === 96);
@@ -687,18 +687,18 @@ test("UI: selector Sólida/Calada, diseños calados, controles por patrón y avi
   };
   const solid = render(DEFAULT_LAMP);
   for (const text of ["Tipo de pantalla", "Sólida", "Calada", "Familia de patrón", "Cantidad de ondas"]) assert.ok(solid.includes(text), `sólida: falta "${text}"`);
-  assert.ok(!solid.includes("Densidad (rombos alrededor)") && !solid.includes("Diamante clásico"));
+  assert.ok(!solid.includes("densidad: rombos alrededor") && !solid.includes("Diamante clásico"));
   const diamond = render(BASE);
-  for (const text of ["Tipo de pantalla", "Diamante clásico", "Diamante fino", "Diamante con torsión", "Espiral suave", "Espiral intensa", "Reloj de arena calado", "Cilíndrica", "Abombada", "Reloj de arena", "Orgánica", "Densidad (rombos alrededor)", "Inclinación de las diagonales", "Grosor (ancho de las tiras)", "Profundidad de las tiras", "Diámetro máximo", "Intensidad de cintura", "Opciones avanzadas del calado", "Una sola pieza conectada", "Abertura mínima", "Impresión convencional (calada)", "NO es una validación térmica"]) {
+  for (const text of ["Tipo de pantalla", "Diamante clásico", "Diamante fino", "Diamante con torsión", "Espiral suave", "Espiral intensa", "Reloj de arena calado", "Cilíndrica", "Abombada", "Reloj de arena", "Orgánica", "densidad: rombos alrededor", "Inclinación de las diagonales", "Grosor (ancho de las tiras)", "Profundidad de las tiras", "Diámetro máximo", "Intensidad de cintura", "Personalización avanzada", "Una sola pieza conectada", "Abertura mínima", "Impresión convencional (calada)", "NO es una validación térmica"]) {
     assert.ok(diamond.includes(text), `calada: falta "${text}"`);
   }
   assert.ok(!diamond.includes("Familia de patrón") && !diamond.includes("Cantidad de ondas"), "no mezcla los controles de la sólida");
   const spiral = render(ow({ pattern: "spiral", bands: 6, turns: 0.4, stripWidthMm: 6 }));
-  for (const text of ["Cantidad de bandas", "Vueltas", "Separación libre entre bandas"]) assert.ok(spiral.includes(text), `espiral: falta "${text}"`);
-  assert.ok(!spiral.includes("Densidad (rombos alrededor)"));
+  for (const text of ["cantidad de bandas", "Vueltas", "Separación libre entre bandas"]) assert.ok(spiral.includes(text), `espiral: falta "${text}"`);
+  assert.ok(!spiral.includes("densidad: rombos alrededor"));
   // seis miniaturas seleccionables (botones con aria-pressed) y avanzados plegados
   assert.equal((diamond.match(/aria-pressed="(true|false)"/g) ?? []).length, 6);
-  assert.ok(/<details(?![^>]*\bopen\b)[^>]*>\s*<summary[^>]*>Opciones avanzadas del calado/.test(diamond), "las opciones avanzadas están plegadas");
+  assert.ok(/<details(?![^>]*\bopen\b)[^>]*>\s*<summary[^>]*>Personalización avanzada/.test(diamond), "las opciones avanzadas están plegadas");
   // un error de la calada se muestra con su mensaje
   assert.ok(render(ow({ pattern: "spiral", bands: 6, turns: 1.5, stripWidthMm: 5 })).includes("casi horizontales"));
 });

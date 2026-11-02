@@ -17,7 +17,7 @@ const { indexedBounds, analyzeMesh } = loadMakerModule("lib/maker/mugs/geometry/
 const { lampPartEntries } = loadMakerModule("lib/maker/lamps/exporters/lampFiles.ts");
 
 // Rosca más ancha (la base admite un difusor mayor) y pantalla con extremos de Ø 112 abajo y arriba (anillos de ≈ Ø 107 libres)
-const WIDE = { ...DEFAULT_LAMP, shadeType: "openwork", base: { diameterMm: 140 }, thread: { ...DEFAULT_LAMP.thread, majorDiameterMm: 104 }, shade: { ...DEFAULT_LAMP.shade, bottomDiameterMm: 112, topDiameterMm: 112 }, openwork: { ...DEFAULT_OPENWORK, maxDiameterMm: 150 } };
+const WIDE = { ...DEFAULT_LAMP, shadeType: "openwork", base: { diameterMm: 140 }, thread: { ...DEFAULT_LAMP.thread, majorDiameterMm: 104 }, shade: { ...DEFAULT_LAMP.shade, bottomDiameterMm: 112, topDiameterMm: 112 }, openwork: { ...DEFAULT_OPENWORK, maxDiameterMm: 150, diffuserFit: "rings" } };
 // Anillo superior angosto: topDiameter = 84,8 deja ≈ Ø 80 libres arriba; el inferior sigue ancho (la rosca obliga a ≥ Ø 99)
 const EXAMPLE = { ...WIDE, shade: { ...WIDE.shade, topDiameterMm: 84.8 } };
 const mk = (def, patch = {}, ins = {}) => ({ ...def, openwork: { ...def.openwork, ...patch }, insert: { ...def.insert, ...ins } });
@@ -132,7 +132,7 @@ test("anillos con diámetros interiores distintos: el cilindro rígido se dimens
 });
 
 test("la base y la rosca limitan antes que los anillos cuando hace falta: se informa el límite y no se modifica la base", () => {
-  const def = { ...DEFAULT_LAMP, shadeType: "openwork" };
+  const def = { ...DEFAULT_LAMP, shadeType: "openwork", openwork: { ...DEFAULT_OPENWORK, diffuserFit: "rings" } };
   const f = fit(def).diffuser;
   assert.equal(f.limitedBy, "base");
   assert.equal(f.diffuserDiameterMm, 2 * floor05(f.baseLimitDiameterMm / 2));
@@ -243,7 +243,7 @@ test("UI: la calada muestra el ajuste «Según los anillos» con la holgura diam
     );
   };
   const open = render(EXAMPLE);
-  for (const text of ["Diámetro del difusor (pantalla calada)", "Según los anillos", "Manual", "Holgura diametral", "Ø libre anillo inferior / superior", "Ø máximo que admite la base", "Ø exterior del difusor", "Lo limita", "el anillo superior", "pendiente de validación física"]) assert.ok(open.includes(text), `falta "${text}"`);
+  for (const text of ["Difusor de la pantalla calada", "Según los anillos", "Manual", "Holgura diametral", "Ø libre anillo inferior / superior", "Ø máximo que admite la base", "Ø exterior del difusor", "Lo limita", "el anillo superior", "pendiente de validación física"]) assert.ok(open.includes(text), `falta "${text}"`);
   assert.ok(!open.includes("Ø exterior (montaje)"), "en modo anillos el diámetro no se edita a mano");
   const manual = render({ ...mk(WIDE, { diffuserFit: "manual" }), insert: { ...WIDE.insert, diameterMm: 65 } });
   assert.ok(manual.includes("Ø exterior (montaje)") && !manual.includes("Holgura diametral"));

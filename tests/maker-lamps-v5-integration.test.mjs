@@ -188,7 +188,11 @@ test("Caso 1 (calada): selector → anillos Ø80 → holgura 1 mm → difusor Ø
   assert.ok(["Sólida", "Calada", "Doble pared"].every((t) => s.html.includes(t)), "selector Sólida | Calada | Doble pared");
   s.click("Calada");
   assert.equal(s.def.shadeType, "openwork");
-  assert.ok(s.html.includes("Anillos y montaje") && s.html.includes("Ø interior libre anillo inferior"), "controles de anillos");
+  assert.equal(s.def.openwork.diffuserFit, "diameter", "la calada parte del modo recomendado (el difusor es el dato)");
+  // este caso ejercita el modo «Según los anillos» (V5); el modo por diámetro (V6) tiene su propio caso en maker-lamps-v6-stability.test.mjs
+  s.click("Según los anillos");
+  assert.equal(s.def.openwork.diffuserFit, "rings");
+  assert.ok(s.html.includes("Ø interior libre anillo inferior"), "controles de anillos");
   // 2-3) anillos con Ø80 libres (campos reales) y holgura diametral 1 mm (valor inicial)
   s.type("Ø interior libre anillo inferior", 80);
   s.type("Ø interior libre anillo superior", 80);
@@ -328,12 +332,25 @@ test("Doble pared: las dos siluetas se editan por separado (cilíndrica/cónica/
   const base = session(DEFAULT_LAMP).click("Doble pared");
   const inners = ["Cilíndrica", "Reloj de arena", "Orgánica"];
   let built = 0;
-  for (const outer of ["Cilíndrica", "Abombada", "Ondulada", "Estriada", "Con torsión"]) {
+  const shapes = loadMakerModule("lib/maker/lamps/doublewall/shapes.ts");
+  const offered = (label) => registry.seg.some((c) => c.options.some((o) => o.label === label));
+  // V6: las formas que con las medidas actuales rompen la separación entre paredes NO se ofrecen (el motor las rechaza igual)
+  assert.equal(offered("Ondulada"), false, "«Ondulada» rompe la separación con las medidas iniciales: no se ofrece");
+  assert.equal(offered("Cónica"), false, "«Cónica» rompe la separación con las medidas iniciales: no se ofrece");
+  assert.ok(base.html.includes("2 formas no se ofrecen"), "la interfaz dice cuántas formas no se ofrecen y por qué");
+  assert.ok(createLamp(shapes.applyDoubleOuterShape(base.def, "wavy")).errors.some((e) => e.code === "DW_GAP"));
+  for (const outer of ["Cilíndrica", "Abombada", "Estriada", "Con torsión"]) {
     for (const inner of inners) {
       const s = session(base.def);
       s.click(outer); // (el selector exterior es el primero con esa opción)
       // el selector interior comparte rótulos ("Cilíndrica"): se usa el segundo registrado
       const segs = registry.seg.filter((c) => c.options.some((o) => o.label === inner));
+      if (segs.length === 0) {
+        // V6: con esa forma exterior, la interior no se ofrece porque rompería la separación: el motor la rechaza igual
+        const kind = { "Reloj de arena": "hourglass", "Orgánica": "organic" }[inner];
+        assert.ok(createLamp(shapes.applyDoubleInnerShape(s.def, kind)).errors.some((e) => e.code === "DW_GAP"), `${outer}/${inner}: no se ofrece pero sería válida`);
+        continue;
+      }
       s.captured = null;
       segs[segs.length - 1].onChange(segs[segs.length - 1].options.find((o) => o.label === inner).value);
       s.def = s.captured;
@@ -346,14 +363,10 @@ test("Doble pared: las dos siluetas se editan por separado (cilíndrica/cónica/
       }
     }
   }
-  assert.ok(built >= 10, `combinaciones válidas: ${built}`);
+  assert.ok(built >= 8, `combinaciones válidas: ${built}`);
   // cónica con el diámetro superior mayor: separación insuficiente -> error con el motivo
-  const cone = session(base.def);
-  const segs = registry.seg.filter((c) => c.options.some((o) => o.label === "Cónica"));
-  cone.captured = null;
-  segs[0].onChange("cone");
-  cone.def = cone.captured;
-  cone.render();
+  const cone = { def: shapes.applyDoubleInnerShape(base.def, "cone") };
+  cone.result = createLamp(cone.def);
   assert.ok(cone.result.errors.some((e) => e.code === "DW_GAP" && /mínima medida/.test(e.message)), cone.result.errors.map((e) => e.code).join());
   assert.equal(cone.result.geometry, null);
   // abierta arriba: sin cavidad cerrada

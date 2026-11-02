@@ -94,10 +94,18 @@ export interface LampOpenworkDef {
   connectors: number;
   connectorWidthMm: number;
   // ---- Difusor (inserto) de la pantalla calada
-  /** "rings": el difusor cilíndrico se dimensiona por el diámetro INTERIOR LIBRE de los anillos (no por el decorativo máximo). "manual": se usa `insert.diameterMm` como en la sólida. */
-  diffuserFit: "rings" | "manual";
-  /** Holgura DIAMETRAL inicial entre el difusor y el anillo más angosto (mm). Se valida físicamente: no es un valor probado. */
+  /**
+   * "diameter" (recomendado): el difusor es el dato y la abertura de los anillos se DERIVA: Ø interior libre de cada anillo = `diffuserDiameterMm` + `diffuserClearanceMm`
+   * (los diámetros exteriores de los extremos de la pantalla se resuelven en el motor, ver `resolveLampDef`). "rings": el difusor cilíndrico se dimensiona por el
+   * diámetro INTERIOR LIBRE de los anillos que salen de los diámetros de los extremos (modo anterior). "manual": se usa `insert.diameterMm` como en la sólida.
+   */
+  diffuserFit: "diameter" | "rings" | "manual";
+  /** Diámetro EXTERIOR del difusor (mm) en el modo "diameter". */
+  diffuserDiameterMm: number;
+  /** Holgura DIAMETRAL entre el difusor y el interior libre de los anillos (mm). Se valida físicamente: no es un valor probado. */
   diffuserClearanceMm: number;
+  /** Holgura vertical de ensamblaje (mm): distancia entre el borde superior del difusor automático y el borde superior de la pantalla. Solo modo "diameter" con altura automática. */
+  diffuserTopGapMm: number;
 }
 
 /**
@@ -362,7 +370,7 @@ export interface LampTowerReport {
 
 /** Cómo se dimensionó el difusor de una pantalla calada (todo sale del mismo cálculo que genera la malla). */
 export interface LampDiffuserFitReport {
-  source: "rings" | "manual";
+  source: "diameter" | "rings" | "manual";
   /** Diámetros interiores LIBRES (cara interior de la estructura, no el exterior) de los anillos inferior y superior de la pantalla. */
   ringBottomFreeDiameterMm: number;
   ringTopFreeDiameterMm: number;
@@ -375,7 +383,16 @@ export interface LampDiffuserFitReport {
   diametralClearanceMm: number;
   radialClearanceBottomMm: number;
   radialClearanceTopMm: number;
-  limitedBy: "bottomRing" | "topRing" | "opening" | "base" | "manual";
+  limitedBy: "bottomRing" | "topRing" | "opening" | "base" | "manual" | "diameter";
+  /** Recorrido de inserción y extracción: diámetro libre mínimo (mm) que el difusor encuentra al bajar por la abertura superior hasta su asiento (cuello roscado y estructura incluidos) y holgura radial real contra su cuerpo. */
+  pathMinFreeDiameterMm: number;
+  pathClearanceMm: number;
+  /** El difusor entra y sale por arriba con la holgura de montaje en todo el recorrido. */
+  insertable: boolean;
+  /** Distancia vertical entre el borde superior del difusor y el de la pantalla (holgura vertical de ensamblaje). */
+  topGapMm: number;
+  /** Rosca de montaje (Ø mayor, mm) mínima con la que la base aloja este difusor, o null si no se encontró hasta Ø200. */
+  minThreadMajorMm: number | null;
 }
 
 /** Cifras de la pantalla de doble pared, medidas sobre las mismas superficies que se mallan. */
@@ -577,6 +594,8 @@ export const LAMP_LIMITS = {
   "openwork.connectors": { min: 0, max: 8, integer: true, label: "Anillos de unión" },
   "openwork.connectorWidthMm": { min: 1, max: 10, label: "Ancho de los anillos de unión" },
   "openwork.diffuserClearanceMm": { min: 0.7, max: 10, label: "Holgura diametral del difusor" },
+  "openwork.diffuserDiameterMm": { min: 60, max: 200, label: "Diámetro exterior del difusor" },
+  "openwork.diffuserTopGapMm": { min: 4, max: 60, label: "Holgura vertical del difusor" },
   "doubleWall.maxDiameterMm": { min: 60, max: 340, label: "Diámetro máximo de la pared exterior" },
   "doubleWall.bulgePositionPct": { min: 10, max: 90, label: "Posición del ensanchamiento" },
   "doubleWall.curvaturePct": { min: 0, max: 100, label: "Curvatura de la pared exterior" },

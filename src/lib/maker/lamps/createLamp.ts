@@ -145,9 +145,10 @@ function basePart(def: LampDefinition, layout: LampLayout): BuiltPart {
  * en coordenadas de ENSAMBLADO (base apoyada en Z = 0, eje en X = Y = 0). El visor, la Vista Cama y el STL leen
  * exactamente estas mallas: lo que se ve es lo que se descarga (no hay un segundo nivel de calidad).
  */
-export function createLamp(def: LampDefinition, opts: CreateLampOptions = {}): LampResult {
+export function createLamp(input: LampDefinition, opts: CreateLampOptions = {}): LampResult {
   const started = typeof performance !== "undefined" ? performance.now() : Date.now();
-  const { errors, warnings, field, layout, vase } = validateLamp(def, opts.printer);
+  // Lo derivado (diámetros de los extremos de la calada según el difusor) se resuelve UNA vez: validación, layout y mallas leen la misma definición.
+  const { resolved: def, errors, warnings, field, layout, vase } = validateLamp(input, opts.printer);
   if (errors.length > 0 || !field || !layout || !vase) return { geometry: null, indexed: null, metrics: null, errors, warnings };
 
   const shade = shadePart(def, field, layout);

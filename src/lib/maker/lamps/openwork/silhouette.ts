@@ -77,8 +77,25 @@ export const SILHOUETTE_LABELS: Record<SilhouetteKind, string> = {
   organic: "Orgánica",
 };
 
-/** Recetas relativas al diámetro inferior/superior actuales (no pisan altura ni extremos salvo que la forma lo pida). */
-export function silhouetteRecipe(kind: SilhouetteKind, shade: LampShadeDef): { shade: Partial<LampShadeDef>; openwork: Partial<LampOpenworkDef> } {
+/**
+ * Recetas relativas al diámetro inferior/superior actuales (no pisan altura ni extremos salvo que la forma lo pida).
+ * `mountMm`: con el difusor como dato los extremos son el montaje (no se tocan): la silueta solo puede EXPANDIRSE hacia afuera de ese diámetro exterior.
+ */
+export function silhouetteRecipe(kind: SilhouetteKind, shade: LampShadeDef, mountMm?: number): { shade: Partial<LampShadeDef>; openwork: Partial<LampOpenworkDef> } {
+  if (mountMm !== undefined) {
+    const m = mountMm;
+    switch (kind) {
+      case "cylinder":
+        return { shade: {}, openwork: { maxDiameterMm: Math.round(m), waistPct: 0, organicPct: 0 } };
+      case "bulge":
+        return { shade: {}, openwork: { maxDiameterMm: Math.round(m * 1.6), bulgePositionPct: 50, curvaturePct: 35, waistPct: 0, organicPct: 0 } };
+      case "hourglass":
+        // la cintura quedaría más angosta que los extremos (= el difusor): la validación lo rechaza; se deja la receta para que se explique por qué
+        return { shade: {}, openwork: { maxDiameterMm: Math.round(m), bulgePositionPct: 50, curvaturePct: 30, waistPct: 55, organicPct: 0 } };
+      case "organic":
+        return { shade: {}, openwork: { maxDiameterMm: Math.round(m * 1.5), bulgePositionPct: 42, curvaturePct: 20, waistPct: 15, organicPct: 70 } };
+    }
+  }
   const base = Math.round((shade.bottomDiameterMm + shade.topDiameterMm) / 2);
   switch (kind) {
     case "cylinder":

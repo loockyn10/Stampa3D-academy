@@ -50,8 +50,10 @@ export const DEFAULT_OPENWORK: LampOpenworkDef = {
   turns: 1.5,
   connectors: 0,
   connectorWidthMm: 3,
-  diffuserFit: "rings",
+  diffuserFit: "diameter",
+  diffuserDiameterMm: 70,
   diffuserClearanceMm: 1,
+  diffuserTopGapMm: 6,
 };
 
 /**
@@ -266,8 +268,11 @@ export function normalizeLampDefinition(input: unknown): LampDefinition {
       turns: num(o.turns, DEFAULT_OPENWORK.turns),
       connectors: num(o.connectors, DEFAULT_OPENWORK.connectors),
       connectorWidthMm: num(o.connectorWidthMm, DEFAULT_OPENWORK.connectorWidthMm),
-      diffuserFit: o.diffuserFit === "manual" ? "manual" : "rings",
+      // los diseños calados anteriores a la V6 no traen `diffuserFit` o traen "rings"/"manual": se leen como eran (según los anillos); solo un diseño sin parte calada parte del modo recomendado
+      diffuserFit: o.diffuserFit === "manual" ? "manual" : o.diffuserFit === "diameter" ? "diameter" : isRecord(root.openwork) ? "rings" : DEFAULT_OPENWORK.diffuserFit,
+      diffuserDiameterMm: num(o.diffuserDiameterMm, DEFAULT_OPENWORK.diffuserDiameterMm),
       diffuserClearanceMm: num(o.diffuserClearanceMm, DEFAULT_OPENWORK.diffuserClearanceMm),
+      diffuserTopGapMm: num(o.diffuserTopGapMm, DEFAULT_OPENWORK.diffuserTopGapMm),
     },
     shade: {
       family: typeof s.family === "string" && FAMILIES.has(s.family) ? (s.family as LampShadeDef["family"]) : DEFAULT_SHADE.family,
