@@ -1,5 +1,6 @@
 import { buildFeatureLayers, circlePoly, layersToIndexed, type SolidFeature } from "@/lib/maker/lamps/geometry/solid";
 import type { LampLayout } from "@/lib/maker/lamps/layout";
+import { tripodCavityFeatures } from "@/lib/maker/lamps/holder/mounts";
 import { floorFeatures, ringSectors, segmentsFor, threadVoidFeatures, towerFeatures } from "@/lib/maker/lamps/parts/baseFeatures";
 import type { LampDefinition } from "@/lib/maker/lamps/types";
 import type { IndexedMesh } from "@/lib/maker/mugs/geometry/mesh";
@@ -29,9 +30,16 @@ export function createBaseMesh(def: LampDefinition, layout: LampLayout): Indexed
   const features: SolidFeature[] = [];
 
   features.push(...towerFeatures(layout));
-  features.push(...floorFeatures(layout, R));
-  features.push({ z0: layout.floorTopZ, z1: layout.ledgeZ, cut: ringSectors(t.towerR, spec.boreR) });
+  if (t.tripod) {
+    // SIN PISO (patas V6.stl): la cavidad llega hasta la mesa; solo quedan el plato con la rosca y las tres patas que lo unen a la pared
+    features.push(...tripodCavityFeatures(t.tripod, spec.boreR, segmentsFor(spec.boreR)));
+  } else {
+    features.push(...floorFeatures(layout, R));
+    features.push({ z0: layout.floorTopZ, z1: layout.ledgeZ, cut: ringSectors(t.towerR, spec.boreR) });
+  }
   features.push(...threadVoidFeatures(layout));
+  // A presión: el agujero es profundo (50 mm) y la torre sobresale de la cara superior de la base, dentro del cuello y de la pantalla
+  if (t.topZ > layout.baseTopZ + 1e-6) features.push({ z0: layout.baseTopZ, z1: t.topZ, add: [circlePoly(t.towerR, segmentsFor(t.towerR))] });
 
   const layers = buildFeatureLayers({ z0: 0, z1: layout.baseTopZ, polygons: [circlePoly(R, segmentsFor(R))] }, features);
   return layersToIndexed(layers);

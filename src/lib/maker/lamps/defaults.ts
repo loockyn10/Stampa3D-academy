@@ -1,3 +1,4 @@
+import { REFERENCE_DIFFUSER, REFERENCE_PRESS } from "@/lib/maker/lamps/holder/references";
 import type { LampAdhesionDef, LampBaseDef, LampBulbDef, LampCableDef, LampDefinition, LampDoubleWallDef, LampHolderDef, LampInsertDef, LampInsertStyle, LampOpenworkDef, LampShadeDef, LampThreadDef } from "@/lib/maker/lamps/types";
 
 /**
@@ -95,7 +96,7 @@ export const DEFAULT_DOUBLE_WALL_LAMP: LampDoubleWallDef = {
 export const DEFAULT_INSERT: LampInsertDef = {
   enabled: true,
   style: "wavy",
-  diameterMm: 65,
+  diameterMm: 65.135,
   heightMm: null,
   heightPct: 85,
   thicknessMm: 0.8,
@@ -146,6 +147,8 @@ export const DEFAULT_BASE: LampBaseDef = {
 };
 
 export const DEFAULT_HOLDER: LampHolderDef = {
+  mount: "rings",
+  pressDepthMm: REFERENCE_PRESS.boreDepthMm,
   measured: false,
   boreDiameterMm: 42,
   ringsDiameterMm: 58,
@@ -177,6 +180,7 @@ export const DEFAULT_LAMP: LampDefinition = {
 const FAMILIES = new Set(["wavy", "spiral", "organic"]);
 const INSERT_STYLES = new Set(["flat", "drop", "wavy"]);
 const PATTERNS = new Set(["diamond", "spiral"]);
+const MOUNTS = new Set(["rings", "press", "threadBase2", "threadV6"]);
 const PROFILES = new Set(["straight", "barrel", "waist", "bell", "tulip"]);
 
 function isRecord(v: unknown): v is Record<string, unknown> {
@@ -190,6 +194,11 @@ function num(v: unknown, fallback: number): number {
 function numOrNull(v: unknown, fallback: number | null): number | null {
   if (v === null) return null;
   return typeof v === "number" && Number.isFinite(v) ? v : fallback;
+}
+
+/** Ø 65 (nominal de la versión anterior) pasa a 65,135 (medido en diffuser.stl); cualquier otro valor se respeta tal cual. */
+function standardizeInsertDiameter(v: number | null): number | null {
+  return v === 65 ? REFERENCE_DIFFUSER.outerDiameterMm : v;
 }
 
 function bool(v: unknown, fallback: boolean): boolean {
@@ -303,7 +312,8 @@ export function normalizeLampDefinition(input: unknown): LampDefinition {
     insert: {
       enabled: bool(i.enabled, DEFAULT_INSERT.enabled),
       style: typeof i.style === "string" && INSERT_STYLES.has(i.style) ? (i.style as LampInsertStyle) : DEFAULT_INSERT.style,
-      diameterMm: numOrNull(i.diameterMm, DEFAULT_INSERT.diameterMm),
+      // Estandarización del encastre: los diseños anteriores guardaban el Ø nominal 65 (el de la lámpara de referencia); el difusor de referencia mide 65,135 (diffuser.stl).
+      diameterMm: standardizeInsertDiameter(numOrNull(i.diameterMm, DEFAULT_INSERT.diameterMm)),
       heightMm: numOrNull(i.heightMm, DEFAULT_INSERT.heightMm),
       heightPct: num(i.heightPct, DEFAULT_INSERT.heightPct),
       thicknessMm: num(i.thicknessMm, DEFAULT_INSERT.thicknessMm),
@@ -331,6 +341,8 @@ export function normalizeLampDefinition(input: unknown): LampDefinition {
       heightMm: num(ad.heightMm, DEFAULT_ADHESION.heightMm),
     },
     holder: {
+      mount: typeof h.mount === "string" && MOUNTS.has(h.mount) ? (h.mount as LampHolderDef["mount"]) : DEFAULT_HOLDER.mount,
+      pressDepthMm: num(h.pressDepthMm, DEFAULT_HOLDER.pressDepthMm),
       measured: bool(h.measured, DEFAULT_HOLDER.measured),
       boreDiameterMm: num(h.boreDiameterMm, DEFAULT_HOLDER.boreDiameterMm),
       ringsDiameterMm: num(h.ringsDiameterMm, DEFAULT_HOLDER.ringsDiameterMm),

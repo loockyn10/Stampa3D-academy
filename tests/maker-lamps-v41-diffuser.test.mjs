@@ -4,6 +4,7 @@ import { createElement } from "react";
 import { renderToStaticMarkup } from "react-dom/server";
 import { loadMakerModule } from "../scripts/lib/maker-engine-node.mjs";
 import { loadTs } from "./helpers/load-ts.mjs";
+import { planeCrossings } from "./helpers/lamp-slice.mjs";
 
 // Lámparas V4.1 — parte A: el difusor de las pantallas CALADAS se dimensiona por el diámetro interior LIBRE de los anillos
 // (no por el diámetro decorativo máximo). Todo se mide sobre las mallas generadas. Son pruebas GEOMÉTRICAS: la holgura
@@ -47,7 +48,9 @@ test("el difusor calado se dimensiona por el diámetro INTERIOR LIBRE de los ani
   assert.ok(f.diffuserDiameterMm > 78.5 && f.diffuserDiameterMm < 79.2, `difusor Ø${f.diffuserDiameterMm}`);
   // medido sobre las mallas: el difusor mide ese diámetro y la pantalla se expande hasta Ø150
   const ib = indexedBounds(r.indexed.insert);
-  const body = radiiInZ(r.indexed.insert, ib.minZ, ib.minZ + 8); // zona de montaje (tubo liso)
+  const mountZone = radiiInZ(r.indexed.insert, ib.minZ, ib.minZ + 8); // encastre inferior: ESTÁNDAR de diffuser.stl, no depende del cuerpo
+  assert.ok(Math.abs(2 * Math.max(...mountZone) - 65.135) < 0.02, `encastre medido Ø${2 * Math.max(...mountZone)}`);
+  const body = radiiInZ(r.indexed.insert, ib.minZ, ib.maxZ);
   assert.ok(Math.abs(2 * Math.max(...body) - f.diffuserDiameterMm) < 0.02, `difusor medido Ø${2 * Math.max(...body)}`);
   const sb = indexedBounds(r.indexed.shade);
   assert.ok(sb.maxX - sb.minX > 149.5, `pantalla decorativa Ø${sb.maxX - sb.minX}`);
@@ -83,33 +86,34 @@ test("la holgura diametral es configurable (inicial 1 mm), se refleja 1:1 en el 
   assert.equal(build(mk(EXAMPLE, { diffuserClearanceMm: 0.7 })).errors.length, 0);
 });
 
-test("pantalla sólida intacta: el inserto de Ø65 de siempre y sin informe de difusor calado; el modo manual de la calada usa insert.diameterMm", () => {
+test("pantalla sólida intacta: el inserto estándar de Ø65,135 y sin informe de difusor calado; el modo manual de la calada usa insert.diameterMm", () => {
   const solid = createLamp(DEFAULT_LAMP);
   assert.equal(solid.errors.length, 0);
-  assert.equal(solid.metrics.fit.insertOuterDiameterMm, 65);
+  assert.equal(solid.metrics.fit.insertOuterDiameterMm, 65.135);
   assert.equal(solid.metrics.fit.diffuser, null);
-  const manual = build({ ...mk(WIDE, { diffuserFit: "manual" }), insert: { ...WIDE.insert, diameterMm: 65 } });
-  assert.equal(manual.metrics.fit.insertOuterDiameterMm, 65);
+  const manual = build({ ...mk(WIDE, { diffuserFit: "manual" }), insert: { ...WIDE.insert, diameterMm: 65.135 } });
+  assert.equal(manual.metrics.fit.insertOuterDiameterMm, 65.135);
   assert.equal(manual.metrics.fit.diffuser.source, "manual");
   assert.equal(manual.metrics.fit.diffuser.limitedBy, "manual");
-  assert.equal(createLamp({ ...mk(WIDE, { diffuserFit: "manual" }), insert: { ...WIDE.insert, diameterMm: 65 } }).warnings.some((w) => w.code === "DIFFUSER_LIMITED_BY_BASE"), false);
+  assert.equal(createLamp({ ...mk(WIDE, { diffuserFit: "manual" }), insert: { ...WIDE.insert, diameterMm: 65.135 } }).warnings.some((w) => w.code === "DIFFUSER_LIMITED_BY_BASE"), false);
 });
 
-test("el difusor es cilíndrico aunque la pantalla sea abombada o de reloj de arena, y ninguna zona de la estructura invade su volumen", () => {
+test("el cuerpo del difusor es cilíndrico aunque la pantalla sea abombada o de reloj de arena (sobre el encastre estándar y su transición de 45°), y ninguna zona de la estructura invade su volumen", () => {
   for (const kind of ["bulge", "hourglass", "organic"]) {
     const def = applySilhouette(EXAMPLE, kind);
     const v = validateLamp(def);
     if (v.errors.length) { assert.ok(v.errors.every((e) => e.code === "DIFFUSER_STRUCTURE_INTRUDES" || /^INSERT_|^SHADE_|^OUT_OF/.test(e.code)), `${kind}: ${v.errors.map((e) => e.code)}`); continue; }
     const r = build(def);
     const f = r.metrics.fit.diffuser;
-    // cilíndrico: el radio del difusor es el mismo a toda altura (tubo liso, amplitud 0)
+    // cilíndrico: sobre el encastre (altura de ajuste) y la transición de 45° el radio del difusor es el mismo a toda altura (tubo liso, amplitud 0)
     const ib = indexedBounds(r.indexed.insert);
-    const p = r.indexed.insert.positions;
-    let maxR = 0, minOuter = Infinity;
-    const byZ = new Map();
-    for (let i = 0; i < p.length; i += 3) byZ.set(p[i + 2].toFixed(2), Math.max(byZ.get(p[i + 2].toFixed(2)) ?? 0, Math.hypot(p[i], p[i + 1])));
-    for (const [z, r2] of byZ) if (Number(z) < ib.maxZ - 1) { maxR = Math.max(maxR, r2); minOuter = Math.min(minOuter, r2); }
-    assert.ok(maxR - minOuter < 0.01, `${kind}: el difusor no es cilíndrico (${minOuter}–${maxR})`);
+    const fz = r.metrics.fit.insertFit;
+    const bodyFromZ = ib.minZ + fz.heightMm + fz.flareHeightMm + 0.5;
+    const radii = [];
+    for (let k = 0; k < 6; k++) radii.push(planeCrossings(r.indexed.insert, bodyFromZ + ((ib.maxZ - 3 - bodyFromZ) * k) / 5).at(-1));
+    const maxR = Math.max(...radii), minOuter = Math.min(...radii);
+    assert.ok(maxR - minOuter < 0.01, `${kind}: el cuerpo del difusor no es cilíndrico (${minOuter}–${maxR})`);
+    assert.ok(Math.abs(2 * maxR - f.diffuserDiameterMm) < 0.02, `${kind}: el cuerpo mide Ø${2 * maxR} y el informe dice Ø${f.diffuserDiameterMm}`);
     // ningún vértice de la pantalla dentro del volumen del difusor + holgura de montaje, en todo el alto del difusor
     const L = v.layout.insert;
     const near = Math.min(...radiiInZ(r.indexed.shade, L.z0, L.z1).filter((x) => x > 0));
@@ -193,10 +197,10 @@ test("el difusor sigue siendo una pieza independiente y reemplazable (plano, got
     assert.ok(lampPartEntries(r).some((e) => /inserto/.test(e.fileName)));
     assertClosed(r.indexed.insert, style);
     sizes.add(r.metrics.fit.insertOuterDiameterMm);
-    // separación a la bombilla: ≥ la exigida y mayor que con el inserto de Ø65 de la sólida
+    // separación a la bombilla: ≥ la exigida y nunca menor que con el inserto de Ø65,135 de la sólida (la fija el encastre estándar, igual en ambos)
     assert.ok(r.metrics.fit.insertEnvelopeGapMm >= def.insert.minBulbGapMm);
     const solid = createLamp(applyInsertStyle({ ...DEFAULT_LAMP }, style));
-    if (solid.metrics) assert.ok(r.metrics.fit.insertEnvelopeGapMm > solid.metrics.fit.insertEnvelopeGapMm, `${style}: el difusor más ancho no acerca la bombilla`);
+    if (solid.metrics) assert.ok(r.metrics.fit.insertEnvelopeGapMm >= solid.metrics.fit.insertEnvelopeGapMm - 1e-9, `${style}: el difusor más ancho no acerca la bombilla`);
   }
   assert.equal(sizes.size, 1, "el diámetro de montaje es el mismo para los tres estilos");
   // un ondulado con ondas que no caben en el anillo se rechaza con el motivo (el tubo de montaje no se achica por el estilo)
@@ -227,7 +231,7 @@ test("compatibilidad: diseños viejos de la calada se leen con el difusor según
   assert.equal(normalizeLampDefinition({ openwork: { diffuserFit: "x" } }).openwork.diffuserFit, "rings");
   assert.equal(normalizeLampDefinition({ openwork: { diffuserFit: "manual" } }).openwork.diffuserFit, "manual");
   assert.equal(DEFAULT_LAMP.shadeType, "solid");
-  assert.equal(createLamp(DEFAULT_LAMP).metrics.fit.insertOuterDiameterMm, 65);
+  assert.equal(createLamp(DEFAULT_LAMP).metrics.fit.insertOuterDiameterMm, 65.135);
 });
 
 test("UI: la calada muestra el ajuste «Según los anillos» con la holgura diametral y los diámetros; la sólida no", () => {
@@ -243,10 +247,9 @@ test("UI: la calada muestra el ajuste «Según los anillos» con la holgura diam
     );
   };
   const open = render(EXAMPLE);
-  for (const text of ["Difusor de la pantalla calada", "Según los anillos", "Manual", "Holgura diametral", "Ø libre anillo inferior / superior", "Ø máximo que admite la base", "Ø exterior del difusor", "Lo limita", "el anillo superior", "pendiente de validación física"]) assert.ok(open.includes(text), `falta "${text}"`);
-  assert.ok(!open.includes("Ø exterior (montaje)"), "en modo anillos el diámetro no se edita a mano");
-  const manual = render({ ...mk(WIDE, { diffuserFit: "manual" }), insert: { ...WIDE.insert, diameterMm: 65 } });
-  assert.ok(manual.includes("Ø exterior (montaje)") && !manual.includes("Holgura diametral"));
+  for (const text of ["Difusor de la pantalla calada", "Según los anillos", "Manual", "Holgura diametral", "Ø libre anillo inferior / superior", "Ø máximo que pasa por el cuello roscado", "Ø exterior del difusor", "Lo limita", "el anillo superior", "pendiente de validación física"]) assert.ok(open.includes(text), `falta "${text}"`);
+  const manual = render({ ...mk(WIDE, { diffuserFit: "manual" }), insert: { ...WIDE.insert, diameterMm: 65.135 } });
+  assert.ok(manual.includes("Ø exterior del cuerpo") && !manual.includes("Holgura diametral"));
   const solid = render(DEFAULT_LAMP);
-  assert.ok(!solid.includes("Según los anillos") && solid.includes("Ø exterior (montaje)"));
+  assert.ok(!solid.includes("Según los anillos") && solid.includes("Ø exterior del cuerpo"));
 });

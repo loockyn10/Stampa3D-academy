@@ -356,3 +356,11 @@ Los enlaces de Instagram/YouTube/WhatsApp/Telegram estaban fijos en 4 lugares de
 - El enlace para laminadores es una ruta propia con ticket en el path (Orca toma el nombre del último segmento incluyendo la query y no decodifica `file=`), pública en el proxy y de capacidad acotada (un archivo, 10 min). Se descartó la URL firmada de Supabase por romper el nombre de archivo en Orca.
 - Los datos estimados de un proyecto (tiempo, gramos, material) **no** alimentan el costo ni el tiempo del producto (D005/D008: un solo motor de pricing).
 - `slicer` se valida en código (registro) y solo por forma en la base: sumar un laminador no requiere migration.
+
+## D042 — Lámparas: la ranura de la torre sale de un encastre de difusor estándar, y los sistemas de fijación se miden de los STL probados
+**Estado:** Accepted (2026-11-03), pendiente de validación física.
+
+- Todo difusor conserva el tubo inferior de `diffuser.stl` (Ø65,135 exterior, 0,8 mm de pared) y se ensancha a 45° hacia su cuerpo. La torre y la ranura dependen **solo** de ese encastre (antes crecían con el diámetro del difusor). Una bombilla, separación o espesor que no caben en el tubo estándar se rechazan; no se ensancha el encastre.
+- Los tres sistemas de fijación (a presión, rosca A, rosca B con patas) usan las cotas **medidas en la malla** de `BASE v2`, `BASE2` y `patas V6` (diámetros de diseño = radio de vértices), sin aproximarlas. `rings` sigue siendo el valor por defecto y los diseños viejos se leen igual. La rosca B no tiene piso ni torre (respuesta de la persona a la pregunta de diseño).
+- `bottom.stl` deja de ser la referencia de la torre (queda como referencia histórica del doble anillo).
+- Supuestos de la rosca B: patas hacia abajo (orientación invertida respecto del STL), plato con cono inferior a 45° y patas de 8 mm de grosor (no medible).

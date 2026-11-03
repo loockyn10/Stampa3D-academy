@@ -30,7 +30,7 @@ export async function buildLampZipBlob(result: LampResult, def: LampDefinition):
   const entries = lampPartEntries(result);
   const zip = new JSZip();
   for (const entry of entries) zip.file(entry.fileName, buildSTLBlob(entry.mesh));
-  zip.file("LEEME.txt", lampReadmeText({ designCode: encodeLampDesign(def), holderMeasured: def.holder.measured, partNames: entries.map((e) => e.fileName), collar: def.thread.connection === "collar", openwork: def.shadeType === "openwork" }));
+  zip.file("LEEME.txt", lampReadmeText({ designCode: encodeLampDesign(def), holderMeasured: def.holder.measured, partNames: entries.map((e) => e.fileName), collar: def.thread.connection === "collar", openwork: def.shadeType === "openwork", mount: def.holder.mount }));
   return zip.generateAsync({ type: "blob" });
 }
 
@@ -67,7 +67,7 @@ export async function buildLampTestZipBlob(def: LampDefinition): Promise<Blob> {
   for (const entry of entries) zip.file(entry.fileName, buildSTLBlob(entry.mesh));
   zip.file(
     "LEEME_PRUEBAS.txt",
-    lampTestReadmeText({ threadDiameterMm: def.thread.majorDiameterMm, pitchMm: def.thread.pitchMm, starts: def.thread.starts, clearanceMm: def.thread.clearanceMm, holderMeasured: def.holder.measured, adhesion: def.adhesion }),
+    lampTestReadmeText({ threadDiameterMm: def.thread.majorDiameterMm, pitchMm: def.thread.pitchMm, starts: def.thread.starts, clearanceMm: def.thread.clearanceMm, holderMeasured: def.holder.measured, adhesion: def.adhesion, mount: def.holder.mount }),
   );
   return zip.generateAsync({ type: "blob" });
 }

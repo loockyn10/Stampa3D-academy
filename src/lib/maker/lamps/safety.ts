@@ -62,7 +62,22 @@ export const LAMP_PHYSICAL_TESTS: readonly string[] = [
   "Revisión del conjunto por una persona calificada en instalaciones eléctricas antes del uso habitual.",
 ];
 
-export function lampReadmeText(extra: { designCode?: string; holderMeasured: boolean; partNames: string[]; collar?: boolean; openwork?: boolean }): string {
+/** Cómo se monta el portalámparas según el sistema de fijación (lo que dice el LÉEME de la lámpara). */
+export const LAMP_MOUNT_ASSEMBLY: Record<"rings" | "press" | "threadBase2" | "threadV6", string> = {
+  rings: "Base (doble anillo, referencia bottom.stl): pasá el portalámparas comercial por el agujero central, fijalo con sus anillos en el rebaje superior y llevá el cable por el canal inferior; sujetalo con el precinto.",
+  press: "Base (a presión, referencia BASE v2.stl): empujá el portalámparas comercial por arriba dentro del agujero liso Ø40,00 hasta que apoye en el piso; el cable sale por el orificio de Ø7 mm y el canal inferior; sujetalo con el precinto.",
+  threadBase2: "Base (rosca hembra A, referencia BASE2.stl): enroscá el portalámparas comercial por arriba en la rosca de la torre (a derechas, paso 3,34 mm) hasta que su brida apoye en la cara de la torre; el cable sale por el agujero central y el canal inferior.",
+  threadV6: "Base (rosca hembra B con patas, referencia patas V6.stl): enroscá el portalámparas comercial por arriba en la rosca del plato (a derechas, paso 3,0 mm) hasta que su brida apoye en el plato; la base no tiene piso: el cable sale por abajo, entre las patas.",
+};
+
+export const LAMP_MOUNT_TEST: Record<"rings" | "press" | "threadBase2" | "threadV6", string> = {
+  rings: "Tramo alto de la torre de la base: agujero central, rebaje de los anillos con su apoyo y ranura del cilindro, con las mismas medidas.",
+  press: "Tramo de la torre con 20 mm del agujero liso Ø40,00 (con su entrada redondeada) sobre 3 mm de piso con el orificio del cable de Ø7 mm: es el ajuste a presión de BASE v2.stl.",
+  threadBase2: "Tramo de la torre con la rosca hembra completa de BASE2.stl (raíz Ø40,621, cresta Ø39,118, paso 3,34 mm, 2 vueltas, a derechas).",
+  threadV6: "Tramo del plato con la rosca hembra completa de patas V6.stl (raíz Ø40,5, cresta Ø39,0, paso 3,0 mm, 2 vueltas, a derechas).",
+};
+
+export function lampReadmeText(extra: { designCode?: string; holderMeasured: boolean; partNames: string[]; collar?: boolean; openwork?: boolean; mount?: "rings" | "press" | "threadBase2" | "threadV6" }): string {
   const lines = [
     "LÁMPARA E27 - Stampa Maker (BETA)",
     "",
@@ -76,8 +91,8 @@ export function lampReadmeText(extra: { designCode?: string; holderMeasured: boo
     "Piezas incluidas: " + extra.partNames.join(", "),
     "",
     "ORDEN DE MONTAJE DE LAS PIEZAS IMPRESAS (el cableado del portalámparas no forma parte de esta herramienta)",
-    "- Base: pasá el portalámparas comercial por el agujero central, fijalo con sus anillos en el rebaje superior y llevá el cable por el canal inferior; sujetalo con el precinto.",
-    "- Inserto de color: apoyá su borde inferior (tubo liso de montaje, igual en los tres estilos) en la ranura anular de la torre, alrededor del portalámparas.",
+    "- " + LAMP_MOUNT_ASSEMBLY[extra.mount ?? "rings"],
+    "- Inserto de color / difusor: apoyá su borde inferior (encastre estándar de diffuser.stl, Ø65,135 exterior y 0,8 mm de pared, igual en todos los estilos y tamaños) en la ranura anular de la torre, alrededor del portalámparas. Si el cuerpo es más ancho, el difusor se ensancha con una transición de 45° sobre ese encastre.",
     "- Orientación de impresión de los insertos: plano y ondulado invertidos (extremo superior sobre la cama, ya vienen así en el STL); gota parada (abertura inferior sobre la cama, brim del laminador si hace falta).",
     extra.collar
       ? "- Collar: apoyá el borde inferior de la pantalla en el pozo del collar (entra a presión) y enroscá el collar en la base hasta el tope."
@@ -99,7 +114,7 @@ export function lampReadmeText(extra: { designCode?: string; holderMeasured: boo
 }
 
 /** LÉEME de las piezas de prueba (rosca y ajuste del portalámparas): qué imprimir, qué comprobar y qué NO prueban. */
-export function lampTestReadmeText(extra: { threadDiameterMm: number; pitchMm: number; starts: number; clearanceMm: number; holderMeasured: boolean; adhesion?: { enabled: boolean; widthMm: number; heightMm: number } }): string {
+export function lampTestReadmeText(extra: { threadDiameterMm: number; pitchMm: number; starts: number; clearanceMm: number; holderMeasured: boolean; adhesion?: { enabled: boolean; widthMm: number; heightMm: number }; mount?: "rings" | "press" | "threadBase2" | "threadV6" }): string {
   const lines = [
     "PIEZAS DE PRUEBA - LÁMPARA E27 - Stampa Maker (BETA)",
     "",
@@ -119,9 +134,15 @@ export function lampTestReadmeText(extra: { threadDiameterMm: number; pitchMm: n
       : []),
     "",
     "2) lampara_prueba_portalamparas.stl",
-    "   Tramo alto de la torre de la base: agujero central, rebaje de los anillos con su apoyo y ranura del cilindro, con las mismas medidas.",
-    "   - Pasá el portalámparas comercial real por el agujero, apoyá y apretá sus anillos en el rebaje, y apoyá un cilindro impreso en su ranura: nada debe forzarse ni quedar flojo.",
-    "   - Mirá que la pared entre el rebaje y la ranura (la parte más delgada) aguante el apriete de los anillos sin fisurarse.",
+    "   " + LAMP_MOUNT_TEST[extra.mount ?? "rings"],
+    ...((extra.mount ?? "rings") === "rings"
+      ? [
+          "   - Pasá el portalámparas comercial real por el agujero, apoyá y apretá sus anillos en el rebaje, y apoyá un cilindro impreso en su ranura: nada debe forzarse ni quedar flojo.",
+          "   - Mirá que la pared entre el rebaje y la ranura (la parte más delgada) aguante el apriete de los anillos sin fisurarse.",
+        ]
+      : (extra.mount ?? "rings") === "press"
+        ? ["   - Empujá el portalámparas comercial real dentro del agujero: debe entrar con esfuerzo y quedar firme, sin girar ni salirse al tirar del cable.", "   - Mirá que el orificio del cable de Ø7 mm deje pasar el cable sin rozar."]
+        : ["   - Enroscá el portalámparas comercial real a mano, en sentido horario visto desde arriba, hasta que su brida apoye: debe avanzar sin forzar y quedar firme.", "   - Si traba o queda flojo, es una cuestión de la impresora/filamento: ajustá el flujo o la escala antes de imprimir la base; el perfil es el medido en el STL de referencia y no se modifica."]),
     extra.holderMeasured
       ? "   - Las medidas del portalámparas las cargaste vos: esta prueba es la forma de confirmarlas."
       : "   - Las medidas del portalámparas todavía son de EJEMPLO: la base no está validada hasta que esta prueba encaje con tu portalámparas real.",

@@ -1,3 +1,4 @@
+import { REFERENCE_DIFFUSER } from "@/lib/maker/lamps/holder/references";
 import { INSERT_STYLE_INITIAL } from "@/lib/maker/lamps/defaults";
 import { buildInsertSurface, type InsertSurface, type RZ } from "@/lib/maker/lamps/insert/surface";
 import type { LampInsertDef, LampInsertStyle } from "@/lib/maker/lamps/types";
@@ -15,7 +16,7 @@ export interface InsertSilhouette {
 }
 
 /** Referencia fija de las miniaturas: mismas medidas para los tres estilos, para que se comparen a ojo. */
-const REF = { outerR: 32.5, thicknessMm: 0.8, seatDepthMm: 10, z0: 0, heightMm: 120 };
+const REF = { outerR: REFERENCE_DIFFUSER.outerDiameterMm / 2, thicknessMm: 0.8, seatDepthMm: 10, z0: 0, heightMm: 120 };
 
 /** Superficie de un estilo a medidas de referencia: con `params` = los parámetros actuales del estilo; sin ellos, los iniciales. */
 export function referenceInsertSurface(style: LampInsertStyle, base: LampInsertDef, useCurrent: boolean): InsertSurface {
@@ -23,6 +24,7 @@ export function referenceInsertSurface(style: LampInsertStyle, base: LampInsertD
   return buildInsertSurface({
     style,
     outerR: REF.outerR,
+    fitOuterR: REF.outerR,
     thicknessMm: Math.min(p.thicknessMm, 2),
     z0: REF.z0,
     heightMm: REF.heightMm,

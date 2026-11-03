@@ -309,18 +309,23 @@ test("CASO 1 — calada: difusor Ø80, holgura 1 mm, abertura Ø81, decorativo �
   assert.equal(s.def.openwork.diffuserFit, "diameter");
   assert.equal(s.def.openwork.diffuserClearanceMm, 1);
   assert.ok(s.html.includes("Difusor de la pantalla calada") && s.html.includes("Por su diámetro"));
-  // 1) difusor Ø80: con la rosca de montaje actual la base NO lo aloja → error explícito, nada se reduce en silencio
+  // 1) difusor Ø80: el encastre inferior es el estándar de diffuser.stl (Ø65,135) y la torre ya no crece con el cuerpo, así que con la rosca de montaje por defecto (Ø96) el cuerpo de Ø80 pasa por el cuello sin tocar nada
   s.type("Ø exterior del difusor", 80);
   assert.equal(s.def.openwork.diffuserDiameterMm, 80);
+  assert.equal(s.result.errors.length, 0, JSON.stringify(s.result.errors.map((e) => e.code)));
+  assert.equal(s.def.thread.majorDiameterMm, 96, "no se tocó la rosca");
+  assert.ok(!s.html.includes("Subir la rosca de montaje hasta que la base aloje el difusor"), "sin error no hay botón de solución");
+  // 2) un cuerpo que ya no pasa por el cuello roscado sí se rechaza, explícito y sin reducirlo en silencio; la solución propuesta es la que ejecuta el botón
+  s.type("Ø exterior del difusor", 130);
   assert.equal(s.result.geometry, null);
   const exceeds = s.result.errors.find((e) => e.code === "DIFFUSER_EXCEEDS_BASE");
-  assert.ok(exceeds && /Subí el diámetro de la rosca de montaje a Ø 102 mm/.test(exceeds.message), exceeds?.message);
-  assert.ok(s.html.includes("Subir la rosca de montaje hasta que la base aloje el difusor"), "botón de la solución");
-  assert.equal(s.def.thread.majorDiameterMm, 96, "no se tocó la rosca");
-  // 2) la persona acepta la solución propuesta (el botón llama a esta misma función)
+  assert.ok(exceeds && /Subí el diámetro de la rosca de montaje a Ø/.test(exceeds.message), exceeds?.message);
+  assert.ok(s.html.includes("Subir la rosca de montaje hasta que el difusor pase por el cuello"), "botón de la solución");
   const major = suggestThreadMajorForDiffuser(s.def);
-  assert.equal(major, 102);
-  s.set("thread", { majorDiameterMm: major });
+  assert.ok(major && major > 96, `rosca sugerida Ø${major}`);
+  s.type("Ø exterior del difusor", 80);
+  // la abertura libre de Ø81 de los anillos (0,5 mm radiales) solo se mide si el cuello roscado no la estrecha: se lleva la rosca a la sugerida
+  s.set("thread", { majorDiameterMm: 102 });
   // 3) decorativo Ø150
   s.set("openwork", { maxDiameterMm: 150 });
   assert.equal(s.result.errors.length, 0, JSON.stringify(s.result.errors.map((e) => e.code)));
@@ -409,10 +414,10 @@ test("el difusor puede cambiar de diámetro, de holgura y de altura sin romper l
   assert.equal(outer.size, 1);
 });
 
-test("la sólida no cambia: su inserto sigue siendo el de Ø65 de siempre; los códigos de la calada anteriores a la V6 se leen como eran", () => {
+test("la sólida conserva su inserto liso, ahora el estándar de Ø65,135 (diffuser.stl); los códigos de la calada anteriores a la V6 se leen como eran", () => {
   const solid = createLamp(DEFAULT_LAMP);
   assert.equal(solid.errors.length, 0);
-  assert.equal(solid.metrics.fit.insertOuterDiameterMm, 65);
+  assert.equal(solid.metrics.fit.insertOuterDiameterMm, 65.135);
   assert.equal(solid.metrics.fit.diffuser, null);
   const old = JSON.parse(JSON.stringify(OPENWORK));
   delete old.openwork.diffuserFit;
@@ -665,7 +670,8 @@ test("exportación: el ZIP y los STL salen de las mismas mallas del visor, con e
   const stl = await zip.file(insertEntry.fileName).async("nodebuffer");
   const parsed = parseStl(stl);
   assert.ok(Math.abs(2 * Math.max(...radii(parsed)) - 80) < 0.02);
-  const bad = createLamp({ ...def, thread: { ...def.thread, majorDiameterMm: 96 } });
+  // un cuerpo que no pasa por el cuello roscado (Ø130 con rosca Ø96) es un diseño con errores: no exporta nada
+  const bad = createLamp({ ...def, thread: { ...def.thread, majorDiameterMm: 96 }, openwork: { ...def.openwork, diffuserDiameterMm: 130 } });
   assert.equal(bad.geometry, null);
   await assert.rejects(() => buildLampZipBlob(bad, def));
 });

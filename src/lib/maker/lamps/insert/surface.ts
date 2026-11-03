@@ -9,12 +9,16 @@ import { LAMP_GEOMETRY, type LampInsertStyle, type LampInsertTop } from "@/lib/m
  *   - "drop"  tubo + cierre ojival con punta redondeada (CERRADO; se imprime parado, la abertura sobre la cama);
  *   - "wavy"  tubo con ondas que SOLO suman hacia afuera (el interior nunca se acerca más a la bombilla que el tubo liso),
  *             extremo superior abierto (con lengüetas opcionales) o con tapa plana.
- * La zona de montaje inferior es idéntica en las tres: un tubo liso de Ø exterior nominal que apoya en la ranura de la torre.
+ * La zona de montaje inferior es idéntica en las tres Y ESTÁNDAR: un tubo liso de Ø exterior `fitOuterR` (Ø65,135 de diffuser.stl) que apoya
+ * en la ranura de la torre, durante `seatDepthMm + insertMountExtraMm`. Si el cuerpo es más ancho (`outerR` > `fitOuterR`, p. ej. un difusor
+ * calado de Ø80) el tubo se ensancha con una transición cónica (45° respecto de la vertical: sin soportes) hasta el radio del cuerpo.
  */
 export interface InsertSurfaceInput {
   style: LampInsertStyle;
-  /** Radio exterior nominal (zona de montaje) y espesor de la pared. */
+  /** Radio exterior del CUERPO (nunca menor que `fitOuterR`) y espesor de la pared. */
   outerR: number;
+  /** Radio exterior del encastre inferior estándar (zona de montaje que entra en la ranura). */
+  fitOuterR: number;
   thicknessMm: number;
   /** Z de ensamblado del borde inferior, altura total y profundidad enterrada en la ranura. */
   z0: number;
@@ -131,6 +135,9 @@ function buildWavyOrFlat(input: InsertSurfaceInput): InsertSurface {
   const issues: InsertSurfaceIssue[] = [];
   const flat = input.style === "flat";
   const Ro = input.outerR;
+  const Rf = Math.min(input.fitOuterR, Ro);
+  const flareTan = Math.tan((g.diffuserFlareDeg * Math.PI) / 180);
+  const flareH = (Ro - Rf) / flareTan;
   const t = input.thicknessMm;
   const { z0 } = input;
   const ztop = z0 + input.heightMm;
@@ -143,27 +150,43 @@ function buildWavyOrFlat(input: InsertSurfaceInput): InsertSurface {
   const tc = input.capThicknessMm;
 
   const zm = Math.min(z0 + input.seatDepthMm + g.insertMountExtraMm, ztop);
-  const zone = Math.max(ztop - zm, 1);
+  /** Fin de la transición cónica: desde acá el cuerpo tiene su radio y empiezan las ondas. */
+  const zb = Math.min(zm + flareH, ztop);
+  const zone = Math.max(ztop - zb, 1);
   const ramp = Math.min(g.insertWaveRampMm, zone * 0.5);
 
-  /** Radio exterior en (theta, z): tubo liso en la zona de montaje y ondas que solo suman hacia afuera. */
+  /** Radio del perfil de revolución (sin ondas): encastre estándar recto, transición de 45° y cuerpo. */
+  const baseAt = (z: number): number => (z <= zm ? Rf : flareH <= 0 || z >= zm + flareH ? Ro : Rf + (z - zm) * flareTan);
+  /** Radio exterior en (theta, z): perfil de revolución y ondas que solo suman hacia afuera. */
   const outerAt = (theta: number, z: number): number => {
-    if (A <= 0 || z <= zm) return Ro;
-    const e = smooth((z - zm) / ramp);
-    const u = Math.min(1, Math.max(0, (z - zm) / zone));
+    if (A <= 0 || z <= zb) return baseAt(z);
+    const e = smooth((z - zb) / ramp);
+    const u = Math.min(1, Math.max(0, (z - zb) / zone));
     const m = vfreq > 0 ? 0.35 + 0.65 * (0.5 + 0.5 * Math.cos(2 * Math.PI * vfreq * u)) : 1;
     const w = 0.5 + 0.5 * Math.cos(n * (theta - twist * u));
-    return Ro + A * e * m * w;
+    return baseAt(z) + A * e * m * w;
   };
-  /** Espesor medido sobre la NORMAL: el desfase radial crece con la pendiente de la pared. */
+  /** Espesor medido sobre la NORMAL: el desfase radial crece con la pendiente de la pared (la mayor de las dos laderas en un quiebre). */
   const slopeAt = (theta: number, z: number): number => {
-    if (A <= 0 || z <= zm) return 0;
+    if (A <= 0 && flareH <= 0) return 0;
     const h = 0.04;
-    const dz = (outerAt(theta, z + h) - outerAt(theta, Math.max(z - h, 0))) / (2 * h);
-    const dth = (outerAt(theta + 0.002, z) - outerAt(theta - 0.002, z)) / 0.004 / outerAt(theta, z);
+    const fwd = (outerAt(theta, z + h) - outerAt(theta, z)) / h;
+    const bwd = (outerAt(theta, z) - outerAt(theta, Math.max(z - h, 0))) / h;
+    const dz = Math.abs(fwd) >= Math.abs(bwd) ? fwd : bwd;
+    const dth = A > 0 ? (outerAt(theta + 0.002, z) - outerAt(theta - 0.002, z)) / 0.004 / outerAt(theta, z) : 0;
     return Math.hypot(dz, dth);
   };
-  const innerAt = (theta: number, z: number): number => outerAt(theta, z) - t * Math.sqrt(1 + slopeAt(theta, z) ** 2);
+  /** Desfase vertical entre las esquinas de la cara exterior y de la interior en la transición (espesor constante sobre la normal). */
+  const flareK = Math.sqrt(1 + flareTan * flareTan);
+  const flareOff = flareH > 0 ? (t * (flareK - 1)) / flareTan : 0;
+  const innerAt = (theta: number, z: number): number => {
+    if (flareH > 0 && z <= zb + flareOff + 1e-9) {
+      // encastre recto (pared vertical de espesor t) y cono paralelo al exterior; las esquinas interiores están desfasadas en flareOff
+      if (z <= zm + flareOff) return Rf - t;
+      return Math.min(Ro - t, Rf + (z - zm) * flareTan - t * flareK) + (outerAt(theta, z) - baseAt(z));
+    }
+    return outerAt(theta, z) - t * Math.sqrt(1 + slopeAt(theta, z) ** 2);
+  };
 
   // Columnas
   const segments = A > 0 ? Math.min(512, Math.max(144, Math.ceil((16 * n) / 4) * 4)) : 144;
@@ -171,6 +194,12 @@ function buildWavyOrFlat(input: InsertSurfaceInput): InsertSurface {
 
   // Filas en z
   const zs: number[] = [z0];
+  // Quiebres del perfil de revolución: fin del encastre recto y fin de la transición cónica (filas exactas, no interpoladas).
+  const breaks: number[] = [];
+  if (flareH > 0) {
+    if (zm > z0 + 1e-6 && zm < ztop - 1e-6) breaks.push(zm);
+    if (zb > z0 + 1e-6 && zb < ztop - 1e-6) breaks.push(zb);
+  }
   if (A > 0) {
     const twistRateRadPerMm = (n * Math.abs(twist)) / zone;
     const vfreqRateRadPerMm = (2 * Math.PI * vfreq) / zone;
@@ -180,17 +209,25 @@ function buildWavyOrFlat(input: InsertSurfaceInput): InsertSurface {
     dz = Math.max(dz, 0.4);
     const zEnd0 = tabsOn ? ztop - g.tabThicknessMm - g.tabGussetMm : ztop;
     if (zm > z0 + 1e-6) zs.push(zm);
-    let rows = Math.ceil((zEnd0 - zm) / dz);
+    if (flareH > 0 && zb > zm + 1e-6) zs.push(zb);
+    const zWave0 = Math.max(zb, zm);
+    let rows = Math.ceil((zEnd0 - zWave0) / dz);
     if (rows > 480) {
       rows = 480;
       issues.push({ code: "INSERT_WAVE_COARSE", field: "insert.twistDeg", severity: "warning", message: "La torsión o la frecuencia vertical son muy fuertes para la resolución de la malla del inserto: las ondas pueden verse facetadas. Reducilas." });
     }
-    for (let k = 1; k <= rows; k++) zs.push(zm + ((zEnd0 - zm) * k) / rows);
+    for (let k = 1; k <= rows; k++) zs.push(zWave0 + ((zEnd0 - zWave0) * k) / rows);
   } else {
     const zEnd0 = tabsOn ? ztop - g.tabThicknessMm - g.tabGussetMm : ztop;
+    for (const b of breaks) if (b < zEnd0 - 1e-6) zs.push(b);
     if (zEnd0 - z0 > 1e-6) zs.push(zEnd0);
   }
-  const zsClean = zs.filter((z, i) => i === 0 || z - zs[i - 1] > 1e-6);
+  const zsClean = [...zs].sort((a, b) => a - b).filter((z, i, arr) => i === 0 || z - arr[i - 1] > 1e-6);
+  // La cara interior tiene sus propias esquinas (desfasadas flareOff de las exteriores): filas extra solo para la cadena interior.
+  const zEndIn = (tabsOn ? ztop - g.tabThicknessMm - g.tabGussetMm : ztop) - 1e-6;
+  const zsInner = flareH > 0
+    ? [...zsClean, ...[zm + flareOff, zb + flareOff].filter((z) => z > z0 + 1e-6 && z < zEndIn)].sort((a, b) => a - b).filter((z, i, arr) => i === 0 || z - arr[i - 1] > 1e-6)
+    : zsClean;
 
   const rowOf = (fn: (th: number, z: number) => number, z: number, extra?: (j: number) => number): Float64Array => {
     const a = new Float64Array(segments);
@@ -230,22 +267,22 @@ function buildWavyOrFlat(input: InsertSurfaceInput): InsertSurface {
   if (closedTop) {
     const topInner = ztop - tc;
     innerTopZ = topInner;
-    const innerZs = [topInner, ...zsClean.filter((z) => z < topInner - 1e-6).reverse()];
+    const innerZs = [topInner, ...zsInner.filter((z) => z < topInner - 1e-6).reverse()];
     const innerChain = innerZs.map((z) => asRow(z, rowOf(innerAt, z)));
     for (const r of innerChain) innerPoints.push({ r: minRow(r.r), z: r.z });
     innerPoints.push({ r: 0, z: topInner });
     rows = [{ z: topInner, r: 0 }, ...innerChain, ...outerChain, { z: ztop, r: 0 }];
   } else {
-    const innerZs = [...(tabsOn ? [ztop] : []), ...[...zsClean].reverse()];
+    const innerZs = [...(tabsOn ? [ztop] : []), ...[...zsInner].reverse()];
     const innerChain = innerZs.map((z) => asRow(z, rowOf(innerAt, z)));
     for (const r of innerChain) innerPoints.push({ r: minRow(r.r), z: r.z });
     rows = [...outerChain, ...innerChain];
   }
 
   // Métricas sobre la grilla real
-  let bodyMaxR = Ro;
-  let tabMaxR = Ro;
-  let minInnerR = Ro - t;
+  let bodyMaxR = Rf;
+  let tabMaxR = Rf;
+  let minInnerR = Rf - t;
   let maxSlopeZ = 0;
   let minCrestRho = Infinity;
   const crest: RZ[] = [];
@@ -266,12 +303,12 @@ function buildWavyOrFlat(input: InsertSurfaceInput): InsertSurface {
       const o = outerAt(th, z);
       rowMax = Math.max(rowMax, o);
       const h = 0.04;
-      if (A > 0 && z > zm) maxSlopeZ = Math.max(maxSlopeZ, Math.abs((outerAt(th, z + h) - outerAt(th, z - h)) / (2 * h)));
+      if ((A > 0 || flareH > 0) && z > zm) maxSlopeZ = Math.max(maxSlopeZ, Math.abs((outerAt(th, z + h) - outerAt(th, z - h)) / (2 * h)));
     }
     bodyMaxR = Math.max(bodyMaxR, rowMax);
     minInnerR = Math.min(minInnerR, minRow(rowOf(innerAt, z)));
     innerOutline.push({ r: minRow(rowOf(innerAt, z)), z });
-    if (A > 0 && z > zm) {
+    if (A > 0 && z > zb) {
       const arr = rowOf(outerAt, z);
       const dth = (2 * Math.PI) / segments;
       for (let j = 0; j < segments; j++) {
@@ -284,13 +321,13 @@ function buildWavyOrFlat(input: InsertSurfaceInput): InsertSurface {
   }
   const maxLeanDeg = Math.atan(maxSlopeZ) * DEG;
 
-  if (A > 0) {
+  if (A > 0 || flareH > 0) {
     if (minCrestRho < g.insertCrestRadiusFactor * t) {
       issues.push({ code: "INSERT_WAVE_CREST_SHARP", field: "insert.amplitudeMm", severity: "error", message: `Las crestas del inserto ondulado son demasiado agudas (radio de curvatura ${fmt(minCrestRho)} mm; hace falta al menos ${fmt(g.insertCrestRadiusFactor * t)} mm con un espesor de ${fmt(t)} mm): la pared se plegaría sobre sí misma. Reducí la amplitud o las ondas, o aumentá el espesor.` });
     }
-    if (maxLeanDeg > g.hardMaxTiltDeg) {
+    if (maxLeanDeg > g.hardMaxTiltDeg + 1e-6) {
       issues.push({ code: "INSERT_WAVE_TOO_STEEP", field: "insert.twistDeg", severity: "error", message: `La pared del inserto ondulado se inclina ${fmt(maxLeanDeg)}° respecto de la vertical: no es imprimible (máximo ${g.hardMaxTiltDeg}°). Reducí la torsión, la frecuencia vertical o la amplitud.` });
-    } else if (maxLeanDeg > g.dropLeanWarnDeg) {
+    } else if (maxLeanDeg > g.dropLeanWarnDeg + 1e-6) {
       issues.push({ code: "INSERT_WAVE_STEEP", field: "insert.twistDeg", severity: "warning", message: `La pared del inserto ondulado se inclina hasta ${fmt(maxLeanDeg)}° respecto de la vertical: puede necesitar soportes o salir con la superficie áspera. Reducí la torsión o la amplitud para imprimirlo sin soportes.` });
     }
   }
@@ -324,6 +361,9 @@ function buildDrop(input: InsertSurfaceInput): InsertSurface {
   const g = LAMP_GEOMETRY;
   const issues: InsertSurfaceIssue[] = [];
   const Ro = input.outerR;
+  const Rf = Math.min(input.fitOuterR, Ro);
+  const flareTan = Math.tan((g.diffuserFlareDeg * Math.PI) / 180);
+  const flareH = (Ro - Rf) / flareTan;
   const t = input.thicknessMm;
   const { z0 } = input;
   const H = input.heightMm;
@@ -336,7 +376,8 @@ function buildDrop(input: InsertSurfaceInput): InsertSurface {
   const err = (code: string, field: string, message: string) => issues.push({ code, field, severity: "error", message });
 
   if (Hcl < g.dropMinClosureMm) err("INSERT_DROP_CLOSURE_SHORT", "insert.dropClosureMm", `El cierre de la gota mide ${fmt(Hcl)} mm: hace falta al menos ${fmt(g.dropMinClosureMm)} mm para que cierre de forma progresiva.`);
-  if (Hc < input.seatDepthMm + g.insertMountExtraMm) err("INSERT_DROP_CYLINDER_SHORT", "insert.dropClosureMm", `La sección cilíndrica de la gota mide ${fmt(Hc)} mm (altura total ${fmt(H)} mm − cierre ${fmt(Hcl)} mm) y debe cubrir la ranura de la torre (${fmt(input.seatDepthMm)} mm) más ${fmt(g.insertMountExtraMm)} mm de tubo liso. Subí la altura total o acortá el cierre.`);
+  const mountH = input.seatDepthMm + g.insertMountExtraMm;
+  if (Hc < mountH + flareH) err("INSERT_DROP_CYLINDER_SHORT", "insert.dropClosureMm", `La sección cilíndrica de la gota mide ${fmt(Hc)} mm (altura total ${fmt(H)} mm − cierre ${fmt(Hcl)} mm) y debe cubrir la ranura de la torre (${fmt(input.seatDepthMm)} mm) más ${fmt(g.insertMountExtraMm)} mm de tubo liso${flareH > 0 ? ` y la transición de ${fmt(flareH)} mm hasta el cuerpo de Ø ${fmt(2 * Ro)} mm` : ""}. Subí la altura total o acortá el cierre.`);
   if (rho < t + 0.5) err("INSERT_DROP_TIP_THIN", "insert.dropTipRadiusMm", `El redondeo de la punta (${fmt(rho)} mm) es demasiado chico para un espesor de ${fmt(t)} mm: el interior de la punta se cerraría sobre sí mismo. Usá al menos ${fmt(t + 0.5)} mm.`);
   if (rho > Ro * 0.9) err("INSERT_DROP_TIP_TOO_WIDE", "insert.dropTipRadiusMm", `El redondeo de la punta (${fmt(rho)} mm) es casi tan grande como el radio del inserto (${fmt(Ro)} mm): no queda cierre cónico. Reducilo.`);
   if (Hcl < rho * 1.3) err("INSERT_DROP_CLOSURE_SHORT", "insert.dropClosureMm", `El cierre (${fmt(Hcl)} mm) no alcanza para una punta de ${fmt(rho)} mm de radio: alargá el cierre o reducí el redondeo.`);
@@ -404,7 +445,11 @@ function buildDrop(input: InsertSurfaceInput): InsertSurface {
   const Rn = Ro - t;
   let join = 0;
   while (join < innerCurve.length && innerCurve[join].r > Rn + 1e-9) join++;
-  const innerAsc: RZ[] = [{ r: Rn, z: z0 }];
+  // Encastre estándar recto + transición cónica: el interior es el exterior desplazado `t` sobre la normal (en la transición, `t·√(1+tan²)` en radio).
+  const zm = z0 + mountH;
+  const offK = Math.sqrt(1 + flareTan * flareTan) - 1;
+  const innerAsc: RZ[] = flareH > 0 ? [{ r: Rf - t, z: z0 }, { r: Rf - t, z: zm + (t * offK) / flareTan }, { r: Rn, z: zm + flareH + (t * offK) / flareTan }] : [{ r: Rn, z: z0 }];
+  const closureStart = innerAsc.length - 1;
   if (join >= innerCurve.length) {
     err("INSERT_DROP_THIN_CURVE", "insert.dropCurvaturePct", "Con estos valores el interior del cierre no se puede trazar con el espesor pedido. Reducí el espesor o la curvatura.");
     return emptySurface(input, issues);
@@ -422,14 +467,14 @@ function buildDrop(input: InsertSurfaceInput): InsertSurface {
     const rr = (rho - t) * Math.cos(phi);
     innerAsc.push({ r: m === M ? 0 : rr, z: zc + (rho - t) * Math.sin(phi) });
   }
-  for (let i = 1; i < innerAsc.length; i++) {
+  for (let i = closureStart + 1; i < innerAsc.length; i++) {
     if (innerAsc[i].z < innerAsc[i - 1].z - 1e-7 || innerAsc[i].r > innerAsc[i - 1].r + 1e-7) {
       err("INSERT_DROP_THIN_CURVE", "insert.dropCurvaturePct", `El cierre es demasiado cerrado para un espesor de ${fmt(t)} mm (el interior se pliega). Reducí el espesor, la curvatura o el redondeo de la punta, o alargá el cierre.`);
       return emptySurface(input, issues);
     }
   }
 
-  const outerAsc: RZ[] = [{ r: Ro, z: z0 }, ...outerCurve];
+  const outerAsc: RZ[] = flareH > 0 ? [{ r: Rf, z: z0 }, { r: Rf, z: zm }, { r: Ro, z: zm + flareH }, ...outerCurve] : [{ r: Ro, z: z0 }, ...outerCurve];
   for (let m = 1; m <= M; m++) {
     const phi = alpha + ((Math.PI / 2 - alpha) * m) / M;
     outerAsc.push({ r: m === M ? 0 : rho * Math.cos(phi), z: zc + rho * Math.sin(phi) });
@@ -457,9 +502,9 @@ function buildDrop(input: InsertSurfaceInput): InsertSurface {
     bodyMaxR: Ro,
     tabMaxR: Ro,
     tabLengthMm: 0,
-    minInnerR: Rn,
+    minInnerR: Math.min(Rn, Rf - t),
     innerPoints: innerPts.map((p) => ({ r: p.r, z: p.z })),
-    maxLeanDeg: Math.max(maxLean, alphaDeg),
+    maxLeanDeg: Math.max(maxLean, alphaDeg, flareH > 0 ? g.diffuserFlareDeg : 0),
     tipArcStartLeanDeg: alphaDeg,
     cylinderHeightMm: Hc,
     closureHeightMm: Hcl,

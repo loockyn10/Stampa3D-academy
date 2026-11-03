@@ -3,11 +3,22 @@ import type { DoubleWallField } from "@/lib/maker/lamps/doublewall/field";
 import type { OpenworkField } from "@/lib/maker/lamps/openwork/field";
 import { threadFacts, threadSpec, type LampThreadSpec } from "@/lib/maker/lamps/threads/lampThread";
 import { minInnerRadiusBetween, type ShadeField } from "@/lib/maker/lamps/shade/surface";
-import { LAMP_GEOMETRY, type LampClearanceCheck, type LampDefinition, type LampDiffuserFitReport, type LampFitReport, type LampInsertStyle, type LampThreadReport, type LampTowerReport } from "@/lib/maker/lamps/types";
+import { mountPressLayout, mountThreadLayout, mountTripodLayout, type MountPressLayout, type MountThreadLayout, type MountTripodLayout } from "@/lib/maker/lamps/holder/mounts";
+import { REFERENCE_DIFFUSER, REFERENCE_THREAD_BASE2, REFERENCE_THREAD_V6 } from "@/lib/maker/lamps/holder/references";
+import { LAMP_GEOMETRY, type LampClearanceCheck, type LampDefinition, type LampDiffuserFitReport, type LampFitReport, type LampHolderMount, type LampInsertStyle, type LampThreadReport, type LampTowerReport } from "@/lib/maker/lamps/types";
 
 /** Torre central de la base (radios en mm, alturas en Z de ensamblado): la leen la base, el cilindro y la pieza de prueba del portalámparas. */
 export interface TowerLayout {
-  /** Agujero central pasante (desde la mesa hasta la cara superior). */
+  /** Sistema de fijación del portalámparas y si la base tiene piso. */
+  mount: LampHolderMount;
+  hasFloor: boolean;
+  /** Plano donde apoya el portalámparas (piso del rebaje, fondo del agujero a presión o cara superior de la torre/plato). */
+  holderSeatZ: number;
+  /** Detalle de cada sistema (null si no aplica). */
+  press: MountPressLayout | null;
+  thread: MountThreadLayout | null;
+  tripod: MountTripodLayout | null;
+  /** Agujero central pasante (desde la mesa hasta la cara superior); con presión, el agujero liso del portalámparas. */
   boreR: number;
   /** Rebaje superior de los anillos: radio, z del piso del rebaje (apoyo) y z de la cara superior de la torre. */
   recessR: number;
@@ -93,9 +104,13 @@ export interface LampLayout {
   bulbTopZ: number;
   insert: null | {
     style: LampInsertStyle;
-    /** Radio exterior / interior NOMINALES (zona de montaje, tubo liso). */
+    /** Radio exterior / interior del CUERPO (con ondas: ver `bodyMaxR`). */
     outerR: number;
     innerR: number;
+    /** Encastre inferior ESTÁNDAR (diffuser.stl): radio exterior e interior del tubo recto que entra en la ranura, y alto de la transición hasta el cuerpo. */
+    fitOuterR: number;
+    mountInnerR: number;
+    flareH: number;
     /** Radio exterior máximo del cuerpo (con ondas, sin lengüetas). */
     bodyMaxR: number;
     heightMm: number;
@@ -111,6 +126,7 @@ export interface LampLayout {
 
 const round1 = (n: number) => Math.round(n * 10) / 10;
 const round2 = (n: number) => Math.round(n * 100) / 100;
+const round3 = (n: number) => Math.round(n * 1000) / 1000;
 const ceilTo = (n: number, step: number) => Math.ceil(n / step - 1e-9) * step;
 
 export function computeLampLayout(def: LampDefinition, field: ShadeField): LampLayout {
@@ -125,8 +141,8 @@ export function computeLampLayout(def: LampDefinition, field: ShadeField): LampL
 
   // ---- Torre: agujero, rebaje de los anillos, apoyo, cara superior
   const recessR = ringsR + holder.ringsClearanceMm;
-  const seatZ = holder.seatHeightMm;
-  const topZ = seatZ + holder.ringsRecessDepthMm;
+  const ringsSeatZ = holder.seatHeightMm;
+  const ringsTopZ = ringsSeatZ + holder.ringsRecessDepthMm;
   const envelopeR = Math.max(bulbR, bodyR);
   // Radio interior mínimo EXIGIDO (error si no se cumple): separación a la bombilla/cuerpo y a los anillos del portalámparas.
   const requiredInnerR = Math.max(envelopeR + insert.minBulbGapMm, ringsR + g.ringsToInsertMinMm);
@@ -142,6 +158,35 @@ export function computeLampLayout(def: LampDefinition, field: ShadeField): LampL
   const baseTopZ = ledgeZ + spec.femaleDepth;
   const neckTopZ = ledgeZ + spec.neckLength;
 
+  // ---- Sistema de fijación del portalámparas: define el plano de apoyo, la cara superior de la torre y el agujero. Cada cota sale de los STL de referencia.
+  const mount: LampHolderMount = holder.mount ?? "rings";
+  let seatZ = ringsSeatZ;
+  let topZ = ringsTopZ;
+  let holderSeatZ = ringsSeatZ;
+  let towerBoreR = holder.boreDiameterMm / 2;
+  let hasFloor = true;
+  let pressLayout: MountPressLayout | null = null;
+  let threadLayout: MountThreadLayout | null = null;
+  let tripodLayout: MountTripodLayout | null = null;
+  if (mount === "press") {
+    pressLayout = mountPressLayout(holder.pressDepthMm, channelHeight + g.towerFloorBelowSlotMm);
+    seatZ = pressLayout.seatZ;
+    topZ = pressLayout.topZ;
+    holderSeatZ = pressLayout.seatZ;
+    towerBoreR = pressLayout.boreR;
+  } else if (mount === "threadBase2" || mount === "threadV6") {
+    // la cara de entrada del portalámparas es la cara superior de la torre (o del plato): ahí apoya su brida, sin rebaje
+    seatZ = ringsTopZ;
+    topZ = ringsTopZ;
+    holderSeatZ = ringsTopZ;
+    threadLayout = mountThreadLayout(mount === "threadBase2" ? REFERENCE_THREAD_BASE2 : REFERENCE_THREAD_V6, topZ);
+    if (mount === "threadV6") {
+      hasFloor = false;
+      towerBoreR = threadLayout.rootR;
+      tripodLayout = mountTripodLayout(topZ, threadLayout.rootR, spec.boreR, ledgeZ);
+    }
+  }
+
   // ---- Cilindro de color y su ranura en la torre
   // Pantalla CALADA con difusor "según anillos": el cilindro ocupa el diámetro INTERIOR LIBRE de los anillos (menos la holgura diametral),
   // sin depender del diámetro decorativo máximo. Lo limita el anillo más angosto o, si fuera menor, la base (la torre que lo aloja necesita
@@ -156,7 +201,10 @@ export function computeLampLayout(def: LampDefinition, field: ShadeField): LampL
   const ringsMode = fitMode === "rings" || diameterMode;
   // Aire mínimo entre la torre y el orificio del cuello: 3 mm, o el ancho del reborde de adhesión más su holgura de diseño si es mayor (el reborde vive en ese espacio).
   const towerAirMm = Math.max(3, def.adhesion.enabled ? def.adhesion.widthMm + g.adhesionClearanceMm : 3);
-  const baseLimitR = spec.boreR - towerAirMm - g.towerOuterWallMm - insert.clearanceMm;
+  // Encastre inferior ESTÁNDAR (diffuser.stl): la ranura de la torre es siempre la de este tubo, sea cual sea el cuerpo del difusor. Lo único que limita el
+  // ANCHO del cuerpo es que pase por el orificio del cuello roscado con la holgura de montaje (antes lo limitaba la torre, que crecía con el difusor).
+  const fitOuterR = REFERENCE_DIFFUSER.outerDiameterMm / 2;
+  const baseLimitR = spec.boreR - insert.clearanceMm;
   // Radio libre real del anillo inferior: con la rosca integrada, el escalón de la transición de 45° (cara interior del anillo menos el espesor sobre el cono) es más angosto que el propio anillo.
   // (solo la calada con transición hacia afuera: hacia adentro la cara interior del anillo sigue recta hasta el cono, sin escalón; la doble pared tiene su propio cono interior)
   const ledgeR = owField && def.shadeType === "openwork" && connection === "integrated" && R_b >= spec.rootR ? R_b - def.openwork.depthMm * Math.SQRT2 : Infinity;
@@ -164,6 +212,7 @@ export function computeLampLayout(def: LampDefinition, field: ShadeField): LampL
   let diffuserLimit: LampDiffuserFitReport["limitedBy"] = "manual";
   let cylOuterR = 0;
   let slot: TowerLayout["slot"] = null;
+  let flareH0 = 0;
   if (insert.enabled) {
     if (diameterMode) {
       // el difusor mide exactamente lo pedido; que la base lo aloje lo valida DIFFUSER_EXCEEDS_BASE (no se achica en silencio)
@@ -179,11 +228,12 @@ export function computeLampLayout(def: LampDefinition, field: ShadeField): LampL
       diffuserLimit = candidates[0][0];
       // al 0,05 mm hacia abajo, con 2,5 µm de tolerancia de redondeo (un libre de 79,999 mm con 1 mm de holgura da exactamente Ø79 mm, no Ø78,9)
       cylOuterR = Math.floor((candidates[0][1] + 0.0025) * 20) / 20;
-    } else cylOuterR = insert.diameterMm === null ? ceilTo(autoInnerR + insert.thicknessMm, 0.25) : insert.diameterMm / 2;
-    slot = { innerR: cylOuterR - insert.thicknessMm - insert.clearanceMm, outerR: cylOuterR + insert.clearanceMm, bottomZ: topZ - insert.seatDepthMm };
+    } else cylOuterR = insert.diameterMm === null ? Math.max(fitOuterR, ceilTo(autoInnerR + insert.thicknessMm, 0.25)) : insert.diameterMm / 2;
+    slot = { innerR: fitOuterR - insert.thicknessMm - insert.clearanceMm, outerR: fitOuterR + insert.clearanceMm, bottomZ: topZ - insert.seatDepthMm };
+    flareH0 = Math.max(0, cylOuterR - fitOuterR) / Math.tan((g.diffuserFlareDeg * Math.PI) / 180);
   }
-  const towerR = slot ? slot.outerR + g.towerOuterWallMm : recessR + 2.4;
-  const tower: TowerLayout = { boreR: holder.boreDiameterMm / 2, recessR, seatZ, topZ, towerR, slot };
+  const towerR = Math.max(slot ? slot.outerR + g.towerOuterWallMm : recessR + 2.4, tripodLayout?.plateR ?? 0);
+  const tower: TowerLayout = { mount, hasFloor, holderSeatZ, press: pressLayout, thread: threadLayout, tripod: tripodLayout, boreR: towerBoreR, recessR, seatZ, topZ, towerR, slot };
 
   // ---- Transición cuello -> parte decorativa (45°) o collar independiente
   let collar: CollarLayout | null = null;
@@ -201,7 +251,7 @@ export function computeLampLayout(def: LampDefinition, field: ShadeField): LampL
     decorZ0 = neckTopZ + flareH;
   }
   const shadeTopZ = decorZ0 + shade.heightMm;
-  const holderTopZ = seatZ + holder.heightMm;
+  const holderTopZ = holderSeatZ + holder.heightMm;
   const bulbTopZ = holderTopZ + bulb.heightAboveHolderMm;
 
   const maxShadeD = 2 * field.maxOuterRadius;
@@ -222,6 +272,7 @@ export function computeLampLayout(def: LampDefinition, field: ShadeField): LampL
     const surface = buildInsertSurface({
       style: insert.style,
       outerR: cylOuterR,
+      fitOuterR,
       thicknessMm: insert.thicknessMm,
       z0,
       heightMm,
@@ -236,6 +287,9 @@ export function computeLampLayout(def: LampDefinition, field: ShadeField): LampL
       style: insert.style,
       outerR: cylOuterR,
       innerR: cylOuterR - insert.thicknessMm,
+      fitOuterR,
+      mountInnerR: Math.min(fitOuterR, cylOuterR) - insert.thicknessMm,
+      flareH: flareH0,
       bodyMaxR: surface.bodyMaxR,
       heightMm,
       z0,
@@ -301,7 +355,8 @@ export function computeLampLayout(def: LampDefinition, field: ShadeField): LampL
   if (insertLayout) {
     for (let m = 60; m <= 200; m += 0.5) {
       const probe = threadSpec({ ...thread, majorDiameterMm: m });
-      if (probe.boreR - towerAirMm - g.towerOuterWallMm - insert.clearanceMm >= cylOuterR - 1e-9) {
+      // la torre estándar con su aire hasta el cuello, y el cuerpo del difusor pasando por el orificio del cuello
+      if (probe.boreR - towerAirMm - g.towerOuterWallMm - insert.clearanceMm >= fitOuterR - 1e-9 && probe.boreR - insert.clearanceMm >= cylOuterR - 1e-9) {
         minThreadMajor = m;
         break;
       }
@@ -309,7 +364,7 @@ export function computeLampLayout(def: LampDefinition, field: ShadeField): LampL
   }
 
   const gapActual = insertLayout ? (insertLayout.surface.valid ? insertEnvelopeGap(insertLayout.surface, { bodyR, holderTopZ, bulbR, bulbTopZ }) : insertLayout.innerR - envelopeR) : null;
-  const ringsGap = insertLayout ? insertLayout.innerR - ringsR : null;
+  const ringsGap = insertLayout ? insertLayout.mountInnerR - ringsR : null;
   let diffuser: LampDiffuserFitReport | null = null;
   if (owField && insertLayout) {
     diffuser = {
@@ -352,9 +407,17 @@ export function computeLampLayout(def: LampDefinition, field: ShadeField): LampL
     neckLengthMm: round1(spec.neckLength),
     baseWallMm: round1(baseDiameterMm / 2 - (spec.majorR + spec.clearance)),
   };
-  const innerWall = slot ? slot.innerR - recessR : null;
+  // Sin rebaje de anillos (presión, roscas) la pared interior de la torre es la distancia del agujero a la ranura.
+  const innerWall = slot ? slot.innerR - (mount === "rings" ? recessR : Math.max(towerBoreR, threadLayout?.rootR ?? 0)) : null;
   const towerReport: LampTowerReport = {
-    boreDiameterMm: round1(2 * tower.boreR),
+    mount,
+    hasFloor,
+    holderSeatZ,
+    holderThread: threadLayout
+      ? { rootDiameterMm: round2(2 * threadLayout.rootR), crestDiameterMm: round2(2 * threadLayout.crestR), pitchMm: threadLayout.pitch, turns: threadLayout.turns, firstApexZ: round2(threadLayout.deepApexZ), lastApexZ: round2(threadLayout.nearApexZ) }
+      : null,
+    holderPress: pressLayout ? { boreDiameterMm: round2(2 * pressLayout.boreR), depthMm: round2(pressLayout.depth), cableHoleDiameterMm: round2(2 * pressLayout.cableHoleR) } : null,
+    boreDiameterMm: round2(2 * tower.boreR),
     ringsRecessDiameterMm: round2(2 * recessR),
     ringsRecessDepthMm: holder.ringsRecessDepthMm,
     seatZ,
@@ -417,11 +480,12 @@ export function computeLampLayout(def: LampDefinition, field: ShadeField): LampL
     insertTopZ: insertLayout?.z1 ?? null,
     holderTopZ,
     bulbTopZ,
-    insertOuterDiameterMm: insertLayout ? round1(2 * insertLayout.outerR) : null,
-    insertInnerDiameterMm: insertLayout ? round1(2 * insertLayout.innerR) : null,
+    insertFit: insertLayout ? { outerDiameterMm: round2(2 * insertLayout.fitOuterR), innerDiameterMm: round2(2 * insertLayout.mountInnerR), heightMm: round2(insert.seatDepthMm + g.insertMountExtraMm), flareHeightMm: round2(insertLayout.flareH) } : null,
+    insertOuterDiameterMm: insertLayout ? round3(2 * insertLayout.outerR) : null,
+    insertInnerDiameterMm: insertLayout ? round3(2 * insertLayout.innerR) : null,
     insertAuto: insertLayout?.auto ?? false,
     insertStyle: insertLayout?.style ?? null,
-    insertMaxDiameterMm: insertLayout ? round1(2 * insertLayout.bodyMaxR) : null,
+    insertMaxDiameterMm: insertLayout ? round3(2 * insertLayout.bodyMaxR) : null,
     insertHeightMm: insertLayout ? round1(insertLayout.heightMm) : null,
     insertClosed: insertLayout?.closedTop ?? false,
     insertEnvelopeGapMm: gapActual === null ? null : round1(gapActual),

@@ -549,7 +549,8 @@ test("torre de la base vs el STL de referencia bottom.stl (solo si el archivo es
   assert.ok(Math.abs(r33[0] - g33[0]) < 0.1, `rebaje: STL R${r33[0].toFixed(2)} vs generado R${g33[0].toFixed(2)}`);
   assert.ok(Math.abs(r33[1] - g33[1]) < 0.35, `ranura interior: STL R${r33[1].toFixed(2)} vs R${g33[1].toFixed(2)} (el espesor del cilindro de la referencia no se conoce)`);
   assert.ok(Math.abs(r33[2] - g33[2]) < 0.1, `ranura exterior: STL R${r33[2].toFixed(2)} vs R${g33[2].toFixed(2)}`);
-  assert.ok(Math.abs(r33[3] - g33[3]) < 0.1, `torre: STL R${r33[3].toFixed(2)} vs R${g33[3].toFixed(2)}`);
+  // la torre sigue al encastre ESTÁNDAR de diffuser.stl (Ø65,135, ranura +holgura +pared) y no al tubo de Ø65 que alojaba bottom.stl: la diferencia es el 0,135 mm de diámetro del estándar más la holgura
+  assert.ok(Math.abs(r33[3] - g33[3]) < 0.15, `torre: STL R${r33[3].toFixed(2)} vs R${g33[3].toFixed(2)}`);
   // agujero central: la referencia mide Ø40,9 y el dato nominal del usuario es Ø42 (se conserva el nominal y la diferencia queda documentada)
   const bore = ref(20)[0] * 2;
   assert.ok(bore > 40.5 && bore < 41.3 && Math.abs(2 * gen(20)[0] - 42) < 0.05);
@@ -1004,10 +1005,10 @@ test("UI: panel en tres secciones (diseño, iluminación, fabricación), botón 
       errors: r.errors, warnings: r.warnings, metrics: r.metrics, exportButtons: createElement(LampExportButtons, { hasInsert: true, insertStyle: "wavy", hasCollar: true, canDownload: true, canDownloadTests: true, busy: null, onDownloadPart() {}, onDownloadZip() {}, onDownloadTests() {}, holderMeasured: false }),
     }),
   );
-  for (const text of ["1 · Pantalla exterior", "Generar variación", "2 · Inserto de color", "Estilo del inserto", "Plano", "Gota", "Ondulado", "Adhesión interna", "Activada", "Desactivada", "3 · Fabricación", "Perfil de base E27", "Doble anillo", "Pendiente de validación física", "NO VALIDADA", "Medidas que tenés que verificar", "Pruebas físicas antes de usarla", "Pantalla (STL)", "Collar roscado (STL)", "Inserto ondulado (STL)", "Base preliminar (STL)", "Todo en un ZIP", "Piezas de prueba (ZIP)", "Código del diseño", "Rosca de unión pantalla–base", "Holguras del ensamblaje", "Parámetros de la rosca", "Ranuras para precinto", "Modo de impresión", "Ø agujero central", "Rebaje de los anillos"]) {
+  for (const text of ["1 · Pantalla exterior", "Generar variación", "2 · Inserto de color", "Estilo del inserto", "Plano", "Gota", "Ondulado", "Adhesión interna", "Activada", "Desactivada", "3 · Fabricación", "Fijación del portalámparas E27", "Doble anillo", "A presión", "Rosca hembra A", "Rosca hembra B con patas", "Pendiente de validación física", "NO VALIDADA", "Medidas que tenés que verificar", "Pruebas físicas antes de usarla", "Pantalla (STL)", "Collar roscado (STL)", "Inserto ondulado (STL)", "Base preliminar (STL)", "Todo en un ZIP", "Piezas de prueba (ZIP)", "Código del diseño", "Rosca de unión pantalla–base", "Holguras del ensamblaje", "Parámetros de la rosca", "Ranuras para precinto", "Modo de impresión", "Ø agujero central", "Rebaje de los anillos"]) {
     assert.ok(html.includes(text), `falta "${text}"`);
   }
-  assert.equal((html.match(/role="radio"/g) ?? []).length, 12, "nueve colores de referencia (el selector libre no es un radio) + tres tarjetas de estilo");
+  assert.equal((html.match(/role="radio"/g) ?? []).length, 16, "nueve colores de referencia (el selector libre no es un radio) + tres tarjetas de estilo + cuatro tarjetas de fijación del portalámparas");
   assert.ok(html.includes("Rojo") && html.includes("Azul") && html.includes("Verde"));
   // el color es solo una referencia visual
   assert.ok(html.includes("aproximación visual"));

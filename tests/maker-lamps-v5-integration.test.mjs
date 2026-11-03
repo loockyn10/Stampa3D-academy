@@ -200,16 +200,12 @@ test("Caso 1 (calada): selector → anillos Ø80 → holgura 1 mm → difusor Ø
   assert.equal(s.def.openwork.diffuserClearanceMm, 1);
   let fit = s.result.metrics.fit.diffuser;
   assert.ok(Math.abs(fit.ringBottomFreeDiameterMm - 80) < 0.02 && Math.abs(fit.ringTopFreeDiameterMm - 80) < 0.02, `anillos libres ${fit.ringBottomFreeDiameterMm} / ${fit.ringTopFreeDiameterMm}`);
-  // con la rosca por defecto la base limita el difusor: se informa y el botón ofrece subir la rosca
-  assert.equal(fit.limitedBy, "base");
-  assert.ok(fit.diffuserDiameterMm < 79, `limitado por la base: Ø${fit.diffuserDiameterMm}`);
-  assert.ok(s.html.includes("Subir la rosca hasta que el difusor use los anillos") && s.html.includes("DIFFUSER_LIMITED_BY_BASE") === false);
-  assert.ok(s.result.warnings.some((w) => w.code === "DIFFUSER_LIMITED_BY_BASE"));
-  // el botón: mismo cálculo que ejecuta
-  const major = suggestThreadMajorForDiffuser(s.def);
-  assert.ok(major && major > s.def.thread.majorDiameterMm, `rosca sugerida Ø${major}`);
-  s.set("thread", { majorDiameterMm: major });
-  fit = s.result.metrics.fit.diffuser;
+  // con el encastre inferior estándar (Ø65,135) la torre no crece con el cuerpo: la rosca por defecto ya deja pasar un difusor de Ø79 y lo limita el anillo, no la base
+  assert.notEqual(fit.limitedBy, "base");
+  assert.ok(Math.abs(fit.diffuserDiameterMm - 79) < 0.011, `limitado por el anillo: Ø${fit.diffuserDiameterMm}`);
+  assert.ok(!s.result.warnings.some((w) => w.code === "DIFFUSER_LIMITED_BY_BASE"));
+  assert.ok(!s.html.includes("Subir la rosca hasta que el difusor use los anillos"));
+  assert.equal(s.def.thread.majorDiameterMm, DEFAULT_LAMP.thread.majorDiameterMm, "no se tocó la rosca");
   assert.equal(s.result.errors.length, 0, JSON.stringify(s.result.errors.map((e) => e.code + e.message)));
   // 5) el difusor mide Ø79 (anillos Ø80 − holgura 1)
   assert.ok(Math.abs(fit.diffuserDiameterMm - 79) < 0.011, `difusor Ø${fit.diffuserDiameterMm}`);
@@ -238,9 +234,10 @@ test("Caso 1 (calada): selector → anillos Ø80 → holgura 1 mm → difusor Ø
     assert.equal(t.result.metrics.fit.diffuser.diffuserDiameterMm, fit.diffuserDiameterMm, JSON.stringify(patch));
   }
   // modificar el diámetro de montaje recalcula el difusor y el STL
-  const thin = session(s.def).set("thread", { majorDiameterMm: 98 });
-  assert.ok(thin.result.metrics.fit.diffuser.diffuserDiameterMm < fit.diffuserDiameterMm, "con menos rosca la base lo limita");
-  const wide = session(s.def).set("thread", { majorDiameterMm: major + 8 });
+  const thin = session(s.def).set("thread", { majorDiameterMm: 88 });
+  // con una rosca más angosta la base ya no es la que limita al difusor (el encastre es estándar): lo que pasa a ser inválido es la transición de 45° de la pantalla, y se informa sin achicar nada
+  assert.ok(thin.result.errors.some((e) => e.code === "SHADE_NARROWER_THAN_THREAD"), "una rosca más ancha que la pantalla se rechaza");
+  const wide = session(s.def).set("thread", { majorDiameterMm: s.def.thread.majorDiameterMm + 8 });
   assert.equal(wide.result.metrics.fit.diffuser.diffuserDiameterMm, fit.diffuserDiameterMm, "con más rosca lo siguen limitando los anillos");
   assert.notEqual(lampGeometryKey(thin.def), lampGeometryKey(s.def));
   // se introduce y se retira físicamente: en todo el recorrido (del anillo superior a la ranura) el libre de la pantalla supera al difusor
@@ -377,11 +374,11 @@ test("Doble pared: las dos siluetas se editan por separado (cilíndrica/cónica/
 });
 
 // ================================================================== CASO 3 — regresión
-test("Caso 3 (regresión): sólida, calada con huecos reales, base y rosca sin cambios, insertos sólidos en Ø65, presets y exportaciones", async () => {
+test("Caso 3 (regresión): sólida, calada con huecos reales, base y rosca sin cambios, insertos sólidos en el estándar Ø65,135, presets y exportaciones", async () => {
   const BASE140 = { diameterMm: 140 }; // misma base en los tres: así se compara la MALLA de la base
   const solid = createLamp({ ...DEFAULT_LAMP, base: BASE140 });
   assert.equal(solid.errors.length, 0);
-  assert.equal(solid.metrics.fit.insertOuterDiameterMm, 65, "el inserto de la sólida no cambia");
+  assert.equal(solid.metrics.fit.insertOuterDiameterMm, 65.135, "el inserto de la sólida es el encastre estándar de diffuser.stl");
   assert.equal(solid.metrics.fit.diffuser, null);
   assert.equal(solid.metrics.doubleWall, null);
   // presets de la sólida y de la calada
@@ -397,7 +394,7 @@ test("Caso 3 (regresión): sólida, calada con huecos reales, base y rosca sin c
     // (la altura de la transición de 45° depende del diámetro inferior de cada pantalla; el resto de la interfaz roscada es idéntica)
     assert.deepEqual({ ...r.metrics.fit.thread, flareHeightMm: 0 }, { ...solid.metrics.fit.thread, flareHeightMm: 0 }, "roscas conservadas");
     assert.equal(r.indexed.base, solid.indexed.base, "base E27 sin cambios con el mismo difusor");
-    assert.equal(r.metrics.fit.insertOuterDiameterMm, 65);
+    assert.equal(r.metrics.fit.insertOuterDiameterMm, 65.135);
   }
   assert.equal(lampPartEntries(dbl).length, lampPartEntries(solid).length);
   // calada: huecos reales y una sola pieza; sólida: pared continua

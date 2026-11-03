@@ -231,7 +231,21 @@ export interface LampBaseDef {
  * las medidas dadas por el usuario y del STL de referencia `bottom.stl`, y siguen pendientes de validación física
  * (`measured`). La posición axial de los anillos y el lado por el que se montan son datos del STL, no verificados.
  */
+/**
+ * Sistema de fijación del portalámparas (todos probados físicamente por el usuario con sus portalámparas; las cotas salen de los STL de
+ * referencia, ver `holder/references.ts`):
+ *   - "rings":       doble anillo en un rebaje (referencia `bottom.stl`; el perfil original de la herramienta);
+ *   - "press":       A PRESIÓN en un agujero liso Ø39,969 con piso (`BASE v2.stl`): solo bases CON PISO;
+ *   - "threadBase2": rosca hembra Ø40,621 / paso 3,34 en la torre (`BASE2.stl`);
+ *   - "threadV6":    rosca hembra Ø40,498 / paso 3,0 en un plato sostenido por tres patas, SIN piso (`patas V6.stl`).
+ */
+export type LampHolderMount = "rings" | "press" | "threadBase2" | "threadV6";
+
 export interface LampHolderDef {
+  /** Sistema de fijación. Los diseños anteriores a esta opción se leen como "rings". */
+  mount: LampHolderMount;
+  /** Solo "press": profundidad del agujero desde la cara superior del piso (referencia BASE v2.stl: 50,46 mm). */
+  pressDepthMm: number;
   /** true = el usuario verificó estas medidas con su portalámparas real. false = geometría PRELIMINAR NO VALIDADA. */
   measured: boolean;
   /** Diámetro del agujero central pasante de la torre (nominal del usuario: Ø42; el STL de referencia mide Ø40,9). */
@@ -346,6 +360,15 @@ export interface LampClearanceCheck {
 
 /** Torre central de la base (alojamiento del portalámparas y del cilindro), todo ya resuelto desde la definición. */
 export interface LampTowerReport {
+  /** Sistema de fijación activo y si la base tiene piso (el trípode "threadV6" no lo tiene). */
+  mount: LampHolderMount;
+  hasFloor: boolean;
+  /** Plano donde apoya el portalámparas: el piso del rebaje (anillos), el fondo del agujero (presión) o la cara superior de la torre/plato (roscas). */
+  holderSeatZ: number;
+  /** Rosca hembra del portalámparas (null en anillos y presión): Ø de raíz y de cresta, paso y vueltas medidos del STL de referencia. */
+  holderThread: null | { rootDiameterMm: number; crestDiameterMm: number; pitchMm: number; turns: number; firstApexZ: number; lastApexZ: number };
+  /** Agujero a presión (null si no aplica): Ø, profundidad y Ø del orificio del cable. */
+  holderPress: null | { boreDiameterMm: number; depthMm: number; cableHoleDiameterMm: number };
   boreDiameterMm: number;
   ringsRecessDiameterMm: number;
   ringsRecessDepthMm: number;
@@ -447,7 +470,9 @@ export interface LampFitReport {
   insertTopZ: number | null;
   holderTopZ: number;
   bulbTopZ: number;
-  /** Diámetro exterior efectivo del inserto (mm) y si salió del modo automático. */
+  /** Encastre inferior ESTÁNDAR del difusor (diffuser.stl) — Ø exterior e interior, alto del tramo recto que entra en la ranura y alto de la transición de 45° hasta el cuerpo — o null sin inserto. */
+  insertFit: null | { outerDiameterMm: number; innerDiameterMm: number; heightMm: number; flareHeightMm: number };
+  /** Diámetro exterior efectivo del CUERPO del inserto (mm) y si salió del modo automático. */
   insertOuterDiameterMm: number | null;
   insertInnerDiameterMm: number | null;
   insertAuto: boolean;
@@ -628,6 +653,7 @@ export const LAMP_LIMITS = {
   "holder.seatHeightMm": { min: 12, max: 80, label: "Altura del apoyo de los anillos" },
   "holder.bodyDiameterMm": { min: 20, max: 80, label: "Diámetro del cuerpo del portalámparas" },
   "holder.heightMm": { min: 20, max: 120, label: "Altura del portalámparas" },
+  "holder.pressDepthMm": { min: 15, max: 70, label: "Profundidad del agujero a presión" },
   "bulb.diameterMm": { min: 30, max: 120, label: "Diámetro de la bombilla" },
   "bulb.heightAboveHolderMm": { min: 40, max: 200, label: "Alto de la bombilla sobre el portalámparas" },
   "cable.diameterMm": { min: 3, max: 12, label: "Diámetro del cable" },
@@ -637,6 +663,8 @@ export type LampLimitKey = keyof typeof LAMP_LIMITS;
 
 /** Constantes geométricas fijas del sistema de encastre (no son parámetros del usuario). */
 export const LAMP_GEOMETRY = {
+  /** Transición del difusor del encastre estándar al cuerpo: pendiente respecto de la vertical (45°: se imprime sin soportes). */
+  diffuserFlareDeg: 45,
   /** Torre central de la base (STL de referencia): pared exterior entre la ranura del cilindro y el exterior de la torre. */
   towerOuterWallMm: 2,
   /** Pared mínima (error) y recomendada (aviso) entre el rebaje de los anillos y la ranura del cilindro, y bajo la ranura. */

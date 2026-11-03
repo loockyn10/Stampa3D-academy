@@ -2,6 +2,7 @@ import type { Point2D } from "@/lib/maker/types";
 import { circlePoly, rectPoly, sectorPoly, type SolidFeature } from "@/lib/maker/lamps/geometry/solid";
 import type { LampLayout } from "@/lib/maker/lamps/layout";
 import { femaleVoidPolygon } from "@/lib/maker/lamps/geometry/ringLoop";
+import { pressFeatures, threadBoreFeatures, tripodSolidPolys } from "@/lib/maker/lamps/holder/mounts";
 import { LAMP_GEOMETRY } from "@/lib/maker/lamps/types";
 
 export const segmentsFor = (radius: number) => Math.min(144, Math.max(24, Math.round((radius * 3) / 4) * 4));
@@ -37,8 +38,16 @@ export function floorFeatures(layout: LampLayout, outerR: number): SolidFeature[
 export function towerFeatures(layout: LampLayout, zFloor = 0): SolidFeature[] {
   const t = layout.tower;
   const features: SolidFeature[] = [];
-  features.push({ z0: zFloor, z1: t.topZ, cut: [circlePoly(t.boreR, segmentsFor(t.boreR))] });
-  features.push({ z0: t.seatZ, z1: t.topZ, cut: [circlePoly(t.recessR, segmentsFor(t.recessR))] });
+  if (t.press) {
+    // A PRESIÓN (BASE v2.stl): agujero ciego liso sobre el piso, con el orificio del cable debajo
+    features.push(...pressFeatures(t.press, zFloor));
+  } else if (t.thread) {
+    // ROSCA HEMBRA (BASE2.stl / patas V6.stl): agujero a la raíz con el nervio helicoidal medido; debajo, el agujero central (o la raíz en el plato)
+    features.push(...threadBoreFeatures(t.thread, zFloor, Math.max(t.boreR, t.thread.rootR)));
+  } else {
+    features.push({ z0: zFloor, z1: t.topZ, cut: [circlePoly(t.boreR, segmentsFor(t.boreR))] });
+    features.push({ z0: t.seatZ, z1: t.topZ, cut: [circlePoly(t.recessR, segmentsFor(t.recessR))] });
+  }
   if (t.slot) features.push({ z0: Math.max(t.slot.bottomZ, zFloor), z1: t.topZ, cut: ringSectors(t.slot.innerR, t.slot.outerR) });
   return features;
 }
@@ -70,7 +79,10 @@ export function threadVoidFeatures(layout: LampLayout, protectTower = true): Sol
       }
       return best;
     });
-    features.push({ z0, z1, cut: [polygon], protect: tower && z1 <= towerTop + 1e-6 ? tower : undefined });
+    // trípode: el plato y las patas (no un cilindro) son lo que atraviesa la zona roscada de la base
+    const tripod = protectTower ? layout.tower.tripod : null;
+    const protect = tripod && z1 <= towerTop + 1e-6 ? tripodSolidPolys(tripod, (z0 + z1) / 2) : tower && z1 <= towerTop + 1e-6 ? tower : undefined;
+    features.push({ z0, z1, cut: [polygon], protect });
   }
   return features;
 }

@@ -227,10 +227,12 @@ test("reborde interno: si el ancho pedido interfiere se informa y se puede reduc
   assert.ok(e && e.field === "adhesion.widthMm" && /torre central/.test(e.message) && /desactiv/i.test(e.message), JSON.stringify(over.errors));
   assert.equal(over.geometry, null, "no se genera una unión defectuosa");
   assert.equal(createLamp({ ...DEFAULT_LAMP, adhesion: { ...DEFAULT_LAMP.adhesion, widthMm: avail + 0.5, enabled: false } }).errors.length, 0, "desactivado no bloquea");
-  // lo disponible sale de las geometrías ensambladas: una torre más ancha (cilindro de más diámetro) lo reduce; nada se modifica solo
+  // lo disponible sale de las geometrías ensambladas: la torre sigue al encastre ESTÁNDAR (no al ancho del cuerpo), así que un difusor de Ø70 no lo reduce; un plato más ancho (rosca con patas) sí
   const wide = validateLamp(withInsert({ diameterMm: 70 })).layout;
-  assert.ok(wide.adhesion.availableWidthMm < avail - 2);
+  assert.equal(wide.adhesion.availableWidthMm, avail, "la torre no crece con el difusor");
   assert.equal(wide.adhesion.widthMm, 3, "el ancho pedido no se cambió");
+  const plate = validateLamp({ ...DEFAULT_LAMP, holder: { ...DEFAULT_LAMP.holder, mount: "threadV6" } }).layout;
+  assert.ok(plate.adhesion.availableWidthMm < avail - 0.5, "el plato Ø78,82 deja menos lugar al reborde");
   // inserto que llega hasta el plano del reborde (ranura muy profunda) con ondas grandes: lo limita el inserto
   const deep = validateLamp(style("wavy", { amplitudeMm: 10, seatDepthMm: 14 })).layout;
   assert.equal(deep.adhesion.limitedBy, "insert");
@@ -568,7 +570,7 @@ test("inserto ondulado: cantidad de ondas, amplitud (solo hacia afuera) y diáme
     assert.equal(peaks, n, `crestas ${peaks} vs ondas ${n}`);
     // diámetro máximo informado = el medido; el nominal de montaje no cambia
     assert.ok(Math.abs(r.metrics.fit.insertMaxDiameterMm - 2 * (Ro + A)) < 0.1);
-    assert.equal(r.metrics.fit.insertOuterDiameterMm, 65);
+    assert.equal(r.metrics.fit.insertOuterDiameterMm, 65.135);
     // el interior nunca se acerca más a la bombilla que el tubo liso (la onda solo suma afuera)
     const inner = [];
     for (let i = 0; i < ins.positions.length; i += 3) {
@@ -580,7 +582,7 @@ test("inserto ondulado: cantidad de ondas, amplitud (solo hacia afuera) y diáme
   }
   // amplitud 0 = cilindro liso: todas las columnas al mismo radio
   const smooth = build(style("wavy", { amplitudeMm: 0 }));
-  assert.ok(Math.abs(smooth.metrics.fit.insertMaxDiameterMm - 65) < 1e-6);
+  assert.ok(Math.abs(smooth.metrics.fit.insertMaxDiameterMm - 65.135) < 1e-6);
 });
 
 test("inserto ondulado: torsión (las crestas giran con la altura) y frecuencia vertical (la amplitud respira a lo alto)", () => {
@@ -635,7 +637,7 @@ test("inserto ondulado: espesor (medido sobre la malla 3D), zona de montaje idé
   }
   const worst = minWallDistance([...triangles(ins)], inner.filter((_, i) => i % Math.ceil(inner.length / 40) === 0), 1);
   assert.ok(worst >= 1 * 0.93, "espesor mínimo 3D " + worst.toFixed(3) + " (pedido 1)");
-  // zona de montaje: el tubo liso Ø65 es idéntico en los tres estilos (misma ranura de la torre)
+  // zona de montaje: el tubo liso Ø65,135 (encastre de diffuser.stl) es idéntico en los tres estilos (misma ranura de la torre)
   const zMount = l.insert.z0 + 5;
   const mounts = ["flat", "drop", "wavy"].map((s) => {
     const rr = build(style(s, {}, { })).indexed.insert;
@@ -648,7 +650,7 @@ test("inserto ondulado: espesor (medido sobre la malla 3D), zona de montaje idé
     const b = indexedBounds(build(style(s)).indexed.insert);
     assert.ok(Math.abs(b.minZ - l.tower.slot.bottomZ) < 1e-9, `${s}: apoyo en el fondo de la ranura`);
   }
-  assert.ok(Math.abs(planeCrossings(ins, zMount).at(-1) - 32.5) < 0.02);
+  assert.ok(Math.abs(planeCrossings(ins, zMount).at(-1) - 32.5675) < 0.02);
   // el inserto no invade la torre: ningún punto del inserto dentro del sólido de la base (la ranura lo aloja con holgura)
   const sample = [];
   for (let i = 0; i < p.length; i += 3 * 97) sample.push([p[i], p[i + 1], p[i + 2]]);
@@ -688,9 +690,9 @@ test("inserto ondulado: terminación superior abierta (con lengüetas opcionales
   assertClean(flat.indexed.insert, "con tapa plana");
   assertClean(none.indexed.insert, "abierto sin lengüetas");
   // lengüetas: sólo con extremo abierto (en el plano y=0 no hay; en +Y sí)
-  assert.ok(Math.max(b(open).maxY, -b(open).minY) > 2.5 + 32.5 + 5, "las lengüetas sobresalen en ±Y");
-  assert.ok(Math.max(b(none).maxY, -b(none).minY) < 32.5 + 2.5 + 0.2);
-  assert.ok(Math.max(b(flat).maxY, -b(flat).minY) < 32.5 + 2.5 + 0.2, "con tapa no hay lengüetas");
+  assert.ok(Math.max(b(open).maxY, -b(open).minY) > 2.5 + 32.5675 + 5, "las lengüetas sobresalen en ±Y");
+  assert.ok(Math.max(b(none).maxY, -b(none).minY) < 32.5675 + 2.5 + 0.2);
+  assert.ok(Math.max(b(flat).maxY, -b(flat).minY) < 32.5675 + 2.5 + 0.2, "con tapa no hay lengüetas");
   assert.equal(open.metrics.fit.insertClosed, false);
   assert.equal(flat.metrics.fit.insertClosed, true);
   assert.equal(flat.warnings.some((w) => w.code === "INSERT_CLOSED_THERMAL_PENDING"), true);
@@ -699,10 +701,10 @@ test("inserto ondulado: terminación superior abierta (con lengüetas opcionales
   const hits = rayHits(flat.indexed.insert, [0.01, 0.02, b(flat).minZ - 1], [0, 0, 1]);
   assert.equal(hits.length, 2);
   assert.ok(Math.abs(hits[1] - hits[0] - 1.6) < 1e-6);
-  // el motor es el mismo: el abierto sin ondas es el cilindro liso de la lámpara de referencia (Ø65 exterior, 0,8 de espesor)
+  // el motor es el mismo: el abierto sin ondas es el cilindro liso de la lámpara de referencia (Ø65,135 exterior, 0,8 de espesor)
   const smooth = build(style("wavy", { amplitudeMm: 0, tabs: false }));
   const x = planeCrossings(smooth.indexed.insert, b(smooth).minZ + 60);
-  assert.ok(Math.abs(x[1] - 32.5) < 0.02 && Math.abs(x[0] - 31.7) < 0.02);
+  assert.ok(Math.abs(x[1] - 32.5675) < 0.02 && Math.abs(x[0] - 31.7675) < 0.02);
   assert.equal(smooth.metrics.insert.vaseCapable, true);
 });
 

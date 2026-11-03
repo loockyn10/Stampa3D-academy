@@ -5,6 +5,8 @@ import { AlertTriangle, Check, Copy, Dices, Download, Loader2, ShieldAlert } fro
 import { Card } from "@/components/ui/card";
 import { NumberField, SegmentedControl } from "@/components/maker/MakerTextControls";
 import { applyInsertStyle, INSERT_STYLE_LABELS } from "@/lib/maker/lamps/defaults";
+import { applyHolderMount } from "@/lib/maker/lamps/holder/applyMount";
+import { MOUNT_LABELS } from "@/lib/maker/lamps/holder/mounts";
 import { decodeLampDesign, encodeLampDesign } from "@/lib/maker/lamps/designCode";
 import { insertSilhouette, referenceInsertSurface } from "@/lib/maker/lamps/insert/silhouette";
 import { OPENWORK_PRESETS, applyOpenworkPreset, applyShadeType, applySilhouette, openworkPresetMatches, type OpenworkPreset } from "@/lib/maker/lamps/openwork/presets";
@@ -19,7 +21,15 @@ import { renderOpenworkThumbnail } from "@/lib/maker/lamps/openwork/thumbnail";
 import { type LampPreset } from "@/lib/maker/lamps/presets";
 import { LAMP_MEASUREMENTS_NEEDED, LAMP_NOTICE_CODES, LAMP_PHYSICAL_TESTS, LAMP_SAFETY_NOTICES } from "@/lib/maker/lamps/safety";
 import { lampSilhouette } from "@/lib/maker/lamps/silhouette";
-import { LAMP_LIMITS, type LampDoubleWallDef, type LampAdhesionDef, type LampOpenworkDef, type LampShadeType, type LampBaseDef, type LampBulbDef, type LampCableDef, type LampDefinition, type LampFamily, type LampHolderDef, type LampInsertDef, type LampInsertStyle, type LampIssue, type LampMetrics, type LampProfile, type LampShadeDef, type LampThreadDef } from "@/lib/maker/lamps/types";
+import { LAMP_LIMITS, type LampDoubleWallDef, type LampAdhesionDef, type LampOpenworkDef, type LampShadeType, type LampBaseDef, type LampBulbDef, type LampCableDef, type LampDefinition, type LampFamily, type LampHolderDef, type LampHolderMount, type LampInsertDef, type LampInsertStyle, type LampIssue, type LampMetrics, type LampProfile, type LampShadeDef, type LampThreadDef } from "@/lib/maker/lamps/types";
+
+/** Sistemas de fijación del portalámparas: las cotas de cada uno salen de su STL de referencia (references/lamp-e27), probado por el usuario con sus portalámparas. */
+const MOUNT_CARDS: { value: LampHolderMount; badge: string; reference: string; text: string }[] = [
+  { value: "rings", badge: "Con piso", reference: "bottom.stl", text: "Dos anillos de sujeción del portalámparas en un rebaje superior de la torre; el cuerpo pasa por un agujero central." },
+  { value: "press", badge: "Solo bases con piso", reference: "BASE v2.stl", text: "El portalámparas entra a presión en un agujero liso Ø40,00 y apoya sobre el piso; el cable sale por el orificio de Ø7 y el canal inferior." },
+  { value: "threadBase2", badge: "Con piso", reference: "BASE2.stl", text: "Rosca hembra Ø40,621 (cresta Ø39,118, paso 3,34 mm, 2 vueltas) en la torre: el portalámparas se enrosca desde arriba y apoya su brida en la cara de la torre." },
+  { value: "threadV6", badge: "Sin piso · 3 patas", reference: "patas V6.stl", text: "Rosca hembra Ø40,5 (cresta Ø39,0, paso 3,0 mm, 2 vueltas) en un plato Ø78,8 sostenido por tres patas: no hay piso macizo, el cable sale por abajo." },
+];
 
 const FAMILY_OPTIONS: { value: LampFamily; label: string }[] = [
   { value: "wavy", label: "Ondulada" },
@@ -292,7 +302,7 @@ function isPresetActive(def: LampDefinition, preset: LampPreset): boolean {
 }
 
 /** Nombre legible de qué limita al difusor. */
-const LIMITED_BY_LABEL = { bottomRing: "el anillo inferior", topRing: "el anillo superior", opening: "la abertura central", base: "la base y la rosca", manual: "el valor manual", diameter: "el diámetro pedido" } as const;
+const LIMITED_BY_LABEL = { bottomRing: "el anillo inferior", topRing: "el anillo superior", opening: "la abertura central", base: "el orificio del cuello roscado", manual: "el valor manual", diameter: "el diámetro pedido" } as const;
 
 /** Rango válido de un campo numérico escrito (NumberField): «Válido: a–b mm». Sale de las restricciones dinámicas, no de la envolvente fija. */
 function RangeHint({ path }: { path: string }) {
@@ -348,14 +358,17 @@ function DiffuserPanel({ def, onChange, err, fit, errors, onError }: { def: Lamp
           <InfoRow label="Abertura interior libre de los anillos" value={`Ø ${fmt2(def.openwork.diffuserDiameterMm + def.openwork.diffuserClearanceMm)} mm = ${fmt2(def.openwork.diffuserDiameterMm)} + ${fmt2(def.openwork.diffuserClearanceMm)}`} strong />
           {exceedsBase && (
             <button type="button" onClick={raiseThread} className="inline-flex h-9 items-center justify-center rounded-xl border border-stampa-orange/40 bg-stampa-orange/10 px-3 text-xs font-semibold text-stampa-accent transition-colors hover:bg-stampa-orange/20">
-              Subir la rosca de montaje hasta que la base aloje el difusor
+              Subir la rosca de montaje hasta que el difusor pase por el cuello
             </button>
           )}
         </>
       ) : cfg.diffuserFit === "rings" ? (
         <SliderField label="Holgura diametral" value={cfg.diffuserClearanceMm} min={L[clearanceKey].min} max={L[clearanceKey].max} step={0.1} suffix=" mm" onChange={(v) => setCfg({ diffuserClearanceMm: v })} error={err(clearanceKey)} />
       ) : (
-        <NumberField label="Ø exterior (montaje)" value={def.insert.diameterMm ?? fit?.insertOuterDiameterMm ?? 65} onChange={(v) => onChange({ ...def, insert: { ...def.insert, diameterMm: v } })} suffix="mm" error={err("insert.diameterMm")} />
+        <NumberField label="Ø exterior del cuerpo" value={def.insert.diameterMm ?? fit?.insertOuterDiameterMm ?? 65.135} onChange={(v) => onChange({ ...def, insert: { ...def.insert, diameterMm: v } })} suffix="mm" error={err("insert.diameterMm")} />
+      )}
+      {fit?.insertFit && (
+        <InfoRow label="Encastre inferior estándar (diffuser.stl)" value={`Ø ${fmt2(fit.insertFit.outerDiameterMm)} / Ø ${fmt2(fit.insertFit.innerDiameterMm)} × ${fmt(fit.insertFit.heightMm)} mm${fit.insertFit.flareHeightMm > 0 ? ` + transición de ${fmt(fit.insertFit.flareHeightMm)} mm` : ""}`} />
       )}
       {dif && (
         <div className="flex flex-col gap-1">
@@ -364,7 +377,7 @@ function DiffuserPanel({ def, onChange, err, fit, errors, onError }: { def: Lamp
           ) : (
             <InfoRow label="Ø libre anillo inferior / superior" value={`${fmt2(dif.ringBottomFreeDiameterMm)} / ${fmt2(dif.ringTopFreeDiameterMm)} mm`} />
           )}
-          <InfoRow label="Ø máximo que admite la base" value={`${fmt(dif.baseLimitDiameterMm)} mm`} />
+          <InfoRow label="Ø máximo que pasa por el cuello roscado" value={`${fmt(dif.baseLimitDiameterMm)} mm`} />
           <InfoRow label="Ø exterior del difusor" value={`${fmt2(dif.diffuserDiameterMm)} mm`} strong />
           <InfoRow label="Holgura radial inferior / superior" value={`${fmt2(dif.radialClearanceBottomMm)} / ${fmt2(dif.radialClearanceTopMm)} mm`} />
           {!double && <InfoRow label="Recorrido de inserción" value={dif.insertable ? `libre Ø ${fmt2(dif.pathMinFreeDiameterMm)} mm (holgura ${fmt2(dif.pathClearanceMm)} mm)` : `BLOQUEADO (libre Ø ${fmt2(dif.pathMinFreeDiameterMm)} mm)`} strong={!dif.insertable} />}
@@ -380,7 +393,7 @@ function DiffuserPanel({ def, onChange, err, fit, errors, onError }: { def: Lamp
       <p className="text-xs text-gray-500">
         {diameterMode
           ? "El difusor es un cilindro y es el dato: el interior libre de AMBOS anillos (los dos puntos de montaje) es su Ø exterior más la holgura diametral, y los diámetros de los extremos de la pantalla se calculan para cumplirlo. La silueta decorativa solo puede expandirse hacia afuera de ese volumen y no lo invade. La holgura es un valor inicial pendiente de validación física."
-          : `El difusor es un cilindro: no sigue la silueta decorativa. Su diámetro sale del interior LIBRE de ${double ? "la abertura central (su punto más angosto)" : "los anillos (la cara interior, no la exterior)"} menos la holgura diametral, que es un valor inicial pendiente de validación física, y nunca supera lo que admite la base. Cambiar solo la forma decorativa no lo modifica.`}{" "}
+          : `El difusor es un cilindro: no sigue la silueta decorativa. Su diámetro sale del interior LIBRE de ${double ? "la abertura central (su punto más angosto)" : "los anillos (la cara interior, no la exterior)"} menos la holgura diametral, que es un valor inicial pendiente de validación física. Su zona inferior es SIEMPRE el encastre estándar de diffuser.stl (Ø65,135, que entra en la misma ranura de la torre) y se ensancha en una transición de 45° hasta ese diámetro: la base no cambia con el difusor. Cambiar solo la forma decorativa no lo modifica.`}{" "}
         Las lengüetas de extracción no se usan con este ajuste. Esto no es una validación térmica: el conjunto con tu LED E27 real sigue pendiente.
       </p>
     </div>
@@ -625,6 +638,12 @@ export function MakerLampControls({ def, onChange, onApplyPreset, onGenerateVari
   const fit = metrics?.fit ?? null;
   const [copied, setCopied] = React.useState(false);
   const [pasted, setPasted] = React.useState("");
+  const [mountNotice, setMountNotice] = React.useState<string | null>(null);
+  const chooseMount = (mount: LampHolderMount) => {
+    const applied = applyHolderMount(def, mount);
+    setMountNotice(applied.notice);
+    onChange(applied.def);
+  };
   const code = React.useMemo(() => encodeLampDesign(def), [def]);
   const deferredDef = React.useDeferredValue(def);
   const solidPresets = React.useMemo(() => (deferredDef.shadeType === "solid" ? availableLampPresets(deferredDef) : { available: [] as LampPreset[], hidden: [] as { preset: LampPreset; reason: string }[] }), [deferredDef]);
@@ -761,7 +780,7 @@ export function MakerLampControls({ def, onChange, onApplyPreset, onGenerateVari
             {def.shadeType !== "solid" && <DiffuserPanel def={def} onChange={onChange} err={err} fit={fit} errors={errors} onError={onError} />}
             <div className="grid grid-cols-2 gap-3">
               {def.shadeType === "solid" && (
-                <NumberField label="Ø exterior (montaje)" value={def.insert.diameterMm ?? fit?.insertOuterDiameterMm ?? 65} onChange={(v) => setInsert({ diameterMm: v })} suffix="mm" error={err("insert.diameterMm")} />
+                <NumberField label="Ø exterior del cuerpo" value={def.insert.diameterMm ?? fit?.insertOuterDiameterMm ?? 65.135} onChange={(v) => setInsert({ diameterMm: v })} suffix="mm" error={err("insert.diameterMm")} />
               )}
               <NumberField label="Espesor de pared" value={def.insert.thicknessMm} onChange={(v) => setInsert({ thicknessMm: v })} suffix="mm" error={err("insert.thicknessMm")} />
             </div>
@@ -804,8 +823,9 @@ export function MakerLampControls({ def, onChange, onApplyPreset, onGenerateVari
               </>
             )}
             <div className="flex flex-col gap-1.5 rounded-xl border border-fg/10 bg-fg/[0.03] p-3">
-              <InfoRow label={fit?.insertAuto ? "Ø exterior de montaje (el más angosto)" : "Ø exterior de montaje"} value={fit?.insertOuterDiameterMm != null ? `Ø ${fmt(fit.insertOuterDiameterMm)} mm` : "—"} strong />
-              <InfoRow label="Ø interior (montaje)" value={fit?.insertInnerDiameterMm != null ? `Ø ${fmt(fit.insertInnerDiameterMm)} mm` : "—"} />
+              <InfoRow label={fit?.insertAuto ? "Ø exterior del cuerpo (el más angosto)" : "Ø exterior del cuerpo"} value={fit?.insertOuterDiameterMm != null ? `Ø ${fmt2(fit.insertOuterDiameterMm)} mm` : "—"} strong />
+              <InfoRow label="Encastre inferior estándar (diffuser.stl)" value={fit?.insertFit ? `Ø ${fmt2(fit.insertFit.outerDiameterMm)} exterior / Ø ${fmt2(fit.insertFit.innerDiameterMm)} interior × ${fmt(fit.insertFit.heightMm)} mm` : "—"} />
+              {fit?.insertFit && fit.insertFit.flareHeightMm > 0 && <InfoRow label="Transición a 45° hasta el cuerpo" value={`${fmt(fit.insertFit.flareHeightMm)} mm`} />}
               {def.insert.style === "wavy" && <InfoRow label="Ø máximo con ondas (sin lengüetas)" value={fit?.insertMaxDiameterMm != null ? `Ø ${fmt(fit.insertMaxDiameterMm)} mm` : "—"} />}
               <InfoRow label="Altura total" value={fit?.insertHeightMm != null ? `${fmt(fit.insertHeightMm)} mm` : "—"} />
               <InfoRow label="Extremo superior" value={fit ? (fit.insertClosed ? "Cerrado (pendiente de validación térmica)" : "Abierto") : "—"} />
@@ -823,8 +843,8 @@ export function MakerLampControls({ def, onChange, onApplyPreset, onGenerateVari
                 <NumberField label="Profundidad de la ranura" value={def.insert.seatDepthMm} onChange={(v) => setInsert({ seatDepthMm: v })} suffix="mm" error={err("insert.seatDepthMm")} />
                 <NumberField label="Separación mínima a la bombilla" value={def.insert.minBulbGapMm} onChange={(v) => setInsert({ minBulbGapMm: v })} suffix="mm" error={err("insert.minBulbGapMm")} />
               </div>
-              <Toggle label="Diámetro automático (el más angosto posible)" checked={def.insert.diameterMm === null} onChange={(auto) => setInsert({ diameterMm: auto ? null : (fit?.insertOuterDiameterMm ?? 65) })} />
-              <p className="text-xs text-gray-500">La separación mínima solo evita el contacto previsto con las medidas cargadas (la bombilla se modela como un cilindro): no es una distancia térmicamente segura. La zona de montaje inferior es idéntica en los tres estilos.</p>
+              <Toggle label="Diámetro automático (el más angosto posible)" checked={def.insert.diameterMm === null} onChange={(auto) => setInsert({ diameterMm: auto ? null : (fit?.insertOuterDiameterMm ?? 65.135) })} />
+              <p className="text-xs text-gray-500">La separación mínima solo evita el contacto previsto con las medidas cargadas (la bombilla se modela como un cilindro): no es una distancia térmica segura. La zona de montaje inferior es idéntica en los tres estilos y es el encastre estándar de diffuser.stl (Ø65,135 × 0,8 mm); si el cuerpo es más ancho se ensancha con una transición de 45°.</p>
             </Details>
             {issuesFor((i) => !!i.field?.startsWith("insert.") || i.code.startsWith("INSERT_") || i.code.startsWith("TOWER_") || i.code.startsWith("DIFFUSER_")).map((i, k) => (
               <p key={`${i.code}-${k}`} className={`text-xs ${errors.includes(i) ? "text-red-400" : "text-amber-300"}`}>{i.message}</p>
@@ -860,10 +880,31 @@ export function MakerLampControls({ def, onChange, onApplyPreset, onGenerateVari
           <p key={`${i.code}-${k}`} className={`text-xs ${errors.includes(i) ? "text-red-400" : "text-amber-300"}`}>{i.message}</p>
         ))}
 
-        <span className="mt-1 text-xs font-semibold text-gray-500">Perfil de base E27</span>
-        <div className="rounded-xl border border-fg/10 bg-fg/[0.03] p-3 text-xs text-gray-300">
-          <span className="font-semibold text-stampa-accent">Doble anillo · referencia «bottom.stl»</span> — portalámparas E27 de cuerpo roscado con dos anillos de sujeción, que entra por un agujero central y se fija con sus propios anillos en un rebaje. Es el único perfil disponible; no es una base universal.
+        <span className="mt-1 text-xs font-semibold text-gray-500">Fijación del portalámparas E27</span>
+        <div role="radiogroup" aria-label="Sistema de fijación del portalámparas" className="grid grid-cols-1 gap-2 sm:grid-cols-2">
+          {MOUNT_CARDS.map((card) => {
+            const selected = def.holder.mount === card.value;
+            return (
+              <button
+                key={card.value}
+                type="button"
+                role="radio"
+                aria-checked={selected}
+                data-mount={card.value}
+                onClick={() => chooseMount(card.value)}
+                className={`flex min-h-[4.5rem] flex-col items-start gap-1 rounded-xl border p-2.5 text-left transition-colors ${selected ? "border-stampa-orange bg-stampa-orange/10" : "border-fg/10 bg-fg/[0.03] hover:bg-fg/[0.06]"}`}
+              >
+                <span className="flex w-full items-center justify-between gap-2">
+                  <span className="text-sm font-semibold text-fg">{MOUNT_LABELS[card.value]}</span>
+                  {selected && <Check size={14} className="text-stampa-accent" aria-hidden="true" />}
+                </span>
+                <span className="text-[11px] text-stampa-accent">{card.badge} · {card.reference}</span>
+              </button>
+            );
+          })}
         </div>
+        <p className="text-xs text-gray-400">{MOUNT_CARDS.find((c) => c.value === def.holder.mount)?.text} Las cotas salen del STL de referencia y no se redondean; el resto de la base sigue pendiente de validación física.</p>
+        {mountNotice && <p role="status" className="rounded-lg border border-amber-500/30 bg-amber-500/10 p-2.5 text-xs text-amber-300">{mountNotice}</p>}
         {holderNotValidated ? (
           <p className="rounded-lg border border-amber-500/30 bg-amber-500/10 p-2.5 text-xs text-amber-300">Base PRELIMINAR - NO VALIDADA. Las medidas salen de los datos de referencia (Ø42, Ø58) y del STL, no de tu portalámparas: medilo, cargalo e imprimí la pieza de prueba antes de fabricar la base.</p>
         ) : (
@@ -872,11 +913,23 @@ export function MakerLampControls({ def, onChange, onApplyPreset, onGenerateVari
         <Toggle label="Estas medidas son de mi portalámparas real" checked={def.holder.measured} onChange={(measured) => setHolder({ measured })} />
         <Details title="Portalámparas, bombilla y cable" defaultOpen>
           <div className="grid grid-cols-2 gap-3">
-            <NumberField label="Ø agujero central" value={def.holder.boreDiameterMm} onChange={(v) => setHolder({ boreDiameterMm: v })} suffix="mm" error={err("holder.boreDiameterMm")} />
-            <NumberField label="Ø anillos (máx.)" value={def.holder.ringsDiameterMm} onChange={(v) => setHolder({ ringsDiameterMm: v })} suffix="mm" error={err("holder.ringsDiameterMm")} />
-            <NumberField label="Holgura del rebaje" value={def.holder.ringsClearanceMm} onChange={(v) => setHolder({ ringsClearanceMm: v })} suffix="mm" error={err("holder.ringsClearanceMm")} />
-            <NumberField label="Prof. del rebaje" value={def.holder.ringsRecessDepthMm} onChange={(v) => setHolder({ ringsRecessDepthMm: v })} suffix="mm" error={err("holder.ringsRecessDepthMm")} />
-            <NumberField label="Altura del apoyo" value={def.holder.seatHeightMm} onChange={(v) => setHolder({ seatHeightMm: v })} suffix="mm" error={err("holder.seatHeightMm")} />
+            {(def.holder.mount === "rings" || def.holder.mount === "threadBase2") && (
+              <NumberField label="Ø agujero central" value={def.holder.boreDiameterMm} onChange={(v) => setHolder({ boreDiameterMm: v })} suffix="mm" error={err("holder.boreDiameterMm")} />
+            )}
+            <NumberField label={def.holder.mount === "rings" ? "Ø anillos (máx.)" : "Ø brida del portalámparas (máx.)"} value={def.holder.ringsDiameterMm} onChange={(v) => setHolder({ ringsDiameterMm: v })} suffix="mm" error={err("holder.ringsDiameterMm")} />
+            {def.holder.mount === "rings" && (
+              <>
+                <NumberField label="Holgura del rebaje" value={def.holder.ringsClearanceMm} onChange={(v) => setHolder({ ringsClearanceMm: v })} suffix="mm" error={err("holder.ringsClearanceMm")} />
+                <NumberField label="Prof. del rebaje" value={def.holder.ringsRecessDepthMm} onChange={(v) => setHolder({ ringsRecessDepthMm: v })} suffix="mm" error={err("holder.ringsRecessDepthMm")} />
+                <NumberField label="Altura del apoyo" value={def.holder.seatHeightMm} onChange={(v) => setHolder({ seatHeightMm: v })} suffix="mm" error={err("holder.seatHeightMm")} />
+              </>
+            )}
+            {def.holder.mount === "press" && (
+              <NumberField label="Prof. del agujero a presión" value={def.holder.pressDepthMm} onChange={(v) => setHolder({ pressDepthMm: v })} suffix="mm" error={err("holder.pressDepthMm")} />
+            )}
+            {(def.holder.mount === "threadBase2" || def.holder.mount === "threadV6") && (
+              <NumberField label="Altura de la cara de la torre" value={Math.round((def.holder.seatHeightMm + def.holder.ringsRecessDepthMm) * 100) / 100} onChange={(v) => setHolder({ seatHeightMm: Math.round((v - def.holder.ringsRecessDepthMm) * 100) / 100 })} suffix="mm" error={err("holder.seatHeightMm")} />
+            )}
             <NumberField label="Ø cuerpo s/ base" value={def.holder.bodyDiameterMm} onChange={(v) => setHolder({ bodyDiameterMm: v })} suffix="mm" error={err("holder.bodyDiameterMm")} />
             <NumberField label="Alto portalámparas" value={def.holder.heightMm} onChange={(v) => setHolder({ heightMm: v })} suffix="mm" error={err("holder.heightMm")} />
             <NumberField label="Ø bombilla" value={def.bulb.diameterMm} onChange={(v) => setBulb({ diameterMm: v })} suffix="mm" error={err("bulb.diameterMm")} />
@@ -889,14 +942,32 @@ export function MakerLampControls({ def, onChange, onApplyPreset, onGenerateVari
           {def.base.diameterMm !== null && <NumberField label="Diámetro de la base" value={def.base.diameterMm} onChange={(v) => setBase({ diameterMm: v })} suffix="mm" error={err("base.diameterMm")} />}
         </Details>
         <div className="flex flex-col gap-1.5 rounded-xl border border-fg/10 bg-fg/[0.03] p-3">
-          <InfoRow label="Agujero central" value={fit ? `Ø ${fmt(fit.tower.boreDiameterMm)} mm` : "—"} strong />
-          <InfoRow label="Rebaje de los anillos" value={fit ? `Ø ${fmt(fit.tower.ringsRecessDiameterMm)} × ${fmt(fit.tower.ringsRecessDepthMm)} mm` : "—"} />
-          <InfoRow label="Material bajo el apoyo de los anillos" value={fit ? `${fmt(fit.tower.seatMaterialMm)} mm` : "—"} />
-          <InfoRow label="Torre / ranura del cilindro" value={fit && def.insert.enabled ? `Ø ${fmt(fit.tower.towerDiameterMm)} / Ø ${fmt(fit.tower.slotInnerDiameterMm)}–${fmt(fit.tower.slotOuterDiameterMm)}` : "—"} />
-          <InfoRow label="Pared entre rebaje y ranura" value={fit && def.insert.enabled ? `${fmt(fit.tower.innerWallMm)} mm` : "—"} />
+          <InfoRow label="Sistema de fijación" value={fit ? `${MOUNT_LABELS[fit.tower.mount]} · ${fit.tower.hasFloor ? "base con piso" : "base SIN piso (3 patas)"}` : "—"} strong />
+          {fit?.tower.holderPress && (
+            <>
+              <InfoRow label="Agujero a presión (BASE v2.stl)" value={`Ø ${fmt2(fit.tower.holderPress.boreDiameterMm)} × ${fmt(fit.tower.holderPress.depthMm)} mm, apoyo a ${fmt(fit.tower.holderSeatZ)} mm`} />
+              <InfoRow label="Orificio del cable en el piso" value={`Ø ${fmt2(fit.tower.holderPress.cableHoleDiameterMm)} mm`} />
+            </>
+          )}
+          {fit?.tower.holderThread && (
+            <>
+              <InfoRow label={`Rosca hembra (${def.holder.mount === "threadV6" ? "patas V6.stl" : "BASE2.stl"})`} value={`raíz Ø ${fmt2(fit.tower.holderThread.rootDiameterMm)} · cresta Ø ${fmt2(fit.tower.holderThread.crestDiameterMm)}`} />
+              <InfoRow label="Paso / vueltas / sentido" value={`${fmt2(fit.tower.holderThread.pitchMm)} mm · ${fit.tower.holderThread.turns} vueltas · a derechas`} />
+              <InfoRow label="Cara de apoyo del portalámparas" value={`${fmt(fit.tower.holderSeatZ)} mm sobre la mesa`} />
+            </>
+          )}
+          {fit?.tower.mount === "rings" && (
+            <>
+              <InfoRow label="Agujero central" value={`Ø ${fmt(fit.tower.boreDiameterMm)} mm`} />
+              <InfoRow label="Rebaje de los anillos" value={`Ø ${fmt(fit.tower.ringsRecessDiameterMm)} × ${fmt(fit.tower.ringsRecessDepthMm)} mm`} />
+              <InfoRow label="Material bajo el apoyo de los anillos" value={`${fmt(fit.tower.seatMaterialMm)} mm`} />
+            </>
+          )}
+          <InfoRow label="Torre / ranura del difusor" value={fit && def.insert.enabled ? `Ø ${fmt(fit.tower.towerDiameterMm)} / Ø ${fmt2(fit.tower.slotInnerDiameterMm)}–${fmt2(fit.tower.slotOuterDiameterMm)}` : "—"} />
+          <InfoRow label={fit?.tower.mount === "rings" ? "Pared entre rebaje y ranura" : "Pared entre el agujero y la ranura"} value={fit && def.insert.enabled ? `${fmt(fit.tower.innerWallMm)} mm` : "—"} />
           <InfoRow label="Altura / diámetro de la base" value={fit ? `${fmt(fit.baseHeightMm)} mm / Ø ${fmt(fit.baseDiameterMm)} mm` : "—"} />
         </div>
-        {issuesFor((i) => (!!i.field?.startsWith("holder.") && i.code !== "HOLDER_NOT_VALIDATED") || !!i.field?.startsWith("cable.") || !!i.field?.startsWith("base.") || i.code.startsWith("HOLDER_") || i.code.startsWith("RINGS_") || i.code === "TOWER_ABOVE_BASE" || i.code === "TOWER_TOO_WIDE_FOR_THREAD" || i.code === "TIE_ANCHOR_NO_ROOM" || i.code === "BASE_STABILITY").map((i, k) => (
+        {issuesFor((i) => (!!i.field?.startsWith("holder.") && i.code !== "HOLDER_NOT_VALIDATED") || !!i.field?.startsWith("cable.") || !!i.field?.startsWith("base.") || i.code.startsWith("HOLDER_") || i.code.startsWith("RINGS_") || i.code.startsWith("PRESS_") || i.code === "TOWER_ABOVE_BASE" || i.code === "TOWER_TOO_WIDE_FOR_THREAD" || i.code === "TIE_ANCHOR_NO_ROOM" || i.code === "BASE_STABILITY").map((i, k) => (
           <p key={`${i.code}-${k}`} className={`text-xs ${errors.includes(i) ? "text-red-400" : "text-amber-300"}`}>{i.message}</p>
         ))}
 

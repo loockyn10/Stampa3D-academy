@@ -19,6 +19,13 @@ Este archivo contiene únicamente trabajo pendiente o próximo. Eliminar tareas 
 - [ ] QA manual con cuenta admin (escritorio y 375 px, claro/oscuro): alta, edición, activar/desactivar, subir/bajar, eliminar, vista previa por audiencia y recarga; luego con cuenta Paid (`/canales`) y sin sesión (pie de `/landing`).
 - [ ] Decidir si los canales bloqueados (Premium) deben mostrarse a usuarios Free en alguna pantalla accesible para ellos (hoy `/redes` y `/canales` exigen membresía por el proxy, así que solo se ven en la vista previa del Admin).
 
+## Now — Lámparas E27 V7: sistemas de fijación y encastre estándar (implementado 2026-11-03, ver docs/STAMPA_MAKER.md §38.21 y D042)
+
+- [ ] Imprimir las piezas de prueba del portalámparas de cada sistema (a presión, rosca A, rosca B) y probarlas con el portalámparas real; ajustar solo con la escala/flujo de la impresora: el perfil es el medido.
+- [ ] Imprimir una base con **patas** (rosca B) y comprobar la resistencia con el portalámparas y la bombilla colocados; confirmar el grosor de pata (8 mm, supuesto) y la orientación.
+- [ ] Imprimir un difusor Ø80 con el encastre de Ø65,135 y la transición a 45° y probar que asienta en la ranura de la torre estándar.
+- [ ] Laminar en Bambu Studio una base roscada (la rosca se genera por capas de 0,1 mm: ~330 mil triángulos) y revisar tiempo y soportes.
+
 ## Now — Lámparas E27 V2 (implementado 2026-10-31, Beta / solo admin, ver docs/STAMPA_MAKER.md §38.8–38.15)
 
 - [ ] **Imprimir las piezas de prueba** («Piezas de prueba (ZIP)»: rosca macho + hembra y tramo de la torre) con el filamento y la impresora reales; ajustar `thread.clearanceMm` e `insert.clearanceMm` (§38.15). Es lo primero: valida el encastre sin imprimir la lámpara entera.

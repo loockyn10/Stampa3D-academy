@@ -34,12 +34,12 @@ function planeCrossings(mesh, z, cy = 0.37) {
   return xs.filter((x) => x > 0).sort((a, b) => a - b).filter((x, i, arr) => i === 0 || x - arr[i - 1] > 0.02);
 }
 
-test("cilindro Ø65 en su ranura (medido sobre las mallas): holguras exterior e interior, apoyo en el fondo y pared de la torre", () => {
+test("cilindro Ø65,135 (encastre estándar de diffuser.stl) en su ranura (medido sobre las mallas): holguras exterior e interior, apoyo en el fondo y pared de la torre", () => {
   const def = lamp();
   const r = build(def);
   const fit = r.metrics.fit;
   const t = fit.tower;
-  assert.equal(fit.insertOuterDiameterMm, 65);
+  assert.equal(fit.insertOuterDiameterMm, 65.135);
   const zIn = fit.insertBottomZ + def.insert.seatDepthMm / 2; // a media profundidad de la ranura
   const base = planeCrossings(r.indexed.base, zIn);
   const cyl = planeCrossings(r.indexed.insert, zIn);
@@ -51,8 +51,8 @@ test("cilindro Ø65 en su ranura (medido sobre las mallas): holguras exterior e 
   const outerClear = slotOuter - cyl[1];
   const innerClear = cyl[0] - slotInner;
   assert.ok(Math.abs(outerClear - def.insert.clearanceMm) < 0.03 && Math.abs(innerClear - def.insert.clearanceMm) < 0.03, `holguras ${outerClear.toFixed(3)} / ${innerClear.toFixed(3)}`);
-  // diámetros pedidos: exterior Ø65, interior = exterior − 2 × espesor
-  assert.ok(Math.abs(2 * cyl[1] - 65) < 0.02 && Math.abs(2 * cyl[0] - (65 - 2 * def.insert.thicknessMm)) < 0.02);
+  // diámetros del encastre estándar: exterior Ø65,135, interior = exterior − 2 × espesor
+  assert.ok(Math.abs(2 * cyl[1] - 65.135) < 0.02 && Math.abs(2 * cyl[0] - (65.135 - 2 * def.insert.thicknessMm)) < 0.02);
   // el cilindro apoya en el fondo de la ranura (no queda flotando ni entra más)
   assert.ok(Math.abs(r.indexed.insert.positions.filter((_, i) => i % 3 === 2).reduce((m, z) => Math.min(m, z), Infinity) - fit.insertBottomZ) < 1e-6);
   const bottomWallZ = fit.insertBottomZ - 0.2;
@@ -67,10 +67,10 @@ test("cilindro Ø65 en su ranura (medido sobre las mallas): holguras exterior e 
   assert.ok(Math.abs(cyl[0] - def.bulb.diameterMm / 2 - fit.insertBulbGapMm) < 0.06);
 });
 
-test("la separación radial a la bombilla (1,7 mm con Ø65 y una bombilla de Ø60) se informa como PENDIENTE de validación física y no se presenta como segura", () => {
+test("la separación radial a la bombilla (1,8 mm con Ø65,135 y una bombilla de Ø60) se informa como PENDIENTE de validación física y no se presenta como segura", () => {
   const warn = (r, code) => r.warnings.filter((w) => w.code === code);
   const base = build(lamp());
-  assert.equal(base.metrics.fit.insertBulbGapMm, 1.7);
+  assert.equal(base.metrics.fit.insertBulbGapMm, 1.8);
   assert.equal(warn(base, "INSERT_GAP_UNVALIDATED").length, 1);
   assert.match(warn(base, "INSERT_GAP_UNVALIDATED")[0].message, /PENDIENTE DE VALIDACIÓN FÍSICA/);
   assert.match(warn(base, "INSERT_GAP_UNVALIDATED")[0].message, /no hay datos para afirmar/);
@@ -99,7 +99,7 @@ test("estandarización: distintos patrones, alturas y diámetros de pantalla com
   const bases = new Set(results.map((r) => r.geometry.parts[0].mesh));
   assert.equal(bases.size, 1, "una sola base para todos los diseños");
   // el cilindro tiene el mismo diámetro, espesor y ranura para todos (solo su altura sigue a la pantalla)
-  assert.deepEqual([...new Set(results.map((r) => `${r.metrics.fit.insertOuterDiameterMm}/${r.metrics.fit.insertInnerDiameterMm}/${Math.round(r.metrics.fit.insertBottomZ * 100) / 100}`))], ["65/63.4/26.55"]);
+  assert.deepEqual([...new Set(results.map((r) => `${r.metrics.fit.insertOuterDiameterMm}/${r.metrics.fit.insertInnerDiameterMm}/${Math.round(r.metrics.fit.insertBottomZ * 100) / 100}`))], ["65.135/63.535/26.55"]);
   for (const r of results) assert.deepEqual(r.metrics.fit.thread, { ...results[0].metrics.fit.thread, flareHeightMm: r.metrics.fit.thread.flareHeightMm });
   const shadeMeshes = new Set(results.map((r) => r.geometry.parts[2].mesh));
   assert.equal(shadeMeshes.size, 3, "lo único que cambia es la pantalla");

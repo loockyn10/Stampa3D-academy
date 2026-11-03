@@ -450,15 +450,17 @@ test("cilindro reducido: el automático es el MÁS ANGOSTO que respeta la bombil
   assert.ok(Math.abs(fit.insertOuterDiameterMm - 65) <= 1, "el automático cae en la referencia de Ø65 de la lámpara impresa");
   assert.ok(fit.insertOuterDiameterMm < 0.7 * def.shade.bottomDiameterMm, "mucho más angosto que la pantalla");
   // el diámetro nominal de referencia (Ø65 exterior) es el valor por defecto
-  assert.equal(DEFAULT_LAMP.insert.diameterMm, 65);
-  assert.equal(build(lamp()).metrics.fit.insertOuterDiameterMm, 65);
+  assert.equal(DEFAULT_LAMP.insert.diameterMm, 65.135, "el valor por defecto es el encastre estándar de diffuser.stl");
+  assert.equal(build(lamp()).metrics.fit.insertOuterDiameterMm, 65.135);
   assert.ok(fit.insertOuterDiameterMm < fit.thread.boreDiameterMm - 2 * def.insert.clearanceMm, "entra en el orificio del cuello con holgura");
-  // sigue el tamaño de la bombilla / del portalámparas / de la separación pedida (no asume que todas las E27 son iguales)
+  // el encastre inferior es el ESTÁNDAR de diffuser.stl (Ø65,135, pared 0,8): una bombilla más ancha, una separación o un espesor que no caben en ese tubo se RECHAZAN (no se ensancha el encastre)
   const od = (d) => build(d).metrics.fit.insertOuterDiameterMm;
-  assert.ok(od(lamp({}, { insert: auto, bulb: { ...DEFAULT_LAMP.bulb, diameterMm: 64 } })) > fit.insertOuterDiameterMm);
-  assert.ok(od(lamp({}, { insert: { ...auto, minBulbGapMm: 6 } })) > fit.insertOuterDiameterMm);
-  assert.ok(od(lamp({}, { insert: { ...auto, thicknessMm: 1.6 } })) > fit.insertOuterDiameterMm);
-  assert.ok(od(lamp({}, { insert: { ...auto, clearanceMm: 0.6 } })) > fit.insertOuterDiameterMm, "una ranura más holgada pide una pared de torre más ancha");
+  const tooClose = (d) => createLamp(d).errors.some((e) => e.code === "INSERT_TOO_CLOSE_TO_BULB");
+  assert.ok(tooClose(lamp({}, { insert: auto, bulb: { ...DEFAULT_LAMP.bulb, diameterMm: 64 } })));
+  assert.ok(tooClose(lamp({}, { insert: { ...auto, minBulbGapMm: 6 } })));
+  assert.ok(tooClose(lamp({}, { insert: { ...auto, thicknessMm: 1.6 } })));
+  assert.equal(od(lamp({}, { insert: auto, bulb: { ...DEFAULT_LAMP.bulb, diameterMm: 50 } })), fit.insertOuterDiameterMm, "con más aire el automático sigue en el estándar");
+  assert.ok(od(lamp({}, { insert: { ...auto, clearanceMm: 0.6 } })) >= fit.insertOuterDiameterMm, "una ranura más holgada pide una pared de torre más ancha, nunca más angosta");
   // medido en la malla: el tubo está a >= la separación de diseño de la bombilla y del portalámparas
   const p = r.indexed.insert.positions;
   let minR = Infinity;
