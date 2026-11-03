@@ -2,6 +2,17 @@
 
 Este archivo contiene únicamente trabajo pendiente o próximo. Eliminar tareas terminadas en lugar de conservar un historial infinito.
 
+## Now — Archivos de impresión 3MF (implementado 2026-11-02, ver ARCHITECTURE §27, D041 y docs/PRINT_FILES.md)
+
+- [ ] Seguir el procedimiento de `docs/PRINT_FILES.md` §10 (probar con 3MF reales).
+- [ ] Definir una **cuota de almacenamiento** por usuario/plan (hoy solo hay topes de cantidad: 30 por producto, 300 por usuario).
+- [ ] Aplicar `20261102130000_product_print_files.sql` en Supabase (no aplicada; requiere autorización). Hasta entonces la sección no aparece. Confirmar después que el bucket `product-print-files` quedó privado y sin policies.
+- [ ] Validar contra Supabase real: subida con `uploadToSignedUrl` de un 3MF de ~50–100 MB (y el límite global de archivo del proyecto), y que el almacenamiento responda `206`/`Content-Range` a `Range: bytes=-N` (si respondiera 200, el servidor lee el archivo completo acotado por el límite: funciona pero es más pesado).
+- [ ] **Abrir de verdad** en cada laminador instalado y registrar el resultado (Windows y macOS): Bambu Studio (aviso de «sitio no confiable»), OrcaSlicer (carpeta de descargas, nombre del archivo), y qué aviso muestra cada navegador. Comprobar el caso Orca + Flash Studio instalados a la vez.
+- [ ] Flash Studio: pedir/consultar a Flashforge si existe un esquema propio o documentado; hasta entonces solo descarga.
+- [ ] QA manual con cuentas Free/Paid/Admin (escritorio y celular, claro/oscuro): alta, edición, reemplazo, eliminación con confirmación, varios proyectos del mismo laminador, vínculo a pieza, aislamiento entre usuarios, recarga.
+- [ ] Opcional: barrido de objetos huérfanos (los `pending` > 1 h se limpian solo al preparar otra subida del mismo producto) y barra de progreso real de subida.
+
 ## Now — Redes y canales administrables (implementado 2026-11-02, ver ARCHITECTURE §26 y D040)
 
 - [ ] Aplicar `20261102120000_community_links.sql` en Supabase (no aplicada). Hasta entonces el panel muestra «falta la migración» y las pantallas usan el respaldo en código. La migration carga 4 enlaces públicos (los que estaban fijos); **revisar en `/admin/redes-canales` que `extruye` sean las URLs reales** (WhatsApp y Telegram parecen placeholders) y cargar TikTok / tienda, que antes eran «Próximamente».

@@ -51,6 +51,8 @@ export async function updateSession(request: NextRequest) {
     "/api/calculator/preferences",
     "/api/calculator/selections",
     "/api/model-search",
+    // Descarga temporal para laminadores de escritorio (sin sesión): la autoriza el ticket firmado de la ruta.
+    "/api/print-files/open",
   ];
 
   const isPublicApiRoute = publicApiRoutes.some((route) =>

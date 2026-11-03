@@ -35,6 +35,7 @@ import {
   sortProductCategories,
   type ProductCategory,
 } from "@/lib/products/categories";
+import { PrintFilesSection } from "@/components/products/print-files/print-files-section";
 import { usePublishStampyScreenContext } from "@/components/stampy/StampyContextProvider";
 import type { StampyScreenContext } from "@/lib/stampy/screen-context";
 
@@ -1615,6 +1616,18 @@ function ProductosPageContent() {
                   </div>
                 </div>
               )}
+
+              {/* Archivos de impresión (proyectos 3MF por laminador e impresora). No afecta costos ni tiempos del producto. */}
+              <PrintFilesSection
+                key={detailProduct.id}
+                productId={detailProduct.id}
+                supabase={supabase}
+                printers={printers.map((printer) => ({ value: String(printer.id), label: getPrinterDisplayName(printer) }))}
+                components={(detailProduct.product_components || []).map((component: any) => ({
+                  id: String(component.id),
+                  name: String(component.name || "Pieza"),
+                }))}
+              />
             </div>
 
             <div className="px-6 py-4 border-t border-stampa-border shrink-0 bg-stampa-surface flex justify-end gap-3">

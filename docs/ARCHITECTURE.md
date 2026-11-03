@@ -209,6 +209,8 @@ No se encontró ninguna referencia a un deadlock (`40P01`) histórico en migrati
 
 ## 14. Storage e imágenes
 
+**Agregado 2026-11-02:** 4.º bucket `product-print-files` (privado, sin policies, solo servidor; archivos 3MF de Mi Taller → §27).
+
 **Verificado — 3 buckets:** `stampy-knowledge-documents` (privado, PDFs, `20260828103109`), `business-storefront-assets` (público, escritura por el propio dueño del negocio, `20260907213952`), `printer-catalog-images` (público de lectura, `20260909163023`). Catálogo de impresoras confirmado como global/compartido: `printer_templates.image_path` con comentario explícito "Shared by every linked user printer". Escritura del bucket de catálogo restringida a admin (`public.is_admin(auth.uid())` en insert/update/delete); usuarios normales solo tienen `select`.
 
 ## 15. Convenciones de implementación
@@ -537,3 +539,13 @@ Fuente única de los enlaces de comunidad: tabla `public.community_links` (`kind
 - **Admin:** `/admin/redes-canales` (pestañas Redes sociales / Canales y comunidades, alta/edición en modal, interruptor, subir/bajar, probar, eliminar con confirmación, vista previa por audiencia). Protegido por el proxy (`/admin/*` exige rol admin) y por cada acción.
 - **No existe «Stampa Hub» como módulo:** el repositorio no tiene ese nombre; la sección de comunidad (Redes/Canales) es la integración hecha. Los «hub» del código son pantallas índice de Academia, Mi Negocio y el panel Admin.
 - **Tests:** `tests/community-links.test.mjs` (validación, audiencias, acciones con mocks, render, migration/cableado) y `tests/community-links-db.test.mjs` (opt-in, Postgres embebido: RLS por nivel, RPC bloqueada sin URL, constraints, permisos de escritura, reorden).
+
+## 27. Mi Taller → Productos: archivos de impresión 3MF (2026-11-02, D041)
+
+Biblioteca de proyectos 3MF por producto, laminador, impresora y pieza. Guía completa, investigación de protocolos y limitaciones: `docs/PRINT_FILES.md`.
+
+- **Modelo:** tabla `product_print_files` (RLS por dueño + `has_platform_access`; trigger de pertenencia producto/pieza/impresora; CHECK que ata `storage_path` a `{user_id}/{product_id}/{uuid}.3mf`; privilegios por columna: el navegador no puede marcar `ready` ni mover la ruta) y bucket **privado** `product-print-files` **sin policies** (solo `service_role`). Migration `20261102130000_product_print_files.sql` (aditiva, **no aplicada en remoto**). Reutiliza `products`, `product_components` y `printers`; no crea un segundo sistema de componentes ni de impresoras.
+- **Subida:** signed upload URL emitida por una Server Action (el servidor fija la ruta) → el navegador sube directo → el servidor inspecciona el objeto con peticiones `Range` (directorio central del ZIP, sin descomprimir) y recién entonces lo marca `ready`. Reemplazo = fila nueva que hereda datos y elimina la anterior al verificarse. Subidas `pending` > 1 h se limpian.
+- **Apertura en laminadores:** registro `src/lib/print-files/slicers.ts` + estrategias puras en `open-plan.ts`. Bambu Studio (`bambustudio://open?file=` Windows, `bambustudioopen://` macOS) y OrcaSlicer (`orcaslicer://open?file=`) por esquema de URL; **Flash Studio no tiene esquema propio verificable** → descarga + instrucciones. Celular → descarga. El navegador no puede confirmar la apertura: la UI nunca lo afirma. Enlace temporal `/api/print-files/open/{ticket}/{nombre}.3mf` (ticket HMAC, 10 min, un archivo; ruta pública en el proxy; sirve el contenido sin redirigir) porque Orca exige URL sin query terminada en `.3mf`.
+- **UI:** `src/components/products/print-files/` montada en el detalle de producto; se oculta si la tabla no existe. Datos por proyecto (tiempo/gramos/material) informativos: **no** tocan costos ni tiempos del producto.
+- **Tests:** `tests/product-print-files.test.mjs` (planes de apertura, validación, contenedor 3MF, tickets, acciones con mocks, cableado) y `tests/product-print-files-db.test.mjs` (opt-in, Postgres embebido: RLS, aislamiento, trigger, privilegios por columna).
