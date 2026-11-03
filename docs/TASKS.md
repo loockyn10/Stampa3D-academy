@@ -19,6 +19,14 @@ Este archivo contiene únicamente trabajo pendiente o próximo. Eliminar tareas 
 - [ ] QA manual con cuenta admin (escritorio y 375 px, claro/oscuro): alta, edición, activar/desactivar, subir/bajar, eliminar, vista previa por audiencia y recarga; luego con cuenta Paid (`/canales`) y sin sesión (pie de `/landing`).
 - [ ] Decidir si los canales bloqueados (Premium) deben mostrarse a usuarios Free en alguna pantalla accesible para ellos (hoy `/redes` y `/canales` exigen membresía por el proxy, así que solo se ven en la vista previa del Admin).
 
+## Now — Lámparas E27 UX V2: simplificación, controles por familia y estabilidad (implementado 2026-11-03, ver docs/STAMPA_MAKER.md §38.22 y D043)
+
+- [ ] **Verificar la ruta real** `/stampa-maker/lamparas` con sesión admin (escritorio y 375 px, claro/oscuro). La página se recorrió en el navegador integrado a través de una ruta pública temporal (ya borrada) **sin** el guard de admin ni el layout principal; falta confirmarla con ambos.
+- [ ] Probar físicamente la calada con difusor cilíndrico Ø80 y abertura Ø81 (holgura 1 mm): que el difusor se coloque y se retire sin forzar con la tolerancia real de la impresora.
+- [ ] Imprimir una **doble pared sin difusor** con portalámparas y bombilla LED reales y medir la temperatura (`DW_NOT_THERMAL`): sin difusor la pared interior queda más cerca de la bombilla que con el cilindro.
+- [ ] Decidir si la doble pared necesita una galería de presets visuales (hoy elige la forma exterior y la interior con selectores de texto) y si el difusor opcional de la doble pared debe ofrecerse en la interfaz principal.
+- [ ] Decidir si se amplía el difusor de la doble pared a formas cerradas (plano, gota): hoy solo cilíndrico, por la regla del sprint.
+
 ## Now — Lámparas E27 V7: sistemas de fijación y encastre estándar (implementado 2026-11-03, ver docs/STAMPA_MAKER.md §38.21 y D042)
 
 - [ ] Imprimir las piezas de prueba del portalámparas de cada sistema (a presión, rosca A, rosca B) y probarlas con el portalámparas real; ajustar solo con la escala/flujo de la impresora: el perfil es el medido.
@@ -190,6 +198,8 @@ La auditoría de código local está hecha. Lo que queda es exclusivamente lo qu
 - [ ] Revisar contenido de `stampy_page_contexts` en Supabase remoto: puede contener reglas de longitud o de "derivar a la herramienta" que contradigan el prompt nuevo (no está en el repo).
 
 ## Next
+
+- [ ] **Lámparas — diseños estéticos de bases** (fuera del alcance del UX V2; no implementado): minimalista, redondeada, cónica, orgánica, base baja y base decorativa. Deben cambiar solo el exterior de la base: los cuatro sistemas de fijación (doble anillo, a presión, rosca A, rosca B con patas), la rosca de unión y el encastre del difusor quedan intactos. Requiere decidir qué dimensiones mecánicas se conservan en cada diseño y validar cada uno con las piezas de prueba.
 
 - [ ] Auditar Academia, Presupuestos y Mi Tienda en profundidad (no cubiertos en esta pasada, foco fue acceso/RLS/pricing/ventas).
 - [ ] Revisar onboarding/ayuda contextual después de estabilizar acceso Free.

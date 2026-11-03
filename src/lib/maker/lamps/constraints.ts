@@ -1,3 +1,4 @@
+import { diffuserKind, familyHasControl, isMainControl } from "@/lib/maker/lamps/capabilities";
 import { validateLamp } from "@/lib/maker/lamps/validation/validateLamp";
 import { LAMP_LIMITS, type LampDefinition, type LampIssue, type LampLimitKey, type LampShadeType } from "@/lib/maker/lamps/types";
 
@@ -28,7 +29,7 @@ export interface LampControlSpec {
   max: number;
   step: number;
   unit: string;
-  /** true = control principal (se calcula primero y se muestra fuera de «Personalización avanzada»). */
+  /** true = control principal de la familia activa (se calcula primero y se muestra fuera de «Personalización avanzada»). Lo decide `capabilities.ts`: se completa en `specsFor` / `specFor`. */
   main?: boolean;
   /** Si está, el control solo existe cuando esto se cumple (patrón calado, ajuste del difusor...). */
   when?: (def: LampDefinition) => boolean;
@@ -37,15 +38,17 @@ export interface LampControlSpec {
 const sw = (...types: LampShadeType[]) => (def: LampDefinition) => types.includes(def.shadeType);
 const diamond = (def: LampDefinition) => def.shadeType === "openwork" && def.openwork.pattern === "diamond";
 const spiral = (def: LampDefinition) => def.shadeType === "openwork" && def.openwork.pattern === "spiral";
+const wavyInsert = (def: LampDefinition) => def.shadeType === "solid" && def.insert.enabled && diffuserKind(def.insert) === "wavy";
+const dropInsert = (def: LampDefinition) => def.shadeType === "solid" && def.insert.enabled && def.insert.style === "drop";
 const endsFree = (def: LampDefinition) => def.shadeType === "openwork" && def.openwork.diffuserFit !== "diameter";
 const diameterDriven = (def: LampDefinition) => def.shadeType === "openwork" && def.openwork.diffuserFit === "diameter";
 
 export const LAMP_CONTROL_SPECS: LampControlSpec[] = [
   // ---- Sólida
-  { path: "shade.heightMm", label: "Altura", min: 80, max: 320, step: 5, unit: "mm", main: true },
-  { path: "shade.bottomDiameterMm", label: "Diámetro inferior", min: 100, max: 260, step: 5, unit: "mm", main: true, when: sw("solid") },
+  { path: "shade.heightMm", label: "Altura", min: 80, max: 320, step: 5, unit: "mm" },
+  { path: "shade.bottomDiameterMm", label: "Diámetro inferior", min: 100, max: 260, step: 5, unit: "mm", when: sw("solid") },
   { path: "shade.topDiameterMm", label: "Diámetro superior", min: 80, max: 280, step: 5, unit: "mm", when: sw("solid") },
-  { path: "shade.amplitudeMm", label: "Amplitud", min: 0, max: 20, step: 0.5, unit: "mm", main: true, when: sw("solid") },
+  { path: "shade.amplitudeMm", label: "Amplitud", min: 0, max: 20, step: 0.5, unit: "mm", when: sw("solid") },
   { path: "shade.waves", label: "Cantidad de ondas", min: 2, max: 32, step: 1, unit: "", when: sw("solid") },
   { path: "shade.twistDeg", label: "Torsión", min: -720, max: 720, step: 5, unit: "°", when: sw("solid") },
   { path: "shade.verticalFrequency", label: "Variación vertical (ciclos)", min: 0, max: 6, step: 0.5, unit: "", when: sw("solid") },
@@ -53,12 +56,12 @@ export const LAMP_CONTROL_SPECS: LampControlSpec[] = [
   { path: "shade.organicPct", label: "Variación orgánica", min: 0, max: 100, step: 5, unit: "%", when: (d) => d.shadeType === "solid" && d.shade.family === "organic" },
   { path: "shade.profileAmountPct", label: "Intensidad del perfil", min: 0, max: 100, step: 5, unit: "%", when: (d) => d.shadeType === "solid" && d.shade.profile !== "straight" },
   // ---- Calada
-  { path: "openwork.diffuserDiameterMm", label: "Ø exterior del difusor", min: 60, max: 200, step: 0.5, unit: "mm", main: true, when: diameterDriven },
-  { path: "openwork.maxDiameterMm", label: "Diámetro máximo decorativo", min: 80, max: 300, step: 5, unit: "mm", main: true, when: sw("openwork") },
+  { path: "openwork.diffuserDiameterMm", label: "Ø exterior del difusor", min: 60, max: 200, step: 0.5, unit: "mm", when: diameterDriven },
+  { path: "openwork.maxDiameterMm", label: "Diámetro máximo decorativo", min: 80, max: 300, step: 5, unit: "mm", when: sw("openwork") },
   { path: "shade.bottomDiameterMm", label: "Diámetro inferior (exterior del anillo)", min: 60, max: 260, step: 1, unit: "mm", when: endsFree },
   { path: "shade.topDiameterMm", label: "Diámetro superior (exterior del anillo)", min: 60, max: 280, step: 1, unit: "mm", when: endsFree },
-  { path: "openwork.divisions", label: "Densidad (rombos alrededor)", min: 3, max: 48, step: 1, unit: "", main: true, when: diamond },
-  { path: "openwork.bands", label: "Cantidad de bandas", min: 1, max: 24, step: 1, unit: "", main: true, when: spiral },
+  { path: "openwork.divisions", label: "Densidad (rombos alrededor)", min: 3, max: 48, step: 1, unit: "", when: diamond },
+  { path: "openwork.bands", label: "Cantidad de bandas", min: 1, max: 24, step: 1, unit: "", when: spiral },
   { path: "openwork.waistPct", label: "Intensidad de cintura", min: 0, max: 100, step: 5, unit: "%", when: sw("openwork") },
   { path: "openwork.twistDeg", label: "Torsión", min: -720, max: 720, step: 5, unit: "°", when: sw("openwork") },
   { path: "openwork.inclinationDeg", label: "Inclinación de las diagonales", min: 20, max: 75, step: 1, unit: "°", when: diamond },
@@ -73,10 +76,10 @@ export const LAMP_CONTROL_SPECS: LampControlSpec[] = [
   { path: "openwork.diffuserClearanceMm", label: "Holgura diametral del difusor", min: 0.7, max: 10, step: 0.1, unit: "mm", when: sw("openwork") },
   { path: "openwork.diffuserTopGapMm", label: "Holgura vertical del difusor", min: 4, max: 60, step: 1, unit: "mm", when: (d) => diameterDriven(d) && d.insert.heightMm === null },
   // ---- Doble pared
-  { path: "doubleWall.maxDiameterMm", label: "Diámetro máximo (abombado)", min: 100, max: 340, step: 5, unit: "mm", main: true, when: sw("double") },
+  { path: "doubleWall.maxDiameterMm", label: "Diámetro máximo (abombado)", min: 100, max: 340, step: 5, unit: "mm", when: sw("double") },
   { path: "shade.bottomDiameterMm", label: "Diámetro inferior", min: 100, max: 300, step: 1, unit: "mm", when: sw("double") },
   { path: "shade.topDiameterMm", label: "Diámetro superior", min: 100, max: 300, step: 1, unit: "mm", when: sw("double") },
-  { path: "doubleWall.fluteAmplitudeMm", label: "Profundidad de las estrías", min: 0, max: 12, step: 0.5, unit: "mm", main: true, when: sw("double") },
+  { path: "doubleWall.fluteAmplitudeMm", label: "Profundidad de las estrías", min: 0, max: 12, step: 0.5, unit: "mm", when: sw("double") },
   { path: "doubleWall.flutes", label: "Estrías / ondulaciones (cantidad)", min: 3, max: 48, step: 1, unit: "", when: sw("double") },
   { path: "doubleWall.twistDeg", label: "Torsión", min: -720, max: 720, step: 5, unit: "°", when: sw("double") },
   { path: "doubleWall.innerBottomDiameterMm", label: "Diámetro inferior de la pared interior", min: 40, max: 300, step: 1, unit: "mm", when: sw("double") },
@@ -91,16 +94,30 @@ export const LAMP_CONTROL_SPECS: LampControlSpec[] = [
   // ---- Comunes
   { path: "thread.majorDiameterMm", label: "Diámetro de montaje (rosca)", min: 80, max: 200, step: 1, unit: "mm" },
   { path: "insert.heightMm", label: "Altura del difusor", min: 30, max: 400, step: 1, unit: "mm", when: (d) => d.insert.enabled && d.insert.heightMm !== null },
+  // ---- Difusor de la pantalla sólida (el de la calada y el de la doble pared es siempre un cilindro recto: no tiene estos controles)
+  { path: "insert.amplitudeMm", label: "Amplitud del difusor", min: 0, max: 12, step: 0.5, unit: "mm", when: wavyInsert },
+  { path: "insert.waves", label: "Ondas del difusor", min: 2, max: 32, step: 1, unit: "", when: wavyInsert },
+  { path: "insert.twistDeg", label: "Torsión del difusor", min: -720, max: 720, step: 5, unit: "°", when: wavyInsert },
+  { path: "insert.verticalFrequency", label: "Frecuencia vertical del difusor", min: 0, max: 6, step: 0.5, unit: "", when: wavyInsert },
+  { path: "insert.dropClosureMm", label: "Altura del cierre", min: 10, max: 120, step: 1, unit: "mm", when: dropInsert },
+  { path: "insert.dropCurvaturePct", label: "Curvatura del cierre", min: 0, max: 100, step: 5, unit: "%", when: dropInsert },
+  { path: "insert.dropTipRadiusMm", label: "Redondeo de la punta", min: 1.5, max: 30, step: 0.5, unit: "mm", when: dropInsert },
 ];
 
-/** Controles de la pantalla activa, los principales primero (se calculan primero). */
+/** Los controles de la pantalla (`shade.`, `openwork.`, `doubleWall.`) solo existen si la familia activa los declara en `capabilities.ts`; los comunes (rosca, difusor) siempre. */
+const FAMILY_SCOPED = /^(shade|openwork|doubleWall)./;
+const belongs = (def: LampDefinition, s: LampControlSpec) => (!s.when || s.when(def)) && (!FAMILY_SCOPED.test(s.path) || familyHasControl(def.shadeType, s.path));
+const withMain = (def: LampDefinition, s: LampControlSpec): LampControlSpec => ({ ...s, main: isMainControl(def.shadeType, s.path) });
+
+/** Controles de la pantalla activa, los principales primero (se calculan primero). Qué es principal y qué es avanzado lo define la familia (`capabilities.ts`). */
 export function specsFor(def: LampDefinition): LampControlSpec[] {
-  const list = LAMP_CONTROL_SPECS.filter((s) => !s.when || s.when(def));
+  const list = LAMP_CONTROL_SPECS.filter((s) => belongs(def, s)).map((s) => withMain(def, s));
   return [...list.filter((s) => s.main), ...list.filter((s) => !s.main)];
 }
 
 export function specFor(def: LampDefinition, path: string): LampControlSpec | undefined {
-  return LAMP_CONTROL_SPECS.find((s) => s.path === path && (!s.when || s.when(def)));
+  const spec = LAMP_CONTROL_SPECS.find((s) => s.path === path && belongs(def, s));
+  return spec && withMain(def, spec);
 }
 
 export interface ControlRange {

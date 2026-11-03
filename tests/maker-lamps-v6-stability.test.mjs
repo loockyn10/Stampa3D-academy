@@ -120,6 +120,13 @@ const registry = { seg: [], num: [] };
 const mocks = {
   "next/link": { __esModule: true, default: (props) => createElement("a", props) },
   "opentype.js": {},
+  "@/components/maker/LampFamilyPicker": {
+    LampFamilyPicker: (p) => {
+      // el selector de tipo (tarjetas) se registra como un selector más para que las pruebas lo accionen por su rótulo
+      registry.seg.push({ options: [{ value: "solid", label: "Sólida" }, { value: "openwork", label: "Calada" }, { value: "double", label: "Doble pared" }], value: p.value, onChange: p.onSelect });
+      return createElement("div", { "data-seg": "" }, "Sólida Calada Doble pared");
+    },
+  },
   "@/components/maker/MakerTextControls": {
     SegmentedControl: (p) => {
       registry.seg.push(p);
@@ -402,15 +409,18 @@ test("el difusor puede cambiar de diámetro, de holgura y de altura sin romper l
   const range = C.computeControlRange({ ...base, insert: { ...base.insert, heightMm: 120 } }, C.specFor({ ...base, insert: { ...base.insert, heightMm: 120 } }, "insert.heightMm"));
   for (const h of [range.min, range.max]) buildValid({ ...base, insert: { ...base.insert, heightMm: h } }, `altura difusor ${h}`);
   assert.ok(codes({ ...base, insert: { ...base.insert, heightMm: range.max + 5 } }).includes("INSERT_TOO_TALL"));
-  // los tres estilos mantienen la misma interfaz de montaje (el ondulado liso)
+  // la calada solo admite el difusor cilíndrico recto (el «ondulado» liso): plano, gota y ondulado con ondas se rechazan con un solo error claro
   const { applyInsertStyle } = loadMakerModule("lib/maker/lamps/defaults.ts");
-  const outer = new Set();
+  const { applyDiffuserKind } = loadMakerModule("lib/maker/lamps/capabilities.ts");
+  buildValid(applyDiffuserKind(base, "cylinder"), "cilíndrico");
   for (const style of ["flat", "drop", "wavy"]) {
-    let d = applyInsertStyle(base, style);
-    if (style === "wavy") d = { ...d, insert: { ...d.insert, amplitudeMm: 0 } };
-    const rr = buildValid(d, style);
-    outer.add(rr.metrics.fit.insertOuterDiameterMm);
+    const bad = applyInsertStyle(base, style);
+    assert.deepEqual(codes(bad), ["DIFFUSER_NOT_COMPATIBLE"], `${style}: ${codes(bad)}`);
+    assert.equal(createLamp(bad).geometry, null, `${style}: no se genera ni se exporta`);
   }
+  // los tres estilos con el mismo encastre estándar siguen existiendo en la sólida (la interfaz de montaje no cambia)
+  const outer = new Set();
+  for (const style of ["flat", "drop", "wavy"]) outer.add(buildValid(applyInsertStyle(DEFAULT_LAMP, style), `sólida ${style}`).metrics.fit.insertOuterDiameterMm);
   assert.equal(outer.size, 1);
 });
 
@@ -459,9 +469,9 @@ test("recorrido de inserción y extracción: una cintura que estrecha la abertur
 // ================================================================== C — INTERFAZ Y PRESETS
 test("interfaz principal: tipo, diseños, altura, diámetro, forma e intensidad a la vista; lo técnico dentro de «Personalización avanzada»", () => {
   for (const [name, def, mainLabels, advancedLabels] of [
-    ["sólida", DEFAULT_LAMP, ["Altura de la pantalla", "Diámetro (inferior)", "Forma (perfil)", "Intensidad del patrón (amplitud de las ondas)"], ["Cantidad de ondas", "Torsión", "Diámetro superior", "Familia de patrón"]],
-    ["calada", OPENWORK, ["Altura de la pantalla", "Diámetro máximo decorativo", "Forma", "Intensidad del patrón (densidad"], ["Torsión", "Inclinación de las diagonales", "Grosor (ancho de las tiras)", "Intensidad de cintura"]],
-    ["doble pared", DOUBLE, ["Altura", "Diámetro máximo (abombado)", "Forma de la pared exterior", "Intensidad del patrón (profundidad de las estrías)"], ["Torsión", "Diámetro inferior (pared interior)", "Separación mínima entre paredes"]],
+    ["sólida", DEFAULT_LAMP, ["Estilo", "Altura", "Diámetro", "Intensidad del diseño"], ["Cantidad de ondas", "Torsión", "Diámetro superior", "Familia de patrón", "Perfil"]],
+    ["calada", OPENWORK, ["Estilo", "Altura", "Forma exterior", "Densidad del calado"], ["Diámetro máximo decorativo", "Torsión", "Inclinación de las diagonales", "Grosor de la estructura", "Intensidad de cintura"]],
+    ["doble pared", DOUBLE, ["Forma exterior", "Forma interior", "Separación entre paredes", "Altura", "Diámetro máximo"], ["Torsión", "Diámetro inferior (pared interior)", "Profundidad de las ondulaciones"]],
   ]) {
     const s = session(def);
     const adv = s.html.indexOf("Personalización avanzada");
@@ -477,7 +487,7 @@ test("interfaz principal: tipo, diseños, altura, diámetro, forma e intensidad 
       assert.ok(at > adv, `${name}: «${label}» debe estar en la personalización avanzada`);
     }
     // un parámetro = un control: ningún rótulo de slider se repite dentro de la misma pantalla
-    const sliders = [...s.html.slice(0, s.html.indexOf("2 · Inserto de color")).matchAll(/<span>([^<]+)<\/span><span class="[^"]*">[^<]*<\/span><\/span><input type="range"/g)].map((m) => m[1]);
+    const sliders = [...s.html.slice(0, s.html.indexOf("Difusor y color")).matchAll(/<span>([^<]+)<\/span><span class="[^"]*">[^<]*<\/span><\/span><input type="range"/g)].map((m) => m[1]);
     assert.equal(new Set(sliders).size, sliders.length, `${name}: controles duplicados ${sliders.filter((l, i) => sliders.indexOf(l) !== i)}`);
   }
 });
@@ -499,7 +509,7 @@ test("los sliders ofrecen el rango VÁLIDO calculado, no la envolvente fija: lo 
 
 test("CASO 2 — modificar consecutivamente todos los controles principales (calada, sólida y doble pared): la interfaz solo ofrece valores que generan una lámpara válida", () => {
   // CALADA, con el montaje Ø80/Ø81
-  let s = session({ ...OPENWORK, thread: { ...OPENWORK.thread, majorDiameterMm: 102 }, openwork: { ...OPENWORK.openwork, diffuserDiameterMm: 80, maxDiameterMm: 150 } });
+  let s = session({ ...OPENWORK, thread: { ...OPENWORK.thread, majorDiameterMm: 102 }, openwork: { ...OPENWORK.openwork, diffuserDiameterMm: 80, maxDiameterMm: 150 } }, true);
   assert.equal(s.result.errors.length, 0);
   const walk = (labels, session0) => {
     for (const label of labels) {
@@ -513,16 +523,16 @@ test("CASO 2 — modificar consecutivamente todos los controles principales (cal
     }
   };
   const labelGroup = {
-    "Altura de la pantalla": { group: "shade", patch: (v) => ({ heightMm: v }) },
-    "Diámetro máximo decorativo": { group: "openwork", patch: (v) => ({ maxDiameterMm: v }) },
-    "Intensidad del patrón (densidad: rombos alrededor)": { group: "openwork", patch: (v) => ({ divisions: Math.round(v) }) },
-    "Diámetro (inferior)": { group: "shade", patch: (v) => ({ bottomDiameterMm: v }) },
-    "Intensidad del patrón (amplitud de las ondas)": { group: "shade", patch: (v) => ({ amplitudeMm: v }) },
     "Altura": { group: "shade", patch: (v) => ({ heightMm: v }) },
-    "Diámetro máximo (abombado)": { group: "doubleWall", patch: (v) => ({ maxDiameterMm: v }) },
-    "Intensidad del patrón (profundidad de las estrías)": { group: "doubleWall", patch: (v) => ({ fluteAmplitudeMm: v }) },
+    "Diámetro máximo decorativo": { group: "openwork", patch: (v) => ({ maxDiameterMm: v }) },
+    "Densidad del calado (rombos alrededor)": { group: "openwork", patch: (v) => ({ divisions: Math.round(v) }) },
+    "Diámetro": { group: "shade", patch: (v) => ({ bottomDiameterMm: v }) },
+    "Intensidad del diseño": { group: "shade", patch: (v) => ({ amplitudeMm: v }) },
+    "Diámetro máximo": { group: "doubleWall", patch: (v) => ({ maxDiameterMm: v }) },
+    "Profundidad de las ondulaciones": { group: "doubleWall", patch: (v) => ({ fluteAmplitudeMm: v }) },
+    "Separación entre paredes": { group: "doubleWall", patch: (v) => ({ minGapMm: v }) },
   };
-  walk(["Altura de la pantalla", "Diámetro máximo decorativo", "Intensidad del patrón (densidad: rombos alrededor)"], s);
+  walk(["Altura", "Diámetro máximo decorativo", "Densidad del calado (rombos alrededor)"], s);
   for (const kind of ["Abombada", "Cilíndrica", "Orgánica"]) {
     s.click(kind);
     assert.equal(s.result.errors.length, 0, `forma ${kind}: ${s.result.errors.map((e) => e.code)}`);
@@ -540,7 +550,7 @@ test("CASO 2 — modificar consecutivamente todos los controles principales (cal
 
   // SÓLIDA
   s = session(DEFAULT_LAMP);
-  walk(["Altura de la pantalla", "Diámetro (inferior)", "Intensidad del patrón (amplitud de las ondas)"], s);
+  walk(["Altura", "Diámetro", "Intensidad del diseño"], s);
   for (const profile of ["Recto", "Barril", "Cintura", "Campana", "Tulipán"]) {
     s.click(profile);
     assert.equal(s.result.errors.length, 0, `perfil ${profile}: ${s.result.errors.map((e) => e.code)}`);
@@ -548,8 +558,8 @@ test("CASO 2 — modificar consecutivamente todos los controles principales (cal
   buildValid(s.def, "sólida tras recorrer los controles");
 
   // DOBLE PARED
-  s = session(DOUBLE);
-  walk(["Diámetro máximo (abombado)", "Intensidad del patrón (profundidad de las estrías)"], s);
+  s = session(DOUBLE, true);
+  walk(["Separación entre paredes", "Diámetro máximo", "Profundidad de las ondulaciones"], s);
   buildValid(s.def, "doble pared tras recorrer los controles");
 });
 
@@ -654,7 +664,9 @@ test("el panel avisa cuando el visor muestra una vista anterior y la página blo
   registry.seg = []; registry.num = [];
   const bad = createLamp({ ...DEFAULT_LAMP, shade: { ...DEFAULT_LAMP.shade, waves: 32 } });
   const html = renderToStaticMarkup(createElement(MakerLampControls, { def: DEFAULT_LAMP, onChange() {}, onApplyPreset() {}, onGenerateVariation() {}, onLoadDesign() {}, onError() {}, errors: bad.errors, warnings: bad.warnings, metrics: null, outdated: true, exportButtons: null }));
-  assert.ok(html.includes("Los valores actuales no se pueden aplicar") && html.includes("NO corresponde"));
+  // mensaje corto, sin códigos internos ni párrafos: lo que se ve y lo que no se puede hacer
+  assert.ok(html.includes("El visor muestra el último diseño válido") && html.includes("No se puede descargar"));
+  assert.ok(!html.includes("NO corresponde") && !/[A-Z]+_[A-Z_]+/.test(html.replace(/data-[a-z-]+/g, "")), "sin códigos internos en la interfaz");
   const page = loadFile("src/app/stampa-maker/lamparas/page.tsx");
   assert.ok(page.includes("outdated") && page.includes("Vista anterior"), "la página marca el visor");
   assert.ok(/canDownload = !pending && !outdated/.test(page), "la descarga se bloquea mientras el visor muestra una vista anterior");

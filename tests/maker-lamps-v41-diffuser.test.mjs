@@ -188,9 +188,10 @@ test("las lengüetas de extracción no caben con el difusor según anillos: se i
 
 test("el difusor sigue siendo una pieza independiente y reemplazable (plano, gota, ondulado) con la misma interfaz de montaje, y la separación a la bombilla no se reduce", () => {
   const sizes = new Set();
-  for (const style of ["flat", "drop", "wavy"]) {
-    // (el ondulado se prueba liso: con ondas de 2,5 mm el cuerpo no cabe en un anillo de Ø80, ver más abajo)
-    const def = style === "wavy" ? { ...applyInsertStyle(EXAMPLE, style), insert: { ...applyInsertStyle(EXAMPLE, style).insert, amplitudeMm: 0 } } : applyInsertStyle(EXAMPLE, style);
+  // la calada solo admite el difusor cilíndrico recto (ondulado liso): plano, gota y ondulado con ondas se rechazan (DIFFUSER_NOT_COMPATIBLE)
+  for (const style of ["flat", "drop", "wavy"]) assert.deepEqual(validateLamp(applyInsertStyle(EXAMPLE, style)).errors.map((e) => e.code), ["DIFFUSER_NOT_COMPATIBLE"], style);
+  for (const style of ["wavy"]) {
+    const def = { ...applyInsertStyle(EXAMPLE, style), insert: { ...applyInsertStyle(EXAMPLE, style).insert, amplitudeMm: 0, twistDeg: 0, verticalFrequency: 0 } };
     const r = createLamp(def);
     assert.equal(r.errors.length, 0, `${style}: ${r.errors.map((e) => e.code + " " + e.message)}`);
     assert.ok(r.geometry.parts.some((p) => p.kind === (style === "drop" ? "lampInsertDrop" : "lampInsert")), `${style}: pieza independiente`);
@@ -202,12 +203,11 @@ test("el difusor sigue siendo una pieza independiente y reemplazable (plano, got
     const solid = createLamp(applyInsertStyle({ ...DEFAULT_LAMP }, style));
     if (solid.metrics) assert.ok(r.metrics.fit.insertEnvelopeGapMm >= solid.metrics.fit.insertEnvelopeGapMm - 1e-9, `${style}: el difusor más ancho no acerca la bombilla`);
   }
-  assert.equal(sizes.size, 1, "el diámetro de montaje es el mismo para los tres estilos");
-  // un ondulado con ondas que no caben en el anillo se rechaza con el motivo (el tubo de montaje no se achica por el estilo)
+  assert.equal(sizes.size, 1, "el diámetro de montaje es único");
+  // un ondulado con ondas se rechaza (la calada solo lleva el cilindro recto): no se genera ni se exporta
   const waves = createLamp(applyInsertStyle(EXAMPLE, "wavy"));
   assert.equal(waves.geometry, null);
-  assert.ok(waves.errors.some((e) => e.code === "DIFFUSER_CANNOT_PASS_TOP" && /anillo superior/.test(e.message)));
-  assert.equal(fit(applyInsertStyle(EXAMPLE, "flat")).insertOuterDiameterMm, [...sizes][0]);
+  assert.ok(waves.errors.some((e) => e.code === "DIFFUSER_NOT_COMPATIBLE"));
   // mismos números de la interfaz E27 que antes
   const f = fit(EXAMPLE);
   assert.equal(f.tower.slotDepthMm, EXAMPLE.insert.seatDepthMm);

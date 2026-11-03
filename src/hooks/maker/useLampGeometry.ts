@@ -3,7 +3,7 @@
 import { useEffect, useMemo, useState } from "react";
 import { createLamp, lampGeometryKey } from "@/lib/maker/lamps/createLamp";
 import { selectLampView } from "@/lib/maker/lamps/view";
-import type { LampDefinition, LampResult } from "@/lib/maker/lamps/types";
+import type { LampDefinition, LampResult, LampShadeType } from "@/lib/maker/lamps/types";
 import { DEFAULT_PRINTER_PROFILE_ID, getPrinterProfile } from "@/lib/maker/printBed/printerProfiles";
 
 const DEBOUNCE_MS = 150;
@@ -37,8 +37,11 @@ export function useLampGeometry(def: LampDefinition): UseLampGeometryState {
   const key = lampGeometryKey(debounced);
   // eslint-disable-next-line react-hooks/exhaustive-deps -- la clave serializa toda la definición que importa a la geometría
   const computed = useMemo(() => createLamp(debounced, { printer: getPrinterProfile(DEFAULT_PRINTER_PROFILE_ID) }), [key]);
-  const [lastValid, setLastValid] = useState<LampResult | null>(null);
-  if (computed.geometry && computed !== lastValid) setLastValid(computed);
+  // La última lámpara válida solo sirve de vista anterior dentro de la MISMA familia: al cambiar de Sólida a Calada o Doble pared, los errores de la nueva no
+  // se tapan con la geometría de la anterior (esa vista no corresponde a ningún control de la pantalla activa).
+  const [lastValid, setLastValid] = useState<{ result: LampResult; family: LampShadeType } | null>(null);
+  if (computed.geometry && computed !== lastValid?.result) setLastValid({ result: computed, family: debounced.shadeType });
+  const previous = lastValid && lastValid.family === debounced.shadeType ? lastValid.result : null;
 
-  return { ...selectLampView(computed, lastValid), pending: lampGeometryKey(def) !== key };
+  return { ...selectLampView(computed, previous), pending: lampGeometryKey(def) !== key };
 }

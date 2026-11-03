@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useMemo, useState } from "react";
+import { useCallback, useMemo, useRef, useState } from "react";
 import Link from "next/link";
 import { ArrowLeft, Eye, EyeOff, Layers, Scissors } from "lucide-react";
 import { useAppFeedback } from "@/components/ui/app-feedback";
@@ -12,10 +12,13 @@ import { useLampGeometry } from "@/hooks/maker/useLampGeometry";
 import { downloadLampPart, downloadLampTestZip, downloadLampZip, isTestPieceBlocker } from "@/lib/maker/lamps/exporters/lampFiles";
 import { DEFAULT_LAMP } from "@/lib/maker/lamps/defaults";
 import { insertKind } from "@/lib/maker/lamps/createLamp";
+import { summarizeIssues } from "@/lib/maker/lamps/issuesSummary";
 import { createInsertComparison } from "@/lib/maker/lamps/insert/compare";
+import { DIFFUSER_KIND_LABELS, diffuserKind, type FamilyMemory } from "@/lib/maker/lamps/capabilities";
+import { switchFamily } from "@/lib/maker/lamps/openwork/presets";
 import { applyLampPreset, type LampPreset } from "@/lib/maker/lamps/presets";
 import { generateLampVariation } from "@/lib/maker/lamps/variation";
-import type { LampDefinition } from "@/lib/maker/lamps/types";
+import type { LampDefinition, LampShadeType } from "@/lib/maker/lamps/types";
 import type { PartKind } from "@/lib/maker/types";
 import { collectBedItems, computeBedLayout } from "@/lib/maker/printBed/bedLayout";
 import { DEFAULT_PRINTER_PROFILE_ID, getPrinterProfile } from "@/lib/maker/printBed/printerProfiles";
@@ -48,12 +51,31 @@ export default function StampaMakerLampsPage() {
   const { toast } = useAppFeedback();
 
   const [advancedOpen, setAdvancedOpen] = useState(false);
-  const { result, pending, outdated, outdatedReason } = useLampGeometry(def);
+  const { result, pending, outdated } = useLampGeometry(def);
   const { ranges, stale } = useLampConstraints(def, advancedOpen);
   const geometry = result.geometry;
   // Se exporta solo la lámpara que corresponde a los controles: sin cambios pendientes, sin errores y sin que el visor esté mostrando una vista anterior.
   const canDownload = !pending && !outdated && !!geometry && geometry.triangleCount > 0 && result.errors.length === 0;
+  const primaryProblem = useMemo(() => summarizeIssues(def, result.errors, result.warnings).primary?.short ?? null, [def, result.errors, result.warnings]);
   const canDownloadTests = !pending && !result.errors.some(isTestPieceBlocker);
+
+
+  // Lo que el usuario dejó en cada familia (difusor, extremos, unión) vuelve al regresar; el último diseño sin errores permite recuperarse de un valor inválido.
+  const familyMemory = useRef<FamilyMemory>({});
+  const [lastGood, setLastGood] = useState<LampDefinition | null>(null);
+  if (canDownload && lastGood !== def) setLastGood(def);
+  const handleFamily = useCallback(
+    (type: LampShadeType) => {
+      const next = switchFamily(def, type, familyMemory.current);
+      familyMemory.current = next.memory;
+      setDef(next.def);
+      setCompare(false);
+    },
+    [def],
+  );
+  const handleRestoreLast = useCallback(() => {
+    if (lastGood) setDef(lastGood);
+  }, [lastGood]);
 
   const handlePreset = useCallback((preset: LampPreset) => setDef((prev) => applyLampPreset(prev, preset)), []);
   const handleVariation = useCallback(() => {
@@ -87,6 +109,7 @@ export default function StampaMakerLampsPage() {
     <LampExportButtons
       hasInsert={def.insert.enabled}
       insertStyle={def.insert.style}
+      insertLabel={DIFFUSER_KIND_LABELS[diffuserKind(def.insert)].toLowerCase()}
       hasCollar={def.thread.connection === "collar"}
       canDownload={canDownload}
       canDownloadTests={canDownloadTests}
@@ -155,6 +178,8 @@ export default function StampaMakerLampsPage() {
         <MakerLampControls
           def={def}
           onChange={setDef}
+          onSelectFamily={handleFamily}
+          onRestoreLast={lastGood && lastGood !== def ? handleRestoreLast : undefined}
           onApplyPreset={handlePreset}
           onGenerateVariation={handleVariation}
           onLoadDesign={setDef}
@@ -187,7 +212,7 @@ export default function StampaMakerLampsPage() {
             <div className="flex flex-col gap-2">
               {outdated && (
                 <span role="alert" className="pointer-events-auto max-w-sm rounded-lg border border-red-500/50 bg-stampa-surface/90 px-2.5 py-1.5 text-[11px] font-semibold text-red-300 backdrop-blur-md">
-                  Vista anterior: los valores actuales no se pueden aplicar{outdatedReason ? ` — ${outdatedReason}` : ""} Esta lámpara NO corresponde a los controles y no se puede descargar.
+                  Vista anterior{primaryProblem ? `: ${primaryProblem}` : ""} No corresponde a los controles y no se puede descargar.
                 </span>
               )}
               {displayMode === "bed" && bed && <BedWarnings layout={bed.layout} profile={profile} />}

@@ -340,9 +340,10 @@ test("la interfaz E27 no cambia con el calado: rosca, tope, cuello, reborde y ba
   void minNeck;
 });
 
-test("difusor: los tres insertos (plano, gota, ondulado) siguen siendo intercambiables, independientes del calado y sin interferencias", () => {
-  for (const style of ["flat", "drop", "wavy"]) {
-    const base = applyInsertStyle(BASE, style);
+test("difusor: el cilíndrico es independiente del calado y no interfiere; plano, gota y ondulado no son compatibles con la pantalla calada", () => {
+  for (const style of ["flat", "drop", "wavy"]) assert.deepEqual(validateLamp(applyInsertStyle(BASE, style)).errors.map((e) => e.code), ["DIFFUSER_NOT_COMPATIBLE"], style);
+  for (const style of ["wavy"]) {
+    const base = { ...BASE, insert: { ...BASE.insert, amplitudeMm: 0, twistDeg: 0, verticalFrequency: 0, wavyTop: "open", tabs: false } };
     const r1 = build(base);
     const r2 = build({ ...base, openwork: { ...base.openwork, pattern: "spiral", bands: 6, turns: 0.4, stripWidthMm: 6 } });
     // cambiar el patrón NO cambia el difusor
@@ -686,16 +687,16 @@ test("UI: selector Sólida/Calada, diseños calados, controles por patrón y avi
     );
   };
   const solid = render(DEFAULT_LAMP);
-  for (const text of ["Tipo de pantalla", "Sólida", "Calada", "Familia de patrón", "Cantidad de ondas"]) assert.ok(solid.includes(text), `sólida: falta "${text}"`);
-  assert.ok(!solid.includes("densidad: rombos alrededor") && !solid.includes("Diamante clásico"));
+  for (const text of ["Tipo de lámpara", "Sólida", "Calada", "Familia de patrón", "Cantidad de ondas"]) assert.ok(solid.includes(text), `sólida: falta "${text}"`);
+  assert.ok(!solid.includes("rombos alrededor") && !solid.includes("Diamante clásico"));
   const diamond = render(BASE);
-  for (const text of ["Tipo de pantalla", "Diamante clásico", "Diamante fino", "Diamante con torsión", "Espiral suave", "Espiral intensa", "Reloj de arena calado", "Cilíndrica", "Abombada", "Reloj de arena", "Orgánica", "densidad: rombos alrededor", "Inclinación de las diagonales", "Grosor (ancho de las tiras)", "Profundidad de las tiras", "Diámetro máximo", "Intensidad de cintura", "Personalización avanzada", "Una sola pieza conectada", "Abertura mínima", "Impresión convencional (calada)", "NO es una validación térmica"]) {
+  for (const text of ["Tipo de lámpara", "Diamante clásico", "Diamante fino", "Diamante con torsión", "Espiral suave", "Espiral intensa", "Reloj de arena calado", "Cilíndrica", "Abombada", "Reloj de arena", "Orgánica", "rombos alrededor", "Inclinación de las diagonales", "Grosor de la estructura", "Profundidad de las tiras", "Diámetro máximo", "Intensidad de cintura", "Personalización avanzada", "Una sola pieza conectada", "Abertura mínima", "Impresión convencional (calada)", "NO es una validación térmica"]) {
     assert.ok(diamond.includes(text), `calada: falta "${text}"`);
   }
   assert.ok(!diamond.includes("Familia de patrón") && !diamond.includes("Cantidad de ondas"), "no mezcla los controles de la sólida");
   const spiral = render(ow({ pattern: "spiral", bands: 6, turns: 0.4, stripWidthMm: 6 }));
-  for (const text of ["cantidad de bandas", "Vueltas", "Separación libre entre bandas"]) assert.ok(spiral.includes(text), `espiral: falta "${text}"`);
-  assert.ok(!spiral.includes("densidad: rombos alrededor"));
+  for (const text of ["Densidad del calado (bandas)", "Vueltas", "Separación libre entre bandas"]) assert.ok(spiral.includes(text), `espiral: falta "${text}"`);
+  assert.ok(!spiral.includes("rombos alrededor"));
   // seis miniaturas seleccionables (botones con aria-pressed) y avanzados plegados
   assert.equal((diamond.match(/aria-pressed="(true|false)"/g) ?? []).length, 6);
   assert.ok(/<details(?![^>]*\bopen\b)[^>]*>\s*<summary[^>]*>Personalización avanzada/.test(diamond), "las opciones avanzadas están plegadas");

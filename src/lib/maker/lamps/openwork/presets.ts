@@ -1,3 +1,4 @@
+import { conformToFamily, rememberFamily, restoreFamily, type FamilyMemory } from "@/lib/maker/lamps/capabilities";
 import { fitDoubleWallEnds } from "@/lib/maker/lamps/doublewall/params";
 import { resolveLampDef } from "@/lib/maker/lamps/resolve";
 import { silhouetteRecipe, type SilhouetteKind } from "@/lib/maker/lamps/openwork/silhouette";
@@ -107,14 +108,24 @@ export function openworkPresetMatches(def: LampDefinition, preset: OpenworkPrese
 }
 
 /**
- * Alterna entre pantalla sólida, calada y doble pared: conserva dimensiones, difusor, color, rosca y base; cada tipo guarda sus propios
- * parámetros. Al elegir «Doble pared», los diámetros de los extremos de la pared exterior (compartidos) se llevan, de a 5 mm, al mínimo
- * que respeta la separación pedida con la pared interior (`fitDoubleWallEnds`); es una acción del usuario y se informa en el panel.
+ * Cambia de familia (sólida, calada, doble pared) CONSERVANDO lo que el usuario dejó en la que abandona. Los parámetros propios de cada familia conviven en la
+ * definición y no se tocan; lo compartido que sí cambia con la familia (el difusor, la unión y los diámetros de los extremos) se recuerda en `memory` y vuelve al
+ * regresar. Al llegar a una familia por primera vez se aplican sus compatibilidades (`conformToFamily`: difusor cilíndrico en calada y doble pared, doble pared
+ * sin difusor, unión integrada) y, en la doble pared, los diámetros de los extremos se llevan, de a 5 mm, al mínimo que respeta la separación pedida (`fitDoubleWallEnds`).
+ * Conserva la altura, el diámetro de montaje, la rosca, la base, el color y las medidas del portalámparas. Es una acción del usuario y se informa en el panel.
  */
+export function switchFamily(def: LampDefinition, shadeType: LampShadeType, memory: FamilyMemory = {}): { def: LampDefinition; memory: FamilyMemory } {
+  if (def.shadeType === shadeType) return { def, memory };
+  const from = def.shadeType;
+  const saved = rememberFamily(def, memory);
+  const next = conformToFamily({ ...def, shadeType }, from);
+  if (saved[shadeType] && memory[shadeType]) return { def: restoreFamily(next, memory), memory: saved };
+  return { def: shadeType === "double" ? fitDoubleWallEnds(next) : next, memory: saved };
+}
+
+/** Alterna entre familias sin recordar nada (ver `switchFamily`). */
 export function applyShadeType(def: LampDefinition, shadeType: LampShadeType): LampDefinition {
-  if (def.shadeType === shadeType) return def;
-  const next = { ...def, shadeType };
-  return shadeType === "double" ? fitDoubleWallEnds(next) : next;
+  return switchFamily(def, shadeType).def;
 }
 
 /** Aplica una silueta de partida (recetas de los mismos parámetros) sobre la pantalla calada. */

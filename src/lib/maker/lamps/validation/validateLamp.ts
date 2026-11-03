@@ -1,3 +1,4 @@
+import { DIFFUSER_KIND_LABELS, diffuserCompatible, diffuserKind, familyCaps } from "@/lib/maker/lamps/capabilities";
 import { computeLampLayout, type LampLayout } from "@/lib/maker/lamps/layout";
 import { LAMP_ADHESION_UNVERIFIED_MESSAGE, LAMP_CLOSED_INSERT_MESSAGE, LAMP_COLLAR_UNVERIFIED_MESSAGE, LAMP_HOLDER_NOT_VALIDATED_MESSAGE, LAMP_PHYSICAL_VALIDATION_MESSAGE } from "@/lib/maker/lamps/safety";
 import { doubleWallIssues } from "@/lib/maker/lamps/doublewall/validate";
@@ -86,6 +87,10 @@ export function validateLamp(input: LampDefinition, printer?: PrinterProfile, op
 
   checkRanges(def, errors);
   if (def.shadeType !== "solid" && def.shadeType !== "openwork" && def.shadeType !== "double") errors.push({ code: "OUT_OF_RANGE", field: "shadeType", message: "Tipo de pantalla: elegí sólida, calada o doble pared." });
+  if (!diffuserCompatible(def)) {
+    const caps = familyCaps(def.shadeType);
+    errors.push({ code: "DIFFUSER_NOT_COMPATIBLE", field: "insert.style", message: `El difusor ${DIFFUSER_KIND_LABELS[diffuserKind(def.insert)].toLowerCase()} no es compatible con la pantalla ${caps.label.toLowerCase()}. ${caps.diffuser.note} Elegí el difusor cilíndrico.` });
+  }
   if (def.shadeType === "double") {
     if (def.doubleWall.chamber !== "closed" && def.doubleWall.chamber !== "open") errors.push({ code: "OUT_OF_RANGE", field: "doubleWall.chamber", message: "Cámara: cerrada o abierta arriba." });
     if (def.doubleWall.fabrication !== "conventional") errors.push({ code: "DW_FABRICATION_UNAVAILABLE", field: "doubleWall.fabrication", message: "El modo jarrón de la doble pared es experimental y no está disponible: solo impresión convencional (docs/STAMPA_MAKER_DOUBLE_WALL.md)." });

@@ -31,6 +31,13 @@ const registry = { seg: [], num: [] };
 const mocks = {
   "next/link": { __esModule: true, default: (props) => createElement("a", props) },
   "opentype.js": {},
+  "@/components/maker/LampFamilyPicker": {
+    LampFamilyPicker: (p) => {
+      // el selector de tipo (tarjetas) se registra como un selector más para que las pruebas lo accionen por su rótulo
+      registry.seg.push({ options: [{ value: "solid", label: "Sólida" }, { value: "openwork", label: "Calada" }, { value: "double", label: "Doble pared" }], value: p.value, onChange: p.onSelect });
+      return createElement("div", { "data-seg": "" }, "Sólida Calada Doble pared");
+    },
+  },
   "@/components/maker/MakerTextControls": {
     SegmentedControl: (p) => {
       registry.seg.push(p);
@@ -256,8 +263,11 @@ test("Caso 2 (doble pared): selector → exterior abombado y estriado → interi
   const s = session(DEFAULT_LAMP);
   s.click("Doble pared");
   assert.equal(s.def.shadeType, "double");
-  assert.ok(["Pared exterior", "Pared interior", "Fabricación", "Convencional", "Separación mínima entre paredes", "Cámara entre las paredes"].every((t) => s.html.includes(t)), "controles de la doble pared");
-  assert.ok(s.html.includes("Modo jarrón: experimental y todavía no disponible"), "el modo jarrón no se ofrece como terminado");
+  assert.ok(["Pared exterior", "Pared interior", "Cámara y fabricación", "Impresión convencional", "Separación entre paredes", "Forma exterior", "Forma interior"].every((t) => s.html.includes(t)), "controles de la doble pared");
+  assert.ok(s.html.includes("El modo jarrón todavía no está disponible"), "el modo jarrón no se ofrece como terminado");
+  // la pared interior es parte de la pantalla: no se ofrece un difusor adicional (ni sus formas) por defecto
+  assert.equal(s.def.insert.enabled, false);
+  assert.ok(!s.html.includes("Forma del difusor"), "sin difusor no hay formas de difusor");
   assert.ok(!s.html.includes("Familia de patrón") && !s.html.includes("Patrón</span>"), "no mezcla los controles de la sólida ni de la calada");
   s.click("Abombada");
   s.click("Estriada");
@@ -268,7 +278,7 @@ test("Caso 2 (doble pared): selector → exterior abombado y estriado → interi
   const m = s.result.metrics;
   assert.ok(m.doubleWall.minGapMm >= 20, `separación medida ${m.doubleWall.minGapMm}`);
   assert.deepEqual([m.doubleWall.solidBodies, m.doubleWall.cavities], [1, 1]);
-  assert.ok(s.html.includes("Separación medida sobre las superficies reales"));
+  assert.ok(s.html.includes("Separación medida entre paredes"));
   // visor: la pieza "pantalla" tiene la geometría exportada
   const shadeEntry = exportStl(s.result, "shade");
   const buf = await stlBytes(shadeEntry);
@@ -307,7 +317,9 @@ test("Caso 2 (doble pared): selector → exterior abombado y estriado → interi
   // la abertura central: ningún material entre el eje y la cara de la pared interior en toda la altura
   for (const dz of [3, 30, 70, 110, 150, 175]) {
     const hits = castRay(stl, z0 + dz, 0.7);
-    assert.ok(hits.length >= 2 && hits[0] >= L.insert.outerR + s.def.insert.clearanceMm - 1e-6, `abertura libre a +${dz} mm: primer material a ${hits[0]?.toFixed(2)} mm del eje`);
+    // sin difusor (la pared interior es parte de la pantalla) la abertura debe dejar la separación de diseño al portalámparas y a la bombilla; con difusor, su holgura de montaje
+    const freeR = L.insert ? L.insert.outerR + s.def.insert.clearanceMm : Math.max(L.bulbR, L.bodyR) + s.def.insert.minBulbGapMm;
+    assert.ok(hits.length >= 2 && hits[0] >= freeR - 1e-6, `abertura libre a +${dz} mm: primer material a ${hits[0]?.toFixed(2)} mm del eje`);
   }
   // dimensiones reales
   const b = bounds(stl);
@@ -315,13 +327,14 @@ test("Caso 2 (doble pared): selector → exterior abombado y estriado → interi
   assert.ok(b.maxX - b.minX > s.def.shade.bottomDiameterMm, "Ø máximo de la pared exterior");
   // exportaciones existentes: mismas piezas y nombres que con las otras pantallas; ZIP con LÉEME
   const solidNames = lampPartEntries(createLamp(DEFAULT_LAMP)).map((e) => e.fileName);
-  assert.deepEqual(lampPartEntries(s.result).map((e) => e.fileName), solidNames);
+  assert.deepEqual(lampPartEntries(s.result).map((e) => e.fileName), solidNames.filter((n) => !/inserto/.test(n)), "mismas piezas que la sólida salvo el difusor (la doble pared no lo lleva por defecto)");
   const zip = await JSZip.loadAsync(Buffer.from(await (await buildLampZipBlob(s.result, s.def)).arrayBuffer()));
   assert.ok(Object.keys(zip.files).some((f) => /pantalla/.test(f)));
-  // el difusor de la doble pared se dimensiona por la abertura central y es independiente de la forma exterior
-  const dif = m.fit.diffuser;
+  // el difusor (opcional: por defecto la doble pared no lo lleva) se dimensiona por la abertura central y es independiente de la forma exterior
+  const withDiffuser = { ...s.def, insert: { ...s.def.insert, enabled: true } };
+  const dif = createLamp(withDiffuser).metrics.fit.diffuser;
   assert.equal(dif.limitedBy, "opening");
-  const t = session(s.def).click("Cilíndrica"); // (primer selector con esa opción: el de la pared exterior)
+  const t = session(withDiffuser).click("Cilíndrica"); // (primer selector con esa opción: el de la pared exterior)
   assert.equal(t.result.metrics.fit.diffuser.diffuserDiameterMm, dif.diffuserDiameterMm, "otra forma exterior: mismo difusor");
 });
 
@@ -334,7 +347,7 @@ test("Doble pared: las dos siluetas se editan por separado (cilíndrica/cónica/
   // V6: las formas que con las medidas actuales rompen la separación entre paredes NO se ofrecen (el motor las rechaza igual)
   assert.equal(offered("Ondulada"), false, "«Ondulada» rompe la separación con las medidas iniciales: no se ofrece");
   assert.equal(offered("Cónica"), false, "«Cónica» rompe la separación con las medidas iniciales: no se ofrece");
-  assert.ok(base.html.includes("2 formas no se ofrecen"), "la interfaz dice cuántas formas no se ofrecen y por qué");
+  assert.ok(base.html.includes("2 formas no disponibles con estas medidas"), "la interfaz dice cuántas formas no se ofrecen y por qué");
   assert.ok(createLamp(shapes.applyDoubleOuterShape(base.def, "wavy")).errors.some((e) => e.code === "DW_GAP"));
   for (const outer of ["Cilíndrica", "Abombada", "Estriada", "Con torsión"]) {
     for (const inner of inners) {
@@ -426,8 +439,11 @@ test("cableado: la página real pasa el estado del selector al motor, al visor y
   const hook = read("src/hooks/maker/useLampGeometry.ts");
   assert.match(hook, /createLamp\(debounced/, "el hook llama al motor real");
   const controls = read("src/components/maker/MakerLampControls.tsx");
-  for (const label of ["Sólida", "Calada", "Doble pared"]) assert.ok(controls.includes(`label: "${label}"`), `opción ${label}`);
+  const caps = read("src/lib/maker/lamps/capabilities.ts");
+  for (const label of ["Sólida", "Calada", "Doble pared"]) assert.ok(caps.includes(`label: "${label}"`), `familia ${label}`);
+  assert.match(controls, /LampFamilyPicker/);
   assert.match(controls, /applyShadeType\(def, type\)/);
+  assert.match(page, /switchFamily\(def, type, familyMemory\.current\)/, "la página recuerda lo que el usuario dejó en cada familia");
   // el motor no importa nada de la carpeta experimental, y la carpeta experimental sí importa el motor real
   const create = read("src/lib/maker/lamps/createLamp.ts");
   assert.ok(!/experiments\//.test(create) && !/experiments\//.test(read("src/lib/maker/lamps/parts/createShade.ts")));

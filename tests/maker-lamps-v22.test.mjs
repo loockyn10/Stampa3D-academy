@@ -850,18 +850,20 @@ test("UI: selector de estilo con tres tarjetas, controles separados del inserto 
       }),
     );
   };
-  const wavy = render(DEFAULT_LAMP);
-  for (const text of ["Estilo del inserto", "Plano", "Gota", "Ondulado", "Número de ondas", "Amplitud (suma hacia afuera)", "Frecuencia vertical", "Terminación superior", "Adhesión interna", "Ancho del reborde", "Altura del reborde", "1 · Pantalla exterior", "2 · Inserto de color", "3 · Fabricación", "Inserto ondulado (STL)", "Ø máximo con ondas"]) assert.ok(wavy.includes(text), `falta "${text}"`);
+  // por defecto el difusor es el cilíndrico recto (el «ondulado» liso): sin controles de ondas
+  const cylinder = render(DEFAULT_LAMP);
+  for (const text of ["Forma del difusor", "Cilíndrico", "Plano", "Gota", "Ondulado", "Adhesión interna", "Ancho del reborde", "Altura del reborde", "1 · Tipo de lámpara", "Difusor y color", "Base y fijación E27", "Inserto ondulado (STL)"]) assert.ok(cylinder.includes(text), `falta "${text}"`);
+  assert.ok(!cylinder.includes("Número de ondas"), "el cilíndrico no tiene ondas");
+  const wavy = render(style("wavy"));
+  for (const text of ["Número de ondas", "Amplitud (suma hacia afuera)", "Frecuencia vertical", "Terminación superior", "Ø máximo con ondas"]) assert.ok(wavy.includes(text), `ondulado: falta "${text}"`);
   const flat = render(style("flat"));
   assert.ok(flat.includes("Espesor de la tapa") && !flat.includes("Número de ondas") && flat.includes("Inserto plano (STL)") && flat.includes("pendiente de validación térmica"));
   const drop = render(style("drop"));
   for (const text of ["Altura del cierre", "Curvatura", "Redondeo de la punta", "Altura de la sección cilíndrica", "Inserto gota (STL)", "Parado, abertura sobre la cama"]) assert.ok(drop.includes(text), `falta "${text}"`);
-  // las tarjetas son 3 radios con la miniatura (svg) y la elegida marcada
+  // las tarjetas son 4 radios (cilíndrico, plano, gota, ondulado) con la miniatura (svg) y la elegida marcada
   const cards = drop.match(/role="radio" aria-checked="(true|false)"[^>]*title="[^"]*Cilindro/g) ?? [];
-  assert.equal(cards.length, 3);
+  assert.equal(cards.length, 4);
   assert.ok(/aria-checked="true"[^>]*title="Cilindro que se cierra/.test(drop));
-  // los controles del inserto no mezclan los de la pantalla: "Torsión" aparece en ambos bloques con su propio rótulo, y el texto lo aclara
-  assert.ok(drop.includes("Cambiar el inserto no modifica la pantalla exterior"));
   // sin reborde no hay campos de ancho
   assert.ok(!render({ ...DEFAULT_LAMP, adhesion: { ...DEFAULT_LAMP.adhesion, enabled: false } }).includes("Ancho del reborde"));
 });
