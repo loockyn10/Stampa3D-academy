@@ -116,8 +116,13 @@ Este archivo contiene únicamente trabajo pendiente o próximo. Eliminar tareas 
 
 - [x] Diagnóstico remoto de solo lectura (`supabase/diagnostics/20261104_profiles_security_audit.sql`): **vulnerabilidad confirmada**. Cualquier usuario autenticado podía cambiar su `role` / `membership_*` vía REST.
 - [x] Migration de la guarda + script de verificación + tests (`tests/profiles-guard.test.mjs`, `tests/profiles-guard-db.test.mjs`).
-- [ ] Revisar el bloque OPCIONAL del diagnóstico: confirmar que los 3 admins y las 2 membresías activas sin suscripción autorizada son legítimos.
-- [ ] **Aplicar** `supabase/migrations/20261104120000_profiles_privileged_columns_guard.sql` en Supabase (requiere autorización del dueño) y correr `supabase/diagnostics/20261104_profiles_guard_verify.sql`. Bloquea el cobro.
+- [x] Migration `20261104120000_profiles_privileged_columns_guard.sql` **aplicada en producción** (SQL Editor) y verificación SQL `20261104_profiles_guard_verify.sql` **superada** (todo OK, ningún MAL).
+- [ ] Cerrar P0-1 con el checklist de `docs/DEPLOY_PROFILES_GUARD.md` §9:
+  - prueba real contra la API REST;
+  - pruebas manuales en la app;
+  - revisión de los 3 admins y las 2 membresías activas sin suscripción;
+  - monitoreo de 24 h.
+- [ ] Registrar `20261104120000` en el historial de Supabase CLI (`DEPLOY_PROFILES_GUARD.md` §8). Mientras el historial no esté reconciliado, no usar `supabase db push` contra producción.
 - [ ] Revisar el cuerpo de las RPCs `SECURITY DEFINER` ejecutables por `anon` (`supabase/diagnostics/20261104_definer_rpc_bodies.sql`).
 - [ ] Higiene: revocar `TRUNCATE` / `REFERENCES` / `TRIGGER` de `anon` / `authenticated` en tablas de `public`.
 

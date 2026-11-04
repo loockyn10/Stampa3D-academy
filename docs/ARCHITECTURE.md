@@ -80,7 +80,7 @@ Nunca asumir que una policy permisiva sobreescribe una policy `AS RESTRICTIVE`.
   - RLS de SELECT y UPDATE: la propia fila (`auth.uid() = id`) o admins.
   - Privilegios de `authenticated`: SELECT y UPDATE de tabla, sin INSERT ni DELETE.
   - Alta: `handle_new_user` (trigger sobre `auth.users`) crea `member` / `inactive` / `bronze` / 0 sin leer el rol de la metadata.
-- **Vulnerabilidad P0-1:** no había ningún trigger sobre `profiles`, así que un usuario podía cambiar su propio `role` / `membership_*` vía REST. La corrige la guarda `profiles_guard_privileged_columns` (`20261104120000_profiles_privileged_columns_guard.sql`, **pendiente de aplicar**; ver `docs/DEPLOY_PROFILES_GUARD.md`).
+- **Vulnerabilidad P0-1:** no había ningún trigger sobre `profiles`, así que un usuario podía cambiar su propio `role` / `membership_*` vía REST. La corrige la guarda `profiles_guard_privileged_columns` (`20261104120000_profiles_privileged_columns_guard.sql`, **aplicada en producción el 2026-11-04** y verificada por SQL; ver `docs/DEPLOY_PROFILES_GUARD.md`).
 
   Con la guarda, rol y membresía solo los escriben `service_role` (Mercado Pago, `auth/callback`), `postgres` y administradores (`/admin/usuarios` con su sesión). No se usan GRANTs por columna porque el panel admin escribe con el rol `authenticated`.
 - **`subscriptions` y `payments`:** el usuario solo puede leer las suyas; las escriben los admins o `service_role`.

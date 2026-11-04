@@ -1,6 +1,20 @@
 # Despliegue: guarda de columnas privilegiadas de `profiles` (P0-1)
 
-**Nada de esto se ejecutó en Supabase.** No hubo SQL remoto, migration aplicada, commit ni deploy. No requiere cambios de código de la app ni variables de entorno.
+No requiere cambios de código de la app ni variables de entorno.
+
+## Estado (2026-11-04)
+
+| Paso | Estado |
+|---|---|
+| Migration `20261104120000_profiles_privileged_columns_guard.sql` | **Aplicada en producción** (manualmente, SQL Editor, por el dueño) |
+| Verificación SQL `20261104_profiles_guard_verify.sql` | **Superada:** `trigger=PRESENTE`; Free edita su perfil y reenvía valores iguales: OK; los 8 intentos privilegiados: `BLOQUEADO (OK)`; admin edita membresía ajena: OK; `service_role` activa membresía: OK; ningún `MAL` |
+| Prueba real contra la API REST con una cuenta Free | **Pendiente** |
+| Pruebas manuales en la app (§4) | **Pendiente** |
+| Revisión de admins y membresías existentes | **Pendiente** |
+| Monitoreo de 24 h | **Pendiente** |
+| Registro en el historial de Supabase CLI | **Pendiente** (ver §8) |
+
+P0-1 queda **mitigado en producción**; se cierra cuando el checklist de §9 esté completo.
 
 ## 1. Problema (vulnerabilidad confirmada el 2026-11-04)
 
@@ -68,3 +82,44 @@ Hacer rollback **reabre la vulnerabilidad**: usarlo solo si un flujo legítimo q
 - **Higiene:** revocar `TRUNCATE` / `REFERENCES` / `TRIGGER` a `anon` / `authenticated`. No se pueden usar desde la API, pero sobran.
 - **Más adelante:** mover las ediciones de `/admin/usuarios` a una server action con auditoría y entonces reemplazar el UPDATE de tabla de `authenticated` por GRANTs por columna.
 - **Decisión de producto:** las altas manuales desde `/admin/usuarios` dejan `membership_expires_at` en `NULL`, es decir, acceso perpetuo.
+
+## 8. Historial de Supabase CLI (migration aplicada desde el SQL Editor)
+
+Aplicar SQL desde el Editor **no** escribe en `supabase_migrations.schema_migrations`. Para la CLI, `20261104120000` sigue figurando como pendiente.
+
+**Riesgo:** un `supabase db push` intentaría aplicarla otra vez. En este caso es inocua, porque es idempotente, pero `db push` también intentaría aplicar **todas** las migrations que nunca se registraron.
+
+**Estado del repo:** la CLI se usó alguna vez (`supabase/.temp/cli-latest` = v2.120.0), pero el proyecto no está vinculado (no hay `project-ref`) ni tiene `supabase/config.toml`. Las migrations se vienen aplicando desde el SQL Editor.
+
+Mientras el historial no esté reconciliado, **no usar `supabase db push` contra producción**.
+
+**Procedimiento** (lo ejecuta el dueño; ningún agente modifica el historial remoto):
+
+1. **Solo lectura, en el SQL Editor:** averiguar si existe el historial.
+   ```sql
+   select to_regclass('supabase_migrations.schema_migrations') as historial;
+   ```
+   Si devuelve un valor distinto de `NULL`, ver qué tiene:
+   ```sql
+   select version, name from supabase_migrations.schema_migrations order by version desc limit 60;
+   ```
+2. **Solo lectura, local:** `supabase link --project-ref <ref>` (escribe solo en `supabase/.temp`) y después `supabase migration list`, que compara las columnas Local y Remote.
+3. **Escribe en el historial remoto** (inserta filas en la tabla de historial; no ejecuta el SQL de la migration):
+   ```bash
+   supabase migration repair --status applied 20261104120000
+   ```
+   Hacerlo solo si la tabla ya se usa. Si está vacía o no existe, conviene reconciliar todas las migrations confirmadas como aplicadas en un único paso, dentro de la tarea de versionar el schema (P2-11), y no registrar solo esta.
+4. Volver a correr `supabase migration list`: `20261104120000` tiene que figurar en Local y en Remote.
+
+## 9. Checklist para cerrar P0-1
+
+- [x] Migration aplicada en producción.
+- [x] Verificación SQL en producción superada (resultado en "Estado").
+- [ ] **API real:** con la cuenta Free de prueba, `PATCH /rest/v1/profiles` con `{"role":"admin","membership_status":"active"}` responde `42501`, y un `PATCH` de `display_name` responde 200.
+- [ ] **App:** la cuenta Free guarda Configuración y Mi negocio y ve su código de referido en `/perfil`.
+- [ ] **App:** el admin edita membresía y nivel en `/admin/usuarios` (después revertirlo).
+- [ ] **App:** una cuenta nueva queda `member` / `inactive`.
+- [ ] **Cuentas existentes:** con la consulta de solo lectura (tiene emails, no compartir), confirmar que los 3 admins y las 2 membresías activas sin suscripción autorizada son legítimos. Si alguno no lo es, documentarlo y corregirlo desde el SQL Editor.
+- [ ] **Monitoreo de 24 h:** sin `42501` / `No autorizado` en flujos legítimos (logs de Vercel y Postgres).
+- [ ] **Historial de CLI:** decidido y registrado según §8 (o derivado explícitamente a P2-11).
+- [ ] Marcar P0-1 como cerrado en `CURRENT_STATE` y `TASKS`.
