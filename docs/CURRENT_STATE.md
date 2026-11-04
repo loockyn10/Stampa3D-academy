@@ -150,6 +150,13 @@ Tutoriales gráficos + video opcional, ver sección 12 y `docs/TUTORIALS.md`. Lo
 
 ## 5. Deuda técnica conocida (verificada 2026-09-15)
 
+- **P0-1 `profiles` (2026-11-04): vulnerabilidad confirmada; fix preparado y pendiente de aplicar.** Cualquier usuario autenticado podía ponerse `role = 'admin'` o `membership_status = 'active'` editando su propia fila vía REST: había policy UPDATE propia sin restricción de columnas, UPDATE de tabla para `authenticated` y ningún trigger.
+  - Fix: `20261104120000_profiles_privileged_columns_guard.sql`.
+  - Verificación: `supabase/diagnostics/20261104_profiles_guard_verify.sql`.
+  - Pasos de despliegue: `docs/DEPLOY_PROFILES_GUARD.md`.
+  - Tests: `tests/profiles-guard.test.mjs` y `tests/profiles-guard-db.test.mjs` (Postgres embebido, 17 escenarios).
+
+  **Bloquea el cobro hasta aplicarlo.**
 - **Schema base pre-historial:** `has_platform_access()`, `is_admin()` y las tablas core (`products`, `filaments`, `printers`, `profiles`, `user_access_grants`) no tienen `CREATE`/definición en las 30 migrations presentes en el repo — deben venir de una migration base no versionada aquí o aplicada directo en remoto. Riesgo de schema drift real, no solo teórico.
 - **RLS MEDIO:** `product_components`/`product_component_filaments` permiten SELECT/UPDATE solo por ownership, sin `has_platform_access` — un usuario Free/degradado podría leer o modificar recetas de Mi Taller vía REST directo aunque las RPCs normales sí validen acceso pago. No corregido (fuera de alcance).
 - **Doble conteo de material:** en Mi Taller, agregar a un mismo lote de producción un producto y uno de sus propios componentes no se deduplica — riesgo real de consumo duplicado de filamento. No corregido (fuera de alcance).

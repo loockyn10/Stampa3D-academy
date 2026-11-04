@@ -67,6 +67,27 @@ Nunca asumir que una policy permisiva sobreescribe una policy `AS RESTRICTIVE`.
 
 **Verificado en las 30 migrations presentes en el repo:** `has_platform_access()` e `is_admin()` se referencian constantemente pero **no se definen** en ninguna de esas 30 migrations — deben existir en una migration base anterior al historial actual (`20260826024736` es la más antigua del repo) o fueron aplicadas directamente en remoto fuera de este historial. **REQUIERE VERIFICACIÓN EN SUPABASE REMOTO** su cuerpo exacto, y también el RLS de tablas base (`products`, `filaments`, `printers`, `profiles`, `user_access_grants`) que tampoco tienen `CREATE TABLE` en estas 30 migrations.
 
+**Verificado en Supabase remoto (2026-11-04, `supabase/diagnostics/20261104_profiles_security_audit.sql`, solo lectura):**
+
+- **`is_admin(uuid)`** es `role = 'admin'` en `profiles`.
+- **`has_platform_access(uuid)`** devuelve verdadero si se cumple una de estas condiciones:
+  - el usuario es admin;
+  - `membership_status = 'active'` y `membership_expires_at` es `NULL` o futuro;
+  - tiene un grant `active` con `starts_at <= now()` y sin vencer.
+
+  Ojo: la app no exige `starts_at`. Ambas son `SECURITY DEFINER` y las pueden ejecutar `anon` y `authenticated`.
+- **`profiles`:**
+  - RLS de SELECT y UPDATE: la propia fila (`auth.uid() = id`) o admins.
+  - Privilegios de `authenticated`: SELECT y UPDATE de tabla, sin INSERT ni DELETE.
+  - Alta: `handle_new_user` (trigger sobre `auth.users`) crea `member` / `inactive` / `bronze` / 0 sin leer el rol de la metadata.
+- **Vulnerabilidad P0-1:** no había ningún trigger sobre `profiles`, así que un usuario podía cambiar su propio `role` / `membership_*` vía REST. La corrige la guarda `profiles_guard_privileged_columns` (`20261104120000_profiles_privileged_columns_guard.sql`, **pendiente de aplicar**; ver `docs/DEPLOY_PROFILES_GUARD.md`).
+
+  Con la guarda, rol y membresía solo los escriben `service_role` (Mercado Pago, `auth/callback`), `postgres` y administradores (`/admin/usuarios` con su sesión). No se usan GRANTs por columna porque el panel admin escribe con el rol `authenticated`.
+- **`subscriptions` y `payments`:** el usuario solo puede leer las suyas; las escriben los admins o `service_role`.
+- **Tablas con escritura solo para admins:** `user_access_grants`, `invite_codes`, `invite_code_redemptions`, `referrals`, `founder_members`, `membership_settings` y `mercado_pago_webhook_events`.
+- **Contenido** (`courses`, `course_modules`, `lessons`, `lesson_resources`, `stl_models`, `stl_variants`): exige `has_platform_access`, más policies RESTRICTIVE de visibilidad.
+- `anon` / `authenticated` conservan `TRUNCATE` / `REFERENCES` / `TRIGGER` en la mayoría de las tablas. No se pueden usar vía PostgREST; está pendiente como tarea de higiene.
+
 Casi todas las policies de tablas premium revisadas combinan `user_id = auth.uid()` **AND** `has_platform_access(auth.uid())` correctamente. Se detectaron dos riesgos **MEDIO** (no CRÍTICO/ALTO):
 
 - `product_components` (select/insert/update) — `supabase/migrations/20260827023352_confirm_stampy_create_product.sql:73-109` — solo valida ownership (`user_id = auth.uid()` + join a `products.user_id`), sin `has_platform_access`. Un usuario cuya membresía venció podría seguir leyendo/escribiendo sus recetas de Mi Taller vía REST directo, aunque las RPCs de escritura normales sí validan acceso pago.

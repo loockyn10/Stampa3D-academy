@@ -112,10 +112,19 @@ Este archivo contiene únicamente trabajo pendiente o próximo. Eliminar tareas 
 - [ ] Revisar el contenido remoto de `stampy_page_contexts` para `/sorteos`: podría prometer beneficios por referidos (no está en el repo).
 - [ ] Merge de la rama a `main` y deploy (no realizados).
 
+## Now — Sprint 0 V1.0: seguridad de profiles (P0-1, 2026-11-04, ver docs/DEPLOY_PROFILES_GUARD.md)
+
+- [x] Diagnóstico remoto de solo lectura (`supabase/diagnostics/20261104_profiles_security_audit.sql`): **vulnerabilidad confirmada**. Cualquier usuario autenticado podía cambiar su `role` / `membership_*` vía REST.
+- [x] Migration de la guarda + script de verificación + tests (`tests/profiles-guard.test.mjs`, `tests/profiles-guard-db.test.mjs`).
+- [ ] Revisar el bloque OPCIONAL del diagnóstico: confirmar que los 3 admins y las 2 membresías activas sin suscripción autorizada son legítimos.
+- [ ] **Aplicar** `supabase/migrations/20261104120000_profiles_privileged_columns_guard.sql` en Supabase (requiere autorización del dueño) y correr `supabase/diagnostics/20261104_profiles_guard_verify.sql`. Bloquea el cobro.
+- [ ] Revisar el cuerpo de las RPCs `SECURITY DEFINER` ejecutables por `anon` (`supabase/diagnostics/20261104_definer_rpc_bodies.sql`).
+- [ ] Higiene: revocar `TRUNCATE` / `REFERENCES` / `TRIGGER` de `anon` / `authenticated` en tablas de `public`.
+
 ## Now — QA integral (2026-10-14, ver docs/QA_REPORT.md)
 
 - [ ] Confirmar la URL real de la beta: `stampa3-d-academy-beta.vercel.app` responde `402 DEPLOYMENT_DISABLED` (QA-001).
-- [ ] Correr `supabase/diagnostics/20261014_qa_rls_audit.sql` (solo lectura) y decidir sobre RLS de `profiles` (RIESGO-01), policies premium (RIESGO-02), migrations aplicadas (RIESGO-04) y consistencia de datos.
+- [ ] Correr `supabase/diagnostics/20261014_qa_rls_audit.sql` (solo lectura) y decidir sobre RLS de `profiles` (RIESGO-01), policies premium (RIESGO-02), migrations aplicadas (RIESGO-04) y consistencia de datos. **RIESGO-01 y la RLS de contenido premium ya quedaron resueltos con el diagnóstico del 2026-11-04 (ver Sprint 0)**. Ese archivo tiene muchas sentencias y el SQL Editor solo muestra el último resultado: para migrations y consistencia, correr cada sección por separado.
 - [ ] Crear un Supabase de test (o branch) con el schema completo + 4 cuentas (Free, Beta, Paid, Admin) + seed mínimo y definir las variables `E2E_*` (ver `tests/e2e/README.md`) para activar los ~1.300 escenarios que hoy quedan skipped.
 - [ ] Triage de bugs P2: QA-009 (firma del webhook de membresías), QA-010 (menú radial), QA-014 (editores: `if (!error)`, doble submit, validación), QA-016 (confirmación en Admin → Usuarios), QA-019 (saldo de cliente truncado), QA-022 (Ventas limitadas a 50).
 - [ ] Versionar el schema base (RIESGO-03) para poder reproducir entornos y auditar RLS.
