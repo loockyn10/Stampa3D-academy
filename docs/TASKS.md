@@ -256,3 +256,7 @@ La auditoría de código local está hecha. Lo que queda es exclusivamente lo qu
 - [ ] Ejecutar el diagnóstico previo y aplicar `20261024120000` y luego `20261026120000` (ver `docs/DEPLOY_FEATURE_FLAGS_COURSE_VISIBILITY.md`).
 - [ ] QA manual con cuenta Free, Paid y Admin (checklist en el mismo documento).
 - [ ] Reindexar el conocimiento de Stampy si se quiere limpiar chunks de cursos pasados a oculto/en preparación (ya no se recuperan por la función de búsqueda).
+
+## Pendiente tras Sprint 4
+
+- Revisar el cuerpo real de `consume_filaments_for_products` (RPC no versionada; correr `supabase/diagnostics/20261104_definer_rpc_bodies.sql`, solo lectura) para confirmar que no descuenta dos veces internamente y que valida ownership. P2-13 queda cerrado en UI (aviso informativo).

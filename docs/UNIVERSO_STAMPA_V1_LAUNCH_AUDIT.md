@@ -192,7 +192,7 @@ Estado de producción: **ON** = habilitada para usuarios con acceso · **OFF** =
 
 **Mi Taller — implementado, falta validar con usuario real.** Impresoras, filamentos (una bobina = una card), productos/recetas/componentes, inventario, registrar producción vs ajustar inventario, categorías, archivos 3MF con apertura en laminadores. Riesgos:
 - **QA-014 sigue abierto** [C]: `if (!error) setEditingId(null)` lee el estado del render anterior en `src/components/configuracion/printers-manager.tsx:118`, `filaments-manager.tsx:72`, `product-types-manager.tsx:83`, `src/app/admin/calculadora/page.tsx:80`, `src/app/admin/calculadora/filamentos/page.tsx:101`. Efecto: un guardado fallido cierra el editor y se pierde lo escrito; uno exitoso tras un fallo no cierra el editor (el usuario reintenta y duplica). Sin bloqueo de doble submit.
-- Doble conteo de filamento si se agrega a un lote un producto y uno de sus componentes (`src/app/stock/page.tsx`, RPC `consume_filaments_for_production_targets`) [D, no corregido].
+- ~~Doble conteo de filamento~~ producto + componente en un lote: **no confirmado como bug** (cada línea es una unidad física adicional); aviso informativo agregado en Sprint 4. Pendiente revisar `consume_filaments_for_products`.
 - RLS de `product_components`/`product_component_filaments` sin `has_platform_access` [D, no verificable: schema no versionado].
 - Escrituras directas desde el navegador con `user_id` del cliente (impresoras, filamentos, productos…): la barrera real es RLS no versionada (RIESGO-02) [?].
 - Las feature flags solo controlan páginas, acciones y APIs; las escrituras REST directas no las respetan (documentado, `ARCHITECTURE §21.1`).
@@ -288,7 +288,7 @@ Tipo: **Confirmado** (verificado en código/ejecución) · **Riesgo** (potencial
 | P2-10 | Feature flags no aplican a escrituras REST directas | Confirmado [D] | `ARCHITECTURE §21.1` | Aceptable para V1.0 (las tablas siguen protegidas por RLS de propietario) | L |
 | P2-11 | Schema base no versionado: no hay entorno reproducible ni RLS auditable | Confirmado [C] | `supabase/migrations` | `supabase db dump` del schema y versionarlo (post-lanzamiento) | M |
 | P2-12 | Branding mezclado «Academia Stampa» / «Universo Stampa» | Confirmado [C] | `layout.tsx`, `manifest.ts`, landing vs app | Decidir marca de venta y unificar textos visibles | S |
-| P2-13 | Doble conteo de filamento en producción (producto + componente en el mismo lote) | Confirmado [D] | `src/app/stock/page.tsx`, RPC de consumo | Deduplicar en UI/RPC | M |
+| P2-13 | ~~Doble conteo~~ producto + componente en el mismo lote (aclarado: no es bug; aviso en UI, Sprint 4) | No confirmado | `src/app/stock/page.tsx`, RPC de consumo | Deduplicar en UI/RPC | M |
 
 ### P3 — Bajo
 

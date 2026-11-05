@@ -3,6 +3,7 @@
 import React, { useState, useEffect, useMemo, useRef, Suspense } from "react";
 import dynamic from "next/dynamic";
 import Link from "next/link";
+import { describeProductionOverlap, findProductComponentOverlaps } from "@/lib/workshop/production-overlap";
 import { useSearchParams, useRouter } from "next/navigation";
 import { WORKSHOP_INVENTORY_OUT_OF_STOCK, WORKSHOP_REGISTER_PRODUCTION_ACTION } from "@/lib/workshop/routes";
 import { AlertTriangle, Plus, Minus, Loader2, Package, Box, History, X, Edit2, Search, ChevronDown, ChevronUp } from "lucide-react";
@@ -1629,6 +1630,11 @@ export function StockPageContent({ workshopSection }: { workshopSection?: Worksh
                       </div>
                     ))}
                   </div>
+                  {findProductComponentOverlaps(consumeCart).map((overlap) => (
+                    <p key={overlap.productName} role="note" className="mt-3 flex items-start gap-2 rounded-xl border border-amber-500/30 bg-amber-500/10 p-3 text-xs font-medium text-amber-700">
+                      <AlertTriangle size={14} className="mt-0.5 shrink-0" /> {describeProductionOverlap(overlap)}
+                    </p>
+                  ))}
                   {calculateConsumePreview().invalidRecipes.map((recipeError) => (
                     <p key={recipeError} className="mt-3 flex items-center gap-2 rounded-xl border border-red-500/25 bg-red-500/10 p-3 text-xs font-semibold text-red-300">
                       <AlertTriangle size={14} className="shrink-0" /> {recipeError}
