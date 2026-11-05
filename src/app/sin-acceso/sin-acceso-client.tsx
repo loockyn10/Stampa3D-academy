@@ -60,6 +60,7 @@ export function SinAccesoClient({
   const [refreshing, setRefreshing] = useState(false);
   const [activated, setActivated] = useState(false);
   const [refreshNotice, setRefreshNotice] = useState<string | null>(null);
+  const [payerEmail, setPayerEmail] = useState("");
 
   const [price, setPrice] = useState<string | null>(null);
   const [loadingPrice, setLoadingPrice] = useState(true);
@@ -142,16 +143,19 @@ export function SinAccesoClient({
     window.location.href = "/login";
   };
 
-  const handleCreateSubscription = async (e?: React.MouseEvent) => {
+  const handleCreateSubscription = async (e?: React.MouseEvent, restart = false) => {
     if (e) {
       e.preventDefault();
     }
+    if (loading) return;
 
     try {
       setLoading(true);
       setError(null);
       const discountCode = discountCodesEnabled && discount ? discount.code : null;
+      if (restart) window.sessionStorage.removeItem(CHECKOUT_ATTEMPT_STORAGE_KEY);
       const idempotencyKey = getCheckoutIdempotencyKey(discountCode);
+      const mpEmail = payerEmail.trim();
 
       const response = await fetch("/api/mercadopago/create-subscription", {
         method: "POST",
@@ -159,7 +163,12 @@ export function SinAccesoClient({
           "Content-Type": "application/json",
         },
         // Only the code TEXT travels: the discounted amount is decided by the server.
-        body: JSON.stringify(discountCode ? { idempotency_key: idempotencyKey, discount_code: discountCode } : { idempotency_key: idempotencyKey }),
+        body: JSON.stringify({
+          idempotency_key: idempotencyKey,
+          ...(discountCode ? { discount_code: discountCode } : {}),
+          ...(mpEmail ? { payer_email: mpEmail } : {}),
+          ...(restart ? { restart: true } : {}),
+        }),
       });
 
       const text = await response.text();
@@ -384,6 +393,36 @@ export function SinAccesoClient({
                 {loading && <Loader2 size={16} className="animate-spin" aria-hidden="true" />}
                 {loading ? "Generando link..." : "Activar membresía"}
               </button>
+              <details className="mt-3 text-left text-xs text-stampa-text-muted">
+                <summary className="cursor-pointer select-none py-1 hover:text-stampa-text">
+                  ¿No pudiste pagar o querés pagar con otra cuenta de Mercado Pago?
+                </summary>
+                <div className="mt-2 space-y-2">
+                  <p>
+                    Tu membresía queda en esta cuenta de Universo. Si pagás con otra cuenta de Mercado Pago,
+                    escribí su email: Mercado Pago solo deja pagar a la cuenta con ese email.
+                  </p>
+                  <input
+                    type="email"
+                    inputMode="email"
+                    autoComplete="email"
+                    value={payerEmail}
+                    onChange={(event) => setPayerEmail(event.target.value)}
+                    placeholder="Email de la cuenta de Mercado Pago (opcional)"
+                    disabled={loading}
+                    className="w-full rounded-xl border border-stampa-border bg-stampa-bg-soft px-3 py-2 text-base text-stampa-text"
+                  />
+                  <button
+                    type="button"
+                    onClick={(event) => handleCreateSubscription(event, true)}
+                    disabled={loading || checkingEmail}
+                    className="w-full rounded-xl border border-stampa-border bg-stampa-surface px-3 py-2 text-sm font-semibold text-stampa-text-soft hover:bg-stampa-surface-soft disabled:opacity-60"
+                  >
+                    Empezar un pago nuevo
+                  </button>
+                  <p>Si ya pagaste, no uses esta opción: tocá «Actualizar acceso». Un pago ya aprobado nunca se reemplaza.</p>
+                </div>
+              </details>
             </section>
           </>
         )}

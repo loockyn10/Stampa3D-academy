@@ -169,6 +169,21 @@ export class MercadoPagoPreapprovalClient implements PreapprovalProvider {
     }
   }
 
+  /** Read-only: current status of a preapproval at Mercado Pago (null when it cannot be read). */
+  async getStatus(preapprovalId: string): Promise<string | null> {
+    try {
+      const response = await fetch(`${MERCADO_PAGO_API_URL}/preapproval/${encodeURIComponent(preapprovalId)}`, {
+        headers: { Authorization: `Bearer ${this.accessToken}` },
+        signal: AbortSignal.timeout(REQUEST_TIMEOUT_MS),
+      });
+      if (!response.ok) return null;
+      const raw = await readJsonRecord(response);
+      return typeof raw?.status === "string" ? raw.status.toLowerCase() : null;
+    } catch {
+      return null;
+    }
+  }
+
   async findByExternalReference(input: {
     externalReference: string;
     payerEmail: string;

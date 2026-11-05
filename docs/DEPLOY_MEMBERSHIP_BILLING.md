@@ -179,3 +179,14 @@ Estado de ramas (2026-11-05): `main` = `origin/main` = `66e10b2`. `feature/sprin
 **Rollback**
 - Inmediato: Vercel → Deployments → «Instant Rollback» al deploy anterior (no hay cambios de base de datos que deshacer).
 - En el repo: `git revert 87461ba` en `main` (deja el Sprint 0, que es independiente). Para apagar solo el cron: quitar `CRON_SECRET` o la entrada de `vercel.json`.
+
+## 12. Guía breve de validación real (P0 pagos, D048)
+
+Requisitos: `describe_open_checkout` y `close_pending_checkout` (migration `20261029120000_discount_code_checkout.sql`) deben existir en Supabase remoto; sin ellas «Empezar un pago nuevo» falla cerrado. Usar el token de Mercado Pago de **producción** en Vercel y una cuenta compradora distinta de la vendedora.
+
+1. **Camino feliz:** cuenta nueva → Activar membresía → pagar con la cuenta de MP **cuyo email es el mismo** → volver → acceso Premium. Esperado: 1 `subscriptions` authorized, 1 `payments` approved.
+2. **Otra cuenta de MP:** cuenta nueva → «¿No pudiste pagar…?» → escribir el email de la cuenta de MP → Empezar un pago nuevo → pagar. Esperado: acceso Premium en la cuenta de Universo (no en otra).
+3. **Pago que MP rechaza:** tras el fallo, «Empezar un pago nuevo» (con otro medio/cuenta). Esperado: la preapproval anterior queda `cancelled`, hay una sola viva.
+4. **Doble clic / recarga:** una sola preapproval nueva; nunca dos `authorized`.
+5. **Ya pagado:** con la suscripción activa, «Empezar un pago nuevo» responde 409 y no cancela nada.
+Antes de cada prueba y después: `supabase/diagnostics/20261105_membership_billing_state.sql` (solo lectura) y logs de Vercel de `/api/mercadopago/create-subscription` (`restart failed`, `definite provider rejection`).

@@ -495,7 +495,8 @@ test("checkout: the list price comes only from membership_settings / the env fal
   assert.match(route, /\(body as Record<string, unknown>\)\.discount_code/);
   // Nothing else is read from the request: no price, amount, percentage or reservation.
   const bodyReads = [...route.matchAll(/\(body as Record<string, unknown>\)\.(\w+)/g)].map((m) => m[1]);
-  assert.deepEqual([...new Set(bodyReads)].sort(), ["discount_code", "idempotency_key"]);
+  // payer_email (MP account email) and restart are the only additions; never an amount.
+  assert.deepEqual([...new Set(bodyReads)].sort(), ["discount_code", "idempotency_key", "payer_email", "restart"]);
   assert.doesNotMatch(route, /request\.json\(\)|searchParams|formData/);
 });
 
@@ -548,7 +549,7 @@ test("preview action: session user only, dry run, safe DTO, kill switch", () => 
 
 test("UI: the field only exists with the switch on; the request carries the code text and a key per code", () => {
   assert.match(client, /discountCodesEnabled && !loadingPrice && price && \(/);
-  assert.match(client, /JSON\.stringify\(discountCode \? \{ idempotency_key: idempotencyKey, discount_code: discountCode \} : \{ idempotency_key: idempotencyKey \}\)/);
+  assert.match(client, /idempotency_key: idempotencyKey,\s*\.\.\.\(discountCode \? \{ discount_code: discountCode \} : \{\}\)/);
   assert.match(client, /getCheckoutIdempotencyKey\(discountCode\)/);
   assert.match(client, /\(stored\.code \?\? null\) === discountCode/);
   assert.doesNotMatch(client, /final_amount|"amount"|price: /);

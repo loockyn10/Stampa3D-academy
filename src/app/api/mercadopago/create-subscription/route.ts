@@ -7,6 +7,7 @@ import { executeCheckout, type CheckoutFlowResult } from "@/lib/mercadopago/chec
 import { MercadoPagoPreapprovalClient } from "@/lib/mercadopago/preapproval-client";
 import { resolveBillingFrequency } from "@/lib/mercadopago/billing-frequency";
 import { loadMembershipPrice } from "@/lib/mercadopago/membership-price";
+import { normalizePayerEmail, restartPendingCheckout } from "@/lib/mercadopago/checkout-restart";
 import { executeDiscountedCheckout, executePlainCheckout } from "@/lib/mercadopago/discount-checkout";
 import {
   DISCOUNT_CODE_MAX_INPUT_LENGTH,
@@ -38,6 +39,10 @@ function response(body: Record<string, unknown>, status = 200) {
 interface CheckoutRequestBody {
   idempotencyKey: string;
   discountCode: string | null;
+  /** Email of the Mercado Pago account that pays. Optional: the Universo email stays the beneficiary identity. */
+  payerEmail: string | null;
+  /** Replace a still-pending checkout (e.g. the payment is rejected or another account must pay). */
+  restart: boolean;
 }
 
 /**
@@ -50,7 +55,7 @@ async function readCheckoutBody(request: Request): Promise<CheckoutRequestBody> 
   // Temporary compatibility for an already-open tab running the previous UI.
   // Per-user serialization in PostgreSQL still protects this generated key.
   if (!rawBody) {
-    return { idempotencyKey: randomUUID(), discountCode: null };
+    return { idempotencyKey: randomUUID(), discountCode: null, payerEmail: null, restart: false };
   }
 
   let body: unknown;
@@ -78,7 +83,14 @@ async function readCheckoutBody(request: Request): Promise<CheckoutRequestBody> 
     discountCode = normalizeDiscountCode(rawCode) || null;
   }
 
-  return { idempotencyKey: key, discountCode };
+  const rawPayer = (body as Record<string, unknown>).payer_email;
+  let payerEmail: string | null = null;
+  if (rawPayer !== undefined && rawPayer !== null && rawPayer !== "") {
+    payerEmail = normalizePayerEmail(rawPayer);
+    if (!payerEmail) throw new Error("invalid_payer_email");
+  }
+
+  return { idempotencyKey: key, discountCode, payerEmail, restart: (body as Record<string, unknown>).restart === true };
 }
 
 function checkoutBackUrl(appUrl: string): string {
@@ -189,7 +201,9 @@ export async function POST(request: Request) {
             ? "El cuerpo del request no es JSON válido."
             : code === "invalid_discount_code"
               ? "El código de descuento no es válido."
-              : "idempotency_key debe ser un UUID válido.",
+              : code === "invalid_payer_email"
+                ? "El email de tu cuenta de Mercado Pago no es válido."
+                : "idempotency_key debe ser un UUID válido.",
       },
       400,
     );
@@ -257,7 +271,9 @@ export async function POST(request: Request) {
     idempotencyKey: body.idempotencyKey,
     amount: price,
     currency,
-    payerEmail: user.email,
+    // Mercado Pago only lets the account whose email is sent here complete the payment. The member is still resolved
+    // from the checkout attempt (external_reference), never from this email.
+    payerEmail: body.payerEmail ?? user.email,
     reason: CHECKOUT_REASON,
     backUrl: checkoutBackUrl(appUrl),
   };
@@ -269,6 +285,38 @@ export async function POST(request: Request) {
     closePendingCheckout: (attemptId: string) => closePendingCheckout(supabaseAdmin, { userId: user.id, attemptId }),
     newIdempotencyKey: () => randomUUID(),
   };
+
+  if (body.restart) {
+    const restart = await restartPendingCheckout({
+      describeOpenCheckout: replacementDependencies.describeOpenCheckout,
+      getPreapprovalStatus: (id) => provider.getStatus(id),
+      cancelPreapproval: replacementDependencies.cancelPreapproval,
+      closePendingCheckout: replacementDependencies.closePendingCheckout,
+    });
+    if (restart.kind === "already_subscribed") {
+      return response(
+        {
+          code: "existing_subscription",
+          error: "Tu suscripción ya fue aprobada o está en proceso. No se creó otra ni se cobrará dos veces.",
+          subscription_status: restart.status,
+        },
+        409,
+      );
+    }
+    if (restart.kind === "in_progress") return conflictResponse("in_progress", false);
+    if (restart.kind === "failed") {
+      console.error("[MP create-subscription] restart failed", restart.reason);
+      return response(
+        {
+          code: "checkout_restart_failed",
+          error: "No pudimos reemplazar tu pago pendiente. No se cambió nada ni se cobró. Probá de nuevo en unos minutos.",
+        },
+        409,
+      );
+    }
+    // The previous attempt is closed: its idempotency key is spent.
+    checkoutInput.idempotencyKey = randomUUID();
+  }
 
   if (!body.discountCode) {
     // Same flow as always, except that a still-pending checkout created with another amount (e.g. with a discount the

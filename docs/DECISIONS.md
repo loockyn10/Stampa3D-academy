@@ -415,3 +415,9 @@ Los enlaces de Instagram/YouTube/WhatsApp/Telegram estaban fijos en 4 lugares de
 - Al entrar a un curso se abre la clase de `?clase=`, si no la primera pendiente, si no la primera. La clase activa se refleja en la URL.
 - Una clase o módulo inactivo no existe para alumnos (tampoco en la barrera del servidor). Los conteos del catálogo y el % de Inicio usan los mismos criterios que el curso (`is_active`).
 - Sin gamificación ni seguimiento de reproducción nuevos.
+
+## D048 — P0 Mercado Pago: correo del pagador separado del beneficiario y "empezar un pago nuevo"
+
+- **Restricción de Mercado Pago (confirmada por fuente secundaria, no por documentación oficial):** en una suscripción sin plan, `POST /preapproval` pide `payer_email` y Mercado Pago valida que coincida con la cuenta que paga; si no, rechaza (a veces con un mensaje genérico o `cc_rejected_high_risk`). Un contribuidor del SDK Node (no staff) lo calificó de «intencional a nivel API» (mercadopago/sdk-nodejs#421, jun-2026); sin plazo de cambio. Con un plan asociado (`preapproval_plan`) el pagador elige su cuenta: es la alternativa de integración (cambio de arquitectura, pendiente de decisión).
+- **Defecto propio:** una preapproval `pending` cuyo pago rechaza MP seguía devolviendo siempre el mismo `init_point`; el usuario no tenía forma de salir, ni de pagar con otra cuenta.
+- **Corrección:** `create-subscription` acepta `payer_email` opcional (la cuenta de MP que paga; por defecto el correo de Universo) y `restart` (cancela en MP la preapproval pendiente —solo si MP la informa `pending`— y abre un intento nuevo). El beneficiario sigue resuelto por `external_reference` → intento → usuario, nunca por el correo. Sin migration, sin cambio de precio ni frecuencia.
