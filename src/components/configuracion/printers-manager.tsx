@@ -1,6 +1,7 @@
 "use client";
 
 import React, { useState, useEffect, useMemo } from "react";
+import { useSaveGuard } from "@/lib/forms/use-save-guard";
 import { createClient } from "@/utils/supabase/client";
 import { Plus, Edit2, Save, Loader2, AlertCircle, Trash2 } from "lucide-react";
 import { TableSkeleton } from "@/components/ui/page-skeletons";
@@ -18,6 +19,7 @@ export function PrintersManager() {
   const [error, setError] = useState<string | null>(null);
 
   const [editingId, setEditingId] = useState<string | null>(null);
+  const { saving, runSave } = useSaveGuard();
   const [formData, setFormData] = useState({
     name: "",
     power_watts: 300,
@@ -93,8 +95,9 @@ export function PrintersManager() {
     setLoading(false);
   };
 
-  const handleSave = async () => {
+  const handleSave = () => runSave(async () => {
     setError(null);
+    let failed = false;
     const { data: { user } } = await supabase.auth.getUser();
     if (!user) return;
 
@@ -107,16 +110,16 @@ export function PrintersManager() {
 
     if (editingId === "new") {
       const { data, error } = await supabase.from("printers").insert([payload]).select().single();
-      if (error) setError(error.message);
+      if (error) { setError(error.message); failed = true; }
       else setPrinters([data, ...printers]);
     } else {
       const { error } = await supabase.from("printers").update(payload).eq("id", editingId);
-      if (error) setError(error.message);
+      if (error) { setError(error.message); failed = true; }
       else setPrinters(printers.map(p => p.id === editingId ? { ...p, ...payload } : p));
     }
     
-    if (!error) setEditingId(null);
-  };
+    if (!failed) setEditingId(null);
+  });
 
   const handleDelete = async (printer: any) => {
     const confirmed = await confirmAction({
@@ -209,13 +212,13 @@ export function PrintersManager() {
 
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
         {editingId === "new" && (
-          <PrinterEditor formData={formData} setFormData={setFormData} onSave={handleSave} onCancel={() => setEditingId(null)} />
+          <PrinterEditor saving={saving} formData={formData} setFormData={setFormData} onSave={handleSave} onCancel={() => setEditingId(null)} />
         )}
 
         {printers.map((p) => {
           const template = templates.find((candidate) => candidate.id === p.source_template_id);
           return editingId === p.id ? (
-            <PrinterEditor key={p.id} formData={formData} setFormData={setFormData} onSave={handleSave} onCancel={() => setEditingId(null)} />
+            <PrinterEditor key={p.id} saving={saving} formData={formData} setFormData={setFormData} onSave={handleSave} onCancel={() => setEditingId(null)} />
           ) : (
             <Card key={p.id} className="p-4 flex flex-col hover:border-stampa-orange/30 transition-colors">
               <PrinterCatalogImage
@@ -343,7 +346,7 @@ export function PrintersManager() {
   );
 }
 
-function PrinterEditor({ formData, setFormData, onSave, onCancel }: any) {
+function PrinterEditor({ saving, formData, setFormData, onSave, onCancel }: any) {
   const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const { name, value, type } = e.target;
     if (type === "checkbox") {
@@ -377,7 +380,7 @@ function PrinterEditor({ formData, setFormData, onSave, onCancel }: any) {
       </div>
       <div className="mt-4 flex flex-col-reverse sm:flex-row gap-2 justify-end">
         <button onClick={onCancel} className="w-full sm:w-auto px-3 py-1.5 text-xs font-bold text-gray-400 hover:bg-stampa-surface/5 rounded-md transition-colors text-center">Cancelar</button>
-        <button onClick={onSave} className="w-full sm:w-auto flex justify-center items-center gap-1.5 px-3 py-1.5 text-xs font-bold bg-stampa-orange/100 hover:bg-stampa-orange text-white rounded-md transition-colors"><Save size={14} /> Guardar</button>
+        <button onClick={onSave} disabled={saving} aria-busy={saving} className="w-full sm:w-auto flex justify-center items-center gap-1.5 px-3 py-1.5 text-xs font-bold bg-stampa-orange/100 hover:bg-stampa-orange text-white rounded-md transition-colors"><Save size={14} /> Guardar</button>
       </div>
     </Card>
   );

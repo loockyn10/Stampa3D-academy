@@ -1,6 +1,7 @@
 "use client";
 
 import React, { useState, useEffect } from "react";
+import { useSaveGuard } from "@/lib/forms/use-save-guard";
 import { createClient } from "@/utils/supabase/client";
 import { Plus, Edit2, Save, Loader2, AlertCircle, Trash2 } from "lucide-react";
 import { Card } from "@/components/ui/card";
@@ -16,6 +17,7 @@ export default function AdminCalculadoraPage() {
   const [error, setError] = useState<string | null>(null);
 
   const [editingId, setEditingId] = useState<string | null>(null);
+  const { saving, runSave } = useSaveGuard();
   const [formData, setFormData] = useState({
     name: "",
     multiplier: 2.0,
@@ -42,8 +44,9 @@ export default function AdminCalculadoraPage() {
     setLoading(false);
   };
 
-  const handleSave = async () => {
+  const handleSave = () => runSave(async () => {
     setError(null);
+    let failed = false;
     
     if (!formData.name.trim()) {
       setError("El nombre es requerido.");
@@ -65,7 +68,7 @@ export default function AdminCalculadoraPage() {
         .select()
         .single();
         
-      if (error) setError(error.message);
+      if (error) { setError(error.message); failed = true; }
       else setTemplates([...templates, data]);
     } else {
       const { error } = await supabase
@@ -73,12 +76,12 @@ export default function AdminCalculadoraPage() {
         .update(payload)
         .eq("id", editingId);
         
-      if (error) setError(error.message);
+      if (error) { setError(error.message); failed = true; }
       else setTemplates(templates.map(t => t.id === editingId ? { ...t, ...payload } : t));
     }
     
-    if (!error) setEditingId(null);
-  };
+    if (!failed) setEditingId(null);
+  });
 
   const toggleStatus = async (template: any) => {
     const { error } = await supabase
@@ -148,12 +151,12 @@ export default function AdminCalculadoraPage() {
 
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
         {editingId === "new" && (
-          <TypeEditor formData={formData} setFormData={setFormData} onSave={handleSave} onCancel={() => setEditingId(null)} />
+          <TypeEditor saving={saving} formData={formData} setFormData={setFormData} onSave={handleSave} onCancel={() => setEditingId(null)} />
         )}
 
         {templates.map((t) => (
           editingId === t.id ? (
-            <TypeEditor key={t.id} formData={formData} setFormData={setFormData} onSave={handleSave} onCancel={() => setEditingId(null)} />
+            <TypeEditor key={t.id} saving={saving} formData={formData} setFormData={setFormData} onSave={handleSave} onCancel={() => setEditingId(null)} />
           ) : (
             <Card key={t.id} className="p-5 flex flex-col bg-stampa-surface border-stampa-border hover:border-stampa-orange/30 transition-colors rounded-2xl group">
               <div className="flex justify-between items-start mb-3">
@@ -207,7 +210,7 @@ export default function AdminCalculadoraPage() {
   );
 }
 
-function TypeEditor({ formData, setFormData, onSave, onCancel }: any) {
+function TypeEditor({ saving, formData, setFormData, onSave, onCancel }: any) {
   const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const { name, value, type } = e.target;
     if (type === "checkbox") {
@@ -249,7 +252,7 @@ function TypeEditor({ formData, setFormData, onSave, onCancel }: any) {
       </div>
       <div className="mt-5 flex gap-2 justify-end">
         <button onClick={onCancel} className="px-4 py-2 text-sm font-semibold text-gray-400 hover:text-fg bg-fg/5 hover:bg-fg/10 rounded-xl transition-colors">Cancelar</button>
-        <button onClick={onSave} className="flex items-center gap-1.5 px-4 py-2 text-sm font-semibold bg-stampa-orange hover:bg-stampa-orange/90 text-white rounded-xl transition-colors shadow-sm">
+        <button onClick={onSave} disabled={saving} aria-busy={saving} className="flex items-center gap-1.5 px-4 py-2 text-sm font-semibold bg-stampa-orange hover:bg-stampa-orange/90 text-white rounded-xl transition-colors shadow-sm">
           <Save size={16} /> Guardar
         </button>
       </div>

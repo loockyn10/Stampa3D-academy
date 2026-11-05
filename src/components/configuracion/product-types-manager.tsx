@@ -1,6 +1,7 @@
 "use client";
 
 import React, { useState, useEffect } from "react";
+import { useSaveGuard } from "@/lib/forms/use-save-guard";
 import { createClient } from "@/utils/supabase/client";
 import { Plus, Edit2, Save, Loader2, AlertCircle, Trash2 } from "lucide-react";
 import { TableSkeleton } from "@/components/ui/page-skeletons";
@@ -20,6 +21,7 @@ export function ProductTypesManager({ onChanged }: ProductTypesManagerProps = {}
   const [error, setError] = useState<string | null>(null);
 
   const [editingId, setEditingId] = useState<string | null>(null);
+  const { saving, runSave } = useSaveGuard();
   const [formData, setFormData] = useState({
     name: "",
     multiplier: 2.0,
@@ -51,8 +53,9 @@ export function ProductTypesManager({ onChanged }: ProductTypesManagerProps = {}
     setLoading(false);
   };
 
-  const handleSave = async () => {
+  const handleSave = () => runSave(async () => {
     setError(null);
+    let failed = false;
     const { data: { user } } = await supabase.auth.getUser();
     if (!user) return;
 
@@ -66,22 +69,22 @@ export function ProductTypesManager({ onChanged }: ProductTypesManagerProps = {}
 
     if (editingId === "new") {
       const { data, error } = await supabase.from("calculator_product_types").insert([payload]).select().single();
-      if (error) setError(error.message);
+      if (error) { setError(error.message); failed = true; }
       else {
         setTypes([...types, data]);
         onChanged?.();
       }
     } else {
       const { error } = await supabase.from("calculator_product_types").update(payload).eq("id", editingId);
-      if (error) setError(error.message);
+      if (error) { setError(error.message); failed = true; }
       else {
         setTypes(types.map(t => t.id === editingId ? { ...t, ...payload } : t));
         onChanged?.();
       }
     }
     
-    if (!error) setEditingId(null);
-  };
+    if (!failed) setEditingId(null);
+  });
 
   const toggleStatus = async (typeId: string, currentStatus: boolean) => {
     const { error } = await supabase
@@ -151,12 +154,12 @@ export function ProductTypesManager({ onChanged }: ProductTypesManagerProps = {}
 
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
         {editingId === "new" && (
-          <TypeEditor formData={formData} setFormData={setFormData} onSave={handleSave} onCancel={() => setEditingId(null)} />
+          <TypeEditor saving={saving} formData={formData} setFormData={setFormData} onSave={handleSave} onCancel={() => setEditingId(null)} />
         )}
 
         {types.map((t) => (
           editingId === t.id ? (
-            <TypeEditor key={t.id} formData={formData} setFormData={setFormData} onSave={handleSave} onCancel={() => setEditingId(null)} />
+            <TypeEditor key={t.id} saving={saving} formData={formData} setFormData={setFormData} onSave={handleSave} onCancel={() => setEditingId(null)} />
           ) : (
             <Card key={t.id} className="p-4 flex flex-col hover:border-stampa-orange/30 transition-colors">
               <div className="flex justify-between items-start mb-2">
@@ -195,7 +198,7 @@ export function ProductTypesManager({ onChanged }: ProductTypesManagerProps = {}
   );
 }
 
-function TypeEditor({ formData, setFormData, onSave, onCancel }: any) {
+function TypeEditor({ saving, formData, setFormData, onSave, onCancel }: any) {
   const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const { name, value, type } = e.target;
     if (type === "checkbox") {
@@ -230,7 +233,7 @@ function TypeEditor({ formData, setFormData, onSave, onCancel }: any) {
       </div>
       <div className="mt-4 flex flex-col-reverse sm:flex-row gap-2 justify-end">
         <button onClick={onCancel} className="w-full sm:w-auto px-3 py-1.5 text-xs font-bold text-gray-400 hover:bg-stampa-surface/5 rounded-md transition-colors text-center">Cancelar</button>
-        <button onClick={onSave} className="w-full sm:w-auto flex justify-center items-center gap-1.5 px-3 py-1.5 text-xs font-bold bg-stampa-orange/100 hover:bg-stampa-orange text-white rounded-md transition-colors"><Save size={14} /> Guardar</button>
+        <button onClick={onSave} disabled={saving} aria-busy={saving} className="w-full sm:w-auto flex justify-center items-center gap-1.5 px-3 py-1.5 text-xs font-bold bg-stampa-orange/100 hover:bg-stampa-orange text-white rounded-md transition-colors"><Save size={14} /> Guardar</button>
       </div>
     </Card>
   );

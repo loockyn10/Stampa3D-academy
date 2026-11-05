@@ -5,7 +5,7 @@ import { Save } from "lucide-react";
 import { Card } from "@/components/ui/card";
 import { normalizeFilamentColor } from "@/lib/colors/filament-colors";
 
-export function FilamentEditor({ formData, setFormData, onSave, onCancel }: any) {
+export function FilamentEditor({ saving, formData, setFormData, onSave, onCancel }: any) {
   const lastColorTextRef = useRef(formData.color);
 
   useEffect(() => {
@@ -93,7 +93,7 @@ export function FilamentEditor({ formData, setFormData, onSave, onCancel }: any)
       </div>
       <div className="mt-4 flex flex-col-reverse sm:flex-row gap-2 justify-end">
         <button onClick={onCancel} className="w-full sm:w-auto px-3 py-1.5 text-xs font-bold text-gray-400 hover:bg-stampa-surface/5 rounded-md transition-colors text-center">Cancelar</button>
-        <button onClick={onSave} className="w-full sm:w-auto flex justify-center items-center gap-1.5 px-3 py-1.5 text-xs font-bold bg-stampa-orange/100 hover:bg-stampa-orange text-white rounded-md transition-colors"><Save size={14} /> Guardar</button>
+        <button onClick={onSave} disabled={saving} aria-busy={saving} className="w-full sm:w-auto flex justify-center items-center gap-1.5 px-3 py-1.5 text-xs font-bold bg-stampa-orange/100 hover:bg-stampa-orange text-white rounded-md transition-colors"><Save size={14} /> Guardar</button>
       </div>
     </Card>
   );

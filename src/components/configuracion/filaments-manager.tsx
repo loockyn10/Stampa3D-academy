@@ -1,6 +1,7 @@
 "use client";
 
 import React, { useState, useEffect } from "react";
+import { useSaveGuard } from "@/lib/forms/use-save-guard";
 import { createClient } from "@/utils/supabase/client";
 import { Plus, Edit2, Save, Trash2, Loader2, AlertCircle } from "lucide-react";
 import { ColorSwatchLabel } from "@/components/ui/color-swatch-label";
@@ -21,6 +22,7 @@ export function FilamentsManager() {
   const [error, setError] = useState<string | null>(null);
 
   const [editingId, setEditingId] = useState<string | null>(null);
+  const { saving, runSave } = useSaveGuard();
   const [formData, setFormData] = useState({
     name: "",
     filament_type: "PLA",
@@ -51,8 +53,9 @@ export function FilamentsManager() {
     setLoading(false);
   };
 
-  const handleSave = async () => {
+  const handleSave = () => runSave(async () => {
     setError(null);
+    let failed = false;
     const { data: { user } } = await supabase.auth.getUser();
     if (!user) return;
 
@@ -61,16 +64,16 @@ export function FilamentsManager() {
     if (editingId === "new") {
       const insertPayload = buildFilamentInsertPayload(formData, user.id);
       const { data, error } = await supabase.from("filaments").insert([insertPayload]).select().single();
-      if (error) setError(error.message);
+      if (error) { setError(error.message); failed = true; }
       else setFilaments([data, ...filaments]);
     } else {
       const { error } = await supabase.from("filaments").update(payload).eq("id", editingId);
-      if (error) setError(error.message);
+      if (error) { setError(error.message); failed = true; }
       else setFilaments(filaments.map(f => f.id === editingId ? { ...f, ...payload } : f));
     }
     
-    if (!error) setEditingId(null);
-  };
+    if (!failed) setEditingId(null);
+  });
 
   const handleDelete = async (filament: any) => {
     const confirmed = await confirmAction({
@@ -116,12 +119,12 @@ export function FilamentsManager() {
 
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
         {editingId === "new" && (
-          <FilamentEditor formData={formData} setFormData={setFormData} onSave={handleSave} onCancel={() => setEditingId(null)} />
+          <FilamentEditor saving={saving} formData={formData} setFormData={setFormData} onSave={handleSave} onCancel={() => setEditingId(null)} />
         )}
 
         {filaments.map((f) => (
           editingId === f.id ? (
-            <FilamentEditor key={f.id} formData={formData} setFormData={setFormData} onSave={handleSave} onCancel={() => setEditingId(null)} />
+            <FilamentEditor key={f.id} saving={saving} formData={formData} setFormData={setFormData} onSave={handleSave} onCancel={() => setEditingId(null)} />
           ) : (
             <Card key={f.id} className="p-4 flex flex-col hover:border-stampa-orange/30 transition-colors">
               <div className="flex justify-between items-start mb-2">
