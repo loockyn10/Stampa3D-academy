@@ -257,6 +257,18 @@ La auditoría de código local está hecha. Lo que queda es exclusivamente lo qu
 - [ ] QA manual con cuenta Free, Paid y Admin (checklist en el mismo documento).
 - [ ] Reindexar el conocimiento de Stampy si se quiere limpiar chunks de cursos pasados a oculto/en preparación (ya no se recuperan por la función de búsqueda).
 
-## Pendiente tras Sprint 4
+## Cierre Sprint 4.1 (2026-11-05)
 
-- Revisar el cuerpo real de `consume_filaments_for_products` (RPC no versionada; correr `supabase/diagnostics/20261104_definer_rpc_bodies.sql`, solo lectura) para confirmar que no descuenta dos veces internamente y que valida ownership. P2-13 queda cerrado en UI (aviso informativo).
+**Resuelto / verificado con evidencia (diagnóstico `20261104_definer_rpc_bodies.sql` ejecutado por el dueño en Supabase):**
+- [x] `adjust_component_stock`, `adjust_filament_stock`, `adjust_product_stock`: validan `auth.uid()` y la propiedad del registro.
+- [x] `assemble_product_from_components` y `consume_filaments_for_products`: validan la propiedad. `consume_filaments_for_products` usa las recetas de los componentes, sin doble descuento adicional evidente → P2-13 cerrado (solo aviso en UI).
+- [x] `ensure_default_calculator_product_types`: usa el usuario autenticado.
+- [x] QA-014, QA-026, QA-006, QA-011 (Sprint 4).
+
+**Verificaciones pendientes (riesgos residuales, no bloquean el deploy; sin sprint propio):**
+- [ ] Las demás RPC `SECURITY DEFINER` no versionadas y los permisos `EXECUTE` (`anon`/`authenticated`) de las ya revisadas: confirmar que `anon` no puede ejecutar las que mueven stock. Sin vulnerabilidad demostrada → no se modifica ninguna RPC.
+- [ ] Prueba real contra la API REST con una cuenta Free (guarda de `profiles`, `docs/DEPLOY_PROFILES_GUARD.md`).
+- [ ] Redes/Canales: revisar URLs `extruye` en `/admin/redes-canales` (QA-027).
+- [ ] QA-007 (`returnTo` tras login) y QA-012 (401 JSON en `/api/*`): tocan el proxy; fuera del Sprint 4.
+- [ ] Mi Taller, editores y aviso de producción: sin verificar en navegador con sesión.
+- [ ] Circuito real de Mercado Pago (compra, renovación, baja) sin validar de punta a punta (P0-3).
