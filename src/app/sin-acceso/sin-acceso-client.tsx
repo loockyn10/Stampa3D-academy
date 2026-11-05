@@ -83,13 +83,10 @@ export function SinAccesoClient({
           .eq("id", "default")
           .single();
 
-        if (data?.monthly_price) {
-          setPrice(String(data.monthly_price));
-        } else {
-          setPrice(process.env.NEXT_PUBLIC_MEMBERSHIP_MONTHLY_PRICE || "19900");
-        }
+        // The amount charged is always decided by the server (membership_settings): never show an invented fallback.
+        setPrice(data?.monthly_price ? String(data.monthly_price) : null);
       } catch {
-        setPrice(process.env.NEXT_PUBLIC_MEMBERSHIP_MONTHLY_PRICE || "19900");
+        setPrice(null);
       } finally {
         setLoadingPrice(false);
         setCheckingEmail(false);
@@ -148,7 +145,6 @@ export function SinAccesoClient({
     try {
       setLoading(true);
       setError(null);
-      console.log("Creando suscripción Mercado Pago");
       const discountCode = discountCodesEnabled && discount ? discount.code : null;
       const idempotencyKey = getCheckoutIdempotencyKey(discountCode);
 
@@ -167,11 +163,8 @@ export function SinAccesoClient({
       try {
         data = text ? JSON.parse(text) : null;
       } catch {
-        console.error("[MP frontend] invalid JSON response", text);
+        data = null;
       }
-
-      console.log("[MP frontend] status", response.status);
-      console.log("[MP frontend] data", data);
 
       if (data?.new_attempt_required) {
         window.sessionStorage.removeItem(CHECKOUT_ATTEMPT_STORAGE_KEY);
@@ -190,14 +183,12 @@ export function SinAccesoClient({
       }
 
       if (!response.ok) {
-        console.error("Create subscription error response:", data || text);
         throw new Error(data?.error || "Error al crear la suscripción");
       }
 
       const initPoint = data?.init_point || data?.initPoint || data?.url;
 
       if (!initPoint) {
-        console.error("[MP frontend] missing init point", data);
         throw new Error("No recibimos el link de pago.");
       }
 
@@ -298,7 +289,7 @@ export function SinAccesoClient({
                 ) : price ? (
                   <>Valor mensual: <span className="font-semibold text-stampa-text">{formatPrice(price)}</span> / mes</>
                 ) : (
-                  "Precio no disponible"
+                  "El precio se confirma en Mercado Pago antes de pagar."
                 )}
               </p>
               {discountCodesEnabled && !loadingPrice && price && (

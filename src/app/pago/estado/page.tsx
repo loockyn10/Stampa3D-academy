@@ -1,164 +1,188 @@
 "use client";
 
-import { useEffect, useState, useCallback } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import { Loader2, AlertCircle, CheckCircle2, Clock, XCircle } from "lucide-react";
+import type { MembershipDto } from "@/lib/mercadopago/membership-http";
+
+// Mercado Pago usually confirms the first charge within seconds of the redirect; we re-check for ~40 s.
+const AUTO_RETRY_DELAY_MS = 5_000;
+const AUTO_RETRY_LIMIT = 8;
+
+interface SyncResponse {
+  active?: boolean;
+  status?: string;
+  membership?: MembershipDto;
+  error?: string;
+}
+
+function formatDate(value: string | null | undefined) {
+  if (!value) return null;
+  const date = new Date(value);
+  return Number.isFinite(date.getTime())
+    ? date.toLocaleDateString("es-AR", { day: "numeric", month: "long", year: "numeric" })
+    : null;
+}
+
+type SyncOutcome =
+  | { kind: "ok"; data: SyncResponse }
+  | { kind: "unauthenticated" }
+  | { kind: "error"; message: string };
+
+async function requestSync(): Promise<SyncOutcome> {
+  try {
+    const response = await fetch("/api/mercadopago/sync-subscription", { method: "POST", cache: "no-store" });
+    const data = (await response.json().catch(() => ({}))) as SyncResponse;
+    if (response.status === 401) return { kind: "unauthenticated" };
+    if (!response.ok) return { kind: "error", message: data.error || "No pudimos verificar tu membresía." };
+    return { kind: "ok", data };
+  } catch {
+    return { kind: "error", message: "No pudimos verificar tu membresía." };
+  }
+}
+
+const primaryButton =
+  "w-full rounded-lg bg-stampa-orange px-3 py-3 text-sm font-semibold text-neutral-950 hover:bg-stampa-orange-hover transition-colors disabled:opacity-60";
+const secondaryButton =
+  "w-full rounded-lg bg-stampa-surface border border-fg/20 px-3 py-3 text-sm font-semibold text-gray-300 hover:bg-stampa-bg-soft transition-colors";
 
 export default function PagoEstadoPage() {
   const router = useRouter();
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const [statusData, setStatusData] = useState<{ active?: boolean, status?: string, access_until?: string } | null>(null);
+  const [result, setResult] = useState<SyncResponse | null>(null);
+  const [autoRetries, setAutoRetries] = useState(0);
+  const timer = useRef<number | null>(null);
 
-  const checkStatus = useCallback(async () => {
-    try {
-      setLoading(true);
-      setError(null);
-      
-      const response = await fetch("/api/mercadopago/sync-subscription", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
-      });
-
-      const data = await response.json();
-
-      if (!response.ok) {
-        throw new Error(data.error || "Error al verificar la suscripción");
-      }
-
-      setStatusData(data);
-
-      if (data.active) {
-        setTimeout(() => {
-          router.push("/");
-        }, 2000);
-      }
-    } catch (err: any) {
-      console.error("Error verificando estado:", err);
-      setError(err.message || "Ocurrió un error inesperado");
-    } finally {
-      setLoading(false);
+  const applyResult = useCallback((outcome: SyncOutcome) => {
+    if (outcome.kind === "unauthenticated") {
+      router.replace("/login");
+      return;
     }
+    if (outcome.kind === "error") {
+      setError(outcome.message);
+    } else {
+      setError(null);
+      setResult(outcome.data);
+      if (outcome.data.active) {
+        timer.current = window.setTimeout(() => router.push("/"), 2500);
+      }
+    }
+    setLoading(false);
   }, [router]);
 
+  const checkStatus = useCallback((silent = false) => {
+    if (!silent) setLoading(true);
+    void requestSync().then(applyResult);
+  }, [applyResult]);
+
   useEffect(() => {
-    checkStatus();
-  }, [checkStatus]);
+    let active = true;
+    void requestSync().then((outcome) => {
+      if (active) applyResult(outcome);
+    });
+    return () => {
+      active = false;
+      if (timer.current) window.clearTimeout(timer.current);
+    };
+  }, [applyResult]);
+
+  const state = result?.membership?.state ?? null;
+  const waitingForPayment = !result?.active && state === "pending";
+
+  // While Mercado Pago confirms the first charge, re-check automatically a few times.
+  useEffect(() => {
+    if (!waitingForPayment || loading || autoRetries >= AUTO_RETRY_LIMIT) return;
+    const handle = window.setTimeout(() => {
+      setAutoRetries((count) => count + 1);
+      void checkStatus(true);
+    }, AUTO_RETRY_DELAY_MS);
+    return () => window.clearTimeout(handle);
+  }, [waitingForPayment, loading, autoRetries, checkStatus]);
+
+  const accessUntil = formatDate(result?.membership?.access_until);
+  const stillAutoChecking = waitingForPayment && autoRetries < AUTO_RETRY_LIMIT;
 
   return (
     <div className="flex min-h-screen items-center justify-center bg-stampa-bg px-4 py-12 sm:px-6 lg:px-8">
-      <div className="w-full max-w-md space-y-8 bg-stampa-surface p-8 rounded-2xl shadow-sm border border-stampa-border text-center">
-        
+      <div className="w-full max-w-md space-y-8 rounded-2xl border border-stampa-border bg-stampa-surface p-8 text-center shadow-sm">
         {loading && (
-          <div className="flex flex-col items-center justify-center">
-            <Loader2 className="h-12 w-12 text-stampa-accent animate-spin mb-4" />
-            <h2 className="text-2xl font-bold tracking-tight text-fg">
-              Estamos verificando tu membresía...
-            </h2>
-            <p className="mt-2 text-sm text-gray-400">
-              Por favor aguardá un momento.
-            </p>
+          <div className="flex flex-col items-center justify-center" role="status">
+            <Loader2 className="mb-4 h-12 w-12 animate-spin text-stampa-accent" aria-hidden="true" />
+            <h1 className="text-2xl font-bold tracking-tight text-fg">Estamos verificando tu membresía…</h1>
+            <p className="mt-2 text-sm text-gray-400">Por favor aguardá un momento.</p>
           </div>
         )}
 
         {!loading && error && (
-          <div className="flex flex-col items-center justify-center">
-            <AlertCircle className="h-12 w-12 text-red-500 mb-4" />
-            <h2 className="text-2xl font-bold tracking-tight text-fg">
-              Error de verificación
-            </h2>
-            <p className="mt-2 text-sm text-red-600 mb-6">
-              {error}
-            </p>
-            <button
-              onClick={checkStatus}
-              className="w-full rounded-lg bg-stampa-orange px-3 py-3 text-sm font-semibold text-white hover:bg-stampa-orange transition-colors"
-            >
-              Reintentar
-            </button>
+          <div className="flex flex-col items-center justify-center" role="alert">
+            <AlertCircle className="mb-4 h-12 w-12 text-red-500" aria-hidden="true" />
+            <h1 className="text-2xl font-bold tracking-tight text-fg">No pudimos verificar el pago</h1>
+            <p className="mb-6 mt-2 text-sm text-gray-400">{error} Si ya pagaste, no vuelvas a pagar: tu acceso se activa cuando Mercado Pago lo confirme.</p>
+            <button onClick={() => void checkStatus()} className={primaryButton}>Reintentar</button>
           </div>
         )}
 
-        {!loading && !error && statusData && (
+        {!loading && !error && result && (
           <div className="flex flex-col items-center justify-center">
-            {statusData.active ? (
+            {result.active ? (
               <>
-                <CheckCircle2 className="h-12 w-12 text-green-500 mb-4" />
-                <h2 className="text-2xl font-bold tracking-tight text-fg">
-                  {(statusData.status === "cancelled" || statusData.status === "canceled") 
-                    ? "Suscripción cancelada"
-                    : "Membresía activada correctamente"}
-                </h2>
-                <p className="mt-2 text-sm text-gray-400 mb-6">
-                  {(statusData.status === "cancelled" || statusData.status === "canceled") && statusData.access_until
-                    ? `Tu suscripción fue cancelada, pero mantenés tu acceso hasta el ${new Date(statusData.access_until).toLocaleDateString("es-AR")}. Serás redirigido al inicio en breve...`
-                    : "Serás redirigido al inicio en breve..."}
+                <CheckCircle2 className="mb-4 h-12 w-12 text-green-500" aria-hidden="true" />
+                <h1 className="text-2xl font-bold tracking-tight text-fg">
+                  {state === "cancelled_with_access" ? "Suscripción cancelada" : "¡Tu membresía está activa!"}
+                </h1>
+                <p className="mb-6 mt-2 text-sm text-gray-400">
+                  {state === "cancelled_with_access" && accessUntil
+                    ? `No se te va a cobrar de nuevo. Conservás el acceso hasta el ${accessUntil}. `
+                    : ""}
+                  Te llevamos al inicio en un instante…
                 </p>
               </>
-            ) : statusData.status === "pending" ? (
+            ) : waitingForPayment ? (
               <>
-                <Clock className="h-12 w-12 text-yellow-500 mb-4" />
-                <h2 className="text-2xl font-bold tracking-tight text-fg">
-                  Suscripción pendiente
-                </h2>
-                <p className="mt-2 text-sm text-gray-400 mb-6">
-                  Tu pago/suscripción todavía está pendiente de confirmación.
+                <Clock className="mb-4 h-12 w-12 text-amber-500" aria-hidden="true" />
+                <h1 className="text-2xl font-bold tracking-tight text-fg">Esperando la confirmación del pago</h1>
+                <p className="mb-6 mt-2 text-sm text-gray-400" role="status">
+                  {stillAutoChecking
+                    ? "Mercado Pago está procesando tu pago. Esta pantalla se actualiza sola."
+                    : "Mercado Pago todavía no confirmó el pago. Puede tardar unos minutos: te avisamos en Mi membresía. No hace falta volver a pagar."}
                 </p>
-                <div className="flex flex-col w-full gap-3">
-                  <button
-                    onClick={checkStatus}
-                    className="w-full rounded-lg bg-stampa-orange px-3 py-3 text-sm font-semibold text-white hover:bg-stampa-orange transition-colors"
-                  >
-                    Reintentar verificación
+                <div className="flex w-full flex-col gap-3">
+                  <button onClick={() => void checkStatus()} className={primaryButton} disabled={stillAutoChecking}>
+                    {stillAutoChecking ? "Verificando…" : "Verificar de nuevo"}
                   </button>
-                  <button
-                    onClick={() => router.push("/")}
-                    className="w-full rounded-lg bg-stampa-surface border border-fg/20 px-3 py-3 text-sm font-semibold text-gray-300 hover:bg-stampa-bg-soft transition-colors"
-                  >
-                    Volver al inicio
-                  </button>
+                  <button onClick={() => router.push("/perfil")} className={secondaryButton}>Ir a Mi membresía</button>
                 </div>
               </>
-            ) : statusData.status === "not_found" ? (
+            ) : state === "payment_issue" ? (
               <>
-                <XCircle className="h-12 w-12 text-gray-400 mb-4" />
-                <h2 className="text-2xl font-bold tracking-tight text-fg">
-                  Suscripción no encontrada
-                </h2>
-                <p className="mt-2 text-sm text-gray-400 mb-6">
-                  No encontramos una suscripción asociada a tu cuenta.
+                <XCircle className="mb-4 h-12 w-12 text-red-500" aria-hidden="true" />
+                <h1 className="text-2xl font-bold tracking-tight text-fg">El pago fue rechazado</h1>
+                <p className="mb-6 mt-2 text-sm text-gray-400">
+                  Mercado Pago va a reintentar el cobro. Podés revisar tu medio de pago en tu cuenta de Mercado Pago o cancelar esta suscripción desde Mi membresía y volver a intentarlo.
                 </p>
-                <button
-                  onClick={() => router.push("/sin-acceso")}
-                  className="w-full rounded-lg bg-stampa-orange px-3 py-3 text-sm font-semibold text-white hover:bg-stampa-orange transition-colors"
-                >
-                  Volver a Sin Acceso
-                </button>
+                <div className="flex w-full flex-col gap-3">
+                  <button onClick={() => void checkStatus()} className={primaryButton}>Verificar de nuevo</button>
+                  <button onClick={() => router.push("/perfil")} className={secondaryButton}>Ir a Mi membresía</button>
+                </div>
+              </>
+            ) : result.status === "not_found" ? (
+              <>
+                <XCircle className="mb-4 h-12 w-12 text-gray-400" aria-hidden="true" />
+                <h1 className="text-2xl font-bold tracking-tight text-fg">No encontramos una suscripción</h1>
+                <p className="mb-6 mt-2 text-sm text-gray-400">No hay una suscripción asociada a tu cuenta.</p>
+                <button onClick={() => router.push("/sin-acceso")} className={primaryButton}>Ver la membresía</button>
               </>
             ) : (
               <>
-                <AlertCircle className="h-12 w-12 text-red-500 mb-4" />
-                <h2 className="text-2xl font-bold tracking-tight text-fg">
-                  Estado desconocido
-                </h2>
-                <p className="mt-2 text-sm text-gray-400 mb-6">
-                  El estado de tu membresía es: {statusData.status}
+                <AlertCircle className="mb-4 h-12 w-12 text-gray-400" aria-hidden="true" />
+                <h1 className="text-2xl font-bold tracking-tight text-fg">Tu membresía no está activa</h1>
+                <p className="mb-6 mt-2 text-sm text-gray-400">
+                  {state === "paused" ? "La suscripción está pausada." : state === "expired" ? "La suscripción terminó." : "No encontramos un pago aprobado."} Revisá el detalle en Mi membresía.
                 </p>
-                <div className="flex flex-col w-full gap-3">
-                  <button
-                    onClick={checkStatus}
-                    className="w-full rounded-lg bg-stampa-orange px-3 py-3 text-sm font-semibold text-white hover:bg-stampa-orange transition-colors"
-                  >
-                    Reintentar
-                  </button>
-                  <button
-                    onClick={() => router.push("/")}
-                    className="w-full rounded-lg bg-stampa-surface border border-fg/20 px-3 py-3 text-sm font-semibold text-gray-300 hover:bg-stampa-bg-soft transition-colors"
-                  >
-                    Volver al inicio
-                  </button>
+                <div className="flex w-full flex-col gap-3">
+                  <button onClick={() => router.push("/perfil")} className={primaryButton}>Ir a Mi membresía</button>
+                  <button onClick={() => router.push("/sin-acceso")} className={secondaryButton}>Ver la membresía</button>
                 </div>
               </>
             )}

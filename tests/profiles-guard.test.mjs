@@ -27,8 +27,8 @@ const PRIVILEGED_COLUMNS = [
 //   * rutas de servidor con service_role (Mercado Pago, alta por código/referido).
 const PRIVILEGED_WRITERS = new Set([
   "src/components/admin/users-table.tsx",
-  "src/app/api/mercadopago/webhook/route.ts",
-  "src/app/api/mercadopago/sync-subscription/route.ts",
+  // Membership billing (webhook, sync, cancel) writes membership_* only through this store, with service_role.
+  "src/lib/mercadopago/membership-store.ts",
   "src/app/auth/callback/route.ts",
 ]);
 
@@ -84,9 +84,18 @@ test("ningún código de usuario común escribe columnas privilegiadas de profil
 });
 
 test("las rutas que activan membresías siguen usando service_role (no la sesión del usuario)", () => {
-  for (const file of ["src/app/api/mercadopago/webhook/route.ts", "src/app/api/mercadopago/sync-subscription/route.ts"]) {
+  // Wiring: service role key + the single store that writes membership_*.
+  const server = read("src/lib/mercadopago/membership-server.ts");
+  assert.match(server, /SUPABASE_SERVICE_ROLE_KEY/);
+  assert.match(server, /new SupabaseMembershipStore\(admin\)/);
+  assert.match(read("src/lib/mercadopago/membership-store.ts"), /this\.admin\.from\("profiles"\)\.update\(fields\)/);
+  for (const file of [
+    "src/app/api/mercadopago/webhook/route.ts",
+    "src/app/api/mercadopago/sync-subscription/route.ts",
+    "src/app/api/mercadopago/cancel-subscription/route.ts",
+  ]) {
     const source = read(file);
-    assert.match(source, /SUPABASE_SERVICE_ROLE_KEY/, file);
-    assert.match(source, /supabaseAdmin\s*\.from\(\s*["']profiles["']\s*\)[\s\S]{0,80}\.update\(/, file);
+    assert.match(source, /createMembershipDependencies\(\)/, file);
+    assert.doesNotMatch(source, /from\(\s*["']profiles["']\s*\)/, `${file} no escribe profiles directamente`);
   }
 });

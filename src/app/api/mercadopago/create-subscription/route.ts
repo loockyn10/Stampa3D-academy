@@ -5,6 +5,7 @@ import { createClient } from "@/utils/supabase/server";
 import { SupabaseCheckoutAttemptRepository } from "@/lib/mercadopago/checkout-attempt-repository";
 import { executeCheckout, type CheckoutFlowResult } from "@/lib/mercadopago/checkout-flow";
 import { MercadoPagoPreapprovalClient } from "@/lib/mercadopago/preapproval-client";
+import { resolveBillingFrequency } from "@/lib/mercadopago/billing-frequency";
 import { loadMembershipPrice } from "@/lib/mercadopago/membership-price";
 import { executeDiscountedCheckout, executePlainCheckout } from "@/lib/mercadopago/discount-checkout";
 import {
@@ -245,7 +246,8 @@ export async function POST(request: Request) {
   }
 
   const { price, currency } = membershipPrice;
-  const provider = new MercadoPagoPreapprovalClient(accessToken);
+  // Monthly in production; a shorter cycle only in an isolated test environment (see billing-frequency.ts).
+  const provider = new MercadoPagoPreapprovalClient(accessToken, resolveBillingFrequency(process.env));
   const dependencies = {
     repository: new SupabaseCheckoutAttemptRepository(supabaseAdmin),
     provider,

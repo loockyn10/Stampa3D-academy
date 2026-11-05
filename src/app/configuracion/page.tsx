@@ -3,7 +3,7 @@
 import React, { useState, useEffect, useMemo, Suspense } from "react";
 import { useSearchParams, useRouter } from "next/navigation";
 import dynamic from "next/dynamic";
-import { Building2, Calculator, Bot } from "lucide-react";
+import { Building2, Calculator, Bot, CreditCard } from "lucide-react";
 import { SectionTitle } from "@/components/ui/section-title";
 import { ThemeSwitcher } from "@/components/theme/theme-switcher";
 
@@ -22,12 +22,14 @@ const AccountManager = dynamic(() => import("@/components/configuracion/account-
 const BusinessManager = dynamic(() => import("@/components/configuracion/business-manager").then((module) => module.BusinessManager), { loading: managerLoading });
 const SettingsManager = dynamic(() => import("@/components/configuracion/settings-manager").then((module) => module.SettingsManager), { loading: managerLoading });
 const ProductTypesManager = dynamic(() => import("@/components/configuracion/product-types-manager").then((module) => module.ProductTypesManager), { loading: managerLoading });
+const MembershipPanel = dynamic(() => import("@/components/membership/MembershipPanel").then((module) => module.MembershipPanel), { loading: managerLoading });
 const StampyManager = dynamic(() => import("@/components/configuracion/stampy-manager").then((module) => module.StampyManager), { loading: managerLoading });
 
-type Tab = "cuenta" | "negocio" | "calculadora" | "stampy";
+type Tab = "cuenta" | "membresia" | "negocio" | "calculadora" | "stampy";
 
 const CONFIGURATION_AREAS: { id: Tab; name: string; visibleContent: string }[] = [
   { id: "cuenta", name: "Cuenta", visibleContent: "Datos y seguridad de la cuenta" },
+  { id: "membresia", name: "Membresía", visibleContent: "Plan, renovación, estado de pago y cancelación de la membresía" },
   { id: "negocio", name: "Negocio", visibleContent: "Datos del negocio" },
   { id: "calculadora", name: "Calculadora", visibleContent: "Costos y tipos de producto" },
   { id: "stampy", name: "Stampy", visibleContent: "Preferencias del asistente" },
@@ -51,7 +53,7 @@ function ConfiguracionContent() {
 
   useEffect(() => {
     const t = searchParams.get("tab") as Tab;
-    if (t && ["cuenta", "negocio", "calculadora", "stampy"].includes(t)) {
+    if (t && ["cuenta", "membresia", "negocio", "calculadora", "stampy"].includes(t)) {
       setActiveTab(t);
     }
   }, [searchParams]);
@@ -97,7 +99,7 @@ function ConfiguracionContent() {
         eyebrow="Sistema" 
         title="Configuración" 
       />
-      <p className="text-gray-400 text-sm -mt-3 mb-6">Configurá tu cuenta, tu negocio y los valores que usa tu taller.</p>
+      <p className="text-gray-400 text-sm -mt-3 mb-6">Configurá tu cuenta, tu membresía, tu negocio y los valores que usa tu taller.</p>
 
       <div className="mb-8 border-b border-stampa-border">
         <nav className="-mb-px flex space-x-6 sm:space-x-8 overflow-x-auto hide-scrollbar" aria-label="Tabs">
@@ -111,6 +113,18 @@ function ConfiguracionContent() {
           >
             <User size={18} />
             Cuenta
+          </button>
+
+          <button
+            onClick={() => handleTabChange("membresia")}
+            className={`whitespace-nowrap flex items-center gap-2 border-b-2 py-4 px-1 text-sm font-medium transition-colors ${
+              activeTab === "membresia"
+                ? "border-[#ff6a00] text-stampa-accent"
+                : "border-transparent text-gray-500 hover:border-fg/20 hover:text-gray-300"
+            }`}
+          >
+            <CreditCard size={18} />
+            Membresía
           </button>
 
           {showBusinessTab && <button
@@ -163,6 +177,8 @@ function ConfiguracionContent() {
             <AccountManager />
           </>
         )}
+
+        {activeTab === "membresia" && <MembershipPanel />}
 
         {activeTab === "negocio" && <BusinessManager />}
         

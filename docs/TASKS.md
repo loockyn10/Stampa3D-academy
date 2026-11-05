@@ -112,6 +112,17 @@ Este archivo contiene únicamente trabajo pendiente o próximo. Eliminar tareas 
 - [ ] Revisar el contenido remoto de `stampy_page_contexts` para `/sorteos`: podría prometer beneficios por referidos (no está en el repo).
 - [ ] Merge de la rama a `main` y deploy (no realizados).
 
+## Now — Sprint 1 V1.0: circuito de membresías con Mercado Pago (2026-11-05, ver docs/DEPLOY_MEMBERSHIP_BILLING.md y D044)
+
+- [x] Webhook endurecido (firma obligatoria, 5xx transitorios, idempotente), activación solo con cobro aprobado, renovaciones/vencimientos sin accesos perpetuos, cancelación desde Configuración → Membresía y Perfil. Sin migración. Tests: `tests/membership-cycle.test.mjs`.
+- [x] Sprint 1.1: conciliación automática diaria (Vercel Cron, `CRON_SECRET`) para webhooks perdidos y override de frecuencia diaria solo para pruebas. Tests: `tests/membership-reconcile.test.mjs`.
+- [ ] **Decisión comercial (D045):** experiencia de baja y arrepentimiento, con asesoría legal (Ley 24.240 art. 10 ter, Disposición 954/2025). Opciones en `DEPLOY_MEMBERSHIP_BILLING.md` §7. La cancelación actual se conserva sin aprobar.
+- [ ] Armar el entorno aislado (Supabase de prueba + aplicación del vendedor de prueba de MP + variables de Preview por rama), §5.
+- [ ] **Bloqueante para cobrar:** configurar en Production `MERCADO_PAGO_WEBHOOK_SECRET`, `CRON_SECRET` y el webhook de «Planes y suscripciones» (§4), y completar la prueba de §6 (incluye renovación y webhook perdido).
+- [ ] Correr `supabase/diagnostics/20261105_membership_billing_state.sql` (A/B en `true`; revisar F).
+- [ ] Merge de `feature/sprint1-subscriptions` y deploy (no realizados).
+- [ ] Decidir el tratamiento de reembolsos/contracargos (hoy no revocan acceso) y si se envían emails propios de pago/rechazo/vencimiento.
+
 ## Now — Sprint 0 V1.0: seguridad de profiles (P0-1, 2026-11-04, ver docs/DEPLOY_PROFILES_GUARD.md)
 
 - [x] Diagnóstico remoto de solo lectura (`supabase/diagnostics/20261104_profiles_security_audit.sql`): **vulnerabilidad confirmada**. Cualquier usuario autenticado podía cambiar su `role` / `membership_*` vía REST.
@@ -131,7 +142,7 @@ Este archivo contiene únicamente trabajo pendiente o próximo. Eliminar tareas 
 - [ ] Confirmar la URL real de la beta: `stampa3-d-academy-beta.vercel.app` responde `402 DEPLOYMENT_DISABLED` (QA-001).
 - [ ] Correr `supabase/diagnostics/20261014_qa_rls_audit.sql` (solo lectura) y decidir sobre RLS de `profiles` (RIESGO-01), policies premium (RIESGO-02), migrations aplicadas (RIESGO-04) y consistencia de datos. **RIESGO-01 y la RLS de contenido premium ya quedaron resueltos con el diagnóstico del 2026-11-04 (ver Sprint 0)**. Ese archivo tiene muchas sentencias y el SQL Editor solo muestra el último resultado: para migrations y consistencia, correr cada sección por separado.
 - [ ] Crear un Supabase de test (o branch) con el schema completo + 4 cuentas (Free, Beta, Paid, Admin) + seed mínimo y definir las variables `E2E_*` (ver `tests/e2e/README.md`) para activar los ~1.300 escenarios que hoy quedan skipped.
-- [ ] Triage de bugs P2: QA-009 (firma del webhook de membresías), QA-010 (menú radial), QA-014 (editores: `if (!error)`, doble submit, validación), QA-016 (confirmación en Admin → Usuarios), QA-019 (saldo de cliente truncado), QA-022 (Ventas limitadas a 50).
+- [ ] Triage de bugs P2: ~~QA-009 (firma del webhook de membresías)~~ resuelto en Sprint 1, QA-010 (menú radial), QA-014 (editores: `if (!error)`, doble submit, validación), QA-016 (confirmación en Admin → Usuarios), QA-019 (saldo de cliente truncado), QA-022 (Ventas limitadas a 50).
 - [ ] Versionar el schema base (RIESGO-03) para poder reproducir entornos y auditar RLS.
 - [ ] Automatizar en E2E (necesitan seed): Registrar producción / Ajustar inventario, Showroom↔Depósito, scanner, previews 360°/3MF, checkout de membresía.
 

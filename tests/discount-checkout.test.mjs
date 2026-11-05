@@ -477,8 +477,8 @@ test("codes normalize like the admin panel and the kill switch is only on for th
 
 const route = readRepoFile("src/app/api/mercadopago/create-subscription/route.ts");
 const priceHelper = readRepoFile("src/lib/mercadopago/membership-price.ts");
-const webhook = readRepoFile("src/app/api/mercadopago/webhook/route.ts");
-const sync = readRepoFile("src/app/api/mercadopago/sync-subscription/route.ts");
+const membershipStore = readRepoFile("src/lib/mercadopago/membership-store.ts");
+const membershipSync = readRepoFile("src/lib/mercadopago/membership-sync.ts");
 const actions = readRepoFile("src/app/sin-acceso/actions.ts");
 const client = readRepoFile("src/app/sin-acceso/sin-acceso-client.tsx");
 const field = readRepoFile("src/components/membership/DiscountCodeField.tsx");
@@ -525,15 +525,15 @@ test("checkout: identity comes from the session, the code is reserved server-sid
 });
 
 test("webhook and sync-subscription consume the use on authorization and free it on cancellation, without blocking the membership update", () => {
-  for (const source of [webhook, sync]) {
-    assert.match(source, /confirmDiscountReservation\(supabaseAdmin, String\(preapproval/);
-    assert.match(source, /releaseDiscountForPreapproval\(supabaseAdmin, String\(preapproval/);
-    assert.match(source, /"authorized"/);
-  }
-  // Inside try/catch and after the profile update: a failure only logs.
-  assert.match(webhook, /try \{\s*if \(status === "authorized"\) \{\s*await confirmDiscountReservation[\s\S]*?\} catch \(discountErr/);
-  assert.ok(webhook.indexOf("confirmDiscountReservation(supabaseAdmin") > webhook.indexOf("profileUpdates.membership_status = \"active\""));
-  assert.match(sync, /try \{\s*if \(mpStatus === "authorized"\)[\s\S]*?\} catch \(discountError\)/);
+  // Since Sprint 1 the webhook, sync-subscription and the cancellation share one pipeline (membership-sync.ts) and
+  // one store; the discount side effects live in the store and never throw (behaviour: tests/membership-cycle.test.mjs).
+  assert.match(membershipStore, /try \{\s*await confirmDiscountReservation\(this\.admin, input\.preapprovalId\);\s*\} catch \(error\)/);
+  assert.match(membershipStore, /try \{\s*await releaseDiscountForPreapproval\(this\.admin, input\.preapprovalId\);\s*\} catch \(error\)/);
+  // After the profile decision, and only on the provider's real state.
+  const extend = membershipSync.indexOf("await extendMembership(");
+  assert.ok(extend > 0 && membershipSync.indexOf("onSubscriptionAuthorized({") > extend);
+  assert.match(membershipSync, /if \(preapproval\.status === "authorized"\) \{\s*await deps\.store\.onSubscriptionAuthorized/);
+  assert.match(membershipSync, /else if \(preapproval\.status === "cancelled"\) \{\s*await deps\.store\.onSubscriptionCancelled/);
 });
 
 test("preview action: session user only, dry run, safe DTO, kill switch", () => {

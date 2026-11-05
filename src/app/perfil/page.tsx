@@ -1,7 +1,7 @@
 "use client";
 
 import React, { useState, useEffect, useMemo, Suspense } from "react";
-import { Loader2, AlertCircle, Copy, Check, Users, Shield, Star, ChevronDown } from "lucide-react";
+import { Loader2, AlertCircle, Copy, Check, Users, Shield, Star } from "lucide-react";
 import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { SectionTitle } from "@/components/ui/section-title";
@@ -13,6 +13,7 @@ import { usePublishStampyScreenContext } from "@/components/stampy/StampyContext
 import type { StampyScreenContext } from "@/lib/stampy/screen-context";
 import { XpProgressCard, type XpActivityItem } from "@/components/xp/XpProgressCard";
 import { BetaCodeRedeemCard } from "@/components/beta-access/BetaCodeRedeemCard";
+import { MembershipPanel } from "@/components/membership/MembershipPanel";
 
 const APP_BASE_URL = process.env.NEXT_PUBLIC_APP_URL || "https://academia-stampa.com";
 
@@ -30,7 +31,6 @@ function PerfilContent() {
   const [founderData, setFounderData] = useState<any>(null);
   const [referralStats, setReferralStats] = useState({ pending: 0, converted: 0 });
   const [copied, setCopied] = useState(false);
-  const [membershipOpen, setMembershipOpen] = useState(false);
   const [totalXp, setTotalXp] = useState(0);
   const [xpActivity, setXpActivity] = useState<XpActivityItem[]>([]);
 
@@ -142,7 +142,7 @@ function PerfilContent() {
 
   const stampyScreenContext = useMemo<StampyScreenContext>(() => ({
     page: { section: "profile", route: "/perfil", title: "Mi Perfil" },
-    mode: membershipOpen ? "membership_details" : "view",
+    mode: "view",
     visibleEntities: badges.slice(0, 20).map((badge, index) => ({
       type: "badge",
       id: String(badge.id),
@@ -161,16 +161,15 @@ function PerfilContent() {
         { label: "Referidos convertidos visibles", value: referralStats.converted },
         { label: "Insignias visibles", value: badges.length },
         { label: "XP total visible", value: totalXp },
-        ...(membershipOpen && subscription?.status
+        ...(subscription?.status
           ? [{ label: "Estado visible de la suscripción", value: String(subscription.status) }]
           : []),
       ],
     },
     uiState: {
       loading,
-      ...(membershipOpen ? { activeDialog: "Detalle desplegado de membresía" } : {}),
     },
-  }), [badges, betaGrant, founderData, loading, membershipOpen, profile?.member_level, profile?.membership_status, referralCode, referralStats.converted, referralStats.pending, subscription?.status, totalXp]);
+  }), [badges, betaGrant, founderData, loading, profile?.member_level, profile?.membership_status, referralCode, referralStats.converted, referralStats.pending, subscription?.status, totalXp]);
 
   usePublishStampyScreenContext(stampyScreenContext);
 
@@ -276,69 +275,10 @@ function PerfilContent() {
               )}
             </div>
 
-            {subscription && (
-              <div className="mb-6 overflow-hidden rounded-xl border border-stampa-border bg-stampa-bg-soft text-sm">
-                <button
-                  type="button"
-                  onClick={() => setMembershipOpen((current) => !current)}
-                  aria-expanded={membershipOpen}
-                  aria-controls="profile-membership-details"
-                  className="flex w-full items-center justify-between gap-4 px-4 py-3.5 text-left transition-colors hover:bg-fg/[0.03] motion-reduce:transition-none"
-                >
-                  <span className="font-bold text-fg">Membresía</span>
-                  <span className="flex items-center gap-2">
-                    <span className="text-xs font-semibold text-gray-400">
-                      {profile.membership_status === "active" ? "Activa" : "Inactiva"}
-                    </span>
-                    <ChevronDown
-                      size={17}
-                      className={`text-gray-500 transition-transform duration-200 motion-reduce:transition-none ${membershipOpen ? "rotate-180" : ""}`}
-                      aria-hidden="true"
-                    />
-                  </span>
-                </button>
-
-                <div
-                  id="profile-membership-details"
-                  aria-hidden={!membershipOpen}
-                  className={`grid transition-[grid-template-rows,opacity] duration-200 motion-reduce:transition-none ${membershipOpen ? "grid-rows-[1fr] opacity-100" : "grid-rows-[0fr] opacity-0"}`}
-                >
-                  <div className="overflow-hidden">
-                    <div className="border-t border-stampa-border px-4 pb-4 pt-3">
-                      <div className="flex justify-between gap-4">
-                        <span className="text-gray-500 font-semibold">Estado de membresía</span>
-                        <span className="text-right font-bold text-fg">
-                          {profile.membership_status === "active" && (subscription.status === "cancelled" || subscription.status === "canceled")
-                            ? "Cancelada (Acceso temporal)"
-                            : profile.membership_status === "active"
-                              ? "Activa"
-                              : "Vencida / Inactiva"}
-                        </span>
-                      </div>
-
-                      <p className="mt-2 text-xs text-gray-500">
-                        {profile.membership_status === "active" && (subscription.status === "cancelled" || subscription.status === "canceled") && profile.membership_expires_at
-                          ? `Tu suscripción fue cancelada. Tenés acceso hasta el ${new Date(profile.membership_expires_at).toLocaleDateString("es-AR")}.`
-                          : profile.membership_status === "active"
-                            ? "Tu membresía está activa."
-                            : "Tu membresía venció."}
-                      </p>
-
-                      {subscription.amount && (
-                        <div className="flex justify-between gap-4 mt-3 pt-3 border-t border-stampa-border">
-                          <span className="text-gray-500 font-semibold">Monto mensual (Suscripción {subscription.status})</span>
-                          <span className="shrink-0 font-bold text-fg">${subscription.amount}</span>
-                        </div>
-                      )}
-                      {subscription.next_payment_at && profile.membership_status === "active" && subscription.status !== "cancelled" && subscription.status !== "canceled" && (
-                        <div className="flex justify-between gap-4 mt-1">
-                          <span className="text-gray-500 font-semibold">Próximo cobro</span>
-                          <span className="shrink-0 font-bold text-fg">{new Date(subscription.next_payment_at).toLocaleDateString("es-AR")}</span>
-                        </div>
-                      )}
-                    </div>
-                  </div>
-                </div>
+            {(subscription || profile.membership_status === "active") && (
+              <div className="mb-6">
+                {/* Plan, renovación, estado de pago y cancelación (también para cuentas sin acceso Premium). */}
+                <MembershipPanel compact />
               </div>
             )}
 

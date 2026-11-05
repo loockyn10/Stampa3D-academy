@@ -1,3 +1,4 @@
+import { MONTHLY_BILLING, type BillingFrequency } from "@/lib/mercadopago/billing-frequency";
 import {
   CheckoutProviderError,
   type PreapprovalProvider,
@@ -63,7 +64,10 @@ function toPreapproval(raw: Record<string, unknown>): ProviderPreapproval | null
 }
 
 export class MercadoPagoPreapprovalClient implements PreapprovalProvider {
-  constructor(private readonly accessToken: string) {}
+  constructor(
+    private readonly accessToken: string,
+    private readonly billing: BillingFrequency = MONTHLY_BILLING,
+  ) {}
 
   async create(input: Parameters<PreapprovalProvider["create"]>[0]) {
     const payload = {
@@ -71,8 +75,8 @@ export class MercadoPagoPreapprovalClient implements PreapprovalProvider {
       external_reference: input.attempt.externalReference,
       payer_email: input.attempt.payerEmail,
       auto_recurring: {
-        frequency: 1,
-        frequency_type: "months",
+        frequency: this.billing.frequency,
+        frequency_type: this.billing.frequencyType,
         transaction_amount: input.amount,
         currency_id: input.currency,
       },
