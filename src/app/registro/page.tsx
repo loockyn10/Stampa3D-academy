@@ -5,13 +5,34 @@ import { useSearchParams } from "next/navigation";
 import { createClient } from "@/utils/supabase/client";
 import { normalizeRegistrationCode } from "@/lib/codes/resolve-code";
 import Link from "next/link";
-import { Layers, Mail, Lock, User, Eye, EyeOff, Tag, AlertCircle, FlaskConical } from "lucide-react";
+import { Mail, Lock, User, Eye, EyeOff, Tag, AlertCircle, FlaskConical } from "lucide-react";
 import { sanitizeReturnTo } from "@/lib/auth/return-to";
 import { redeemBetaAccessCodeAction } from "@/app/beta-access/actions";
 import { BETA_CODE_MAX_INPUT_LENGTH, normalizeBetaAccessCode } from "@/lib/beta-access/code";
 import { savePendingBetaCode } from "@/lib/beta-access/pending-code";
+import { friendlyAuthError } from "@/lib/auth/auth-errors";
+import { nextStepAfterSignup } from "@/lib/auth/signup-outcome";
+import { emailConfirmationRedirect, savePendingVerificationEmail } from "@/lib/auth/pending-verification";
+import { AuthBrand } from "@/components/auth/AuthBrand";
+import { isLegalDocumentPublished } from "@/lib/legal/registry";
+
+/** Only links documents whose approved text exists (src/content/legal); nothing is shown otherwise. */
+function LegalAcceptanceNotice() {
+  const terms = isLegalDocumentPublished("terminos");
+  const privacy = isLegalDocumentPublished("privacidad");
+  if (!terms && !privacy) return null;
+  return (
+    <p className="text-center text-xs text-gray-500">
+      Al crear tu cuenta aceptás{" "}
+      {terms && <Link href="/legal/terminos" className="underline hover:text-gray-300">los Términos y condiciones</Link>}
+      {terms && privacy && " y "}
+      {privacy && <Link href="/legal/privacidad" className="underline hover:text-gray-300">la Política de privacidad</Link>}.
+    </p>
+  );
+}
 
 function RegistroForm() {
+  const legalNotice = <LegalAcceptanceNotice />;
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [showPassword, setShowPassword] = useState(false);
@@ -47,7 +68,7 @@ function RegistroForm() {
         email,
         password,
         options: {
-          emailRedirectTo: `${window.location.origin}/auth/callback?next=${encodeURIComponent(returnTo)}`,
+          emailRedirectTo: emailConfirmationRedirect(window.location.origin, returnTo),
           data: {
             full_name: name,
             registration_code: normalizedCode || null,
@@ -57,11 +78,12 @@ function RegistroForm() {
       });
 
       if (signUpError) {
-        setError(signUpError.message);
+        setError(friendlyAuthError(signUpError, "signup").message);
         return;
       }
 
-      const destination = returnTo === "/" ? "/sin-acceso" : returnTo;
+      // The proxy decides the next stop (onboarding, Free area or Premium) from the real access policy.
+      const destination = returnTo;
       // The beta code is never stored in auth metadata: it is validated server-side once the account exists.
       const normalizedBetaCode = normalizeBetaAccessCode(betaCode);
 
@@ -77,7 +99,16 @@ function RegistroForm() {
         }
         // Email confirmation required: the redemption completes once the user is authenticated.
         savePendingBetaCode(normalizedBetaCode);
-      } else if (signUpData.session && normalizedCode) {
+      }
+
+      const next = nextStepAfterSignup({ hasSession: Boolean(signUpData.session), returnTo });
+      if (next.kind === "verify_email") {
+        savePendingVerificationEmail(email);
+        window.location.assign(next.to);
+        return;
+      }
+
+      if (!normalizedBetaCode && normalizedCode) {
         // Codes created in /admin/codigos are often typed in the referral field. With an immediate session the
         // email callback (the only other place that reads that field) never runs, so give the same code one silent
         // redemption attempt. A plain referral code simply answers "invalid" here and is ignored; the account is Free either way.
@@ -104,13 +135,11 @@ function RegistroForm() {
 
       <div className="relative z-10 w-full max-w-md px-6 py-12">
         <div className="space-y-8 bg-stampa-bg/80 p-8 sm:p-10 rounded-2xl shadow-2xl border border-stampa-border backdrop-blur-xl">
-          <div className="flex flex-col items-center">
-            <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-stampa-orange text-white mb-4 shadow-lg shadow-stampa-orange/20">
-              <Layers className="h-6 w-6" />
-            </div>
-              <h2 className="text-3xl font-bold tracking-tight text-fg">{returnTo === "/calculadora" ? "Crear cuenta gratis" : "Crear cuenta"}</h2>
+          <div className="flex flex-col items-center text-center">
+            <AuthBrand />
+            <h1 className="mt-6 text-3xl font-bold tracking-tight text-fg">Crear tu cuenta gratis</h1>
             <p className="mt-2 text-sm text-gray-400">
-              Unite a la Academia Stampa.
+              Usá la Calculadora y armá tu perfil sin pagar. Cuando quieras, sumá Premium para la Academia, Stampy y todas las herramientas.
             </p>
           </div>
 
@@ -182,16 +211,19 @@ function RegistroForm() {
                     <Lock className="h-5 w-5 text-neutral-500" />
                   </div>
                   <input
-                    id="password" name="password" type={showPassword ? "text" : "password"} autoComplete="new-password" required
+                    id="password" name="password" type={showPassword ? "text" : "password"} autoComplete="new-password" required minLength={6}
+                    aria-describedby="password-hint"
                     value={password} onChange={e => setPassword(e.target.value)}
                     className="block w-full rounded-xl border border-stampa-border pl-10 pr-10 focus:border-stampa-orange/60 focus:ring-stampa-orange/20 focus:ring-2 sm:text-sm py-3 text-neutral-100 placeholder-neutral-500 bg-fg/5 outline-none transition-all"
                     placeholder="••••••••"
                   />
                   <button type="button" onClick={() => setShowPassword(!showPassword)}
+                    aria-label={showPassword ? "Ocultar contraseña" : "Mostrar contraseña"}
                     className="absolute inset-y-0 right-0 flex items-center pr-3 text-neutral-500 hover:text-neutral-300 focus:outline-none cursor-pointer">
                     {showPassword ? <EyeOff className="h-5 w-5" /> : <Eye className="h-5 w-5" />}
                   </button>
                 </div>
+                <p id="password-hint" className="mt-1.5 text-xs text-gray-500">Mínimo 6 caracteres.</p>
               </div>
 
               {/* Referral Code */}
@@ -211,7 +243,7 @@ function RegistroForm() {
                     maxLength={20}
                   />
                 </div>
-                <p className="mt-1.5 text-xs text-gray-500">Si alguien te invitó a Academia Stampa, ingresá su código acá.</p>
+                <p className="mt-1.5 text-xs text-gray-500">Si alguien te invitó a Universo Stampa, ingresá su código acá.</p>
               </div>
 
               {/* Beta invitation code (optional) */}
@@ -250,6 +282,7 @@ function RegistroForm() {
                 </span>
               ) : "Crear cuenta"}
             </button>
+            {legalNotice}
           </form>
           )}
 

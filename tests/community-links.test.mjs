@@ -401,6 +401,7 @@ test("las pantallas de comunidad leen de la configuración y no fijan enlaces pr
 
 test("el panel admin enlaza la sección y la ruta exige rol admin (proxy /admin)", () => {
   assert.match(read("src/app/admin/page.tsx"), /href="\/admin\/redes-canales"/);
-  assert.match(read("src/utils/supabase/middleware.ts"), /pathname\.startsWith\('\/admin'\) && !access\.capabilities\.accessAdmin/);
+  assert.match(read("src/utils/supabase/middleware.ts"), /adminRoute\(pathname, access\.capabilities\.accessAdmin\)/);
+  assert.match(read("src/lib/auth/route-policy.ts"), /pathname\.startsWith\("\/admin"\) && !isAdmin/);
   assert.match(read("tests/e2e/specs/14-admin.spec.ts"), /\/admin\/redes-canales/);
 });

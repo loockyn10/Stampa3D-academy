@@ -260,7 +260,7 @@ test("wiring: Vercel Cron schedules the route, which requires CRON_SECRET and ha
   assert.match(route, /export const maxDuration = 60/);
   assert.match(route, /shouldStop: \(\) => Date\.now\(\) - startedAt > TIME_BUDGET_MS/);
   // Unauthenticated requests reach the route (the proxy lets /api/mercadopago through) and are rejected there.
-  assert.match(fs.readFileSync("src/utils/supabase/middleware.ts", "utf8"), /!pathname\.startsWith\('\/api\/mercadopago'\)/);
+  assert.match(fs.readFileSync("src/lib/auth/route-policy.ts", "utf8"), /pathname\.startsWith\("\/api\/mercadopago"\)\) return null/);
 });
 
 test("test billing frequency: only honoured in an isolated environment, never in production", async () => {

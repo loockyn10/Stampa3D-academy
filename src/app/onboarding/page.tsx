@@ -1,144 +1,126 @@
 "use client";
 
-import React, { useState, useEffect, useMemo } from "react";
-import { useRouter } from "next/navigation";
+import React, { Suspense, useEffect, useMemo, useState } from "react";
+import { useSearchParams } from "next/navigation";
+import { ArrowRight, Check, Loader2 } from "lucide-react";
 import { createClient } from "@/utils/supabase/client";
-import { Loader2, ArrowRight } from "lucide-react";
-import {
-  PRINTER_BRAND_OPTIONS,
-  EXPERIENCE_LEVEL_OPTIONS,
-  MAIN_GOAL_OPTIONS,
-  COMMERCIAL_STAGE_OPTIONS
-} from "@/lib/profile-options";
+import { AuthBrand } from "@/components/auth/AuthBrand";
+import { sanitizeReturnTo } from "@/lib/auth/return-to";
+import { EXPERIENCE_LEVEL_OPTIONS, MAIN_GOAL_OPTIONS, PRINTER_BRAND_OPTIONS } from "@/lib/profile-options";
+import { buildOnboardingUpdate, type OnboardingAnswers } from "@/lib/onboarding/profile-update";
 import { usePublishStampyScreenContext } from "@/components/stampy/StampyContextProvider";
 import type { StampyScreenContext } from "@/lib/stampy/screen-context";
 
-export default function OnboardingPage() {
-  const router = useRouter();
-  const supabase = createClient();
-  const [loading, setLoading] = useState(true);
-  const [saving, setSaving] = useState(false);
-  const [errorMsg, setErrorMsg] = useState<string | null>(null);
-  const [showFallback, setShowFallback] = useState(false);
+interface ChoiceGroupProps {
+  label: string;
+  hint?: string;
+  options: readonly { value: string; label: string }[];
+  value: string;
+  onChange: (value: string) => void;
+}
 
-  // Form states
-  const [fullName, setFullName] = useState("");
-  const [displayName, setDisplayName] = useState("");
-  const [phone, setPhone] = useState("");
-  const [brand, setBrand] = useState("");
-  const [model, setModel] = useState("");
-  const [experience, setExperience] = useState("");
-  const [goal, setGoal] = useState("");
-  const [stage, setStage] = useState("");
+/** Large tappable options (mobile friendly) instead of native selects. Clicking the selected one clears it. */
+function ChoiceGroup({ label, hint, options, value, onChange }: ChoiceGroupProps) {
+  const groupId = React.useId();
+  return (
+    <fieldset className="space-y-2">
+      <legend id={groupId} className="text-sm font-semibold text-fg">
+        {label} <span className="font-normal text-stampa-text-muted">(opcional)</span>
+      </legend>
+      {hint && <p className="text-xs text-stampa-text-muted">{hint}</p>}
+      <div className="grid gap-2 sm:grid-cols-2" role="radiogroup" aria-labelledby={groupId}>
+        {options.map((option) => {
+          const selected = option.value === value;
+          return (
+            <button
+              key={option.value}
+              type="button"
+              role="radio"
+              aria-checked={selected}
+              onClick={() => onChange(selected ? "" : option.value)}
+              className={`flex min-h-11 items-center justify-between gap-2 rounded-xl border px-3 py-2.5 text-left text-sm transition-colors ${
+                selected
+                  ? "border-stampa-orange-border bg-stampa-orange-muted font-semibold text-fg"
+                  : "border-stampa-border bg-stampa-bg-soft text-stampa-text-soft hover:border-stampa-orange-border"
+              }`}
+            >
+              {option.label}
+              {selected && <Check className="h-4 w-4 shrink-0 text-stampa-accent" aria-hidden="true" />}
+            </button>
+          );
+        })}
+      </div>
+    </fieldset>
+  );
+}
+
+function OnboardingContent() {
+  const searchParams = useSearchParams();
+  const returnTo = sanitizeReturnTo(searchParams.get("returnTo"));
+  const [supabase] = useState(() => createClient());
+  const [loading, setLoading] = useState(true);
+  const [saving, setSaving] = useState<"save" | "skip" | null>(null);
+  const [errorMsg, setErrorMsg] = useState<string | null>(null);
+  const [answers, setAnswers] = useState<OnboardingAnswers>({
+    displayName: "",
+    printerBrand: "",
+    printerModel: "",
+    experienceLevel: "",
+    mainGoal: "",
+  });
+  const set = (field: keyof OnboardingAnswers) => (value: string) => setAnswers((current) => ({ ...current, [field]: value }));
 
   useEffect(() => {
-    async function fetchProfile() {
+    let active = true;
+    (async () => {
       const { data: { user } } = await supabase.auth.getUser();
       if (!user) {
-        router.push("/login");
+        window.location.replace("/login?returnTo=%2Fonboarding");
         return;
       }
-
       const { data: profile } = await supabase
         .from("profiles")
-        .select("full_name, onboarding_completed")
+        .select("full_name, display_name, main_printer_brand, main_printer_model, experience_level, main_goal, onboarding_completed")
         .eq("id", user.id)
-        .single();
-
+        .maybeSingle();
+      if (!active) return;
       if (profile?.onboarding_completed) {
-        router.replace("/");
+        window.location.replace(returnTo);
         return;
       }
-
-      if (profile?.full_name) {
-        setFullName(profile.full_name);
-      }
+      setAnswers({
+        displayName: profile?.display_name || (profile?.full_name ? String(profile.full_name).split(" ")[0] : ""),
+        printerBrand: profile?.main_printer_brand || "",
+        printerModel: profile?.main_printer_model || "",
+        experienceLevel: profile?.experience_level || "",
+        mainGoal: profile?.main_goal || "",
+      });
       setLoading(false);
-    }
-    fetchProfile();
-  }, [supabase, router]);
+    })();
+    return () => {
+      active = false;
+    };
+  }, [supabase, returnTo]);
 
-  const handleSave = async (isSkip = false) => {
-    setSaving(true);
+  const save = async (mode: "save" | "skip") => {
+    setSaving(mode);
     setErrorMsg(null);
-
     try {
       const { data: { user } } = await supabase.auth.getUser();
-      if (!user) throw new Error("No user found");
-
-      let payload: any = {};
-      if (isSkip) {
-        payload = {
-          onboarding_completed: true,
-          onboarding_completed_at: new Date().toISOString(),
-          updated_at: new Date().toISOString(),
-        };
-      } else {
-        payload = {
-          full_name: fullName,
-          display_name: displayName,
-          phone,
-          main_printer_brand: brand,
-          main_printer_model: brand === "none_yet" ? "" : model,
-          experience_level: experience,
-          main_goal: goal,
-          commercial_stage: stage || null,
-          onboarding_completed: true,
-          onboarding_completed_at: new Date().toISOString(),
-          updated_at: new Date().toISOString(),
-        };
-      }
-
-      console.log("[Onboarding] submit start", payload);
-      console.log("[Onboarding] user", user.id);
-
-      const { data: existingProfile } = await supabase
+      if (!user) throw new Error("no_session");
+      // Only the own row, only non-privileged columns (profiles guard), never an INSERT: the profile is created at
+      // sign-up by the database.
+      const { data, error } = await supabase
         .from("profiles")
-        .select("id")
+        .update(buildOnboardingUpdate(mode === "skip" ? null : answers, new Date()))
         .eq("id", user.id)
-        .single();
-
-      let updateError = null;
-      let updateData = null;
-
-      if (!existingProfile) {
-        payload.id = user.id;
-        const { data, error } = await supabase
-          .from("profiles")
-          .insert(payload)
-          .select();
-        updateError = error;
-        updateData = data;
-      } else {
-        const { data, error } = await supabase
-          .from("profiles")
-          .update(payload)
-          .eq("id", user.id)
-          .select();
-        updateError = error;
-        updateData = data;
-      }
-
-      if (updateError || !updateData || updateData.length === 0) {
-        console.error("[Onboarding] update error", updateError || "No rows updated");
-        throw updateError || new Error("No rows updated");
-      }
-
-      console.log("[Onboarding] update success", updateData);
-
-      setShowFallback(true);
-      window.location.replace("/");
-      return;
-    } catch (err: any) {
-      console.error("[Onboarding] update profile failed", err);
-      setErrorMsg("No pudimos guardar tus datos. Probá de nuevo.");
-      setSaving(false);
+        .select("id");
+      if (error || !data || data.length === 0) throw new Error("not_saved");
+      window.location.replace(returnTo);
+    } catch {
+      setErrorMsg("No pudimos guardar tus datos. Revisá tu conexión y probá de nuevo.");
+      setSaving(null);
     }
-  };
-
-  const handleSubmit = (e: React.FormEvent) => {
-    e.preventDefault();
-    handleSave(false);
   };
 
   const stampyScreenContext = useMemo<StampyScreenContext>(() => ({
@@ -148,230 +130,117 @@ export default function OnboardingPage() {
       kind: "formDraft",
       formType: "Preferencias iniciales sin guardar",
       fields: [
-        { label: "Marca de impresora declarada en este formulario", value: brand || "Sin completar" },
-        ...(brand !== "none_yet"
-          ? [{ label: "Modelo de impresora declarado en este formulario", value: model || "Sin completar" }]
-          : []),
-        { label: "Nivel de experiencia declarado", value: experience || "Sin completar" },
-        { label: "Objetivo principal declarado", value: goal || "Sin completar" },
-        { label: "Etapa comercial declarada", value: stage || "Sin completar" },
+        { label: "Marca de impresora declarada en este formulario", value: answers.printerBrand || "Sin completar" },
+        { label: "Nivel de experiencia declarado", value: answers.experienceLevel || "Sin completar" },
+        { label: "Objetivo principal declarado", value: answers.mainGoal || "Sin completar" },
       ],
     },
     pageData: {
       kind: "pageFacts",
       facts: [{ label: "Formulario visible", value: "Configuración inicial de la experiencia" }],
     },
-    uiState: { loading: loading || saving },
-  }), [brand, experience, goal, loading, model, saving, stage]);
+    uiState: { loading: loading || Boolean(saving) },
+  }), [answers.experienceLevel, answers.mainGoal, answers.printerBrand, loading, saving]);
 
   usePublishStampyScreenContext(stampyScreenContext);
 
   if (loading) {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-stampa-bg">
-        <Loader2 className="animate-spin text-stampa-accent h-8 w-8" />
+      <div className="flex min-h-dvh items-center justify-center bg-stampa-bg" role="status" aria-label="Cargando">
+        <Loader2 className="h-8 w-8 animate-spin text-stampa-accent" aria-hidden="true" />
       </div>
     );
   }
 
-  if (saving) {
-    return (
-      <div className="min-h-screen flex flex-col items-center justify-center bg-stampa-bg">
-        <Loader2 className="animate-spin text-stampa-accent h-12 w-12 mb-4" />
-        <p className="text-fg font-medium">Preparando tu experiencia...</p>
-
-        {showFallback && (
-          <div className="mt-8 flex flex-col items-center animate-in fade-in">
-            <p className="text-gray-400 text-sm mb-3">Si no redirige automáticamente...</p>
-            <button
-              onClick={() => {
-                window.location.href = "/";
-              }}
-              className="px-6 py-2 bg-fg/10 hover:bg-fg/20 text-fg rounded-xl font-medium transition-colors"
-            >
-              Entrar al inicio
-            </button>
-          </div>
-        )}
-      </div>
-    );
-  }
+  const hasPrinter = answers.printerBrand !== "" && answers.printerBrand !== "none_yet";
 
   return (
-    <div className="min-h-screen bg-stampa-bg text-stampa-body font-sans flex flex-col items-center justify-center p-4 py-12">
-      <div className="max-w-2xl w-full">
-        <div className="text-center mb-10">
-          <h1 className="text-3xl md:text-4xl font-black text-fg tracking-tight mb-3">
-            Configuremos tu experiencia
-          </h1>
-          <p className="text-gray-400 max-w-lg mx-auto">
-            Estos datos nos ayudan a recomendarte cursos y herramientas según tu impresora y tu objetivo.
+    <div className="min-h-dvh bg-stampa-bg px-4 py-8 text-stampa-text sm:py-12">
+      <div className="mx-auto w-full max-w-2xl space-y-6">
+        <AuthBrand />
+        <header className="text-center">
+          <h1 className="text-2xl font-bold tracking-tight text-fg sm:text-3xl">Te damos la bienvenida a Universo Stampa</h1>
+          <p className="mx-auto mt-2 max-w-lg text-sm text-stampa-text-muted">
+            Contanos un poco de vos para sugerirte por dónde empezar. Es opcional y lo podés cambiar después en tu Perfil.
           </p>
-        </div>
+        </header>
 
-        {errorMsg && (
-          <div className="mb-6 p-4 bg-red-500/10 border border-red-500/20 text-red-400 rounded-xl text-sm text-center">
-            {errorMsg}
+        <form
+          onSubmit={(event) => {
+            event.preventDefault();
+            void save("save");
+          }}
+          className="space-y-6 rounded-2xl border border-stampa-border bg-stampa-surface p-5 sm:p-6"
+        >
+          <div>
+            <label htmlFor="onboarding-name" className="text-sm font-semibold text-fg">
+              ¿Cómo querés que te llamemos? <span className="font-normal text-stampa-text-muted">(opcional)</span>
+            </label>
+            <input
+              id="onboarding-name"
+              type="text"
+              autoComplete="nickname"
+              maxLength={60}
+              value={answers.displayName}
+              onChange={(event) => set("displayName")(event.target.value)}
+              className="mt-2 block w-full rounded-xl border border-stampa-border bg-fg/5 px-3 py-3 text-sm text-fg outline-none transition-all placeholder:text-neutral-500 focus:border-stampa-orange/60 focus:ring-2 focus:ring-stampa-orange/20"
+              placeholder="Tu nombre o apodo"
+            />
           </div>
-        )}
 
-        <form onSubmit={handleSubmit} className="space-y-8 bg-stampa-bg p-6 md:p-8 rounded-2xl border border-stampa-border shadow-2xl">
-
-          {/* SECCIÓN 1: Datos básicos */}
-          <div className="space-y-4">
-            <h2 className="text-xl font-bold text-fg border-b border-stampa-border pb-2">1. Datos básicos</h2>
-
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              <div>
-                <label className="block text-sm font-medium text-gray-400 mb-1">Nombre completo</label>
-                <input
-                  type="text"
-                  value={fullName}
-                  onChange={(e) => setFullName(e.target.value)}
-                  className="w-full bg-stampa-surface border border-stampa-border rounded-xl px-4 py-2.5 text-fg focus:outline-none focus:border-[#ff6a00] transition-colors"
-                  required
-                />
-              </div>
-              <div>
-                <label className="block text-sm font-medium text-gray-400 mb-1">Nombre para mostrar (Opcional)</label>
-                <input
-                  type="text"
-                  value={displayName}
-                  onChange={(e) => setDisplayName(e.target.value)}
-                  className="w-full bg-stampa-surface border border-stampa-border rounded-xl px-4 py-2.5 text-fg focus:outline-none focus:border-[#ff6a00] transition-colors"
-                />
-              </div>
-            </div>
+          <ChoiceGroup label="Tu impresora principal" options={PRINTER_BRAND_OPTIONS} value={answers.printerBrand} onChange={set("printerBrand")} />
+          {hasPrinter && (
             <div>
-              <label className="block text-sm font-medium text-gray-400 mb-1">Teléfono (Opcional)</label>
+              <label htmlFor="onboarding-model" className="text-sm font-semibold text-fg">
+                Modelo <span className="font-normal text-stampa-text-muted">(opcional)</span>
+              </label>
               <input
-                type="tel"
-                value={phone}
-                onChange={(e) => setPhone(e.target.value)}
-                className="w-full bg-stampa-surface border border-stampa-border rounded-xl px-4 py-2.5 text-fg focus:outline-none focus:border-[#ff6a00] transition-colors"
+                id="onboarding-model"
+                type="text"
+                maxLength={80}
+                value={answers.printerModel}
+                onChange={(event) => set("printerModel")(event.target.value)}
+                className="mt-2 block w-full rounded-xl border border-stampa-border bg-fg/5 px-3 py-3 text-sm text-fg outline-none transition-all placeholder:text-neutral-500 focus:border-stampa-orange/60 focus:ring-2 focus:ring-stampa-orange/20"
+                placeholder="Ej.: A1 Mini, Ender 3 V3"
               />
             </div>
-          </div>
+          )}
 
-          {/* SECCIÓN 2: Impresora principal */}
-          <div className="space-y-4">
-            <h2 className="text-xl font-bold text-fg border-b border-stampa-border pb-2">2. Tu impresora principal</h2>
+          <ChoiceGroup label="Tu experiencia con impresión 3D" options={EXPERIENCE_LEVEL_OPTIONS} value={answers.experienceLevel} onChange={set("experienceLevel")} />
+          <ChoiceGroup label="¿Qué querés lograr primero?" options={MAIN_GOAL_OPTIONS} value={answers.mainGoal} onChange={set("mainGoal")} />
 
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              <div>
-                <label className="block text-sm font-medium text-gray-400 mb-1">Marca</label>
-                <select
-                  value={brand}
-                  onChange={(e) => setBrand(e.target.value)}
-                  className="w-full bg-stampa-surface border border-stampa-border rounded-xl px-4 py-3 text-fg focus:outline-none focus:border-[#ff6a00] transition-colors appearance-none"
-                  required
-                >
-                  <option value="" disabled>Seleccioná una marca...</option>
-                  {PRINTER_BRAND_OPTIONS.map(opt => (
-                    <option key={opt.value} value={opt.value}>{opt.label}</option>
-                  ))}
-                </select>
-              </div>
+          {errorMsg && (
+            <p role="alert" className="rounded-xl border border-red-500/30 bg-red-500/10 p-3 text-sm text-red-500">{errorMsg}</p>
+          )}
 
-              {brand !== "none_yet" && (
-                <div>
-                  <label className="block text-sm font-medium text-gray-400 mb-1">Modelo</label>
-                  <input
-                    type="text"
-                    value={model}
-                    onChange={(e) => setModel(e.target.value)}
-                    placeholder="Ej: A1 Mini, K1, Ender 3, Adventurer 5M, Centauri Carbon, Saturn 4..."
-                    className="w-full bg-stampa-surface border border-stampa-border rounded-xl px-4 py-2.5 text-fg focus:outline-none focus:border-[#ff6a00] transition-colors"
-                    required={brand !== "none_yet"}
-                  />
-                </div>
-              )}
-            </div>
-            {brand === "none_yet" && (
-              <p className="text-sm text-gray-400 italic">
-                No pasa nada. Te vamos a recomendar una ruta para empezar desde cero.
-              </p>
-            )}
-          </div>
-
-          {/* SECCIÓN 3: Nivel de experiencia */}
-          <div className="space-y-4">
-            <h2 className="text-xl font-bold text-fg border-b border-stampa-border pb-2">3. Nivel de experiencia</h2>
-
-            <div>
-              <select
-                value={experience}
-                onChange={(e) => setExperience(e.target.value)}
-                className="w-full bg-stampa-surface border border-stampa-border rounded-xl px-4 py-3 text-fg focus:outline-none focus:border-[#ff6a00] transition-colors appearance-none"
-                required
-              >
-                <option value="" disabled>¿Cómo te describirías?</option>
-                {EXPERIENCE_LEVEL_OPTIONS.map(opt => (
-                  <option key={opt.value} value={opt.value}>{opt.label}</option>
-                ))}
-              </select>
-            </div>
-          </div>
-
-          {/* SECCIÓN 4: Objetivo principal */}
-          <div className="space-y-4">
-            <h2 className="text-xl font-bold text-fg border-b border-stampa-border pb-2">4. Objetivo principal</h2>
-
-            <div>
-              <select
-                value={goal}
-                onChange={(e) => setGoal(e.target.value)}
-                className="w-full bg-stampa-surface border border-stampa-border rounded-xl px-4 py-3 text-fg focus:outline-none focus:border-[#ff6a00] transition-colors appearance-none"
-                required
-              >
-                <option value="" disabled>¿Qué buscás lograr?</option>
-                {MAIN_GOAL_OPTIONS.map(opt => (
-                  <option key={opt.value} value={opt.value}>{opt.label}</option>
-                ))}
-              </select>
-            </div>
-          </div>
-
-          {/* SECCIÓN 5: Estado comercial */}
-          <div className="space-y-4">
-            <h2 className="text-xl font-bold text-fg border-b border-stampa-border pb-2">5. Estado comercial</h2>
-
-            <div>
-              <label className="block text-sm font-medium text-gray-400 mb-1">¿En qué etapa estás?</label>
-              <select
-                value={stage}
-                onChange={(e) => setStage(e.target.value)}
-                className="w-full bg-stampa-surface border border-stampa-border rounded-xl px-4 py-3 text-fg focus:outline-none focus:border-[#ff6a00] transition-colors appearance-none"
-              >
-                <option value="" disabled>Seleccioná tu etapa...</option>
-                {COMMERCIAL_STAGE_OPTIONS.map(opt => (
-                  <option key={opt.value} value={opt.value}>{opt.label}</option>
-                ))}
-              </select>
-            </div>
-          </div>
-
-          <div className="pt-6 border-t border-stampa-border flex flex-col md:flex-row items-center gap-4">
-            <button
-              type="submit"
-              className="w-full md:w-auto flex-1 flex justify-center items-center gap-2 bg-stampa-orange hover:bg-stampa-orange-hover text-white font-bold py-3 px-6 rounded-xl transition-colors"
-            >
-              Guardar y entrar
-              <ArrowRight size={18} />
-            </button>
+          <div className="flex flex-col-reverse gap-3 border-t border-stampa-border pt-5 sm:flex-row sm:justify-end">
             <button
               type="button"
-              onClick={() => handleSave(true)}
-              className="text-sm font-medium text-gray-500 hover:text-gray-300 transition-colors"
+              onClick={() => void save("skip")}
+              disabled={saving !== null}
+              className="rounded-xl border border-stampa-border px-4 py-3 text-sm font-semibold text-stampa-text-soft transition-colors hover:bg-stampa-surface-soft disabled:opacity-60"
             >
-              Saltar por ahora
+              {saving === "skip" ? "Entrando…" : "Completar más tarde"}
+            </button>
+            <button
+              type="submit"
+              disabled={saving !== null}
+              className="flex items-center justify-center gap-2 rounded-xl bg-stampa-orange px-5 py-3 text-sm font-semibold text-neutral-950 transition-colors hover:bg-stampa-orange-hover disabled:opacity-60"
+            >
+              {saving === "save" ? <Loader2 className="h-4 w-4 animate-spin" aria-hidden="true" /> : <ArrowRight className="h-4 w-4" aria-hidden="true" />}
+              {saving === "save" ? "Guardando…" : "Guardar y entrar"}
             </button>
           </div>
-          <p className="text-center text-xs text-gray-600 mt-4">
-            Podés completar estos datos más adelante desde Configuración.
-          </p>
         </form>
       </div>
     </div>
+  );
+}
+
+export default function OnboardingPage() {
+  return (
+    <Suspense fallback={<div className="min-h-dvh bg-stampa-bg" />}>
+      <OnboardingContent />
+    </Suspense>
   );
 }

@@ -123,7 +123,8 @@ test("calculator shows a retry state and gives anonymous demo controls a signup 
 });
 
 test("signup keeps the local safe callback and handles transport failures", () => {
-  assert.match(registration, /window\.location\.origin}\/auth\/callback\?next=/);
+  assert.match(registration, /emailConfirmationRedirect\(window\.location\.origin, returnTo\)/);
+  assert.match(fs.readFileSync(path.join(root, "src/lib/auth/pending-verification.ts"), "utf8"), /`\$\{origin\}\/auth\/callback\?next=\$\{encodeURIComponent\(returnTo\)\}`/);
   assert.match(registration, /sanitizeReturnTo/);
   assert.match(registration, /No pudimos conectar con el servicio de registro/);
   assert.doesNotMatch(registration, /\/api\/signup/);

@@ -1,7 +1,7 @@
 import { createServerClient } from '@supabase/ssr'
 import { NextResponse, type NextRequest } from 'next/server'
 import { resolveUserAccess } from '@/lib/auth/user-access'
-import { sanitizeReturnTo } from '@/lib/auth/return-to'
+import { adminRoute, anonymousRoute, authenticatedRoute } from '@/lib/auth/route-policy'
 import { FEATURE_UNAVAILABLE_ROUTE, findFeatureForPath } from '@/lib/features/registry'
 import { loadFeatureFlagSnapshot } from '@/lib/features/loader'
 import { resolveFeatureAccess } from '@/lib/features/resolve'
@@ -63,23 +63,7 @@ export async function updateSession(request: NextRequest) {
     return supabaseResponse;
   }
 
-  // Define public routes
-  const isPublicRoute = 
-    pathname.startsWith('/landing') ||
-    pathname === '/calculadora' ||
-    pathname === '/explorar-modelos' ||
-    pathname === '/tienda' ||
-    pathname.startsWith('/tienda/') ||
-    pathname.startsWith('/login') || 
-    pathname.startsWith('/registro') || 
-    pathname.startsWith('/recuperar-password') || 
-    pathname.startsWith('/actualizar-password') || 
-    pathname.startsWith('/verificar-email') || 
-    pathname.startsWith('/auth') || 
-    pathname.startsWith('/sin-acceso') ||
-    pathname === '/no-disponible' ||
-    pathname.startsWith('/pago/estado') ||
-    pathname.startsWith('/api/mercadopago/webhook')
+  // Routing rules live in src/lib/auth/route-policy.ts (pure, tested).
 
   // Helper to redirect while preserving refreshed cookies
   const redirectWithCookies = (toPath: string) => {
@@ -112,53 +96,38 @@ export async function updateSession(request: NextRequest) {
     return redirectWithCookies(`${FEATURE_UNAVAILABLE_ROUTE}?herramienta=${gatedFeature.id}`)
   }
 
-  if (!user && !isPublicRoute && !pathname.startsWith('/api/mercadopago')) {
-    return redirectWithCookies('/login')
-  }
-
   if (!user) {
+    // Visitors see the landing at "/" and keep their destination when a page needs a session.
+    const decision = anonymousRoute(pathname, request.nextUrl.search)
+    if (decision) return redirectWithCookies(decision.redirect)
     // Rutas públicas controladas (Calculadora, Explorar Modelos, tiendas): un visitante nunca es administrador.
     const unavailable = await redirectIfFeatureUnavailable(false)
     if (unavailable) return unavailable
+    return supabaseResponse
   }
 
-  if (user) {
-    const { access } = await resolveUserAccess(supabase, user.id, {
-      email: user.email ?? null,
-    })
-    const hasAccess = access.capabilities.accessPlatform
+  const { access, error: accessError } = await resolveUserAccess(supabase, user.id, {
+    email: user.email ?? null,
+  })
 
-    // Admin routes protection
-    if (pathname.startsWith('/admin') && !access.capabilities.accessAdmin) {
-      return redirectWithCookies('/')
-    }
+  // Admin routes protection
+  const adminDecision = adminRoute(pathname, access.capabilities.accessAdmin)
+  if (adminDecision) return redirectWithCookies(adminDecision.redirect)
 
-    // Funcionalidad deshabilitada: se evalúa antes del gate de membresía para que un usuario Free no reciba una
-    // invitación a pagar por algo que nadie puede usar todavía. Los administradores conservan el acceso.
-    const unavailable = await redirectIfFeatureUnavailable(access.capabilities.accessAdmin)
-    if (unavailable) return unavailable
+  // Funcionalidad deshabilitada: se evalúa antes del gate de membresía para que un usuario Free no reciba una
+  // invitación a pagar por algo que nadie puede usar todavía. Los administradores conservan el acceso.
+  const unavailable = await redirectIfFeatureUnavailable(access.capabilities.accessAdmin)
+  if (unavailable) return unavailable
 
-    const isMpApiRoute = pathname.startsWith('/api/mercadopago')
-
-    const isFreeAccountRoute = pathname === '/calculadora' || pathname === '/perfil' || pathname.startsWith('/api/calculator/');
-
-    if (!hasAccess && !isPublicRoute && !isFreeAccountRoute && !isMpApiRoute && !pathname.startsWith('/salir')) {
-      return redirectWithCookies('/sin-acceso')
-    }
-
-    // Redirect logged-in users away from login/registro
-    if ((pathname === '/login' || pathname === '/registro') && user) {
-        const requestedReturnTo = sanitizeReturnTo(request.nextUrl.searchParams.get('returnTo'))
-        const dest = requestedReturnTo === '/calculadora' ? requestedReturnTo : (hasAccess ? '/' : '/sin-acceso')
-        return redirectWithCookies(dest)
-    }
-
-    // Onboarding redirection rule
-    const isExceptionRoute = pathname === '/onboarding' || pathname === '/salir' || pathname === '/pago/estado' || pathname === '/sin-acceso' || (isPublicRoute && pathname !== '/calculadora');
-    if (access.needsOnboarding && !isExceptionRoute) {
-      return redirectWithCookies('/onboarding')
-    }
-  }
+  const decision = authenticatedRoute({
+    pathname,
+    search: request.nextUrl.search,
+    returnToParam: request.nextUrl.searchParams.get('returnTo'),
+    hasAccess: access.capabilities.accessPlatform,
+    // If the profile could not be read, never force the onboarding (it would fail the same way).
+    needsOnboarding: !accessError && access.needsOnboarding,
+  })
+  if (decision) return redirectWithCookies(decision.redirect)
 
   return supabaseResponse
 }

@@ -94,10 +94,12 @@ test("guest calculator draft is versioned, expires and contains no identity fiel
 });
 
 test("route guard exposes calculator but keeps premium routes behind accessPlatform", () => {
-  assert.match(middleware, /pathname === '\/calculadora'/);
-  assert.match(middleware, /isFreeAccountRoute/);
-  assert.match(middleware, /!hasAccess && !isPublicRoute && !isFreeAccountRoute/);
-  assert.doesNotMatch(middleware, /has_platform_access[^\n]*free/i);
+  // Routing rules moved to src/lib/auth/route-policy.ts (Sprint 2); behaviour: tests/sprint2-onboarding.test.mjs.
+  const policy = fs.readFileSync(path.join(root, "src/lib/auth/route-policy.ts"), "utf8");
+  assert.match(policy, /pathname === "\/calculadora"/);
+  assert.match(policy, /export function isFreeAccountPath/);
+  assert.match(policy, /!hasAccess &&\s*!isPublicPath\(pathname\) &&\s*!isFreeAccountPath\(pathname\)/);
+  assert.doesNotMatch(middleware + policy, /has_platform_access[^\n]*free/i);
 });
 
 test("catalog endpoint returns narrow DTOs and anonymous mode selects one demo", () => {

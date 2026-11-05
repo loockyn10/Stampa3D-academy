@@ -400,7 +400,7 @@ test("12. convivencia con la membresía: la flag y el plan son controles indepen
   // El administrador conserva todo.
   assert.equal(await runProxy("/calculadora", { who: "admin", flags: OFF("calculadora") }), "next");
   // Anónimo en rutas privadas: primero se pide iniciar sesión (no se revela qué está deshabilitado).
-  assert.equal(await runProxy("/mi-negocio", { who: "anon", flags: OFF("mi_negocio") }), "/login");
+  assert.equal(await runProxy("/mi-negocio", { who: "anon", flags: OFF("mi_negocio") }), "/login?returnTo=%2Fmi-negocio");
   // La tienda pública sigue su propia flag.
   assert.equal(await runProxy("/tienda/mi-tienda", { who: "anon", flags: OFF("tienda_online") }), "/no-disponible?herramienta=tienda_online");
   assert.equal(await runProxy("/tienda/mi-tienda", { who: "anon", flags: OFF("mi_negocio") }), "next");
@@ -684,7 +684,8 @@ test("10d. panel de administración: tarjeta en el hub, rutas protegidas por el 
   assert.match(manager, /Sin configurar/);
   assert.match(read("src/app/admin/funcionalidades/loading.tsx"), /aria-busy/);
   // /admin/* ya exige rol admin en el proxy.
-  assert.match(read("src/utils/supabase/middleware.ts"), /pathname\.startsWith\('\/admin'\) && !access\.capabilities\.accessAdmin/);
+  assert.match(read("src/utils/supabase/middleware.ts"), /adminRoute\(pathname, access\.capabilities\.accessAdmin\)/);
+  assert.match(read("src/lib/auth/route-policy.ts"), /pathname\.startsWith\("\/admin"\) && !isAdmin/);
 });
 
 // ---------------------------------------------------------------------------------------------------------------
@@ -779,10 +780,10 @@ test("pantalla no disponible: mensaje, botón a Inicio y sin detalles técnicos;
   assert.match(page, /isFeatureId\(raw\)/, "el nombre sale del registro, nunca del texto de la URL");
   assert.match(page, /robots: \{ index: false/);
   // Distinción de estados: login (no autenticado), /sin-acceso (plan), /no-disponible (flag), 404 (inexistente).
-  const proxy = read("src/utils/supabase/middleware.ts");
-  assert.match(proxy, /redirectWithCookies\('\/login'\)/);
-  assert.match(proxy, /redirectWithCookies\('\/sin-acceso'\)/);
-  assert.match(proxy, /pathname === '\/no-disponible'/);
+  const proxy = read("src/lib/auth/route-policy.ts");
+  assert.match(proxy, /redirect: loginPathFor\(pathname, search\)/);
+  assert.match(proxy, /return \{ redirect: NO_ACCESS_PATH \}/);
+  assert.match(proxy, /pathname === "\/no-disponible"/);
   assert.equal(registry.FEATURE_UNAVAILABLE_ROUTE, "/no-disponible");
 });
 

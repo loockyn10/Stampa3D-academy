@@ -77,10 +77,10 @@ test("public RPC return contracts contain no costs, provider, ids or exact stock
 });
 
 test("public storefront routing bypasses private auth chrome without broadening other routes", () => {
-  for (const source of [middleware, layout]) {
-    assert.match(source, /pathname === '\/tienda'/);
-    assert.match(source, /pathname(?:\?)?\.startsWith\('\/tienda\/'\)/);
-  }
+  // Proxy rules live in src/lib/auth/route-policy.ts since Sprint 2.
+  assert.match(fs.readFileSync("src/lib/auth/route-policy.ts", "utf8"), /matches\(pathname, "\/tienda"\)/);
+  assert.match(layout, /pathname === '\/tienda'/);
+  assert.match(layout, /pathname(?:\?)?\.startsWith\('\/tienda\/'\)/);
   assert.match(layout, /if \(isPublicRoute\)[\s\S]*return <main/);
 });
 

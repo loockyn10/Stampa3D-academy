@@ -1,11 +1,25 @@
 "use client";
 
-import { useState } from "react";
+import { Suspense, useState } from "react";
+import { useSearchParams } from "next/navigation";
 import { createClient } from "@/utils/supabase/client";
 import Link from "next/link";
-import { Building2, Mail, ArrowLeft } from "lucide-react";
+import { Mail, ArrowLeft } from "lucide-react";
+import { AuthBrand } from "@/components/auth/AuthBrand";
+import { friendlyAuthError } from "@/lib/auth/auth-errors";
+
+const EXPIRED_LINK_NOTICE = "El enlace para cambiar la contraseña venció o ya se usó. Pedí uno nuevo.";
 
 export default function RecuperarPasswordPage() {
+  return (
+    <Suspense fallback={<div className="min-h-screen bg-stampa-bg" />}>
+      <RecuperarPasswordContent />
+    </Suspense>
+  );
+}
+
+function RecuperarPasswordContent() {
+  const expiredLink = useSearchParams().get("estado") === "enlace-invalido";
   const [email, setEmail] = useState("");
   const [error, setError] = useState<string | null>(null);
   const [successMsg, setSuccessMsg] = useState<string | null>(null);
@@ -23,30 +37,21 @@ export default function RecuperarPasswordPage() {
     setError(null);
     setSuccessMsg(null);
 
-    const redirectToUrl = `${process.env.NEXT_PUBLIC_APP_URL}/auth/callback?next=/actualizar-password`;
+    const appOrigin = process.env.NEXT_PUBLIC_APP_URL || window.location.origin;
+    const redirectToUrl = `${appOrigin}/auth/callback?next=/actualizar-password`;
 
     const { error: resetError } = await supabase.auth.resetPasswordForEmail(email, {
       redirectTo: redirectToUrl,
     });
 
     if (resetError) {
-      if (
-        resetError.message.includes("rate limit") ||
-        resetError.message.includes("rate_limit") ||
-        resetError.message.includes("limit exceeded") ||
-        resetError.message.includes("60 seconds")
-      ) {
-        setError(
-          "Se alcanzó el límite de envío de emails. Probá de nuevo más tarde o contactá soporte. Esto se soluciona configurando el servicio de emails de la plataforma."
-        );
-      } else {
-        setError(resetError.message);
-      }
+      setError(friendlyAuthError(resetError, "recovery").message);
       setIsLoading(false);
       return;
     }
 
-    setSuccessMsg("Te enviamos un correo para restablecer tu contraseña. Revisá tu bandeja de entrada y spam.");
+    // Same answer whether or not the address has an account (no account enumeration).
+    setSuccessMsg("Si hay una cuenta con ese email, te enviamos un enlace para cambiar la contraseña. Revisá la bandeja de entrada y spam.");
     setIsLoading(false);
   };
 
@@ -54,16 +59,20 @@ export default function RecuperarPasswordPage() {
     <div className="flex min-h-screen items-center justify-center bg-stampa-bg px-4 py-12 sm:px-6 lg:px-8">
       <div className="w-full max-w-md space-y-8 bg-stampa-surface p-8 rounded-2xl shadow-sm border border-stampa-border">
         <div className="flex flex-col items-center justify-center">
-          <div className="flex h-12 w-12 items-center justify-center rounded-xl bg-stampa-orange mb-4 shadow-sm">
-            <Building2 className="h-6 w-6 text-fg" />
-          </div>
-          <h2 className="text-center text-3xl font-bold tracking-tight text-fg">
+          <AuthBrand />
+          <h1 className="mt-6 text-center text-3xl font-bold tracking-tight text-fg">
             Recuperar contraseña
-          </h2>
+          </h1>
           <p className="mt-2 text-center text-sm text-gray-400">
             Ingresá tu correo para recibir las instrucciones de restablecimiento
           </p>
         </div>
+
+        {expiredLink && !successMsg && (
+          <div role="status" className="rounded-xl border border-amber-500/30 bg-amber-500/10 p-4 text-sm text-amber-500">
+            {EXPIRED_LINK_NOTICE}
+          </div>
+        )}
 
         {successMsg ? (
           <div className="space-y-6">

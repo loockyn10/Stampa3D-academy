@@ -84,10 +84,11 @@ test("the shared rate limit still applies to legacy codes (no direct brute-force
 });
 
 test("signup: a code typed in the referral field gets one silent redemption when the session is immediate", () => {
-  assert.match(registro, /else if \(signUpData\.session && normalizedCode\)/);
+  // Only reached with an immediate session: the "verify email" branch returned before (Sprint 2).
+  assert.match(registro, /if \(next\.kind === "verify_email"\)[\s\S]*?return;[\s\S]*?if \(!normalizedBetaCode && normalizedCode\)/);
   assert.match(registro, /redeemBetaAccessCodeAction\(normalizeBetaAccessCode\(normalizedCode\)\)/);
   // Silent: it never opens the "Tu cuenta fue creada" notice nor blocks the Free account.
-  const branch = registro.slice(registro.indexOf("else if (signUpData.session && normalizedCode)"), registro.indexOf("window.location.assign(destination);"));
+  const branch = registro.slice(registro.indexOf("if (!normalizedBetaCode && normalizedCode)"), registro.indexOf("window.location.assign(destination);"));
   assert.doesNotMatch(branch, /setBetaNotice|setError/);
   // Beta code and referral code still travel separately; neither the beta field nor a result ever goes to auth metadata.
   const signUpCall = registro.slice(registro.indexOf("supabase.auth.signUp("), registro.indexOf("if (signUpError)"));

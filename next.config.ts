@@ -3,6 +3,12 @@ import type { NextConfig } from "next";
 const nextConfig: NextConfig = {
   async redirects() {
     return [
+      // Sprint 2: the historical landing is no longer public (its code stays in src/app/landing-old).
+      {
+        source: "/landing-old",
+        destination: "/landing",
+        permanent: true,
+      },
       {
         source: "/configuracion",
         has: [{ type: "query", key: "tab", value: "taller" }],

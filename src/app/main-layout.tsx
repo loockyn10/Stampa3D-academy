@@ -41,6 +41,7 @@ export function MainLayout({ children }: { children: React.ReactNode }) {
     pathname?.startsWith('/recuperar-password') || 
     pathname?.startsWith('/actualizar-password') || 
     pathname?.startsWith('/verificar-email') || 
+    pathname?.startsWith('/legal') ||
     pathname?.startsWith('/auth') || 
     pathname?.startsWith('/sin-acceso') || 
     pathname?.startsWith('/pago/estado') ||
@@ -74,6 +75,11 @@ export function MainLayout({ children }: { children: React.ReactNode }) {
 
   if (isPublicRoute) {
     return <main className="min-h-screen">{children}</main>;
+  }
+
+  // Onboarding: a focused screen without the app navigation (Free and Premium go through it).
+  if (pathname === "/onboarding") {
+    return withFeatures(<StampyContextProvider><main className="min-h-screen bg-stampa-bg">{children}</main></StampyContextProvider>);
   }
 
   if (isCalculatorRoute && !accessLoading && !userAccess?.authenticated) {

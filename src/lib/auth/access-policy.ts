@@ -99,7 +99,7 @@ export function evaluateAccessPolicy(
       downloadStl: accessPlatform,
       viewInactiveContent: accessAdmin,
     },
-    needsOnboarding:
-      input.authenticated && accessPlatform && !input.onboardingCompleted,
+    // Free accounts onboard too (Sprint 2): the proxy sends any authenticated person who has not completed it.
+    needsOnboarding: input.authenticated && !input.onboardingCompleted,
   };
 }

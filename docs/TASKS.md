@@ -112,15 +112,23 @@ Este archivo contiene únicamente trabajo pendiente o próximo. Eliminar tareas 
 - [ ] Revisar el contenido remoto de `stampy_page_contexts` para `/sorteos`: podría prometer beneficios por referidos (no está en el repo).
 - [ ] Merge de la rama a `main` y deploy (no realizados).
 
+## Now — Sprint 2 V1.0: registro, onboarding y primera experiencia (2026-11-05, ver D046 y ARCHITECTURE §29)
+
+- [x] Landing en `/` para visitantes, SEO, `/landing-old`, registro con y sin confirmación de email, `/verificar-email`, errores en español, área Free, `returnTo`, onboarding Free, marca Universo Stampa, estructura legal. Tests: `tests/sprint2-onboarding.test.mjs`.
+- [ ] Revisar en Supabase → Authentication: si «Confirm email» está activo, Site URL y Redirect URLs (deben incluir `<dominio>/auth/callback`), y las plantillas de email (remitente y textos en español con la marca Universo Stampa).
+- [ ] QA manual con una cuenta nueva de prueba (no un cliente): registro → email → confirmación → onboarding (guardar y «Completar más tarde») → área Free → Calculadora → Perfil → intento de sección Premium; login con `returnTo`; recuperación de contraseña; desktop y 375 px.
+- [ ] Textos legales y decisión D045 (baja/arrepentimiento): ver `docs/LEGAL_PENDING.md`.
+- [ ] Merge de `feature/sprint2-onboarding` (incluye los Sprints 0, 1 y 1.1) y deploy: no realizados.
+
 ## Now — Sprint 1 V1.0: circuito de membresías con Mercado Pago (2026-11-05, ver docs/DEPLOY_MEMBERSHIP_BILLING.md y D044)
 
 - [x] Webhook endurecido (firma obligatoria, 5xx transitorios, idempotente), activación solo con cobro aprobado, renovaciones/vencimientos sin accesos perpetuos, cancelación desde Configuración → Membresía y Perfil. Sin migración. Tests: `tests/membership-cycle.test.mjs`.
 - [x] Sprint 1.1: conciliación automática diaria (Vercel Cron, `CRON_SECRET`) para webhooks perdidos y override de frecuencia diaria solo para pruebas. Tests: `tests/membership-reconcile.test.mjs`.
 - [ ] **Decisión comercial (D045):** experiencia de baja y arrepentimiento, con asesoría legal (Ley 24.240 art. 10 ter, Disposición 954/2025). Opciones en `DEPLOY_MEMBERSHIP_BILLING.md` §7. La cancelación actual se conserva sin aprobar.
-- [ ] Armar el entorno aislado (Supabase de prueba + aplicación del vendedor de prueba de MP + variables de Preview por rama), §5.
+- [x] ~~Entorno aislado~~: no se crea por ahora (decisión del dueño, 2026-11-05). Desarrollo local de pagos **cerrado**; la validación real con Mercado Pago la hace el dueño.
 - [ ] **Bloqueante para cobrar:** configurar en Production `MERCADO_PAGO_WEBHOOK_SECRET`, `CRON_SECRET` y el webhook de «Planes y suscripciones» (§4), y completar la prueba de §6 (incluye renovación y webhook perdido).
 - [ ] Correr `supabase/diagnostics/20261105_membership_billing_state.sql` (A/B en `true`; revisar F).
-- [ ] Merge de `feature/sprint1-subscriptions` y deploy (no realizados).
+- [ ] Merge de `feature/sprint1-subscriptions` y deploy (no realizados): checklist en `DEPLOY_MEMBERSHIP_BILLING.md` §11.
 - [ ] Decidir el tratamiento de reembolsos/contracargos (hoy no revocan acceso) y si se envían emails propios de pago/rechazo/vencimiento.
 
 ## Now — Sprint 0 V1.0: seguridad de profiles (P0-1, 2026-11-04, ver docs/DEPLOY_PROFILES_GUARD.md)

@@ -5,14 +5,16 @@ Decisiones: `docs/DECISIONS.md` D044 (billing) y D045 (baja: **pendiente de defi
 
 ## Estado (2026-11-05)
 
+**Desarrollo local: terminado** (cierre del Sprint 1, 2026-11-05). No se implementan más cambios de pagos hasta la validación real. **Validación real con Mercado Pago: pendiente**; el sistema **no** está validado en producción.
+
 | Paso | Estado |
 |---|---|
 | Código + tests automáticos (dobles de MP y Supabase) | **Hecho** — `tests/membership-cycle.test.mjs`, `tests/membership-reconcile.test.mjs` |
 | Conciliación automática diaria (Vercel Cron) | **Hecho en código** — se activa al desplegar `vercel.json` en Production |
-| Experiencia de baja | **Pendiente de definición comercial** (§7, D045). El código actual se conserva |
-| Entorno aislado de prueba (§5) | **Pendiente** — lo arma el dueño |
-| Prueba de punta a punta con usuarios de prueba de MP (§6) | **Pendiente** — bloqueante para cobrar |
-| Deploy / merge | **No realizados** |
+| Experiencia de baja | **Pendiente de definición comercial** (§7, D045). El código actual se conserva sin cambios |
+| Entorno aislado de prueba (§5) | **No se crea por ahora** (decisión del dueño, 2026-11-05) |
+| Prueba real con Mercado Pago (§6) | **Pendiente** — la hace el dueño cuando lo decida; bloqueante para cobrar |
+| Merge a `main` / deploy | **No realizados** — checklist en §11 |
 
 ## 1. Problemas encontrados en el código anterior (confirmados leyendo el código)
 
@@ -68,7 +70,9 @@ Según la documentación oficial vigente (fuentes al final):
 
 **Supabase (producción):** correr `supabase/diagnostics/20261105_membership_billing_state.sql` (solo lectura) bloque por bloque: A y B todo en `true`; revisar F (accesos vigentes sin cobro aprobado: deben ser otorgados a propósito).
 
-## 5. Entorno aislado para las pruebas reales
+## 5. Entorno aislado para las pruebas reales (referencia; no se crea por ahora)
+
+**Decisión 2026-11-05:** no se crea un Supabase de prueba ni un entorno adicional; las pruebas reales las hace el dueño con la infraestructura existente. Cuidados si se prueba sobre producción: cambiar `MERCADO_PAGO_ACCESS_TOKEN` por el de un vendedor de prueba **rompe los cobros reales** mientras esté puesto, y cualquier prueba escribe filas en la base de producción. La alternativa de menor riesgo es una compra real con una cuenta propia (monto real, luego cancelada) y revisar las filas que genera. Esta sección queda como referencia si más adelante se decide aislar.
 
 Un Preview de Vercel **no es aislado** si usa las variables de Production: escribiría en la base de producción y cobraría con la cuenta real. El entorno de prueba necesita **las tres piezas separadas**:
 
@@ -145,3 +149,33 @@ Revertir el commit y redeployar. No hay cambios de base de datos que deshacer. P
 - Los beneficios de «Mi membresía» salen de `landing-content.ts`; al alinear la landing (P1-3) se actualizan solos.
 
 Fuentes: [Webhooks de MP](https://www.mercadopago.com.ar/developers/es/docs/your-integrations/notifications/webhooks) · [Notificaciones de Suscripciones](https://www.mercadopago.com.ar/developers/es/docs/subscriptions/additional-content/your-integrations/notifications) · [Pagos autorizados y reintentos](https://www.mercadopago.com.ar/developers/es/docs/subscriptions/integration-configuration/subscription-no-associated-plan/authorized-payments) · [Disposición 954/2025 (resumen)](https://allende.com/administrativo/el-gobierno-refuerza-la-proteccion-al-consumidor-en-el-comercio-electronico-09-05-2025/) · [Disposición 3/2026 (resumen)](https://aldiaargentina.microjuris.com/2026/02/06/legislacion-los-botones-de-baja-y-arrepentimiento-ahora-podran-exigir-validacion-de-identidad/)
+
+## 11. Checklist de integración y despliegue (Sprints 0, 1 y 1.1)
+
+Estado de ramas (2026-11-05): `main` = `origin/main` = `66e10b2`. `feature/sprint1-subscriptions` = `main` + 4 commits (`219f5a9`, `0490525`, `0ff22f2` del Sprint 0 y `87461ba` de los Sprints 1/1.1); fast-forward sin conflictos. Ninguna de las dos ramas está en `origin`. No hay migraciones pendientes: la del Sprint 0 ya está aplicada en producción y los Sprints 1/1.1 no agregan.
+
+**Antes del merge**
+1. Vercel → Production: definir `CRON_SECRET` (aleatorio, 32+ caracteres) y confirmar que existe `MERCADO_PAGO_WEBHOOK_SECRET` (clave de Webhooks de la **misma** aplicación de MP que el access token productivo). Sin el secret el webhook nuevo responde 503 (el anterior aceptaba notificaciones sin firma). Confirmar `MERCADO_PAGO_ACCESS_TOKEN` productivo, `SUPABASE_SERVICE_ROLE_KEY`, `NEXT_PUBLIC_APP_URL` y que **no** exista `MEMBERSHIP_TEST_BILLING_FREQUENCY_DAYS`.
+2. Mercado Pago → aplicación productiva → Webhooks: URL `https://<dominio>/api/mercadopago/webhook` y eventos de «Planes y suscripciones».
+3. Supabase: correr `supabase/diagnostics/20261105_membership_billing_state.sql`, bloques A y B (todo `true`).
+4. Local: `npm test`, `npx tsc --noEmit`, `npm run build` sobre la rama.
+
+**Integración** (con autorización explícita): push de la rama, PR a `main`, merge. Si Vercel despliega `main` automáticamente, **el merge es el deploy**: hacerlo en un horario tranquilo.
+
+**Después del deploy**
+5. «Simular» en el panel de Webhooks de MP → 200 (`provider_not_found` en `mercado_pago_webhook_events`). 401 = secret equivocado.
+6. `GET /api/mercadopago/membership` sin sesión → 401 (código nuevo desplegado).
+7. Vercel → Settings → Cron Jobs: figura `/api/mercadopago/reconcile` diario. Ejecutarlo una vez desde el panel y revisar el log `[membership reconcile]` (`stoppedReason: completed`; `provider_credentials` = token inválido).
+8. Abrir Perfil y Configuración → Membresía con una cuenta Paid y una Free.
+9. Durante 3 días: bloque D del diagnóstico (eventos con `processed = false`) y logs del cron.
+
+**Riesgos**
+- Secret ausente o equivocado → nadie se activa por webhook (sí al volver a `/pago/estado` y con el cron).
+- Cambio de regla: desde el deploy solo un cobro aprobado da o extiende acceso. Las membresías activas existentes no se acortan; las que no tienen vencimiento (manuales) no se tocan.
+- El topic `payment` deja de activar por `external_reference` (flujo legacy sin creador en el código).
+- La cancelación dentro de la app queda visible al desplegar (Configuración → Membresía y Perfil) aunque su experiencia está pendiente de decisión comercial (D045). Decidir antes del merge si se acepta así para el lanzamiento.
+- El circuito real con Mercado Pago **no está validado**: no anunciar el cobro hasta hacer la prueba de §6.
+
+**Rollback**
+- Inmediato: Vercel → Deployments → «Instant Rollback» al deploy anterior (no hay cambios de base de datos que deshacer).
+- En el repo: `git revert 87461ba` en `main` (deja el Sprint 0, que es independiente). Para apagar solo el cron: quitar `CRON_SECRET` o la entrada de `vercel.json`.

@@ -731,7 +731,7 @@ test("texto externo se sanea (control chars, largo) y la UI no usa dangerouslySe
 test("20. anonymous puede buscar: página y API públicas en proxy, sin exigir acceso pago", () => {
   const middleware = read("src/utils/supabase/middleware.ts");
   assert.match(middleware, /"\/api\/model-search"/);
-  assert.match(middleware, /pathname === '\/explorar-modelos'/);
+  assert.match(read("src/lib/auth/route-policy.ts"), /pathname === "\/explorar-modelos"/);
   const route = read("src/app/api/model-search/route.ts");
   assert.match(route, /ANONYMOUS_MAX_PAGES/);
   assert.match(route, /getCurrentUserAccess/);

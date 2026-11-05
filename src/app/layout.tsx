@@ -18,9 +18,9 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "Academia Stampa",
-  description: "Plataforma de impresión 3D de Stampa",
-  applicationName: "Academia Stampa",
+  title: "Universo Stampa",
+  description: "Universo Stampa: formación, herramientas y comunidad para impresión 3D.",
+  applicationName: "Universo Stampa",
   icons: {
     icon: [
       { url: "/favicon.svg", type: "image/svg+xml" },

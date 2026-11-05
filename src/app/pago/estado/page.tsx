@@ -56,7 +56,7 @@ export default function PagoEstadoPage() {
 
   const applyResult = useCallback((outcome: SyncOutcome) => {
     if (outcome.kind === "unauthenticated") {
-      router.replace("/login");
+      router.replace("/login?returnTo=%2Fpago%2Festado");
       return;
     }
     if (outcome.kind === "error") {

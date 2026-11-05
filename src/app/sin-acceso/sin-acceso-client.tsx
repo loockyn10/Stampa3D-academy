@@ -1,6 +1,8 @@
 "use client";
 
-import { AlertCircle, CheckCircle2, Loader2, RefreshCw, Sparkles } from "lucide-react";
+import { AlertCircle, Calculator, CheckCircle2, Loader2, MailCheck, RefreshCw, Sparkles, UserRound } from "lucide-react";
+import Link from "next/link";
+import { membershipOffer } from "@/components/landing-membership/landing-content";
 import { useCallback, useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { createClient } from "@/utils/supabase/client";
@@ -42,10 +44,13 @@ const LOCKED_FEATURES: Record<string, { title: string; description: string }> = 
 export function SinAccesoClient({
   feature,
   discountCodesEnabled = false,
+  calculatorAvailable = true,
 }: {
   feature?: string | null;
   /** Server-side kill switch (DISCOUNT_CODES_ENABLED): the code field is only shown when it is on. */
   discountCodesEnabled?: boolean;
+  /** Feature flag of the free Calculator, resolved on the server. */
+  calculatorAvailable?: boolean;
 }) {
   const supabase = createClient();
   const [discount, setDiscount] = useState<AppliedDiscount | null>(null);
@@ -225,17 +230,27 @@ export function SinAccesoClient({
           </div>
           <p className="text-xs font-semibold uppercase tracking-[0.2em] text-stampa-accent">Universo Stampa</p>
           <h1 className="mt-3 text-2xl font-bold tracking-tight text-stampa-text sm:text-3xl">
-            {lockedFeature ? `Desbloqueá ${lockedFeature.title}` : "Tu cuenta está lista"}
+            {checkingEmail
+              ? "Universo Stampa"
+              : !isAuthenticated
+                ? "Entrá a Universo Stampa"
+                : lockedFeature
+                  ? `Desbloqueá ${lockedFeature.title}`
+                  : "Tu cuenta gratuita"}
           </h1>
           {checkingEmail ? (
             <p className="mt-3 text-sm text-stampa-text-muted">Verificando estado de tu cuenta...</p>
+          ) : !isAuthenticated ? (
+            <p className="mt-3 text-sm text-stampa-text-muted">
+              Iniciá sesión o creá tu cuenta gratis. La Calculadora y tu perfil no requieren membresía.
+            </p>
           ) : !isEmailConfirmed ? (
             <p className="mt-3 text-sm text-stampa-text-muted">
               Confirmá tu email para activar tu cuenta. Revisá tu bandeja de entrada o spam.
             </p>
           ) : (
             <p className="mt-3 text-sm text-stampa-text-muted">
-              {lockedFeature?.description ?? "Para acceder a Universo necesitás una membresía o una invitación Beta."}
+              {lockedFeature?.description ?? "Ya podés usar las herramientas gratuitas. Con Premium accedés a la Academia, Stampy y todo Universo."}
             </p>
           )}
         </header>
@@ -262,6 +277,71 @@ export function SinAccesoClient({
           <p className="text-center text-xs text-stampa-text-muted">
             Tu código de invitación se aplicará automáticamente cuando confirmes tu email.
           </p>
+        )}
+
+        {!checkingEmail && !isAuthenticated && (
+          <section className="space-y-3" aria-label="Acceder">
+            <Link
+              href="/login"
+              className="flex w-full items-center justify-center rounded-xl bg-stampa-orange px-3 py-3 text-sm font-semibold text-neutral-950 transition-colors hover:bg-stampa-orange-hover"
+            >
+              Iniciar sesión
+            </Link>
+            <Link
+              href="/registro"
+              className="flex w-full items-center justify-center rounded-xl border border-stampa-border bg-stampa-surface px-3 py-3 text-sm font-semibold text-stampa-text transition-colors hover:bg-stampa-surface-soft"
+            >
+              Crear cuenta gratis
+            </Link>
+            <Link
+              href="/verificar-email"
+              className="flex items-center justify-center gap-2 pt-1 text-sm text-stampa-text-muted hover:text-stampa-text hover:underline"
+            >
+              <MailCheck size={15} aria-hidden="true" /> ¿Te registraste y no confirmaste tu email?
+            </Link>
+          </section>
+        )}
+
+        {!checkingEmail && isAuthenticated && isEmailConfirmed && !activated && (
+          <section className="rounded-2xl border border-stampa-border bg-stampa-surface p-4 text-left" aria-labelledby="free-tools-title">
+            <h2 id="free-tools-title" className="text-sm font-bold text-stampa-text">Gratis con tu cuenta</h2>
+            <div className="mt-3 grid gap-2">
+              {calculatorAvailable && (
+                <Link
+                  href="/calculadora"
+                  className="flex items-center gap-3 rounded-xl border border-stampa-border bg-stampa-bg-soft p-3 transition-colors hover:border-stampa-orange-border"
+                >
+                  <Calculator size={18} className="shrink-0 text-stampa-accent" aria-hidden="true" />
+                  <span className="min-w-0">
+                    <span className="block text-sm font-semibold text-stampa-text">Calculadora</span>
+                    <span className="block text-xs text-stampa-text-muted">Calculá costos y precios de tus impresiones.</span>
+                  </span>
+                </Link>
+              )}
+              <Link
+                href="/perfil"
+                className="flex items-center gap-3 rounded-xl border border-stampa-border bg-stampa-bg-soft p-3 transition-colors hover:border-stampa-orange-border"
+              >
+                <UserRound size={18} className="shrink-0 text-stampa-accent" aria-hidden="true" />
+                <span className="min-w-0">
+                  <span className="block text-sm font-semibold text-stampa-text">Perfil y cuenta</span>
+                  <span className="block text-xs text-stampa-text-muted">Tus datos, contraseña y estado de membresía.</span>
+                </span>
+              </Link>
+            </div>
+            <h2 className="mt-5 text-sm font-bold text-stampa-text">Con Premium además tenés</h2>
+            <ul className="mt-2 space-y-1.5 text-sm text-stampa-text-muted">
+              {membershipOffer.included.map((item) => (
+                <li key={item} className="flex gap-2">
+                  <CheckCircle2 size={15} className="mt-0.5 shrink-0 text-stampa-accent" aria-hidden="true" />
+                  {item}
+                </li>
+              ))}
+            </ul>
+            <Link href="/landing#precio" className="mt-3 inline-block text-sm font-semibold text-stampa-accent hover:underline">
+              Ver detalles de la membresía
+            </Link>
+          </section>
         )}
 
         {!checkingEmail && isAuthenticated && isEmailConfirmed && !activated && (
@@ -308,6 +388,7 @@ export function SinAccesoClient({
           </>
         )}
 
+        {isAuthenticated && (
         <section className="space-y-3 border-t border-stampa-border pt-5 text-center">
           <p className="text-sm text-stampa-text-muted">
             {isEmailConfirmed ? "¿Ya activaste tu acceso?" : "¿Ya confirmaste tu email?"}
@@ -331,6 +412,7 @@ export function SinAccesoClient({
             Cerrar sesión
           </button>
         </section>
+        )}
       </div>
     </div>
   );

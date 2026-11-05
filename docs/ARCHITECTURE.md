@@ -582,3 +582,10 @@ Biblioteca de proyectos 3MF por producto, laminador, impresora y pieza. Guía co
 - **Conciliación (Sprint 1.1):** `membership-reconcile.ts` (selección pura de candidatos + bucle con presupuesto de tiempo) y `GET /api/mercadopago/reconcile`, agendado en `vercel.json` (diario; los crons solo corren en Production) y protegido por `CRON_SECRET` (`cron-auth.ts`). Usa el mismo `syncPreapproval` que el webhook. `billing-frequency.ts` fija el cobro mensual; solo Preview/desarrollo acepta `MEMBERSHIP_TEST_BILLING_FREQUENCY_DAYS`.
 - La baja dentro de la app existe en código pero está pendiente de definición comercial (D045).
 - Despliegue, configuración, entorno aislado y prueba con usuarios de prueba: `docs/DEPLOY_MEMBERSHIP_BILLING.md`.
+
+## 29. Primera experiencia: rutas, registro y onboarding (2026-11-05, Sprint 2, D046)
+
+- **Reglas de ruteo puras:** `src/lib/auth/route-policy.ts` (`isPublicPath`, `isFreeAccountPath`, `isOnboardingExempt`, `anonymousRoute`, `adminRoute`, `authenticatedRoute`). El proxy (`src/utils/supabase/middleware.ts`) mantiene el orden admin → feature flags → resto y solo traduce la decisión a un redirect. Destinos internos: `src/lib/auth/return-to.ts` (`sanitizeReturnTo`, `loginPathFor`).
+- **Auth:** `auth-errors.ts` (mensajes), `signup-outcome.ts` (siguiente pantalla según la respuesta real de `signUp`), `pending-verification.ts` (email pendiente en `sessionStorage`), `callback-failure.ts` (destino ante un enlace inválido). Pantalla nueva `/verificar-email`. `AuthBrand` unifica la identidad de las pantallas de acceso.
+- **Onboarding:** `src/app/onboarding/page.tsx` sin la navegación de la app (`main-layout.tsx`), payload en `src/lib/onboarding/profile-update.ts` (lista blanca de columnas). `evaluateAccessPolicy().needsOnboarding` ya no exige acceso Premium.
+- **SEO y legal:** `src/app/robots.ts`, `src/app/sitemap.ts`, `src/lib/seo/site.ts`; `src/content/legal/index.ts` + `src/lib/legal/registry.ts` + `src/app/legal/[slug]/page.tsx` (404 sin texto aprobado). El pie de la landing lee los enlaces del registro.

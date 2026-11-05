@@ -1,3 +1,4 @@
+import { footerLegalLinks } from "@/lib/legal/registry";
 export const landingPrimaryCta = {
   label: "Activar membresía",
   href: "/registro",
@@ -203,9 +204,5 @@ export const faqItems = [
   },
 ] as const;
 
-// TODO: reemplazar los estados pendientes por enlaces públicos cuando existan.
-export const legalLinks = [
-  { label: "Términos y condiciones", href: null },
-  { label: "Política de privacidad", href: null },
-  { label: "Condiciones de la membresía", href: null },
-] as const;
+// Los enlaces salen del registro legal: se activan solos cuando existe el texto aprobado (src/content/legal).
+export const legalLinks = footerLegalLinks();

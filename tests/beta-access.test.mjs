@@ -164,11 +164,13 @@ test("anonymous never gets access from a grant fact", () => {
 
 test("the client-side access resolver reads grants (so UI and RLS agree) and the middleware gates on accessPlatform", () => {
   assert.match(read("src/lib/auth/user-access.ts"), /from\("user_access_grants"\)/);
-  assert.match(middleware, /access\.capabilities\.accessPlatform/);
-  assert.match(middleware, /redirectWithCookies\('\/sin-acceso'\)/);
+  assert.match(middleware, /hasAccess: access\.capabilities\.accessPlatform/);
+  // Routing rules moved to src/lib/auth/route-policy.ts (Sprint 2).
+  const policy = read("src/lib/auth/route-policy.ts");
+  assert.match(policy, /return \{ redirect: NO_ACCESS_PATH \}/);
   // Beta redemption must be possible while the user is still Free.
-  assert.match(middleware, /pathname\.startsWith\('\/sin-acceso'\)/);
-  assert.match(middleware, /pathname === '\/perfil'/);
+  assert.match(policy, /pathname\.startsWith\("\/sin-acceso"\)/);
+  assert.match(policy, /pathname === "\/perfil"/);
 });
 
 // ---------------------------------------------------------------------------
@@ -384,12 +386,12 @@ test("signup: beta field is optional, free signup is unchanged and the code neve
   assert.match(registro, /id="beta-code"/);
   assert.doesNotMatch(registro, /id="beta-code"[^>]*\brequired\b/);
   const signUpCall = registro.slice(registro.indexOf("supabase.auth.signUp("), registro.indexOf("if (signUpError)"));
-  assert.match(signUpCall, /emailRedirectTo: `\$\{window\.location\.origin\}\/auth\/callback/);
+  assert.match(signUpCall, /emailRedirectTo: emailConfirmationRedirect\(window\.location\.origin, returnTo\)/);
   assert.match(signUpCall, /full_name: name/);
   assert.doesNotMatch(signUpCall, /betaCode|normalizedBetaCode/);
-  // Without a code: same redirect as before the feature.
+  // Without a code: the requested destination; the proxy sends a Free account to onboarding / its area (Sprint 2).
   assert.match(registro, /window\.location\.assign\(destination\)/);
-  assert.match(registro, /returnTo === "\/" \? "\/sin-acceso" : returnTo/);
+  assert.match(registro, /const destination = returnTo;/);
 });
 
 test("signup: with a session the code is redeemed server-side right away; without one it waits for authentication", () => {

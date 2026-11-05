@@ -4,6 +4,7 @@ import { createClient as createAdminClient } from '@supabase/supabase-js'
 import { cookies } from 'next/headers'
 import { resolveRegistrationCode, normalizeRegistrationCode } from '@/lib/codes/resolve-code'
 import { sanitizeReturnTo } from '@/lib/auth/return-to'
+import { callbackFailurePath } from '@/lib/auth/callback-failure'
 
 export async function GET(request: Request) {
   const { searchParams, origin } = new URL(request.url)
@@ -113,8 +114,8 @@ export async function GET(request: Request) {
             // ── 3. Resolve as promo ──────────
             // For 'promo' we don't do anything here, it will be consumed in the checkout process.
           }
-        } catch (err: any) {
-          console.error('[auth/callback] Code processing error:', err.message)
+        } catch (err) {
+          console.error('[auth/callback] Code processing error:', err instanceof Error ? err.message : 'unknown')
         }
       }
 
@@ -122,5 +123,7 @@ export async function GET(request: Request) {
     }
   }
 
-  return NextResponse.redirect(`${origin}/login?error=auth-callback-failed`)
+  // Expired/used link, or opened in another browser (the PKCE verifier lives in the original one: the email is
+  // usually confirmed anyway). Never forward Supabase's text: only our own code.
+  return NextResponse.redirect(new URL(callbackFailurePath(next), origin))
 }

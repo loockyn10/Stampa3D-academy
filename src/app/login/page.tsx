@@ -4,8 +4,11 @@ import { Suspense, useState } from "react";
 import { useSearchParams } from "next/navigation";
 import { createClient } from "@/utils/supabase/client";
 import Link from "next/link";
-import { Layers, Mail, Lock, Eye, EyeOff } from "lucide-react";
+import { Mail, Lock, Eye, EyeOff } from "lucide-react";
 import { sanitizeReturnTo } from "@/lib/auth/return-to";
+import { AUTH_NOTICE_MESSAGES, friendlyAuthError } from "@/lib/auth/auth-errors";
+import { savePendingVerificationEmail } from "@/lib/auth/pending-verification";
+import { AuthBrand } from "@/components/auth/AuthBrand";
 
 function LoginForm() {
   const [email, setEmail] = useState("");
@@ -13,22 +16,34 @@ function LoginForm() {
   const [showPassword, setShowPassword] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(false);
+  const [needsConfirmation, setNeedsConfirmation] = useState(false);
   const searchParams = useSearchParams();
   const returnTo = sanitizeReturnTo(searchParams.get("returnTo"));
+  // Only codes this app puts in the URL are shown (never free text from the query string).
+  const notice = AUTH_NOTICE_MESSAGES[searchParams.get("error") ?? searchParams.get("estado") ?? ""] ?? null;
+  const verifyHref = returnTo === "/" ? "/verificar-email" : `/verificar-email?returnTo=${encodeURIComponent(returnTo)}`;
   const supabase = createClient();
 
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
     setIsLoading(true);
     setError(null);
+    setNeedsConfirmation(false);
 
-    const { error } = await supabase.auth.signInWithPassword({
-      email,
-      password,
-    });
+    let signInError: Parameters<typeof friendlyAuthError>[0] = null;
+    try {
+      ({ error: signInError } = await supabase.auth.signInWithPassword({ email, password }));
+    } catch (caught) {
+      signInError = { code: "network", message: caught instanceof Error ? caught.message : "network" };
+    }
 
-    if (error) {
-      setError(error.message);
+    if (signInError) {
+      const friendly = friendlyAuthError(signInError, "login");
+      if (friendly.needsEmailConfirmation) {
+        savePendingVerificationEmail(email);
+        setNeedsConfirmation(true);
+      }
+      setError(friendly.message);
       setIsLoading(false);
       return;
     }
@@ -45,15 +60,7 @@ function LoginForm() {
       <div className="mx-auto grid min-h-screen max-w-6xl grid-cols-1 items-center gap-10 px-6 py-12 lg:grid-cols-2 relative z-10 w-full">
         {/* Left column - branding */}
         <div className="hidden lg:flex flex-col justify-center space-y-6">
-          <div className="flex items-center gap-3">
-            <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-stampa-orange text-white shadow-lg shadow-stampa-orange/20">
-              <Layers className="h-6 w-6" />
-            </div>
-            <div>
-              <h1 className="text-2xl font-bold tracking-tight text-fg leading-none">Stampa</h1>
-              <p className="text-xs text-stampa-accent mt-1 font-semibold tracking-wider uppercase">Academia 3D</p>
-            </div>
-          </div>
+          <AuthBrand align="start" />
 
           <div className="space-y-4">
             <h2 className="text-4xl font-extrabold tracking-tight text-fg leading-tight">
@@ -85,21 +92,30 @@ function LoginForm() {
           <div className="w-full max-w-md space-y-8 bg-stampa-bg/80 p-8 sm:p-10 rounded-2xl shadow-2xl border border-stampa-border backdrop-blur-xl">
             {/* Header for mobile view */}
             <div className="flex flex-col items-center lg:items-start">
-              <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-stampa-orange text-white mb-4 lg:hidden shadow-lg shadow-stampa-orange/20">
-                <Layers className="h-6 w-6" />
+              <div className="mb-6 lg:hidden">
+                <AuthBrand />
               </div>
-              <h2 className="text-3xl font-bold tracking-tight text-fg">
+              <h1 className="text-3xl font-bold tracking-tight text-fg">
                 Iniciar sesión
-              </h2>
+              </h1>
               <p className="mt-2 text-sm text-gray-400">
-                Accedé a tu cuenta de Academia Stampa.
+                Accedé a tu cuenta de Universo Stampa.
               </p>
             </div>
 
             <form className="space-y-6" onSubmit={handleLogin}>
+              {notice && !error && (
+                <div role="status" className="space-y-2 rounded-xl border border-amber-500/30 bg-amber-500/10 p-4 text-sm text-amber-500">
+                  <p>{notice}</p>
+                  <Link href={verifyHref} className="font-semibold underline">Pedir un nuevo enlace</Link>
+                </div>
+              )}
               {error && (
-                <div className="rounded-xl bg-red-500/10 border border-red-500/30 p-4 text-sm text-red-300">
-                  {error}
+                <div role="alert" className="space-y-2 rounded-xl bg-red-500/10 border border-red-500/30 p-4 text-sm text-red-300">
+                  <p>{error}</p>
+                  {needsConfirmation && (
+                    <Link href={verifyHref} className="font-semibold text-red-200 underline">Reenviar el email de confirmación</Link>
+                  )}
                 </div>
               )}
               <div className="space-y-5">

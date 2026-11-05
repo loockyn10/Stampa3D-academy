@@ -1,10 +1,12 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { createClient } from "@/utils/supabase/client";
 import Link from "next/link";
-import { Building2, Lock, ArrowLeft, Eye, EyeOff } from "lucide-react";
+import { Lock, Eye, EyeOff } from "lucide-react";
+import { AuthBrand } from "@/components/auth/AuthBrand";
+import { friendlyAuthError } from "@/lib/auth/auth-errors";
 
 export default function ActualizarPasswordPage() {
   const [password, setPassword] = useState("");
@@ -39,30 +41,28 @@ export default function ActualizarPasswordPage() {
     });
 
     if (updateError) {
-      setError(updateError.message);
+      setError(friendlyAuthError(updateError, "update_password").message);
       setIsLoading(false);
       return;
     }
 
-    setSuccessMsg("Contraseña actualizada correctamente. Redirigiendo...");
+    setSuccessMsg("Contraseña actualizada. Te llevamos a Universo Stampa…");
     setIsLoading(false);
 
-    // Redirect to login after 3 seconds
+    // The recovery link already opened a session: continue into the app (the proxy picks the right screen).
     setTimeout(() => {
-      router.push("/login");
-    }, 3000);
+      router.push("/");
+    }, 2000);
   };
 
   return (
     <div className="flex min-h-screen items-center justify-center bg-stampa-bg px-4 py-12 sm:px-6 lg:px-8">
       <div className="w-full max-w-md space-y-8 bg-stampa-surface p-8 rounded-2xl shadow-sm border border-stampa-border">
         <div className="flex flex-col items-center justify-center">
-          <div className="flex h-12 w-12 items-center justify-center rounded-xl bg-stampa-orange mb-4 shadow-sm">
-            <Building2 className="h-6 w-6 text-fg" />
-          </div>
-          <h2 className="text-center text-3xl font-bold tracking-tight text-fg">
+          <AuthBrand />
+          <h1 className="mt-6 text-center text-3xl font-bold tracking-tight text-fg">
             Actualizar contraseña
-          </h2>
+          </h1>
           <p className="mt-2 text-center text-sm text-gray-400">
             Ingresá tu nueva contraseña a continuación
           </p>
@@ -75,10 +75,10 @@ export default function ActualizarPasswordPage() {
             </div>
             <div className="text-center">
               <Link
-                href="/login"
+                href="/"
                 className="inline-flex items-center gap-2 text-sm font-medium text-stampa-accent hover:text-stampa-accent transition-colors"
               >
-                Ir al inicio de sesión ahora
+                Entrar ahora
               </Link>
             </div>
           </div>

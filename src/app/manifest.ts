@@ -2,7 +2,7 @@ import type { MetadataRoute } from "next";
 
 export default function manifest(): MetadataRoute.Manifest {
   return {
-    name: "Academia Stampa",
+    name: "Universo Stampa",
     short_name: "Stampa",
     description: "Plataforma de impresión 3D de Stampa",
     start_url: "/",

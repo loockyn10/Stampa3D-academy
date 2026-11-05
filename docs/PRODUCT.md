@@ -31,7 +31,10 @@ Puede:
 - usar la Calculadora;
 - elegir varias impresoras de catálogo para calcular;
 - elegir varios filamentos de catálogo para calcular;
-- guardar defaults/preferencias de Calculadora.
+- guardar defaults/preferencias de Calculadora;
+- usar su Perfil (datos, contraseña, estado de membresía) y completar el onboarding (Sprint 2, D046).
+
+Después de registrarse pasa por el onboarding (opcional, se puede posponer) y su pantalla principal es `/sin-acceso`, que para una cuenta Free funciona como «Tu cuenta gratuita»: accesos a Calculadora (si su feature flag está activa) y Perfil, beneficios Premium y opciones de membresía. Nunca es un callejón sin salida.
 
 No puede acceder a:
 
