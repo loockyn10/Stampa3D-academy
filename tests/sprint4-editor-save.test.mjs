@@ -45,3 +45,13 @@ test("useSaveGuard ignora llamadas mientras hay una operación en vuelo", () => 
   assert.match(src, /if \(inFlight\.current\) return;/);
   assert.match(src, /finally \{\s*inFlight\.current = false;/);
 });
+
+test("QA-026: la descarga STL se registra solo después de que el servidor la autoriza", () => {
+  const src = read("src/components/stl/StlDownloadButton.tsx");
+  assert.ok(
+    src.indexOf('fetch("/api/stl/download"') < src.indexOf('from("stl_downloads")'),
+    "el fetch de autorización va antes del registro",
+  );
+  assert.match(src, /if \(res\.ok && data\.url\) \{[\s\S]*stl_downloads/);
+  assert.match(src, /res\.redirected \|\| res\.status === 401/, "sesión vencida con mensaje claro");
+});

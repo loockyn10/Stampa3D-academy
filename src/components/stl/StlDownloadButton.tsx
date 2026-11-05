@@ -11,7 +11,7 @@ interface StlDownloadButtonProps {
   className?: string;
 }
 
-/** Descarga autorizada: registra stl_downloads y pide la URL firmada a /api/stl/download. */
+/** Descarga autorizada: pide la URL firmada a /api/stl/download y, si el servidor la autoriza, registra stl_downloads. */
 export function StlDownloadButton({ variantId, label = "Descargar STL", className = "" }: StlDownloadButtonProps) {
   const { toast } = useAppFeedback();
   const [supabase] = useState(() => createClient());
@@ -32,22 +32,33 @@ export function StlDownloadButton({ variantId, label = "Descargar STL", classNam
   const handleClick = async () => {
     setBusy(true);
     try {
-      const { data: { user } } = await supabase.auth.getUser();
-      if (user) {
-        await supabase.from("stl_downloads").upsert(
-          { user_id: user.id, variant_id: variantId },
-          { onConflict: "user_id, variant_id" },
-        );
-      }
-
       const res = await fetch("/api/stl/download", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ variantId }),
       });
-      const data = await res.json();
+
+      // Sesión vencida: el proxy puede responder con una redirección a /login (HTML), no con JSON.
+      if (res.redirected || res.status === 401) {
+        toast.error("Tu sesión venció. Volvé a iniciar sesión para descargar.");
+        return;
+      }
+
+      const data = await res.json().catch(() => ({} as { url?: string; error?: string }));
 
       if (res.ok && data.url) {
+        // El registro se hace solo después de que el servidor autorizó la descarga (no cuenta intentos rechazados).
+        try {
+          const { data: { user } } = await supabase.auth.getUser();
+          if (user) {
+            await supabase.from("stl_downloads").upsert(
+              { user_id: user.id, variant_id: variantId },
+              { onConflict: "user_id, variant_id" },
+            );
+          }
+        } catch (recordError) {
+          console.error("No se pudo registrar la descarga STL:", recordError);
+        }
         window.location.href = data.url;
       } else {
         toast.error(data.error || "No pude preparar la descarga. Probá de nuevo.");
