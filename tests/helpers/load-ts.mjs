@@ -30,6 +30,7 @@ export function loadTs(relativePath, mocks = {}, cache = new Map()) {
       }
       throw new Error(`No se pudo resolver ${specifier}`);
     }
+    if (specifier.startsWith("node:")) return nodeRequire(specifier);
     if (specifier === "react" || specifier.startsWith("react/") || specifier.startsWith("react-dom") || specifier === "lucide-react") {
       return nodeRequire(specifier);
     }

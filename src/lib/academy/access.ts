@@ -174,6 +174,11 @@ export async function loadLessonGate(
   const course = first(lessonModule?.courses);
   if (!course?.id) return { allowed: false, reason: "not_found" };
 
+  // An inactive lesson or module does not exist for students (it is not listed either).
+  if (!isAdmin && (lesson.is_active === false || lessonModule?.is_active === false)) {
+    return { allowed: false, reason: "not_found" };
+  }
+
   const decision = resolveCourseAccess(course.status, { isAdmin });
   if (!decision.canView) return { allowed: false, reason: "not_found" };
   if (!decision.canWriteProgress) return { allowed: false, reason: "course_locked" };

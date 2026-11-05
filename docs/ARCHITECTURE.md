@@ -589,3 +589,11 @@ Biblioteca de proyectos 3MF por producto, laminador, impresora y pieza. Guía co
 - **Auth:** `auth-errors.ts` (mensajes), `signup-outcome.ts` (siguiente pantalla según la respuesta real de `signUp`), `pending-verification.ts` (email pendiente en `sessionStorage`), `callback-failure.ts` (destino ante un enlace inválido). Pantalla nueva `/verificar-email`. `AuthBrand` unifica la identidad de las pantallas de acceso.
 - **Onboarding:** `src/app/onboarding/page.tsx` sin la navegación de la app (`main-layout.tsx`), payload en `src/lib/onboarding/profile-update.ts` (lista blanca de columnas). `evaluateAccessPolicy().needsOnboarding` ya no exige acceso Premium.
 - **SEO y legal:** `src/app/robots.ts`, `src/app/sitemap.ts`, `src/lib/seo/site.ts`; `src/content/legal/index.ts` + `src/lib/legal/registry.ts` + `src/app/legal/[slug]/page.tsx` (404 sin texto aprobado). El pie de la landing lee los enlaces del registro.
+
+## 30. Academia V1.0 (2026-11-05, Sprint 3, D047)
+
+- **Reproducción:** `src/lib/academy/video.ts` (normaliza y valida enlaces), `bunny-token.ts` (firma server-only), `getLessonPlaybackAction` en `src/app/cursos/actions.ts` (barrera `loadLessonGate`). El cliente del curso muestra carga, error con reintento, clase sin video y «Recargar el video».
+- **Navegación:** `src/lib/academy/lesson-navigation.ts` (`orderLessons`, `pickStartLesson`, `lessonNeighbors`). `?clase=` en la URL; anterior/siguiente; numeración por posición; temario enlazado en mobile.
+- **Barrera:** `loadLessonGate` rechaza clases o módulos inactivos para no-admins.
+- **Catálogo:** `src/lib/academy/course-stats.ts` cuenta solo módulos y clases activos.
+- **Inventario:** `supabase/diagnostics/20261105_academy_content_inventory.sql` (solo lectura).

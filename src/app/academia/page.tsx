@@ -42,7 +42,8 @@ export default function AcademiaPage() {
           id, title, description, slug, thumbnail_url, course_kind, status, level,
           instructors ( name ),
           course_modules (
-            lessons ( id, duration_minutes )
+            is_active,
+            lessons ( id, duration_minutes, is_active )
           )
         `)
           .in("status", [...CATALOG_STATUSES])
@@ -66,7 +67,7 @@ export default function AcademiaPage() {
 
       if (fetchErr) {
         console.error("Error fetching data:", fetchErr);
-        setError(fetchErr.message);
+        setError("No pudimos cargar el catálogo. Revisá tu conexión e intentá de nuevo.");
       } else {
         if (coursesData) setCourses(coursesData);
         if (lpData) setLearningPaths(lpData);

@@ -112,6 +112,14 @@ Este archivo contiene únicamente trabajo pendiente o próximo. Eliminar tareas 
 - [ ] Revisar el contenido remoto de `stampy_page_contexts` para `/sorteos`: podría prometer beneficios por referidos (no está en el repo).
 - [ ] Merge de la rama a `main` y deploy (no realizados).
 
+## Now — Sprint 3 V1.0: Academia (2026-11-05, ver docs/ACADEMY_V1.md y D047)
+
+- [x] Reproducción por servidor, Bunny firmado opcional, retomar por progreso, navegación, errores visibles, conteos coherentes, validación de video en admin. Tests: `tests/academy-sprint3.test.mjs`.
+- [ ] **Bloqueante (P0-5):** correr `supabase/diagnostics/20261105_academy_content_inventory.sql` y decidir qué cursos se ofrecen; pasar a «Próximamente» lo que no esté listo.
+- [ ] Activar la protección de Bunny (`BUNNY_STREAM_TOKEN_KEY` + token en Bunny) siguiendo `ACADEMY_V1.md` §3.
+- [ ] QA con cuenta Premium (`ACADEMY_V1.md` §4).
+- [ ] Post V1.0: unificar `lessons.is_published` (Stampy) con `is_active`; mover la carga del curso al servidor.
+
 ## Now — Sprint 2 V1.0: registro, onboarding y primera experiencia (2026-11-05, ver D046 y ARCHITECTURE §29)
 
 - [x] Landing en `/` para visitantes, SEO, `/landing-old`, registro con y sin confirmación de email, `/verificar-email`, errores en español, área Free, `returnTo`, onboarding Free, marca Universo Stampa, estructura legal. Tests: `tests/sprint2-onboarding.test.mjs`.

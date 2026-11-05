@@ -406,3 +406,12 @@ Los enlaces de Instagram/YouTube/WhatsApp/Telegram estaban fijos en 4 lugares de
 - **Onboarding:** lo hacen Free y Premium (antes solo quien tenía acceso). Corto, todo opcional, «Completar más tarde», sin teléfono ni etapa comercial, sin `console.log` de datos, solo `UPDATE` de columnas no privilegiadas del propio perfil (nunca `INSERT`). Si el perfil no se pudo leer, el proxy no fuerza el onboarding. Las API nunca se redirigen al onboarding.
 - **Marca:** «Universo Stampa» en login, registro, verificación, contraseña, onboarding, pantallas de acceso y metadatos. «Academia» queda como sección interna (el nombre comercial de la membresía y el prompt de Stampy no se tocaron).
 - **Legal:** estructura sin textos inventados (`src/content/legal`, `src/lib/legal/registry.ts`, `/legal/[slug]`): sin texto aprobado el documento no existe (404), no se enlaza y no entra al sitemap. Pendientes en `docs/LEGAL_PENDING.md`.
+
+## D047 — Academia V1.0: reproducción decidida por el servidor, retomar por progreso y Bunny con token opcional
+**Estado:** Accepted (2026-11-05, Sprint 3). Detalle y pasos en `docs/ACADEMY_V1.md`.
+
+- El reproductor pide la URL de cada clase a `getLessonPlaybackAction` (misma barrera que el progreso: sesión, Academia, Premium, curso publicado, clase y módulo activos); nunca embebe `lessons.video_url` tal cual. Solo https de Bunny, YouTube, Vimeo o archivos de video (`src/lib/academy/video.ts`); el admin no puede guardar un enlace que no se reproduciría.
+- Con `BUNNY_STREAM_TOKEN_KEY` configurada, los embeds de Bunny salen firmados (SHA256 de clave + videoId + vencimiento, 4 h). Sin la variable el comportamiento es el de antes. La activación en Bunny es un paso manual posterior al deploy.
+- Al entrar a un curso se abre la clase de `?clase=`, si no la primera pendiente, si no la primera. La clase activa se refleja en la URL.
+- Una clase o módulo inactivo no existe para alumnos (tampoco en la barrera del servidor). Los conteos del catálogo y el % de Inicio usan los mismos criterios que el curso (`is_active`).
+- Sin gamificación ni seguimiento de reproducción nuevos.

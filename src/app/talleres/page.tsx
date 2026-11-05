@@ -28,7 +28,8 @@ export default function TalleresPage() {
           *,
           instructors ( name ),
           course_modules (
-            lessons ( id, duration_minutes )
+            is_active,
+            lessons ( id, duration_minutes, is_active )
           )
         `)
         .in("status", [...CATALOG_STATUSES])
@@ -37,7 +38,7 @@ export default function TalleresPage() {
 
       if (fetchErr) {
         console.error("Error fetching courses:", fetchErr);
-        setError(fetchErr.message);
+        setError("No pudimos cargar el catálogo. Revisá tu conexión e intentá de nuevo.");
       } else if (data) {
         setCourses(data);
       }

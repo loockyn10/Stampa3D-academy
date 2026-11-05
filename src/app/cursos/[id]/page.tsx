@@ -1,5 +1,6 @@
 import { notFound, redirect } from "next/navigation";
 import { loadCourseGate } from "@/lib/academy/access";
+import { loginPathFor } from "@/lib/auth/return-to";
 import { FEATURE_UNAVAILABLE_ROUTE } from "@/lib/features/registry";
 import { CourseComingSoonScreen } from "@/components/academy/coming-soon";
 import { createClient } from "@/utils/supabase/server";
@@ -23,7 +24,7 @@ export default async function CursoDetailPage({ params }: PageProps) {
 
   switch (gate.kind) {
     case "unauthenticated":
-      redirect("/login");
+      redirect(loginPathFor(`/cursos/${encodeURIComponent(id)}`));
     case "feature_unavailable":
       redirect(`${FEATURE_UNAVAILABLE_ROUTE}?herramienta=academia`);
     case "no_membership":

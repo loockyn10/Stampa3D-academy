@@ -124,9 +124,11 @@ export function HomeDashboard() {
         if (latest) {
           const { count } = await supabase
             .from("lessons")
-            .select("id, course_modules!inner(course_id)", { count: "exact", head: true })
+            .select("id, course_modules!inner(course_id, is_active)", { count: "exact", head: true })
             .eq("course_modules.course_id", latest.courseId)
-            .eq("is_published", true);
+            // Same lessons the course shows (active lesson in an active module), so the % matches inside the course.
+            .eq("course_modules.is_active", true)
+            .eq("is_active", true);
           const totalLessons = count ?? 0;
           return patch({
             learning: {

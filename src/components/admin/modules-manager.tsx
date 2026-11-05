@@ -5,6 +5,7 @@ import { createClient } from "@/utils/supabase/client";
 import { Loader2, AlertCircle, Plus, Edit2, Trash2, Save, X, ChevronDown, ChevronUp, Video } from "lucide-react";
 import { LessonResourcesManager } from "./lesson-resources-manager";
 import { useAppFeedback } from "@/components/ui/app-feedback";
+import { describeVideoInput } from "@/lib/academy/video";
 
 export function ModulesManager({ courseId }: { courseId: string }) {
   const supabase = createClient();
@@ -118,6 +119,13 @@ export function ModulesManager({ courseId }: { courseId: string }) {
   // --- LESSON ACTIONS ---
   const handleSaveLesson = async (moduleId: string) => {
     setError(null);
+
+    // A link students could not play is not saved (empty = lesson without video, allowed).
+    const videoCheck = describeVideoInput(lessonFormData.video_url);
+    if (videoCheck && !videoCheck.ok) {
+      setError(videoCheck.message);
+      return;
+    }
     
     const topicsArray = lessonFormData.ai_topics
       ? lessonFormData.ai_topics.split(',').map(s => s.trim().toLowerCase()).filter(s => s)
@@ -294,9 +302,7 @@ export function ModulesManager({ courseId }: { courseId: string }) {
                               URL embed del video
                             </label>
                             <input type="text" placeholder="https://player.mediadelivery.net/embed/..." value={lessonFormData.video_url} onChange={e => setLessonFormData({ ...lessonFormData, video_url: e.target.value })} className="text-sm bg-stampa-surface text-fg placeholder-gray-500 border-fg/20 rounded-md w-full focus:ring-stampa-orange focus:border-stampa-orange" />
-                            <p className="text-[11px] text-gray-500">
-                              Pegá la URL src del iframe de Bunny Stream, no el iframe completo.
-                            </p>
+                            <VideoInputHint value={lessonFormData.video_url} />
                           </div>
                           <div className="md:col-span-2">
                             <textarea placeholder="Descripción (opcional)" value={lessonFormData.description} onChange={e => setLessonFormData({ ...lessonFormData, description: e.target.value })} className="text-sm bg-stampa-surface text-fg placeholder-gray-500 border-fg/20 rounded-md w-full focus:ring-stampa-orange focus:border-stampa-orange" rows={2} />
@@ -425,9 +431,7 @@ export function ModulesManager({ courseId }: { courseId: string }) {
                           URL embed del video
                         </label>
                         <input type="text" placeholder="https://player.mediadelivery.net/embed/..." value={lessonFormData.video_url} onChange={e => setLessonFormData({ ...lessonFormData, video_url: e.target.value })} className="text-sm bg-stampa-surface text-fg placeholder-gray-500 border-fg/20 rounded-md w-full focus:ring-stampa-orange focus:border-stampa-orange" />
-                        <p className="text-[11px] text-gray-500">
-                          Pegá la URL src del iframe de Bunny Stream, no el iframe completo.
-                        </p>
+                        <VideoInputHint value={lessonFormData.video_url} />
                       </div>
                       <div className="md:col-span-2">
                         <textarea placeholder="Descripción (opcional)" value={lessonFormData.description} onChange={e => setLessonFormData({ ...lessonFormData, description: e.target.value })} className="text-sm bg-stampa-surface text-fg placeholder-gray-500 border-fg/20 rounded-md w-full focus:ring-stampa-orange focus:border-stampa-orange" rows={2} />
@@ -522,4 +526,13 @@ export function ModulesManager({ courseId }: { courseId: string }) {
       </div>
     </div>
   );
+}
+
+/** Live feedback on the pasted video link (same parser as the student player). */
+function VideoInputHint({ value }: { value: string }) {
+  const check = describeVideoInput(value);
+  if (!check) {
+    return <p className="text-[11px] text-gray-500">Pegá el enlace de embed de Bunny Stream, YouTube o Vimeo (también se acepta el iframe completo). Vacío = clase sin video.</p>;
+  }
+  return <p className={`text-[11px] ${check.ok ? "text-green-500" : "text-red-400"}`} role={check.ok ? undefined : "alert"}>{check.message}</p>;
 }

@@ -1,6 +1,8 @@
 "use server";
 
 import { loadLessonGate } from "@/lib/academy/access";
+import { signBunnyEmbedUrl } from "@/lib/academy/bunny-token";
+import { resolveLessonVideo } from "@/lib/academy/video";
 import { getCurrentUserAccess } from "@/lib/auth/user-access";
 import { createClient } from "@/utils/supabase/server";
 
@@ -46,4 +48,38 @@ export async function setLessonProgressAction(lessonId: string, completed: boole
     .eq("lesson_id", lessonId);
   if (error) return { success: false as const, error: "No se pudo actualizar tu progreso." };
   return { success: true as const, completed: false };
+}
+
+export type LessonPlaybackResult =
+  | { ok: true; provider: "bunny" | "vimeo" | "youtube" | "file"; src: string }
+  | { ok: true; provider: "none" }
+  | { ok: false; error: string };
+
+/**
+ * Playback URL of a lesson, decided on the server with the same gate as the progress (session, Academia, Premium,
+ * published course, active lesson). Bunny embeds are signed with a short-lived token when
+ * `BUNNY_STREAM_TOKEN_KEY` is configured (Bunny "Embed view token authentication").
+ */
+export async function getLessonPlaybackAction(lessonId: string): Promise<LessonPlaybackResult> {
+  const supabase = await createClient();
+  const { access, error: accessError } = await getCurrentUserAccess(supabase);
+  if (accessError || !access.authenticated) return { ok: false, error: "Iniciá sesión para ver la clase." };
+
+  const gate = await loadLessonGate(supabase, lessonId, access);
+  if (!gate.allowed) {
+    return { ok: false, error: gate.reason === "course_locked" || gate.reason === "feature_unavailable" ? LOCKED_MESSAGE : "No se encontró la clase." };
+  }
+
+  const { data, error } = await supabase.from("lessons").select("video_url").eq("id", lessonId).maybeSingle();
+  if (error || !data) return { ok: false, error: "No pudimos cargar el video. Probá de nuevo." };
+
+  const video = resolveLessonVideo(data.video_url as string | null);
+  if (video.provider === "none") return { ok: true, provider: "none" };
+  if (video.provider === "invalid") return { ok: false, error: "El video de esta clase no está disponible por ahora." };
+
+  const tokenKey = process.env.BUNNY_STREAM_TOKEN_KEY;
+  if (video.provider === "bunny" && tokenKey) {
+    return { ok: true, provider: "bunny", src: signBunnyEmbedUrl({ embedUrl: video.embedUrl, videoId: video.videoId, tokenKey, now: new Date() }) };
+  }
+  return { ok: true, provider: video.provider, src: video.embedUrl };
 }

@@ -4,6 +4,7 @@ import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Clock, Layers, User, Image as ImageIcon } from "lucide-react";
 import { getCourseLevelStyle } from "@/lib/course-style";
+import { catalogCourseStats } from "@/lib/academy/course-stats";
 
 interface CourseCardProps {
   course: any;
@@ -16,10 +17,7 @@ export function CourseCard({ course }: CourseCardProps) {
   const levelStyle = getCourseLevelStyle(course.level);
   
   // Calculate total duration and lessons by flattening lessons within course_modules
-  const modules = course.course_modules || [];
-  const lessonsList = modules.flatMap((m: any) => m.lessons || []);
-  const lessonsCount = lessonsList.length;
-  const totalDuration = lessonsList.reduce((acc: number, l: any) => acc + (l.duration_minutes || 0), 0);
+  const { lessons: lessonsCount, minutes: totalDuration } = catalogCourseStats(course.course_modules);
   
   const formatDuration = (mins: number) => {
     if (!mins) return "0h 0m";
@@ -91,7 +89,7 @@ export function CourseCard({ course }: CourseCardProps) {
           <div className="mt-2 flex items-center justify-between text-xs font-medium">
             <div className="flex items-center gap-3 text-gray-400">
               <span className="flex items-center gap-1.5">
-                <Layers size={13} className="text-stampa-accent" /> {lessonsCount} clases
+                <Layers size={13} className="text-stampa-accent" /> {lessonsCount > 0 ? `${lessonsCount} ${lessonsCount === 1 ? "clase" : "clases"}` : "Clases en preparación"}
               </span>
               {totalDuration > 0 && (
                 <span className="flex items-center gap-1.5">
