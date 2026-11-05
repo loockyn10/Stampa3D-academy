@@ -55,3 +55,11 @@ test("QA-026: la descarga STL se registra solo después de que el servidor la au
   assert.match(src, /if \(res\.ok && data\.url\) \{[\s\S]*stl_downloads/);
   assert.match(src, /res\.redirected \|\| res\.status === 401/, "sesión vencida con mensaje claro");
 });
+
+test("QA-006/QA-011: la Calculadora acota los números y usa 16 px en móvil", () => {
+  const src = read("src/app/calculadora/page.tsx");
+  assert.match(src, /const DEFAULT_NUMBER_MAX = 10_000_000;/);
+  assert.match(src, /parsed > max\) return String\(max\)/);
+  assert.match(src, /text-base sm:text-sm text-fg placeholder/, "input >= 16 px en móvil (sin zoom en iOS)");
+  assert.match(src, /max=\{100_000\}/, "gramos acotados");
+});

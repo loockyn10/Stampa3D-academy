@@ -47,6 +47,8 @@ interface NumberFieldProps {
   suffix?: string;
   step?: number;
   disabled?: boolean;
+  /** Valor máximo aceptado (se recorta al escribir). */
+  max?: number;
 }
 
 interface CalculatorFilamentLine {
@@ -57,11 +59,16 @@ interface CalculatorFilamentLine {
 
 const INITIAL_FILAMENT_LINE_ID = "filament-line-1";
 
-function normalizeNumericInput(value: string) {
+/** Tope por defecto de cualquier campo numérico (evita resultados absurdos como "$59.905.400.300", QA-006). */
+const DEFAULT_NUMBER_MAX = 10_000_000;
+
+function normalizeNumericInput(value: string, max: number = DEFAULT_NUMBER_MAX) {
   const cleaned = value.replace(",", ".").replace(/[^\d.]/g, "");
   if (cleaned === "") return "";
-  if (cleaned.startsWith("0.")) return cleaned;
-  return cleaned.replace(/^0+(?=\d)/, "");
+  const normalized = cleaned.startsWith("0.") ? cleaned : cleaned.replace(/^0+(?=\d)/, "");
+  const parsed = Number.parseFloat(normalized);
+  if (Number.isFinite(parsed) && parsed > max) return String(max);
+  return normalized;
 }
 
 const FilamentOptionLabel = ({ filament }: { filament: any }) => {
@@ -90,7 +97,7 @@ const FilamentOptionLabel = ({ filament }: { filament: any }) => {
   );
 };
 
-function NumberField({ label, value, onChange, suffix, step = 1, disabled = false }: NumberFieldProps) {
+function NumberField({ label, value, onChange, suffix, step = 1, disabled = false, max = DEFAULT_NUMBER_MAX }: NumberFieldProps) {
   return (
     <label className={`block ${disabled ? "opacity-60" : ""}`}>
       <span className="mb-1 block text-xs font-semibold text-gray-500">{label}</span>
@@ -99,9 +106,9 @@ function NumberField({ label, value, onChange, suffix, step = 1, disabled = fals
           type="text"
           inputMode="decimal"
           value={value}
-          onChange={(e) => onChange(normalizeNumericInput(e.target.value))}
+          onChange={(e) => onChange(normalizeNumericInput(e.target.value, max))}
           placeholder="0"
-          className="h-11 w-full rounded-xl border border-fg/10 bg-fg/[0.06] px-4 pr-10 text-sm text-fg placeholder:text-neutral-500 outline-none transition focus:border-[#ff6a00]/60 focus:bg-fg/[0.08] focus:ring-2 focus:ring-[#ff6a00]/10 disabled:opacity-50"
+          className="h-11 w-full rounded-xl border border-fg/10 bg-fg/[0.06] px-4 pr-10 text-base sm:text-sm text-fg placeholder:text-neutral-500 outline-none transition focus:border-[#ff6a00]/60 focus:bg-fg/[0.08] focus:ring-2 focus:ring-[#ff6a00]/10 disabled:opacity-50"
           disabled={disabled}
         />
         {suffix && (
@@ -1247,6 +1254,7 @@ function CalculadoraPageContent() {
                     value={line.grams}
                     onChange={(grams) => updateFilamentLine(line.id, { grams })}
                     suffix="g"
+                    max={100_000}
                   />
                   {filamentLines.length > 1 && (
                     <button
@@ -1284,8 +1292,8 @@ function CalculadoraPageContent() {
             </div>
 
             <div className="grid grid-cols-2 gap-4">
-              <NumberField label="Horas" value={hours} onChange={setHours} suffix="h" step={1} />
-              <NumberField label="Minutos" value={minutes} onChange={setMinutes} suffix="m" step={1} />
+              <NumberField label="Horas" value={hours} onChange={setHours} suffix="h" step={1} max={9_999} />
+              <NumberField label="Minutos" value={minutes} onChange={setMinutes} suffix="m" step={1} max={9_999} />
             </div>
 
             <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
@@ -1368,9 +1376,9 @@ function CalculadoraPageContent() {
                   <span className="h-1.5 w-1.5 rounded-full bg-indigo-500"></span> Material y Taller
                 </h3>
                 <div className="space-y-3">
-                  <NumberField label="Margen de error (desperdicio)" value={manualErrorPercent} onChange={setManualErrorPercent} suffix="%" />
+                  <NumberField label="Margen de error (desperdicio)" value={manualErrorPercent} onChange={setManualErrorPercent} suffix="%" max={1_000} />
                   <NumberField label="Costo por kg manual (aplica a todos)" value={manualPricePerKg} onChange={setManualPricePerKg} suffix="$" />
-                  <NumberField label="Consumo de impresora" value={manualPrinterConsumption} onChange={setManualPrinterConsumption} suffix="W" />
+                  <NumberField label="Consumo de impresora" value={manualPrinterConsumption} onChange={setManualPrinterConsumption} suffix="W" max={100_000} />
                   <NumberField label="Costo del kWh eléctrico" value={manualKwhPrice} onChange={setManualKwhPrice} suffix="$" />
                 </div>
               </div>
@@ -1384,7 +1392,7 @@ function CalculadoraPageContent() {
                   <NumberField label="Mantenimiento de máquina por hora" value={manualPrinterMaintenance} onChange={setManualPrinterMaintenance} suffix="$" />
                   <NumberField label="Costo de mano de obra (total)" value={laborCost} onChange={setLaborCost} suffix="$" />
                   <NumberField label="Otros costos adicionales" value={otherCost} onChange={setOtherCost} suffix="$" />
-                  <NumberField label="Markup manual sobre filamento (sobreescribe)" value={manualMultiplier} onChange={setManualMultiplier} suffix="x" step={0.1} />
+                  <NumberField label="Markup manual sobre filamento (sobreescribe)" value={manualMultiplier} onChange={setManualMultiplier} suffix="x" step={0.1} max={1_000} />
                 </div>
               </div>
             </div>
@@ -1395,7 +1403,7 @@ function CalculadoraPageContent() {
                 <span className="h-1.5 w-1.5 rounded-full bg-indigo-500"></span> Plataforma de Venta (ML, etc.)
               </h3>
               <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
-                <NumberField label="Comisión plataforma" value={manualPlatformCommission} onChange={setManualPlatformCommission} suffix="%" />
+                <NumberField label="Comisión plataforma" value={manualPlatformCommission} onChange={setManualPlatformCommission} suffix="%" max={100} />
                 <NumberField label="Fijo extra plataforma" value={manualPlatformExtra} onChange={setManualPlatformExtra} suffix="$" />
                 <NumberField label="Costo Envío" value={shippingCost} onChange={setShippingCost} suffix="$" />
               </div>
