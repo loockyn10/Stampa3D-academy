@@ -26,6 +26,9 @@ export class FakeMercadoPago {
   calls = [];
   failNext = new Map(); // method -> error to throw once
   searchFails = false;
+  /** Real behaviour seen in production on 2026-11-05: the installment search answers HTTP 400 (permanent). */
+  invoiceSearchHttp400 = false;
+  paymentSearchFails = false;
   cancelLeavesStatus = null; // simulate a PUT that "succeeds" but the preapproval is not cancelled
 
   addPreapproval(id, fields = {}) {
@@ -82,8 +85,35 @@ export class FakeMercadoPago {
     return structuredClone(raw);
   }
 
+  /** A subscription payment as /v1/payments returns it (linked through point_of_interaction). */
+  addSubscriptionPayment(id, preapprovalId, { status = "approved", externalReference = null, invoiceId = null, dateApproved, amount = 19900, linked = true } = {}) {
+    const raw = {
+      id: Number(id),
+      status,
+      status_detail: status === "approved" ? "accredited" : "cc_rejected_other_reason",
+      external_reference: externalReference,
+      date_created: dateApproved ?? NOW.toISOString(),
+      date_approved: status === "approved" ? dateApproved ?? NOW.toISOString() : null,
+      transaction_amount: amount,
+      currency_id: "ARS",
+      payer: { email: "other-mp-account@example.com" },
+      point_of_interaction: linked
+        ? { type: "SUBSCRIPTIONS", transaction_data: { subscription_id: preapprovalId, ...(invoiceId ? { invoice_id: String(invoiceId) } : {}) } }
+        : {},
+    };
+    this.payments.set(String(id), raw);
+    return raw;
+  }
+
+  async searchPayments(externalReference) {
+    this.calls.push(`searchPayments:${externalReference}`);
+    if (this.paymentSearchFails) throw transient();
+    return [...this.payments.values()].filter((raw) => raw.external_reference === externalReference).map((raw) => structuredClone(raw));
+  }
+
   async searchInvoices(preapprovalId) {
     this.calls.push(`searchInvoices:${preapprovalId}`);
+    if (this.invoiceSearchHttp400) throw new sync.MembershipSyncError("provider_http_400", "Mercado Pago respondió HTTP 400 (simulated)", false);
     if (this.searchFails) throw transient();
     return [...this.invoices.values()].filter((raw) => raw.preapproval_id === preapprovalId).map((raw) => structuredClone(raw));
   }
@@ -137,10 +167,15 @@ export class MemoryMembershipStore {
     return row;
   }
 
+  /** Rows as the real store returns them (createdAt = ISO creation time). */
+  view(row) {
+    return { ...row, createdAt: row.createdAtIso ?? null };
+  }
+
   async findSubscriptionByPreapprovalId(preapprovalId) {
     this.check();
     const row = this.subscriptions.find((sub) => sub.preapprovalId === preapprovalId);
-    return row ? { ...row } : null;
+    return row ? this.view(row) : null;
   }
 
   async findSubscriptionForUser(userId, subscriptionId) {
@@ -148,7 +183,16 @@ export class MemoryMembershipStore {
     const rows = this.subscriptions
       .filter((sub) => sub.userId === userId && (!subscriptionId || sub.id === subscriptionId))
       .sort((a, b) => b.createdAt - a.createdAt);
-    return rows[0] ? { ...rows[0] } : null;
+    return rows[0] ? this.view(rows[0]) : null;
+  }
+
+  async listSubscriptionsForUser(userId, limit) {
+    this.check();
+    return this.subscriptions
+      .filter((sub) => sub.userId === userId)
+      .sort((a, b) => b.createdAt - a.createdAt)
+      .slice(0, limit)
+      .map((row) => this.view(row));
   }
 
   async findCheckoutAttemptByExternalReference(externalReference) {
@@ -172,10 +216,11 @@ export class MemoryMembershipStore {
       nextPaymentAt: preapproval.nextPaymentDate ?? row.nextPaymentAt ?? null,
       amount: preapproval.amount ?? row.amount ?? null,
       currency: preapproval.currency ?? row.currency ?? null,
+      providerChargedAmount: preapproval.raw?.summarized?.charged_amount ?? null,
       updatedAtIso: now.toISOString(),
     });
     this.saves = (this.saves ?? 0) + 1;
-    return { ...row };
+    return this.view(row);
   }
 
   async recordInvoice({ userId, subscriptionId, invoice, now }) {
@@ -186,7 +231,9 @@ export class MemoryMembershipStore {
       status: billing.invoiceStoredStatus(invoice),
       paidAt: invoice.chargeDate ?? now.toISOString(),
     };
-    const rows = this.payments.filter((p) => p.invoiceId === invoice.id);
+    const rows = this.payments.filter(
+      (p) => p.invoiceId === invoice.id || (invoice.paymentId && p.invoiceId === invoice.paymentId && p.subscriptionId === subscriptionId),
+    );
     if (rows.some((p) => p.userId !== userId)) throw new Error("payment owned by another user");
     if (rows.length) rows.forEach((p) => Object.assign(p, fields));
     else this.payments.push({ invoiceId: invoice.id, ...fields });
@@ -236,6 +283,8 @@ export class MemoryMembershipStore {
       nextPaymentAt: sub.nextPaymentAt ?? null,
       updatedAt: sub.updatedAtIso ?? null,
       createdAt: sub.createdAtIso ?? null,
+      providerChargedAmount: sub.providerChargedAmount ?? null,
+      hasApprovedPayment: this.payments.some((p) => p.subscriptionId === sub.id && p.status === "approved"),
     }));
   }
 

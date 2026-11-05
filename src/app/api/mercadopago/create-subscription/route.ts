@@ -8,6 +8,8 @@ import { MercadoPagoPreapprovalClient } from "@/lib/mercadopago/preapproval-clie
 import { resolveBillingFrequency } from "@/lib/mercadopago/billing-frequency";
 import { loadMembershipPrice } from "@/lib/mercadopago/membership-price";
 import { normalizePayerEmail, restartPendingCheckout } from "@/lib/mercadopago/checkout-restart";
+import { createMembershipDependencies } from "@/lib/mercadopago/membership-server";
+import { assessCheckoutEligibility, type CheckoutEligibility } from "@/lib/mercadopago/membership-sync";
 import { executeDiscountedCheckout, executePlainCheckout } from "@/lib/mercadopago/discount-checkout";
 import {
   DISCOUNT_CODE_MAX_INPUT_LENGTH,
@@ -242,6 +244,44 @@ export async function POST(request: Request) {
   if (body.discountCode && !discountCodesEnabled()) {
     return response(
       { code: "discount_codes_disabled", error: DISCOUNT_MESSAGES.disabled },
+      409,
+    );
+  }
+
+  // Never charge twice (incident 2026-11-05): first recover any payment whose webhook was lost, then refuse a new
+  // checkout to a member with access, or while a charge Mercado Pago reports is still being verified.
+  const membershipDependencies = createMembershipDependencies();
+  if (!membershipDependencies) {
+    return response({ error: "Configuración de Supabase incompleta" }, 500);
+  }
+  let eligibility: CheckoutEligibility;
+  try {
+    eligibility = await assessCheckoutEligibility(user.id, membershipDependencies);
+  } catch (error) {
+    console.error("[MP create-subscription] membership guard unavailable", error instanceof Error ? error.message : "error");
+    return response(
+      { code: "membership_check_unavailable", error: "No pudimos verificar tu membresía. No se cobró nada; probá de nuevo en unos minutos." },
+      503,
+    );
+  }
+  if (eligibility.kind === "has_access") {
+    return response(
+      {
+        code: "already_member",
+        error: "Tu membresía ya está activa. No se creó otro pago ni se cobrará dos veces.",
+        access_until: eligibility.accessUntil,
+      },
+      409,
+    );
+  }
+  if (eligibility.kind === "charge_unverified") {
+    console.error("[MP create-subscription] blocked: charge reported by Mercado Pago not verified yet");
+    return response(
+      {
+        code: "charge_under_verification",
+        error:
+          "Mercado Pago registra un cobro de tu suscripción que todavía estamos verificando. No vuelvas a pagar: tu acceso se activa en cuanto se confirme. Si no se activa, escribinos.",
+      },
       409,
     );
   }

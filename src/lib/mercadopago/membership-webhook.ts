@@ -81,6 +81,13 @@ export async function handleMembershipWebhook(
     dataId: notification.signedDataId,
   });
   if (!signed) {
+    // Nothing is persisted for an unsigned request, so this log is the only trace of a secret mismatch.
+    log("membership webhook rejected: invalid or missing signature", {
+      hasSignature: Boolean(request.headers.get("x-signature")),
+      hasRequestId: Boolean(request.headers.get("x-request-id")),
+      topic: notification.topic,
+      hasDataId: Boolean(notification.signedDataId),
+    });
     return { status: 401, body: { error: "invalid_signature" } };
   }
 

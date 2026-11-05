@@ -14,7 +14,8 @@ Decisiones: `docs/DECISIONS.md` D044 (billing) y D045 (baja: **pendiente de defi
 | Experiencia de baja | **Pendiente de definición comercial** (§7, D045). El código actual se conserva sin cambios |
 | Entorno aislado de prueba (§5) | **No se crea por ahora** (decisión del dueño, 2026-11-05) |
 | Prueba real con Mercado Pago (§6) | **Pendiente** — la hace el dueño cuando lo decida; bloqueante para cobrar |
-| Merge a `main` / deploy | **No realizados** — checklist en §11 |
+| Merge a `main` / deploy | **Realizados** (comprobado 2026-11-05: producción responde con las rutas del Sprint 1.1). El fix del incidente P0 (§13) y `da3ba6e` son commits locales **sin push ni deploy** |
+| Incidente P0 2026-11-05 (pago aprobado sin Premium) | **Corregido en código, pendiente de validación real** — §13 |
 
 ## 1. Problemas encontrados en el código anterior (confirmados leyendo el código)
 
@@ -144,7 +145,7 @@ Revertir el commit y redeployar. No hay cambios de base de datos que deshacer. P
 - Definición comercial y legal de la baja y el arrepentimiento (§7).
 - Reembolsos y contracargos no revocan acceso automáticamente.
 - Emails propios de confirmación, rechazo, baja o vencimiento.
-- `PUT /preapproval` con `status=cancelled`, `GET /authorized_payments/search?preapproval_id=` y la frecuencia diaria de prueba siguen la documentación de MP, pero **no se ejercitaron contra la API real**: los confirma §6.
+- `PUT /preapproval` con `status=cancelled` y la frecuencia diaria de prueba siguen la documentación de MP, pero **no se ejercitaron contra la API real**: los confirma §6. `GET /authorized_payments/search` **sí se ejercitó (2026-11-05) y respondió 400** con `preapproval_id` + `limit`: ver §13.
 - En modo de prueba diario, el panel sigue diciendo «por mes» (texto fijo del plan mensual).
 - Los beneficios de «Mi membresía» salen de `landing-content.ts`; al alinear la landing (P1-3) se actualizan solos.
 
@@ -190,3 +191,28 @@ Requisitos: `describe_open_checkout` y `close_pending_checkout` (migration `2026
 4. **Doble clic / recarga:** una sola preapproval nueva; nunca dos `authorized`.
 5. **Ya pagado:** con la suscripción activa, «Empezar un pago nuevo» responde 409 y no cancela nada.
 Antes de cada prueba y después: `supabase/diagnostics/20261105_membership_billing_state.sql` (solo lectura) y logs de Vercel de `/api/mercadopago/create-subscription` (`restart failed`, `definite provider rejection`).
+
+## 13. Incidente P0 2026-11-05: pago aprobado sin Premium (D049)
+
+**Datos del incidente (aportados por el dueño):** preapproval 1 `6248ec22…` (checkout `dc7cc1e5…`): MP `cancelled`, `charged_amount = 250`, último cobro 2026-11-05 17:19:52Z; en Supabase el intento quedó `closed` / `subscription_terminal` a las 18:40:08Z (lo cerró `begin_membership_checkout` al abrir el segundo intento, porque la suscripción local ya estaba `cancelled`). Preapproval 2 `58a1029c…`: MP `cancelled`, `charged_amount = 0`, sin tarjeta. `checkout_attempts.provider_status` es una foto del momento de creación (siempre `pending`): no indica el estado del pago. El script de diagnóstico obtuvo **HTTP 400** en `/authorized_payments/search?preapproval_id=…&limit=20` para ambas.
+
+**Producción (comprobado el 2026-11-05 sin credenciales):** el deploy de `stampa3-d-academy-beta.vercel.app` tiene el código de los Sprints 1/1.1 (`GET /api/mercadopago/membership` y `/reconcile` → 401) y `MERCADO_PAGO_WEBHOOK_SECRET` configurado (POST sin firma al webhook → 401, no 503). El commit `da3ba6e` (correo del pagador / «empezar un pago nuevo») **no** está en GitHub, por lo tanto no está desplegado.
+
+**Causa raíz (demostrada leyendo el código + el 400 real):**
+1. La única forma que tenían `/pago/estado`, «Mi membresía», la cancelación y la conciliación de encontrar un cobro era `searchInvoices` (`/authorized_payments/search` con `preapproval_id`, `limit=50`, `offset=0`). Responde 400; el error se registraba solo en el log y se seguía con «no hay cobros».
+2. El webhook `subscription_preapproval` pasaba por el mismo camino: guardaba `authorized` (o `cancelled`) y terminaba `processed = true` sin acceso. Solo el webhook `subscription_authorized_payment` traía el cobro; ese no activó (no llegó, fue rechazado por firma o llegó antes de que el pago estuviera `approved`: **no demostrado**, ver consulta C).
+3. La conciliación no podía ayudar: usa la misma búsqueda; además una suscripción `authorized` sin cobro registrado no era candidata hasta su próximo vencimiento (un mes) y las `cancelled` nunca se re-sincronizaban.
+4. Tras cancelar y reintentar, «Verificar» solo releía la **última** suscripción (la 2, sin cobro): el período pago de la 1 quedó inalcanzable desde la app.
+5. `/sin-acceso` → «Actualizar acceso» solo releía el perfil (nunca consultaba a MP). La sesión/caché **no** era el problema: el proxy lee `profiles` en cada request.
+6. Los tests del Sprint 1 pasaban porque el doble de MP respondía la búsqueda de cuotas sin errores: nunca modeló el 400 real.
+
+**Hipótesis no demostradas:** por qué no llegó / no activó el webhook de la cuota (ver C); los errores de los reintentos en MP («los correos no coinciden», «pago sospechoso», «Algo salió mal») son del checkout de MP: el de correos coincide con la restricción de D048 (corregida en `da3ba6e`, no desplegada); los de riesgo no tienen evidencia (no asumir antifraude). Tampoco está demostrado qué parámetro provoca el 400 (el script actualizado imprime el motivo).
+
+**Corrección (código):** `membership-provider.ts` (búsqueda de cuotas solo con `preapproval_id`; `searchPayments` por `external_reference`; motivo de MP en los 4xx), `membership-billing.ts` (`providerReportedCharge`, `parseSubscriptionPayment`), `membership-sync.ts` (`collectInvoices` con dos vías, `chargeUnverified`, `syncUserMembership` multi-suscripción, `assessCheckoutEligibility`, topic `payment` como evidencia, `charge_unverified` → 500), `membership-store.ts`, `membership-reconcile.ts` (clase `unverified`, autorizadas sin cobro), `membership-webhook.ts` (log de firma inválida), `create-subscription` (409 `already_member` / `charge_under_verification`), `sync-subscription` (`charge_unverified`), `/pago/estado`, `/sin-acceso`. Tests: `tests/membership-incident-20261105.test.mjs` (23 escenarios; contra el código anterior fallan 21).
+
+**Lo que falta para cerrar el incidente (pasos del dueño, sin compartir valores en el chat):**
+1. Correr `supabase/diagnostics/20261105_mp_preapproval_readonly.ps1` (actualizado) con las dos preapprovals. Confirma: (a) si la búsqueda solo con `preapproval_id` responde 200 y el motivo exacto del 400; (b) si `/v1/payments/search?external_reference=` devuelve el pago de $250 con `status = approved` y vinculado a la preapproval 1. **Si (a) y (b) fallan, el fix no puede encontrar el cobro y queda `charge_unverified` (visible, sin acceso automático):** avisar antes de desplegar.
+2. Correr `supabase/diagnostics/20261105_incident_premium_not_granted.sql` (solo lectura): A/B (filas locales y pagos), C (notificaciones recibidas: si no hay ninguna desde las 17:13Z, el webhook no está configurado para «Planes y suscripciones» o la firma no coincide), D/E (estado del usuario).
+3. Vercel → Logs del 5/11: `[membership] invoice search failed` (confirma 1) y `[MP membership webhook]`.
+4. Autorizar push + deploy. Después del deploy, el usuario afectado recupera el acceso **solo** con entrar y tocar «Verificar» / «Actualizar acceso», o con el cron del día siguiente, **si** MP devuelve el pago aprobado. No se modifica su perfil a mano.
+5. Prueba real §12 (cuenta nueva → pagar → Premium automático) con el log `[membership]` abierto.

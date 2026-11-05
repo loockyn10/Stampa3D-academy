@@ -111,6 +111,67 @@ export function parseInvoice(rawValue: unknown): InvoiceSnapshot | null {
   };
 }
 
+/**
+ * What the preapproval itself says was collected (`summarized`). It is NOT proof of payment (Premium still needs an
+ * approved payment), only a signal that one exists: when Mercado Pago reports money collected and no approved payment
+ * is recorded locally, the charge must be located and the case is never silently treated as "nothing to do"
+ * (incident 2026-11-05: $250 collected, no access).
+ */
+export function providerReportedCharge(preapproval: Pick<PreapprovalSnapshot, "raw">): {
+  chargedAmount: number;
+  lastChargedDate: string | null;
+} | null {
+  const summarized = asRecord(preapproval.raw.summarized);
+  if (!summarized) return null;
+  const charged = amount(summarized.charged_amount);
+  if (charged === null || charged <= 0) return null;
+  return { chargedAmount: charged, lastChargedDate: validDate(summarized.last_charged_date) };
+}
+
+/**
+ * A plain payment (`/v1/payments`) made by a subscription, read as an installment so it goes through the same
+ * pipeline. Returns null unless the payment demonstrably belongs to `preapprovalId`:
+ * - its subscription link (`point_of_interaction.transaction_data.subscription_id` or `metadata.preapproval_id`) is
+ *   that preapproval; or
+ * - it carries no subscription link at all but its `external_reference` is exactly the checkout's (server-generated
+ *   and unique per checkout attempt).
+ * A payment linked to ANOTHER preapproval is never accepted. The row key is the installment id when Mercado Pago gives
+ * it, so it merges with the row written from `authorized_payments`.
+ */
+export function parseSubscriptionPayment(
+  rawValue: unknown,
+  expected: { preapprovalId: string; externalReference: string | null },
+): InvoiceSnapshot | null {
+  const raw = asRecord(rawValue);
+  const paymentId = raw ? text(raw.id) : null;
+  if (!raw || !paymentId) return null;
+
+  const metadata = asRecord(raw.metadata) ?? {};
+  const poi = asRecord(raw.point_of_interaction) ?? {};
+  const transaction = asRecord(poi.transaction_data) ?? {};
+  const linked = [text(transaction.subscription_id), text(metadata.preapproval_id)].filter((v): v is string => v !== null);
+
+  if (linked.length > 0) {
+    if (!linked.every((value) => value === expected.preapprovalId)) return null;
+  } else {
+    const reference = text(raw.external_reference);
+    if (!expected.externalReference || reference !== expected.externalReference) return null;
+  }
+
+  const status = text(raw.status)?.toLowerCase() ?? null;
+  return {
+    id: text(transaction.invoice_id) ?? paymentId,
+    preapprovalId: expected.preapprovalId,
+    status,
+    paymentId,
+    paymentStatus: status,
+    chargeDate: validDate(raw.date_approved) ?? validDate(raw.date_created),
+    amount: amount(raw.transaction_amount),
+    currency: text(raw.currency_id),
+    raw,
+  };
+}
+
 /** The only proof of payment. */
 export function invoiceIsPaid(invoice: Pick<InvoiceSnapshot, "paymentStatus">): boolean {
   return invoice.paymentStatus === "approved";

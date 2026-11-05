@@ -14,15 +14,34 @@ import {
 } from "@/lib/discounts/discount-codes";
 import { reserveDiscountCode } from "@/lib/discounts/repository";
 import { loadMembershipPrice } from "@/lib/mercadopago/membership-price";
+import { createMembershipDependencies } from "@/lib/mercadopago/membership-server";
+import { syncUserMembership } from "@/lib/mercadopago/membership-sync";
 
 export interface RefreshAccessResult {
   hasAccess: boolean;
   destination: string | null;
 }
 
-/** Re-resolves access server-side (fresh query, session user only) for /sin-acceso. */
+/**
+ * Re-resolves access server-side (fresh query, session user only) for /sin-acceso. A Free user who already paid is
+ * first re-synced with Mercado Pago (best effort), so "Actualizar acceso" recovers a payment whose webhook was lost
+ * instead of only re-reading the same profile row (incident 2026-11-05).
+ */
 export async function refreshAccessAction(): Promise<RefreshAccessResult> {
   const supabase = await createClient();
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+  if (user) {
+    const deps = createMembershipDependencies();
+    if (deps) {
+      try {
+        await syncUserMembership(user.id, deps);
+      } catch (error) {
+        console.error("[membership] refresh access sync failed", error instanceof Error ? error.message : "error");
+      }
+    }
+  }
   const { access } = await getCurrentUserAccess(supabase);
   const destination = resolvePostAccessDestination(access);
   return { hasAccess: destination !== null, destination };

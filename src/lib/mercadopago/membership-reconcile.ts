@@ -9,13 +9,17 @@ import {
  * Automatic reconciliation (safety net for lost or never-configured webhooks). A scheduled job re-syncs, with the
  * same idempotent pipeline as the webhook, only the subscriptions that can have changed:
  *
+ * 0. `unverified` — Mercado Pago reported money collected (`summarized.charged_amount > 0` in the stored snapshot) but
+ *                  no approved payment is recorded, in ANY status (cancelled included): somebody paid and has no access
+ *                  (incident 2026-11-05). Highest priority, retried every 30 minutes while recent.
  * 1. `due`     — authorized with `next_payment_at` reached (renewal charged or being retried by Mercado Pago).
- * 2. `pending` — checkouts created in the last 3 days (first charge whose webhook may have been lost).
+ * 2. `pending` — checkouts created in the last 3 days still pending, or authorized without an approved payment yet
+ *                (first charge whose webhook may have been lost).
  * 3. `stale`   — authorized / paused not synced for 7 days (cancellations or pauses made in Mercado Pago).
  *
- * Nothing synced in the last 6 hours (30 minutes for a pending checkout) is taken again, so the job can run as often as the plan allows without
- * hammering Mercado Pago. Cancelled subscriptions are never re-synced: they cannot charge again and their paid period
- * is already recorded. Accesses granted by the team are untouched (same rules as the webhook).
+ * Nothing synced in the last 6 hours (30 minutes for a first charge) is taken again, so the job can run as often as the
+ * plan allows without hammering Mercado Pago. A cancelled subscription is re-synced only in case 0 (it cannot charge
+ * again, but the period it already paid must be recorded). Accesses granted by the team are untouched.
  */
 
 export const RECONCILE_MIN_INTERVAL_MS = 6 * 60 * 60 * 1000;
@@ -25,6 +29,8 @@ export const RECONCILE_DUE_LOOKAHEAD_MS = 24 * 60 * 60 * 1000;
 export const RECONCILE_PENDING_WINDOW_MS = 3 * 24 * 60 * 60 * 1000;
 export const RECONCILE_PENDING_MIN_AGE_MS = 10 * 60 * 1000;
 export const RECONCILE_STALE_AFTER_MS = 7 * 24 * 60 * 60 * 1000;
+/** A charge reported by Mercado Pago but not recorded is chased while the subscription is this recent. */
+export const RECONCILE_UNVERIFIED_WINDOW_MS = 40 * 24 * 60 * 60 * 1000;
 export const RECONCILE_DEFAULT_LIMIT = 40;
 const MAX_CONSECUTIVE_TRANSIENT_FAILURES = 3;
 
@@ -36,6 +42,10 @@ export interface ReconciliationCandidate {
   nextPaymentAt: string | null;
   updatedAt: string | null;
   createdAt: string | null;
+  /** `summarized.charged_amount` of the stored preapproval snapshot (null when unknown). */
+  providerChargedAmount?: number | null;
+  /** Whether an approved payment is recorded for this subscription (undefined when not looked up). */
+  hasApprovedPayment?: boolean;
 }
 
 export interface ReconciliationStore {
@@ -43,7 +53,7 @@ export interface ReconciliationStore {
   listReconciliationCandidates(input: { now: Date; limit: number }): Promise<ReconciliationCandidate[]>;
 }
 
-export type ReconcileReason = "due" | "pending" | "stale";
+export type ReconcileReason = "unverified" | "due" | "pending" | "stale";
 
 export interface ReconcileItem {
   candidate: ReconciliationCandidate;
@@ -71,8 +81,23 @@ export function selectReconciliationBatch(candidates: ReconciliationCandidate[],
     const created = ms(candidate.createdAt);
     const next = ms(candidate.nextPaymentAt);
     const syncedRecently = (interval: number) => updated !== null && nowMs - updated < interval;
+    const unpaid = candidate.hasApprovedPayment === false;
+    const firstChargeWindow =
+      created !== null && nowMs - created <= RECONCILE_PENDING_WINDOW_MS && nowMs - created >= RECONCILE_PENDING_MIN_AGE_MS;
 
-    if (status === "authorized" && next !== null && next <= nowMs + RECONCILE_DUE_LOOKAHEAD_MS) {
+    if (
+      unpaid &&
+      (candidate.providerChargedAmount ?? 0) > 0 &&
+      created !== null &&
+      nowMs - created <= RECONCILE_UNVERIFIED_WINDOW_MS
+    ) {
+      if (syncedRecently(RECONCILE_PENDING_MIN_INTERVAL_MS)) continue;
+      items.push({ candidate, reason: "unverified", rank: -1, sortKey: created });
+    } else if (status === "authorized" && unpaid && firstChargeWindow) {
+      // Authorized (card linked) but its first charge is not recorded: the payment webhook may have been lost.
+      if (syncedRecently(RECONCILE_PENDING_MIN_INTERVAL_MS)) continue;
+      items.push({ candidate, reason: "pending", rank: 1, sortKey: created as number });
+    } else if (status === "authorized" && next !== null && next <= nowMs + RECONCILE_DUE_LOOKAHEAD_MS) {
       if (syncedRecently(RECONCILE_MIN_INTERVAL_MS)) continue;
       items.push({ candidate, reason: "due", rank: 0, sortKey: next });
     } else if (
@@ -103,6 +128,8 @@ export interface ReconcileReport {
   extended: number;
   retryableFailures: number;
   permanentFailures: number;
+  /** Synced, but Mercado Pago reports a charge that could not be matched to an approved payment (retried next run). */
+  unverified: number;
   notProcessed: number;
   stoppedReason: "completed" | "time_budget" | "transient_failures" | "provider_credentials";
   failures: { subscriptionId: string; code: string }[];
@@ -129,6 +156,7 @@ export async function reconcileMemberships(
     extended: 0,
     retryableFailures: 0,
     permanentFailures: 0,
+    unverified: 0,
     notProcessed: 0,
     stoppedReason: "completed",
     failures: [],
@@ -149,6 +177,14 @@ export async function reconcileMemberships(
       );
       report.synced += 1;
       if (result.membershipExtended) report.extended += 1;
+      if (result.chargeUnverified) {
+        report.unverified += 1;
+        report.failures.push({ subscriptionId: candidate.id, code: "charge_unverified" });
+        deps.log?.("reconcile: charge reported by Mercado Pago not verified", {
+          subscriptionId: candidate.id,
+          lookupFailures: result.lookupFailures,
+        });
+      }
       consecutiveTransient = 0;
     } catch (error) {
       const syncError =

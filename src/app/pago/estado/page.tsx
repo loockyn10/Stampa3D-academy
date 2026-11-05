@@ -12,6 +12,8 @@ const AUTO_RETRY_LIMIT = 8;
 interface SyncResponse {
   active?: boolean;
   status?: string;
+  /** Mercado Pago reports money collected that is not matched to an approved payment yet. */
+  charge_unverified?: boolean;
   membership?: MembershipDto;
   error?: string;
 }
@@ -88,7 +90,8 @@ export default function PagoEstadoPage() {
   }, [applyResult]);
 
   const state = result?.membership?.state ?? null;
-  const waitingForPayment = !result?.active && state === "pending";
+  const chargeUnverified = !result?.active && result?.charge_unverified === true;
+  const waitingForPayment = !result?.active && (state === "pending" || chargeUnverified);
 
   // While Mercado Pago confirms the first charge, re-check automatically a few times.
   useEffect(() => {
@@ -141,9 +144,13 @@ export default function PagoEstadoPage() {
             ) : waitingForPayment ? (
               <>
                 <Clock className="mb-4 h-12 w-12 text-amber-500" aria-hidden="true" />
-                <h1 className="text-2xl font-bold tracking-tight text-fg">Esperando la confirmación del pago</h1>
+                <h1 className="text-2xl font-bold tracking-tight text-fg">
+                  {chargeUnverified ? "Estamos verificando tu pago" : "Esperando la confirmación del pago"}
+                </h1>
                 <p className="mb-6 mt-2 text-sm text-gray-400" role="status">
-                  {stillAutoChecking
+                  {chargeUnverified
+                    ? "Mercado Pago registra un cobro de tu suscripción y lo estamos confirmando. No vuelvas a pagar: tu acceso se activa en cuanto se confirme. Si en unas horas no se activó, escribinos."
+                    : stillAutoChecking
                     ? "Mercado Pago está procesando tu pago. Esta pantalla se actualiza sola."
                     : "Mercado Pago todavía no confirmó el pago. Puede tardar unos minutos: te avisamos en Mi membresía. No hace falta volver a pagar."}
                 </p>

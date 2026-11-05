@@ -189,6 +189,11 @@ export function SinAccesoClient({
         setDiscount(null);
       }
 
+      // Already a member (e.g. a payment whose webhook was late was just recovered): go in instead of paying again.
+      if (data?.code === "already_member") {
+        if (await revalidateAccess()) return;
+      }
+
       if (response.status === 202) {
         throw new Error(
           data?.error ||

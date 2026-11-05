@@ -30,13 +30,15 @@ export async function POST() {
   }
 
   try {
-    const { summary, synced } = await syncUserMembership(user.id, deps);
+    const { summary, synced, chargeUnverified } = await syncUserMembership(user.id, deps);
     return NextResponse.json(
       {
         // Kept for older clients: `active` is real access, `status` the user-facing state.
         active: summary.hasAccess,
         status: synced ? summary.state : "not_found",
         access_until: summary.accessUntil,
+        // Mercado Pago reports money collected that we could not match to an approved payment yet: never ask to pay again.
+        charge_unverified: chargeUnverified && !summary.hasAccess,
         membership: membershipDto(summary),
       },
       { headers: noStore },

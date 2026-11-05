@@ -7,6 +7,7 @@ import {
   RECONCILE_PENDING_MIN_AGE_MS,
   RECONCILE_PENDING_WINDOW_MS,
   RECONCILE_STALE_AFTER_MS,
+  RECONCILE_UNVERIFIED_WINDOW_MS,
   type ReconciliationCandidate,
   type ReconciliationStore,
 } from "@/lib/mercadopago/membership-reconcile";
@@ -19,7 +20,9 @@ import {
  * uses compare-and-set so concurrent notifications can never shorten a membership.
  */
 
-const SUBSCRIPTION_COLUMNS = "id, user_id, mercado_pago_preapproval_id, status, started_at, cancelled_at, next_payment_at, amount, currency";
+// `provider_charged_amount` = what the last stored preapproval snapshot reported as collected (money, not proof).
+const SUBSCRIPTION_COLUMNS =
+  "id, user_id, mercado_pago_preapproval_id, status, started_at, cancelled_at, next_payment_at, amount, currency, created_at, provider_charged_amount:raw_data->summarized->>charged_amount";
 
 interface SubscriptionRow {
   id: string;
@@ -31,6 +34,14 @@ interface SubscriptionRow {
   next_payment_at: string | null;
   amount: number | string | null;
   currency: string | null;
+  created_at?: string | null;
+  provider_charged_amount?: number | string | null;
+}
+
+function numberOrNull(value: unknown): number | null {
+  if (value === null || value === undefined || value === "") return null;
+  const parsed = Number(value);
+  return Number.isFinite(parsed) ? parsed : null;
 }
 
 function toSubscription(row: SubscriptionRow): StoredSubscription {
@@ -45,6 +56,8 @@ function toSubscription(row: SubscriptionRow): StoredSubscription {
     nextPaymentAt: row.next_payment_at,
     amount: Number.isFinite(amount) ? amount : null,
     currency: row.currency,
+    createdAt: row.created_at ?? null,
+    providerChargedAmount: numberOrNull(row.provider_charged_amount),
   };
 }
 
@@ -74,6 +87,17 @@ export class SupabaseMembershipStore implements MembershipStore, ReconciliationS
     if (error) fail("subscriptions select", error);
     const row = (data ?? [])[0] as SubscriptionRow | undefined;
     return row ? toSubscription(row) : null;
+  }
+
+  async listSubscriptionsForUser(userId: string, limit: number): Promise<StoredSubscription[]> {
+    const { data, error } = await this.admin
+      .from("subscriptions")
+      .select(SUBSCRIPTION_COLUMNS)
+      .eq("user_id", userId)
+      .order("created_at", { ascending: false })
+      .limit(Math.max(1, limit));
+    if (error) fail("subscriptions select", error);
+    return ((data ?? []) as unknown as SubscriptionRow[]).map(toSubscription);
   }
 
   async findCheckoutAttemptByExternalReference(externalReference: string): Promise<CheckoutAttemptOwner | null> {
@@ -165,6 +189,19 @@ export class SupabaseMembershipStore implements MembershipStore, ReconciliationS
     if (selectError) fail("payments select", selectError);
 
     const rows = (existing ?? []) as { id: string; user_id: string }[];
+    // The same charge may have been recorded first from its payment (keyed by the payment id): merge into that row
+    // instead of adding a second one. Restricted to this subscription.
+    if (invoice.paymentId && invoice.paymentId !== invoice.id) {
+      const { data: byPayment, error: byPaymentError } = await this.admin
+        .from("payments")
+        .select("id, user_id")
+        .eq("mercado_pago_payment_id", invoice.paymentId)
+        .eq("subscription_id", input.subscriptionId);
+      if (byPaymentError) fail("payments select", byPaymentError);
+      for (const row of (byPayment ?? []) as { id: string; user_id: string }[]) {
+        if (!rows.some((known) => known.id === row.id)) rows.push(row);
+      }
+    }
     if (rows.some((row) => row.user_id !== input.userId)) {
       fail("payments owner", { message: `el cobro ${invoice.id} ya está asociado a otra cuenta` });
     }
@@ -276,7 +313,8 @@ export class SupabaseMembershipStore implements MembershipStore, ReconciliationS
   async listReconciliationCandidates(input: { now: Date; limit: number }): Promise<ReconciliationCandidate[]> {
     const nowMs = input.now.getTime();
     const iso = (offset: number) => new Date(nowMs + offset).toISOString();
-    const columns = "id, user_id, mercado_pago_preapproval_id, status, next_payment_at, updated_at, created_at";
+    const columns =
+      "id, user_id, mercado_pago_preapproval_id, status, next_payment_at, updated_at, created_at, provider_charged_amount:raw_data->summarized->>charged_amount";
     const base = () => this.admin.from("subscriptions").select(columns).not("mercado_pago_preapproval_id", "is", null);
 
     // Small indexed-friendly queries instead of one OR filter; the pure selection dedupes and ranks them.
@@ -289,6 +327,8 @@ export class SupabaseMembershipStore implements MembershipStore, ReconciliationS
         .order("created_at", { ascending: true }),
       base().in("status", ["authorized", "paused"]).lt("updated_at", iso(-RECONCILE_STALE_AFTER_MS)).order("updated_at", { ascending: true }),
       base().in("status", ["authorized", "paused"]).is("updated_at", null),
+      // Recent subscriptions (any status, cancelled included) that may hold a charge without an approved payment.
+      base().gte("created_at", iso(-RECONCILE_UNVERIFIED_WINDOW_MS)).order("created_at", { ascending: false }),
     ];
 
     const rows: ReconciliationCandidate[] = [];
@@ -304,8 +344,21 @@ export class SupabaseMembershipStore implements MembershipStore, ReconciliationS
           nextPaymentAt: (row.next_payment_at as string | null) ?? null,
           updatedAt: (row.updated_at as string | null) ?? null,
           createdAt: (row.created_at as string | null) ?? null,
+          providerChargedAmount: numberOrNull(row.provider_charged_amount),
         });
       }
+    }
+
+    const ids = [...new Set(rows.map((row) => row.id))];
+    if (ids.length > 0) {
+      const { data, error } = await this.admin
+        .from("payments")
+        .select("subscription_id")
+        .in("subscription_id", ids)
+        .eq("status", "approved");
+      if (error) fail("payments select (reconcile)", error);
+      const paid = new Set(((data ?? []) as { subscription_id: string | null }[]).map((row) => row.subscription_id));
+      for (const row of rows) row.hasApprovedPayment = paid.has(row.id);
     }
     return rows;
   }
