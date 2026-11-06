@@ -33,6 +33,8 @@ export const viewport: Viewport = {
   // El script de tema ajusta este valor segun el tema resuelto; el valor inicial corresponde al tema por defecto.
   themeColor: THEME_COLORS.dark,
   colorScheme: "light dark",
+  // Necesario para que env(safe-area-inset-*) tenga valores en iOS (notch, barra de inicio) y en la PWA instalada.
+  viewportFit: "cover",
 };
 
 export default function RootLayout({

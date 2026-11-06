@@ -1,74 +1,22 @@
 "use client";
 
-import { useEffect, useState } from "react";
 import { usePathname } from "next/navigation";
-import { Bell, ChevronDown } from "lucide-react";
+import { ChevronDown } from "lucide-react";
 import Link from "next/link";
 import { GlobalSearch } from "@/components/search/GlobalSearch";
 import { ThemeMenu } from "@/components/theme/theme-switcher";
 import type { UserAccessSnapshot } from "@/lib/auth/user-access";
+import { getPageTitle } from "./page-titles";
 
 interface HeaderProps {
   access: UserAccessSnapshot | null;
   loading: boolean;
 }
 
-const PAGE_TITLES: Record<string, string> = {
-  "/": "Inicio",
-  "/academia": "Academia",
-  "/cursos": "Cursos",
-  "/talleres": "Talleres",
-  "/sorteos": "Sorteos",
-  "/calculadora": "Calculadora de costos",
-  "/libreria-stl": "Librería STL",
-  "/explorar-modelos": "Explorar Modelos",
-  "/presupuestos": "Presupuestos",
-  "/productos": "Productos",
-  "/stock": "Stock",
-  "/mi-taller": "Mi Taller",
-  "/mi-taller/impresoras": "Impresoras",
-  "/mi-taller/filamentos": "Filamentos",
-  "/mi-taller/productos": "Productos",
-  "/mi-taller/inventario": "Inventario",
-  "/mi-negocio": "Mi Negocio",
-  "/mi-negocio/catalogo": "Catálogo comercial",
-  "/mi-negocio/inventario": "Inventario comercial",
-  "/mi-negocio/venta-rapida": "Venta rápida",
-  "/mi-negocio/ventas": "Ventas",
-  "/mi-negocio/reposicion": "Reposición",
-  "/mi-negocio/metricas": "Métricas",
-  "/mi-negocio/pedidos": "Pedidos online",
-  "/mi-negocio/tienda": "Mi Tienda",
-  "/perfil": "Mi perfil",
-  "/salir": "Sesión cerrada",
-  "/telegram": "Telegram",
-  "/whatsapp": "WhatsApp",
-  "/youtube": "YouTube",
-  "/instagram": "Instagram",
-  "/redes": "Redes",
-  "/canales": "Canales",
-};
-
 export function Header({ access, loading }: HeaderProps) {
   const pathname = usePathname();
-  const [courseTitle, setCourseTitle] = useState<string | null>(null);
   const identity = access?.identity;
   const isFree = !loading && access?.authenticated === true && !access.capabilities.accessPlatform;
-
-  useEffect(() => {
-    let active = true;
-    if (!pathname.startsWith("/cursos/")) {
-      return;
-    }
-
-    const courseId = pathname.split("/").pop();
-    import("@/data/mock-data").then(({ COURSES }) => {
-      if (!active) return;
-      setCourseTitle(COURSES.find((course) => course.id === courseId)?.title ?? null);
-    });
-
-    return () => { active = false; };
-  }, [pathname]);
 
   const getInitials = () => {
     const name = identity?.fullName || identity?.displayName || identity?.email || "U";
@@ -99,13 +47,7 @@ export function Header({ access, loading }: HeaderProps) {
     }
   };
 
-  // Resolve title based on pathname
-  let title = PAGE_TITLES[pathname] || "";
-
-  // Handle dynamic course route title
-  if (pathname.startsWith("/cursos/")) {
-    title = courseTitle || "Detalle del Curso";
-  }
+  const title = getPageTitle(pathname);
 
   return (
     <header className="sticky top-0 z-20 hidden h-16 items-center border-b border-stampa-border bg-stampa-bg/80 px-8 backdrop-blur lg:flex">
@@ -122,11 +64,6 @@ export function Header({ access, loading }: HeaderProps) {
       {/* 3. Derecha: Iconos y perfil */}
       <div className="flex flex-1 items-center justify-end gap-3">
         <ThemeMenu />
-        <button className="relative flex h-9 w-9 items-center justify-center rounded-xl text-gray-400 hover:bg-fg/5 hover:text-fg transition-colors">
-          <Bell size={18} />
-          <span className="absolute right-2 top-2 h-1.5 w-1.5 rounded-full bg-stampa-orange" />
-        </button>
-
         <Link href="/perfil" className="flex items-center gap-2 rounded-xl py-1 pl-1 pr-2 hover:bg-fg/5 transition-colors">
           {identity?.avatarUrl ? (
             <img src={identity.avatarUrl} alt="Avatar" className="h-8 w-8 rounded-full object-cover shrink-0" />

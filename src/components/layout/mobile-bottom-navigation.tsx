@@ -29,12 +29,13 @@ function NavigationLink({ item, pathname }: { item: MobileNavigationItem; pathna
     <Link
       href={item.href}
       aria-current={active ? "page" : undefined}
-      className={`flex min-h-11 min-w-0 flex-col items-center justify-center gap-0.5 px-1 text-[10px] font-semibold transition-colors ${
-        active ? "text-stampa-accent" : "text-gray-500 hover:text-gray-200"
+      className={`relative flex h-full min-w-0 flex-col items-center justify-center gap-0.5 px-1 text-[11px] font-semibold leading-tight transition-colors active:bg-fg/5 ${
+        active ? "text-stampa-accent" : "text-gray-400 hover:text-fg"
       }`}
     >
-      <Icon size={20} strokeWidth={active ? 2.4 : 2} />
-      <span className="flex max-w-full items-center gap-0.5 truncate">{item.shortLabel || item.label}{"locked" in item && item.locked ? <Lock size={9} /> : null}</span>
+      {active && <span aria-hidden="true" className="absolute inset-x-5 top-0 h-0.5 rounded-b-full bg-stampa-orange" />}
+      <Icon size={22} strokeWidth={active ? 2.4 : 2} aria-hidden="true" />
+      <span className="flex max-w-full items-center gap-0.5 truncate">{item.shortLabel || item.label}{"locked" in item && item.locked ? <Lock size={10} aria-hidden="true" /> : null}</span>
     </Link>
   );
 }
@@ -92,7 +93,7 @@ export function MobileBottomNavigation({
   }, [toolsOpen, onToolsOpenChange]);
 
   if (isFree) {
-    return <div className="fixed inset-x-0 bottom-0 z-[60] lg:hidden"><nav aria-label="Navegación principal" className="border-t border-fg/10 bg-stampa-bg/95 backdrop-blur-xl" style={{ height: "calc(var(--mobile-bottom-navigation-height) + env(safe-area-inset-bottom))", paddingBottom: "env(safe-area-inset-bottom)" }}><div className="grid h-[var(--mobile-bottom-navigation-height)] items-center px-1" style={{ gridTemplateColumns: `repeat(${freeItems.length}, minmax(0, 1fr))` }}>{freeItems.map((item) => <NavigationLink key={item.href} item={item} pathname={pathname} />)}</div></nav></div>;
+    return <div className="fixed inset-x-0 bottom-0 z-[60] lg:hidden"><nav aria-label="Navegación principal" className="border-t border-fg/10 bg-stampa-bg/95 backdrop-blur-xl" style={{ height: "calc(var(--mobile-bottom-navigation-height) + env(safe-area-inset-bottom))", paddingBottom: "env(safe-area-inset-bottom)" }}><div className="grid h-[var(--mobile-bottom-navigation-height)] items-stretch px-1" style={{ gridTemplateColumns: `repeat(${freeItems.length}, minmax(0, 1fr))`, paddingLeft: "max(0.25rem, env(safe-area-inset-left))", paddingRight: "max(0.25rem, env(safe-area-inset-right))" }}>{freeItems.map((item) => <NavigationLink key={item.href} item={item} pathname={pathname} />)}</div></nav></div>;
   }
 
   return (
@@ -108,8 +109,12 @@ export function MobileBottomNavigation({
         }}
       >
         <div
-          className="grid h-[var(--mobile-bottom-navigation-height)] items-center px-1"
-          style={{ gridTemplateColumns: mainGridTemplate }}
+          className="grid h-[var(--mobile-bottom-navigation-height)] items-stretch px-1"
+          style={{
+            gridTemplateColumns: mainGridTemplate,
+            paddingLeft: "max(0.25rem, env(safe-area-inset-left))",
+            paddingRight: "max(0.25rem, env(safe-area-inset-right))",
+          }}
         >
           {leftItems.map((item) => (
             <NavigationLink key={item.href} item={item} pathname={pathname} />

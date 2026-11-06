@@ -514,17 +514,12 @@ test("8. navegación móvil: barra inferior, reparto simétrico y menú radial",
   for (const href of ["/academia", "/mi-taller", "/mi-negocio", "/sorteos", "/canales"]) assert.ok(hrefs(admin).includes(href), `admin ve ${href}`);
 });
 
-test("8b. menú radial: ángulos válidos para cualquier cantidad de herramientas visibles", () => {
-  const { getRadialArcAngles, secondaryMobileNavigation } = loadTs("src/components/layout/mobile-navigation.ts");
-  assert.deepEqual(getRadialArcAngles(6), [210, 232, 254, 286, 308, 330], "con 6 se conserva el reparto original");
-  assert.deepEqual(getRadialArcAngles(0), []);
-  assert.deepEqual(getRadialArcAngles(1), [270]);
-  for (let count = 1; count <= secondaryMobileNavigation.length; count += 1) {
-    const angles = getRadialArcAngles(count);
-    assert.equal(angles.length, count);
-    assert.ok(angles.every((angle) => Number.isFinite(angle) && angle >= 200 && angle <= 340), `count ${count}`);
-    assert.deepEqual([...angles].sort((a, b) => a - b), angles, "ordenados de izquierda a derecha");
-  }
+test("8b. menú de herramientas móvil: grilla sin ángulos, con todas las herramientas visibles y rol de menú", () => {
+  const html = renderWithFeatures("src/components/layout/mobile-bottom-navigation.tsx", "MobileBottomNavigation",
+    { access: PAID(), loading: false, toolsOpen: true, onToolsOpenChange() {} }, { snapshot: UNINITIALIZED });
+  assert.ok(html.includes('role="menu"') && html.includes('id="mobile-tools-menu"'));
+  assert.equal([...html.matchAll(/role="menuitem"/g)].length, 7, "las 7 herramientas secundarias, sin ítems sin posición");
+  assert.ok(!html.includes("--radial-angle"), "ya no hay posiciones por ángulo");
 });
 
 test("Inicio: accesos rápidos y paneles de herramientas deshabilitadas no se muestran ni dejan huecos", () => {

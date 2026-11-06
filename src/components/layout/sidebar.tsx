@@ -6,6 +6,7 @@ import { usePathname, useSearchParams } from "next/navigation";
 import {
   BookOpen,
   Gift,
+  Home,
   Calculator,
   Boxes,
   Compass,
@@ -123,7 +124,7 @@ export function Sidebar({ access, loading }: SidebarProps) {
   };
 
   return (
-      <aside className="hidden w-64 shrink-0 flex-col border-r border-stampa-border bg-stampa-bg lg:flex">
+      <aside className="hidden w-64 shrink-0 flex-col self-start border-r border-stampa-border bg-stampa-bg lg:sticky lg:top-0 lg:flex lg:h-screen">
         {/* Brand logo header */}
         <div className="flex items-center px-5 py-5">
           <Link href={isFree && visibility.isFeatureVisible("calculadora") ? "/calculadora" : "/"} className="flex items-center gap-2">
@@ -136,7 +137,7 @@ export function Sidebar({ access, loading }: SidebarProps) {
             />
             <div>
               <p className="text-sm font-bold leading-none text-fg">Stampa</p>
-              <p className="mt-0.5 text-[11px] leading-none text-gray-500">Academia 3D</p>
+              <p className="mt-0.5 text-[11px] leading-none text-stampa-text-muted">Academia 3D</p>
             </div>
           </Link>
         </div>
@@ -148,7 +149,7 @@ export function Sidebar({ access, loading }: SidebarProps) {
             pathname === "/" ? "bg-stampa-orange/10 text-stampa-accent" : "text-gray-400 hover:bg-fg/5 hover:text-fg"
           }`}
         >
-          <div className="flex h-5 w-5 items-center justify-center">🏠</div>
+          <Home size={17} aria-hidden="true" />
           Inicio
         </Link>}
 
@@ -181,7 +182,7 @@ export function Sidebar({ access, loading }: SidebarProps) {
             );
             return visibleGroups.map((group) => (
               <div key={group.group} className="mb-5">
-                <p className="mb-1.5 px-3 text-[11px] font-bold uppercase tracking-wider text-gray-500">
+                <p className="mb-1.5 px-3 text-[11px] font-bold uppercase tracking-wider text-stampa-text-muted">
                   {group.group}
                 </p>
                 <div className="space-y-0.5">

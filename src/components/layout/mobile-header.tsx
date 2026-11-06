@@ -2,11 +2,13 @@
 
 import Image from "next/image";
 import Link from "next/link";
-import { Shield } from "lucide-react";
+import { usePathname } from "next/navigation";
+import { ArrowLeft, Shield } from "lucide-react";
 import { GlobalSearch } from "@/components/search/GlobalSearch";
 import type { UserAccessSnapshot } from "@/lib/auth/user-access";
 import { useFeatureVisibility } from "@/components/features/feature-flags-provider";
 import { ThemeMenu } from "@/components/theme/theme-switcher";
+import { getPageTitle, getParentRoute } from "./page-titles";
 
 interface MobileHeaderProps {
   access: UserAccessSnapshot | null;
@@ -31,27 +33,51 @@ export function MobileHeader({ access, loading }: MobileHeaderProps) {
   const isFree = !loading && access?.authenticated === true && !access.capabilities.accessPlatform;
   const visibility = useFeatureVisibility();
   const freeHome = visibility.isFeatureVisible("calculadora") ? "/calculadora" : "/";
+  const pathname = usePathname() ?? "/";
+  // Dónde está el usuario: título de la pantalla y, en subpantallas, "volver" al nivel anterior del área.
+  const title = getPageTitle(pathname, { compact: true });
+  const parentRoute = getParentRoute(pathname);
+  const isHome = pathname === "/";
 
   return (
-    <header className="sticky top-0 z-30 border-b border-stampa-border bg-stampa-bg/95 backdrop-blur-xl lg:hidden">
-      <div className="flex h-14 items-center justify-between px-3">
-        <Link
-          href={isFree ? freeHome : "/"}
-          aria-label="Ir al inicio"
-          className="flex h-11 min-w-11 items-center gap-2 rounded-xl px-1 transition-colors active:bg-fg/5"
-        >
-          <Image
-            src="/favicon.svg"
-            alt="Stampa"
-            width={34}
-            height={34}
-            priority
-            className="h-[34px] w-[34px] shrink-0 object-contain"
-          />
-          <span className="text-sm font-bold text-fg">Stampa</span>
-        </Link>
+    <header
+      className="sticky top-0 z-30 border-b border-stampa-border bg-stampa-bg/95 backdrop-blur-xl lg:hidden"
+      style={{
+        paddingTop: "env(safe-area-inset-top)",
+        paddingLeft: "env(safe-area-inset-left)",
+        paddingRight: "env(safe-area-inset-right)",
+      }}
+    >
+      <div className="flex h-14 items-center justify-between gap-2 px-3">
+        <div className="flex min-w-0 flex-1 items-center">
+          {parentRoute ? (
+            <Link
+              href={parentRoute}
+              aria-label={`Volver a ${getPageTitle(parentRoute, { compact: true }) || "la pantalla anterior"}`}
+              className="-ml-1 flex h-11 w-11 shrink-0 items-center justify-center rounded-xl text-fg transition-colors active:bg-fg/5"
+            >
+              <ArrowLeft size={22} aria-hidden="true" />
+            </Link>
+          ) : (
+            <Link
+              href={isFree ? freeHome : "/"}
+              aria-label="Ir al inicio"
+              className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl transition-colors active:bg-fg/5"
+            >
+              <Image
+                src="/favicon.svg"
+                alt="Stampa"
+                width={34}
+                height={34}
+                priority
+                className="h-[34px] w-[34px] shrink-0 object-contain"
+              />
+            </Link>
+          )}
+          <p className="min-w-0 truncate pl-1 pr-2 text-base font-bold text-fg">{isHome || !title ? "Stampa" : title}</p>
+        </div>
 
-        <div className="flex items-center gap-1">
+        <div className="flex shrink-0 items-center gap-1">
           <ThemeMenu />
           {isAdmin && (
             <Link

@@ -4,7 +4,8 @@
 /* Temas: ver docs/ARCHITECTURE.md > Temas. `data-theme` ("light" | "dark") lo fija el script de
    inicializacion en <head> antes del primer render. Sin atributo se asume el oscuro (diseno original). */
 :root {
-  --mobile-app-header-height: 6.625rem;
+  /* Header móvil (barra + buscador) más el área segura superior del dispositivo. */
+  --mobile-app-header-height: calc(6.625rem + env(safe-area-inset-top));
   --mobile-bottom-navigation-height: 4.75rem;
 }
 
@@ -177,6 +178,27 @@ option {
 }
 
 
+/* Foco visible para teclado en enlaces y botones que no definen el suyo (los inputs ya tienen anillo propio). */
+a:focus-visible,
+button:focus-visible,
+summary:focus-visible,
+[role="button"]:focus-visible,
+[role="tab"]:focus-visible,
+[role="menuitem"]:focus-visible {
+  outline: 2px solid var(--stampa-orange);
+  outline-offset: 2px;
+}
+
+/* Táctil: con menos de 16 px iOS hace zoom al enfocar un campo y deja la pantalla desplazada.
+   Solo en dispositivos de puntero grueso: el escritorio conserva sus tamaños. */
+@media (hover: none) and (pointer: coarse) {
+  input:not([type="checkbox"]):not([type="radio"]):not([type="range"]):not([type="color"]):not([type="file"]),
+  textarea,
+  select {
+    font-size: 16px;
+  }
+}
+
 /* SPRINT UX/UI 1K: Animaciones Globales Premium */
 @keyframes stampa-page-in {
   from {
@@ -233,27 +255,15 @@ option {
   padding-bottom: calc(var(--mobile-bottom-navigation-height) + env(safe-area-inset-bottom) + 1.5rem);
 }
 
-.mobile-radial-item {
-  opacity: 0;
-  pointer-events: none;
-  transform: translate(-50%, -50%) translate(0, 0) scale(0.5);
-  transform-origin: center;
-  transition:
-    transform 190ms cubic-bezier(0.22, 1, 0.36, 1),
-    opacity 140ms ease-out;
-  will-change: transform, opacity;
+/* Anclas y scrollIntoView: dejan el elemento debajo del header fijo (móvil) o del header de escritorio. */
+.scroll-mt-app {
+  scroll-margin-top: calc(var(--mobile-app-header-height) + 0.75rem);
 }
 
-.mobile-radial-menu[data-open="true"] .mobile-radial-item {
-  opacity: 1;
-  pointer-events: auto;
-  transition-duration: 300ms, 180ms;
-  transform:
-    translate(-50%, -50%)
-    rotate(var(--radial-angle))
-    translateX(var(--radial-radius))
-    rotate(var(--radial-counter-angle))
-    scale(1);
+@media (min-width: 64rem) {
+  .scroll-mt-app {
+    scroll-margin-top: 5rem;
+  }
 }
 
 .mobile-floating-stampy {
@@ -351,10 +361,6 @@ option {
     animation-iteration-count: 1 !important;
     transition-duration: 0.01ms !important;
     scroll-behavior: auto !important;
-  }
-
-  .mobile-radial-item {
-    transition-delay: 0ms !important;
   }
 }
 
