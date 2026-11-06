@@ -255,7 +255,7 @@ export function CourseDetailClient({ courseId, routeId: id, previewVisibility = 
         if (next) {
           // Brief pause so the "Completada" state is visible before moving on.
           setTimeout(() => {
-            openLesson(next);
+            openLesson(next, true);
             setMarkingProgress(false);
           }, 400);
           return;
@@ -540,10 +540,10 @@ export function CourseDetailClient({ courseId, routeId: id, previewVisibility = 
       )}
 
       {/* Header del Curso Premium */}
-      <div className="relative overflow-hidden rounded-3xl bg-stampa-surface border border-stampa-border p-8 shadow-2xl">
+      <div className="relative overflow-hidden rounded-3xl bg-stampa-surface border border-stampa-border p-5 shadow-2xl sm:p-8">
         <div className="absolute inset-0 bg-gradient-to-r from-[#ff6a00]/20 via-transparent to-transparent opacity-50" />
         <div className="relative z-10">
-          <div className="flex flex-wrap items-center gap-3 mb-4">
+          <div className="mb-3 flex flex-wrap items-center gap-2 sm:mb-4 sm:gap-3">
             <span className={`${getCourseLevelClasses(course)} shadow-sm`}>
               {getCourseLevelLabel(course)}
             </span>
@@ -554,8 +554,8 @@ export function CourseDetailClient({ courseId, routeId: id, previewVisibility = 
               <Clock size={14} className="text-blue-400" /> {formatDuration(totalDuration)}
             </span>
           </div>
-          <h1 className="text-3xl font-bold text-fg md:text-4xl">{course.title}</h1>
-          <p className="mt-3 text-base text-gray-400 leading-relaxed max-w-3xl">{course.description}</p>
+          <h1 className="text-2xl font-bold leading-tight text-fg break-words sm:text-3xl md:text-4xl">{course.title}</h1>
+          <p className="mt-2 max-w-3xl text-sm leading-relaxed text-gray-400 sm:mt-3 sm:text-base">{course.description}</p>
         </div>
       </div>
 
@@ -563,20 +563,20 @@ export function CourseDetailClient({ courseId, routeId: id, previewVisibility = 
         {/* Columna Principal: Video y Detalles */}
         <div className="lg:col-span-2 space-y-6">
 
-          <div ref={playerRef} className="scroll-mt-24">{renderVideo()}</div>
+          <div ref={playerRef} className="scroll-mt-app">{renderVideo()}</div>
 
           <div className="flex flex-col gap-4">
-            <div className="flex flex-col sm:flex-row sm:items-start justify-between gap-4">
-              <h2 className="text-xl font-bold text-fg flex items-center gap-2">
-                <Video className="text-stampa-accent" size={24} />
+            <div className="flex flex-col justify-between gap-3 sm:flex-row sm:items-start sm:gap-4">
+              <h2 className="flex min-w-0 items-start gap-2 text-lg font-bold leading-snug text-fg break-words sm:text-xl">
+                <Video className="mt-0.5 shrink-0 text-stampa-accent" size={22} />
                 {activeLesson ? activeLesson.title : totalLessons === 0 ? "Este curso todavía no tiene clases" : "Elegí una clase"}
               </h2>
               {user && activeLesson && (
-                <div className="flex flex-wrap gap-2 sm:shrink-0">
+                <div className="grid grid-cols-2 gap-2 sm:flex sm:flex-wrap sm:shrink-0">
                   <button
                     onClick={handleToggleProgress}
                     disabled={markingProgress}
-                    className={`inline-flex items-center justify-center gap-2 px-4 py-2 rounded-xl text-sm font-bold transition-all ${progress[activeLesson.id]
+                    className={`col-span-2 inline-flex min-h-11 items-center justify-center gap-2 px-4 py-2 rounded-xl text-sm font-bold transition-all sm:col-span-1 ${progress[activeLesson.id]
                         ? "bg-green-500/10 text-green-400 border border-green-500/20 hover:bg-green-500/20"
                         : "bg-stampa-surface text-gray-300 border border-stampa-border hover:border-fg/20 hover:bg-fg/5"
                       }`}
@@ -587,8 +587,8 @@ export function CourseDetailClient({ courseId, routeId: id, previewVisibility = 
                   {neighbors.previous && (
                     <button
                       type="button"
-                      onClick={() => openLesson(neighbors.previous)}
-                      className="inline-flex items-center justify-center gap-1.5 px-4 py-2 rounded-xl text-sm font-bold transition-all bg-stampa-surface text-gray-300 border border-stampa-border hover:border-fg/20 hover:bg-fg/5"
+                      onClick={() => openLesson(neighbors.previous, true)}
+                      className="inline-flex min-h-11 items-center justify-center gap-1.5 px-4 py-2 rounded-xl text-sm font-bold transition-all bg-stampa-surface text-gray-300 border border-stampa-border hover:border-fg/20 hover:bg-fg/5"
                     >
                       <ChevronLeft className="h-4 w-4" aria-hidden="true" /> Anterior
                     </button>
@@ -596,8 +596,8 @@ export function CourseDetailClient({ courseId, routeId: id, previewVisibility = 
                   {neighbors.next && (
                     <button
                       type="button"
-                      onClick={() => openLesson(neighbors.next)}
-                      className="inline-flex items-center justify-center gap-1.5 px-4 py-2 rounded-xl text-sm font-bold transition-all bg-stampa-orange text-neutral-950 hover:bg-stampa-orange-hover shadow-lg shadow-[#ff6a00]/20"
+                      onClick={() => openLesson(neighbors.next, true)}
+                      className={`inline-flex min-h-11 items-center justify-center gap-1.5 px-4 py-2 rounded-xl text-sm font-bold transition-all bg-stampa-orange text-neutral-950 hover:bg-stampa-orange-hover shadow-lg shadow-[#ff6a00]/20 ${neighbors.previous ? "" : "col-span-2 sm:col-span-1"}`}
                     >
                       Siguiente clase <ChevronRight className="h-4 w-4" aria-hidden="true" />
                     </button>
@@ -607,9 +607,9 @@ export function CourseDetailClient({ courseId, routeId: id, previewVisibility = 
             </div>
 
             {activeLesson && totalLessons > 0 && (
-              <p className="text-xs text-gray-500">
-                Clase {neighbors.position} de {totalLessons} ·{" "}
-                <a href="#contenido-del-curso" className="font-semibold text-stampa-accent hover:underline lg:hidden">Ver todas las clases</a>
+              <p className="flex flex-wrap items-center gap-x-2 text-xs text-gray-500">
+                <span>Clase {neighbors.position} de {totalLessons}</span>
+                <a href="#contenido-del-curso" className="inline-flex min-h-11 items-center rounded-lg px-2 text-sm font-semibold text-stampa-accent hover:underline lg:hidden">Ver todas las clases</a>
                 <span className="hidden lg:inline">{progress[activeLesson.id] ? "completada" : "pendiente"}</span>
               </p>
             )}
@@ -627,7 +627,7 @@ export function CourseDetailClient({ courseId, routeId: id, previewVisibility = 
             )}
 
             {activeLesson?.description && (
-              <div className="bg-stampa-surface p-6 rounded-2xl border border-stampa-border shadow-sm">
+              <div className="bg-stampa-surface p-4 rounded-2xl border border-stampa-border shadow-sm sm:p-6">
                 <h3 className="text-sm font-bold text-fg mb-2">Acerca de esta clase</h3>
                 <p className="text-sm text-gray-400 leading-relaxed whitespace-pre-wrap">
                   {activeLesson.description}
@@ -648,17 +648,17 @@ export function CourseDetailClient({ courseId, routeId: id, previewVisibility = 
               )}
               <div className="divide-y divide-fg/5 bg-stampa-bg-soft">
                 {resources[activeLesson.id].map(res => (
-                  <div key={res.id} className="flex items-center justify-between p-5 hover:bg-fg/5 transition-colors">
-                    <div className="flex min-w-0 items-center gap-4">
+                  <div key={res.id} className="flex items-center justify-between gap-3 p-4 hover:bg-fg/5 transition-colors sm:p-5">
+                    <div className="flex min-w-0 items-center gap-3 sm:gap-4">
                       <div className="shrink-0 p-2.5 bg-blue-500/10 text-blue-400 rounded-xl border border-blue-500/20">
                         <File size={20} />
                       </div>
-                      <div>
-                        <p className="text-sm font-bold text-fg mb-0.5">{res.title}</p>
+                      <div className="min-w-0">
+                        <p className="mb-0.5 text-sm font-bold text-fg break-words">{res.title}</p>
                         <p className="text-[11px] font-semibold text-gray-500 uppercase tracking-wider">{res.resource_type}</p>
                       </div>
                     </div>
-                    <button type="button" onClick={() => handleOpenResource(res.url)} className="shrink-0 px-4 py-2 text-xs font-bold text-fg bg-fg/5 hover:bg-fg/10 border border-stampa-border rounded-xl transition-colors">
+                    <button type="button" onClick={() => handleOpenResource(res.url)} className="inline-flex min-h-11 shrink-0 items-center px-4 py-2 text-xs font-bold text-fg bg-fg/5 hover:bg-fg/10 border border-stampa-border rounded-xl transition-colors">
                       Abrir
                     </button>
                   </div>
@@ -685,7 +685,7 @@ export function CourseDetailClient({ courseId, routeId: id, previewVisibility = 
             </div>
           )}
 
-          <div id="contenido-del-curso" className="scroll-mt-24 bg-stampa-surface rounded-2xl border border-stampa-border shadow-lg overflow-hidden flex flex-col max-h-[800px]">
+          <div id="contenido-del-curso" className="scroll-mt-app bg-stampa-surface rounded-2xl border border-stampa-border shadow-lg overflow-hidden flex flex-col lg:max-h-[800px]">
             <div className="p-5 bg-stampa-surface border-b border-stampa-border flex items-center justify-between z-10 shrink-0">
               <h3 className="text-sm font-bold text-fg">Contenido del curso</h3>
               <span className="text-xs font-semibold text-gray-500">{completedCount} de {totalLessons}</span>
@@ -701,10 +701,10 @@ export function CourseDetailClient({ courseId, routeId: id, previewVisibility = 
                       type="button"
                       aria-expanded={isOpen}
                       onClick={() => setOpenModules(prev => ({ ...prev, [m.id]: !prev[m.id] }))}
-                      className={`w-full flex items-center justify-between p-4 transition-colors text-left ${isOpen ? 'bg-fg/5' : 'hover:bg-fg/5'}`}
+                      className={`flex min-h-14 w-full items-center justify-between p-4 text-left transition-colors ${isOpen ? 'bg-fg/5' : 'hover:bg-fg/5'}`}
                     >
                       <div className="flex-1 min-w-0 pr-4">
-                        <h4 className="font-bold text-sm text-fg truncate group-hover:text-stampa-accent transition-colors">
+                        <h4 className="line-clamp-2 break-words text-sm font-bold text-fg">
                           Módulo {moduleIndex + 1}: {m.title}
                         </h4>
                         {modProg && (
@@ -744,7 +744,7 @@ export function CourseDetailClient({ courseId, routeId: id, previewVisibility = 
                                   <Circle size={16} className="text-gray-600 group-hover:text-gray-400 transition-colors" />
                                 )}
                               </div>
-                              <span className={`flex-1 text-sm truncate font-medium ${isActive ? 'text-fg' : 'group-hover:text-gray-300'}`}>
+                              <span className={`min-w-0 flex-1 text-sm leading-snug line-clamp-2 break-words font-medium ${isActive ? 'text-fg' : 'group-hover:text-gray-300'}`}>
                                 {lessonIndex + 1}. {lesson.title}
                               </span>
                               {lesson.duration_minutes && (

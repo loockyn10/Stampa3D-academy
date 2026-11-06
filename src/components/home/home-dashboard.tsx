@@ -380,19 +380,22 @@ export function HomeDashboardView({
 }
 
 function XpBadge({ xp }: { xp: XpProgress }) {
+  // Móvil: una sola línea (nivel · barra · XP) para que los accesos rápidos queden a la vista; desde md, la tarjeta completa.
   return (
     <Link
       href="/perfil"
-      className="block w-full rounded-xl border border-stampa-orange/25 bg-stampa-orange/[0.07] px-4 py-3 transition-colors hover:bg-stampa-orange/10 focus:outline-none focus-visible:ring-2 focus-visible:ring-stampa-orange md:w-64"
+      className="flex w-full items-center gap-3 rounded-xl border border-stampa-orange/25 bg-stampa-orange/[0.07] px-4 py-3 transition-colors hover:bg-stampa-orange/10 focus:outline-none focus-visible:ring-2 focus-visible:ring-stampa-orange md:block md:w-64"
     >
-      <div className="flex items-baseline justify-between gap-2">
+      <span className="shrink-0 text-sm font-bold text-orange-100 md:hidden">Nivel {xp.level}</span>
+      <div className="hidden items-baseline justify-between gap-2 md:flex">
         <span className="text-sm font-bold text-orange-100">Nivel {xp.level}</span>
         <span className="text-xs tabular-nums text-orange-200/80">{xp.totalXp.toLocaleString("es-AR")} XP</span>
       </div>
-      <div className="mt-2 h-1.5 overflow-hidden rounded-full bg-fg/10" role="progressbar" aria-label="Progreso al próximo nivel" aria-valuemin={0} aria-valuemax={100} aria-valuenow={Math.round(xp.progressPercent)}>
+      <div className="h-1.5 flex-1 overflow-hidden rounded-full bg-fg/10 md:mt-2" role="progressbar" aria-label="Progreso al próximo nivel" aria-valuemin={0} aria-valuemax={100} aria-valuenow={Math.round(xp.progressPercent)}>
         <div className="h-full rounded-full bg-stampa-orange" style={{ width: `${Math.min(100, Math.max(0, xp.progressPercent))}%` }} />
       </div>
-      <p className="mt-1.5 text-[11px] text-gray-400">Faltan {xp.xpToNextLevel.toLocaleString("es-AR")} XP para el nivel {xp.level + 1}</p>
+      <span className="shrink-0 text-xs tabular-nums text-orange-200/80 md:hidden">{xp.totalXp.toLocaleString("es-AR")} XP</span>
+      <p className="mt-1.5 hidden text-[11px] text-gray-400 md:block">Faltan {xp.xpToNextLevel.toLocaleString("es-AR")} XP para el nivel {xp.level + 1}</p>
     </Link>
   );
 }
@@ -523,7 +526,7 @@ function HomePanel({ title, icon: Icon, href, linkLabel, children }: { title: st
         <h2 className="flex items-center gap-2 text-sm font-bold text-fg">
           <Icon size={16} className="text-stampa-accent" aria-hidden="true" /> {title}
         </h2>
-        <Link href={href} className="inline-flex min-h-8 items-center gap-1 rounded-md px-1 text-xs font-semibold text-stampa-accent hover:text-orange-300 focus:outline-none focus-visible:ring-2 focus-visible:ring-stampa-orange">
+        <Link href={href} className="inline-flex min-h-10 items-center gap-1 rounded-md px-1 text-xs font-semibold text-stampa-accent hover:text-orange-300 focus:outline-none focus-visible:ring-2 focus-visible:ring-stampa-orange">
           {linkLabel} <span aria-hidden="true">→</span>
         </Link>
       </div>
@@ -546,7 +549,7 @@ function Metric({ label, value, icon: Icon }: { label: string; value: React.Reac
 function AttentionLink({ href, icon: Icon, tone, children }: { href: string; icon: LucideIcon; tone: "red" | "yellow"; children: React.ReactNode }) {
   return (
     <li>
-      <Link href={href} className={`flex min-h-8 items-center gap-2 rounded-md font-semibold hover:underline ${tone === "red" ? "text-red-300" : "text-yellow-300"}`}>
+      <Link href={href} className={`flex min-h-10 items-center gap-2 rounded-md font-semibold hover:underline ${tone === "red" ? "text-red-300" : "text-yellow-300"}`}>
         <Icon size={13} aria-hidden="true" /> {children}
       </Link>
     </li>

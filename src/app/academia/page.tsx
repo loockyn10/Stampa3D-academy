@@ -9,6 +9,7 @@ import { ComingSoonSection } from "@/components/academy/coming-soon";
 import { CATALOG_STATUSES, splitCatalogCourses } from "@/lib/academy/catalog";
 import { UserProfile } from "@/lib/learning-roadmaps";
 import { GridSkeleton } from "@/components/ui/page-skeletons";
+import { LoadError } from "@/components/ui/load-error";
 import { usePublishStampyScreenContext } from "@/components/stampy/StampyContextProvider";
 import type { StampyScreenContext } from "@/lib/stampy/screen-context";
 
@@ -19,6 +20,7 @@ export default function AcademiaPage() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [supabase] = useState(() => createClient());
+  const [reloadToken, setReloadToken] = useState(0);
 
   useEffect(() => {
     const fetchData = async () => {
@@ -77,7 +79,7 @@ export default function AcademiaPage() {
     };
 
     fetchData();
-  }, [supabase]);
+  }, [supabase, reloadToken]);
 
   // Las rutas recomendadas solo usan cursos publicados: uno «en preparación» nunca se recomienda como disponible.
   const catalog = useMemo(() => splitCatalogCourses(courses), [courses]);
@@ -123,39 +125,39 @@ export default function AcademiaPage() {
   return (
     <div className="space-y-8 pb-10">
       {/* Header Premium */}
-      <div className="relative overflow-hidden rounded-3xl bg-stampa-surface border border-stampa-border p-8 sm:p-10 shadow-2xl">
+      <div className="relative overflow-hidden rounded-3xl bg-stampa-surface border border-stampa-border p-5 sm:p-10 shadow-2xl">
         <div className="absolute inset-0 bg-gradient-to-br from-[#ff6a00]/20 to-transparent pointer-events-none" />
         <div className="relative z-10 max-w-3xl">
-          <div className="flex items-center gap-2 mb-3">
+          <div className="flex items-center gap-2 mb-2 sm:mb-3">
             <span className="rounded-full bg-stampa-orange/10 text-stampa-accent text-xs font-bold px-3 py-1 uppercase tracking-wider border border-[#ff6a00]/20">
               Academia Stampa
             </span>
           </div>
-          <h1 className="text-3xl font-bold text-fg sm:text-4xl flex items-center gap-3">
-            <GraduationCap size={36} className="text-stampa-accent" /> Academia
+          <h1 className="flex items-center gap-3 text-2xl font-bold text-fg sm:text-4xl">
+            <GraduationCap className="h-7 w-7 shrink-0 text-stampa-accent sm:h-9 sm:w-9" aria-hidden="true" /> Academia
           </h1>
-          <p className="mt-3 text-base text-gray-400 leading-relaxed">
+          <p className="mt-2 text-sm leading-relaxed text-gray-400 sm:mt-3 sm:text-base">
             Seguí tu ruta recomendada o explorá cursos y talleres prácticos.
           </p>
         </div>
       </div>
 
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+      <div className="grid grid-cols-1 gap-4 sm:gap-6 md:grid-cols-2">
         {/* Card Cursos */}
         <Link href="/cursos" className="group block h-full">
-          <div className="relative overflow-hidden rounded-3xl bg-stampa-surface border border-stampa-border p-8 shadow-xl transition-all hover:-translate-y-1 hover:border-[#ff6a00]/50 hover:shadow-[0_8px_30px_rgb(255,106,0,0.12)] h-full flex flex-col justify-between min-h-[220px]">
-            <div className="absolute top-0 right-0 p-8 opacity-10 transition-transform group-hover:scale-110 group-hover:opacity-20">
+          <div className="relative overflow-hidden rounded-3xl bg-stampa-surface border border-stampa-border p-5 shadow-xl transition-all active:scale-[0.99] hover:-translate-y-1 hover:border-[#ff6a00]/50 hover:shadow-[0_8px_30px_rgb(255,106,0,0.12)] h-full flex flex-col justify-between min-h-[148px] sm:p-8 sm:min-h-[220px]">
+            <div className="absolute top-0 right-0 p-5 opacity-10 transition-transform group-hover:scale-110 group-hover:opacity-20 sm:p-8">
               <BookOpen size={100} className="text-stampa-accent" />
             </div>
 
             <div className="relative z-10">
-              <h2 className="text-2xl font-bold text-fg mb-3">Cursos</h2>
-              <p className="text-gray-400 max-w-[85%]">
+              <h2 className="mb-2 text-xl font-bold text-fg sm:mb-3 sm:text-2xl">Cursos</h2>
+              <p className="max-w-[85%] text-sm text-gray-400 sm:text-base">
                 Aprendé de forma estructurada, desde fundamentos hasta herramientas avanzadas.
               </p>
             </div>
 
-            <div className="relative z-10 mt-8 flex items-center text-stampa-accent font-bold text-sm uppercase tracking-wider">
+            <div className="relative z-10 mt-5 flex items-center text-stampa-accent sm:mt-8 font-bold text-sm uppercase tracking-wider">
               Explorar cursos
               <ArrowRight className="ml-2 w-4 h-4 transition-transform group-hover:translate-x-1" />
             </div>
@@ -164,19 +166,19 @@ export default function AcademiaPage() {
 
         {/* Card Talleres */}
         <Link href="/talleres" className="group block h-full">
-          <div className="relative overflow-hidden rounded-3xl bg-stampa-surface border border-stampa-border p-8 shadow-xl transition-all hover:-translate-y-1 hover:border-blue-500/50 hover:shadow-[0_8px_30px_rgb(59,130,246,0.12)] h-full flex flex-col justify-between min-h-[220px]">
-            <div className="absolute top-0 right-0 p-8 opacity-10 transition-transform group-hover:scale-110 group-hover:opacity-20">
+          <div className="relative overflow-hidden rounded-3xl bg-stampa-surface border border-stampa-border p-5 shadow-xl transition-all active:scale-[0.99] hover:-translate-y-1 hover:border-blue-500/50 hover:shadow-[0_8px_30px_rgb(59,130,246,0.12)] h-full flex flex-col justify-between min-h-[148px] sm:p-8 sm:min-h-[220px]">
+            <div className="absolute top-0 right-0 p-5 opacity-10 transition-transform group-hover:scale-110 group-hover:opacity-20 sm:p-8">
               <PenTool size={100} className="text-blue-500" />
             </div>
 
             <div className="relative z-10">
-              <h2 className="text-2xl font-bold text-fg mb-3">Talleres</h2>
-              <p className="text-gray-400 max-w-[85%]">
+              <h2 className="mb-2 text-xl font-bold text-fg sm:mb-3 sm:text-2xl">Talleres</h2>
+              <p className="max-w-[85%] text-sm text-gray-400 sm:text-base">
                 Construí proyectos reales paso a paso y aplicá lo aprendido en productos concretos.
               </p>
             </div>
 
-            <div className="relative z-10 mt-8 flex items-center text-blue-500 font-bold text-sm uppercase tracking-wider">
+            <div className="relative z-10 mt-5 flex items-center text-blue-500 sm:mt-8 font-bold text-sm uppercase tracking-wider">
               Explorar talleres
               <ArrowRight className="ml-2 w-4 h-4 transition-transform group-hover:translate-x-1" />
             </div>
@@ -184,11 +186,7 @@ export default function AcademiaPage() {
         </Link>
       </div>
 
-      {error && (
-        <div className="bg-red-500/10 border border-red-500/20 p-4 rounded-xl flex items-center gap-3 text-sm text-red-400">
-          Error al cargar la ruta recomendada: {error}
-        </div>
-      )}
+      {error && <LoadError message={error} onRetry={() => setReloadToken((value) => value + 1)} />}
 
       {loading ? (
         <GridSkeleton count={3} media />

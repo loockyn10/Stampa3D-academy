@@ -5,8 +5,10 @@ import { createClient } from "@/utils/supabase/client";
 import { CourseCard } from "@/components/cards/course-card";
 import { ComingSoonSection } from "@/components/academy/coming-soon";
 import { CATALOG_STATUSES, splitCatalogCourses } from "@/lib/academy/catalog";
-import { Loader2, PenTool } from "lucide-react";
+import { PenTool } from "lucide-react";
 import Link from "next/link";
+import { GridSkeleton } from "@/components/ui/page-skeletons";
+import { LoadError } from "@/components/ui/load-error";
 import { usePublishStampyScreenContext } from "@/components/stampy/StampyContextProvider";
 import type { StampyScreenContext } from "@/lib/stampy/screen-context";
 
@@ -15,7 +17,8 @@ export default function TalleresPage() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [searchTerm, setSearchTerm] = useState("");
-  const supabase = createClient();
+  const [supabase] = useState(() => createClient());
+  const [reloadToken, setReloadToken] = useState(0);
 
   useEffect(() => {
     const fetchData = async () => {
@@ -47,7 +50,7 @@ export default function TalleresPage() {
     };
 
     fetchData();
-  }, [supabase]);
+  }, [supabase, reloadToken]);
 
   // Cada taller aparece una sola vez: disponibles en el listado, «en preparación» en su propia sección.
   const catalog = useMemo(() => splitCatalogCourses(courses), [courses]);
@@ -99,13 +102,13 @@ export default function TalleresPage() {
             <div className="flex items-center gap-2 mb-4 justify-between">
               <Link 
                 href="/academia"
-                className="inline-flex items-center gap-2 px-3 py-1 bg-blue-500/10 border border-blue-500/20 text-blue-400 text-[10px] font-bold uppercase tracking-wider rounded-full transition-colors hover:bg-blue-500/20"
+                className="inline-flex min-h-9 items-center gap-2 px-3 py-1 bg-blue-500/10 border border-blue-500/20 text-blue-400 text-[10px] font-bold uppercase tracking-wider rounded-full transition-colors hover:bg-blue-500/20"
               >
                 ← Academia
               </Link>
             </div>
-            <h1 className="text-3xl md:text-4xl font-black text-fg tracking-tight mb-2 flex items-center gap-3">
-              <PenTool size={36} className="text-blue-500" /> Talleres
+            <h1 className="text-2xl sm:text-3xl md:text-4xl font-black text-fg tracking-tight mb-2 flex items-center gap-3">
+              <PenTool className="h-7 w-7 shrink-0 text-blue-500 sm:h-9 sm:w-9" aria-hidden="true" /> Talleres
             </h1>
             <p className="text-sm text-gray-400">
               Proyectos prácticos para aplicar lo aprendido y crear productos reales.
@@ -127,7 +130,7 @@ export default function TalleresPage() {
               {searchTerm && (
                 <button
                   onClick={() => setSearchTerm("")}
-                  className="absolute right-3 top-1/2 -translate-y-1/2 text-neutral-500 hover:text-fg text-xs font-semibold"
+                  className="absolute right-3 top-1/2 -translate-y-1/2 inline-flex min-h-9 items-center px-1 text-neutral-500 hover:text-fg text-xs font-semibold"
                 >
                   Limpiar
                 </button>
@@ -137,22 +140,16 @@ export default function TalleresPage() {
         </div>
       </div>
 
-      {error && (
-        <div className="bg-red-500/10 border border-red-500/20 p-4 rounded-xl flex items-center gap-3 text-sm text-red-400">
-          Error al cargar los talleres: {error}
-        </div>
-      )}
+      {error && <LoadError message={error} onRetry={() => setReloadToken((value) => value + 1)} />}
 
       {loading ? (
-        <div className="flex justify-center py-20">
-          <Loader2 className="animate-spin text-blue-500 h-10 w-10" />
-        </div>
+        <GridSkeleton count={6} media />
       ) : catalog.published.length > 0 || catalog.comingSoon.length > 0 ? (
         <div className="space-y-10">
           {catalog.published.length > 0 && (
           <div>
           {filteredCourses.length > 0 ? (
-            <div className="grid grid-cols-1 gap-6 sm:grid-cols-2 lg:grid-cols-3">
+            <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 sm:gap-6 lg:grid-cols-3">
               {filteredCourses.map((c) => (
                 <CourseCard key={c.id} course={c} />
               ))}

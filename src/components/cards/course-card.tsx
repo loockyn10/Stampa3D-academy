@@ -34,7 +34,8 @@ export function CourseCard({ course }: CourseCardProps) {
           {course.thumbnail_url ? (
             <img 
               src={course.thumbnail_url} 
-              alt={title} 
+              alt=""
+              loading="lazy"
               className="w-full h-full object-cover"
             />
           ) : (
@@ -82,11 +83,11 @@ export function CourseCard({ course }: CourseCardProps) {
         
         {/* Información compacta */}
         <div className={`flex min-h-24 flex-1 flex-col justify-center px-4 py-3 bg-gradient-to-t from-stampa-sunken to-stampa-bg relative z-20 ${levelStyle ? "" : "border-t border-stampa-border"}`}>
-          <h3 className="text-sm sm:text-base font-bold leading-tight text-fg line-clamp-1 group-hover:text-stampa-accent transition-colors">
+          <h3 className="text-sm sm:text-base font-bold leading-tight text-fg line-clamp-2 group-hover:text-stampa-accent transition-colors">
             {title}
           </h3>
           
-          <div className="mt-2 flex items-center justify-between text-xs font-medium">
+          <div className="mt-2 flex flex-wrap items-center justify-between gap-x-3 gap-y-1 text-xs font-medium">
             <div className="flex items-center gap-3 text-gray-400">
               <span className="flex items-center gap-1.5">
                 <Layers size={13} className="text-stampa-accent" /> {lessonsCount > 0 ? `${lessonsCount} ${lessonsCount === 1 ? "clase" : "clases"}` : "Clases en preparación"}
@@ -99,7 +100,7 @@ export function CourseCard({ course }: CourseCardProps) {
             </div>
             
             <div className="flex items-center gap-1.5 text-gray-500">
-              <User size={12} /> <span className="line-clamp-1 max-w-[80px]">{instructorName}</span>
+              <User size={12} /> <span className="line-clamp-1 max-w-[120px]">{instructorName}</span>
             </div>
           </div>
         </div>
