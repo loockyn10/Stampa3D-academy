@@ -432,3 +432,11 @@ Los enlaces de Instagram/YouTube/WhatsApp/Telegram estaban fijos en 4 lugares de
 - **Recuperación:** «Verificar» / «Actualizar acceso» sincronizan también las suscripciones anteriores del usuario sin cobro aprobado registrado (hasta 5). La conciliación agrega `unverified` (cualquier estado, canceladas incluidas, 40 días) y autorizadas sin cobro aprobado de los últimos 3 días.
 - **Anti doble cobro:** `create-subscription` (también con `restart`) primero sincroniza; con acceso vigente responde 409 `already_member`; con un cobro informado sin verificar, 409 `charge_under_verification`. Si MP no responde decide con el perfil guardado; si Supabase no responde, 503 sin crear nada.
 - Sin migration, sin cambio de precio, frecuencia, política de acceso ni RLS.
+
+## D050 — Sprint UX/UI y Mobile: el menú de herramientas pasa a grilla, el celular dice dónde está el usuario y se unifica la tinta de los botones
+**Estado:** Accepted (2026-11-06). Detalle en `docs/ARCHITECTURE.md` §31.
+
+- **Hecho:** a 320–360 px los rótulos del arco radial se pisaban (7 herramientas); los modales propios quedaban bajo la barra inferior; en iOS los campos de 14 px hacían zoom al enfocar; el header móvil no mostraba la pantalla actual; `EmptyState` renderizaba un panel blanco; el texto blanco sobre naranja no cumplía contraste (el `Button` compartido ya usaba tinta oscura).
+- **Decisión:** panel en grilla en lugar de arco (mismo contrato para tests y tutorial/Stampy); títulos compartidos + «volver» en subpantallas; `viewport-fit=cover` con insets; tinta `neutral-950` sobre naranja sólido; sin sistema de diseño paralelo (se reutilizan `Dialog`, `app-feedback`, `Button`, `EmptyState`, `page-skeletons`).
+- **No se tocó:** landing (Sprint 5), pagos, membresías, seguridad, lógica de negocio, schema, motores de generación.
+

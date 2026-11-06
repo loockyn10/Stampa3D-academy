@@ -2,6 +2,13 @@
 
 Este archivo contiene únicamente trabajo pendiente o próximo. Eliminar tareas terminadas en lugar de conservar un historial infinito.
 
+## Now — Sprint UX/UI y Mobile (implementado 2026-11-06, ver ARCHITECTURE §31 y D050)
+
+- [ ] **QA visual autenticada** (no se pudo iniciar sesión en el entorno del sprint; se revisó con un arnés temporal de componentes y la Calculadora pública): con cuenta Premium a 320, 375, 390, 768 px y escritorio, claro y oscuro: header móvil (título, «volver», buscador), barra inferior y menú «+» (7 herramientas, sin superposición), Inicio, Academia → Cursos → un curso (botones de clase, salto al video, temario sin scroll anidado), Mi Taller/Mi Negocio/Stock/Productos/Presupuestos con un modal abierto (el pie del modal debe verse sobre la barra inferior), Stampa Maker (controles de 40 px).
+- [ ] Probar la PWA instalada en iPhone (notch/barra de inicio) y Android: `viewport-fit=cover` + insets; si el header queda bajo la barra de estado, revisar `apple-mobile-web-app-status-bar-style`.
+- [ ] Revisar a ojo el cambio de tinta sobre botones naranjas (`text-white` → `text-neutral-950`, ~70 botones, incl. login/registro): si se prefiere blanco, es un cambio de una línea en `Button`/clases; hoy prima el contraste AA.
+- [ ] Pendiente (requiere reestructura, no hecho): tabla ancha de Stock como tarjetas en móvil (hoy scroll horizontal con `min-w-[720px]`); controles de Stampa Maker en hoja inferior; unificar los ~12 modales propios en `ui/dialog.tsx`; mover el fetch del curso al servidor.
+
 ## Now — Archivos de impresión 3MF (implementado 2026-11-02, ver ARCHITECTURE §27, D041 y docs/PRINT_FILES.md)
 
 - [ ] Seguir el procedimiento de `docs/PRINT_FILES.md` §10 (probar con 3MF reales).
@@ -198,7 +205,6 @@ Este archivo contiene únicamente trabajo pendiente o próximo. Eliminar tareas 
 - [ ] Crear API key de MyMiniFactory y cargar `MYMINIFACTORY_API_KEY` en el entorno; hacer una búsqueda real y verificar campos, licencias y dominios de thumbnails.
 - [ ] Enviar mail a MyMiniFactory (uso en SaaS con plan pago, cache permitido, rate limits, costos) y al Developer Program de Thingiverse; no cargar `THINGIVERSE_ACCESS_TOKEN` en producción hasta tener respuesta.
 - [ ] Decidir dónde vive un rate limiter compartido si el hosting es serverless (hoy es en memoria por instancia).
-- [ ] Menú radial mobile (`mobile-radial-menu.tsx`): 7 ítems y solo 6 ángulos definidos (Configuración queda sin posición). Bug preexistente sin resolver; por eso Explorar Modelos no se agregó ahí.
 - [ ] Con una API key real de MyMiniFactory: probar si `store=0/1` funciona en `/search` (figura como parámetro global pero `/search` no lo referencia). Hasta entonces se mantiene el post-filtro por `licenses[].store` y no se envía el parámetro.
 - [ ] Verificar visualmente el 5.º ítem del bottom nav de Free (no se pudo iniciar sesión como Free en la verificación).
 - [ ] Prueba manual con usuarios Anonymous, Free y Paid (ver checklist del reporte de la tarea).

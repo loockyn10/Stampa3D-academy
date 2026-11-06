@@ -598,3 +598,12 @@ Biblioteca de proyectos 3MF por producto, laminador, impresora y pieza. Guía co
 - **Barrera:** `loadLessonGate` rechaza clases o módulos inactivos para no-admins.
 - **Catálogo:** `src/lib/academy/course-stats.ts` cuenta solo módulos y clases activos.
 - **Inventario:** `supabase/diagnostics/20261105_academy_content_inventory.sql` (solo lectura).
+
+## 31. UX/UI y Mobile (2026-11-06, Sprint UX, D050)
+
+- **Shell móvil:** `src/components/layout/page-titles.ts` (`getPageTitle`, `getParentRoute`) es la única fuente de títulos del header de escritorio y del móvil; el header móvil muestra la pantalla actual y, en subpantallas de Mi Taller / Mi Negocio / Stampa Maker / Librería STL / Admin, un «volver» un nivel. `mobile-radial-menu.tsx` ahora es un panel en **grilla de 4 columnas** (mismo contrato: `#mobile-tools-menu`, `role=menu/menuitem`, cierre por fondo/Escape/navegación); se eliminó `getRadialArcAngles`.
+- **Áreas seguras / PWA:** `viewport-fit=cover` en `layout.tsx`; header móvil y barra inferior aplican `env(safe-area-inset-*)`; `--mobile-app-header-height` suma el inset superior. Anclas y `scrollIntoView` usan `.scroll-mt-app`.
+- **Táctil:** campos a 16 px en `(hover: none) and (pointer: coarse)` (iOS no hace zoom al enfocar); foco visible global para enlaces/botones; `Button` con 44 px en móvil; botones `h-8` de Calculadora y Stampa Maker pasan a 40 px en móvil. Los modales propios de Stock/Productos/Presupuestos/etc. suben a `z-[110]` (antes `z-50`, quedaban **debajo** de la barra inferior `z-[60]`); `Dialog` 150 y `app-feedback` 160/170 siguen por encima.
+- **Compartidos nuevos/ajustados:** `ui/load-error.tsx` (error de carga con «Reintentar», usado en Academia/Cursos/Talleres), `EmptyState` (tenía un fondo blanco heredado del tema anterior), toasts de error con `role=alert`. Texto sobre botones naranjas sólidos = tinta `neutral-950` (la del `Button` compartido y el contraste AA); `text-white` quedó reservado para FAB/gradientes, destructivos y landing.
+- Sin cambios en Mercado Pago, membresías, permisos/RLS, lógica de negocio, Supabase ni motores de generación.
+
