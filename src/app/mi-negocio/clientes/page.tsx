@@ -160,7 +160,7 @@ function ClientDetailDialog({ clientId, onClose, onChanged }: { clientId: string
               <label className="block text-xs font-semibold text-gray-400">Teléfono<input value={form.phone} onChange={(event) => setForm({ ...form, phone: event.target.value })} className={`mt-1.5 ${INPUT_CLASS}`} /></label>
               <label className="block text-xs font-semibold text-gray-400">Email<input value={form.email} onChange={(event) => setForm({ ...form, email: event.target.value })} className={`mt-1.5 ${INPUT_CLASS}`} /></label>
               <label className="block text-xs font-semibold text-gray-400">Notas<input value={form.notes} onChange={(event) => setForm({ ...form, notes: event.target.value })} className={`mt-1.5 ${INPUT_CLASS}`} /></label>
-              <button type="button" disabled={saving} onClick={() => void handleSave()} className="min-h-11 rounded-xl bg-stampa-orange text-sm font-black text-white disabled:opacity-50">{saving ? "Guardando..." : "Guardar cambios"}</button>
+              <button type="button" disabled={saving} onClick={() => void handleSave()} className="min-h-11 rounded-xl bg-stampa-orange text-sm font-black text-neutral-950 disabled:opacity-50">{saving ? "Guardando..." : "Guardar cambios"}</button>
             </div>
           ) : (
             <div className="grid grid-cols-3 gap-3 border-b border-stampa-border p-5 text-center">

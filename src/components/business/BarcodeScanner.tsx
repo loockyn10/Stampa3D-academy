@@ -139,7 +139,7 @@ export function BarcodeScanner({ onDetected }: BarcodeScannerProps) {
         {scanning ? (
           <button onClick={stop} className="flex min-h-11 w-full items-center justify-center gap-2 rounded-xl border border-stampa-border bg-fg/5 text-sm font-bold text-fg"><CameraOff size={17} /> Detener cámara</button>
         ) : (
-          <button onClick={() => void start()} disabled={starting} className="flex min-h-11 w-full items-center justify-center gap-2 rounded-xl bg-stampa-orange text-sm font-bold text-white disabled:opacity-60">
+          <button onClick={() => void start()} disabled={starting} className="flex min-h-11 w-full items-center justify-center gap-2 rounded-xl bg-stampa-orange text-sm font-bold text-neutral-950 disabled:opacity-60">
             {starting ? <Loader2 size={17} className="animate-spin" /> : <Camera size={17} />} Iniciar cámara
           </button>
         )}

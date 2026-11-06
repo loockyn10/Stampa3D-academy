@@ -68,7 +68,7 @@ export function CustomerQuickCreateDialog({ open, onClose, onCreated }: Customer
         </div>
         <div className="mt-5 grid grid-cols-2 gap-2">
           <button type="button" onClick={handleClose} disabled={saving} className="min-h-11 rounded-xl border border-stampa-border text-sm font-bold text-gray-300 disabled:opacity-50">Cancelar</button>
-          <button type="button" onClick={() => void handleSave()} disabled={saving} className="inline-flex min-h-11 items-center justify-center gap-2 rounded-xl bg-stampa-orange text-sm font-black text-white disabled:opacity-50">{saving && <Loader2 size={15} className="animate-spin" />} Guardar</button>
+          <button type="button" onClick={() => void handleSave()} disabled={saving} className="inline-flex min-h-11 items-center justify-center gap-2 rounded-xl bg-stampa-orange text-sm font-black text-neutral-950 disabled:opacity-50">{saving && <Loader2 size={15} className="animate-spin" />} Guardar</button>
         </div>
       </div>
     </Dialog>

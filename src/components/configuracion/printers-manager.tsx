@@ -265,8 +265,8 @@ export function PrintersManager() {
       </div>
 
       {showCatalog && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-stampa-bg/50">
-          <div className="bg-stampa-surface rounded-xl shadow-xl max-w-3xl w-full max-h-[90vh] flex flex-col overflow-hidden">
+        <div className="fixed inset-0 z-[110] flex items-center justify-center p-4 bg-stampa-bg/50">
+          <div className="bg-stampa-surface rounded-xl shadow-xl max-w-3xl w-full max-h-[90dvh] flex flex-col overflow-hidden">
             <div className="p-4 border-b border-stampa-border flex justify-between items-center bg-stampa-bg-soft">
               <div>
                 <h3 className="text-lg font-bold text-fg">Catálogo de Impresoras Stampa</h3>

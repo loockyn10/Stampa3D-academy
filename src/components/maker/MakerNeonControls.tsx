@@ -614,7 +614,7 @@ function ExportSecondaryButton({ onClick, disabled, loading, label }: { onClick:
       type="button"
       onClick={onClick}
       disabled={disabled}
-      className="inline-flex h-8 w-full items-center justify-start gap-2 rounded-lg border border-fg/15 bg-fg/[0.04] px-3 text-xs font-semibold text-gray-200 transition-colors hover:border-fg/30 hover:bg-fg/[0.08] disabled:cursor-not-allowed disabled:opacity-40"
+      className="inline-flex h-10 sm:h-8 w-full items-center justify-start gap-2 rounded-lg border border-fg/15 bg-fg/[0.04] px-3 text-xs font-semibold text-gray-200 transition-colors hover:border-fg/30 hover:bg-fg/[0.08] disabled:cursor-not-allowed disabled:opacity-40"
     >
       {loading ? <Loader2 size={14} className="animate-spin" /> : <Download size={14} />}
       {label}
@@ -649,7 +649,7 @@ export function NeonExportCard({
         type="button"
         onClick={onDownload}
         disabled={!canDownload || loading}
-        className="inline-flex h-8 w-full items-center justify-start gap-2 rounded-lg border border-transparent bg-stampa-orange px-3 text-xs font-semibold text-neutral-950 transition-colors hover:bg-stampa-orange-hover disabled:cursor-not-allowed disabled:opacity-50"
+        className="inline-flex h-10 sm:h-8 w-full items-center justify-start gap-2 rounded-lg border border-transparent bg-stampa-orange px-3 text-xs font-semibold text-neutral-950 transition-colors hover:bg-stampa-orange-hover disabled:cursor-not-allowed disabled:opacity-50"
       >
         {loading ? <Loader2 size={14} className="animate-spin" /> : <Download size={14} />}
         Descargar STL Neon

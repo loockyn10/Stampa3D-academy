@@ -302,7 +302,7 @@ export default function AdminCodigosPage() {
           </div>
           <button
             onClick={openNewForm}
-            className="flex items-center justify-center gap-2 px-4 py-2 rounded-xl bg-stampa-orange hover:bg-stampa-orange text-white text-sm font-semibold transition-colors shadow-lg shadow-stampa-orange/20"
+            className="flex items-center justify-center gap-2 px-4 py-2 rounded-xl bg-stampa-orange hover:bg-stampa-orange text-neutral-950 text-sm font-semibold transition-colors shadow-lg shadow-stampa-orange/20"
           >
             <Plus size={16} /> Nuevo código
           </button>
@@ -445,7 +445,7 @@ export default function AdminCodigosPage() {
             <button onClick={() => setShowForm(false)} className="flex-1 px-4 py-2.5 rounded-xl text-sm font-semibold text-gray-400 bg-fg/5 border border-stampa-border hover:bg-fg/10 transition-colors">
               Cancelar
             </button>
-            <button onClick={handleSave} disabled={creating} className="flex-1 flex justify-center items-center gap-2 px-4 py-2.5 rounded-xl text-sm font-semibold text-white bg-stampa-orange hover:bg-stampa-orange transition-colors disabled:opacity-60">
+            <button onClick={handleSave} disabled={creating} className="flex-1 flex justify-center items-center gap-2 px-4 py-2.5 rounded-xl text-sm font-semibold text-neutral-950 bg-stampa-orange hover:bg-stampa-orange transition-colors disabled:opacity-60">
               {creating ? <Loader2 size={14} className="animate-spin" /> : <Check size={14} />}
               Guardar código
             </button>

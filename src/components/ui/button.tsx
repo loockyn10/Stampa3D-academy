@@ -16,7 +16,7 @@ export function Button({ children, variant = "primary", className = "", href, ta
     ghost: "border-stampa-border bg-stampa-surface-soft text-stampa-text-muted hover:bg-fg/10 hover:text-fg active:bg-fg/20"
   };
 
-  const baseClass = `inline-flex items-center justify-center gap-2 rounded-xl border px-4 py-2.5 text-sm font-semibold transition-all duration-150 outline-none focus:ring-2 focus:ring-stampa-orange/50 active:scale-[0.98] hover:scale-[1.01] ${styles[variant]} ${className}`;
+  const baseClass = `inline-flex min-h-11 items-center justify-center gap-2 rounded-xl border px-4 py-2.5 text-sm font-semibold sm:min-h-10 transition-all duration-150 outline-none focus:ring-2 focus:ring-stampa-orange/50 active:scale-[0.98] hover:scale-[1.01] ${styles[variant]} ${className}`;
 
   if (href) {
     return (

@@ -133,7 +133,7 @@ export function MakerInstallationSection({ params, onChange, geometry, editingMo
               type="button"
               disabled={!geometry || geometry.triangleCount === 0}
               onClick={onToggleEditingMounts}
-              className="inline-flex h-8 items-center gap-1.5 rounded-lg border border-stampa-border bg-stampa-surface-soft px-3 text-xs font-semibold text-stampa-text-muted hover:bg-fg/10 hover:text-fg disabled:opacity-50"
+              className="inline-flex h-10 sm:h-8 items-center gap-1.5 rounded-lg border border-stampa-border bg-stampa-surface-soft px-3 text-xs font-semibold text-stampa-text-muted hover:bg-fg/10 hover:text-fg disabled:opacity-50"
             >
               <Move size={13} />
               {editingMounts ? "Terminar edición" : "Editar montaje"}
@@ -142,7 +142,7 @@ export function MakerInstallationSection({ params, onChange, geometry, editingMo
               <button
                 type="button"
                 onClick={() => setOverrides(resetMountOverrides(overrides))}
-                className="inline-flex h-8 items-center gap-1.5 rounded-lg border border-stampa-border bg-stampa-surface-soft px-3 text-xs font-semibold text-stampa-text-muted hover:bg-fg/10 hover:text-fg"
+                className="inline-flex h-10 sm:h-8 items-center gap-1.5 rounded-lg border border-stampa-border bg-stampa-surface-soft px-3 text-xs font-semibold text-stampa-text-muted hover:bg-fg/10 hover:text-fg"
               >
                 <RotateCcw size={13} />
                 Restablecer automático

@@ -34,7 +34,7 @@ export function CalculatorSignupModal({ onClose }: { onClose: () => void }) {
         <h2 className="text-xl font-bold text-fg">Personalizá tus cálculos</h2>
         <p className="mx-auto mt-2 max-w-md text-sm leading-relaxed text-gray-400">Creá una cuenta gratis para calcular con tus propias impresoras y filamentos.</p>
         <div className="mt-6 flex flex-col gap-3 sm:flex-row sm:justify-center">
-          <Link href={buildCalculatorAuthHref("/registro")} className="rounded-xl bg-stampa-orange px-5 py-3 text-sm font-bold text-white hover:bg-stampa-orange-hover">Crear cuenta gratis</Link>
+          <Link href={buildCalculatorAuthHref("/registro")} className="rounded-xl bg-stampa-orange px-5 py-3 text-sm font-bold text-neutral-950 hover:bg-stampa-orange-hover">Crear cuenta gratis</Link>
           <Link href={buildCalculatorAuthHref("/login")} className="rounded-xl border border-fg/10 bg-fg/5 px-5 py-3 text-sm font-bold text-fg hover:bg-fg/10">Ya tengo cuenta</Link>
         </div>
       </div>
@@ -126,7 +126,7 @@ export function CalculatorPersonalizationModal({
           <button disabled={saving} onClick={() => void persist(true)} className="text-xs font-semibold text-gray-500 hover:text-fg">Ahora no</button>
           <div className="flex gap-2">
             {step === 2 && <button onClick={() => { setStep(1); setSearch(""); }} className="inline-flex items-center gap-1 rounded-xl border border-fg/10 px-4 py-2.5 text-sm font-semibold text-gray-300"><ChevronLeft size={15} /> Atrás</button>}
-            {step === 1 ? <button disabled={!printerId} onClick={() => { setStep(2); setSearch(""); }} className="rounded-xl bg-stampa-orange px-5 py-2.5 text-sm font-bold text-white disabled:opacity-40">Continuar</button> : <button disabled={!filamentId || saving} onClick={() => void persist(false)} className="inline-flex items-center gap-2 rounded-xl bg-stampa-orange px-5 py-2.5 text-sm font-bold text-white disabled:opacity-40">{saving && <Loader2 className="animate-spin" size={15} />} Usar esta configuración</button>}
+            {step === 1 ? <button disabled={!printerId} onClick={() => { setStep(2); setSearch(""); }} className="rounded-xl bg-stampa-orange px-5 py-2.5 text-sm font-bold text-neutral-950 disabled:opacity-40">Continuar</button> : <button disabled={!filamentId || saving} onClick={() => void persist(false)} className="inline-flex items-center gap-2 rounded-xl bg-stampa-orange px-5 py-2.5 text-sm font-bold text-neutral-950 disabled:opacity-40">{saving && <Loader2 className="animate-spin" size={15} />} Usar esta configuración</button>}
           </div>
         </div>
       </footer>

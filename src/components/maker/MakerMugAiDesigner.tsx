@@ -28,7 +28,7 @@ const MODE_OPTIONS: { value: MugAiMode; label: string }[] = [
   { value: "patch", label: "Modificar el actual" },
 ];
 
-const btnBase = "inline-flex h-8 items-center justify-center gap-1.5 rounded-lg px-3 text-xs font-semibold transition-colors disabled:cursor-not-allowed disabled:opacity-50";
+const btnBase = "inline-flex h-10 sm:h-8 items-center justify-center gap-1.5 rounded-lg px-3 text-xs font-semibold transition-colors disabled:cursor-not-allowed disabled:opacity-50";
 const btnPrimary = `${btnBase} border border-transparent bg-stampa-orange text-neutral-950 hover:bg-stampa-orange-hover`;
 const btnGhost = `${btnBase} border border-fg/10 bg-fg/[0.04] text-gray-300 hover:border-stampa-orange/50 hover:text-fg`;
 

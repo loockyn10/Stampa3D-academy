@@ -19,7 +19,7 @@ export interface LampStatusProps {
   onReset: () => void;
 }
 
-const actionClass = "inline-flex h-8 items-center justify-center rounded-lg border border-red-400/40 px-2.5 text-xs font-semibold text-red-200 transition-colors hover:bg-red-400/10";
+const actionClass = "inline-flex h-10 sm:h-8 items-center justify-center rounded-lg border border-red-400/40 px-2.5 text-xs font-semibold text-red-200 transition-colors hover:bg-red-400/10";
 
 function BlockingItem({ item, onFix }: { item: SummaryItem; onFix: (fix: IssueFix) => void }) {
   return (

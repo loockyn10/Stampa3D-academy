@@ -156,7 +156,7 @@ function RegistroForm() {
               <button
                 type="button"
                 onClick={() => window.location.assign(betaNotice.destination)}
-                className="flex w-full justify-center rounded-xl bg-stampa-orange hover:bg-orange-400 px-4 py-3 text-sm font-semibold text-white shadow-lg shadow-stampa-orange/20 transition-all active:scale-[0.98]"
+                className="flex w-full justify-center rounded-xl bg-stampa-orange hover:bg-orange-400 px-4 py-3 text-sm font-semibold text-neutral-950 shadow-lg shadow-stampa-orange/20 transition-all active:scale-[0.98]"
               >
                 Continuar
               </button>
@@ -270,7 +270,7 @@ function RegistroForm() {
 
             <button
               type="submit" disabled={isLoading}
-              className="group relative flex w-full justify-center rounded-xl bg-stampa-orange hover:bg-orange-400 px-4 py-3 text-sm font-semibold text-white shadow-lg shadow-stampa-orange/20 disabled:opacity-70 transition-all active:scale-[0.98]"
+              className="group relative flex w-full justify-center rounded-xl bg-stampa-orange hover:bg-orange-400 px-4 py-3 text-sm font-semibold text-neutral-950 shadow-lg shadow-stampa-orange/20 disabled:opacity-70 transition-all active:scale-[0.98]"
             >
               {isLoading ? (
                 <span className="flex items-center gap-2 justify-center">

@@ -373,7 +373,7 @@ export function ImageCropEditor({ file, config, onCancel, onConfirm }: ImageCrop
             type="button"
             onClick={confirm}
             disabled={processing || !imageSize.width || Boolean(error)}
-            className="inline-flex min-h-11 items-center justify-center gap-2 rounded-xl bg-stampa-orange px-5 text-sm font-bold text-white hover:brightness-110 disabled:cursor-not-allowed disabled:opacity-50 sm:min-w-36"
+            className="inline-flex min-h-11 items-center justify-center gap-2 rounded-xl bg-stampa-orange px-5 text-sm font-bold text-neutral-950 hover:brightness-110 disabled:cursor-not-allowed disabled:opacity-50 sm:min-w-36"
           >
             {processing && <Loader2 size={17} className="animate-spin" />}
             {processing ? "Procesando..." : "Usar imagen"}

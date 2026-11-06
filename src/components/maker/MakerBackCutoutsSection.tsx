@@ -63,7 +63,7 @@ export function MakerBackCutoutsSection({ cutouts, onChange, errors, selectedId,
             onSelect(created.id);
           }}
           disabled={cutouts.length >= MAX_BACK_CUTOUTS}
-          className="inline-flex h-8 items-center gap-1.5 rounded-lg border border-fg/10 bg-fg/[0.04] px-3 text-xs font-semibold text-gray-300 transition-colors hover:bg-fg/10 hover:text-fg disabled:cursor-not-allowed disabled:opacity-40"
+          className="inline-flex h-10 sm:h-8 items-center gap-1.5 rounded-lg border border-fg/10 bg-fg/[0.04] px-3 text-xs font-semibold text-gray-300 transition-colors hover:bg-fg/10 hover:text-fg disabled:cursor-not-allowed disabled:opacity-40"
         >
           <Plus size={14} /> Agregar
         </button>

@@ -137,7 +137,7 @@ export default function AdminCalculadoraPage() {
             });
             setEditingId("new");
           }}
-          className="flex items-center gap-2 bg-stampa-orange hover:bg-stampa-orange/90 text-white px-4 py-2 rounded-xl text-sm font-semibold transition-colors shrink-0 shadow-sm"
+          className="flex items-center gap-2 bg-stampa-orange hover:bg-stampa-orange/90 text-neutral-950 px-4 py-2 rounded-xl text-sm font-semibold transition-colors shrink-0 shadow-sm"
         >
           <Plus size={18} /> Añadir Template
         </button>
@@ -252,7 +252,7 @@ function TypeEditor({ saving, formData, setFormData, onSave, onCancel }: any) {
       </div>
       <div className="mt-5 flex gap-2 justify-end">
         <button onClick={onCancel} className="px-4 py-2 text-sm font-semibold text-gray-400 hover:text-fg bg-fg/5 hover:bg-fg/10 rounded-xl transition-colors">Cancelar</button>
-        <button onClick={onSave} disabled={saving} aria-busy={saving} className="flex items-center gap-1.5 px-4 py-2 text-sm font-semibold bg-stampa-orange hover:bg-stampa-orange/90 text-white rounded-xl transition-colors shadow-sm">
+        <button onClick={onSave} disabled={saving} aria-busy={saving} className="flex items-center gap-1.5 px-4 py-2 text-sm font-semibold bg-stampa-orange hover:bg-stampa-orange/90 text-neutral-950 rounded-xl transition-colors shadow-sm">
           <Save size={16} /> Guardar
         </button>
       </div>

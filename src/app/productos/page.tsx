@@ -1174,7 +1174,7 @@ function ProductosPageContent() {
                   <button
                     type="button"
                     onClick={applyEditorCalculation}
-                    className="bg-stampa-orange text-white px-4 py-2 rounded-lg text-xs font-bold hover:bg-stampa-orange transition-colors"
+                    className="bg-stampa-orange text-neutral-950 px-4 py-2 rounded-lg text-xs font-bold hover:bg-stampa-orange transition-colors"
                   >
                     Usar precio sugerido
                   </button>
@@ -1263,7 +1263,7 @@ function ProductosPageContent() {
             </div>
             <div className="flex flex-col-reverse sm:flex-row gap-2 w-full sm:w-auto">
               <button onClick={() => setEditingId(null)} className="w-full sm:w-auto px-4 py-2 text-sm font-bold text-gray-400 hover:bg-fg/5 rounded-lg transition-colors text-center">Cancelar</button>
-              <button onClick={handleSave} className="w-full sm:w-auto flex items-center justify-center gap-2 px-4 py-2 text-sm font-bold bg-stampa-orange hover:bg-stampa-orange text-white rounded-lg transition-colors">
+              <button onClick={handleSave} className="w-full sm:w-auto flex items-center justify-center gap-2 px-4 py-2 text-sm font-bold bg-stampa-orange hover:bg-stampa-orange text-neutral-950 rounded-lg transition-colors">
                 <Save size={16} /> Guardar
               </button>
             </div>
@@ -1329,7 +1329,7 @@ function ProductosPageContent() {
                 <button onClick={() => setDetailProduct(p)} className="min-h-11 flex-1 rounded-lg border border-stampa-border bg-fg/5 px-2 py-2 text-xs font-bold text-gray-300 transition-colors hover:bg-fg/10 hover:text-fg">
                   Ver detalle
                 </button>
-                <button onClick={(e) => { e.stopPropagation(); handleEdit(p); }} className="min-h-11 flex-1 rounded-lg border border-stampa-orange bg-stampa-orange px-2 py-2 text-xs font-bold text-white transition-colors hover:bg-stampa-orange flex items-center justify-center gap-1.5">
+                <button onClick={(e) => { e.stopPropagation(); handleEdit(p); }} className="min-h-11 flex-1 rounded-lg border border-stampa-orange bg-stampa-orange px-2 py-2 text-xs font-bold text-neutral-950 transition-colors hover:bg-stampa-orange flex items-center justify-center gap-1.5">
                   <Pencil size={13} /> Editar
                 </button>
                 <button
@@ -1398,7 +1398,7 @@ function ProductosPageContent() {
             Guardá las piezas que vendés seguido para reutilizarlas en presupuestos y controlar mejor tus costos.
           </p>
           <div className="flex gap-3">
-            <PrimaryButton onClick={handleCreateNew} className="bg-stampa-orange hover:bg-stampa-orange text-white">
+            <PrimaryButton onClick={handleCreateNew} className="bg-stampa-orange hover:bg-stampa-orange text-neutral-950">
               Crear producto
             </PrimaryButton>
             <Link href="/calculadora" className="px-4 py-2 bg-stampa-bg-soft border border-stampa-border text-fg text-sm font-bold rounded-lg hover:bg-fg/5 transition-colors">
@@ -1410,7 +1410,7 @@ function ProductosPageContent() {
 
       {/* MODAL: ELIMINAR PRODUCTO */}
       {deleteTarget && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-stampa-bg/70 p-4 backdrop-blur-sm">
+        <div className="fixed inset-0 z-[110] flex items-center justify-center bg-stampa-bg/70 p-4 backdrop-blur-sm">
           <div
             role="dialog"
             aria-modal="true"
@@ -1466,8 +1466,8 @@ function ProductosPageContent() {
 
       {/* MODAL: DETALLE DEL PRODUCTO */}
       {detailProduct && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-stampa-bg/60 backdrop-blur-sm p-4 overflow-y-auto">
-          <div className="bg-stampa-bg-soft w-full max-w-2xl rounded-2xl shadow-2xl overflow-hidden border border-stampa-border my-8 flex flex-col max-h-[90vh]">
+        <div className="fixed inset-0 z-[110] flex items-center justify-center bg-stampa-bg/60 backdrop-blur-sm p-4 overflow-y-auto">
+          <div className="bg-stampa-bg-soft w-full max-w-2xl rounded-2xl shadow-2xl overflow-hidden border border-stampa-border my-8 flex flex-col max-h-[90dvh]">
             <div className="flex items-center justify-between px-6 py-4 border-b border-stampa-border shrink-0 bg-stampa-surface">
               <h3 className="font-bold text-fg text-lg flex items-center gap-2">
                 Detalle del Producto
@@ -1639,7 +1639,7 @@ function ProductosPageContent() {
                   handleEdit(detailProduct);
                   setDetailProduct(null);
                 }} 
-                className="flex items-center gap-2 px-4 py-2 text-sm font-bold bg-stampa-orange hover:bg-stampa-orange text-white rounded-lg transition-colors border border-stampa-orange"
+                className="flex items-center gap-2 px-4 py-2 text-sm font-bold bg-stampa-orange hover:bg-stampa-orange text-neutral-950 rounded-lg transition-colors border border-stampa-orange"
               >
                 <Pencil size={15} /> Editar Producto
               </button>

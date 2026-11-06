@@ -209,7 +209,7 @@ function EmptyBlock({ title, text, onReset }: { title: string; text: string; onR
       <h3 className="mb-2 text-center text-xl font-bold text-fg">{title}</h3>
       <p className="mb-6 max-w-sm text-center text-sm font-medium text-gray-400">{text}</p>
       {onReset && (
-        <button onClick={onReset} className="rounded-lg bg-stampa-orange px-6 py-2.5 text-sm font-bold text-white transition-colors hover:bg-stampa-orange-hover">
+        <button onClick={onReset} className="rounded-lg bg-stampa-orange px-6 py-2.5 text-sm font-bold text-neutral-950 transition-colors hover:bg-stampa-orange-hover">
           Ver grupos
         </button>
       )}

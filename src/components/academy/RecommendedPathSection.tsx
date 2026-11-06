@@ -121,7 +121,7 @@ export function RecommendedPathSection({ profile, learningPaths, courses }: Reco
       <div className="grid grid-cols-1 gap-6 sm:grid-cols-2 lg:grid-cols-3">
         {roadmapCourses.map((c, index) => (
           <div key={`rec-${c.id}`} className="relative group">
-            <div className="absolute -top-3 -left-3 w-8 h-8 rounded-full bg-stampa-orange text-white flex items-center justify-center font-bold text-sm shadow-lg z-10 border-4 border-stampa-bg">
+            <div className="absolute -top-3 -left-3 w-8 h-8 rounded-full bg-stampa-orange text-neutral-950 flex items-center justify-center font-bold text-sm shadow-lg z-10 border-4 border-stampa-bg">
               {index + 1}
             </div>
             <div className="rounded-3xl border border-[#ff6a00]/30 shadow-[0_0_15px_rgba(255,106,0,0.1)] overflow-hidden h-full">

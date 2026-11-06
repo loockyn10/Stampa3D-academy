@@ -1126,7 +1126,7 @@ export function LampExportButtons({
   onDownloadTests: () => void;
   holderMeasured: boolean;
 }) {
-  const button = "inline-flex h-8 w-full items-center justify-start gap-2 rounded-lg border px-3 text-xs font-semibold transition-colors disabled:cursor-not-allowed disabled:opacity-50";
+  const button = "inline-flex h-10 sm:h-8 w-full items-center justify-start gap-2 rounded-lg border px-3 text-xs font-semibold transition-colors disabled:cursor-not-allowed disabled:opacity-50";
   const icon = (id: string) => (busy === id ? <Loader2 size={14} className="animate-spin" /> : <Download size={14} />);
   return (
     <div className="flex flex-col gap-1.5">

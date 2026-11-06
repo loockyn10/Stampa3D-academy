@@ -92,7 +92,7 @@ export default function LibreriaStlGroupPage({ params }: PageProps) {
         <p className="max-w-sm text-sm text-gray-400">
           {group ? "Volvé más tarde, estamos sumando modelos." : "Puede que el link esté desactualizado o que el grupo ya no esté disponible."}
         </p>
-        <Link href="/libreria-stl" className="inline-flex items-center gap-2 rounded-xl bg-stampa-orange px-5 py-2.5 text-sm font-bold text-white hover:bg-stampa-orange-hover">
+        <Link href="/libreria-stl" className="inline-flex items-center gap-2 rounded-xl bg-stampa-orange px-5 py-2.5 text-sm font-bold text-neutral-950 hover:bg-stampa-orange-hover">
           <ArrowLeft size={16} /> Volver a la Librería STL
         </Link>
       </div>

@@ -1041,7 +1041,7 @@ function CalculadoraPageContent() {
           <button
             type="button"
             onClick={() => void fetchData()}
-            className="mt-5 inline-flex h-11 items-center justify-center rounded-xl bg-stampa-orange px-5 text-sm font-bold text-white transition hover:bg-stampa-orange-hover"
+            className="mt-5 inline-flex h-11 items-center justify-center rounded-xl bg-stampa-orange px-5 text-sm font-bold text-neutral-950 transition hover:bg-stampa-orange-hover"
           >
             Reintentar
           </button>
@@ -1118,7 +1118,7 @@ function CalculadoraPageContent() {
               <div className="flex flex-col sm:flex-row gap-2 mt-3">
                 <button 
                   onClick={() => setShowCatalogModal(true)}
-                  className="text-center inline-block bg-stampa-orange text-white text-xs font-semibold px-3 py-1.5 rounded-lg hover:bg-stampa-orange-hover transition-colors shadow-sm shadow-[#ff6a00]/20 w-full sm:w-auto"
+                  className="text-center inline-block bg-stampa-orange text-neutral-950 text-xs font-semibold px-3 py-1.5 rounded-lg hover:bg-stampa-orange-hover transition-colors shadow-sm shadow-[#ff6a00]/20 w-full sm:w-auto"
                 >
                   Elegir impresora del catálogo
                 </button>
@@ -1138,7 +1138,7 @@ function CalculadoraPageContent() {
                 {filaments.length === 0 && (
                   <button 
                     onClick={() => setShowFilamentCatalogModal(true)}
-                    className="text-center inline-block bg-stampa-orange text-white text-xs font-semibold px-3 py-1.5 rounded-lg hover:bg-stampa-orange-hover transition-colors shadow-sm shadow-[#ff6a00]/20 w-full sm:w-auto"
+                    className="text-center inline-block bg-stampa-orange text-neutral-950 text-xs font-semibold px-3 py-1.5 rounded-lg hover:bg-stampa-orange-hover transition-colors shadow-sm shadow-[#ff6a00]/20 w-full sm:w-auto"
                   >
                     Elegir filamento del catálogo
                   </button>
@@ -1147,7 +1147,7 @@ function CalculadoraPageContent() {
                   <button
                     type="button"
                     onClick={() => setSettingsModalTab("types")}
-                    className="text-center inline-block bg-stampa-orange text-white text-xs font-semibold px-3 py-1.5 rounded-lg hover:bg-stampa-orange-hover transition-colors shadow-sm shadow-[#ff6a00]/20 w-full sm:w-auto"
+                    className="text-center inline-block bg-stampa-orange text-neutral-950 text-xs font-semibold px-3 py-1.5 rounded-lg hover:bg-stampa-orange-hover transition-colors shadow-sm shadow-[#ff6a00]/20 w-full sm:w-auto"
                   >
                     Configurar tipos de producto
                   </button>
@@ -1209,7 +1209,7 @@ function CalculadoraPageContent() {
                 <button
                   type="button"
                   onClick={openFilamentCatalog}
-                  className="inline-flex h-8 items-center gap-1.5 rounded-lg border border-stampa-border bg-fg/5 px-2.5 text-[11px] font-semibold text-gray-300 transition-colors hover:bg-fg/10 hover:text-fg"
+                  className="inline-flex h-10 sm:h-8 items-center gap-1.5 rounded-lg border border-stampa-border bg-fg/5 px-2.5 text-[11px] font-semibold text-gray-300 transition-colors hover:bg-fg/10 hover:text-fg"
                 >
                   <Plus size={13} /> Catálogo
                 </button>
@@ -1482,7 +1482,7 @@ function CalculadoraPageContent() {
           {isPaid ? <><button
             onClick={openSaveModal}
             disabled={!hasValidCalc}
-            className="w-full flex items-center justify-center gap-2 px-4 py-3.5 rounded-xl bg-stampa-orange hover:bg-stampa-orange-hover text-white text-sm font-bold transition-all shadow-lg shadow-[#ff6a00]/10 disabled:opacity-50 disabled:cursor-not-allowed"
+            className="w-full flex items-center justify-center gap-2 px-4 py-3.5 rounded-xl bg-stampa-orange hover:bg-stampa-orange-hover text-neutral-950 text-sm font-bold transition-all shadow-lg shadow-[#ff6a00]/10 disabled:opacity-50 disabled:cursor-not-allowed"
           >
             <PackagePlus size={18} /> Guardar como producto
           </button>
@@ -1498,7 +1498,7 @@ function CalculadoraPageContent() {
           </> : <div className="rounded-2xl border border-stampa-orange/20 bg-stampa-orange/5 p-5">
             <p className="text-sm font-bold text-fg">¿Fabricás este producto habitualmente?</p>
             <p className="mt-2 text-xs leading-relaxed text-gray-400">Con Mi Taller podés guardar su receta, costos y stock.</p>
-            <Link href="/sin-acceso?feature=taller" className="mt-4 inline-flex items-center gap-2 text-xs font-bold text-stampa-accent hover:text-orange-300">Conocer Mi Taller <span aria-hidden="true">→</span></Link>
+            <Link href="/sin-acceso?feature=taller" className="mt-2 inline-flex min-h-11 items-center gap-2 text-xs font-bold text-stampa-accent hover:text-orange-300">Conocer Mi Taller <span aria-hidden="true">→</span></Link>
           </div>}
         </div>
       </div>
@@ -1506,8 +1506,8 @@ function CalculadoraPageContent() {
 
     {/* MODAL: GUARDAR COMO PRODUCTO */}
     {isPaid && showSaveModal && (
-      <div className="fixed inset-0 z-50 flex items-center justify-center bg-stampa-bg/60 backdrop-blur-sm p-4">
-        <div className="bg-stampa-surface w-full max-w-md rounded-2xl border border-stampa-border shadow-2xl overflow-hidden animate-in zoom-in-95 duration-200">
+      <div className="fixed inset-0 z-[110] flex items-center justify-center bg-stampa-bg/60 backdrop-blur-sm p-4">
+        <div className="bg-stampa-surface w-full max-w-md max-h-[calc(100dvh-2rem)] overflow-y-auto rounded-2xl border border-stampa-border shadow-2xl animate-in zoom-in-95 duration-200">
           <div className="flex items-center justify-between px-6 py-4 border-b border-stampa-border bg-stampa-bg-soft">
             <h3 className="font-bold text-fg flex items-center gap-2">
               <PackagePlus size={18} className="text-stampa-accent" /> Guardar como producto
@@ -1525,7 +1525,7 @@ function CalculadoraPageContent() {
               <p className="font-bold text-fg text-lg mb-1">¡Producto guardado!</p>
               <p className="text-sm text-gray-400 mb-8">El producto fue agregado a tu catálogo.</p>
               <div className="flex gap-3 justify-center">
-                <Link href="/mi-taller/productos" className="px-5 py-2.5 bg-stampa-orange text-white rounded-xl text-sm font-bold hover:bg-stampa-orange-hover transition-colors shadow-lg shadow-[#ff6a00]/20">
+                <Link href="/mi-taller/productos" className="px-5 py-2.5 bg-stampa-orange text-neutral-950 rounded-xl text-sm font-bold hover:bg-stampa-orange-hover transition-colors shadow-lg shadow-[#ff6a00]/20">
                   Ver catálogo
                 </Link>
                 <button onClick={() => setShowSaveModal(false)} className="px-5 py-2.5 bg-stampa-raised border border-stampa-border text-fg rounded-xl text-sm font-bold hover:bg-fg/5 transition-colors">
@@ -1625,7 +1625,7 @@ function CalculadoraPageContent() {
                 <button
                   onClick={handleSaveAsProduct}
                   disabled={savingProduct}
-                  className="flex items-center gap-2 px-5 py-2.5 text-sm font-bold bg-stampa-orange hover:bg-stampa-orange-hover text-white rounded-xl disabled:opacity-50 transition-colors shadow-lg shadow-[#ff6a00]/20"
+                  className="flex items-center gap-2 px-5 py-2.5 text-sm font-bold bg-stampa-orange hover:bg-stampa-orange-hover text-neutral-950 rounded-xl disabled:opacity-50 transition-colors shadow-lg shadow-[#ff6a00]/20"
                 >
                   {savingProduct ? <Loader2 size={16} className="animate-spin" /> : <Save size={16} />}
                   Guardar

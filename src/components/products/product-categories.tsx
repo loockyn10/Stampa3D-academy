@@ -128,7 +128,7 @@ interface CategoryHandlers {
 
 const chipBase = "inline-flex min-h-10 shrink-0 items-center gap-1.5 rounded-full border px-3.5 py-1.5 text-sm font-semibold transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-stampa-orange/50";
 const chipIdle = "border-stampa-border bg-stampa-surface text-gray-300 hover:border-stampa-orange/40 hover:text-fg";
-const chipActive = "border-stampa-orange bg-stampa-orange text-white";
+const chipActive = "border-stampa-orange bg-stampa-orange text-neutral-950";
 
 /** Selector visual de categorías: Todas | Sin categoría | cada categoría | + Nueva categoría | Administrar. */
 export function ProductCategoryBar({
@@ -248,7 +248,7 @@ function ProductCategoryManager({
   }, [onClose]);
 
   return (
-    <div className="fixed inset-0 z-50 flex items-end justify-center bg-stampa-bg/70 p-0 backdrop-blur-sm sm:items-center sm:p-4" onMouseDown={(event) => { if (event.target === event.currentTarget) onClose(); }}>
+    <div className="fixed inset-0 z-[110] flex items-end justify-center bg-stampa-bg/70 p-0 backdrop-blur-sm sm:items-center sm:p-4" onMouseDown={(event) => { if (event.target === event.currentTarget) onClose(); }}>
       <div
         role="dialog"
         aria-modal="true"
@@ -303,7 +303,7 @@ function ProductCategoryManager({
           <button type="button" onClick={onClose} className="min-h-11 flex-1 rounded-xl border border-stampa-border px-4 py-2.5 text-sm font-bold text-gray-300 transition-colors hover:bg-fg/5 sm:flex-none">
             Listo
           </button>
-          <button type="button" onClick={() => void createCategory()} className="inline-flex min-h-11 flex-[2] items-center justify-center gap-2 rounded-xl border border-stampa-orange bg-stampa-orange px-4 py-2.5 text-sm font-bold text-white sm:flex-none">
+          <button type="button" onClick={() => void createCategory()} className="inline-flex min-h-11 flex-[2] items-center justify-center gap-2 rounded-xl border border-stampa-orange bg-stampa-orange px-4 py-2.5 text-sm font-bold text-neutral-950 sm:flex-none">
             <Plus size={15} aria-hidden="true" /> Nueva categoría
           </button>
         </div>

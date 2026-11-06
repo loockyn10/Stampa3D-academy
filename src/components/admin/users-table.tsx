@@ -361,8 +361,8 @@ export function UsersTable() {
 
       {/* Beta Grant Modal */}
       {betaModal && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-stampa-bg/60 backdrop-blur-sm">
-          <div className="bg-stampa-surface border border-stampa-border rounded-2xl shadow-2xl p-6 w-full max-w-md mx-4">
+        <div className="fixed inset-0 z-[110] flex items-center justify-center bg-stampa-bg/60 backdrop-blur-sm">
+          <div className="bg-stampa-surface border border-stampa-border rounded-2xl shadow-2xl p-6 w-full max-w-md mx-4 max-h-[calc(100dvh-2rem)] overflow-y-auto">
             <h3 className="text-lg font-bold text-fg mb-1 flex items-center gap-2">
               <Shield size={16} className="text-cyan-400" />
               Dar acceso Beta

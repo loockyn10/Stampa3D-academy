@@ -409,7 +409,7 @@ export function CourseDetailClient({ courseId, routeId: id, previewVisibility = 
         </div>
         <h2 className="text-2xl font-bold text-fg mb-3">Curso no encontrado</h2>
         <p className="text-gray-400">El curso que estás buscando no existe o no está disponible.</p>
-        <Link href="/academia" className="mt-6 px-6 py-3 bg-stampa-orange text-white rounded-xl font-bold hover:bg-[#e65c00] transition-colors shadow-lg shadow-[#ff6a00]/20">
+        <Link href="/academia" className="mt-6 px-6 py-3 bg-stampa-orange text-neutral-950 rounded-xl font-bold hover:bg-[#e65c00] transition-colors shadow-lg shadow-[#ff6a00]/20">
           Volver a Academia
         </Link>
       </div>

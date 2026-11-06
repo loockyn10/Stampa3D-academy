@@ -367,7 +367,7 @@ export function FilamentCatalogModal({ onClose, onSelect, onImported, mode = "si
                             <div className="flex min-w-0 items-center gap-2 flex-wrap">
                               {mode === "multiple" && !isAdded && (
                                 <div className={`shrink-0 w-5 h-5 rounded-md border flex items-center justify-center transition-colors ${
-                                  isSelected ? "bg-stampa-orange border-stampa-orange text-white" : "border-gray-500 text-transparent"
+                                  isSelected ? "bg-stampa-orange border-stampa-orange text-neutral-950" : "border-gray-500 text-transparent"
                                 }`}>
                                   <Check size={14} />
                                 </div>
@@ -456,7 +456,7 @@ export function FilamentCatalogModal({ onClose, onSelect, onImported, mode = "si
               <button
                 onClick={handleBulkImport}
                 disabled={selectedTemplateIds.length === 0 || isBulkImporting}
-                className="w-full py-3 bg-stampa-orange hover:bg-orange-600 disabled:bg-gray-600 disabled:text-gray-400 disabled:cursor-not-allowed text-white text-sm font-bold rounded-xl transition-all flex items-center justify-center gap-2 shadow-lg"
+                className="w-full py-3 bg-stampa-orange hover:bg-orange-600 disabled:bg-gray-600 disabled:text-gray-400 disabled:cursor-not-allowed text-neutral-950 text-sm font-bold rounded-xl transition-all flex items-center justify-center gap-2 shadow-lg"
               >
                 {isBulkImporting ? (
                   <>

@@ -266,7 +266,7 @@ export default function VentaRapidaPage() {
           <p className="mt-1 break-all font-mono text-xs text-amber-200">{unknownBarcode}</p>
           <div className="mt-3 flex flex-wrap gap-2">
             <button type="button" onClick={() => { setUnknownBarcode(null); setSearch(""); searchInputRef.current?.focus(); }} className="min-h-9 rounded-lg border border-stampa-border px-3 text-xs font-bold text-gray-300 hover:bg-fg/5">Buscar producto</button>
-            <button type="button" onClick={() => router.push(`/mi-negocio/catalogo?crear=reventa&barcode=${encodeURIComponent(unknownBarcode)}`)} className="min-h-9 rounded-lg bg-stampa-orange px-3 text-xs font-bold text-white">Crear producto</button>
+            <button type="button" onClick={() => router.push(`/mi-negocio/catalogo?crear=reventa&barcode=${encodeURIComponent(unknownBarcode)}`)} className="min-h-9 rounded-lg bg-stampa-orange px-3 text-xs font-bold text-neutral-950">Crear producto</button>
             <button type="button" onClick={() => setUnknownBarcode(null)} className="min-h-9 rounded-lg px-3 text-xs font-bold text-gray-500 hover:text-fg">Cerrar</button>
           </div>
         </Card>
@@ -282,7 +282,7 @@ export default function VentaRapidaPage() {
               if (exactBarcodeItem) handleBarcode(search);
               else if (results.length === 1) { addToCart(results[0]); setSearch(""); }
             }} placeholder="Producto, SKU o código" className="min-h-11 w-full rounded-xl border border-stampa-border bg-stampa-surface pl-10 pr-3 text-sm text-fg outline-none focus:border-stampa-orange" /></label>
-            <button type="button" onClick={() => setScannerOpen(true)} className="inline-flex min-h-11 shrink-0 items-center justify-center gap-2 rounded-xl bg-stampa-orange px-3 text-sm font-bold text-white min-[390px]:px-4"><Barcode size={18} /><span className="hidden min-[390px]:inline">Escanear</span></button>
+            <button type="button" onClick={() => setScannerOpen(true)} className="inline-flex min-h-11 shrink-0 items-center justify-center gap-2 rounded-xl bg-stampa-orange px-3 text-sm font-bold text-neutral-950 min-[390px]:px-4"><Barcode size={18} /><span className="hidden min-[390px]:inline">Escanear</span></button>
           </div>
           {loading ? <div className="flex min-h-48 items-center justify-center text-gray-500"><Loader2 className="animate-spin" /></div> : search.trim() ? (
             <div className="mt-3 grid gap-2">
@@ -347,7 +347,7 @@ export default function VentaRapidaPage() {
 
             <div className="flex items-end justify-between"><span className="text-sm text-gray-400">Total</span><span className="text-2xl font-black text-fg">{money.format(total)}</span></div>
             {!paymentValidation.valid && cart.length > 0 && <p className="text-xs font-bold text-red-300">{paymentValidation.error}</p>}
-            <button type="button" disabled={cart.length === 0 || submitting || !paymentValidation.valid} onClick={() => void confirmSale()} className="inline-flex min-h-12 w-full items-center justify-center gap-2 rounded-xl bg-stampa-orange px-4 text-sm font-black text-white disabled:opacity-45">{submitting && <Loader2 size={17} className="animate-spin" />} {submitting ? "Procesando..." : "Confirmar venta"}</button>
+            <button type="button" disabled={cart.length === 0 || submitting || !paymentValidation.valid} onClick={() => void confirmSale()} className="inline-flex min-h-12 w-full items-center justify-center gap-2 rounded-xl bg-stampa-orange px-4 text-sm font-black text-neutral-950 disabled:opacity-45">{submitting && <Loader2 size={17} className="animate-spin" />} {submitting ? "Procesando..." : "Confirmar venta"}</button>
             {lastSale && (
               <Link href={`/mi-negocio/ticket/${lastSale.saleId}`} target="_blank" className="inline-flex min-h-11 w-full items-center justify-center gap-2 rounded-xl border border-stampa-border text-sm font-bold text-gray-200 hover:bg-fg/5"><Printer size={16} /> Imprimir ticket N.º {lastSale.saleNumber}</Link>
             )}

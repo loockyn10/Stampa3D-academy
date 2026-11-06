@@ -12,7 +12,7 @@ export default function CursoNotFound() {
       <p className="text-gray-400">El curso que estás buscando no existe o no está disponible.</p>
       <Link
         href="/academia"
-        className="mt-6 rounded-xl bg-stampa-orange px-6 py-3 font-bold text-white shadow-lg shadow-[#ff6a00]/20 transition-colors hover:bg-[#e65c00]"
+        className="mt-6 rounded-xl bg-stampa-orange px-6 py-3 font-bold text-neutral-950 shadow-lg shadow-[#ff6a00]/20 transition-colors hover:bg-[#e65c00]"
       >
         Volver a Academia
       </Link>

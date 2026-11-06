@@ -966,7 +966,7 @@ function PresupuestosPageContent() {
               <Link href="/mi-taller/productos" className="inline-flex justify-center items-center gap-2 px-5 py-3 text-sm font-semibold bg-stampa-surface border border-stampa-border text-fg rounded-xl hover:bg-fg/5 transition-colors">
                 <Package size={16} /> Ver productos
               </Link>
-              <button onClick={handleCreateNew} className="inline-flex justify-center items-center gap-2 px-6 py-3 text-sm font-bold bg-stampa-orange text-white rounded-xl hover:bg-stampa-orange-hover transition-all shadow-lg shadow-[#ff6a00]/20">
+              <button onClick={handleCreateNew} className="inline-flex justify-center items-center gap-2 px-6 py-3 text-sm font-bold bg-stampa-orange text-neutral-950 rounded-xl hover:bg-stampa-orange-hover transition-all shadow-lg shadow-[#ff6a00]/20">
                 <Plus size={18} /> Nuevo presupuesto
               </button>
             </div>
@@ -1174,7 +1174,7 @@ function PresupuestosPageContent() {
                   )}
                   <div className="md:col-span-2 flex justify-end gap-3 mt-4 pt-4 border-t border-stampa-border">
                     <button onClick={handleCancelClientForm} className="text-sm font-bold text-gray-400 hover:text-fg px-4 py-2 transition-colors">Cancelar</button>
-                    <button onClick={handleSaveClient} className="text-sm font-bold bg-stampa-orange hover:bg-stampa-orange-hover text-white px-5 py-2 rounded-xl transition-colors shadow-lg shadow-[#ff6a00]/10">Guardar Cliente</button>
+                    <button onClick={handleSaveClient} className="text-sm font-bold bg-stampa-orange hover:bg-stampa-orange-hover text-neutral-950 px-5 py-2 rounded-xl transition-colors shadow-lg shadow-[#ff6a00]/10">Guardar Cliente</button>
                   </div>
                 </div>
               )}
@@ -1487,7 +1487,7 @@ function PresupuestosPageContent() {
             </Card>
 
             <div className="space-y-3">
-              <button onClick={handleSaveBudget} className="w-full flex justify-center items-center gap-2 px-4 py-3.5 text-sm font-bold bg-stampa-orange hover:bg-stampa-orange-hover text-white rounded-xl transition-all shadow-lg shadow-[#ff6a00]/10">
+              <button onClick={handleSaveBudget} className="w-full flex justify-center items-center gap-2 px-4 py-3.5 text-sm font-bold bg-stampa-orange hover:bg-stampa-orange-hover text-neutral-950 rounded-xl transition-all shadow-lg shadow-[#ff6a00]/10">
                 <Save size={18} /> Guardar Presupuesto
               </button>
               {editingId !== "new" && (
@@ -1578,7 +1578,7 @@ function PresupuestosPageContent() {
               Cuando un cliente te pida precio, creá un presupuesto detallado y descargalo en PDF para enviarlo de forma profesional.
             </p>
             <div className="flex flex-col sm:flex-row items-center justify-center gap-4">
-              <button onClick={handleCreateNew} className="w-full sm:w-auto px-8 py-3.5 font-bold text-sm text-white bg-stampa-orange hover:bg-stampa-orange-hover rounded-xl transition-all shadow-lg shadow-[#ff6a00]/20">
+              <button onClick={handleCreateNew} className="w-full sm:w-auto px-8 py-3.5 font-bold text-sm text-neutral-950 bg-stampa-orange hover:bg-stampa-orange-hover rounded-xl transition-all shadow-lg shadow-[#ff6a00]/20">
                 Crear mi primer presupuesto
               </button>
               <Link href="/calculadora" className="w-full sm:w-auto px-8 py-3.5 font-bold text-sm text-gray-300 hover:text-fg bg-stampa-raised border border-stampa-border hover:bg-fg/5 rounded-xl transition-all">
@@ -1592,7 +1592,7 @@ function PresupuestosPageContent() {
 
       {/* Product Creation Modal */}
       {showProductModal && (
-        <div className="fixed inset-0 bg-stampa-bg/60 backdrop-blur-sm flex items-center justify-center p-4 z-50 overflow-y-auto">
+        <div className="fixed inset-0 bg-stampa-bg/60 backdrop-blur-sm flex items-center justify-center p-4 z-[110] overflow-y-auto">
           <div className="bg-stampa-surface rounded-2xl shadow-2xl w-full max-w-lg overflow-hidden border border-stampa-border my-8 animate-in zoom-in-95 duration-200">
             <div className="bg-stampa-bg-soft px-6 py-4 flex justify-between items-center border-b border-stampa-border">
               <h3 className="text-base font-bold text-fg flex items-center gap-2">
@@ -1730,7 +1730,7 @@ function PresupuestosPageContent() {
               <button
                 type="button"
                 onClick={handleSaveProduct}
-                className="px-6 py-2.5 text-sm font-bold bg-stampa-orange hover:bg-stampa-orange-hover text-white rounded-xl transition-colors shadow-lg shadow-[#ff6a00]/20"
+                className="px-6 py-2.5 text-sm font-bold bg-stampa-orange hover:bg-stampa-orange-hover text-neutral-950 rounded-xl transition-colors shadow-lg shadow-[#ff6a00]/20"
               >
                 Guardar Producto
               </button>

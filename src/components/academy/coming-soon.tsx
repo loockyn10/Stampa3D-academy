@@ -158,7 +158,7 @@ export function CourseComingSoonScreen({ course }: { course: ComingSoonCourse })
           </div>
           <Link
             href="/academia"
-            className="inline-flex min-h-11 items-center justify-center rounded-xl bg-stampa-orange px-6 py-3 text-sm font-bold text-white shadow-lg shadow-[#ff6a00]/20 transition-colors hover:bg-[#e65c00]"
+            className="inline-flex min-h-11 items-center justify-center rounded-xl bg-stampa-orange px-6 py-3 text-sm font-bold text-neutral-950 shadow-lg shadow-[#ff6a00]/20 transition-colors hover:bg-[#e65c00]"
           >
             Volver a Academia
           </Link>

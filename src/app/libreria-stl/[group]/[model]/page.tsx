@@ -147,7 +147,7 @@ export default function LibreriaStlModelPage({ params }: PageProps) {
       <div className="flex flex-col items-center gap-4 py-24 text-center">
         <h1 className="text-xl font-bold text-fg">No encontramos ese modelo</h1>
         <p className="max-w-sm text-sm text-gray-400">Puede que el link esté desactualizado o que el modelo ya no esté disponible.</p>
-        <Link href="/libreria-stl" className="inline-flex items-center gap-2 rounded-xl bg-stampa-orange px-5 py-2.5 text-sm font-bold text-white hover:bg-stampa-orange-hover">
+        <Link href="/libreria-stl" className="inline-flex items-center gap-2 rounded-xl bg-stampa-orange px-5 py-2.5 text-sm font-bold text-neutral-950 hover:bg-stampa-orange-hover">
           <ArrowLeft size={16} /> Volver a la Librería STL
         </Link>
       </div>

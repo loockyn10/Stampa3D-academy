@@ -137,10 +137,10 @@ for (const role of ["beta", "paid", "admin"] as const) {
         if (!box || box.x < 0 || box.y < 0 || box.x + box.width > viewport.width) outOfView.push(name);
         else boxes.push({ name, x: Math.round(box.x), y: Math.round(box.y) });
       }
-      // Dos ítems en la misma posición = uno quedó sin ángulo (7 ítems, 6 ángulos en mobile-radial-menu.tsx).
+      // Dos ítems en la misma posición = superposición. Desde el Sprint UX/UI el menú es una grilla (mobile-radial-menu.tsx):
+      // QA-010 (7 herramientas y 6 ángulos) dejó de existir; este test queda como regresión.
       const positions = boxes.map((b) => `${b.x},${b.y}`);
       const overlapping = positions.length !== new Set(positions).size;
-      test.fail(outOfView.length > 0 || overlapping, "QA-010: 7 herramientas y 6 ángulos: Configuración queda sin posición");
       expect(outOfView, "ítems fuera del viewport").toEqual([]);
       expect(overlapping, "ítems superpuestos").toBe(false);
     });

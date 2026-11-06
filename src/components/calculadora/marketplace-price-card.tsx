@@ -36,7 +36,7 @@ export function MarketplacePriceCard({ result, hasValidCalc, source, onConfigure
         <button
           type="button"
           onClick={onConfigure}
-          className="inline-flex min-h-8 shrink-0 items-center gap-1 rounded-lg border border-yellow-400/30 px-2 text-[11px] font-semibold text-yellow-100 transition-colors hover:bg-yellow-400/10 focus:outline-none focus-visible:ring-2 focus-visible:ring-yellow-300"
+          className="inline-flex min-h-10 shrink-0 sm:min-h-8 items-center gap-1 rounded-lg border border-yellow-400/30 px-2 text-[11px] font-semibold text-yellow-100 transition-colors hover:bg-yellow-400/10 focus:outline-none focus-visible:ring-2 focus-visible:ring-yellow-300"
         >
           <Settings size={12} aria-hidden="true" /> {configureLabel}
         </button>

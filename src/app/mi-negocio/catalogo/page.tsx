@@ -642,7 +642,7 @@ function CatalogoContent() {
             <button onClick={() => setManufacturedOpen(true)} className="inline-flex min-h-11 items-center justify-center gap-2 rounded-xl border border-stampa-border bg-fg/5 px-4 text-xs font-bold text-fg hover:bg-fg/10">
               <Factory size={16} /> Del taller
             </button>
-            <button onClick={() => setResaleOpen(true)} className="inline-flex min-h-11 items-center justify-center gap-2 rounded-xl bg-stampa-orange px-4 text-xs font-bold text-white hover:bg-orange-500">
+            <button onClick={() => setResaleOpen(true)} className="inline-flex min-h-11 items-center justify-center gap-2 rounded-xl bg-stampa-orange px-4 text-xs font-bold text-neutral-950 hover:bg-orange-500">
               <Plus size={16} /> De reventa
             </button>
           </div>
@@ -807,7 +807,7 @@ function CatalogoContent() {
             </div>
             <label className="block text-xs font-semibold text-gray-300">Cantidad<input type="number" inputMode="numeric" min="1" step="1" value={adjustmentQuantity} onChange={(event) => { setAdjustmentQuantity(event.target.value); adjustmentAttemptRef.current = null; }} className="mt-1.5 min-h-11 w-full rounded-xl border border-stampa-border bg-stampa-bg-soft px-3 text-sm text-fg" /></label>
             <label className="block text-xs font-semibold text-gray-300">Motivo<textarea value={adjustmentReason} onChange={(event) => { setAdjustmentReason(event.target.value); adjustmentAttemptRef.current = null; }} maxLength={300} rows={3} placeholder="Ej.: reposición, conteo físico, unidad dañada" className="mt-1.5 w-full resize-none rounded-xl border border-stampa-border bg-stampa-bg-soft p-3 text-sm text-fg" /></label>
-            <button type="button" disabled={adjusting} onClick={() => void saveAdjustment()} className="inline-flex min-h-12 w-full items-center justify-center gap-2 rounded-xl bg-stampa-orange text-sm font-black text-white disabled:opacity-50">{adjusting && <Loader2 size={16} className="animate-spin" />} Confirmar ajuste</button>
+            <button type="button" disabled={adjusting} onClick={() => void saveAdjustment()} className="inline-flex min-h-12 w-full items-center justify-center gap-2 rounded-xl bg-stampa-orange text-sm font-black text-neutral-950 disabled:opacity-50">{adjusting && <Loader2 size={16} className="animate-spin" />} Confirmar ajuste</button>
           </div>
           <div className="border-t border-stampa-border p-5">
             <h3 className="flex items-center gap-2 text-xs font-bold uppercase tracking-wide text-gray-400"><History size={15} /> Últimos movimientos</h3>
@@ -881,7 +881,7 @@ function CatalogoContent() {
           </div>
           <div className="flex flex-col-reverse gap-2 border-t border-stampa-border p-5 min-[390px]:flex-row min-[390px]:justify-end">
             <button type="button" disabled={editing} onClick={() => setEditItem(null)} className="min-h-11 rounded-xl px-4 text-sm font-semibold text-gray-400 hover:bg-fg/5 disabled:opacity-40">Cancelar</button>
-            <button type="button" disabled={editing} onClick={() => void saveEdit()} className="inline-flex min-h-11 items-center justify-center gap-2 rounded-xl bg-stampa-orange px-5 text-sm font-black text-white disabled:opacity-50">{editing && <Loader2 size={16} className="animate-spin" />} Guardar cambios</button>
+            <button type="button" disabled={editing} onClick={() => void saveEdit()} className="inline-flex min-h-11 items-center justify-center gap-2 rounded-xl bg-stampa-orange px-5 text-sm font-black text-neutral-950 disabled:opacity-50">{editing && <Loader2 size={16} className="animate-spin" />} Guardar cambios</button>
           </div>
         </>}
       </Dialog>
@@ -910,7 +910,7 @@ function CatalogoContent() {
         </div>
         <div className="flex flex-col-reverse gap-2 border-t border-stampa-border p-5 sm:flex-row sm:justify-end">
           <button onClick={closeManufactured} className="min-h-11 rounded-xl px-4 text-sm font-semibold text-gray-400 hover:bg-fg/5">Cancelar</button>
-          <button disabled={saving || !manufacturedForm.sourceProductId} onClick={() => void saveManufactured()} className="inline-flex min-h-11 items-center justify-center gap-2 rounded-xl bg-stampa-orange px-5 text-sm font-bold text-white disabled:opacity-50">{saving && <Loader2 size={15} className="animate-spin" />} Agregar</button>
+          <button disabled={saving || !manufacturedForm.sourceProductId} onClick={() => void saveManufactured()} className="inline-flex min-h-11 items-center justify-center gap-2 rounded-xl bg-stampa-orange px-5 text-sm font-bold text-neutral-950 disabled:opacity-50">{saving && <Loader2 size={15} className="animate-spin" />} Agregar</button>
         </div>
       </Dialog>
 
@@ -936,7 +936,7 @@ function CatalogoContent() {
         </div>
         <div className="flex flex-col-reverse gap-2 border-t border-stampa-border p-5 sm:flex-row sm:justify-end">
           <button onClick={closeResale} className="min-h-11 rounded-xl px-4 text-sm font-semibold text-gray-400 hover:bg-fg/5">Cancelar</button>
-          <button disabled={saving} onClick={() => void saveResale()} className="inline-flex min-h-11 items-center justify-center gap-2 rounded-xl bg-stampa-orange px-5 text-sm font-bold text-white disabled:opacity-50">{saving && <Loader2 size={15} className="animate-spin" />} Guardar producto</button>
+          <button disabled={saving} onClick={() => void saveResale()} className="inline-flex min-h-11 items-center justify-center gap-2 rounded-xl bg-stampa-orange px-5 text-sm font-bold text-neutral-950 disabled:opacity-50">{saving && <Loader2 size={15} className="animate-spin" />} Guardar producto</button>
         </div>
       </Dialog>
 
@@ -952,7 +952,7 @@ function CatalogoContent() {
             <button type="button" disabled={restoringId !== null} onClick={() => setBarcodeConflict(null)} aria-label="Cerrar" className="shrink-0 rounded-lg p-2 text-gray-500 hover:bg-fg/5 hover:text-fg disabled:opacity-40"><X size={18} /></button>
           </div>
           <div className="flex flex-col gap-2 p-5">
-            <button type="button" disabled={restoringId !== null} onClick={() => void reactivateFromConflict()} className="inline-flex min-h-11 w-full items-center justify-center gap-2 rounded-xl bg-stampa-orange px-5 text-sm font-black text-white hover:bg-orange-500 disabled:opacity-50">{restoringId ? <Loader2 size={16} className="animate-spin" /> : <ArchiveRestore size={16} />} Reactivar producto</button>
+            <button type="button" disabled={restoringId !== null} onClick={() => void reactivateFromConflict()} className="inline-flex min-h-11 w-full items-center justify-center gap-2 rounded-xl bg-stampa-orange px-5 text-sm font-black text-neutral-950 hover:bg-orange-500 disabled:opacity-50">{restoringId ? <Loader2 size={16} className="animate-spin" /> : <ArchiveRestore size={16} />} Reactivar producto</button>
             <button type="button" disabled={restoringId !== null} onClick={viewArchivedFromConflict} className="min-h-11 w-full rounded-xl border border-stampa-border px-4 text-sm font-bold text-fg hover:bg-fg/5 disabled:opacity-50">Ver archivado</button>
             <button type="button" disabled={restoringId !== null} onClick={() => setBarcodeConflict(null)} className="min-h-11 w-full rounded-xl px-4 text-sm font-semibold text-gray-400 hover:bg-fg/5 disabled:opacity-40">Cancelar</button>
           </div>

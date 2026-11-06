@@ -393,7 +393,7 @@ export function SinAccesoClient({
                 type="button"
                 onClick={handleCreateSubscription}
                 disabled={loading || checkingEmail}
-                className="mt-3 flex w-full items-center justify-center gap-2 rounded-xl bg-stampa-orange px-3 py-3 text-sm font-semibold text-white transition-colors hover:bg-stampa-orange-hover disabled:cursor-not-allowed disabled:opacity-70"
+                className="mt-3 flex w-full items-center justify-center gap-2 rounded-xl bg-stampa-orange px-3 py-3 text-sm font-semibold text-neutral-950 transition-colors hover:bg-stampa-orange-hover disabled:cursor-not-allowed disabled:opacity-70"
               >
                 {loading && <Loader2 size={16} className="animate-spin" aria-hidden="true" />}
                 {loading ? "Generando link..." : "Activar membresía"}

@@ -292,7 +292,7 @@ export function StockReceiptDialog({ open, onClose, onConfirmed, onCreateProduct
             <p className="mt-1 break-all font-mono text-xs text-amber-200">{unknown.barcode}</p>
             {unknown.archivedPresentation ? (
               <div className="mt-3 flex flex-wrap gap-2">
-                <button type="button" disabled={assigning} onClick={() => void restoreArchived()} className="inline-flex min-h-10 items-center gap-2 rounded-xl bg-stampa-orange px-4 text-xs font-black text-white disabled:opacity-50">{assigning ? <Loader2 size={15} className="animate-spin" /> : <RotateCcw size={15} />} Restaurar producto</button>
+                <button type="button" disabled={assigning} onClick={() => void restoreArchived()} className="inline-flex min-h-10 items-center gap-2 rounded-xl bg-stampa-orange px-4 text-xs font-black text-neutral-950 disabled:opacity-50">{assigning ? <Loader2 size={15} className="animate-spin" /> : <RotateCcw size={15} />} Restaurar producto</button>
                 <button type="button" onClick={() => setUnknown(null)} className="min-h-10 rounded-xl px-3 text-xs font-bold text-gray-400">Cancelar</button>
               </div>
             ) : (
@@ -307,7 +307,7 @@ export function StockReceiptDialog({ open, onClose, onConfirmed, onCreateProduct
                 </div>
                 {assignmentType === "case" && <label className="block text-xs font-bold text-gray-300">Unidades por caja<input type="number" min="2" step="1" value={assignmentUnits} onChange={(event) => setAssignmentUnits(event.target.value)} className={`${inputClass} mt-1.5`} /></label>}
                 <div className="flex flex-wrap gap-2">
-                  <button type="button" disabled={!assignmentItemId || !assignmentIsValid || assigning} onClick={() => void assignUnknownBarcode()} className="min-h-10 rounded-xl bg-stampa-orange px-4 text-xs font-black text-white disabled:opacity-40">Asignar y sumar</button>
+                  <button type="button" disabled={!assignmentItemId || !assignmentIsValid || assigning} onClick={() => void assignUnknownBarcode()} className="min-h-10 rounded-xl bg-stampa-orange px-4 text-xs font-black text-neutral-950 disabled:opacity-40">Asignar y sumar</button>
                   <button type="button" disabled={!assignmentIsValid} onClick={() => { setLoading(true); onCreateProduct({ barcode: unknown.barcode, barcodeType: assignmentType, unitsPerScan: assignmentType === "case" ? assignmentUnitsNumber : 1 }); }} className="min-h-10 rounded-xl border border-stampa-border px-4 text-xs font-bold text-fg disabled:opacity-40">Crear producto</button>
                   <button type="button" onClick={() => setUnknown(null)} className="min-h-10 rounded-xl px-3 text-xs font-bold text-gray-500">Cancelar</button>
                 </div>
@@ -352,7 +352,7 @@ export function StockReceiptDialog({ open, onClose, onConfirmed, onCreateProduct
         <div className="mb-4 flex items-end justify-between gap-4"><div><p className="text-xs text-gray-500">Total pendiente</p><p className="text-2xl font-black text-fg">{totalUnits} unidades</p></div><CheckCircle2 className={pending.length ? "text-emerald-300" : "text-gray-700"} /></div>
         <div className="grid grid-cols-2 gap-2">
           <button type="button" disabled={confirming || assigning} onClick={closeAndReset} className="min-h-11 rounded-xl border border-stampa-border text-sm font-bold text-gray-300 disabled:opacity-40">Cancelar</button>
-          <button type="button" disabled={pending.length === 0 || confirming || assigning} onClick={() => void confirmReceipt()} className="inline-flex min-h-11 items-center justify-center gap-2 rounded-xl bg-stampa-orange text-sm font-black text-white disabled:opacity-40">{confirming && <Loader2 size={16} className="animate-spin" />} Confirmar ingreso</button>
+          <button type="button" disabled={pending.length === 0 || confirming || assigning} onClick={() => void confirmReceipt()} className="inline-flex min-h-11 items-center justify-center gap-2 rounded-xl bg-stampa-orange text-sm font-black text-neutral-950 disabled:opacity-40">{confirming && <Loader2 size={16} className="animate-spin" />} Confirmar ingreso</button>
         </div>
       </div>
     </Dialog>

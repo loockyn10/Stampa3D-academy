@@ -988,7 +988,7 @@ export function StockPageContent({ workshopSection }: { workshopSection?: Worksh
                   setEditingFilamentId("new");
                   setFilamentModalOpen(true);
                 }}
-                className="flex items-center justify-center gap-2 text-sm font-bold text-white bg-stampa-orange hover:bg-stampa-orange px-4 py-2 rounded-lg transition-colors border border-stampa-orange w-full sm:w-auto"
+                className="flex items-center justify-center gap-2 text-sm font-bold text-neutral-950 bg-stampa-orange hover:bg-stampa-orange px-4 py-2 rounded-lg transition-colors border border-stampa-orange w-full sm:w-auto"
               >
                 <Plus size={15} /> Nuevo Filamento
               </button>
@@ -1080,7 +1080,7 @@ export function StockPageContent({ workshopSection }: { workshopSection?: Worksh
                 setEditingFilamentId("new");
                 setFilamentModalOpen(true);
               }}
-              className="flex items-center justify-center gap-2 rounded-lg border border-stampa-orange bg-stampa-orange px-4 py-2 text-sm font-bold text-white transition-colors hover:bg-stampa-orange"
+              className="flex items-center justify-center gap-2 rounded-lg border border-stampa-orange bg-stampa-orange px-4 py-2 text-sm font-bold text-neutral-950 transition-colors hover:bg-stampa-orange"
             >
               <Plus size={15} /> Nuevo Filamento
             </button>
@@ -1392,8 +1392,8 @@ export function StockPageContent({ workshopSection }: { workshopSection?: Worksh
 
       {/* History Modal for Filaments */}
       {historyModalOpen && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-stampa-bg/50">
-          <div className="bg-stampa-surface rounded-xl shadow-xl max-w-lg w-full max-h-[90vh] flex flex-col overflow-hidden border border-stampa-border">
+        <div className="fixed inset-0 z-[110] flex items-center justify-center p-4 bg-stampa-bg/50">
+          <div className="bg-stampa-surface rounded-xl shadow-xl max-w-lg w-full max-h-[90dvh] flex flex-col overflow-hidden border border-stampa-border">
             <div className="p-4 border-b border-stampa-border flex justify-between items-center bg-stampa-bg-soft">
               <div>
                 <h3 className="text-lg font-bold text-fg">Historial de Movimientos</h3>
@@ -1438,8 +1438,8 @@ export function StockPageContent({ workshopSection }: { workshopSection?: Worksh
 
       {/* History Modal for Products */}
       {historyProductModalOpen && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-stampa-bg/50">
-          <div className="bg-stampa-surface rounded-xl shadow-xl max-w-lg w-full max-h-[90vh] flex flex-col overflow-hidden border border-stampa-border">
+        <div className="fixed inset-0 z-[110] flex items-center justify-center p-4 bg-stampa-bg/50">
+          <div className="bg-stampa-surface rounded-xl shadow-xl max-w-lg w-full max-h-[90dvh] flex flex-col overflow-hidden border border-stampa-border">
             <div className="p-4 border-b border-stampa-border flex justify-between items-center bg-stampa-bg-soft">
               <div>
                 <h3 className="text-lg font-bold text-fg">Historial de Movimientos</h3>
@@ -1484,8 +1484,8 @@ export function StockPageContent({ workshopSection }: { workshopSection?: Worksh
 
       {/* Consume by Product Modal */}
       {consumeModalOpen && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-stampa-bg/40 p-4">
-          <div className="bg-stampa-surface w-full max-w-2xl rounded-2xl shadow-2xl overflow-hidden flex flex-col max-h-[90vh] border border-stampa-border">
+        <div className="fixed inset-0 z-[110] flex items-center justify-center bg-stampa-bg/40 p-4">
+          <div className="bg-stampa-surface w-full max-w-2xl rounded-2xl shadow-2xl overflow-hidden flex flex-col max-h-[90dvh] border border-stampa-border">
             <div className="flex items-center justify-between px-6 py-4 border-b border-stampa-border">
               <h3 className="font-bold text-fg flex items-center gap-2">
                 <Package size={18} className="text-stampa-accent" /> {consumeAddStock ? "Registrar producción" : "Descontar por producto"}
@@ -1675,7 +1675,7 @@ export function StockPageContent({ workshopSection }: { workshopSection?: Worksh
               <button 
                 onClick={handleConfirmConsume} 
                 disabled={consumeCart.length === 0 || !calculateConsumePreview().isValid || consumeLoading}
-                className="w-full sm:w-auto flex justify-center items-center gap-2 px-5 py-2 text-sm font-bold bg-stampa-orange hover:bg-stampa-orange disabled:opacity-50 disabled:cursor-not-allowed text-white rounded-lg transition-colors shadow-sm"
+                className="w-full sm:w-auto flex justify-center items-center gap-2 px-5 py-2 text-sm font-bold bg-stampa-orange hover:bg-stampa-orange disabled:opacity-50 disabled:cursor-not-allowed text-neutral-950 rounded-lg transition-colors shadow-sm"
               >
                 {consumeLoading ? <Loader2 size={16} className="animate-spin" /> : <Package size={16} />}
                 {consumeAddStock ? "Confirmar producción" : "Confirmar descuento"}
@@ -1687,8 +1687,8 @@ export function StockPageContent({ workshopSection }: { workshopSection?: Worksh
 
       {/* Filament Editor Modal */}
       {filamentModalOpen && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-stampa-bg/60 backdrop-blur-sm p-4">
-          <div className="w-full max-w-2xl bg-stampa-bg-soft rounded-xl shadow-2xl border border-stampa-border overflow-hidden flex flex-col max-h-[90vh]">
+        <div className="fixed inset-0 z-[110] flex items-center justify-center bg-stampa-bg/60 backdrop-blur-sm p-4">
+          <div className="w-full max-w-2xl bg-stampa-bg-soft rounded-xl shadow-2xl border border-stampa-border overflow-hidden flex flex-col max-h-[90dvh]">
             <div className="flex justify-between items-center p-4 border-b border-stampa-border">
               <h3 className="text-lg font-bold text-fg flex items-center gap-2">
                 <Box size={20} className="text-stampa-accent" />
@@ -1738,8 +1738,8 @@ export function StockPageContent({ workshopSection }: { workshopSection?: Worksh
 
       {/* Stampy Action Intent - Discount Confirm Modal */}
       {stampyDiscountModalOpen && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/80 px-4 backdrop-blur-sm">
-          <div className="w-full max-w-md rounded-2xl border border-stampa-border bg-stampa-bg p-6 shadow-2xl relative overflow-hidden">
+        <div className="fixed inset-0 z-[110] flex items-center justify-center bg-black/80 px-4 backdrop-blur-sm">
+          <div className="w-full max-w-md max-h-[calc(100dvh-2rem)] overflow-y-auto rounded-2xl border border-stampa-border bg-stampa-bg p-6 shadow-2xl relative">
             <button onClick={() => setStampyDiscountModalOpen(false)} className="absolute right-4 top-4 rounded-full p-2 text-gray-400 hover:bg-fg/10 hover:text-fg transition-colors">
               <X size={18} />
             </button>
@@ -1795,8 +1795,8 @@ export function StockPageContent({ workshopSection }: { workshopSection?: Worksh
 
       {/* Stampy Action Intent - Increase Confirm Modal */}
       {stampyIncreaseModalOpen && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/80 px-4 backdrop-blur-sm">
-          <div className="w-full max-w-md rounded-2xl border border-stampa-border bg-stampa-bg p-6 shadow-2xl relative overflow-hidden">
+        <div className="fixed inset-0 z-[110] flex items-center justify-center bg-black/80 px-4 backdrop-blur-sm">
+          <div className="w-full max-w-md max-h-[calc(100dvh-2rem)] overflow-y-auto rounded-2xl border border-stampa-border bg-stampa-bg p-6 shadow-2xl relative">
             <button onClick={() => setStampyIncreaseModalOpen(false)} className="absolute right-4 top-4 rounded-full p-2 text-gray-400 hover:bg-fg/10 hover:text-fg transition-colors">
               <X size={18} />
             </button>

@@ -364,6 +364,16 @@ summary:focus-visible,
   }
 }
 
+/* Tiras de pestañas con desplazamiento horizontal: sin barra visible (se desplazan con el dedo). */
+.hide-scrollbar {
+  scrollbar-width: none;
+  -ms-overflow-style: none;
+}
+
+.hide-scrollbar::-webkit-scrollbar {
+  display: none;
+}
+
 .stampa-scrollbar {
   scrollbar-width: thin;
   scrollbar-color: rgba(255, 106, 0, 0.65) color-mix(in srgb, var(--stampa-fg) 6%, transparent);

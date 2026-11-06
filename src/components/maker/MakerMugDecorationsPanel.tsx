@@ -59,7 +59,7 @@ function FileButton({ label, icon, accept, onFile, disabled }: { label: string; 
   const ref = React.useRef<HTMLInputElement>(null);
   return (
     <>
-      <button type="button" disabled={disabled} onClick={() => ref.current?.click()} className="inline-flex h-8 items-center gap-1.5 rounded-lg border border-fg/10 bg-fg/[0.04] px-2.5 text-xs font-semibold text-gray-200 transition-colors hover:border-stampa-orange/50 hover:text-fg disabled:cursor-not-allowed disabled:opacity-40">
+      <button type="button" disabled={disabled} onClick={() => ref.current?.click()} className="inline-flex h-10 sm:h-8 items-center gap-1.5 rounded-lg border border-fg/10 bg-fg/[0.04] px-2.5 text-xs font-semibold text-gray-200 transition-colors hover:border-stampa-orange/50 hover:text-fg disabled:cursor-not-allowed disabled:opacity-40">
         {icon}
         {label}
       </button>
@@ -190,7 +190,7 @@ export function MakerMugDecorationsPanel(p: MakerMugDecorationsPanelProps) {
         <span className="text-[11px] text-gray-500">{decorations.length}/{MAX_DECORATIONS}</span>
       </div>
       <div className="flex flex-wrap gap-1.5">
-        <button type="button" disabled={full} onClick={addText} className="inline-flex h-8 items-center gap-1.5 rounded-lg border border-fg/10 bg-fg/[0.04] px-2.5 text-xs font-semibold text-gray-200 transition-colors hover:border-stampa-orange/50 hover:text-fg disabled:cursor-not-allowed disabled:opacity-40">
+        <button type="button" disabled={full} onClick={addText} className="inline-flex h-10 sm:h-8 items-center gap-1.5 rounded-lg border border-fg/10 bg-fg/[0.04] px-2.5 text-xs font-semibold text-gray-200 transition-colors hover:border-stampa-orange/50 hover:text-fg disabled:cursor-not-allowed disabled:opacity-40">
           <Type size={13} /> + Texto
         </button>
         <FileButton label="+ SVG" icon={<Shapes size={13} />} accept=".svg,image/svg+xml" onFile={(f) => addFile("svg", f)} disabled={full} />

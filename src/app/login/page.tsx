@@ -179,7 +179,7 @@ function LoginForm() {
                 <button
                   type="submit"
                   disabled={isLoading}
-                  className="group relative flex w-full justify-center rounded-xl bg-stampa-orange hover:bg-orange-400 px-4 py-3 text-sm font-semibold text-white shadow-lg shadow-stampa-orange/20 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-orange-500 disabled:opacity-70 transition-all active:scale-[0.98]"
+                  className="group relative flex w-full justify-center rounded-xl bg-stampa-orange hover:bg-orange-400 px-4 py-3 text-sm font-semibold text-neutral-950 shadow-lg shadow-stampa-orange/20 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-orange-500 disabled:opacity-70 transition-all active:scale-[0.98]"
                 >
                   {isLoading ? (
                     <span className="flex items-center gap-2 justify-center">
