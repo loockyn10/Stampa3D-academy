@@ -254,6 +254,57 @@ summary:focus-visible,
   animation: stampa-soft-pulse 2.5s ease-in-out infinite;
 }
 
+/*
+ * Sidebar de escritorio contraíble. La preferencia vive en <html data-sidebar="collapsed"> (script inline antes del
+ * primer pintado, ver lib/layout/sidebar-preference.ts): el ancho se resuelve solo con CSS, sin saltos al recargar.
+ */
+.app-sidebar {
+  width: 16rem;
+  transition: width 180ms ease-out;
+}
+
+.app-sidebar-divider {
+  display: none;
+}
+
+html[data-sidebar="collapsed"] .app-sidebar {
+  width: 4.5rem;
+}
+
+html[data-sidebar="collapsed"] .app-sidebar .app-sidebar-label {
+  display: none;
+}
+
+html[data-sidebar="collapsed"] .app-sidebar .app-sidebar-divider {
+  display: block;
+}
+
+html[data-sidebar="collapsed"] .app-sidebar .app-sidebar-item,
+html[data-sidebar="collapsed"] .app-sidebar .app-sidebar-brand {
+  justify-content: center;
+  gap: 0;
+  padding-left: 0;
+  padding-right: 0;
+}
+
+/* Contraído: la sección activa se reconoce por el fondo y por una barra al borde. */
+html[data-sidebar="collapsed"] .app-sidebar .app-sidebar-item[aria-current="page"]::before {
+  content: "";
+  position: absolute;
+  left: 0;
+  top: 25%;
+  bottom: 25%;
+  width: 3px;
+  border-radius: 0 3px 3px 0;
+  background: currentColor;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .app-sidebar {
+    transition: none;
+  }
+}
+
 /* Mobile app shell */
 .mobile-shell-content {
   padding-bottom: calc(var(--mobile-bottom-navigation-height) + env(safe-area-inset-bottom) + 1.5rem);

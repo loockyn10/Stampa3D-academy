@@ -111,7 +111,7 @@ export function MainLayout({ children }: { children: React.ReactNode }) {
       <StampyContextProvider>
       {hasPlatformAccess && <XpFeedbackListener />}
       <div className="flex min-h-screen w-full min-w-0 overflow-x-clip bg-stampa-bg text-stampa-body font-sans">
-        <Suspense fallback={<aside className="hidden w-64 shrink-0 border-r border-stampa-border bg-stampa-bg lg:block" />}>
+        <Suspense fallback={<aside className="app-sidebar hidden shrink-0 border-r border-stampa-border bg-stampa-bg lg:block" />}>
           <Sidebar access={userAccess} loading={accessLoading} />
         </Suspense>
         <div className="flex min-h-screen min-w-0 flex-1 flex-col lg:pl-0">

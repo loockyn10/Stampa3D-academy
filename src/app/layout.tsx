@@ -6,6 +6,7 @@ import { AppFeedbackProvider } from "@/components/ui/app-feedback";
 import { PendingBetaCodeRedeemer } from "@/components/beta-access/PendingBetaCodeRedeemer";
 import { ThemeProvider } from "@/components/theme/theme-provider";
 import { THEME_COLORS, THEME_INIT_SCRIPT } from "@/lib/theme/theme";
+import { SIDEBAR_INIT_SCRIPT } from "@/lib/layout/sidebar-preference";
 
 const geistSans = Geist({
   variable: "--font-geist-sans",
@@ -43,7 +44,7 @@ export default function RootLayout({
   children: React.ReactNode;
 }>) {
   return (
-    // suppressHydrationWarning: el script de tema fija data-theme/color-scheme en <html> antes de hidratar.
+    // suppressHydrationWarning: los scripts de tema y de sidebar fijan data-theme/color-scheme/data-sidebar en <html> antes de hidratar.
     <html
       lang="es"
       suppressHydrationWarning
@@ -51,6 +52,7 @@ export default function RootLayout({
     >
       <head>
         <script dangerouslySetInnerHTML={{ __html: THEME_INIT_SCRIPT }} />
+        <script dangerouslySetInnerHTML={{ __html: SIDEBAR_INIT_SCRIPT }} />
       </head>
       <body className="min-h-full flex flex-col bg-stampa-bg text-stampa-body font-sans">
         <ThemeProvider>

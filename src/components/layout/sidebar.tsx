@@ -1,5 +1,6 @@
 "use client";
 
+import { useState, useSyncExternalStore } from "react";
 import Link from "next/link";
 import Image from "next/image";
 import { usePathname, useSearchParams } from "next/navigation";
@@ -21,12 +22,15 @@ import {
   Store,
   Lock,
   Type,
+  PanelLeftClose,
+  PanelLeftOpen,
 } from "lucide-react";
 import type { LucideIcon } from "lucide-react";
 import type { UserAccessSnapshot } from "@/lib/auth/user-access";
 import type { FeatureId } from "@/lib/features/registry";
 import { pruneEmptyGroups } from "@/lib/features/visibility";
 import { useFeatureVisibility } from "@/components/features/feature-flags-provider";
+import { readSidebarCollapsed, subscribeSidebarPreference, writeSidebarCollapsed } from "@/lib/layout/sidebar-preference";
 
 interface SidebarProps {
   access: UserAccessSnapshot | null;
@@ -91,6 +95,21 @@ export function Sidebar({ access, loading }: SidebarProps) {
   const isAdmin = access?.capabilities.accessAdmin === true;
   const hasPlatformAccess = access?.capabilities.accessPlatform === true;
   const isFree = !loading && access?.authenticated === true && !hasPlatformAccess;
+  // La preferencia vive en <html data-sidebar>; el servidor siempre pinta «expandido» y el CSS ya refleja el estado real.
+  const collapsed = useSyncExternalStore(subscribeSidebarPreference, readSidebarCollapsed, () => false);
+  const [tooltip, setTooltip] = useState<{ label: string; top: number; left: number } | null>(null);
+  const showTooltip = (label: string) => (event: { currentTarget: HTMLElement }) => {
+    if (!collapsed) return;
+    const rect = event.currentTarget.getBoundingClientRect();
+    setTooltip({ label, top: rect.top + rect.height / 2, left: rect.right + 10 });
+  };
+  const hideTooltip = () => setTooltip(null);
+  const tooltipHandlers = (label: string) => ({
+    onMouseEnter: showTooltip(label),
+    onFocus: showTooltip(label),
+    onMouseLeave: hideTooltip,
+    onBlur: hideTooltip,
+  });
   const freeGroups: NavGroup[] = [
     { group: "Gratis", items: [
       { path: "/calculadora", label: "Calculadora", icon: Calculator },
@@ -124,18 +143,40 @@ export function Sidebar({ access, loading }: SidebarProps) {
   };
 
   return (
-      <aside className="hidden w-64 shrink-0 flex-col self-start border-r border-stampa-border bg-stampa-bg lg:sticky lg:top-0 lg:flex lg:h-screen">
+      <aside className="app-sidebar relative hidden shrink-0 flex-col self-start border-r border-stampa-border bg-stampa-bg lg:sticky lg:top-0 lg:z-30 lg:flex lg:h-screen">
+        {/* Primero en el orden de tabulación: contraer/expandir. Va sobre el borde para no robar espacio al contenido. */}
+        <button
+          type="button"
+          onClick={() => {
+            hideTooltip();
+            writeSidebarCollapsed(!collapsed);
+          }}
+          aria-expanded={!collapsed}
+          aria-controls="app-sidebar-nav"
+          aria-label={collapsed ? "Expandir menú lateral" : "Contraer menú lateral"}
+          title={collapsed ? "Expandir menú lateral" : "Contraer menú lateral"}
+          className="absolute -right-4 top-4 z-10 flex h-8 w-8 items-center justify-center rounded-full border border-stampa-border bg-stampa-surface text-gray-400 shadow-md transition-colors hover:border-stampa-orange/40 hover:text-fg"
+        >
+          {collapsed ? <PanelLeftOpen size={16} aria-hidden="true" /> : <PanelLeftClose size={16} aria-hidden="true" />}
+        </button>
+
+        <div className="flex min-h-0 flex-1 flex-col overflow-hidden">
         {/* Brand logo header */}
-        <div className="flex items-center px-5 py-5">
-          <Link href={isFree && visibility.isFeatureVisible("calculadora") ? "/calculadora" : "/"} className="flex items-center gap-2">
+        <div className="app-sidebar-brand flex items-center px-5 py-5">
+          <Link
+            href={isFree && visibility.isFeatureVisible("calculadora") ? "/calculadora" : "/"}
+            className="flex items-center gap-2"
+            aria-label="Universo Stampa, inicio"
+            {...tooltipHandlers("Universo Stampa")}
+          >
             <Image
               src="/favicon.svg"
-              alt="Stampa"
+              alt=""
               width={36}
               height={36}
               className="h-9 w-9 shrink-0 object-contain"
             />
-            <div>
+            <div className="app-sidebar-label whitespace-nowrap">
               <p className="text-sm font-bold leading-none text-fg">Stampa</p>
               <p className="mt-0.5 text-[11px] leading-none text-stampa-text-muted">Academia 3D</p>
             </div>
@@ -145,16 +186,19 @@ export function Sidebar({ access, loading }: SidebarProps) {
         {/* Dashboard/Inicio Link */}
         {!isFree && <Link
           href="/"
-          className={`mx-3 mb-2 flex items-center gap-3 rounded-xl px-3 py-2.5 text-sm font-semibold transition-colors ${
+          aria-label="Inicio"
+          aria-current={pathname === "/" ? "page" : undefined}
+          {...tooltipHandlers("Inicio")}
+          className={`app-sidebar-item relative mx-3 mb-2 flex items-center gap-3 rounded-xl px-3 py-2.5 text-sm font-semibold transition-colors ${
             pathname === "/" ? "bg-stampa-orange/10 text-stampa-accent" : "text-gray-400 hover:bg-fg/5 hover:text-fg"
           }`}
         >
-          <Home size={17} aria-hidden="true" />
-          Inicio
+          <Home size={17} aria-hidden="true" className="shrink-0" />
+          <span className="app-sidebar-label">Inicio</span>
         </Link>}
 
         {/* Navigation Groups */}
-        <nav className="flex-1 overflow-y-auto stampa-scrollbar px-3 pb-4">
+        <nav id="app-sidebar-nav" aria-label="Navegación principal" onScroll={hideTooltip} className="flex-1 overflow-y-auto stampa-scrollbar px-3 pb-4">
           {(() => {
             const groupsToRender: NavGroup[] = isFree ? freeGroups : [...NAV_GROUPS];
             if (isAdmin) {
@@ -180,9 +224,10 @@ export function Sidebar({ access, loading }: SidebarProps) {
                 ),
               })),
             );
-            return visibleGroups.map((group) => (
+            return visibleGroups.map((group, groupIndex) => (
               <div key={group.group} className="mb-5">
-                <p className="mb-1.5 px-3 text-[11px] font-bold uppercase tracking-wider text-stampa-text-muted">
+                {groupIndex > 0 && <div aria-hidden="true" className="app-sidebar-divider mx-2 mb-3 h-px bg-stampa-border" />}
+                <p className="app-sidebar-label mb-1.5 whitespace-nowrap px-3 text-[11px] font-bold uppercase tracking-wider text-stampa-text-muted">
                   {group.group}
                 </p>
                 <div className="space-y-0.5">
@@ -194,7 +239,10 @@ export function Sidebar({ access, loading }: SidebarProps) {
                       <Link
                         key={item.path}
                         href={item.path}
-                        className={`group flex w-full items-center gap-3 rounded-xl px-3 py-2.5 text-sm font-medium transition-colors duration-150 ${
+                        aria-label={item.label}
+                        aria-current={active ? "page" : undefined}
+                        {...tooltipHandlers(item.label)}
+                        className={`app-sidebar-item group relative flex w-full items-center gap-3 rounded-xl px-3 py-2.5 text-sm font-medium transition-colors duration-150 ${
                           active
                             ? isStampy
                               ? "bg-cyan-500/10 text-cyan-400"
@@ -206,8 +254,9 @@ export function Sidebar({ access, loading }: SidebarProps) {
                       >
                         <Icon
                           size={17}
+                          aria-hidden="true"
                           className={
-                            active
+                            "shrink-0 " + (active
                               ? isStampy
                                 ? "text-cyan-400"
                                 : "text-stampa-accent"
@@ -215,12 +264,12 @@ export function Sidebar({ access, loading }: SidebarProps) {
                               ? "text-gray-500 group-hover:text-red-400"
                               : isStampy
                               ? "text-gray-500 group-hover:text-cyan-400/80"
-                              : "text-gray-500 group-hover:text-gray-300"
+                              : "text-gray-500 group-hover:text-gray-300")
                           }
                         />
-                        <span className="flex-1 text-left">{item.label}</span>
-                        {item.locked && <Lock size={13} className="text-gray-600" />}
-                        {active && <span className={`h-1.5 w-1.5 rounded-full ${isStampy ? 'bg-cyan-400' : 'bg-stampa-orange'}`} />}
+                        <span className="app-sidebar-label flex-1 whitespace-nowrap text-left">{item.label}</span>
+                        {item.locked && <Lock size={13} aria-hidden="true" className="app-sidebar-label text-gray-600" />}
+                        {active && <span aria-hidden="true" className={`app-sidebar-label h-1.5 w-1.5 rounded-full ${isStampy ? 'bg-cyan-400' : 'bg-stampa-orange'}`} />}
                       </Link>
                     );
                   })}
@@ -232,7 +281,7 @@ export function Sidebar({ access, loading }: SidebarProps) {
 
         {/* Membership CTA banner */}
         {!loading && !hasPlatformAccess && (
-          <div className="mx-3 mb-4 rounded-2xl bg-fg/5 border border-stampa-border p-4 text-fg">
+          <div className="app-sidebar-label mx-3 mb-4 rounded-2xl bg-fg/5 border border-stampa-border p-4 text-fg">
             <p className="text-xs font-semibold text-stampa-accent">Activar membresía</p>
             <p className="mt-1 text-xs text-gray-400">Desbloqueá todos los cursos y STL exclusivos de la academia.</p>
             <Link 
@@ -241,6 +290,18 @@ export function Sidebar({ access, loading }: SidebarProps) {
             >
               Ver planes
             </Link>
+          </div>
+        )}
+        </div>
+
+        {/* Tooltip del sidebar contraído: fijo en el viewport para que el scroll del menú no lo recorte. */}
+        {collapsed && tooltip && (
+          <div
+            role="tooltip"
+            style={{ top: tooltip.top, left: tooltip.left }}
+            className="pointer-events-none fixed z-50 -translate-y-1/2 whitespace-nowrap rounded-lg border border-stampa-border bg-stampa-surface px-2.5 py-1.5 text-xs font-semibold text-fg shadow-lg"
+          >
+            {tooltip.label}
           </div>
         )}
       </aside>
