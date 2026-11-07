@@ -3,10 +3,13 @@
 import React, { useState, useEffect, useMemo } from "react";
 import Link from "next/link";
 import { useSearchParams, useRouter } from "next/navigation";
-import { Plus, Pencil, Copy, Trash2, Loader2, Save, X, AlertCircle, RefreshCw, DollarSign, ChevronDown, ChevronUp, History, AlertTriangle, CheckCircle2, Store } from "lucide-react";
+import { Plus, Pencil, Copy, Trash2, Search, Package, Loader2, Save, X, AlertCircle, RefreshCw, DollarSign, ChevronDown, ChevronUp, History, AlertTriangle, CheckCircle2, Store } from "lucide-react";
 import { Card } from "@/components/ui/card";
 import { PrimaryButton, GhostButton } from "@/components/ui/button";
-import { SectionTitle } from "@/components/ui/section-title";
+import { EmptyState } from "@/components/ui/empty-state";
+import { WorkshopNotice, WorkshopPageHeader, WorkshopSearchField, WorkshopToolbar } from "@/components/workshop/workshop-page";
+import { ProductCard } from "@/components/products/product-card";
+import { filterProductsBySearch } from "@/lib/products/search";
 import { createClient } from "@/utils/supabase/client";
 import { FileUploadDropzone } from "@/components/ui/file-upload-dropzone";
 import { ColorSwatchLabel } from "@/components/ui/color-swatch-label";
@@ -38,6 +41,8 @@ import {
 import { PrintFilesSection } from "@/components/products/print-files/print-files-section";
 import { usePublishStampyScreenContext } from "@/components/stampy/StampyContextProvider";
 import type { StampyScreenContext } from "@/lib/stampy/screen-context";
+
+import { ModalPortal } from "@/components/ui/modal-portal";
 
 function RecalculatePriceIcon({ loading = false, size = 18 }: { loading?: boolean; size?: number }) {
   return (
@@ -86,6 +91,7 @@ function ProductosPageContent() {
   // false mientras la tabla de categorías no exista (migration sin aplicar): la UI de categorías se oculta y no se escribe category_id.
   const [categoriesAvailable, setCategoriesAvailable] = useState(false);
   const [categoryFilter, setCategoryFilter] = useState(PRODUCT_CATEGORY_FILTER_ALL);
+  const [searchQuery, setSearchQuery] = useState("");
 
   const [editingId, setEditingId] = useState<string | null>(null);
   const [detailProduct, setDetailProduct] = useState<any>(null);
@@ -878,29 +884,34 @@ function ProductosPageContent() {
   // Las categorías se combinan con el filtro del Dashboard; los contadores respetan ese mismo alcance.
   const categoryCounts = countProductsByCategory(recalculationScoped);
   const activeCategoryFilter = categoriesAvailable ? resolveProductCategoryFilter(categoryFilter, categories) : PRODUCT_CATEGORY_FILTER_ALL;
-  const visibleProducts = filterProductsByCategory(recalculationScoped, activeCategoryFilter);
   const categoryNameById = new Map(categories.map((category) => [category.id, category.name]));
+  // La búsqueda se combina con la categoría elegida y con el filtro del Dashboard; trabaja sobre los productos ya cargados.
+  const visibleProducts = filterProductsBySearch(
+    filterProductsByCategory(recalculationScoped, activeCategoryFilter),
+    searchQuery,
+    categoryNameById,
+  );
+  const isSearching = searchQuery.trim().length > 0;
 
   return (
     <div className="pb-24">
-      <SectionTitle
-        eyebrow="Mi taller"
+      <WorkshopPageHeader
         title="Productos"
-        action={
-          <div className="flex w-full flex-col gap-2 min-[390px]:flex-row sm:w-auto sm:items-center sm:gap-3">
-            <button
-              type="button"
+        description="Tus piezas con costo, precio de venta y stock. Se reutilizan en presupuestos y en Mi Negocio."
+        actions={
+          <>
+            <GhostButton
               onClick={() => void handleRecalculateAll()}
               disabled={recalculatingAll || recalculatingProductId !== null || products.length === 0}
-              className="inline-flex min-h-11 flex-1 items-center justify-center gap-2 rounded-xl border border-emerald-500/35 bg-emerald-500/10 px-4 py-2.5 text-sm font-bold text-emerald-300 transition-colors hover:border-emerald-400/50 hover:bg-emerald-500/20 disabled:cursor-not-allowed disabled:opacity-50 sm:flex-none"
+              className="border-emerald-500/35 bg-emerald-500/10 text-emerald-300 hover:border-emerald-400/50 hover:bg-emerald-500/20 disabled:cursor-not-allowed disabled:opacity-50"
             >
               <RecalculatePriceIcon loading={recalculatingAll} size={17} />
-              {recalculatingAll ? "Recalculando…" : "Recalcular Todos"}
-            </button>
-            <PrimaryButton className="min-h-11 flex-1 sm:flex-none" onClick={handleCreateNew} disabled={editingId !== null || recalculatingAll}>
-              <Plus size={15} /> Nuevo producto
+              {recalculatingAll ? "Recalculando…" : "Recalcular todos"}
+            </GhostButton>
+            <PrimaryButton onClick={handleCreateNew} disabled={editingId !== null || recalculatingAll}>
+              <Plus size={15} aria-hidden="true" /> Nuevo producto
             </PrimaryButton>
-          </div>
+          </>
         }
       />
 
@@ -919,6 +930,17 @@ function ProductosPageContent() {
         </div>
       )}
 
+      {products.length > 0 && !editingId && (
+        <WorkshopToolbar>
+          <WorkshopSearchField
+            value={searchQuery}
+            onChange={setSearchQuery}
+            placeholder="Nombre o categoría..."
+            label="Buscar productos"
+          />
+        </WorkshopToolbar>
+      )}
+
       {categoriesAvailable && !editingId && (
         <ProductCategoryBar
           categories={categories}
@@ -929,17 +951,9 @@ function ProductosPageContent() {
         />
       )}
 
-      {error && (
-        <div className="mb-6 bg-red-50 border border-red-100 p-4 rounded-lg flex items-center gap-2 text-sm text-red-600">
-          <AlertCircle size={16} /> {error}
-        </div>
-      )}
+      {error && <WorkshopNotice tone="error" icon={<AlertCircle size={16} aria-hidden="true" />}>{error}</WorkshopNotice>}
 
-      {successMessage && (
-        <div className="mb-6 flex items-center gap-2 rounded-lg border border-emerald-500/20 bg-emerald-500/10 p-4 text-sm text-emerald-300">
-          <CheckCircle2 size={16} /> {successMessage}
-        </div>
-      )}
+      {successMessage && <WorkshopNotice tone="success" icon={<CheckCircle2 size={16} aria-hidden="true" />}>{successMessage}</WorkshopNotice>}
 
       {editingId && (
         <Card className="mb-8 p-5 bg-stampa-surface border border-stampa-orange/30 shadow-md ring-1 ring-stampa-orange/20">
@@ -1271,120 +1285,60 @@ function ProductosPageContent() {
         </Card>
       )}
 
-      <div className="grid grid-cols-1 gap-5 sm:grid-cols-2 lg:grid-cols-3">
-        {visibleProducts.map((p) => {
-          const filament = p.filaments;
-          const profit = (p.sale_price || 0) - (p.base_cost || 0);
-          const marginPct = p.sale_price > 0 ? ((profit / p.sale_price) * 100) : 0;
-          const pricingStatus = getProductPricingStatus(p, filaments, printers, productTypes);
+      {visibleProducts.length > 0 && (
+        // Columnas según el ancho real disponible (no según el viewport): el sidebar abierto o contraído no rompe las tarjetas.
+        <div className="grid grid-cols-[repeat(auto-fill,minmax(min(100%,17.5rem),1fr))] gap-4 sm:gap-5">
+          {visibleProducts.map((p) => {
+            const pricingStatus = getProductPricingStatus(p, filaments, printers, productTypes);
+            return (
+              <ProductCard
+                key={p.id}
+                product={p}
+                categoryName={p.category_id ? categoryNameById.get(p.category_id) : undefined}
+                needsRecalculation={pricingStatus.needsRecalculation}
+                linkedToBusiness={businessLinkedProductIds.has(p.id)}
+                recalculating={recalculatingProductId === p.id}
+                recalculationBusy={recalculatingAll || recalculatingProductId !== null}
+                onDetail={() => setDetailProduct(p)}
+                onEdit={() => handleEdit(p)}
+                onRecalculate={() => void handleRecalculateProduct(p.id)}
+                onDelete={() => {
+                  setDeleteError(null);
+                  setDeleteTarget({ id: p.id, name: p.name });
+                }}
+              />
+            );
+          })}
+        </div>
+      )}
 
-          return (
-            <Card key={p.id} className={`p-4 transition-all bg-stampa-surface border border-stampa-border hover:border-stampa-orange/30 hover:shadow-[0_0_15px_rgba(255,106,0,0.05)] flex flex-col h-full ${!p.is_active ? 'opacity-60 grayscale' : ''} ${pricingStatus.needsRecalculation ? 'border-yellow-500/50 bg-yellow-500/5 ring-1 ring-yellow-500/20' : ''}`}>
-
-              {pricingStatus.needsRecalculation && (
-                <div className="mb-3 flex items-start gap-2 bg-yellow-500/10 rounded-lg p-2.5 border border-yellow-500/20">
-                  <AlertTriangle size={16} className="text-yellow-500 mt-0.5 shrink-0" />
-                  <div className="min-w-0 flex-1">
-                    <p className="text-xs font-bold text-yellow-400 uppercase tracking-wide">Requiere Recalcular</p>
-                  </div>
-                </div>
-              )}
-
-              <div className="flex items-start gap-3">
-                {p.image_url ? (
-                  <img src={p.image_url} alt={p.name} className="h-16 w-16 shrink-0 rounded-xl object-cover bg-stampa-bg-soft border border-stampa-border" />
-                ) : (
-                  <div className="flex h-16 w-16 shrink-0 items-center justify-center rounded-xl bg-stampa-bg-soft text-2xl select-none border border-stampa-border text-gray-400">
-                    📦
-                  </div>
-                )}
-                <div className="min-w-0 flex-1">
-                  <div className="flex items-start justify-between gap-2 mb-1">
-                    <p className="truncate text-base font-bold text-fg leading-tight">{p.name}</p>
-                    {p.product_components?.length > 1 ? (
-                      <span className="px-1.5 py-0.5 bg-blue-500/10 text-blue-400 text-[10px] font-bold uppercase rounded-md border border-blue-500/20 shrink-0">Armable</span>
-                    ) : (
-                      <span className="px-1.5 py-0.5 bg-gray-800 text-gray-400 text-[10px] font-bold uppercase rounded-md border border-gray-700 shrink-0">Simple</span>
-                    )}
-                  </div>
-                  {p.category_id && categoryNameById.has(p.category_id) && (
-                    <div className="mb-1.5 flex"><ProductCategoryBadge name={categoryNameById.get(p.category_id)!} /></div>
-                  )}
-                  <p className="text-xs text-gray-400 truncate mb-2">{p.description || "Sin descripción"}</p>
-                  
-                  <div className="flex items-end gap-4 mt-2">
-                    <div>
-                      <p className="text-[10px] text-gray-500 uppercase font-semibold">Venta</p>
-                      <p className="text-sm font-black text-stampa-accent">${p.sale_price?.toFixed(2) || "0.00"}</p>
-                    </div>
-                    <div>
-                      <p className="text-[10px] text-gray-500 uppercase font-semibold">Stock</p>
-                      <p className={`text-sm font-bold ${p.stock_quantity > 0 ? 'text-fg' : 'text-red-500'}`}>{p.stock_quantity || 0}</p>
-                    </div>
-                  </div>
-                </div>
-              </div>
-
-              <div className="mt-auto flex gap-2 pt-4">
-                <button onClick={() => setDetailProduct(p)} className="min-h-11 flex-1 rounded-lg border border-stampa-border bg-fg/5 px-2 py-2 text-xs font-bold text-gray-300 transition-colors hover:bg-fg/10 hover:text-fg">
-                  Ver detalle
-                </button>
-                <button onClick={(e) => { e.stopPropagation(); handleEdit(p); }} className="min-h-11 flex-1 rounded-lg border border-stampa-orange bg-stampa-orange px-2 py-2 text-xs font-bold text-neutral-950 transition-colors hover:bg-stampa-orange flex items-center justify-center gap-1.5">
-                  <Pencil size={13} /> Editar
-                </button>
-                <button
-                  type="button"
-                  onClick={() => void handleRecalculateProduct(p.id)}
-                  disabled={recalculatingAll || recalculatingProductId !== null}
-                  className="flex h-11 w-11 shrink-0 items-center justify-center rounded-lg border border-emerald-500/35 bg-emerald-500/10 text-emerald-300 transition-colors hover:border-emerald-400/50 hover:bg-emerald-500/20 disabled:cursor-not-allowed disabled:opacity-50"
-                  aria-label={`Recalcular precio de ${p.name}`}
-                  title="Recalcular precio"
-                >
-                  <RecalculatePriceIcon loading={recalculatingProductId === p.id} size={17} />
-                </button>
-                <Link
-                  href={businessLinkedProductIds.has(p.id) ? "/mi-negocio/catalogo" : `/mi-negocio/catalogo?producto=${p.id}`}
-                  className={`flex h-11 w-11 shrink-0 items-center justify-center rounded-lg border transition-colors ${
-                    businessLinkedProductIds.has(p.id)
-                      ? "border-emerald-500/35 bg-emerald-500/10 text-emerald-300 hover:bg-emerald-500/20"
-                      : "border-cyan-500/35 bg-cyan-500/10 text-cyan-300 hover:bg-cyan-500/20"
-                  }`}
-                  aria-label={businessLinkedProductIds.has(p.id) ? `${p.name} ya está en Mi Negocio` : `Agregar ${p.name} a Mi Negocio`}
-                  title={businessLinkedProductIds.has(p.id) ? "Ya está en Mi Negocio" : "Agregar a Mi Negocio"}
-                >
-                  <Store size={16} />
-                </Link>
+      {products.length > 0 && visibleProducts.length === 0 && !editingId && (
+        <div role="status">
+          <EmptyState
+            icon={isSearching ? Search : Package}
+            title={isSearching ? "No encontramos productos con esa búsqueda" : "No hay productos en esta vista"}
+            hint={
+              isSearching
+                ? "Probá con otro nombre o categoría, o limpiá la búsqueda."
+                : activeCategoryFilter === PRODUCT_CATEGORY_FILTER_ALL
+                  ? "Ningún producto coincide con el filtro actual."
+                  : "Asigná productos a esta categoría desde «Editar» en cada producto."
+            }
+            action={
+              isSearching || activeCategoryFilter !== PRODUCT_CATEGORY_FILTER_ALL ? (
                 <button
                   type="button"
                   onClick={() => {
-                    setDeleteError(null);
-                    setDeleteTarget({ id: p.id, name: p.name });
+                    setSearchQuery("");
+                    setCategoryFilter(PRODUCT_CATEGORY_FILTER_ALL);
                   }}
-                  className="flex h-11 w-11 shrink-0 items-center justify-center rounded-lg border border-red-500/25 bg-red-500/10 text-red-300 transition-colors hover:border-red-500/40 hover:bg-red-500/20"
-                  aria-label={`Eliminar ${p.name}`}
-                  title="Eliminar producto"
+                  className="min-h-11 rounded-xl border border-stampa-border px-4 py-2 text-sm font-bold text-gray-300 transition-colors hover:bg-fg/5"
                 >
-                  <Trash2 size={16} />
+                  {isSearching && activeCategoryFilter !== PRODUCT_CATEGORY_FILTER_ALL ? "Limpiar búsqueda y categoría" : isSearching ? "Limpiar búsqueda" : "Ver todas"}
                 </button>
-              </div>
-            </Card>
-          );
-        })}
-      </div>
-
-      {products.length > 0 && visibleProducts.length === 0 && !editingId && (
-        <div className="rounded-2xl border border-stampa-border bg-stampa-surface px-4 py-12 text-center">
-          <h3 className="text-base font-bold text-fg">No hay productos en esta vista</h3>
-          <p className="mx-auto mt-1 max-w-md text-sm text-gray-400">
-            {activeCategoryFilter === PRODUCT_CATEGORY_FILTER_ALL
-              ? "Ningún producto coincide con el filtro actual."
-              : "Asigná productos a esta categoría desde «Editar» en cada producto."}
-          </p>
-          {activeCategoryFilter !== PRODUCT_CATEGORY_FILTER_ALL && (
-            <button type="button" onClick={() => setCategoryFilter(PRODUCT_CATEGORY_FILTER_ALL)} className="mt-4 min-h-11 rounded-xl border border-stampa-border px-4 py-2 text-sm font-bold text-gray-300 hover:bg-fg/5">
-              Ver todas
-            </button>
-          )}
+              ) : undefined
+            }
+          />
         </div>
       )}
 
@@ -1410,242 +1364,246 @@ function ProductosPageContent() {
 
       {/* MODAL: ELIMINAR PRODUCTO */}
       {deleteTarget && (
-        <div className="fixed inset-0 z-[110] flex items-center justify-center bg-stampa-bg/70 p-4 backdrop-blur-sm">
-          <div
-            role="dialog"
-            aria-modal="true"
-            aria-labelledby="delete-product-title"
-            className="w-full max-w-md overflow-hidden rounded-2xl border border-red-500/20 bg-stampa-surface shadow-2xl"
-          >
-            <div className="flex items-start gap-3 border-b border-stampa-border p-5 sm:p-6">
-              <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl border border-red-500/25 bg-red-500/10 text-red-300">
-                <Trash2 size={19} />
-              </div>
-              <div className="min-w-0">
-                <h2 id="delete-product-title" className="text-lg font-bold text-fg">¿Eliminar producto?</h2>
-                <p className="mt-1 text-sm text-gray-400">
-                  Esta acción eliminará <span className="font-semibold text-gray-200">{deleteTarget.name}</span> y su receta asociada. No se puede deshacer desde la plataforma.
-                </p>
-              </div>
-            </div>
-
-            <div className="p-5 sm:p-6">
-              {deleteError && (
-                <div className="mb-4 flex items-start gap-2 rounded-xl border border-red-500/25 bg-red-500/10 p-3 text-sm text-red-300">
-                  <AlertCircle size={16} className="mt-0.5 shrink-0" />
-                  <span>{deleteError}</span>
+        <ModalPortal>
+          <div className="fixed inset-0 z-[110] flex items-center justify-center bg-stampa-bg/70 p-4 backdrop-blur-sm">
+            <div
+              role="dialog"
+              aria-modal="true"
+              aria-labelledby="delete-product-title"
+              className="w-full max-w-md overflow-hidden rounded-2xl border border-red-500/20 bg-stampa-surface shadow-2xl"
+            >
+              <div className="flex items-start gap-3 border-b border-stampa-border p-5 sm:p-6">
+                <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl border border-red-500/25 bg-red-500/10 text-red-300">
+                  <Trash2 size={19} />
                 </div>
-              )}
+                <div className="min-w-0">
+                  <h2 id="delete-product-title" className="text-lg font-bold text-fg">¿Eliminar producto?</h2>
+                  <p className="mt-1 text-sm text-gray-400">
+                    Esta acción eliminará <span className="font-semibold text-gray-200">{deleteTarget.name}</span> y su receta asociada. No se puede deshacer desde la plataforma.
+                  </p>
+                </div>
+              </div>
 
-              <div className="flex flex-col-reverse gap-2 sm:flex-row sm:justify-end">
-                <button
-                  type="button"
-                  onClick={() => {
-                    setDeleteTarget(null);
-                    setDeleteError(null);
-                  }}
-                  disabled={deleteLoading}
-                  className="min-h-11 rounded-xl border border-stampa-border px-4 py-2.5 text-sm font-bold text-gray-300 transition-colors hover:bg-fg/5 disabled:opacity-50 sm:min-w-28"
-                >
-                  Cancelar
-                </button>
-                <button
-                  type="button"
-                  onClick={handleDelete}
-                  disabled={deleteLoading}
-                  className="flex min-h-11 items-center justify-center gap-2 rounded-xl border border-red-500/40 bg-red-600 px-4 py-2.5 text-sm font-bold text-white transition-colors hover:bg-red-500 disabled:cursor-not-allowed disabled:opacity-60 sm:min-w-40"
-                >
-                  {deleteLoading ? <Loader2 size={16} className="animate-spin" /> : <Trash2 size={16} />}
-                  {deleteLoading ? "Eliminando..." : "Eliminar producto"}
-                </button>
+              <div className="p-5 sm:p-6">
+                {deleteError && (
+                  <div className="mb-4 flex items-start gap-2 rounded-xl border border-red-500/25 bg-red-500/10 p-3 text-sm text-red-300">
+                    <AlertCircle size={16} className="mt-0.5 shrink-0" />
+                    <span>{deleteError}</span>
+                  </div>
+                )}
+
+                <div className="flex flex-col-reverse gap-2 sm:flex-row sm:justify-end">
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setDeleteTarget(null);
+                      setDeleteError(null);
+                    }}
+                    disabled={deleteLoading}
+                    className="min-h-11 rounded-xl border border-stampa-border px-4 py-2.5 text-sm font-bold text-gray-300 transition-colors hover:bg-fg/5 disabled:opacity-50 sm:min-w-28"
+                  >
+                    Cancelar
+                  </button>
+                  <button
+                    type="button"
+                    onClick={handleDelete}
+                    disabled={deleteLoading}
+                    className="flex min-h-11 items-center justify-center gap-2 rounded-xl border border-red-500/40 bg-red-600 px-4 py-2.5 text-sm font-bold text-white transition-colors hover:bg-red-500 disabled:cursor-not-allowed disabled:opacity-60 sm:min-w-40"
+                  >
+                    {deleteLoading ? <Loader2 size={16} className="animate-spin" /> : <Trash2 size={16} />}
+                    {deleteLoading ? "Eliminando..." : "Eliminar producto"}
+                  </button>
+                </div>
               </div>
             </div>
           </div>
-        </div>
+        </ModalPortal>
       )}
 
       {/* MODAL: DETALLE DEL PRODUCTO */}
       {detailProduct && (
-        <div className="fixed inset-0 z-[110] flex items-center justify-center bg-stampa-bg/60 backdrop-blur-sm p-4 overflow-y-auto">
-          <div className="bg-stampa-bg-soft w-full max-w-2xl rounded-2xl shadow-2xl overflow-hidden border border-stampa-border my-8 flex flex-col max-h-[90dvh]">
-            <div className="flex items-center justify-between px-6 py-4 border-b border-stampa-border shrink-0 bg-stampa-surface">
-              <h3 className="font-bold text-fg text-lg flex items-center gap-2">
-                Detalle del Producto
-              </h3>
-              <button onClick={() => setDetailProduct(null)} className="text-gray-400 hover:text-fg transition-colors">
-                <X size={20} />
-              </button>
-            </div>
-
-            <div className="p-6 overflow-y-auto flex-1">
-              <div className="flex flex-col sm:flex-row gap-6 mb-6">
-                {detailProduct.image_url ? (
-                  <img src={detailProduct.image_url} alt={detailProduct.name} className="h-32 w-32 shrink-0 rounded-xl object-cover bg-stampa-surface border border-stampa-border shadow-lg" />
-                ) : (
-                  <div className="flex h-32 w-32 shrink-0 items-center justify-center rounded-xl bg-stampa-surface text-5xl select-none border border-stampa-border text-gray-500 shadow-lg">
-                    📦
-                  </div>
-                )}
-                <div className="flex-1">
-                  <div className="flex items-start justify-between gap-4 mb-2">
-                    <h2 className="text-2xl font-black text-fg leading-tight">{detailProduct.name}</h2>
-                    {detailProduct.product_components?.length > 1 ? (
-                      <span className="px-2 py-1 bg-blue-500/10 text-blue-400 text-xs font-bold uppercase rounded-md border border-blue-500/20 shrink-0">Armable</span>
-                    ) : (
-                      <span className="px-2 py-1 bg-gray-800 text-gray-400 text-xs font-bold uppercase rounded-md border border-gray-700 shrink-0">Simple</span>
-                    )}
-                  </div>
-                  <p className="text-sm text-gray-400 mb-4">{detailProduct.description || "Sin descripción proporcionada."}</p>
-                  
-                  <div className="flex flex-wrap gap-4">
-                    <div className="bg-stampa-surface px-4 py-2 rounded-xl border border-stampa-border">
-                      <p className="text-[10px] text-gray-500 uppercase font-semibold mb-0.5">Stock Disponible</p>
-                      <p className={`text-lg font-black ${detailProduct.stock_quantity > 0 ? 'text-fg' : 'text-red-500'}`}>{detailProduct.stock_quantity || 0} u.</p>
-                    </div>
-                  </div>
-                </div>
+        <ModalPortal>
+          <div className="fixed inset-0 z-[110] flex items-center justify-center bg-stampa-bg/60 backdrop-blur-sm p-4 overflow-y-auto">
+            <div className="bg-stampa-bg-soft w-full max-w-2xl rounded-2xl shadow-2xl overflow-hidden border border-stampa-border my-8 flex flex-col max-h-[90dvh]">
+              <div className="flex items-center justify-between px-6 py-4 border-b border-stampa-border shrink-0 bg-stampa-surface">
+                <h3 className="font-bold text-fg text-lg flex items-center gap-2">
+                  Detalle del Producto
+                </h3>
+                <button onClick={() => setDetailProduct(null)} className="text-gray-400 hover:text-fg transition-colors">
+                  <X size={20} />
+                </button>
               </div>
 
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 mb-6">
-                {/* Sección Precios */}
-                <div className="bg-stampa-surface border border-stampa-border rounded-xl p-4">
-                  <h4 className="text-sm font-bold text-gray-300 mb-4 flex items-center gap-2">💰 Valores</h4>
-                  <div className="space-y-3">
-                    <div className="flex justify-between items-center">
-                      <span className="text-xs text-gray-400">Costo Base</span>
-                      <span className="text-sm font-bold text-fg">${detailProduct.base_cost?.toFixed(2) || "0.00"}</span>
+              <div className="p-6 overflow-y-auto flex-1">
+                <div className="flex flex-col sm:flex-row gap-6 mb-6">
+                  {detailProduct.image_url ? (
+                    <img src={detailProduct.image_url} alt={detailProduct.name} className="h-32 w-32 shrink-0 rounded-xl object-cover bg-stampa-surface border border-stampa-border shadow-lg" />
+                  ) : (
+                    <div className="flex h-32 w-32 shrink-0 items-center justify-center rounded-xl bg-stampa-surface text-5xl select-none border border-stampa-border text-gray-500 shadow-lg">
+                      📦
                     </div>
-                    <div className="flex justify-between items-center">
-                      <span className="text-xs text-gray-400">Venta Sugerida/Actual</span>
-                      <span className="text-sm font-black text-stampa-accent">${detailProduct.sale_price?.toFixed(2) || "0.00"}</span>
+                  )}
+                  <div className="flex-1">
+                    <div className="flex items-start justify-between gap-4 mb-2">
+                      <h2 className="text-2xl font-black text-fg leading-tight">{detailProduct.name}</h2>
+                      {detailProduct.product_components?.length > 1 ? (
+                        <span className="px-2 py-1 bg-blue-500/10 text-blue-400 text-xs font-bold uppercase rounded-md border border-blue-500/20 shrink-0">Armable</span>
+                      ) : (
+                        <span className="px-2 py-1 bg-gray-800 text-gray-400 text-xs font-bold uppercase rounded-md border border-gray-700 shrink-0">Simple</span>
+                      )}
                     </div>
-                    <hr className="border-stampa-border" />
-                    <div className="flex justify-between items-center">
-                      <span className="text-xs text-gray-400">Ganancia</span>
-                      {(() => {
-                        const pProfit = (detailProduct.sale_price || 0) - (detailProduct.base_cost || 0);
-                        return (
-                          <span className={`text-sm font-bold ${pProfit > 0 ? 'text-emerald-500' : pProfit < 0 ? 'text-red-500' : 'text-gray-400'}`}>
-                            {pProfit > 0 ? '+' : ''}${pProfit.toFixed(2)}
-                          </span>
-                        );
-                      })()}
-                    </div>
-                    <div className="flex justify-between items-center">
-                      <span className="text-xs text-gray-400">Margen</span>
-                      {(() => {
-                        const pProfit = (detailProduct.sale_price || 0) - (detailProduct.base_cost || 0);
-                        const margin = detailProduct.sale_price > 0 ? ((pProfit / detailProduct.sale_price) * 100) : 0;
-                        return (
-                          <span className={`text-xs font-bold px-1.5 py-0.5 rounded-md ${margin >= 30 ? 'bg-emerald-500/10 text-emerald-400' : margin >= 15 ? 'bg-yellow-500/10 text-yellow-500' : 'bg-red-500/10 text-red-400'}`}>
-                            {margin.toFixed(0)}%
-                          </span>
-                        );
-                      })()}
-                    </div>
-                  </div>
-                </div>
+                    <p className="text-sm text-gray-400 mb-4">{detailProduct.description || "Sin descripción proporcionada."}</p>
 
-                {/* Sección Producción */}
-                <div className="bg-stampa-surface border border-stampa-border rounded-xl p-4">
-                  <h4 className="text-sm font-bold text-gray-300 mb-4 flex items-center gap-2">⚙️ Producción</h4>
-                  <div className="space-y-3">
-                    <div className="flex justify-between items-center">
-                      <span className="text-xs text-gray-400">Material total</span>
-                      <span className="text-sm font-bold text-fg">{detailProduct.grams || 0}g</span>
-                    </div>
-                    <div className="flex justify-between items-center">
-                      <span className="text-xs text-gray-400">Tiempo de impresión</span>
-                      <span className="text-sm font-bold text-fg">{formatTime(detailProduct.print_time_minutes)}</span>
-                    </div>
-                    <hr className="border-stampa-border" />
-                    <div className="flex flex-col gap-1">
-                      <span className="text-xs text-gray-400">Materiales (Snapshot)</span>
-                      <div className="flex flex-wrap gap-1.5 mt-1">
-                        {(() => {
-                          const snapMats = detailProduct.calculation_snapshot?.materials;
-                          if (snapMats && Array.isArray(snapMats) && snapMats.length > 0) {
-                            return snapMats.map((m: any, i: number) => (
-                              <span key={i} className="text-[10px] bg-fg/5 border border-stampa-border px-2 py-1 rounded text-gray-300 truncate max-w-full">
-                                {m.filament_name} ({m.grams}g)
-                              </span>
-                            ));
-                          }
-                          return <span className="text-[10px] text-gray-600">No especificado</span>;
-                        })()}
+                    <div className="flex flex-wrap gap-4">
+                      <div className="bg-stampa-surface px-4 py-2 rounded-xl border border-stampa-border">
+                        <p className="text-[10px] text-gray-500 uppercase font-semibold mb-0.5">Stock Disponible</p>
+                        <p className={`text-lg font-black ${detailProduct.stock_quantity > 0 ? 'text-fg' : 'text-red-500'}`}>{detailProduct.stock_quantity || 0} u.</p>
                       </div>
                     </div>
                   </div>
                 </div>
-              </div>
 
-              {/* Sección Partes/Componentes */}
-              {detailProduct.product_components?.length > 1 && (
-                <div className="bg-stampa-surface border border-stampa-border rounded-xl p-4 mb-6">
-                  <div className="flex items-center justify-between mb-4">
-                    <h4 className="text-sm font-bold text-gray-300 flex items-center gap-2">🧩 Componentes Requeridos</h4>
-                    <p className="text-[10px] font-bold text-blue-400 bg-blue-500/10 px-2 py-1 rounded-lg border border-blue-500/20">
-                      Capacidad: {Math.min(...detailProduct.product_components.map((c: any) => Math.floor((c.stock_quantity || 0) / (c.quantity_per_product || 1)))) || 0} sets
-                    </p>
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 mb-6">
+                  {/* Sección Precios */}
+                  <div className="bg-stampa-surface border border-stampa-border rounded-xl p-4">
+                    <h4 className="text-sm font-bold text-gray-300 mb-4 flex items-center gap-2">💰 Valores</h4>
+                    <div className="space-y-3">
+                      <div className="flex justify-between items-center">
+                        <span className="text-xs text-gray-400">Costo Base</span>
+                        <span className="text-sm font-bold text-fg">${detailProduct.base_cost?.toFixed(2) || "0.00"}</span>
+                      </div>
+                      <div className="flex justify-between items-center">
+                        <span className="text-xs text-gray-400">Venta Sugerida/Actual</span>
+                        <span className="text-sm font-black text-stampa-accent">${detailProduct.sale_price?.toFixed(2) || "0.00"}</span>
+                      </div>
+                      <hr className="border-stampa-border" />
+                      <div className="flex justify-between items-center">
+                        <span className="text-xs text-gray-400">Ganancia</span>
+                        {(() => {
+                          const pProfit = (detailProduct.sale_price || 0) - (detailProduct.base_cost || 0);
+                          return (
+                            <span className={`text-sm font-bold ${pProfit > 0 ? 'text-emerald-500' : pProfit < 0 ? 'text-red-500' : 'text-gray-400'}`}>
+                              {pProfit > 0 ? '+' : ''}${pProfit.toFixed(2)}
+                            </span>
+                          );
+                        })()}
+                      </div>
+                      <div className="flex justify-between items-center">
+                        <span className="text-xs text-gray-400">Margen</span>
+                        {(() => {
+                          const pProfit = (detailProduct.sale_price || 0) - (detailProduct.base_cost || 0);
+                          const margin = detailProduct.sale_price > 0 ? ((pProfit / detailProduct.sale_price) * 100) : 0;
+                          return (
+                            <span className={`text-xs font-bold px-1.5 py-0.5 rounded-md ${margin >= 30 ? 'bg-emerald-500/10 text-emerald-400' : margin >= 15 ? 'bg-yellow-500/10 text-yellow-500' : 'bg-red-500/10 text-red-400'}`}>
+                              {margin.toFixed(0)}%
+                            </span>
+                          );
+                        })()}
+                      </div>
+                    </div>
                   </div>
-                  
-                  <div className="space-y-2">
-                    {detailProduct.product_components.map((c: any) => {
-                      const needed = c.quantity_per_product || 1;
-                      const hasStock = c.stock_quantity >= needed;
-                      return (
-                        <div key={c.id} className="flex flex-col sm:flex-row sm:justify-between sm:items-center bg-stampa-bg-soft p-3 rounded-lg border border-stampa-border gap-2">
-                          <div>
-                            <p className="text-xs font-bold text-gray-200">{c.name}</p>
-                            <p className="text-[10px] text-gray-500 mt-0.5">{c.grams || 0}g · {formatTime(c.print_time_minutes)}</p>
-                          </div>
-                          <div className="flex items-center gap-3">
-                            <div className="text-right">
-                              <p className="text-[10px] text-gray-500 uppercase">Req.</p>
-                              <p className="text-sm font-bold text-fg">x{needed}</p>
-                            </div>
-                            <div className="h-6 w-px bg-fg/10 mx-1"></div>
-                            <div className="text-right">
-                              <p className="text-[10px] text-gray-500 uppercase">Stock</p>
-                              <p className={`text-sm font-bold ${hasStock ? 'text-emerald-500' : 'text-red-500'}`}>{c.stock_quantity || 0}</p>
-                            </div>
-                          </div>
+
+                  {/* Sección Producción */}
+                  <div className="bg-stampa-surface border border-stampa-border rounded-xl p-4">
+                    <h4 className="text-sm font-bold text-gray-300 mb-4 flex items-center gap-2">⚙️ Producción</h4>
+                    <div className="space-y-3">
+                      <div className="flex justify-between items-center">
+                        <span className="text-xs text-gray-400">Material total</span>
+                        <span className="text-sm font-bold text-fg">{detailProduct.grams || 0}g</span>
+                      </div>
+                      <div className="flex justify-between items-center">
+                        <span className="text-xs text-gray-400">Tiempo de impresión</span>
+                        <span className="text-sm font-bold text-fg">{formatTime(detailProduct.print_time_minutes)}</span>
+                      </div>
+                      <hr className="border-stampa-border" />
+                      <div className="flex flex-col gap-1">
+                        <span className="text-xs text-gray-400">Materiales (Snapshot)</span>
+                        <div className="flex flex-wrap gap-1.5 mt-1">
+                          {(() => {
+                            const snapMats = detailProduct.calculation_snapshot?.materials;
+                            if (snapMats && Array.isArray(snapMats) && snapMats.length > 0) {
+                              return snapMats.map((m: any, i: number) => (
+                                <span key={i} className="text-[10px] bg-fg/5 border border-stampa-border px-2 py-1 rounded text-gray-300 truncate max-w-full">
+                                  {m.filament_name} ({m.grams}g)
+                                </span>
+                              ));
+                            }
+                            return <span className="text-[10px] text-gray-600">No especificado</span>;
+                          })()}
                         </div>
-                      );
-                    })}
+                      </div>
+                    </div>
                   </div>
                 </div>
-              )}
 
-              {/* Archivos de impresión (proyectos 3MF por laminador e impresora). No afecta costos ni tiempos del producto. */}
-              <PrintFilesSection
-                key={detailProduct.id}
-                productId={detailProduct.id}
-                supabase={supabase}
-                printers={printers.map((printer) => ({ value: String(printer.id), label: getPrinterDisplayName(printer) }))}
-                components={(detailProduct.product_components || []).map((component: any) => ({
-                  id: String(component.id),
-                  name: String(component.name || "Pieza"),
-                }))}
-              />
-            </div>
+                {/* Sección Partes/Componentes */}
+                {detailProduct.product_components?.length > 1 && (
+                  <div className="bg-stampa-surface border border-stampa-border rounded-xl p-4 mb-6">
+                    <div className="flex items-center justify-between mb-4">
+                      <h4 className="text-sm font-bold text-gray-300 flex items-center gap-2">🧩 Componentes Requeridos</h4>
+                      <p className="text-[10px] font-bold text-blue-400 bg-blue-500/10 px-2 py-1 rounded-lg border border-blue-500/20">
+                        Capacidad: {Math.min(...detailProduct.product_components.map((c: any) => Math.floor((c.stock_quantity || 0) / (c.quantity_per_product || 1)))) || 0} sets
+                      </p>
+                    </div>
+                  
+                    <div className="space-y-2">
+                      {detailProduct.product_components.map((c: any) => {
+                        const needed = c.quantity_per_product || 1;
+                        const hasStock = c.stock_quantity >= needed;
+                        return (
+                          <div key={c.id} className="flex flex-col sm:flex-row sm:justify-between sm:items-center bg-stampa-bg-soft p-3 rounded-lg border border-stampa-border gap-2">
+                            <div>
+                              <p className="text-xs font-bold text-gray-200">{c.name}</p>
+                              <p className="text-[10px] text-gray-500 mt-0.5">{c.grams || 0}g · {formatTime(c.print_time_minutes)}</p>
+                            </div>
+                            <div className="flex items-center gap-3">
+                              <div className="text-right">
+                                <p className="text-[10px] text-gray-500 uppercase">Req.</p>
+                                <p className="text-sm font-bold text-fg">x{needed}</p>
+                              </div>
+                              <div className="h-6 w-px bg-fg/10 mx-1"></div>
+                              <div className="text-right">
+                                <p className="text-[10px] text-gray-500 uppercase">Stock</p>
+                                <p className={`text-sm font-bold ${hasStock ? 'text-emerald-500' : 'text-red-500'}`}>{c.stock_quantity || 0}</p>
+                              </div>
+                            </div>
+                          </div>
+                        );
+                      })}
+                    </div>
+                  </div>
+                )}
 
-            <div className="px-6 py-4 border-t border-stampa-border shrink-0 bg-stampa-surface flex justify-end gap-3">
-              <button onClick={() => setDetailProduct(null)} className="px-4 py-2 text-sm font-bold text-gray-400 hover:text-fg hover:bg-fg/5 rounded-lg transition-colors">
-                Cerrar
-              </button>
-              <button 
-                onClick={() => {
-                  handleEdit(detailProduct);
-                  setDetailProduct(null);
-                }} 
-                className="flex items-center gap-2 px-4 py-2 text-sm font-bold bg-stampa-orange hover:bg-stampa-orange text-neutral-950 rounded-lg transition-colors border border-stampa-orange"
-              >
-                <Pencil size={15} /> Editar Producto
-              </button>
+                {/* Archivos de impresión (proyectos 3MF por laminador e impresora). No afecta costos ni tiempos del producto. */}
+                <PrintFilesSection
+                  key={detailProduct.id}
+                  productId={detailProduct.id}
+                  supabase={supabase}
+                  printers={printers.map((printer) => ({ value: String(printer.id), label: getPrinterDisplayName(printer) }))}
+                  components={(detailProduct.product_components || []).map((component: any) => ({
+                    id: String(component.id),
+                    name: String(component.name || "Pieza"),
+                  }))}
+                />
+              </div>
+
+              <div className="px-6 py-4 border-t border-stampa-border shrink-0 bg-stampa-surface flex justify-end gap-3">
+                <button onClick={() => setDetailProduct(null)} className="px-4 py-2 text-sm font-bold text-gray-400 hover:text-fg hover:bg-fg/5 rounded-lg transition-colors">
+                  Cerrar
+                </button>
+                <button
+                  onClick={() => {
+                    handleEdit(detailProduct);
+                    setDetailProduct(null);
+                  }}
+                  className="flex items-center gap-2 px-4 py-2 text-sm font-bold bg-stampa-orange hover:bg-stampa-orange text-neutral-950 rounded-lg transition-colors border border-stampa-orange"
+                >
+                  <Pencil size={15} /> Editar Producto
+                </button>
+              </div>
             </div>
           </div>
-        </div>
+        </ModalPortal>
       )}
 
     </div>

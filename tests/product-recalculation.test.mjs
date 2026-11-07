@@ -90,8 +90,12 @@ test("recalculation actions authorize ownership and reload the complete recipe o
 test("products UI exposes individual and batch recalculation with Stampa feedback", () => {
   const page = fs.readFileSync(path.join(root, "src/app/productos/page.tsx"), "utf8");
 
-  assert.match(page, /title="Recalcular precio"/);
-  assert.match(page, /Recalcular Todos/);
+  const card = fs.readFileSync(path.join(root, "src/components/products/product-card.tsx"), "utf8");
+
+  assert.match(card, /title="Recalcular precio"/);
+  assert.match(card, /onClick=\{onRecalculate\}/);
+  assert.match(page, /onRecalculate=\{\(\) => void handleRecalculateProduct\(p\.id\)\}/);
+  assert.match(page, /Recalcular todos/);
   assert.match(page, /confirmAction\(\{/);
   assert.match(page, /Precio recalculado correctamente\./);
   assert.doesNotMatch(page, /window\.confirm|\bconfirm\(/);

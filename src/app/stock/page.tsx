@@ -9,9 +9,10 @@ import { WORKSHOP_INVENTORY_OUT_OF_STOCK, WORKSHOP_REGISTER_PRODUCTION_ACTION } 
 import { AlertTriangle, Plus, Minus, Loader2, Package, Box, History, X, Edit2, Search, ChevronDown, ChevronUp } from "lucide-react";
 import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { PrimaryButton } from "@/components/ui/button";
+import { GhostButton, PrimaryButton } from "@/components/ui/button";
 import { SectionTitle } from "@/components/ui/section-title";
 import { EmptyState } from "@/components/ui/empty-state";
+import { WorkshopNotice, WorkshopPageHeader, WorkshopSearchField, WorkshopToolbar } from "@/components/workshop/workshop-page";
 import { normalizeFilamentColor } from "@/lib/colors/filament-colors";
 import { ColorSwatchLabel } from "@/components/ui/color-swatch-label";
 import { CalculatorSelect } from "@/components/ui/calculator-select";
@@ -53,6 +54,7 @@ const ColorOptionLabel = ({ name, colorHex }: { name: string, colorHex?: string 
 };
 
 import { createClient } from "@/utils/supabase/client";
+import { ModalPortal } from "@/components/ui/modal-portal";
 
 type WorkshopStockSection = "filaments" | "inventory";
 
@@ -845,30 +847,58 @@ export function StockPageContent({ workshopSection }: { workshopSection?: Worksh
 
   return (
     <div className="pb-24">
-      <SectionTitle
-        eyebrow="Mi taller"
-        title={workshopSection === "filaments" ? "Filamentos" : workshopSection === "inventory" ? "Inventario" : "Stock"}
-        action={
-          workshopSection === "inventory" ? (
-            <PrimaryButton onClick={() => { setConsumeAddStock(true); setConsumeModalOpen(true); }}>
-              <Package size={15} /> Registrar producción
-            </PrimaryButton>
-          ) : tab === "productos" ? (
-            <div className="flex items-center gap-3">
-              <Link href="/mi-taller/productos">
-                <PrimaryButton>
-                  <Plus size={15} /> Nuevo Producto
+      {workshopSection ? (
+        <WorkshopPageHeader
+          title={workshopSection === "filaments" ? "Filamentos" : "Inventario"}
+          description={
+            workshopSection === "filaments"
+              ? "Tus bobinas de material: controlá cuánto queda de cada una, ajustá el stock y revisá el historial."
+              : "Controlá las unidades terminadas. Registrar producción consume la receta y suma unidades; los controles manuales corrigen el conteo sin descontar filamento."
+          }
+          actions={
+            workshopSection === "inventory" ? (
+              <PrimaryButton onClick={() => { setConsumeAddStock(true); setConsumeModalOpen(true); }}>
+                <Package size={15} aria-hidden="true" /> Registrar producción
+              </PrimaryButton>
+            ) : (
+              <>
+                <GhostButton onClick={() => { setConsumeAddStock(false); setConsumeModalOpen(true); }}>
+                  <Package size={15} aria-hidden="true" /> Descontar por producto
+                </GhostButton>
+                <GhostButton onClick={() => setShowFilamentCatalogModal(true)}>
+                  <Package size={15} aria-hidden="true" /> Importar desde catálogo
+                </GhostButton>
+                <PrimaryButton
+                  onClick={() => {
+                    setFilamentFormData({
+                      name: "", filament_type: "PLA", brand: "", color: "", total_grams: 1000, remaining_grams: 1000, purchase_price: 0, is_active: true
+                    });
+                    setEditingFilamentId("new");
+                    setFilamentModalOpen(true);
+                  }}
+                >
+                  <Plus size={15} aria-hidden="true" /> Nuevo filamento
                 </PrimaryButton>
-              </Link>
-            </div>
-          ) : null
-        }
-      />
-
-      {workshopSection === "inventory" && (
-        <p className="-mt-3 mb-6 max-w-3xl text-sm leading-6 text-gray-400">
-          Controlá las unidades terminadas. Registrar producción consume la receta y suma unidades; los controles manuales corrigen el conteo sin descontar filamento.
-        </p>
+              </>
+            )
+          }
+        />
+      ) : (
+        <SectionTitle
+          eyebrow="Mi taller"
+          title="Stock"
+          action={
+            tab === "productos" ? (
+              <div className="flex items-center gap-3">
+                <Link href="/mi-taller/productos">
+                  <PrimaryButton>
+                    <Plus size={15} /> Nuevo Producto
+                  </PrimaryButton>
+                </Link>
+              </div>
+            ) : null
+          }
+        />
       )}
 
       {outOfStockOnly && (
@@ -889,15 +919,10 @@ export function StockPageContent({ workshopSection }: { workshopSection?: Worksh
         </div>
       )}
 
-      {error && (
-        <div className="mb-6 bg-red-50 border border-red-100 p-4 rounded-lg text-sm text-red-600">
-          {error}
-        </div>
-      )}
+      {error && <WorkshopNotice tone="error" icon={<AlertTriangle size={16} aria-hidden="true" />}>{error}</WorkshopNotice>}
 
       {totalLowCount > 0 && (
-        <div className="mb-5 flex items-center gap-2.5 rounded-xl border border-orange-200 bg-orange-50 px-4 py-3 text-sm text-orange-700">
-          <AlertTriangle size={16} className="text-stampa-accent shrink-0" />
+        <WorkshopNotice tone="warning" icon={<AlertTriangle size={16} aria-hidden="true" />}>
           <p>
             {(() => {
               const prodText = lowProductsCount > 0 
@@ -929,7 +954,7 @@ export function StockPageContent({ workshopSection }: { workshopSection?: Worksh
               return null;
             })()}
           </p>
-        </div>
+        </WorkshopNotice>
       )}
 
       {!workshopSection && <div className="mb-6 flex flex-col sm:flex-row items-start sm:items-center justify-between border-b border-stampa-border flex-wrap gap-4 pb-2 sm:pb-0">
@@ -1058,95 +1083,54 @@ export function StockPageContent({ workshopSection }: { workshopSection?: Worksh
       </div>}
 
       {workshopSection === "filaments" && (
-        <div className="mb-6 flex flex-col gap-4">
-          <div className="grid grid-cols-1 gap-2 sm:flex sm:flex-wrap sm:justify-end">
-            <button
-              onClick={() => { setConsumeAddStock(false); setConsumeModalOpen(true); }}
-              className="flex items-center justify-center gap-2 rounded-lg border border-orange-200 bg-orange-50 px-4 py-2 text-sm font-bold text-orange-700 transition-colors hover:bg-orange-100"
-            >
-              <Package size={15} /> Descontar por producto
-            </button>
-            <button
-              onClick={() => setShowFilamentCatalogModal(true)}
-              className="flex items-center justify-center gap-2 rounded-lg border border-stampa-orange/20 bg-stampa-orange/10 px-4 py-2 text-sm font-bold text-stampa-accent transition-colors hover:bg-stampa-orange/20"
-            >
-              <Package size={15} /> Importar desde catálogo
-            </button>
-            <button
-              onClick={() => {
-                setFilamentFormData({
-                  name: "", filament_type: "PLA", brand: "", color: "", total_grams: 1000, remaining_grams: 1000, purchase_price: 0, is_active: true
-                });
-                setEditingFilamentId("new");
-                setFilamentModalOpen(true);
-              }}
-              className="flex items-center justify-center gap-2 rounded-lg border border-stampa-orange bg-stampa-orange px-4 py-2 text-sm font-bold text-neutral-950 transition-colors hover:bg-stampa-orange"
-            >
-              <Plus size={15} /> Nuevo Filamento
-            </button>
-          </div>
-
-          <div className="flex flex-col gap-3 lg:flex-row">
-            <div className="relative flex w-full items-center lg:flex-1">
-              <Search className="absolute left-3 text-gray-400" size={18} />
-              <input
-                type="text"
-                placeholder="Buscar filamentos..."
-                value={filamentSearch}
-                onChange={(event) => setFilamentSearch(event.target.value)}
-                className="h-11 w-full rounded-xl border border-fg/10 bg-fg/[0.06] pl-10 pr-10 text-sm text-fg outline-none transition-all focus:border-orange-500/60 focus:ring-2 focus:ring-orange-500/10"
+        <WorkshopToolbar>
+          <WorkshopSearchField value={filamentSearch} onChange={setFilamentSearch} placeholder="Buscar filamentos..." label="Buscar filamentos" />
+          <div className="grid w-full grid-cols-1 gap-3 sm:grid-cols-2 lg:flex lg:w-auto">
+            <div className="min-w-[150px]">
+              <CalculatorSelect
+                options={[{ value: "all", label: "Todos los materiales" }, ...uniqueMaterials.map((material: any) => ({ value: material, label: material }))]}
+                value={selectedMaterial}
+                onChange={(value) => setSelectedMaterial(value)}
               />
-              {filamentSearch && <button onClick={() => setFilamentSearch("")} className="absolute right-3 text-gray-400 hover:text-fg"><X size={16} /></button>}
             </div>
-            <div className="grid w-full grid-cols-1 gap-3 sm:grid-cols-2 lg:w-auto">
-              <div className="min-w-[150px]">
-                <CalculatorSelect
-                  options={[{ value: "all", label: "Todos los materiales" }, ...uniqueMaterials.map((material: any) => ({ value: material, label: material }))]}
-                  value={selectedMaterial}
-                  onChange={(value) => setSelectedMaterial(value)}
-                />
-              </div>
-              <div className="min-w-[150px]">
-                <CalculatorSelect
-                  options={[{ value: "all", label: "Todos los colores" }, ...uniqueColors.map((color: any) => ({ value: color.color, label: color.color, element: <ColorOptionLabel name={color.color} colorHex={color.hex} /> }))]}
-                  value={selectedColor}
-                  onChange={(value) => setSelectedColor(value)}
-                />
-              </div>
+            <div className="min-w-[150px]">
+              <CalculatorSelect
+                options={[{ value: "all", label: "Todos los colores" }, ...uniqueColors.map((color: any) => ({ value: color.color, label: color.color, element: <ColorOptionLabel name={color.color} colorHex={color.hex} /> }))]}
+                value={selectedColor}
+                onChange={(value) => setSelectedColor(value)}
+              />
             </div>
+            {(filamentSearch || selectedMaterial !== "all" || selectedColor !== "all") && (
+              <GhostButton
+                onClick={() => {
+                  setFilamentSearch("");
+                  setSelectedMaterial("all");
+                  setSelectedColor("all");
+                }}
+                className="shrink-0 sm:col-span-2 lg:col-span-1"
+              >
+                Limpiar filtros
+              </GhostButton>
+            )}
           </div>
-        </div>
+        </WorkshopToolbar>
       )}
 
       {tab === "productos" && (
-        <div className="mb-6">
-          <div className="relative">
-            <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" size={18} />
-            <input 
-              type="text" 
-              placeholder="Buscar productos..." 
-              value={searchProduct}
-              onChange={(e) => setSearchProduct(e.target.value)}
-              className="w-full pl-10 pr-10 py-2.5 bg-fg/5 border border-stampa-border rounded-xl text-sm text-fg focus:outline-none focus:border-stampa-orange/50"
-            />
-            {searchProduct && (
-              <button onClick={() => setSearchProduct("")} className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-fg">
-                <X size={16} />
-              </button>
-            )}
-          </div>
-        </div>
+        <WorkshopToolbar>
+          <WorkshopSearchField value={searchProduct} onChange={setSearchProduct} placeholder="Buscar productos..." label="Buscar productos" />
+        </WorkshopToolbar>
       )}
 
       {tab === "filamentos" && (
         filteredFilaments.length === 0 ? (
-          <Card className="p-10 text-center">
-            <p className="text-sm text-gray-400">
-              {filaments.length === 0
-                ? "No tenés filamentos activos. Agregá uno para empezar a controlar tu material."
-                : "No encontramos filamentos con esa búsqueda."}
-            </p>
-          </Card>
+          <div role="status">
+            <EmptyState
+              icon={filaments.length === 0 ? Box : Search}
+              title={filaments.length === 0 ? "No tenés filamentos activos" : "No encontramos filamentos con esa búsqueda"}
+              hint={filaments.length === 0 ? "Agregá uno para empezar a controlar tu material." : "Probá con otro nombre, material o color."}
+            />
+          </div>
         ) : (
           <div className="grid grid-cols-1 gap-4 md:grid-cols-2 2xl:grid-cols-3">
             {filteredFilaments.map((filament) => (
@@ -1362,8 +1346,17 @@ export function StockPageContent({ workshopSection }: { workshopSection?: Worksh
           </table>
 
           {tab === "productos" && products.length === 0 && !loading && (
-            <div className="py-12 text-center">
-              <p className="text-gray-400 text-sm">No tienes productos. Ve a la sección de Productos para crearlos.</p>
+            <div role="status" className="p-4">
+              <EmptyState
+                icon={Package}
+                title="Todavía no tenés productos"
+                hint="Creá tus productos en Mi Taller → Productos para controlar su stock acá."
+                action={
+                  <Link href="/mi-taller/productos" className="inline-flex min-h-11 items-center rounded-xl border border-stampa-border px-4 py-2 text-sm font-bold text-gray-300 transition-colors hover:bg-fg/5">
+                    Ir a Productos
+                  </Link>
+                }
+              />
             </div>
           )}
 
@@ -1376,14 +1369,21 @@ export function StockPageContent({ workshopSection }: { workshopSection?: Worksh
                    p.description?.toLowerCase().includes(term) || 
                    compsStr.toLowerCase().includes(term);
           }).length === 0 && (
-            <div className="py-12 text-center">
-              <p className="text-gray-400 text-sm mb-4">No encontramos productos con esa búsqueda.</p>
-              <button
-                onClick={() => setSearchProduct("")}
-                className="px-4 py-2 bg-fg/5 hover:bg-fg/10 border border-stampa-border rounded-lg text-sm text-fg transition-colors"
-              >
-                Limpiar búsqueda
-              </button>
+            <div role="status" className="p-4">
+              <EmptyState
+                icon={Search}
+                title="No encontramos productos con esa búsqueda"
+                hint="Probá con otro nombre, descripción o parte."
+                action={
+                  <button
+                    type="button"
+                    onClick={() => setSearchProduct("")}
+                    className="min-h-11 rounded-xl border border-stampa-border px-4 py-2 text-sm font-bold text-gray-300 transition-colors hover:bg-fg/5"
+                  >
+                    Limpiar búsqueda
+                  </button>
+                }
+              />
             </div>
           )}
 
@@ -1392,332 +1392,340 @@ export function StockPageContent({ workshopSection }: { workshopSection?: Worksh
 
       {/* History Modal for Filaments */}
       {historyModalOpen && (
-        <div className="fixed inset-0 z-[110] flex items-center justify-center p-4 bg-stampa-bg/50">
-          <div className="bg-stampa-surface rounded-xl shadow-xl max-w-lg w-full max-h-[90dvh] flex flex-col overflow-hidden border border-stampa-border">
-            <div className="p-4 border-b border-stampa-border flex justify-between items-center bg-stampa-bg-soft">
-              <div>
-                <h3 className="text-lg font-bold text-fg">Historial de Movimientos</h3>
-                <p className="text-xs text-gray-400">Últimos 10 cambios en este filamento.</p>
-              </div>
-              <button onClick={() => setHistoryModalOpen(false)} className="text-gray-400 hover:text-gray-300">
-                <X size={20} />
-              </button>
-            </div>
-            <div className="p-4 overflow-y-auto stampa-scrollbar flex-1">
-              {historyLoading ? (
-                <div className="py-8 flex justify-center"><Loader2 className="animate-spin text-stampa-accent" /></div>
-              ) : historyMovements.length === 0 ? (
-                <div className="text-center py-8 text-sm text-gray-400">No hay movimientos registrados.</div>
-              ) : (
-                <div className="space-y-3">
-                  {historyMovements.map(m => {
-                    const isPositive = m.grams_delta > 0;
-                    return (
-                      <div key={m.id} className="flex flex-col gap-1 text-sm border-b border-stampa-border pb-3">
-                        <div className="flex justify-between items-start">
-                          <span className={`font-bold ${isPositive ? 'text-green-600' : 'text-red-600'}`}>
-                            {isPositive ? '+' : ''}{m.grams_delta}g
-                          </span>
-                          <span className="text-xs text-gray-400">{formatDate(m.created_at)}</span>
-                        </div>
-                        <div className="flex justify-between text-xs text-gray-400">
-                          <span>{m.reason}</span>
-                          <span className="font-medium bg-fg/5 px-1.5 py-0.5 rounded text-[10px]">
-                            {m.previous_grams}g → {m.new_grams}g
-                          </span>
-                        </div>
-                      </div>
-                    );
-                  })}
+        <ModalPortal>
+          <div className="fixed inset-0 z-[110] flex items-center justify-center p-4 bg-stampa-bg/50">
+            <div className="bg-stampa-surface rounded-xl shadow-xl max-w-lg w-full max-h-[90dvh] flex flex-col overflow-hidden border border-stampa-border">
+              <div className="p-4 border-b border-stampa-border flex justify-between items-center bg-stampa-bg-soft">
+                <div>
+                  <h3 className="text-lg font-bold text-fg">Historial de Movimientos</h3>
+                  <p className="text-xs text-gray-400">Últimos 10 cambios en este filamento.</p>
                 </div>
-              )}
+                <button onClick={() => setHistoryModalOpen(false)} className="text-gray-400 hover:text-gray-300">
+                  <X size={20} />
+                </button>
+              </div>
+              <div className="p-4 overflow-y-auto stampa-scrollbar flex-1">
+                {historyLoading ? (
+                  <div className="py-8 flex justify-center"><Loader2 className="animate-spin text-stampa-accent" /></div>
+                ) : historyMovements.length === 0 ? (
+                  <div className="text-center py-8 text-sm text-gray-400">No hay movimientos registrados.</div>
+                ) : (
+                  <div className="space-y-3">
+                    {historyMovements.map(m => {
+                      const isPositive = m.grams_delta > 0;
+                      return (
+                        <div key={m.id} className="flex flex-col gap-1 text-sm border-b border-stampa-border pb-3">
+                          <div className="flex justify-between items-start">
+                            <span className={`font-bold ${isPositive ? 'text-green-600' : 'text-red-600'}`}>
+                              {isPositive ? '+' : ''}{m.grams_delta}g
+                            </span>
+                            <span className="text-xs text-gray-400">{formatDate(m.created_at)}</span>
+                          </div>
+                          <div className="flex justify-between text-xs text-gray-400">
+                            <span>{m.reason}</span>
+                            <span className="font-medium bg-fg/5 px-1.5 py-0.5 rounded text-[10px]">
+                              {m.previous_grams}g → {m.new_grams}g
+                            </span>
+                          </div>
+                        </div>
+                      );
+                    })}
+                  </div>
+                )}
+              </div>
             </div>
           </div>
-        </div>
+        </ModalPortal>
       )}
 
       {/* History Modal for Products */}
       {historyProductModalOpen && (
-        <div className="fixed inset-0 z-[110] flex items-center justify-center p-4 bg-stampa-bg/50">
-          <div className="bg-stampa-surface rounded-xl shadow-xl max-w-lg w-full max-h-[90dvh] flex flex-col overflow-hidden border border-stampa-border">
-            <div className="p-4 border-b border-stampa-border flex justify-between items-center bg-stampa-bg-soft">
-              <div>
-                <h3 className="text-lg font-bold text-fg">Historial de Movimientos</h3>
-                <p className="text-xs text-gray-400">Últimos 10 cambios en este producto.</p>
-              </div>
-              <button onClick={() => setHistoryProductModalOpen(false)} className="text-gray-400 hover:text-gray-300">
-                <X size={20} />
-              </button>
-            </div>
-            <div className="p-4 overflow-y-auto stampa-scrollbar flex-1">
-              {historyProductLoading ? (
-                <div className="py-8 flex justify-center"><Loader2 className="animate-spin text-stampa-accent" /></div>
-              ) : historyProductMovements.length === 0 ? (
-                <div className="text-center py-8 text-sm text-gray-400">No hay movimientos registrados.</div>
-              ) : (
-                <div className="space-y-3">
-                  {historyProductMovements.map(m => {
-                    const isPositive = m.quantity_delta > 0;
-                    return (
-                      <div key={m.id} className="flex flex-col gap-1 text-sm border-b border-stampa-border pb-3">
-                        <div className="flex justify-between items-start">
-                          <span className={`font-bold ${isPositive ? 'text-green-600' : 'text-red-600'}`}>
-                            {isPositive ? '+' : ''}{m.quantity_delta} u.
-                          </span>
-                          <span className="text-xs text-gray-400">{formatDate(m.created_at)}</span>
-                        </div>
-                        <div className="flex justify-between text-xs text-gray-400">
-                          <span>{m.reason}</span>
-                          <span className="font-medium bg-fg/5 px-1.5 py-0.5 rounded text-[10px]">
-                            {m.previous_quantity} → {m.new_quantity}
-                          </span>
-                        </div>
-                      </div>
-                    );
-                  })}
+        <ModalPortal>
+          <div className="fixed inset-0 z-[110] flex items-center justify-center p-4 bg-stampa-bg/50">
+            <div className="bg-stampa-surface rounded-xl shadow-xl max-w-lg w-full max-h-[90dvh] flex flex-col overflow-hidden border border-stampa-border">
+              <div className="p-4 border-b border-stampa-border flex justify-between items-center bg-stampa-bg-soft">
+                <div>
+                  <h3 className="text-lg font-bold text-fg">Historial de Movimientos</h3>
+                  <p className="text-xs text-gray-400">Últimos 10 cambios en este producto.</p>
                 </div>
-              )}
+                <button onClick={() => setHistoryProductModalOpen(false)} className="text-gray-400 hover:text-gray-300">
+                  <X size={20} />
+                </button>
+              </div>
+              <div className="p-4 overflow-y-auto stampa-scrollbar flex-1">
+                {historyProductLoading ? (
+                  <div className="py-8 flex justify-center"><Loader2 className="animate-spin text-stampa-accent" /></div>
+                ) : historyProductMovements.length === 0 ? (
+                  <div className="text-center py-8 text-sm text-gray-400">No hay movimientos registrados.</div>
+                ) : (
+                  <div className="space-y-3">
+                    {historyProductMovements.map(m => {
+                      const isPositive = m.quantity_delta > 0;
+                      return (
+                        <div key={m.id} className="flex flex-col gap-1 text-sm border-b border-stampa-border pb-3">
+                          <div className="flex justify-between items-start">
+                            <span className={`font-bold ${isPositive ? 'text-green-600' : 'text-red-600'}`}>
+                              {isPositive ? '+' : ''}{m.quantity_delta} u.
+                            </span>
+                            <span className="text-xs text-gray-400">{formatDate(m.created_at)}</span>
+                          </div>
+                          <div className="flex justify-between text-xs text-gray-400">
+                            <span>{m.reason}</span>
+                            <span className="font-medium bg-fg/5 px-1.5 py-0.5 rounded text-[10px]">
+                              {m.previous_quantity} → {m.new_quantity}
+                            </span>
+                          </div>
+                        </div>
+                      );
+                    })}
+                  </div>
+                )}
+              </div>
             </div>
           </div>
-        </div>
+        </ModalPortal>
       )}
 
       {/* Consume by Product Modal */}
       {consumeModalOpen && (
-        <div className="fixed inset-0 z-[110] flex items-center justify-center bg-stampa-bg/40 p-4">
-          <div className="bg-stampa-surface w-full max-w-2xl rounded-2xl shadow-2xl overflow-hidden flex flex-col max-h-[90dvh] border border-stampa-border">
-            <div className="flex items-center justify-between px-6 py-4 border-b border-stampa-border">
-              <h3 className="font-bold text-fg flex items-center gap-2">
-                <Package size={18} className="text-stampa-accent" /> {consumeAddStock ? "Registrar producción" : "Descontar por producto"}
-              </h3>
-              <button onClick={() => setConsumeModalOpen(false)} className="text-gray-400 hover:text-gray-300">
-                <X size={20} />
-              </button>
-            </div>
-            
-            <div className="p-6 overflow-y-auto stampa-scrollbar flex-1 space-y-6">
-              {/* Selector */}
-              <div>
-                <label className="block text-sm font-semibold text-gray-300 mb-2">Agregar producto</label>
-                <div className="flex gap-2">
-                  <div className="flex-1 min-w-0">
-                    <CalculatorSelect
-                      options={products.filter(p => p.is_active).flatMap(p => {
-                        const pComps = productComponents.filter(c => c.product_id === p.id && c.is_active);
-                        const isParts = pComps.length > 1 || (pComps.length === 1 && pComps[0].name !== "Producto completo");
-                        if (isParts) {
-                          return [
-                            {
-                              value: `product|${p.id}`,
-                              label: `${p.name} (Completo)`,
-                              element: <span className="truncate">📦 <span className="text-gray-400">{p.name}</span> (Completo)</span>
-                            },
-                            ...pComps.map(c => ({
-                              value: `component|${c.id}`,
-                              label: `${p.name} - ${c.name}`,
-                              element: <span className="truncate">🧩 <span className="text-gray-400">{p.name}</span> · {c.name}</span>
-                            }))
-                          ];
-                        } else {
-                          return [{
-                            value: `product|${p.id}`,
-                            label: p.name,
-                            element: <span className="truncate">📦 {p.name}</span>
-                          }];
-                        }
-                      })}
-                      value={consumeSelectedProductId}
-                      onChange={(val) => setConsumeSelectedProductId(val)}
-                      placeholder="Buscar producto o parte..."
-                      searchable={true}
-                      usePortal={true}
-                    />
-                  </div>
-                  <PrimaryButton onClick={handleAddToCart} disabled={!consumeSelectedProductId}>
-                    <Plus size={16} /> Agregar
-                  </PrimaryButton>
-                </div>
+        <ModalPortal>
+          <div className="fixed inset-0 z-[110] flex items-center justify-center bg-stampa-bg/40 p-4">
+            <div className="bg-stampa-surface w-full max-w-2xl rounded-2xl shadow-2xl overflow-hidden flex flex-col max-h-[90dvh] border border-stampa-border">
+              <div className="flex items-center justify-between px-6 py-4 border-b border-stampa-border">
+                <h3 className="font-bold text-fg flex items-center gap-2">
+                  <Package size={18} className="text-stampa-accent" /> {consumeAddStock ? "Registrar producción" : "Descontar por producto"}
+                </h3>
+                <button onClick={() => setConsumeModalOpen(false)} className="text-gray-400 hover:text-gray-300">
+                  <X size={20} />
+                </button>
               </div>
-
-              {/* Cart */}
-              {consumeCart.length > 0 && (
+            
+              <div className="p-6 overflow-y-auto stampa-scrollbar flex-1 space-y-6">
+                {/* Selector */}
                 <div>
-                  <h4 className="text-sm font-semibold text-fg mb-3">Productos a descontar</h4>
-                  <div className="space-y-3">
-                    {consumeCart.map((item, idx) => (
-                      <div key={idx} className="flex items-center justify-between bg-stampa-bg-soft border border-stampa-border p-3 rounded-lg">
-                        <div className="flex items-center gap-3 overflow-hidden">
-                          {item.product?.image_url ? (
-                            <img src={item.product.image_url} alt="" className="w-10 h-10 rounded-md object-cover border border-stampa-border shrink-0" />
-                          ) : (
-                            <div className="w-10 h-10 rounded-md bg-gray-200 flex items-center justify-center shrink-0 text-gray-400">
-                              {item.type === "component" ? "🧩" : "📦"}
-                            </div>
-                          )}
-                          <div className="flex flex-col">
-                            <span className="font-semibold text-sm text-fg truncate">
-                              {item.type === "component" ? item.component?.name : item.product?.name}
-                            </span>
-                            {item.type === "component" && (
-                              <span className="text-[10px] text-gray-400 truncate">Parte de: {item.product?.name}</span>
-                            )}
-                          </div>
-                        </div>
-                        <div className="flex items-center gap-3 shrink-0">
-                          <div className="flex items-center">
-                            <span className="text-xs text-gray-400 mr-2">Cant:</span>
-                            <input 
-                              type="number" 
-                              min="1" 
-                              value={item.quantity} 
-                              onChange={(e) => {
-                                const val = e.target.value;
-                                if (val === "") {
-                                  // allow intermediate empty state if desired, but we can default to 1 on blur or just update state directly
-                                  setConsumeCart(prev => prev.map((p, i) => i === idx ? { ...p, quantity: "" as any } : p));
-                                } else {
-                                  const q = parseInt(val) || 1;
-                                  setConsumeCart(prev => prev.map((p, i) => i === idx ? { ...p, quantity: Math.max(1, q) } : p));
-                                }
-                              }}
-                              onBlur={(e) => {
-                                if (!e.target.value) {
-                                  setConsumeCart(prev => prev.map((p, i) => i === idx ? { ...p, quantity: 1 } : p));
-                                }
-                              }}
-                              className="h-9 w-16 text-center text-sm rounded-lg border border-fg/10 bg-fg/[0.06] text-fg focus:border-stampa-orange/60 focus:ring-2 focus:ring-stampa-orange/10 transition-all outline-none [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
-                            />
-                          </div>
-                          <button onClick={() => setConsumeCart(prev => prev.filter((_, i) => i !== idx))} className="text-red-400 hover:text-red-600 p-1">
-                            <X size={18} />
-                          </button>
-                        </div>
-                      </div>
-                    ))}
+                  <label className="block text-sm font-semibold text-gray-300 mb-2">Agregar producto</label>
+                  <div className="flex gap-2">
+                    <div className="flex-1 min-w-0">
+                      <CalculatorSelect
+                        options={products.filter(p => p.is_active).flatMap(p => {
+                          const pComps = productComponents.filter(c => c.product_id === p.id && c.is_active);
+                          const isParts = pComps.length > 1 || (pComps.length === 1 && pComps[0].name !== "Producto completo");
+                          if (isParts) {
+                            return [
+                              {
+                                value: `product|${p.id}`,
+                                label: `${p.name} (Completo)`,
+                                element: <span className="truncate">📦 <span className="text-gray-400">{p.name}</span> (Completo)</span>
+                              },
+                              ...pComps.map(c => ({
+                                value: `component|${c.id}`,
+                                label: `${p.name} - ${c.name}`,
+                                element: <span className="truncate">🧩 <span className="text-gray-400">{p.name}</span> · {c.name}</span>
+                              }))
+                            ];
+                          } else {
+                            return [{
+                              value: `product|${p.id}`,
+                              label: p.name,
+                              element: <span className="truncate">📦 {p.name}</span>
+                            }];
+                          }
+                        })}
+                        value={consumeSelectedProductId}
+                        onChange={(val) => setConsumeSelectedProductId(val)}
+                        placeholder="Buscar producto o parte..."
+                        searchable={true}
+                        usePortal={true}
+                      />
+                    </div>
+                    <PrimaryButton onClick={handleAddToCart} disabled={!consumeSelectedProductId}>
+                      <Plus size={16} /> Agregar
+                    </PrimaryButton>
                   </div>
                 </div>
-              )}
 
-              {/* Preview */}
-              {consumeCart.length > 0 && (
-                <div>
-                  <h4 className="text-sm font-semibold text-fg mb-3">Se descontará de tu stock:</h4>
-                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                    {calculateConsumePreview().preview.map(p => (
-                      <div key={p.filament_id} className={`p-3 rounded-xl border ${p.needed > p.available ? 'bg-red-50 border border-red-500/20' : 'bg-orange-50 border-orange-100'}`}>
-                        <p className="font-bold text-sm text-neutral-900 truncate mb-1">
-                          {p.filament ? getFilamentLabel(p.filament) : 'Material desconocido'} {p.filament?.color ? `(${p.filament.color})` : ''}
-                        </p>
-                        <div className="flex justify-between text-xs mb-1">
-                          <span className="text-neutral-600">Requiere:</span>
-                          <span className="font-bold text-neutral-800">{p.needed.toFixed(1)} g</span>
-                        </div>
-                        <div className="flex justify-between text-xs mb-1">
-                          <span className="text-neutral-600">Disponible:</span>
-                          <span className="font-medium text-neutral-800">{p.available} g</span>
-                        </div>
-                        <div className="flex justify-between text-xs pt-1 border-t border-orange-200/50 mt-1">
-                          <span className="text-neutral-600">Quedarán:</span>
-                          <span className={`font-bold ${p.remainingAfter < 0 ? 'text-red-600' : 'text-orange-700'}`}>
-                            {p.remainingAfter.toFixed(1)} g
-                          </span>
-                        </div>
-                        {p.needed > p.available && (
-                          <p className="text-[10px] text-red-600 font-bold mt-2 flex items-center gap-1">
-                            <AlertTriangle size={12} /> Stock insuficiente
-                          </p>
-                        )}
-                      </div>
-                    ))}
-                  </div>
-                  {findProductComponentOverlaps(consumeCart).map((overlap) => (
-                    <p key={overlap.productName} role="note" className="mt-3 flex items-start gap-2 rounded-xl border border-amber-500/30 bg-amber-500/10 p-3 text-xs font-medium text-amber-700">
-                      <AlertTriangle size={14} className="mt-0.5 shrink-0" /> {describeProductionOverlap(overlap)}
-                    </p>
-                  ))}
-                  {calculateConsumePreview().invalidRecipes.map((recipeError) => (
-                    <p key={recipeError} className="mt-3 flex items-center gap-2 rounded-xl border border-red-500/25 bg-red-500/10 p-3 text-xs font-semibold text-red-300">
-                      <AlertTriangle size={14} className="shrink-0" /> {recipeError}
-                    </p>
-                  ))}
-                </div>
-              )}
-
-              {/* Settings */}
-              {consumeCart.length > 0 && workshopSection !== "inventory" && (
-                <div className="bg-stampa-bg-soft border border-stampa-border p-4 rounded-xl flex items-start gap-3">
-                  <input 
-                    type="checkbox" 
-                    id="consumeAddStock" 
-                    checked={consumeAddStock} 
-                    onChange={(e) => setConsumeAddStock(e.target.checked)} 
-                    className="mt-1 rounded text-stampa-accent focus:ring-stampa-orange" 
-                  />
+                {/* Cart */}
+                {consumeCart.length > 0 && (
                   <div>
-                    <label htmlFor="consumeAddStock" className="block text-sm font-bold text-fg cursor-pointer">
-                      Sumar al stock de productos terminados
-                    </label>
-                    <p className="text-xs text-gray-400 mt-1">
-                      Si está activado, además de descontar el material, se sumará la cantidad ingresada al stock disponible del producto. Usalo cuando estás registrando productos que ya imprimiste.
-                    </p>
+                    <h4 className="text-sm font-semibold text-fg mb-3">Productos a descontar</h4>
+                    <div className="space-y-3">
+                      {consumeCart.map((item, idx) => (
+                        <div key={idx} className="flex items-center justify-between bg-stampa-bg-soft border border-stampa-border p-3 rounded-lg">
+                          <div className="flex items-center gap-3 overflow-hidden">
+                            {item.product?.image_url ? (
+                              <img src={item.product.image_url} alt="" className="w-10 h-10 rounded-md object-cover border border-stampa-border shrink-0" />
+                            ) : (
+                              <div className="w-10 h-10 rounded-md bg-gray-200 flex items-center justify-center shrink-0 text-gray-400">
+                                {item.type === "component" ? "🧩" : "📦"}
+                              </div>
+                            )}
+                            <div className="flex flex-col">
+                              <span className="font-semibold text-sm text-fg truncate">
+                                {item.type === "component" ? item.component?.name : item.product?.name}
+                              </span>
+                              {item.type === "component" && (
+                                <span className="text-[10px] text-gray-400 truncate">Parte de: {item.product?.name}</span>
+                              )}
+                            </div>
+                          </div>
+                          <div className="flex items-center gap-3 shrink-0">
+                            <div className="flex items-center">
+                              <span className="text-xs text-gray-400 mr-2">Cant:</span>
+                              <input
+                                type="number"
+                                min="1"
+                                value={item.quantity}
+                                onChange={(e) => {
+                                  const val = e.target.value;
+                                  if (val === "") {
+                                    // allow intermediate empty state if desired, but we can default to 1 on blur or just update state directly
+                                    setConsumeCart(prev => prev.map((p, i) => i === idx ? { ...p, quantity: "" as any } : p));
+                                  } else {
+                                    const q = parseInt(val) || 1;
+                                    setConsumeCart(prev => prev.map((p, i) => i === idx ? { ...p, quantity: Math.max(1, q) } : p));
+                                  }
+                                }}
+                                onBlur={(e) => {
+                                  if (!e.target.value) {
+                                    setConsumeCart(prev => prev.map((p, i) => i === idx ? { ...p, quantity: 1 } : p));
+                                  }
+                                }}
+                                className="h-9 w-16 text-center text-sm rounded-lg border border-fg/10 bg-fg/[0.06] text-fg focus:border-stampa-orange/60 focus:ring-2 focus:ring-stampa-orange/10 transition-all outline-none [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
+                              />
+                            </div>
+                            <button onClick={() => setConsumeCart(prev => prev.filter((_, i) => i !== idx))} className="text-red-400 hover:text-red-600 p-1">
+                              <X size={18} />
+                            </button>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
                   </div>
-                </div>
-              )}
+                )}
 
-            </div>
-            <div className="p-4 border-t border-stampa-border flex flex-col-reverse sm:flex-row sm:justify-end gap-3 bg-stampa-bg-soft">
-              <button 
-                onClick={() => setConsumeModalOpen(false)} 
-                className="w-full sm:w-auto px-4 py-2 text-sm font-bold text-gray-400 hover:bg-stampa-surface/5 rounded-lg transition-colors text-center"
-              >
-                Cancelar
-              </button>
-              <button 
-                onClick={handleConfirmConsume} 
-                disabled={consumeCart.length === 0 || !calculateConsumePreview().isValid || consumeLoading}
-                className="w-full sm:w-auto flex justify-center items-center gap-2 px-5 py-2 text-sm font-bold bg-stampa-orange hover:bg-stampa-orange disabled:opacity-50 disabled:cursor-not-allowed text-neutral-950 rounded-lg transition-colors shadow-sm"
-              >
-                {consumeLoading ? <Loader2 size={16} className="animate-spin" /> : <Package size={16} />}
-                {consumeAddStock ? "Confirmar producción" : "Confirmar descuento"}
-              </button>
+                {/* Preview */}
+                {consumeCart.length > 0 && (
+                  <div>
+                    <h4 className="text-sm font-semibold text-fg mb-3">Se descontará de tu stock:</h4>
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                      {calculateConsumePreview().preview.map(p => (
+                        <div key={p.filament_id} className={`p-3 rounded-xl border ${p.needed > p.available ? 'bg-red-50 border border-red-500/20' : 'bg-orange-50 border-orange-100'}`}>
+                          <p className="font-bold text-sm text-neutral-900 truncate mb-1">
+                            {p.filament ? getFilamentLabel(p.filament) : 'Material desconocido'} {p.filament?.color ? `(${p.filament.color})` : ''}
+                          </p>
+                          <div className="flex justify-between text-xs mb-1">
+                            <span className="text-neutral-600">Requiere:</span>
+                            <span className="font-bold text-neutral-800">{p.needed.toFixed(1)} g</span>
+                          </div>
+                          <div className="flex justify-between text-xs mb-1">
+                            <span className="text-neutral-600">Disponible:</span>
+                            <span className="font-medium text-neutral-800">{p.available} g</span>
+                          </div>
+                          <div className="flex justify-between text-xs pt-1 border-t border-orange-200/50 mt-1">
+                            <span className="text-neutral-600">Quedarán:</span>
+                            <span className={`font-bold ${p.remainingAfter < 0 ? 'text-red-600' : 'text-orange-700'}`}>
+                              {p.remainingAfter.toFixed(1)} g
+                            </span>
+                          </div>
+                          {p.needed > p.available && (
+                            <p className="text-[10px] text-red-600 font-bold mt-2 flex items-center gap-1">
+                              <AlertTriangle size={12} /> Stock insuficiente
+                            </p>
+                          )}
+                        </div>
+                      ))}
+                    </div>
+                    {findProductComponentOverlaps(consumeCart).map((overlap) => (
+                      <p key={overlap.productName} role="note" className="mt-3 flex items-start gap-2 rounded-xl border border-amber-500/30 bg-amber-500/10 p-3 text-xs font-medium text-amber-700">
+                        <AlertTriangle size={14} className="mt-0.5 shrink-0" /> {describeProductionOverlap(overlap)}
+                      </p>
+                    ))}
+                    {calculateConsumePreview().invalidRecipes.map((recipeError) => (
+                      <p key={recipeError} className="mt-3 flex items-center gap-2 rounded-xl border border-red-500/25 bg-red-500/10 p-3 text-xs font-semibold text-red-300">
+                        <AlertTriangle size={14} className="shrink-0" /> {recipeError}
+                      </p>
+                    ))}
+                  </div>
+                )}
+
+                {/* Settings */}
+                {consumeCart.length > 0 && workshopSection !== "inventory" && (
+                  <div className="bg-stampa-bg-soft border border-stampa-border p-4 rounded-xl flex items-start gap-3">
+                    <input
+                      type="checkbox"
+                      id="consumeAddStock"
+                      checked={consumeAddStock}
+                      onChange={(e) => setConsumeAddStock(e.target.checked)}
+                      className="mt-1 rounded text-stampa-accent focus:ring-stampa-orange"
+                    />
+                    <div>
+                      <label htmlFor="consumeAddStock" className="block text-sm font-bold text-fg cursor-pointer">
+                        Sumar al stock de productos terminados
+                      </label>
+                      <p className="text-xs text-gray-400 mt-1">
+                        Si está activado, además de descontar el material, se sumará la cantidad ingresada al stock disponible del producto. Usalo cuando estás registrando productos que ya imprimiste.
+                      </p>
+                    </div>
+                  </div>
+                )}
+
+              </div>
+              <div className="p-4 border-t border-stampa-border flex flex-col-reverse sm:flex-row sm:justify-end gap-3 bg-stampa-bg-soft">
+                <button
+                  onClick={() => setConsumeModalOpen(false)}
+                  className="w-full sm:w-auto px-4 py-2 text-sm font-bold text-gray-400 hover:bg-stampa-surface/5 rounded-lg transition-colors text-center"
+                >
+                  Cancelar
+                </button>
+                <button
+                  onClick={handleConfirmConsume}
+                  disabled={consumeCart.length === 0 || !calculateConsumePreview().isValid || consumeLoading}
+                  className="w-full sm:w-auto flex justify-center items-center gap-2 px-5 py-2 text-sm font-bold bg-stampa-orange hover:bg-stampa-orange disabled:opacity-50 disabled:cursor-not-allowed text-neutral-950 rounded-lg transition-colors shadow-sm"
+                >
+                  {consumeLoading ? <Loader2 size={16} className="animate-spin" /> : <Package size={16} />}
+                  {consumeAddStock ? "Confirmar producción" : "Confirmar descuento"}
+                </button>
+              </div>
             </div>
           </div>
-        </div>
+        </ModalPortal>
       )}
 
       {/* Filament Editor Modal */}
       {filamentModalOpen && (
-        <div className="fixed inset-0 z-[110] flex items-center justify-center bg-stampa-bg/60 backdrop-blur-sm p-4">
-          <div className="w-full max-w-2xl bg-stampa-bg-soft rounded-xl shadow-2xl border border-stampa-border overflow-hidden flex flex-col max-h-[90dvh]">
-            <div className="flex justify-between items-center p-4 border-b border-stampa-border">
-              <h3 className="text-lg font-bold text-fg flex items-center gap-2">
-                <Box size={20} className="text-stampa-accent" />
-                {editingFilamentId === "new" ? "Nuevo Filamento" : "Editar Filamento"}
-              </h3>
-              <button 
-                onClick={() => {
-                  setFilamentModalOpen(false);
-                  setEditingFilamentId(null);
-                }}
-                className="text-gray-400 hover:text-fg transition-colors"
-              >
-                <X size={20} />
-              </button>
-            </div>
+        <ModalPortal>
+          <div className="fixed inset-0 z-[110] flex items-center justify-center bg-stampa-bg/60 backdrop-blur-sm p-4">
+            <div className="w-full max-w-2xl bg-stampa-bg-soft rounded-xl shadow-2xl border border-stampa-border overflow-hidden flex flex-col max-h-[90dvh]">
+              <div className="flex justify-between items-center p-4 border-b border-stampa-border">
+                <h3 className="text-lg font-bold text-fg flex items-center gap-2">
+                  <Box size={20} className="text-stampa-accent" />
+                  {editingFilamentId === "new" ? "Nuevo Filamento" : "Editar Filamento"}
+                </h3>
+                <button
+                  onClick={() => {
+                    setFilamentModalOpen(false);
+                    setEditingFilamentId(null);
+                  }}
+                  className="text-gray-400 hover:text-fg transition-colors"
+                >
+                  <X size={20} />
+                </button>
+              </div>
             
-            <div className="p-4 overflow-y-auto stampa-scrollbar">
-              <FilamentEditor 
-                formData={filamentFormData} 
-                setFormData={setFilamentFormData} 
-                onSave={handleSaveFilament} 
-                onCancel={() => {
-                  setFilamentModalOpen(false);
-                  setEditingFilamentId(null);
-                }} 
-              />
+              <div className="p-4 overflow-y-auto stampa-scrollbar">
+                <FilamentEditor
+                  formData={filamentFormData}
+                  setFormData={setFilamentFormData}
+                  onSave={handleSaveFilament}
+                  onCancel={() => {
+                    setFilamentModalOpen(false);
+                    setEditingFilamentId(null);
+                  }}
+                />
+              </div>
             </div>
           </div>
-        </div>
+        </ModalPortal>
       )}
 
       {/* Filament Catalog Modal */}
@@ -1738,116 +1746,120 @@ export function StockPageContent({ workshopSection }: { workshopSection?: Worksh
 
       {/* Stampy Action Intent - Discount Confirm Modal */}
       {stampyDiscountModalOpen && (
-        <div className="fixed inset-0 z-[110] flex items-center justify-center bg-black/80 px-4 backdrop-blur-sm">
-          <div className="w-full max-w-md max-h-[calc(100dvh-2rem)] overflow-y-auto rounded-2xl border border-stampa-border bg-stampa-bg p-6 shadow-2xl relative">
-            <button onClick={() => setStampyDiscountModalOpen(false)} className="absolute right-4 top-4 rounded-full p-2 text-gray-400 hover:bg-fg/10 hover:text-fg transition-colors">
-              <X size={18} />
-            </button>
+        <ModalPortal>
+          <div className="fixed inset-0 z-[110] flex items-center justify-center bg-black/80 px-4 backdrop-blur-sm">
+            <div className="w-full max-w-md max-h-[calc(100dvh-2rem)] overflow-y-auto rounded-2xl border border-stampa-border bg-stampa-bg p-6 shadow-2xl relative">
+              <button onClick={() => setStampyDiscountModalOpen(false)} className="absolute right-4 top-4 rounded-full p-2 text-gray-400 hover:bg-fg/10 hover:text-fg transition-colors">
+                <X size={18} />
+              </button>
             
-            <h3 className="text-xl font-bold text-fg mb-2">Descontar Filamento</h3>
+              <h3 className="text-xl font-bold text-fg mb-2">Descontar Filamento</h3>
             
-            {stampyActionError ? (
-              <div className="mb-6 rounded-lg bg-orange-500/10 border border-orange-500/30 p-4 text-orange-400 text-sm">
-                <AlertTriangle size={18} className="inline mr-2 -mt-0.5" />
-                {stampyActionError}
-              </div>
-            ) : stampyActionData?.filamentId ? (
-              <div className="space-y-4">
-                <p className="text-sm text-gray-300">
-                  Stampy detectó que querés registrar la siguiente salida:
-                </p>
-                <div className="rounded-lg bg-stampa-raised p-4 border border-fg/5 space-y-2">
-                  <div className="flex justify-between items-center">
-                    <span className="text-gray-400 text-sm">Filamento:</span>
-                    <span className="font-bold text-fg">
-                      {filaments.find(f => f.id === stampyActionData.filamentId)?.name || 'Seleccionado'}
-                    </span>
-                  </div>
-                  <div className="flex justify-between items-center">
-                    <span className="text-gray-400 text-sm">Cantidad a descontar:</span>
-                    <span className="font-bold text-stampa-accent">{stampyActionData.grams} g</span>
+              {stampyActionError ? (
+                <div className="mb-6 rounded-lg bg-orange-500/10 border border-orange-500/30 p-4 text-orange-400 text-sm">
+                  <AlertTriangle size={18} className="inline mr-2 -mt-0.5" />
+                  {stampyActionError}
+                </div>
+              ) : stampyActionData?.filamentId ? (
+                <div className="space-y-4">
+                  <p className="text-sm text-gray-300">
+                    Stampy detectó que querés registrar la siguiente salida:
+                  </p>
+                  <div className="rounded-lg bg-stampa-raised p-4 border border-fg/5 space-y-2">
+                    <div className="flex justify-between items-center">
+                      <span className="text-gray-400 text-sm">Filamento:</span>
+                      <span className="font-bold text-fg">
+                        {filaments.find(f => f.id === stampyActionData.filamentId)?.name || 'Seleccionado'}
+                      </span>
+                    </div>
+                    <div className="flex justify-between items-center">
+                      <span className="text-gray-400 text-sm">Cantidad a descontar:</span>
+                      <span className="font-bold text-stampa-accent">{stampyActionData.grams} g</span>
+                    </div>
                   </div>
                 </div>
-              </div>
-            ) : null}
+              ) : null}
 
-            <div className="mt-8 flex justify-end gap-3">
-              <button 
-                onClick={() => setStampyDiscountModalOpen(false)}
-                className="rounded-lg px-4 py-2.5 text-sm font-semibold text-gray-400 hover:text-fg transition-colors"
-              >
-                Cerrar
-              </button>
-              {stampyActionData?.filamentId && !stampyActionError && (
-                <PrimaryButton 
-                  onClick={async () => {
-                    await handleAdjustFilamentStock(stampyActionData.filamentId, "subtract", stampyActionData.grams);
-                    setStampyDiscountModalOpen(false);
-                  }}
+              <div className="mt-8 flex justify-end gap-3">
+                <button
+                  onClick={() => setStampyDiscountModalOpen(false)}
+                  className="rounded-lg px-4 py-2.5 text-sm font-semibold text-gray-400 hover:text-fg transition-colors"
                 >
-                  Confirmar descuento
-                </PrimaryButton>
-              )}
+                  Cerrar
+                </button>
+                {stampyActionData?.filamentId && !stampyActionError && (
+                  <PrimaryButton
+                    onClick={async () => {
+                      await handleAdjustFilamentStock(stampyActionData.filamentId, "subtract", stampyActionData.grams);
+                      setStampyDiscountModalOpen(false);
+                    }}
+                  >
+                    Confirmar descuento
+                  </PrimaryButton>
+                )}
+              </div>
             </div>
           </div>
-        </div>
+        </ModalPortal>
       )}
 
       {/* Stampy Action Intent - Increase Confirm Modal */}
       {stampyIncreaseModalOpen && (
-        <div className="fixed inset-0 z-[110] flex items-center justify-center bg-black/80 px-4 backdrop-blur-sm">
-          <div className="w-full max-w-md max-h-[calc(100dvh-2rem)] overflow-y-auto rounded-2xl border border-stampa-border bg-stampa-bg p-6 shadow-2xl relative">
-            <button onClick={() => setStampyIncreaseModalOpen(false)} className="absolute right-4 top-4 rounded-full p-2 text-gray-400 hover:bg-fg/10 hover:text-fg transition-colors">
-              <X size={18} />
-            </button>
+        <ModalPortal>
+          <div className="fixed inset-0 z-[110] flex items-center justify-center bg-black/80 px-4 backdrop-blur-sm">
+            <div className="w-full max-w-md max-h-[calc(100dvh-2rem)] overflow-y-auto rounded-2xl border border-stampa-border bg-stampa-bg p-6 shadow-2xl relative">
+              <button onClick={() => setStampyIncreaseModalOpen(false)} className="absolute right-4 top-4 rounded-full p-2 text-gray-400 hover:bg-fg/10 hover:text-fg transition-colors">
+                <X size={18} />
+              </button>
             
-            <h3 className="text-xl font-bold text-fg mb-2">Aumentar Stock de Filamento</h3>
+              <h3 className="text-xl font-bold text-fg mb-2">Aumentar Stock de Filamento</h3>
             
-            {stampyActionError ? (
-              <div className="mb-6 rounded-lg bg-orange-500/10 border border-orange-500/30 p-4 text-orange-400 text-sm">
-                <AlertTriangle size={18} className="inline mr-2 -mt-0.5" />
-                {stampyActionError}
-              </div>
-            ) : stampyActionData?.filamentId ? (
-              <div className="space-y-4">
-                <p className="text-sm text-gray-300">
-                  Stampy detectó que querés registrar el siguiente ingreso:
-                </p>
-                <div className="rounded-lg bg-stampa-raised p-4 border border-fg/5 space-y-2">
-                  <div className="flex justify-between items-center">
-                    <span className="text-gray-400 text-sm">Filamento:</span>
-                    <span className="font-bold text-fg">
-                      {filaments.find(f => f.id === stampyActionData.filamentId)?.name || 'Seleccionado'}
-                    </span>
-                  </div>
-                  <div className="flex justify-between items-center">
-                    <span className="text-gray-400 text-sm">Cantidad a ingresar:</span>
-                    <span className="font-bold text-emerald-400">+{stampyActionData.grams} g</span>
+              {stampyActionError ? (
+                <div className="mb-6 rounded-lg bg-orange-500/10 border border-orange-500/30 p-4 text-orange-400 text-sm">
+                  <AlertTriangle size={18} className="inline mr-2 -mt-0.5" />
+                  {stampyActionError}
+                </div>
+              ) : stampyActionData?.filamentId ? (
+                <div className="space-y-4">
+                  <p className="text-sm text-gray-300">
+                    Stampy detectó que querés registrar el siguiente ingreso:
+                  </p>
+                  <div className="rounded-lg bg-stampa-raised p-4 border border-fg/5 space-y-2">
+                    <div className="flex justify-between items-center">
+                      <span className="text-gray-400 text-sm">Filamento:</span>
+                      <span className="font-bold text-fg">
+                        {filaments.find(f => f.id === stampyActionData.filamentId)?.name || 'Seleccionado'}
+                      </span>
+                    </div>
+                    <div className="flex justify-between items-center">
+                      <span className="text-gray-400 text-sm">Cantidad a ingresar:</span>
+                      <span className="font-bold text-emerald-400">+{stampyActionData.grams} g</span>
+                    </div>
                   </div>
                 </div>
-              </div>
-            ) : null}
+              ) : null}
 
-            <div className="mt-8 flex justify-end gap-3">
-              <button 
-                onClick={() => setStampyIncreaseModalOpen(false)}
-                className="rounded-lg px-4 py-2.5 text-sm font-semibold text-gray-400 hover:text-fg transition-colors"
-              >
-                Cerrar
-              </button>
-              {stampyActionData?.filamentId && !stampyActionError && (
-                <PrimaryButton 
-                  onClick={async () => {
-                    await handleAdjustFilamentStock(stampyActionData.filamentId, "add", stampyActionData.grams);
-                    setStampyIncreaseModalOpen(false);
-                  }}
+              <div className="mt-8 flex justify-end gap-3">
+                <button
+                  onClick={() => setStampyIncreaseModalOpen(false)}
+                  className="rounded-lg px-4 py-2.5 text-sm font-semibold text-gray-400 hover:text-fg transition-colors"
                 >
-                  Confirmar ingreso
-                </PrimaryButton>
-              )}
+                  Cerrar
+                </button>
+                {stampyActionData?.filamentId && !stampyActionError && (
+                  <PrimaryButton
+                    onClick={async () => {
+                      await handleAdjustFilamentStock(stampyActionData.filamentId, "add", stampyActionData.grams);
+                      setStampyIncreaseModalOpen(false);
+                    }}
+                  >
+                    Confirmar ingreso
+                  </PrimaryButton>
+                )}
+              </div>
             </div>
           </div>
-        </div>
+        </ModalPortal>
       )}
 
     </div>

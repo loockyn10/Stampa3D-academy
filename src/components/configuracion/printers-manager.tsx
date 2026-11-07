@@ -3,13 +3,18 @@
 import React, { useState, useEffect, useMemo } from "react";
 import { useSaveGuard } from "@/lib/forms/use-save-guard";
 import { createClient } from "@/utils/supabase/client";
-import { Plus, Edit2, Save, Loader2, AlertCircle, Trash2 } from "lucide-react";
+import { Plus, Edit2, Save, Loader2, AlertCircle, Trash2, Printer } from "lucide-react";
 import { TableSkeleton } from "@/components/ui/page-skeletons";
 import { Card } from "@/components/ui/card";
+import { GhostButton, PrimaryButton } from "@/components/ui/button";
+import { EmptyState } from "@/components/ui/empty-state";
+import { WorkshopNotice, WorkshopPageHeader } from "@/components/workshop/workshop-page";
 import { useAppFeedback } from "@/components/ui/app-feedback";
 import { usePublishStampyScreenContext } from "@/components/stampy/StampyContextProvider";
 import type { StampyScreenContext } from "@/lib/stampy/screen-context";
 import { PrinterCatalogImage } from "@/components/printers/PrinterCatalogImage";
+
+import { ModalPortal } from "@/components/ui/modal-portal";
 
 export function PrintersManager() {
   const supabase = createClient();
@@ -180,37 +185,30 @@ export function PrintersManager() {
   if (loading) return <TableSkeleton rows={4} columns={4} />;
 
   return (
-    <div className="space-y-4">
-      {error && (
-        <div className="bg-red-500/10 text-red-400 p-4 rounded-lg flex items-center gap-2 text-sm border border-red-500/20">
-          <AlertCircle className="h-4 w-4" /> {error}
-        </div>
-      )}
+    <div>
+      <WorkshopPageHeader
+        title="Impresoras"
+        description="Administrá el equipamiento que usás para fabricar y calcular tus costos."
+        actions={
+          <>
+            <GhostButton onClick={openCatalog}>Importar desde catálogo Stampa</GhostButton>
+            <PrimaryButton
+              onClick={() => {
+                setFormData({
+                  name: "", power_watts: 300, maintenance_cost_per_hour: 0, is_active: true
+                });
+                setEditingId("new");
+              }}
+            >
+              <Plus size={15} aria-hidden="true" /> Añadir impresora
+            </PrimaryButton>
+          </>
+        }
+      />
 
-      <div className="flex justify-between items-center mb-4">
-        <h3 className="text-lg font-semibold text-fg">Mis Impresoras</h3>
-        <div className="flex gap-2">
-          <button
-            onClick={openCatalog}
-            className="flex items-center gap-1.5 bg-stampa-surface border border-stampa-orange/30 text-stampa-accent hover:bg-stampa-orange/10 px-3 py-1.5 rounded-lg text-sm font-medium transition-colors"
-          >
-            Importar desde catálogo Stampa
-          </button>
-          <button
-            onClick={() => {
-              setFormData({
-                name: "", power_watts: 300, maintenance_cost_per_hour: 0, is_active: true
-              });
-              setEditingId("new");
-            }}
-            className="flex items-center gap-1.5 bg-stampa-orange/100 hover:bg-stampa-orange text-white px-3 py-1.5 rounded-lg text-sm font-medium transition-colors"
-          >
-            <Plus size={16} /> Añadir Impresora
-          </button>
-        </div>
-      </div>
+      {error && <WorkshopNotice tone="error" icon={<AlertCircle size={16} aria-hidden="true" />}>{error}</WorkshopNotice>}
 
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+      <div className="grid grid-cols-[repeat(auto-fill,minmax(min(100%,18rem),1fr))] gap-4">
         {editingId === "new" && (
           <PrinterEditor saving={saving} formData={formData} setFormData={setFormData} onSave={handleSave} onCancel={() => setEditingId(null)} />
         )}
@@ -233,11 +231,11 @@ export function PrintersManager() {
                       <h4 className="truncate font-bold text-fg">{p.name}</h4>
                       {template && <p className="mt-1 truncate text-xs text-gray-500">{template.brand || "Catálogo Stampa"}{template.model ? ` · ${template.model}` : ""}</p>}
                     </div>
-                    <div className="flex shrink-0 gap-1">
-                      <button onClick={() => { setFormData(p); setEditingId(p.id); }} className="rounded p-1 text-gray-400 transition-colors hover:bg-fg/5 hover:text-stampa-accent" aria-label={`Editar ${p.name}`}>
+                    <div className="-mr-1.5 -mt-1.5 flex shrink-0 gap-0.5">
+                      <button onClick={() => { setFormData(p); setEditingId(p.id); }} className="flex h-10 w-10 items-center justify-center rounded-lg text-gray-400 transition-colors hover:bg-fg/5 hover:text-stampa-accent" aria-label={`Editar ${p.name}`}>
                         <Edit2 size={16} />
                       </button>
-                      <button onClick={() => handleDelete(p)} className="rounded p-1 text-red-400 transition-colors hover:bg-red-500/10 hover:text-red-300" title="Eliminar impresora" aria-label={`Eliminar ${p.name}`}>
+                      <button onClick={() => handleDelete(p)} className="flex h-10 w-10 items-center justify-center rounded-lg text-red-400 transition-colors hover:bg-red-500/10 hover:text-red-300" title="Eliminar impresora" aria-label={`Eliminar ${p.name}`}>
                         <Trash2 size={16} />
                       </button>
                     </div>
@@ -258,89 +256,95 @@ export function PrintersManager() {
           )
         })}
         {printers.length === 0 && editingId !== "new" && (
-          <div className="col-span-full py-12 text-center bg-stampa-bg-soft rounded-xl border border-dashed border-fg/20">
-            <p className="text-sm text-gray-500">No tienes impresoras registradas.</p>
+          <div className="col-span-full" role="status">
+            <EmptyState
+              icon={Printer}
+              title="Todavía no registraste impresoras"
+              hint="Importá un modelo del catálogo Stampa o añadí la tuya para calcular costos de fabricación."
+            />
           </div>
         )}
       </div>
 
       {showCatalog && (
-        <div className="fixed inset-0 z-[110] flex items-center justify-center p-4 bg-stampa-bg/50">
-          <div className="bg-stampa-surface rounded-xl shadow-xl max-w-3xl w-full max-h-[90dvh] flex flex-col overflow-hidden">
-            <div className="p-4 border-b border-stampa-border flex justify-between items-center bg-stampa-bg-soft">
-              <div>
-                <h3 className="text-lg font-bold text-fg">Catálogo de Impresoras Stampa</h3>
-                <p className="text-xs text-gray-500">Importá modelos precargados a tus impresoras.</p>
-              </div>
-              <button onClick={() => setShowCatalog(false)} className="text-gray-400 hover:text-gray-300">
-                <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M18 6 6 18"/><path d="m6 6 12 12"/></svg>
-              </button>
-            </div>
-            
-            <div className="p-4 border-b border-stampa-border">
-              <input 
-                type="text" 
-                placeholder="Buscar por marca, modelo o nombre..." 
-                value={searchQuery}
-                onChange={(e) => setSearchQuery(e.target.value)}
-                className="w-full text-sm border-fg/20 rounded-md focus:border-stampa-orange focus:ring-stampa-orange"
-              />
-            </div>
-
-            <div className="p-4 overflow-y-auto flex-1 bg-stampa-bg-soft/50">
-              {loadingTemplates ? (
-                <div className="py-8 flex justify-center"><Loader2 className="animate-spin text-stampa-accent" /></div>
-              ) : (
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                  {templates
-                    .filter(t => 
-                      t.name?.toLowerCase().includes(searchQuery.toLowerCase()) || 
-                      t.brand?.toLowerCase().includes(searchQuery.toLowerCase()) || 
-                      t.model?.toLowerCase().includes(searchQuery.toLowerCase())
-                    )
-                    .map((t) => {
-                      const alreadyAdded = printers.some(p => p.source_template_id === t.id);
-                      return (
-                        <Card key={t.id} className="p-4 flex flex-col hover:border-stampa-orange/30 transition-colors bg-stampa-surface">
-                          <PrinterCatalogImage imagePath={t.image_path} alt={t.name} className="mb-3 aspect-[4/3] w-full rounded-lg border border-stampa-border" />
-                          <div className="flex-1">
-                            <h4 className="font-bold text-fg text-sm">{t.name}</h4>
-                            <p className="text-xs text-gray-500 mb-2">{t.brand} {t.model}</p>
-                            <div className="text-[11px] text-gray-400 bg-stampa-bg-soft p-2 rounded-md mb-3">
-                              <div className="flex justify-between mb-1"><span>Consumo:</span> <strong>{t.power_watts}W</strong></div>
-                              <div className="flex justify-between"><span>Mantenimiento:</span> <strong>${t.maintenance_cost_per_hour}/h</strong></div>
-                            </div>
-                          </div>
-                          <button
-                            disabled={alreadyAdded}
-                            onClick={() => importTemplate(t)}
-                            className={`w-full py-1.5 rounded-lg text-xs font-bold transition-colors ${
-                              alreadyAdded 
-                                ? "bg-stampa-surface/5 text-gray-400 cursor-not-allowed"
-                                : "bg-stampa-orange/20 text-orange-400 hover:bg-orange-200"
-                            }`}
-                          >
-                            {alreadyAdded ? "Ya agregada" : "Agregar a mis impresoras"}
-                          </button>
-                        </Card>
-                      );
-                  })}
-                  {templates.length === 0 && (
-                    <div className="col-span-full text-center py-8 text-gray-500 text-sm">
-                      No hay plantillas disponibles en el catálogo en este momento.
-                    </div>
-                  )}
+        <ModalPortal>
+          <div className="fixed inset-0 z-[110] flex items-center justify-center p-4 bg-stampa-bg/50">
+            <div className="bg-stampa-surface rounded-xl shadow-xl max-w-3xl w-full max-h-[90dvh] flex flex-col overflow-hidden">
+              <div className="p-4 border-b border-stampa-border flex justify-between items-center bg-stampa-bg-soft">
+                <div>
+                  <h3 className="text-lg font-bold text-fg">Catálogo de Impresoras Stampa</h3>
+                  <p className="text-xs text-gray-500">Importá modelos precargados a tus impresoras.</p>
                 </div>
-              )}
-            </div>
+                <button onClick={() => setShowCatalog(false)} className="text-gray-400 hover:text-gray-300">
+                  <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M18 6 6 18"/><path d="m6 6 12 12"/></svg>
+                </button>
+              </div>
             
-            <div className="p-4 border-t border-stampa-border bg-stampa-surface">
-              <p className="text-xs text-gray-500 text-center">
-                Valores estimados. Podés ajustarlos después en Mis impresoras.
-              </p>
+              <div className="p-4 border-b border-stampa-border">
+                <input
+                  type="text"
+                  placeholder="Buscar por marca, modelo o nombre..."
+                  value={searchQuery}
+                  onChange={(e) => setSearchQuery(e.target.value)}
+                  className="w-full text-sm border-fg/20 rounded-md focus:border-stampa-orange focus:ring-stampa-orange"
+                />
+              </div>
+
+              <div className="p-4 overflow-y-auto flex-1 bg-stampa-bg-soft/50">
+                {loadingTemplates ? (
+                  <div className="py-8 flex justify-center"><Loader2 className="animate-spin text-stampa-accent" /></div>
+                ) : (
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                    {templates
+                      .filter(t =>
+                        t.name?.toLowerCase().includes(searchQuery.toLowerCase()) ||
+                        t.brand?.toLowerCase().includes(searchQuery.toLowerCase()) ||
+                        t.model?.toLowerCase().includes(searchQuery.toLowerCase())
+                      )
+                      .map((t) => {
+                        const alreadyAdded = printers.some(p => p.source_template_id === t.id);
+                        return (
+                          <Card key={t.id} className="p-4 flex flex-col hover:border-stampa-orange/30 transition-colors bg-stampa-surface">
+                            <PrinterCatalogImage imagePath={t.image_path} alt={t.name} className="mb-3 aspect-[4/3] w-full rounded-lg border border-stampa-border" />
+                            <div className="flex-1">
+                              <h4 className="font-bold text-fg text-sm">{t.name}</h4>
+                              <p className="text-xs text-gray-500 mb-2">{t.brand} {t.model}</p>
+                              <div className="text-[11px] text-gray-400 bg-stampa-bg-soft p-2 rounded-md mb-3">
+                                <div className="flex justify-between mb-1"><span>Consumo:</span> <strong>{t.power_watts}W</strong></div>
+                                <div className="flex justify-between"><span>Mantenimiento:</span> <strong>${t.maintenance_cost_per_hour}/h</strong></div>
+                              </div>
+                            </div>
+                            <button
+                              disabled={alreadyAdded}
+                              onClick={() => importTemplate(t)}
+                              className={`w-full py-1.5 rounded-lg text-xs font-bold transition-colors ${
+                                alreadyAdded
+                                  ? "bg-stampa-surface/5 text-gray-400 cursor-not-allowed"
+                                  : "bg-stampa-orange/20 text-orange-400 hover:bg-orange-200"
+                              }`}
+                            >
+                              {alreadyAdded ? "Ya agregada" : "Agregar a mis impresoras"}
+                            </button>
+                          </Card>
+                        );
+                    })}
+                    {templates.length === 0 && (
+                      <div className="col-span-full text-center py-8 text-gray-500 text-sm">
+                        No hay plantillas disponibles en el catálogo en este momento.
+                      </div>
+                    )}
+                  </div>
+                )}
+              </div>
+            
+              <div className="p-4 border-t border-stampa-border bg-stampa-surface">
+                <p className="text-xs text-gray-500 text-center">
+                  Valores estimados. Podés ajustarlos después en Mis impresoras.
+                </p>
+              </div>
             </div>
           </div>
-        </div>
+        </ModalPortal>
       )}
     </div>
   );
@@ -379,8 +383,8 @@ function PrinterEditor({ saving, formData, setFormData, onSave, onCancel }: any)
         </div>
       </div>
       <div className="mt-4 flex flex-col-reverse sm:flex-row gap-2 justify-end">
-        <button onClick={onCancel} className="w-full sm:w-auto px-3 py-1.5 text-xs font-bold text-gray-400 hover:bg-stampa-surface/5 rounded-md transition-colors text-center">Cancelar</button>
-        <button onClick={onSave} disabled={saving} aria-busy={saving} className="w-full sm:w-auto flex justify-center items-center gap-1.5 px-3 py-1.5 text-xs font-bold bg-stampa-orange/100 hover:bg-stampa-orange text-white rounded-md transition-colors"><Save size={14} /> Guardar</button>
+        <button onClick={onCancel} className="min-h-11 w-full rounded-md px-3 py-1.5 text-center text-xs font-bold text-gray-400 transition-colors hover:bg-stampa-surface/5 sm:min-h-9 sm:w-auto">Cancelar</button>
+        <button onClick={onSave} disabled={saving} aria-busy={saving} className="min-h-11 w-full sm:min-h-9 sm:w-auto flex justify-center items-center gap-1.5 px-3 py-1.5 text-xs font-bold bg-stampa-orange hover:bg-stampa-orange-hover text-neutral-950 rounded-md transition-colors"><Save size={14} /> Guardar</button>
       </div>
     </Card>
   );
