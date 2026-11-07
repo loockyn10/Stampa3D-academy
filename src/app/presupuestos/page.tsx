@@ -35,6 +35,7 @@ import {
 import { usePublishStampyScreenContext } from "@/components/stampy/StampyContextProvider";
 import type { StampyScreenContext } from "@/lib/stampy/screen-context";
 
+import { ModalPortal } from "@/components/ui/modal-portal";
 
 const STATUS_MAP: Record<string, { label: string, color: "gray" | "dark" | "green" | "orange" }> = {
   draft: { label: "Borrador", color: "gray" },
@@ -1592,151 +1593,153 @@ function PresupuestosPageContent() {
 
       {/* Product Creation Modal */}
       {showProductModal && (
-        <div className="fixed inset-0 bg-stampa-bg/60 backdrop-blur-sm flex items-center justify-center p-4 z-[110] overflow-y-auto">
-          <div className="bg-stampa-surface rounded-2xl shadow-2xl w-full max-w-lg overflow-hidden border border-stampa-border my-8 animate-in zoom-in-95 duration-200">
-            <div className="bg-stampa-bg-soft px-6 py-4 flex justify-between items-center border-b border-stampa-border">
-              <h3 className="text-base font-bold text-fg flex items-center gap-2">
-                <Package size={18} className="text-stampa-accent" /> Nuevo Producto Rápido
-              </h3>
-              <button type="button" onClick={() => setShowProductModal(false)} className="text-gray-400 hover:text-fg transition-colors">
-                <X size={20} />
-              </button>
-            </div>
-
-            <div className="p-6 space-y-5 max-h-[70vh] overflow-y-auto custom-scrollbar">
-              <div>
-                <label className="block text-xs font-semibold text-gray-400 mb-1.5">Nombre *</label>
-                <input
-                  type="text"
-                  placeholder="Ej. Maceta Hexagonal"
-                  value={productData.name}
-                  onChange={e => setProductData({ ...productData, name: e.target.value })}
-                  className="w-full text-sm rounded-xl border border-stampa-border bg-stampa-bg-soft px-3 py-2.5 text-fg outline-none focus:border-[#ff6a00] focus:ring-1 focus:ring-[#ff6a00]"
-                />
+        <ModalPortal>
+          <div className="fixed inset-0 bg-stampa-bg/60 backdrop-blur-sm flex items-center justify-center p-4 z-[110] overflow-y-auto">
+            <div className="bg-stampa-surface rounded-2xl shadow-2xl w-full max-w-lg overflow-hidden border border-stampa-border my-8 animate-in zoom-in-95 duration-200">
+              <div className="bg-stampa-bg-soft px-6 py-4 flex justify-between items-center border-b border-stampa-border">
+                <h3 className="text-base font-bold text-fg flex items-center gap-2">
+                  <Package size={18} className="text-stampa-accent" /> Nuevo Producto Rápido
+                </h3>
+                <button type="button" onClick={() => setShowProductModal(false)} className="text-gray-400 hover:text-fg transition-colors">
+                  <X size={20} />
+                </button>
               </div>
 
-              <div>
-                <label className="block text-xs font-semibold text-gray-400 mb-1.5">Descripción</label>
-                <textarea
-                  rows={2}
-                  placeholder="Descripción opcional"
-                  value={productData.description}
-                  onChange={e => setProductData({ ...productData, description: e.target.value })}
-                  className="w-full text-sm rounded-xl border border-stampa-border bg-stampa-bg-soft px-3 py-2.5 text-fg outline-none focus:border-[#ff6a00] focus:ring-1 focus:ring-[#ff6a00]"
-                />
+              <div className="p-6 space-y-5 max-h-[70vh] overflow-y-auto custom-scrollbar">
+                <div>
+                  <label className="block text-xs font-semibold text-gray-400 mb-1.5">Nombre *</label>
+                  <input
+                    type="text"
+                    placeholder="Ej. Maceta Hexagonal"
+                    value={productData.name}
+                    onChange={e => setProductData({ ...productData, name: e.target.value })}
+                    className="w-full text-sm rounded-xl border border-stampa-border bg-stampa-bg-soft px-3 py-2.5 text-fg outline-none focus:border-[#ff6a00] focus:ring-1 focus:ring-[#ff6a00]"
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-xs font-semibold text-gray-400 mb-1.5">Descripción</label>
+                  <textarea
+                    rows={2}
+                    placeholder="Descripción opcional"
+                    value={productData.description}
+                    onChange={e => setProductData({ ...productData, description: e.target.value })}
+                    className="w-full text-sm rounded-xl border border-stampa-border bg-stampa-bg-soft px-3 py-2.5 text-fg outline-none focus:border-[#ff6a00] focus:ring-1 focus:ring-[#ff6a00]"
+                  />
+                </div>
+
+                <div className="grid grid-cols-2 gap-4">
+                  <div>
+                    <label className="block text-xs font-semibold text-gray-400 mb-1.5">Precio de venta *</label>
+                    <input
+                      type="number"
+                      min="0" step="any" placeholder="Ej. 1500"
+                      value={productData.sale_price || ""}
+                      onChange={e => setProductData({ ...productData, sale_price: parseFloat(e.target.value) || 0 })}
+                      className="w-full text-sm rounded-xl border border-stampa-border bg-stampa-bg-soft px-3 py-2.5 text-fg outline-none focus:border-[#ff6a00] focus:ring-1 focus:ring-[#ff6a00]"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-xs font-semibold text-gray-400 mb-1.5">Costo base</label>
+                    <input
+                      type="number"
+                      min="0" step="any" placeholder="Opcional"
+                      value={productData.base_cost || ""}
+                      onChange={e => setProductData({ ...productData, base_cost: parseFloat(e.target.value) || 0 })}
+                      className="w-full text-sm rounded-xl border border-stampa-border bg-stampa-bg-soft px-3 py-2.5 text-fg outline-none focus:border-[#ff6a00] focus:ring-1 focus:ring-[#ff6a00]"
+                    />
+                  </div>
+                </div>
+
+                <div className="grid grid-cols-2 gap-4">
+                  <div>
+                    <label className="block text-xs font-semibold text-gray-400 mb-1.5">Gramos</label>
+                    <input
+                      type="number"
+                      min="0" step="any" placeholder="Opcional"
+                      value={productData.grams || ""}
+                      onChange={e => setProductData({ ...productData, grams: parseFloat(e.target.value) || 0 })}
+                      className="w-full text-sm rounded-xl border border-stampa-border bg-stampa-bg-soft px-3 py-2.5 text-fg outline-none focus:border-[#ff6a00] focus:ring-1 focus:ring-[#ff6a00]"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-xs font-semibold text-gray-400 mb-1.5">Stock Inicial</label>
+                    <input
+                      type="number"
+                      min="0" placeholder="Opcional"
+                      value={productData.stock_quantity || ""}
+                      onChange={e => setProductData({ ...productData, stock_quantity: parseInt(e.target.value) || 0 })}
+                      className="w-full text-sm rounded-xl border border-stampa-border bg-stampa-bg-soft px-3 py-2.5 text-fg outline-none focus:border-[#ff6a00] focus:ring-1 focus:ring-[#ff6a00]"
+                    />
+                  </div>
+                </div>
+
+                <div className="grid grid-cols-2 gap-4">
+                  <div>
+                    <label className="block text-xs font-semibold text-gray-400 mb-1.5">Tiempo (Horas)</label>
+                    <input
+                      type="number"
+                      min="0" placeholder="Horas"
+                      value={productData.print_time_hours || ""}
+                      onChange={e => setProductData({ ...productData, print_time_hours: parseInt(e.target.value) || 0 })}
+                      className="w-full text-sm rounded-xl border border-stampa-border bg-stampa-bg-soft px-3 py-2.5 text-fg outline-none focus:border-[#ff6a00] focus:ring-1 focus:ring-[#ff6a00]"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-xs font-semibold text-gray-400 mb-1.5">Tiempo (Minutos)</label>
+                    <input
+                      type="number"
+                      min="0" max="59" placeholder="Minutos"
+                      value={productData.print_time_minutes || ""}
+                      onChange={e => setProductData({ ...productData, print_time_minutes: parseInt(e.target.value) || 0 })}
+                      className="w-full text-sm rounded-xl border border-stampa-border bg-stampa-bg-soft px-3 py-2.5 text-fg outline-none focus:border-[#ff6a00] focus:ring-1 focus:ring-[#ff6a00]"
+                    />
+                  </div>
+                </div>
+
+                <div>
+                  <label className="block text-xs font-semibold text-gray-400 mb-1.5">Filamento</label>
+                  <select
+                    value={productData.filament_id}
+                    onChange={e => setProductData({ ...productData, filament_id: e.target.value })}
+                    className="w-full text-sm rounded-xl border border-stampa-border bg-stampa-bg-soft px-3 py-2.5 text-fg outline-none focus:border-[#ff6a00] focus:ring-1 focus:ring-[#ff6a00]"
+                  >
+                    <option value="">Ninguno</option>
+                    {filaments.map(f => <option key={f.id} value={f.id}>{f.name}</option>)}
+                  </select>
+                </div>
+
+                <div>
+                  <label className="block text-xs font-semibold text-gray-400 mb-1.5">URL de Imagen</label>
+                  <input
+                    type="text"
+                    placeholder="Ej. https://..."
+                    value={productData.image_url}
+                    onChange={e => setProductData({ ...productData, image_url: e.target.value })}
+                    className="w-full text-sm rounded-xl border border-stampa-border bg-stampa-bg-soft px-3 py-2.5 text-fg outline-none focus:border-[#ff6a00] focus:ring-1 focus:ring-[#ff6a00]"
+                  />
+                </div>
               </div>
 
-              <div className="grid grid-cols-2 gap-4">
-                <div>
-                  <label className="block text-xs font-semibold text-gray-400 mb-1.5">Precio de venta *</label>
-                  <input
-                    type="number"
-                    min="0" step="any" placeholder="Ej. 1500"
-                    value={productData.sale_price || ""}
-                    onChange={e => setProductData({ ...productData, sale_price: parseFloat(e.target.value) || 0 })}
-                    className="w-full text-sm rounded-xl border border-stampa-border bg-stampa-bg-soft px-3 py-2.5 text-fg outline-none focus:border-[#ff6a00] focus:ring-1 focus:ring-[#ff6a00]"
-                  />
-                </div>
-                <div>
-                  <label className="block text-xs font-semibold text-gray-400 mb-1.5">Costo base</label>
-                  <input
-                    type="number"
-                    min="0" step="any" placeholder="Opcional"
-                    value={productData.base_cost || ""}
-                    onChange={e => setProductData({ ...productData, base_cost: parseFloat(e.target.value) || 0 })}
-                    className="w-full text-sm rounded-xl border border-stampa-border bg-stampa-bg-soft px-3 py-2.5 text-fg outline-none focus:border-[#ff6a00] focus:ring-1 focus:ring-[#ff6a00]"
-                  />
-                </div>
-              </div>
-
-              <div className="grid grid-cols-2 gap-4">
-                <div>
-                  <label className="block text-xs font-semibold text-gray-400 mb-1.5">Gramos</label>
-                  <input
-                    type="number"
-                    min="0" step="any" placeholder="Opcional"
-                    value={productData.grams || ""}
-                    onChange={e => setProductData({ ...productData, grams: parseFloat(e.target.value) || 0 })}
-                    className="w-full text-sm rounded-xl border border-stampa-border bg-stampa-bg-soft px-3 py-2.5 text-fg outline-none focus:border-[#ff6a00] focus:ring-1 focus:ring-[#ff6a00]"
-                  />
-                </div>
-                <div>
-                  <label className="block text-xs font-semibold text-gray-400 mb-1.5">Stock Inicial</label>
-                  <input
-                    type="number"
-                    min="0" placeholder="Opcional"
-                    value={productData.stock_quantity || ""}
-                    onChange={e => setProductData({ ...productData, stock_quantity: parseInt(e.target.value) || 0 })}
-                    className="w-full text-sm rounded-xl border border-stampa-border bg-stampa-bg-soft px-3 py-2.5 text-fg outline-none focus:border-[#ff6a00] focus:ring-1 focus:ring-[#ff6a00]"
-                  />
-                </div>
-              </div>
-
-              <div className="grid grid-cols-2 gap-4">
-                <div>
-                  <label className="block text-xs font-semibold text-gray-400 mb-1.5">Tiempo (Horas)</label>
-                  <input
-                    type="number"
-                    min="0" placeholder="Horas"
-                    value={productData.print_time_hours || ""}
-                    onChange={e => setProductData({ ...productData, print_time_hours: parseInt(e.target.value) || 0 })}
-                    className="w-full text-sm rounded-xl border border-stampa-border bg-stampa-bg-soft px-3 py-2.5 text-fg outline-none focus:border-[#ff6a00] focus:ring-1 focus:ring-[#ff6a00]"
-                  />
-                </div>
-                <div>
-                  <label className="block text-xs font-semibold text-gray-400 mb-1.5">Tiempo (Minutos)</label>
-                  <input
-                    type="number"
-                    min="0" max="59" placeholder="Minutos"
-                    value={productData.print_time_minutes || ""}
-                    onChange={e => setProductData({ ...productData, print_time_minutes: parseInt(e.target.value) || 0 })}
-                    className="w-full text-sm rounded-xl border border-stampa-border bg-stampa-bg-soft px-3 py-2.5 text-fg outline-none focus:border-[#ff6a00] focus:ring-1 focus:ring-[#ff6a00]"
-                  />
-                </div>
-              </div>
-
-              <div>
-                <label className="block text-xs font-semibold text-gray-400 mb-1.5">Filamento</label>
-                <select
-                  value={productData.filament_id}
-                  onChange={e => setProductData({ ...productData, filament_id: e.target.value })}
-                  className="w-full text-sm rounded-xl border border-stampa-border bg-stampa-bg-soft px-3 py-2.5 text-fg outline-none focus:border-[#ff6a00] focus:ring-1 focus:ring-[#ff6a00]"
+              <div className="bg-stampa-bg-soft px-6 py-4 flex justify-end gap-3 border-t border-stampa-border">
+                <button
+                  type="button"
+                  onClick={() => setShowProductModal(false)}
+                  className="px-5 py-2.5 text-sm font-bold text-gray-400 hover:text-fg transition-colors"
                 >
-                  <option value="">Ninguno</option>
-                  {filaments.map(f => <option key={f.id} value={f.id}>{f.name}</option>)}
-                </select>
+                  Cancelar
+                </button>
+                <button
+                  type="button"
+                  onClick={handleSaveProduct}
+                  className="px-6 py-2.5 text-sm font-bold bg-stampa-orange hover:bg-stampa-orange-hover text-neutral-950 rounded-xl transition-colors shadow-lg shadow-[#ff6a00]/20"
+                >
+                  Guardar Producto
+                </button>
               </div>
-
-              <div>
-                <label className="block text-xs font-semibold text-gray-400 mb-1.5">URL de Imagen</label>
-                <input
-                  type="text"
-                  placeholder="Ej. https://..."
-                  value={productData.image_url}
-                  onChange={e => setProductData({ ...productData, image_url: e.target.value })}
-                  className="w-full text-sm rounded-xl border border-stampa-border bg-stampa-bg-soft px-3 py-2.5 text-fg outline-none focus:border-[#ff6a00] focus:ring-1 focus:ring-[#ff6a00]"
-                />
-              </div>
-            </div>
-
-            <div className="bg-stampa-bg-soft px-6 py-4 flex justify-end gap-3 border-t border-stampa-border">
-              <button
-                type="button"
-                onClick={() => setShowProductModal(false)}
-                className="px-5 py-2.5 text-sm font-bold text-gray-400 hover:text-fg transition-colors"
-              >
-                Cancelar
-              </button>
-              <button
-                type="button"
-                onClick={handleSaveProduct}
-                className="px-6 py-2.5 text-sm font-bold bg-stampa-orange hover:bg-stampa-orange-hover text-neutral-950 rounded-xl transition-colors shadow-lg shadow-[#ff6a00]/20"
-              >
-                Guardar Producto
-              </button>
             </div>
           </div>
-        </div>
+        </ModalPortal>
       )}
     </div>
   );

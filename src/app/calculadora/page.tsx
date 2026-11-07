@@ -36,6 +36,7 @@ import type { CalculatorCatalogResponse, CalculatorFilamentCatalogItem, Calculat
 import { CALCULATOR_GUEST_DRAFT_KEY, parseCalculatorGuestDraft, type CalculatorGuestDraft } from "@/lib/calculator/guest-draft";
 import { CalculatorPersonalizationModal, CalculatorSignupModal } from "@/components/calculadora/calculator-access-modals";
 import { parseCalculatorPrefillName } from "@/lib/model-search/calculator-link";
+import { ModalPortal } from "@/components/ui/modal-portal";
 
 const PrinterCatalogModal = dynamic(() => import("@/components/calculadora/printer-catalog-modal").then((module) => module.PrinterCatalogModal));
 const FilamentCatalogModal = dynamic(() => import("@/components/calculadora/filament-catalog-modal").then((module) => module.FilamentCatalogModal));
@@ -1506,135 +1507,137 @@ function CalculadoraPageContent() {
 
     {/* MODAL: GUARDAR COMO PRODUCTO */}
     {isPaid && showSaveModal && (
-      <div className="fixed inset-0 z-[110] flex items-center justify-center bg-stampa-bg/60 backdrop-blur-sm p-4">
-        <div className="bg-stampa-surface w-full max-w-md max-h-[calc(100dvh-2rem)] overflow-y-auto rounded-2xl border border-stampa-border shadow-2xl animate-in zoom-in-95 duration-200">
-          <div className="flex items-center justify-between px-6 py-4 border-b border-stampa-border bg-stampa-bg-soft">
-            <h3 className="font-bold text-fg flex items-center gap-2">
-              <PackagePlus size={18} className="text-stampa-accent" /> Guardar como producto
-            </h3>
-            <button onClick={() => setShowSaveModal(false)} className="text-gray-400 hover:text-fg transition-colors">
-              <X size={20} />
-            </button>
-          </div>
-
-          {saveSuccess ? (
-            <div className="p-8 text-center bg-stampa-surface">
-              <div className="mx-auto w-16 h-16 bg-emerald-500/10 rounded-full flex items-center justify-center mb-4 border border-emerald-500/20">
-                <CheckCircle2 size={32} className="text-emerald-400" />
-              </div>
-              <p className="font-bold text-fg text-lg mb-1">¡Producto guardado!</p>
-              <p className="text-sm text-gray-400 mb-8">El producto fue agregado a tu catálogo.</p>
-              <div className="flex gap-3 justify-center">
-                <Link href="/mi-taller/productos" className="px-5 py-2.5 bg-stampa-orange text-neutral-950 rounded-xl text-sm font-bold hover:bg-stampa-orange-hover transition-colors shadow-lg shadow-[#ff6a00]/20">
-                  Ver catálogo
-                </Link>
-                <button onClick={() => setShowSaveModal(false)} className="px-5 py-2.5 bg-stampa-raised border border-stampa-border text-fg rounded-xl text-sm font-bold hover:bg-fg/5 transition-colors">
-                  Seguir calculando
-                </button>
-              </div>
+      <ModalPortal>
+        <div className="fixed inset-0 z-[110] flex items-center justify-center bg-stampa-bg/60 backdrop-blur-sm p-4">
+          <div className="bg-stampa-surface w-full max-w-md max-h-[calc(100dvh-2rem)] overflow-y-auto rounded-2xl border border-stampa-border shadow-2xl animate-in zoom-in-95 duration-200">
+            <div className="flex items-center justify-between px-6 py-4 border-b border-stampa-border bg-stampa-bg-soft">
+              <h3 className="font-bold text-fg flex items-center gap-2">
+                <PackagePlus size={18} className="text-stampa-accent" /> Guardar como producto
+              </h3>
+              <button onClick={() => setShowSaveModal(false)} className="text-gray-400 hover:text-fg transition-colors">
+                <X size={20} />
+              </button>
             </div>
-          ) : (
-            <div className="p-6 space-y-5 bg-stampa-surface">
-              {/* Resumen del cálculo */}
-              <div className="bg-stampa-bg-soft p-3 rounded-xl border border-stampa-border grid grid-cols-3 gap-2 text-center">
-                <div>
-                  <p className="font-bold text-fg text-sm">${calc.baseCost.toFixed(2)}</p>
-                  <p className="text-[10px] text-gray-500 uppercase tracking-wider">Costo Base</p>
+
+            {saveSuccess ? (
+              <div className="p-8 text-center bg-stampa-surface">
+                <div className="mx-auto w-16 h-16 bg-emerald-500/10 rounded-full flex items-center justify-center mb-4 border border-emerald-500/20">
+                  <CheckCircle2 size={32} className="text-emerald-400" />
                 </div>
-                <div className="border-x border-stampa-border">
-                  <p className="font-bold text-stampa-accent text-sm">${calc.normalPrice.toFixed(2)}</p>
-                  <p className="text-[10px] text-gray-500 uppercase tracking-wider">Precio</p>
-                </div>
-                <div>
-                  <p className="font-bold text-emerald-400 text-sm">${calc.profit.toFixed(2)}</p>
-                  <p className="text-[10px] text-gray-500 uppercase tracking-wider">Ganancia</p>
+                <p className="font-bold text-fg text-lg mb-1">¡Producto guardado!</p>
+                <p className="text-sm text-gray-400 mb-8">El producto fue agregado a tu catálogo.</p>
+                <div className="flex gap-3 justify-center">
+                  <Link href="/mi-taller/productos" className="px-5 py-2.5 bg-stampa-orange text-neutral-950 rounded-xl text-sm font-bold hover:bg-stampa-orange-hover transition-colors shadow-lg shadow-[#ff6a00]/20">
+                    Ver catálogo
+                  </Link>
+                  <button onClick={() => setShowSaveModal(false)} className="px-5 py-2.5 bg-stampa-raised border border-stampa-border text-fg rounded-xl text-sm font-bold hover:bg-fg/5 transition-colors">
+                    Seguir calculando
+                  </button>
                 </div>
               </div>
-
-              <div className="space-y-4">
-                <label className="block">
-                  <span className="block text-xs font-semibold text-gray-400 mb-1.5">Nombre del producto *</span>
-                  <input
-                    type="text"
-                    value={productForm.name}
-                    onChange={(e) => setProductForm(prev => ({ ...prev, name: e.target.value }))}
-                    className="w-full text-sm rounded-xl border border-stampa-border bg-stampa-bg-soft px-3 py-2.5 text-fg outline-none focus:border-[#ff6a00] focus:ring-1 focus:ring-[#ff6a00]"
-                    placeholder="Ej. Maceta geométrica 15cm"
-                  />
-                </label>
-
-                <label className="block">
-                  <span className="block text-xs font-semibold text-gray-400 mb-1.5">Descripción (Opcional)</span>
-                  <textarea
-                    value={productForm.description}
-                    onChange={(e) => setProductForm(prev => ({ ...prev, description: e.target.value }))}
-                    rows={2}
-                    className="w-full text-sm rounded-xl border border-stampa-border bg-stampa-bg-soft px-3 py-2.5 text-fg outline-none focus:border-[#ff6a00] focus:ring-1 focus:ring-[#ff6a00]"
-                  />
-                </label>
-
-                <label className="block">
-                  <span className="block text-xs font-semibold text-gray-400 mb-1.5">Stock inicial</span>
-                  <input
-                    type="number"
-                    min="0"
-                    value={productForm.stock_quantity}
-                    onChange={(e) => setProductForm(prev => ({ ...prev, stock_quantity: parseInt(e.target.value) || 0 }))}
-                    className="w-full text-sm rounded-xl border border-stampa-border bg-stampa-bg-soft px-3 py-2.5 text-fg outline-none focus:border-[#ff6a00] focus:ring-1 focus:ring-[#ff6a00]"
-                  />
-                </label>
-
-                <div className="block">
-                  <span className="block text-xs font-semibold text-gray-400 mb-1.5">Imagen del producto (Opcional)</span>
-                  <div className="bg-stampa-bg-soft rounded-xl border border-stampa-border p-1">
-                    <FileUploadDropzone
-                      bucket="product-images"
-                      pathPrefix={`${userId}/products`}
-                      accept=".jpg,.jpeg,.png,.webp"
-                      publicBucket={true}
-                      imageEditor={{
-                        aspectRatio: 1,
-                        outputWidth: 1000,
-                        outputHeight: 1000,
-                        quality: 0.9,
-                        outputType: "preserve",
-                      }}
-                      onUploaded={(url) => setProductForm(prev => ({ ...prev, image_url: url }))}
-                      label="Subir imagen"
-                    />
+            ) : (
+              <div className="p-6 space-y-5 bg-stampa-surface">
+                {/* Resumen del cálculo */}
+                <div className="bg-stampa-bg-soft p-3 rounded-xl border border-stampa-border grid grid-cols-3 gap-2 text-center">
+                  <div>
+                    <p className="font-bold text-fg text-sm">${calc.baseCost.toFixed(2)}</p>
+                    <p className="text-[10px] text-gray-500 uppercase tracking-wider">Costo Base</p>
                   </div>
-                  {productForm.image_url && (
-                    <div className="mt-2 flex items-center gap-2 p-2 rounded-lg bg-fg/5 border border-stampa-border">
-                      <img src={productForm.image_url} alt="Preview" className="h-10 w-10 rounded object-cover" />
-                      <span className="text-xs text-gray-400 truncate pr-2">{productForm.image_url}</span>
+                  <div className="border-x border-stampa-border">
+                    <p className="font-bold text-stampa-accent text-sm">${calc.normalPrice.toFixed(2)}</p>
+                    <p className="text-[10px] text-gray-500 uppercase tracking-wider">Precio</p>
+                  </div>
+                  <div>
+                    <p className="font-bold text-emerald-400 text-sm">${calc.profit.toFixed(2)}</p>
+                    <p className="text-[10px] text-gray-500 uppercase tracking-wider">Ganancia</p>
+                  </div>
+                </div>
+
+                <div className="space-y-4">
+                  <label className="block">
+                    <span className="block text-xs font-semibold text-gray-400 mb-1.5">Nombre del producto *</span>
+                    <input
+                      type="text"
+                      value={productForm.name}
+                      onChange={(e) => setProductForm(prev => ({ ...prev, name: e.target.value }))}
+                      className="w-full text-sm rounded-xl border border-stampa-border bg-stampa-bg-soft px-3 py-2.5 text-fg outline-none focus:border-[#ff6a00] focus:ring-1 focus:ring-[#ff6a00]"
+                      placeholder="Ej. Maceta geométrica 15cm"
+                    />
+                  </label>
+
+                  <label className="block">
+                    <span className="block text-xs font-semibold text-gray-400 mb-1.5">Descripción (Opcional)</span>
+                    <textarea
+                      value={productForm.description}
+                      onChange={(e) => setProductForm(prev => ({ ...prev, description: e.target.value }))}
+                      rows={2}
+                      className="w-full text-sm rounded-xl border border-stampa-border bg-stampa-bg-soft px-3 py-2.5 text-fg outline-none focus:border-[#ff6a00] focus:ring-1 focus:ring-[#ff6a00]"
+                    />
+                  </label>
+
+                  <label className="block">
+                    <span className="block text-xs font-semibold text-gray-400 mb-1.5">Stock inicial</span>
+                    <input
+                      type="number"
+                      min="0"
+                      value={productForm.stock_quantity}
+                      onChange={(e) => setProductForm(prev => ({ ...prev, stock_quantity: parseInt(e.target.value) || 0 }))}
+                      className="w-full text-sm rounded-xl border border-stampa-border bg-stampa-bg-soft px-3 py-2.5 text-fg outline-none focus:border-[#ff6a00] focus:ring-1 focus:ring-[#ff6a00]"
+                    />
+                  </label>
+
+                  <div className="block">
+                    <span className="block text-xs font-semibold text-gray-400 mb-1.5">Imagen del producto (Opcional)</span>
+                    <div className="bg-stampa-bg-soft rounded-xl border border-stampa-border p-1">
+                      <FileUploadDropzone
+                        bucket="product-images"
+                        pathPrefix={`${userId}/products`}
+                        accept=".jpg,.jpeg,.png,.webp"
+                        publicBucket={true}
+                        imageEditor={{
+                          aspectRatio: 1,
+                          outputWidth: 1000,
+                          outputHeight: 1000,
+                          quality: 0.9,
+                          outputType: "preserve",
+                        }}
+                        onUploaded={(url) => setProductForm(prev => ({ ...prev, image_url: url }))}
+                        label="Subir imagen"
+                      />
                     </div>
-                  )}
+                    {productForm.image_url && (
+                      <div className="mt-2 flex items-center gap-2 p-2 rounded-lg bg-fg/5 border border-stampa-border">
+                        <img src={productForm.image_url} alt="Preview" className="h-10 w-10 rounded object-cover" />
+                        <span className="text-xs text-gray-400 truncate pr-2">{productForm.image_url}</span>
+                      </div>
+                    )}
+                  </div>
+                </div>
+
+                {saveError && (
+                  <div className="bg-red-500/10 text-red-400 p-3 rounded-xl text-xs border border-red-500/20 flex items-center gap-2">
+                    <AlertCircle size={14} className="shrink-0" /> {saveError}
+                  </div>
+                )}
+
+                <div className="flex justify-end gap-3 pt-4 border-t border-stampa-border mt-2">
+                  <button onClick={() => setShowSaveModal(false)} className="px-5 py-2.5 text-sm font-bold text-gray-400 hover:text-fg transition-colors">
+                    Cancelar
+                  </button>
+                  <button
+                    onClick={handleSaveAsProduct}
+                    disabled={savingProduct}
+                    className="flex items-center gap-2 px-5 py-2.5 text-sm font-bold bg-stampa-orange hover:bg-stampa-orange-hover text-neutral-950 rounded-xl disabled:opacity-50 transition-colors shadow-lg shadow-[#ff6a00]/20"
+                  >
+                    {savingProduct ? <Loader2 size={16} className="animate-spin" /> : <Save size={16} />}
+                    Guardar
+                  </button>
                 </div>
               </div>
-
-              {saveError && (
-                <div className="bg-red-500/10 text-red-400 p-3 rounded-xl text-xs border border-red-500/20 flex items-center gap-2">
-                  <AlertCircle size={14} className="shrink-0" /> {saveError}
-                </div>
-              )}
-
-              <div className="flex justify-end gap-3 pt-4 border-t border-stampa-border mt-2">
-                <button onClick={() => setShowSaveModal(false)} className="px-5 py-2.5 text-sm font-bold text-gray-400 hover:text-fg transition-colors">
-                  Cancelar
-                </button>
-                <button
-                  onClick={handleSaveAsProduct}
-                  disabled={savingProduct}
-                  className="flex items-center gap-2 px-5 py-2.5 text-sm font-bold bg-stampa-orange hover:bg-stampa-orange-hover text-neutral-950 rounded-xl disabled:opacity-50 transition-colors shadow-lg shadow-[#ff6a00]/20"
-                >
-                  {savingProduct ? <Loader2 size={16} className="animate-spin" /> : <Save size={16} />}
-                  Guardar
-                </button>
-              </div>
-            </div>
-          )}
+            )}
+          </div>
         </div>
-      </div>
+      </ModalPortal>
     )}
 
     {/* MODAL: CATÁLOGO DE IMPRESORAS */}

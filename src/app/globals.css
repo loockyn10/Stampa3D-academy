@@ -200,15 +200,19 @@ summary:focus-visible,
 }
 
 /* SPRINT UX/UI 1K: Animaciones Globales Premium */
+/*
+ * Entrada de página: solo opacidad. <main> NO debe tener `transform` (ni durante ni después de la animación):
+ * un transform, aunque sea translateY(0) persistido por `forwards`, convierte al elemento en el bloque contenedor de
+ * sus descendientes `position: fixed`, y un modal dentro de <main> se centraba en el alto de toda la página (fuera de
+ * pantalla). Ver tests/ux-sprint-modals.test.mjs.
+ */
 @keyframes stampa-page-in {
   from {
     opacity: 0;
-    transform: translateY(8px);
   }
 
   to {
     opacity: 1;
-    transform: translateY(0);
   }
 }
 
@@ -220,7 +224,7 @@ summary:focus-visible,
 
   to {
     opacity: 1;
-    transform: translateY(0);
+    transform: none;
   }
 }
 
@@ -239,11 +243,11 @@ summary:focus-visible,
 }
 
 .animate-page-in {
-  animation: stampa-page-in 250ms ease-out forwards;
+  animation: stampa-page-in 250ms ease-out;
 }
 
 .animate-slide-up {
-  animation: stampa-slide-up 300ms ease-out forwards;
+  animation: stampa-slide-up 300ms ease-out;
 }
 
 .animate-soft-pulse {

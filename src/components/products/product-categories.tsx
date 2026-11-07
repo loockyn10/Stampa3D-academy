@@ -17,6 +17,7 @@ import {
   deleteProductCategoryAction,
   renameProductCategoryAction,
 } from "@/app/productos/category-actions";
+import { ModalPortal } from "@/components/ui/modal-portal";
 
 export interface ProductCategoryCounts {
   total: number;
@@ -248,67 +249,69 @@ function ProductCategoryManager({
   }, [onClose]);
 
   return (
-    <div className="fixed inset-0 z-[110] flex items-end justify-center bg-stampa-bg/70 p-0 backdrop-blur-sm sm:items-center sm:p-4" onMouseDown={(event) => { if (event.target === event.currentTarget) onClose(); }}>
-      <div
-        role="dialog"
-        aria-modal="true"
-        aria-labelledby="manage-categories-title"
-        className="flex max-h-[85dvh] w-full max-w-md flex-col overflow-hidden rounded-t-2xl border border-stampa-border bg-stampa-surface shadow-2xl sm:rounded-2xl"
-      >
-        <div className="flex items-center justify-between gap-3 border-b border-stampa-border p-4 sm:p-5">
-          <div className="flex min-w-0 items-center gap-3">
-            <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl border border-stampa-orange/30 bg-stampa-orange/10 text-stampa-accent">
-              <Tag size={18} aria-hidden="true" />
+    <ModalPortal>
+      <div className="fixed inset-0 z-[110] flex items-end justify-center bg-stampa-bg/70 p-0 backdrop-blur-sm sm:items-center sm:p-4" onMouseDown={(event) => { if (event.target === event.currentTarget) onClose(); }}>
+        <div
+          role="dialog"
+          aria-modal="true"
+          aria-labelledby="manage-categories-title"
+          className="flex max-h-[85dvh] w-full max-w-md flex-col overflow-hidden rounded-t-2xl border border-stampa-border bg-stampa-surface shadow-2xl sm:rounded-2xl"
+        >
+          <div className="flex items-center justify-between gap-3 border-b border-stampa-border p-4 sm:p-5">
+            <div className="flex min-w-0 items-center gap-3">
+              <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl border border-stampa-orange/30 bg-stampa-orange/10 text-stampa-accent">
+                <Tag size={18} aria-hidden="true" />
+              </div>
+              <h2 id="manage-categories-title" className="truncate text-lg font-bold text-fg">Categorías</h2>
             </div>
-            <h2 id="manage-categories-title" className="truncate text-lg font-bold text-fg">Categorías</h2>
+            <button type="button" onClick={onClose} className="flex h-10 w-10 items-center justify-center rounded-lg text-gray-400 hover:bg-fg/5 hover:text-fg" aria-label="Cerrar">
+              <X size={18} aria-hidden="true" />
+            </button>
           </div>
-          <button type="button" onClick={onClose} className="flex h-10 w-10 items-center justify-center rounded-lg text-gray-400 hover:bg-fg/5 hover:text-fg" aria-label="Cerrar">
-            <X size={18} aria-hidden="true" />
-          </button>
-        </div>
 
-        <ul className="min-h-0 flex-1 divide-y divide-stampa-border overflow-y-auto">
-          {categories.map((category) => {
-            const productCount = counts.byCategory.get(category.id) ?? 0;
-            return (
-              <li key={category.id} className="flex items-center gap-2 px-4 py-2.5 sm:px-5">
-                <div className="min-w-0 flex-1">
-                  <p className="truncate text-sm font-semibold text-fg">{category.name}</p>
-                  <p className="text-xs text-gray-500">{productCount} {productCount === 1 ? "producto" : "productos"}</p>
-                </div>
-                <button
-                  type="button"
-                  onClick={() => void renameCategory(category)}
-                  className="flex h-11 w-11 shrink-0 items-center justify-center rounded-lg border border-stampa-border bg-fg/5 text-gray-300 transition-colors hover:bg-fg/10 hover:text-fg"
-                  aria-label={`Editar categoría ${category.name}`}
-                  title="Editar nombre"
-                >
-                  <Pencil size={15} aria-hidden="true" />
-                </button>
-                <button
-                  type="button"
-                  onClick={() => void deleteCategory(category, productCount)}
-                  className="flex h-11 w-11 shrink-0 items-center justify-center rounded-lg border border-red-500/25 bg-red-500/10 text-red-300 transition-colors hover:border-red-500/40 hover:bg-red-500/20"
-                  aria-label={`Eliminar categoría ${category.name}`}
-                  title="Eliminar categoría"
-                >
-                  <Trash2 size={15} aria-hidden="true" />
-                </button>
-              </li>
-            );
-          })}
-        </ul>
+          <ul className="min-h-0 flex-1 divide-y divide-stampa-border overflow-y-auto">
+            {categories.map((category) => {
+              const productCount = counts.byCategory.get(category.id) ?? 0;
+              return (
+                <li key={category.id} className="flex items-center gap-2 px-4 py-2.5 sm:px-5">
+                  <div className="min-w-0 flex-1">
+                    <p className="truncate text-sm font-semibold text-fg">{category.name}</p>
+                    <p className="text-xs text-gray-500">{productCount} {productCount === 1 ? "producto" : "productos"}</p>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => void renameCategory(category)}
+                    className="flex h-11 w-11 shrink-0 items-center justify-center rounded-lg border border-stampa-border bg-fg/5 text-gray-300 transition-colors hover:bg-fg/10 hover:text-fg"
+                    aria-label={`Editar categoría ${category.name}`}
+                    title="Editar nombre"
+                  >
+                    <Pencil size={15} aria-hidden="true" />
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => void deleteCategory(category, productCount)}
+                    className="flex h-11 w-11 shrink-0 items-center justify-center rounded-lg border border-red-500/25 bg-red-500/10 text-red-300 transition-colors hover:border-red-500/40 hover:bg-red-500/20"
+                    aria-label={`Eliminar categoría ${category.name}`}
+                    title="Eliminar categoría"
+                  >
+                    <Trash2 size={15} aria-hidden="true" />
+                  </button>
+                </li>
+              );
+            })}
+          </ul>
 
-        <div className="flex gap-2 border-t border-stampa-border p-3 sm:justify-between sm:p-5">
-          <button type="button" onClick={onClose} className="min-h-11 flex-1 rounded-xl border border-stampa-border px-4 py-2.5 text-sm font-bold text-gray-300 transition-colors hover:bg-fg/5 sm:flex-none">
-            Listo
-          </button>
-          <button type="button" onClick={() => void createCategory()} className="inline-flex min-h-11 flex-[2] items-center justify-center gap-2 rounded-xl border border-stampa-orange bg-stampa-orange px-4 py-2.5 text-sm font-bold text-neutral-950 sm:flex-none">
-            <Plus size={15} aria-hidden="true" /> Nueva categoría
-          </button>
+          <div className="flex gap-2 border-t border-stampa-border p-3 sm:justify-between sm:p-5">
+            <button type="button" onClick={onClose} className="min-h-11 flex-1 rounded-xl border border-stampa-border px-4 py-2.5 text-sm font-bold text-gray-300 transition-colors hover:bg-fg/5 sm:flex-none">
+              Listo
+            </button>
+            <button type="button" onClick={() => void createCategory()} className="inline-flex min-h-11 flex-[2] items-center justify-center gap-2 rounded-xl border border-stampa-orange bg-stampa-orange px-4 py-2.5 text-sm font-bold text-neutral-950 sm:flex-none">
+              <Plus size={15} aria-hidden="true" /> Nueva categoría
+            </button>
+          </div>
         </div>
       </div>
-    </div>
+    </ModalPortal>
   );
 }
 

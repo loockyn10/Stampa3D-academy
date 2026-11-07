@@ -7,6 +7,7 @@ import {
   activateFounderOverrideAdmin,
   grantBetaAccessAdmin,
 } from "@/app/admin/usuarios/actions";
+import { ModalPortal } from "@/components/ui/modal-portal";
 
 type Profile = {
   id: string;
@@ -361,58 +362,60 @@ export function UsersTable() {
 
       {/* Beta Grant Modal */}
       {betaModal && (
-        <div className="fixed inset-0 z-[110] flex items-center justify-center bg-stampa-bg/60 backdrop-blur-sm">
-          <div className="bg-stampa-surface border border-stampa-border rounded-2xl shadow-2xl p-6 w-full max-w-md mx-4 max-h-[calc(100dvh-2rem)] overflow-y-auto">
-            <h3 className="text-lg font-bold text-fg mb-1 flex items-center gap-2">
-              <Shield size={16} className="text-cyan-400" />
-              Dar acceso Beta
-            </h3>
-            <p className="text-sm text-gray-400 mb-5">Para: <span className="font-semibold text-fg">{betaModal.name}</span></p>
-
-            <div className="space-y-4">
-              <div>
-                <label className="block text-xs font-semibold text-gray-400 uppercase tracking-wider mb-1.5">
-                  Fecha de vencimiento <span className="text-gray-600 font-normal normal-case">(opcional)</span>
-                </label>
-                <input
-                  type="date"
-                  value={betaExpires}
-                  onChange={(e) => setBetaExpires(e.target.value)}
-                  className="w-full rounded-xl border border-stampa-border px-3 py-2.5 text-sm text-fg bg-fg/5 focus:outline-none focus:border-stampa-orange/50"
-                />
-              </div>
-              <div>
-                <label className="block text-xs font-semibold text-gray-400 uppercase tracking-wider mb-1.5">
-                  Notas <span className="text-gray-600 font-normal normal-case">(opcional)</span>
-                </label>
-                <textarea
-                  value={betaNotes}
-                  onChange={(e) => setBetaNotes(e.target.value)}
-                  rows={2}
-                  placeholder="Ej. Acceso para testear módulo de sorteos..."
-                  className="w-full rounded-xl border border-stampa-border px-3 py-2.5 text-sm text-fg bg-fg/5 focus:outline-none focus:border-stampa-orange/50 resize-none"
-                />
-              </div>
-            </div>
-
-            <div className="flex gap-2 mt-6">
-              <button
-                onClick={() => { setBetaModal(null); setBetaNotes(""); setBetaExpires(""); }}
-                className="flex-1 px-4 py-2.5 rounded-xl text-sm font-semibold text-gray-400 bg-fg/5 border border-stampa-border hover:bg-fg/10 transition-colors"
-              >
-                Cancelar
-              </button>
-              <button
-                onClick={handleGrantBeta}
-                disabled={betaLoading}
-                className="flex-1 flex justify-center items-center gap-2 px-4 py-2.5 rounded-xl text-sm font-semibold text-white bg-cyan-600 hover:bg-cyan-500 transition-colors disabled:opacity-60"
-              >
-                {betaLoading ? <Loader2 size={14} className="animate-spin" /> : <Shield size={14} />}
+        <ModalPortal>
+          <div className="fixed inset-0 z-[110] flex items-center justify-center bg-stampa-bg/60 backdrop-blur-sm">
+            <div className="bg-stampa-surface border border-stampa-border rounded-2xl shadow-2xl p-6 w-full max-w-md mx-4 max-h-[calc(100dvh-2rem)] overflow-y-auto">
+              <h3 className="text-lg font-bold text-fg mb-1 flex items-center gap-2">
+                <Shield size={16} className="text-cyan-400" />
                 Dar acceso Beta
-              </button>
+              </h3>
+              <p className="text-sm text-gray-400 mb-5">Para: <span className="font-semibold text-fg">{betaModal.name}</span></p>
+
+              <div className="space-y-4">
+                <div>
+                  <label className="block text-xs font-semibold text-gray-400 uppercase tracking-wider mb-1.5">
+                    Fecha de vencimiento <span className="text-gray-600 font-normal normal-case">(opcional)</span>
+                  </label>
+                  <input
+                    type="date"
+                    value={betaExpires}
+                    onChange={(e) => setBetaExpires(e.target.value)}
+                    className="w-full rounded-xl border border-stampa-border px-3 py-2.5 text-sm text-fg bg-fg/5 focus:outline-none focus:border-stampa-orange/50"
+                  />
+                </div>
+                <div>
+                  <label className="block text-xs font-semibold text-gray-400 uppercase tracking-wider mb-1.5">
+                    Notas <span className="text-gray-600 font-normal normal-case">(opcional)</span>
+                  </label>
+                  <textarea
+                    value={betaNotes}
+                    onChange={(e) => setBetaNotes(e.target.value)}
+                    rows={2}
+                    placeholder="Ej. Acceso para testear módulo de sorteos..."
+                    className="w-full rounded-xl border border-stampa-border px-3 py-2.5 text-sm text-fg bg-fg/5 focus:outline-none focus:border-stampa-orange/50 resize-none"
+                  />
+                </div>
+              </div>
+
+              <div className="flex gap-2 mt-6">
+                <button
+                  onClick={() => { setBetaModal(null); setBetaNotes(""); setBetaExpires(""); }}
+                  className="flex-1 px-4 py-2.5 rounded-xl text-sm font-semibold text-gray-400 bg-fg/5 border border-stampa-border hover:bg-fg/10 transition-colors"
+                >
+                  Cancelar
+                </button>
+                <button
+                  onClick={handleGrantBeta}
+                  disabled={betaLoading}
+                  className="flex-1 flex justify-center items-center gap-2 px-4 py-2.5 rounded-xl text-sm font-semibold text-white bg-cyan-600 hover:bg-cyan-500 transition-colors disabled:opacity-60"
+                >
+                  {betaLoading ? <Loader2 size={14} className="animate-spin" /> : <Shield size={14} />}
+                  Dar acceso Beta
+                </button>
+              </div>
             </div>
           </div>
-        </div>
+        </ModalPortal>
       )}
     </div>
   );
