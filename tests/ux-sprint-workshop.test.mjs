@@ -193,3 +193,46 @@ test("sidebar: botón accesible, estado expuesto, nombres para íconos y tooltip
   assert.match(sidebar, /onFocus: showTooltip\(label\)/, "el tooltip también aparece con el foco del teclado");
   assert.match(sidebar, /lg:flex/, "el sidebar sigue siendo solo de escritorio");
 });
+
+// ---- Estructura común de Mi Taller (Sprint 4.1, corrección UX-04)
+
+const summary = loadTs("src/lib/workshop/summary.ts");
+
+test("resumen del panel: total o «mostrados de total»", () => {
+  assert.equal(summary.workshopCountLabel(5, 5, "producto", "productos"), "5 productos");
+  assert.equal(summary.workshopCountLabel(1, 1, "producto", "productos"), "1 producto");
+  assert.equal(summary.workshopCountLabel(2, 5, "filamento", "filamentos"), "2 de 5 filamentos");
+  assert.equal(summary.workshopCountLabel(0, 3, "impresora", "impresoras"), "0 de 3 impresoras");
+});
+
+test("Mi Taller: las cuatro pantallas respetan el orden encabezado → alertas → búsqueda y filtros → contenido", () => {
+  const stock = read("src/app/stock/page.tsx");
+  const screens = [
+    ["Productos", read("src/app/productos/page.tsx"), "<ProductCard"],
+    ["Inventario y Filamentos", stock, "<FilamentStockCard"],
+    ["Impresoras", read("src/components/configuracion/printers-manager.tsx"), "WORKSHOP_GRID_GAP}`}>"],
+  ];
+  for (const [name, source, content] of screens) {
+    const header = source.indexOf("<WorkshopPageHeader");
+    const notice = source.indexOf("<WorkshopNotice");
+    const toolbar = source.indexOf("<WorkshopToolbar");
+    const body = source.indexOf(content, toolbar);
+    assert.ok(header >= 0 && notice > header && toolbar > notice && body > toolbar, `${name}: orden de bloques`);
+  }
+  // Inventario: la tabla viene después del panel; el filtro del Dashboard vive dentro del panel, no suelto sobre las alertas.
+  assert.ok(stock.indexOf("<WorkshopFilterChip") > stock.indexOf('<WorkshopToolbar\n          summary'), "chip de filtro dentro del panel");
+  assert.ok(!/mb-4 flex flex-wrap items-center gap-2 text-sm text-gray-300/.test(stock), "sin chip de filtro suelto sobre las alertas");
+});
+
+test("Mi Taller: panel de búsqueda uniforme (mismo marco, 44 px, resumen) y grillas con la misma separación", () => {
+  const shared = read("src/components/workshop/workshop-page.tsx");
+  assert.match(shared, /aria-label="Búsqueda y filtros"/);
+  assert.match(shared, /rounded-2xl border border-stampa-border bg-stampa-surface/);
+  assert.match(shared, /h-11 w-full rounded-xl/);
+  assert.match(shared, /WORKSHOP_GRID_GAP = "gap-4 sm:gap-5"/);
+  for (const file of ["src/app/productos/page.tsx", "src/app/stock/page.tsx", "src/components/configuracion/printers-manager.tsx"]) {
+    assert.match(read(file), /WORKSHOP_GRID_GAP/, `${file} usa la separación común`);
+  }
+  assert.match(read("src/app/productos/page.tsx"), /<ProductCategoryBar/);
+  assert.ok(!/divide-gray-100/.test(read("src/app/stock/page.tsx")), "la tabla de Inventario usa los separadores del tema");
+});
