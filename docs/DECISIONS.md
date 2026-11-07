@@ -440,3 +440,10 @@ Los enlaces de Instagram/YouTube/WhatsApp/Telegram estaban fijos en 4 lugares de
 - **Decisión:** panel en grilla en lugar de arco (mismo contrato para tests y tutorial/Stampy); títulos compartidos + «volver» en subpantallas; `viewport-fit=cover` con insets; tinta `neutral-950` sobre naranja sólido; sin sistema de diseño paralelo (se reutilizan `Dialog`, `app-feedback`, `Button`, `EmptyState`, `page-skeletons`).
 - **No se tocó:** landing (Sprint 5), pagos, membresías, seguridad, lógica de negocio, schema, motores de generación.
 
+
+## D051 — Sprint UX/UI 4.1: los modales no dependen de ningún ancestro, Mi Taller comparte lenguaje visual y el sidebar se contrae
+**Estado:** Accepted (2026-11-07). Detalle en `docs/ARCHITECTURE.md` §32.
+
+- **Hecho:** los modales aparecían abajo/fuera de pantalla porque `<main>` conservaba un `transform` (animación de entrada con `forwards`), lo que rompe `position: fixed` en sus descendientes; las tarjetas de Productos desbordaban (5 botones de ancho fijo en una fila), no había buscador y las cuatro pantallas de Mi Taller tenían encabezados, buscadores y avisos distintos; el sidebar ocupaba 256 px siempre.
+- **Decisión:** corregir la causa (animaciones sin transform persistente) y además montar los modales históricos en un portal; rediseñar la tarjeta de producto por bloques con acciones en filas propias; componentes compartidos **solo** de Mi Taller (`workshop-page.tsx`) en lugar de un sistema de diseño paralelo; preferencia del sidebar en `<html>` aplicada por script inline (sin flash) en lugar de estado de React.
+- **No se tocó:** landing (Sprint 5), pagos, membresías, seguridad, lógica de negocio, schema, motores de generación.

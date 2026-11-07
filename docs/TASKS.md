@@ -2,6 +2,12 @@
 
 Este archivo contiene únicamente trabajo pendiente o próximo. Eliminar tareas terminadas en lugar de conservar un historial infinito.
 
+## Now — Sprint UX/UI 4.1 (implementado 2026-11-07, ver ARCHITECTURE §32 y D051)
+
+- [ ] **QA visual autenticada** (sin sesión en el entorno del sprint; se verificó con un arnés temporal de componentes reales y los mismos estilos): con cuenta Premium, a 320/375/390/768/1280/1440 px y en claro/oscuro: abrir un modal después de hacer scroll en Stock, Productos, Presupuestos, Calculadora, Impresoras y Admin → Usuarios (centrado, scroll interno, pie visible sobre la barra inferior); Mi Taller → Productos con datos reales (nombres largos, sin descripción, sin imagen, armable, «Requiere recalcular», con la barra de categorías y la búsqueda combinada); las cuatro pantallas de Mi Taller una al lado de otra; sidebar contraído/expandido en cada ruta, recarga con la preferencia guardada, tooltips con teclado, y la navegación móvil intacta.
+- [ ] Inventario sigue siendo una tabla con `min-w-[720px]` (scroll horizontal en móvil); pasarla a tarjetas en móvil requiere reestructurarla.
+- [ ] Los modales de Stock/Productos/etc. siguen con su marcado propio (ahora en portal); unificarlos en `ui/dialog.tsx` (foco atrapado, Escape, scroll bloqueado) queda pendiente.
+
 ## Now — Sprint UX/UI y Mobile (implementado 2026-11-06, ver ARCHITECTURE §31 y D050)
 
 - [ ] **QA visual autenticada** (no se pudo iniciar sesión en el entorno del sprint; se revisó con un arnés temporal de componentes y la Calculadora pública): con cuenta Premium a 320, 375, 390, 768 px y escritorio, claro y oscuro: header móvil (título, «volver», buscador), barra inferior y menú «+» (7 herramientas, sin superposición), Inicio, Academia → Cursos → un curso (botones de clase, salto al video, temario sin scroll anidado), Mi Taller/Mi Negocio/Stock/Productos/Presupuestos con un modal abierto (el pie del modal debe verse sobre la barra inferior), Stampa Maker (controles de 40 px).
