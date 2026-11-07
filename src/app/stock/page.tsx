@@ -12,7 +12,8 @@ import { Badge } from "@/components/ui/badge";
 import { GhostButton, PrimaryButton } from "@/components/ui/button";
 import { SectionTitle } from "@/components/ui/section-title";
 import { EmptyState } from "@/components/ui/empty-state";
-import { WorkshopNotice, WorkshopPageHeader, WorkshopSearchField, WorkshopToolbar } from "@/components/workshop/workshop-page";
+import { WORKSHOP_GRID_GAP, WorkshopFilterChip, WorkshopNotice, WorkshopPageHeader, WorkshopSearchField, WorkshopToolbar } from "@/components/workshop/workshop-page";
+import { workshopCountLabel } from "@/lib/workshop/summary";
 import { normalizeFilamentColor } from "@/lib/colors/filament-colors";
 import { ColorSwatchLabel } from "@/components/ui/color-swatch-label";
 import { CalculatorSelect } from "@/components/ui/calculator-select";
@@ -845,6 +846,21 @@ export function StockPageContent({ workshopSection }: { workshopSection?: Worksh
 
   if (loading) return <StockPageSkeleton />;
 
+  // Productos visibles en la tabla: búsqueda (nombre, descripción o partes) y, desde el Dashboard, solo activos sin stock.
+  const matchesProductSearch = (p: { id: string; name?: string | null; description?: string | null }) => {
+    if (!searchProduct) return true;
+    const term = searchProduct.toLowerCase();
+    const pComps = productComponents.filter(c => c.product_id === p.id && c.is_active);
+    const compsStr = pComps.map(c => c.name).join(" ");
+    return p.name?.toLowerCase().includes(term) ||
+           p.description?.toLowerCase().includes(term) ||
+           compsStr.toLowerCase().includes(term);
+  };
+  const inventoryProducts = products.filter((p) => {
+    if (outOfStockOnly && (p.is_active === false || (p.stock_quantity || 0) > 0)) return false;
+    return matchesProductSearch(p);
+  });
+
   return (
     <div className="pb-24">
       {workshopSection ? (
@@ -899,24 +915,6 @@ export function StockPageContent({ workshopSection }: { workshopSection?: Worksh
             ) : null
           }
         />
-      )}
-
-      {outOfStockOnly && (
-        <div className="mb-4 flex flex-wrap items-center gap-2 text-sm text-gray-300">
-          <span className="inline-flex items-center gap-2 rounded-full border border-red-500/30 bg-red-500/10 px-3 py-1 text-xs font-semibold text-red-200">
-            Mostrando productos activos sin stock
-          </span>
-          <button
-            type="button"
-            onClick={() => router.replace("/mi-taller/inventario", { scroll: false })}
-            className="inline-flex min-h-8 items-center gap-1 rounded-full px-2 text-xs font-semibold text-gray-400 hover:bg-fg/5 hover:text-fg"
-          >
-            <X size={13} aria-hidden="true" /> Ver todos
-          </button>
-          {!products.some((p) => p.is_active !== false && (p.stock_quantity || 0) <= 0) && (
-            <p className="w-full text-sm text-emerald-300" role="status">No hay productos activos sin stock.</p>
-          )}
-        </div>
       )}
 
       {error && <WorkshopNotice tone="error" icon={<AlertTriangle size={16} aria-hidden="true" />}>{error}</WorkshopNotice>}
@@ -1083,7 +1081,7 @@ export function StockPageContent({ workshopSection }: { workshopSection?: Worksh
       </div>}
 
       {workshopSection === "filaments" && (
-        <WorkshopToolbar>
+        <WorkshopToolbar summary={workshopCountLabel(filteredFilaments.length, filaments.length, "filamento", "filamentos")}>
           <WorkshopSearchField value={filamentSearch} onChange={setFilamentSearch} placeholder="Buscar filamentos..." label="Buscar filamentos" />
           <div className="grid w-full grid-cols-1 gap-3 sm:grid-cols-2 lg:flex lg:w-auto">
             <div className="min-w-[150px]">
@@ -1117,7 +1115,21 @@ export function StockPageContent({ workshopSection }: { workshopSection?: Worksh
       )}
 
       {tab === "productos" && (
-        <WorkshopToolbar>
+        <WorkshopToolbar
+          summary={workshopCountLabel(inventoryProducts.length, products.length, "producto", "productos")}
+          extra={
+            outOfStockOnly ? (
+              <div className="flex flex-col gap-2">
+                <WorkshopFilterChip tone="danger" onClear={() => router.replace("/mi-taller/inventario", { scroll: false })}>
+                  Mostrando productos activos sin stock
+                </WorkshopFilterChip>
+                {!products.some((p) => p.is_active !== false && (p.stock_quantity || 0) <= 0) && (
+                  <p className="text-sm text-emerald-300" role="status">No hay productos activos sin stock.</p>
+                )}
+              </div>
+            ) : undefined
+          }
+        >
           <WorkshopSearchField value={searchProduct} onChange={setSearchProduct} placeholder="Buscar productos..." label="Buscar productos" />
         </WorkshopToolbar>
       )}
@@ -1132,7 +1144,7 @@ export function StockPageContent({ workshopSection }: { workshopSection?: Worksh
             />
           </div>
         ) : (
-          <div className="grid grid-cols-1 gap-4 md:grid-cols-2 2xl:grid-cols-3">
+          <div className={`grid grid-cols-[repeat(auto-fill,minmax(min(100%,22rem),1fr))] ${WORKSHOP_GRID_GAP}`}>
             {filteredFilaments.map((filament) => (
               <FilamentStockCard
                 key={filament.id}
@@ -1166,17 +1178,8 @@ export function StockPageContent({ workshopSection }: { workshopSection?: Worksh
                 <th className="px-5 py-3 text-right">Acciones</th>
               </tr>
             </thead>
-            <tbody className="divide-y divide-gray-100">
-              {tab === "productos" && products.filter(p => {
-                if (outOfStockOnly && (p.is_active === false || (p.stock_quantity || 0) > 0)) return false;
-                if (!searchProduct) return true;
-                const term = searchProduct.toLowerCase();
-                const pComps = productComponents.filter(c => c.product_id === p.id && c.is_active);
-                const compsStr = pComps.map(c => c.name).join(" ");
-                return p.name?.toLowerCase().includes(term) || 
-                       p.description?.toLowerCase().includes(term) || 
-                       compsStr.toLowerCase().includes(term);
-              }).map((p) => {
+            <tbody className="divide-y divide-stampa-border">
+              {tab === "productos" && inventoryProducts.map((p) => {
                 const isLow = p.stock_quantity <= 1;
                 const pComps = productComponents.filter(c => c.product_id === p.id && c.is_active);
                 const isParts = pComps.length > 1 || (pComps.length === 1 && pComps[0].name !== "Producto completo");
@@ -1261,7 +1264,7 @@ export function StockPageContent({ workshopSection }: { workshopSection?: Worksh
                             </button>
                           </div>
 
-                          <div className="h-6 w-px bg-gray-200 mx-1"></div>
+                          <div className="h-6 w-px bg-stampa-border mx-1"></div>
                           
                           <button 
                             onClick={() => loadProductHistory(p.id)}
@@ -1360,15 +1363,7 @@ export function StockPageContent({ workshopSection }: { workshopSection?: Worksh
             </div>
           )}
 
-          {tab === "productos" && products.length > 0 && products.filter(p => {
-            if (!searchProduct) return true;
-            const term = searchProduct.toLowerCase();
-            const pComps = productComponents.filter(c => c.product_id === p.id && c.is_active);
-            const compsStr = pComps.map(c => c.name).join(" ");
-            return p.name?.toLowerCase().includes(term) || 
-                   p.description?.toLowerCase().includes(term) || 
-                   compsStr.toLowerCase().includes(term);
-          }).length === 0 && (
+          {tab === "productos" && products.length > 0 && products.filter(matchesProductSearch).length === 0 && (
             <div role="status" className="p-4">
               <EmptyState
                 icon={Search}

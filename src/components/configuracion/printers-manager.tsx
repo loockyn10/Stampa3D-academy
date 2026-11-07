@@ -8,7 +8,8 @@ import { TableSkeleton } from "@/components/ui/page-skeletons";
 import { Card } from "@/components/ui/card";
 import { GhostButton, PrimaryButton } from "@/components/ui/button";
 import { EmptyState } from "@/components/ui/empty-state";
-import { WorkshopNotice, WorkshopPageHeader } from "@/components/workshop/workshop-page";
+import { WORKSHOP_GRID_GAP, WorkshopNotice, WorkshopPageHeader, WorkshopToolbar } from "@/components/workshop/workshop-page";
+import { workshopCountLabel } from "@/lib/workshop/summary";
 import { useAppFeedback } from "@/components/ui/app-feedback";
 import { usePublishStampyScreenContext } from "@/components/stampy/StampyContextProvider";
 import type { StampyScreenContext } from "@/lib/stampy/screen-context";
@@ -208,7 +209,13 @@ export function PrintersManager() {
 
       {error && <WorkshopNotice tone="error" icon={<AlertCircle size={16} aria-hidden="true" />}>{error}</WorkshopNotice>}
 
-      <div className="grid grid-cols-[repeat(auto-fill,minmax(min(100%,18rem),1fr))] gap-4">
+      {printers.length > 0 && (
+        <WorkshopToolbar
+          summary={`${workshopCountLabel(printers.length, printers.length, "impresora", "impresoras")} · ${printers.filter((printer) => printer.is_active).length} ${printers.filter((printer) => printer.is_active).length === 1 ? "activa" : "activas"}`}
+        />
+      )}
+
+      <div className={`grid grid-cols-[repeat(auto-fill,minmax(min(100%,18rem),1fr))] ${WORKSHOP_GRID_GAP}`}>
         {editingId === "new" && (
           <PrinterEditor saving={saving} formData={formData} setFormData={setFormData} onSave={handleSave} onCancel={() => setEditingId(null)} />
         )}

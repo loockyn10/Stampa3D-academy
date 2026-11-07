@@ -158,8 +158,8 @@ export function ProductCategoryBar({
 
   return (
     <>
-      <nav aria-label="Categorías de productos" className="mb-5 flex items-center gap-2">
-        <div className="-mx-4 flex min-w-0 flex-1 gap-2 overflow-x-auto px-4 pb-1 sm:mx-0 sm:flex-wrap sm:overflow-visible sm:px-0 sm:pb-0 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
+      <nav aria-label="Categorías de productos" className="flex items-center gap-2">
+        <div className="-mx-3 flex min-w-0 flex-1 gap-2 overflow-x-auto px-3 pb-1 sm:mx-0 sm:flex-wrap sm:overflow-visible sm:px-0 sm:pb-0 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
           <button
             type="button"
             onClick={() => onFilterChange(PRODUCT_CATEGORY_FILTER_ALL)}

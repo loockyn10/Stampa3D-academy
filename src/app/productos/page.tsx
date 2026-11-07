@@ -7,7 +7,8 @@ import { Plus, Pencil, Copy, Trash2, Search, Package, Loader2, Save, X, AlertCir
 import { Card } from "@/components/ui/card";
 import { PrimaryButton, GhostButton } from "@/components/ui/button";
 import { EmptyState } from "@/components/ui/empty-state";
-import { WorkshopNotice, WorkshopPageHeader, WorkshopSearchField, WorkshopToolbar } from "@/components/workshop/workshop-page";
+import { WORKSHOP_GRID_GAP, WorkshopFilterChip, WorkshopNotice, WorkshopPageHeader, WorkshopSearchField, WorkshopToolbar } from "@/components/workshop/workshop-page";
+import { workshopCountLabel } from "@/lib/workshop/summary";
 import { ProductCard } from "@/components/products/product-card";
 import { filterProductsBySearch } from "@/lib/products/search";
 import { createClient } from "@/utils/supabase/client";
@@ -903,9 +904,9 @@ function ProductosPageContent() {
             <GhostButton
               onClick={() => void handleRecalculateAll()}
               disabled={recalculatingAll || recalculatingProductId !== null || products.length === 0}
-              className="border-emerald-500/35 bg-emerald-500/10 text-emerald-300 hover:border-emerald-400/50 hover:bg-emerald-500/20 disabled:cursor-not-allowed disabled:opacity-50"
+              className="disabled:cursor-not-allowed disabled:opacity-50"
             >
-              <RecalculatePriceIcon loading={recalculatingAll} size={17} />
+              <RecalculatePriceIcon loading={recalculatingAll} size={16} />
               {recalculatingAll ? "Recalculando…" : "Recalcular todos"}
             </GhostButton>
             <PrimaryButton onClick={handleCreateNew} disabled={editingId !== null || recalculatingAll}>
@@ -915,45 +916,44 @@ function ProductosPageContent() {
         }
       />
 
-      {needsRecalculationOnly && (
-        <div className="mb-4 flex flex-wrap items-center gap-2">
-          <span className="inline-flex items-center gap-2 rounded-full border border-yellow-500/30 bg-yellow-500/10 px-3 py-1 text-xs font-semibold text-yellow-200">
-            Mostrando {visibleProducts.length} {visibleProducts.length === 1 ? "producto que requiere" : "productos que requieren"} recalcular
-          </span>
-          <button
-            type="button"
-            onClick={() => router.replace("/mi-taller/productos", { scroll: false })}
-            className="inline-flex min-h-8 items-center gap-1 rounded-full px-2 text-xs font-semibold text-gray-400 hover:bg-fg/5 hover:text-fg"
-          >
-            <X size={13} aria-hidden="true" /> Ver todos
-          </button>
-        </div>
-      )}
-
-      {products.length > 0 && !editingId && (
-        <WorkshopToolbar>
-          <WorkshopSearchField
-            value={searchQuery}
-            onChange={setSearchQuery}
-            placeholder="Nombre o categoría..."
-            label="Buscar productos"
-          />
-        </WorkshopToolbar>
-      )}
-
-      {categoriesAvailable && !editingId && (
-        <ProductCategoryBar
-          categories={categories}
-          counts={categoryCounts}
-          filter={activeCategoryFilter}
-          onFilterChange={setCategoryFilter}
-          {...categoryHandlers}
-        />
-      )}
-
       {error && <WorkshopNotice tone="error" icon={<AlertCircle size={16} aria-hidden="true" />}>{error}</WorkshopNotice>}
 
       {successMessage && <WorkshopNotice tone="success" icon={<CheckCircle2 size={16} aria-hidden="true" />}>{successMessage}</WorkshopNotice>}
+
+      {!editingId && (products.length > 0 || categoriesAvailable) && (
+        <WorkshopToolbar
+          summary={products.length > 0 ? workshopCountLabel(visibleProducts.length, recalculationScoped.length, "producto", "productos") : undefined}
+          extra={
+            needsRecalculationOnly || categoriesAvailable ? (
+              <>
+                {needsRecalculationOnly && (
+                  <WorkshopFilterChip onClear={() => router.replace("/mi-taller/productos", { scroll: false })}>
+                    Mostrando {visibleProducts.length} {visibleProducts.length === 1 ? "producto que requiere" : "productos que requieren"} recalcular
+                  </WorkshopFilterChip>
+                )}
+                {categoriesAvailable && (
+                  <ProductCategoryBar
+                    categories={categories}
+                    counts={categoryCounts}
+                    filter={activeCategoryFilter}
+                    onFilterChange={setCategoryFilter}
+                    {...categoryHandlers}
+                  />
+                )}
+              </>
+            ) : undefined
+          }
+        >
+          {products.length > 0 && (
+            <WorkshopSearchField
+              value={searchQuery}
+              onChange={setSearchQuery}
+              placeholder="Nombre o categoría..."
+              label="Buscar productos"
+            />
+          )}
+        </WorkshopToolbar>
+      )}
 
       {editingId && (
         <Card className="mb-8 p-5 bg-stampa-surface border border-stampa-orange/30 shadow-md ring-1 ring-stampa-orange/20">
@@ -1287,7 +1287,7 @@ function ProductosPageContent() {
 
       {visibleProducts.length > 0 && (
         // Columnas según el ancho real disponible (no según el viewport): el sidebar abierto o contraído no rompe las tarjetas.
-        <div className="grid grid-cols-[repeat(auto-fill,minmax(min(100%,17.5rem),1fr))] gap-4 sm:gap-5">
+        <div className={`grid grid-cols-[repeat(auto-fill,minmax(min(100%,17.5rem),1fr))] ${WORKSHOP_GRID_GAP}`}>
           {visibleProducts.map((p) => {
             const pricingStatus = getProductPricingStatus(p, filaments, printers, productTypes);
             return (
