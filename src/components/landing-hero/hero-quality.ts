@@ -6,7 +6,7 @@ export type HeroQuality = {
   tier: HeroQualityTier;
   /** Capas apiladas del núcleo. */
   layers: number;
-  /** Objetos impresos que orbitan (3 a 5; los equipos modestos usan menos). */
+  /** Objetos impresos que orbitan (3 o 4; los equipos modestos usan menos). */
   pieces: number;
   /** Partículas de fondo. */
   dust: number;
@@ -49,6 +49,6 @@ export function resolveHeroQuality(viewportWidth: number): HeroQuality {
     case "medium":
       return { tier, layers: 36, pieces: 4, dust: 180, ringSegments: 80, tubeSegments: 5, maxDpr: 1.5, antialias: true, environment: true };
     default:
-      return { tier, layers: 46, pieces: 5, dust: 320, ringSegments: 112, tubeSegments: 6, maxDpr: 1.75, antialias: true, environment: true };
+      return { tier, layers: 46, pieces: 4, dust: 320, ringSegments: 112, tubeSegments: 6, maxDpr: 1.75, antialias: true, environment: true };
   }
 }

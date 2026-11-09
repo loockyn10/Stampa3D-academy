@@ -437,7 +437,8 @@ export class HeroLampScene {
     this.camera.aspect = aspect;
     const portrait = aspect < 1;
     this.camera.fov = portrait ? 44 : 36;
-    this.orbiters.setSpread(portrait ? 0.78 : 1);
+    // Más recogida en vertical y en ventanas estrechas, donde el texto ocupa proporcionalmente más.
+    this.orbiters.setSpread(portrait ? 0.78 : this.width < 1000 ? 0.86 : 1, portrait ? 0.45 : undefined);
     const requiredWidth = portrait ? 5.6 : 6.4;
     const fitZ = requiredWidth / (2 * Math.tan(THREE.MathUtils.degToRad(this.camera.fov / 2)) * aspect);
     this.baseZ = Math.max(portrait ? 12 : 14.5, fitZ);

@@ -83,13 +83,17 @@ test("los objetos orbitantes y el núcleo digital son compartidos por ambas vari
   // El modelo de lámpara no vuelve a dibujar una bombilla: solo el núcleo digital aparece al separar las capas.
   assert.doesNotMatch(lamp, /bulbGlow/);
   const models = read("src/components/landing-hero/printed-models.ts");
-  for (const id of ["benchy", "tower", "cube", "gear", "vase"]) assert.match(models, new RegExp(`${id}:`));
+  for (const id of ["boat", "tower", "cube", "gear"]) assert.match(models, new RegExp(`${id}:`));
+  // Identidad común: filamento marfil sin metal ni colores arcoíris, y sin presentar el barco como el 3DBenchy oficial.
+  assert.match(models, /metalness: 0 \}/);
+  assert.doesNotMatch(models, /0x5b7cff/);
+  assert.match(models, /NO es 3DBenchy/);
 });
 
 test("equipos modestos muestran menos objetos orbitantes y el destello se puede atenuar", () => {
   const quality = read("src/components/landing-hero/hero-quality.ts");
   assert.match(quality, /case "low":\s*\n?\s*return \{ tier, layers: 26, pieces: 3,/);
-  assert.match(quality, /layers: 46, pieces: 5,/);
+  assert.match(quality, /layers: 46, pieces: 4,/);
   const half = timeline.computeTimeline(0.585, { ...RIG, flashScale: 0.5 }).flash;
   const full = timeline.computeTimeline(0.585, RIG).flash;
   assert.ok(Math.abs(half - full / 2) < 1e-9);
