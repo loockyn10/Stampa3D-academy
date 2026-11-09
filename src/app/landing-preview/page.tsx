@@ -8,6 +8,8 @@ export const metadata: Metadata = {
   robots: { index: false, follow: false },
 };
 
-export default function LandingPreviewPage() {
-  return <UniversoHero />;
+// `?modelo=lampara` muestra la variante de lámpara de diseño; sin parámetro, el núcleo actual (prueba de comparación).
+export default async function LandingPreviewPage({ searchParams }: { searchParams: Promise<{ modelo?: string | string[] }> }) {
+  const { modelo } = await searchParams;
+  return <UniversoHero model={modelo === "lampara" ? "lampara" : "nucleo"} />;
 }

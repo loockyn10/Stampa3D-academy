@@ -8,7 +8,7 @@ import { heroContent, type HeroAction } from "./hero-content";
 import { isWebGLAvailable } from "./hero-quality";
 import { HeroDiscovery } from "./HeroDiscovery";
 import { HeroFallbackCore } from "./HeroFallbackCore";
-import type { HeroSceneApi } from "./HeroCoreCanvas";
+import type { HeroModel, HeroSceneApi } from "./HeroCoreCanvas";
 import { useHeroController } from "./use-hero-controller";
 import styles from "./UniversoHero.module.css";
 
@@ -41,7 +41,7 @@ const ANCHOR_ID = "descubrimiento";
  * Estructura: un contenedor alto (`track`) con un escenario fijo (`stage`, sticky) dentro.
  * El progreso del scroll sobre el contenedor gobierna la cámara, el núcleo y las capas de texto.
  */
-export function UniversoHero() {
+export function UniversoHero({ model = "nucleo" }: { model?: HeroModel }) {
   const reducedMotion = useSyncExternalStore(
     subscribeReducedMotion,
     () => window.matchMedia(REDUCED_QUERY).matches,
@@ -113,7 +113,7 @@ export function UniversoHero() {
 
           <div className={styles.canvasWrap} aria-hidden="true">
             {showCanvas ? (
-              <HeroCoreCanvas key={reducedMotion ? "still" : "live"} reducedMotion={reducedMotion} onReady={handleReady} onFail={handleFail} />
+              <HeroCoreCanvas key={`${model}-${reducedMotion ? "still" : "live"}`} model={model} reducedMotion={reducedMotion} onReady={handleReady} onFail={handleFail} />
             ) : null}
             {showFallback ? <HeroFallbackCore /> : null}
           </div>

@@ -2,6 +2,7 @@
 
 import { useEffect, useRef } from "react";
 import { HeroCoreScene } from "./core-scene";
+import { HeroLampScene } from "./lamp-scene";
 import { resolveHeroQuality } from "./hero-quality";
 import type { HeroTimeline } from "./hero-timeline";
 
@@ -12,7 +13,11 @@ export type HeroSceneApi = {
   render: (timeline: HeroTimeline, dt: number) => void;
 };
 
+/** Objeto protagonista: el núcleo de capas (por defecto) o la lámpara de diseño (prueba creativa). */
+export type HeroModel = "nucleo" | "lampara";
+
 type Props = {
+  model?: HeroModel;
   reducedMotion: boolean;
   onReady: (api: HeroSceneApi) => void;
   /** El contexto WebGL se perdió o no se pudo crear la escena: el padre muestra el fallback. */
@@ -25,7 +30,7 @@ type Props = {
  * Monta el canvas WebGL y la escena. Se importa con `next/dynamic` (ssr: false) para que Three.js
  * viaje en su propio chunk y no cargue con el resto de la aplicación.
  */
-export default function HeroCoreCanvas({ reducedMotion, onReady, onFail, onFormed }: Props) {
+export default function HeroCoreCanvas({ model = "nucleo", reducedMotion, onReady, onFail, onFormed }: Props) {
   const hostRef = useRef<HTMLDivElement>(null);
   const callbacks = useRef({ onReady, onFail, onFormed });
 
@@ -44,9 +49,10 @@ export default function HeroCoreCanvas({ reducedMotion, onReady, onFail, onForme
     canvas.style.cssText = "position:absolute;inset:0;width:100%;height:100%;display:block";
     host.appendChild(canvas);
 
-    let scene: HeroCoreScene | null = null;
+    let scene: HeroCoreScene | HeroLampScene | null = null;
     try {
-      scene = new HeroCoreScene(canvas, resolveHeroQuality(host.clientWidth || window.innerWidth), {
+      const SceneClass = model === "lampara" ? HeroLampScene : HeroCoreScene;
+      scene = new SceneClass(canvas, resolveHeroQuality(host.clientWidth || window.innerWidth), {
         reducedMotion,
         onContextLost: () => callbacks.current.onFail(),
         onFormed: () => callbacks.current.onFormed?.(),
@@ -86,7 +92,7 @@ export default function HeroCoreCanvas({ reducedMotion, onReady, onFail, onForme
       active.dispose();
       canvas.remove();
     };
-  }, [reducedMotion]);
+  }, [model, reducedMotion]);
 
   return <div ref={hostRef} className="absolute inset-0" />;
 }

@@ -56,3 +56,17 @@ test("la escena libera sus recursos y no añade dependencias nuevas", () => {
   // Three.js se carga de forma diferida y solo en el navegador.
   assert.match(read("src/components/landing-hero/UniversoHero.tsx"), /dynamic\(\(\) => import\("\.\/HeroCoreCanvas"\), \{ ssr: false \}\)/);
 });
+
+test("?modelo=lampara elige la lámpara y el núcleo sigue siendo el modelo por defecto", () => {
+  const page = read("src/app/landing-preview/page.tsx");
+  assert.match(page, /modelo === "lampara" \? "lampara" : "nucleo"/);
+  const canvas = read("src/components/landing-hero/HeroCoreCanvas.tsx");
+  assert.match(canvas, /model = "nucleo"/);
+  assert.match(canvas, /HeroLampScene/);
+  const lamp = read("src/components/landing-hero/lamp-scene.ts");
+  assert.match(lamp, /renderer\.dispose\(\)/);
+  assert.match(lamp, /forceContextLoss\(\)/);
+  assert.match(lamp, /reducedMotion/);
+  // La geometría anterior se conserva.
+  assert.match(read("src/components/landing-hero/core-scene.ts"), /export class HeroCoreScene/);
+});
