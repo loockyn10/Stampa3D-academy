@@ -12,6 +12,8 @@
 import * as THREE from "three";
 import { RoomEnvironment } from "three/examples/jsm/environments/RoomEnvironment.js";
 import type { CoreSceneOptions } from "./core-scene";
+import { HeroDigitalCore } from "./digital-core";
+import { HeroOrbiters } from "./orbiters";
 import type { HeroQuality } from "./hero-quality";
 import { clamp01, easeOutCubic, lerp, smoothstep, type HeroTimeline } from "./hero-timeline";
 import { makeGlowTexture, mulberry32 } from "./scene-utils";
@@ -22,6 +24,8 @@ const SHADE_Y0 = BASE_Y0 + BASE_HEIGHT - 0.02;
 const SHADE_HEIGHT = 5.0;
 const SHADE_CENTER = SHADE_Y0 + SHADE_HEIGHT / 2;
 const BULB_Y = -0.7;
+/** Altura del núcleo digital: el centro de la pantalla, por donde pasa la cámara en la travesía. */
+const CORE_Y = 0;
 const BED_Y = BASE_Y0 - 0.03;
 
 const FORMATION_SECONDS = 4.6;
@@ -130,7 +134,8 @@ export class HeroLampScene {
   private readonly baseSpawn: Float32Array;
 
   private readonly bulbLight = new THREE.PointLight(0xffa955, 0, 7.5, 2);
-  private readonly bulbGlow: THREE.Sprite;
+  private readonly digitalCore: HeroDigitalCore;
+  private readonly orbiters: HeroOrbiters;
   private readonly nozzleLight = new THREE.PointLight(0xffb36b, 0, 4.5, 2);
   private readonly nozzleGlow: THREE.Sprite;
   private readonly bed = new THREE.Group();
@@ -158,6 +163,8 @@ export class HeroLampScene {
 
   baseZ = 14.5;
   readonly endZ = -4.6;
+  /** Destello de la travesía más contenido que en el núcleo original: deja ver la transformación. */
+  readonly flashScale = 0.3;
 
   constructor(canvas: HTMLCanvasElement, quality: HeroQuality, options: CoreSceneOptions) {
     this.canvas = canvas;
@@ -233,21 +240,18 @@ export class HeroLampScene {
       this.baseSpawn[i * 3 + 2] = Math.sin(angle) * radius;
     }
 
-    // --- Luz interior: se ve a través de las paredes, no como una esfera ---
-    const bulbMaterial = new THREE.SpriteMaterial({
-      map: glowTexture,
-      color: 0xffd6a0,
-      transparent: true,
-      opacity: 0,
-      blending: THREE.AdditiveBlending,
-      depthWrite: false,
-      toneMapped: false,
-    });
-    this.disposables.push(bulbMaterial);
-    this.bulbGlow = new THREE.Sprite(bulbMaterial);
-    this.bulbGlow.position.set(0, BULB_Y, 0);
+    // --- Luz interior de la lámpara (sin esfera visible) ---
     this.bulbLight.position.set(0, BULB_Y, 0);
-    this.rig.add(this.bulbLight, this.bulbGlow);
+    this.rig.add(this.bulbLight);
+
+    // --- Objetos impresos orbitando (compartidos con el núcleo) ---
+    this.orbiters = new HeroOrbiters(quality.pieces);
+    this.rig.add(this.orbiters.group);
+
+    // --- Núcleo digital: aparece dentro de la pantalla cuando las capas se separan ---
+    this.digitalCore = new HeroDigitalCore(glowTexture, { haloDepthTest: true });
+    this.digitalCore.group.position.set(0, CORE_Y, 0);
+    this.rig.add(this.digitalCore.group);
 
     // Cabezal de impresión: luz cálida que recorre la capa que se está construyendo.
     const nozzleMaterial = new THREE.SpriteMaterial({
@@ -433,6 +437,7 @@ export class HeroLampScene {
     this.camera.aspect = aspect;
     const portrait = aspect < 1;
     this.camera.fov = portrait ? 44 : 36;
+    this.orbiters.setSpread(portrait ? 0.78 : 1);
     const requiredWidth = portrait ? 5.6 : 6.4;
     const fitZ = requiredWidth / (2 * Math.tan(THREE.MathUtils.degToRad(this.camera.fov / 2)) * aspect);
     this.baseZ = Math.max(portrait ? 12 : 14.5, fitZ);
@@ -477,7 +482,8 @@ export class HeroLampScene {
 
     const ignition = this.ignition;
     this.updateLayers(timeline, time, formation);
-    this.updateLight(timeline, ignition);
+    this.updateLight(timeline, time, ignition);
+    this.orbiters.update(time, timeline, formation, 0, this.camera.position);
     this.updateNozzle(time, formation, timeline);
     this.updateBed(timeline, formation, ignition);
 
@@ -531,16 +537,22 @@ export class HeroLampScene {
     this.baseMesh.instanceMatrix.needsUpdate = true;
   }
 
-  private updateLight(tl: HeroTimeline, ignition: number): void {
+  private updateLight(tl: HeroTimeline, time: number, ignition: number): void {
     // El scroll empuja la luz algo más allá del encendido normal, siempre dentro de un rango sobrio.
-    const boost = 1 + 0.5 * tl.glow;
+    const boost = 1 + 0.15 * tl.glow;
     this.shadeMaterial.emissiveIntensity = 1.5 * ignition * boost;
     // Con la luz interior el plástico se ve más rico y menos "blanco de estudio": el color propio cede ante la emisión.
     this.shadeMaterial.color.lerpColors(SHADE_OFF_COLOR, SHADE_ON_COLOR, ignition);
-    this.bulbLight.intensity = ignition * (9 + 26 * tl.glow);
-    const glow = this.bulbGlow.material as THREE.SpriteMaterial;
-    glow.opacity = ignition * (0.08 + 0.5 * tl.glow);
-    this.bulbGlow.scale.setScalar(1.8 + tl.glow * 6.5);
+    this.bulbLight.intensity = ignition * 9;
+
+    // Núcleo digital: nace cuando las capas empiezan a separarse y crece hasta que la cámara lo atraviesa.
+    const appear = smoothstep(0.12, 0.6, tl.explode);
+    this.digitalCore.update(time, {
+      scale: appear * (0.85 + 0.9 * tl.glow),
+      haloOpacity: appear * (0.04 + 0.26 * tl.glow),
+      haloScale: 2.4 + 3.6 * tl.glow,
+      lightIntensity: appear * (3 + 30 * tl.glow),
+    });
   }
 
   private updateNozzle(time: number, formation: number, tl: HeroTimeline): void {
@@ -592,6 +604,8 @@ export class HeroLampScene {
     this.canvas.removeEventListener("webglcontextlost", this.onLost);
     for (const resource of this.disposables) resource.dispose();
     this.disposables.length = 0;
+    this.orbiters.dispose();
+    this.digitalCore.dispose();
     this.scene.environment = null;
     this.scene.clear();
     this.renderer.dispose();

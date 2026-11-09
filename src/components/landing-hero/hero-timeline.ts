@@ -47,7 +47,8 @@ export type HeroTimeline = {
   discovery: number;
 };
 
-export type HeroCameraRig = { baseZ: number; endZ: number };
+/** `flashScale`: atenúa el destello de la travesía (1 = completo). */
+export type HeroCameraRig = { baseZ: number; endZ: number; flashScale?: number };
 
 /** Vuelve a pasar por un campana: sube en [a,b], baja en [c,d]. */
 const bell = (v: number, a: number, b: number, c: number, d: number): number =>
@@ -63,7 +64,7 @@ export function computeTimeline(p: number, rig: HeroCameraRig): HeroTimeline {
     lookY: lerp(0.15, 0, smoothstep(0, 0.5, progress)),
     twist: progress * 1.35,
     glow: smoothstep(0.2, 0.6, progress),
-    flash: bell(progress, 0.47, 0.585, 0.585, 0.76),
+    flash: bell(progress, 0.47, 0.585, 0.585, 0.76) * (rig.flashScale ?? 1),
     shift: 1 - smoothstep(0, 0.32, progress),
     idle: 1 - smoothstep(0, 0.3, progress),
     canvas: 1 - 0.62 * smoothstep(0.7, 0.93, progress),

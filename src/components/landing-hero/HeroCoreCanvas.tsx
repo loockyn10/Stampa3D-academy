@@ -10,6 +10,7 @@ import type { HeroTimeline } from "./hero-timeline";
 export type HeroSceneApi = {
   baseZ: number;
   endZ: number;
+  flashScale?: number;
   render: (timeline: HeroTimeline, dt: number) => void;
 };
 
@@ -82,6 +83,9 @@ export default function HeroCoreCanvas({ model = "nucleo", reducedMotion, onRead
       },
       get endZ() {
         return active.endZ;
+      },
+      get flashScale() {
+        return active.flashScale;
       },
       render: (timeline, dt) => active.render(timeline, dt),
     });

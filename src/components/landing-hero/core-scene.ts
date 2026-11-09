@@ -12,6 +12,8 @@
 import * as THREE from "three";
 import { RoomEnvironment } from "three/examples/jsm/environments/RoomEnvironment.js";
 import type { HeroQuality } from "./hero-quality";
+import { HeroDigitalCore } from "./digital-core";
+import { HeroOrbiters } from "./orbiters";
 import { makeGlowTexture, mulberry32 } from "./scene-utils";
 import { clamp01, easeOutCubic, lerp, smoothstep, type HeroTimeline } from "./hero-timeline";
 
@@ -94,25 +96,6 @@ function buildSlabGeometry(thetaSegments: number, crossSegments: number): THREE.
   return geometry;
 }
 
-type PieceFamily = {
-  mesh: THREE.InstancedMesh;
-  ids: number[];
-};
-
-type Piece = {
-  family: number;
-  slot: number;
-  home: THREE.Vector3;
-  spawn: THREE.Vector3;
-  baseQuat: THREE.Quaternion;
-  axis: THREE.Vector3;
-  rate: number;
-  scale: THREE.Vector3;
-  delay: number;
-  bob: number;
-  drift: number;
-};
-
 export type CoreSceneOptions = {
   reducedMotion: boolean;
   onContextLost?: () => void;
@@ -143,15 +126,10 @@ export class HeroCoreScene {
   private readonly layerSy: number;
 
   // Piezas
-  private readonly pieces: Piece[] = [];
-  private readonly families: PieceFamily[] = [];
+  private readonly orbiters: HeroOrbiters;
 
   // Corazón, plataforma, partículas, luces
-  private readonly heart = new THREE.Group();
-  private readonly heartCore: THREE.Mesh;
-  private readonly heartHalo: THREE.Sprite;
-  private readonly heartRings: THREE.Mesh[] = [];
-  private readonly heartLight = new THREE.PointLight(0xff7a1a, 0, 10, 2);
+  private readonly digitalCore: HeroDigitalCore;
   private readonly nozzleLight = new THREE.PointLight(0xff8a2a, 0, 4.5, 2);
   private readonly nozzleGlow: THREE.Sprite;
   private readonly bed = new THREE.Group();
@@ -160,15 +138,10 @@ export class HeroCoreScene {
   private readonly dust: THREE.Points;
 
   private readonly dummy = new THREE.Object3D();
-  private readonly tmpV = new THREE.Vector3();
-  private readonly tmpQ = new THREE.Quaternion();
-  private readonly tmpQ2 = new THREE.Quaternion();
-  private readonly tmpE = new THREE.Euler();
 
   private width = 1;
   private height = 1;
   private dpr = 1;
-  private pieceSpread = 1;
   private elapsed = 0;
   private spin = 0;
   private pointerX = 0;
@@ -186,6 +159,7 @@ export class HeroCoreScene {
   /** Rig de cámara dependiente del encuadre; lo calcula `resize`. */
   baseZ = 11.5;
   readonly endZ = -4.6;
+  readonly flashScale = 1;
 
   constructor(canvas: HTMLCanvasElement, quality: HeroQuality, options: CoreSceneOptions) {
     this.canvas = canvas;
@@ -231,53 +205,15 @@ export class HeroCoreScene {
     this.layerSy = ((CORE_HEIGHT / (n - 1)) * 0.96) / (2 * LAYER_HALF_HEIGHT);
     this.buildLayers();
 
-    // --- Piezas ---
-    this.buildPieces();
+    // --- Objetos impresos orbitando (compartidos con la lámpara) ---
+    this.orbiters = new HeroOrbiters(quality.pieces);
+    this.rig.add(this.orbiters.group);
 
-    // --- Corazón ---
+    // --- Núcleo digital luminoso (compartido con la lámpara) ---
     const glowTexture = makeGlowTexture();
     this.disposables.push(glowTexture);
-
-    const heartGeo = new THREE.IcosahedronGeometry(0.4, 3);
-    const heartMat = new THREE.MeshBasicMaterial({ color: 0xffb36b, toneMapped: false });
-    this.disposables.push(heartGeo, heartMat);
-    this.heartCore = new THREE.Mesh(heartGeo, heartMat);
-    this.heart.add(this.heartCore);
-
-    const ringMat = new THREE.MeshStandardMaterial({
-      color: 0xff780a,
-      emissive: 0xff5a00,
-      emissiveIntensity: 1.6,
-      metalness: 0.4,
-      roughness: 0.35,
-    });
-    this.disposables.push(ringMat);
-    [0.72, 0.98, 1.24].forEach((radius, index) => {
-      const geo = new THREE.TorusGeometry(radius, 0.012 + index * 0.003, 8, 72);
-      this.disposables.push(geo);
-      const ring = new THREE.Mesh(geo, ringMat);
-      ring.rotation.set(index * 0.9, index * 0.5, index * 0.3);
-      this.heartRings.push(ring);
-      this.heart.add(ring);
-    });
-
-    const haloMat = new THREE.SpriteMaterial({
-      map: glowTexture,
-      color: 0xff7a1a,
-      transparent: true,
-      opacity: 0.2,
-      blending: THREE.AdditiveBlending,
-      depthWrite: false,
-      depthTest: false,
-      toneMapped: false,
-    });
-    this.disposables.push(haloMat);
-    this.heartHalo = new THREE.Sprite(haloMat);
-    this.heartHalo.renderOrder = 10;
-    this.heart.add(this.heartHalo);
-    this.heart.add(this.heartLight);
-    this.heart.scale.setScalar(0.0001);
-    this.rig.add(this.heart);
+    this.digitalCore = new HeroDigitalCore(glowTexture, { haloDepthTest: false });
+    this.rig.add(this.digitalCore.group);
 
     // Boquilla: luz que recorre la capa que se está imprimiendo.
     const nozzleMat = new THREE.SpriteMaterial({
@@ -424,71 +360,6 @@ export class HeroCoreScene {
     });
   }
 
-  private buildPieces(): void {
-    const rnd = mulberry32(0x91c3);
-    const total = this.quality.pieces;
-
-    // Pocas piezas, pequeñas y sobrias: acompañan a la escultura sin competir con ella.
-    const geometries = [
-      new THREE.IcosahedronGeometry(1, 0),
-      new THREE.BoxGeometry(1, 0.14, 0.7),
-      new THREE.TorusGeometry(1, 0.06, 10, 44),
-    ];
-    const materials = [
-      new THREE.MeshStandardMaterial({ color: 0xa5abb8, metalness: 1, roughness: 0.24, flatShading: true }),
-      new THREE.MeshStandardMaterial({ color: 0xff780a, emissive: 0x3a1400, metalness: 0.08, roughness: 0.55 }),
-      new THREE.MeshStandardMaterial({ color: 0xd9731f, metalness: 1, roughness: 0.3 }),
-    ];
-    geometries.forEach((g) => this.disposables.push(g));
-    materials.forEach((m) => this.disposables.push(m));
-
-    const perFamily = [0, 0, 0];
-    for (let k = 0; k < total; k += 1) {
-      const family = k % 3;
-      const slot = perFamily[family];
-      perFamily[family] += 1;
-
-      // Altura y radio: siempre bien por fuera de la silueta de la escultura.
-      const h = (rnd() - 0.5) * (CORE_HEIGHT + 0.4);
-      const tNorm = clamp01(h / CORE_HEIGHT + 0.5);
-      const rho = profileRadius(tNorm) * 1.12 + 1.25 + rnd() * 1.4;
-      const phi = k * 2.399 + rnd() * 0.6;
-      const home = new THREE.Vector3(Math.cos(phi) * rho, h, Math.sin(phi) * rho);
-
-      const spawn = home.clone().multiplyScalar(2.9);
-      spawn.y += 2.5 + rnd() * 4;
-
-      const scale = new THREE.Vector3();
-      if (family === 0) scale.set(0.12 + rnd() * 0.1, 0.2 + rnd() * 0.14, 0.12 + rnd() * 0.08);
-      else if (family === 1) scale.setScalar(0.22 + rnd() * 0.2);
-      else scale.setScalar(0.17 + rnd() * 0.14);
-
-      this.pieces.push({
-        family,
-        slot,
-        home,
-        spawn,
-        baseQuat: new THREE.Quaternion().setFromEuler(new THREE.Euler(rnd() * 6.28, rnd() * 6.28, rnd() * 6.28)),
-        axis: new THREE.Vector3(rnd() - 0.5, rnd() - 0.5, rnd() - 0.5).normalize(),
-        rate: (rnd() < 0.5 ? -1 : 1) * (0.1 + rnd() * 0.25),
-        scale,
-        delay: 0.4 + rnd() * 0.3,
-        bob: rnd() * 6.28,
-        drift: 0.75 + rnd() * 0.7,
-      });
-    }
-
-    materials.forEach((material, family) => {
-      const mesh = new THREE.InstancedMesh(geometries[family], material, Math.max(perFamily[family], 1));
-      mesh.count = perFamily[family];
-      mesh.frustumCulled = false;
-      mesh.instanceMatrix.setUsage(THREE.DynamicDrawUsage);
-      this.rig.add(mesh);
-      this.families.push({ mesh, ids: [] });
-      this.disposables.push({ dispose: () => mesh.dispose() });
-    });
-  }
-
   private buildDust(texture: THREE.Texture): THREE.Points {
     const rnd = mulberry32(0xd057);
     const count = this.quality.dust;
@@ -552,7 +423,7 @@ export class HeroCoreScene {
     this.camera.aspect = aspect;
     const portrait = aspect < 1;
     this.camera.fov = portrait ? 44 : 36;
-    this.pieceSpread = portrait ? 0.78 : 1;
+    this.orbiters.setSpread(portrait ? 0.78 : 1);
     const requiredWidth = portrait ? 8.4 : 9.6;
     const fitZ = requiredWidth / (2 * Math.tan(THREE.MathUtils.degToRad(this.camera.fov / 2)) * aspect);
     this.baseZ = Math.max(portrait ? 12 : 14.5, fitZ);
@@ -602,7 +473,7 @@ export class HeroCoreScene {
     this.applyViewOffset(timeline.shift);
 
     this.updateLayers(timeline, time, formation);
-    this.updatePieces(timeline, time, formation);
+    this.orbiters.update(time, timeline, formation, 0, this.camera.position);
     this.updateHeart(timeline, time, formation);
     this.updateNozzle(time, formation, timeline);
     this.updateBed(timeline, formation);
@@ -641,50 +512,15 @@ export class HeroCoreScene {
     for (const mesh of this.layerMeshes) mesh.instanceMatrix.needsUpdate = true;
   }
 
-  private updatePieces(tl: HeroTimeline, time: number, formation: number): void {
-    const ex = tl.explode;
-    const dummy = this.dummy;
-    const cam = this.camera.position;
-    for (const piece of this.pieces) {
-      const f = clamp01((formation - piece.delay) / 0.32);
-      const e = easeOutCubic(f);
-      const grow = smoothstep(0, 0.25, f);
-
-      const outward = 1 + ex * 2.3 * piece.drift;
-      this.tmpV.copy(piece.home).multiplyScalar(this.pieceSpread * outward);
-      this.tmpV.y += Math.sin(time * 0.6 + piece.bob) * 0.08 * (1 - ex * 0.5);
-      this.tmpV.lerpVectors(piece.spawn, this.tmpV, e);
-      dummy.position.copy(this.tmpV);
-
-      const angle = time * piece.rate + (1 - e) * 5 + ex * piece.rate * 5;
-      this.tmpQ.setFromAxisAngle(piece.axis, angle);
-      this.tmpQ2.copy(this.tmpQ).multiply(piece.baseQuat);
-      dummy.quaternion.copy(this.tmpQ2);
-
-      // Se encogen al pasar cerca de la cámara para que la travesía quede despejada.
-      this.tmpV.applyMatrix4(this.rig.matrixWorld);
-      const near = smoothstep(0.9, 3.4, this.tmpV.distanceTo(cam));
-      const s = grow * near;
-      dummy.scale.set(piece.scale.x * s, piece.scale.y * s, piece.scale.z * s);
-      dummy.updateMatrix();
-      this.families[piece.family].mesh.setMatrixAt(piece.slot, dummy.matrix);
-    }
-    for (const family of this.families) family.mesh.instanceMatrix.needsUpdate = true;
-  }
-
   private updateHeart(tl: HeroTimeline, time: number, formation: number): void {
     const appear = smoothstep(0.72, 1, formation);
     const glow = tl.glow;
-    const pulse = 1 + Math.sin(time * 2.1) * 0.04;
-    this.heart.scale.setScalar(Math.max(0.0001, appear * (0.8 + glow * 1.6) * pulse));
-    this.heartRings.forEach((ring, index) => {
-      ring.rotation.x += 0.004 * (index + 1);
-      ring.rotation.y += 0.003 * (3 - index);
+    this.digitalCore.update(time, {
+      scale: appear * (0.8 + glow * 1.6),
+      haloOpacity: (0.16 + 0.7 * glow) * appear,
+      haloScale: 4.2 + glow * 9,
+      lightIntensity: (6 + 70 * glow) * appear,
     });
-    const halo = this.heartHalo.material as THREE.SpriteMaterial;
-    halo.opacity = (0.16 + 0.7 * glow) * appear;
-    this.heartHalo.scale.setScalar(4.2 + glow * 9);
-    this.heartLight.intensity = (6 + 70 * glow) * appear;
   }
 
   private updateNozzle(time: number, formation: number, tl: HeroTimeline): void {
@@ -737,6 +573,8 @@ export class HeroCoreScene {
     this.canvas.removeEventListener("webglcontextlost", this.onLost);
     for (const resource of this.disposables) resource.dispose();
     this.disposables.length = 0;
+    this.orbiters.dispose();
+    this.digitalCore.dispose();
     this.scene.environment = null;
     this.scene.clear();
     this.renderer.dispose();

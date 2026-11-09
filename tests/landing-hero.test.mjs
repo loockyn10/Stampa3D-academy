@@ -70,3 +70,27 @@ test("?modelo=lampara elige la lámpara y el núcleo sigue siendo el modelo por 
   // La geometría anterior se conserva.
   assert.match(read("src/components/landing-hero/core-scene.ts"), /export class HeroCoreScene/);
 });
+
+test("los objetos orbitantes y el núcleo digital son compartidos por ambas variantes", () => {
+  const core = read("src/components/landing-hero/core-scene.ts");
+  const lamp = read("src/components/landing-hero/lamp-scene.ts");
+  for (const source of [core, lamp]) {
+    assert.match(source, /new HeroOrbiters\(quality\.pieces\)/);
+    assert.match(source, /new HeroDigitalCore\(/);
+    assert.match(source, /orbiters\.dispose\(\)/);
+    assert.match(source, /digitalCore\.dispose\(\)/);
+  }
+  // El modelo de lámpara no vuelve a dibujar una bombilla: solo el núcleo digital aparece al separar las capas.
+  assert.doesNotMatch(lamp, /bulbGlow/);
+  const models = read("src/components/landing-hero/printed-models.ts");
+  for (const id of ["benchy", "tower", "cube", "gear", "vase"]) assert.match(models, new RegExp(`${id}:`));
+});
+
+test("equipos modestos muestran menos objetos orbitantes y el destello se puede atenuar", () => {
+  const quality = read("src/components/landing-hero/hero-quality.ts");
+  assert.match(quality, /case "low":\s*\n?\s*return \{ tier, layers: 26, pieces: 3,/);
+  assert.match(quality, /layers: 46, pieces: 5,/);
+  const half = timeline.computeTimeline(0.585, { ...RIG, flashScale: 0.5 }).flash;
+  const full = timeline.computeTimeline(0.585, RIG).flash;
+  assert.ok(Math.abs(half - full / 2) < 1e-9);
+});
