@@ -21,29 +21,76 @@ const FORMATION_SECONDS = 4.6;
 const FORMATION_DELAY = 0.35;
 const BED_Y = -3.05;
 
-const PROFILE: ReadonlyArray<readonly [number, number]> = [
-  [0, 0.7],
-  [0.1, 1.18],
-  [0.26, 1.62],
-  [0.42, 1.22],
-  [0.55, 0.96],
-  [0.72, 1.32],
-  [0.88, 1.58],
-  [1, 1.12],
-];
+/** Radio interior relativo de cada capa (la boca del vaso deja ver el corazón luminoso). */
+const LAYER_INNER = 0.58;
+/** Semialtura de la sección de cada capa en unidades de geometría (la escala vertical la fija la separación entre capas). */
+const LAYER_HALF_HEIGHT = 0.2;
+/** Torsión total de la escultura, de la base a la boca (rad). */
+const SCULPTURE_TWIST = 3.6;
 
-/** Perfil (radio por altura normalizada) del vaso: bulbo, cintura y boca acampanada. */
+/** Silueta (radio por altura normalizada): base estable, bulbo, cintura fina y boca acampanada, todo continuo. */
 function profileRadius(t: number): number {
-  for (let k = 1; k < PROFILE.length; k += 1) {
-    const [t1, r1] = PROFILE[k];
-    if (t <= t1) {
-      const [t0, r0] = PROFILE[k - 1];
-      const u = (t - t0) / (t1 - t0);
-      const s = (1 - Math.cos(u * Math.PI)) / 2;
-      return r0 + (r1 - r0) * s;
+  const body = Math.pow(Math.sin(Math.PI * (0.06 + 0.88 * t)), 1.15);
+  const waist = Math.exp(-(((t - 0.56) / 0.15) ** 2));
+  return 0.72 + 0.66 * body - 0.5 * waist + 0.38 * smoothstep(0.66, 1, t);
+}
+
+/** Contorno ondulado de una capa: tres lóbulos suaves (se tuercen de capa en capa). */
+function outlineRadius(theta: number): number {
+  return 1 + 0.14 * Math.sin(3 * theta) + 0.035 * Math.sin(6 * theta + 0.8);
+}
+
+/**
+ * Losa anular unitaria con bordes redondeados (sección tipo "squircle") que sigue el contorno ondulado.
+ * Todas las capas la comparten: al apilarse y torcerse forman una superficie continua con finas líneas de capa.
+ */
+function buildSlabGeometry(thetaSegments: number, crossSegments: number): THREE.BufferGeometry {
+  const positions = new Float32Array(thetaSegments * crossSegments * 3);
+  const squircle = (v: number) => Math.sign(v) * Math.pow(Math.abs(v), 0.5);
+  for (let j = 0; j < thetaSegments; j += 1) {
+    const theta = (j / thetaSegments) * Math.PI * 2;
+    const outer = outlineRadius(theta);
+    const cx = Math.cos(theta);
+    const sz = Math.sin(theta);
+    for (let k = 0; k < crossSegments; k += 1) {
+      const u = (k / crossSegments) * Math.PI * 2;
+      const px = squircle(Math.cos(u));
+      const py = squircle(Math.sin(u));
+      const radius = outer * (LAYER_INNER + ((1 - LAYER_INNER) * (px + 1)) / 2);
+      const o = (j * crossSegments + k) * 3;
+      positions[o] = cx * radius;
+      positions[o + 1] = py * LAYER_HALF_HEIGHT;
+      positions[o + 2] = sz * radius;
     }
   }
-  return PROFILE[PROFILE.length - 1][1];
+  const indices: number[] = [];
+  for (let j = 0; j < thetaSegments; j += 1) {
+    const jn = (j + 1) % thetaSegments;
+    for (let k = 0; k < crossSegments; k += 1) {
+      const kn = (k + 1) % crossSegments;
+      const a = j * crossSegments + k;
+      const b = jn * crossSegments + k;
+      const c = jn * crossSegments + kn;
+      const d = j * crossSegments + kn;
+      indices.push(a, b, d, b, c, d);
+    }
+  }
+  const geometry = new THREE.BufferGeometry();
+  geometry.setAttribute("position", new THREE.BufferAttribute(positions, 3));
+  geometry.setIndex(indices);
+  geometry.computeVertexNormals();
+  // Comprobación de orientación: en la cara exterior (u = 0, θ = 0) la normal debe apuntar hacia +X.
+  const normal = geometry.getAttribute("normal");
+  if (normal.getX(0) < 0) {
+    for (let i = 0; i < indices.length; i += 3) {
+      const t = indices[i + 1];
+      indices[i + 1] = indices[i + 2];
+      indices[i + 2] = t;
+    }
+    geometry.setIndex(indices);
+    geometry.computeVertexNormals();
+  }
+  return geometry;
 }
 
 function mulberry32(seed: number): () => number {
@@ -210,7 +257,8 @@ export class HeroCoreScene {
     this.layerPhase = new Float32Array(n);
     this.layerTilt = new Float32Array(n);
     this.layerDelay = new Float32Array(n);
-    this.layerSy = (CORE_HEIGHT / (n - 1)) * 9;
+    // Capas casi en contacto: la separación de apilado fija el grosor, con una fina línea entre ellas.
+    this.layerSy = ((CORE_HEIGHT / (n - 1)) * 0.96) / (2 * LAYER_HALF_HEIGHT);
     this.buildLayers();
 
     // --- Piezas ---
@@ -282,7 +330,7 @@ export class HeroCoreScene {
       map: glowTexture,
       color: 0xff6a00,
       transparent: true,
-      opacity: 0.32,
+      opacity: 0.22,
       blending: THREE.AdditiveBlending,
       depthWrite: false,
       toneMapped: false,
@@ -293,9 +341,9 @@ export class HeroCoreScene {
     this.bedGlow.rotation.x = -Math.PI / 2;
     this.bed.add(this.bedGlow);
     [
-      [2.3, 2.33, 0.5],
-      [3.1, 3.12, 0.3],
-      [4.0, 4.015, 0.18],
+      [2.3, 2.33, 0.32],
+      [3.1, 3.12, 0.2],
+      [4.0, 4.015, 0.12],
     ].forEach(([inner, outer, opacity]) => {
       const geo = new THREE.RingGeometry(inner, outer, 128);
       const mat = new THREE.MeshBasicMaterial({
@@ -352,39 +400,38 @@ export class HeroCoreScene {
     const n = this.layerCount;
     const rnd = mulberry32(0x57a9);
 
-    // Anillo ondulado unitario: se comparte entre todas las capas.
-    const points: THREE.Vector3[] = [];
-    const samples = this.quality.ringSegments;
-    for (let j = 0; j < samples; j += 1) {
-      const theta = (j / samples) * Math.PI * 2;
-      const radius = 1 + 0.055 * Math.sin(5 * theta) + 0.03 * Math.sin(8 * theta + 1.3) + 0.012 * Math.sin(13 * theta);
-      points.push(new THREE.Vector3(Math.cos(theta) * radius, 0, Math.sin(theta) * radius));
-    }
-    const curve = new THREE.CatmullRomCurve3(points, true, "centripetal");
-    const geometry = new THREE.TubeGeometry(curve, samples * 2, 0.05, this.quality.tubeSegments, true);
+    const geometry = buildSlabGeometry(this.quality.ringSegments, Math.max(12, this.quality.tubeSegments * 3));
     this.disposables.push(geometry);
 
+    // Cuerpo: metal satinado con degradado grafito → acero → cobre (color por instancia). Acento: capas naranjas luminosas.
     const materials = [
-      new THREE.MeshStandardMaterial({ color: 0x3c3c45, metalness: 0.88, roughness: 0.36 }),
-      new THREE.MeshStandardMaterial({ color: 0xc4c8d2, metalness: 1, roughness: 0.2 }),
-      new THREE.MeshStandardMaterial({ color: 0xff780a, emissive: 0xff4d00, emissiveIntensity: 1.35, metalness: 0.25, roughness: 0.45 }),
+      new THREE.MeshStandardMaterial({ color: 0xffffff, metalness: 0.92, roughness: 0.27 }),
+      new THREE.MeshStandardMaterial({ color: 0xff780a, emissive: 0xff4d00, emissiveIntensity: 1.1, metalness: 0.2, roughness: 0.42 }),
     ];
     materials.forEach((material) => this.disposables.push(material));
 
-    const counts = [0, 0, 0];
+    const counts = [0, 0];
+    const lowColor = new THREE.Color(0x24242b);
+    const midColor = new THREE.Color(0x7d818d);
+    const highColor = new THREE.Color(0xc4743c);
+    const tint = new THREE.Color();
+    const tints: THREE.Color[] = [];
     for (let i = 0; i < n; i += 1) {
-      const cls = i % 9 === 4 ? 2 : i % 5 === 2 ? 1 : 0;
+      const cls = i % 9 === 4 ? 1 : 0;
       this.layerClass[i] = cls;
       this.layerSlot[i] = counts[cls];
       counts[cls] += 1;
 
       const t = i / (n - 1);
-      const ripple = 1 + 0.045 * Math.sin(t * 42);
       this.layerY[i] = (t - 0.5) * CORE_HEIGHT;
-      this.layerRadius[i] = profileRadius(t) * ripple;
-      this.layerPhase[i] = i * 0.37 + rnd() * 0.5;
-      this.layerTilt[i] = (rnd() - 0.5) * 0.2;
+      this.layerRadius[i] = profileRadius(t);
+      this.layerPhase[i] = t * SCULPTURE_TWIST;
+      this.layerTilt[i] = Math.sin(i * 0.55) * 0.1;
       this.layerDelay[i] = t * 0.5;
+
+      if (t < 0.5) tint.copy(lowColor).lerp(midColor, smoothstep(0, 0.5, t));
+      else tint.copy(midColor).lerp(highColor, smoothstep(0.45, 1, t));
+      tints[i] = tint.clone();
 
       const angle = i * 2.399;
       const spawnRadius = 6 + rnd() * 3.5;
@@ -398,6 +445,9 @@ export class HeroCoreScene {
       mesh.count = counts[cls];
       mesh.frustumCulled = false;
       mesh.instanceMatrix.setUsage(THREE.DynamicDrawUsage);
+      if (cls === 0) {
+        for (let i = 0; i < n; i += 1) if (this.layerClass[i] === 0) mesh.setColorAt(this.layerSlot[i], tints[i]);
+      }
       this.layerMeshes.push(mesh);
       this.rig.add(mesh);
       this.disposables.push({ dispose: () => mesh.dispose() });
@@ -408,43 +458,30 @@ export class HeroCoreScene {
     const rnd = mulberry32(0x91c3);
     const total = this.quality.pieces;
 
+    // Pocas piezas, pequeñas y sobrias: acompañan a la escultura sin competir con ella.
     const geometries = [
       new THREE.IcosahedronGeometry(1, 0),
-      new THREE.CylinderGeometry(1, 1, 1, 28, 1, true, 0, 1.15),
-      new THREE.BoxGeometry(1, 0.16, 0.7),
-      new THREE.TorusGeometry(1, 0.07, 10, 44),
+      new THREE.BoxGeometry(1, 0.14, 0.7),
+      new THREE.TorusGeometry(1, 0.06, 10, 44),
     ];
     const materials = [
       new THREE.MeshStandardMaterial({ color: 0xa5abb8, metalness: 1, roughness: 0.24, flatShading: true }),
-      new THREE.MeshPhysicalMaterial({
-        color: 0xffb27a,
-        emissive: 0x2a1000,
-        transparent: true,
-        opacity: 0.42,
-        roughness: 0.1,
-        metalness: 0,
-        clearcoat: 1,
-        clearcoatRoughness: 0.08,
-        side: THREE.DoubleSide,
-        depthWrite: false,
-        envMapIntensity: 1.4,
-      }),
       new THREE.MeshStandardMaterial({ color: 0xff780a, emissive: 0x3a1400, metalness: 0.08, roughness: 0.55 }),
       new THREE.MeshStandardMaterial({ color: 0xd9731f, metalness: 1, roughness: 0.3 }),
     ];
     geometries.forEach((g) => this.disposables.push(g));
     materials.forEach((m) => this.disposables.push(m));
 
-    const perFamily = [0, 0, 0, 0];
+    const perFamily = [0, 0, 0];
     for (let k = 0; k < total; k += 1) {
-      const family = k % 4;
+      const family = k % 3;
       const slot = perFamily[family];
       perFamily[family] += 1;
 
-      // Altura y radio: siempre por fuera del perfil del vaso en esa altura.
-      const h = (rnd() - 0.5) * (CORE_HEIGHT + 0.6);
+      // Altura y radio: siempre bien por fuera de la silueta de la escultura.
+      const h = (rnd() - 0.5) * (CORE_HEIGHT + 0.4);
       const tNorm = clamp01(h / CORE_HEIGHT + 0.5);
-      const rho = profileRadius(tNorm) + 0.95 + rnd() * 1.5;
+      const rho = profileRadius(tNorm) * 1.12 + 1.25 + rnd() * 1.4;
       const phi = k * 2.399 + rnd() * 0.6;
       const home = new THREE.Vector3(Math.cos(phi) * rho, h, Math.sin(phi) * rho);
 
@@ -452,10 +489,9 @@ export class HeroCoreScene {
       spawn.y += 2.5 + rnd() * 4;
 
       const scale = new THREE.Vector3();
-      if (family === 0) scale.set(0.2 + rnd() * 0.16, 0.34 + rnd() * 0.26, 0.2 + rnd() * 0.12);
-      else if (family === 1) scale.set(0.7 + rnd() * 0.5, 0.35 + rnd() * 0.4, 0.7 + rnd() * 0.5);
-      else if (family === 2) scale.setScalar(0.36 + rnd() * 0.34);
-      else scale.setScalar(0.26 + rnd() * 0.22);
+      if (family === 0) scale.set(0.12 + rnd() * 0.1, 0.2 + rnd() * 0.14, 0.12 + rnd() * 0.08);
+      else if (family === 1) scale.setScalar(0.22 + rnd() * 0.2);
+      else scale.setScalar(0.17 + rnd() * 0.14);
 
       this.pieces.push({
         family,
@@ -464,9 +500,9 @@ export class HeroCoreScene {
         spawn,
         baseQuat: new THREE.Quaternion().setFromEuler(new THREE.Euler(rnd() * 6.28, rnd() * 6.28, rnd() * 6.28)),
         axis: new THREE.Vector3(rnd() - 0.5, rnd() - 0.5, rnd() - 0.5).normalize(),
-        rate: (rnd() < 0.5 ? -1 : 1) * (0.12 + rnd() * 0.32),
+        rate: (rnd() < 0.5 ? -1 : 1) * (0.1 + rnd() * 0.25),
         scale,
-        delay: 0.34 + rnd() * 0.36,
+        delay: 0.4 + rnd() * 0.3,
         bob: rnd() * 6.28,
         drift: 0.75 + rnd() * 0.7,
       });
@@ -603,7 +639,7 @@ export class HeroCoreScene {
 
     this.dust.rotation.y = time * 0.012;
     this.dust.position.y = Math.sin(time * 0.3) * 0.25;
-    (this.dust.material as THREE.PointsMaterial).opacity = 0.85 * smoothstep(0, 0.4, formation + 0.05);
+    (this.dust.material as THREE.PointsMaterial).opacity = 0.6 * smoothstep(0, 0.4, formation + 0.05);
 
     this.renderer.render(this.scene, this.camera);
     this.adaptQuality(dt);
@@ -623,7 +659,8 @@ export class HeroCoreScene {
       const z = lerp(this.layerSpawn[i * 3 + 2], 0, e);
       const radius = this.layerRadius[i] * (1 + 0.5 * ex + 0.2 * ex * Math.sin(i * 0.7)) * Math.max(grow, 0.0001);
       const sign = i % 2 === 0 ? 1 : -1;
-      const rotY = this.layerPhase[i] + time * 0.05 * sign + ex * (i - n / 2) * 0.04 + (1 - e) * 2.4 * sign;
+      const flex = (i / n - 0.5) * Math.sin(time * 0.45) * 0.1;
+      const rotY = this.layerPhase[i] + flex + ex * (i - n / 2) * 0.04 + (1 - e) * 2.4 * sign;
       const rotX = (1 - e) * 0.9 * sign + ex * this.layerTilt[i];
       dummy.position.set(x, y, z);
       dummy.rotation.set(rotX, rotY, (1 - e) * 0.5 * -sign);
@@ -675,8 +712,8 @@ export class HeroCoreScene {
       ring.rotation.y += 0.003 * (3 - index);
     });
     const halo = this.heartHalo.material as THREE.SpriteMaterial;
-    halo.opacity = (0.16 + 0.84 * glow) * appear;
-    this.heartHalo.scale.setScalar(4.2 + glow * 11);
+    halo.opacity = (0.16 + 0.7 * glow) * appear;
+    this.heartHalo.scale.setScalar(4.2 + glow * 9);
     this.heartLight.intensity = (6 + 70 * glow) * appear;
   }
 
@@ -691,7 +728,7 @@ export class HeroCoreScene {
     const n = this.layerCount;
     const front = clamp01(formation / 0.55);
     const index = Math.min(n - 1, Math.floor(front * (n - 1)));
-    const radius = this.layerRadius[index] * 1.02;
+    const radius = this.layerRadius[index] * 1.12;
     const angle = time * 9;
     this.nozzleGlow.position.set(Math.cos(angle) * radius, this.layerY[index], Math.sin(angle) * radius);
     this.nozzleLight.position.copy(this.nozzleGlow.position);
@@ -705,7 +742,7 @@ export class HeroCoreScene {
     this.bed.visible = visible > 0.01;
     this.bed.scale.setScalar(1 + tl.explode * 1.2);
     this.bedMaterials.forEach((material, index) => {
-      material.opacity = (index === 0 ? 0.32 : [0.5, 0.3, 0.18][index - 1]) * visible;
+      material.opacity = (index === 0 ? 0.22 : [0.32, 0.2, 0.12][index - 1]) * visible;
     });
   }
 
