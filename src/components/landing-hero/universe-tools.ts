@@ -48,16 +48,16 @@ export type UniverseTool = {
   /** Al menos una demostración; la primera es la que se ve al elegir la herramienta. */
   demos: readonly [ToolDemo, ...ToolDemo[]];
   /**
-   * Versiones alternativas en evaluación. NO las ve ningún visitante: solo aparecen con `?comparar` en la URL
-   * (ver `withComparison`), junto a la original, para decidir si reemplazan a `demos`.
+   * Versiones alternativas o de respaldo. NO las ve ningún visitante: solo aparecen con `?comparar` en la URL
+   * (ver `withComparison`), después de la demostración pública.
    */
   experimentalDemos?: readonly ToolDemo[];
 };
 
-/** Con `?comparar`: la demostración original (rotulada) más las versiones en evaluación de cada herramienta. */
+/** Con `?comparar`: la demostración pública más las versiones alternativas o de respaldo de cada herramienta. */
 export function withComparison(tools: readonly UniverseTool[]): readonly UniverseTool[] {
   return tools.map((tool) =>
-    tool.experimentalDemos?.length ? { ...tool, demos: [{ ...tool.demos[0], label: "Original" }, ...tool.demos.slice(1), ...tool.experimentalDemos] as unknown as UniverseTool["demos"] } : tool,
+    tool.experimentalDemos?.length ? { ...tool, demos: [...tool.demos, ...tool.experimentalDemos] as unknown as UniverseTool["demos"] } : tool,
   );
 }
 
@@ -121,12 +121,12 @@ export const universeTools: readonly UniverseTool[] = [
       {
         id: "recorrido",
         label: "Recorrido",
-        summary: "Productos con sus categorías, filamentos con su stock, impresoras e inventario con el registro de producción. Cuenta de demostración con datos ficticios.",
+        summary: "Productos con fotos y categorías, filamentos con su stock, impresoras y el cálculo de lo que descuenta una producción. Cuenta de demostración con datos ficticios.",
         media: {
           kind: "video",
-          src: `${DEMO_DIR}/mi-taller.mp4`,
-          poster: `${DEMO_DIR}/mi-taller-poster.jpg`,
-          alt: "Recorrido por Mi Taller con datos de demostración: lista de productos filtrada por categoría, filamentos con su stock disponible, impresoras cargadas e inventario con el cálculo de lo que descuenta una producción.",
+          src: `${DEMO_DIR}/mi-taller-cine-v2.mp4`,
+          poster: `${DEMO_DIR}/mi-taller-cine-v2-poster.jpg`,
+          alt: "Recorrido cinematográfico por Mi Taller con datos de demostración: productos con fotos y categorías, stock de cada bobina de filamento, impresoras con su imagen y el cálculo de lo que descuenta una producción.",
           width: 1280,
           height: 800,
         },
@@ -134,14 +134,27 @@ export const universeTools: readonly UniverseTool[] = [
     ],
     experimentalDemos: [
       {
-        id: "cinematografica",
-        label: "Cinematográfica",
-        summary: "Versión de prueba de la misma grabación, con movimientos de cámara suaves, transiciones y destacados. La interfaz no se modifica.",
+        id: "cine-anterior",
+        label: "Versión anterior",
+        summary: "Edición cinematográfica anterior, grabada con el taller sin fotos. Se conserva como respaldo.",
         media: {
           kind: "video",
           src: `${DEMO_DIR}/mi-taller-cine.mp4`,
           poster: `${DEMO_DIR}/mi-taller-cine-poster.jpg`,
-          alt: "Versión cinematográfica del recorrido por Mi Taller con datos de demostración: la cámara se acerca a las categorías de productos, al stock de cada bobina, a las impresoras y al cálculo de lo que descuenta una producción.",
+          alt: "Edición cinematográfica anterior del recorrido por Mi Taller (sin fotos de productos ni impresoras).",
+          width: 1280,
+          height: 800,
+        },
+      },
+      {
+        id: "original-sin-fotos",
+        label: "Original sin fotos",
+        summary: "Grabación original, sin edición y sin fotos. Se conserva como respaldo.",
+        media: {
+          kind: "video",
+          src: `${DEMO_DIR}/mi-taller.mp4`,
+          poster: `${DEMO_DIR}/mi-taller-poster.jpg`,
+          alt: "Grabación original del recorrido por Mi Taller, sin edición ni fotos.",
           width: 1280,
           height: 800,
         },

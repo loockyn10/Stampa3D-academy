@@ -99,3 +99,18 @@ node scripts/demo/cinematic.mjs <carpeta-fotogramas> scripts/demo/directors/mi-t
 - Los montos siguen difuminados porque ya lo estaban en la grabación original.
 - Para verla junto a la original: `/landing-preview?comparar=1` → Mi Taller → selector «Original / Cinematográfica». Sin ese parámetro nadie la ve.
 - Para aplicarla a otra herramienta: crear su guion y reemplazar (o agregar) la demostración en `universe-tools.ts`.
+
+## Taller más completo: fotos y productos adicionales (cuenta demo)
+
+```bash
+node scripts/demo/render-product-images.mjs                 # renders 3D originales (Three.js) → scripts/demo/assets/products/*.jpg
+DEMO_BASE_URL=http://localhost:3100 node scripts/demo/seed-mi-taller-visual.mjs            # modo de prueba
+DEMO_BASE_URL=http://localhost:3100 node scripts/demo/seed-mi-taller-visual.mjs --apply   # impresoras del catálogo, fotos y 3 productos más
+DEMO_BASE_URL=http://localhost:3100 node scripts/demo/record-mi-taller.mjs <carpeta>      # regrabar
+node scripts/demo/cinematic.mjs <carpeta> scripts/demo/directors/mi-taller-v2.json <salida> mi-taller-cine-v2
+```
+
+- Las imágenes de producto son **renders** generados por código (sin fotos ni modelos de terceros): no son fotografías.
+- Las impresoras salen del catálogo de Stampa (traen su foto). Mi Taller no borra impresoras: «Eliminar» las deja *Inactivas* y siguen listadas (por eso se ve «5 impresoras · 3 activas»).
+- Usar `next start` (producción local) para subir fotos: en `next dev` el editor de recorte falla por React StrictMode (revoca la URL del archivo).
+- Cada ejecución de `--apply` escribe en la cuenta demo; el script es idempotente.

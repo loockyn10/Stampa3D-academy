@@ -160,22 +160,33 @@ test("el video de demostración se reproduce sin sonido, en bucle, solo a la vis
   assert.doesNotMatch(data, /hellbot|ecofila|venta directa/i);
 });
 
-test("las versiones en evaluación solo se ven con ?comparar y no cambian la demostración pública", () => {
+test("las versiones de respaldo solo se ven con ?comparar y no cambian la demostración pública", () => {
   const taller = tools.universeTools.find((tool) => tool.id === "mi-taller");
-  assert.equal(taller.demos.length, 1, "la versión pública de Mi Taller debe seguir siendo solo la original");
-  assert.equal(taller.demos[0].media.src, "/landing-preview/demos/mi-taller.mp4");
-  assert.equal(taller.experimentalDemos.length, 1);
-  assert.notEqual(taller.experimentalDemos[0].media.src, taller.demos[0].media.src);
-  // Solo Mi Taller es una prueba: Academia y Stampy no tienen versiones experimentales.
-  for (const tool of tools.universeTools.filter((candidate) => candidate.id !== "mi-taller")) assert.equal(tool.experimentalDemos, undefined, `${tool.id} no debe tener versiones en evaluación`);
+  assert.equal(taller.demos.length, 1, "la versión pública de Mi Taller es una sola");
+  assert.equal(taller.demos[0].media.src, "/landing-preview/demos/mi-taller-cine-v2.mp4");
+  // Las versiones anteriores se conservan como respaldo (con sus archivos), pero no son públicas.
+  assert.deepEqual(taller.experimentalDemos.map((demo) => demo.media.src), ["/landing-preview/demos/mi-taller-cine.mp4", "/landing-preview/demos/mi-taller.mp4"]);
+  for (const tool of tools.universeTools.filter((candidate) => candidate.id !== "mi-taller")) assert.equal(tool.experimentalDemos, undefined, `${tool.id} no debe tener versiones de respaldo`);
   const compared = tools.withComparison(tools.universeTools).find((tool) => tool.id === "mi-taller");
-  assert.deepEqual(compared.demos.map((demo) => demo.label), ["Original", "Cinematográfica"]);
-  assert.equal(compared.demos[0].media.src, taller.demos[0].media.src);
-  // El modo comparación depende de la URL en el navegador; no vuelve dinámica la ruta ni se anuncia en la página.
+  assert.deepEqual(compared.demos.map((demo) => demo.label), ["Recorrido", "Versión anterior", "Original sin fotos"]);
   const explorer = read("src/components/landing-hero/ToolsExplorer.tsx");
   assert.match(explorer, /has\("comparar"\)/);
   assert.doesNotMatch(read("src/app/landing-preview/page.tsx"), /searchParams/);
 });
+
+test("los datos y las imágenes de la cuenta de demostración son originales y ficticios", () => {
+  const data = read("scripts/demo/mi-taller-data.mjs");
+  for (const file of Object.values(tools_dataImages(data))) assert.ok(fs.existsSync(repoPath(`scripts/demo/assets/products/${file}`)), `falta la imagen ${file}`);
+  // Los renders se generan por código (sin fotos ni modelos de terceros).
+  const render = read("scripts/demo/render-product-images.mjs");
+  assert.match(render, /Three\.js/);
+  assert.doesNotMatch(render, /https?:\/\/(?!render\.local)/);
+});
+
+function tools_dataImages(source) {
+  const block = source.slice(source.indexOf("export const productImages"));
+  return Object.fromEntries([...block.matchAll(/"([^"]+)": "([^"]+\.jpg)"/g)].map((m) => [m[1], m[2]]));
+}
 
 test("la sección de herramientas es genérica: no nombra herramientas, es accesible y respeta el movimiento reducido", () => {
   const explorer = read("src/components/landing-hero/ToolsExplorer.tsx");

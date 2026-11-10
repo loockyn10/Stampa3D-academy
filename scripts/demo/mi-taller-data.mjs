@@ -30,3 +30,38 @@ export const production = [
   { product: "Organizador de escritorio", units: 3 },
   { product: "Maceta geométrica", units: 6 },
 ];
+
+// ---------------------------------------------------------------------------------------------------------------------------
+// Mejora visual de la cuenta de demostración (fotos). Datos ficticios; los costos y precios siguen siendo ilustrativos.
+// ---------------------------------------------------------------------------------------------------------------------------
+
+/** Impresoras importadas del catálogo de Stampa (traen su foto). `catalog` es el nombre en el catálogo; `name`, el que se muestra. */
+export const catalogPrinters = [
+  { catalog: "BambuLab A1 Combo", name: "Bambu Lab A1" },
+  { catalog: "BambuLab P1S", name: "Bambu Lab P1S" },
+  { catalog: "BambuLab A1 Mini Combo", name: "Bambu Lab A1 Mini" },
+];
+/** Impresoras manuales anteriores (sin foto) que se reemplazan por las del catálogo. */
+export const replacedPrinters = ["Bambu Lab A1", "Bambu Lab P1S"];
+
+/** Imagen de cada producto (renders originales de scripts/demo/render-product-images.mjs). */
+export const productImages = {
+  "Soporte para auriculares": "soporte-auriculares.jpg",
+  "Organizador de escritorio": "organizador-escritorio.jpg",
+  "Maceta geométrica": "maceta-geometrica.jpg",
+  "Soporte para celular": "soporte-celular.jpg",
+  "Portalápices hexagonal": "portalapices-hexagonal.jpg",
+  "Posavasos hexagonales": "posavasos-hexagonales.jpg",
+};
+
+/** Productos adicionales para que el catálogo se vea completo (dos filas). */
+export const extraProducts = [
+  { name: "Soporte para celular", category: "Accesorios", printer: "Bambu Lab A1", hours: 3, minutes: 5, material: "W3D PLA Naranja", grams: 65, baseCost: 1500, salePrice: 3800 },
+  { name: "Portalápices hexagonal", category: "Oficina", printer: "Bambu Lab P1S", hours: 4, minutes: 20, material: "Bambu Lab PLA Basic Blanco", grams: 55, baseCost: 1900, salePrice: 4600 },
+  { name: "Posavasos hexagonales", category: "Hogar y deco", printer: "Bambu Lab A1 Mini", hours: 1, minutes: 10, material: "Bambu Lab PLA Basic Blanco", grams: 30, baseCost: 700, salePrice: 1800 },
+];
+export const extraProduction = [
+  { product: "Soporte para celular", units: 3 },
+  { product: "Portalápices hexagonal", units: 3 },
+  { product: "Posavasos hexagonales", units: 5 },
+];
