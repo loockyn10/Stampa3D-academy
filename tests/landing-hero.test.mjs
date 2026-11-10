@@ -136,6 +136,10 @@ test("el catálogo de herramientas es coherente: ids únicos, rutas reales y dem
   const unlisted = tools.unlistedTools.find((tool) => tool.id === "stampa-maker");
   assert.ok(unlisted, "la definición de Stampa Maker debe conservarse fuera de la lista pública");
   assert.ok(fs.existsSync(repoPath("src/app/stampa-maker")));
+  // Mi Negocio está deshabilitado a propósito (feature flag apagada): tampoco se promociona, pero su definición se conserva.
+  assert.equal(list.some((tool) => tool.id === "mi-negocio"), false);
+  assert.ok(tools.unlistedTools.some((tool) => tool.id === "mi-negocio"));
+  assert.ok(fs.existsSync(repoPath("src/app/mi-negocio")));
   // La escena del Hero muestra una demostración real, no un marcador.
   assert.equal(tools.heroRevealTool.demos[0].media.kind, "image");
 });

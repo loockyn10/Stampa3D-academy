@@ -122,17 +122,6 @@ export const universeTools: readonly UniverseTool[] = [
     ],
   },
   {
-    id: "mi-negocio",
-    name: "Mi Negocio",
-    tagline: "Vender y organizar",
-    description: "Mi Negocio es lo que se vende y cómo se opera: catálogo, ventas, clientes, presupuestos y tienda.",
-    route: "/mi-negocio",
-    access: "member",
-    icon: "briefcase",
-    highlights: ["Catálogo de productos fabricados y de reventa", "Ventas, clientes y cuenta corriente", "Presupuestos rápidos o profesionales en PDF"],
-    demos: [{ id: "pendiente", label: "Demostración", summary: "Demostración en preparación.", media: { kind: "placeholder", note: PENDING_NOTE } }],
-  },
-  {
     id: "academia",
     name: "Academia",
     tagline: "Aprender a tu ritmo",
@@ -157,7 +146,7 @@ export const universeTools: readonly UniverseTool[] = [
 ];
 
 /**
- * Herramientas que existen en Universo pero NO se promocionan en la landing pública (por ejemplo, las que siguen en beta privada).
+ * Herramientas que existen en Universo pero NO se promocionan en la landing pública (beta privada o deshabilitadas por feature flag).
  * No se muestran. Para volver a publicar una, moverla a `universeTools` en la posición que corresponda: no hace falta tocar componentes.
  */
 const stampaMaker: UniverseTool = {
@@ -172,7 +161,20 @@ const stampaMaker: UniverseTool = {
   demos: [{ id: "pendiente", label: "Demostración", summary: "Demostración en preparación.", media: { kind: "placeholder", note: PENDING_NOTE } }],
 };
 
-export const unlistedTools: readonly UniverseTool[] = [stampaMaker];
+/** Mi Negocio está deshabilitado a propósito (feature flag apagada, en refinamiento): no se promociona hasta su lanzamiento. */
+const miNegocio: UniverseTool = {
+  id: "mi-negocio",
+  name: "Mi Negocio",
+  tagline: "Vender y organizar",
+  description: "Mi Negocio es lo que se vende y cómo se opera: catálogo, ventas, clientes, presupuestos y tienda.",
+  route: "/mi-negocio",
+  access: "member",
+  icon: "briefcase",
+  highlights: ["Catálogo de productos fabricados y de reventa", "Ventas, clientes y cuenta corriente", "Presupuestos rápidos o profesionales en PDF"],
+  demos: [{ id: "pendiente", label: "Demostración", summary: "Demostración en preparación.", media: { kind: "placeholder", note: PENDING_NOTE } }],
+};
+
+export const unlistedTools: readonly UniverseTool[] = [stampaMaker, miNegocio];
 
 /** Demostración protagonista de la transición del Hero: la primera de la primera herramienta. */
 export const heroRevealTool = universeTools[0];
