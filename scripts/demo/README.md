@@ -61,3 +61,15 @@ node scripts/demo/encode-video.mjs <carpeta> public/landing-preview/demos mi-tal
 - Los datos están en `mi-taller-data.mjs` (ficticios). Si un formulario no se comporta como se espera, el paso se detiene y no fuerza nada.
 - La grabación difumina montos, oculta los avisos de costos, se cancela el único formulario que abre y aborta si el email de la cuenta se ve en pantalla.
 - En Git Bash las rutas que empiezan con `/` se convierten: usar `MSYS_NO_PATHCONV=1` si se pasan rutas de la app como argumento.
+
+## Academia
+
+```bash
+node scripts/demo/seed-academia.mjs            # modo de prueba: impresora principal (Bambu Lab) y 2 clases completadas en Fundamentos
+node scripts/demo/seed-academia.mjs --apply    # escribe, solo en la cuenta de demostración
+node scripts/demo/record-academia.mjs <carpeta>   # graba el recorrido (usa recorder-lib.mjs)
+node scripts/demo/encode-video.mjs <carpeta> public/landing-preview/demos academia --speed=1.0
+```
+
+- El reproductor de las clases (iframe externo) arranca solo si el navegador lo permite: la grabación usa `--autoplay-policy=document-user-activation-required`, recarga el curso dentro de un tramo recortado y vuelve a la portada también recortada, así el video nunca muestra una clase reproduciéndose.
+- Los tramos de espera de carga se recortan (`cutStart`/`cutEnd` en `recorder-lib.mjs`; `encode-video.mjs` los aplica).

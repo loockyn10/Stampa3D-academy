@@ -33,8 +33,12 @@ const manifest = JSON.parse(fs.readFileSync(path.join(framesDir, "manifest.json"
 const { width, height } = manifest.viewport;
 const t0 = manifest.frames[0].t;
 const lastT = manifest.frames[manifest.frames.length - 1].t - TRIM_END;
+// Tramos recortados por el grabador (esperas de carga): se quitan sus fotogramas y se cierra el hueco.
+const cuts = manifest.cuts ?? [];
+const inCut = (t) => cuts.some(([from, to]) => t >= from && t <= to);
+const removedBefore = (t) => cuts.reduce((sum, [from, to]) => sum + (t > to ? to - from : t > from ? t - from : 0), 0);
 // Línea de tiempo virtual (segundos de video) → fotograma.
-const timeline = manifest.frames.filter((f) => f.t <= lastT).map((f) => ({ at: (f.t - t0) / SPEED, file: f.file }));
+const timeline = manifest.frames.filter((f) => f.t <= lastT && !inCut(f.t)).map((f) => ({ at: (f.t - t0 - removedBefore(f.t)) / SPEED, file: f.file }));
 const duration = timeline[timeline.length - 1].at + 0.8;
 fs.mkdirSync(outDir, { recursive: true });
 console.log(`Fotogramas: ${timeline.length} · duración del video: ${duration.toFixed(1)} s (x${SPEED})`);

@@ -95,9 +95,9 @@ export function redact(text, config) {
   return out;
 }
 
-export async function launchBrowser() {
+export async function launchBrowser(args = []) {
   const channel = process.env.DEMO_BROWSER_CHANNEL?.trim() || "msedge";
-  return chromium.launch({ channel, headless: true });
+  return chromium.launch({ channel, headless: true, args });
 }
 
 export const DEFAULT_VIEWPORT = { width: 1440, height: 900 };
