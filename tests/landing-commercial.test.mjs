@@ -9,6 +9,7 @@ import { loadTs, readRepoFile as read } from "./helpers/load-ts.mjs";
 const price = loadTs("src/components/landing-hero/commercial/membership-price.ts");
 const content = loadTs("src/components/landing-hero/commercial/commercial-content.ts");
 const routes = loadTs("src/lib/auth/route-policy.ts");
+const returnTarget = loadTs("src/lib/auth/return-to.ts");
 
 const commercialDir = path.join(process.cwd(), "src/components/landing-hero/commercial");
 const commercialSources = () => fs.readdirSync(commercialDir).filter((f) => /\.(ts|tsx)$/.test(f)).map((f) => [f, read(`src/components/landing-hero/commercial/${f}`)]);
@@ -90,15 +91,49 @@ test("no hay precios, cifras ni valores de respaldo escritos a mano en el conten
   }
 });
 
-test("CTA: «Comenzar gratis» va a /registro y «Probar la Calculadora» a /calculadora, y ambas son rutas reales y públicas", () => {
-  assert.deepEqual({ ...content.commercialCtas.primary }, { label: "Comenzar gratis", href: "/registro" });
-  assert.deepEqual({ ...content.commercialCtas.secondary }, { label: "Probar la Calculadora", href: "/calculadora" });
-  for (const href of ["/registro", "/calculadora", "/login", "/explorar-modelos"]) assert.equal(routes.isPublicPath(href), true, `${href} debe ser pública`);
-  // Ningún CTA promete activar Premium al registrarse.
-  const joined = JSON.stringify(content);
-  assert.doesNotMatch(joined, /Activar membres|Contratar ahora|Suscribite/i);
-  assert.match(content.finalCta.micro, /no activa ninguna membresía/i);
-  assert.match(content.comparison.lead, /no activa ninguna membresía/i);
+test("CTA: «Quiero Premium» es el principal y conserva la intención de contratar con el returnTo existente, sin prometer un checkout directo", () => {
+  const { primary, secondary, free, login, flowNote } = content.commercialCtas;
+  assert.equal(primary.label, "Quiero Premium");
+  assert.equal(secondary.label, "Probar la Calculadora");
+  assert.equal(secondary.href, "/calculadora");
+  assert.deepEqual({ ...free }, { label: "Crear cuenta gratuita", href: "/registro" });
+
+  // La intención viaja en `returnTo` (mecanismo real de registro/login): se acepta tal cual y apunta a la pantalla de contratación.
+  const registerUrl = new URL(primary.href, "https://stampa.local");
+  assert.equal(registerUrl.pathname, "/registro");
+  const returnTo = registerUrl.searchParams.get("returnTo");
+  assert.equal(returnTo, content.PREMIUM_RETURN_TO);
+  assert.equal(returnTo, "/sin-acceso");
+  assert.equal(returnTarget.sanitizeReturnTo(returnTo), "/sin-acceso", "returnTo debe sobrevivir a sanitizeReturnTo");
+  const loginUrl = new URL(login.href, "https://stampa.local");
+  assert.equal(loginUrl.pathname, "/login");
+  assert.equal(loginUrl.searchParams.get("returnTo"), "/sin-acceso");
+
+  // /sin-acceso es la pantalla real donde se activa la membresía; las rutas de acceso al flujo son públicas.
+  for (const href of ["/registro", "/login", "/sin-acceso", "/calculadora", "/explorar-modelos"]) assert.equal(routes.isPublicPath(href), true, `${href} debe ser pública`);
+  assert.match(read("src/app/sin-acceso/sin-acceso-client.tsx"), /Activar membresía/);
+  assert.match(read("src/app/registro/page.tsx"), /sanitizeReturnTo\(searchParams\.get\("returnTo"\)\)/);
+  assert.match(read("src/app/login/page.tsx"), /sanitizeReturnTo\(searchParams\.get\("returnTo"\)\)/);
+
+  // El botón no promete un pago inmediato: aclara que primero va la cuenta, y «Crear cuenta» solo no activa Premium.
+  assert.match(flowNote, /Primero creás tu cuenta/);
+  assert.match(flowNote, /Mercado Pago/);
+  assert.doesNotMatch(JSON.stringify(content.commercialCtas), /Activar membres|Contratar ahora|Pagar ahora|Suscribite/i);
+  assert.ok(content.faq.items.some((item) => /no activa Premium/i.test(item.answer)), "la FAQ aclara que crear la cuenta no activa Premium");
+});
+
+test("enfoque comercial: Premium manda y la cuenta gratuita es secundaria (sin los mensajes anteriores)", () => {
+  const text = JSON.stringify({ ctas: content.commercialCtas, journey: content.journey, comparison: content.comparison, pricing: content.pricing, faq: content.faq, finalCta: content.finalCta, footer: content.footerContent });
+  for (const term of [/Comenzar gratis/i, /Premium es opcional/i, /Empezá gratis/i, /primero creás tu cuenta gratuita/i, /opcional/i, /no activa ninguna membres/i]) {
+    assert.doesNotMatch(text, term, `texto retirado: ${term}`);
+  }
+  // Ningún botón principal es el de la cuenta gratuita; «gratis/gratuita» no se repite como slogan.
+  const heroSections = JSON.stringify({ title: content.comparison.title, lead: content.comparison.lead, final: content.finalCta });
+  assert.doesNotMatch(heroSections, /gratis|gratuit/i);
+  assert.ok((text.match(/gratis|gratuit/gi) ?? []).length <= 12, "demasiadas menciones a lo gratuito");
+  // Los componentes usan el CTA principal en la banda de precio, el bloque móvil y el cierre.
+  for (const file of ["PlanComparison.tsx", "FinalCta.tsx"]) assert.match(read(`src/components/landing-hero/commercial/${file}`), /commercialCtas\.primary/);
+  assert.equal(content.footerContent.tools[0].label, "Quiero Premium");
 });
 
 test("la comparación Free/Premium coincide con la política de acceso real (rutas libres y públicas)", () => {
@@ -141,6 +176,36 @@ test("estructura: la página compone las secciones sin tocar el Hero y el footer
   assert.match(footer, /legalPending/);
   // El contenido no inventa documentos legales.
   assert.doesNotMatch(read("src/components/landing-hero/commercial/commercial-content.ts"), /Lorem|términos y condiciones de uso/i);
+});
+
+test("comparación móvil: dos bloques con Premium primero y protagonista, y la tabla semántica solo en escritorio", () => {
+  const component = read("src/components/landing-hero/commercial/PlanComparison.tsx");
+  const premium = component.indexOf("styles.planPremium");
+  const free = component.indexOf("styles.planFree");
+  const table = component.indexOf("<table");
+  assert.ok(premium > -1 && free > premium, "el bloque Premium va antes que el gratuito");
+  assert.ok(free < table, "los bloques móviles preceden a la tabla en el DOM");
+  // El bloque Premium trae el precio real, el botón principal y los beneficios; el gratuito, la alternativa.
+  const premiumBlock = component.slice(premium, free);
+  assert.match(premiumBlock, /formatMembershipPrice\(price\)/);
+  assert.match(premiumBlock, /commercialCtas\.primary/);
+  assert.match(premiumBlock, /featured/);
+  const freeBlock = component.slice(free, table);
+  assert.match(freeBlock, /commercialCtas\.secondary/);
+  assert.match(freeBlock, /commercialCtas\.free/);
+
+  const css = read("src/components/landing-hero/commercial/Commercial.module.css");
+  assert.match(css, /\.mobilePlans \{\s*display: none;/, "los bloques móviles están ocultos por defecto");
+  const mobile = css.slice(css.indexOf("@media (max-width: 719px)"));
+  assert.match(mobile, /\.tableWrap,\s*\.priceBand \{\s*display: none;/, "en móvil no hay tabla comprimida ni banda de precio duplicada");
+  assert.match(mobile, /\.mobilePlans \{\s*display: grid;/);
+  // La tabla ya no se «desarma» en móvil con data-label.
+  assert.doesNotMatch(css, /attr\(data-label\)/);
+
+  // Los beneficios del bloque Premium salen de los mismos datos que la tabla (sin textos nuevos) y no inventan nada.
+  const featured = content.comparison.rows.filter((row) => row.featured).map((row) => row.name);
+  assert.deepEqual(featured, ["Calculadora", "Explorar Modelos", "Mi Taller", "Academia", "Stampy IA", "Librería STL", "Redes y Canales"]);
+  assert.equal(content.comparison.rows.find((row) => row.name === "Tu perfil").featured, false);
 });
 
 test("accesibilidad: acordeón nativo, tabla con encabezados y movimiento reducido", () => {

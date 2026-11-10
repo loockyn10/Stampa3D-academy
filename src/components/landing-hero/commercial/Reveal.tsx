@@ -4,7 +4,7 @@ import { useEffect, useRef, useState, type CSSProperties, type ReactNode } from 
 import styles from "./Commercial.module.css";
 
 /** Entrada suave al llegar a pantalla (una sola vez). Con movimiento reducido el contenido ya está visible (lo resuelve el CSS). */
-export function Reveal({ children, className = "", delay = 0, as: Tag = "div" }: { children: ReactNode; className?: string; delay?: number; as?: "div" | "header" | "footer" | "p" }) {
+export function Reveal({ children, className = "", delay = 0, as: Tag = "div" }: { children: ReactNode; className?: string; delay?: number; as?: "div" | "header" | "footer" | "p" | "article" }) {
   const ref = useRef<HTMLElement>(null);
   const [seen, setSeen] = useState(false);
   useEffect(() => {

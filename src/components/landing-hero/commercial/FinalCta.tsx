@@ -42,7 +42,7 @@ export function FinalCta() {
             {commercialCtas.secondary.label}
           </Link>
         </div>
-        <p className={styles.finalMicro}>{finalCta.micro}</p>
+        <p className={styles.finalMicro}>{commercialCtas.flowNote}</p>
         <Link href={commercialCtas.login.href} className={styles.finalLogin}>
           {commercialCtas.login.label}
         </Link>
