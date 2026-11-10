@@ -148,3 +148,24 @@ export async function ensureSession(browser, config, { force = false } = {}) {
   await context.close();
   return "nueva";
 }
+
+/** CSS para ocultar el indicador de desarrollo de Next.js en capturas y grabaciones. */
+export const HIDE_DEV_CSS = "nextjs-portal, [data-nextjs-dev-tools-button], #__next-build-watcher { display: none !important; }";
+
+const TUTORIAL_IDS = ["dashboard", "courses", "stampy", "calculator", "model_search", "stl_library", "maker", "workshop", "printers", "stock", "products", "business", "budgets", "raffles", "settings"];
+
+/**
+ * Oculta los tutoriales automáticos SIN escribir en Supabase: la app combina el estado de la base con un espejo en localStorage
+ * (`stampa-tutorial-seen:<userId>:<id>`) y gana el mayor. El id de usuario sale de la cookie de sesión y no se imprime.
+ */
+export async function suppressTutorials(context) {
+  const cookies = await context.cookies();
+  const parts = cookies.filter((c) => /^sb-.*-auth-token(\.\d+)?$/.test(c.name)).sort((a, b) => a.name.localeCompare(b.name));
+  if (!parts.length) return false;
+  let raw = decodeURIComponent(parts.map((c) => c.value).join(""));
+  if (raw.startsWith("base64-")) raw = Buffer.from(raw.slice(7), "base64").toString("utf8");
+  const uid = JSON.parse(raw).user?.id;
+  if (!uid) return false;
+  await context.addInitScript(({ id, ids }) => { for (const t of ids) localStorage.setItem(`stampa-tutorial-seen:${id}:${t}`, "99"); }, { id: uid, ids: TUTORIAL_IDS });
+  return true;
+}
