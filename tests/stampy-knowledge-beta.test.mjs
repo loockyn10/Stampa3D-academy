@@ -53,7 +53,6 @@ function candidate(overrides = {}) {
       "Una guía práctica para diagnosticar adherencia, nivelación y offset Z.",
     videoUrl: "https://video.example/primera-capa",
     isActive: true,
-    isPublished: true,
     isAiRecommendable: true,
     aiSummary: "Cómo corregir problemas de adherencia en la primera capa.",
     aiTopics: ["primera capa", "adherencia"],
@@ -208,7 +207,7 @@ test("draft, inactive and empty lessons are never recommended", () => {
       candidate({ ...supportFields, courseStatus: "draft" }),
       candidate({ ...supportFields, moduleActive: false }),
       candidate({ ...supportFields, isActive: false }),
-      candidate({ ...supportFields, isPublished: false }),
+      candidate({ ...supportFields, isAiRecommendable: false }),
       candidate({
         ...supportFields,
         videoUrl: null,

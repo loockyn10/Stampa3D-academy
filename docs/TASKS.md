@@ -131,7 +131,8 @@ Este archivo contiene únicamente trabajo pendiente o próximo. Eliminar tareas 
 - [ ] **Bloqueante (P0-5):** correr `supabase/diagnostics/20261105_academy_content_inventory.sql` y decidir qué cursos se ofrecen; pasar a «Próximamente» lo que no esté listo.
 - [ ] Activar la protección de Bunny (`BUNNY_STREAM_TOKEN_KEY` + token en Bunny) siguiendo `ACADEMY_V1.md` §3.
 - [ ] QA con cuenta Premium (`ACADEMY_V1.md` §4).
-- [ ] Post V1.0: unificar `lessons.is_published` (Stampy) con `is_active`; mover la carga del curso al servidor.
+- [x] Stampy ya no filtra por `lessons.is_published` (columna que no existe: la consulta fallaba con «column lessons.is_published does not exist» y nunca recomendaba clases). Ahora usa la regla de `loadLessonGate`: clase y módulo activos, curso `published` y `is_ai_recommendable` (2026-11-10, `tests/stampy-lesson-recommendations-query.test.mjs`).
+- [ ] Post V1.0: mover la carga del curso al servidor.
 
 ## Now — Sprint 2 V1.0: registro, onboarding y primera experiencia (2026-11-05, ver D046 y ARCHITECTURE §29)
 
@@ -243,6 +244,7 @@ La auditoría de código local está hecha. Lo que queda es exclusivamente lo qu
 - [ ] Agregar un script `test` a `package.json` (los 48 archivos de test existen pero se ejecutan manualmente con `node --test tests/*.test.mjs`).
 
 ## Now — Stampy conversacional (implementado 2026-10-06, ver D024 y ARCHITECTURE.md §11)
+- [ ] **Pendiente (detectado 2026-11-10, sin intervenir):** en la base conectada falta la tabla `public.stampy_user_memory` (log del servidor: «Could not find the table 'public.stampy_user_memory' in the schema cache»). La memoria de Stampy no se carga ni se guarda; el resto del chat funciona. La migration `supabase/migrations/20260826182313_stampy_user_memory.sql` figura en el repo: verificar si está sin aplicar o con drift antes de decidir (no aplicar SQL remoto sin permiso).
 
 - [ ] Definir `OPENAI_MODEL` en cada entorno: vacío = `gpt-5.6-terra`; `.env.local` hoy lo fija en `gpt-5-mini`. Cambiarlo también afecta a Stampa Maker (jarros), que lo usa como fallback de `MUG_AI_MODEL`.
 - [ ] QA manual en la app real con la batería de `docs/STAMPY_EVALS.md` (widget, página `/stampy` y `StampyLessonChat`), incluyendo una clase con transcripción.

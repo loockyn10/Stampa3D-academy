@@ -9,7 +9,6 @@ export interface StampyLessonCandidate {
   description: string | null;
   videoUrl: string | null;
   isActive: boolean;
-  isPublished: boolean;
   isAiRecommendable: boolean;
   aiSummary: string | null;
   aiTopics: string[];
@@ -157,7 +156,6 @@ export function isStampyLessonCandidateEligible(
 ): boolean {
   if (
     !candidate.isActive ||
-    !candidate.isPublished ||
     !candidate.isAiRecommendable ||
     !candidate.moduleActive ||
     candidate.courseStatus !== "published"
@@ -269,7 +267,6 @@ function mapLessonCandidate(
     description: typeof lesson.description === "string" ? lesson.description : null,
     videoUrl: typeof lesson.video_url === "string" ? lesson.video_url : null,
     isActive: lesson.is_active === true,
-    isPublished: lesson.is_published === true,
     isAiRecommendable: lesson.is_ai_recommendable === true,
     aiSummary: typeof lesson.ai_summary === "string" ? lesson.ai_summary : null,
     aiTopics: asStringArray(lesson.ai_topics),
@@ -291,6 +288,13 @@ function mapLessonCandidate(
   };
 }
 
+/**
+ * Disponibilidad para el alumno (misma regla que `loadLessonGate` en `src/lib/academy/access.ts`): la clase y su módulo
+ * están activos y el curso es `published` (`courses.status`, fuente única de visibilidad; ver `src/lib/academy/visibility.ts`).
+ * No existe una columna de publicación por clase: filtrar por una inventada hacía fallar toda la consulta ("column does not exist")
+ * y Stampy nunca recomendaba clases. No reintroducirla (lo cubre tests/stampy-lesson-recommendations-query.test.mjs).
+ * Además la clase debe ser recomendable por la IA (`is_ai_recommendable`) y superar el umbral de relevancia de `rankStampyLessonRecommendations`.
+ */
 export async function findStampyLessonRecommendations({
   supabase,
   query,
@@ -310,7 +314,6 @@ export async function findStampyLessonRecommendations({
         description,
         video_url,
         is_active,
-        is_published,
         is_ai_recommendable,
         ai_summary,
         ai_topics,
@@ -333,7 +336,6 @@ export async function findStampyLessonRecommendations({
         )
       `)
       .eq("is_active", true)
-      .eq("is_published", true)
       .eq("is_ai_recommendable", true)
       .eq("course_modules.is_active", true)
       .eq("course_modules.courses.status", "published")
