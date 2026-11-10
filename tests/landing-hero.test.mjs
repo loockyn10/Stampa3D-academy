@@ -150,7 +150,7 @@ test("el video de demostración se reproduce sin sonido, en bucle, solo a la vis
   assert.doesNotMatch(video, /controls/);
   assert.match(read("src/components/landing-hero/DemoWindow.tsx"), /<DemoVideo/);
   // Mi Taller usa el video real; las herramientas sin grabación conservan su marcador rotulado.
-  for (const id of ["mi-taller", "academia"]) {
+  for (const id of ["mi-taller", "academia", "stampy"]) {
     const tool = tools.universeTools.find((candidate) => candidate.id === id);
     assert.equal(tool.demos[0].media.kind, "video", `${id}: debe usar video`);
   }

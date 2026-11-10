@@ -155,7 +155,21 @@ export const universeTools: readonly UniverseTool[] = [
     access: "member",
     icon: "bot",
     highlights: ["Solucionar problemas de impresión y calcular precios", "Consultar tu inventario", "Acciones que preparás con él y confirmás vos"],
-    demos: [{ id: "pendiente", label: "Demostración", summary: "Demostración en preparación.", media: { kind: "placeholder", note: PENDING_NOTE } }],
+    demos: [
+      {
+        id: "recorrido",
+        label: "Consulta real",
+        summary: "Una consulta real a Stampy con la cuenta de demostración: responde el problema y recomienda clases concretas de Academia. La respuesta no está editada.",
+        media: {
+          kind: "video",
+          src: `${DEMO_DIR}/stampy.mp4`,
+          poster: `${DEMO_DIR}/stampy-poster.jpg`,
+          alt: "Consulta a Stampy IA: «Se me despegan las esquinas de la pieza en la primera capa. ¿Qué clase de Academia me puede ayudar?». Stampy explica qué revisar y recomienda dos clases reales de Academia, con tarjetas para abrir el curso.",
+          width: 1120,
+          height: 700,
+        },
+      },
+    ],
   },
 ];
 

@@ -73,3 +73,14 @@ node scripts/demo/encode-video.mjs <carpeta> public/landing-preview/demos academ
 
 - El reproductor de las clases (iframe externo) arranca solo si el navegador lo permite: la grabación usa `--autoplay-policy=document-user-activation-required`, recarga el curso dentro de un tramo recortado y vuelve a la portada también recortada, así el video nunca muestra una clase reproduciéndose.
 - Los tramos de espera de carga se recortan (`cutStart`/`cutEnd` en `recorder-lib.mjs`; `encode-video.mjs` los aplica).
+
+## Stampy IA (consulta REAL: cuesta y escribe)
+
+```bash
+node scripts/demo/record-stampy.mjs <carpeta> [--question="..."]
+node scripts/demo/encode-video.mjs <carpeta> public/landing-preview/demos stampy --speed=1.0
+```
+
+- **Cada ejecución envía una consulta real**: llama a OpenAI con la clave del servidor y escribe una conversación, 2 mensajes y un registro de uso en la cuenta demo (cuenta para el límite de 40/h y 150/día). Ejecutar solo con autorización.
+- La respuesta se muestra tal cual y se imprime al final; nunca se edita. Nunca se confirma una acción que Stampy proponga. Lo único que se agrega es un contorno naranja sobre la primera tarjeta de clase recomendada (presentación).
+- La espera del modelo se recorta del video (`cutStart`/`cutEnd`).
