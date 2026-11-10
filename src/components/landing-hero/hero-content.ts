@@ -22,20 +22,12 @@ export const heroContent = {
   captions: ["Cada capa, una idea.", "Cada pieza, un proyecto."] as const,
 } as const;
 
-/** Escena 4: presentación estilizada de la plataforma (marcador de posición hasta tener demostraciones administrables). */
+/** Escena 4: la interfaz real de Universo que emerge tras atravesar el núcleo (la ventana sale de `universe-tools.ts`). */
 export const discoveryContent = {
   eyebrow: "Has entrado",
   title: "Bienvenido a Universo Stampa",
   subtitle: "Formación, herramientas y comunidad para imprimir, gestionar y hacer crecer tu taller.",
   primary: { label: "Comenzar gratis", href: "/registro" },
-  secondary: { label: "Conocer la plataforma", href: "/landing" },
-  /** Módulos mostrados como tarjetas flotantes. Sustituibles por demos reales más adelante. */
-  modules: [
-    { id: "calculadora", title: "Calculadora", hint: "Costos reales por pieza", kind: "bars" },
-    { id: "taller", title: "Mi Taller", hint: "Filamentos, stock y producción", kind: "stock" },
-    { id: "stampy", title: "Stampy IA", hint: "Tu asistente de impresión", kind: "chat" },
-    { id: "academia", title: "Academia", hint: "Aprendé paso a paso", kind: "progress" },
-  ] as const,
+  /** Baja hasta la sección de herramientas (ver `toolsSectionContent.anchorId`). */
+  secondary: { label: "Ver las herramientas", href: "#herramientas" },
 } as const;
-
-export type DiscoveryModule = (typeof discoveryContent.modules)[number];

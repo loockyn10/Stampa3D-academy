@@ -50,6 +50,7 @@ export function useHeroController({ trackRef, stageRef, sceneRef, reducedMotion,
       setVar("--flash", tl.flash);
       setVar("--canvas", tl.canvas);
       setVar("--disc", tl.discovery);
+      setVar("--dock", tl.dock);
       setFlag("heroActive", tl.hero > 0.02);
       setFlag("discActive", tl.discovery > 0.02);
     };
@@ -57,7 +58,7 @@ export function useHeroController({ trackRef, stageRef, sceneRef, reducedMotion,
     if (reducedMotion) {
       // Sin secuencia ligada al scroll: un único fotograma estático del núcleo ya formado.
       const tl = computeTimeline(0, sceneRef.current ?? FALLBACK_RIG);
-      publish({ ...tl, hero: 1, discovery: 1 }, 0);
+      publish({ ...tl, hero: 1, discovery: 1, dock: 0 }, 0);
       sceneRef.current?.render(tl, 0);
       return;
     }

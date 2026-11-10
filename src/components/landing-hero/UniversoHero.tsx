@@ -8,7 +8,8 @@ import { heroContent, type HeroAction } from "./hero-content";
 import { isWebGLAvailable } from "./hero-quality";
 import { HeroDiscovery } from "./HeroDiscovery";
 import { HeroFallbackCore } from "./HeroFallbackCore";
-import type { HeroModel, HeroSceneApi } from "./HeroCoreCanvas";
+import { ToolsExplorer } from "./ToolsExplorer";
+import type { HeroSceneApi } from "./HeroCoreCanvas";
 import { useHeroController } from "./use-hero-controller";
 import styles from "./UniversoHero.module.css";
 
@@ -33,6 +34,8 @@ function getWebGLSupport(): boolean {
 }
 
 const ANCHOR_ID = "descubrimiento";
+/** Progreso del scroll del Hero en el que la interfaz de Universo ya está completamente formada. */
+const REVEAL_PROGRESS = 0.9;
 
 /**
  * Hero 3D de Universo Stampa (prototipo). Orquesta las cuatro escenas:
@@ -41,7 +44,7 @@ const ANCHOR_ID = "descubrimiento";
  * Estructura: un contenedor alto (`track`) con un escenario fijo (`stage`, sticky) dentro.
  * El progreso del scroll sobre el contenedor gobierna la cámara, el núcleo y las capas de texto.
  */
-export function UniversoHero({ model = "nucleo" }: { model?: HeroModel }) {
+export function UniversoHero() {
   const reducedMotion = useSyncExternalStore(
     subscribeReducedMotion,
     () => window.matchMedia(REDUCED_QUERY).matches,
@@ -79,7 +82,8 @@ export function UniversoHero({ model = "nucleo" }: { model?: HeroModel }) {
       document.getElementById(ANCHOR_ID)?.scrollIntoView({ behavior: "auto", block: "start" });
       return;
     }
-    const top = track.getBoundingClientRect().top + window.scrollY + track.offsetHeight - stage.clientHeight;
+    // Hasta el punto en que la interfaz de Universo ya está formada, justo antes de acoplarse a la sección siguiente.
+    const top = track.getBoundingClientRect().top + window.scrollY + (track.offsetHeight - stage.clientHeight) * REVEAL_PROGRESS;
     window.scrollTo({ top, behavior: "smooth" });
   };
 
@@ -113,7 +117,7 @@ export function UniversoHero({ model = "nucleo" }: { model?: HeroModel }) {
 
           <div className={styles.canvasWrap} aria-hidden="true">
             {showCanvas ? (
-              <HeroCoreCanvas key={`${model}-${reducedMotion ? "still" : "live"}`} model={model} reducedMotion={reducedMotion} onReady={handleReady} onFail={handleFail} />
+              <HeroCoreCanvas key={reducedMotion ? "still" : "live"} reducedMotion={reducedMotion} onReady={handleReady} onFail={handleFail} />
             ) : null}
             {showFallback ? <HeroFallbackCore /> : null}
           </div>
@@ -158,12 +162,14 @@ export function UniversoHero({ model = "nucleo" }: { model?: HeroModel }) {
 
           <div className={styles.flash} aria-hidden="true" />
 
-          {reducedMotion ? null : <HeroDiscovery />}
+          {reducedMotion ? null : <HeroDiscovery reducedMotion={false} />}
         </div>
         {reducedMotion ? null : <span id={ANCHOR_ID} className={styles.endAnchor} aria-hidden="true" />}
       </div>
 
-      {reducedMotion ? <HeroDiscovery anchorId={ANCHOR_ID} /> : null}
+      {reducedMotion ? <HeroDiscovery anchorId={ANCHOR_ID} reducedMotion /> : null}
+
+      <ToolsExplorer reducedMotion={reducedMotion} />
     </div>
   );
 }

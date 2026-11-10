@@ -1,7 +1,7 @@
 /*
  * Hero 3D de Universo Stampa (prototipo /landing-preview).
  * Siempre oscuro, sin depender de los tokens de tema de la app (la landing no cambia con el modo claro).
- * Las variables --p, --ex, --hero, --cap1, --cap2, --flash, --canvas y --disc las publica use-hero-controller en el escenario.
+ * Las variables --p, --ex, --hero, --cap1, --cap2, --flash, --canvas, --disc y --dock las publica use-hero-controller en el escenario.
  */
 
 .root {
@@ -21,6 +21,7 @@
   --flash: 0;
   --canvas: 1;
   --disc: 0;
+  --dock: 0;
 
   position: relative;
   background: var(--bg);
@@ -401,7 +402,7 @@
   box-shadow: 0 0 22px rgba(255, 120, 10, 0.55);
 }
 
-/* ------------------------------------------------------------------ escena final: descubrimiento */
+/* ------------------------------------------------------------------ escena final: la interfaz de Universo emerge del núcleo */
 
 .discovery {
   --reveal: clamp(0, calc(var(--disc) * 3), 1);
@@ -413,7 +414,7 @@
   overflow: hidden;
   opacity: var(--reveal);
   background:
-    radial-gradient(75% 70% at 50% 52%, rgba(255, 120, 10, 0.16), rgba(8, 8, 10, 0.9) 72%),
+    radial-gradient(75% 70% at 60% 52%, rgba(255, 120, 10, 0.17), rgba(8, 8, 10, 0.9) 72%),
     rgba(8, 8, 10, 0.5);
 }
 
@@ -427,48 +428,26 @@
   min-height: 100svh;
   padding-block: 72px;
   background:
-    radial-gradient(75% 70% at 50% 52%, rgba(255, 120, 10, 0.16), transparent 72%),
+    radial-gradient(75% 70% at 60% 52%, rgba(255, 120, 10, 0.16), transparent 72%),
     var(--bg);
-}
-
-.chamber {
-  position: absolute;
-  inset: 0;
-  pointer-events: none;
-}
-
-.chamberRing {
-  position: absolute;
-  left: 50%;
-  top: 60%;
-  width: calc(46vmin + var(--k) * 26vmin);
-  height: calc((46vmin + var(--k) * 26vmin) * 0.3);
-  border: 1px solid rgba(255, 140, 40, calc(0.3 - var(--k) * 0.06));
-  border-radius: 50%;
-  translate: -50% -50%;
-  scale: calc(0.55 + var(--disc) * 0.45);
-  box-shadow: 0 0 40px rgba(255, 120, 10, 0.08);
 }
 
 .discoveryInner {
   position: relative;
   display: grid;
-  grid-template-columns: minmax(0, 0.9fr) minmax(0, 1.1fr);
+  grid-template-columns: minmax(0, 0.8fr) minmax(0, 1.2fr);
   align-items: center;
   gap: clamp(24px, 4vw, 64px);
-  width: min(1240px, 100%);
+  width: min(1320px, 100%);
   margin: 0 auto;
-  padding: clamp(72px, 9vh, 96px) clamp(20px, 5vw, 72px) clamp(24px, 5vh, 56px);
+  padding: clamp(72px, 9vh, 96px) clamp(20px, 4vw, 64px) clamp(24px, 5vh, 56px);
 }
 
-/* Elementos escalonados: cada uno se revela según su índice (--i). */
-.discoveryCopy,
-.platformPanel,
-.moduleCard {
-  --k: clamp(0, calc(var(--disc) * 3 - var(--i) * 0.32), 1);
+/* El texto se revela escalonado detrás de la interfaz. */
+.discoveryCopy {
+  --k: clamp(0, calc(var(--disc) * 3 - 0.9), 1);
   opacity: var(--k);
-  translate: 0 calc((1 - var(--k)) * 48px);
-  scale: calc(0.94 + var(--k) * 0.06);
+  translate: 0 calc((1 - var(--k)) * 40px - var(--dock) * 5svh);
 }
 
 .eyebrow {
@@ -492,7 +471,7 @@
 
 .discoveryTitle {
   margin: 0.9rem 0 0;
-  font-size: clamp(2.1rem, 4.3vw, 3.9rem);
+  font-size: clamp(2.1rem, 4vw, 3.7rem);
   font-weight: 600;
   line-height: 1.02;
   letter-spacing: -0.036em;
@@ -502,8 +481,8 @@
 
 .discoverySubtitle {
   margin: 1.2rem 0 0;
-  max-width: 30rem;
-  font-size: clamp(1rem, 1.2vw, 1.15rem);
+  max-width: 28rem;
+  font-size: clamp(1rem, 1.2vw, 1.12rem);
   line-height: 1.55;
   color: var(--muted);
 }
@@ -512,254 +491,41 @@
   animation: none;
 }
 
-.platform {
+/*
+ * La interfaz real (una captura de la aplicación) nace en el punto por el que pasó la cámara:
+ * pequeña, inclinada y ardiendo en naranja; se endereza y crece hasta quedar de frente. Con --dock se eleva
+ * y se atenúa mientras la sección de herramientas se desliza sobre el escenario.
+ */
+.reveal {
   position: relative;
-  aspect-ratio: 1.12;
-  width: 100%;
-  perspective: 1600px;
+  opacity: calc(clamp(0, calc(var(--disc) * 2.6), 1) * (1 - var(--dock) * 0.5));
+  transform: perspective(1600px) translate3d(0, calc((1 - var(--disc)) * 6svh - var(--dock) * var(--dock-lift, 9svh)), 0)
+    rotateX(calc((1 - var(--disc)) * 18deg)) rotateY(calc((1 - var(--disc)) * -12deg)) scale(calc(0.42 + var(--disc) * 0.58));
+  transform-origin: 50% 50%;
+  will-change: transform, opacity;
 }
 
-.platformPanel {
+/* Brasas del núcleo detrás de la ventana: se apagan a medida que la interfaz se asienta. */
+.reveal::before {
+  content: "";
   position: absolute;
-  left: 12%;
-  top: 14%;
-  width: 62%;
-  height: 62%;
-  overflow: hidden;
-  border: 1px solid rgba(255, 255, 255, 0.12);
-  border-radius: 18px;
-  background: linear-gradient(145deg, rgba(36, 36, 42, 0.88), rgba(14, 14, 18, 0.94));
-  box-shadow:
-    0 50px 100px -30px rgba(0, 0, 0, 0.95),
-    0 0 0 1px rgba(255, 120, 10, 0.08),
-    inset 0 1px 0 rgba(255, 255, 255, 0.08);
-  transform: rotateY(-16deg) rotateX(7deg);
-  animation: panelFloat 7s ease-in-out infinite;
+  inset: -22% -14%;
+  z-index: -1;
+  pointer-events: none;
+  opacity: calc(0.5 + (1 - var(--disc)) * 0.5);
+  background: radial-gradient(closest-side, rgba(255, 130, 30, 0.34), rgba(255, 120, 10, 0.1) 55%, transparent 80%);
 }
 
-.panelBar {
-  display: flex;
-  align-items: center;
-  gap: 6px;
-  height: 34px;
-  padding: 0 14px;
-  border-bottom: 1px solid rgba(255, 255, 255, 0.07);
+.root[data-reduced="true"] .reveal {
+  opacity: 1;
+  transform: none;
 }
 
-.panelBar i {
-  width: 8px;
-  height: 8px;
-  border-radius: 50%;
-  background: rgba(255, 255, 255, 0.2);
+.root[data-reduced="true"] .discoveryCopy {
+  opacity: 1;
+  translate: none;
 }
 
-.panelBar b {
-  width: 72px;
-  height: 8px;
-  margin-left: auto;
-  border-radius: 4px;
-  background: rgba(255, 255, 255, 0.1);
-}
-
-.panelBody {
-  display: grid;
-  grid-template-columns: 44px 1fr;
-  height: calc(100% - 34px);
-}
-
-.panelSide {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  gap: 10px;
-  padding: 14px 0;
-  border-right: 1px solid rgba(255, 255, 255, 0.07);
-}
-
-.panelSide i {
-  width: 20px;
-  height: 20px;
-  border-radius: 6px;
-  background: rgba(255, 255, 255, 0.09);
-}
-
-.panelSide i:first-child {
-  background: var(--orange);
-  box-shadow: 0 0 18px rgba(255, 120, 10, 0.6);
-}
-
-.panelMain {
-  display: grid;
-  align-content: start;
-  gap: 10px;
-  padding: 16px;
-}
-
-.panelHeadline {
-  width: 46%;
-  height: 12px;
-  border-radius: 6px;
-  background: rgba(255, 255, 255, 0.72);
-}
-
-.panelLine {
-  width: 82%;
-  height: 7px;
-  border-radius: 4px;
-  background: rgba(255, 255, 255, 0.1);
-}
-
-.panelLine[data-short="true"] {
-  width: 54%;
-}
-
-.panelLayers {
-  display: grid;
-  gap: 3px;
-  margin-top: 10px;
-}
-
-.panelLayers span {
-  display: block;
-  width: var(--w);
-  height: 5px;
-  border-radius: 3px;
-  background: linear-gradient(90deg, rgba(255, 120, 10, 0.95), rgba(255, 176, 102, 0.45));
-}
-
-.moduleCard {
-  position: absolute;
-  z-index: 2;
-  padding: 14px;
-  border: 1px solid rgba(255, 255, 255, 0.13);
-  border-radius: 16px;
-  background: rgba(24, 24, 29, 0.9);
-  box-shadow: 0 30px 60px -24px rgba(0, 0, 0, 0.9);
-  animation: cardFloat 6s ease-in-out infinite;
-}
-
-.moduleCard[data-slot="0"] {
-  top: 0;
-  right: 2%;
-  width: 36%;
-}
-
-.moduleCard[data-slot="1"] {
-  bottom: 6%;
-  right: 0;
-  width: 38%;
-  animation-delay: -2s;
-}
-
-.moduleCard[data-slot="2"] {
-  bottom: 0;
-  left: 4%;
-  width: 40%;
-  animation-delay: -4s;
-}
-
-.moduleCard[data-slot="3"] {
-  top: 4%;
-  left: 0;
-  width: 32%;
-  animation-delay: -1s;
-}
-
-.moduleHead strong {
-  display: block;
-  font-size: 14px;
-  font-weight: 650;
-  color: var(--text);
-}
-
-.moduleHead small {
-  display: block;
-  margin-top: 2px;
-  font-size: 11.5px;
-  line-height: 1.35;
-  color: #9a9aa5;
-}
-
-.vizBars,
-.vizStock,
-.vizChat,
-.vizProgress {
-  margin-top: 12px;
-  height: 50px;
-}
-
-.vizBars {
-  display: flex;
-  align-items: flex-end;
-  gap: 6px;
-}
-
-.vizBars span {
-  flex: 1;
-  border-radius: 4px 4px 2px 2px;
-  background: linear-gradient(180deg, #ffb066, #ff780a);
-}
-
-.vizStock {
-  display: grid;
-  align-content: center;
-  gap: 9px;
-}
-
-.vizStock div {
-  height: 6px;
-  border-radius: 3px;
-  background: rgba(255, 255, 255, 0.1);
-}
-
-.vizStock span {
-  display: block;
-  height: 100%;
-  border-radius: 3px;
-  background: linear-gradient(90deg, #ff780a, #ffb066);
-}
-
-.vizChat {
-  display: grid;
-  align-content: center;
-  gap: 7px;
-}
-
-.vizChat span {
-  height: 14px;
-  width: 82%;
-  border-radius: 10px;
-  background: rgba(255, 255, 255, 0.12);
-}
-
-.vizChat span:last-child {
-  width: 58%;
-  justify-self: end;
-  background: rgba(255, 120, 10, 0.5);
-}
-
-.vizProgress {
-  display: flex;
-  align-items: center;
-  gap: 12px;
-}
-
-.vizProgress span {
-  flex: none;
-  width: 46px;
-  height: 46px;
-  border-radius: 50%;
-  background:
-    radial-gradient(circle at center, #19191e 54%, transparent 56%),
-    conic-gradient(#ff780a 0 68%, rgba(255, 255, 255, 0.12) 0);
-}
-
-.vizProgress i {
-  flex: 1;
-  height: 6px;
-  border-radius: 3px;
-  background: linear-gradient(90deg, rgba(255, 255, 255, 0.16) 70%, rgba(255, 255, 255, 0.06) 70%);
-}
 
 /* ------------------------------------------------------------------ animaciones */
 
@@ -799,26 +565,6 @@
   }
   100% {
     transform: translateY(100%);
-  }
-}
-
-@keyframes panelFloat {
-  0%,
-  100% {
-    transform: rotateY(-16deg) rotateX(7deg) translateY(0);
-  }
-  50% {
-    transform: rotateY(-14deg) rotateX(6deg) translateY(-8px);
-  }
-}
-
-@keyframes cardFloat {
-  0%,
-  100% {
-    transform: translateY(0);
-  }
-  50% {
-    transform: translateY(-9px);
   }
 }
 
@@ -900,10 +646,15 @@
     top: 32%;
   }
 
+  .reveal {
+    --dock-lift: 1.5svh;
+  }
+
   .discoveryInner {
     grid-template-columns: minmax(0, 1fr);
-    gap: 18px;
-    padding-top: 76px;
+    gap: 22px;
+    align-content: start;
+    padding-top: 84px;
   }
 
   .discoveryTitle {
@@ -918,46 +669,12 @@
   .discoveryCopy .actions {
     margin-top: 1.2rem;
   }
-
-  .platform {
-    aspect-ratio: 1.3;
-  }
-
-  .moduleCard {
-    padding: 10px;
-    border-radius: 13px;
-  }
-
-  .moduleHead strong {
-    font-size: 12.5px;
-  }
-
-  .moduleHead small {
-    display: none;
-  }
-
-  .vizBars,
-  .vizStock,
-  .vizChat,
-  .vizProgress {
-    height: 36px;
-    margin-top: 8px;
-  }
-
-  .vizProgress span {
-    width: 34px;
-    height: 34px;
-  }
 }
 
 /* ------------------------------------------------------------------ movimiento reducido */
 
 .root[data-reduced="true"] * {
   animation: none !important;
-}
-
-.root[data-reduced="true"] .platformPanel {
-  transform: rotateY(-16deg) rotateX(7deg);
 }
 
 @media (prefers-reduced-motion: reduce) {

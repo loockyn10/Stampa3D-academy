@@ -159,7 +159,6 @@ export class HeroCoreScene {
   /** Rig de cámara dependiente del encuadre; lo calcula `resize`. */
   baseZ = 11.5;
   readonly endZ = -4.6;
-  readonly flashScale = 1;
 
   constructor(canvas: HTMLCanvasElement, quality: HeroQuality, options: CoreSceneOptions) {
     this.canvas = canvas;

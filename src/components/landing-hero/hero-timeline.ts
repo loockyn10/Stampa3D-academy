@@ -5,7 +5,8 @@
  *   0.00 – 0.04  Exploración (núcleo flotando, texto del hero visible)
  *   0.04 – 0.55  Transformación (la cámara se acerca, las piezas se separan)
  *   0.50 – 0.74  Travesía (la cámara atraviesa el núcleo; destello)
- *   0.74 – 1.00  Descubrimiento (se revela la plataforma)
+ *   0.60 – 0.88  Descubrimiento (de entre el destello emerge la interfaz real de Universo)
+ *   0.90 – 1.00  Acople (la interfaz se eleva y la sección de herramientas se desliza sobre el escenario)
  */
 
 export const clamp01 = (v: number): number => (v < 0 ? 0 : v > 1 ? 1 : v);
@@ -43,12 +44,13 @@ export type HeroTimeline = {
   /** Opacidad de cada subtítulo cinematográfico. */
   caption1: number;
   caption2: number;
-  /** 0..1 revelado de la escena final. */
+  /** 0..1 revelado de la interfaz de Universo tras atravesar el núcleo. */
   discovery: number;
+  /** 0..1 acople de esa interfaz a la sección siguiente (se eleva y cede el escenario). */
+  dock: number;
 };
 
-/** `flashScale`: atenúa el destello de la travesía (1 = completo). */
-export type HeroCameraRig = { baseZ: number; endZ: number; flashScale?: number };
+export type HeroCameraRig = { baseZ: number; endZ: number };
 
 /** Vuelve a pasar por un campana: sube en [a,b], baja en [c,d]. */
 const bell = (v: number, a: number, b: number, c: number, d: number): number =>
@@ -64,13 +66,14 @@ export function computeTimeline(p: number, rig: HeroCameraRig): HeroTimeline {
     lookY: lerp(0.15, 0, smoothstep(0, 0.5, progress)),
     twist: progress * 1.35,
     glow: smoothstep(0.2, 0.6, progress),
-    flash: bell(progress, 0.47, 0.585, 0.585, 0.76) * (rig.flashScale ?? 1),
+    flash: bell(progress, 0.47, 0.585, 0.585, 0.76),
     shift: 1 - smoothstep(0, 0.32, progress),
     idle: 1 - smoothstep(0, 0.3, progress),
     canvas: 1 - 0.62 * smoothstep(0.7, 0.93, progress),
     hero: 1 - smoothstep(0.015, 0.13, progress),
     caption1: bell(progress, 0.12, 0.2, 0.3, 0.37),
     caption2: bell(progress, 0.31, 0.39, 0.47, 0.53),
-    discovery: smoothstep(0.76, 0.94, progress),
+    discovery: smoothstep(0.6, 0.88, progress),
+    dock: smoothstep(0.9, 1, progress),
   };
 }

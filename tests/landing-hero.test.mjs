@@ -1,23 +1,30 @@
-// Sprint 5.1 — Hero 3D (/landing-preview): línea de tiempo del scroll, ruta pública independiente y limpieza de recursos.
+// Landing 5.1/5.2 — Hero 3D y sección de herramientas (/landing-preview): línea de tiempo del scroll, ruta pública independiente,
+// limpieza de recursos y catálogo de herramientas basado en datos.
 import assert from "node:assert/strict";
+import fs from "node:fs";
+import path from "node:path";
 import test from "node:test";
 import { loadTs, readRepoFile as read } from "./helpers/load-ts.mjs";
 
 const timeline = loadTs("src/components/landing-hero/hero-timeline.ts");
 const routes = loadTs("src/lib/auth/route-policy.ts");
 const RIG = { baseZ: 14.5, endZ: -4.6 };
+const tools = loadTs("src/components/landing-hero/universe-tools.ts");
+const repoPath = (relativePath) => path.join(process.cwd(), relativePath);
 
 test("la línea de tiempo arranca en exploración y termina en descubrimiento", () => {
   const start = timeline.computeTimeline(0, RIG);
   assert.equal(start.explode, 0);
   assert.equal(start.hero, 1);
   assert.equal(start.discovery, 0);
+  assert.equal(start.dock, 0);
   assert.equal(start.camZ, RIG.baseZ);
 
   const end = timeline.computeTimeline(1, RIG);
   assert.equal(end.explode, 1);
   assert.equal(end.hero, 0);
   assert.equal(end.discovery, 1);
+  assert.equal(end.dock, 1);
   assert.ok(Math.abs(end.camZ - RIG.endZ) < 1e-9);
 });
 
@@ -57,31 +64,36 @@ test("la escena libera sus recursos y no añade dependencias nuevas", () => {
   assert.match(read("src/components/landing-hero/UniversoHero.tsx"), /dynamic\(\(\) => import\("\.\/HeroCoreCanvas"\), \{ ssr: false \}\)/);
 });
 
-test("?modelo=lampara elige la lámpara y el núcleo sigue siendo el modelo por defecto", () => {
+test("la interfaz emerge tras el destello y se acopla a la sección siguiente solo cuando ya está formada", () => {
+  const afterFlash = timeline.computeTimeline(0.6, RIG);
+  assert.equal(afterFlash.discovery, 0);
+  assert.ok(timeline.computeTimeline(0.74, RIG).discovery > 0.3);
+  assert.equal(timeline.computeTimeline(0.88, RIG).discovery, 1);
+  // El acople (la sección de herramientas se desliza sobre el escenario) no empieza antes de que la interfaz esté completa.
+  assert.equal(timeline.computeTimeline(0.9, RIG).dock, 0);
+  let previous = 0;
+  for (let p = 0.9; p <= 1.0001; p += 0.01) {
+    const { dock } = timeline.computeTimeline(p, RIG);
+    assert.ok(dock >= previous - 1e-9 && dock <= 1);
+    previous = dock;
+  }
+});
+
+test("la variante de lámpara fue retirada y el núcleo es el único modelo de /landing-preview", () => {
+  assert.equal(fs.existsSync(repoPath("src/components/landing-hero/lamp-scene.ts")), false);
   const page = read("src/app/landing-preview/page.tsx");
-  assert.match(page, /modelo === "lampara" \? "lampara" : "nucleo"/);
+  assert.doesNotMatch(page, /modelo|lampara|searchParams/);
   const canvas = read("src/components/landing-hero/HeroCoreCanvas.tsx");
-  assert.match(canvas, /model = "nucleo"/);
-  assert.match(canvas, /HeroLampScene/);
-  const lamp = read("src/components/landing-hero/lamp-scene.ts");
-  assert.match(lamp, /renderer\.dispose\(\)/);
-  assert.match(lamp, /forceContextLoss\(\)/);
-  assert.match(lamp, /reducedMotion/);
-  // La geometría anterior se conserva.
+  assert.doesNotMatch(canvas, /Lamp|lampara|flashScale/);
   assert.match(read("src/components/landing-hero/core-scene.ts"), /export class HeroCoreScene/);
 });
 
-test("los objetos orbitantes y el núcleo digital son compartidos por ambas variantes", () => {
+test("los objetos orbitantes y el núcleo digital siguen siendo compartidos con la escena del núcleo", () => {
   const core = read("src/components/landing-hero/core-scene.ts");
-  const lamp = read("src/components/landing-hero/lamp-scene.ts");
-  for (const source of [core, lamp]) {
-    assert.match(source, /new HeroOrbiters\(quality\.pieces\)/);
-    assert.match(source, /new HeroDigitalCore\(/);
-    assert.match(source, /orbiters\.dispose\(\)/);
-    assert.match(source, /digitalCore\.dispose\(\)/);
-  }
-  // El modelo de lámpara no vuelve a dibujar una bombilla: solo el núcleo digital aparece al separar las capas.
-  assert.doesNotMatch(lamp, /bulbGlow/);
+  assert.match(core, /new HeroOrbiters\(quality\.pieces\)/);
+  assert.match(core, /new HeroDigitalCore\(/);
+  assert.match(core, /orbiters\.dispose\(\)/);
+  assert.match(core, /digitalCore\.dispose\(\)/);
   const models = read("src/components/landing-hero/printed-models.ts");
   for (const id of ["boat", "tower", "cube", "gear"]) assert.match(models, new RegExp(`${id}:`));
   // Identidad común: filamento marfil sin metal ni colores arcoíris, y sin presentar el barco como el 3DBenchy oficial.
@@ -90,11 +102,49 @@ test("los objetos orbitantes y el núcleo digital son compartidos por ambas vari
   assert.match(models, /NO es 3DBenchy/);
 });
 
-test("equipos modestos muestran menos objetos orbitantes y el destello se puede atenuar", () => {
+test("el catálogo de herramientas es coherente: ids únicos, rutas reales y demostraciones existentes", () => {
+  const list = tools.universeTools;
+  assert.ok(list.length >= 2);
+  assert.equal(new Set(list.map((tool) => tool.id)).size, list.length);
+  for (const tool of list) {
+    assert.ok(tool.route.startsWith("/"), `${tool.id}: ruta`);
+    assert.ok(fs.existsSync(repoPath(`src/app${tool.route}`)), `${tool.id}: la ruta ${tool.route} no existe en src/app`);
+    assert.ok(tool.demos.length >= 1 && tool.highlights.length >= 1, `${tool.id}: demos y puntos destacados`);
+    assert.ok(["open", "member"].includes(tool.access));
+    assert.equal(new Set(tool.demos.map((demo) => demo.id)).size, tool.demos.length, `${tool.id}: ids de demo únicos`);
+    for (const demo of tool.demos) {
+      const media = demo.media;
+      if (media.kind === "image" || media.kind === "video") {
+        assert.ok(fs.existsSync(repoPath(`public${media.src}`)), `${tool.id}/${demo.id}: falta ${media.src}`);
+        assert.ok(media.alt.length > 10 && media.width > 0 && media.height > 0);
+      } else {
+        // Un marcador siempre explica que la demostración todavía no existe: nunca simula una pantalla.
+        assert.equal(media.kind, "placeholder");
+        assert.ok(media.note.length > 10);
+      }
+    }
+  }
+  // La escena del Hero muestra una demostración real, no un marcador.
+  assert.equal(tools.heroRevealTool.demos[0].media.kind, "image");
+});
+
+test("la sección de herramientas es genérica: no nombra herramientas, es accesible y respeta el movimiento reducido", () => {
+  const explorer = read("src/components/landing-hero/ToolsExplorer.tsx");
+  for (const name of ["Calculadora", "Mi Taller", "Stampy", "Academia"]) assert.doesNotMatch(explorer, new RegExp(name));
+  assert.match(explorer, /role="tablist"/);
+  assert.match(explorer, /role="tab"/);
+  assert.match(explorer, /role="tabpanel"/);
+  assert.match(explorer, /ArrowDown/);
+  assert.match(explorer, /reducedMotion/);
+  // La interfaz de la transición y la de la sección son la misma ventana.
+  assert.match(read("src/components/landing-hero/HeroDiscovery.tsx"), /DemoWindow/);
+  assert.match(explorer, /DemoWindow/);
+  // Sin dependencias nuevas ni backend: la sección es solo front.
+  assert.doesNotMatch(explorer + read("src/components/landing-hero/universe-tools.ts"), /supabase|mercadopago|fetch\(/i);
+});
+
+test("equipos modestos muestran menos objetos orbitantes", () => {
   const quality = read("src/components/landing-hero/hero-quality.ts");
   assert.match(quality, /case "low":\s*\n?\s*return \{ tier, layers: 26, pieces: 3,/);
   assert.match(quality, /layers: 46, pieces: 4,/);
-  const half = timeline.computeTimeline(0.585, { ...RIG, flashScale: 0.5 }).flash;
-  const full = timeline.computeTimeline(0.585, RIG).flash;
-  assert.ok(Math.abs(half - full / 2) < 1e-9);
 });

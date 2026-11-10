@@ -1,0 +1,552 @@
+/*
+ * Sección de exploración de herramientas (/landing-preview). Siempre oscura, con la identidad naranja del Hero.
+ * --sp (0..1) la publica ToolsExplorer según el scroll y gobierna el parallax suave de la ventana.
+ */
+
+.root {
+  --bg: #08080a;
+  --orange: #ff780a;
+  --orange-soft: #ffb066;
+  --text: #fafafa;
+  --muted: #a8a8b3;
+  --line: rgba(255, 255, 255, 0.1);
+  --sp: 0.5;
+
+  position: relative;
+  z-index: 5;
+  /* Se desliza sobre el último tramo del escenario fijo del Hero: la interfaz que emergió "cede" el lugar a la sección. */
+  margin-top: -45svh;
+  padding: clamp(72px, 11vh, 120px) 0 clamp(72px, 12vh, 140px);
+  border-radius: clamp(22px, 3vw, 40px) clamp(22px, 3vw, 40px) 0 0;
+  background:
+    radial-gradient(60% 40% at 78% 28%, rgba(255, 120, 10, 0.1), transparent 70%),
+    radial-gradient(46% 36% at 6% 6%, rgba(72, 92, 210, 0.1), transparent 70%),
+    var(--bg);
+  color: var(--text);
+  color-scheme: dark;
+  box-shadow: 0 -40px 90px rgba(0, 0, 0, 0.5);
+  /* Los resplandores sobresalen de su columna: se recortan sin crear un contenedor de scroll (el sticky sigue andando). */
+  overflow-x: clip;
+  scroll-margin-top: 0;
+}
+
+/* Filo de luz en el borde superior: la costura por donde entra la sección. */
+.root::before {
+  content: "";
+  position: absolute;
+  inset: 0 clamp(22px, 3vw, 40px) auto;
+  height: 1px;
+  background: linear-gradient(90deg, transparent, rgba(255, 150, 50, 0.7) 50%, transparent);
+  box-shadow: 0 0 24px 2px rgba(255, 120, 10, 0.35);
+}
+
+.root[data-reduced="true"] {
+  margin-top: 0;
+  border-radius: 0;
+  box-shadow: none;
+}
+
+.inner {
+  width: min(1320px, 100%);
+  margin: 0 auto;
+  padding: 0 clamp(20px, 4vw, 64px);
+}
+
+/* ------------------------------------------------------------------ encabezado */
+
+.head {
+  max-width: 44rem;
+}
+
+.eyebrow {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin: 0;
+  color: #ff9a3c;
+  font-size: 12px;
+  font-weight: 650;
+  letter-spacing: 0.22em;
+  text-transform: uppercase;
+}
+
+.eyebrow::before {
+  content: "";
+  width: 28px;
+  height: 1px;
+  background: currentColor;
+}
+
+.title {
+  margin: 0.9rem 0 0;
+  font-size: clamp(2rem, 3.8vw, 3.4rem);
+  font-weight: 600;
+  line-height: 1.04;
+  letter-spacing: -0.034em;
+  text-wrap: balance;
+}
+
+.subtitle {
+  margin: 1.1rem 0 0;
+  max-width: 36rem;
+  font-size: clamp(1rem, 1.2vw, 1.12rem);
+  line-height: 1.55;
+  color: var(--muted);
+}
+
+/* Entrada al llegar a la sección. */
+.head,
+.layout {
+  opacity: 0;
+  translate: 0 36px;
+  transition:
+    opacity 0.8s cubic-bezier(0.2, 0.7, 0.2, 1),
+    translate 0.8s cubic-bezier(0.2, 0.7, 0.2, 1);
+}
+
+.layout {
+  transition-delay: 0.14s;
+}
+
+.root[data-inview="true"] .head,
+.root[data-inview="true"] .layout {
+  opacity: 1;
+  translate: 0 0;
+}
+
+/* ------------------------------------------------------------------ composición */
+
+.layout {
+  display: grid;
+  grid-template-columns: minmax(250px, 0.34fr) minmax(0, 1fr);
+  gap: clamp(28px, 4.5vw, 72px);
+  margin-top: clamp(36px, 6vh, 64px);
+  align-items: start;
+}
+
+/* Lista de herramientas: líneas y numeración, no tarjetas. */
+.nav {
+  position: sticky;
+  top: 28px;
+  display: flex;
+  flex-direction: column;
+  border-top: 1px solid var(--line);
+}
+
+.tab {
+  position: relative;
+  display: grid;
+  grid-template-columns: 34px minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 6px;
+  width: 100%;
+  padding: 16px 6px 16px 14px;
+  border: 0;
+  border-bottom: 1px solid var(--line);
+  background: transparent;
+  color: #7f7f8b;
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+  transition:
+    color 0.3s ease,
+    background 0.4s ease;
+}
+
+.tab::before {
+  content: "";
+  position: absolute;
+  left: 0;
+  top: -1px;
+  bottom: -1px;
+  width: 2px;
+  background: var(--orange);
+  box-shadow: 0 0 14px rgba(255, 120, 10, 0.8);
+  transform: scaleY(0);
+  transition: transform 0.4s cubic-bezier(0.2, 0.7, 0.2, 1);
+}
+
+.tab[data-active="true"] {
+  color: var(--text);
+  background: linear-gradient(90deg, rgba(255, 120, 10, 0.12), transparent 80%);
+}
+
+.tab[data-active="true"]::before {
+  transform: scaleY(1);
+}
+
+.tab:hover {
+  color: #d6d6dd;
+}
+
+.tab:focus-visible {
+  outline: 2px solid var(--orange-soft);
+  outline-offset: -2px;
+}
+
+.tabNum {
+  font-size: 12px;
+  font-variant-numeric: tabular-nums;
+  letter-spacing: 0.08em;
+  color: inherit;
+  opacity: 0.8;
+}
+
+.tab[data-active="true"] .tabNum {
+  color: #ff9a3c;
+  opacity: 1;
+}
+
+.tabText {
+  display: grid;
+  gap: 0;
+  min-width: 0;
+}
+
+.tabText strong {
+  font-size: clamp(1.05rem, 1.35vw, 1.3rem);
+  font-weight: 600;
+  letter-spacing: -0.02em;
+}
+
+/* La frase breve solo aparece en la herramienta elegida. */
+.tabText small {
+  display: block;
+  max-height: 0;
+  overflow: hidden;
+  opacity: 0;
+  font-size: 0.86rem;
+  line-height: 1.4;
+  color: var(--muted);
+  transition:
+    max-height 0.4s ease,
+    opacity 0.4s ease,
+    margin 0.4s ease;
+}
+
+.tab[data-active="true"] .tabText small {
+  max-height: 3rem;
+  margin-top: 4px;
+  opacity: 1;
+}
+
+.tabIcon {
+  opacity: 0.55;
+  transition:
+    opacity 0.3s ease,
+    color 0.3s ease;
+}
+
+.tab[data-active="true"] .tabIcon {
+  opacity: 1;
+  color: #ff9a3c;
+}
+
+/* ------------------------------------------------------------------ demostración protagonista */
+
+.panel {
+  min-width: 0;
+  outline: none;
+}
+
+.viewport {
+  position: relative;
+  transform: translate3d(0, calc((0.5 - var(--sp)) * 44px), 0);
+  will-change: transform;
+}
+
+/* Resplandor naranja bajo la ventana. */
+.viewport::before {
+  content: "";
+  position: absolute;
+  inset: -12% -8% -18%;
+  z-index: -1;
+  pointer-events: none;
+  background: radial-gradient(closest-side, rgba(255, 120, 10, 0.2), transparent 80%);
+}
+
+.swap {
+  animation: swapIn 0.55s cubic-bezier(0.2, 0.7, 0.2, 1) both;
+}
+
+.details {
+  display: grid;
+  grid-template-columns: minmax(0, 1.15fr) minmax(0, 0.85fr);
+  gap: clamp(20px, 3.5vw, 56px);
+  margin-top: clamp(24px, 4vh, 40px);
+}
+
+.badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  padding: 5px 12px 5px 10px;
+  border: 1px solid rgba(255, 255, 255, 0.14);
+  border-radius: 999px;
+  color: #c9c9d1;
+  font-size: 12px;
+  font-weight: 550;
+  letter-spacing: 0.02em;
+}
+
+.badge[data-access="open"] {
+  border-color: rgba(255, 140, 40, 0.5);
+  background: rgba(255, 120, 10, 0.1);
+  color: #ffb066;
+}
+
+.toolName {
+  margin: 0.9rem 0 0;
+  font-size: clamp(1.6rem, 2.6vw, 2.35rem);
+  font-weight: 600;
+  line-height: 1.08;
+  letter-spacing: -0.03em;
+}
+
+.toolDescription {
+  margin: 0.8rem 0 0;
+  max-width: 34rem;
+  font-size: clamp(0.98rem, 1.15vw, 1.08rem);
+  line-height: 1.6;
+  color: var(--muted);
+}
+
+.demoSwitch {
+  display: inline-flex;
+  gap: 4px;
+  margin-top: 1.3rem;
+  padding: 4px;
+  border: 1px solid var(--line);
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.03);
+}
+
+.demoSwitch button {
+  padding: 7px 16px;
+  border: 0;
+  border-radius: 999px;
+  background: transparent;
+  color: #9a9aa6;
+  font: inherit;
+  font-size: 13px;
+  font-weight: 560;
+  cursor: pointer;
+  transition:
+    background 0.25s ease,
+    color 0.25s ease;
+}
+
+.demoSwitch button[data-active="true"] {
+  background: var(--orange);
+  color: #1a0d00;
+}
+
+.demoSwitch button:not([data-active="true"]):hover {
+  color: var(--text);
+}
+
+.demoSwitch button:focus-visible,
+.btnPrimary:focus-visible {
+  outline: 2px solid var(--orange-soft);
+  outline-offset: 3px;
+}
+
+.summary {
+  margin: 0.9rem 0 0;
+  max-width: 34rem;
+  font-size: 0.9rem;
+  line-height: 1.5;
+  color: #8d8d99;
+}
+
+.cta {
+  margin-top: 1.5rem;
+}
+
+.btnPrimary {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  min-height: 48px;
+  padding: 0 24px;
+  border: 1px solid transparent;
+  border-radius: 999px;
+  background: var(--orange);
+  color: #1a0d00;
+  font-size: 0.98rem;
+  font-weight: 650;
+  text-decoration: none;
+  box-shadow: 0 10px 34px rgba(255, 120, 10, 0.32);
+  transition:
+    transform 0.25s ease,
+    box-shadow 0.25s ease,
+    background 0.25s ease;
+}
+
+.btnPrimary:hover {
+  background: #ff8a26;
+  box-shadow: 0 14px 44px rgba(255, 120, 10, 0.45);
+  transform: translateY(-1px);
+}
+
+.btnPrimary svg {
+  transition: transform 0.25s ease;
+}
+
+.btnPrimary:hover svg {
+  transform: translateX(3px);
+}
+
+.highlights {
+  display: grid;
+  gap: 0;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  align-self: start;
+  border-top: 1px solid var(--line);
+}
+
+.highlights li {
+  display: grid;
+  grid-template-columns: 18px minmax(0, 1fr);
+  gap: 12px;
+  padding: 14px 0;
+  border-bottom: 1px solid var(--line);
+  font-size: 0.93rem;
+  line-height: 1.45;
+  color: #d3d3da;
+}
+
+.highlights svg {
+  margin-top: 2px;
+  color: #ff9a3c;
+}
+
+@keyframes swapIn {
+  from {
+    opacity: 0;
+    transform: translateY(14px) scale(0.985);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+
+/* ------------------------------------------------------------------ tableta y móvil */
+
+@media (max-width: 1023px) {
+  .layout {
+    grid-template-columns: minmax(0, 1fr);
+    gap: 26px;
+  }
+
+  /* Lista horizontal con desplazamiento lateral. */
+  .nav {
+    position: relative;
+    top: auto;
+    flex-direction: row;
+    gap: 8px;
+    margin-inline: calc(-1 * clamp(20px, 4vw, 64px));
+    padding: 2px clamp(20px, 4vw, 64px) 6px;
+    overflow-x: auto;
+    border-top: 0;
+    scroll-snap-type: x proximity;
+    scrollbar-width: none;
+  }
+
+  .nav::-webkit-scrollbar {
+    display: none;
+  }
+
+  .tab {
+    flex: 0 0 auto;
+    grid-template-columns: auto auto;
+    gap: 9px;
+    width: auto;
+    padding: 10px 16px;
+    border: 1px solid var(--line);
+    border-radius: 999px;
+    scroll-snap-align: center;
+  }
+
+  .tab::before,
+  .tabNum,
+  .tabText small {
+    display: none;
+  }
+
+  .tab[data-active="true"] {
+    border-color: rgba(255, 140, 40, 0.6);
+    background: rgba(255, 120, 10, 0.14);
+  }
+
+  .tabText {
+    order: 2;
+  }
+
+  .tabText strong {
+    font-size: 0.93rem;
+    white-space: nowrap;
+  }
+
+  .tabIcon {
+    order: 1;
+  }
+
+  .viewport {
+    transform: none;
+  }
+}
+
+@media (max-width: 767px) {
+  .root {
+    margin-top: -38svh;
+    padding-top: 64px;
+  }
+
+  .details {
+    grid-template-columns: minmax(0, 1fr);
+    gap: 8px;
+  }
+
+  .btnPrimary {
+    width: 100%;
+  }
+}
+
+/* ------------------------------------------------------------------ movimiento reducido */
+
+.root[data-reduced="true"] .head,
+.root[data-reduced="true"] .layout {
+  opacity: 1;
+  translate: none;
+  transition: none;
+}
+
+.root[data-reduced="true"] .viewport {
+  transform: none;
+}
+
+.root[data-reduced="true"] *,
+.root[data-reduced="true"] *::before {
+  animation: none !important;
+  transition: none !important;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .head,
+  .layout {
+    opacity: 1;
+    translate: none;
+    transition: none;
+  }
+
+  .swap,
+  .viewport {
+    animation: none !important;
+    transform: none;
+  }
+}

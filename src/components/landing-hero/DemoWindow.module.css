@@ -1,0 +1,115 @@
+/* Ventana de demostración compartida por la transición del Hero y la sección de herramientas. Siempre oscura. */
+
+.window {
+  position: relative;
+  overflow: hidden;
+  border: 1px solid rgba(255, 255, 255, 0.13);
+  border-radius: clamp(12px, 1.4vw, 18px);
+  background: #101013;
+  box-shadow:
+    0 34px 90px rgba(0, 0, 0, 0.6),
+    0 0 0 1px rgba(255, 120, 10, 0.1),
+    0 0 110px rgba(255, 120, 10, 0.12);
+}
+
+.bar {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  height: clamp(26px, 2.6vw, 34px);
+  padding: 0 14px;
+  background: linear-gradient(180deg, #1d1d22, #15151a);
+  border-bottom: 1px solid rgba(255, 255, 255, 0.07);
+}
+
+.bar i {
+  width: 9px;
+  height: 9px;
+  border-radius: 50%;
+  background: rgba(255, 255, 255, 0.16);
+}
+
+.bar i:first-child {
+  background: #ff780a;
+}
+
+.route {
+  margin-left: 10px;
+  padding: 2px 12px;
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.06);
+  color: #a9a9b3;
+  font-size: 11px;
+  letter-spacing: 0.02em;
+}
+
+.screen {
+  position: relative;
+  aspect-ratio: 1440 / 900;
+  background: #141416;
+}
+
+.screen img,
+.screen video {
+  display: block;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  object-position: top left;
+  user-select: none;
+}
+
+/* Reflejo de cristal: da profundidad sin tapar la captura. */
+.screen::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  background: linear-gradient(115deg, rgba(255, 255, 255, 0.07) 0%, rgba(255, 255, 255, 0) 32%);
+}
+
+/* Marcador rotulado: deja claro que la demostración todavía no existe. */
+.placeholder {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  padding: 24px;
+  text-align: center;
+  color: #d8d8de;
+  background:
+    repeating-linear-gradient(135deg, rgba(255, 255, 255, 0.025) 0 12px, transparent 12px 24px),
+    radial-gradient(60% 70% at 50% 45%, rgba(255, 120, 10, 0.12), transparent 75%),
+    #121215;
+  outline: 1.5px dashed rgba(255, 140, 40, 0.38);
+  outline-offset: -14px;
+}
+
+.placeholderIcon {
+  display: grid;
+  place-items: center;
+  width: 62px;
+  height: 62px;
+  border-radius: 18px;
+  color: #ffa04d;
+  background: rgba(255, 120, 10, 0.12);
+  border: 1px solid rgba(255, 140, 40, 0.3);
+}
+
+.placeholder strong {
+  font-size: clamp(0.95rem, 1.5vw, 1.2rem);
+  font-weight: 600;
+  letter-spacing: -0.01em;
+  color: #fafafa;
+}
+
+.placeholder p {
+  margin: 0;
+  max-width: 24rem;
+  font-size: clamp(0.78rem, 1vw, 0.92rem);
+  line-height: 1.5;
+  color: #9d9da8;
+}
