@@ -52,6 +52,7 @@ export type UniverseTool = {
 const DEMO_DIR = "/landing-preview/demos";
 const PENDING_NOTE = "Todavía no tenemos una grabación de esta herramienta. Cuando exista, se mostrará acá.";
 
+/** Herramientas que se presentan hoy en la landing, en el orden en que aparecen. */
 export const universeTools: readonly UniverseTool[] = [
   {
     id: "calculadora",
@@ -94,17 +95,6 @@ export const universeTools: readonly UniverseTool[] = [
         media: { kind: "image", src: `${DEMO_DIR}/explorar-modelos.png`, alt: "Explorar Modelos: barra de búsqueda con los filtros de fuente, precio, uso comercial y orden.", width: 1440, height: 900 },
       },
     ],
-  },
-  {
-    id: "stampa-maker",
-    name: "Stampa Maker",
-    tagline: "Piezas a medida desde parámetros",
-    description: "Herramientas que generan geometría 3D imprimible a partir de parámetros simples: elegís una, ajustás las medidas y descargás el STL para imprimir.",
-    route: "/stampa-maker",
-    access: "member",
-    icon: "shapes",
-    highlights: ["Creador de Carteles: carteles, tapas y difusores", "Neon LED: canales para Neon Flex", "Ajustás parámetros y descargás el STL"],
-    demos: [{ id: "pendiente", label: "Demostración", summary: "Demostración en preparación.", media: { kind: "placeholder", note: PENDING_NOTE } }],
   },
   {
     id: "mi-taller",
@@ -151,6 +141,24 @@ export const universeTools: readonly UniverseTool[] = [
     demos: [{ id: "pendiente", label: "Demostración", summary: "Demostración en preparación.", media: { kind: "placeholder", note: PENDING_NOTE } }],
   },
 ];
+
+/**
+ * Herramientas que existen en Universo pero NO se promocionan en la landing pública (por ejemplo, las que siguen en beta privada).
+ * No se muestran. Para volver a publicar una, moverla a `universeTools` en la posición que corresponda: no hace falta tocar componentes.
+ */
+const stampaMaker: UniverseTool = {
+  id: "stampa-maker",
+  name: "Stampa Maker",
+  tagline: "Piezas a medida desde parámetros",
+  description: "Herramientas que generan geometría 3D imprimible a partir de parámetros simples: elegís una, ajustás las medidas y descargás el STL para imprimir.",
+  route: "/stampa-maker",
+  access: "member",
+  icon: "shapes",
+  highlights: ["Creador de Carteles: carteles, tapas y difusores", "Neon LED: canales para Neon Flex", "Ajustás parámetros y descargás el STL"],
+  demos: [{ id: "pendiente", label: "Demostración", summary: "Demostración en preparación.", media: { kind: "placeholder", note: PENDING_NOTE } }],
+};
+
+export const unlistedTools: readonly UniverseTool[] = [stampaMaker];
 
 /** Demostración protagonista de la transición del Hero: la primera de la primera herramienta. */
 export const heroRevealTool = universeTools[0];

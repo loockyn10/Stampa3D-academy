@@ -124,6 +124,11 @@ test("el catálogo de herramientas es coherente: ids únicos, rutas reales y dem
       }
     }
   }
+  // Stampa Maker sigue en beta privada: no se promociona en la landing, pero su definición se conserva para publicarlo después.
+  assert.equal(list.some((tool) => tool.id === "stampa-maker"), false);
+  const unlisted = tools.unlistedTools.find((tool) => tool.id === "stampa-maker");
+  assert.ok(unlisted, "la definición de Stampa Maker debe conservarse fuera de la lista pública");
+  assert.ok(fs.existsSync(repoPath("src/app/stampa-maker")));
   // La escena del Hero muestra una demostración real, no un marcador.
   assert.equal(tools.heroRevealTool.demos[0].media.kind, "image");
 });
