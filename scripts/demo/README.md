@@ -125,3 +125,17 @@ node scripts/demo/cinematic.mjs <frames-stampy>   scripts/demo/directors/stampy.
 - Trabajan sobre las grabaciones YA hechas (sin abrir la app, sin nuevas consultas a OpenAI): `cinematic.mjs` aplica los tramos recortados del manifiesto, así que los tiempos de los guiones son los del material recortado.
 - Opciones nuevas del guion: `endHold` (segundos con el último fotograma congelado, para dar protagonismo al cierre) y `fadeDark` (el bucle pasa por un fundido breve a oscuro cuando el último y el primer cuadro son pantallas distintas).
 - Las grabaciones originales siguen siendo respaldo: `?comparar=1` en `/landing-preview`.
+
+## Calculadora y Explorar Modelos (cinematográficas)
+
+```bash
+node scripts/demo/record-calculadora.mjs <carpeta>   # Calculadora pública (anónima) con catálogo ficticio interceptado; no escribe nada
+node scripts/demo/record-explorar.mjs <carpeta>      # búsqueda REAL en Cults3D y MyMiniFactory (lecturas; sin escrituras)
+node scripts/demo/cinematic.mjs <carpeta> scripts/demo/directors/calculadora.json <salida> calculadora-cine
+node scripts/demo/cinematic.mjs <carpeta> scripts/demo/directors/explorar-modelos.json <salida> explorar-cine
+```
+
+- `recorder-lib.mjs` suma `anonymous` (contexto sin sesión), `setup(context)` (intercepciones), `initScripts` y `prepare(page)`.
+- La Calculadora oculta el multiplicador («(x…)»), el «30 %» fijo de recargo y el «Markup manual» (difuminado) con un observador de DOM continuo.
+- Explorar Modelos muestra resultados reales de los proveedores sin modificarlos; las esperas de red se recortan. Cada grabación hace ~4 consultas a los proveedores.
+- La transición del Hero sigue usando la captura estática de la Calculadora (`heroRevealTool`), no el video.

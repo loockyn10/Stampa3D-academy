@@ -150,7 +150,7 @@ test("el video de demostración se reproduce sin sonido, en bucle, solo a la vis
   assert.doesNotMatch(video, /controls/);
   assert.match(read("src/components/landing-hero/DemoWindow.tsx"), /<DemoVideo/);
   // Mi Taller usa el video real; las herramientas sin grabación conservan su marcador rotulado.
-  for (const id of ["mi-taller", "academia", "stampy"]) {
+  for (const id of ["calculadora", "explorar-modelos", "mi-taller", "academia", "stampy"]) {
     const tool = tools.universeTools.find((candidate) => candidate.id === id);
     assert.equal(tool.demos[0].media.kind, "video", `${id}: debe usar video`);
   }
@@ -172,7 +172,14 @@ test("las versiones de respaldo solo se ven con ?comparar y no cambian la demost
     assert.equal(tool.demos[0].media.src, `/landing-preview/demos/${pub}.mp4`);
     assert.deepEqual(tool.experimentalDemos.map((demo) => demo.media.src), [`/landing-preview/demos/${backup}.mp4`]);
   }
-  for (const tool of tools.universeTools.filter((candidate) => !["mi-taller", "academia", "stampy"].includes(candidate.id))) assert.equal(tool.experimentalDemos, undefined, `${tool.id} no debe tener versiones de respaldo`);
+  // Calculadora y Explorar Modelos: la pública es el video y las capturas estáticas originales quedan de respaldo.
+  for (const id of ["calculadora", "explorar-modelos"]) {
+    const tool = tools.universeTools.find((candidate) => candidate.id === id);
+    assert.match(tool.demos[0].media.src, /-cine\.mp4$/);
+    assert.ok(tool.experimentalDemos.length >= 1 && tool.experimentalDemos.every((demo) => demo.media.kind === "image"), `${id}: el respaldo son las capturas`);
+  }
+  // La transición del Hero sigue usando la captura estática (no un video).
+  assert.equal(tools.heroRevealTool.demos[0].media.kind, "image");
   const compared = tools.withComparison(tools.universeTools).find((tool) => tool.id === "mi-taller");
   assert.deepEqual(compared.demos.map((demo) => demo.label), ["Recorrido", "Versión anterior", "Original sin fotos"]);
   const explorer = read("src/components/landing-hero/ToolsExplorer.tsx");

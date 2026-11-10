@@ -77,14 +77,29 @@ export const universeTools: readonly UniverseTool[] = [
     highlights: ["Filamento, gramos, horas, tipo de producto e impresora", "Modo Avanzado: desperdicio, electricidad, mantenimiento y plataforma de venta", "Costo base, precio sugerido, ganancia y precio para Mercado Libre"],
     demos: [
       {
-        id: "basico",
-        label: "Modo Básico",
+        id: "recorrido",
+        label: "Recorrido",
+        summary: "Cambiá gramos o tiempo de impresión y mirá cómo se actualiza el precio. El Modo Avanzado suma los costos extra. Datos y precios ficticios de demostración.",
+        media: {
+          kind: "video",
+          src: `${DEMO_DIR}/calculadora-cine.mp4`,
+          poster: `${DEMO_DIR}/calculadora-cine-poster.jpg`,
+          alt: "Recorrido por la Calculadora con datos de demostración: se cambian los gramos y las horas de impresión, el precio sugerido se actualiza al instante y se alterna entre Modo Básico y Modo Avanzado.",
+          width: 1280,
+          height: 800,
+        },
+      },
+    ],
+    experimentalDemos: [
+      {
+        id: "respaldo-basico",
+        label: "Captura: Modo Básico",
         summary: "Cargá filamento, gramos y tiempo: el resumen te da costo base, precio sugerido y ganancia estimada.",
         media: { kind: "image", src: `${DEMO_DIR}/calculadora-basico-demo.png`, alt: "Calculadora de Universo en Modo Básico con 120 gramos y 3 horas 30 minutos cargados, y el resumen del cálculo con el precio sugerido.", width: 1440, height: 900 },
       },
       {
-        id: "avanzado",
-        label: "Modo Avanzado",
+        id: "respaldo-avanzado",
+        label: "Captura: Modo Avanzado",
         summary: "Sumá desperdicio, electricidad, mantenimiento, mano de obra y la comisión de la plataforma donde vendés.",
         media: { kind: "image", src: `${DEMO_DIR}/calculadora-avanzado-demo.png`, alt: "Calculadora de Universo en Modo Avanzado con las secciones de material y taller, costos extra y plataforma de venta.", width: 1440, height: 900 },
       },
@@ -101,8 +116,23 @@ export const universeTools: readonly UniverseTool[] = [
     highlights: ["Una sola búsqueda en Cults3D y MyMiniFactory", "Filtros por fuente, precio, uso comercial y orden", "Buscás en español o en inglés"],
     demos: [
       {
-        id: "busqueda",
-        label: "Búsqueda",
+        id: "recorrido",
+        label: "Recorrido",
+        summary: "Una búsqueda real en varias plataformas, con filtros de precio, fuente y uso comercial. Cada resultado lleva al modelo original.",
+        media: {
+          kind: "video",
+          src: `${DEMO_DIR}/explorar-cine.mp4`,
+          poster: `${DEMO_DIR}/explorar-cine-poster.jpg`,
+          alt: "Búsqueda real en Explorar Modelos: se escribe «soporte auriculares», se filtra por precio, fuente y uso comercial y se recorren las tarjetas con resultados de Cults3D y MyMiniFactory.",
+          width: 1280,
+          height: 800,
+        },
+      },
+    ],
+    experimentalDemos: [
+      {
+        id: "respaldo-busqueda",
+        label: "Captura: Búsqueda",
         summary: "El buscador con sus filtros de fuente, precio, uso comercial y orden.",
         media: { kind: "image", src: `${DEMO_DIR}/explorar-modelos.png`, alt: "Explorar Modelos: barra de búsqueda con los filtros de fuente, precio, uso comercial y orden.", width: 1440, height: 900 },
       },
@@ -274,8 +304,10 @@ const miNegocio: UniverseTool = {
 
 export const unlistedTools: readonly UniverseTool[] = [stampaMaker, miNegocio];
 
-/** Demostración protagonista de la transición del Hero: la primera de la primera herramienta. */
-export const heroRevealTool = universeTools[0];
+/** Demostración protagonista de la transición del Hero. */
+// Es la captura estática (primer respaldo de la Calculadora): la transición del Hero no cambia aunque la demostración de la herramienta sea un video.
+const revealImage = universeTools[0].experimentalDemos?.find((demo) => demo.media.kind === "image") ?? universeTools[0].demos[0];
+export const heroRevealTool: UniverseTool = { ...universeTools[0], demos: [revealImage] };
 
 export const toolsSectionContent = {
   anchorId: "herramientas",

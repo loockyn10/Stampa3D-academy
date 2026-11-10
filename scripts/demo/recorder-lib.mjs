@@ -45,22 +45,32 @@ const CURSOR_AND_MASK = ({ maskAmounts }) => {
   else addEventListener("DOMContentLoaded", start);
 };
 
-export async function createRecorder({ outDir, startRoute, viewport = { width: 1280, height: 800 }, maskAmounts = false, waitUntil = "networkidle", launchArgs = [] }) {
+export async function createRecorder({ outDir, startRoute, viewport = { width: 1280, height: 800 }, maskAmounts = false, waitUntil = "networkidle", launchArgs = [], anonymous = false, setup, initScripts = [], prepare }) {
   const OUT = path.resolve(outDir);
   fs.rmSync(OUT, { recursive: true, force: true });
   fs.mkdirSync(OUT, { recursive: true });
 
   const config = getConfig();
   const browser = await launchBrowser(launchArgs);
-  await ensureSession(browser, config);
-  const context = await newSessionContext(browser, config, { viewport });
-  await suppressTutorials(context);
+  // `anonymous`: contexto sin sesión (p. ej. la Calculadora pública). `setup(context)`: intercepciones previas a la navegación.
+  let context;
+  if (anonymous) {
+    context = await browser.newContext({ baseURL: config.baseUrl, viewport, colorScheme: "dark", locale: "es-AR", timezoneId: "America/Argentina/Buenos_Aires" });
+  } else {
+    await ensureSession(browser, config);
+    context = await newSessionContext(browser, config, { viewport });
+    await suppressTutorials(context);
+  }
   await context.addInitScript(CURSOR_AND_MASK, { maskAmounts });
+  for (const script of initScripts) await context.addInitScript(script);
+  if (setup) await setup(context);
   const page = await context.newPage();
   page.setDefaultTimeout(20_000);
   await page.goto(startRoute, { waitUntil });
   await page.addStyleTag({ content: `${HIDE_DEV_CSS} html{scrollbar-width:none} ::-webkit-scrollbar{display:none}` });
   await page.waitForTimeout(800);
+  // `prepare(page)`: deja la pantalla en su estado inicial ANTES de empezar a capturar fotogramas.
+  if (prepare) await prepare(page);
 
   const assertClean = async (scene) => {
     const text = (await page.evaluate(() => document.body.innerText)).toLowerCase();
