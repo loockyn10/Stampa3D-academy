@@ -6,6 +6,7 @@ import { createClient } from "@/utils/supabase/client";
 import Link from "next/link";
 import { Mail, Lock, Eye, EyeOff } from "lucide-react";
 import { sanitizeReturnTo } from "@/lib/auth/return-to";
+import { isPremiumIntent } from "@/lib/auth/premium-intent";
 import { AUTH_NOTICE_MESSAGES, friendlyAuthError } from "@/lib/auth/auth-errors";
 import { savePendingVerificationEmail } from "@/lib/auth/pending-verification";
 import { AuthBrand } from "@/components/auth/AuthBrand";
@@ -99,7 +100,9 @@ function LoginForm() {
                 Iniciar sesión
               </h1>
               <p className="mt-2 text-sm text-gray-400">
-                Accedé a tu cuenta de Universo Stampa.
+                {isPremiumIntent(returnTo)
+                  ? "Iniciá sesión para continuar con la activación de tu membresía Premium."
+                  : "Accedé a tu cuenta de Universo Stampa."}
               </p>
             </div>
 

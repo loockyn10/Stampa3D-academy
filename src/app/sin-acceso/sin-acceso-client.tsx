@@ -2,7 +2,8 @@
 
 import { AlertCircle, Calculator, CheckCircle2, Loader2, MailCheck, RefreshCw, Sparkles, UserRound } from "lucide-react";
 import Link from "next/link";
-import { membershipOffer } from "@/components/landing-membership/landing-content";
+import { comparison } from "@/components/landing-hero/commercial/commercial-content";
+import { PREMIUM_RETURN_TO, premiumAuthHref } from "@/lib/auth/premium-intent";
 import { useCallback, useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { createClient } from "@/utils/supabase/client";
@@ -225,9 +226,10 @@ export function SinAccesoClient({
   };
 
   const formatPrice = (amount: string) => {
-    const num = parseInt(amount, 10);
-    if (isNaN(num)) return amount;
-    return new Intl.NumberFormat("es-AR", { style: "currency", currency: "ARS" }).format(num);
+    const num = Number.parseFloat(amount);
+    if (!Number.isFinite(num)) return amount;
+    // Solo informativo (el monto lo decide el servidor): sin «,00» cuando el valor es entero.
+    return new Intl.NumberFormat("es-AR", { style: "currency", currency: "ARS", minimumFractionDigits: 0, maximumFractionDigits: 2 }).format(num);
   };
 
   const formatMoney = (amount: number) =>
@@ -235,9 +237,15 @@ export function SinAccesoClient({
 
   const discountedPrice = discountCodesEnabled && discount?.preview.finalAmount ? discount.preview.finalAmount : null;
 
+  // Quien llega acá viene a contratar Premium: la membresía es el centro de la pantalla y las herramientas gratuitas quedan como apoyo.
+  const canActivate = !checkingEmail && isAuthenticated && isEmailConfirmed && !activated;
+  const premiumBenefits = comparison.rows.filter((row) => row.featured);
+  // Si alguien llega sin sesión conserva la intención de contratar al iniciar sesión o registrarse.
+  const returnPath = feature ? `${PREMIUM_RETURN_TO}?feature=${encodeURIComponent(feature)}` : PREMIUM_RETURN_TO;
+
   return (
     <div className="flex min-h-dvh w-full items-start justify-center bg-stampa-bg px-4 py-10 text-stampa-text sm:items-center sm:px-6">
-      <div className="w-full min-w-0 max-w-md space-y-6">
+      <div className="w-full min-w-0 max-w-lg space-y-6">
         <header className="flex flex-col items-center text-center">
           <div className="mb-4 flex h-12 w-12 items-center justify-center rounded-2xl border border-stampa-orange-border bg-stampa-orange-muted">
             <Sparkles className="h-6 w-6 text-stampa-accent" aria-hidden="true" />
@@ -247,24 +255,26 @@ export function SinAccesoClient({
             {checkingEmail
               ? "Universo Stampa"
               : !isAuthenticated
-                ? "Entrá a Universo Stampa"
-                : lockedFeature
-                  ? `Desbloqueá ${lockedFeature.title}`
-                  : "Tu cuenta gratuita"}
+                ? "Para activar Premium, entrá a tu cuenta"
+                : !isEmailConfirmed
+                  ? "Confirmá tu email para continuar"
+                  : lockedFeature
+                    ? `Desbloqueá ${lockedFeature.title} con Premium`
+                    : "Activá tu membresía Premium"}
           </h1>
           {checkingEmail ? (
             <p className="mt-3 text-sm text-stampa-text-muted">Verificando estado de tu cuenta...</p>
           ) : !isAuthenticated ? (
             <p className="mt-3 text-sm text-stampa-text-muted">
-              Iniciá sesión o creá tu cuenta gratis. La Calculadora y tu perfil no requieren membresía.
+              Primero iniciá sesión o creá tu cuenta. Después activás tu membresía con Mercado Pago.
             </p>
           ) : !isEmailConfirmed ? (
             <p className="mt-3 text-sm text-stampa-text-muted">
-              Confirmá tu email para activar tu cuenta. Revisá tu bandeja de entrada o spam.
+              Confirmá tu email para activar tu cuenta y seguir con tu membresía. Revisá tu bandeja de entrada o spam.
             </p>
           ) : (
             <p className="mt-3 text-sm text-stampa-text-muted">
-              {lockedFeature?.description ?? "Ya podés usar las herramientas gratuitas. Con Premium accedés a la Academia, Stampy y todo Universo."}
+              {lockedFeature?.description ?? "Mi Taller, Academia, Stampy IA y la Librería STL, en una sola membresía."}
             </p>
           )}
         </header>
@@ -296,16 +306,16 @@ export function SinAccesoClient({
         {!checkingEmail && !isAuthenticated && (
           <section className="space-y-3" aria-label="Acceder">
             <Link
-              href="/login"
+              href={premiumAuthHref("registro", returnPath)}
               className="flex w-full items-center justify-center rounded-xl bg-stampa-orange px-3 py-3 text-sm font-semibold text-neutral-950 transition-colors hover:bg-stampa-orange-hover"
             >
-              Iniciar sesión
+              Crear mi cuenta
             </Link>
             <Link
-              href="/registro"
+              href={premiumAuthHref("login", returnPath)}
               className="flex w-full items-center justify-center rounded-xl border border-stampa-border bg-stampa-surface px-3 py-3 text-sm font-semibold text-stampa-text transition-colors hover:bg-stampa-surface-soft"
             >
-              Crear cuenta gratis
+              Ya tengo cuenta: iniciar sesión
             </Link>
             <Link
               href="/verificar-email"
@@ -316,88 +326,70 @@ export function SinAccesoClient({
           </section>
         )}
 
-        {!checkingEmail && isAuthenticated && isEmailConfirmed && !activated && (
-          <section className="rounded-2xl border border-stampa-border bg-stampa-surface p-4 text-left" aria-labelledby="free-tools-title">
-            <h2 id="free-tools-title" className="text-sm font-bold text-stampa-text">Gratis con tu cuenta</h2>
-            <div className="mt-3 grid gap-2">
-              {calculatorAvailable && (
-                <Link
-                  href="/calculadora"
-                  className="flex items-center gap-3 rounded-xl border border-stampa-border bg-stampa-bg-soft p-3 transition-colors hover:border-stampa-orange-border"
-                >
-                  <Calculator size={18} className="shrink-0 text-stampa-accent" aria-hidden="true" />
-                  <span className="min-w-0">
-                    <span className="block text-sm font-semibold text-stampa-text">Calculadora</span>
-                    <span className="block text-xs text-stampa-text-muted">Calculá costos y precios de tus impresiones.</span>
-                  </span>
-                </Link>
-              )}
-              <Link
-                href="/perfil"
-                className="flex items-center gap-3 rounded-xl border border-stampa-border bg-stampa-bg-soft p-3 transition-colors hover:border-stampa-orange-border"
+        {canActivate && (
+          <section
+            aria-labelledby="premium-title"
+            className="relative overflow-hidden rounded-3xl border border-stampa-orange-border bg-stampa-surface p-5 text-left shadow-lg shadow-stampa-orange/10 sm:p-6"
+          >
+            <div aria-hidden="true" className="pointer-events-none absolute inset-x-0 -top-24 h-48 bg-stampa-orange/15 blur-3xl" />
+            <div className="relative">
+              <h2
+                id="premium-title"
+                className="inline-flex rounded-full border border-stampa-orange-border bg-stampa-orange-muted px-3 py-1 text-[11px] font-bold uppercase tracking-[0.16em] text-stampa-accent"
               >
-                <UserRound size={18} className="shrink-0 text-stampa-accent" aria-hidden="true" />
-                <span className="min-w-0">
-                  <span className="block text-sm font-semibold text-stampa-text">Perfil y cuenta</span>
-                  <span className="block text-xs text-stampa-text-muted">Tus datos, contraseña y estado de membresía.</span>
-                </span>
-              </Link>
-            </div>
-            <h2 className="mt-5 text-sm font-bold text-stampa-text">Con Premium además tenés</h2>
-            <ul className="mt-2 space-y-1.5 text-sm text-stampa-text-muted">
-              {membershipOffer.included.map((item) => (
-                <li key={item} className="flex gap-2">
-                  <CheckCircle2 size={15} className="mt-0.5 shrink-0 text-stampa-accent" aria-hidden="true" />
-                  {item}
-                </li>
-              ))}
-            </ul>
-            <Link href="/landing#precio" className="mt-3 inline-block text-sm font-semibold text-stampa-accent hover:underline">
-              Ver detalles de la membresía
-            </Link>
-          </section>
-        )}
+                Membresía Premium
+              </h2>
 
-        {!checkingEmail && isAuthenticated && isEmailConfirmed && !activated && (
-          <>
-            <BetaCodeRedeemCard
-              title="¿Tenés un código de invitación?"
-              submitLabel="Activar acceso"
-              hint={null}
-              onRedeemed={handleBetaRedeemed}
-            />
-
-            <section className="rounded-2xl border border-stampa-border bg-stampa-surface p-4 text-left">
-              <h2 className="text-sm font-bold text-stampa-text">Membresía</h2>
-              <p className="mt-1 text-sm text-stampa-text-muted">
+              <div className="mt-4" aria-live="polite">
                 {loadingPrice ? (
-                  <span className="inline-flex items-center gap-2">
+                  <p className="inline-flex items-center gap-2 text-sm text-stampa-text-muted">
                     <Loader2 size={14} className="animate-spin" aria-hidden="true" /> Cargando precio...
-                  </span>
+                  </p>
                 ) : price && discountedPrice !== null ? (
                   <>
-                    Valor mensual:{" "}
-                    <span className="text-stampa-text-muted line-through">{formatPrice(price)}</span>{" "}
-                    <span className="font-semibold text-stampa-text">{formatMoney(discountedPrice)}</span> / mes
+                    <p className="text-sm text-stampa-text-muted line-through">{formatPrice(price)}</p>
+                    <p className="text-4xl font-black tracking-tight text-stampa-text">
+                      {formatMoney(discountedPrice)} <span className="text-base font-medium text-stampa-text-muted">/ mes</span>
+                    </p>
                   </>
                 ) : price ? (
-                  <>Valor mensual: <span className="font-semibold text-stampa-text">{formatPrice(price)}</span> / mes</>
+                  <p className="text-4xl font-black tracking-tight text-stampa-text">
+                    {formatPrice(price)} <span className="text-base font-medium text-stampa-text-muted">/ mes</span>
+                  </p>
                 ) : (
-                  "El precio se confirma en Mercado Pago antes de pagar."
+                  <p className="text-base text-stampa-text-muted">El precio se confirma en Mercado Pago antes de pagar.</p>
                 )}
-              </p>
+                <p className="mt-1 text-xs text-stampa-text-muted">Renovación mensual. Se paga con Mercado Pago.</p>
+              </div>
+
               {discountCodesEnabled && !loadingPrice && price && (
                 <DiscountCodeField applied={discount} onApplied={setDiscount} disabled={loading} />
               )}
+
               <button
                 type="button"
                 onClick={handleCreateSubscription}
                 disabled={loading || checkingEmail}
-                className="mt-3 flex w-full items-center justify-center gap-2 rounded-xl bg-stampa-orange px-3 py-3 text-sm font-semibold text-neutral-950 transition-colors hover:bg-stampa-orange-hover disabled:cursor-not-allowed disabled:opacity-70"
+                className="mt-4 flex w-full items-center justify-center gap-2 rounded-xl bg-stampa-orange px-3 py-3.5 text-base font-semibold text-neutral-950 shadow-lg shadow-stampa-orange/20 transition-colors hover:bg-stampa-orange-hover disabled:cursor-not-allowed disabled:opacity-70"
               >
                 {loading && <Loader2 size={16} className="animate-spin" aria-hidden="true" />}
                 {loading ? "Generando link..." : "Activar membresía"}
               </button>
+              <p className="mt-2 text-center text-xs text-stampa-text-muted">El valor y los medios de pago se muestran antes de confirmar.</p>
+
+              <h3 className="mt-6 border-t border-stampa-border pt-5 text-xs font-bold uppercase tracking-[0.16em] text-stampa-accent">Qué incluye</h3>
+              <ul className="mt-2 divide-y divide-stampa-border">
+                {premiumBenefits.map((row) => (
+                  <li key={row.name} className="flex gap-3 py-3 text-sm">
+                    <CheckCircle2 size={16} className="mt-0.5 shrink-0 text-stampa-accent" aria-hidden="true" />
+                    <span className="min-w-0 text-stampa-text-muted">
+                      <strong className="block text-base font-semibold text-stampa-text">{row.name}</strong>
+                      {row.premium}
+                    </span>
+                  </li>
+                ))}
+              </ul>
+
               <details className="mt-3 text-left text-xs text-stampa-text-muted">
                 <summary className="cursor-pointer select-none py-1 hover:text-stampa-text">
                   ¿No pudiste pagar o querés pagar con otra cuenta de Mercado Pago?
@@ -428,8 +420,47 @@ export function SinAccesoClient({
                   <p>Si ya pagaste, no uses esta opción: tocá «Actualizar acceso». Un pago ya aprobado nunca se reemplaza.</p>
                 </div>
               </details>
-            </section>
-          </>
+            </div>
+          </section>
+        )}
+
+        {canActivate && (
+          <BetaCodeRedeemCard
+            title="¿Tenés un código de invitación?"
+            submitLabel="Activar acceso"
+            hint={null}
+            onRedeemed={handleBetaRedeemed}
+          />
+        )}
+
+        {canActivate && (
+          <section className="rounded-2xl border border-stampa-border bg-stampa-surface p-4 text-left" aria-labelledby="free-tools-title">
+            <h2 id="free-tools-title" className="text-sm font-bold text-stampa-text">También podés usar con tu cuenta</h2>
+            <div className="mt-3 grid gap-2">
+              {calculatorAvailable && (
+                <Link
+                  href="/calculadora"
+                  className="flex items-center gap-3 rounded-xl border border-stampa-border bg-stampa-bg-soft p-3 transition-colors hover:border-stampa-orange-border"
+                >
+                  <Calculator size={18} className="shrink-0 text-stampa-accent" aria-hidden="true" />
+                  <span className="min-w-0">
+                    <span className="block text-sm font-semibold text-stampa-text">Calculadora</span>
+                    <span className="block text-xs text-stampa-text-muted">Calculá costos y precios de tus impresiones.</span>
+                  </span>
+                </Link>
+              )}
+              <Link
+                href="/perfil"
+                className="flex items-center gap-3 rounded-xl border border-stampa-border bg-stampa-bg-soft p-3 transition-colors hover:border-stampa-orange-border"
+              >
+                <UserRound size={18} className="shrink-0 text-stampa-accent" aria-hidden="true" />
+                <span className="min-w-0">
+                  <span className="block text-sm font-semibold text-stampa-text">Perfil y cuenta</span>
+                  <span className="block text-xs text-stampa-text-muted">Tus datos, contraseña y estado de membresía.</span>
+                </span>
+              </Link>
+            </div>
+          </section>
         )}
 
         {isAuthenticated && (

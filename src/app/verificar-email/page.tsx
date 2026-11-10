@@ -8,6 +8,7 @@ import { createClient } from "@/utils/supabase/client";
 import { AuthBrand } from "@/components/auth/AuthBrand";
 import { AUTH_NOTICE_MESSAGES, friendlyAuthError } from "@/lib/auth/auth-errors";
 import { sanitizeReturnTo } from "@/lib/auth/return-to";
+import { isPremiumIntent } from "@/lib/auth/premium-intent";
 import {
   emailConfirmationRedirect,
   maskEmail,
@@ -41,6 +42,9 @@ function VerifyEmailContent() {
   }, [cooldown]);
 
   const loginHref = returnTo === "/" ? "/login" : `/login?returnTo=${encodeURIComponent(returnTo)}`;
+  // Registrarse con otro email no debe perder a dónde iba la persona (p. ej. la activación de Premium).
+  const registerHref = returnTo === "/" ? "/registro" : `/registro?returnTo=${encodeURIComponent(returnTo)}`;
+  const premiumIntent = isPremiumIntent(returnTo);
 
   const resend = async (event: React.FormEvent) => {
     event.preventDefault();
@@ -88,6 +92,7 @@ function VerifyEmailContent() {
               "Te enviamos un enlace al email con el que te registraste. Abrilo para activar tu cuenta."
             )}
           </p>
+          {premiumIntent && <p className="mt-2 text-sm font-medium text-stampa-accent">Al confirmarlo seguís con la activación de tu membresía.</p>}
         </header>
 
         {notice && (
@@ -148,7 +153,7 @@ function VerifyEmailContent() {
 
         <div className="flex flex-col gap-2 border-t border-stampa-border pt-5 text-center text-sm">
           <Link href={loginHref} className="font-semibold text-stampa-accent hover:underline">Ya confirmé: iniciar sesión</Link>
-          <Link href="/registro" className="text-stampa-text-muted hover:text-fg hover:underline">Registrarme con otro email</Link>
+          <Link href={registerHref} className="text-stampa-text-muted hover:text-fg hover:underline">Registrarme con otro email</Link>
         </div>
       </div>
     </div>

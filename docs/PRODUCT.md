@@ -34,7 +34,7 @@ Puede:
 - guardar defaults/preferencias de Calculadora;
 - usar su Perfil (datos, contraseña, estado de membresía) y completar el onboarding (Sprint 2, D046).
 
-Después de registrarse pasa por el onboarding (opcional, se puede posponer) y su pantalla principal es `/sin-acceso`, que para una cuenta Free funciona como «Tu cuenta gratuita»: accesos a Calculadora (si su feature flag está activa) y Perfil, beneficios Premium y opciones de membresía. Nunca es un callejón sin salida.
+Después de registrarse pasa por el onboarding (opcional, se puede posponer) y su pantalla principal es `/sin-acceso`, que para una cuenta Free es la pantalla de activación de Premium («Activá tu membresía Premium»): precio vigente leído de `membership_settings`, beneficios verificados, botón «Activar membresía» (el único que inicia el checkout) y, como apoyo, accesos a Calculadora (si su feature flag está activa) y Perfil. Los CTA «Quiero Premium» de la landing entran por `/registro?returnTo=%2Fsin-acceso` (o `/login?returnTo=…`), el `returnTo` existente: `/registro` muestra «Estás a un paso de Universo Premium» y el resto del flujo (alta, confirmación de email, login, proxy) conserva el destino. Nunca es un callejón sin salida.
 
 No puede acceder a:
 

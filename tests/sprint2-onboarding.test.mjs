@@ -233,17 +233,19 @@ test("16. onboarding updates only the own row with non-privileged columns, no IN
 // ---------------------------------------------------------------------------------------------------------------
 
 test("/sin-acceso distinguishes a visitor from a Free account and is not a dead end", () => {
-  assert.match(src.sinAcceso, /!isAuthenticated\s*\?\s*"Entrá a Universo Stampa"/);
-  assert.match(src.sinAcceso, /"Tu cuenta gratuita"/);
-  assert.match(src.sinAcceso, /href="\/login"/);
-  assert.match(src.sinAcceso, /href="\/registro"/);
+  // Landing 5.6: the screen is the Premium activation (membership first); the free tools stay as support.
+  assert.match(src.sinAcceso, /!isAuthenticated\s*\?\s*"Para activar Premium, entrá a tu cuenta"/);
+  assert.match(src.sinAcceso, /"Activá tu membresía Premium"/);
+  // A visitor keeps the intent to subscribe when signing in or registering.
+  assert.match(src.sinAcceso, /premiumAuthHref\("login", returnPath\)/);
+  assert.match(src.sinAcceso, /premiumAuthHref\("registro", returnPath\)/);
   assert.match(src.sinAcceso, /href="\/verificar-email"/);
   assert.match(src.sinAcceso, /calculatorAvailable && \(\s*<Link\s+href="\/calculadora"/);
   assert.match(src.sinAcceso, /href="\/perfil"/);
-  assert.match(src.sinAcceso, /membershipOffer\.included\.map/);
+  assert.match(src.sinAcceso, /comparison\.rows\.filter\(\(row\) => row\.featured\)/);
   // "Cerrar sesión" / "Actualizar acceso" only exist for a signed-in account.
   const logoutIndex = src.sinAcceso.indexOf("Cerrar sesión");
-  assert.ok(src.sinAcceso.lastIndexOf("{isAuthenticated && (", logoutIndex) > src.sinAcceso.indexOf("Gratis con tu cuenta"));
+  assert.ok(src.sinAcceso.lastIndexOf("{isAuthenticated && (", logoutIndex) > src.sinAcceso.indexOf('id="free-tools-title"'));
   // Free tools follow the real feature flags (resolved on the server).
   assert.match(src.sinAccesoPage, /resolveFeatureAccess\(flags, "calculadora", \{ isAdmin: false \}\)\.allowed/);
   // Checkout untouched.

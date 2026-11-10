@@ -7,6 +7,7 @@ import { normalizeRegistrationCode } from "@/lib/codes/resolve-code";
 import Link from "next/link";
 import { Mail, Lock, User, Eye, EyeOff, Tag, AlertCircle, FlaskConical } from "lucide-react";
 import { sanitizeReturnTo } from "@/lib/auth/return-to";
+import { isPremiumIntent } from "@/lib/auth/premium-intent";
 import { redeemBetaAccessCodeAction } from "@/app/beta-access/actions";
 import { BETA_CODE_MAX_INPUT_LENGTH, normalizeBetaAccessCode } from "@/lib/beta-access/code";
 import { savePendingBetaCode } from "@/lib/beta-access/pending-code";
@@ -46,6 +47,8 @@ function RegistroForm() {
   const [betaNotice, setBetaNotice] = useState<{ message: string; destination: string } | null>(null);
   const supabase = createClient();
   const returnTo = sanitizeReturnTo(searchParams.get("returnTo"));
+  // Llega desde un CTA «Quiero Premium»: solo cambia el encabezado, el formulario y el alta son los mismos.
+  const premiumIntent = isPremiumIntent(returnTo);
 
   const handleRegister = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -137,10 +140,19 @@ function RegistroForm() {
         <div className="space-y-8 bg-stampa-bg/80 p-8 sm:p-10 rounded-2xl shadow-2xl border border-stampa-border backdrop-blur-xl">
           <div className="flex flex-col items-center text-center">
             <AuthBrand />
-            <h1 className="mt-6 text-3xl font-bold tracking-tight text-fg">Crear tu cuenta gratis</h1>
-            <p className="mt-2 text-sm text-gray-400">
-              Usá la Calculadora y armá tu perfil sin pagar. Cuando quieras, sumá Premium para la Academia, Stampy y todas las herramientas.
-            </p>
+            {premiumIntent ? (
+              <>
+                <h1 className="mt-6 text-3xl font-bold tracking-tight text-fg">Estás a un paso de Universo Premium</h1>
+                <p className="mt-2 text-sm text-gray-400">Creá tu cuenta para continuar con la activación de tu membresía.</p>
+              </>
+            ) : (
+              <>
+                <h1 className="mt-6 text-3xl font-bold tracking-tight text-fg">Crear tu cuenta gratis</h1>
+                <p className="mt-2 text-sm text-gray-400">
+                  Usá la Calculadora y armá tu perfil sin pagar. Cuando quieras, sumá Premium para la Academia, Stampy y todas las herramientas.
+                </p>
+              </>
+            )}
           </div>
 
           {betaNotice ? (

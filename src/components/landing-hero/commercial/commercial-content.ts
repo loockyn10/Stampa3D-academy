@@ -10,19 +10,20 @@
  * - El precio NO está acá: se lee de `membership_settings` (ver `membership-price.ts`).
  */
 
+import { PREMIUM_RETURN_TO, premiumAuthHref } from "@/lib/auth/premium-intent";
+
 /**
  * Premium se contrata desde la cuenta, así que «Quiero Premium» no promete un checkout directo: lleva al registro y conserva la
  * intención con el mecanismo existente `returnTo` (ver `sanitizeReturnTo`). Al terminar el alta (y confirmar el email, si corresponde)
  * la persona llega a /sin-acceso, donde está el botón real de contratación; si ya tiene cuenta, /registro y /login la envían ahí.
  */
-export const PREMIUM_RETURN_TO = "/sin-acceso";
-const premiumRegisterHref = `/registro?returnTo=${encodeURIComponent(PREMIUM_RETURN_TO)}`;
+export { PREMIUM_RETURN_TO };
 
 export const commercialCtas = {
-  primary: { label: "Quiero Premium", href: premiumRegisterHref },
+  primary: { label: "Quiero Premium", href: premiumAuthHref("registro") },
   secondary: { label: "Probar la Calculadora", href: "/calculadora" },
   free: { label: "Crear cuenta gratuita", href: "/registro" },
-  login: { label: "Ya tengo cuenta", href: `/login?returnTo=${encodeURIComponent(PREMIUM_RETURN_TO)}` },
+  login: { label: "Ya tengo cuenta", href: premiumAuthHref("login") },
   /** Aclaración junto al botón principal: el flujo real es cuenta primero, contratación después. */
   flowNote: "Primero creás tu cuenta y en el paso siguiente activás Premium con Mercado Pago.",
 } as const;
