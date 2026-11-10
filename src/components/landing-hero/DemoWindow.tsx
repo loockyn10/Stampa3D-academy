@@ -1,5 +1,6 @@
 import Image from "next/image";
 import type { CSSProperties } from "react";
+import { DemoVideo } from "./DemoVideo";
 import { toolIcons } from "./tool-icons";
 import { toolsSectionContent, type DemoMedia, type UniverseTool } from "./universe-tools";
 import styles from "./DemoWindow.module.css";
@@ -11,7 +12,7 @@ type Props = {
   priority?: boolean;
   /** `true` si la demostración se repite en texto al lado: la imagen queda fuera del árbol de accesibilidad. */
   decorative?: boolean;
-  /** Los videos solo se reproducen solos si el movimiento no está reducido. */
+  /** Los videos solo se reproducen si el movimiento no está reducido (si no, se ve el póster). */
   animate?: boolean;
   className?: string;
   style?: CSSProperties;
@@ -46,19 +47,7 @@ export function DemoWindow({ tool, media, priority = false, decorative = false, 
         ) : null}
 
         {media.kind === "video" ? (
-          <video
-            src={media.src}
-            poster={media.poster}
-            width={media.width}
-            height={media.height}
-            muted
-            loop
-            playsInline
-            preload="metadata"
-            autoPlay={animate}
-            aria-label={decorative ? undefined : media.alt}
-            aria-hidden={decorative ? true : undefined}
-          />
+          <DemoVideo src={media.src} poster={media.poster} width={media.width} height={media.height} alt={media.alt} animate={animate} decorative={decorative} />
         ) : null}
 
         {media.kind === "placeholder" ? (

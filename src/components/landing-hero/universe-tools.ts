@@ -105,7 +105,21 @@ export const universeTools: readonly UniverseTool[] = [
     access: "member",
     icon: "wrench",
     highlights: ["Impresoras y una card por cada bobina física", "Productos con receta de material, tiempo y precio", "Registrar producción descuenta filamento y suma unidades terminadas"],
-    demos: [{ id: "pendiente", label: "Demostración", summary: "Demostración en preparación.", media: { kind: "placeholder", note: PENDING_NOTE } }],
+    demos: [
+      {
+        id: "recorrido",
+        label: "Recorrido",
+        summary: "Productos con sus categorías, filamentos con su stock, impresoras e inventario con el registro de producción. Cuenta de demostración con datos ficticios.",
+        media: {
+          kind: "video",
+          src: `${DEMO_DIR}/mi-taller.mp4`,
+          poster: `${DEMO_DIR}/mi-taller-poster.jpg`,
+          alt: "Recorrido por Mi Taller con datos de demostración: lista de productos filtrada por categoría, filamentos con su stock disponible, impresoras cargadas e inventario con el cálculo de lo que descuenta una producción.",
+          width: 1280,
+          height: 800,
+        },
+      },
+    ],
   },
   {
     id: "mi-negocio",

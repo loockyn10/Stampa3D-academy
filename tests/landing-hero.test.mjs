@@ -117,6 +117,13 @@ test("el catálogo de herramientas es coherente: ids únicos, rutas reales y dem
       if (media.kind === "image" || media.kind === "video") {
         assert.ok(fs.existsSync(repoPath(`public${media.src}`)), `${tool.id}/${demo.id}: falta ${media.src}`);
         assert.ok(media.alt.length > 10 && media.width > 0 && media.height > 0);
+        if (media.kind === "video") {
+          // Video de demostración: póster de respaldo y peso razonable para una landing (se descarga al elegir la herramienta).
+          assert.ok(fs.existsSync(repoPath(`public${media.poster}`)), `${tool.id}/${demo.id}: falta el póster ${media.poster}`);
+          assert.ok(fs.statSync(repoPath(`public${media.src}`)).size < 4 * 1024 * 1024, `${tool.id}/${demo.id}: el video supera 4 MB`);
+          assert.ok(fs.statSync(repoPath(`public${media.poster}`)).size < 250 * 1024, `${tool.id}/${demo.id}: el póster supera 250 KB`);
+          assert.match(media.src, /\.mp4$/);
+        }
       } else {
         // Un marcador siempre explica que la demostración todavía no existe: nunca simula una pantalla.
         assert.equal(media.kind, "placeholder");
@@ -131,6 +138,20 @@ test("el catálogo de herramientas es coherente: ids únicos, rutas reales y dem
   assert.ok(fs.existsSync(repoPath("src/app/stampa-maker")));
   // La escena del Hero muestra una demostración real, no un marcador.
   assert.equal(tools.heroRevealTool.demos[0].media.kind, "image");
+});
+
+test("el video de demostración se reproduce sin sonido, en bucle, solo a la vista y respeta el movimiento reducido", () => {
+  const video = read("src/components/landing-hero/DemoVideo.tsx");
+  for (const pattern of [/muted/, /loop/, /playsInline/, /IntersectionObserver/, /video\.pause\(\)/, /poster=/, /animate/]) assert.match(video, pattern);
+  assert.doesNotMatch(video, /controls/);
+  assert.match(read("src/components/landing-hero/DemoWindow.tsx"), /<DemoVideo/);
+  // Mi Taller usa el video real; las herramientas sin grabación conservan su marcador rotulado.
+  const taller = tools.universeTools.find((tool) => tool.id === "mi-taller");
+  assert.equal(taller.demos[0].media.kind, "video");
+  // Los datos de la cuenta de demostración son ficticios y no contienen nada de Stampa.
+  const data = read("scripts/demo/mi-taller-data.mjs");
+  assert.match(data, /Demo Universo/);
+  assert.doesNotMatch(data, /hellbot|ecofila|venta directa/i);
 });
 
 test("la sección de herramientas es genérica: no nombra herramientas, es accesible y respeta el movimiento reducido", () => {
