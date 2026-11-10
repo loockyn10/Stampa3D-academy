@@ -133,7 +133,8 @@ export async function ensureSession(browser, config, { force = false } = {}) {
   const context = await browser.newContext({ baseURL: config.baseUrl, locale: "es-AR", colorScheme: "dark" });
   const page = await context.newPage();
   try {
-    await page.goto("/login?returnTo=%2Fmi-taller", { waitUntil: "domcontentloaded" });
+    // Esperar a que la página termine de cargar: si se escribe antes de la hidratación de React, el formulario envía campos vacíos.
+    await page.goto("/login?returnTo=%2Fmi-taller", { waitUntil: "networkidle" });
     await page.getByLabel("Email").fill(config.email);
     await page.getByLabel("Contraseña", { exact: true }).fill(config.password);
     await page.getByRole("button", { name: "Entrar" }).click();
