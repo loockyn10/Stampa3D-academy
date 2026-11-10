@@ -130,7 +130,21 @@ export const universeTools: readonly UniverseTool[] = [
     access: "member",
     icon: "graduation-cap",
     highlights: ["Cursos: de fundamentos a herramientas avanzadas", "Talleres: proyectos reales paso a paso", "Ruta recomendada según tu perfil"],
-    demos: [{ id: "pendiente", label: "Demostración", summary: "Demostración en preparación.", media: { kind: "placeholder", note: PENDING_NOTE } }],
+    demos: [
+      {
+        id: "recorrido",
+        label: "Recorrido",
+        summary: "La portada con tu ruta recomendada, los cursos disponibles y un curso por dentro con su progreso y la lista de clases. Cuenta de demostración con datos ficticios.",
+        media: {
+          kind: "video",
+          src: `${DEMO_DIR}/academia.mp4`,
+          poster: `${DEMO_DIR}/academia-poster.jpg`,
+          alt: "Recorrido por Academia con una cuenta de demostración: la portada con la ruta recomendada, la grilla de cursos con un buscador y el curso Fundamentos Express con el 29 % de avance, el reproductor y la lista de clases.",
+          width: 1280,
+          height: 800,
+        },
+      },
+    ],
   },
   {
     id: "stampy",
