@@ -112,7 +112,7 @@ test("el catálogo de herramientas es coherente: ids únicos, rutas reales y dem
     assert.ok(tool.demos.length >= 1 && tool.highlights.length >= 1, `${tool.id}: demos y puntos destacados`);
     assert.ok(["open", "member"].includes(tool.access));
     assert.equal(new Set(tool.demos.map((demo) => demo.id)).size, tool.demos.length, `${tool.id}: ids de demo únicos`);
-    for (const demo of tool.demos) {
+    for (const demo of [...tool.demos, ...(tool.experimentalDemos ?? [])]) {
       const media = demo.media;
       if (media.kind === "image" || media.kind === "video") {
         assert.ok(fs.existsSync(repoPath(`public${media.src}`)), `${tool.id}/${demo.id}: falta ${media.src}`);
@@ -158,6 +158,23 @@ test("el video de demostración se reproduce sin sonido, en bucle, solo a la vis
   const data = read("scripts/demo/mi-taller-data.mjs");
   assert.match(data, /Demo Universo/);
   assert.doesNotMatch(data, /hellbot|ecofila|venta directa/i);
+});
+
+test("las versiones en evaluación solo se ven con ?comparar y no cambian la demostración pública", () => {
+  const taller = tools.universeTools.find((tool) => tool.id === "mi-taller");
+  assert.equal(taller.demos.length, 1, "la versión pública de Mi Taller debe seguir siendo solo la original");
+  assert.equal(taller.demos[0].media.src, "/landing-preview/demos/mi-taller.mp4");
+  assert.equal(taller.experimentalDemos.length, 1);
+  assert.notEqual(taller.experimentalDemos[0].media.src, taller.demos[0].media.src);
+  // Solo Mi Taller es una prueba: Academia y Stampy no tienen versiones experimentales.
+  for (const tool of tools.universeTools.filter((candidate) => candidate.id !== "mi-taller")) assert.equal(tool.experimentalDemos, undefined, `${tool.id} no debe tener versiones en evaluación`);
+  const compared = tools.withComparison(tools.universeTools).find((tool) => tool.id === "mi-taller");
+  assert.deepEqual(compared.demos.map((demo) => demo.label), ["Original", "Cinematográfica"]);
+  assert.equal(compared.demos[0].media.src, taller.demos[0].media.src);
+  // El modo comparación depende de la URL en el navegador; no vuelve dinámica la ruta ni se anuncia en la página.
+  const explorer = read("src/components/landing-hero/ToolsExplorer.tsx");
+  assert.match(explorer, /has\("comparar"\)/);
+  assert.doesNotMatch(read("src/app/landing-preview/page.tsx"), /searchParams/);
 });
 
 test("la sección de herramientas es genérica: no nombra herramientas, es accesible y respeta el movimiento reducido", () => {

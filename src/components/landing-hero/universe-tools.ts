@@ -47,7 +47,19 @@ export type UniverseTool = {
   highlights: readonly string[];
   /** Al menos una demostración; la primera es la que se ve al elegir la herramienta. */
   demos: readonly [ToolDemo, ...ToolDemo[]];
+  /**
+   * Versiones alternativas en evaluación. NO las ve ningún visitante: solo aparecen con `?comparar` en la URL
+   * (ver `withComparison`), junto a la original, para decidir si reemplazan a `demos`.
+   */
+  experimentalDemos?: readonly ToolDemo[];
 };
+
+/** Con `?comparar`: la demostración original (rotulada) más las versiones en evaluación de cada herramienta. */
+export function withComparison(tools: readonly UniverseTool[]): readonly UniverseTool[] {
+  return tools.map((tool) =>
+    tool.experimentalDemos?.length ? { ...tool, demos: [{ ...tool.demos[0], label: "Original" }, ...tool.demos.slice(1), ...tool.experimentalDemos] as unknown as UniverseTool["demos"] } : tool,
+  );
+}
 
 const DEMO_DIR = "/landing-preview/demos";
 const PENDING_NOTE = "Todavía no tenemos una grabación de esta herramienta. Cuando exista, se mostrará acá.";
@@ -115,6 +127,21 @@ export const universeTools: readonly UniverseTool[] = [
           src: `${DEMO_DIR}/mi-taller.mp4`,
           poster: `${DEMO_DIR}/mi-taller-poster.jpg`,
           alt: "Recorrido por Mi Taller con datos de demostración: lista de productos filtrada por categoría, filamentos con su stock disponible, impresoras cargadas e inventario con el cálculo de lo que descuenta una producción.",
+          width: 1280,
+          height: 800,
+        },
+      },
+    ],
+    experimentalDemos: [
+      {
+        id: "cinematografica",
+        label: "Cinematográfica",
+        summary: "Versión de prueba de la misma grabación, con movimientos de cámara suaves, transiciones y destacados. La interfaz no se modifica.",
+        media: {
+          kind: "video",
+          src: `${DEMO_DIR}/mi-taller-cine.mp4`,
+          poster: `${DEMO_DIR}/mi-taller-cine-poster.jpg`,
+          alt: "Versión cinematográfica del recorrido por Mi Taller con datos de demostración: la cámara se acerca a las categorías de productos, al stock de cada bobina, a las impresoras y al cálculo de lo que descuenta una producción.",
           width: 1280,
           height: 800,
         },

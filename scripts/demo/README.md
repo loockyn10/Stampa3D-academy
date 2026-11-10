@@ -84,3 +84,18 @@ node scripts/demo/encode-video.mjs <carpeta> public/landing-preview/demos stampy
 - **Cada ejecución envía una consulta real**: llama a OpenAI con la clave del servidor y escribe una conversación, 2 mensajes y un registro de uso en la cuenta demo (cuenta para el límite de 40/h y 150/día). Ejecutar solo con autorización.
 - La respuesta se muestra tal cual y se imprime al final; nunca se edita. Nunca se confirma una acción que Stampy proponga. Lo único que se agrega es un contorno naranja sobre la primera tarjeta de clase recomendada (presentación).
 - La espera del modelo se recorta del video (`cutStart`/`cutEnd`).
+
+## Versión cinematográfica (prueba, solo Mi Taller)
+
+Postproduce el material YA grabado sin volver a abrir la app ni tocar la cuenta demo, y sin dependencias nuevas
+(no se usa Remotion: el pipeline propio de Edge + canvas alcanza y evita instalar un renderer y su licencia comercial):
+
+```bash
+node scripts/demo/cinematic.mjs <carpeta-fotogramas> scripts/demo/directors/mi-taller.json <salida> mi-taller-cine
+```
+
+- `directors/mi-taller.json` es el guion: cámara (zoom/desplazamiento), transiciones por desenfoque que reemplazan las pantallas de
+  carga, destacados naranjas, rótulos de capítulo y cierre en bucle. La interfaz grabada no se modifica (solo se recorta, mezcla y superpone).
+- Los montos siguen difuminados porque ya lo estaban en la grabación original.
+- Para verla junto a la original: `/landing-preview?comparar=1` → Mi Taller → selector «Original / Cinematográfica». Sin ese parámetro nadie la ve.
+- Para aplicarla a otra herramienta: crear su guion y reemplazar (o agregar) la demostración en `universe-tools.ts`.

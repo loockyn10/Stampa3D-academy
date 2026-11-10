@@ -2,13 +2,17 @@
 
 import Link from "next/link";
 import { ArrowRight, Check } from "lucide-react";
-import { useEffect, useRef, useState, type CSSProperties, type KeyboardEvent } from "react";
+import { useEffect, useMemo, useRef, useState, useSyncExternalStore, type CSSProperties, type KeyboardEvent } from "react";
 import { DemoWindow } from "./DemoWindow";
 import { toolIcons } from "./tool-icons";
-import { toolsSectionContent, universeTools, type UniverseTool } from "./universe-tools";
+import { toolsSectionContent, universeTools, withComparison, type UniverseTool } from "./universe-tools";
 import styles from "./ToolsExplorer.module.css";
 
 const clamp01 = (v: number): number => (v < 0 ? 0 : v > 1 ? 1 : v);
+
+// Modo comparación (`?comparar`): se lee solo en el navegador, así la página sigue siendo estática y los visitantes no lo notan.
+const subscribeNever = (): (() => void) => () => undefined;
+const readCompareFlag = (): boolean => new URLSearchParams(window.location.search).has("comparar");
 
 /**
  * Primera sección de exploración: lista de herramientas a la izquierda y una demostración protagonista a la derecha.
@@ -17,7 +21,9 @@ const clamp01 = (v: number): number => (v < 0 ? 0 : v > 1 ? 1 : v);
  *
  * Se desliza sobre el último tramo del escenario del Hero (ver `.root` en el CSS), así que la transición parece una sola.
  */
-export function ToolsExplorer({ reducedMotion, tools = universeTools }: { reducedMotion: boolean; tools?: readonly UniverseTool[] }) {
+export function ToolsExplorer({ reducedMotion, tools: catalog = universeTools }: { reducedMotion: boolean; tools?: readonly UniverseTool[] }) {
+  const compare = useSyncExternalStore(subscribeNever, readCompareFlag, () => false);
+  const tools = useMemo(() => (compare ? withComparison(catalog) : catalog), [compare, catalog]);
   const [activeId, setActiveId] = useState(tools[0].id);
   const [demoId, setDemoId] = useState<string | null>(null);
   const rootRef = useRef<HTMLElement>(null);
