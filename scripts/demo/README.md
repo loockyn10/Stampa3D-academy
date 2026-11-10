@@ -114,3 +114,14 @@ node scripts/demo/cinematic.mjs <carpeta> scripts/demo/directors/mi-taller-v2.js
 - Las impresoras salen del catálogo de Stampa (traen su foto). Mi Taller no borra impresoras: «Eliminar» las deja *Inactivas* y siguen listadas (por eso se ve «5 impresoras · 3 activas»).
 - Usar `next start` (producción local) para subir fotos: en `next dev` el editor de recorte falla por React StrictMode (revoca la URL del archivo).
 - Cada ejecución de `--apply` escribe en la cuenta demo; el script es idempotente.
+
+## Versiones cinematográficas de Academia y Stampy
+
+```bash
+node scripts/demo/cinematic.mjs <frames-academia> scripts/demo/directors/academia.json <salida> academia-cine
+node scripts/demo/cinematic.mjs <frames-stampy>   scripts/demo/directors/stampy.json   <salida> stampy-cine
+```
+
+- Trabajan sobre las grabaciones YA hechas (sin abrir la app, sin nuevas consultas a OpenAI): `cinematic.mjs` aplica los tramos recortados del manifiesto, así que los tiempos de los guiones son los del material recortado.
+- Opciones nuevas del guion: `endHold` (segundos con el último fotograma congelado, para dar protagonismo al cierre) y `fadeDark` (el bucle pasa por un fundido breve a oscuro cuando el último y el primer cuadro son pantallas distintas).
+- Las grabaciones originales siguen siendo respaldo: `?comparar=1` en `/landing-preview`.

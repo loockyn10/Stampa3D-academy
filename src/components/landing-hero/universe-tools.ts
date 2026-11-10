@@ -177,9 +177,24 @@ export const universeTools: readonly UniverseTool[] = [
         summary: "La portada con tu ruta recomendada, los cursos disponibles y un curso por dentro con su progreso y la lista de clases. Cuenta de demostración con datos ficticios.",
         media: {
           kind: "video",
+          src: `${DEMO_DIR}/academia-cine.mp4`,
+          poster: `${DEMO_DIR}/academia-cine-poster.jpg`,
+          alt: "Recorrido por Academia con una cuenta de demostración: la portada con la ruta recomendada, la grilla de cursos con un buscador y el curso Fundamentos Express con el 29 % de avance, el reproductor y la lista de clases.",
+          width: 1280,
+          height: 800,
+        },
+      },
+    ],
+    experimentalDemos: [
+      {
+        id: "original",
+        label: "Original sin edición",
+        summary: "Grabación original, sin edición cinematográfica. Se conserva como respaldo.",
+        media: {
+          kind: "video",
           src: `${DEMO_DIR}/academia.mp4`,
           poster: `${DEMO_DIR}/academia-poster.jpg`,
-          alt: "Recorrido por Academia con una cuenta de demostración: la portada con la ruta recomendada, la grilla de cursos con un buscador y el curso Fundamentos Express con el 29 % de avance, el reproductor y la lista de clases.",
+          alt: "Grabación original del recorrido por Academia, sin edición.",
           width: 1280,
           height: 800,
         },
@@ -198,13 +213,28 @@ export const universeTools: readonly UniverseTool[] = [
     demos: [
       {
         id: "recorrido",
-        label: "Consulta real",
+        label: "Recorrido",
         summary: "Una consulta real a Stampy con la cuenta de demostración: responde el problema y recomienda clases concretas de Academia. La respuesta no está editada.",
+        media: {
+          kind: "video",
+          src: `${DEMO_DIR}/stampy-cine.mp4`,
+          poster: `${DEMO_DIR}/stampy-cine-poster.jpg`,
+          alt: "Consulta a Stampy IA: «Se me despegan las esquinas de la pieza en la primera capa. ¿Qué clase de Academia me puede ayudar?». Stampy explica qué revisar y recomienda dos clases reales de Academia, con tarjetas para abrir el curso.",
+          width: 1120,
+          height: 700,
+        },
+      },
+    ],
+    experimentalDemos: [
+      {
+        id: "original",
+        label: "Original sin edición",
+        summary: "Grabación original, sin edición cinematográfica. La respuesta de Stampy es la misma. Se conserva como respaldo.",
         media: {
           kind: "video",
           src: `${DEMO_DIR}/stampy.mp4`,
           poster: `${DEMO_DIR}/stampy-poster.jpg`,
-          alt: "Consulta a Stampy IA: «Se me despegan las esquinas de la pieza en la primera capa. ¿Qué clase de Academia me puede ayudar?». Stampy explica qué revisar y recomienda dos clases reales de Academia, con tarjetas para abrir el curso.",
+          alt: "Grabación original de la consulta a Stampy IA, sin edición.",
           width: 1120,
           height: 700,
         },

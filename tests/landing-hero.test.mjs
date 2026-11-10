@@ -166,7 +166,13 @@ test("las versiones de respaldo solo se ven con ?comparar y no cambian la demost
   assert.equal(taller.demos[0].media.src, "/landing-preview/demos/mi-taller-cine-v2.mp4");
   // Las versiones anteriores se conservan como respaldo (con sus archivos), pero no son públicas.
   assert.deepEqual(taller.experimentalDemos.map((demo) => demo.media.src), ["/landing-preview/demos/mi-taller-cine.mp4", "/landing-preview/demos/mi-taller.mp4"]);
-  for (const tool of tools.universeTools.filter((candidate) => candidate.id !== "mi-taller")) assert.equal(tool.experimentalDemos, undefined, `${tool.id} no debe tener versiones de respaldo`);
+  // Academia y Stampy: la pública es la cinematográfica y la grabación original queda de respaldo (solo con ?comparar).
+  for (const [id, pub, backup] of [["academia", "academia-cine", "academia"], ["stampy", "stampy-cine", "stampy"]]) {
+    const tool = tools.universeTools.find((candidate) => candidate.id === id);
+    assert.equal(tool.demos[0].media.src, `/landing-preview/demos/${pub}.mp4`);
+    assert.deepEqual(tool.experimentalDemos.map((demo) => demo.media.src), [`/landing-preview/demos/${backup}.mp4`]);
+  }
+  for (const tool of tools.universeTools.filter((candidate) => !["mi-taller", "academia", "stampy"].includes(candidate.id))) assert.equal(tool.experimentalDemos, undefined, `${tool.id} no debe tener versiones de respaldo`);
   const compared = tools.withComparison(tools.universeTools).find((tool) => tool.id === "mi-taller");
   assert.deepEqual(compared.demos.map((demo) => demo.label), ["Recorrido", "Versión anterior", "Original sin fotos"]);
   const explorer = read("src/components/landing-hero/ToolsExplorer.tsx");

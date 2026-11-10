@@ -23,7 +23,12 @@ const director = JSON.parse(fs.readFileSync(directorFile, "utf8"));
 const manifest = JSON.parse(fs.readFileSync(path.join(framesDir, "manifest.json"), "utf8"));
 const { width: W, height: H } = manifest.viewport;
 const t0 = manifest.frames[0].t;
-const timeline = manifest.frames.map((f) => ({ t: f.t - t0, file: f.file }));
+// Tramos recortados por el grabador (esperas de carga o del modelo): se quitan sus fotogramas y se cierra el hueco, así que los
+// tiempos del guion son los del material YA recortado (los mismos que ve `encode-video.mjs`).
+const cuts = manifest.cuts ?? [];
+const inCut = (t) => cuts.some(([from, to]) => t >= from && t <= to);
+const removedBefore = (t) => cuts.reduce((sum, [from, to]) => sum + (t > to ? to - from : t > from ? t - from : 0), 0);
+const timeline = manifest.frames.filter((f) => !inCut(f.t)).map((f) => ({ t: f.t - t0 - removedBefore(f.t), file: f.file }));
 const END = timeline[timeline.length - 1].t - (director.trimEnd ?? 0);
 fs.mkdirSync(outDir, { recursive: true });
 
@@ -68,8 +73,10 @@ async function render(mimeType, bitsPerSecond) {
         acc += d.dur;
         cur = d.to;
       }
-      segs.push({ type: "n", s: cur, e: END, o: acc, len: END - cur });
-      const total = acc + (END - cur);
+      // `endHold`: segundos extra con el último fotograma congelado (la cámara y los destacados siguen animándose).
+      const hold = director.endHold ?? 0;
+      segs.push({ type: "n", s: cur, e: END, o: acc, len: END - cur + hold });
+      const total = acc + (END - cur) + hold;
       const speed = director.speed ?? 1;
       const duration = total / speed;
       const segAt = (u) => { for (let i = segs.length - 1; i >= 0; i--) if (u >= segs[i].o) return segs[i]; return segs[0]; };
@@ -203,6 +210,16 @@ async function render(mimeType, bitsPerSecond) {
           ctx.fillStyle = `rgba(6,6,8,${(0.22 * Math.sin(Math.PI * p)).toFixed(3)})`;
           ctx.fillRect(0, 0, W, H);
           finish(st, va, now);
+        }
+        // `fadeDark`: cuando el último y el primer cuadro son pantallas distintas, el bucle pasa por un fundido breve a oscuro
+        // (en lugar de mezclar dos interfaces superpuestas).
+        const fd = director.fadeDark ?? 0;
+        if (fd > 0) {
+          const a = Math.max(smooth((u - (total - fd)) / fd), 1 - smooth(u / fd));
+          if (a > 0.003) {
+            ctx.fillStyle = `rgba(8,8,10,${a.toFixed(3)})`;
+            ctx.fillRect(0, 0, W, H);
+          }
         }
         // cierre en bucle: los últimos instantes se mezclan con el primer fotograma (misma cámara que al inicio)
         const lf = director.loopFade ?? 0;
