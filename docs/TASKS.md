@@ -2,6 +2,21 @@
 
 Este archivo contiene únicamente trabajo pendiente o próximo. Eliminar tareas terminadas en lugar de conservar un historial infinito.
 
+## Now — Landing 5.5: experiencia comercial en `/landing-preview` (implementada 2026-11-10, solo vista previa; la landing pública `/landing` no cambia)
+
+Secciones nuevas tras la exploración de herramientas: «De la idea a la pieza», Gratis vs. Premium con precio, preguntas frecuentes, cierre y footer (`src/components/landing-hero/commercial/`). Contenido solo con beneficios verificados en el código (política de acceso, rutas libres, feature flags). CTA: «Comenzar gratis» → `/registro`, «Probar la Calculadora» → `/calculadora`; registrarse crea una cuenta Free y no activa Premium.
+
+**Precio:** se lee de `membership_settings` (`monthly_price`, `currency`) **solo en el servidor** con la clave de servicio, pidiendo únicamente esas dos columnas (`load-membership-price.ts`, `server-only`); la página se regenera cada 5 min. Un visitante anónimo **no** tiene permiso de lectura sobre esa tabla (a propósito; verificado: HTTP 401 con la clave anónima), por eso no se lee desde el navegador ni se tocó ningún permiso. Sin precio de respaldo: si la lectura falla se muestra «El valor mensual se muestra antes de confirmar». **Al implementar, la base devolvía 250 (ARS)**, que coincide con el monto de la prueba real de 2026-11-05: confirmar y corregir en Admin → Membresía antes de publicar.
+
+**Bloqueantes reales para lanzar/cobrar públicamente (no resueltos acá):**
+- [ ] **Textos legales:** los 5 documentos (`terminos`, `privacidad`, `condiciones-membresia`, `baja`, `arrepentimiento`) siguen en `null` (`src/content/legal`): el footer los marca «pendiente» y no enlaza. Necesitan aprobación del dueño / asesoría legal.
+- [ ] **Baja y cancelación (D045):** sin definir. La landing nueva no promete nada sobre cancelación. Disposición 954/2025 (botón de baja y de arrepentimiento) a validar con un abogado.
+- [ ] **Mercado Pago — validación documentada:** `DEPLOY_MEMBERSHIP_BILLING.md` §13 (incidente P0 2026-11-05, D049) describe el pago real de $250 y la corrección; los commits `a3dadb0` y `da3ba6e` están en `origin/main`. **No figura en los docs** el resultado de la prueba posterior a la corrección (cuenta nueva → pago → Premium automático, §12), ni el estado del deploy, del webhook de «Planes y suscripciones», de `CRON_SECRET` y de las consultas de diagnóstico del paso 1–3. Registrar ese resultado antes de dar por validado el cobro (los docs hoy dicen «sistema no validado en producción»).
+- [ ] **Precio publicable:** ver arriba (la base hoy dice 250).
+- [ ] **Stampy y clases de Academia:** la recomendación de clases depende de la corrección `f73a33f` (commit local, sin push/deploy). Hasta desplegarla, producción no recomienda clases como muestra el video. Falta además la tabla `stampy_user_memory` en la base conectada: no prometer que Stampy recuerda preferencias.
+- [ ] **Testimonios y cifras:** no hay testimonios autorizados ni métricas verificadas: no se incluyeron.
+- [ ] **No promocionar:** Mi Negocio (incluye Presupuestos), Tienda online, Stampa Maker y Sorteos (flags apagados), acceso Beta por código y códigos de descuento (`DISCOUNT_CODES_ENABLED` apagado).
+
 ## Now — Sprint UX/UI 4.1 (implementado 2026-11-07, ver ARCHITECTURE §32 y D051)
 
 - [ ] **QA visual autenticada** (sin sesión en el entorno del sprint; se verificó con un arnés temporal de componentes reales y los mismos estilos): con cuenta Premium, a 320/375/390/768/1280/1440 px y en claro/oscuro: abrir un modal después de hacer scroll en Stock, Productos, Presupuestos, Calculadora, Impresoras y Admin → Usuarios (centrado, scroll interno, pie visible sobre la barra inferior); Mi Taller → Productos con datos reales (nombres largos, sin descripción, sin imagen, armable, «Requiere recalcular», con la barra de categorías y la búsqueda combinada); las cuatro pantallas de Mi Taller una al lado de otra; sidebar contraído/expandido en cada ruta, recarga con la preferencia guardada, tooltips con teclado, y la navegación móvil intacta.

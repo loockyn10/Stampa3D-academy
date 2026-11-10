@@ -2,7 +2,7 @@
 
 import dynamic from "next/dynamic";
 import Link from "next/link";
-import { useCallback, useRef, useState, useSyncExternalStore, type CSSProperties, type MouseEvent } from "react";
+import { useCallback, useRef, useState, useSyncExternalStore, type CSSProperties, type MouseEvent, type ReactNode } from "react";
 import { ArrowRight, Layers } from "lucide-react";
 import { heroContent, type HeroAction } from "./hero-content";
 import { isWebGLAvailable } from "./hero-quality";
@@ -44,7 +44,7 @@ const REVEAL_PROGRESS = 0.9;
  * Estructura: un contenedor alto (`track`) con un escenario fijo (`stage`, sticky) dentro.
  * El progreso del scroll sobre el contenedor gobierna la cámara, el núcleo y las capas de texto.
  */
-export function UniversoHero() {
+export function UniversoHero({ children }: { children?: ReactNode }) {
   const reducedMotion = useSyncExternalStore(
     subscribeReducedMotion,
     () => window.matchMedia(REDUCED_QUERY).matches,
@@ -170,6 +170,9 @@ export function UniversoHero() {
       {reducedMotion ? <HeroDiscovery anchorId={ANCHOR_ID} reducedMotion /> : null}
 
       <ToolsExplorer reducedMotion={reducedMotion} />
+
+      {/* Secciones comerciales (propuesta de valor, planes, preguntas, cierre y footer): las compone la página, en el servidor. */}
+      {children}
     </div>
   );
 }
