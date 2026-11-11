@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 /**
- * SPIKE CONTROLADO de Mercado Pago: cambio de monto de una suscripción existente (Edición Fundadores).
+ * SPIKE CONTROLADO de Mercado Pago: cambio de monto de una suscripción existente (Edición Pioneros).
  * Runbook: docs/MP_PRICE_CHANGE_SPIKE.md. NO se ejecuta automáticamente ni forma parte de la app.
  *
  * Garantías de seguridad (todas verificadas por tests/mp-spike.test.mjs con un `fetch` falso):
@@ -225,7 +225,7 @@ export async function run({ argv, env, fetchImpl = fetch, log = console.log, out
     const backUrl = typeof flags["back-url"] === "string" ? flags["back-url"] : "https://www.mercadopago.com.ar";
     if (!backUrl.startsWith("https://")) throw new SpikeError("--back-url debe ser https.");
     const payload = {
-      reason: "SPIKE Fundadores (prueba, no es una venta)",
+      reason: "SPIKE Pioneros (prueba, no es una venta)",
       external_reference: `${SPIKE_REF_PREFIX}${Date.now()}`,
       payer_email: email,
       auto_recurring: { frequency: days, frequency_type: "days", transaction_amount: amount, currency_id: "ARS" },

@@ -1,4 +1,4 @@
--- EDICIÓN FUNDADORES — DIAGNÓSTICO DE SOLO LECTURA (2026-11-10)
+-- EDICIÓN PIONEROS — DIAGNÓSTICO DE SOLO LECTURA (2026-11-10)
 --
 -- Objetivo: saber, con datos reales, qué del sistema fundador heredado se puede reutilizar y qué no. Las tablas
 -- `founder_members` / `founder_pricing_tiers` y la función `reserve_founder_slot` NO están versionadas en

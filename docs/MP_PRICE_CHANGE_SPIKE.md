@@ -1,7 +1,7 @@
 # Spike de Mercado Pago: cambio de monto de una suscripción existente
 
 **Estado:** PREPARADO, **NO EJECUTADO** (2026-11-10). Nadie corrió ninguna llamada a Mercado Pago. Este documento y `scripts/mp-spike/price-change-spike.mjs` son lo único que se creó.
-**Para qué:** validar el mecanismo del que depende la Edición Fundadores (paso de $9.900 a $19.900 después del 6.º cobro) antes de autorizar su implementación. Contexto: `docs/FOUNDERS_EDITION_DESIGN.md`.
+**Para qué:** validar el mecanismo del que depende la Edición Pioneros (paso de $9.900 a $19.900 después del 6.º cobro) antes de autorizar su implementación. Contexto: `docs/PIONEERS_EDITION_DESIGN.md`.
 
 ## 1. Qué se sabe y qué no (documentación oficial, ya investigada)
 
@@ -59,6 +59,9 @@ Para acelerar, se usa un **escenario reducido** (el conteo de ciclos es nuestro,
 3. **¿Requiere nueva autorización?** El estado tras el `PUT` (`authorized` = no; `pending` = sí), y si el débito siguiente se produce sin acción de la compradora.
 4. **¿Qué notificación recibe el suscriptor?** La Fase A solo ve el **webhook** (`subscription_preapproval` por actualización, si se configuró URL de prueba) y el cambio de `version`/`last_modified`. **El e-mail al suscriptor no se puede ver con cuentas de prueba** (la documentación no dice que tengan bandeja real): se resuelve con la Fase B o consultando a Mercado Pago (§7).
 5. **¿Cómo evitar que el cambio se aplique antes del 7.º período?** La regla que la prueba debe confirmar y que el sistema impondrá: **solo `PUT` cuando el 6.º cobro esté aprobado y no haya cuota en reintento** (`--require-charged` replica la parte verificable). Hay que confirmar que el `PUT` posterior a un cobro no altera ese cobro ya hecho ni la cuota ya generada si esta lleva el monto viejo.
+
+### 3.5.0 Pagos rechazados o pendientes (segunda suscripción de prueba, también sin cargos reales)
+Repetir `create` (otra suscripción de spike) y pagar con la compradora usando un titular de tarjeta de prueba que **no** apruebe (los de la guía «Tarjetas de prueba» de Mercado Pago, p. ej. uno de fondos insuficientes y otro de pago pendiente; **verificar los nombres exactos en esa guía**, no se dan por ciertos acá). Observar con `inspect`: estado de la suscripción, cuotas `scheduled/processed/recycling`, `retry_attempt`, y si un `put-amount` sobre una suscripción con cuota en reintento se acepta y qué monto toma esa cuota. Responde «comportamiento frente a pagos rechazados o pendientes». Se cierra con `cancel`.
 
 ### 3.5.1 Criterio de decisión
 - **Modo A (`put_amount`)**: el `PUT` se acepta, el estado sigue `authorized`, el débito siguiente sale con el monto nuevo y no hay pedido de reautorización → seguir con la implementación.
