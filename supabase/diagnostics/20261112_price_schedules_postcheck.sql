@@ -22,22 +22,25 @@ select '3_SIN ACCESO PARA anon/authenticated (escritura) ' || t,
 from unnest(array['discount_code_terms', 'promo_acceptances', 'price_schedules', 'price_schedule_events']) as t
 
 union all
-select '4_FUNCIÓN SOLO service_role: ' || p.proname,
-       has_function_privilege('service_role', p.oid, 'execute')
+select '4_FUNCIÓN SOLO service_role: ' || f,
+       coalesce(bool_and(
+         has_function_privilege('service_role', p.oid, 'execute')
          and not has_function_privilege('anon', p.oid, 'execute')
-         and not has_function_privilege('authenticated', p.oid, 'execute'),
-       'execute solo para service_role'
-from pg_proc p join pg_namespace n on n.oid = p.pronamespace
-where n.nspname = 'public'
-  and p.proname in ('promo_terms_for_code', 'record_promo_acceptance', 'ensure_price_schedule', 'sync_price_schedule',
-                    'list_price_schedule_work', 'claim_price_schedule', 'finish_price_schedule', 'mark_price_notice_sent',
-                    'add_price_schedule_event')
+         and not has_function_privilege('authenticated', p.oid, 'execute')
+       ), false),
+       case when count(p.oid) = 0 then 'NO EXISTE' else 'execute solo para service_role' end
+from unnest(array['promo_terms_for_code', 'record_promo_acceptance', 'ensure_price_schedule', 'sync_price_schedule',
+                  'list_price_schedule_work', 'claim_price_schedule', 'finish_price_schedule', 'mark_price_notice_sent',
+                  'add_price_schedule_event']) as f
+left join pg_proc p on p.proname = f
+  and p.pronamespace = (select oid from pg_namespace where nspname = 'public')
+group by f
 
 union all
-select '5_TRIGGERS DE INMUTABILIDAD ' || tg.tgname, true, 'presente'
-from pg_trigger tg
-where not tg.tgisinternal
-  and tg.tgname in ('price_schedules_guard_trg', 'promo_acceptances_guard_trg', 'discount_code_terms_guard_trg', 'price_schedule_events_guard_trg')
+select '5_TRIGGER ' || t,
+       exists (select 1 from pg_trigger tg where not tg.tgisinternal and tg.tgname = t),
+       'presente'
+from unnest(array['price_schedules_guard_trg', 'promo_acceptances_guard_trg', 'discount_code_terms_guard_trg', 'price_schedule_events_guard_trg']) as t
 
 union all
 select '6_SIN DATOS TODAVÍA (la migration no crea filas)',
