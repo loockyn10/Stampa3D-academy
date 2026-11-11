@@ -1,6 +1,7 @@
 # Edición Pioneros — informe técnico (v3)
 
 **Estado:** DISEÑO + protección de precios implementada (2026-11-11). La implementación de Pioneros **NO está activada ni autorizada**: se autoriza por etapas (§9); el cobro depende de validar Mercado Pago. No se aplicó ninguna migration, no se tocó la base, Mercado Pago, precios, suscripciones, usuarios, permisos, feature flags ni la landing. Sin push ni deploy.
+**2026-11-11 — En pausa:** existe una propuesta más simple basada en el sistema de códigos de descuento ya construido, y recomienda **no aplicar M1**: ver [`PIONEROS_SIMPLIFIED_PROPOSAL.md`](PIONEROS_SIMPLIFIED_PROPOSAL.md). Este informe y la migration M1 quedan como referencia (commiteadas en local, sin aplicar) hasta decidir.
 Reemplaza a la v2 («Edición Fundadores»). **La v2 quedó obsoleta**: asumía que `founder_members` eran lugares promocionales; son los 3 creadores de Universo Stampa.
 
 **Condiciones definitivas:** Edición Pioneros · 20 cupos · $9.900/mes durante 6 ciclos mensuales · después el precio regular acordado al contratar (hoy $19.900) · acceso anticipado a herramientas seleccionadas por administración mientras haya membresía Premium activa · insignia «Pionero #001»–«#020» permanente. El cupo se confirma solo con el **primer pago aprobado**.
