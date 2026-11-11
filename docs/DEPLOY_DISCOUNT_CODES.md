@@ -1,5 +1,7 @@
 # Despliegue: códigos de descuento en el checkout
 
+> **Actualización 2026-11-11:** el diagnóstico de solo lectura ejecutado en Supabase confirma que **las dos migrations (`20261029120000` y `20261030120000`) YA están aplicadas** en remoto. Los pasos 1–4 de §2 están hechos; quedan 5–6 (confirmar el código desplegado y el estado de `DISCOUNT_CODES_ENABLED`; QA con Mercado Pago de prueba). Hay 3 códigos de descuento activos sin límite que hay que auditar antes de encender el interruptor. Detalle en `docs/PIONEROS_DISCOUNT_SYSTEM_DIAGNOSIS.md`. El texto de abajo conserva el plan original.
+
 Rama: `feature/discount-codes-checkout` (cortada desde `main`, con el commit de los códigos Beta). **Nada de esto se ejecutó**: no hubo push, merge, deploy ni SQL remoto.
 
 ## 1. Qué cambia
