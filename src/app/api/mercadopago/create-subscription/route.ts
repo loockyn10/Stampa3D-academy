@@ -15,8 +15,17 @@ import {
   DISCOUNT_CODE_MAX_INPUT_LENGTH,
   DISCOUNT_MESSAGES,
   discountCodesEnabled,
+  discountFailure,
   normalizeDiscountCode,
 } from "@/lib/discounts/discount-codes";
+import {
+  getPromoTerms,
+  priceSchedulesEnabled,
+  recordPromoAcceptance,
+  type PromoAcceptanceStatus,
+  type PromoTerms,
+} from "@/lib/mercadopago/price-schedule-store";
+import { promoCheckoutReason } from "@/lib/mercadopago/price-notice";
 import {
   attachDiscountReservation,
   closePendingCheckout,
@@ -45,6 +54,8 @@ interface CheckoutRequestBody {
   payerEmail: string | null;
   /** Replace a still-pending checkout (e.g. the payment is rejected or another account must pay). */
   restart: boolean;
+  /** Version of the promotion terms the buyer accepted expressly (only meaningful for codes with terms). */
+  acceptPromoTerms: string | null;
 }
 
 /**
@@ -57,7 +68,7 @@ async function readCheckoutBody(request: Request): Promise<CheckoutRequestBody> 
   // Temporary compatibility for an already-open tab running the previous UI.
   // Per-user serialization in PostgreSQL still protects this generated key.
   if (!rawBody) {
-    return { idempotencyKey: randomUUID(), discountCode: null, payerEmail: null, restart: false };
+    return { idempotencyKey: randomUUID(), discountCode: null, payerEmail: null, restart: false, acceptPromoTerms: null };
   }
 
   let body: unknown;
@@ -92,7 +103,10 @@ async function readCheckoutBody(request: Request): Promise<CheckoutRequestBody> 
     if (!payerEmail) throw new Error("invalid_payer_email");
   }
 
-  return { idempotencyKey: key, discountCode, payerEmail, restart: (body as Record<string, unknown>).restart === true };
+  const rawTerms = (body as Record<string, unknown>).accept_promo_terms;
+  const acceptPromoTerms = typeof rawTerms === "string" && rawTerms.length > 0 && rawTerms.length <= 64 ? rawTerms : null;
+
+  return { idempotencyKey: key, discountCode, payerEmail, restart: (body as Record<string, unknown>).restart === true, acceptPromoTerms };
 }
 
 function checkoutBackUrl(appUrl: string): string {
@@ -367,9 +381,61 @@ export async function POST(request: Request) {
   }
 
   const code = body.discountCode;
+
+  // Promotions by billing periods (e.g. Pioneros): the code carries terms the buyer must accept expressly. A code WITH
+  // terms is never sold unless the price-schedule machinery is on, otherwise the promotional price would never end.
+  let promoTerms: PromoTerms | null = null;
+  try {
+    promoTerms = await getPromoTerms(supabaseAdmin, code);
+  } catch (error) {
+    if (priceSchedulesEnabled()) {
+      console.error("[MP create-subscription] promo terms unavailable", error instanceof Error ? error.message : "error");
+      return response({ code: "promo_unavailable", error: "No pudimos verificar las condiciones de la promoción. No se cobró nada; probá de nuevo en unos minutos." }, 503);
+    }
+    // Switch off and the terms function does not exist yet: no code can have terms.
+  }
+  if (promoTerms) {
+    if (!priceSchedulesEnabled()) {
+      return response({ code: "promo_unavailable", error: "Esta promoción todavía no está disponible. No se cobró nada." }, 409);
+    }
+    if (body.acceptPromoTerms !== promoTerms.termsVersion) {
+      return response(
+        {
+          code: "promo_terms_required",
+          error: "Tenés que aceptar las condiciones de la promoción para continuar.",
+          terms: { promo_cycles: promoTerms.promoCycles, post_price: promoTerms.postPrice, terms_version: promoTerms.termsVersion },
+        },
+        409,
+      );
+    }
+    // What the payer reads in Mercado Pago must say how long the price lasts and what comes after.
+    try {
+      const preview = await reserveDiscountCode(supabaseAdmin, { userId: user.id, code, baseAmount: price, currency, dryRun: true });
+      if (preview.ok && preview.finalAmount !== null) {
+        checkoutInput.reason = promoCheckoutReason(preview.finalAmount, promoTerms, currency);
+      }
+    } catch {
+      // The real reservation below decides; the default reason stays.
+    }
+  }
+
+  const acceptanceState: { failure: PromoAcceptanceStatus | null } = { failure: null };
   const outcome = await executeDiscountedCheckout(checkoutInput, {
     ...replacementDependencies,
-    reserve: () => reserveDiscountCode(supabaseAdmin, { userId: user.id, code, baseAmount: price, currency }),
+    reserve: async () => {
+      const reservation = await reserveDiscountCode(supabaseAdmin, { userId: user.id, code, baseAmount: price, currency });
+      if (!promoTerms || !reservation.ok || !reservation.reservationId) return reservation;
+      // Express consent, recorded BEFORE any checkout exists. If it cannot be recorded, nothing is created.
+      const acceptance = await recordPromoAcceptance(supabaseAdmin, {
+        userId: user.id,
+        reservationId: reservation.reservationId,
+        termsVersion: body.acceptPromoTerms,
+      });
+      if (acceptance === "recorded" || acceptance === "already_recorded") return reservation;
+      acceptanceState.failure = acceptance;
+      await releaseDiscountReservation(supabaseAdmin, { userId: user.id, reservationId: reservation.reservationId });
+      return discountFailure("error");
+    },
     attach: ({ reservationId, attemptId }) =>
       attachDiscountReservation(supabaseAdmin, { userId: user.id, reservationId, attemptId }),
     release: (reservationId) => releaseDiscountReservation(supabaseAdmin, { userId: user.id, reservationId }),
@@ -386,6 +452,16 @@ export async function POST(request: Request) {
             },
           }
         : {},
+    );
+  }
+
+  if (outcome.kind === "discount_rejected" && acceptanceState.failure !== null) {
+    return response(
+      {
+        code: "promo_terms_required",
+        error: "Las condiciones de la promoción cambiaron o no pudimos registrar tu aceptación. No se cobró nada: revisá las condiciones y volvé a aceptarlas.",
+      },
+      409,
     );
   }
 

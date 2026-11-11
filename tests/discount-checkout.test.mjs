@@ -495,8 +495,9 @@ test("checkout: the list price comes only from membership_settings / the env fal
   assert.match(route, /\(body as Record<string, unknown>\)\.discount_code/);
   // Nothing else is read from the request: no price, amount, percentage or reservation.
   const bodyReads = [...route.matchAll(/\(body as Record<string, unknown>\)\.(\w+)/g)].map((m) => m[1]);
-  // payer_email (MP account email) and restart are the only additions; never an amount.
-  assert.deepEqual([...new Set(bodyReads)].sort(), ["discount_code", "idempotency_key", "payer_email", "restart"]);
+  // payer_email (MP account email), restart and accept_promo_terms (a terms VERSION string the server compares with its
+  // own) are the only additions; never an amount.
+  assert.deepEqual([...new Set(bodyReads)].sort(), ["accept_promo_terms", "discount_code", "idempotency_key", "payer_email", "restart"]);
   assert.doesNotMatch(route, /request\.json\(\)|searchParams|formData/);
 });
 
@@ -544,7 +545,9 @@ test("preview action: session user only, dry run, safe DTO, kill switch", () => 
   assert.match(actions, /dryRun: true/);
   assert.doesNotMatch(actions, /previewDiscountCodeAction\([^)]*userId/);
   assert.doesNotMatch(actions, /reservationId/);
-  assert.match(actions, /return toDiscountPreview\(reservation\)/);
+  assert.match(actions, /const preview = toDiscountPreview\(reservation\);\s*if \(!preview\.ok\) return preview;/);
+  // Promotion terms are only ever added to a valid preview, from the database function, never from the client.
+  assert.match(actions, /getPromoTerms\(admin, code\)/);
 });
 
 test("UI: the field only exists with the switch on; the request carries the code text and a key per code", () => {

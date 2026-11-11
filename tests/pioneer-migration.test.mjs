@@ -12,9 +12,11 @@ const sql = readRepoFile(FILE);
 // Sin comentarios: las reglas se miden sobre el SQL ejecutable.
 const code = sql.replace(/\/\*[\s\S]*?\*\//g, "").replace(/--.*$/gm, "");
 
-test("la migration es la más reciente y no reutiliza el nombre de otra", () => {
+test("la migration M1 (reemplazada por la agenda de precio, NO se aplica) no reutiliza el nombre de otra y ordena justo antes de su reemplazo", () => {
   const names = fs.readdirSync(path.join(process.cwd(), "supabase/migrations")).filter((n) => n.endsWith(".sql")).sort();
-  assert.equal(names[names.length - 1], path.basename(FILE), "debe ordenar al final");
+  // Superseded by 20261112120000_price_schedules.sql: M1 stays as reference, unapplied.
+  assert.equal(names[names.length - 1], "20261112120000_price_schedules.sql");
+  assert.equal(names[names.length - 2], path.basename(FILE), "M1 es la inmediata anterior");
   assert.equal(names.filter((n) => n.includes("pioneer")).length, 1);
 });
 

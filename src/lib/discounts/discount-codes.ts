@@ -46,6 +46,11 @@ export interface DiscountPreview {
   baseAmount: number | null;
   finalAmount: number | null;
   discountAmount: number | null;
+  /**
+   * Present when the code carries promotion terms (price for N billing periods, then a later price) that the buyer must
+   * accept expressly. Added by the preview action, never by the reservation.
+   */
+  promo?: { promoCycles: number; postPrice: number; termsVersion: string } | null;
 }
 
 /** Server-only result of a reservation (carries the reservation id the checkout needs). */

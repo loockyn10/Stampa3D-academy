@@ -2,6 +2,7 @@ import type { SupabaseClient } from "@supabase/supabase-js";
 import { confirmDiscountReservation, releaseDiscountForPreapproval } from "@/lib/discounts/repository";
 import { invoiceStoredStatus, type InvoiceSnapshot, type PreapprovalSnapshot, type ProfileMembership } from "@/lib/mercadopago/membership-billing";
 import type { CheckoutAttemptOwner, MembershipStore, StoredSubscription } from "@/lib/mercadopago/membership-sync";
+import { SupabasePriceScheduleStore, priceSchedulesEnabled } from "@/lib/mercadopago/price-schedule-store";
 import {
   RECONCILE_DUE_LOOKAHEAD_MS,
   RECONCILE_PENDING_MIN_AGE_MS,
@@ -361,6 +362,15 @@ export class SupabaseMembershipStore implements MembershipStore, ReconciliationS
       for (const row of rows) row.hasApprovedPayment = paid.has(row.id);
     }
     return rows;
+  }
+
+  async onBillingSynced(input: { userId: string; preapprovalId: string; providerStatus: string }): Promise<void> {
+    if (!priceSchedulesEnabled()) return;
+    try {
+      await new SupabasePriceScheduleStore(this.admin).ensureAndSync(input.preapprovalId, input.providerStatus);
+    } catch (error) {
+      console.error("[membership] price schedule sync error", error instanceof Error ? error.message : "unknown");
+    }
   }
 
   async onSubscriptionCancelled(input: { userId: string; preapprovalId: string }): Promise<void> {

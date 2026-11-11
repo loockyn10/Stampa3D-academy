@@ -182,7 +182,7 @@ export function invoiceStoredStatus(invoice: Pick<InvoiceSnapshot, "paymentStatu
   return invoice.paymentStatus ?? invoice.status ?? "unknown";
 }
 
-function addPeriod(from: Date, frequency: number, frequencyType: "months" | "days"): Date {
+export function addPeriod(from: Date, frequency: number, frequencyType: "months" | "days"): Date {
   const result = new Date(from.getTime());
   if (frequencyType === "days") {
     result.setTime(result.getTime() + frequency * DAY_MS);

@@ -13,6 +13,7 @@ import {
   type DiscountPreview,
 } from "@/lib/discounts/discount-codes";
 import { reserveDiscountCode } from "@/lib/discounts/repository";
+import { getPromoTerms, priceSchedulesEnabled } from "@/lib/mercadopago/price-schedule-store";
 import { loadMembershipPrice } from "@/lib/mercadopago/membership-price";
 import { createMembershipDependencies } from "@/lib/mercadopago/membership-server";
 import { syncUserMembership } from "@/lib/mercadopago/membership-sync";
@@ -84,7 +85,19 @@ export async function previewDiscountCodeAction(rawCode: unknown): Promise<Disco
       currency: membershipPrice.currency,
       dryRun: true,
     });
-    return toDiscountPreview(reservation);
+    const preview = toDiscountPreview(reservation);
+    if (!preview.ok) return preview;
+
+    // Promotion terms (price for N billing periods, then the accepted later price). Fail closed when the schedules are on.
+    try {
+      const terms = await getPromoTerms(admin, code);
+      if (terms) {
+        return { ...preview, promo: { promoCycles: terms.promoCycles, postPrice: terms.postPrice, termsVersion: terms.termsVersion } };
+      }
+    } catch {
+      if (priceSchedulesEnabled()) return toDiscountPreview(discountFailure("error"));
+    }
+    return preview;
   } catch (caught) {
     console.error("[discount] preview failed", caught instanceof Error ? caught.name : "unknown_error");
     return toDiscountPreview(discountFailure("error"));

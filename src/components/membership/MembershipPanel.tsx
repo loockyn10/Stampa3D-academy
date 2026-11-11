@@ -6,6 +6,7 @@ import { Button } from "@/components/ui/button";
 import { Dialog } from "@/components/ui/dialog";
 import { membershipOffer } from "@/components/landing-membership/landing-content";
 import type { MembershipDto } from "@/lib/mercadopago/membership-http";
+import type { PriceNoticeDto } from "@/lib/mercadopago/price-schedule-store";
 
 type MembershipState = MembershipDto["state"];
 
@@ -82,14 +83,22 @@ function describe(m: MembershipDto): string {
   }
 }
 
-async function fetchMembership(): Promise<MembershipDto | Error> {
+interface LoadedMembership {
+  membership: MembershipDto;
+  priceNotice: PriceNoticeDto | null;
+}
+
+async function fetchMembership(): Promise<LoadedMembership | Error> {
   try {
     const response = await fetch("/api/mercadopago/membership", { cache: "no-store" });
     const data = await readJson(response);
     if (!response.ok || !data.membership) {
       return new Error(typeof data.error === "string" ? data.error : "No pudimos cargar tu membresía.");
     }
-    return data.membership as MembershipDto;
+    return {
+      membership: data.membership as MembershipDto,
+      priceNotice: data.price_notice && typeof data.price_notice === "object" ? (data.price_notice as PriceNoticeDto) : null,
+    };
   } catch {
     return new Error("No pudimos cargar tu membresía.");
   }
@@ -119,9 +128,14 @@ export function MembershipPanel({ compact = false }: { compact?: boolean }) {
   const [error, setError] = useState<string | null>(null);
   const [notice, setNotice] = useState<string | null>(null);
 
-  const applyLoad = useCallback((result: MembershipDto | Error) => {
+  const [priceNotice, setPriceNotice] = useState<PriceNoticeDto | null>(null);
+
+  const applyLoad = useCallback((result: LoadedMembership | Error) => {
     if (result instanceof Error) setError(result.message);
-    else setMembership(result);
+    else {
+      setMembership(result.membership);
+      setPriceNotice(result.priceNotice);
+    }
     setLoading(false);
   }, []);
 
@@ -226,6 +240,18 @@ export function MembershipPanel({ compact = false }: { compact?: boolean }) {
 
       {!loading && membership && copy && (
         <>
+          {priceNotice && membership.has_access && (
+            <div className="mt-5 rounded-xl border border-amber-500/30 bg-amber-500/10 p-4 text-sm" role="status" data-testid="price-change-notice">
+              <p className="flex items-center gap-2 font-bold text-amber-500">
+                <CalendarClock className="h-5 w-5 shrink-0" aria-hidden="true" /> Tu precio promocional termina pronto
+              </p>
+              <p className="mt-1.5 leading-relaxed text-fg">
+                Pagás {formatMoney(priceNotice.promo_price, priceNotice.currency)} por mes. Desde tu cobro del {formatDate(priceNotice.change_date)} pasarás a pagar{" "}
+                <strong>{formatMoney(priceNotice.post_price, priceNotice.currency)} por mes</strong>, el precio que aceptaste al contratar.
+                Mercado Pago aplica el cambio automáticamente. Si no querés continuar con el nuevo importe, podés cancelar antes de esa fecha y conservás el acceso hasta el fin del período pago.
+              </p>
+            </div>
+          )}
           <div className="mt-5 rounded-xl border border-stampa-border bg-stampa-bg-soft p-4">
             <p className="flex items-center gap-2 font-bold text-fg">
               {copy.tone === "ok" ? (

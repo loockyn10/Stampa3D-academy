@@ -84,6 +84,11 @@ export interface MembershipStore {
   /** Non-critical side effects (discount codes, founder slot). Must never throw. */
   onSubscriptionAuthorized(input: { userId: string; preapprovalId: string }): Promise<void>;
   onSubscriptionCancelled(input: { userId: string; preapprovalId: string }): Promise<void>;
+  /**
+   * After the payments of a preapproval were recorded: promotional price schedules (create once, fix the calendar,
+   * reconcile, close on cancellation). Non-critical: must never throw. Optional so stores without it keep working.
+   */
+  onBillingSynced?(input: { userId: string; preapprovalId: string; providerStatus: string }): Promise<void>;
 }
 
 export interface MembershipProvider {
@@ -253,6 +258,7 @@ export async function syncPreapproval(
   } else if (preapproval.status === "cancelled") {
     await deps.store.onSubscriptionCancelled({ userId, preapprovalId: preapproval.id });
   }
+  await deps.store.onBillingSynced?.({ userId, preapprovalId: preapproval.id, providerStatus: preapproval.status });
 
   const summary = await buildSummary(userId, subscription, deps, now);
   return {

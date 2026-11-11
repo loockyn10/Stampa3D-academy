@@ -3,6 +3,7 @@ import { createClient } from "@/utils/supabase/server";
 import { createMembershipDependencies } from "@/lib/mercadopago/membership-server";
 import { readMembershipSummary } from "@/lib/mercadopago/membership-sync";
 import { membershipDto, membershipErrorResponse } from "@/lib/mercadopago/membership-http";
+import { priceSchedulesEnabled, readPriceNotice } from "@/lib/mercadopago/price-schedule-store";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -27,7 +28,16 @@ export async function GET() {
 
   try {
     const summary = await readMembershipSummary(user.id, deps);
-    return NextResponse.json({ membership: membershipDto(summary) }, { headers: noStore });
+    // Notice of a coming price change (promotions by billing periods). Never blocks the membership summary.
+    let priceNotice: Awaited<ReturnType<typeof readPriceNotice>> = null;
+    if (priceSchedulesEnabled()) {
+      try {
+        priceNotice = await readPriceNotice(deps.admin, user.id);
+      } catch (error) {
+        console.error("[MP membership] price notice", error instanceof Error ? error.message : "error");
+      }
+    }
+    return NextResponse.json({ membership: membershipDto(summary), price_notice: priceNotice }, { headers: noStore });
   } catch (error) {
     console.error("[MP membership]", error instanceof Error ? error.message : "error");
     const failure = membershipErrorResponse(error);

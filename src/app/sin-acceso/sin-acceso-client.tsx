@@ -62,6 +62,11 @@ export function SinAccesoClient({
   const [activated, setActivated] = useState(false);
   const [refreshNotice, setRefreshNotice] = useState<string | null>(null);
   const [payerEmail, setPayerEmail] = useState("");
+  // The code whose promotion terms were accepted. A different code (or none) means different conditions: the acceptance
+  // never carries over, because it is only valid while it matches the code currently applied.
+  const [promoAcceptedFor, setPromoAcceptedFor] = useState<string | null>(null);
+  const appliedCode = discount?.code ?? null;
+  const promoAccepted = appliedCode !== null && promoAcceptedFor === appliedCode;
 
   const [price, setPrice] = useState<string | null>(null);
   const [loadingPrice, setLoadingPrice] = useState(true);
@@ -149,11 +154,16 @@ export function SinAccesoClient({
       e.preventDefault();
     }
     if (loading) return;
+    if (discountCodesEnabled && discount?.preview.promo && !promoAccepted) {
+      setError("Aceptá las condiciones de la promoción para continuar.");
+      return;
+    }
 
     try {
       setLoading(true);
       setError(null);
       const discountCode = discountCodesEnabled && discount ? discount.code : null;
+      const acceptPromoTerms = discountCode && discount?.preview.promo && promoAccepted ? discount.preview.promo.termsVersion : null;
       if (restart) window.sessionStorage.removeItem(CHECKOUT_ATTEMPT_STORAGE_KEY);
       const idempotencyKey = getCheckoutIdempotencyKey(discountCode);
       const mpEmail = payerEmail.trim();
@@ -167,6 +177,7 @@ export function SinAccesoClient({
         body: JSON.stringify({
           idempotency_key: idempotencyKey,
           ...(discountCode ? { discount_code: discountCode } : {}),
+          ...(acceptPromoTerms ? { accept_promo_terms: acceptPromoTerms } : {}),
           ...(mpEmail ? { payer_email: mpEmail } : {}),
           ...(restart ? { restart: true } : {}),
         }),
@@ -236,6 +247,9 @@ export function SinAccesoClient({
     new Intl.NumberFormat("es-AR", { style: "currency", currency: "ARS", minimumFractionDigits: 0, maximumFractionDigits: 2 }).format(amount);
 
   const discountedPrice = discountCodesEnabled && discount?.preview.finalAmount ? discount.preview.finalAmount : null;
+  // Promotion by billing periods: the later price must be accepted expressly before the checkout is created.
+  const promo = discountCodesEnabled && discount?.preview.promo ? discount.preview.promo : null;
+  const promoBlocked = promo !== null && !promoAccepted;
 
   // Quien llega acá viene a contratar Premium: la membresía es el centro de la pantalla y las herramientas gratuitas quedan como apoyo.
   const canActivate = !checkingEmail && isAuthenticated && isEmailConfirmed && !activated;
@@ -366,10 +380,33 @@ export function SinAccesoClient({
                 <DiscountCodeField applied={discount} onApplied={setDiscount} disabled={loading} />
               )}
 
+              {promo && discountedPrice !== null && (
+                <div className="mt-4 rounded-xl border border-stampa-orange-border bg-stampa-orange-muted/40 p-3 text-left text-sm text-stampa-text" data-testid="promo-terms">
+                  <p className="font-semibold">Condiciones de la promoción</p>
+                  <p className="mt-1 text-stampa-text-muted">
+                    Pagás {formatMoney(discountedPrice)} por mes durante tus primeros {promo.promoCycles} períodos mensuales de facturación.
+                    Desde el período {promo.promoCycles + 1} pagás <strong className="text-stampa-text">{formatMoney(promo.postPrice)} por mes</strong>.
+                    Mercado Pago aplica el cambio automáticamente y te avisamos por correo y dentro de la plataforma antes de que ocurra. Podés cancelar cuando quieras.
+                  </p>
+                  <label className="mt-3 flex cursor-pointer items-start gap-2">
+                    <input
+                      type="checkbox"
+                      checked={promoAccepted}
+                      onChange={(event) => setPromoAcceptedFor(event.target.checked ? appliedCode : null)}
+                      disabled={loading}
+                      className="mt-1 h-4 w-4 shrink-0"
+                    />
+                    <span>
+                      Acepto pagar {formatMoney(discountedPrice)} por mes durante {promo.promoCycles} períodos y {formatMoney(promo.postPrice)} por mes desde el período {promo.promoCycles + 1}.
+                    </span>
+                  </label>
+                </div>
+              )}
+
               <button
                 type="button"
                 onClick={handleCreateSubscription}
-                disabled={loading || checkingEmail}
+                disabled={loading || checkingEmail || promoBlocked}
                 className="mt-4 flex w-full items-center justify-center gap-2 rounded-xl bg-stampa-orange px-3 py-3.5 text-base font-semibold text-neutral-950 shadow-lg shadow-stampa-orange/20 transition-colors hover:bg-stampa-orange-hover disabled:cursor-not-allowed disabled:opacity-70"
               >
                 {loading && <Loader2 size={16} className="animate-spin" aria-hidden="true" />}

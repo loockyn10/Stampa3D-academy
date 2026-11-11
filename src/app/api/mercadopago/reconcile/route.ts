@@ -2,6 +2,8 @@ import { NextResponse } from "next/server";
 import { isAuthorizedCronRequest } from "@/lib/mercadopago/cron-auth";
 import { createMembershipDependencies } from "@/lib/mercadopago/membership-server";
 import { reconcileMemberships } from "@/lib/mercadopago/membership-reconcile";
+import { createPriceScheduleRunnerDeps } from "@/lib/mercadopago/price-schedule-server";
+import { runPriceSchedules } from "@/lib/mercadopago/price-schedule-runner";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -31,7 +33,25 @@ export async function GET(request: Request) {
   try {
     const report = await reconcileMemberships({ shouldStop: () => Date.now() - startedAt > TIME_BUDGET_MS }, deps);
     console.info("[membership reconcile]", JSON.stringify({ ...report, durationMs: Date.now() - startedAt }));
-    return NextResponse.json(report, { headers: noStore });
+
+    // Promotional price schedules (notices + automatic change). Off unless PRICE_SCHEDULES_ENABLED = "true". Isolated:
+    // a failure here never fails the membership reconciliation above.
+    let priceSchedules: unknown = null;
+    const runnerDeps = createPriceScheduleRunnerDeps({
+      admin: deps.admin,
+      provider: deps.provider,
+      accessToken: process.env.MERCADO_PAGO_ACCESS_TOKEN as string,
+    });
+    if (runnerDeps) {
+      try {
+        priceSchedules = await runPriceSchedules({ shouldStop: () => Date.now() - startedAt > TIME_BUDGET_MS + 10_000 }, runnerDeps);
+        console.info("[price schedules]", JSON.stringify(priceSchedules));
+      } catch (error) {
+        console.error("[price schedules] falló", error instanceof Error ? error.message : "error");
+        priceSchedules = { error: "run_failed" };
+      }
+    }
+    return NextResponse.json(priceSchedules ? { ...report, priceSchedules } : report, { headers: noStore });
   } catch (error) {
     console.error("[membership reconcile] falló", error instanceof Error ? error.message : "error");
     return NextResponse.json({ error: "No se pudo conciliar" }, { status: 500, headers: noStore });
