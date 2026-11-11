@@ -168,3 +168,85 @@ test("el spike no usa la base de la app, el token de producción ni la frecuenci
   assert.ok(!source.includes("process.env.MERCADO_PAGO_ACCESS_TOKEN"));
   assert.ok(!/frequency_type:\s*"months"/.test(source));
 });
+
+// ---------------------------------------------------------------------------------------------------------------
+// Escenarios A (inmediato) y B (renovación): procedimiento independiente, sin exigir dos cobros.
+// ---------------------------------------------------------------------------------------------------------------
+
+test("escenario A: put-amount funciona sin --require-charged, incluso con 0 cobros, y devuelve el veredicto completo", async () => {
+  const mp = fakeMp({ preapproval: authorized({ summarized: { charged_quantity: 0 }, next_payment_date: "2026-11-12T12:00:00.000Z" }) });
+  const outDir = tmp();
+  const result = await run({ argv: ["put-amount", "pre_abcdef123456", "--amount", "19900", "--scenario", "A", "--execute"], env: TEST_ENV, fetchImpl: mp.fetchImpl, log: quiet, outDir });
+  assert.equal(writes(mp.calls).length, 1);
+  assert.deepEqual(result.verdict, {
+    put_accepted: true,
+    still_authorized: true,
+    amount_applied: true,
+    reauthorization_suspected: false,
+    next_payment_date_before: "2026-11-12T12:00:00.000Z",
+    next_payment_date_after: "2026-11-12T12:00:00.000Z",
+    next_payment_date_changed: false,
+    status_before: "authorized",
+    status_after: "authorized",
+  });
+});
+
+test("escenario A: si Mercado Pago deja la suscripción fuera de 'authorized' el veredicto lo marca como reautorización", async () => {
+  const pending = { ...authorized({ summarized: { charged_quantity: 0 } }) };
+  const calls = [];
+  const fetchImpl = async (url, init = {}) => {
+    const method = init.method ?? "GET";
+    const route = String(url).replace("https://api.mercadopago.com", "");
+    calls.push({ method, route });
+    if (route === "/users/me") return reply(200, { id: 123456789, nickname: "T", site_id: "MLA" });
+    if (method === "PUT") {
+      pending.status = "pending";
+      pending.auto_recurring = { ...pending.auto_recurring, ...JSON.parse(init.body).auto_recurring };
+      return reply(200, pending);
+    }
+    if (route.startsWith("/authorized_payments/search")) return reply(200, { results: [] });
+    return reply(200, pending);
+  };
+  const result = await run({ argv: ["put-amount", "pre_abcdef123456", "--amount", "19900", "--execute"], env: TEST_ENV, fetchImpl, log: quiet, outDir: tmp() });
+  assert.equal(result.verdict.put_accepted, true);
+  assert.equal(result.verdict.still_authorized, false);
+  assert.equal(result.verdict.reauthorization_suspected, true);
+});
+
+test("escenario B: --require-charged 1 espera el primer cobro; inspect resume el monto de cada cuota", async () => {
+  const noCharge = fakeMp({ preapproval: authorized({ summarized: { charged_quantity: 0 } }) });
+  await assert.rejects(
+    run({ argv: ["put-amount", "pre_abcdef123456", "--amount", "19900", "--require-charged", "1", "--scenario", "B", "--execute"], env: TEST_ENV, fetchImpl: noCharge.fetchImpl, log: quiet, outDir: tmp() }),
+    /Solo hay 0 cobros/,
+  );
+  assert.equal(writes(noCharge.calls).length, 0);
+
+  const invoices = {
+    results: [
+      { id: "i2", status: "scheduled", transaction_amount: 19900, currency_id: "ARS", debit_date: "2026-11-14T12:00:00.000Z" },
+      { id: "i1", status: "processed", transaction_amount: 9900, currency_id: "ARS", debit_date: "2026-11-12T12:00:00.000Z", payment: { id: 1, status: "approved" } },
+    ],
+  };
+  const mp = fakeMp({ preapproval: authorized(), invoices });
+  const result = await run({ argv: ["inspect", "pre_abcdef123456", "--scenario", "B"], env: TEST_ENV, fetchImpl: mp.fetchImpl, log: quiet, outDir: tmp() });
+  assert.deepEqual(result.amounts.approved_amounts, [9900]);
+  assert.deepEqual(result.amounts.open_amounts, [19900]);
+  assert.deepEqual(result.amounts.installments.map((row) => row.debit_date), ["2026-11-12T12:00:00.000Z", "2026-11-14T12:00:00.000Z"]);
+});
+
+test("--scenario solo etiqueta (A|B): marca el resultado guardado y el external_reference, y rechaza otros valores antes de llamar a MP", async () => {
+  const mp = fakeMp();
+  const outDir = tmp();
+  await run({ argv: ["create", "--amount", "9900", "--email", "buyer@testuser.com", "--days", "2", "--scenario", "B", "--execute"], env: TEST_ENV, fetchImpl: mp.fetchImpl, log: quiet, outDir });
+  const created = mp.calls.find((c) => c.method === "POST");
+  assert.ok(created.body.external_reference.startsWith(`${SPIKE_REF_PREFIX}B_`), created.body.external_reference);
+  assert.ok(/^[0-9]+$/.test(created.body.external_reference.slice(`${SPIKE_REF_PREFIX}B_`.length)));
+  const { readdirSync } = await import("node:fs");
+  const files = readdirSync(outDir);
+  assert.ok(files.some((name) => name.endsWith("_B_create.json")), files.join(","));
+  assert.equal(JSON.parse(readFileSync(path.join(outDir, files[0]), "utf8")).scenario, "B");
+
+  const bad = fakeMp();
+  await assert.rejects(run({ argv: ["whoami", "--scenario", "C"], env: TEST_ENV, fetchImpl: bad.fetchImpl, log: quiet }), /--scenario debe ser A o B/);
+  assert.equal(bad.calls.length, 0);
+});

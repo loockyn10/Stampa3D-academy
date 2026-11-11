@@ -53,7 +53,41 @@ Al terminar: `Remove-Item Env:MP_SPIKE_ACCESS_TOKEN`.
 ### 3.3 Protecciones del script (verificadas con 11 tests con un `fetch` falso)
 Se niega a correr si: falta alguna variable · el token es igual al de producción de la app · `VERCEL_ENV=production` · `GET /users/me` devuelve una cuenta distinta de `MP_SPIKE_EXPECTED_USER_ID`. Solo crea/modifica/cancela suscripciones cuyo `external_reference` empiece con `stampa_spike_` (las que crea él mismo). Todo es **DRY-RUN** salvo `--execute`. Solo frecuencia en días (1–30). Los resultados se guardan sin datos personales en `%TEMP%\mp-spike` (o `MP_SPIKE_OUT`).
 
-### 3.4 Procedimiento
+### 3.3b Escenarios A y B (procedimiento vigente; reemplaza al §3.4 en lo que se contradiga)
+Dos suscripciones de prueba **independientes**, siempre con cuentas de prueba (el script verifica el dueño del token y solo toca `stampa_spike_…`). `--scenario A|B` solo etiqueta los resultados. Empezar por **B** (tarda días) y hacer **A** mientras corre. Cada comando se autoriza antes de correrlo; los `create/put-amount/cancel` se corren primero sin `--execute` (simulación).
+
+**Escenario A — inmediato (~15 min, no exige cobros previos).** ¿El `PUT` se acepta y la suscripción sigue `authorized` con el monto nuevo?
+| Paso | Comando (todos con `node scripts/mp-spike/price-change-spike.mjs`) | Se observa |
+|---|---|---|
+| A0 | `whoami` | Cuenta de prueba verificada |
+| A1 | `create --amount 9900 --email <compradora> --days 1 --scenario A` (simulación) y luego `--execute` | Estado `pending`, `init_point` |
+| A2 | Vos: abrir el `init_point` con la compradora y pagar con tarjeta de prueba (`APRO`) | Pasa a `authorized` |
+| A3 | `inspect <id> --scenario A` | Estado, `next_payment_date`, cobros, monto de cada cuota |
+| A4 | `put-amount <id> --amount 19900 --scenario A` (simulación) y luego `--execute` **(sin `--require-charged`)** | `verdict`: `put_accepted`, `still_authorized`, `amount_applied`, `reauthorization_suspected`, `next_payment_date_changed` |
+| A5 | `inspect <id> --scenario A` enseguida | Lo mismo, releído; monto de la cuota ya programada |
+| A6 | (opcional, otra autorización) `put-amount <id> --amount 9900 --scenario A --execute` | Que la **reversión** (la que usa el runner) deja `authorized` y el monto vuelve |
+| A7 | `cancel <id> --scenario A` (simulación) y luego `--execute` | Cierre |
+
+**Escenario B — renovación (~2–3 días).** ¿El siguiente cobro sale con el importe actualizado?
+| Paso | Comando | Se observa |
+|---|---|---|
+| B1 | `create --amount 9900 --email <compradora> --days 2 --scenario B` y `--execute`; Vos pagás con la compradora | `authorized` (el ciclo de 2 días deja margen para el cambio) |
+| B2 | `inspect <id> --scenario B` hasta ver el primer cobro aprobado (`amounts.approved_amounts = [9900]`) | Primer cobro |
+| B3 | `put-amount <id> --amount 19900 --require-charged 1 --scenario B` (simulación) y `--execute` **antes del siguiente débito** | `verdict` igual que A4 |
+| B4 | `inspect <id> --scenario B` enseguida | `amounts.open_amounts`: ¿la cuota **ya generada** para el siguiente débito lleva 9900 o 19900? |
+| B5 | `inspect <id> --scenario B` unas horas **después** de la fecha del siguiente débito | `amounts.approved_amounts` debería ser `[9900, 19900]`, sin ninguna acción del pagador |
+| B6 | `cancel <id> --scenario B --execute` | Cierre |
+**Puerta 0 de B:** si las cuentas de prueba no generan cobros recurrentes, B no puede responder «desde qué cobro rige»; se consulta a Soporte de Mercado Pago o se evalúa una prueba real mínima (**no autorizada**).
+
+**Cómo se lee el resultado (y qué hace el sistema):**
+| Resultado | Conclusión | Implementación |
+|---|---|---|
+| A: `still_authorized` + `amount_applied`, y B: el cobro siguiente sale a 19900 | **Modo A confirmado**: cambio sin reautorización, rige desde el siguiente cobro | Se puede encender `PRICE_STEP_UP_ENABLED` tras el QA |
+| A: `reauthorization_suspected` (estado distinto de `authorized`) | Exige reautorización del pagador | El runner revierte al monto promocional y deja `needs_reauth`; se pasa a la alternativa con acción del cliente (nueva suscripción al precio aceptado con un clic, o vencimiento natural) |
+| A ok pero B: la cuota ya generada sale a 9900 | El cambio rige un ciclo después | Ajustar la ventana: cambiar al menos un ciclo antes; el cliente paga un período más al promocional (seguro) |
+| A ok pero B: sale otro monto o se cobra dos veces | Comportamiento inesperado | No se habilita; consulta a Mercado Pago |
+
+### 3.4 Procedimiento (versión anterior, requería dos cobros; ver §3.3b)
 Para acelerar, se usa un **escenario reducido** (el conteo de ciclos es nuestro, no de MP): suscripción de $9.900 **diaria**, cambio a $19.900 después del 2.º cobro, y se observa el 3.º. Si todo es limpio se repite con el escenario completo (6 → 7).
 
 | Paso | Comando | Qué se observa |

@@ -18,7 +18,12 @@
  *   node scripts/mp-spike/price-change-spike.mjs whoami
  *   node scripts/mp-spike/price-change-spike.mjs create --amount 9900 --email <comprador-de-prueba> [--days 1] [--execute]
  *   node scripts/mp-spike/price-change-spike.mjs inspect <preapproval_id>
- *   node scripts/mp-spike/price-change-spike.mjs put-amount <preapproval_id> --amount 19900 [--require-charged 6] [--execute]
+ *   node scripts/mp-spike/price-change-spike.mjs put-amount <preapproval_id> --amount 19900 [--require-charged 1] [--execute]
+ *
+ * Escenarios independientes (flag opcional --scenario A|B en create / put-amount / inspect / cancel; solo etiqueta los
+ * resultados guardados y el external_reference, no cambia ningún comportamiento):
+ *   A — inmediato: crear, autorizar, `put-amount` SIN --require-charged e `inspect` al instante (¿sigue authorized? ¿monto nuevo?).
+ *   B — renovación: otra suscripción; `put-amount --require-charged 1` tras el primer cobro y `inspect` después del siguiente débito.
  *   node scripts/mp-spike/price-change-spike.mjs cancel <preapproval_id> [--execute]
  */
 
@@ -180,6 +185,41 @@ function requireSpikeId(value) {
   return value;
 }
 
+function parseScenario(value) {
+  if (value === undefined) return null;
+  if (value !== "A" && value !== "B") throw new SpikeError("--scenario debe ser A o B.");
+  return value;
+}
+
+/** Lo que se necesita para decidir el modo: ¿se aceptó?, ¿sigue authorized?, ¿quedó el monto?, ¿cambió el próximo débito? */
+export function buildPutVerdict({ put, before, after, requestedAmount }) {
+  const statusAfter = String(after?.status ?? "").toLowerCase();
+  const amountAfter = Number(after?.auto_recurring?.transaction_amount);
+  return {
+    put_accepted: put.ok === true,
+    still_authorized: statusAfter === "authorized",
+    amount_applied: Number.isFinite(amountAfter) && Math.abs(amountAfter - requestedAmount) < 0.005,
+    // Si MP aceptó el PUT pero dejó la suscripción fuera de "authorized", el modo A (sin reautorización) NO se cumple.
+    reauthorization_suspected: put.ok === true && statusAfter !== "" && statusAfter !== "authorized",
+    next_payment_date_before: before?.next_payment_date ?? null,
+    next_payment_date_after: after?.next_payment_date ?? null,
+    next_payment_date_changed: (before?.next_payment_date ?? null) !== (after?.next_payment_date ?? null),
+    status_before: before?.status ?? null,
+    status_after: after?.status ?? null,
+  };
+}
+
+/** Montos por cuota, para ver con qué importe salió (o saldrá) cada cobro. */
+export function summarizeInstallments(list) {
+  const rows = Array.isArray(list) ? list : [];
+  const byDate = [...rows].sort((a, b) => String(a.debit_date ?? "").localeCompare(String(b.debit_date ?? "")));
+  return {
+    installments: byDate.map((row) => ({ debit_date: row.debit_date, amount: row.transaction_amount, status: row.status, payment_status: row.payment_status })),
+    approved_amounts: byDate.filter((row) => row.payment_status === "approved").map((row) => row.transaction_amount),
+    open_amounts: byDate.filter((row) => row.status === "scheduled" || row.status === "recycling").map((row) => row.transaction_amount),
+  };
+}
+
 function requireAmount(value, label = "--amount") {
   const amount = Number(value);
   if (!Number.isFinite(amount) || amount < 1 || amount > 1_000_000) throw new SpikeError(`${label} inválido (entre 1 y 1.000.000).`);
@@ -196,10 +236,11 @@ async function readSpikePreapproval(call, id) {
   return read.json;
 }
 
-function save(outDir, name, data, log) {
+function save(outDir, name, data, log, scenario = null) {
   mkdirSync(outDir, { recursive: true });
-  const file = path.join(outDir, `${new Date().toISOString().replace(/[:.]/g, "-")}_${name}.json`);
-  writeFileSync(file, JSON.stringify(data, null, 2));
+  const label = scenario ? `${scenario}_${name}` : name;
+  const file = path.join(outDir, `${new Date().toISOString().replace(/[:.]/g, "-")}_${label}.json`);
+  writeFileSync(file, JSON.stringify(scenario ? { scenario, ...data } : data, null, 2));
   log(`resultado guardado en: ${file}`);
 }
 
@@ -211,6 +252,7 @@ export async function run({ argv, env, fetchImpl = fetch, log = console.log, out
   const call = client(token, fetchImpl);
   const output = outDir ?? env?.MP_SPIKE_OUT ?? path.join(os.tmpdir(), "mp-spike");
   const execute = flags.execute === true;
+  const scenario = parseScenario(flags.scenario);
 
   const identity = await verifyIdentity(call, expectedId);
   log(`cuenta verificada: id ${identity.id} · usuario ${identity.nickname || "(sin nombre)"} · sitio ${identity.siteId}`);
@@ -226,7 +268,7 @@ export async function run({ argv, env, fetchImpl = fetch, log = console.log, out
     if (!backUrl.startsWith("https://")) throw new SpikeError("--back-url debe ser https.");
     const payload = {
       reason: "SPIKE Pioneros (prueba, no es una venta)",
-      external_reference: `${SPIKE_REF_PREFIX}${Date.now()}`,
+      external_reference: `${SPIKE_REF_PREFIX}${scenario ? `${scenario}_` : ""}${Date.now()}`,
       payer_email: email,
       auto_recurring: { frequency: days, frequency_type: "days", transaction_amount: amount, currency_id: "ARS" },
       back_url: backUrl,
@@ -243,7 +285,7 @@ export async function run({ argv, env, fetchImpl = fetch, log = console.log, out
     const result = { snapshot: snapshotPreapproval(created.json), init_point: created.json?.init_point ?? null };
     log(`creada: ${result.snapshot.id} (estado ${result.snapshot.status})`);
     log(`abrir con la cuenta COMPRADORA de prueba y pagar con una tarjeta de prueba: ${result.init_point}`);
-    save(output, "create", result, log);
+    save(output, "create", result, log, scenario);
     return result;
   }
 
@@ -253,12 +295,14 @@ export async function run({ argv, env, fetchImpl = fetch, log = console.log, out
     const raw = await readSpikePreapproval(call, id);
     // Solo el filtro documentado (incidente 2026-11-05): nada de `limit`.
     const invoices = await call("GET", `/authorized_payments/search?preapproval_id=${encodeURIComponent(id)}`);
+    const invoiceSnapshots = invoices.ok ? snapshotInvoices(invoices.json) : null;
     const result = {
       preapproval: snapshotPreapproval(raw),
-      invoices: invoices.ok ? snapshotInvoices(invoices.json) : { error: describeFailure(invoices.status, invoices.json) },
+      invoices: invoiceSnapshots ?? { error: describeFailure(invoices.status, invoices.json) },
+      amounts: invoiceSnapshots ? summarizeInstallments(invoiceSnapshots) : null,
     };
     log(JSON.stringify(result, null, 2));
-    save(output, "inspect", result, log);
+    save(output, "inspect", result, log, scenario);
     return result;
   }
 
@@ -286,15 +330,19 @@ export async function run({ argv, env, fetchImpl = fetch, log = console.log, out
     const putResult = { http_status: put.status, ok: put.ok, error: put.ok ? null : describeFailure(put.status, put.json) };
     const afterRaw = await readSpikePreapproval(call, id);
     const afterInvoices = await call("GET", `/authorized_payments/search?preapproval_id=${encodeURIComponent(id)}`);
+    const afterInvoiceSnapshots = afterInvoices.ok ? snapshotInvoices(afterInvoices.json) : null;
+    const verdict = buildPutVerdict({ put: putResult, before: snapshotPreapproval(before), after: snapshotPreapproval(afterRaw), requestedAmount: amount });
     const result = {
       requested_amount: amount,
+      verdict,
+      installments_after: afterInvoiceSnapshots ? summarizeInstallments(afterInvoiceSnapshots) : null,
       put: putResult,
       put_response: put.ok ? snapshotPreapproval(put.json) : null,
       before: { preapproval: snapshotPreapproval(before), invoices: beforeInvoices.ok ? snapshotInvoices(beforeInvoices.json) : null },
       after: { preapproval: snapshotPreapproval(afterRaw), invoices: afterInvoices.ok ? snapshotInvoices(afterInvoices.json) : null },
     };
-    log(JSON.stringify({ put: result.put, before: result.before.preapproval.auto_recurring, after: result.after.preapproval.auto_recurring, status_before: result.before.preapproval.status, status_after: result.after.preapproval.status, version_before: result.before.preapproval.version, version_after: result.after.preapproval.version }, null, 2));
-    save(output, "put-amount", result, log);
+    log(JSON.stringify({ put: result.put, verdict, before: result.before.preapproval.auto_recurring, after: result.after.preapproval.auto_recurring, version_before: result.before.preapproval.version, version_after: result.after.preapproval.version, installments_after: result.installments_after }, null, 2));
+    save(output, "put-amount", result, log, scenario);
     return result;
   }
 
@@ -308,7 +356,7 @@ export async function run({ argv, env, fetchImpl = fetch, log = console.log, out
   if (!cancelled.ok) throw new SpikeError(`No se pudo cancelar (${describeFailure(cancelled.status, cancelled.json)}).`);
   const result = { snapshot: snapshotPreapproval(cancelled.json) };
   log(`cancelada: estado ${result.snapshot.status}`);
-  save(output, "cancel", result, log);
+  save(output, "cancel", result, log, scenario);
   return result;
 }
 
