@@ -64,7 +64,27 @@ async function main() {
       await bare.end();
     });
 
+    const compat = fs.readFileSync(path.join(process.cwd(), "supabase/diagnostics/20261112_price_schedules_compat.sql"), "utf8");
+    const postcheck = fs.readFileSync(path.join(process.cwd(), "supabase/diagnostics/20261112_price_schedules_postcheck.sql"), "utf8");
+    const executable = (sql) => sql.replace(/--.*$/gm, "").replace(/'[^']*'/g, "''");
+
+    await t("compat diagnostic (read-only) passes on the schema the migration expects, before applying it", async () => {
+      assert.doesNotMatch(executable(compat), /(insert|update|delete|drop|alter|create|truncate|grant|revoke)/i);
+      const rows = (await c.query(compat)).rows;
+      assert.ok(rows.length > 25);
+      assert.deepEqual(rows.filter((r) => r.ok !== true).map((r) => r.check_name), []);
+      assert.doesNotMatch(JSON.stringify(rows), /@/, "no e-mails or personal data");
+    });
+
     await c.query(MIGRATION);
+
+    await t("postcheck diagnostic (read-only): every control is ok after applying the migration", async () => {
+      assert.doesNotMatch(executable(postcheck), /(insert|update|delete|drop|alter|create|truncate|grant|revoke)/i);
+      const rows = (await c.query(postcheck)).rows;
+      assert.ok(rows.length >= 20);
+      assert.deepEqual(rows.filter((r) => r.ok !== true).map((r) => r.check_name), []);
+    });
+
     await t("the migration is re-runnable", async () => {
       await c.query(MIGRATION);
     });

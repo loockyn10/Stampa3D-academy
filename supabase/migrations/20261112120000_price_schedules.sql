@@ -47,7 +47,7 @@ begin
     ('checkout_attempts', 'id'), ('checkout_attempts', 'mercado_pago_preapproval_id'),
     ('subscriptions', 'id'), ('subscriptions', 'user_id'), ('subscriptions', 'mercado_pago_preapproval_id'),
     ('payments', 'id'), ('payments', 'subscription_id'), ('payments', 'user_id'), ('payments', 'status'),
-    ('payments', 'amount'), ('payments', 'paid_at')
+    ('payments', 'amount'), ('payments', 'paid_at'), ('payments', 'raw_data')
   ) as req(tbl, col)
   where not exists (
     select 1 from information_schema.columns c

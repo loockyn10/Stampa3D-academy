@@ -1,6 +1,8 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
 import type { PriceScheduleRecord, PriceScheduleStore } from "@/lib/mercadopago/price-schedule-runner";
 import { inAppNoticeVisible, type ScheduleStatus } from "@/lib/mercadopago/price-schedule";
+import type { ScheduleOverviewRow } from "@/lib/mercadopago/price-schedule-alerts";
+import type { PriceAlertStore } from "@/lib/mercadopago/price-schedule-alert-runner";
 
 /** Thin wrappers over the service_role-only price-schedule RPCs (supabase/migrations/20261112120000_price_schedules.sql). */
 
@@ -44,7 +46,7 @@ export function toScheduleRecord(row: Record<string, unknown>): PriceScheduleRec
   };
 }
 
-export class SupabasePriceScheduleStore implements PriceScheduleStore {
+export class SupabasePriceScheduleStore implements PriceScheduleStore, PriceAlertStore {
   constructor(private readonly admin: SupabaseClient) {}
 
   private async rpc<T = unknown>(fn: string, args: Record<string, unknown>): Promise<T> {
@@ -83,6 +85,14 @@ export class SupabasePriceScheduleStore implements PriceScheduleStore {
 
   async addEvent(id: string, event: string, detail: Record<string, unknown> = {}): Promise<void> {
     await this.rpc("add_price_schedule_event", { p_id: id, p_event: event, p_detail: detail });
+  }
+
+  async overview(): Promise<ScheduleOverviewRow[]> {
+    return listScheduleOverview(this.admin);
+  }
+
+  async hasEvent(scheduleId: string, event: string): Promise<boolean> {
+    return scheduleHasEvent(this.admin, scheduleId, event);
   }
 
   async sync(preapprovalId: string, providerStatus: string): Promise<void> {
@@ -171,4 +181,31 @@ export function priceSchedulesEnabled(env: Record<string, string | undefined> = 
 /** Real PUTs. Requires the schedules switch too, so the amount can never change without the notices running. */
 export function priceStepUpEnabled(env: Record<string, string | undefined> = process.env): boolean {
   return priceSchedulesEnabled(env) && env.PRICE_STEP_UP_ENABLED === "true";
+}
+
+/** Admin overview (service role): every schedule with what an administrator needs. Never exposes provider payloads. */
+export async function listScheduleOverview(admin: SupabaseClient, limit = 500): Promise<ScheduleOverviewRow[]> {
+  const { data, error } = await admin
+    .from("price_schedules")
+    .select("id, user_id, status, promo_price, post_price, promo_ends_at, notice_email_sent_at, attempts, last_error")
+    .order("promo_ends_at", { ascending: true, nullsFirst: false })
+    .limit(limit);
+  if (error) throw new Error(`price_schedules overview: ${error.code ?? "error"}`);
+  return ((data ?? []) as Record<string, unknown>[]).map((row) => ({
+    id: String(row.id),
+    userId: String(row.user_id),
+    status: String(row.status),
+    promoPrice: num(row.promo_price),
+    postPrice: num(row.post_price),
+    promoEndsAt: iso(row.promo_ends_at),
+    noticeEmailSentAt: iso(row.notice_email_sent_at),
+    attempts: Number(row.attempts ?? 0),
+    lastError: text(row.last_error),
+  }));
+}
+
+export async function scheduleHasEvent(admin: SupabaseClient, scheduleId: string, event: string): Promise<boolean> {
+  const { data, error } = await admin.from("price_schedule_events").select("id").eq("schedule_id", scheduleId).eq("event", event).limit(1);
+  if (error) throw new Error(`price_schedule_events select: ${error.code ?? "error"}`);
+  return (data ?? []).length > 0;
 }

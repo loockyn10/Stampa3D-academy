@@ -167,6 +167,16 @@ test("without a notice it sends the e-mail first and does NOT change the price i
   assert.equal(calls.writes.length, 1);
 });
 
+test("step-up switch off: no customer is told about a change that will not happen (notice is only a dry run)", async () => {
+  const { fake, calls, run } = setup({ schedules: [record({ noticeEmailSentAt: null })], stepUpEnabled: false });
+  const report = await run();
+  assert.equal(calls.mails.length, 0);
+  assert.equal(calls.writes.length, 0);
+  assert.equal(report.wouldNotify, 1);
+  assert.equal(fake.rows.get("sched_1").noticeEmailSentAt, null);
+  assert.ok(fake.events.some((e) => e.event === "dry_run" && e.detail.would === "send_notice"));
+});
+
 test("no mailer configured / the e-mail fails: the price is never raised", async () => {
   const none = setup({ schedules: [record({ noticeEmailSentAt: null })], mailer: null });
   await none.run();

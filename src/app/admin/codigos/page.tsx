@@ -45,6 +45,14 @@ export default function AdminCodigosPage() {
   const [accessExpiresAt, setAccessExpiresAt] = useState("");
   const [notes, setNotes] = useState("");
 
+  // Promotion by billing periods (fixed-price codes only): price for N monthly periods, then the accepted later price.
+  const [promoEnabled, setPromoEnabled] = useState(false);
+  const [promoCycles, setPromoCycles] = useState("6");
+  const [promoPostPrice, setPromoPostPrice] = useState("");
+  const [promoNoticeDays, setPromoNoticeDays] = useState("20");
+  const [promoTerms, setPromoTerms] = useState<Record<string, { promo_cycles: number; post_price: number; notice_days: number }>>({});
+  const [promoTermsAvailable, setPromoTermsAvailable] = useState(true);
+
   // Copied tracking
   const [copiedId, setCopiedId] = useState<string | null>(null);
 
@@ -66,6 +74,16 @@ export default function AdminCodigosPage() {
       .order("created_at", { ascending: false });
     if (err) showMsg(err.message, "error");
     else setCodes(data || []);
+    try {
+      const response = await fetch("/api/admin/promo-terms", { cache: "no-store" });
+      const body = response.ok ? await response.json() : null;
+      setPromoTermsAvailable(body?.available === true);
+      const map: Record<string, { promo_cycles: number; post_price: number; notice_days: number }> = {};
+      for (const row of body?.terms ?? []) map[row.invite_code_id] = row;
+      setPromoTerms(map);
+    } catch {
+      setPromoTermsAvailable(false);
+    }
     setLoading(false);
   };
 
@@ -102,6 +120,10 @@ export default function AdminCodigosPage() {
     setExpiresAt("");
     setAccessExpiresAt("");
     setNotes("");
+    setPromoEnabled(false);
+    setPromoCycles("6");
+    setPromoPostPrice("");
+    setPromoNoticeDays("20");
     handleGenerateCode("beta_tester");
     setShowForm(true);
   };
@@ -118,6 +140,11 @@ export default function AdminCodigosPage() {
     setExpiresAt(code.expires_at ? new Date(code.expires_at).toISOString().split('T')[0] : "");
     setAccessExpiresAt(code.access_expires_at ? new Date(code.access_expires_at).toISOString().split('T')[0] : "");
     setNotes(code.notes || "");
+    const terms = promoTerms[code.id];
+    setPromoEnabled(Boolean(terms));
+    setPromoCycles(terms ? String(terms.promo_cycles) : "6");
+    setPromoPostPrice(terms ? String(terms.post_price) : "");
+    setPromoNoticeDays(terms ? String(terms.notice_days) : "20");
     setShowForm(true);
   };
 
@@ -179,6 +206,27 @@ export default function AdminCodigosPage() {
       }
     }
     
+    const wantsPromo = codeType === "fixed_price" && promoEnabled;
+    if (wantsPromo) {
+      const cycles = Number(promoCycles);
+      const post = Number(promoPostPrice);
+      if (!Number.isInteger(cycles) || cycles < 1 || cycles > 24) {
+        showMsg("Los períodos deben ser un número entero entre 1 y 24.", "error");
+        setCreating(false);
+        return;
+      }
+      if (!Number.isFinite(post) || post <= parseFloat(discountValue)) {
+        showMsg("El precio posterior debe ser mayor que el precio especial.", "error");
+        setCreating(false);
+        return;
+      }
+      if (!promoTermsAvailable) {
+        showMsg("Las condiciones por períodos todavía no están disponibles: falta aplicar la migration de agendas de precio. No se creó el código.", "error");
+        setCreating(false);
+        return;
+      }
+    }
+
     if (startsAt && expiresAt && new Date(expiresAt) <= new Date(startsAt)) {
       showMsg("El vencimiento debe ser posterior a la fecha de inicio.", "error");
       setCreating(false);
@@ -201,14 +249,37 @@ export default function AdminCodigosPage() {
     const payload = buildInviteCodePayload(normalizedCode);
 
     let err;
+    let savedId: string | null = editingId;
     if (editingId) {
       const { error } = await supabase.from("invite_codes").update(payload).eq("id", editingId);
       err = error;
     } else {
-      payload.status = "active";
+      // A code with promotion terms is created INACTIVE and only activated once its terms are saved: it is never on sale
+      // without the conditions (otherwise the special price would never end).
+      payload.status = wantsPromo ? "inactive" : "active";
       payload.created_by = user?.id;
-      const { error } = await supabase.from("invite_codes").insert(payload);
+      const { data: inserted, error } = await supabase.from("invite_codes").insert(payload).select("id").single();
       err = error;
+      savedId = inserted?.id ?? null;
+    }
+
+    if (!err && wantsPromo && savedId) {
+      const response = await fetch("/api/admin/promo-terms", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ invite_code_id: savedId, promo_cycles: Number(promoCycles), post_price: Number(promoPostPrice), notice_days: Number(promoNoticeDays) || 20 }),
+      });
+      if (!response.ok) {
+        const body = await response.json().catch(() => null);
+        showMsg((body?.error ?? "No pudimos guardar las condiciones.") + " El código quedó INACTIVO hasta que se guarden.", "error");
+        setCreating(false);
+        fetchCodes();
+        return;
+      }
+      if (!editingId) {
+        const { error: activateError } = await supabase.from("invite_codes").update({ status: "active" }).eq("id", savedId);
+        err = activateError;
+      }
     }
 
     if (err) {
@@ -264,7 +335,12 @@ export default function AdminCodigosPage() {
     }
     if (c.code_type === 'discount_percent') return `${c.discount_value}% OFF`;
     if (c.code_type === 'discount_fixed_amount') return `$${c.discount_value} OFF`;
-    if (c.code_type === 'fixed_price') return `Precio fijo: $${c.discount_value}`;
+    if (c.code_type === 'fixed_price') {
+      const terms = promoTerms[c.id];
+      return terms
+        ? `$${c.discount_value} x ${terms.promo_cycles} meses, luego $${terms.post_price}`
+        : `Precio fijo: $${c.discount_value}`;
+    }
     return '—';
   };
 
@@ -419,6 +495,41 @@ export default function AdminCodigosPage() {
                   </select>
                 </div>
               </>
+            )}
+
+            {codeType === "fixed_price" && (
+              <div className="sm:col-span-2 rounded-xl border border-stampa-border bg-fg/5 p-3" data-testid="promo-terms-form">
+                <label className="flex items-center gap-2 text-sm font-semibold text-fg">
+                  <input type="checkbox" checked={promoEnabled} onChange={e => setPromoEnabled(e.target.checked)} className="h-4 w-4" />
+                  Precio especial solo por períodos mensuales (luego sube al precio aceptado)
+                </label>
+                {!promoTermsAvailable && (
+                  <p className="mt-2 text-xs text-amber-300">Falta aplicar la migration de agendas de precio: todavía no se pueden guardar condiciones.</p>
+                )}
+                {promoEnabled && (
+                  <div className="mt-3 grid gap-3 sm:grid-cols-3">
+                    <div>
+                      <label className="block text-xs font-semibold text-gray-400 uppercase tracking-wider mb-1.5">Períodos mensuales</label>
+                      <input type="number" min="1" max="24" value={promoCycles} onChange={e => setPromoCycles(e.target.value)}
+                        className="w-full rounded-xl border border-stampa-border px-3 py-2.5 text-sm text-fg bg-fg/5 focus:outline-none focus:border-stampa-orange/50" />
+                    </div>
+                    <div>
+                      <label className="block text-xs font-semibold text-gray-400 uppercase tracking-wider mb-1.5">Precio posterior ($)</label>
+                      <input type="number" min="1" value={promoPostPrice} onChange={e => setPromoPostPrice(e.target.value)} placeholder="19900"
+                        className="w-full rounded-xl border border-stampa-border px-3 py-2.5 text-sm text-fg bg-fg/5 focus:outline-none focus:border-stampa-orange/50" />
+                    </div>
+                    <div>
+                      <label className="block text-xs font-semibold text-gray-400 uppercase tracking-wider mb-1.5">Aviso previo (días)</label>
+                      <input type="number" min="7" max="60" value={promoNoticeDays} onChange={e => setPromoNoticeDays(e.target.value)}
+                        className="w-full rounded-xl border border-stampa-border px-3 py-2.5 text-sm text-fg bg-fg/5 focus:outline-none focus:border-stampa-orange/50" />
+                    </div>
+                    <p className="sm:col-span-3 text-xs text-gray-400">
+                      El comprador acepta estas condiciones antes de pagar. El código se crea inactivo y se activa solo cuando las condiciones quedan guardadas.
+                      Las condiciones no se pueden cambiar una vez aceptadas por un comprador. Requiere <code className="font-mono">PRICE_SCHEDULES_ENABLED=true</code> en el servidor.
+                    </p>
+                  </div>
+                )}
+              </div>
             )}
 
             <div className="sm:col-span-2 border-t border-stampa-border pt-4 mt-2"></div>

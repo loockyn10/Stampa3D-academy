@@ -2,7 +2,8 @@ import { NextResponse } from "next/server";
 import { isAuthorizedCronRequest } from "@/lib/mercadopago/cron-auth";
 import { createMembershipDependencies } from "@/lib/mercadopago/membership-server";
 import { reconcileMemberships } from "@/lib/mercadopago/membership-reconcile";
-import { createPriceScheduleRunnerDeps } from "@/lib/mercadopago/price-schedule-server";
+import { createPriceAlertDeps, createPriceScheduleRunnerDeps } from "@/lib/mercadopago/price-schedule-server";
+import { runPriceScheduleAlerts } from "@/lib/mercadopago/price-schedule-alert-runner";
 import { runPriceSchedules } from "@/lib/mercadopago/price-schedule-runner";
 
 export const runtime = "nodejs";
@@ -51,7 +52,19 @@ export async function GET(request: Request) {
         priceSchedules = { error: "run_failed" };
       }
     }
-    return NextResponse.json(priceSchedules ? { ...report, priceSchedules } : report, { headers: noStore });
+
+    // Alerts for the administrator (validation of the price change pending, schedules needing review). Isolated too.
+    let priceAlerts: unknown = null;
+    const alertDeps = createPriceAlertDeps(deps.admin);
+    if (alertDeps) {
+      try {
+        priceAlerts = await runPriceScheduleAlerts(alertDeps);
+      } catch (error) {
+        console.error("[price alerts] falló", error instanceof Error ? error.message : "error");
+        priceAlerts = { error: "alerts_failed" };
+      }
+    }
+    return NextResponse.json(priceSchedules ? { ...report, priceSchedules, priceAlerts } : report, { headers: noStore });
   } catch (error) {
     console.error("[membership reconcile] falló", error instanceof Error ? error.message : "error");
     return NextResponse.json({ error: "No se pudo conciliar" }, { status: 500, headers: noStore });

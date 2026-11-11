@@ -118,7 +118,7 @@ test("sin-acceso: the later price must be accepted with a checkbox before activa
 
 test("in-platform notice: membership API returns it behind the switch, and the panel shows it with the cancel option", () => {
   const api = readRepoFile("src/app/api/mercadopago/membership/route.ts");
-  assert.match(api, /if \(priceSchedulesEnabled\(\)\)[\s\S]*?readPriceNotice[\s\S]*?catch/);
+  assert.match(api, /if \(priceStepUpEnabled\(\)\)[\s\S]*?readPriceNotice[\s\S]*?catch/);
   const panel = readRepoFile("src/components/membership/MembershipPanel.tsx");
   assert.match(panel, /data-testid="price-change-notice"/);
   assert.match(panel, /podés cancelar antes de esa fecha/);

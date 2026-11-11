@@ -110,3 +110,28 @@ export function promoCheckoutReason(promoPrice: number, terms: { promoCycles: nu
   const months = terms.promoCycles === 1 ? "1 mes" : `${terms.promoCycles} meses`;
   return `Membresía Academia Stampa - ${promo}/mes por ${months}, luego ${post}/mes`;
 }
+
+/** Alert e-mail to the administrator (PRICE_ALERT_EMAIL). Same provider and sender as the customer notices. */
+export function createResendAdminMailer(input: {
+  apiKey: string;
+  from: string;
+  to: string;
+  fetchImpl?: FetchLike;
+}): { send(message: { subject: string; text: string }): Promise<{ ok: boolean; error?: string }> } {
+  const fetchImpl = input.fetchImpl ?? ((url, init) => fetch(url, init));
+  return {
+    async send(message) {
+      try {
+        const response = await fetchImpl("https://api.resend.com/emails", {
+          method: "POST",
+          headers: { Authorization: `Bearer ${input.apiKey}`, "Content-Type": "application/json" },
+          body: JSON.stringify({ from: input.from, to: [input.to], subject: message.subject, text: message.text }),
+          signal: AbortSignal.timeout(10_000),
+        });
+        return response.ok ? { ok: true } : { ok: false, error: `resend_http_${response.status}` };
+      } catch (caught) {
+        return { ok: false, error: caught instanceof Error ? caught.name : "network_error" };
+      }
+    },
+  };
+}

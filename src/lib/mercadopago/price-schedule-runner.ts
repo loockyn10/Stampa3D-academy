@@ -73,7 +73,7 @@ export interface PriceScheduleRunnerDeps {
   provider: Pick<MembershipProvider, "getPreapproval" | "searchInvoices">;
   writer: PriceAmountWriter;
   mailer: PriceNoticeMailer | null;
-  /** Real PUTs only with this on. Off = dry run (notices still go out). */
+  /** Real PUTs only with this on. Off = dry run: nothing is written and no customer notice is sent. */
   stepUpEnabled: boolean;
   now?: () => Date;
   log?: (message: string, details?: Record<string, unknown>) => void;
@@ -84,6 +84,8 @@ export interface PriceScheduleRunReport {
   busy: number;
   waiting: number;
   noticesSent: number;
+  /** Notices that would go out (the switch for the real change is off: no customer is told about a change that will not happen). */
+  wouldNotify: number;
   noticeFailures: number;
   applied: number;
   wouldApply: number;
@@ -111,6 +113,7 @@ export async function runPriceSchedules(
     busy: 0,
     waiting: 0,
     noticesSent: 0,
+    wouldNotify: 0,
     noticeFailures: 0,
     applied: 0,
     wouldApply: 0,
@@ -196,7 +199,15 @@ async function processSchedule(
   // 2. Notice by e-mail. Never to a cancelled / paused subscription, to one that needs review, or one already repriced.
   //    The change itself is never applied in the same pass that sends the notice: it waits for the next run.
   const mayNotify = final.kind === "wait" || final.kind === "notify" || final.kind === "apply";
-  if (mayNotify && provider.status === "authorized" && (final.kind === "notify" || decideNotice(schedule, now).send)) {
+  const noticeWanted = mayNotify && provider.status === "authorized" && (final.kind === "notify" || decideNotice(schedule, now).send);
+  if (noticeWanted && !deps.stepUpEnabled) {
+    // A notice is a promise that the price changes: it is only sent when the change itself is enabled.
+    if (schedule.lastReason !== "dry_run_would_notify") await store.addEvent(schedule.id, "dry_run", { would: "send_notice" });
+    await store.finish(schedule.id, { status: "scheduled", snapshot: snapshotOf({ reason: "dry_run_would_notify", provider_amount: provider.amount, next_payment_date: provider.nextPaymentDate }) });
+    report.wouldNotify += 1;
+    return;
+  }
+  if (noticeWanted) {
     if (await sendNotice(schedule, deps, report, now)) {
       await store.addEvent(schedule.id, "waiting", { reason: "notice_sent" });
       await store.finish(schedule.id, {

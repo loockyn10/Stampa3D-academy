@@ -3,7 +3,7 @@ import { createClient } from "@/utils/supabase/server";
 import { createMembershipDependencies } from "@/lib/mercadopago/membership-server";
 import { readMembershipSummary } from "@/lib/mercadopago/membership-sync";
 import { membershipDto, membershipErrorResponse } from "@/lib/mercadopago/membership-http";
-import { priceSchedulesEnabled, readPriceNotice } from "@/lib/mercadopago/price-schedule-store";
+import { priceStepUpEnabled, readPriceNotice } from "@/lib/mercadopago/price-schedule-store";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -30,7 +30,8 @@ export async function GET() {
     const summary = await readMembershipSummary(user.id, deps);
     // Notice of a coming price change (promotions by billing periods). Never blocks the membership summary.
     let priceNotice: Awaited<ReturnType<typeof readPriceNotice>> = null;
-    if (priceSchedulesEnabled()) {
+    // Only while the change is really enabled: a banner announcing a change that will not happen would be wrong.
+    if (priceStepUpEnabled()) {
       try {
         priceNotice = await readPriceNotice(deps.admin, user.id);
       } catch (error) {

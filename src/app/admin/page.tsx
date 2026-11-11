@@ -2,6 +2,7 @@ import React from 'react'
 import Link from 'next/link'
 import { ToggleRight, Users, Settings, ShieldAlert, GraduationCap, Boxes, Gift, Trophy, MonitorSmartphone, DollarSign, Map, Calculator, Tag, Bot, FileText, BookOpen, Share2 } from 'lucide-react'
 import { SectionTitle } from "@/components/ui/section-title";
+import { PriceScheduleAlertBanner } from "@/components/admin/PriceScheduleAlertBanner";
 
 export default function AdminDashboardPage() {
   return (
@@ -10,6 +11,8 @@ export default function AdminDashboardPage() {
       <p className="text-sm text-gray-400 -mt-3 mb-6">
         Gestioná usuarios, cursos, archivos STL, sorteos y contenido de Academia Stampa.
       </p>
+
+      <PriceScheduleAlertBanner />
 
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5">
         <Link href="/admin/funcionalidades" className="block group">
@@ -143,6 +146,19 @@ export default function AdminDashboardPage() {
             </div>
             <p className="text-sm text-gray-400 font-medium relative z-10">
               Configurá precios y forzá actualizaciones de suscripciones.
+            </p>
+          </div>
+        </Link>
+        <Link href="/admin/promociones" className="block group">
+          <div className="bg-stampa-surface p-6 rounded-2xl border border-stampa-border shadow-lg shadow-shade/20 hover:border-stampa-orange/30 transition-all h-full relative overflow-hidden">
+            <div className="flex items-center gap-4 mb-4 relative z-10">
+              <div className="p-3 bg-stampa-bg-soft border border-stampa-border text-stampa-accent rounded-xl shadow-inner">
+                <Tag size={24} />
+              </div>
+              <h2 className="text-lg font-bold text-fg group-hover:text-orange-400 transition-colors">Promociones por períodos</h2>
+            </div>
+            <p className="text-sm text-gray-400 font-medium relative z-10">
+              Estado del precio promocional de cada suscripción, avisos y alertas del cambio de importe.
             </p>
           </div>
         </Link>
