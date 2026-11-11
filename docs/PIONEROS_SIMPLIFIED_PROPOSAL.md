@@ -2,6 +2,8 @@
 
 **Estado:** INVESTIGACIÓN + PROPUESTA (2026-11-11). Nada se implementó ni se aplicó: sin migrations, sin cambios de precio, sin llamadas a Mercado Pago ni a Supabase, sin push ni deploy. Sustituye como camino recomendado a `PIONEERS_EDITION_DESIGN.md` (y su migration M1, que queda **en pausa**, sin aplicar, hasta decidir).
 
+**2026-11-11 (posterior):** el pedido de automatizar el paso a $19.900 y las pruebas gratuitas se diseñó en [`PROMOCIONES_AUTOMATIZADAS_DISENO.md`](PROMOCIONES_AUTOMATIZADAS_DISENO.md) (agenda de precio por suscripción sobre estos mismos códigos; sin M1).
+
 > **[C]** confirmado leyendo el repo · **[D]** documentación oficial de Mercado Pago · **[?]** NO verificado (requiere diagnóstico en la base real, prueba con cuentas de prueba o consulta a MP).
 
 ## 1. Qué hay hoy [C]
