@@ -21,6 +21,19 @@
 
 ## 3. Fase A — prueba aislada, sin cargos reales (costo: $0)
 
+### 3.0 Etapas y autorizaciones (cada etapa con llamadas a MP requiere un «sí» explícito, comando por comando)
+**Todo comando del script hace al menos una lectura a Mercado Pago** (`GET /users/me` para comprobar la cuenta; incluso en dry-run), por eso se autoriza cada uno antes de correrlo.
+
+| Etapa | Qué | Llamadas a MP | Quién |
+|---|---|---|---|
+| E0 | Crear en el panel la cuenta de prueba **vendedora** y la **compradora** (Argentina) y anotar el User ID de la vendedora. | Ninguna desde el repo (es el panel web) | Vos |
+| E1 | Cargar las variables en tu PowerShell (§3.2). El token no se pega en el chat ni se guarda en archivos. | Ninguna | Vos |
+| E2 | `whoami`: confirma que el token es de la cuenta de prueba declarada. | `GET /users/me` (solo lectura) | **Autorización explícita** |
+| E3 | `create … ` en **dry-run** y luego `--execute`: crea UNA suscripción de prueba `stampa_spike_…` en la cuenta de prueba. | `GET /users/me` + `POST /preapproval` (solo con `--execute`) | **Autorización explícita** por cada una |
+| E4 | Autorizar el pago con la compradora de prueba en el `init_point`; luego `inspect <id>` para ver estado, cuotas y montos. | `GET` (solo lectura) | **Autorización explícita** |
+| E5 | `put-amount <id> --amount 19900 --require-charged 2`: primero dry-run, después `--execute`. | `GET` + `PUT /preapproval/{id}` (solo con `--execute`) | **Autorización explícita** por cada una |
+| E6 | `inspect` antes y después del siguiente débito; escenario de pago rechazado (§3.5.0); `cancel <id> --execute` al terminar. | `GET`, `PUT status=cancelled` | **Autorización explícita** |
+
 ### 3.1 Requisitos (los hacés vos, en el panel de Mercado Pago Developers)
 1. Cuentas de prueba (Tus integraciones → tu aplicación → *Cuentas de prueba* → «Crear cuenta de prueba»): **una vendedora y una compradora, del mismo país (Argentina)**. Hasta 15 por aplicación; no se pueden borrar. La doc indica que al crear la aplicación ya se genera una cuenta de prueba.
 2. El *Access Token* de la **cuenta vendedora de prueba**. **Nunca** el token de producción de la aplicación. La documentación de Mercado Pago es inconsistente sobre cuál credencial corresponde en suscripciones (Checkout Pro usa las «credenciales de prueba» de la aplicación; la guía de suscripciones de otros países habla de las credenciales de producción de la cuenta de prueba vendedora). No hace falta resolverlo a ciegas: `whoami` (solo lectura) compara el dueño del token con `MP_SPIKE_EXPECTED_USER_ID` y aborta si no es la cuenta de prueba, así que un token equivocado no puede tocar nada.
