@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server';
 import { createClient } from '@/utils/supabase/server';
 import { createClient as createSupabaseClient } from '@supabase/supabase-js';
+import { applyListPriceToExisting, createMercadoPagoPriceGateway } from '@/lib/mercadopago/membership-price-update';
 
 export async function POST(request: Request) {
   try {
@@ -58,6 +59,14 @@ export async function POST(request: Request) {
     const previous_price = currentSettings?.monthly_price || Number(process.env.MEMBERSHIP_MONTHLY_PRICE) || 0;
     const currency = 'ARS';
 
+    // Sin un precio de lista anterior confiable no se puede saber qué suscripciones son «regulares»: no se cambia nada.
+    if (apply_to_existing && !(Number(previous_price) > 0)) {
+      return NextResponse.json(
+        { error: 'No se conoce el precio de lista anterior: no se puede aplicar el cambio a suscripciones existentes.' },
+        { status: 409 },
+      );
+    }
+
     // Actualizar membership_settings
     const { error: upsertError } = await supabaseAdmin
       .from('membership_settings')
@@ -75,56 +84,42 @@ export async function POST(request: Request) {
 
     let affected_subscriptions = 0;
     let failed_subscriptions = 0;
-    const raw_results = [];
+    let skipped_subscriptions = 0;
+    let skipped_by_reason: Record<string, number> = {};
+    let raw_results: Array<{ id: string; outcome: string; reason?: string; httpStatus?: number }> = [];
 
     if (apply_to_existing) {
+      // Only subscriptions that provably pay the PREVIOUS list price are repriced (see membership-price-update.ts):
+      // promotional prices, discounted checkouts and internal test subscriptions keep their amount.
       const { data: activeSubs } = await supabaseAdmin
         .from('subscriptions')
-        .select('id, mercado_pago_preapproval_id')
+        .select('id, mercado_pago_preapproval_id, amount')
         .eq('status', 'authorized')
         .not('mercado_pago_preapproval_id', 'is', null);
 
-      if (activeSubs && activeSubs.length > 0) {
-        for (const sub of activeSubs) {
-          try {
-            const mpRes = await fetch(`https://api.mercadopago.com/preapproval/${sub.mercado_pago_preapproval_id}`, {
-              method: 'PUT',
-              headers: {
-                'Authorization': `Bearer ${accessToken}`,
-                'Content-Type': 'application/json'
-              },
-              body: JSON.stringify({
-                auto_recurring: {
-                  transaction_amount: Number(new_price),
-                  currency_id: currency
-                }
-              })
-            });
+      const summary = await applyListPriceToExisting({
+        previousPrice: Number(previous_price),
+        newPrice: Number(new_price),
+        currency,
+        subscriptions: (activeSubs ?? []).map((sub) => ({
+          id: String(sub.id),
+          preapprovalId: String(sub.mercado_pago_preapproval_id),
+          localAmount: sub.amount,
+        })),
+        gateway: createMercadoPagoPriceGateway(accessToken as string),
+        onUpdated: async (subscriptionId, amount, subscriptionCurrency) => {
+          await supabaseAdmin
+            .from('subscriptions')
+            .update({ amount, currency: subscriptionCurrency, updated_at: new Date().toISOString() })
+            .eq('id', subscriptionId);
+        },
+      });
 
-            if (mpRes.ok) {
-              const mpData = await mpRes.json();
-              await supabaseAdmin
-                .from('subscriptions')
-                .update({
-                  amount: Number(new_price),
-                  currency: currency,
-                  raw_data: mpData,
-                  updated_at: new Date().toISOString()
-                })
-                .eq('id', sub.id);
-                
-              affected_subscriptions++;
-              raw_results.push({ id: sub.id, success: true });
-            } else {
-              failed_subscriptions++;
-              raw_results.push({ id: sub.id, success: false, status: mpRes.status });
-            }
-          } catch (e: any) {
-            failed_subscriptions++;
-            raw_results.push({ id: sub.id, success: false, error: e.message });
-          }
-        }
-      }
+      affected_subscriptions = summary.updated;
+      failed_subscriptions = summary.failed;
+      skipped_subscriptions = summary.skipped;
+      skipped_by_reason = summary.skippedByReason;
+      raw_results = summary.items;
     }
 
     const { error: historyError } = await supabaseAdmin.from('membership_price_history').insert({
@@ -149,6 +144,8 @@ export async function POST(request: Request) {
       apply_to_existing: Boolean(apply_to_existing),
       affected_subscriptions,
       failed_subscriptions,
+      skipped_subscriptions,
+      skipped_by_reason,
       results: raw_results
     });
 

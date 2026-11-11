@@ -130,6 +130,8 @@ export default function AdminMembresiaPage() {
           {success.apply_to_existing && (
             <ul className="list-disc list-inside ml-2">
               <li>Suscripciones actualizadas en Mercado Pago: {success.affected_subscriptions}</li>
+              <li>Omitidas (importe especial u otro motivo): {success.skipped_subscriptions ?? 0}</li>
+              <li>Con error: {success.failed_subscriptions ?? 0}</li>
             </ul>
           )}
         </div>
@@ -201,7 +203,7 @@ export default function AdminMembresiaPage() {
               />
               <div className="flex-1">
                 <span className="block text-sm font-semibold text-fg">Aplicar también a suscripciones activas existentes</span>
-                <span className="block text-xs text-gray-500 mt-1">Si está activado, Mercado Pago actualizará el monto del próximo cobro para todos los usuarios actuales.</span>
+                <span className="block text-xs text-gray-500 mt-1">Si está activado, solo se actualizan las suscripciones que hoy pagan exactamente el precio de lista anterior. Las que tienen un importe especial (promociones, descuentos o pruebas internas) no se modifican. Cuándo se aplica el nuevo importe en Mercado Pago no está confirmado.</span>
               </div>
             </label>
             
