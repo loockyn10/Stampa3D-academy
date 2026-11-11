@@ -209,6 +209,26 @@ Cambios de código (sin migration): hook `onPaymentsRecorded`, `create-subscript
 
 ---
 
+## 9b. Estado de M1 (2026-11-11): ESCRITA Y PROBADA, NO APLICADA
+
+Archivos: `supabase/migrations/20261111120000_pioneer_edition.sql`, `supabase/diagnostics/20261111_pioneer_m1_state.sql` (foto antes/después, solo lectura), `supabase/diagnostics/20261111_pioneer_m1_postcheck.sql` (verificación posterior, solo lectura), `tests/pioneer-migration.test.mjs` (estáticos) y `tests/pioneer-seats-db.test.mjs` (Postgres real descartable: concurrencia con conexiones simultáneas).
+
+**Decisiones comerciales confirmadas para M1:** 20 cupos; $9.900 × 6 ciclos; desde el 7.º, el regular aceptado al contratar; insignia permanente al confirmarse el primer pago; **cancelar pierde la promoción y el acceso anticipado** (el lugar y la insignia se conservan; el cupo confirmado no se libera); quien vuelve paga el regular; las herramientas de acceso anticipado las elige administración.
+
+**Diferencias respecto del diseño original (§4):**
+- `pioneer_members.benefits_ended_at / benefits_end_reason`: marcan el fin de beneficios por cancelación. **Reemplaza P-3**: el acceso anticipado ya **no** vuelve al resuscribirse (la nueva suscripción no está atada al lugar). `step_up_status` pasa a `void`.
+- `pioneer_edition.unpaid_hold_days` (11): retención de una suscripción autorizada sin primer cobro aprobado (MP reintenta ~10 días [D]).
+- `pioneer_seat_events`: bitácora append-only de cada transición.
+- `mark_pioneer_step_up` **no se incluye** (depende del spike); las columnas `step_up_*` ya existen y `sync_pioneer_seat` solo marca `due` / `void`. La función se agrega en una migration aditiva de la etapa 5.
+- Una sola función de sincronización, `sync_pioneer_seat(preapproval, estado_proveedor)`: confirma, extiende la retención, libera si MP canceló o termina beneficios. Todo se deriva de `payments`; el estado del proveedor nunca confirma.
+- Un pago aprobado tardío sobre un lugar ya liberado se recupera solo si hay número libre; si no, el lugar queda `released` con `release_reason = 'late_payment_no_seat'` y el pago se informa para resolución manual (el cupo **nunca** se supera). Mitigación prevista: cancelar en MP el preapproval antes de liberar (`release_expired_pioneer_holds` devuelve qué cancelar).
+
+**Verificación realizada (local, sin Supabase ni Mercado Pago):** 9 pruebas estáticas y 34 pruebas contra Postgres embebido (migración re-ejecutable, Fundadores y pruebas de $250 sin cambios, 40 reservas simultáneas → exactamente 20, misma persona ×12 → 1 lugar, 12 webhooks simultáneos → 1 confirmación, liberar vs. confirmar en carrera, pagos rechazados/pendientes/de otro importe, vencimiento, pago tardío, cancelación, permanencia, privilegios y RLS por rol). Una mutación (sin el lock) hace fallar las pruebas de concurrencia.
+
+**Para aplicar (cuando se autorice):** 1) ejecutar `…_pioneer_m1_state.sql` y guardar el resultado; 2) aplicar la migration; 3) volver a ejecutar `state` (filas `founder_*` y `subscriptions_at_250` idénticas) y `…_postcheck.sql` (todas `ok = true`). La configuración nace `enabled = false`, sin términos.
+
+---
+
 ## 10. Qué se hizo y qué no en esta etapa
 **Hecho (commits locales, sin push):** este informe (v3); la protección de `update-price` con 11 tests; el spike de MP, su runbook y el diagnóstico M0 (ya ejecutado por el usuario).
 **No se hizo:** ninguna migration aplicada; ningún registro de producción modificado (los 3 fundadores y las 2 suscripciones de $250 intactos); ningún precio cambiado; **ninguna llamada a Mercado Pago**; la promoción no está activada; la landing no cambió; sin push ni deploy.
