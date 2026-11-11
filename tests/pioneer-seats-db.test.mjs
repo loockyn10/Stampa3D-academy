@@ -46,6 +46,8 @@ insert into public.founder_pricing_tiers (from_number, to_number, price) values 
 `;
 const stateDiagnostic = fs.readFileSync(path.join(process.cwd(), "supabase/diagnostics/20261111_pioneer_m1_state.sql"), "utf8");
 const postCheck = fs.readFileSync(path.join(process.cwd(), "supabase/diagnostics/20261111_pioneer_m1_postcheck.sql"), "utf8");
+const compatCheck = fs.readFileSync(path.join(process.cwd(), "supabase/diagnostics/20261111_pioneer_m1_compat.sql"), "utf8");
+const dataShape = fs.readFileSync(path.join(process.cwd(), "supabase/diagnostics/20261111_pioneer_m1_data_shape.sql"), "utf8");
 async function readOnly(c, text) {
   await c.query("begin read only");
   try {
@@ -372,7 +374,7 @@ async function main() {
       const u = await newUser(c);
       await reserve(c, u);
       const s = await state(c);
-      assert.deepEqual(Object.keys(s).sort(), ["active", "available", "capacity", "currency", "enabled", "held", "hold_minutes", "price_cycles", "promo_price", "terms_version"]);
+      assert.deepEqual(Object.keys(s).sort(), ["active", "available", "capacity", "currency", "enabled", "held", "held_expired", "hold_minutes", "price_cycles", "promo_price", "terms_version"]);
       assert.equal(s.available, 19);
       await assert.rejects(c.query(`update public.pioneer_edition set capacity = 30`), /capacity_check|cannot change/);
       await assert.rejects(c.query(`update public.pioneer_edition set capacity = 10`), /cannot change while there are/);
@@ -564,23 +566,96 @@ async function main() {
       await c.end();
     });
 
-    await test("abandono: una reserva vencida sin pago se libera sola al reservar otro, y el job devuelve qué cancelar en MP", async () => {
+    await test("abandono: una reserva vencida SIN nada que MP pueda cobrar se libera sola; el resto espera la verificación", async () => {
       const c = await freshDb("pi_expiry");
       await c.query(`update public.pioneer_edition set capacity = 2`);
       const a = await newUser(c);
       const b = await newUser(c);
-      const boughtA = await buy(c, a);
-      await reserve(c, b);
+      const boughtA = await buy(c, a); // checkout creado en MP (preapproval pendiente de autorizar)
+      const resB = await reserve(c, b); // nunca llegó a Mercado Pago
       assert.equal((await reserve(c, await newUser(c))).status, "sold_out");
 
-      await c.query(`update public.pioneer_members set reservation_expires_at = now() - interval '1 minute' where user_id = $1`, [a]);
-      assert.equal((await state(c)).held, 1, "la reserva vencida deja de contar como retenida");
-      const swept = (await c.query(`select public.release_expired_pioneer_holds() as r`)).rows[0].r.released;
-      assert.equal(swept.length, 1);
-      assert.equal(swept[0].preapproval_id, boughtA.preapprovalId);
-      assert.equal((await seatOf(c, a)).release_reason, "expired");
-      assert.equal((await reserve(c, await newUser(c))).status, "reserved", "el cupo quedó libre");
+      await c.query(`update public.pioneer_members set reservation_expires_at = now() - interval '1 minute'`);
+      const s = await state(c);
+      assert.deepEqual([s.held, s.held_expired, s.available], [0, 2, 0], "vencidas sin resolver siguen ocupando");
+      const job = (await c.query(`select public.release_expired_pioneer_holds() as r`)).rows[0].r;
+      assert.deepEqual(job.released.map((x) => x.seat_id), [resB.seat_id], "solo la que nunca llegó a MP");
+      assert.equal(job.needs_provider_check.length, 1);
+      assert.equal(job.needs_provider_check[0].preapproval_id, boughtA.preapprovalId);
+      assert.equal(job.needs_provider_check[0].local_subscription_status, "pending");
+      assert.equal((await seatOf(c, b)).release_reason, "expired");
+      assert.equal((await seatOf(c, a)).status, "reserved", "una suscripción pendiente todavía puede ser autorizada y cobrada");
+
+      assert.equal((await reserve(c, await newUser(c))).status, "reserved", "el cupo de la que nunca llegó a MP quedó libre");
+      const full = await reserve(c, await newUser(c));
+      assert.equal(full.status, "sold_out");
+      assert.equal(full.needs_provider_check, 1, "avisa que hay una verificación pendiente con MP");
+      assert.equal((await c.query(`select public.release_pioneer_seat($1,'checkout_abandoned',$2) as r`, [(await seatOf(c, a)).id, a])).rows[0].r.status, "chargeable");
+
+      // El servidor verifica en MP, la cancela y sincroniza 'cancelled': recién ahí se libera.
+      const r = await sync(c, boughtA.preapprovalId, "cancelled");
+      assert.equal(r.event, "released");
+      assert.equal((await seatOf(c, a)).release_reason, "provider_cancelled");
+      assert.equal((await reserve(c, await newUser(c))).status, "reserved");
       assert.deepEqual((await c.query(`select public.release_expired_pioneer_holds() as r`)).rows[0].r.released, [], "idempotente");
+      await c.end();
+    });
+
+    await test("pagos tardíos: una suscripción autorizada, pendiente o con el checkout en curso NUNCA se libera por vencimiento", async () => {
+      const c = await freshDb("pi_chargeable");
+      const expireAll = () => c.query(`update public.pioneer_members set reservation_expires_at = now() - interval '1 hour' where status = 'reserved'`);
+      const job = async () => (await c.query(`select public.release_expired_pioneer_holds() as r`)).rows[0].r;
+
+      // 1) Autorizada sin cobro aprobado todavía (MP reintenta durante días).
+      const authorized = await newUser(c);
+      const boughtAuthorized = await buy(c, authorized);
+      await c.query(`update public.subscriptions set status='authorized' where mercado_pago_preapproval_id=$1`, [boughtAuthorized.preapprovalId]);
+      // 2) Checkout en curso: la llamada a MP no terminó (preapproval todavía desconocido).
+      const inFlight = await newUser(c);
+      const resInFlight = await reserve(c, inFlight);
+      const begin = (await c.query(`select public.begin_membership_checkout($1,$2,9900,'ARS','p@x.test','Membresía','https://x.test/back') as r`, [inFlight, "71000000-0000-4000-8000-000000000001"])).rows[0].r;
+      assert.equal((await c.query(`select public.attach_pioneer_seat($1,$2,$3) as r`, [inFlight, resInFlight.seat_id, begin.attempt_id])).rows[0].r.status, "attached");
+      // 3) Preapproval cancelado en MP: ya no puede cobrar.
+      const cancelled = await newUser(c);
+      const boughtCancelled = await buy(c, cancelled);
+      await c.query(`update public.subscriptions set status='cancelled' where mercado_pago_preapproval_id=$1`, [boughtCancelled.preapprovalId]);
+      // 4) Sin fila local para el preapproval: no se sabe -> se asume que puede cobrar.
+      const unknown = await newUser(c);
+      const boughtUnknown = await buy(c, unknown);
+      await c.query(`update public.subscriptions set mercado_pago_preapproval_id = null where mercado_pago_preapproval_id=$1`, [boughtUnknown.preapprovalId]);
+
+      await expireAll();
+      const result = await job();
+      assert.deepEqual(result.released.map((x) => x.seat_id), [(await seatOf(c, cancelled)).id], "solo la cancelada se libera");
+      const pending = result.needs_provider_check;
+      assert.equal(pending.length, 3);
+      assert.deepEqual(pending.map((x) => x.local_subscription_status ?? "none").sort(), ["authorized", "none", "none"]);
+      for (const uid of [authorized, inFlight, unknown]) assert.equal((await seatOf(c, uid)).status, "reserved");
+      assert.ok(pending.some((x) => x.attempt_state === "creating"), "el checkout en curso figura para verificar");
+
+      // Ni el barrido de otra reserva ni la liberación manual las sueltan.
+      await reserve(c, await newUser(c));
+      for (const uid of [authorized, inFlight, unknown]) {
+        const seat = await seatOf(c, uid);
+        assert.equal(seat.status, "reserved");
+        assert.equal((await c.query(`select public.release_pioneer_seat($1,'manual_check') as r`, [seat.id])).rows[0].r.status, "chargeable");
+      }
+
+      // La autorizada: MP todavía puede cobrar -> el servidor extiende la retención, no la cancela.
+      const kept = await sync(c, boughtAuthorized.preapprovalId, "authorized");
+      assert.equal(kept.event, "hold_extended");
+      assert.equal((await job()).needs_provider_check.some((x) => x.preapproval_id === boughtAuthorized.preapprovalId), false);
+      // ...y cuando MP cobra, se confirma con el número original.
+      await pay(c, boughtAuthorized.preapprovalId);
+      const confirmed = await sync(c, boughtAuthorized.preapprovalId, "authorized");
+      assert.equal(confirmed.status, "active");
+      assert.equal(confirmed.pioneer_number, boughtAuthorized.number);
+
+      // Un intento de checkout cerrado (error del proveedor definitivo) sí deja de poder cobrar.
+      await c.query(`update public.checkout_attempts set state='closed', closed_at=now() where id=$1`, [begin.attempt_id]);
+      await expireAll();
+      const after = await job();
+      assert.ok(after.released.some((x) => x.seat_id === resInFlight.seat_id));
       await c.end();
     });
 
@@ -599,13 +674,15 @@ async function main() {
       await c.end();
     });
 
-    await test("pago tardío: el lugar vencido se recupera si el número sigue libre; si está tomado y no queda cupo, NO se supera la capacidad", async () => {
+    await test("red de seguridad ante una liberación equivocada (error operativo): el pago aprobado recupera el lugar si el número sigue libre; si no, NO se supera la capacidad", async () => {
       const c = await freshDb("pi_late");
       await c.query(`update public.pioneer_edition set capacity = 2`);
+      // Simula un error operativo: alguien con SQL libera un lugar cuya suscripción sigue viva en MP.
+      const forceRelease = (uid) =>
+        c.query(`update public.pioneer_members set status='released', released_at=now(), release_reason='manual_error' where user_id=$1 and status='reserved'`, [uid]);
       const a = await newUser(c);
       const boughtA = await buy(c, a);
-      await c.query(`update public.pioneer_members set reservation_expires_at = now() - interval '1 minute' where user_id = $1`, [a]);
-      await c.query(`select public.release_expired_pioneer_holds()`);
+      await forceRelease(a);
       assert.equal((await seatOf(c, a)).status, "released");
 
       // Caso 1: nadie tomó el número -> se recupera el mismo.
@@ -618,8 +695,7 @@ async function main() {
       // Caso 2: otro tomó el lugar y se agotó; el pago tardío de un segundo comprador no puede ocupar un 3.º.
       const b = await newUser(c);
       const boughtB = await buy(c, b);
-      await c.query(`update public.pioneer_members set reservation_expires_at = now() - interval '1 minute' where user_id = $1`, [b]);
-      await c.query(`select public.release_expired_pioneer_holds()`);
+      await forceRelease(b);
       const x = await newUser(c);
       assert.equal((await reserve(c, x)).status, "reserved");
       await pay(c, boughtB.preapprovalId);
@@ -860,6 +936,71 @@ async function main() {
         assert.equal(seat.release_reason, null);
       }
       await c.end();
+    });
+
+    await test("compatibilidad: una base con la forma esperada no da ningún MISMATCH; una con tipos, columnas o permisos distintos sí", async () => {
+      const c = await createDb("pi_compat_ok");
+      const rows = await readOnly(c, compatCheck);
+      assert.deepEqual(rows.filter((r) => r.status === "MISMATCH"), [], "base conforme");
+      assert.ok(rows.filter((r) => r.status === "ok").length >= 30);
+      assert.ok(rows.some((r) => r.area === "relaciones" && r.status === "info"), "informa reglas de borrado");
+
+      // Después de aplicar M1 los nombres aparecen como informativos, sin romper nada.
+      await c.query(pioneerMigration);
+      const after = await readOnly(c, compatCheck);
+      assert.deepEqual(after.filter((r) => r.status === "MISMATCH"), []);
+      assert.ok(after.some((r) => r.area === "nombres" && r.name.includes("pioneer_members")));
+      await c.end();
+
+      // Forma distinta: importe como texto, subscription_id como texto, sin paid_at y sin user_id de Fundadores.
+      const d = await createDb("pi_compat_bad");
+      await d.query(`alter table public.payments drop constraint payments_subscription_id_fkey`);
+      await d.query(`alter table public.payments alter column subscription_id type text using subscription_id::text`);
+      await d.query(`alter table public.payments alter column amount type text using amount::text`);
+      await d.query(`alter table public.payments drop column paid_at`);
+      await d.query(`alter table public.founder_members rename column user_id to owner_id`);
+      const bad = (await readOnly(d, compatCheck)).filter((r) => r.status === "MISMATCH").map((r) => `${r.name}=${r.actual}`);
+      assert.ok(bad.includes("public.payments.subscription_id=INCOMPATIBLE (text)"), bad.join(" | "));
+      assert.ok(bad.includes("public.payments.amount=INCOMPATIBLE (text)"), bad.join(" | "));
+      assert.ok(bad.includes("public.payments.paid_at=FALTA la columna"), bad.join(" | "));
+      assert.ok(bad.includes("public.founder_members.user_id=FALTA la columna"), bad.join(" | "));
+      await d.end();
+
+      // Un rol sin privilegios (como el dueño equivocado de las funciones) no podría leer las tablas.
+      const e = await createDb("pi_compat_role");
+      await e.query(`create role pi_migrator nologin; grant usage on schema public, auth to pi_migrator`);
+      await e.query(`set role pi_migrator`);
+      const weak = (await readOnly(e, compatCheck)).filter((r) => r.status === "MISMATCH").map((r) => r.name);
+      await e.query(`reset role`);
+      assert.ok(weak.includes("el dueño lee todas las filas de payments"), weak.join(" | "));
+      assert.ok(weak.includes("el dueño lee todas las filas de founder_members"), weak.join(" | "));
+      await e.end();
+    });
+
+    await test("forma de los datos: solo conteos y valores de catálogo, sin datos personales; detecta estados que M1 no reconocería", async () => {
+      const c = await createDb("pi_shape");
+      const u = await newUser(c);
+      const t = await checkout(c, u, 19900, { subscriptionStatus: "authorized" });
+      await pay(c, t.preapprovalId, { amount: 19900 });
+      await pay(c, t.preapprovalId, { status: "Approved", amount: 19900 }); // variante que M1 no reconocería
+      await c.query(`update public.payments set user_id = null where id = (select id from public.payments order by id limit 1)`);
+      const rows = await readOnly(c, dataShape);
+      const find = (area) => rows.filter((r) => r.area.startsWith(area));
+      assert.ok(find("payments.status").length >= 2);
+      assert.equal(find("payments.status: variantes")[0].value, "Approved");
+      assert.ok(Number(find("payments approved sin user_id")[0].n) >= 1);
+      const text = JSON.stringify(rows);
+      assert.ok(!text.includes(u) && !text.includes(t.preapprovalId) && !text.includes("@"), "no imprime ids, preapprovals ni correos");
+      await c.end();
+    });
+
+    await test("los diagnósticos de compatibilidad y forma de datos son solo SELECT y se pueden correr en transacción de solo lectura", async () => {
+      for (const file of [compatCheck, dataShape]) {
+        const executable = file.replace(/--.*$/gm, "").replace(/'[^']*'/g, "''");
+        assert.ok(!/\b(insert|update|delete|drop|alter|create|truncate|grant|revoke)\b/i.test(executable), "solo SELECT");
+        assert.ok(/^\s*(with|select)\b/i.test(executable));
+      }
+      assert.ok(!/\bpayments\b[^;]*\b(email|payer_email|raw_data)\b/i.test(dataShape), "no toca columnas personales");
     });
 
     await test("diagnóstico M1: el estado de antes y después es idéntico para Fundadores y pruebas de $250, y la verificación posterior da todo OK", async () => {

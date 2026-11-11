@@ -14,6 +14,7 @@ with fns(name, signature, callable) as (
     ('_pioneer_lock', 'public._pioneer_lock()', false),
     ('_pioneer_log', 'public._pioneer_log(uuid,text,jsonb)', false),
     ('_pioneer_qualifying_payments', 'public._pioneer_qualifying_payments(uuid)', false),
+    ('_pioneer_seat_chargeable', 'public._pioneer_seat_chargeable(uuid)', false),
     ('_pioneer_sweep_expired', 'public._pioneer_sweep_expired()', false)
 ),
 roles(role) as (values ('anon'), ('authenticated'), ('service_role')),

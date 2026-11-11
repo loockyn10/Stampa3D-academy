@@ -393,8 +393,40 @@ as $$
     and round(p.amount::numeric, 2) = m.locked_price
 $$;
 
--- Libera las reservas vencidas SIN pago verificado (un lugar con pago aprobado espera a sync_pioneer_seat).
--- Devuelve las liberadas con su preapproval para que el job las cancele en Mercado Pago.
+-- ¿Mercado Pago todavía podría cobrar algo vinculado a este lugar? Regla conservadora: SÍ, salvo que se sepa que no.
+--   * La llamada de checkout a MP puede seguir en curso (intento 'creating' / 'reconciliation_required'): resultado
+--     desconocido -> puede cobrar.
+--   * Hay un preapproval (del lugar o del intento) cuya suscripción local NO figura cancelada -> puede cobrar. Un
+--     preapproval pendiente todavía puede ser autorizado por la persona; uno autorizado se cobra solo; sin fila
+--     local no se sabe -> se asume que puede cobrar.
+-- Un lugar sin preapproval ni intento vigente (nunca se llegó a MP) o con todas sus suscripciones canceladas NO puede
+-- cobrar. La cancelación en MP es terminal: no se reactiva.
+create or replace function public._pioneer_seat_chargeable(p_seat_id uuid)
+returns boolean
+language sql
+stable
+set search_path = public, pg_temp
+as $$
+  select coalesce((
+    select coalesce(a.state in ('creating', 'reconciliation_required'), false)
+      or exists (
+        select 1
+        from (select m.mercado_pago_preapproval_id as pid union select a.mercado_pago_preapproval_id) ids
+        where ids.pid is not null
+          and not exists (
+            select 1 from public.subscriptions s
+            where s.mercado_pago_preapproval_id = ids.pid and lower(coalesce(s.status::text, '')) in ('cancelled', 'canceled')
+          )
+      )
+    from public.pioneer_members m
+    left join public.checkout_attempts a on a.id = m.checkout_attempt_id
+    where m.id = p_seat_id
+  ), false)
+$$;
+
+-- Libera las reservas vencidas que NO tienen pago verificado Y NO pueden ser cobradas por Mercado Pago. Un lugar
+-- vencido cuya suscripción MP todavía podría cobrar NO se libera aquí: sigue ocupando su número hasta que el servidor
+-- verifique en MP y lo cancele (sync_pioneer_seat con 'cancelled') o MP lo cobre (se confirma). Devuelve las liberadas.
 create or replace function public._pioneer_sweep_expired()
 returns jsonb
 language plpgsql
@@ -409,6 +441,7 @@ begin
     where m.status = 'reserved'
       and m.reservation_expires_at <= now()
       and not exists (select 1 from public._pioneer_qualifying_payments(m.id))
+      and not public._pioneer_seat_chargeable(m.id)
     returning m.id, m.mercado_pago_preapproval_id
   ), logged as (
     insert into public.pioneer_seat_events (seat_id, event, detail)
@@ -437,6 +470,7 @@ declare
   v_ed public.pioneer_edition%rowtype;
   v_active integer;
   v_held integer;
+  v_unresolved integer;
 begin
   select * into v_ed from public.pioneer_edition where id = 'default';
   if not found then
@@ -445,13 +479,16 @@ begin
 
   select count(*) into v_active from public.pioneer_members where status = 'active';
   select count(*) into v_held from public.pioneer_members where status = 'reserved' and reservation_expires_at > now();
+  -- Vencidos que siguen ocupando número porque MP todavía podría cobrarlos (o esperan al barrido): no están disponibles.
+  select count(*) into v_unresolved from public.pioneer_members where status = 'reserved' and reservation_expires_at <= now();
 
   return jsonb_build_object(
     'enabled', v_ed.enabled,
     'capacity', v_ed.capacity,
     'active', v_active,
     'held', v_held,
-    'available', greatest(v_ed.capacity - v_active - v_held, 0),
+    'held_expired', v_unresolved,
+    'available', greatest(v_ed.capacity - v_active - v_held - v_unresolved, 0),
     'promo_price', v_ed.promo_price,
     'currency', v_ed.currency,
     'price_cycles', v_ed.price_cycles,
@@ -575,7 +612,12 @@ begin
 
   select count(*) into v_occupied from public.pioneer_members where status in ('reserved', 'active');
   if v_occupied >= v_ed.capacity then
-    return jsonb_build_object('status', 'sold_out');
+    -- needs_provider_check > 0: hay reservas vencidas que MP todavía podría cobrar; el servidor puede verificarlas
+    -- (cancelar en MP las pendientes y sincronizar) y reintentar. No se liberan por su cuenta.
+    return jsonb_build_object(
+      'status', 'sold_out',
+      'needs_provider_check', (select count(*) from public.pioneer_members where status = 'reserved' and reservation_expires_at <= v_now)
+    );
   end if;
 
   select min(g) into v_number
@@ -782,8 +824,11 @@ begin
 
   elsif v_seat.status = 'released' then
     if v_paid > 0 then
-      -- Pago verificado de un lugar ya liberado (retención vencida y pago tardío): se recupera solo si hay un
-      -- número libre y la persona no ocupa otro lugar. Nunca se supera la capacidad.
+      -- RED DE SEGURIDAD, no camino normal: un lugar solo se libera si Mercado Pago ya no puede cobrarlo (sin
+      -- preapproval vigente o suscripción cancelada, que es terminal), así que un pago aprobado sobre un lugar
+      -- liberado solo puede venir de un error operativo (liberación manual o estado de proveedor equivocado).
+      -- Si pasa, se recupera solo si hay un número libre y la persona no ocupa otro lugar. Nunca se supera la
+      -- capacidad; si no se puede, queda marcado 'late_payment_no_seat' para resolución manual.
       v_number := null;
       if v_seat.user_id is not null
          and not exists (
@@ -899,6 +944,12 @@ begin
     return jsonb_build_object('status', 'paid');
   end if;
 
+  -- Nunca se libera un lugar cuya suscripción Mercado Pago todavía podría cobrar: primero hay que cancelarla en MP y
+  -- sincronizar con estado 'cancelled' (sync_pioneer_seat), o dejar que MP la cobre y se confirme.
+  if public._pioneer_seat_chargeable(v_seat.id) then
+    return jsonb_build_object('status', 'chargeable');
+  end if;
+
   update public.pioneer_members
   set status = 'released', released_at = now(), release_reason = p_reason
   where id = v_seat.id;
@@ -908,17 +959,43 @@ begin
 end;
 $$;
 
--- release_expired_pioneer_holds: para el job periódico. Devuelve los lugares liberados con su preapproval para que
--- el servidor cancele en Mercado Pago los checkouts que nunca se autorizaron.
+-- release_expired_pioneer_holds: para el job periódico. 'released' = vencidas sin pago y sin posibilidad de cobro
+-- (ya liberadas). 'needs_provider_check' = vencidas que MP todavía podría cobrar: SIGUEN ocupando su número; el
+-- servidor debe consultar su estado en Mercado Pago y, según corresponda:
+--   pending    -> cancelarla en MP y luego sync_pioneer_seat(preapproval, 'cancelled') (libera);
+--   authorized -> dejarla: sync_pioneer_seat(preapproval, 'authorized') extiende la retención y MP puede cobrar;
+--   cancelled  -> sync_pioneer_seat(preapproval, 'cancelled') (libera).
 create or replace function public.release_expired_pioneer_holds()
 returns jsonb
 language plpgsql
 security definer
 set search_path = public, pg_temp
 as $$
+declare
+  v_released jsonb;
+  v_pending jsonb;
 begin
   perform public._pioneer_lock();
-  return jsonb_build_object('released', public._pioneer_sweep_expired());
+  v_released := public._pioneer_sweep_expired();
+
+  select coalesce(jsonb_agg(jsonb_build_object(
+    'seat_id', m.id,
+    'preapproval_id', coalesce(m.mercado_pago_preapproval_id, a.mercado_pago_preapproval_id),
+    'attempt_state', a.state,
+    'local_subscription_status', (
+      select s.status from public.subscriptions s
+      where s.mercado_pago_preapproval_id = coalesce(m.mercado_pago_preapproval_id, a.mercado_pago_preapproval_id)
+      limit 1
+    )
+  ) order by m.pioneer_number), '[]'::jsonb)
+  into v_pending
+  from public.pioneer_members m
+  left join public.checkout_attempts a on a.id = m.checkout_attempt_id
+  where m.status = 'reserved'
+    and m.reservation_expires_at <= now()
+    and not exists (select 1 from public._pioneer_qualifying_payments(m.id));
+
+  return jsonb_build_object('released', v_released, 'needs_provider_check', v_pending);
 end;
 $$;
 
@@ -947,6 +1024,7 @@ $$;
 revoke all on function public._pioneer_lock() from public, anon, authenticated, service_role;
 revoke all on function public._pioneer_log(uuid, text, jsonb) from public, anon, authenticated, service_role;
 revoke all on function public._pioneer_qualifying_payments(uuid) from public, anon, authenticated, service_role;
+revoke all on function public._pioneer_seat_chargeable(uuid) from public, anon, authenticated, service_role;
 revoke all on function public._pioneer_sweep_expired() from public, anon, authenticated, service_role;
 
 revoke all on function public.pioneer_offer_state() from public, anon, authenticated;

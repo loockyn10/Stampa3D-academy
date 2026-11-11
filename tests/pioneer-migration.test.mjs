@@ -122,7 +122,7 @@ test("seguridad de funciones: search_path fijo, EXECUTE solo para service_role y
     assert.ok(new RegExp(`revoke all on function public\\.${escaped} from public, anon, authenticated`).test(code), `revoke ${signature}`);
     assert.ok(new RegExp(`grant execute on function public\\.${escaped} to service_role`).test(code), `grant ${signature}`);
   }
-  for (const internal of ["_pioneer_lock()", "_pioneer_log(uuid, text, jsonb)", "_pioneer_qualifying_payments(uuid)", "_pioneer_sweep_expired()"]) {
+  for (const internal of ["_pioneer_lock()", "_pioneer_log(uuid, text, jsonb)", "_pioneer_qualifying_payments(uuid)", "_pioneer_seat_chargeable(uuid)", "_pioneer_sweep_expired()"]) {
     const escaped = internal.replace(/[()]/g, "\\$&");
     assert.ok(new RegExp(`revoke all on function public\\.${escaped} from public, anon, authenticated, service_role`).test(code), `internal ${internal}`);
   }
@@ -145,6 +145,19 @@ test("la elegibilidad excluye Fundadores, cobros previos y suscripciones vivas; 
   assert.ok(/'authorized', 'active', 'paused'/.test(reserve));
   assert.ok(/status', 'sold_out'/.test(reserve));
   assert.ok(/for update/.test(reserve));
+});
+
+test("pagos tardíos: ninguna ruta libera un lugar sin comprobar que Mercado Pago ya no puede cobrarlo", () => {
+  assert.ok(/create or replace function public\._pioneer_seat_chargeable/.test(code));
+  const sweep = /create or replace function public\._pioneer_sweep_expired[\s\S]*?\n\$\$;/.exec(code)[0];
+  assert.ok(/not public\._pioneer_seat_chargeable\(m\.id\)/.test(sweep), "el barrido respeta el chequeo");
+  assert.ok(/not exists \(select 1 from public\._pioneer_qualifying_payments\(m\.id\)\)/.test(sweep));
+  const release = /create or replace function public\.release_pioneer_seat[\s\S]*?\n\$\$;/.exec(code)[0];
+  assert.ok(/_pioneer_seat_chargeable\(v_seat\.id\)/.test(release) && /'chargeable'/.test(release));
+  // Las únicas escrituras que pasan un lugar reservado a 'released' son: barrido, release_pioneer_seat (ambos con el
+  // chequeo), 'superseded' (sin checkout ni preapproval adjuntos) y sync con estado 'cancelled' informado por el servidor.
+  const releases = [...code.matchAll(/set status = 'released'/g)].length;
+  assert.equal(releases, 4, "no agregar nuevas rutas de liberación sin revisar este test");
 });
 
 test("no hay precios, ciclos ni importes escritos en funciones: todo sale de pioneer_edition", () => {
