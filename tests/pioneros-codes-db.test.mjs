@@ -176,6 +176,82 @@ async function main() {
       assert.doesNotMatch(code, /\b(insert|update|delete|drop|alter|create|truncate|grant|revoke)\b/i);
     });
 
+    await t("checkout-test diagnostic: read-only; a full test purchase leaves everyone else's rows untouched, and it DETECTS interference", async () => {
+      const state = fs.readFileSync(path.join(process.cwd(), "supabase/diagnostics/20261111_discount_checkout_test_state.sql"), "utf8");
+      const s = await freshDb("pc_state", { discount: true, consistency: true });
+      await s.query(`
+        create table public.payments (id uuid primary key default gen_random_uuid(), user_id uuid, subscription_id uuid, status text, amount numeric, currency text, created_at timestamptz default now());
+        create table public.profiles (id uuid primary key, membership_status text, membership_expires_at timestamptz, membership_started_at timestamptz);
+        create table public.mercado_pago_webhook_events (id uuid primary key default gen_random_uuid(), event_type text, processed boolean default false, created_at timestamptz default now());`);
+      // Everyone else: two real-looking members and a pending checkout, before the test starts.
+      const [m1, m2, pending] = [await newUser(s), await newUser(s), await newUser(s)];
+      for (const [u, amount] of [[m1, 19900], [m2, 250]]) {
+        await s.query(`insert into public.subscriptions (user_id, mercado_pago_preapproval_id, status, amount, currency) values ($1,$2,'authorized',$3,'ARS')`, [u, `pre_other_${amount}`, amount]);
+        await s.query(`insert into public.profiles (id, membership_status, membership_started_at) values ($1,'active', now() - interval '30 days')`, [u]);
+      }
+      await db.checkout(s, pending, 19900);
+      await insertCode(s, "PRECIO-PRUEBA-X1", { code_type: "fixed_price", discount_value: PROMO_PRICE, max_uses: 1 });
+      await insertCode(s, "OTRO-CODIGO", { code_type: "discount_percent", discount_value: 10 });
+      const tester = (await s.query(`insert into auth.users (email) values ('Prueba.Pioneros@example.test') returning id`)).rows[0].id;
+      const t0 = (await s.query(`select now() as t`)).rows[0].t.toISOString();
+
+      const run = async () => {
+        const sql = state
+          .replace("'EDITAR-correo-de-la-cuenta-de-prueba'", "'prueba.pioneros@example.test'")
+          .replace("'EDITAR-codigo-de-prueba'", "'precio-prueba-x1'")
+          .replace("'2000-01-01 00:00:00-03'", `'${t0}'`);
+        await s.query("begin read only");
+        try {
+          return (await s.query(sql)).rows;
+        } finally {
+          await s.query("rollback");
+        }
+      };
+      const pick = (rows, section, item) => rows.find((r) => r.section === section && r.item.startsWith(item))?.detail;
+      const fingerprints = (rows) => rows.filter((r) => r.section === "4_FINGERPRINT_OTHERS").map((r) => `${r.item}=${r.detail}`).join("\n");
+
+      const before = await run();
+      assert.equal(pick(before, "0_PARAMS", "test user found"), "1");
+      assert.equal(pick(before, "0_PARAMS", "test code found"), "1");
+      assert.equal(pick(before, "0_PARAMS", "t0 set"), "true");
+      assert.equal(pick(before, "1_TEST_USER", "subscriptions"), "(none)");
+
+      // The test purchase: reserve -> checkout at 9900 -> Mercado Pago authorizes -> first payment approved.
+      const { attempt } = await db.buyWithCode(s, tester, "PRECIO-PRUEBA-X1");
+      assert.equal((await db.confirm(s, attempt.preapprovalId)).status, "confirmed");
+      await s.query(`insert into public.payments (user_id, status, amount, currency) values ($1,'approved',9900,'ARS')`, [tester]);
+      await s.query(`insert into public.profiles (id, membership_status, membership_started_at, membership_expires_at) values ($1,'active', now(), now() + interval '33 days')`, [tester]);
+
+      const after = await run();
+      assert.match(pick(after, "1_TEST_USER", "subscriptions"), /pending amount=9900(\.00)? ARS/);
+      assert.match(pick(after, "1_TEST_USER", "checkout attempts"), /completed amount=9900\.00 ARS/);
+      assert.match(pick(after, "1_TEST_USER", "payments"), /approved amount=9900 ARS/);
+      assert.match(pick(after, "1_TEST_USER", "discount reservations"), /confirmed base=19900\.00 final=9900\.00/);
+      assert.match(pick(after, "2_TEST_CODE", "code row"), /used_count=1/);
+      assert.equal(pick(after, "2_TEST_CODE", "redemptions"), "1");
+      for (const item of ["subscriptions updated", "payments created", "checkout attempts updated", "discount reservations", "code redemptions", "profiles whose membership started"]) {
+        assert.equal(pick(after, "3_OTHERS_TOUCHED_SINCE_T0", item), "0", item);
+      }
+      assert.equal(pick(after, "3_OTHERS_TOUCHED_SINCE_T0", "other codes with uses"), pick(before, "3_OTHERS_TOUCHED_SINCE_T0", "other codes with uses"));
+      assert.equal(fingerprints(after), fingerprints(before), "everyone else is byte-for-byte unchanged");
+      assert.match(fingerprints(after), /19900 x1, 250 x1/);
+
+      // The diagnostic must notice interference: another member's subscription changes during the test.
+      await s.query(`update public.subscriptions set status='cancelled', amount=9900, updated_at=now() where user_id=$1`, [m1]);
+      const touched = await run();
+      assert.equal(pick(touched, "3_OTHERS_TOUCHED_SINCE_T0", "subscriptions updated"), "1");
+      assert.notEqual(fingerprints(touched), fingerprints(before));
+      // Wrong parameters are visible, not silent.
+      const lost = (await s.query(state)).rows;
+      assert.equal(pick(lost, "0_PARAMS", "test user found"), "0");
+      assert.equal(pick(lost, "0_PARAMS", "t0 set"), "false");
+      // Single read-only SELECT, no code printed, no e-mail printed.
+      assert.doesNotMatch(JSON.stringify(after), /PRECIO-PRUEBA|example\.test/i);
+      const code = state.replace(/--.*$/gm, "").replace(/'[^']*'/g, "''");
+      assert.doesNotMatch(code, /\b(insert|update|delete|drop|alter|create|truncate|grant|revoke)\b/i);
+      await s.end();
+    });
+
     await t("the promo never touches existing codes, subscriptions or the list price", async () => {
       const before = (await c.query(`select count(*)::int n from public.invite_codes`)).rows[0].n;
       await reserve(c, await newUser(c), codeOf(1), { dryRun: true });

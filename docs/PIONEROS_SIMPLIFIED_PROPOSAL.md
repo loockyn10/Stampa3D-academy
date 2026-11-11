@@ -70,7 +70,7 @@ Con las dos migrations aplicadas, el escenario del lanzamiento (20 códigos `fix
 
 1. ~~Diagnóstico de solo lectura de descuentos~~ **Hecho 2026-11-11:** migrations aplicadas; 3 códigos de prueba activos. Queda confirmar el estado del interruptor `DISCOUNT_CODES_ENABLED` en el hosting.
 2. **Spike de Mercado Pago** (cuentas de prueba): validar el cambio de monto $9.900 → $19.900 (camino B) y, si es posible, el A. **Es la puerta del lanzamiento**: sin saber cómo se pasa al regular no se promete «6 meses y luego regular».
-3. **QA del checkout con descuento con cuentas de prueba** en un entorno con credenciales de prueba (la producción usa las reales): el monto de la preapproval, el consumo del uso, la renovación y los casos abandonado/cancelado.
+3. **QA del checkout con descuento.** Decisión 2026-11-11: sin cuentas de prueba del spike; se prueba en producción con **un cobro real de $9.900** (cuenta propia, luego cancelada y reembolsada), con el interruptor encendido solo durante la prueba. Runbook con puertas de autorización y verificaciones de que no se afecta a otras suscripciones: `docs/PIONEROS_CHECKOUT_TEST_RUNBOOK.md`. No prueba la renovación ni el paso a $19.900.
 4. (Migrations ya aplicadas.) Auditar/desactivar los 3 códigos existentes y activar `DISCOUNT_CODES_ENABLED` solo después, y solo tras el QA del paso 3.
 5. Crear los códigos (`fixed_price` 9900, `max_uses` 1 × 20, o 1 × 20 usos), la insignia y la planilla de control; texto de la oferta aprobado por el asesor legal; copy de la landing sin contadores.
 6. Operación: avisar a cada Pionero ~30 días antes del 7.º cobro y aplicar el paso al regular según lo validado.
