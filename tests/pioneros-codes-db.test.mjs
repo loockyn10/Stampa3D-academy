@@ -29,6 +29,8 @@ let server;
 
 const SEATS = 20;
 const PROMO_PRICE = 9900;
+/** Price of the single-use code of the controlled test purchase (docs/PIONEROS_CHECKOUT_TEST_RUNBOOK.md). */
+const CONTROLLED_PRICE = 250;
 const codeOf = (i) => `PIONERO-TEST-${String(i).padStart(2, "0")}`;
 
 async function main() {
@@ -176,7 +178,37 @@ async function main() {
       assert.doesNotMatch(code, /\b(insert|update|delete|drop|alter|create|truncate|grant|revoke)\b/i);
     });
 
-    await t("checkout-test diagnostic: read-only; a full test purchase leaves everyone else's rows untouched, and it DETECTS interference", async () => {
+    await t("controlled test purchase at 250: previewed, reserved, billed and confirmed at 250 with a single use", async () => {
+      const f = async (type, value, base) =>
+        (await c.query(`select public.discount_code_final_amount($1,$2::numeric,$3::numeric) as v`, [type, value, base])).rows[0].v;
+      assert.equal(await f("fixed_price", CONTROLLED_PRICE, 19900), "250.00");
+      // Not a discount when the list price is not above the code price.
+      assert.equal(await f("fixed_price", CONTROLLED_PRICE, 250), null);
+      assert.equal(await f("fixed_price", CONTROLLED_PRICE, 200), null);
+
+      await insertCode(c, "PRECIO-CONTROL-250", { code_type: "fixed_price", discount_value: CONTROLLED_PRICE, max_uses: 1 });
+      const [buyer, other] = [await newUser(c), await newUser(c)];
+      const preview = await reserve(c, buyer, "precio-control-250", { dryRun: true });
+      assert.equal(preview.status, "ok");
+      assert.equal(Number(preview.final_amount), CONTROLLED_PRICE);
+      assert.equal(Number(preview.discount_amount), BASE - CONTROLLED_PRICE);
+      assert.equal((await reservationRows(c, buyer)).length, 0, "the preview reserves nothing and calls nobody");
+      assert.equal(await usedCount(c, "PRECIO-CONTROL-250"), 0);
+
+      const { reservation, attempt } = await buyWithCode(c, buyer, "PRECIO-CONTROL-250");
+      assert.equal(Number(reservation.final_amount), CONTROLLED_PRICE);
+      assert.equal(Number((await c.query(`select amount from public.checkout_attempts where id=$1`, [attempt.attemptId])).rows[0].amount), CONTROLLED_PRICE);
+      assert.equal(Number((await c.query(`select amount from public.subscriptions where mercado_pago_preapproval_id=$1`, [attempt.preapprovalId])).rows[0].amount), CONTROLLED_PRICE);
+      assert.equal(await usedCount(c, "PRECIO-CONTROL-250"), 0, "nothing is spent until Mercado Pago authorizes");
+      assert.equal((await reserve(c, other, "PRECIO-CONTROL-250")).status, "exhausted", "the open checkout holds the only use");
+
+      assert.equal((await confirm(c, attempt.preapprovalId)).status, "confirmed");
+      assert.equal(await usedCount(c, "PRECIO-CONTROL-250"), 1);
+      assert.equal((await reserve(c, other, "PRECIO-CONTROL-250")).status, "exhausted");
+      assert.equal((await reserve(c, buyer, "PRECIO-CONTROL-250")).status, "already_used");
+    });
+
+    await t("checkout-test diagnostic: read-only; a full test purchase leaves everyone else's rows untouched (even other 250 subscriptions), and it DETECTS interference", async () => {
       const state = fs.readFileSync(path.join(process.cwd(), "supabase/diagnostics/20261111_discount_checkout_test_state.sql"), "utf8");
       const s = await freshDb("pc_state", { discount: true, consistency: true });
       await s.query(`
@@ -190,7 +222,7 @@ async function main() {
         await s.query(`insert into public.profiles (id, membership_status, membership_started_at) values ($1,'active', now() - interval '30 days')`, [u]);
       }
       await db.checkout(s, pending, 19900);
-      await insertCode(s, "PRECIO-PRUEBA-X1", { code_type: "fixed_price", discount_value: PROMO_PRICE, max_uses: 1 });
+      await insertCode(s, "PRECIO-PRUEBA-X1", { code_type: "fixed_price", discount_value: CONTROLLED_PRICE, max_uses: 1 });
       await insertCode(s, "OTRO-CODIGO", { code_type: "discount_percent", discount_value: 10 });
       const tester = (await s.query(`insert into auth.users (email) values ('Prueba.Pioneros@example.test') returning id`)).rows[0].id;
       const t0 = (await s.query(`select now() as t`)).rows[0].t.toISOString();
@@ -219,14 +251,16 @@ async function main() {
       // The test purchase: reserve -> checkout at 9900 -> Mercado Pago authorizes -> first payment approved.
       const { attempt } = await db.buyWithCode(s, tester, "PRECIO-PRUEBA-X1");
       assert.equal((await db.confirm(s, attempt.preapprovalId)).status, "confirmed");
-      await s.query(`insert into public.payments (user_id, status, amount, currency) values ($1,'approved',9900,'ARS')`, [tester]);
+      await s.query(`insert into public.payments (user_id, status, amount, currency) values ($1,'approved',250,'ARS')`, [tester]);
+      // Mercado Pago authorized it: the tester now ALSO pays 250, like the 2 internal-test subscriptions of other accounts.
+      await s.query(`update public.subscriptions set status='authorized' where user_id=$1`, [tester]);
       await s.query(`insert into public.profiles (id, membership_status, membership_started_at, membership_expires_at) values ($1,'active', now(), now() + interval '33 days')`, [tester]);
 
       const after = await run();
-      assert.match(pick(after, "1_TEST_USER", "subscriptions"), /pending amount=9900(\.00)? ARS/);
-      assert.match(pick(after, "1_TEST_USER", "checkout attempts"), /completed amount=9900\.00 ARS/);
-      assert.match(pick(after, "1_TEST_USER", "payments"), /approved amount=9900 ARS/);
-      assert.match(pick(after, "1_TEST_USER", "discount reservations"), /confirmed base=19900\.00 final=9900\.00/);
+      assert.match(pick(after, "1_TEST_USER", "subscriptions"), /authorized amount=250(\.00)? ARS/);
+      assert.match(pick(after, "1_TEST_USER", "checkout attempts"), /completed amount=250\.00 ARS/);
+      assert.match(pick(after, "1_TEST_USER", "payments"), /approved amount=250 ARS/);
+      assert.match(pick(after, "1_TEST_USER", "discount reservations"), /confirmed base=19900\.00 final=250\.00/);
       assert.match(pick(after, "2_TEST_CODE", "code row"), /used_count=1/);
       assert.equal(pick(after, "2_TEST_CODE", "redemptions"), "1");
       for (const item of ["subscriptions updated", "payments created", "checkout attempts updated", "discount reservations", "code redemptions", "profiles whose membership started"]) {
@@ -234,6 +268,7 @@ async function main() {
       }
       assert.equal(pick(after, "3_OTHERS_TOUCHED_SINCE_T0", "other codes with uses"), pick(before, "3_OTHERS_TOUCHED_SINCE_T0", "other codes with uses"));
       assert.equal(fingerprints(after), fingerprints(before), "everyone else is byte-for-byte unchanged");
+      // The tester's own authorized 250 is NOT counted among the others: the 2 internal-test amounts stay as they were.
       assert.match(fingerprints(after), /19900 x1, 250 x1/);
 
       // The diagnostic must notice interference: another member's subscription changes during the test.
