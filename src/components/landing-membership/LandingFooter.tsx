@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { UniversoLogotipo } from "@/components/brand/UniversoLogo";
 import { loadPublicCommunityLinks } from "@/lib/community/public";
 import { legalLinks } from "./landing-content";
 
@@ -15,12 +16,7 @@ export async function LandingFooter() {
             href="#inicio"
             className="inline-flex items-center gap-3 rounded-lg focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-orange-400"
           >
-            <span className="flex h-9 w-9 items-center justify-center rounded-lg bg-gradient-to-br from-orange-500 to-orange-600 text-lg font-bold text-white">
-              S
-            </span>
-            <span className="text-lg font-bold text-fg">
-              Academia <span className="text-orange-400">Stampa</span>
-            </span>
+            <UniversoLogotipo height={44} />
           </Link>
           <p className="mt-4 max-w-sm leading-relaxed text-zinc-500">
             Formación y herramientas para aprender, organizar y hacer crecer tu taller de impresión 3D.
@@ -73,7 +69,7 @@ export async function LandingFooter() {
         </div>
       </div>
       <div className="container mx-auto mt-10 border-t border-fg/8 px-5 pt-6 text-xs text-zinc-600 md:px-6">
-        © {new Date().getFullYear()} Academia Stampa.
+        © {new Date().getFullYear()} Universo Stampa.
       </div>
     </footer>
   );

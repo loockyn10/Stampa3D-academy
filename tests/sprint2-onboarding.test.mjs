@@ -39,12 +39,13 @@ const auth = (pathname, overrides = {}) =>
 // 1. Landing / public entry
 // ---------------------------------------------------------------------------------------------------------------
 
-test("1. a visitor at / sees the landing; SEO files and legal pages are public; /landing-old redirects", () => {
+test("1. a visitor at / sees the landing; SEO files and legal pages are public; /landing-old is the previous landing", () => {
   assert.deepEqual(routes.anonymousRoute("/", ""), { redirect: "/landing" });
   for (const path of ["/landing", "/robots.txt", "/sitemap.xml", "/legal/terminos", "/calculadora", "/registro", "/login", "/verificar-email"]) {
     assert.equal(routes.anonymousRoute(path, ""), null, path);
   }
-  assert.match(src.nextConfig, /source: "\/landing-old",\s*destination: "\/landing",\s*permanent: true/);
+  assert.doesNotMatch(src.nextConfig, /source: "\/landing-old"/, "/landing-old ya no redirige: conserva la landing anterior");
+  assert.match(src.nextConfig, /source: "\/landing-preview",\s*destination: "\/landing"/);
   assert.match(src.middleware, /anonymousRoute\(pathname, request\.nextUrl\.search\)/);
 
   const disallow = seo.ROBOTS_DISALLOW;

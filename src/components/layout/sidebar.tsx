@@ -2,7 +2,7 @@
 
 import { useState, useSyncExternalStore } from "react";
 import Link from "next/link";
-import Image from "next/image";
+import { UniversoIsotipo } from "@/components/brand/UniversoLogo";
 import { usePathname, useSearchParams } from "next/navigation";
 import {
   BookOpen,
@@ -169,16 +169,10 @@ export function Sidebar({ access, loading }: SidebarProps) {
             aria-label="Universo Stampa, inicio"
             {...tooltipHandlers("Universo Stampa")}
           >
-            <Image
-              src="/favicon.svg"
-              alt=""
-              width={36}
-              height={36}
-              className="h-9 w-9 shrink-0 object-contain"
-            />
+            <UniversoIsotipo height={36} priority />
             <div className="app-sidebar-label whitespace-nowrap">
-              <p className="text-sm font-bold leading-none text-fg">Stampa</p>
-              <p className="mt-0.5 text-[11px] leading-none text-stampa-text-muted">Academia 3D</p>
+              <p className="text-sm font-bold leading-none text-fg">Universo Stampa</p>
+              <p className="mt-0.5 text-[11px] leading-none text-stampa-text-muted">Impresión 3D</p>
             </div>
           </Link>
         </div>

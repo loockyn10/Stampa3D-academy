@@ -3,7 +3,7 @@ import { FeatureUnavailable } from "@/components/features/feature-unavailable";
 import { getFeatureDefinition, isFeatureId } from "@/lib/features/registry";
 
 export const metadata: Metadata = {
-  title: "Herramienta no disponible | Academia Stampa",
+  title: "Herramienta no disponible | Universo Stampa",
   robots: { index: false, follow: false },
 };
 

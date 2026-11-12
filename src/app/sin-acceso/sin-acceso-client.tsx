@@ -1,7 +1,8 @@
 "use client";
 
-import { AlertCircle, Calculator, CheckCircle2, Loader2, MailCheck, RefreshCw, Sparkles, UserRound } from "lucide-react";
+import { AlertCircle, Calculator, CheckCircle2, Loader2, MailCheck, RefreshCw, UserRound } from "lucide-react";
 import Link from "next/link";
+import { UniversoIsotipo } from "@/components/brand/UniversoLogo";
 import { comparison } from "@/components/landing-hero/commercial/commercial-content";
 import { PREMIUM_RETURN_TO, premiumAuthHref } from "@/lib/auth/premium-intent";
 import { useCallback, useEffect, useState } from "react";
@@ -261,9 +262,7 @@ export function SinAccesoClient({
     <div className="flex min-h-dvh w-full items-start justify-center bg-stampa-bg px-4 py-10 text-stampa-text sm:items-center sm:px-6">
       <div className="w-full min-w-0 max-w-lg space-y-6">
         <header className="flex flex-col items-center text-center">
-          <div className="mb-4 flex h-12 w-12 items-center justify-center rounded-2xl border border-stampa-orange-border bg-stampa-orange-muted">
-            <Sparkles className="h-6 w-6 text-stampa-accent" aria-hidden="true" />
-          </div>
+          <UniversoIsotipo height={56} className="mb-4" priority />
           <p className="text-xs font-semibold uppercase tracking-[0.2em] text-stampa-accent">Universo Stampa</p>
           <h1 className="mt-3 text-2xl font-bold tracking-tight text-stampa-text sm:text-3xl">
             {checkingEmail

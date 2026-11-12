@@ -1,5 +1,5 @@
 /**
- * Catálogo de herramientas de Universo que presenta la sección de exploración de /landing-preview.
+ * Catálogo de herramientas de Universo que presenta la sección de exploración de /landing (los videos viven en /landing-preview/demos).
  *
  * Es solo datos: la sección (`ToolsExplorer`) no conoce ninguna herramienta en particular. Para sumar una herramienta,
  * cambiar una demostración o incorporar un video no hace falta tocar componentes ni estilos: se edita este arreglo

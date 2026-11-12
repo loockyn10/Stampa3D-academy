@@ -80,7 +80,7 @@ test("la clave de servicio vive solo en un módulo server-only y ningún compone
   }
   // Solo la sección servidor lo usa, y la página se regenera (ISR) en lugar de leer en cada visita.
   assert.match(read("src/components/landing-hero/commercial/CommercialSections.tsx"), /loadPublicMembershipPrice\(\)/);
-  assert.match(read("src/app/landing-preview/page.tsx"), /export const revalidate = \d+/);
+  assert.match(read("src/app/landing/page.tsx"), /export const revalidate = \d+/);
 });
 
 test("no hay precios, cifras ni valores de respaldo escritos a mano en el contenido ni en los componentes", () => {
@@ -165,9 +165,9 @@ test("no se promociona nada deshabilitado, en beta ni sin aprobar (Stampa Maker,
 });
 
 test("estructura: la página compone las secciones sin tocar el Hero y el footer usa los enlaces reales y marca lo legal pendiente", () => {
-  const page = read("src/app/landing-preview/page.tsx");
+  const page = read("src/app/landing/page.tsx");
   assert.match(page, /<UniversoHero>\s*<CommercialSections \/>\s*<\/UniversoHero>/);
-  assert.match(page, /index: false/);
+  assert.doesNotMatch(page, /index: false/, "la landing definitiva es indexable");
   const hero = read("src/components/landing-hero/UniversoHero.tsx");
   assert.match(hero, /\{children\}/);
   const footer = read("src/components/landing-hero/commercial/PreviewFooter.tsx");

@@ -1,5 +1,5 @@
 /**
- * Contenido de las secciones comerciales de /landing-preview. Solo datos: los componentes no contienen ningún texto de producto.
+ * Contenido de las secciones comerciales de /landing. Solo datos: los componentes no contienen ningún texto de producto.
  *
  * Reglas (acordadas con el dueño, ver docs/TASKS.md «Landing 5.5»):
  * - El objetivo de la página es la membresía Premium; la cuenta gratuita es la alternativa secundaria.
@@ -189,5 +189,4 @@ export const footerContent = {
   communityEmpty: "Los canales de comunidad se publican acá cuando están configurados.",
   legalHeading: "Información legal",
   legalPending: "pendiente",
-  previewNote: "Vista previa interna de la nueva landing. Los documentos legales están pendientes de aprobación y esta página todavía no está lista para cobrar públicamente.",
 } as const;

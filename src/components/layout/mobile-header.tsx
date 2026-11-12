@@ -1,6 +1,6 @@
 "use client";
 
-import Image from "next/image";
+import { UniversoIsotipo } from "@/components/brand/UniversoLogo";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { ArrowLeft, Shield } from "lucide-react";
@@ -64,17 +64,10 @@ export function MobileHeader({ access, loading }: MobileHeaderProps) {
               aria-label="Ir al inicio"
               className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl transition-colors active:bg-fg/5"
             >
-              <Image
-                src="/favicon.svg"
-                alt="Stampa"
-                width={34}
-                height={34}
-                priority
-                className="h-[34px] w-[34px] shrink-0 object-contain"
-              />
+              <UniversoIsotipo height={28} alt="Universo Stampa" priority />
             </Link>
           )}
-          <p className="min-w-0 truncate pl-1 pr-2 text-base font-bold text-fg">{isHome || !title ? "Stampa" : title}</p>
+          <p className="min-w-0 truncate pl-1 pr-2 text-base font-bold text-fg">{isHome || !title ? "Universo Stampa" : title}</p>
         </div>
 
         <div className="flex shrink-0 items-center gap-1">

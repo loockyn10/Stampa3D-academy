@@ -3,8 +3,8 @@ import type { MetadataRoute } from "next";
 export default function manifest(): MetadataRoute.Manifest {
   return {
     name: "Universo Stampa",
-    short_name: "Stampa",
-    description: "Plataforma de impresión 3D de Stampa",
+    short_name: "Universo Stampa",
+    description: "Formación, herramientas y comunidad para impresión 3D",
     start_url: "/",
     scope: "/",
     display: "standalone",

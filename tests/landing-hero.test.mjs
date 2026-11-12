@@ -46,10 +46,16 @@ test("el destello ocurre al atravesar el núcleo, no al inicio ni al final", () 
   assert.ok(timeline.computeTimeline(0.585, RIG).flash > 0.9);
 });
 
-test("/landing-preview es pública, no indexable y no reemplaza a /landing", () => {
-  assert.equal(routes.isPublicPath("/landing-preview"), true);
-  assert.match(read("src/app/landing-preview/page.tsx"), /index: false/);
-  assert.match(read("src/app/landing/page.tsx"), /LandingMembershipPage/);
+test("/landing es la landing definitiva (Hero 3D); la anterior vive en /landing-old y /landing-preview redirige", () => {
+  for (const path of ["/landing", "/landing-old", "/landing-preview"]) assert.equal(routes.isPublicPath(path), true, path);
+  const landing = read("src/app/landing/page.tsx");
+  assert.match(landing, /<UniversoHero>/);
+  assert.doesNotMatch(landing, /index: false/);
+  const old = read("src/app/landing-old/page.tsx");
+  assert.match(old, /LandingMembershipPage/);
+  assert.match(old, /index: false/);
+  assert.equal(fs.existsSync(repoPath("src/app/landing-preview/page.tsx")), false, "no queda una segunda página en /landing-preview");
+  assert.match(read("next.config.ts"), /source: "\/landing-preview",\s*destination: "\/landing"/);
 });
 
 test("la escena libera sus recursos y no añade dependencias nuevas", () => {
@@ -79,9 +85,9 @@ test("la interfaz emerge tras el destello y se acopla a la sección siguiente so
   }
 });
 
-test("la variante de lámpara fue retirada y el núcleo es el único modelo de /landing-preview", () => {
+test("la variante de lámpara fue retirada y el núcleo es el único modelo de /landing", () => {
   assert.equal(fs.existsSync(repoPath("src/components/landing-hero/lamp-scene.ts")), false);
-  const page = read("src/app/landing-preview/page.tsx");
+  const page = read("src/app/landing/page.tsx");
   assert.doesNotMatch(page, /modelo|lampara|searchParams/);
   const canvas = read("src/components/landing-hero/HeroCoreCanvas.tsx");
   assert.doesNotMatch(canvas, /Lamp|lampara|flashScale/);
@@ -184,7 +190,7 @@ test("las versiones de respaldo solo se ven con ?comparar y no cambian la demost
   assert.deepEqual(compared.demos.map((demo) => demo.label), ["Recorrido", "Versión anterior", "Original sin fotos"]);
   const explorer = read("src/components/landing-hero/ToolsExplorer.tsx");
   assert.match(explorer, /has\("comparar"\)/);
-  assert.doesNotMatch(read("src/app/landing-preview/page.tsx"), /searchParams/);
+  assert.doesNotMatch(read("src/app/landing/page.tsx"), /searchParams/);
 });
 
 test("los datos y las imágenes de la cuenta de demostración son originales y ficticios", () => {

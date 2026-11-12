@@ -2,6 +2,7 @@
 
 import Link from "next/link";
 import { useEffect, useState } from "react";
+import { UniversoLogotipo } from "@/components/brand/UniversoLogo";
 
 const navigation = [
   { label: "Cómo funciona", href: "#mecanismo" },
@@ -34,12 +35,7 @@ export function LandingMembershipNavbar() {
           href="#inicio"
           className="group flex items-center gap-2 rounded-lg focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-orange-400"
         >
-          <span className="flex h-8 w-8 items-center justify-center rounded bg-gradient-to-br from-orange-500 to-orange-600 text-lg font-bold text-white shadow-[0_0_15px_rgba(234,88,12,0.4)] transition-shadow group-hover:shadow-[0_0_20px_rgba(234,88,12,0.6)]">
-            S
-          </span>
-          <span className="hidden text-lg font-bold tracking-tight text-fg sm:block md:text-xl">
-            Academia <span className="text-stampa-accent">Stampa</span>
-          </span>
+          <UniversoLogotipo height={40} priority />
         </Link>
 
         <div className="hidden items-center gap-7 text-sm font-medium lg:flex">

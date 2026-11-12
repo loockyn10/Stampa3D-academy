@@ -7,6 +7,7 @@ import { PendingBetaCodeRedeemer } from "@/components/beta-access/PendingBetaCod
 import { ThemeProvider } from "@/components/theme/theme-provider";
 import { THEME_COLORS, THEME_INIT_SCRIPT } from "@/lib/theme/theme";
 import { SIDEBAR_INIT_SCRIPT } from "@/lib/layout/sidebar-preference";
+import { siteOrigin } from "@/lib/seo/site";
 
 const geistSans = Geist({
   variable: "--font-geist-sans",
@@ -18,15 +19,36 @@ const geistMono = Geist_Mono({
   subsets: ["latin"],
 });
 
+const SITE_DESCRIPTION = "Universo Stampa: formación, herramientas y comunidad para impresión 3D.";
+const OG_IMAGE = { url: "/og/universo-stampa-og.png", width: 1200, height: 630, alt: "Universo Stampa" };
+
 export const metadata: Metadata = {
+  // Base absoluta para las imágenes de Open Graph / Twitter (NEXT_PUBLIC_APP_URL).
+  metadataBase: new URL(siteOrigin()),
   title: "Universo Stampa",
-  description: "Universo Stampa: formación, herramientas y comunidad para impresión 3D.",
+  description: SITE_DESCRIPTION,
   applicationName: "Universo Stampa",
   icons: {
     icon: [
-      { url: "/favicon.svg", type: "image/svg+xml" },
+      { url: "/favicon.ico", sizes: "any" },
+      { url: "/icons/icon-32.png", sizes: "32x32", type: "image/png" },
       { url: "/icons/icon-192.png", sizes: "192x192", type: "image/png" },
     ],
+    apple: [{ url: "/icons/apple-touch-icon.png", sizes: "180x180", type: "image/png" }],
+  },
+  openGraph: {
+    type: "website",
+    siteName: "Universo Stampa",
+    locale: "es_AR",
+    title: "Universo Stampa",
+    description: SITE_DESCRIPTION,
+    images: [OG_IMAGE],
+  },
+  twitter: {
+    card: "summary_large_image",
+    title: "Universo Stampa",
+    description: SITE_DESCRIPTION,
+    images: [OG_IMAGE.url],
   },
 };
 

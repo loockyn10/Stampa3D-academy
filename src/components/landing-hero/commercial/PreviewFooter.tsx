@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { Layers } from "lucide-react";
+import { UniversoLogotipo } from "@/components/brand/UniversoLogo";
 import { loadPublicCommunityLinks } from "@/lib/community/public";
 import { footerLegalLinks } from "@/lib/legal/registry";
 import { footerContent } from "./commercial-content";
@@ -18,11 +18,8 @@ export async function PreviewFooter() {
     <footer className={styles.footer}>
       <div className={styles.footerInner}>
         <div className={styles.footerBrand}>
-          <Link href="/landing-preview" className={styles.footerLogo} aria-label={`${footerContent.brand} — inicio`}>
-            <span>
-              <Layers aria-hidden="true" size={18} />
-            </span>
-            {footerContent.brand}
+          <Link href="/landing" className={styles.footerLogo} aria-label={`${footerContent.brand} — inicio`}>
+            <UniversoLogotipo height={48} alt={footerContent.brand} />
           </Link>
           <p>{footerContent.tagline}</p>
         </div>
@@ -73,7 +70,6 @@ export async function PreviewFooter() {
         </div>
       </div>
       <div className={styles.footerBottom}>
-        <p>{footerContent.previewNote}</p>
         <p>© {new Date().getFullYear()} Universo Stampa</p>
       </div>
     </footer>

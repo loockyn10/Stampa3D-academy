@@ -6,7 +6,7 @@ import { describeProviders } from "@/lib/model-search/service";
 export const dynamic = "force-dynamic";
 
 export const metadata: Metadata = {
-  title: "Explorar Modelos 3D | Stampa",
+  title: "Explorar Modelos 3D | Universo Stampa",
   description: "Encontrá modelos 3D en distintas plataformas desde un solo lugar. Cada resultado te lleva al modelo original.",
 };
 

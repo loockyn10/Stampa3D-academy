@@ -1,5 +1,5 @@
 /**
- * Contenido editable del Hero 3D de Universo Stampa (prototipo de /landing-preview).
+ * Contenido editable del Hero 3D de Universo Stampa (hero de /landing).
  * Todo texto y enlace del hero vive acá para poder ajustarlo (o hacerlo administrable) sin tocar la escena.
  */
 

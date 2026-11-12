@@ -3,7 +3,8 @@
 import dynamic from "next/dynamic";
 import Link from "next/link";
 import { useCallback, useRef, useState, useSyncExternalStore, type CSSProperties, type MouseEvent, type ReactNode } from "react";
-import { ArrowRight, Layers } from "lucide-react";
+import { ArrowRight } from "lucide-react";
+import { UniversoLogotipo } from "@/components/brand/UniversoLogo";
 import { heroContent, type HeroAction } from "./hero-content";
 import { isWebGLAvailable } from "./hero-quality";
 import { HeroDiscovery } from "./HeroDiscovery";
@@ -125,10 +126,7 @@ export function UniversoHero({ children }: { children?: ReactNode }) {
 
           <header className={styles.nav}>
             <Link href="/landing" className={styles.brand} aria-label={`${heroContent.brand} — inicio`}>
-              <span className={styles.brandMark}>
-                <Layers aria-hidden="true" size={18} />
-              </span>
-              <span>{heroContent.brand}</span>
+              <UniversoLogotipo height={46} alt={heroContent.brand} priority />
             </Link>
             <Link href={heroContent.loginHref} className={styles.navLink}>
               {heroContent.loginLabel}

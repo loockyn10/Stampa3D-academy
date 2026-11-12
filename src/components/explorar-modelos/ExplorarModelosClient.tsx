@@ -1,7 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useRef, useState, useSyncExternalStore } from "react";
-import Image from "next/image";
+import { UniversoIsotipo } from "@/components/brand/UniversoLogo";
 import Link from "next/link";
 import { AlertTriangle, History, Languages, Loader2, Search, SearchX, SlidersHorizontal, X } from "lucide-react";
 import { createClient } from "@/utils/supabase/client";
@@ -374,8 +374,8 @@ export function ExplorarModelosClient({ providers }: { providers: ProviderInfo[]
         <header className="sticky top-0 z-20 border-b border-stampa-border bg-stampa-bg/95 backdrop-blur">
           <div className="mx-auto flex max-w-6xl items-center justify-between gap-3 px-4 py-3">
             <Link href={calculatorVisible ? "/calculadora" : "/login"} className="flex items-center gap-2">
-              <Image src="/favicon.svg" alt="Stampa" width={28} height={28} className="h-7 w-7" />
-              <span className="text-sm font-bold text-fg">Stampa</span>
+              <UniversoIsotipo height={26} />
+              <span className="text-sm font-bold text-fg">Universo Stampa</span>
             </Link>
             <nav className="flex items-center gap-1 text-sm font-semibold whitespace-nowrap">
               <FeatureLink href="/calculadora" className="hidden rounded-lg px-3 py-2 text-gray-300 hover:text-fg sm:inline-block">Calculadora</FeatureLink>
