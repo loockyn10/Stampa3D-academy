@@ -6,6 +6,7 @@ import { renderToStaticMarkup } from "react-dom/server";
 import JSZip from "jszip";
 import { loadMakerModule } from "../scripts/lib/maker-engine-node.mjs";
 import { loadTs } from "./helpers/load-ts.mjs";
+import { loadLampUi } from "./helpers/lamp-editor-ui.mjs";
 
 // Lámparas — Sprint UX V2: capacidades por familia (UNA definición), controles por familia, difusor cilíndrico obligatorio en calada y doble pared,
 // cambio entre familias sin perder lo del usuario, errores cortos y accionables, rangos dinámicos y exportación solo de modelos válidos.
@@ -57,7 +58,7 @@ const mocks = {
     },
   },
 };
-const { MakerLampControls, LampExportButtons } = loadTs("src/components/maker/MakerLampControls.tsx", mocks);
+const { MakerLampControls, LampExportButtons } = loadLampUi(mocks);
 function renderUi(def, extra = {}) {
   registry.seg = [];
   const r = createLamp(def);
@@ -70,10 +71,10 @@ function renderUi(def, extra = {}) {
     }),
   );
 }
-/** Lo que hay ANTES de «Personalización avanzada» y lo que hay dentro (el HTML renderiza también lo plegado). */
+/** Lo que hay ANTES de «Más ajustes» de la pantalla y lo que hay desde ahí (el HTML renderiza también lo plegado). */
 function split(html) {
-  const i = html.indexOf("Personalización avanzada");
-  assert.ok(i > 0, "falta «Personalización avanzada»");
+  const i = html.indexOf('data-section="shade-more"');
+  assert.ok(i > 0, "falta «Más ajustes»");
   return { main: html.slice(0, i), advanced: html.slice(i) };
 }
 
@@ -124,7 +125,7 @@ test("capacidades ↔ restricciones: los controles de cada pantalla salen de la 
 });
 
 // ================================================================== 2 — CONTROLES VISIBLES POR FAMILIA (interfaz real)
-test("controles visibles: sólida muestra sus tres principales y sus difusores; lo técnico queda plegado en «Personalización avanzada»", () => {
+test("controles visibles: sólida muestra sus tres principales y sus difusores; lo técnico queda plegado en «Más ajustes»", () => {
   const { main, advanced } = split(renderUi(DEFAULT_LAMP));
   for (const t of ["Tipo de lámpara", "Estilo", "Altura", "Diámetro", "Intensidad del diseño"]) assert.ok(main.includes(t), `sólida: «${t}» a la vista`);
   for (const t of ["Cantidad de ondas", "Torsión", "Diámetro superior", "Familia de patrón", "Perfil", "Variación vertical"]) assert.ok(advanced.includes(t), `sólida: «${t}» avanzado`);
@@ -132,34 +133,35 @@ test("controles visibles: sólida muestra sus tres principales y sus difusores; 
   for (const t of ["Densidad del calado", "Separación entre paredes", "Forma interior", "Pared interior"]) assert.ok(!main.includes(t) && !advanced.includes(t), `sólida: no debe mostrar «${t}»`);
   const html = renderUi(DEFAULT_LAMP);
   for (const kind of ["cylinder", "flat", "drop", "wavy"]) assert.ok(html.includes(`data-diffuser="${kind}"`), `sólida ofrece el difusor ${kind}`);
-  assert.ok(!/<details[^>]*open[^>]*>\s*<summary[^>]*>Personalización avanzada/.test(html), "lo avanzado empieza plegado");
+  assert.ok(!/<details[^>]*open[^>]*>\s*<summary[^>]*>Más ajustes/.test(html), "lo avanzado empieza plegado");
 });
 
 test("controles visibles: calada muestra altura, forma exterior y densidad; su difusor es solo cilíndrico y no hay controles de otras familias", () => {
   const html = renderUi(OPENWORK);
   const { main, advanced } = split(html);
-  for (const t of ["Estilo", "Altura", "Forma exterior", "Densidad del calado"]) assert.ok(main.includes(t), `calada: «${t}»`);
+  for (const t of ["Estilo", "Altura", "Forma exterior", "Densidad del patrón"]) assert.ok(main.includes(t), `calada: «${t}»`);
   for (const t of ["Diámetro máximo decorativo", "Torsión", "Inclinación de las diagonales", "Grosor de la estructura"]) assert.ok(advanced.includes(t), `calada: «${t}» avanzado`);
   for (const t of ["Intensidad del diseño", "Familia de patrón", "Cantidad de ondas", "Separación entre paredes", "Forma interior"]) assert.ok(!html.includes(t), `calada: no debe mostrar «${t}»`);
   for (const kind of ["flat", "drop", "wavy"]) assert.ok(!html.includes(`data-diffuser="${kind}"`), `calada no ofrece el difusor ${kind}`);
-  assert.ok(html.includes("difusor cilíndrico recto") && html.includes("Por su diámetro"));
+  assert.ok(html.includes("difusor cilíndrico recto"));
+  assert.ok(!html.includes("Por su diámetro") && !html.includes("Según los anillos") && !html.includes("Holgura diametral"), "el ajuste del difusor a los anillos no es un control: lo resuelve el motor");
   // sin terminación cerrada ni lengüetas: ningún control de tapa, cierre ni ondas del difusor
   for (const t of ["Espesor de la tapa", "Altura del cierre", "Número de ondas", "Lengüetas"]) assert.ok(!html.includes(t), `calada: sin «${t}»`);
   const spiral = renderUi({ ...OPENWORK, openwork: { ...OPENWORK.openwork, pattern: "spiral", bands: 6, turns: 0.4, stripWidthMm: 6 } });
-  assert.ok(spiral.includes("Densidad del calado (bandas)") && !spiral.includes("rombos alrededor"));
+  assert.ok(spiral.includes("Densidad del patrón (bandas)") && !spiral.includes("rombos alrededor"));
 });
 
 test("controles visibles: doble pared muestra sus formas y la separación; sin difusor ajeno ni controles de sólida o calada", () => {
   const html = renderUi(DOUBLE);
   const { main, advanced } = split(html);
-  for (const t of ["Forma exterior", "Forma interior", "Separación entre paredes", "Dimensiones", "Altura", "Diámetro máximo"]) assert.ok(main.includes(t), `doble: «${t}»`);
-  for (const t of ["Pared exterior", "Pared interior", "Profundidad de las ondulaciones", "Torsión", "Cámara y fabricación"]) assert.ok(advanced.includes(t), `doble: «${t}» avanzado`);
+  for (const t of ["Forma exterior", "Forma interior", "Separación entre paredes"]) assert.ok(main.includes(t), `doble: «${t}»`);
+  for (const t of ["Dimensiones", "Altura", "Diámetro máximo", "Pared exterior", "Pared interior", "Profundidad de las ondulaciones", "Torsión", "Cámara de aire"]) assert.ok(advanced.includes(t), `doble: «${t}» en «Más ajustes»`);
   for (const t of ["Familia de patrón", "Intensidad del diseño", "Densidad del calado", "Inclinación de las diagonales"]) assert.ok(!html.includes(t), `doble: no debe mostrar «${t}»`);
   assert.equal(DOUBLE.insert.enabled, false);
   assert.ok(!html.includes("Forma del difusor") && !html.includes('data-diffuser="'), "sin difusor, ninguna forma de difusor");
   assert.ok(html.includes("Agregar un difusor (opcional)"));
   // el modo jarrón no se presenta como funcional
-  assert.ok(html.includes("El modo jarrón todavía no está disponible") && !html.includes("Spiral vase"));
+  assert.ok(!html.includes("Impresión convencional") && !html.includes("Spiral vase"), "no se ofrece elegir el modo de fabricación (el modo jarrón no existe para la doble pared)");
   // con el difusor opcional activado solo es cilíndrico (nunca gota ni tapa)
   const withDiffuser = renderUi({ ...DOUBLE, insert: { ...DOUBLE.insert, enabled: true } });
   assert.ok(!withDiffuser.includes('data-diffuser="drop"') && !withDiffuser.includes('data-diffuser="flat"'));
@@ -269,8 +271,9 @@ test("cambio entre familias: la unión por collar es solo de la sólida; la cala
   assert.equal(switchFamily(o.def, "solid", o.memory).def.thread.connection, "collar");
   for (const def of [OPENWORK, DOUBLE]) assert.ok(codes({ ...def, thread: { ...def.thread, connection: "collar" } }).length > 0, "el motor rechaza el collar en esta familia");
   const html = renderUi(OPENWORK);
-  assert.ok(!html.includes("Collar (modo vaso)") && html.includes("Rosca en la pantalla"));
-  assert.ok(renderUi(DEFAULT_LAMP).includes("Collar (modo vaso)"));
+  // la unión es mecánica: el editor no ofrece elegirla en ninguna familia (la sólida la conserva en el motor y en los diseños anteriores)
+  assert.ok(!html.includes("Collar (modo vaso)") && !html.includes("Rosca en la pantalla"));
+  assert.ok(!renderUi(DEFAULT_LAMP).includes("Collar (modo vaso)"));
 });
 
 test("cambio entre familias: la interfaz cambia el estado y los errores de la familia anterior no pasan a la nueva", () => {
@@ -413,7 +416,7 @@ test("errores resumidos: la interfaz muestra la frase corta con su acción; el d
   const html = renderUi(def, { outdated: true });
   const alertAt = html.indexOf('role="alert"');
   assert.ok(alertAt > 0 && html.includes("El difusor no pasa por el cuello de la rosca."), "el problema principal está a la vista");
-  assert.ok(html.includes("Agrandar la rosca"), "con la acción concreta");
+  assert.ok(!html.includes("Agrandar la rosca"), "la corrección que cambia la rosca no se ofrece en el editor (la mecánica es fija)");
   assert.ok(html.includes("Volver al último diseño") === false, "sin último diseño válido no se ofrece volver");
   assert.ok(html.includes("Restablecer esta pantalla"));
   assert.ok(html.includes("El visor muestra el último diseño válido") && html.includes("No se puede descargar"));
@@ -421,7 +424,8 @@ test("errores resumidos: la interfaz muestra la frase corta con su acción; el d
   const detail = r.errors.find((x) => x.code === "DIFFUSER_EXCEEDS_BASE").message;
   const at = html.indexOf(detail.slice(0, 60).replace(/&/g, "&amp;"));
   assert.ok(at > html.indexOf("Ver detalle"), "el detalle viene después de «Ver detalle»");
-  assert.equal(html.split(detail.slice(0, 60)).length - 1, 1, "el párrafo no se repite");
+  // el compuesto de prueba renderiza los tres paneles del editor (en la interfaz se ve uno a la vez): una vez por panel, nunca repetido dentro de uno
+  assert.equal(html.split(detail.slice(0, 60)).length - 1, 3, "el párrafo aparece una sola vez por panel");
   // ningún código interno en la interfaz
   assert.ok(!INTERNAL_CODE.test(html.replace(/<(script|style)[\s\S]*?<\/\1>/g, "").replace(/<[^>]+>/g, " ").replace(/\b(STL|DW)\b/g, "")), "sin códigos internos en el texto visible");
   // la acción propuesta deja una lámpara válida
@@ -469,8 +473,8 @@ test("exportación: cada familia exporta sus piezas desde las mismas mallas del 
     assert.throws(() => lampPartEntries(r), /./);
     await assert.rejects(() => buildLampZipBlob(r, bad));
   }
-  // la página bloquea la descarga si hay errores o el visor muestra una vista anterior
-  const page = fs.readFileSync("src/app/stampa-maker/lamparas/page.tsx", "utf8");
+  // el editor bloquea la descarga si hay errores o el visor muestra una vista anterior
+  const page = fs.readFileSync("src/components/maker/lamps/LampEditor.tsx", "utf8");
   assert.ok(/canDownload = !pending && !outdated && !!geometry && geometry\.triangleCount > 0 && result\.errors\.length === 0/.test(page));
 });
 
@@ -507,15 +511,15 @@ test("compatibilidad: los diseños guardados (código SL1) siguen cargando; los 
 
 // ================================================================== 10 — CABLEADO
 test("cableado: la interfaz usa las capacidades y el resumen; no quedan avisos largos por sección ni la definición duplicada", () => {
-  const controls = fs.readFileSync("src/components/maker/MakerLampControls.tsx", "utf8");
-  assert.ok(controls.includes("summarizeIssues") && controls.includes("familyCaps") && controls.includes("LampStatus") && controls.includes("LampFamilyPicker"));
+  const controls = ["LampPropertiesPanel", "LampLibraryPanel"].map((f) => fs.readFileSync(`src/components/maker/lamps/${f}.tsx`, "utf8")).join("\n");
+  assert.ok(controls.includes("editorIssueSummary") && controls.includes("familyCaps") && controls.includes("LampStatus") && controls.includes("LampFamilyPicker"));
   assert.ok(!controls.includes("issuesFor"), "los avisos ya no se vuelcan sección por sección");
   assert.ok(!/\bshownWarnings\b/.test(controls) && !controls.includes("Diseño no listo para exportar"), "no queda el bloque largo de errores");
   const constraints = fs.readFileSync("src/lib/maker/lamps/constraints.ts", "utf8");
   assert.ok(constraints.includes("capabilities") && !/main: true/.test(constraints), "«principal» lo decide la familia, no cada control");
   const validate = fs.readFileSync("src/lib/maker/lamps/validation/validateLamp.ts", "utf8");
   assert.ok(validate.includes("diffuserCompatible"), "la validación consulta las mismas capacidades");
-  const page = fs.readFileSync("src/app/stampa-maker/lamparas/page.tsx", "utf8");
+  const page = fs.readFileSync("src/components/maker/lamps/LampEditor.tsx", "utf8");
   assert.ok(page.includes("onSelectFamily={handleFamily}") && page.includes("onRestoreLast"));
   // «principal» y «avanzado» no se contradicen entre UI y rangos: lo que la UI marca principal tiene rango eager
   const hook = fs.readFileSync("src/hooks/maker/useLampConstraints.ts", "utf8");

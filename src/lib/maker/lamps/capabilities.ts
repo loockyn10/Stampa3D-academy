@@ -123,9 +123,12 @@ const DOUBLE: FamilyCapabilities = {
   label: "Doble pared",
   tagline: "Dos siluetas distintas con una cámara de aire entre ellas.",
   controls: {
+    // Editor visual: tres controles principales (forma exterior, forma interior, separación). La altura y el diámetro máximo pasan a «Más ajustes».
     main: ["doubleWall.minGapMm"],
-    general: ["shade.heightMm", "doubleWall.maxDiameterMm"],
+    general: [],
     advanced: [
+      "shade.heightMm",
+      "doubleWall.maxDiameterMm",
       "shade.bottomDiameterMm",
       "shade.topDiameterMm",
       "doubleWall.fluteAmplitudeMm",

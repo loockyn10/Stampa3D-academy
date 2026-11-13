@@ -1,4 +1,5 @@
-import { REFERENCE_DIFFUSER, REFERENCE_PRESS } from "@/lib/maker/lamps/holder/references";
+import { REFERENCE_DIFFUSER } from "@/lib/maker/lamps/holder/references";
+import { STANDARD_ADHESION, STANDARD_CABLE, STANDARD_HOLDER, STANDARD_INSERT_FIT, STANDARD_THREAD } from "@/lib/maker/lamps/standard";
 import type { LampAdhesionDef, LampBaseDef, LampBulbDef, LampCableDef, LampDefinition, LampDoubleWallDef, LampHolderDef, LampInsertDef, LampInsertProfileTop, LampInsertStyle, LampOpenworkDef, LampShadeDef, LampThreadDef } from "@/lib/maker/lamps/types";
 
 /**
@@ -99,10 +100,10 @@ export const DEFAULT_INSERT: LampInsertDef = {
   diameterMm: 65.135,
   heightMm: null,
   heightPct: 85,
-  thicknessMm: 0.8,
-  clearanceMm: 0.35,
-  seatDepthMm: 10,
-  minBulbGapMm: 1,
+  thicknessMm: STANDARD_INSERT_FIT.thicknessMm,
+  clearanceMm: STANDARD_INSERT_FIT.clearanceMm,
+  seatDepthMm: STANDARD_INSERT_FIT.seatDepthMm,
+  minBulbGapMm: STANDARD_INSERT_FIT.minBulbGapMm,
   tabs: true,
   capThicknessMm: 1.6,
   dropClosureMm: 50,
@@ -141,37 +142,20 @@ export function applyInsertStyle(def: LampDefinition, style: LampInsertStyle): L
   return { ...def, insert: { ...def.insert, ...INSERT_STYLE_INITIAL[style], style } };
 }
 
-export const DEFAULT_ADHESION: LampAdhesionDef = { enabled: true, widthMm: 3, heightMm: 0.4 };
+// Mecánica estándar: los valores probados físicamente viven en `standard.ts` (única fuente); acá solo se toman.
+export const DEFAULT_ADHESION: LampAdhesionDef = { ...STANDARD_ADHESION };
 
-export const DEFAULT_THREAD: LampThreadDef = {
-  connection: "integrated",
-  majorDiameterMm: 96,
-  pitchMm: 5,
-  starts: 2,
-  engagementMm: 15,
-  clearanceMm: 0.4,
-  coreWallMm: 3,
-};
+export const DEFAULT_THREAD: LampThreadDef = { ...STANDARD_THREAD };
 
 export const DEFAULT_BASE: LampBaseDef = {
   diameterMm: null,
 };
 
-export const DEFAULT_HOLDER: LampHolderDef = {
-  mount: "rings",
-  pressDepthMm: REFERENCE_PRESS.boreDepthMm,
-  measured: false,
-  boreDiameterMm: 42,
-  ringsDiameterMm: 58,
-  ringsClearanceMm: 0.9,
-  ringsRecessDepthMm: 5.15,
-  seatHeightMm: 31.4,
-  bodyDiameterMm: 40,
-  heightMm: 55,
-};
+export const DEFAULT_HOLDER: LampHolderDef = { ...STANDARD_HOLDER };
 
+/** Marcador de posición del motor (compatibilidad de lectura de diseños anteriores); los diseños nuevos del editor usan `STANDARD_BULB` (standard.ts). */
 export const DEFAULT_BULB: LampBulbDef = { diameterMm: 60, heightAboveHolderMm: 85 };
-export const DEFAULT_CABLE: LampCableDef = { diameterMm: 7, tieAnchor: true };
+export const DEFAULT_CABLE: LampCableDef = { ...STANDARD_CABLE };
 
 export const DEFAULT_LAMP: LampDefinition = {
   version: 2,

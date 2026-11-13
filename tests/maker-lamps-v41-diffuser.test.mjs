@@ -5,6 +5,7 @@ import { renderToStaticMarkup } from "react-dom/server";
 import { loadMakerModule } from "../scripts/lib/maker-engine-node.mjs";
 import { loadTs } from "./helpers/load-ts.mjs";
 import { planeCrossings } from "./helpers/lamp-slice.mjs";
+import { loadLampUi } from "./helpers/lamp-editor-ui.mjs";
 
 // Lámparas V4.1 — parte A: el difusor de las pantallas CALADAS se dimensiona por el diámetro interior LIBRE de los anillos
 // (no por el diámetro decorativo máximo). Todo se mide sobre las mallas generadas. Son pruebas GEOMÉTRICAS: la holgura
@@ -234,22 +235,17 @@ test("compatibilidad: diseños viejos de la calada se leen con el difusor según
   assert.equal(createLamp(DEFAULT_LAMP).metrics.fit.insertOuterDiameterMm, 65.135);
 });
 
-test("UI: la calada muestra el ajuste «Según los anillos» con la holgura diametral y los diámetros; la sólida no", () => {
-  const { MakerLampControls, LampExportButtons } = loadTs("src/components/maker/MakerLampControls.tsx", { "next/link": { __esModule: true, default: (props) => createElement("a", props) }, "opentype.js": {} });
+test("UI: el ajuste del difusor a los anillos lo resuelve el motor: el editor no ofrece sus modos, la holgura ni los diámetros de los anillos", () => {
+  const { MakerLampControls } = loadLampUi();
   const render = (def) => {
     const r = createLamp(def);
-    return renderToStaticMarkup(
-      createElement(MakerLampControls, {
-        def, onChange() {}, onApplyPreset() {}, onGenerateVariation() {}, onLoadDesign() {}, onError() {},
-        errors: r.errors, warnings: r.warnings, metrics: r.metrics,
-        exportButtons: createElement(LampExportButtons, { hasInsert: true, insertStyle: def.insert.style, hasCollar: false, canDownload: true, canDownloadTests: true, busy: null, onDownloadPart() {}, onDownloadZip() {}, onDownloadTests() {}, holderMeasured: false }),
-      }),
-    );
+    return renderToStaticMarkup(createElement(MakerLampControls, { def, onChange() {}, errors: r.errors, warnings: r.warnings, metrics: r.metrics }));
   };
   const open = render(EXAMPLE);
-  for (const text of ["Difusor de la pantalla calada", "Según los anillos", "Manual", "Holgura diametral", "Ø libre anillo inferior / superior", "Ø máximo que pasa por el cuello roscado", "Ø exterior del difusor", "Lo limita", "el anillo superior", "pendiente de validación física"]) assert.ok(open.includes(text), `falta "${text}"`);
+  for (const text of ["Difusor de la pantalla calada", "Según los anillos", "Manual", "Holgura diametral", "Ø libre anillo inferior / superior", "Ø máximo que pasa por el cuello roscado", "Ø interior libre anillo", "Lo limita"]) assert.ok(!open.includes(text), `no debe mostrar "${text}"`);
+  // el difusor de la calada sigue siendo el cilíndrico recto, sin estilos ni controles propios
+  assert.ok(open.includes("Pendiente de validación física") && !open.includes('data-diffuser="'));
   const manual = render({ ...mk(WIDE, { diffuserFit: "manual" }), insert: { ...WIDE.insert, diameterMm: 65.135 } });
-  assert.ok(manual.includes("Ø exterior del cuerpo") && !manual.includes("Holgura diametral"));
-  const solid = render(DEFAULT_LAMP);
-  assert.ok(!solid.includes("Según los anillos") && solid.includes("Ø exterior del cuerpo"));
+  assert.ok(!manual.includes("Ø exterior del cuerpo") && !manual.includes("Holgura diametral"));
+  assert.ok(!render(DEFAULT_LAMP).includes("Según los anillos"));
 });

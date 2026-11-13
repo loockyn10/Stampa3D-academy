@@ -6,6 +6,7 @@ import { renderToStaticMarkup } from "react-dom/server";
 import JSZip from "jszip";
 import { loadMakerModule } from "../scripts/lib/maker-engine-node.mjs";
 import { loadTs } from "./helpers/load-ts.mjs";
+import { loadLampUi } from "./helpers/lamp-editor-ui.mjs";
 
 // Lámparas V6 — ESTABILIZACIÓN: restricciones dinámicas de los controles, difusor de la calada por su diámetro (Ø80 / abertura Ø81),
 // presets válidos y vista previa honesta. Todo se mide sobre las MALLAS que ve el visor y exporta el STL (no sobre los parámetros).
@@ -138,7 +139,7 @@ const mocks = {
     },
   },
 };
-const { MakerLampControls, LampExportButtons } = loadTs("src/components/maker/MakerLampControls.tsx", mocks);
+const { MakerLampControls, LampExportButtons } = loadLampUi(mocks);
 
 /** Rutas de los controles principales de cada tipo (los rangos que calcula la interfaz). */
 const MAIN_PATHS = (def) => C.specsFor(def).filter((s) => s.main || s.path === "thread.majorDiameterMm").map((s) => s.path);
@@ -315,22 +316,22 @@ test("CASO 1 — calada: difusor Ø80, holgura 1 mm, abertura Ø81, decorativo �
   assert.equal(s.def.shadeType, "openwork");
   assert.equal(s.def.openwork.diffuserFit, "diameter");
   assert.equal(s.def.openwork.diffuserClearanceMm, 1);
-  assert.ok(s.html.includes("Difusor de la pantalla calada") && s.html.includes("Por su diámetro"));
+  assert.ok(!s.html.includes("Por su diámetro") && !s.html.includes("Holgura diametral"), "el ajuste del difusor a los anillos no es un control del editor");
   // 1) difusor Ø80: el encastre inferior es el estándar de diffuser.stl (Ø65,135) y la torre ya no crece con el cuerpo, así que con la rosca de montaje por defecto (Ø96) el cuerpo de Ø80 pasa por el cuello sin tocar nada
-  s.type("Ø exterior del difusor", 80);
+  s.set("openwork", { diffuserDiameterMm: 80 });
   assert.equal(s.def.openwork.diffuserDiameterMm, 80);
   assert.equal(s.result.errors.length, 0, JSON.stringify(s.result.errors.map((e) => e.code)));
   assert.equal(s.def.thread.majorDiameterMm, 96, "no se tocó la rosca");
   assert.ok(!s.html.includes("Subir la rosca de montaje hasta que la base aloje el difusor"), "sin error no hay botón de solución");
   // 2) un cuerpo que ya no pasa por el cuello roscado sí se rechaza, explícito y sin reducirlo en silencio; la solución propuesta es la que ejecuta el botón
-  s.type("Ø exterior del difusor", 130);
+  s.set("openwork", { diffuserDiameterMm: 130 });
   assert.equal(s.result.geometry, null);
   const exceeds = s.result.errors.find((e) => e.code === "DIFFUSER_EXCEEDS_BASE");
   assert.ok(exceeds && /Subí el diámetro de la rosca de montaje a Ø/.test(exceeds.message), exceeds?.message);
-  assert.ok(s.html.includes("Subir la rosca de montaje hasta que el difusor pase por el cuello"), "botón de la solución");
+  assert.ok(!s.html.includes("Subir la rosca") && !s.html.includes("Agrandar la rosca"), "el editor no ofrece cambiar la rosca (mecánica fija): el motor sí informa la causa y la sugerencia");
   const major = suggestThreadMajorForDiffuser(s.def);
   assert.ok(major && major > 96, `rosca sugerida Ø${major}`);
-  s.type("Ø exterior del difusor", 80);
+  s.set("openwork", { diffuserDiameterMm: 80 });
   // la abertura libre de Ø81 de los anillos (0,5 mm radiales) solo se mide si el cuello roscado no la estrecha: se lleva la rosca a la sugerida
   s.set("thread", { majorDiameterMm: 102 });
   // 3) decorativo Ø150
@@ -467,16 +468,16 @@ test("recorrido de inserción y extracción: una cintura que estrecha la abertur
 });
 
 // ================================================================== C — INTERFAZ Y PRESETS
-test("interfaz principal: tipo, diseños, altura, diámetro, forma e intensidad a la vista; lo técnico dentro de «Personalización avanzada»", () => {
+test("interfaz principal: tipo, diseños, altura, diámetro, forma e intensidad a la vista; lo técnico dentro de «Más ajustes»", () => {
   for (const [name, def, mainLabels, advancedLabels] of [
     ["sólida", DEFAULT_LAMP, ["Estilo", "Altura", "Diámetro", "Intensidad del diseño"], ["Cantidad de ondas", "Torsión", "Diámetro superior", "Familia de patrón", "Perfil"]],
-    ["calada", OPENWORK, ["Estilo", "Altura", "Forma exterior", "Densidad del calado"], ["Diámetro máximo decorativo", "Torsión", "Inclinación de las diagonales", "Grosor de la estructura", "Intensidad de cintura"]],
-    ["doble pared", DOUBLE, ["Forma exterior", "Forma interior", "Separación entre paredes", "Altura", "Diámetro máximo"], ["Torsión", "Diámetro inferior (pared interior)", "Profundidad de las ondulaciones"]],
+    ["calada", OPENWORK, ["Estilo", "Altura", "Forma exterior", "Densidad del patrón"], ["Diámetro máximo decorativo", "Torsión", "Inclinación de las diagonales", "Grosor de la estructura", "Intensidad de cintura"]],
+    ["doble pared", DOUBLE, ["Forma exterior", "Forma interior", "Separación entre paredes"], ["Altura", "Diámetro máximo", "Pared interior", "Profundidad de las ondulaciones"]],
   ]) {
     const s = session(def);
-    const adv = s.html.indexOf("Personalización avanzada");
-    assert.ok(adv > 0, `${name}: falta «Personalización avanzada»`);
-    const detailsOpen = /<details[^>]*open[^>]*>\s*<summary[^>]*>Personalización avanzada/.test(s.html);
+    const adv = s.html.indexOf('data-section="shade-more"');
+    assert.ok(adv > 0, `${name}: falta «Más ajustes»`);
+    const detailsOpen = /<details[^>]*open[^>]*>\s*<summary[^>]*>Más ajustes/.test(s.html);
     assert.equal(detailsOpen, false, `${name}: lo avanzado empieza plegado`);
     for (const label of mainLabels) {
       const at = s.html.indexOf(label);
@@ -487,7 +488,7 @@ test("interfaz principal: tipo, diseños, altura, diámetro, forma e intensidad 
       assert.ok(at > adv, `${name}: «${label}» debe estar en la personalización avanzada`);
     }
     // un parámetro = un control: ningún rótulo de slider se repite dentro de la misma pantalla
-    const sliders = [...s.html.slice(0, s.html.indexOf("Difusor y color")).matchAll(/<span>([^<]+)<\/span><span class="[^"]*">[^<]*<\/span><\/span><input type="range"/g)].map((m) => m[1]);
+    const sliders = [...s.html.slice(0, s.html.indexOf('data-component="diffuser"')).matchAll(/<span>([^<]+)<\/span><span class="[^"]*">[^<]*<\/span><\/span><input type="range"/g)].map((m) => m[1]);
     assert.equal(new Set(sliders).size, sliders.length, `${name}: controles duplicados ${sliders.filter((l, i) => sliders.indexOf(l) !== i)}`);
   }
 });
@@ -525,14 +526,14 @@ test("CASO 2 — modificar consecutivamente todos los controles principales (cal
   const labelGroup = {
     "Altura": { group: "shade", patch: (v) => ({ heightMm: v }) },
     "Diámetro máximo decorativo": { group: "openwork", patch: (v) => ({ maxDiameterMm: v }) },
-    "Densidad del calado (rombos alrededor)": { group: "openwork", patch: (v) => ({ divisions: Math.round(v) }) },
+    "Densidad del patrón (rombos alrededor)": { group: "openwork", patch: (v) => ({ divisions: Math.round(v) }) },
     "Diámetro": { group: "shade", patch: (v) => ({ bottomDiameterMm: v }) },
     "Intensidad del diseño": { group: "shade", patch: (v) => ({ amplitudeMm: v }) },
     "Diámetro máximo": { group: "doubleWall", patch: (v) => ({ maxDiameterMm: v }) },
     "Profundidad de las ondulaciones": { group: "doubleWall", patch: (v) => ({ fluteAmplitudeMm: v }) },
     "Separación entre paredes": { group: "doubleWall", patch: (v) => ({ minGapMm: v }) },
   };
-  walk(["Altura", "Diámetro máximo decorativo", "Densidad del calado (rombos alrededor)"], s);
+  walk(["Altura", "Diámetro máximo decorativo", "Densidad del patrón (rombos alrededor)"], s);
   for (const kind of ["Abombada", "Cilíndrica", "Orgánica"]) {
     s.click(kind);
     assert.equal(s.result.errors.length, 0, `forma ${kind}: ${s.result.errors.map((e) => e.code)}`);
@@ -667,8 +668,8 @@ test("el panel avisa cuando el visor muestra una vista anterior y la página blo
   // mensaje corto, sin códigos internos ni párrafos: lo que se ve y lo que no se puede hacer
   assert.ok(html.includes("El visor muestra el último diseño válido") && html.includes("No se puede descargar"));
   assert.ok(!html.includes("NO corresponde") && !/[A-Z]+_[A-Z_]+/.test(html.replace(/data-[a-z-]+/g, "")), "sin códigos internos en la interfaz");
-  const page = loadFile("src/app/stampa-maker/lamparas/page.tsx");
-  assert.ok(page.includes("outdated") && page.includes("Vista anterior"), "la página marca el visor");
+  const page = loadFile("src/components/maker/lamps/LampEditor.tsx");
+  assert.ok(page.includes("outdated") && page.includes("Vista anterior"), "el editor marca el visor");
   assert.ok(/canDownload = !pending && !outdated/.test(page), "la descarga se bloquea mientras el visor muestra una vista anterior");
 });
 

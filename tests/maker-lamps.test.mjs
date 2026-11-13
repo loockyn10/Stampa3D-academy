@@ -7,6 +7,7 @@ import { renderToStaticMarkup } from "react-dom/server";
 import JSZip from "jszip";
 import { loadMakerModule } from "../scripts/lib/maker-engine-node.mjs";
 import { loadTs } from "./helpers/load-ts.mjs";
+import { loadLampUi } from "./helpers/lamp-editor-ui.mjs";
 
 // Lámparas E27 (Stampa Maker). Estos tests son GEOMÉTRICOS: miden las mallas que genera el motor (las mismas que ve el
 // visor y exporta el STL). NO reemplazan pruebas físicas de montaje, temperatura ni estabilidad con un portalámparas,
@@ -996,23 +997,23 @@ test("disponibilidad: Lámparas es Beta / solo administradores y la ruta se prot
 });
 
 // ------------------------------------------------------------------ UI
-test("UI: panel en tres secciones (diseño, iluminación, fabricación), botón Generar variación, selector de color, avisos de seguridad y descargas por pieza", () => {
-  const { MakerLampControls, LampExportButtons } = loadTs("src/components/maker/MakerLampControls.tsx", { "next/link": { __esModule: true, default: (props) => createElement("a", props) }, "opentype.js": {} });
+test("UI: editor con biblioteca y propiedades por componente, botón Generar variación, selector de color, avisos de seguridad y descargas por pieza", () => {
+  const { MakerLampControls, LampExportButtons } = loadLampUi();
   const r = createLamp(DEFAULT_LAMP);
-  const html = renderToStaticMarkup(
-    createElement(MakerLampControls, {
-      def: DEFAULT_LAMP, onChange() {}, onApplyPreset() {}, onGenerateVariation() {}, onLoadDesign() {}, onError() {},
-      errors: r.errors, warnings: r.warnings, metrics: r.metrics, exportButtons: createElement(LampExportButtons, { hasInsert: true, insertStyle: "wavy", hasCollar: true, canDownload: true, canDownloadTests: true, busy: null, onDownloadPart() {}, onDownloadZip() {}, onDownloadTests() {}, holderMeasured: false }),
-    }),
-  );
-  for (const text of ["1 · Tipo de lámpara", "Generar variación", "Difusor y color", "Forma del difusor", "Cilíndrico", "Plano", "Gota", "Ondulado", "Mossglow", "Tulipán", "Reloj de arena", "Campana", "Adhesión interna", "Activada", "Desactivada", "Base y fijación E27", "Fijación del portalámparas E27", "Doble anillo", "A presión", "Rosca hembra A", "Rosca hembra B con patas", "Pendiente de validación física", "NO VALIDADA", "Medidas que tenés que verificar", "Pruebas físicas antes de usarla", "Pantalla (STL)", "Collar roscado (STL)", "Inserto ondulado (STL)", "Base preliminar (STL)", "Todo en un ZIP", "Piezas de prueba (ZIP)", "Código del diseño", "Rosca de unión pantalla–base", "Holguras del ensamblaje", "Parámetros de la rosca", "Ranuras para precinto", "Modo de impresión", "Ø agujero central", "Rebaje de los anillos"]) {
+  const html = renderToStaticMarkup(createElement(MakerLampControls, { def: DEFAULT_LAMP, onChange() {}, errors: r.errors, warnings: r.warnings, metrics: r.metrics }));
+  const exportHtml = renderToStaticMarkup(createElement(LampExportButtons, { hasInsert: true, insertStyle: "wavy", hasCollar: true, canDownload: true, canDownloadTests: true, busy: null, onDownloadPart() {}, onDownloadZip() {}, onDownloadTests() {}, holderMeasured: false }));
+  for (const text of ["Tipo de lámpara", "Estilos", "Generar variación", "Estilo del difusor", "Cilíndrico", "Plano", "Gota", "Ondulado", "Mossglow", "Tulipán", "Reloj de arena", "Campana", "Color de la vista previa", "Base E27 estándar", "Pendiente de validación física", "Medidas que tenés que verificar", "Pruebas físicas antes de usarla", "Holguras del ensamblaje"]) {
     assert.ok(html.includes(text), `falta "${text}"`);
   }
-  assert.equal((html.match(/role="radio"/g) ?? []).length, 24, "tres tarjetas de tipo + nueve colores de referencia (el selector libre no es un radio) + ocho formas de difusor (cuatro clásicas y cuatro siluetas decorativas) + cuatro tarjetas de fijación del portalámparas");
+  for (const text of ["Pantalla (STL)", "Collar roscado (STL)", "Inserto ondulado (STL)", "Base preliminar (STL)", "Todo en un ZIP", "Piezas de prueba (ZIP)"]) assert.ok(exportHtml.includes(text), `exportar: falta "${text}"`);
+  // tres tarjetas de tipo + las formas de difusor que entran con la bombilla del motor (Ø60 × 85: cuatro clásicas y Tulipán; las otras tres siluetas no entran y no se ofrecen)
+  // + nueve colores de referencia (el selector libre no es un radio)
+  assert.equal((html.match(/role="radio"/g) ?? []).length, 3 + 5 + 9);
   assert.ok(html.includes("Rojo") && html.includes("Azul") && html.includes("Verde"));
   // el color es solo una referencia visual
   assert.ok(html.includes("aproximación visual"));
-  assert.ok(html.includes("modo vaso"));
+  // la mecánica no es un control
+  for (const text of ["Fijación del portalámparas E27", "Parámetros de la rosca", "Ranuras para precinto", "Ø agujero central", "Rebaje de los anillos", "Modo de impresión"]) assert.ok(!html.includes(text), `sin "${text}"`);
 });
 
 test("UI: miniaturas de los diseños iniciales salen del mismo evaluador que la geometría", () => {
@@ -1031,7 +1032,7 @@ test("visor: props opcionales zUp / hiddenKinds / partColors, sin tocar el compo
   // los valores por defecto conservan el comportamiento previo
   assert.match(viewport, /zUp = false, hiddenKinds = null, partColors = null, sectionView = false/);
   for (const rel of ["app/stampa-maker/carteles/page.tsx", "app/stampa-maker/neon/page.tsx", "app/stampa-maker/jarros/page.tsx"]) assert.doesNotMatch(read(rel), /zUp|hiddenKinds|partColors/);
-  const page = read("app/stampa-maker/lamparas/page.tsx");
+  const page = read("components/maker/lamps/LampEditor.tsx");
   assert.match(page, /zUp/);
   assert.match(page, /useLampGeometry/);
   assert.doesNotMatch(page, /tutorial/i, "no se crea un sistema paralelo de tutoriales");

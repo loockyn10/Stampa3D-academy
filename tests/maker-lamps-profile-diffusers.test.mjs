@@ -5,6 +5,7 @@ import { renderToStaticMarkup } from "react-dom/server";
 import { loadMakerModule } from "../scripts/lib/maker-engine-node.mjs";
 import { loadTs } from "./helpers/load-ts.mjs";
 import { planeCrossings } from "./helpers/lamp-slice.mjs";
+import { loadLampUi } from "./helpers/lamp-editor-ui.mjs";
 
 // Difusores decorativos de perfil (Mossglow, Tulipán, Reloj de arena, Campana). Todo se mide sobre las MALLAS generadas (las que ve el
 // visor y exporta el STL). Son pruebas GEOMÉTRICAS: ninguna es una validación térmica ni de montaje físico. El encastre inferior estándar
@@ -537,38 +538,39 @@ test("difusores anteriores: plano, gota y ondulado generan exactamente lo mismo 
 });
 
 // ==================================================================================================== 8. INTERFAZ
-test("interfaz: galería con las ocho formas, tres controles principales por estilo y lo demás en «Personalización avanzada»; sin controles que no aplican", () => {
-  const { MakerLampControls, LampExportButtons } = loadTs("src/components/maker/MakerLampControls.tsx", { "next/link": { __esModule: true, default: (props) => createElement("a", props) }, "opentype.js": {} });
+test("interfaz: galería con las ocho formas, tres controles principales por estilo y lo demás en «Más ajustes del difusor»; sin controles que no aplican", () => {
+  const { MakerLampControls, LampExportButtons } = loadLampUi();
   const render = (def) => {
     const r = createLamp(def);
-    return renderToStaticMarkup(createElement(MakerLampControls, {
-      def, onChange() {}, onApplyPreset() {}, onGenerateVariation() {}, onLoadDesign() {}, onError() {},
-      errors: r.errors, warnings: r.warnings, metrics: r.metrics,
-      exportButtons: createElement(LampExportButtons, { hasInsert: true, insertStyle: def.insert.style, insertPrintKind: isProfileStyle(def.insert.style) ? profilePrintKind(def.insert.style, def.insert.profileTop) : undefined, insertLabel: CAPS.DIFFUSER_KIND_LABELS[CAPS.diffuserKind(def.insert)].toLowerCase(), hasCollar: false, canDownload: true, canDownloadTests: true, busy: null, onDownloadPart() {}, onDownloadZip() {}, onDownloadTests() {}, holderMeasured: false }),
-    }));
+    return renderToStaticMarkup(createElement(MakerLampControls, { def, onChange() {}, errors: r.errors, warnings: r.warnings, metrics: r.metrics }));
   };
-  const main = (html, style) => {
-    // lo que queda fuera de «Personalización avanzada» del bloque de controles del estilo
-    const block = html.slice(html.indexOf(`data-profile-controls="${style}"`));
-    const adv = block.indexOf("Personalización avanzada");
-    return { main: block.slice(0, adv), adv: block.slice(adv, adv + 6000) };
+  const exportHtml = (def) => renderToStaticMarkup(createElement(LampExportButtons, { hasInsert: true, insertStyle: def.insert.style, insertPrintKind: isProfileStyle(def.insert.style) ? profilePrintKind(def.insert.style, def.insert.profileTop) : undefined, insertLabel: CAPS.DIFFUSER_KIND_LABELS[CAPS.diffuserKind(def.insert)].toLowerCase(), hasCollar: false, canDownload: true, canDownloadTests: true, busy: null, onDownloadPart() {}, onDownloadZip() {}, onDownloadTests() {}, holderMeasured: false }));
+  const main = (html) => {
+    // el panel del difusor: lo visible siempre (hasta «Más ajustes del difusor») y lo plegado
+    const block = html.slice(html.indexOf('data-component="diffuser"'));
+    const controls = block.indexOf("Ajustes del difusor");
+    const adv = block.indexOf('data-section="diffuser-more"');
+    const end = block.indexOf("Color de la vista previa");
+    return { main: block.slice(controls, adv), adv: block.slice(adv, end) };
   };
   const mg = render(lamp("mossglow"));
   for (const label of ["Mossglow", "Tulipán", "Reloj de arena", "Campana", "Cilíndrico"]) assert.ok(mg.includes(label), `galería: ${label}`);
-  const m1 = main(mg, "mossglow");
+  assert.equal((mg.match(/data-diffuser="/g) ?? []).length, 8, "ocho formas");
+  const m1 = main(mg);
   for (const t of ["Altura", "Ancho (Ø máximo)", "Estrechamiento (Ø superior)"]) assert.ok(m1.main.includes(t), `Mossglow principal: ${t}`);
   assert.equal((m1.main.match(/type="range"/g) ?? []).length, 3, "Mossglow: exactamente tres controles principales");
-  assert.ok(m1.adv.includes("Curvatura") && m1.adv.includes("Terminación superior") && m1.adv.includes("Espesor de pared"));
+  assert.ok(m1.adv.includes("Curvatura") && m1.adv.includes("Terminación superior"));
+  assert.ok(!m1.adv.includes("Espesor de pared") && !m1.adv.includes("Espesor de la tapa"), "el espesor es del encastre: no es un control");
   assert.ok(!m1.main.includes("cintura") && !m1.main.includes("Apertura"), "sin controles de otros estilos");
-  const tu = main(render(lamp("tulip")), "tulip");
+  const tu = main(render(lamp("tulip")));
   for (const t of ["Altura", "Apertura superior", "Curvatura"]) assert.ok(tu.main.includes(t), `Tulipán principal: ${t}`);
   assert.equal((tu.main.match(/type="range"/g) ?? []).length, 3);
   assert.ok(!tu.main.includes("Ancho") && !tu.main.includes("cintura") && !tu.adv.includes("Posición de la cintura"));
-  const hg = main(render(lamp("hourglass")), "hourglass");
+  const hg = main(render(lamp("hourglass")));
   for (const t of ["Altura", "Ancho (Ø máximo)", "Intensidad de la cintura"]) assert.ok(hg.main.includes(t), `Reloj principal: ${t}`);
   assert.equal((hg.main.match(/type="range"/g) ?? []).length, 3);
   assert.ok(hg.adv.includes("Posición de la cintura"));
-  const bl = main(render(lamp("bell")), "bell");
+  const bl = main(render(lamp("bell")));
   for (const t of ["Altura", "Ancho del cuerpo", "Curvatura"]) assert.ok(bl.main.includes(t), `Campana principal: ${t}`);
   assert.equal((bl.main.match(/type="range"/g) ?? []).length, 3);
   assert.ok(bl.adv.includes("Redondeada") && bl.adv.includes("Gota") && bl.adv.includes("Tapa plana") && !bl.adv.includes(">Abierta<"), "la campana no ofrece terminación abierta");
@@ -576,15 +578,15 @@ test("interfaz: galería con las ocho formas, tres controles principales por est
   // el Ø exterior del cuerpo y el diámetro automático (propios de los cilindros) no aparecen con un difusor de perfil
   const html = render(lamp("mossglow"));
   assert.ok(!html.includes("Diámetro automático") && !html.includes("Ø exterior del cuerpo"));
-  assert.ok(html.includes("Ø máximo del difusor") && html.includes("Ø mínimo de la pared"));
-  assert.ok(html.includes("Encastre inferior estándar"));
-  assert.ok(html.includes("Difusor mossglow (STL)"));
+  assert.ok(html.includes("Ø máximo del difusor"));
+  assert.ok(html.includes("encastre"), "el encastre es el estándar y no se edita");
+  assert.ok(exportHtml(lamp("mossglow")).includes("Difusor mossglow (STL)"));
   // los controles de los cilindros siguen con ellos
-  assert.ok(!render(applyInsertStyle(BASE, "wavy")).includes("data-profile-controls"));
+  const wavy = render(applyInsertStyle(BASE, "wavy"));
+  assert.ok(!wavy.includes("Estrechamiento") && !wavy.includes("Apertura superior") && !wavy.includes("Intensidad de la cintura"));
   // calada y doble pared: sin galería de difusores decorativos
   for (const type of ["openwork", "double"]) {
     const h = render(applyShadeType(BASE, type));
-    assert.ok(!h.includes("data-profile-controls"));
     assert.ok(!h.includes('data-diffuser="mossglow"') && !h.includes('data-diffuser="hourglass"'), `${type}: no ofrece difusores decorativos`);
   }
 });

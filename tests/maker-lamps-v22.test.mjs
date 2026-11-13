@@ -5,6 +5,7 @@ import { renderToStaticMarkup } from "react-dom/server";
 import JSZip from "jszip";
 import { loadMakerModule } from "../scripts/lib/maker-engine-node.mjs";
 import { loadTs } from "./helpers/load-ts.mjs";
+import { loadLampUi } from "./helpers/lamp-editor-ui.mjs";
 
 // Lámparas V2.2: reborde interno de adhesión y generador de insertos (plano, gota, ondulado).
 // Todo se mide sobre las MALLAS generadas (las mismas que ve el visor y exporta el STL), no sobre los valores de configuración.
@@ -838,34 +839,32 @@ test("compatibilidad con diseños guardados: los códigos anteriores a V2.2 se l
   assert.ok(createLamp(def).errors.length === 0);
 });
 
-test("UI: selector de estilo con tres tarjetas, controles separados del inserto y adhesión interna en Fabricación", () => {
-  const { MakerLampControls, LampExportButtons } = loadTs("src/components/maker/MakerLampControls.tsx", { "next/link": { __esModule: true, default: (props) => createElement("a", props) }, "opentype.js": {} });
+test("UI: selector de estilo del difusor, controles propios de cada estilo; la adhesión interna y el espesor ya no son controles", () => {
+  const { MakerLampControls, LampExportButtons } = loadLampUi();
   const render = (def) => {
     const r = createLamp(def);
-    return renderToStaticMarkup(
-      createElement(MakerLampControls, {
-        def, onChange() {}, onApplyPreset() {}, onGenerateVariation() {}, onLoadDesign() {}, onError() {},
-        errors: r.errors, warnings: r.warnings, metrics: r.metrics,
-        exportButtons: createElement(LampExportButtons, { hasInsert: true, insertStyle: def.insert.style, hasCollar: false, canDownload: true, canDownloadTests: true, busy: null, onDownloadPart() {}, onDownloadZip() {}, onDownloadTests() {}, holderMeasured: false }),
-      }),
-    );
+    return renderToStaticMarkup(createElement(MakerLampControls, { def, onChange() {}, errors: r.errors, warnings: r.warnings, metrics: r.metrics }));
   };
+  const exportHtml = (def) => renderToStaticMarkup(createElement(LampExportButtons, { hasInsert: true, insertStyle: def.insert.style, hasCollar: false, canDownload: true, canDownloadTests: true, busy: null, onDownloadPart() {}, onDownloadZip() {}, onDownloadTests() {}, holderMeasured: false }));
   // por defecto el difusor es el cilíndrico recto (el «ondulado» liso): sin controles de ondas
   const cylinder = render(DEFAULT_LAMP);
-  for (const text of ["Forma del difusor", "Cilíndrico", "Plano", "Gota", "Ondulado", "Adhesión interna", "Ancho del reborde", "Altura del reborde", "1 · Tipo de lámpara", "Difusor y color", "Base y fijación E27", "Inserto ondulado (STL)"]) assert.ok(cylinder.includes(text), `falta "${text}"`);
+  for (const text of ["Estilo del difusor", "Cilíndrico", "Plano", "Gota", "Ondulado", "Tipo de lámpara", "Base E27 estándar"]) assert.ok(cylinder.includes(text), `falta "${text}"`);
+  assert.ok(exportHtml(DEFAULT_LAMP).includes("Inserto ondulado (STL)"));
   assert.ok(!cylinder.includes("Número de ondas"), "el cilíndrico no tiene ondas");
+  // la adhesión interna es mecánica (reborde de la pieza roscada): no es un control
+  for (const text of ["Adhesión interna", "Ancho del reborde", "Altura del reborde"]) assert.ok(!cylinder.includes(text), `sin "${text}"`);
   const wavy = render(style("wavy"));
-  for (const text of ["Número de ondas", "Amplitud (suma hacia afuera)", "Frecuencia vertical", "Terminación superior", "Ø máximo con ondas"]) assert.ok(wavy.includes(text), `ondulado: falta "${text}"`);
+  for (const text of ["Número de ondas", "Amplitud", "Frecuencia vertical", "Terminación superior"]) assert.ok(wavy.includes(text), `ondulado: falta "${text}"`);
   const flat = render(style("flat"));
-  assert.ok(flat.includes("Espesor de la tapa") && !flat.includes("Número de ondas") && flat.includes("Inserto plano (STL)") && flat.includes("pendiente de validación térmica"));
+  assert.ok(!flat.includes("Número de ondas") && !flat.includes("Espesor de la tapa") && /temperatura/i.test(flat) && exportHtml(style("flat")).includes("Inserto plano (STL)"));
   const drop = render(style("drop"));
-  for (const text of ["Altura del cierre", "Curvatura", "Redondeo de la punta", "Altura de la sección cilíndrica", "Inserto gota (STL)", "Parado, abertura sobre la cama"]) assert.ok(drop.includes(text), `falta "${text}"`);
-  // las tarjetas son 4 radios (cilíndrico, plano, gota, ondulado) con la miniatura (svg) y la elegida marcada
-  const cards = drop.match(/role="radio" aria-checked="(true|false)"[^>]*title="[^"]*Cilindro/g) ?? [];
-  assert.equal(cards.length, 4);
-  assert.ok(/aria-checked="true"[^>]*title="Cilindro que se cierra/.test(drop));
-  // sin reborde no hay campos de ancho
-  assert.ok(!render({ ...DEFAULT_LAMP, adhesion: { ...DEFAULT_LAMP.adhesion, enabled: false } }).includes("Ancho del reborde"));
+  for (const text of ["Altura del cierre", "Curvatura", "Redondeo de la punta"]) assert.ok(drop.includes(text), `falta "${text}"`);
+  assert.ok(exportHtml(style("drop")).includes("Inserto gota (STL)"));
+  // las tarjetas son radios con la miniatura (svg) y la elegida marcada. Con la bombilla del motor (Ø60 × 85, marcador de posición) las siluetas Mossglow, Reloj de arena y Campana no
+  // entran y no se ofrecen: quedan cilíndrico, plano, gota, ondulado y Tulipán
+  assert.equal((drop.match(/data-diffuser="/g) ?? []).length, 5);
+  assert.ok(/aria-checked="true"[^>]*data-diffuser="drop"/.test(drop));
+  assert.equal((drop.match(/aria-checked="true"[^>]*data-diffuser="/g) ?? []).length, 1);
 });
 
 /** Distancia mínima de cada punto interior a la piel EXTERIOR: triángulos que lo tienen detrás de su cara (normal saliente) a más de 0,3 t. */

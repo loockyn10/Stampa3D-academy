@@ -3,6 +3,7 @@
 import { useEffect, useMemo, useState } from "react";
 import { computeControlRange, rangeCacheKey, specsFor, type ControlRange } from "@/lib/maker/lamps/constraints";
 import { lampGeometryKey } from "@/lib/maker/lamps/createLamp";
+import { MECHANICAL_PATHS } from "@/lib/maker/lamps/standard";
 import type { LampDefinition } from "@/lib/maker/lamps/types";
 
 /** Espera sin cambios antes de recalcular: mientras se arrastra un slider no se recalcula nada (el rango del propio control no depende de su valor). */
@@ -23,17 +24,26 @@ export interface LampRangeState {
 
 /**
  * Calcula los rangos válidos de los controles (`constraints.ts`) en tandas, sin bloquear la interfaz: primero los controles principales y,
- * si `advanced`, el resto. Cada control se resuelve en su propio turno del navegador; si la definición cambia mientras tanto, la tanda se cancela y
+ * si `scope.advanced`, los demás de la pantalla; si `scope.insert`, los del difusor (`insert.*`). Los campos mecánicos (rosca, portalámparas…) no son
+ * controles del editor y no se calculan. Cada control se resuelve en su propio turno del navegador; si la definición cambia mientras tanto, la tanda se cancela y
  * empieza otra. El cache usa como clave toda la definición menos el valor del propio control: arrastrar un slider reutiliza su rango.
  */
-export function useLampConstraints(def: LampDefinition, advanced: boolean): LampRangeState {
+export interface LampConstraintScope {
+  /** Hay una sección «Más ajustes» abierta: se calculan también los controles avanzados de la pantalla. */
+  advanced: boolean;
+  /** El componente seleccionado es el difusor: se calculan sus controles. */
+  insert: boolean;
+}
+
+export function useLampConstraints(def: LampDefinition, scope: LampConstraintScope): LampRangeState {
+  const { advanced, insert } = scope;
   const [tick, setTick] = useState(0);
   const geometryKey = lampGeometryKey(def);
 
   const wanted = useMemo(
-    () => specsFor(def).filter((s) => advanced || s.main || s.path === "thread.majorDiameterMm"),
+    () => specsFor(def).filter((s) => !MECHANICAL_PATHS.includes(s.path) && (!s.path.startsWith("openwork.diffuser") || s.path === "openwork.diffuserDiameterMm") && (s.main || (s.path.startsWith("insert.") || s.path === "openwork.diffuserDiameterMm" ? insert : advanced))),
     // eslint-disable-next-line react-hooks/exhaustive-deps -- depende de la definición serializada
-    [geometryKey, advanced],
+    [geometryKey, advanced, insert],
   );
 
   useEffect(() => {

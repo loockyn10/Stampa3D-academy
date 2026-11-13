@@ -48,6 +48,16 @@ Secciones nuevas tras la exploración de herramientas: «De la idea a la pieza»
 - [ ] QA manual con cuenta admin (escritorio y 375 px, claro/oscuro): alta, edición, activar/desactivar, subir/bajar, eliminar, vista previa por audiencia y recarga; luego con cuenta Paid (`/canales`) y sin sesión (pie de `/landing`).
 - [ ] Decidir si los canales bloqueados (Premium) deben mostrarse a usuarios Free en alguna pantalla accesible para ellos (hoy `/redes` y `/canales` exigen membresía por el proxy, así que solo se ven en la vista previa del Admin).
 
+## Now — Lámparas E27: editor visual (implementado 2026-11-12, ver docs/STAMPA_MAKER.md §38.24 y D052)
+
+- [ ] **Abrir la ruta real** `/stampa-maker/lamparas` con sesión admin (escritorio y 375 px, claro/oscuro): el editor se recorrió a través de una ruta pública temporal (ya borrada) **sin** el guard de admin ni el layout principal (altura calculada contra el header real, sticky del visor en móvil).
+- [ ] **Confirmar el estándar mecánico:** que lo impreso y probado sea la fijación de **doble anillo** con los valores de `standard.ts` (agujero Ø42, anillos Ø58, rebaje Ø59,8 × 5,15, apoyo a 31,4; en el STL de referencia el agujero mide Ø40,9). Si el estándar es otro sistema (a presión, rosca A o B), cambiar `STANDARD_HOLDER.mount` y regenerar la línea base (`node scripts/lamp-mechanical-baseline.mjs`) con validación física. Si los valores son los de **tu** portalámparas, evaluar pasar `holder.measured` a `true` (hoy la base se exporta como «base preliminar»).
+- [ ] **Confirmar la bombilla estándar** de los diseños nuevos (LED Ø30 × 45 mm sobre el portalámparas, `STANDARD_BULB`): define la envolvente de la separación mínima; no es una garantía térmica. Decidir si hace falta ofrecerla como dato del diseño cuando se use otra bombilla (hoy no es un control).
+- [ ] Probar el editor con diseños guardados reales (códigos `SL1:` de versiones anteriores, con otros sistemas de fijación, rosca o collar): se abren sin cambios y avisan «medidas anteriores». Decidir si se ofrece editar esas medidas fuera del código (hoy solo se puede pasar al estándar).
+- [ ] Decidir si los diseños guardados deben ser por usuario (hoy: `localStorage` del navegador, sin sincronizar; por usuario exige una migration `source_type = 'lamp'`).
+- [ ] **Sprint posterior — bases decorativas (Fase 11):** permitir distintas geometrías exteriores de base (hoy cilíndricas) manteniendo intactos los encastres mecánicos (torre, canal del difusor, rosca, alojamiento del portalámparas). No se implementó nada de esto en el sprint del editor.
+- [ ] Contrastar el perfil Mossglow con `references/lamp-e27/Mossglow+Lite+-+Diffuser+-+Pla.stl` (apareció sin rastrear; no se analizó ni se incluye en el commit; licencia sin comprobar).
+
 ## Now — Lámparas E27 UX V2: simplificación, controles por familia y estabilidad (implementado 2026-11-03, ver docs/STAMPA_MAKER.md §38.22 y D043)
 
 - [ ] **Verificar la ruta real** `/stampa-maker/lamparas` con sesión admin (escritorio y 375 px, claro/oscuro). La página se recorrió en el navegador integrado a través de una ruta pública temporal (ya borrada) **sin** el guard de admin ni el layout principal; falta confirmarla con ambos.

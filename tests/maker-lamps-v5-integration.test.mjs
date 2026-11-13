@@ -7,6 +7,7 @@ import { renderToStaticMarkup } from "react-dom/server";
 import JSZip from "jszip";
 import { loadMakerModule } from "../scripts/lib/maker-engine-node.mjs";
 import { loadTs } from "./helpers/load-ts.mjs";
+import { loadLampUi } from "./helpers/lamp-editor-ui.mjs";
 
 // Lámparas V5 — INTEGRACIÓN: Selector → Estado → Motor → Visor → Exportación.
 // El selector y los campos son los del componente REAL (MakerLampControls): se renderiza con un registro que captura los controles
@@ -24,6 +25,7 @@ const { letterGeometryToBufferGeometry } = loadMakerModule("lib/maker/geometry/t
 const { analyzeMesh } = loadMakerModule("lib/maker/mugs/geometry/mesh.ts");
 const slicing = loadMakerModule("lib/maker/lamps/doublewall/sliceAnalysis.ts");
 const { OPENWORK_PRESETS, applyOpenworkPreset } = loadMakerModule("lib/maker/lamps/openwork/presets.ts");
+const { setRingFreeDiameter } = loadMakerModule("lib/maker/lamps/diffuserFit.ts");
 const { applyLampPreset, LAMP_PRESETS } = loadMakerModule("lib/maker/lamps/presets.ts");
 
 // ------------------------------------------------------------------ el componente real, con los controles registrados
@@ -49,7 +51,7 @@ const mocks = {
     },
   },
 };
-const { MakerLampControls, LampExportButtons } = loadTs("src/components/maker/MakerLampControls.tsx", mocks);
+const { MakerLampControls, LampExportButtons } = loadLampUi(mocks);
 
 /** Una "sesión" de la herramienta: estado = LampDefinition; cada acción pasa por los controles del componente real. */
 function session(start = DEFAULT_LAMP) {
@@ -196,14 +198,16 @@ test("Caso 1 (calada): selector → anillos Ø80 → holgura 1 mm → difusor Ø
   s.click("Calada");
   assert.equal(s.def.shadeType, "openwork");
   assert.equal(s.def.openwork.diffuserFit, "diameter", "la calada parte del modo recomendado (el difusor es el dato)");
-  // este caso ejercita el modo «Según los anillos» (V5); el modo por diámetro (V6) tiene su propio caso en maker-lamps-v6-stability.test.mjs
-  s.click("Según los anillos");
+  // este caso ejercita el modo «según los anillos» (V5), que el motor conserva pero el editor ya no ofrece como control (el difusor se ajusta solo): se fija en la
+  // definición, como lo haría un diseño anterior. El modo por diámetro (V6) tiene su propio caso en maker-lamps-v6-stability.test.mjs
+  assert.ok(!s.html.includes("Según los anillos") && !s.html.includes("Ø interior libre anillo inferior"), "el editor no ofrece los ajustes del difusor a los anillos");
+  s.set("openwork", { diffuserFit: "rings" });
   assert.equal(s.def.openwork.diffuserFit, "rings");
-  assert.ok(s.html.includes("Ø interior libre anillo inferior"), "controles de anillos");
+  const ring = (which, v) => { s.def = setRingFreeDiameter(s.def, which, v); return s.render(); };
   // 2-3) anillos con Ø80 libres (campos reales) y holgura diametral 1 mm (valor inicial)
-  s.type("Ø interior libre anillo inferior", 80);
-  s.type("Ø interior libre anillo superior", 80);
-  s.type("Ø interior libre anillo inferior", 80);
+  ring("bottom", 80);
+  ring("top", 80);
+  ring("bottom", 80);
   assert.equal(s.def.openwork.diffuserClearanceMm, 1);
   let fit = s.result.metrics.fit.diffuser;
   assert.ok(Math.abs(fit.ringBottomFreeDiameterMm - 80) < 0.02 && Math.abs(fit.ringTopFreeDiameterMm - 80) < 0.02, `anillos libres ${fit.ringBottomFreeDiameterMm} / ${fit.ringTopFreeDiameterMm}`);
@@ -216,7 +220,7 @@ test("Caso 1 (calada): selector → anillos Ø80 → holgura 1 mm → difusor Ø
   assert.equal(s.result.errors.length, 0, JSON.stringify(s.result.errors.map((e) => e.code + e.message)));
   // 5) el difusor mide Ø79 (anillos Ø80 − holgura 1)
   assert.ok(Math.abs(fit.diffuserDiameterMm - 79) < 0.011, `difusor Ø${fit.diffuserDiameterMm}`);
-  assert.ok(s.html.includes("Ø exterior del difusor"));
+  assert.ok(s.html.includes("Difusor") && s.html.includes("Detalles técnicos"));
   const before = await stlBytes(exportStl(s.result, "insert"));
   assert.ok(Math.abs(mountDiameter(parseStl(before)) - 79) < 0.03, "STL del difusor medido (antes de expandir)");
   // 6-7) silueta exterior hasta Ø150: el difusor NO cambia
@@ -263,8 +267,8 @@ test("Caso 2 (doble pared): selector → exterior abombado y estriado → interi
   const s = session(DEFAULT_LAMP);
   s.click("Doble pared");
   assert.equal(s.def.shadeType, "double");
-  assert.ok(["Pared exterior", "Pared interior", "Cámara y fabricación", "Impresión convencional", "Separación entre paredes", "Forma exterior", "Forma interior"].every((t) => s.html.includes(t)), "controles de la doble pared");
-  assert.ok(s.html.includes("El modo jarrón todavía no está disponible"), "el modo jarrón no se ofrece como terminado");
+  assert.ok(["Pared exterior", "Pared interior", "Cámara de aire", "Separación entre paredes", "Forma exterior", "Forma interior"].every((t) => s.html.includes(t)), "controles de la doble pared");
+  assert.ok(!s.html.includes("Impresión convencional") && !s.html.includes("Modo vaso"), "no se ofrece elegir el modo de fabricación (el modo jarrón no existe para la doble pared)");
   // la pared interior es parte de la pantalla: no se ofrece un difusor adicional (ni sus formas) por defecto
   assert.equal(s.def.insert.enabled, false);
   assert.ok(!s.html.includes("Forma del difusor"), "sin difusor no hay formas de difusor");
@@ -430,19 +434,20 @@ test("Caso 3 (regresión): sólida, calada con huecos reales, base y rosca sin c
 // ================================================================== cableado real
 test("cableado: la página real pasa el estado del selector al motor, al visor y a la exportación (sin geometría simulada)", () => {
   const read = (rel) => fs.readFileSync(path.resolve(rel), "utf8");
-  const page = read("src/app/stampa-maker/lamparas/page.tsx");
-  assert.match(page, /<MakerLampControls[\s\S]*onChange=\{setDef\}/, "el selector escribe en el estado de la página");
+  const page = read("src/components/maker/lamps/LampEditor.tsx");
+  assert.match(read("src/app/stampa-maker/lamparas/page.tsx"), /<LampEditor \/>/, "la página es el editor");
+  assert.match(page, /<LampPropertiesPanel[\s\S]*onChange=\{setDef\}/, "los controles escriben en el estado del editor");
   assert.match(page, /useLampGeometry\(def\)/, "el estado entra al motor");
-  assert.match(page, /geometry=\{viewGeometry\}/, "el visor recibe la geometría del motor");
+  assert.match(page, /geometry=\{geometry\}/, "el visor recibe la geometría del motor");
   assert.match(page, /downloadLampPart\(result, kind\)/, "la descarga usa el resultado del motor");
   assert.match(page, /downloadLampZip\(result, def\)/);
   const hook = read("src/hooks/maker/useLampGeometry.ts");
   assert.match(hook, /createLamp\(debounced/, "el hook llama al motor real");
-  const controls = read("src/components/maker/MakerLampControls.tsx");
+  const controls = read("src/components/maker/lamps/LampLibraryPanel.tsx");
   const caps = read("src/lib/maker/lamps/capabilities.ts");
   for (const label of ["Sólida", "Calada", "Doble pared"]) assert.ok(caps.includes(`label: "${label}"`), `familia ${label}`);
   assert.match(controls, /LampFamilyPicker/);
-  assert.match(controls, /applyShadeType\(def, type\)/);
+  assert.match(controls, /onSelectFamily/);
   assert.match(page, /switchFamily\(def, type, familyMemory\.current\)/, "la página recuerda lo que el usuario dejó en cada familia");
   // el motor no importa nada de la carpeta experimental, y la carpeta experimental sí importa el motor real
   const create = read("src/lib/maker/lamps/createLamp.ts");

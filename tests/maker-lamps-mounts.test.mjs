@@ -8,6 +8,7 @@ import { loadMakerModule } from "../scripts/lib/maker-engine-node.mjs";
 import { bbox, fitAxis, loadStlBinary, measureThread, trianglesFromIndexed, vertexRadii } from "../scripts/lib/stl-measure.mjs";
 import { loadTs } from "./helpers/load-ts.mjs";
 import { planeCrossings } from "./helpers/lamp-slice.mjs";
+import { loadLampUi } from "./helpers/lamp-editor-ui.mjs";
 
 // Lámparas — sistemas de fijación del portalámparas E27 (A presión, rosca hembra A, rosca hembra B con patas) y encastre inferior
 // ESTÁNDAR del difusor. Las cotas vienen de las mallas de references/lamp-e27 (BASE v2, BASE2, patas V6, diffuser) y acá se comprueba
@@ -249,29 +250,21 @@ test("piezas de prueba y LÉEME acompañan al sistema elegido", async () => {
 });
 
 // ================================================================================================ 5. LA INTERFAZ REAL
-test("UI: el selector de fijación ofrece los cuatro sistemas, marca el elegido y muestra los datos de cada uno", () => {
-  const { MakerLampControls, LampExportButtons } = loadTs("src/components/maker/MakerLampControls.tsx", { "next/link": { __esModule: true, default: (props) => createElement("a", props) }, "opentype.js": {} });
+test("UI: el editor no ofrece elegir la fijación; la base muestra el estándar bloqueado y un diseño anterior con otro sistema se avisa sin cambiarlo", () => {
+  const { MakerLampControls } = loadLampUi();
   const render = (def) => {
     const r = createLamp(def);
-    return renderToStaticMarkup(
-      createElement(MakerLampControls, {
-        def, onChange() {}, onApplyPreset() {}, onGenerateVariation() {}, onLoadDesign() {}, onError() {},
-        errors: r.errors, warnings: r.warnings, metrics: r.metrics,
-        exportButtons: createElement(LampExportButtons, { hasInsert: true, insertStyle: def.insert.style, hasCollar: false, canDownload: true, canDownloadTests: true, busy: null, onDownloadPart() {}, onDownloadZip() {}, onDownloadTests() {}, holderMeasured: false }),
-      }),
-    );
+    return renderToStaticMarkup(createElement(MakerLampControls, { def, onChange() {}, errors: r.errors, warnings: r.warnings, metrics: r.metrics }));
   };
   for (const mount of MOUNTS) {
     const html = render(withMount(mount));
-    assert.ok(html.includes("Fijación del portalámparas E27"), `${mount}: falta el selector`);
-    for (const m of MOUNTS) assert.ok(html.includes(`data-mount="${m}"`) && html.includes(MOUNT_LABELS[m]), `${mount}: tarjeta ${m}`);
-    const checked = html.match(/aria-checked="true"[^>]*data-mount="(\w+)"/g) ?? [];
-    assert.equal(checked.length, 1, `${mount}: exactamente una tarjeta marcada`);
-    assert.ok(checked[0].includes(`data-mount="${mount}"`), `${mount}: la marcada es la elegida`);
-    assert.ok(html.includes("Encastre inferior estándar"), `${mount}: informe del encastre estándar`);
+    assert.ok(!html.includes("Fijación del portalámparas E27"), `${mount}: sin selector de fijación`);
+    for (const m of MOUNTS) assert.ok(!html.includes(`data-mount="${m}"`) && !html.includes(MOUNT_LABELS[m] + "</span>"), `${mount}: sin tarjeta ${m}`);
+    assert.ok(html.includes("Base E27 estándar") && html.includes("Alojamiento del portalámparas"), `${mount}: base estándar bloqueada`);
+    // un sistema distinto del estándar (doble anillo) es un diseño anterior: se avisa y se conserva; el estándar no avisa nada
+    assert.equal(html.includes("data-legacy-mechanics"), mount !== "rings", `${mount}: aviso de medidas anteriores`);
+    for (const t of ["Prof. del agujero a presión", "Ø agujero central", "Rebaje de los anillos"]) assert.ok(!html.includes(t), `${mount}: sin «${t}»`);
   }
-  assert.ok(render(withMount("press")).includes("Prof. del agujero a presión"));
-  assert.ok(render(withMount("threadV6")).includes("SIN piso"));
 });
 
 test("applyHolderMount: cambia solo el sistema (y el reborde cuando el plato no lo aloja) y devuelve una definición nueva", () => {

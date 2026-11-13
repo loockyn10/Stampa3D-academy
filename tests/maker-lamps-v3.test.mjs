@@ -5,6 +5,7 @@ import { renderToStaticMarkup } from "react-dom/server";
 import JSZip from "jszip";
 import { loadMakerModule } from "../scripts/lib/maker-engine-node.mjs";
 import { loadTs } from "./helpers/load-ts.mjs";
+import { loadLampUi } from "./helpers/lamp-editor-ui.mjs";
 
 // Lámparas V3: pantallas CALADAS (diamante y espiral) con siluetas paramétricas.
 // Todo se mide sobre las MALLAS generadas (las mismas que ve el visor y exporta el STL): rayos contra triángulos, topología,
@@ -675,7 +676,7 @@ test("el diseño sólido sigue igual: mismos números que antes de V3 y ningún 
 
 // ------------------------------------------------------------------ UI
 test("UI: selector Sólida/Calada, diseños calados, controles por patrón y avisos, sin mezclar los de la sólida", () => {
-  const { MakerLampControls, LampExportButtons } = loadTs("src/components/maker/MakerLampControls.tsx", { "next/link": { __esModule: true, default: (props) => createElement("a", props) }, "opentype.js": {} });
+  const { MakerLampControls, LampExportButtons } = loadLampUi();
   const render = (def) => {
     const r = createLamp(def);
     return renderToStaticMarkup(
@@ -690,16 +691,16 @@ test("UI: selector Sólida/Calada, diseños calados, controles por patrón y avi
   for (const text of ["Tipo de lámpara", "Sólida", "Calada", "Familia de patrón", "Cantidad de ondas"]) assert.ok(solid.includes(text), `sólida: falta "${text}"`);
   assert.ok(!solid.includes("rombos alrededor") && !solid.includes("Diamante clásico"));
   const diamond = render(BASE);
-  for (const text of ["Tipo de lámpara", "Diamante clásico", "Diamante fino", "Diamante con torsión", "Espiral suave", "Espiral intensa", "Reloj de arena calado", "Cilíndrica", "Abombada", "Reloj de arena", "Orgánica", "rombos alrededor", "Inclinación de las diagonales", "Grosor de la estructura", "Profundidad de las tiras", "Diámetro máximo", "Intensidad de cintura", "Personalización avanzada", "Una sola pieza conectada", "Abertura mínima", "Impresión convencional (calada)", "NO es una validación térmica"]) {
+  for (const text of ["Tipo de lámpara", "Diamante clásico", "Diamante fino", "Diamante con torsión", "Espiral suave", "Espiral intensa", "Reloj de arena calado", "Cilíndrica", "Abombada", "Reloj de arena", "Orgánica", "rombos alrededor", "Inclinación de las diagonales", "Grosor de la estructura", "Profundidad de las tiras", "Diámetro máximo", "Intensidad de cintura", "Más ajustes", "Una sola pieza conectada", "Abertura mínima", "NO es una validación térmica"]) {
     assert.ok(diamond.includes(text), `calada: falta "${text}"`);
   }
   assert.ok(!diamond.includes("Familia de patrón") && !diamond.includes("Cantidad de ondas"), "no mezcla los controles de la sólida");
   const spiral = render(ow({ pattern: "spiral", bands: 6, turns: 0.4, stripWidthMm: 6 }));
-  for (const text of ["Densidad del calado (bandas)", "Vueltas", "Separación libre entre bandas"]) assert.ok(spiral.includes(text), `espiral: falta "${text}"`);
+  for (const text of ["Densidad del patrón (bandas)", "Vueltas", "Separación libre entre bandas"]) assert.ok(spiral.includes(text), `espiral: falta "${text}"`);
   assert.ok(!spiral.includes("rombos alrededor"));
   // seis miniaturas seleccionables (botones con aria-pressed) y avanzados plegados
-  assert.equal((diamond.match(/aria-pressed="(true|false)"/g) ?? []).length, 6);
-  assert.ok(/<details(?![^>]*\bopen\b)[^>]*>\s*<summary[^>]*>Personalización avanzada/.test(diamond), "las opciones avanzadas están plegadas");
+  assert.equal((diamond.match(/data-style="/g) ?? []).length, 6);
+  assert.ok(/<details(?![^>]*\bopen\b)[^>]*>\s*<summary[^>]*>Más ajustes/.test(diamond), "las opciones avanzadas están plegadas");
   // un error de la calada se muestra con su mensaje
   assert.ok(render(ow({ pattern: "spiral", bands: 6, turns: 1.5, stripWidthMm: 5 })).includes("casi horizontales"));
 });
