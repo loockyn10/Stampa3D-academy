@@ -12,7 +12,7 @@ import { revolveProfile } from "@/lib/maker/mugs/geometry/revolveProfile";
  * `revolveProfile`: sin CSG, sin polos más que los de una tapa/ápice, sin triángulos degenerados. Se genera con el origen en
  * el eje, en coordenadas de ensamblado.
  *   - plano / ondulado con tapa: perfil con polos (cerrado arriba, abierto abajo).
- *   - ondulado abierto: lazo de anillos con dos lengüetas exteriores en el borde (extracción con los dedos).
+ *   - ondulado abierto: lazo de anillos (sin lengüetas: ningún difusor las lleva).
  */
 export function createInsertMesh(def: LampDefinition, layout: LampLayout): IndexedMesh {
   void def;

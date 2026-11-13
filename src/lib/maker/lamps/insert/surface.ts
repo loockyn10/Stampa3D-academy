@@ -153,7 +153,9 @@ function buildWavyOrFlat(input: InsertSurfaceInput): InsertSurface {
   const twist = flat ? 0 : (input.wavy.twistDeg * Math.PI) / 180;
   const vfreq = flat ? 0 : input.wavy.verticalFrequency;
   const closedTop = flat || input.wavy.top === "flat";
-  const tabsOn = !closedTop && input.tabs;
+  // Los difusores NUNCA llevan lengüetas superiores: se ignora `input.tabs` en cualquier camino que llegue acá (visor, STL, miniaturas, comparación).
+  // Las ramas de `tabsOn` quedan inertes; el tubo del encastre inferior y su transición no dependen de esto.
+  const tabsOn = false as boolean;
   const tc = input.capThicknessMm;
 
   const zm = Math.min(z0 + input.seatDepthMm + g.insertMountExtraMm, ztop);

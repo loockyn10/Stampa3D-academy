@@ -98,7 +98,7 @@ export function lampReadmeText(extra: { designCode?: string; holderMeasured: boo
       ? "- Collar: apoyá el borde inferior de la pantalla en el pozo del collar (entra a presión) y enroscá el collar en la base hasta el tope."
       : "- Pantalla: enroscala en la base hasta el tope; el cuello roscado es parte de la pantalla.",
     ...(extra.openwork ? ["- Pantalla CALADA: es una sola pieza conectada (anillo inferior, tiras y anillo superior) que se imprime de forma convencional, NO en modo vaso. " + LAMP_OPENWORK_MESSAGE] : []),
-    "- Para cambiar el color: sacá el inserto por la abertura superior (con lengüetas si las tiene; los insertos cerrados se agarran de la tapa o la punta); si no sale, desenroscá la pantalla (giro antihorario visto desde arriba).",
+    "- Para cambiar el color: sacá el inserto por la abertura superior (los insertos cerrados se agarran de la tapa o la punta); si no sale, desenroscá la pantalla (giro antihorario visto desde arriba).",
     "",
     "SEGURIDAD",
     ...LAMP_SAFETY_NOTICES.map((s) => "- " + s),

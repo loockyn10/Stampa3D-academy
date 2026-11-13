@@ -2,11 +2,17 @@ import { REFERENCE_DIFFUSER, REFERENCE_PRESS } from "@/lib/maker/lamps/holder/re
 import type { LampAdhesionDef, LampBulbDef, LampCableDef, LampDefinition, LampHolderDef, LampInsertDef, LampThreadDef } from "@/lib/maker/lamps/types";
 
 /**
- * ESTÁNDAR MECÁNICO DE LAS LÁMPARAS E27 (congelado).
+ * ESTÁNDAR MECÁNICO DE LAS LÁMPARAS E27 (congelado, PROVISIONAL).
  *
- * Son las interfaces físicas que la persona que diseñó el sistema ya imprimió y probó: base con alojamiento del portalámparas (doble anillo), canal de
- * montaje del difusor, encastre inferior del difusor y rosca de unión pantalla–base. Todo diseño NUEVO nace con estos valores y la interfaz del editor
- * NO los expone como controles: ninguna acción del editor (estilos, presets, familias, difusores, variaciones, correcciones) los modifica.
+ * Interfaces que el diseñador ya imprimió y probó: alojamiento del portalámparas, canal de montaje del difusor, encastre inferior del difusor y rosca de
+ * unión pantalla–base. Todo diseño NUEVO nace con estos valores y la interfaz del editor NO los expone como controles: ninguna acción del editor (estilos,
+ * presets, familias, difusores, variaciones, correcciones) los modifica.
+ *
+ * ATENCIÓN — qué está y qué NO está verificado: estas constantes son los valores POR DEFECTO que el motor ya usaba; que coincidan con la pieza impresa y probada
+ * NO está demostrado por el código. Contra los STL de references/lamp-e27 (2026-11-13): la base generada de doble anillo difiere de `bottom.stl` (agujero Ø42
+ * nominal vs Ø40,96 medido; ranura Ø62,84–65,84 vs Ø63,3–65,8; torre Ø69,84 vs Ø69,7) y la rosca Ø96 de unión no figura en ningún STL de referencia. Los
+ * sistemas medidos directamente de un STL son los otros (a presión: BASE v2.stl; rosca A: BASE2.stl; rosca B: patas V6.stl). Por eso NO se debe leer
+ * `STANDARD_HOLDER.mount = "rings"` como «la base validada»: es una decisión pendiente de confirmar por la persona que la imprimió.
  *
  * Qué NO es:
  *  - No es un recorte del motor: `LampDefinition` conserva todos sus campos y las variantes alternativas (a presión, rosca hembra A y B con patas, collar,
@@ -16,9 +22,8 @@ import type { LampAdhesionDef, LampBulbDef, LampCableDef, LampDefinition, LampHo
  *    motor (`defaults.ts` los toma de acá) y `tests/maker-lamps-editor-mechanics.test.mjs` los compara contra mediciones del motor ANTERIOR al editor
  *    (`tests/fixtures/lamp-mechanical-baseline.json`) sobre las mallas y los STL exportados.
  *
- * Supuesto a confirmar: el sistema de fijación del portalámparas estándar es el de «doble anillo» (`mount: "rings"`), el que el motor siempre usó por
- * defecto. Los otros tres (a presión, rosca A, rosca B con patas) salen de STL de referencia pero no se asumieron como el estándar de los diseños nuevos.
- * Cambiarlo es cambiar `STANDARD_HOLDER.mount` (y regenerar la línea base, con validación física).
+ * Pendiente de confirmar: qué sistema de fijación corresponde a la base física probada. Cambiarlo es cambiar `STANDARD_HOLDER.mount` (y los valores que
+ * correspondan) y regenerar la línea base, con validación física. Mientras tanto la geometría NO se modifica.
  */
 
 /** Portalámparas E27 y su alojamiento en la torre de la base (doble anillo). `measured` no es una medida: es la marca de «datos de mi portalámparas». */
@@ -63,7 +68,8 @@ export const STANDARD_ADHESION: Readonly<LampAdhesionDef> = Object.freeze({ enab
 export const STANDARD_CABLE: Readonly<LampCableDef> = Object.freeze({ diameterMm: 7, tieAnchor: true });
 
 /**
- * Bombilla de los diseños NUEVOS: LED pequeña tipo gota (Ø30 × 45 mm sobre el portalámparas), la que usan estas lámparas. Los valores anteriores (Ø60 × 85)
+ * Bombilla de los diseños NUEVOS: referencia NOMINAL interna de una LED E27 pequeña tipo gota (Ø30 × 45 mm sobre el portalámparas). NO es una dimensión verificada
+ * físicamente ni un control del editor (no hay compatibilidad con otros tamaños). Los valores anteriores (Ø60 × 85)
  * eran un marcador de posición que rechazaba por separación a la bombilla tres de los cuatro difusores decorativos con sus medidas iniciales. NO es una
  * medida mecánica ni una garantía térmica: define la envolvente contra la que la validación comprueba la separación mínima.
  */

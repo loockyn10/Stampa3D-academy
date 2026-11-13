@@ -3,7 +3,6 @@ import test from "node:test";
 import { createElement } from "react";
 import { renderToStaticMarkup } from "react-dom/server";
 import { loadMakerModule } from "../scripts/lib/maker-engine-node.mjs";
-import { loadTs } from "./helpers/load-ts.mjs";
 import { planeCrossings } from "./helpers/lamp-slice.mjs";
 import { loadLampUi } from "./helpers/lamp-editor-ui.mjs";
 
@@ -177,14 +176,13 @@ test("se puede introducir y retirar: el anillo superior deja pasar el difusor; u
   assert.ok(r.errors.some((e) => e.code === "DIFFUSER_CANNOT_PASS_TOP"), "mensaje específico del anillo superior");
 });
 
-test("las lengüetas de extracción no caben con el difusor según anillos: se ignoran con aviso (el difusor no cambia)", () => {
+test("las lengüetas ya no existen: pedirlas en la definición no cambia el difusor según anillos ni genera avisos", () => {
   const withTabs = createLamp(mk(EXAMPLE, {}, { tabs: true }));
   const without = createLamp(mk(EXAMPLE, {}, { tabs: false }));
   assert.equal(withTabs.errors.length, 0);
-  assert.ok(withTabs.warnings.some((w) => w.code === "DIFFUSER_TABS_NOT_APPLICABLE"));
-  assert.equal(without.warnings.some((w) => w.code === "DIFFUSER_TABS_NOT_APPLICABLE"), false);
+  assert.equal(withTabs.warnings.some((w) => w.code === "DIFFUSER_TABS_NOT_APPLICABLE"), false);
   assert.deepEqual(withTabs.indexed.insert.positions, without.indexed.insert.positions);
-  assert.equal(indexedBounds(withTabs.indexed.insert).maxX - indexedBounds(withTabs.indexed.insert).minX, 2 * Math.max(...radiiInZ(withTabs.indexed.insert, -1e9, 1e9)) - (2 * Math.max(...radiiInZ(withTabs.indexed.insert, -1e9, 1e9)) - (indexedBounds(withTabs.indexed.insert).maxX - indexedBounds(withTabs.indexed.insert).minX)));
+  assert.deepEqual(withTabs.indexed.insert.tris, without.indexed.insert.tris);
 });
 
 test("el difusor sigue siendo una pieza independiente y reemplazable (plano, gota, ondulado) con la misma interfaz de montaje, y la separación a la bombilla no se reduce", () => {

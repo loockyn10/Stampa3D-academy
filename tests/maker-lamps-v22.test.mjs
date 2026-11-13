@@ -4,7 +4,6 @@ import { createElement } from "react";
 import { renderToStaticMarkup } from "react-dom/server";
 import JSZip from "jszip";
 import { loadMakerModule } from "../scripts/lib/maker-engine-node.mjs";
-import { loadTs } from "./helpers/load-ts.mjs";
 import { loadLampUi } from "./helpers/lamp-editor-ui.mjs";
 
 // Lámparas V2.2: reborde interno de adhesión y generador de insertos (plano, gota, ondulado).
@@ -682,7 +681,7 @@ test("inserto ondulado: combinaciones que interfieren o son imposibles se bloque
   assert.ok(ok.metrics.fit.insertEnvelopeGapMm >= DEFAULT_LAMP.insert.minBulbGapMm);
 });
 
-test("inserto ondulado: terminación superior abierta (con lengüetas opcionales) o con tapa plana, sobre el mismo motor", () => {
+test("inserto ondulado: terminación superior abierta (sin lengüetas, aunque la definición las pida) o con tapa plana, sobre el mismo motor", () => {
   const open = build(style("wavy", { wavyTop: "open", tabs: true }));
   const flat = build(style("wavy", { wavyTop: "flat", tabs: true, capThicknessMm: 1.6, heightMm: 190 }));
   const none = build(style("wavy", { wavyTop: "open", tabs: false }));
@@ -691,7 +690,7 @@ test("inserto ondulado: terminación superior abierta (con lengüetas opcionales
   assertClean(flat.indexed.insert, "con tapa plana");
   assertClean(none.indexed.insert, "abierto sin lengüetas");
   // lengüetas: sólo con extremo abierto (en el plano y=0 no hay; en +Y sí)
-  assert.ok(Math.max(b(open).maxY, -b(open).minY) > 2.5 + 32.5675 + 5, "las lengüetas sobresalen en ±Y");
+  assert.ok(Math.max(b(open).maxY, -b(open).minY) < 32.5675 + 2.5 + 0.2, "el abierto no tiene lengüetas aunque `tabs` sea true");
   assert.ok(Math.max(b(none).maxY, -b(none).minY) < 32.5675 + 2.5 + 0.2);
   assert.ok(Math.max(b(flat).maxY, -b(flat).minY) < 32.5675 + 2.5 + 0.2, "con tapa no hay lengüetas");
   assert.equal(open.metrics.fit.insertClosed, false);
@@ -725,7 +724,7 @@ test("estilos del inserto: parámetros iniciales propios, el color, el diámetro
     for (const [k, v] of Object.entries(INSERT_STYLE_INITIAL[s])) assert.equal(next.insert[k], v, `${s}.${k}`);
   }
   assert.equal(applyInsertStyle(base, "flat").insert.tabs, false);
-  assert.equal(applyInsertStyle(base, "wavy").insert.tabs, true);
+  assert.equal(applyInsertStyle(base, "wavy").insert.tabs, false, "ningún estilo trae lengüetas");
   // cambiar de estilo no regenera la pantalla ni la base (cache por pieza)
   createLamp(base);
   const a = createLamp(applyInsertStyle(base, "flat")), b = createLamp(applyInsertStyle(base, "wavy"));

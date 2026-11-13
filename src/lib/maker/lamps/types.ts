@@ -175,7 +175,7 @@ export interface LampInsertDef {
   seatDepthMm: number;
   /** Separación radial MÍNIMA exigida entre la bombilla (o el cuerpo del portalámparas) y el cilindro: evita el contacto previsto con las medidas cargadas. NO es una distancia térmicamente segura. */
   minBulbGapMm: number;
-  /** Dos lengüetas exteriores en el borde superior (para extraer el inserto). Solo con extremo superior abierto (ondulado abierto). Obliga a impresión convencional. */
+  /** OBSOLETO: los difusores no llevan lengüetas; el campo se conserva solo para leer códigos SL1 anteriores y se ignora (siempre false). Antes: dos lengüetas exteriores en el borde superior (para extraer el inserto). Solo con extremo superior abierto (ondulado abierto). Obliga a impresión convencional. */
   tabs: boolean;
   /** Plano y ondulado con tapa: espesor de la tapa plana (unión a 90° con la pared). */
   capThicknessMm: number;

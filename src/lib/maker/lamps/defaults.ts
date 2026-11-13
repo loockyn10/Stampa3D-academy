@@ -104,7 +104,8 @@ export const DEFAULT_INSERT: LampInsertDef = {
   clearanceMm: STANDARD_INSERT_FIT.clearanceMm,
   seatDepthMm: STANDARD_INSERT_FIT.seatDepthMm,
   minBulbGapMm: STANDARD_INSERT_FIT.minBulbGapMm,
-  tabs: true,
+  // Los difusores NO llevan lengüetas superiores (siempre false; ver `normalizeLampDefinition` y layout.ts). El campo existe solo por compatibilidad del código SL1.
+  tabs: false,
   capThicknessMm: 1.6,
   dropClosureMm: 50,
   dropCurvaturePct: 70,
@@ -127,7 +128,7 @@ export const DEFAULT_INSERT: LampInsertDef = {
 export const INSERT_STYLE_INITIAL: Record<LampInsertStyle, Partial<LampInsertDef>> = {
   flat: { capThicknessMm: 1.6, tabs: false },
   drop: { dropClosureMm: 50, dropCurvaturePct: 70, dropTipRadiusMm: 10, tabs: false },
-  wavy: { waves: 12, amplitudeMm: 2.5, twistDeg: 90, verticalFrequency: 0, wavyTop: "open", tabs: true },
+  wavy: { waves: 12, amplitudeMm: 2.5, twistDeg: 90, verticalFrequency: 0, wavyTop: "open", tabs: false },
   // Difusores de perfil: medidas de partida (Ø) y terminación. Ancho = Ø máximo; Ø superior = estrechamiento (Mossglow) o apertura (Tulipán). Sin lengüetas.
   mossglow: { profileWidthMm: 67.7, profileTopDiameterMm: 24.3, profileCurvaturePct: 45, profileTop: "open", tabs: false },
   tulip: { profileTopDiameterMm: 80, profileCurvaturePct: 60, profileTop: "open", tabs: false },
@@ -315,7 +316,8 @@ export function normalizeLampDefinition(input: unknown): LampDefinition {
       thicknessMm: num(i.thicknessMm, DEFAULT_INSERT.thicknessMm),
       clearanceMm: num(i.clearanceMm, DEFAULT_INSERT.clearanceMm),
       minBulbGapMm: num(i.minBulbGapMm, DEFAULT_INSERT.minBulbGapMm),
-      tabs: bool(i.tabs, DEFAULT_INSERT.tabs),
+      // sin lengüetas, siempre: un diseño anterior que las traía se lee SIN ellas (el encastre inferior no cambia)
+      tabs: false,
       seatDepthMm: num(i.seatDepthMm, DEFAULT_INSERT.seatDepthMm),
       capThicknessMm: num(i.capThicknessMm, DEFAULT_INSERT.capThicknessMm),
       dropClosureMm: num(i.dropClosureMm, DEFAULT_INSERT.dropClosureMm),

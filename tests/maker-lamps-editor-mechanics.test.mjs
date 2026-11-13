@@ -84,7 +84,9 @@ for (const [id, entry] of Object.entries(FIXTURE.cases)) {
   test(`mecánica sin cambios (STL y mallas) — ${id}`, async () => {
     // el diseño de referencia es el guardado en la línea base (no el que genere hoy el código): comparar contra lo MEDIDO antes
     const def = entry.def;
-    assert.deepEqual(JSON.parse(JSON.stringify(designs[id])), JSON.parse(JSON.stringify(def)), `${id}: la receta del diseño de referencia no cambió`);
+    // (la línea base se tomó cuando los difusores todavía podían llevar lengüetas: la receta guardada trae \`tabs\` en algunos diseños y hoy ese campo no tiene efecto)
+    const noTabs = (d) => JSON.parse(JSON.stringify({ ...d, insert: { ...d.insert, tabs: false } }));
+    assert.deepEqual(noTabs(designs[id]), noTabs(def), `${id}: la receta del diseño de referencia no cambió`);
     const now = await measureMechanics(def);
     const was = entry.measures;
     assert.deepEqual(now.layout, was.layout, `${id}: cotas del layout (rosca, torre, ranura, encastre)`);
@@ -95,6 +97,15 @@ for (const [id, entry] of Object.entries(FIXTURE.cases)) {
     // STL exportados: mismas piezas, triángulos, cajas y volúmenes; la base es idéntica vértice a vértice
     assert.deepEqual(Object.keys(now.stl), Object.keys(was.stl), `${id}: mismas piezas exportadas`);
     for (const part of Object.keys(was.stl)) {
+      // ÚNICA diferencia admitida respecto de antes del sprint: un difusor que antes llevaba lengüetas superiores (def.insert.tabs) ya no las lleva. Se verifica que
+      // la pieza NO crece (sin salientes, menos material) y que su encastre inferior es idéntico (perfil de la zona de encastre comparado arriba). Todo lo demás: idéntico.
+      if (/inserto|difusor/.test(part) && def.insert.tabs) {
+        assert.ok(was.stl[part].bbox[1] > was.stl[part].bbox[0] + 5, `${id}/${part}: antes las lengüetas sobresalían en Y`);
+        assert.ok(Math.abs(now.stl[part].bbox[1] - now.stl[part].bbox[0]) < 1e-6, `${id}/${part}: ahora no sobresale nada en Y`);
+        assert.ok(now.stl[part].volumeMm3 < was.stl[part].volumeMm3, `${id}/${part}: sin lengüetas hay menos material`);
+        assert.ok(now.stl[part].bbox.every((v, k) => v <= was.stl[part].bbox[k] + 1e-6), `${id}/${part}: la caja no crece`);
+        continue;
+      }
       assert.equal(now.stl[part].triangles, was.stl[part].triangles, `${id}/${part}: triángulos`);
       assert.deepEqual(now.stl[part].bbox, was.stl[part].bbox, `${id}/${part}: caja`);
       assert.ok(Math.abs(now.stl[part].volumeMm3 - was.stl[part].volumeMm3) <= 0.2, `${id}/${part}: volumen ${now.stl[part].volumeMm3} vs ${was.stl[part].volumeMm3}`);

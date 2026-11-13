@@ -304,7 +304,7 @@ function DiffuserControl({ path, def, setInsert, err, fit }: { path: string; def
       return (
         <div key={path} className="flex flex-col gap-1.5">
           <span className={SUB_LABEL}>Terminación superior</span>
-          <SegmentedControl options={[{ value: "open" as const, label: "Abierta" }, { value: "flat" as const, label: "Tapa plana" }]} value={i.wavyTop} onChange={(wavyTop) => setInsert({ wavyTop, tabs: wavyTop === "open" ? i.tabs : false })} compact />
+          <SegmentedControl options={[{ value: "open" as const, label: "Abierta" }, { value: "flat" as const, label: "Tapa plana" }]} value={i.wavyTop} onChange={(wavyTop) => setInsert({ wavyTop })} compact />
         </div>
       );
     default:
@@ -405,7 +405,7 @@ function BaseSection({ def, status, onApplyStandard }: { def: LampDefinition; st
           <li>Canal y encastre del difusor</li>
           <li>Rosca de unión con la pantalla</li>
         </ul>
-        <p className="text-[11px] text-gray-500">Medidas ya probadas, fijas para todos los diseños: no hace falta tocarlas. Cambiar la forma de la pantalla o del difusor no las modifica.</p>
+        <p className="text-[11px] text-gray-500">Medidas estándar, fijas para todos los diseños: no hace falta tocarlas. Cambiar la forma de la pantalla o del difusor no las modifica.</p>
         <InfoRow label="Forma exterior de la base" value="Cilíndrica" />
       </div>
       {deviations.length > 0 && (
@@ -418,7 +418,7 @@ function BaseSection({ def, status, onApplyStandard }: { def: LampDefinition; st
         </div>
       )}
       {status}
-      <p className="text-[11px] text-gray-500">Pensada para una bombilla LED pequeña tipo gota (hasta Ø{fmt2(def.bulb.diameterMm)} × {fmt2(def.bulb.heightAboveHolderMm)} mm sobre el portalámparas). Las formas decorativas de la base se agregarán en una versión posterior.</p>
+      <p className="text-[11px] text-gray-500">Pensada para una bombilla LED E27 pequeña tipo gota; la separación se comprueba contra una referencia nominal de Ø{fmt2(def.bulb.diameterMm)} × {fmt2(def.bulb.heightAboveHolderMm)} mm que no está verificada físicamente. Las formas decorativas de la base se agregarán en una versión posterior.</p>
     </>
   );
 }

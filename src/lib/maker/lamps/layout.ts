@@ -287,8 +287,9 @@ export function computeLampLayout(def: LampDefinition, field: ShadeField): LampL
       drop: { closureMm: insert.dropClosureMm, curvaturePct: insert.dropCurvaturePct, tipRadiusMm: insert.dropTipRadiusMm },
       wavy: { waves: insert.waves, amplitudeMm: insert.amplitudeMm, twistDeg: insert.twistDeg, verticalFrequency: insert.verticalFrequency, top: insert.wavyTop },
       profile: { widthMm: insert.profileWidthMm, topDiameterMm: insert.profileTopDiameterMm, curvaturePct: insert.profileCurvaturePct, waistPct: insert.profileWaistPct, waistPositionPct: insert.profileWaistPositionPct, top: insert.profileTop },
-      // Con el difusor según anillos las lengüetas exteriores no caben (no hay espacio radial hasta el anillo): se ignoran y se avisa.
-      tabs: insert.tabs && !ringsMode,
+      // LOS DIFUSORES NO LLEVAN LENGÜETAS SUPERIORES: ningún estilo ni diseño (nuevo o anterior) las genera. `insert.tabs` se conserva en la definición solo por
+      // compatibilidad de lectura del código SL1 y NO tiene efecto. El encastre inferior (tubo, transición y ranura) no depende de esto.
+      tabs: false,
     });
     insertLayout = {
       style: insert.style,

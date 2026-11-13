@@ -1,4 +1,4 @@
-import { DEFAULT_INSERT, INSERT_STYLE_INITIAL } from "@/lib/maker/lamps/defaults";
+import { INSERT_STYLE_INITIAL } from "@/lib/maker/lamps/defaults";
 import type { LampDefinition, LampInsertDef, LampInsertStyle, LampShadeType } from "@/lib/maker/lamps/types";
 
 /**
@@ -185,9 +185,9 @@ export function diffuserKind(insert: Pick<LampInsertDef, "style" | "amplitudeMm"
   return insert.amplitudeMm === 0 && insert.wavyTop === "open" ? "cylinder" : "wavy";
 }
 
-/** Difusor cilíndrico recto y abierto a partir del inserto actual (conserva color, diámetro, espesor, holgura y altura). Sin lengüetas si `tabs` es false. */
-export function cylinderInsert(insert: LampInsertDef, tabs: boolean): LampInsertDef {
-  return { ...insert, ...INSERT_STYLE_INITIAL.wavy, style: "wavy", amplitudeMm: 0, twistDeg: 0, verticalFrequency: 0, wavyTop: "open", tabs };
+/** Difusor cilíndrico recto y abierto a partir del inserto actual (conserva color, diámetro, espesor, holgura y altura). Sin lengüetas (los difusores nunca las llevan). */
+export function cylinderInsert(insert: LampInsertDef): LampInsertDef {
+  return { ...insert, ...INSERT_STYLE_INITIAL.wavy, style: "wavy", amplitudeMm: 0, twistDeg: 0, verticalFrequency: 0, wavyTop: "open", tabs: false };
 }
 
 /** Formas de difusor ofrecidas para la definición actual (las de la familia). */
@@ -205,7 +205,7 @@ const STYLE_OF_KIND: Record<Exclude<DiffuserKind, "cylinder">, LampInsertStyle> 
 /** Cambia la forma del difusor (acción del usuario) conservando color, diámetro, espesor, holgura y altura. No hace nada si la familia no la admite. */
 export function applyDiffuserKind(def: LampDefinition, kind: DiffuserKind): LampDefinition {
   if (!familyCaps(def.shadeType).diffuser.allowed.includes(kind)) return def;
-  if (kind === "cylinder") return { ...def, insert: cylinderInsert(def.insert, familyCaps(def.shadeType).type === "solid" ? DEFAULT_INSERT.tabs : false) };
+  if (kind === "cylinder") return { ...def, insert: cylinderInsert(def.insert) };
   const style = STYLE_OF_KIND[kind];
   return { ...def, insert: { ...def.insert, ...INSERT_STYLE_INITIAL[style], style } };
 }
@@ -230,7 +230,7 @@ export function conformToFamily(def: LampDefinition, from: LampShadeType | null 
   const caps = familyCaps(def.shadeType);
   let insert = def.insert;
   if (from && from !== def.shadeType && familyCaps(from).diffuser.defaultEnabled !== caps.diffuser.defaultEnabled) insert = { ...insert, enabled: caps.diffuser.defaultEnabled };
-  if (!caps.diffuser.allowed.includes(diffuserKind(insert))) insert = cylinderInsert(insert, false);
+  if (!caps.diffuser.allowed.includes(diffuserKind(insert))) insert = cylinderInsert(insert);
   else if (def.shadeType !== "solid" && insert.tabs) insert = { ...insert, tabs: false };
   const connection = caps.connections.includes(def.thread.connection) ? def.thread.connection : caps.connections[0];
   const thread = connection === def.thread.connection ? def.thread : { ...def.thread, connection };

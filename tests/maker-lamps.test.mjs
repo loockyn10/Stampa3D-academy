@@ -6,7 +6,6 @@ import { createElement } from "react";
 import { renderToStaticMarkup } from "react-dom/server";
 import JSZip from "jszip";
 import { loadMakerModule } from "../scripts/lib/maker-engine-node.mjs";
-import { loadTs } from "./helpers/load-ts.mjs";
 import { loadLampUi } from "./helpers/lamp-editor-ui.mjs";
 
 // Lámparas E27 (Stampa Maker). Estos tests son GEOMÉTRICOS: miden las mallas que genera el motor (las mismas que ve el
@@ -442,14 +441,14 @@ test("holgura de montaje configurable dentro de límites validados: la ranura de
   assert.ok(createLamp(lamp({}, { insert: { ...DEFAULT_LAMP.insert, clearanceMm: 0.8 } })).errors.some((e) => e.code === "TOWER_INNER_WALL_THIN"));
 });
 
-test("cilindro: pared continua sin ventanas ni cortes laterales, dos lengüetas superiores exteriores y apoyo en el fondo de la ranura", () => {
+test("cilindro: pared continua sin ventanas ni cortes laterales, SIN lengüetas superiores y apoyo en el fondo de la ranura", () => {
   const def = lamp();
   const r = build(def);
   const ins = r.indexed.insert;
   const b = indexedBounds(ins);
   const fit = r.metrics.fit;
   const ro = fit.insertOuterDiameterMm / 2;
-  // lengüetas: en el borde superior el radio máximo supera al del tubo en la longitud de lengüeta; en el resto no
+  // sin lengüetas: ni siquiera en el borde superior el radio máximo supera al del tubo (los difusores nunca las llevan)
   let tabR = 0, bodyR = 0;
   for (let i = 0; i < ins.positions.length; i += 3) {
     const rad = Math.hypot(ins.positions[i], ins.positions[i + 1]);
@@ -457,15 +456,15 @@ test("cilindro: pared continua sin ventanas ni cortes laterales, dos lengüetas 
     else if (ins.positions[i + 2] < b.maxZ - LAMP_GEOMETRY.tabThicknessMm - 1) bodyR = Math.max(bodyR, rad);
   }
   assert.ok(Math.abs(bodyR - ro) < 0.05);
-  assert.ok(Math.abs(tabR - (ro + LAMP_GEOMETRY.tabLengthMm)) < 0.1);
+  assert.ok(Math.abs(tabR - ro) < 0.05, `sin lengüetas: radio del borde superior ${tabR} vs tubo ${ro}`);
   const dir = (deg) => [Math.cos((deg * Math.PI) / 180), Math.sin((deg * Math.PI) / 180), 0];
   // pared CONTINUA: desde el eje, a todas las alturas (enterrada en la ranura, justo sobre la torre y a media altura) y en todos los
   // ángulos, un rayo horizontal cruza la pared exactamente 2 veces (cara interior y exterior): no hay ventanas.
   const zTop = b.maxZ - LAMP_GEOMETRY.tabThicknessMm - 0.5; // por debajo de las lengüetas
   const heights = [b.minZ + 0.3, b.minZ + def.insert.seatDepthMm / 2, fit.tower.topZ + 0.2, fit.tower.topZ + 1.5, fit.tower.topZ + 5, fit.tower.topZ + 9, (b.minZ + zTop) / 2, zTop - 10, zTop];
   for (const z of heights) for (let deg = 0; deg < 360; deg += 15) assert.equal(rayCrossings(ins, [0, 0, z], dir(deg + 3.7)), 2, `pared cortada a z=${z.toFixed(1)} ángulo ${deg + 3.7}`);
-  // las lengüetas se suman sobre la pared, en +Y y -Y, solo en el borde superior
-  for (const deg of [91.1, 268.9]) assert.equal(rayCrossings(ins, [0, 0, b.maxZ - 1], dir(deg)), 2, "las lengüetas son macizas: dos caras");
+  // en +Y y -Y (donde estaban las lengüetas) el borde superior es solo la pared: dos caras y ningún saliente
+  for (const deg of [91.1, 268.9]) assert.equal(rayCrossings(ins, [0, 0, b.maxZ - 1], dir(deg)), 2, "sin lengüetas: solo la pared");
   // radios interior/exterior constantes a todas las alturas (sin escalones ni restos de perforaciones)
   for (const z of heights) {
     const x = planeCrossings(ins, 0, 0.37, z);
@@ -487,7 +486,7 @@ test("cilindro: pared continua sin ventanas ni cortes laterales, dos lengüetas 
   assert.equal(components(plain.indexed.insert), 1);
   // sin lengüetas: tubo liso, candidato a modo vaso
   assert.equal(plain.metrics.insert.vaseCapable, true);
-  assert.equal(r.metrics.insert.vaseCapable, false);
+  assert.equal(r.metrics.insert.vaseCapable, true, "el difusor por defecto tampoco tiene lengüetas");
   // el diseño ya no tiene parámetros de ventanas
   assert.equal("ventWindows" in DEFAULT_LAMP.insert, false);
   assert.equal("ventSlots" in DEFAULT_LAMP.base, false);

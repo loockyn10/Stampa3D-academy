@@ -292,7 +292,6 @@ export function validateLamp(input: LampDefinition, printer?: PrinterProfile, op
         } else if (Math.max(dif.radialClearanceBottomMm, dif.radialClearanceTopMm) > half + 1.5) {
           warnings.push({ code: "DIFFUSER_LOOSE_IN_RING", field: "openwork.diffuserClearanceMm", message: `El difusor queda con ${fmt(Math.max(dif.radialClearanceBottomMm, dif.radialClearanceTopMm))} mm de holgura radial en los anillos (pedido: ${fmt(half)} mm): no los aprovecha y puede bailar. Es una consecuencia de que lo limita la base.` });
         }
-        if (def.insert.tabs) warnings.push({ code: "DIFFUSER_TABS_NOT_APPLICABLE", field: "insert.tabs", message: "Las lengüetas de extracción no caben entre el difusor y el anillo: se ignoran. El difusor se retira por la abertura superior agarrándolo del borde." });
       }
       // Recorrido de inserción y extracción: el difusor baja por la abertura superior hasta su asiento y vuelve a salir; debe pasar con la holgura de montaje en TODO el trayecto
       if (!doubleActive && (dif.source === "rings" || diameterMode) && !dif.insertable && dif.ringTopFreeDiameterMm / 2 - ins.bodyMaxR >= insert.clearanceMm - 1e-6 && !errors.some((e) => e.code === "DIFFUSER_STRUCTURE_INTRUDES" || e.code === "INSERT_TOUCHES_SHADE")) {
