@@ -284,9 +284,9 @@ function DiffuserControl({ path, def, setInsert, err, fit }: { path: string; def
     case "insert.profileTopDiameterMm":
       return slider(i.style === "tulip" ? "Apertura superior (Ø)" : "Estrechamiento (Ø superior)", " mm", "profileTopDiameterMm", i.profileTopDiameterMm);
     case "insert.profileCurvaturePct":
-      return slider(i.style === "mossglow" ? "Curvatura (0 = cono recto, 100 = abombado)" : "Curvatura", "%", "profileCurvaturePct", i.profileCurvaturePct);
+      return slider(i.style === "mossglow" ? "Panza" : "Curvatura", "%", "profileCurvaturePct", i.profileCurvaturePct);
     case "insert.profileWaistPct":
-      return slider("Intensidad de la cintura", "%", "profileWaistPct", i.profileWaistPct);
+      return slider(i.style === "mossglow" ? "Estrechamiento" : "Intensidad de la cintura", "%", "profileWaistPct", i.profileWaistPct);
     case "insert.profileWaistPositionPct":
       return slider("Posición de la cintura", "%", "profileWaistPositionPct", i.profileWaistPositionPct);
     case "picker:profileTop": {

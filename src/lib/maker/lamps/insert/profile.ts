@@ -10,7 +10,8 @@ import type { InsertRow, InsertSurface, InsertSurfaceInput, InsertSurfaceIssue, 
  * parámetro decorativo lo modifica: el perfil decorativo nace en `zm`, con tangente vertical y radio `fitOuterR` (continuidad C1), y se
  * mezcla con la forma pedida en un tramo de transición cuya pendiente se mantiene en torno a 40° respecto de la vertical.
  *
- * La silueta de Mossglow se parametriza (altura, ancho, estrechamiento, curvatura); la malla de referencia NO se copia ni se escala.
+ * La silueta de Mossglow es una curva suave (spline de puntos de control medidos por secciones horizontales del STL de referencia) con tres controles:
+ * altura, panza y estrechamiento. La malla de referencia NO se copia ni se escala: solo se usa su perfil exterior (ver `MOSSGLOW_CONTROL`).
  *
  * Todo sale de una sola polilínea exterior (r, z) y de su desfase interior sobre la normal: lo que se valida, se ve, se miniaturiza y
  * se exporta son las mismas filas. Nada de acá toca estado global.
@@ -58,8 +59,62 @@ export function profilePrintKind(style: LampInsertProfileStyle, top: LampInsertP
   return style === "tulip" || effectiveProfileTop(style, top) === "flat" ? "lampInsert" : "lampInsertDrop";
 }
 
-/** Referencia de la que sale la silueta Mossglow (medidas del brief del sprint; la malla de referencia no se copia ni se redistribuye). */
-export const MOSSGLOW_REFERENCE = { heightMm: 154.27, maxDiameterMm: 67.7, topDiameterMm: 24.3 } as const;
+/**
+ * Referencia de la silueta Mossglow (STL `Mossglow+Lite+-+Diffuser+-+Pla.stl`, medido por secciones horizontales de su perfil exterior; la malla no se copia ni se redistribuye):
+ * altura 154,27 mm; Ø exterior 66,92 en la base, panza máxima Ø67,69 a 22,25 mm, estrechamiento más pronunciado (0,72 mm de Ø por mm de altura) a ~77 mm, cuello
+ * mínimo Ø24,04 a 144 mm y borde superior suavizado (Ø24,3). `fitHeightMm` es el encastre estándar de StampaMaker (13 mm de tubo liso): la silueta de referencia se
+ * alinea con él y SOLO esa zona inferior se adapta (el STL original tiene otras medidas abajo).
+ */
+export const MOSSGLOW_REFERENCE = { heightMm: 154.27, peakDiameterMm: 67.69, peakZMm: 22.25, neckDiameterMm: 24.04, fitHeightMm: 13 } as const;
+
+/** Puntos de control (z de referencia en mm, Ø exterior en mm) por encima de la panza. Todos medidos del STL de referencia. */
+export const MOSSGLOW_CONTROL: readonly (readonly [number, number])[] = [
+  [22.25, 67.69], [28.25, 67.55], [36.25, 66.73], [44.25, 65.07], [52.25, 62.43], [60.25, 58.7], [68.25, 53.91], [76.25, 48.38], [84.25, 42.71], [92.25, 37.51],
+  [100.25, 33.18], [108.25, 29.8], [116.25, 27.32], [124.25, 25.63], [132.25, 24.59], [140.25, 24.1], [148.25, 24.08], [154.27, 24.3],
+];
+
+const MOSS = (() => {
+  const span = MOSSGLOW_REFERENCE.heightMm - MOSSGLOW_REFERENCE.fitHeightMm;
+  const peak = MOSSGLOW_REFERENCE.peakDiameterMm, neck = MOSSGLOW_REFERENCE.neckDiameterMm;
+  const u = MOSSGLOW_CONTROL.map(([z]) => (z - MOSSGLOW_REFERENCE.fitHeightMm) / span);
+  const v = MOSSGLOW_CONTROL.map(([, d]) => (d - neck) / (peak - neck));
+  // tangentes de Catmull-Rom (sin sobreimpulsos con esta densidad de puntos); en la panza la pendiente es nula (continuidad C1 con el ascenso)
+  const m = v.map((_, i) => (i === 0 ? 0 : i === v.length - 1 ? (v[i] - v[i - 1]) / (u[i] - u[i - 1]) : (v[i + 1] - v[i - 1]) / (u[i + 1] - u[i - 1])));
+  return { u, v, m, up: u[0] };
+})();
+
+/** Perfil normalizado (1 = panza, 0 = cuello de referencia) a la fracción `x` del cuerpo, por Hermite cúbico sobre los puntos de control. */
+function mossglowShape(x: number): number {
+  const { u, v, m } = MOSS;
+  if (x <= u[0]) return v[0];
+  if (x >= u[u.length - 1]) return v[v.length - 1];
+  let i = 0;
+  while (x > u[i + 1]) i++;
+  const h = u[i + 1] - u[i];
+  const t = (x - u[i]) / h;
+  const t2 = t * t, t3 = t2 * t;
+  return (2 * t3 - 3 * t2 + 1) * v[i] + (t3 - 2 * t2 + t) * h * m[i] + (-2 * t3 + 3 * t2) * v[i + 1] + (t3 - t2) * h * m[i + 1];
+}
+
+/**
+ * Radio de la silueta Mossglow a la fracción `x` del cuerpo (0 = sobre el encastre estándar, 1 = final del cuerpo). Nace con el radio EXACTO del encastre y tangente
+ * vertical, se ensancha hasta la panza (ascenso suave), se curva hacia adentro con el estrechamiento pronunciado de la referencia y se asienta en el cuello.
+ *   - `panza` (10–100, 50 = referencia): cuánto se ensancha el cuerpo sobre el encastre y cuánto aguanta el ancho antes de cerrarse.
+ *   - `estrechamiento` (20–100, 50 = referencia): cuánto se reduce el diámetro hacia el cuello (más = cuello más angosto).
+ */
+export function mossglowRadius(x: number, fitR: number, panza: number, estrechamiento: number): number {
+  const p = Math.min(100, Math.max(10, panza));
+  const e = Math.min(100, Math.max(20, estrechamiento));
+  const refPeakR = MOSSGLOW_REFERENCE.peakDiameterMm / 2;
+  const refFitR = 65.135 / 2; // el encastre de la referencia de diffuser.stl: la panza se mide sobre él
+  const peakR = fitR + (refPeakR - refFitR) * Math.pow(p / 50, 1.5);
+  const neckR = Math.min(peakR - 1, (MOSSGLOW_REFERENCE.neckDiameterMm / 2) * Math.pow(50 / e, 0.8));
+  const gamma = Math.pow(50 / p, 0.5);
+  const xc = Math.min(1, Math.max(0, x));
+  if (xc <= MOSS.up) return fitR + (peakR - fitR) * smooth(xc / MOSS.up);
+  const s = Math.min(1.02, Math.max(0, mossglowShape(xc)));
+  return neckR + (peakR - neckR) * Math.pow(s, gamma);
+}
 
 interface ProfileGeom {
   /** Radio de la forma decorativa a la fracción `u` (0 = arranque sobre el encastre, 1 = final de la zona del cuerpo). */
@@ -100,9 +155,9 @@ function geometryFor(input: InsertSurfaceInput, Rf: number, top: LampInsertProfi
       return { r: (u) => mix * body(u) + (1 - mix) * cone(u) };
     }
     default: {
-      // mossglow: ancho en el arranque y estrechamiento progresivo hasta el diámetro superior. La curvatura mueve el exponente: 0 = cono recto, 100 = abombado (ancho más tiempo, cierra rápido arriba).
-      const e = 1.15 + 2.1 * k;
-      return { r: (u) => Rt + (Rw - Rt) * (1 - Math.pow(clamp01(u), e)) };
+      // mossglow: silueta de spline (panza redondeada, curva hacia adentro, estrechamiento pronunciado y cuello). La curvatura guardada es la PANZA y la intensidad de la
+      // cintura guardada es el ESTRECHAMIENTO (50 / 50 = silueta de referencia); el ancho y el Ø superior de otros estilos no intervienen.
+      return { r: (u) => mossglowRadius(u, Rf, p.curvaturePct, p.waistPct) };
     }
   }
 }
@@ -181,10 +236,13 @@ export function buildProfileSurface(input: InsertSurfaceInput, empty: (input: In
   const R0 = geom.r(0);
   const Lr = Math.abs(R0 - Rf) < 0.05 ? 0 : Math.min(bodyH * 0.4, Math.max(6, (1.5 * Math.abs(R0 - Rf)) / Math.tan((40 * Math.PI) / 180)));
   const zs = zm + Lr; // aquí empieza la forma decorativa con su radio exacto (Ancho = Ø máximo medido)
+  // Mossglow: la silueta se extiende hasta el borde superior (zm → ztop) con cualquier terminación; un cierre redondeado o en gota solo reemplaza la punta del cuello, así que
+  // la forma es la misma abierta, con tapa o cerrada. El resto de los estilos reparte su forma sobre el cuerpo hasta el cierre.
+  const shapeTop = style === "mossglow" ? ztop : zbEnd;
   const radiusAt = (z: number): number => {
     if (z <= zm) return Rf;
     if (z < zs) return Rf + (R0 - Rf) * smooth((z - zm) / Lr);
-    return geom.r(Math.min(1, (z - zs) / (zbEnd - zs)));
+    return geom.r(Math.min(1, (z - zs) / (shapeTop - zs)));
   };
 
   // Muestreo en z: más denso en los dos extremos del tramo (transición y final).
@@ -240,7 +298,7 @@ export function buildProfileSurface(input: InsertSurfaceInput, empty: (input: In
     issues.push({ code: "INSERT_PROFILE_STEEP", field: "insert.profileCurvaturePct", severity: "warning", message: `La pared del difusor se inclina hasta ${fmt(maxLean)}° respecto de la vertical: puede necesitar soportes. Subí la altura o suavizá la curvatura para imprimirlo sin soportes.` });
   }
   if (bodyMinR < t + 1) {
-    err("INSERT_PROFILE_TOO_NARROW", "insert.profileTopDiameterMm", `El difusor se estrecha hasta Ø ${fmt(2 * bodyMinR)} mm: con ${fmt(t)} mm de pared no queda hueco interior. Ensanchá la parte superior o reducí el espesor.`);
+    err("INSERT_PROFILE_TOO_NARROW", style === "mossglow" ? "insert.profileWaistPct" : "insert.profileTopDiameterMm", `El difusor se estrecha hasta Ø ${fmt(2 * bodyMinR)} mm: con ${fmt(t)} mm de pared no queda hueco interior. ${style === "mossglow" ? "Reducí el estrechamiento" : "Ensanchá la parte superior"} o reducí el espesor.`);
   }
   if (issues.some((i) => i.severity === "error")) return empty(input, issues);
 

@@ -56,7 +56,7 @@ Secciones nuevas tras la exploración de herramientas: «De la idea a la pieza»
 - [ ] Probar el editor con diseños guardados reales (códigos `SL1:` de versiones anteriores, con otros sistemas de fijación, rosca o collar): se abren sin cambios y avisan «medidas anteriores». Decidir si se ofrece editar esas medidas fuera del código (hoy solo se puede pasar al estándar).
 - [ ] Decidir si los diseños guardados deben ser por usuario (hoy: `localStorage` del navegador, sin sincronizar; por usuario exige una migration `source_type = 'lamp'`).
 - [ ] **Sprint posterior — bases decorativas (Fase 11):** permitir distintas geometrías exteriores de base (hoy cilíndricas) manteniendo intactos los encastres mecánicos (torre, canal del difusor, rosca, alojamiento del portalámparas). No se implementó nada de esto en el sprint del editor.
-- [ ] Contrastar el perfil Mossglow con `references/lamp-e27/Mossglow+Lite+-+Diffuser+-+Pla.stl` (apareció sin rastrear; no se analizó ni se incluye en el commit; licencia sin comprobar).
+- [x] Perfil Mossglow contrastado con `references/lamp-e27/Mossglow+Lite+-+Diffuser+-+Pla.stl` (2026-11-13): silueta corregida con spline de puntos medidos (docs/STAMPA_MAKER.md §38.23); el STL sigue sin versionar (licencia sin comprobar). Pendiente: imprimir el Mossglow y ver la forma con luz real; decidir si la altura por defecto (170 mm, por la bombilla estándar) debe ser la de la referencia (154,27 mm) cuando se mida la bombilla real.
 
 ## Now — Lámparas E27 UX V2: simplificación, controles por familia y estabilidad (implementado 2026-11-03, ver docs/STAMPA_MAKER.md §38.22 y D043)
 

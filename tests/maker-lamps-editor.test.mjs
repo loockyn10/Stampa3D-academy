@@ -212,7 +212,7 @@ test("errores: una frase corta, sin códigos ni párrafos; el detalle queda pleg
   assert.ok(html.includes("Ver detalle") && html.includes("No se puede descargar hasta resolverlo"));
   assert.ok(!/[A-Z]{2,}_[A-Z_]{3,}/.test(html.replace(/data-[a-z-]+="[^"]*"/g, "").replace(/<(svg|path)[\s\S]*?>/g, "")), "ningún código interno de error en pantalla");
   // la frase es la del motor resumida: «El difusor no entra.» para un difusor que no pasa
-  const wide = { ...SOLID, insert: { ...SOLID.insert, style: "mossglow", profileWidthMm: 110 } };
+  const wide = { ...SOLID, insert: { ...SOLID.insert, style: "mossglow", heightMm: 20 } };
   const wr = validateLamp(wide);
   assert.ok(wr.errors.length > 0);
   assert.ok(E.editorIssueSummary(wide, wr.errors, wr.warnings).primary.short.length <= 80);

@@ -104,9 +104,12 @@ export const LAMP_CONTROL_SPECS: LampControlSpec[] = [
   { path: "insert.twistDeg", label: "Torsión del difusor", min: -720, max: 720, step: 5, unit: "°", when: wavyInsert },
   { path: "insert.verticalFrequency", label: "Frecuencia vertical del difusor", min: 0, max: 6, step: 0.5, unit: "", when: wavyInsert },
   // ---- Difusores de perfil: altura (la del difusor), ancho (Ø máximo), Ø superior (estrechamiento / apertura), curvatura, cintura
-  { path: "insert.profileWidthMm", label: "Ancho (Ø máximo)", min: 50, max: 120, step: 0.5, unit: "mm", when: profileOf("mossglow", "hourglass", "bell") },
-  { path: "insert.profileTopDiameterMm", label: "Ø superior", min: 16, max: 140, step: 0.5, unit: "mm", when: profileOf("mossglow", "tulip") },
-  { path: "insert.profileCurvaturePct", label: "Curvatura", min: 0, max: 100, step: 5, unit: "%", when: profileOf("mossglow", "tulip", "bell") },
+  { path: "insert.profileWidthMm", label: "Ancho (Ø máximo)", min: 50, max: 120, step: 0.5, unit: "mm", when: profileOf("hourglass", "bell") },
+  { path: "insert.profileTopDiameterMm", label: "Ø superior", min: 16, max: 140, step: 0.5, unit: "mm", when: profileOf("tulip") },
+  // Mossglow: Panza (curvatura guardada) y Estrechamiento (intensidad de cintura guardada); 50 / 50 = silueta de referencia
+  { path: "insert.profileCurvaturePct", label: "Panza", min: 10, max: 100, step: 5, unit: "%", when: profileOf("mossglow") },
+  { path: "insert.profileWaistPct", label: "Estrechamiento", min: 20, max: 100, step: 5, unit: "%", when: profileOf("mossglow") },
+  { path: "insert.profileCurvaturePct", label: "Curvatura", min: 0, max: 100, step: 5, unit: "%", when: profileOf("tulip", "bell") },
   { path: "insert.profileWaistPct", label: "Intensidad de la cintura", min: 0, max: 100, step: 5, unit: "%", when: profileOf("hourglass") },
   { path: "insert.profileWaistPositionPct", label: "Posición de la cintura", min: 15, max: 85, step: 5, unit: "%", when: profileOf("hourglass") },
   { path: "insert.dropClosureMm", label: "Altura del cierre", min: 10, max: 120, step: 1, unit: "mm", when: dropInsert },

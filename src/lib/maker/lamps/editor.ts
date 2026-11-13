@@ -107,7 +107,7 @@ export const DIFFUSER_CONTROLS: Readonly<Record<DiffuserKind, DiffuserControls>>
   flat: { main: ["insert.heightMm"], more: [] },
   drop: { main: ["insert.heightMm", "insert.dropClosureMm", "insert.dropCurvaturePct"], more: ["insert.dropTipRadiusMm"] },
   wavy: { main: ["insert.heightMm", "insert.waves", "insert.amplitudeMm"], more: ["insert.twistDeg", "insert.verticalFrequency", "picker:wavyTop"] },
-  mossglow: { main: ["insert.heightMm", "insert.profileWidthMm", "insert.profileTopDiameterMm"], more: ["insert.profileCurvaturePct", "picker:profileTop"] },
+  mossglow: { main: ["insert.heightMm", "insert.profileCurvaturePct", "insert.profileWaistPct"], more: ["picker:profileTop"] }, // Altura · Panza · Estrechamiento
   tulip: { main: ["insert.heightMm", "insert.profileTopDiameterMm", "insert.profileCurvaturePct"], more: ["picker:profileTop"] },
   hourglass: { main: ["insert.heightMm", "insert.profileWidthMm", "insert.profileWaistPct"], more: ["insert.profileWaistPositionPct", "picker:profileTop"] },
   bell: { main: ["insert.heightMm", "insert.profileWidthMm", "insert.profileCurvaturePct"], more: ["picker:profileTop"] },

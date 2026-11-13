@@ -3,7 +3,6 @@ import test from "node:test";
 import { createElement } from "react";
 import { renderToStaticMarkup } from "react-dom/server";
 import { loadMakerModule } from "../scripts/lib/maker-engine-node.mjs";
-import { loadTs } from "./helpers/load-ts.mjs";
 import { planeCrossings } from "./helpers/lamp-slice.mjs";
 import { loadLampUi } from "./helpers/lamp-editor-ui.mjs";
 
@@ -142,46 +141,46 @@ test("la base, la rosca y la pantalla son bit a bit las mismas con cualquier dif
 });
 
 // ==================================================================================================== 2. SILUETA MOSSGLOW
-test("Mossglow: medidas de la referencia (altura, Ø máximo, Ø superior) y estrechamiento progresivo y monótono, sin escalar ninguna malla", () => {
-  assert.deepEqual({ ...MOSSGLOW_REFERENCE }, { heightMm: 154.27, maxDiameterMm: 67.7, topDiameterMm: 24.3 });
-  const r = build(lamp("mossglow", { heightMm: MOSSGLOW_REFERENCE.heightMm }), "mossglow referencia");
+test("Mossglow: silueta de la referencia (panza, curva hacia adentro, cuello) con la altura por defecto; el estrechamiento es progresivo y la panza es mayor que el encastre", () => {
+  assert.deepEqual({ ...MOSSGLOW_REFERENCE }, { heightMm: 154.27, peakDiameterMm: 67.69, peakZMm: 22.25, neckDiameterMm: 24.04, fitHeightMm: 13 });
+  const r = build(lamp("mossglow"), "mossglow por defecto");
   const m = r.indexed.insert;
   const b = indexedBounds(m);
-  near(b.maxZ - b.minZ, 154.27, 0.01, "altura");
-  near(b.maxX - b.minX, 67.7, 0.05, "Ø máximo");
+  near(b.maxZ - b.minZ, 170, 0.01, "altura por defecto");
+  near(b.maxX - b.minX, 67.69, 0.05, "Ø de la panza (la de la referencia)");
+  assert.ok(b.maxX - b.minX > 65.135 + 2, "la panza es mayor que el encastre");
+  near(2 * planeCrossings(m, b.minZ + 6).at(-1), 65.135, 0.02, "el encastre inferior es el estándar");
   const top = planeCrossings(m, b.maxZ - 0.2);
-  near(2 * top.at(-1), 24.3, 0.12, "Ø superior");
-  // por encima del encastre el radio exterior nunca crece (se estrecha) y la pendiente es suave
-  const prof = sliceProfile(m, b.minZ + 13 + 6.5, b.maxZ - 0.5, 1); // sobre el encastre (13 mm) y la transición hacia el ancho (6 mm)
+  near(2 * top.at(-1), 24.3, 0.2, "Ø del borde superior");
+  // por encima de la panza el radio exterior nunca crece (salvo el borde suavizado del cuello) y la pendiente es suave
+  const prof = sliceProfile(m, b.minZ + 13 + 12, b.maxZ - 0.5, 1);
   for (let i = 1; i < prof.length; i++) {
-    assert.ok(prof[i].outer <= prof[i - 1].outer + 0.01, `crece en z=${prof[i].z}`);
     assert.ok(prof[i - 1].outer - prof[i].outer < 1.6, `salto de ${(prof[i - 1].outer - prof[i].outer).toFixed(2)} mm en z=${prof[i].z}`);
   }
-  // el diámetro es máximo al arrancar y mínimo arriba, con una variación gradual (cada cuarto de la altura es más angosto que el anterior)
-  const q = [0.25, 0.5, 0.75, 0.97].map((f) => 2 * planeCrossings(m, b.minZ + f * (b.maxZ - b.minZ)).at(-1));
-  assert.ok(q[0] > q[1] && q[1] > q[2] && q[2] > q[3], `cuartos: ${q.map((v) => v.toFixed(1))}`);
+  const q = [0.25, 0.5, 0.75].map((f) => 2 * planeCrossings(m, b.minZ + f * (b.maxZ - b.minZ)).at(-1));
+  assert.ok(q[0] > q[1] && q[1] > q[2], `cuartos: ${q.map((v) => v.toFixed(1))}`);
 });
 
-test("Mossglow: ancho, estrechamiento y curvatura mueven la forma como dicen; la altura no cambia las medidas fijas", () => {
-  const diam = (ins, f) => {
-    const r = build(lamp("mossglow", ins), JSON.stringify(ins));
+test("Mossglow: Panza y Estrechamiento mueven la forma como dicen; la altura no cambia la panza, el cuello ni el encastre", () => {
+  const diam = (ins, f = 0.5) => {
+    // bombilla más chica que la estándar: estos ajustes llevan el cuello a otras alturas y el cuerpo a otros anchos (la separación a la bombilla se valida igual)
+    const r = build(lamp("mossglow", ins, undefined, { bulb: { diameterMm: 30, heightAboveHolderMm: 40 } }), JSON.stringify(ins));
     const b = indexedBounds(r.indexed.insert);
-    return { max: b.maxX - b.minX, atTop: 2 * planeCrossings(r.indexed.insert, b.maxZ - 0.2).at(-1), mid: 2 * planeCrossings(r.indexed.insert, b.minZ + f * (b.maxZ - b.minZ)).at(-1), h: b.maxZ - b.minZ };
+    return { max: b.maxX - b.minX, atTop: 2 * planeCrossings(r.indexed.insert, b.maxZ - 0.2).at(-1), mid: 2 * planeCrossings(r.indexed.insert, b.minZ + f * (b.maxZ - b.minZ)).at(-1), fit: 2 * planeCrossings(r.indexed.insert, b.minZ + 6).at(-1), h: b.maxZ - b.minZ };
   };
-  const a = diam({ profileWidthMm: 62 }, 0.5), c = diam({ profileWidthMm: 74 }, 0.5);
-  near(a.max, 65.135, 0.05, "con ancho 62 el máximo es el encastre"); // el encastre estándar (Ø65,135) nunca se achica
-  near(c.max, 74, 0.05, "ancho 74");
-  assert.ok(c.mid > a.mid + 3);
-  const n1 = diam({ profileTopDiameterMm: 20 }, 0.5), n2 = diam({ profileTopDiameterMm: 40 }, 0.5);
-  near(n1.atTop, 20, 0.15, "Ø superior 20");
-  near(n2.atTop, 40, 0.15, "Ø superior 40");
-  const k0 = diam({ profileCurvaturePct: 0 }, 0.5), k1 = diam({ profileCurvaturePct: 100 }, 0.5);
-  assert.ok(k1.mid > k0.mid + 8, `curvatura: ${k0.mid.toFixed(1)} → ${k1.mid.toFixed(1)}`);
-  for (const h of [145, 165, 195]) {
-    const d = diam({ heightMm: h }, 0.5);
+  const p20 = diam({ profileCurvaturePct: 30 }), p50 = diam({}), p90 = diam({ profileCurvaturePct: 90 });
+  assert.ok(p20.max < p50.max && p50.max < p90.max, `la panza ensancha el cuerpo: ${p20.max} < ${p50.max} < ${p90.max}`);
+  assert.ok(p20.mid < p50.mid && p50.mid < p90.mid, "y lo mantiene ancho más arriba");
+  const e30 = diam({ profileWaistPct: 30 }), e50 = diam({}), e80 = diam({ profileWaistPct: 70 });
+  assert.ok(e30.atTop > e50.atTop + 4 && e50.atTop > e80.atTop + 4, `el estrechamiento angosta el cuello: ${e30.atTop} > ${e50.atTop} > ${e80.atTop}`);
+  assert.ok(e30.max === e50.max || Math.abs(e30.max - e50.max) < 0.05, "y no cambia la panza");
+  for (const x of [p20, p50, p90, e30, e80]) near(x.fit, 65.135, 0.02, "encastre inferior estándar con cualquier ajuste");
+  for (const h of [170, 185]) {
+    const d = diam({ heightMm: h });
     near(d.h, h, 0.01, `altura ${h}`);
-    near(d.max, 67.7, 0.05, `Ø máximo con altura ${h}`);
-    near(d.atTop, 24.3, 0.15, `Ø superior con altura ${h}`);
+    near(d.max, 67.69, 0.05, `panza con altura ${h}`);
+    near(d.atTop, 24.3, 0.2, `cuello con altura ${h}`);
+    near(d.fit, 65.135, 0.02, `encastre con altura ${h}`);
   }
 });
 
@@ -310,7 +309,7 @@ test("alturas: cada estilo es válido en alturas diferentes (la altura sale exac
       if (r.errors.length) {
         assert.ok(r.errors.every((e) => legit.has(e.code)), `${s}/${h}: ${JSON.stringify(r.errors.map((e) => e.code))}`);
         assert.equal(r.geometry, null);
-        assert.ok(h < 154, `${s}/${h}: una altura de 154 mm o más debe ser válida`);
+        assert.ok(h < (s === "mossglow" ? 164 : 154), `${s}/${h}: una altura de ${s === "mossglow" ? 164 : 154} mm o más debe ser válida (con la bombilla estándar el cuello del Mossglow la toca por debajo de 164 mm)`);
         rejected++;
         continue;
       }
@@ -414,12 +413,12 @@ test("montaje y extracción: cada estilo pasa por el cuello roscado y sale por a
   assert.ok(wide.errors.some((e) => e.code === "INSERT_TOUCHES_SHADE" || e.code === "INSERT_DOES_NOT_FIT"), JSON.stringify(wide.errors.map((e) => e.code)));
 });
 
-test("pared que no deja hueco: un estrechamiento menor que el espesor se rechaza en la superficie (sin malla)", () => {
+test("pared que no deja hueco: un estrechamiento mayor que el que admite el espesor se rechaza en la superficie (sin malla)", () => {
   const { buildInsertSurface } = loadMakerModule("lib/maker/lamps/insert/surface.ts");
   const surface = buildInsertSurface({
-    style: "mossglow", outerR: FIT_R, fitOuterR: FIT_R, thicknessMm: 3, z0: 0, heightMm: 150, seatDepthMm: 10, capThicknessMm: 1.6,
+    style: "mossglow", outerR: FIT_R, fitOuterR: FIT_R, thicknessMm: 7, z0: 0, heightMm: 150, seatDepthMm: 10, capThicknessMm: 1.6,
     drop: { closureMm: 50, curvaturePct: 70, tipRadiusMm: 10 }, wavy: { waves: 12, amplitudeMm: 0, twistDeg: 0, verticalFrequency: 0, top: "open" },
-    profile: { widthMm: 67.7, topDiameterMm: 6, curvaturePct: 45, waistPct: 45, waistPositionPct: 50, top: "open" }, tabs: false,
+    profile: { widthMm: 67.7, topDiameterMm: 24.3, curvaturePct: 50, waistPct: 100, waistPositionPct: 50, top: "open" }, tabs: false,
   });
   assert.equal(surface.valid, false);
   assert.ok(surface.issues.some((i) => i.code === "INSERT_PROFILE_TOO_NARROW"), JSON.stringify(surface.issues));
@@ -427,7 +426,7 @@ test("pared que no deja hueco: un estrechamiento menor que el espesor se rechaza
 });
 
 test("ninguna combinación pasa por válida con soportes imposibles: pared de más de 70° se bloquea y de más de 45° avisa", () => {
-  const steep = validateLamp(lamp("mossglow", { profileTopDiameterMm: 24.3, profileWidthMm: 120, heightMm: 70, profileCurvaturePct: 100 }));
+  const steep = validateLamp(lamp("mossglow", { heightMm: 28, profileCurvaturePct: 100, profileWaistPct: 100 }));
   assert.ok(steep.errors.length > 0);
   const soft = validateLamp(lamp("mossglow"));
   assert.ok(!soft.errors.length);
@@ -557,9 +556,9 @@ test("interfaz: galería con las ocho formas, tres controles principales por est
   for (const label of ["Mossglow", "Tulipán", "Reloj de arena", "Campana", "Cilíndrico"]) assert.ok(mg.includes(label), `galería: ${label}`);
   assert.equal((mg.match(/data-diffuser="/g) ?? []).length, 8, "ocho formas");
   const m1 = main(mg);
-  for (const t of ["Altura", "Ancho (Ø máximo)", "Estrechamiento (Ø superior)"]) assert.ok(m1.main.includes(t), `Mossglow principal: ${t}`);
+  for (const t of ["Altura", "Panza", "Estrechamiento"]) assert.ok(m1.main.includes(t), `Mossglow principal: ${t}`);
   assert.equal((m1.main.match(/type="range"/g) ?? []).length, 3, "Mossglow: exactamente tres controles principales");
-  assert.ok(m1.adv.includes("Curvatura") && m1.adv.includes("Terminación superior"));
+  assert.ok(m1.adv.includes("Terminación superior") && !m1.adv.includes("Curvatura"), "Mossglow: tres controles y la terminación; nada más");
   assert.ok(!m1.adv.includes("Espesor de pared") && !m1.adv.includes("Espesor de la tapa"), "el espesor es del encastre: no es un control");
   assert.ok(!m1.main.includes("cintura") && !m1.main.includes("Apertura"), "sin controles de otros estilos");
   const tu = main(render(lamp("tulip")));

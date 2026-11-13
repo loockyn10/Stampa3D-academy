@@ -86,19 +86,23 @@ for (const [id, entry] of Object.entries(FIXTURE.cases)) {
     const def = entry.def;
     // (la línea base se tomó cuando los difusores todavía podían llevar lengüetas: la receta guardada trae \`tabs\` en algunos diseños y hoy ese campo no tiene efecto)
     const noTabs = (d) => JSON.parse(JSON.stringify({ ...d, insert: { ...d.insert, tabs: false } }));
-    assert.deepEqual(noTabs(designs[id]), noTabs(def), `${id}: la receta del diseño de referencia no cambió`);
+    // ÚNICA silueta rediseñada a propósito (2026-11-13, corrección de Mossglow): su receta y la forma de su cuerpo cambian; el encastre inferior (primeros 12,5 mm) NO.
+    const REDESIGNED = id === "solid-mossglow";
+    if (!REDESIGNED) assert.deepEqual(noTabs(designs[id]), noTabs(def), `${id}: la receta del diseño de referencia no cambió`);
     const now = await measureMechanics(def);
     const was = entry.measures;
     assert.deepEqual(now.layout, was.layout, `${id}: cotas del layout (rosca, torre, ranura, encastre)`);
     compareProfiles(now.base, was.base, `${id}/base (portalámparas, ranura, rosca hembra)`);
     compareProfiles(now.shade, was.shade, `${id}/pantalla (rosca macho)`);
-    if (was.insert) compareProfiles(now.insert, was.insert, `${id}/difusor (encastre inferior)`);
+    const fitOnly = (prof) => Object.fromEntries(Object.entries(prof).filter(([z]) => Number(z) <= was.layout.insertFit.z0 + 12.5));
+    if (was.insert) compareProfiles(REDESIGNED ? fitOnly(now.insert) : now.insert, REDESIGNED ? fitOnly(was.insert) : was.insert, `${id}/difusor (encastre inferior)`);
     else assert.equal(now.insert, null);
     // STL exportados: mismas piezas, triángulos, cajas y volúmenes; la base es idéntica vértice a vértice
     assert.deepEqual(Object.keys(now.stl), Object.keys(was.stl), `${id}: mismas piezas exportadas`);
     for (const part of Object.keys(was.stl)) {
       // ÚNICA diferencia admitida respecto de antes del sprint: un difusor que antes llevaba lengüetas superiores (def.insert.tabs) ya no las lleva. Se verifica que
       // la pieza NO crece (sin salientes, menos material) y que su encastre inferior es idéntico (perfil de la zona de encastre comparado arriba). Todo lo demás: idéntico.
+      if (/inserto|difusor/.test(part) && REDESIGNED) continue; // silueta nueva: ver tests/maker-lamps-mossglow-silhouette.test.mjs
       if (/inserto|difusor/.test(part) && def.insert.tabs) {
         assert.ok(was.stl[part].bbox[1] > was.stl[part].bbox[0] + 5, `${id}/${part}: antes las lengüetas sobresalían en Y`);
         assert.ok(Math.abs(now.stl[part].bbox[1] - now.stl[part].bbox[0]) < 1e-6, `${id}/${part}: ahora no sobresale nada en Y`);

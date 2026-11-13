@@ -130,7 +130,8 @@ export const INSERT_STYLE_INITIAL: Record<LampInsertStyle, Partial<LampInsertDef
   drop: { dropClosureMm: 50, dropCurvaturePct: 70, dropTipRadiusMm: 10, tabs: false },
   wavy: { waves: 12, amplitudeMm: 2.5, twistDeg: 90, verticalFrequency: 0, wavyTop: "open", tabs: false },
   // Difusores de perfil: medidas de partida (Ø) y terminación. Ancho = Ø máximo; Ø superior = estrechamiento (Mossglow) o apertura (Tulipán). Sin lengüetas.
-  mossglow: { profileWidthMm: 67.7, profileTopDiameterMm: 24.3, profileCurvaturePct: 45, profileTop: "open", tabs: false },
+  // Mossglow: Panza (profileCurvaturePct) y Estrechamiento (profileWaistPct) 50/50 = silueta de referencia, con 170 mm de alto (la referencia mide 154,27: con la bombilla estándar el cuello de la referencia toca la envolvente; mismas proporciones, 10 % más alto). El ancho y el Ø superior ya no intervienen.
+  mossglow: { heightMm: 170, profileCurvaturePct: 50, profileWaistPct: 50, profileTop: "open", tabs: false },
   tulip: { profileTopDiameterMm: 80, profileCurvaturePct: 60, profileTop: "open", tabs: false },
   hourglass: { profileWidthMm: 70, profileWaistPct: 45, profileWaistPositionPct: 50, profileTop: "open", tabs: false },
   bell: { profileWidthMm: 74, profileCurvaturePct: 60, profileTop: "round", tabs: false },

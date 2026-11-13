@@ -95,7 +95,7 @@ const INSERT_STYLE_INFO: Record<LampInsertStyle, string> = {
   flat: "Cilindro cerrado con tapa plana a 90°. Se imprime invertido: la tapa sobre la cama y el extremo abierto hacia arriba.",
   drop: "Cilindro que se cierra de forma progresiva en una punta redondeada. Se imprime parado, con la abertura inferior sobre la cama.",
   wavy: "Cilindro con ondas en la superficie lateral (suaves o pronunciadas), abierto o con tapa.",
-  mossglow: "Silueta ancha abajo que se estrecha progresivamente hacia arriba.",
+  mossglow: "Panza redondeada abajo, curva hacia adentro y cuello superior estrecho.",
   tulip: "Cuerpo que se abre suavemente hacia arriba, como un cáliz.",
   hourglass: "Dos extremos anchos con una cintura central: la intensidad y la posición cambian la forma.",
   bell: "Falda ancha abajo y cierre superior redondeado, en gota o con tapa plana.",
