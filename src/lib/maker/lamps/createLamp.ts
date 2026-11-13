@@ -2,6 +2,7 @@ import type { LetterGeometryResult, SignPart, TriangleSoupData } from "@/lib/mak
 import type { LampLayout } from "@/lib/maker/lamps/layout";
 import { createBaseMesh } from "@/lib/maker/lamps/parts/createBase";
 import { createCollarMesh } from "@/lib/maker/lamps/parts/createCollar";
+import { isProfileStyle, profilePrintKind } from "@/lib/maker/lamps/insert/profile";
 import { createInsertMesh } from "@/lib/maker/lamps/parts/createInsert";
 import { shellReport } from "@/lib/maker/lamps/doublewall/sliceAnalysis";
 import { createShadeMesh, isDoubleWallField, isOpenworkField } from "@/lib/maker/lamps/parts/createShade";
@@ -14,10 +15,11 @@ import { indexedBounds, meshToSoup, type IndexedMesh } from "@/lib/maker/mugs/ge
 import type { PrinterProfile } from "@/lib/maker/printBed/printerProfiles";
 
 /** Un archivo por familia de inserto: el plano y el ondulado se imprimen invertidos; la gota, parada (ver printOrientation.ts). */
-const INSERT_FILE_SUFFIX = { flat: "inserto_plano", drop: "inserto_gota", wavy: "inserto_ondulado" } as const;
+const INSERT_FILE_SUFFIX = { flat: "inserto_plano", drop: "inserto_gota", wavy: "inserto_ondulado", mossglow: "difusor_mossglow", tulip: "difusor_tulipan", hourglass: "difusor_reloj_de_arena", bell: "difusor_campana" } as const;
 
 /** Tipo de pieza del inserto: la gota se imprime parada (otra orientación de impresión), las otras dos invertidas. */
 export function insertKind(def: LampDefinition): "lampInsert" | "lampInsertDrop" {
+  if (isProfileStyle(def.insert.style)) return profilePrintKind(def.insert.style, def.insert.profileTop);
   return def.insert.style === "drop" ? "lampInsertDrop" : "lampInsert";
 }
 

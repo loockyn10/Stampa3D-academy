@@ -13,9 +13,12 @@ import type { LampDefinition, LampInsertDef, LampInsertStyle, LampShadeType } fr
  */
 
 /** Forma del difusor tal como la ve el usuario. «cylinder» es el cilindro recto y abierto (el inserto «ondulado» de amplitud 0); «wavy» tiene ondas o tapa. */
-export type DiffuserKind = "cylinder" | "flat" | "drop" | "wavy";
+export type DiffuserKind = "cylinder" | "flat" | "drop" | "wavy" | "mossglow" | "tulip" | "hourglass" | "bell";
 
-export const DIFFUSER_KIND_LABELS: Record<DiffuserKind, string> = { cylinder: "Cilíndrico", flat: "Plano", drop: "Gota", wavy: "Ondulado" };
+export const DIFFUSER_KIND_LABELS: Record<DiffuserKind, string> = { cylinder: "Cilíndrico", flat: "Plano", drop: "Gota", wavy: "Ondulado", mossglow: "Mossglow", tulip: "Tulipán", hourglass: "Reloj de arena", bell: "Campana" };
+
+/** Difusores decorativos de perfil: solo con la pantalla sólida (la calada y la doble pared conservan su sistema de difusor). */
+export const PROFILE_DIFFUSER_KINDS = ["mossglow", "tulip", "hourglass", "bell"] as const satisfies readonly DiffuserKind[];
 
 export interface FamilyCapabilities {
   type: LampShadeType;
@@ -67,7 +70,7 @@ const SOLID: FamilyCapabilities = {
     pickers: { main: ["preset"], advanced: ["family", "profile"] },
   },
   diffuser: {
-    allowed: ["cylinder", "flat", "drop", "wavy"],
+    allowed: ["cylinder", "flat", "drop", "wavy", "mossglow", "tulip", "hourglass", "bell"],
     defaultKind: "cylinder",
     defaultEnabled: true,
     note: "",
@@ -175,6 +178,7 @@ export function familyHasControl(type: LampShadeType, path: string): boolean {
 export function diffuserKind(insert: Pick<LampInsertDef, "style" | "amplitudeMm" | "wavyTop">): DiffuserKind {
   if (insert.style === "flat") return "flat";
   if (insert.style === "drop") return "drop";
+  if (insert.style === "mossglow" || insert.style === "tulip" || insert.style === "hourglass" || insert.style === "bell") return insert.style;
   return insert.amplitudeMm === 0 && insert.wavyTop === "open" ? "cylinder" : "wavy";
 }
 
@@ -193,7 +197,7 @@ export function diffuserCompatible(def: LampDefinition): boolean {
   return !def.insert.enabled || familyCaps(def.shadeType).diffuser.allowed.includes(diffuserKind(def.insert));
 }
 
-const STYLE_OF_KIND: Record<Exclude<DiffuserKind, "cylinder">, LampInsertStyle> = { flat: "flat", drop: "drop", wavy: "wavy" };
+const STYLE_OF_KIND: Record<Exclude<DiffuserKind, "cylinder">, LampInsertStyle> = { flat: "flat", drop: "drop", wavy: "wavy", mossglow: "mossglow", tulip: "tulip", hourglass: "hourglass", bell: "bell" };
 
 /** Cambia la forma del difusor (acción del usuario) conservando color, diámetro, espesor, holgura y altura. No hace nada si la familia no la admite. */
 export function applyDiffuserKind(def: LampDefinition, kind: DiffuserKind): LampDefinition {

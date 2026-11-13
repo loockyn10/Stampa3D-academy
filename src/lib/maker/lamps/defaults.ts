@@ -1,5 +1,5 @@
 import { REFERENCE_DIFFUSER, REFERENCE_PRESS } from "@/lib/maker/lamps/holder/references";
-import type { LampAdhesionDef, LampBaseDef, LampBulbDef, LampCableDef, LampDefinition, LampDoubleWallDef, LampHolderDef, LampInsertDef, LampInsertStyle, LampOpenworkDef, LampShadeDef, LampThreadDef } from "@/lib/maker/lamps/types";
+import type { LampAdhesionDef, LampBaseDef, LampBulbDef, LampCableDef, LampDefinition, LampDoubleWallDef, LampHolderDef, LampInsertDef, LampInsertProfileTop, LampInsertStyle, LampOpenworkDef, LampShadeDef, LampThreadDef } from "@/lib/maker/lamps/types";
 
 /**
  * Valores iniciales. Las medidas del portalámparas y de la bombilla son MARCADORES DE POSICIÓN (`holder.measured =
@@ -113,6 +113,12 @@ export const DEFAULT_INSERT: LampInsertDef = {
   twistDeg: 0,
   verticalFrequency: 0,
   wavyTop: "open",
+  profileWidthMm: 67.7,
+  profileTopDiameterMm: 24.3,
+  profileCurvaturePct: 45,
+  profileWaistPct: 45,
+  profileWaistPositionPct: 50,
+  profileTop: "open",
   previewColor: "#e5483b",
 };
 
@@ -121,9 +127,14 @@ export const INSERT_STYLE_INITIAL: Record<LampInsertStyle, Partial<LampInsertDef
   flat: { capThicknessMm: 1.6, tabs: false },
   drop: { dropClosureMm: 50, dropCurvaturePct: 70, dropTipRadiusMm: 10, tabs: false },
   wavy: { waves: 12, amplitudeMm: 2.5, twistDeg: 90, verticalFrequency: 0, wavyTop: "open", tabs: true },
+  // Difusores de perfil: medidas de partida (Ø) y terminación. Ancho = Ø máximo; Ø superior = estrechamiento (Mossglow) o apertura (Tulipán). Sin lengüetas.
+  mossglow: { profileWidthMm: 67.7, profileTopDiameterMm: 24.3, profileCurvaturePct: 45, profileTop: "open", tabs: false },
+  tulip: { profileTopDiameterMm: 80, profileCurvaturePct: 60, profileTop: "open", tabs: false },
+  hourglass: { profileWidthMm: 70, profileWaistPct: 45, profileWaistPositionPct: 50, profileTop: "open", tabs: false },
+  bell: { profileWidthMm: 74, profileCurvaturePct: 60, profileTop: "round", tabs: false },
 };
 
-export const INSERT_STYLE_LABELS: Record<LampInsertStyle, string> = { flat: "Plano", drop: "Gota", wavy: "Ondulado" };
+export const INSERT_STYLE_LABELS: Record<LampInsertStyle, string> = { flat: "Plano", drop: "Gota", wavy: "Ondulado", mossglow: "Mossglow", tulip: "Tulipán", hourglass: "Reloj de arena", bell: "Campana" };
 
 /** Cambia la familia del inserto conservando el color, el diámetro, el espesor y la altura; la pantalla exterior no se toca. */
 export function applyInsertStyle(def: LampDefinition, style: LampInsertStyle): LampDefinition {
@@ -178,7 +189,8 @@ export const DEFAULT_LAMP: LampDefinition = {
 };
 
 const FAMILIES = new Set(["wavy", "spiral", "organic"]);
-const INSERT_STYLES = new Set(["flat", "drop", "wavy"]);
+const INSERT_STYLES = new Set(["flat", "drop", "wavy", "mossglow", "tulip", "hourglass", "bell"]);
+const PROFILE_TOPS = new Set(["open", "flat", "round", "drop"]);
 const PATTERNS = new Set(["diamond", "spiral"]);
 const MOUNTS = new Set(["rings", "press", "threadBase2", "threadV6"]);
 const PROFILES = new Set(["straight", "barrel", "waist", "bell", "tulip"]);
@@ -330,6 +342,13 @@ export function normalizeLampDefinition(input: unknown): LampDefinition {
       twistDeg: num(i.twistDeg, DEFAULT_INSERT.twistDeg),
       verticalFrequency: num(i.verticalFrequency, DEFAULT_INSERT.verticalFrequency),
       wavyTop: i.wavyTop === "flat" ? "flat" : "open",
+      // Diseños guardados antes de los difusores de perfil: sin estos campos se leen con sus valores iniciales (el estilo guardado no cambia).
+      profileWidthMm: num(i.profileWidthMm, DEFAULT_INSERT.profileWidthMm),
+      profileTopDiameterMm: num(i.profileTopDiameterMm, DEFAULT_INSERT.profileTopDiameterMm),
+      profileCurvaturePct: num(i.profileCurvaturePct, DEFAULT_INSERT.profileCurvaturePct),
+      profileWaistPct: num(i.profileWaistPct, DEFAULT_INSERT.profileWaistPct),
+      profileWaistPositionPct: num(i.profileWaistPositionPct, DEFAULT_INSERT.profileWaistPositionPct),
+      profileTop: typeof i.profileTop === "string" && PROFILE_TOPS.has(i.profileTop) ? (i.profileTop as LampInsertProfileTop) : DEFAULT_INSERT.profileTop,
       previewColor: color(i.previewColor, DEFAULT_INSERT.previewColor),
     },
     base: {

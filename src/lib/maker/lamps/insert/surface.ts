@@ -1,4 +1,5 @@
-import { LAMP_GEOMETRY, type LampInsertStyle, type LampInsertTop } from "@/lib/maker/lamps/types";
+import { buildProfileSurface, isProfileStyle } from "@/lib/maker/lamps/insert/profile";
+import { LAMP_GEOMETRY, type LampInsertProfileTop, type LampInsertStyle, type LampInsertTop } from "@/lib/maker/lamps/types";
 
 /**
  * SUPERFICIE del inserto de color: el perfil (rows) que consumen el mallador (`createInsertMesh`), la validación y las
@@ -9,7 +10,8 @@ import { LAMP_GEOMETRY, type LampInsertStyle, type LampInsertTop } from "@/lib/m
  *   - "drop"  tubo + cierre ojival con punta redondeada (CERRADO; se imprime parado, la abertura sobre la cama);
  *   - "wavy"  tubo con ondas que SOLO suman hacia afuera (el interior nunca se acerca más a la bombilla que el tubo liso),
  *             extremo superior abierto (con lengüetas opcionales) o con tapa plana.
- * La zona de montaje inferior es idéntica en las tres Y ESTÁNDAR: un tubo liso de Ø exterior `fitOuterR` (Ø65,135 de diffuser.stl) que apoya
+ * A estas se suman los difusores de PERFIL (mossglow, tulip, hourglass, bell; ver `profile.ts`): silueta decorativa por encima del mismo encastre.
+ * La zona de montaje inferior es idéntica en todas Y ESTÁNDAR: un tubo liso de Ø exterior `fitOuterR` (Ø65,135 de diffuser.stl) que apoya
  * en la ranura de la torre, durante `seatDepthMm + insertMountExtraMm`. Si el cuerpo es más ancho (`outerR` > `fitOuterR`, p. ej. un difusor
  * calado de Ø80) el tubo se ensancha con una transición cónica (45° respecto de la vertical: sin soportes) hasta el radio del cuerpo.
  */
@@ -27,6 +29,8 @@ export interface InsertSurfaceInput {
   capThicknessMm: number;
   drop: { closureMm: number; curvaturePct: number; tipRadiusMm: number };
   wavy: { waves: number; amplitudeMm: number; twistDeg: number; verticalFrequency: number; top: LampInsertTop };
+  /** Difusores de perfil (`profile.ts`): ancho (Ø máx.), Ø superior, curvatura, cintura y terminación. Solo se leen con un estilo de perfil. */
+  profile: { widthMm: number; topDiameterMm: number; curvaturePct: number; waistPct: number; waistPositionPct: number; top: LampInsertProfileTop };
   /** Lengüetas de extracción (solo con extremo superior abierto). */
   tabs: boolean;
 }
@@ -72,6 +76,8 @@ export interface InsertSurface {
   /** Gota: altura de la sección cilíndrica y del cierre. */
   cylinderHeightMm: number;
   closureHeightMm: number;
+  /** Radio mínimo de la PARED (sin cúpula ni polo) por encima del encastre: la silueta más estrecha del difusor. */
+  bodyMinR: number;
   /** Contornos (r, z) de abajo hacia arriba: exterior (máximo sobre las columnas), valle (mínimo) e interior. */
   outline: { crest: RZ[]; valley: RZ[]; inner: RZ[] };
   issues: InsertSurfaceIssue[];
@@ -97,7 +103,7 @@ export function buildInsertSurface(input: InsertSurfaceInput): InsertSurface {
     cache.set(key, hit);
     return hit;
   }
-  const built = input.style === "drop" ? buildDrop(input) : buildWavyOrFlat(input);
+  const built = isProfileStyle(input.style) ? buildProfileSurface(input, emptySurface) : input.style === "drop" ? buildDrop(input) : buildWavyOrFlat(input);
   cache.set(key, built);
   while (cache.size > CACHE_LIMIT) cache.delete(cache.keys().next().value as string);
   return built;
@@ -122,6 +128,7 @@ function emptySurface(input: InsertSurfaceInput, issues: InsertSurfaceIssue[]): 
     tipArcStartLeanDeg: null,
     cylinderHeightMm: input.heightMm,
     closureHeightMm: 0,
+    bodyMinR: Ro - input.thicknessMm,
     outline: { crest: [], valley: [], inner: [] },
     issues,
     valid: false,
@@ -349,6 +356,7 @@ function buildWavyOrFlat(input: InsertSurfaceInput): InsertSurface {
     tipArcStartLeanDeg: null,
     cylinderHeightMm: input.heightMm,
     closureHeightMm: 0,
+    bodyMinR: Rf,
     outline: { crest, valley, inner: innerOutline },
     issues,
     valid: !issues.some((i) => i.severity === "error"),
@@ -508,6 +516,7 @@ function buildDrop(input: InsertSurfaceInput): InsertSurface {
     tipArcStartLeanDeg: alphaDeg,
     cylinderHeightMm: Hc,
     closureHeightMm: Hcl,
+    bodyMinR: Math.min(Ro, Rf),
     outline: { crest: outerPts, valley: outerPts, inner: innerPts },
     issues,
     valid: !issues.some((i) => i.severity === "error"),

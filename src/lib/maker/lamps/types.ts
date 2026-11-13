@@ -151,8 +151,12 @@ export interface LampDoubleWallDef {
 }
 
 /** Familias de inserto: tapa plana (cerrado, se imprime invertido), gota (cierre ojival, se imprime parado) y ondulado (superficie lateral ondulada, abierto o con tapa). */
-export type LampInsertStyle = "flat" | "drop" | "wavy";
+export type LampInsertStyle = "flat" | "drop" | "wavy" | "mossglow" | "tulip" | "hourglass" | "bell";
 export type LampInsertTop = "open" | "flat";
+/** Difusores decorativos de perfil (siluetas): comparten el encastre inferior estándar y se rigen por `insert.profile*`. */
+export type LampInsertProfileStyle = "mossglow" | "tulip" | "hourglass" | "bell";
+/** Terminación superior de los difusores de perfil: abierta, tapa plana, cierre redondeado o cierre tipo gota (cada estilo admite solo las que tienen sentido: `insert/profile.ts`). */
+export type LampInsertProfileTop = "open" | "flat" | "round" | "drop";
 
 export interface LampInsertDef {
   enabled: boolean;
@@ -185,6 +189,17 @@ export interface LampInsertDef {
   twistDeg: number;
   verticalFrequency: number;
   wavyTop: LampInsertTop;
+  /**
+   * Difusores de perfil (Mossglow, Tulipán, Reloj de arena, Campana). Todo lo decorativo vive por encima del encastre inferior estándar, que NO cambia.
+   * Ancho (Ø máximo; Mossglow, Reloj de arena y Campana), Ø superior (Mossglow: estrechamiento; Tulipán: apertura), curvatura, cintura (intensidad y posición, Reloj de arena)
+   * y terminación superior. La altura es la del difusor (`heightMm`) y el espesor, `thicknessMm`.
+   */
+  profileWidthMm: number;
+  profileTopDiameterMm: number;
+  profileCurvaturePct: number;
+  profileWaistPct: number;
+  profileWaistPositionPct: number;
+  profileTop: LampInsertProfileTop;
   /** Color de la VISTA PREVIA (#rrggbb). No es geometría ni simula la luz real. */
   previewColor: string;
 }
@@ -487,6 +502,8 @@ export interface LampFitReport {
   /** Familia del inserto, diámetro MÁXIMO (con ondas y sin lengüetas), altura total efectiva y si el extremo superior está cerrado. */
   insertStyle: LampInsertStyle | null;
   insertMaxDiameterMm: number | null;
+  /** Difusores de perfil: Ø mínimo de la pared por encima del encastre (la silueta más estrecha); null en los otros estilos. */
+  insertMinDiameterMm: number | null;
   insertHeightMm: number | null;
   insertClosed: boolean;
   /** Distancia GEOMÉTRICA mínima entre la cara interior del inserto (cierre incluido) y la envolvente de la bombilla/portalámparas. */
@@ -598,6 +615,11 @@ export const LAMP_LIMITS = {
   "insert.amplitudeMm": { min: 0, max: 12, label: "Amplitud del inserto" },
   "insert.twistDeg": { min: -720, max: 720, label: "Torsión del inserto" },
   "insert.verticalFrequency": { min: 0, max: 6, label: "Frecuencia vertical del inserto" },
+  "insert.profileWidthMm": { min: 40, max: 140, label: "Ancho del difusor" },
+  "insert.profileTopDiameterMm": { min: 12, max: 160, label: "Diámetro superior del difusor" },
+  "insert.profileCurvaturePct": { min: 0, max: 100, label: "Curvatura del difusor" },
+  "insert.profileWaistPct": { min: 0, max: 100, label: "Intensidad de la cintura del difusor" },
+  "insert.profileWaistPositionPct": { min: 15, max: 85, label: "Posición de la cintura del difusor" },
   "openwork.maxDiameterMm": { min: 60, max: 320, label: "Diámetro máximo" },
   "openwork.bulgePositionPct": { min: 10, max: 90, label: "Posición del ensanchamiento" },
   "openwork.curvaturePct": { min: 0, max: 100, label: "Curvatura" },

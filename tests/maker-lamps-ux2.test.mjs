@@ -80,7 +80,7 @@ function split(html) {
 // ================================================================== 1 — CAPACIDADES POR FAMILIA (una sola definición)
 test("capacidades: cada familia declara sus controles, su difusor y sus uniones; la definición es la única fuente", () => {
   assert.deepEqual([...CAPS.LAMP_FAMILY_ORDER], ["solid", "openwork", "double"]);
-  assert.deepEqual([...CAPS.familyCaps("solid").diffuser.allowed], ["cylinder", "flat", "drop", "wavy"]);
+  assert.deepEqual([...CAPS.familyCaps("solid").diffuser.allowed], ["cylinder", "flat", "drop", "wavy", "mossglow", "tulip", "hourglass", "bell"]);
   assert.deepEqual([...CAPS.familyCaps("openwork").diffuser.allowed], ["cylinder"]);
   assert.deepEqual([...CAPS.familyCaps("double").diffuser.allowed], ["cylinder"]);
   assert.equal(CAPS.familyCaps("double").diffuser.defaultEnabled, false, "la pared interior ya es parte de la pantalla: sin difusor por defecto");

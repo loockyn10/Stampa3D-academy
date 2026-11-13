@@ -15,6 +15,7 @@ import { insertKind } from "@/lib/maker/lamps/createLamp";
 import { summarizeIssues } from "@/lib/maker/lamps/issuesSummary";
 import { createInsertComparison } from "@/lib/maker/lamps/insert/compare";
 import { DIFFUSER_KIND_LABELS, diffuserKind, type FamilyMemory } from "@/lib/maker/lamps/capabilities";
+import { isProfileStyle, profilePrintKind } from "@/lib/maker/lamps/insert/profile";
 import { switchFamily } from "@/lib/maker/lamps/openwork/presets";
 import { applyLampPreset, type LampPreset } from "@/lib/maker/lamps/presets";
 import { generateLampVariation } from "@/lib/maker/lamps/variation";
@@ -109,6 +110,7 @@ export default function StampaMakerLampsPage() {
     <LampExportButtons
       hasInsert={def.insert.enabled}
       insertStyle={def.insert.style}
+      insertPrintKind={isProfileStyle(def.insert.style) ? profilePrintKind(def.insert.style, def.insert.profileTop) : undefined}
       insertLabel={DIFFUSER_KIND_LABELS[diffuserKind(def.insert)].toLowerCase()}
       hasCollar={def.thread.connection === "collar"}
       canDownload={canDownload}

@@ -69,7 +69,8 @@ function checkRanges(def: LampDefinition, errors: LampIssue[]): void {
     if (v === null) continue;
     if (typeof v !== "number" || !Number.isFinite(v) || v < o.min || v > o.max) errors.push({ code: "OUT_OF_RANGE", field: o.key, message: `${o.label}: debe estar entre ${o.min} y ${o.max} (o automático).` });
   }
-  if (!["flat", "drop", "wavy"].includes(def.insert.style)) errors.push({ code: "OUT_OF_RANGE", field: "insert.style", message: "Estilo del inserto: elegí plano, gota u ondulado." });
+  if (!["flat", "drop", "wavy", "mossglow", "tulip", "hourglass", "bell"].includes(def.insert.style)) errors.push({ code: "OUT_OF_RANGE", field: "insert.style", message: "Estilo del inserto: elegí plano, gota, ondulado, Mossglow, tulipán, reloj de arena o campana." });
+  if (!["open", "flat", "round", "drop"].includes(def.insert.profileTop)) errors.push({ code: "OUT_OF_RANGE", field: "insert.profileTop", message: "Terminación superior del difusor: abierta, tapa plana, redondeada o gota." });
   if (def.insert.wavyTop !== "open" && def.insert.wavyTop !== "flat") errors.push({ code: "OUT_OF_RANGE", field: "insert.wavyTop", message: "Terminación del inserto ondulado: abierta o con tapa plana." });
   if (def.thread.connection !== "integrated" && def.thread.connection !== "collar") errors.push({ code: "OUT_OF_RANGE", field: "thread.connection", message: "Unión pantalla–base: elegí rosca integrada o collar roscado." });
 }

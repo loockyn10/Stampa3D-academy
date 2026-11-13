@@ -25,6 +25,7 @@ import { type LampPreset } from "@/lib/maker/lamps/presets";
 import { applyFix, fieldMessage, resetFamily, summarizeIssues, type IssueFix } from "@/lib/maker/lamps/issuesSummary";
 import { LAMP_MEASUREMENTS_NEEDED, LAMP_PHYSICAL_TESTS, LAMP_SAFETY_NOTICES } from "@/lib/maker/lamps/safety";
 import { lampSilhouette } from "@/lib/maker/lamps/silhouette";
+import { allowedProfileTops, effectiveProfileTop, isProfileStyle, PROFILE_TOP_LABELS, profilePrintKind } from "@/lib/maker/lamps/insert/profile";
 import { LAMP_LIMITS, type LampDoubleWallDef, type LampAdhesionDef, type LampOpenworkDef, type LampShadeType, type LampBaseDef, type LampBulbDef, type LampCableDef, type LampDefinition, type LampFamily, type LampHolderDef, type LampHolderMount, type LampInsertDef, type LampInsertStyle, type LampIssue, type LampMetrics, type LampProfile, type LampShadeDef, type LampThreadDef } from "@/lib/maker/lamps/types";
 
 /** Sistemas de fijación del portalámparas: las cotas de cada uno salen de su STL de referencia (references/lamp-e27), probado por el usuario con sus portalámparas. */
@@ -211,6 +212,10 @@ const INSERT_STYLE_INFO: Record<LampInsertStyle, string> = {
   flat: "Cilindro cerrado con tapa plana a 90°. Se imprime invertido: la tapa sobre la cama y el extremo abierto hacia arriba.",
   drop: "Cilindro que se cierra de forma progresiva en una punta redondeada. Se imprime parado, con la abertura inferior sobre la cama.",
   wavy: "Cilindro con ondas en la superficie lateral (suaves o pronunciadas), abierto o con tapa. La zona de montaje inferior es la misma.",
+  mossglow: "Silueta ancha abajo que se estrecha progresivamente hacia arriba. El encastre inferior es el estándar de la base.",
+  tulip: "Cuerpo que se abre suavemente hacia arriba, como un cáliz. El encastre inferior es el estándar de la base.",
+  hourglass: "Dos extremos anchos con una cintura central: la intensidad y la posición cambian la forma. El encastre inferior es el estándar.",
+  bell: "Falda ancha abajo y cierre superior redondeado, en gota o con tapa plana. El encastre inferior es el estándar de la base.",
 };
 
 const DIFFUSER_KIND_INFO: Record<DiffuserKind, string> = {
@@ -218,6 +223,10 @@ const DIFFUSER_KIND_INFO: Record<DiffuserKind, string> = {
   flat: INSERT_STYLE_INFO.flat,
   drop: INSERT_STYLE_INFO.drop,
   wavy: INSERT_STYLE_INFO.wavy,
+  mossglow: INSERT_STYLE_INFO.mossglow,
+  tulip: INSERT_STYLE_INFO.tulip,
+  hourglass: INSERT_STYLE_INFO.hourglass,
+  bell: INSERT_STYLE_INFO.bell,
 };
 
 /** Tarjeta de forma del difusor: la miniatura sale de la MISMA superficie que se malla y se exporta (con los parámetros actuales si es la forma elegida, o los iniciales si no). */
@@ -230,7 +239,7 @@ function DiffuserKindCard({ kind, def, active, onSelect }: { kind: DiffuserKind;
       return insertSilhouette(referenceInsertSurface(style, shown, kind === "cylinder" || active), 64);
     },
     // eslint-disable-next-line react-hooks/exhaustive-deps
-    [kind, style, active, i.thicknessMm, i.capThicknessMm, i.dropClosureMm, i.dropCurvaturePct, i.dropTipRadiusMm, i.waves, i.amplitudeMm, i.twistDeg, i.verticalFrequency, i.wavyTop],
+    [kind, style, active, i.thicknessMm, i.capThicknessMm, i.dropClosureMm, i.dropCurvaturePct, i.dropTipRadiusMm, i.waves, i.amplitudeMm, i.twistDeg, i.verticalFrequency, i.wavyTop, i.profileWidthMm, i.profileTopDiameterMm, i.profileCurvaturePct, i.profileWaistPct, i.profileWaistPositionPct, i.profileTop],
   );
   return (
     <button
@@ -252,6 +261,46 @@ function DiffuserKindCard({ kind, def, active, onSelect }: { kind: DiffuserKind;
   );
 }
 
+
+/**
+ * Controles de los difusores de perfil (Mossglow, Tulipán, Reloj de arena, Campana): solo los tres principales del estilo; el resto, en «Personalización avanzada».
+ * Los rangos salen de la validación real (`RangeSlider`): nada se ofrece si rompe el modelo. El encastre inferior estándar no tiene controles.
+ */
+function ProfileControls({ def, setInsert, err, fit }: { def: LampDefinition; setInsert: (patch: Partial<LampInsertDef>) => void; err: (field: string) => string | undefined; fit: LampMetrics["fit"] | null }) {
+  const i = def.insert;
+  if (!isProfileStyle(i.style)) return null;
+  const style = i.style;
+  const tops = allowedProfileTops(style);
+  const top = effectiveProfileTop(style, i.profileTop);
+  const height = i.heightMm ?? fit?.insertHeightMm ?? 150;
+  const topOptions = tops.map((value) => ({ value, label: PROFILE_TOP_LABELS[value] }));
+  return (
+    <div className="flex flex-col gap-3 rounded-xl border border-fg/10 bg-fg/[0.03] p-3" data-profile-controls={style}>
+      <RangeSlider path="insert.heightMm" label="Altura" value={height} onChange={(v) => setInsert({ heightMm: v })} suffix=" mm" error={err("insert.heightMm")} />
+      {(style === "mossglow" || style === "hourglass" || style === "bell") && (
+        <RangeSlider path="insert.profileWidthMm" label={style === "bell" ? "Ancho del cuerpo (Ø)" : "Ancho (Ø máximo)"} value={i.profileWidthMm} onChange={(v) => setInsert({ profileWidthMm: v })} suffix=" mm" error={err("insert.profileWidthMm")} />
+      )}
+      {style === "mossglow" && <RangeSlider path="insert.profileTopDiameterMm" label="Estrechamiento (Ø superior)" value={i.profileTopDiameterMm} onChange={(v) => setInsert({ profileTopDiameterMm: v })} suffix=" mm" error={err("insert.profileTopDiameterMm")} />}
+      {style === "tulip" && <RangeSlider path="insert.profileTopDiameterMm" label="Apertura superior (Ø)" value={i.profileTopDiameterMm} onChange={(v) => setInsert({ profileTopDiameterMm: v })} suffix=" mm" error={err("insert.profileTopDiameterMm")} />}
+      {(style === "tulip" || style === "bell") && <RangeSlider path="insert.profileCurvaturePct" label="Curvatura" value={i.profileCurvaturePct} onChange={(v) => setInsert({ profileCurvaturePct: v })} suffix="%" error={err("insert.profileCurvaturePct")} />}
+      {style === "hourglass" && <RangeSlider path="insert.profileWaistPct" label="Intensidad de la cintura" value={i.profileWaistPct} onChange={(v) => setInsert({ profileWaistPct: v })} suffix="%" error={err("insert.profileWaistPct")} />}
+      <Details title="Personalización avanzada">
+        {style === "mossglow" && <RangeSlider path="insert.profileCurvaturePct" label="Curvatura (0 = cono recto, 100 = abombado)" value={i.profileCurvaturePct} onChange={(v) => setInsert({ profileCurvaturePct: v })} suffix="%" error={err("insert.profileCurvaturePct")} />}
+        {style === "hourglass" && <RangeSlider path="insert.profileWaistPositionPct" label="Posición de la cintura" value={i.profileWaistPositionPct} onChange={(v) => setInsert({ profileWaistPositionPct: v })} suffix="%" error={err("insert.profileWaistPositionPct")} />}
+        {topOptions.length > 1 && (
+          <>
+            <span className="text-xs font-semibold text-gray-500">Terminación superior</span>
+            <SegmentedControl options={topOptions} value={top} onChange={(profileTop) => setInsert({ profileTop })} compact />
+          </>
+        )}
+        {top === "flat" && <NumberField label="Espesor de la tapa" value={i.capThicknessMm} onChange={(v) => setInsert({ capThicknessMm: v })} suffix="mm" error={err("insert.capThicknessMm")} />}
+        <NumberField label="Espesor de pared" value={i.thicknessMm} onChange={(v) => setInsert({ thicknessMm: v })} suffix="mm" error={err("insert.thicknessMm")} />
+        <Toggle label="Altura automática" checked={i.heightMm === null} onChange={(auto) => setInsert({ heightMm: auto ? null : (fit?.insertHeightMm ?? 150) })} />
+        <p className="text-xs text-gray-500">El encastre inferior (Ø65,135 mm) es el estándar de la base: estos valores solo cambian la forma por encima de él.</p>
+      </Details>
+    </div>
+  );
+}
 
 /** Miniatura calada: máscara leída del mismo campo de aberturas que la malla (ver `renderOpenworkThumbnail`), pintada con el color de acento. */
 function OpenworkThumb({ preset, def, active, onApply }: { preset: OpenworkPreset; def: LampDefinition; active: boolean; onApply: (p: OpenworkPreset) => void }) {
@@ -714,6 +763,7 @@ export function MakerLampControls({ def, onChange, onSelectFamily, onApplyPreset
   const err = (field: string) => fieldMessage(summary, field);
   const caps = familyCaps(def.shadeType);
   const kind = diffuserKind(def.insert);
+  const profileStyle = def.shadeType === "solid" && isProfileStyle(def.insert.style) ? def.insert.style : null;
   const setInsert = (patch: Partial<LampInsertDef>) => onChange({ ...def, insert: { ...def.insert, ...patch } });
   const setAdhesion = (patch: Partial<LampAdhesionDef>) => onChange({ ...def, adhesion: { ...def.adhesion, ...patch } });
   const setThread = (patch: Partial<LampThreadDef>) => onChange({ ...def, thread: { ...def.thread, ...patch } });
@@ -810,6 +860,7 @@ export function MakerLampControls({ def, onChange, onSelectFamily, onApplyPreset
                 </div>
               )}
               <p className="text-xs text-gray-500">{DIFFUSER_KIND_INFO[kind]}</p>
+              {profileStyle && <ProfileControls def={def} setInsert={setInsert} err={err} fit={fit} />}
               <div role="radiogroup" aria-label="Color del difusor" className="flex flex-wrap gap-2">
                 {LAMP_INSERT_SWATCHES.map((c) => (
                   <button
@@ -832,12 +883,14 @@ export function MakerLampControls({ def, onChange, onSelectFamily, onApplyPreset
               </div>
               <p className="text-xs text-gray-500">El color del visor es una aproximación visual, no una simulación de la luz.</p>
               {def.shadeType !== "solid" && <DiffuserPanel def={def} onChange={onChange} err={err} fit={fit} errors={errors} onError={onError} />}
-              <div className="grid grid-cols-2 gap-3">
-                {def.shadeType === "solid" && <NumberField label="Ø exterior del cuerpo" value={def.insert.diameterMm ?? fit?.insertOuterDiameterMm ?? 65.135} onChange={(v) => setInsert({ diameterMm: v })} suffix="mm" error={err("insert.diameterMm")} />}
-                <NumberField label="Espesor de pared" value={def.insert.thicknessMm} onChange={(v) => setInsert({ thicknessMm: v })} suffix="mm" error={err("insert.thicknessMm")} />
-              </div>
-              <Toggle label="Altura automática" checked={def.insert.heightMm === null} onChange={(auto) => setInsert({ heightMm: auto ? null : (fit?.insertHeightMm ?? 180) })} />
-              {def.insert.heightMm !== null && (
+              {!profileStyle && (
+                <div className="grid grid-cols-2 gap-3">
+                  {def.shadeType === "solid" && <NumberField label="Ø exterior del cuerpo" value={def.insert.diameterMm ?? fit?.insertOuterDiameterMm ?? 65.135} onChange={(v) => setInsert({ diameterMm: v })} suffix="mm" error={err("insert.diameterMm")} />}
+                  <NumberField label="Espesor de pared" value={def.insert.thicknessMm} onChange={(v) => setInsert({ thicknessMm: v })} suffix="mm" error={err("insert.thicknessMm")} />
+                </div>
+              )}
+              {!profileStyle && <Toggle label="Altura automática" checked={def.insert.heightMm === null} onChange={(auto) => setInsert({ heightMm: auto ? null : (fit?.insertHeightMm ?? 180) })} />}
+              {!profileStyle && def.insert.heightMm !== null && (
                 <>
                   <NumberField label="Altura total del difusor" value={def.insert.heightMm} onChange={(v) => setInsert({ heightMm: v })} suffix="mm" error={err("insert.heightMm")} />
                   <RangeHint path="insert.heightMm" />
@@ -865,7 +918,14 @@ export function MakerLampControls({ def, onChange, onSelectFamily, onApplyPreset
               )}
               {def.shadeType === "solid" && def.insert.style === "wavy" && def.insert.wavyTop === "open" && <Toggle label="Lengüetas para extraerlo (impresión convencional)" checked={def.insert.tabs} onChange={(tabs) => setInsert({ tabs })} />}
               <div className="flex flex-col gap-1.5 rounded-xl border border-fg/10 bg-fg/[0.03] p-3">
-                <InfoRow label={fit?.insertAuto ? "Ø exterior del cuerpo (el más angosto)" : "Ø exterior del cuerpo"} value={fit?.insertOuterDiameterMm != null ? `Ø ${fmt2(fit.insertOuterDiameterMm)} mm` : "—"} strong />
+                {profileStyle ? (
+                  <>
+                    <InfoRow label="Ø máximo del difusor" value={fit?.insertMaxDiameterMm != null ? `Ø ${fmt2(fit.insertMaxDiameterMm)} mm` : "—"} strong />
+                    <InfoRow label="Ø mínimo de la pared (sin cierre)" value={fit?.insertMinDiameterMm != null ? `Ø ${fmt2(fit.insertMinDiameterMm)} mm` : "—"} />
+                  </>
+                ) : (
+                  <InfoRow label={fit?.insertAuto ? "Ø exterior del cuerpo (el más angosto)" : "Ø exterior del cuerpo"} value={fit?.insertOuterDiameterMm != null ? `Ø ${fmt2(fit.insertOuterDiameterMm)} mm` : "—"} strong />
+                )}
                 <InfoRow label="Encastre inferior estándar (diffuser.stl)" value={fit?.insertFit ? `Ø ${fmt2(fit.insertFit.outerDiameterMm)} exterior / Ø ${fmt2(fit.insertFit.innerDiameterMm)} interior × ${fmt(fit.insertFit.heightMm)} mm` : "—"} />
                 {fit?.insertFit && fit.insertFit.flareHeightMm > 0 && <InfoRow label="Transición a 45° hasta el cuerpo" value={`${fmt(fit.insertFit.flareHeightMm)} mm`} />}
                 {kind === "wavy" && <InfoRow label="Ø máximo con ondas (sin lengüetas)" value={fit?.insertMaxDiameterMm != null ? `Ø ${fmt(fit.insertMaxDiameterMm)} mm` : "—"} />}
@@ -874,7 +934,7 @@ export function MakerLampControls({ def, onChange, onSelectFamily, onApplyPreset
                 <InfoRow label="Separación mínima a la bombilla (geométrica)" value={fit?.insertEnvelopeGapMm != null ? `${fmt(fit.insertEnvelopeGapMm)} mm` : "—"} />
                 <InfoRow label="Separación radial a los anillos" value={fit?.tower.ringsToInsertGapMm != null ? `${fmt(fit.tower.ringsToInsertGapMm)} mm` : "—"} />
                 <InfoRow label="Se saca por arriba" value={fit?.insertRemovableFromTop == null ? "—" : fit.insertRemovableFromTop ? "Sí, sin desmontar nada" : "No: hay que desenroscar la pantalla"} />
-                <InfoRow label="Orientación de impresión" value={def.insert.style === "drop" ? "Parado, abertura sobre la cama" : "Invertido (extremo superior sobre la cama)"} />
+                <InfoRow label="Orientación de impresión" value={(profileStyle ? profilePrintKind(profileStyle, def.insert.profileTop) === "lampInsertDrop" : def.insert.style === "drop") ? "Parado, abertura sobre la cama" : "Invertido (extremo superior sobre la cama)"} />
               </div>
               <Details title="Montaje y separaciones">
                 <SliderField label="Holgura en la ranura (por lado)" value={def.insert.clearanceMm} min={L["insert.clearanceMm"].min} max={L["insert.clearanceMm"].max} step={0.05} suffix=" mm" onChange={(v) => setInsert({ clearanceMm: v })} error={err("insert.clearanceMm")} />
@@ -885,7 +945,7 @@ export function MakerLampControls({ def, onChange, onSelectFamily, onApplyPreset
                   <NumberField label="Profundidad de la ranura" value={def.insert.seatDepthMm} onChange={(v) => setInsert({ seatDepthMm: v })} suffix="mm" error={err("insert.seatDepthMm")} />
                   <NumberField label="Separación mínima a la bombilla" value={def.insert.minBulbGapMm} onChange={(v) => setInsert({ minBulbGapMm: v })} suffix="mm" error={err("insert.minBulbGapMm")} />
                 </div>
-                <Toggle label="Diámetro automático (el más angosto posible)" checked={def.insert.diameterMm === null} onChange={(auto) => setInsert({ diameterMm: auto ? null : (fit?.insertOuterDiameterMm ?? 65.135) })} />
+                {!profileStyle && <Toggle label="Diámetro automático (el más angosto posible)" checked={def.insert.diameterMm === null} onChange={(auto) => setInsert({ diameterMm: auto ? null : (fit?.insertOuterDiameterMm ?? 65.135) })} />}
                 <p className="text-xs text-gray-500">La separación mínima solo evita el contacto previsto con las medidas cargadas: no es una distancia térmica segura.</p>
               </Details>
             </>
@@ -1032,7 +1092,7 @@ export function MakerLampControls({ def, onChange, onSelectFamily, onApplyPreset
         <div className="flex flex-col gap-1.5 rounded-xl border border-fg/10 bg-fg/[0.03] p-3">
           <InfoRow label="Pantalla" value={metrics ? (def.shadeType === "double" ? "Impresión convencional (doble pared)" : def.shadeType === "openwork" ? "Impresión convencional (calada)" : def.thread.connection === "integrated" ? "Impresión convencional (rosca integrada)" : metrics.shade.vase.ready ? "Apta para modo vaso*" : `No apta para modo vaso (${fmt(metrics.shade.vase.maxOverhangDeg)}°)`) : "—"} strong={metrics?.shade.vase.ready && def.thread.connection === "collar"} />
           {def.thread.connection === "collar" && <InfoRow label="Collar roscado" value={metrics?.collar ? "Impresión convencional" : "—"} />}
-          <InfoRow label={`Inserto ${INSERT_STYLE_LABELS[def.insert.style].toLowerCase()}`} value={metrics?.insert ? (metrics.insert.vaseCapable ? "Modo vaso posible" : def.insert.style === "drop" ? "Convencional, parado (brim si hace falta)" : "Convencional, invertido") : "—"} />
+          <InfoRow label={`Inserto ${INSERT_STYLE_LABELS[def.insert.style].toLowerCase()}`} value={metrics?.insert ? (metrics.insert.vaseCapable ? "Modo vaso posible" : (isProfileStyle(def.insert.style) ? profilePrintKind(def.insert.style, def.insert.profileTop) === "lampInsertDrop" : def.insert.style === "drop") ? "Convencional, parado (brim si hace falta)" : "Convencional, invertido") : "—"} />
           <InfoRow label="Base" value={metrics ? "Impresión convencional" : "—"} />
         </div>
         <p className="text-xs text-gray-500">* Cumple los prerrequisitos geométricos del modo vaso (contorno continuo por capa, pendiente máxima y conexión por collar). Confirmalo en tu laminador: no es una garantía de laminado.</p>
@@ -1112,9 +1172,12 @@ export function LampExportButtons({
   onDownloadTests,
   holderMeasured,
   insertLabel,
+  insertPrintKind,
 }: {
   hasInsert: boolean;
   insertStyle: LampInsertStyle;
+  /** Pieza del difusor de perfil (según su orientación de impresión); sin esto: la gota va parada y el resto invertido. */
+  insertPrintKind?: "lampInsert" | "lampInsertDrop";
   /** Nombre de la forma del difusor (p. ej. «cilíndrico»); sin esto se usa el del estilo del inserto. */
   insertLabel?: string;
   hasCollar: boolean;
@@ -1139,8 +1202,8 @@ export function LampExportButtons({
         </button>
       )}
       {hasInsert && (
-        <button type="button" disabled={!canDownload || busy !== null} onClick={() => onDownloadPart(insertStyle === "drop" ? "lampInsertDrop" : "lampInsert")} className={`${button} border-fg/10 bg-fg/[0.05] text-gray-200 hover:text-fg`}>
-          {icon(insertStyle === "drop" ? "lampInsertDrop" : "lampInsert")} {insertLabel ? `Difusor ${insertLabel}` : `Inserto ${INSERT_STYLE_LABELS[insertStyle].toLowerCase()}`} (STL)
+        <button type="button" disabled={!canDownload || busy !== null} onClick={() => onDownloadPart(insertPrintKind ?? (insertStyle === "drop" ? "lampInsertDrop" : "lampInsert"))} className={`${button} border-fg/10 bg-fg/[0.05] text-gray-200 hover:text-fg`}>
+          {icon(insertPrintKind ?? (insertStyle === "drop" ? "lampInsertDrop" : "lampInsert"))} {insertLabel ? `Difusor ${insertLabel}` : `Inserto ${INSERT_STYLE_LABELS[insertStyle].toLowerCase()}`} (STL)
         </button>
       )}
       <button type="button" disabled={!canDownload || busy !== null} onClick={() => onDownloadPart("body")} className={`${button} border-fg/10 bg-fg/[0.05] text-gray-200 hover:text-fg`}>

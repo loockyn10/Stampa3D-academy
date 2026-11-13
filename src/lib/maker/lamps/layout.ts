@@ -1,3 +1,4 @@
+import { effectiveProfileTop, isProfileStyle } from "@/lib/maker/lamps/insert/profile";
 import { buildInsertSurface, insertEnvelopeGap, type InsertSurface } from "@/lib/maker/lamps/insert/surface";
 import type { DoubleWallField } from "@/lib/maker/lamps/doublewall/field";
 import type { OpenworkField } from "@/lib/maker/lamps/openwork/field";
@@ -228,6 +229,9 @@ export function computeLampLayout(def: LampDefinition, field: ShadeField): LampL
       diffuserLimit = candidates[0][0];
       // al 0,05 mm hacia abajo, con 2,5 µm de tolerancia de redondeo (un libre de 79,999 mm con 1 mm de holgura da exactamente Ø79 mm, no Ø78,9)
       cylOuterR = Math.floor((candidates[0][1] + 0.0025) * 20) / 20;
+    } else if (isProfileStyle(insert.style)) {
+      // Difusores de perfil: el encastre es el estándar y lo decorativo vive por encima (ancho, apertura, cintura...): el Ø nominal del cilindro no interviene.
+      cylOuterR = fitOuterR;
     } else cylOuterR = insert.diameterMm === null ? Math.max(fitOuterR, ceilTo(autoInnerR + insert.thicknessMm, 0.25)) : insert.diameterMm / 2;
     slot = { innerR: fitOuterR - insert.thicknessMm - insert.clearanceMm, outerR: fitOuterR + insert.clearanceMm, bottomZ: topZ - insert.seatDepthMm };
     flareH0 = Math.max(0, cylOuterR - fitOuterR) / Math.tan((g.diffuserFlareDeg * Math.PI) / 180);
@@ -268,6 +272,8 @@ export function computeLampLayout(def: LampDefinition, field: ShadeField): LampL
     if (diameterMode) autoHeight = Math.floor((shadeTopZ - def.openwork.diffuserTopGapMm - z0) * 10 + 1e-6) / 10; // hacia abajo: nunca más cerca del borde que la holgura pedida
     if (insert.style === "flat") autoHeight = Math.max(autoHeight, round1(bulbTopZ + insert.minBulbGapMm + insert.capThicknessMm + 0.5 - z0));
     if (insert.style === "drop") autoHeight = round1(bulbTopZ + insert.minBulbGapMm + insert.dropClosureMm + 0.5 - z0);
+    // Perfil con extremo cerrado (tapa plana, cúpula, gota o campana): la altura mínima deja la tapa / el cierre por encima de la bombilla más la separación de diseño.
+    if (isProfileStyle(insert.style) && effectiveProfileTop(insert.style, insert.profileTop) !== "open") autoHeight = Math.max(autoHeight, round1(bulbTopZ + insert.minBulbGapMm + (effectiveProfileTop(insert.style, insert.profileTop) === "flat" ? insert.capThicknessMm : 4) + 0.5 - z0));
     const heightMm = insert.heightMm ?? autoHeight;
     const surface = buildInsertSurface({
       style: insert.style,
@@ -280,6 +286,7 @@ export function computeLampLayout(def: LampDefinition, field: ShadeField): LampL
       capThicknessMm: insert.capThicknessMm,
       drop: { closureMm: insert.dropClosureMm, curvaturePct: insert.dropCurvaturePct, tipRadiusMm: insert.dropTipRadiusMm },
       wavy: { waves: insert.waves, amplitudeMm: insert.amplitudeMm, twistDeg: insert.twistDeg, verticalFrequency: insert.verticalFrequency, top: insert.wavyTop },
+      profile: { widthMm: insert.profileWidthMm, topDiameterMm: insert.profileTopDiameterMm, curvaturePct: insert.profileCurvaturePct, waistPct: insert.profileWaistPct, waistPositionPct: insert.profileWaistPositionPct, top: insert.profileTop },
       // Con el difusor según anillos las lengüetas exteriores no caben (no hay espacio radial hasta el anillo): se ignoran y se avisa.
       tabs: insert.tabs && !ringsMode,
     });
@@ -294,7 +301,7 @@ export function computeLampLayout(def: LampDefinition, field: ShadeField): LampL
       heightMm,
       z0,
       z1: z0 + heightMm,
-      auto: insert.diameterMm === null && !ringsMode,
+      auto: insert.diameterMm === null && !ringsMode && !isProfileStyle(insert.style),
       tabLengthMm: surface.tabLengthMm,
       closedTop: surface.closedTop,
       surface,
@@ -486,6 +493,7 @@ export function computeLampLayout(def: LampDefinition, field: ShadeField): LampL
     insertAuto: insertLayout?.auto ?? false,
     insertStyle: insertLayout?.style ?? null,
     insertMaxDiameterMm: insertLayout ? round3(2 * insertLayout.bodyMaxR) : null,
+    insertMinDiameterMm: insertLayout && isProfileStyle(insertLayout.style) ? round3(2 * insertLayout.surface.bodyMinR) : null,
     insertHeightMm: insertLayout ? round1(insertLayout.heightMm) : null,
     insertClosed: insertLayout?.closedTop ?? false,
     insertEnvelopeGapMm: gapActual === null ? null : round1(gapActual),

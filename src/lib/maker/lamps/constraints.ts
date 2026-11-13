@@ -1,4 +1,5 @@
 import { diffuserKind, familyHasControl, isMainControl } from "@/lib/maker/lamps/capabilities";
+import { isProfileStyle } from "@/lib/maker/lamps/insert/profile";
 import { validateLamp } from "@/lib/maker/lamps/validation/validateLamp";
 import { LAMP_LIMITS, type LampDefinition, type LampIssue, type LampLimitKey, type LampShadeType } from "@/lib/maker/lamps/types";
 
@@ -40,6 +41,9 @@ const diamond = (def: LampDefinition) => def.shadeType === "openwork" && def.ope
 const spiral = (def: LampDefinition) => def.shadeType === "openwork" && def.openwork.pattern === "spiral";
 const wavyInsert = (def: LampDefinition) => def.shadeType === "solid" && def.insert.enabled && diffuserKind(def.insert) === "wavy";
 const dropInsert = (def: LampDefinition) => def.shadeType === "solid" && def.insert.enabled && def.insert.style === "drop";
+/** Difusor de perfil activo (Mossglow, Tulipán, Reloj de arena, Campana) y qué parámetros decorativos tiene cada uno. */
+const profileInsert = (def: LampDefinition) => def.shadeType === "solid" && def.insert.enabled && isProfileStyle(def.insert.style);
+const profileOf = (...styles: string[]) => (def: LampDefinition) => profileInsert(def) && styles.includes(def.insert.style);
 const endsFree = (def: LampDefinition) => def.shadeType === "openwork" && def.openwork.diffuserFit !== "diameter";
 const diameterDriven = (def: LampDefinition) => def.shadeType === "openwork" && def.openwork.diffuserFit === "diameter";
 
@@ -93,12 +97,18 @@ export const LAMP_CONTROL_SPECS: LampControlSpec[] = [
   { path: "doubleWall.innerOrganicPct", label: "Variación orgánica interior", min: 0, max: 100, step: 5, unit: "%", when: sw("double") },
   // ---- Comunes
   { path: "thread.majorDiameterMm", label: "Diámetro de montaje (rosca)", min: 80, max: 200, step: 1, unit: "mm" },
-  { path: "insert.heightMm", label: "Altura del difusor", min: 30, max: 400, step: 1, unit: "mm", when: (d) => d.insert.enabled && d.insert.heightMm !== null },
+  { path: "insert.heightMm", label: "Altura del difusor", min: 30, max: 400, step: 1, unit: "mm", when: (d) => d.insert.enabled && (d.insert.heightMm !== null || profileInsert(d)) },
   // ---- Difusor de la pantalla sólida (el de la calada y el de la doble pared es siempre un cilindro recto: no tiene estos controles)
   { path: "insert.amplitudeMm", label: "Amplitud del difusor", min: 0, max: 12, step: 0.5, unit: "mm", when: wavyInsert },
   { path: "insert.waves", label: "Ondas del difusor", min: 2, max: 32, step: 1, unit: "", when: wavyInsert },
   { path: "insert.twistDeg", label: "Torsión del difusor", min: -720, max: 720, step: 5, unit: "°", when: wavyInsert },
   { path: "insert.verticalFrequency", label: "Frecuencia vertical del difusor", min: 0, max: 6, step: 0.5, unit: "", when: wavyInsert },
+  // ---- Difusores de perfil: altura (la del difusor), ancho (Ø máximo), Ø superior (estrechamiento / apertura), curvatura, cintura
+  { path: "insert.profileWidthMm", label: "Ancho (Ø máximo)", min: 50, max: 120, step: 0.5, unit: "mm", when: profileOf("mossglow", "hourglass", "bell") },
+  { path: "insert.profileTopDiameterMm", label: "Ø superior", min: 16, max: 140, step: 0.5, unit: "mm", when: profileOf("mossglow", "tulip") },
+  { path: "insert.profileCurvaturePct", label: "Curvatura", min: 0, max: 100, step: 5, unit: "%", when: profileOf("mossglow", "tulip", "bell") },
+  { path: "insert.profileWaistPct", label: "Intensidad de la cintura", min: 0, max: 100, step: 5, unit: "%", when: profileOf("hourglass") },
+  { path: "insert.profileWaistPositionPct", label: "Posición de la cintura", min: 15, max: 85, step: 5, unit: "%", when: profileOf("hourglass") },
   { path: "insert.dropClosureMm", label: "Altura del cierre", min: 10, max: 120, step: 1, unit: "mm", when: dropInsert },
   { path: "insert.dropCurvaturePct", label: "Curvatura del cierre", min: 0, max: 100, step: 5, unit: "%", when: dropInsert },
   { path: "insert.dropTipRadiusMm", label: "Redondeo de la punta", min: 1.5, max: 30, step: 0.5, unit: "mm", when: dropInsert },
@@ -188,6 +198,12 @@ const SHORT: Record<string, string> = {
   DW_ZONES: "la altura no alcanza para piso, cámara y techo",
   ADHESION_INTERFERES: "el reborde de adhesión interferiría",
   THREAD_ENGAGEMENT_SHORT: "la rosca sería inestable",
+  INSERT_PROFILE_TOO_SHORT: "el difusor quedaría muy bajo para su cierre",
+  INSERT_PROFILE_TOO_STEEP: "la pared del difusor se inclinaría demasiado",
+  INSERT_PROFILE_THIN_CURVE: "la curva sería demasiado cerrada para el espesor",
+  INSERT_PROFILE_TOO_NARROW: "el difusor quedaría demasiado angosto",
+  INSERT_PROFILE_INVALID: "el contorno se plegaría sobre sí mismo",
+  INSERT_CLOSURE_TOUCHES_BULB: "el difusor quedaría a menos de la separación mínima a la bombilla",
   OUT_OF_RANGE: "fuera de la envolvente del control",
 };
 

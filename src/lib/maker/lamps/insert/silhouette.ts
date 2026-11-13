@@ -32,6 +32,7 @@ export function referenceInsertSurface(style: LampInsertStyle, base: LampInsertD
     capThicknessMm: p.capThicknessMm,
     drop: { closureMm: p.dropClosureMm, curvaturePct: p.dropCurvaturePct, tipRadiusMm: p.dropTipRadiusMm },
     wavy: { waves: p.waves, amplitudeMm: p.amplitudeMm, twistDeg: p.twistDeg, verticalFrequency: p.verticalFrequency, top: p.wavyTop },
+    profile: { widthMm: p.profileWidthMm, topDiameterMm: p.profileTopDiameterMm, curvaturePct: p.profileCurvaturePct, waistPct: p.profileWaistPct, waistPositionPct: p.profileWaistPositionPct, top: p.profileTop },
     tabs: false,
   });
 }

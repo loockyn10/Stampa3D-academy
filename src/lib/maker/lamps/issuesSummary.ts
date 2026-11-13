@@ -80,6 +80,10 @@ const GROUPS: Record<string, string> = {
   INSERT_DROP_TOO_STEEP: "diffuser-shape",
   INSERT_WAVE_STEEP: "diffuser-shape",
   INSERT_DROP_STEEP: "diffuser-shape",
+  INSERT_PROFILE_TOO_STEEP: "diffuser-shape",
+  INSERT_PROFILE_STEEP: "diffuser-shape",
+  INSERT_PROFILE_THIN_CURVE: "diffuser-shape",
+  INSERT_PROFILE_INVALID: "diffuser-shape",
 };
 
 /** Consecuencias de una causa que ya se informa: si la causa está, no se repiten (el remedio de la causa las resuelve). */
@@ -132,6 +136,13 @@ const SHORT: Record<string, string> = {
   INSERT_DROP_TOO_STEEP: "La forma del difusor es demasiado extrema.",
   INSERT_WAVE_STEEP: "El difusor puede necesitar soportes.",
   INSERT_DROP_STEEP: "El difusor puede necesitar soportes.",
+  INSERT_PROFILE_TOO_STEEP: "La forma del difusor es demasiado extrema.",
+  INSERT_PROFILE_STEEP: "El difusor puede necesitar soportes.",
+  INSERT_PROFILE_THIN_CURVE: "La forma del difusor es demasiado extrema.",
+  INSERT_PROFILE_INVALID: "La forma del difusor es demasiado extrema.",
+  INSERT_PROFILE_TOO_SHORT: "El difusor es demasiado bajo para esta forma.",
+  INSERT_PROFILE_TOO_NARROW: "El difusor queda demasiado angosto arriba.",
+  INSERT_PROFILE_CAP_OVERHANG: "La cúpula puede necesitar soportes arriba.",
   INSERT_WAVE_COARSE: "El difusor puede verse facetado.",
   INSERT_WAVE_CREST_SHARP: "Las ondas del difusor son demasiado agudas.",
   INSERT_THIN: "El difusor es muy delgado y frágil.",
