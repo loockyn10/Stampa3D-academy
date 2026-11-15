@@ -14,9 +14,10 @@ const code = sql.replace(/\/\*[\s\S]*?\*\//g, "").replace(/--.*$/gm, "");
 
 test("la migration M1 (reemplazada por la agenda de precio, NO se aplica) no reutiliza el nombre de otra y ordena justo antes de su reemplazo", () => {
   const names = fs.readdirSync(path.join(process.cwd(), "supabase/migrations")).filter((n) => n.endsWith(".sql")).sort();
-  // Superseded by 20261112120000_price_schedules.sql: M1 stays as reference, unapplied.
-  assert.equal(names[names.length - 1], "20261112120000_price_schedules.sql");
-  assert.equal(names[names.length - 2], path.basename(FILE), "M1 es la inmediata anterior");
+  // Superseded by 20261112120000_price_schedules.sql: M1 stays as reference, unapplied, right before its replacement.
+  const replacement = names.indexOf("20261112120000_price_schedules.sql");
+  assert.ok(replacement > 0, "price schedules migration present");
+  assert.equal(names[replacement - 1], path.basename(FILE), "M1 es la inmediata anterior");
   assert.equal(names.filter((n) => n.includes("pioneer")).length, 1);
 });
 

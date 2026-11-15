@@ -167,7 +167,8 @@ test("the client-side access resolver reads grants (so UI and RLS agree) and the
   assert.match(middleware, /hasAccess: access\.capabilities\.accessPlatform/);
   // Routing rules moved to src/lib/auth/route-policy.ts (Sprint 2).
   const policy = read("src/lib/auth/route-policy.ts");
-  assert.match(policy, /return \{ redirect: NO_ACCESS_PATH \}/);
+  // Free on a Premium page → /sin-acceso with the notice of that section (D054).
+  assert.match(policy, /return \{ redirect: premiumNoticePath\(pathname\) \}/);
   // Beta redemption must be possible while the user is still Free.
   assert.match(policy, /pathname\.startsWith\("\/sin-acceso"\)/);
   assert.match(policy, /pathname === "\/perfil"/);
