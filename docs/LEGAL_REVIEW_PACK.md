@@ -46,7 +46,7 @@ Solo con datos acordados (`PIONEROS`, 20 cupos, $9.900 × 6 períodos, luego $19
 >
 > 1. **Beneficio.** Quien contrate la membresía Premium aplicando el código PIONEROS paga $9.900 (pesos argentinos) por mes durante sus primeros seis (6) períodos mensuales de facturación, contados desde el primer débito de su suscripción.
 > 2. **Precio posterior.** Desde el séptimo período el precio es de $19.900 por mes, importe que la persona acepta expresamente al contratar. **[DECIDIR]** si ese importe queda fijo o puede actualizarse luego y con qué aviso.
-> 3. **Cupos.** La promoción tiene veinte (20) cupos. Un cupo se ocupa al autorizarse la suscripción; si se cancela antes, **[DECIDIR]** si el cupo se libera (hoy el sistema lo libera al cancelarse la suscripción).
+> 3. **Cupos.** La promoción tiene veinte (20) cupos. Un cupo queda **reservado** mientras el pago está en curso y se **consume** solo con el primer pago aprobado; un pago rechazado, pendiente o un checkout abandonado no consumen cupo (D054). **[DECIDIR]** qué se comunica si alguien queda sin cupo mientras otros completan su pago.
 > 4. **Vigencia para nuevas contrataciones.** **[DECIDIR]** fecha límite para usar el código (además del límite de cupos).
 > 5. **Aviso previo.** Antes del cambio de precio se envía un aviso por correo y se muestra dentro de la plataforma con al menos 20 días de anticipación.
 > 6. **Cancelación.** Se puede cancelar en cualquier momento desde Configuración → Membresía; no hay nuevos cobros y el acceso se conserva hasta el fin del período pagado. Cancelar durante la promoción **[DECIDIR]** si implica perder el precio promocional al volver a suscribirse (hoy un código usado no puede volver a usarse por la misma cuenta).

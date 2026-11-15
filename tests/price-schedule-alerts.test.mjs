@@ -144,8 +144,11 @@ test("promo terms: the later price must be higher, periods 1-24, notice 7-60 day
 
 test("admin: terms are saved by a server route (admin only, service role); a code with terms is created inactive and activated afterwards", () => {
   const route = readRepoFile("src/app/api/admin/promo-terms/route.ts");
-  assert.match(route, /profile\.role !== "admin"/);
-  assert.match(route, /Forbidden/);
+  // The admin check lives in the shared gate (also used by /api/admin/discount-seats).
+  assert.match(route, /const gate = await requireAdminServiceClient\(\);\s*if \(!gate\.admin\) return gate\.response;/);
+  const gate = readRepoFile("src/lib/admin/service-role-gate.ts");
+  assert.match(gate, /profile\.role !== "admin"/);
+  assert.match(gate, /Forbidden/);
   assert.match(route, /code\.code_type !== "fixed_price"/);
   assert.match(route, /cannot change once users accepted/);
   const page = readRepoFile("src/app/admin/codigos/page.tsx");

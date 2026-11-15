@@ -101,7 +101,13 @@ test("6. expired or cross-device confirmation link: clear message and a way to a
   assert.equal(callback.callbackFailurePath("/"), "/login?error=enlace-invalido");
   assert.equal(callback.callbackFailurePath("/cursos"), "/login?error=enlace-invalido&returnTo=%2Fcursos");
   assert.equal(callback.callbackFailurePath("/actualizar-password"), "/recuperar-password?estado=enlace-invalido");
-  assert.match(src.callback, /callbackFailurePath\(next\)/);
+  // Verified by Supabase but opened in another browser: the e-mail is confirmed, the person only signs in (D054).
+  assert.equal(callback.callbackFailurePath("/", "confirmed_elsewhere"), "/login?estado=email-confirmado");
+  assert.equal(callback.callbackFailurePath("/sin-acceso", "confirmed_elsewhere"), "/login?estado=email-confirmado&returnTo=%2Fsin-acceso");
+  assert.equal(callback.callbackFailurePath("/sin-acceso", "link_expired"), "/verificar-email?estado=enlace-vencido&returnTo=%2Fsin-acceso");
+  assert.equal(callback.callbackFailurePath("/actualizar-password", "confirmed_elsewhere"), "/recuperar-password?estado=enlace-invalido");
+  assert.match(src.callback, /callbackFailurePath\(next, reason\)/);
+  assert.match(src.callback, /const reason = code \? 'confirmed_elsewhere'/);
   assert.doesNotMatch(src.callback, /auth-callback-failed/);
   assert.ok(errors.AUTH_NOTICE_MESSAGES["enlace-invalido"].includes("iniciá sesión"));
   assert.match(src.login, /AUTH_NOTICE_MESSAGES\[searchParams\.get\("error"\)/, "only known codes are shown");
@@ -144,9 +150,11 @@ test("9/10. a Free account uses the Calculator and the Profile without being sen
   assert.equal(auth("/onboarding"), null);
 });
 
-test("11. a Free account asking for a Premium section lands on the access screen", () => {
-  for (const path of ["/", "/cursos", "/stampy", "/mi-taller/productos", "/configuracion"]) {
-    assert.deepEqual(auth(path), { redirect: "/sin-acceso" }, path);
+test("11. a Free account asking for a Premium section gets that section's Premium notice; at / it enters the free area", () => {
+  assert.deepEqual(auth("/"), { redirect: "/calculadora" });
+  const expected = { "/cursos": "academia", "/stampy": "stampy", "/mi-taller/productos": "taller", "/configuracion": "premium" };
+  for (const [path, key] of Object.entries(expected)) {
+    assert.deepEqual(auth(path), { redirect: `/sin-acceso?feature=${key}` }, path);
   }
 });
 
@@ -176,7 +184,7 @@ test("14. returnTo: only internal destinations, no loops; an already signed-in p
 
   assert.deepEqual(auth("/login", { returnToParam: "/cursos", hasAccess: true }), { redirect: "/cursos" });
   assert.deepEqual(auth("/login", { returnToParam: "/cursos" }), { redirect: "/cursos" }, "the next request applies permissions");
-  assert.deepEqual(auth("/login", { returnToParam: "https://evil.example" }), { redirect: "/sin-acceso" });
+  assert.deepEqual(auth("/login", { returnToParam: "https://evil.example" }), { redirect: "/calculadora" });
   assert.deepEqual(auth("/registro", { hasAccess: true }), { redirect: "/" });
 });
 
@@ -184,15 +192,19 @@ test("14. returnTo: only internal destinations, no loops; an already signed-in p
 // 15–16. Onboarding (Free included) and profile update
 // ---------------------------------------------------------------------------------------------------------------
 
-test("15. Free accounts onboard too; it is skippable, keeps the destination and never traps APIs or access screens", () => {
+test("15. onboarding only once Premium is active (D054); it is skippable, keeps the destination and never traps APIs or access screens", () => {
   const free = policy.evaluateAccessPolicy({ authenticated: true, role: null, membershipStatus: null, membershipExpiresAt: null, onboardingCompleted: false, grants: [] });
-  assert.equal(free.needsOnboarding, true);
+  assert.equal(free.needsOnboarding, false, "a Free account goes straight to the free area");
+  const future = new Date(Date.now() + 86_400_000).toISOString();
+  const premium = policy.evaluateAccessPolicy({ authenticated: true, role: null, membershipStatus: "active", membershipExpiresAt: future, onboardingCompleted: false, grants: [] });
+  assert.equal(premium.needsOnboarding, true);
+  assert.equal(policy.evaluateAccessPolicy({ authenticated: true, role: null, membershipStatus: "active", membershipExpiresAt: future, onboardingCompleted: true, grants: [] }).needsOnboarding, false, "a single time");
   assert.equal(free.capabilities.accessPlatform, false, "onboarding never grants access");
   const anon = policy.evaluateAccessPolicy({ authenticated: false, role: null, membershipStatus: null, membershipExpiresAt: null, onboardingCompleted: false, grants: [] });
   assert.equal(anon.needsOnboarding, false);
 
-  assert.deepEqual(auth("/", { needsOnboarding: true }), { redirect: "/onboarding" });
-  assert.deepEqual(auth("/perfil", { needsOnboarding: true }), { redirect: "/onboarding?returnTo=%2Fperfil" });
+  assert.deepEqual(auth("/", { needsOnboarding: true, hasAccess: true }), { redirect: "/onboarding" });
+  assert.deepEqual(auth("/perfil", { needsOnboarding: true, hasAccess: true }), { redirect: "/onboarding?returnTo=%2Fperfil" });
   assert.deepEqual(auth("/cursos", { needsOnboarding: true, hasAccess: true }), { redirect: "/onboarding?returnTo=%2Fcursos" });
   for (const exempt of ["/onboarding", "/sin-acceso", "/pago/estado", "/salir", "/api/mercadopago/membership", "/api/calculator/catalog", "/landing", "/verificar-email"]) {
     assert.equal(routes.isOnboardingExempt(exempt), true, exempt);

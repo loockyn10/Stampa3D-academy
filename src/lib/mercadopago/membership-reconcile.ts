@@ -218,3 +218,65 @@ export async function reconcileMemberships(
 
   return report;
 }
+
+// ---------------------------------------------------------------------------------------------------------------------
+// Abandoned discounted checkouts (Pioneros seats)
+// ---------------------------------------------------------------------------------------------------------------------
+
+/**
+ * A discounted checkout never authorized at Mercado Pago holds its code seat for as long as the preapproval could still
+ * be authorized (supabase/migrations/20261115120000). After this long nobody is authorizing it: the reconciliation
+ * cancels it at Mercado Pago (no card was accepted, so nothing can be charged) and the normal cancellation path frees
+ * the seat. The person keeps their Free account and can start a new checkout at any time.
+ */
+export const ABANDONED_DISCOUNT_CHECKOUT_MINUTES = 48 * 60;
+export const ABANDONED_DISCOUNT_CHECKOUT_LIMIT = 10;
+
+export interface StaleDiscountCheckoutStore {
+  listStaleDiscountCheckouts(input: { olderThanMinutes: number; limit: number }): Promise<{ userId: string; preapprovalId: string }[]>;
+}
+
+export interface AbandonedCheckoutReport {
+  examined: number;
+  /** Cancelled at Mercado Pago: the seat goes back to the code. */
+  cancelled: number;
+  /** Mercado Pago no longer reports them pending (authorized or already cancelled): only re-synced, never cancelled. */
+  notPending: number;
+  failures: number;
+}
+
+export async function releaseAbandonedDiscountCheckouts(
+  input: { limit?: number; olderThanMinutes?: number; shouldStop?: () => boolean },
+  deps: MembershipDependencies & { store: MembershipStore & StaleDiscountCheckoutStore },
+): Promise<AbandonedCheckoutReport> {
+  const report: AbandonedCheckoutReport = { examined: 0, cancelled: 0, notPending: 0, failures: 0 };
+  const stale = await deps.store.listStaleDiscountCheckouts({
+    olderThanMinutes: Math.max(input.olderThanMinutes ?? ABANDONED_DISCOUNT_CHECKOUT_MINUTES, 60),
+    limit: input.limit ?? ABANDONED_DISCOUNT_CHECKOUT_LIMIT,
+  });
+
+  for (const item of stale) {
+    if (input.shouldStop?.()) break;
+    report.examined += 1;
+    try {
+      // Re-read first: the stored 'pending' may be stale. Only a preapproval Mercado Pago itself still reports pending
+      // (never authorized) is cancelled; an authorized one can still charge and keeps its seat.
+      const current = await syncPreapproval({ preapprovalId: item.preapprovalId, expectedUserId: item.userId }, deps);
+      if (current.preapproval.status !== "pending") {
+        report.notPending += 1;
+        continue;
+      }
+      await deps.provider.cancelPreapproval(item.preapprovalId);
+      // Converges the subscription to 'cancelled' and releases the reservation (onSubscriptionCancelled).
+      await syncPreapproval({ preapprovalId: item.preapprovalId, expectedUserId: item.userId }, deps);
+      report.cancelled += 1;
+    } catch (error) {
+      report.failures += 1;
+      deps.log?.("abandoned discounted checkout not released", {
+        preapprovalId: item.preapprovalId,
+        code: error instanceof MembershipSyncError ? error.code : "error",
+      });
+    }
+  }
+  return report;
+}

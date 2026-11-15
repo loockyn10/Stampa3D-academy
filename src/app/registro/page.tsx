@@ -19,7 +19,7 @@ import { BETA_CODE_MAX_INPUT_LENGTH, normalizeBetaAccessCode } from "@/lib/beta-
 import { savePendingBetaCode } from "@/lib/beta-access/pending-code";
 import { friendlyAuthError } from "@/lib/auth/auth-errors";
 import { nextStepAfterSignup } from "@/lib/auth/signup-outcome";
-import { emailConfirmationRedirect, savePendingVerificationEmail } from "@/lib/auth/pending-verification";
+import { emailConfirmationRedirect, rememberSignupEmail, savePendingVerificationEmail } from "@/lib/auth/pending-verification";
 import { AuthBrand } from "@/components/auth/AuthBrand";
 import { isLegalDocumentPublished } from "@/lib/legal/registry";
 
@@ -90,6 +90,8 @@ function RegistroForm() {
         setError(friendlyAuthError(signUpError, "signup").message);
         return;
       }
+      // Only this browser: /login pre-fills it if the confirmation link opens without a session.
+      rememberSignupEmail(email);
 
       // The proxy decides the next stop (onboarding, Free area or Premium) from the real access policy.
       const destination = returnTo;

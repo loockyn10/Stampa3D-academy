@@ -4,6 +4,7 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import { Loader2, AlertCircle, CheckCircle2, Clock, XCircle } from "lucide-react";
 import type { MembershipDto } from "@/lib/mercadopago/membership-http";
+import { FREE_HOME_PATH } from "@/lib/auth/route-policy";
 
 // Mercado Pago usually confirms the first charge within seconds of the redirect; we re-check for ~40 s.
 const AUTO_RETRY_DELAY_MS = 5_000;
@@ -105,6 +106,10 @@ export default function PagoEstadoPage() {
 
   const accessUntil = formatDate(result?.membership?.access_until);
   const stillAutoChecking = waitingForPayment && autoRetries < AUTO_RETRY_LIMIT;
+  // The preapproval was never authorized in Mercado Pago (checkout left or closed): nothing was charged. Only said once
+  // the automatic checks are over, so a payment still being confirmed is never reported as abandoned.
+  const checkoutNotCompleted =
+    waitingForPayment && !chargeUnverified && !stillAutoChecking && result?.membership?.subscription_status === "pending";
 
   return (
     <div className="flex min-h-screen items-center justify-center bg-stampa-bg px-4 py-12 sm:px-6 lg:px-8">
@@ -141,6 +146,20 @@ export default function PagoEstadoPage() {
                   Te llevamos al inicio en un instante…
                 </p>
               </>
+            ) : checkoutNotCompleted ? (
+              <>
+                <XCircle className="mb-4 h-12 w-12 text-gray-400" aria-hidden="true" />
+                <h1 className="text-2xl font-bold tracking-tight text-fg">No se completó el pago</h1>
+                <p className="mb-6 mt-2 text-sm text-gray-400" role="status">
+                  Mercado Pago no registró la autorización de tu suscripción, así que no se cobró nada. Tu cuenta gratuita sigue
+                  activa y podés volver a intentarlo cuando quieras.
+                </p>
+                <div className="flex w-full flex-col gap-3">
+                  <button onClick={() => router.push("/sin-acceso")} className={primaryButton}>Volver a intentar el pago</button>
+                  <button onClick={() => void checkStatus()} className={secondaryButton}>Ya pagué: verificar de nuevo</button>
+                  <button onClick={() => router.push(FREE_HOME_PATH)} className={secondaryButton}>Seguir con mi cuenta gratuita</button>
+                </div>
+              </>
             ) : waitingForPayment ? (
               <>
                 <Clock className="mb-4 h-12 w-12 text-amber-500" aria-hidden="true" />
@@ -159,6 +178,7 @@ export default function PagoEstadoPage() {
                     {stillAutoChecking ? "Verificando…" : "Verificar de nuevo"}
                   </button>
                   <button onClick={() => router.push("/perfil")} className={secondaryButton}>Ir a Mi membresía</button>
+                  <button onClick={() => router.push(FREE_HOME_PATH)} className={secondaryButton}>Seguir con mi cuenta gratuita</button>
                 </div>
               </>
             ) : state === "payment_issue" ? (
@@ -166,7 +186,7 @@ export default function PagoEstadoPage() {
                 <XCircle className="mb-4 h-12 w-12 text-red-500" aria-hidden="true" />
                 <h1 className="text-2xl font-bold tracking-tight text-fg">El pago fue rechazado</h1>
                 <p className="mb-6 mt-2 text-sm text-gray-400">
-                  Mercado Pago va a reintentar el cobro. Podés revisar tu medio de pago en tu cuenta de Mercado Pago o cancelar esta suscripción desde Mi membresía y volver a intentarlo.
+                  Mercado Pago va a reintentar el cobro. Podés revisar tu medio de pago en tu cuenta de Mercado Pago o cancelar esta suscripción desde Mi membresía y volver a intentarlo. Mientras tanto seguís con tu cuenta gratuita: Premium se activa solo con un pago aprobado.
                 </p>
                 <div className="flex w-full flex-col gap-3">
                   <button onClick={() => void checkStatus()} className={primaryButton}>Verificar de nuevo</button>
@@ -190,6 +210,7 @@ export default function PagoEstadoPage() {
                 <div className="flex w-full flex-col gap-3">
                   <button onClick={() => router.push("/perfil")} className={primaryButton}>Ir a Mi membresía</button>
                   <button onClick={() => router.push("/sin-acceso")} className={secondaryButton}>Ver la membresía</button>
+                  <button onClick={() => router.push(FREE_HOME_PATH)} className={secondaryButton}>Seguir con mi cuenta gratuita</button>
                 </div>
               </>
             )}

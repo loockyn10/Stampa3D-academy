@@ -110,4 +110,10 @@ export const AUTH_NOTICE_MESSAGES: Record<string, string> = {
   "auth-callback-failed":
     "No pudimos validar el enlace del correo. Si ya confirmaste tu email, iniciá sesión. Si el enlace venció, pedí uno nuevo.",
   "sesion-requerida": "Iniciá sesión para continuar.",
+  "enlace-vencido": "El enlace de confirmación venció o ya se usó. Pedí uno nuevo acá abajo.",
+};
+
+/** Positive notices (`?estado=`) — shown as a confirmation, not as a problem. */
+export const AUTH_SUCCESS_NOTICES: Record<string, string> = {
+  "email-confirmado": "Tu correo está confirmado. Iniciá sesión con tu contraseña para continuar.",
 };

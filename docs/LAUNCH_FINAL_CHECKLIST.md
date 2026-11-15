@@ -22,6 +22,9 @@ Actualizado 2026-11-15. Estados: **TERMINADO** · **LISTO PARA TESTEAR** · **RE
 | 14 | Supabase Pro | REQUIERE CONFIGURACIÓN | `docs/SUPABASE_PRO_READINESS.md` (no resuelve el correo por sí solo) |
 | 15 | Validar el cambio $9.900 → $19.900 por API y activar `PRICE_STEP_UP_ENABLED` | POSTLANZAMIENTO | Obligatorio **antes del 7.º período** de los primeros Pioneros. Alertas en `/admin` y por correo |
 | 16 | Texto del cobro en Mercado Pago dice «Academia Stampa» | POSTLANZAMIENTO | Decisión de marca (`LEGAL_REVIEW_PACK.md` §3.2) |
+| 18 | Recorridos Free / Premium separados, aviso «Desbloquear con Premium», onboarding solo Premium | LISTO PARA TESTEAR | D054 · pruebas 16–19 |
+| 19 | Cupos PIONEROS consumidos solo con el primer pago aprobado | LISTO PARA TESTEAR | Funciona ya con el código desplegado; la migration agrega la doble verificación en la base |
+| 20 | Migration `20261115120000_discount_confirm_on_first_payment.sql` | REQUIERE CONFIGURACIÓN | Antes: `supabase/diagnostics/20261115_discount_first_payment_state.sql` (A todo `true`, revisar B). Sin ella no hay resumen de cupos ni liberación automática de checkouts abandonados |
 | 17 | Programa de referidos y sorteos | POSTLANZAMIENTO | Con ~20–30 miembros: `REFERRAL_PROGRAM_PUBLIC = true` + bases legales |
 
 ## Pruebas para mañana (en orden)
@@ -43,3 +46,8 @@ Usar una cuenta propia nueva (no un cliente). Ninguna prueba hasta la 9 cobra di
 13. **Perfil** — `/perfil` con la cuenta Free. Esperado: sin tarjeta «Tu código de referido»; sigue «Canjear código de invitación». Error: se anuncia el programa de referidos.
 14. **Navegación** — Sidebar y menú móvil: Sorteos no aparece para usuarios comunes (tras apagarlo). Sin desplazamiento horizontal a 375 px.
 15. **Admin** — `/admin/codigos` (ver PIONEROS con «$9900 x 6 meses, luego $19900») y `/admin/promociones` (interruptores: agendas encendidas, cambio de importe **apagado**, correo configurado).
+16. **Registro Free** — `/landing` → «Crear cuenta gratuita» → registro → confirmar el correo en el mismo navegador. Esperado: entra directo a la Calculadora (área gratuita), sin onboarding ni pantalla de pago. Error: termina en «Activá tu membresía Premium».
+17. **Confirmación en otro navegador** — Registrarse en la computadora y abrir el enlace en el celular. Esperado: `/login` con «Tu correo está confirmado. Iniciá sesión…». En el MISMO navegador del registro, `/login` aparece con el email ya escrito. Error: «No pudimos validar el enlace» o el email aparece en la URL.
+18. **Sección Premium desde Free** — Con la cuenta Free, tocar Stampy o Academia en el menú. Esperado: aviso «Stampy IA es parte de la membresía Premium» con «Desbloquear con Premium» y «Seguir con mi cuenta gratuita»; el precio y el código aparecen solo tras «Desbloquear». Error: aparece el checkout directo o un modal.
+19. **Abandono** — Desde el checkout ir a Mercado Pago y volver sin pagar (botón «volver» de Mercado Pago). Esperado: `/pago/estado` verifica unos segundos y muestra «No se completó el pago… no se cobró nada» con «Volver a intentar el pago» y «Seguir con mi cuenta gratuita»; la cuenta sigue Free. En `/admin/codigos` (con la migration) el código muestra 1 reservado, 0 pagados. Error: «El pago fue rechazado» o Premium activo sin pagar.
+20. **Cupo al pagar** — Después de la compra real (prueba 9): `/admin/codigos` muestra PIONEROS con 1 pagado. Al día siguiente sigue en 1 (la conciliación no suma por la renovación ni por webhooks repetidos).

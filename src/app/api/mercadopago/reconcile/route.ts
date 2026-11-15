@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 import { isAuthorizedCronRequest } from "@/lib/mercadopago/cron-auth";
 import { createMembershipDependencies } from "@/lib/mercadopago/membership-server";
-import { reconcileMemberships } from "@/lib/mercadopago/membership-reconcile";
+import { reconcileMemberships, releaseAbandonedDiscountCheckouts } from "@/lib/mercadopago/membership-reconcile";
 import { createPriceAlertDeps, createPriceScheduleRunnerDeps } from "@/lib/mercadopago/price-schedule-server";
 import { runPriceScheduleAlerts } from "@/lib/mercadopago/price-schedule-alert-runner";
 import { runPriceSchedules } from "@/lib/mercadopago/price-schedule-runner";
@@ -35,6 +35,17 @@ export async function GET(request: Request) {
     const report = await reconcileMemberships({ shouldStop: () => Date.now() - startedAt > TIME_BUDGET_MS }, deps);
     console.info("[membership reconcile]", JSON.stringify({ ...report, durationMs: Date.now() - startedAt }));
 
+    // Discounted checkouts abandoned before authorizing (they hold a Pioneros seat): cancelled at Mercado Pago only if it
+    // still reports them pending, which frees the seat. Isolated: never fails the reconciliation above.
+    let abandonedCheckouts: unknown = null;
+    try {
+      abandonedCheckouts = await releaseAbandonedDiscountCheckouts({ shouldStop: () => Date.now() - startedAt > TIME_BUDGET_MS }, deps);
+      console.info("[abandoned discount checkouts]", JSON.stringify(abandonedCheckouts));
+    } catch (error) {
+      console.error("[abandoned discount checkouts] falló", error instanceof Error ? error.message : "error");
+      abandonedCheckouts = { error: "release_failed" };
+    }
+
     // Promotional price schedules (notices + automatic change). Off unless PRICE_SCHEDULES_ENABLED = "true". Isolated:
     // a failure here never fails the membership reconciliation above.
     let priceSchedules: unknown = null;
@@ -64,7 +75,10 @@ export async function GET(request: Request) {
         priceAlerts = { error: "alerts_failed" };
       }
     }
-    return NextResponse.json(priceSchedules ? { ...report, priceSchedules, priceAlerts } : report, { headers: noStore });
+    return NextResponse.json(
+      priceSchedules ? { ...report, abandonedCheckouts, priceSchedules, priceAlerts } : { ...report, abandonedCheckouts },
+      { headers: noStore },
+    );
   } catch (error) {
     console.error("[membership reconcile] falló", error instanceof Error ? error.message : "error");
     return NextResponse.json({ error: "No se pudo conciliar" }, { status: 500, headers: noStore });

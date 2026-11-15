@@ -83,7 +83,10 @@ export async function closePendingCheckout(client: SupabaseClient, input: { user
   return payload.status === "closed";
 }
 
-/** Mercado Pago authorized the preapproval: turns its reservation into a consumed use. Idempotent. */
+/**
+ * The preapproval has an approved payment: turns its reservation into a consumed use. Idempotent. Returns
+ * "awaiting_payment" (nothing changes) when the database finds no approved payment yet.
+ */
 export async function confirmDiscountReservation(client: SupabaseClient, preapprovalId: string): Promise<string> {
   const payload = await call(client, "confirm_discount_reservation", { p_preapproval_id: preapprovalId });
   const status = typeof payload.status === "string" ? payload.status : "none";

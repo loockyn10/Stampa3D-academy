@@ -99,7 +99,8 @@ export function evaluateAccessPolicy(
       downloadStl: accessPlatform,
       viewInactiveContent: accessAdmin,
     },
-    // Free accounts onboard too (Sprint 2): the proxy sends any authenticated person who has not completed it.
-    needsOnboarding: input.authenticated && !input.onboardingCompleted,
+    // Only once Premium (platform access) is active and only until completed (D054): a Free account goes straight to
+    // the free area, and a buyer gets the onboarding after the payment, a single time.
+    needsOnboarding: input.authenticated && accessPlatform && !input.onboardingCompleted,
   };
 }

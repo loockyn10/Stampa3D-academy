@@ -84,7 +84,7 @@ test("1. catálogo: solo publicados y próximamente; los conteos ignoran módulo
 
 test("2/3. acceso: sin sesión → login con returnTo; Free → pantalla de acceso; Premium entra", () => {
   assert.deepEqual(routes.anonymousRoute("/cursos/mi-curso", ""), { redirect: "/login?returnTo=%2Fcursos%2Fmi-curso" });
-  assert.deepEqual(routes.authenticatedRoute({ pathname: "/cursos/mi-curso", search: "", returnToParam: null, hasAccess: false, needsOnboarding: false }), { redirect: "/sin-acceso" });
+  assert.deepEqual(routes.authenticatedRoute({ pathname: "/cursos/mi-curso", search: "", returnToParam: null, hasAccess: false, needsOnboarding: false }), { redirect: "/sin-acceso?feature=academia" });
   assert.equal(routes.authenticatedRoute({ pathname: "/cursos/mi-curso", search: "", returnToParam: null, hasAccess: true, needsOnboarding: false }), null);
   const page = read("src/app/cursos/[id]/page.tsx");
   assert.match(page, /redirect\(loginPathFor\(`\/cursos\/\$\{encodeURIComponent\(id\)\}`\)\)/);

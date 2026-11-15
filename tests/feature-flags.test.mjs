@@ -388,7 +388,7 @@ test("3b. usuario común accede a una funcionalidad habilitada o sin configurar"
 
 test("12. convivencia con la membresía: la flag y el plan son controles independientes", async () => {
   // Free + herramienta habilitada: sigue rigiendo el gate de plan.
-  assert.equal(await runProxy("/mi-taller", { who: "free", flags: [] }), "/sin-acceso");
+  assert.equal(await runProxy("/mi-taller", { who: "free", flags: [] }), "/sin-acceso?feature=taller");
   // Free + herramienta deshabilitada: se informa "no disponible", no una invitación a pagar.
   assert.equal(await runProxy("/mi-taller", { who: "free", flags: OFF("mi_taller") }), "/no-disponible?herramienta=mi_taller");
   // Rutas gratuitas: Calculadora y Explorar Modelos siguen el estado de su flag, no la membresía.
@@ -777,7 +777,9 @@ test("pantalla no disponible: mensaje, botón a Inicio y sin detalles técnicos;
   // Distinción de estados: login (no autenticado), /sin-acceso (plan), /no-disponible (flag), 404 (inexistente).
   const proxy = read("src/lib/auth/route-policy.ts");
   assert.match(proxy, /redirect: loginPathFor\(pathname, search\)/);
-  assert.match(proxy, /return \{ redirect: NO_ACCESS_PATH \}/);
+  // The plan gate sends to /sin-acceso with the notice of the section (premiumNoticePath, D054).
+  assert.match(proxy, /return \{ redirect: premiumNoticePath\(pathname\) \}/);
+  assert.match(proxy, /return `\$\{NO_ACCESS_PATH\}\?feature=/);
   assert.match(proxy, /pathname === "\/no-disponible"/);
   assert.equal(registry.FEATURE_UNAVAILABLE_ROUTE, "/no-disponible");
 });
@@ -931,8 +933,9 @@ test("administrador entra por URL directa a todo lo deshabilitado; los usuarios 
     assert.equal(await runProxy(path, { who: "admin", flags }), "next", `admin ${path}`);
     assert.match(await runProxy(path, { who: "paid", flags }), /^\/no-disponible\?herramienta=/, `paid ${path}`);
   }
-  for (const path of ["/stampy", "/mi-taller", "/mi-negocio", "/academia"]) {
-    assert.equal(await runProxy(path, { who: "free", flags: [] }), "/sin-acceso", path);
+  const notices = { "/stampy": "stampy", "/mi-taller": "taller", "/mi-negocio": "negocio", "/academia": "academia" };
+  for (const [path, key] of Object.entries(notices)) {
+    assert.equal(await runProxy(path, { who: "free", flags: [] }), `/sin-acceso?feature=${key}`, path);
   }
 });
 

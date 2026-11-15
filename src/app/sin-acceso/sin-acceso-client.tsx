@@ -1,6 +1,6 @@
 "use client";
 
-import { AlertCircle, Calculator, CheckCircle2, Loader2, MailCheck, RefreshCw, UserRound } from "lucide-react";
+import { AlertCircle, ArrowLeft, Calculator, CheckCircle2, Loader2, Lock, MailCheck, RefreshCw, UserRound } from "lucide-react";
 import Link from "next/link";
 import { UniversoIsotipo } from "@/components/brand/UniversoLogo";
 import { comparison } from "@/components/landing-hero/commercial/commercial-content";
@@ -13,6 +13,7 @@ import { readPendingBetaCode } from "@/lib/beta-access/pending-code";
 import { DiscountCodeField, type AppliedDiscount } from "@/components/membership/DiscountCodeField";
 import { BETA_CODE_PUBLIC_ENTRY } from "@/lib/registration/public-signup";
 import { isLegalDocumentPublished } from "@/lib/legal/registry";
+import { FREE_HOME_PATH } from "@/lib/auth/route-policy";
 import { refreshAccessAction } from "./actions";
 
 const CHECKOUT_ATTEMPT_STORAGE_KEY = "stampa_membership_checkout_attempt";
@@ -38,11 +39,14 @@ function getCheckoutIdempotencyKey(discountCode: string | null): string {
   return idempotencyKey;
 }
 
+/** Keys come from the proxy (premiumNoticePath) or the locked items of the navigation; unknown keys show no notice. */
 const LOCKED_FEATURES: Record<string, { title: string; description: string }> = {
   stampy: { title: "Stampy IA", description: "Resolvé dudas técnicas y trabajá con un asistente conectado a tus herramientas." },
   academia: { title: "Academia", description: "Aprendé con cursos y talleres prácticos de impresión 3D." },
   taller: { title: "Mi Taller", description: "Organizá tus impresoras, filamentos, productos e inventario." },
   negocio: { title: "Mi Negocio", description: "Gestioná catálogo, ventas, reposición y métricas desde un mismo lugar." },
+  stl: { title: "la Librería STL", description: "Descargá modelos listos para imprimir y vender, con vista previa 3D." },
+  premium: { title: "esta sección", description: "Academia, Stampy IA, Mi Taller y la Librería STL, en una sola membresía." },
 };
 
 export function SinAccesoClient({
@@ -78,7 +82,11 @@ export function SinAccesoClient({
   const [checkingEmail, setCheckingEmail] = useState(true);
   const [isAuthenticated, setIsAuthenticated] = useState(false);
   const [hasPendingBetaCode, setHasPendingBetaCode] = useState(false);
-  const lockedFeature = feature ? LOCKED_FEATURES[feature] : null;
+  const lockedFeature = feature ? LOCKED_FEATURES[feature] ?? null : null;
+  // A Free account that opened a Premium section sees that section's notice first; the checkout appears only when the
+  // person asks for it ("Desbloquear con Premium"). Coming from «Quiero Premium» (no feature) it is shown directly.
+  const [checkoutRequested, setCheckoutRequested] = useState(false);
+  const noticeMode = lockedFeature !== null && !checkoutRequested;
 
   useEffect(() => {
     async function checkEmailAndFetchPrice() {
@@ -256,6 +264,7 @@ export function SinAccesoClient({
 
   // Quien llega acá viene a contratar Premium: la membresía es el centro de la pantalla y las herramientas gratuitas quedan como apoyo.
   const canActivate = !checkingEmail && isAuthenticated && isEmailConfirmed && !activated;
+  const showCheckout = canActivate && !noticeMode;
   const premiumBenefits = comparison.rows.filter((row) => row.featured);
   // Si alguien llega sin sesión conserva la intención de contratar al iniciar sesión o registrarse.
   const returnPath = feature ? `${PREMIUM_RETURN_TO}?feature=${encodeURIComponent(feature)}` : PREMIUM_RETURN_TO;
@@ -341,7 +350,44 @@ export function SinAccesoClient({
           </section>
         )}
 
-        {canActivate && (
+        {canActivate && noticeMode && lockedFeature && (
+          <section
+            data-testid="premium-notice"
+            aria-labelledby="premium-notice-title"
+            className="relative overflow-hidden rounded-3xl border border-stampa-orange-border bg-stampa-surface p-5 text-left shadow-lg shadow-stampa-orange/10 sm:p-6"
+          >
+            <p className="inline-flex items-center gap-1.5 rounded-full border border-stampa-orange-border bg-stampa-orange-muted px-3 py-1 text-[11px] font-bold uppercase tracking-[0.16em] text-stampa-accent">
+              <Lock size={12} aria-hidden="true" /> Funcionalidad Premium
+            </p>
+            <h2 id="premium-notice-title" className="mt-3 text-lg font-bold text-stampa-text">
+              {lockedFeature.title.charAt(0).toUpperCase() + lockedFeature.title.slice(1)} es parte de la membresía Premium
+            </h2>
+            <p className="mt-1 text-sm text-stampa-text-muted">{lockedFeature.description}</p>
+            <ul className="mt-3 space-y-1.5 text-sm text-stampa-text-muted">
+              {premiumBenefits.slice(0, 4).map((row) => (
+                <li key={row.name} className="flex gap-2">
+                  <CheckCircle2 size={15} className="mt-0.5 shrink-0 text-stampa-accent" aria-hidden="true" />
+                  <span className="min-w-0"><strong className="text-stampa-text">{row.name}</strong></span>
+                </li>
+              ))}
+            </ul>
+            <button
+              type="button"
+              onClick={() => setCheckoutRequested(true)}
+              className="mt-5 flex w-full items-center justify-center gap-2 rounded-xl bg-stampa-orange px-3 py-3.5 text-base font-semibold text-neutral-950 shadow-lg shadow-stampa-orange/20 transition-colors hover:bg-stampa-orange-hover"
+            >
+              Desbloquear con Premium
+            </button>
+            <Link
+              href={FREE_HOME_PATH}
+              className="mt-3 flex w-full items-center justify-center gap-2 rounded-xl border border-stampa-border bg-stampa-bg-soft px-3 py-3 text-sm font-semibold text-stampa-text-soft transition-colors hover:bg-stampa-surface-soft"
+            >
+              <ArrowLeft size={15} aria-hidden="true" /> Seguir con mi cuenta gratuita
+            </Link>
+          </section>
+        )}
+
+        {showCheckout && (
           <section
             aria-labelledby="premium-title"
             className="relative overflow-hidden rounded-3xl border border-stampa-orange-border bg-stampa-surface p-5 text-left shadow-lg shadow-stampa-orange/10 sm:p-6"

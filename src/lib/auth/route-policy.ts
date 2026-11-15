@@ -9,6 +9,26 @@ import { loginPathFor, sanitizeReturnTo } from "@/lib/auth/return-to";
 export const LANDING_PATH = "/landing";
 export const NO_ACCESS_PATH = "/sin-acceso";
 export const ONBOARDING_PATH = "/onboarding";
+/** Where a Free account lands (sign-in, "/", after confirming the e-mail): the free tools, never the checkout. */
+export const FREE_HOME_PATH = "/calculadora";
+
+/**
+ * Premium section a Free account tried to open → key of the notice shown on /sin-acceso ("Desbloquear con Premium").
+ * Only decides the text of the notice; access itself is the canonical policy.
+ */
+const PREMIUM_FEATURE_NOTICES: readonly { prefixes: readonly string[]; key: string }[] = [
+  { prefixes: ["/stampy"], key: "stampy" },
+  { prefixes: ["/academia", "/cursos", "/talleres"], key: "academia" },
+  { prefixes: ["/mi-taller", "/productos", "/stock"], key: "taller" },
+  { prefixes: ["/mi-negocio", "/presupuestos", "/tienda-online"], key: "negocio" },
+  { prefixes: ["/libreria-stl"], key: "stl" },
+];
+
+/** `/sin-acceso?feature=…`: the Premium notice for the section (generic "premium" when it has no specific text). */
+export function premiumNoticePath(pathname: string): string {
+  const match = PREMIUM_FEATURE_NOTICES.find(({ prefixes }) => prefixes.some((prefix) => matches(pathname, prefix)));
+  return `${NO_ACCESS_PATH}?feature=${match?.key ?? "premium"}`;
+}
 
 function matches(pathname: string, prefix: string): boolean {
   return pathname === prefix || pathname.startsWith(`${prefix}/`);
@@ -78,11 +98,15 @@ export function authenticatedRoute(input: {
 }): RouteDecision {
   const { pathname, hasAccess } = input;
 
-  // Already signed in: go where they were heading (the next request applies permissions), else their home.
+  // Already signed in: go where they were heading (the next request applies permissions), else their home. A Free
+  // account's home is the free area: the checkout only opens when the person asked for Premium (returnTo=/sin-acceso).
   if (pathname === "/login" || pathname === "/registro") {
     const requested = sanitizeReturnTo(input.returnToParam);
-    return { redirect: requested !== "/" ? requested : hasAccess ? "/" : NO_ACCESS_PATH };
+    return { redirect: requested !== "/" ? requested : hasAccess ? "/" : FREE_HOME_PATH };
   }
+
+  // A Free account at "/" (after confirming the e-mail, signing in, an abandoned payment) enters the free area.
+  if (!hasAccess && pathname === "/") return { redirect: FREE_HOME_PATH };
 
   if (input.needsOnboarding && !isOnboardingExempt(pathname)) {
     const destination = sanitizeReturnTo(`${pathname}${input.search}`);
@@ -98,7 +122,8 @@ export function authenticatedRoute(input: {
     !pathname.startsWith("/api/mercadopago") &&
     !pathname.startsWith("/salir")
   ) {
-    return { redirect: NO_ACCESS_PATH };
+    // The notice of that section ("Desbloquear con Premium"): the checkout is shown only if the person asks for it.
+    return { redirect: premiumNoticePath(pathname) };
   }
 
   return null;

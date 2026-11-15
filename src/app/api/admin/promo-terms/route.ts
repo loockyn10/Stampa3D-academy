@@ -1,6 +1,5 @@
 import { NextResponse } from "next/server";
-import { createClient } from "@/utils/supabase/server";
-import { createClient as createSupabaseClient } from "@supabase/supabase-js";
+import { requireAdminServiceClient } from "@/lib/admin/service-role-gate";
 import { validatePromoTerms } from "@/lib/mercadopago/promo-terms";
 
 export const runtime = "nodejs";
@@ -9,25 +8,9 @@ export const dynamic = "force-dynamic";
 const noStore = { "Cache-Control": "no-store" };
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
 
-async function requireAdmin() {
-  const supabase = await createClient();
-  const {
-    data: { user },
-    error,
-  } = await supabase.auth.getUser();
-  if (error || !user) return { response: NextResponse.json({ error: "Unauthorized" }, { status: 401, headers: noStore }) };
-  const { data: profile } = await supabase.from("profiles").select("role").eq("id", user.id).single();
-  if (!profile || profile.role !== "admin") return { response: NextResponse.json({ error: "Forbidden" }, { status: 403, headers: noStore }) };
-
-  const url = process.env.NEXT_PUBLIC_SUPABASE_URL;
-  const key = process.env.SUPABASE_SERVICE_ROLE_KEY;
-  if (!url || !key) return { response: NextResponse.json({ error: "Configuración de Supabase incompleta" }, { status: 500, headers: noStore }) };
-  return { admin: createSupabaseClient(url, key, { auth: { autoRefreshToken: false, persistSession: false } }) };
-}
-
 /** Terms of every code that has them (admin list). Empty when the price-schedule migration is not applied yet. */
 export async function GET() {
-  const gate = await requireAdmin();
+  const gate = await requireAdminServiceClient();
   if (!gate.admin) return gate.response;
   const { data, error } = await gate.admin
     .from("discount_code_terms")
@@ -41,7 +24,7 @@ export async function GET() {
  * refuses to change terms that users already accepted (a new code / version is needed then).
  */
 export async function POST(request: Request) {
-  const gate = await requireAdmin();
+  const gate = await requireAdminServiceClient();
   if (!gate.admin) return gate.response;
 
   let body: Record<string, unknown>;

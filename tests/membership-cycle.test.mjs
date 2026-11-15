@@ -63,7 +63,7 @@ test("2. an authorized subscription with an approved first charge activates Prem
   assert.equal(w.profile(USER_A).membershipStatus, "active");
   assert.equal(w.profile(USER_A).membershipExpiresAt, addMonthsIso(NOW.toISOString(), 1));
   assert.equal(w.profile(USER_A).membershipStartedAt, NOW.toISOString());
-  assert.deepEqual(w.store.sideEffects, [["authorized", PRE]], "discount use / founder slot confirmed on authorization");
+  assert.deepEqual(w.store.sideEffects, [["authorized", PRE], ["paid", PRE]], "founder slot on authorization; discount use on the approved first charge");
   // The access goes to the user who bought it (resolved from the checkout, not from external_reference).
   assert.equal(w.store.subscriptions[0].userId, USER_A);
 });

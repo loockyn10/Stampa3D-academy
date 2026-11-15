@@ -1,14 +1,14 @@
 "use client";
 
-import { Suspense, useState } from "react";
+import { Suspense, useEffect, useState } from "react";
 import { useSearchParams } from "next/navigation";
 import { createClient } from "@/utils/supabase/client";
 import Link from "next/link";
-import { Mail, Lock, Eye, EyeOff } from "lucide-react";
+import { Mail, Lock, Eye, EyeOff, CheckCircle2 } from "lucide-react";
 import { sanitizeReturnTo } from "@/lib/auth/return-to";
 import { isPremiumIntent } from "@/lib/auth/premium-intent";
-import { AUTH_NOTICE_MESSAGES, friendlyAuthError } from "@/lib/auth/auth-errors";
-import { savePendingVerificationEmail } from "@/lib/auth/pending-verification";
+import { AUTH_NOTICE_MESSAGES, AUTH_SUCCESS_NOTICES, friendlyAuthError } from "@/lib/auth/auth-errors";
+import { forgetSignupEmail, readRememberedSignupEmail, savePendingVerificationEmail } from "@/lib/auth/pending-verification";
 import { AuthBrand } from "@/components/auth/AuthBrand";
 
 function LoginForm() {
@@ -22,6 +22,16 @@ function LoginForm() {
   const returnTo = sanitizeReturnTo(searchParams.get("returnTo"));
   // Only codes this app puts in the URL are shown (never free text from the query string).
   const notice = AUTH_NOTICE_MESSAGES[searchParams.get("error") ?? searchParams.get("estado") ?? ""] ?? null;
+  const successNotice = AUTH_SUCCESS_NOTICES[searchParams.get("estado") ?? ""] ?? null;
+
+  // Pre-fill the address used to create the account in THIS browser (never read from the URL). Set from a callback
+  // once mounted: localStorage does not exist on the server.
+  useEffect(() => {
+    const remembered = readRememberedSignupEmail();
+    if (!remembered) return;
+    const timer = window.setTimeout(() => setEmail((current) => current || remembered), 0);
+    return () => window.clearTimeout(timer);
+  }, []);
   const verifyHref = returnTo === "/" ? "/verificar-email" : `/verificar-email?returnTo=${encodeURIComponent(returnTo)}`;
   const supabase = createClient();
 
@@ -49,6 +59,7 @@ function LoginForm() {
       return;
     }
 
+    forgetSignupEmail();
     window.location.assign(returnTo);
   };
 
@@ -107,6 +118,12 @@ function LoginForm() {
             </div>
 
             <form className="space-y-6" onSubmit={handleLogin}>
+              {successNotice && !error && (
+                <div role="status" className="flex items-start gap-2 rounded-xl border border-green-500/30 bg-green-500/10 p-4 text-sm text-green-500">
+                  <CheckCircle2 className="mt-0.5 h-4 w-4 shrink-0" aria-hidden="true" />
+                  <p>{successNotice}</p>
+                </div>
+              )}
               {notice && !error && (
                 <div role="status" className="space-y-2 rounded-xl border border-amber-500/30 bg-amber-500/10 p-4 text-sm text-amber-500">
                   <p>{notice}</p>

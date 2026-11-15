@@ -279,13 +279,17 @@ export class SupabaseMembershipStore implements MembershipStore, ReconciliationS
     return (data ?? []).length > 0;
   }
 
-  async onSubscriptionAuthorized(input: { userId: string; preapprovalId: string }): Promise<void> {
+  /** A discount use is consumed by the first approved payment (the database re-checks the payment). Never throws. */
+  async onFirstPaymentApproved(input: { userId: string; preapprovalId: string }): Promise<void> {
     try {
       await confirmDiscountReservation(this.admin, input.preapprovalId);
     } catch (error) {
       console.error("[membership] discount confirmation error", error instanceof Error ? error.message : "unknown");
     }
+  }
 
+  async onSubscriptionAuthorized(input: { userId: string; preapprovalId: string }): Promise<void> {
+    // The discount use is NOT consumed here: an authorization without an approved payment keeps only its reservation.
     // Founder slot (legacy, pricing disconnected): confirm a still valid reservation. Never blocks the membership.
     try {
       const { data: pendingFounder } = await this.admin
@@ -371,6 +375,22 @@ export class SupabaseMembershipStore implements MembershipStore, ReconciliationS
     } catch (error) {
       console.error("[membership] price schedule sync error", error instanceof Error ? error.message : "unknown");
     }
+  }
+
+  /** Discounted checkouts never authorized and older than N minutes (migration 20261115120000). [] when it is missing. */
+  async listStaleDiscountCheckouts(input: { olderThanMinutes: number; limit: number }): Promise<{ userId: string; preapprovalId: string }[]> {
+    const { data, error } = await this.admin.rpc("list_stale_discount_checkouts", {
+      p_older_than_minutes: input.olderThanMinutes,
+      p_limit: input.limit,
+    });
+    if (error) {
+      // Not applied yet: nothing to release (the seats keep the previous behaviour).
+      if (error.code === "PGRST202" || error.code === "42883") return [];
+      fail("list_stale_discount_checkouts", error);
+    }
+    return ((data ?? []) as Record<string, unknown>[])
+      .filter((row) => typeof row.preapproval_id === "string" && typeof row.user_id === "string")
+      .map((row) => ({ userId: row.user_id as string, preapprovalId: row.preapproval_id as string }));
   }
 
   async onSubscriptionCancelled(input: { userId: string; preapprovalId: string }): Promise<void> {

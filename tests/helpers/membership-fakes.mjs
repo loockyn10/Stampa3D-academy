@@ -292,6 +292,10 @@ export class MemoryMembershipStore {
     this.sideEffects.push(["authorized", input.preapprovalId]);
   }
 
+  async onFirstPaymentApproved(input) {
+    this.sideEffects.push(["paid", input.preapprovalId]);
+  }
+
   async onSubscriptionCancelled(input) {
     this.sideEffects.push(["cancelled", input.preapprovalId]);
   }

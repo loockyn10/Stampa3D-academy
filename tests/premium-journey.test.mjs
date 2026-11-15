@@ -107,8 +107,8 @@ test("recorrido 4: usuario autenticado sin Premium que toca «Quiero Premium» l
   assert.deepEqual({ ...member }, { redirect: PREMIUM });
   assert.equal(destination.resolvePostAccessDestination({ authenticated: true, capabilities: { accessPlatform: true }, needsOnboarding: false }), "/");
   assert.match(read("src/app/sin-acceso/page.tsx"), /if \(destination\) redirect\(destination\)/);
-  // Sin returnTo el comportamiento anterior no cambia.
-  assert.deepEqual({ ...routes.authenticatedRoute(authed({ pathname: "/registro", hasAccess: false })) }, { redirect: PREMIUM });
+  // Sin returnTo una cuenta Free entra a su área gratuita (nunca al checkout sin pedirlo, D054).
+  assert.deepEqual({ ...routes.authenticatedRoute(authed({ pathname: "/registro", hasAccess: false })) }, { redirect: "/calculadora" });
   assert.deepEqual({ ...routes.authenticatedRoute(authed({ pathname: "/registro", hasAccess: true })) }, { redirect: "/" });
 });
 

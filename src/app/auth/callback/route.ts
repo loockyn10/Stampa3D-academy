@@ -123,7 +123,9 @@ export async function GET(request: Request) {
     }
   }
 
-  // Expired/used link, or opened in another browser (the PKCE verifier lives in the original one: the email is
-  // usually confirmed anyway). Never forward Supabase's text: only our own code.
-  return NextResponse.redirect(new URL(callbackFailurePath(next), origin))
+  // Never forward Supabase's text: only our own codes. With a `code` Supabase already verified the link (the e-mail is
+  // confirmed) and only this browser cannot open the session (PKCE verifier in another browser / device): sign in.
+  // Without it, Supabase refused the link itself (expired or already used): ask for a new one.
+  const reason = code ? 'confirmed_elsewhere' : searchParams.get('error_code') || searchParams.get('error') ? 'link_expired' : 'invalid'
+  return NextResponse.redirect(new URL(callbackFailurePath(next, reason), origin))
 }

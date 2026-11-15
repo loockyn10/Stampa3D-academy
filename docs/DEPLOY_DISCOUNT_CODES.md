@@ -1,5 +1,7 @@
 # Despliegue: códigos de descuento en el checkout
 
+> **Actualización 2026-11-15 (D054):** un uso se consume con el **primer pago aprobado**, no con la autorización. Migration local `20261115120000_discount_confirm_on_first_payment.sql` (sin aplicar): antes correr `supabase/diagnostics/20261115_discount_first_payment_state.sql` (bloque A todo `true`, revisar B). El paso 4 de §3 pasa a ser: «A autoriza **y paga** la primera cuota: el uso queda consumido». Los checkouts con descuento abandonados (`pending` más de 48 h) los cancela la conciliación diaria y su cupo se libera (§5.1 resuelto). Cupos pagados / reservados / disponibles en `/admin/codigos`.
+
 > **Actualización 2026-11-11:** el diagnóstico de solo lectura ejecutado en Supabase confirma que **las dos migrations (`20261029120000` y `20261030120000`) YA están aplicadas** en remoto. Los pasos 1–4 de §2 están hechos; quedan 5–6 (confirmar el código desplegado y el estado de `DISCOUNT_CODES_ENABLED`; QA con Mercado Pago de prueba). Hay 3 códigos de descuento activos sin límite que hay que auditar antes de encender el interruptor. Detalle en `docs/PIONEROS_DISCOUNT_SYSTEM_DIAGNOSIS.md`. El texto de abajo conserva el plan original.
 
 Rama: `feature/discount-codes-checkout` (cortada desde `main`, con el commit de los códigos Beta). **Nada de esto se ejecutó**: no hubo push, merge, deploy ni SQL remoto.

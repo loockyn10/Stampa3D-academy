@@ -526,16 +526,22 @@ test("checkout: identity comes from the session, the code is reserved server-sid
   assert.match(route, /outcome\.status === "rate_limited" \? 429 : 422/);
 });
 
-test("webhook and sync-subscription consume the use on authorization and free it on cancellation, without blocking the membership update", () => {
+test("webhook and sync-subscription consume the use on the FIRST APPROVED PAYMENT (not the authorization) and free it on cancellation", () => {
   // Since Sprint 1 the webhook, sync-subscription and the cancellation share one pipeline (membership-sync.ts) and
-  // one store; the discount side effects live in the store and never throw (behaviour: tests/membership-cycle.test.mjs).
-  assert.match(membershipStore, /try \{\s*await confirmDiscountReservation\(this\.admin, input\.preapprovalId\);\s*\} catch \(error\)/);
+  // one store; the discount side effects live in the store and never throw (behaviour: tests/membership-cycle.test.mjs,
+  // tests/launch-pioneros-flow.test.mjs and, against Postgres, tests/discount-first-payment-db.test.mjs).
+  assert.match(membershipStore, /async onFirstPaymentApproved[\s\S]*?try \{\s*await confirmDiscountReservation\(this\.admin, input\.preapprovalId\);\s*\} catch \(error\)/);
   assert.match(membershipStore, /try \{\s*await releaseDiscountForPreapproval\(this\.admin, input\.preapprovalId\);\s*\} catch \(error\)/);
+  const authorized = membershipStore.slice(membershipStore.indexOf("async onSubscriptionAuthorized"), membershipStore.indexOf("async listReconciliationCandidates"));
+  assert.doesNotMatch(authorized, /confirmDiscountReservation/);
   // After the profile decision, and only on the provider's real state.
   const extend = membershipSync.indexOf("await extendMembership(");
   assert.ok(extend > 0 && membershipSync.indexOf("onSubscriptionAuthorized({") > extend);
   assert.match(membershipSync, /if \(preapproval\.status === "authorized"\) \{\s*await deps\.store\.onSubscriptionAuthorized/);
-  assert.match(membershipSync, /else if \(preapproval\.status === "cancelled"\) \{\s*await deps\.store\.onSubscriptionCancelled/);
+  assert.match(membershipSync, /if \(approvedDates\.length > 0\) \{\s*await deps\.store\.onFirstPaymentApproved\?\./);
+  assert.ok(membershipSync.indexOf("onFirstPaymentApproved?.(") < membershipSync.indexOf("onSubscriptionCancelled({"));
+  assert.ok(membershipSync.indexOf("onFirstPaymentApproved?.(") < membershipSync.indexOf("onBillingSynced?.("));
+  assert.match(membershipSync, /if \(preapproval\.status === "cancelled"\) \{\s*await deps\.store\.onSubscriptionCancelled/);
 });
 
 test("preview action: session user only, dry run, safe DTO, kill switch", () => {

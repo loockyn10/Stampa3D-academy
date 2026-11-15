@@ -81,8 +81,15 @@ export interface MembershipStore {
     expected: ProfileMembership,
     fields: { membership_status: "active"; membership_expires_at: string; membership_started_at: string },
   ): Promise<boolean>;
-  /** Non-critical side effects (discount codes, founder slot). Must never throw. */
+  /** Non-critical side effects of the authorization (founder slot). Must never throw. */
   onSubscriptionAuthorized(input: { userId: string; preapprovalId: string }): Promise<void>;
+  /**
+   * The preapproval has at least one APPROVED payment recorded: a discount code use is consumed here, never on the
+   * authorization alone (a rejected or pending first charge consumes nothing). Idempotent: called on every sync of a
+   * paid subscription (renewals, duplicated or late webhooks) and the database confirms the use only once.
+   * Non-critical: must never throw. Optional so stores without it keep working.
+   */
+  onFirstPaymentApproved?(input: { userId: string; preapprovalId: string }): Promise<void>;
   onSubscriptionCancelled(input: { userId: string; preapprovalId: string }): Promise<void>;
   /**
    * After the payments of a preapproval were recorded: promotional price schedules (create once, fix the calendar,
@@ -255,7 +262,13 @@ export async function syncPreapproval(
 
   if (preapproval.status === "authorized") {
     await deps.store.onSubscriptionAuthorized({ userId, preapprovalId: preapproval.id });
-  } else if (preapproval.status === "cancelled") {
+  }
+  // Before the cancellation hook and the price schedule: a subscription paid and then cancelled consumed its use, and
+  // the schedule is created from the confirmed reservation.
+  if (approvedDates.length > 0) {
+    await deps.store.onFirstPaymentApproved?.({ userId, preapprovalId: preapproval.id });
+  }
+  if (preapproval.status === "cancelled") {
     await deps.store.onSubscriptionCancelled({ userId, preapprovalId: preapproval.id });
   }
   await deps.store.onBillingSynced?.({ userId, preapprovalId: preapproval.id, providerStatus: preapproval.status });
