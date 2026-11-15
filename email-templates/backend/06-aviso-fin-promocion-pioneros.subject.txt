@@ -1,0 +1,1 @@
+Tu precio promocional de Universo Stampa cambia el {{fecha}}

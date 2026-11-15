@@ -1,4 +1,5 @@
 import type { PriceNoticeMailer } from "@/lib/mercadopago/price-schedule-runner";
+import { renderPriceChangeNoticeHtml } from "@/lib/email/templates";
 
 /**
  * Notice e-mail sent BEFORE the promotional price ends. Transactional only (one per schedule and debit date); sent
@@ -45,10 +46,8 @@ export function buildPriceChangeNotice(input: PriceNoticeInput): { subject: stri
     "Equipo Universo Stampa",
   ];
   const text = lines.join("\n");
-  const escape = (value: string) => value.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
-  const html = `<div style="font-family:Arial,sans-serif;font-size:15px;line-height:1.5;color:#1a1a1a">${lines
-    .map((line) => (line ? `<p>${escape(line)}</p>` : ""))
-    .join("")}</div>`;
+  // Branded HTML (same layout as the Supabase auth e-mails); the plain-text part above stays the source of the wording.
+  const html = renderPriceChangeNoticeHtml({ promoPrice: promo, postPrice: post, date, manageUrl: manage });
   return { subject, text, html };
 }
 

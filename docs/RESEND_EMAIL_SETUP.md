@@ -1,6 +1,6 @@
 # Correo transaccional: Supabase Auth + Resend
 
-Estado 2026-11-15: **nada configurado ni probado con credenciales reales.** El código está listo; falta la cuenta de Resend, el dominio verificado y la configuración en los paneles. No afirmar que el correo funciona hasta completar la §5.
+Estado 2026-11-15: el dueño informa que Resend ya está configurado (dominio `universo-stampa.com`, remitente `no-reply@universo-stampa.com`, en Supabase Auth y en Vercel), pero **no está verificado desde el repo ni probado el envío real**. Las plantillas de marca están en [`EMAIL_TEMPLATES_GUIDE.md`](EMAIL_TEMPLATES_GUIDE.md) (falta pegarlas en Supabase). Texto original del estado: el código está listo; falta la cuenta de Resend, el dominio verificado y la configuración en los paneles. No afirmar que el correo funciona hasta completar la §5.
 
 ## 1. Quién envía cada correo (auditoría del código)
 
@@ -9,7 +9,7 @@ Estado 2026-11-15: **nada configurado ni probado con credenciales reales.** El c
 | Confirmación de registro | **Supabase Auth** | `supabase.auth.signUp` en `/registro` | Panel Supabase → Auth → Email Templates → *Confirm signup* |
 | Reenvío de confirmación | **Supabase Auth** | `auth.resend({ type: "signup" })` en `/verificar-email` | *Confirm signup* |
 | Recuperación de contraseña | **Supabase Auth** | `resetPasswordForEmail` en `/recuperar-password` | *Reset password* |
-| Cambio de correo | — | La app no ofrece cambio de correo (no hay `updateUser({ email })`) | — |
+| Cambio de correo | — | La app no ofrece cambio de correo (no hay `updateUser({ email })`) | Plantilla lista (*Change email address*), sin flujo que la use |
 | Aviso de cambio de precio (Pioneros) | **App → Resend** | Cron `/api/mercadopago/reconcile` → runner de agendas, solo con `PRICE_STEP_UP_ENABLED=true` | `src/lib/mercadopago/price-notice.ts` |
 | Alertas internas de promociones | **App → Resend** | Mismo cron, a `PRICE_ALERT_EMAIL` | `price-schedule-alerts.ts` |
 
@@ -41,7 +41,7 @@ Supabase → **Authentication → Emails → SMTP Settings → Enable custom SMT
 Después:
 - **Authentication → Rate Limits → Rate limit for sending emails**: con SMTP propio Supabase permite subirlo (el SMTP incorporado solo admite unos pocos correos por hora, que es el origen de los bloqueos actuales). Elegir un valor acorde al plan de Resend. El intervalo por dirección (60 s) puede quedar como está: la app ya espera ese tiempo antes de dejar reenviar.
 - **Authentication → URL Configuration**: *Site URL* = el dominio de producción; *Redirect URLs* debe incluir `https://<dominio>/auth/callback` (y `https://www.<dominio>/auth/callback` si se usa www).
-- **Email Templates**: traducir al español *Confirm signup* y *Reset password* con la marca Universo Stampa, conservando `{{ .ConfirmationURL }}` como enlace (no reemplazarlo por una URL armada a mano: rompe el flujo PKCE).
+- **Email Templates**: plantillas con la marca Universo Stampa listas en `email-templates/` (instalación paso a paso en [`EMAIL_TEMPLATES_GUIDE.md`](EMAIL_TEMPLATES_GUIDE.md)); conservan `{{ .ConfirmationURL }}` como enlace (no reemplazarlo por una URL armada a mano: rompe el flujo PKCE).
 - **Confirm email**: dejar activo. La app funciona con y sin confirmación (Sprint 2), pero con SMTP propio no hay motivo para apagarlo.
 
 ## 4. Variables de la app (Vercel → Production; solo servidor)

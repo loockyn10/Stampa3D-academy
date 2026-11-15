@@ -1,0 +1,58 @@
+<!DOCTYPE html>
+<html lang="es"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Vista previa de correos - Universo Stampa</title>
+<style>
+body{margin:0;background:#101012;color:#f4f4f5;font-family:'Segoe UI',Arial,sans-serif;padding:32px 24px}
+h1{margin:0 0 4px;font-size:28px} .lead{color:#a1a1aa;margin:0 0 32px;max-width:720px;line-height:1.5}
+.card{margin:0 0 56px} .card h2{margin:0 0 6px;font-size:20px;color:#ff9a3d}
+.subject{margin:0 0 2px} .subject span{display:inline-block;background:#2e2e35;color:#a1a1aa;border-radius:6px;padding:1px 8px;font-size:12px;margin-right:6px}
+.where{margin:0 0 16px;color:#a1a1aa;font-size:13px}
+.frames{display:flex;flex-wrap:wrap;gap:24px;align-items:flex-start}
+figure{margin:0} figcaption{color:#a1a1aa;font-size:12px;margin-bottom:6px}
+iframe{border:1px solid #2e2e35;border-radius:10px;background:#0e0e10;max-width:100%}
+</style></head><body>
+<h1>Correos de Universo Stampa</h1>
+<p class="lead">Vista previa con datos de ejemplo. Las variables de Supabase (<code>{{ .ConfirmationURL }}</code>, <code>{{ .Email }}</code>…) están reemplazadas solo en esta vista; los archivos de <code>email-templates/supabase/</code> las conservan intactas.</p>
+<section class="card" id="confirm-signup">
+  <header><h2>Confirm sign up</h2><p class="subject"><span>Asunto</span> Confirmá tu correo para activar tu cuenta de Universo Stampa</p><p class="where">Authentication → Emails → Templates → Confirm sign up</p></header>
+  <div class="frames">
+    <figure><figcaption>Escritorio · 640 px</figcaption><iframe src="confirm-signup.html" title="Confirm sign up (escritorio)" style="width:640px;height:980px" loading="lazy"></iframe></figure>
+    <figure><figcaption>Móvil · 375 px</figcaption><iframe src="confirm-signup.html" title="Confirm sign up (móvil)" style="width:375px;height:980px" loading="lazy"></iframe></figure>
+  </div>
+</section>
+<section class="card" id="reset-password">
+  <header><h2>Reset password</h2><p class="subject"><span>Asunto</span> Restablecé tu contraseña de Universo Stampa</p><p class="where">Authentication → Emails → Templates → Reset password</p></header>
+  <div class="frames">
+    <figure><figcaption>Escritorio · 640 px</figcaption><iframe src="reset-password.html" title="Reset password (escritorio)" style="width:640px;height:980px" loading="lazy"></iframe></figure>
+    <figure><figcaption>Móvil · 375 px</figcaption><iframe src="reset-password.html" title="Reset password (móvil)" style="width:375px;height:980px" loading="lazy"></iframe></figure>
+  </div>
+</section>
+<section class="card" id="change-email">
+  <header><h2>Change email address</h2><p class="subject"><span>Asunto</span> Confirmá el cambio de correo de tu cuenta de Universo Stampa</p><p class="where">Authentication → Emails → Templates → Change email address</p></header>
+  <div class="frames">
+    <figure><figcaption>Escritorio · 640 px</figcaption><iframe src="change-email.html" title="Change email address (escritorio)" style="width:640px;height:980px" loading="lazy"></iframe></figure>
+    <figure><figcaption>Móvil · 375 px</figcaption><iframe src="change-email.html" title="Change email address (móvil)" style="width:375px;height:980px" loading="lazy"></iframe></figure>
+  </div>
+</section>
+<section class="card" id="password-changed">
+  <header><h2>Password changed</h2><p class="subject"><span>Asunto</span> Tu contraseña de Universo Stampa fue modificada</p><p class="where">Authentication → Emails → Templates → Security notifications → Password changed (hay que activar el aviso)</p></header>
+  <div class="frames">
+    <figure><figcaption>Escritorio · 640 px</figcaption><iframe src="password-changed.html" title="Password changed (escritorio)" style="width:640px;height:980px" loading="lazy"></iframe></figure>
+    <figure><figcaption>Móvil · 375 px</figcaption><iframe src="password-changed.html" title="Password changed (móvil)" style="width:375px;height:980px" loading="lazy"></iframe></figure>
+  </div>
+</section>
+<section class="card" id="invite">
+  <header><h2>Invite user</h2><p class="subject"><span>Asunto</span> Te invitaron a Universo Stampa</p><p class="where">Authentication → Emails → Templates → Invite user</p></header>
+  <div class="frames">
+    <figure><figcaption>Escritorio · 640 px</figcaption><iframe src="invite.html" title="Invite user (escritorio)" style="width:640px;height:980px" loading="lazy"></iframe></figure>
+    <figure><figcaption>Móvil · 375 px</figcaption><iframe src="invite.html" title="Invite user (móvil)" style="width:375px;height:980px" loading="lazy"></iframe></figure>
+  </div>
+</section>
+<section class="card" id="pioneros">
+  <header><h2>Aviso fin de promoción Pioneros</h2><p class="subject"><span>Asunto</span> Tu precio promocional de Universo Stampa cambia el 15 de julio de 2027</p><p class="where">Backend → Resend (src/lib/mercadopago/price-notice.ts)</p></header>
+  <div class="frames">
+    <figure><figcaption>Escritorio · 640 px</figcaption><iframe src="pioneros.html" title="Aviso fin de promoción Pioneros (escritorio)" style="width:640px;height:980px" loading="lazy"></iframe></figure>
+    <figure><figcaption>Móvil · 375 px</figcaption><iframe src="pioneros.html" title="Aviso fin de promoción Pioneros (móvil)" style="width:375px;height:980px" loading="lazy"></iframe></figure>
+  </div>
+</section>
+</body></html>
