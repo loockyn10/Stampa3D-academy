@@ -73,7 +73,9 @@ test("Actualizar acceso revalidates on the server instead of reloading; redeem c
   assert.match(client, /router\.replace\(result\.destination\)/);
   assert.match(client, /Tu acceso todavía no está activo\./);
   assert.match(client, /onRedeemed=\{handleBetaRedeemed\}/);
-  assert.match(client, /Acceso Beta activado/);
+  // Generic: the same notice follows a recovered payment, not only an invitation code.
+  assert.match(client, /Acceso activado/);
+  assert.doesNotMatch(client, /Acceso Beta activado/);
   assert.doesNotMatch(client, /alert\(|confirm\(/);
 });
 

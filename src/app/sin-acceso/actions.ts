@@ -91,6 +91,9 @@ export async function previewDiscountCodeAction(rawCode: unknown): Promise<Disco
     // Promotion terms (price for N billing periods, then the accepted later price). Fail closed when the schedules are on.
     try {
       const terms = await getPromoTerms(admin, code);
+      // Same rule as create-subscription ("promo_unavailable"): a code with terms is never sold while the schedules are
+      // off. Saying so here avoids an accepted promotion that then fails at "Activar membresía".
+      if (terms && !priceSchedulesEnabled()) return toDiscountPreview(discountFailure("unsupported"));
       if (terms) {
         return { ...preview, promo: { promoCycles: terms.promoCycles, postPrice: terms.postPrice, termsVersion: terms.termsVersion } };
       }

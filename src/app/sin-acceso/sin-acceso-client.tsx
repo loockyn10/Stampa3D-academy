@@ -11,6 +11,8 @@ import { createClient } from "@/utils/supabase/client";
 import { BetaCodeRedeemCard } from "@/components/beta-access/BetaCodeRedeemCard";
 import { readPendingBetaCode } from "@/lib/beta-access/pending-code";
 import { DiscountCodeField, type AppliedDiscount } from "@/components/membership/DiscountCodeField";
+import { BETA_CODE_PUBLIC_ENTRY } from "@/lib/registration/public-signup";
+import { isLegalDocumentPublished } from "@/lib/legal/registry";
 import { refreshAccessAction } from "./actions";
 
 const CHECKOUT_ATTEMPT_STORAGE_KEY = "stampa_membership_checkout_attempt";
@@ -296,7 +298,7 @@ export function SinAccesoClient({
           <div role="status" className="flex items-center gap-3 rounded-2xl border border-emerald-500/30 bg-emerald-500/10 p-4 text-left">
             <CheckCircle2 size={20} className="shrink-0 text-emerald-400" aria-hidden="true" />
             <div className="min-w-0">
-              <p className="text-sm font-semibold text-emerald-300">Acceso Beta activado</p>
+              <p className="text-sm font-semibold text-emerald-300">Acceso activado</p>
               <p className="text-xs text-stampa-text-muted">Preparando Universo…</p>
             </div>
             <Loader2 size={16} className="ml-auto shrink-0 animate-spin text-emerald-400" aria-hidden="true" />
@@ -360,7 +362,9 @@ export function SinAccesoClient({
                   </p>
                 ) : price && discountedPrice !== null ? (
                   <>
-                    <p className="text-sm text-stampa-text-muted line-through">{formatPrice(price)}</p>
+                    <p className="text-sm text-stampa-text-muted">
+                      Precio regular <span className="line-through">{formatPrice(price)}</span>
+                    </p>
                     <p className="text-4xl font-black tracking-tight text-stampa-text">
                       {formatMoney(discountedPrice)} <span className="text-base font-medium text-stampa-text-muted">/ mes</span>
                     </p>
@@ -381,8 +385,17 @@ export function SinAccesoClient({
 
               {promo && discountedPrice !== null && (
                 <div className="mt-4 rounded-xl border border-stampa-orange-border bg-stampa-orange-muted/40 p-3 text-left text-sm text-stampa-text" data-testid="promo-terms">
-                  <p className="font-semibold">Condiciones de la promoción</p>
-                  <p className="mt-1 text-stampa-text-muted">
+                  <p className="text-[11px] font-bold uppercase tracking-[0.16em] text-stampa-accent">Promoción especial</p>
+                  <p className="mt-1 font-semibold">Condiciones de la promoción</p>
+                  <dl className="mt-2 grid grid-cols-[auto_minmax(0,1fr)] gap-x-3 gap-y-1 text-sm">
+                    <dt className="text-stampa-text-muted">Precio promocional</dt>
+                    <dd className="font-semibold">{formatMoney(discountedPrice)} por mes</dd>
+                    <dt className="text-stampa-text-muted">Duración</dt>
+                    <dd className="font-semibold">{promo.promoCycles} períodos mensuales de facturación</dd>
+                    <dt className="text-stampa-text-muted">Después</dt>
+                    <dd className="font-semibold">{formatMoney(promo.postPrice)} por mes, desde el período {promo.promoCycles + 1}</dd>
+                  </dl>
+                  <p className="mt-2 text-stampa-text-muted">
                     Pagás {formatMoney(discountedPrice)} por mes durante tus primeros {promo.promoCycles} períodos mensuales de facturación.
                     Desde el período {promo.promoCycles + 1} pagás <strong className="text-stampa-text">{formatMoney(promo.postPrice)} por mes</strong>.
                     Mercado Pago aplica el cambio automáticamente y te avisamos por correo y dentro de la plataforma antes de que ocurra. Podés cancelar cuando quieras.
@@ -411,7 +424,20 @@ export function SinAccesoClient({
                 {loading && <Loader2 size={16} className="animate-spin" aria-hidden="true" />}
                 {loading ? "Generando link..." : "Activar membresía"}
               </button>
+              {promoBlocked && (
+                <p className="mt-2 text-center text-xs font-medium text-stampa-accent">Para continuar, aceptá las condiciones de la promoción.</p>
+              )}
               <p className="mt-2 text-center text-xs text-stampa-text-muted">El valor y los medios de pago se muestran antes de confirmar.</p>
+              {/* Only once the approved text exists (src/content/legal); nothing is invented or shown before. */}
+              {isLegalDocumentPublished("condiciones-membresia") && (
+                <p className="mt-1 text-center text-xs text-stampa-text-muted">
+                  Al activar aceptás las{" "}
+                  <Link href="/legal/condiciones-membresia" target="_blank" className="underline hover:text-stampa-text">
+                    Condiciones de la membresía
+                  </Link>
+                  .
+                </p>
+              )}
 
               <h3 className="mt-6 border-t border-stampa-border pt-5 text-xs font-bold uppercase tracking-[0.16em] text-stampa-accent">Qué incluye</h3>
               <ul className="mt-2 divide-y divide-stampa-border">
@@ -460,7 +486,8 @@ export function SinAccesoClient({
           </section>
         )}
 
-        {canActivate && (
+        {/* Invitation codes are not part of the public checkout (only the discount code is): still redeemable from Perfil. */}
+        {canActivate && BETA_CODE_PUBLIC_ENTRY && (
           <BetaCodeRedeemCard
             title="¿Tenés un código de invitación?"
             submitLabel="Activar acceso"
