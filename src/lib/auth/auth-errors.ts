@@ -18,6 +18,10 @@ export interface FriendlyAuthError {
   needsEmailConfirmation?: boolean;
   /** Retry later (rate limit). */
   rateLimited?: boolean;
+  /** Suggested client-side wait before asking again (see email-cooldown.ts). */
+  retryAfterSeconds?: number;
+  /** The e-mail link (recovery) no longer gives a session: ask for a new one. */
+  linkExpired?: boolean;
 }
 
 const GENERIC: Record<AuthErrorContext, string> = {
@@ -29,6 +33,10 @@ const GENERIC: Record<AuthErrorContext, string> = {
 };
 
 const RATE_LIMIT = "Hiciste varios intentos seguidos. Esperá un minuto y volvé a intentar.";
+/** Project-wide e-mail send limit (Supabase Auth): a minute is not enough, and it is not the person's fault. */
+const EMAIL_SEND_LIMIT =
+  "En este momento no podemos enviar más correos. Esperá unos minutos y volvé a intentar. Si ya pediste uno, revisá tu bandeja de entrada y spam antes de pedir otro.";
+const SESSION_MISSING = "El enlace para cambiar la contraseña venció o ya se usó. Pedí uno nuevo.";
 
 function classify(error: AuthErrorLike): string {
   const code = (error.code ?? "").toLowerCase();
@@ -38,7 +46,9 @@ function classify(error: AuthErrorLike): string {
   if (message.includes("email not confirmed")) return "email_not_confirmed";
   if (message.includes("already registered") || message.includes("already been registered")) return "user_already_exists";
   if (message.includes("password should be") || message.includes("weak password") || message.includes("password is known")) return "weak_password";
+  if (message.includes("email rate limit")) return "over_email_send_rate_limit";
   if (message.includes("for security purposes") || message.includes("rate limit") || error.status === 429) return "over_request_rate_limit";
+  if (message.includes("auth session missing") || message.includes("session not found")) return "session_not_found";
   if (message.includes("unable to validate email") || message.includes("invalid format")) return "email_address_invalid";
   if (message.includes("signups not allowed") || message.includes("signup is disabled")) return "signup_disabled";
   if (message.includes("same as the old") || message.includes("different from the old")) return "same_password";
@@ -49,6 +59,13 @@ function classify(error: AuthErrorLike): string {
 
 export function friendlyAuthError(error: AuthErrorLike | null | undefined, context: AuthErrorContext): FriendlyAuthError {
   if (!error) return { message: GENERIC[context] };
+  // Per-address window ("For security purposes, you can only request this after 37 seconds."), whatever its code:
+  // the wait Supabase states is the real one.
+  const perAddressWait = /after (\d{1,4}) seconds?/i.exec(error.message ?? "");
+  if (perAddressWait) {
+    const seconds = Math.max(1, Number(perAddressWait[1]));
+    return { message: `Ya te enviamos un correo hace instantes. Podés pedir otro en ${seconds} s.`, rateLimited: true, retryAfterSeconds: seconds };
+  }
   switch (classify(error)) {
     case "invalid_credentials":
       return { message: "El email o la contraseña no son correctos." };
@@ -66,9 +83,15 @@ export function friendlyAuthError(error: AuthErrorLike | null | undefined, conte
     case "signup_disabled":
       return { message: "El registro no está disponible en este momento." };
     case "over_email_send_rate_limit":
+      return { message: EMAIL_SEND_LIMIT, rateLimited: true, retryAfterSeconds: 300 };
     case "over_request_rate_limit":
     case "over_sms_send_rate_limit":
-      return { message: RATE_LIMIT, rateLimited: true };
+      return { message: RATE_LIMIT, rateLimited: true, retryAfterSeconds: 60 };
+    case "session_not_found":
+    case "session_expired":
+      return context === "update_password"
+        ? { message: SESSION_MISSING, linkExpired: true }
+        : { message: "Tu sesión venció. Iniciá sesión de nuevo." };
     case "otp_expired":
     case "flow_state_expired":
     case "flow_state_not_found":

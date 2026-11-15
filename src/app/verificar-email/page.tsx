@@ -10,15 +10,21 @@ import { AUTH_NOTICE_MESSAGES, friendlyAuthError } from "@/lib/auth/auth-errors"
 import { sanitizeReturnTo } from "@/lib/auth/return-to";
 import { isPremiumIntent } from "@/lib/auth/premium-intent";
 import {
+  EMAIL_RESEND_COOLDOWN_SECONDS,
+  formatCooldown,
+  remainingEmailCooldown,
+  startEmailCooldown,
+} from "@/lib/auth/email-cooldown";
+import {
   emailConfirmationRedirect,
   maskEmail,
   readPendingVerificationEmail,
   savePendingVerificationEmail,
 } from "@/lib/auth/pending-verification";
 
-// Supabase allows one confirmation email per address every 60 s by default.
+// Supabase allows one confirmation email per address every 60 s by default (src/lib/auth/email-cooldown.ts).
 const subscribeNoop = () => () => undefined;
-const RESEND_COOLDOWN_SECONDS = 60;
+const RESEND_COOLDOWN_SECONDS = EMAIL_RESEND_COOLDOWN_SECONDS;
 
 function VerifyEmailContent() {
   const searchParams = useSearchParams();
@@ -34,6 +40,15 @@ function VerifyEmailContent() {
   const [sending, setSending] = useState(false);
   const [cooldown, setCooldown] = useState(0);
   const [result, setResult] = useState<{ ok: boolean; message: string } | null>(null);
+
+  // A reload does not reset the wait: it is kept per tab (sessionStorage) after each send or rate limit.
+  useEffect(() => {
+    const left = remainingEmailCooldown("signup_resend");
+    if (left <= 0) return;
+    // Read from storage once mounted; the state is set from a callback (no synchronous setState in the effect).
+    const timer = window.setTimeout(() => setCooldown(left), 0);
+    return () => window.clearTimeout(timer);
+  }, []);
 
   useEffect(() => {
     if (cooldown <= 0) return;
@@ -63,14 +78,14 @@ function VerifyEmailContent() {
     setSending(false);
     if (error) {
       const friendly = friendlyAuthError(error, "resend");
-      if (friendly.rateLimited) setCooldown(RESEND_COOLDOWN_SECONDS);
+      if (friendly.rateLimited) setCooldown(startEmailCooldown("signup_resend", friendly.retryAfterSeconds ?? RESEND_COOLDOWN_SECONDS));
       setResult({ ok: false, message: friendly.message });
       return;
     }
     savePendingVerificationEmail(target);
     setSavedEmail(target);
     setEditing(false);
-    setCooldown(RESEND_COOLDOWN_SECONDS);
+    setCooldown(startEmailCooldown("signup_resend", RESEND_COOLDOWN_SECONDS));
     // Same answer whether or not the address has a pending account (no account enumeration).
     setResult({ ok: true, message: "Si hay una cuenta pendiente de confirmar con ese email, te enviamos un nuevo enlace." });
   };
@@ -137,7 +152,7 @@ function VerifyEmailContent() {
             className="flex w-full items-center justify-center gap-2 rounded-xl bg-stampa-orange px-4 py-3 text-sm font-semibold text-neutral-950 transition-colors hover:bg-stampa-orange-hover disabled:cursor-not-allowed disabled:opacity-60"
           >
             {sending ? <Loader2 className="h-4 w-4 animate-spin" aria-hidden="true" /> : <RefreshCw className="h-4 w-4" aria-hidden="true" />}
-            {sending ? "Enviando…" : cooldown > 0 ? `Podés reenviar en ${cooldown} s` : "Reenviar el email"}
+            {sending ? "Enviando…" : cooldown > 0 ? `Podés reenviar en ${formatCooldown(cooldown)}` : "Reenviar el email"}
           </button>
 
           {result && (

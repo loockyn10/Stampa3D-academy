@@ -82,7 +82,9 @@ test("3. sign-up WITH email confirmation (no session): neutral 'check your email
 
 test("5. resend: official Supabase resend, cooldown, neutral success, rate limit translated", () => {
   assert.match(src.verify, /auth\.resend\(\{\s*type: "signup",/);
-  assert.match(src.verify, /RESEND_COOLDOWN_SECONDS = 60/);
+  // The 60 s wait lives in the shared helper (also used by the password recovery) and survives a reload.
+  assert.match(src.verify, /RESEND_COOLDOWN_SECONDS = EMAIL_RESEND_COOLDOWN_SECONDS/);
+  assert.equal(loadTs("src/lib/auth/email-cooldown.ts").EMAIL_RESEND_COOLDOWN_SECONDS, 60);
   assert.match(src.verify, /disabled=\{sending \|\| cooldown > 0\}/);
   assert.match(src.verify, /Si hay una cuenta pendiente de confirmar con ese email/);
   for (const error of [{ code: "over_email_send_rate_limit" }, { status: 429, message: "x" }, { message: "For security purposes, you can only request this after 37 seconds." }]) {

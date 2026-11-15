@@ -1,12 +1,18 @@
 "use client";
 
-import { Suspense, useState } from "react";
+import { Suspense, useEffect, useState } from "react";
 import { useSearchParams } from "next/navigation";
 import { createClient } from "@/utils/supabase/client";
 import Link from "next/link";
 import { Mail, ArrowLeft } from "lucide-react";
 import { AuthBrand } from "@/components/auth/AuthBrand";
 import { friendlyAuthError } from "@/lib/auth/auth-errors";
+import {
+  EMAIL_RESEND_COOLDOWN_SECONDS,
+  formatCooldown,
+  remainingEmailCooldown,
+  startEmailCooldown,
+} from "@/lib/auth/email-cooldown";
 
 const EXPIRED_LINK_NOTICE = "El enlace para cambiar la contraseña venció o ya se usó. Pedí uno nuevo.";
 
@@ -24,10 +30,27 @@ function RecuperarPasswordContent() {
   const [error, setError] = useState<string | null>(null);
   const [successMsg, setSuccessMsg] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(false);
+  const [cooldown, setCooldown] = useState(0);
   const supabase = createClient();
+
+  // Same per-tab wait as the confirmation resend: a reload does not allow a burst of recovery e-mails.
+  useEffect(() => {
+    const left = remainingEmailCooldown("password_recovery");
+    if (left <= 0) return;
+    // Read from storage once mounted; the state is set from a callback (no synchronous setState in the effect).
+    const timer = window.setTimeout(() => setCooldown(left), 0);
+    return () => window.clearTimeout(timer);
+  }, []);
+
+  useEffect(() => {
+    if (cooldown <= 0) return;
+    const timer = window.setTimeout(() => setCooldown((value) => value - 1), 1000);
+    return () => window.clearTimeout(timer);
+  }, [cooldown]);
 
   const handleResetPassword = async (e: React.FormEvent) => {
     e.preventDefault();
+    if (isLoading || cooldown > 0) return;
     if (!email.trim()) {
       setError("Por favor ingresá tu correo electrónico.");
       return;
@@ -37,22 +60,30 @@ function RecuperarPasswordContent() {
     setError(null);
     setSuccessMsg(null);
 
-    const appOrigin = process.env.NEXT_PUBLIC_APP_URL || window.location.origin;
-    const redirectToUrl = `${appOrigin}/auth/callback?next=/actualizar-password`;
+    // Same origin as the request (like the sign-up): the PKCE verifier lives in THIS browser and origin, so a link
+    // pointing to another host (e.g. www vs. apex, or a stale NEXT_PUBLIC_APP_URL) could never be exchanged.
+    const redirectToUrl = `${window.location.origin}/auth/callback?next=/actualizar-password`;
 
-    const { error: resetError } = await supabase.auth.resetPasswordForEmail(email, {
-      redirectTo: redirectToUrl,
-    });
+    try {
+      const { error: resetError } = await supabase.auth.resetPasswordForEmail(email.trim(), {
+        redirectTo: redirectToUrl,
+      });
 
-    if (resetError) {
-      setError(friendlyAuthError(resetError, "recovery").message);
+      if (resetError) {
+        const friendly = friendlyAuthError(resetError, "recovery");
+        if (friendly.rateLimited) setCooldown(startEmailCooldown("password_recovery", friendly.retryAfterSeconds ?? EMAIL_RESEND_COOLDOWN_SECONDS));
+        setError(friendly.message);
+        return;
+      }
+
+      setCooldown(startEmailCooldown("password_recovery", EMAIL_RESEND_COOLDOWN_SECONDS));
+      // Same answer whether or not the address has an account (no account enumeration).
+      setSuccessMsg("Si hay una cuenta con ese email, te enviamos un enlace para cambiar la contraseña. Revisá la bandeja de entrada y spam.");
+    } catch {
+      setError(friendlyAuthError({ message: "network" }, "recovery").message);
+    } finally {
       setIsLoading(false);
-      return;
     }
-
-    // Same answer whether or not the address has an account (no account enumeration).
-    setSuccessMsg("Si hay una cuenta con ese email, te enviamos un enlace para cambiar la contraseña. Revisá la bandeja de entrada y spam.");
-    setIsLoading(false);
   };
 
   return (
@@ -76,10 +107,19 @@ function RecuperarPasswordContent() {
 
         {successMsg ? (
           <div className="space-y-6">
-            <div className="rounded-lg bg-green-50 border border-green-100 p-4 text-sm text-green-800">
-              {successMsg}
+            <div role="status" className="space-y-2 rounded-xl border border-green-500/30 bg-green-500/10 p-4 text-sm text-green-500">
+              <p>{successMsg}</p>
+              <p className="text-stampa-text-muted">Abrí el enlace en este mismo navegador. Puede tardar unos minutos en llegar.</p>
             </div>
-            <div className="text-center">
+            <div className="flex flex-col items-center gap-3 text-center">
+              <button
+                type="button"
+                onClick={() => setSuccessMsg(null)}
+                disabled={cooldown > 0}
+                className="text-sm font-medium text-stampa-text-muted hover:text-fg hover:underline disabled:cursor-not-allowed disabled:no-underline disabled:opacity-60"
+              >
+                {cooldown > 0 ? `¿No llegó? Podés pedir otro en ${formatCooldown(cooldown)}` : "¿No llegó? Pedir otro enlace"}
+              </button>
               <Link
                 href="/login"
                 className="inline-flex items-center gap-2 text-sm font-medium text-stampa-accent hover:text-stampa-accent transition-colors"
@@ -92,7 +132,7 @@ function RecuperarPasswordContent() {
         ) : (
           <form className="mt-8 space-y-6" onSubmit={handleResetPassword}>
             {error && (
-              <div className="rounded-lg bg-red-50 border border-red-100 p-4 text-sm text-red-600">
+              <div role="alert" className="rounded-xl border border-red-500/30 bg-red-500/10 p-4 text-sm text-red-500">
                 {error}
               </div>
             )}
@@ -116,7 +156,7 @@ function RecuperarPasswordContent() {
                     required
                     value={email}
                     onChange={(e) => setEmail(e.target.value)}
-                    className="block w-full rounded-lg border-fg/20 pl-10 focus:border-stampa-orange focus:ring-stampa-orange sm:text-sm py-3 text-fg placeholder-gray-500 bg-stampa-surface"
+                    className="block w-full rounded-xl border border-stampa-border bg-fg/5 py-3 pl-10 text-base text-fg outline-none transition-all placeholder:text-neutral-500 focus:border-stampa-orange/60 focus:ring-2 focus:ring-stampa-orange/20 sm:text-sm"
                     placeholder="tu@email.com"
                   />
                 </div>
@@ -126,10 +166,10 @@ function RecuperarPasswordContent() {
             <div>
               <button
                 type="submit"
-                disabled={isLoading}
-                className="group relative flex w-full justify-center rounded-lg bg-stampa-orange px-3 py-3 text-sm font-semibold text-neutral-950 hover:bg-stampa-orange focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-orange-500 disabled:opacity-70 transition-colors cursor-pointer"
+                disabled={isLoading || cooldown > 0}
+                className="group relative flex w-full justify-center rounded-xl bg-stampa-orange px-3 py-3 text-sm font-semibold text-neutral-950 hover:bg-stampa-orange-hover focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-orange-500 disabled:cursor-not-allowed disabled:opacity-70 transition-colors cursor-pointer"
               >
-                {isLoading ? "Enviando..." : "Enviar instrucciones"}
+                {isLoading ? "Enviando..." : cooldown > 0 ? `Podés pedir otro en ${formatCooldown(cooldown)}` : "Enviar instrucciones"}
               </button>
             </div>
 

@@ -16,6 +16,8 @@ export default function ActualizarPasswordPage() {
   const [error, setError] = useState<string | null>(null);
   const [successMsg, setSuccessMsg] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(false);
+  // The recovery link no longer gives a session (expired, used, or opened in another browser).
+  const [linkExpired, setLinkExpired] = useState(false);
   const router = useRouter();
   const supabase = createClient();
 
@@ -23,12 +25,12 @@ export default function ActualizarPasswordPage() {
     e.preventDefault();
 
     if (password.length < 6) {
-      setError("La contraseña debe tener al menos 6 caracteres");
+      setError("La contraseña debe tener al menos 6 caracteres.");
       return;
     }
 
     if (password !== confirmPassword) {
-      setError("La contraseña no coincide");
+      setError("Las contraseñas no coinciden.");
       return;
     }
 
@@ -41,7 +43,9 @@ export default function ActualizarPasswordPage() {
     });
 
     if (updateError) {
-      setError(friendlyAuthError(updateError, "update_password").message);
+      const friendly = friendlyAuthError(updateError, "update_password");
+      setLinkExpired(Boolean(friendly.linkExpired));
+      setError(friendly.message);
       setIsLoading(false);
       return;
     }
@@ -70,7 +74,7 @@ export default function ActualizarPasswordPage() {
 
         {successMsg ? (
           <div className="space-y-4">
-            <div className="rounded-lg bg-green-50 border border-green-100 p-4 text-sm text-green-800">
+            <div role="status" className="rounded-xl border border-green-500/30 bg-green-500/10 p-4 text-sm text-green-500">
               {successMsg}
             </div>
             <div className="text-center">
@@ -85,8 +89,13 @@ export default function ActualizarPasswordPage() {
         ) : (
           <form className="mt-8 space-y-6" onSubmit={handleUpdatePassword}>
             {error && (
-              <div className="rounded-lg bg-red-50 border border-red-100 p-4 text-sm text-red-600">
-                {error}
+              <div role="alert" className="space-y-2 rounded-xl border border-red-500/30 bg-red-500/10 p-4 text-sm text-red-500">
+                <p>{error}</p>
+                {linkExpired && (
+                  <Link href="/recuperar-password" className="inline-block font-semibold text-stampa-accent hover:underline">
+                    Pedir un enlace nuevo
+                  </Link>
+                )}
               </div>
             )}
             <div className="space-y-4">
@@ -106,9 +115,11 @@ export default function ActualizarPasswordPage() {
                     name="password"
                     type={showPassword ? "text" : "password"}
                     required
+                    autoComplete="new-password"
+                    minLength={6}
                     value={password}
                     onChange={(e) => setPassword(e.target.value)}
-                    className="block w-full rounded-lg border-fg/20 pl-10 pr-10 focus:border-stampa-orange focus:ring-stampa-orange sm:text-sm py-3 text-fg placeholder-gray-500 bg-stampa-surface"
+                    className="block w-full rounded-xl border border-stampa-border bg-fg/5 py-3 pl-10 pr-10 text-base text-fg outline-none transition-all placeholder:text-neutral-500 focus:border-stampa-orange/60 focus:ring-2 focus:ring-stampa-orange/20 sm:text-sm"
                     placeholder="••••••••"
                   />
                   <button
@@ -142,9 +153,10 @@ export default function ActualizarPasswordPage() {
                     name="confirmPassword"
                     type={showConfirmPassword ? "text" : "password"}
                     required
+                    autoComplete="new-password"
                     value={confirmPassword}
                     onChange={(e) => setConfirmPassword(e.target.value)}
-                    className="block w-full rounded-lg border-fg/20 pl-10 pr-10 focus:border-stampa-orange focus:ring-stampa-orange sm:text-sm py-3 text-fg placeholder-gray-500 bg-stampa-surface"
+                    className="block w-full rounded-xl border border-stampa-border bg-fg/5 py-3 pl-10 pr-10 text-base text-fg outline-none transition-all placeholder:text-neutral-500 focus:border-stampa-orange/60 focus:ring-2 focus:ring-stampa-orange/20 sm:text-sm"
                     placeholder="••••••••"
                   />
                   <button
@@ -167,7 +179,7 @@ export default function ActualizarPasswordPage() {
               <button
                 type="submit"
                 disabled={isLoading}
-                className="group relative flex w-full justify-center rounded-lg bg-stampa-orange px-3 py-3 text-sm font-semibold text-neutral-950 hover:bg-stampa-orange focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-orange-500 disabled:opacity-70 transition-colors cursor-pointer"
+                className="group relative flex w-full justify-center rounded-xl bg-stampa-orange px-3 py-3 text-sm font-semibold text-neutral-950 hover:bg-stampa-orange-hover focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-orange-500 disabled:opacity-70 transition-colors cursor-pointer"
               >
                 {isLoading ? "Actualizando..." : "Actualizar contraseña"}
               </button>
