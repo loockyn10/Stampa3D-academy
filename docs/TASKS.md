@@ -2,6 +2,12 @@
 
 Este archivo contiene únicamente trabajo pendiente o próximo. Eliminar tareas terminadas en lugar de conservar un historial infinito.
 
+## Now — Prelanzamiento comercial (2026-11-15, ver `docs/LAUNCH_FINAL_CHECKLIST.md` y D053)
+
+- [x] Registro simplificado, descuento visible, pantallas de correo revisadas, guías de Resend/SMTP y Supabase Pro, paquete legal. Tests: `tests/launch-sprint.test.mjs`.
+- [ ] Configuración manual y pruebas reales: seguir `docs/LAUNCH_FINAL_CHECKLIST.md` (Resend + SMTP, variables de Vercel, Sorteos apagado, enlaces de redes, compra real PIONEROS).
+- [ ] **Antes del 7.º período de los primeros Pioneros:** validar el cambio de importe en Mercado Pago y recién entonces `PRICE_STEP_UP_ENABLED=true`.
+
 ## Now — Landing 5.5: experiencia comercial en `/landing-preview` (implementada 2026-11-10, solo vista previa; la landing pública `/landing` no cambia)
 
 Secciones nuevas tras la exploración de herramientas: «De la idea a la pieza», Gratis vs. Premium con precio, preguntas frecuentes, cierre y footer (`src/components/landing-hero/commercial/`). Contenido solo con beneficios verificados en el código (política de acceso, rutas libres, feature flags). Ajuste 2026-11-10: el objetivo de la landing es vender Premium. CTA principal «Quiero Premium» → `/registro?returnTo=%2Fsin-acceso` (conserva la intención con el `returnTo` existente: tras el alta y la confirmación de email la persona llega a `/sin-acceso`, donde está el botón real «Activar membresía»; no promete checkout directo y no toca auth ni pagos); la cuenta gratuita queda como alternativa secundaria («Probar la Calculadora» → `/calculadora`, «Crear cuenta gratuita» → `/registro`). Comparación en móvil (≤719px): dos bloques, Premium primero con precio real y beneficios, Free como alternativa; escritorio conserva la tabla. La promoción de lanzamiento no se anuncia hasta estar implementada. Landing 5.6 (2026-11-10): `/registro?returnTo=/sin-acceso` muestra «Estás a un paso de Universo Premium»; `/login` y `/verificar-email` lo acompañan; «Registrarme con otro email» ya no pierde el `returnTo`; `/sin-acceso` pasó a ser la pantalla de activación (membresía protagonista, precio vigente, beneficios verificados, herramientas gratuitas como apoyo). Sin cambios en Mercado Pago, precios ni permisos; la promoción de los primeros 50 sigue sin anunciarse. No se pudo probar con cuentas reales (ver reporte): la cuenta Free se simuló solo visualmente. Pendiente: `MembershipPanel` (/perfil) todavía lista beneficios antiguos de `membershipOffer` (menciona presupuestos).

@@ -13,9 +13,11 @@ Estado 2026-11-05: **ningún texto legal está publicado.** La estructura técni
 | id | Dónde se integra | Qué falta decidir/aprobar |
 |---|---|---|
 | `terminos` | Pie de la landing, aviso del registro | Texto completo (dueño + asesoría legal). |
-| `privacidad` | Pie de la landing, aviso del registro | Texto conforme a la Ley 25.326: datos tratados, finalidades, proveedores (Supabase, Vercel, Mercado Pago, OpenAI, Bunny), derechos y contacto. |
-| `condiciones-membresia` | Pie de la landing (y, cuando se decida, junto al botón de checkout) | Precio, renovación automática, medios de pago, baja, qué incluye; coherente con D044/D045. |
+| `privacidad` | Pie de la landing, aviso del registro | Texto conforme a la Ley 25.326: datos tratados, finalidades, proveedores (Supabase, Vercel, Mercado Pago, OpenAI, Bunny, Resend), derechos y contacto. |
+| `condiciones-membresia` | Pie de la landing y «Al activar aceptás…» junto al botón de `/sin-acceso` (solo con texto aprobado) | Precio, renovación automática, medios de pago, baja, qué incluye; coherente con D044/D045. |
 | `baja` | Enlace «Botón de baja» visible desde el primer acceso (Disposición 954/2025) | Decisión comercial D045: experiencia de baja, código de baja en 24 h. Hoy no se muestra en el pie. |
 | `arrepentimiento` | Enlace «Botón de arrepentimiento» visible desde el primer acceso | D045 + circuito de reembolso (hoy no existe). Hoy no se muestra en el pie. |
 
 No se modificó la cancelación de membresías del Sprint 1 (sigue pendiente de D045).
+
+**2026-11-15:** paquete para la revisión (inventario, hechos verificados del producto, textos que ya son compromiso y borrador de condiciones Pioneros con puntos a decidir) en `docs/LEGAL_REVIEW_PACK.md`.

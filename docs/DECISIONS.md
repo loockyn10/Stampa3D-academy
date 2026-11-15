@@ -458,3 +458,12 @@ Los enlaces de Instagram/YouTube/WhatsApp/Telegram estaban fijos en 4 lugares de
 - **Los difusores nunca llevan lengüetas superiores (2026-11-13):** desactivadas en el motor (`layout.ts`, `insert/surface.ts`), no solo ocultas; `insert.tabs` se lee siempre como `false`. El encastre inferior no cambia.
 - Guardar es **local al navegador** (nombre + código `SL1:`): sin migration ni cambios en Supabase. Si más adelante se quieren proyectos guardados por usuario hace falta una migration (`source_type = 'lamp'`), no incluida.
 - Fuera de alcance, registrado en `docs/TASKS.md`: bases decorativas (distintas geometrías exteriores manteniendo los encastres).
+
+## D053 — Alta pública sin códigos: Beta y referidos ocultos por interruptor de código, descuento siempre visible
+**Estado:** Accepted (2026-11-15, sprint de prelanzamiento).
+
+- El alta pública (`/registro`) pide solo nombre, correo y contraseña. El campo de invitación Beta y el de referido se ocultan con constantes en `src/lib/registration/public-signup.ts` (`BETA_CODE_PUBLIC_ENTRY`, `REFERRAL_PROGRAM_PUBLIC`, ambas `false`), no con la tabla de feature flags: no son herramientas con rutas propias y cambiar su visibilidad requiere revisar textos/legales, así que va en un commit.
+- **No se eliminó backend:** `beta_access_codes`, `invite_codes`, `referrals`, el callback de auth y el canje desde Perfil siguen igual. Los enlaces `/registro?ref=…` / `?invite=…` (los que genera `/admin/codigos`) se siguen procesando en silencio.
+- `/sin-acceso` muestra solo el **código de descuento** (siempre visible, sin desplegable); el canje de invitaciones no aparece en el checkout. La vista previa del código rechaza una promoción por períodos si `PRICE_SCHEDULES_ENABLED` está apagado (igual que ya hacía el checkout).
+- Junto al correo del registro hay una recomendación persistente de usar el mismo correo que en Mercado Pago: la suscripción se crea con ese correo como `payer_email` y existe la alternativa de indicar otro en `/sin-acceso`, por eso es recomendación y no requisito.
+- Para lanzar referidos (~20–30 miembros): poner `REFERRAL_PROGRAM_PUBLIC = true`, revisar Sorteos (`/admin/funcionalidades`) y sus bases legales.
