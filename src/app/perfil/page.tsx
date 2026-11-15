@@ -14,6 +14,7 @@ import type { StampyScreenContext } from "@/lib/stampy/screen-context";
 import { XpProgressCard, type XpActivityItem } from "@/components/xp/XpProgressCard";
 import { BetaCodeRedeemCard } from "@/components/beta-access/BetaCodeRedeemCard";
 import { MembershipPanel } from "@/components/membership/MembershipPanel";
+import { REFERRAL_PROGRAM_PUBLIC } from "@/lib/registration/public-signup";
 
 const APP_BASE_URL = process.env.NEXT_PUBLIC_APP_URL || "https://academia-stampa.com";
 
@@ -180,6 +181,8 @@ function PerfilContent() {
   const isBetaTester = !!betaGrant;
   const isPaidMember = profile?.membership_status === "active";
   const showBetaOnlyBadges = isBetaTester && !isPaidMember;
+  // The referral program is not public yet: the code exists (backend ready) but is not announced.
+  const showReferralCard = REFERRAL_PROGRAM_PUBLIC && Boolean(referralCode);
   const canRedeemBetaCode = !isBetaTester && !isPaidMember && profile?.role !== "admin";
   const isFounder = !!founderData && founderData.status === "active";
 
@@ -198,7 +201,7 @@ function PerfilContent() {
         <div className="space-y-6">
           <XpProgressCard totalXp={totalXp} recentActivity={xpActivity} />
           <Card className="max-w-4xl p-5 sm:p-6">
-            <div className={`grid gap-5 border-b border-stampa-border pb-5 mb-5 ${referralCode ? "md:grid-cols-[minmax(0,1fr)_minmax(17rem,0.8fr)]" : ""}`}>
+            <div className={`grid gap-5 border-b border-stampa-border pb-5 mb-5 ${showReferralCard ? "md:grid-cols-[minmax(0,1fr)_minmax(17rem,0.8fr)]" : ""}`}>
               <div className="flex min-w-0 items-center gap-4 sm:items-start">
                 <div className="flex h-14 w-14 shrink-0 items-center justify-center rounded-full bg-orange-100 text-lg font-bold text-stampa-accent select-none uppercase sm:h-16 sm:w-16 sm:text-xl">
                   {displayName.substring(0, 2) || "US"}
@@ -233,7 +236,7 @@ function PerfilContent() {
                 </div>
               </div>
 
-              {referralCode && (
+              {showReferralCard && (
                 <div className="min-w-0 rounded-2xl border border-violet-500/20 bg-violet-500/5 p-4">
                   <div className="mb-3 flex items-center justify-between gap-3">
                     <div className="flex min-w-0 items-center gap-2">

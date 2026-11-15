@@ -5,7 +5,13 @@ import { useSearchParams } from "next/navigation";
 import { createClient } from "@/utils/supabase/client";
 import { normalizeRegistrationCode } from "@/lib/codes/resolve-code";
 import Link from "next/link";
-import { Mail, Lock, User, Eye, EyeOff, Tag, AlertCircle, FlaskConical } from "lucide-react";
+import { Mail, Lock, User, Eye, EyeOff, Tag, AlertCircle, FlaskConical, Info } from "lucide-react";
+import {
+  BETA_CODE_PUBLIC_ENTRY,
+  MERCADO_PAGO_EMAIL_ALTERNATIVE,
+  MERCADO_PAGO_EMAIL_RECOMMENDATION,
+  REFERRAL_PROGRAM_PUBLIC,
+} from "@/lib/registration/public-signup";
 import { sanitizeReturnTo } from "@/lib/auth/return-to";
 import { isPremiumIntent } from "@/lib/auth/premium-intent";
 import { redeemBetaAccessCodeAction } from "@/app/beta-access/actions";
@@ -211,8 +217,21 @@ function RegistroForm() {
                     value={email} onChange={e => setEmail(e.target.value)}
                     className="block w-full rounded-xl border border-stampa-border pl-10 focus:border-stampa-orange/60 focus:ring-stampa-orange/20 focus:ring-2 sm:text-sm py-3 text-neutral-100 placeholder-neutral-500 bg-fg/5 outline-none transition-all"
                     placeholder="tu@email.com"
+                    aria-describedby="email-mp-hint"
                   />
                 </div>
+                {/* Persistent, non-blocking: the Mercado Pago subscription is created with this email (payer_email). */}
+                <p
+                  id="email-mp-hint"
+                  data-testid="email-mp-hint"
+                  className="mt-2 flex items-start gap-2 rounded-xl border border-stampa-orange-border bg-stampa-orange-muted px-3 py-2.5 text-xs leading-relaxed text-stampa-text-soft"
+                >
+                  <Info className="mt-0.5 h-4 w-4 shrink-0 text-stampa-accent" aria-hidden="true" />
+                  <span className="min-w-0">
+                    <span className="block font-medium text-stampa-text">{MERCADO_PAGO_EMAIL_RECOMMENDATION}</span>
+                    <span className="mt-0.5 block text-stampa-text-muted">{MERCADO_PAGO_EMAIL_ALTERNATIVE}</span>
+                  </span>
+                </p>
               </div>
 
               {/* Password */}
@@ -238,7 +257,9 @@ function RegistroForm() {
                 <p id="password-hint" className="mt-1.5 text-xs text-gray-500">Mínimo 6 caracteres.</p>
               </div>
 
-              {/* Referral Code */}
+              {/* Referral Code: hidden until the referral program launches (src/lib/registration/public-signup.ts).
+                  A ?ref= / ?invite= link is still processed silently. */}
+              {REFERRAL_PROGRAM_PUBLIC && (
               <div>
                 <label htmlFor="ref-code" className="block text-xs font-semibold text-gray-400 uppercase tracking-wider mb-2">
                   Código de referido <span className="text-gray-600 font-normal normal-case">(opcional)</span>
@@ -257,8 +278,10 @@ function RegistroForm() {
                 </div>
                 <p className="mt-1.5 text-xs text-gray-500">Si alguien te invitó a Universo Stampa, ingresá su código acá.</p>
               </div>
+              )}
 
-              {/* Beta invitation code (optional) */}
+              {/* Beta invitation code (optional): no longer part of the public signup; still redeemable from Perfil. */}
+              {BETA_CODE_PUBLIC_ENTRY && (
               <div>
                 <label htmlFor="beta-code" className="block text-xs font-semibold text-gray-400 uppercase tracking-wider mb-2">
                   ¿Tenés un código de invitación? <span className="text-gray-600 font-normal normal-case">(opcional)</span>
@@ -278,6 +301,7 @@ function RegistroForm() {
                 </div>
                 <p className="mt-1.5 text-xs text-gray-500">Si sos Beta Tester, ingresá tu código para activar el acceso completo.</p>
               </div>
+              )}
             </div>
 
             <button
