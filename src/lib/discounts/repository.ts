@@ -84,8 +84,9 @@ export async function closePendingCheckout(client: SupabaseClient, input: { user
 }
 
 /**
- * The preapproval has an approved payment: turns its reservation into a consumed use. Idempotent. Returns
- * "awaiting_payment" (nothing changes) when the database finds no approved payment yet.
+ * The preapproval has an approved payment: turns its reservation into a consumed use (the only thing that consumes a
+ * seat). Idempotent. Returns "awaiting_payment" (nothing changes) when the database finds no approved payment yet.
+ * It never refuses a payer: past the code limit the use is recorded as "confirmed_over_limit".
  */
 export async function confirmDiscountReservation(client: SupabaseClient, preapprovalId: string): Promise<string> {
   const payload = await call(client, "confirm_discount_reservation", { p_preapproval_id: preapprovalId });
@@ -97,7 +98,7 @@ export async function confirmDiscountReservation(client: SupabaseClient, preappr
   return status;
 }
 
-/** The preapproval was cancelled before being authorized: frees the reserved use. */
+/** The preapproval was cancelled: retires its price lock (a confirmed use is never released). */
 export async function releaseDiscountForPreapproval(client: SupabaseClient, preapprovalId: string): Promise<void> {
   await call(client, "release_discount_reservation_for_preapproval", { p_preapproval_id: preapprovalId });
 }

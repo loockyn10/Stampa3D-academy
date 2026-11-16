@@ -229,14 +229,14 @@ test("conciliación: un error de Mercado Pago se informa sin cancelar ni interru
   assert.match(route, /\[abandoned discount checkouts\] falló/);
 });
 
-test("admin: cupos pagados / reservados / disponibles desde una ruta solo-admin de lectura", () => {
+test("admin: cupos pagados / en curso / disponibles desde una ruta solo-admin de lectura", () => {
   const route = readRepoFile("src/app/api/admin/discount-seats/route.ts");
   assert.match(route, /const gate = await requireAdminServiceClient\(\);\s*if \(!gate\.admin\) return gate\.response;/);
   assert.match(route, /rpc\("discount_code_seat_summary"\)/);
   assert.doesNotMatch(route, /export async function (POST|PUT|PATCH|DELETE)/);
   const page = readRepoFile("src/app/admin/codigos/page.tsx");
   assert.match(page, /fetch\("\/api\/admin\/discount-seats"/);
-  assert.match(page, /pagados<\/span> · \{seats\[c\.id\]\.reserved\} reservados/);
+  assert.match(page, /pagados<\/span> · \{seats\[c\.id\]\.in_flight\} en curso \(no ocupan cupo\)/);
   assert.match(page, /disponibles/);
-  assert.match(page, /sobre el límite \(revisar\)/);
+  assert.match(page, /pagaron sobre el límite/);
 });

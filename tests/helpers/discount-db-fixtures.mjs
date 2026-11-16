@@ -11,6 +11,8 @@ export const migrations = {
   checkout: read("supabase/migrations/202608250001_checkout_attempts.sql"),
   discount: read("supabase/migrations/20261029120000_discount_code_checkout.sql"),
   consistency: read("supabase/migrations/20261030120000_discount_checkout_consistency.sql"),
+  firstPayment: read("supabase/migrations/20261115120000_discount_confirm_on_first_payment.sql"),
+  confirmedOnly: read("supabase/migrations/20261116120000_discount_seats_confirmed_only.sql"),
 };
 
 export const stub = `

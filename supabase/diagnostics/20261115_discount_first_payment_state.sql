@@ -21,7 +21,7 @@ where r.status = 'confirmed'
   )
 order by r.confirmed_at;
 
--- C. Reservas abiertas que hoy ocupan cupo, con el estado de su suscripción (pending = nunca autorizada).
+-- C. Reservas abiertas (hasta 20261115: ocupan cupo; desde 20261116120000 / D056 NO ocupan cupo, son checkouts en curso), con el estado de su suscripción (pending = nunca autorizada).
 select k.code, r.id as reservation_id, r.created_at, a.state as attempt_state, s.status as subscription_status, a.created_at as checkout_created_at
 from public.discount_code_reservations r
 join public.invite_codes k on k.id = r.invite_code_id
@@ -30,5 +30,6 @@ left join public.subscriptions s on s.id = a.subscription_id
 where r.status = 'reserved'
 order by r.created_at;
 
--- D. Después de aplicar: cupos por código (pagados / reservados / disponibles).
+-- D. Después de aplicar: cupos por código. Con 20261115: confirmed / reserved / reserved_authorized / available.
+--    Con 20261116120000 (D056): confirmed / in_flight / in_flight_authorized / available (= max_uses - confirmed) / over_limit.
 -- select * from public.discount_code_seat_summary() order by code;

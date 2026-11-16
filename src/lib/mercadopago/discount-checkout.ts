@@ -6,9 +6,10 @@ import type { AttachResult, OpenCheckout } from "@/lib/discounts/repository";
  * A membership checkout must always carry the price (and discount) that was confirmed for THIS purchase attempt.
  *
  * Discounted flow:
- *   reserve (DB: validates + prices + holds a seat) -> executeCheckout at the reserved amount -> attach (DB checks that
- *   the attempt carries exactly that amount). The seat is consumed when Mercado Pago authorizes the preapproval
- *   (webhook). Any failure releases the reservation, so an unused checkout never burns a seat.
+ *   reserve (DB: validates + prices + locks the price; holds NO seat) -> executeCheckout at the reserved amount ->
+ *   attach (DB checks that the attempt carries exactly that amount). A seat is counted only when Mercado Pago approves
+ *   the first payment (webhook, migration 20261116120000); a payer whose payment was approved is always honoured, even
+ *   past the code limit (flagged over_limit). Any failure releases the reservation (the price lock).
  *
  * Plain flow (no code): if the user's still-pending checkout carries ANOTHER amount (typically: they applied a code,
  * got a checkout, then removed the code) it is replaced instead of being handed back with the old discount.

@@ -224,10 +224,11 @@ export async function reconcileMemberships(
 // ---------------------------------------------------------------------------------------------------------------------
 
 /**
- * A discounted checkout never authorized at Mercado Pago holds its code seat for as long as the preapproval could still
- * be authorized (supabase/migrations/20261115120000). After this long nobody is authorizing it: the reconciliation
- * cancels it at Mercado Pago (no card was accepted, so nothing can be charged) and the normal cancellation path frees
- * the seat. The person keeps their Free account and can start a new checkout at any time.
+ * A discounted checkout never authorized at Mercado Pago holds NO seat (a seat is counted only by a confirmed first
+ * payment, supabase/migrations/20261116120000), but a preapproval left pending for days could still be authorized much
+ * later, after the code sold out, and its payer would then be charged beyond the limit. After this long nobody is
+ * authorizing it: the reconciliation cancels it at Mercado Pago (no card was accepted, so nothing can be charged) and
+ * the normal cancellation path retires its price lock. The person keeps their Free account and can start a new checkout.
  */
 export const ABANDONED_DISCOUNT_CHECKOUT_MINUTES = 48 * 60;
 export const ABANDONED_DISCOUNT_CHECKOUT_LIMIT = 10;
@@ -238,7 +239,7 @@ export interface StaleDiscountCheckoutStore {
 
 export interface AbandonedCheckoutReport {
   examined: number;
-  /** Cancelled at Mercado Pago: the seat goes back to the code. */
+  /** Cancelled at Mercado Pago (nothing could be charged). */
   cancelled: number;
   /** Mercado Pago no longer reports them pending (authorized or already cancelled): only re-synced, never cancelled. */
   notPending: number;

@@ -24,7 +24,7 @@ Actualizado 2026-11-15. Estados: **TERMINADO** · **LISTO PARA TESTEAR** · **RE
 | 16 | Texto del cobro en Mercado Pago dice «Academia Stampa» | POSTLANZAMIENTO | Decisión de marca (`LEGAL_REVIEW_PACK.md` §3.2) |
 | 18 | Recorridos Free / Premium separados, aviso «Desbloquear con Premium», onboarding solo Premium | LISTO PARA TESTEAR | D054 · pruebas 16–19 |
 | 19 | Cupos PIONEROS consumidos solo con el primer pago aprobado | LISTO PARA TESTEAR | Funciona ya con el código desplegado; la migration agrega la doble verificación en la base |
-| 20 | Migration `20261115120000_discount_confirm_on_first_payment.sql` | REQUIERE CONFIGURACIÓN | Antes: `supabase/diagnostics/20261115_discount_first_payment_state.sql` (A todo `true`, revisar B). Sin ella no hay resumen de cupos ni liberación automática de checkouts abandonados |
+| 20 | Migrations `20261115120000_discount_confirm_on_first_payment.sql` y, **después**, `20261116120000_discount_seats_confirmed_only.sql` (D056) | REQUIERE CONFIGURACIÓN | Antes: `supabase/diagnostics/20261115_discount_first_payment_state.sql` (A todo `true`, revisar B). Sin ellas no hay resumen de cupos ni liberación automática de checkouts abandonados, y el cupo sigue reservándose mientras haya un checkout abierto. Con la segunda, solo un pago aprobado consume cupo; el tope de 20 es blando (ver D056) |
 | 21 | Registro sin confirmación de correo (D055) | REQUIERE CONFIGURACIÓN | Supabase → Authentication → Sign In / Providers → Email → **Confirm email apagado**. Recomendado: CAPTCHA en Auth (no implementado) |
 | 17 | Programa de referidos y sorteos | POSTLANZAMIENTO | Con ~20–30 miembros: `REFERRAL_PROGRAM_PUBLIC = true` + bases legales |
 

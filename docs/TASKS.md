@@ -6,7 +6,7 @@ Este archivo contiene únicamente trabajo pendiente o próximo. Eliminar tareas 
 
 - [x] Registro simplificado, descuento visible, pantallas de correo revisadas, guías de Resend/SMTP y Supabase Pro, paquete legal. Tests: `tests/launch-sprint.test.mjs`.
 - [ ] Configuración manual y pruebas reales: seguir `docs/LAUNCH_FINAL_CHECKLIST.md` (Resend + SMTP, variables de Vercel, Sorteos apagado, enlaces de redes, compra real PIONEROS).
-- [ ] **Cupos al primer pago (D054):** correr `supabase/diagnostics/20261115_discount_first_payment_state.sql`, aplicar `supabase/migrations/20261115120000_discount_confirm_on_first_payment.sql`, verificar `select * from discount_code_seat_summary()`. Desplegar el código del sprint.
+- [ ] **Cupos al primer pago (D054):** correr `supabase/diagnostics/20261115_discount_first_payment_state.sql`, aplicar `supabase/migrations/20261115120000_discount_confirm_on_first_payment.sql` **y después** `20261116120000_discount_seats_confirmed_only.sql` (D056: sin reservas de cupo; el código nuevo del resumen de cupos exige `in_flight`), verificar `select * from discount_code_seat_summary()`. Desplegar el código del sprint.
 - [ ] **Antes del 7.º período de los primeros Pioneros:** validar el cambio de importe en Mercado Pago y recién entonces `PRICE_STEP_UP_ENABLED=true`.
 
 ## Now — Landing 5.5: experiencia comercial en `/landing-preview` (implementada 2026-11-10, solo vista previa; la landing pública `/landing` no cambia)

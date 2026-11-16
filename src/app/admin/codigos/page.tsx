@@ -52,8 +52,8 @@ export default function AdminCodigosPage() {
   const [promoNoticeDays, setPromoNoticeDays] = useState("20");
   const [promoTerms, setPromoTerms] = useState<Record<string, { promo_cycles: number; post_price: number; notice_days: number }>>({});
   const [promoTermsAvailable, setPromoTermsAvailable] = useState(true);
-  // Seats of discount codes (migration 20261115120000): paid uses vs. seats held by open checkouts. Empty if missing.
-  const [seats, setSeats] = useState<Record<string, { confirmed: number; reserved: number; reserved_authorized: number; available: number | null; over_limit: number }>>({});
+  // Seats of discount codes (migrations 20261115120000 + 20261116120000): only paid uses consume a seat; open checkouts are informational. Empty if missing.
+  const [seats, setSeats] = useState<Record<string, { confirmed: number; in_flight: number; in_flight_authorized: number; available: number | null; over_limit: number }>>({});
 
   // Copied tracking
   const [copiedId, setCopiedId] = useState<string | null>(null);
@@ -628,12 +628,12 @@ export default function AdminCodigosPage() {
                         {c.max_uses !== null ? <span className="text-gray-500"> / {c.max_uses}</span> : <span className="text-gray-600"> / ∞</span>}
                         {seats[c.id] && (
                           <div className="mt-1 space-y-0.5 text-[11px] leading-tight text-gray-500" data-testid="code-seats">
-                            <p><span className="text-green-300">{seats[c.id].confirmed} pagados</span> · {seats[c.id].reserved} reservados</p>
-                            {seats[c.id].reserved_authorized > 0 && (
-                              <p>{seats[c.id].reserved_authorized} autorizados esperando el primer pago</p>
+                            <p><span className="text-green-300">{seats[c.id].confirmed} pagados</span> · {seats[c.id].in_flight} en curso (no ocupan cupo)</p>
+                            {seats[c.id].in_flight_authorized > 0 && (
+                              <p>{seats[c.id].in_flight_authorized} autorizados esperando el primer pago</p>
                             )}
                             {seats[c.id].available !== null && <p>{seats[c.id].available} disponibles</p>}
-                            {seats[c.id].over_limit > 0 && <p className="text-red-400">{seats[c.id].over_limit} sobre el límite (revisar)</p>}
+                            {seats[c.id].over_limit > 0 && <p className="text-red-400">{seats[c.id].over_limit} pagaron sobre el límite (se honran; revisar)</p>}
                           </div>
                         )}
                       </td>
