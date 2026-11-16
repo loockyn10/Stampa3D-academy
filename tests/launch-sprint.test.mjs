@@ -59,7 +59,8 @@ test("registro: aviso persistente sobre el correo de Mercado Pago junto al email
   assert.doesNotMatch(registro, /\balert\(|onFocus=/);
   // Es una recomendación: la dependencia real es el payer_email de la suscripción, con alternativa en /sin-acceso.
   assert.match(route, /payerEmail: body\.payerEmail \?\? user\.email/);
-  assert.match(sinAcceso, /Email de la cuenta de Mercado Pago \(opcional\)/);
+  // El campo «Correo de Mercado Pago» está siempre visible en el checkout (ya no vive dentro de un desplegable).
+  assert.match(sinAcceso, /Correo de Mercado Pago/);
 });
 
 test("perfil: la tarjeta del código de referido solo aparece con el programa activo", () => {

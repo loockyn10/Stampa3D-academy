@@ -106,7 +106,10 @@ export function CalculatorPersonalizationModal({
           <input value={search} onChange={(event) => setSearch(event.target.value)} placeholder={step === 1 ? "Buscar marca o modelo..." : "Buscar marca, material o color..."} className="h-11 w-full rounded-xl border border-fg/10 bg-fg/5 pl-9 pr-3 text-sm text-fg outline-none focus:border-stampa-orange/60" />
         </label>
       </div>
-      <div className="grid min-h-0 flex-1 grid-cols-1 gap-3 overflow-y-auto p-4 sm:grid-cols-2 sm:p-6">
+      {/* content-start + auto-rows-max: el área tiene alto definido (flex-1 dentro de un modal con max-h) y, sin esto, las filas
+          auto se estiran con pocas tarjetas y se comprimen con muchas; así cada fila mide lo que mide su tarjeta y el
+          resto se recorre con el scroll de esta área (el buscador queda fijo arriba). */}
+      <div className="grid min-h-0 flex-1 auto-rows-max grid-cols-1 content-start gap-3 overflow-y-auto p-4 sm:grid-cols-2 sm:p-6">
         {step === 1 ? visiblePrinters.map((printer) => {
           const selected = printerId === printer.id;
           return <button key={printer.id} onClick={() => setPrinterId(printer.id)} className={`overflow-hidden rounded-xl border text-left transition ${selected ? "border-stampa-orange bg-stampa-orange/10" : "border-fg/10 bg-fg/[0.03] hover:bg-fg/[0.06]"}`}>

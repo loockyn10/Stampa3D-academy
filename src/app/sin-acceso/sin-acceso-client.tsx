@@ -1,6 +1,6 @@
 "use client";
 
-import { AlertCircle, ArrowLeft, Calculator, CheckCircle2, Loader2, Lock, MailCheck, RefreshCw, UserRound } from "lucide-react";
+import { AlertCircle, ArrowLeft, Calculator, CheckCircle2, Loader2, Lock, Mail, MailCheck, RefreshCw, UserRound } from "lucide-react";
 import Link from "next/link";
 import { UniversoIsotipo } from "@/components/brand/UniversoLogo";
 import { comparison } from "@/components/landing-hero/commercial/commercial-content";
@@ -12,6 +12,7 @@ import { BetaCodeRedeemCard } from "@/components/beta-access/BetaCodeRedeemCard"
 import { readPendingBetaCode } from "@/lib/beta-access/pending-code";
 import { DiscountCodeField, type AppliedDiscount } from "@/components/membership/DiscountCodeField";
 import { BETA_CODE_PUBLIC_ENTRY } from "@/lib/registration/public-signup";
+import { normalizePayerEmail } from "@/lib/mercadopago/checkout-restart";
 import { isLegalDocumentPublished } from "@/lib/legal/registry";
 import { FREE_HOME_PATH } from "@/lib/auth/route-policy";
 import { refreshAccessAction } from "./actions";
@@ -37,6 +38,30 @@ function getCheckoutIdempotencyKey(discountCode: string | null): string {
   const idempotencyKey = window.crypto.randomUUID();
   window.sessionStorage.setItem(CHECKOUT_ATTEMPT_STORAGE_KEY, JSON.stringify({ key: idempotencyKey, code: discountCode }));
   return idempotencyKey;
+}
+
+/**
+ * The Mercado Pago email the current attempt was created with (null: unknown). A pending checkout is handed back as it
+ * was created, so changing the email after that needs a new checkout (the server's `restart`), not just a new request.
+ */
+function readCheckoutAttemptEmail(): string | null {
+  try {
+    const stored = JSON.parse(window.sessionStorage.getItem(CHECKOUT_ATTEMPT_STORAGE_KEY) ?? "null") as { email?: unknown } | null;
+    return typeof stored?.email === "string" ? stored.email : null;
+  } catch {
+    return null;
+  }
+}
+
+function rememberCheckoutAttemptEmail(email: string): void {
+  try {
+    const stored = JSON.parse(window.sessionStorage.getItem(CHECKOUT_ATTEMPT_STORAGE_KEY) ?? "null") as Record<string, unknown> | null;
+    if (stored && typeof stored.key === "string") {
+      window.sessionStorage.setItem(CHECKOUT_ATTEMPT_STORAGE_KEY, JSON.stringify({ ...stored, email }));
+    }
+  } catch {
+    // Unreadable storage: the next request simply behaves as a first one.
+  }
 }
 
 /** Keys come from the proxy (premiumNoticePath) or the locked items of the navigation; unknown keys show no notice. */
@@ -68,7 +93,13 @@ export function SinAccesoClient({
   const [refreshing, setRefreshing] = useState(false);
   const [activated, setActivated] = useState(false);
   const [refreshNotice, setRefreshNotice] = useState<string | null>(null);
+  // Correo de Mercado Pago: se precarga con el de la cuenta de Universo y puede editarse. Solo decide con qué correo se
+  // contrata en Mercado Pago: el dueño de la membresía sale siempre de la sesión / del intento de checkout.
+  const [accountEmail, setAccountEmail] = useState("");
   const [payerEmail, setPayerEmail] = useState("");
+  const [payerEmailTouched, setPayerEmailTouched] = useState(false);
+  const normalizedPayerEmail = normalizePayerEmail(payerEmail);
+  const normalizedAccountEmail = normalizePayerEmail(accountEmail);
   // The code whose promotion terms were accepted. A different code (or none) means different conditions: the acceptance
   // never carries over, because it is only valid while it matches the code currently applied.
   const [promoAcceptedFor, setPromoAcceptedFor] = useState<string | null>(null);
@@ -95,6 +126,10 @@ export function SinAccesoClient({
         setHasPendingBetaCode(readPendingBetaCode() !== null);
         if (user) {
           setIsAuthenticated(true);
+          if (user.email) {
+            setAccountEmail(user.email);
+            setPayerEmail((current) => current || user.email || "");
+          }
           // Si el proveedor no es email, asumimos que está confirmado (ej. Google) o si tiene email_confirmed_at
           const isConfirmed = user.app_metadata?.provider !== "email" || !!user.email_confirmed_at;
           setIsEmailConfirmed(isConfirmed);
@@ -165,6 +200,11 @@ export function SinAccesoClient({
       e.preventDefault();
     }
     if (loading) return;
+    if (!normalizedPayerEmail) {
+      setPayerEmailTouched(true);
+      document.getElementById("payer-email")?.focus();
+      return;
+    }
     if (discountCodesEnabled && discount?.preview.promo && !promoAccepted) {
       setError("Aceptá las condiciones de la promoción para continuar.");
       return;
@@ -175,9 +215,14 @@ export function SinAccesoClient({
       setError(null);
       const discountCode = discountCodesEnabled && discount ? discount.code : null;
       const acceptPromoTerms = discountCode && discount?.preview.promo && promoAccepted ? discount.preview.promo.termsVersion : null;
-      if (restart) window.sessionStorage.removeItem(CHECKOUT_ATTEMPT_STORAGE_KEY);
+      // A pending checkout keeps the email it was created with: if the email changed since, it is replaced (the same
+      // `restart` of «Empezar un pago nuevo»: never cancels an approved subscription), so the link matches the email shown.
+      const mpEmail = normalizedPayerEmail;
+      const previousEmail = readCheckoutAttemptEmail() ?? normalizedAccountEmail;
+      const replaceForEmail = mpEmail !== previousEmail;
+      const restartCheckout = restart || replaceForEmail;
+      if (restartCheckout) window.sessionStorage.removeItem(CHECKOUT_ATTEMPT_STORAGE_KEY);
       const idempotencyKey = getCheckoutIdempotencyKey(discountCode);
-      const mpEmail = payerEmail.trim();
 
       const response = await fetch("/api/mercadopago/create-subscription", {
         method: "POST",
@@ -189,8 +234,8 @@ export function SinAccesoClient({
           idempotency_key: idempotencyKey,
           ...(discountCode ? { discount_code: discountCode } : {}),
           ...(acceptPromoTerms ? { accept_promo_terms: acceptPromoTerms } : {}),
-          ...(mpEmail ? { payer_email: mpEmail } : {}),
-          ...(restart ? { restart: true } : {}),
+          ...(mpEmail !== normalizedAccountEmail ? { payer_email: mpEmail } : {}),
+          ...(restartCheckout ? { restart: true } : {}),
         }),
       });
 
@@ -216,6 +261,9 @@ export function SinAccesoClient({
       if (data?.code === "already_member") {
         if (await revalidateAccess()) return;
       }
+
+      // The attempt now exists with this email (also while Mercado Pago is still being verified).
+      if (response.status === 202 || response.ok) rememberCheckoutAttemptEmail(mpEmail);
 
       if (response.status === 202) {
         throw new Error(
@@ -425,6 +473,47 @@ export function SinAccesoClient({
                 <p className="mt-1 text-xs text-stampa-text-muted">Renovación mensual. Se paga con Mercado Pago.</p>
               </div>
 
+              {/* Siempre visible (sin desplegables): es el correo con el que se contrata en Mercado Pago. */}
+              <div className="mt-4 min-w-0" data-testid="payer-email-field">
+                <label htmlFor="payer-email" className="mb-1.5 flex items-center gap-1.5 text-xs font-semibold uppercase tracking-wider text-stampa-text-muted">
+                  <Mail size={13} aria-hidden="true" /> Correo de Mercado Pago
+                </label>
+                <input
+                  id="payer-email"
+                  name="payer-email"
+                  type="email"
+                  inputMode="email"
+                  autoComplete="email"
+                  autoCapitalize="none"
+                  autoCorrect="off"
+                  spellCheck={false}
+                  maxLength={254}
+                  value={payerEmail}
+                  onChange={(event) => setPayerEmail(event.target.value)}
+                  onBlur={() => setPayerEmailTouched(true)}
+                  disabled={loading}
+                  aria-invalid={payerEmailTouched && !normalizedPayerEmail}
+                  aria-describedby="payer-email-help payer-email-status"
+                  placeholder="tu@correo.com"
+                  className="block w-full min-w-0 rounded-xl border border-stampa-border bg-fg/5 px-3 py-3 text-base text-stampa-text placeholder:text-stampa-text-muted outline-none transition-all focus:border-stampa-orange/60 focus:ring-2 focus:ring-stampa-orange/20 disabled:opacity-60 sm:text-sm"
+                />
+                <p id="payer-email-help" className="mt-1.5 text-xs text-stampa-text-muted">
+                  Si utilizás otro correo en Mercado Pago, podés indicarlo acá. Tu membresía seguirá vinculada a tu cuenta de Universo Stampa
+                </p>
+                <div id="payer-email-status" aria-live="polite" className="min-w-0">
+                  {payerEmailTouched && !normalizedPayerEmail ? (
+                    <p role="alert" className="mt-2 flex items-start gap-2 text-sm leading-snug text-red-300">
+                      <AlertCircle size={15} className="mt-0.5 shrink-0" aria-hidden="true" />
+                      <span className="min-w-0 break-words">Ingresá un correo válido, por ejemplo nombre@correo.com.</span>
+                    </p>
+                  ) : normalizedPayerEmail ? (
+                    <p className="mt-1.5 min-w-0 break-words text-xs text-stampa-text-soft">
+                      Contratarás con: <strong className="font-semibold text-stampa-text">{normalizedPayerEmail}</strong>
+                    </p>
+                  ) : null}
+                </div>
+              </div>
+
               {discountCodesEnabled && !loadingPrice && price && (
                 <DiscountCodeField applied={discount} onApplied={setDiscount} disabled={loading} />
               )}
@@ -500,23 +589,13 @@ export function SinAccesoClient({
 
               <details className="mt-3 text-left text-xs text-stampa-text-muted">
                 <summary className="cursor-pointer select-none py-1 hover:text-stampa-text">
-                  ¿No pudiste pagar o querés pagar con otra cuenta de Mercado Pago?
+                  ¿No pudiste pagar?
                 </summary>
                 <div className="mt-2 space-y-2">
                   <p>
                     Tu membresía queda en esta cuenta de Universo. Si pagás con otra cuenta de Mercado Pago,
-                    escribí su email: Mercado Pago solo deja pagar a la cuenta con ese email.
+                    indicá su correo arriba: Mercado Pago solo deja pagar a la cuenta con ese correo.
                   </p>
-                  <input
-                    type="email"
-                    inputMode="email"
-                    autoComplete="email"
-                    value={payerEmail}
-                    onChange={(event) => setPayerEmail(event.target.value)}
-                    placeholder="Email de la cuenta de Mercado Pago (opcional)"
-                    disabled={loading}
-                    className="w-full rounded-xl border border-stampa-border bg-stampa-bg-soft px-3 py-2 text-base text-stampa-text"
-                  />
                   <button
                     type="button"
                     onClick={(event) => handleCreateSubscription(event, true)}
