@@ -391,7 +391,7 @@ test("signup: beta field is optional, free signup is unchanged and the code neve
   assert.match(signUpCall, /full_name: name/);
   assert.doesNotMatch(signUpCall, /betaCode|normalizedBetaCode/);
   // Without a code: the requested destination; the proxy sends a Free account to onboarding / its area (Sprint 2).
-  assert.match(registro, /window\.location\.assign\(destination\)/);
+  assert.match(registro, /enter\(destination\)/);
   assert.match(registro, /const destination = returnTo;/);
 });
 

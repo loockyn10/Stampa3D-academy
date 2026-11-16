@@ -43,7 +43,7 @@ test("registro: sin código, el alta no espera ni canjea nada (cuenta Free y des
   assert.match(registro, /useState\(\(\) => \(searchParams\.get\("ref"\) \|\| searchParams\.get\("invite"\) \|\| ""\)/);
   assert.match(registro, /if \(!normalizedBetaCode && normalizedCode\)/);
   assert.match(registro, /if \(normalizedBetaCode\)/);
-  assert.match(registro, /window\.location\.assign\(destination\)/);
+  assert.match(registro, /enter\(destination\)/);
   // El callback legado sigue procesando los enlaces de invitación de /admin/codigos.
   assert.match(callback, /resolveRegistrationCode\(submittedCode, supabaseAdmin\)/);
 });

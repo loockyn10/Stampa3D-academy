@@ -42,7 +42,7 @@ Después:
 - **Authentication → Rate Limits → Rate limit for sending emails**: con SMTP propio Supabase permite subirlo (el SMTP incorporado solo admite unos pocos correos por hora, que es el origen de los bloqueos actuales). Elegir un valor acorde al plan de Resend. El intervalo por dirección (60 s) puede quedar como está: la app ya espera ese tiempo antes de dejar reenviar.
 - **Authentication → URL Configuration**: *Site URL* = el dominio de producción; *Redirect URLs* debe incluir `https://<dominio>/auth/callback` (y `https://www.<dominio>/auth/callback` si se usa www).
 - **Email Templates**: plantillas con la marca Universo Stampa listas en `email-templates/` (instalación paso a paso en [`EMAIL_TEMPLATES_GUIDE.md`](EMAIL_TEMPLATES_GUIDE.md)); conservan `{{ .ConfirmationURL }}` como enlace (no reemplazarlo por una URL armada a mano: rompe el flujo PKCE).
-- **Confirm email**: dejar activo. La app funciona con y sin confirmación (Sprint 2), pero con SMTP propio no hay motivo para apagarlo.
+- **Confirm email**: **apagado** para el lanzamiento (D055): el registro entra directo con la sesión que devuelve Supabase. El SMTP propio sigue siendo necesario para la recuperación de contraseña. Si se reactiva, la app vuelve sola al camino con `/verificar-email`.
 
 ## 4. Variables de la app (Vercel → Production; solo servidor)
 

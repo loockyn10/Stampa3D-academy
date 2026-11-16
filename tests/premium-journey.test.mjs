@@ -47,7 +47,7 @@ test("registro contextual: encabezado Premium solo con returnTo=/sin-acceso; el 
   assert.equal(page.match(/premiumIntent/g).length, 2, "premiumIntent solo se declara y se usa en el encabezado");
   assert.match(page, /emailRedirectTo: emailConfirmationRedirect\(window\.location\.origin, returnTo\)/);
   assert.match(page, /nextStepAfterSignup\(\{ hasSession: Boolean\(signUpData\.session\), returnTo \}\)/);
-  assert.match(page, /window\.location\.assign\(destination\)/);
+  assert.match(page, /enter\(destination\)/);
   assert.match(page, /href=\{`\/login\?returnTo=\$\{encodeURIComponent\(returnTo\)\}`\}/);
   // Registrarse no inicia ningún cobro.
   assert.doesNotMatch(page, /mercadopago|create-subscription|init_point/i);

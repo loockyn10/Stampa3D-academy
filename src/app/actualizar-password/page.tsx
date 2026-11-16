@@ -50,6 +50,16 @@ export default function ActualizarPasswordPage() {
       return;
     }
 
+    // Signup does not verify the e-mail (launch setting), so someone else could have created this account with the
+    // address before its owner recovered it. Once the mailbox owner sets a new password, every OTHER session is revoked
+    // (this one stays). A failure here does not undo the password change.
+    try {
+      const { error: revokeError } = await supabase.auth.signOut({ scope: "others" });
+      if (revokeError) console.error("[actualizar-password] revoke other sessions failed", revokeError.code ?? "unknown");
+    } catch (caught) {
+      console.error("[actualizar-password] revoke other sessions failed", caught instanceof Error ? caught.name : "unknown_error");
+    }
+
     setSuccessMsg("Contraseña actualizada. Te llevamos a Universo Stampa…");
     setIsLoading(false);
 

@@ -62,15 +62,14 @@ function RegistroForm() {
     setError(null);
 
     const normalizedCode = normalizeRegistrationCode(referralCode);
-
-    // Persist code in localStorage as fallback for email-confirmation flow
-    try {
-      if (normalizedCode) {
-        localStorage.setItem("stampa_pending_referral_code", normalizedCode);
-        // Also set promo code to be safe, since we don't know the type yet
-        localStorage.setItem("stampa_pending_promo_code", normalizedCode);
-      }
-    } catch {}
+    // Every successful path ends in a FULL navigation (never router.push): the session cookies written by signUp travel
+    // with that request, so the proxy decides the destination with the new session. The button stays disabled meanwhile
+    // so a second click cannot send a second signUp (it would answer "account already exists").
+    let navigating = false;
+    const enter = (to: string) => {
+      navigating = true;
+      window.location.assign(to);
+    };
 
     try {
       const { data: signUpData, error: signUpError } = await supabase.auth.signUp({
@@ -90,10 +89,9 @@ function RegistroForm() {
         setError(friendlyAuthError(signUpError, "signup").message);
         return;
       }
-      // Only this browser: /login pre-fills it if the confirmation link opens without a session.
-      rememberSignupEmail(email);
 
-      // The proxy decides the next stop (onboarding, Free area or Premium) from the real access policy.
+      // The proxy decides the next stop from the real access policy: a Free account at "/" goes to the free area,
+      // «Quiero Premium» (returnTo=/sin-acceso) to the checkout, and the onboarding only once Premium is active.
       const destination = returnTo;
       // The beta code is never stored in auth metadata: it is validated server-side once the account exists.
       const normalizedBetaCode = normalizeBetaAccessCode(betaCode);
@@ -102,7 +100,7 @@ function RegistroForm() {
         if (signUpData.session) {
           const betaResult = await redeemBetaAccessCodeAction(normalizedBetaCode);
           if (betaResult.ok) {
-            window.location.assign(returnTo);
+            enter(returnTo);
             return;
           }
           setBetaNotice({ message: betaResult.message, destination });
@@ -112,10 +110,14 @@ function RegistroForm() {
         savePendingBetaCode(normalizedBetaCode);
       }
 
+      // With "Confirm email" off (launch setting) Supabase always answers with a session. The branch without one stays
+      // for compatibility if confirmation is turned back on.
       const next = nextStepAfterSignup({ hasSession: Boolean(signUpData.session), returnTo });
       if (next.kind === "verify_email") {
+        // Only this browser: /login pre-fills it if the confirmation link opens without a session.
+        rememberSignupEmail(email);
         savePendingVerificationEmail(email);
-        window.location.assign(next.to);
+        enter(next.to);
         return;
       }
 
@@ -125,17 +127,17 @@ function RegistroForm() {
         // redemption attempt. A plain referral code simply answers "invalid" here and is ignored; the account is Free either way.
         const fromReferralField = await redeemBetaAccessCodeAction(normalizeBetaAccessCode(normalizedCode));
         if (fromReferralField.ok) {
-          window.location.assign(returnTo);
+          enter(returnTo);
           return;
         }
       }
 
-      window.location.assign(destination);
+      enter(destination);
     } catch (caught) {
       console.error("[registro] signup connection failed", caught instanceof Error ? caught.name : "unknown_error");
       setError("No pudimos conectar con el servicio de registro. Revisá tu conexión e intentá nuevamente.");
     } finally {
-      setIsLoading(false);
+      if (!navigating) setIsLoading(false);
     }
   };
 
