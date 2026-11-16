@@ -2,6 +2,11 @@ import {
   calculateCalculatorFilamentPricing,
   calculateCalculatorPricing,
 } from "@/lib/calculator/pricing";
+import {
+  repriceSupplySnapshot,
+  toSupplySnapshot,
+  type CalculatorSupplyRecord,
+} from "@/lib/calculator/supplies";
 
 type NumberValue = number | string | null | undefined;
 
@@ -53,6 +58,11 @@ export interface ProductPriceCalculationInput {
   productType?: ProductPricingType | null;
   calculatorSettings?: ProductCalculatorSettings | null;
   oldSnapshot?: ProductCalculationSnapshot | null;
+  /**
+   * Catálogo de insumos ACTUAL del usuario. Si el producto se guardó con componentes/embalaje
+   * (`snapshot.supplies`), se recostean con estos precios; sin catálogo se conservan los del snapshot.
+   */
+  currentSupplies?: CalculatorSupplyRecord[] | null;
 }
 
 function toNumber(value: unknown, fallback = 0): number {
@@ -72,6 +82,7 @@ export function calculateProductPrice({
   productType,
   calculatorSettings,
   oldSnapshot,
+  currentSupplies,
 }: ProductPriceCalculationInput) {
   const errorPercent = toNumber(calculatorSettings?.default_error_percent);
   const wasteRate = Math.max(0, errorPercent / 100);
@@ -161,6 +172,9 @@ export function calculateProductPrice({
   const laborCost = snapshotNumber(oldSnapshot, "labor_cost");
   const otherCost = snapshotNumber(oldSnapshot, "other_costs");
   const multiplier = toNumber(productType?.multiplier, snapshotNumber(oldSnapshot, "multiplier")) || 1;
+  // Componentes/embalaje guardados desde la Calculadora: nunca se pierden al recalcular.
+  const supplyPricing = repriceSupplySnapshot(oldSnapshot?.supplies, currentSupplies);
+  const hasSupplies = supplyPricing.lines.length > 0;
 
   const pricing = calculateCalculatorPricing({
     filamentCost: filamentPricing.filamentCostWithWaste,
@@ -170,6 +184,7 @@ export function calculateProductPrice({
     multiplier,
     laborCost,
     otherCost,
+    suppliesCost: supplyPricing.total,
   });
 
   const snapshot: ProductCalculationSnapshot = {
@@ -197,6 +212,10 @@ export function calculateProductPrice({
     other_costs_overhead_amount: pricing.otherCostsOverheadAmount,
     other_costs_adjusted: pricing.otherCostsAdjusted,
     base_cost: pricing.baseCost,
+    real_cost: pricing.realCost,
+    margin_percent: pricing.marginPercent,
+    supplies_cost: pricing.suppliesCost,
+    ...(hasSupplies ? { supplies: toSupplySnapshot(supplyPricing) } : {}),
     multiplier,
     sale_price: pricing.salePrice,
     profit: pricing.profit,

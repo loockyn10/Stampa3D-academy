@@ -2,6 +2,12 @@
 
 Este archivo contiene únicamente trabajo pendiente o próximo. Eliminar tareas terminadas en lugar de conservar un historial infinito.
 
+## Next — Calculadora V2: costos detallados (rama `feature/calculadora-costos-detallados`, D057)
+
+- [ ] Revisar y aprobar la regla comercial: insumos del catálogo con recargo del 30 % y sin markup (opción compatible, D057).
+- [ ] Aplicar `supabase/migrations/20261117120000_calculator_supplies.sql` en Supabase (después de `20261116120000`); requiere `calculator_product_types.id uuid` y `user_id`.
+- [ ] QA autenticada Premium (escritorio y 375 px, claro/oscuro): crear/editar/archivar insumos, asociarlos a un tipo, calcular, guardar como producto, subir un costo y verificar «Cambió el costo de…» + recálculo en Mi Taller.
+
 ## Now — Prelanzamiento comercial (2026-11-15, ver `docs/LAUNCH_FINAL_CHECKLIST.md` y D053)
 
 - [x] Registro simplificado, descuento visible, pantallas de correo revisadas, guías de Resend/SMTP y Supabase Pro, paquete legal. Tests: `tests/launch-sprint.test.mjs`.

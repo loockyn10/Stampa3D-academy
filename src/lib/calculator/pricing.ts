@@ -40,6 +40,12 @@ export interface CalculatorPricingInput {
   multiplier: number;
   laborCost?: number;
   otherCost?: number;
+  /**
+   * Insumos del catálogo personal (componentes + embalaje) del tipo de producto.
+   * Se tratan igual que los "insumos extra" del tipo: reciben el recargo del 30 % y NO el markup.
+   * Ausente o 0 → el resultado es idéntico al de la calculadora sin catálogo.
+   */
+  suppliesCost?: number;
 }
 
 export interface CalculatorPricingResult {
@@ -47,6 +53,8 @@ export interface CalculatorPricingResult {
   electricityCost: number;
   maintenanceCost: number;
   fixedCost: number;
+  /** Insumos del catálogo incluidos en el cálculo (sin recargo). */
+  suppliesCost: number;
   fixedCostOverheadRate: number;
   fixedCostOverheadAmount: number;
   fixedCostAdjusted: number;
@@ -57,9 +65,15 @@ export interface CalculatorPricingResult {
   multiplier: number;
   multipliableCost: number;
   nonMultipliableCost: number;
+  /** Costo real de fabricación: todo lo que se paga, sin el recargo del 30 %. */
+  realCost: number;
+  /** Costo base histórico de la calculadora: costo real + recargo del 30 % sobre insumos. */
   baseCost: number;
   salePrice: number;
+  /** Ganancia = precio sugerido − costo base (el recargo cubre pérdidas esperadas, no es ganancia). */
   profit: number;
+  /** Margen sobre el precio de venta (ganancia / precio × 100). null si el precio es 0. */
+  marginPercent: number | null;
 }
 
 function finiteOrZero(value: number): number {
@@ -157,8 +171,10 @@ export function calculateCalculatorPricing(
   const multiplier = finiteOrZero(input.multiplier);
   const laborCost = finiteOrZero(input.laborCost ?? 0);
   const otherCost = finiteOrZero(input.otherCost ?? 0);
+  const suppliesCost = finiteOrZero(input.suppliesCost ?? 0);
 
-  const otherCostsRaw = fixedCost + otherCost;
+  // Todo lo que recibe el recargo: insumos extra del tipo, otros costos manuales e insumos del catálogo.
+  const otherCostsRaw = fixedCost + otherCost + suppliesCost;
   const otherCostsOverheadAmount = otherCostsRaw * OTHER_COSTS_OVERHEAD_RATE;
   const otherCostsAdjusted = otherCostsRaw + otherCostsOverheadAmount;
   // Legacy aliases kept for existing calculation snapshots.
@@ -172,12 +188,14 @@ export function calculateCalculatorPricing(
     laborCost;
   const baseCost = filamentCost + nonMultipliableCost;
   const salePrice = filamentCost * multiplier + nonMultipliableCost;
+  const profit = salePrice - baseCost;
 
   return {
     filamentCost,
     electricityCost,
     maintenanceCost,
     fixedCost,
+    suppliesCost,
     fixedCostOverheadRate: OTHER_COSTS_OVERHEAD_RATE,
     fixedCostOverheadAmount,
     fixedCostAdjusted,
@@ -188,9 +206,11 @@ export function calculateCalculatorPricing(
     multiplier,
     multipliableCost,
     nonMultipliableCost,
+    realCost: baseCost - otherCostsOverheadAmount,
     baseCost,
     salePrice,
-    profit: salePrice - baseCost,
+    profit,
+    marginPercent: salePrice > 0 ? (profit / salePrice) * 100 : null,
   };
 }
 

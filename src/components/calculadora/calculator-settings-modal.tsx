@@ -6,10 +6,11 @@ import { Dialog } from "@/components/ui/dialog";
 import { CalculatorSelect } from "@/components/ui/calculator-select";
 import { SettingsManager, type CalculatorSettingsValues } from "@/components/configuracion/settings-manager";
 import { ProductTypesManager } from "@/components/configuracion/product-types-manager";
+import { SuppliesManager } from "@/components/calculadora/supplies-manager";
 import { createClient } from "@/utils/supabase/client";
 import { FeatureLink } from "@/components/features/feature-link";
 
-export type CalculatorSettingsTab = "costs" | "printer" | "types";
+export type CalculatorSettingsTab = "costs" | "printer" | "types" | "supplies";
 
 export interface CalculatorPrinterCosts {
   id: string;
@@ -28,12 +29,15 @@ interface CalculatorSettingsModalProps {
   onSettingsSaved: (values: CalculatorSettingsValues) => void;
   onPrinterSaved: (printerId: string, values: { power_watts: number; maintenance_cost_per_hour: number }) => void;
   onProductTypesChanged: () => void;
+  /** Cambió el catálogo de insumos o los componentes de un tipo: la página recarga sus costos. */
+  onSuppliesChanged?: () => void;
 }
 
 const TABS: { id: CalculatorSettingsTab; label: string; hint: string }[] = [
   { id: "costs", label: "Costos y ML", hint: "Electricidad, desperdicio, comisión y cargo fijo de Mercado Libre." },
   { id: "printer", label: "Impresora", hint: "Consumo y mantenimiento por hora de la impresora que usás para calcular." },
-  { id: "types", label: "Tipos de producto", hint: "Multiplicador e insumos extra de cada tipo de producto." },
+  { id: "types", label: "Tipos de producto", hint: "Multiplicador, insumos extra y componentes de cada tipo de producto." },
+  { id: "supplies", label: "Insumos", hint: "Tu catálogo de componentes y embalajes con su costo. Cambiar un costo actualiza todos los cálculos futuros que lo usan." },
 ];
 
 /**
@@ -50,6 +54,7 @@ export function CalculatorSettingsModal({
   onSettingsSaved,
   onPrinterSaved,
   onProductTypesChanged,
+  onSuppliesChanged,
 }: CalculatorSettingsModalProps) {
   // El modal se monta al abrirse, así que la pestaña inicial se toma de las props.
   const [tab, setTab] = useState<CalculatorSettingsTab>(initialTab);
@@ -109,7 +114,8 @@ export function CalculatorSettingsModal({
         {tab === "printer" && (
           <PrinterCostsForm printers={printers} initialPrinterId={selectedPrinterId} onSaved={onPrinterSaved} />
         )}
-        {tab === "types" && <ProductTypesManager onChanged={onProductTypesChanged} />}
+        {tab === "types" && <ProductTypesManager onChanged={onProductTypesChanged} onOpenSupplies={() => setTab("supplies")} />}
+        {tab === "supplies" && <SuppliesManager onChanged={onSuppliesChanged} />}
       </div>
     </Dialog>
   );

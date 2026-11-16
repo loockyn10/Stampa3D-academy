@@ -9,6 +9,8 @@ import {
   type ProductPricingComponent,
 } from "@/lib/products/pricing";
 import { createClient } from "@/utils/supabase/server";
+import { loadCalculatorSupplies } from "@/lib/calculator/supplies-data";
+import type { CalculatorSupplyRecord } from "@/lib/calculator/supplies";
 
 const UUID_PATTERN = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
 
@@ -22,6 +24,8 @@ interface RecalculationContext {
   printers: any[];
   productTypes: any[];
   calculatorSettings: any | null;
+  /** Catálogo de insumos actual ([] si la migration de insumos no está aplicada). */
+  supplies: CalculatorSupplyRecord[];
 }
 
 interface RecalculatedProduct {
@@ -58,7 +62,7 @@ async function loadRecalculationContext(
     .order("sort_order", { ascending: true });
   if (productId) componentsQuery = componentsQuery.eq("product_id", productId);
 
-  const [productsResult, componentsResult, filamentsResult, printersResult, productTypesResult, settingsResult] = await Promise.all([
+  const [productsResult, componentsResult, filamentsResult, printersResult, productTypesResult, settingsResult, suppliesData] = await Promise.all([
     productsQuery,
     componentsQuery,
     supabase
@@ -81,6 +85,7 @@ async function loadRecalculationContext(
       .select("default_error_percent, electricity_price_kwh")
       .eq("user_id", userId)
       .maybeSingle(),
+    loadCalculatorSupplies(supabase, userId, { includeAssociations: false }),
   ]);
 
   const requiredError = productsResult.error
@@ -112,6 +117,7 @@ async function loadRecalculationContext(
     printers: printersResult.data || [],
     productTypes: productTypesResult.data || [],
     calculatorSettings: settingsResult.data || null,
+    supplies: suppliesData.supplies,
   };
 }
 
@@ -170,6 +176,7 @@ function calculateCurrentProductPrice(product: any, context: RecalculationContex
     productType,
     calculatorSettings: context.calculatorSettings,
     oldSnapshot: snapshot,
+    currentSupplies: context.supplies,
   });
   if (!calculation.isValid || calculation.baseCost <= 0) {
     return {

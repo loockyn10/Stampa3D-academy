@@ -21,6 +21,7 @@ const managerLoading = () => (
 const AccountManager = dynamic(() => import("@/components/configuracion/account-manager").then((module) => module.AccountManager), { loading: managerLoading });
 const BusinessManager = dynamic(() => import("@/components/configuracion/business-manager").then((module) => module.BusinessManager), { loading: managerLoading });
 const SettingsManager = dynamic(() => import("@/components/configuracion/settings-manager").then((module) => module.SettingsManager), { loading: managerLoading });
+const SuppliesManager = dynamic(() => import("@/components/calculadora/supplies-manager").then((module) => module.SuppliesManager), { loading: managerLoading });
 const ProductTypesManager = dynamic(() => import("@/components/configuracion/product-types-manager").then((module) => module.ProductTypesManager), { loading: managerLoading });
 const MembershipPanel = dynamic(() => import("@/components/membership/MembershipPanel").then((module) => module.MembershipPanel), { loading: managerLoading });
 const StampyManager = dynamic(() => import("@/components/configuracion/stampy-manager").then((module) => module.StampyManager), { loading: managerLoading });
@@ -191,6 +192,7 @@ function ConfiguracionContent() {
             </div>
             <SettingsManager />
             <ProductTypesManager />
+            <SuppliesManager />
           </div>
         )}
 

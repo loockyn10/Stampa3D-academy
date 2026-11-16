@@ -30,9 +30,12 @@ function loadTypeScriptModule(filename, dependencies = {}) {
 const calculatorPricing = loadTypeScriptModule(
   path.join(root, "src/lib/calculator/pricing.ts"),
 );
+const calculatorSupplies = loadTypeScriptModule(
+  path.join(root, "src/lib/calculator/supplies.ts"),
+);
 const { calculateProductPrice } = loadTypeScriptModule(
   path.join(root, "src/lib/products/pricing.ts"),
-  { "@/lib/calculator/pricing": calculatorPricing },
+  { "@/lib/calculator/pricing": calculatorPricing, "@/lib/calculator/supplies": calculatorSupplies },
 );
 
 test("product pricing uses every component and filament through the shared calculator engine", () => {

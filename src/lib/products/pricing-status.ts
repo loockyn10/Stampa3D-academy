@@ -1,4 +1,5 @@
 import { getFilamentDisplayName } from "@/lib/filaments/utils";
+import { changedSnapshotSupplies, type CalculatorSupplyRecord } from "@/lib/calculator/supplies";
 
 export interface ProductPricingStatus {
   needsRecalculation: boolean;
@@ -10,6 +11,8 @@ export function getProductPricingStatus(
   allFilaments: any[],
   allPrinters: any[],
   allProductTypes: any[],
+  /** Catálogo de insumos actual (opcional): detecta cambios de costo de componentes/embalaje guardados. */
+  allSupplies?: CalculatorSupplyRecord[] | null,
 ): ProductPricingStatus {
   const snap = product.calculation_snapshot;
   if (!snap || !snap.source) {
@@ -90,6 +93,10 @@ export function getProductPricingStatus(
         reasons.push("Cambió el costo fijo del tipo de producto");
       }
     }
+  }
+
+  for (const name of changedSnapshotSupplies(snap.supplies, allSupplies)) {
+    reasons.push(`Cambió el costo de ${name}`);
   }
 
   return { needsRecalculation: reasons.length > 0, reasons };

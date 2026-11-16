@@ -37,6 +37,10 @@ import { CALCULATOR_GUEST_DRAFT_KEY, parseCalculatorGuestDraft, type CalculatorG
 import { CalculatorPersonalizationModal, CalculatorSignupModal } from "@/components/calculadora/calculator-access-modals";
 import { parseCalculatorPrefillName } from "@/lib/model-search/calculator-link";
 import { ModalPortal } from "@/components/ui/modal-portal";
+import { buildProductTypeSupplyLines, describeSupplyLine, priceSupplyLines, toSupplySnapshot } from "@/lib/calculator/supplies";
+import { loadCalculatorSupplies, type CalculatorSuppliesData } from "@/lib/calculator/supplies-data";
+import { buildCostBreakdown } from "@/lib/calculator/cost-breakdown";
+import { CostProfitabilityCard, ProductSuppliesCard, ProductSuppliesEmptyHint } from "@/components/calculadora/cost-breakdown-cards";
 
 const PrinterCatalogModal = dynamic(() => import("@/components/calculadora/printer-catalog-modal").then((module) => module.PrinterCatalogModal));
 const FilamentCatalogModal = dynamic(() => import("@/components/calculadora/filament-catalog-modal").then((module) => module.FilamentCatalogModal));
@@ -147,6 +151,8 @@ function CalculadoraPageContent() {
   const [printers, setPrinters] = useState<any[]>([]);
   const [multipliers, setMultipliers] = useState<any[]>([]);
   const [settings, setSettings] = useState<any>(null);
+  // Catálogo personal de insumos + componentes por tipo (solo con acceso a la plataforma, como los tipos de producto).
+  const [suppliesData, setSuppliesData] = useState<CalculatorSuppliesData>({ available: false, supplies: [], associations: [] });
 
   // Form State
   const [filamentLines, setFilamentLines] = useState<CalculatorFilamentLine[]>([
@@ -270,12 +276,14 @@ function CalculadoraPageContent() {
     // Ensure defaults exist before fetching
     await supabase.rpc("ensure_default_calculator_product_types");
 
-    const [fRes, pRes, mRes, sRes] = await Promise.all([
+    const [fRes, pRes, mRes, sRes, suppliesRes] = await Promise.all([
       supabase.from("filaments").select("*, filament_templates(brand)").eq("user_id", user.id).eq("is_active", true),
       supabase.from("printers").select("*").eq("user_id", user.id).eq("is_active", true),
       supabase.from("calculator_product_types").select("*").eq("user_id", user.id).eq("is_active", true).order("sort_order"),
-      supabase.from("calculator_settings").select("*").eq("user_id", user.id).single()
+      supabase.from("calculator_settings").select("*").eq("user_id", user.id).single(),
+      loadCalculatorSupplies(supabase, user.id),
     ]);
+    setSuppliesData(suppliesRes);
 
     let userSettings = sRes.data;
     if (!userSettings) {
@@ -577,8 +585,15 @@ function CalculadoraPageContent() {
     setPrinters((current) => current.map((printer) => (printer.id === printerId ? { ...printer, ...values } : printer)));
   };
 
+  // Cambió el catálogo de insumos o los componentes de un tipo: se recargan sin tocar el cálculo en curso.
+  const reloadSupplies = async () => {
+    if (!userId) return;
+    setSuppliesData(await loadCalculatorSupplies(supabase, userId));
+  };
+
   const handleProductTypesChanged = async () => {
     if (!userId) return;
+    void reloadSupplies();
     const { data } = await supabase
       .from("calculator_product_types")
       .select("*")
@@ -594,6 +609,15 @@ function CalculadoraPageContent() {
     if (accessMode === "paid") setSettingsModalTab("costs");
     else setAdvanced(true);
   };
+
+  const selectedProductType = multipliers.find((type) => type.id === selectedMultiplierId) ?? null;
+
+  // Componentes y embalaje del tipo elegido, con el costo ACTUAL del catálogo (actualización centralizada).
+  const supplyPricing = useMemo(() => {
+    if (accessMode !== "paid" || !suppliesData.available) return null;
+    const lines = buildProductTypeSupplyLines(selectedMultiplierId, suppliesData.associations, suppliesData.supplies);
+    return lines.length > 0 ? priceSupplyLines(lines) : null;
+  }, [accessMode, selectedMultiplierId, suppliesData]);
 
   const calc = useMemo(() => {
     const numManualErrorPercent = Number(manualErrorPercent) || 0;
@@ -652,6 +676,15 @@ function CalculadoraPageContent() {
       multiplier: numManualMultiplier,
       laborCost: numLaborCost,
       otherCost: numOtherCost,
+      suppliesCost: supplyPricing?.total ?? 0,
+    });
+
+    const breakdown = buildCostBreakdown({
+      pricing,
+      laborCost: numLaborCost,
+      otherCost: numOtherCost,
+      supplies: supplyPricing,
+      formatSupplyDetail: describeSupplyLine,
     });
 
     const baseCost = pricing.baseCost;
@@ -678,6 +711,14 @@ function CalculadoraPageContent() {
       otherCostsOverheadRate: pricing.otherCostsOverheadRate,
       otherCostsOverheadAmount: pricing.otherCostsOverheadAmount,
       otherCostsAdjusted: pricing.otherCostsAdjusted,
+      // "Insumos extra" tal como se mostraban antes: insumos extra del tipo + otros costos (sin el catálogo).
+      legacyExtrasRaw: numFixedCost + numOtherCost,
+      suppliesCost: pricing.suppliesCost,
+      componentsCost: supplyPricing?.componentsCost ?? 0,
+      packagingCost: supplyPricing?.packagingCost ?? 0,
+      realCost: pricing.realCost,
+      marginPercent: pricing.marginPercent,
+      breakdown,
       multipliableCost: pricing.multipliableCost,
       nonMultipliableCost: pricing.nonMultipliableCost,
       weightWithError: filamentPricing.totalFilamentGrams * (1 + filamentPricing.wasteRate),
@@ -696,7 +737,8 @@ function CalculadoraPageContent() {
   }, [
     filamentLines, filaments, manualErrorPercent, manualPricePerKg,
     hours, minutes, manualPrinterConsumption, manualKwhPrice, manualPrinterMaintenance,
-    laborCost, otherCost, fixedCost, manualMultiplier, manualPlatformExtra, manualPlatformCommission, shippingCost
+    laborCost, otherCost, fixedCost, manualMultiplier, manualPlatformExtra, manualPlatformCommission, shippingCost,
+    supplyPricing,
   ]);
 
   const xpCalculationSignature = useMemo(() => JSON.stringify({
@@ -820,6 +862,11 @@ function CalculadoraPageContent() {
       platformFixedFee: calc.platformFixedFee,
       shippingCost: calc.shippingCost,
       finalSalePrice: calc.mlPrice,
+      // Calculadora V2: costos de componentes/embalaje congelados al guardar (no cambian si después sube un insumo).
+      real_cost: calc.realCost,
+      margin_percent: calc.marginPercent,
+      supplies_cost: calc.suppliesCost,
+      ...(supplyPricing ? { supplies: toSupplySnapshot(supplyPricing) } : {}),
       // Filament details
       filament_id: firstRecipeLine?.filamentId || null,
       filament_name: selectedFilament?.name || null,
@@ -1187,6 +1234,7 @@ function CalculadoraPageContent() {
         <li><strong className="text-gray-200">Modo Básico:</strong> filamento, gramos, tiempo, tipo de producto e impresora. Alcanza para una estimación rápida.</li>
         <li><strong className="text-gray-200">Modo Avanzado:</strong> suma desperdicio, electricidad, mantenimiento, mano de obra, otros costos y los datos de venta en plataformas.</li>
         <li><strong className="text-gray-200">Precio sugerido:</strong> lo que conviene cobrar en una venta directa. Aplica el multiplicador del tipo de producto al material y suma el resto de los costos.</li>
+        {isPaid && <li><strong className="text-gray-200">Componentes y embalaje:</strong> cargá tus insumos (focos, cables, cajas…) en «Configurar valores → Insumos» y asocialos a cada tipo de producto. Se suman solos con su costo actual.</li>}
         <li><strong className="text-gray-200">Precio Mercado Libre:</strong> el precio a publicar para que, después de la comisión (sobre el precio final), el cargo fijo y el envío que vos configurás, recibas el precio sugerido. No usamos porcentajes oficiales.</li>
         <li className="sm:col-span-2"><strong className="text-gray-200">Configuración:</strong> {isPaid ? "\"Configurar valores\" guarda tus costos de electricidad, desperdicio, impresoras, tipos de producto y Mercado Libre; cambia todos tus cálculos sin perder el actual." : "los valores de ejemplo se pueden ajustar en Modo Avanzado para este cálculo."}</li>
       </ul>
@@ -1359,6 +1407,18 @@ function CalculadoraPageContent() {
           </div>
         </Card>
 
+        {/* Componentes y embalaje del tipo de producto (catálogo personal de insumos) */}
+        {isPaid && selectedProductType && supplyPricing && (
+          <ProductSuppliesCard
+            productTypeName={selectedProductType.name}
+            pricing={supplyPricing}
+            onEdit={() => setSettingsModalTab("types")}
+          />
+        )}
+        {isPaid && advanced && suppliesData.available && selectedProductType && !supplyPricing && (
+          <ProductSuppliesEmptyHint productTypeName={selectedProductType.name} onConfigure={() => setSettingsModalTab("types")} />
+        )}
+
         {/* Bloque Avanzado */}
         {advanced && (
           <Card className="p-4 sm:p-6 bg-stampa-surface border-indigo-500/30 shadow-lg relative overflow-hidden animate-in fade-in-50 duration-300">
@@ -1442,9 +1502,21 @@ function CalculadoraPageContent() {
                 <p className="text-sm font-medium text-gray-300">${calc.numLaborCost.toFixed(2)}</p>
               </div>
             )}
+            {calc.componentsCost > 0 && (
+              <div className="flex items-center justify-between">
+                <p className="text-xs text-gray-500">Componentes</p>
+                <p className="text-sm font-medium text-gray-300">${calc.componentsCost.toFixed(2)}</p>
+              </div>
+            )}
+            {calc.packagingCost > 0 && (
+              <div className="flex items-center justify-between">
+                <p className="text-xs text-gray-500">Embalaje</p>
+                <p className="text-sm font-medium text-gray-300">${calc.packagingCost.toFixed(2)}</p>
+              </div>
+            )}
             <div className="flex items-center justify-between">
               <p className="text-xs text-gray-500">Insumos extra</p>
-              <p className="text-sm font-medium text-gray-300">${calc.otherCostsRaw.toFixed(2)}</p>
+              <p className="text-sm font-medium text-gray-300">${calc.legacyExtrasRaw.toFixed(2)}</p>
             </div>
             <div className="flex items-center justify-between">
               <p className="text-xs text-gray-500">Recargo insumos 30%</p>
@@ -1465,6 +1537,12 @@ function CalculadoraPageContent() {
               <p className="text-[10px] text-gray-500 uppercase tracking-wider">Ganancia estimada</p>
               <p className="text-xs font-bold text-emerald-500">${calc.profit.toFixed(2)}</p>
             </div>
+            {hasValidCalc && calc.marginPercent !== null && (
+              <div className="flex items-center justify-between">
+                <p className="text-[10px] text-gray-500 uppercase tracking-wider">Margen sobre el precio</p>
+                <p className="text-xs font-bold text-emerald-500">{calc.marginPercent.toLocaleString("es-AR", { maximumFractionDigits: 1 })} %</p>
+              </div>
+            )}
           </div>
 
           <div className="mt-4">
@@ -1477,6 +1555,8 @@ function CalculadoraPageContent() {
             />
           </div>
         </Card>
+
+        {hasValidCalc && (advanced || supplyPricing) && <CostProfitabilityCard breakdown={calc.breakdown} />}
 
         {/* Acciones */}
         <div className="space-y-3">
@@ -1651,6 +1731,7 @@ function CalculadoraPageContent() {
         onSettingsSaved={handleSettingsSaved}
         onPrinterSaved={handlePrinterCostsSaved}
         onProductTypesChanged={handleProductTypesChanged}
+        onSuppliesChanged={() => void reloadSupplies()}
       />
     )}
 

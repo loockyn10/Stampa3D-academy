@@ -1,5 +1,6 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { getProductPricingStatus } from "@/lib/products/pricing-status";
+import { loadCalculatorSupplies } from "@/lib/calculator/supplies-data";
 import type { StampyProductStockToolIntent, StampyProductStockToolName } from "./product-stock-tool-intents";
 import { getStampyToolContract } from "./tool-registry";
 
@@ -62,7 +63,7 @@ async function loadOperationalProduct(
   if (productError) return { data: null, errorCode: "product_query_failed" };
   if (!product) return { data: null, errorCode: "product_not_found" };
 
-  const [componentsResult, filamentsResult, printersResult, productTypesResult] = await Promise.all([
+  const [componentsResult, filamentsResult, printersResult, productTypesResult, suppliesData] = await Promise.all([
     supabase
       .from("product_components")
       .select("id, product_id, name, quantity_per_product, sort_order, stock_quantity, is_active")
@@ -85,6 +86,7 @@ async function loadOperationalProduct(
       .select("id, name, multiplier, fixed_cost, is_active")
       .eq("user_id", userId)
       .eq("is_active", true),
+    loadCalculatorSupplies(supabase, userId, { includeAssociations: false }),
   ]);
   if (componentsResult.error || filamentsResult.error || printersResult.error || productTypesResult.error) {
     return { data: null, errorCode: "product_dependencies_query_failed" };
@@ -146,6 +148,7 @@ async function loadOperationalProduct(
     filaments,
     printersResult.data ?? [],
     productTypesResult.data ?? [],
+    suppliesData.supplies,
   );
 
   return {

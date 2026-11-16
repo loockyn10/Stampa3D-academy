@@ -82,5 +82,5 @@ test("dashboard: solo lectura, reusa flujos existentes y no escribe stock", () =
   assert.match(stock, /setConsumeAddStock\(true\);\s*setConsumeModalOpen\(true\);\s*router\.replace\("\/mi-taller\/inventario"/);
   assert.match(stock, /outOfStockOnly && \(p\.is_active === false \|\| \(p\.stock_quantity \|\| 0\) > 0\)/);
   const products = read("src/app/productos/page.tsx");
-  assert.match(products, /needsRecalculationOnly[\s\S]*getProductPricingStatus\(product, filaments, printers, productTypes\)\.needsRecalculation/);
+  assert.match(products, /needsRecalculationOnly[\s\S]*getProductPricingStatus\(product, filaments, printers, productTypes(, supplies)?\)\.needsRecalculation/);
 });

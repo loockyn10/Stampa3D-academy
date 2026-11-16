@@ -34,9 +34,15 @@ const intents = loadTypeScriptModule(
 const filamentUtils = loadTypeScriptModule(
   path.join(root, "src/lib/filaments/utils.ts"),
 );
+const calculatorSupplies = loadTypeScriptModule(
+  path.join(root, "src/lib/calculator/supplies.ts"),
+);
+const suppliesData = loadTypeScriptModule(
+  path.join(root, "src/lib/calculator/supplies-data.ts"),
+);
 const pricingStatus = loadTypeScriptModule(
   path.join(root, "src/lib/products/pricing-status.ts"),
-  { "@/lib/filaments/utils": filamentUtils },
+  { "@/lib/filaments/utils": filamentUtils, "@/lib/calculator/supplies": calculatorSupplies },
 );
 const registry = loadTypeScriptModule(
   path.join(root, "src/lib/stampy/tool-registry.ts"),
@@ -45,6 +51,7 @@ const tools = loadTypeScriptModule(
   path.join(root, "src/lib/stampy/product-stock-tools.ts"),
   {
     "@/lib/products/pricing-status": pricingStatus,
+    "@/lib/calculator/supplies-data": suppliesData,
     "./tool-registry": registry,
   },
 );

@@ -1,19 +1,24 @@
 "use client";
 
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useMemo } from "react";
 import { useSaveGuard } from "@/lib/forms/use-save-guard";
 import { createClient } from "@/utils/supabase/client";
-import { Plus, Edit2, Save, Loader2, AlertCircle, Trash2 } from "lucide-react";
+import { Plus, Edit2, Save, Loader2, AlertCircle, Trash2, Boxes, ChevronDown } from "lucide-react";
 import { TableSkeleton } from "@/components/ui/page-skeletons";
 import { Card } from "@/components/ui/card";
 import { useAppFeedback } from "@/components/ui/app-feedback";
+import { ProductTypeSuppliesEditor } from "@/components/calculadora/product-type-supplies-editor";
+import { loadCalculatorSupplies, type CalculatorSuppliesData } from "@/lib/calculator/supplies-data";
+import { buildProductTypeSupplyLines, formatSupplyMoney, priceSupplyLines } from "@/lib/calculator/supplies";
 
 interface ProductTypesManagerProps {
   /** Se llama después de cada cambio guardado (alta, edición, activar/desactivar o baja). */
   onChanged?: () => void;
+  /** Abre el catálogo de insumos (pestaña «Insumos» del modal de la Calculadora). */
+  onOpenSupplies?: () => void;
 }
 
-export function ProductTypesManager({ onChanged }: ProductTypesManagerProps = {}) {
+export function ProductTypesManager({ onChanged, onOpenSupplies }: ProductTypesManagerProps = {}) {
   const supabase = createClient();
   const { confirmAction } = useAppFeedback();
   const [types, setTypes] = useState<any[]>([]);
@@ -21,6 +26,9 @@ export function ProductTypesManager({ onChanged }: ProductTypesManagerProps = {}
   const [error, setError] = useState<string | null>(null);
 
   const [editingId, setEditingId] = useState<string | null>(null);
+  const [userId, setUserId] = useState<string | null>(null);
+  const [suppliesData, setSuppliesData] = useState<CalculatorSuppliesData>({ available: false, supplies: [], associations: [] });
+  const [expandedSuppliesId, setExpandedSuppliesId] = useState<string | null>(null);
   const { saving, runSave } = useSaveGuard();
   const [formData, setFormData] = useState({
     name: "",
@@ -39,14 +47,20 @@ export function ProductTypesManager({ onChanged }: ProductTypesManagerProps = {}
     const { data: { user } } = await supabase.auth.getUser();
     if (!user) return;
 
+    setUserId(user.id);
+
     // Ensure defaults exist before fetching
     await supabase.rpc("ensure_default_calculator_product_types");
 
-    const { data, error } = await supabase
-      .from("calculator_product_types")
-      .select("*")
-      .eq("user_id", user.id)
-      .order("sort_order", { ascending: true });
+    const [{ data, error }, supplies] = await Promise.all([
+      supabase
+        .from("calculator_product_types")
+        .select("*")
+        .eq("user_id", user.id)
+        .order("sort_order", { ascending: true }),
+      loadCalculatorSupplies(supabase, user.id),
+    ]);
+    setSuppliesData(supplies);
 
     if (error) setError(error.message);
     else setTypes(data || []);
@@ -85,6 +99,31 @@ export function ProductTypesManager({ onChanged }: ProductTypesManagerProps = {}
     
     if (!failed) setEditingId(null);
   });
+
+  // Resumen de componentes por tipo: costo actual leído del catálogo (no se guarda en el tipo).
+  const suppliesSummary = useMemo(() => {
+    const summary = new Map<string, { count: number; total: number }>();
+    for (const type of types) {
+      const lines = buildProductTypeSupplyLines(type.id, suppliesData.associations, suppliesData.supplies);
+      if (lines.length > 0) summary.set(type.id, { count: lines.length, total: priceSupplyLines(lines).total });
+    }
+    return summary;
+  }, [types, suppliesData]);
+
+  const updateAssociations = (next: CalculatorSuppliesData["associations"]) => {
+    setSuppliesData((current) => ({ ...current, associations: next }));
+    onChanged?.();
+  };
+
+  const clearLegacyFixedCost = async (typeId: string) => {
+    const { error } = await supabase.from("calculator_product_types").update({ fixed_cost: 0 }).eq("id", typeId);
+    if (error) {
+      setError(error.message);
+      return;
+    }
+    setTypes((current) => current.map((type) => (type.id === typeId ? { ...type, fixed_cost: 0 } : type)));
+    onChanged?.();
+  };
 
   const toggleStatus = async (typeId: string, currentStatus: boolean) => {
     const { error } = await supabase
@@ -161,7 +200,7 @@ export function ProductTypesManager({ onChanged }: ProductTypesManagerProps = {}
           editingId === t.id ? (
             <TypeEditor key={t.id} saving={saving} formData={formData} setFormData={setFormData} onSave={handleSave} onCancel={() => setEditingId(null)} />
           ) : (
-            <Card key={t.id} className="p-4 flex flex-col hover:border-stampa-orange/30 transition-colors">
+            <Card key={t.id} className={`p-4 flex flex-col hover:border-stampa-orange/30 transition-colors ${expandedSuppliesId === t.id ? "col-span-full" : ""}`}>
               <div className="flex justify-between items-start mb-2">
                 <h4 className="font-bold text-fg">{t.name}</h4>
                 <button onClick={() => { setFormData(t); setEditingId(t.id); }} className="text-gray-400 hover:text-stampa-accent transition-colors">
@@ -171,7 +210,45 @@ export function ProductTypesManager({ onChanged }: ProductTypesManagerProps = {}
               <div className="text-sm text-gray-500 space-y-1 mb-4 flex-1">
                 <p>Markup: <span className="font-medium text-gray-300">x{t.multiplier}</span></p>
                 <p>Insumos extra: <span className="font-medium text-gray-300">${t.fixed_cost ?? 0}</span></p>
+                {suppliesData.available && (
+                  <p>
+                    Componentes y embalaje:{" "}
+                    <span className="font-medium text-gray-300">
+                      {suppliesSummary.get(t.id)
+                        ? `${suppliesSummary.get(t.id)!.count} · ${formatSupplyMoney(suppliesSummary.get(t.id)!.total)}`
+                        : "sin cargar"}
+                    </span>
+                  </p>
+                )}
               </div>
+              {suppliesData.available && userId && (
+                <div className="mb-3">
+                  <button
+                    type="button"
+                    onClick={() => setExpandedSuppliesId((current) => (current === t.id ? null : t.id))}
+                    aria-expanded={expandedSuppliesId === t.id}
+                    className="inline-flex min-h-9 items-center gap-1.5 rounded-lg border border-stampa-border px-2.5 text-xs font-semibold text-gray-300 transition-colors hover:bg-fg/5 hover:text-fg"
+                  >
+                    <Boxes size={14} aria-hidden="true" /> Componentes y embalaje
+                    <ChevronDown size={14} className={`transition-transform ${expandedSuppliesId === t.id ? "rotate-180" : ""}`} aria-hidden="true" />
+                  </button>
+                  {expandedSuppliesId === t.id && (
+                    <div className="mt-3">
+                      <ProductTypeSuppliesEditor
+                        productTypeId={t.id}
+                        productTypeName={t.name}
+                        legacyFixedCost={Number(t.fixed_cost) || 0}
+                        userId={userId}
+                        supplies={suppliesData.supplies}
+                        associations={suppliesData.associations}
+                        onAssociationsChange={updateAssociations}
+                        onClearLegacyFixedCost={() => clearLegacyFixedCost(t.id)}
+                        onOpenCatalog={onOpenSupplies}
+                      />
+                    </div>
+                  )}
+                </div>
+              )}
               <div className="flex items-center justify-between pt-3 border-t border-stampa-border">
                 <button 
                   onClick={() => toggleStatus(t.id, t.is_active)}

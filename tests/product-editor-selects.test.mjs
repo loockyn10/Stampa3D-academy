@@ -101,7 +101,10 @@ test("searchable portal selects focus only after positioning and never scroll th
 test("inactive filaments mark a saved price as needing recalculation", () => {
   const pricingStatus = loadTypeScriptModule(
     path.join(root, "src/lib/products/pricing-status.ts"),
-    { "@/lib/filaments/utils": filamentUtils },
+    {
+      "@/lib/filaments/utils": filamentUtils,
+      "@/lib/calculator/supplies": loadTypeScriptModule(path.join(root, "src/lib/calculator/supplies.ts")),
+    },
   );
   const result = pricingStatus.getProductPricingStatus({
     calculation_snapshot: {

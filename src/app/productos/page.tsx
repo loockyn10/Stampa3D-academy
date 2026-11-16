@@ -23,6 +23,8 @@ import {
 } from "./actions";
 import { useAppFeedback } from "@/components/ui/app-feedback";
 import { calculateProductPrice } from "@/lib/products/pricing";
+import { loadCalculatorSupplies } from "@/lib/calculator/supplies-data";
+import type { CalculatorSupplyRecord } from "@/lib/calculator/supplies";
 import { getProductPricingStatus } from "@/lib/products/pricing-status";
 import { WORKSHOP_PRODUCTS_NEEDS_RECALCULATION } from "@/lib/workshop/routes";
 import { getFilamentDisplayName, getFilamentSearchText } from "@/lib/filaments/utils";
@@ -83,6 +85,8 @@ function ProductosPageContent() {
   const [filaments, setFilaments] = useState<any[]>([]);
   const [printers, setPrinters] = useState<any[]>([]);
   const [productTypes, setProductTypes] = useState<any[]>([]);
+  // Catálogo de insumos de la Calculadora: recostea componentes/embalaje guardados y detecta cambios de costo.
+  const [supplies, setSupplies] = useState<CalculatorSupplyRecord[]>([]);
   const [calculatorSettings, setCalculatorSettings] = useState<any>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -156,7 +160,7 @@ function ProductosPageContent() {
     if (!user) return;
     setUserId(user.id);
 
-    const [prodRes, filRes, priRes, printerTemplatesRes, ptRes, setRes, compsRes, businessRes, categoriesRes] = await Promise.all([
+    const [prodRes, filRes, priRes, printerTemplatesRes, ptRes, setRes, compsRes, businessRes, categoriesRes, suppliesData] = await Promise.all([
       supabase.from("products").select("*, filaments(name, color)").eq("user_id", user.id).eq("is_active", true).order("created_at", { ascending: false }),
       supabase.from("filaments").select("*, filament_templates(brand)").eq("user_id", user.id),
       supabase.from("printers").select("*").eq("user_id", user.id).eq("is_active", true),
@@ -166,7 +170,9 @@ function ProductosPageContent() {
       supabase.from("product_components").select("*").eq("user_id", user.id).eq("is_active", true),
       supabase.from("business_catalog_items").select("source_product_id").eq("user_id", user.id).not("source_product_id", "is", null),
       supabase.from("product_categories").select("id, name").eq("user_id", user.id),
+      loadCalculatorSupplies(supabase, user.id, { includeAssociations: false }),
     ]);
+    setSupplies(suppliesData.supplies);
 
     if (prodRes.error) setError(prodRes.error.message);
     else {
@@ -601,7 +607,8 @@ function ProductosPageContent() {
       printer,
       productType,
       calculatorSettings,
-      oldSnapshot: pendingSnapshot
+      oldSnapshot: pendingSnapshot,
+      currentSupplies: supplies,
     });
 
     setCalcPreview(result);
@@ -715,7 +722,7 @@ function ProductosPageContent() {
     const selectedProduct = detailProduct ?? editingProduct ?? historyProduct
       ?? (deleteTarget ? products.find((product) => product.id === deleteTarget.id) : null);
     const detailPricingStatus = detailProduct
-      ? getProductPricingStatus(detailProduct, filaments, printers, productTypes)
+      ? getProductPricingStatus(detailProduct, filaments, printers, productTypes, supplies)
       : null;
     const detailProfit = detailProduct
       ? Number(detailProduct.sale_price || 0) - Number(detailProduct.base_cost || 0)
@@ -753,7 +760,7 @@ function ProductosPageContent() {
         ] : [],
       } : null,
       visibleEntities: products.slice(0, 20).map((product, index) => {
-        const pricingStatus = getProductPricingStatus(product, filaments, printers, productTypes);
+        const pricingStatus = getProductPricingStatus(product, filaments, printers, productTypes, supplies);
         return {
           type: "product",
           id: String(product.id),
@@ -797,7 +804,7 @@ function ProductosPageContent() {
           { label: "Productos visibles", value: products.length },
           {
             label: "Productos que muestran recálculo pendiente",
-            value: products.filter((product) => getProductPricingStatus(product, filaments, printers, productTypes).needsRecalculation).length,
+            value: products.filter((product) => getProductPricingStatus(product, filaments, printers, productTypes, supplies).needsRecalculation).length,
           },
         ],
       },
@@ -809,7 +816,7 @@ function ProductosPageContent() {
         ...(deleteTarget ? { activeDialog: "Confirmar eliminación" } : {}),
       },
     };
-  }, [deleteTarget, detailProduct, editingId, filaments, formData, historyProductId, loading, printers, productTypes, products]);
+  }, [deleteTarget, detailProduct, editingId, filaments, formData, historyProductId, loading, printers, productTypes, products, supplies]);
 
   usePublishStampyScreenContext(stampyScreenContext);
 
@@ -880,7 +887,7 @@ function ProductosPageContent() {
   // Filtro de destino del Dashboard ("Costos desactualizados"); misma regla que el aviso "Requiere Recalcular".
   const needsRecalculationOnly = searchParams.get("estado") === WORKSHOP_PRODUCTS_NEEDS_RECALCULATION;
   const recalculationScoped = needsRecalculationOnly
-    ? products.filter((product) => getProductPricingStatus(product, filaments, printers, productTypes).needsRecalculation)
+    ? products.filter((product) => getProductPricingStatus(product, filaments, printers, productTypes, supplies).needsRecalculation)
     : products;
   // Las categorías se combinan con el filtro del Dashboard; los contadores respetan ese mismo alcance.
   const categoryCounts = countProductsByCategory(recalculationScoped);
@@ -1289,7 +1296,7 @@ function ProductosPageContent() {
         // Columnas según el ancho real disponible (no según el viewport): el sidebar abierto o contraído no rompe las tarjetas.
         <div className={`grid grid-cols-[repeat(auto-fill,minmax(min(100%,17.5rem),1fr))] ${WORKSHOP_GRID_GAP}`}>
           {visibleProducts.map((p) => {
-            const pricingStatus = getProductPricingStatus(p, filaments, printers, productTypes);
+            const pricingStatus = getProductPricingStatus(p, filaments, printers, productTypes, supplies);
             return (
               <ProductCard
                 key={p.id}
