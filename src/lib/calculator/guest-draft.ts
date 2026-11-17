@@ -14,7 +14,10 @@ export interface CalculatorGuestDraft {
   manualPrinterConsumption: string;
   manualPrinterMaintenance: string;
   laborCost: string;
+  /** Suma de los gastos adicionales (compatibilidad con borradores anteriores a D059). */
   otherCost: string;
+  /** D059: gastos adicionales con nombre. Opcional: los borradores anteriores no lo tienen. */
+  customExpenses?: Array<{ id: string; name: string; amount: number }>;
   fixedCost: string;
   manualMultiplier: string;
   manualPlatformCommission: string;
@@ -38,6 +41,7 @@ export function parseCalculatorGuestDraft(raw: string | null, now = Date.now()):
       "manualMultiplier", "manualPlatformCommission", "manualPlatformExtra", "shippingCost",
     ];
     if (stringKeys.some((key) => typeof value[key] !== "string")) return null;
+    if (value.customExpenses !== undefined && !Array.isArray(value.customExpenses)) return null;
     return value as CalculatorGuestDraft;
   } catch {
     return null;

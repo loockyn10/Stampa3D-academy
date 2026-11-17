@@ -1,5 +1,7 @@
 import { getFilamentDisplayName } from "@/lib/filaments/utils";
-import { changedSnapshotSupplies, type CalculatorSupplyRecord } from "@/lib/calculator/supplies";
+import { changedSnapshotSupplies, type CalculatorSupplyRecord, type ProductTypeSupplyRecord } from "@/lib/calculator/supplies";
+import { resolveProductSupplyLines, supplyCompositionChanged } from "@/lib/calculator/product-supplies";
+import { normalizeCustomExpenses, sumCustomExpenses } from "@/lib/calculator/custom-expenses";
 
 export interface ProductPricingStatus {
   needsRecalculation: boolean;
@@ -7,6 +9,9 @@ export interface ProductPricingStatus {
 }
 
 export const LEGACY_SURCHARGE_REASON = "Precio calculado con el recargo anterior del 30 % sobre insumos";
+export const PRODUCT_TYPE_CHANGED_REASON = "Cambió el tipo de producto";
+export const SUPPLY_COMPOSITION_CHANGED_REASON = "Cambiaron los componentes o el embalaje";
+export const CUSTOM_EXPENSES_CHANGED_REASON = "Cambiaron los gastos adicionales";
 
 const LEGACY_SURCHARGE_AMOUNT_KEYS = [
   "other_costs_overhead_amount",
@@ -35,6 +40,12 @@ export function getProductPricingStatus(
   allProductTypes: any[],
   /** Catálogo de insumos actual (opcional): detecta cambios de costo de componentes/embalaje guardados. */
   allSupplies?: CalculatorSupplyRecord[] | null,
+  /**
+   * D059 — componentes de los tipos (opcional; null si el catálogo no está disponible). Detecta productos cuyos
+   * componentes cambiaron: se agregó o quitó un componente del tipo, cambió una cantidad, cambió el tipo o los
+   * ajustes propios del producto no se recalcularon.
+   */
+  allAssociations?: ProductTypeSupplyRecord[] | null,
 ): ProductPricingStatus {
   const snap = product.calculation_snapshot;
   if (!snap || !snap.source) {
@@ -117,8 +128,32 @@ export function getProductPricingStatus(
     }
   }
 
+  const currentTypeId = product.product_type_id || snap.product_type_id || null;
+  if (product.product_type_id && snap.product_type_id && product.product_type_id !== snap.product_type_id) {
+    reasons.push(PRODUCT_TYPE_CHANGED_REASON);
+  }
+
   for (const name of changedSnapshotSupplies(snap.supplies, allSupplies)) {
     reasons.push(`Cambió el costo de ${name}`);
+  }
+
+  if (Array.isArray(allAssociations) && Array.isArray(allSupplies)) {
+    const current = resolveProductSupplyLines({
+      productTypeId: currentTypeId,
+      associations: allAssociations,
+      supplies: allSupplies,
+      adjustments: snap.supply_adjustments,
+      snapshotSupplies: snap.supplies,
+    });
+    if (supplyCompositionChanged(snap.supplies, current.lines)) {
+      reasons.push(SUPPLY_COMPOSITION_CHANGED_REASON);
+    }
+  }
+
+  if (Array.isArray(snap.custom_expenses)) {
+    const expensesTotal = sumCustomExpenses(normalizeCustomExpenses(snap.custom_expenses));
+    const savedOtherCosts = Number(snap.other_costs) || 0;
+    if (Math.abs(expensesTotal - savedOtherCosts) > 0.004) reasons.push(CUSTOM_EXPENSES_CHANGED_REASON);
   }
 
   if (usesLegacySuppliesSurcharge(snap)) {

@@ -24,7 +24,23 @@ import {
 import { useAppFeedback } from "@/components/ui/app-feedback";
 import { calculateProductPrice } from "@/lib/products/pricing";
 import { loadCalculatorSupplies } from "@/lib/calculator/supplies-data";
-import type { CalculatorSupplyRecord } from "@/lib/calculator/supplies";
+import type { CalculatorSupplyRecord, ProductTypeSupplyRecord } from "@/lib/calculator/supplies";
+import {
+  normalizeSupplyAdjustments,
+  priceResolvedSupplyLines,
+  resolveProductSupplyLines,
+  type SupplyAdjustment,
+} from "@/lib/calculator/product-supplies";
+import {
+  expensesFromDrafts,
+  expensesToDrafts,
+  readSnapshotCustomExpenses,
+  type CustomExpenseDraft,
+} from "@/lib/calculator/custom-expenses";
+import { subscribeCalculatorSuppliesChanged } from "@/lib/calculator/supplies-events";
+import { ProductSuppliesAdjuster } from "@/components/calculadora/product-supplies-adjuster";
+import { CustomExpensesEditor } from "@/components/calculadora/custom-expenses-editor";
+import { CostBreakdownTable } from "@/components/calculadora/cost-breakdown-table";
 import { getProductPricingStatus } from "@/lib/products/pricing-status";
 import { WORKSHOP_PRODUCTS_NEEDS_RECALCULATION } from "@/lib/workshop/routes";
 import { getFilamentDisplayName, getFilamentSearchText } from "@/lib/filaments/utils";
@@ -87,6 +103,12 @@ function ProductosPageContent() {
   const [productTypes, setProductTypes] = useState<any[]>([]);
   // Catálogo de insumos de la Calculadora: recostea componentes/embalaje guardados y detecta cambios de costo.
   const [supplies, setSupplies] = useState<CalculatorSupplyRecord[]>([]);
+  // D059: componentes predeterminados de los tipos (null si el catálogo no está disponible).
+  const [supplyAssociations, setSupplyAssociations] = useState<ProductTypeSupplyRecord[] | null>(null);
+  // D059: componentes específicos y gastos adicionales del producto que se está editando.
+  const [editorSupplyAdjustments, setEditorSupplyAdjustments] = useState<SupplyAdjustment[]>([]);
+  const [editorExpenses, setEditorExpenses] = useState<CustomExpenseDraft[]>([]);
+  const [editorCostInputsDirty, setEditorCostInputsDirty] = useState(false);
   const [calculatorSettings, setCalculatorSettings] = useState<any>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -124,6 +146,35 @@ function ProductosPageContent() {
   // Editor calculation state
   const [calcPreview, setCalcPreview] = useState<any>(null);
   const [pendingSnapshot, setPendingSnapshot] = useState<any>(null);
+
+  // D059: componentes efectivos del producto en edición (tipo elegido + ajustes propios), con costos de hoy.
+  const editorSupplyResolution = useMemo(() => {
+    if (!supplyAssociations || !editingId) return null;
+    return resolveProductSupplyLines({
+      productTypeId: formData.product_type_id || null,
+      associations: supplyAssociations,
+      supplies,
+      adjustments: editorSupplyAdjustments,
+      snapshotSupplies: pendingSnapshot?.supplies,
+    });
+  }, [editingId, editorSupplyAdjustments, formData.product_type_id, pendingSnapshot, supplies, supplyAssociations]);
+
+  // D059: si en otra vista se cambia el catálogo o los componentes de un tipo, Mi Taller se actualiza sin recargar.
+  useEffect(() => {
+    if (!userId) return;
+    let cancelled = false;
+    const unsubscribe = subscribeCalculatorSuppliesChanged(() => {
+      void loadCalculatorSupplies(supabase, userId).then((next) => {
+        if (cancelled) return;
+        setSupplies(next.supplies);
+        setSupplyAssociations(next.available ? next.associations : null);
+      });
+    });
+    return () => {
+      cancelled = true;
+      unsubscribe();
+    };
+  }, [supabase, userId]);
 
   const [recalculatingProductId, setRecalculatingProductId] = useState<string | null>(null);
   const [recalculatingAll, setRecalculatingAll] = useState(false);
@@ -170,9 +221,10 @@ function ProductosPageContent() {
       supabase.from("product_components").select("*").eq("user_id", user.id).eq("is_active", true),
       supabase.from("business_catalog_items").select("source_product_id").eq("user_id", user.id).not("source_product_id", "is", null),
       supabase.from("product_categories").select("id, name").eq("user_id", user.id),
-      loadCalculatorSupplies(supabase, user.id, { includeAssociations: false }),
+      loadCalculatorSupplies(supabase, user.id),
     ]);
     setSupplies(suppliesData.supplies);
+    setSupplyAssociations(suppliesData.available ? suppliesData.associations : null);
 
     if (prodRes.error) setError(prodRes.error.message);
     else {
@@ -234,6 +286,9 @@ function ProductosPageContent() {
     });
     setCalcPreview(null);
     setPendingSnapshot(null);
+    setEditorSupplyAdjustments([]);
+    setEditorExpenses([]);
+    setEditorCostInputsDirty(false);
     setEditingId("new");
   };
 
@@ -295,6 +350,10 @@ function ProductosPageContent() {
     });
     setCalcPreview(null);
     setPendingSnapshot(snap);
+    // D059: ajustes de componentes y gastos con nombre guardados con el producto (o su «otros costos» anterior).
+    setEditorSupplyAdjustments(normalizeSupplyAdjustments(snap.supply_adjustments));
+    setEditorExpenses(expensesToDrafts(readSnapshotCustomExpenses(snap)));
+    setEditorCostInputsDirty(false);
     setEditingId(p.id);
     // Load price history for this product
     loadPriceHistory(p.id);
@@ -389,6 +448,15 @@ function ProductosPageContent() {
     let snapshotToSave = pendingSnapshot;
     if (!snapshotToSave || Object.keys(snapshotToSave).length === 0) {
       snapshotToSave = null;
+    }
+    // D059: si se cambiaron componentes propios o gastos sin recalcular, se guardan igual (no se pierden) y el
+    // producto queda marcado «recalcular»: el precio de venta guardado NO cambia solo.
+    if (editorCostInputsDirty) {
+      snapshotToSave = {
+        ...(snapshotToSave ?? {}),
+        supply_adjustments: { version: 1, items: editorSupplyResolution?.adjustments ?? normalizeSupplyAdjustments(editorSupplyAdjustments) },
+        custom_expenses: expensesFromDrafts(editorExpenses),
+      };
     }
 
     const payload: any = {
@@ -609,6 +677,9 @@ function ProductosPageContent() {
       calculatorSettings,
       oldSnapshot: pendingSnapshot,
       currentSupplies: supplies,
+      currentAssociations: supplyAssociations,
+      supplyAdjustments: editorSupplyAdjustments,
+      customExpenses: expensesFromDrafts(editorExpenses),
     });
 
     setCalcPreview(result);
@@ -622,6 +693,8 @@ function ProductosPageContent() {
       sale_price: parseFloat(calcPreview.salePrice.toFixed(2))
     }));
     setPendingSnapshot(calcPreview.snapshot);
+    // El snapshot calculado ya contiene los ajustes y gastos del editor.
+    setEditorCostInputsDirty(false);
     setCalcPreview(null);
   };
 
@@ -722,7 +795,7 @@ function ProductosPageContent() {
     const selectedProduct = detailProduct ?? editingProduct ?? historyProduct
       ?? (deleteTarget ? products.find((product) => product.id === deleteTarget.id) : null);
     const detailPricingStatus = detailProduct
-      ? getProductPricingStatus(detailProduct, filaments, printers, productTypes, supplies)
+      ? getProductPricingStatus(detailProduct, filaments, printers, productTypes, supplies, supplyAssociations)
       : null;
     const detailProfit = detailProduct
       ? Number(detailProduct.sale_price || 0) - Number(detailProduct.base_cost || 0)
@@ -760,7 +833,7 @@ function ProductosPageContent() {
         ] : [],
       } : null,
       visibleEntities: products.slice(0, 20).map((product, index) => {
-        const pricingStatus = getProductPricingStatus(product, filaments, printers, productTypes, supplies);
+        const pricingStatus = getProductPricingStatus(product, filaments, printers, productTypes, supplies, supplyAssociations);
         return {
           type: "product",
           id: String(product.id),
@@ -804,7 +877,7 @@ function ProductosPageContent() {
           { label: "Productos visibles", value: products.length },
           {
             label: "Productos que muestran recálculo pendiente",
-            value: products.filter((product) => getProductPricingStatus(product, filaments, printers, productTypes, supplies).needsRecalculation).length,
+            value: products.filter((product) => getProductPricingStatus(product, filaments, printers, productTypes, supplies, supplyAssociations).needsRecalculation).length,
           },
         ],
       },
@@ -816,7 +889,7 @@ function ProductosPageContent() {
         ...(deleteTarget ? { activeDialog: "Confirmar eliminación" } : {}),
       },
     };
-  }, [deleteTarget, detailProduct, editingId, filaments, formData, historyProductId, loading, printers, productTypes, products, supplies]);
+  }, [deleteTarget, detailProduct, editingId, filaments, formData, historyProductId, loading, printers, productTypes, products, supplies, supplyAssociations]);
 
   usePublishStampyScreenContext(stampyScreenContext);
 
@@ -887,7 +960,7 @@ function ProductosPageContent() {
   // Filtro de destino del Dashboard ("Costos desactualizados"); misma regla que el aviso "Requiere Recalcular".
   const needsRecalculationOnly = searchParams.get("estado") === WORKSHOP_PRODUCTS_NEEDS_RECALCULATION;
   const recalculationScoped = needsRecalculationOnly
-    ? products.filter((product) => getProductPricingStatus(product, filaments, printers, productTypes, supplies).needsRecalculation)
+    ? products.filter((product) => getProductPricingStatus(product, filaments, printers, productTypes, supplies, supplyAssociations).needsRecalculation)
     : products;
   // Las categorías se combinan con el filtro del Dashboard; los contadores respetan ese mismo alcance.
   const categoryCounts = countProductsByCategory(recalculationScoped);
@@ -1158,6 +1231,39 @@ function ProductosPageContent() {
               </div>
             </div>
 
+            {/* D059: componentes del tipo con ajustes propios del producto, y gastos adicionales con nombre */}
+            <div className="mb-3 space-y-3">
+              {editorSupplyResolution && (
+                <ProductSuppliesAdjuster
+                  productTypeName={productTypes.find((type) => type.id === formData.product_type_id)?.name ?? null}
+                  pricing={priceResolvedSupplyLines(editorSupplyResolution.lines)}
+                  removed={editorSupplyResolution.removed}
+                  supplies={supplies}
+                  adjustments={editorSupplyAdjustments}
+                  onChange={(next) => {
+                    setEditorSupplyAdjustments(next);
+                    setEditorCostInputsDirty(true);
+                    setCalcPreview(null);
+                  }}
+                  scopeLabel="este producto"
+                  contingencyPercent={Number(calculatorSettings?.supplies_contingency_percent) || 0}
+                  onEditType={() => router.push("/configuracion?tab=calculadora")}
+                  onOpenCatalog={() => router.push("/configuracion?tab=calculadora#catalogo-insumos")}
+                  compact
+                />
+              )}
+              <CustomExpensesEditor
+                expenses={editorExpenses}
+                onChange={(next) => {
+                  setEditorExpenses(next);
+                  setEditorCostInputsDirty(true);
+                  setCalcPreview(null);
+                }}
+                scopeLabel="este producto"
+                compact
+              />
+            </div>
+
             <div className="flex items-center gap-3">
               <button
                 type="button"
@@ -1191,6 +1297,11 @@ function ProductosPageContent() {
                     <p className="text-sm font-black text-orange-700">${calcPreview.salePrice.toFixed(2)}</p>
                   </div>
                 </div>
+                {calcPreview.breakdown && (
+                  <div className="mb-3">
+                    <CostBreakdownTable breakdown={calcPreview.breakdown} showPricing compact />
+                  </div>
+                )}
                 <div className="flex justify-end">
                   <button
                     type="button"
@@ -1296,7 +1407,7 @@ function ProductosPageContent() {
         // Columnas según el ancho real disponible (no según el viewport): el sidebar abierto o contraído no rompe las tarjetas.
         <div className={`grid grid-cols-[repeat(auto-fill,minmax(min(100%,17.5rem),1fr))] ${WORKSHOP_GRID_GAP}`}>
           {visibleProducts.map((p) => {
-            const pricingStatus = getProductPricingStatus(p, filaments, printers, productTypes, supplies);
+            const pricingStatus = getProductPricingStatus(p, filaments, printers, productTypes, supplies, supplyAssociations);
             return (
               <ProductCard
                 key={p.id}

@@ -10,6 +10,7 @@
  */
 import type { CalculatorPricingResult } from "./pricing";
 import type { PricedSupplyLine, SupplyLinesPricing } from "./supplies";
+import type { CustomExpense } from "./custom-expenses";
 
 export type CostGroupId = "printing" | "components" | "packaging" | "other";
 
@@ -18,8 +19,15 @@ export interface CostBreakdownItem {
   label: string;
   group: CostGroupId;
   amount: number;
+  /**
+   * Importe para mostrar, en centavos exactos: se reparte el redondeo para que la suma de las filas sea
+   * exactamente el costo real mostrado (D059, «Desglose de costos»).
+   */
+  displayAmount: number;
   /** Detalle opcional ("1,5 m × $300"). */
   detail?: string;
+  /** Aclaraciones de la fila: «Solo este producto», «Cantidad propia», «Archivado», «Sin costo cargado», etc. */
+  notes?: string[];
 }
 
 export interface CostBreakdownGroup {
@@ -38,6 +46,12 @@ export interface CostBreakdownWarning {
 
 export interface CostBreakdown {
   groups: CostBreakdownGroup[];
+  /** Todas las filas del desglose, en orden (impresión, componentes, embalaje, mano de obra y gastos). */
+  items: CostBreakdownItem[];
+  /** Suma exacta de las filas; coincide con `realCost` del motor (ver `matchesEngine`). */
+  itemsTotal: number;
+  /** true si las filas suman exactamente el costo real del motor (tolerancia de medio centavo). */
+  matchesEngine: boolean;
   realCost: number;
   /** Contingencias sobre insumos (concepto separado del costo real). */
   contingencyAmount: number;
@@ -60,15 +74,20 @@ export const COST_GROUP_LABELS: Record<CostGroupId, string> = {
   printing: "Impresión",
   components: "Componentes",
   packaging: "Embalaje",
-  other: "Otros gastos",
+  other: "Mano de obra y otros gastos",
 };
 
 export interface CostBreakdownInput {
   pricing: CalculatorPricingResult;
   /** Mano de obra (no recibe contingencias ni markup). */
   laborCost?: number;
-  /** "Otros costos adicionales" cargados a mano en el cálculo. */
+  /** "Otros costos adicionales" cargados a mano en el cálculo (suma de los gastos personalizados). */
   otherCost?: number;
+  /**
+   * D059: gastos adicionales con nombre. Si se pasan, cada uno es una fila; su suma debe ser `otherCost`
+   * (si no coincide, la diferencia aparece como «Otros costos» para que el desglose cierre con el motor).
+   */
+  customExpenses?: CustomExpense[] | null;
   supplies?: SupplyLinesPricing | null;
   /** Formatea el detalle de una línea de insumo; opcional para que el módulo siga siendo puro. */
   formatSupplyDetail?: (line: PricedSupplyLine) => string;
@@ -81,10 +100,12 @@ export function buildCostBreakdown({
   pricing,
   laborCost = 0,
   otherCost = 0,
+  customExpenses,
   supplies,
   formatSupplyDetail,
 }: CostBreakdownInput): CostBreakdown {
-  const items: CostBreakdownItem[] = [
+  type DraftItem = Omit<CostBreakdownItem, "displayAmount">;
+  const draftItems: DraftItem[] = [
     { key: "filament", label: "Filamento", group: "printing", amount: safe(pricing.filamentCost) },
     { key: "electricity", label: "Electricidad", group: "printing", amount: safe(pricing.electricityCost) },
     { key: "maintenance", label: "Desgaste de impresora", group: "printing", amount: safe(pricing.maintenanceCost) },
@@ -92,22 +113,44 @@ export function buildCostBreakdown({
 
   for (const line of supplies?.lines ?? []) {
     if (!line.valid) continue;
-    items.push({
+    const extra = line as PricedSupplyLine & { origin?: string; adjusted?: boolean; missing?: boolean };
+    const notes: string[] = [];
+    if (extra.origin === "product") notes.push("Solo este producto");
+    if (extra.adjusted) notes.push("Cantidad propia");
+    if (line.archived) notes.push("Archivado");
+    if (extra.missing) notes.push("Ya no está en el catálogo: costo guardado");
+    if (line.unitCost === 0) notes.push("Sin costo cargado");
+    draftItems.push({
       key: `supply:${line.supplyId}`,
       label: line.name,
       group: line.category === "packaging" ? "packaging" : "components",
       amount: line.cost,
       detail: formatSupplyDetail?.(line),
+      ...(notes.length > 0 ? { notes } : {}),
     });
   }
 
+  if (safe(laborCost) > 0) draftItems.push({ key: "labor", label: "Mano de obra", group: "other", amount: safe(laborCost) });
   if (safe(pricing.fixedCost) > 0) {
-    items.push({ key: "type_extras", label: "Insumos extra del tipo", group: "other", amount: safe(pricing.fixedCost) });
+    draftItems.push({ key: "type_extras", label: "Insumos extra del tipo", group: "other", amount: safe(pricing.fixedCost) });
   }
-  if (safe(otherCost) > 0) items.push({ key: "other", label: "Otros costos", group: "other", amount: safe(otherCost) });
-  if (safe(laborCost) > 0) items.push({ key: "labor", label: "Mano de obra", group: "other", amount: safe(laborCost) });
+  if (customExpenses) {
+    const named = customExpenses.filter((expense) => safe(expense.amount) > 0);
+    for (const expense of named) {
+      draftItems.push({ key: `expense:${expense.id}`, label: expense.name, group: "other", amount: safe(expense.amount), notes: ["Gasto adicional"] });
+    }
+    const expensesCents = named.reduce((total, expense) => total + Math.round(safe(expense.amount) * 100), 0);
+    const remainder = (Math.round(safe(otherCost) * 100) - expensesCents) / 100;
+    if (remainder > 0.004) draftItems.push({ key: "other", label: "Otros costos", group: "other", amount: remainder });
+  } else if (safe(otherCost) > 0) {
+    draftItems.push({ key: "other", label: "Otros costos", group: "other", amount: safe(otherCost) });
+  }
 
   const realCost = safe(pricing.realCost);
+  const itemsTotal = draftItems.reduce((total, item) => total + item.amount, 0);
+  const matchesEngine = Math.abs(itemsTotal - realCost) < 0.005;
+  const displayCents = allocateCents(draftItems.map((item) => item.amount), matchesEngine ? realCost : itemsTotal);
+  const items: CostBreakdownItem[] = draftItems.map((item, index) => ({ ...item, displayAmount: displayCents[index] / 100 }));
   const groups: CostBreakdownGroup[] = (Object.keys(COST_GROUP_LABELS) as CostGroupId[]).map((id) => {
     const groupItems = items.filter((item) => item.group === id && item.amount > 0);
     const amount = groupItems.reduce((total, item) => total + item.amount, 0);
@@ -156,6 +199,9 @@ export function buildCostBreakdown({
 
   return {
     groups,
+    items,
+    itemsTotal,
+    matchesEngine,
     realCost,
     contingencyAmount: safe(pricing.suppliesContingencyAmount),
     contingencyPercent: safe(pricing.suppliesContingencyPercent),
@@ -169,4 +215,23 @@ export function buildCostBreakdown({
     isProvisional: Boolean(supplies && (supplies.zeroCostCount || supplies.invalidCount)),
     warnings,
   };
+}
+
+/**
+ * Reparte el redondeo al centavo (método del mayor resto) para que la suma de las filas mostradas sea
+ * exactamente el total mostrado. Devuelve centavos enteros por fila.
+ */
+export function allocateCents(amounts: number[], total: number): number[] {
+  const targetCents = Math.round(safe(total) * 100);
+  const exact = amounts.map((amount) => safe(amount) * 100);
+  const floors = exact.map((value) => Math.floor(value + 1e-7));
+  let missing = targetCents - floors.reduce((sum, value) => sum + value, 0);
+  const order = exact
+    .map((value, index) => ({ index, remainder: value - floors[index] }))
+    .sort((a, b) => b.remainder - a.remainder || a.index - b.index);
+  const result = [...floors];
+  for (let step = 0; missing > 0 && order.length > 0; step += 1, missing -= 1) {
+    result[order[step % order.length].index] += 1;
+  }
+  return result;
 }

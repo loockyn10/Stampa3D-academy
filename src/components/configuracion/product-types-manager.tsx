@@ -10,6 +10,7 @@ import { useAppFeedback } from "@/components/ui/app-feedback";
 import { ProductTypeSuppliesEditor } from "@/components/calculadora/product-type-supplies-editor";
 import { loadCalculatorSupplies, type CalculatorSuppliesData } from "@/lib/calculator/supplies-data";
 import { buildProductTypeSupplyLines, formatSupplyMoney, priceSupplyLines } from "@/lib/calculator/supplies";
+import { notifyCalculatorSuppliesChanged, subscribeCalculatorSuppliesChanged } from "@/lib/calculator/supplies-events";
 
 interface ProductTypesManagerProps {
   /** Se llama después de cada cambio guardado (alta, edición, activar/desactivar o baja). */
@@ -19,7 +20,7 @@ interface ProductTypesManagerProps {
 }
 
 export function ProductTypesManager({ onChanged, onOpenSupplies }: ProductTypesManagerProps = {}) {
-  const supabase = createClient();
+  const [supabase] = useState(() => createClient());
   const { confirmAction } = useAppFeedback();
   const [types, setTypes] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
@@ -38,9 +39,29 @@ export function ProductTypesManager({ onChanged, onOpenSupplies }: ProductTypesM
     is_active: true,
   });
 
+  // D059: identidad de este panel para sincronizar con el catálogo de insumos sin recargar la página.
+  const [syncSource] = useState(() => `product-types-${Math.random().toString(36).slice(2)}`);
+
   useEffect(() => {
     fetchTypes();
   }, []);
+
+  // Otro panel creó, editó, archivó o eliminó un insumo: se recargan catálogo y componentes (los tipos no cambian).
+  useEffect(() => {
+    let cancelled = false;
+    const unsubscribe = subscribeCalculatorSuppliesChanged(() => {
+      void (async () => {
+        const { data: { user } } = await supabase.auth.getUser();
+        if (!user || cancelled) return;
+        const next = await loadCalculatorSupplies(supabase, user.id);
+        if (!cancelled) setSuppliesData(next);
+      })();
+    }, syncSource);
+    return () => {
+      cancelled = true;
+      unsubscribe();
+    };
+  }, [supabase, syncSource]);
 
   const fetchTypes = async () => {
     setLoading(true);
@@ -112,6 +133,7 @@ export function ProductTypesManager({ onChanged, onOpenSupplies }: ProductTypesM
 
   const updateAssociations = (next: CalculatorSuppliesData["associations"]) => {
     setSuppliesData((current) => ({ ...current, associations: next }));
+    notifyCalculatorSuppliesChanged(syncSource);
     onChanged?.();
   };
 
@@ -162,6 +184,9 @@ export function ProductTypesManager({ onChanged, onOpenSupplies }: ProductTypesM
       }
     } else {
       setTypes(types.filter(t => t.id !== typeId));
+      // Borrar un tipo borra sus componentes (cascade): avisar a quien muestre el uso de los insumos.
+      setSuppliesData((current) => ({ ...current, associations: current.associations.filter((item) => item.product_type_id !== typeId) }));
+      notifyCalculatorSuppliesChanged(syncSource);
       onChanged?.();
     }
   };

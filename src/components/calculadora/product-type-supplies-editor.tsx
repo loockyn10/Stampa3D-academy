@@ -260,10 +260,22 @@ export function ProductTypeSuppliesEditor({
           )}
         </div>
       ) : addable.length === 0 ? (
-        <p className="text-[11px] text-gray-500">Ya agregaste todos tus insumos activos a este tipo.</p>
+        <p className="text-[11px] text-gray-500">
+          Ya agregaste todos tus insumos activos a este tipo.
+          {onOpenCatalog && (
+            <button type="button" onClick={onOpenCatalog} className="ml-1 font-semibold text-stampa-accent hover:underline">Ir a Insumos →</button>
+          )}
+        </p>
       ) : (
         <div className="space-y-2 rounded-lg border border-dashed border-fg/15 p-2.5">
-          <span className="block text-xs font-semibold text-gray-400">Agregar insumo</span>
+          <div className="flex items-center justify-between gap-2">
+            <span className="block text-xs font-semibold text-gray-400">Agregar insumo</span>
+            {onOpenCatalog && (
+              <button type="button" onClick={onOpenCatalog} className="text-[11px] font-semibold text-stampa-accent hover:underline">
+                ¿Falta uno? Ir a Insumos →
+              </button>
+            )}
+          </div>
           <CalculatorSelect
             options={addable.map((supply) => ({
               value: supply.id,

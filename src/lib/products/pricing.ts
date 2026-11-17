@@ -3,10 +3,27 @@ import {
   calculateCalculatorPricing,
 } from "@/lib/calculator/pricing";
 import {
+  describeSupplyLine,
   repriceSupplySnapshot,
   toSupplySnapshot,
   type CalculatorSupplyRecord,
+  type ProductTypeSupplyRecord,
+  type SupplyLinesPricing,
 } from "@/lib/calculator/supplies";
+import {
+  priceResolvedSupplyLines,
+  resolveProductSupplyLines,
+  toSupplyAdjustmentsSnapshot,
+  type RemovedDefaultSupply,
+  type SupplyAdjustment,
+} from "@/lib/calculator/product-supplies";
+import {
+  normalizeCustomExpenses,
+  readSnapshotCustomExpenses,
+  sumCustomExpenses,
+  type CustomExpense,
+} from "@/lib/calculator/custom-expenses";
+import { buildCostBreakdown, type CostBreakdown } from "@/lib/calculator/cost-breakdown";
 
 type NumberValue = number | string | null | undefined;
 
@@ -65,6 +82,16 @@ export interface ProductPriceCalculationInput {
    * (`snapshot.supplies`), se recostean con estos precios; sin catálogo se conservan los del snapshot.
    */
   currentSupplies?: CalculatorSupplyRecord[] | null;
+  /**
+   * D059: componentes predeterminados de TODOS los tipos del usuario (`calculator_product_type_supplies`).
+   * Si se pasa (catálogo disponible), el producto usa los componentes ACTUALES de su tipo + sus ajustes propios;
+   * si es null/undefined (migración sin aplicar o catálogo no cargado) se recostean las líneas del snapshot (D057).
+   */
+  currentAssociations?: ProductTypeSupplyRecord[] | null;
+  /** Ajustes del producto (override / removed / extra). Por defecto, los guardados en `oldSnapshot.supply_adjustments`. */
+  supplyAdjustments?: SupplyAdjustment[] | null;
+  /** Gastos adicionales con nombre. Por defecto, los del snapshot (o su antiguo `other_costs` como un único gasto). */
+  customExpenses?: CustomExpense[] | null;
 }
 
 function toNumber(value: unknown, fallback = 0): number {
@@ -85,6 +112,9 @@ export function calculateProductPrice({
   calculatorSettings,
   oldSnapshot,
   currentSupplies,
+  currentAssociations,
+  supplyAdjustments,
+  customExpenses,
 }: ProductPriceCalculationInput) {
   const errorPercent = toNumber(calculatorSettings?.default_error_percent);
   const wasteRate = Math.max(0, errorPercent / 100);
@@ -172,10 +202,28 @@ export function calculateProductPrice({
   const maintenanceCost = totalHours * maintenanceCostPerHour;
   const fixedCost = toNumber(productType?.fixed_cost, snapshotNumber(oldSnapshot, "fixed_cost"));
   const laborCost = snapshotNumber(oldSnapshot, "labor_cost");
-  const otherCost = snapshotNumber(oldSnapshot, "other_costs");
+  // D059: gastos adicionales con nombre; su suma es el «otros costos» del motor (sin contingencias ni markup).
+  const expenses = customExpenses ? normalizeCustomExpenses(customExpenses) : readSnapshotCustomExpenses(oldSnapshot);
+  const otherCost = sumCustomExpenses(expenses);
   const multiplier = toNumber(productType?.multiplier, snapshotNumber(oldSnapshot, "multiplier")) || 1;
-  // Componentes/embalaje guardados desde la Calculadora: nunca se pierden al recalcular.
-  const supplyPricing = repriceSupplySnapshot(oldSnapshot?.supplies, currentSupplies);
+
+  // Componentes y embalaje. Con el catálogo disponible: los del tipo ACTUAL del producto + sus ajustes propios,
+  // costeados con el catálogo de hoy (cambiar el tipo o sus componentes se refleja al recalcular). Sin catálogo:
+  // se recostean las líneas guardadas (nunca se pierde un costo).
+  const useTypeComponents = Array.isArray(currentAssociations) && Array.isArray(currentSupplies);
+  const adjustmentsInput = supplyAdjustments ?? oldSnapshot?.supply_adjustments;
+  const resolution = useTypeComponents
+    ? resolveProductSupplyLines({
+        productTypeId: productType?.id ?? null,
+        associations: currentAssociations!,
+        supplies: currentSupplies!,
+        adjustments: adjustmentsInput,
+        snapshotSupplies: oldSnapshot?.supplies,
+      })
+    : null;
+  const supplyPricing: SupplyLinesPricing = resolution
+    ? priceResolvedSupplyLines(resolution.lines)
+    : repriceSupplySnapshot(oldSnapshot?.supplies, currentSupplies);
   const hasSupplies = supplyPricing.lines.length > 0;
 
   const pricing = calculateCalculatorPricing({
@@ -191,8 +239,19 @@ export function calculateProductPrice({
     suppliesContingencyPercent: toNumber(calculatorSettings?.supplies_contingency_percent),
   });
 
+  const breakdown = buildCostBreakdown({
+    pricing,
+    laborCost,
+    otherCost,
+    customExpenses: expenses,
+    supplies: hasSupplies ? supplyPricing : null,
+    formatSupplyDetail: describeSupplyLine,
+  });
+
+  const { supplies: _previousSupplies, ...snapshotBase } = oldSnapshot ?? {};
+  void _previousSupplies;
   const snapshot: ProductCalculationSnapshot = {
-    ...(oldSnapshot ?? {}),
+    ...snapshotBase,
     source: "product_editor",
     mode,
     components: processedComponents,
@@ -212,6 +271,7 @@ export function calculateProductPrice({
     fixed_cost_adjusted: pricing.fixedCostAdjusted,
     labor_cost: laborCost,
     other_costs: otherCost,
+    custom_expenses: expenses,
     other_costs_overhead_rate: pricing.otherCostsOverheadRate,
     other_costs_overhead_amount: pricing.otherCostsOverheadAmount,
     other_costs_adjusted: pricing.otherCostsAdjusted,
@@ -221,7 +281,11 @@ export function calculateProductPrice({
     supplies_cost: pricing.suppliesCost,
     supplies_contingency_percent: pricing.suppliesContingencyPercent,
     supplies_contingency_amount: pricing.suppliesContingencyAmount,
+    // Congelado al calcular (costos de hoy). Sin componentes, no se arrastran los de un tipo anterior.
     ...(hasSupplies ? { supplies: toSupplySnapshot(supplyPricing) } : {}),
+    ...(resolution
+      ? { supply_adjustments: toSupplyAdjustmentsSnapshot(resolution.adjustments) }
+      : oldSnapshot?.supply_adjustments !== undefined ? { supply_adjustments: oldSnapshot.supply_adjustments } : {}),
     multiplier,
     sale_price: pricing.salePrice,
     profit: pricing.profit,
@@ -254,8 +318,21 @@ export function calculateProductPrice({
     maintenanceCost,
     fixedCost,
     baseCost: pricing.baseCost,
+    realCost: pricing.realCost,
     salePrice: pricing.salePrice,
     profit: pricing.profit,
+    marginPercent: pricing.marginPercent,
+    laborCost,
+    otherCost,
+    customExpenses: expenses,
+    suppliesCost: pricing.suppliesCost,
+    suppliesContingencyPercent: pricing.suppliesContingencyPercent,
+    suppliesContingencyAmount: pricing.suppliesContingencyAmount,
+    supplyPricing,
+    /** Predeterminados del tipo quitados para este producto (null si se usaron las líneas del snapshot). */
+    removedSupplies: (resolution?.removed ?? null) as RemovedDefaultSupply[] | null,
+    usesTypeComponents: Boolean(resolution),
+    breakdown: breakdown as CostBreakdown,
     snapshot,
     multiplier,
   };

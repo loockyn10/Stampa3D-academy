@@ -14,7 +14,7 @@ export async function loadWorkshopSummary(supabase: SupabaseClient, userId: stri
     supabase.from("filaments").select("*, filament_templates(brand)").eq("user_id", userId),
     supabase.from("printers").select("*").eq("user_id", userId).eq("is_active", true),
     supabase.from("calculator_product_types").select("*").eq("user_id", userId).eq("is_active", true),
-    loadCalculatorSupplies(supabase, userId, { includeAssociations: false }),
+    loadCalculatorSupplies(supabase, userId),
   ]);
   if (productsRes.error || filamentsRes.error || printersRes.error) return null;
   return buildWorkshopSummary({
@@ -24,5 +24,7 @@ export async function loadWorkshopSummary(supabase: SupabaseClient, userId: stri
     printers: printersRes.data ?? [],
     productTypes: typesRes.error ? [] : typesRes.data ?? [],
     supplies: suppliesData.supplies,
+    // D059: con los componentes de los tipos se detectan productos con componentes desactualizados.
+    associations: suppliesData.available ? suppliesData.associations : null,
   });
 }

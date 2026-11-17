@@ -86,7 +86,7 @@ async function loadOperationalProduct(
       .select("id, name, multiplier, fixed_cost, is_active")
       .eq("user_id", userId)
       .eq("is_active", true),
-    loadCalculatorSupplies(supabase, userId, { includeAssociations: false }),
+    loadCalculatorSupplies(supabase, userId),
   ]);
   if (componentsResult.error || filamentsResult.error || printersResult.error || productTypesResult.error) {
     return { data: null, errorCode: "product_dependencies_query_failed" };
@@ -149,6 +149,7 @@ async function loadOperationalProduct(
     printersResult.data ?? [],
     productTypesResult.data ?? [],
     suppliesData.supplies,
+    suppliesData.available ? suppliesData.associations : null,
   );
 
   return {

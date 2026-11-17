@@ -38,10 +38,28 @@ import { CALCULATOR_GUEST_DRAFT_KEY, parseCalculatorGuestDraft, type CalculatorG
 import { CalculatorPersonalizationModal, CalculatorSignupModal } from "@/components/calculadora/calculator-access-modals";
 import { parseCalculatorPrefillName } from "@/lib/model-search/calculator-link";
 import { ModalPortal } from "@/components/ui/modal-portal";
-import { buildProductTypeSupplyLines, describeSupplyLine, priceSupplyLines, toSupplySnapshot } from "@/lib/calculator/supplies";
+import { describeSupplyLine, toSupplySnapshot } from "@/lib/calculator/supplies";
 import { loadCalculatorSupplies, type CalculatorSuppliesData } from "@/lib/calculator/supplies-data";
 import { buildCostBreakdown } from "@/lib/calculator/cost-breakdown";
-import { CostProfitabilityCard, ProductSuppliesCard, ProductSuppliesEmptyHint } from "@/components/calculadora/cost-breakdown-cards";
+import { CostProfitabilityCard } from "@/components/calculadora/cost-breakdown-cards";
+import { CostBreakdownTable } from "@/components/calculadora/cost-breakdown-table";
+import { ProductSuppliesAdjuster } from "@/components/calculadora/product-supplies-adjuster";
+import { CustomExpensesEditor } from "@/components/calculadora/custom-expenses-editor";
+import {
+  priceResolvedSupplyLines,
+  resolveProductSupplyLines,
+  toSupplyAdjustmentsSnapshot,
+  type SupplyAdjustment,
+} from "@/lib/calculator/product-supplies";
+import {
+  LEGACY_OTHER_COSTS_ID,
+  LEGACY_OTHER_COSTS_NAME,
+  expensesFromDrafts,
+  normalizeCustomExpenses,
+  sumCustomExpenses,
+  type CustomExpenseDraft,
+} from "@/lib/calculator/custom-expenses";
+import { subscribeCalculatorSuppliesChanged } from "@/lib/calculator/supplies-events";
 
 const PrinterCatalogModal = dynamic(() => import("@/components/calculadora/printer-catalog-modal").then((module) => module.PrinterCatalogModal));
 const FilamentCatalogModal = dynamic(() => import("@/components/calculadora/filament-catalog-modal").then((module) => module.FilamentCatalogModal));
@@ -172,7 +190,10 @@ function CalculadoraPageContent() {
   const [manualPrinterConsumption, setManualPrinterConsumption] = useState<string>("");
   const [manualPrinterMaintenance, setManualPrinterMaintenance] = useState<string>("");
   const [laborCost, setLaborCost] = useState<string>("");
-  const [otherCost, setOtherCost] = useState<string>("");
+  // D059: gastos adicionales con nombre (reemplazan al monto genérico «Otros costos adicionales»).
+  const [customExpenses, setCustomExpenses] = useState<CustomExpenseDraft[]>([]);
+  // D059: componentes específicos de ESTE cálculo (cantidades propias, quitas y agregados); no tocan el tipo.
+  const [supplyAdjustments, setSupplyAdjustments] = useState<SupplyAdjustment[]>([]);
   const [fixedCost, setFixedCost] = useState<string>("");
 
   const [manualMultiplier, setManualMultiplier] = useState<string>("");
@@ -336,7 +357,15 @@ function CalculadoraPageContent() {
     setHours(draft.hours); setMinutes(draft.minutes); setManualPricePerKg(draft.manualPricePerKg);
     setManualErrorPercent(draft.manualErrorPercent); setManualKwhPrice(draft.manualKwhPrice);
     setManualPrinterConsumption(draft.manualPrinterConsumption); setManualPrinterMaintenance(draft.manualPrinterMaintenance);
-    setLaborCost(draft.laborCost); setOtherCost(draft.otherCost); setFixedCost(draft.fixedCost);
+    setLaborCost(draft.laborCost); setFixedCost(draft.fixedCost);
+    // Borradores anteriores a D059 solo tenían el monto genérico: se conserva como un gasto «Otros costos».
+    const draftExpenses = normalizeCustomExpenses(draft.customExpenses);
+    const legacyOther = Number(draft.otherCost) || 0;
+    setCustomExpenses(
+      draftExpenses.length > 0
+        ? draftExpenses.map((expense) => ({ id: expense.id, name: expense.name, amount: String(expense.amount) }))
+        : legacyOther > 0 ? [{ id: LEGACY_OTHER_COSTS_ID, name: LEGACY_OTHER_COSTS_NAME, amount: String(legacyOther) }] : [],
+    );
     setManualMultiplier(draft.manualMultiplier); setManualPlatformCommission(draft.manualPlatformCommission);
     setManualPlatformExtra(draft.manualPlatformExtra); setShippingCost(draft.shippingCost);
   }
@@ -356,7 +385,8 @@ function CalculadoraPageContent() {
       manualPrinterConsumption,
       manualPrinterMaintenance,
       laborCost,
-      otherCost,
+      otherCost: String(sumCustomExpenses(expensesFromDrafts(customExpenses)) || ""),
+      customExpenses: expensesFromDrafts(customExpenses),
       fixedCost,
       manualMultiplier,
       manualPlatformCommission,
@@ -364,7 +394,7 @@ function CalculadoraPageContent() {
       shippingCost,
     };
     window.sessionStorage.setItem(CALCULATOR_GUEST_DRAFT_KEY, JSON.stringify(draft));
-  }, [accessMode, advanced, filamentLines, fixedCost, hours, laborCost, loading, manualErrorPercent, manualKwhPrice, manualMultiplier, manualPlatformCommission, manualPlatformExtra, manualPricePerKg, manualPrinterConsumption, manualPrinterMaintenance, minutes, otherCost, shippingCost]);
+  }, [accessMode, advanced, customExpenses, filamentLines, fixedCost, hours, laborCost, loading, manualErrorPercent, manualKwhPrice, manualMultiplier, manualPlatformCommission, manualPlatformExtra, manualPricePerKg, manualPrinterConsumption, manualPrinterMaintenance, minutes, shippingCost]);
 
   const openCalculatorCustomization = () => {
     if (accessMode === "anonymous") setShowSignupModal(true);
@@ -592,6 +622,21 @@ function CalculadoraPageContent() {
     setSuppliesData(await loadCalculatorSupplies(supabase, userId));
   };
 
+  // D059: cualquier panel (modal de Ajustes, /configuracion en otra vista) que cambie insumos avisa y se recarga.
+  useEffect(() => {
+    if (!userId || accessMode !== "paid") return;
+    let cancelled = false;
+    const unsubscribe = subscribeCalculatorSuppliesChanged(() => {
+      void loadCalculatorSupplies(supabase, userId).then((next) => {
+        if (!cancelled) setSuppliesData(next);
+      });
+    });
+    return () => {
+      cancelled = true;
+      unsubscribe();
+    };
+  }, [accessMode, supabase, userId]);
+
   const handleProductTypesChanged = async () => {
     if (!userId) return;
     void reloadSupplies();
@@ -613,12 +658,22 @@ function CalculadoraPageContent() {
 
   const selectedProductType = multipliers.find((type) => type.id === selectedMultiplierId) ?? null;
 
-  // Componentes y embalaje del tipo elegido, con el costo ACTUAL del catálogo (actualización centralizada).
-  const supplyPricing = useMemo(() => {
+  // Componentes y embalaje: predeterminados del tipo elegido + ajustes propios de este cálculo (D059), con el
+  // costo ACTUAL del catálogo (actualización centralizada). Free y Anónimo no usan el catálogo.
+  const supplyResolution = useMemo(() => {
     if (accessMode !== "paid" || !suppliesData.available) return null;
-    const lines = buildProductTypeSupplyLines(selectedMultiplierId, suppliesData.associations, suppliesData.supplies);
-    return lines.length > 0 ? priceSupplyLines(lines) : null;
-  }, [accessMode, selectedMultiplierId, suppliesData]);
+    return resolveProductSupplyLines({
+      productTypeId: selectedMultiplierId,
+      associations: suppliesData.associations,
+      supplies: suppliesData.supplies,
+      adjustments: supplyAdjustments,
+    });
+  }, [accessMode, selectedMultiplierId, suppliesData, supplyAdjustments]);
+  const supplyPricing = useMemo(
+    () => (supplyResolution && supplyResolution.lines.length > 0 ? priceResolvedSupplyLines(supplyResolution.lines) : null),
+    [supplyResolution],
+  );
+  const validCustomExpenses = useMemo(() => expensesFromDrafts(customExpenses), [customExpenses]);
 
   const calc = useMemo(() => {
     const numManualErrorPercent = Number(manualErrorPercent) || 0;
@@ -631,7 +686,8 @@ function CalculadoraPageContent() {
     const numManualKwhPrice = Number(manualKwhPrice) || 0;
     const numManualPrinterMaintenance = Number(manualPrinterMaintenance) || 0;
     const numLaborCost = Number(laborCost) || 0;
-    const numOtherCost = Number(otherCost) || 0;
+    // D059: «otros costos» del motor = suma exacta de los gastos adicionales con nombre.
+    const numOtherCost = sumCustomExpenses(validCustomExpenses);
     const numFixedCost = Number(fixedCost) || 0;
     const numManualMultiplier = Number(manualMultiplier) || 0;
     const numManualPlatformExtra = Number(manualPlatformExtra) || 0;
@@ -686,6 +742,7 @@ function CalculadoraPageContent() {
       pricing,
       laborCost: numLaborCost,
       otherCost: numOtherCost,
+      customExpenses: validCustomExpenses,
       supplies: supplyPricing,
       formatSupplyDetail: describeSupplyLine,
     });
@@ -742,7 +799,7 @@ function CalculadoraPageContent() {
   }, [
     filamentLines, filaments, manualErrorPercent, manualPricePerKg,
     hours, minutes, manualPrinterConsumption, manualKwhPrice, manualPrinterMaintenance,
-    laborCost, otherCost, fixedCost, manualMultiplier, manualPlatformExtra, manualPlatformCommission, shippingCost,
+    laborCost, validCustomExpenses, fixedCost, manualMultiplier, manualPlatformExtra, manualPlatformCommission, shippingCost,
     supplyPricing, settings, accessMode,
   ]);
 
@@ -838,6 +895,9 @@ function CalculadoraPageContent() {
       fixed_cost_adjusted: calc.fixedCostAdjusted,
       labor_cost: calc.numLaborCost,
       other_costs: calc.numOtherCost,
+      // D059: los gastos con nombre (su suma es other_costs) y los ajustes de componentes propios del producto.
+      custom_expenses: validCustomExpenses,
+      ...(supplyResolution ? { supply_adjustments: toSupplyAdjustmentsSnapshot(supplyResolution.adjustments) } : {}),
       base_cost: calc.baseCost,
       multiplier: calc.numManualMultiplier,
       sale_price: calc.normalPrice,
@@ -1055,7 +1115,7 @@ function CalculadoraPageContent() {
         maintenanceCostPerHour: Number(manualPrinterMaintenance || 0),
         wastePercent: Number(manualErrorPercent || 0),
         laborCost: Number(laborCost || 0),
-        otherCost: Number(otherCost || 0),
+        otherCost: calc.numOtherCost,
         fixedCost: Number(fixedCost || 0),
         multiplier: Number(manualMultiplier || 0),
         result: {
@@ -1082,7 +1142,7 @@ function CalculadoraPageContent() {
         ...(activeDialog ? { activeDialog } : {}),
       },
     };
-  }, [advanced, calc, filamentLines, filaments, fixedCost, hours, laborCost, loading, manualErrorPercent, manualKwhPrice, manualMultiplier, manualPrinterConsumption, manualPrinterMaintenance, minutes, multipliers, otherCost, printers, selectedMultiplierId, selectedPrinterId, showCatalogModal, showFilamentCatalogModal, showSaveModal]);
+  }, [advanced, calc, filamentLines, filaments, fixedCost, hours, laborCost, loading, manualErrorPercent, manualKwhPrice, manualMultiplier, manualPrinterConsumption, manualPrinterMaintenance, minutes, multipliers, printers, selectedMultiplierId, selectedPrinterId, showCatalogModal, showFilamentCatalogModal, showSaveModal]);
 
   usePublishStampyScreenContext(stampyScreenContext);
 
@@ -1418,17 +1478,20 @@ function CalculadoraPageContent() {
           </div>
         </Card>
 
-        {/* Componentes y embalaje del tipo de producto (catálogo personal de insumos) */}
-        {isPaid && selectedProductType && supplyPricing && (
-          <ProductSuppliesCard
+        {/* Componentes y embalaje: predeterminados del tipo + ajustes solo para este cálculo (D059) */}
+        {isPaid && selectedProductType && supplyResolution && (supplyResolution.lines.length > 0 || supplyResolution.removed.length > 0 || advanced) && (
+          <ProductSuppliesAdjuster
             productTypeName={selectedProductType.name}
-            pricing={supplyPricing}
+            pricing={supplyPricing ?? priceResolvedSupplyLines([])}
+            removed={supplyResolution.removed}
+            supplies={suppliesData.supplies}
+            adjustments={supplyAdjustments}
+            onChange={setSupplyAdjustments}
+            scopeLabel="este cálculo"
             contingencyPercent={calc.suppliesContingencyPercent}
-            onEdit={() => setSettingsModalTab("types")}
+            onEditType={() => setSettingsModalTab("types")}
+            onOpenCatalog={() => setSettingsModalTab("supplies")}
           />
-        )}
-        {isPaid && advanced && suppliesData.available && selectedProductType && !supplyPricing && (
-          <ProductSuppliesEmptyHint productTypeName={selectedProductType.name} onConfigure={() => setSettingsModalTab("types")} />
         )}
 
         {/* Bloque Avanzado */}
@@ -1464,10 +1527,14 @@ function CalculadoraPageContent() {
                 <div className="space-y-3">
                   <NumberField label="Mantenimiento de máquina por hora" value={manualPrinterMaintenance} onChange={setManualPrinterMaintenance} suffix="$" />
                   <NumberField label="Costo de mano de obra (total)" value={laborCost} onChange={setLaborCost} suffix="$" />
-                  <NumberField label="Otros costos adicionales" value={otherCost} onChange={setOtherCost} suffix="$" />
                   <NumberField label="Markup manual sobre filamento (sobreescribe)" value={manualMultiplier} onChange={setManualMultiplier} suffix="x" step={0.1} max={1_000} />
                 </div>
               </div>
+            </div>
+
+            {/* Gastos adicionales con nombre (D059) */}
+            <div className="mt-6">
+              <CustomExpensesEditor expenses={customExpenses} onChange={setCustomExpenses} scopeLabel="este cálculo" compact />
             </div>
 
             {/* Grupo 3 */}
@@ -1482,6 +1549,11 @@ function CalculadoraPageContent() {
               </div>
             </div>
           </Card>
+        )}
+
+        {/* Desglose de costos por concepto (D059): mismo resultado del motor, fila por fila */}
+        {hasValidCalc && (advanced || supplyPricing || validCustomExpenses.length > 0) && (
+          <CostBreakdownTable breakdown={calc.breakdown} />
         )}
 
       </div>
@@ -1570,7 +1642,7 @@ function CalculadoraPageContent() {
           </div>
         </Card>
 
-        {hasValidCalc && (advanced || supplyPricing) && <CostProfitabilityCard breakdown={calc.breakdown} />}
+        {hasValidCalc && (advanced || supplyPricing || validCustomExpenses.length > 0) && <CostProfitabilityCard breakdown={calc.breakdown} />}
 
         {/* Acciones */}
         <div className="space-y-3">

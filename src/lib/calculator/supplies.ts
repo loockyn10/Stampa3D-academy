@@ -368,6 +368,8 @@ export interface SupplySnapshotLine {
   custom_unit_label: string | null;
   unit_cost: number;
   cost: number;
+  /** D059: "type" (predeterminado del tipo) o "product" (agregado solo a este producto). Ausente en snapshots D057. */
+  origin?: "type" | "product";
 }
 
 export interface SupplySnapshot {
@@ -376,6 +378,16 @@ export interface SupplySnapshot {
   components_cost: number;
   packaging_cost: number;
   total_cost: number;
+}
+
+function isSupplyLineOrigin(value: unknown): value is "type" | "product" {
+  return value === "type" || value === "product";
+}
+
+/** Origen de una línea resuelta (D059), si lo tiene; las líneas D057 no lo llevan. */
+function originOf(line: PricedSupplyLine): { origin?: "type" | "product" } {
+  const origin: unknown = (line as PricedSupplyLine & { origin?: unknown }).origin;
+  return isSupplyLineOrigin(origin) ? { origin } : {};
 }
 
 /** Copia congelada de las líneas usadas en un cálculo guardado (costos al momento de guardar). */
@@ -392,6 +404,7 @@ export function toSupplySnapshot(pricing: SupplyLinesPricing): SupplySnapshot {
       custom_unit_label: line.customUnitLabel ?? null,
       unit_cost: line.unitCost,
       cost: line.cost,
+      ...originOf(line),
     })),
     components_cost: pricing.componentsCost,
     packaging_cost: pricing.packagingCost,

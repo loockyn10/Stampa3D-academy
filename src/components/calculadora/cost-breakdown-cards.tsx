@@ -1,9 +1,8 @@
 "use client";
 
 import React from "react";
-import { AlertTriangle, Boxes, PieChart, Settings2 } from "lucide-react";
+import { AlertTriangle, PieChart } from "lucide-react";
 import type { CostBreakdown, CostGroupId } from "@/lib/calculator/cost-breakdown";
-import { describeSupplyLine, type SupplyLinesPricing } from "@/lib/calculator/supplies";
 
 const money = (value: number) => `$${(Number.isFinite(value) ? value : 0).toFixed(2)}`;
 const percent = (value: number) => `${(Number.isFinite(value) ? value : 0).toLocaleString("es-AR", { maximumFractionDigits: 1 })} %`;
@@ -16,104 +15,6 @@ const SEGMENT_STYLES: Record<CostGroupId | "reserve" | "profit", { bar: string; 
   reserve: { bar: "bg-gray-500", dot: "bg-gray-500", label: "Contingencias" },
   profit: { bar: "bg-emerald-500", dot: "bg-emerald-500", label: "Ganancia" },
 };
-
-/**
- * Componentes y embalaje del tipo de producto elegido, con su costo actual del catálogo.
- * Solo presentación: el costo ya entró al motor (`suppliesCost`).
- */
-export function ProductSuppliesCard({
-  productTypeName,
-  pricing,
-  contingencyPercent = 0,
-  onEdit,
-}: {
-  productTypeName: string;
-  pricing: SupplyLinesPricing;
-  /** Contingencias configuradas (0–100). Solo para explicar el cálculo. */
-  contingencyPercent?: number;
-  onEdit: () => void;
-}) {
-  return (
-    <section className="rounded-2xl border border-stampa-border bg-stampa-surface p-4 shadow-lg sm:p-6" aria-labelledby="calc-supplies-title">
-      <div className="mb-4 flex items-start justify-between gap-3">
-        <div className="min-w-0">
-          <h2 id="calc-supplies-title" className="flex items-center gap-2 text-lg font-bold text-fg">
-            <Boxes size={18} className="text-stampa-accent" aria-hidden="true" /> Componentes y embalaje
-          </h2>
-          <p className="mt-1 text-sm text-gray-400">
-            De «{productTypeName}». Costos de tu catálogo de insumos: si cambiás un precio, se actualiza solo.
-          </p>
-        </div>
-        <button
-          type="button"
-          onClick={onEdit}
-          className="inline-flex min-h-10 shrink-0 items-center gap-1.5 rounded-xl border border-stampa-border bg-fg/5 px-3 text-xs font-semibold text-fg transition-colors hover:bg-fg/10 focus:outline-none focus-visible:ring-2 focus-visible:ring-stampa-orange"
-        >
-          <Settings2 size={15} aria-hidden="true" /> <span className="hidden min-[400px]:inline">Editar</span>
-        </button>
-      </div>
-
-      <ul className="divide-y divide-stampa-border rounded-xl border border-stampa-border">
-        {pricing.lines.map((line) => (
-          <li key={line.supplyId} className="flex items-start justify-between gap-3 px-3 py-2.5">
-            <div className="min-w-0">
-              <p className="break-words text-sm font-medium text-fg">
-                {line.name}
-                {line.archived && <span className="ml-2 rounded bg-fg/10 px-1.5 py-0.5 text-[10px] font-semibold uppercase text-gray-400">Archivado</span>}
-              </p>
-              <p className="text-[11px] text-gray-500">
-                {line.category === "packaging" ? "Embalaje" : "Componente"} · {describeSupplyLine(line)}
-              </p>
-            </div>
-            <p className={`shrink-0 text-sm font-semibold ${line.valid && line.unitCost === 0 ? "text-amber-400" : "text-gray-200"}`}>
-              {!line.valid ? "Inválido" : line.unitCost === 0 ? "Sin costo" : money(line.cost)}
-            </p>
-          </li>
-        ))}
-      </ul>
-
-      <dl className="mt-3 grid grid-cols-3 gap-2 text-center">
-        <div className="rounded-xl bg-fg/[0.04] p-2">
-          <dt className="text-[10px] uppercase tracking-wider text-gray-500">Componentes</dt>
-          <dd className="text-sm font-bold text-fg">{money(pricing.componentsCost)}</dd>
-        </div>
-        <div className="rounded-xl bg-fg/[0.04] p-2">
-          <dt className="text-[10px] uppercase tracking-wider text-gray-500">Embalaje</dt>
-          <dd className="text-sm font-bold text-fg">{money(pricing.packagingCost)}</dd>
-        </div>
-        <div className="rounded-xl bg-stampa-orange/10 p-2">
-          <dt className="text-[10px] uppercase tracking-wider text-gray-500">Total</dt>
-          <dd className="text-sm font-bold text-stampa-accent">{money(pricing.total)}</dd>
-        </div>
-      </dl>
-      <p className="mt-2 text-[11px] leading-relaxed text-gray-500">
-        Se suman a su costo real, sin markup.{" "}
-        {contingencyPercent > 0
-          ? `Tus contingencias del ${percent(contingencyPercent)} se suman aparte, sobre los insumos.`
-          : "Si querés cubrir roturas o faltantes, configurá un % de contingencias en Ajustes (hoy 0 %)."}
-      </p>
-    </section>
-  );
-}
-
-/** Invitación discreta (solo Modo Avanzado) cuando el tipo elegido todavía no tiene componentes. */
-export function ProductSuppliesEmptyHint({ productTypeName, onConfigure }: { productTypeName: string; onConfigure: () => void }) {
-  return (
-    <div className="flex flex-col gap-3 rounded-2xl border border-dashed border-stampa-border bg-stampa-surface/60 p-4 sm:flex-row sm:items-center">
-      <Boxes size={20} className="shrink-0 text-stampa-accent" aria-hidden="true" />
-      <p className="flex-1 text-xs leading-relaxed text-gray-400">
-        <strong className="text-gray-200">¿«{productTypeName}» lleva componentes o embalaje?</strong> Cargá focos, cables o cajas una sola vez en tu catálogo y la calculadora los suma con su costo actual.
-      </p>
-      <button
-        type="button"
-        onClick={onConfigure}
-        className="inline-flex min-h-10 shrink-0 items-center justify-center rounded-xl border border-stampa-orange/40 px-3 text-xs font-semibold text-stampa-accent transition-colors hover:bg-stampa-orange/10"
-      >
-        Configurar componentes
-      </button>
-    </div>
-  );
-}
 
 /** Desglose del precio sugerido y rentabilidad: qué parte es impresión, componentes, embalaje, contingencias y ganancia. */
 export function CostProfitabilityCard({ breakdown }: { breakdown: CostBreakdown }) {

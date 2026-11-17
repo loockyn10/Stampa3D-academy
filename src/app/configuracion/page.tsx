@@ -191,7 +191,8 @@ function ConfiguracionContent() {
               </p>
             </div>
             <SettingsManager />
-            <ProductTypesManager />
+            {/* D059: «Ir a Insumos» lleva al catálogo de esta misma pantalla; ambos paneles se sincronizan solos. */}
+            <ProductTypesManager onOpenSupplies={scrollToSuppliesCatalog} />
             <SuppliesManager />
           </div>
         )}
@@ -200,6 +201,13 @@ function ConfiguracionContent() {
       </div>
     </div>
   );
+}
+
+function scrollToSuppliesCatalog() {
+  const target = document.getElementById("catalogo-insumos");
+  if (!target) return;
+  target.scrollIntoView({ behavior: "smooth", block: "start" });
+  target.querySelector<HTMLElement>("button, input")?.focus({ preventScroll: true });
 }
 
 export default function ConfiguracionPage() {

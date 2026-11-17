@@ -33,9 +33,25 @@ const calculatorPricing = loadTypeScriptModule(
 const calculatorSupplies = loadTypeScriptModule(
   path.join(root, "src/lib/calculator/supplies.ts"),
 );
+// D059: componentes por producto, gastos con nombre y desglose (mismos módulos que usa la app).
+const productSupplies = loadTypeScriptModule(
+  path.join(root, "src/lib/calculator/product-supplies.ts"),
+  { "./supplies": calculatorSupplies },
+);
+const customExpenses = loadTypeScriptModule(
+  path.join(root, "src/lib/calculator/custom-expenses.ts"),
+  { "./supplies": calculatorSupplies },
+);
+const costBreakdown = loadTypeScriptModule(path.join(root, "src/lib/calculator/cost-breakdown.ts"));
 const { calculateProductPrice } = loadTypeScriptModule(
   path.join(root, "src/lib/products/pricing.ts"),
-  { "@/lib/calculator/pricing": calculatorPricing, "@/lib/calculator/supplies": calculatorSupplies },
+  {
+    "@/lib/calculator/pricing": calculatorPricing,
+    "@/lib/calculator/supplies": calculatorSupplies,
+    "@/lib/calculator/product-supplies": productSupplies,
+    "@/lib/calculator/custom-expenses": customExpenses,
+    "@/lib/calculator/cost-breakdown": costBreakdown,
+  },
 );
 
 test("product pricing uses every component and filament through the shared calculator engine", () => {

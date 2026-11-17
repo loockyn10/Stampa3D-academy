@@ -10,7 +10,7 @@ import {
 } from "@/lib/products/pricing";
 import { createClient } from "@/utils/supabase/server";
 import { loadCalculatorSupplies } from "@/lib/calculator/supplies-data";
-import type { CalculatorSupplyRecord } from "@/lib/calculator/supplies";
+import type { CalculatorSupplyRecord, ProductTypeSupplyRecord } from "@/lib/calculator/supplies";
 
 const UUID_PATTERN = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
 
@@ -26,6 +26,8 @@ interface RecalculationContext {
   calculatorSettings: any | null;
   /** Catálogo de insumos actual ([] si la migration de insumos no está aplicada). */
   supplies: CalculatorSupplyRecord[];
+  /** D059: componentes de los tipos (null si el catálogo no está disponible → se usan las líneas del snapshot). */
+  associations: ProductTypeSupplyRecord[] | null;
 }
 
 interface RecalculatedProduct {
@@ -86,7 +88,7 @@ async function loadRecalculationContext(
       .select("*")
       .eq("user_id", userId)
       .maybeSingle(),
-    loadCalculatorSupplies(supabase, userId, { includeAssociations: false }),
+    loadCalculatorSupplies(supabase, userId),
   ]);
 
   const requiredError = productsResult.error
@@ -119,6 +121,7 @@ async function loadRecalculationContext(
     productTypes: productTypesResult.data || [],
     calculatorSettings: settingsResult.data || null,
     supplies: suppliesData.supplies,
+    associations: suppliesData.available ? suppliesData.associations : null,
   };
 }
 
@@ -151,8 +154,10 @@ function calculateCurrentProductPrice(product: any, context: RecalculationContex
     }];
   }
 
-  const printerId = snapshot.printer_id || product.printer_id;
-  const productTypeId = snapshot.product_type_id || product.product_type_id;
+  // D059: manda lo elegido HOY en el producto (columna); el snapshot es solo el respaldo de productos viejos.
+  // Así cambiar el tipo (o la impresora) en el editor se refleja en el próximo recálculo.
+  const printerId = product.printer_id || snapshot.printer_id;
+  const productTypeId = product.product_type_id || snapshot.product_type_id;
   const printer = context.printers.find((item) => item.id === printerId);
   const productType = context.productTypes.find((item) => item.id === productTypeId);
   const materials = components.flatMap((component) => component.materials || []);
@@ -178,6 +183,7 @@ function calculateCurrentProductPrice(product: any, context: RecalculationContex
     calculatorSettings: context.calculatorSettings,
     oldSnapshot: snapshot,
     currentSupplies: context.supplies,
+    currentAssociations: context.associations,
   });
   if (!calculation.isValid || calculation.baseCost <= 0) {
     return {

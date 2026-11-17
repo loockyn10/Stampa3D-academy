@@ -99,11 +99,21 @@ test("searchable portal selects focus only after positioning and never scroll th
 });
 
 test("inactive filaments mark a saved price as needing recalculation", () => {
+  const calculatorSupplies = loadTypeScriptModule(path.join(root, "src/lib/calculator/supplies.ts"));
   const pricingStatus = loadTypeScriptModule(
     path.join(root, "src/lib/products/pricing-status.ts"),
     {
       "@/lib/filaments/utils": filamentUtils,
-      "@/lib/calculator/supplies": loadTypeScriptModule(path.join(root, "src/lib/calculator/supplies.ts")),
+      "@/lib/calculator/supplies": calculatorSupplies,
+      // D059: detección de componentes y gastos desactualizados.
+      "@/lib/calculator/product-supplies": loadTypeScriptModule(
+        path.join(root, "src/lib/calculator/product-supplies.ts"),
+        { "./supplies": calculatorSupplies },
+      ),
+      "@/lib/calculator/custom-expenses": loadTypeScriptModule(
+        path.join(root, "src/lib/calculator/custom-expenses.ts"),
+        { "./supplies": calculatorSupplies },
+      ),
     },
   );
   const result = pricingStatus.getProductPricingStatus({

@@ -40,9 +40,22 @@ const calculatorSupplies = loadTypeScriptModule(
 const suppliesData = loadTypeScriptModule(
   path.join(root, "src/lib/calculator/supplies-data.ts"),
 );
+const productSupplies = loadTypeScriptModule(
+  path.join(root, "src/lib/calculator/product-supplies.ts"),
+  { "./supplies": calculatorSupplies },
+);
+const customExpenses = loadTypeScriptModule(
+  path.join(root, "src/lib/calculator/custom-expenses.ts"),
+  { "./supplies": calculatorSupplies },
+);
 const pricingStatus = loadTypeScriptModule(
   path.join(root, "src/lib/products/pricing-status.ts"),
-  { "@/lib/filaments/utils": filamentUtils, "@/lib/calculator/supplies": calculatorSupplies },
+  {
+    "@/lib/filaments/utils": filamentUtils,
+    "@/lib/calculator/supplies": calculatorSupplies,
+    "@/lib/calculator/product-supplies": productSupplies,
+    "@/lib/calculator/custom-expenses": customExpenses,
+  },
 );
 const registry = loadTypeScriptModule(
   path.join(root, "src/lib/stampy/tool-registry.ts"),

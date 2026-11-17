@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useEffect, useMemo, useState } from "react";
+import React, { useCallback, useEffect, useMemo, useState } from "react";
 import { Archive, ArchiveRestore, Boxes, Edit2, Loader2, Package, Plus, Save, Search, Trash2, X } from "lucide-react";
 import { createClient } from "@/utils/supabase/client";
 import { CalculatorSelect } from "@/components/ui/calculator-select";
@@ -21,6 +21,7 @@ import {
   type SupplyDraft,
 } from "@/lib/calculator/supplies";
 import { loadCalculatorSupplies, supplyErrorMessage } from "@/lib/calculator/supplies-data";
+import { notifyCalculatorSuppliesChanged, subscribeCalculatorSuppliesChanged } from "@/lib/calculator/supplies-events";
 
 interface SuppliesManagerProps {
   /** Se llama después de cada cambio guardado (alta, edición, archivo, baja). */
@@ -57,32 +58,51 @@ export function SuppliesManager({ onChanged }: SuppliesManagerProps = {}) {
   const [draft, setDraft] = useState<SupplyDraft>(EMPTY_DRAFT);
   const [errors, setErrors] = useState<Partial<Record<string, string>>>({});
   const [formError, setFormError] = useState<string | null>(null);
+  // Identidad de este panel para el aviso de cambios (D059): no se recarga con sus propios avisos.
+  const [syncSource] = useState(() => `supplies-manager-${Math.random().toString(36).slice(2)}`);
+
+  const reload = useCallback(async (isCancelled: () => boolean = () => false) => {
+    const { data: { user } } = await supabase.auth.getUser();
+    if (isCancelled()) return;
+    if (!user) {
+      setLoading(false);
+      return;
+    }
+    const data = await loadCalculatorSupplies(supabase, user.id);
+    if (isCancelled()) return;
+    setUserId(user.id);
+    setAvailable(data.available);
+    setSupplies(data.supplies);
+    const counts = new Map<string, number>();
+    for (const association of data.associations) {
+      counts.set(association.supply_id, (counts.get(association.supply_id) ?? 0) + 1);
+    }
+    setUsage(counts);
+    setLoading(false);
+  }, [supabase]);
 
   useEffect(() => {
     let cancelled = false;
-    void (async () => {
-      const { data: { user } } = await supabase.auth.getUser();
-      if (cancelled) return;
-      if (!user) {
-        setLoading(false);
-        return;
-      }
-      const data = await loadCalculatorSupplies(supabase, user.id);
-      if (cancelled) return;
-      setUserId(user.id);
-      setAvailable(data.available);
-      setSupplies(data.supplies);
-      const counts = new Map<string, number>();
-      for (const association of data.associations) {
-        counts.set(association.supply_id, (counts.get(association.supply_id) ?? 0) + 1);
-      }
-      setUsage(counts);
-      setLoading(false);
-    })();
+    // Carga inicial diferida a una microtarea (el estado se actualiza al llegar los datos, no dentro del efecto).
+    void Promise.resolve().then(() => reload(() => cancelled));
+    // Otro panel (tipos de producto, otra pestaña del modal) cambió insumos o componentes: se recarga.
+    const unsubscribe = subscribeCalculatorSuppliesChanged(() => void reload(() => cancelled), syncSource);
     return () => {
       cancelled = true;
+      unsubscribe();
     };
-  }, [supabase]);
+  }, [reload, syncSource]);
+
+  // «Ir a Insumos» desde Mi Taller llega con #catalogo-insumos: se lleva la vista al catálogo una vez cargado.
+  useEffect(() => {
+    if (loading || typeof window === "undefined" || window.location.hash !== "#catalogo-insumos") return;
+    document.getElementById("catalogo-insumos")?.scrollIntoView({ behavior: "smooth", block: "start" });
+  }, [loading]);
+
+  const announceChange = () => {
+    notifyCalculatorSuppliesChanged(syncSource);
+    onChanged?.();
+  };
 
   const visible = useMemo(() => {
     const needle = query.trim().toLocaleLowerCase("es");
@@ -158,7 +178,7 @@ export function SuppliesManager({ onChanged }: SuppliesManagerProps = {}) {
       toast.success("Insumo actualizado. Los cálculos que lo usan ya toman el nuevo valor.");
     }
     setEditingId(null);
-    onChanged?.();
+    announceChange();
   });
 
   const setArchived = async (supply: CalculatorSupplyRecord, archive: boolean) => {
@@ -183,7 +203,7 @@ export function SuppliesManager({ onChanged }: SuppliesManagerProps = {}) {
     }
     setSupplies((current) => current.map((item) => (item.id === supply.id ? data as CalculatorSupplyRecord : item)));
     toast.success(archive ? "Insumo archivado." : "Insumo reactivado.");
-    onChanged?.();
+    announceChange();
   };
 
   const remove = async (supply: CalculatorSupplyRecord) => {
@@ -201,21 +221,21 @@ export function SuppliesManager({ onChanged }: SuppliesManagerProps = {}) {
     }
     setSupplies((current) => current.filter((item) => item.id !== supply.id));
     toast.success("Insumo eliminado.");
-    onChanged?.();
+    announceChange();
   };
 
   if (loading) return <TableSkeleton rows={4} columns={3} />;
 
   if (!available) {
     return (
-      <div className="rounded-xl border border-dashed border-stampa-border p-4 text-sm text-gray-400">
+      <div id="catalogo-insumos" className="scroll-mt-24 rounded-xl border border-dashed border-stampa-border p-4 text-sm text-gray-400">
         El catálogo de insumos todavía no está disponible en tu cuenta. La calculadora sigue funcionando como siempre.
       </div>
     );
   }
 
   return (
-    <div className="space-y-4">
+    <div id="catalogo-insumos" className="scroll-mt-24 space-y-4">
       <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
         <div>
           <h3 className="text-lg font-semibold text-fg">Mis insumos</h3>

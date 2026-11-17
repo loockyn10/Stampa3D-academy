@@ -1,5 +1,5 @@
 import { getProductPricingStatus } from "@/lib/products/pricing-status";
-import type { CalculatorSupplyRecord } from "@/lib/calculator/supplies";
+import type { CalculatorSupplyRecord, ProductTypeSupplyRecord } from "@/lib/calculator/supplies";
 
 /**
  * Resumen de Mi Taller (solo lectura). Todas las cifras salen de filas reales del usuario:
@@ -103,6 +103,7 @@ export function buildWorkshopSummary({
   printers,
   productTypes,
   supplies = null,
+  associations = null,
   attentionLimit = 6,
 }: {
   products: WorkshopProductRow[];
@@ -113,6 +114,8 @@ export function buildWorkshopSummary({
   productTypes: Array<Record<string, unknown>>;
   /** Catálogo de insumos de la Calculadora (opcional): detecta cambios de costo de componentes/embalaje. */
   supplies?: CalculatorSupplyRecord[] | null;
+  /** Componentes de los tipos (D059, opcional): detecta productos con componentes desactualizados. */
+  associations?: ProductTypeSupplyRecord[] | null;
   attentionLimit?: number;
 }): WorkshopSummary {
   const activeProducts = products.filter((product) => product.is_active !== false);
@@ -142,7 +145,7 @@ export function buildWorkshopSummary({
       assemblableUnits += buildable;
     }
 
-    const pricing = getProductPricingStatus(product, filaments, printers, productTypes, supplies);
+    const pricing = getProductPricingStatus(product, filaments, printers, productTypes, supplies, associations);
     const outOfStock = stock <= 0;
     if (outOfStock) outOfStockProducts += 1;
     if (pricing.needsRecalculation) needsRecalculationProducts += 1;
