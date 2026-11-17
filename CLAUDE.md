@@ -43,7 +43,7 @@ Seguir las mismas restricciones de `AGENTS.md`:
 
 - no SQL remoto sin permiso;
 - no migrations aplicadas editadas;
-- no commit/push/reset salvo autorización;
+- trabajar solo en `main` (carpeta principal); commit local en `main` al terminar y verificar cada tarea; push/reset/ramas/worktrees solo con autorización;
 - no RLS más débil como atajo;
 - no inventar stock;
 - no hard-delete de ventas cuando corresponde anulación;

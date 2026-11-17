@@ -118,11 +118,13 @@ Respetar siempre RLS.
 
 # Commits
 
-Cada Sprint debe terminar con:
+Se trabaja solo en `main` (sin ramas ni worktrees salvo pedido expreso).
+Cada tarea verificada termina con un commit local en `main`:
 
-git add .
+git add <archivos de la tarea>
 git commit
-git push
+
+`git push` solo con autorización del dueño.
 
 Nunca mezclar varias funcionalidades en un mismo commit.
 

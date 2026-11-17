@@ -83,7 +83,7 @@ Antes de implementar:
 1. leer `/docs` relevante;
 2. leer `AGENTS.md` o `CLAUDE.md`;
 3. inspeccionar el estado actual del repo;
-4. verificar branch/worktree y cambios pendientes;
+4. verificar estar en `main` (carpeta principal) y revisar cambios pendientes;
 5. reconciliar cualquier contradicción entre docs y código.
 
 ## 6. Secuencial vs paralelo
@@ -96,10 +96,8 @@ El segundo debe partir del código actualizado, no de un reporte textual del pri
 
 ### Trabajo paralelo
 
-Solo cuando:
-
-- tareas son independientes; o
-- se usan branches/worktrees separados.
+Solo cuando las tareas son independientes (no tocan los mismos archivos). Se trabaja siempre en `main`;
+ramas o worktrees separados solo si el dueño lo pide expresamente.
 
 Evitar dos agentes editando simultáneamente los mismos archivos sin coordinación.
 

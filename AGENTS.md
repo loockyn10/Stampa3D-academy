@@ -91,18 +91,19 @@ Si no se conoce qué migrations están aplicadas remotamente, marcarlo.
 
 ## 7. Git y multiagente
 
+Flujo vigente (decisión del dueño, 2026-11-17): se trabaja **solo en `main`**, en la carpeta principal
+`C:\Users\HP\Documents\Stampa3D-academy`. No crear ramas ni worktrees salvo pedido expreso del dueño.
+
 Antes de cambiar:
 
-- revisar `git status`;
-- revisar branch/worktree;
+- revisar `git status` (estar en `main`, carpeta principal);
 - preservar cambios ajenos.
 
-Por defecto, no hacer commit, push, merge o reset destructivo salvo que la tarea lo autorice.
+Al terminar y verificar cada tarea (tsc, ESLint, tests relacionados, build), hacer un **commit local en `main`**.
+No hacer push, merge de ramas remotas, reescritura de historial ni reset destructivo sin autorización explícita.
 
-Si otro agente trabaja simultáneamente:
-
-- usar tareas independientes; o
-- usar branch/worktree separado.
+Si otro agente trabaja simultáneamente: usar tareas independientes que no toquen los mismos archivos
+(no abrir ramas/worktrees para esto salvo que el dueño lo pida).
 
 Si continuás el trabajo de otro agente, partir del código actualizado, no de su descripción textual.
 
