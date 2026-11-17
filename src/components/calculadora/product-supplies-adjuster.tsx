@@ -1,8 +1,9 @@
 "use client";
 
-import React, { useMemo, useState } from "react";
-import { Boxes, Plus, RotateCcw, Settings2, Trash2 } from "lucide-react";
+import React, { useEffect, useMemo, useRef, useState } from "react";
+import { Boxes, Plus, RotateCcw, Settings2, Trash2, X } from "lucide-react";
 import { CalculatorSelect } from "@/components/ui/calculator-select";
+import { InfoTip } from "@/components/ui/info-tip";
 import {
   SUPPLY_UNIT_INFO,
   compatibleUnits,
@@ -85,6 +86,22 @@ export function ProductSuppliesAdjuster({
   const [newQuantity, setNewQuantity] = useState("1");
   const [newUnit, setNewUnit] = useState("");
   const [addError, setAddError] = useState<string | null>(null);
+  const [adding, setAdding] = useState(false);
+  const addFormRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    if (!adding) return;
+    const frame = window.requestAnimationFrame(() => addFormRef.current?.querySelector<HTMLElement>("button")?.focus());
+    return () => window.cancelAnimationFrame(frame);
+  }, [adding]);
+
+  const closeAddForm = () => {
+    setAdding(false);
+    setAddError(null);
+    setNewSupplyId("");
+    setNewQuantity("1");
+    setNewUnit("");
+  };
 
   const lines = pricing.lines as PricedResolvedLine[];
   const usedIds = useMemo(() => new Set(lines.map((line) => line.supplyId)), [lines]);
@@ -126,10 +143,12 @@ export function ProductSuppliesAdjuster({
     }
     setAddError(null);
     onChange(addProductSupply(adjustments, selected.id, validation.quantity, validation.unit, removedIds.has(selected.id)));
-    setNewSupplyId("");
-    setNewQuantity("1");
-    setNewUnit("");
+    closeAddForm();
   };
+
+  const contingencyText = contingencyPercent > 0
+    ? `Tus contingencias del ${contingencyPercent.toLocaleString("es-AR", { maximumFractionDigits: 2 })} % se suman aparte, sobre los insumos.`
+    : "Las contingencias sobre insumos son opcionales (hoy 0 %) y se configuran en Ajustes.";
 
   return (
     <section
@@ -138,12 +157,15 @@ export function ProductSuppliesAdjuster({
     >
       <div className="mb-3 flex items-start justify-between gap-3">
         <div className="min-w-0">
-          <h2 id="product-supplies-title" className={`flex items-center gap-2 font-bold text-fg ${compact ? "text-sm" : "text-lg"}`}>
+          <h2 id="product-supplies-title" className={`flex flex-wrap items-center gap-x-2 gap-y-1 font-bold text-fg ${compact ? "text-sm" : "text-lg"}`}>
             <Boxes size={compact ? 15 : 18} className="text-stampa-accent" aria-hidden="true" /> Componentes y embalaje
+            <InfoTip label="Cómo funcionan los componentes de este cálculo">
+              Parten de los componentes del tipo de producto. Cambiar una cantidad, quitar o agregar vale solo para {scopeLabel}: no modifica el tipo ni otros productos. Se suman a su costo real, sin markup. {contingencyText}
+            </InfoTip>
+            {hasAdjustments && <Badge tone="orange">Ajustado</Badge>}
           </h2>
-          <p className="mt-1 text-xs leading-relaxed text-gray-400">
-            {productTypeName ? <>Parte de los componentes de «{productTypeName}». </> : null}
-            Los cambios de cantidad, quitas o agregados valen solo para {scopeLabel}: no modifican el tipo ni otros productos.
+          <p className="mt-0.5 text-xs text-gray-400">
+            {productTypeName ? <>«{productTypeName}» · </> : null}cambios solo para {scopeLabel}
           </p>
         </div>
         {onEditType && (
@@ -160,7 +182,7 @@ export function ProductSuppliesAdjuster({
 
       {lines.length === 0 ? (
         <p className="rounded-lg border border-dashed border-stampa-border p-3 text-center text-xs text-gray-400">
-          {productTypeName ? `«${productTypeName}» no tiene componentes predeterminados.` : "Sin componentes."} Podés agregar insumos solo para {scopeLabel}.
+          Sin componentes
         </p>
       ) : (
         <ul className="divide-y divide-stampa-border rounded-xl border border-stampa-border">
@@ -271,18 +293,32 @@ export function ProductSuppliesAdjuster({
         </div>
       )}
 
-      <div className="mt-3 space-y-2 rounded-lg border border-dashed border-fg/15 p-2.5">
+      {!adding ? (
+        <button
+          type="button"
+          onClick={() => setAdding(true)}
+          className="mt-3 inline-flex min-h-10 items-center gap-1.5 rounded-xl border border-dashed border-fg/20 px-3 text-xs font-semibold text-gray-300 transition-colors hover:border-stampa-orange/40 hover:bg-stampa-orange/5 hover:text-stampa-accent"
+        >
+          <Plus size={14} aria-hidden="true" /> Agregar componente
+        </button>
+      ) : (
+      <div ref={addFormRef} role="group" aria-label="Agregar componente" className="mt-3 space-y-2 rounded-lg border border-dashed border-fg/15 p-2.5">
         <div className="flex items-center justify-between gap-2">
-          <span className="text-xs font-semibold text-gray-400">Agregar insumo solo para {scopeLabel}</span>
-          {onOpenCatalog && (
-            <button type="button" onClick={onOpenCatalog} className="text-[11px] font-semibold text-stampa-accent hover:underline">
-              Ir a Insumos →
+          <span className="text-xs font-semibold text-gray-400">Agregar componente</span>
+          <div className="flex items-center gap-1">
+            {onOpenCatalog && (
+              <button type="button" onClick={onOpenCatalog} className="inline-flex min-h-8 items-center px-1 text-[11px] font-semibold text-stampa-accent hover:underline">
+                Ir a Insumos →
+              </button>
+            )}
+            <button type="button" onClick={closeAddForm} aria-label="Cancelar agregado" className="flex h-8 w-8 items-center justify-center rounded-lg text-gray-400 hover:bg-fg/10 hover:text-fg">
+              <X size={15} aria-hidden="true" />
             </button>
-          )}
+          </div>
         </div>
         {addable.length === 0 ? (
           <p className="text-[11px] text-gray-500">
-            {supplies.some((supply) => !supply.archived_at) ? "Ya usás todos tus insumos activos." : "Todavía no cargaste insumos en tu catálogo."}
+            {supplies.some((supply) => !supply.archived_at) ? "Ya usás todos tus insumos activos." : "Tu catálogo de insumos está vacío."}
           </p>
         ) : (
           <>
@@ -297,7 +333,7 @@ export function ProductSuppliesAdjuster({
                 setNewUnit(supplies.find((supply) => supply.id === value)?.unit ?? "");
                 setAddError(null);
               }}
-              placeholder="Elegí un insumo de tu catálogo…"
+              placeholder="Elegí un insumo…"
               searchable={addable.length > 6}
               usePortal
             />
@@ -333,6 +369,7 @@ export function ProductSuppliesAdjuster({
         )}
         {addError && <p role="alert" className="text-[11px] text-red-400">{addError}</p>}
       </div>
+      )}
 
       <dl className="mt-3 grid grid-cols-3 gap-2 text-center">
         <div className="rounded-xl bg-fg/[0.04] p-2">
@@ -348,13 +385,6 @@ export function ProductSuppliesAdjuster({
           <dd className="text-sm font-bold text-stampa-accent">{money(pricing.total)}</dd>
         </div>
       </dl>
-      <p className="mt-2 text-[11px] leading-relaxed text-gray-500">
-        Se suman a su costo real, sin markup.{" "}
-        {contingencyPercent > 0
-          ? `Tus contingencias del ${contingencyPercent.toLocaleString("es-AR", { maximumFractionDigits: 2 })} % se suman aparte, sobre los insumos.`
-          : "Las contingencias sobre insumos son opcionales (hoy 0 %, se configuran en Ajustes)."}
-        {hasAdjustments ? " Hay ajustes propios: se guardan con el producto." : ""}
-      </p>
     </section>
   );
 }

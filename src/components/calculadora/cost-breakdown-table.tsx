@@ -1,7 +1,7 @@
 "use client";
 
 import React from "react";
-import { ListOrdered } from "lucide-react";
+import { ChevronDown, ListOrdered } from "lucide-react";
 import { COST_GROUP_LABELS, type CostBreakdown, type CostGroupId } from "@/lib/calculator/cost-breakdown";
 
 /** "$10.450,00" (es-AR, siempre 2 decimales). */
@@ -25,6 +25,8 @@ interface CostBreakdownTableProps {
   /** Agrega precio sugerido, ganancia y margen al pie (Mi Taller, donde no hay tarjeta de Rentabilidad). */
   showPricing?: boolean;
   compact?: boolean;
+  /** UX-03: se muestra plegado (título + costo real) y se despliega a pedido. */
+  collapsible?: boolean;
 }
 
 /**
@@ -33,7 +35,7 @@ interface CostBreakdownTableProps {
  * Solo presenta lo que calculó el motor (`buildCostBreakdown`): los importes por fila están repartidos al
  * centavo para que la suma mostrada sea exactamente el costo real.
  */
-export function CostBreakdownTable({ breakdown, showPricing = false, compact = false }: CostBreakdownTableProps) {
+export function CostBreakdownTable({ breakdown, showPricing = false, compact = false, collapsible = false }: CostBreakdownTableProps) {
   const groups = GROUP_ORDER
     .map((id) => {
       const items = breakdown.items.filter((item) => item.group === id && (id === "printing" || item.displayAmount > 0 || item.key.startsWith("supply:")));
@@ -43,20 +45,13 @@ export function CostBreakdownTable({ breakdown, showPricing = false, compact = f
     .filter((group) => group.items.length > 0);
   const realCostShown = groups.reduce((total, group) => total + Math.round(group.subtotal * 100), 0) / 100;
 
-  return (
-    <section
-      className={`rounded-2xl border border-stampa-border bg-stampa-surface ${compact ? "p-3 sm:p-4" : "p-4 shadow-lg sm:p-5"}`}
-      aria-labelledby="cost-breakdown-title"
-    >
-      <div className="mb-3">
-        <h3 id="cost-breakdown-title" className="flex items-center gap-2 text-sm font-bold text-fg">
-          <ListOrdered size={17} className="text-stampa-accent" aria-hidden="true" /> Desglose de costos
-        </h3>
-        <p className="mt-1 text-[11px] leading-relaxed text-gray-500">
-          Cada concepto que forma el costo, tal como lo usa el cálculo. Las contingencias van aparte del costo real.
-        </p>
-      </div>
+  const title = (
+    <h3 id="cost-breakdown-title" className="flex items-center gap-2 text-sm font-bold text-fg">
+      <ListOrdered size={17} className="text-stampa-accent" aria-hidden="true" /> Desglose de costos
+    </h3>
+  );
 
+  const table = (
       <table className="w-full table-fixed border-collapse text-left">
         <caption className="sr-only">Desglose de costos por concepto</caption>
         <colgroup>
@@ -137,12 +132,39 @@ export function CostBreakdownTable({ breakdown, showPricing = false, compact = f
           )}
         </tfoot>
       </table>
+  );
 
-      {!breakdown.matchesEngine && (
-        <p role="alert" className="mt-2 text-[11px] text-amber-300">
-          El desglose no coincide con el costo calculado. Revisá los valores ingresados.
-        </p>
+  const mismatch = !breakdown.matchesEngine && (
+    <p role="alert" className="mt-2 text-[11px] text-amber-300">
+      El desglose no coincide con el costo calculado. Revisá los valores ingresados.
+    </p>
+  );
+
+  return (
+    <section
+      className={`rounded-2xl border border-stampa-border bg-stampa-surface ${compact ? "p-3 sm:p-4" : "p-4 shadow-lg sm:p-5"}`}
+      aria-labelledby="cost-breakdown-title"
+    >
+      {collapsible ? (
+        <details className="group">
+          <summary className="flex min-h-10 cursor-pointer list-none items-center justify-between gap-3 rounded-lg focus:outline-none focus-visible:ring-2 focus-visible:ring-stampa-orange [&::-webkit-details-marker]:hidden">
+            {title}
+            <span className="flex items-center gap-2 text-xs text-gray-400">
+              <span className="hidden min-[380px]:inline">Costo real</span>
+              <strong className="text-sm tabular-nums text-fg">{formatBreakdownMoney(realCostShown)}</strong>
+              <ChevronDown size={16} className="transition-transform group-open:rotate-180" aria-hidden="true" />
+            </span>
+          </summary>
+          <div className="mt-3">{table}</div>
+        </details>
+      ) : (
+        <>
+          <div className="mb-3">{title}</div>
+          {table}
+          {mismatch}
+        </>
       )}
+      {collapsible && mismatch}
     </section>
   );
 }

@@ -5,6 +5,7 @@ import { createClient } from "@/utils/supabase/client";
 import { Save, Loader2, AlertCircle } from "lucide-react";
 import { FormSkeleton } from "@/components/ui/page-skeletons";
 import { Card } from "@/components/ui/card";
+import { InfoTip } from "@/components/ui/info-tip";
 
 export interface CalculatorSettingsValues {
   electricity_price_kwh: number;
@@ -164,46 +165,52 @@ export function SettingsManager({ onSaved, embedded = false }: SettingsManagerPr
         </div>
       )}
 
-      {!embedded && <h3 className="text-lg font-semibold text-fg mb-4">Ajustes Globales de Calculadora</h3>}
+      {!embedded && <h3 className="text-lg font-semibold text-fg mb-4">Ajustes de la calculadora</h3>}
 
       <Card className={`${embedded ? "p-4" : "p-6"} border-stampa-border shadow-lg shadow-shade/20 space-y-4`}>
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-          <div>
-            <label className="block text-sm font-semibold text-gray-300 mb-1">Precio kWh de Electricidad ($)</label>
-            <input type="number" step="0.01" name="electricity_price_kwh" value={formData.electricity_price_kwh} onChange={handleChange} className="w-full text-sm border-stampa-border rounded-md text-neutral-100 bg-stampa-surface border focus:border-[#ff6a00] focus:ring-[#ff6a00]/20 focus:ring-2 placeholder:text-neutral-500 disabled:bg-neutral-800 disabled:text-neutral-500" />
-            <p className="text-xs text-gray-500 mt-1">Precio por Kilowatt hora en tu región.</p>
-          </div>
-          <div>
-            <label className="block text-sm font-semibold text-gray-300 mb-1">Margen de Error / Merma (%)</label>
-            <input type="number" name="default_error_percent" value={formData.default_error_percent} onChange={handleChange} className="w-full text-sm border-stampa-border rounded-md text-neutral-100 bg-stampa-surface border focus:border-[#ff6a00] focus:ring-[#ff6a00]/20 focus:ring-2 placeholder:text-neutral-500 disabled:bg-neutral-800 disabled:text-neutral-500" />
-            <p className="text-xs text-gray-500 mt-1">Porcentaje extra de material para compensar fallos.</p>
-          </div>
-          <div>
-            <label className="block text-sm font-semibold text-gray-300 mb-1">Extra Mercado Libre ($ Fijo)</label>
-            <input type="number" name="mercado_libre_extra_amount" value={formData.mercado_libre_extra_amount} onChange={handleChange} className="w-full text-sm border-stampa-border rounded-md text-neutral-100 bg-stampa-surface border focus:border-[#ff6a00] focus:ring-[#ff6a00]/20 focus:ring-2 placeholder:text-neutral-500 disabled:bg-neutral-800 disabled:text-neutral-500" />
-            <p className="text-xs text-gray-500 mt-1">Cargo fijo por venta que querés recuperar en el precio de ML.</p>
-          </div>
-          <div>
-            <label className="block text-sm font-semibold text-gray-300 mb-1">Comisión ML (%)</label>
-            <input type="number" name="platform_commission_percent" value={formData.platform_commission_percent} onChange={handleChange} className="w-full text-sm border-stampa-border rounded-md text-neutral-100 bg-stampa-surface border focus:border-[#ff6a00] focus:ring-[#ff6a00]/20 focus:ring-2 placeholder:text-neutral-500 disabled:bg-neutral-800 disabled:text-neutral-500" />
-            <p className="text-xs text-gray-500 mt-1">Porcentaje que la plataforma retiene sobre el precio final (0 a 99).</p>
-          </div>
+          <SettingsField id="electricity_price_kwh" label="Precio del kWh ($)" help="Lo que pagás por kilowatt hora en tu región.">
+            <input id="electricity_price_kwh" type="number" step="0.01" name="electricity_price_kwh" value={formData.electricity_price_kwh} onChange={handleChange} className={settingsInputClass} />
+          </SettingsField>
+          <SettingsField id="default_error_percent" label="Merma (%)" help="Material extra para compensar impresiones fallidas.">
+            <input id="default_error_percent" type="number" name="default_error_percent" value={formData.default_error_percent} onChange={handleChange} className={settingsInputClass} />
+          </SettingsField>
+          <SettingsField id="mercado_libre_extra_amount" label="Cargo fijo Mercado Libre ($)" help="Cargo fijo por venta que querés recuperar en el precio de Mercado Libre.">
+            <input id="mercado_libre_extra_amount" type="number" name="mercado_libre_extra_amount" value={formData.mercado_libre_extra_amount} onChange={handleChange} className={settingsInputClass} />
+          </SettingsField>
+          <SettingsField id="platform_commission_percent" label="Comisión Mercado Libre (%)" help="Porcentaje que la plataforma retiene sobre el precio final (0 a 99).">
+            <input id="platform_commission_percent" type="number" name="platform_commission_percent" value={formData.platform_commission_percent} onChange={handleChange} className={settingsInputClass} />
+          </SettingsField>
           {contingencyAvailable && (
-            <div>
-              <label htmlFor="supplies_contingency_percent" className="block text-sm font-semibold text-gray-300 mb-1">Contingencias sobre insumos (%)</label>
-              <input id="supplies_contingency_percent" type="number" min="0" max="100" step="any" name="supplies_contingency_percent" value={formData.supplies_contingency_percent} onChange={handleChange} className="w-full text-sm border-stampa-border rounded-md text-neutral-100 bg-stampa-surface border focus:border-[#ff6a00] focus:ring-[#ff6a00]/20 focus:ring-2 placeholder:text-neutral-500 disabled:bg-neutral-800 disabled:text-neutral-500" />
-              <p className="text-xs text-gray-500 mt-1">Opcional (0 % por defecto). Se suma solo sobre insumos extra, componentes y embalaje para cubrir roturas o faltantes. Ej.: 5.</p>
-            </div>
+            <SettingsField id="supplies_contingency_percent" label="Contingencias sobre insumos (%)" help="Opcional (0 % por defecto). Se suma solo sobre insumos extra, componentes y embalaje para cubrir roturas o faltantes. Se muestra aparte del costo real.">
+              <input id="supplies_contingency_percent" type="number" min="0" max="100" step="any" name="supplies_contingency_percent" value={formData.supplies_contingency_percent} onChange={handleChange} className={settingsInputClass} />
+            </SettingsField>
           )}
         </div>
 
         <div className="mt-6 pt-4 border-t border-stampa-border flex flex-col sm:flex-row sm:justify-end">
           <button onClick={handleSave} disabled={saving} className="w-full sm:w-auto flex justify-center items-center gap-1.5 px-4 py-2 text-sm font-bold bg-stampa-orange/100 hover:bg-stampa-orange text-white rounded-md transition-colors disabled:opacity-50">
             {saving ? <Loader2 size={16} className="animate-spin" /> : <Save size={16} />}
-            Guardar Ajustes
+            Guardar ajustes
           </button>
         </div>
       </Card>
+    </div>
+  );
+}
+
+const settingsInputClass =
+  "h-10 w-full rounded-lg border border-stampa-border bg-stampa-surface px-3 text-base sm:text-sm text-neutral-100 placeholder:text-neutral-500 focus:border-[#ff6a00] focus:ring-2 focus:ring-[#ff6a00]/20 disabled:bg-neutral-800 disabled:text-neutral-500";
+
+/** Campo de ajustes: etiqueta + ayuda contextual (en lugar de un párrafo fijo bajo cada campo). */
+function SettingsField({ id, label, help, children }: { id: string; label: string; help: string; children: React.ReactNode }) {
+  return (
+    <div>
+      <div className="mb-1 flex items-center gap-1">
+        <label htmlFor={id} className="block text-sm font-semibold text-gray-300">{label}</label>
+        <InfoTip label={`Ayuda: ${label}`} iconSize={13} className="h-5 w-5">{help}</InfoTip>
+      </div>
+      {children}
     </div>
   );
 }

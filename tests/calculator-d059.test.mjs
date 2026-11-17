@@ -459,7 +459,7 @@ test("catalog sync: a change is announced to every other open panel, never back 
 
 test("screens are wired: calculator, Mi Taller, recalculation, settings and managers use the shared D059 pieces", () => {
   const calculator = readRepoFile("src/app/calculadora/page.tsx");
-  assert.match(calculator, /<CostBreakdownTable breakdown=\{calc\.breakdown\} \/>/);
+  assert.match(calculator, /<CostBreakdownTable breakdown=\{calc\.breakdown\} collapsible \/>/);
   assert.match(calculator, /<CustomExpensesEditor expenses=\{customExpenses\}/);
   assert.match(calculator, /<ProductSuppliesAdjuster/);
   assert.match(calculator, /customExpenses: validCustomExpenses/);
@@ -492,7 +492,12 @@ test("screens are wired: calculator, Mi Taller, recalculation, settings and mana
   const typesManager = readRepoFile("src/components/configuracion/product-types-manager.tsx");
   assert.match(typesManager, /subscribeCalculatorSuppliesChanged/);
   assert.equal((typesManager.match(/notifyCalculatorSuppliesChanged\(syncSource\)/g) ?? []).length, 2);
-  assert.match(readRepoFile("src/components/calculadora/product-type-supplies-editor.tsx"), /¿Falta uno\? Ir a Insumos →/);
+  // UX-01A: el editor de componentes del tipo es un modal; «Ir a Insumos» cierra el modal y lleva al catálogo.
+  const typeSuppliesDialog = readRepoFile("src/components/calculadora/product-type-supplies-editor.tsx");
+  assert.match(typeSuppliesDialog, /<Dialog/);
+  assert.match(typeSuppliesDialog, /Ir a Insumos →/);
+  assert.match(typeSuppliesDialog, /if \(await requestClose\(\)\)/, "going to the catalog asks before discarding unsaved changes");
+  assert.match(typesManager, /<ProductTypeSuppliesDialog/);
 });
 
 test("Premium UI: the components editor renders type defaults, own quantities, product extras, removed defaults and totals", () => {
@@ -515,20 +520,20 @@ test("Premium UI: the components editor renders type defaults, own quantities, p
     onEditType: () => {},
     onOpenCatalog: () => {},
   }));
-  assert.match(html, /Parte de los componentes de «Lámpara»/);
-  assert.match(html, /no modifican el tipo ni otros productos/);
+  assert.match(html, /«Lámpara» · cambios solo para este producto/);
+  assert.match(html, /aria-label="Cómo funcionan los componentes de este cálculo"/, "the long explanation lives in a contextual help");
+  assert.match(html, />Ajustado</);
   assert.match(html, /Foco LED<span[^>]*>Cantidad propia<\/span>/);
   assert.match(html, /tipo: 1 u\./);
   assert.match(html, /Tornillo<span[^>]*>Solo este producto<\/span>/);
   assert.match(html, /Quitados de este producto/);
   assert.match(html, /aria-label="Restaurar Caja"/);
   assert.match(html, /aria-label="Volver a la cantidad del tipo para Foco LED"/);
-  assert.match(html, /Ir a Insumos →/);
+  assert.match(html, /Agregar componente/);
   // 1.100 + 2.200 + 2.400 + 500 + 100 = 6.300 (componentes 5.800, embalaje 500)
   assert.match(html, /Componentes<\/dt><dd[^>]*>\$5\.800</);
   assert.match(html, /Embalaje<\/dt><dd[^>]*>\$500</);
   assert.match(html, /Total<\/dt><dd[^>]*>\$6\.300</);
-  assert.match(html, /contingencias del 5 %/);
 });
 
 test("UI: the custom expenses editor shows each expense editable/removable and the exact total", () => {

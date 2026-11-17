@@ -3,11 +3,12 @@
 import React, { useState, useEffect, useMemo } from "react";
 import { useSaveGuard } from "@/lib/forms/use-save-guard";
 import { createClient } from "@/utils/supabase/client";
-import { Plus, Edit2, Save, Loader2, AlertCircle, Trash2, Boxes, ChevronDown } from "lucide-react";
+import { Plus, Edit2, Save, AlertCircle, Trash2, Boxes } from "lucide-react";
 import { TableSkeleton } from "@/components/ui/page-skeletons";
 import { Card } from "@/components/ui/card";
 import { useAppFeedback } from "@/components/ui/app-feedback";
-import { ProductTypeSuppliesEditor } from "@/components/calculadora/product-type-supplies-editor";
+import { ProductTypeSuppliesDialog } from "@/components/calculadora/product-type-supplies-editor";
+import { InfoTip } from "@/components/ui/info-tip";
 import { loadCalculatorSupplies, type CalculatorSuppliesData } from "@/lib/calculator/supplies-data";
 import { buildProductTypeSupplyLines, formatSupplyMoney, priceSupplyLines } from "@/lib/calculator/supplies";
 import { notifyCalculatorSuppliesChanged, subscribeCalculatorSuppliesChanged } from "@/lib/calculator/supplies-events";
@@ -29,7 +30,7 @@ export function ProductTypesManager({ onChanged, onOpenSupplies }: ProductTypesM
   const [editingId, setEditingId] = useState<string | null>(null);
   const [userId, setUserId] = useState<string | null>(null);
   const [suppliesData, setSuppliesData] = useState<CalculatorSuppliesData>({ available: false, supplies: [], associations: [] });
-  const [expandedSuppliesId, setExpandedSuppliesId] = useState<string | null>(null);
+  const [openSuppliesId, setOpenSuppliesId] = useState<string | null>(null);
   const { saving, runSave } = useSaveGuard();
   const [formData, setFormData] = useState({
     name: "",
@@ -193,110 +194,127 @@ export function ProductTypesManager({ onChanged, onOpenSupplies }: ProductTypesM
 
   if (loading) return <TableSkeleton rows={5} columns={4} />;
 
+  const openSuppliesType = types.find((type) => type.id === openSuppliesId) ?? null;
+
   return (
-    <div className="space-y-4">
+    <section className="space-y-4" aria-labelledby="product-types-title">
       {error && (
-        <div className="bg-red-500/10 text-red-400 p-4 rounded-lg flex items-center gap-2 text-sm border border-red-500/20">
-          <AlertCircle className="h-4 w-4" /> {error}
+        <div role="alert" className="bg-red-500/10 text-red-400 p-4 rounded-lg flex items-center gap-2 text-sm border border-red-500/20">
+          <AlertCircle className="h-4 w-4 shrink-0" /> {error}
         </div>
       )}
 
-      <div className="flex justify-between items-center mb-4">
-        <h3 className="text-lg font-semibold text-fg">Tipos de producto / markupes</h3>
+      <div className="flex items-center justify-between gap-3">
+        <h3 id="product-types-title" className="text-lg font-semibold text-fg">Tipos de producto / markups</h3>
         <button
+          type="button"
           onClick={() => {
             setFormData({
               name: "", multiplier: 2.0, fixed_cost: 0, sort_order: types.length + 1, is_active: true
             });
             setEditingId("new");
           }}
-          className="flex items-center gap-1.5 bg-stampa-orange/100 hover:bg-stampa-orange text-white px-3 py-1.5 rounded-lg text-sm font-medium transition-colors"
+          className="inline-flex min-h-10 shrink-0 items-center gap-1.5 rounded-xl bg-stampa-orange px-4 text-sm font-bold text-neutral-950 transition-colors hover:bg-stampa-orange-hover focus:outline-none focus-visible:ring-2 focus-visible:ring-stampa-orange"
         >
-          <Plus size={16} /> Añadir Tipo
+          <Plus size={16} aria-hidden="true" /> Agregar tipo
         </button>
       </div>
 
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+      {/* UX-01B: columnas según el ancho real disponible (después del sidebar o dentro de un modal), no según el viewport. */}
+      <div className="grid grid-cols-[repeat(auto-fill,minmax(min(100%,17.5rem),1fr))] gap-3">
         {editingId === "new" && (
           <TypeEditor saving={saving} formData={formData} setFormData={setFormData} onSave={handleSave} onCancel={() => setEditingId(null)} />
         )}
 
-        {types.map((t) => (
-          editingId === t.id ? (
-            <TypeEditor key={t.id} saving={saving} formData={formData} setFormData={setFormData} onSave={handleSave} onCancel={() => setEditingId(null)} />
-          ) : (
-            <Card key={t.id} className={`p-4 flex flex-col hover:border-stampa-orange/30 transition-colors ${expandedSuppliesId === t.id ? "col-span-full" : ""}`}>
-              <div className="flex justify-between items-start mb-2">
-                <h4 className="font-bold text-fg">{t.name}</h4>
-                <button onClick={() => { setFormData(t); setEditingId(t.id); }} className="text-gray-400 hover:text-stampa-accent transition-colors">
-                  <Edit2 size={16} />
-                </button>
-              </div>
-              <div className="text-sm text-gray-500 space-y-1 mb-4 flex-1">
-                <p>Markup: <span className="font-medium text-gray-300">x{t.multiplier}</span></p>
-                <p>Insumos extra: <span className="font-medium text-gray-300">${t.fixed_cost ?? 0}</span></p>
-                {suppliesData.available && (
-                  <p>
-                    Componentes y embalaje:{" "}
-                    <span className="font-medium text-gray-300">
-                      {suppliesSummary.get(t.id)
-                        ? `${suppliesSummary.get(t.id)!.count} · ${formatSupplyMoney(suppliesSummary.get(t.id)!.total)}`
-                        : "sin cargar"}
-                    </span>
+        {types.map((t) => {
+          if (editingId === t.id) {
+            return <TypeEditor key={t.id} saving={saving} formData={formData} setFormData={setFormData} onSave={handleSave} onCancel={() => setEditingId(null)} />;
+          }
+          const summary = suppliesSummary.get(t.id);
+          return (
+            <Card key={t.id} className={`flex flex-col p-4 transition-colors hover:border-stampa-orange/30 ${t.is_active ? "" : "opacity-70"}`}>
+              <h4 className="truncate text-base font-bold text-fg" title={t.name}>{t.name}</h4>
+              <p className="mt-1 text-sm text-gray-400">
+                Markup <span className="font-semibold text-fg">×{t.multiplier}</span>
+                <span className="mx-1.5 text-gray-600" aria-hidden="true">·</span>
+                Insumos extra <span className="font-semibold text-fg">{formatSupplyMoney(Number(t.fixed_cost) || 0)}</span>
+              </p>
+              {suppliesData.available && (
+                <div className="mt-3 flex flex-1 flex-col justify-end gap-2">
+                  <p className="text-sm text-gray-400">
+                    {summary
+                      ? <>Componentes: <span className="font-semibold text-fg">{summary.count} · {formatSupplyMoney(summary.total)}</span></>
+                      : <span className="text-gray-500">Sin componentes</span>}
                   </p>
-                )}
-              </div>
-              {suppliesData.available && userId && (
-                <div className="mb-3">
-                  <button
-                    type="button"
-                    onClick={() => setExpandedSuppliesId((current) => (current === t.id ? null : t.id))}
-                    aria-expanded={expandedSuppliesId === t.id}
-                    className="inline-flex min-h-9 items-center gap-1.5 rounded-lg border border-stampa-border px-2.5 text-xs font-semibold text-gray-300 transition-colors hover:bg-fg/5 hover:text-fg"
-                  >
-                    <Boxes size={14} aria-hidden="true" /> Componentes y embalaje
-                    <ChevronDown size={14} className={`transition-transform ${expandedSuppliesId === t.id ? "rotate-180" : ""}`} aria-hidden="true" />
-                  </button>
-                  {expandedSuppliesId === t.id && (
-                    <div className="mt-3">
-                      <ProductTypeSuppliesEditor
-                        productTypeId={t.id}
-                        productTypeName={t.name}
-                        legacyFixedCost={Number(t.fixed_cost) || 0}
-                        userId={userId}
-                        supplies={suppliesData.supplies}
-                        associations={suppliesData.associations}
-                        onAssociationsChange={updateAssociations}
-                        onClearLegacyFixedCost={() => clearLegacyFixedCost(t.id)}
-                        onOpenCatalog={onOpenSupplies}
-                      />
-                    </div>
+                  {userId && (
+                    <button
+                      type="button"
+                      onClick={() => setOpenSuppliesId(t.id)}
+                      aria-haspopup="dialog"
+                      className="inline-flex min-h-10 w-full items-center justify-center gap-1.5 rounded-xl border border-stampa-border bg-fg/[0.03] px-3 text-sm font-semibold text-gray-200 transition-colors hover:border-stampa-orange/40 hover:bg-stampa-orange/5 hover:text-fg focus:outline-none focus-visible:ring-2 focus-visible:ring-stampa-orange"
+                    >
+                      <Boxes size={15} aria-hidden="true" /> Componentes y embalaje
+                    </button>
                   )}
                 </div>
               )}
-              <div className="flex items-center justify-between pt-3 border-t border-stampa-border">
-                <button 
+              <div className="mt-3 flex items-center justify-between border-t border-stampa-border pt-3">
+                <button
+                  type="button"
                   onClick={() => toggleStatus(t.id, t.is_active)}
-                  className={`text-xs px-2.5 py-1 rounded-md font-semibold transition-colors border ${t.is_active ? 'bg-green-500/10 text-green-400 border-green-500/20 hover:bg-green-500/20' : 'bg-fg/5 text-gray-400 border-fg/10 hover:bg-fg/10'}`}
+                  aria-pressed={Boolean(t.is_active)}
+                  title={t.is_active ? "Desactivar tipo" : "Activar tipo"}
+                  className={`min-h-8 rounded-md border px-2.5 text-xs font-semibold transition-colors ${t.is_active ? "bg-green-500/10 text-green-400 border-green-500/20 hover:bg-green-500/20" : "bg-fg/5 text-gray-400 border-fg/10 hover:bg-fg/10"}`}
                 >
-                  {t.is_active ? 'Activo' : 'Inactivo'}
+                  {t.is_active ? "Activo" : "Inactivo"}
                 </button>
-                <div className="flex gap-2">
-                  <button onClick={() => handleDelete(t.id)} className="text-gray-400 hover:text-red-400 transition-colors p-1" title="Eliminar">
+                <div className="flex gap-1">
+                  <button
+                    type="button"
+                    onClick={() => { setFormData(t); setEditingId(t.id); }}
+                    aria-label={`Editar ${t.name}`}
+                    title="Editar"
+                    className="flex h-9 w-9 items-center justify-center rounded-lg text-gray-400 transition-colors hover:bg-fg/10 hover:text-stampa-accent"
+                  >
+                    <Edit2 size={16} />
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => handleDelete(t.id)}
+                    aria-label={`Eliminar ${t.name}`}
+                    title="Eliminar"
+                    className="flex h-9 w-9 items-center justify-center rounded-lg text-gray-400 transition-colors hover:bg-red-500/10 hover:text-red-400"
+                  >
                     <Trash2 size={16} />
                   </button>
                 </div>
               </div>
             </Card>
-          )
-        ))}
+          );
+        })}
         {types.length === 0 && editingId !== "new" && (
-          <div className="col-span-full py-12 text-center bg-stampa-bg-soft rounded-xl border border-dashed border-fg/20">
-            <p className="text-sm text-gray-500">No tienes tipos de producto registrados.</p>
+          <div className="col-span-full py-10 text-center bg-stampa-bg-soft rounded-xl border border-dashed border-fg/20">
+            <p className="text-sm text-gray-500">Sin tipos de producto</p>
           </div>
         )}
       </div>
-    </div>
+
+      {openSuppliesType && userId && (
+        <ProductTypeSuppliesDialog
+          open
+          onClose={() => setOpenSuppliesId(null)}
+          productTypeId={openSuppliesType.id}
+          productTypeName={openSuppliesType.name}
+          legacyFixedCost={Number(openSuppliesType.fixed_cost) || 0}
+          userId={userId}
+          supplies={suppliesData.supplies}
+          associations={suppliesData.associations}
+          onAssociationsChange={updateAssociations}
+          onClearLegacyFixedCost={() => clearLegacyFixedCost(openSuppliesType.id)}
+          onOpenCatalog={onOpenSupplies}
+        />
+      )}
+    </section>
   );
 }
 
@@ -310,32 +328,39 @@ function TypeEditor({ saving, formData, setFormData, onSave, onCancel }: any) {
     }
   };
 
+  const fieldId = React.useId();
+  const inputClass = "h-10 w-full rounded-lg border border-stampa-border bg-stampa-surface px-2.5 text-base sm:text-sm text-neutral-100 placeholder:text-neutral-500 focus:border-[#ff6a00] focus:ring-2 focus:ring-[#ff6a00]/20";
+
   return (
     <Card className="p-4 border-stampa-orange/30 shadow-md">
       <div className="space-y-3">
         <div>
-          <label className="block text-xs font-semibold text-gray-300 mb-1">Nombre (Tipo de Pieza)</label>
-          <input type="text" name="name" value={formData.name} onChange={handleChange} className="w-full text-sm border-stampa-border rounded-md text-neutral-100 bg-stampa-surface border focus:border-[#ff6a00] focus:ring-[#ff6a00]/20 focus:ring-2 placeholder:text-neutral-500 disabled:bg-neutral-800 disabled:text-neutral-500" placeholder="Ej. Llavero, Adorno, etc." />
+          <label htmlFor={`${fieldId}-name`} className="block text-xs font-semibold text-gray-300 mb-1">Nombre</label>
+          <input id={`${fieldId}-name`} type="text" name="name" value={formData.name} onChange={handleChange} className={inputClass} placeholder="Ej. Llavero, Lámpara" />
         </div>
         <div className="grid grid-cols-2 gap-2">
           <div>
-            <label className="block text-xs font-semibold text-gray-300 mb-1">Markup</label>
-            <input type="number" step="0.1" name="multiplier" value={formData.multiplier} onChange={handleChange} className="w-full text-sm border-stampa-border rounded-md text-neutral-100 bg-stampa-surface border focus:border-[#ff6a00] focus:ring-[#ff6a00]/20 focus:ring-2 placeholder:text-neutral-500 disabled:bg-neutral-800 disabled:text-neutral-500" />
+            <label htmlFor={`${fieldId}-multiplier`} className="block text-xs font-semibold text-gray-300 mb-1">Markup (×)</label>
+            <input id={`${fieldId}-multiplier`} type="number" step="0.1" name="multiplier" value={formData.multiplier} onChange={handleChange} className={inputClass} />
           </div>
           <div>
-            <label className="block text-xs font-semibold text-gray-300 mb-1">Insumos extra</label>
-            <input type="number" min="0" step="any" name="fixed_cost" value={formData.fixed_cost} onChange={handleChange} className="w-full text-sm border-stampa-border rounded-md text-neutral-100 bg-stampa-surface border focus:border-[#ff6a00] focus:ring-[#ff6a00]/20 focus:ring-2 placeholder:text-neutral-500 disabled:bg-neutral-800 disabled:text-neutral-500" placeholder="Ej: costo del jarro, packaging, tira LED..." />
-            <p className="mt-1 text-[10px] leading-relaxed text-gray-500">Se suma a su costo real, sin markup. Si configuraste contingencias sobre insumos (0 % por defecto), se aplican también a este valor.</p>
+            <div className="mb-1 flex items-center gap-1">
+              <label htmlFor={`${fieldId}-fixed`} className="block text-xs font-semibold text-gray-300">Insumos extra ($)</label>
+              <InfoTip label="Qué son los insumos extra" iconSize={13} className="h-5 w-5">
+                Monto fijo por unidad (jarro, packaging, tira LED…). Se suma a su costo real, sin markup. Si configuraste contingencias sobre insumos, también se aplican a este valor.
+              </InfoTip>
+            </div>
+            <input id={`${fieldId}-fixed`} type="number" min="0" step="any" name="fixed_cost" value={formData.fixed_cost} onChange={handleChange} className={inputClass} placeholder="0" />
           </div>
         </div>
-        <div className="flex items-center gap-2 pt-1">
+        <label className="flex min-h-9 items-center gap-2 text-sm font-medium text-gray-300">
           <input type="checkbox" name="is_active" checked={formData.is_active} onChange={handleChange} className="rounded text-stampa-accent focus:ring-[#ff6a00]/20" />
-          <label className="text-sm font-medium text-gray-300">Tipo Activo</label>
-        </div>
+          Activo
+        </label>
       </div>
       <div className="mt-4 flex flex-col-reverse sm:flex-row gap-2 justify-end">
-        <button onClick={onCancel} className="w-full sm:w-auto px-3 py-1.5 text-xs font-bold text-gray-400 hover:bg-stampa-surface/5 rounded-md transition-colors text-center">Cancelar</button>
-        <button onClick={onSave} disabled={saving} aria-busy={saving} className="w-full sm:w-auto flex justify-center items-center gap-1.5 px-3 py-1.5 text-xs font-bold bg-stampa-orange/100 hover:bg-stampa-orange text-white rounded-md transition-colors"><Save size={14} /> Guardar</button>
+        <button type="button" onClick={onCancel} className="min-h-10 w-full sm:w-auto rounded-lg px-3 text-sm font-semibold text-gray-400 transition-colors hover:bg-fg/5 hover:text-fg">Cancelar</button>
+        <button type="button" onClick={onSave} disabled={saving} aria-busy={saving} className="min-h-10 w-full sm:w-auto flex justify-center items-center gap-1.5 rounded-lg bg-stampa-orange px-4 text-sm font-bold text-neutral-950 transition-colors hover:bg-stampa-orange-hover disabled:opacity-50"><Save size={15} aria-hidden="true" /> Guardar</button>
       </div>
     </Card>
   );

@@ -11,6 +11,7 @@ import {
   type CustomExpenseDraft,
 } from "@/lib/calculator/custom-expenses";
 import { formatSupplyMoney } from "@/lib/calculator/supplies";
+import { InfoTip } from "@/components/ui/info-tip";
 
 interface CustomExpensesEditorProps {
   expenses: CustomExpenseDraft[];
@@ -58,10 +59,10 @@ export function CustomExpensesEditor({ expenses, onChange, scopeLabel, compact =
     <section className={`rounded-2xl border border-stampa-border bg-stampa-surface ${compact ? "p-3 sm:p-4" : "p-4 sm:p-5"}`} aria-labelledby="custom-expenses-title">
       <h3 id="custom-expenses-title" className="flex items-center gap-2 text-sm font-bold text-fg">
         <ReceiptText size={16} className="text-stampa-accent" aria-hidden="true" /> Gastos adicionales
+        <InfoTip label="Qué son los gastos adicionales">
+          Conceptos propios de {scopeLabel} que no están en tu catálogo (tratamiento especial, diseño, embalaje reforzado…). Se suman al costo real, sin markup.
+        </InfoTip>
       </h3>
-      <p className="mt-1 text-xs leading-relaxed text-gray-400">
-        Conceptos propios de {scopeLabel} que no están en tu catálogo (tratamiento especial, diseño, embalaje reforzado…). Se suman al costo real, sin markup.
-      </p>
 
       {expenses.length > 0 && (
         <ul className="mt-3 space-y-2">

@@ -59,6 +59,29 @@ function ConfiguracionContent() {
     }
   }, [searchParams]);
 
+  // «Ir a Insumos» / «Editar tipo» desde Mi Taller llegan con un ancla: las secciones se cargan de forma diferida,
+  // así que se espera a que existan para desplazarse (el ancla nativa del navegador llega antes que el contenido).
+  useEffect(() => {
+    if (activeTab !== "calculadora") return;
+    const hash = window.location.hash.slice(1);
+    if (hash !== "catalogo-insumos" && hash !== "tipos-de-producto") return;
+    let attempts = 0;
+    let settleTimer: number | undefined;
+    const interval = window.setInterval(() => {
+      attempts += 1;
+      const target = document.getElementById(hash);
+      if (target || attempts > 40) window.clearInterval(interval);
+      if (!target) return;
+      target.scrollIntoView({ block: "start" });
+      // Una segunda pasada cuando terminan de cargar las secciones de arriba.
+      settleTimer = window.setTimeout(() => target.scrollIntoView({ block: "start", behavior: "smooth" }), 700);
+    }, 150);
+    return () => {
+      window.clearInterval(interval);
+      if (settleTimer !== undefined) window.clearTimeout(settleTimer);
+    };
+  }, [activeTab]);
+
   const handleTabChange = (t: Tab) => {
     setActiveTab(t);
     router.replace(`/configuracion?tab=${t}`);
@@ -184,16 +207,18 @@ function ConfiguracionContent() {
         {activeTab === "negocio" && <BusinessManager />}
         
         {activeTab === "calculadora" && (
-          <div className="space-y-8 max-w-4xl">
-            <div className="p-4 bg-fg/5 border border-stampa-border rounded-xl mb-6">
-              <p className="text-sm text-gray-400">
-                <strong className="text-fg">Ajustes de cotización.</strong> Estos valores se usan centralmente en la calculadora para establecer precios más realistas.
-              </p>
+          // UX-01B: los formularios conservan un ancho de lectura; la grilla de tipos usa el ancho disponible.
+          <div className="space-y-10">
+            <div className="max-w-4xl">
+              <SettingsManager />
             </div>
-            <SettingsManager />
             {/* D059: «Ir a Insumos» lleva al catálogo de esta misma pantalla; ambos paneles se sincronizan solos. */}
-            <ProductTypesManager onOpenSupplies={scrollToSuppliesCatalog} />
-            <SuppliesManager />
+            <div id="tipos-de-producto" className="max-w-[90rem] scroll-mt-24">
+              <ProductTypesManager onOpenSupplies={scrollToSuppliesCatalog} />
+            </div>
+            <div className="max-w-4xl">
+              <SuppliesManager />
+            </div>
           </div>
         )}
 

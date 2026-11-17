@@ -1247,7 +1247,7 @@ function ProductosPageContent() {
                   }}
                   scopeLabel="este producto"
                   contingencyPercent={Number(calculatorSettings?.supplies_contingency_percent) || 0}
-                  onEditType={() => router.push("/configuracion?tab=calculadora")}
+                  onEditType={() => router.push("/configuracion?tab=calculadora#tipos-de-producto")}
                   onOpenCatalog={() => router.push("/configuracion?tab=calculadora#catalogo-insumos")}
                   compact
                 />

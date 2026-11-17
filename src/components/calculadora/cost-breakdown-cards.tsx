@@ -3,6 +3,7 @@
 import React from "react";
 import { AlertTriangle, PieChart } from "lucide-react";
 import type { CostBreakdown, CostGroupId } from "@/lib/calculator/cost-breakdown";
+import { InfoTip } from "@/components/ui/info-tip";
 
 const money = (value: number) => `$${(Number.isFinite(value) ? value : 0).toFixed(2)}`;
 const percent = (value: number) => `${(Number.isFinite(value) ? value : 0).toLocaleString("es-AR", { maximumFractionDigits: 1 })} %`;
@@ -18,24 +19,26 @@ const SEGMENT_STYLES: Record<CostGroupId | "reserve" | "profit", { bar: string; 
 
 /** Desglose del precio sugerido y rentabilidad: qué parte es impresión, componentes, embalaje, contingencias y ganancia. */
 export function CostProfitabilityCard({ breakdown }: { breakdown: CostBreakdown }) {
-  const { salePrice, profit } = breakdown;
+  const { profit } = breakdown;
   const segments = [
     ...breakdown.groups.map((group) => ({ id: group.id as CostGroupId | "reserve" | "profit", amount: group.amount })),
     { id: "reserve" as const, amount: breakdown.contingencyAmount },
     { id: "profit" as const, amount: Math.max(0, profit) },
   ].filter((segment) => segment.amount > 0);
   const barTotal = segments.reduce((total, segment) => total + segment.amount, 0);
-  const printing = breakdown.groups.find((group) => group.id === "printing");
-  const packaging = breakdown.groups.find((group) => group.id === "packaging");
-  const components = breakdown.groups.find((group) => group.id === "components");
   const top = breakdown.topItem;
   const topShare = top && breakdown.realCost > 0 ? (top.amount / breakdown.realCost) * 100 : 0;
 
+  // UX-03: precio, costo total, ganancia y margen ya están en el «Resumen del cálculo»; esta tarjeta muestra
+  // cómo se compone el precio, el mayor costo, las contingencias (separadas del costo real) y las advertencias.
   return (
     <section className="rounded-2xl border border-stampa-border bg-stampa-surface p-5 shadow-lg" aria-labelledby="calc-profitability-title">
       <div className="mb-3 flex items-center justify-between gap-2">
         <h3 id="calc-profitability-title" className="flex items-center gap-2 text-sm font-bold text-fg">
           <PieChart size={17} className="text-stampa-accent" aria-hidden="true" /> Rentabilidad
+          <InfoTip label="Cómo se calcula la rentabilidad">
+            Margen = ganancia ÷ precio de venta (el markup ×{breakdown.multiplier} se aplica solo al filamento). Venta directa: no incluye comisiones de plataformas ni envío al cliente; para eso mirá el Precio Mercado Libre. Los insumos se cuentan a su costo real; las contingencias (opcionales) se cuentan como costo y no como ganancia.
+          </InfoTip>
         </h3>
         {breakdown.isProvisional && (
           <span className="rounded-md border border-amber-500/30 bg-amber-500/10 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-amber-300">Provisoria</span>
@@ -44,7 +47,7 @@ export function CostProfitabilityCard({ breakdown }: { breakdown: CostBreakdown 
 
       {barTotal > 0 && (
         <>
-          <p className="mb-1.5 text-[11px] text-gray-500">Cómo se compone el precio sugerido</p>
+          <p className="mb-1.5 text-[11px] text-gray-500">Composición del precio</p>
           <div className="flex h-3 w-full overflow-hidden rounded-full bg-fg/10" role="img" aria-label={segments.map((segment) => `${SEGMENT_STYLES[segment.id].label} ${percent((segment.amount / barTotal) * 100)}`).join(", ")}>
             {segments.map((segment) => (
               <span key={segment.id} className={`${SEGMENT_STYLES[segment.id].bar} h-full`} style={{ width: `${(segment.amount / barTotal) * 100}%` }} />
@@ -62,51 +65,24 @@ export function CostProfitabilityCard({ breakdown }: { breakdown: CostBreakdown 
         </>
       )}
 
-      <dl className="mt-4 space-y-2 rounded-xl border border-stampa-border bg-stampa-bg-soft p-3">
-        <div className="flex items-center justify-between">
-          <dt className="text-xs text-gray-400">Costo real de fabricación</dt>
-          <dd className="text-sm font-bold text-fg">{money(breakdown.realCost)}</dd>
-        </div>
-        {breakdown.contingencyBase > 0 && (
-          <div className="flex items-center justify-between">
+      {breakdown.contingencyAmount > 0 && (
+        <dl className="mt-4 space-y-2 rounded-xl border border-stampa-border bg-stampa-bg-soft p-3">
+          <div className="flex items-center justify-between gap-2">
+            <dt className="text-xs text-gray-400">Costo real de fabricación</dt>
+            <dd className="text-sm font-bold text-fg">{money(breakdown.realCost)}</dd>
+          </div>
+          <div className="flex items-center justify-between gap-2">
             <dt className="text-xs text-gray-400">Contingencias sobre insumos ({percent(breakdown.contingencyPercent)})</dt>
             <dd className="text-sm font-medium text-gray-300">{money(breakdown.contingencyAmount)}</dd>
           </div>
-        )}
-        {breakdown.contingencyAmount > 0 && (
-          <div className="flex items-center justify-between">
-            <dt className="text-xs text-gray-400">Costo total con contingencias</dt>
-            <dd className="text-sm font-medium text-gray-300">{money(breakdown.baseCost)}</dd>
-          </div>
-        )}
-        <div className="flex items-center justify-between">
-          <dt className="text-xs text-gray-400">Precio de venta sugerido</dt>
-          <dd className="text-sm font-bold text-emerald-400">{money(salePrice)}</dd>
-        </div>
-        <div className="flex items-center justify-between">
-          <dt className="text-xs text-gray-400">Ganancia estimada{breakdown.isProvisional ? " (provisoria)" : ""}</dt>
-          <dd className={`text-sm font-bold ${profit < 0 ? "text-red-400" : "text-emerald-400"}`}>{money(profit)}</dd>
-        </div>
-        <div className="flex items-center justify-between border-t border-stampa-border pt-2">
-          <dt className="text-xs font-semibold text-gray-300">Margen de ganancia</dt>
-          <dd className={`text-base font-black ${profit < 0 ? "text-red-400" : "text-emerald-400"}`}>
-            {breakdown.marginPercent === null ? "—" : percent(breakdown.marginPercent)}
-          </dd>
-        </div>
-      </dl>
+        </dl>
+      )}
 
-      <ul className="mt-3 space-y-1 text-[11px] leading-relaxed text-gray-400">
-        {top && (
-          <li>
-            <span className="text-gray-500">Mayor costo:</span> <strong className="text-gray-200">{top.label}</strong> ({money(top.amount)} · {percent(topShare)} del costo real)
-          </li>
-        )}
-        {printing && breakdown.realCost > 0 && (
-          <li><span className="text-gray-500">Impresión:</span> {percent(printing.share * 100)} del costo real</li>
-        )}
-        {(components?.amount ?? 0) > 0 && <li><span className="text-gray-500">Componentes:</span> {money(components!.amount)}</li>}
-        {(packaging?.amount ?? 0) > 0 && <li><span className="text-gray-500">Embalaje:</span> {money(packaging!.amount)}</li>}
-      </ul>
+      {top && (
+        <p className="mt-3 text-[11px] leading-relaxed text-gray-400">
+          <span className="text-gray-500">Mayor costo:</span> <strong className="text-gray-200">{top.label}</strong> ({money(top.amount)} · {percent(topShare)} del costo real)
+        </p>
+      )}
 
       {breakdown.warnings.length > 0 && (
         <ul className="mt-3 space-y-1.5">
@@ -117,10 +93,6 @@ export function CostProfitabilityCard({ breakdown }: { breakdown: CostBreakdown 
           ))}
         </ul>
       )}
-
-      <p className="mt-3 text-[10px] leading-relaxed text-gray-500">
-        Margen = ganancia ÷ precio de venta (el markup x{breakdown.multiplier} se aplica solo al filamento). Venta directa: no incluye comisiones de plataformas ni envío al cliente; para eso mirá el Precio Mercado Libre. Los insumos se cuentan a su costo real; las contingencias (opcionales, 0 % por defecto) se cuentan como costo y no como ganancia.
-      </p>
     </section>
   );
 }

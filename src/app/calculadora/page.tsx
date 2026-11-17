@@ -4,7 +4,7 @@ import React, { useState, useEffect, useMemo, useRef } from "react";
 import dynamic from "next/dynamic";
 import Link from "next/link";
 import { useSearchParams, useRouter } from "next/navigation";
-import { Zap, DollarSign, Loader2, AlertCircle, Compass, Settings, Save, X, PackagePlus, CheckCircle2, Calculator, Info, FileText, Plus, LockKeyhole, HelpCircle } from "lucide-react";
+import { Zap, DollarSign, Loader2, AlertCircle, Compass, Settings, Save, X, PackagePlus, CheckCircle2, Calculator, Info, FileText, Plus, LockKeyhole, HelpCircle, ChevronDown } from "lucide-react";
 import { Card } from "@/components/ui/card";
 import { GhostButton } from "@/components/ui/button";
 import { SectionTitle } from "@/components/ui/section-title";
@@ -1319,7 +1319,6 @@ function CalculadoraPageContent() {
         <Card className="p-4 sm:p-6 bg-stampa-surface border-stampa-border shadow-lg">
           <div className="mb-5">
             <h2 className="text-lg font-bold text-fg flex items-center gap-2">Datos principales</h2>
-            <p className="text-sm text-gray-400 mt-1">Estos datos alcanzan para una estimación rápida.</p>
           </div>
 
           <div className="space-y-6">
@@ -1429,9 +1428,6 @@ function CalculadoraPageContent() {
                   placeholder="Seleccioná margen..."
                   searchable={false}
                 />
-                <p className="mt-2 text-[11px] leading-relaxed text-gray-500">
-                  Los insumos extra del tipo elegido pueden incluir aluminio, pegamento, frascos o packaging. Se suman a su costo real, sin markup.
-                </p>
               </label>
               <div className="block">
                 <div className="flex items-center justify-between mb-1">
@@ -1501,8 +1497,7 @@ function CalculadoraPageContent() {
               MODO AVANZADO
             </div>
             <div className="mb-6 pr-24">
-              <h2 className="text-lg font-bold text-fg">Costos Avanzados</h2>
-              <p className="text-sm text-gray-400 mt-1">Sumá costos extra para calcular un precio más real.</p>
+              <h2 className="text-lg font-bold text-fg">Costos avanzados</h2>
             </div>
 
             <div className="grid grid-cols-1 gap-8 sm:grid-cols-2">
@@ -1553,7 +1548,7 @@ function CalculadoraPageContent() {
 
         {/* Desglose de costos por concepto (D059): mismo resultado del motor, fila por fila */}
         {hasValidCalc && (advanced || supplyPricing || validCustomExpenses.length > 0) && (
-          <CostBreakdownTable breakdown={calc.breakdown} />
+          <CostBreakdownTable breakdown={calc.breakdown} collapsible />
         )}
 
       </div>
@@ -1567,69 +1562,88 @@ function CalculadoraPageContent() {
             <DollarSign size={18} className="text-stampa-accent" /> Resumen del cálculo
           </h3>
 
-          <div className="space-y-3 mb-6">
-            <div className="flex items-center justify-between">
-              <p className="text-xs text-gray-500">Filamento</p>
-              <p className="text-sm font-medium text-gray-300">${calc.materialCost.toFixed(2)}</p>
+          {/* UX-03 · nivel 1: los cuatro indicadores. Mismos valores del motor; solo cambia la jerarquía visual. */}
+          <div className="space-y-3">
+            <div className="rounded-xl border border-emerald-500/20 bg-emerald-500/[0.06] p-4">
+              <p className="text-[11px] font-bold uppercase tracking-wider text-emerald-500/80">Precio de venta</p>
+              <p className="mt-0.5 text-3xl font-black tabular-nums text-emerald-400">${calc.normalPrice.toFixed(2)}</p>
             </div>
-            <div className="flex items-center justify-between">
-              <p className="text-xs text-gray-500">Electricidad</p>
-              <p className="text-sm font-medium text-gray-300">${calc.energyCost.toFixed(2)}</p>
+            <div className="grid grid-cols-3 gap-2">
+              <div className="flex min-w-0 flex-col justify-between rounded-xl border border-stampa-border bg-stampa-surface p-2.5">
+                <p className="text-[10px] font-semibold uppercase leading-tight tracking-wider text-gray-500">Costo total</p>
+                <p className="mt-1 truncate text-sm font-bold tabular-nums text-fg">${calc.baseCost.toFixed(2)}</p>
+              </div>
+              <div className="flex min-w-0 flex-col justify-between rounded-xl border border-stampa-border bg-stampa-surface p-2.5">
+                <p className="text-[10px] font-semibold uppercase leading-tight tracking-wider text-gray-500">Ganancia estimada</p>
+                <p className={`mt-1 truncate text-sm font-bold tabular-nums ${calc.profit < 0 ? "text-red-400" : "text-emerald-400"}`}>${calc.profit.toFixed(2)}</p>
+              </div>
+              <div className="flex min-w-0 flex-col justify-between rounded-xl border border-stampa-border bg-stampa-surface p-2.5">
+                <p className="text-[10px] font-semibold uppercase leading-tight tracking-wider text-gray-500">Margen</p>
+                <p className={`mt-1 truncate text-sm font-bold tabular-nums ${calc.profit < 0 ? "text-red-400" : "text-emerald-400"}`}>
+                  {hasValidCalc && calc.marginPercent !== null ? `${calc.marginPercent.toLocaleString("es-AR", { maximumFractionDigits: 1 })} %` : "—"}
+                </p>
+              </div>
             </div>
-            <div className="flex items-center justify-between">
-              <p className="text-xs text-gray-500">Mantenimiento</p>
-              <p className="text-sm font-medium text-gray-300">${calc.printerCost.toFixed(2)}</p>
-            </div>
-            {calc.numLaborCost > 0 && (
-              <div className="flex items-center justify-between">
-                <p className="text-xs text-gray-500">Mano de obra</p>
-                <p className="text-sm font-medium text-gray-300">${calc.numLaborCost.toFixed(2)}</p>
-              </div>
-            )}
-            {calc.componentsCost > 0 && (
-              <div className="flex items-center justify-between">
-                <p className="text-xs text-gray-500">Componentes</p>
-                <p className="text-sm font-medium text-gray-300">${calc.componentsCost.toFixed(2)}</p>
-              </div>
-            )}
-            {calc.packagingCost > 0 && (
-              <div className="flex items-center justify-between">
-                <p className="text-xs text-gray-500">Embalaje</p>
-                <p className="text-sm font-medium text-gray-300">${calc.packagingCost.toFixed(2)}</p>
-              </div>
-            )}
-            <div className="flex items-center justify-between">
-              <p className="text-xs text-gray-500">Insumos extra</p>
-              <p className="text-sm font-medium text-gray-300">${calc.legacyExtrasRaw.toFixed(2)}</p>
-            </div>
-            {(calc.suppliesContingencyAmount > 0 || calc.suppliesContingencyPercent > 0) && (
-              <div className="flex items-center justify-between">
-                <p className="text-xs text-gray-500">Contingencias insumos {calc.suppliesContingencyPercent.toLocaleString("es-AR", { maximumFractionDigits: 2 })}%</p>
-                <p className="text-sm font-medium text-gray-300">${calc.suppliesContingencyAmount.toFixed(2)}</p>
-              </div>
+            {calc.suppliesContingencyAmount > 0 && (
+              <p className="text-[11px] text-gray-500">
+                Costo total incluye ${calc.suppliesContingencyAmount.toFixed(2)} de contingencias sobre insumos.
+              </p>
             )}
           </div>
 
-          <div className="bg-stampa-surface border border-stampa-border rounded-xl p-4 space-y-3">
-            <div className="flex items-center justify-between border-b border-stampa-border pb-3">
-              <p className="text-xs font-bold text-gray-500 uppercase tracking-wider">Costo Base</p>
-              <p className="text-base font-bold text-fg">${calc.baseCost.toFixed(2)}</p>
-            </div>
-            <div className="flex items-center justify-between">
-              <p className="text-xs font-bold text-emerald-500/80 uppercase tracking-wider">Precio Sugerido</p>
-              <p className="text-2xl font-black text-emerald-400">${calc.normalPrice.toFixed(2)}</p>
-            </div>
-            <div className="flex items-center justify-between mt-1">
-              <p className="text-[10px] text-gray-500 uppercase tracking-wider">Ganancia estimada</p>
-              <p className="text-xs font-bold text-emerald-500">${calc.profit.toFixed(2)}</p>
-            </div>
-            {hasValidCalc && calc.marginPercent !== null && (
+          {/* UX-03 · nivel 2: cada concepto del costo, a pedido. */}
+          <details id="calc-summary-detail" className="group mt-4 rounded-xl border border-stampa-border bg-stampa-surface">
+            <summary className="flex min-h-11 cursor-pointer list-none items-center justify-between gap-2 px-3 text-xs font-semibold text-gray-300 hover:text-fg focus:outline-none focus-visible:ring-2 focus-visible:ring-stampa-orange rounded-xl [&::-webkit-details-marker]:hidden">
+              Detalle de costos
+              <ChevronDown size={15} className="transition-transform group-open:rotate-180" aria-hidden="true" />
+            </summary>
+            <div className="space-y-2.5 border-t border-stampa-border px-3 py-3">
               <div className="flex items-center justify-between">
-                <p className="text-[10px] text-gray-500 uppercase tracking-wider">Margen sobre el precio</p>
-                <p className="text-xs font-bold text-emerald-500">{calc.marginPercent.toLocaleString("es-AR", { maximumFractionDigits: 1 })} %</p>
+                <p className="text-xs text-gray-500">Filamento</p>
+                <p className="text-sm font-medium text-gray-300">${calc.materialCost.toFixed(2)}</p>
               </div>
-            )}
-          </div>
+              <div className="flex items-center justify-between">
+                <p className="text-xs text-gray-500">Electricidad</p>
+                <p className="text-sm font-medium text-gray-300">${calc.energyCost.toFixed(2)}</p>
+              </div>
+              <div className="flex items-center justify-between">
+                <p className="text-xs text-gray-500">Mantenimiento</p>
+                <p className="text-sm font-medium text-gray-300">${calc.printerCost.toFixed(2)}</p>
+              </div>
+              {calc.numLaborCost > 0 && (
+                <div className="flex items-center justify-between">
+                  <p className="text-xs text-gray-500">Mano de obra</p>
+                  <p className="text-sm font-medium text-gray-300">${calc.numLaborCost.toFixed(2)}</p>
+                </div>
+              )}
+              {calc.componentsCost > 0 && (
+                <div className="flex items-center justify-between">
+                  <p className="text-xs text-gray-500">Componentes</p>
+                  <p className="text-sm font-medium text-gray-300">${calc.componentsCost.toFixed(2)}</p>
+                </div>
+              )}
+              {calc.packagingCost > 0 && (
+                <div className="flex items-center justify-between">
+                  <p className="text-xs text-gray-500">Embalaje</p>
+                  <p className="text-sm font-medium text-gray-300">${calc.packagingCost.toFixed(2)}</p>
+                </div>
+              )}
+              <div className="flex items-center justify-between">
+                <p className="text-xs text-gray-500">Insumos extra</p>
+                <p className="text-sm font-medium text-gray-300">${calc.legacyExtrasRaw.toFixed(2)}</p>
+              </div>
+              {(calc.suppliesContingencyAmount > 0 || calc.suppliesContingencyPercent > 0) && (
+                <div className="flex items-center justify-between">
+                  <p className="text-xs text-gray-500">Contingencias insumos {calc.suppliesContingencyPercent.toLocaleString("es-AR", { maximumFractionDigits: 2 })}%</p>
+                  <p className="text-sm font-medium text-gray-300">${calc.suppliesContingencyAmount.toFixed(2)}</p>
+                </div>
+              )}
+              <div className="flex items-center justify-between border-t border-stampa-border pt-2.5">
+                <p className="text-xs font-semibold text-gray-300">Costo total</p>
+                <p className="text-sm font-bold text-fg">${calc.baseCost.toFixed(2)}</p>
+              </div>
+            </div>
+          </details>
 
           <div className="mt-4">
             <MarketplacePriceCard
@@ -1659,9 +1673,6 @@ function CalculadoraPageContent() {
           >
             <FileText size={18} /> Crear presupuesto
           </Link>
-          <p className="text-[11px] text-center text-gray-500 leading-tight px-4">
-            Después de calcular, podés guardar la pieza para reutilizarla en presupuestos.
-          </p>
           </> : <div className="rounded-2xl border border-stampa-orange/20 bg-stampa-orange/5 p-5">
             <p className="text-sm font-bold text-fg">¿Fabricás este producto habitualmente?</p>
             <p className="mt-2 text-xs leading-relaxed text-gray-400">Con Mi Taller podés guardar su receta, costos y stock.</p>

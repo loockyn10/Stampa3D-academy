@@ -5,6 +5,7 @@ import { Archive, ArchiveRestore, Boxes, Edit2, Loader2, Package, Plus, Save, Se
 import { createClient } from "@/utils/supabase/client";
 import { CalculatorSelect } from "@/components/ui/calculator-select";
 import { EmptyState } from "@/components/ui/empty-state";
+import { InfoTip } from "@/components/ui/info-tip";
 import { TableSkeleton } from "@/components/ui/page-skeletons";
 import { useAppFeedback } from "@/components/ui/app-feedback";
 import { useSaveGuard } from "@/lib/forms/use-save-guard";
@@ -229,7 +230,7 @@ export function SuppliesManager({ onChanged }: SuppliesManagerProps = {}) {
   if (!available) {
     return (
       <div id="catalogo-insumos" className="scroll-mt-24 rounded-xl border border-dashed border-stampa-border p-4 text-sm text-gray-400">
-        El catálogo de insumos todavía no está disponible en tu cuenta. La calculadora sigue funcionando como siempre.
+        Catálogo de insumos no disponible todavía.
       </div>
     );
   }
@@ -237,22 +238,24 @@ export function SuppliesManager({ onChanged }: SuppliesManagerProps = {}) {
   return (
     <div id="catalogo-insumos" className="scroll-mt-24 space-y-4">
       <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-        <div>
-          <h3 className="text-lg font-semibold text-fg">Mis insumos</h3>
-          <p className="text-xs text-gray-400">Componentes y embalajes con su costo. Si cambia un precio, lo actualizás acá una sola vez.</p>
-        </div>
+        <h3 className="flex items-center gap-1.5 text-lg font-semibold text-fg">
+          Mis insumos
+          <InfoTip label="Qué es el catálogo de insumos">
+            Componentes y embalajes con su costo. Si cambia un precio, lo actualizás acá una sola vez y se usa en todos los cálculos futuros.
+          </InfoTip>
+        </h3>
         <button
           type="button"
           onClick={startCreate}
           className="inline-flex min-h-10 shrink-0 items-center justify-center gap-1.5 rounded-xl bg-stampa-orange px-4 text-sm font-bold text-neutral-950 transition-colors hover:bg-stampa-orange-hover focus:outline-none focus-visible:ring-2 focus-visible:ring-stampa-orange"
         >
-          <Plus size={16} aria-hidden="true" /> Nuevo insumo
+          <Plus size={16} aria-hidden="true" /> Agregar insumo
         </button>
       </div>
 
       {editingId === "new" && (
         <SupplyForm
-          title="Nuevo insumo"
+          title="Agregar insumo"
           draft={draft}
           setDraft={setDraft}
           errors={errors}
@@ -298,17 +301,17 @@ export function SuppliesManager({ onChanged }: SuppliesManagerProps = {}) {
       {supplies.length === 0 && editingId !== "new" ? (
         <EmptyState
           icon={Boxes}
-          title="Todavía no cargaste insumos"
-          hint="Sumá focos, cables, cajas o papel burbuja con su costo. Después los asociás a tus tipos de producto y la calculadora los suma sola."
+          title="Sin insumos"
+          hint="Focos, cables, cajas, papel burbuja…"
           action={
             <button type="button" onClick={startCreate} className="inline-flex min-h-10 items-center gap-1.5 rounded-xl border border-stampa-orange/40 px-4 text-sm font-semibold text-stampa-accent hover:bg-stampa-orange/10">
-              <Plus size={15} aria-hidden="true" /> Cargar mi primer insumo
+              <Plus size={15} aria-hidden="true" /> Agregar insumo
             </button>
           }
         />
       ) : supplies.length > 0 && visible.length === 0 ? (
         <p className="rounded-xl border border-dashed border-stampa-border p-4 text-center text-sm text-gray-400">
-          {status === "archived" ? "No hay insumos archivados con ese filtro." : "No encontramos insumos con ese filtro."}
+          {status === "archived" ? "Sin insumos archivados" : "Sin resultados"}
         </p>
       ) : (
         <ul className="space-y-2">
@@ -517,7 +520,7 @@ function SupplyForm({
           />
           {errorText("unit")}
           {usageCount > 0 && (
-            <p className="mt-1 text-[11px] text-gray-500">Está en tipos de producto: podés pasar a una unidad equivalente (kg ↔ g, m ↔ cm).</p>
+            <p className="mt-1 text-[11px] text-gray-500">En uso: solo unidades equivalentes (kg ↔ g, m ↔ cm).</p>
           )}
         </div>
         <label className="block">
@@ -551,7 +554,6 @@ function SupplyForm({
             aria-invalid={Boolean(errors.customUnitLabel)}
           />
           {errorText("customUnitLabel")}
-          <p className="mt-1 text-[11px] text-gray-500">Una unidad personalizada no se convierte a otras: las cantidades se cargan en esa misma unidad.</p>
         </label>
       )}
 

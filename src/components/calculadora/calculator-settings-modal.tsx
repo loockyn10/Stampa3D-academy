@@ -33,11 +33,11 @@ interface CalculatorSettingsModalProps {
   onSuppliesChanged?: () => void;
 }
 
-const TABS: { id: CalculatorSettingsTab; label: string; hint: string }[] = [
-  { id: "costs", label: "Costos y ML", hint: "Electricidad, desperdicio, comisión y cargo fijo de Mercado Libre." },
-  { id: "printer", label: "Impresora", hint: "Consumo y mantenimiento por hora de la impresora que usás para calcular." },
-  { id: "types", label: "Tipos de producto", hint: "Multiplicador, insumos extra y componentes de cada tipo de producto." },
-  { id: "supplies", label: "Insumos", hint: "Tu catálogo de componentes y embalajes con su costo. Cambiar un costo actualiza todos los cálculos futuros que lo usan." },
+const TABS: { id: CalculatorSettingsTab; label: string }[] = [
+  { id: "costs", label: "Costos y ML" },
+  { id: "printer", label: "Impresora" },
+  { id: "types", label: "Tipos de producto" },
+  { id: "supplies", label: "Insumos" },
 ];
 
 /**
@@ -59,8 +59,6 @@ export function CalculatorSettingsModal({
   // El modal se monta al abrirse, así que la pestaña inicial se toma de las props.
   const [tab, setTab] = useState<CalculatorSettingsTab>(initialTab);
 
-  const activeTab = TABS.find((item) => item.id === tab) ?? TABS[0];
-
   return (
     <Dialog
       open={open}
@@ -74,7 +72,7 @@ export function CalculatorSettingsModal({
             <h2 id="calculator-settings-title" className="flex items-center gap-2 text-base font-bold text-fg">
               <Settings size={17} className="text-stampa-accent" aria-hidden="true" /> Configurar valores
             </h2>
-            <p className="mt-0.5 text-xs text-gray-400">Los cambios se guardan en tu cuenta y tu cálculo actual se conserva.</p>
+            <p className="mt-0.5 text-xs text-gray-400">Tu cálculo actual se conserva.</p>
           </div>
           <button
             type="button"
@@ -109,7 +107,6 @@ export function CalculatorSettingsModal({
       </div>
 
       <div id="calc-settings-panel" role="tabpanel" aria-labelledby={`calc-settings-tab-${tab}`} className="space-y-3 px-4 py-4 sm:px-5">
-        <p className="text-xs text-gray-400">{activeTab.hint}</p>
         {tab === "costs" && <SettingsManager embedded onSaved={onSettingsSaved} />}
         {tab === "printer" && (
           <PrinterCostsForm printers={printers} initialPrinterId={selectedPrinterId} onSaved={onPrinterSaved} />

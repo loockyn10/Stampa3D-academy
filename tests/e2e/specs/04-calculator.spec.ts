@@ -12,8 +12,12 @@ interface Summary {
   profit: number;
 }
 
-/** Lee el panel "Resumen del cálculo". Cada fila es <p>label</p><p>$valor</p>. */
+/**
+ * Lee el panel "Resumen del cálculo". Cada fila es <p>label</p><p>$valor</p>.
+ * UX-03: los conceptos están en «Detalle de costos» (plegado); se abre antes de leer.
+ */
 async function readSummary(page: Page): Promise<Summary> {
+  await page.locator("#calc-summary-detail").evaluate((element) => { (element as HTMLDetailsElement).open = true; });
   const value = async (label: RegExp) => {
     const labelNode = page.locator("p", { hasText: label }).first();
     const text = await labelNode.locator("xpath=following-sibling::p[1]").innerText();
@@ -28,8 +32,8 @@ async function readSummary(page: Page): Promise<Summary> {
     overhead: (await page.locator("p", { hasText: /^Contingencias insumos/ }).count()) > 0
       ? await value(/^Contingencias insumos/)
       : 0,
-    base: await value(/^Costo Base$/i),
-    price: await value(/^Precio Sugerido$/i),
+    base: await value(/^Costo total$/i),
+    price: await value(/^Precio de venta$/i),
     profit: await value(/^Ganancia estimada$/i),
   };
 }
