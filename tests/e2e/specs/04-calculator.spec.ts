@@ -24,7 +24,10 @@ async function readSummary(page: Page): Promise<Summary> {
     electricity: await value(/^Electricidad$/),
     maintenance: await value(/^Mantenimiento$/),
     extras: await value(/^Insumos extra$/),
-    overhead: await value(/^Recargo insumos 30%$/),
+    // D058: sin recargo fijo del 30 %; la fila de contingencias solo aparece si están configuradas (> 0 %).
+    overhead: (await page.locator("p", { hasText: /^Contingencias insumos/ }).count()) > 0
+      ? await value(/^Contingencias insumos/)
+      : 0,
     base: await value(/^Costo Base$/i),
     price: await value(/^Precio Sugerido$/i),
     profit: await value(/^Ganancia estimada$/i),

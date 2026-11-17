@@ -1,6 +1,20 @@
-export const OTHER_COSTS_OVERHEAD_RATE = 0.3;
-// Backward-compatible export for existing calculator consumers and snapshots.
-export const FIXED_COST_OVERHEAD_RATE = OTHER_COSTS_OVERHEAD_RATE;
+/**
+ * Contingencias sobre insumos (D058). Reemplaza al recargo automático del 30 % que se sumaba a los
+ * «Insumos extra» y a los otros costos: ahora los insumos se suman a su costo real y el usuario puede
+ * configurar un porcentaje opcional (0 % por defecto) que se aplica SOLO sobre los insumos
+ * (insumos extra del tipo + catálogo de componentes/embalaje). Nunca recibe el markup.
+ */
+export const DEFAULT_SUPPLIES_CONTINGENCY_PERCENT = 0;
+export const MAX_SUPPLIES_CONTINGENCY_PERCENT = 100;
+
+/** Porcentaje de contingencias válido (0–100). Vacío, negativo o no numérico → 0. */
+export function normalizeSuppliesContingencyPercent(value: unknown): number {
+  const parsed = typeof value === "number" ? value : Number(value);
+  if (value === null || value === undefined || value === "" || !Number.isFinite(parsed) || parsed <= 0) {
+    return DEFAULT_SUPPLIES_CONTINGENCY_PERCENT;
+  }
+  return Math.min(MAX_SUPPLIES_CONTINGENCY_PERCENT, parsed);
+}
 
 export interface CalculatorFilamentLineInput {
   filamentId: string;
@@ -42,10 +56,15 @@ export interface CalculatorPricingInput {
   otherCost?: number;
   /**
    * Insumos del catálogo personal (componentes + embalaje) del tipo de producto.
-   * Se tratan igual que los "insumos extra" del tipo: reciben el recargo del 30 % y NO el markup.
+   * Se suman a su costo real, igual que los "insumos extra" del tipo, y NO reciben el markup.
    * Ausente o 0 → el resultado es idéntico al de la calculadora sin catálogo.
    */
   suppliesCost?: number;
+  /**
+   * Contingencias opcionales sobre insumos, en porcentaje (5 = 5 %). Se aplican solo sobre
+   * `fixedCost + suppliesCost`; no tocan impresión, mano de obra ni otros costos. Ausente → 0 %.
+   */
+  suppliesContingencyPercent?: number;
 }
 
 export interface CalculatorPricingResult {
@@ -53,8 +72,19 @@ export interface CalculatorPricingResult {
   electricityCost: number;
   maintenanceCost: number;
   fixedCost: number;
-  /** Insumos del catálogo incluidos en el cálculo (sin recargo). */
+  /** Insumos del catálogo incluidos en el cálculo (costo real, sin contingencias). */
   suppliesCost: number;
+  /** Porcentaje de contingencias aplicado (0–100). */
+  suppliesContingencyPercent: number;
+  /** Insumos sobre los que se calculan las contingencias: insumos extra del tipo + catálogo. */
+  suppliesContingencyBase: number;
+  /** Monto de contingencias (base × porcentaje). Es costo, no ganancia. */
+  suppliesContingencyAmount: number;
+  /**
+   * Campos históricos (snapshots y consumidores existentes). Desde D058 la "tasa" es la de contingencias
+   * y se aplica solo sobre los insumos (`suppliesContingencyBase`), no sobre todo `otherCostsRaw`.
+   * Snapshots guardados antes de D058 conservan 0.3 y sus montos originales.
+   */
   fixedCostOverheadRate: number;
   fixedCostOverheadAmount: number;
   fixedCostAdjusted: number;
@@ -65,12 +95,12 @@ export interface CalculatorPricingResult {
   multiplier: number;
   multipliableCost: number;
   nonMultipliableCost: number;
-  /** Costo real de fabricación: todo lo que se paga, sin el recargo del 30 %. */
+  /** Costo real de fabricación: todo lo que se paga, sin contingencias. */
   realCost: number;
-  /** Costo base histórico de la calculadora: costo real + recargo del 30 % sobre insumos. */
+  /** Costo base: costo real + contingencias sobre insumos (con 0 % es igual al costo real). */
   baseCost: number;
   salePrice: number;
-  /** Ganancia = precio sugerido − costo base (el recargo cubre pérdidas esperadas, no es ganancia). */
+  /** Ganancia = precio sugerido − costo base (las contingencias cubren pérdidas esperadas, no son ganancia). */
   profit: number;
   /** Margen sobre el precio de venta (ganancia / precio × 100). null si el precio es 0. */
   marginPercent: number | null;
@@ -172,10 +202,15 @@ export function calculateCalculatorPricing(
   const laborCost = finiteOrZero(input.laborCost ?? 0);
   const otherCost = finiteOrZero(input.otherCost ?? 0);
   const suppliesCost = finiteOrZero(input.suppliesCost ?? 0);
+  const suppliesContingencyPercent = normalizeSuppliesContingencyPercent(input.suppliesContingencyPercent);
 
-  // Todo lo que recibe el recargo: insumos extra del tipo, otros costos manuales e insumos del catálogo.
+  // Costos que no reciben markup y se suman a su valor real: insumos extra del tipo, otros costos e insumos del catálogo.
   const otherCostsRaw = fixedCost + otherCost + suppliesCost;
-  const otherCostsOverheadAmount = otherCostsRaw * OTHER_COSTS_OVERHEAD_RATE;
+  // Contingencias: una sola vez y solo sobre los insumos (no sobre "otros costos" ni mano de obra).
+  const suppliesContingencyBase = fixedCost + suppliesCost;
+  const suppliesContingencyAmount = (suppliesContingencyBase * suppliesContingencyPercent) / 100;
+  const contingencyRate = suppliesContingencyPercent / 100;
+  const otherCostsOverheadAmount = suppliesContingencyAmount;
   const otherCostsAdjusted = otherCostsRaw + otherCostsOverheadAmount;
   // Legacy aliases kept for existing calculation snapshots.
   const fixedCostOverheadAmount = otherCostsOverheadAmount;
@@ -196,11 +231,14 @@ export function calculateCalculatorPricing(
     maintenanceCost,
     fixedCost,
     suppliesCost,
-    fixedCostOverheadRate: OTHER_COSTS_OVERHEAD_RATE,
+    suppliesContingencyPercent,
+    suppliesContingencyBase,
+    suppliesContingencyAmount,
+    fixedCostOverheadRate: contingencyRate,
     fixedCostOverheadAmount,
     fixedCostAdjusted,
     otherCostsRaw,
-    otherCostsOverheadRate: OTHER_COSTS_OVERHEAD_RATE,
+    otherCostsOverheadRate: contingencyRate,
     otherCostsOverheadAmount,
     otherCostsAdjusted,
     multiplier,

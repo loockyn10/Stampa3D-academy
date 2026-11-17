@@ -82,7 +82,8 @@ async function loadRecalculationContext(
       .eq("is_active", true),
     supabase
       .from("calculator_settings")
-      .select("default_error_percent, electricity_price_kwh")
+      // "*" para tolerar la columna supplies_contingency_percent ausente si la migración D058 no se aplicó.
+      .select("*")
       .eq("user_id", userId)
       .maybeSingle(),
     loadCalculatorSupplies(supabase, userId, { includeAssociations: false }),

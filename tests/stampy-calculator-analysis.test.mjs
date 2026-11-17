@@ -60,8 +60,9 @@ const calculatorContext = {
       filamentCost: 1_000,
       electricityCost: 100,
       maintenanceCost: 250,
-      baseCost: 1_980,
-      salePrice: 3_980,
+      // D058: otros costos a su valor real (sin el 30 % anterior).
+      baseCost: 1_950,
+      salePrice: 3_950,
       profit: 2_000,
       marketplacePrice: 4_500,
     },
@@ -84,7 +85,7 @@ test("calculator reports current profit without calling OpenAI", () => {
     screenContext: calculatorContext,
   });
   assert.match(result.answer, /\$2\.000/);
-  assert.match(result.answer, /50,3%/);
+  assert.match(result.answer, /50,6%/);
 });
 
 test("calculator runs added-time scenarios through the real pricing helper", () => {
@@ -92,9 +93,27 @@ test("calculator runs added-time scenarios through the real pricing helper", () 
     message: "¿Cuánto subiría si agrego 2 horas?",
     screenContext: calculatorContext,
   });
-  assert.match(result.answer, /\$2\.120/);
-  assert.match(result.answer, /\$4\.120/);
+  assert.match(result.answer, /\$2\.090/);
+  assert.match(result.answer, /\$4\.090/);
   assert.match(result.answer, /No modifiqué el cálculo/);
+});
+
+test("calculator scenarios keep catalog supplies and contingencies exactly once (never the old 30 %)", () => {
+  // Insumos del catálogo 1.500 + contingencia 5 % (75) ya incluidos por el motor en el costo base.
+  const draft = {
+    ...calculatorContext.formState,
+    otherCost: 0,
+    result: { ...calculatorContext.formState.result, baseCost: 1_850 + 1_575, salePrice: 3_850 + 1_575, profit: 2_000 },
+  };
+  const result = analysis.analyzeStampyScreenQuestion({
+    message: "¿Cuánto subiría si agrego 2 horas?",
+    screenContext: { ...calculatorContext, formState: draft },
+  });
+  assert.match(result.answer, /\$3\.565/, "1.850 + 1.575 + 140 de impresión extra");
+  assert.match(result.answer, /\$5\.565/);
+  const largest = analysis.analyzeStampyScreenQuestion({ message: "¿Qué parte del costo pesa más?", screenContext: { ...calculatorContext, formState: draft } });
+  assert.match(largest.answer, /insumos y otros costos/);
+  assert.match(largest.answer, /\$1\.575/);
 });
 
 test("calculator converts a target margin into a compatible filament multiplier", () => {

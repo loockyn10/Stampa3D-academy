@@ -177,7 +177,7 @@ export function ProductTypeSuppliesEditor({
       <div>
         <h5 className="text-sm font-bold text-fg">Componentes y embalaje de «{productTypeName}»</h5>
         <p className="mt-0.5 text-[11px] leading-relaxed text-gray-500">
-          Cantidades por unidad de producto. El costo sale de tu catálogo de insumos; como los insumos extra, recibe el recargo del 30 % y no el markup.
+          Cantidades por unidad de producto. El costo sale de tu catálogo de insumos y se suma a su valor real, sin markup (las contingencias opcionales se configuran en Ajustes).
         </p>
       </div>
 

@@ -18,6 +18,7 @@ import {
   calculateCalculatorFilamentPricing,
   calculateCalculatorPricing,
   calculateMarketplacePrice,
+  normalizeSuppliesContingencyPercent,
 } from "@/lib/calculator/pricing";
 import { MarketplacePriceCard } from "@/components/calculadora/marketplace-price-card";
 import type { CalculatorSettingsTab } from "@/components/calculadora/calculator-settings-modal";
@@ -677,6 +678,8 @@ function CalculadoraPageContent() {
       laborCost: numLaborCost,
       otherCost: numOtherCost,
       suppliesCost: supplyPricing?.total ?? 0,
+      // Solo Premium configura contingencias; Free y anónimos usan 0 %.
+      suppliesContingencyPercent: accessMode === "paid" ? normalizeSuppliesContingencyPercent(settings?.supplies_contingency_percent) : 0,
     });
 
     const breakdown = buildCostBreakdown({
@@ -714,6 +717,8 @@ function CalculadoraPageContent() {
       // "Insumos extra" tal como se mostraban antes: insumos extra del tipo + otros costos (sin el catálogo).
       legacyExtrasRaw: numFixedCost + numOtherCost,
       suppliesCost: pricing.suppliesCost,
+      suppliesContingencyPercent: pricing.suppliesContingencyPercent,
+      suppliesContingencyAmount: pricing.suppliesContingencyAmount,
       componentsCost: supplyPricing?.componentsCost ?? 0,
       packagingCost: supplyPricing?.packagingCost ?? 0,
       realCost: pricing.realCost,
@@ -738,7 +743,7 @@ function CalculadoraPageContent() {
     filamentLines, filaments, manualErrorPercent, manualPricePerKg,
     hours, minutes, manualPrinterConsumption, manualKwhPrice, manualPrinterMaintenance,
     laborCost, otherCost, fixedCost, manualMultiplier, manualPlatformExtra, manualPlatformCommission, shippingCost,
-    supplyPricing,
+    supplyPricing, settings, accessMode,
   ]);
 
   const xpCalculationSignature = useMemo(() => JSON.stringify({
@@ -866,6 +871,12 @@ function CalculadoraPageContent() {
       real_cost: calc.realCost,
       margin_percent: calc.marginPercent,
       supplies_cost: calc.suppliesCost,
+      // D058: sin recargo automático; contingencias opcionales solo sobre insumos.
+      supplies_contingency_percent: calc.suppliesContingencyPercent,
+      supplies_contingency_amount: calc.suppliesContingencyAmount,
+      other_costs_overhead_rate: calc.otherCostsOverheadRate,
+      other_costs_overhead_amount: calc.otherCostsOverheadAmount,
+      other_costs_adjusted: calc.otherCostsAdjusted,
       ...(supplyPricing ? { supplies: toSupplySnapshot(supplyPricing) } : {}),
       // Filament details
       filament_id: firstRecipeLine?.filamentId || null,
@@ -1359,7 +1370,7 @@ function CalculadoraPageContent() {
                   searchable={false}
                 />
                 <p className="mt-2 text-[11px] leading-relaxed text-gray-500">
-                  Los insumos extra del tipo elegido pueden incluir aluminio, pegamento, frascos o packaging. Se les suma un 30% por envío, desperdicio o unidades falladas.
+                  Los insumos extra del tipo elegido pueden incluir aluminio, pegamento, frascos o packaging. Se suman a su costo real, sin markup.
                 </p>
               </label>
               <div className="block">
@@ -1412,6 +1423,7 @@ function CalculadoraPageContent() {
           <ProductSuppliesCard
             productTypeName={selectedProductType.name}
             pricing={supplyPricing}
+            contingencyPercent={calc.suppliesContingencyPercent}
             onEdit={() => setSettingsModalTab("types")}
           />
         )}
@@ -1518,10 +1530,12 @@ function CalculadoraPageContent() {
               <p className="text-xs text-gray-500">Insumos extra</p>
               <p className="text-sm font-medium text-gray-300">${calc.legacyExtrasRaw.toFixed(2)}</p>
             </div>
-            <div className="flex items-center justify-between">
-              <p className="text-xs text-gray-500">Recargo insumos 30%</p>
-              <p className="text-sm font-medium text-gray-300">${calc.otherCostsOverheadAmount.toFixed(2)}</p>
-            </div>
+            {(calc.suppliesContingencyAmount > 0 || calc.suppliesContingencyPercent > 0) && (
+              <div className="flex items-center justify-between">
+                <p className="text-xs text-gray-500">Contingencias insumos {calc.suppliesContingencyPercent.toLocaleString("es-AR", { maximumFractionDigits: 2 })}%</p>
+                <p className="text-sm font-medium text-gray-300">${calc.suppliesContingencyAmount.toFixed(2)}</p>
+              </div>
+            )}
           </div>
 
           <div className="bg-stampa-surface border border-stampa-border rounded-xl p-4 space-y-3">

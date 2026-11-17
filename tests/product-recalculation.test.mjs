@@ -71,8 +71,9 @@ test("product pricing uses every component and filament through the shared calcu
 
   assert.equal(result.isValid, true);
   assert.equal(result.materialCost, 3_150);
-  assert.equal(result.baseCost, 3_560);
-  assert.equal(result.salePrice, 9_860);
+  // D058: insumos extra (100) y otros costos (100) a su costo real, sin el 30 % anterior.
+  assert.equal(result.baseCost, 3_500);
+  assert.equal(result.salePrice, 9_800);
   assert.equal(result.snapshot.source, "product_editor");
   assert.equal(result.snapshot.materials.length, 2);
   assert.equal(result.snapshot.materials[0].grams_total, 200);

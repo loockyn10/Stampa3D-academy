@@ -47,6 +47,8 @@ export interface ProductPricingType {
 export interface ProductCalculatorSettings {
   default_error_percent?: NumberValue;
   electricity_price_kwh?: NumberValue;
+  /** Contingencias opcionales sobre insumos (D058). Ausente → 0 %. */
+  supplies_contingency_percent?: NumberValue;
 }
 
 export type ProductCalculationSnapshot = Record<string, unknown>;
@@ -185,6 +187,8 @@ export function calculateProductPrice({
     laborCost,
     otherCost,
     suppliesCost: supplyPricing.total,
+    // D058: sin recargo automático del 30 %; solo las contingencias que el usuario configuró hoy.
+    suppliesContingencyPercent: toNumber(calculatorSettings?.supplies_contingency_percent),
   });
 
   const snapshot: ProductCalculationSnapshot = {
@@ -215,6 +219,8 @@ export function calculateProductPrice({
     real_cost: pricing.realCost,
     margin_percent: pricing.marginPercent,
     supplies_cost: pricing.suppliesCost,
+    supplies_contingency_percent: pricing.suppliesContingencyPercent,
+    supplies_contingency_amount: pricing.suppliesContingencyAmount,
     ...(hasSupplies ? { supplies: toSupplySnapshot(supplyPricing) } : {}),
     multiplier,
     sale_price: pricing.salePrice,

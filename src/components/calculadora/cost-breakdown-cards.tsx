@@ -6,14 +6,14 @@ import type { CostBreakdown, CostGroupId } from "@/lib/calculator/cost-breakdown
 import { describeSupplyLine, type SupplyLinesPricing } from "@/lib/calculator/supplies";
 
 const money = (value: number) => `$${(Number.isFinite(value) ? value : 0).toFixed(2)}`;
-const percent = (value: number) => `${(Number.isFinite(value) ? value : 0).toLocaleString("es-AR", { maximumFractionDigits: 1 })} %`;
+const percent = (value: number) => `${(Number.isFinite(value) ? value : 0).toLocaleString("es-AR", { maximumFractionDigits: 1 })} %`;
 
 const SEGMENT_STYLES: Record<CostGroupId | "reserve" | "profit", { bar: string; dot: string; label: string }> = {
   printing: { bar: "bg-stampa-orange", dot: "bg-stampa-orange", label: "Impresión" },
   components: { bar: "bg-amber-300", dot: "bg-amber-300", label: "Componentes" },
   packaging: { bar: "bg-sky-400", dot: "bg-sky-400", label: "Embalaje" },
   other: { bar: "bg-indigo-400", dot: "bg-indigo-400", label: "Otros gastos" },
-  reserve: { bar: "bg-gray-500", dot: "bg-gray-500", label: "Recargo 30 %" },
+  reserve: { bar: "bg-gray-500", dot: "bg-gray-500", label: "Contingencias" },
   profit: { bar: "bg-emerald-500", dot: "bg-emerald-500", label: "Ganancia" },
 };
 
@@ -24,10 +24,13 @@ const SEGMENT_STYLES: Record<CostGroupId | "reserve" | "profit", { bar: string; 
 export function ProductSuppliesCard({
   productTypeName,
   pricing,
+  contingencyPercent = 0,
   onEdit,
 }: {
   productTypeName: string;
   pricing: SupplyLinesPricing;
+  /** Contingencias configuradas (0–100). Solo para explicar el cálculo. */
+  contingencyPercent?: number;
   onEdit: () => void;
 }) {
   return (
@@ -84,7 +87,10 @@ export function ProductSuppliesCard({
         </div>
       </dl>
       <p className="mt-2 text-[11px] leading-relaxed text-gray-500">
-        Igual que los insumos extra: se les suma el recargo del 30 % (envío, desperdicio, fallas) y no se les aplica el markup.
+        Se suman a su costo real, sin markup.{" "}
+        {contingencyPercent > 0
+          ? `Tus contingencias del ${percent(contingencyPercent)} se suman aparte, sobre los insumos.`
+          : "Si querés cubrir roturas o faltantes, configurá un % de contingencias en Ajustes (hoy 0 %)."}
       </p>
     </section>
   );
@@ -109,12 +115,12 @@ export function ProductSuppliesEmptyHint({ productTypeName, onConfigure }: { pro
   );
 }
 
-/** Desglose del precio sugerido y rentabilidad: qué parte es impresión, componentes, embalaje, recargo y ganancia. */
+/** Desglose del precio sugerido y rentabilidad: qué parte es impresión, componentes, embalaje, contingencias y ganancia. */
 export function CostProfitabilityCard({ breakdown }: { breakdown: CostBreakdown }) {
   const { salePrice, profit } = breakdown;
   const segments = [
     ...breakdown.groups.map((group) => ({ id: group.id as CostGroupId | "reserve" | "profit", amount: group.amount })),
-    { id: "reserve" as const, amount: breakdown.overheadAmount },
+    { id: "reserve" as const, amount: breakdown.contingencyAmount },
     { id: "profit" as const, amount: Math.max(0, profit) },
   ].filter((segment) => segment.amount > 0);
   const barTotal = segments.reduce((total, segment) => total + segment.amount, 0);
@@ -160,10 +166,16 @@ export function CostProfitabilityCard({ breakdown }: { breakdown: CostBreakdown 
           <dt className="text-xs text-gray-400">Costo real de fabricación</dt>
           <dd className="text-sm font-bold text-fg">{money(breakdown.realCost)}</dd>
         </div>
-        {breakdown.overheadAmount > 0 && (
+        {breakdown.contingencyBase > 0 && (
           <div className="flex items-center justify-between">
-            <dt className="text-xs text-gray-400">Recargo {percent(breakdown.overheadRate * 100)} sobre insumos</dt>
-            <dd className="text-sm font-medium text-gray-300">{money(breakdown.overheadAmount)}</dd>
+            <dt className="text-xs text-gray-400">Contingencias sobre insumos ({percent(breakdown.contingencyPercent)})</dt>
+            <dd className="text-sm font-medium text-gray-300">{money(breakdown.contingencyAmount)}</dd>
+          </div>
+        )}
+        {breakdown.contingencyAmount > 0 && (
+          <div className="flex items-center justify-between">
+            <dt className="text-xs text-gray-400">Costo total con contingencias</dt>
+            <dd className="text-sm font-medium text-gray-300">{money(breakdown.baseCost)}</dd>
           </div>
         )}
         <div className="flex items-center justify-between">
@@ -206,7 +218,7 @@ export function CostProfitabilityCard({ breakdown }: { breakdown: CostBreakdown 
       )}
 
       <p className="mt-3 text-[10px] leading-relaxed text-gray-500">
-        Margen = ganancia ÷ precio de venta (el markup x{breakdown.multiplier} se aplica solo al filamento). Venta directa: no incluye comisiones de plataformas ni envío al cliente; para eso mirá el Precio Mercado Libre. El recargo del 30 % cubre envío, desperdicio y fallas, así que se cuenta como costo y no como ganancia.
+        Margen = ganancia ÷ precio de venta (el markup x{breakdown.multiplier} se aplica solo al filamento). Venta directa: no incluye comisiones de plataformas ni envío al cliente; para eso mirá el Precio Mercado Libre. Los insumos se cuentan a su costo real; las contingencias (opcionales, 0 % por defecto) se cuentan como costo y no como ganancia.
       </p>
     </section>
   );

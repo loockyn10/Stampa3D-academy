@@ -21,6 +21,7 @@ try {
 }
 
 const migration = fs.readFileSync(path.join(process.cwd(), "supabase/migrations/20261117120000_calculator_supplies.sql"), "utf8");
+const contingencyMigration = fs.readFileSync(path.join(process.cwd(), "supabase/migrations/20261118120000_calculator_supplies_contingency.sql"), "utf8");
 const PORT = Number(process.env.CALCULATOR_SUPPLIES_TEST_PG_PORT) || 54371;
 const dataDir = fs.mkdtempSync(path.join(os.tmpdir(), "stampa-calculator-supplies-pg-"));
 const { buildProductTypeSupplyLines, priceSupplyLines } = loadTs("src/lib/calculator/supplies.ts");
@@ -48,6 +49,16 @@ create policy calculator_product_types_own on public.calculator_product_types fo
 create policy calculator_free_requires_platform_access on public.calculator_product_types as restrictive for all to authenticated
   using (public.has_platform_access(auth.uid())) with check (public.has_platform_access(auth.uid()));
 grant select, insert, update, delete on public.calculator_product_types to authenticated;
+-- Pre-history calculator_settings (one row per user), same owner + restrictive paid-access policies.
+create table public.calculator_settings (
+  id uuid primary key default gen_random_uuid(), user_id uuid not null unique references auth.users(id),
+  electricity_price_kwh numeric default 120, default_error_percent numeric default 5,
+  platform_commission_percent numeric default 15, mercado_libre_extra_amount numeric default 0);
+alter table public.calculator_settings enable row level security;
+create policy calculator_settings_own on public.calculator_settings for all to authenticated using (user_id = auth.uid()) with check (user_id = auth.uid());
+create policy calculator_free_requires_platform_access on public.calculator_settings as restrictive for all to authenticated
+  using (public.has_platform_access(auth.uid())) with check (public.has_platform_access(auth.uid()));
+grant select, insert, update, delete on public.calculator_settings to authenticated;
 `;
 
 async function main() {
@@ -153,6 +164,36 @@ async function main() {
       assert.deepEqual((await c.query(`select name, multiplier::int m, fixed_cost::int f from public.calculator_product_types`)).rows, [{ name: "Lámpara", m: 3, f: 500 }]);
       assert.equal((await c.query(`select count(*)::int n from public.calculator_product_type_supplies`)).rows[0].n, 0);
       await c.end();
+    });
+
+    await test("D058 contingency: additive column defaults to 0 %, accepts 0–100 and keeps settings private", async () => {
+      const db = await freshDb("cs_contingency");
+      const owner = await newUser(db);
+      const other = await newUser(db);
+      const freeUser = await newUser(db, { paid: false });
+      await db.query(`insert into public.calculator_settings (user_id, electricity_price_kwh) values ($1, 150), ($2, 90), ($3, 80)`, [owner, other, freeUser]);
+      await db.query(contingencyMigration);
+      await db.query(contingencyMigration);
+      assert.equal((await db.query(`select count(*)::int n from pg_constraint where conname = 'calculator_settings_supplies_contingency_percent_range'`)).rows[0].n, 1);
+      assert.deepEqual(
+        (await db.query(`select electricity_price_kwh::int kwh, supplies_contingency_percent::text pct from public.calculator_settings where user_id = $1`, [owner])).rows,
+        [{ kwh: 150, pct: "0.00" }],
+        "las filas existentes quedan en 0 % y no cambia ningún otro ajuste",
+      );
+
+      await asCommit(db, owner, () => db.query(`update public.calculator_settings set supplies_contingency_percent = 5 where user_id = $1`, [owner]));
+      assert.equal((await readAs(db, owner, `select supplies_contingency_percent::text pct from public.calculator_settings`))[0].pct, "5.00");
+      await asCommit(db, owner, () => db.query(`update public.calculator_settings set supplies_contingency_percent = 100 where user_id = $1`, [owner]));
+      await assert.rejects(as(db, owner, () => db.query(`update public.calculator_settings set supplies_contingency_percent = -1 where user_id = $1`, [owner])), /supplies_contingency_percent_range/);
+      await assert.rejects(as(db, owner, () => db.query(`update public.calculator_settings set supplies_contingency_percent = 100.5 where user_id = $1`, [owner])), /supplies_contingency_percent_range/);
+
+      // RLS sin cambios: B no ve ni modifica los ajustes de A; Free no accede a los ajustes de la calculadora.
+      assert.deepEqual(await readAs(db, other, `select user_id from public.calculator_settings where user_id = $1`, [owner]), []);
+      const hijack = await as(db, other, () => db.query(`update public.calculator_settings set supplies_contingency_percent = 50 where user_id = $1`, [owner]));
+      assert.equal(hijack.rowCount, 0);
+      assert.deepEqual(await readAs(db, freeUser, `select supplies_contingency_percent from public.calculator_settings`), []);
+      assert.equal((await db.query(`select supplies_contingency_percent::int pct from public.calculator_settings where user_id = $1`, [owner])).rows[0].pct, 100);
+      await db.end();
     });
 
     const c = await freshDb("cs_main");

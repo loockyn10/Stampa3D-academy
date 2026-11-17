@@ -300,7 +300,7 @@ function TypeEditor({ saving, formData, setFormData, onSave, onCancel }: any) {
           <div>
             <label className="block text-xs font-semibold text-gray-300 mb-1">Insumos extra</label>
             <input type="number" min="0" step="any" name="fixed_cost" value={formData.fixed_cost} onChange={handleChange} className="w-full text-sm border-stampa-border rounded-md text-neutral-100 bg-stampa-surface border focus:border-[#ff6a00] focus:ring-[#ff6a00]/20 focus:ring-2 placeholder:text-neutral-500 disabled:bg-neutral-800 disabled:text-neutral-500" placeholder="Ej: costo del jarro, packaging, tira LED..." />
-            <p className="mt-1 text-[10px] leading-relaxed text-gray-500">Al calcular, se suma un 30% para cubrir envío, desperdicio o unidades falladas. El markup no se aplica a este valor.</p>
+            <p className="mt-1 text-[10px] leading-relaxed text-gray-500">Se suma a su costo real, sin markup. Si configuraste contingencias sobre insumos (0 % por defecto), se aplican también a este valor.</p>
           </div>
         </div>
         <div className="flex items-center gap-2 pt-1">

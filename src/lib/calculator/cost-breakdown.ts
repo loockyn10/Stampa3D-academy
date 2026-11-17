@@ -3,8 +3,8 @@
  * (`calculateCalculatorPricing`), no tiene fórmulas de precio propias.
  *
  *   costo real      = impresión + componentes + embalaje + otros gastos   (lo que efectivamente se paga)
- *   recargo 30 %    = sobre insumos (catálogo, insumos extra del tipo y otros costos): envío, desperdicio, fallas
- *   costo base      = costo real + recargo                                  (el "Costo base" histórico)
+ *   contingencias   = % opcional (0 % por defecto) solo sobre insumos: insumos extra del tipo + catálogo
+ *   costo base      = costo real + contingencias                            (con 0 % es igual al costo real)
  *   ganancia        = precio sugerido − costo base
  *   margen          = ganancia / precio sugerido                             (no confundir con el markup)
  */
@@ -39,8 +39,12 @@ export interface CostBreakdownWarning {
 export interface CostBreakdown {
   groups: CostBreakdownGroup[];
   realCost: number;
-  overheadAmount: number;
-  overheadRate: number;
+  /** Contingencias sobre insumos (concepto separado del costo real). */
+  contingencyAmount: number;
+  /** Porcentaje configurado (0–100). */
+  contingencyPercent: number;
+  /** Insumos sobre los que se calcularon las contingencias. */
+  contingencyBase: number;
   baseCost: number;
   salePrice: number;
   profit: number;
@@ -61,7 +65,7 @@ export const COST_GROUP_LABELS: Record<CostGroupId, string> = {
 
 export interface CostBreakdownInput {
   pricing: CalculatorPricingResult;
-  /** Mano de obra (no recibe recargo ni markup). */
+  /** Mano de obra (no recibe contingencias ni markup). */
   laborCost?: number;
   /** "Otros costos adicionales" cargados a mano en el cálculo. */
   otherCost?: number;
@@ -153,8 +157,9 @@ export function buildCostBreakdown({
   return {
     groups,
     realCost,
-    overheadAmount: safe(pricing.otherCostsOverheadAmount),
-    overheadRate: pricing.otherCostsOverheadRate,
+    contingencyAmount: safe(pricing.suppliesContingencyAmount),
+    contingencyPercent: safe(pricing.suppliesContingencyPercent),
+    contingencyBase: safe(pricing.suppliesContingencyBase),
     baseCost: pricing.baseCost,
     salePrice: pricing.salePrice,
     profit: pricing.profit,

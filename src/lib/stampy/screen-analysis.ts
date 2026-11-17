@@ -42,14 +42,27 @@ function currentMargin(draft: StampyCalculatorDraftContext): number {
     : 0;
 }
 
+/**
+ * Costos que no son impresión ni mano de obra, tal como los calculó el motor: insumos extra, catálogo,
+ * otros costos y contingencias (D058: sin recargo fijo). Se derivan del resultado para no duplicar la regla.
+ */
+function suppliesAndOtherCosts(draft: StampyCalculatorDraftContext): number {
+  const value = draft.result.baseCost
+    - draft.result.filamentCost
+    - draft.result.electricityCost
+    - draft.result.maintenanceCost
+    - draft.laborCost;
+  return Number.isFinite(value) ? Math.max(0, value) : 0;
+}
+
 function calculatorCostParts(draft: StampyCalculatorDraftContext) {
-  const adjustedInputs = (draft.otherCost + draft.fixedCost) * 1.3;
+  const adjustedInputs = suppliesAndOtherCosts(draft);
   return [
     { label: "filamento", value: draft.result.filamentCost },
     { label: "electricidad", value: draft.result.electricityCost },
     { label: "mantenimiento", value: draft.result.maintenanceCost },
     { label: "mano de obra", value: draft.laborCost },
-    { label: "insumos y costos fijos con recargo", value: adjustedInputs },
+    { label: "insumos y otros costos", value: adjustedInputs },
   ].sort((left, right) => right.value - left.value);
 }
 
@@ -87,10 +100,11 @@ function analyzeCalculator(
       filamentCost: draft.result.filamentCost,
       electricityCost,
       maintenanceCost,
-      fixedCost: draft.fixedCost,
+      fixedCost: 0,
       multiplier: draft.multiplier,
       laborCost: draft.laborCost,
-      otherCost: draft.otherCost,
+      // Insumos, catálogo, otros costos y contingencias tal como ya los calculó el motor (no se recalculan ni se duplican).
+      otherCost: suppliesAndOtherCosts(draft),
     });
     return {
       kind: "calculator",
@@ -112,10 +126,10 @@ function analyzeCalculator(
       filamentCost: draft.result.filamentCost,
       electricityCost: draft.result.electricityCost,
       maintenanceCost: draft.result.maintenanceCost,
-      fixedCost: draft.fixedCost,
+      fixedCost: 0,
       multiplier: targetMultiplier,
       laborCost: draft.laborCost,
-      otherCost: draft.otherCost,
+      otherCost: suppliesAndOtherCosts(draft),
     });
     return {
       kind: "calculator",

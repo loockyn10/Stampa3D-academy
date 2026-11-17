@@ -31,10 +31,14 @@ const {
   aggregateCalculatorRecipeLines,
   calculateCalculatorFilamentPricing,
   calculateCalculatorPricing,
-  FIXED_COST_OVERHEAD_RATE,
+  normalizeSuppliesContingencyPercent,
+  DEFAULT_SUPPLIES_CONTINGENCY_PERCENT,
 } = loadPricingModule();
+const pricingModule = loadPricingModule();
 
-test("markup applies only to filament and fixed inputs receive a 30 percent overhead", () => {
+// D058: los insumos se suman a su costo real. Sin recargo automático del 30 %; contingencias opcionales (0 % por defecto).
+
+test("markup applies only to filament and type extras are added at their real cost (no 30 percent surcharge)", () => {
   const result = calculateCalculatorPricing({
     filamentCost: 500,
     electricityCost: 80,
@@ -43,15 +47,20 @@ test("markup applies only to filament and fixed inputs receive a 30 percent over
     multiplier: 4,
   });
 
-  assert.equal(FIXED_COST_OVERHEAD_RATE, 0.3);
-  assert.equal(result.fixedCostOverheadAmount, 600);
-  assert.equal(result.fixedCostAdjusted, 2_600);
-  assert.equal(result.baseCost, 3_300);
-  assert.equal(result.salePrice, 4_800);
-  assert.notEqual(result.salePrice, 10_800);
+  assert.equal(DEFAULT_SUPPLIES_CONTINGENCY_PERCENT, 0);
+  assert.equal(pricingModule.OTHER_COSTS_OVERHEAD_RATE, undefined, "the fixed 30 % rate no longer exists");
+  assert.equal(pricingModule.FIXED_COST_OVERHEAD_RATE, undefined);
+  assert.equal(result.fixedCostOverheadAmount, 0);
+  assert.equal(result.suppliesContingencyAmount, 0);
+  assert.equal(result.fixedCostAdjusted, 2_000);
+  assert.equal(result.baseCost, 2_700);
+  assert.equal(result.realCost, 2_700);
+  assert.equal(result.salePrice, 4_200);
+  assert.notEqual(result.salePrice, 4_800, "the previous 30 % result is gone");
+  assert.notEqual(result.salePrice, 10_800, "the markup never applies to type extras");
 });
 
-test("multiplier one keeps sale price equal to adjusted base cost", () => {
+test("multiplier one keeps sale price equal to base cost", () => {
   const result = calculateCalculatorPricing({
     filamentCost: 500,
     electricityCost: 80,
@@ -60,20 +69,22 @@ test("multiplier one keeps sale price equal to adjusted base cost", () => {
     multiplier: 1,
   });
 
-  assert.equal(result.baseCost, 3_300);
-  assert.equal(result.salePrice, 3_300);
+  assert.equal(result.baseCost, 2_700);
+  assert.equal(result.salePrice, 2_700);
 });
 
-test("zero fixed inputs add no overhead", () => {
+test("zero fixed inputs add no contingency", () => {
   const result = calculateCalculatorPricing({
     filamentCost: 500,
     electricityCost: 80,
     maintenanceCost: 120,
     fixedCost: 0,
     multiplier: 4,
+    suppliesContingencyPercent: 5,
   });
 
   assert.equal(result.fixedCostOverheadAmount, 0);
+  assert.equal(result.suppliesContingencyAmount, 0);
   assert.equal(result.baseCost, 700);
   assert.equal(result.salePrice, 2_200);
 });
@@ -87,11 +98,11 @@ test("electricity and maintenance remain additive and are never multiplied", () 
     multiplier: 4,
   });
 
-  assert.equal(result.baseCost, 3_100);
-  assert.equal(result.salePrice, 4_600);
+  assert.equal(result.baseCost, 2_500);
+  assert.equal(result.salePrice, 4_000);
 });
 
-test("high and decimal fixed inputs receive exactly one overhead and no markup", () => {
+test("high and decimal fixed inputs keep their real value and never get the markup", () => {
   const highFixed = calculateCalculatorPricing({
     filamentCost: 100,
     electricityCost: 10,
@@ -99,8 +110,8 @@ test("high and decimal fixed inputs receive exactly one overhead and no markup",
     fixedCost: 10_000,
     multiplier: 8,
   });
-  assert.equal(highFixed.fixedCostAdjusted, 13_000);
-  assert.equal(highFixed.salePrice, 13_830);
+  assert.equal(highFixed.fixedCostAdjusted, 10_000);
+  assert.equal(highFixed.salePrice, 10_830);
 
   const decimalFixed = calculateCalculatorPricing({
     filamentCost: 0,
@@ -109,12 +120,12 @@ test("high and decimal fixed inputs receive exactly one overhead and no markup",
     fixedCost: 123.45,
     multiplier: 4,
   });
-  assert.ok(Math.abs(decimalFixed.fixedCostOverheadAmount - 37.035) < 1e-10);
-  assert.ok(Math.abs(decimalFixed.fixedCostAdjusted - 160.485) < 1e-10);
-  assert.ok(Math.abs(decimalFixed.salePrice - 160.485) < 1e-10);
+  assert.equal(decimalFixed.fixedCostOverheadAmount, 0);
+  assert.equal(decimalFixed.fixedCostAdjusted, 123.45);
+  assert.equal(decimalFixed.salePrice, 123.45);
 });
 
-test("labor stays additive and additional inputs receive overhead without markup", () => {
+test("labor and other manual costs stay additive: no surcharge, no contingency, no markup", () => {
   const result = calculateCalculatorPricing({
     filamentCost: 100,
     electricityCost: 10,
@@ -123,12 +134,70 @@ test("labor stays additive and additional inputs receive overhead without markup
     multiplier: 4,
     laborCost: 50,
     otherCost: 25,
+    suppliesContingencyPercent: 5,
   });
 
   assert.equal(result.otherCostsRaw, 25);
-  assert.equal(result.otherCostsOverheadAmount, 7.5);
-  assert.equal(result.baseCost, 212.5);
-  assert.equal(result.salePrice, 512.5);
+  assert.equal(result.otherCostsOverheadAmount, 0, "contingencies apply only to supplies, not to other costs");
+  assert.equal(result.baseCost, 205);
+  assert.equal(result.salePrice, 505);
+});
+
+test("supply contingency: $1.500 at 0 % stays $1.500 and at 5 % becomes $1.575", () => {
+  const base = { filamentCost: 0, electricityCost: 0, maintenanceCost: 0, fixedCost: 1_500, multiplier: 3 };
+  const zero = calculateCalculatorPricing({ ...base, suppliesContingencyPercent: 0 });
+  assert.equal(zero.otherCostsAdjusted, 1_500);
+  assert.equal(zero.baseCost, 1_500);
+  assert.equal(zero.salePrice, 1_500);
+
+  const five = calculateCalculatorPricing({ ...base, suppliesContingencyPercent: 5 });
+  assert.equal(five.suppliesContingencyBase, 1_500);
+  assert.equal(five.suppliesContingencyAmount, 75);
+  assert.equal(five.otherCostsAdjusted, 1_575);
+  assert.equal(five.baseCost, 1_575);
+  assert.equal(five.realCost, 1_500, "real cost excludes contingencies");
+  assert.equal(five.salePrice, 1_575, "contingencies never receive the markup");
+  assert.notEqual(five.salePrice, 1_950, "never the previous 30 %");
+
+  // Same result whether the supply comes from the type extras or the catalog (one rule, applied once).
+  const catalog = calculateCalculatorPricing({ ...base, fixedCost: 0, suppliesCost: 1_500, suppliesContingencyPercent: 5 });
+  assert.equal(catalog.baseCost, 1_575);
+  assert.equal(catalog.salePrice, 1_575);
+});
+
+test("contingency percent is normalized: empty, negative or invalid values mean 0 %, capped at 100 %", () => {
+  assert.equal(normalizeSuppliesContingencyPercent(undefined), 0);
+  assert.equal(normalizeSuppliesContingencyPercent(null), 0);
+  assert.equal(normalizeSuppliesContingencyPercent(""), 0);
+  assert.equal(normalizeSuppliesContingencyPercent("abc"), 0);
+  assert.equal(normalizeSuppliesContingencyPercent(-5), 0);
+  assert.equal(normalizeSuppliesContingencyPercent("5"), 5);
+  assert.equal(normalizeSuppliesContingencyPercent(250), 100);
+  const negative = calculateCalculatorPricing({ filamentCost: 0, electricityCost: 0, maintenanceCost: 0, fixedCost: 1_000, multiplier: 1, suppliesContingencyPercent: -10 });
+  assert.equal(negative.baseCost, 1_000);
+});
+
+test("contingency does not change printing costs nor the markup rule; profit and margin stay consistent", () => {
+  const input = { filamentCost: 1_000, electricityCost: 200, maintenanceCost: 300, fixedCost: 1_000, suppliesCost: 500, multiplier: 3, laborCost: 400 };
+  const zero = calculateCalculatorPricing(input);
+  const five = calculateCalculatorPricing({ ...input, suppliesContingencyPercent: 5 });
+
+  for (const result of [zero, five]) {
+    assert.equal(result.filamentCost, 1_000);
+    assert.equal(result.electricityCost, 200);
+    assert.equal(result.maintenanceCost, 300);
+    assert.equal(result.multipliableCost, 1_000);
+    assert.equal(result.realCost, 1_000 + 200 + 300 + 1_000 + 500 + 400);
+    assert.equal(result.profit, 2_000, "profit = filament × (markup − 1), unaffected by supplies or contingencies");
+    assert.equal(result.salePrice - result.baseCost, result.profit);
+    assert.equal(result.marginPercent, (result.profit / result.salePrice) * 100);
+  }
+  assert.equal(zero.baseCost, 3_400);
+  assert.equal(zero.salePrice, 5_400);
+  assert.equal(five.suppliesContingencyAmount, 75, "5 % of (type extras 1.000 + catalog 500), only once");
+  assert.equal(five.baseCost, 3_475);
+  assert.equal(five.salePrice, 5_475);
+  assert.equal(five.baseCost - five.realCost, five.suppliesContingencyAmount, "contingency counted exactly once");
 });
 
 test("multiple filaments are summed before waste and markup", () => {
@@ -151,10 +220,10 @@ test("multiple filaments are summed before waste and markup", () => {
   assert.equal(filamentPricing.totalFilamentGrams, 175);
   assert.equal(filamentPricing.filamentCostRaw, 2_000);
   assert.equal(filamentPricing.filamentCostWithWaste, 2_100);
-  assert.equal(result.otherCostsOverheadAmount, 540);
-  assert.equal(result.otherCostsAdjusted, 2_340);
-  assert.equal(result.baseCost, 4_950);
-  assert.equal(result.salePrice, 9_150);
+  assert.equal(result.otherCostsOverheadAmount, 0);
+  assert.equal(result.otherCostsAdjusted, 1_800);
+  assert.equal(result.baseCost, 4_410);
+  assert.equal(result.salePrice, 8_610);
   assert.notEqual(result.salePrice, result.baseCost * 3);
 });
 
@@ -248,7 +317,11 @@ test("calculator summary stays compact while adjusted inputs remain internal", (
   );
 
   assert.match(source, />Insumos extra</);
-  assert.match(source, />Recargo insumos 30%</);
+  // D058: sin recargo fijo del 30 %; las contingencias solo se muestran si están configuradas.
+  assert.doesNotMatch(source, /Recargo insumos 30%/);
+  assert.doesNotMatch(source, /30 ?%/);
+  assert.match(source, />Contingencias insumos /);
+  assert.match(source, /suppliesContingencyPercent: accessMode === "paid" \? normalizeSuppliesContingencyPercent\(settings\?\.supplies_contingency_percent\) : 0/);
   assert.doesNotMatch(source, />Insumos ajustados</);
   assert.doesNotMatch(source, />Markup:<\/span>/);
   assert.doesNotMatch(source, /Precio sugerido = filamento con markup/);

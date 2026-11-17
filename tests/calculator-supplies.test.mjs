@@ -8,7 +8,7 @@ const pricing = loadTs("src/lib/calculator/pricing.ts");
 const supplies = loadTs("src/lib/calculator/supplies.ts");
 const { buildCostBreakdown } = loadTs("src/lib/calculator/cost-breakdown.ts");
 const { calculateProductPrice } = loadTs("src/lib/products/pricing.ts");
-const { getProductPricingStatus } = loadTs("src/lib/products/pricing-status.ts");
+const { getProductPricingStatus, usesLegacySuppliesSurcharge, LEGACY_SURCHARGE_REASON } = loadTs("src/lib/products/pricing-status.ts");
 
 const {
   validateSupplyDraft,
@@ -148,38 +148,57 @@ test("without catalog supplies the engine returns exactly the previous result (u
   for (const key of ["otherCostsRaw", "otherCostsOverheadAmount", "otherCostsAdjusted", "fixedCostAdjusted", "nonMultipliableCost", "baseCost", "salePrice", "profit"]) {
     assert.equal(withZero[key], legacy[key], key);
   }
-  // Mismos números que la prueba histórica del motor (markup solo sobre el filamento, 30 % sobre insumos extra).
+  // D058: markup solo sobre el filamento e insumos extra a su costo real (sin el 30 % anterior).
   const historical = pricing.calculateCalculatorPricing({ filamentCost: 500, electricityCost: 80, maintenanceCost: 120, fixedCost: 2_000, multiplier: 4 });
-  assert.equal(historical.baseCost, 3_300);
-  assert.equal(historical.salePrice, 4_800);
+  assert.equal(historical.baseCost, 2_700);
+  assert.equal(historical.salePrice, 4_200);
   assert.equal(historical.realCost, 2_700);
   assert.equal(historical.suppliesCost, 0);
 });
 
-test("lamp example: components and packaging get the 30 % surcharge once, never the markup", () => {
+test("lamp example: components and packaging are added at real cost (no surcharge) and never get the markup", () => {
   const supplyPricing = priceSupplyLines(buildProductTypeSupplyLines("lampara", LAMP, CATALOG));
-  const result = pricing.calculateCalculatorPricing({
+  const input = {
     filamentCost: 3_500, electricityCost: 450, maintenanceCost: 600, fixedCost: 0, multiplier: 2,
     suppliesCost: supplyPricing.total,
-  });
+  };
+  const result = pricing.calculateCalculatorPricing(input);
   assert.equal(result.suppliesCost, 4_750);
   assert.equal(result.realCost, 9_300, "costo total de fabricación del ejemplo");
-  assert.equal(result.otherCostsOverheadAmount, 1_425);
-  assert.equal(result.baseCost, 10_725);
-  assert.equal(result.salePrice, 3_500 * 2 + 450 + 600 + 4_750 * 1.3);
+  assert.equal(result.otherCostsOverheadAmount, 0);
+  assert.equal(result.baseCost, 9_300);
+  assert.equal(result.salePrice, 3_500 * 2 + 450 + 600 + 4_750);
   assert.equal(result.profit, 3_500, "profit only comes from the filament markup");
-  assert.equal(Math.round(result.marginPercent * 100) / 100, Math.round((3_500 / 14_225) * 10_000) / 100);
+  assert.equal(result.marginPercent, (3_500 / 12_800) * 100);
+
+  // Con 5 % de contingencias: solo sobre los 4.750 de insumos, una vez, sin markup.
+  const withContingency = pricing.calculateCalculatorPricing({ ...input, suppliesContingencyPercent: 5 });
+  assert.equal(withContingency.suppliesContingencyAmount, 237.5);
+  assert.equal(withContingency.realCost, 9_300);
+  assert.equal(withContingency.baseCost, 9_537.5);
+  assert.equal(withContingency.salePrice, 13_037.5);
+  assert.equal(withContingency.profit, 3_500);
 });
 
-test("other manual costs, type extras and catalog supplies share the single 30 % surcharge (no double counting)", () => {
-  const result = pricing.calculateCalculatorPricing({
+test("type extras and catalog supplies share a single contingency; other costs and labor never get one (no double counting)", () => {
+  const input = {
     filamentCost: 1_000, electricityCost: 0, maintenanceCost: 0, fixedCost: 100, multiplier: 3, otherCost: 200, suppliesCost: 700, laborCost: 300,
-  });
-  assert.equal(result.otherCostsRaw, 1_000);
-  assert.equal(result.otherCostsOverheadAmount, 300);
-  assert.equal(result.realCost, 1_000 + 100 + 200 + 700 + 300);
-  assert.equal(result.baseCost, result.realCost + 300);
-  assert.equal(result.salePrice, 3_000 + 1_300 + 300);
+  };
+  const plain = pricing.calculateCalculatorPricing(input);
+  assert.equal(plain.otherCostsRaw, 1_000);
+  assert.equal(plain.otherCostsOverheadAmount, 0, "no automatic 30 %");
+  assert.equal(plain.realCost, 1_000 + 100 + 200 + 700 + 300);
+  assert.equal(plain.baseCost, plain.realCost);
+  assert.equal(plain.salePrice, 3_000 + 1_000 + 300);
+
+  const result = pricing.calculateCalculatorPricing({ ...input, suppliesContingencyPercent: 5 });
+  assert.equal(result.suppliesContingencyBase, 800, "type extras + catalog only");
+  assert.equal(result.suppliesContingencyAmount, 40);
+  assert.equal(result.otherCostsOverheadAmount, 40, "legacy field mirrors the single contingency");
+  assert.equal(result.realCost, plain.realCost);
+  assert.equal(result.baseCost, result.realCost + 40);
+  assert.equal(result.salePrice, 3_000 + 1_000 + 300 + 40);
+  assert.equal(result.profit, plain.profit);
 
   const breakdown = buildCostBreakdown({
     pricing: result,
@@ -189,6 +208,10 @@ test("other manual costs, type extras and catalog supplies share the single 30 %
   });
   const groupsTotal = breakdown.groups.reduce((total, group) => total + group.amount, 0);
   assert.equal(groupsTotal, breakdown.realCost, "each cost appears in exactly one group");
+  assert.equal(breakdown.contingencyAmount, 40, "contingency is a separate concept, outside the real-cost groups");
+  assert.equal(breakdown.contingencyPercent, 5);
+  assert.equal(breakdown.contingencyBase, 800);
+  assert.equal(breakdown.realCost + breakdown.contingencyAmount, breakdown.baseCost);
   assert.equal(breakdown.groups.find((group) => group.id === "packaging").amount, 700);
   assert.equal(breakdown.groups.find((group) => group.id === "other").amount, 600);
   assert.ok(breakdown.warnings.some((warning) => warning.code === "legacy_extras_with_supplies"), "type extras + catalog supplies are flagged");
@@ -280,10 +303,26 @@ test("saved snapshots keep historical costs; recalculation reprices with the cur
     oldSnapshot: product.calculation_snapshot,
     currentSupplies: raised,
   });
-  assert.equal(recalculated.baseCost, 2_000 + 5_050 * 1.3);
-  assert.equal(recalculated.salePrice, 4_000 + 5_050 * 1.3);
+  assert.equal(recalculated.baseCost, 2_000 + 5_050);
+  assert.equal(recalculated.salePrice, 4_000 + 5_050);
   assert.equal(recalculated.snapshot.supplies.total_cost, 5_050);
   assert.equal(recalculated.snapshot.supplies_cost, 5_050);
+  assert.equal(recalculated.snapshot.supplies_contingency_percent, 0);
+  assert.equal(recalculated.snapshot.supplies_contingency_amount, 0);
+
+  const withContingency = calculateProductPrice({
+    components: [{ name: "Producto completo", quantity_per_product: 1, materials: [{ filament_id: "f", grams: 100, filament: { id: "f", purchase_price: 20_000, total_grams: 1_000 } }] }],
+    printTimeMinutes: 0,
+    printer: { id: "p1", power_watts: 0, maintenance_cost_per_hour: 0 },
+    productType: { id: "lampara", multiplier: 2, fixed_cost: 0 },
+    calculatorSettings: { default_error_percent: 0, electricity_price_kwh: 0, supplies_contingency_percent: 5 },
+    oldSnapshot: product.calculation_snapshot,
+    currentSupplies: raised,
+  });
+  assert.equal(withContingency.baseCost, 2_000 + 5_050 + 252.5);
+  assert.equal(withContingency.salePrice, 4_000 + 5_050 + 252.5);
+  assert.equal(withContingency.profit, 2_000);
+  assert.equal(withContingency.snapshot.supplies_contingency_amount, 252.5);
 
   const noSupplies = calculateProductPrice({
     components: [{ name: "Producto completo", quantity_per_product: 1, materials: [{ filament_id: "f", grams: 100, filament: { id: "f", purchase_price: 20_000, total_grams: 1_000 } }] }],
@@ -293,6 +332,43 @@ test("saved snapshots keep historical costs; recalculation reprices with the cur
   });
   assert.equal(noSupplies.salePrice, 4_000, "products saved without supplies recalculate exactly as before");
   assert.equal(noSupplies.snapshot.supplies, undefined);
+});
+
+test("Mi Taller: prices saved with the old 30 % surcharge are flagged, never rewritten; budgets/sales keep their amounts", () => {
+  const legacySnapshot = {
+    source: "calculator", fixed_cost: 2_000, other_costs_overhead_rate: 0.3, other_costs_overhead_amount: 600,
+    base_cost: 3_300, sale_price: 4_800, printer_id: "p1", product_type_id: "t",
+  };
+  const legacyProduct = { sale_price: 4_800, calculation_snapshot: legacySnapshot };
+  const frozen = JSON.stringify(legacyProduct);
+  assert.equal(usesLegacySuppliesSurcharge(legacySnapshot), true);
+  assert.equal(usesLegacySuppliesSurcharge({ fixedCostOverheadAmount: 30 }), true, "older camelCase snapshots too");
+  const status = getProductPricingStatus(legacyProduct, [], [{ id: "p1" }], [{ id: "t" }], []);
+  assert.equal(status.needsRecalculation, true);
+  assert.deepEqual(status.reasons, [LEGACY_SURCHARGE_REASON]);
+  assert.equal(JSON.stringify(legacyProduct), frozen, "the saved price and snapshot are not modified by the status check");
+
+  // Sin insumos (recargo 0) o ya calculado con la regla nueva → no se marca.
+  assert.equal(usesLegacySuppliesSurcharge({ source: "calculator", other_costs_overhead_rate: 0.3, other_costs_overhead_amount: 0 }), false);
+  assert.equal(usesLegacySuppliesSurcharge({ source: "calculator", supplies_contingency_percent: 5, other_costs_overhead_amount: 100 }), false);
+  assert.equal(usesLegacySuppliesSurcharge(null), false);
+
+  // Recalcular (acción explícita del usuario) aplica la regla nueva y deja de marcarlo.
+  const recalculated = calculateProductPrice({
+    components: [{ name: "Producto completo", quantity_per_product: 1, materials: [{ filament_id: "f", grams: 100, filament: { id: "f", purchase_price: 5_000, total_grams: 1_000 } }] }],
+    printTimeMinutes: 0,
+    printer: { id: "p1", power_watts: 0, maintenance_cost_per_hour: 0 },
+    productType: { id: "t", multiplier: 4, fixed_cost: 2_000 },
+    calculatorSettings: { default_error_percent: 0, electricity_price_kwh: 0 },
+    oldSnapshot: legacySnapshot,
+  });
+  assert.equal(recalculated.salePrice, 500 * 4 + 2_000);
+  assert.equal(recalculated.snapshot.other_costs_overhead_amount, 0);
+  assert.equal(usesLegacySuppliesSurcharge(recalculated.snapshot), false);
+
+  // Presupuestos y ventas copian importes al crearse: el motor no los lee ni los reescribe.
+  const budgetCalculation = readRepoFile("src/lib/budgets/calculation.ts");
+  assert.doesNotMatch(budgetCalculation, /calculateCalculatorPricing|calculateProductPrice/);
 });
 
 // ------------------------------------------------------------------------------------------------
@@ -306,4 +382,23 @@ test("calculator page feeds catalog supplies to the single engine and freezes th
   assert.match(page, /accessMode !== "paid" \|\| !suppliesData\.available/, "Free/Anonymous never load or use supplies");
   assert.match(page, /legacyExtrasRaw: numFixedCost \+ numOtherCost/, "the old 'Insumos extra' line keeps its meaning");
   assert.doesNotMatch(page, /from\("calculator_supplies"\)\.(insert|update|delete)/, "the calculator page only reads the catalog");
+});
+
+test("no part of the calculator still applies or advertises the removed 30 % surcharge", () => {
+  // Lógica: ningún factor 1.3 ni tasa 0.3 (los comentarios pueden mencionar la regla anterior).
+  for (const file of ["src/lib/calculator/pricing.ts", "src/lib/calculator/cost-breakdown.ts", "src/lib/stampy/screen-analysis.ts", "src/lib/products/pricing.ts"]) {
+    assert.doesNotMatch(readRepoFile(file), /\* ?1\.3\b|=\s*0\.3\b/, file);
+  }
+  // Pantallas: ningún texto que prometa el 30 %.
+  for (const file of [
+    "src/app/calculadora/page.tsx",
+    "src/components/calculadora/cost-breakdown-cards.tsx",
+    "src/components/calculadora/product-type-supplies-editor.tsx",
+    "src/components/configuracion/product-types-manager.tsx",
+  ]) {
+    assert.doesNotMatch(readRepoFile(file), /\* ?1\.3\b|30 ?%/, file);
+  }
+  const settings = readRepoFile("src/components/configuracion/settings-manager.tsx");
+  assert.match(settings, /Contingencias sobre insumos \(%\)/);
+  assert.match(settings, /"supplies_contingency_percent" in data/, "the field only appears once the column exists");
 });

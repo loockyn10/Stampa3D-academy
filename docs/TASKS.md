@@ -2,10 +2,11 @@
 
 Este archivo contiene únicamente trabajo pendiente o próximo. Eliminar tareas terminadas en lugar de conservar un historial infinito.
 
-## Next — Calculadora V2: costos detallados (rama `feature/calculadora-costos-detallados`, D057)
+## Next — Calculadora V2: costos detallados (rama `feature/calculadora-costos-detallados`, D057 + D058)
 
-- [ ] Revisar y aprobar la regla comercial: insumos del catálogo con recargo del 30 % y sin markup (opción compatible, D057).
 - [ ] Aplicar `supabase/migrations/20261117120000_calculator_supplies.sql` en Supabase (después de `20261116120000`); requiere `calculator_product_types.id uuid` y `user_id`.
+- [ ] Aplicar `supabase/migrations/20261118120000_calculator_supplies_contingency.sql` (columna `supplies_contingency_percent`, default 0; requiere `calculator_settings`).
+- [ ] Al desplegar D058: avisar a los usuarios que los precios sugeridos con insumos bajan (sin el 30 %) y que Mi Taller marcará esos productos para recalcular; sus precios guardados no cambian solos.
 - [ ] QA autenticada Premium (escritorio y 375 px, claro/oscuro): crear/editar/archivar insumos, asociarlos a un tipo, calcular, guardar como producto, subir un costo y verificar «Cambió el costo de…» + recálculo en Mi Taller.
 
 ## Now — Prelanzamiento comercial (2026-11-15, ver `docs/LAUNCH_FINAL_CHECKLIST.md` y D053)

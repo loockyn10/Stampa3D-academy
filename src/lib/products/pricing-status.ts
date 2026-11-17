@@ -6,6 +6,28 @@ export interface ProductPricingStatus {
   reasons: string[];
 }
 
+export const LEGACY_SURCHARGE_REASON = "Precio calculado con el recargo anterior del 30 % sobre insumos";
+
+const LEGACY_SURCHARGE_AMOUNT_KEYS = [
+  "other_costs_overhead_amount",
+  "otherCostsOverheadAmount",
+  "fixed_cost_overhead_amount",
+  "fixedCostOverheadAmount",
+] as const;
+
+/**
+ * D058: el recargo automático del 30 % sobre insumos se eliminó. Un snapshot anterior (sin
+ * `supplies_contingency_percent`) que sí aplicó ese recargo queda marcado para recalcular: el precio
+ * guardado NO se modifica solo; el usuario decide cuándo recalcular.
+ */
+export function usesLegacySuppliesSurcharge(snap: Record<string, unknown> | null | undefined): boolean {
+  if (!snap || typeof snap !== "object" || "supplies_contingency_percent" in snap) return false;
+  return LEGACY_SURCHARGE_AMOUNT_KEYS.some((key) => {
+    const value = Number(snap[key]);
+    return Number.isFinite(value) && value > 0;
+  });
+}
+
 export function getProductPricingStatus(
   product: any,
   allFilaments: any[],
@@ -97,6 +119,10 @@ export function getProductPricingStatus(
 
   for (const name of changedSnapshotSupplies(snap.supplies, allSupplies)) {
     reasons.push(`Cambió el costo de ${name}`);
+  }
+
+  if (usesLegacySuppliesSurcharge(snap)) {
+    reasons.push(LEGACY_SURCHARGE_REASON);
   }
 
   return { needsRecalculation: reasons.length > 0, reasons };
