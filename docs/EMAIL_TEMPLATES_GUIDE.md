@@ -23,6 +23,8 @@ node scripts/build-email-templates.mjs
 
 Un test falla si los archivos de `email-templates/` no coinciden con el código. **No editar los HTML a mano.**
 
+> **Excepción (2026-11-18):** la plantilla *Reset password* ya no usa `{{ .ConfirmationURL }}`: su botón es `https://universo-stampa.com/auth/confirm?token_hash={{ .TokenHash }}&type=recovery` (ver [`PASSWORD_RECOVERY.md`](PASSWORD_RECOVERY.md)). Desplegar la app **antes** de pegar esa plantilla. Las demás siguen como se describe abajo.
+
 ## 2. Recorrido de confirmación Free/Premium: por qué el botón es `{{ .ConfirmationURL }}`
 
 Revisado en el código real (no en la documentación):

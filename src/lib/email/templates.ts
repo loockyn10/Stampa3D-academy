@@ -1,11 +1,12 @@
-import { escapeHtml, noteBox, paragraph, renderEmailLayout, smallPrint, urlFallback, compareCard } from "./layout";
+import { EMAIL_BRAND, escapeHtml, noteBox, paragraph, renderEmailLayout, smallPrint, urlFallback, compareCard } from "./layout";
 
 /**
  * Plantillas oficiales de correo de Universo Stampa.
  *
  * - Las de autenticación se pegan en el panel de Supabase (Authentication → Emails). Usan SOLO variables oficiales de
- *   Supabase, tal cual las documenta: el enlace de acción es SIEMPRE `{{ .ConfirmationURL }}`. No se arma ninguna URL a
- *   mano (ver docs/EMAIL_TEMPLATES_GUIDE.md §2: `emailRedirectTo` y PKCE dependen de ese enlace).
+ *   Supabase, tal cual las documenta: el enlace de acción es `{{ .ConfirmationURL }}` (confirmación, cambio de correo,
+ *   invitación; `emailRedirectTo` y PKCE dependen de ese enlace, ver docs/EMAIL_TEMPLATES_GUIDE.md §2). La EXCEPCIÓN es la
+ *   recuperación de contraseña: usa `RECOVERY_ACTION_URL` (`/auth/confirm?token_hash=…`, ver docs/PASSWORD_RECOVERY.md).
  * - No se usa `{{ .Data }}` (metadata del usuario): es texto escrito por quien se registra y no sabemos si el motor de
  *   Supabase lo escapa, así que no se mezcla con HTML de un correo «oficial».
  * - El aviso de Pioneros lo envía el backend con Resend (src/lib/mercadopago/price-notice.ts); comparte este layout.
@@ -44,6 +45,14 @@ export interface AuthEmailTemplate {
 
 const ACTION_URL = "{{ .ConfirmationURL }}";
 
+/**
+ * Recovery link (token_hash flow, https://supabase.com/docs/guides/auth/server-side/email-based-auth-with-pkce-flow-for-ssr):
+ * it points straight to OUR page, with the production domain fixed, so it depends neither on Supabase's Site URL nor on
+ * its Redirect URLs list (a mismatch there sent recoveries to the landing), and it needs no PKCE verifier, so it opens
+ * from any browser or device. The page only consumes the token when the person presses a button (scanner-safe).
+ */
+export const RECOVERY_ACTION_URL = `${EMAIL_BRAND.siteUrl}/auth/confirm?token_hash={{ .TokenHash }}&type=recovery`;
+
 const ignoreIfNotYou = (what: string) =>
   smallPrint(`Si no fuiste vos, ignorá este correo: ${what}`);
 
@@ -73,10 +82,10 @@ function resetPassword(): string {
     bodyHtml:
       paragraph("Recibimos una solicitud para restablecer la contraseña de la cuenta asociada a <strong style=\"color:#f4f4f5;\">{{ .Email }}</strong>.") +
       paragraph("Tocá el botón para elegir una contraseña nueva.") +
-      noteBox("Abrí el enlace <strong style=\"color:#f4f4f5;\">en el mismo navegador y dispositivo desde donde lo pediste</strong>. Si lo abrís en otro, el enlace no va a funcionar y vas a poder pedir uno nuevo."),
-    cta: { label: "Crear contraseña nueva", href: ACTION_URL },
+      noteBox("Podés abrir el enlace desde cualquier dispositivo o navegador. Al tocarlo vas a ver un botón para continuar y elegir tu contraseña nueva."),
+    cta: { label: "Crear contraseña nueva", href: RECOVERY_ACTION_URL },
     afterCtaHtml:
-      urlFallback(ACTION_URL) +
+      urlFallback(RECOVERY_ACTION_URL) +
       smallPrint("Por seguridad, el enlace tiene un tiempo de validez limitado y se puede usar una sola vez.") +
       ignoreIfNotYou("tu contraseña actual sigue siendo la misma y nadie puede cambiarla sin este enlace."),
   });
@@ -153,7 +162,7 @@ export const AUTH_EMAIL_TEMPLATES: AuthEmailTemplate[] = [
     slot: "Authentication → Emails → Templates → Reset password",
     subject: "Restablecé tu contraseña de Universo Stampa",
     html: resetPassword(),
-    requiredVariables: ["{{ .ConfirmationURL }}", "{{ .Email }}"],
+    requiredVariables: ["{{ .TokenHash }}", "{{ .Email }}"],
   },
   {
     id: "change-email",

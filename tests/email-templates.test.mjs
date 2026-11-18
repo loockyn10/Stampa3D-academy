@@ -31,9 +31,11 @@ test("el enlace de acción es siempre {{ .ConfirmationURL }} (nunca una URL arma
   for (const tpl of T.AUTH_EMAIL_TEMPLATES) {
     for (const required of tpl.requiredVariables) assert.ok(tpl.html.includes(required), `${tpl.id} conserva ${required}`);
     for (const action of actionsOf(tpl.html)) assert.ok(official.has(action), `${tpl.id}: variable no oficial ${action}`);
-    assert.doesNotMatch(tpl.html, /token_hash|\/auth\/v1\/verify|\/auth\/confirm|\{\{\s*\.Data/i, `${tpl.id}: no arma URLs ni usa metadata de usuario`);
+    assert.doesNotMatch(tpl.html, /\/auth\/v1\/verify|\{\{\s*\.Data/i, `${tpl.id}: no arma URLs de Supabase ni usa metadata de usuario`);
+    // token_hash solo en la recuperación (flujo sin PKCE hacia /auth/confirm); el resto sigue con ConfirmationURL.
+    if (tpl.id !== "reset-password") assert.doesNotMatch(tpl.html, /token_hash|\/auth\/confirm/i, `${tpl.id}: sin token_hash`);
   }
-  for (const id of ["confirm-signup", "reset-password", "change-email", "invite"]) {
+  for (const id of ["confirm-signup", "change-email", "invite"]) {
     const tpl = T.AUTH_EMAIL_TEMPLATES.find((t) => t.id === id);
     assert.match(tpl.html, /<a href="\{\{ \.ConfirmationURL \}\}" target="_blank" class="btn"/, `${id}: el botón apunta a ConfirmationURL`);
   }
@@ -100,4 +102,14 @@ test("sigue habiendo un solo proveedor de correo: nada de SMTP/SDK nuevos; el av
   const notice = readRepoFile("src/lib/mercadopago/price-notice.ts");
   assert.match(notice, /https:\/\/api\.resend\.com\/emails/);
   assert.ok(!readRepoFile("src/lib/email/layout.ts").includes("fetch("));
+});
+
+test("recuperación de contraseña: el botón va a /auth/confirm con token_hash en el dominio fijo de producción (no depende del Site URL de Supabase)", () => {
+  const tpl = T.AUTH_EMAIL_TEMPLATES.find((t) => t.id === "reset-password");
+  const url = "https://universo-stampa.com/auth/confirm?token_hash={{ .TokenHash }}&type=recovery";
+  assert.equal(T.RECOVERY_ACTION_URL, url);
+  assert.match(tpl.html, /<a href="https:\/\/universo-stampa\.com\/auth\/confirm\?token_hash=\{\{ \.TokenHash \}\}&type=recovery" target="_blank" class="btn"/);
+  assert.ok(!tpl.html.includes("ConfirmationURL"), "ya no usa el enlace de verificación con redirect_to");
+  assert.ok(!tpl.html.includes("{{ .SiteURL }}"), "no depende del Site URL del panel");
+  assert.ok(fs.existsSync(path.join(root, "src/app/auth/confirm/page.tsx")), "la ruta de destino existe en la app");
 });

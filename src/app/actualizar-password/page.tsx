@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { createClient } from "@/utils/supabase/client";
 import Link from "next/link";
@@ -20,6 +20,24 @@ export default function ActualizarPasswordPage() {
   const [linkExpired, setLinkExpired] = useState(false);
   const router = useRouter();
   const supabase = createClient();
+
+  // Opened without a recovery session (expired/used link, or typed by hand): say so now instead of after typing a password.
+  useEffect(() => {
+    let active = true;
+    supabase.auth
+      .getUser()
+      .then(({ data }) => {
+        if (!active || data.user) return;
+        const friendly = friendlyAuthError({ code: "session_not_found" }, "update_password");
+        setLinkExpired(true);
+        setError(friendly.message);
+      })
+      .catch(() => {});
+    return () => {
+      active = false;
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   const handleUpdatePassword = async (e: React.FormEvent) => {
     e.preventDefault();

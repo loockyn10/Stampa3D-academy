@@ -33,6 +33,7 @@ write(path.join(backendDir, pioneros.file.replace(/\.html$/, ".subject.txt")), `
 // ── Vista previa: variables de Supabase reemplazadas por datos de ejemplo ───────────────────────────────────────────
 const SAMPLE = {
   "{{ .ConfirmationURL }}": "https://abcdefghijkl.supabase.co/auth/v1/verify?token=pkce_3f9a1c0d7b2e4f65a8c91d0e&type=signup&redirect_to=https%3A%2F%2Funiverso-stampa.com%2Fauth%2Fcallback%3Fnext%3D%252F",
+  "{{ .TokenHash }}": "pkce_3f9a1c0d7b2e4f65a8c91d0e",
   "{{ .Email }}": "ana.perez@gmail.com",
   "{{ .NewEmail }}": "ana@miestudio3d.com",
   "{{ .SiteURL }}": "https://universo-stampa.com",
