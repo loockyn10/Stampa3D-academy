@@ -105,7 +105,8 @@ test("6. expired or cross-device confirmation link: clear message and a way to a
   assert.equal(callback.callbackFailurePath("/", "confirmed_elsewhere"), "/login?estado=email-confirmado");
   assert.equal(callback.callbackFailurePath("/sin-acceso", "confirmed_elsewhere"), "/login?estado=email-confirmado&returnTo=%2Fsin-acceso");
   assert.equal(callback.callbackFailurePath("/sin-acceso", "link_expired"), "/verificar-email?estado=enlace-vencido&returnTo=%2Fsin-acceso");
-  assert.equal(callback.callbackFailurePath("/actualizar-password", "confirmed_elsewhere"), "/recuperar-password?estado=enlace-invalido");
+  assert.equal(callback.callbackFailurePath("/actualizar-password", "confirmed_elsewhere"), "/recuperar-password?estado=otro-navegador");
+  assert.equal(callback.callbackFailurePath("/actualizar-password", "link_expired"), "/recuperar-password?estado=enlace-invalido");
   assert.match(src.callback, /callbackFailurePath\(next, reason\)/);
   assert.match(src.callback, /const reason = code \? 'confirmed_elsewhere'/);
   assert.doesNotMatch(src.callback, /auth-callback-failed/);
@@ -133,7 +134,8 @@ test("7. login: Spanish errors, unconfirmed email offers the resend, returns to 
 test("8. password recovery: neutral answer, Spanish errors, expired link notice, continues into the app", () => {
   assert.match(src.recover, /Si hay una cuenta con ese email, te enviamos un enlace/);
   assert.match(src.recover, /friendlyAuthError\(resetError, "recovery"\)/);
-  assert.match(src.recover, /estado"\) === "enlace-invalido"/);
+  assert.match(src.recover, /useSearchParams\(\)\.get\("estado"\)/);
+  assert.match(src.recover, /estado === "enlace-invalido"/);
   assert.doesNotMatch(src.recover, /setError\(resetError\.message\)/);
   assert.match(src.update, /friendlyAuthError\(updateError, "update_password"\)/);
   assert.equal(errors.friendlyAuthError({ code: "same_password" }, "update_password").message, "La nueva contraseña tiene que ser distinta de la anterior.");
@@ -299,4 +301,13 @@ test("17. mobile: access screens are single-column, full-height and touch-friend
   assert.match(src.onboarding, /min-h-11/, "44 px touch targets for the choices");
   assert.match(src.onboarding, /flex-col-reverse gap-3 border-t border-stampa-border pt-5 sm:flex-row/, "stacked buttons on phones");
   assert.match(src.layout, /pathname === "\/onboarding"/, "onboarding without app navigation");
+});
+
+test("recuperación de contraseña: enlace válido abierto en otro navegador no se presenta como vencido y el fallo queda en los logs", () => {
+  const page = readRepoFile("src/app/recuperar-password/page.tsx");
+  assert.match(page, /estado === "otro-navegador" \? OTHER_BROWSER_NOTICE/);
+  assert.match(page, /estado === "enlace-invalido" \? EXPIRED_LINK_NOTICE/);
+  assert.match(page, /No pudimos abrir el enlace en este navegador/);
+  // Solo el código de error de Supabase en el log: nunca el email, el code ni el texto.
+  assert.match(src.callback, /console\.error\('\[auth\/callback\] code exchange failed', callbackError\.code \?\? callbackError\.status \?\? 'unknown'\)/);
 });

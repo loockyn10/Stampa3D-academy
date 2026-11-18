@@ -14,7 +14,11 @@ function withReturnTo(path: string, next: string): string {
 
 /** Where an e-mail link that could not be exchanged for a session sends the person (no Supabase text in the URL). */
 export function callbackFailurePath(next: string, reason: CallbackFailureReason = "invalid"): string {
-  if (next === "/actualizar-password") return "/recuperar-password?estado=enlace-invalido";
+  if (next === "/actualizar-password") {
+    // With a `code` Supabase DID verify the link: it is not expired, this browser just cannot open the session (the PKCE
+    // verifier lives where the recovery was requested, e.g. the e-mail app's own browser) or the code was already used.
+    return reason === "confirmed_elsewhere" ? "/recuperar-password?estado=otro-navegador" : "/recuperar-password?estado=enlace-invalido";
+  }
   if (reason === "confirmed_elsewhere") return withReturnTo("/login?estado=email-confirmado", next);
   if (reason === "link_expired") return withReturnTo("/verificar-email?estado=enlace-vencido", next);
   return withReturnTo("/login?error=enlace-invalido", next);

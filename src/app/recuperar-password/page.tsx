@@ -15,6 +15,9 @@ import {
 } from "@/lib/auth/email-cooldown";
 
 const EXPIRED_LINK_NOTICE = "El enlace para cambiar la contraseña venció o ya se usó. Pedí uno nuevo.";
+/** The link was valid but could not be opened here (e-mail app's browser, another device, or a second click). */
+const OTHER_BROWSER_NOTICE =
+  "No pudimos abrir el enlace en este navegador. Abrilo en el mismo navegador y dispositivo desde donde pediste el cambio, o pedí uno nuevo acá y abrilo en este mismo lugar.";
 
 export default function RecuperarPasswordPage() {
   return (
@@ -25,7 +28,8 @@ export default function RecuperarPasswordPage() {
 }
 
 function RecuperarPasswordContent() {
-  const expiredLink = useSearchParams().get("estado") === "enlace-invalido";
+  const estado = useSearchParams().get("estado");
+  const linkNotice = estado === "otro-navegador" ? OTHER_BROWSER_NOTICE : estado === "enlace-invalido" ? EXPIRED_LINK_NOTICE : null;
   const [email, setEmail] = useState("");
   const [error, setError] = useState<string | null>(null);
   const [successMsg, setSuccessMsg] = useState<string | null>(null);
@@ -99,9 +103,9 @@ function RecuperarPasswordContent() {
           </p>
         </div>
 
-        {expiredLink && !successMsg && (
+        {linkNotice && !successMsg && (
           <div role="status" className="rounded-xl border border-amber-500/30 bg-amber-500/10 p-4 text-sm text-amber-500">
-            {EXPIRED_LINK_NOTICE}
+            {linkNotice}
           </div>
         )}
 

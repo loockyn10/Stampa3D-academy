@@ -12,6 +12,7 @@ export async function GET(request: Request) {
   const next = sanitizeReturnTo(searchParams.get('next'))
   const refFromUrl = searchParams.get('ref')
   const inviteFromUrl = searchParams.get('invite')
+  let callbackError: { code?: string; status?: number } | null = null
 
   if (code) {
     const cookieStore = await cookies()
@@ -31,6 +32,7 @@ export async function GET(request: Request) {
     )
 
     const { data: sessionData, error } = await supabase.auth.exchangeCodeForSession(code)
+    callbackError = error
 
     if (!error && sessionData?.user) {
       const userId = sessionData.user.id
@@ -122,6 +124,9 @@ export async function GET(request: Request) {
       return NextResponse.redirect(new URL(next, origin))
     }
   }
+
+  // Operator diagnosis (Vercel logs): only Supabase's error code/status, never the address, the code or its text.
+  if (code && callbackError) console.error('[auth/callback] code exchange failed', callbackError.code ?? callbackError.status ?? 'unknown')
 
   // Never forward Supabase's text: only our own codes. With a `code` Supabase already verified the link (the e-mail is
   // confirmed) and only this browser cannot open the session (PKCE verifier in another browser / device): sign in.
