@@ -207,13 +207,13 @@ function ConfiguracionContent() {
         {activeTab === "negocio" && <BusinessManager />}
         
         {activeTab === "calculadora" && (
-          // UX-01B: los formularios conservan un ancho de lectura; la grilla de tipos usa el ancho disponible.
+          // UX-01B / D061: formularios y lista de insumos conservan un ancho de lectura; la grilla de tipos usa todo el ancho.
           <div className="space-y-10">
             <div className="max-w-4xl">
               <SettingsManager />
             </div>
             {/* D059: «Ir a Insumos» lleva al catálogo de esta misma pantalla; ambos paneles se sincronizan solos. */}
-            <div id="tipos-de-producto" className="max-w-[90rem] scroll-mt-24">
+            <div id="tipos-de-producto" className="scroll-mt-24">
               <ProductTypesManager onOpenSupplies={scrollToSuppliesCatalog} />
             </div>
             <div className="max-w-4xl">

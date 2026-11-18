@@ -5,7 +5,7 @@ import { ConfigManager } from "@/components/admin/config-manager";
 
 export default function AdminConfigCursosPage() {
   return (
-    <div className="space-y-6 max-w-6xl mx-auto pb-12">
+    <div className="space-y-6 pb-12">
       <div>
         <Link
           href="/admin"

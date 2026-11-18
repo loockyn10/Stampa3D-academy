@@ -709,7 +709,7 @@ function CatalogoContent() {
           <p className="mt-1 text-sm text-gray-500">Probá con otro nombre, marca, categoría, SKU o código.</p>
         </Card>
       ) : (
-        <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-3">
+        <div className="grid grid-cards-lg gap-4">
           {filteredItems.map((item) => {
             const stock = resolveBusinessCatalogStock(item, products);
             const image = item.image_urls?.[0];

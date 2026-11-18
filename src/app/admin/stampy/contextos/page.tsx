@@ -132,7 +132,7 @@ export default function AdminStampyContextosPage() {
   };
 
   return (
-    <div className="space-y-6 max-w-5xl mx-auto">
+    <div className="space-y-6">
       <div>
         <div className="flex items-center gap-2 mb-2">
           <Link href="/admin" className="text-sm font-medium text-cyan-400 hover:text-cyan-300">Admin</Link>

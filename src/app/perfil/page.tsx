@@ -199,108 +199,113 @@ function PerfilContent() {
 
       {profile && (
         <div className="space-y-6">
-          <XpProgressCard totalXp={totalXp} recentActivity={xpActivity} />
-          <Card className="max-w-4xl p-5 sm:p-6">
-            <div className={`grid gap-5 border-b border-stampa-border pb-5 mb-5 ${showReferralCard ? "md:grid-cols-[minmax(0,1fr)_minmax(17rem,0.8fr)]" : ""}`}>
-              <div className="flex min-w-0 items-center gap-4 sm:items-start">
-                <div className="flex h-14 w-14 shrink-0 items-center justify-center rounded-full bg-orange-100 text-lg font-bold text-stampa-accent select-none uppercase sm:h-16 sm:w-16 sm:text-xl">
-                  {displayName.substring(0, 2) || "US"}
-                </div>
-                <div className="min-w-0 flex-1">
-                  <p className="truncate text-base font-bold text-fg">{displayName}</p>
-                  <p className="mb-1.5 truncate text-sm text-gray-400">{profile.email}</p>
-                  <div className="flex flex-wrap gap-2">
-                    {/* Beta access is not a plan: no "Activo / Nivel / meses" membership badges for beta-only users. */}
-                    {!showBetaOnlyBadges && (
-                      <>
-                        <Badge tone={isPaidMember ? "green" : "gray"} className="capitalize">
-                          {isPaidMember ? "Activo" : "Inactivo"}
-                        </Badge>
-                        <Badge tone="dark" className="capitalize">Nivel {profile.member_level || "member"}</Badge>
-                        <Badge tone="orange">{profile.active_months || calculateMonths(profile.membership_started_at || profile.created_at)} meses activo</Badge>
-                      </>
-                    )}
-
-                    {isBetaTester && (
-                      <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-semibold bg-cyan-500/10 text-cyan-300 border border-cyan-500/30">
-                        <span aria-hidden="true">🧪</span> Beta Tester
-                      </span>
-                    )}
-
-                    {isFounder && (
-                      <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-semibold bg-amber-500/10 text-amber-300 border border-amber-500/30">
-                        <Star size={11} /> Fundador #{founderData.founder_number}
-                      </span>
-                    )}
-                  </div>
-                </div>
-              </div>
-
-              {showReferralCard && (
-                <div className="min-w-0 rounded-2xl border border-violet-500/20 bg-violet-500/5 p-4">
-                  <div className="mb-3 flex items-center justify-between gap-3">
-                    <div className="flex min-w-0 items-center gap-2">
-                      <Users size={16} className="shrink-0 text-violet-400" />
-                      <h3 className="truncate text-sm font-bold text-fg">Tu código de referido</h3>
+          {/* Con espacio (≥ 72rem útiles) progreso y cuenta van lado a lado; en pantallas menores, uno debajo del otro. */}
+          <div className="@container">
+            <div className="grid grid-cols-1 gap-6 @6xl:grid-cols-2 @6xl:items-start">
+              <XpProgressCard totalXp={totalXp} recentActivity={xpActivity} />
+              <Card className="max-w-4xl p-5 sm:p-6">
+                <div className={`grid gap-5 border-b border-stampa-border pb-5 mb-5 ${showReferralCard ? "md:grid-cols-[minmax(0,1fr)_minmax(17rem,0.8fr)]" : ""}`}>
+                  <div className="flex min-w-0 items-center gap-4 sm:items-start">
+                    <div className="flex h-14 w-14 shrink-0 items-center justify-center rounded-full bg-orange-100 text-lg font-bold text-stampa-accent select-none uppercase sm:h-16 sm:w-16 sm:text-xl">
+                      {displayName.substring(0, 2) || "US"}
                     </div>
-                    <span className="shrink-0 font-mono text-base font-bold tracking-wider text-violet-200 select-all">
-                      {referralCode}
-                    </span>
+                    <div className="min-w-0 flex-1">
+                      <p className="truncate text-base font-bold text-fg">{displayName}</p>
+                      <p className="mb-1.5 truncate text-sm text-gray-400">{profile.email}</p>
+                      <div className="flex flex-wrap gap-2">
+                        {/* Beta access is not a plan: no "Activo / Nivel / meses" membership badges for beta-only users. */}
+                        {!showBetaOnlyBadges && (
+                          <>
+                            <Badge tone={isPaidMember ? "green" : "gray"} className="capitalize">
+                              {isPaidMember ? "Activo" : "Inactivo"}
+                            </Badge>
+                            <Badge tone="dark" className="capitalize">Nivel {profile.member_level || "member"}</Badge>
+                            <Badge tone="orange">{profile.active_months || calculateMonths(profile.membership_started_at || profile.created_at)} meses activo</Badge>
+                          </>
+                        )}
+
+                        {isBetaTester && (
+                          <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-semibold bg-cyan-500/10 text-cyan-300 border border-cyan-500/30">
+                            <span aria-hidden="true">🧪</span> Beta Tester
+                          </span>
+                        )}
+
+                        {isFounder && (
+                          <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-semibold bg-amber-500/10 text-amber-300 border border-amber-500/30">
+                            <Star size={11} /> Fundador #{founderData.founder_number}
+                          </span>
+                        )}
+                      </div>
+                    </div>
                   </div>
 
-                  <div className="flex min-w-0 flex-col gap-2 sm:flex-row lg:flex-col xl:flex-row">
-                    <code className="min-w-0 flex-1 truncate rounded-lg border border-stampa-border bg-stampa-bg-soft px-3 py-2 text-xs text-gray-300">
-                      {APP_BASE_URL}/registro?ref={referralCode}
-                    </code>
-                    <button
-                      onClick={handleCopy}
-                      className={`flex shrink-0 items-center justify-center gap-1.5 rounded-lg border px-3 py-2 text-xs font-semibold transition-colors motion-reduce:transition-none ${
-                        copied
-                          ? "border-green-500/30 bg-green-500/10 text-green-400"
-                          : "border-violet-500/30 bg-violet-500/10 text-violet-300 hover:bg-violet-500/20"
-                      }`}
-                    >
-                      {copied ? <><Check size={13} /> Copiado</> : <><Copy size={13} /> Copiar link</>}
-                    </button>
-                  </div>
+                  {showReferralCard && (
+                    <div className="min-w-0 rounded-2xl border border-violet-500/20 bg-violet-500/5 p-4">
+                      <div className="mb-3 flex items-center justify-between gap-3">
+                        <div className="flex min-w-0 items-center gap-2">
+                          <Users size={16} className="shrink-0 text-violet-400" />
+                          <h3 className="truncate text-sm font-bold text-fg">Tu código de referido</h3>
+                        </div>
+                        <span className="shrink-0 font-mono text-base font-bold tracking-wider text-violet-200 select-all">
+                          {referralCode}
+                        </span>
+                      </div>
 
-                  <p className="mt-3 text-xs leading-relaxed text-gray-500">
-                    Quien se registra con tu enlace queda vinculado como invitación. Las participaciones extra en sorteos se ven en Sorteos cuando se acreditan a tu cuenta.
-                  </p>
+                      <div className="flex min-w-0 flex-col gap-2 sm:flex-row lg:flex-col xl:flex-row">
+                        <code className="min-w-0 flex-1 truncate rounded-lg border border-stampa-border bg-stampa-bg-soft px-3 py-2 text-xs text-gray-300">
+                          {APP_BASE_URL}/registro?ref={referralCode}
+                        </code>
+                        <button
+                          onClick={handleCopy}
+                          className={`flex shrink-0 items-center justify-center gap-1.5 rounded-lg border px-3 py-2 text-xs font-semibold transition-colors motion-reduce:transition-none ${
+                            copied
+                              ? "border-green-500/30 bg-green-500/10 text-green-400"
+                              : "border-violet-500/30 bg-violet-500/10 text-violet-300 hover:bg-violet-500/20"
+                          }`}
+                        >
+                          {copied ? <><Check size={13} /> Copiado</> : <><Copy size={13} /> Copiar link</>}
+                        </button>
+                      </div>
 
-                  {(referralStats.pending > 0 || referralStats.converted > 0) && (
-                    <div className="mt-3 flex flex-wrap gap-x-4 gap-y-1 border-t border-stampa-border pt-3 text-xs text-gray-500">
-                      {referralStats.pending > 0 && <span><strong className="text-fg">{referralStats.pending}</strong> pendientes</span>}
-                      {referralStats.converted > 0 && <span><strong className="text-green-400">{referralStats.converted}</strong> convertidos</span>}
+                      <p className="mt-3 text-xs leading-relaxed text-gray-500">
+                        Quien se registra con tu enlace queda vinculado como invitación. Las participaciones extra en sorteos se ven en Sorteos cuando se acreditan a tu cuenta.
+                      </p>
+
+                      {(referralStats.pending > 0 || referralStats.converted > 0) && (
+                        <div className="mt-3 flex flex-wrap gap-x-4 gap-y-1 border-t border-stampa-border pt-3 text-xs text-gray-500">
+                          {referralStats.pending > 0 && <span><strong className="text-fg">{referralStats.pending}</strong> pendientes</span>}
+                          {referralStats.converted > 0 && <span><strong className="text-green-400">{referralStats.converted}</strong> convertidos</span>}
+                        </div>
+                      )}
                     </div>
                   )}
                 </div>
-              )}
+
+                {(subscription || profile.membership_status === "active") && (
+                  <div className="mb-6">
+                    {/* Plan, renovación, estado de pago y cancelación (también para cuentas sin acceso Premium). */}
+                    <MembershipPanel compact />
+                  </div>
+                )}
+
+                {/* Beta Tester notice */}
+                {isBetaTester && (
+                  <div className="mb-4 p-4 rounded-xl border border-cyan-500/20 bg-cyan-500/5 text-sm">
+                    <div className="flex items-center gap-2 mb-1">
+                      <Shield size={14} className="text-cyan-400" />
+                      <span className="font-semibold text-cyan-300">Acceso Beta Tester</span>
+                    </div>
+                    <p className="text-gray-400 text-xs">
+                      Tenés acceso completo a Academia Stampa como beta tester. No es una suscripción.
+                      {betaGrant.expires_at && ` Tu acceso Beta vence el ${new Date(betaGrant.expires_at).toLocaleDateString("es-AR")}.`}
+                    </p>
+                  </div>
+                )}
+
+                {canRedeemBetaCode && <BetaCodeRedeemCard redirectTo="/perfil" />}
+              </Card>
             </div>
-
-            {(subscription || profile.membership_status === "active") && (
-              <div className="mb-6">
-                {/* Plan, renovación, estado de pago y cancelación (también para cuentas sin acceso Premium). */}
-                <MembershipPanel compact />
-              </div>
-            )}
-
-            {/* Beta Tester notice */}
-            {isBetaTester && (
-              <div className="mb-4 p-4 rounded-xl border border-cyan-500/20 bg-cyan-500/5 text-sm">
-                <div className="flex items-center gap-2 mb-1">
-                  <Shield size={14} className="text-cyan-400" />
-                  <span className="font-semibold text-cyan-300">Acceso Beta Tester</span>
-                </div>
-                <p className="text-gray-400 text-xs">
-                  Tenés acceso completo a Academia Stampa como beta tester. No es una suscripción.
-                  {betaGrant.expires_at && ` Tu acceso Beta vence el ${new Date(betaGrant.expires_at).toLocaleDateString("es-AR")}.`}
-                </p>
-              </div>
-            )}
-
-            {canRedeemBetaCode && <BetaCodeRedeemCard redirectTo="/perfil" />}
-          </Card>
+          </div>
 
           <AccountManager />
 

@@ -150,7 +150,7 @@ export default function CursosPage() {
           <div>
           <h2 className="mb-4 text-xl font-bold text-fg sm:mb-6 sm:text-2xl">Todos los cursos</h2>
           {filteredCourses.length > 0 ? (
-            <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 sm:gap-6 lg:grid-cols-3">
+            <div className="grid grid-cards-lg gap-4 sm:gap-6">
               {filteredCourses.map((c) => (
                 <CourseCard key={c.id} course={c} />
               ))}

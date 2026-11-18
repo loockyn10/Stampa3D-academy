@@ -168,7 +168,7 @@ export function StlCategoriesManager() {
   if (loading) return <div className="py-12 flex justify-center"><Loader2 className="animate-spin text-stampa-accent" /></div>;
 
   return (
-    <div className="max-w-3xl">
+    <div className="@container">
       {error && (
         <div className="mb-6 flex items-center gap-2 rounded-lg border border-red-100 bg-red-50 p-4 text-sm text-red-600">
           <AlertCircle className="h-4 w-4" /> {error}
@@ -187,12 +187,13 @@ export function StlCategoriesManager() {
           </button>
         </div>
 
-        <div className="space-y-3">
-          {editingId === "new" && renderForm(true)}
+        {/* D061: con espacio (≥ 64rem) los grupos van en dos columnas; el formulario ocupa su propia fila con ancho de lectura. */}
+        <div className="grid grid-cols-1 gap-3 @5xl:grid-cols-2">
+          {editingId === "new" && <div className="max-w-3xl @5xl:col-span-2">{renderForm(true)}</div>}
 
           {groups.map((group) =>
             editingId === group.id ? (
-              <div key={group.id}>{renderForm(false)}</div>
+              <div key={group.id} className="max-w-3xl @5xl:col-span-2">{renderForm(false)}</div>
             ) : (
               <div key={group.id} className="flex items-center justify-between gap-3 rounded-lg border border-stampa-border p-3 transition-colors hover:bg-stampa-bg-soft">
                 <div className="flex min-w-0 items-center gap-3">

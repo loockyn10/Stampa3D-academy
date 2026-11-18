@@ -305,6 +305,20 @@ html[data-sidebar="collapsed"] .app-sidebar .app-sidebar-item[aria-current="page
   }
 }
 
+/*
+ * Grillas de tarjetas (D061): las columnas salen del ancho real del área de contenido (sidebar abierto o
+ * contraído), no del viewport. Una sola columna en celulares; en monitores grandes suman columnas en lugar de
+ * estirar cada tarjeta. Mismo criterio que Productos, Inventario y Tipos de producto.
+ */
+@utility grid-cards {
+  grid-template-columns: repeat(auto-fill, minmax(min(100%, 17.5rem), 1fr));
+}
+
+/* Tarjetas con portada o mucho texto (cursos, herramientas, enlaces): 2 columnas desde ~700 px útiles. */
+@utility grid-cards-lg {
+  grid-template-columns: repeat(auto-fill, minmax(min(100%, 20rem), 1fr));
+}
+
 /* Mobile app shell */
 .mobile-shell-content {
   padding-bottom: calc(var(--mobile-bottom-navigation-height) + env(safe-area-inset-bottom) + 1.5rem);

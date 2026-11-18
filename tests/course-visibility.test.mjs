@@ -441,7 +441,7 @@ test("tarjeta en preparación: portada, candado, insignia, título, descripción
 
   const section = renderToStaticMarkup(h(ComingSoonSection, { courses: [{ id: "c1", title: "A" }, { id: "c2", title: "B" }] }));
   assert.match(section, /Próximamente en Academia/);
-  assert.match(section, /grid-cols-1[^"]*sm:grid-cols-2[^"]*lg:grid-cols-3/);
+  assert.match(section, /grid grid-cards-lg gap-6/);
   assert.equal(renderToStaticMarkup(h(ComingSoonSection, { courses: [] })), "");
 
   const screen = renderToStaticMarkup(h(CourseComingSoonScreen, { course: { title: "Resina avanzada", description: "d", courseKind: "workshop" } }));
@@ -455,7 +455,7 @@ test("responsive: sin ancho fijo, áreas táctiles ≥ 44 px en acciones y grill
   const source = read("src/components/academy/coming-soon.tsx");
   assert.doesNotMatch(source, /\bw-\[\d{3,}px\]|min-w-\[\d{3,}px\]/);
   assert.match(source, /min-h-11/);
-  assert.match(source, /grid-cols-1 gap-6 sm:grid-cols-2 lg:grid-cols-3/);
+  assert.match(source, /grid grid-cards-lg gap-6/, "D061: columnas según el ancho disponible; una sola en celulares");
   assert.match(source, /max-w-3xl/);
   const selector = read("src/components/admin/course-visibility.tsx");
   assert.match(selector, /grid-cols-1 gap-3 sm:grid-cols-3/);

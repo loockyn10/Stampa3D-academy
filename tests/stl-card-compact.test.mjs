@@ -135,7 +135,8 @@ test("10. cards de una fila: grid responsive intacto, card h-full y pie con mt-a
   assert.match(html, /flex h-full flex-col overflow-hidden/);
   assert.match(html, /mt-auto flex flex-wrap items-center justify-between/);
   for (const page of ["src/app/libreria-stl/page.tsx", "src/app/libreria-stl/[group]/page.tsx"]) {
-    assert.match(read(page), /grid grid-cols-1 gap-5 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4/);
+    // D061: columnas según el ancho disponible (utilidad compartida `grid-cards`), no según el viewport.
+    assert.match(read(page), /grid grid-cards gap-5/);
   }
 });
 

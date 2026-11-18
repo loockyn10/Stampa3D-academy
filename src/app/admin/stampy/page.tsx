@@ -99,7 +99,7 @@ export default async function AdminStampyDashboardPage() {
 
 
   return (
-    <div className="space-y-6 max-w-6xl mx-auto">
+    <div className="space-y-6">
       <div>
         <div className="flex items-center gap-2 mb-2">
           <Link href="/admin" className="text-sm font-medium text-blue-400 hover:text-blue-500">

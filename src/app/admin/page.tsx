@@ -14,7 +14,7 @@ export default function AdminDashboardPage() {
 
       <PriceScheduleAlertBanner />
 
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5">
+      <div className="grid grid-cards gap-5">
         <Link href="/admin/funcionalidades" className="block group">
           <div className="bg-stampa-surface p-6 rounded-2xl border border-stampa-orange/30 shadow-lg shadow-shade/20 hover:border-stampa-orange/60 transition-all h-full relative overflow-hidden">
             <div className="absolute top-0 right-0 w-24 h-24 bg-stampa-orange/10 rounded-full blur-2xl group-hover:bg-stampa-orange/20 transition-colors -translate-y-1/2 translate-x-1/2"></div>

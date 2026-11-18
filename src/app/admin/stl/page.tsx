@@ -4,7 +4,7 @@ import { Boxes, Tags, Box } from "lucide-react";
 
 export default function AdminStlDashboardPage() {
   return (
-    <div className="space-y-6 max-w-5xl mx-auto">
+    <div className="space-y-6">
       <div>
         <div className="flex items-center gap-2 mb-2">
           <Link href="/admin" className="text-sm font-medium text-emerald-600 hover:text-emerald-500">

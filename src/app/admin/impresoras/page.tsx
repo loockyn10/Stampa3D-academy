@@ -221,7 +221,7 @@ export default function AdminPrintersPage() {
   if (loading) return <div className="py-24 flex justify-center"><Loader2 className="animate-spin h-8 w-8 text-stampa-accent" /></div>;
 
   return (
-    <div className="max-w-5xl mx-auto space-y-6">
+    <div className="space-y-6">
       <div className="flex justify-between items-center">
         <div>
           <h1 className="text-2xl font-bold text-fg">Catálogo Global de Impresoras</h1>

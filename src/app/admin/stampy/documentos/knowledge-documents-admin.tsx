@@ -227,7 +227,7 @@ export function KnowledgeDocumentsAdmin({
   };
 
   return (
-    <div className="mx-auto max-w-6xl space-y-6 pb-12">
+    <div className="space-y-6 pb-12">
       <div>
         <div className="mb-2 flex items-center gap-2 text-sm">
           <Link href="/admin/stampy" className="font-medium text-cyan-400 hover:text-cyan-300">Stampy</Link>
@@ -251,7 +251,7 @@ export function KnowledgeDocumentsAdmin({
           <h2 className="font-bold text-fg">Subir PDF</h2>
           <p className="text-xs text-gray-500">Sólo PDF con texto seleccionable. Máximo 20 MB. OCR no está habilitado.</p>
         </div>
-        <div className="grid gap-3 md:grid-cols-2">
+        <div className="grid grid-cols-1 gap-3 md:grid-cols-2">
           <input value={title} onChange={(event) => setTitle(event.target.value)} placeholder="Título" maxLength={180} className="rounded-xl border border-stampa-border bg-fg/5 px-3 py-2 text-sm text-fg outline-none focus:border-cyan-500/50" />
           <input type="file" accept="application/pdf,.pdf" onChange={(event) => setFile(event.target.files?.[0] ?? null)} className="rounded-xl border border-stampa-border bg-fg/5 px-3 py-2 text-sm text-gray-300" />
           <textarea value={description} onChange={(event) => setDescription(event.target.value)} placeholder="Descripción opcional" maxLength={1000} rows={3} className="rounded-xl border border-stampa-border bg-fg/5 px-3 py-2 text-sm text-fg outline-none focus:border-cyan-500/50 md:col-span-2" />

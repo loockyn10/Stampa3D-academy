@@ -152,7 +152,7 @@ export default function LibreriaStlPage() {
         searchResults.length === 0 ? (
           <EmptyBlock title="No hay resultados para tu búsqueda" text="Intentá con otras palabras clave o explorá los grupos." onReset={() => setQuery("")} />
         ) : (
-          <div className="grid grid-cols-1 gap-5 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
+          <div className="grid grid-cards gap-5">
             {searchResults.map((model) => {
               const group = resolveGroupSegment(groups, model.category_id ?? UNGROUPED_GROUP_SLUG);
               const groupLike = { id: model.category_id, slug: group?.slug ?? null };
@@ -170,7 +170,7 @@ export default function LibreriaStlPage() {
       ) : summaries.length === 0 ? (
         <EmptyBlock title="Todavía no hay grupos publicados" text="Cuando se carguen modelos, van a aparecer acá organizados por grupo." />
       ) : (
-        <div className="grid grid-cols-1 gap-4 min-[480px]:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
+        <div className="grid grid-cards gap-4">
           {summaries.map((group) => (
             <StlGroupCard key={group.id ?? group.slug} group={group} />
           ))}

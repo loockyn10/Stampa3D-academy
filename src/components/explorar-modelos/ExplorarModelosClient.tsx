@@ -386,7 +386,7 @@ export function ExplorarModelosClient({ providers }: { providers: ProviderInfo[]
         </header>
       )}
 
-      <div className="mx-auto w-full max-w-6xl px-4 py-3 sm:py-4">
+      <div className="mx-auto w-full max-w-[100rem] px-4 py-3 sm:py-4">
         {/* El header global ya muestra el nombre de la sección: el título queda solo para lectores de pantalla. */}
         <h1 className="sr-only">Explorar Modelos: encontrá modelos 3D en distintas plataformas desde un solo lugar</h1>
 
@@ -524,7 +524,7 @@ export function ExplorarModelosClient({ providers }: { providers: ProviderInfo[]
           )}
 
           {busy && (
-            <div className="grid grid-cols-1 gap-4 min-[480px]:grid-cols-2 lg:grid-cols-3">
+            <div className="grid grid-cards gap-4">
               {Array.from({ length: 6 }, (_, index) => <ResultSkeleton key={index} />)}
             </div>
           )}
@@ -576,7 +576,7 @@ export function ExplorarModelosClient({ providers }: { providers: ProviderInfo[]
               <p className="mb-3 text-xs text-gray-500">
                 {results.length} {results.length === 1 ? "modelo" : "modelos"} de {labels(contributingSources)}
               </p>
-              <div className="grid grid-cols-1 gap-4 min-[480px]:grid-cols-2 lg:grid-cols-3">
+              <div className="grid grid-cards gap-4">
                 {results.map((result) => (
                   <ModelResultCard key={`${result.source}:${result.externalId}`} result={result} canCalculate={tier === "paid"} />
                 ))}

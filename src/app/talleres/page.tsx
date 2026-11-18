@@ -149,7 +149,7 @@ export default function TalleresPage() {
           {catalog.published.length > 0 && (
           <div>
           {filteredCourses.length > 0 ? (
-            <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 sm:gap-6 lg:grid-cols-3">
+            <div className="grid grid-cards-lg gap-4 sm:gap-6">
               {filteredCourses.map((c) => (
                 <CourseCard key={c.id} course={c} />
               ))}

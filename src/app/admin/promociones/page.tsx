@@ -67,7 +67,7 @@ export default function AdminPromocionesPage() {
   }, []);
 
   return (
-    <div className="mx-auto max-w-6xl space-y-6 pb-12">
+    <div className="space-y-6 pb-12">
       <div>
         <div className="mb-2 flex items-center gap-2 text-sm">
           <Link href="/admin" className="font-medium text-orange-400 hover:text-orange-300">Admin</Link>

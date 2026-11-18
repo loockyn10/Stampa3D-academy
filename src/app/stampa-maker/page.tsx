@@ -46,7 +46,7 @@ export default async function StampaMakerPage() {
         Herramientas para generar geometría 3D imprimible a partir de parámetros simples. Elegí una herramienta para empezar.
       </p>
 
-      <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+      <div className="grid grid-cards-lg gap-4">
         {tools.map((tool) => {
           const Icon = tool.icon;
           return (

@@ -5,7 +5,7 @@ import { StlCategoriesManager } from "@/components/admin/stl-categories-manager"
 
 export default function AdminStlCategoriesPage() {
   return (
-    <div className="space-y-6 max-w-6xl mx-auto pb-12">
+    <div className="space-y-6 pb-12">
       <div>
         <Link
           href="/admin/stl"

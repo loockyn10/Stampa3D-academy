@@ -75,7 +75,7 @@ export function CommunityLinkCard({ link, preview = false }: { link: CommunityLi
 
 export function CommunityLinksGrid({ links, preview = false }: { links: CommunityLink[]; preview?: boolean }) {
   return (
-    <div className="grid grid-cols-1 gap-6 md:grid-cols-2">
+    <div className="grid grid-cards-lg gap-6">
       {links.map((link) => (
         <CommunityLinkCard key={link.id} link={link} preview={preview} />
       ))}
@@ -118,7 +118,7 @@ export function CommunityLinksView({ links, kind, route, title, intro, emptyTitl
   usePublishStampyScreenContext(stampyScreenContext);
 
   return (
-    <div className="max-w-5xl pb-12">
+    <div className="pb-12">
       <SectionTitle eyebrow="Comunidad" title={title} />
       <p className="-mt-3 mb-8 text-sm text-gray-500">{intro}</p>
 

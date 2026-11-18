@@ -10,7 +10,7 @@ export default async function AdminRedesCanalesPage() {
   const initial = await loadCommunityLinksAdminAction();
 
   return (
-    <div className="mx-auto max-w-4xl space-y-6 pb-12">
+    <div className="space-y-6 pb-12">
       <div>
         <div className="mb-2 flex items-center gap-2">
           <Link href="/admin" className="text-sm font-medium text-stampa-accent hover:text-orange-300">

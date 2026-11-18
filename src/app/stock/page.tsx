@@ -1083,7 +1083,7 @@ export function StockPageContent({ workshopSection }: { workshopSection?: Worksh
       {workshopSection === "filaments" && (
         <WorkshopToolbar summary={workshopCountLabel(filteredFilaments.length, filaments.length, "filamento", "filamentos")}>
           <WorkshopSearchField value={filamentSearch} onChange={setFilamentSearch} placeholder="Buscar filamentos..." label="Buscar filamentos" />
-          <div className="grid w-full grid-cols-1 gap-3 sm:grid-cols-2 lg:flex lg:w-auto">
+          <div className="grid w-full grid-cols-1 gap-3 sm:grid-cols-2 @3xl:flex @3xl:w-auto">
             <div className="min-w-[150px]">
               <CalculatorSelect
                 options={[{ value: "all", label: "Todos los materiales" }, ...uniqueMaterials.map((material: any) => ({ value: material, label: material }))]}

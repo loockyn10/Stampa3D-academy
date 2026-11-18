@@ -122,7 +122,7 @@ export default function AdminCalculadoraPage() {
   if (loading) return <div className="py-12 flex justify-center"><Loader2 className="animate-spin text-stampa-accent" /></div>;
 
   return (
-    <div className="max-w-6xl mx-auto space-y-6">
+    <div className="space-y-6">
       <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
         <div>
           <h1 className="text-2xl font-bold text-fg tracking-tight">Tipos de producto por defecto</h1>

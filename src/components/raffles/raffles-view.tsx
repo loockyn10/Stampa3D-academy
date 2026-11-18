@@ -220,7 +220,7 @@ export function RafflesView({
       {finishedRaffles.length > 0 && (
         <section aria-labelledby="finished-raffles-title">
           <h2 id="finished-raffles-title" className="mb-3 text-base font-bold text-fg">Sorteos finalizados</h2>
-          <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3">
+          <div className="grid grid-cards gap-3">
             {finishedRaffles.map((raffle) => (
               <article key={raffle.key} className="rounded-xl border border-stampa-border bg-stampa-surface p-3.5">
                 <div className="flex items-start justify-between gap-2">

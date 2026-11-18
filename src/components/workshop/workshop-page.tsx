@@ -49,6 +49,9 @@ export function WorkshopPageHeader({
  * - `children`: controles de la fila principal (buscador, selectores, «Limpiar»), todos de 44 px de alto;
  * - `summary`: conteo del contenido («5 productos», «2 de 8 filamentos»);
  * - `extra`: segunda fila para filtros en chips o avisos de filtro activo.
+ *
+ * D061: la fila (buscador + filtros + resumen) depende del ancho del propio panel, no del viewport: con el
+ * sidebar abierto a 1024 px quedan ~700 px y la fila no entra.
  */
 export function WorkshopToolbar({
   children,
@@ -60,11 +63,11 @@ export function WorkshopToolbar({
   extra?: React.ReactNode;
 }) {
   return (
-    <section aria-label="Búsqueda y filtros" className="mb-5 flex flex-col justify-center rounded-2xl border border-stampa-border bg-stampa-surface p-3 sm:min-h-[4.75rem] sm:p-4">
-      {(children || summary) && <div className="flex flex-col gap-3 lg:flex-row lg:items-center">
+    <section aria-label="Búsqueda y filtros" className="@container mb-5 flex flex-col justify-center rounded-2xl border border-stampa-border bg-stampa-surface p-3 sm:min-h-[4.75rem] sm:p-4">
+      {(children || summary) && <div className="flex flex-col gap-3 @3xl:flex-row @3xl:items-center">
         {children}
         {summary && (
-          <p role="status" className={`text-xs font-semibold text-gray-400 lg:whitespace-nowrap ${children ? "lg:ml-auto lg:min-w-[7.5rem] lg:text-right" : ""}`}>
+          <p role="status" className={`text-xs font-semibold text-gray-400 @3xl:whitespace-nowrap ${children ? "@3xl:ml-auto @3xl:min-w-[7.5rem] @3xl:text-right" : ""}`}>
             {summary}
           </p>
         )}
@@ -87,7 +90,7 @@ export function WorkshopSearchField({
   label?: string;
 }) {
   return (
-    <div className="relative w-full lg:min-w-[14rem] lg:flex-1">
+    <div className="relative w-full @3xl:min-w-[14rem] @3xl:flex-1">
       <Search className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" size={18} aria-hidden="true" />
       <input
         type="text"

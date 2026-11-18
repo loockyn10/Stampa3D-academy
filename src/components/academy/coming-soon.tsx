@@ -113,7 +113,7 @@ export function ComingSoonSection({
         </h2>
         <p className="mt-1 text-sm text-gray-400">{subtitle}</p>
       </div>
-      <div className="grid grid-cols-1 gap-6 sm:grid-cols-2 lg:grid-cols-3">
+      <div className="grid grid-cards-lg gap-6">
         {courses.map((course, index) => (
           <ComingSoonCourseCard key={course.id ?? index} course={course} />
         ))}

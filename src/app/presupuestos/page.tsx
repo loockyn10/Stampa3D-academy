@@ -1507,7 +1507,7 @@ function PresupuestosPageContent() {
 
       {/* LISTADO DE PRESUPUESTOS */}
       {!editingId && budgets.length > 0 && (
-        <div className="grid grid-cols-1 gap-5 sm:grid-cols-2 lg:grid-cols-3">
+        <div className="grid grid-cards-lg gap-5">
           {budgets.map((b) => {
             const statusConf = STATUS_MAP[b.status as keyof typeof STATUS_MAP] || { label: b.status, color: "gray" };
             const statusClasses = {
@@ -1521,7 +1521,7 @@ function PresupuestosPageContent() {
               <Card key={b.id} className="p-0 flex flex-col justify-between bg-stampa-surface border-stampa-border hover:border-fg/20 transition-all overflow-hidden group">
                 <div className="p-5 flex-1">
                   <div className="flex justify-between items-start mb-4">
-                    <div className="pr-2">
+                    <div className="min-w-0 pr-2">
                       <h4 className="font-bold text-fg text-base truncate mb-1 group-hover:text-stampa-accent transition-colors">{b.title || "Sin título"}</h4>
                       <p className="text-xs font-medium text-gray-500 flex items-center gap-1.5"><UserPlus size={12} /> {b.clients?.name || "Cliente eliminado"}</p>
                       <span className="mt-2 inline-flex items-center gap-1 rounded-md border border-stampa-border bg-stampa-bg-soft px-2 py-0.5 text-[10px] font-bold uppercase tracking-wider text-gray-500">

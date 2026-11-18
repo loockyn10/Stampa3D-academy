@@ -1,6 +1,6 @@
 export default function Loading() {
   return (
-    <div className="mx-auto max-w-4xl space-y-6 pb-12" aria-busy="true" aria-label="Cargando funcionalidades">
+    <div className="space-y-6 pb-12" aria-busy="true" aria-label="Cargando funcionalidades">
       <div className="h-16 animate-pulse rounded-2xl bg-stampa-surface" />
       <div className="h-8 w-64 animate-pulse rounded-lg bg-stampa-surface" />
       <div className="divide-y divide-stampa-border overflow-hidden rounded-2xl border border-stampa-border bg-stampa-surface">

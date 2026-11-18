@@ -116,7 +116,7 @@ export default function LibreriaStlGroupPage({ params }: PageProps) {
         {group.description && <p className="mt-3 max-w-2xl text-sm text-gray-400">{group.description}</p>}
       </div>
 
-      <div className="grid grid-cols-1 gap-5 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
+      <div className="grid grid-cards gap-5">
         {groupModels.map((model) => (
           <StlModelCard
             key={model.id}
